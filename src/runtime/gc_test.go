@@ -5,9 +5,12 @@
 package runtime_test
 
 import (
+	"fmt"
 	"os"
+	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
@@ -17,58 +20,12 @@ func TestGcSys(t *testing.T) {
 	if os.Getenv("GOGC") == "off" {
 		t.Skip("skipping test; GOGC=off in environment")
 	}
-	data := struct{ Short bool }{testing.Short()}
-	got := executeTest(t, testGCSysSource, &data)
+	got := runTestProg(t, "testprog", "GCSys")
 	want := "OK\n"
 	if got != want {
 		t.Fatalf("expected %q, but got %q", want, got)
 	}
 }
-
-const testGCSysSource = `
-package main
-
-import (
-	"fmt"
-	"runtime"
-)
-
-func main() {
-	runtime.GOMAXPROCS(1)
-	memstats := new(runtime.MemStats)
-	runtime.GC()
-	runtime.ReadMemStats(memstats)
-	sys := memstats.Sys
-
-	runtime.MemProfileRate = 0 // disable profiler
-
-	itercount := 1000000
-{{if .Short}}
-	itercount = 100000
-{{end}}
-	for i := 0; i < itercount; i++ {
-		workthegc()
-	}
-
-	// Should only be using a few MB.
-	// We allocated 100 MB or (if not short) 1 GB.
-	runtime.ReadMemStats(memstats)
-	if sys > memstats.Sys {
-		sys = 0
-	} else {
-		sys = memstats.Sys - sys
-	}
-	if sys > 16<<20 {
-		fmt.Printf("using too much memory: %d bytes\n", sys)
-		return
-	}
-	fmt.Printf("OK\n")
-}
-
-func workthegc() []byte {
-	return make([]byte, 1029)
-}
-`
 
 func TestGcDeepNesting(t *testing.T) {
 	type T [2][2][2][2][2][2][2][2][2][2]*int
@@ -86,7 +43,7 @@ func TestGcDeepNesting(t *testing.T) {
 	}
 }
 
-func TestGcHashmapIndirection(t *testing.T) {
+func TestGcMapIndirection(t *testing.T) {
 	defer debug.SetGCPercent(debug.SetGCPercent(1))
 	runtime.GC()
 	type T struct {
@@ -197,45 +154,197 @@ func TestHugeGCInfo(t *testing.T) {
 	}
 }
 
-func BenchmarkSetTypeNoPtr1(b *testing.B) {
-	type NoPtr1 struct {
-		p uintptr
+func TestPeriodicGC(t *testing.T) {
+	// Make sure we're not in the middle of a GC.
+	runtime.GC()
+
+	var ms1, ms2 runtime.MemStats
+	runtime.ReadMemStats(&ms1)
+
+	// Make periodic GC run continuously.
+	orig := *runtime.ForceGCPeriod
+	*runtime.ForceGCPeriod = 0
+
+	// Let some periodic GCs happen. In a heavily loaded system,
+	// it's possible these will be delayed, so this is designed to
+	// succeed quickly if things are working, but to give it some
+	// slack if things are slow.
+	var numGCs uint32
+	const want = 2
+	for i := 0; i < 200 && numGCs < want; i++ {
+		time.Sleep(5 * time.Millisecond)
+
+		// Test that periodic GC actually happened.
+		runtime.ReadMemStats(&ms2)
+		numGCs = ms2.NumGC - ms1.NumGC
 	}
-	var p *NoPtr1
-	for i := 0; i < b.N; i++ {
-		p = &NoPtr1{}
+	*runtime.ForceGCPeriod = orig
+
+	if numGCs < want {
+		t.Fatalf("no periodic GC: got %v GCs, want >= 2", numGCs)
 	}
-	_ = p
 }
-func BenchmarkSetTypeNoPtr2(b *testing.B) {
-	type NoPtr2 struct {
-		p, q uintptr
-	}
-	var p *NoPtr2
-	for i := 0; i < b.N; i++ {
-		p = &NoPtr2{}
-	}
-	_ = p
+
+func BenchmarkSetTypePtr(b *testing.B) {
+	benchSetType(b, new(*byte))
 }
-func BenchmarkSetTypePtr1(b *testing.B) {
-	type Ptr1 struct {
-		p *byte
-	}
-	var p *Ptr1
-	for i := 0; i < b.N; i++ {
-		p = &Ptr1{}
-	}
-	_ = p
+
+func BenchmarkSetTypePtr8(b *testing.B) {
+	benchSetType(b, new([8]*byte))
 }
-func BenchmarkSetTypePtr2(b *testing.B) {
-	type Ptr2 struct {
-		p, q *byte
+
+func BenchmarkSetTypePtr16(b *testing.B) {
+	benchSetType(b, new([16]*byte))
+}
+
+func BenchmarkSetTypePtr32(b *testing.B) {
+	benchSetType(b, new([32]*byte))
+}
+
+func BenchmarkSetTypePtr64(b *testing.B) {
+	benchSetType(b, new([64]*byte))
+}
+
+func BenchmarkSetTypePtr126(b *testing.B) {
+	benchSetType(b, new([126]*byte))
+}
+
+func BenchmarkSetTypePtr128(b *testing.B) {
+	benchSetType(b, new([128]*byte))
+}
+
+func BenchmarkSetTypePtrSlice(b *testing.B) {
+	benchSetType(b, make([]*byte, 1<<10))
+}
+
+type Node1 struct {
+	Value       [1]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode1(b *testing.B) {
+	benchSetType(b, new(Node1))
+}
+
+func BenchmarkSetTypeNode1Slice(b *testing.B) {
+	benchSetType(b, make([]Node1, 32))
+}
+
+type Node8 struct {
+	Value       [8]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode8(b *testing.B) {
+	benchSetType(b, new(Node8))
+}
+
+func BenchmarkSetTypeNode8Slice(b *testing.B) {
+	benchSetType(b, make([]Node8, 32))
+}
+
+type Node64 struct {
+	Value       [64]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode64(b *testing.B) {
+	benchSetType(b, new(Node64))
+}
+
+func BenchmarkSetTypeNode64Slice(b *testing.B) {
+	benchSetType(b, make([]Node64, 32))
+}
+
+type Node64Dead struct {
+	Left, Right *byte
+	Value       [64]uintptr
+}
+
+func BenchmarkSetTypeNode64Dead(b *testing.B) {
+	benchSetType(b, new(Node64Dead))
+}
+
+func BenchmarkSetTypeNode64DeadSlice(b *testing.B) {
+	benchSetType(b, make([]Node64Dead, 32))
+}
+
+type Node124 struct {
+	Value       [124]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode124(b *testing.B) {
+	benchSetType(b, new(Node124))
+}
+
+func BenchmarkSetTypeNode124Slice(b *testing.B) {
+	benchSetType(b, make([]Node124, 32))
+}
+
+type Node126 struct {
+	Value       [126]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode126(b *testing.B) {
+	benchSetType(b, new(Node126))
+}
+
+func BenchmarkSetTypeNode126Slice(b *testing.B) {
+	benchSetType(b, make([]Node126, 32))
+}
+
+type Node128 struct {
+	Value       [128]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode128(b *testing.B) {
+	benchSetType(b, new(Node128))
+}
+
+func BenchmarkSetTypeNode128Slice(b *testing.B) {
+	benchSetType(b, make([]Node128, 32))
+}
+
+type Node130 struct {
+	Value       [130]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode130(b *testing.B) {
+	benchSetType(b, new(Node130))
+}
+
+func BenchmarkSetTypeNode130Slice(b *testing.B) {
+	benchSetType(b, make([]Node130, 32))
+}
+
+type Node1024 struct {
+	Value       [1024]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode1024(b *testing.B) {
+	benchSetType(b, new(Node1024))
+}
+
+func BenchmarkSetTypeNode1024Slice(b *testing.B) {
+	benchSetType(b, make([]Node1024, 32))
+}
+
+func benchSetType(b *testing.B, x interface{}) {
+	v := reflect.ValueOf(x)
+	t := v.Type()
+	switch t.Kind() {
+	case reflect.Ptr:
+		b.SetBytes(int64(t.Elem().Size()))
+	case reflect.Slice:
+		b.SetBytes(int64(t.Elem().Size()) * int64(v.Len()))
 	}
-	var p *Ptr2
-	for i := 0; i < b.N; i++ {
-		p = &Ptr2{}
-	}
-	_ = p
+	b.ResetTimer()
+	runtime.BenchSetType(b.N, x)
 }
 
 func BenchmarkAllocation(b *testing.B) {
@@ -289,4 +398,244 @@ func TestPrintGC(t *testing.T) {
 		}()
 	}
 	close(done)
+}
+
+func testTypeSwitch(x interface{}) error {
+	switch y := x.(type) {
+	case nil:
+		// ok
+	case error:
+		return y
+	}
+	return nil
+}
+
+func testAssert(x interface{}) error {
+	if y, ok := x.(error); ok {
+		return y
+	}
+	return nil
+}
+
+func testAssertVar(x interface{}) error {
+	var y, ok = x.(error)
+	if ok {
+		return y
+	}
+	return nil
+}
+
+var a bool
+
+//go:noinline
+func testIfaceEqual(x interface{}) {
+	if x == "abc" {
+		a = true
+	}
+}
+
+func TestPageAccounting(t *testing.T) {
+	// Grow the heap in small increments. This used to drop the
+	// pages-in-use count below zero because of a rounding
+	// mismatch (golang.org/issue/15022).
+	const blockSize = 64 << 10
+	blocks := make([]*[blockSize]byte, (64<<20)/blockSize)
+	for i := range blocks {
+		blocks[i] = new([blockSize]byte)
+	}
+
+	// Check that the running page count matches reality.
+	pagesInUse, counted := runtime.CountPagesInUse()
+	if pagesInUse != counted {
+		t.Fatalf("mheap_.pagesInUse is %d, but direct count is %d", pagesInUse, counted)
+	}
+}
+
+func TestReadMemStats(t *testing.T) {
+	base, slow := runtime.ReadMemStatsSlow()
+	if base != slow {
+		logDiff(t, "MemStats", reflect.ValueOf(base), reflect.ValueOf(slow))
+		t.Fatal("memstats mismatch")
+	}
+}
+
+func logDiff(t *testing.T, prefix string, got, want reflect.Value) {
+	typ := got.Type()
+	switch typ.Kind() {
+	case reflect.Array, reflect.Slice:
+		if got.Len() != want.Len() {
+			t.Logf("len(%s): got %v, want %v", prefix, got, want)
+			return
+		}
+		for i := 0; i < got.Len(); i++ {
+			logDiff(t, fmt.Sprintf("%s[%d]", prefix, i), got.Index(i), want.Index(i))
+		}
+	case reflect.Struct:
+		for i := 0; i < typ.NumField(); i++ {
+			gf, wf := got.Field(i), want.Field(i)
+			logDiff(t, prefix+"."+typ.Field(i).Name, gf, wf)
+		}
+	case reflect.Map:
+		t.Fatal("not implemented: logDiff for map")
+	default:
+		if got.Interface() != want.Interface() {
+			t.Logf("%s: got %v, want %v", prefix, got, want)
+		}
+	}
+}
+
+func BenchmarkReadMemStats(b *testing.B) {
+	var ms runtime.MemStats
+	const heapSize = 100 << 20
+	x := make([]*[1024]byte, heapSize/1024)
+	for i := range x {
+		x[i] = new([1024]byte)
+	}
+	hugeSink = x
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		runtime.ReadMemStats(&ms)
+	}
+
+	hugeSink = nil
+}
+
+func TestUserForcedGC(t *testing.T) {
+	// Test that runtime.GC() triggers a GC even if GOGC=off.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
+	var ms1, ms2 runtime.MemStats
+	runtime.ReadMemStats(&ms1)
+	runtime.GC()
+	runtime.ReadMemStats(&ms2)
+	if ms1.NumGC == ms2.NumGC {
+		t.Fatalf("runtime.GC() did not trigger GC")
+	}
+	if ms1.NumForcedGC == ms2.NumForcedGC {
+		t.Fatalf("runtime.GC() was not accounted in NumForcedGC")
+	}
+}
+
+func writeBarrierBenchmark(b *testing.B, f func()) {
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	//b.Logf("heap size: %d MB", ms.HeapAlloc>>20)
+
+	// Keep GC running continuously during the benchmark, which in
+	// turn keeps the write barrier on continuously.
+	var stop uint32
+	done := make(chan bool)
+	go func() {
+		for atomic.LoadUint32(&stop) == 0 {
+			runtime.GC()
+		}
+		close(done)
+	}()
+	defer func() {
+		atomic.StoreUint32(&stop, 1)
+		<-done
+	}()
+
+	b.ResetTimer()
+	f()
+	b.StopTimer()
+}
+
+func BenchmarkWriteBarrier(b *testing.B) {
+	if runtime.GOMAXPROCS(-1) < 2 {
+		// We don't want GC to take our time.
+		b.Skip("need GOMAXPROCS >= 2")
+	}
+
+	// Construct a large tree both so the GC runs for a while and
+	// so we have a data structure to manipulate the pointers of.
+	type node struct {
+		l, r *node
+	}
+	var wbRoots []*node
+	var mkTree func(level int) *node
+	mkTree = func(level int) *node {
+		if level == 0 {
+			return nil
+		}
+		n := &node{mkTree(level - 1), mkTree(level - 1)}
+		if level == 10 {
+			// Seed GC with enough early pointers so it
+			// doesn't accidentally switch to mark 2 when
+			// it only has the top of the tree.
+			wbRoots = append(wbRoots, n)
+		}
+		return n
+	}
+	const depth = 22 // 64 MB
+	root := mkTree(22)
+
+	writeBarrierBenchmark(b, func() {
+		var stack [depth]*node
+		tos := -1
+
+		// There are two write barriers per iteration, so i+=2.
+		for i := 0; i < b.N; i += 2 {
+			if tos == -1 {
+				stack[0] = root
+				tos = 0
+			}
+
+			// Perform one step of reversing the tree.
+			n := stack[tos]
+			if n.l == nil {
+				tos--
+			} else {
+				n.l, n.r = n.r, n.l
+				stack[tos] = n.l
+				stack[tos+1] = n.r
+				tos++
+			}
+
+			if i%(1<<12) == 0 {
+				// Avoid non-preemptible loops (see issue #10958).
+				runtime.Gosched()
+			}
+		}
+	})
+
+	runtime.KeepAlive(wbRoots)
+}
+
+func BenchmarkBulkWriteBarrier(b *testing.B) {
+	if runtime.GOMAXPROCS(-1) < 2 {
+		// We don't want GC to take our time.
+		b.Skip("need GOMAXPROCS >= 2")
+	}
+
+	// Construct a large set of objects we can copy around.
+	const heapSize = 64 << 20
+	type obj [16]*byte
+	ptrs := make([]*obj, heapSize/unsafe.Sizeof(obj{}))
+	for i := range ptrs {
+		ptrs[i] = new(obj)
+	}
+
+	writeBarrierBenchmark(b, func() {
+		const blockSize = 1024
+		var pos int
+		for i := 0; i < b.N; i += blockSize {
+			// Rotate block.
+			block := ptrs[pos : pos+blockSize]
+			first := block[0]
+			copy(block, block[1:])
+			block[blockSize-1] = first
+
+			pos += blockSize
+			if pos+blockSize > len(ptrs) {
+				pos = 0
+			}
+
+			runtime.Gosched()
+		}
+	})
+
+	runtime.KeepAlive(ptrs)
 }

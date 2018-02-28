@@ -5,9 +5,14 @@
 package big
 
 import (
+	"fmt"
+	"internal/testenv"
 	"math/rand"
+	"strings"
 	"testing"
 )
+
+var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
 type funWW func(x, y, c Word) (z1, z0 Word)
 type argWW struct {
@@ -118,27 +123,24 @@ func rndV(n int) []Word {
 	return v
 }
 
-func benchmarkFunVV(b *testing.B, f funVV, n int) {
-	x := rndV(n)
-	y := rndV(n)
-	z := make([]Word, n)
-	b.SetBytes(int64(n * _W))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		f(z, x, y)
+var benchSizes = []int{1, 2, 3, 4, 5, 1e1, 1e2, 1e3, 1e4, 1e5}
+
+func BenchmarkAddVV(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndV(n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				addVV(z, x, y)
+			}
+		})
 	}
 }
-
-func BenchmarkAddVV_1(b *testing.B)   { benchmarkFunVV(b, addVV, 1) }
-func BenchmarkAddVV_2(b *testing.B)   { benchmarkFunVV(b, addVV, 2) }
-func BenchmarkAddVV_3(b *testing.B)   { benchmarkFunVV(b, addVV, 3) }
-func BenchmarkAddVV_4(b *testing.B)   { benchmarkFunVV(b, addVV, 4) }
-func BenchmarkAddVV_5(b *testing.B)   { benchmarkFunVV(b, addVV, 5) }
-func BenchmarkAddVV_1e1(b *testing.B) { benchmarkFunVV(b, addVV, 1e1) }
-func BenchmarkAddVV_1e2(b *testing.B) { benchmarkFunVV(b, addVV, 1e2) }
-func BenchmarkAddVV_1e3(b *testing.B) { benchmarkFunVV(b, addVV, 1e3) }
-func BenchmarkAddVV_1e4(b *testing.B) { benchmarkFunVV(b, addVV, 1e4) }
-func BenchmarkAddVV_1e5(b *testing.B) { benchmarkFunVV(b, addVV, 1e5) }
 
 type funVW func(z, x []Word, y Word) (c Word)
 type argVW struct {
@@ -155,21 +157,7 @@ var sumVW = []argVW{
 	{nat{1}, nat{1}, 0, 0},
 	{nat{0}, nat{_M}, 1, 1},
 	{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, 1, 1},
-}
-
-var prodVW = []argVW{
-	{},
-	{nat{0}, nat{0}, 0, 0},
-	{nat{0}, nat{_M}, 0, 0},
-	{nat{0}, nat{0}, _M, 0},
-	{nat{1}, nat{1}, 1, 0},
-	{nat{22793}, nat{991}, 23, 0},
-	{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0},
-	{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0},
-	{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0},
-	{nat{_M << 1 & _M}, nat{_M}, 1 << 1, _M >> (_W - 1)},
-	{nat{_M << 7 & _M}, nat{_M}, 1 << 7, _M >> (_W - 7)},
-	{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
+	{nat{585}, nat{314}, 271, 0},
 }
 
 var lshVW = []argVW{
@@ -250,27 +238,22 @@ func TestFunVW(t *testing.T) {
 	}
 }
 
-func benchmarkFunVW(b *testing.B, f funVW, n int) {
-	x := rndV(n)
-	y := rndW()
-	z := make([]Word, n)
-	b.SetBytes(int64(n * _S))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		f(z, x, y)
+func BenchmarkAddVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				addVW(z, x, y)
+			}
+		})
 	}
 }
-
-func BenchmarkAddVW_1(b *testing.B)   { benchmarkFunVW(b, addVW, 1) }
-func BenchmarkAddVW_2(b *testing.B)   { benchmarkFunVW(b, addVW, 2) }
-func BenchmarkAddVW_3(b *testing.B)   { benchmarkFunVW(b, addVW, 3) }
-func BenchmarkAddVW_4(b *testing.B)   { benchmarkFunVW(b, addVW, 4) }
-func BenchmarkAddVW_5(b *testing.B)   { benchmarkFunVW(b, addVW, 5) }
-func BenchmarkAddVW_1e1(b *testing.B) { benchmarkFunVW(b, addVW, 1e1) }
-func BenchmarkAddVW_1e2(b *testing.B) { benchmarkFunVW(b, addVW, 1e2) }
-func BenchmarkAddVW_1e3(b *testing.B) { benchmarkFunVW(b, addVW, 1e3) }
-func BenchmarkAddVW_1e4(b *testing.B) { benchmarkFunVW(b, addVW, 1e4) }
-func BenchmarkAddVW_1e5(b *testing.B) { benchmarkFunVW(b, addVW, 1e5) }
 
 type funVWW func(z, x []Word, y, r Word) (c Word)
 type argVWW struct {
@@ -396,61 +379,19 @@ func TestMulAddWWW(t *testing.T) {
 	}
 }
 
-func benchmarkAddMulVVW(b *testing.B, n int) {
-	x := rndV(n)
-	y := rndW()
-	z := make([]Word, n)
-	b.SetBytes(int64(n * _W))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		addMulVVW(z, x, y)
-	}
-}
-
-func BenchmarkAddMulVVW_1(b *testing.B)   { benchmarkAddMulVVW(b, 1) }
-func BenchmarkAddMulVVW_2(b *testing.B)   { benchmarkAddMulVVW(b, 2) }
-func BenchmarkAddMulVVW_3(b *testing.B)   { benchmarkAddMulVVW(b, 3) }
-func BenchmarkAddMulVVW_4(b *testing.B)   { benchmarkAddMulVVW(b, 4) }
-func BenchmarkAddMulVVW_5(b *testing.B)   { benchmarkAddMulVVW(b, 5) }
-func BenchmarkAddMulVVW_1e1(b *testing.B) { benchmarkAddMulVVW(b, 1e1) }
-func BenchmarkAddMulVVW_1e2(b *testing.B) { benchmarkAddMulVVW(b, 1e2) }
-func BenchmarkAddMulVVW_1e3(b *testing.B) { benchmarkAddMulVVW(b, 1e3) }
-func BenchmarkAddMulVVW_1e4(b *testing.B) { benchmarkAddMulVVW(b, 1e4) }
-func BenchmarkAddMulVVW_1e5(b *testing.B) { benchmarkAddMulVVW(b, 1e5) }
-
-func testWordBitLen(t *testing.T, fname string, f func(Word) int) {
-	for i := 0; i <= _W; i++ {
-		x := Word(1) << uint(i-1) // i == 0 => x == 0
-		n := f(x)
-		if n != i {
-			t.Errorf("got %d; want %d for %s(%#x)", n, i, fname, x)
+func BenchmarkAddMulVVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
 		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				addMulVVW(z, x, y)
+			}
+		})
 	}
 }
-
-func TestWordBitLen(t *testing.T) {
-	testWordBitLen(t, "bitLen", bitLen)
-	testWordBitLen(t, "bitLen_g", bitLen_g)
-}
-
-// runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
-func benchmarkBitLenN(b *testing.B, nbits uint) {
-	testword := Word((uint64(1) << nbits) - 1)
-	for i := 0; i < b.N; i++ {
-		bitLen(testword)
-	}
-}
-
-// Individual bitLen tests.  Numbers chosen to examine both sides
-// of powers-of-two boundaries.
-func BenchmarkBitLen0(b *testing.B)  { benchmarkBitLenN(b, 0) }
-func BenchmarkBitLen1(b *testing.B)  { benchmarkBitLenN(b, 1) }
-func BenchmarkBitLen2(b *testing.B)  { benchmarkBitLenN(b, 2) }
-func BenchmarkBitLen3(b *testing.B)  { benchmarkBitLenN(b, 3) }
-func BenchmarkBitLen4(b *testing.B)  { benchmarkBitLenN(b, 4) }
-func BenchmarkBitLen5(b *testing.B)  { benchmarkBitLenN(b, 5) }
-func BenchmarkBitLen8(b *testing.B)  { benchmarkBitLenN(b, 8) }
-func BenchmarkBitLen9(b *testing.B)  { benchmarkBitLenN(b, 9) }
-func BenchmarkBitLen16(b *testing.B) { benchmarkBitLenN(b, 16) }
-func BenchmarkBitLen17(b *testing.B) { benchmarkBitLenN(b, 17) }
-func BenchmarkBitLen31(b *testing.B) { benchmarkBitLenN(b, 31) }

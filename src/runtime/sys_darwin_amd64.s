@@ -25,12 +25,25 @@ TEXT runtime·exit(SB),NOSPLIT,$0
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT runtime·exit1(SB),NOSPLIT,$0
-	MOVL	code+0(FP), DI		// arg 1 exit status
+TEXT exit1<>(SB),NOSPLIT,$0
+	// Because of exitThread below, this must not use the stack.
+	// __bsdthread_terminate takes 4 word-size arguments.
+	// Set them all to 0. (None are an exit status.)
+	MOVL	$0, DI
+	MOVL	$0, SI
+	MOVL	$0, DX
+	MOVL	$0, R10
 	MOVL	$(0x2000000+361), AX	// syscall entry
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
 	RET
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	JMP	exit1<>(SB)
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	name+0(FP), DI		// arg 1 pathname
@@ -38,13 +51,17 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	perm+12(FP), DX		// arg 3 mode
 	MOVL	$(0x2000000+5), AX	// syscall entry
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVL	$(0x2000000+6), AX	// syscall entry
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -54,6 +71,8 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$(0x2000000+3), AX	// syscall entry
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -63,6 +82,8 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$(0x2000000+4), AX	// syscall entry
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -99,24 +120,130 @@ TEXT runtime·madvise(SB), NOSPLIT, $0
 	RET
 
 // OS X comm page time offsets
-// http://www.opensource.apple.com/source/xnu/xnu-1699.26.8/osfmk/i386/cpu_capabilities.h
+// https://opensource.apple.com/source/xnu/xnu-4570.1.46/osfmk/i386/cpu_capabilities.h
+
 #define	nt_tsc_base	0x50
 #define	nt_scale	0x58
 #define	nt_shift	0x5c
 #define	nt_ns_base	0x60
 #define	nt_generation	0x68
-#define	gtod_generation	0x6c
-#define	gtod_ns_base	0x70
-#define	gtod_sec_base	0x78
+#define	gtod_generation	0x6c  // obsolete since Darwin v17 (High Sierra)
+#define	gtod_ns_base	0x70  // obsolete since Darwin v17 (High Sierra)
+#define	gtod_sec_base	0x78  // obsolete since Darwin v17 (High Sierra)
 
-TEXT nanotime<>(SB), NOSPLIT, $32
+#define	v17_gtod_ns_base	0xd0
+#define	v17_gtod_sec_ofs	0xd8
+#define	v17_gtod_frac_ofs	0xe0
+#define	v17_gtod_scale		0xe8
+#define	v17_gtod_tkspersec	0xf0
+
+TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
 	// Loop trying to take a consistent snapshot
 	// of the time parameters.
 timeloop:
+	MOVL	nt_generation(BP), R9
+	TESTL	R9, R9
+	JZ	timeloop
+	RDTSC
+	MOVQ	nt_tsc_base(BP), R10
+	MOVL	nt_scale(BP), R11
+	MOVQ	nt_ns_base(BP), R12
+	CMPL	nt_generation(BP), R9
+	JNE	timeloop
+
+	// Gathered all the data we need. Compute monotonic time:
+	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
+	// The multiply and shift extracts the top 64 bits of the 96-bit product.
+	SHLQ	$32, DX
+	ADDQ	DX, AX
+	SUBQ	R10, AX
+	MULQ	R11
+	SHRQ	$32, AX:DX
+	ADDQ	R12, AX
+	MOVQ	runtime·startNano(SB), CX
+	SUBQ	CX, AX
+	MOVQ	AX, ret+0(FP)
+	RET
+
+TEXT time·now(SB), NOSPLIT, $32-24
+	// Note: The 32 bytes of stack frame requested on the TEXT line
+	// are used in the systime fallback, as the timeval address
+	// filled in by the system call.
+	MOVQ	$0x7fffffe00000, BP	/* comm page base */
+	CMPQ	runtime·darwinVersion(SB), $17
+	JB		legacy /* sierra and older */
+
+	// This is the new code, for macOS High Sierra (Darwin v17) and newer.
+v17:
+	// Loop trying to take a consistent snapshot
+	// of the time parameters.
+timeloop17:
+	MOVQ 	v17_gtod_ns_base(BP), R12
+
+	MOVL	nt_generation(BP), CX
+	TESTL	CX, CX
+	JZ		timeloop17
+	RDTSC
+	MOVQ	nt_tsc_base(BP), SI
+	MOVL	nt_scale(BP), DI
+	MOVQ	nt_ns_base(BP), BX
+	CMPL	nt_generation(BP), CX
+	JNE		timeloop17
+
+	MOVQ 	v17_gtod_sec_ofs(BP), R8
+	MOVQ 	v17_gtod_frac_ofs(BP), R9
+	MOVQ 	v17_gtod_scale(BP), R10
+	MOVQ 	v17_gtod_tkspersec(BP), R11
+	CMPQ 	v17_gtod_ns_base(BP), R12
+	JNE 	timeloop17
+
+	// Compute monotonic time
+	//	mono = ((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
+	// The multiply and shift extracts the top 64 bits of the 96-bit product.
+	SHLQ	$32, DX
+	ADDQ	DX, AX
+	SUBQ	SI, AX
+	MULQ	DI
+	SHRQ	$32, AX:DX
+	ADDQ	BX, AX
+
+	// Subtract startNano base to return the monotonic runtime timer
+	// which is an offset from process boot.
+	MOVQ	AX, BX
+	MOVQ	runtime·startNano(SB), CX
+	SUBQ	CX, BX
+	MOVQ	BX, monotonic+16(FP)
+
+	// Now compute the 128-bit wall time:
+	//  wall = ((mono - gtod_ns_base) * gtod_scale) + gtod_offs
+	// The parameters are updated every second, so if we found them
+	// outdated (that is, more than one second is passed from the ns base),
+	// fallback to the syscall.
+	TESTQ	R12, R12
+	JZ		systime
+	SUBQ	R12, AX
+	CMPQ	R11, AX
+	JB		systime
+	MULQ 	R10
+	ADDQ	R9, AX
+	ADCQ	R8, DX
+
+	// Convert the 128-bit wall time into (sec,nsec).
+	// High part (seconds) is already good to go, while low part
+	// (fraction of seconds) must be converted to nanoseconds.
+	MOVQ	DX, sec+0(FP)
+	MOVQ 	$1000000000, CX
+	MULQ	CX
+	MOVQ	DX, nsec+8(FP)
+	RET
+
+	// This is the legacy code needed for macOS Sierra (Darwin v16) and older.
+legacy:
+	// Loop trying to take a consistent snapshot
+	// of the time parameters.
+timeloop:
 	MOVL	gtod_generation(BP), R8
-	TESTL	R8, R8
-	JZ	systime
 	MOVL	nt_generation(BP), R9
 	TESTL	R9, R9
 	JZ	timeloop
@@ -131,8 +258,8 @@ timeloop:
 	CMPL	gtod_generation(BP), R8
 	JNE	timeloop
 
-	// Gathered all the data we need. Compute time.
-	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base - gtod_ns_base + gtod_sec_base*1e9
+	// Gathered all the data we need. Compute:
+	//	monotonic_time = ((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
 	// The multiply and shift extracts the top 64 bits of the 96-bit product.
 	SHLQ	$32, DX
 	ADDQ	DX, AX
@@ -140,50 +267,55 @@ timeloop:
 	MULQ	R11
 	SHRQ	$32, AX:DX
 	ADDQ	R12, AX
+	MOVQ	AX, BX
+	MOVQ	runtime·startNano(SB), CX
+	SUBQ	CX, BX
+	MOVQ	BX, monotonic+16(FP)
+
+	// Compute:
+	//	wall_time = monotonic time - gtod_ns_base + gtod_sec_base*1e9
+	// or, if gtod_generation==0, invoke the system call.
+	TESTL	R8, R8
+	JZ	systime
 	SUBQ	R13, AX
 	IMULQ	$1000000000, R14
 	ADDQ	R14, AX
-	RET
 
-systime:
-	// Fall back to system call (usually first call in this thread).
-	MOVQ	SP, DI	// must be non-nil, unused
-	MOVQ	$0, SI
-	MOVL	$(0x2000000+116), AX
-	SYSCALL
-	// sec is in AX, usec in DX
-	// return nsec in AX
-	IMULQ	$1000000000, AX
-	IMULQ	$1000, DX
-	ADDQ	DX, AX
-	RET
-
-TEXT runtime·nanotime(SB),NOSPLIT,$0-8
-	CALL	nanotime<>(SB)
-	MOVQ	AX, ret+0(FP)
-	RET
-
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$0-12
-	CALL	nanotime<>(SB)
-
+	// Split wall time into sec, nsec.
 	// generated code for
-	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	//	func f(x uint64) (uint64, uint64) { return x/1e9, x%1e9 }
 	// adapted to reduce duplication
 	MOVQ	AX, CX
-	MOVQ	$1360296554856532783, AX
-	MULQ	CX
-	ADDQ	CX, DX
-	RCRQ	$1, DX
-	SHRQ	$29, DX
+	SHRQ	$9, AX
+	MOVQ	$19342813113834067, DX
+	MULQ	DX
+	SHRQ	$11, DX
 	MOVQ	DX, sec+0(FP)
 	IMULQ	$1000000000, DX
 	SUBQ	DX, CX
 	MOVL	CX, nsec+8(FP)
 	RET
 
+systime:
+	// Fall back to system call (usually first call in this thread).
+	MOVQ	SP, DI
+	MOVQ	$0, SI
+	MOVQ	$0, DX  // required as of Sierra; Issue 16570
+	MOVL	$(0x2000000+116), AX // gettimeofday
+	SYSCALL
+	CMPQ	AX, $0
+	JNE	inreg
+	MOVQ	0(SP), AX
+	MOVL	8(SP), DX
+inreg:
+	// sec is in AX, usec in DX
+	IMULQ	$1000, DX
+	MOVQ	AX, sec+0(FP)
+	MOVL	DX, nsec+8(FP)
+	RET
+
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	sig+0(FP), DI
+	MOVL	how+0(FP), DI
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
 	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
@@ -192,7 +324,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$0
+TEXT runtime·sigaction(SB),NOSPLIT,$0-24
 	MOVL	mode+0(FP), DI		// arg 1 sig
 	MOVQ	new+8(FP), SI		// arg 2 act
 	MOVQ	old+16(FP), DX		// arg 3 oact
@@ -204,48 +336,32 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
-	get_tls(BX)
-
-	MOVQ	R8, 32(SP)	// save ucontext
-	MOVQ	SI, 40(SP)	// save infostyle
-
-	// check that g exists
-	MOVQ	g(BX), R10
-	CMPQ	R10, $0
-	JNE	5(PC)
-	MOVL	DX, 0(SP)
-	MOVQ	$runtime·badsignal(SB), AX
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVQ	fn+0(FP),    AX
+	MOVL	sig+8(FP),   DI
+	MOVQ	info+16(FP), SI
+	MOVQ	ctx+24(FP),  DX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP     // alignment for x86_64 ABI
 	CALL	AX
-	JMP 	ret
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
 
-	// save g
-	MOVQ	R10, 48(SP)
-
-	// g = m->gsignal
-	MOVQ	g_m(R10), BP
-	MOVQ	m_gsignal(BP), BP
-	MOVQ	BP, g(BX)
-
-	MOVL	DX, 0(SP)
-	MOVQ	CX, 8(SP)
-	MOVQ	R8, 16(SP)
-	MOVQ	R10, 24(SP)
-
-	CALL	DI
-
-	// restore g
-	get_tls(BX)
-	MOVQ	48(SP), R10
-	MOVQ	R10, g(BX)
-
-ret:
-	// call sigreturn
-	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
-	MOVQ	32(SP), DI	// saved ucontext
-	MOVQ	40(SP), SI	// saved infostyle
+TEXT runtime·sigtramp(SB),NOSPLIT,$40
+	MOVL SI, 24(SP) // save infostyle for sigreturn below
+	MOVQ R8, 32(SP) // save ctx
+	MOVL DX, 0(SP)  // sig
+	MOVQ CX, 8(SP)  // info
+	MOVQ R8, 16(SP) // ctx
+	MOVQ $runtime·sigtrampgo(SB), AX
+	CALL AX
+	MOVQ 32(SP), DI // ctx
+	MOVL 24(SP), SI // infostyle
+	MOVL $(0x2000000+184), AX
 	SYSCALL
-	INT $3	// not reached
+	INT $3 // not reached
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr
@@ -256,7 +372,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	off+28(FP), R9		// arg 6 offset
 	MOVL	$(0x2000000+197), AX	// syscall entry
 	SYSCALL
-	MOVQ	AX, ret+32(FP)
+	JCC	ok
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -269,8 +391,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVQ	new+8(SP), DI
-	MOVQ	old+16(SP), SI
+	MOVQ	new+0(FP), DI
+	MOVQ	old+8(FP), SI
 	MOVQ	$(0x2000000+53), AX
 	SYSCALL
 	JCC	2(PC)
@@ -295,25 +417,25 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
-// void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
+// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
-	MOVQ	fn+32(SP), DI	// "func"
-	MOVQ	mm+16(SP), SI	// "arg"
-	MOVQ	stk+8(SP), DX	// stack
-	MOVQ	gg+24(SP), R10	// "pthread"
-	MOVQ	$0x01000000, R8	// flags = PTHREAD_START_CUSTOM
-	MOVQ	$0, R9	// paranoia
+	MOVQ	fn+16(FP),   DI
+	MOVQ	arg+8(FP),  SI
+	MOVQ	stk+0(FP),   DX
+	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
+	MOVQ	$0,          R9  // paranoia
+	MOVQ	$0,          R10 // paranoia, "pthread"
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL
 	JCC 4(PC)
 	NEGQ	AX
-	MOVL	AX, ret+32(FP)
+	MOVL	AX, ret+24(FP)
 	RET
 	MOVL	$0, AX
-	MOVL	AX, ret+32(FP)
+	MOVL	AX, ret+24(FP)
 	RET
 
 // The thread that bsdthread_create creates starts executing here,
@@ -348,10 +470,10 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	MOVQ	CX, g_m(AX)
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	CALL	DX	// fn
-	CALL	runtime·exit1(SB)
+	CALL	exit1<>(SB)
 	RET
 
-// void bsdthread_register(void)
+// func bsdthread_register() int32
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
 TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
@@ -373,7 +495,7 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
 
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
 
-// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
+// func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
 TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
 	MOVQ	h+0(FP), DI
 	MOVL	op+8(FP), SI
@@ -410,7 +532,7 @@ TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
 // Mach provides trap versions of the semaphore ops,
 // instead of requiring the use of RPC.
 
-// uint32 mach_semaphore_wait(uint32)
+// func mach_semaphore_wait(sema uint32) int32
 TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
@@ -418,7 +540,7 @@ TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+// func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
 TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	sec+4(FP), SI
@@ -428,7 +550,7 @@ TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	AX, ret+16(FP)
 	RET
 
-// uint32 mach_semaphore_signal(uint32)
+// func mach_semaphore_signal(sema uint32) int32
 TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
@@ -436,7 +558,7 @@ TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// uint32 mach_semaphore_signal_all(uint32)
+// func mach_semaphore_signal_all(sema uint32) int32
 TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
@@ -474,7 +596,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVL	AX, ret+48(FP)
 	RET
 
-// int32 runtime·kqueue(void);
+// func kqueue() int32
 TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVQ    $0, DI
 	MOVQ    $0, SI
@@ -486,7 +608,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	AX, ret+0(FP)
 	RET
 
-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL    kq+0(FP), DI
 	MOVQ    ch+8(FP), SI
@@ -501,7 +623,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	AX, ret+48(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd);
+// func closeonexec(fd int32)
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL    fd+0(FP), DI  // fd
 	MOVQ    $2, SI  // F_SETFD

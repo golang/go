@@ -21,11 +21,18 @@ CONSTANTS
 		C4	int
 	)
 
-	// Constants with an imported type that needs to be propagated. 
+	// Constants with a single type that is not propagated. 
 	const (
-		Default		os.FileMode	= 0644
-		Useless				= 0312
-		WideOpen			= 0777
+		Default		= 0644
+		Useless		= 0312
+		WideOpen	= 0777
+	)
+
+	// Constants with an imported type that is propagated. 
+	const (
+		M1	os.FileMode
+		M2
+		M3
 	)
 
 	// Package constants. 

@@ -9,185 +9,274 @@ import (
 	"testing"
 )
 
-var testInetaddr = func(ip IP) netaddr { return &TCPAddr{IP: ip, Port: 5682} }
+var testInetaddr = func(ip IPAddr) Addr { return &TCPAddr{IP: ip.IP, Port: 5682, Zone: ip.Zone} }
 
-var firstFavoriteAddrTests = []struct {
-	filter   func(IP) IP
-	ips      []IP
-	inetaddr func(IP) netaddr
-	addr     netaddr
-	err      error
+var addrListTests = []struct {
+	filter    func(IPAddr) bool
+	ips       []IPAddr
+	inetaddr  func(IPAddr) Addr
+	first     Addr
+	primaries addrList
+	fallbacks addrList
+	err       error
 }{
 	{
 		nil,
-		[]IP{
-			IPv4(127, 0, 0, 1),
-			IPv6loopback,
-		},
-		testInetaddr,
-		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
-			&TCPAddr{IP: IPv6loopback, Port: 5682},
-		},
-		nil,
-	},
-	{
-		nil,
-		[]IP{
-			IPv6loopback,
-			IPv4(127, 0, 0, 1),
-		},
-		testInetaddr,
-		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
-			&TCPAddr{IP: IPv6loopback, Port: 5682},
-		},
-		nil,
-	},
-	{
-		nil,
-		[]IP{
-			IPv4(127, 0, 0, 1),
-			IPv4(192, 168, 0, 1),
+		[]IPAddr{
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+		addrList{&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682}},
+		addrList{&TCPAddr{IP: IPv6loopback, Port: 5682}},
 		nil,
 	},
 	{
 		nil,
-		[]IP{
-			IPv6loopback,
-			ParseIP("fe80::1"),
+		[]IPAddr{
+			{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
+		},
+		testInetaddr,
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+		addrList{&TCPAddr{IP: IPv6loopback, Port: 5682}},
+		addrList{&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682}},
+		nil,
+	},
+	{
+		nil,
+		[]IPAddr{
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv4(192, 168, 0, 1)},
+		},
+		testInetaddr,
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+		addrList{
+			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
+		},
+		nil,
+		nil,
+	},
+	{
+		nil,
+		[]IPAddr{
+			{IP: IPv6loopback},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv6loopback, Port: 5682},
+		addrList{
+			&TCPAddr{IP: IPv6loopback, Port: 5682},
+			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
+		},
+		nil,
 		nil,
 	},
 	{
 		nil,
-		[]IP{
-			IPv4(127, 0, 0, 1),
-			IPv4(192, 168, 0, 1),
-			IPv6loopback,
-			ParseIP("fe80::1"),
+		[]IPAddr{
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv4(192, 168, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
 		},
 		testInetaddr,
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 		addrList{
 			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
-			&TCPAddr{IP: IPv6loopback, Port: 5682},
+			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
 		},
-		nil,
-	},
-	{
-		nil,
-		[]IP{
-			IPv6loopback,
-			ParseIP("fe80::1"),
-			IPv4(127, 0, 0, 1),
-			IPv4(192, 168, 0, 1),
-		},
-		testInetaddr,
 		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 			&TCPAddr{IP: IPv6loopback, Port: 5682},
+			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
 		},
 		nil,
 	},
 	{
 		nil,
-		[]IP{
-			IPv4(127, 0, 0, 1),
-			IPv6loopback,
-			IPv4(192, 168, 0, 1),
-			ParseIP("fe80::1"),
+		[]IPAddr{
+			{IP: IPv6loopback},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv4(192, 168, 0, 1)},
 		},
 		testInetaddr,
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+		addrList{
+			&TCPAddr{IP: IPv6loopback, Port: 5682},
+			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
+		},
 		addrList{
 			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
-			&TCPAddr{IP: IPv6loopback, Port: 5682},
+			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
 		},
 		nil,
 	},
 	{
 		nil,
-		[]IP{
-			IPv6loopback,
-			IPv4(127, 0, 0, 1),
-			ParseIP("fe80::1"),
-			IPv4(192, 168, 0, 1),
+		[]IPAddr{
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: IPv4(192, 168, 0, 1)},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
 		},
 		testInetaddr,
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 		addrList{
 			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
+		},
+		addrList{
 			&TCPAddr{IP: IPv6loopback, Port: 5682},
+			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
+		},
+		nil,
+	},
+	{
+		nil,
+		[]IPAddr{
+			{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
+			{IP: IPv4(192, 168, 0, 1)},
+		},
+		testInetaddr,
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+		addrList{
+			&TCPAddr{IP: IPv6loopback, Port: 5682},
+			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
+		},
+		addrList{
+			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
 		},
 		nil,
 	},
 
 	{
 		ipv4only,
-		[]IP{
-			IPv4(127, 0, 0, 1),
-			IPv6loopback,
+		[]IPAddr{
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+		addrList{&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682}},
+		nil,
 		nil,
 	},
 	{
 		ipv4only,
-		[]IP{
-			IPv6loopback,
-			IPv4(127, 0, 0, 1),
+		[]IPAddr{
+			{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+		addrList{&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682}},
+		nil,
 		nil,
 	},
 
 	{
 		ipv6only,
-		[]IP{
-			IPv4(127, 0, 0, 1),
-			IPv6loopback,
+		[]IPAddr{
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv6loopback, Port: 5682},
+		addrList{&TCPAddr{IP: IPv6loopback, Port: 5682}},
+		nil,
 		nil,
 	},
 	{
 		ipv6only,
-		[]IP{
-			IPv6loopback,
-			IPv4(127, 0, 0, 1),
+		[]IPAddr{
+			{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv6loopback, Port: 5682},
+		addrList{&TCPAddr{IP: IPv6loopback, Port: 5682}},
+		nil,
 		nil,
 	},
 
-	{nil, nil, testInetaddr, nil, errNoSuitableAddress},
+	{nil, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
 
-	{ipv4only, nil, testInetaddr, nil, errNoSuitableAddress},
-	{ipv4only, []IP{IPv6loopback}, testInetaddr, nil, errNoSuitableAddress},
+	{ipv4only, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
+	{ipv4only, []IPAddr{{IP: IPv6loopback}}, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
 
-	{ipv6only, nil, testInetaddr, nil, errNoSuitableAddress},
-	{ipv6only, []IP{IPv4(127, 0, 0, 1)}, testInetaddr, nil, errNoSuitableAddress},
+	{ipv6only, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
+	{ipv6only, []IPAddr{{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
 }
 
-func TestFirstFavoriteAddr(t *testing.T) {
-	if !supportsIPv4 || !supportsIPv6 {
-		t.Skip("ipv4 or ipv6 is not supported")
+func TestAddrList(t *testing.T) {
+	if !supportsIPv4() || !supportsIPv6() {
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	for i, tt := range firstFavoriteAddrTests {
-		addr, err := firstFavoriteAddr(tt.filter, tt.ips, tt.inetaddr)
-		if err != tt.err {
-			t.Errorf("#%v: got %v; expected %v", i, err, tt.err)
+	for i, tt := range addrListTests {
+		addrs, err := filterAddrList(tt.filter, tt.ips, tt.inetaddr, "ADDR")
+		if !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("#%v: got %v; want %v", i, err, tt.err)
 		}
-		if !reflect.DeepEqual(addr, tt.addr) {
-			t.Errorf("#%v: got %v; expected %v", i, addr, tt.addr)
+		if tt.err != nil {
+			if len(addrs) != 0 {
+				t.Errorf("#%v: got %v; want 0", i, len(addrs))
+			}
+			continue
+		}
+		first := addrs.first(isIPv4)
+		if !reflect.DeepEqual(first, tt.first) {
+			t.Errorf("#%v: got %v; want %v", i, first, tt.first)
+		}
+		primaries, fallbacks := addrs.partition(isIPv4)
+		if !reflect.DeepEqual(primaries, tt.primaries) {
+			t.Errorf("#%v: got %v; want %v", i, primaries, tt.primaries)
+		}
+		if !reflect.DeepEqual(fallbacks, tt.fallbacks) {
+			t.Errorf("#%v: got %v; want %v", i, fallbacks, tt.fallbacks)
+		}
+		expectedLen := len(primaries) + len(fallbacks)
+		if len(addrs) != expectedLen {
+			t.Errorf("#%v: got %v; want %v", i, len(addrs), expectedLen)
+		}
+	}
+}
+
+func TestAddrListPartition(t *testing.T) {
+	addrs := addrList{
+		&IPAddr{IP: ParseIP("fe80::"), Zone: "eth0"},
+		&IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
+		&IPAddr{IP: ParseIP("fe80::2"), Zone: "eth0"},
+	}
+	cases := []struct {
+		lastByte  byte
+		primaries addrList
+		fallbacks addrList
+	}{
+		{0, addrList{addrs[0]}, addrList{addrs[1], addrs[2]}},
+		{1, addrList{addrs[0], addrs[2]}, addrList{addrs[1]}},
+		{2, addrList{addrs[0], addrs[1]}, addrList{addrs[2]}},
+		{3, addrList{addrs[0], addrs[1], addrs[2]}, nil},
+	}
+	for i, tt := range cases {
+		// Inverting the function's output should not affect the outcome.
+		for _, invert := range []bool{false, true} {
+			primaries, fallbacks := addrs.partition(func(a Addr) bool {
+				ip := a.(*IPAddr).IP
+				return (ip[len(ip)-1] == tt.lastByte) != invert
+			})
+			if !reflect.DeepEqual(primaries, tt.primaries) {
+				t.Errorf("#%v: got %v; want %v", i, primaries, tt.primaries)
+			}
+			if !reflect.DeepEqual(fallbacks, tt.fallbacks) {
+				t.Errorf("#%v: got %v; want %v", i, fallbacks, tt.fallbacks)
+			}
 		}
 	}
 }

@@ -1,17 +1,18 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package net
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 	"testing"
 )
 
 // loopbackInterface returns an available logical network interface
-// for loopback tests.  It returns nil if no suitable interface is
+// for loopback tests. It returns nil if no suitable interface is
 // found.
 func loopbackInterface() *Interface {
 	ift, err := Interfaces()
@@ -52,14 +53,20 @@ func TestInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var nifs, naf4, naf6, nmaf4, nmaf6 int
 	for _, ifi := range ift {
 		ifxi, err := InterfaceByIndex(ifi.Index)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(ifxi, &ifi) {
-			t.Errorf("got %v; want %v", ifxi, ifi)
+		switch runtime.GOOS {
+		case "solaris":
+			if ifxi.Index != ifi.Index {
+				t.Errorf("got %v; want %v", ifxi, ifi)
+			}
+		default:
+			if !reflect.DeepEqual(ifxi, &ifi) {
+				t.Errorf("got %v; want %v", ifxi, ifi)
+			}
 		}
 		ifxn, err := InterfaceByName(ifi.Name)
 		if err != nil {
@@ -68,39 +75,7 @@ func TestInterfaces(t *testing.T) {
 		if !reflect.DeepEqual(ifxn, &ifi) {
 			t.Errorf("got %v; want %v", ifxn, ifi)
 		}
-		t.Logf("%q: flags %q, ifindex %v, mtu %v", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
-		t.Logf("hardware address %q", ifi.HardwareAddr.String())
-		if ifi.Flags&FlagUp != 0 && ifi.Flags&FlagLoopback == 0 {
-			nifs++ // active interfaces except loopback interfaces
-		}
-		n4, n6 := testInterfaceAddrs(t, &ifi)
-		naf4 += n4
-		naf6 += n6
-		n4, n6 = testInterfaceMulticastAddrs(t, &ifi)
-		nmaf4 += n4
-		nmaf6 += n6
-	}
-	switch runtime.GOOS {
-	case "nacl", "plan9", "solaris":
-	default:
-		if supportsIPv4 && nifs > 0 && naf4 == 0 {
-			t.Errorf("got %v; want more than or equal to one", naf4)
-		}
-		if supportsIPv6 && nifs > 0 && naf6 == 0 {
-			t.Errorf("got %v; want more than or equal to one", naf6)
-		}
-	}
-	switch runtime.GOOS {
-	case "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
-	default:
-		// Unlike IPv6, IPv4 multicast capability is not a
-		// mandatory feature.
-		//if supportsIPv4 && nactvifs > 0 && nmaf4 == 0 {
-		//	t.Errorf("got %v; want more than or equal to one", nmaf4)
-		//}
-		if supportsIPv6 && nifs > 0 && nmaf6 == 0 {
-			t.Errorf("got %v; want more than or equal to one", nmaf6)
-		}
+		t.Logf("%s: flags=%v index=%d mtu=%d hwaddr=%v", ifi.Name, ifi.Flags, ifi.Index, ifi.MTU, ifi.HardwareAddr)
 	}
 }
 
@@ -109,93 +84,222 @@ func TestInterfaceAddrs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var nifs int
-	for _, ifi := range ift {
-		if ifi.Flags&FlagUp != 0 && ifi.Flags&FlagLoopback == 0 {
-			nifs++ // active interfaces except loopback interfaces
-		}
-	}
+	ifStats := interfaceStats(ift)
 	ifat, err := InterfaceAddrs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	naf4, naf6 := testAddrs(t, ifat)
-	if supportsIPv4 && nifs > 0 && naf4 == 0 {
-		t.Errorf("got %v; want more than or equal to one", naf4)
-	}
-	if supportsIPv6 && nifs > 0 && naf6 == 0 {
-		t.Errorf("got %v; want more than or equal to one", naf6)
-	}
-}
-
-func testInterfaceAddrs(t *testing.T, ifi *Interface) (naf4, naf6 int) {
-	ifat, err := ifi.Addrs()
+	uniStats, err := validateInterfaceUnicastAddrs(ifat)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return testAddrs(t, ifat)
+	if err := checkUnicastStats(ifStats, uniStats); err != nil {
+		t.Fatal(err)
+	}
 }
 
-func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) (nmaf4, nmaf6 int) {
-	ifmat, err := ifi.MulticastAddrs()
+func TestInterfaceUnicastAddrs(t *testing.T) {
+	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return testMulticastAddrs(t, ifmat)
+	ifStats := interfaceStats(ift)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var uniStats routeStats
+	for _, ifi := range ift {
+		ifat, err := ifi.Addrs()
+		if err != nil {
+			t.Fatal(ifi, err)
+		}
+		stats, err := validateInterfaceUnicastAddrs(ifat)
+		if err != nil {
+			t.Fatal(ifi, err)
+		}
+		uniStats.ipv4 += stats.ipv4
+		uniStats.ipv6 += stats.ipv6
+	}
+	if err := checkUnicastStats(ifStats, &uniStats); err != nil {
+		t.Fatal(err)
+	}
 }
 
-func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
+func TestInterfaceMulticastAddrs(t *testing.T) {
+	ift, err := Interfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ifStats := interfaceStats(ift)
+	ifat, err := InterfaceAddrs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	uniStats, err := validateInterfaceUnicastAddrs(ifat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var multiStats routeStats
+	for _, ifi := range ift {
+		ifmat, err := ifi.MulticastAddrs()
+		if err != nil {
+			t.Fatal(ifi, err)
+		}
+		stats, err := validateInterfaceMulticastAddrs(ifmat)
+		if err != nil {
+			t.Fatal(ifi, err)
+		}
+		multiStats.ipv4 += stats.ipv4
+		multiStats.ipv6 += stats.ipv6
+	}
+	if err := checkMulticastStats(ifStats, uniStats, &multiStats); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type ifStats struct {
+	loop  int // # of active loopback interfaces
+	other int // # of active other interfaces
+}
+
+func interfaceStats(ift []Interface) *ifStats {
+	var stats ifStats
+	for _, ifi := range ift {
+		if ifi.Flags&FlagUp != 0 {
+			if ifi.Flags&FlagLoopback != 0 {
+				stats.loop++
+			} else {
+				stats.other++
+			}
+		}
+	}
+	return &stats
+}
+
+type routeStats struct {
+	ipv4, ipv6 int // # of active connected unicast, anycast or multicast routes
+}
+
+func validateInterfaceUnicastAddrs(ifat []Addr) (*routeStats, error) {
+	// Note: BSD variants allow assigning any IPv4/IPv6 address
+	// prefix to IP interface. For example,
+	//   - 0.0.0.0/0 through 255.255.255.255/32
+	//   - ::/0 through ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128
+	// In other words, there is no tightly-coupled combination of
+	// interface address prefixes and connected routes.
+	stats := new(routeStats)
 	for _, ifa := range ifat {
 		switch ifa := ifa.(type) {
 		case *IPNet:
-			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || ifa.IP.IsMulticast() || ifa.Mask == nil {
-				t.Errorf("unexpected value: %#v", ifa)
-				continue
+			if ifa == nil || ifa.IP == nil || ifa.IP.IsMulticast() || ifa.Mask == nil {
+				return nil, fmt.Errorf("unexpected value: %#v", ifa)
+			}
+			if len(ifa.IP) != IPv6len {
+				return nil, fmt.Errorf("should be internal representation either IPv6 or IPv4-mapped IPv6 address: %#v", ifa)
 			}
 			prefixLen, maxPrefixLen := ifa.Mask.Size()
 			if ifa.IP.To4() != nil {
 				if 0 >= prefixLen || prefixLen > 8*IPv4len || maxPrefixLen != 8*IPv4len {
-					t.Errorf("unexpected prefix length: %v/%v", prefixLen, maxPrefixLen)
-					continue
+					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
 				}
-				naf4++
-			} else if ifa.IP.To16() != nil {
-				if 0 >= prefixLen || prefixLen > 8*IPv6len || maxPrefixLen != 8*IPv6len {
-					t.Errorf("unexpected prefix length: %v/%v", prefixLen, maxPrefixLen)
-					continue
+				if ifa.IP.IsLoopback() && prefixLen < 8 { // see RFC 1122
+					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
 				}
-				naf6++
+				stats.ipv4++
 			}
-			t.Logf("interface address %q", ifa.String())
+			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
+				if 0 >= prefixLen || prefixLen > 8*IPv6len || maxPrefixLen != 8*IPv6len {
+					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
+				}
+				if ifa.IP.IsLoopback() && prefixLen != 8*IPv6len { // see RFC 4291
+					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
+				}
+				stats.ipv6++
+			}
+		case *IPAddr:
+			if ifa == nil || ifa.IP == nil || ifa.IP.IsMulticast() {
+				return nil, fmt.Errorf("unexpected value: %#v", ifa)
+			}
+			if len(ifa.IP) != IPv6len {
+				return nil, fmt.Errorf("should be internal representation either IPv6 or IPv4-mapped IPv6 address: %#v", ifa)
+			}
+			if ifa.IP.To4() != nil {
+				stats.ipv4++
+			}
+			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
+				stats.ipv6++
+			}
 		default:
-			t.Errorf("unexpected type: %T", ifa)
+			return nil, fmt.Errorf("unexpected type: %T", ifa)
 		}
 	}
-	return
+	return stats, nil
 }
 
-func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
-	for _, ifma := range ifmat {
-		switch ifma := ifma.(type) {
+func validateInterfaceMulticastAddrs(ifat []Addr) (*routeStats, error) {
+	stats := new(routeStats)
+	for _, ifa := range ifat {
+		switch ifa := ifa.(type) {
 		case *IPAddr:
-			if ifma == nil || ifma.IP == nil || ifma.IP.IsUnspecified() || !ifma.IP.IsMulticast() {
-				t.Errorf("unexpected value: %#v", ifma)
-				continue
+			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || !ifa.IP.IsMulticast() {
+				return nil, fmt.Errorf("unexpected value: %#v", ifa)
 			}
-			if ifma.IP.To4() != nil {
-				nmaf4++
-			} else if ifma.IP.To16() != nil {
-				nmaf6++
+			if len(ifa.IP) != IPv6len {
+				return nil, fmt.Errorf("should be internal representation either IPv6 or IPv4-mapped IPv6 address: %#v", ifa)
 			}
-			t.Logf("joined group address %q", ifma.String())
+			if ifa.IP.To4() != nil {
+				stats.ipv4++
+			}
+			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
+				stats.ipv6++
+			}
 		default:
-			t.Errorf("unexpected type: %T", ifma)
+			return nil, fmt.Errorf("unexpected type: %T", ifa)
 		}
 	}
-	return
+	return stats, nil
+}
+
+func checkUnicastStats(ifStats *ifStats, uniStats *routeStats) error {
+	// Test the existence of connected unicast routes for IPv4.
+	if supportsIPv4() && ifStats.loop+ifStats.other > 0 && uniStats.ipv4 == 0 {
+		return fmt.Errorf("num IPv4 unicast routes = 0; want >0; summary: %+v, %+v", ifStats, uniStats)
+	}
+	// Test the existence of connected unicast routes for IPv6.
+	// We can assume the existence of ::1/128 when at least one
+	// loopback interface is installed.
+	if supportsIPv6() && ifStats.loop > 0 && uniStats.ipv6 == 0 {
+		return fmt.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v, %+v", ifStats, uniStats)
+	}
+	return nil
+}
+
+func checkMulticastStats(ifStats *ifStats, uniStats, multiStats *routeStats) error {
+	switch runtime.GOOS {
+	case "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
+	default:
+		// Test the existence of connected multicast route
+		// clones for IPv4. Unlike IPv6, IPv4 multicast
+		// capability is not a mandatory feature, and so IPv4
+		// multicast validation is ignored and we only check
+		// IPv6 below.
+		//
+		// Test the existence of connected multicast route
+		// clones for IPv6. Some platform never uses loopback
+		// interface as the nexthop for multicast routing.
+		// We can assume the existence of connected multicast
+		// route clones when at least two connected unicast
+		// routes, ::1/128 and other, are installed.
+		if supportsIPv6() && ifStats.loop > 0 && uniStats.ipv6 > 1 && multiStats.ipv6 == 0 {
+			return fmt.Errorf("num IPv6 multicast route clones = 0; want >0; summary: %+v, %+v, %+v", ifStats, uniStats, multiStats)
+		}
+	}
+	return nil
 }
 
 func BenchmarkInterfaces(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	for i := 0; i < b.N; i++ {
 		if _, err := Interfaces(); err != nil {
 			b.Fatal(err)
@@ -204,6 +308,8 @@ func BenchmarkInterfaces(b *testing.B) {
 }
 
 func BenchmarkInterfaceByIndex(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	ifi := loopbackInterface()
 	if ifi == nil {
 		b.Skip("loopback interface not found")
@@ -216,6 +322,8 @@ func BenchmarkInterfaceByIndex(b *testing.B) {
 }
 
 func BenchmarkInterfaceByName(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	ifi := loopbackInterface()
 	if ifi == nil {
 		b.Skip("loopback interface not found")
@@ -228,6 +336,8 @@ func BenchmarkInterfaceByName(b *testing.B) {
 }
 
 func BenchmarkInterfaceAddrs(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	for i := 0; i < b.N; i++ {
 		if _, err := InterfaceAddrs(); err != nil {
 			b.Fatal(err)
@@ -236,6 +346,8 @@ func BenchmarkInterfaceAddrs(b *testing.B) {
 }
 
 func BenchmarkInterfacesAndAddrs(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	ifi := loopbackInterface()
 	if ifi == nil {
 		b.Skip("loopback interface not found")
@@ -248,6 +360,8 @@ func BenchmarkInterfacesAndAddrs(b *testing.B) {
 }
 
 func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	ifi := loopbackInterface()
 	if ifi == nil {
 		b.Skip("loopback interface not found")

@@ -1,6 +1,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_linux.go
 
+// +build 386,linux
+
 package syscall
 
 const (
@@ -236,10 +238,9 @@ type Msghdr struct {
 }
 
 type Cmsghdr struct {
-	Len          uint32
-	Level        int32
-	Type         int32
-	X__cmsg_data [0]uint8
+	Len   uint32
+	Level int32
+	Type  int32
 }
 
 type Inet4Pktinfo struct {
@@ -572,7 +573,9 @@ type EpollEvent struct {
 }
 
 const (
-	_AT_FDCWD = -0x64
+	_AT_FDCWD            = -0x64
+	_AT_REMOVEDIR        = 0x200
+	_AT_SYMLINK_NOFOLLOW = 0x100
 )
 
 type Termios struct {

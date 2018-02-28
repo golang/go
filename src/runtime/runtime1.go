@@ -4,34 +4,46 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.
-// The cached value is a uint32 in which the low bit
-// is the "crash" setting and the top 31 bits are the
-// gotraceback value.
-var traceback_cache uint32 = 2 << 1
+// The cached value is a uint32 in which the low bits
+// are the "crash" and "all" settings and the remaining
+// bits are the traceback value (0 off, 1 on, 2 include system).
+const (
+	tracebackCrash = 1 << iota
+	tracebackAll
+	tracebackShift = iota
+)
 
-// The GOTRACEBACK environment variable controls the
-// behavior of a Go program that is crashing and exiting.
-//	GOTRACEBACK=0   suppress all tracebacks
-//	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
-//	GOTRACEBACK=2   show tracebacks including runtime frames
-//	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
+var traceback_cache uint32 = 2 << tracebackShift
+var traceback_env uint32
+
+// gotraceback returns the current traceback settings.
+//
+// If level is 0, suppress all tracebacks.
+// If level is 1, show tracebacks, but exclude runtime frames.
+// If level is 2, show tracebacks including runtime frames.
+// If all is set, print all goroutine stacks. Otherwise, print just the current goroutine.
+// If crash is set, crash (core dump, etc) after tracebacking.
+//
 //go:nosplit
-func gotraceback(crash *bool) int32 {
+func gotraceback() (level int32, all, crash bool) {
 	_g_ := getg()
-	if crash != nil {
-		*crash = false
-	}
+	t := atomic.Load(&traceback_cache)
+	crash = t&tracebackCrash != 0
+	all = _g_.m.throwing > 0 || t&tracebackAll != 0
 	if _g_.m.traceback != 0 {
-		return int32(_g_.m.traceback)
+		level = int32(_g_.m.traceback)
+	} else {
+		level = int32(t >> tracebackShift)
 	}
-	if crash != nil {
-		*crash = traceback_cache&1 != 0
-	}
-	return int32(traceback_cache >> 1)
+	return
 }
 
 var (
@@ -39,10 +51,10 @@ var (
 	argv **byte
 )
 
-// nosplit for use in linux/386 startup linux_setup_vdso
+// nosplit for use in linux startup sysargs
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
-	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*ptrSize))
+	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
 }
 
 func args(c int32, v **byte) {
@@ -51,18 +63,10 @@ func args(c int32, v **byte) {
 	sysargs(c, v)
 }
 
-var (
-	// TODO: Retire in favor of GOOS== checks.
-	isplan9   int32
-	issolaris int32
-	iswindows int32
-)
-
 func goargs() {
 	if GOOS == "windows" {
 		return
 	}
-
 	argslice = make([]string, argc)
 	for i := int32(0); i < argc; i++ {
 		argslice[i] = gostringnocopy(argv_index(argv, i))
@@ -71,7 +75,7 @@ func goargs() {
 
 func goenvs_unix() {
 	// TODO(austin): ppc64 in dynamic linking mode doesn't
-	// guarantee env[] will immediately follow argv.  Might cause
+	// guarantee env[] will immediately follow argv. Might cause
 	// problems.
 	n := int32(0)
 	for argv_index(argv, argc+1+n) != nil {
@@ -80,7 +84,7 @@ func goenvs_unix() {
 
 	envs = make([]string, n)
 	for i := int32(0); i < n; i++ {
-		envs[i] = gostringnocopy(argv_index(argv, argc+1+i))
+		envs[i] = gostring(argv_index(argv, argc+1+i))
 	}
 }
 
@@ -95,40 +99,36 @@ var test_z64, test_x64 uint64
 func testAtomic64() {
 	test_z64 = 42
 	test_x64 = 0
-	prefetcht0(uintptr(unsafe.Pointer(&test_z64)))
-	prefetcht1(uintptr(unsafe.Pointer(&test_z64)))
-	prefetcht2(uintptr(unsafe.Pointer(&test_z64)))
-	prefetchnta(uintptr(unsafe.Pointer(&test_z64)))
-	if cas64(&test_z64, test_x64, 1) {
+	if atomic.Cas64(&test_z64, test_x64, 1) {
 		throw("cas64 failed")
 	}
 	if test_x64 != 0 {
 		throw("cas64 failed")
 	}
 	test_x64 = 42
-	if !cas64(&test_z64, test_x64, 1) {
+	if !atomic.Cas64(&test_z64, test_x64, 1) {
 		throw("cas64 failed")
 	}
 	if test_x64 != 42 || test_z64 != 1 {
 		throw("cas64 failed")
 	}
-	if atomicload64(&test_z64) != 1 {
+	if atomic.Load64(&test_z64) != 1 {
 		throw("load64 failed")
 	}
-	atomicstore64(&test_z64, (1<<40)+1)
-	if atomicload64(&test_z64) != (1<<40)+1 {
+	atomic.Store64(&test_z64, (1<<40)+1)
+	if atomic.Load64(&test_z64) != (1<<40)+1 {
 		throw("store64 failed")
 	}
-	if xadd64(&test_z64, (1<<40)+1) != (2<<40)+2 {
+	if atomic.Xadd64(&test_z64, (1<<40)+1) != (2<<40)+2 {
 		throw("xadd64 failed")
 	}
-	if atomicload64(&test_z64) != (2<<40)+2 {
+	if atomic.Load64(&test_z64) != (2<<40)+2 {
 		throw("xadd64 failed")
 	}
-	if xchg64(&test_z64, (3<<40)+3) != (2<<40)+2 {
+	if atomic.Xchg64(&test_z64, (3<<40)+3) != (2<<40)+2 {
 		throw("xchg64 failed")
 	}
-	if atomicload64(&test_z64) != (3<<40)+3 {
+	if atomic.Load64(&test_z64) != (3<<40)+3 {
 		throw("xchg64 failed")
 	}
 }
@@ -189,10 +189,10 @@ func check() {
 	if unsafe.Sizeof(j) != 8 {
 		throw("bad j")
 	}
-	if unsafe.Sizeof(k) != ptrSize {
+	if unsafe.Sizeof(k) != sys.PtrSize {
 		throw("bad k")
 	}
-	if unsafe.Sizeof(l) != ptrSize {
+	if unsafe.Sizeof(l) != sys.PtrSize {
 		throw("bad l")
 	}
 	if unsafe.Sizeof(x1) != 1 {
@@ -211,7 +211,7 @@ func check() {
 
 	var z uint32
 	z = 1
-	if !cas(&z, 1, 2) {
+	if !atomic.Cas(&z, 1, 2) {
 		throw("cas1")
 	}
 	if z != 2 {
@@ -219,7 +219,7 @@ func check() {
 	}
 
 	z = 4
-	if cas(&z, 5, 6) {
+	if atomic.Cas(&z, 5, 6) {
 		throw("cas3")
 	}
 	if z != 4 {
@@ -227,7 +227,7 @@ func check() {
 	}
 
 	z = 0xffffffff
-	if !cas(&z, 0xffffffff, 0xfffffffe) {
+	if !atomic.Cas(&z, 0xffffffff, 0xfffffffe) {
 		throw("cas5")
 	}
 	if z != 0xfffffffe {
@@ -235,8 +235,8 @@ func check() {
 	}
 
 	k = unsafe.Pointer(uintptr(0xfedcb123))
-	if ptrSize == 8 {
-		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
+	if sys.PtrSize == 8 {
+		k = unsafe.Pointer(uintptr(k) << 10)
 	}
 	if casp(&k, nil, nil) {
 		throw("casp1")
@@ -250,9 +250,15 @@ func check() {
 	}
 
 	m = [4]byte{1, 1, 1, 1}
-	atomicor8(&m[1], 0xf0)
+	atomic.Or8(&m[1], 0xf0)
 	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {
 		throw("atomicor8")
+	}
+
+	m = [4]byte{0xff, 0xff, 0xff, 0xff}
+	atomic.And8(&m[1], 0x1)
+	if m[0] != 0xff || m[1] != 0x1 || m[2] != 0xff || m[3] != 0xff {
+		throw("atomicand8")
 	}
 
 	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)
@@ -292,6 +298,10 @@ func check() {
 	if _FixedStack != round2(_FixedStack) {
 		throw("FixedStack is not power-of-2")
 	}
+
+	if !checkASM() {
+		throw("assembly checks failed")
+	}
 }
 
 type dbgVar struct {
@@ -299,41 +309,48 @@ type dbgVar struct {
 	value *int32
 }
 
-// TODO(rsc): Make GC respect debug.invalidptr.
-
 // Holds variables parsed from GODEBUG env var,
 // except for "memprofilerate" since there is an
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	allocfreetrace int32
-	efence         int32
-	gcdead         int32
-	gctrace        int32
-	invalidptr     int32
-	scavenge       int32
-	scheddetail    int32
-	schedtrace     int32
-	wbshadow       int32
-	gccheckmark    int32
+	allocfreetrace   int32
+	cgocheck         int32
+	efence           int32
+	gccheckmark      int32
+	gcpacertrace     int32
+	gcshrinkstackoff int32
+	gcrescanstacks   int32
+	gcstoptheworld   int32
+	gctrace          int32
+	invalidptr       int32
+	sbrk             int32
+	scavenge         int32
+	scheddetail      int32
+	schedtrace       int32
 }
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
+	{"cgocheck", &debug.cgocheck},
 	{"efence", &debug.efence},
-	{"gcdead", &debug.gcdead},
+	{"gccheckmark", &debug.gccheckmark},
+	{"gcpacertrace", &debug.gcpacertrace},
+	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
+	{"gcrescanstacks", &debug.gcrescanstacks},
+	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
+	{"sbrk", &debug.sbrk},
 	{"scavenge", &debug.scavenge},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
-	{"wbshadow", &debug.wbshadow},
-	{"gccheckmark", &debug.gccheckmark},
 }
 
 func parsedebugvars() {
-	// gccheckmark is enabled by default for the 1.5 dev cycle
-	debug.gccheckmark = 1
+	// defaults
+	debug.cgocheck = 1
+	debug.invalidptr = 1
 
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
@@ -353,24 +370,53 @@ func parsedebugvars() {
 		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
 		if key == "memprofilerate" {
-			MemProfileRate = atoi(value)
+			if n, ok := atoi(value); ok {
+				MemProfileRate = n
+			}
 		} else {
 			for _, v := range dbgvars {
 				if v.name == key {
-					*v.value = int32(atoi(value))
+					if n, ok := atoi32(value); ok {
+						*v.value = n
+					}
 				}
 			}
 		}
 	}
 
-	switch p := gogetenv("GOTRACEBACK"); p {
-	case "":
-		traceback_cache = 1 << 1
+	setTraceback(gogetenv("GOTRACEBACK"))
+	traceback_env = traceback_cache
+}
+
+//go:linkname setTraceback runtime/debug.SetTraceback
+func setTraceback(level string) {
+	var t uint32
+	switch level {
+	case "none":
+		t = 0
+	case "single", "":
+		t = 1 << tracebackShift
+	case "all":
+		t = 1<<tracebackShift | tracebackAll
+	case "system":
+		t = 2<<tracebackShift | tracebackAll
 	case "crash":
-		traceback_cache = 2<<1 | 1
+		t = 2<<tracebackShift | tracebackAll | tracebackCrash
 	default:
-		traceback_cache = uint32(atoi(p)) << 1
+		t = tracebackAll
+		if n, ok := atoi(level); ok && n == int(uint32(n)) {
+			t |= uint32(n) << tracebackShift
+		}
 	}
+	// when C owns the process, simply exit'ing the process on fatal errors
+	// and panics is surprising. Be louder and abort instead.
+	if islibrary || isarchive {
+		t |= tracebackCrash
+	}
+
+	t |= traceback_env
+
+	atomic.Store(&traceback_cache, t)
 }
 
 // Poor mans 64-bit division.
@@ -422,27 +468,53 @@ func gomcache() *mcache {
 	return getg().m.mcache
 }
 
-var typelink, etypelink [0]byte
-
 //go:linkname reflect_typelinks reflect.typelinks
-//go:nosplit
-func reflect_typelinks() []*_type {
-	var ret []*_type
-	sp := (*slice)(unsafe.Pointer(&ret))
-	sp.array = (*byte)(unsafe.Pointer(&typelink))
-	sp.len = uint((uintptr(unsafe.Pointer(&etypelink)) - uintptr(unsafe.Pointer(&typelink))) / unsafe.Sizeof(ret[0]))
-	sp.cap = sp.len
-	return ret
+func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
+	modules := activeModules()
+	sections := []unsafe.Pointer{unsafe.Pointer(modules[0].types)}
+	ret := [][]int32{modules[0].typelinks}
+	for _, md := range modules[1:] {
+		sections = append(sections, unsafe.Pointer(md.types))
+		ret = append(ret, md.typelinks)
+	}
+	return sections, ret
 }
 
-// TODO: move back into mgc0.c when converted to Go
-func readgogc() int32 {
-	p := gogetenv("GOGC")
-	if p == "" {
-		return 100
+// reflect_resolveNameOff resolves a name offset from a base pointer.
+//go:linkname reflect_resolveNameOff reflect.resolveNameOff
+func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+}
+
+// reflect_resolveTypeOff resolves an *rtype offset from a base type.
+//go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
+func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+}
+
+// reflect_resolveTextOff resolves an function pointer offset from a base type.
+//go:linkname reflect_resolveTextOff reflect.resolveTextOff
+func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return (*_type)(rtype).textOff(textOff(off))
+
+}
+
+// reflect_addReflectOff adds a pointer to the reflection offset lookup map.
+//go:linkname reflect_addReflectOff reflect.addReflectOff
+func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
+	reflectOffsLock()
+	if reflectOffs.m == nil {
+		reflectOffs.m = make(map[int32]unsafe.Pointer)
+		reflectOffs.minv = make(map[unsafe.Pointer]int32)
+		reflectOffs.next = -1
 	}
-	if p == "off" {
-		return -1
+	id, found := reflectOffs.minv[ptr]
+	if !found {
+		id = reflectOffs.next
+		reflectOffs.next-- // use negative offsets as IDs to aid debugging
+		reflectOffs.m[id] = ptr
+		reflectOffs.minv[ptr] = id
 	}
-	return int32(atoi(p))
+	reflectOffsUnlock()
+	return id
 }

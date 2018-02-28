@@ -1,7 +1,7 @@
 // +build !nacl
 // run
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -115,10 +115,15 @@ main 132
 main 136
 
 # A nosplit leaf can use the whole 128-CallSize bytes available on entry.
-main 112 nosplit
-main 116 nosplit
-main 120 nosplit
-main 124 nosplit
+# (CallSize is 32 on ppc64, 8 on amd64 for frame pointer.)
+main 96 nosplit
+main 100 nosplit; REJECT ppc64 ppc64le
+main 104 nosplit; REJECT ppc64 ppc64le
+main 108 nosplit; REJECT ppc64 ppc64le
+main 112 nosplit; REJECT ppc64 ppc64le
+main 116 nosplit; REJECT ppc64 ppc64le
+main 120 nosplit; REJECT ppc64 ppc64le amd64
+main 124 nosplit; REJECT ppc64 ppc64le amd64
 main 128 nosplit; REJECT
 main 132 nosplit; REJECT
 main 136 nosplit; REJECT
@@ -126,11 +131,17 @@ main 136 nosplit; REJECT
 # Calling a nosplit function from a nosplit function requires
 # having room for the saved caller PC and the called frame.
 # Because ARM doesn't save LR in the leaf, it gets an extra 4 bytes.
-# Because ppc64 doesn't save LR in the leaf, it gets an extra 8 bytes.
-main 112 nosplit call f; f 0 nosplit
-main 116 nosplit call f; f 0 nosplit
-main 120 nosplit call f; f 0 nosplit; REJECT amd64
-main 124 nosplit call f; f 0 nosplit; REJECT amd64 386
+# Because arm64 doesn't save LR in the leaf, it gets an extra 8 bytes.
+# ppc64 doesn't save LR in the leaf, but CallSize is 32, so it gets 24 bytes.
+# Because AMD64 uses frame pointer, it has 8 fewer bytes.
+main 96 nosplit call f; f 0 nosplit
+main 100 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 108 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
+main 116 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
+main 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
+main 124 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit call f; f 0 nosplit; REJECT
 main 132 nosplit call f; f 0 nosplit; REJECT
 main 136 nosplit call f; f 0 nosplit; REJECT
@@ -138,24 +149,28 @@ main 136 nosplit call f; f 0 nosplit; REJECT
 # Calling a splitting function from a nosplit function requires
 # having room for the saved caller PC of the call but also the
 # saved caller PC for the call to morestack.
-# Again the ARM and ppc64 work in less space.
-main 104 nosplit call f; f 0 call f
-main 108 nosplit call f; f 0 call f
-main 112 nosplit call f; f 0 call f; REJECT amd64
-main 116 nosplit call f; f 0 call f; REJECT amd64
-main 120 nosplit call f; f 0 call f; REJECT amd64 386
-main 124 nosplit call f; f 0 call f; REJECT amd64 386
+# Architectures differ in the same way as before.
+main 96 nosplit call f; f 0 call f
+main 100 nosplit call f; f 0 call f; REJECT ppc64 ppc64le
+main 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+main 108 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+main 112 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+main 116 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+main 120 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
+main 124 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit call f; f 0 call f; REJECT
 main 132 nosplit call f; f 0 call f; REJECT
 main 136 nosplit call f; f 0 call f; REJECT
 
 # Indirect calls are assumed to be splitting functions.
-main 104 nosplit callind
-main 108 nosplit callind
-main 112 nosplit callind; REJECT amd64
-main 116 nosplit callind; REJECT amd64
-main 120 nosplit callind; REJECT amd64 386
-main 124 nosplit callind; REJECT amd64 386
+main 96 nosplit callind
+main 100 nosplit callind; REJECT ppc64 ppc64le
+main 104 nosplit callind; REJECT ppc64 ppc64le amd64
+main 108 nosplit callind; REJECT ppc64 ppc64le amd64
+main 112 nosplit callind; REJECT ppc64 ppc64le amd64
+main 116 nosplit callind; REJECT ppc64 ppc64le amd64
+main 120 nosplit callind; REJECT ppc64 ppc64le amd64 386
+main 124 nosplit callind; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit callind; REJECT
 main 132 nosplit callind; REJECT
 main 136 nosplit callind; REJECT
@@ -184,23 +199,14 @@ func main() {
 		goarch = runtime.GOARCH
 	}
 
-	thechar := ""
-	if gochar, err := exec.Command("go", "env", "GOCHAR").Output(); err != nil {
-		bug()
-		fmt.Printf("running go env GOCHAR: %v\n", err)
-		return
-	} else {
-		thechar = strings.TrimSpace(string(gochar))
-	}
-
-	version, err := exec.Command("go", "tool", thechar+"g", "-V").Output()
+	version, err := exec.Command("go", "tool", "compile", "-V").Output()
 	if err != nil {
 		bug()
-		fmt.Printf("running go tool %sg -V: %v\n", thechar, err)
+		fmt.Printf("running go tool compile -V: %v\n", err)
 		return
 	}
-	if strings.Contains(string(version), "framepointer") {
-		// Skip this test if GOEXPERIMENT=framepointer
+	if s := string(version); goarch == "amd64" && strings.Contains(s, "X:") && !strings.Contains(s, "framepointer") {
+		// Skip this test if framepointer is NOT enabled on AMD64
 		return
 	}
 
@@ -256,14 +262,25 @@ TestCases:
 		var buf bytes.Buffer
 		ptrSize := 4
 		switch goarch {
+		case "mips", "mipsle":
+			fmt.Fprintf(&buf, "#define REGISTER (R0)\n")
+		case "mips64", "mips64le":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define REGISTER (R0)\n")
 		case "ppc64", "ppc64le":
 			ptrSize = 8
-			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n#define RET RETURN\n")
+			fmt.Fprintf(&buf, "#define REGISTER (CTR)\n")
 		case "arm":
-			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n")
+			fmt.Fprintf(&buf, "#define REGISTER (R0)\n")
+		case "arm64":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define REGISTER (R0)\n")
 		case "amd64":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
+		case "s390x":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define REGISTER R10\n")
 		default:
 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
 		}
@@ -287,14 +304,22 @@ TestCases:
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
 
-				// The limit was originally 128 but is now 512.
+				// The limit was originally 128 but is now 752 (880-128).
 				// Instead of rewriting the test cases above, adjust
-				// the first stack frame to use up the extra 32 bytes.
+				// the first stack frame to use up the extra bytes.
 				if i == 0 {
-					size += 512 - 128
+					size += (880 - 128) - 128
+					// Noopt builds have a larger stackguard.
+					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
+					// This increase is included in objabi.StackGuard
+					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+						if s == "-N" {
+							size += 880
+						}
+					}
 				}
 
-				if size%ptrSize == 4 {
+				if size%ptrSize == 4 || goarch == "arm64" && size != 0 && (size+8)%16 != 0 {
 					continue TestCases
 				}
 				nosplit := m[3]

@@ -122,7 +122,7 @@ func TestChunkReaderAllocs(t *testing.T) {
 	byter := bytes.NewReader(buf.Bytes())
 	bufr := bufio.NewReader(byter)
 	mallocs := testing.AllocsPerRun(100, func() {
-		byter.Seek(0, 0)
+		byter.Seek(0, io.SeekStart)
 		bufr.Reset(byter)
 		r := NewChunkedReader(bufr)
 		n, err := io.ReadFull(r, readBuf)
@@ -139,18 +139,76 @@ func TestChunkReaderAllocs(t *testing.T) {
 }
 
 func TestParseHexUint(t *testing.T) {
+	type testCase struct {
+		in      string
+		want    uint64
+		wantErr string
+	}
+	tests := []testCase{
+		{"x", 0, "invalid byte in chunk length"},
+		{"0000000000000000", 0, ""},
+		{"0000000000000001", 1, ""},
+		{"ffffffffffffffff", 1<<64 - 1, ""},
+		{"000000000000bogus", 0, "invalid byte in chunk length"},
+		{"00000000000000000", 0, "http chunk length too large"}, // could accept if we wanted
+		{"10000000000000000", 0, "http chunk length too large"},
+		{"00000000000000001", 0, "http chunk length too large"}, // could accept if we wanted
+	}
 	for i := uint64(0); i <= 1234; i++ {
-		line := []byte(fmt.Sprintf("%x", i))
-		got, err := parseHexUint(line)
-		if err != nil {
-			t.Fatalf("on %d: %v", i, err)
-		}
-		if got != i {
-			t.Errorf("for input %q = %d; want %d", line, got, i)
+		tests = append(tests, testCase{in: fmt.Sprintf("%x", i), want: i})
+	}
+	for _, tt := range tests {
+		got, err := parseHexUint([]byte(tt.in))
+		if tt.wantErr != "" {
+			if !strings.Contains(fmt.Sprint(err), tt.wantErr) {
+				t.Errorf("parseHexUint(%q) = %v, %v; want error %q", tt.in, got, err, tt.wantErr)
+			}
+		} else {
+			if err != nil || got != tt.want {
+				t.Errorf("parseHexUint(%q) = %v, %v; want %v", tt.in, got, err, tt.want)
+			}
 		}
 	}
-	_, err := parseHexUint([]byte("bogus"))
-	if err == nil {
-		t.Error("expected error on bogus input")
+}
+
+func TestChunkReadingIgnoresExtensions(t *testing.T) {
+	in := "7;ext=\"some quoted string\"\r\n" + // token=quoted string
+		"hello, \r\n" +
+		"17;someext\r\n" + // token without value
+		"world! 0123456789abcdef\r\n" +
+		"0;someextension=sometoken\r\n" // token=token
+	data, err := ioutil.ReadAll(NewChunkedReader(strings.NewReader(in)))
+	if err != nil {
+		t.Fatalf("ReadAll = %q, %v", data, err)
 	}
+	if g, e := string(data), "hello, world! 0123456789abcdef"; g != e {
+		t.Errorf("read %q; want %q", g, e)
+	}
+}
+
+// Issue 17355: ChunkedReader shouldn't block waiting for more data
+// if it can return something.
+func TestChunkReadPartial(t *testing.T) {
+	pr, pw := io.Pipe()
+	go func() {
+		pw.Write([]byte("7\r\n1234567"))
+	}()
+	cr := NewChunkedReader(pr)
+	readBuf := make([]byte, 7)
+	n, err := cr.Read(readBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "1234567"
+	if n != 7 || string(readBuf) != want {
+		t.Fatalf("Read: %v %q; want %d, %q", n, readBuf[:n], len(want), want)
+	}
+	go func() {
+		pw.Write([]byte("xx"))
+	}()
+	_, err = cr.Read(readBuf)
+	if got := fmt.Sprint(err); !strings.Contains(got, "malformed") {
+		t.Fatalf("second read = %v; want malformed error", err)
+	}
+
 }

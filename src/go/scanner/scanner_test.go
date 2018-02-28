@@ -45,6 +45,8 @@ var tokens = [...]elt{
 	{token.COMMENT, "/* a comment */", special},
 	{token.COMMENT, "// a comment \n", special},
 	{token.COMMENT, "/*\r*/", special},
+	{token.COMMENT, "/**\r/*/", special}, // issue 11151
+	{token.COMMENT, "/**\r\r/*/", special},
 	{token.COMMENT, "//\r\n", special},
 
 	// Identifiers and basic type literals
@@ -270,7 +272,7 @@ func TestScan(t *testing.T) {
 		switch e.tok {
 		case token.COMMENT:
 			// no CRs in comments
-			elit = string(stripCR([]byte(e.lit)))
+			elit = string(stripCR([]byte(e.lit), e.lit[1] == '*'))
 			//-style comment literal doesn't contain newline
 			if elit[1] == '/' {
 				elit = elit[0 : len(elit)-1]
@@ -284,7 +286,7 @@ func TestScan(t *testing.T) {
 				// no CRs in raw string literals
 				elit = e.lit
 				if elit[0] == '`' {
-					elit = string(stripCR([]byte(elit)))
+					elit = string(stripCR([]byte(elit), false))
 				}
 			} else if e.tok.IsKeyword() {
 				elit = e.lit
@@ -306,6 +308,26 @@ func TestScan(t *testing.T) {
 
 	if s.ErrorCount != 0 {
 		t.Errorf("found %d errors", s.ErrorCount)
+	}
+}
+
+func TestStripCR(t *testing.T) {
+	for _, test := range []struct{ have, want string }{
+		{"//\n", "//\n"},
+		{"//\r\n", "//\n"},
+		{"//\r\r\r\n", "//\n"},
+		{"//\r*\r/\r\n", "//*/\n"},
+		{"/**/", "/**/"},
+		{"/*\r/*/", "/*/*/"},
+		{"/*\r*/", "/**/"},
+		{"/**\r/*/", "/**\r/*/"},
+		{"/*\r/\r*\r/*/", "/*/*\r/*/"},
+		{"/*\r\r\r\r*/", "/**/"},
+	} {
+		got := string(stripCR([]byte(test.have), len(test.have) >= 2 && test.have[1] == '*'))
+		if got != test.want {
+			t.Errorf("stripCR(%q) = %q; want %q", test.have, got, test.want)
+		}
 	}
 }
 
@@ -716,6 +738,7 @@ var errors = []struct {
 	{"078.", token.FLOAT, 0, "078.", ""},
 	{"07801234567.", token.FLOAT, 0, "07801234567.", ""},
 	{"078e0", token.FLOAT, 0, "078e0", ""},
+	{"0E", token.FLOAT, 0, "0E", "illegal floating-point exponent"}, // issue 17621
 	{"078", token.INT, 0, "078", "illegal octal number"},
 	{"07800000009", token.INT, 0, "07800000009", "illegal octal number"},
 	{"0x", token.INT, 0, "0x", "illegal hexadecimal number"},
@@ -731,6 +754,41 @@ var errors = []struct {
 func TestScanErrors(t *testing.T) {
 	for _, e := range errors {
 		checkError(t, e.src, e.tok, e.pos, e.lit, e.err)
+	}
+}
+
+// Verify that no comments show up as literal values when skipping comments.
+func TestIssue10213(t *testing.T) {
+	var src = `
+		var (
+			A = 1 // foo
+		)
+
+		var (
+			B = 2
+			// foo
+		)
+
+		var C = 3 // foo
+
+		var D = 4
+		// foo
+
+		func anycode() {
+		// foo
+		}
+	`
+	var s Scanner
+	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), nil, 0)
+	for {
+		pos, tok, lit := s.Scan()
+		class := tokenclass(tok)
+		if lit != "" && class != keyword && class != literal && tok != token.SEMICOLON {
+			t.Errorf("%s: tok = %s, lit = %q", fset.Position(pos), tok, lit)
+		}
+		if tok <= token.EOF {
+			break
+		}
 	}
 }
 

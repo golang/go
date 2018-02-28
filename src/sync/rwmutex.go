@@ -5,16 +5,26 @@
 package sync
 
 import (
+	"internal/race"
 	"sync/atomic"
 	"unsafe"
 )
 
-// An RWMutex is a reader/writer mutual exclusion lock.
-// The lock can be held by an arbitrary number of readers
-// or a single writer.
-// RWMutexes can be created as part of other
-// structures; the zero value for a RWMutex is
-// an unlocked mutex.
+// There is a modified copy of this file in runtime/rwmutex.go.
+// If you make any changes here, see if you should make them there.
+
+// A RWMutex is a reader/writer mutual exclusion lock.
+// The lock can be held by an arbitrary number of readers or a single writer.
+// The zero value for a RWMutex is an unlocked mutex.
+//
+// A RWMutex must not be copied after first use.
+//
+// If a goroutine holds a RWMutex for reading and another goroutine might
+// call Lock, no goroutine should expect to be able to acquire a read lock
+// until the initial read lock is released. In particular, this prohibits
+// recursive read locking. This is to ensure that the lock eventually becomes
+// available; a blocked Lock call excludes new readers from acquiring the
+// lock.
 type RWMutex struct {
 	w           Mutex  // held if there are pending writers
 	writerSem   uint32 // semaphore for writers to wait for completing readers
@@ -26,18 +36,22 @@ type RWMutex struct {
 const rwmutexMaxReaders = 1 << 30
 
 // RLock locks rw for reading.
+//
+// It should not be used for recursive read locking; a blocked Lock
+// call excludes new readers from acquiring the lock. See the
+// documentation on the RWMutex type.
 func (rw *RWMutex) RLock() {
-	if raceenabled {
+	if race.Enabled {
 		_ = rw.w.state
-		raceDisable()
+		race.Disable()
 	}
 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
 		// A writer is pending, wait for it.
-		runtime_Semacquire(&rw.readerSem)
+		runtime_SemacquireMutex(&rw.readerSem, false)
 	}
-	if raceenabled {
-		raceEnable()
-		raceAcquire(unsafe.Pointer(&rw.readerSem))
+	if race.Enabled {
+		race.Enable()
+		race.Acquire(unsafe.Pointer(&rw.readerSem))
 	}
 }
 
@@ -46,37 +60,34 @@ func (rw *RWMutex) RLock() {
 // It is a run-time error if rw is not locked for reading
 // on entry to RUnlock.
 func (rw *RWMutex) RUnlock() {
-	if raceenabled {
+	if race.Enabled {
 		_ = rw.w.state
-		raceReleaseMerge(unsafe.Pointer(&rw.writerSem))
-		raceDisable()
+		race.ReleaseMerge(unsafe.Pointer(&rw.writerSem))
+		race.Disable()
 	}
 	if r := atomic.AddInt32(&rw.readerCount, -1); r < 0 {
 		if r+1 == 0 || r+1 == -rwmutexMaxReaders {
-			raceEnable()
-			panic("sync: RUnlock of unlocked RWMutex")
+			race.Enable()
+			throw("sync: RUnlock of unlocked RWMutex")
 		}
 		// A writer is pending.
 		if atomic.AddInt32(&rw.readerWait, -1) == 0 {
 			// The last reader unblocks the writer.
-			runtime_Semrelease(&rw.writerSem)
+			runtime_Semrelease(&rw.writerSem, false)
 		}
 	}
-	if raceenabled {
-		raceEnable()
+	if race.Enabled {
+		race.Enable()
 	}
 }
 
 // Lock locks rw for writing.
 // If the lock is already locked for reading or writing,
 // Lock blocks until the lock is available.
-// To ensure that the lock eventually becomes available,
-// a blocked Lock call excludes new readers from acquiring
-// the lock.
 func (rw *RWMutex) Lock() {
-	if raceenabled {
+	if race.Enabled {
 		_ = rw.w.state
-		raceDisable()
+		race.Disable()
 	}
 	// First, resolve competition with other writers.
 	rw.w.Lock()
@@ -84,43 +95,43 @@ func (rw *RWMutex) Lock() {
 	r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
 	// Wait for active readers.
 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
-		runtime_Semacquire(&rw.writerSem)
+		runtime_SemacquireMutex(&rw.writerSem, false)
 	}
-	if raceenabled {
-		raceEnable()
-		raceAcquire(unsafe.Pointer(&rw.readerSem))
-		raceAcquire(unsafe.Pointer(&rw.writerSem))
+	if race.Enabled {
+		race.Enable()
+		race.Acquire(unsafe.Pointer(&rw.readerSem))
+		race.Acquire(unsafe.Pointer(&rw.writerSem))
 	}
 }
 
-// Unlock unlocks rw for writing.  It is a run-time error if rw is
+// Unlock unlocks rw for writing. It is a run-time error if rw is
 // not locked for writing on entry to Unlock.
 //
 // As with Mutexes, a locked RWMutex is not associated with a particular
-// goroutine.  One goroutine may RLock (Lock) an RWMutex and then
+// goroutine. One goroutine may RLock (Lock) a RWMutex and then
 // arrange for another goroutine to RUnlock (Unlock) it.
 func (rw *RWMutex) Unlock() {
-	if raceenabled {
+	if race.Enabled {
 		_ = rw.w.state
-		raceRelease(unsafe.Pointer(&rw.readerSem))
-		raceRelease(unsafe.Pointer(&rw.writerSem))
-		raceDisable()
+		race.Release(unsafe.Pointer(&rw.readerSem))
+		race.Release(unsafe.Pointer(&rw.writerSem))
+		race.Disable()
 	}
 
 	// Announce to readers there is no active writer.
 	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
 	if r >= rwmutexMaxReaders {
-		raceEnable()
-		panic("sync: Unlock of unlocked RWMutex")
+		race.Enable()
+		throw("sync: Unlock of unlocked RWMutex")
 	}
 	// Unblock blocked readers, if any.
 	for i := 0; i < int(r); i++ {
-		runtime_Semrelease(&rw.readerSem)
+		runtime_Semrelease(&rw.readerSem, false)
 	}
 	// Allow other writers to proceed.
 	rw.w.Unlock()
-	if raceenabled {
-		raceEnable()
+	if race.Enabled {
+		race.Enable()
 	}
 }
 

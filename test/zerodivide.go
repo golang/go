@@ -28,6 +28,8 @@ var (
 	i32, j32, k32 int32 = 0, 0, 1
 	i64, j64, k64 int64 = 0, 0, 1
 
+	bb = []int16{2, 0}
+
 	u, v, w       uint    = 0, 0, 1
 	u8, v8, w8    uint8   = 0, 0, 1
 	u16, v16, w16 uint16  = 0, 0, 1
@@ -124,6 +126,10 @@ var errorTests = []ErrorTest{
 	ErrorTest{"int32 1/0", func() { use(k32 / j32) }, "divide"},
 	ErrorTest{"int64 1/0", func() { use(k64 / j64) }, "divide"},
 
+	// From issue 5790, we should ensure that _ assignments
+	// still evaluate and generate zerodivide panics.
+	ErrorTest{"int16 _ = bb[0]/bb[1]", func() { _ = bb[0] / bb[1] }, "divide"},
+
 	ErrorTest{"uint 0/0", func() { use(u / v) }, "divide"},
 	ErrorTest{"uint8 0/0", func() { use(u8 / v8) }, "divide"},
 	ErrorTest{"uint16 0/0", func() { use(u16 / v16) }, "divide"},
@@ -195,9 +201,6 @@ func alike(a, b float64) bool {
 func main() {
 	bad := false
 	for _, t := range errorTests {
-		if t.err != "" {
-			continue
-		}
 		err := error_(t.fn)
 		switch {
 		case t.err == "" && err == "":

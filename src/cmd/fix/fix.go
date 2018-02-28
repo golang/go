@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,10 +17,11 @@ import (
 )
 
 type fix struct {
-	name string
-	date string // date that fix was introduced, in YYYY-MM-DD format
-	f    func(*ast.File) bool
-	desc string
+	name     string
+	date     string // date that fix was introduced, in YYYY-MM-DD format
+	f        func(*ast.File) bool
+	desc     string
+	disabled bool // whether this fix should be disabled by default
 }
 
 // main runs sort.Sort(byName(fixes)) before printing list of fixes.
@@ -282,7 +283,7 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	after(x)
 }
 
-// imports returns true if f imports path.
+// imports reports whether f imports path.
 func imports(f *ast.File, path string) bool {
 	return importSpec(f, path) != nil
 }
@@ -322,33 +323,33 @@ func declImports(gen *ast.GenDecl, path string) bool {
 	return false
 }
 
-// isPkgDot returns true if t is the expression "pkg.name"
+// isPkgDot reports whether t is the expression "pkg.name"
 // where pkg is an imported identifier.
 func isPkgDot(t ast.Expr, pkg, name string) bool {
 	sel, ok := t.(*ast.SelectorExpr)
 	return ok && isTopName(sel.X, pkg) && sel.Sel.String() == name
 }
 
-// isPtrPkgDot returns true if f is the expression "*pkg.name"
+// isPtrPkgDot reports whether f is the expression "*pkg.name"
 // where pkg is an imported identifier.
 func isPtrPkgDot(t ast.Expr, pkg, name string) bool {
 	ptr, ok := t.(*ast.StarExpr)
 	return ok && isPkgDot(ptr.X, pkg, name)
 }
 
-// isTopName returns true if n is a top-level unresolved identifier with the given name.
+// isTopName reports whether n is a top-level unresolved identifier with the given name.
 func isTopName(n ast.Expr, name string) bool {
 	id, ok := n.(*ast.Ident)
 	return ok && id.Name == name && id.Obj == nil
 }
 
-// isName returns true if n is an identifier with the given name.
+// isName reports whether n is an identifier with the given name.
 func isName(n ast.Expr, name string) bool {
 	id, ok := n.(*ast.Ident)
 	return ok && id.String() == name
 }
 
-// isCall returns true if t is a call to pkg.name.
+// isCall reports whether t is a call to pkg.name.
 func isCall(t ast.Expr, pkg, name string) bool {
 	call, ok := t.(*ast.CallExpr)
 	return ok && isPkgDot(call.Fun, pkg, name)
@@ -360,7 +361,7 @@ func isIdent(n interface{}) *ast.Ident {
 	return id
 }
 
-// refersTo returns true if n is a reference to the same object as x.
+// refersTo reports whether n is a reference to the same object as x.
 func refersTo(n ast.Node, x *ast.Ident) bool {
 	id, ok := n.(*ast.Ident)
 	// The test of id.Name == x.Name handles top-level unresolved
@@ -368,12 +369,12 @@ func refersTo(n ast.Node, x *ast.Ident) bool {
 	return ok && id.Obj == x.Obj && id.Name == x.Name
 }
 
-// isBlank returns true if n is the blank identifier.
+// isBlank reports whether n is the blank identifier.
 func isBlank(n ast.Expr) bool {
 	return isName(n, "_")
 }
 
-// isEmptyString returns true if n is an empty string literal.
+// isEmptyString reports whether n is an empty string literal.
 func isEmptyString(n ast.Expr) bool {
 	lit, ok := n.(*ast.BasicLit)
 	return ok && lit.Kind == token.STRING && len(lit.Value) == 2
@@ -430,7 +431,7 @@ func rewriteUses(x *ast.Ident, f, fnot func(token.Pos) ast.Expr, scope []ast.Stm
 	}
 }
 
-// assignsTo returns true if any of the code in scope assigns to or takes the address of x.
+// assignsTo reports whether any of the code in scope assigns to or takes the address of x.
 func assignsTo(x *ast.Ident, scope []ast.Stmt) bool {
 	assigned := false
 	ff := func(n interface{}) {

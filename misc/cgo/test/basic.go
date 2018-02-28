@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -162,3 +162,6 @@ func testUnsignedInt(t *testing.T) {
 func sliceOperands(array [2000]int) {
 	_ = array[C.KILO:C.KILO:C.KILO] // no type error
 }
+
+// set in cgo_thread_lock.go init
+var testThreadLockFunc = func(*testing.T) {}

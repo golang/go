@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -21,10 +21,22 @@ import (
 )
 
 func run(args ...string) string {
+	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
+		args = append(strings.Split(flags, " "), args...)
+	}
 	buf := new(bytes.Buffer)
 	cmd := exec.Command("adb", args...)
 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)
-	cmd.Stderr = os.Stderr
+	// If the adb subprocess somehow hangs, go test will kill this wrapper
+	// and wait for our os.Stderr (and os.Stdout) to close as a result.
+	// However, if the os.Stderr (or os.Stdout) file descriptors are
+	// passed on, the hanging adb subprocess will hold them open and
+	// go test will hang forever.
+	//
+	// Avoid that by wrapping stderr, breaking the short circuit and
+	// forcing cmd.Run to use another pipe and goroutine to pass
+	// along stderr from adb.
+	cmd.Stderr = struct{ io.Writer }{os.Stderr}
 	log.Printf("adb %s", strings.Join(args, " "))
 	err := cmd.Run()
 	if err != nil {
@@ -91,11 +103,11 @@ func main() {
 
 	run("shell", "rm", "-rf", deviceGotmp) // Clean up.
 
-	output = output[strings.LastIndex(output, "\n")+1:]
-	if !strings.HasPrefix(output, exitstr) {
+	exitIdx := strings.LastIndex(output, exitstr)
+	if exitIdx == -1 {
 		log.Fatalf("no exit code: %q", output)
 	}
-	code, err := strconv.Atoi(output[len(exitstr):])
+	code, err := strconv.Atoi(output[exitIdx+len(exitstr):])
 	if err != nil {
 		log.Fatalf("bad exit code: %v", err)
 	}

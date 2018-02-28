@@ -10,6 +10,7 @@ import (
 	"reflect"
 	. "strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -41,6 +42,30 @@ var atoftests = []atofTest{
 	{"-0", "-0", nil},
 	{"1e-20", "1e-20", nil},
 	{"625e-3", "0.625", nil},
+
+	// zeros
+	{"0", "0", nil},
+	{"0e0", "0", nil},
+	{"-0e0", "-0", nil},
+	{"+0e0", "0", nil},
+	{"0e-0", "0", nil},
+	{"-0e-0", "-0", nil},
+	{"+0e-0", "0", nil},
+	{"0e+0", "0", nil},
+	{"-0e+0", "-0", nil},
+	{"+0e+0", "0", nil},
+	{"0e+01234567890123456789", "0", nil},
+	{"0.00e-01234567890123456789", "0", nil},
+	{"-0e+01234567890123456789", "-0", nil},
+	{"-0.00e-01234567890123456789", "-0", nil},
+	{"0e291", "0", nil}, // issue 15364
+	{"0e292", "0", nil}, // issue 15364
+	{"0e347", "0", nil}, // issue 15364
+	{"0e348", "0", nil}, // issue 15364
+	{"-0e291", "-0", nil},
+	{"-0e292", "-0", nil},
+	{"-0e347", "-0", nil},
+	{"-0e348", "-0", nil},
 
 	// NaNs
 	{"nan", "NaN", nil},
@@ -189,14 +214,19 @@ type atofSimpleTest struct {
 }
 
 var (
+	atofOnce               sync.Once
 	atofRandomTests        []atofSimpleTest
 	benchmarksRandomBits   [1024]string
 	benchmarksRandomNormal [1024]string
 )
 
-func init() {
+func initAtof() {
+	atofOnce.Do(initAtofOnce)
+}
+
+func initAtofOnce() {
 	// The atof routines return NumErrors wrapping
-	// the error and the string.  Convert the table above.
+	// the error and the string. Convert the table above.
 	for i := range atoftests {
 		test := &atoftests[i]
 		if test.err != nil {
@@ -237,6 +267,7 @@ func init() {
 }
 
 func testAtof(t *testing.T, opt bool) {
+	initAtof()
 	oldopt := SetOptimize(opt)
 	for i := 0; i < len(atoftests); i++ {
 		test := &atoftests[i]
@@ -282,6 +313,7 @@ func TestAtof(t *testing.T) { testAtof(t, true) }
 func TestAtofSlow(t *testing.T) { testAtof(t, false) }
 
 func TestAtofRandom(t *testing.T) {
+	initAtof()
 	for _, test := range atofRandomTests {
 		x, _ := ParseFloat(test.s, 64)
 		switch {

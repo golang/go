@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include "libcgo.h"
+#include "libcgo_unix.h"
 
 static void* threadentry(void*);
 static pthread_key_t k1;
@@ -38,8 +39,8 @@ inittls(void)
 	 *
 	 * The linker and runtime hard-code this constant offset
 	 * from %gs where we expect to find g.
-	 * Known to ../../../liblink/sym.c:/468
-	 * and to ../sys_darwin_386.s:/468
+	 * Known to src/cmd/link/internal/ld/sym.go:/0x468
+	 * and to src/runtime/sys_darwin_386.s:/0x468
 	 *
 	 * This is truly disgusting and a bit fragile, but taking care
 	 * of it here protects the rest of the system from damage.
@@ -63,7 +64,7 @@ inittls(void)
 	 */
 	ntofree = 0;
 	for(;;) {
-		if(pthread_key_create(&k, nil) < 0) {
+		if(pthread_key_create(&k, nil) != 0) {
 			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
 			abort();
 		}
@@ -121,9 +122,9 @@ _cgo_sys_thread_start(ThreadStart *ts)
 
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
 	ts->g->stackhi = size;
-	err = pthread_create(&p, &attr, threadentry, ts);
+	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
 
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
 
@@ -141,7 +142,10 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	pthread_setspecific(k1, (void*)ts.g);
+	if (pthread_setspecific(k1, (void*)ts.g) != 0) {
+		fprintf(stderr, "runtime/cgo: pthread_setspecific failed\n");
+		abort();
+	}
 
 	crosscall_386(ts.fn);
 	return nil;

@@ -23,12 +23,24 @@ package runtime
 #include <sys/mman.h>
 #include <sys/ucontext.h>
 #include <sys/umtx.h>
+#include <sys/_umtx.h>
 #include <sys/rtprio.h>
 #include <sys/thr.h>
 #include <sys/_sigset.h>
 #include <sys/unistd.h>
+#include <sys/sysctl.h>
+#include <sys/cpuset.h>
+#include <sys/param.h>
 */
 import "C"
+
+// Local consts.
+const (
+	_NBBY            = C.NBBY            // Number of bits in a byte.
+	_CTL_MAXNAME     = C.CTL_MAXNAME     // Largest number of components supported.
+	_CPU_LEVEL_WHICH = C.CPU_LEVEL_WHICH // Actual mask/id for which.
+	_CPU_WHICH_PID   = C.CPU_WHICH_PID   // Specifies a process id.
+)
 
 const (
 	EINTR  = C.EINTR
@@ -48,6 +60,8 @@ const (
 	SA_SIGINFO = C.SA_SIGINFO
 	SA_RESTART = C.SA_RESTART
 	SA_ONSTACK = C.SA_ONSTACK
+
+	CLOCK_MONOTONIC = C.CLOCK_MONOTONIC
 
 	UMTX_OP_WAIT_UINT         = C.UMTX_OP_WAIT_UINT
 	UMTX_OP_WAIT_UINT_PRIVATE = C.UMTX_OP_WAIT_UINT_PRIVATE
@@ -111,13 +125,13 @@ const (
 	EV_CLEAR     = C.EV_CLEAR
 	EV_RECEIPT   = C.EV_RECEIPT
 	EV_ERROR     = C.EV_ERROR
+	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
 )
 
 type Rtprio C.struct_rtprio
 type ThrParam C.struct_thr_param
-type SigaltstackT C.struct_sigaltstack
 type Sigset C.struct___sigset
 type StackT C.stack_t
 
@@ -129,5 +143,7 @@ type Ucontext C.ucontext_t
 type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Itimerval C.struct_itimerval
+
+type Umtx_time C.struct__umtx_time
 
 type Kevent C.struct_kevent

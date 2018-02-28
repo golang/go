@@ -15,7 +15,7 @@ import (
 //
 // Various implementations of ValueConverter are provided by the
 // driver package to provide consistent implementations of conversions
-// between drivers.  The ValueConverters have several uses:
+// between drivers. The ValueConverters have several uses:
 //
 //  * converting from the Value types as provided by the sql package
 //    into a database table's specific column type and making sure it
@@ -172,51 +172,71 @@ func (n NotNull) ConvertValue(v interface{}) (Value, error) {
 }
 
 // IsValue reports whether v is a valid Value parameter type.
-// Unlike IsScanValue, IsValue permits the string type.
 func IsValue(v interface{}) bool {
-	if IsScanValue(v) {
+	if v == nil {
 		return true
 	}
-	if _, ok := v.(string); ok {
+	switch v.(type) {
+	case []byte, bool, float64, int64, string, time.Time:
 		return true
 	}
 	return false
 }
 
-// IsScanValue reports whether v is a valid Value scan type.
-// Unlike IsValue, IsScanValue does not permit the string type.
+// IsScanValue is equivalent to IsValue.
+// It exists for compatibility.
 func IsScanValue(v interface{}) bool {
-	if v == nil {
-		return true
-	}
-	switch v.(type) {
-	case int64, float64, []byte, bool, time.Time:
-		return true
-	}
-	return false
+	return IsValue(v)
 }
 
 // DefaultParameterConverter is the default implementation of
 // ValueConverter that's used when a Stmt doesn't implement
 // ColumnConverter.
 //
-// DefaultParameterConverter returns the given value directly if
-// IsValue(value).  Otherwise integer type are converted to
-// int64, floats to float64, and strings to []byte.  Other types are
-// an error.
+// DefaultParameterConverter returns its argument directly if
+// IsValue(arg). Otherwise, if the argument implements Valuer, its
+// Value method is used to return a Value. As a fallback, the provided
+// argument's underlying type is used to convert it to a Value:
+// underlying integer types are converted to int64, floats to float64,
+// bool, string, and []byte to themselves. If the argument is a nil
+// pointer, ConvertValue returns a nil Value. If the argument is a
+// non-nil pointer, it is dereferenced and ConvertValue is called
+// recursively. Other types are an error.
 var DefaultParameterConverter defaultConverter
 
 type defaultConverter struct{}
 
 var _ ValueConverter = defaultConverter{}
 
+var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
+
+// callValuerValue returns vr.Value(), with one exception:
+// If vr.Value is an auto-generated method on a pointer type and the
+// pointer is nil, it would panic at runtime in the panicwrap
+// method. Treat it like nil instead.
+// Issue 8415.
+//
+// This is so people can implement driver.Value on value types and
+// still use nil pointers to those types to mean nil/NULL, just like
+// string/*string.
+//
+// This function is mirrored in the database/sql package.
+func callValuerValue(vr Valuer) (v Value, err error) {
+	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
+		rv.IsNil() &&
+		rv.Type().Elem().Implements(valuerReflectType) {
+		return nil, nil
+	}
+	return vr.Value()
+}
+
 func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
 	if IsValue(v) {
 		return v, nil
 	}
 
-	if svi, ok := v.(Valuer); ok {
-		sv, err := svi.Value()
+	if vr, ok := v.(Valuer); ok {
+		sv, err := callValuerValue(vr)
 		if err != nil {
 			return nil, err
 		}
@@ -247,6 +267,16 @@ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
 		return int64(u64), nil
 	case reflect.Float32, reflect.Float64:
 		return rv.Float(), nil
+	case reflect.Bool:
+		return rv.Bool(), nil
+	case reflect.Slice:
+		ek := rv.Type().Elem().Kind()
+		if ek == reflect.Uint8 {
+			return rv.Bytes(), nil
+		}
+		return nil, fmt.Errorf("unsupported type %T, a slice of %s", v, ek)
+	case reflect.String:
+		return rv.String(), nil
 	}
 	return nil, fmt.Errorf("unsupported type %T, a %s", v, rv.Kind())
 }

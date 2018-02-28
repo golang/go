@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -144,6 +144,7 @@ var parseTests = []parseTest{
 	// Test Perl quoted literals
 	{`\Q+|*?{[\E`, `str{+|*?{[}`},
 	{`\Q+\E+`, `plus{lit{+}}`},
+	{`\Qab\E+`, `cat{lit{a}plus{lit{b}}}`},
 	{`\Q\\E`, `lit{\}`},
 	{`\Q\\\E`, `str{\\}`},
 
@@ -171,7 +172,7 @@ var parseTests = []parseTest{
 
 	// Factoring.
 	{`abc|abd|aef|bcx|bcy`, `alt{cat{lit{a}alt{cat{lit{b}cc{0x63-0x64}}str{ef}}}cat{str{bc}cc{0x78-0x79}}}`},
-	{`ax+y|ax+z|ay+w`, `cat{lit{a}alt{cat{plus{lit{x}}cc{0x79-0x7a}}cat{plus{lit{y}}lit{w}}}}`},
+	{`ax+y|ax+z|ay+w`, `cat{lit{a}alt{cat{plus{lit{x}}lit{y}}cat{plus{lit{x}}lit{z}}cat{plus{lit{y}}lit{w}}}}`},
 
 	// Bug fixes.
 	{`(?:.)`, `dot{}`},
@@ -194,12 +195,13 @@ var parseTests = []parseTest{
 	{`abc|x|abd`, `alt{str{abc}lit{x}str{abd}}`},
 	{`(?i)abc|ABD`, `cat{strfold{AB}cc{0x43-0x44 0x63-0x64}}`},
 	{`[ab]c|[ab]d`, `cat{cc{0x61-0x62}cc{0x63-0x64}}`},
-	{`(?:xx|yy)c|(?:xx|yy)d`,
-		`cat{alt{str{xx}str{yy}}cc{0x63-0x64}}`},
+	{`.c|.d`, `cat{dot{}cc{0x63-0x64}}`},
 	{`x{2}|x{2}[0-9]`,
 		`cat{rep{2,2 lit{x}}alt{emp{}cc{0x30-0x39}}}`},
 	{`x{2}y|x{2}[0-9]y`,
 		`cat{rep{2,2 lit{x}}alt{lit{y}cat{cc{0x30-0x39}lit{y}}}}`},
+	{`a.*?c|a.*?b`,
+		`cat{lit{a}alt{cat{nstar{dot{}}lit{c}}cat{nstar{dot{}}lit{b}}}}`},
 
 	// Valid repetitions.
 	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
@@ -479,6 +481,7 @@ var invalidRegexps = []string{
 	`a{100000}`,
 	`a{100000,}`,
 	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
+	`\Q\E*`,
 }
 
 var onlyPerl = []string{

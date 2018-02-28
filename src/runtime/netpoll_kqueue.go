@@ -17,22 +17,25 @@ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timesp
 func closeonexec(fd int32)
 
 var (
-	kq             int32 = -1
-	netpolllasterr int32
+	kq int32 = -1
 )
 
 func netpollinit() {
 	kq = kqueue()
 	if kq < 0 {
-		println("netpollinit: kqueue failed with", -kq)
-		throw("netpollinit: kqueue failed")
+		println("runtime: kqueue failed with", -kq)
+		throw("runtime: netpollinit failed")
 	}
 	closeonexec(kq)
 }
 
+func netpolldescriptor() uintptr {
+	return uintptr(kq)
+}
+
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	// Arm both EVFILT_READ and EVFILT_WRITE in edge-triggered mode (EV_CLEAR)
-	// for the whole fd lifetime.  The notifications are automatically unregistered
+	// for the whole fd lifetime. The notifications are automatically unregistered
 	// when fd is closed.
 	var ev [2]keventt
 	*(*uintptr)(unsafe.Pointer(&ev[0].ident)) = fd
@@ -57,14 +60,14 @@ func netpollclose(fd uintptr) int32 {
 }
 
 func netpollarm(pd *pollDesc, mode int) {
-	throw("unused")
+	throw("runtime: unused")
 }
 
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) (gp *g) {
+func netpoll(block bool) *g {
 	if kq == -1 {
-		return
+		return nil
 	}
 	var tp *timespec
 	var ts timespec
@@ -75,27 +78,41 @@ func netpoll(block bool) (gp *g) {
 retry:
 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
 	if n < 0 {
-		if n != -_EINTR && n != netpolllasterr {
-			netpolllasterr = n
+		if n != -_EINTR {
 			println("runtime: kevent on fd", kq, "failed with", -n)
+			throw("runtime: netpoll failed")
 		}
 		goto retry
 	}
+	var gp guintptr
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 		var mode int32
-		if ev.filter == _EVFILT_READ {
+		switch ev.filter {
+		case _EVFILT_READ:
 			mode += 'r'
-		}
-		if ev.filter == _EVFILT_WRITE {
+
+			// On some systems when the read end of a pipe
+			// is closed the write end will not get a
+			// _EVFILT_WRITE event, but will get a
+			// _EVFILT_READ event with EV_EOF set.
+			// Note that setting 'w' here just means that we
+			// will wake up a goroutine waiting to write;
+			// that goroutine will try the write again,
+			// and the appropriate thing will happen based
+			// on what that write returns (success, EPIPE, EAGAIN).
+			if ev.flags&_EV_EOF != 0 {
+				mode += 'w'
+			}
+		case _EVFILT_WRITE:
 			mode += 'w'
 		}
 		if mode != 0 {
-			netpollready((**g)(noescape(unsafe.Pointer(&gp))), (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
+			netpollready(&gp, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
 		}
 	}
-	if block && gp == nil {
+	if block && gp == 0 {
 		goto retry
 	}
-	return gp
+	return gp.ptr()
 }

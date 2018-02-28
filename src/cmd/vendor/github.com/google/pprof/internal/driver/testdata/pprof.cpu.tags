@@ -1,0 +1,13 @@
+ key1: Total 1.1s
+          1.0s (89.29%): tag1
+       100.0ms ( 8.93%): tag2
+        10.0ms ( 0.89%): tag3
+        10.0ms ( 0.89%): tag4
+
+ key2: Total 1.0s
+         1.0s (99.02%): tag1
+       10.0ms ( 0.98%): tag2
+
+ key3: Total 100.0ms
+       100.0ms (  100%): tag2
+

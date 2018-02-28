@@ -80,19 +80,25 @@ func checkErrorPredicate(predName string, pred func(error) bool, err error) stri
 	return ""
 }
 
-var isExistTests = []struct {
+type isExistTest struct {
 	err   error
 	is    bool
 	isnot bool
-}{
+}
+
+var isExistTests = []isExistTest{
 	{&os.PathError{Err: os.ErrInvalid}, false, false},
 	{&os.PathError{Err: os.ErrPermission}, false, false},
 	{&os.PathError{Err: os.ErrExist}, true, false},
 	{&os.PathError{Err: os.ErrNotExist}, false, true},
+	{&os.PathError{Err: os.ErrClosed}, false, false},
 	{&os.LinkError{Err: os.ErrInvalid}, false, false},
 	{&os.LinkError{Err: os.ErrPermission}, false, false},
 	{&os.LinkError{Err: os.ErrExist}, true, false},
 	{&os.LinkError{Err: os.ErrNotExist}, false, true},
+	{&os.LinkError{Err: os.ErrClosed}, false, false},
+	{&os.SyscallError{Err: os.ErrNotExist}, false, true},
+	{&os.SyscallError{Err: os.ErrExist}, true, false},
 	{nil, false, false},
 }
 
@@ -103,6 +109,25 @@ func TestIsExist(t *testing.T) {
 		}
 		if isnot := os.IsNotExist(tt.err); isnot != tt.isnot {
 			t.Errorf("os.IsNotExist(%T %v) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
+		}
+	}
+}
+
+type isPermissionTest struct {
+	err  error
+	want bool
+}
+
+var isPermissionTests = []isPermissionTest{
+	{nil, false},
+	{&os.PathError{Err: os.ErrPermission}, true},
+	{&os.SyscallError{Err: os.ErrPermission}, true},
+}
+
+func TestIsPermission(t *testing.T) {
+	for _, tt := range isPermissionTests {
+		if got := os.IsPermission(tt.err); got != tt.want {
+			t.Errorf("os.IsPermission(%#v) = %v; want %v", tt.err, got, tt.want)
 		}
 	}
 }

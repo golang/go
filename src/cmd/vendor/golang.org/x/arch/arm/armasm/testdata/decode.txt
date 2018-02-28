@@ -1,0 +1,1556 @@
+000001f1|	1	gnu	setend le
+00100f61|	1	gnu	mrsvs r1, apsr
+00f02053|	1	gnu	noppl
+00f0d4f4|	1	gnu	pli [r4]
+01f020d3|	1	gnu	yieldle
+02002d59|	1	gnu	stmdbpl sp!, {r1}
+021da9d8|	1	gnu	stmle r9!, {r1, r8, sl, fp, ip}
+02c0b071|	1	gnu	movsvc ip, r2
+02f02073|	1	gnu	wfevc
+03f02013|	1	gnu	wfine
+03f05df7|	1	gnu	pld [sp, -r3]
+04009d34|	1	gnu	popcc {r0}
+043a52b1|	1	gnu	cmplt r2, r4, lsl #20
+04402de5|	1	gnu	push {r4}
+045b148d|	1	gnu	vldrhi d5, [r4, #-16]
+04f02093|	1	gnu	sevls
+0793eab0|	1	gnu	rsclt r9, sl, r7, lsl #6
+079bfb9e|	1	gnu	vmovls.f64 d25, #183
+0a4fc9d3|	1	gnu	bicle r4, r9, #10, 30
+0bac7ab6|	1	gnu	ldrbtlt sl, [sl], -fp, lsl #24
+0c2aee44|	1	gnu	strbtmi r2, [lr], #2572
+0c4bb000|	1	gnu	adcseq r4, r0, ip, lsl #22
+0e26d561|	1	gnu	bicsvs r2, r5, lr, lsl #12
+0f0fa011|	1	gnu	lslne r0, pc, #30
+0fa448e0|	1	gnu	sub sl, r8, pc, lsl #8
+101af1de|	1	gnu	vmrsle r1, fpscr
+108a0cee|	1	gnu	vmov s24, r8
+108a1dae|	1	gnu	vmovge r8, s26
+108ae14e|	1	gnu	vmsrmi fpscr, r8
+10faf1ae|	1	gnu	vmrsge apsr_nzcv, fpscr
+10fb052e|	1	gnu	vmovcs.32 d5[0], pc
+11c902b7|	1	gnu	smladlt r2, r1, r9, ip
+11ef5b16|	1	gnu	uadd16ne lr, fp, r1
+12fa87a7|	1	gnu	usad8ge r7, r2, sl
+135f2956|	1	gnu	qadd16pl r5, r9, r3
+13de9aa1|	1	gnu	orrsge sp, sl, r3, lsl lr
+145c0e40|	1	gnu	andmi r5, lr, r4, lsl ip
+150f7fd6|	1	gnu	uhadd16le r0, pc, r5
+15b9bf12|	1	gnu	adcsne fp, pc, #344064
+16373391|	1	gnu	teqls r3, r6, lsl r7
+19ef1966|	1	gnu	sadd16vs lr, r9, r9
+1ab0b091|	1	gnu	lslsls fp, sl, r0
+1b9f6fe6|	1	gnu	uqadd16 r9, pc, fp
+1bb58557|	1	gnu	usada8pl r5, fp, r5, fp
+1beff8e0|	1	gnu	rscs lr, r8, fp, lsl pc
+1caff0e6|	1	gnu	usat sl, #16, ip, lsl #30
+1d0f3d36|	1	gnu	shadd16cc r0, sp, sp
+1dca1d52|	1	gnu	andspl ip, sp, #118784
+1e4891d0|	1	gnu	addsle r4, r1, lr, lsl r8
+1f0889e6|	1	gnu	pkhbt r0, r9, pc, lsl #16
+1f1f6fe1|	1	gnu	clz r1, pc
+1f26d157|	1	gnu	bfcpl r2, #12, #6
+1ff07ff5|	1	gnu	clrex
+1fff2fd1|	1	gnu	bxle pc
+20f153f6|	1	gnu	pli [r3, -r0, lsr #2]
+21047013|	1	gnu	cmnne r0, #553648128
+21c2eb8b|	1	gnu	blhi .-0x50f778
+21c2ebfb|	1	gnu	blx .-0x50f776
+21fa62ee|	1	gnu	vmul.f32 s31, s4, s3
+23005720|	1	gnu	subscs r0, r7, r3, lsr #32
+236a303e|	1	gnu	vaddcc.f32 s12, s0, s7
+23f055f6|	1	gnu	pli [r5, -r3, lsr #32]
+2430a031|	1	gnu	lsrcc r3, r4, #32
+245d0803|	1	gnu	movweq r5, #36132
+251a86be|	1	gnu	vdivlt.f32 s2, s12, s11
+25db7b81|	1	gnu	cmnhi fp, r5, lsr #22
+26bc3553|	1	gnu	teqpl r5, #9728
+277c2d69|	1	gnu	pushvs {r0, r1, r2, r5, sl, fp, ip, sp, lr}
+29fc1cf5|	1	gnu	pldw [ip, #-3113]
+29ff2fc1|	1	gnu	bxjgt r9
+2decd9c0|	1	gnu	sbcsgt lr, r9, sp, lsr #24
+30fa5e47|	1	gnu	smmulrmi lr, r0, sl
+316f64d6|	1	gnu	uqasxle r6, r4, r1
+323f5da6|	1	gnu	uasxge r3, sp, r2
+327fe5e6|	1	gnu	usat16 r7, #5, r2
+330151e3|	1	gnu	cmp r1, #-1073741812
+34af2ae6|	1	gnu	qasx sl, sl, r4
+35fd3710|	1	gnu	eorsne pc, r7, r5, lsr sp
+36def1c1|	1	gnu	mvnsgt sp, r6, lsr lr
+3801b061|	1	gnu	lsrsvs r0, r8, r1
+38985477|	1	gnu	smmlarvc r4, r8, r8, r9
+3a2fbfa6|	1	gnu	revge r2, sl
+3a3f1b06|	1	gnu	sasxeq r3, fp, sl
+3a7fa346|	1	gnu	ssat16mi r7, #4, sl
+3a943b94|	1	gnu	ldrtls r9, [fp], #-1082
+3bf505e7|	1	gnu	smuadx r5, fp, r5
+3cef7086|	1	gnu	uhasxhi lr, r0, ip
+3e5f3ec6|	1	gnu	shasxgt r5, lr, lr
+3f4fff86|	1	gnu	rbithi r4, pc
+3faf4717|	1	gnu	smlaldxne sl, r7, pc, pc
+3fff2fc1|	1	gnu	blxgt pc
+402bbf7e|	1	gnu	vcvtvc.u16.f64 d2, d2, #16
+403ab5de|	1	gnu	vcmple.f32 s6, #0
+40eb363e|	1	gnu	vsubcc.f64 d14, d6, d0
+420f73d1|	1	gnu	cmnle r3, r2, asr #30
+424a648e|	1	gnu	vnmulhi.f32 s9, s8, s4
+4284d717|	1	gnu	ldrbne r8, [r7, r2, asr #8]
+42a599c3|	1	gnu	orrsgt sl, r9, #276824064
+42abf0be|	1	gnu	vmovlt.f64 d26, d2
+446ea031|	1	gnu	asrcc r6, r4, #28
+4a953557|	1	gnu	ldrpl r9, [r5, -sl, asr #10]!
+4ab6f712|	1	gnu	rscsne fp, r7, #77594624
+4af07ff5|	1	gnu	dsb #10
+4df6def4|	1	gnu	pli [lr, #1613]
+4efbf52e|	1	gnu	vcmpcs.f64 d31, #0
+50aaac79|	1	gnu	stmibvc ip!, {r4, r6, r9, fp, sp, pc}
+50caf011|	1	gnu	mvnsne ip, r0, asr sl
+50f04961|	1	gnu	qdaddvs pc, r0, r9
+51282008|	1	gnu	stmdaeq r0!, {r0, r4, r6, fp, sp}
+52bf6576|	1	gnu	uqsaxvc fp, r5, r2
+5345c9d0|	1	gnu	sbcle r4, r9, r3, asr r5
+538f5e46|	1	gnu	usaxmi r8, lr, r3
+54106d31|	1	gnu	qdsubcc r1, r4, sp
+56e0e557|	1	gnu	ubfxpl lr, r6, #0, #6
+57073d11|	1	gnu	teqne sp, r7, asr r7
+58bb0aa9|	1	gnu	stmdbge sl, {r3, r4, r6, r8, r9, fp, ip, sp, pc}
+58f007b1|	1	gnu	qaddlt pc, r8, r7
+59fd0e77|	1	gnu	smusdvc lr, r9, sp
+5ab7f1c5|	1	gnu	ldrbgt fp, [r1, #1882]!
+5abf23c6|	1	gnu	qsaxgt fp, r3, sl
+5b8f1c96|	1	gnu	ssaxls r8, ip, fp
+5b98ab97|	1	gnu	sbfxls r9, fp, #16, #12
+5bc9b041|	1	gnu	asrsmi ip, fp, r9
+5bf07ff5|	1	gnu	dmb #11
+5c102b81|	1	gnu	qsubhi r1, ip, fp
+5caa49e1|	1	gnu	qdadd sl, ip, r9
+5d3f7226|	1	gnu	uhsaxcs r3, r2, sp
+5db55470|	1	gnu	subsvc fp, r4, sp, asr r5
+5ef14387|	1	gnu	smlsldhi pc, r3, lr, r1
+5f540a11|	1	gnu	qaddne r5, pc, sl
+5f9079d1|	1	gnu	cmnle r9, pc, asr r0
+5faf3f66|	1	gnu	shsaxvs sl, pc, pc
+605071d7|	1	gnu	ldrble r5, [r1, -r0, rrx]!
+614adc76|	1	gnu	ldrbvc r4, [ip], r1, ror #20
+616b9e42|	1	gnu	addsmi r6, lr, #99328
+62c84f15|	1	gnu	strbne ip, [pc, #-2146]
+62f051f7|	1	gnu	pld [r1, -r2, rrx]
+6346c393|	1	gnu	bicls r4, r3, #103809024
+654abbae|	1	gnu	vcvtge.f32.u16 s8, s8, #5
+65a5f0e3|	1	gnu	mvns sl, #423624704
+65f796f7|	1	gnu	pldw [r6, r5, ror #14]
+670bb12e|	1	gnu	vnegcs.f64 d0, d23
+67903731|	1	gnu	teqcc r7, r7, rrx
+68ddc637|	1	gnu	strbcc sp, [r6, r8, ror #26]
+695b3ab6|	1	gnu	ldrtlt r5, [sl], -r9, ror #22
+697cfc71|	1	gnu	mvnsvc r7, r9, ror #24
+6a0ab3ee|	1	gnu	vcvtb.f16.f32 s0, s21
+6ad9ad54|	1	gnu	strtpl sp, [sp], #2410
+6af07ff5|	1	gnu	isb #10
+6afa6f10|	1	gnu	rsbne pc, pc, sl, ror #20
+6d5b19ee|	1	gnu	vnmla.f64 d5, d9, d29
+6d60b071|	1	gnu	rrxsvc r6, sp
+6df754f7|	1	gnu	pld [r4, -sp, ror #14]
+70065821|	1	gnu	cmpcs r8, r0, ror r6
+7050ed86|	1	gnu	uxtabhi r5, sp, r0
+715f1186|	1	gnu	ssub16hi r5, r1, r1
+716c9805|	1	gnu	ldreq r6, [r8, #3185]
+718d5ab1|	1	gnu	cmplt sl, r1, ror sp
+71c8cfb6|	1	gnu	uxtb16lt ip, r1, ror #16
+7294af06|	1	gnu	sxtbeq r9, r2, ror #8
+72c0bac6|	1	gnu	sxtahgt ip, sl, r2
+730f6716|	1	gnu	uqsub16ne r0, r7, r3
+73608f46|	1	gnu	sxtb16mi r6, r3
+73687f22|	1	gnu	rsbscs r6, pc, #7536640
+74308816|	1	gnu	sxtab16ne r3, r8, r4
+757f3456|	1	gnu	shsub16pl r7, r4, r5
+77788016|	1	gnu	sxtab16ne r7, r0, r7, ror #16
+78061671|	1	gnu	tstvc r6, r8, ror r6
+780a2fe1|	1	gnu	bkpt 0xf0a8
+7850abd6|	1	gnu	sxtable r5, fp, r8
+792cef26|	1	gnu	uxtbcs r2, r9, ror #24
+799eb8e0|	1	gnu	adcs r9, r8, r9, ror lr
+799f5726|	1	gnu	usub16cs r9, r7, r9
+79d0bf16|	1	gnu	sxthne sp, r9
+7a037ba1|	1	gnu	cmnge fp, sl, ror r3
+7b0f2566|	1	gnu	qsub16vs r0, r5, fp
+7b79dd51|	1	gnu	bicspl r7, sp, fp, ror r9
+7b9a9f1d|	1	gnu	vldrne s18, [pc, #492]
+7c70cea6|	1	gnu	uxtab16ge r7, lr, ip
+7d48f966|	1	gnu	uxtahvs r4, r9, sp, ror #16
+7d5c13a1|	1	gnu	tstge r3, sp, ror ip
+7e0001f1|	1	gnu	setend le
+7e1c0ba7|	1	gnu	smlsdxge fp, lr, ip, r1
+7e567e40|	1	gnu	rsbsmi r5, lr, lr, ror r6
+7e8f73b6|	1	gnu	uhsub16lt r8, r3, lr
+7ef0ffd6|	1	gnu	uxthle pc, lr
+7faaa011|	1	gnu	rorne sl, pc, sl
+81f19af7|	1	gnu	pldw [sl, r1, lsl #3]
+82033901|	1	gnu	teqeq r9, r2, lsl #7
+82f316f5|	1	gnu	pldw [r6, #-898]
+830201f1|	1	gnu	setend be
+838a3b91|	1	gnu	teqls fp, r3, lsl #21
+8408af2f|	1	gnu	svccs 0x00af0884
+884201d1|	1	gnu	smlabble r1, r8, r2, r4
+8aa12e31|	1	gnu	smlawbcc lr, sl, r1, sl
+8b9b99c0|	1	gnu	addsgt r9, r9, fp, lsl #23
+8c005c81|	1	gnu	cmphi ip, ip, lsl #1
+8fb429c6|	1	gnu	strtgt fp, [r9], -pc, lsl #9
+907b1f9e|	1	gnu	vmovls.32 r7, d31[0]
+91975f25|	1	gnu	ldrbcs r9, [pc, #-1937]
+91b010e3|	1	gnu	tst r0, #145
+927facb1|	1	gnu	strexdlt r7, r2, [ip]
+92904c91|	1	gnu	swpbls r9, r2, [ip]
+92af1226|	1	gnu	sadd8cs sl, r2, r2
+92b28c70|	1	gnu	umullvc fp, ip, r2, r2
+945f68a6|	1	gnu	uqadd8ge r5, r8, r4
+950b2560|	1	gnu	mlavs r5, r5, fp, r0
+969fcf71|	1	gnu	strexbvc r9, r6, [pc]
+96cf35e6|	1	gnu	shadd8 ip, r5, r6
+98060eb0|	1	gnu	mullt lr, r8, r6
+9843fb93|	1	gnu	mvnsls r4, #152, 6
+9a3fe2b0|	1	gnu	smlallt r3, r2, sl, pc
+9aef58b6|	1	gnu	uadd8lt lr, r8, sl
+9afcdff5|	1	gnu	pld [pc, #3226]
+9c221810|	1	gnu	mulsne r8, ip, r2
+9c3bc9dd|	1	gnu	vstrle d19, [r9, #624]
+9c5f2606|	1	gnu	qadd8eq r5, r6, ip
+9d87dac0|	1	gnu	smullsgt r8, sl, sp, r7
+9e0f7c86|	1	gnu	uhadd8hi r0, ip, lr
+9e814560|	1	gnu	umaalvs r8, r5, lr, r1
+9e9f8dc1|	1	gnu	strexgt r9, lr, [sp]
+9ec3c9d7|	1	gnu	bfile ip, lr, #7, #3
+9ed26d90|	1	gnu	mlsls sp, lr, r2, sp
+9f7fd9c1|	1	gnu	ldrexbgt r7, [r9]
+9f7fea91|	1	gnu	strexhls r7, pc, [sl]
+9f9f9921|	1	gnu	ldrexcs r9, [r9]
+9faffd21|	1	gnu	ldrexhcs sl, [sp]
+9fcfbd61|	1	gnu	ldrexdvs ip, [sp]
+9ff7a710|	1	gnu	umlalne pc, r7, pc, r7
+a05459d3|	1	gnu	cmple r9, #160, 8
+a3062be1|	1	gnu	smulwb fp, r3, r6
+a68a92b1|	1	gnu	orrslt r8, r2, r6, lsr #21
+abff55f6|	1	gnu	pli [r5, -fp, lsr #31]
+addbf8ea|	1	gnu	b .-0x1c9148
+ae79b021|	1	gnu	lsrscs r7, lr, #19
+b590a3b1|	1	gnu	strhlt r9, [r3, r5]!
+b5b2e390|	1	gnu	strhtls fp, [r3], #37
+b6ac4e30|	1	gnu	strhcc sl, [lr], #-198
+b73fff86|	1	gnu	revshhi r3, r7
+b75fbfc6|	1	gnu	rev16gt r5, r7
+b80b7c80|	1	gnu	ldrhthi r0, [ip], #-184
+b82035e0|	1	gnu	ldrht r2, [r5], -r8
+b8877391|	1	gnu	ldrhls r8, [r3, #-120]!
+b9703e41|	1	gnu	ldrhmi r7, [lr, -r9]!
+b9cf8c16|	1	gnu	selne ip, ip, r9
+bd81bd58|	1	gnu	poppl {r0, r2, r3, r4, r5, r7, r8, pc}
+bdfdb469|	1	gnu	ldmibvs r4!, {r0, r2, r3, r4, r5, r7, r8, sl, fp, ip, sp, lr, pc}
+beb02500|	1	gnu	strhteq fp, [r5], -lr
+bf1a5e42|	1	gnu	subsmi r1, lr, #782336
+c19a4d5e|	1	gnu	vmlspl.f32 s19, s27, s2
+c1aab15e|	1	gnu	vsqrtpl.f32 s20, s2
+c354b003|	1	gnu	movseq r5, #-1023410176
+c4091dc1|	1	gnu	tstgt sp, r4, asr #19
+c50e13a9|	1	gnu	ldmdbge r3, {r0, r2, r6, r7, r9, sl, fp}
+c68c8637|	1	gnu	strcc r8, [r6, r6, asr #25]
+c6ad48e3|	1	gnu	movt sl, #36294
+c6f65ff5|	1	gnu	pld [pc, #-1734]
+c8a92f10|	1	gnu	eorne sl, pc, r8, asr #19
+c9016b61|	1	gnu	smulbtvs fp, r9, r1
+cadbf49e|	1	gnu	vcmpels.f64 d29, d10
+ce9de476|	1	gnu	strbtvc r9, [r4], lr, asr #27
+cf3c1ab1|	1	gnu	tstlt sl, pc, asr #25
+d355aab6|	1	gnu	ssatlt r5, #11, r3, asr #11
+d4f4df10|	1	gnu	ldrsbne pc, [pc], #68
+d6530d61|	1	gnu	ldrdvs r5, [sp, -r6]
+d74d7800|	1	gnu	ldrsbteq r4, [r8], #-215
+d9703680|	1	gnu	ldrsbthi r7, [r6], -r9
+dbe003c0|	1	gnu	ldrdgt lr, [r3], -fp
+dc709561|	1	gnu	ldrsbvs r7, [r5, ip]
+dcc3b9c8|	1	gnu	ldmgt r9!, {r2, r3, r4, r6, r7, r8, r9, lr, pc}
+debfa0e5|	1	gnu	str fp, [r0, #4062]!
+dee062a1|	1	gnu	ldrdge lr, [r2, #-14]!
+dfa05ab7|	1	gnu	smmlslt sl, pc, r0, sl
+e02ef011|	1	gnu	mvnsne r2, r0, ror #29
+e4d41718|	1	gnu	ldmdane r7, {r2, r5, r6, r7, sl, ip, lr, pc}
+e6d0fe34|	1	gnu	ldrbtcc sp, [lr], #230
+e73bf7be|	1	gnu	vcvtlt.f32.f64 s7, d23
+e74e72b3|	1	gnu	cmnlt r2, #3696
+e80bf07e|	1	gnu	vabsvc.f64 d16, d24
+e9b5b001|	1	gnu	rorseq fp, r9, #11
+ea7bbdbe|	1	gnu	vcvtlt.s32.f64 s14, d26
+ec063813|	1	gnu	teqne r8, #236, 12
+ec0e49e1|	1	gnu	smlaltt r0, r9, ip, lr
+ee4ab85e|	1	gnu	vcvtpl.f32.s32 s8, s29
+ef461f25|	1	gnu	ldrcs r4, [pc, #-1775]
+ef5fd002|	1	gnu	sbcseq r5, r0, #956
+f4cf1d36|	1	gnu	ssub8cc ip, sp, r4
+f67f73b6|	1	gnu	uhsub8lt r7, r3, r6
+f6e09ca0|	1	gnu	ldrshge lr, [ip], r6
+f7702e32|	1	gnu	eorcc r7, lr, #247
+fa4dcf20|	1	gnu	strdcs r4, [pc], #218
+fac03720|	1	gnu	ldrshtcs ip, [r7], -sl
+fc0f64c6|	1	gnu	uqsub8gt r0, r4, ip
+fc28f481|	1	gnu	ldrshhi r2, [r4, #140]!
+fc300560|	1	gnu	strdvs r3, [r5], -ip
+fcacfc70|	1	gnu	ldrshtvc sl, [ip], #204
+fdbcfaf7|	1	gnu	undef
+fddf5c86|	1	gnu	usub8hi sp, ip, sp
+fdf02013|	1	gnu	dbgne #13
+fe0319e3|	1	gnu	tst r9, #-134217725
+fe7f3116|	1	gnu	shsub8ne r7, r1, lr
+ff4f2ac6|	1	gnu	qsub8gt r4, sl, pc
+ff818c71|	1	gnu	strdvc r8, [ip, pc]
+|6b5721d3	1	gnu	error: unknown instruction
+|76452001	1	gnu	error: unknown instruction
+|97acd647	1	gnu	error: unknown instruction
+11f71507|	1	plan9	SDIV.EQ R7, R1, R5
+15f715e7|	1	plan9	SDIV R7, R5, R5
+11f93517|	1	plan9	UDIV.NE R9, R1, R5
+12fb33e7|	1	plan9	UDIV R11, R2, R3
+ed003be9|	1	plan9	LDMDB [R0,R2-R3,R5-R7], R11!
+923124e0|	1	plan9	MLA R1, R2, R3, R4
+923134e0|	1	plan9	MLA.S R1, R2, R3, R4
+923164e0|	1	plan9	MLS R1, R2, R3, R4
+ff1000e2|	1	plan9	AND $255, R0, R1
+ff1400e2|	1	plan9	AND $4278190080, R0, R1
+ff1010e2|	1	plan9	AND.S $255, R0, R1
+ff1410e2|	1	plan9	AND.S $4278190080, R0, R1
+ff0000e2|	1	plan9	AND $255, R0, R0
+ff0400e2|	1	plan9	AND $4278190080, R0, R0
+ff0010e2|	1	plan9	AND.S $255, R0, R0
+ff0410e2|	1	plan9	AND.S $4278190080, R0, R0
+002001e0|	1	plan9	AND R0, R1, R2
+002011e0|	1	plan9	AND.S R0, R1, R2
+001001e0|	1	plan9	AND R0, R1, R1
+001011e0|	1	plan9	AND.S R0, R1, R1
+202e01e0|	1	plan9	AND R0>>$28, R1, R2
+002e01e0|	1	plan9	AND R0<<$28, R1, R2
+402e01e0|	1	plan9	AND R0->$28, R1, R2
+602e01e0|	1	plan9	AND R0@>$28, R1, R2
+202e11e0|	1	plan9	AND.S R0>>$28, R1, R2
+002e11e0|	1	plan9	AND.S R0<<$28, R1, R2
+402e11e0|	1	plan9	AND.S R0->$28, R1, R2
+602e11e0|	1	plan9	AND.S R0@>$28, R1, R2
+001e01e0|	1	plan9	AND R0<<$28, R1, R1
+201e01e0|	1	plan9	AND R0>>$28, R1, R1
+401e01e0|	1	plan9	AND R0->$28, R1, R1
+601e01e0|	1	plan9	AND R0@>$28, R1, R1
+001e11e0|	1	plan9	AND.S R0<<$28, R1, R1
+201e11e0|	1	plan9	AND.S R0>>$28, R1, R1
+401e11e0|	1	plan9	AND.S R0->$28, R1, R1
+601e11e0|	1	plan9	AND.S R0@>$28, R1, R1
+103102e0|	1	plan9	AND R0<<R1, R2, R3
+303102e0|	1	plan9	AND R0>>R1, R2, R3
+503102e0|	1	plan9	AND R0->R1, R2, R3
+703102e0|	1	plan9	AND R0@>R1, R2, R3
+103112e0|	1	plan9	AND.S R0<<R1, R2, R3
+303112e0|	1	plan9	AND.S R0>>R1, R2, R3
+503112e0|	1	plan9	AND.S R0->R1, R2, R3
+703112e0|	1	plan9	AND.S R0@>R1, R2, R3
+102102e0|	1	plan9	AND R0<<R1, R2, R2
+302102e0|	1	plan9	AND R0>>R1, R2, R2
+502102e0|	1	plan9	AND R0->R1, R2, R2
+702102e0|	1	plan9	AND R0@>R1, R2, R2
+102112e0|	1	plan9	AND.S R0<<R1, R2, R2
+302112e0|	1	plan9	AND.S R0>>R1, R2, R2
+502112e0|	1	plan9	AND.S R0->R1, R2, R2
+702112e0|	1	plan9	AND.S R0@>R1, R2, R2
+ff1020e2|	1	plan9	EOR $255, R0, R1
+ff1420e2|	1	plan9	EOR $4278190080, R0, R1
+ff1030e2|	1	plan9	EOR.S $255, R0, R1
+ff1430e2|	1	plan9	EOR.S $4278190080, R0, R1
+ff0020e2|	1	plan9	EOR $255, R0, R0
+ff0420e2|	1	plan9	EOR $4278190080, R0, R0
+ff0030e2|	1	plan9	EOR.S $255, R0, R0
+ff0430e2|	1	plan9	EOR.S $4278190080, R0, R0
+002021e0|	1	plan9	EOR R0, R1, R2
+002031e0|	1	plan9	EOR.S R0, R1, R2
+001021e0|	1	plan9	EOR R0, R1, R1
+001031e0|	1	plan9	EOR.S R0, R1, R1
+202e21e0|	1	plan9	EOR R0>>$28, R1, R2
+002e21e0|	1	plan9	EOR R0<<$28, R1, R2
+402e21e0|	1	plan9	EOR R0->$28, R1, R2
+602e21e0|	1	plan9	EOR R0@>$28, R1, R2
+202e31e0|	1	plan9	EOR.S R0>>$28, R1, R2
+002e31e0|	1	plan9	EOR.S R0<<$28, R1, R2
+402e31e0|	1	plan9	EOR.S R0->$28, R1, R2
+602e31e0|	1	plan9	EOR.S R0@>$28, R1, R2
+001e21e0|	1	plan9	EOR R0<<$28, R1, R1
+201e21e0|	1	plan9	EOR R0>>$28, R1, R1
+401e21e0|	1	plan9	EOR R0->$28, R1, R1
+601e21e0|	1	plan9	EOR R0@>$28, R1, R1
+001e31e0|	1	plan9	EOR.S R0<<$28, R1, R1
+201e31e0|	1	plan9	EOR.S R0>>$28, R1, R1
+401e31e0|	1	plan9	EOR.S R0->$28, R1, R1
+601e31e0|	1	plan9	EOR.S R0@>$28, R1, R1
+103122e0|	1	plan9	EOR R0<<R1, R2, R3
+303122e0|	1	plan9	EOR R0>>R1, R2, R3
+503122e0|	1	plan9	EOR R0->R1, R2, R3
+703122e0|	1	plan9	EOR R0@>R1, R2, R3
+103132e0|	1	plan9	EOR.S R0<<R1, R2, R3
+303132e0|	1	plan9	EOR.S R0>>R1, R2, R3
+503132e0|	1	plan9	EOR.S R0->R1, R2, R3
+703132e0|	1	plan9	EOR.S R0@>R1, R2, R3
+102122e0|	1	plan9	EOR R0<<R1, R2, R2
+302122e0|	1	plan9	EOR R0>>R1, R2, R2
+502122e0|	1	plan9	EOR R0->R1, R2, R2
+702122e0|	1	plan9	EOR R0@>R1, R2, R2
+102132e0|	1	plan9	EOR.S R0<<R1, R2, R2
+302132e0|	1	plan9	EOR.S R0>>R1, R2, R2
+502132e0|	1	plan9	EOR.S R0->R1, R2, R2
+702132e0|	1	plan9	EOR.S R0@>R1, R2, R2
+ff1080e3|	1	plan9	ORR $255, R0, R1
+ff1480e3|	1	plan9	ORR $4278190080, R0, R1
+ff1090e3|	1	plan9	ORR.S $255, R0, R1
+ff1490e3|	1	plan9	ORR.S $4278190080, R0, R1
+ff0080e3|	1	plan9	ORR $255, R0, R0
+ff0480e3|	1	plan9	ORR $4278190080, R0, R0
+ff0090e3|	1	plan9	ORR.S $255, R0, R0
+ff0490e3|	1	plan9	ORR.S $4278190080, R0, R0
+002081e1|	1	plan9	ORR R0, R1, R2
+002091e1|	1	plan9	ORR.S R0, R1, R2
+001081e1|	1	plan9	ORR R0, R1, R1
+001091e1|	1	plan9	ORR.S R0, R1, R1
+202e81e1|	1	plan9	ORR R0>>$28, R1, R2
+002e81e1|	1	plan9	ORR R0<<$28, R1, R2
+402e81e1|	1	plan9	ORR R0->$28, R1, R2
+602e81e1|	1	plan9	ORR R0@>$28, R1, R2
+202e91e1|	1	plan9	ORR.S R0>>$28, R1, R2
+002e91e1|	1	plan9	ORR.S R0<<$28, R1, R2
+402e91e1|	1	plan9	ORR.S R0->$28, R1, R2
+602e91e1|	1	plan9	ORR.S R0@>$28, R1, R2
+001e81e1|	1	plan9	ORR R0<<$28, R1, R1
+201e81e1|	1	plan9	ORR R0>>$28, R1, R1
+401e81e1|	1	plan9	ORR R0->$28, R1, R1
+601e81e1|	1	plan9	ORR R0@>$28, R1, R1
+001e91e1|	1	plan9	ORR.S R0<<$28, R1, R1
+201e91e1|	1	plan9	ORR.S R0>>$28, R1, R1
+401e91e1|	1	plan9	ORR.S R0->$28, R1, R1
+601e91e1|	1	plan9	ORR.S R0@>$28, R1, R1
+103182e1|	1	plan9	ORR R0<<R1, R2, R3
+303182e1|	1	plan9	ORR R0>>R1, R2, R3
+503182e1|	1	plan9	ORR R0->R1, R2, R3
+703182e1|	1	plan9	ORR R0@>R1, R2, R3
+103192e1|	1	plan9	ORR.S R0<<R1, R2, R3
+303192e1|	1	plan9	ORR.S R0>>R1, R2, R3
+503192e1|	1	plan9	ORR.S R0->R1, R2, R3
+703192e1|	1	plan9	ORR.S R0@>R1, R2, R3
+102182e1|	1	plan9	ORR R0<<R1, R2, R2
+302182e1|	1	plan9	ORR R0>>R1, R2, R2
+502182e1|	1	plan9	ORR R0->R1, R2, R2
+702182e1|	1	plan9	ORR R0@>R1, R2, R2
+102192e1|	1	plan9	ORR.S R0<<R1, R2, R2
+302192e1|	1	plan9	ORR.S R0>>R1, R2, R2
+502192e1|	1	plan9	ORR.S R0->R1, R2, R2
+702192e1|	1	plan9	ORR.S R0@>R1, R2, R2
+ff1040e2|	1	plan9	SUB $255, R0, R1
+ff1440e2|	1	plan9	SUB $4278190080, R0, R1
+ff1050e2|	1	plan9	SUB.S $255, R0, R1
+ff1450e2|	1	plan9	SUB.S $4278190080, R0, R1
+ff0040e2|	1	plan9	SUB $255, R0, R0
+ff0440e2|	1	plan9	SUB $4278190080, R0, R0
+ff0050e2|	1	plan9	SUB.S $255, R0, R0
+ff0450e2|	1	plan9	SUB.S $4278190080, R0, R0
+002041e0|	1	plan9	SUB R0, R1, R2
+002051e0|	1	plan9	SUB.S R0, R1, R2
+001041e0|	1	plan9	SUB R0, R1, R1
+001051e0|	1	plan9	SUB.S R0, R1, R1
+202e41e0|	1	plan9	SUB R0>>$28, R1, R2
+002e41e0|	1	plan9	SUB R0<<$28, R1, R2
+402e41e0|	1	plan9	SUB R0->$28, R1, R2
+602e41e0|	1	plan9	SUB R0@>$28, R1, R2
+202e51e0|	1	plan9	SUB.S R0>>$28, R1, R2
+002e51e0|	1	plan9	SUB.S R0<<$28, R1, R2
+402e51e0|	1	plan9	SUB.S R0->$28, R1, R2
+602e51e0|	1	plan9	SUB.S R0@>$28, R1, R2
+001e41e0|	1	plan9	SUB R0<<$28, R1, R1
+201e41e0|	1	plan9	SUB R0>>$28, R1, R1
+401e41e0|	1	plan9	SUB R0->$28, R1, R1
+601e41e0|	1	plan9	SUB R0@>$28, R1, R1
+001e51e0|	1	plan9	SUB.S R0<<$28, R1, R1
+201e51e0|	1	plan9	SUB.S R0>>$28, R1, R1
+401e51e0|	1	plan9	SUB.S R0->$28, R1, R1
+601e51e0|	1	plan9	SUB.S R0@>$28, R1, R1
+103142e0|	1	plan9	SUB R0<<R1, R2, R3
+303142e0|	1	plan9	SUB R0>>R1, R2, R3
+503142e0|	1	plan9	SUB R0->R1, R2, R3
+703142e0|	1	plan9	SUB R0@>R1, R2, R3
+103152e0|	1	plan9	SUB.S R0<<R1, R2, R3
+303152e0|	1	plan9	SUB.S R0>>R1, R2, R3
+503152e0|	1	plan9	SUB.S R0->R1, R2, R3
+703152e0|	1	plan9	SUB.S R0@>R1, R2, R3
+102142e0|	1	plan9	SUB R0<<R1, R2, R2
+302142e0|	1	plan9	SUB R0>>R1, R2, R2
+502142e0|	1	plan9	SUB R0->R1, R2, R2
+702142e0|	1	plan9	SUB R0@>R1, R2, R2
+102152e0|	1	plan9	SUB.S R0<<R1, R2, R2
+302152e0|	1	plan9	SUB.S R0>>R1, R2, R2
+502152e0|	1	plan9	SUB.S R0->R1, R2, R2
+702152e0|	1	plan9	SUB.S R0@>R1, R2, R2
+ff10c0e2|	1	plan9	SBC $255, R0, R1
+ff14c0e2|	1	plan9	SBC $4278190080, R0, R1
+ff10d0e2|	1	plan9	SBC.S $255, R0, R1
+ff14d0e2|	1	plan9	SBC.S $4278190080, R0, R1
+ff00c0e2|	1	plan9	SBC $255, R0, R0
+ff04c0e2|	1	plan9	SBC $4278190080, R0, R0
+ff00d0e2|	1	plan9	SBC.S $255, R0, R0
+ff04d0e2|	1	plan9	SBC.S $4278190080, R0, R0
+0020c1e0|	1	plan9	SBC R0, R1, R2
+0020d1e0|	1	plan9	SBC.S R0, R1, R2
+0010c1e0|	1	plan9	SBC R0, R1, R1
+0010d1e0|	1	plan9	SBC.S R0, R1, R1
+202ec1e0|	1	plan9	SBC R0>>$28, R1, R2
+002ec1e0|	1	plan9	SBC R0<<$28, R1, R2
+402ec1e0|	1	plan9	SBC R0->$28, R1, R2
+602ec1e0|	1	plan9	SBC R0@>$28, R1, R2
+202ed1e0|	1	plan9	SBC.S R0>>$28, R1, R2
+002ed1e0|	1	plan9	SBC.S R0<<$28, R1, R2
+402ed1e0|	1	plan9	SBC.S R0->$28, R1, R2
+602ed1e0|	1	plan9	SBC.S R0@>$28, R1, R2
+001ec1e0|	1	plan9	SBC R0<<$28, R1, R1
+201ec1e0|	1	plan9	SBC R0>>$28, R1, R1
+401ec1e0|	1	plan9	SBC R0->$28, R1, R1
+601ec1e0|	1	plan9	SBC R0@>$28, R1, R1
+001ed1e0|	1	plan9	SBC.S R0<<$28, R1, R1
+201ed1e0|	1	plan9	SBC.S R0>>$28, R1, R1
+401ed1e0|	1	plan9	SBC.S R0->$28, R1, R1
+601ed1e0|	1	plan9	SBC.S R0@>$28, R1, R1
+1031c2e0|	1	plan9	SBC R0<<R1, R2, R3
+3031c2e0|	1	plan9	SBC R0>>R1, R2, R3
+5031c2e0|	1	plan9	SBC R0->R1, R2, R3
+7031c2e0|	1	plan9	SBC R0@>R1, R2, R3
+1031d2e0|	1	plan9	SBC.S R0<<R1, R2, R3
+3031d2e0|	1	plan9	SBC.S R0>>R1, R2, R3
+5031d2e0|	1	plan9	SBC.S R0->R1, R2, R3
+7031d2e0|	1	plan9	SBC.S R0@>R1, R2, R3
+1021c2e0|	1	plan9	SBC R0<<R1, R2, R2
+3021c2e0|	1	plan9	SBC R0>>R1, R2, R2
+5021c2e0|	1	plan9	SBC R0->R1, R2, R2
+7021c2e0|	1	plan9	SBC R0@>R1, R2, R2
+1021d2e0|	1	plan9	SBC.S R0<<R1, R2, R2
+3021d2e0|	1	plan9	SBC.S R0>>R1, R2, R2
+5021d2e0|	1	plan9	SBC.S R0->R1, R2, R2
+7021d2e0|	1	plan9	SBC.S R0@>R1, R2, R2
+ff1060e2|	1	plan9	RSB $255, R0, R1
+ff1460e2|	1	plan9	RSB $4278190080, R0, R1
+ff1070e2|	1	plan9	RSB.S $255, R0, R1
+ff1470e2|	1	plan9	RSB.S $4278190080, R0, R1
+ff0060e2|	1	plan9	RSB $255, R0, R0
+ff0460e2|	1	plan9	RSB $4278190080, R0, R0
+ff0070e2|	1	plan9	RSB.S $255, R0, R0
+ff0470e2|	1	plan9	RSB.S $4278190080, R0, R0
+002061e0|	1	plan9	RSB R0, R1, R2
+002071e0|	1	plan9	RSB.S R0, R1, R2
+001061e0|	1	plan9	RSB R0, R1, R1
+001071e0|	1	plan9	RSB.S R0, R1, R1
+202e61e0|	1	plan9	RSB R0>>$28, R1, R2
+002e61e0|	1	plan9	RSB R0<<$28, R1, R2
+402e61e0|	1	plan9	RSB R0->$28, R1, R2
+602e61e0|	1	plan9	RSB R0@>$28, R1, R2
+202e71e0|	1	plan9	RSB.S R0>>$28, R1, R2
+002e71e0|	1	plan9	RSB.S R0<<$28, R1, R2
+402e71e0|	1	plan9	RSB.S R0->$28, R1, R2
+602e71e0|	1	plan9	RSB.S R0@>$28, R1, R2
+001e61e0|	1	plan9	RSB R0<<$28, R1, R1
+201e61e0|	1	plan9	RSB R0>>$28, R1, R1
+401e61e0|	1	plan9	RSB R0->$28, R1, R1
+601e61e0|	1	plan9	RSB R0@>$28, R1, R1
+001e71e0|	1	plan9	RSB.S R0<<$28, R1, R1
+201e71e0|	1	plan9	RSB.S R0>>$28, R1, R1
+401e71e0|	1	plan9	RSB.S R0->$28, R1, R1
+601e71e0|	1	plan9	RSB.S R0@>$28, R1, R1
+103162e0|	1	plan9	RSB R0<<R1, R2, R3
+303162e0|	1	plan9	RSB R0>>R1, R2, R3
+503162e0|	1	plan9	RSB R0->R1, R2, R3
+703162e0|	1	plan9	RSB R0@>R1, R2, R3
+103172e0|	1	plan9	RSB.S R0<<R1, R2, R3
+303172e0|	1	plan9	RSB.S R0>>R1, R2, R3
+503172e0|	1	plan9	RSB.S R0->R1, R2, R3
+703172e0|	1	plan9	RSB.S R0@>R1, R2, R3
+102162e0|	1	plan9	RSB R0<<R1, R2, R2
+302162e0|	1	plan9	RSB R0>>R1, R2, R2
+502162e0|	1	plan9	RSB R0->R1, R2, R2
+702162e0|	1	plan9	RSB R0@>R1, R2, R2
+102172e0|	1	plan9	RSB.S R0<<R1, R2, R2
+302172e0|	1	plan9	RSB.S R0>>R1, R2, R2
+502172e0|	1	plan9	RSB.S R0->R1, R2, R2
+702172e0|	1	plan9	RSB.S R0@>R1, R2, R2
+ff10e0e2|	1	plan9	RSC $255, R0, R1
+ff14e0e2|	1	plan9	RSC $4278190080, R0, R1
+ff10f0e2|	1	plan9	RSC.S $255, R0, R1
+ff14f0e2|	1	plan9	RSC.S $4278190080, R0, R1
+ff00e0e2|	1	plan9	RSC $255, R0, R0
+ff04e0e2|	1	plan9	RSC $4278190080, R0, R0
+ff00f0e2|	1	plan9	RSC.S $255, R0, R0
+ff04f0e2|	1	plan9	RSC.S $4278190080, R0, R0
+0020e1e0|	1	plan9	RSC R0, R1, R2
+0020f1e0|	1	plan9	RSC.S R0, R1, R2
+0010e1e0|	1	plan9	RSC R0, R1, R1
+0010f1e0|	1	plan9	RSC.S R0, R1, R1
+202ee1e0|	1	plan9	RSC R0>>$28, R1, R2
+002ee1e0|	1	plan9	RSC R0<<$28, R1, R2
+402ee1e0|	1	plan9	RSC R0->$28, R1, R2
+602ee1e0|	1	plan9	RSC R0@>$28, R1, R2
+202ef1e0|	1	plan9	RSC.S R0>>$28, R1, R2
+002ef1e0|	1	plan9	RSC.S R0<<$28, R1, R2
+402ef1e0|	1	plan9	RSC.S R0->$28, R1, R2
+602ef1e0|	1	plan9	RSC.S R0@>$28, R1, R2
+001ee1e0|	1	plan9	RSC R0<<$28, R1, R1
+201ee1e0|	1	plan9	RSC R0>>$28, R1, R1
+401ee1e0|	1	plan9	RSC R0->$28, R1, R1
+601ee1e0|	1	plan9	RSC R0@>$28, R1, R1
+001ef1e0|	1	plan9	RSC.S R0<<$28, R1, R1
+201ef1e0|	1	plan9	RSC.S R0>>$28, R1, R1
+401ef1e0|	1	plan9	RSC.S R0->$28, R1, R1
+601ef1e0|	1	plan9	RSC.S R0@>$28, R1, R1
+1031e2e0|	1	plan9	RSC R0<<R1, R2, R3
+3031e2e0|	1	plan9	RSC R0>>R1, R2, R3
+5031e2e0|	1	plan9	RSC R0->R1, R2, R3
+7031e2e0|	1	plan9	RSC R0@>R1, R2, R3
+1031f2e0|	1	plan9	RSC.S R0<<R1, R2, R3
+3031f2e0|	1	plan9	RSC.S R0>>R1, R2, R3
+5031f2e0|	1	plan9	RSC.S R0->R1, R2, R3
+7031f2e0|	1	plan9	RSC.S R0@>R1, R2, R3
+1021e2e0|	1	plan9	RSC R0<<R1, R2, R2
+3021e2e0|	1	plan9	RSC R0>>R1, R2, R2
+5021e2e0|	1	plan9	RSC R0->R1, R2, R2
+7021e2e0|	1	plan9	RSC R0@>R1, R2, R2
+1021f2e0|	1	plan9	RSC.S R0<<R1, R2, R2
+3021f2e0|	1	plan9	RSC.S R0>>R1, R2, R2
+5021f2e0|	1	plan9	RSC.S R0->R1, R2, R2
+7021f2e0|	1	plan9	RSC.S R0@>R1, R2, R2
+ff1080e2|	1	plan9	ADD $255, R0, R1
+ff1480e2|	1	plan9	ADD $4278190080, R0, R1
+ff1090e2|	1	plan9	ADD.S $255, R0, R1
+ff1490e2|	1	plan9	ADD.S $4278190080, R0, R1
+ff0080e2|	1	plan9	ADD $255, R0, R0
+ff0480e2|	1	plan9	ADD $4278190080, R0, R0
+ff0090e2|	1	plan9	ADD.S $255, R0, R0
+ff0490e2|	1	plan9	ADD.S $4278190080, R0, R0
+002081e0|	1	plan9	ADD R0, R1, R2
+002091e0|	1	plan9	ADD.S R0, R1, R2
+001081e0|	1	plan9	ADD R0, R1, R1
+001091e0|	1	plan9	ADD.S R0, R1, R1
+202e81e0|	1	plan9	ADD R0>>$28, R1, R2
+002e81e0|	1	plan9	ADD R0<<$28, R1, R2
+402e81e0|	1	plan9	ADD R0->$28, R1, R2
+602e81e0|	1	plan9	ADD R0@>$28, R1, R2
+202e91e0|	1	plan9	ADD.S R0>>$28, R1, R2
+002e91e0|	1	plan9	ADD.S R0<<$28, R1, R2
+402e91e0|	1	plan9	ADD.S R0->$28, R1, R2
+602e91e0|	1	plan9	ADD.S R0@>$28, R1, R2
+001e81e0|	1	plan9	ADD R0<<$28, R1, R1
+201e81e0|	1	plan9	ADD R0>>$28, R1, R1
+401e81e0|	1	plan9	ADD R0->$28, R1, R1
+601e81e0|	1	plan9	ADD R0@>$28, R1, R1
+001e91e0|	1	plan9	ADD.S R0<<$28, R1, R1
+201e91e0|	1	plan9	ADD.S R0>>$28, R1, R1
+401e91e0|	1	plan9	ADD.S R0->$28, R1, R1
+601e91e0|	1	plan9	ADD.S R0@>$28, R1, R1
+103182e0|	1	plan9	ADD R0<<R1, R2, R3
+303182e0|	1	plan9	ADD R0>>R1, R2, R3
+503182e0|	1	plan9	ADD R0->R1, R2, R3
+703182e0|	1	plan9	ADD R0@>R1, R2, R3
+103192e0|	1	plan9	ADD.S R0<<R1, R2, R3
+303192e0|	1	plan9	ADD.S R0>>R1, R2, R3
+503192e0|	1	plan9	ADD.S R0->R1, R2, R3
+703192e0|	1	plan9	ADD.S R0@>R1, R2, R3
+102182e0|	1	plan9	ADD R0<<R1, R2, R2
+302182e0|	1	plan9	ADD R0>>R1, R2, R2
+502182e0|	1	plan9	ADD R0->R1, R2, R2
+702182e0|	1	plan9	ADD R0@>R1, R2, R2
+102192e0|	1	plan9	ADD.S R0<<R1, R2, R2
+302192e0|	1	plan9	ADD.S R0>>R1, R2, R2
+502192e0|	1	plan9	ADD.S R0->R1, R2, R2
+702192e0|	1	plan9	ADD.S R0@>R1, R2, R2
+ff10a0e2|	1	plan9	ADC $255, R0, R1
+ff14a0e2|	1	plan9	ADC $4278190080, R0, R1
+ff10b0e2|	1	plan9	ADC.S $255, R0, R1
+ff14b0e2|	1	plan9	ADC.S $4278190080, R0, R1
+ff00a0e2|	1	plan9	ADC $255, R0, R0
+ff04a0e2|	1	plan9	ADC $4278190080, R0, R0
+ff00b0e2|	1	plan9	ADC.S $255, R0, R0
+ff04b0e2|	1	plan9	ADC.S $4278190080, R0, R0
+0020a1e0|	1	plan9	ADC R0, R1, R2
+0020b1e0|	1	plan9	ADC.S R0, R1, R2
+0010a1e0|	1	plan9	ADC R0, R1, R1
+0010b1e0|	1	plan9	ADC.S R0, R1, R1
+202ea1e0|	1	plan9	ADC R0>>$28, R1, R2
+002ea1e0|	1	plan9	ADC R0<<$28, R1, R2
+402ea1e0|	1	plan9	ADC R0->$28, R1, R2
+602ea1e0|	1	plan9	ADC R0@>$28, R1, R2
+202eb1e0|	1	plan9	ADC.S R0>>$28, R1, R2
+002eb1e0|	1	plan9	ADC.S R0<<$28, R1, R2
+402eb1e0|	1	plan9	ADC.S R0->$28, R1, R2
+602eb1e0|	1	plan9	ADC.S R0@>$28, R1, R2
+001ea1e0|	1	plan9	ADC R0<<$28, R1, R1
+201ea1e0|	1	plan9	ADC R0>>$28, R1, R1
+401ea1e0|	1	plan9	ADC R0->$28, R1, R1
+601ea1e0|	1	plan9	ADC R0@>$28, R1, R1
+001eb1e0|	1	plan9	ADC.S R0<<$28, R1, R1
+201eb1e0|	1	plan9	ADC.S R0>>$28, R1, R1
+401eb1e0|	1	plan9	ADC.S R0->$28, R1, R1
+601eb1e0|	1	plan9	ADC.S R0@>$28, R1, R1
+1031a2e0|	1	plan9	ADC R0<<R1, R2, R3
+3031a2e0|	1	plan9	ADC R0>>R1, R2, R3
+5031a2e0|	1	plan9	ADC R0->R1, R2, R3
+7031a2e0|	1	plan9	ADC R0@>R1, R2, R3
+1031b2e0|	1	plan9	ADC.S R0<<R1, R2, R3
+3031b2e0|	1	plan9	ADC.S R0>>R1, R2, R3
+5031b2e0|	1	plan9	ADC.S R0->R1, R2, R3
+7031b2e0|	1	plan9	ADC.S R0@>R1, R2, R3
+1021a2e0|	1	plan9	ADC R0<<R1, R2, R2
+3021a2e0|	1	plan9	ADC R0>>R1, R2, R2
+5021a2e0|	1	plan9	ADC R0->R1, R2, R2
+7021a2e0|	1	plan9	ADC R0@>R1, R2, R2
+1021b2e0|	1	plan9	ADC.S R0<<R1, R2, R2
+3021b2e0|	1	plan9	ADC.S R0>>R1, R2, R2
+5021b2e0|	1	plan9	ADC.S R0->R1, R2, R2
+7021b2e0|	1	plan9	ADC.S R0@>R1, R2, R2
+ff0037e3|	1	plan9	TEQ $255, R7
+ff0439e3|	1	plan9	TEQ $4278190080, R9
+090f37e1|	1	plan9	TEQ R9<<$30, R7
+290f37e1|	1	plan9	TEQ R9>>$30, R7
+490f37e1|	1	plan9	TEQ R9->$30, R7
+690f37e1|	1	plan9	TEQ R9@>$30, R7
+190837e1|	1	plan9	TEQ R9<<R8, R7
+390837e1|	1	plan9	TEQ R9>>R8, R7
+590837e1|	1	plan9	TEQ R9->R8, R7
+790837e1|	1	plan9	TEQ R9@>R8, R7
+ff0017e3|	1	plan9	TST $255, R7
+ff0419e3|	1	plan9	TST $4278190080, R9
+090f17e1|	1	plan9	TST R9<<$30, R7
+290f17e1|	1	plan9	TST R9>>$30, R7
+490f17e1|	1	plan9	TST R9->$30, R7
+690f17e1|	1	plan9	TST R9@>$30, R7
+190817e1|	1	plan9	TST R9<<R8, R7
+390817e1|	1	plan9	TST R9>>R8, R7
+590817e1|	1	plan9	TST R9->R8, R7
+790817e1|	1	plan9	TST R9@>R8, R7
+ff0057e3|	1	plan9	CMP $255, R7
+ff0459e3|	1	plan9	CMP $4278190080, R9
+090f57e1|	1	plan9	CMP R9<<$30, R7
+290f57e1|	1	plan9	CMP R9>>$30, R7
+490f57e1|	1	plan9	CMP R9->$30, R7
+690f57e1|	1	plan9	CMP R9@>$30, R7
+190857e1|	1	plan9	CMP R9<<R8, R7
+390857e1|	1	plan9	CMP R9>>R8, R7
+590857e1|	1	plan9	CMP R9->R8, R7
+790857e1|	1	plan9	CMP R9@>R8, R7
+ff0077e3|	1	plan9	CMN $255, R7
+ff0479e3|	1	plan9	CMN $4278190080, R9
+090f77e1|	1	plan9	CMN R9<<$30, R7
+290f77e1|	1	plan9	CMN R9>>$30, R7
+490f77e1|	1	plan9	CMN R9->$30, R7
+690f77e1|	1	plan9	CMN R9@>$30, R7
+190877e1|	1	plan9	CMN R9<<R8, R7
+390877e1|	1	plan9	CMN R9>>R8, R7
+590877e1|	1	plan9	CMN R9->R8, R7
+790877e1|	1	plan9	CMN R9@>R8, R7
+0c00000a|	1	plan9	B.EQ 0x38
+0b00001a|	1	plan9	B.NE 0x34
+0a00002a|	1	plan9	B.CS 0x30
+0900003a|	1	plan9	B.CC 0x2c
+0800004a|	1	plan9	B.MI 0x28
+0700005a|	1	plan9	B.PL 0x24
+0600006a|	1	plan9	B.VS 0x20
+0500007a|	1	plan9	B.VC 0x1c
+0400008a|	1	plan9	B.HI 0x18
+0300009a|	1	plan9	B.LS 0x14
+020000aa|	1	plan9	B.GE 0x10
+010000ba|	1	plan9	B.LT 0xc
+000000ca|	1	plan9	B.GT 0x8
+ffffffda|	1	plan9	B.LE 0x4
+fdffffea|	1	plan9	B 0xfffffffc
+fcffffea|	1	plan9	B 0xfffffff8
+fbffffea|	1	plan9	B 0xfffffff4
+faffffea|	1	plan9	B 0xfffffff0
+f9ffffea|	1	plan9	B 0xffffffec
+feffffea|	1	plan9	B 0x0
+0c00000b|	1	plan9	BL.EQ 0x38
+0b00001b|	1	plan9	BL.NE 0x34
+0a00002b|	1	plan9	BL.CS 0x30
+0900003b|	1	plan9	BL.CC 0x2c
+0800004b|	1	plan9	BL.MI 0x28
+0700005b|	1	plan9	BL.PL 0x24
+0600006b|	1	plan9	BL.VS 0x20
+0500007b|	1	plan9	BL.VC 0x1c
+0400008b|	1	plan9	BL.HI 0x18
+0300009b|	1	plan9	BL.LS 0x14
+020000ab|	1	plan9	BL.GE 0x10
+010000bb|	1	plan9	BL.LT 0xc
+000000cb|	1	plan9	BL.GT 0x8
+ffffffdb|	1	plan9	BL.LE 0x4
+fdffffeb|	1	plan9	BL 0xfffffffc
+fcffffeb|	1	plan9	BL 0xfffffff8
+fbffffeb|	1	plan9	BL 0xfffffff4
+faffffeb|	1	plan9	BL 0xfffffff0
+f9ffffeb|	1	plan9	BL 0xffffffec
+feffffeb|	1	plan9	BL 0x0
+ff10c0e3|	1	plan9	BIC $255, R0, R1
+ff14c0e3|	1	plan9	BIC $4278190080, R0, R1
+ff10d0e3|	1	plan9	BIC.S $255, R0, R1
+ff14d0e3|	1	plan9	BIC.S $4278190080, R0, R1
+ff00c0e3|	1	plan9	BIC $255, R0, R0
+ff04c0e3|	1	plan9	BIC $4278190080, R0, R0
+ff00d0e3|	1	plan9	BIC.S $255, R0, R0
+ff04d0e3|	1	plan9	BIC.S $4278190080, R0, R0
+0020c1e1|	1	plan9	BIC R0, R1, R2
+0020d1e1|	1	plan9	BIC.S R0, R1, R2
+0010c1e1|	1	plan9	BIC R0, R1, R1
+0010d1e1|	1	plan9	BIC.S R0, R1, R1
+202ec1e1|	1	plan9	BIC R0>>$28, R1, R2
+002ec1e1|	1	plan9	BIC R0<<$28, R1, R2
+402ec1e1|	1	plan9	BIC R0->$28, R1, R2
+602ec1e1|	1	plan9	BIC R0@>$28, R1, R2
+202ed1e1|	1	plan9	BIC.S R0>>$28, R1, R2
+002ed1e1|	1	plan9	BIC.S R0<<$28, R1, R2
+402ed1e1|	1	plan9	BIC.S R0->$28, R1, R2
+602ed1e1|	1	plan9	BIC.S R0@>$28, R1, R2
+001ec1e1|	1	plan9	BIC R0<<$28, R1, R1
+201ec1e1|	1	plan9	BIC R0>>$28, R1, R1
+401ec1e1|	1	plan9	BIC R0->$28, R1, R1
+601ec1e1|	1	plan9	BIC R0@>$28, R1, R1
+001ed1e1|	1	plan9	BIC.S R0<<$28, R1, R1
+201ed1e1|	1	plan9	BIC.S R0>>$28, R1, R1
+401ed1e1|	1	plan9	BIC.S R0->$28, R1, R1
+601ed1e1|	1	plan9	BIC.S R0@>$28, R1, R1
+1031c2e1|	1	plan9	BIC R0<<R1, R2, R3
+3031c2e1|	1	plan9	BIC R0>>R1, R2, R3
+5031c2e1|	1	plan9	BIC R0->R1, R2, R3
+7031c2e1|	1	plan9	BIC R0@>R1, R2, R3
+1031d2e1|	1	plan9	BIC.S R0<<R1, R2, R3
+3031d2e1|	1	plan9	BIC.S R0>>R1, R2, R3
+5031d2e1|	1	plan9	BIC.S R0->R1, R2, R3
+7031d2e1|	1	plan9	BIC.S R0@>R1, R2, R3
+1021c2e1|	1	plan9	BIC R0<<R1, R2, R2
+3021c2e1|	1	plan9	BIC R0>>R1, R2, R2
+5021c2e1|	1	plan9	BIC R0->R1, R2, R2
+7021c2e1|	1	plan9	BIC R0@>R1, R2, R2
+1021d2e1|	1	plan9	BIC.S R0<<R1, R2, R2
+3021d2e1|	1	plan9	BIC.S R0>>R1, R2, R2
+5021d2e1|	1	plan9	BIC.S R0->R1, R2, R2
+7021d2e1|	1	plan9	BIC.S R0@>R1, R2, R2
+2567a0e1|	1	plan9	LSR $14, R5, R6
+a567a0e1|	1	plan9	LSR $15, R5, R6
+256fa0e1|	1	plan9	LSR $30, R5, R6
+a56fa0e1|	1	plan9	LSR $31, R5, R6
+2567b0e1|	1	plan9	LSR.S $14, R5, R6
+a567b0e1|	1	plan9	LSR.S $15, R5, R6
+256fb0e1|	1	plan9	LSR.S $30, R5, R6
+a56fb0e1|	1	plan9	LSR.S $31, R5, R6
+2557a0e1|	1	plan9	LSR $14, R5, R5
+a557a0e1|	1	plan9	LSR $15, R5, R5
+255fa0e1|	1	plan9	LSR $30, R5, R5
+a55fa0e1|	1	plan9	LSR $31, R5, R5
+2557b0e1|	1	plan9	LSR.S $14, R5, R5
+a557b0e1|	1	plan9	LSR.S $15, R5, R5
+255fb0e1|	1	plan9	LSR.S $30, R5, R5
+a55fb0e1|	1	plan9	LSR.S $31, R5, R5
+3675a0e1|	1	plan9	LSR R5, R6, R7
+3675b0e1|	1	plan9	LSR.S R5, R6, R7
+3775a0e1|	1	plan9	LSR R5, R7, R7
+3775b0e1|	1	plan9	LSR.S R5, R7, R7
+4567a0e1|	1	plan9	ASR $14, R5, R6
+c567a0e1|	1	plan9	ASR $15, R5, R6
+456fa0e1|	1	plan9	ASR $30, R5, R6
+c56fa0e1|	1	plan9	ASR $31, R5, R6
+4567b0e1|	1	plan9	ASR.S $14, R5, R6
+c567b0e1|	1	plan9	ASR.S $15, R5, R6
+456fb0e1|	1	plan9	ASR.S $30, R5, R6
+c56fb0e1|	1	plan9	ASR.S $31, R5, R6
+4557a0e1|	1	plan9	ASR $14, R5, R5
+c557a0e1|	1	plan9	ASR $15, R5, R5
+455fa0e1|	1	plan9	ASR $30, R5, R5
+c55fa0e1|	1	plan9	ASR $31, R5, R5
+4557b0e1|	1	plan9	ASR.S $14, R5, R5
+c557b0e1|	1	plan9	ASR.S $15, R5, R5
+455fb0e1|	1	plan9	ASR.S $30, R5, R5
+c55fb0e1|	1	plan9	ASR.S $31, R5, R5
+5675a0e1|	1	plan9	ASR R5, R6, R7
+5675b0e1|	1	plan9	ASR.S R5, R6, R7
+5775a0e1|	1	plan9	ASR R5, R7, R7
+5775b0e1|	1	plan9	ASR.S R5, R7, R7
+0567a0e1|	1	plan9	LSL $14, R5, R6
+8567a0e1|	1	plan9	LSL $15, R5, R6
+056fa0e1|	1	plan9	LSL $30, R5, R6
+856fa0e1|	1	plan9	LSL $31, R5, R6
+0567b0e1|	1	plan9	LSL.S $14, R5, R6
+8567b0e1|	1	plan9	LSL.S $15, R5, R6
+056fb0e1|	1	plan9	LSL.S $30, R5, R6
+856fb0e1|	1	plan9	LSL.S $31, R5, R6
+0557a0e1|	1	plan9	LSL $14, R5, R5
+8557a0e1|	1	plan9	LSL $15, R5, R5
+055fa0e1|	1	plan9	LSL $30, R5, R5
+855fa0e1|	1	plan9	LSL $31, R5, R5
+0557b0e1|	1	plan9	LSL.S $14, R5, R5
+8557b0e1|	1	plan9	LSL.S $15, R5, R5
+055fb0e1|	1	plan9	LSL.S $30, R5, R5
+855fb0e1|	1	plan9	LSL.S $31, R5, R5
+1675a0e1|	1	plan9	LSL R5, R6, R7
+1675b0e1|	1	plan9	LSL.S R5, R6, R7
+1775a0e1|	1	plan9	LSL R5, R7, R7
+1775b0e1|	1	plan9	LSL.S R5, R7, R7
+c23124e1|	1	plan9	SMLAWT R1, R2, R3, R4
+823124e1|	1	plan9	SMLAWB R1, R2, R3, R4
+923164e0|	1	plan9	MLS R1, R2, R3, R4
+923124e0|	1	plan9	MLA R1, R2, R3, R4
+923134e0|	1	plan9	MLA.S R1, R2, R3, R4
+123154e7|	1	plan9	SMMLA R1, R2, R3, R4
+d23154e7|	1	plan9	SMMLS R1, R2, R3, R4
+823104e1|	1	plan9	SMLABB R1, R2, R3, R4
+a23104e1|	1	plan9	SMLATB R1, R2, R3, R4
+c23104e1|	1	plan9	SMLABT R1, R2, R3, R4
+e23104e1|	1	plan9	SMLATT R1, R2, R3, R4
+123104e7|	1	plan9	SMLAD R1, R2, R3, R4
+323104e7|	1	plan9	SMLAD.X R1, R2, R3, R4
+523104e7|	1	plan9	SMLSD R1, R2, R3, R4
+723104e7|	1	plan9	SMLSD.X R1, R2, R3, R4
+9231e4e0|	1	plan9	SMLAL R1, R2, R4, R3
+9231f4e0|	1	plan9	SMLAL.S R1, R2, R4, R3
+123144e7|	1	plan9	SMLALD R1, R2, R4, R3
+323144e7|	1	plan9	SMLALD.X R1, R2, R4, R3
+523144e7|	1	plan9	SMLSLD R1, R2, R4, R3
+723144e7|	1	plan9	SMLSLD.X R1, R2, R4, R3
+9231a4e0|	1	plan9	UMLAL R1, R2, R4, R3
+923144e0|	1	plan9	UMAAL R1, R2, R4, R3
+9231b4e0|	1	plan9	UMLAL.S R1, R2, R4, R3
+930204e0|	1	plan9	MUL R2, R3, R4
+920404e0|	1	plan9	MUL R4, R2, R4
+930214e0|	1	plan9	MUL.S R2, R3, R4
+920414e0|	1	plan9	MUL.S R4, R2, R4
+960507e0|	1	plan9	MUL R5, R6, R7
+950707e0|	1	plan9	MUL R7, R5, R7
+960517e0|	1	plan9	MUL.S R5, R6, R7
+950717e0|	1	plan9	MUL.S R7, R5, R7
+923184e0|	1	plan9	UMULL R1, R2, R4, R3
+923194e0|	1	plan9	UMULL.S R1, R2, R4, R3
+9231c4e0|	1	plan9	SMULL R1, R2, R4, R3
+9231d4e0|	1	plan9	SMULL.S R1, R2, R4, R3
+12f153e7|	1	plan9	SMMUL R1, R2, R3
+820163e1|	1	plan9	SMULBB R1, R2, R3
+a20163e1|	1	plan9	SMULTB R1, R2, R3
+c20163e1|	1	plan9	SMULBT R1, R2, R3
+e20163e1|	1	plan9	SMULTT R1, R2, R3
+a20123e1|	1	plan9	SMULWB R1, R2, R3
+e20123e1|	1	plan9	SMULWT R1, R2, R3
+12f103e7|	1	plan9	SMUAD R1, R2, R3
+32f103e7|	1	plan9	SMUAD.X R1, R2, R3
+52f103e7|	1	plan9	SMUSD R1, R2, R3
+72f103e7|	1	plan9	SMUSD.X R1, R2, R3
+312fbfe6|	1	plan9	REV R1, R2
+b12fbfe6|	1	plan9	REV16 R1, R2
+b12fffe6|	1	plan9	REVSH R1, R2
+312fffe6|	1	plan9	RBIT R1, R2
+112f6fe1|	1	plan9	CLZ R1, R2
+f0ffd6f5|	1	gnu	pld [r6, #4080]
+f0ff59f5|	1	gnu	pld [r9, #-4080]
+f0ff96f5|	1	gnu	pldw [r6, #4080]
+f0ff19f5|	1	gnu	pldw [r9, #-4080]
+f0ffdff5|	1	gnu	pld [pc, #4080]
+f0ff5ff5|	1	gnu	pld [pc, #-4080]
+00f0d2f7|	1	gnu	pld [r2, r0]
+00f052f7|	1	gnu	pld [r2, -r0]
+00f092f7|	1	gnu	pldw [r2, r0]
+00f012f7|	1	gnu	pldw [r2, -r0]
+80f0d2f7|	1	gnu	pld [r2, r0, lsl #1]
+80f052f7|	1	gnu	pld [r2, -r0, lsl #1]
+a0f0d2f7|	1	gnu	pld [r2, r0, lsr #1]
+a0f052f7|	1	gnu	pld [r2, -r0, lsr #1]
+c0f0d2f7|	1	gnu	pld [r2, r0, asr #1]
+c0f052f7|	1	gnu	pld [r2, -r0, asr #1]
+e0f0d2f7|	1	gnu	pld [r2, r0, ror #1]
+e0f052f7|	1	gnu	pld [r2, -r0, ror #1]
+80f092f7|	1	gnu	pldw [r2, r0, lsl #1]
+80f012f7|	1	gnu	pldw [r2, -r0, lsl #1]
+a0f092f7|	1	gnu	pldw [r2, r0, lsr #1]
+a0f012f7|	1	gnu	pldw [r2, -r0, lsr #1]
+c0f092f7|	1	gnu	pldw [r2, r0, asr #1]
+c0f012f7|	1	gnu	pldw [r2, -r0, asr #1]
+e0f092f7|	1	gnu	pldw [r2, r0, ror #1]
+e0f012f7|	1	gnu	pldw [r2, -r0, ror #1]
+f0ffd2f4|	1	gnu	pli [r2, #4080]
+f0ff52f4|	1	gnu	pli [r2, #-4080]
+82f0d3f6|	1	gnu	pli [r3, r2, lsl #1]
+82f053f6|	1	gnu	pli [r3, -r2, lsl #1]
+a2f0d3f6|	1	gnu	pli [r3, r2, lsr #1]
+a2f053f6|	1	gnu	pli [r3, -r2, lsr #1]
+c2f0d3f6|	1	gnu	pli [r3, r2, asr #1]
+c2f053f6|	1	gnu	pli [r3, -r2, asr #1]
+e2f0d3f6|	1	gnu	pli [r3, r2, ror #1]
+e2f053f6|	1	gnu	pli [r3, -r2, ror #1]
+939007e1|	1	gnu	swp r9, r3, [r7]
+948042e1|	1	gnu	swpb r8, r4, [r2]
+000000ef|	1	plan9	SVC $0
+ffff00ef|	1	plan9	SVC $65535
+ff10e0e3|	1	plan9	MVN $255, R1
+ff14e0e3|	1	plan9	MVN $4278190080, R1
+ff10f0e3|	1	plan9	MVN.S $255, R1
+ff14f0e3|	1	plan9	MVN.S $4278190080, R1
+097fe0e1|	1	plan9	MVN R9<<$30, R7
+297fe0e1|	1	plan9	MVN R9>>$30, R7
+497fe0e1|	1	plan9	MVN R9->$30, R7
+697fe0e1|	1	plan9	MVN R9@>$30, R7
+097ff0e1|	1	plan9	MVN.S R9<<$30, R7
+297ff0e1|	1	plan9	MVN.S R9>>$30, R7
+497ff0e1|	1	plan9	MVN.S R9->$30, R7
+697ff0e1|	1	plan9	MVN.S R9@>$30, R7
+1978e0e1|	1	plan9	MVN R9<<R8, R7
+3978e0e1|	1	plan9	MVN R9>>R8, R7
+5978e0e1|	1	plan9	MVN R9->R8, R7
+7978e0e1|	1	plan9	MVN R9@>R8, R7
+1978f0e1|	1	plan9	MVN.S R9<<R8, R7
+3978f0e1|	1	plan9	MVN.S R9>>R8, R7
+5978f0e1|	1	plan9	MVN.S R9->R8, R7
+7978f0e1|	1	plan9	MVN.S R9@>R8, R7
+550081e8|	1	plan9	STM [R0,R2,R4,R6], R1
+5f0f81e8|	1	plan9	STM [R0-R4,R6,R8-R11], R1
+5500a1e8|	1	plan9	STM [R0,R2,R4,R6], R1!
+5f0fa1e8|	1	plan9	STM [R0-R4,R6,R8-R11], R1!
+550091e8|	1	plan9	LDM [R0,R2,R4,R6], R1
+5f0f91e8|	1	plan9	LDM [R0-R4,R6,R8-R11], R1
+5500b1e8|	1	plan9	LDM [R0,R2,R4,R6], R1!
+5f0fb1e8|	1	plan9	LDM [R0-R4,R6,R8-R11], R1!
+550001e8|	1	plan9	STMDA [R0,R2,R4,R6], R1
+5f0f01e8|	1	plan9	STMDA [R0-R4,R6,R8-R11], R1
+550021e8|	1	plan9	STMDA [R0,R2,R4,R6], R1!
+5f0f21e8|	1	plan9	STMDA [R0-R4,R6,R8-R11], R1!
+550011e8|	1	plan9	LDMDA [R0,R2,R4,R6], R1
+5f0f11e8|	1	plan9	LDMDA [R0-R4,R6,R8-R11], R1
+550031e8|	1	plan9	LDMDA [R0,R2,R4,R6], R1!
+5f0f31e8|	1	plan9	LDMDA [R0-R4,R6,R8-R11], R1!
+550001e9|	1	plan9	STMDB [R0,R2,R4,R6], R1
+5f0f01e9|	1	plan9	STMDB [R0-R4,R6,R8-R11], R1
+550021e9|	1	plan9	STMDB [R0,R2,R4,R6], R1!
+5f0f21e9|	1	plan9	STMDB [R0-R4,R6,R8-R11], R1!
+550011e9|	1	plan9	LDMDB [R0,R2,R4,R6], R1
+5f0f11e9|	1	plan9	LDMDB [R0-R4,R6,R8-R11], R1
+550031e9|	1	plan9	LDMDB [R0,R2,R4,R6], R1!
+5f0f31e9|	1	plan9	LDMDB [R0-R4,R6,R8-R11], R1!
+55008ae9|	1	plan9	STMIB [R0,R2,R4,R6], R10
+5f0f8ae9|	1	plan9	STMIB [R0-R4,R6,R8-R11], R10
+5500aae9|	1	plan9	STMIB [R0,R2,R4,R6], R10!
+5f0faae9|	1	plan9	STMIB [R0-R4,R6,R8-R11], R10!
+55009ae9|	1	plan9	LDMIB [R0,R2,R4,R6], R10
+5f0f9ae9|	1	plan9	LDMIB [R0-R4,R6,R8-R11], R10
+5500bae9|	1	plan9	LDMIB [R0,R2,R4,R6], R10!
+5f0fbae9|	1	plan9	LDMIB [R0-R4,R6,R8-R11], R10!
+0340a0e1|	1	plan9	MOVW R3, R4
+0920a0e1|	1	plan9	MOVW R9, R2
+ff90a0e3|	1	plan9	MOVW $255, R9
+ff94a0e3|	1	plan9	MOVW $4278190080, R9
+aaaa0a13|	1	plan9	MOVW.NE $43690, R10
+aaaa4a03|	1	plan9	MOVT.EQ $43690, R10
+5110e0e3|	1	plan9	MVN $81, R1
+001082e5|	1	plan9	MOVW R1, (R2)
+001082e4|	1	plan9	MOVW.P R1, (R2)
+0010a2e5|	1	plan9	MOVW.W R1, (R2)
+201082e5|	1	plan9	MOVW R1, 0x20(R2)
+201082e4|	1	plan9	MOVW.P R1, 0x20(R2)
+2010a2e5|	1	plan9	MOVW.W R1, 0x20(R2)
+201002e5|	1	plan9	MOVW R1, -0x20(R2)
+201002e4|	1	plan9	MOVW.P R1, -0x20(R2)
+201022e5|	1	plan9	MOVW.W R1, -0x20(R2)
+001092e5|	1	plan9	MOVW (R2), R1
+001092e4|	1	plan9	MOVW.P (R2), R1
+0010b2e5|	1	plan9	MOVW.W (R2), R1
+201092e5|	1	plan9	MOVW 0x20(R2), R1
+201092e4|	1	plan9	MOVW.P 0x20(R2), R1
+2010b2e5|	1	plan9	MOVW.W 0x20(R2), R1
+201012e5|	1	plan9	MOVW -0x20(R2), R1
+201012e4|	1	plan9	MOVW.P -0x20(R2), R1
+201032e5|	1	plan9	MOVW.W -0x20(R2), R1
+00100fe1|	1	plan9	MRS APSR, R1
+fef02ce3|	1	plan9	MSR $254, APSR
+fff42ce3|	1	plan9	MSR $4278190080, APSR
+05f02c01|	1	plan9	MSR.EQ R5, APSR
+09f02c11|	1	plan9	MSR.NE R9, APSR
+109af1ee|	1	plan9	VMRS FPSCR, R9
+10aaf1ee|	1	plan9	VMRS FPSCR, R10
+109ae1ee|	1	plan9	VMSR R9, FPSCR
+10aae1ee|	1	plan9	VMSR R10, FPSCR
+202e91e7|	1	plan9	MOVW (R1)(R0>>28), R2
+002e91e7|	1	plan9	MOVW (R1)(R0<<28), R2
+402e91e7|	1	plan9	MOVW (R1)(R0->28), R2
+602e91e7|	1	plan9	MOVW (R1)(R0@>28), R2
+202e11e7|	1	plan9	MOVW.U (R1)(R0>>28), R2
+002e11e7|	1	plan9	MOVW.U (R1)(R0<<28), R2
+402e11e7|	1	plan9	MOVW.U (R1)(R0->28), R2
+602e11e7|	1	plan9	MOVW.U (R1)(R0@>28), R2
+202eb1e7|	1	plan9	MOVW.W (R1)(R0>>28), R2
+002eb1e7|	1	plan9	MOVW.W (R1)(R0<<28), R2
+402eb1e7|	1	plan9	MOVW.W (R1)(R0->28), R2
+602eb1e7|	1	plan9	MOVW.W (R1)(R0@>28), R2
+202e9ae6|	1	plan9	MOVW.P (R10)(R0>>28), R2
+002e9ae6|	1	plan9	MOVW.P (R10)(R0<<28), R2
+402e9ae6|	1	plan9	MOVW.P (R10)(R0->28), R2
+602e9ae6|	1	plan9	MOVW.P (R10)(R0@>28), R2
+202e81e7|	1	plan9	MOVW R2, (R1)(R0>>28)
+002e81e7|	1	plan9	MOVW R2, (R1)(R0<<28)
+402e81e7|	1	plan9	MOVW R2, (R1)(R0->28)
+602e81e7|	1	plan9	MOVW R2, (R1)(R0@>28)
+202e01e7|	1	plan9	MOVW.U R2, (R1)(R0>>28)
+002e01e7|	1	plan9	MOVW.U R2, (R1)(R0<<28)
+402e01e7|	1	plan9	MOVW.U R2, (R1)(R0->28)
+602e01e7|	1	plan9	MOVW.U R2, (R1)(R0@>28)
+202ea1e7|	1	plan9	MOVW.W R2, (R1)(R0>>28)
+002ea1e7|	1	plan9	MOVW.W R2, (R1)(R0<<28)
+402ea1e7|	1	plan9	MOVW.W R2, (R1)(R0->28)
+602ea1e7|	1	plan9	MOVW.W R2, (R1)(R0@>28)
+202e85e6|	1	plan9	MOVW.P R2, (R5)(R0>>28)
+002e85e6|	1	plan9	MOVW.P R2, (R5)(R0<<28)
+402e85e6|	1	plan9	MOVW.P R2, (R5)(R0->28)
+602e85e6|	1	plan9	MOVW.P R2, (R5)(R0@>28)
+0010c2e5|	1	plan9	MOVB R1, (R2)
+0010c2e4|	1	plan9	MOVB.P R1, (R2)
+0010e2e5|	1	plan9	MOVB.W R1, (R2)
+2010c2e5|	1	plan9	MOVB R1, 0x20(R2)
+2010c2e4|	1	plan9	MOVB.P R1, 0x20(R2)
+2010e2e5|	1	plan9	MOVB.W R1, 0x20(R2)
+201042e5|	1	plan9	MOVB R1, -0x20(R2)
+201042e4|	1	plan9	MOVB.P R1, -0x20(R2)
+201062e5|	1	plan9	MOVB.W R1, -0x20(R2)
+d010d2e1|	1	plan9	MOVBS (R2), R1
+d010d2e0|	1	plan9	MOVBS.P (R2), R1
+d010f2e1|	1	plan9	MOVBS.W (R2), R1
+d012d2e1|	1	plan9	MOVBS 0x20(R2), R1
+d012d2e0|	1	plan9	MOVBS.P 0x20(R2), R1
+d012f2e1|	1	plan9	MOVBS.W 0x20(R2), R1
+d01252e1|	1	plan9	MOVBS -0x20(R2), R1
+d01252e0|	1	plan9	MOVBS.P -0x20(R2), R1
+d01272e1|	1	plan9	MOVBS.W -0x20(R2), R1
+0010d2e5|	1	plan9	MOVBU (R2), R1
+0010dfe5|	1	plan9	MOVBU (R15), R1
+0020dfe5|	1	plan9	MOVBU (R15), R2
+0010d2e4|	1	plan9	MOVBU.P (R2), R1
+0010f2e5|	1	plan9	MOVBU.W (R2), R1
+2010d2e5|	1	plan9	MOVBU 0x20(R2), R1
+2010d2e4|	1	plan9	MOVBU.P 0x20(R2), R1
+2010f2e5|	1	plan9	MOVBU.W 0x20(R2), R1
+201052e5|	1	plan9	MOVBU -0x20(R2), R1
+201052e4|	1	plan9	MOVBU.P -0x20(R2), R1
+201072e5|	1	plan9	MOVBU.W -0x20(R2), R1
+202ec1e7|	1	plan9	MOVB R2, (R1)(R0>>28)
+002ec1e7|	1	plan9	MOVB R2, (R1)(R0<<28)
+402ec1e7|	1	plan9	MOVB R2, (R1)(R0->28)
+602ec1e7|	1	plan9	MOVB R2, (R1)(R0@>28)
+202e41e7|	1	plan9	MOVB.U R2, (R1)(R0>>28)
+002e41e7|	1	plan9	MOVB.U R2, (R1)(R0<<28)
+402e41e7|	1	plan9	MOVB.U R2, (R1)(R0->28)
+602e41e7|	1	plan9	MOVB.U R2, (R1)(R0@>28)
+202ee1e7|	1	plan9	MOVB.W R2, (R1)(R0>>28)
+002ee1e7|	1	plan9	MOVB.W R2, (R1)(R0<<28)
+402ee1e7|	1	plan9	MOVB.W R2, (R1)(R0->28)
+602ee1e7|	1	plan9	MOVB.W R2, (R1)(R0@>28)
+202e61e7|	1	plan9	MOVB.W.U R2, (R1)(R0>>28)
+002e61e7|	1	plan9	MOVB.W.U R2, (R1)(R0<<28)
+402e61e7|	1	plan9	MOVB.W.U R2, (R1)(R0->28)
+602e61e7|	1	plan9	MOVB.W.U R2, (R1)(R0@>28)
+202ec5e6|	1	plan9	MOVB.P R2, (R5)(R0>>28)
+002ec5e6|	1	plan9	MOVB.P R2, (R5)(R0<<28)
+402ec5e6|	1	plan9	MOVB.P R2, (R5)(R0->28)
+602ec5e6|	1	plan9	MOVB.P R2, (R5)(R0@>28)
+202ed1e7|	1	plan9	MOVBU (R1)(R0>>28), R2
+002ed1e7|	1	plan9	MOVBU (R1)(R0<<28), R2
+402ed1e7|	1	plan9	MOVBU (R1)(R0->28), R2
+602ed1e7|	1	plan9	MOVBU (R1)(R0@>28), R2
+202e51e7|	1	plan9	MOVBU.U (R1)(R0>>28), R2
+002e51e7|	1	plan9	MOVBU.U (R1)(R0<<28), R2
+402e51e7|	1	plan9	MOVBU.U (R1)(R0->28), R2
+602e51e7|	1	plan9	MOVBU.U (R1)(R0@>28), R2
+202ef1e7|	1	plan9	MOVBU.W (R1)(R0>>28), R2
+002ef1e7|	1	plan9	MOVBU.W (R1)(R0<<28), R2
+402ef1e7|	1	plan9	MOVBU.W (R1)(R0->28), R2
+602ef1e7|	1	plan9	MOVBU.W (R1)(R0@>28), R2
+202e71e7|	1	plan9	MOVBU.W.U (R1)(R0>>28), R2
+002e71e7|	1	plan9	MOVBU.W.U (R1)(R0<<28), R2
+402e71e7|	1	plan9	MOVBU.W.U (R1)(R0->28), R2
+602e71e7|	1	plan9	MOVBU.W.U (R1)(R0@>28), R2
+202edae6|	1	plan9	MOVBU.P (R10)(R0>>28), R2
+002edae6|	1	plan9	MOVBU.P (R10)(R0<<28), R2
+402edae6|	1	plan9	MOVBU.P (R10)(R0->28), R2
+602edae6|	1	plan9	MOVBU.P (R10)(R0@>28), R2
+d02091e1|	1	plan9	MOVBS (R1)(R0), R2
+d02011e1|	1	plan9	MOVBS.U (R1)(R0), R2
+d020b1e1|	1	plan9	MOVBS.W (R1)(R0), R2
+d02091e0|	1	plan9	MOVBS.P (R1)(R0), R2
+b040c3e1|	1	plan9	MOVH R4, (R3)
+b032c4e1|	1	plan9	MOVH R3, 0x20(R4)
+b032e4e1|	1	plan9	MOVH.W R3, 0x20(R4)
+b032c4e0|	1	plan9	MOVH.P R3, 0x20(R4)
+b03244e1|	1	plan9	MOVH R3, -0x20(R4)
+b03264e1|	1	plan9	MOVH.W R3, -0x20(R4)
+b03244e0|	1	plan9	MOVH.P R3, -0x20(R4)
+b080d9e1|	1	plan9	MOVHU (R9), R8
+b080f9e1|	1	plan9	MOVHU.W (R9), R8
+b080d9e0|	1	plan9	MOVHU.P (R9), R8
+f080d9e1|	1	plan9	MOVHS (R9), R8
+f080f9e1|	1	plan9	MOVHS.W (R9), R8
+f080d9e0|	1	plan9	MOVHS.P (R9), R8
+b282d9e1|	1	plan9	MOVHU 0x22(R9), R8
+b282f9e1|	1	plan9	MOVHU.W 0x22(R9), R8
+b282d9e0|	1	plan9	MOVHU.P 0x22(R9), R8
+f282d9e1|	1	plan9	MOVHS 0x22(R9), R8
+f282f9e1|	1	plan9	MOVHS.W 0x22(R9), R8
+f282d9e0|	1	plan9	MOVHS.P 0x22(R9), R8
+b48259e1|	1	plan9	MOVHU -0x24(R9), R8
+b48279e1|	1	plan9	MOVHU.W -0x24(R9), R8
+b48259e0|	1	plan9	MOVHU.P -0x24(R9), R8
+f48259e1|	1	plan9	MOVHS -0x24(R9), R8
+f48279e1|	1	plan9	MOVHS.W -0x24(R9), R8
+f48259e0|	1	plan9	MOVHS.P -0x24(R9), R8
+002a31ee|	1	plan9	VADD.F32 S0, S2, S4
+202a31ee|	1	plan9	VADD.F32 S1, S2, S4
+802a31ee|	1	plan9	VADD.F32 S0, S3, S4
+002a71ee|	1	plan9	VADD.F32 S0, S2, S5
+035b340e|	1	plan9	VADD.EQ.F64 D3, D4, D5
+002a321e|	1	plan9	VADD.NE.F32 S0, S4, S4
+035b35ee|	1	plan9	VADD.F64 D3, D5, D5
+402a31ee|	1	plan9	VSUB.F32 S0, S2, S4
+602a31ee|	1	plan9	VSUB.F32 S1, S2, S4
+c02a31ee|	1	plan9	VSUB.F32 S0, S3, S4
+402a71ee|	1	plan9	VSUB.F32 S0, S2, S5
+435b340e|	1	plan9	VSUB.EQ.F64 D3, D4, D5
+402a321e|	1	plan9	VSUB.NE.F32 S0, S4, S4
+435b35ee|	1	plan9	VSUB.F64 D3, D5, D5
+002a21ee|	1	plan9	VMUL.F32 S0, S2, S4
+202a21ee|	1	plan9	VMUL.F32 S1, S2, S4
+802a21ee|	1	plan9	VMUL.F32 S0, S3, S4
+002a61ee|	1	plan9	VMUL.F32 S0, S2, S5
+035b240e|	1	plan9	VMUL.EQ.F64 D3, D4, D5
+002a221e|	1	plan9	VMUL.NE.F32 S0, S4, S4
+035b25ee|	1	plan9	VMUL.F64 D3, D5, D5
+002a81ee|	1	plan9	VDIV.F32 S0, S2, S4
+202a81ee|	1	plan9	VDIV.F32 S1, S2, S4
+802a81ee|	1	plan9	VDIV.F32 S0, S3, S4
+002ac1ee|	1	plan9	VDIV.F32 S0, S2, S5
+035b840e|	1	plan9	VDIV.EQ.F64 D3, D4, D5
+002a821e|	1	plan9	VDIV.NE.F32 S0, S4, S4
+035b85ee|	1	plan9	VDIV.F64 D3, D5, D5
+401ab1ee|	1	plan9	VNEG.F32 S0, S2
+601ab1ee|	1	plan9	VNEG.F32 S1, S2
+401af1ee|	1	plan9	VNEG.F32 S0, S3
+445bb1ee|	1	plan9	VNEG.F64 D4, D5
+c01ab0ee|	1	plan9	VABS.F32 S0, S2
+e01ab0ee|	1	plan9	VABS.F32 S1, S2
+c01af0ee|	1	plan9	VABS.F32 S0, S3
+c45bb0ee|	1	plan9	VABS.F64 D4, D5
+c01ab1ee|	1	plan9	VSQRT.F32 S0, S2
+e01ab1ee|	1	plan9	VSQRT.F32 S1, S2
+c01af1ee|	1	plan9	VSQRT.F32 S0, S3
+c45bb1ee|	1	plan9	VSQRT.F64 D4, D5
+c01ab7ee|	1	gnu	vcvt.f64.f32 d1, s0
+c45bb7ee|	1	gnu	vcvt.f32.f64 s10, d4
+9f9f98e1|	1	gnu	ldrex r9, [r8]
+9f9fd8e1|	1	gnu	ldrexb r9, [r8]
+9f9ff8e1|	1	gnu	ldrexh r9, [r8]
+9fcfbbe1|	1	gnu	ldrexd ip, [fp]
+935f84e1|	1	gnu	strex r5, r3, [r4]
+935fc4e1|	1	gnu	strexb r5, r3, [r4]
+935fe4e1|	1	gnu	strexh r5, r3, [r4]
+98afa9e1|	1	gnu	strexd sl, r8, [r9]
+104b08ee|	1	gnu	vmov.32 d8[0], r4
+108b14ee|	1	gnu	vmov.32 r8, d4[0]
+445ab0ee|	1	gnu	vmov.f32 s10, s8
+467bb0ee|	1	gnu	vmov.f64 d7, d6
+c68abdee|	1	gnu	vcvt.s32.f32 s16, s12
+c68abcee|	1	gnu	vcvt.u32.f32 s16, s12
+c68bbdee|	1	gnu	vcvt.s32.f64 s16, d6
+c68bbcee|	1	gnu	vcvt.u32.f64 s16, d6
+c68ab8ee|	1	gnu	vcvt.f32.s32 s16, s12
+468ab8ee|	1	gnu	vcvt.f32.u32 s16, s12
+c68bb8ee|	1	gnu	vcvt.f64.s32 d8, s12
+468bb8ee|	1	gnu	vcvt.f64.u32 d8, s12
+000000ea|	1	plan9	B 0x8
+feffffea|	1	plan9	B 0x0
+fcffffea|	1	plan9	B 0xfffffff8
+1f90cfe7|	1	plan9	BFC $16, $0, R9
+9fb4dee7|	1	plan9	BFC $22, $9, R11
+1790cfe7|	1	plan9	BFI $16, $0, R7, R9
+98b4dee7|	1	plan9	BFI $22, $9, R8, R11
+742321e1|	1	plan9	BKPT $4660
+000000eb|	1	plan9	BL 0x8
+feffffeb|	1	plan9	BL 0x0
+fcffffeb|	1	plan9	BL 0xfffffff8
+000000fa|	1	plan9	BLX 0x8
+fefffffa|	1	plan9	BLX 0x0
+fcfffffa|	1	plan9	BLX 0xfffffff8
+33ff2fe1|	1	plan9	BLX R3
+13ff2fe1|	1	plan9	BX R3
+23ff2fe1|	1	plan9	BXJ R3
+1ff07ff5|	1	plan9	CLREX
+f7f020e3|	1	gnu	dbg #7
+58f07ff5|	1	gnu	dmb #8
+49f07ff5|	1	gnu	dsb #9
+62f07ff5|	1	gnu	isb #2
+009a94ed|	1	plan9	MOVF (R4), F9
+009ad4ed|	1	plan9	MOVF (R4), S19
+009b940d|	1	plan9	MOVD.EQ (R4), F9
+003a9a1d|	1	plan9	MOVF.NE (R10), F3
+003ada1d|	1	plan9	MOVF.NE (R10), S7
+003b9aed|	1	plan9	MOVD (R10), F3
+089a93ed|	1	plan9	MOVF 0x20(R3), F9
+089ad3ed|	1	plan9	MOVF 0x20(R3), S19
+089b940d|	1	plan9	MOVD.EQ 0x20(R4), F9
+083a1a1d|	1	plan9	MOVF.NE -0x20(R10), F3
+083a5a1d|	1	plan9	MOVF.NE -0x20(R10), S7
+083b1aed|	1	plan9	MOVD -0x20(R10), F3
+009a84ed|	1	plan9	MOVF F9, (R4)
+009ac4ed|	1	plan9	MOVF S19, (R4)
+009b840d|	1	plan9	MOVD.EQ F9, (R4)
+003a8a1d|	1	plan9	MOVF.NE F3, (R10)
+003aca1d|	1	plan9	MOVF.NE S7, (R10)
+003b8aed|	1	plan9	MOVD F3, (R10)
+089a83ed|	1	plan9	MOVF F9, 0x20(R3)
+089ac3ed|	1	plan9	MOVF S19, 0x20(R3)
+089b840d|	1	plan9	MOVD.EQ F9, 0x20(R4)
+083a0a1d|	1	plan9	MOVF.NE F3, -0x20(R10)
+083a4a1d|	1	plan9	MOVF.NE S7, -0x20(R10)
+083b0aed|	1	plan9	MOVD F3, -0x20(R10)
+d060c8e1|	1	gnu	ldrd r6, [r8]
+d06048e1|	1	gnu	ldrd r6, [r8]
+d060e8e1|	1	gnu	ldrd r6, [r8, #0]!
+d06068e1|	1	gnu	ldrd r6, [r8, #0]!
+d060c8e0|	1	gnu	ldrd r6, [r8], #0
+d06048e0|	1	gnu	ldrd r6, [r8], #0
+d062c8e1|	1	gnu	ldrd r6, [r8, #32]
+d06248e1|	1	gnu	ldrd r6, [r8, #-32]
+d062e8e1|	1	gnu	ldrd r6, [r8, #32]!
+d06268e1|	1	gnu	ldrd r6, [r8, #-32]!
+d062c8e0|	1	gnu	ldrd r6, [r8], #32
+d06248e0|	1	gnu	ldrd r6, [r8], #-32
+d24089e1|	1	gnu	ldrd r4, [r9, r2]
+d240a9e1|	1	gnu	ldrd r4, [r9, r2]!
+d24009e1|	1	gnu	ldrd r4, [r9, -r2]
+d24029e1|	1	gnu	ldrd r4, [r9, -r2]!
+f060c8e1|	1	gnu	strd r6, [r8]
+f06048e1|	1	gnu	strd r6, [r8]
+f060e8e1|	1	gnu	strd r6, [r8, #0]!
+f06068e1|	1	gnu	strd r6, [r8, #0]!
+f060c8e0|	1	gnu	strd r6, [r8], #0
+f06048e0|	1	gnu	strd r6, [r8], #0
+f062c8e1|	1	gnu	strd r6, [r8, #32]
+f06248e1|	1	gnu	strd r6, [r8, #-32]
+f062e8e1|	1	gnu	strd r6, [r8, #32]!
+f06268e1|	1	gnu	strd r6, [r8, #-32]!
+f062c8e0|	1	gnu	strd r6, [r8], #32
+f06248e0|	1	gnu	strd r6, [r8], #-32
+f24089e1|	1	gnu	strd r4, [r9, r2]
+f240a9e1|	1	gnu	strd r4, [r9, r2]!
+f24009e1|	1	gnu	strd r4, [r9, -r2]
+f24029e1|	1	gnu	strd r4, [r9, -r2]!
+0010b2e4|	1	gnu	ldrt r1, [r2], #0
+2010b2e4|	1	gnu	ldrt r1, [r2], #32
+201032e4|	1	gnu	ldrt r1, [r2], #-32
+0040bde4|	1	gnu	ldrt r4, [sp], #0
+2040bde4|	1	gnu	ldrt r4, [sp], #32
+20403de4|	1	gnu	ldrt r4, [sp], #-32
+2314b2e6|	1	gnu	ldrt r1, [r2], r3, lsr #8
+0314b2e6|	1	gnu	ldrt r1, [r2], r3, lsl #8
+4314b2e6|	1	gnu	ldrt r1, [r2], r3, asr #8
+6314b2e6|	1	gnu	ldrt r1, [r2], r3, ror #8
+231432e6|	1	gnu	ldrt r1, [r2], -r3, lsr #8
+031432e6|	1	gnu	ldrt r1, [r2], -r3, lsl #8
+431432e6|	1	gnu	ldrt r1, [r2], -r3, asr #8
+631432e6|	1	gnu	ldrt r1, [r2], -r3, ror #8
+0010a2e4|	1	gnu	strt r1, [r2], #0
+2010a2e4|	1	gnu	strt r1, [r2], #32
+201022e4|	1	gnu	strt r1, [r2], #-32
+0040ade4|	1	gnu	strt r4, [sp], #0
+2040ade4|	1	gnu	strt r4, [sp], #32
+20402de4|	1	gnu	strt r4, [sp], #-32
+2314a2e6|	1	gnu	strt r1, [r2], r3, lsr #8
+0314a2e6|	1	gnu	strt r1, [r2], r3, lsl #8
+4314a2e6|	1	gnu	strt r1, [r2], r3, asr #8
+6314a2e6|	1	gnu	strt r1, [r2], r3, ror #8
+231422e6|	1	gnu	strt r1, [r2], -r3, lsr #8
+031422e6|	1	gnu	strt r1, [r2], -r3, lsl #8
+431422e6|	1	gnu	strt r1, [r2], -r3, asr #8
+631422e6|	1	gnu	strt r1, [r2], -r3, ror #8
+0010f2e4|	1	gnu	ldrbt r1, [r2], #0
+2010f2e4|	1	gnu	ldrbt r1, [r2], #32
+201072e4|	1	gnu	ldrbt r1, [r2], #-32
+0040fde4|	1	gnu	ldrbt r4, [sp], #0
+2040fde4|	1	gnu	ldrbt r4, [sp], #32
+20407de4|	1	gnu	ldrbt r4, [sp], #-32
+2314f2e6|	1	gnu	ldrbt r1, [r2], r3, lsr #8
+0314f2e6|	1	gnu	ldrbt r1, [r2], r3, lsl #8
+4314f2e6|	1	gnu	ldrbt r1, [r2], r3, asr #8
+6314f2e6|	1	gnu	ldrbt r1, [r2], r3, ror #8
+231472e6|	1	gnu	ldrbt r1, [r2], -r3, lsr #8
+031472e6|	1	gnu	ldrbt r1, [r2], -r3, lsl #8
+431472e6|	1	gnu	ldrbt r1, [r2], -r3, asr #8
+631472e6|	1	gnu	ldrbt r1, [r2], -r3, ror #8
+0010e2e4|	1	gnu	strbt r1, [r2], #0
+2010e2e4|	1	gnu	strbt r1, [r2], #32
+201062e4|	1	gnu	strbt r1, [r2], #-32
+0040ede4|	1	gnu	strbt r4, [sp], #0
+2040ede4|	1	gnu	strbt r4, [sp], #32
+20406de4|	1	gnu	strbt r4, [sp], #-32
+2314e2e6|	1	gnu	strbt r1, [r2], r3, lsr #8
+0314e2e6|	1	gnu	strbt r1, [r2], r3, lsl #8
+4314e2e6|	1	gnu	strbt r1, [r2], r3, asr #8
+6314e2e6|	1	gnu	strbt r1, [r2], r3, ror #8
+231462e6|	1	gnu	strbt r1, [r2], -r3, lsr #8
+031462e6|	1	gnu	strbt r1, [r2], -r3, lsl #8
+431462e6|	1	gnu	strbt r1, [r2], -r3, asr #8
+631462e6|	1	gnu	strbt r1, [r2], -r3, ror #8
+d010f2e0|	1	gnu	ldrsbt r1, [r2], #0
+d012f2e0|	1	gnu	ldrsbt r1, [r2], #32
+d01272e0|	1	gnu	ldrsbt r1, [r2], #-32
+d040fde0|	1	gnu	ldrsbt r4, [sp], #0
+d042fde0|	1	gnu	ldrsbt r4, [sp], #32
+d0427de0|	1	gnu	ldrsbt r4, [sp], #-32
+d310b2e0|	1	gnu	ldrsbt r1, [r2], r3
+d640bde0|	1	gnu	ldrsbt r4, [sp], r6
+d31032e0|	1	gnu	ldrsbt r1, [r2], -r3
+d6403de0|	1	gnu	ldrsbt r4, [sp], -r6
+b010f2e0|	1	gnu	ldrht r1, [r2], #0
+b012f2e0|	1	gnu	ldrht r1, [r2], #32
+b01272e0|	1	gnu	ldrht r1, [r2], #-32
+b040fde0|	1	gnu	ldrht r4, [sp], #0
+b042fde0|	1	gnu	ldrht r4, [sp], #32
+b0427de0|	1	gnu	ldrht r4, [sp], #-32
+b310b2e0|	1	gnu	ldrht r1, [r2], r3
+b640bde0|	1	gnu	ldrht r4, [sp], r6
+b31032e0|	1	gnu	ldrht r1, [r2], -r3
+b6403de0|	1	gnu	ldrht r4, [sp], -r6
+f010f2e0|	1	gnu	ldrsht r1, [r2], #0
+f012f2e0|	1	gnu	ldrsht r1, [r2], #32
+f01272e0|	1	gnu	ldrsht r1, [r2], #-32
+f040fde0|	1	gnu	ldrsht r4, [sp], #0
+f042fde0|	1	gnu	ldrsht r4, [sp], #32
+f0427de0|	1	gnu	ldrsht r4, [sp], #-32
+f310b2e0|	1	gnu	ldrsht r1, [r2], r3
+f640bde0|	1	gnu	ldrsht r4, [sp], r6
+f31032e0|	1	gnu	ldrsht r1, [r2], -r3
+f6403de0|	1	gnu	ldrsht r4, [sp], -r6
+b010f2e0|	1	gnu	ldrht r1, [r2], #0
+b012f2e0|	1	gnu	ldrht r1, [r2], #32
+b01272e0|	1	gnu	ldrht r1, [r2], #-32
+b040fde0|	1	gnu	ldrht r4, [sp], #0
+b042fde0|	1	gnu	ldrht r4, [sp], #32
+b0427de0|	1	gnu	ldrht r4, [sp], #-32
+b310b2e0|	1	gnu	ldrht r1, [r2], r3
+b640bde0|	1	gnu	ldrht r4, [sp], r6
+b31032e0|	1	gnu	ldrht r1, [r2], -r3
+b6403de0|	1	gnu	ldrht r4, [sp], -r6
+b010e2e0|	1	gnu	strht r1, [r2], #0
+b012e2e0|	1	gnu	strht r1, [r2], #32
+b01262e0|	1	gnu	strht r1, [r2], #-32
+b040ede0|	1	gnu	strht r4, [sp], #0
+b042ede0|	1	gnu	strht r4, [sp], #32
+b0426de0|	1	gnu	strht r4, [sp], #-32
+b310a2e0|	1	gnu	strht r1, [r2], r3
+b640ade0|	1	gnu	strht r4, [sp], r6
+b31022e0|	1	gnu	strht r1, [r2], -r3
+b6402de0|	1	gnu	strht r4, [sp], -r6
+00f020e3|	1	gnu	nop
+445ab0ee|	1	gnu	vmov.f32 s10, s8
+645af0ee|	1	gnu	vmov.f32 s11, s9
+467bb0ee|	1	gnu	vmov.f64 d7, d6
+104b08ee|	1	gnu	vmov.32 d8[0], r4
+104b28ee|	1	gnu	vmov.32 d8[1], r4
+108b14ee|	1	gnu	vmov.32 r8, d4[0]
+108b34ee|	1	gnu	vmov.32 r8, d4[1]
+c68abdee|	1	gnu	vcvt.s32.f32 s16, s12
+e68afdee|	1	gnu	vcvt.s32.f32 s17, s13
+c68abcee|	1	gnu	vcvt.u32.f32 s16, s12
+e68afcee|	1	gnu	vcvt.u32.f32 s17, s13
+c68bbdee|	1	gnu	vcvt.s32.f64 s16, d6
+c68bfdee|	1	gnu	vcvt.s32.f64 s17, d6
+c68bbcee|	1	gnu	vcvt.u32.f64 s16, d6
+c68bfcee|	1	gnu	vcvt.u32.f64 s17, d6
+c68ab8ee|	1	gnu	vcvt.f32.s32 s16, s12
+e68af8ee|	1	gnu	vcvt.f32.s32 s17, s13
+468ab8ee|	1	gnu	vcvt.f32.u32 s16, s12
+668af8ee|	1	gnu	vcvt.f32.u32 s17, s13
+c68bb8ee|	1	gnu	vcvt.f64.s32 d8, s12
+e68bb8ee|	1	gnu	vcvt.f64.s32 d8, s13
+468bb8ee|	1	gnu	vcvt.f64.u32 d8, s12
+668bb8ee|	1	gnu	vcvt.f64.u32 d8, s13
+c01ab7ee|	1	gnu	vcvt.f64.f32 d1, s0
+e01ab7ee|	1	gnu	vcvt.f64.f32 d1, s1
+c45bb7ee|	1	gnu	vcvt.f32.f64 s10, d4
+c65bf7ee|	1	gnu	vcvt.f32.f64 s11, d6
+102083e6|	1	gnu	pkhbt r2, r3, r0
+102283e6|	1	gnu	pkhbt r2, r3, r0, lsl #4
+502083e6|	1	gnu	pkhtb r2, r3, r0, asr #32
+d02083e6|	1	gnu	pkhtb r2, r3, r0, asr #1
+502283e6|	1	gnu	pkhtb r2, r3, r0, asr #4
+faaf2de9|	1	gnu	push {r1, r3, r4, r5, r6, r7, r8, r9, sl, fp, sp, pc}
+04202de5|	1	gnu	push {r2}
+faafbde8|	1	gnu	pop {r1, r3, r4, r5, r6, r7, r8, r9, sl, fp, sp, pc}
+04209de4|	1	gnu	pop {r2}
+556003e1|	1	gnu	qadd r6, r5, r3
+156f28e6|	1	gnu	qadd16 r6, r8, r5
+956f28e6|	1	gnu	qadd8 r6, r8, r5
+550044e1|	1	gnu	qdadd r0, r5, r4
+550066e1|	1	gnu	qdsub r0, r5, r6
+156f68e6|	1	gnu	uqadd16 r6, r8, r5
+956f68e6|	1	gnu	uqadd8 r6, r8, r5
+356f28e6|	1	gnu	qasx r6, r8, r5
+556f28e6|	1	gnu	qsax r6, r8, r5
+356f64e6|	1	gnu	uqasx r6, r4, r5
+553f64e6|	1	gnu	uqsax r3, r4, r5
+556022e1|	1	gnu	qsub r6, r5, r2
+774f21e6|	1	gnu	qsub16 r4, r1, r7
+f74f21e6|	1	gnu	qsub8 r4, r1, r7
+774f61e6|	1	gnu	uqsub16 r4, r1, r7
+f74f61e6|	1	gnu	uqsub8 r4, r1, r7
+6670a0e1|	1	gnu	rrx r7, r6
+6670b0e1|	1	gnu	rrxs r7, r6
+112f13e6|	1	gnu	sadd16 r2, r3, r1
+992f13e6|	1	gnu	sadd8 r2, r3, r9
+112f33e6|	1	gnu	shadd16 r2, r3, r1
+992f33e6|	1	gnu	shadd8 r2, r3, r9
+712f13e6|	1	gnu	ssub16 r2, r3, r1
+f92f13e6|	1	gnu	ssub8 r2, r3, r9
+712f33e6|	1	gnu	shsub16 r2, r3, r1
+f92f33e6|	1	gnu	shsub8 r2, r3, r9
+112f53e6|	1	gnu	uadd16 r2, r3, r1
+992f53e6|	1	gnu	uadd8 r2, r3, r9
+112f73e6|	1	gnu	uhadd16 r2, r3, r1
+992f73e6|	1	gnu	uhadd8 r2, r3, r9
+712f53e6|	1	gnu	usub16 r2, r3, r1
+f92f53e6|	1	gnu	usub8 r2, r3, r9
+712f73e6|	1	gnu	uhsub16 r2, r3, r1
+f92f73e6|	1	gnu	uhsub8 r2, r3, r9
+332f14e6|	1	gnu	sasx r2, r4, r3
+532f14e6|	1	gnu	ssax r2, r4, r3
+332f54e6|	1	gnu	uasx r2, r4, r3
+532f54e6|	1	gnu	usax r2, r4, r3
+332f34e6|	1	gnu	shasx r2, r4, r3
+532f34e6|	1	gnu	shsax r2, r4, r3
+332f74e6|	1	gnu	uhasx r2, r4, r3
+532f74e6|	1	gnu	uhsax r2, r4, r3
+dc51afe7|	1	gnu	sbfx r5, ip, #3, #16
+dc51efe7|	1	gnu	ubfx r5, ip, #3, #16
+b12f88e6|	1	gnu	sel r2, r8, r1
+000201f1|	1	gnu	setend be
+000001f1|	1	gnu	setend le
+04f020e3|	1	gnu	sev
+1155aae6|	1	gnu	ssat r5, #11, r1, lsl #10
+5155aae6|	1	gnu	ssat r5, #11, r1, asr #10
+335faae6|	1	gnu	ssat16 r5, #11, r3
+1155eae6|	1	gnu	usat r5, #10, r1, lsl #10
+5155eae6|	1	gnu	usat r5, #10, r1, asr #10
+335feae6|	1	gnu	usat16 r5, #10, r3
+7788a9e6|	1	gnu	sxtab r8, r9, r7, ror #16
+778889e6|	1	gnu	sxtab16 r8, r9, r7, ror #16
+7788b9e6|	1	gnu	sxtah r8, r9, r7, ror #16
+7784afe6|	1	gnu	sxtb r8, r7, ror #8
+778c8fe6|	1	gnu	sxtb16 r8, r7, ror #24
+7780bfe6|	1	gnu	sxth r8, r7
+7788e9e6|	1	gnu	uxtab r8, r9, r7, ror #16
+7788c9e6|	1	gnu	uxtab16 r8, r9, r7, ror #16
+7788f9e6|	1	gnu	uxtah r8, r9, r7, ror #16
+7784efe6|	1	gnu	uxtb r8, r7, ror #8
+778ccfe6|	1	gnu	uxtb16 r8, r7, ror #24
+7780ffe6|	1	gnu	uxth r8, r7
+11f288e7|	1	gnu	usad8 r8, r1, r2
+112388e7|	1	gnu	usada8 r8, r1, r3, r2
+02f020e3|	1	gnu	wfe
+03f020e3|	1	gnu	wfi
+01f020e3|	1	gnu	yield

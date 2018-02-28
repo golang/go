@@ -1,209 +1,210 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
-// Internet protocol family sockets
 
 package net
 
 import (
-	"errors"
-	"time"
+	"context"
+	"sync"
 )
 
-var (
-	// supportsIPv4 reports whether the platform supports IPv4
-	// networking functionality.
-	supportsIPv4 bool
+// BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
+// "tcp" and "udp" networks does not listen for both IPv4 and IPv6
+// connections. This is due to the fact that IPv4 traffic will not be
+// routed to an IPv6 socket - two separate sockets are required if
+// both address families are to be supported.
+// See inet6(4) for details.
 
-	// supportsIPv6 reports whether the platform supports IPv6
-	// networking functionality.
-	supportsIPv6 bool
-
-	// supportsIPv4map reports whether the platform supports
-	// mapping an IPv4 address inside an IPv6 address at transport
-	// layer protocols.  See RFC 4291, RFC 4038 and RFC 3493.
-	supportsIPv4map bool
-)
-
-func init() {
-	sysInit()
-	supportsIPv4 = probeIPv4Stack()
-	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+type ipStackCapabilities struct {
+	sync.Once             // guards following
+	ipv4Enabled           bool
+	ipv6Enabled           bool
+	ipv4MappedIPv6Enabled bool
 }
 
-// A netaddr represents a network endpoint address or a list of
-// network endpoint addresses.
-type netaddr interface {
-	// toAddr returns the address represented in Addr interface.
-	// It returns a nil interface when the address is nil.
-	toAddr() Addr
+var ipStackCaps ipStackCapabilities
+
+// supportsIPv4 reports whether the platform supports IPv4 networking
+// functionality.
+func supportsIPv4() bool {
+	ipStackCaps.Once.Do(ipStackCaps.probe)
+	return ipStackCaps.ipv4Enabled
+}
+
+// supportsIPv6 reports whether the platform supports IPv6 networking
+// functionality.
+func supportsIPv6() bool {
+	ipStackCaps.Once.Do(ipStackCaps.probe)
+	return ipStackCaps.ipv6Enabled
+}
+
+// supportsIPv4map reports whether the platform supports mapping an
+// IPv4 address inside an IPv6 address at transport layer
+// protocols. See RFC 4291, RFC 4038 and RFC 3493.
+func supportsIPv4map() bool {
+	ipStackCaps.Once.Do(ipStackCaps.probe)
+	return ipStackCaps.ipv4MappedIPv6Enabled
 }
 
 // An addrList represents a list of network endpoint addresses.
-type addrList []netaddr
+type addrList []Addr
 
-func (al addrList) toAddr() Addr {
-	switch len(al) {
-	case 0:
-		return nil
-	case 1:
-		return al[0].toAddr()
-	default:
-		// For now, we'll roughly pick first one without
-		// considering dealing with any preferences such as
-		// DNS TTL, transport path quality, network routing
-		// information.
-		return al[0].toAddr()
+// isIPv4 reports whether addr contains an IPv4 address.
+func isIPv4(addr Addr) bool {
+	switch addr := addr.(type) {
+	case *TCPAddr:
+		return addr.IP.To4() != nil
+	case *UDPAddr:
+		return addr.IP.To4() != nil
+	case *IPAddr:
+		return addr.IP.To4() != nil
 	}
+	return false
 }
 
-var errNoSuitableAddress = errors.New("no suitable address found")
+// isNotIPv4 reports whether addr does not contain an IPv4 address.
+func isNotIPv4(addr Addr) bool { return !isIPv4(addr) }
 
-// firstFavoriteAddr returns an address or a list of addresses that
-// implement the netaddr interface. Known filters are nil, ipv4only
-// and ipv6only. It returns any address when filter is nil. The result
-// contains at least one address when error is nil.
-func firstFavoriteAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) (netaddr, error) {
-	if filter != nil {
-		return firstSupportedAddr(filter, ips, inetaddr)
+// forResolve returns the most appropriate address in address for
+// a call to ResolveTCPAddr, ResolveUDPAddr, or ResolveIPAddr.
+// IPv4 is preferred, unless addr contains an IPv6 literal.
+func (addrs addrList) forResolve(network, addr string) Addr {
+	var want6 bool
+	switch network {
+	case "ip":
+		// IPv6 literal (addr does NOT contain a port)
+		want6 = count(addr, ':') > 0
+	case "tcp", "udp":
+		// IPv6 literal. (addr contains a port, so look for '[')
+		want6 = count(addr, '[') > 0
 	}
-	var (
-		ipv4, ipv6, swap bool
-		list             addrList
-	)
+	if want6 {
+		return addrs.first(isNotIPv4)
+	}
+	return addrs.first(isIPv4)
+}
+
+// first returns the first address which satisfies strategy, or if
+// none do, then the first address of any kind.
+func (addrs addrList) first(strategy func(Addr) bool) Addr {
+	for _, addr := range addrs {
+		if strategy(addr) {
+			return addr
+		}
+	}
+	return addrs[0]
+}
+
+// partition divides an address list into two categories, using a
+// strategy function to assign a boolean label to each address.
+// The first address, and any with a matching label, are returned as
+// primaries, while addresses with the opposite label are returned
+// as fallbacks. For non-empty inputs, primaries is guaranteed to be
+// non-empty.
+func (addrs addrList) partition(strategy func(Addr) bool) (primaries, fallbacks addrList) {
+	var primaryLabel bool
+	for i, addr := range addrs {
+		label := strategy(addr)
+		if i == 0 || label == primaryLabel {
+			primaryLabel = label
+			primaries = append(primaries, addr)
+		} else {
+			fallbacks = append(fallbacks, addr)
+		}
+	}
+	return
+}
+
+// filterAddrList applies a filter to a list of IP addresses,
+// yielding a list of Addr objects. Known filters are nil, ipv4only,
+// and ipv6only. It returns every address when the filter is nil.
+// The result contains at least one address when error is nil.
+func filterAddrList(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) Addr, originalAddr string) (addrList, error) {
+	var addrs addrList
 	for _, ip := range ips {
-		// We'll take any IP address, but since the dialing
-		// code does not yet try multiple addresses
-		// effectively, prefer to use an IPv4 address if
-		// possible. This is especially relevant if localhost
-		// resolves to [ipv6-localhost, ipv4-localhost]. Too
-		// much code assumes localhost == ipv4-localhost.
-		if ip4 := ipv4only(ip); ip4 != nil && !ipv4 {
-			list = append(list, inetaddr(ip4))
-			ipv4 = true
-			if ipv6 {
-				swap = true
-			}
-		} else if ip6 := ipv6only(ip); ip6 != nil && !ipv6 {
-			list = append(list, inetaddr(ip6))
-			ipv6 = true
-		}
-		if ipv4 && ipv6 {
-			if swap {
-				list[0], list[1] = list[1], list[0]
-			}
-			break
+		if filter == nil || filter(ip) {
+			addrs = append(addrs, inetaddr(ip))
 		}
 	}
-	switch len(list) {
-	case 0:
-		return nil, errNoSuitableAddress
-	case 1:
-		return list[0], nil
-	default:
-		return list, nil
+	if len(addrs) == 0 {
+		return nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: originalAddr}
 	}
+	return addrs, nil
 }
 
-func firstSupportedAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) (netaddr, error) {
-	for _, ip := range ips {
-		if ip := filter(ip); ip != nil {
-			return inetaddr(ip), nil
-		}
-	}
-	return nil, errNoSuitableAddress
+// ipv4only reports whether addr is an IPv4 address.
+func ipv4only(addr IPAddr) bool {
+	return addr.IP.To4() != nil
 }
 
-// ipv4only returns IPv4 addresses that we can use with the kernel's
-// IPv4 addressing modes. If ip is an IPv4 address, ipv4only returns ip.
-// Otherwise it returns nil.
-func ipv4only(ip IP) IP {
-	if supportsIPv4 && ip.To4() != nil {
-		return ip
-	}
-	return nil
-}
-
-// ipv6only returns IPv6 addresses that we can use with the kernel's
-// IPv6 addressing modes.  It returns IPv4-mapped IPv6 addresses as
-// nils and returns other IPv6 address types as IPv6 addresses.
-func ipv6only(ip IP) IP {
-	if supportsIPv6 && len(ip) == IPv6len && ip.To4() == nil {
-		return ip
-	}
-	return nil
+// ipv6only reports whether addr is an IPv6 address except IPv4-mapped IPv6 address.
+func ipv6only(addr IPAddr) bool {
+	return len(addr.IP) == IPv6len && addr.IP.To4() == nil
 }
 
 // SplitHostPort splits a network address of the form "host:port",
-// "[host]:port" or "[ipv6-host%zone]:port" into host or
-// ipv6-host%zone and port.  A literal address or host name for IPv6
-// must be enclosed in square brackets, as in "[::1]:80",
-// "[ipv6-host]:http" or "[ipv6-host%zone]:80".
+// "host%zone:port", "[host]:port" or "[host%zone]:port" into host or
+// host%zone and port.
+//
+// A literal IPv6 address in hostport must be enclosed in square
+// brackets, as in "[::1]:80", "[::1%lo0]:80".
+//
+// See func Dial for a description of the hostport parameter, and host
+// and port results.
 func SplitHostPort(hostport string) (host, port string, err error) {
+	const (
+		missingPort   = "missing port in address"
+		tooManyColons = "too many colons in address"
+	)
+	addrErr := func(addr, why string) (host, port string, err error) {
+		return "", "", &AddrError{Err: why, Addr: addr}
+	}
 	j, k := 0, 0
 
 	// The port starts after the last colon.
 	i := last(hostport, ':')
 	if i < 0 {
-		goto missingPort
+		return addrErr(hostport, missingPort)
 	}
 
 	if hostport[0] == '[' {
 		// Expect the first ']' just before the last ':'.
 		end := byteIndex(hostport, ']')
 		if end < 0 {
-			err = &AddrError{"missing ']' in address", hostport}
-			return
+			return addrErr(hostport, "missing ']' in address")
 		}
 		switch end + 1 {
 		case len(hostport):
 			// There can't be a ':' behind the ']' now.
-			goto missingPort
+			return addrErr(hostport, missingPort)
 		case i:
 			// The expected result.
 		default:
 			// Either ']' isn't followed by a colon, or it is
 			// followed by a colon that is not the last one.
 			if hostport[end+1] == ':' {
-				goto tooManyColons
+				return addrErr(hostport, tooManyColons)
 			}
-			goto missingPort
+			return addrErr(hostport, missingPort)
 		}
 		host = hostport[1:end]
 		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
 	} else {
 		host = hostport[:i]
 		if byteIndex(host, ':') >= 0 {
-			goto tooManyColons
-		}
-		if byteIndex(host, '%') >= 0 {
-			goto missingBrackets
+			return addrErr(hostport, tooManyColons)
 		}
 	}
 	if byteIndex(hostport[j:], '[') >= 0 {
-		err = &AddrError{"unexpected '[' in address", hostport}
-		return
+		return addrErr(hostport, "unexpected '[' in address")
 	}
 	if byteIndex(hostport[k:], ']') >= 0 {
-		err = &AddrError{"unexpected ']' in address", hostport}
-		return
+		return addrErr(hostport, "unexpected ']' in address")
 	}
 
 	port = hostport[i+1:]
-	return
-
-missingPort:
-	err = &AddrError{"missing port in address", hostport}
-	return
-
-tooManyColons:
-	err = &AddrError{"too many colons in address", hostport}
-	return
-
-missingBrackets:
-	err = &AddrError{"missing brackets in address", hostport}
-	return
+	return host, port, nil
 }
 
 func splitHostZone(s string) (host, zone string) {
@@ -218,27 +219,28 @@ func splitHostZone(s string) (host, zone string) {
 }
 
 // JoinHostPort combines host and port into a network address of the
-// form "host:port" or, if host contains a colon or a percent sign,
-// "[host]:port".
+// form "host:port". If host contains a colon, as found in literal
+// IPv6 addresses, then JoinHostPort returns "[host]:port".
+//
+// See func Dial for a description of the host and port parameters.
 func JoinHostPort(host, port string) string {
-	// If host has colons or a percent sign, have to bracket it.
-	if byteIndex(host, ':') >= 0 || byteIndex(host, '%') >= 0 {
+	// We assume that host is a literal IPv6 address if host has
+	// colons.
+	if byteIndex(host, ':') >= 0 {
 		return "[" + host + "]:" + port
 	}
 	return host + ":" + port
 }
 
-// resolveInternetAddr resolves addr that is either a literal IP
-// address or a DNS name and returns an internet protocol family
-// address. It returns a list that contains a pair of different
-// address family addresses when addr is a DNS name and the name has
-// multiple address family records. The result contains at least one
-// address when error is nil.
-func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
+// internetAddrList resolves addr, which may be a literal IP
+// address or a DNS name, and returns a list of internet protocol
+// family addresses. The result contains at least one address when
+// error is nil.
+func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addrList, error) {
 	var (
-		err              error
-		host, port, zone string
-		portnum          int
+		err        error
+		host, port string
+		portnum    int
 	)
 	switch net {
 	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
@@ -246,7 +248,7 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) 
 			if host, port, err = SplitHostPort(addr); err != nil {
 				return nil, err
 			}
-			if portnum, err = parsePort(net, port); err != nil {
+			if portnum, err = r.LookupPort(ctx, net, port); err != nil {
 				return nil, err
 			}
 		}
@@ -257,62 +259,56 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) 
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	inetaddr := func(ip IP) netaddr {
+	inetaddr := func(ip IPAddr) Addr {
 		switch net {
 		case "tcp", "tcp4", "tcp6":
-			return &TCPAddr{IP: ip, Port: portnum, Zone: zone}
+			return &TCPAddr{IP: ip.IP, Port: portnum, Zone: ip.Zone}
 		case "udp", "udp4", "udp6":
-			return &UDPAddr{IP: ip, Port: portnum, Zone: zone}
+			return &UDPAddr{IP: ip.IP, Port: portnum, Zone: ip.Zone}
 		case "ip", "ip4", "ip6":
-			return &IPAddr{IP: ip, Zone: zone}
+			return &IPAddr{IP: ip.IP, Zone: ip.Zone}
 		default:
 			panic("unexpected network: " + net)
 		}
 	}
 	if host == "" {
-		return inetaddr(nil), nil
+		return addrList{inetaddr(IPAddr{})}, nil
 	}
-	// Try as a literal IP address.
-	var ip IP
-	if ip = parseIPv4(host); ip != nil {
-		return inetaddr(ip), nil
+
+	// Try as a literal IP address, then as a DNS name.
+	var ips []IPAddr
+	if ip := parseIPv4(host); ip != nil {
+		ips = []IPAddr{{IP: ip}}
+	} else if ip, zone := parseIPv6(host, true); ip != nil {
+		ips = []IPAddr{{IP: ip, Zone: zone}}
+		// Issue 18806: if the machine has halfway configured
+		// IPv6 such that it can bind on "::" (IPv6unspecified)
+		// but not connect back to that same address, fall
+		// back to dialing 0.0.0.0.
+		if ip.Equal(IPv6unspecified) {
+			ips = append(ips, IPAddr{IP: IPv4zero})
+		}
+	} else {
+		// Try as a DNS name.
+		ips, err = r.LookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if ip, zone = parseIPv6(host, true); ip != nil {
-		return inetaddr(ip), nil
-	}
-	// Try as a DNS name.
-	host, zone = splitHostZone(host)
-	ips, err := lookupIPDeadline(host, deadline)
-	if err != nil {
-		return nil, err
-	}
-	var filter func(IP) IP
+
+	var filter func(IPAddr) bool
 	if net != "" && net[len(net)-1] == '4' {
 		filter = ipv4only
 	}
-	if net != "" && net[len(net)-1] == '6' || zone != "" {
+	if net != "" && net[len(net)-1] == '6' {
 		filter = ipv6only
 	}
-	return firstFavoriteAddr(filter, ips, inetaddr)
+	return filterAddrList(filter, ips, inetaddr, host)
 }
 
-func zoneToString(zone int) string {
-	if zone == 0 {
-		return ""
+func loopbackIP(net string) IP {
+	if net != "" && net[len(net)-1] == '6' {
+		return IPv6loopback
 	}
-	if ifi, err := InterfaceByIndex(zone); err == nil {
-		return ifi.Name
-	}
-	return uitoa(uint(zone))
-}
-
-func zoneToInt(zone string) int {
-	if zone == "" {
-		return 0
-	}
-	if ifi, err := InterfaceByName(zone); err == nil {
-		return ifi.Index
-	}
-	n, _, _ := dtoi(zone, 0)
-	return n
+	return IP{127, 0, 0, 1}
 }

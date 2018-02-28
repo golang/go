@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -37,7 +37,7 @@ TEXT ·SwapUintptr(SB),NOSPLIT,$0
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
 	B ·CompareAndSwapUint64(SB)
 
-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4
+TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0
 	B ·armCompareAndSwapUint64(SB)
 
 TEXT ·AddInt64(SB),NOSPLIT,$0

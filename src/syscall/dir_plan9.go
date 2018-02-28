@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Plan 9 directory marshalling. See intro(5).
+// Plan 9 directory marshaling. See intro(5).
 
 package syscall
 
@@ -184,6 +184,7 @@ func gbit8(b []byte) (uint8, []byte) {
 }
 
 // gbit16 reads a 16-bit number in little-endian order from b and returns it with the remaining slice of b.
+//go:nosplit
 func gbit16(b []byte) (uint16, []byte) {
 	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
 }

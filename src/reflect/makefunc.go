@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,9 +12,12 @@ import (
 
 // makeFuncImpl is the closure value implementing the function
 // returned by MakeFunc.
+// The first two words of this type must be kept in sync with
+// methodValue and runtime.reflectMethodValue.
+// Any changes should be reflected in all three.
 type makeFuncImpl struct {
 	code  uintptr
-	stack *bitVector // stack bitmap for args - offset known to runtime
+	stack *bitVector
 	typ   *funcType
 	fn    func([]Value) []Value
 }
@@ -51,7 +54,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 
 	// Indirect Go func value (dummy) to obtain
 	// actual code address. (A Go func value is a pointer
-	// to a C function pointer. http://golang.org/s/go11func.)
+	// to a C function pointer. https://golang.org/s/go11func.)
 	dummy := makeFuncStub
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
@@ -70,9 +73,12 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 // word in the passed-in argument frame.
 func makeFuncStub()
 
+// The first two words of this type must be kept in sync with
+// makeFuncImpl and runtime.reflectMethodValue.
+// Any changes should be reflected in all three.
 type methodValue struct {
 	fn     uintptr
-	stack  *bitVector // stack bitmap for args - offset known to runtime
+	stack  *bitVector
 	method int
 	rcvr   Value
 }
@@ -99,7 +105,7 @@ func makeMethodValue(op string, v Value) Value {
 
 	// Indirect Go func value (dummy) to obtain
 	// actual code address. (A Go func value is a pointer
-	// to a C function pointer. http://golang.org/s/go11func.)
+	// to a C function pointer. https://golang.org/s/go11func.)
 	dummy := methodValueCall
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 

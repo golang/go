@@ -1,6 +1,6 @@
 // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -9,7 +9,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,253 +32,93 @@
 package obj
 
 import (
+	"cmd/internal/objabi"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"runtime"
+	"math"
 )
 
-func yy_isalpha(c int) bool {
-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
-}
-
-var headers = []struct {
-	name string
-	val  int
-}{
-	struct {
-		name string
-		val  int
-	}{"darwin", Hdarwin},
-	struct {
-		name string
-		val  int
-	}{"dragonfly", Hdragonfly},
-	struct {
-		name string
-		val  int
-	}{"elf", Helf},
-	struct {
-		name string
-		val  int
-	}{"freebsd", Hfreebsd},
-	struct {
-		name string
-		val  int
-	}{"linux", Hlinux},
-	struct {
-		name string
-		val  int
-	}{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
-	struct {
-		name string
-		val  int
-	}{"nacl", Hnacl},
-	struct {
-		name string
-		val  int
-	}{"netbsd", Hnetbsd},
-	struct {
-		name string
-		val  int
-	}{"openbsd", Hopenbsd},
-	struct {
-		name string
-		val  int
-	}{"plan9", Hplan9},
-	struct {
-		name string
-		val  int
-	}{"solaris", Hsolaris},
-	struct {
-		name string
-		val  int
-	}{"windows", Hwindows},
-	struct {
-		name string
-		val  int
-	}{"windowsgui", Hwindows},
-}
-
-func headtype(name string) int {
-	for i := 0; i < len(headers); i++ {
-		if name == headers[i].name {
-			return headers[i].val
-		}
-	}
-	return -1
-}
-
-var headstr_buf string
-
-func Headstr(v int) string {
-	for i := 0; i < len(headers); i++ {
-		if v == headers[i].val {
-			return headers[i].name
-		}
-	}
-	headstr_buf = fmt.Sprintf("%d", v)
-	return headstr_buf
-}
-
 func Linknew(arch *LinkArch) *Link {
-	var buf string
-
-	linksetexp()
-
 	ctxt := new(Link)
+	ctxt.hash = make(map[string]*LSym)
+	ctxt.statichash = make(map[string]*LSym)
 	ctxt.Arch = arch
-	ctxt.Version = HistVersion
-	ctxt.Goroot = Getgoroot()
-	ctxt.Goroot_final = os.Getenv("GOROOT_FINAL")
-	if runtime.GOOS == "windows" {
-		// TODO(rsc): Remove ctxt.Windows and let callers use runtime.GOOS.
-		ctxt.Windows = 1
+	ctxt.Pathname = objabi.WorkingDir()
+
+	if err := ctxt.Headtype.Set(objabi.GOOS); err != nil {
+		log.Fatalf("unknown goos %s", objabi.GOOS)
 	}
 
-	buf, _ = os.Getwd()
-	if buf == "" {
-		buf = "/???"
-	}
-	buf = filepath.ToSlash(buf)
-
-	ctxt.Pathname = buf
-
-	ctxt.Headtype = headtype(Getgoos())
-	if ctxt.Headtype < 0 {
-		log.Fatalf("unknown goos %s", Getgoos())
-	}
-
-	// Record thread-local storage offset.
-	// TODO(rsc): Move tlsoffset back into the linker.
-	switch ctxt.Headtype {
-	default:
-		log.Fatalf("unknown thread-local storage offset for %s", Headstr(ctxt.Headtype))
-
-	case Hplan9,
-		Hwindows:
-		break
-
-		/*
-		 * ELF uses TLS offset negative from FS.
-		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
-		 * Known to low-level assembly in package runtime and runtime/cgo.
-		 */
-	case Hlinux,
-		Hfreebsd,
-		Hnetbsd,
-		Hopenbsd,
-		Hdragonfly,
-		Hsolaris:
-		ctxt.Tlsoffset = -2 * ctxt.Arch.Ptrsize
-
-	case Hnacl:
-		switch ctxt.Arch.Thechar {
-		default:
-			log.Fatalf("unknown thread-local storage offset for nacl/%s", ctxt.Arch.Name)
-
-		case '5':
-			ctxt.Tlsoffset = 0
-
-		case '6':
-			ctxt.Tlsoffset = 0
-
-		case '8':
-			ctxt.Tlsoffset = -8
-		}
-
-		/*
-		 * OS X system constants - offset from 0(GS) to our TLS.
-		 * Explained in ../../runtime/cgo/gcc_darwin_*.c.
-		 */
-	case Hdarwin:
-		switch ctxt.Arch.Thechar {
-		default:
-			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
-
-		case '6':
-			ctxt.Tlsoffset = 0x8a0
-
-		case '8':
-			ctxt.Tlsoffset = 0x468
-
-		case '5':
-			ctxt.Tlsoffset = 0 // dummy value, not needed
-		}
-	}
-
-	// On arm, record goarm.
-	if ctxt.Arch.Thechar == '5' {
-		p := Getgoarm()
-		if p != "" {
-			ctxt.Goarm = int32(Atoi(p))
-		} else {
-			ctxt.Goarm = 6
-		}
-	}
-
+	ctxt.Flag_optimize = true
+	ctxt.Framepointer_enabled = objabi.Framepointer_enabled(objabi.GOOS, arch.Name)
 	return ctxt
 }
 
-func linknewsym(ctxt *Link, symb string, v int) *LSym {
-	s := new(LSym)
-	*s = LSym{}
+// LookupDerived looks up or creates the symbol with name name derived from symbol s.
+// The resulting symbol will be static iff s is.
+func (ctxt *Link) LookupDerived(s *LSym, name string) *LSym {
+	if s.Static() {
+		return ctxt.LookupStatic(name)
+	}
+	return ctxt.Lookup(name)
+}
 
-	s.Dynid = -1
-	s.Plt = -1
-	s.Got = -1
-	s.Name = symb
-	s.Type = 0
-	s.Version = int16(v)
-	s.Value = 0
-	s.Sig = 0
-	s.Size = 0
-	ctxt.Nsymbol++
-
-	s.Allsym = ctxt.Allsym
-	ctxt.Allsym = s
-
+// LookupStatic looks up the static symbol with name name.
+// If it does not exist, it creates it.
+func (ctxt *Link) LookupStatic(name string) *LSym {
+	s := ctxt.statichash[name]
+	if s == nil {
+		s = &LSym{Name: name, Attribute: AttrStatic}
+		ctxt.statichash[name] = s
+	}
 	return s
 }
 
-func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
-	h := uint32(v)
-	for i := 0; i < len(symb); i++ {
-		c := int(symb[i])
-		h = h + h + h + uint32(c)
-	}
-	h &= 0xffffff
-	h %= LINKHASH
-	for s := ctxt.Hash[h]; s != nil; s = s.Hash {
-		if int(s.Version) == v && s.Name == symb {
-			return s
+// Lookup looks up the symbol with name name.
+// If it does not exist, it creates it.
+func (ctxt *Link) Lookup(name string) *LSym {
+	return ctxt.LookupInit(name, nil)
+}
+
+// LookupInit looks up the symbol with name name.
+// If it does not exist, it creates it and
+// passes it to init for one-time initialization.
+func (ctxt *Link) LookupInit(name string, init func(s *LSym)) *LSym {
+	ctxt.hashmu.Lock()
+	s := ctxt.hash[name]
+	if s == nil {
+		s = &LSym{Name: name}
+		ctxt.hash[name] = s
+		if init != nil {
+			init(s)
 		}
 	}
-	if creat == 0 {
-		return nil
-	}
-
-	s := linknewsym(ctxt, symb, v)
-	s.Extname = s.Name
-	s.Hash = ctxt.Hash[h]
-	ctxt.Hash[h] = s
-
+	ctxt.hashmu.Unlock()
 	return s
 }
 
-func Linklookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, 1)
+func (ctxt *Link) Float32Sym(f float32) *LSym {
+	i := math.Float32bits(f)
+	name := fmt.Sprintf("$f32.%08x", i)
+	return ctxt.LookupInit(name, func(s *LSym) {
+		s.Size = 4
+		s.Set(AttrLocal, true)
+	})
 }
 
-// read-only lookup
-func linkrlookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, 0)
+func (ctxt *Link) Float64Sym(f float64) *LSym {
+	i := math.Float64bits(f)
+	name := fmt.Sprintf("$f64.%016x", i)
+	return ctxt.LookupInit(name, func(s *LSym) {
+		s.Size = 8
+		s.Set(AttrLocal, true)
+	})
 }
 
-func Linksymfmt(s *LSym) string {
-	if s == nil {
-		return "<nil>"
-	}
-	return s.Name
+func (ctxt *Link) Int64Sym(i int64) *LSym {
+	name := fmt.Sprintf("$i64.%016x", uint64(i))
+	return ctxt.LookupInit(name, func(s *LSym) {
+		s.Size = 8
+		s.Set(AttrLocal, true)
+	})
 }

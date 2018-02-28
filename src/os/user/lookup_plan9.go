@@ -18,6 +18,10 @@ const (
 	userFile = "/dev/user"
 )
 
+func init() {
+	groupImplemented = false
+}
+
 func current() (*User, error) {
 	ubytes, err := ioutil.ReadFile(userFile)
 	if err != nil {
@@ -37,10 +41,22 @@ func current() (*User, error) {
 	return u, nil
 }
 
-func lookup(username string) (*User, error) {
+func lookupUser(username string) (*User, error) {
 	return nil, syscall.EPLAN9
 }
 
-func lookupId(uid string) (*User, error) {
+func lookupUserId(uid string) (*User, error) {
+	return nil, syscall.EPLAN9
+}
+
+func lookupGroup(groupname string) (*Group, error) {
+	return nil, syscall.EPLAN9
+}
+
+func lookupGroupId(string) (*Group, error) {
+	return nil, syscall.EPLAN9
+}
+
+func listGroups(*User) ([]string, error) {
 	return nil, syscall.EPLAN9
 }

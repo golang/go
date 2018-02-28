@@ -26,7 +26,7 @@ import (
 type ErrorHandler func(pos token.Position, msg string)
 
 // A Scanner holds the scanner's internal state while processing
-// a given text.  It can be allocated as part of another data
+// a given text. It can be allocated as part of another data
 // structure but must be initialized via Init before use.
 //
 type Scanner struct {
@@ -64,7 +64,7 @@ func (s *Scanner) next() {
 		switch {
 		case r == 0:
 			s.error(s.offset, "illegal character NUL")
-		case r >= 0x80:
+		case r >= utf8.RuneSelf:
 			// not ASCII
 			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
 			if r == utf8.RuneError && w == 1 {
@@ -204,7 +204,7 @@ func (s *Scanner) scanComment() string {
 exit:
 	lit := s.src[offs:s.offset]
 	if hasCR {
-		lit = stripCR(lit)
+		lit = stripCR(lit, lit[1] == '*')
 	}
 
 	return string(lit)
@@ -255,11 +255,11 @@ func (s *Scanner) findLineEnd() bool {
 }
 
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch)
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
 }
 
 func isDigit(ch rune) bool {
-	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch)
+	return '0' <= ch && ch <= '9' || ch >= utf8.RuneSelf && unicode.IsDigit(ch)
 }
 
 func (s *Scanner) scanIdentifier() string {
@@ -349,7 +349,11 @@ exponent:
 		if s.ch == '-' || s.ch == '+' {
 			s.next()
 		}
-		s.scanMantissa(10)
+		if digitVal(s.ch) < 10 {
+			s.scanMantissa(10)
+		} else {
+			s.error(offs, "illegal floating-point exponent")
+		}
 	}
 
 	if s.ch == 'i' {
@@ -476,11 +480,16 @@ func (s *Scanner) scanString() string {
 	return string(s.src[offs:s.offset])
 }
 
-func stripCR(b []byte) []byte {
+func stripCR(b []byte, comment bool) []byte {
 	c := make([]byte, len(b))
 	i := 0
-	for _, ch := range b {
-		if ch != '\r' {
+	for j, ch := range b {
+		// In a /*-style comment, don't strip \r from *\r/ (incl.
+		// sequences of \r from *\r\r...\r/) since the resulting
+		// */ would terminate the comment too early unless the \r
+		// is immediately following the opening /* in which case
+		// it's ok because /*/ is not closed yet (issue #11151).
+		if ch != '\r' || comment && i > len("/*") && c[i-1] == '*' && j+1 < len(b) && b[j+1] == '/' {
 			c[i] = ch
 			i++
 		}
@@ -510,7 +519,7 @@ func (s *Scanner) scanRawString() string {
 
 	lit := s.src[offs:s.offset]
 	if hasCR {
-		lit = stripCR(lit)
+		lit = stripCR(lit, false)
 	}
 
 	return string(lit)
@@ -706,13 +715,14 @@ scanAgain:
 					s.insertSemi = false // newline consumed
 					return pos, token.SEMICOLON, "\n"
 				}
-				lit = s.scanComment()
+				comment := s.scanComment()
 				if s.mode&ScanComments == 0 {
 					// skip comment
 					s.insertSemi = false // newline consumed
 					goto scanAgain
 				}
 				tok = token.COMMENT
+				lit = comment
 			} else {
 				tok = s.switch2(token.QUO, token.QUO_ASSIGN)
 			}

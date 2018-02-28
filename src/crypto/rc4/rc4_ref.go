@@ -7,7 +7,7 @@
 package rc4
 
 // XORKeyStream sets dst to the result of XORing src with the key stream.
-// Dst and src may be the same slice but otherwise should not overlap.
+// Dst and src must overlap entirely or not at all.
 func (c *Cipher) XORKeyStream(dst, src []byte) {
 	c.xorKeyStreamGeneric(dst, src)
 }

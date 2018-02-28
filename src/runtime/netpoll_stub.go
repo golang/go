@@ -6,6 +6,8 @@
 
 package runtime
 
+var netpollWaiters uint32
+
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
 func netpoll(block bool) (gp *g) {

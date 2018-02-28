@@ -41,7 +41,7 @@ func myatof64(s string) (f float64, ok bool) {
 		}
 		v := float64(n)
 		// We expect that v*pow2(e) fits in a float64,
-		// but pow2(e) by itself may not.  Be careful.
+		// but pow2(e) by itself may not. Be careful.
 		if e <= -1000 {
 			v *= pow2(-1000)
 			e += 1000

@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -27,6 +27,8 @@ type Struct struct {
 	Complex64  complex64
 	Complex128 complex128
 	Array      [4]uint8
+	Bool       bool
+	BoolArray  [4]bool
 }
 
 type T struct {
@@ -58,6 +60,9 @@ var s = Struct{
 	),
 
 	[4]uint8{0x43, 0x44, 0x45, 0x46},
+
+	true,
+	[4]bool{true, false, true, false},
 }
 
 var big = []byte{
@@ -76,6 +81,9 @@ var big = []byte{
 	51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
 
 	67, 68, 69, 70,
+
+	1,
+	1, 0, 1, 0,
 }
 
 var little = []byte{
@@ -94,10 +102,14 @@ var little = []byte{
 	58, 57, 56, 55, 54, 53, 52, 51, 66, 65, 64, 63, 62, 61, 60, 59,
 
 	67, 68, 69, 70,
+
+	1,
+	1, 0, 1, 0,
 }
 
 var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
 var res = []int32{0x01020304, 0x05060708}
+var putbuf = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 
 func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, want interface{}) {
 	if err != nil {
@@ -139,6 +151,25 @@ func TestWriteSlice(t *testing.T) {
 	buf := new(bytes.Buffer)
 	err := Write(buf, BigEndian, res)
 	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src)
+}
+
+func TestReadBool(t *testing.T) {
+	var res bool
+	var err error
+	err = Read(bytes.NewReader([]byte{0}), BigEndian, &res)
+	checkResult(t, "ReadBool", BigEndian, err, res, false)
+	res = false
+	err = Read(bytes.NewReader([]byte{1}), BigEndian, &res)
+	checkResult(t, "ReadBool", BigEndian, err, res, true)
+	res = false
+	err = Read(bytes.NewReader([]byte{2}), BigEndian, &res)
+	checkResult(t, "ReadBool", BigEndian, err, res, true)
+}
+
+func TestReadBoolSlice(t *testing.T) {
+	slice := make([]bool, 4)
+	err := Read(bytes.NewReader([]byte{0, 1, 2, 255}), BigEndian, slice)
+	checkResult(t, "ReadBoolSlice", BigEndian, err, slice, []bool{false, true, true, true})
 }
 
 // Addresses of arrays are easier to manipulate with reflection than are slices.
@@ -266,7 +297,7 @@ func TestBlankFields(t *testing.T) {
 }
 
 // An attempt to read into a struct with an unexported field will
-// panic.  This is probably not the best choice, but at this point
+// panic. This is probably not the best choice, but at this point
 // anything else would be an API change.
 
 type Unexported struct {
@@ -309,6 +340,63 @@ func TestReadErrorMsg(t *testing.T) {
 	read(&p)
 }
 
+func TestReadTruncated(t *testing.T) {
+	const data = "0123456789abcdef"
+
+	var b1 = make([]int32, 4)
+	var b2 struct {
+		A, B, C, D byte
+		E          int32
+		F          float64
+	}
+
+	for i := 0; i <= len(data); i++ {
+		var errWant error
+		switch i {
+		case 0:
+			errWant = io.EOF
+		case len(data):
+			errWant = nil
+		default:
+			errWant = io.ErrUnexpectedEOF
+		}
+
+		if err := Read(strings.NewReader(data[:i]), LittleEndian, &b1); err != errWant {
+			t.Errorf("Read(%d) with slice: got %v, want %v", i, err, errWant)
+		}
+		if err := Read(strings.NewReader(data[:i]), LittleEndian, &b2); err != errWant {
+			t.Errorf("Read(%d) with struct: got %v, want %v", i, err, errWant)
+		}
+	}
+}
+
+func testUint64SmallSliceLengthPanics() (panicked bool) {
+	defer func() {
+		panicked = recover() != nil
+	}()
+	b := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
+	LittleEndian.Uint64(b[:4])
+	return false
+}
+
+func testPutUint64SmallSliceLengthPanics() (panicked bool) {
+	defer func() {
+		panicked = recover() != nil
+	}()
+	b := [8]byte{}
+	LittleEndian.PutUint64(b[:4], 0x0102030405060708)
+	return false
+}
+
+func TestEarlyBoundsChecks(t *testing.T) {
+	if testUint64SmallSliceLengthPanics() != true {
+		t.Errorf("binary.LittleEndian.Uint64 expected to panic for small slices, but didn't")
+	}
+	if testPutUint64SmallSliceLengthPanics() != true {
+		t.Errorf("binary.LittleEndian.PutUint64 expected to panic for small slices, but didn't")
+	}
+}
+
 type byteSliceReader struct {
 	remain []byte
 }
@@ -343,8 +431,8 @@ func BenchmarkReadStruct(b *testing.B) {
 		Read(bsr, BigEndian, &t)
 	}
 	b.StopTimer()
-	if !reflect.DeepEqual(s, t) {
-		b.Fatal("no match")
+	if b.N > 0 && !reflect.DeepEqual(s, t) {
+		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", t, s)
 	}
 }
 
@@ -365,18 +453,17 @@ func BenchmarkReadInts(b *testing.B) {
 		Read(r, BigEndian, &ls.Uint32)
 		Read(r, BigEndian, &ls.Uint64)
 	}
-
+	b.StopTimer()
 	want := s
 	want.Float32 = 0
 	want.Float64 = 0
 	want.Complex64 = 0
 	want.Complex128 = 0
-	for i := range want.Array {
-		want.Array[i] = 0
-	}
-	b.StopTimer()
-	if !reflect.DeepEqual(ls, want) {
-		panic("no match")
+	want.Array = [4]uint8{0, 0, 0, 0}
+	want.Bool = false
+	want.BoolArray = [4]bool{false, false, false, false}
+	if b.N > 0 && !reflect.DeepEqual(ls, want) {
+		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
 	}
 }
 
@@ -397,7 +484,7 @@ func BenchmarkWriteInts(b *testing.B) {
 		Write(w, BigEndian, s.Uint64)
 	}
 	b.StopTimer()
-	if !bytes.Equal(buf.Bytes(), big[:30]) {
+	if b.N > 0 && !bytes.Equal(buf.Bytes(), big[:30]) {
 		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[:30])
 	}
 }
@@ -413,4 +500,45 @@ func BenchmarkWriteSlice1000Int32s(b *testing.B) {
 		Write(w, BigEndian, slice)
 	}
 	b.StopTimer()
+}
+
+func BenchmarkPutUint16(b *testing.B) {
+	b.SetBytes(2)
+	for i := 0; i < b.N; i++ {
+		BigEndian.PutUint16(putbuf[:], uint16(i))
+	}
+}
+
+func BenchmarkPutUint32(b *testing.B) {
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		BigEndian.PutUint32(putbuf[:], uint32(i))
+	}
+}
+
+func BenchmarkPutUint64(b *testing.B) {
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		BigEndian.PutUint64(putbuf[:], uint64(i))
+	}
+}
+func BenchmarkLittleEndianPutUint16(b *testing.B) {
+	b.SetBytes(2)
+	for i := 0; i < b.N; i++ {
+		LittleEndian.PutUint16(putbuf[:], uint16(i))
+	}
+}
+
+func BenchmarkLittleEndianPutUint32(b *testing.B) {
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		LittleEndian.PutUint32(putbuf[:], uint32(i))
+	}
+}
+
+func BenchmarkLittleEndianPutUint64(b *testing.B) {
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		LittleEndian.PutUint64(putbuf[:], uint64(i))
+	}
 }

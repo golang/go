@@ -1,16 +1,21 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime_test
 
 import (
+	"bytes"
 	"fmt"
+	"internal/syscall/windows/sysdll"
+	"internal/testenv"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -436,6 +441,9 @@ var cbTests = []cbTest{
 }
 
 func TestStdcallAndCDeclCallbacks(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
 	tmp, err := ioutil.TempDir("", "TestCDeclCallback")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
@@ -496,7 +504,7 @@ func TestOutputDebugString(t *testing.T) {
 }
 
 func TestRaiseException(t *testing.T) {
-	o := executeTest(t, raiseExceptionSource, nil)
+	o := runTestProg(t, "testprog", "RaiseException")
 	if strings.Contains(o, "RaiseException should not return") {
 		t.Fatalf("RaiseException did not crash program: %v", o)
 	}
@@ -505,34 +513,12 @@ func TestRaiseException(t *testing.T) {
 	}
 }
 
-const raiseExceptionSource = `
-package main
-import "syscall"
-func main() {
-	const EXCEPTION_NONCONTINUABLE = 1
-	mod := syscall.MustLoadDLL("kernel32.dll")
-	proc := mod.MustFindProc("RaiseException")
-	proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
-	println("RaiseException should not return")
-}
-`
-
 func TestZeroDivisionException(t *testing.T) {
-	o := executeTest(t, zeroDivisionExceptionSource, nil)
+	o := runTestProg(t, "testprog", "ZeroDivisionException")
 	if !strings.Contains(o, "panic: runtime error: integer divide by zero") {
 		t.Fatalf("No stack trace: %v", o)
 	}
 }
-
-const zeroDivisionExceptionSource = `
-package main
-func main() {
-	x := 1
-	y := 0
-	z := x / y
-	println(z)
-}
-`
 
 func TestWERDialogue(t *testing.T) {
 	if os.Getenv("TESTING_WER_DIALOGUE") == "1" {
@@ -551,3 +537,546 @@ func TestWERDialogue(t *testing.T) {
 	// Child process should not open WER dialogue, but return immediately instead.
 	cmd.CombinedOutput()
 }
+
+func TestWindowsStackMemory(t *testing.T) {
+	o := runTestProg(t, "testprog", "StackMemory")
+	stackUsage, err := strconv.Atoi(o)
+	if err != nil {
+		t.Fatalf("Failed to read stack usage: %v", err)
+	}
+	if expected, got := 100<<10, stackUsage; got > expected {
+		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
+	}
+}
+
+var used byte
+
+func use(buf []byte) {
+	for _, c := range buf {
+		used += c
+	}
+}
+
+func forceStackCopy() (r int) {
+	var f func(int) int
+	f = func(i int) int {
+		var buf [256]byte
+		use(buf[:])
+		if i == 0 {
+			return 0
+		}
+		return i + f(i-1)
+	}
+	r = f(128)
+	return
+}
+
+func TestReturnAfterStackGrowInCallback(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+typedef uintptr_t __stdcall (*callback)(uintptr_t);
+
+uintptr_t cfunc(callback f, uintptr_t n) {
+   uintptr_t r;
+   r = f(n);
+   SetLastError(333);
+   return r;
+}
+`
+	tmpdir, err := ioutil.TempDir("", "TestReturnAfterStackGrowInCallback")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	srcname := "mydll.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	proc := dll.MustFindProc("cfunc")
+
+	cb := syscall.NewCallback(func(n uintptr) uintptr {
+		forceStackCopy()
+		return n
+	})
+
+	// Use a new goroutine so that we get a small stack.
+	type result struct {
+		r   uintptr
+		err syscall.Errno
+	}
+	c := make(chan result)
+	go func() {
+		r, _, err := proc.Call(cb, 100)
+		c <- result{r, err.(syscall.Errno)}
+	}()
+	want := result{r: 100, err: 333}
+	if got := <-c; got != want {
+		t.Errorf("got %d want %d", got, want)
+	}
+}
+
+func TestFloatArgs(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+	}
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+uintptr_t cfunc(uintptr_t a, double b, float c, double d) {
+	if (a == 1 && b == 2.2 && c == 3.3f && d == 4.4e44) {
+		return 1;
+	}
+	return 0;
+}
+`
+	tmpdir, err := ioutil.TempDir("", "TestFloatArgs")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	srcname := "mydll.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	proc := dll.MustFindProc("cfunc")
+
+	r, _, err := proc.Call(
+		1,
+		uintptr(math.Float64bits(2.2)),
+		uintptr(math.Float32bits(3.3)),
+		uintptr(math.Float64bits(4.4e44)),
+	)
+	if r != 1 {
+		t.Errorf("got %d want 1 (err=%v)", r, err)
+	}
+}
+
+func TestTimeBeginPeriod(t *testing.T) {
+	const TIMERR_NOERROR = 0
+	if *runtime.TimeBeginPeriodRetValue != TIMERR_NOERROR {
+		t.Fatalf("timeBeginPeriod failed: it returned %d", *runtime.TimeBeginPeriodRetValue)
+	}
+}
+
+// removeOneCPU removes one (any) cpu from affinity mask.
+// It returns new affinity mask.
+func removeOneCPU(mask uintptr) (uintptr, error) {
+	if mask == 0 {
+		return 0, fmt.Errorf("cpu affinity mask is empty")
+	}
+	maskbits := int(unsafe.Sizeof(mask) * 8)
+	for i := 0; i < maskbits; i++ {
+		newmask := mask & ^(1 << uint(i))
+		if newmask != mask {
+			return newmask, nil
+		}
+
+	}
+	panic("not reached")
+}
+
+func resumeChildThread(kernel32 *syscall.DLL, childpid int) error {
+	_OpenThread := kernel32.MustFindProc("OpenThread")
+	_ResumeThread := kernel32.MustFindProc("ResumeThread")
+	_Thread32First := kernel32.MustFindProc("Thread32First")
+	_Thread32Next := kernel32.MustFindProc("Thread32Next")
+
+	snapshot, err := syscall.CreateToolhelp32Snapshot(syscall.TH32CS_SNAPTHREAD, 0)
+	if err != nil {
+		return err
+	}
+	defer syscall.CloseHandle(snapshot)
+
+	const _THREAD_SUSPEND_RESUME = 0x0002
+
+	type ThreadEntry32 struct {
+		Size           uint32
+		tUsage         uint32
+		ThreadID       uint32
+		OwnerProcessID uint32
+		BasePri        int32
+		DeltaPri       int32
+		Flags          uint32
+	}
+
+	var te ThreadEntry32
+	te.Size = uint32(unsafe.Sizeof(te))
+	ret, _, err := _Thread32First.Call(uintptr(snapshot), uintptr(unsafe.Pointer(&te)))
+	if ret == 0 {
+		return err
+	}
+	for te.OwnerProcessID != uint32(childpid) {
+		ret, _, err = _Thread32Next.Call(uintptr(snapshot), uintptr(unsafe.Pointer(&te)))
+		if ret == 0 {
+			return err
+		}
+	}
+	h, _, err := _OpenThread.Call(_THREAD_SUSPEND_RESUME, 1, uintptr(te.ThreadID))
+	if h == 0 {
+		return err
+	}
+	defer syscall.Close(syscall.Handle(h))
+
+	ret, _, err = _ResumeThread.Call(h)
+	if ret == 0xffffffff {
+		return err
+	}
+	return nil
+}
+
+func TestNumCPU(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// in child process
+		fmt.Fprintf(os.Stderr, "%d", runtime.NumCPU())
+		os.Exit(0)
+	}
+
+	switch n := runtime.NumberOfProcessors(); {
+	case n < 1:
+		t.Fatalf("system cannot have %d cpu(s)", n)
+	case n == 1:
+		if runtime.NumCPU() != 1 {
+			t.Fatalf("runtime.NumCPU() returns %d on single cpu system", runtime.NumCPU())
+		}
+		return
+	}
+
+	const (
+		_CREATE_SUSPENDED   = 0x00000004
+		_PROCESS_ALL_ACCESS = syscall.STANDARD_RIGHTS_REQUIRED | syscall.SYNCHRONIZE | 0xfff
+	)
+
+	kernel32 := syscall.MustLoadDLL("kernel32.dll")
+	_GetProcessAffinityMask := kernel32.MustFindProc("GetProcessAffinityMask")
+	_SetProcessAffinityMask := kernel32.MustFindProc("SetProcessAffinityMask")
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestNumCPU")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: _CREATE_SUSPENDED}
+	err := cmd.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = cmd.Wait()
+		childOutput := string(buf.Bytes())
+		if err != nil {
+			t.Fatalf("child failed: %v: %v", err, childOutput)
+		}
+		// removeOneCPU should have decreased child cpu count by 1
+		want := fmt.Sprintf("%d", runtime.NumCPU()-1)
+		if childOutput != want {
+			t.Fatalf("child output: want %q, got %q", want, childOutput)
+		}
+	}()
+
+	defer func() {
+		err = resumeChildThread(kernel32, cmd.Process.Pid)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ph, err := syscall.OpenProcess(_PROCESS_ALL_ACCESS, false, uint32(cmd.Process.Pid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.CloseHandle(ph)
+
+	var mask, sysmask uintptr
+	ret, _, err := _GetProcessAffinityMask.Call(uintptr(ph), uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
+	if ret == 0 {
+		t.Fatal(err)
+	}
+
+	newmask, err := removeOneCPU(mask)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ret, _, err = _SetProcessAffinityMask.Call(uintptr(ph), newmask)
+	if ret == 0 {
+		t.Fatal(err)
+	}
+	ret, _, err = _GetProcessAffinityMask.Call(uintptr(ph), uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
+	if ret == 0 {
+		t.Fatal(err)
+	}
+	if newmask != mask {
+		t.Fatalf("SetProcessAffinityMask didn't set newmask of 0x%x. Current mask is 0x%x.", newmask, mask)
+	}
+}
+
+// See Issue 14959
+func TestDLLPreloadMitigation(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestDLLPreloadMitigation")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer func() {
+		err := os.RemoveAll(tmpdir)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	dir0, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(dir0)
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+uintptr_t cfunc() {
+   SetLastError(123);
+}
+`
+	srcname := "nojack.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := "nojack.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", name, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, name)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	dll.MustFindProc("cfunc")
+	dll.Release()
+
+	// Get into the directory with the DLL we'll load by base name
+	// ("nojack.dll") Think of this as the user double-clicking an
+	// installer from their Downloads directory where a browser
+	// silently downloaded some malicious DLLs.
+	os.Chdir(tmpdir)
+
+	// First before we can load a DLL from the current directory,
+	// loading it only as "nojack.dll", without an absolute path.
+	delete(sysdll.IsSystemDLL, name) // in case test was run repeatedly
+	dll, err = syscall.LoadDLL(name)
+	if err != nil {
+		t.Fatalf("failed to load %s by base name before sysdll registration: %v", name, err)
+	}
+	dll.Release()
+
+	// And now verify that if we register it as a system32-only
+	// DLL, the implicit loading from the current directory no
+	// longer works.
+	sysdll.IsSystemDLL[name] = true
+	dll, err = syscall.LoadDLL(name)
+	if err == nil {
+		dll.Release()
+		if wantLoadLibraryEx() {
+			t.Fatalf("Bad: insecure load of DLL by base name %q before sysdll registration: %v", name, err)
+		}
+		t.Skip("insecure load of DLL, but expected")
+	}
+}
+
+// wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
+func wantLoadLibraryEx() bool {
+	return testenv.Builder() == "windows-amd64-gce" || testenv.Builder() == "windows-386-gce"
+}
+
+func TestLoadLibraryEx(t *testing.T) {
+	use, have, flags := runtime.LoadLibraryExStatus()
+	if use {
+		return // success.
+	}
+	if wantLoadLibraryEx() {
+		t.Fatalf("Expected LoadLibraryEx+flags to be available. (LoadLibraryEx=%v; flags=%v)",
+			have, flags)
+	}
+	t.Skipf("LoadLibraryEx not usable, but not expected. (LoadLibraryEx=%v; flags=%v)",
+		have, flags)
+}
+
+var (
+	modwinmm    = syscall.NewLazyDLL("winmm.dll")
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+
+	procCreateEvent = modkernel32.NewProc("CreateEventW")
+	procSetEvent    = modkernel32.NewProc("SetEvent")
+)
+
+func createEvent() (syscall.Handle, error) {
+	r0, _, e0 := syscall.Syscall6(procCreateEvent.Addr(), 4, 0, 0, 0, 0, 0, 0)
+	if r0 == 0 {
+		return 0, syscall.Errno(e0)
+	}
+	return syscall.Handle(r0), nil
+}
+
+func setEvent(h syscall.Handle) error {
+	r0, _, e0 := syscall.Syscall(procSetEvent.Addr(), 1, uintptr(h), 0, 0)
+	if r0 == 0 {
+		return syscall.Errno(e0)
+	}
+	return nil
+}
+
+func BenchmarkChanToSyscallPing(b *testing.B) {
+	n := b.N
+	ch := make(chan int)
+	event, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	go func() {
+		for i := 0; i < n; i++ {
+			syscall.WaitForSingleObject(event, syscall.INFINITE)
+			ch <- 1
+		}
+	}()
+	for i := 0; i < n; i++ {
+		err := setEvent(event)
+		if err != nil {
+			b.Fatal(err)
+		}
+		<-ch
+	}
+}
+
+func BenchmarkSyscallToSyscallPing(b *testing.B) {
+	n := b.N
+	event1, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	event2, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	go func() {
+		for i := 0; i < n; i++ {
+			syscall.WaitForSingleObject(event1, syscall.INFINITE)
+			err := setEvent(event2)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	}()
+	for i := 0; i < n; i++ {
+		err := setEvent(event1)
+		if err != nil {
+			b.Fatal(err)
+		}
+		syscall.WaitForSingleObject(event2, syscall.INFINITE)
+	}
+}
+
+func BenchmarkChanToChanPing(b *testing.B) {
+	n := b.N
+	ch1 := make(chan int)
+	ch2 := make(chan int)
+	go func() {
+		for i := 0; i < n; i++ {
+			<-ch1
+			ch2 <- 1
+		}
+	}()
+	for i := 0; i < n; i++ {
+		ch1 <- 1
+		<-ch2
+	}
+}
+
+func BenchmarkOsYield(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		runtime.OsYield()
+	}
+}
+
+func BenchmarkRunningGoProgram(b *testing.B) {
+	tmpdir, err := ioutil.TempDir("", "BenchmarkRunningGoProgram")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte(benchmarkRunningGoProgram), 0666)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "main.exe")
+	cmd := exec.Command(testenv.GoToolPath(b), "build", "-o", exe, src)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		b.Fatalf("building main.exe failed: %v\n%s", err, out)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		cmd := exec.Command(exe)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			b.Fatalf("running main.exe failed: %v\n%s", err, out)
+		}
+	}
+}
+
+const benchmarkRunningGoProgram = `
+package main
+
+import _ "os" // average Go program will use "os" package, do the same here
+
+func main() {
+}
+`

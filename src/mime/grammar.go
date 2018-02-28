@@ -8,13 +8,13 @@ import (
 	"strings"
 )
 
-// isTSpecial returns true if rune is in 'tspecials' as defined by RFC
+// isTSpecial reports whether rune is in 'tspecials' as defined by RFC
 // 1521 and RFC 2045.
 func isTSpecial(r rune) bool {
-	return strings.IndexRune(`()<>@,;:\"/[]?=`, r) != -1
+	return strings.ContainsRune(`()<>@,;:\"/[]?=`, r)
 }
 
-// isTokenChar returns true if rune is in 'token' as defined by RFC
+// isTokenChar reports whether rune is in 'token' as defined by RFC
 // 1521 and RFC 2045.
 func isTokenChar(r rune) bool {
 	// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs,
@@ -22,7 +22,7 @@ func isTokenChar(r rune) bool {
 	return r > 0x20 && r < 0x7f && !isTSpecial(r)
 }
 
-// isToken returns true if s is a 'token' as defined by RFC 1521
+// isToken reports whether s is a 'token' as defined by RFC 1521
 // and RFC 2045.
 func isToken(s string) bool {
 	if s == "" {

@@ -3,22 +3,86 @@
 // license that can be found in the LICENSE file.
 
 // +build cgo,!netgo
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestCgoLookupIP(t *testing.T) {
-	host := "localhost"
-	_, err, ok := cgoLookupIP(host)
+	defer dnsWaitGroup.Wait()
+	ctx := context.Background()
+	_, err, ok := cgoLookupIP(ctx, "localhost")
 	if !ok {
 		t.Errorf("cgoLookupIP must not be a placeholder")
 	}
 	if err != nil {
-		t.Errorf("cgoLookupIP failed: %v", err)
+		t.Error(err)
 	}
-	if _, err := goLookupIP(host); err != nil {
-		t.Errorf("goLookupIP failed: %v", err)
+}
+
+func TestCgoLookupIPWithCancel(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err, ok := cgoLookupIP(ctx, "localhost")
+	if !ok {
+		t.Errorf("cgoLookupIP must not be a placeholder")
+	}
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCgoLookupPort(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	ctx := context.Background()
+	_, err, ok := cgoLookupPort(ctx, "tcp", "smtp")
+	if !ok {
+		t.Errorf("cgoLookupPort must not be a placeholder")
+	}
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCgoLookupPortWithCancel(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err, ok := cgoLookupPort(ctx, "tcp", "smtp")
+	if !ok {
+		t.Errorf("cgoLookupPort must not be a placeholder")
+	}
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCgoLookupPTR(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	ctx := context.Background()
+	_, err, ok := cgoLookupPTR(ctx, "127.0.0.1")
+	if !ok {
+		t.Errorf("cgoLookupPTR must not be a placeholder")
+	}
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCgoLookupPTRWithCancel(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err, ok := cgoLookupPTR(ctx, "127.0.0.1")
+	if !ok {
+		t.Errorf("cgoLookupPTR must not be a placeholder")
+	}
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -10,8 +10,10 @@ package pem
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"io"
 	"sort"
+	"strings"
 )
 
 // A Block represents a PEM encoded structure.
@@ -34,7 +36,7 @@ type Block struct {
 // bytes) is also returned and this will always be smaller than the original
 // argument.
 func getLine(data []byte) (line, rest []byte) {
-	i := bytes.Index(data, []byte{'\n'})
+	i := bytes.IndexByte(data, '\n')
 	var j int
 	if i < 0 {
 		i = len(data)
@@ -104,33 +106,66 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 		line, next := getLine(rest)
 
-		i := bytes.Index(line, []byte{':'})
+		i := bytes.IndexByte(line, ':')
 		if i == -1 {
 			break
 		}
 
 		// TODO(agl): need to cope with values that spread across lines.
-		key, val := line[0:i], line[i+1:]
+		key, val := line[:i], line[i+1:]
 		key = bytes.TrimSpace(key)
 		val = bytes.TrimSpace(val)
 		p.Headers[string(key)] = string(val)
 		rest = next
 	}
 
-	i := bytes.Index(rest, pemEnd)
-	if i < 0 {
+	var endIndex, endTrailerIndex int
+
+	// If there were no headers, the END line might occur
+	// immediately, without a leading newline.
+	if len(p.Headers) == 0 && bytes.HasPrefix(rest, pemEnd[1:]) {
+		endIndex = 0
+		endTrailerIndex = len(pemEnd) - 1
+	} else {
+		endIndex = bytes.Index(rest, pemEnd)
+		endTrailerIndex = endIndex + len(pemEnd)
+	}
+
+	if endIndex < 0 {
 		return decodeError(data, rest)
 	}
-	base64Data := removeWhitespace(rest[0:i])
 
+	// After the "-----" of the ending line, there should be the same type
+	// and then a final five dashes.
+	endTrailer := rest[endTrailerIndex:]
+	endTrailerLen := len(typeLine) + len(pemEndOfLine)
+	if len(endTrailer) < endTrailerLen {
+		return decodeError(data, rest)
+	}
+
+	restOfEndLine := endTrailer[endTrailerLen:]
+	endTrailer = endTrailer[:endTrailerLen]
+	if !bytes.HasPrefix(endTrailer, typeLine) ||
+		!bytes.HasSuffix(endTrailer, pemEndOfLine) {
+		return decodeError(data, rest)
+	}
+
+	// The line must end with only whitespace.
+	if s, _ := getLine(restOfEndLine); len(s) != 0 {
+		return decodeError(data, rest)
+	}
+
+	base64Data := removeWhitespace(rest[:endIndex])
 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
 	if err != nil {
 		return decodeError(data, rest)
 	}
-	p.Bytes = p.Bytes[0:n]
+	p.Bytes = p.Bytes[:n]
 
-	_, rest = getLine(rest[i+len(pemEnd):])
+	// the -1 is because we might have only matched pemEnd without the
+	// leading newline if the PEM block was empty.
+	_, rest = getLine(rest[endIndex+len(pemEnd)-1:])
 
 	return
 }
@@ -138,7 +173,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 func decodeError(data, rest []byte) (*Block, []byte) {
 	// If we get here then we have rejected a likely looking, but
 	// ultimately invalid PEM block. We need to start over from a new
-	// position.  We have consumed the preamble line and will have consumed
+	// position. We have consumed the preamble line and will have consumed
 	// any lines which could be header lines. However, a valid preamble
 	// line is not a valid header line, therefore we cannot have consumed
 	// the preamble line for the any subsequent block. Thus, we will always
@@ -217,7 +252,18 @@ func writeHeader(out io.Writer, k, v string) error {
 	return err
 }
 
+// Encode writes the PEM encoding of b to out.
 func Encode(out io.Writer, b *Block) error {
+	// Check for invalid block before writing any output.
+	for k := range b.Headers {
+		if strings.Contains(k, ":") {
+			return errors.New("pem: cannot encode a header key that contains a colon")
+		}
+	}
+
+	// All errors below are relayed from underlying io.Writer,
+	// so it is now safe to write data.
+
 	if _, err := out.Write(pemStart[1:]); err != nil {
 		return err
 	}
@@ -272,8 +318,15 @@ func Encode(out io.Writer, b *Block) error {
 	return err
 }
 
+// EncodeToMemory returns the PEM encoding of b.
+//
+// If b has invalid headers and cannot be encoded,
+// EncodeToMemory returns nil. If it is important to
+// report details about this error case, use Encode instead.
 func EncodeToMemory(b *Block) []byte {
 	var buf bytes.Buffer
-	Encode(&buf, b)
+	if err := Encode(&buf, b); err != nil {
+		return nil
+	}
 	return buf.Bytes()
 }

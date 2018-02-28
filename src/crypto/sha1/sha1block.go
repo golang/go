@@ -11,7 +11,7 @@ const (
 	_K3 = 0xCA62C1D6
 )
 
-// blockGeneric is a portable, pure Go version of the SHA1 block step.
+// blockGeneric is a portable, pure Go version of the SHA-1 block step.
 // It's used by sha1block_generic.go and tests.
 func blockGeneric(dig *digest, p []byte) {
 	var w [16]uint32

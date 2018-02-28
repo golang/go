@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -33,7 +33,7 @@ type onePassInst struct {
 }
 
 // OnePassPrefix returns a literal string that all matches for the
-// regexp must start with.  Complete is true if the prefix
+// regexp must start with. Complete is true if the prefix
 // is the entire match. Pc is the index of the last rune instruction
 // in the string. The OnePassPrefix skips over the mandatory
 // EmptyBeginText
@@ -59,7 +59,12 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 		buf.WriteRune(i.Rune[0])
 		pc, i = i.Out, &p.Inst[i.Out]
 	}
-	return buf.String(), i.Op == syntax.InstEmptyWidth && (syntax.EmptyOp(i.Arg))&syntax.EmptyBeginText != 0, pc
+	if i.Op == syntax.InstEmptyWidth &&
+		syntax.EmptyOp(i.Arg)&syntax.EmptyEndText != 0 &&
+		p.Inst[i.Out].Op == syntax.InstMatch {
+		complete = true
+	}
+	return buf.String(), complete, pc
 }
 
 // OnePassNext selects the next actionable state of the prog, based on the input character.
@@ -105,10 +110,6 @@ func (q *queueOnePass) next() (n uint32) {
 
 func (q *queueOnePass) clear() {
 	q.size = 0
-	q.nextIndex = 0
-}
-
-func (q *queueOnePass) reset() {
 	q.nextIndex = 0
 }
 
@@ -221,9 +222,10 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 	p := &onePassProg{
 		Start:  prog.Start,
 		NumCap: prog.NumCap,
+		Inst:   make([]onePassInst, len(prog.Inst)),
 	}
-	for _, inst := range prog.Inst {
-		p.Inst = append(p.Inst, onePassInst{Inst: inst})
+	for i, inst := range prog.Inst {
+		p.Inst[i] = onePassInst{Inst: inst}
 	}
 
 	// rewrites one or more common Prog constructs that enable some otherwise
@@ -286,11 +288,6 @@ func (p runeSlice) Len() int           { return len(p) }
 func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
 func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-// Sort is a convenience method.
-func (p runeSlice) Sort() {
-	sort.Sort(p)
-}
-
 var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
 var anyRune = []rune{0, unicode.MaxRune}
 
@@ -308,29 +305,13 @@ func makeOnePass(p *onePassProg) *onePassProg {
 	var (
 		instQueue    = newQueue(len(p.Inst))
 		visitQueue   = newQueue(len(p.Inst))
-		build        func(uint32, *queueOnePass)
-		check        func(uint32, map[uint32]bool) bool
+		check        func(uint32, []bool) bool
 		onePassRunes = make([][]rune, len(p.Inst))
 	)
-	build = func(pc uint32, q *queueOnePass) {
-		if q.contains(pc) {
-			return
-		}
-		inst := p.Inst[pc]
-		switch inst.Op {
-		case syntax.InstAlt, syntax.InstAltMatch:
-			q.insert(inst.Out)
-			build(inst.Out, q)
-			q.insert(inst.Arg)
-		case syntax.InstMatch, syntax.InstFail:
-		default:
-			q.insert(inst.Out)
-		}
-	}
 
 	// check that paths from Alt instructions are unambiguous, and rebuild the new
 	// program as a onepass program
-	check = func(pc uint32, m map[uint32]bool) (ok bool) {
+	check = func(pc uint32, m []bool) (ok bool) {
 		ok = true
 		inst := &p.Inst[pc]
 		if visitQueue.contains(pc) {
@@ -369,27 +350,26 @@ func makeOnePass(p *onePassProg) *onePassProg {
 			m[pc] = m[inst.Out]
 			// pass matching runes back through these no-ops.
 			onePassRunes[pc] = append([]rune{}, onePassRunes[inst.Out]...)
-			inst.Next = []uint32{}
-			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
-				inst.Next = append(inst.Next, inst.Out)
+			inst.Next = make([]uint32, len(onePassRunes[pc])/2+1)
+			for i := range inst.Next {
+				inst.Next[i] = inst.Out
 			}
 		case syntax.InstEmptyWidth:
 			ok = check(inst.Out, m)
 			m[pc] = m[inst.Out]
 			onePassRunes[pc] = append([]rune{}, onePassRunes[inst.Out]...)
-			inst.Next = []uint32{}
-			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
-				inst.Next = append(inst.Next, inst.Out)
+			inst.Next = make([]uint32, len(onePassRunes[pc])/2+1)
+			for i := range inst.Next {
+				inst.Next[i] = inst.Out
 			}
 		case syntax.InstMatch, syntax.InstFail:
 			m[pc] = inst.Op == syntax.InstMatch
-			break
 		case syntax.InstRune:
-			ok = check(inst.Out, m)
 			m[pc] = false
 			if len(inst.Next) > 0 {
 				break
 			}
+			instQueue.insert(inst.Out)
 			if len(inst.Rune) == 0 {
 				onePassRunes[pc] = []rune{}
 				inst.Next = []uint32{inst.Out}
@@ -407,17 +387,17 @@ func makeOnePass(p *onePassProg) *onePassProg {
 				runes = append(runes, inst.Rune...)
 			}
 			onePassRunes[pc] = runes
-			inst.Next = []uint32{}
-			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
-				inst.Next = append(inst.Next, inst.Out)
+			inst.Next = make([]uint32, len(onePassRunes[pc])/2+1)
+			for i := range inst.Next {
+				inst.Next[i] = inst.Out
 			}
 			inst.Op = syntax.InstRune
 		case syntax.InstRune1:
-			ok = check(inst.Out, m)
 			m[pc] = false
 			if len(inst.Next) > 0 {
 				break
 			}
+			instQueue.insert(inst.Out)
 			runes := []rune{}
 			// expand case-folded runes
 			if syntax.Flags(inst.Arg)&syntax.FoldCase != 0 {
@@ -431,29 +411,29 @@ func makeOnePass(p *onePassProg) *onePassProg {
 				runes = append(runes, inst.Rune[0], inst.Rune[0])
 			}
 			onePassRunes[pc] = runes
-			inst.Next = []uint32{}
-			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
-				inst.Next = append(inst.Next, inst.Out)
+			inst.Next = make([]uint32, len(onePassRunes[pc])/2+1)
+			for i := range inst.Next {
+				inst.Next[i] = inst.Out
 			}
 			inst.Op = syntax.InstRune
 		case syntax.InstRuneAny:
-			ok = check(inst.Out, m)
 			m[pc] = false
 			if len(inst.Next) > 0 {
 				break
 			}
+			instQueue.insert(inst.Out)
 			onePassRunes[pc] = append([]rune{}, anyRune...)
 			inst.Next = []uint32{inst.Out}
 		case syntax.InstRuneAnyNotNL:
-			ok = check(inst.Out, m)
 			m[pc] = false
 			if len(inst.Next) > 0 {
 				break
 			}
+			instQueue.insert(inst.Out)
 			onePassRunes[pc] = append([]rune{}, anyRuneNotNL...)
-			inst.Next = []uint32{}
-			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
-				inst.Next = append(inst.Next, inst.Out)
+			inst.Next = make([]uint32, len(onePassRunes[pc])/2+1)
+			for i := range inst.Next {
+				inst.Next[i] = inst.Out
 			}
 		}
 		return
@@ -461,25 +441,13 @@ func makeOnePass(p *onePassProg) *onePassProg {
 
 	instQueue.clear()
 	instQueue.insert(uint32(p.Start))
-	m := make(map[uint32]bool, len(p.Inst))
+	m := make([]bool, len(p.Inst))
 	for !instQueue.empty() {
-		pc := instQueue.next()
-		inst := p.Inst[pc]
 		visitQueue.clear()
-		if !check(uint32(pc), m) {
+		pc := instQueue.next()
+		if !check(pc, m) {
 			p = notOnePass
 			break
-		}
-		switch inst.Op {
-		case syntax.InstAlt, syntax.InstAltMatch:
-			instQueue.insert(inst.Out)
-			instQueue.insert(inst.Arg)
-		case syntax.InstCapture, syntax.InstEmptyWidth, syntax.InstNop:
-			instQueue.insert(inst.Out)
-		case syntax.InstMatch:
-		case syntax.InstFail:
-		case syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
-		default:
 		}
 	}
 	if p != notOnePass {
@@ -488,47 +456,6 @@ func makeOnePass(p *onePassProg) *onePassProg {
 		}
 	}
 	return p
-}
-
-// walk visits each Inst in the prog once, and applies the argument
-// function(ip, next), in pre-order.
-func walk(prog *syntax.Prog, funcs ...func(ip, next uint32)) {
-	var walk1 func(uint32)
-	progQueue := newQueue(len(prog.Inst))
-	walk1 = func(ip uint32) {
-		if progQueue.contains(ip) {
-			return
-		}
-		progQueue.insert(ip)
-		inst := prog.Inst[ip]
-		switch inst.Op {
-		case syntax.InstAlt, syntax.InstAltMatch:
-			for _, f := range funcs {
-				f(ip, inst.Out)
-				f(ip, inst.Arg)
-			}
-			walk1(inst.Out)
-			walk1(inst.Arg)
-		default:
-			for _, f := range funcs {
-				f(ip, inst.Out)
-			}
-			walk1(inst.Out)
-		}
-	}
-	walk1(uint32(prog.Start))
-}
-
-// find returns the Insts that match the argument predicate function
-func find(prog *syntax.Prog, f func(*syntax.Prog, int) bool) (matches []uint32) {
-	matches = []uint32{}
-
-	for ip := range prog.Inst {
-		if f(prog, ip) {
-			matches = append(matches, uint32(ip))
-		}
-	}
-	return
 }
 
 var notOnePass *onePassProg = nil

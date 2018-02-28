@@ -44,26 +44,29 @@ type plainAuth struct {
 }
 
 // PlainAuth returns an Auth that implements the PLAIN authentication
-// mechanism as defined in RFC 4616.
-// The returned Auth uses the given username and password to authenticate
-// on TLS connections to host and act as identity. Usually identity will be
-// left blank to act as username.
+// mechanism as defined in RFC 4616. The returned Auth uses the given
+// username and password to authenticate to host and act as identity.
+// Usually identity should be the empty string, to act as username.
+//
+// PlainAuth will only send the credentials if the connection is using TLS
+// or is connected to localhost. Otherwise authentication will fail with an
+// error, without sending the credentials.
 func PlainAuth(identity, username, password, host string) Auth {
 	return &plainAuth{identity, username, password, host}
 }
 
+func isLocalhost(name string) bool {
+	return name == "localhost" || name == "127.0.0.1" || name == "::1"
+}
+
 func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
-	if !server.TLS {
-		advertised := false
-		for _, mechanism := range server.Auth {
-			if mechanism == "PLAIN" {
-				advertised = true
-				break
-			}
-		}
-		if !advertised {
-			return "", nil, errors.New("unencrypted connection")
-		}
+	// Must have TLS, or else localhost server.
+	// Note: If TLS is not true, then we can't trust ANYTHING in ServerInfo.
+	// In particular, it doesn't matter if the server advertises PLAIN auth.
+	// That might just be the attacker saying
+	// "it's ok, you can trust me with your password."
+	if !server.TLS && !isLocalhost(server.Name) {
+		return "", nil, errors.New("unencrypted connection")
 	}
 	if server.Name != a.host {
 		return "", nil, errors.New("wrong host name")

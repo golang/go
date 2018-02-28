@@ -10,7 +10,7 @@ import (
 	"unicode"
 )
 
-// Verify that our isPrint agrees with unicode.IsPrint
+// Verify that our IsPrint agrees with unicode.IsPrint.
 func TestIsPrint(t *testing.T) {
 	n := 0
 	for r := rune(0); r <= unicode.MaxRune; r++ {
@@ -24,19 +24,36 @@ func TestIsPrint(t *testing.T) {
 	}
 }
 
+// Verify that our IsGraphic agrees with unicode.IsGraphic.
+func TestIsGraphic(t *testing.T) {
+	n := 0
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if IsGraphic(r) != unicode.IsGraphic(r) {
+			t.Errorf("IsGraphic(%U)=%t incorrect", r, IsGraphic(r))
+			n++
+			if n > 10 {
+				return
+			}
+		}
+	}
+}
+
 type quoteTest struct {
-	in    string
-	out   string
-	ascii string
+	in      string
+	out     string
+	ascii   string
+	graphic string
 }
 
 var quotetests = []quoteTest{
-	{"\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`, `"\a\b\f\r\n\t\v"`},
-	{"\\", `"\\"`, `"\\"`},
-	{"abc\xffdef", `"abc\xffdef"`, `"abc\xffdef"`},
-	{"\u263a", `"☺"`, `"\u263a"`},
-	{"\U0010ffff", `"\U0010ffff"`, `"\U0010ffff"`},
-	{"\x04", `"\x04"`, `"\x04"`},
+	{"\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`, `"\a\b\f\r\n\t\v"`, `"\a\b\f\r\n\t\v"`},
+	{"\\", `"\\"`, `"\\"`, `"\\"`},
+	{"abc\xffdef", `"abc\xffdef"`, `"abc\xffdef"`, `"abc\xffdef"`},
+	{"\u263a", `"☺"`, `"\u263a"`, `"☺"`},
+	{"\U0010ffff", `"\U0010ffff"`, `"\U0010ffff"`, `"\U0010ffff"`},
+	{"\x04", `"\x04"`, `"\x04"`, `"\x04"`},
+	// Some non-printable but graphic runes. Final column is double-quoted.
+	{"!\u00a0!\u2000!\u3000!", `"!\u00a0!\u2000!\u3000!"`, `"!\u00a0!\u2000!\u3000!"`, "\"!\u00a0!\u2000!\u3000!\""},
 }
 
 func TestQuote(t *testing.T) {
@@ -61,22 +78,66 @@ func TestQuoteToASCII(t *testing.T) {
 	}
 }
 
+func TestQuoteToGraphic(t *testing.T) {
+	for _, tt := range quotetests {
+		if out := QuoteToGraphic(tt.in); out != tt.graphic {
+			t.Errorf("QuoteToGraphic(%s) = %s, want %s", tt.in, out, tt.graphic)
+		}
+		if out := AppendQuoteToGraphic([]byte("abc"), tt.in); string(out) != "abc"+tt.graphic {
+			t.Errorf("AppendQuoteToGraphic(%q, %s) = %s, want %s", "abc", tt.in, out, "abc"+tt.graphic)
+		}
+	}
+}
+
+func BenchmarkQuote(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Quote("\a\b\f\r\n\t\v\a\b\f\r\n\t\v\a\b\f\r\n\t\v")
+	}
+}
+
+func BenchmarkQuoteRune(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		QuoteRune('\a')
+	}
+}
+
+var benchQuoteBuf []byte
+
+func BenchmarkAppendQuote(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		benchQuoteBuf = AppendQuote(benchQuoteBuf[:0], "\a\b\f\r\n\t\v\a\b\f\r\n\t\v\a\b\f\r\n\t\v")
+	}
+}
+
+var benchQuoteRuneBuf []byte
+
+func BenchmarkAppendQuoteRune(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		benchQuoteRuneBuf = AppendQuoteRune(benchQuoteRuneBuf[:0], '\a')
+	}
+}
+
 type quoteRuneTest struct {
-	in    rune
-	out   string
-	ascii string
+	in      rune
+	out     string
+	ascii   string
+	graphic string
 }
 
 var quoterunetests = []quoteRuneTest{
-	{'a', `'a'`, `'a'`},
-	{'\a', `'\a'`, `'\a'`},
-	{'\\', `'\\'`, `'\\'`},
-	{0xFF, `'ÿ'`, `'\u00ff'`},
-	{0x263a, `'☺'`, `'\u263a'`},
-	{0xfffd, `'�'`, `'\ufffd'`},
-	{0x0010ffff, `'\U0010ffff'`, `'\U0010ffff'`},
-	{0x0010ffff + 1, `'�'`, `'\ufffd'`},
-	{0x04, `'\x04'`, `'\x04'`},
+	{'a', `'a'`, `'a'`, `'a'`},
+	{'\a', `'\a'`, `'\a'`, `'\a'`},
+	{'\\', `'\\'`, `'\\'`, `'\\'`},
+	{0xFF, `'ÿ'`, `'\u00ff'`, `'ÿ'`},
+	{0x263a, `'☺'`, `'\u263a'`, `'☺'`},
+	{0xfffd, `'�'`, `'\ufffd'`, `'�'`},
+	{0x0010ffff, `'\U0010ffff'`, `'\U0010ffff'`, `'\U0010ffff'`},
+	{0x0010ffff + 1, `'�'`, `'\ufffd'`, `'�'`},
+	{0x04, `'\x04'`, `'\x04'`, `'\x04'`},
+	// Some differences between graphic and printable. Note the last column is double-quoted.
+	{'\u00a0', `'\u00a0'`, `'\u00a0'`, "'\u00a0'"},
+	{'\u2000', `'\u2000'`, `'\u2000'`, "'\u2000'"},
+	{'\u3000', `'\u3000'`, `'\u3000'`, "'\u3000'"},
 }
 
 func TestQuoteRune(t *testing.T) {
@@ -97,6 +158,17 @@ func TestQuoteRuneToASCII(t *testing.T) {
 		}
 		if out := AppendQuoteRuneToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
 			t.Errorf("AppendQuoteRuneToASCII(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.ascii)
+		}
+	}
+}
+
+func TestQuoteRuneToGraphic(t *testing.T) {
+	for _, tt := range quoterunetests {
+		if out := QuoteRuneToGraphic(tt.in); out != tt.graphic {
+			t.Errorf("QuoteRuneToGraphic(%U) = %s, want %s", tt.in, out, tt.graphic)
+		}
+		if out := AppendQuoteRuneToGraphic([]byte("abc"), tt.in); string(out) != "abc"+tt.graphic {
+			t.Errorf("AppendQuoteRuneToGraphic(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.graphic)
 		}
 	}
 }
@@ -202,6 +274,7 @@ var unquotetests = []unQuoteTest{
 	{"`\n`", "\n"},
 	{"`	`", `	`},
 	{"` `", ` `},
+	{"`a\rb`", "ab"},
 }
 
 var misquoted = []string{
@@ -234,7 +307,7 @@ var misquoted = []string{
 
 func TestUnquote(t *testing.T) {
 	for _, tt := range unquotetests {
-		if out, err := Unquote(tt.in); err != nil && out != tt.out {
+		if out, err := Unquote(tt.in); err != nil || out != tt.out {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out)
 		}
 	}
@@ -249,6 +322,36 @@ func TestUnquote(t *testing.T) {
 	for _, s := range misquoted {
 		if out, err := Unquote(s); out != "" || err != ErrSyntax {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", ErrSyntax)
+		}
+	}
+}
+
+// Issue 23685: invalid UTF-8 should not go through the fast path.
+func TestUnquoteInvalidUTF8(t *testing.T) {
+	tests := []struct {
+		in string
+
+		// one of:
+		want    string
+		wantErr string
+	}{
+		{in: `"foo"`, want: "foo"},
+		{in: `"foo`, wantErr: "invalid syntax"},
+		{in: `"` + "\xc0" + `"`, want: "\xef\xbf\xbd"},
+		{in: `"a` + "\xc0" + `"`, want: "a\xef\xbf\xbd"},
+		{in: `"\t` + "\xc0" + `"`, want: "\t\xef\xbf\xbd"},
+	}
+	for i, tt := range tests {
+		got, err := Unquote(tt.in)
+		var gotErr string
+		if err != nil {
+			gotErr = err.Error()
+		}
+		if gotErr != tt.wantErr {
+			t.Errorf("%d. Unquote(%q) = err %v; want %q", i, tt.in, err, tt.wantErr)
+		}
+		if tt.wantErr == "" && err == nil && got != tt.want {
+			t.Errorf("%d. Unquote(%q) = %02x; want %02x", i, tt.in, []byte(got), []byte(tt.want))
 		}
 	}
 }

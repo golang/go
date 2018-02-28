@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Software floating point interpretaton of ARM 7500 FP instructions.
+// Software floating point interpretation of ARM 7500 FP instructions.
 // The interpretation is not bit compatible with the 7500.
 // It uses true little-endian doubles, while the 7500 used mixed-endian.
 
@@ -77,13 +77,7 @@ const _FAULT = 0x80000000 // impossible PC offset
 // returns number of words that the fp instruction
 // is occupying, 0 if next instruction isn't float.
 func stepflt(pc *uint32, regs *[15]uint32) uint32 {
-	var (
-		i, opc, regd, regm, regn, cpsr uint32
-		cmp, delta                     int32
-		uval                           uint64
-		sval                           int64
-		nan, ok                        bool
-	)
+	var i, opc, regd, regm, regn, cpsr uint32
 
 	// m is locked in vlop_arm.s, so g.m cannot change during this function call,
 	// so caching it in a local variable is safe.
@@ -163,14 +157,26 @@ execute:
 		}
 		return 1
 	}
-	if i == 0xe08bb00d {
-		// add sp to r11.
-		// might be part of a large stack offset address
+	if i == 0xe08fb00b {
+		// add pc to r11
+		// might be part of a PIC floating point move
 		// (or might not, but again no harm done).
-		regs[11] += regs[13]
+		regs[11] += uint32(uintptr(unsafe.Pointer(pc))) + 8
 
 		if fptrace > 0 {
-			print("*** cpu R[11] += R[13] ", hex(regs[11]), "\n")
+			print("*** cpu R[11] += pc ", hex(regs[11]), "\n")
+		}
+		return 1
+	}
+	if i&0xfffffff0 == 0xe08bb000 {
+		r := i & 0xf
+		// add r to r11.
+		// might be part of a large offset address calculation
+		// (or might not, but again no harm done).
+		regs[11] += regs[r]
+
+		if fptrace > 0 {
+			print("*** cpu R[11] += R[", r, "] ", hex(regs[11]), "\n")
 		}
 		return 1
 	}
@@ -187,7 +193,7 @@ execute:
 		// can happen in the middle of floating point
 		// if the linker decides it is time to lay down
 		// a sequence of instruction stream constants.
-		delta = int32(i&0xffffff) << 8 >> 8 // sign extend
+		delta := int32(i&0xffffff) << 8 >> 8 // sign extend
 
 		if fptrace > 0 {
 			print("*** cpu PC += ", hex((delta+2)*4), "\n")
@@ -195,17 +201,12 @@ execute:
 		return uint32(delta + 2)
 	}
 
-	goto stage1
-
-stage1: // load/store regn is cpureg, regm is 8bit offset
+	// load/store regn is cpureg, regm is 8bit offset
 	regd = i >> 12 & 0xf
 	regn = i >> 16 & 0xf
 	regm = i & 0xff << 2 // PLUS or MINUS ??
 
 	switch i & 0xfff00f00 {
-	default:
-		goto stage2
-
 	case 0xed900a00: // single load
 		uaddr := uintptr(regs[regn] + regm)
 		if uaddr < 4096 {
@@ -220,7 +221,7 @@ stage1: // load/store regn is cpureg, regm is 8bit offset
 		if fptrace > 0 {
 			print("*** load F[", regd, "] = ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xed900b00: // double load
 		uaddr := uintptr(regs[regn] + regm)
@@ -237,7 +238,7 @@ stage1: // load/store regn is cpureg, regm is 8bit offset
 		if fptrace > 0 {
 			print("*** load D[", regd, "] = ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xed800a00: // single store
 		uaddr := uintptr(regs[regn] + regm)
@@ -253,7 +254,7 @@ stage1: // load/store regn is cpureg, regm is 8bit offset
 		if fptrace > 0 {
 			print("*** *(", addr, ") = ", hex(addr[0]), "\n")
 		}
-		break
+		return 1
 
 	case 0xed800b00: // double store
 		uaddr := uintptr(regs[regn] + regm)
@@ -270,16 +271,12 @@ stage1: // load/store regn is cpureg, regm is 8bit offset
 		if fptrace > 0 {
 			print("*** *(", addr, ") = ", hex(addr[1]), "-", hex(addr[0]), "\n")
 		}
-		break
+		return 1
 	}
-	return 1
 
-stage2: // regd, regm, regn are 4bit variables
+	// regd, regm, regn are 4bit variables
 	regm = i >> 0 & 0xf
 	switch i & 0xfff00ff0 {
-	default:
-		goto stage3
-
 	case 0xf3000110: // veor
 		m.freglo[regd] = m.freglo[regm] ^ m.freglo[regn]
 		m.freghi[regd] = m.freghi[regm] ^ m.freghi[regn]
@@ -287,7 +284,7 @@ stage2: // regd, regm, regn are 4bit variables
 		if fptrace > 0 {
 			print("*** veor D[", regd, "] = ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb00b00: // D[regd] = const(regn,regm)
 		regn = regn<<4 | regm
@@ -305,7 +302,7 @@ stage2: // regd, regm, regn are 4bit variables
 		if fptrace > 0 {
 			print("*** immed D[", regd, "] = ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb00a00: // F[regd] = const(regn,regm)
 		regn = regn<<4 | regm
@@ -322,79 +319,71 @@ stage2: // regd, regm, regn are 4bit variables
 		if fptrace > 0 {
 			print("*** immed D[", regd, "] = ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee300b00: // D[regd] = D[regn]+D[regm]
-		fadd64c(fgetd(regn), fgetd(regm), &uval)
-		fputd(regd, uval)
+		fputd(regd, fadd64(fgetd(regn), fgetd(regm)))
 
 		if fptrace > 0 {
 			print("*** add D[", regd, "] = D[", regn, "]+D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee300a00: // F[regd] = F[regn]+F[regm]
-		fadd64c(f32to64(m.freglo[regn]), f32to64(m.freglo[regm]), &uval)
-		m.freglo[regd] = f64to32(uval)
+		m.freglo[regd] = f64to32(fadd64(f32to64(m.freglo[regn]), f32to64(m.freglo[regm])))
 
 		if fptrace > 0 {
 			print("*** add F[", regd, "] = F[", regn, "]+F[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee300b40: // D[regd] = D[regn]-D[regm]
-		fsub64c(fgetd(regn), fgetd(regm), &uval)
-		fputd(regd, uval)
+		fputd(regd, fsub64(fgetd(regn), fgetd(regm)))
 
 		if fptrace > 0 {
 			print("*** sub D[", regd, "] = D[", regn, "]-D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee300a40: // F[regd] = F[regn]-F[regm]
-		fsub64c(f32to64(m.freglo[regn]), f32to64(m.freglo[regm]), &uval)
-		m.freglo[regd] = f64to32(uval)
+		m.freglo[regd] = f64to32(fsub64(f32to64(m.freglo[regn]), f32to64(m.freglo[regm])))
 
 		if fptrace > 0 {
 			print("*** sub F[", regd, "] = F[", regn, "]-F[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee200b00: // D[regd] = D[regn]*D[regm]
-		fmul64c(fgetd(regn), fgetd(regm), &uval)
-		fputd(regd, uval)
+		fputd(regd, fmul64(fgetd(regn), fgetd(regm)))
 
 		if fptrace > 0 {
 			print("*** mul D[", regd, "] = D[", regn, "]*D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee200a00: // F[regd] = F[regn]*F[regm]
-		fmul64c(f32to64(m.freglo[regn]), f32to64(m.freglo[regm]), &uval)
-		m.freglo[regd] = f64to32(uval)
+		m.freglo[regd] = f64to32(fmul64(f32to64(m.freglo[regn]), f32to64(m.freglo[regm])))
 
 		if fptrace > 0 {
 			print("*** mul F[", regd, "] = F[", regn, "]*F[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee800b00: // D[regd] = D[regn]/D[regm]
-		fdiv64c(fgetd(regn), fgetd(regm), &uval)
-		fputd(regd, uval)
+		fputd(regd, fdiv64(fgetd(regn), fgetd(regm)))
 
 		if fptrace > 0 {
 			print("*** div D[", regd, "] = D[", regn, "]/D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee800a00: // F[regd] = F[regn]/F[regm]
-		fdiv64c(f32to64(m.freglo[regn]), f32to64(m.freglo[regm]), &uval)
-		m.freglo[regd] = f64to32(uval)
+		m.freglo[regd] = f64to32(fdiv64(f32to64(m.freglo[regn]), f32to64(m.freglo[regm])))
 
 		if fptrace > 0 {
 			print("*** div F[", regd, "] = F[", regn, "]/F[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee000b10: // S[regn] = R[regd] (MOVW) (regm ignored)
 		m.freglo[regn] = regs[regd]
@@ -402,7 +391,7 @@ stage2: // regd, regm, regn are 4bit variables
 		if fptrace > 0 {
 			print("*** cpy S[", regn, "] = R[", regd, "] ", hex(m.freglo[regn]), "\n")
 		}
-		break
+		return 1
 
 	case 0xee100b10: // R[regd] = S[regn] (MOVW) (regm ignored)
 		regs[regd] = m.freglo[regn]
@@ -410,22 +399,18 @@ stage2: // regd, regm, regn are 4bit variables
 		if fptrace > 0 {
 			print("*** cpy R[", regd, "] = S[", regn, "] ", hex(regs[regd]), "\n")
 		}
-		break
+		return 1
 	}
-	return 1
 
-stage3: // regd, regm are 4bit variables
+	// regd, regm are 4bit variables
 	switch i & 0xffff0ff0 {
-	default:
-		goto done
-
 	case 0xeeb00a40: // F[regd] = F[regm] (MOVF)
 		m.freglo[regd] = m.freglo[regm]
 
 		if fptrace > 0 {
 			print("*** F[", regd, "] = F[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb00b40: // D[regd] = D[regm] (MOVD)
 		m.freglo[regd] = m.freglo[regm]
@@ -434,16 +419,15 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** D[", regd, "] = D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb10bc0: // D[regd] = sqrt D[regm]
-		uval = float64bits(sqrt(float64frombits(fgetd(regm))))
-		fputd(regd, uval)
+		fputd(regd, sqrt(fgetd(regm)))
 
 		if fptrace > 0 {
 			print("*** D[", regd, "] = sqrt D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb00bc0: // D[regd] = abs D[regm]
 		m.freglo[regd] = m.freglo[regm]
@@ -452,7 +436,7 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** D[", regd, "] = abs D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb00ac0: // F[regd] = abs F[regm]
 		m.freglo[regd] = m.freglo[regm] & (1<<31 - 1)
@@ -460,25 +444,60 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** F[", regd, "] = abs F[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
+
+	case 0xeeb10b40: // D[regd] = neg D[regm]
+		m.freglo[regd] = m.freglo[regm]
+		m.freghi[regd] = m.freghi[regm] ^ 1<<31
+
+		if fptrace > 0 {
+			print("*** D[", regd, "] = neg D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
+		}
+		return 1
+
+	case 0xeeb10a40: // F[regd] = neg F[regm]
+		m.freglo[regd] = m.freglo[regm] ^ 1<<31
+
+		if fptrace > 0 {
+			print("*** F[", regd, "] = neg F[", regm, "] ", hex(m.freglo[regd]), "\n")
+		}
+		return 1
 
 	case 0xeeb40bc0: // D[regd] :: D[regm] (CMPD)
-		fcmp64c(fgetd(regd), fgetd(regm), &cmp, &nan)
+		cmp, nan := fcmp64(fgetd(regd), fgetd(regm))
 		m.fflag = fstatus(nan, cmp)
 
 		if fptrace > 0 {
 			print("*** cmp D[", regd, "]::D[", regm, "] ", hex(m.fflag), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb40ac0: // F[regd] :: F[regm] (CMPF)
-		fcmp64c(f32to64(m.freglo[regd]), f32to64(m.freglo[regm]), &cmp, &nan)
+		cmp, nan := fcmp64(f32to64(m.freglo[regd]), f32to64(m.freglo[regm]))
 		m.fflag = fstatus(nan, cmp)
 
 		if fptrace > 0 {
 			print("*** cmp F[", regd, "]::F[", regm, "] ", hex(m.fflag), "\n")
 		}
-		break
+		return 1
+
+	case 0xeeb50bc0: // D[regd] :: 0 (CMPD)
+		cmp, nan := fcmp64(fgetd(regd), 0)
+		m.fflag = fstatus(nan, cmp)
+
+		if fptrace > 0 {
+			print("*** cmp D[", regd, "]::0 ", hex(m.fflag), "\n")
+		}
+		return 1
+
+	case 0xeeb50ac0: // F[regd] :: 0 (CMPF)
+		cmp, nan := fcmp64(f32to64(m.freglo[regd]), 0)
+		m.fflag = fstatus(nan, cmp)
+
+		if fptrace > 0 {
+			print("*** cmp F[", regd, "]::0 ", hex(m.fflag), "\n")
+		}
+		return 1
 
 	case 0xeeb70ac0: // D[regd] = F[regm] (MOVFD)
 		fputd(regd, f32to64(m.freglo[regm]))
@@ -486,7 +505,7 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** f2d D[", regd, "]=F[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb70bc0: // F[regd] = D[regm] (MOVDF)
 		m.freglo[regd] = f64to32(fgetd(regm))
@@ -494,10 +513,10 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** d2f F[", regd, "]=D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeebd0ac0: // S[regd] = F[regm] (MOVFW)
-		f64tointc(f32to64(m.freglo[regm]), &sval, &ok)
+		sval, ok := f64toint(f32to64(m.freglo[regm]))
 		if !ok || int64(int32(sval)) != sval {
 			sval = 0
 		}
@@ -505,10 +524,10 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** fix S[", regd, "]=F[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeebc0ac0: // S[regd] = F[regm] (MOVFW.U)
-		f64tointc(f32to64(m.freglo[regm]), &sval, &ok)
+		sval, ok := f64toint(f32to64(m.freglo[regm]))
 		if !ok || int64(uint32(sval)) != sval {
 			sval = 0
 		}
@@ -517,10 +536,10 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** fix unsigned S[", regd, "]=F[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeebd0bc0: // S[regd] = D[regm] (MOVDW)
-		f64tointc(fgetd(regm), &sval, &ok)
+		sval, ok := f64toint(fgetd(regm))
 		if !ok || int64(int32(sval)) != sval {
 			sval = 0
 		}
@@ -529,10 +548,10 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** fix S[", regd, "]=D[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeebc0bc0: // S[regd] = D[regm] (MOVDW.U)
-		f64tointc(fgetd(regm), &sval, &ok)
+		sval, ok := f64toint(fgetd(regm))
 		if !ok || int64(uint32(sval)) != sval {
 			sval = 0
 		}
@@ -541,63 +560,54 @@ stage3: // regd, regm are 4bit variables
 		if fptrace > 0 {
 			print("*** fix unsigned S[", regd, "]=D[", regm, "] ", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb80ac0: // D[regd] = S[regm] (MOVWF)
-		cmp = int32(m.freglo[regm])
+		cmp := int32(m.freglo[regm])
 		if cmp < 0 {
-			fintto64c(int64(-cmp), &uval)
-			fputf(regd, f64to32(uval))
+			fputf(regd, f64to32(fintto64(-int64(cmp))))
 			m.freglo[regd] ^= 0x80000000
 		} else {
-			fintto64c(int64(cmp), &uval)
-			fputf(regd, f64to32(uval))
+			fputf(regd, f64to32(fintto64(int64(cmp))))
 		}
 
 		if fptrace > 0 {
 			print("*** float D[", regd, "]=S[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb80a40: // D[regd] = S[regm] (MOVWF.U)
-		fintto64c(int64(m.freglo[regm]), &uval)
-		fputf(regd, f64to32(uval))
+		fputf(regd, f64to32(fintto64(int64(m.freglo[regm]))))
 
 		if fptrace > 0 {
 			print("*** float unsigned D[", regd, "]=S[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb80bc0: // D[regd] = S[regm] (MOVWD)
-		cmp = int32(m.freglo[regm])
+		cmp := int32(m.freglo[regm])
 		if cmp < 0 {
-			fintto64c(int64(-cmp), &uval)
-			fputd(regd, uval)
+			fputd(regd, fintto64(-int64(cmp)))
 			m.freghi[regd] ^= 0x80000000
 		} else {
-			fintto64c(int64(cmp), &uval)
-			fputd(regd, uval)
+			fputd(regd, fintto64(int64(cmp)))
 		}
 
 		if fptrace > 0 {
 			print("*** float D[", regd, "]=S[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 
 	case 0xeeb80b40: // D[regd] = S[regm] (MOVWD.U)
-		fintto64c(int64(m.freglo[regm]), &uval)
-		fputd(regd, uval)
+		fputd(regd, fintto64(int64(m.freglo[regm])))
 
 		if fptrace > 0 {
 			print("*** float unsigned D[", regd, "]=S[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
 		}
-		break
+		return 1
 	}
-	return 1
 
-done:
-	if i&0xff000000 == 0xee000000 ||
-		i&0xff000000 == 0xed000000 {
+	if i&0xff000000 == 0xee000000 || i&0xff000000 == 0xed000000 {
 		print("stepflt ", pc, " ", hex(i), "\n")
 		fabort()
 	}
@@ -635,7 +645,7 @@ func sfloat2(pc uint32, regs *[15]uint32) uint32 {
 			pc = uint32(funcPC(_sfloatpanic))
 			break
 		}
-		pc += 4 * uint32(skip)
+		pc += 4 * skip
 	}
 	if first {
 		print("sfloat2 ", pc, " ", hex(*(*uint32)(unsafe.Pointer(uintptr(pc)))), "\n")
@@ -643,3 +653,12 @@ func sfloat2(pc uint32, regs *[15]uint32) uint32 {
 	}
 	return pc
 }
+
+// Stubs to pacify vet. Not safe to call from Go.
+// Calls to these functions are inserted by the compiler or assembler.
+func _sfloat()
+func udiv()
+func _div()
+func _divu()
+func _mod()
+func _modu()

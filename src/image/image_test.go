@@ -16,7 +16,7 @@ type image interface {
 	SubImage(Rectangle) Image
 }
 
-func cmp(t *testing.T, cm color.Model, c0, c1 color.Color) bool {
+func cmp(cm color.Model, c0, c1 color.Color) bool {
 	r0, g0, b0, a0 := cm.Convert(c0).RGBA()
 	r1, g1, b1, a1 := cm.Convert(c1).RGBA()
 	return r0 == r1 && g0 == g1 && b0 == b1 && a0 == a1
@@ -42,12 +42,12 @@ func TestImage(t *testing.T) {
 			t.Errorf("%T: want bounds %v, got %v", m, Rect(0, 0, 10, 10), m.Bounds())
 			continue
 		}
-		if !cmp(t, m.ColorModel(), Transparent, m.At(6, 3)) {
+		if !cmp(m.ColorModel(), Transparent, m.At(6, 3)) {
 			t.Errorf("%T: at (6, 3), want a zero color, got %v", m, m.At(6, 3))
 			continue
 		}
 		m.Set(6, 3, Opaque)
-		if !cmp(t, m.ColorModel(), Opaque, m.At(6, 3)) {
+		if !cmp(m.ColorModel(), Opaque, m.At(6, 3)) {
 			t.Errorf("%T: at (6, 3), want a non-zero color, got %v", m, m.At(6, 3))
 			continue
 		}
@@ -60,16 +60,16 @@ func TestImage(t *testing.T) {
 			t.Errorf("%T: sub-image want bounds %v, got %v", m, Rect(3, 2, 9, 8), m.Bounds())
 			continue
 		}
-		if !cmp(t, m.ColorModel(), Opaque, m.At(6, 3)) {
+		if !cmp(m.ColorModel(), Opaque, m.At(6, 3)) {
 			t.Errorf("%T: sub-image at (6, 3), want a non-zero color, got %v", m, m.At(6, 3))
 			continue
 		}
-		if !cmp(t, m.ColorModel(), Transparent, m.At(3, 3)) {
+		if !cmp(m.ColorModel(), Transparent, m.At(3, 3)) {
 			t.Errorf("%T: sub-image at (3, 3), want a zero color, got %v", m, m.At(3, 3))
 			continue
 		}
 		m.Set(3, 3, Opaque)
-		if !cmp(t, m.ColorModel(), Opaque, m.At(3, 3)) {
+		if !cmp(m.ColorModel(), Opaque, m.At(3, 3)) {
 			t.Errorf("%T: sub-image at (3, 3), want a non-zero color, got %v", m, m.At(3, 3))
 			continue
 		}

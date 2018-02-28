@@ -4,15 +4,8 @@
 
 #include "textflag.h"
 
-TEXT _rt0_arm_darwin(SB),7,$-4
-	// prepare arguments for main (_rt0_go)
-	MOVW	(R13), R0	// argc
-	MOVW	$4(R13), R1		// argv
-	MOVW	$main(SB), R4
-	B		(R4)
+TEXT _rt0_arm_darwin(SB),7,$0
+	B	_rt0_asm(SB)
 
-TEXT main(SB),NOSPLIT,$-8
-	// save argc and argv onto stack
-	MOVM.DB.W [R0-R1], (R13)
-	MOVW	$runtime·rt0_go(SB), R4
-	B		(R4)
+TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$0
+	B	_rt0_arm_lib(SB)

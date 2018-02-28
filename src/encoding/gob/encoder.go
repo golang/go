@@ -5,6 +5,7 @@
 package gob
 
 import (
+	"errors"
 	"io"
 	"reflect"
 	"sync"
@@ -65,6 +66,11 @@ func (enc *Encoder) writeMessage(w io.Writer, b *encBuffer) {
 	// it by hand.
 	message := b.Bytes()
 	messageLen := len(message) - maxLength
+	// Length cannot be bigger than the decoder can handle.
+	if messageLen >= tooBig {
+		enc.setError(errors.New("gob: encoder: message too big"))
+		return
+	}
 	// Encode the length.
 	enc.countState.b.Reset()
 	enc.countState.encodeUint(uint64(messageLen))
@@ -164,6 +170,7 @@ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Typ
 
 // Encode transmits the data item represented by the empty interface value,
 // guaranteeing that all necessary type information has been transmitted first.
+// Passing a nil pointer to Encoder will panic, as they cannot be transmitted by gob.
 func (enc *Encoder) Encode(e interface{}) error {
 	return enc.EncodeValue(reflect.ValueOf(e))
 }
@@ -185,7 +192,7 @@ func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, ut *use
 			return
 		}
 		// If the type info has still not been transmitted, it means we have
-		// a singleton basic type (int, []byte etc.) at top level.  We don't
+		// a singleton basic type (int, []byte etc.) at top level. We don't
 		// need to send the type info but we do need to update enc.sent.
 		if !sent {
 			info, err := getTypeInfo(ut)
@@ -206,9 +213,11 @@ func (enc *Encoder) sendTypeId(state *encoderState, ut *userTypeInfo) {
 
 // EncodeValue transmits the data item represented by the reflection value,
 // guaranteeing that all necessary type information has been transmitted first.
+// Passing a nil pointer to EncodeValue will panic, as they cannot be transmitted by gob.
 func (enc *Encoder) EncodeValue(value reflect.Value) error {
-	// Gobs contain values. They cannot represent nil pointers, which
-	// have no value to encode.
+	if value.Kind() == reflect.Invalid {
+		return errors.New("gob: cannot encode nil value")
+	}
 	if value.Kind() == reflect.Ptr && value.IsNil() {
 		panic("gob: cannot encode nil pointer of type " + value.Type().String())
 	}

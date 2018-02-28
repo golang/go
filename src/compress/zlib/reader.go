@@ -62,7 +62,8 @@ type Resetter interface {
 
 // NewReader creates a new ReadCloser.
 // Reads from the returned ReadCloser read and decompress data from r.
-// The implementation buffers input and may read more data than necessary from r.
+// If r does not implement io.ByteReader, the decompressor may read more
+// data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser when done.
 //
 // The ReadCloser returned by NewReader also implements Resetter.
@@ -84,38 +85,41 @@ func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
 	return z, nil
 }
 
-func (z *reader) Read(p []byte) (n int, err error) {
+func (z *reader) Read(p []byte) (int, error) {
 	if z.err != nil {
 		return 0, z.err
 	}
-	if len(p) == 0 {
-		return 0, nil
-	}
 
-	n, err = z.decompressor.Read(p)
+	var n int
+	n, z.err = z.decompressor.Read(p)
 	z.digest.Write(p[0:n])
-	if n != 0 || err != io.EOF {
-		z.err = err
-		return
+	if z.err != io.EOF {
+		// In the normal case we return here.
+		return n, z.err
 	}
 
 	// Finished file; check checksum.
 	if _, err := io.ReadFull(z.r, z.scratch[0:4]); err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		z.err = err
-		return 0, err
+		return n, z.err
 	}
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
 	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
 	if checksum != z.digest.Sum32() {
 		z.err = ErrChecksum
-		return 0, z.err
+		return n, z.err
 	}
-	return
+	return n, io.EOF
 }
 
 // Calling Close does not close the wrapped io.Reader originally passed to NewReader.
+// In order for the ZLIB checksum to be verified, the reader must be
+// fully consumed until the io.EOF.
 func (z *reader) Close() error {
-	if z.err != nil {
+	if z.err != nil && z.err != io.EOF {
 		return z.err
 	}
 	z.err = z.decompressor.Close()
@@ -123,30 +127,42 @@ func (z *reader) Close() error {
 }
 
 func (z *reader) Reset(r io.Reader, dict []byte) error {
+	*z = reader{decompressor: z.decompressor}
 	if fr, ok := r.(flate.Reader); ok {
 		z.r = fr
 	} else {
 		z.r = bufio.NewReader(r)
 	}
-	_, err := io.ReadFull(z.r, z.scratch[0:2])
-	if err != nil {
-		return err
+
+	// Read the header (RFC 1950 section 2.2.).
+	_, z.err = io.ReadFull(z.r, z.scratch[0:2])
+	if z.err != nil {
+		if z.err == io.EOF {
+			z.err = io.ErrUnexpectedEOF
+		}
+		return z.err
 	}
 	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
 	if (z.scratch[0]&0x0f != zlibDeflate) || (h%31 != 0) {
-		return ErrHeader
+		z.err = ErrHeader
+		return z.err
 	}
 	haveDict := z.scratch[1]&0x20 != 0
 	if haveDict {
-		_, err = io.ReadFull(z.r, z.scratch[0:4])
-		if err != nil {
-			return err
+		_, z.err = io.ReadFull(z.r, z.scratch[0:4])
+		if z.err != nil {
+			if z.err == io.EOF {
+				z.err = io.ErrUnexpectedEOF
+			}
+			return z.err
 		}
 		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
 		if checksum != adler32.Checksum(dict) {
-			return ErrDictionary
+			z.err = ErrDictionary
+			return z.err
 		}
 	}
+
 	if z.decompressor == nil {
 		if haveDict {
 			z.decompressor = flate.NewReaderDict(z.r, dict)

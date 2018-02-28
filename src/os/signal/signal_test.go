@@ -7,12 +7,16 @@
 package signal
 
 import (
+	"bytes"
 	"flag"
+	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -139,6 +143,19 @@ func testCancel(t *testing.T, ignore bool) {
 		Reset(syscall.SIGWINCH, syscall.SIGHUP)
 	}
 
+	// At this point we do not expect any further signals on c1.
+	// However, it is just barely possible that the initial SIGWINCH
+	// at the start of this function was delivered after we called
+	// Notify on c1. In that case the waitSig for SIGWINCH may have
+	// picked up that initial SIGWINCH, and the second SIGWINCH may
+	// then have been delivered on the channel. This sequence of events
+	// may have caused issue 15661.
+	// So, read any possible signal from the channel now.
+	select {
+	case <-c1:
+	default:
+	}
+
 	// Send this process a SIGWINCH. It should be ignored.
 	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
 
@@ -182,13 +199,14 @@ func TestStop(t *testing.T) {
 	sigs := []syscall.Signal{
 		syscall.SIGWINCH,
 		syscall.SIGHUP,
+		syscall.SIGUSR1,
 	}
 
 	for _, sig := range sigs {
 		// Send the signal.
 		// If it's SIGWINCH, we should not see it.
 		// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
-		if sig != syscall.SIGHUP || *sendUncaughtSighup == 1 {
+		if sig == syscall.SIGWINCH || (sig == syscall.SIGHUP && *sendUncaughtSighup == 1) {
 			syscall.Kill(syscall.Getpid(), sig)
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -255,6 +273,12 @@ func TestNohup(t *testing.T) {
 
 	Stop(c)
 
+	// Skip the nohup test below when running in tmux on darwin, since nohup
+	// doesn't work correctly there. See issue #5135.
+	if runtime.GOOS == "darwin" && os.Getenv("TMUX") != "" {
+		t.Skip("Skipping nohup test due to running in tmux on darwin")
+	}
+
 	// Again, this time with nohup, assuming we can find it.
 	_, err := os.Stat("/usr/bin/nohup")
 	if err != nil {
@@ -271,4 +295,102 @@ func TestNohup(t *testing.T) {
 			t.Fatalf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", i, err, out, data)
 		}
 	}
+}
+
+// Test that SIGCONT works (issue 8953).
+func TestSIGCONT(t *testing.T) {
+	c := make(chan os.Signal, 1)
+	Notify(c, syscall.SIGCONT)
+	defer Stop(c)
+	syscall.Kill(syscall.Getpid(), syscall.SIGCONT)
+	waitSig(t, c, syscall.SIGCONT)
+}
+
+// Test race between stopping and receiving a signal (issue 14571).
+func TestAtomicStop(t *testing.T) {
+	if os.Getenv("GO_TEST_ATOMIC_STOP") != "" {
+		atomicStopTestProgram()
+		t.Fatal("atomicStopTestProgram returned")
+	}
+
+	testenv.MustHaveExec(t)
+
+	const execs = 10
+	for i := 0; i < execs; i++ {
+		cmd := exec.Command(os.Args[0], "-test.run=TestAtomicStop")
+		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			if len(out) > 0 {
+				t.Logf("iteration %d: output %s", i, out)
+			}
+		} else {
+			t.Logf("iteration %d: exit status %q: output: %s", i, err, out)
+		}
+
+		lost := bytes.Contains(out, []byte("lost signal"))
+		if lost {
+			t.Errorf("iteration %d: lost signal", i)
+		}
+
+		// The program should either die due to SIGINT,
+		// or exit with success without printing "lost signal".
+		if err == nil {
+			if len(out) > 0 && !lost {
+				t.Errorf("iteration %d: unexpected output", i)
+			}
+		} else {
+			if ee, ok := err.(*exec.ExitError); !ok {
+				t.Errorf("iteration %d: error (%v) has type %T; expected exec.ExitError", i, err, err)
+			} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+				t.Errorf("iteration %d: error.Sys (%v) has type %T; expected syscall.WaitStatus", i, ee.Sys(), ee.Sys())
+			} else if !ws.Signaled() || ws.Signal() != syscall.SIGINT {
+				t.Errorf("iteration %d: got exit status %v; expected SIGINT", i, ee)
+			}
+		}
+	}
+}
+
+// atomicStopTestProgram is run in a subprocess by TestAtomicStop.
+// It tries to trigger a signal delivery race. This function should
+// either catch a signal or die from it.
+func atomicStopTestProgram() {
+	const tries = 10
+	pid := syscall.Getpid()
+	printed := false
+	for i := 0; i < tries; i++ {
+		cs := make(chan os.Signal, 1)
+		Notify(cs, syscall.SIGINT)
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			Stop(cs)
+		}()
+
+		syscall.Kill(pid, syscall.SIGINT)
+
+		// At this point we should either die from SIGINT or
+		// get a notification on cs. If neither happens, we
+		// dropped the signal. Give it a second to deliver,
+		// which is far far longer than it should require.
+
+		select {
+		case <-cs:
+		case <-time.After(1 * time.Second):
+			if !printed {
+				fmt.Print("lost signal on tries:")
+				printed = true
+			}
+			fmt.Printf(" %d", i)
+		}
+
+		wg.Wait()
+	}
+	if printed {
+		fmt.Print("\n")
+	}
+
+	os.Exit(0)
 }

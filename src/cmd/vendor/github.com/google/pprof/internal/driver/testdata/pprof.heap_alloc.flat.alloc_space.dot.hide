@@ -1,0 +1,11 @@
+digraph "unnamed" {
+node [style=filled fillcolor="#f8f8f8"]
+subgraph cluster_L { "Build ID: buildid" [shape=box fontsize=16 label="Build ID: buildid\lcomment\lType: alloc_space\lActive filters:\l   hide=line.*1?23?\lShowing nodes accounting for 93.75MB, 95.05% of 98.63MB total\lDropped 1 node (cum <= 4.93MB)\l"] }
+N1 [label="line3000\n62.50MB (63.37%)\nof 98.63MB (100%)" id="node1" fontsize=24 shape=box tooltip="line3000 (98.63MB)" color="#b20000" fillcolor="#edd5d5"]
+NN1_0 [label = "1.56MB" id="NN1_0" fontsize=8 shape=box3d tooltip="62.50MB"]
+N1 -> NN1_0 [label=" 62.50MB" weight=100 tooltip="62.50MB" labeltooltip="62.50MB"]
+N2 [label="line3001\n31.25MB (31.68%)\nof 36.13MB (36.63%)" id="node2" fontsize=20 shape=box tooltip="line3001 (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
+NN2_0 [label = "400kB" id="NN2_0" fontsize=8 shape=box3d tooltip="31.25MB"]
+N2 -> NN2_0 [label=" 31.25MB" weight=100 tooltip="31.25MB" labeltooltip="31.25MB"]
+N1 -> N2 [label=" 36.13MB\n (inline)" weight=37 penwidth=2 color="#b22e00" tooltip="line3000 -> line3001 (36.13MB)" labeltooltip="line3000 -> line3001 (36.13MB)" minlen=2]
+}

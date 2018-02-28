@@ -71,7 +71,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err error) {
 var ErrTimeout = errors.New("timeout")
 
 // TimeoutReader returns ErrTimeout on the second read
-// with no data.  Subsequent calls to read succeed.
+// with no data. Subsequent calls to read succeed.
 func TimeoutReader(r io.Reader) io.Reader { return &timeoutReader{r, 0} }
 
 type timeoutReader struct {

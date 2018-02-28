@@ -1,5 +1,3 @@
-// compile
-
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -35,7 +33,7 @@ func Decode() {
 	}
 
 	if !reflect.DeepEqual(f, expected) {
-		log.Panicf("Error unmarshalling %q, expected %q, got %q", b, expected, f)
+		log.Panicf("Error unmarshaling %q, expected %q, got %q", b, expected, f)
 	}
 
 	f = map[string]interface{}{

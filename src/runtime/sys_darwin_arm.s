@@ -19,14 +19,13 @@
 #define	SYS_mmap           197
 #define	SYS_munmap         73
 #define	SYS_madvise        75
-#define	SYS_mincore        78
 #define	SYS_gettimeofday   116
 #define	SYS_kill           37
 #define	SYS_getpid         20
 #define	SYS___pthread_kill 328
+#define	SYS_pthread_sigmask 329
 #define	SYS_setitimer      83
 #define	SYS___sysctl       202
-#define	SYS_sigprocmask    48
 #define	SYS_sigaction      46
 #define	SYS_sigreturn      184
 #define	SYS_select         93
@@ -48,13 +47,15 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVW	perm+8(FP), R2
 	MOVW	$SYS_open, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
 	MOVW	$SYS_close, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -64,6 +65,7 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_write, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -73,10 +75,11 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_read, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·exit(SB),NOSPLIT,$-4
+TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit, R12
 	SWI	$0x80
@@ -86,18 +89,42 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT runtime·exit1(SB),NOSPLIT,$0
+TEXT exit1<>(SB),NOSPLIT,$0
+	// Because of exitThread below, this must not use the stack.
+	// __bsdthread_terminate takes 4 word-size arguments.
+	// Set them all to 0. (None are an exit status.)
+	MOVW	$0, R0
+	MOVW	$0, R1
+	MOVW	$0, R2
+	MOVW	$0, R3
 	MOVW	$SYS_bsdthread_terminate, R12
 	SWI	$0x80
 	MOVW	$1234, R0
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT runtime·raise(SB),NOSPLIT,$24
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVW	wait+0(FP), R0
+	// We're done using the stack.
+	MOVW	$0, R2
+storeloop:
+	LDREX	(R0), R4          // loads R4
+	STREX	R2, (R0), R1      // stores R2
+	CMP	$0, R1
+	BNE	storeloop
+	JMP	exit1<>(SB)
+
+TEXT runtime·raise(SB),NOSPLIT,$0
+	// Ideally we'd send the signal to the current thread,
+	// not the whole process, but that's too hard on OS X.
+	JMP	runtime·raiseproc(SB)
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVW	$SYS_getpid, R12
 	SWI	$0x80
 	// arg 1 pid already in R0 from getpid
-	MOVW	unnamed+0(FP), R1	// arg 2 - signal
+	MOVW	sig+0(FP), R1	// arg 2 - signal
 	MOVW	$1, R2	// arg 3 - posix
 	MOVW	$SYS_kill, R12
 	SWI $0x80
@@ -113,7 +140,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVW	$0, R6 // off_t is uint64_t
 	MOVW	$SYS_mmap, R12
 	SWI	$0x80
-	MOVW	R0, ret+24(FP)
+	MOVW	$0, R1
+	BCC     ok
+	MOVW	R1, p+24(FP)
+	MOVW	R0, err+28(FP)
+	RET
+ok:
+	MOVW	R0, p+24(FP)
+	MOVW	R1, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -141,26 +175,21 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SWI	$0x80
 	RET
 
-TEXT runtime·mincore(SB),NOSPLIT,$0
-	MOVW	addr+0(FP), R0
-	MOVW	n+4(FP), R1
-	MOVW	dst+8(FP), R2
-	MOVW	$SYS_mincore, R12
-	SWI	$0x80
-	MOVW	R0, ret+12(FP)
-	RET
-
-TEXT time·now(SB), 7, $32
+TEXT runtime·walltime(SB), 7, $32
 	MOVW	$8(R13), R0  // timeval
 	MOVW	$0, R1  // zone
+	MOVW	$0, R2	// see issue 16570
 	MOVW	$SYS_gettimeofday, R12
 	SWI	$0x80 // Note: R0 is tv_sec, R1 is tv_usec
-
+	CMP	$0, R0
+	BNE	inreg
+	MOVW	8(R13), R0
+	MOVW	12(R13), R1
+inreg:
 	MOVW    R1, R2  // usec
-
-	MOVW	R0, sec+0(FP)
+	MOVW	R0, sec_lo+0(FP)
 	MOVW	$0, R1
-	MOVW	R1, loc+4(FP)
+	MOVW	R1, sec_hi+4(FP)
 	MOVW	$1000, R3
 	MUL	R3, R2
 	MOVW	R2, nsec+8(FP)
@@ -169,9 +198,14 @@ TEXT time·now(SB), 7, $32
 TEXT runtime·nanotime(SB),NOSPLIT,$32
 	MOVW	$8(R13), R0  // timeval
 	MOVW	$0, R1  // zone
+	MOVW	$0, R2	// see issue 16570
 	MOVW	$SYS_gettimeofday, R12
 	SWI	$0x80 // Note: R0 is tv_sec, R1 is tv_usec
-
+	CMP	$0, R0
+	BNE	inreg
+	MOVW	8(R13), R0
+	MOVW	12(R13), R1
+inreg:
 	MOVW    R1, R2
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
@@ -183,6 +217,18 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 
 	MOVW	R0, ret_lo+0(FP)
 	MOVW	R1, ret_hi+4(FP)
+	RET
+
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
 	RET
 
 // Sigtramp's job is to call the actual signal handler.
@@ -240,7 +286,7 @@ cont:
 	MOVW    R1, 24(R6)
 
 	// switch stack and g
-	MOVW	R6, R13 // sigtramp can not re-entrant, so no need to back up R13.
+	MOVW	R6, R13 // sigtramp is not re-entrant, so no need to back up R13.
 	MOVW	R5, g
 
 	BL	(R0)
@@ -256,10 +302,10 @@ ret:
 	B	runtime·exit(SB)
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW	sig+0(FP), R0
+	MOVW	how+0(FP), R0
 	MOVW	new+4(FP), R1
 	MOVW	old+8(FP), R2
-	MOVW	$SYS_sigprocmask, R12
+	MOVW	$SYS_pthread_sigmask, R12
 	SWI	$0x80
 	BL.CS	notok<>(SB)
 	RET
@@ -274,10 +320,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 
 TEXT runtime·usleep(SB),NOSPLIT,$12
 	MOVW	usec+0(FP), R0
-	MOVW	R0, R1
-	MOVW	$1000000, R2
-	DIV     R2, R0
-	MOD     R2, R1
+	CALL	runtime·usplitR0(SB)
 	MOVW	R0, a-12(SP)
 	MOVW	R1, b-8(SP)
 
@@ -291,11 +334,8 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 	SWI	$0x80
 	RET
 
-TEXT runtime·cas(SB),NOSPLIT,$0
-	B	runtime·armcas(SB)
-
-TEXT runtime·casp1(SB),NOSPLIT,$0
-	B	runtime·cas(SB)
+TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+	B	runtime·armPublicationBarrier(SB)
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVW	mib+0(FP), R0
@@ -316,26 +356,25 @@ sysctl_ret:
 	RET
 
 // Thread related functions
-// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
+// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
-	MOVW    fn+12(FP), R0   // "func"
-	MOVW    mm+4(FP), R1 // "arg"
-	MOVW    stk+0(FP), R2 // stack
-	MOVW    gg+8(FP), R3 // "pthread"
+	MOVW    fn+8(FP),    R0 // "func"
+	MOVW    arg+4(FP),   R1 // "arg"
+	MOVW    stk+0(FP),   R2 // stack
 	MOVW	$0x01000000, R4	// flags = PTHREAD_START_CUSTOM
-	MOVW	$0, R5	// paranoia
+	MOVW	$0,          R5 // paranoia
 	MOVW	$SYS_bsdthread_create, R12
 	SWI	$0x80
 	BCC		create_ret
 	RSB 	$0, R0, R0
-	MOVW	R0, ret+16(FP)
+	MOVW	R0, ret+12(FP)
 	RET
 create_ret:
 	MOVW	$0, R0
-	MOVW	R0, ret+16(FP)
+	MOVW	R0, ret+12(FP)
 	RET
 
 // The thread that bsdthread_create creates starts executing here,
@@ -357,7 +396,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	EOR     R12, R12
 	WORD    $0xeee1ca10 // fmxr	fpscr, ip
 	BL      (R2) // fn
-	BL      runtime·exit1(SB)
+	BL      exit1<>(SB)
 	RET
 
 // int32 bsdthread_register(void)

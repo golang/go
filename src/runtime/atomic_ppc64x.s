@@ -6,35 +6,9 @@
 
 #include "textflag.h"
 
-// uint32 runtime·atomicload(uint32 volatile* addr)
-TEXT ·atomicload(SB),NOSPLIT,$-8-12
-	MOVD	addr+0(FP), R3
-	SYNC
-	MOVWZ	0(R3), R3
-	CMPW	R3, R3, CR7
-	BC	4, 30, 1(PC) // bne- cr7,0x4
-	ISYNC
-	MOVW	R3, ret+8(FP)
-	RETURN
-
-// uint64 runtime·atomicload64(uint64 volatile* addr)
-TEXT ·atomicload64(SB),NOSPLIT,$-8-16
-	MOVD	addr+0(FP), R3
-	SYNC
-	MOVD	0(R3), R3
-	CMP	R3, R3, CR7
-	BC	4, 30, 1(PC) // bne- cr7,0x4
-	ISYNC
-	MOVD	R3, ret+8(FP)
-	RETURN
-
-// void *runtime·atomicloadp(void *volatile *addr)
-TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
-	MOVD	addr+0(FP), R3
-	SYNC
-	MOVD	0(R3), R3
-	CMP	R3, R3, CR7
-	BC	4, 30, 1(PC) // bne- cr7,0x4
-	ISYNC
-	MOVD	R3, ret+8(FP)
-	RETURN
+TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+	// LWSYNC is the "export" barrier recommended by Power ISA
+	// v2.07 book II, appendix B.2.2.2.
+	// LWSYNC is a load/load, load/store, and store/store barrier.
+	LWSYNC
+	RET

@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+func init() {
+	osInitMime = initMimeUnix
+}
+
 var typeFiles = []string{
 	"/etc/mime.types",
 	"/etc/apache2/mime.types",
@@ -44,7 +48,7 @@ func loadMimeFile(filename string) {
 	}
 }
 
-func initMime() {
+func initMimeUnix() {
 	for _, filename := range typeFiles {
 		loadMimeFile(filename)
 	}

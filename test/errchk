@@ -37,6 +37,17 @@ foreach(reverse 0 .. @ARGV-1) {
 	}
 }
 
+# If no files have been specified try to grab SOURCEFILES from the last
+# argument that is an existing directory if any
+unless(@file) {
+    foreach(reverse 0 .. @ARGV-1) {
+        if(-d $ARGV[$_]) {
+            @file = glob($ARGV[$_] . "/*.go");
+            last;
+        }
+    }
+}
+
 foreach $file (@file) {
 	open(SRC, $file) || die "BUG: errchk: open $file: $!";
 	$src{$file} = [<SRC>];
@@ -47,12 +58,15 @@ foreach $file (@file) {
 $cmd = join(' ', @ARGV);
 open(CMD, "exec $cmd </dev/null 2>&1 |") || die "BUG: errchk: run $cmd: $!";
 
-# 6g error messages continue onto additional lines with leading tabs.
+# gc error messages continue onto additional lines with leading tabs.
 # Split the output at the beginning of each line that doesn't begin with a tab.
 $out = join('', <CMD>);
 @out = split(/^(?!\t)/m, $out);
 
 close CMD;
+
+# Remove lines beginning with #, printed by go command to indicate package.
+@out = grep {!/^#/} @out;
 
 if($exitcode != 0 && $? == 0) {
 	print STDERR "BUG: errchk: command succeeded unexpectedly\n";

@@ -1,11 +1,9 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Package pprof serves via its HTTP server runtime profiling data
 // in the format expected by the pprof visualization tool.
-// For more information about pprof, see
-// http://code.google.com/p/google-perftools/.
 //
 // The package is typically only imported for the side effect of
 // registering its HTTP handlers.
@@ -15,7 +13,7 @@
 //	import _ "net/http/pprof"
 //
 // If your application is not already running an http server, you
-// need to start one.  Add "net/http" and "log" to your imports and
+// need to start one. Add "net/http" and "log" to your imports and
 // the following code to your main function:
 //
 // 	go func() {
@@ -30,7 +28,8 @@
 //
 //	go tool pprof http://localhost:6060/debug/pprof/profile
 //
-// Or to look at the goroutine blocking profile:
+// Or to look at the goroutine blocking profile, after calling
+// runtime.SetBlockProfileRate in your program:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/block
 //
@@ -38,12 +37,17 @@
 //
 //	wget http://localhost:6060/debug/pprof/trace?seconds=5
 //
+// Or to look at the holders of contended mutexes, after calling
+// runtime.SetMutexProfileFraction in your program:
+//
+//	go tool pprof http://localhost:6060/debug/pprof/mutex
+//
 // To view all available profiles, open http://localhost:6060/debug/pprof/
 // in your browser.
 //
 // For a study of the facility in action, visit
 //
-//	http://blog.golang.org/2011/06/profiling-go-programs.html
+//	https://blog.golang.org/2011/06/profiling-go-programs.html
 //
 package pprof
 
@@ -58,17 +62,18 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 	"strconv"
 	"strings"
 	"time"
 )
 
 func init() {
-	http.Handle("/debug/pprof/", http.HandlerFunc(Index))
-	http.Handle("/debug/pprof/cmdline", http.HandlerFunc(Cmdline))
-	http.Handle("/debug/pprof/profile", http.HandlerFunc(Profile))
-	http.Handle("/debug/pprof/symbol", http.HandlerFunc(Symbol))
-	http.Handle("/debug/pprof/trace", http.HandlerFunc(Trace))
+	http.HandleFunc("/debug/pprof/", Index)
+	http.HandleFunc("/debug/pprof/cmdline", Cmdline)
+	http.HandleFunc("/debug/pprof/profile", Profile)
+	http.HandleFunc("/debug/pprof/symbol", Symbol)
+	http.HandleFunc("/debug/pprof/trace", Trace)
 }
 
 // Cmdline responds with the running program's
@@ -79,12 +84,36 @@ func Cmdline(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
 }
 
+func sleep(w http.ResponseWriter, d time.Duration) {
+	var clientGone <-chan bool
+	if cn, ok := w.(http.CloseNotifier); ok {
+		clientGone = cn.CloseNotify()
+	}
+	select {
+	case <-time.After(d):
+	case <-clientGone:
+	}
+}
+
+func durationExceedsWriteTimeout(r *http.Request, seconds float64) bool {
+	srv, ok := r.Context().Value(http.ServerContextKey).(*http.Server)
+	return ok && srv.WriteTimeout != 0 && seconds >= srv.WriteTimeout.Seconds()
+}
+
 // Profile responds with the pprof-formatted cpu profile.
 // The package initialization registers it as /debug/pprof/profile.
 func Profile(w http.ResponseWriter, r *http.Request) {
 	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
 	if sec == 0 {
 		sec = 30
+	}
+
+	if durationExceedsWriteTimeout(r, float64(sec)) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Go-Pprof", "1")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
+		return
 	}
 
 	// Set Content Type assuming StartCPUProfile will work,
@@ -95,11 +124,12 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		// Can change header back to text content
 		// and send error code.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Go-Pprof", "1")
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Could not enable CPU profiling: %s\n", err)
 		return
 	}
-	time.Sleep(time.Duration(sec) * time.Second)
+	sleep(w, time.Duration(sec)*time.Second)
 	pprof.StopCPUProfile()
 }
 
@@ -107,24 +137,33 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 // Tracing lasts for duration specified in seconds GET parameter, or for 1 second if not specified.
 // The package initialization registers it as /debug/pprof/trace.
 func Trace(w http.ResponseWriter, r *http.Request) {
-	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
-	if sec == 0 {
+	sec, err := strconv.ParseFloat(r.FormValue("seconds"), 64)
+	if sec <= 0 || err != nil {
 		sec = 1
 	}
 
-	// Set Content Type assuming StartTrace will work,
+	if durationExceedsWriteTimeout(r, sec) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Go-Pprof", "1")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
+		return
+	}
+
+	// Set Content Type assuming trace.Start will work,
 	// because if it does it starts writing.
 	w.Header().Set("Content-Type", "application/octet-stream")
-	if err := pprof.StartTrace(w); err != nil {
-		// StartTrace failed, so no writes yet.
+	if err := trace.Start(w); err != nil {
+		// trace.Start failed, so no writes yet.
 		// Can change header back to text content and send error code.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Go-Pprof", "1")
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Could not enable tracing: %s\n", err)
 		return
 	}
-	time.Sleep(time.Duration(sec) * time.Second)
-	pprof.StopTrace()
+	sleep(w, time.Duration(sec*float64(time.Second)))
+	trace.Stop()
 }
 
 // Symbol looks up the program counters listed in the request,
@@ -134,11 +173,11 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	// We have to read the whole POST body before
-	// writing any output.  Buffer the output here.
+	// writing any output. Buffer the output here.
 	var buf bytes.Buffer
 
 	// We don't know how many symbols we have, but we
-	// do have symbol information.  Pprof only cares whether
+	// do have symbol information. Pprof only cares whether
 	// this number is 0 (no symbols available) or > 0.
 	fmt.Fprintf(&buf, "num_symbols: 1\n")
 
@@ -196,7 +235,6 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		runtime.GC()
 	}
 	p.WriteTo(w, debug)
-	return
 }
 
 // Index responds with the pprof-formatted profile named by the request.
@@ -222,17 +260,17 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
 <head>
 <title>/debug/pprof/</title>
 </head>
+<body>
 /debug/pprof/<br>
 <br>
-<body>
 profiles:<br>
 <table>
 {{range .}}
-<tr><td align=right>{{.Count}}<td><a href="/debug/pprof/{{.Name}}?debug=1">{{.Name}}</a>
+<tr><td align=right>{{.Count}}<td><a href="{{.Name}}?debug=1">{{.Name}}</a>
 {{end}}
 </table>
 <br>
-<a href="/debug/pprof/goroutine?debug=2">full goroutine stack dump</a><br>
+<a href="goroutine?debug=2">full goroutine stack dump</a><br>
 </body>
 </html>
 `))

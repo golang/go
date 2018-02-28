@@ -1,6 +1,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_darwin.go
 
+// +build amd64,darwin
+
 package syscall
 
 const (
@@ -443,6 +445,10 @@ type BpfHdr struct {
 	Hdrlen    uint16
 	Pad_cgo_0 [2]byte
 }
+
+const (
+	_AT_FDCWD = -0x2
+)
 
 type Termios struct {
 	Iflag     uint64

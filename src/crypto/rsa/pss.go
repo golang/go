@@ -6,7 +6,7 @@ package rsa
 
 // This file implements the PSS signature scheme [1].
 //
-// [1] http://www.rsa.com/rsalabs/pkcs/files/h11300-wp-pkcs-1v2-2-rsa-cryptography-standard.pdf
+// [1] https://www.emc.com/collateral/white-papers/h11300-pkcs-1v2-2-rsa-cryptography-standard-wp.pdf
 
 import (
 	"bytes"
@@ -36,7 +36,7 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
 	// 3.  If emLen < hLen + sLen + 2, output "encoding error" and stop.
 
 	if emLen < hLen+sLen+2 {
-		return nil, errors.New("crypto/rsa: encoding error")
+		return nil, errors.New("crypto/rsa: key size too small for PSS signature")
 	}
 
 	em := make([]byte, emLen)
@@ -64,7 +64,7 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
 	hash.Reset()
 
 	// 7.  Generate an octet string PS consisting of emLen - sLen - hLen - 2
-	//     zero octets.  The length of PS may be 0.
+	//     zero octets. The length of PS may be 0.
 	//
 	// 8.  Let DB = PS || 0x01 || salt; DB is an octet string of length
 	//     emLen - hLen - 1.
@@ -198,7 +198,7 @@ func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed,
 		return
 	}
 	m := new(big.Int).SetBytes(em)
-	c, err := decrypt(rand, priv, m)
+	c, err := decryptAndCheck(rand, priv, m)
 	if err != nil {
 		return
 	}
@@ -246,7 +246,7 @@ func (opts *PSSOptions) saltLength() int {
 // Note that hashed must be the result of hashing the input message using the
 // given hash function. The opts argument may be nil, in which case sensible
 // defaults are used.
-func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, opts *PSSOptions) (s []byte, err error) {
+func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, opts *PSSOptions) ([]byte, error) {
 	saltLength := opts.saltLength()
 	switch saltLength {
 	case PSSSaltLengthAuto:
@@ -260,8 +260,8 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, 
 	}
 
 	salt := make([]byte, saltLength)
-	if _, err = io.ReadFull(rand, salt); err != nil {
-		return
+	if _, err := io.ReadFull(rand, salt); err != nil {
+		return nil, err
 	}
 	return signPSSWithSalt(rand, priv, hash, hashed, salt)
 }

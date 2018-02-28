@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -23,7 +23,6 @@ func TestCallbackPanic(t *testing.T)         { testCallbackPanic(t) }
 func TestCallbackPanicLoop(t *testing.T)     { testCallbackPanicLoop(t) }
 func TestCallbackPanicLocked(t *testing.T)   { testCallbackPanicLocked(t) }
 func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
-func TestAllocateFromC(t *testing.T)         { testAllocateFromC(t) }
 func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
 func TestBlocking(t *testing.T)              { testBlocking(t) }
 func Test1328(t *testing.T)                  { test1328(t) }
@@ -63,6 +62,30 @@ func Test8811(t *testing.T)                  { test8811(t) }
 func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
 func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
 func Test9026(t *testing.T)                  { test9026(t) }
+func Test9510(t *testing.T)                  { test9510(t) }
 func Test9557(t *testing.T)                  { test9557(t) }
+func Test10303(t *testing.T)                 { test10303(t, 10) }
+func Test11925(t *testing.T)                 { test11925(t) }
+func Test12030(t *testing.T)                 { test12030(t) }
+func TestGCC68255(t *testing.T)              { testGCC68255(t) }
+func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
+func Test14838(t *testing.T)                 { test14838(t) }
+func Test8756(t *testing.T)                  { test8756(t) }
+func Test17065(t *testing.T)                 { test17065(t) }
+func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
+func TestCheckConst(t *testing.T)            { testCheckConst(t) }
+func Test17537(t *testing.T)                 { test17537(t) }
+func Test18126(t *testing.T)                 { test18126(t) }
+func Test20369(t *testing.T)                 { test20369(t) }
+func Test18720(t *testing.T)                 { test18720(t) }
+func Test20266(t *testing.T)                 { test20266(t) }
+func Test20129(t *testing.T)                 { test20129(t) }
+func Test20910(t *testing.T)                 { test20910(t) }
+func Test21708(t *testing.T)                 { test21708(t) }
+func Test21809(t *testing.T)                 { test21809(t) }
+func Test6907(t *testing.T)                  { test6907(t) }
+func Test6907Go(t *testing.T)                { test6907Go(t) }
+func Test21897(t *testing.T)                 { test21897(t) }
+func Test22906(t *testing.T)                 { test22906(t) }
 
 func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }

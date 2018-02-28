@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,8 +17,10 @@ func maxListenerBacklog() int {
 		err error
 	)
 	switch runtime.GOOS {
-	case "darwin", "freebsd":
+	case "darwin":
 		n, err = syscall.SysctlUint32("kern.ipc.somaxconn")
+	case "freebsd":
+		n, err = syscall.SysctlUint32("kern.ipc.soacceptqueue")
 	case "netbsd":
 		// NOTE: NetBSD has no somaxconn-like kernel state so far
 	case "openbsd":

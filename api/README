@@ -1,6 +1,6 @@
 Files in this directory are data for Go's API checker ("go tool api", in src/cmd/api).
 
-Each file is a list of of API features, one per line.
+Each file is a list of API features, one per line.
 
 go1.txt (and similarly named files) are frozen once a version has been
 shipped. Each file adds new lines but does not remove any.

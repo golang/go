@@ -1,6 +1,7 @@
 <!--{
 	"Title": "Documentation",
-	"Path": "/doc/"
+	"Path": "/doc/",
+	"Template": true
 }-->
 
 <p>
@@ -33,22 +34,43 @@ libraries.
 
 <img class="gopher" src="/doc/gopher/doc.png"/>
 
-<h3 id="go_tour"><a href="//tour.golang.org/">A Tour of Go</a></h3>
+<h3 id="go_tour">
+	{{if $.GoogleCN}}
+	  A Tour of Go
+	{{else}}
+	  <a href="//tour.golang.org/">A Tour of Go</a>
+	{{end}}
+</h3>
 <p>
 An interactive introduction to Go in three sections.
 The first section covers basic syntax and data structures; the second discusses
 methods and interfaces; and the third introduces Go's concurrency primitives.
 Each section concludes with a few exercises so you can practice what you've
-learned. You can <a href="//tour.golang.org/">take the tour online</a> or
-<a href="//code.google.com/p/go-tour/">install it locally</a>.
+learned. You can {{if not $.GoogleCN}}<a href="//tour.golang.org/">take the tour
+online</a> or{{end}} install it locally with:
+</p>
+<pre>
+$ go get golang.org/x/tour/gotour
+</pre>
+<p>
+This will place the <code>gotour</code> binary in your workspace's <code>bin</code> directory.
 </p>
 
 <h3 id="code"><a href="code.html">How to write Go code</a></h3>
 <p>
-Also available as a
-<a href="//www.youtube.com/watch?v=XCsL89YtqCs">screencast</a>, this doc
-explains how to use the <a href="/cmd/go/">go command</a> to fetch, build, and
-install packages, commands, and run tests.
+{{if not $.GoogleCN}}
+Also available as a <a href="//www.youtube.com/watch?v=XCsL89YtqCs">screencast</a>, this
+{{else}}
+This
+{{end}}
+doc explains how to use the <a href="/cmd/go/">go command</a>
+to fetch, build, and install packages, commands, and run tests.
+</p>
+
+<h3 id="editors"><a href="editors.html">Editor plugins and IDEs</a></h3>
+<p>
+A document that summarizes commonly used editor plugins and IDEs with
+Go support.
 </p>
 
 <h3 id="effective_go"><a href="effective_go.html">Effective Go</a></h3>
@@ -56,6 +78,11 @@ install packages, commands, and run tests.
 A document that gives tips for writing clear, idiomatic Go code.
 A must read for any new Go programmer. It augments the tour and
 the language specification, both of which should be read first.
+</p>
+
+<h3 id="diagnostics"><a href="/doc/diagnostics.html">Diagnostics</a></h3>
+<p>
+Summarizes tools and methodologies to diagnose problems in Go programs.
 </p>
 
 <h3 id="faq"><a href="/doc/faq">Frequently Asked Questions (FAQ)</a></h3>
@@ -103,9 +130,11 @@ same variable in a different goroutine.
 
 <h2 id="articles">Articles</h2>
 
+{{if not $.GoogleCN}}
 <h3 id="blog"><a href="//blog.golang.org/">The Go Blog</a></h3>
 <p>The official blog of the Go project, featuring news and in-depth articles by
 the Go team and guests.</p>
+{{end}}
 
 <h4>Codewalks</h4>
 <p>
@@ -118,6 +147,7 @@ Guided tours of Go programs.
 <li><a href="/doc/articles/wiki/">Writing Web Applications</a> - building a simple web application.</li>
 </ul>
 
+{{if not $.GoogleCN}}
 <h4>Language</h4>
 <ul>
 <li><a href="/blog/json-rpc-tale-of-interfaces">JSON-RPC: a tale of interfaces</a></li>
@@ -138,17 +168,20 @@ Guided tours of Go programs.
 <li><a href="/blog/go-image-package">The Go image package</a> - the fundamentals of the <a href="/pkg/image/">image</a> package.</li>
 <li><a href="/blog/go-imagedraw-package">The Go image/draw package</a> - the fundamentals of the <a href="/pkg/image/draw/">image/draw</a> package.</li>
 </ul>
+{{end}}
 
 <h4>Tools</h4>
 <ul>
 <li><a href="/doc/articles/go_command.html">About the Go command</a> - why we wrote it, what it is, what it's not, and how to use it.</li>
-<li><a href="/blog/c-go-cgo">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
 <li><a href="/doc/gdb">Debugging Go Code with GDB</a></li>
+<li><a href="/doc/articles/race_detector.html">Data Race Detector</a> - a manual for the data race detector.</li>
+<li><a href="/doc/asm">A Quick Guide to Go's Assembler</a> - an introduction to the assembler used by Go.</li>
+{{if not $.GoogleCN}}
+<li><a href="/blog/c-go-cgo">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
 <li><a href="/blog/godoc-documenting-go-code">Godoc: documenting Go code</a> - writing good documentation for <a href="/cmd/godoc/">godoc</a>.</li>
 <li><a href="/blog/profiling-go-programs">Profiling Go Programs</a></li>
-<li><a href="/doc/articles/race_detector.html">Data Race Detector</a> - a manual for the data race detector.</li>
 <li><a href="/blog/race-detector">Introducing the Go Race Detector</a> - an introduction to the race detector.</li>
-<li><a href="/doc/asm">A Quick Guide to Go's Assembler</a> - an introduction to the assembler used by Go.</li>
+{{end}}
 </ul>
 
 <h4 id="articles_more">More</h4>
@@ -157,7 +190,7 @@ See the <a href="/wiki/Articles">Articles page</a> at the
 <a href="/wiki">Wiki</a> for more Go articles.
 </p>
 
-
+{{if not $.GoogleCN}}
 <h2 id="talks">Talks</h2>
 
 <img class="gopher" src="/doc/gopher/talks.png"/>
@@ -188,7 +221,7 @@ This talk expands on the <i>Go Concurrency Patterns</i> talk to dive deeper into
 <p>
 See the <a href="/talks">Go Talks site</a> and <a href="/wiki/GoTalks">wiki page</a> for more Go talks.
 </p>
-
+{{end}}
 
 <h2 id="nonenglish">Non-English Documentation</h2>
 

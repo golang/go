@@ -5,18 +5,19 @@
 package asm
 
 import (
-	"os"
 	"testing"
 
 	"cmd/asm/internal/arch"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 )
 
 // A simple in-out test: Do we print what we parse?
 
 func setArch(goarch string) (*arch.Arch, *obj.Link) {
-	os.Setenv("GOOS", "linux") // obj can handle this OS for all architectures.
+	objabi.GOOS = "linux" // obj can handle this OS for all architectures.
+	objabi.GOARCH = goarch
 	architecture := arch.Set(goarch)
 	if architecture == nil {
 		panic("asm: unrecognized architecture " + goarch)
@@ -34,61 +35,50 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 		parser.start(lex.Tokenize(test.input))
 		addr := obj.Addr{}
 		parser.operand(&addr)
-		result := parser.arch.Dconv(&emptyProg, 0, &addr)
+		result := obj.Dconv(&emptyProg, &addr)
 		if result != test.output {
 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
 		}
 	}
 }
 
-func testX86RegisterPair(t *testing.T, parser *Parser) {
-	// Special case for AX:DX, which is really two operands so isn't printed correcctly
-	// by Aconv, but is OK by the -S output.
-	parser.start(lex.Tokenize("AX:BX)"))
-	addr := obj.Addr{}
-	parser.operand(&addr)
-	want := obj.Addr{
-		Type:  obj.TYPE_REG,
-		Reg:   parser.arch.Register["AX"],
-		Class: int8(parser.arch.Register["BX"]), // TODO: clean up how this is encoded in parse.go
-	}
-	if want != addr {
-		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
-	}
-}
-
 func TestAMD64OperandParser(t *testing.T) {
 	parser := newParser("amd64")
 	testOperandParser(t, parser, amd64OperandTests)
-	testX86RegisterPair(t, parser)
 }
 
 func Test386OperandParser(t *testing.T) {
 	parser := newParser("386")
 	testOperandParser(t, parser, x86OperandTests)
-	testX86RegisterPair(t, parser)
 }
 
 func TestARMOperandParser(t *testing.T) {
 	parser := newParser("arm")
 	testOperandParser(t, parser, armOperandTests)
 }
+func TestARM64OperandParser(t *testing.T) {
+	parser := newParser("arm64")
+	testOperandParser(t, parser, arm64OperandTests)
+}
 
 func TestPPC64OperandParser(t *testing.T) {
 	parser := newParser("ppc64")
 	testOperandParser(t, parser, ppc64OperandTests)
-	// Special encoding for (R1+R2).
-	parser.start(lex.Tokenize("(R1+R2)"))
-	addr := obj.Addr{}
-	parser.operand(&addr)
-	want := obj.Addr{
-		Type:  obj.TYPE_MEM,
-		Reg:   parser.arch.Register["R1"],
-		Scale: int8(parser.arch.Register["R2"]), // TODO: clean up how this is encoded in parse.go
-	}
-	if want != addr {
-		t.Errorf("(R1+R2): expected %+v got %+v", want, addr)
-	}
+}
+
+func TestMIPSOperandParser(t *testing.T) {
+	parser := newParser("mips")
+	testOperandParser(t, parser, mipsOperandTests)
+}
+
+func TestMIPS64OperandParser(t *testing.T) {
+	parser := newParser("mips64")
+	testOperandParser(t, parser, mips64OperandTests)
+}
+
+func TestS390XOperandParser(t *testing.T) {
+	parser := newParser("s390x")
+	testOperandParser(t, parser, s390xOperandTests)
 }
 
 type operandTest struct {
@@ -98,9 +88,8 @@ type operandTest struct {
 // Examples collected by scanning all the assembly in the standard repo.
 
 var amd64OperandTests = []operandTest{
-	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
-	{"$(-1.0)", "$(-1)"}, // TODO: Should print as a float.
-	{"$(0.0)", "$(0)"},   // TODO: Should print as a float.
+	{"$(-1.0)", "$(-1.0)"},
+	{"$(0.0)", "$(0.0)"},
 	{"$(0x2000000+116)", "$33554548"},
 	{"$(0x3F<<7)", "$8064"},
 	{"$(112+8)", "$120"},
@@ -117,16 +106,16 @@ var amd64OperandTests = []operandTest{
 	{"$0x7fffffe00000", "$140737486258176"},
 	{"$0xfffffffffffff001", "$-4095"},
 	{"$1", "$1"},
-	{"$1.0", "$(1)"}, // TODO: should print as float.
+	{"$1.0", "$(1.0)"},
 	{"$10", "$10"},
 	{"$1000", "$1000"},
 	{"$1000000", "$1000000"},
 	{"$1000000000", "$1000000000"},
-	{"$__tsan_func_enter(SB)", "$__tsan_func_enter+0(SB)"},
-	{"$main(SB)", "$main+0(SB)"},
-	{"$masks<>(SB)", "$masks<>+0(SB)"},
-	{"$setg_gcc<>(SB)", "$setg_gcc<>+0(SB)"},
-	{"$shifts<>(SB)", "$shifts<>+0(SB)"},
+	{"$__tsan_func_enter(SB)", "$__tsan_func_enter(SB)"},
+	{"$main(SB)", "$main(SB)"},
+	{"$masks<>(SB)", "$masks<>(SB)"},
+	{"$setg_gcc<>(SB)", "$setg_gcc<>(SB)"},
+	{"$shifts<>(SB)", "$shifts<>(SB)"},
 	{"$~(1<<63)", "$9223372036854775807"},
 	{"$~0x3F", "$-64"},
 	{"$~15", "$-16"},
@@ -149,6 +138,9 @@ var amd64OperandTests = []operandTest{
 	{"(SI)(BX*1)", "(SI)(BX*1)"},
 	{"(SI)(DX*1)", "(SI)(DX*1)"},
 	{"(SP)", "(SP)"},
+	{"(SP)(AX*4)", "(SP)(AX*4)"},
+	{"32(SP)(BX*2)", "32(SP)(BX*2)"},
+	{"32323(SP)(R8*4)", "32323(SP)(R8*4)"},
 	{"+3(PC)", "3(PC)"},
 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
 	{"-3(PC)", "-3(PC)"},
@@ -188,28 +180,29 @@ var amd64OperandTests = []operandTest{
 	{"X7", "X7"},
 	{"X8", "X8"},
 	{"X9", "X9"},
-	{"_expand_key_128<>(SB)", "_expand_key_128<>+0(SB)"},
-	{"_seek<>(SB)", "_seek<>+0(SB)"},
+	{"_expand_key_128<>(SB)", "_expand_key_128<>(SB)"},
+	{"_seek<>(SB)", "_seek<>(SB)"},
 	{"a2+16(FP)", "a2+16(FP)"},
 	{"addr2+24(FP)", "addr2+24(FP)"},
-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
+	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
 	{"b+24(FP)", "b+24(FP)"},
 	{"b_len+32(FP)", "b_len+32(FP)"},
-	{"racecall<>(SB)", "racecall<>+0(SB)"},
+	{"racecall<>(SB)", "racecall<>(SB)"},
 	{"rcv_name+20(FP)", "rcv_name+20(FP)"},
 	{"retoffset+28(FP)", "retoffset+28(FP)"},
-	{"runtime·_GetStdHandle(SB)", "runtime._GetStdHandle+0(SB)"},
-	{"sync\u2215atomic·AddInt64(SB)", "sync/atomic.AddInt64+0(SB)"},
+	{"runtime·_GetStdHandle(SB)", "runtime._GetStdHandle(SB)"},
+	{"sync\u2215atomic·AddInt64(SB)", "sync/atomic.AddInt64(SB)"},
 	{"timeout+20(FP)", "timeout+20(FP)"},
 	{"ts+16(FP)", "ts+16(FP)"},
 	{"x+24(FP)", "x+24(FP)"},
-	{"x·y(SB)", "x.y+0(SB)"},
-	{"x·y(SP)", "x.y+0(SP)"},
+	{"x·y(SB)", "x.y(SB)"},
+	{"x·y(SP)", "x.y(SP)"},
 	{"x·y+8(SB)", "x.y+8(SB)"},
 	{"x·y+8(SP)", "x.y+8(SP)"},
 	{"y+56(FP)", "y+56(FP)"},
-	{"·AddUint32(SB", "\"\".AddUint32+0(SB)"},
-	{"·callReflect(SB)", "\"\".callReflect+0(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+	{"·callReflect(SB)", "\"\".callReflect(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
 }
 
 var x86OperandTests = []operandTest{
@@ -217,8 +210,8 @@ var x86OperandTests = []operandTest{
 	{"$-1", "$-1"},
 	{"$0", "$0"},
 	{"$0x00000000", "$0"},
-	{"$runtime·badmcall(SB)", "$runtime.badmcall+0(SB)"},
-	{"$setg_gcc<>(SB)", "$setg_gcc<>+0(SB)"},
+	{"$runtime·badmcall(SB)", "$runtime.badmcall(SB)"},
+	{"$setg_gcc<>(SB)", "$setg_gcc<>(SB)"},
 	{"$~15", "$-16"},
 	{"(-64*1024+104)(SP)", "-65432(SP)"},
 	{"(0*4)(BP)", "(BP)"},
@@ -226,10 +219,11 @@ var x86OperandTests = []operandTest{
 	{"(4*4)(BP)", "16(BP)"},
 	{"(AX)", "(AX)"},
 	{"(BP)(CX*4)", "(BP)(CX*4)"},
-	{"(BP*8)", "(NONE)(BP*8)"}, // TODO: odd printout.
+	{"(BP*8)", "0(BP*8)"},
 	{"(BX)", "(BX)"},
 	{"(SP)", "(SP)"},
-	{"*runtime·_GetStdHandle(SB)", "type=16"}, // TODO: bizarre
+	{"*AX", "AX"}, // TODO: Should make * illegal here; a simple alias for JMP AX.
+	{"*runtime·_GetStdHandle(SB)", "*runtime._GetStdHandle(SB)"},
 	{"-(4+12)(DI)", "-16(DI)"},
 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
 	{"-96(DI)(BX*1)", "-96(DI)(BX*1)"},
@@ -256,24 +250,25 @@ var x86OperandTests = []operandTest{
 	{"X5", "X5"},
 	{"X6", "X6"},
 	{"X7", "X7"},
-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
+	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
 	{"ax+4(FP)", "ax+4(FP)"},
-	{"ptime-12(SP)", "ptime+-12(SP)"},
-	{"runtime·_NtWaitForSingleObject(SB)", "runtime._NtWaitForSingleObject+0(SB)"},
-	{"s(FP)", "s+0(FP)"},
+	{"ptime-12(SP)", "ptime-12(SP)"},
+	{"runtime·_NtWaitForSingleObject(SB)", "runtime._NtWaitForSingleObject(SB)"},
+	{"s(FP)", "s(FP)"},
 	{"sec+4(FP)", "sec+4(FP)"},
-	{"shifts<>(SB)(CX*8)", "shifts<>+0(SB)(CX*8)"},
+	{"shifts<>(SB)(CX*8)", "shifts<>(SB)(CX*8)"},
 	{"x+4(FP)", "x+4(FP)"},
-	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
-	{"·reflectcall(SB)", "\"\".reflectcall+0(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+	{"·reflectcall(SB)", "\"\".reflectcall(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
 }
 
 var armOperandTests = []operandTest{
 	{"$0", "$0"},
 	{"$256", "$256"},
-	{"(R0)", "0(R0)"},
-	{"(R11)", "0(R11)"},
-	{"(g)", "0(R10)"}, // TODO: Should print 0(g).
+	{"(R0)", "(R0)"},
+	{"(R11)", "(R11)"},
+	{"(g)", "(g)"},
 	{"-12(R4)", "-12(R4)"},
 	{"0(PC)", "0(PC)"},
 	{"1024", "1024"},
@@ -300,51 +295,153 @@ var armOperandTests = []operandTest{
 	{"R6", "R6"},
 	{"R7", "R7"},
 	{"R8", "R8"},
-	// TODO: Fix Dconv to handle these. MOVM print shows the registers.
-	{"[R0,R1,g,R15]", "$33795"},
-	{"[R0-R7]", "$255"},
-	{"[R(0)-R(7)]", "$255"},
-	{"[R0]", "$1"},
-	{"[R1-R12]", "$8190"},
-	{"armCAS64(SB)", "armCAS64+0(SB)"},
-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
+	{"[R0,R1,g,R15]", "[R0,R1,g,R15]"},
+	{"[R0-R7]", "[R0,R1,R2,R3,R4,R5,R6,R7]"},
+	{"[R(0)-R(7)]", "[R0,R1,R2,R3,R4,R5,R6,R7]"},
+	{"[R0]", "[R0]"},
+	{"[R1-R12]", "[R1,R2,R3,R4,R5,R6,R7,R8,R9,g,R11,R12]"},
+	{"armCAS64(SB)", "armCAS64(SB)"},
+	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
 	{"c+28(FP)", "c+28(FP)"},
-	{"g", "R10"}, // TODO: Should print g.
-	{"gosave<>(SB)", "gosave<>+0(SB)"},
+	{"g", "g"},
+	{"gosave<>(SB)", "gosave<>(SB)"},
 	{"retlo+12(FP)", "retlo+12(FP)"},
-	{"runtime·_sfloat2(SB)", "runtime._sfloat2+0(SB)"},
-	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
+	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+	{"(R1, R3)", "(R1, R3)"},
+	{"[R0,R1,g,R15", ""}, // Issue 11764 - asm hung parsing ']' missing register lists.
+	{"[):[o-FP", ""},     // Issue 12469 - there was no infinite loop for ARM; these are just sanity checks.
+	{"[):[R0-FP", ""},
+	{"(", ""}, // Issue 12466 - backed up before beginning of line.
 }
 
 var ppc64OperandTests = []operandTest{
-	{"$((1<<63)-1)", "$0x7fffffffffffffff"},
+	{"$((1<<63)-1)", "$9223372036854775807"},
 	{"$(-64*1024)", "$-65536"},
 	{"$(1024 * 8)", "$8192"},
 	{"$-1", "$-1"},
 	{"$-24(R4)", "$-24(R4)"},
 	{"$0", "$0"},
-	{"$0(R1)", "$0(R1)"},
-	{"$0.5", "$0.5"},
+	{"$0(R1)", "$(R1)"},
+	{"$0.5", "$(0.5)"},
 	{"$0x7000", "$28672"},
-	{"$0x88888eef", "$0x88888eef"},
+	{"$0x88888eef", "$2290650863"},
 	{"$1", "$1"},
-	{"$_main<>(SB)", "$_main<>+0(SB)"},
-	{"$argframe+0(FP)", "$argframe+0(FP)"},
+	{"$_main<>(SB)", "$_main<>(SB)"},
+	{"$argframe(FP)", "$argframe(FP)"},
 	{"$runtime·tlsg(SB)", "$runtime.tlsg(SB)"},
 	{"$~3", "$-4"},
 	{"(-288-3*8)(R1)", "-312(R1)"},
 	{"(16)(R7)", "16(R7)"},
-	{"(8)(g)", "8(R30)"}, // TODO: Should print 8(g)
-	{"(CTR)", "0(CTR)"},
-	{"(R0)", "0(R0)"},
-	{"(R3)", "0(R3)"},
-	{"(R4)", "0(R4)"},
-	{"(R5)", "0(R5)"},
+	{"(8)(g)", "8(g)"},
+	{"(CTR)", "(CTR)"},
+	{"(R0)", "(R0)"},
+	{"(R3)", "(R3)"},
+	{"(R4)", "(R4)"},
+	{"(R5)", "(R5)"},
+	{"(R5)(R6*1)", "(R5)(R6*1)"},
+	{"(R5+R6)", "(R5)(R6*1)"}, // Old syntax.
 	{"-1(R4)", "-1(R4)"},
 	{"-1(R5)", "-1(R5)"},
-	{"6(PC)", "6(APC)"}, // TODO: Should print 6(PC).
-	{"CR7", "C7"},       // TODO: Should print CR7.
+	{"6(PC)", "6(PC)"},
+	{"CR7", "CR7"},
 	{"CTR", "CTR"},
+	{"VS0", "VS0"},
+	{"VS1", "VS1"},
+	{"VS2", "VS2"},
+	{"VS3", "VS3"},
+	{"VS4", "VS4"},
+	{"VS5", "VS5"},
+	{"VS6", "VS6"},
+	{"VS7", "VS7"},
+	{"VS8", "VS8"},
+	{"VS9", "VS9"},
+	{"VS10", "VS10"},
+	{"VS11", "VS11"},
+	{"VS12", "VS12"},
+	{"VS13", "VS13"},
+	{"VS14", "VS14"},
+	{"VS15", "VS15"},
+	{"VS16", "VS16"},
+	{"VS17", "VS17"},
+	{"VS18", "VS18"},
+	{"VS19", "VS19"},
+	{"VS20", "VS20"},
+	{"VS21", "VS21"},
+	{"VS22", "VS22"},
+	{"VS23", "VS23"},
+	{"VS24", "VS24"},
+	{"VS25", "VS25"},
+	{"VS26", "VS26"},
+	{"VS27", "VS27"},
+	{"VS28", "VS28"},
+	{"VS29", "VS29"},
+	{"VS30", "VS30"},
+	{"VS31", "VS31"},
+	{"VS32", "VS32"},
+	{"VS33", "VS33"},
+	{"VS34", "VS34"},
+	{"VS35", "VS35"},
+	{"VS36", "VS36"},
+	{"VS37", "VS37"},
+	{"VS38", "VS38"},
+	{"VS39", "VS39"},
+	{"VS40", "VS40"},
+	{"VS41", "VS41"},
+	{"VS42", "VS42"},
+	{"VS43", "VS43"},
+	{"VS44", "VS44"},
+	{"VS45", "VS45"},
+	{"VS46", "VS46"},
+	{"VS47", "VS47"},
+	{"VS48", "VS48"},
+	{"VS49", "VS49"},
+	{"VS50", "VS50"},
+	{"VS51", "VS51"},
+	{"VS52", "VS52"},
+	{"VS53", "VS53"},
+	{"VS54", "VS54"},
+	{"VS55", "VS55"},
+	{"VS56", "VS56"},
+	{"VS57", "VS57"},
+	{"VS58", "VS58"},
+	{"VS59", "VS59"},
+	{"VS60", "VS60"},
+	{"VS61", "VS61"},
+	{"VS62", "VS62"},
+	{"VS63", "VS63"},
+	{"V0", "V0"},
+	{"V1", "V1"},
+	{"V2", "V2"},
+	{"V3", "V3"},
+	{"V4", "V4"},
+	{"V5", "V5"},
+	{"V6", "V6"},
+	{"V7", "V7"},
+	{"V8", "V8"},
+	{"V9", "V9"},
+	{"V10", "V10"},
+	{"V11", "V11"},
+	{"V12", "V12"},
+	{"V13", "V13"},
+	{"V14", "V14"},
+	{"V15", "V15"},
+	{"V16", "V16"},
+	{"V17", "V17"},
+	{"V18", "V18"},
+	{"V19", "V19"},
+	{"V20", "V20"},
+	{"V21", "V21"},
+	{"V22", "V22"},
+	{"V23", "V23"},
+	{"V24", "V24"},
+	{"V25", "V25"},
+	{"V26", "V26"},
+	{"V27", "V27"},
+	{"V28", "V28"},
+	{"V29", "V29"},
+	{"V30", "V30"},
+	{"V31", "V31"},
 	{"F14", "F14"},
 	{"F15", "F15"},
 	{"F16", "F16"},
@@ -395,10 +492,325 @@ var ppc64OperandTests = []operandTest{
 	{"R8", "R8"},
 	{"R9", "R9"},
 	{"SPR(269)", "SPR(269)"},
-	{"a+0(FP)", "a+0(FP)"},
-	{"g", "R30"}, // TODO: Should print g.
+	{"a(FP)", "a(FP)"},
+	{"g", "g"},
 	{"ret+8(FP)", "ret+8(FP)"},
 	{"runtime·abort(SB)", "runtime.abort(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·trunc(SB)", "\"\".trunc(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+}
+
+var arm64OperandTests = []operandTest{
+	{"$0", "$0"},
+	{"$0.5", "$(0.5)"},
+	{"0(R26)", "(R26)"},
+	{"0(RSP)", "(RSP)"},
+	{"$1", "$1"},
+	{"$-1", "$-1"},
+	{"$1000", "$1000"},
+	{"$1000000000", "$1000000000"},
+	{"$0x7fff3c000", "$34358935552"},
+	{"$1234", "$1234"},
+	{"$~15", "$-16"},
+	{"$16", "$16"},
+	{"-16(RSP)", "-16(RSP)"},
+	{"16(RSP)", "16(RSP)"},
+	{"1(R1)", "1(R1)"},
+	{"-1(R4)", "-1(R4)"},
+	{"18740(R5)", "18740(R5)"},
+	{"$2", "$2"},
+	{"$-24(R4)", "$-24(R4)"},
+	{"-24(RSP)", "-24(RSP)"},
+	{"$24(RSP)", "$24(RSP)"},
+	{"-32(RSP)", "-32(RSP)"},
+	{"$48", "$48"},
+	{"$(-64*1024)(R7)", "$-65536(R7)"},
+	{"$(8-1)", "$7"},
+	{"a+0(FP)", "a(FP)"},
+	{"a1+8(FP)", "a1+8(FP)"},
+	{"·AddInt32(SB)", `"".AddInt32(SB)`},
+	{"runtime·divWVW(SB)", "runtime.divWVW(SB)"},
+	{"$argframe+0(FP)", "$argframe(FP)"},
+	{"$asmcgocall<>(SB)", "$asmcgocall<>(SB)"},
+	{"EQ", "EQ"},
+	{"F29", "F29"},
+	{"F3", "F3"},
+	{"F30", "F30"},
+	{"g", "g"},
+	{"LR", "R30"},
+	{"(LR)", "(R30)"},
+	{"R0", "R0"},
+	{"R10", "R10"},
+	{"R11", "R11"},
+	{"$4503601774854144.0", "$(4503601774854144.0)"},
+	{"$runtime·badsystemstack(SB)", "$runtime.badsystemstack(SB)"},
+	{"ZR", "ZR"},
+	{"(ZR)", "(ZR)"},
+	{"(R29, RSP)", "(R29, RSP)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+}
+
+var mips64OperandTests = []operandTest{
+	{"$((1<<63)-1)", "$9223372036854775807"},
+	{"$(-64*1024)", "$-65536"},
+	{"$(1024 * 8)", "$8192"},
+	{"$-1", "$-1"},
+	{"$-24(R4)", "$-24(R4)"},
+	{"$0", "$0"},
+	{"$0(R1)", "$(R1)"},
+	{"$0.5", "$(0.5)"},
+	{"$0x7000", "$28672"},
+	{"$0x88888eef", "$2290650863"},
+	{"$1", "$1"},
+	{"$_main<>(SB)", "$_main<>(SB)"},
+	{"$argframe(FP)", "$argframe(FP)"},
+	{"$~3", "$-4"},
+	{"(-288-3*8)(R1)", "-312(R1)"},
+	{"(16)(R7)", "16(R7)"},
+	{"(8)(g)", "8(g)"},
+	{"(R0)", "(R0)"},
+	{"(R3)", "(R3)"},
+	{"(R4)", "(R4)"},
+	{"(R5)", "(R5)"},
+	{"-1(R4)", "-1(R4)"},
+	{"-1(R5)", "-1(R5)"},
+	{"6(PC)", "6(PC)"},
+	{"F14", "F14"},
+	{"F15", "F15"},
+	{"F16", "F16"},
+	{"F17", "F17"},
+	{"F18", "F18"},
+	{"F19", "F19"},
+	{"F20", "F20"},
+	{"F21", "F21"},
+	{"F22", "F22"},
+	{"F23", "F23"},
+	{"F24", "F24"},
+	{"F25", "F25"},
+	{"F26", "F26"},
+	{"F27", "F27"},
+	{"F28", "F28"},
+	{"F29", "F29"},
+	{"F30", "F30"},
+	{"F31", "F31"},
+	{"R0", "R0"},
+	{"R1", "R1"},
+	{"R11", "R11"},
+	{"R12", "R12"},
+	{"R13", "R13"},
+	{"R14", "R14"},
+	{"R15", "R15"},
+	{"R16", "R16"},
+	{"R17", "R17"},
+	{"R18", "R18"},
+	{"R19", "R19"},
+	{"R2", "R2"},
+	{"R20", "R20"},
+	{"R21", "R21"},
+	{"R22", "R22"},
+	{"R23", "R23"},
+	{"R24", "R24"},
+	{"R25", "R25"},
+	{"R26", "R26"},
+	{"R27", "R27"},
+	{"R29", "R29"},
+	{"R3", "R3"},
+	{"R31", "R31"},
+	{"R4", "R4"},
+	{"R5", "R5"},
+	{"R6", "R6"},
+	{"R7", "R7"},
+	{"R8", "R8"},
+	{"R9", "R9"},
+	{"LO", "LO"},
+	{"a(FP)", "a(FP)"},
+	{"g", "g"},
+	{"RSB", "R28"},
+	{"ret+8(FP)", "ret+8(FP)"},
+	{"runtime·abort(SB)", "runtime.abort(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+	{"·trunc(SB)", "\"\".trunc(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+}
+
+var mipsOperandTests = []operandTest{
+	{"$((1<<63)-1)", "$9223372036854775807"},
+	{"$(-64*1024)", "$-65536"},
+	{"$(1024 * 8)", "$8192"},
+	{"$-1", "$-1"},
+	{"$-24(R4)", "$-24(R4)"},
+	{"$0", "$0"},
+	{"$0(R1)", "$(R1)"},
+	{"$0.5", "$(0.5)"},
+	{"$0x7000", "$28672"},
+	{"$0x88888eef", "$2290650863"},
+	{"$1", "$1"},
+	{"$_main<>(SB)", "$_main<>(SB)"},
+	{"$argframe(FP)", "$argframe(FP)"},
+	{"$~3", "$-4"},
+	{"(-288-3*8)(R1)", "-312(R1)"},
+	{"(16)(R7)", "16(R7)"},
+	{"(8)(g)", "8(g)"},
+	{"(R0)", "(R0)"},
+	{"(R3)", "(R3)"},
+	{"(R4)", "(R4)"},
+	{"(R5)", "(R5)"},
+	{"-1(R4)", "-1(R4)"},
+	{"-1(R5)", "-1(R5)"},
+	{"6(PC)", "6(PC)"},
+	{"F14", "F14"},
+	{"F15", "F15"},
+	{"F16", "F16"},
+	{"F17", "F17"},
+	{"F18", "F18"},
+	{"F19", "F19"},
+	{"F20", "F20"},
+	{"F21", "F21"},
+	{"F22", "F22"},
+	{"F23", "F23"},
+	{"F24", "F24"},
+	{"F25", "F25"},
+	{"F26", "F26"},
+	{"F27", "F27"},
+	{"F28", "F28"},
+	{"F29", "F29"},
+	{"F30", "F30"},
+	{"F31", "F31"},
+	{"R0", "R0"},
+	{"R1", "R1"},
+	{"R11", "R11"},
+	{"R12", "R12"},
+	{"R13", "R13"},
+	{"R14", "R14"},
+	{"R15", "R15"},
+	{"R16", "R16"},
+	{"R17", "R17"},
+	{"R18", "R18"},
+	{"R19", "R19"},
+	{"R2", "R2"},
+	{"R20", "R20"},
+	{"R21", "R21"},
+	{"R22", "R22"},
+	{"R23", "R23"},
+	{"R24", "R24"},
+	{"R25", "R25"},
+	{"R26", "R26"},
+	{"R27", "R27"},
+	{"R28", "R28"},
+	{"R29", "R29"},
+	{"R3", "R3"},
+	{"R31", "R31"},
+	{"R4", "R4"},
+	{"R5", "R5"},
+	{"R6", "R6"},
+	{"R7", "R7"},
+	{"R8", "R8"},
+	{"R9", "R9"},
+	{"LO", "LO"},
+	{"a(FP)", "a(FP)"},
+	{"g", "g"},
+	{"ret+8(FP)", "ret+8(FP)"},
+	{"runtime·abort(SB)", "runtime.abort(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+	{"·trunc(SB)", "\"\".trunc(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+}
+
+var s390xOperandTests = []operandTest{
+	{"$((1<<63)-1)", "$9223372036854775807"},
+	{"$(-64*1024)", "$-65536"},
+	{"$(1024 * 8)", "$8192"},
+	{"$-1", "$-1"},
+	{"$-24(R4)", "$-24(R4)"},
+	{"$0", "$0"},
+	{"$0(R1)", "$(R1)"},
+	{"$0.5", "$(0.5)"},
+	{"$0x7000", "$28672"},
+	{"$0x88888eef", "$2290650863"},
+	{"$1", "$1"},
+	{"$_main<>(SB)", "$_main<>(SB)"},
+	{"$argframe(FP)", "$argframe(FP)"},
+	{"$~3", "$-4"},
+	{"(-288-3*8)(R1)", "-312(R1)"},
+	{"(16)(R7)", "16(R7)"},
+	{"(8)(g)", "8(g)"},
+	{"(R0)", "(R0)"},
+	{"(R3)", "(R3)"},
+	{"(R4)", "(R4)"},
+	{"(R5)", "(R5)"},
+	{"-1(R4)", "-1(R4)"},
+	{"-1(R5)", "-1(R5)"},
+	{"6(PC)", "6(PC)"},
+	{"R0", "R0"},
+	{"R1", "R1"},
+	{"R2", "R2"},
+	{"R3", "R3"},
+	{"R4", "R4"},
+	{"R5", "R5"},
+	{"R6", "R6"},
+	{"R7", "R7"},
+	{"R8", "R8"},
+	{"R9", "R9"},
+	{"R10", "R10"},
+	{"R11", "R11"},
+	{"R12", "R12"},
+	// {"R13", "R13"}, R13 is g
+	{"R14", "R14"},
+	{"R15", "R15"},
+	{"F0", "F0"},
+	{"F1", "F1"},
+	{"F2", "F2"},
+	{"F3", "F3"},
+	{"F4", "F4"},
+	{"F5", "F5"},
+	{"F6", "F6"},
+	{"F7", "F7"},
+	{"F8", "F8"},
+	{"F9", "F9"},
+	{"F10", "F10"},
+	{"F11", "F11"},
+	{"F12", "F12"},
+	{"F13", "F13"},
+	{"F14", "F14"},
+	{"F15", "F15"},
+	{"V0", "V0"},
+	{"V1", "V1"},
+	{"V2", "V2"},
+	{"V3", "V3"},
+	{"V4", "V4"},
+	{"V5", "V5"},
+	{"V6", "V6"},
+	{"V7", "V7"},
+	{"V8", "V8"},
+	{"V9", "V9"},
+	{"V10", "V10"},
+	{"V11", "V11"},
+	{"V12", "V12"},
+	{"V13", "V13"},
+	{"V14", "V14"},
+	{"V15", "V15"},
+	{"V16", "V16"},
+	{"V17", "V17"},
+	{"V18", "V18"},
+	{"V19", "V19"},
+	{"V20", "V20"},
+	{"V21", "V21"},
+	{"V22", "V22"},
+	{"V23", "V23"},
+	{"V24", "V24"},
+	{"V25", "V25"},
+	{"V26", "V26"},
+	{"V27", "V27"},
+	{"V28", "V28"},
+	{"V29", "V29"},
+	{"V30", "V30"},
+	{"V31", "V31"},
+	{"a(FP)", "a(FP)"},
+	{"g", "g"},
+	{"ret+8(FP)", "ret+8(FP)"},
+	{"runtime·abort(SB)", "runtime.abort(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+	{"·trunc(SB)", "\"\".trunc(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
 }

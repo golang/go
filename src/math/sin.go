@@ -131,17 +131,15 @@ func cos(x float64) float64 {
 
 	// make argument positive
 	sign := false
-	if x < 0 {
-		x = -x
-	}
+	x = Abs(x)
 
 	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
 	y := float64(j)      // integer part of x/(Pi/4), as float
 
 	// map zeros to origin
 	if j&1 == 1 {
-		j += 1
-		y += 1
+		j++
+		y++
 	}
 	j &= 7 // octant modulo 2Pi radians (360 degrees)
 	if j > 3 {
@@ -200,8 +198,8 @@ func sin(x float64) float64 {
 
 	// map zeros to origin
 	if j&1 == 1 {
-		j += 1
-		y += 1
+		j++
+		y++
 	}
 	j &= 7 // octant modulo 2Pi radians (360 degrees)
 	// reflect in x axis

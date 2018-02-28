@@ -97,13 +97,14 @@ a tool like the go command to look at an unfamiliar import path and
 deduce where to obtain the source code.</p>
 
 <p>Second, the place to store sources in the local file system is derived
-in a known way from the import path.  Specifically, the first choice
-is <code>$GOPATH/src/&lt;import-path&gt;</code>.  If <code>$GOPATH</code> is
-unset, the go command will fall back to storing source code alongside the
-standard Go packages, in <code>$GOROOT/src/&lt;import-path&gt;</code>.
+in a known way from the import path, specifically
+<code>$GOPATH/src/&lt;import-path&gt;</code>.
+If unset, <code>$GOPATH</code> defaults to a subdirectory
+named <code>go</code> in the user's home directory.
 If <code>$GOPATH</code> is set to a list of paths, the go command tries
 <code>&lt;dir&gt;/src/&lt;import-path&gt;</code> for each of the directories in
-that list.</p>
+that list.
+</p>
 
 <p>Each of those trees contains, by convention, a top-level directory named
 "<code>bin</code>", for holding compiled executables, and a top-level directory
@@ -133,45 +134,30 @@ be able to adapt to changing build environments and conditions. For
 example, if we allowed extra configuration such as compiler flags or
 command line recipes, then that configuration would need to be updated
 each time the build tools changed; it would also be inherently tied
-to the use of a specific tool chain.</p>
+to the use of a specific toolchain.</p>
 
 <h2>Getting started with the go command</h2>
 
-<p>Finally, a quick tour of how to use the go command, to supplement
-the information in <a href="/doc/code.html">How to Write Go Code</a>,
-which you might want to read first.  Assuming you want
-to keep your source code separate from the Go distribution source
-tree, the first step is to set <code>$GOPATH</code>, the one piece of global
-configuration that the go command needs.  The <code>$GOPATH</code> can be a
-list of directories, but by far the most common usage should be to set it to a
-single directory.  In particular, you do not need a separate entry in
-<code>$GOPATH</code> for each of your projects.  One <code>$GOPATH</code> can
-support many projects.</p>
+<p>Finally, a quick tour of how to use the go command.
+As mentioned above, the default <code>$GOPATH</code> on Unix is <code>$HOME/go</code>.
+We'll store our programs there.
+To use a different location, you can set <code>$GOPATH</code>;
+see <a href="/doc/code.html">How to Write Go Code</a> for details.
 
-<p>Here’s an example.  Let’s say we decide to keep our Go code in the directory
-<code>$HOME/mygo</code>.  We need to create that directory and set
-<code>$GOPATH</code> accordingly.</p>
-
-<pre>
-$ mkdir $HOME/mygo
-$ export GOPATH=$HOME/mygo
-$
-</pre>
-
-<p>Into this directory, we now add some source code.  Suppose we want to use
+<p>We first add some source code.  Suppose we want to use
 the indexing library from the codesearch project along with a left-leaning
 red-black tree.  We can install both with the "<code>go get</code>"
 subcommand:</p>
 
 <pre>
-$ go get code.google.com/p/codesearch/index
+$ go get github.com/google/codesearch/index
 $ go get github.com/petar/GoLLRB/llrb
 $
 </pre>
 
-<p>Both of these projects are now downloaded and installed into our
-<code>$GOPATH</code> directory. The one tree now contains the two directories
-<code>src/code.google.com/p/codesearch/index/</code> and
+<p>Both of these projects are now downloaded and installed into <code>$HOME/go</code>,
+which contains the two directories
+<code>src/github.com/google/codesearch/index/</code> and
 <code>src/github.com/petar/GoLLRB/llrb/</code>, along with the compiled
 packages (in <code>pkg/</code>) for those libraries and their dependencies.</p>
 
@@ -184,13 +170,14 @@ the pattern "<code>./...</code>" means start in the current directory
 ("<code>...</code>"):</p>
 
 <pre>
+$ cd $HOME/go/src
 $ go list ./...
-code.google.com/p/codesearch/cmd/cgrep
-code.google.com/p/codesearch/cmd/cindex
-code.google.com/p/codesearch/cmd/csearch
-code.google.com/p/codesearch/index
-code.google.com/p/codesearch/regexp
-code.google.com/p/codesearch/sparse
+github.com/google/codesearch/cmd/cgrep
+github.com/google/codesearch/cmd/cindex
+github.com/google/codesearch/cmd/csearch
+github.com/google/codesearch/index
+github.com/google/codesearch/regexp
+github.com/google/codesearch/sparse
 github.com/petar/GoLLRB/example
 github.com/petar/GoLLRB/llrb
 $
@@ -200,12 +187,12 @@ $
 
 <pre>
 $ go test ./...
-?       code.google.com/p/codesearch/cmd/cgrep   [no test files]
-?       code.google.com/p/codesearch/cmd/cindex  [no test files]
-?       code.google.com/p/codesearch/cmd/csearch [no test files]
-ok      code.google.com/p/codesearch/index       0.239s
-ok      code.google.com/p/codesearch/regexp      0.021s
-?       code.google.com/p/codesearch/sparse      [no test files]
+?   	github.com/google/codesearch/cmd/cgrep	[no test files]
+?   	github.com/google/codesearch/cmd/cindex	[no test files]
+?   	github.com/google/codesearch/cmd/csearch	[no test files]
+ok  	github.com/google/codesearch/index	0.203s
+ok  	github.com/google/codesearch/regexp	0.017s
+?   	github.com/google/codesearch/sparse	[no test files]
 ?       github.com/petar/GoLLRB/example          [no test files]
 ok      github.com/petar/GoLLRB/llrb             0.231s
 $
@@ -215,18 +202,18 @@ $
 current directory:</p>
 
 <pre>
-$ cd $GOPATH/src/code.google.com/p/codesearch/regexp
+$ cd github.com/google/codesearch/regexp
 $ go list
-code.google.com/p/codesearch/regexp
+github.com/google/codesearch/regexp
 $ go test -v
-=== RUN TestNstateEnc
---- PASS: TestNstateEnc (0.00 seconds)
-=== RUN TestMatch
---- PASS: TestMatch (0.01 seconds)
-=== RUN TestGrep
---- PASS: TestGrep (0.00 seconds)
+=== RUN   TestNstateEnc
+--- PASS: TestNstateEnc (0.00s)
+=== RUN   TestMatch
+--- PASS: TestMatch (0.00s)
+=== RUN   TestGrep
+--- PASS: TestGrep (0.00s)
 PASS
-ok      code.google.com/p/codesearch/regexp     0.021s
+ok  	github.com/google/codesearch/regexp	0.018s
 $ go install
 $
 </pre>
@@ -244,17 +231,18 @@ pick such a long name, but that ability would require additional configuration
 and complexity in the tool. Typing an extra directory name or two is a small
 price to pay for the increased simplicity and power.</p>
 
-<p>As the example shows, it’s fine to work with packages from many different
-projects at once within a single <code>$GOPATH</code> root directory.</p>
-
 <h2>Limitations</h2>
 
 <p>As mentioned above, the go command is not a general-purpose build
-tool. In particular, it does not have any facility for generating Go
-source files during a build.  Instead, if you want to use a tool like
-yacc or the protocol buffer compiler, you will need to write a
+tool.
+In particular, it does not have any facility for generating Go
+source files <em>during</em> a build, although it does provide
+<a href="/cmd/go/#hdr-Generate_Go_files_by_processing_source"><code>go</code>
+<code>generate</code></a>,
+which can automate the creation of Go files <em>before</em> the build.
+For more advanced build setups, you may need to write a
 makefile (or a configuration file for the build tool of your choice)
-to generate the Go files and then check those generated source files
+to run whatever tool creates the Go files and then check those generated source files
 into your repository. This is more work for you, the package author,
 but it is significantly less work for your users, who can use
 "<code>go get</code>" without needing to obtain and build

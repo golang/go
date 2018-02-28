@@ -8,11 +8,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"internal/testenv"
 	"os/exec"
 	"reflect"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -24,14 +24,13 @@ func toJson(v interface{}) string {
 	return string(data)
 }
 
-func TestLookupMX(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
-	}
+func TestNSLookupMX(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	for _, server := range nslookupTestServers {
 		mx, err := LookupMX(server)
 		if err != nil {
-			t.Errorf("failed %s: %s", server, err)
+			t.Error(err)
 			continue
 		}
 		if len(mx) == 0 {
@@ -50,10 +49,9 @@ func TestLookupMX(t *testing.T) {
 	}
 }
 
-func TestLookupCNAME(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
-	}
+func TestNSLookupCNAME(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	for _, server := range nslookupTestServers {
 		cname, err := LookupCNAME(server)
 		if err != nil {
@@ -74,10 +72,9 @@ func TestLookupCNAME(t *testing.T) {
 	}
 }
 
-func TestLookupNS(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
-	}
+func TestNSLookupNS(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	for _, server := range nslookupTestServers {
 		ns, err := LookupNS(server)
 		if err != nil {
@@ -101,10 +98,9 @@ func TestLookupNS(t *testing.T) {
 	}
 }
 
-func TestLookupTXT(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
-	}
+func TestNSLookupTXT(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	for _, server := range nslookupTestServers {
 		txt, err := LookupTXT(server)
 		if err != nil {
@@ -145,13 +141,6 @@ func (s byHost) Len() int           { return len(s) }
 func (s byHost) Less(i, j int) bool { return s[i].Host < s[j].Host }
 func (s byHost) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func fqdn(s string) string {
-	if len(s) == 0 || s[len(s)-1] != '.' {
-		return s + "."
-	}
-	return s
-}
-
 func nslookup(qtype, name string) (string, error) {
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -180,15 +169,15 @@ func nslookupMX(name string) (mx []*MX, err error) {
 	// golang.org      mail exchanger = 2 alt1.aspmx.l.google.com.
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+mail exchanger\s*=\s*([0-9]+)\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		pref, _ := strconv.Atoi(ans[2])
-		mx = append(mx, &MX{fqdn(ans[3]), uint16(pref)})
+		pref, _, _ := dtoi(ans[2])
+		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
 	}
 	// windows nslookup syntax
 	// gmail.com       MX preference = 30, mail exchanger = alt3.gmail-smtp-in.l.google.com
 	rx = regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+MX preference\s*=\s*([0-9]+)\s*,\s*mail exchanger\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		pref, _ := strconv.Atoi(ans[2])
-		mx = append(mx, &MX{fqdn(ans[3]), uint16(pref)})
+		pref, _, _ := dtoi(ans[2])
+		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
 	}
 	return
 }
@@ -202,7 +191,7 @@ func nslookupNS(name string) (ns []*NS, err error) {
 	// golang.org      nameserver = ns1.google.com.
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+nameserver\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		ns = append(ns, &NS{fqdn(ans[2])})
+		ns = append(ns, &NS{absDomainName([]byte(ans[2]))})
 	}
 	return
 }
@@ -219,7 +208,7 @@ func nslookupCNAME(name string) (cname string, err error) {
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		last = ans[2]
 	}
-	return fqdn(last), nil
+	return absDomainName([]byte(last)), nil
 }
 
 func nslookupTXT(name string) (txt []string, err error) {

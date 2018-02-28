@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !386
+
 package math
 
 // Coefficients _sin[] and _cos[] are found in pkg/math/sin.go.
@@ -12,9 +14,7 @@ package math
 //	Sincos(±0) = ±0, 1
 //	Sincos(±Inf) = NaN, NaN
 //	Sincos(NaN) = NaN, NaN
-func Sincos(x float64) (sin, cos float64)
-
-func sincos(x float64) (sin, cos float64) {
+func Sincos(x float64) (sin, cos float64) {
 	const (
 		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
 		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
@@ -40,8 +40,8 @@ func sincos(x float64) (sin, cos float64) {
 	y := float64(j)      // integer part of x/(Pi/4), as float
 
 	if j&1 == 1 { // map zeros to origin
-		j += 1
-		y += 1
+		j++
+		y++
 	}
 	j &= 7     // octant modulo 2Pi radians (360 degrees)
 	if j > 3 { // reflect in x axis

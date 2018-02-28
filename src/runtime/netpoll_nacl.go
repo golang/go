@@ -10,6 +10,10 @@ package runtime
 func netpollinit() {
 }
 
+func netpolldescriptor() uintptr {
+	return ^uintptr(0)
+}
+
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	return 0
 }

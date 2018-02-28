@@ -1,0 +1,17 @@
+digraph "unnamed" {
+node [style=filled fillcolor="#f8f8f8"]
+subgraph cluster_L { "Duration: 10s, Total samples = 11111 " [shape=box fontsize=16 label="Duration: 10s, Total samples = 11111 \lShowing nodes accounting for 11111, 100% of 11111 total\l"] }
+N1 [label="tee\nsource2:8\n10000 (90.00%)" id="node1" fontsize=24 shape=box tooltip="tee testdata/source2:8 (10000)" color="#b20500" fillcolor="#edd6d5"]
+N2 [label="main\nsource1:2\n1 (0.009%)\nof 11111 (100%)" id="node2" fontsize=9 shape=box tooltip="main testdata/source1:2 (11111)" color="#b20000" fillcolor="#edd5d5"]
+N3 [label="tee\nsource2:2\n1000 (9.00%)\nof 11000 (99.00%)" id="node3" fontsize=14 shape=box tooltip="tee testdata/source2:2 (11000)" color="#b20000" fillcolor="#edd5d5"]
+N4 [label="tee\nsource2:8\n100 (0.9%)" id="node4" fontsize=10 shape=box tooltip="tee testdata/source2:8 (100)" color="#b2b0aa" fillcolor="#edecec"]
+N5 [label="bar\nsource1:10\n10 (0.09%)" id="node5" fontsize=9 shape=box tooltip="bar testdata/source1:10 (10)" color="#b2b2b1" fillcolor="#ededed"]
+N6 [label="bar\nsource1:10\n0 of 100 (0.9%)" id="node6" fontsize=8 shape=box tooltip="bar testdata/source1:10 (100)" color="#b2b0aa" fillcolor="#edecec"]
+N7 [label="foo\nsource1:4\n0 of 10 (0.09%)" id="node7" fontsize=8 shape=box tooltip="foo testdata/source1:4 (10)" color="#b2b2b1" fillcolor="#ededed"]
+N2 -> N3 [label=" 11000" weight=100 penwidth=5 color="#b20000" tooltip="main testdata/source1:2 -> tee testdata/source2:2 (11000)" labeltooltip="main testdata/source1:2 -> tee testdata/source2:2 (11000)"]
+N3 -> N1 [label=" 10000" weight=91 penwidth=5 color="#b20500" tooltip="tee testdata/source2:2 -> tee testdata/source2:8 (10000)" labeltooltip="tee testdata/source2:2 -> tee testdata/source2:8 (10000)"]
+N6 -> N4 [label=" 100" color="#b2b0aa" tooltip="bar testdata/source1:10 -> tee testdata/source2:8 (100)" labeltooltip="bar testdata/source1:10 -> tee testdata/source2:8 (100)"]
+N2 -> N6 [label=" 100" color="#b2b0aa" tooltip="main testdata/source1:2 -> bar testdata/source1:10 (100)" labeltooltip="main testdata/source1:2 -> bar testdata/source1:10 (100)"]
+N7 -> N5 [label=" 10" color="#b2b2b1" tooltip="foo testdata/source1:4 -> bar testdata/source1:10 (10)" labeltooltip="foo testdata/source1:4 -> bar testdata/source1:10 (10)"]
+N2 -> N7 [label=" 10" color="#b2b2b1" tooltip="main testdata/source1:2 -> foo testdata/source1:4 (10)" labeltooltip="main testdata/source1:2 -> foo testdata/source1:4 (10)"]
+}

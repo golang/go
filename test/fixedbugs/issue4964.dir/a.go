@@ -10,16 +10,14 @@ type T struct {
 	Pointer *int
 }
 
-func dontinline() {}
-
+//go:noinline
 func Store(t *T) {
 	global = t.Pointer
-	dontinline()
 }
 
+//go:noinline
 func Store2(t *T) {
 	global2 = t.Pointer
-	dontinline()
 }
 
 func Get() *int {

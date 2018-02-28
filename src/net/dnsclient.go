@@ -9,31 +9,6 @@ import (
 	"sort"
 )
 
-// DNSError represents a DNS lookup error.
-type DNSError struct {
-	Err       string // description of the error
-	Name      string // name looked for
-	Server    string // server used
-	IsTimeout bool
-}
-
-func (e *DNSError) Error() string {
-	if e == nil {
-		return "<nil>"
-	}
-	s := "lookup " + e.Name
-	if e.Server != "" {
-		s += " on " + e.Server
-	}
-	s += ": " + e.Err
-	return s
-}
-
-func (e *DNSError) Timeout() bool   { return e.IsTimeout }
-func (e *DNSError) Temporary() bool { return e.IsTimeout }
-
-const noSuchHost = "no such host"
-
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
 // address addr suitable for rDNS (PTR) record lookup or an error if it fails
 // to parse the IP address.
@@ -43,8 +18,7 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." +
-			uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
+		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." + uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
 	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
@@ -66,15 +40,20 @@ func reverseaddr(addr string) (arpa string, err error) {
 func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err error) {
 	addrs = make([]dnsRR, 0, len(dns.answer))
 
-	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
-		return "", nil, &DNSError{Err: noSuchHost, Name: name}
+	if dns.rcode == dnsRcodeNameError {
+		return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
 	}
 	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense
-		// for the query we sent.  If we didn't get
+		// for the query we sent. If we didn't get
 		// a name error and we didn't get success,
-		// the server is behaving incorrectly.
-		return "", nil, &DNSError{Err: "server misbehaving", Name: name, Server: server}
+		// the server is behaving incorrectly or
+		// having temporary trouble.
+		err := &DNSError{Err: "server misbehaving", Name: name, Server: server}
+		if dns.rcode == dnsRcodeServerFailure {
+			err.IsTemporary = true
+		}
+		return "", nil, err
 	}
 
 	// Look for the name.
@@ -106,7 +85,7 @@ Cname:
 			}
 		}
 		if len(addrs) == 0 {
-			return "", nil, &DNSError{Err: noSuchHost, Name: name, Server: server}
+			return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
 		}
 		return name, addrs, nil
 	}
@@ -134,12 +113,20 @@ func equalASCIILabel(x, y string) bool {
 	return true
 }
 
+// isDomainName checks if a string is a presentation-format domain name
+// (currently restricted to hostname-compatible "preferred name" LDH labels and
+// SRV-like "underscore labels"; see golang.org/issue/12421).
 func isDomainName(s string) bool {
 	// See RFC 1035, RFC 3696.
-	if len(s) == 0 {
-		return false
-	}
-	if len(s) > 255 {
+	// Presentation format has dots before every label except the first, and the
+	// terminal empty label is optional here because we assume fully-qualified
+	// (absolute) input. We must therefore reserve space for the first and last
+	// labels' length octets in wire format, where they are necessary and the
+	// maximum total length is 255.
+	// So our _effective_ maximum is 253, but 254 is not rejected if the last
+	// character is a dot.
+	l := len(s)
+	if l == 0 || l > 254 || l == 254 && s[l-1] != '.' {
 		return false
 	}
 
@@ -182,6 +169,28 @@ func isDomainName(s string) bool {
 	return ok
 }
 
+// absDomainName returns an absolute domain name which ends with a
+// trailing dot to match pure Go reverse resolver and all other lookup
+// routines.
+// See golang.org/issue/12189.
+// But we don't want to add dots for local names from /etc/hosts.
+// It's hard to tell so we settle on the heuristic that names without dots
+// (like "localhost" or "myhost") do not get trailing dots, but any other
+// names do.
+func absDomainName(b []byte) string {
+	hasDots := false
+	for _, x := range b {
+		if x == '.' {
+			hasDots = true
+			break
+		}
+	}
+	if hasDots && b[len(b)-1] != '.' {
+		b = append(b, '.')
+	}
+	return string(b)
+}
+
 // An SRV represents a single DNS SRV record.
 type SRV struct {
 	Target   string
@@ -194,13 +203,10 @@ type SRV struct {
 type byPriorityWeight []*SRV
 
 func (s byPriorityWeight) Len() int { return len(s) }
-
-func (s byPriorityWeight) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
 func (s byPriorityWeight) Less(i, j int) bool {
-	return s[i].Priority < s[j].Priority ||
-		(s[i].Priority == s[j].Priority && s[i].Weight < s[j].Weight)
+	return s[i].Priority < s[j].Priority || (s[i].Priority == s[j].Priority && s[i].Weight < s[j].Weight)
 }
+func (s byPriorityWeight) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 // shuffleByWeight shuffles SRV records by weight using the algorithm
 // described in RFC 2782.
@@ -248,11 +254,9 @@ type MX struct {
 // byPref implements sort.Interface to sort MX records by preference
 type byPref []*MX
 
-func (s byPref) Len() int { return len(s) }
-
+func (s byPref) Len() int           { return len(s) }
 func (s byPref) Less(i, j int) bool { return s[i].Pref < s[j].Pref }
-
-func (s byPref) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s byPref) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // sort reorders MX records as specified in RFC 5321.
 func (s byPref) sort() {

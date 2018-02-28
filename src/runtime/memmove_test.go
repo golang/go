@@ -1,15 +1,21 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime_test
 
 import (
+	"crypto/rand"
+	"encoding/binary"
+	"fmt"
+	"internal/race"
+	"internal/testenv"
 	. "runtime"
 	"testing"
 )
 
 func TestMemmove(t *testing.T) {
+	t.Parallel()
 	size := 256
 	if testing.Short() {
 		size = 128 + 16
@@ -48,6 +54,7 @@ func TestMemmove(t *testing.T) {
 }
 
 func TestMemmoveAlias(t *testing.T) {
+	t.Parallel()
 	size := 256
 	if testing.Short() {
 		size = 128 + 16
@@ -81,40 +88,161 @@ func TestMemmoveAlias(t *testing.T) {
 	}
 }
 
-func bmMemmove(b *testing.B, n int) {
-	x := make([]byte, n)
-	y := make([]byte, n)
-	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		copy(x, y)
+func TestMemmoveLarge0x180000(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("-short")
+	}
+
+	t.Parallel()
+	if race.Enabled {
+		t.Skip("skipping large memmove test under race detector")
+	}
+	testSize(t, 0x180000)
+}
+
+func TestMemmoveOverlapLarge0x120000(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("-short")
+	}
+
+	t.Parallel()
+	if race.Enabled {
+		t.Skip("skipping large memmove test under race detector")
+	}
+	testOverlap(t, 0x120000)
+}
+
+func testSize(t *testing.T, size int) {
+	src := make([]byte, size)
+	dst := make([]byte, size)
+	_, _ = rand.Read(src)
+	_, _ = rand.Read(dst)
+
+	ref := make([]byte, size)
+	copyref(ref, dst)
+
+	for n := size - 50; n > 1; n >>= 1 {
+		for x := 0; x <= size-n; x = x*7 + 1 { // offset in src
+			for y := 0; y <= size-n; y = y*9 + 1 { // offset in dst
+				copy(dst[y:y+n], src[x:x+n])
+				copyref(ref[y:y+n], src[x:x+n])
+				p := cmpb(dst, ref)
+				if p >= 0 {
+					t.Fatalf("Copy failed, copying from src[%d:%d] to dst[%d:%d].\nOffset %d is different, %v != %v", x, x+n, y, y+n, p, dst[p], ref[p])
+				}
+			}
+		}
 	}
 }
 
-func BenchmarkMemmove0(b *testing.B)    { bmMemmove(b, 0) }
-func BenchmarkMemmove1(b *testing.B)    { bmMemmove(b, 1) }
-func BenchmarkMemmove2(b *testing.B)    { bmMemmove(b, 2) }
-func BenchmarkMemmove3(b *testing.B)    { bmMemmove(b, 3) }
-func BenchmarkMemmove4(b *testing.B)    { bmMemmove(b, 4) }
-func BenchmarkMemmove5(b *testing.B)    { bmMemmove(b, 5) }
-func BenchmarkMemmove6(b *testing.B)    { bmMemmove(b, 6) }
-func BenchmarkMemmove7(b *testing.B)    { bmMemmove(b, 7) }
-func BenchmarkMemmove8(b *testing.B)    { bmMemmove(b, 8) }
-func BenchmarkMemmove9(b *testing.B)    { bmMemmove(b, 9) }
-func BenchmarkMemmove10(b *testing.B)   { bmMemmove(b, 10) }
-func BenchmarkMemmove11(b *testing.B)   { bmMemmove(b, 11) }
-func BenchmarkMemmove12(b *testing.B)   { bmMemmove(b, 12) }
-func BenchmarkMemmove13(b *testing.B)   { bmMemmove(b, 13) }
-func BenchmarkMemmove14(b *testing.B)   { bmMemmove(b, 14) }
-func BenchmarkMemmove15(b *testing.B)   { bmMemmove(b, 15) }
-func BenchmarkMemmove16(b *testing.B)   { bmMemmove(b, 16) }
-func BenchmarkMemmove32(b *testing.B)   { bmMemmove(b, 32) }
-func BenchmarkMemmove64(b *testing.B)   { bmMemmove(b, 64) }
-func BenchmarkMemmove128(b *testing.B)  { bmMemmove(b, 128) }
-func BenchmarkMemmove256(b *testing.B)  { bmMemmove(b, 256) }
-func BenchmarkMemmove512(b *testing.B)  { bmMemmove(b, 512) }
-func BenchmarkMemmove1024(b *testing.B) { bmMemmove(b, 1024) }
-func BenchmarkMemmove2048(b *testing.B) { bmMemmove(b, 2048) }
-func BenchmarkMemmove4096(b *testing.B) { bmMemmove(b, 4096) }
+func testOverlap(t *testing.T, size int) {
+	src := make([]byte, size)
+	test := make([]byte, size)
+	ref := make([]byte, size)
+	_, _ = rand.Read(src)
+
+	for n := size - 50; n > 1; n >>= 1 {
+		for x := 0; x <= size-n; x = x*7 + 1 { // offset in src
+			for y := 0; y <= size-n; y = y*9 + 1 { // offset in dst
+				// Reset input
+				copyref(test, src)
+				copyref(ref, src)
+				copy(test[y:y+n], test[x:x+n])
+				if y <= x {
+					copyref(ref[y:y+n], ref[x:x+n])
+				} else {
+					copybw(ref[y:y+n], ref[x:x+n])
+				}
+				p := cmpb(test, ref)
+				if p >= 0 {
+					t.Fatalf("Copy failed, copying from src[%d:%d] to dst[%d:%d].\nOffset %d is different, %v != %v", x, x+n, y, y+n, p, test[p], ref[p])
+				}
+			}
+		}
+	}
+
+}
+
+// Forward copy.
+func copyref(dst, src []byte) {
+	for i, v := range src {
+		dst[i] = v
+	}
+}
+
+// Backwards copy
+func copybw(dst, src []byte) {
+	if len(src) == 0 {
+		return
+	}
+	for i := len(src) - 1; i >= 0; i-- {
+		dst[i] = src[i]
+	}
+}
+
+// Returns offset of difference
+func matchLen(a, b []byte, max int) int {
+	a = a[:max]
+	b = b[:max]
+	for i, av := range a {
+		if b[i] != av {
+			return i
+		}
+	}
+	return max
+}
+
+func cmpb(a, b []byte) int {
+	l := matchLen(a, b, len(a))
+	if l == len(a) {
+		return -1
+	}
+	return l
+}
+
+func benchmarkSizes(b *testing.B, sizes []int, fn func(b *testing.B, n int)) {
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n))
+			fn(b, n)
+		})
+	}
+}
+
+var bufSizes = []int{
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+	32, 64, 128, 256, 512, 1024, 2048, 4096,
+}
+
+func BenchmarkMemmove(b *testing.B) {
+	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+		x := make([]byte, n)
+		y := make([]byte, n)
+		for i := 0; i < b.N; i++ {
+			copy(x, y)
+		}
+	})
+}
+
+func BenchmarkMemmoveUnalignedDst(b *testing.B) {
+	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+		x := make([]byte, n+1)
+		y := make([]byte, n)
+		for i := 0; i < b.N; i++ {
+			copy(x[1:], y)
+		}
+	})
+}
+
+func BenchmarkMemmoveUnalignedSrc(b *testing.B) {
+	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+		x := make([]byte, n)
+		y := make([]byte, n+1)
+		for i := 0; i < b.N; i++ {
+			copy(x, y[1:])
+		}
+	})
+}
 
 func TestMemclr(t *testing.T) {
 	size := 512
@@ -148,33 +276,37 @@ func TestMemclr(t *testing.T) {
 	}
 }
 
-func bmMemclr(b *testing.B, n int) {
-	x := make([]byte, n)
-	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		MemclrBytes(x)
+func BenchmarkMemclr(b *testing.B) {
+	for _, n := range []int{5, 16, 64, 256, 4096, 65536} {
+		x := make([]byte, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n))
+			for i := 0; i < b.N; i++ {
+				MemclrBytes(x)
+			}
+		})
+	}
+	for _, m := range []int{1, 4, 8, 16, 64} {
+		x := make([]byte, m<<20)
+		b.Run(fmt.Sprint(m, "M"), func(b *testing.B) {
+			b.SetBytes(int64(m << 20))
+			for i := 0; i < b.N; i++ {
+				MemclrBytes(x)
+			}
+		})
 	}
 }
-func BenchmarkMemclr5(b *testing.B)     { bmMemclr(b, 5) }
-func BenchmarkMemclr16(b *testing.B)    { bmMemclr(b, 16) }
-func BenchmarkMemclr64(b *testing.B)    { bmMemclr(b, 64) }
-func BenchmarkMemclr256(b *testing.B)   { bmMemclr(b, 256) }
-func BenchmarkMemclr4096(b *testing.B)  { bmMemclr(b, 4096) }
-func BenchmarkMemclr65536(b *testing.B) { bmMemclr(b, 65536) }
 
-func bmGoMemclr(b *testing.B, n int) {
-	x := make([]byte, n)
-	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		for j := range x {
-			x[j] = 0
+func BenchmarkGoMemclr(b *testing.B) {
+	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
+		x := make([]byte, n)
+		for i := 0; i < b.N; i++ {
+			for j := range x {
+				x[j] = 0
+			}
 		}
-	}
+	})
 }
-func BenchmarkGoMemclr5(b *testing.B)   { bmGoMemclr(b, 5) }
-func BenchmarkGoMemclr16(b *testing.B)  { bmGoMemclr(b, 16) }
-func BenchmarkGoMemclr64(b *testing.B)  { bmGoMemclr(b, 64) }
-func BenchmarkGoMemclr256(b *testing.B) { bmGoMemclr(b, 256) }
 
 func BenchmarkClearFat8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -203,6 +335,24 @@ func BenchmarkClearFat24(b *testing.B) {
 func BenchmarkClearFat32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var x [32 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat40(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [40 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat48(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [48 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat56(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [56 / 4]uint32
 		_ = x
 	}
 }
@@ -307,3 +457,22 @@ func BenchmarkCopyFat1024(b *testing.B) {
 		_ = y
 	}
 }
+
+func BenchmarkIssue18740(b *testing.B) {
+	// This tests that memmove uses one 4-byte load/store to move 4 bytes.
+	// It used to do 2 2-byte load/stores, which leads to a pipeline stall
+	// when we try to read the result with one 4-byte load.
+	var buf [4]byte
+	for j := 0; j < b.N; j++ {
+		s := uint32(0)
+		for i := 0; i < 4096; i += 4 {
+			copy(buf[:], g[i:])
+			s += binary.LittleEndian.Uint32(buf[:])
+		}
+		sink = uint64(s)
+	}
+}
+
+// TODO: 2 byte and 8 byte benchmarks also.
+
+var g [4096]byte

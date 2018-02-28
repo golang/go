@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-// In assembly.
+// Defined by the runtime package.
 func signal_disable(uint32)
 func signal_enable(uint32)
 func signal_ignore(uint32)

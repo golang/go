@@ -1,20 +1,22 @@
 // run
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// http://golang.org/issue/589
+// https://golang.org/issue/589
 
 package main
+
+import "unsafe"
 
 var bug = false
 
 var minus1 = -1
 var five = 5
-var big int64 = 10 | 1<<32
+var big int64 = 10 | 1<<40
 
-type block [1<<19]byte
+type block [1 << 19]byte
 
 var g1 []block
 
@@ -48,18 +50,10 @@ func bigcap() {
 	g1 = make([]block, 10, big)
 }
 
-var g3 map[block]block
-func badmapcap() {
-	g3 = make(map[block]block, minus1)
-}
-
-func bigmapcap() {
-	g3 = make(map[block]block, big)
-}
-
-type cblock [1<<16-1]byte
+type cblock [1<<16 - 1]byte
 
 var g4 chan cblock
+
 func badchancap() {
 	g4 = make(chan cblock, minus1)
 }
@@ -69,7 +63,8 @@ func bigchancap() {
 }
 
 func overflowchan() {
-	g4 = make(chan cblock, 1<<30)
+	const ptrSize = unsafe.Sizeof(uintptr(0))
+	g4 = make(chan cblock, 1<<(30*(ptrSize/4)))
 }
 
 func main() {
@@ -78,8 +73,6 @@ func main() {
 	shouldfail(badcap, "badcap")
 	shouldfail(badcap1, "badcap1")
 	shouldfail(bigcap, "bigcap")
-	shouldfail(badmapcap, "badmapcap")
-	shouldfail(bigmapcap, "bigmapcap")
 	shouldfail(badchancap, "badchancap")
 	shouldfail(bigchancap, "bigchancap")
 	shouldfail(overflowchan, "overflowchan")

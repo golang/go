@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,7 +17,7 @@ func maxListenerBacklog() int {
 		return syscall.SOMAXCONN
 	}
 	f := getFields(l)
-	n, _, ok := dtoi(f[0], 0)
+	n, _, ok := dtoi(f[0])
 	if n == 0 || !ok {
 		return syscall.SOMAXCONN
 	}

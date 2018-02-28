@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"os"
 	"runtime"
+	"strings"
 	"testing"
 	"testing/quick"
 	. "time"
@@ -22,7 +24,7 @@ import (
 // the subsequent tests fail.
 func TestZoneData(t *testing.T) {
 	lt := Now()
-	// PST is 8 hours west, PDT is 7 hours west.  We could use the name but it's not unique.
+	// PST is 8 hours west, PDT is 7 hours west. We could use the name but it's not unique.
 	if name, off := lt.Zone(); off != -8*60*60 && off != -7*60*60 {
 		t.Errorf("Unable to find US Pacific time zone data for testing; time zone is %q offset %d", name, off)
 		t.Error("Likely problem: the time zone files have not been installed.")
@@ -231,6 +233,7 @@ var truncateRoundTests = []struct {
 	{Date(-1, January, 1, 12, 15, 31, 5e8, UTC), 3},
 	{Date(2012, January, 1, 12, 15, 30, 5e8, UTC), Second},
 	{Date(2012, January, 1, 12, 15, 31, 5e8, UTC), Second},
+	{Unix(-19012425939, 649146258), 7435029458905025217}, // 5.8*d rounds to 6*d, but .8*d+.8*d < 0 < d
 }
 
 func TestTruncateRound(t *testing.T) {
@@ -533,7 +536,7 @@ var durationTests = []struct {
 	str string
 	d   Duration
 }{
-	{"0", 0},
+	{"0s", 0},
 	{"1ns", 1 * Nanosecond},
 	{"1.1µs", 1100 * Nanosecond},
 	{"2.2ms", 2200 * Microsecond},
@@ -572,6 +575,7 @@ var dateTests = []struct {
 	{2011, 3, 13, 1, 59, 59, 0, Local, 1300010399}, // 1:59:59 PST
 	{2011, 3, 13, 3, 0, 0, 0, Local, 1300010400},   // 3:00:00 PDT
 	{2011, 3, 13, 2, 30, 0, 0, Local, 1300008600},  // 2:30:00 PDT ≡ 1:30 PST
+	{2012, 12, 24, 0, 0, 0, 0, Local, 1356336000},  // Leap year
 
 	// Many names for Fri Nov 18 7:56:35 PST 2011
 	{2011, 11, 18, 7, 56, 35, 0, Local, 1321631795},                 // Nov 18 7:56:35
@@ -830,7 +834,7 @@ var parseDurationTests = []struct {
 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
 	// large value
 	{"52763797000ns", true, 52763797000 * Nanosecond},
-	// more than 9 digits after decimal point, see http://golang.org/issue/6617
+	// more than 9 digits after decimal point, see https://golang.org/issue/6617
 	{"0.3333333333333333333h", true, 20 * Minute},
 	// 9007199254740993 = 1<<53+1 cannot be stored precisely in a float64
 	{"9007199254740993ns", true, (1<<53 + 1) * Nanosecond},
@@ -840,6 +844,10 @@ var parseDurationTests = []struct {
 	{"9223372036s854ms775us807ns", true, (1<<63 - 1) * Nanosecond},
 	// large negative value
 	{"-9223372036854775807ns", true, -1<<63 + 1*Nanosecond},
+	// huge string; issue 15011.
+	{"0.100000000000000000000h", true, 6 * Minute},
+	// This value tests the first overflow check in leadingFraction.
+	{"0.830103483285477580700h", true, 49*Minute + 48*Second + 372539827*Nanosecond},
 
 	// errors
 	{"", false, 0},
@@ -891,7 +899,7 @@ func TestLocationRace(t *testing.T) {
 	go func() {
 		c <- Now().String()
 	}()
-	Now().String()
+	_ = Now().String()
 	<-c
 	Sleep(100 * Millisecond)
 
@@ -939,8 +947,11 @@ func TestLoadFixed(t *testing.T) {
 	// but Go and most other systems use "east is positive".
 	// So GMT+1 corresponds to -3600 in the Go zone, not +3600.
 	name, offset := Now().In(loc).Zone()
-	if name != "GMT+1" || offset != -1*60*60 {
-		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q, %d", name, offset, "GMT+1", -1*60*60)
+	// The zone abbreviation is "-01" since tzdata-2016g, and "GMT+1"
+	// on earlier versions; we accept both. (Issue #17276).
+	if !(name == "GMT+1" || name == "-01") || offset != -1*60*60 {
+		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q or %q, %d",
+			name, offset, "GMT+1", "-01", -1*60*60)
 	}
 }
 
@@ -996,6 +1007,21 @@ func TestDurationNanoseconds(t *testing.T) {
 	}
 }
 
+var secDurationTests = []struct {
+	d    Duration
+	want float64
+}{
+	{Duration(300000000), 0.3},
+}
+
+func TestDurationSeconds(t *testing.T) {
+	for _, tt := range secDurationTests {
+		if got := tt.d.Seconds(); got != tt.want {
+			t.Errorf("d.Seconds() = %g; want: %g", got, tt.want)
+		}
+	}
+}
+
 var minDurationTests = []struct {
 	d    Duration
 	want float64
@@ -1004,6 +1030,7 @@ var minDurationTests = []struct {
 	{Duration(-1), -1 / 60e9},
 	{Duration(1), 1 / 60e9},
 	{Duration(60000000000), 1},
+	{Duration(3000), 5e-8},
 }
 
 func TestDurationMinutes(t *testing.T) {
@@ -1022,12 +1049,167 @@ var hourDurationTests = []struct {
 	{Duration(-1), -1 / 3600e9},
 	{Duration(1), 1 / 3600e9},
 	{Duration(3600000000000), 1},
+	{Duration(36), 1e-11},
 }
 
 func TestDurationHours(t *testing.T) {
 	for _, tt := range hourDurationTests {
 		if got := tt.d.Hours(); got != tt.want {
 			t.Errorf("d.Hours() = %g; want: %g", got, tt.want)
+		}
+	}
+}
+
+var durationTruncateTests = []struct {
+	d    Duration
+	m    Duration
+	want Duration
+}{
+	{0, Second, 0},
+	{Minute, -7 * Second, Minute},
+	{Minute, 0, Minute},
+	{Minute, 1, Minute},
+	{Minute + 10*Second, 10 * Second, Minute + 10*Second},
+	{2*Minute + 10*Second, Minute, 2 * Minute},
+	{10*Minute + 10*Second, 3 * Minute, 9 * Minute},
+	{Minute + 10*Second, Minute + 10*Second + 1, 0},
+	{Minute + 10*Second, Hour, 0},
+	{-Minute, Second, -Minute},
+	{-10 * Minute, 3 * Minute, -9 * Minute},
+	{-10 * Minute, Hour, 0},
+}
+
+func TestDurationTruncate(t *testing.T) {
+	for _, tt := range durationTruncateTests {
+		if got := tt.d.Truncate(tt.m); got != tt.want {
+			t.Errorf("Duration(%s).Truncate(%s) = %s; want: %s", tt.d, tt.m, got, tt.want)
+		}
+	}
+}
+
+var durationRoundTests = []struct {
+	d    Duration
+	m    Duration
+	want Duration
+}{
+	{0, Second, 0},
+	{Minute, -11 * Second, Minute},
+	{Minute, 0, Minute},
+	{Minute, 1, Minute},
+	{2 * Minute, Minute, 2 * Minute},
+	{2*Minute + 10*Second, Minute, 2 * Minute},
+	{2*Minute + 30*Second, Minute, 3 * Minute},
+	{2*Minute + 50*Second, Minute, 3 * Minute},
+	{-Minute, 1, -Minute},
+	{-2 * Minute, Minute, -2 * Minute},
+	{-2*Minute - 10*Second, Minute, -2 * Minute},
+	{-2*Minute - 30*Second, Minute, -3 * Minute},
+	{-2*Minute - 50*Second, Minute, -3 * Minute},
+	{8e18, 3e18, 9e18},
+	{9e18, 5e18, 1<<63 - 1},
+	{-8e18, 3e18, -9e18},
+	{-9e18, 5e18, -1 << 63},
+	{3<<61 - 1, 3 << 61, 3 << 61},
+}
+
+func TestDurationRound(t *testing.T) {
+	for _, tt := range durationRoundTests {
+		if got := tt.d.Round(tt.m); got != tt.want {
+			t.Errorf("Duration(%s).Round(%s) = %s; want: %s", tt.d, tt.m, got, tt.want)
+		}
+	}
+}
+
+var defaultLocTests = []struct {
+	name string
+	f    func(t1, t2 Time) bool
+}{
+	{"After", func(t1, t2 Time) bool { return t1.After(t2) == t2.After(t1) }},
+	{"Before", func(t1, t2 Time) bool { return t1.Before(t2) == t2.Before(t1) }},
+	{"Equal", func(t1, t2 Time) bool { return t1.Equal(t2) == t2.Equal(t1) }},
+
+	{"IsZero", func(t1, t2 Time) bool { return t1.IsZero() == t2.IsZero() }},
+	{"Date", func(t1, t2 Time) bool {
+		a1, b1, c1 := t1.Date()
+		a2, b2, c2 := t2.Date()
+		return a1 == a2 && b1 == b2 && c1 == c2
+	}},
+	{"Year", func(t1, t2 Time) bool { return t1.Year() == t2.Year() }},
+	{"Month", func(t1, t2 Time) bool { return t1.Month() == t2.Month() }},
+	{"Day", func(t1, t2 Time) bool { return t1.Day() == t2.Day() }},
+	{"Weekday", func(t1, t2 Time) bool { return t1.Weekday() == t2.Weekday() }},
+	{"ISOWeek", func(t1, t2 Time) bool {
+		a1, b1 := t1.ISOWeek()
+		a2, b2 := t2.ISOWeek()
+		return a1 == a2 && b1 == b2
+	}},
+	{"Clock", func(t1, t2 Time) bool {
+		a1, b1, c1 := t1.Clock()
+		a2, b2, c2 := t2.Clock()
+		return a1 == a2 && b1 == b2 && c1 == c2
+	}},
+	{"Hour", func(t1, t2 Time) bool { return t1.Hour() == t2.Hour() }},
+	{"Minute", func(t1, t2 Time) bool { return t1.Minute() == t2.Minute() }},
+	{"Second", func(t1, t2 Time) bool { return t1.Second() == t2.Second() }},
+	{"Nanosecond", func(t1, t2 Time) bool { return t1.Hour() == t2.Hour() }},
+	{"YearDay", func(t1, t2 Time) bool { return t1.YearDay() == t2.YearDay() }},
+
+	// Using Equal since Add don't modify loc using "==" will cause a fail
+	{"Add", func(t1, t2 Time) bool { return t1.Add(Hour).Equal(t2.Add(Hour)) }},
+	{"Sub", func(t1, t2 Time) bool { return t1.Sub(t2) == t2.Sub(t1) }},
+
+	//Original caus for this test case bug 15852
+	{"AddDate", func(t1, t2 Time) bool { return t1.AddDate(1991, 9, 3) == t2.AddDate(1991, 9, 3) }},
+
+	{"UTC", func(t1, t2 Time) bool { return t1.UTC() == t2.UTC() }},
+	{"Local", func(t1, t2 Time) bool { return t1.Local() == t2.Local() }},
+	{"In", func(t1, t2 Time) bool { return t1.In(UTC) == t2.In(UTC) }},
+
+	{"Local", func(t1, t2 Time) bool { return t1.Local() == t2.Local() }},
+	{"Zone", func(t1, t2 Time) bool {
+		a1, b1 := t1.Zone()
+		a2, b2 := t2.Zone()
+		return a1 == a2 && b1 == b2
+	}},
+
+	{"Unix", func(t1, t2 Time) bool { return t1.Unix() == t2.Unix() }},
+	{"UnixNano", func(t1, t2 Time) bool { return t1.UnixNano() == t2.UnixNano() }},
+
+	{"MarshalBinary", func(t1, t2 Time) bool {
+		a1, b1 := t1.MarshalBinary()
+		a2, b2 := t2.MarshalBinary()
+		return bytes.Equal(a1, a2) && b1 == b2
+	}},
+	{"GobEncode", func(t1, t2 Time) bool {
+		a1, b1 := t1.GobEncode()
+		a2, b2 := t2.GobEncode()
+		return bytes.Equal(a1, a2) && b1 == b2
+	}},
+	{"MarshalJSON", func(t1, t2 Time) bool {
+		a1, b1 := t1.MarshalJSON()
+		a2, b2 := t2.MarshalJSON()
+		return bytes.Equal(a1, a2) && b1 == b2
+	}},
+	{"MarshalText", func(t1, t2 Time) bool {
+		a1, b1 := t1.MarshalText()
+		a2, b2 := t2.MarshalText()
+		return bytes.Equal(a1, a2) && b1 == b2
+	}},
+
+	{"Truncate", func(t1, t2 Time) bool { return t1.Truncate(Hour).Equal(t2.Truncate(Hour)) }},
+	{"Round", func(t1, t2 Time) bool { return t1.Round(Hour).Equal(t2.Round(Hour)) }},
+
+	{"== Time{}", func(t1, t2 Time) bool { return (t1 == Time{}) == (t2 == Time{}) }},
+}
+
+func TestDefaultLoc(t *testing.T) {
+	// Verify that all of Time's methods behave identically if loc is set to
+	// nil or UTC.
+	for _, tt := range defaultLocTests {
+		t1 := Time{}
+		t2 := Time{}.UTC()
+		if !tt.f(t1, t2) {
+			t.Errorf("Time{} and Time{}.UTC() behave differently for %s", tt.name)
 		}
 	}
 }
@@ -1057,6 +1239,20 @@ func BenchmarkFormatNow(b *testing.B) {
 	t := Now()
 	for i := 0; i < b.N; i++ {
 		t.Format("Mon Jan  2 15:04:05 2006")
+	}
+}
+
+func BenchmarkMarshalJSON(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalJSON()
+	}
+}
+
+func BenchmarkMarshalText(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalText()
 	}
 }
 
@@ -1098,5 +1294,38 @@ func BenchmarkDay(b *testing.B) {
 	t := Now()
 	for i := 0; i < b.N; i++ {
 		_ = t.Day()
+	}
+}
+
+func TestMarshalBinaryZeroTime(t *testing.T) {
+	t0 := Time{}
+	enc, err := t0.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t1 := Now() // not zero
+	if err := t1.UnmarshalBinary(enc); err != nil {
+		t.Fatal(err)
+	}
+	if t1 != t0 {
+		t.Errorf("t0=%#v\nt1=%#v\nwant identical structures", t0, t1)
+	}
+}
+
+// Issue 17720: Zero value of time.Month fails to print
+func TestZeroMonthString(t *testing.T) {
+	if got, want := Month(0).String(), "%!Month(0)"; got != want {
+		t.Errorf("zero month = %q; want %q", got, want)
+	}
+}
+
+func TestReadFileLimit(t *testing.T) {
+	const zero = "/dev/zero"
+	if _, err := os.Stat(zero); err != nil {
+		t.Skip("skipping test without a /dev/zero")
+	}
+	_, err := ReadFile(zero)
+	if err == nil || !strings.Contains(err.Error(), "is too large") {
+		t.Errorf("readFile(%q) error = %v; want error containing 'is too large'", zero, err)
 	}
 }

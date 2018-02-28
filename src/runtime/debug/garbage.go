@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -71,7 +71,7 @@ func ReadGCStats(stats *GCStats) {
 			// See the allocation at the top of the function.
 			sorted := stats.Pause[n : n+n]
 			copy(sorted, stats.Pause)
-			sort.Sort(byDuration(sorted))
+			sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
 			nq := len(stats.PauseQuantiles) - 1
 			for i := 0; i < nq; i++ {
 				stats.PauseQuantiles[i] = sorted[len(sorted)*i/nq]
@@ -81,12 +81,6 @@ func ReadGCStats(stats *GCStats) {
 	}
 }
 
-type byDuration []time.Duration
-
-func (x byDuration) Len() int           { return len(x) }
-func (x byDuration) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byDuration) Less(i, j int) bool { return x[i] < x[j] }
-
 // SetGCPercent sets the garbage collection target percentage:
 // a collection is triggered when the ratio of freshly allocated data
 // to live data remaining after the previous collection reaches this percentage.
@@ -95,9 +89,7 @@ func (x byDuration) Less(i, j int) bool { return x[i] < x[j] }
 // at startup, or 100 if the variable is not set.
 // A negative percentage disables garbage collection.
 func SetGCPercent(percent int) int {
-	old := setGCPercent(int32(percent))
-	runtime.GC()
-	return int(old)
+	return int(setGCPercent(int32(percent)))
 }
 
 // FreeOSMemory forces a garbage collection followed by an
@@ -155,5 +147,22 @@ func SetPanicOnFault(enabled bool) bool {
 
 // WriteHeapDump writes a description of the heap and the objects in
 // it to the given file descriptor.
-// The heap dump format is defined at http://golang.org/s/go13heapdump.
+//
+// WriteHeapDump suspends the execution of all goroutines until the heap
+// dump is completely written.  Thus, the file descriptor must not be
+// connected to a pipe or socket whose other end is in the same Go
+// process; instead, use a temporary file or network socket.
+//
+// The heap dump format is defined at https://golang.org/s/go15heapdump.
 func WriteHeapDump(fd uintptr)
+
+// SetTraceback sets the amount of detail printed by the runtime in
+// the traceback it prints before exiting due to an unrecovered panic
+// or an internal runtime error.
+// The level argument takes the same values as the GOTRACEBACK
+// environment variable. For example, SetTraceback("all") ensure
+// that the program prints all goroutines when it crashes.
+// See the package runtime documentation for details.
+// If SetTraceback is called with a level lower than that of the
+// environment variable, the call is ignored.
+func SetTraceback(level string)

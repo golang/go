@@ -17,7 +17,7 @@
 // Licence: I hereby disclaim the copyright on this code and place it
 // in the public domain.
 
-TEXT	·block(SB),NOSPLIT,$0-32
+TEXT	·block(SB),NOSPLIT,$0-16
 	MOVL	dig+0(FP),	R11
 	MOVL	p+4(FP),	SI
 	MOVL	p_len+8(FP), DX

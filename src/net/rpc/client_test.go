@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -53,9 +52,6 @@ func (s *S) Recv(nul *struct{}, reply *R) error {
 }
 
 func TestGobError(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/8908")
-	}
 	defer func() {
 		err := recover()
 		if err == nil {

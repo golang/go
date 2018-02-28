@@ -311,7 +311,7 @@ func (e *encoder) writeDQT() {
 	}
 }
 
-// writeSOF0 writes the Start Of Frame (Baseline) marker.
+// writeSOF0 writes the Start Of Frame (Baseline Sequential) marker.
 func (e *encoder) writeSOF0(size image.Point, nComponent int) {
 	markerlen := 8 + 3*nComponent
 	e.writeMarkerHeader(sof0Marker, markerlen)
@@ -441,6 +441,30 @@ func rgbaToYCbCr(m *image.RGBA, p image.Point, yBlock, cbBlock, crBlock *block) 
 	}
 }
 
+// yCbCrToYCbCr is a specialized version of toYCbCr for image.YCbCr images.
+func yCbCrToYCbCr(m *image.YCbCr, p image.Point, yBlock, cbBlock, crBlock *block) {
+	b := m.Bounds()
+	xmax := b.Max.X - 1
+	ymax := b.Max.Y - 1
+	for j := 0; j < 8; j++ {
+		sy := p.Y + j
+		if sy > ymax {
+			sy = ymax
+		}
+		for i := 0; i < 8; i++ {
+			sx := p.X + i
+			if sx > xmax {
+				sx = xmax
+			}
+			yi := m.YOffset(sx, sy)
+			ci := m.COffset(sx, sy)
+			yBlock[8*j+i] = int32(m.Y[yi])
+			cbBlock[8*j+i] = int32(m.Cb[ci])
+			crBlock[8*j+i] = int32(m.Cr[ci])
+		}
+	}
+}
+
 // scale scales the 16x16 region represented by the 4 src blocks to the 8x8
 // dst block.
 func scale(dst *block, src *[4]block) {
@@ -510,6 +534,7 @@ func (e *encoder) writeSOS(m image.Image) {
 		}
 	default:
 		rgba, _ := m.(*image.RGBA)
+		ycbcr, _ := m.(*image.YCbCr)
 		for y := bounds.Min.Y; y < bounds.Max.Y; y += 16 {
 			for x := bounds.Min.X; x < bounds.Max.X; x += 16 {
 				for i := 0; i < 4; i++ {
@@ -518,6 +543,8 @@ func (e *encoder) writeSOS(m image.Image) {
 					p := image.Pt(x+xOff, y+yOff)
 					if rgba != nil {
 						rgbaToYCbCr(rgba, p, &b, &cb[i], &cr[i])
+					} else if ycbcr != nil {
+						yCbCrToYCbCr(ycbcr, p, &b, &cb[i], &cr[i])
 					} else {
 						toYCbCr(m, p, &b, &cb[i], &cr[i])
 					}

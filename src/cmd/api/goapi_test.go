@@ -1,6 +1,4 @@
-// +build api_tool
-
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -38,9 +37,11 @@ func TestGolden(t *testing.T) {
 			continue
 		}
 
-		goldenFile := filepath.Join("testdata", "src", fi.Name(), "golden.txt")
+		// TODO(gri) remove extra pkg directory eventually
+		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
 		w := NewWalker(nil, "testdata/src/pkg")
-		w.export(w.Import(fi.Name()))
+		pkg, _ := w.Import(fi.Name())
+		w.export(pkg)
 
 		if *updateGolden {
 			os.Remove(goldenFile)
@@ -115,7 +116,7 @@ func TestCompareAPI(t *testing.T) {
 			out:       "",
 		},
 		{
-			// http://golang.org/issue/4303
+			// https://golang.org/issue/4303
 			name: "contexts reconverging",
 			required: []string{
 				"A",
@@ -132,7 +133,7 @@ func TestCompareAPI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		buf := new(bytes.Buffer)
-		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception)
+		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
 		if gotok != tt.ok {
 			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)
 		}
@@ -163,7 +164,7 @@ func TestSkipInternal(t *testing.T) {
 }
 
 func BenchmarkAll(b *testing.B) {
-	stds, err := exec.Command("go", "list", "std").Output()
+	stds, err := exec.Command(testenv.GoToolPath(b), "list", "std").Output()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -178,8 +179,9 @@ func BenchmarkAll(b *testing.B) {
 		for _, context := range contexts {
 			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
 			for _, name := range pkgNames {
-				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
-					w.export(w.Import(name))
+				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") && !internalPkg.MatchString(name) {
+					pkg, _ := w.Import(name)
+					w.export(pkg)
 				}
 			}
 			w.Features()

@@ -1,0 +1,169 @@
+pkg crypto, const BLAKE2b_256 = 17
+pkg crypto, const BLAKE2b_256 Hash
+pkg crypto, const BLAKE2b_384 = 18
+pkg crypto, const BLAKE2b_384 Hash
+pkg crypto, const BLAKE2b_512 = 19
+pkg crypto, const BLAKE2b_512 Hash
+pkg crypto, const BLAKE2s_256 = 16
+pkg crypto, const BLAKE2s_256 Hash
+pkg crypto/x509, type Certificate struct, ExcludedDNSDomains []string
+pkg database/sql, method (*Conn) BeginTx(context.Context, *TxOptions) (*Tx, error)
+pkg database/sql, method (*Conn) Close() error
+pkg database/sql, method (*Conn) ExecContext(context.Context, string, ...interface{}) (Result, error)
+pkg database/sql, method (*Conn) PingContext(context.Context) error
+pkg database/sql, method (*Conn) PrepareContext(context.Context, string) (*Stmt, error)
+pkg database/sql, method (*Conn) QueryContext(context.Context, string, ...interface{}) (*Rows, error)
+pkg database/sql, method (*Conn) QueryRowContext(context.Context, string, ...interface{}) *Row
+pkg database/sql, method (*DB) Conn(context.Context) (*Conn, error)
+pkg database/sql, type Conn struct
+pkg database/sql, type Out struct
+pkg database/sql, type Out struct, Dest interface{}
+pkg database/sql, type Out struct, In bool
+pkg database/sql, var ErrConnDone error
+pkg database/sql/driver, type NamedValueChecker interface { CheckNamedValue }
+pkg database/sql/driver, type NamedValueChecker interface, CheckNamedValue(*NamedValue) error
+pkg database/sql/driver, var ErrRemoveArgument error
+pkg encoding/asn1, const TagNull = 5
+pkg encoding/asn1, const TagNull ideal-int
+pkg encoding/asn1, var NullBytes []uint8
+pkg encoding/asn1, var NullRawValue RawValue
+pkg encoding/base32, const NoPadding = -1
+pkg encoding/base32, const NoPadding int32
+pkg encoding/base32, const StdPadding = 61
+pkg encoding/base32, const StdPadding int32
+pkg encoding/base32, method (Encoding) WithPadding(int32) *Encoding
+pkg encoding/csv, type Reader struct, ReuseRecord bool
+pkg encoding/json, func Valid([]uint8) bool
+pkg go/ast, type TypeSpec struct, Assign token.Pos
+pkg go/types, func SizesFor(string, string) Sizes
+pkg go/types, method (*TypeName) IsAlias() bool
+pkg hash/fnv, func New128() hash.Hash
+pkg hash/fnv, func New128a() hash.Hash
+pkg html/template, const ErrPredefinedEscaper = 11
+pkg html/template, const ErrPredefinedEscaper ErrorCode
+pkg image/png, type Encoder struct, BufferPool EncoderBufferPool
+pkg image/png, type EncoderBuffer struct
+pkg image/png, type EncoderBufferPool interface { Get, Put }
+pkg image/png, type EncoderBufferPool interface, Get() *EncoderBuffer
+pkg image/png, type EncoderBufferPool interface, Put(*EncoderBuffer)
+pkg math/big, method (*Int) IsInt64() bool
+pkg math/big, method (*Int) IsUint64() bool
+pkg math/big, type Word uint
+pkg math/bits, const UintSize = 64
+pkg math/bits, const UintSize ideal-int
+pkg math/bits, func LeadingZeros(uint) int
+pkg math/bits, func LeadingZeros16(uint16) int
+pkg math/bits, func LeadingZeros32(uint32) int
+pkg math/bits, func LeadingZeros64(uint64) int
+pkg math/bits, func LeadingZeros8(uint8) int
+pkg math/bits, func Len(uint) int
+pkg math/bits, func Len16(uint16) int
+pkg math/bits, func Len32(uint32) int
+pkg math/bits, func Len64(uint64) int
+pkg math/bits, func Len8(uint8) int
+pkg math/bits, func OnesCount(uint) int
+pkg math/bits, func OnesCount16(uint16) int
+pkg math/bits, func OnesCount32(uint32) int
+pkg math/bits, func OnesCount64(uint64) int
+pkg math/bits, func OnesCount8(uint8) int
+pkg math/bits, func Reverse(uint) uint
+pkg math/bits, func Reverse16(uint16) uint16
+pkg math/bits, func Reverse32(uint32) uint32
+pkg math/bits, func Reverse64(uint64) uint64
+pkg math/bits, func Reverse8(uint8) uint8
+pkg math/bits, func ReverseBytes(uint) uint
+pkg math/bits, func ReverseBytes16(uint16) uint16
+pkg math/bits, func ReverseBytes32(uint32) uint32
+pkg math/bits, func ReverseBytes64(uint64) uint64
+pkg math/bits, func RotateLeft(uint, int) uint
+pkg math/bits, func RotateLeft16(uint16, int) uint16
+pkg math/bits, func RotateLeft32(uint32, int) uint32
+pkg math/bits, func RotateLeft64(uint64, int) uint64
+pkg math/bits, func RotateLeft8(uint8, int) uint8
+pkg math/bits, func TrailingZeros(uint) int
+pkg math/bits, func TrailingZeros16(uint16) int
+pkg math/bits, func TrailingZeros32(uint32) int
+pkg math/bits, func TrailingZeros64(uint64) int
+pkg math/bits, func TrailingZeros8(uint8) int
+pkg mime, var ErrInvalidMediaParameter error
+pkg mime/multipart, type FileHeader struct, Size int64
+pkg mime/multipart, var ErrMessageTooLarge error
+pkg net, method (*IPConn) SyscallConn() (syscall.RawConn, error)
+pkg net, method (*TCPConn) SyscallConn() (syscall.RawConn, error)
+pkg net, method (*UDPConn) SyscallConn() (syscall.RawConn, error)
+pkg net, method (*UnixConn) SyscallConn() (syscall.RawConn, error)
+pkg net, type Resolver struct, Dial func(context.Context, string, string) (Conn, error)
+pkg net, type Resolver struct, StrictErrors bool
+pkg net/http, func ServeTLS(net.Listener, Handler, string, string) error
+pkg net/http, method (*Server) RegisterOnShutdown(func())
+pkg net/http, method (*Server) ServeTLS(net.Listener, string, string) error
+pkg net/http/fcgi, func ProcessEnv(*http.Request) map[string]string
+pkg net/http/httptest, method (*Server) Certificate() *x509.Certificate
+pkg net/http/httptest, method (*Server) Client() *http.Client
+pkg reflect, func MakeMapWithSize(Type, int) Value
+pkg runtime/pprof, func Do(context.Context, LabelSet, func(context.Context))
+pkg runtime/pprof, func ForLabels(context.Context, func(string, string) bool)
+pkg runtime/pprof, func Label(context.Context, string) (string, bool)
+pkg runtime/pprof, func Labels(...string) LabelSet
+pkg runtime/pprof, func SetGoroutineLabels(context.Context)
+pkg runtime/pprof, func WithLabels(context.Context, LabelSet) context.Context
+pkg runtime/pprof, type LabelSet struct
+pkg sync, method (*Map) Delete(interface{})
+pkg sync, method (*Map) Load(interface{}) (interface{}, bool)
+pkg sync, method (*Map) LoadOrStore(interface{}, interface{}) (interface{}, bool)
+pkg sync, method (*Map) Range(func(interface{}, interface{}) bool)
+pkg sync, method (*Map) Store(interface{}, interface{})
+pkg sync, type Map struct
+pkg syscall (darwin-386-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (darwin-386), type Credential struct, NoSetGroups bool
+pkg syscall (darwin-amd64-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (darwin-amd64), type Credential struct, NoSetGroups bool
+pkg syscall (freebsd-386-cgo), func Pipe2([]int, int) error
+pkg syscall (freebsd-386-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (freebsd-386), func Pipe2([]int, int) error
+pkg syscall (freebsd-386), type Credential struct, NoSetGroups bool
+pkg syscall (freebsd-amd64-cgo), func Pipe2([]int, int) error
+pkg syscall (freebsd-amd64-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (freebsd-amd64), func Pipe2([]int, int) error
+pkg syscall (freebsd-amd64), type Credential struct, NoSetGroups bool
+pkg syscall (freebsd-arm-cgo), func Pipe2([]int, int) error
+pkg syscall (freebsd-arm-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (freebsd-arm), func Pipe2([]int, int) error
+pkg syscall (freebsd-arm), type Credential struct, NoSetGroups bool
+pkg syscall (linux-386-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (linux-386-cgo), type SysProcAttr struct, AmbientCaps []uintptr
+pkg syscall (linux-386), type Credential struct, NoSetGroups bool
+pkg syscall (linux-386), type SysProcAttr struct, AmbientCaps []uintptr
+pkg syscall (linux-amd64-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, AmbientCaps []uintptr
+pkg syscall (linux-amd64), type Credential struct, NoSetGroups bool
+pkg syscall (linux-amd64), type SysProcAttr struct, AmbientCaps []uintptr
+pkg syscall (linux-arm-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, AmbientCaps []uintptr
+pkg syscall (linux-arm), type Credential struct, NoSetGroups bool
+pkg syscall (linux-arm), type SysProcAttr struct, AmbientCaps []uintptr
+pkg syscall (netbsd-386-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (netbsd-386), type Credential struct, NoSetGroups bool
+pkg syscall (netbsd-amd64-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (netbsd-amd64), type Credential struct, NoSetGroups bool
+pkg syscall (netbsd-arm-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (netbsd-arm), type Credential struct, NoSetGroups bool
+pkg syscall (openbsd-386-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (openbsd-386), type Credential struct, NoSetGroups bool
+pkg syscall (openbsd-amd64-cgo), type Credential struct, NoSetGroups bool
+pkg syscall (openbsd-amd64), type Credential struct, NoSetGroups bool
+pkg syscall (windows-386), const WSAECONNABORTED = 10053
+pkg syscall (windows-386), const WSAECONNABORTED Errno
+pkg syscall (windows-amd64), const WSAECONNABORTED = 10053
+pkg syscall (windows-amd64), const WSAECONNABORTED Errno
+pkg syscall, type Conn interface { SyscallConn }
+pkg syscall, type Conn interface, SyscallConn() (RawConn, error)
+pkg syscall, type RawConn interface { Control, Read, Write }
+pkg syscall, type RawConn interface, Control(func(uintptr)) error
+pkg syscall, type RawConn interface, Read(func(uintptr) bool) error
+pkg syscall, type RawConn interface, Write(func(uintptr) bool) error
+pkg testing, method (*B) Helper()
+pkg testing, method (*T) Helper()
+pkg testing, type TB interface, Helper()
+pkg time, method (Duration) Round(Duration) Duration
+pkg time, method (Duration) Truncate(Duration) Duration

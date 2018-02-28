@@ -6,16 +6,16 @@
 <h2 id="introduction">A Quick Guide to Go's Assembler</h2>
 
 <p>
-This document is a quick outline of the unusual form of assembly language used by the <code>gc</code>
-suite of Go compilers (<code>6g</code>, <code>8g</code>, etc.).
+This document is a quick outline of the unusual form of assembly language used by the <code>gc</code> Go compiler.
 The document is not comprehensive.
 </p>
 
 <p>
-The assembler is based on the input to the Plan 9 assemblers, which is documented in detail
-<a href="http://plan9.bell-labs.com/sys/doc/asm.html">on the Plan 9 site</a>.
+The assembler is based on the input style of the Plan 9 assemblers, which is documented in detail
+<a href="https://9p.io/sys/doc/asm.html">elsewhere</a>.
 If you plan to write assembly language, you should read that document although much of it is Plan 9-specific.
-This document provides a summary of the syntax and
+The current document provides a summary of the syntax and the differences with
+what is explained in that document, and
 describes the peculiarities that apply when writing assembly code to interact with Go.
 </p>
 
@@ -23,12 +23,14 @@ describes the peculiarities that apply when writing assembly code to interact wi
 The most important thing to know about Go's assembler is that it is not a direct representation of the underlying machine.
 Some of the details map precisely to the machine, but some do not.
 This is because the compiler suite (see
-<a href="http://plan9.bell-labs.com/sys/doc/compiler.html">this description</a>)
+<a href="https://9p.io/sys/doc/compiler.html">this description</a>)
 needs no assembler pass in the usual pipeline.
-Instead, the compiler emits a kind of incompletely defined instruction set, in binary form, which the linker
-then completes.
-In particular, the linker does instruction selection, so when you see an instruction like <code>MOV</code>
-what the linker actually generates for that operation might not be a move instruction at all, perhaps a clear or load.
+Instead, the compiler operates on a kind of semi-abstract instruction set,
+and instruction selection occurs partly after code generation.
+The assembler works on the semi-abstract form, so
+when you see an instruction like <code>MOV</code>
+what the toolchain actually generates for that operation might
+not be a move instruction at all, perhaps a clear or load.
 Or it might correspond exactly to the machine instruction with that name.
 In general, machine-specific operations tend to appear as themselves, while more general concepts like
 memory move and subroutine call and return are more abstract.
@@ -36,13 +38,15 @@ The details vary with architecture, and we apologize for the imprecision; the si
 </p>
 
 <p>
-The assembler program is a way to generate that intermediate, incompletely defined instruction sequence
-as input for the linker.
+The assembler program is a way to parse a description of that
+semi-abstract instruction set and turn it into instructions to be
+input to the linker.
 If you want to see what the instructions look like in assembly for a given architecture, say amd64, there
 are many examples in the sources of the standard library, in packages such as
 <a href="/pkg/runtime/"><code>runtime</code></a> and
 <a href="/pkg/math/big/"><code>math/big</code></a>.
-You can also examine what the compiler emits as assembly code:
+You can also examine what the compiler emits as assembly code
+(the actual output may differ from what you see here):
 </p>
 
 <pre>
@@ -52,7 +56,7 @@ package main
 func main() {
 	println(3)
 }
-$ go tool 6g -S x.go        # or: go build -gcflags -S x.go
+$ GOOS=linux GOARCH=amd64 go tool compile -S x.go        # or: go build -gcflags -S x.go
 
 --- prog list "main" ---
 0000 (x.go:3) TEXT    main+0(SB),$8-0
@@ -106,20 +110,73 @@ codeblk [0x2000,0x1d059) at offset 0x1000
 
 -->
 
+<h3 id="constants">Constants</h3>
+
+<p>
+Although the assembler takes its guidance from the Plan 9 assemblers,
+it is a distinct program, so there are some differences.
+One is in constant evaluation.
+Constant expressions in the assembler are parsed using Go's operator
+precedence, not the C-like precedence of the original.
+Thus <code>3&amp;1<<2</code> is 4, not 0—it parses as <code>(3&amp;1)<<2</code>
+not <code>3&amp;(1<<2)</code>.
+Also, constants are always evaluated as 64-bit unsigned integers.
+Thus <code>-2</code> is not the integer value minus two,
+but the unsigned 64-bit integer with the same bit pattern.
+The distinction rarely matters but
+to avoid ambiguity, division or right shift where the right operand's
+high bit is set is rejected.
+</p>
+
 <h3 id="symbols">Symbols</h3>
 
 <p>
-Some symbols, such as <code>PC</code>, <code>R0</code> and <code>SP</code>, are predeclared and refer to registers.
-There are two other predeclared symbols, <code>SB</code> (static base) and <code>FP</code> (frame pointer).
-All user-defined symbols other than jump labels are written as offsets to these pseudo-registers.
+Some symbols, such as <code>R1</code> or <code>LR</code>,
+are predefined and refer to registers.
+The exact set depends on the architecture.
+</p>
+
+<p>
+There are four predeclared symbols that refer to pseudo-registers.
+These are not real registers, but rather virtual registers maintained by
+the toolchain, such as a frame pointer.
+The set of pseudo-registers is the same for all architectures:
+</p>
+
+<ul>
+
+<li>
+<code>FP</code>: Frame pointer: arguments and locals.
+</li>
+
+<li>
+<code>PC</code>: Program counter:
+jumps and branches.
+</li>
+
+<li>
+<code>SB</code>: Static base pointer: global symbols.
+</li>
+
+<li>
+<code>SP</code>: Stack pointer: top of stack.
+</li>
+
+</ul>
+
+<p>
+All user-defined symbols are written as offsets to the pseudo-registers
+<code>FP</code> (arguments and locals) and <code>SB</code> (globals).
 </p>
 
 <p>
 The <code>SB</code> pseudo-register can be thought of as the origin of memory, so the symbol <code>foo(SB)</code>
 is the name <code>foo</code> as an address in memory.
 This form is used to name global functions and data.
-Adding <code>&lt;&gt;</code> to the name, as in <code>foo&lt;&gt;(SB)</code>, makes the name
+Adding <code>&lt;&gt;</code> to the name, as in <span style="white-space: nowrap"><code>foo&lt;&gt;(SB)</code></span>, makes the name
 visible only in the current source file, like a top-level <code>static</code> declaration in a C file.
+Adding an offset to the name refers to that offset from the symbol's address, so
+<code>foo+4(SB)</code> is four bytes past the start of <code>foo</code>.
 </p>
 
 <p>
@@ -128,9 +185,19 @@ used to refer to function arguments.
 The compilers maintain a virtual frame pointer and refer to the arguments on the stack as offsets from that pseudo-register.
 Thus <code>0(FP)</code> is the first argument to the function,
 <code>8(FP)</code> is the second (on a 64-bit machine), and so on.
-When referring to a function argument this way, it is conventional to place the name
+However, when referring to a function argument this way, it is necessary to place a name
 at the beginning, as in <code>first_arg+0(FP)</code> and <code>second_arg+8(FP)</code>.
-Some of the assemblers enforce this convention, rejecting plain <code>0(FP)</code> and <code>8(FP)</code>.
+(The meaning of the offset—offset from the frame pointer—distinct
+from its use with <code>SB</code>, where it is an offset from the symbol.)
+The assembler enforces this convention, rejecting plain <code>0(FP)</code> and <code>8(FP)</code>.
+The actual name is semantically irrelevant but should be used to document
+the argument's name.
+It is worth stressing that <code>FP</code> is always a
+pseudo-register, not a hardware
+register, even on architectures with a hardware frame pointer.
+</p>
+
+<p>
 For assembly functions with Go prototypes, <code>go</code> <code>vet</code> will check that the argument names
 and offsets match.
 On 32-bit systems, the low and high 32 bits of a 64-bit value are distinguished by adding
@@ -145,11 +212,51 @@ prepared for function calls.
 It points to the top of the local stack frame, so references should use negative offsets
 in the range [−framesize, 0):
 <code>x-8(SP)</code>, <code>y-4(SP)</code>, and so on.
-On architectures with a real register named <code>SP</code>, the name prefix distinguishes
-references to the virtual stack pointer from references to the architectural <code>SP</code> register.
-That is, <code>x-8(SP)</code> and <code>-8(SP)</code> are different memory locations:
-the first refers to the virtual stack pointer pseudo-register, while the second refers to the
+</p>
+
+<p>
+On architectures with a hardware register named <code>SP</code>,
+the name prefix distinguishes
+references to the virtual stack pointer from references to the architectural
+<code>SP</code> register.
+That is, <code>x-8(SP)</code> and <code>-8(SP)</code>
+are different memory locations:
+the first refers to the virtual stack pointer pseudo-register,
+while the second refers to the
 hardware's <code>SP</code> register.
+</p>
+
+<p>
+On machines where <code>SP</code> and <code>PC</code> are
+traditionally aliases for a physical, numbered register,
+in the Go assembler the names <code>SP</code> and <code>PC</code>
+are still treated specially;
+for instance, references to <code>SP</code> require a symbol,
+much like <code>FP</code>.
+To access the actual hardware register use the true <code>R</code> name.
+For example, on the ARM architecture the hardware
+<code>SP</code> and <code>PC</code> are accessible as
+<code>R13</code> and <code>R15</code>.
+</p>
+
+<p>
+Branches and direct jumps are always written as offsets to the PC, or as
+jumps to labels:
+</p>
+
+<pre>
+label:
+	MOVW $0, R1
+	JMP label
+</pre>
+
+<p>
+Each label is visible only within the function in which it is defined.
+It is therefore permitted for multiple functions in a file to define
+and use the same label names.
+Direct jumps and call instructions can target text symbols,
+such as <code>name(SB)</code>, but not offsets from symbols,
+such as <code>name+4(SB)</code>.
 </p>
 
 <p>
@@ -312,10 +419,16 @@ This data contains no pointers and therefore does not need to be
 scanned by the garbage collector.
 </li>
 <li>
-<code>WRAPPER</code>  = 32
+<code>WRAPPER</code> = 32
 <br>
 (For <code>TEXT</code> items.)
 This is a wrapper function and should not count as disabling <code>recover</code>.
+</li>
+<li>
+<code>NEEDCTXT</code> = 64
+<br>
+(For <code>TEXT</code> items.)
+This function is a closure so it uses its incoming context register.
 </li>
 </ul>
 
@@ -397,46 +510,72 @@ the stack pointer may change during any function call:
 even pointers to stack data must not be kept in local variables.
 </p>
 
+<p>
+Assembly functions should always be given Go prototypes,
+both to provide pointer information for the arguments and results
+and to let <code>go</code> <code>vet</code> check that
+the offsets being used to access them are correct.
+</p>
+
 <h2 id="architectures">Architecture-specific details</h2>
 
 <p>
 It is impractical to list all the instructions and other details for each machine.
-To see what instructions are defined for a given machine, say 32-bit Intel x86,
-look in the top-level header file for the corresponding linker, in this case <code>8l</code>.
-That is, the file <code>$GOROOT/src/cmd/8l/8.out.h</code> contains a C enumeration, called <code>as</code>,
-of the instructions and their spellings as known to the assembler and linker for that architecture.
-In that file you'll find a declaration that begins
+To see what instructions are defined for a given machine, say ARM,
+look in the source for the <code>obj</code> support library for
+that architecture, located in the directory <code>src/cmd/internal/obj/arm</code>.
+In that directory is a file <code>a.out.go</code>; it contains
+a long list of constants starting with <code>A</code>, like this:
 </p>
 
 <pre>
-enum	as
-{
-	AXXX,
-	AAAA,
-	AAAD,
-	AAAM,
-	AAAS,
-	AADCB,
+const (
+	AAND = obj.ABaseARM + obj.A_ARCHSPECIFIC + iota
+	AEOR
+	ASUB
+	ARSB
+	AADD
 	...
 </pre>
 
 <p>
-Each instruction begins with a  initial capital <code>A</code> in this list, so <code>AADCB</code>
-represents the <code>ADCB</code> (add carry byte) instruction.
-The enumeration is in alphabetical order, plus some late additions (<code>AXXX</code> occupies
-the zero slot as an invalid instruction).
-The sequence has nothing to do with the actual encoding of the machine instructions.
-Again, the linker takes care of that detail.
+This is the list of instructions and their spellings as known to the assembler and linker for that architecture.
+Each instruction begins with an initial capital <code>A</code> in this list, so <code>AAND</code>
+represents the bitwise and instruction,
+<code>AND</code> (without the leading <code>A</code>),
+and is written in assembly source as <code>AND</code>.
+The enumeration is mostly in alphabetical order.
+(The architecture-independent <code>AXXX</code>, defined in the
+<code>cmd/internal/obj</code> package,
+represents an invalid instruction).
+The sequence of the <code>A</code> names has nothing to do with the actual
+encoding of the machine instructions.
+The <code>cmd/internal/obj</code> package takes care of that detail.
+</p>
+
+<p>
+The instructions for both the 386 and AMD64 architectures are listed in
+<code>cmd/internal/obj/x86/a.out.go</code>.
+</p>
+
+<p>
+The architectures share syntax for common addressing modes such as
+<code>(R1)</code> (register indirect),
+<code>4(R1)</code> (register indirect with offset), and
+<code>$foo(SB)</code> (absolute address).
+The assembler also supports some (not necessarily all) addressing modes
+specific to each architecture.
+The sections below list these.
 </p>
 
 <p>
 One detail evident in the examples from the previous sections is that data in the instructions flows from left to right:
 <code>MOVQ</code> <code>$0,</code> <code>CX</code> clears <code>CX</code>.
-This convention applies even on architectures where the usual mode is the opposite direction.
+This rule applies even on architectures where the conventional notation uses the opposite direction.
 </p>
 
 <p>
-Here follows some descriptions of key Go-specific details for the supported architectures.
+Here follow some descriptions of key Go-specific details for the supported architectures.
 </p>
 
 <h3 id="x86">32-bit Intel 386</h3>
@@ -445,11 +584,11 @@ Here follows some descriptions of key Go-specific details for the supported arch
 The runtime pointer to the <code>g</code> structure is maintained
 through the value of an otherwise unused (as far as Go is concerned) register in the MMU.
 A OS-dependent macro <code>get_tls</code> is defined for the assembler if the source includes
-an architecture-dependent header file, like this:
+a special header, <code>go_asm.h</code>:
 </p>
 
 <pre>
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
 </pre>
 
 <p>
@@ -462,21 +601,48 @@ The sequence to load <code>g</code> and <code>m</code> using <code>CX</code> loo
 <pre>
 get_tls(CX)
 MOVL	g(CX), AX     // Move g into AX.
-MOVL	g_m(AX), BX   // Move g->m into BX.
+MOVL	g_m(AX), BX   // Move g.m into BX.
 </pre>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>(DI)(BX*2)</code>: The location at address <code>DI</code> plus <code>BX*2</code>.
+</li>
+
+<li>
+<code>64(DI)(BX*2)</code>: The location at address <code>DI</code> plus <code>BX*2</code> plus 64.
+These modes accept only 1, 2, 4, and 8 as scale factors.
+</li>
+
+</ul>
+
+<p>
+When using the compiler and assembler's
+<code>-dynlink</code> or <code>-shared</code> modes,
+any load or store of a fixed memory location such as a global variable
+must be assumed to overwrite <code>CX</code>.
+Therefore, to be safe for use with these modes,
+assembly sources should typically avoid CX except between memory references.
+</p>
 
 <h3 id="amd64">64-bit Intel 386 (a.k.a. amd64)</h3>
 
 <p>
-The assembly code to access the <code>m</code> and <code>g</code>
-pointers is the same as on the 386, except it uses <code>MOVQ</code> rather than
-<code>MOVL</code>:
+The two architectures behave largely the same at the assembler level.
+Assembly code to access the <code>m</code> and <code>g</code>
+pointers on the 64-bit version is the same as on the 32-bit 386,
+except it uses <code>MOVQ</code> rather than <code>MOVL</code>:
 </p>
 
 <pre>
 get_tls(CX)
 MOVQ	g(CX), AX     // Move g into AX.
-MOVQ	g_m(AX), BX   // Move g->m into BX.
+MOVQ	g_m(AX), BX   // Move g.m into BX.
 </pre>
 
 <h3 id="arm">ARM</h3>
@@ -513,6 +679,209 @@ The name <code>SP</code> always refers to the virtual stack pointer described ea
 For the hardware register, use <code>R13</code>.
 </p>
 
+<p>
+Condition code syntax is to append a period and the one- or two-letter code to the instruction,
+as in <code>MOVW.EQ</code>.
+Multiple codes may be appended: <code>MOVM.IA.W</code>.
+The order of the code modifiers is irrelevant.
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>R0-&gt;16</code>
+<br>
+<code>R0&gt;&gt;16</code>
+<br>
+<code>R0&lt;&lt;16</code>
+<br>
+<code>R0@&gt;16</code>:
+For <code>&lt;&lt;</code>, left shift <code>R0</code> by 16 bits.
+The other codes are <code>-&gt;</code> (arithmetic right shift),
+<code>&gt;&gt;</code> (logical right shift), and
+<code>@&gt;</code> (rotate right).
+</li>
+
+<li>
+<code>R0-&gt;R1</code>
+<br>
+<code>R0&gt;&gt;R1</code>
+<br>
+<code>R0&lt;&lt;R1</code>
+<br>
+<code>R0@&gt;R1</code>:
+For <code>&lt;&lt;</code>, left shift <code>R0</code> by the count in <code>R1</code>.
+The other codes are <code>-&gt;</code> (arithmetic right shift),
+<code>&gt;&gt;</code> (logical right shift), and
+<code>@&gt;</code> (rotate right).
+
+</li>
+
+<li>
+<code>[R0,g,R12-R15]</code>: For multi-register instructions, the set comprising
+<code>R0</code>, <code>g</code>, and <code>R12</code> through <code>R15</code> inclusive.
+</li>
+
+<li>
+<code>(R5, R6)</code>: Destination register pair.
+</li>
+
+</ul>
+
+<h3 id="arm64">ARM64</h3>
+
+<p>
+The ARM64 port is in an experimental state.
+</p>
+
+<p>
+Instruction modifiers are appended to the instruction following a period.
+The only modifiers are <code>P</code> (postincrement) and <code>W</code>
+(preincrement):
+<code>MOVW.P</code>, <code>MOVW.W</code>
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>(R5, R6)</code>: Register pair for <code>LDP</code>/<code>STP</code>.
+</li>
+
+</ul>
+
+<h3 id="ppc64">64-bit PowerPC, a.k.a. ppc64</h3>
+
+<p>
+The 64-bit PowerPC port is in an experimental state.
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>(R5)(R6*1)</code>: The location at <code>R5</code> plus <code>R6</code>. It is a scaled
+mode as on the x86, but the only scale allowed is <code>1</code>.
+</li>
+
+<li>
+<code>(R5+R6)</code>: Alias for (R5)(R6*1)
+</li>
+
+</ul>
+
+<h3 id="s390x">IBM z/Architecture, a.k.a. s390x</h3>
+
+<p>
+The registers <code>R10</code> and <code>R11</code> are reserved.
+The assembler uses them to hold temporary values when assembling some instructions.
+</p>
+
+<p>
+<code>R13</code> points to the <code>g</code> (goroutine) structure.
+This register must be referred to as <code>g</code>; the name <code>R13</code> is not recognized.
+</p>
+
+<p>
+<code>R15</code> points to the stack frame and should typically only be accessed using the
+virtual registers <code>SP</code> and <code>FP</code>.
+</p>
+
+<p>
+Load- and store-multiple instructions operate on a range of registers.
+The range of registers is specified by a start register and an end register.
+For example, <code>LMG</code> <code>(R9),</code> <code>R5,</code> <code>R7</code> would load
+<code>R5</code>, <code>R6</code> and <code>R7</code> with the 64-bit values at
+<code>0(R9)</code>, <code>8(R9)</code> and <code>16(R9)</code> respectively.
+</p>
+
+<p>
+Storage-and-storage instructions such as <code>MVC</code> and <code>XC</code> are written
+with the length as the first argument.
+For example, <code>XC</code> <code>$8,</code> <code>(R9),</code> <code>(R9)</code> would clear
+eight bytes at the address specified in <code>R9</code>.
+</p>
+
+<p>
+If a vector instruction takes a length or an index as an argument then it will be the
+first argument.
+For example, <code>VLEIF</code> <code>$1,</code> <code>$16,</code> <code>V2</code> will load
+the value sixteen into index one of <code>V2</code>.
+Care should be taken when using vector instructions to ensure that they are available at
+runtime.
+To use vector instructions a machine must have both the vector facility (bit 129 in the
+facility list) and kernel support.
+Without kernel support a vector instruction will have no effect (it will be equivalent
+to a <code>NOP</code> instruction).
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>(R5)(R6*1)</code>: The location at <code>R5</code> plus <code>R6</code>.
+It is a scaled mode as on the x86, but the only scale allowed is <code>1</code>.
+</li>
+
+</ul>
+
+<h3 id="mips">MIPS, MIPS64</h3>
+
+<p>
+General purpose registers are named <code>R0</code> through <code>R31</code>,
+floating point registers are <code>F0</code> through <code>F31</code>.
+</p>
+
+<p>
+<code>R30</code> is reserved to point to <code>g</code>.
+<code>R23</code> is used as a temporary register.
+</p>
+
+<p>
+In a <code>TEXT</code> directive, the frame size <code>$-4</code> for MIPS or
+<code>$-8</code> for MIPS64 instructs the linker not to save <code>LR</code>.
+</p>
+
+<p>
+<code>SP</code> refers to the virtual stack pointer.
+For the hardware register, use <code>R29</code>.
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>16(R1)</code>: The location at <code>R1</code> plus 16.
+</li>
+
+<li>
+<code>(R1)</code>: Alias for <code>0(R1)</code>.
+</li>
+
+</ul>
+
+<p>
+The value of <code>GOMIPS</code> environment variable (<code>hardfloat</code> or
+<code>softfloat</code>) is made available to assembly code by predefining either
+<code>GOMIPS_hardfloat</code> or <code>GOMIPS_softfloat</code>.
+</p>
+
 <h3 id="unsupported_opcodes">Unsupported opcodes</h3>
 
 <p>
@@ -531,11 +900,17 @@ Here's how the 386 runtime defines the 64-bit atomic load function.
 // uint64 atomicload64(uint64 volatile* addr);
 // so actually
 // void atomicload64(uint64 *res, uint64 volatile *addr);
-TEXT runtime·atomicload64(SB), NOSPLIT, $0-8
+TEXT runtime·atomicload64(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), AX
+	TESTL	$7, AX
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
 	LEAL	ret_lo+4(FP), BX
-	BYTE $0x0f; BYTE $0x6f; BYTE $0x00	// MOVQ (%EAX), %MM0
-	BYTE $0x0f; BYTE $0x7f; BYTE $0x03	// MOVQ %MM0, 0(%EBX)
-	BYTE $0x0F; BYTE $0x77			// EMMS
+	// MOVQ (%EAX), %MM0
+	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+	// MOVQ %MM0, 0(%EBX)
+	BYTE $0x0f; BYTE $0x7f; BYTE $0x03
+	// EMMS
+	BYTE $0x0F; BYTE $0x77
 	RET
 </pre>

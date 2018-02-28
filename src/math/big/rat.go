@@ -7,8 +7,6 @@
 package big
 
 import (
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"math"
 )
@@ -65,7 +63,7 @@ func (z *Rat) SetFloat64(f float64) *Rat {
 
 // quotToFloat32 returns the non-negative float32 value
 // nearest to the quotient a/b, using round-to-even in
-// halfway cases.  It does not mutate its arguments.
+// halfway cases. It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
 func quotToFloat32(a, b nat) (f float32, exact bool) {
 	const (
@@ -163,7 +161,7 @@ func quotToFloat32(a, b nat) (f float32, exact bool) {
 
 // quotToFloat64 returns the non-negative float64 value
 // nearest to the quotient a/b, using round-to-even in
-// halfway cases.  It does not mutate its arguments.
+// halfway cases. It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
 func quotToFloat64(a, b nat) (f float64, exact bool) {
 	const (
@@ -385,7 +383,7 @@ func (x *Rat) Sign() int {
 	return x.a.Sign()
 }
 
-// IsInt returns true if the denominator of x is 1.
+// IsInt reports whether the denominator of x is 1.
 func (x *Rat) IsInt() bool {
 	return len(x.b.abs) == 0 || x.b.abs.cmp(natOne) == 0
 }
@@ -424,7 +422,7 @@ func (z *Rat) norm() *Rat {
 		neg := z.a.neg
 		z.a.neg = false
 		z.b.neg = false
-		if f := NewInt(0).binaryGCD(&z.a, &z.b); f.Cmp(intOne) != 0 {
+		if f := NewInt(0).lehmerGCD(&z.a, &z.b); f.Cmp(intOne) != 0 {
 			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f.abs)
 			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f.abs)
 			if z.b.abs.cmp(natOne) == 0 {
@@ -492,6 +490,13 @@ func (z *Rat) Sub(x, y *Rat) *Rat {
 
 // Mul sets z to the product x*y and returns z.
 func (z *Rat) Mul(x, y *Rat) *Rat {
+	if x == y {
+		// a squared Rat is positive and can't be reduced
+		z.a.neg = false
+		z.a.abs = z.a.abs.sqr(x.a.abs)
+		z.b.abs = z.b.abs.sqr(x.b.abs)
+		return z
+	}
 	z.a.Mul(&x.a, &y.a)
 	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
@@ -509,62 +514,4 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
 	z.b.abs = b.abs
 	z.a.neg = a.neg != b.neg
 	return z.norm()
-}
-
-// Gob codec version. Permits backward-compatible changes to the encoding.
-const ratGobVersion byte = 1
-
-// GobEncode implements the gob.GobEncoder interface.
-func (x *Rat) GobEncode() ([]byte, error) {
-	if x == nil {
-		return nil, nil
-	}
-	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
-	i := x.b.abs.bytes(buf)
-	j := x.a.abs.bytes(buf[:i])
-	n := i - j
-	if int(uint32(n)) != n {
-		// this should never happen
-		return nil, errors.New("Rat.GobEncode: numerator too large")
-	}
-	binary.BigEndian.PutUint32(buf[j-4:j], uint32(n))
-	j -= 1 + 4
-	b := ratGobVersion << 1 // make space for sign bit
-	if x.a.neg {
-		b |= 1
-	}
-	buf[j] = b
-	return buf[j:], nil
-}
-
-// GobDecode implements the gob.GobDecoder interface.
-func (z *Rat) GobDecode(buf []byte) error {
-	if len(buf) == 0 {
-		// Other side sent a nil or default value.
-		*z = Rat{}
-		return nil
-	}
-	b := buf[0]
-	if b>>1 != ratGobVersion {
-		return errors.New(fmt.Sprintf("Rat.GobDecode: encoding version %d not supported", b>>1))
-	}
-	const j = 1 + 4
-	i := j + binary.BigEndian.Uint32(buf[j-4:j])
-	z.a.neg = b&1 != 0
-	z.a.abs = z.a.abs.setBytes(buf[j:i])
-	z.b.abs = z.b.abs.setBytes(buf[i:])
-	return nil
-}
-
-// MarshalText implements the encoding.TextMarshaler interface.
-func (r *Rat) MarshalText() (text []byte, err error) {
-	return []byte(r.RatString()), nil
-}
-
-// UnmarshalText implements the encoding.TextUnmarshaler interface.
-func (r *Rat) UnmarshalText(text []byte) error {
-	if _, ok := r.SetString(string(text)); !ok {
-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Rat", text)
-	}
-	return nil
 }

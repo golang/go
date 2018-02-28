@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -116,11 +116,11 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
 	RET
 
 TEXT ·generalCAS64(SB),NOSPLIT,$0-21
-	B  	runtime·cas64(SB)
+	B  	runtime∕internal∕atomic·Cas64(SB)
 
 GLOBL armCAS64(SB), NOPTR, $4
 
-TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4-21
+TEXT setupAndCallCAS64<>(SB),NOSPLIT|NOFRAME,$0-21
 	MOVW	$0xffff0ffc, R0 // __kuser_helper_version
 	MOVW	(R0), R0
 	// __kuser_cmpxchg64 only present if helper version >= 5
@@ -142,7 +142,7 @@ TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4-21
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
 	B   	·CompareAndSwapUint64(SB)
 
-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4-21
+TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0-21
 	MOVW	armCAS64(SB), R0
 	CMP 	$0, R0
 	MOVW.NE	R0, R15 // R15 = hardware PC

@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -19,47 +20,109 @@ type SysProcIDMap struct {
 }
 
 type SysProcAttr struct {
-	Chroot      string         // Chroot.
-	Credential  *Credential    // Credential.
-	Ptrace      bool           // Enable tracing.
-	Setsid      bool           // Create session.
-	Setpgid     bool           // Set process group ID to new pid (SYSV setpgrp)
-	Setctty     bool           // Set controlling terminal to fd Ctty (only meaningful if Setsid is set)
-	Noctty      bool           // Detach fd 0 from controlling terminal
-	Ctty        int            // Controlling TTY fd (Linux only)
-	Pdeathsig   Signal         // Signal that the process will get when its parent dies (Linux only)
-	Cloneflags  uintptr        // Flags for clone calls (Linux only)
-	UidMappings []SysProcIDMap // User ID mappings for user namespaces.
-	GidMappings []SysProcIDMap // Group ID mappings for user namespaces.
+	Chroot       string         // Chroot.
+	Credential   *Credential    // Credential.
+	Ptrace       bool           // Enable tracing.
+	Setsid       bool           // Create session.
+	Setpgid      bool           // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
+	Setctty      bool           // Set controlling terminal to fd Ctty (only meaningful if Setsid is set)
+	Noctty       bool           // Detach fd 0 from controlling terminal
+	Ctty         int            // Controlling TTY fd
+	Foreground   bool           // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
+	Pgid         int            // Child's process group ID if Setpgid.
+	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux only)
+	Cloneflags   uintptr        // Flags for clone calls (Linux only)
+	Unshareflags uintptr        // Flags for unshare calls (Linux only)
+	UidMappings  []SysProcIDMap // User ID mappings for user namespaces.
+	GidMappings  []SysProcIDMap // Group ID mappings for user namespaces.
+	// GidMappingsEnableSetgroups enabling setgroups syscall.
+	// If false, then setgroups syscall will be disabled for the child process.
+	// This parameter is no-op if GidMappings == nil. Otherwise for unprivileged
+	// users this should be set to false for mappings work.
+	GidMappingsEnableSetgroups bool
+	AmbientCaps                []uintptr // Ambient capabilities (Linux only)
 }
+
+var (
+	none  = [...]byte{'n', 'o', 'n', 'e', 0}
+	slash = [...]byte{'/', 0}
+)
 
 // Implemented in runtime package.
 func runtime_BeforeFork()
 func runtime_AfterFork()
+func runtime_AfterForkInChild()
 
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
 // If a dup or exec fails, write the errno error to pipe.
 // (Pipe is close-on-exec so if exec succeeds, it will be closed.)
 // In the child, this function must not acquire any locks, because
-// they might have been locked at the time of the fork.  This means
+// they might have been locked at the time of the fork. This means
 // no rescheduling, no malloc calls, and no new stack segments.
 // For the same reason compiler does not race instrument it.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
+//go:norace
 func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+	// Set up and fork. This returns immediately in the parent or
+	// if there's an error.
+	r1, err1, p, locked := forkAndExecInChild1(argv0, argv, envv, chroot, dir, attr, sys, pipe)
+	if locked {
+		runtime_AfterFork()
+	}
+	if err1 != 0 {
+		return 0, err1
+	}
+
+	// parent; return PID
+	pid = int(r1)
+
+	if sys.UidMappings != nil || sys.GidMappings != nil {
+		Close(p[0])
+		err := writeUidGidMappings(pid, sys)
+		var err2 Errno
+		if err != nil {
+			err2 = err.(Errno)
+		}
+		RawSyscall(SYS_WRITE, uintptr(p[1]), uintptr(unsafe.Pointer(&err2)), unsafe.Sizeof(err2))
+		Close(p[1])
+	}
+
+	return pid, 0
+}
+
+// forkAndExecInChild1 implements the body of forkAndExecInChild up to
+// the parent's post-fork path. This is a separate function so we can
+// separate the child's and parent's stack frames if we're using
+// vfork.
+//
+// This is go:noinline because the point is to keep the stack frames
+// of this and forkAndExecInChild separate.
+//
+//go:noinline
+//go:norace
+func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (r1 uintptr, err1 Errno, p [2]int, locked bool) {
+	// Defined in linux/prctl.h starting with Linux 4.3.
+	const (
+		PR_CAP_AMBIENT       = 0x2f
+		PR_CAP_AMBIENT_RAISE = 0x2
+	)
+
+	// vfork requires that the child not touch any of the parent's
+	// active stack frames. Hence, the child does all post-fork
+	// processing in this stack frame and never returns, while the
+	// parent returns immediately from this frame and does all
+	// post-fork processing in the outer frame.
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
 	var (
-		r1     uintptr
-		err1   Errno
 		err2   Errno
 		nextfd int
 		i      int
-		p      [2]int
 	)
 
 	// Record parent PID so child can test if it has died.
-	ppid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+	ppid, _ := rawSyscallNoError(SYS_GETPID, 0, 0, 0)
 
 	// Guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
@@ -78,38 +141,44 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// synchronizing writing of User ID/Group ID mappings.
 	if sys.UidMappings != nil || sys.GidMappings != nil {
 		if err := forkExecPipe(p[:]); err != nil {
-			return 0, err.(Errno)
+			err1 = err.(Errno)
+			return
 		}
 	}
 
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
-	r1, _, err1 = RawSyscall6(SYS_CLONE, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0, 0)
-	if err1 != 0 {
-		runtime_AfterFork()
-		return 0, err1
+	locked = true
+	switch {
+	case runtime.GOARCH == "amd64" && sys.Cloneflags&CLONE_NEWUSER == 0:
+		r1, err1 = rawVforkSyscall(SYS_CLONE, uintptr(SIGCHLD|CLONE_VFORK|CLONE_VM)|sys.Cloneflags)
+	case runtime.GOARCH == "s390x":
+		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)
+	default:
+		r1, _, err1 = RawSyscall6(SYS_CLONE, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0, 0)
 	}
-
-	if r1 != 0 {
-		// parent; return PID
-		runtime_AfterFork()
-		pid = int(r1)
-
-		if sys.UidMappings != nil || sys.GidMappings != nil {
-			Close(p[0])
-			err := writeUidGidMappings(pid, sys)
-			if err != nil {
-				err2 = err.(Errno)
-			}
-			RawSyscall(SYS_WRITE, uintptr(p[1]), uintptr(unsafe.Pointer(&err2)), unsafe.Sizeof(err2))
-			Close(p[1])
-		}
-
-		return pid, 0
+	if err1 != 0 || r1 != 0 {
+		// If we're in the parent, we must return immediately
+		// so we're not in the same stack frame as the child.
+		// This can at most use the return PC, which the child
+		// will not modify, and the results of
+		// rawVforkSyscall, which must have been written after
+		// the child was replaced.
+		return
 	}
 
 	// Fork succeeded, now in child.
+
+	runtime_AfterForkInChild()
+
+	// Enable the "keep capabilities" flag to set ambient capabilities later.
+	if len(sys.AmbientCaps) > 0 {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_KEEPCAPS, 1, 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
 
 	// Wait for User ID/Group ID mappings to be written.
 	if sys.UidMappings != nil || sys.GidMappings != nil {
@@ -130,34 +199,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 	}
 
-	// Parent death signal
-	if sys.Pdeathsig != 0 {
-		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_PDEATHSIG, uintptr(sys.Pdeathsig), 0, 0, 0, 0)
-		if err1 != 0 {
-			goto childerror
-		}
-
-		// Signal self if parent is already dead. This might cause a
-		// duplicate signal in rare cases, but it won't matter when
-		// using SIGKILL.
-		r1, _, _ = RawSyscall(SYS_GETPPID, 0, 0, 0)
-		if r1 != ppid {
-			pid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
-			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
-			if err1 != 0 {
-				goto childerror
-			}
-		}
-	}
-
-	// Enable tracing if requested.
-	if sys.Ptrace {
-		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
-		if err1 != 0 {
-			goto childerror
-		}
-	}
-
 	// Session ID
 	if sys.Setsid {
 		_, _, err1 = RawSyscall(SYS_SETSID, 0, 0, 0)
@@ -167,10 +208,47 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Set process group
-	if sys.Setpgid {
-		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
+	if sys.Setpgid || sys.Foreground {
+		// Place child in process group.
+		_, _, err1 = RawSyscall(SYS_SETPGID, 0, uintptr(sys.Pgid), 0)
 		if err1 != 0 {
 			goto childerror
+		}
+	}
+
+	if sys.Foreground {
+		pgrp := int32(sys.Pgid)
+		if pgrp == 0 {
+			r1, _ = rawSyscallNoError(SYS_GETPID, 0, 0, 0)
+
+			pgrp = int32(r1)
+		}
+
+		// Place process group in foreground.
+		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp)))
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Unshare
+	if sys.Unshareflags != 0 {
+		_, _, err1 = RawSyscall(SYS_UNSHARE, sys.Unshareflags, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+		// The unshare system call in Linux doesn't unshare mount points
+		// mounted with --shared. Systemd mounts / with --shared. For a
+		// long discussion of the pros and cons of this see debian bug 739593.
+		// The Go model of unsharing is more like Plan 9, where you ask
+		// to unshare and the namespaces are unconditionally unshared.
+		// To make this model work we must further mark / as MS_PRIVATE.
+		// This is what the standard unshare command does.
+		if sys.Unshareflags&CLONE_NEWNS == CLONE_NEWNS {
+			_, _, err1 = RawSyscall6(SYS_MOUNT, uintptr(unsafe.Pointer(&none[0])), uintptr(unsafe.Pointer(&slash[0])), 0, MS_REC|MS_PRIVATE, 0, 0)
+			if err1 != 0 {
+				goto childerror
+			}
 		}
 	}
 
@@ -185,19 +263,28 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// User and groups
 	if cred := sys.Credential; cred != nil {
 		ngroups := uintptr(len(cred.Groups))
-		var groups unsafe.Pointer
+		groups := uintptr(0)
 		if ngroups > 0 {
-			groups = unsafe.Pointer(&cred.Groups[0])
+			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
 		}
-		_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, uintptr(groups), 0)
+		if !(sys.GidMappings != nil && !sys.GidMappingsEnableSetgroups && ngroups == 0) && !cred.NoSetGroups {
+			_, _, err1 = RawSyscall(_SYS_setgroups, ngroups, groups, 0)
+			if err1 != 0 {
+				goto childerror
+			}
+		}
+		_, _, err1 = RawSyscall(sys_SETGID, uintptr(cred.Gid), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
-		_, _, err1 = RawSyscall(SYS_SETGID, uintptr(cred.Gid), 0, 0)
+		_, _, err1 = RawSyscall(sys_SETUID, uintptr(cred.Uid), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
-		_, _, err1 = RawSyscall(SYS_SETUID, uintptr(cred.Uid), 0, 0)
+	}
+
+	for _, c := range sys.AmbientCaps {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_CAP_AMBIENT, uintptr(PR_CAP_AMBIENT_RAISE), c, 0, 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -211,10 +298,30 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 	}
 
+	// Parent death signal
+	if sys.Pdeathsig != 0 {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_PDEATHSIG, uintptr(sys.Pdeathsig), 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+
+		// Signal self if parent is already dead. This might cause a
+		// duplicate signal in rare cases, but it won't matter when
+		// using SIGKILL.
+		r1, _ = rawSyscallNoError(SYS_GETPPID, 0, 0, 0)
+		if r1 != ppid {
+			pid, _ := rawSyscallNoError(SYS_GETPID, 0, 0, 0)
+			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
+			if err1 != 0 {
+				goto childerror
+			}
+		}
+	}
+
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+		_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -224,16 +331,16 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 	for i = 0; i < len(fd); i++ {
 		if fd[i] >= 0 && fd[i] < int(i) {
-			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+			if nextfd == pipe { // don't stomp on pipe
+				nextfd++
+			}
+			_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
 			if err1 != 0 {
 				goto childerror
 			}
 			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 			fd[i] = nextfd
 			nextfd++
-			if nextfd == pipe { // don't stomp on pipe
-				nextfd++
-			}
 		}
 	}
 
@@ -254,7 +361,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 		// The new fd is created NOT close-on-exec,
 		// which is exactly what we want.
-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(i), 0)
+		_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(i), 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -277,8 +384,18 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Set the controlling TTY to Ctty
-	if sys.Setctty && sys.Ctty >= 0 {
-		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+	if sys.Setctty {
+		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSCTTY), 1)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Enable tracing if requested.
+	// Do this right before exec so that we don't unnecessarily trace the runtime
+	// setting up after the fork. See issue #21428.
+	if sys.Ptrace {
+		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -345,6 +462,32 @@ func writeIDMappings(path string, idMap []SysProcIDMap) error {
 	return nil
 }
 
+// writeSetgroups writes to /proc/PID/setgroups "deny" if enable is false
+// and "allow" if enable is true.
+// This is needed since kernel 3.19, because you can't write gid_map without
+// disabling setgroups() system call.
+func writeSetgroups(pid int, enable bool) error {
+	sgf := "/proc/" + itoa(pid) + "/setgroups"
+	fd, err := Open(sgf, O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+
+	var data []byte
+	if enable {
+		data = []byte("allow")
+	} else {
+		data = []byte("deny")
+	}
+
+	if _, err := Write(fd, data); err != nil {
+		Close(fd)
+		return err
+	}
+
+	return Close(fd)
+}
+
 // writeUidGidMappings writes User ID and Group ID mappings for user namespaces
 // for a process and it is called from the parent process.
 func writeUidGidMappings(pid int, sys *SysProcAttr) error {
@@ -356,6 +499,10 @@ func writeUidGidMappings(pid int, sys *SysProcAttr) error {
 	}
 
 	if sys.GidMappings != nil {
+		// If the kernel is too old to support /proc/PID/setgroups, writeSetGroups will return ENOENT; this is OK.
+		if err := writeSetgroups(pid, sys.GidMappingsEnableSetgroups); err != nil && err != ENOENT {
+			return err
+		}
 		gidf := "/proc/" + itoa(pid) + "/gid_map"
 		if err := writeIDMappings(gidf, sys.GidMappings); err != nil {
 			return err

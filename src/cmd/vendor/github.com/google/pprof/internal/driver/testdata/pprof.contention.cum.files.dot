@@ -1,0 +1,10 @@
+digraph "unnamed" {
+node [style=filled fillcolor="#f8f8f8"]
+subgraph cluster_L { "Build ID: buildid-contention" [shape=box fontsize=16 label="Build ID: buildid-contention\lComment #1\lComment #2\lType: delay\lShowing nodes accounting for 149.50ms, 100% of 149.50ms total\l"] }
+N1 [label="file3000.src\n32.77ms (21.92%)\nof 149.50ms (100%)" id="node1" fontsize=20 shape=box tooltip="testdata/file3000.src (149.50ms)" color="#b20000" fillcolor="#edd5d5"]
+N2 [label="file1000.src\n51.20ms (34.25%)" id="node2" fontsize=23 shape=box tooltip="testdata/file1000.src (51.20ms)" color="#b23100" fillcolor="#eddbd5"]
+N3 [label="file2000.src\n65.54ms (43.84%)\nof 75.78ms (50.68%)" id="node3" fontsize=24 shape=box tooltip="testdata/file2000.src (75.78ms)" color="#b22000" fillcolor="#edd9d5"]
+N1 -> N3 [label=" 75.78ms" weight=51 penwidth=3 color="#b22000" tooltip="testdata/file3000.src -> testdata/file2000.src (75.78ms)" labeltooltip="testdata/file3000.src -> testdata/file2000.src (75.78ms)"]
+N1 -> N2 [label=" 40.96ms" weight=28 penwidth=2 color="#b23900" tooltip="testdata/file3000.src -> testdata/file1000.src (40.96ms)" labeltooltip="testdata/file3000.src -> testdata/file1000.src (40.96ms)"]
+N3 -> N2 [label=" 10.24ms" weight=7 color="#b29775" tooltip="testdata/file2000.src -> testdata/file1000.src (10.24ms)" labeltooltip="testdata/file2000.src -> testdata/file1000.src (10.24ms)"]
+}

@@ -5,20 +5,34 @@
 package big
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"math/bits"
 	"strings"
 	"testing"
 )
 
-func toString(x nat, charset string) string {
-	base := len(charset)
+func TestMaxBase(t *testing.T) {
+	if MaxBase != len(digits) {
+		t.Fatalf("%d != %d", MaxBase, len(digits))
+	}
+}
 
+// log2 computes the integer binary logarithm of x.
+// The result is the integer n for which 2^n <= x < 2^(n+1).
+// If x == 0, the result is -1.
+func log2(x Word) int {
+	return bits.Len(uint(x)) - 1
+}
+
+func itoa(x nat, base int) []byte {
 	// special cases
 	switch {
 	case base < 2:
 		panic("illegal base")
 	case len(x) == 0:
-		return string(charset[0])
+		return []byte("0")
 	}
 
 	// allocate buffer for conversion
@@ -33,54 +47,54 @@ func toString(x nat, charset string) string {
 		i--
 		var r Word
 		q, r = q.divW(q, Word(base))
-		s[i] = charset[r]
+		s[i] = digits[r]
 	}
 
-	return string(s[i:])
+	return s[i:]
 }
 
 var strTests = []struct {
 	x nat    // nat value to be converted
-	c string // conversion charset
+	b int    // conversion base
 	s string // expected result
 }{
-	{nil, "01", "0"},
-	{nat{1}, "01", "1"},
-	{nat{0xc5}, "01", "11000101"},
-	{nat{03271}, lowercaseDigits[:8], "3271"},
-	{nat{10}, lowercaseDigits[:10], "10"},
-	{nat{1234567890}, uppercaseDigits[:10], "1234567890"},
-	{nat{0xdeadbeef}, lowercaseDigits[:16], "deadbeef"},
-	{nat{0xdeadbeef}, uppercaseDigits[:16], "DEADBEEF"},
-	{nat{0x229be7}, lowercaseDigits[:17], "1a2b3c"},
-	{nat{0x309663e6}, uppercaseDigits[:32], "O9COV6"},
+	{nil, 2, "0"},
+	{nat{1}, 2, "1"},
+	{nat{0xc5}, 2, "11000101"},
+	{nat{03271}, 8, "3271"},
+	{nat{10}, 10, "10"},
+	{nat{1234567890}, 10, "1234567890"},
+	{nat{0xdeadbeef}, 16, "deadbeef"},
+	{nat{0x229be7}, 17, "1a2b3c"},
+	{nat{0x309663e6}, 32, "o9cov6"},
+	{nat{0x309663e6}, 62, "TakXI"},
 }
 
 func TestString(t *testing.T) {
-	// test invalid character set explicitly
+	// test invalid base explicitly
 	var panicStr string
 	func() {
 		defer func() {
 			panicStr = recover().(string)
 		}()
-		natOne.string("0")
+		natOne.utoa(1)
 	}()
-	if panicStr != "invalid character set length" {
-		t.Errorf("expected panic for invalid character set")
+	if panicStr != "invalid base" {
+		t.Errorf("expected panic for invalid base")
 	}
 
 	for _, a := range strTests {
-		s := a.x.string(a.c)
+		s := string(a.x.utoa(a.b))
 		if s != a.s {
 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
-		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), len(a.c), false)
+		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), a.b, false)
 		if x.cmp(a.x) != 0 {
 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
-		if b != len(a.c) {
-			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, len(a.c))
+		if b != a.b {
+			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.b)
 		}
 		if err != nil {
 			t.Errorf("scan%+v\n\tgot error = %s", a, err)
@@ -103,6 +117,7 @@ var natScanTests = []struct {
 	{s: "?"},
 	{base: 10},
 	{base: 36},
+	{base: 62},
 	{s: "?", base: 10},
 	{s: "0x"},
 	{s: "345", base: 2},
@@ -117,6 +132,7 @@ var natScanTests = []struct {
 	{"0", 0, false, nil, 10, 1, true, 0},
 	{"0", 10, false, nil, 10, 1, true, 0},
 	{"0", 36, false, nil, 36, 1, true, 0},
+	{"0", 62, false, nil, 62, 1, true, 0},
 	{"1", 0, false, nat{1}, 10, 1, true, 0},
 	{"1", 10, false, nat{1}, 10, 1, true, 0},
 	{"0 ", 0, false, nil, 10, 1, true, ' '},
@@ -128,8 +144,11 @@ var natScanTests = []struct {
 	{"03271", 0, false, nat{03271}, 8, 4, true, 0},
 	{"10ab", 0, false, nat{10}, 10, 2, true, 'a'},
 	{"1234567890", 0, false, nat{1234567890}, 10, 10, true, 0},
+	{"A", 36, false, nat{10}, 36, 1, true, 0},
+	{"A", 37, false, nat{36}, 37, 1, true, 0},
 	{"xyz", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, 0},
-	{"xyz?", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
+	{"XYZ?", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
+	{"XYZ?", 62, false, nat{(59*62+60)*62 + 61}, 62, 3, true, '?'},
 	{"0x", 16, false, nil, 16, 1, true, 'x'},
 	{"0xdeadbeef", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},
 	{"0XDEADBEEF", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},
@@ -236,7 +255,7 @@ func TestScanPi(t *testing.T) {
 	if err != nil {
 		t.Errorf("scanning pi: %s", err)
 	}
-	if s := z.decimalString(); s != pi {
+	if s := string(z.utoa(10)); s != pi {
 		t.Errorf("scanning pi: got %s", s)
 	}
 }
@@ -265,114 +284,75 @@ func BenchmarkScanPi(b *testing.B) {
 func BenchmarkStringPiParallel(b *testing.B) {
 	var x nat
 	x, _, _, _ = x.scan(strings.NewReader(pi), 0, false)
-	if x.decimalString() != pi {
+	if string(x.utoa(10)) != pi {
 		panic("benchmark incorrect: conversion failed")
 	}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			x.decimalString()
+			x.utoa(10)
 		}
 	})
 }
 
-func BenchmarkScan10Base2(b *testing.B)     { ScanHelper(b, 2, 10, 10) }
-func BenchmarkScan100Base2(b *testing.B)    { ScanHelper(b, 2, 10, 100) }
-func BenchmarkScan1000Base2(b *testing.B)   { ScanHelper(b, 2, 10, 1000) }
-func BenchmarkScan10000Base2(b *testing.B)  { ScanHelper(b, 2, 10, 10000) }
-func BenchmarkScan100000Base2(b *testing.B) { ScanHelper(b, 2, 10, 100000) }
+func BenchmarkScan(b *testing.B) {
+	const x = 10
+	for _, base := range []int{2, 8, 10, 16} {
+		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
+			if isRaceBuilder && y > 1000 {
+				continue
+			}
+			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
+				b.StopTimer()
+				var z nat
+				z = z.expWW(x, y)
 
-func BenchmarkScan10Base8(b *testing.B)     { ScanHelper(b, 8, 10, 10) }
-func BenchmarkScan100Base8(b *testing.B)    { ScanHelper(b, 8, 10, 100) }
-func BenchmarkScan1000Base8(b *testing.B)   { ScanHelper(b, 8, 10, 1000) }
-func BenchmarkScan10000Base8(b *testing.B)  { ScanHelper(b, 8, 10, 10000) }
-func BenchmarkScan100000Base8(b *testing.B) { ScanHelper(b, 8, 10, 100000) }
+				s := z.utoa(base)
+				if t := itoa(z, base); !bytes.Equal(s, t) {
+					b.Fatalf("scanning: got %s; want %s", s, t)
+				}
+				b.StartTimer()
 
-func BenchmarkScan10Base10(b *testing.B)     { ScanHelper(b, 10, 10, 10) }
-func BenchmarkScan100Base10(b *testing.B)    { ScanHelper(b, 10, 10, 100) }
-func BenchmarkScan1000Base10(b *testing.B)   { ScanHelper(b, 10, 10, 1000) }
-func BenchmarkScan10000Base10(b *testing.B)  { ScanHelper(b, 10, 10, 10000) }
-func BenchmarkScan100000Base10(b *testing.B) { ScanHelper(b, 10, 10, 100000) }
-
-func BenchmarkScan10Base16(b *testing.B)     { ScanHelper(b, 16, 10, 10) }
-func BenchmarkScan100Base16(b *testing.B)    { ScanHelper(b, 16, 10, 100) }
-func BenchmarkScan1000Base16(b *testing.B)   { ScanHelper(b, 16, 10, 1000) }
-func BenchmarkScan10000Base16(b *testing.B)  { ScanHelper(b, 16, 10, 10000) }
-func BenchmarkScan100000Base16(b *testing.B) { ScanHelper(b, 16, 10, 100000) }
-
-func ScanHelper(b *testing.B, base int, x, y Word) {
-	b.StopTimer()
-	var z nat
-	z = z.expWW(x, y)
-
-	var s string
-	s = z.string(lowercaseDigits[:base])
-	if t := toString(z, lowercaseDigits[:base]); t != s {
-		b.Fatalf("scanning: got %s; want %s", s, t)
-	}
-	b.StartTimer()
-
-	for i := 0; i < b.N; i++ {
-		z.scan(strings.NewReader(s), base, false)
+				for i := 0; i < b.N; i++ {
+					z.scan(bytes.NewReader(s), base, false)
+				}
+			})
+		}
 	}
 }
 
-func BenchmarkString10Base2(b *testing.B)     { StringHelper(b, 2, 10, 10) }
-func BenchmarkString100Base2(b *testing.B)    { StringHelper(b, 2, 10, 100) }
-func BenchmarkString1000Base2(b *testing.B)   { StringHelper(b, 2, 10, 1000) }
-func BenchmarkString10000Base2(b *testing.B)  { StringHelper(b, 2, 10, 10000) }
-func BenchmarkString100000Base2(b *testing.B) { StringHelper(b, 2, 10, 100000) }
+func BenchmarkString(b *testing.B) {
+	const x = 10
+	for _, base := range []int{2, 8, 10, 16} {
+		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
+			if isRaceBuilder && y > 1000 {
+				continue
+			}
+			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
+				b.StopTimer()
+				var z nat
+				z = z.expWW(x, y)
+				z.utoa(base) // warm divisor cache
+				b.StartTimer()
 
-func BenchmarkString10Base8(b *testing.B)     { StringHelper(b, 8, 10, 10) }
-func BenchmarkString100Base8(b *testing.B)    { StringHelper(b, 8, 10, 100) }
-func BenchmarkString1000Base8(b *testing.B)   { StringHelper(b, 8, 10, 1000) }
-func BenchmarkString10000Base8(b *testing.B)  { StringHelper(b, 8, 10, 10000) }
-func BenchmarkString100000Base8(b *testing.B) { StringHelper(b, 8, 10, 100000) }
-
-func BenchmarkString10Base10(b *testing.B)     { StringHelper(b, 10, 10, 10) }
-func BenchmarkString100Base10(b *testing.B)    { StringHelper(b, 10, 10, 100) }
-func BenchmarkString1000Base10(b *testing.B)   { StringHelper(b, 10, 10, 1000) }
-func BenchmarkString10000Base10(b *testing.B)  { StringHelper(b, 10, 10, 10000) }
-func BenchmarkString100000Base10(b *testing.B) { StringHelper(b, 10, 10, 100000) }
-
-func BenchmarkString10Base16(b *testing.B)     { StringHelper(b, 16, 10, 10) }
-func BenchmarkString100Base16(b *testing.B)    { StringHelper(b, 16, 10, 100) }
-func BenchmarkString1000Base16(b *testing.B)   { StringHelper(b, 16, 10, 1000) }
-func BenchmarkString10000Base16(b *testing.B)  { StringHelper(b, 16, 10, 10000) }
-func BenchmarkString100000Base16(b *testing.B) { StringHelper(b, 16, 10, 100000) }
-
-func StringHelper(b *testing.B, base int, x, y Word) {
-	b.StopTimer()
-	var z nat
-	z = z.expWW(x, y)
-	z.string(lowercaseDigits[:base]) // warm divisor cache
-	b.StartTimer()
-
-	for i := 0; i < b.N; i++ {
-		_ = z.string(lowercaseDigits[:base])
+				for i := 0; i < b.N; i++ {
+					_ = z.utoa(base)
+				}
+			})
+		}
 	}
 }
 
-func BenchmarkLeafSize0(b *testing.B)  { LeafSizeHelper(b, 10, 0) } // test without splitting
-func BenchmarkLeafSize1(b *testing.B)  { LeafSizeHelper(b, 10, 1) }
-func BenchmarkLeafSize2(b *testing.B)  { LeafSizeHelper(b, 10, 2) }
-func BenchmarkLeafSize3(b *testing.B)  { LeafSizeHelper(b, 10, 3) }
-func BenchmarkLeafSize4(b *testing.B)  { LeafSizeHelper(b, 10, 4) }
-func BenchmarkLeafSize5(b *testing.B)  { LeafSizeHelper(b, 10, 5) }
-func BenchmarkLeafSize6(b *testing.B)  { LeafSizeHelper(b, 10, 6) }
-func BenchmarkLeafSize7(b *testing.B)  { LeafSizeHelper(b, 10, 7) }
-func BenchmarkLeafSize8(b *testing.B)  { LeafSizeHelper(b, 10, 8) }
-func BenchmarkLeafSize9(b *testing.B)  { LeafSizeHelper(b, 10, 9) }
-func BenchmarkLeafSize10(b *testing.B) { LeafSizeHelper(b, 10, 10) }
-func BenchmarkLeafSize11(b *testing.B) { LeafSizeHelper(b, 10, 11) }
-func BenchmarkLeafSize12(b *testing.B) { LeafSizeHelper(b, 10, 12) }
-func BenchmarkLeafSize13(b *testing.B) { LeafSizeHelper(b, 10, 13) }
-func BenchmarkLeafSize14(b *testing.B) { LeafSizeHelper(b, 10, 14) }
-func BenchmarkLeafSize15(b *testing.B) { LeafSizeHelper(b, 10, 15) }
-func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
-func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths
-func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
+func BenchmarkLeafSize(b *testing.B) {
+	for n := 0; n <= 16; n++ {
+		b.Run(fmt.Sprint(n), func(b *testing.B) { LeafSizeHelper(b, 10, n) })
+	}
+	// Try some large lengths
+	for _, n := range []int{32, 64} {
+		b.Run(fmt.Sprint(n), func(b *testing.B) { LeafSizeHelper(b, 10, n) })
+	}
+}
 
-func LeafSizeHelper(b *testing.B, base Word, size int) {
+func LeafSizeHelper(b *testing.B, base, size int) {
 	b.StopTimer()
 	originalLeafSize := leafSize
 	resetTable(cacheBase10.table[:])
@@ -382,12 +362,12 @@ func LeafSizeHelper(b *testing.B, base Word, size int) {
 	for d := 1; d <= 10000; d *= 10 {
 		b.StopTimer()
 		var z nat
-		z = z.expWW(base, Word(d))           // build target number
-		_ = z.string(lowercaseDigits[:base]) // warm divisor cache
+		z = z.expWW(Word(base), Word(d)) // build target number
+		_ = z.utoa(base)                 // warm divisor cache
 		b.StartTimer()
 
 		for i := 0; i < b.N; i++ {
-			_ = z.string(lowercaseDigits[:base])
+			_ = z.utoa(base)
 		}
 	}
 
@@ -408,13 +388,13 @@ func resetTable(table []divisor) {
 }
 
 func TestStringPowers(t *testing.T) {
-	var b, p Word
-	for b = 2; b <= 16; b++ {
+	var p Word
+	for b := 2; b <= 16; b++ {
 		for p = 0; p <= 512; p++ {
-			x := nat(nil).expWW(b, p)
-			xs := x.string(lowercaseDigits[:b])
-			xs2 := toString(x, lowercaseDigits[:b])
-			if xs != xs2 {
+			x := nat(nil).expWW(Word(b), p)
+			xs := x.utoa(b)
+			xs2 := itoa(x, b)
+			if !bytes.Equal(xs, xs2) {
 				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
 			}
 		}

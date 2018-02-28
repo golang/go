@@ -100,13 +100,13 @@ const (
 	EV_DELETE    = C.EV_DELETE
 	EV_CLEAR     = C.EV_CLEAR
 	EV_ERROR     = C.EV_ERROR
+	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
 )
 
 type TforkT C.struct___tfork
 
-type SigaltstackT C.struct_sigaltstack
 type Sigcontext C.struct_sigcontext
 type Siginfo C.siginfo_t
 type Sigset C.sigset_t

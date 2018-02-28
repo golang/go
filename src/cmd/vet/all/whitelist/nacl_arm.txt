@@ -1,0 +1,8 @@
+// nacl/arm-specific vet whitelist. See readme.txt for details.
+
+runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
+runtime/sys_nacl_arm.s: [arm] cannot check cross-package assembly function: naclWrite is in package syscall
+runtime/sys_nacl_arm.s: [arm] cannot check cross-package assembly function: now is in package syscall
+runtime/sys_nacl_arm.s: [arm] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+runtime/sys_nacl_arm.s: [arm] nacl_sysinfo: function nacl_sysinfo missing Go declaration
+runtime/sys_nacl_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration

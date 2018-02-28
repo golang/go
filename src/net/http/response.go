@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net/textproto"
 	"net/url"
@@ -26,6 +27,9 @@ var respExcludeHeader = map[string]bool{
 
 // Response represents the response from an HTTP request.
 //
+// The Client and Transport return Responses from servers once
+// the response headers have been received. The response body
+// is streamed on demand as the Body field is read.
 type Response struct {
 	Status     string // e.g. "200 OK"
 	StatusCode int    // e.g. 200
@@ -33,32 +37,36 @@ type Response struct {
 	ProtoMajor int    // e.g. 1
 	ProtoMinor int    // e.g. 0
 
-	// Header maps header keys to values.  If the response had multiple
+	// Header maps header keys to values. If the response had multiple
 	// headers with the same key, they may be concatenated, with comma
-	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
-	// be semantically equivalent to a comma-delimited sequence.) Values
-	// duplicated by other fields in this struct (e.g., ContentLength) are
-	// omitted from Header.
+	// delimiters.  (RFC 7230, section 3.2.2 requires that multiple headers
+	// be semantically equivalent to a comma-delimited sequence.) When
+	// Header values are duplicated by other fields in this struct (e.g.,
+	// ContentLength, TransferEncoding, Trailer), the field values are
+	// authoritative.
 	//
 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
 	Header Header
 
 	// Body represents the response body.
 	//
+	// The response body is streamed on demand as the Body field
+	// is read. If the network connection fails or the server
+	// terminates the response, Body.Read calls return an error.
+	//
 	// The http Client and Transport guarantee that Body is always
 	// non-nil, even on responses without a body or responses with
 	// a zero-length body. It is the caller's responsibility to
-	// close Body. The default HTTP client's Transport does not
-	// attempt to reuse HTTP/1.0 or HTTP/1.1 TCP connections
-	// ("keep-alive") unless the Body is read to completion and is
-	// closed.
+	// close Body. The default HTTP client's Transport may not
+	// reuse HTTP/1.x "keep-alive" TCP connections if the Body is
+	// not read to completion and closed.
 	//
 	// The Body is automatically dechunked if the server replied
 	// with a "chunked" Transfer-Encoding.
 	Body io.ReadCloser
 
-	// ContentLength records the length of the associated content.  The
-	// value -1 indicates that the length is unknown.  Unless Request.Method
+	// ContentLength records the length of the associated content. The
+	// value -1 indicates that the length is unknown. Unless Request.Method
 	// is "HEAD", values >= 0 indicate that the given number of bytes may
 	// be read from Body.
 	ContentLength int64
@@ -68,15 +76,34 @@ type Response struct {
 	TransferEncoding []string
 
 	// Close records whether the header directed that the connection be
-	// closed after reading Body.  The value is advice for clients: neither
+	// closed after reading Body. The value is advice for clients: neither
 	// ReadResponse nor Response.Write ever closes a connection.
 	Close bool
 
-	// Trailer maps trailer keys to values, in the same
-	// format as the header.
+	// Uncompressed reports whether the response was sent compressed but
+	// was decompressed by the http package. When true, reading from
+	// Body yields the uncompressed content instead of the compressed
+	// content actually set from the server, ContentLength is set to -1,
+	// and the "Content-Length" and "Content-Encoding" fields are deleted
+	// from the responseHeader. To get the original response from
+	// the server, set Transport.DisableCompression to true.
+	Uncompressed bool
+
+	// Trailer maps trailer keys to values in the same
+	// format as Header.
+	//
+	// The Trailer initially contains only nil values, one for
+	// each key specified in the server's "Trailer" header
+	// value. Those values are not added to Header.
+	//
+	// Trailer must not be accessed concurrently with Read calls
+	// on the Body.
+	//
+	// After Body.Read has returned io.EOF, Trailer will contain
+	// any trailer values sent by the server.
 	Trailer Header
 
-	// The Request that was sent to obtain this Response.
+	// Request is the request that was sent to obtain this Response.
 	// Request's Body is nil (having already been consumed).
 	// This is only populated for Client requests.
 	Request *Request
@@ -93,11 +120,13 @@ func (r *Response) Cookies() []*Cookie {
 	return readSetCookies(r.Header)
 }
 
+// ErrNoLocation is returned by Response's Location method
+// when no Location header is present.
 var ErrNoLocation = errors.New("http: no Location header in response")
 
 // Location returns the URL of the response's "Location" header,
-// if present.  Relative redirects are resolved relative to
-// the Response's Request.  ErrNoLocation is returned if no
+// if present. Relative redirects are resolved relative to
+// the Response's Request. ErrNoLocation is returned if no
 // Location header is present.
 func (r *Response) Location() (*url.URL, error) {
 	lv := r.Header.Get("Location")
@@ -130,21 +159,23 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 		}
 		return nil, err
 	}
-	f := strings.SplitN(line, " ", 3)
-	if len(f) < 2 {
+	if i := strings.IndexByte(line, ' '); i == -1 {
 		return nil, &badStringError{"malformed HTTP response", line}
+	} else {
+		resp.Proto = line[:i]
+		resp.Status = strings.TrimLeft(line[i+1:], " ")
 	}
-	reasonPhrase := ""
-	if len(f) > 2 {
-		reasonPhrase = f[2]
+	statusCode := resp.Status
+	if i := strings.IndexByte(resp.Status, ' '); i != -1 {
+		statusCode = resp.Status[:i]
 	}
-	resp.Status = f[1] + " " + reasonPhrase
-	resp.StatusCode, err = strconv.Atoi(f[1])
-	if err != nil {
-		return nil, &badStringError{"malformed HTTP status code", f[1]}
+	if len(statusCode) != 3 {
+		return nil, &badStringError{"malformed HTTP status code", statusCode}
 	}
-
-	resp.Proto = f[0]
+	resp.StatusCode, err = strconv.Atoi(statusCode)
+	if err != nil || resp.StatusCode < 0 {
+		return nil, &badStringError{"malformed HTTP status code", statusCode}
+	}
 	var ok bool
 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", resp.Proto}
@@ -170,7 +201,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	return resp, nil
 }
 
-// RFC2616: Should treat
+// RFC 7234, section 5.4: Should treat
 //	Pragma: no-cache
 // like
 //	Cache-Control: no-cache
@@ -189,8 +220,10 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 		r.ProtoMajor == major && r.ProtoMinor >= minor
 }
 
-// Writes the response (header, body and trailer) in wire format. This method
-// consults the following fields of the response:
+// Write writes r to w in the HTTP/1.x server response format,
+// including the status line, headers, body, and optional trailer.
+//
+// This method consults the following fields of the response r:
 //
 //  StatusCode
 //  ProtoMajor
@@ -202,7 +235,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //  ContentLength
 //  Header, values for non-canonical keys will have unpredictable behavior
 //
-// Body is closed after it is sent.
+// The Response Body is closed after it is sent.
 func (r *Response) Write(w io.Writer) error {
 	// Status line
 	text := r.Status
@@ -212,11 +245,13 @@ func (r *Response) Write(w io.Writer) error {
 		if !ok {
 			text = "status code " + strconv.Itoa(r.StatusCode)
 		}
+	} else {
+		// Just to reduce stutter, if user set r.Status to "200 OK" and StatusCode to 200.
+		// Not important.
+		text = strings.TrimPrefix(text, strconv.Itoa(r.StatusCode)+" ")
 	}
-	protoMajor, protoMinor := strconv.Itoa(r.ProtoMajor), strconv.Itoa(r.ProtoMinor)
-	statusCode := strconv.Itoa(r.StatusCode) + " "
-	text = strings.TrimPrefix(text, statusCode)
-	if _, err := io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n"); err != nil {
+
+	if _, err := fmt.Fprintf(w, "HTTP/%d.%d %03d %s\r\n", r.ProtoMajor, r.ProtoMinor, r.StatusCode, text); err != nil {
 		return err
 	}
 
@@ -233,7 +268,7 @@ func (r *Response) Write(w io.Writer) error {
 		if n == 0 {
 			// Reset it to a known zero reader, in case underlying one
 			// is unhappy being read repeatedly.
-			r1.Body = eofReader
+			r1.Body = NoBody
 		} else {
 			r1.ContentLength = -1
 			r1.Body = struct {
@@ -249,7 +284,7 @@ func (r *Response) Write(w io.Writer) error {
 	// content-length, the only way to do that is the old HTTP/1.0
 	// way, by noting the EOF with a connection close, so we need
 	// to set Close.
-	if r1.ContentLength == -1 && !r1.Close && r1.ProtoAtLeast(1, 1) && !chunked(r1.TransferEncoding) {
+	if r1.ContentLength == -1 && !r1.Close && r1.ProtoAtLeast(1, 1) && !chunked(r1.TransferEncoding) && !r1.Uncompressed {
 		r1.Close = true
 	}
 
@@ -272,7 +307,7 @@ func (r *Response) Write(w io.Writer) error {
 	// contentLengthAlreadySent may have been already sent for
 	// POST/PUT requests, even if zero length. See Issue 8180.
 	contentLengthAlreadySent := tw.shouldSendContentLength()
-	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) && !contentLengthAlreadySent {
+	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) && !contentLengthAlreadySent && bodyAllowedForStatus(r.StatusCode) {
 		if _, err := io.WriteString(w, "Content-Length: 0\r\n"); err != nil {
 			return err
 		}
@@ -291,4 +326,10 @@ func (r *Response) Write(w io.Writer) error {
 
 	// Success
 	return nil
+}
+
+func (r *Response) closeBody() {
+	if r.Body != nil {
+		r.Body.Close()
+	}
 }

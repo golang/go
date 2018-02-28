@@ -139,6 +139,7 @@ const (
 	EV_CLEAR     = C.EV_CLEAR
 	EV_RECEIPT   = C.EV_RECEIPT
 	EV_ERROR     = C.EV_ERROR
+	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
 )
@@ -152,7 +153,7 @@ type StackT C.struct_sigaltstack
 type Sighandler C.union___sigaction_u
 
 type Sigaction C.struct___sigaction // used in syscalls
-// type Sigaction C.struct_sigaction	// used by the C library
+type Usigaction C.struct_sigaction  // used by sigaction second argument
 type Sigval C.union_sigval
 type Siginfo C.siginfo_t
 type Timeval C.struct_timeval

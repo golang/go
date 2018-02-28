@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -21,16 +21,14 @@ func g() int {
 
 var xy string
 
+//go:noinline
 func x() bool {
-	for false {
-	} // no inlining
 	xy += "x"
 	return false
 }
 
+//go:noinline
 func y() string {
-	for false {
-	} // no inlining
 	xy += "y"
 	return "abc"
 }

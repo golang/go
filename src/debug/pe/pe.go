@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -84,30 +84,6 @@ type OptionalHeader64 struct {
 	LoaderFlags                 uint32
 	NumberOfRvaAndSizes         uint32
 	DataDirectory               [16]DataDirectory
-}
-
-type SectionHeader32 struct {
-	Name                 [8]uint8
-	VirtualSize          uint32
-	VirtualAddress       uint32
-	SizeOfRawData        uint32
-	PointerToRawData     uint32
-	PointerToRelocations uint32
-	PointerToLineNumbers uint32
-	NumberOfRelocations  uint16
-	NumberOfLineNumbers  uint16
-	Characteristics      uint32
-}
-
-const COFFSymbolSize = 18
-
-type COFFSymbol struct {
-	Name               [8]uint8
-	Value              uint32
-	SectionNumber      int16
-	Type               uint16
-	StorageClass       uint8
-	NumberOfAuxSymbols uint8
 }
 
 const (

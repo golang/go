@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,18 @@
 #include "textflag.h"
 
 // ARM atomic operations, for use by asm_$(GOOS)_arm.s.
+
+#define DMB_ISHST_7 \
+	MOVB	runtime·goarm(SB), R11; \
+	CMP	$7, R11; \
+	BLT	2(PC); \
+	WORD	$0xf57ff05a	// dmb ishst
+
+#define DMB_ISH_7 \
+	MOVB	runtime·goarm(SB), R11; \
+	CMP	$7, R11; \
+	BLT	2(PC); \
+	WORD	$0xf57ff05b	// dmb ish
 
 TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
 	MOVW	addr+0(FP), R1
@@ -17,15 +29,17 @@ casloop:
 	LDREX	(R1), R0
 	CMP	R0, R2
 	BNE	casfail
+	DMB_ISHST_7
 	STREX	R3, (R1), R0
 	CMP	$0, R0
 	BNE	casloop
 	MOVW	$1, R0
-	MOVBU	R0, ret+12(FP)
+	DMB_ISH_7
+	MOVBU	R0, swapped+12(FP)
 	RET
 casfail:
 	MOVW	$0, R0
-	MOVBU	R0, ret+12(FP)
+	MOVBU	R0, swapped+12(FP)
 	RET
 
 TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
@@ -35,10 +49,10 @@ TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
 	AND.S	$7, R1, R2
 	BEQ 	2(PC)
 	MOVW	R2, (R2)
-	MOVW	oldlo+4(FP), R2
-	MOVW	oldhi+8(FP), R3
-	MOVW	newlo+12(FP), R4
-	MOVW	newhi+16(FP), R5
+	MOVW	old_lo+4(FP), R2
+	MOVW	old_hi+8(FP), R3
+	MOVW	new_lo+12(FP), R4
+	MOVW	new_hi+16(FP), R5
 cas64loop:
 	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R6  // loads R6 and R7
@@ -46,15 +60,17 @@ cas64loop:
 	BNE	cas64fail
 	CMP	R3, R7
 	BNE	cas64fail
+	DMB_ISHST_7
 	STREXD	R4, (R1), R0	// stores R4 and R5
 	CMP	$0, R0
 	BNE	cas64loop
 	MOVW	$1, R0
-	MOVBU	R0, ret+20(FP)
+	DMB_ISH_7
+	MOVBU	R0, swapped+20(FP)
 	RET
 cas64fail:
 	MOVW	$0, R0
-	MOVBU	R0, ret+20(FP)
+	MOVBU	R0, swapped+20(FP)
 	RET
 
 TEXT ·armAddUint32(SB),NOSPLIT,$0-12
@@ -64,10 +80,12 @@ addloop:
 	// LDREX and STREX were introduced in ARMv6.
 	LDREX	(R1), R3
 	ADD	R2, R3
+	DMB_ISHST_7
 	STREX	R3, (R1), R0
 	CMP	$0, R0
 	BNE	addloop
-	MOVW	R3, ret+8(FP)
+	DMB_ISH_7
+	MOVW	R3, new+8(FP)
 	RET
 
 TEXT ·armAddUint64(SB),NOSPLIT,$0-20
@@ -77,18 +95,20 @@ TEXT ·armAddUint64(SB),NOSPLIT,$0-20
 	AND.S	$7, R1, R2
 	BEQ 	2(PC)
 	MOVW	R2, (R2)
-	MOVW	deltalo+4(FP), R2
-	MOVW	deltahi+8(FP), R3
+	MOVW	delta_lo+4(FP), R2
+	MOVW	delta_hi+8(FP), R3
 add64loop:
 	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R4	// loads R4 and R5
 	ADD.S	R2, R4
 	ADC	R3, R5
+	DMB_ISHST_7
 	STREXD	R4, (R1), R0	// stores R4 and R5
 	CMP	$0, R0
 	BNE	add64loop
-	MOVW	R4, retlo+12(FP)
-	MOVW	R5, rethi+16(FP)
+	DMB_ISH_7
+	MOVW	R4, new_lo+12(FP)
+	MOVW	R5, new_hi+16(FP)
 	RET
 
 TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
@@ -97,9 +117,11 @@ TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
 swaploop:
 	// LDREX and STREX were introduced in ARMv6.
 	LDREX	(R1), R3
+	DMB_ISHST_7
 	STREX	R2, (R1), R0
 	CMP	$0, R0
 	BNE	swaploop
+	DMB_ISH_7
 	MOVW	R3, old+8(FP)
 	RET
 
@@ -110,16 +132,18 @@ TEXT ·armSwapUint64(SB),NOSPLIT,$0-20
 	AND.S	$7, R1, R2
 	BEQ 	2(PC)
 	MOVW	R2, (R2)
-	MOVW	newlo+4(FP), R2
-	MOVW	newhi+8(FP), R3
+	MOVW	new_lo+4(FP), R2
+	MOVW	new_hi+8(FP), R3
 swap64loop:
 	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R4	// loads R4 and R5
+	DMB_ISHST_7
 	STREXD	R2, (R1), R0	// stores R2 and R3
 	CMP	$0, R0
 	BNE	swap64loop
-	MOVW	R4, oldlo+12(FP)
-	MOVW	R5, oldhi+16(FP)
+	DMB_ISH_7
+	MOVW	R4, old_lo+12(FP)
+	MOVW	R5, old_hi+16(FP)
 	RET
 
 TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
@@ -131,11 +155,13 @@ TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
 	MOVW	R2, (R2)
 load64loop:
 	LDREXD	(R1), R2	// loads R2 and R3
+	DMB_ISHST_7
 	STREXD	R2, (R1), R0	// stores R2 and R3
 	CMP	$0, R0
 	BNE	load64loop
-	MOVW	R2, vallo+4(FP)
-	MOVW	R3, valhi+8(FP)
+	DMB_ISH_7
+	MOVW	R2, val_lo+4(FP)
+	MOVW	R3, val_hi+8(FP)
 	RET
 
 TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
@@ -145,13 +171,15 @@ TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
 	AND.S	$7, R1, R2
 	BEQ 	2(PC)
 	MOVW	R2, (R2)
-	MOVW	vallo+4(FP), R2
-	MOVW	valhi+8(FP), R3
+	MOVW	val_lo+4(FP), R2
+	MOVW	val_hi+8(FP), R3
 store64loop:
 	LDREXD	(R1), R4	// loads R4 and R5
+	DMB_ISHST_7
 	STREXD	R2, (R1), R0	// stores R2 and R3
 	CMP	$0, R0
 	BNE	store64loop
+	DMB_ISH_7
 	RET
 
 // Check for broken 64-bit LDREXD as found in QEMU.
@@ -180,8 +208,8 @@ loop:
 ok:
 	RET
 
-// Fast, cached version of check.  No frame, just MOVW CMP RET after first time.
-TEXT	fastCheck64<>(SB),NOSPLIT,$-4
+// Fast, cached version of check. No frame, just MOVW CMP RET after first time.
+TEXT	fastCheck64<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	ok64<>(SB), R0
 	CMP	$0, R0	// have we been here before?
 	RET.NE

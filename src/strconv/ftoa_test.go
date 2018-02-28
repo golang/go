@@ -18,7 +18,7 @@ type ftoaTest struct {
 	s    string
 }
 
-func fdiv(a, b float64) float64 { return a / b } // keep compiler in the dark
+func fdiv(a, b float64) float64 { return a / b }
 
 const (
 	below1e23 = 99999999999999974834176
@@ -94,8 +94,8 @@ var ftoatests = []ftoaTest{
 	{above1e23, 'f', -1, "100000000000000010000000"},
 	{above1e23, 'g', -1, "1.0000000000000001e+23"},
 
-	{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},
-	{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"},
+	{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
+	{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
 
 	{32, 'g', -1, "32"},
 	{32, 'g', 0, "3e+01"},
@@ -183,58 +183,53 @@ func TestFtoaRandom(t *testing.T) {
 	}
 }
 
-func BenchmarkFormatFloatDecimal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		FormatFloat(33909, 'g', -1, 64)
-	}
+var ftoaBenches = []struct {
+	name    string
+	float   float64
+	fmt     byte
+	prec    int
+	bitSize int
+}{
+	{"Decimal", 33909, 'g', -1, 64},
+	{"Float", 339.7784, 'g', -1, 64},
+	{"Exp", -5.09e75, 'g', -1, 64},
+	{"NegExp", -5.11e-95, 'g', -1, 64},
+
+	{"Big", 123456789123456789123456789, 'g', -1, 64},
+	{"BinaryExp", -1, 'b', -1, 64},
+
+	{"32Integer", 33909, 'g', -1, 32},
+	{"32ExactFraction", 3.375, 'g', -1, 32},
+	{"32Point", 339.7784, 'g', -1, 32},
+	{"32Exp", -5.09e25, 'g', -1, 32},
+	{"32NegExp", -5.11e-25, 'g', -1, 32},
+
+	{"64Fixed1", 123456, 'e', 3, 64},
+	{"64Fixed2", 123.456, 'e', 3, 64},
+	{"64Fixed3", 1.23456e+78, 'e', 3, 64},
+	{"64Fixed4", 1.23456e-78, 'e', 3, 64},
+
+	// Trigger slow path (see issue #15672).
+	{"Slowpath64", 622666234635.3213e-320, 'e', -1, 64},
 }
 
 func BenchmarkFormatFloat(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		FormatFloat(339.7784, 'g', -1, 64)
+	for _, c := range ftoaBenches {
+		b.Run(c.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				FormatFloat(c.float, c.fmt, c.prec, c.bitSize)
+			}
+		})
 	}
 }
 
-func BenchmarkFormatFloatExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		FormatFloat(-5.09e75, 'g', -1, 64)
-	}
-}
-
-func BenchmarkFormatFloatNegExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		FormatFloat(-5.11e-95, 'g', -1, 64)
-	}
-}
-
-func BenchmarkFormatFloatBig(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		FormatFloat(123456789123456789123456789, 'g', -1, 64)
-	}
-}
-
-func benchmarkAppendFloat(b *testing.B, f float64, fmt byte, prec, bitSize int) {
+func BenchmarkAppendFloat(b *testing.B) {
 	dst := make([]byte, 30)
-	for i := 0; i < b.N; i++ {
-		AppendFloat(dst[:0], f, fmt, prec, bitSize)
+	for _, c := range ftoaBenches {
+		b.Run(c.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				AppendFloat(dst[:0], c.float, c.fmt, c.prec, c.bitSize)
+			}
+		})
 	}
 }
-
-func BenchmarkAppendFloatDecimal(b *testing.B) { benchmarkAppendFloat(b, 33909, 'g', -1, 64) }
-func BenchmarkAppendFloat(b *testing.B)        { benchmarkAppendFloat(b, 339.7784, 'g', -1, 64) }
-func BenchmarkAppendFloatExp(b *testing.B)     { benchmarkAppendFloat(b, -5.09e75, 'g', -1, 64) }
-func BenchmarkAppendFloatNegExp(b *testing.B)  { benchmarkAppendFloat(b, -5.11e-95, 'g', -1, 64) }
-func BenchmarkAppendFloatBig(b *testing.B) {
-	benchmarkAppendFloat(b, 123456789123456789123456789, 'g', -1, 64)
-}
-
-func BenchmarkAppendFloat32Integer(b *testing.B)       { benchmarkAppendFloat(b, 33909, 'g', -1, 32) }
-func BenchmarkAppendFloat32ExactFraction(b *testing.B) { benchmarkAppendFloat(b, 3.375, 'g', -1, 32) }
-func BenchmarkAppendFloat32Point(b *testing.B)         { benchmarkAppendFloat(b, 339.7784, 'g', -1, 32) }
-func BenchmarkAppendFloat32Exp(b *testing.B)           { benchmarkAppendFloat(b, -5.09e25, 'g', -1, 32) }
-func BenchmarkAppendFloat32NegExp(b *testing.B)        { benchmarkAppendFloat(b, -5.11e-25, 'g', -1, 32) }
-
-func BenchmarkAppendFloat64Fixed1(b *testing.B) { benchmarkAppendFloat(b, 123456, 'e', 3, 64) }
-func BenchmarkAppendFloat64Fixed2(b *testing.B) { benchmarkAppendFloat(b, 123.456, 'e', 3, 64) }
-func BenchmarkAppendFloat64Fixed3(b *testing.B) { benchmarkAppendFloat(b, 1.23456e+78, 'e', 3, 64) }
-func BenchmarkAppendFloat64Fixed4(b *testing.B) { benchmarkAppendFloat(b, 1.23456e-78, 'e', 3, 64) }

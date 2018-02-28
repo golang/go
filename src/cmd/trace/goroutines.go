@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
 )
 
 func init() {
@@ -42,34 +43,7 @@ func (l gtypeList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
 
-// gdesc desribes a single goroutine.
-type gdesc struct {
-	ID         uint64
-	Name       string
-	PC         uint64
-	CreateTime int64
-	StartTime  int64
-	EndTime    int64
-	LastStart  int64
-
-	ExecTime      int64
-	SchedWaitTime int64
-	IOTime        int64
-	BlockTime     int64
-	SyscallTime   int64
-	GCTime        int64
-	SweepTime     int64
-	TotalTime     int64
-
-	blockNetTime     int64
-	blockSyncTime    int64
-	blockSyscallTime int64
-	blockSweepTime   int64
-	blockGCTime      int64
-	blockSchedTime   int64
-}
-
-type gdescList []*gdesc
+type gdescList []*trace.GDesc
 
 func (l gdescList) Len() int {
 	return len(l)
@@ -83,126 +57,16 @@ func (l gdescList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
 
-var gs = make(map[uint64]*gdesc)
+var (
+	gsInit sync.Once
+	gs     map[uint64]*trace.GDesc
+)
 
-// analyzeGoroutines generates list gdesc's from the trace and stores it in gs.
+// analyzeGoroutines generates statistics about execution of all goroutines and stores them in gs.
 func analyzeGoroutines(events []*trace.Event) {
-	if len(gs) > 0 { //!!! racy
-		return
-	}
-	var lastTs int64
-	var gcStartTime int64
-	for _, ev := range events {
-		lastTs = ev.Ts
-		switch ev.Type {
-		case trace.EvGoCreate:
-			g := &gdesc{CreateTime: ev.Ts}
-			g.blockSchedTime = ev.Ts
-			gs[ev.Args[0]] = g
-		case trace.EvGoStart:
-			g := gs[ev.G]
-			if g.PC == 0 {
-				g.PC = ev.Stk[0].PC
-				g.Name = ev.Stk[0].Fn
-			}
-			g.LastStart = ev.Ts
-			if g.StartTime == 0 {
-				g.StartTime = ev.Ts
-			}
-			if g.blockSchedTime != 0 {
-				g.SchedWaitTime += ev.Ts - g.blockSchedTime
-				g.blockSchedTime = 0
-			}
-		case trace.EvGoEnd, trace.EvGoStop:
-			g := gs[ev.G]
-			g.ExecTime += ev.Ts - g.LastStart
-			g.TotalTime = ev.Ts - g.CreateTime
-			g.EndTime = ev.Ts
-		case trace.EvGoBlockSend, trace.EvGoBlockRecv, trace.EvGoBlockSelect,
-			trace.EvGoBlockSync, trace.EvGoBlockCond:
-			g := gs[ev.G]
-			g.ExecTime += ev.Ts - g.LastStart
-			g.blockSyncTime = ev.Ts
-		case trace.EvGoSched, trace.EvGoPreempt:
-			g := gs[ev.G]
-			g.ExecTime += ev.Ts - g.LastStart
-			g.blockSchedTime = ev.Ts
-		case trace.EvGoSleep, trace.EvGoBlock:
-			g := gs[ev.G]
-			g.ExecTime += ev.Ts - g.LastStart
-		case trace.EvGoBlockNet:
-			g := gs[ev.G]
-			g.ExecTime += ev.Ts - g.LastStart
-			g.blockNetTime = ev.Ts
-		case trace.EvGoUnblock:
-			g := gs[ev.Args[0]]
-			if g.blockNetTime != 0 {
-				g.IOTime += ev.Ts - g.blockNetTime
-				g.blockNetTime = 0
-			}
-			if g.blockSyncTime != 0 {
-				g.BlockTime += ev.Ts - g.blockSyncTime
-				g.blockSyncTime = 0
-			}
-			g.blockSchedTime = ev.Ts
-		case trace.EvGoSysBlock:
-			g := gs[ev.G]
-			g.ExecTime += ev.Ts - g.LastStart
-			g.blockSyscallTime = ev.Ts
-		case trace.EvGoSysExit:
-			g := gs[ev.G]
-			if g.blockSyscallTime != 0 {
-				g.SyscallTime += ev.Ts - g.blockSyscallTime
-				g.blockSyscallTime = 0
-			}
-			g.blockSchedTime = ev.Ts
-		case trace.EvGCSweepStart:
-			g := gs[ev.G]
-			if g != nil {
-				// Sweep can happen during GC on system goroutine.
-				g.blockSweepTime = ev.Ts
-			}
-		case trace.EvGCSweepDone:
-			g := gs[ev.G]
-			if g != nil && g.blockSweepTime != 0 {
-				g.SweepTime += ev.Ts - g.blockSweepTime
-				g.blockSweepTime = 0
-			}
-		case trace.EvGCStart:
-			gcStartTime = ev.Ts
-		case trace.EvGCDone:
-			for _, g := range gs {
-				if g.EndTime == 0 {
-					g.GCTime += ev.Ts - gcStartTime
-				}
-			}
-		}
-	}
-
-	for _, g := range gs {
-		if g.TotalTime == 0 {
-			g.TotalTime = lastTs - g.CreateTime
-		}
-		if g.EndTime == 0 {
-			g.EndTime = lastTs
-		}
-		if g.blockNetTime != 0 {
-			g.IOTime += lastTs - g.blockNetTime
-			g.blockNetTime = 0
-		}
-		if g.blockSyncTime != 0 {
-			g.BlockTime += lastTs - g.blockSyncTime
-			g.blockSyncTime = 0
-		}
-		if g.blockSyscallTime != 0 {
-			g.SyscallTime += lastTs - g.blockSyscallTime
-			g.blockSyscallTime = 0
-		}
-		if g.blockSchedTime != 0 {
-			g.SchedWaitTime += lastTs - g.blockSchedTime
-			g.blockSchedTime = 0
-		}
-	}
+	gsInit.Do(func() {
+		gs = trace.GoroutineStats(events)
+	})
 }
 
 // httpGoroutines serves list of goroutine groups.
@@ -256,15 +120,17 @@ func httpGoroutine(w http.ResponseWriter, r *http.Request) {
 	}
 	analyzeGoroutines(events)
 	var glist gdescList
-	for gid, g := range gs {
-		if g.PC != pc || g.ExecTime == 0 {
+	for _, g := range gs {
+		if g.PC != pc {
 			continue
 		}
-		g.ID = gid
 		glist = append(glist, g)
 	}
 	sort.Sort(glist)
-	err = templGoroutine.Execute(w, glist)
+	err = templGoroutine.Execute(w, struct {
+		PC    uint64
+		GList gdescList
+	}{pc, glist})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
 		return
@@ -279,14 +145,14 @@ var templGoroutine = template.Must(template.New("").Parse(`
 <th> Goroutine </th>
 <th> Total time, ns </th>
 <th> Execution time, ns </th>
-<th> Network wait time, ns </th>
-<th> Sync block time, ns </th>
-<th> Blocking syscall time, ns </th>
-<th> Scheduler wait time, ns </th>
+<th> <a href="/io?id={{.PC}}">Network wait time, ns</a><a href="/io?id={{.PC}}&raw=1" download="io.profile">⬇</a> </th>
+<th> <a href="/block?id={{.PC}}">Sync block time, ns</a><a href="/block?id={{.PC}}&raw=1" download="block.profile">⬇</a> </th>
+<th> <a href="/syscall?id={{.PC}}">Blocking syscall time, ns</a><a href="/syscall?id={{.PC}}&raw=1" download="syscall.profile">⬇</a> </th>
+<th> <a href="/sched?id={{.PC}}">Scheduler wait time, ns</a><a href="/sched?id={{.PC}}&raw=1" download="sched.profile">⬇</a> </th>
 <th> GC sweeping time, ns </th>
 <th> GC pause time, ns </th>
 </tr>
-{{range $}}
+{{range .GList}}
   <tr>
     <td> <a href="/trace?goid={{.ID}}">{{.ID}}</a> </td>
     <td> {{.TotalTime}} </td>
@@ -303,26 +169,3 @@ var templGoroutine = template.Must(template.New("").Parse(`
 </body>
 </html>
 `))
-
-// relatedGoroutines finds set of related goroutines that we need to include
-// into trace for goroutine goid.
-func relatedGoroutines(events []*trace.Event, goid uint64) map[uint64]bool {
-	// BFS of depth 2 over "unblock" edges
-	// (what goroutines unblock goroutine goid?).
-	gmap := make(map[uint64]bool)
-	gmap[goid] = true
-	for i := 0; i < 2; i++ {
-		gmap1 := make(map[uint64]bool)
-		for g := range gmap {
-			gmap1[g] = true
-		}
-		for _, ev := range events {
-			if ev.Type == trace.EvGoUnblock && gmap[ev.Args[0]] {
-				gmap1[ev.G] = true
-			}
-		}
-		gmap = gmap1
-	}
-	gmap[0] = true // for GC events
-	return gmap
-}

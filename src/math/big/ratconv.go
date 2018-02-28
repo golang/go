@@ -15,8 +15,11 @@ import (
 )
 
 func ratTok(ch rune) bool {
-	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
+	return strings.ContainsRune("+-/0123456789.eE", ch)
 }
+
+var ratZero Rat
+var _ fmt.Scanner = &ratZero // *Rat must implement fmt.Scanner
 
 // Scan is a support routine for fmt.Scanner. It accepts the formats
 // 'e', 'E', 'f', 'F', 'g', 'G', and 'v'. All formats are equivalent.
@@ -25,7 +28,7 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
 	if err != nil {
 		return err
 	}
-	if strings.IndexRune("efgEFGv", ch) < 0 {
+	if !strings.ContainsRune("efgEFGv", ch) {
 		return errors.New("Rat.Scan: invalid verb")
 	}
 	if _, ok := z.SetString(string(tok)); !ok {
@@ -36,8 +39,9 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
 
 // SetString sets z to the value of s and returns z and a boolean indicating
 // success. s can be given as a fraction "a/b" or as a floating-point number
-// optionally followed by an exponent. If the operation failed, the value of
-// z is undefined but the returned value is nil.
+// optionally followed by an exponent. The entire string (not just a prefix)
+// must be valid for success. If the operation failed, the value of z is
+// undefined but the returned value is nil.
 func (z *Rat) SetString(s string) (*Rat, bool) {
 	if len(s) == 0 {
 		return nil, false
@@ -49,9 +53,13 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		if _, ok := z.a.SetString(s[:sep], 0); !ok {
 			return nil, false
 		}
-		s = s[sep+1:]
+		r := strings.NewReader(s[sep+1:])
 		var err error
-		if z.b.abs, _, _, err = z.b.abs.scan(strings.NewReader(s), 0, false); err != nil {
+		if z.b.abs, _, _, err = z.b.abs.scan(r, 0, false); err != nil {
+			return nil, false
+		}
+		// entire string must have been consumed
+		if _, err = r.ReadByte(); err != io.EOF {
 			return nil, false
 		}
 		if len(z.b.abs) == 0 {
@@ -87,6 +95,12 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	if _, err = r.ReadByte(); err != io.EOF {
 		return nil, false
 	}
+
+	// special-case 0 (see also issue #16176)
+	if len(z.a.abs) == 0 {
+		return z, true
+	}
+	// len(z.a.abs) > 0
 
 	// correct exponent
 	if ecorr < 0 {
@@ -178,7 +192,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 			}
 			break // i > 0
 		}
-		digits = append(digits, byte(ch))
+		digits = append(digits, ch)
 	}
 	// i > 0 => we have at least one digit
 
@@ -188,11 +202,20 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 
 // String returns a string representation of x in the form "a/b" (even if b == 1).
 func (x *Rat) String() string {
-	s := "/1"
+	return string(x.marshal())
+}
+
+// marshal implements String returning a slice of bytes
+func (x *Rat) marshal() []byte {
+	var buf []byte
+	buf = x.a.Append(buf, 10)
+	buf = append(buf, '/')
 	if len(x.b.abs) != 0 {
-		s = "/" + x.b.abs.decimalString()
+		buf = x.b.Append(buf, 10)
+	} else {
+		buf = append(buf, '1')
 	}
-	return x.a.String() + s
+	return buf
 }
 
 // RatString returns a string representation of x in the form "a/b" if b != 1,
@@ -205,14 +228,20 @@ func (x *Rat) RatString() string {
 }
 
 // FloatString returns a string representation of x in decimal form with prec
-// digits of precision after the decimal point and the last digit rounded.
+// digits of precision after the decimal point. The last digit is rounded to
+// nearest, with halves rounded away from zero.
 func (x *Rat) FloatString(prec int) string {
+	var buf []byte
+
 	if x.IsInt() {
-		s := x.a.String()
+		buf = x.a.Append(buf, 10)
 		if prec > 0 {
-			s += "." + strings.Repeat("0", prec)
+			buf = append(buf, '.')
+			for i := prec; i > 0; i-- {
+				buf = append(buf, '0')
+			}
 		}
-		return s
+		return string(buf)
 	}
 	// x.b.abs != 0
 
@@ -236,16 +265,19 @@ func (x *Rat) FloatString(prec int) string {
 		}
 	}
 
-	s := q.decimalString()
 	if x.a.neg {
-		s = "-" + s
+		buf = append(buf, '-')
 	}
+	buf = append(buf, q.utoa(10)...) // itoa ignores sign if q == 0
 
 	if prec > 0 {
-		rs := r.decimalString()
-		leadingZeros := prec - len(rs)
-		s += "." + strings.Repeat("0", leadingZeros) + rs
+		buf = append(buf, '.')
+		rs := r.utoa(10)
+		for i := prec - len(rs); i > 0; i-- {
+			buf = append(buf, '0')
+		}
+		buf = append(buf, rs...)
 	}
 
-	return s
+	return string(buf)
 }

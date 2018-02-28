@@ -5,6 +5,11 @@
 // Package tls partially implements TLS 1.2, as specified in RFC 5246.
 package tls
 
+// BUG(agl): The crypto/tls package only implements some countermeasures
+// against Lucky13 attacks on CBC-mode encryption, and only on SHA1
+// variants. See http://www.isg.rhul.ac.uk/tls/TLStiming.pdf and
+// https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
+
 import (
 	"crypto"
 	"crypto/ecdsa"
@@ -12,6 +17,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -20,8 +26,8 @@ import (
 
 // Server returns a new TLS server side connection
 // using conn as the underlying transport.
-// The configuration config must be non-nil and must have
-// at least one certificate.
+// The configuration config must be non-nil and must include
+// at least one certificate or else set GetCertificate.
 func Server(conn net.Conn, config *Config) *Conn {
 	return &Conn{conn: conn, config: config}
 }
@@ -41,20 +47,19 @@ type listener struct {
 }
 
 // Accept waits for and returns the next incoming TLS connection.
-// The returned connection c is a *tls.Conn.
-func (l *listener) Accept() (c net.Conn, err error) {
-	c, err = l.Listener.Accept()
+// The returned connection is of type *Conn.
+func (l *listener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
 	if err != nil {
-		return
+		return nil, err
 	}
-	c = Server(c, l.config)
-	return
+	return Server(c, l.config), nil
 }
 
 // NewListener creates a Listener which accepts connections from an inner
 // Listener and wraps each connection with Server.
-// The configuration config must be non-nil and must have
-// at least one certificate.
+// The configuration config must be non-nil and must include
+// at least one certificate or else set GetCertificate.
 func NewListener(inner net.Listener, config *Config) net.Listener {
 	l := new(listener)
 	l.Listener = inner
@@ -64,11 +69,11 @@ func NewListener(inner net.Listener, config *Config) net.Listener {
 
 // Listen creates a TLS listener accepting connections on the
 // given network address using net.Listen.
-// The configuration config must be non-nil and must have
-// at least one certificate.
+// The configuration config must be non-nil and must include
+// at least one certificate or else set GetCertificate.
 func Listen(network, laddr string, config *Config) (net.Listener, error) {
-	if config == nil || len(config.Certificates) == 0 {
-		return nil, errors.New("tls.Listen: no certificates in configuration")
+	if config == nil || (len(config.Certificates) == 0 && config.GetCertificate == nil) {
+		return nil, errors.New("tls: neither Certificates nor GetCertificate set in Config")
 	}
 	l, err := net.Listen(network, laddr)
 	if err != nil {
@@ -97,7 +102,7 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
 	timeout := dialer.Timeout
 
 	if !dialer.Deadline.IsZero() {
-		deadlineTimeout := dialer.Deadline.Sub(time.Now())
+		deadlineTimeout := time.Until(dialer.Deadline)
 		if timeout == 0 || deadlineTimeout < timeout {
 			timeout = deadlineTimeout
 		}
@@ -130,9 +135,9 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
 	// from the hostname we're connecting to.
 	if config.ServerName == "" {
 		// Make a copy to avoid polluting argument or default.
-		c := *config
+		c := config.Clone()
 		c.ServerName = hostname
-		config = &c
+		config = c
 	}
 
 	conn := Client(rawConn, config)
@@ -165,8 +170,11 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
 	return DialWithDialer(new(net.Dialer), network, addr, config)
 }
 
-// LoadX509KeyPair reads and parses a public/private key pair from a pair of
-// files. The files must contain PEM encoded data.
+// LoadX509KeyPair reads and parses a public/private key pair from a pair
+// of files. The files must contain PEM encoded data. The certificate file
+// may contain intermediate certificates following the leaf certificate to
+// form a certificate chain. On successful return, Certificate.Leaf will
+// be nil because the parsed form of the certificate is not retained.
 func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 	certPEMBlock, err := ioutil.ReadFile(certFile)
 	if err != nil {
@@ -180,34 +188,53 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 }
 
 // X509KeyPair parses a public/private key pair from a pair of
-// PEM encoded data.
+// PEM encoded data. On successful return, Certificate.Leaf will be nil because
+// the parsed form of the certificate is not retained.
 func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
-	var cert Certificate
-	var certDERBlock *pem.Block
 	fail := func(err error) (Certificate, error) { return Certificate{}, err }
+
+	var cert Certificate
+	var skippedBlockTypes []string
 	for {
+		var certDERBlock *pem.Block
 		certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
 		if certDERBlock == nil {
 			break
 		}
 		if certDERBlock.Type == "CERTIFICATE" {
 			cert.Certificate = append(cert.Certificate, certDERBlock.Bytes)
+		} else {
+			skippedBlockTypes = append(skippedBlockTypes, certDERBlock.Type)
 		}
 	}
 
 	if len(cert.Certificate) == 0 {
-		return fail(errors.New("crypto/tls: failed to parse certificate PEM data"))
+		if len(skippedBlockTypes) == 0 {
+			return fail(errors.New("tls: failed to find any PEM data in certificate input"))
+		}
+		if len(skippedBlockTypes) == 1 && strings.HasSuffix(skippedBlockTypes[0], "PRIVATE KEY") {
+			return fail(errors.New("tls: failed to find certificate PEM data in certificate input, but did find a private key; PEM inputs may have been switched"))
+		}
+		return fail(fmt.Errorf("tls: failed to find \"CERTIFICATE\" PEM block in certificate input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
 	}
 
+	skippedBlockTypes = skippedBlockTypes[:0]
 	var keyDERBlock *pem.Block
 	for {
 		keyDERBlock, keyPEMBlock = pem.Decode(keyPEMBlock)
 		if keyDERBlock == nil {
-			return fail(errors.New("crypto/tls: failed to parse key PEM data"))
+			if len(skippedBlockTypes) == 0 {
+				return fail(errors.New("tls: failed to find any PEM data in key input"))
+			}
+			if len(skippedBlockTypes) == 1 && skippedBlockTypes[0] == "CERTIFICATE" {
+				return fail(errors.New("tls: found a certificate rather than a key in the PEM for the private key"))
+			}
+			return fail(fmt.Errorf("tls: failed to find PEM block with type ending in \"PRIVATE KEY\" in key input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
 		}
 		if keyDERBlock.Type == "PRIVATE KEY" || strings.HasSuffix(keyDERBlock.Type, " PRIVATE KEY") {
 			break
 		}
+		skippedBlockTypes = append(skippedBlockTypes, keyDERBlock.Type)
 	}
 
 	var err error
@@ -227,22 +254,21 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 	case *rsa.PublicKey:
 		priv, ok := cert.PrivateKey.(*rsa.PrivateKey)
 		if !ok {
-			return fail(errors.New("crypto/tls: private key type does not match public key type"))
+			return fail(errors.New("tls: private key type does not match public key type"))
 		}
 		if pub.N.Cmp(priv.N) != 0 {
-			return fail(errors.New("crypto/tls: private key does not match public key"))
+			return fail(errors.New("tls: private key does not match public key"))
 		}
 	case *ecdsa.PublicKey:
 		priv, ok := cert.PrivateKey.(*ecdsa.PrivateKey)
 		if !ok {
-			return fail(errors.New("crypto/tls: private key type does not match public key type"))
-
+			return fail(errors.New("tls: private key type does not match public key type"))
 		}
 		if pub.X.Cmp(priv.X) != 0 || pub.Y.Cmp(priv.Y) != 0 {
-			return fail(errors.New("crypto/tls: private key does not match public key"))
+			return fail(errors.New("tls: private key does not match public key"))
 		}
 	default:
-		return fail(errors.New("crypto/tls: unknown public key algorithm"))
+		return fail(errors.New("tls: unknown public key algorithm"))
 	}
 
 	return cert, nil
@@ -260,12 +286,12 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 		case *rsa.PrivateKey, *ecdsa.PrivateKey:
 			return key, nil
 		default:
-			return nil, errors.New("crypto/tls: found unknown private key type in PKCS#8 wrapping")
+			return nil, errors.New("tls: found unknown private key type in PKCS#8 wrapping")
 		}
 	}
 	if key, err := x509.ParseECPrivateKey(der); err == nil {
 		return key, nil
 	}
 
-	return nil, errors.New("crypto/tls: failed to parse private key")
+	return nil, errors.New("tls: failed to parse private key")
 }

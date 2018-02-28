@@ -3,10 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // Package syscall contains an interface to the low-level operating system
-// primitives.  The details vary depending on the underlying system, and
+// primitives. The details vary depending on the underlying system, and
 // by default, godoc will display the syscall documentation for the current
-// system.  If you want godoc to display syscall documentation for another
-// system, set $GOOS and $GOARCH to the desired system.  For example, if
+// system. If you want godoc to display syscall documentation for another
+// system, set $GOOS and $GOARCH to the desired system. For example, if
 // you want to view documentation for freebsd/arm on linux/amd64, set $GOOS
 // to freebsd and $GOARCH to arm.
 // The primary use of syscall is inside other packages that provide a more
@@ -22,15 +22,20 @@
 // Go repository should be migrated to use the corresponding
 // package in the golang.org/x/sys repository. That is also where updates
 // required by new systems or versions should be applied.
-// See https://golang.org/s/go1.4-syscall for more information.
+// Signal, Errno and SysProcAttr are not yet available in
+// golang.org/x/sys and must still be referenced from the
+// syscall package. See https://golang.org/s/go1.4-syscall
+// for more information.
 //
 package syscall
 
-import "unsafe"
+//go:generate go run mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
 
-// StringByteSlice is deprecated. Use ByteSliceFromString instead.
+// StringByteSlice converts a string to a NUL-terminated []byte,
 // If s contains a NUL byte this function panics instead of
 // returning an error.
+//
+// Deprecated: Use ByteSliceFromString instead.
 func StringByteSlice(s string) []byte {
 	a, err := ByteSliceFromString(s)
 	if err != nil {
@@ -53,9 +58,11 @@ func ByteSliceFromString(s string) ([]byte, error) {
 	return a, nil
 }
 
-// StringBytePtr is deprecated. Use BytePtrFromString instead.
-// If s contains a NUL byte this function panics instead of
-// returning an error.
+// StringBytePtr returns a pointer to a NUL-terminated array of bytes.
+// If s contains a NUL byte this function panics instead of returning
+// an error.
+//
+// Deprecated: Use BytePtrFromString instead.
 func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
 
 // BytePtrFromString returns a pointer to a NUL-terminated array of
@@ -73,23 +80,29 @@ func BytePtrFromString(s string) (*byte, error) {
 // See mksyscall.pl.
 var _zero uintptr
 
+// Unix returns ts as the number of seconds and nanoseconds elapsed since the
+// Unix epoch.
 func (ts *Timespec) Unix() (sec int64, nsec int64) {
 	return int64(ts.Sec), int64(ts.Nsec)
 }
 
+// Unix returns tv as the number of seconds and nanoseconds elapsed since the
+// Unix epoch.
 func (tv *Timeval) Unix() (sec int64, nsec int64) {
 	return int64(tv.Sec), int64(tv.Usec) * 1000
 }
 
+// Nano returns ts as the number of nanoseconds elapsed since the Unix epoch.
 func (ts *Timespec) Nano() int64 {
 	return int64(ts.Sec)*1e9 + int64(ts.Nsec)
 }
 
+// Nano returns tv as the number of nanoseconds elapsed since the Unix epoch.
 func (tv *Timeval) Nano() int64 {
 	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1000
 }
 
-// use is a no-op, but the compiler cannot see that it is.
-// Calling use(p) ensures that p is kept live until that point.
-//go:noescape
-func use(p unsafe.Pointer)
+// Getpagesize and Exit are provided by the runtime.
+
+func Getpagesize() int
+func Exit(code int)

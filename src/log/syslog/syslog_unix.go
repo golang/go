@@ -20,9 +20,7 @@ func unixSyslog() (conn serverConn, err error) {
 	for _, network := range logTypes {
 		for _, path := range logPaths {
 			conn, err := net.Dial(network, path)
-			if err != nil {
-				continue
-			} else {
+			if err == nil {
 				return &netConn{conn: conn, local: true}, nil
 			}
 		}

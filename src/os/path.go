@@ -6,13 +6,14 @@ package os
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
 // MkdirAll creates a directory named path,
 // along with any necessary parents, and returns nil,
 // or else returns an error.
-// The permission bits perm are used for all
+// The permission bits perm (before umask) are used for all
 // directories that MkdirAll creates.
 // If path is already a directory, MkdirAll does nothing
 // and returns nil.
@@ -38,8 +39,8 @@ func MkdirAll(path string, perm FileMode) error {
 	}
 
 	if j > 1 {
-		// Create parent
-		err = MkdirAll(path[0:j-1], perm)
+		// Create parent.
+		err = MkdirAll(fixRootDirectory(path[:j-1]), perm)
 		if err != nil {
 			return err
 		}
@@ -61,7 +62,7 @@ func MkdirAll(path string, perm FileMode) error {
 
 // RemoveAll removes path and any children it contains.
 // It removes everything it can but returns the first error
-// it encounters.  If the path does not exist, RemoveAll
+// it encounters. If the path does not exist, RemoveAll
 // returns nil (no error).
 func RemoveAll(path string) error {
 	// Simple case: if Remove works, we're done.
@@ -97,6 +98,11 @@ func RemoveAll(path string) error {
 	// Remove contents & return first error.
 	err = nil
 	for {
+		if err == nil && (runtime.GOOS == "plan9" || runtime.GOOS == "nacl") {
+			// Reset read offset after removing directory entries.
+			// See golang.org/issue/22572.
+			fd.Seek(0, 0)
+		}
 		names, err1 := fd.Readdirnames(100)
 		for _, name := range names {
 			err1 := RemoveAll(path + string(PathSeparator) + name)

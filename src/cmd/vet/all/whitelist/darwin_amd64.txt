@@ -1,0 +1,5 @@
+// darwin/amd64-specific vet whitelist. See readme.txt for details.
+
+runtime/sys_darwin_amd64.s: [amd64] bsdthread_start: function bsdthread_start missing Go declaration
+runtime/sys_darwin_amd64.s: [amd64] settls: function settls missing Go declaration
+runtime/sys_darwin_amd64.s: [amd64] cannot check cross-package assembly function: now is in package time

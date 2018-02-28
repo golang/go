@@ -10,7 +10,7 @@ import (
 )
 
 const wordSize = int(unsafe.Sizeof(uintptr(0)))
-const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "amd64"
+const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
 
 // fastXORBytes xors in bulk. It only works on architectures that
 // support unaligned read/writes.
@@ -19,6 +19,11 @@ func fastXORBytes(dst, a, b []byte) int {
 	if len(b) < n {
 		n = len(b)
 	}
+	if n == 0 {
+		return 0
+	}
+	// Assert dst has enough space
+	_ = dst[n-1]
 
 	w := n / wordSize
 	if w > 0 {
@@ -48,8 +53,8 @@ func safeXORBytes(dst, a, b []byte) int {
 	return n
 }
 
-// xorBytes xors the bytes in a and b. The destination is assumed to have enough
-// space. Returns the number of bytes xor'd.
+// xorBytes xors the bytes in a and b. The destination should have enough
+// space, otherwise xorBytes will panic. Returns the number of bytes xor'd.
 func xorBytes(dst, a, b []byte) int {
 	if supportsUnaligned {
 		return fastXORBytes(dst, a, b)

@@ -31,7 +31,7 @@ func SortImports(fset *token.FileSet, f *File) {
 		specs := d.Specs[:0]
 		for j, s := range d.Specs {
 			if j > i && fset.Position(s.Pos()).Line > 1+fset.Position(d.Specs[j-1].End()).Line {
-				// j begins a new run.  End this one.
+				// j begins a new run. End this one.
 				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
 				i = j
 			}
@@ -43,8 +43,10 @@ func SortImports(fset *token.FileSet, f *File) {
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
 			lastLine := fset.Position(lastSpec.Pos()).Line
-			if rParenLine := fset.Position(d.Rparen).Line; rParenLine > lastLine+1 {
-				fset.File(d.Rparen).MergeLine(rParenLine - 1)
+			rParenLine := fset.Position(d.Rparen).Line
+			for rParenLine > lastLine+1 {
+				rParenLine--
+				fset.File(d.Rparen).MergeLine(rParenLine)
 			}
 		}
 	}
@@ -121,14 +123,14 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 	comments := f.Comments[cstart:cend]
 
 	// Assign each comment to the import spec preceding it.
-	importComment := map[*ImportSpec][]*CommentGroup{}
+	importComments := map[*ImportSpec][]*CommentGroup{}
 	specIndex := 0
 	for _, g := range comments {
 		for specIndex+1 < len(specs) && pos[specIndex+1].Start <= g.Pos() {
 			specIndex++
 		}
 		s := specs[specIndex].(*ImportSpec)
-		importComment[s] = append(importComment[s], g)
+		importComments[s] = append(importComments[s], g)
 	}
 
 	// Sort the import specs by import path.
@@ -136,7 +138,19 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 	// Reassign the import paths to have the same position sequence.
 	// Reassign each comment to abut the end of its spec.
 	// Sort the comments by new position.
-	sort.Sort(byImportSpec(specs))
+	sort.Slice(specs, func(i, j int) bool {
+		ipath := importPath(specs[i])
+		jpath := importPath(specs[j])
+		if ipath != jpath {
+			return ipath < jpath
+		}
+		iname := importName(specs[i])
+		jname := importName(specs[j])
+		if iname != jname {
+			return iname < jname
+		}
+		return importComment(specs[i]) < importComment(specs[j])
+	})
 
 	// Dedup. Thanks to our sorting, we can just consider
 	// adjacent pairs of imports.
@@ -159,38 +173,16 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 		}
 		s.Path.ValuePos = pos[i].Start
 		s.EndPos = pos[i].End
-		for _, g := range importComment[s] {
+		for _, g := range importComments[s] {
 			for _, c := range g.List {
 				c.Slash = pos[i].End
 			}
 		}
 	}
 
-	sort.Sort(byCommentPos(comments))
+	sort.Slice(comments, func(i, j int) bool {
+		return comments[i].Pos() < comments[j].Pos()
+	})
 
 	return specs
 }
-
-type byImportSpec []Spec // slice of *ImportSpec
-
-func (x byImportSpec) Len() int      { return len(x) }
-func (x byImportSpec) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x byImportSpec) Less(i, j int) bool {
-	ipath := importPath(x[i])
-	jpath := importPath(x[j])
-	if ipath != jpath {
-		return ipath < jpath
-	}
-	iname := importName(x[i])
-	jname := importName(x[j])
-	if iname != jname {
-		return iname < jname
-	}
-	return importComment(x[i]) < importComment(x[j])
-}
-
-type byCommentPos []*CommentGroup
-
-func (x byCommentPos) Len() int           { return len(x) }
-func (x byCommentPos) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byCommentPos) Less(i, j int) bool { return x[i].Pos() < x[j].Pos() }

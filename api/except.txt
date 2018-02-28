@@ -1,25 +1,124 @@
+pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
+pkg math/big, const MaxBase = 36
+pkg math/big, type Word uintptr
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
-pkg syscall (darwin-386), func Fchflags(string, int) error
-pkg syscall (darwin-386-cgo), func Fchflags(string, int) error
-pkg syscall (darwin-amd64), func Fchflags(string, int) error
-pkg syscall (darwin-amd64-cgo), func Fchflags(string, int) error
-pkg syscall (freebsd-386), func Fchflags(string, int) error
-pkg syscall (freebsd-amd64), func Fchflags(string, int) error
-pkg syscall (freebsd-arm), func Fchflags(string, int) error
-pkg syscall (freebsd-arm-cgo), func Fchflags(string, int) error
-pkg syscall (netbsd-arm), func Fchflags(string, int) error
-pkg syscall (netbsd-arm-cgo), func Fchflags(string, int) error
-pkg testing, func RegisterCover(Cover)
-pkg text/template/parse, type DotNode bool
-pkg text/template/parse, type Node interface { Copy, String, Type }
 pkg os (linux-arm), const O_SYNC = 4096
 pkg os (linux-arm-cgo), const O_SYNC = 4096
 pkg syscall (darwin-386), const ImplementsGetwd = false
+pkg syscall (darwin-386), func Fchflags(string, int) error
 pkg syscall (darwin-386-cgo), const ImplementsGetwd = false
+pkg syscall (darwin-386-cgo), func Fchflags(string, int) error
 pkg syscall (darwin-amd64), const ImplementsGetwd = false
+pkg syscall (darwin-amd64), func Fchflags(string, int) error
 pkg syscall (darwin-amd64-cgo), const ImplementsGetwd = false
+pkg syscall (darwin-amd64-cgo), func Fchflags(string, int) error
+pkg syscall (freebsd-386), const AF_MAX = 38
+pkg syscall (freebsd-386), const DLT_MATCHING_MAX = 242
+pkg syscall (freebsd-386), const ELAST = 94
+pkg syscall (freebsd-386), const ImplementsGetwd = false
+pkg syscall (freebsd-386), const O_CLOEXEC = 0
+pkg syscall (freebsd-386), func Fchflags(string, int) error
+pkg syscall (freebsd-386-cgo), const AF_MAX = 38
+pkg syscall (freebsd-386-cgo), const DLT_MATCHING_MAX = 242
+pkg syscall (freebsd-386-cgo), const ELAST = 94
+pkg syscall (freebsd-386-cgo), const ImplementsGetwd = false
+pkg syscall (freebsd-386-cgo), const O_CLOEXEC = 0
+pkg syscall (freebsd-amd64), const AF_MAX = 38
+pkg syscall (freebsd-amd64), const DLT_MATCHING_MAX = 242
+pkg syscall (freebsd-amd64), const ELAST = 94
+pkg syscall (freebsd-amd64), const ImplementsGetwd = false
+pkg syscall (freebsd-amd64), const O_CLOEXEC = 0
+pkg syscall (freebsd-amd64), func Fchflags(string, int) error
+pkg syscall (freebsd-amd64-cgo), const AF_MAX = 38
+pkg syscall (freebsd-amd64-cgo), const DLT_MATCHING_MAX = 242
+pkg syscall (freebsd-amd64-cgo), const ELAST = 94
+pkg syscall (freebsd-amd64-cgo), const ImplementsGetwd = false
+pkg syscall (freebsd-amd64-cgo), const O_CLOEXEC = 0
+pkg syscall (freebsd-arm), const AF_MAX = 38
+pkg syscall (freebsd-arm), const BIOCGRTIMEOUT = 1074545262
+pkg syscall (freebsd-arm), const BIOCSRTIMEOUT = 2148287085
+pkg syscall (freebsd-arm), const ELAST = 94
+pkg syscall (freebsd-arm), const ImplementsGetwd = false
+pkg syscall (freebsd-arm), const O_CLOEXEC = 0
+pkg syscall (freebsd-arm), const SIOCAIFADDR = 2151967019
+pkg syscall (freebsd-arm), const SIOCGIFSTATUS = 3274991931
+pkg syscall (freebsd-arm), const SIOCSIFPHYADDR = 2151967046
+pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_GET = 537
+pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_GET ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_LIMIT = 536
+pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_LIMIT ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_GET = 535
+pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_GET ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_LIMIT = 534
+pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_LIMIT ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_GET = 515
+pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_GET ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_LIMIT = 533
+pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_LIMIT ideal-int
+pkg syscall (freebsd-arm), const SizeofBpfHdr = 24
+pkg syscall (freebsd-arm), const SizeofIfData = 88
+pkg syscall (freebsd-arm), const SizeofIfMsghdr = 104
+pkg syscall (freebsd-arm), const SizeofSockaddrDatalink = 56
+pkg syscall (freebsd-arm), const SizeofSockaddrUnix = 108
+pkg syscall (freebsd-arm), const TIOCTIMESTAMP = 1074558041
+pkg syscall (freebsd-arm), func Fchflags(string, int) error
+pkg syscall (freebsd-arm), type BpfHdr struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm-cgo), const AF_MAX = 38
+pkg syscall (freebsd-arm-cgo), const BIOCGRTIMEOUT = 1074545262
+pkg syscall (freebsd-arm-cgo), const BIOCSRTIMEOUT = 2148287085
+pkg syscall (freebsd-arm-cgo), const ELAST = 94
+pkg syscall (freebsd-arm-cgo), const ImplementsGetwd = false
+pkg syscall (freebsd-arm-cgo), const O_CLOEXEC = 0
+pkg syscall (freebsd-arm-cgo), const SIOCAIFADDR = 2151967019
+pkg syscall (freebsd-arm-cgo), const SIOCGIFSTATUS = 3274991931
+pkg syscall (freebsd-arm-cgo), const SIOCSIFPHYADDR = 2151967046
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_GET = 537
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_GET ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_LIMIT = 536
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_LIMIT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_GET = 535
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_GET ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_LIMIT = 534
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_LIMIT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_GET = 515
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_GET ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_LIMIT = 533
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_LIMIT ideal-int
+pkg syscall (freebsd-arm-cgo), const SizeofBpfHdr = 24
+pkg syscall (freebsd-arm-cgo), const SizeofIfData = 88
+pkg syscall (freebsd-arm-cgo), const SizeofIfMsghdr = 104
+pkg syscall (freebsd-arm-cgo), const SizeofSockaddrDatalink = 56
+pkg syscall (freebsd-arm-cgo), const SizeofSockaddrUnix = 108
+pkg syscall (freebsd-arm-cgo), const TIOCTIMESTAMP = 1074558041
+pkg syscall (freebsd-arm-cgo), func Fchflags(string, int) error
+pkg syscall (freebsd-arm-cgo), type BpfHdr struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm-cgo), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm-cgo), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (linux-386), type Cmsghdr struct, X__cmsg_data [0]uint8
+pkg syscall (linux-386-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
+pkg syscall (linux-amd64), type Cmsghdr struct, X__cmsg_data [0]uint8
+pkg syscall (linux-amd64-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
+pkg syscall (linux-arm), type Cmsghdr struct, X__cmsg_data [0]uint8
+pkg syscall (linux-arm-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
+pkg syscall (netbsd-386), const ImplementsGetwd = false
+pkg syscall (netbsd-386-cgo), const ImplementsGetwd = false
+pkg syscall (netbsd-amd64), const ImplementsGetwd = false
+pkg syscall (netbsd-amd64-cgo), const ImplementsGetwd = false
+pkg syscall (netbsd-arm), const ImplementsGetwd = false
+pkg syscall (netbsd-arm-cgo), const ImplementsGetwd = false
+pkg syscall (netbsd-arm), const SizeofIfData = 132
+pkg syscall (netbsd-arm), func Fchflags(string, int) error
+pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
+pkg syscall (netbsd-arm-cgo), const SizeofIfData = 132
+pkg syscall (netbsd-arm-cgo), func Fchflags(string, int) error
+pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
 pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074283118
 pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148024941
+pkg syscall (openbsd-386), const ImplementsGetwd = false
 pkg syscall (openbsd-386), const RTF_FMASK = 63496
 pkg syscall (openbsd-386), const RTM_VERSION = 4
 pkg syscall (openbsd-386), const SIOCBRDGDADDR = 2150132039
@@ -72,6 +171,7 @@ pkg syscall (openbsd-386), type Timespec struct, Sec int32
 pkg syscall (openbsd-386), type Timeval struct, Sec int32
 pkg syscall (openbsd-386-cgo), const BIOCGRTIMEOUT = 1074283118
 pkg syscall (openbsd-386-cgo), const BIOCSRTIMEOUT = 2148024941
+pkg syscall (openbsd-386-cgo), const ImplementsGetwd = false
 pkg syscall (openbsd-386-cgo), const RTF_FMASK = 63496
 pkg syscall (openbsd-386-cgo), const RTM_VERSION = 4
 pkg syscall (openbsd-386-cgo), const SIOCBRDGDADDR = 2150132039
@@ -134,6 +234,7 @@ pkg syscall (openbsd-amd64), const EFER_NXE = 2048
 pkg syscall (openbsd-amd64), const EFER_NXE ideal-int
 pkg syscall (openbsd-amd64), const EFER_SCE = 1
 pkg syscall (openbsd-amd64), const EFER_SCE ideal-int
+pkg syscall (openbsd-amd64), const ImplementsGetwd = false
 pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH = 21
 pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH ideal-int
 pkg syscall (openbsd-amd64), const RTF_FMASK = 63496
@@ -196,6 +297,7 @@ pkg syscall (openbsd-amd64-cgo), const EFER_NXE = 2048
 pkg syscall (openbsd-amd64-cgo), const EFER_NXE ideal-int
 pkg syscall (openbsd-amd64-cgo), const EFER_SCE = 1
 pkg syscall (openbsd-amd64-cgo), const EFER_SCE ideal-int
+pkg syscall (openbsd-amd64-cgo), const ImplementsGetwd = false
 pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH = 21
 pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH ideal-int
 pkg syscall (openbsd-amd64-cgo), const RTF_FMASK = 63496
@@ -246,85 +348,16 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_spare [3]uint32
 pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
+pkg testing, func RegisterCover(Cover)
+pkg testing, func MainStart(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample) *M
+pkg text/template/parse, type DotNode bool
+pkg text/template/parse, type Node interface { Copy, String, Type }
 pkg unicode, const Version = "6.2.0"
-pkg syscall (freebsd-386), const AF_MAX = 38
-pkg syscall (freebsd-386), const DLT_MATCHING_MAX = 242
-pkg syscall (freebsd-386), const ELAST = 94
-pkg syscall (freebsd-386), const O_CLOEXEC = 0
-pkg syscall (freebsd-386-cgo), const AF_MAX = 38
-pkg syscall (freebsd-386-cgo), const DLT_MATCHING_MAX = 242
-pkg syscall (freebsd-386-cgo), const ELAST = 94
-pkg syscall (freebsd-386-cgo), const O_CLOEXEC = 0
-pkg syscall (freebsd-amd64), const AF_MAX = 38
-pkg syscall (freebsd-amd64), const DLT_MATCHING_MAX = 242
-pkg syscall (freebsd-amd64), const ELAST = 94
-pkg syscall (freebsd-amd64), const O_CLOEXEC = 0
-pkg syscall (freebsd-amd64-cgo), const AF_MAX = 38
-pkg syscall (freebsd-amd64-cgo), const DLT_MATCHING_MAX = 242
-pkg syscall (freebsd-amd64-cgo), const ELAST = 94
-pkg syscall (freebsd-amd64-cgo), const O_CLOEXEC = 0
-pkg syscall (freebsd-arm), const AF_MAX = 38
-pkg syscall (freebsd-arm), const BIOCGRTIMEOUT = 1074545262
-pkg syscall (freebsd-arm), const BIOCSRTIMEOUT = 2148287085
-pkg syscall (freebsd-arm), const ELAST = 94
-pkg syscall (freebsd-arm), const O_CLOEXEC = 0
-pkg syscall (freebsd-arm), const SIOCAIFADDR = 2151967019
-pkg syscall (freebsd-arm), const SIOCGIFSTATUS = 3274991931
-pkg syscall (freebsd-arm), const SIOCSIFPHYADDR = 2151967046
-pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_GET = 537
-pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_GET ideal-int
-pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_LIMIT = 536
-pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_LIMIT ideal-int
-pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_GET = 535
-pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_GET ideal-int
-pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_LIMIT = 534
-pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_LIMIT ideal-int
-pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_GET = 515
-pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_GET ideal-int
-pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_LIMIT = 533
-pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_LIMIT ideal-int
-pkg syscall (freebsd-arm), const SizeofBpfHdr = 24
-pkg syscall (freebsd-arm), const SizeofIfData = 88
-pkg syscall (freebsd-arm), const SizeofIfMsghdr = 104
-pkg syscall (freebsd-arm), const SizeofSockaddrDatalink = 56
-pkg syscall (freebsd-arm), const SizeofSockaddrUnix = 108
-pkg syscall (freebsd-arm), const TIOCTIMESTAMP = 1074558041
-pkg syscall (freebsd-arm), type BpfHdr struct, Pad_cgo_0 [2]uint8
-pkg syscall (freebsd-arm), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
-pkg syscall (freebsd-arm), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
-pkg syscall (freebsd-arm), type Stat_t struct, Pad_cgo_0 [4]uint8
-pkg syscall (freebsd-arm-cgo), const AF_MAX = 38
-pkg syscall (freebsd-arm-cgo), const BIOCGRTIMEOUT = 1074545262
-pkg syscall (freebsd-arm-cgo), const BIOCSRTIMEOUT = 2148287085
-pkg syscall (freebsd-arm-cgo), const ELAST = 94
-pkg syscall (freebsd-arm-cgo), const O_CLOEXEC = 0
-pkg syscall (freebsd-arm-cgo), const SIOCAIFADDR = 2151967019
-pkg syscall (freebsd-arm-cgo), const SIOCGIFSTATUS = 3274991931
-pkg syscall (freebsd-arm-cgo), const SIOCSIFPHYADDR = 2151967046
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_GET = 537
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_GET ideal-int
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_LIMIT = 536
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_LIMIT ideal-int
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_GET = 535
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_GET ideal-int
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_LIMIT = 534
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_LIMIT ideal-int
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_GET = 515
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_GET ideal-int
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_LIMIT = 533
-pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_LIMIT ideal-int
-pkg syscall (freebsd-arm-cgo), const SizeofBpfHdr = 24
-pkg syscall (freebsd-arm-cgo), const SizeofIfData = 88
-pkg syscall (freebsd-arm-cgo), const SizeofIfMsghdr = 104
-pkg syscall (freebsd-arm-cgo), const SizeofSockaddrDatalink = 56
-pkg syscall (freebsd-arm-cgo), const SizeofSockaddrUnix = 108
-pkg syscall (freebsd-arm-cgo), const TIOCTIMESTAMP = 1074558041
-pkg syscall (freebsd-arm-cgo), type BpfHdr struct, Pad_cgo_0 [2]uint8
-pkg syscall (freebsd-arm-cgo), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
-pkg syscall (freebsd-arm-cgo), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
-pkg syscall (netbsd-arm), const SizeofIfData = 132
-pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
-pkg syscall (netbsd-arm-cgo), const SizeofIfData = 132
-pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
 pkg unicode, const Version = "6.3.0"
+pkg unicode, const Version = "7.0.0"
+pkg unicode, const Version = "8.0.0"
+pkg syscall (openbsd-386), const SYS_KILL = 37
+pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
+pkg syscall (openbsd-amd64), const SYS_KILL = 37
+pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37
+pkg unicode, const Version = "9.0.0"

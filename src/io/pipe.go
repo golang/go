@@ -10,114 +10,107 @@ package io
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 )
+
+// atomicError is a type-safe atomic value for errors.
+// We use a struct{ error } to ensure consistent use of a concrete type.
+type atomicError struct{ v atomic.Value }
+
+func (a *atomicError) Store(err error) {
+	a.v.Store(struct{ error }{err})
+}
+func (a *atomicError) Load() error {
+	err, _ := a.v.Load().(struct{ error })
+	return err.error
+}
 
 // ErrClosedPipe is the error used for read or write operations on a closed pipe.
 var ErrClosedPipe = errors.New("io: read/write on closed pipe")
 
-type pipeResult struct {
-	n   int
-	err error
-}
-
 // A pipe is the shared pipe structure underlying PipeReader and PipeWriter.
 type pipe struct {
-	rl    sync.Mutex // gates readers one at a time
-	wl    sync.Mutex // gates writers one at a time
-	l     sync.Mutex // protects remaining fields
-	data  []byte     // data remaining in pending write
-	rwait sync.Cond  // waiting reader
-	wwait sync.Cond  // waiting writer
-	rerr  error      // if reader closed, error to give writes
-	werr  error      // if writer closed, error to give reads
+	wrMu sync.Mutex // Serializes Write operations
+	wrCh chan []byte
+	rdCh chan int
+
+	once sync.Once // Protects closing done
+	done chan struct{}
+	rerr atomicError
+	werr atomicError
 }
 
-func (p *pipe) read(b []byte) (n int, err error) {
-	// One reader at a time.
-	p.rl.Lock()
-	defer p.rl.Unlock()
+func (p *pipe) Read(b []byte) (n int, err error) {
+	select {
+	case <-p.done:
+		return 0, p.readCloseError()
+	default:
+	}
 
-	p.l.Lock()
-	defer p.l.Unlock()
-	for {
-		if p.rerr != nil {
-			return 0, ErrClosedPipe
-		}
-		if p.data != nil {
-			break
-		}
-		if p.werr != nil {
-			return 0, p.werr
-		}
-		p.rwait.Wait()
+	select {
+	case bw := <-p.wrCh:
+		nr := copy(b, bw)
+		p.rdCh <- nr
+		return nr, nil
+	case <-p.done:
+		return 0, p.readCloseError()
 	}
-	n = copy(b, p.data)
-	p.data = p.data[n:]
-	if len(p.data) == 0 {
-		p.data = nil
-		p.wwait.Signal()
-	}
-	return
 }
 
-var zero [0]byte
-
-func (p *pipe) write(b []byte) (n int, err error) {
-	// pipe uses nil to mean not available
-	if b == nil {
-		b = zero[:]
+func (p *pipe) readCloseError() error {
+	rerr := p.rerr.Load()
+	if werr := p.werr.Load(); rerr == nil && werr != nil {
+		return werr
 	}
-
-	// One writer at a time.
-	p.wl.Lock()
-	defer p.wl.Unlock()
-
-	p.l.Lock()
-	defer p.l.Unlock()
-	if p.werr != nil {
-		err = ErrClosedPipe
-		return
-	}
-	p.data = b
-	p.rwait.Signal()
-	for {
-		if p.data == nil {
-			break
-		}
-		if p.rerr != nil {
-			err = p.rerr
-			break
-		}
-		if p.werr != nil {
-			err = ErrClosedPipe
-		}
-		p.wwait.Wait()
-	}
-	n = len(b) - len(p.data)
-	p.data = nil // in case of rerr or werr
-	return
+	return ErrClosedPipe
 }
 
-func (p *pipe) rclose(err error) {
+func (p *pipe) CloseRead(err error) error {
 	if err == nil {
 		err = ErrClosedPipe
 	}
-	p.l.Lock()
-	defer p.l.Unlock()
-	p.rerr = err
-	p.rwait.Signal()
-	p.wwait.Signal()
+	p.rerr.Store(err)
+	p.once.Do(func() { close(p.done) })
+	return nil
 }
 
-func (p *pipe) wclose(err error) {
+func (p *pipe) Write(b []byte) (n int, err error) {
+	select {
+	case <-p.done:
+		return 0, p.writeCloseError()
+	default:
+		p.wrMu.Lock()
+		defer p.wrMu.Unlock()
+	}
+
+	for once := true; once || len(b) > 0; once = false {
+		select {
+		case p.wrCh <- b:
+			nw := <-p.rdCh
+			b = b[nw:]
+			n += nw
+		case <-p.done:
+			return n, p.writeCloseError()
+		}
+	}
+	return n, nil
+}
+
+func (p *pipe) writeCloseError() error {
+	werr := p.werr.Load()
+	if rerr := p.rerr.Load(); werr == nil && rerr != nil {
+		return rerr
+	}
+	return ErrClosedPipe
+}
+
+func (p *pipe) CloseWrite(err error) error {
 	if err == nil {
 		err = EOF
 	}
-	p.l.Lock()
-	defer p.l.Unlock()
-	p.werr = err
-	p.rwait.Signal()
-	p.wwait.Signal()
+	p.werr.Store(err)
+	p.once.Do(func() { close(p.done) })
+	return nil
 }
 
 // A PipeReader is the read half of a pipe.
@@ -131,7 +124,7 @@ type PipeReader struct {
 // If the write end is closed with an error, that error is
 // returned as err; otherwise err is EOF.
 func (r *PipeReader) Read(data []byte) (n int, err error) {
-	return r.p.read(data)
+	return r.p.Read(data)
 }
 
 // Close closes the reader; subsequent writes to the
@@ -143,8 +136,7 @@ func (r *PipeReader) Close() error {
 // CloseWithError closes the reader; subsequent writes
 // to the write half of the pipe will return the error err.
 func (r *PipeReader) CloseWithError(err error) error {
-	r.p.rclose(err)
-	return nil
+	return r.p.CloseRead(err)
 }
 
 // A PipeWriter is the write half of a pipe.
@@ -153,12 +145,12 @@ type PipeWriter struct {
 }
 
 // Write implements the standard Write interface:
-// it writes data to the pipe, blocking until readers
+// it writes data to the pipe, blocking until one or more readers
 // have consumed all the data or the read end is closed.
 // If the read end is closed with an error, that err is
 // returned as err; otherwise err is ErrClosedPipe.
 func (w *PipeWriter) Write(data []byte) (n int, err error) {
-	return w.p.write(data)
+	return w.p.Write(data)
 }
 
 // Close closes the writer; subsequent reads from the
@@ -168,26 +160,34 @@ func (w *PipeWriter) Close() error {
 }
 
 // CloseWithError closes the writer; subsequent reads from the
-// read half of the pipe will return no bytes and the error err.
+// read half of the pipe will return no bytes and the error err,
+// or EOF if err is nil.
+//
+// CloseWithError always returns nil.
 func (w *PipeWriter) CloseWithError(err error) error {
-	w.p.wclose(err)
-	return nil
+	return w.p.CloseWrite(err)
 }
 
 // Pipe creates a synchronous in-memory pipe.
 // It can be used to connect code expecting an io.Reader
 // with code expecting an io.Writer.
-// Reads on one end are matched with writes on the other,
-// copying data directly between the two; there is no internal buffering.
-// It is safe to call Read and Write in parallel with each other or with
-// Close. Close will complete once pending I/O is done. Parallel calls to
-// Read, and parallel calls to Write, are also safe:
+//
+// Reads and Writes on the pipe are matched one to one
+// except when multiple Reads are needed to consume a single Write.
+// That is, each Write to the PipeWriter blocks until it has satisfied
+// one or more Reads from the PipeReader that fully consume
+// the written data.
+// The data is copied directly from the Write to the corresponding
+// Read (or Reads); there is no internal buffering.
+//
+// It is safe to call Read and Write in parallel with each other or with Close.
+// Parallel calls to Read and parallel calls to Write are also safe:
 // the individual calls will be gated sequentially.
 func Pipe() (*PipeReader, *PipeWriter) {
-	p := new(pipe)
-	p.rwait.L = &p.l
-	p.wwait.L = &p.l
-	r := &PipeReader{p}
-	w := &PipeWriter{p}
-	return r, w
+	p := &pipe{
+		wrCh: make(chan []byte),
+		rdCh: make(chan int),
+		done: make(chan struct{}),
+	}
+	return &PipeReader{p}, &PipeWriter{p}
 }

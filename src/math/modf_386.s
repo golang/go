@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,6 +6,19 @@
 
 // func Modf(f float64) (int float64, frac float64)
 TEXT ·Modf(SB),NOSPLIT,$0
+	// special case for f == -0.0
+	MOVL f_hi+4(FP), DX	// high word
+	MOVL f_lo+0(FP), AX	// low word
+	CMPL DX, $(1<<31)	// beginning of -0.0
+	JNE notNegativeZero
+	CMPL AX, $0			// could be denormalized
+	JNE notNegativeZero
+	MOVL AX, int_lo+8(FP)
+	MOVL DX, int_hi+12(FP)
+	MOVL AX, frac_lo+16(FP)
+	MOVL DX, frac_hi+20(FP)
+	RET
+notNegativeZero:
 	FMOVD   f+0(FP), F0  // F0=f
 	FMOVD   F0, F1       // F0=f, F1=f
 	FSTCW   -2(SP)       // save old Control Word

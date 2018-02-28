@@ -10,9 +10,10 @@ import (
 	"syscall"
 )
 
-// The only signal values guaranteed to be present on all systems
-// are Interrupt (send the process an interrupt) and Kill (force
-// the process to exit).
+// The only signal values guaranteed to be present in the os package
+// on all systems are Interrupt (send the process an interrupt) and
+// Kill (force the process to exit). Interrupt is not implemented on
+// Windows; using it with os.Process.Signal will return an error.
 var (
 	Interrupt Signal = syscall.SIGINT
 	Kill      Signal = syscall.SIGKILL
@@ -21,7 +22,7 @@ var (
 func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	// If there is no SysProcAttr (ie. no Chroot or changed
 	// UID/GID), double-check existence of the directory we want
-	// to chdir into.  We can make the error clearer this way.
+	// to chdir into. We can make the error clearer this way.
 	if attr != nil && attr.Sys == nil && attr.Dir != "" {
 		if _, err := Stat(attr.Dir); err != nil {
 			pe := err.(*PathError)

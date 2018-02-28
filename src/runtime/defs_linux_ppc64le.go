@@ -17,7 +17,9 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_DONTNEED = 0x4
+	_MADV_DONTNEED   = 0x4
+	_MADV_HUGEPAGE   = 0xe
+	_MADV_NOHUGEPAGE = 0xf
 
 	_SA_RESTART = 0x10000000
 	_SA_ONSTACK = 0x8000000
@@ -168,7 +170,7 @@ type vreg struct {
 	u [4]uint32
 }
 
-type sigaltstackt struct {
+type stackt struct {
 	ss_sp     *byte
 	ss_flags  int32
 	pad_cgo_0 [4]byte
@@ -191,7 +193,7 @@ type sigcontext struct {
 type ucontext struct {
 	uc_flags    uint64
 	uc_link     *ucontext
-	uc_stack    sigaltstackt
+	uc_stack    stackt
 	uc_sigmask  uint64
 	__unused    [15]uint64
 	uc_mcontext sigcontext

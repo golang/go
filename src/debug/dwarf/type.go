@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -154,7 +154,7 @@ type StructField struct {
 	Name       string
 	Type       Type
 	ByteOffset int64
-	ByteSize   int64
+	ByteSize   int64 // usually zero; use Type.Size() for normal fields
 	BitOffset  int64 // within the ByteSize bytes at ByteOffset
 	BitSize    int64 // zero if not a bit field
 }
@@ -268,16 +268,21 @@ type typeReader interface {
 	Next() (*Entry, error)
 	clone() typeReader
 	offset() Offset
+	// AddressSize returns the size in bytes of addresses in the current
+	// compilation unit.
+	AddressSize() int
 }
 
 // Type reads the type at off in the DWARF ``info'' section.
 func (d *Data) Type(off Offset) (Type, error) {
-	return d.readType("info", d.Reader(), off, d.typeCache)
+	return d.readType("info", d.Reader(), off, d.typeCache, nil)
 }
 
-// readType reads a type from r at off of name using and updating a
-// type cache.
-func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Offset]Type) (Type, error) {
+// readType reads a type from r at off of name. It adds types to the
+// type cache, appends new typedef types to typedefs, and computes the
+// sizes of types. Callers should pass nil for typedefs; this is used
+// for internal recursion.
+func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Offset]Type, typedefs *[]*TypedefType) (Type, error) {
 	if t, ok := typeCache[off]; ok {
 		return t, nil
 	}
@@ -286,13 +291,29 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 	if err != nil {
 		return nil, err
 	}
+	addressSize := r.AddressSize()
 	if e == nil || e.Offset != off {
 		return nil, DecodeError{name, off, "no type at offset"}
 	}
 
+	// If this is the root of the recursion, prepare to resolve
+	// typedef sizes once the recursion is done. This must be done
+	// after the type graph is constructed because it may need to
+	// resolve cycles in a different order than readType
+	// encounters them.
+	if typedefs == nil {
+		var typedefList []*TypedefType
+		defer func() {
+			for _, t := range typedefList {
+				t.Common().ByteSize = t.Type.Size()
+			}
+		}()
+		typedefs = &typedefList
+	}
+
 	// Parse type from Entry.
 	// Must always set typeCache[off] before calling
-	// d.Type recursively, to handle circular types correctly.
+	// d.readType recursively, to handle circular types correctly.
 	var typ Type
 
 	nextDepth := 0
@@ -335,13 +356,13 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 	}
 
 	// Get Type referred to by Entry's AttrType field.
-	// Set err if error happens.  Not having a type is an error.
+	// Set err if error happens. Not having a type is an error.
 	typeOf := func(e *Entry) Type {
 		tval := e.Val(AttrType)
 		var t Type
 		switch toff := tval.(type) {
 		case Offset:
-			if t, err = d.readType(name, r.clone(), toff, typeCache); err != nil {
+			if t, err = d.readType(name, r.clone(), toff, typeCache, typedefs); err != nil {
 				return nil
 			}
 		case uint64:
@@ -493,53 +514,54 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		var lastFieldType *Type
 		var lastFieldBitOffset int64
 		for kid := next(); kid != nil; kid = next() {
-			if kid.Tag == TagMember {
-				f := new(StructField)
-				if f.Type = typeOf(kid); err != nil {
+			if kid.Tag != TagMember {
+				continue
+			}
+			f := new(StructField)
+			if f.Type = typeOf(kid); err != nil {
+				goto Error
+			}
+			switch loc := kid.Val(AttrDataMemberLoc).(type) {
+			case []byte:
+				// TODO: Should have original compilation
+				// unit here, not unknownFormat.
+				b := makeBuf(d, unknownFormat{}, "location", 0, loc)
+				if b.uint8() != opPlusUconst {
+					err = DecodeError{name, kid.Offset, "unexpected opcode"}
 					goto Error
 				}
-				switch loc := kid.Val(AttrDataMemberLoc).(type) {
-				case []byte:
-					// TODO: Should have original compilation
-					// unit here, not unknownFormat.
-					b := makeBuf(d, unknownFormat{}, "location", 0, loc)
-					if b.uint8() != opPlusUconst {
-						err = DecodeError{name, kid.Offset, "unexpected opcode"}
-						goto Error
-					}
-					f.ByteOffset = int64(b.uint())
-					if b.err != nil {
-						err = b.err
-						goto Error
-					}
-				case int64:
-					f.ByteOffset = loc
+				f.ByteOffset = int64(b.uint())
+				if b.err != nil {
+					err = b.err
+					goto Error
 				}
-
-				haveBitOffset := false
-				f.Name, _ = kid.Val(AttrName).(string)
-				f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
-				f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
-				f.BitSize, _ = kid.Val(AttrBitSize).(int64)
-				t.Field = append(t.Field, f)
-
-				bito := f.BitOffset
-				if !haveBitOffset {
-					bito = f.ByteOffset * 8
-				}
-				if bito == lastFieldBitOffset && t.Kind != "union" {
-					// Last field was zero width.  Fix array length.
-					// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
-					zeroArray(lastFieldType)
-				}
-				lastFieldType = &f.Type
-				lastFieldBitOffset = bito
+			case int64:
+				f.ByteOffset = loc
 			}
+
+			haveBitOffset := false
+			f.Name, _ = kid.Val(AttrName).(string)
+			f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
+			f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
+			f.BitSize, _ = kid.Val(AttrBitSize).(int64)
+			t.Field = append(t.Field, f)
+
+			bito := f.BitOffset
+			if !haveBitOffset {
+				bito = f.ByteOffset * 8
+			}
+			if bito == lastFieldBitOffset && t.Kind != "union" {
+				// Last field was zero width. Fix array length.
+				// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
+				zeroArray(lastFieldType)
+			}
+			lastFieldType = &f.Type
+			lastFieldBitOffset = bito
 		}
 		if t.Kind != "union" {
 			b, ok := e.Val(AttrByteSize).(int64)
 			if ok && b*8 == lastFieldBitOffset {
-				// Final field must be zero width.  Fix array length.
+				// Final field must be zero width. Fix array length.
 				zeroArray(lastFieldType)
 			}
 		}
@@ -668,6 +690,15 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		b, ok := e.Val(AttrByteSize).(int64)
 		if !ok {
 			b = -1
+			switch t := typ.(type) {
+			case *TypedefType:
+				// Record that we need to resolve this
+				// type's size once the type graph is
+				// constructed.
+				*typedefs = append(*typedefs, t)
+			case *PtrType:
+				b = int64(addressSize)
+			}
 		}
 		typ.Common().ByteSize = b
 	}

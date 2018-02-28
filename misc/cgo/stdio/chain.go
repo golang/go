@@ -1,19 +1,20 @@
-// cmpout
+// cmpout -tags=use_go_run
 
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+// +build test_run
 
 // Pass numbers along a chain of threads.
 
 package main
 
 import (
-	"../stdio"
 	"runtime"
 	"strconv"
+
+	"../stdio"
 )
 
 const N = 10

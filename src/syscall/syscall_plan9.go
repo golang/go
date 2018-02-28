@@ -14,6 +14,7 @@ package syscall
 import "unsafe"
 
 const ImplementsGetwd = true
+const bitSize16 = 2
 
 // ErrorString implements Error's String method by returning itself.
 type ErrorString string
@@ -30,6 +31,8 @@ func (e ErrorString) Temporary() bool {
 func (e ErrorString) Timeout() bool {
 	return e == EBUSY || e == ETIMEDOUT
 }
+
+var emptystring string
 
 // A Note is a string describing a process note.
 // It implements the os.Signal interface.
@@ -56,6 +59,7 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err ErrorSt
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
+//go:nosplit
 func atoi(b []byte) (n uint) {
 	n = 0
 	for i := 0; i < len(b); i++ {
@@ -81,11 +85,6 @@ func errstr() string {
 	buf[len(buf)-1] = 0
 	return cstring(buf[:])
 }
-
-// Implemented in assembly to import from runtime.
-func exit(code int)
-
-func Exit(code int) { exit(code) }
 
 func readnum(path string) (uint, error) {
 	var b [12]byte
@@ -129,17 +128,6 @@ func Write(fd int, p []byte) (n int, err error) {
 
 var ioSync int64
 
-func Getwd() (wd string, err error) {
-	fd, e := Open(".", O_RDONLY)
-
-	if e != nil {
-		return "", e
-	}
-	defer Close(fd)
-
-	return Fd2path(fd)
-}
-
 //sys	fd2path(fd int, buf []byte) (err error)
 func Fd2path(fd int) (path string, err error) {
 	var buf [512]byte
@@ -151,12 +139,12 @@ func Fd2path(fd int) (path string, err error) {
 	return cstring(buf[:]), nil
 }
 
-//sys	pipe(p *[2]_C_int) (err error)
+//sys	pipe(p *[2]int32) (err error)
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return NewError("bad arg in system call")
 	}
-	var pp [2]_C_int
+	var pp [2]int32
 	err = pipe(&pp)
 	p[0] = int(pp[0])
 	p[1] = int(pp[1])
@@ -177,6 +165,20 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 }
 
 func Mkdir(path string, mode uint32) (err error) {
+	// If path exists and is not a directory, Create will fail silently.
+	// Work around this by rejecting Mkdir if path exists.
+	statbuf := make([]byte, bitSize16)
+	// Remove any trailing slashes from path, otherwise the Stat will
+	// fail with ENOTDIR.
+	n := len(path)
+	for n > 1 && path[n-1] == '/' {
+		n--
+	}
+	_, err = Stat(path[0:n], statbuf)
+	if err == nil {
+		return EEXIST
+	}
+
 	fd, err := Create(path, O_RDONLY, DMDIR|mode)
 
 	if fd != -1 {
@@ -242,6 +244,7 @@ func Await(w *Waitmsg) (err error) {
 }
 
 func Unmount(name, old string) (err error) {
+	Fixwd()
 	oldp, err := BytePtrFromString(old)
 	if err != nil {
 		return err
@@ -260,9 +263,7 @@ func Unmount(name, old string) (err error) {
 			return err
 		}
 		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(namep)), oldptr, 0)
-		use(unsafe.Pointer(namep))
 	}
-	use(unsafe.Pointer(oldp))
 
 	if int32(r0) == -1 {
 		err = e
@@ -314,8 +315,6 @@ func Gettimeofday(tv *Timeval) error {
 	return nil
 }
 
-func Getpagesize() int { return 0x1000 }
-
 func Getegid() (egid int) { return -1 }
 func Geteuid() (euid int) { return -1 }
 func Getgid() (gid int)   { return -1 }
@@ -325,17 +324,52 @@ func Getgroups() (gids []int, err error) {
 	return make([]int, 0), nil
 }
 
+//sys	open(path string, mode int) (fd int, err error)
+func Open(path string, mode int) (fd int, err error) {
+	Fixwd()
+	return open(path, mode)
+}
+
+//sys	create(path string, mode int, perm uint32) (fd int, err error)
+func Create(path string, mode int, perm uint32) (fd int, err error) {
+	Fixwd()
+	return create(path, mode, perm)
+}
+
+//sys	remove(path string) (err error)
+func Remove(path string) error {
+	Fixwd()
+	return remove(path)
+}
+
+//sys	stat(path string, edir []byte) (n int, err error)
+func Stat(path string, edir []byte) (n int, err error) {
+	Fixwd()
+	return stat(path, edir)
+}
+
+//sys	bind(name string, old string, flag int) (err error)
+func Bind(name string, old string, flag int) (err error) {
+	Fixwd()
+	return bind(name, old, flag)
+}
+
+//sys	mount(fd int, afd int, old string, flag int, aname string) (err error)
+func Mount(fd int, afd int, old string, flag int, aname string) (err error) {
+	Fixwd()
+	return mount(fd, afd, old, flag, aname)
+}
+
+//sys	wstat(path string, edir []byte) (err error)
+func Wstat(path string, edir []byte) (err error) {
+	Fixwd()
+	return wstat(path, edir)
+}
+
+//sys	chdir(path string) (err error)
 //sys	Dup(oldfd int, newfd int) (fd int, err error)
-//sys	Open(path string, mode int) (fd int, err error)
-//sys	Create(path string, mode int, perm uint32) (fd int, err error)
-//sys	Remove(path string) (err error)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error)
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	Close(fd int) (err error)
-//sys	Chdir(path string) (err error)
-//sys	Bind(name string, old string, flag int) (err error)
-//sys	Mount(fd int, afd int, old string, flag int, aname string) (err error)
-//sys	Stat(path string, edir []byte) (n int, err error)
 //sys	Fstat(fd int, edir []byte) (n int, err error)
-//sys	Wstat(path string, edir []byte) (err error)
 //sys	Fwstat(fd int, edir []byte) (err error)

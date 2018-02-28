@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package dsa implements the Digital Signature Algorithm, as defined in FIPS 186-3.
+//
+// The DSA operations in this package are not implemented using constant-time algorithms.
 package dsa
 
 import (
@@ -35,7 +37,7 @@ type PrivateKey struct {
 // this error must be handled.
 var ErrInvalidPublicKey = errors.New("crypto/dsa: invalid public key")
 
-// ParameterSizes is a enumeration of the acceptable bit lengths of the primes
+// ParameterSizes is an enumeration of the acceptable bit lengths of the primes
 // in a set of DSA parameters. See FIPS 186-3, section 4.2.
 type ParameterSizes int
 
@@ -51,8 +53,8 @@ const (
 const numMRTests = 64
 
 // GenerateParameters puts a random, valid set of DSA parameters into params.
-// This function takes many seconds, even on fast machines.
-func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) (err error) {
+// This function can take many seconds, even on fast machines.
+func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) error {
 	// This function doesn't follow FIPS 186-3 exactly in that it doesn't
 	// use a verification seed to generate the primes. The verification
 	// seed doesn't appear to be exported or used by other code and
@@ -87,9 +89,8 @@ func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes
 
 GeneratePrimes:
 	for {
-		_, err = io.ReadFull(rand, qBytes)
-		if err != nil {
-			return
+		if _, err := io.ReadFull(rand, qBytes); err != nil {
+			return err
 		}
 
 		qBytes[len(qBytes)-1] |= 1
@@ -101,9 +102,8 @@ GeneratePrimes:
 		}
 
 		for i := 0; i < 4*L; i++ {
-			_, err = io.ReadFull(rand, pBytes)
-			if err != nil {
-				return
+			if _, err := io.ReadFull(rand, pBytes); err != nil {
+				return err
 			}
 
 			pBytes[len(pBytes)-1] |= 1
@@ -142,7 +142,7 @@ GeneratePrimes:
 		}
 
 		params.G = g
-		return
+		return nil
 	}
 }
 
@@ -191,17 +191,21 @@ func fermatInverse(k, P *big.Int) *big.Int {
 // Note that FIPS 186-3 section 4.6 specifies that the hash should be truncated
 // to the byte-length of the subgroup. This function does not perform that
 // truncation itself.
+//
+// Be aware that calling Sign with an attacker-controlled PrivateKey may
+// require an arbitrary amount of CPU.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	// FIPS 186-3, section 4.6
 
 	n := priv.Q.BitLen()
-	if n&7 != 0 {
+	if priv.Q.Sign() <= 0 || priv.P.Sign() <= 0 || priv.G.Sign() <= 0 || priv.X.Sign() <= 0 || n&7 != 0 {
 		err = ErrInvalidPublicKey
 		return
 	}
 	n >>= 3
 
-	for {
+	var attempts int
+	for attempts = 10; attempts > 0; attempts-- {
 		k := new(big.Int)
 		buf := make([]byte, n)
 		for {
@@ -210,6 +214,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 				return
 			}
 			k.SetBytes(buf)
+			// priv.Q must be >= 128 because the test above
+			// requires it to be > 0 and that
+			//    ceil(log_2(Q)) mod 8 = 0
+			// Thus this loop will quickly terminate.
 			if k.Sign() > 0 && k.Cmp(priv.Q) < 0 {
 				break
 			}
@@ -237,6 +245,12 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 		}
 	}
 
+	// Only degenerate private keys will require more than a handful of
+	// attempts.
+	if attempts == 0 {
+		return nil, nil, ErrInvalidPublicKey
+	}
+
 	return
 }
 
@@ -248,6 +262,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 // truncation itself.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	// FIPS 186-3, section 4.7
+
+	if pub.P.Sign() == 0 {
+		return false
+	}
 
 	if r.Sign() < 1 || r.Cmp(pub.Q) >= 0 {
 		return false

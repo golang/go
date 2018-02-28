@@ -44,7 +44,7 @@ const (
 	// OK indicates the lack of an error.
 	OK ErrorCode = iota
 
-	// ErrAmbigContext: "... appears in an ambiguous URL context"
+	// ErrAmbigContext: "... appears in an ambiguous context within a URL"
 	// Example:
 	//   <a href="
 	//      {{if .C}}
@@ -164,7 +164,7 @@ const (
 	//   different context than an earlier pass, there is no single context.
 	//   In the example, there is missing a quote, so it is not clear
 	//   whether {{.}} is meant to be inside a JS string or in a JS value
-	//   context.  The second iteration would produce something like
+	//   context. The second iteration would produce something like
 	//
 	//     <script>var x = ['firstValue,'secondValue]</script>
 	ErrRangeLoopReentry
@@ -183,6 +183,34 @@ const (
 	//   Look for missing semicolons inside branches, and maybe add
 	//   parentheses to make it clear which interpretation you intend.
 	ErrSlashAmbig
+
+	// ErrPredefinedEscaper: "predefined escaper ... disallowed in template"
+	// Example:
+	//   <div class={{. | html}}>Hello<div>
+	// Discussion:
+	//   Package html/template already contextually escapes all pipelines to
+	//   produce HTML output safe against code injection. Manually escaping
+	//   pipeline output using the predefined escapers "html" or "urlquery" is
+	//   unnecessary, and may affect the correctness or safety of the escaped
+	//   pipeline output in Go 1.8 and earlier.
+	//
+	//   In most cases, such as the given example, this error can be resolved by
+	//   simply removing the predefined escaper from the pipeline and letting the
+	//   contextual autoescaper handle the escaping of the pipeline. In other
+	//   instances, where the predefined escaper occurs in the middle of a
+	//   pipeline where subsequent commands expect escaped input, e.g.
+	//     {{.X | html | makeALink}}
+	//   where makeALink does
+	//     return `<a href="`+input+`">link</a>`
+	//   consider refactoring the surrounding template to make use of the
+	//   contextual autoescaper, i.e.
+	//     <a href="{{.X}}">link</a>
+	//
+	//   To ease migration to Go 1.9 and beyond, "html" and "urlquery" will
+	//   continue to be allowed as the last command in a pipeline. However, if the
+	//   pipeline occurs in an unquoted attribute value context, "html" is
+	//   disallowed. Avoid using "html" and "urlquery" entirely in new templates.
+	ErrPredefinedEscaper
 )
 
 func (e *Error) Error() string {

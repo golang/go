@@ -138,97 +138,273 @@ func TestParseMediaType(t *testing.T) {
 			m("title", "This is even more ***fun*** isn't it!")},
 
 		// Tests from http://greenbytes.de/tech/tc2231/
-		// TODO(bradfitz): add the rest of the tests from that site.
-		{`attachment; filename="f\oo.html"`,
+		// Note: Backslash escape handling is a bit loose, like MSIE.
+
+		// #attonly
+		{`attachment`,
+			"attachment",
+			m()},
+		// #attonlyucase
+		{`ATTACHMENT`,
+			"attachment",
+			m()},
+		// #attwithasciifilename
+		{`attachment; filename="foo.html"`,
 			"attachment",
 			m("filename", "foo.html")},
+		// #attwithasciifilename25
+		{`attachment; filename="0000000000111111111122222"`,
+			"attachment",
+			m("filename", "0000000000111111111122222")},
+		// #attwithasciifilename35
+		{`attachment; filename="00000000001111111111222222222233333"`,
+			"attachment",
+			m("filename", "00000000001111111111222222222233333")},
+		// #attwithasciifnescapedchar
+		{`attachment; filename="f\oo.html"`,
+			"attachment",
+			m("filename", "f\\oo.html")},
+		// #attwithasciifnescapedquote
 		{`attachment; filename="\"quoting\" tested.html"`,
 			"attachment",
 			m("filename", `"quoting" tested.html`)},
+		// #attwithquotedsemicolon
 		{`attachment; filename="Here's a semicolon;.html"`,
 			"attachment",
 			m("filename", "Here's a semicolon;.html")},
+		// #attwithfilenameandextparam
+		{`attachment; foo="bar"; filename="foo.html"`,
+			"attachment",
+			m("foo", "bar", "filename", "foo.html")},
+		// #attwithfilenameandextparamescaped
 		{`attachment; foo="\"\\";filename="foo.html"`,
 			"attachment",
 			m("foo", "\"\\", "filename", "foo.html")},
+		// #attwithasciifilenameucase
+		{`attachment; FILENAME="foo.html"`,
+			"attachment",
+			m("filename", "foo.html")},
+		// #attwithasciifilenamenq
 		{`attachment; filename=foo.html`,
 			"attachment",
 			m("filename", "foo.html")},
+		// #attwithasciifilenamenqs
 		{`attachment; filename=foo.html ;`,
 			"attachment",
 			m("filename", "foo.html")},
+		// #attwithfntokensq
 		{`attachment; filename='foo.html'`,
 			"attachment",
-			m("filename", "foo.html")},
+			m("filename", "'foo.html'")},
+		// #attwithisofnplain
+		{`attachment; filename="foo-ä.html"`,
+			"attachment",
+			m("filename", "foo-ä.html")},
+		// #attwithutf8fnplain
+		{`attachment; filename="foo-Ã¤.html"`,
+			"attachment",
+			m("filename", "foo-Ã¤.html")},
+		// #attwithfnrawpctenca
 		{`attachment; filename="foo-%41.html"`,
 			"attachment",
 			m("filename", "foo-%41.html")},
+		// #attwithfnusingpct
+		{`attachment; filename="50%.html"`,
+			"attachment",
+			m("filename", "50%.html")},
+		// #attwithfnrawpctencaq
 		{`attachment; filename="foo-%\41.html"`,
 			"attachment",
-			m("filename", "foo-%41.html")},
+			m("filename", "foo-%\\41.html")},
+		// #attwithnamepct
+		{`attachment; name="foo-%41.html"`,
+			"attachment",
+			m("name", "foo-%41.html")},
+		// #attwithfilenamepctandiso
+		{`attachment; name="ä-%41.html"`,
+			"attachment",
+			m("name", "ä-%41.html")},
+		// #attwithfnrawpctenclong
+		{`attachment; filename="foo-%c3%a4-%e2%82%ac.html"`,
+			"attachment",
+			m("filename", "foo-%c3%a4-%e2%82%ac.html")},
+		// #attwithasciifilenamews1
+		{`attachment; filename ="foo.html"`,
+			"attachment",
+			m("filename", "foo.html")},
+		// #attmissingdisposition
 		{`filename=foo.html`,
 			"", m()},
+		// #attmissingdisposition2
 		{`x=y; filename=foo.html`,
 			"", m()},
+		// #attmissingdisposition3
 		{`"foo; filename=bar;baz"; filename=qux`,
 			"", m()},
+		// #attmissingdisposition4
+		{`filename=foo.html, filename=bar.html`,
+			"", m()},
+		// #emptydisposition
+		{`; filename=foo.html`,
+			"", m()},
+		// #doublecolon
+		{`: inline; attachment; filename=foo.html`,
+			"", m()},
+		// #attandinline
 		{`inline; attachment; filename=foo.html`,
 			"", m()},
+		// #attandinline2
+		{`attachment; inline; filename=foo.html`,
+			"", m()},
+		// #attbrokenquotedfn
 		{`attachment; filename="foo.html".txt`,
 			"", m()},
+		// #attbrokenquotedfn2
 		{`attachment; filename="bar`,
 			"", m()},
+		// #attbrokenquotedfn3
+		{`attachment; filename=foo"bar;baz"qux`,
+			"", m()},
+		// #attmultinstances
+		{`attachment; filename=foo.html, attachment; filename=bar.html`,
+			"", m()},
+		// #attmissingdelim
+		{`attachment; foo=foo filename=bar`,
+			"", m()},
+		// #attmissingdelim2
+		{`attachment; filename=bar foo=foo`,
+			"", m()},
+		// #attmissingdelim3
+		{`attachment filename=bar`,
+			"", m()},
+		// #attreversed
+		{`filename=foo.html; attachment`,
+			"", m()},
+		// #attconfusedparam
+		{`attachment; xfilename=foo.html`,
+			"attachment",
+			m("xfilename", "foo.html")},
+		// #attcdate
 		{`attachment; creation-date="Wed, 12 Feb 1997 16:29:51 -0500"`,
 			"attachment",
 			m("creation-date", "Wed, 12 Feb 1997 16:29:51 -0500")},
+		// #attmdate
+		{`attachment; modification-date="Wed, 12 Feb 1997 16:29:51 -0500"`,
+			"attachment",
+			m("modification-date", "Wed, 12 Feb 1997 16:29:51 -0500")},
+		// #dispext
 		{`foobar`, "foobar", m()},
+		// #dispextbadfn
+		{`attachment; example="filename=example.txt"`,
+			"attachment",
+			m("example", "filename=example.txt")},
+		// #attwithfn2231utf8
+		{`attachment; filename*=UTF-8''foo-%c3%a4-%e2%82%ac.html`,
+			"attachment",
+			m("filename", "foo-ä-€.html")},
+		// #attwithfn2231noc
+		{`attachment; filename*=''foo-%c3%a4-%e2%82%ac.html`,
+			"attachment",
+			m()},
+		// #attwithfn2231utf8comp
+		{`attachment; filename*=UTF-8''foo-a%cc%88.html`,
+			"attachment",
+			m("filename", "foo-ä.html")},
+		// #attwithfn2231ws2
+		{`attachment; filename*= UTF-8''foo-%c3%a4.html`,
+			"attachment",
+			m("filename", "foo-ä.html")},
+		// #attwithfn2231ws3
 		{`attachment; filename* =UTF-8''foo-%c3%a4.html`,
 			"attachment",
 			m("filename", "foo-ä.html")},
+		// #attwithfn2231quot
+		{`attachment; filename*="UTF-8''foo-%c3%a4.html"`,
+			"attachment",
+			m("filename", "foo-ä.html")},
+		// #attwithfn2231quot2
+		{`attachment; filename*="foo%20bar.html"`,
+			"attachment",
+			m()},
+		// #attwithfn2231singleqmissing
+		{`attachment; filename*=UTF-8'foo-%c3%a4.html`,
+			"attachment",
+			m()},
+		// #attwithfn2231nbadpct1
+		{`attachment; filename*=UTF-8''foo%`,
+			"attachment",
+			m()},
+		// #attwithfn2231nbadpct2
+		{`attachment; filename*=UTF-8''f%oo.html`,
+			"attachment",
+			m()},
+		// #attwithfn2231dpct
 		{`attachment; filename*=UTF-8''A-%2541.html`,
 			"attachment",
 			m("filename", "A-%41.html")},
+		// #attfncont
 		{`attachment; filename*0="foo."; filename*1="html"`,
 			"attachment",
 			m("filename", "foo.html")},
+		// #attfncontenc
 		{`attachment; filename*0*=UTF-8''foo-%c3%a4; filename*1=".html"`,
 			"attachment",
 			m("filename", "foo-ä.html")},
+		// #attfncontlz
 		{`attachment; filename*0="foo"; filename*01="bar"`,
 			"attachment",
 			m("filename", "foo")},
+		// #attfncontnc
 		{`attachment; filename*0="foo"; filename*2="bar"`,
 			"attachment",
 			m("filename", "foo")},
-		{`attachment; filename*1="foo"; filename*2="bar"`,
+		// #attfnconts1
+		{`attachment; filename*1="foo."; filename*2="html"`,
 			"attachment", m()},
+		// #attfncontord
 		{`attachment; filename*1="bar"; filename*0="foo"`,
 			"attachment",
 			m("filename", "foobar")},
+		// #attfnboth
 		{`attachment; filename="foo-ae.html"; filename*=UTF-8''foo-%c3%a4.html`,
 			"attachment",
 			m("filename", "foo-ä.html")},
+		// #attfnboth2
 		{`attachment; filename*=UTF-8''foo-%c3%a4.html; filename="foo-ae.html"`,
 			"attachment",
 			m("filename", "foo-ä.html")},
+		// #attfnboth3
+		{`attachment; filename*0*=ISO-8859-15''euro-sign%3d%a4; filename*=ISO-8859-1''currency-sign%3d%a4`,
+			"attachment",
+			m()},
+		// #attnewandfn
+		{`attachment; foobar=x; filename="foo.html"`,
+			"attachment",
+			m("foobar", "x", "filename", "foo.html")},
 
 		// Browsers also just send UTF-8 directly without RFC 2231,
 		// at least when the source page is served with UTF-8.
 		{`form-data; firstname="Брэд"; lastname="Фицпатрик"`,
 			"form-data",
 			m("firstname", "Брэд", "lastname", "Фицпатрик")},
+
+		// Empty string used to be mishandled.
+		{`foo; bar=""`, "foo", m("bar", "")},
+
+		// Microsoft browers in intranet mode do not think they need to escape \ in file name.
+		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
 	}
 	for _, test := range tests {
 		mt, params, err := ParseMediaType(test.in)
 		if err != nil {
 			if test.t != "" {
-				t.Errorf("for input %q, unexpected error: %v", test.in, err)
+				t.Errorf("for input %#q, unexpected error: %v", test.in, err)
 				continue
 			}
 			continue
 		}
 		if g, e := mt, test.t; g != e {
-			t.Errorf("for input %q, expected type %q, got %q",
+			t.Errorf("for input %#q, expected type %q, got %q",
 				test.in, e, g)
 			continue
 		}
@@ -236,7 +412,7 @@ func TestParseMediaType(t *testing.T) {
 			continue
 		}
 		if !reflect.DeepEqual(params, test.p) {
-			t.Errorf("for input %q, wrong params.\n"+
+			t.Errorf("for input %#q, wrong params.\n"+
 				"expected: %#v\n"+
 				"     got: %#v",
 				test.in, test.p, params)
@@ -246,13 +422,28 @@ func TestParseMediaType(t *testing.T) {
 
 type badMediaTypeTest struct {
 	in  string
+	mt  string
 	err string
 }
 
 var badMediaTypeTests = []badMediaTypeTest{
-	{"bogus ;=========", "mime: invalid media parameter"},
-	{"bogus/<script>alert</script>", "mime: expected token after slash"},
-	{"bogus/bogus<script>alert</script>", "mime: unexpected content after media subtype"},
+	{"bogus ;=========", "bogus", "mime: invalid media parameter"},
+	// The following example is from real email delivered by gmail (error: missing semicolon)
+	// and it is there to check behavior described in #19498
+	{"application/pdf; x-mac-type=\"3F3F3F3F\"; x-mac-creator=\"3F3F3F3F\" name=\"a.pdf\";",
+		"application/pdf", "mime: invalid media parameter"},
+	{"bogus/<script>alert</script>", "", "mime: expected token after slash"},
+	{"bogus/bogus<script>alert</script>", "", "mime: unexpected content after media subtype"},
+	// Tests from http://greenbytes.de/tech/tc2231/
+	{`"attachment"`, "attachment", "mime: no media type"},
+	{"attachment; filename=foo,bar.html", "attachment", "mime: invalid media parameter"},
+	{"attachment; ;filename=foo", "attachment", "mime: invalid media parameter"},
+	{"attachment; filename=foo bar.html", "attachment", "mime: invalid media parameter"},
+	{`attachment; filename="foo.html"; filename="bar.html"`, "attachment", "mime: duplicate parameter name"},
+	{"attachment; filename=foo[1](2).html", "attachment", "mime: invalid media parameter"},
+	{"attachment; filename=foo-ä.html", "attachment", "mime: invalid media parameter"},
+	{"attachment; filename=foo-Ã¤.html", "attachment", "mime: invalid media parameter"},
+	{`attachment; filename *=UTF-8''foo-%c3%a4.html`, "attachment", "mime: invalid media parameter"},
 }
 
 func TestParseMediaTypeBogus(t *testing.T) {
@@ -268,8 +459,11 @@ func TestParseMediaTypeBogus(t *testing.T) {
 		if params != nil {
 			t.Errorf("ParseMediaType(%q): got non-nil params on error", tt.in)
 		}
-		if mt != "" {
-			t.Errorf("ParseMediaType(%q): got non-empty media type string on error", tt.in)
+		if err != ErrInvalidMediaParameter && mt != "" {
+			t.Errorf("ParseMediaType(%q): got unexpected non-empty media type string", tt.in)
+		}
+		if err == ErrInvalidMediaParameter && mt != tt.mt {
+			t.Errorf("ParseMediaType(%q): in case of invalid parameters: expected type %q, got %q", tt.in, tt.mt, mt)
 		}
 	}
 }
@@ -281,7 +475,7 @@ type formatTest struct {
 }
 
 var formatTests = []formatTest{
-	{"noslash", nil, ""},
+	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
 	{"foo bar/baz", nil, ""},
 	{"foo/bar baz", nil, ""},
 	{"foo/BAR", nil, "foo/bar"},
@@ -294,6 +488,8 @@ var formatTests = []formatTest{
 	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
 	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
+	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
+	{"foo", map[string]string{"bar": ""}, `foo; bar=""`},
 }
 
 func TestFormatMediaType(t *testing.T) {

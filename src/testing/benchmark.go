@@ -7,6 +7,7 @@ package testing
 import (
 	"flag"
 	"fmt"
+	"internal/race"
 	"os"
 	"runtime"
 	"sync"
@@ -14,8 +15,8 @@ import (
 	"time"
 )
 
-var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
-var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
+var benchTime = flag.Duration("test.benchtime", 1*time.Second, "run each benchmark for duration `d`")
 var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
 
 // Global lock to ensure only one benchmark runs at a time.
@@ -33,13 +34,28 @@ type InternalBenchmark struct {
 
 // B is a type passed to Benchmark functions to manage benchmark
 // timing and to specify the number of iterations to run.
+//
+// A benchmark ends when its Benchmark function returns or calls any of the methods
+// FailNow, Fatal, Fatalf, SkipNow, Skip, or Skipf. Those methods must be called
+// only from the goroutine running the Benchmark function.
+// The other reporting methods, such as the variations of Log and Error,
+// may be called simultaneously from multiple goroutines.
+//
+// Like in tests, benchmark logs are accumulated during execution
+// and dumped to standard error when done. Unlike in tests, benchmark logs
+// are always printed, so as not to hide output whose existence may be
+// affecting benchmark results.
 type B struct {
 	common
+	importPath       string // import path of the package containing the benchmark
+	context          *benchContext
 	N                int
 	previousN        int           // number of iterations in the previous run
 	previousDuration time.Duration // total duration of the previous run
-	benchmark        InternalBenchmark
+	benchFunc        func(b *B)
+	benchTime        time.Duration
 	bytes            int64
+	missingBytes     bool // one of the subbenchmarks does not have bytes set.
 	timerOn          bool
 	showAllocResult  bool
 	result           BenchmarkResult
@@ -52,7 +68,7 @@ type B struct {
 	netBytes  uint64
 }
 
-// StartTimer starts timing a test.  This function is called automatically
+// StartTimer starts timing a test. This function is called automatically
 // before a benchmark starts, but it can also used to resume timing after
 // a call to StopTimer.
 func (b *B) StartTimer() {
@@ -65,12 +81,12 @@ func (b *B) StartTimer() {
 	}
 }
 
-// StopTimer stops timing a test.  This can be used to pause the timer
+// StopTimer stops timing a test. This can be used to pause the timer
 // while performing complex initialization that you don't
 // want to measure.
 func (b *B) StopTimer() {
 	if b.timerOn {
-		b.duration += time.Now().Sub(b.start)
+		b.duration += time.Since(b.start)
 		runtime.ReadMemStats(&memStats)
 		b.netAllocs += memStats.Mallocs - b.startAllocs
 		b.netBytes += memStats.TotalAlloc - b.startBytes
@@ -117,14 +133,19 @@ func (b *B) runN(n int) {
 	// Try to get a comparable environment for each run
 	// by clearing garbage from previous runs.
 	runtime.GC()
+	b.raceErrors = -race.Errors()
 	b.N = n
 	b.parallelism = 1
 	b.ResetTimer()
 	b.StartTimer()
-	b.benchmark.F(b)
+	b.benchFunc(b)
 	b.StopTimer()
 	b.previousN = n
 	b.previousDuration = b.duration
+	b.raceErrors += race.Errors()
+	if b.raceErrors > 0 {
+		b.Errorf("race detected during execution of benchmark")
+	}
 }
 
 func min(x, y int) int {
@@ -174,38 +195,91 @@ func roundUp(n int) int {
 	}
 }
 
-// run times the benchmark function in a separate goroutine.
-func (b *B) run() BenchmarkResult {
+// run1 runs the first iteration of benchFunc. It returns whether more
+// iterations of this benchmarks should be run.
+func (b *B) run1() bool {
+	if ctx := b.context; ctx != nil {
+		// Extend maxLen, if needed.
+		if n := len(b.name) + ctx.extLen + 1; n > ctx.maxLen {
+			ctx.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
+		}
+	}
+	go func() {
+		// Signal that we're done whether we return normally
+		// or by FailNow's runtime.Goexit.
+		defer func() {
+			b.signal <- true
+		}()
+
+		b.runN(1)
+	}()
+	<-b.signal
+	if b.failed {
+		fmt.Fprintf(b.w, "--- FAIL: %s\n%s", b.name, b.output)
+		return false
+	}
+	// Only print the output if we know we are not going to proceed.
+	// Otherwise it is printed in processBench.
+	if atomic.LoadInt32(&b.hasSub) != 0 || b.finished {
+		tag := "BENCH"
+		if b.skipped {
+			tag = "SKIP"
+		}
+		if b.chatty && (len(b.output) > 0 || b.finished) {
+			b.trimOutput()
+			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
+		}
+		return false
+	}
+	return true
+}
+
+var labelsOnce sync.Once
+
+// run executes the benchmark in a separate goroutine, including all of its
+// subbenchmarks. b must not have subbenchmarks.
+func (b *B) run() {
+	labelsOnce.Do(func() {
+		fmt.Fprintf(b.w, "goos: %s\n", runtime.GOOS)
+		fmt.Fprintf(b.w, "goarch: %s\n", runtime.GOARCH)
+		if b.importPath != "" {
+			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
+		}
+	})
+	if b.context != nil {
+		// Running go test --test.bench
+		b.context.processBench(b) // Must call doBench.
+	} else {
+		// Running func Benchmark.
+		b.doBench()
+	}
+}
+
+func (b *B) doBench() BenchmarkResult {
 	go b.launch()
 	<-b.signal
 	return b.result
 }
 
-// launch launches the benchmark function.  It gradually increases the number
+// launch launches the benchmark function. It gradually increases the number
 // of benchmark iterations until the benchmark runs for the requested benchtime.
-// It prints timing information in this form
-//		testing.BenchmarkHello	100000		19 ns/op
-// launch is run by the run function as a separate goroutine.
+// launch is run by the doBench function as a separate goroutine.
+// run1 must have been called on b.
 func (b *B) launch() {
-	// Run the benchmark for a single iteration in case it's expensive.
-	n := 1
-
 	// Signal that we're done whether we return normally
 	// or by FailNow's runtime.Goexit.
 	defer func() {
-		b.signal <- b
+		b.signal <- true
 	}()
 
-	b.runN(n)
 	// Run the benchmark for at least the specified amount of time.
-	d := *benchTime
-	for !b.failed && b.duration < d && n < 1e9 {
+	d := b.benchTime
+	for n := 1; !b.failed && b.duration < d && n < 1e9; {
 		last := n
 		// Predict required iterations.
-		if b.nsPerOp() == 0 {
-			n = 1e9
-		} else {
-			n = int(d.Nanoseconds() / b.nsPerOp())
+		n = int(d.Nanoseconds())
+		if nsop := b.nsPerOp(); nsop != 0 {
+			n /= int(nsop)
 		}
 		// Run more iterations than we think we'll need (1.2x).
 		// Don't grow too fast in case we had timing errors previously.
@@ -241,6 +315,7 @@ func (r BenchmarkResult) mbPerSec() float64 {
 	return (float64(r.Bytes) * float64(r.N) / 1e6) / r.T.Seconds()
 }
 
+// AllocsPerOp returns r.MemAllocs / r.N.
 func (r BenchmarkResult) AllocsPerOp() int64 {
 	if r.N <= 0 {
 		return 0
@@ -248,6 +323,7 @@ func (r BenchmarkResult) AllocsPerOp() int64 {
 	return int64(r.MemAllocs) / int64(r.N)
 }
 
+// AllocedBytesPerOp returns r.MemBytes / r.N.
 func (r BenchmarkResult) AllocedBytesPerOp() int64 {
 	if r.N <= 0 {
 		return 0
@@ -275,6 +351,7 @@ func (r BenchmarkResult) String() string {
 	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
 }
 
+// MemString returns r.AllocedBytesPerOp and r.AllocsPerOp in the same format as 'go test'.
 func (r BenchmarkResult) MemString() string {
 	return fmt.Sprintf("%8d B/op\t%8d allocs/op",
 		r.AllocedBytesPerOp(), r.AllocsPerOp())
@@ -288,12 +365,23 @@ func benchmarkName(name string, n int) string {
 	return name
 }
 
+type benchContext struct {
+	match *matcher
+
+	maxLen int // The largest recorded benchmark name.
+	extLen int // Maximum extension length.
+}
+
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
+	runBenchmarks("", matchString, benchmarks)
+}
+
+func runBenchmarks(importPath string, matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
-		return
+		return true
 	}
 	// Collect matching benchmarks and determine longest name.
 	maxprocs := 1
@@ -302,57 +390,151 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			maxprocs = procs
 		}
 	}
-	maxlen := 0
+	ctx := &benchContext{
+		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench"),
+		extLen: len(benchmarkName("", maxprocs)),
+	}
 	var bs []InternalBenchmark
 	for _, Benchmark := range benchmarks {
-		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.bench: %s\n", err)
-			os.Exit(1)
-		}
-		if matched {
+		if _, matched, _ := ctx.match.fullName(nil, Benchmark.Name); matched {
 			bs = append(bs, Benchmark)
 			benchName := benchmarkName(Benchmark.Name, maxprocs)
-			if l := len(benchName); l > maxlen {
-				maxlen = l
+			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
+				ctx.maxLen = l
 			}
 		}
 	}
-	for _, Benchmark := range bs {
-		for _, procs := range cpuList {
-			runtime.GOMAXPROCS(procs)
-			b := &B{
-				common: common{
-					signal: make(chan interface{}),
-				},
-				benchmark: Benchmark,
+	main := &B{
+		common: common{
+			name:   "Main",
+			w:      os.Stdout,
+			chatty: *chatty,
+		},
+		importPath: importPath,
+		benchFunc: func(b *B) {
+			for _, Benchmark := range bs {
+				b.Run(Benchmark.Name, Benchmark.F)
 			}
-			benchName := benchmarkName(Benchmark.Name, procs)
-			fmt.Printf("%-*s\t", maxlen, benchName)
-			r := b.run()
+		},
+		benchTime: *benchTime,
+		context:   ctx,
+	}
+	main.runN(1)
+	return !main.failed
+}
+
+// processBench runs bench b for the configured CPU counts and prints the results.
+func (ctx *benchContext) processBench(b *B) {
+	for i, procs := range cpuList {
+		for j := uint(0); j < *count; j++ {
+			runtime.GOMAXPROCS(procs)
+			benchName := benchmarkName(b.name, procs)
+			fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+			// Recompute the running time for all but the first iteration.
+			if i > 0 || j > 0 {
+				b = &B{
+					common: common{
+						signal: make(chan bool),
+						name:   b.name,
+						w:      b.w,
+						chatty: b.chatty,
+					},
+					benchFunc: b.benchFunc,
+					benchTime: b.benchTime,
+				}
+				b.run1()
+			}
+			r := b.doBench()
 			if b.failed {
 				// The output could be very long here, but probably isn't.
 				// We print it all, regardless, because we don't want to trim the reason
 				// the benchmark failed.
-				fmt.Printf("--- FAIL: %s\n%s", benchName, b.output)
+				fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
 				continue
 			}
 			results := r.String()
 			if *benchmarkMemory || b.showAllocResult {
 				results += "\t" + r.MemString()
 			}
-			fmt.Println(results)
+			fmt.Fprintln(b.w, results)
 			// Unlike with tests, we ignore the -chatty flag and always print output for
 			// benchmarks since the output generation time will skew the results.
 			if len(b.output) > 0 {
 				b.trimOutput()
-				fmt.Printf("--- BENCH: %s\n%s", benchName, b.output)
+				fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
 			}
 			if p := runtime.GOMAXPROCS(-1); p != procs {
 				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
 			}
 		}
 	}
+}
+
+// Run benchmarks f as a subbenchmark with the given name. It reports
+// whether there were any failures.
+//
+// A subbenchmark is like any other benchmark. A benchmark that calls Run at
+// least once will not be measured itself and will be called once with N=1.
+func (b *B) Run(name string, f func(b *B)) bool {
+	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
+	// Release the lock and acquire it on exit to ensure locks stay paired.
+	atomic.StoreInt32(&b.hasSub, 1)
+	benchmarkLock.Unlock()
+	defer benchmarkLock.Lock()
+
+	benchName, ok, partial := b.name, true, false
+	if b.context != nil {
+		benchName, ok, partial = b.context.match.fullName(&b.common, name)
+	}
+	if !ok {
+		return true
+	}
+	sub := &B{
+		common: common{
+			signal: make(chan bool),
+			name:   benchName,
+			parent: &b.common,
+			level:  b.level + 1,
+			w:      b.w,
+			chatty: b.chatty,
+		},
+		importPath: b.importPath,
+		benchFunc:  f,
+		benchTime:  b.benchTime,
+		context:    b.context,
+	}
+	if partial {
+		// Partial name match, like -bench=X/Y matching BenchmarkX.
+		// Only process sub-benchmarks, if any.
+		atomic.StoreInt32(&sub.hasSub, 1)
+	}
+	if sub.run1() {
+		sub.run()
+	}
+	b.add(sub.result)
+	return !sub.failed
+}
+
+// add simulates running benchmarks in sequence in a single iteration. It is
+// used to give some meaningful results in case func Benchmark is used in
+// combination with Run.
+func (b *B) add(other BenchmarkResult) {
+	r := &b.result
+	// The aggregated BenchmarkResults resemble running all subbenchmarks as
+	// in sequence in a single benchmark.
+	r.N = 1
+	r.T += time.Duration(other.NsPerOp())
+	if other.Bytes == 0 {
+		// Summing Bytes is meaningless in aggregate if not all subbenchmarks
+		// set it.
+		b.missingBytes = true
+		r.Bytes = 0
+	}
+	if !b.missingBytes {
+		r.Bytes += other.Bytes
+	}
+	r.MemAllocs += uint64(other.AllocsPerOp())
+	r.MemBytes += uint64(other.AllocedBytesPerOp())
 }
 
 // trimOutput shortens the output from a benchmark, which can be very long.
@@ -405,8 +587,11 @@ func (pb *PB) Next() bool {
 // The body function will be run in each goroutine. It should set up any
 // goroutine-local state and then iterate until pb.Next returns false.
 // It should not use the StartTimer, StopTimer, or ResetTimer functions,
-// because they have global effect.
+// because they have global effect. It should also not call Run.
 func (b *B) RunParallel(body func(*PB)) {
+	if b.N == 0 {
+		return // Nothing to do when probing.
+	}
 	// Calculate grain size as number of iterations that take ~100µs.
 	// 100µs is enough to amortize the overhead and provide sufficient
 	// dynamic load balancing.
@@ -455,12 +640,24 @@ func (b *B) SetParallelism(p int) {
 
 // Benchmark benchmarks a single function. Useful for creating
 // custom benchmarks that do not use the "go test" command.
+//
+// If f calls Run, the result will be an estimate of running all its
+// subbenchmarks that don't call Run in sequence in a single benchmark.
 func Benchmark(f func(b *B)) BenchmarkResult {
 	b := &B{
 		common: common{
-			signal: make(chan interface{}),
+			signal: make(chan bool),
+			w:      discard{},
 		},
-		benchmark: InternalBenchmark{"", f},
+		benchFunc: f,
+		benchTime: *benchTime,
 	}
-	return b.run()
+	if b.run1() {
+		b.run()
+	}
+	return b.result
 }
+
+type discard struct{}
+
+func (discard) Write(b []byte) (n int, err error) { return len(b), nil }

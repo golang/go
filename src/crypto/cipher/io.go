@@ -37,10 +37,8 @@ func (w StreamWriter) Write(src []byte) (n int, err error) {
 	c := make([]byte, len(src))
 	w.S.XORKeyStream(c, src)
 	n, err = w.W.Write(c)
-	if n != len(src) {
-		if err == nil { // should never happen
-			err = io.ErrShortWrite
-		}
+	if n != len(src) && err == nil { // should never happen
+		err = io.ErrShortWrite
 	}
 	return
 }

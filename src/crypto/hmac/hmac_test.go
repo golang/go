@@ -568,3 +568,29 @@ func TestEqual(t *testing.T) {
 		t.Error("Equal accepted unequal slices")
 	}
 }
+
+func BenchmarkHMACSHA256_1K(b *testing.B) {
+	key := make([]byte, 32)
+	buf := make([]byte, 1024)
+	h := New(sha256.New, key)
+	b.SetBytes(int64(len(buf)))
+	for i := 0; i < b.N; i++ {
+		h.Write(buf)
+		h.Reset()
+		mac := h.Sum(nil)
+		buf[0] = mac[0]
+	}
+}
+
+func BenchmarkHMACSHA256_32(b *testing.B) {
+	key := make([]byte, 32)
+	buf := make([]byte, 32)
+	h := New(sha256.New, key)
+	b.SetBytes(int64(len(buf)))
+	for i := 0; i < b.N; i++ {
+		h.Write(buf)
+		h.Reset()
+		mac := h.Sum(nil)
+		buf[0] = mac[0]
+	}
+}

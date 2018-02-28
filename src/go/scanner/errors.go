@@ -54,18 +54,16 @@ func (p ErrorList) Less(i, j int) bool {
 	// Note that it is not sufficient to simply compare file offsets because
 	// the offsets do not reflect modified line information (through //line
 	// comments).
-	if e.Filename < f.Filename {
-		return true
+	if e.Filename != f.Filename {
+		return e.Filename < f.Filename
 	}
-	if e.Filename == f.Filename {
-		if e.Line < f.Line {
-			return true
-		}
-		if e.Line == f.Line {
-			return e.Column < f.Column
-		}
+	if e.Line != f.Line {
+		return e.Line < f.Line
 	}
-	return false
+	if e.Column != f.Column {
+		return e.Column < f.Column
+	}
+	return p[i].Msg < p[j].Msg
 }
 
 // Sort sorts an ErrorList. *Error entries are sorted by position,

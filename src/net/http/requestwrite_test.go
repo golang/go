@@ -1,18 +1,21 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package http
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 type reqWriteTest struct {
@@ -28,7 +31,7 @@ type reqWriteTest struct {
 
 var reqWriteTests = []reqWriteTest{
 	// HTTP/1.1 => chunked coding; no body; no trailer
-	{
+	0: {
 		Req: Request{
 			Method: "GET",
 			URL: &url.URL{
@@ -75,7 +78,7 @@ var reqWriteTests = []reqWriteTest{
 			"Proxy-Connection: keep-alive\r\n\r\n",
 	},
 	// HTTP/1.1 => chunked coding; body; empty trailer
-	{
+	1: {
 		Req: Request{
 			Method: "GET",
 			URL: &url.URL{
@@ -93,18 +96,18 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "GET /search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("abcdef") + chunk(""),
 
 		WantProxy: "GET http://www.google.com/search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("abcdef") + chunk(""),
 	},
 	// HTTP/1.1 POST => chunked coding; body; empty trailer
-	{
+	2: {
 		Req: Request{
 			Method: "POST",
 			URL: &url.URL{
@@ -123,21 +126,21 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "POST /search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("abcdef") + chunk(""),
 
 		WantProxy: "POST http://www.google.com/search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("abcdef") + chunk(""),
 	},
 
 	// HTTP/1.1 POST with Content-Length, no chunking
-	{
+	3: {
 		Req: Request{
 			Method: "POST",
 			URL: &url.URL{
@@ -156,7 +159,7 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "POST /search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Connection: close\r\n" +
 			"Content-Length: 6\r\n" +
 			"\r\n" +
@@ -164,7 +167,7 @@ var reqWriteTests = []reqWriteTest{
 
 		WantProxy: "POST http://www.google.com/search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Connection: close\r\n" +
 			"Content-Length: 6\r\n" +
 			"\r\n" +
@@ -172,7 +175,7 @@ var reqWriteTests = []reqWriteTest{
 	},
 
 	// HTTP/1.1 POST with Content-Length in headers
-	{
+	4: {
 		Req: Request{
 			Method: "POST",
 			URL:    mustParseURL("http://example.com/"),
@@ -187,21 +190,21 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 6\r\n" +
 			"\r\n" +
 			"abcdef",
 
 		WantProxy: "POST http://example.com/ HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 6\r\n" +
 			"\r\n" +
 			"abcdef",
 	},
 
 	// default to HTTP/1.1
-	{
+	5: {
 		Req: Request{
 			Method: "GET",
 			URL:    mustParseURL("/search"),
@@ -210,12 +213,12 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "GET /search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"\r\n",
 	},
 
 	// Request with a 0 ContentLength and a 0 byte body.
-	{
+	6: {
 		Req: Request{
 			Method:        "POST",
 			URL:           mustParseURL("/"),
@@ -227,24 +230,47 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
 
-		// RFC 2616 Section 14.13 says Content-Length should be specified
-		// unless body is prohibited by the request method.
-		// Also, nginx expects it for POST and PUT.
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n0\r\n\r\n",
+
+		WantProxy: "POST / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n0\r\n\r\n",
+	},
+
+	// Request with a 0 ContentLength and a nil body.
+	7: {
+		Req: Request{
+			Method:        "POST",
+			URL:           mustParseURL("/"),
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+
+		Body: func() io.ReadCloser { return nil },
+
+		WantWrite: "POST / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 0\r\n" +
 			"\r\n",
 
 		WantProxy: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 0\r\n" +
 			"\r\n",
 	},
 
 	// Request with a 0 ContentLength and a 1 byte body.
-	{
+	8: {
 		Req: Request{
 			Method:        "POST",
 			URL:           mustParseURL("/"),
@@ -258,19 +284,19 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("x") + chunk(""),
 
 		WantProxy: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("x") + chunk(""),
 	},
 
 	// Request with a ContentLength of 10 but a 5 byte body.
-	{
+	9: {
 		Req: Request{
 			Method:        "POST",
 			URL:           mustParseURL("/"),
@@ -284,7 +310,7 @@ var reqWriteTests = []reqWriteTest{
 	},
 
 	// Request with a ContentLength of 4 but an 8 byte body.
-	{
+	10: {
 		Req: Request{
 			Method:        "POST",
 			URL:           mustParseURL("/"),
@@ -298,7 +324,7 @@ var reqWriteTests = []reqWriteTest{
 	},
 
 	// Request with a 5 ContentLength and nil body.
-	{
+	11: {
 		Req: Request{
 			Method:        "POST",
 			URL:           mustParseURL("/"),
@@ -311,7 +337,7 @@ var reqWriteTests = []reqWriteTest{
 	},
 
 	// Request with a 0 ContentLength and a body with 1 byte content and an error.
-	{
+	12: {
 		Req: Request{
 			Method:        "POST",
 			URL:           mustParseURL("/"),
@@ -331,7 +357,7 @@ var reqWriteTests = []reqWriteTest{
 	},
 
 	// Request with a 0 ContentLength and a body without content and an error.
-	{
+	13: {
 		Req: Request{
 			Method:        "POST",
 			URL:           mustParseURL("/"),
@@ -352,7 +378,7 @@ var reqWriteTests = []reqWriteTest{
 
 	// Verify that DumpRequest preserves the HTTP version number, doesn't add a Host,
 	// and doesn't add a User-Agent.
-	{
+	14: {
 		Req: Request{
 			Method:     "GET",
 			URL:        mustParseURL("/foo"),
@@ -365,7 +391,7 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "GET /foo HTTP/1.1\r\n" +
 			"Host: \r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"X-Foo: X-Bar\r\n\r\n",
 	},
 
@@ -373,7 +399,7 @@ var reqWriteTests = []reqWriteTest{
 	// an empty Host header, and don't use
 	// Request.Header["Host"]. This is just testing that
 	// we don't change Go 1.0 behavior.
-	{
+	15: {
 		Req: Request{
 			Method: "GET",
 			Host:   "",
@@ -391,11 +417,11 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "GET /search HTTP/1.1\r\n" +
 			"Host: \r\n" +
-			"User-Agent: Go 1.1 package http\r\n\r\n",
+			"User-Agent: Go-http-client/1.1\r\n\r\n",
 	},
 
 	// Opaque test #1 from golang.org/issue/4860
-	{
+	16: {
 		Req: Request{
 			Method: "GET",
 			URL: &url.URL{
@@ -410,11 +436,11 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "GET /%2F/%2F/ HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n\r\n",
+			"User-Agent: Go-http-client/1.1\r\n\r\n",
 	},
 
 	// Opaque test #2 from golang.org/issue/4860
-	{
+	17: {
 		Req: Request{
 			Method: "GET",
 			URL: &url.URL{
@@ -429,11 +455,11 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "GET http://y.google.com/%2F/%2F/ HTTP/1.1\r\n" +
 			"Host: x.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n\r\n",
+			"User-Agent: Go-http-client/1.1\r\n\r\n",
 	},
 
 	// Testing custom case in header keys. Issue 5022.
-	{
+	18: {
 		Req: Request{
 			Method: "GET",
 			URL: &url.URL{
@@ -451,8 +477,39 @@ var reqWriteTests = []reqWriteTest{
 
 		WantWrite: "GET / HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"ALL-CAPS: x\r\n" +
+			"\r\n",
+	},
+
+	// Request with host header field; IPv6 address with zone identifier
+	19: {
+		Req: Request{
+			Method: "GET",
+			URL: &url.URL{
+				Host: "[fe80::1%en0]",
+			},
+		},
+
+		WantWrite: "GET / HTTP/1.1\r\n" +
+			"Host: [fe80::1]\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"\r\n",
+	},
+
+	// Request with optional host header field; IPv6 address with zone identifier
+	20: {
+		Req: Request{
+			Method: "GET",
+			URL: &url.URL{
+				Host: "www.example.com",
+			},
+			Host: "[fe80::1%en0]:8080",
+		},
+
+		WantWrite: "GET / HTTP/1.1\r\n" +
+			"Host: [fe80::1]:8080\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"\r\n",
 	},
 }
@@ -512,6 +569,138 @@ func TestRequestWrite(t *testing.T) {
 	}
 }
 
+func TestRequestWriteTransport(t *testing.T) {
+	t.Parallel()
+
+	matchSubstr := func(substr string) func(string) error {
+		return func(written string) error {
+			if !strings.Contains(written, substr) {
+				return fmt.Errorf("expected substring %q in request: %s", substr, written)
+			}
+			return nil
+		}
+	}
+
+	noContentLengthOrTransferEncoding := func(req string) error {
+		if strings.Contains(req, "Content-Length: ") {
+			return fmt.Errorf("unexpected Content-Length in request: %s", req)
+		}
+		if strings.Contains(req, "Transfer-Encoding: ") {
+			return fmt.Errorf("unexpected Transfer-Encoding in request: %s", req)
+		}
+		return nil
+	}
+
+	all := func(checks ...func(string) error) func(string) error {
+		return func(req string) error {
+			for _, c := range checks {
+				if err := c(req); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+
+	type testCase struct {
+		method string
+		clen   int64 // ContentLength
+		body   io.ReadCloser
+		want   func(string) error
+
+		// optional:
+		init         func(*testCase)
+		afterReqRead func()
+	}
+
+	tests := []testCase{
+		{
+			method: "GET",
+			want:   noContentLengthOrTransferEncoding,
+		},
+		{
+			method: "GET",
+			body:   ioutil.NopCloser(strings.NewReader("")),
+			want:   noContentLengthOrTransferEncoding,
+		},
+		{
+			method: "GET",
+			clen:   -1,
+			body:   ioutil.NopCloser(strings.NewReader("")),
+			want:   noContentLengthOrTransferEncoding,
+		},
+		// A GET with a body, with explicit content length:
+		{
+			method: "GET",
+			clen:   7,
+			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			want: all(matchSubstr("Content-Length: 7"),
+				matchSubstr("foobody")),
+		},
+		// A GET with a body, sniffing the leading "f" from "foobody".
+		{
+			method: "GET",
+			clen:   -1,
+			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			want: all(matchSubstr("Transfer-Encoding: chunked"),
+				matchSubstr("\r\n1\r\nf\r\n"),
+				matchSubstr("oobody")),
+		},
+		// But a POST request is expected to have a body, so
+		// no sniffing happens:
+		{
+			method: "POST",
+			clen:   -1,
+			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			want: all(matchSubstr("Transfer-Encoding: chunked"),
+				matchSubstr("foobody")),
+		},
+		{
+			method: "POST",
+			clen:   -1,
+			body:   ioutil.NopCloser(strings.NewReader("")),
+			want:   all(matchSubstr("Transfer-Encoding: chunked")),
+		},
+		// Verify that a blocking Request.Body doesn't block forever.
+		{
+			method: "GET",
+			clen:   -1,
+			init: func(tt *testCase) {
+				pr, pw := io.Pipe()
+				tt.afterReqRead = func() {
+					pw.Close()
+				}
+				tt.body = ioutil.NopCloser(pr)
+			},
+			want: matchSubstr("Transfer-Encoding: chunked"),
+		},
+	}
+
+	for i, tt := range tests {
+		if tt.init != nil {
+			tt.init(&tt)
+		}
+		req := &Request{
+			Method: tt.method,
+			URL: &url.URL{
+				Scheme: "http",
+				Host:   "example.com",
+			},
+			Header:        make(Header),
+			ContentLength: tt.clen,
+			Body:          tt.body,
+		}
+		got, err := dumpRequestOut(req, tt.afterReqRead)
+		if err != nil {
+			t.Errorf("test[%d]: %v", i, err)
+			continue
+		}
+		if err := tt.want(string(got)); err != nil {
+			t.Errorf("test[%d]: %v", i, err)
+		}
+	}
+}
+
 type closeChecker struct {
 	io.Reader
 	closed bool
@@ -522,30 +711,27 @@ func (rc *closeChecker) Close() error {
 	return nil
 }
 
-// TestRequestWriteClosesBody tests that Request.Write does close its request.Body.
+// TestRequestWriteClosesBody tests that Request.Write closes its request.Body.
 // It also indirectly tests NewRequest and that it doesn't wrap an existing Closer
 // inside a NopCloser, and that it serializes it correctly.
 func TestRequestWriteClosesBody(t *testing.T) {
 	rc := &closeChecker{Reader: strings.NewReader("my body")}
-	req, _ := NewRequest("POST", "http://foo.com/", rc)
-	if req.ContentLength != 0 {
-		t.Errorf("got req.ContentLength %d, want 0", req.ContentLength)
+	req, err := NewRequest("POST", "http://foo.com/", rc)
+	if err != nil {
+		t.Fatal(err)
 	}
 	buf := new(bytes.Buffer)
-	req.Write(buf)
+	if err := req.Write(buf); err != nil {
+		t.Error(err)
+	}
 	if !rc.closed {
 		t.Error("body not closed after write")
 	}
 	expected := "POST / HTTP/1.1\r\n" +
 		"Host: foo.com\r\n" +
-		"User-Agent: Go 1.1 package http\r\n" +
+		"User-Agent: Go-http-client/1.1\r\n" +
 		"Transfer-Encoding: chunked\r\n\r\n" +
-		// TODO: currently we don't buffer before chunking, so we get a
-		// single "m" chunk before the other chunks, as this was the 1-byte
-		// read from our MultiReader where we stiched the Body back together
-		// after sniffing whether the Body was 0 bytes or not.
-		chunk("m") +
-		chunk("y body") +
+		chunk("my body") +
 		chunk("")
 	if buf.String() != expected {
 		t.Errorf("write:\n got: %s\nwant: %s", buf.String(), expected)
@@ -573,7 +759,7 @@ func TestRequestWriteError(t *testing.T) {
 	failAfter, writeCount := 0, 0
 	errFail := errors.New("fake write failure")
 
-	// w is the buffered io.Writer to write the request to.  It
+	// w is the buffered io.Writer to write the request to. It
 	// fails exactly once on its Nth Write call, as controlled by
 	// failAfter. It also tracks the number of calls in
 	// writeCount.
@@ -621,3 +807,76 @@ func TestRequestWriteError(t *testing.T) {
 		t.Fatalf("writeCalls constant is outdated in test")
 	}
 }
+
+// dumpRequestOut is a modified copy of net/http/httputil.DumpRequestOut.
+// Unlike the original, this version doesn't mutate the req.Body and
+// try to restore it. It always dumps the whole body.
+// And it doesn't support https.
+func dumpRequestOut(req *Request, onReadHeaders func()) ([]byte, error) {
+
+	// Use the actual Transport code to record what we would send
+	// on the wire, but not using TCP.  Use a Transport with a
+	// custom dialer that returns a fake net.Conn that waits
+	// for the full input (and recording it), and then responds
+	// with a dummy response.
+	var buf bytes.Buffer // records the output
+	pr, pw := io.Pipe()
+	defer pr.Close()
+	defer pw.Close()
+	dr := &delegateReader{c: make(chan io.Reader)}
+
+	t := &Transport{
+		Dial: func(net, addr string) (net.Conn, error) {
+			return &dumpConn{io.MultiWriter(&buf, pw), dr}, nil
+		},
+	}
+	defer t.CloseIdleConnections()
+
+	// Wait for the request before replying with a dummy response:
+	go func() {
+		req, err := ReadRequest(bufio.NewReader(pr))
+		if err == nil {
+			if onReadHeaders != nil {
+				onReadHeaders()
+			}
+			// Ensure all the body is read; otherwise
+			// we'll get a partial dump.
+			io.Copy(ioutil.Discard, req.Body)
+			req.Body.Close()
+		}
+		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+	}()
+
+	_, err := t.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// delegateReader is a reader that delegates to another reader,
+// once it arrives on a channel.
+type delegateReader struct {
+	c chan io.Reader
+	r io.Reader // nil until received from c
+}
+
+func (r *delegateReader) Read(p []byte) (int, error) {
+	if r.r == nil {
+		r.r = <-r.c
+	}
+	return r.r.Read(p)
+}
+
+// dumpConn is a net.Conn that writes to Writer and reads from Reader.
+type dumpConn struct {
+	io.Writer
+	io.Reader
+}
+
+func (c *dumpConn) Close() error                       { return nil }
+func (c *dumpConn) LocalAddr() net.Addr                { return nil }
+func (c *dumpConn) RemoteAddr() net.Addr               { return nil }
+func (c *dumpConn) SetDeadline(t time.Time) error      { return nil }
+func (c *dumpConn) SetReadDeadline(t time.Time) error  { return nil }
+func (c *dumpConn) SetWriteDeadline(t time.Time) error { return nil }

@@ -1,0 +1,12 @@
+// linux/arm-specific vet whitelist. See readme.txt for details.
+
+
+// These SP references occur after a stack-altering call. They're fine.
+runtime/sys_linux_arm.s: [arm] clone: 12(R13) should be stk+4(FP)
+runtime/sys_linux_arm.s: [arm] clone: 8(R13) should be flags+0(FP)
+
+// Special functions.
+runtime/sys_linux_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+runtime/sys_linux_arm.s: [arm] access: function access missing Go declaration
+runtime/sys_linux_arm.s: [arm] connect: function connect missing Go declaration
+runtime/sys_linux_arm.s: [arm] socket: function socket missing Go declaration

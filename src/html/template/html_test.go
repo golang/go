@@ -19,7 +19,8 @@ func TestHTMLNospaceEscaper(t *testing.T) {
 		`PQRSTUVWXYZ[\]^_` +
 		"`abcdefghijklmno" +
 		"pqrstuvwxyz{|}~\x7f" +
-		"\u00A0\u0100\u2028\u2029\ufeff\ufdec\U0001D11E")
+		"\u00A0\u0100\u2028\u2029\ufeff\ufdec\U0001D11E" +
+		"erroneous\x960") // keep at the end
 
 	want := ("&#xfffd;\x01\x02\x03\x04\x05\x06\x07" +
 		"\x08&#9;&#10;&#11;&#12;&#13;\x0E\x0F" +
@@ -31,14 +32,16 @@ func TestHTMLNospaceEscaper(t *testing.T) {
 		`PQRSTUVWXYZ[\]^_` +
 		`&#96;abcdefghijklmno` +
 		`pqrstuvwxyz{|}~` + "\u007f" +
-		"\u00A0\u0100\u2028\u2029\ufeff&#xfdec;\U0001D11E")
+		"\u00A0\u0100\u2028\u2029\ufeff&#xfdec;\U0001D11E" +
+		"erroneous&#xfffd;0") // keep at the end
 
 	got := htmlNospaceEscaper(input)
 	if got != want {
 		t.Errorf("encode: want\n\t%q\nbut got\n\t%q", want, got)
 	}
 
-	got, want = html.UnescapeString(got), strings.Replace(input, "\x00", "\ufffd", 1)
+	r := strings.NewReplacer("\x00", "\ufffd", "\x96", "\ufffd")
+	got, want = html.UnescapeString(got), r.Replace(input)
 	if want != got {
 		t.Errorf("decode: want\n\t%q\nbut got\n\t%q", want, got)
 	}

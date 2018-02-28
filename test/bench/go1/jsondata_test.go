@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -1816,4 +1816,4 @@ zJE6zEudHD27ZzbOeSgpk/HnkQbT7twqaaJXNvUzMuUt1hyhU7ceZcph42+VTlXU
 cZ9UZZJyYojLjaeJHfJU1UZUEmBfLumu8yW5skuyE9uh2BmVxJZi6KxaXBNwSolw
 BqBcQLj3ucNZIYZLYtirLu3brW6UYgZgZJiDIGiwpsgg7g1AITkgM6FHITxDDnGt
 4SDHzZbL5s8fec5PCq5DOzDRdWS+0h5Y2INZak1D29cpVyb2aVrV3Wlt7rQhLa3e
-m3ZwPNcXywE2Qesk1XN24HvZ2Xa6nlm8Pf/xdyRThQkO1NjuAA== `)
+m3ZwPNcXywE2Qesk1XN24HvZ2Xa6nlm8Pf/xdyRThQkO1NjuAA==`)

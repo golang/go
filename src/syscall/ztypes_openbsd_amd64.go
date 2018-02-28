@@ -1,6 +1,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_openbsd.go
 
+// +build amd64,openbsd
+
 package syscall
 
 const (
@@ -139,6 +141,10 @@ type Dirent struct {
 type Fsid struct {
 	Val [2]int32
 }
+
+const (
+	pathMax = 0x400
+)
 
 type RawSockaddrInet4 struct {
 	Len    uint8
@@ -434,6 +440,10 @@ type BpfTimeval struct {
 	Sec  uint32
 	Usec uint32
 }
+
+const (
+	_AT_FDCWD = -0x64
+)
 
 type Termios struct {
 	Iflag  uint32

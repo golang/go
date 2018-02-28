@@ -12,6 +12,11 @@ import (
 // Getpagesize returns the underlying system's memory page size.
 func Getpagesize() int { return syscall.Getpagesize() }
 
+// File represents an open file descriptor.
+type File struct {
+	*file // os specific
+}
+
 // A FileInfo describes a file and is returned by Stat and Lstat.
 type FileInfo interface {
 	Name() string       // base name of the file
@@ -25,7 +30,7 @@ type FileInfo interface {
 // A FileMode represents a file's mode and permission bits.
 // The bits have the same definition on all systems, so that
 // information about files can be moved from one system
-// to another portably.  Not all bits apply to all systems.
+// to another portably. Not all bits apply to all systems.
 // The only required bit is ModeDir for directories.
 type FileMode uint32
 
@@ -40,7 +45,7 @@ const (
 	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
 	ModeAppend                                     // a: append-only
 	ModeExclusive                                  // l: exclusive use
-	ModeTemporary                                  // T: temporary file (not backed up)
+	ModeTemporary                                  // T: temporary file; Plan 9 only
 	ModeSymlink                                    // L: symbolic link
 	ModeDevice                                     // D: device file
 	ModeNamedPipe                                  // p: named pipe (FIFO)
@@ -53,7 +58,7 @@ const (
 	// Mask for the type bits. For regular files, none will be set.
 	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
 
-	ModePerm FileMode = 0777 // permission bits
+	ModePerm FileMode = 0777 // Unix permission bits
 )
 
 func (m FileMode) String() string {

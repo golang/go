@@ -40,10 +40,10 @@ import "math"
 //                       1/2
 // Im w  =  [ (r - x)/2 ]   .
 //
-// Cancellation error in r-x or r+x is avoided by using the
+// Cancelation error in r-x or r+x is avoided by using the
 // identity  2 Re w Im w  =  y.
 //
-// Note that -w is also a square root of z.  The root chosen
+// Note that -w is also a square root of z. The root chosen
 // is always in the right half plane and Im w has the same sign as y.
 //
 // ACCURACY:
@@ -57,13 +57,14 @@ import "math"
 // The result r is chosen so that real(r) ≥ 0 and imag(r) has the same sign as imag(x).
 func Sqrt(x complex128) complex128 {
 	if imag(x) == 0 {
+		// Ensure that imag(r) has the same sign as imag(x) for imag(x) == signed zero.
 		if real(x) == 0 {
-			return complex(0, 0)
+			return complex(0, imag(x))
 		}
 		if real(x) < 0 {
-			return complex(0, math.Sqrt(-real(x)))
+			return complex(0, math.Copysign(math.Sqrt(-real(x)), imag(x)))
 		}
-		return complex(math.Sqrt(real(x)), 0)
+		return complex(math.Sqrt(real(x)), imag(x))
 	}
 	if real(x) == 0 {
 		if imag(x) < 0 {

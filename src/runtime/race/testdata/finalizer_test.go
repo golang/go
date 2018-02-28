@@ -53,6 +53,7 @@ func TestNoRaceFinGlobal(t *testing.T) {
 func TestRaceFin(t *testing.T) {
 	c := make(chan bool)
 	y := 0
+	_ = y
 	go func() {
 		x := new(string)
 		runtime.SetFinalizer(x, func(x *string) {

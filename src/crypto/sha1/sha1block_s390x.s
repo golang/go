@@ -1,0 +1,34 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+#include "textflag.h"
+
+// func featureCheck() bool
+TEXT ·featureCheck(SB),NOSPLIT,$16-1
+	LA	tmp-16(SP), R1
+	XOR	R0, R0         // query function code is 0
+	WORD    $0xB93E0006    // KIMD (R6 is ignored)
+	MOVBZ	tmp-16(SP), R4 // get the first byte
+	AND	$0x40, R4      // bit 1 (big endian) for SHA-1
+	CMPBEQ	R4, $0, nosha1
+	MOVB	$1, ret+0(FP)
+	RET
+nosha1:
+	MOVB	$0, ret+0(FP)
+	RET
+
+// func block(dig *digest, p []byte)
+TEXT ·block(SB),NOSPLIT,$0-32
+	MOVBZ	·useAsm(SB), R4
+	LMG	dig+0(FP), R1, R3 // R2 = &p[0], R3 = len(p)
+	CMPBNE	R4, $1, generic
+	MOVBZ	$1, R0        // SHA-1 function code
+loop:
+	WORD	$0xB93E0002   // KIMD R2
+	BVS	loop          // continue if interrupted
+done:
+	XOR	R0, R0        // restore R0
+	RET
+generic:
+	BR	·blockGeneric(SB)

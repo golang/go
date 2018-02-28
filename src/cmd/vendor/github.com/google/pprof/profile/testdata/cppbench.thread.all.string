@@ -1,0 +1,28 @@
+PeriodType: thread count
+Period: 1
+Samples:
+thread/count
+          1: 1 2 3 
+          1: 4 5 6 3 
+          2: 1 5 7 3 
+Locations
+     1: 0xbc8f1c M=1 
+     2: 0x40be30 M=1 
+     3: 0x7eff052e111c M=4 
+     4: 0x7eff05b74f7d M=7 
+     5: 0x7eff05b6d14d M=7 
+     6: 0x40bce3 M=1 
+     7: 0x40bd6d M=1 
+Mappings
+1: 0x400000/0xfcb000/0x0 /home/rsilvera/cppbench/cppbench_server_main  
+2: 0x7eff04e98000/0x7eff04e9b000/0x0 /lib/libnss_cache-2.15.so  
+3: 0x7eff0509c000/0x7eff050a8000/0x0 /lib/libnss_files-2.15.so  
+4: 0x7eff052a9000/0x7eff05457000/0x0 /lib/libc-2.15.so  
+5: 0x7eff05662000/0x7eff0575d000/0x0 /lib/libm-2.15.so  
+6: 0x7eff0595e000/0x7eff05965000/0x0 /lib/librt-2.15.so  
+7: 0x7eff05b66000/0x7eff05b7e000/0x0 /lib/libpthread-2.15.so  
+8: 0x7eff05d83000/0x7eff05d86000/0x0 /lib/libdl-2.15.so  
+9: 0x7eff05f87000/0x7eff05f90000/0x0 /lib/libcrypt-2.15.so  
+10: 0x7eff061c0000/0x7eff061e4000/0x0 /lib/ld-2.15.so  
+11: 0x7fff2edff000/0x7fff2ee00000/0x0 [vdso]  
+12: 0xffffffffff600000/0xffffffffff601000/0x0 [vsyscall]  

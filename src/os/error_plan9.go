@@ -5,40 +5,30 @@
 package os
 
 func isExist(err error) bool {
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case *PathError:
-		err = pe.Err
-	case *LinkError:
-		err = pe.Err
-	}
-	return contains(err.Error(), " exists")
+	return checkErrMessageContent(err, "exists", "is a directory")
 }
 
 func isNotExist(err error) bool {
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case *PathError:
-		err = pe.Err
-	case *LinkError:
-		err = pe.Err
-	}
-	return contains(err.Error(), "does not exist") || contains(err.Error(), "not found") ||
-		contains(err.Error(), "has been removed") || contains(err.Error(), "no parent")
+	return checkErrMessageContent(err, "does not exist", "not found",
+		"has been removed", "no parent")
 }
 
 func isPermission(err error) bool {
-	switch pe := err.(type) {
-	case nil:
+	return checkErrMessageContent(err, "permission denied")
+}
+
+// checkErrMessageContent checks if err message contains one of msgs.
+func checkErrMessageContent(err error, msgs ...string) bool {
+	if err == nil {
 		return false
-	case *PathError:
-		err = pe.Err
-	case *LinkError:
-		err = pe.Err
 	}
-	return contains(err.Error(), "permission denied")
+	err = underlyingError(err)
+	for _, msg := range msgs {
+		if contains(err.Error(), msg) {
+			return true
+		}
+	}
+	return false
 }
 
 // contains is a local version of strings.Contains. It knows len(sep) > 1.

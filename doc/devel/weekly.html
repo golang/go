@@ -519,7 +519,7 @@ Other changes:
 	fix FreeBSD signal handling around thread creation (thanks Devon H. O'Dell),
 	goroutine profile, stack dumps,
 	implement runtime.osyield on FreeBSD 386, amd64 (thanks Devon H. O'Dell),
-	permit default behaviour of SIGTSTP, SIGTTIN, SIGTTOU,
+	permit default behavior of SIGTSTP, SIGTTIN, SIGTTOU,
 	release unused memory to the OS (thanks Sébastien Paolacci),
 	remove an obsolete file (thanks Mikio Hara).
 * spec: make all comparison results untyped bool,
@@ -2450,7 +2450,7 @@ The http package's URL parsing and query escaping code (such as ParseURL and
 URLEscape) has been moved to the new url package, with several simplifications
 to the names. Client code can be updated automatically with gofix.
 
-* asn1: support unmarshalling structs with int32 members (thanks Dave Cheney).
+* asn1: support unmarshaling structs with int32 members (thanks Dave Cheney).
 * build: allow builds without cgo or hg,
 	support versioning without hg (thanks Gustavo Niemeyer).
 * builtin: add documentation for builtins.
@@ -3030,7 +3030,7 @@ Other changes:
 * 5g: alignment fixes.
 * 6l, 8l: fix Mach-O binaries with many dynamic libraries.
 * 8l: emit resources (.rsrc) in Windows PE.  (thanks Wei Guangjing).
-* asn1: fix marshalling of empty optional RawValues (thanks Mikkel Krautz).
+* asn1: fix marshaling of empty optional RawValues (thanks Mikkel Krautz).
 * big: make Int and Rat implement fmt.Scanner (thanks Evan Shaw),
 	~8x faster number scanning,
 	remove some unnecessary conversions.
@@ -4157,7 +4157,7 @@ Other changes in this release:
 * suffixarray: use binary search for both ends of Lookup (thanks Eric Eisner).
 * syscall: add missing network interface constants (thanks Mikio Hara).
 * template: treat map keys as zero, not non-existent (thanks Roger Peppe).
-* time: allow cancelling of After events (thanks Roger Peppe),
+* time: allow canceling of After events (thanks Roger Peppe),
         support Solaris zoneinfo directory.
 * token/position: added SetLinesForContent.
 * unicode: update to unicode 6.0.0.
@@ -4238,7 +4238,7 @@ example: http://golang.org/pkg/xml/
 <pre>
 The json, gob, and template packages have changed, and code that uses them
 may need to be updated after this release. They will no longer read or write
-unexported struct fields. When marshalling a struct with json or gob the
+unexported struct fields. When marshaling a struct with json or gob the
 unexported fields will be silently ignored. Attempting to unmarshal json or
 gob data into an unexported field will generate an error. Accessing an
 unexported field from a template will cause the Execute function to return
@@ -5682,7 +5682,7 @@ Other changes:
 	pidigits ~10% performance win by using adds instead of shifts.
 * time: remove incorrect time.ISO8601 and add time.RFC3339 (thanks Micah Stetson).
 * utf16: add DecodeRune, EncodeRune.
-* xml: add support for XML marshalling embedded structs (thanks Raif S. Naffah),
+* xml: add support for XML marshaling embedded structs (thanks Raif S. Naffah),
 	new "innerxml" tag to collect inner XML.
 </pre>
 
@@ -5696,7 +5696,7 @@ This release contains many changes:
 * cmath: new complex math library (thanks Charles L. Dorian).
 * docs: update to match current coding style (thanks Christopher Wedgwood).
 * exp/eval: fix example and add target to Makefile (thanks Evan Shaw).
-* fmt: change behaviour of format verb %b to match %x when negative (thanks Andrei Vieru).
+* fmt: change behavior of format verb %b to match %x when negative (thanks Andrei Vieru).
 * gc: compile s == "" as len(s) == 0,
 	distinguish fatal compiler bug from error+exit,
 	fix alignment on non-amd64,
@@ -5925,10 +5925,10 @@ Other changes and fixes:
 * 8a/8l: Added CMOVcc instructions (thanks Evan Shaw)
 * 8l: pe executable building code changed to include import table for kernel32.dll functions (thanks Alex Brainman)
 * 5g/6g/8g: bug fixes
-* asn1: bug fixes and additions (incl marshalling)
+* asn1: bug fixes and additions (incl marshaling)
 * build: fix build for Native Client, Linux/ARM
 * dashboard: show benchmarks, add garbage collector benchmarks
-* encoding/pem: add marshalling support
+* encoding/pem: add marshaling support
 * exp/draw: fast paths for a nil mask
 * godoc: support for directories outside $GOROOT
 * http: sort header keys when writing Response or Request to wire (thanks Petar Maymounkov)
@@ -5971,7 +5971,7 @@ You can now check build status on various platforms at the Go Dashboard:
 * runtime: add SetFinalizer
 * time: Sleep through interruptions (thanks Chris Wedgwood)
 	add RFC822 formats
-	experimental implemenation of Ticker using two goroutines for all tickers
+	experimental implementation of Ticker using two goroutines for all tickers
 * xml: allow underscores in XML element names (thanks Michael Hoisie)
 	allow any scalar type in xml.Unmarshal
 </pre>

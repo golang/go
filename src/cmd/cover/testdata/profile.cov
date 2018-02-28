@@ -1,0 +1,5 @@
+mode: set
+./testdata/p.go:10.10,12.2 0 0
+./testdata/p.go:15.10,17.2 0 0
+./testdata/p.go:20.10,22.2 0 0
+./testdata/p.go:25.16,27.2 1 1

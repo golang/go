@@ -1,0 +1,32 @@
+// 
+PACKAGE issue16153
+
+IMPORTPATH
+	testdata/issue16153
+
+FILENAMES
+	testdata/issue16153.go
+
+CONSTANTS
+	// 
+	const (
+		X3	int64	= iota
+		Y3		= 1
+	)
+
+	// 
+	const (
+		X4	int64	= iota
+		Y4
+	)
+
+	// original test case 
+	const (
+		Y1 = 256
+	)
+
+	// variations 
+	const (
+		Y2 uint8
+	)
+

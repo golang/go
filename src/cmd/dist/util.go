@@ -1,21 +1,22 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
+	"bytes"
+	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -50,18 +51,6 @@ func uniq(list []string) []string {
 	return keep
 }
 
-// splitlines returns a slice with the result of splitting
-// the input p after each \n.
-func splitlines(p string) []string {
-	return strings.SplitAfter(p, "\n")
-}
-
-// splitfields replaces the vector v with the result of splitting
-// the input p into non-empty fields containing no spaces.
-func splitfields(p string) []string {
-	return strings.Fields(p)
-}
-
 const (
 	CheckExit = 1 << iota
 	ShowOutput
@@ -71,9 +60,9 @@ const (
 var outputLock sync.Mutex
 
 // run runs the command line cmd in dir.
-// If mode has ShowOutput set, run collects cmd's output and returns it as a string;
-// otherwise, run prints cmd's output to standard output after the command finishes.
-// If mode has CheckExit set and the command fails, run calls fatal.
+// If mode has ShowOutput set and Background unset, run passes cmd's output to
+// stdout/stderr directly. Otherwise, run returns cmd's output as a string.
+// If mode has CheckExit set and the command fails, run calls fatalf.
 // If mode has Background set, this command is being run as a
 // Background job. Only bgrun should use the Background mode,
 // not other callers.
@@ -108,9 +97,11 @@ func run(dir string, mode int, cmd ...string) string {
 		}
 		outputLock.Unlock()
 		if mode&Background != 0 {
-			bgdied.Done()
+			// Prevent fatalf from waiting on our own goroutine's
+			// bghelper to exit:
+			bghelpers.Done()
 		}
-		fatal("FAILED: %v", strings.Join(cmd, " "))
+		fatalf("FAILED: %v: %v", strings.Join(cmd, " "), err)
 	}
 	if mode&ShowOutput != 0 {
 		outputLock.Lock()
@@ -127,71 +118,68 @@ var maxbg = 4 /* maximum number of jobs to run at once */
 
 var (
 	bgwork = make(chan func(), 1e5)
-	bgdone = make(chan struct{}, 1e5)
 
-	bgdied sync.WaitGroup
-	nwork  int32
-	ndone  int32
+	bghelpers sync.WaitGroup
 
-	dying  = make(chan bool)
-	nfatal int32
+	dieOnce sync.Once // guards close of dying
+	dying   = make(chan struct{})
 )
 
 func bginit() {
-	bgdied.Add(maxbg)
+	bghelpers.Add(maxbg)
 	for i := 0; i < maxbg; i++ {
 		go bghelper()
 	}
 }
 
 func bghelper() {
+	defer bghelpers.Done()
 	for {
-		w := <-bgwork
-		w()
-
-		// Stop if we're dying.
-		if atomic.LoadInt32(&nfatal) > 0 {
-			bgdied.Done()
+		select {
+		case <-dying:
 			return
+		case w := <-bgwork:
+			// Dying takes precedence over doing more work.
+			select {
+			case <-dying:
+				return
+			default:
+				w()
+			}
 		}
 	}
 }
 
 // bgrun is like run but runs the command in the background.
 // CheckExit|ShowOutput mode is implied (since output cannot be returned).
-func bgrun(dir string, cmd ...string) {
+// bgrun adds 1 to wg immediately, and calls Done when the work completes.
+func bgrun(wg *sync.WaitGroup, dir string, cmd ...string) {
+	wg.Add(1)
 	bgwork <- func() {
+		defer wg.Done()
 		run(dir, CheckExit|ShowOutput|Background, cmd...)
 	}
 }
 
 // bgwait waits for pending bgruns to finish.
 // bgwait must be called from only a single goroutine at a time.
-func bgwait() {
-	var wg sync.WaitGroup
-	wg.Add(maxbg)
-	done := make(chan bool)
-	for i := 0; i < maxbg; i++ {
-		bgwork <- func() {
-			wg.Done()
-
-			// Hold up bg goroutine until either the wait finishes
-			// or the program starts dying due to a call to fatal.
-			select {
-			case <-dying:
-			case <-done:
-			}
-		}
+func bgwait(wg *sync.WaitGroup) {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-dying:
 	}
-	wg.Wait()
-	close(done)
 }
 
 // xgetwd returns the current directory.
 func xgetwd() string {
 	wd, err := os.Getwd()
 	if err != nil {
-		fatal("%s", err)
+		fatalf("%s", err)
 	}
 	return wd
 }
@@ -201,11 +189,11 @@ func xgetwd() string {
 func xrealwd(path string) string {
 	old := xgetwd()
 	if err := os.Chdir(path); err != nil {
-		fatal("chdir %s: %v", path, err)
+		fatalf("chdir %s: %v", path, err)
 	}
 	real := xgetwd()
 	if err := os.Chdir(old); err != nil {
-		fatal("chdir %s: %v", old, err)
+		fatalf("chdir %s: %v", old, err)
 	}
 	return real
 }
@@ -231,30 +219,39 @@ func mtime(p string) time.Time {
 	return fi.ModTime()
 }
 
-// isabs reports whether p is an absolute path.
-func isabs(p string) bool {
-	return filepath.IsAbs(p)
-}
-
 // readfile returns the content of the named file.
 func readfile(file string) string {
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	return string(data)
 }
 
-// writefile writes b to the named file, creating it if needed.  if
-// exec is non-zero, marks the file as executable.
-func writefile(b, file string, exec int) {
+const (
+	writeExec = 1 << iota
+	writeSkipSame
+)
+
+// writefile writes text to the named file, creating it if needed.
+// if exec is non-zero, marks the file as executable.
+// If the file already exists and has the expected content,
+// it is not rewritten, to avoid changing the time stamp.
+func writefile(text, file string, flag int) {
+	new := []byte(text)
+	if flag&writeSkipSame != 0 {
+		old, err := ioutil.ReadFile(file)
+		if err == nil && bytes.Equal(old, new) {
+			return
+		}
+	}
 	mode := os.FileMode(0666)
-	if exec != 0 {
+	if flag&writeExec != 0 {
 		mode = 0777
 	}
-	err := ioutil.WriteFile(file, []byte(b), mode)
+	err := ioutil.WriteFile(file, new, mode)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -262,7 +259,7 @@ func writefile(b, file string, exec int) {
 func xmkdir(p string) {
 	err := os.Mkdir(p, 0777)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -270,7 +267,7 @@ func xmkdir(p string) {
 func xmkdirall(p string) {
 	err := os.MkdirAll(p, 0777)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 }
 
@@ -295,12 +292,12 @@ func xremoveall(p string) {
 func xreaddir(dir string) []string {
 	f, err := os.Open(dir)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		fatal("reading %s: %v", dir, err)
+		fatalf("reading %s: %v", dir, err)
 	}
 	return names
 }
@@ -310,12 +307,12 @@ func xreaddir(dir string) []string {
 func xreaddirfiles(dir string) []string {
 	f, err := os.Open(dir)
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	defer f.Close()
 	infos, err := f.Readdir(-1)
 	if err != nil {
-		fatal("reading %s: %v", dir, err)
+		fatalf("reading %s: %v", dir, err)
 	}
 	var names []string
 	for _, fi := range infos {
@@ -329,27 +326,23 @@ func xreaddirfiles(dir string) []string {
 // xworkdir creates a new temporary directory to hold object files
 // and returns the name of that directory.
 func xworkdir() string {
-	name, err := ioutil.TempDir("", "go-tool-dist-")
+	name, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-tool-dist-")
 	if err != nil {
-		fatal("%v", err)
+		fatalf("%v", err)
 	}
 	return name
 }
 
-// fatal prints an error message to standard error and exits.
-func fatal(format string, args ...interface{}) {
+// fatalf prints an error message to standard error and exits.
+func fatalf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
+
+	dieOnce.Do(func() { close(dying) })
 
 	// Wait for background goroutines to finish,
 	// so that exit handler that removes the work directory
 	// is not fighting with active writes or open files.
-	if atomic.AddInt32(&nfatal, 1) == 1 {
-		close(dying)
-	}
-	for i := 0; i < maxbg; i++ {
-		bgwork <- func() {} // wake up workers so they notice nfatal > 0
-	}
-	bgdied.Wait()
+	bghelpers.Wait()
 
 	xexit(2)
 }
@@ -379,95 +372,6 @@ func errprintf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
-// main takes care of OS-specific startup and dispatches to xmain.
-func main() {
-	os.Setenv("TERM", "dumb") // disable escape codes in clang errors
-
-	slash = string(filepath.Separator)
-
-	gohostos = runtime.GOOS
-	switch gohostos {
-	case "darwin":
-		// Even on 64-bit platform, darwin uname -m prints i386.
-		if strings.Contains(run("", CheckExit, "sysctl", "machdep.cpu.extfeatures"), "EM64T") {
-			gohostarch = "amd64"
-		}
-	case "solaris":
-		// Even on 64-bit platform, solaris uname -m prints i86pc.
-		out := run("", CheckExit, "isainfo", "-n")
-		if strings.Contains(out, "amd64") {
-			gohostarch = "amd64"
-		}
-		if strings.Contains(out, "i386") {
-			gohostarch = "386"
-		}
-	case "plan9":
-		gohostarch = os.Getenv("objtype")
-		if gohostarch == "" {
-			fatal("$objtype is unset")
-		}
-	case "windows":
-		exe = ".exe"
-	}
-
-	sysinit()
-
-	if gohostarch == "" {
-		// Default Unix system.
-		out := run("", CheckExit, "uname", "-m")
-		switch {
-		case strings.Contains(out, "x86_64"), strings.Contains(out, "amd64"):
-			gohostarch = "amd64"
-		case strings.Contains(out, "86"):
-			gohostarch = "386"
-		case strings.Contains(out, "arm"):
-			gohostarch = "arm"
-		case strings.Contains(out, "ppc64le"):
-			gohostarch = "ppc64le"
-		case strings.Contains(out, "ppc64"):
-			gohostarch = "ppc64"
-		case gohostos == "darwin":
-			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
-				gohostarch = "arm"
-			}
-		default:
-			fatal("unknown architecture: %s", out)
-		}
-	}
-
-	if gohostarch == "arm" {
-		maxbg = 1
-	}
-	bginit()
-
-	// The OS X 10.6 linker does not support external linking mode.
-	// See golang.org/issue/5130.
-	//
-	// OS X 10.6 does not work with clang either, but OS X 10.9 requires it.
-	// It seems to work with OS X 10.8, so we default to clang for 10.8 and later.
-	// See golang.org/issue/5822.
-	//
-	// Roughly, OS X 10.N shows up as uname release (N+4),
-	// so OS X 10.6 is uname version 10 and OS X 10.8 is uname version 12.
-	if gohostos == "darwin" {
-		rel := run("", CheckExit, "uname", "-r")
-		if i := strings.Index(rel, "."); i >= 0 {
-			rel = rel[:i]
-		}
-		osx, _ := strconv.Atoi(rel)
-		if osx <= 6+4 {
-			goextlinkenabled = "0"
-		}
-		if osx >= 8+4 {
-			defaultclang = true
-		}
-	}
-
-	xinit()
-	xmain()
-	xexit(0)
-}
-
 // xsamefile reports whether f1 and f2 are the same file (or dir)
 func xsamefile(f1, f2 string) bool {
 	fi1, err1 := os.Stat(f1)
@@ -476,18 +380,6 @@ func xsamefile(f1, f2 string) bool {
 		return f1 == f2
 	}
 	return os.SameFile(fi1, fi2)
-}
-
-func cpuid(info *[4]uint32, ax uint32)
-
-func cansse2() bool {
-	if gohostarch != "386" && gohostarch != "amd64" {
-		return false
-	}
-
-	var info [4]uint32
-	cpuid(&info, 1)
-	return info[3]&(1<<26) != 0 // SSE2
 }
 
 func xgetgoarm() string {
@@ -505,42 +397,93 @@ func xgetgoarm() string {
 		// Conservative default for cross-compilation.
 		return "5"
 	}
-	if goos == "freebsd" {
+	if goos == "freebsd" || goos == "openbsd" {
 		// FreeBSD has broken VFP support.
+		// OpenBSD currently only supports softfloat.
 		return "5"
 	}
-	if goos != "linux" {
-		// All other arm platforms that we support
-		// require ARMv7.
+
+	// Try to exec ourselves in a mode to detect VFP support.
+	// Seeing how far it gets determines which instructions failed.
+	// The test is OS-agnostic.
+	out := run("", 0, os.Args[0], "-check-goarm")
+	v1ok := strings.Contains(out, "VFPv1 OK.")
+	v3ok := strings.Contains(out, "VFPv3 OK.")
+
+	if v1ok && v3ok {
 		return "7"
 	}
-	cpuinfo := readfile("/proc/cpuinfo")
-	goarm := "5"
-	for _, line := range splitlines(cpuinfo) {
-		line := strings.SplitN(line, ":", 2)
-		if len(line) < 2 {
-			continue
-		}
-		if strings.TrimSpace(line[0]) != "Features" {
-			continue
-		}
-		features := splitfields(line[1])
-		sort.Strings(features) // so vfpv3 sorts after vfp
-
-		// Infer GOARM value from the vfp features available
-		// on this host. Values of GOARM detected are:
-		// 5: no vfp support was found
-		// 6: vfp (v1) support was detected, but no higher
-		// 7: vfpv3 support was detected.
-		// This matches the assertions in runtime.checkarm.
-		for _, f := range features {
-			switch f {
-			case "vfp":
-				goarm = "6"
-			case "vfpv3":
-				goarm = "7"
-			}
-		}
+	if v1ok {
+		return "6"
 	}
-	return goarm
+	return "5"
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// elfIsLittleEndian detects if the ELF file is little endian.
+func elfIsLittleEndian(fn string) bool {
+	// read the ELF file header to determine the endianness without using the
+	// debug/elf package.
+	file, err := os.Open(fn)
+	if err != nil {
+		fatalf("failed to open file to determine endianness: %v", err)
+	}
+	defer file.Close()
+	var hdr [16]byte
+	if _, err := io.ReadFull(file, hdr[:]); err != nil {
+		fatalf("failed to read ELF header to determine endianness: %v", err)
+	}
+	// hdr[5] is EI_DATA byte, 1 is ELFDATA2LSB and 2 is ELFDATA2MSB
+	switch hdr[5] {
+	default:
+		fatalf("unknown ELF endianness of %s: EI_DATA = %d", fn, hdr[5])
+	case 1:
+		return true
+	case 2:
+		return false
+	}
+	panic("unreachable")
+}
+
+// count is a flag.Value that is like a flag.Bool and a flag.Int.
+// If used as -name, it increments the count, but -name=x sets the count.
+// Used for verbose flag -v.
+type count int
+
+func (c *count) String() string {
+	return fmt.Sprint(int(*c))
+}
+
+func (c *count) Set(s string) error {
+	switch s {
+	case "true":
+		*c++
+	case "false":
+		*c = 0
+	default:
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("invalid count %q", s)
+		}
+		*c = count(n)
+	}
+	return nil
+}
+
+func (c *count) IsBoolFlag() bool {
+	return true
+}
+
+func xflagparse(maxargs int) {
+	flag.Var((*count)(&vflag), "v", "verbosity")
+	flag.Parse()
+	if maxargs >= 0 && flag.NArg() > maxargs {
+		flag.Usage()
+	}
 }

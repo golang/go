@@ -8,13 +8,12 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -199,10 +198,7 @@ func TestExtract(t *testing.T) {
 
 // Test that pack-created archives can be understood by the tools.
 func TestHello(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
+	testenv.MustHaveGoBuild(t)
 
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
@@ -218,16 +214,15 @@ func TestHello(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	char := findChar(t, dir)
-
 	run := func(args ...string) string {
 		return doRun(t, dir, args...)
 	}
 
-	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", char+"g", "hello.go")
-	run("./pack", "grc", "hello.a", "hello."+char)
-	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
+	goBin := testenv.GoToolPath(t)
+	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+	run(goBin, "tool", "compile", "hello.go")
+	run("./pack", "grc", "hello.a", "hello.o")
+	run(goBin, "tool", "link", "-o", "a.out", "hello.a")
 	out := run("./a.out")
 	if out != "hello world\n" {
 		t.Fatalf("incorrect output: %q, want %q", out, "hello world\n")
@@ -236,10 +231,7 @@ func TestHello(t *testing.T) {
 
 // Test that pack works with very long lines in PKGDEF.
 func TestLargeDefs(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
+	testenv.MustHaveGoBuild(t)
 
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
@@ -287,21 +279,51 @@ func TestLargeDefs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	char := findChar(t, dir)
+	run := func(args ...string) string {
+		return doRun(t, dir, args...)
+	}
+
+	goBin := testenv.GoToolPath(t)
+	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+	run(goBin, "tool", "compile", "large.go")
+	run("./pack", "grc", "large.a", "large.o")
+	run(goBin, "tool", "compile", "-I", ".", "main.go")
+	run(goBin, "tool", "link", "-L", ".", "-o", "a.out", "main.o")
+	out := run("./a.out")
+	if out != "ok\n" {
+		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")
+	}
+}
+
+// Test that "\n!\n" inside export data doesn't result in a truncated
+// package definition when creating a .a archive from a .o Go object.
+func TestIssue21703(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	const aSrc = `package a; const X = "\n!\n"`
+	err := ioutil.WriteFile(filepath.Join(dir, "a.go"), []byte(aSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const bSrc = `package b; import _ "a"`
+	err = ioutil.WriteFile(filepath.Join(dir, "b.go"), []byte(bSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	run := func(args ...string) string {
 		return doRun(t, dir, args...)
 	}
 
-	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", char+"g", "large.go")
-	run("./pack", "grc", "large.a", "large."+char)
-	run("go", "tool", char+"g", "-I", ".", "main.go")
-	run("go", "tool", char+"l", "-L", ".", "-o", "a.out", "main."+char)
-	out := run("./a.out")
-	if out != "ok\n" {
-		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")
-	}
+	goBin := testenv.GoToolPath(t)
+	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+	run(goBin, "tool", "compile", "a.go")
+	run("./pack", "c", "a.a", "a.o")
+	run(goBin, "tool", "compile", "-I", ".", "b.go")
 }
 
 // doRun runs a program in a directory and returns the output.
@@ -313,20 +335,6 @@ func doRun(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("%v: %v\n%s", args, err, string(out))
 	}
 	return string(out)
-}
-
-// findChar returns the architecture character for the go command.
-func findChar(t *testing.T, dir string) string {
-	out := doRun(t, dir, "go", "env")
-	re, err := regexp.Compile(`\s*GOCHAR=['"]?(\w)['"]?`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fields := re.FindStringSubmatch(out)
-	if fields == nil {
-		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
-	}
-	return fields[1]
 }
 
 // Fake implementation of files.

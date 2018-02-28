@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/pem"
+	"strings"
 	"testing"
 )
 
@@ -220,4 +221,27 @@ MGMCAQACEQC6ssxmYuauuHGOCDAI54RdAgMBAAECEQCWIn6Yv2O+kBcDF7STctKB
 AgkA8SEfu/2i3g0CCQDGNlXbBHX7kQIIK3Ww5o0cYbECCQDCimPb0dYGsQIIeQ7A
 jryIst8=`,
 	},
+}
+
+const incompleteBlockPEM = `
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-128-CBC,74611ABC2571AF11B1BF9B69E62C89E7
+
+6L8yXK2MTQUWBk4ZD6OvCiYp+mXyR1594TQ1K38MxGvDw5pwcDME2Lek8RrR5fd40P2XsL2Z4KKt
+ai+OP1BZUetfK6AW4MiqB2FDyIdOAJ8XeWuZy21Wtsh8wPD6yYOFM/w7WZL8weX3Y0TSeG/T
+-----END RSA PRIVATE KEY-----`
+
+func TestIncompleteBlock(t *testing.T) {
+	// incompleteBlockPEM contains ciphertext that is not a multiple of the
+	// block size. This previously panicked. See #11215.
+	block, _ := pem.Decode([]byte(incompleteBlockPEM))
+	_, err := DecryptPEMBlock(block, []byte("foo"))
+	if err == nil {
+		t.Fatal("Bad PEM data decrypted successfully")
+	}
+	const expectedSubstr = "block size"
+	if e := err.Error(); !strings.Contains(e, expectedSubstr) {
+		t.Fatalf("Expected error containing %q but got: %q", expectedSubstr, e)
+	}
 }

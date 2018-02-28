@@ -66,7 +66,7 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE)? *"([^"]*)" *\*/$`)
 // expectedErrors collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
 //
-func expectedErrors(t *testing.T, fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
+func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
 	errors := make(map[token.Pos]string)
 
 	var s scanner.Scanner
@@ -91,6 +91,12 @@ func expectedErrors(t *testing.T, fset *token.FileSet, filename string, src []by
 				}
 				errors[pos] = string(s[2])
 			}
+		case token.SEMICOLON:
+			// don't use the position of auto-inserted (invisible) semicolons
+			if lit != ";" {
+				break
+			}
+			fallthrough
 		default:
 			prev = pos
 			var l int // token length
@@ -161,7 +167,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 
 	// we are expecting the following errors
 	// (collect these after parsing a file so that it is found in the file set)
-	expected := expectedErrors(t, fset, filename, src)
+	expected := expectedErrors(fset, filename, src)
 
 	// verify errors returned by the parser
 	compareErrors(t, fset, expected, found)

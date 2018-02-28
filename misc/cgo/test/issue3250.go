@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,9 +13,9 @@ package cgotest
 #include <stdlib.h>
 
 static void *thread(void *p) {
-	(void)p;
 	const int M = 100;
 	int i;
+	(void)p;
 	for (i = 0; i < M; i++) {
 		pthread_kill(pthread_self(), SIGCHLD);
 		usleep(rand() % 20 + 5);

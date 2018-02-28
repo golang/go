@@ -10,72 +10,54 @@ import (
 	"time"
 )
 
-func TestNoRaceCond(t *testing.T) { // tsan's test02
-	ch := make(chan bool, 1)
-	var x int = 0
+func TestNoRaceCond(t *testing.T) {
+	x := 0
+	_ = x
+	condition := 0
 	var mu sync.Mutex
-	var cond *sync.Cond = sync.NewCond(&mu)
-	var condition int = 0
-	var waker func()
-	waker = func() {
+	cond := sync.NewCond(&mu)
+	go func() {
 		x = 1
 		mu.Lock()
 		condition = 1
 		cond.Signal()
 		mu.Unlock()
+	}()
+	mu.Lock()
+	for condition != 1 {
+		cond.Wait()
 	}
-
-	var waiter func()
-	waiter = func() {
-		go waker()
-		cond.L.Lock()
-		for condition != 1 {
-			cond.Wait()
-		}
-		cond.L.Unlock()
-		x = 2
-		ch <- true
-	}
-	go waiter()
-	<-ch
+	mu.Unlock()
+	x = 2
 }
 
-func TestRaceCond(t *testing.T) { // tsan's test50
-	ch := make(chan bool, 2)
-
-	var x int = 0
+func TestRaceCond(t *testing.T) {
+	done := make(chan bool)
 	var mu sync.Mutex
-	var condition int = 0
-	var cond *sync.Cond = sync.NewCond(&mu)
-
-	var waker func() = func() {
-		<-time.After(1e5)
+	cond := sync.NewCond(&mu)
+	x := 0
+	_ = x
+	condition := 0
+	go func() {
+		time.Sleep(10 * time.Millisecond) // Enter cond.Wait loop
 		x = 1
 		mu.Lock()
 		condition = 1
 		cond.Signal()
 		mu.Unlock()
-		<-time.After(1e5)
+		time.Sleep(10 * time.Millisecond) // Exit cond.Wait loop
 		mu.Lock()
 		x = 3
 		mu.Unlock()
-		ch <- true
+		done <- true
+	}()
+	mu.Lock()
+	for condition != 1 {
+		cond.Wait()
 	}
-
-	var waiter func() = func() {
-		mu.Lock()
-		for condition != 1 {
-			cond.Wait()
-		}
-		mu.Unlock()
-		x = 2
-		ch <- true
-	}
-	x = 0
-	go waker()
-	go waiter()
-	<-ch
-	<-ch
+	mu.Unlock()
+	x = 2
+	<-done
 }
 
 // We do not currently automatically
@@ -87,6 +69,7 @@ func TestRaceAnnounceThreads(t *testing.T) {
 	allDone := make(chan bool, N)
 
 	var x int
+	_ = x
 
 	var f, g, h func()
 	f = func() {
@@ -153,6 +136,7 @@ func TestNoRaceAfterFunc2(t *testing.T) {
 func TestNoRaceAfterFunc3(t *testing.T) {
 	c := make(chan bool, 1)
 	x := 0
+	_ = x
 	time.AfterFunc(1e7, func() {
 		x = 1
 		c <- true
@@ -163,6 +147,7 @@ func TestNoRaceAfterFunc3(t *testing.T) {
 func TestRaceAfterFunc3(t *testing.T) {
 	c := make(chan bool, 2)
 	x := 0
+	_ = x
 	time.AfterFunc(1e7, func() {
 		x = 1
 		c <- true
@@ -181,6 +166,7 @@ func TestRaceAfterFunc3(t *testing.T) {
 // comprehensible.
 func TestRaceGoroutineCreationStack(t *testing.T) {
 	var x int
+	_ = x
 	var ch = make(chan bool, 1)
 
 	f1 := func() {

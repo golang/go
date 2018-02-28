@@ -14,6 +14,9 @@ import (
 	"testing"
 )
 
+// There is a modified copy of this file in runtime/rwmutex_test.go.
+// If you make any changes here, see if you should make them there.
+
 func parallelReader(m *RWMutex, clocked, cunlock, cdone chan bool) {
 	m.RLock()
 	clocked <- true
@@ -153,48 +156,6 @@ func TestRLocker(t *testing.T) {
 		}
 		wl.Unlock()
 	}
-}
-
-func TestUnlockPanic(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("unlock of unlocked RWMutex did not panic")
-		}
-	}()
-	var mu RWMutex
-	mu.Unlock()
-}
-
-func TestUnlockPanic2(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("unlock of unlocked RWMutex did not panic")
-		}
-	}()
-	var mu RWMutex
-	mu.RLock()
-	mu.Unlock()
-}
-
-func TestRUnlockPanic(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("read unlock of unlocked RWMutex did not panic")
-		}
-	}()
-	var mu RWMutex
-	mu.RUnlock()
-}
-
-func TestRUnlockPanic2(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("read unlock of unlocked RWMutex did not panic")
-		}
-	}()
-	var mu RWMutex
-	mu.Lock()
-	mu.RUnlock()
 }
 
 func BenchmarkRWMutexUncontended(b *testing.B) {

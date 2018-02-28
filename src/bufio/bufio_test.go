@@ -673,8 +673,8 @@ func TestPeek(t *testing.T) {
 	if _, err := buf.Peek(-1); err != ErrNegativeCount {
 		t.Fatalf("want ErrNegativeCount got %v", err)
 	}
-	if _, err := buf.Peek(32); err != ErrBufferFull {
-		t.Fatalf("want ErrBufFull got %v", err)
+	if s, err := buf.Peek(32); string(s) != "abcdefghijklmnop" || err != ErrBufferFull {
+		t.Fatalf("want %q, ErrBufFull got %q, err=%v", "abcdefghijklmnop", string(s), err)
 	}
 	if _, err := buf.Read(p[0:3]); string(p[0:3]) != "abc" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "abc", string(p[0:3]), err)
@@ -1236,6 +1236,27 @@ func TestWriterReadFromErrNoProgress(t *testing.T) {
 	}
 }
 
+func TestReadZero(t *testing.T) {
+	for _, size := range []int{100, 2} {
+		t.Run(fmt.Sprintf("bufsize=%d", size), func(t *testing.T) {
+			r := io.MultiReader(strings.NewReader("abc"), &emptyThenNonEmptyReader{r: strings.NewReader("def"), n: 1})
+			br := NewReaderSize(r, size)
+			want := func(s string, wantErr error) {
+				p := make([]byte, 50)
+				n, err := br.Read(p)
+				if err != wantErr || n != len(s) || string(p[:n]) != s {
+					t.Fatalf("read(%d) = %q, %v, want %q, %v", len(p), string(p[:n]), err, s, wantErr)
+				}
+				t.Logf("read(%d) = %q, %v", len(p), string(p[:n]), err)
+			}
+			want("abc", nil)
+			want("", nil)
+			want("def", nil)
+			want("", io.EOF)
+		})
+	}
+}
+
 func TestReaderReset(t *testing.T) {
 	r := NewReader(strings.NewReader("foo foo"))
 	buf := make([]byte, 3)
@@ -1397,6 +1418,24 @@ func TestReaderDiscard(t *testing.T) {
 
 }
 
+func TestReaderSize(t *testing.T) {
+	if got, want := NewReader(nil).Size(), DefaultBufSize; got != want {
+		t.Errorf("NewReader's Reader.Size = %d; want %d", got, want)
+	}
+	if got, want := NewReaderSize(nil, 1234).Size(), 1234; got != want {
+		t.Errorf("NewReaderSize's Reader.Size = %d; want %d", got, want)
+	}
+}
+
+func TestWriterSize(t *testing.T) {
+	if got, want := NewWriter(nil).Size(), DefaultBufSize; got != want {
+		t.Errorf("NewWriter's Writer.Size = %d; want %d", got, want)
+	}
+	if got, want := NewWriterSize(nil, 1234).Size(), 1234; got != want {
+		t.Errorf("NewWriterSize's Writer.Size = %d; want %d", got, want)
+	}
+}
+
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
 type onlyReader struct {
 	io.Reader
@@ -1475,7 +1514,7 @@ func BenchmarkReaderWriteToOptimal(b *testing.B) {
 		b.Fatal("ioutil.Discard doesn't support ReaderFrom")
 	}
 	for i := 0; i < b.N; i++ {
-		r.Seek(0, 0)
+		r.Seek(0, io.SeekStart)
 		srcReader.Reset(onlyReader{r})
 		n, err := srcReader.WriteTo(ioutil.Discard)
 		if err != nil {

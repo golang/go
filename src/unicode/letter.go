@@ -27,7 +27,7 @@ type RangeTable struct {
 	LatinOffset int // number of entries in R16 with Hi <= MaxLatin1
 }
 
-// Range16 represents of a range of 16-bit Unicode code points.  The range runs from Lo to Hi
+// Range16 represents of a range of 16-bit Unicode code points. The range runs from Lo to Hi
 // inclusive and has the specified stride.
 type Range16 struct {
 	Lo     uint16
@@ -36,7 +36,7 @@ type Range16 struct {
 }
 
 // Range32 represents of a range of Unicode code points and is used when one or
-// more of the values will not fit in 16 bits.  The range runs from Lo to Hi
+// more of the values will not fit in 16 bits. The range runs from Lo to Hi
 // inclusive and has the specified stride. Lo and Hi must always be >= 1<<16.
 type Range32 struct {
 	Lo     uint32
@@ -46,12 +46,12 @@ type Range32 struct {
 
 // CaseRange represents a range of Unicode code points for simple (one
 // code point to one code point) case conversion.
-// The range runs from Lo to Hi inclusive, with a fixed stride of 1.  Deltas
+// The range runs from Lo to Hi inclusive, with a fixed stride of 1. Deltas
 // are the number to add to the code point to reach the code point for a
-// different case for that character.  They may be negative.  If zero, it
+// different case for that character. They may be negative. If zero, it
 // means the character is in the corresponding case. There is a special
 // case representing sequences of alternating corresponding Upper and Lower
-// pairs.  It appears with a fixed Delta of
+// pairs. It appears with a fixed Delta of
 //	{UpperLower, UpperLower, UpperLower}
 // The constant UpperLower has an otherwise impossible delta value.
 type CaseRange struct {
@@ -97,7 +97,7 @@ func is16(ranges []Range16, r uint16) bool {
 				return false
 			}
 			if r <= range_.Hi {
-				return (r-range_.Lo)%range_.Stride == 0
+				return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 			}
 		}
 		return false
@@ -110,7 +110,7 @@ func is16(ranges []Range16, r uint16) bool {
 		m := lo + (hi-lo)/2
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
-			return (r-range_.Lo)%range_.Stride == 0
+			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 		}
 		if r < range_.Lo {
 			hi = m
@@ -130,7 +130,7 @@ func is32(ranges []Range32, r uint32) bool {
 				return false
 			}
 			if r <= range_.Hi {
-				return (r-range_.Lo)%range_.Stride == 0
+				return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 			}
 		}
 		return false
@@ -143,7 +143,7 @@ func is32(ranges []Range32, r uint32) bool {
 		m := lo + (hi-lo)/2
 		range_ := ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
-			return (r-range_.Lo)%range_.Stride == 0
+			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 		}
 		if r < range_.Lo {
 			hi = m
@@ -217,7 +217,7 @@ func to(_case int, r rune, caseRange []CaseRange) rune {
 		m := lo + (hi-lo)/2
 		cr := caseRange[m]
 		if rune(cr.Lo) <= r && r <= rune(cr.Hi) {
-			delta := rune(cr.Delta[_case])
+			delta := cr.Delta[_case]
 			if delta > MaxRune {
 				// In an Upper-Lower sequence, which always starts with
 				// an UpperCase letter, the real deltas always look like:
@@ -307,8 +307,8 @@ func (special SpecialCase) ToLower(r rune) rune {
 	return r1
 }
 
-// caseOrbit is defined in tables.go as []foldPair.  Right now all the
-// entries fit in uint16, so use uint16.  If that changes, compilation
+// caseOrbit is defined in tables.go as []foldPair. Right now all the
+// entries fit in uint16, so use uint16. If that changes, compilation
 // will fail (the constants in the composite literal will not fit in uint16)
 // and the types here can change to uint32.
 type foldPair struct {
@@ -317,9 +317,10 @@ type foldPair struct {
 }
 
 // SimpleFold iterates over Unicode code points equivalent under
-// the Unicode-defined simple case folding.  Among the code points
+// the Unicode-defined simple case folding. Among the code points
 // equivalent to rune (including rune itself), SimpleFold returns the
 // smallest rune > r if one exists, or else the smallest rune >= 0.
+// If r is not a valid Unicode code point, SimpleFold(r) returns r.
 //
 // For example:
 //	SimpleFold('A') = 'a'
@@ -331,7 +332,17 @@ type foldPair struct {
 //
 //	SimpleFold('1') = '1'
 //
+//	SimpleFold(-2) = -2
+//
 func SimpleFold(r rune) rune {
+	if r < 0 || r > MaxRune {
+		return r
+	}
+
+	if int(r) < len(asciiFold) {
+		return rune(asciiFold[r])
+	}
+
 	// Consult caseOrbit table for special cases.
 	lo := 0
 	hi := len(caseOrbit)
@@ -347,7 +358,7 @@ func SimpleFold(r rune) rune {
 		return rune(caseOrbit[lo].To)
 	}
 
-	// No folding specified.  This is a one- or two-element
+	// No folding specified. This is a one- or two-element
 	// equivalence class containing rune and ToLower(rune)
 	// and ToUpper(rune) if they are different from rune.
 	if l := ToLower(r); l != r {

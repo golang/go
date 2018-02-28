@@ -6,14 +6,19 @@ const (
 	_ENOMEM = 0xc
 	_EAGAIN = 0xb
 
-	_PROT_NONE      = 0
-	_PROT_READ      = 0x1
-	_PROT_WRITE     = 0x2
-	_PROT_EXEC      = 0x4
-	_MAP_ANON       = 0x20
-	_MAP_PRIVATE    = 0x2
-	_MAP_FIXED      = 0x10
-	_MADV_DONTNEED  = 0x4
+	_PROT_NONE  = 0
+	_PROT_READ  = 0x1
+	_PROT_WRITE = 0x2
+	_PROT_EXEC  = 0x4
+
+	_MAP_ANON    = 0x20
+	_MAP_PRIVATE = 0x2
+	_MAP_FIXED   = 0x10
+
+	_MADV_DONTNEED   = 0x4
+	_MADV_HUGEPAGE   = 0xe
+	_MADV_NOHUGEPAGE = 0xf
+
 	_SA_RESTART     = 0x10000000
 	_SA_ONSTACK     = 0x8000000
 	_SA_RESTORER    = 0 // unused on ARM
@@ -96,7 +101,7 @@ func (ts *timespec) set_nsec(x int32) {
 	ts.tv_nsec = x
 }
 
-type sigaltstackt struct {
+type stackt struct {
 	ss_sp    *byte
 	ss_flags int32
 	ss_size  uintptr
@@ -129,7 +134,7 @@ type sigcontext struct {
 type ucontext struct {
 	uc_flags    uint32
 	uc_link     *ucontext
-	uc_stack    sigaltstackt
+	uc_stack    stackt
 	uc_mcontext sigcontext
 	uc_sigmask  uint32
 	__unused    [31]int32

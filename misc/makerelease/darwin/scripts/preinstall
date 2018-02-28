@@ -1,8 +1,0 @@
-#!/bin/bash
-
-GOROOT=/usr/local/go
-
-echo "Removing previous installation"
-if [ -d $GOROOT ]; then
-	rm -r $GOROOT
-fi

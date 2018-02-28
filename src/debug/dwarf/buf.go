@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -22,16 +22,16 @@ type buf struct {
 	err    error
 }
 
-// Data format, other than byte order.  This affects the handling of
+// Data format, other than byte order. This affects the handling of
 // certain field formats.
 type dataFormat interface {
-	// DWARF version number.  Zero means unknown.
+	// DWARF version number. Zero means unknown.
 	version() int
 
 	// 64-bit DWARF format?
 	dwarf64() (dwarf64 bool, isKnown bool)
 
-	// Size of an address, in bytes.  Zero means unknown.
+	// Size of an address, in bytes. Zero means unknown.
 	addrsize() int
 }
 
@@ -157,10 +157,21 @@ func (b *buf) addr() uint64 {
 	case 4:
 		return uint64(b.uint32())
 	case 8:
-		return uint64(b.uint64())
+		return b.uint64()
 	}
 	b.error("unknown address size")
 	return 0
+}
+
+func (b *buf) unitLength() (length Offset, dwarf64 bool) {
+	length = Offset(b.uint32())
+	if length == 0xffffffff {
+		dwarf64 = true
+		length = Offset(b.uint64())
+	} else if length >= 0xfffffff0 {
+		b.error("unit length has reserved value")
+	}
+	return
 }
 
 func (b *buf) error(s string) {

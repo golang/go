@@ -4,12 +4,11 @@
 
 package template
 
-// Tests for mulitple-template parsing and execution.
+// Tests for multiple-template parsing and execution.
 
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"testing"
 	"text/template/parse"
 )
@@ -248,6 +247,9 @@ func TestAddParseTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	added, err := root.AddParseTree("c", tree["c"])
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Execute.
 	var b bytes.Buffer
 	err = added.ExecuteTemplate(&b, "a", 0)
@@ -277,16 +279,145 @@ func TestRedefinition(t *testing.T) {
 	if tmpl, err = New("tmpl1").Parse(`{{define "test"}}foo{{end}}`); err != nil {
 		t.Fatalf("parse 1: %v", err)
 	}
-	if _, err = tmpl.Parse(`{{define "test"}}bar{{end}}`); err == nil {
-		t.Fatal("expected error")
+	if _, err = tmpl.Parse(`{{define "test"}}bar{{end}}`); err != nil {
+		t.Fatalf("got error %v, expected nil", err)
 	}
-	if !strings.Contains(err.Error(), "redefinition") {
-		t.Fatalf("expected redefinition error; got %v", err)
+	if _, err = tmpl.New("tmpl2").Parse(`{{define "test"}}bar{{end}}`); err != nil {
+		t.Fatalf("got error %v, expected nil", err)
 	}
-	if _, err = tmpl.New("tmpl2").Parse(`{{define "test"}}bar{{end}}`); err == nil {
-		t.Fatal("expected error")
+}
+
+// Issue 10879
+func TestEmptyTemplateCloneCrash(t *testing.T) {
+	t1 := New("base")
+	t1.Clone() // used to panic
+}
+
+// Issue 10910, 10926
+func TestTemplateLookUp(t *testing.T) {
+	t1 := New("foo")
+	if t1.Lookup("foo") != nil {
+		t.Error("Lookup returned non-nil value for undefined template foo")
 	}
-	if !strings.Contains(err.Error(), "redefinition") {
-		t.Fatalf("expected redefinition error; got %v", err)
+	t1.New("bar")
+	if t1.Lookup("bar") != nil {
+		t.Error("Lookup returned non-nil value for undefined template bar")
+	}
+	t1.Parse(`{{define "foo"}}test{{end}}`)
+	if t1.Lookup("foo") == nil {
+		t.Error("Lookup returned nil value for defined template")
+	}
+}
+
+func TestNew(t *testing.T) {
+	// template with same name already exists
+	t1, _ := New("test").Parse(`{{define "test"}}foo{{end}}`)
+	t2 := t1.New("test")
+
+	if t1.common != t2.common {
+		t.Errorf("t1 & t2 didn't share common struct; got %v != %v", t1.common, t2.common)
+	}
+	if t1.Tree == nil {
+		t.Error("defined template got nil Tree")
+	}
+	if t2.Tree != nil {
+		t.Error("undefined template got non-nil Tree")
+	}
+
+	containsT1 := false
+	for _, tmpl := range t1.Templates() {
+		if tmpl == t2 {
+			t.Error("Templates included undefined template")
+		}
+		if tmpl == t1 {
+			containsT1 = true
+		}
+	}
+	if !containsT1 {
+		t.Error("Templates didn't include defined template")
+	}
+}
+
+func TestParse(t *testing.T) {
+	// In multiple calls to Parse with the same receiver template, only one call
+	// can contain text other than space, comments, and template definitions
+	t1 := New("test")
+	if _, err := t1.Parse(`{{define "test"}}{{end}}`); err != nil {
+		t.Fatalf("parsing test: %s", err)
+	}
+	if _, err := t1.Parse(`{{define "test"}}{{/* this is a comment */}}{{end}}`); err != nil {
+		t.Fatalf("parsing test: %s", err)
+	}
+	if _, err := t1.Parse(`{{define "test"}}foo{{end}}`); err != nil {
+		t.Fatalf("parsing test: %s", err)
+	}
+}
+
+func TestEmptyTemplate(t *testing.T) {
+	cases := []struct {
+		defn []string
+		in   string
+		want string
+	}{
+		{[]string{""}, "once", ""},
+		{[]string{"", ""}, "twice", ""},
+		{[]string{"{{.}}", "{{.}}"}, "twice", "twice"},
+		{[]string{"{{/* a comment */}}", "{{/* a comment */}}"}, "comment", ""},
+		{[]string{"{{.}}", ""}, "twice", ""},
+	}
+
+	for i, c := range cases {
+		root := New("root")
+
+		var (
+			m   *Template
+			err error
+		)
+		for _, d := range c.defn {
+			m, err = root.New(c.in).Parse(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		buf := &bytes.Buffer{}
+		if err := m.Execute(buf, c.in); err != nil {
+			t.Error(i, err)
+			continue
+		}
+		if buf.String() != c.want {
+			t.Errorf("expected string %q: got %q", c.want, buf.String())
+		}
+	}
+}
+
+// Issue 19249 was a regression in 1.8 caused by the handling of empty
+// templates added in that release, which got different answers depending
+// on the order templates appeared in the internal map.
+func TestIssue19294(t *testing.T) {
+	// The empty block in "xhtml" should be replaced during execution
+	// by the contents of "stylesheet", but if the internal map associating
+	// names with templates is built in the wrong order, the empty block
+	// looks non-empty and this doesn't happen.
+	var inlined = map[string]string{
+		"stylesheet": `{{define "stylesheet"}}stylesheet{{end}}`,
+		"xhtml":      `{{block "stylesheet" .}}{{end}}`,
+	}
+	all := []string{"stylesheet", "xhtml"}
+	for i := 0; i < 100; i++ {
+		res, err := New("title.xhtml").Parse(`{{template "xhtml" .}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range all {
+			_, err := res.New(name).Parse(inlined[name])
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		var buf bytes.Buffer
+		res.Execute(&buf, 0)
+		if buf.String() != "stylesheet" {
+			t.Fatalf("iteration %d: got %q; expected %q", i, buf.String(), "stylesheet")
+		}
 	}
 }

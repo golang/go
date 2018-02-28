@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,125 +6,30 @@
 //
 // TODO(rsc): Decide where this package should live. (golang.org/issue/6932)
 // TODO(rsc): Decide the appropriate integer types for various fields.
-// TODO(rsc): Write tests. (File format still up in the air a little.)
 package goobj
 
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/objabi"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 )
 
-// A SymKind describes the kind of memory represented by a symbol.
-type SymKind int
-
-// This list is taken from include/link.h.
-
-// Defined SymKind values.
-// TODO(rsc): Give idiomatic Go names.
-// TODO(rsc): Reduce the number of symbol types in the object files.
-const (
-	_ SymKind = iota
-
-	// readonly, executable
-	STEXT
-	SELFRXSECT
-
-	// readonly, non-executable
-	STYPE
-	SSTRING
-	SGOSTRING
-	SGOFUNC
-	SRODATA
-	SFUNCTAB
-	STYPELINK
-	SSYMTAB // TODO: move to unmapped section
-	SPCLNTAB
-	SELFROSECT
-
-	// writable, non-executable
-	SMACHOPLT
-	SELFSECT
-	SMACHO // Mach-O __nl_symbol_ptr
-	SMACHOGOT
-	SNOPTRDATA
-	SINITARR
-	SDATA
-	SWINDOWS
-	SBSS
-	SNOPTRBSS
-	STLSBSS
-
-	// not mapped
-	SXREF
-	SMACHOSYMSTR
-	SMACHOSYMTAB
-	SMACHOINDIRECTPLT
-	SMACHOINDIRECTGOT
-	SFILE
-	SFILEPATH
-	SCONST
-	SDYNIMPORT
-	SHOSTOBJ
-)
-
-var symKindStrings = []string{
-	SBSS:              "SBSS",
-	SCONST:            "SCONST",
-	SDATA:             "SDATA",
-	SDYNIMPORT:        "SDYNIMPORT",
-	SELFROSECT:        "SELFROSECT",
-	SELFRXSECT:        "SELFRXSECT",
-	SELFSECT:          "SELFSECT",
-	SFILE:             "SFILE",
-	SFILEPATH:         "SFILEPATH",
-	SFUNCTAB:          "SFUNCTAB",
-	SGOFUNC:           "SGOFUNC",
-	SGOSTRING:         "SGOSTRING",
-	SHOSTOBJ:          "SHOSTOBJ",
-	SINITARR:          "SINITARR",
-	SMACHO:            "SMACHO",
-	SMACHOGOT:         "SMACHOGOT",
-	SMACHOINDIRECTGOT: "SMACHOINDIRECTGOT",
-	SMACHOINDIRECTPLT: "SMACHOINDIRECTPLT",
-	SMACHOPLT:         "SMACHOPLT",
-	SMACHOSYMSTR:      "SMACHOSYMSTR",
-	SMACHOSYMTAB:      "SMACHOSYMTAB",
-	SNOPTRBSS:         "SNOPTRBSS",
-	SNOPTRDATA:        "SNOPTRDATA",
-	SPCLNTAB:          "SPCLNTAB",
-	SRODATA:           "SRODATA",
-	SSTRING:           "SSTRING",
-	SSYMTAB:           "SSYMTAB",
-	STEXT:             "STEXT",
-	STLSBSS:           "STLSBSS",
-	STYPE:             "STYPE",
-	STYPELINK:         "STYPELINK",
-	SWINDOWS:          "SWINDOWS",
-	SXREF:             "SXREF",
-}
-
-func (k SymKind) String() string {
-	if k < 0 || int(k) >= len(symKindStrings) {
-		return fmt.Sprintf("SymKind(%d)", k)
-	}
-	return symKindStrings[k]
-}
-
 // A Sym is a named symbol in an object file.
 type Sym struct {
-	SymID         // symbol identifier (name and version)
-	Kind  SymKind // kind of symbol
-	DupOK bool    // are duplicate definitions okay?
-	Size  int     // size of corresponding data
-	Type  SymID   // symbol for Go type information
-	Data  Data    // memory image of symbol
-	Reloc []Reloc // relocations to apply to Data
-	Func  *Func   // additional data for functions
+	SymID                // symbol identifier (name and version)
+	Kind  objabi.SymKind // kind of symbol
+	DupOK bool           // are duplicate definitions okay?
+	Size  int64          // size of corresponding data
+	Type  SymID          // symbol for Go type information
+	Data  Data           // memory image of symbol
+	Reloc []Reloc        // relocations to apply to Data
+	Func  *Func          // additional data for functions
 }
 
 // A SymID - the combination of Name and Version - uniquely identifies
@@ -138,7 +43,7 @@ type SymID struct {
 	// declarations in C) have a non-zero version distinguishing
 	// a symbol in one file from a symbol of the same name
 	// in another file
-	Version int
+	Version int64
 }
 
 func (s SymID) String() string {
@@ -159,18 +64,18 @@ type Data struct {
 // A Reloc describes a relocation applied to a memory image to refer
 // to an address within a particular symbol.
 type Reloc struct {
-	// The bytes at [Offset, Offset+Size) within the memory image
+	// The bytes at [Offset, Offset+Size) within the containing Sym
 	// should be updated to refer to the address Add bytes after the start
 	// of the symbol Sym.
-	Offset int
-	Size   int
+	Offset int64
+	Size   int64
 	Sym    SymID
-	Add    int
+	Add    int64
 
 	// The Type records the form of address expected in the bytes
 	// described by the previous fields: absolute, PC-relative, and so on.
 	// TODO(rsc): The interpretation of Type is not exposed by this package.
-	Type int
+	Type objabi.RelocType
 }
 
 // A Var describes a variable in a function stack frame: a declared
@@ -180,25 +85,27 @@ type Var struct {
 	// identifies a variable in a function stack frame.
 	// Using fewer of these - in particular, using only Name - does not.
 	Name   string // Name of variable.
-	Kind   int    // TODO(rsc): Define meaning.
-	Offset int    // Frame offset. TODO(rsc): Define meaning.
+	Kind   int64  // TODO(rsc): Define meaning.
+	Offset int64  // Frame offset. TODO(rsc): Define meaning.
 
 	Type SymID // Go type for variable.
 }
 
 // Func contains additional per-symbol information specific to functions.
 type Func struct {
-	Args     int        // size in bytes of argument frame: inputs and outputs
-	Frame    int        // size in bytes of local variable frame
+	Args     int64      // size in bytes of argument frame: inputs and outputs
+	Frame    int64      // size in bytes of local variable frame
 	Leaf     bool       // function omits save of link register (ARM)
 	NoSplit  bool       // function omits stack split prologue
 	Var      []Var      // detail about local variables
 	PCSP     Data       // PC → SP offset map
 	PCFile   Data       // PC → file number map (index into File)
 	PCLine   Data       // PC → line number map
+	PCInline Data       // PC → inline tree index map
 	PCData   []Data     // PC → runtime support data map
 	FuncData []FuncData // non-PC-specific runtime support data
 	File     []string   // paths indexed by PCFile
+	InlTree  []InlinedCall
 }
 
 // TODO: Add PCData []byte and PCDataIter (similar to liblink).
@@ -209,12 +116,29 @@ type FuncData struct {
 	Offset int64 // offset into symbol for funcdata pointer
 }
 
+// An InlinedCall is a node in an InlTree.
+// See cmd/internal/obj.InlTree for details.
+type InlinedCall struct {
+	Parent int64
+	File   string
+	Line   int64
+	Func   SymID
+}
+
 // A Package is a parsed Go object file or archive defining a Go package.
 type Package struct {
-	ImportPath string   // import path denoting this package
-	Imports    []string // packages imported by this package
-	Syms       []*Sym   // symbols defined by this package
-	MaxVersion int      // maximum Version in any SymID in Syms
+	ImportPath string          // import path denoting this package
+	Imports    []string        // packages imported by this package
+	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
+	Syms       []*Sym          // symbols defined by this package
+	MaxVersion int64           // maximum Version in any SymID in Syms
+	Arch       string          // architecture
+	Native     []*NativeReader // native object data (e.g. ELF)
+}
+
+type NativeReader struct {
+	Name string
+	io.ReaderAt
 }
 
 var (
@@ -224,74 +148,32 @@ var (
 
 	errCorruptArchive   = errors.New("corrupt archive")
 	errTruncatedArchive = errors.New("truncated archive")
-	errNotArchive       = errors.New("unrecognized archive format")
-
-	errCorruptObject   = errors.New("corrupt object file")
-	errTruncatedObject = errors.New("truncated object file")
-	errNotObject       = errors.New("unrecognized object file format")
+	errCorruptObject    = errors.New("corrupt object file")
+	errNotObject        = errors.New("unrecognized object file format")
 )
 
 // An objReader is an object file reader.
 type objReader struct {
-	p         *Package
-	b         *bufio.Reader
-	f         io.ReadSeeker
-	err       error
-	offset    int64
-	limit     int64
-	tmp       [256]byte
-	pkg       string
-	pkgprefix string
-}
-
-// importPathToPrefix returns the prefix that will be used in the
-// final symbol table for the given import path.
-// We escape '%', '"', all control characters and non-ASCII bytes,
-// and any '.' after the final slash.
-//
-// See ../../../cmd/ld/lib.c:/^pathtoprefix and
-// ../../../cmd/gc/subr.c:/^pathtoprefix.
-func importPathToPrefix(s string) string {
-	// find index of last slash, if any, or else -1.
-	// used for determining whether an index is after the last slash.
-	slash := strings.LastIndex(s, "/")
-
-	// check for chars that need escaping
-	n := 0
-	for r := 0; r < len(s); r++ {
-		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
-			n++
-		}
-	}
-
-	// quick exit
-	if n == 0 {
-		return s
-	}
-
-	// escape
-	const hex = "0123456789abcdef"
-	p := make([]byte, 0, len(s)+2*n)
-	for r := 0; r < len(s); r++ {
-		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
-			p = append(p, '%', hex[c>>4], hex[c&0xF])
-		} else {
-			p = append(p, c)
-		}
-	}
-
-	return string(p)
+	p          *Package
+	b          *bufio.Reader
+	f          *os.File
+	err        error
+	offset     int64
+	dataOffset int64
+	limit      int64
+	tmp        [256]byte
+	pkgprefix  string
 }
 
 // init initializes r to read package p from f.
-func (r *objReader) init(f io.ReadSeeker, p *Package) {
+func (r *objReader) init(f *os.File, p *Package) {
 	r.f = f
 	r.p = p
-	r.offset, _ = f.Seek(0, 1)
-	r.limit, _ = f.Seek(0, 2)
-	f.Seek(r.offset, 0)
+	r.offset, _ = f.Seek(0, io.SeekCurrent)
+	r.limit, _ = f.Seek(0, io.SeekEnd)
+	f.Seek(r.offset, io.SeekStart)
 	r.b = bufio.NewReader(f)
-	r.pkgprefix = importPathToPrefix(p.ImportPath) + "."
+	r.pkgprefix = objabi.PathToPrefix(p.ImportPath) + "."
 }
 
 // error records that an error occurred.
@@ -307,6 +189,24 @@ func (r *objReader) error(err error) error {
 	}
 	// panic("corrupt") // useful for debugging
 	return r.err
+}
+
+// peek returns the next n bytes without advancing the reader.
+func (r *objReader) peek(n int) ([]byte, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.offset >= r.limit {
+		r.error(io.ErrUnexpectedEOF)
+		return nil, r.err
+	}
+	b, err := r.b.Peek(n)
+	if err != nil {
+		if err != bufio.ErrBufferFull {
+			r.error(err)
+		}
+	}
+	return b, err
 }
 
 // readByte reads and returns a byte from the input file.
@@ -355,7 +255,7 @@ func (r *objReader) readFull(b []byte) error {
 }
 
 // readInt reads a zigzag varint from the input file.
-func (r *objReader) readInt() int {
+func (r *objReader) readInt() int64 {
 	var u uint64
 
 	for shift := uint(0); ; shift += 7 {
@@ -370,12 +270,7 @@ func (r *objReader) readInt() int {
 		}
 	}
 
-	v := int64(u>>1) ^ (int64(u) << 63 >> 63)
-	if int64(int(v)) != v {
-		r.error(errCorruptObject) // TODO
-		return 0
-	}
-	return int(v)
+	return int64(u>>1) ^ (int64(u) << 63 >> 63)
 }
 
 // readString reads a length-delimited string from the input file.
@@ -388,6 +283,11 @@ func (r *objReader) readString() string {
 
 // readSymID reads a SymID from the input file.
 func (r *objReader) readSymID() SymID {
+	i := r.readInt()
+	return r.p.SymRefs[i]
+}
+
+func (r *objReader) readRef() {
 	name, vers := r.readString(), r.readInt()
 
 	// In a symbol name in an object file, "". denotes the
@@ -402,15 +302,14 @@ func (r *objReader) readSymID() SymID {
 	if vers != 0 {
 		vers = r.p.MaxVersion
 	}
-
-	return SymID{name, vers}
+	r.p.SymRefs = append(r.p.SymRefs, SymID{name, vers})
 }
 
 // readData reads a data reference from the input file.
 func (r *objReader) readData() Data {
 	n := r.readInt()
-	d := Data{Offset: r.offset, Size: int64(n)}
-	r.skip(int64(n))
+	d := Data{Offset: r.dataOffset, Size: n}
+	r.dataOffset += n
 	return d
 }
 
@@ -433,7 +332,7 @@ func (r *objReader) skip(n int64) {
 		r.readFull(r.tmp[:n])
 	} else {
 		// Seek, giving up buffered data.
-		_, err := r.f.Seek(r.offset+n, 0)
+		_, err := r.f.Seek(r.offset+n, io.SeekStart)
 		if err != nil {
 			r.error(err)
 		}
@@ -442,9 +341,9 @@ func (r *objReader) skip(n int64) {
 	}
 }
 
-// Parse parses an object file or archive from r,
+// Parse parses an object file or archive from f,
 // assuming that its import path is pkgpath.
-func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
+func Parse(f *os.File, pkgpath string) (*Package, error) {
 	if pkgpath == "" {
 		pkgpath = `""`
 	}
@@ -452,7 +351,7 @@ func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
 	p.ImportPath = pkgpath
 
 	var rd objReader
-	rd.init(r, p)
+	rd.init(f, p)
 	err := rd.readFull(rd.tmp[:8])
 	if err != nil {
 		if err == io.EOF {
@@ -485,9 +384,6 @@ func trimSpace(b []byte) string {
 }
 
 // parseArchive parses a Unix archive of Go object files.
-// TODO(rsc): Need to skip non-Go object files.
-// TODO(rsc): Maybe record table of contents in r.p so that
-// linker can avoid having code to parse archives too.
 func (r *objReader) parseArchive() error {
 	for r.offset < r.limit {
 		if err := r.readFull(r.tmp[:60]); err != nil {
@@ -528,14 +424,27 @@ func (r *objReader) parseArchive() error {
 			return errCorruptArchive
 		}
 		switch name {
-		case "__.SYMDEF", "__.GOSYMDEF", "__.PKGDEF":
+		case "__.PKGDEF":
 			r.skip(size)
 		default:
 			oldLimit := r.limit
 			r.limit = r.offset + size
-			if err := r.parseObject(nil); err != nil {
-				return fmt.Errorf("parsing archive member %q: %v", name, err)
+
+			p, err := r.peek(8)
+			if err != nil {
+				return err
 			}
+			if bytes.Equal(p, goobjHeader) {
+				if err := r.parseObject(nil); err != nil {
+					return fmt.Errorf("parsing archive member %q: %v", name, err)
+				}
+			} else {
+				r.p.Native = append(r.p.Native, &NativeReader{
+					Name:     name,
+					ReaderAt: io.NewSectionReader(r.f, r.offset, size),
+				})
+			}
+
 			r.skip(r.limit - r.offset)
 			r.limit = oldLimit
 		}
@@ -554,15 +463,16 @@ func (r *objReader) parseArchive() error {
 // The format of that part is defined in a comment at the top
 // of src/liblink/objfile.c.
 func (r *objReader) parseObject(prefix []byte) error {
-	// TODO(rsc): Maybe use prefix and the initial input to
-	// record the header line from the file, which would
-	// give the architecture and other version information.
-
 	r.p.MaxVersion++
+	h := make([]byte, 0, 256)
+	h = append(h, prefix...)
 	var c1, c2, c3 byte
 	for {
 		c1, c2, c3 = c2, c3, r.readByte()
-		if c3 == 0 { // NUL or EOF, either is bad
+		h = append(h, c3)
+		// The new export format can contain 0 bytes.
+		// Don't consider them errors, only look for r.err != nil.
+		if r.err != nil {
 			return errCorruptObject
 		}
 		if c1 == '\n' && c2 == '!' && c3 == '\n' {
@@ -570,8 +480,14 @@ func (r *objReader) parseObject(prefix []byte) error {
 		}
 	}
 
+	hs := strings.Fields(string(h))
+	if len(hs) >= 4 {
+		r.p.Arch = hs[3]
+	}
+	// TODO: extract OS + build ID if/when we need it
+
 	r.readFull(r.tmp[:8])
-	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go13ld")) {
+	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go19ld")) {
 		return r.error(errCorruptObject)
 	}
 
@@ -589,6 +505,28 @@ func (r *objReader) parseObject(prefix []byte) error {
 		r.p.Imports = append(r.p.Imports, s)
 	}
 
+	r.p.SymRefs = []SymID{{"", 0}}
+	for {
+		if b := r.readByte(); b != 0xfe {
+			if b != 0xff {
+				return r.error(errCorruptObject)
+			}
+			break
+		}
+
+		r.readRef()
+	}
+
+	dataLength := r.readInt()
+	r.readInt() // n relocations - ignore
+	r.readInt() // n pcdata - ignore
+	r.readInt() // n autom - ignore
+	r.readInt() // n funcdata - ignore
+	r.readInt() // n files - ignore
+
+	r.dataOffset = r.offset
+	r.skip(dataLength)
+
 	// Symbols.
 	for {
 		if b := r.readByte(); b != 0xfe {
@@ -598,10 +536,10 @@ func (r *objReader) parseObject(prefix []byte) error {
 			break
 		}
 
-		typ := r.readInt()
+		typ := r.readByte()
 		s := &Sym{SymID: r.readSymID()}
 		r.p.Syms = append(r.p.Syms, s)
-		s.Kind = SymKind(typ)
+		s.Kind = objabi.SymKind(typ)
 		flags := r.readInt()
 		s.DupOK = flags&1 != 0
 		s.Size = r.readInt()
@@ -612,20 +550,18 @@ func (r *objReader) parseObject(prefix []byte) error {
 			rel := &s.Reloc[i]
 			rel.Offset = r.readInt()
 			rel.Size = r.readInt()
-			rel.Type = r.readInt()
+			rel.Type = objabi.RelocType(r.readInt())
 			rel.Add = r.readInt()
-			r.readInt() // Xadd - ignored
 			rel.Sym = r.readSymID()
-			r.readSymID() // Xsym - ignored
 		}
 
-		if s.Kind == STEXT {
+		if s.Kind == objabi.STEXT {
 			f := new(Func)
 			s.Func = f
 			f.Args = r.readInt()
 			f.Frame = r.readInt()
 			flags := r.readInt()
-			f.Leaf = flags&1 != 0
+			f.Leaf = flags&(1<<0) != 0
 			f.NoSplit = r.readInt() != 0
 			f.Var = make([]Var, r.readInt())
 			for i := range f.Var {
@@ -639,6 +575,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			f.PCSP = r.readData()
 			f.PCFile = r.readData()
 			f.PCLine = r.readData()
+			f.PCInline = r.readData()
 			f.PCData = make([]Data, r.readInt())
 			for i := range f.PCData {
 				f.PCData[i] = r.readData()
@@ -648,19 +585,41 @@ func (r *objReader) parseObject(prefix []byte) error {
 				f.FuncData[i].Sym = r.readSymID()
 			}
 			for i := range f.FuncData {
-				f.FuncData[i].Offset = int64(r.readInt()) // TODO
+				f.FuncData[i].Offset = r.readInt() // TODO
 			}
 			f.File = make([]string, r.readInt())
 			for i := range f.File {
 				f.File[i] = r.readSymID().Name
 			}
+			f.InlTree = make([]InlinedCall, r.readInt())
+			for i := range f.InlTree {
+				f.InlTree[i].Parent = r.readInt()
+				f.InlTree[i].File = r.readSymID().Name
+				f.InlTree[i].Line = r.readInt()
+				f.InlTree[i].Func = r.readSymID()
+			}
 		}
 	}
 
 	r.readFull(r.tmp[:7])
-	if !bytes.Equal(r.tmp[:7], []byte("\xffgo13ld")) {
+	if !bytes.Equal(r.tmp[:7], []byte("\xffgo19ld")) {
 		return r.error(errCorruptObject)
 	}
 
 	return nil
+}
+
+func (r *Reloc) String(insnOffset uint64) string {
+	delta := r.Offset - int64(insnOffset)
+	s := fmt.Sprintf("[%d:%d]%s", delta, delta+r.Size, r.Type)
+	if r.Sym.Name != "" {
+		if r.Add != 0 {
+			return fmt.Sprintf("%s:%s+%d", s, r.Sym.Name, r.Add)
+		}
+		return fmt.Sprintf("%s:%s", s, r.Sym.Name)
+	}
+	if r.Add != 0 {
+		return fmt.Sprintf("%s:%d", s, r.Add)
+	}
+	return s
 }

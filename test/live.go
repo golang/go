@@ -1,6 +1,9 @@
-// errorcheck -0 -l -live -wb=0
+// errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+// +build !ppc64,!ppc64le
+// ppc64 needs a better tighten pass to make f18 pass
+// rescheduling checks need to be turned off because there are some live variables across the inserted check call
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -44,27 +47,28 @@ func f2(b bool) {
 	printpointer(&x) // ERROR "live at call to printpointer: x$"
 }
 
-func f3(b bool) {
-	// Because x and y are ambiguously live, they appear
-	// live throughout the function, to avoid being poisoned
-	// in GODEBUG=gcdead=1 mode.
+func f3(b1, b2 bool) {
+	// Here x and y are ambiguously live. In previous go versions they
+	// were marked as live throughout the function to avoid being
+	// poisoned in GODEBUG=gcdead=1 mode; this is now no longer the
+	// case.
 
-	printint(0) // ERROR "live at call to printint: x y$"
-	if b == false {
-		printint(0) // ERROR "live at call to printint: x y$"
+	printint(0)
+	if b1 == false {
+		printint(0)
 		return
 	}
 
-	if b {
+	if b2 {
 		var x *int
-		printpointer(&x) // ERROR "live at call to printpointer: x y$"
-		printpointer(&x) // ERROR "live at call to printpointer: x y$"
+		printpointer(&x) // ERROR "live at call to printpointer: x$"
+		printpointer(&x) // ERROR "live at call to printpointer: x$"
 	} else {
 		var y *int
-		printpointer(&y) // ERROR "live at call to printpointer: x y$"
-		printpointer(&y) // ERROR "live at call to printpointer: x y$"
+		printpointer(&y) // ERROR "live at call to printpointer: y$"
+		printpointer(&y) // ERROR "live at call to printpointer: y$"
 	}
-	printint(0) // ERROR "live at call to printint: x y$" "x \(type \*int\) is ambiguously live" "y \(type \*int\) is ambiguously live"
+	printint(0) // ERROR "f3: x \(type \*int\) is ambiguously live$" "f3: y \(type \*int\) is ambiguously live$" "live at call to printint: x y$"
 }
 
 // The old algorithm treated x as live on all code that
@@ -82,13 +86,13 @@ func f4(b1, b2 bool) { // x not live here
 	x := new(int)
 	*x = 42
 	z = &x
-	printint(**z) // ERROR "live at call to printint: x z$"
+	printint(**z) // ERROR "live at call to printint: x$"
 	if b2 {
-		printint(1) // ERROR "live at call to printint: x$"
+		printint(1) // x not live here
 		return
 	}
 	for {
-		printint(**z) // ERROR "live at call to printint: x z$"
+		printint(**z) // ERROR "live at call to printint: x$"
 	}
 }
 
@@ -103,7 +107,7 @@ func f5(b1 bool) {
 		*y = 54
 		z = &y
 	}
-	printint(**z) // ERROR "live at call to printint: x y$" "x \(type \*int\) is ambiguously live" "y \(type \*int\) is ambiguously live"
+	printint(**z) // ERROR "f5: x \(type \*int\) is ambiguously live$" "f5: y \(type \*int\) is ambiguously live$" "live at call to printint: x y$"
 }
 
 // confusion about the _ result used to cause spurious "live at entry to f6: _".
@@ -137,7 +141,9 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	return x != interface{}(99.0i) // ERROR "live at call to convT2E: x"
+	y := interface{}(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+ x.data$" "live at call to str: x.data$"
+	i9 = y                  // make y escape so the line above has to call convT2E
+	return x != y
 }
 
 // liveness formerly confused by UNDEF followed by RET,
@@ -157,10 +163,10 @@ var b bool
 
 // this used to have a spurious "live at entry to f11a: ~r0"
 func f11a() *int {
-	select { // ERROR "live at call to newselect: autotmp" "live at call to selectgo: autotmp"
-	case <-c: // ERROR "live at call to selectrecv: autotmp"
+	select { // ERROR "live at call to newselect: .autotmp_[0-9]+$" "live at call to selectgo: .autotmp_[0-9]+$"
+	case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
 		return nil
-	case <-c: // ERROR "live at call to selectrecv: autotmp"
+	case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
 		return nil
 	}
 }
@@ -172,10 +178,10 @@ func f11b() *int {
 		// get to the bottom of the function.
 		// This used to have a spurious "live at call to printint: p".
 		printint(1) // nothing live here!
-		select {    // ERROR "live at call to newselect: autotmp" "live at call to selectgo: autotmp"
-		case <-c: // ERROR "live at call to selectrecv: autotmp"
+		select {    // ERROR "live at call to newselect: .autotmp_[0-9]+$" "live at call to selectgo: .autotmp_[0-9]+$"
+		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
 			return nil
-		case <-c: // ERROR "live at call to selectrecv: autotmp"
+		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
 			return nil
 		}
 	}
@@ -183,15 +189,18 @@ func f11b() *int {
 	return nil
 }
 
+var sink *int
+
 func f11c() *int {
 	p := new(int)
+	sink = p // prevent stack allocation, otherwise p is rematerializeable
 	if b {
 		// Unlike previous, the cases in this select fall through,
 		// so we can get to the println, so p is not dead.
-		printint(1) // ERROR "live at call to printint: p"
-		select {    // ERROR "live at call to newselect: autotmp.* p" "live at call to selectgo: autotmp.* p"
-		case <-c: // ERROR "live at call to selectrecv: autotmp.* p"
-		case <-c: // ERROR "live at call to selectrecv: autotmp.* p"
+		printint(1) // ERROR "live at call to printint: p$"
+		select {    // ERROR "live at call to newselect: .autotmp_[0-9]+ p$" "live at call to selectgo: .autotmp_[0-9]+ p$"
+		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+ p$"
+		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+ p$"
 		}
 	}
 	println(*p)
@@ -214,8 +223,8 @@ func f12() *int {
 // needed for the call to h13).
 
 func f13() {
-	s := "hello"
-	s = h13(s, g13(s)) // ERROR "live at call to g13: s"
+	s := g14()
+	s = h13(s, g13(s)) // ERROR "live at call to g13: s.ptr$"
 }
 
 func g13(string) string
@@ -225,19 +234,10 @@ func h13(string, string) string
 
 func f14() {
 	x := g14()
-	printstringpointer(&x) // ERROR "live at call to printstringpointer: x"
+	printstringpointer(&x) // ERROR "live at call to printstringpointer: x$"
 }
 
 func g14() string
-
-func f15() {
-	var x string
-	_ = &x
-	x = g15()      // ERROR "live at call to g15: x"
-	printstring(x) // ERROR "live at call to printstring: x"
-}
-
-func g15() string
 
 // Checking that various temporaries do not persist or cause
 // ambiguously live values that must be zeroed.
@@ -246,13 +246,18 @@ func g15() string
 // and also that none show up in "ambiguously live" messages.
 
 var m map[string]int
+var mi map[interface{}]int
+
+// str and iface are used to ensure that a temp is required for runtime calls below.
+func str() string
+func iface() interface{}
 
 func f16() {
 	if b {
-		delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
+		delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
 	}
-	delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
-	delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
+	delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+	delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
 }
 
 var m2s map[string]*byte
@@ -260,32 +265,33 @@ var m2 map[[2]string]*byte
 var x2 [2]string
 var bp *byte
 
-func f17a() {
-	// value temporary only
+func f17a(p *byte) { // ERROR "live at entry to f17a: p$"
 	if b {
-		m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+		m2[x2] = p // ERROR "live at call to mapassign: p$"
 	}
-	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
-	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+	m2[x2] = p // ERROR "live at call to mapassign: p$"
+	m2[x2] = p // ERROR "live at call to mapassign: p$"
 }
 
-func f17b() {
-	// key temporary only
+func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
+	// key temporary
 	if b {
-		m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+		m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
 	}
-	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
-	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
 }
 
 func f17c() {
 	// key and value temporaries
 	if b {
-		m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
 	}
-	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
-	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
 }
+
+func f17d() *byte
 
 func g18() [2]string
 
@@ -294,44 +300,47 @@ func f18() {
 	// temporary introduced by orderexpr.
 	var z *byte
 	if b {
-		z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+		z = m2[g18()] // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 	}
-	z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
-	z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	z = m2[g18()] // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	z = m2[g18()] // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 	printbytepointer(z)
 }
 
 var ch chan *byte
+
+// byteptr is used to ensure that a temp is required for runtime calls below.
+func byteptr() *byte
 
 func f19() {
 	// dest temporary for channel receive.
 	var z *byte
 
 	if b {
-		z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
+		z = <-ch // ERROR "live at call to chanrecv1: .autotmp_[0-9]+$"
 	}
-	z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
-	z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
+	z = <-ch // ERROR "live at call to chanrecv1: .autotmp_[0-9]+$"
+	z = <-ch // ERROR "live at call to chanrecv1: .autotmp_[0-9]+$"
 	printbytepointer(z)
 }
 
 func f20() {
 	// src temporary for channel send
 	if b {
-		ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
+		ch <- byteptr() // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
 	}
-	ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
-	ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
+	ch <- byteptr() // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
+	ch <- byteptr() // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
 }
 
 func f21() {
 	// key temporary for mapaccess using array literal key.
 	var z *byte
 	if b {
-		z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+		z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 	}
-	z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
-	z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 	printbytepointer(z)
 }
 
@@ -340,10 +349,10 @@ func f23() {
 	var z *byte
 	var ok bool
 	if b {
-		z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
+		z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: .autotmp_[0-9]+$"
 	}
-	z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
-	z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
+	z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: .autotmp_[0-9]+$"
+	z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: .autotmp_[0-9]+$"
 	printbytepointer(z)
 	print(ok)
 }
@@ -352,10 +361,10 @@ func f24() {
 	// key temporary for map access using array literal key.
 	// value temporary too.
 	if b {
-		m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+		m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: .autotmp_[0-9]+$"
 	}
-	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
-	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: .autotmp_[0-9]+$"
+	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: .autotmp_[0-9]+$"
 }
 
 // defer should not cause spurious ambiguously live variables
@@ -366,10 +375,9 @@ func f25(b bool) {
 		return
 	}
 	var x string
-	_ = &x
-	x = g15()      // ERROR "live at call to g15: x"
-	printstring(x) // ERROR "live at call to printstring: x"
-} // ERROR "live at call to deferreturn: x"
+	x = g14()
+	printstring(x)
+}
 
 func g25()
 
@@ -379,10 +387,10 @@ func g25()
 
 func f26(b bool) {
 	if b {
-		print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: autotmp_[0-9]+$"
+		print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: .autotmp_[0-9]+$"
 	}
-	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: autotmp_[0-9]+$"
-	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: autotmp_[0-9]+$"
+	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: .autotmp_[0-9]+$"
+	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: .autotmp_[0-9]+$"
 	printnl()
 }
 
@@ -394,10 +402,10 @@ func print26(...interface{})
 func f27(b bool) {
 	x := 0
 	if b {
-		call27(func() { x++ }) // ERROR "live at call to call27: autotmp_[0-9]+$"
+		call27(func() { x++ }) // ERROR "live at call to call27: .autotmp_[0-9]+$"
 	}
-	call27(func() { x++ }) // ERROR "live at call to call27: autotmp_[0-9]+$"
-	call27(func() { x++ }) // ERROR "live at call to call27: autotmp_[0-9]+$"
+	call27(func() { x++ }) // ERROR "live at call to call27: .autotmp_[0-9]+$"
+	call27(func() { x++ }) // ERROR "live at call to call27: .autotmp_[0-9]+$"
 	printnl()
 }
 
@@ -406,20 +414,20 @@ func f27(b bool) {
 func f27defer(b bool) {
 	x := 0
 	if b {
-		defer call27(func() { x++ }) // ERROR "live at call to deferproc: autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+$"
+		defer call27(func() { x++ }) // ERROR "live at call to deferproc: .autotmp_[0-9]+$" "live at call to deferreturn: .autotmp_[0-9]+$"
 	}
-	defer call27(func() { x++ }) // ERROR "live at call to deferproc: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$" "ambiguously live"
-	printnl()                    // ERROR "live at call to printnl: autotmp_[0-9]+ autotmp_[0-9]+$"
-} // ERROR "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$"
+	defer call27(func() { x++ }) // ERROR "f27defer: .autotmp_[0-9]+ \(type struct { F uintptr; x \*int }\) is ambiguously live$" "live at call to deferproc: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to deferreturn: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+	printnl()                    // ERROR "live at call to printnl: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+} // ERROR "live at call to deferreturn: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 
 // and newproc (go) escapes to the heap
 
 func f27go(b bool) {
 	x := 0
 	if b {
-		go call27(func() { x++ }) // ERROR "live at call to newobject: &x" "live at call to newproc: &x$"
+		go call27(func() { x++ }) // ERROR "live at call to newobject: &x$" "live at call to newproc: &x$"
 	}
-	go call27(func() { x++ }) // ERROR "live at call to newobject: &x"
+	go call27(func() { x++ }) // ERROR "live at call to newobject: &x$"
 	printnl()
 }
 
@@ -432,45 +440,53 @@ var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10 string
 
 func f28(b bool) {
 	if b {
-		printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
+		printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: .autotmp_[0-9]+$" "live at call to printstring: .autotmp_[0-9]+$"
 	}
-	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
-	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
+	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: .autotmp_[0-9]+$" "live at call to printstring: .autotmp_[0-9]+$"
+	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: .autotmp_[0-9]+$" "live at call to printstring: .autotmp_[0-9]+$"
 }
 
 // map iterator should die on end of range loop
 
 func f29(b bool) {
 	if b {
-		for k := range m { // ERROR "live at call to mapiterinit: autotmp_[0-9]+$" "live at call to mapiternext: autotmp_[0-9]+$"
-			printstring(k) // ERROR "live at call to printstring: autotmp_[0-9]+$"
+		for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+			printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 		}
 	}
-	for k := range m { // ERROR "live at call to mapiterinit: autotmp_[0-9]+$" "live at call to mapiternext: autotmp_[0-9]+$"
-		printstring(k) // ERROR "live at call to printstring: autotmp_[0-9]+$"
+	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 	}
-	for k := range m { // ERROR "live at call to mapiterinit: autotmp_[0-9]+$" "live at call to mapiternext: autotmp_[0-9]+$"
-		printstring(k) // ERROR "live at call to printstring: autotmp_[0-9]+$"
+	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 	}
 }
 
 // copy of array of pointers should die at end of range loop
+var pstructarr [10]pstruct
 
-var ptrarr [10]*int
+// Struct size choosen to make pointer to element in pstructarr
+// not computable by strength reduction.
+type pstruct struct {
+	intp *int
+	_    [8]byte
+}
 
 func f30(b bool) {
-	// two live temps during print(p):
-	// the copy of ptrarr and the internal iterator pointer.
+	// two live temps during printintpointer(p):
+	// in the copy of p.intp and
+	// the internal iterator pointer if a pointer to pstruct in pstructarr
+	// can not be easily computed by strength reduction.
 	if b {
-		for _, p := range ptrarr {
-			printintpointer(p) // ERROR "live at call to printintpointer: autotmp_[0-9]+ autotmp_[0-9]+$"
+		for _, p := range pstructarr {
+			printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 		}
 	}
-	for _, p := range ptrarr {
-		printintpointer(p) // ERROR "live at call to printintpointer: autotmp_[0-9]+ autotmp_[0-9]+$"
+	for _, p := range pstructarr {
+		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 	}
-	for _, p := range ptrarr {
-		printintpointer(p) // ERROR "live at call to printintpointer: autotmp_[0-9]+ autotmp_[0-9]+$"
+	for _, p := range pstructarr {
+		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 	}
 }
 
@@ -478,13 +494,13 @@ func f30(b bool) {
 
 func f31(b1, b2, b3 bool) {
 	if b1 {
-		g31("a") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to g31: autotmp_[0-9]+$"
+		g31(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+$" "live at call to g31: .autotmp_[0-9]+$"
 	}
 	if b2 {
-		h31("b") // ERROR "live at call to newobject: autotmp_[0-9]+$" "live at call to convT2E: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to h31: autotmp_[0-9]+$"
+		h31(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to h31: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
 	}
 	if b3 {
-		panic("asdf") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to gopanic: autotmp_[0-9]+$"
+		panic(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+$" "live at call to gopanic: .autotmp_[0-9]+$"
 	}
 	print(b3)
 }
@@ -496,7 +512,7 @@ func h31(...interface{})
 
 type T32 int
 
-func (t *T32) Inc() { // ERROR "live at entry"
+func (t *T32) Inc() { // ERROR "live at entry to \(\*T32\).Inc: t$"
 	*t++
 }
 
@@ -504,10 +520,10 @@ var t32 T32
 
 func f32(b bool) {
 	if b {
-		call32(t32.Inc) // ERROR "live at call to call32: autotmp_[0-9]+$"
+		call32(t32.Inc) // ERROR "live at call to call32: .autotmp_[0-9]+$"
 	}
-	call32(t32.Inc) // ERROR "live at call to call32: autotmp_[0-9]+$"
-	call32(t32.Inc) // ERROR "live at call to call32: autotmp_[0-9]+$"
+	call32(t32.Inc) // ERROR "live at call to call32: .autotmp_[0-9]+$"
+	call32(t32.Inc) // ERROR "live at call to call32: .autotmp_[0-9]+$"
 }
 
 //go:noescape
@@ -519,7 +535,7 @@ func call32(func())
 var m33 map[interface{}]int
 
 func f33() {
-	if m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	} else {
@@ -529,7 +545,7 @@ func f33() {
 }
 
 func f34() {
-	if m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	}
@@ -537,7 +553,7 @@ func f34() {
 }
 
 func f35() {
-	if m33[nil] == 0 && m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 && m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	}
@@ -545,7 +561,7 @@ func f35() {
 }
 
 func f36() {
-	if m33[nil] == 0 || m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 || m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	}
@@ -553,7 +569,7 @@ func f36() {
 }
 
 func f37() {
-	if (m33[nil] == 0 || m33[nil] == 0) && m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	if (m33[byteptr()] == 0 || m33[byteptr()] == 0) && m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	}
@@ -573,14 +589,14 @@ func f38(b bool) {
 	// we care that the println lines have no live variables
 	// and therefore no output.
 	if b {
-		select { // ERROR "live at call"
-		case <-fc38(): // ERROR "live at call"
+		select { // ERROR "live at call to newselect:( .autotmp_[0-9]+)+$" "live at call to selectgo:( .autotmp_[0-9]+)+$"
+		case <-fc38(): // ERROR "live at call to selectrecv:( .autotmp_[0-9]+)+$"
 			printnl()
-		case fc38() <- *fi38(1): // ERROR "live at call"
+		case fc38() <- *fi38(1): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectsend:( .autotmp_[0-9]+)+$"
 			printnl()
-		case *fi38(2) = <-fc38(): // ERROR "live at call"
+		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectrecv:( .autotmp_[0-9]+)+$"
 			printnl()
-		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call"
+		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call to fb38:( .autotmp_[0-9]+)+$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectrecv:( .autotmp_[0-9]+)+$"
 			printnl()
 		}
 		printnl()
@@ -592,27 +608,27 @@ func f38(b bool) {
 
 func f39() (x []int) {
 	x = []int{1}
-	printnl() // ERROR "live at call to printnl: x"
+	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+$"
 	return x
 }
 
 func f39a() (x []int) {
 	x = []int{1}
-	printnl() // ERROR "live at call to printnl: x"
+	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+$"
 	return
 }
 
 func f39b() (x [10]*int) {
 	x = [10]*int{}
-	x[0] = new(int) // ERROR "live at call to newobject: x"
-	printnl()       // ERROR "live at call to printnl: x"
+	x[0] = new(int) // ERROR "live at call to newobject: x$"
+	printnl()       // ERROR "live at call to printnl: x$"
 	return x
 }
 
 func f39c() (x [10]*int) {
 	x = [10]*int{}
-	x[0] = new(int) // ERROR "live at call to newobject: x"
-	printnl()       // ERROR "live at call to printnl: x"
+	x[0] = new(int) // ERROR "live at call to newobject: x$"
+	printnl()       // ERROR "live at call to printnl: x$"
 	return
 }
 
@@ -623,9 +639,12 @@ type T40 struct {
 	m map[int]int
 }
 
+//go:noescape
+func useT40(*T40)
+
 func newT40() *T40 {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret"
+	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: &ret$"
 	return &ret
 }
 
@@ -637,8 +656,36 @@ func bad40() {
 
 func good40() {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: autotmp_.* ret"
+	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+ ret$"
 	t := &ret
-	printnl() // ERROR "live at call to printnl: autotmp_.* ret"
-	_ = t
+	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
+	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
+}
+
+func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"
+	ddd2(x, y) // ERROR "live at call to ddd2: .autotmp_[0-9]+$"
+	printnl()
+	// Note: no .?autotmp live at printnl.  See issue 16996.
+}
+func ddd2(a ...*int) { // ERROR "live at entry to ddd2: a$"
+	sink = a[0]
+}
+
+// issue 16016: autogenerated wrapper should have arguments live
+type T struct{}
+
+func (*T) Foo(ptr *int) {}
+
+type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
+
+// issue 18860: output arguments must be live all the time if there is a defer.
+// In particular, at printint r must be live.
+func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
+	r = p
+	defer func() { // ERROR "live at call to deferproc: q r$" "live at call to deferreturn: r$"
+		recover()
+	}()
+	printint(0) // ERROR "live at call to printint: q r$"
+	r = q
+	return // ERROR "live at call to deferreturn: r$"
 }

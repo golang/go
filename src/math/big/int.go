@@ -7,7 +7,6 @@
 package big
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -154,6 +153,11 @@ func (z *Int) Mul(x, y *Int) *Int {
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
+	if x == y {
+		z.abs = z.abs.sqr(x.abs)
+		z.neg = false
+		return z
+	}
 	z.abs = z.abs.mul(x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
 	return z
@@ -184,6 +188,10 @@ func (z *Int) MulRange(a, b int64) *Int {
 
 // Binomial sets z to the binomial coefficient of (n, k) and returns z.
 func (z *Int) Binomial(n, k int64) *Int {
+	// reduce the number of multiplications by reducing k
+	if n/2 < k && k <= n {
+		k = n - k // Binomial(n, k) == Binomial(n, n-k)
+	}
 	var a, b Int
 	a.MulRange(n-k+1, n)
 	b.MulRange(1, k)
@@ -270,7 +278,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 // DivMod implements Euclidean division and modulus (unlike Go):
 //
 //	q = x div y  such that
-//	m = x - y*q  with 0 <= m < |q|
+//	m = x - y*q  with 0 <= m < |y|
 //
 // (See Raymond T. Boute, ``The Euclidean definition of the functions
 // div and mod''. ACM Transactions on Programming Languages and
@@ -321,22 +329,32 @@ func (x *Int) Cmp(y *Int) (r int) {
 	return
 }
 
-// low32 returns the least significant 32 bits of z.
-func low32(z nat) uint32 {
-	if len(z) == 0 {
-		return 0
-	}
-	return uint32(z[0])
+// CmpAbs compares the absolute values of x and y and returns:
+//
+//   -1 if |x| <  |y|
+//    0 if |x| == |y|
+//   +1 if |x| >  |y|
+//
+func (x *Int) CmpAbs(y *Int) int {
+	return x.abs.cmp(y.abs)
 }
 
-// low64 returns the least significant 64 bits of z.
-func low64(z nat) uint64 {
-	if len(z) == 0 {
+// low32 returns the least significant 32 bits of x.
+func low32(x nat) uint32 {
+	if len(x) == 0 {
 		return 0
 	}
-	v := uint64(z[0])
-	if _W == 32 && len(z) > 1 {
-		v |= uint64(z[1]) << 32
+	return uint32(x[0])
+}
+
+// low64 returns the least significant 64 bits of x.
+func low64(x nat) uint64 {
+	if len(x) == 0 {
+		return 0
+	}
+	v := uint64(x[0])
+	if _W == 32 && len(x) > 1 {
+		return uint64(x[1])<<32 | v
 	}
 	return v
 }
@@ -357,8 +375,23 @@ func (x *Int) Uint64() uint64 {
 	return low64(x.abs)
 }
 
+// IsInt64 reports whether x can be represented as an int64.
+func (x *Int) IsInt64() bool {
+	if len(x.abs) <= 64/_W {
+		w := int64(low64(x.abs))
+		return w >= 0 || x.neg && w == -w
+	}
+	return false
+}
+
+// IsUint64 reports whether x can be represented as a uint64.
+func (x *Int) IsUint64() bool {
+	return !x.neg && len(x.abs) <= 64/_W
+}
+
 // SetString sets z to the value of s, interpreted in the given base,
-// and returns z and a boolean indicating success. If SetString fails,
+// and returns z and a boolean indicating success. The entire string
+// (not just a prefix) must be valid for success. If SetString fails,
 // the value of z is undefined but the returned value is nil.
 //
 // The base argument must be 0 or a value between 2 and MaxBase. If the base
@@ -366,17 +399,26 @@ func (x *Int) Uint64() uint64 {
 // ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
 // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
 //
+// For bases <= 36, lower and upper case letters are considered the same:
+// The letters 'a' to 'z' and 'A' to 'Z' represent digit values 10 to 35.
+// For bases > 36, the upper case letters 'A' to 'Z' represent the digit
+// values 36 to 61.
+//
 func (z *Int) SetString(s string, base int) (*Int, bool) {
-	r := strings.NewReader(s)
-	_, _, err := z.scan(r, base)
-	if err != nil {
+	return z.setFromScanner(strings.NewReader(s), base)
+}
+
+// setFromScanner implements SetString given an io.BytesScanner.
+// For documentation see comments of SetString.
+func (z *Int) setFromScanner(r io.ByteScanner, base int) (*Int, bool) {
+	if _, _, err := z.scan(r, base); err != nil {
 		return nil, false
 	}
-	_, err = r.ReadByte()
-	if err != io.EOF {
+	// entire content must have been consumed
+	if _, err := r.ReadByte(); err != io.EOF {
 		return nil, false
 	}
-	return z, true // err == io.EOF => scan consumed all of s
+	return z, true // err == io.EOF => scan consumed all content of r
 }
 
 // SetBytes interprets buf as the bytes of a big-endian unsigned
@@ -401,8 +443,11 @@ func (x *Int) BitLen() int {
 
 // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
 // If y <= 0, the result is 1 mod |m|; if m == nil or m == 0, z = x**y.
-// See Knuth, volume 2, section 4.6.3.
+//
+// Modular exponentation of inputs of a particular size is not a
+// cryptographically constant-time operation.
 func (z *Int) Exp(x, y, m *Int) *Int {
+	// See Knuth, volume 2, section 4.6.3.
 	var yWords nat
 	if !y.neg {
 		yWords = y.abs
@@ -427,7 +472,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 
 // GCD sets z to the greatest common divisor of a and b, which both must
 // be > 0, and returns z.
-// If x and y are not nil, GCD sets x and y such that z = a*x + b*y.
+// If x or y are not nil, GCD sets their value such that z = a*x + b*y.
 // If either a or b is <= 0, GCD sets z = x = y = 0.
 func (z *Int) GCD(x, y, a, b *Int) *Int {
 	if a.Sign() <= 0 || b.Sign() <= 0 {
@@ -441,38 +486,28 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 		return z
 	}
 	if x == nil && y == nil {
-		return z.binaryGCD(a, b)
+		return z.lehmerGCD(a, b)
 	}
 
 	A := new(Int).Set(a)
 	B := new(Int).Set(b)
 
 	X := new(Int)
-	Y := new(Int).SetInt64(1)
-
 	lastX := new(Int).SetInt64(1)
-	lastY := new(Int)
 
 	q := new(Int)
 	temp := new(Int)
 
+	r := new(Int)
 	for len(B.abs) > 0 {
-		r := new(Int)
 		q, r = q.QuoRem(A, B, r)
 
-		A, B = B, r
+		A, B, r = B, r, A
 
 		temp.Set(X)
 		X.Mul(X, q)
-		X.neg = !X.neg
-		X.Add(X, lastX)
+		X.Sub(lastX, X)
 		lastX.Set(temp)
-
-		temp.Set(Y)
-		Y.Mul(Y, q)
-		Y.neg = !Y.neg
-		Y.Add(Y, lastY)
-		lastY.Set(temp)
 	}
 
 	if x != nil {
@@ -480,85 +515,142 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 	}
 
 	if y != nil {
-		*y = *lastY
+		// y = (z - a*x)/b
+		y.Mul(a, lastX)
+		y.Sub(A, y)
+		y.Div(y, b)
 	}
 
 	*z = *A
 	return z
 }
 
-// binaryGCD sets z to the greatest common divisor of a and b, which both must
-// be > 0, and returns z.
-// See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm B.
-func (z *Int) binaryGCD(a, b *Int) *Int {
-	u := z
-	v := new(Int)
-
-	// use one Euclidean iteration to ensure that u and v are approx. the same size
-	switch {
-	case len(a.abs) > len(b.abs):
-		u.Set(b)
-		v.Rem(a, b)
-	case len(a.abs) < len(b.abs):
-		u.Set(a)
-		v.Rem(b, a)
-	default:
-		u.Set(a)
-		v.Set(b)
+// lehmerGCD sets z to the greatest common divisor of a and b,
+// which both must be > 0, and returns z.
+// See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm L.
+// This implementation uses the improved condition by Collins requiring only one
+// quotient and avoiding the possibility of single Word overflow.
+// See Jebelean, "Improving the multiprecision Euclidean algorithm",
+// Design and Implementation of Symbolic Computation Systems, pp 45-58.
+func (z *Int) lehmerGCD(a, b *Int) *Int {
+	// ensure a >= b
+	if a.abs.cmp(b.abs) < 0 {
+		a, b = b, a
 	}
 
-	// v might be 0 now
-	if len(v.abs) == 0 {
-		return u
-	}
-	// u > 0 && v > 0
+	// don't destroy incoming values of a and b
+	B := new(Int).Set(b) // must be set first in case b is an alias of z
+	A := z.Set(a)
 
-	// determine largest k such that u = u' << k, v = v' << k
-	k := u.abs.trailingZeroBits()
-	if vk := v.abs.trailingZeroBits(); vk < k {
-		k = vk
-	}
-	u.Rsh(u, k)
-	v.Rsh(v, k)
-
-	// determine t (we know that u > 0)
+	// temp variables for multiprecision update
 	t := new(Int)
-	if u.abs[0]&1 != 0 {
-		// u is odd
-		t.Neg(v)
-	} else {
-		t.Set(u)
-	}
+	r := new(Int)
+	s := new(Int)
+	w := new(Int)
 
-	for len(t.abs) > 0 {
-		// reduce t
-		t.Rsh(t, t.abs.trailingZeroBits())
-		if t.neg {
-			v, t = t, v
-			v.neg = len(v.abs) > 0 && !v.neg // 0 has no sign
-		} else {
-			u, t = t, u
+	// loop invariant A >= B
+	for len(B.abs) > 1 {
+		// initialize the digits
+		var a1, a2, u0, u1, u2, v0, v1, v2 Word
+
+		m := len(B.abs) // m >= 2
+		n := len(A.abs) // n >= m >= 2
+
+		// extract the top Word of bits from A and B
+		h := nlz(A.abs[n-1])
+		a1 = (A.abs[n-1] << h) | (A.abs[n-2] >> (_W - h))
+		// B may have implicit zero words in the high bits if the lengths differ
+		switch {
+		case n == m:
+			a2 = (B.abs[n-1] << h) | (B.abs[n-2] >> (_W - h))
+		case n == m+1:
+			a2 = (B.abs[n-2] >> (_W - h))
+		default:
+			a2 = 0
 		}
-		t.Sub(u, v)
+
+		// Since we are calculating with full words to avoid overflow,
+		// we use 'even' to track the sign of the cosequences.
+		// For even iterations: u0, v1 >= 0 && u1, v0 <= 0
+		// For odd  iterations: u0, v1 <= 0 && u1, v0 >= 0
+		// The first iteration starts with k=1 (odd).
+		even := false
+		// variables to track the cosequences
+		u0, u1, u2 = 0, 1, 0
+		v0, v1, v2 = 0, 0, 1
+
+		// Calculate the quotient and cosequences using Collins' stopping condition.
+		// Note that overflow of a Word is not possible when computing the remainder
+		// sequence and cosequences since the cosequence size is bounded by the input size.
+		// See section 4.2 of Jebelean for details.
+		for a2 >= v2 && a1-a2 >= v1+v2 {
+			q := a1 / a2
+			a1, a2 = a2, a1-q*a2
+			u0, u1, u2 = u1, u2, u1+q*u2
+			v0, v1, v2 = v1, v2, v1+q*v2
+			even = !even
+		}
+
+		// multiprecision step
+		if v0 != 0 {
+			// simulate the effect of the single precision steps using the cosequences
+			// A = u0*A + v0*B
+			// B = u1*A + v1*B
+
+			t.abs = t.abs.setWord(u0)
+			s.abs = s.abs.setWord(v0)
+			t.neg = !even
+			s.neg = even
+
+			t.Mul(A, t)
+			s.Mul(B, s)
+
+			r.abs = r.abs.setWord(u1)
+			w.abs = w.abs.setWord(v1)
+			r.neg = even
+			w.neg = !even
+
+			r.Mul(A, r)
+			w.Mul(B, w)
+
+			A.Add(t, s)
+			B.Add(r, w)
+
+		} else {
+			// single-digit calculations failed to simulate any quotients
+			// do a standard Euclidean step
+			t.Rem(A, B)
+			A, B, t = B, t, A
+		}
 	}
 
-	return z.Lsh(u, k)
-}
-
-// ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
-// If it returns true, x is prime with probability 1 - 1/4^n.
-// If it returns false, x is not prime. n must be > 0.
-func (x *Int) ProbablyPrime(n int) bool {
-	if n <= 0 {
-		panic("non-positive n for ProbablyPrime")
+	if len(B.abs) > 0 {
+		// standard Euclidean algorithm base case for B a single Word
+		if len(A.abs) > 1 {
+			// A is longer than a single Word
+			t.Rem(A, B)
+			A, B, t = B, t, A
+		}
+		if len(B.abs) > 0 {
+			// A and B are both a single Word
+			a1, a2 := A.abs[0], B.abs[0]
+			for a2 != 0 {
+				a1, a2 = a2, a1%a2
+			}
+			A.abs[0] = a1
+		}
 	}
-	return !x.neg && x.abs.probablyPrime(n)
+	*z = *A
+	return z
 }
 
 // Rand sets z to a pseudo-random number in [0, n) and returns z.
+//
+// As this uses the math/rand package, it must not be used for
+// security-sensitive work. Use crypto/rand.Int instead.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	z.neg = false
-	if n.neg == true || len(n.abs) == 0 {
+	if n.neg || len(n.abs) == 0 {
 		z.abs = nil
 		return z
 	}
@@ -569,6 +661,11 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 // ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
 // and returns z. If g and n are not relatively prime, the result is undefined.
 func (z *Int) ModInverse(g, n *Int) *Int {
+	if g.neg {
+		// GCD expects parameters a and b to be > 0.
+		var g2 Int
+		g = g2.Mod(g, n)
+	}
 	var d Int
 	d.GCD(z, nil, g, n)
 	// x and y are such that g*x + n*y = d. Since g and n are
@@ -578,6 +675,148 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 		z.Add(z, n)
 	}
 	return z
+}
+
+// Jacobi returns the Jacobi symbol (x/y), either +1, -1, or 0.
+// The y argument must be an odd integer.
+func Jacobi(x, y *Int) int {
+	if len(y.abs) == 0 || y.abs[0]&1 == 0 {
+		panic(fmt.Sprintf("big: invalid 2nd argument to Int.Jacobi: need odd integer but got %s", y))
+	}
+
+	// We use the formulation described in chapter 2, section 2.4,
+	// "The Yacas Book of Algorithms":
+	// http://yacas.sourceforge.net/Algo.book.pdf
+
+	var a, b, c Int
+	a.Set(x)
+	b.Set(y)
+	j := 1
+
+	if b.neg {
+		if a.neg {
+			j = -1
+		}
+		b.neg = false
+	}
+
+	for {
+		if b.Cmp(intOne) == 0 {
+			return j
+		}
+		if len(a.abs) == 0 {
+			return 0
+		}
+		a.Mod(&a, &b)
+		if len(a.abs) == 0 {
+			return 0
+		}
+		// a > 0
+
+		// handle factors of 2 in 'a'
+		s := a.abs.trailingZeroBits()
+		if s&1 != 0 {
+			bmod8 := b.abs[0] & 7
+			if bmod8 == 3 || bmod8 == 5 {
+				j = -j
+			}
+		}
+		c.Rsh(&a, s) // a = 2^s*c
+
+		// swap numerator and denominator
+		if b.abs[0]&3 == 3 && c.abs[0]&3 == 3 {
+			j = -j
+		}
+		a.Set(&b)
+		b.Set(&c)
+	}
+}
+
+// modSqrt3Mod4 uses the identity
+//      (a^((p+1)/4))^2  mod p
+//   == u^(p+1)          mod p
+//   == u^2              mod p
+// to calculate the square root of any quadratic residue mod p quickly for 3
+// mod 4 primes.
+func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
+	e := new(Int).Add(p, intOne) // e = p + 1
+	e.Rsh(e, 2)                  // e = (p + 1) / 4
+	z.Exp(x, e, p)               // z = x^e mod p
+	return z
+}
+
+// modSqrtTonelliShanks uses the Tonelli-Shanks algorithm to find the square
+// root of a quadratic residue modulo any prime.
+func (z *Int) modSqrtTonelliShanks(x, p *Int) *Int {
+	// Break p-1 into s*2^e such that s is odd.
+	var s Int
+	s.Sub(p, intOne)
+	e := s.abs.trailingZeroBits()
+	s.Rsh(&s, e)
+
+	// find some non-square n
+	var n Int
+	n.SetInt64(2)
+	for Jacobi(&n, p) != -1 {
+		n.Add(&n, intOne)
+	}
+
+	// Core of the Tonelli-Shanks algorithm. Follows the description in
+	// section 6 of "Square roots from 1; 24, 51, 10 to Dan Shanks" by Ezra
+	// Brown:
+	// https://www.maa.org/sites/default/files/pdf/upload_library/22/Polya/07468342.di020786.02p0470a.pdf
+	var y, b, g, t Int
+	y.Add(&s, intOne)
+	y.Rsh(&y, 1)
+	y.Exp(x, &y, p)  // y = x^((s+1)/2)
+	b.Exp(x, &s, p)  // b = x^s
+	g.Exp(&n, &s, p) // g = n^s
+	r := e
+	for {
+		// find the least m such that ord_p(b) = 2^m
+		var m uint
+		t.Set(&b)
+		for t.Cmp(intOne) != 0 {
+			t.Mul(&t, &t).Mod(&t, p)
+			m++
+		}
+
+		if m == 0 {
+			return z.Set(&y)
+		}
+
+		t.SetInt64(0).SetBit(&t, int(r-m-1), 1).Exp(&g, &t, p)
+		// t = g^(2^(r-m-1)) mod p
+		g.Mul(&t, &t).Mod(&g, p) // g = g^(2^(r-m)) mod p
+		y.Mul(&y, &t).Mod(&y, p)
+		b.Mul(&b, &g).Mod(&b, p)
+		r = m
+	}
+}
+
+// ModSqrt sets z to a square root of x mod p if such a square root exists, and
+// returns z. The modulus p must be an odd prime. If x is not a square mod p,
+// ModSqrt leaves z unchanged and returns nil. This function panics if p is
+// not an odd integer.
+func (z *Int) ModSqrt(x, p *Int) *Int {
+	switch Jacobi(x, p) {
+	case -1:
+		return nil // x is not a square mod p
+	case 0:
+		return z.SetInt64(0) // sqrt(0) mod p = 0
+	case 1:
+		break
+	}
+	if x.neg || x.Cmp(p) >= 0 { // ensure 0 <= x < p
+		x = new(Int).Mod(x, p)
+	}
+
+	// Check whether p is 3 mod 4, and if so, use the faster algorithm.
+	if len(p.abs) > 0 && p.abs[0]%4 == 3 {
+		return z.modSqrt3Mod4Prime(x, p)
+	}
+	// Otherwise, use Tonelli-Shanks.
+	return z.modSqrtTonelliShanks(x, p)
 }
 
 // Lsh sets z = x << n and returns z.
@@ -782,64 +1021,13 @@ func (z *Int) Not(x *Int) *Int {
 	return z
 }
 
-// Gob codec version. Permits backward-compatible changes to the encoding.
-const intGobVersion byte = 1
-
-// GobEncode implements the gob.GobEncoder interface.
-func (x *Int) GobEncode() ([]byte, error) {
-	if x == nil {
-		return nil, nil
-	}
-	buf := make([]byte, 1+len(x.abs)*_S) // extra byte for version and sign bit
-	i := x.abs.bytes(buf) - 1            // i >= 0
-	b := intGobVersion << 1              // make space for sign bit
+// Sqrt sets z to ⌊√x⌋, the largest integer such that z² ≤ x, and returns z.
+// It panics if x is negative.
+func (z *Int) Sqrt(x *Int) *Int {
 	if x.neg {
-		b |= 1
+		panic("square root of negative number")
 	}
-	buf[i] = b
-	return buf[i:], nil
-}
-
-// GobDecode implements the gob.GobDecoder interface.
-func (z *Int) GobDecode(buf []byte) error {
-	if len(buf) == 0 {
-		// Other side sent a nil or default value.
-		*z = Int{}
-		return nil
-	}
-	b := buf[0]
-	if b>>1 != intGobVersion {
-		return errors.New(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
-	}
-	z.neg = b&1 != 0
-	z.abs = z.abs.setBytes(buf[1:])
-	return nil
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (z *Int) MarshalJSON() ([]byte, error) {
-	// TODO(gri): get rid of the []byte/string conversions
-	return []byte(z.String()), nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (z *Int) UnmarshalJSON(text []byte) error {
-	// TODO(gri): get rid of the []byte/string conversions
-	if _, ok := z.SetString(string(text), 0); !ok {
-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
-	}
-	return nil
-}
-
-// MarshalText implements the encoding.TextMarshaler interface.
-func (z *Int) MarshalText() (text []byte, err error) {
-	return []byte(z.String()), nil
-}
-
-// UnmarshalText implements the encoding.TextUnmarshaler interface.
-func (z *Int) UnmarshalText(text []byte) error {
-	if _, ok := z.SetString(string(text), 0); !ok {
-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
-	}
-	return nil
+	z.neg = false
+	z.abs = z.abs.sqrt(x.abs)
+	return z
 }

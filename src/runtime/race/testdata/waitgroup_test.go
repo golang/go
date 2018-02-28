@@ -13,6 +13,7 @@ import (
 
 func TestNoRaceWaitGroup(t *testing.T) {
 	var x int
+	_ = x
 	var wg sync.WaitGroup
 	n := 1
 	for i := 0; i < n; i++ {
@@ -28,6 +29,7 @@ func TestNoRaceWaitGroup(t *testing.T) {
 
 func TestRaceWaitGroup(t *testing.T) {
 	var x int
+	_ = x
 	var wg sync.WaitGroup
 	n := 2
 	for i := 0; i < n; i++ {
@@ -43,6 +45,7 @@ func TestRaceWaitGroup(t *testing.T) {
 
 func TestNoRaceWaitGroup2(t *testing.T) {
 	var x int
+	_ = x
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -56,6 +59,7 @@ func TestNoRaceWaitGroup2(t *testing.T) {
 // incrementing counter in Add and locking wg's mutex
 func TestRaceWaitGroupAsMutex(t *testing.T) {
 	var x int
+	_ = x
 	var wg sync.WaitGroup
 	c := make(chan bool, 2)
 	go func() {
@@ -82,6 +86,7 @@ func TestRaceWaitGroupAsMutex(t *testing.T) {
 func TestRaceWaitGroupWrongWait(t *testing.T) {
 	c := make(chan bool, 2)
 	var x int
+	_ = x
 	var wg sync.WaitGroup
 	go func() {
 		wg.Add(1)
@@ -187,6 +192,7 @@ func TestNoRaceWaitGroupMultipleWait3(t *testing.T) {
 // Correct usage but still a race
 func TestRaceWaitGroup2(t *testing.T) {
 	var x int
+	_ = x
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -202,6 +208,7 @@ func TestRaceWaitGroup2(t *testing.T) {
 
 func TestNoRaceWaitGroupPanicRecover(t *testing.T) {
 	var x int
+	_ = x
 	var wg sync.WaitGroup
 	defer func() {
 		err := recover()
@@ -219,6 +226,7 @@ func TestNoRaceWaitGroupPanicRecover(t *testing.T) {
 // Is it possible to get a race by synchronization via panic?
 func TestNoRaceWaitGroupPanicRecover2(t *testing.T) {
 	var x int
+	_ = x
 	var wg sync.WaitGroup
 	ch := make(chan bool, 1)
 	var f func() = func() {

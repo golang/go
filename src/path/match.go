@@ -10,10 +10,10 @@ import (
 	"unicode/utf8"
 )
 
-// ErrBadPattern indicates a globbing pattern was malformed.
+// ErrBadPattern indicates a pattern was malformed.
 var ErrBadPattern = errors.New("syntax error in pattern")
 
-// Match returns true if name matches the shell file name pattern.
+// Match reports whether name matches the shell pattern.
 // The pattern syntax is:
 //
 //	pattern:
@@ -43,7 +43,7 @@ Pattern:
 		star, chunk, pattern = scanChunk(pattern)
 		if star && chunk == "" {
 			// Trailing * matches rest of string unless it has a /.
-			return strings.Index(name, "/") < 0, nil
+			return !strings.Contains(name, "/"), nil
 		}
 		// Look for match at current position.
 		t, ok, err := matchChunk(chunk, name)

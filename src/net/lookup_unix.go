@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 package net
 
 import (
-	"errors"
+	"context"
 	"sync"
 )
 
@@ -16,153 +16,180 @@ var onceReadProtocols sync.Once
 // readProtocols loads contents of /etc/protocols into protocols map
 // for quick access.
 func readProtocols() {
-	if file, err := open("/etc/protocols"); err == nil {
-		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
-			// tcp    6   TCP    # transmission control protocol
-			if i := byteIndex(line, '#'); i >= 0 {
-				line = line[0:i]
+	file, err := open("/etc/protocols")
+	if err != nil {
+		return
+	}
+	defer file.close()
+
+	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+		// tcp    6   TCP    # transmission control protocol
+		if i := byteIndex(line, '#'); i >= 0 {
+			line = line[0:i]
+		}
+		f := getFields(line)
+		if len(f) < 2 {
+			continue
+		}
+		if proto, _, ok := dtoi(f[1]); ok {
+			if _, ok := protocols[f[0]]; !ok {
+				protocols[f[0]] = proto
 			}
-			f := getFields(line)
-			if len(f) < 2 {
-				continue
-			}
-			if proto, _, ok := dtoi(f[1], 0); ok {
-				if _, ok := protocols[f[0]]; !ok {
-					protocols[f[0]] = proto
-				}
-				for _, alias := range f[2:] {
-					if _, ok := protocols[alias]; !ok {
-						protocols[alias] = proto
-					}
+			for _, alias := range f[2:] {
+				if _, ok := protocols[alias]; !ok {
+					protocols[alias] = proto
 				}
 			}
 		}
-		file.close()
 	}
 }
 
 // lookupProtocol looks up IP protocol name in /etc/protocols and
 // returns correspondent protocol number.
-func lookupProtocol(name string) (proto int, err error) {
+func lookupProtocol(_ context.Context, name string) (int, error) {
 	onceReadProtocols.Do(readProtocols)
-	proto, found := protocols[name]
-	if !found {
-		return 0, errors.New("unknown IP protocol specified: " + name)
+	return lookupProtocolMap(name)
+}
+
+func (r *Resolver) dial(ctx context.Context, network, server string) (dnsConn, error) {
+	// Calling Dial here is scary -- we have to be sure not to
+	// dial a name that will require a DNS lookup, or Dial will
+	// call back here to translate it. The DNS config parser has
+	// already checked that all the cfg.servers are IP
+	// addresses, which Dial will use without a DNS lookup.
+	var c Conn
+	var err error
+	if r.Dial != nil {
+		c, err = r.Dial(ctx, network, server)
+	} else {
+		var d Dialer
+		c, err = d.DialContext(ctx, network, server)
 	}
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	if _, ok := c.(PacketConn); ok {
+		return &dnsPacketConn{c}, nil
+	}
+	return &dnsStreamConn{c}, nil
+}
+
+func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+	order := systemConf().hostLookupOrder(host)
+	if !r.PreferGo && order == hostLookupCgo {
+		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
+			return addrs, err
+		}
+		// cgo not available (or netgo); fall back to Go's DNS resolver
+		order = hostLookupFilesDNS
+	}
+	return r.goLookupHostOrder(ctx, host, order)
+}
+
+func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	if r.PreferGo {
+		return r.goLookupIP(ctx, host)
+	}
+	order := systemConf().hostLookupOrder(host)
+	if order == hostLookupCgo {
+		if addrs, err, ok := cgoLookupIP(ctx, host); ok {
+			return addrs, err
+		}
+		// cgo not available (or netgo); fall back to Go's DNS resolver
+		order = hostLookupFilesDNS
+	}
+	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, host, order)
 	return
 }
 
-func lookupHost(host string) (addrs []string, err error) {
-	addrs, err, ok := cgoLookupHost(host)
-	if !ok {
-		addrs, err = goLookupHost(host)
+func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
+	if !r.PreferGo && systemConf().canUseCgo() {
+		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
+			if err != nil {
+				// Issue 18213: if cgo fails, first check to see whether we
+				// have the answer baked-in to the net package.
+				if port, err := goLookupPort(network, service); err == nil {
+					return port, nil
+				}
+			}
+			return port, err
+		}
 	}
-	return
+	return goLookupPort(network, service)
 }
 
-func lookupIP(host string) (addrs []IP, err error) {
-	addrs, err, ok := cgoLookupIP(host)
-	if !ok {
-		addrs, err = goLookupIP(host)
+func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
+	if !r.PreferGo && systemConf().canUseCgo() {
+		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
+			return cname, err
+		}
 	}
-	return
+	return r.goLookupCNAME(ctx, name)
 }
 
-func lookupPort(network, service string) (port int, err error) {
-	port, err, ok := cgoLookupPort(network, service)
-	if !ok {
-		port, err = goLookupPort(network, service)
-	}
-	return
-}
-
-func lookupCNAME(name string) (cname string, err error) {
-	cname, err, ok := cgoLookupCNAME(name)
-	if !ok {
-		cname, err = goLookupCNAME(name)
-	}
-	return
-}
-
-func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
+func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
 	var target string
 	if service == "" && proto == "" {
 		target = name
 	} else {
 		target = "_" + service + "._" + proto + "." + name
 	}
-	var records []dnsRR
-	cname, records, err = lookup(target, dnsTypeSRV)
+	cname, rrs, err := r.lookup(ctx, target, dnsTypeSRV)
 	if err != nil {
-		return
+		return "", nil, err
 	}
-	addrs = make([]*SRV, len(records))
-	for i, rr := range records {
-		r := rr.(*dnsRR_SRV)
-		addrs[i] = &SRV{r.Target, r.Port, r.Priority, r.Weight}
+	srvs := make([]*SRV, len(rrs))
+	for i, rr := range rrs {
+		rr := rr.(*dnsRR_SRV)
+		srvs[i] = &SRV{Target: rr.Target, Port: rr.Port, Priority: rr.Priority, Weight: rr.Weight}
 	}
-	byPriorityWeight(addrs).sort()
-	return
+	byPriorityWeight(srvs).sort()
+	return cname, srvs, nil
 }
 
-func lookupMX(name string) (mx []*MX, err error) {
-	_, records, err := lookup(name, dnsTypeMX)
+func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
+	_, rrs, err := r.lookup(ctx, name, dnsTypeMX)
 	if err != nil {
-		return
+		return nil, err
 	}
-	mx = make([]*MX, len(records))
-	for i, rr := range records {
-		r := rr.(*dnsRR_MX)
-		mx[i] = &MX{r.Mx, r.Pref}
+	mxs := make([]*MX, len(rrs))
+	for i, rr := range rrs {
+		rr := rr.(*dnsRR_MX)
+		mxs[i] = &MX{Host: rr.Mx, Pref: rr.Pref}
 	}
-	byPref(mx).sort()
-	return
+	byPref(mxs).sort()
+	return mxs, nil
 }
 
-func lookupNS(name string) (ns []*NS, err error) {
-	_, records, err := lookup(name, dnsTypeNS)
+func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
+	_, rrs, err := r.lookup(ctx, name, dnsTypeNS)
 	if err != nil {
-		return
+		return nil, err
 	}
-	ns = make([]*NS, len(records))
-	for i, r := range records {
-		r := r.(*dnsRR_NS)
-		ns[i] = &NS{r.Ns}
+	nss := make([]*NS, len(rrs))
+	for i, rr := range rrs {
+		nss[i] = &NS{Host: rr.(*dnsRR_NS).Ns}
 	}
-	return
+	return nss, nil
 }
 
-func lookupTXT(name string) (txt []string, err error) {
-	_, records, err := lookup(name, dnsTypeTXT)
+func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
+	_, rrs, err := r.lookup(ctx, name, dnsTypeTXT)
 	if err != nil {
-		return
+		return nil, err
 	}
-	txt = make([]string, len(records))
-	for i, r := range records {
-		txt[i] = r.(*dnsRR_TXT).Txt
+	txts := make([]string, len(rrs))
+	for i, rr := range rrs {
+		txts[i] = rr.(*dnsRR_TXT).Txt
 	}
-	return
+	return txts, nil
 }
 
-func lookupAddr(addr string) (name []string, err error) {
-	name = lookupStaticAddr(addr)
-	if len(name) > 0 {
-		return
+func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
+	if !r.PreferGo && systemConf().canUseCgo() {
+		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
+			return ptrs, err
+		}
 	}
-	var arpa string
-	arpa, err = reverseaddr(addr)
-	if err != nil {
-		return
-	}
-	var records []dnsRR
-	_, records, err = lookup(arpa, dnsTypePTR)
-	if err != nil {
-		return
-	}
-	name = make([]string, len(records))
-	for i := range records {
-		r := records[i].(*dnsRR_PTR)
-		name[i] = r.Ptr
-	}
-	return
+	return r.goLookupPTR(ctx, addr)
 }

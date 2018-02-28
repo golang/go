@@ -6,34 +6,79 @@ package runtime_test
 
 import (
 	"flag"
+	"fmt"
+	"internal/testenv"
+	"os"
+	"os/exec"
+	"reflect"
 	. "runtime"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
 )
 
 func TestMemStats(t *testing.T) {
+	// Make sure there's at least one forced GC.
+	GC()
+
 	// Test that MemStats has sane values.
 	st := new(MemStats)
 	ReadMemStats(st)
 
-	// Everything except HeapReleased and HeapIdle, because they indeed can be 0.
-	if st.Alloc == 0 || st.TotalAlloc == 0 || st.Sys == 0 || st.Lookups == 0 ||
-		st.Mallocs == 0 || st.Frees == 0 || st.HeapAlloc == 0 || st.HeapSys == 0 ||
-		st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
-		st.StackSys == 0 || st.MSpanInuse == 0 || st.MSpanSys == 0 || st.MCacheInuse == 0 ||
-		st.MCacheSys == 0 || st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 ||
-		st.NextGC == 0 || st.NumGC == 0 {
-		t.Fatalf("Zero value: %+v", *st)
+	nz := func(x interface{}) error {
+		if x != reflect.Zero(reflect.TypeOf(x)).Interface() {
+			return nil
+		}
+		return fmt.Errorf("zero value")
+	}
+	le := func(thresh float64) func(interface{}) error {
+		return func(x interface{}) error {
+			if reflect.ValueOf(x).Convert(reflect.TypeOf(thresh)).Float() < thresh {
+				return nil
+			}
+			return fmt.Errorf("insanely high value (overflow?); want <= %v", thresh)
+		}
+	}
+	eq := func(x interface{}) func(interface{}) error {
+		return func(y interface{}) error {
+			if x == y {
+				return nil
+			}
+			return fmt.Errorf("want %v", x)
+		}
+	}
+	// Of the uint fields, HeapReleased, HeapIdle can be 0.
+	// PauseTotalNs can be 0 if timer resolution is poor.
+	fields := map[string][]func(interface{}) error{
+		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
+		"Lookups": {eq(uint64(0))}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
+		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},
+		"HeapInuse": {nz, le(1e10)}, "HeapReleased": {le(1e10)}, "HeapObjects": {nz, le(1e10)},
+		"StackInuse": {nz, le(1e10)}, "StackSys": {nz, le(1e10)},
+		"MSpanInuse": {nz, le(1e10)}, "MSpanSys": {nz, le(1e10)},
+		"MCacheInuse": {nz, le(1e10)}, "MCacheSys": {nz, le(1e10)},
+		"BuckHashSys": {nz, le(1e10)}, "GCSys": {nz, le(1e10)}, "OtherSys": {nz, le(1e10)},
+		"NextGC": {nz, le(1e10)}, "LastGC": {nz},
+		"PauseTotalNs": {le(1e11)}, "PauseNs": nil, "PauseEnd": nil,
+		"NumGC": {nz, le(1e9)}, "NumForcedGC": {nz, le(1e9)},
+		"GCCPUFraction": {le(0.99)}, "EnableGC": {eq(true)}, "DebugGC": {eq(false)},
+		"BySize": nil,
 	}
 
-	if st.Alloc > 1e10 || st.TotalAlloc > 1e11 || st.Sys > 1e10 || st.Lookups > 1e10 ||
-		st.Mallocs > 1e10 || st.Frees > 1e10 || st.HeapAlloc > 1e10 || st.HeapSys > 1e10 ||
-		st.HeapIdle > 1e10 || st.HeapInuse > 1e10 || st.HeapObjects > 1e10 || st.StackInuse > 1e10 ||
-		st.StackSys > 1e10 || st.MSpanInuse > 1e10 || st.MSpanSys > 1e10 || st.MCacheInuse > 1e10 ||
-		st.MCacheSys > 1e10 || st.BuckHashSys > 1e10 || st.GCSys > 1e10 || st.OtherSys > 1e10 ||
-		st.NextGC > 1e10 || st.NumGC > 1e9 {
-		t.Fatalf("Insanely high value (overflow?): %+v", *st)
+	rst := reflect.ValueOf(st).Elem()
+	for i := 0; i < rst.Type().NumField(); i++ {
+		name, val := rst.Type().Field(i).Name, rst.Field(i).Interface()
+		checks, ok := fields[name]
+		if !ok {
+			t.Errorf("unknown MemStats field %s", name)
+			continue
+		}
+		for _, check := range checks {
+			if err := check(val); err != nil {
+				t.Errorf("%s = %v: %s", name, val, err)
+			}
+		}
 	}
 
 	if st.Sys != st.HeapSys+st.StackSys+st.MSpanSys+st.MCacheSys+
@@ -43,6 +88,37 @@ func TestMemStats(t *testing.T) {
 
 	if st.HeapIdle+st.HeapInuse != st.HeapSys {
 		t.Fatalf("HeapIdle(%d) + HeapInuse(%d) should be equal to HeapSys(%d), but isn't.", st.HeapIdle, st.HeapInuse, st.HeapSys)
+	}
+
+	if lpe := st.PauseEnd[int(st.NumGC+255)%len(st.PauseEnd)]; st.LastGC != lpe {
+		t.Fatalf("LastGC(%d) != last PauseEnd(%d)", st.LastGC, lpe)
+	}
+
+	var pauseTotal uint64
+	for _, pause := range st.PauseNs {
+		pauseTotal += pause
+	}
+	if int(st.NumGC) < len(st.PauseNs) {
+		// We have all pauses, so this should be exact.
+		if st.PauseTotalNs != pauseTotal {
+			t.Fatalf("PauseTotalNs(%d) != sum PauseNs(%d)", st.PauseTotalNs, pauseTotal)
+		}
+		for i := int(st.NumGC); i < len(st.PauseNs); i++ {
+			if st.PauseNs[i] != 0 {
+				t.Fatalf("Non-zero PauseNs[%d]: %+v", i, st)
+			}
+			if st.PauseEnd[i] != 0 {
+				t.Fatalf("Non-zero PauseEnd[%d]: %+v", i, st)
+			}
+		}
+	} else {
+		if st.PauseTotalNs < pauseTotal {
+			t.Fatalf("PauseTotalNs(%d) < sum PauseNs(%d)", st.PauseTotalNs, pauseTotal)
+		}
+	}
+
+	if st.NumForcedGC > st.NumGC {
+		t.Fatalf("NumForcedGC(%d) > NumGC(%d)", st.NumForcedGC, st.NumGC)
 	}
 }
 
@@ -60,6 +136,71 @@ func TestStringConcatenationAllocs(t *testing.T) {
 	// Only string concatenation allocates.
 	if n != 1 {
 		t.Fatalf("want 1 allocation, got %v", n)
+	}
+}
+
+func TestTinyAlloc(t *testing.T) {
+	const N = 16
+	var v [N]unsafe.Pointer
+	for i := range v {
+		v[i] = unsafe.Pointer(new(byte))
+	}
+
+	chunks := make(map[uintptr]bool, N)
+	for _, p := range v {
+		chunks[uintptr(p)&^7] = true
+	}
+
+	if len(chunks) == N {
+		t.Fatal("no bytes allocated within the same 8-byte chunk")
+	}
+}
+
+type acLink struct {
+	x [1 << 20]byte
+}
+
+var arenaCollisionSink []*acLink
+
+func TestArenaCollision(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	// Test that mheap.sysAlloc handles collisions with other
+	// memory mappings.
+	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestArenaCollision", "-test.v"))
+		cmd.Env = append(cmd.Env, "TEST_ARENA_COLLISION=1")
+		if out, err := cmd.CombinedOutput(); !strings.Contains(string(out), "PASS\n") || err != nil {
+			t.Fatalf("%s\n(exit status %v)", string(out), err)
+		}
+		return
+	}
+	disallowed := [][2]uintptr{}
+	// Drop all but the next 3 hints. 64-bit has a lot of hints,
+	// so it would take a lot of memory to go through all of them.
+	KeepNArenaHints(3)
+	// Consume these 3 hints and force the runtime to find some
+	// fallback hints.
+	for i := 0; i < 5; i++ {
+		// Reserve memory at the next hint so it can't be used
+		// for the heap.
+		start, end := MapNextArenaHint()
+		disallowed = append(disallowed, [2]uintptr{start, end})
+		// Allocate until the runtime tries to use the hint we
+		// just mapped over.
+		hint := GetNextArenaHint()
+		for GetNextArenaHint() == hint {
+			ac := new(acLink)
+			arenaCollisionSink = append(arenaCollisionSink, ac)
+			// The allocation must not have fallen into
+			// one of the reserved regions.
+			p := uintptr(unsafe.Pointer(ac))
+			for _, d := range disallowed {
+				if d[0] <= p && p < d[1] {
+					t.Fatalf("allocation %#x in reserved region [%#x, %#x)", p, d[0], d[1])
+				}
+			}
+		}
 	}
 }
 

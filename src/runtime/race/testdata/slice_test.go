@@ -578,3 +578,15 @@ func TestRaceCompareString(t *testing.T) {
 	s1 = s2
 	<-c
 }
+
+func TestRaceSlice3(t *testing.T) {
+	done := make(chan bool)
+	x := make([]int, 10)
+	i := 2
+	go func() {
+		i = 3
+		done <- true
+	}()
+	_ = x[:1:i]
+	<-done
+}

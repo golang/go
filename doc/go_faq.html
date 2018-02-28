@@ -92,22 +92,16 @@ portability and the addition of new functionality such as improved support for i
 There may well be a Go 2 one day, but not for a few years and it will be influenced by what we learn using Go 1 as it is today.
 </p>
 
-<h3 id="What_is_the_origin_of_the_name">
-What is the origin of the name?</h3>
-
-<p>
-&ldquo;Ogle&rdquo; would be a good name for a Go debugger.
-</p>
-
 <h3 id="Whats_the_origin_of_the_mascot">
 What's the origin of the mascot?</h3>
 
 <p>
 The mascot and logo were designed by
 <a href="http://reneefrench.blogspot.com">Renée French</a>, who also designed
-<a href="http://plan9.bell-labs.com/plan9/glenda.html">Glenda</a>,
+<a href="https://9p.io/plan9/glenda.html">Glenda</a>,
 the Plan 9 bunny.
-The gopher is derived from one she used for an <a href="http://wfmu.org/">WFMU</a>
+The <a href="https://blog.golang.org/gopher">gopher</a>
+is derived from one she used for an <a href="http://wfmu.org/">WFMU</a>
 T-shirt design some years ago.
 The logo and mascot are covered by the
 <a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
@@ -153,7 +147,7 @@ Go is an attempt to combine the ease of programming of an interpreted,
 dynamically typed
 language with the efficiency and safety of a statically typed, compiled language.
 It also aims to be modern, with support for networked and multicore
-computing.  Finally, it is intended to be <i>fast</i>: it should take
+computing.  Finally, working with Go is intended to be <i>fast</i>: it should take
 at most a few seconds to build a large executable on a single computer.
 To meet these goals required addressing a number of
 linguistic issues: an expressive but lightweight type system;
@@ -239,7 +233,7 @@ Do Go programs link with C/C++ programs?</h3>
 
 <p>
 There are two Go compiler implementations, <code>gc</code>
-(the <code>6g</code> program and friends) and <code>gccgo</code>.
+and <code>gccgo</code>.
 <code>Gc</code> uses a different calling convention and linker and can
 therefore only be linked with C programs using the same convention.
 There is such a C compiler but no C++ compiler.
@@ -276,6 +270,27 @@ you will need to abide by the guidelines at
 </p>
 
 <h2 id="Design">Design</h2>
+
+<h3 id="runtime">
+Does Go have a runtime?</h3>
+
+<p>
+Go does have an extensive library, called the <em>runtime</em>,
+that is part of every Go program.
+The runtime library implements garbage collection, concurrency,
+stack management, and other critical features of the Go language.
+Although it is more central to the language, Go's runtime is analogous
+to <code>libc</code>, the C library.
+</p>
+
+<p>
+It is important to understand, however, that Go's runtime does not
+include a virtual machine, such as is provided by the Java runtime.
+Go programs are compiled ahead of time to native machine code.
+Thus, although the term is often used to describe the virtual
+environment in which a program runs, in Go the word &ldquo;runtime&rdquo;
+is just the name given to the library providing critical language services.
+</p>
 
 <h3 id="unicode_identifiers">
 What's up with Unicode identifiers?</h3>
@@ -341,7 +356,10 @@ code that does what generics would enable, if less smoothly.
 </p>
 
 <p>
-This remains an open issue.
+The topic remains open.
+For a look at several previous unsuccessful attempts to
+design a good generics solution for Go, see
+<a href="https://golang.org/issue/15292">this proposal</a>.
 </p>
 
 <h3 id="exceptions">
@@ -461,6 +479,15 @@ as when hosting an untrusted program, the implementation could interlock
 map access.
 </p>
 
+<p>
+Map access is unsafe only when updates are occurring.
+As long as all goroutines are only reading—looking up elements in the map,
+including iterating through it using a
+<code>for</code> <code>range</code> loop—and not changing the map
+by assigning to elements or doing deletions,
+it is safe for them to access the map concurrently without synchronization.
+</p>
+
 <h3 id="language_changes">
 Will you accept my language change?</h3>
 
@@ -508,7 +535,7 @@ They are not restricted to structs (classes).
 </p>
 
 <p>
-Also, the lack of type hierarchy makes &ldquo;objects&rdquo; in Go feel much more
+Also, the lack of a type hierarchy makes &ldquo;objects&rdquo; in Go feel much more
 lightweight than in languages such as C++ or Java.
 </p>
 
@@ -608,17 +635,19 @@ How can I guarantee my type satisfies an interface?</h3>
 
 <p>
 You can ask the compiler to check that the type <code>T</code> implements the
-interface <code>I</code> by attempting an assignment:
+interface <code>I</code> by attempting an assignment using the zero value for
+<code>T</code> or pointer to <code>T</code>, as appropriate:
 </p>
 
 <pre>
 type T struct{}
-var _ I = T{}   // Verify that T implements I.
+var _ I = T{}       // Verify that T implements I.
+var _ I = (*T)(nil) // Verify that *T implements I.
 </pre>
 
 <p>
-If <code>T</code> doesn't implement <code>I</code>, the mistake will be caught
-at compile time.
+If <code>T</code> (or <code>*T</code>, accordingly) doesn't implement
+<code>I</code>, the mistake will be caught at compile time.
 </p>
 
 <p>
@@ -726,7 +755,7 @@ interface satisfaction very easy to state: are the function's names
 and signatures exactly those of the interface?
 Go's rule is also easy to implement efficiently.
 We feel these benefits offset the lack of
-automatic type promotion. Should Go one day adopt some form of generic
+automatic type promotion. Should Go one day adopt some form of polymorphic
 typing, we expect there would be a way to express the idea of these
 examples and also have them be statically checked.
 </p>
@@ -749,6 +778,29 @@ for i, v := range t {
 }
 </pre>
 
+<h3 id="convert_slice_with_same_underlying_type">
+Can I convert []T1 to []T2 if T1 and T2 have the same underlying type?</h3>
+
+This last line of this code sample does not compile.
+
+<pre>
+type T1 int
+type T2 int
+var t1 T1
+var x = T2(t1) // OK
+var st1 []T1
+var sx = ([]T2)(st1) // NOT OK
+</pre>
+
+<p>
+In Go, types are closely tied to methods, in that every named type has
+a (possibly empty) method set.
+The general rule is that you can change the name of the type being
+converted (and thus possibly change its method set) but you can't
+change the name (and method set) of elements of a composite type.
+Go requires you to be explicit about type conversions.
+</p>
+
 <h3 id="nil_error">
 Why is my nil error value not equal to nil?
 </h3>
@@ -765,7 +817,7 @@ schematically, (<code>int</code>, <code>3</code>).
 An interface value is <code>nil</code> only if the inner value and type are both unset,
 (<code>nil</code>, <code>nil</code>).
 In particular, a <code>nil</code> interface will always hold a <code>nil</code> type.
-If we store a pointer of type <code>*int</code> inside
+If we store a <code>nil</code> pointer of type <code>*int</code> inside
 an interface value, the inner type will be <code>*int</code> regardless of the value of the pointer:
 (<code>*int</code>, <code>nil</code>).
 Such an interface value will therefore be non-<code>nil</code>
@@ -773,7 +825,7 @@ Such an interface value will therefore be non-<code>nil</code>
 </p>
 
 <p>
-This situation can be confusing, and often arises when a <code>nil</code> value is
+This situation can be confusing, and arises when a <code>nil</code> value is
 stored inside an interface value such as an <code>error</code> return:
 </p>
 
@@ -864,6 +916,39 @@ value to hold the error and a type switch to discriminate cases.  The
 syntax tree example is also doable, although not as elegantly.
 </p>
 
+<h3 id="covariant_types">
+Why does Go not have covariant result types?</h3>
+
+<p>
+Covariant result types would mean that an interface like
+</p>
+
+<pre>
+type Copyable interface {
+	Copy() interface{}
+}
+</pre>
+
+<p>
+would be satisfied by the method
+</p>
+
+<pre>
+func (v Value) Copy() Value
+</pre>
+
+<p>because <code>Value</code> implements the empty interface.
+In Go method types must match exactly, so <code>Value</code> does not
+implement <code>Copyable</code>.
+Go separates the notion of what a
+type does&mdash;its methods&mdash;from the type's implementation.
+If two methods return different types, they are not doing the same thing.
+Programmers who want covariant result types are often trying to
+express a type hierarchy through interfaces.
+In Go it's more natural to have a clean separation between interface
+and implementation.
+</p>
+
 <h2 id="values">Values</h2>
 
 <h3 id="conversions">
@@ -890,7 +975,7 @@ encourages you to be explicit.
 </p>
 
 <p>
-A blog post, title <a href="http://blog.golang.org/constants">Constants</a>,
+A blog post titled <a href="https://blog.golang.org/constants">Constants</a>
 explores this topic in more detail.
 </p>
 
@@ -950,6 +1035,19 @@ In fact, <code>godoc</code> implements the full site at
 <a href="/">golang.org/</a>.
 </p>
 
+<p>
+A <code>godoc</code> instance may be configured to provide rich,
+interactive static analyses of symbols in the programs it displays; details are
+listed <a href="https://golang.org/lib/godoc/analysis/help.html">here</a>.
+</p>
+
+<p>
+For access to documentation from the command line, the
+<a href="https://golang.org/pkg/cmd/go/">go</a> tool has a
+<a href="https://golang.org/pkg/cmd/go/#hdr-Show_documentation_for_package_or_symbol">doc</a>
+subcommand that provides a textual interface to the same information.
+</p>
+
 <h3 id="Is_there_a_Go_programming_style_guide">
 Is there a Go programming style guide?</h3>
 
@@ -1005,7 +1103,7 @@ it's easy to work around this. For GitHub, try one of these solutions:
 <ul>
 <li>Manually clone the repository in the expected package directory:
 <pre>
-$ cd $GOPATH/src/github.com/username
+$ cd src/github.com/username
 $ git clone git@github.com:username/package.git
 </pre>
 </li>
@@ -1046,7 +1144,24 @@ unexpected ways, the simplest solution is to copy it to your local repository.
 (This is the approach Google takes internally.)
 Store the copy under a new import path that identifies it as a local copy.
 For example, you might copy "original.com/pkg" to "you.com/external/original.com/pkg".
-Keith Rarick's <a href="https://github.com/kr/goven">goven</a> is one tool to help automate this process.
+The <a href="https://godoc.org/golang.org/x/tools/cmd/gomvpkg">gomvpkg</a>
+program is one tool to help automate this process.
+</p>
+
+<p>
+The Go 1.5 release added a facility to the
+<a href="https://golang.org/cmd/go">go</a> command
+that makes it easier to manage external dependencies by "vendoring"
+them into a special directory near the package that depends upon them.
+See the <a href="https://golang.org/s/go15vendor">design
+document</a> for details.
+</p>
+
+<p>
+Work is underway on an experimental package management tool,
+<a href="https://github.com/golang/dep"><code>dep</code></a>, to learn
+more about how tooling can help package management. More information can be found in
+<a href="https://github.com/golang/dep/blob/master/docs/FAQ.md">the <code>dep</code> FAQ</a>.
 </p>
 
 <h2 id="Pointers">Pointers and Allocation</h2>
@@ -1061,7 +1176,8 @@ thing being passed, as if there were an assignment statement assigning the
 value to the parameter.  For instance, passing an <code>int</code> value
 to a function makes a copy of the <code>int</code>, and passing a pointer
 value makes a copy of the pointer, but not the data it points to.
-(See the next section for a discussion of how this affects method receivers.)
+(See a <a href="/doc/faq#methods_on_values_or_pointers">later
+section</a> for a discussion of how this affects method receivers.)
 </p>
 
 <p>
@@ -1072,6 +1188,12 @@ makes a copy of the thing stored in the interface value.  If the interface
 value holds a struct, copying the interface value makes a copy of the
 struct.  If the interface value holds a pointer, copying the interface value
 makes a copy of the pointer, but again not the data it points to.
+</p>
+
+<p>
+Note that this discussion is about the semantics of the operations.
+Actual implementations may apply optimizations to avoid copying
+as long as the optimizations do not change the semantics.
 </p>
 
 <h3 id="pointer_to_interface">
@@ -1209,11 +1331,26 @@ size of value should use an explicitly sized type, like <code>int64</code>.
 Prior to Go 1.1, the 64-bit Go compilers (both gc and gccgo) used
 a 32-bit representation for <code>int</code>. As of Go 1.1 they use
 a 64-bit representation.
+</p>
+
+<p>
 On the other hand, floating-point scalars and complex
-numbers are always sized: <code>float32</code>, <code>complex64</code>,
-etc., because programmers should be aware of precision when using
-floating-point numbers.
-The default size of a floating-point constant is <code>float64</code>.
+types are always sized (there are no <code>float</code> or <code>complex</code> basic types),
+because programmers should be aware of precision when using floating-point numbers.
+The default type used for an (untyped) floating-point constant is <code>float64</code>.
+Thus <code>foo</code> <code>:=</code> <code>3.0</code> declares a variable <code>foo</code>
+of type <code>float64</code>.
+For a <code>float32</code> variable initialized by an (untyped) constant, the variable type
+must be specified explicitly in the variable declaration:
+</p>
+
+<pre>
+var foo float32 = 3.0
+</pre>
+
+<p>
+Alternatively, the constant must be given a type with a conversion as in
+<code>foo := float32(3.0)</code>.
 </p>
 
 <h3 id="stack_or_heap">
@@ -1290,14 +1427,20 @@ See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code
 Why doesn't my multi-goroutine program use multiple CPUs?</h3>
 
 <p>
-You must set the <code>GOMAXPROCS</code> shell environment variable
-or use the similarly-named <a href="/pkg/runtime/#GOMAXPROCS"><code>function</code></a>
-of the runtime package to allow the
-run-time support to utilize more than one OS thread.
+The number of CPUs available simultaneously to executing goroutines is
+controlled by the <code>GOMAXPROCS</code> shell environment variable.
+In earlier releases of Go, the default value was 1, but as of Go 1.5 the default
+value is the number of cores available.
+Therefore programs compiled after 1.5 should demonstrate parallel execution
+of multiple goroutines.
+To change the behavior, set the environment variable or use the similarly-named
+<a href="/pkg/runtime/#GOMAXPROCS">function</a>
+of the runtime package to configure the
+run-time support to utilize a different number of threads.
 </p>
 
 <p>
-Programs that perform parallel computation should benefit from an increase in
+Programs that perform parallel computation might benefit from a further increase in
 <code>GOMAXPROCS</code>.
 However, be aware that
 <a href="//blog.golang.org/2013/01/concurrency-is-not-parallelism.html">concurrency
@@ -1319,7 +1462,7 @@ intrinsically parallel.
 <p>
 In practical terms, programs that spend more time
 communicating on channels than doing computation
-will experience performance degradation when using
+may experience performance degradation when using
 multiple OS threads.
 This is because sending data between threads involves switching
 contexts, which has significant cost.
@@ -1330,15 +1473,64 @@ to speed it up.
 </p>
 
 <p>
-Go's goroutine scheduler is not as good as it needs to be. In the future, it
-should recognize such cases and optimize its use of OS threads. For now,
-<code>GOMAXPROCS</code> should be set on a per-application basis.
+Go's goroutine scheduler is not as good as it needs to be, although it
+has improved in recent releases.
+In the future, it may better optimize its use of OS threads.
+For now, if there are performance issues,
+setting <code>GOMAXPROCS</code> on a per-application basis may help.
 </p>
 
 <p>
 For more detail on this topic see the talk entitled,
 <a href="//blog.golang.org/2013/01/concurrency-is-not-parallelism.html">Concurrency
 is not Parallelism</a>.
+
+<h3 id="no_goroutine_id">
+Why is there no goroutine ID?</h3>
+
+<p>
+Goroutines do not have names; they are just anonymous workers.
+They expose no unique identifier, name, or data structure to the programmer.
+Some people are surprised by this, expecting the <code>go</code>
+statement to return some item that can be used to access and control
+the goroutine later.
+</p>
+
+<p>
+The fundamental reason goroutines are anonymous is so that
+the full Go language is available when programming concurrent code.
+By contrast, the usage patterns that develop when threads and goroutines are
+named can restrict what a library using them can do.
+</p>
+
+<p>
+Here is an illustration of the difficulties.
+Once one names a goroutine and constructs a model around
+it, it becomes special, and one is tempted to associate all computation
+with that goroutine, ignoring the possibility
+of using multiple, possibly shared goroutines for the processing.
+If the <code>net/http</code> package associated per-request
+state with a goroutine,
+clients would be unable to use more goroutines
+when serving a request.
+</p>
+
+<p>
+Moreover, experience with libraries such as those for graphics systems
+that require all processing to occur on the "main thread"
+has shown how awkward and limiting the approach can be when
+deployed in a concurrent language.
+The very existence of a special thread or goroutine forces
+the programmer to distort the program to avoid crashes
+and other problems caused by inadvertently operating
+on the wrong thread.
+</p>
+
+<p>
+For those cases where a particular goroutine is truly special,
+the language provides features such as channels that can be
+used in flexible ways to interact with it.
+</p>
 
 <h2 id="Functions_methods">Functions and Methods</h2>
 
@@ -1367,7 +1559,10 @@ there is no useful way for a method call to obtain a pointer.
 Even in cases where the compiler could take the address of a value
 to pass to the method, if the method modifies the value the changes
 will be lost in the caller.
-As a common example, this code:
+As an example, if the <code>Write</code> method of
+<a href="/pkg/bytes/#Buffer"><code>bytes.Buffer</code></a>
+used a value receiver rather than a pointer,
+this code:
 </p>
 
 <pre>
@@ -1461,7 +1656,7 @@ seem odd but works fine in Go:
 Does Go have the <code>?:</code> operator?</h3>
 
 <p>
-There is no ternary form in Go. You may use the following to achieve the same
+There is no ternary testing operation in Go. You may use the following to achieve the same
 result:
 </p>
 
@@ -1553,6 +1748,51 @@ test cases. The standard Go library is full of illustrative examples, such as in
 <a href="/src/fmt/fmt_test.go">the formatting tests for the <code>fmt</code> package</a>.
 </p>
 
+<h3 id="x_in_std">
+Why isn't <i>X</i> in the standard library?</h3>
+
+<p>
+The standard library's purpose is to support the runtime, connect to
+the operating system, and provide key functionality that many Go
+programs require, such as formatted I/O and networking.
+It also contains elements important for web programming, including
+cryptography and support for standards like HTTP, JSON, and XML.
+</p>
+
+<p>
+There is no clear criterion that defines what is included because for
+a long time, this was the <i>only</i> Go library.
+There are criteria that define what gets added today, however.
+</p>
+
+<p>
+New additions to the standard library are rare and the bar for
+inclusion is high.
+Code included in the standard library bears a large ongoing maintenance cost
+(often borne by those other than the original author),
+is subject to the <a href="/doc/go1compat.html">Go 1 compatibility promise</a>
+(blocking fixes to any flaws in the API),
+and is subject to the Go
+<a href="https://golang.org/s/releasesched">release schedule</a>,
+preventing bug fixes from being available to users quickly.
+</p>
+
+<p>
+Most new code should live outside of the standard library and be accessible
+via the <a href="/cmd/go/"><code>go</code> tool</a>'s
+<code>go get</code> command.
+Such code can have its own maintainers, release cycle,
+and compatibility guarantees.
+Users can find packages and read their documentation at
+<a href="https://godoc.org/">godoc.org</a>.
+</p>
+
+<p>
+Although there are pieces in the standard library that don't really belong,
+such as <code>log/syslog</code>, we continue to maintain everything in the
+library because of the Go 1 compatibility promise.
+But we encourage most new code to live elsewhere.
+</p>
 
 <h2 id="Implementation">Implementation</h2>
 
@@ -1561,11 +1801,9 @@ What compiler technology is used to build the compilers?</h3>
 
 <p>
 <code>Gccgo</code> has a front end written in C++, with a recursive descent parser coupled to the
-standard GCC back end. <code>Gc</code> is written in C using
-<code>yacc</code>/<code>bison</code> for the parser.
-Although it's a new program, it fits in the Plan 9 C compiler suite
-(<a href="http://plan9.bell-labs.com/sys/doc/compiler.html">http://plan9.bell-labs.com/sys/doc/compiler.html</a>)
-and uses a variant of the Plan 9 loader to generate ELF/Mach-O/PE binaries.
+standard GCC back end. <code>Gc</code> is written in Go with a recursive descent parser
+and uses a custom loader, also written in Go but
+based on the Plan 9 loader, to generate ELF/Mach-O/PE binaries.
 </p>
 
 <p>
@@ -1574,24 +1812,26 @@ slow to meet our performance goals.
 </p>
 
 <p>
-We also considered writing <code>gc</code>, the original Go compiler, in Go itself but
-elected not to do so because of the difficulties of bootstrapping and
-especially of open source distribution&mdash;you'd need a Go compiler to
-set up a Go environment. <code>Gccgo</code>, which came later, makes it possible to
-consider writing a compiler in Go.
-A plan to do that by machine translation of the existing compiler is under development.
-<a href="http://golang.org/s/go13compiler">A separate document</a>
-explains the reason for this approach.
+The original <code>gc</code>, the Go compiler, was written in C
+because of the difficulties of bootstrapping&mdash;you'd need a Go compiler to
+set up a Go environment.
+But things have advanced and as of Go 1.5 the compiler is written in Go.
+It was converted from C to Go using automatic translation tools, as
+described in <a href="/s/go13compiler">this design document</a>
+and <a href="https://talks.golang.org/2015/gogo.slide#1">a recent talk</a>.
+Thus the compiler is now "self-hosting", which means we must face
+the bootstrapping problem.
+The solution, naturally, is to have a working Go installation already,
+just as one normally has a working C installation in place.
+The story of how to bring up a new Go installation from source
+is described <a href="/s/go15bootstrap">separately</a>.
 </p>
 
 <p>
-That plan aside,
-Go is a
-fine language in which to implement a self-hosting compiler: a native lexer and
-parser are already available in the <a href="/pkg/go/"><code>go</code></a> package
-and a separate type checking
-<a href="http://godoc.org/golang.org/x/tools/go/types">package</a>
-has also been written.
+Go is a fine language in which to implement a Go compiler.
+Although <code>gc</code> does not use them (yet?), a native lexer and
+parser are available in the <a href="/pkg/go/"><code>go</code></a> package
+and there is also a <a href="/pkg/go/types">type checker</a>.
 </p>
 
 <h3 id="How_is_the_run_time_support_implemented">
@@ -1599,15 +1839,11 @@ How is the run-time support implemented?</h3>
 
 <p>
 Again due to bootstrapping issues, the run-time code was originally written mostly in C (with a
-tiny bit of assembler) although much of it has been translated to Go since then
-and one day all of it might be (except for the assembler bits).
+tiny bit of assembler) but it has since been translated to Go
+(except for some assembler bits).
 <code>Gccgo</code>'s run-time support uses <code>glibc</code>.
-<code>Gc</code> uses a custom C library to keep the footprint under
-control; it is
-compiled with a version of the Plan 9 C compiler that supports
-resizable stacks for goroutines.
-The <code>gccgo</code> compiler implements these on Linux only,
-using a technique called segmented stacks,
+The <code>gccgo</code> compiler implements goroutines using
+a technique called segmented stacks,
 supported by recent modifications to the gold linker.
 </p>
 
@@ -1615,8 +1851,8 @@ supported by recent modifications to the gold linker.
 Why is my trivial program such a large binary?</h3>
 
 <p>
-The linkers in the gc tool chain (<code>5l</code>, <code>6l</code>, and <code>8l</code>)
-do static linking.  All Go binaries therefore include the Go
+The linker in the <code>gc</code> toolchain
+creates statically-linked binaries by default.  All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
 </p>
@@ -1626,7 +1862,7 @@ A simple C "hello, world" program compiled and linked statically using gcc
 on Linux is around 750 kB,
 including an implementation of <code>printf</code>.
 An equivalent Go program using <code>fmt.Printf</code>
-is around 1.9 MB, but
+is around 1.5 MB, but
 that includes more powerful run-time support and type information.
 </p>
 
@@ -1695,6 +1931,26 @@ eliminating the unused imports issue in practice.
 This program is easily connected to most editors to run automatically when a Go source file is written.
 </p>
 
+<h3 id="virus">
+Why does my virus-scanning software think my Go distribution or compiled binary is infected?</h3>
+
+<p>
+This is a common occurrence, especially on Windows machines, and is almost always a false positive.
+Commercial virus scanning programs are often confused by the structure of Go binaries, which
+they don't see as often as those compiled from other languages.
+</p>
+
+<p>
+If you've just installed the Go distribution and the system reports it is infected, that's certainly a mistake.
+To be really thorough, you can verify the download by comparing the checksum with those on the
+<a href="https://golang.org/dl/">downloads page</a>.
+</p>
+
+<p>
+In any case, if you believe the report is in error, please report a bug to the supplier of your virus scanner.
+Maybe in time virus scanners can learn to understand Go programs.
+</p>
+
 <h2 id="Performance">Performance</h2>
 
 <h3 id="Why_does_Go_perform_badly_on_benchmark_x">
@@ -1703,15 +1959,16 @@ Why does Go perform badly on benchmark X?</h3>
 <p>
 One of Go's design goals is to approach the performance of C for comparable
 programs, yet on some benchmarks it does quite poorly, including several
-in <a href="/test/bench/shootout/">test/bench/shootout</a>. The slowest depend on libraries
-for which versions of comparable performance are not available in Go.
-For instance, <a href="/test/bench/shootout/pidigits.go">pidigits.go</a>
+in <a href="https://go.googlesource.com/exp/+/master/shootout/">golang.org/x/exp/shootout</a>.
+The slowest depend on libraries for which versions of comparable performance
+are not available in Go.
+For instance, <a href="https://go.googlesource.com/exp/+/master/shootout/pidigits.go">pidigits.go</a>
 depends on a multi-precision math package, and the C
 versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
 written in optimized assembler).
 Benchmarks that depend on regular expressions
-(<a href="/test/bench/shootout/regex-dna.go">regex-dna.go</a>, for instance) are
-essentially comparing Go's native <a href="/pkg/regexp">regexp package</a> to
+(<a href="https://go.googlesource.com/exp/+/master/shootout/regex-dna.go">regex-dna.go</a>,
+for instance) are essentially comparing Go's native <a href="/pkg/regexp">regexp package</a> to
 mature, highly optimized regular expression libraries like PCRE.
 </p>
 
@@ -1719,9 +1976,9 @@ mature, highly optimized regular expression libraries like PCRE.
 Benchmark games are won by extensive tuning and the Go versions of most
 of the benchmarks need attention.  If you measure comparable C
 and Go programs
-(<a href="/test/bench/shootout/reverse-complement.go">reverse-complement.go</a> is one example), you'll see the two
-languages are much closer in raw performance than this suite would
-indicate.
+(<a href="https://go.googlesource.com/exp/+/master/shootout/reverse-complement.go">reverse-complement.go</a>
+is one example), you'll see the two languages are much closer in raw performance
+than this suite would indicate.
 </p>
 
 <p>
@@ -1885,8 +2142,12 @@ simpler because they don't need to specify how memory is managed across them.
 </p>
 
 <p>
-The current implementation is a parallel mark-and-sweep
-collector but a future version might take a different approach.
+The current implementation is a parallel mark-and-sweep collector.
+Recent improvements, documented in
+<a href="/s/go14gc">this design document</a>,
+have introduced bounded pause times and improved the
+parallelism.
+Future versions might attempt new approaches.
 </p>
 
 <p>

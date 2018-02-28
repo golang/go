@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package bufio implements buffered I/O.  It wraps an io.Reader or io.Writer
+// Package bufio implements buffered I/O. It wraps an io.Reader or io.Writer
 // object, creating another object (Reader or Writer) that also implements
 // the interface but provides buffering and some help for textual I/O.
 package bufio
@@ -61,6 +61,9 @@ func NewReaderSize(rd io.Reader, size int) *Reader {
 func NewReader(rd io.Reader) *Reader {
 	return NewReaderSize(rd, defaultBufSize)
 }
+
+// Size returns the size of the underlying buffer in bytes.
+func (r *Reader) Size() int { return len(r.buf) }
 
 // Reset discards any buffered data, resets all state, and switches
 // the buffered reader to read from r.
@@ -124,14 +127,16 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 	if n < 0 {
 		return nil, ErrNegativeCount
 	}
-	if n > len(b.buf) {
-		return nil, ErrBufferFull
-	}
-	// 0 <= n <= len(b.buf)
-	for b.w-b.r < n && b.err == nil {
+
+	for b.w-b.r < n && b.w-b.r < len(b.buf) && b.err == nil {
 		b.fill() // b.w-b.r < len(b.buf) => buffer is not full
 	}
 
+	if n > len(b.buf) {
+		return b.buf[b.r:b.w], ErrBufferFull
+	}
+
+	// 0 <= n <= len(b.buf)
 	var err error
 	if avail := b.w - b.r; avail < n {
 		// not enough data in buffer
@@ -179,7 +184,7 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 
 // Read reads data into p.
 // It returns the number of bytes read into p.
-// It calls Read at most once on the underlying Reader,
+// The bytes are taken from at most one Read on the underlying Reader,
 // hence n may be less than len(p).
 // At EOF, the count will be zero and err will be io.EOF.
 func (b *Reader) Read(p []byte) (n int, err error) {
@@ -204,10 +209,18 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 			}
 			return n, b.readErr()
 		}
-		b.fill() // buffer is empty
-		if b.r == b.w {
+		// One read.
+		// Do not use b.fill, which will loop.
+		b.r = 0
+		b.w = 0
+		n, b.err = b.rd.Read(b.buf)
+		if n < 0 {
+			panic(errNegativeRead)
+		}
+		if n == 0 {
 			return 0, b.readErr()
 		}
+		b.w += n
 	}
 
 	// copy as much as we can
@@ -220,7 +233,7 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 
 // ReadByte reads and returns a single byte.
 // If no byte is available, returns an error.
-func (b *Reader) ReadByte() (c byte, err error) {
+func (b *Reader) ReadByte() (byte, error) {
 	b.lastRuneSize = -1
 	for b.r == b.w {
 		if b.err != nil {
@@ -228,13 +241,13 @@ func (b *Reader) ReadByte() (c byte, err error) {
 		}
 		b.fill() // buffer is empty
 	}
-	c = b.buf[b.r]
+	c := b.buf[b.r]
 	b.r++
 	b.lastByte = int(c)
 	return c, nil
 }
 
-// UnreadByte unreads the last byte.  Only the most recently read byte can be unread.
+// UnreadByte unreads the last byte. Only the most recently read byte can be unread.
 func (b *Reader) UnreadByte() error {
 	if b.lastByte < 0 || b.r == 0 && b.w > 0 {
 		return ErrInvalidUnreadByte
@@ -264,7 +277,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 		return 0, 0, b.readErr()
 	}
 	r, size = rune(b.buf[b.r]), 1
-	if r >= 0x80 {
+	if r >= utf8.RuneSelf {
 		r, size = utf8.DecodeRune(b.buf[b.r:b.w])
 	}
 	b.r += size
@@ -273,7 +286,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 	return r, size, nil
 }
 
-// UnreadRune unreads the last rune.  If the most recent read operation on
+// UnreadRune unreads the last rune. If the most recent read operation on
 // the buffer was not a ReadRune, UnreadRune returns an error.  (In this
 // regard it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
@@ -395,13 +408,12 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
 // For simple uses, a Scanner may be more convenient.
-func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
+func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 	// Use ReadSlice to look for array,
 	// accumulating full buffers.
 	var frag []byte
 	var full [][]byte
-	err = nil
-
+	var err error
 	for {
 		var e error
 		frag, e = b.ReadSlice(delim)
@@ -443,13 +455,13 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
 // ReadString returns err != nil if and only if the returned data does not end in
 // delim.
 // For simple uses, a Scanner may be more convenient.
-func (b *Reader) ReadString(delim byte) (line string, err error) {
+func (b *Reader) ReadString(delim byte) (string, error) {
 	bytes, err := b.ReadBytes(delim)
-	line = string(bytes)
-	return line, err
+	return string(bytes), err
 }
 
 // WriteTo implements io.WriterTo.
+// This may make multiple calls to the Read method of the underlying Reader.
 func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	n, err = b.writeBuf(w)
 	if err != nil {
@@ -505,7 +517,7 @@ func (b *Reader) writeBuf(w io.Writer) (int64, error) {
 
 // Writer implements buffering for an io.Writer object.
 // If an error occurs writing to a Writer, no more data will be
-// accepted and all subsequent writes will return the error.
+// accepted and all subsequent writes, and Flush, will return the error.
 // After all data has been written, the client should call the
 // Flush method to guarantee all data has been forwarded to
 // the underlying io.Writer.
@@ -539,6 +551,9 @@ func NewWriter(w io.Writer) *Writer {
 	return NewWriterSize(w, defaultBufSize)
 }
 
+// Size returns the size of the underlying buffer in bytes.
+func (b *Writer) Size() int { return len(b.buf) }
+
 // Reset discards any unflushed buffered data, clears any error, and
 // resets b to write its output to w.
 func (b *Writer) Reset(w io.Writer) {
@@ -549,11 +564,6 @@ func (b *Writer) Reset(w io.Writer) {
 
 // Flush writes any buffered data to the underlying io.Writer.
 func (b *Writer) Flush() error {
-	err := b.flush()
-	return err
-}
-
-func (b *Writer) flush() error {
 	if b.err != nil {
 		return b.err
 	}
@@ -596,7 +606,7 @@ func (b *Writer) Write(p []byte) (nn int, err error) {
 		} else {
 			n = copy(b.buf[b.n:], p)
 			b.n += n
-			b.flush()
+			b.Flush()
 		}
 		nn += n
 		p = p[n:]
@@ -615,7 +625,7 @@ func (b *Writer) WriteByte(c byte) error {
 	if b.err != nil {
 		return b.err
 	}
-	if b.Available() <= 0 && b.flush() != nil {
+	if b.Available() <= 0 && b.Flush() != nil {
 		return b.err
 	}
 	b.buf[b.n] = c
@@ -638,7 +648,7 @@ func (b *Writer) WriteRune(r rune) (size int, err error) {
 	}
 	n := b.Available()
 	if n < utf8.UTFMax {
-		if b.flush(); b.err != nil {
+		if b.Flush(); b.err != nil {
 			return 0, b.err
 		}
 		n = b.Available()
@@ -663,7 +673,7 @@ func (b *Writer) WriteString(s string) (int, error) {
 		b.n += n
 		nn += n
 		s = s[n:]
-		b.flush()
+		b.Flush()
 	}
 	if b.err != nil {
 		return nn, b.err
@@ -684,7 +694,7 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 	var m int
 	for {
 		if b.Available() == 0 {
-			if err1 := b.flush(); err1 != nil {
+			if err1 := b.Flush(); err1 != nil {
 				return n, err1
 			}
 		}
@@ -706,9 +716,9 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 	}
 	if err == io.EOF {
-		// If we filled the buffer exactly, flush pre-emptively.
+		// If we filled the buffer exactly, flush preemptively.
 		if b.Available() == 0 {
-			err = b.flush()
+			err = b.Flush()
 		} else {
 			err = nil
 		}

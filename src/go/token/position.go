@@ -24,7 +24,7 @@ type Position struct {
 	Column   int    // column number, starting at 1 (byte count)
 }
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 // String returns a string in one of several forms:
@@ -71,13 +71,13 @@ func (pos Position) String() string {
 type Pos int
 
 // The zero value for Pos is NoPos; there is no file and line information
-// associated with it, and NoPos().IsValid() is false. NoPos is always
+// associated with it, and NoPos.IsValid() is false. NoPos is always
 // smaller than any other Pos value. The corresponding Position value
 // for NoPos is the zero value for Position.
 //
 const NoPos Pos = 0
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (p Pos) IsValid() bool {
 	return p != NoPos
 }
@@ -94,7 +94,8 @@ type File struct {
 	base int    // Pos value range for this file is [base...base+size]
 	size int    // file size as provided to AddFile
 
-	// lines and infos are protected by set.mutex
+	// lines and infos are protected by mutex
+	mutex sync.Mutex
 	lines []int // lines contains the offset of the first character for each line (the first entry is always 0)
 	infos []lineInfo
 }
@@ -116,9 +117,9 @@ func (f *File) Size() int {
 
 // LineCount returns the number of lines in file f.
 func (f *File) LineCount() int {
-	f.set.mutex.RLock()
+	f.mutex.Lock()
 	n := len(f.lines)
-	f.set.mutex.RUnlock()
+	f.mutex.Unlock()
 	return n
 }
 
@@ -127,11 +128,11 @@ func (f *File) LineCount() int {
 // and smaller than the file size; otherwise the line offset is ignored.
 //
 func (f *File) AddLine(offset int) {
-	f.set.mutex.Lock()
+	f.mutex.Lock()
 	if i := len(f.lines); (i == 0 || f.lines[i-1] < offset) && offset < f.size {
 		f.lines = append(f.lines, offset)
 	}
-	f.set.mutex.Unlock()
+	f.mutex.Unlock()
 }
 
 // MergeLine merges a line with the following line. It is akin to replacing
@@ -143,8 +144,8 @@ func (f *File) MergeLine(line int) {
 	if line <= 0 {
 		panic("illegal line number (line numbering starts at 1)")
 	}
-	f.set.mutex.Lock()
-	defer f.set.mutex.Unlock()
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
 	if line >= len(f.lines) {
 		panic("illegal line number")
 	}
@@ -157,13 +158,14 @@ func (f *File) MergeLine(line int) {
 	f.lines = f.lines[:len(f.lines)-1]
 }
 
-// SetLines sets the line offsets for a file and returns true if successful.
+// SetLines sets the line offsets for a file and reports whether it succeeded.
 // The line offsets are the offsets of the first character of each line;
 // for instance for the content "ab\nc\n" the line offsets are {0, 3}.
 // An empty file has an empty line offset table.
 // Each line offset must be larger than the offset for the previous line
 // and smaller than the file size; otherwise SetLines fails and returns
 // false.
+// Callers must not mutate the provided slice after SetLines returns.
 //
 func (f *File) SetLines(lines []int) bool {
 	// verify validity of lines table
@@ -175,9 +177,9 @@ func (f *File) SetLines(lines []int) bool {
 	}
 
 	// set lines table
-	f.set.mutex.Lock()
+	f.mutex.Lock()
 	f.lines = lines
-	f.set.mutex.Unlock()
+	f.mutex.Unlock()
 	return true
 }
 
@@ -197,9 +199,9 @@ func (f *File) SetLinesForContent(content []byte) {
 	}
 
 	// set lines table
-	f.set.mutex.Lock()
+	f.mutex.Lock()
 	f.lines = lines
-	f.set.mutex.Unlock()
+	f.mutex.Unlock()
 }
 
 // A lineInfo object describes alternative file and line number
@@ -221,11 +223,11 @@ type lineInfo struct {
 // information for //line filename:line comments in source files.
 //
 func (f *File) AddLineInfo(offset int, filename string, line int) {
-	f.set.mutex.Lock()
+	f.mutex.Lock()
 	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
 		f.infos = append(f.infos, lineInfo{offset, filename, line})
 	}
-	f.set.mutex.Unlock()
+	f.mutex.Unlock()
 }
 
 // Pos returns the Pos value for the given file offset;
@@ -266,6 +268,8 @@ func searchLineInfos(a []lineInfo, x int) int {
 // possibly adjusted by //line comments; otherwise those comments are ignored.
 //
 func (f *File) unpack(offset int, adjusted bool) (filename string, line, column int) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
 	filename = f.name
 	if i := searchInts(f.lines, offset); i >= 0 {
 		line, column = i+1, offset-f.lines[i]+1
@@ -370,7 +374,7 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 		panic("illegal base or size")
 	}
 	// base >= s.base && size >= 0
-	f := &File{s, filename, base, size, []int{0}, nil}
+	f := &File{set: s, name: filename, base: base, size: size, lines: []int{0}}
 	base += size + 1 // +1 because EOF also has a position
 	if base < 0 {
 		panic("token.Pos offset overflow (> 2G of source code in file set)")
@@ -445,7 +449,7 @@ func (s *FileSet) File(p Pos) (f *File) {
 func (s *FileSet) PositionFor(p Pos, adjusted bool) (pos Position) {
 	if p != NoPos {
 		if f := s.file(p); f != nil {
-			pos = f.position(p, adjusted)
+			return f.position(p, adjusted)
 		}
 	}
 	return

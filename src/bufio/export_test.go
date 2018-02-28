@@ -11,6 +11,8 @@ import (
 
 var IsSpace = isSpace
 
+const DefaultBufSize = defaultBufSize
+
 func (s *Scanner) MaxTokenSize(n int) {
 	if n < utf8.UTFMax || n > 1e9 {
 		panic("bad max token size")

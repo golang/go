@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@ package regexp
 import (
 	"reflect"
 	"regexp/syntax"
+	"strings"
 	"testing"
 )
 
@@ -133,54 +134,47 @@ func TestMergeRuneSet(t *testing.T) {
 	}
 }
 
-const noStr = `!`
-
 var onePass = &onePassProg{}
 
 var onePassTests = []struct {
 	re      string
 	onePass *onePassProg
-	prog    string
 }{
-	{`^(?:a|(?:a*))$`, notOnePass, noStr},
-	{`^(?:(a)|(?:a*))$`, notOnePass, noStr},
-	{`^(?:(?:(?:.(?:$))?))$`, onePass, `a`},
-	{`^abcd$`, onePass, `abcd`},
-	{`^abcd$`, onePass, `abcde`},
-	{`^(?:(?:a{0,})*?)$`, onePass, `a`},
-	{`^(?:(?:a+)*)$`, onePass, ``},
-	{`^(?:(?:a|(?:aa)))$`, onePass, ``},
-	{`^(?:[^\s\S])$`, onePass, ``},
-	{`^(?:(?:a{3,4}){0,})$`, notOnePass, `aaaaaa`},
-	{`^(?:(?:a+)*)$`, onePass, `a`},
-	{`^(?:(?:(?:a*)+))$`, onePass, noStr},
-	{`^(?:(?:a+)*)$`, onePass, ``},
-	{`^[a-c]+$`, onePass, `abc`},
-	{`^[a-c]*$`, onePass, `abcdabc`},
-	{`^(?:a*)$`, onePass, `aaaaaaa`},
-	{`^(?:(?:aa)|a)$`, onePass, `a`},
-	{`^[a-c]*`, notOnePass, `abcdabc`},
-	{`^[a-c]*$`, onePass, `abc`},
-	{`^...$`, onePass, ``},
-	{`^(?:a|(?:aa))$`, onePass, `a`},
-	{`^[a-c]*`, notOnePass, `abcabc`},
-	{`^a((b))c$`, onePass, noStr},
-	{`^a.[l-nA-Cg-j]?e$`, onePass, noStr},
-	{`^a((b))$`, onePass, noStr},
-	{`^a(?:(b)|(c))c$`, onePass, noStr},
-	{`^a(?:(b*)|(c))c$`, notOnePass, noStr},
-	{`^a(?:b|c)$`, onePass, noStr},
-	{`^a(?:b?|c)$`, onePass, noStr},
-	{`^a(?:b?|c?)$`, notOnePass, noStr},
-	{`^a(?:b?|c+)$`, onePass, noStr},
-	{`^a(?:b+|(bc))d$`, notOnePass, noStr},
-	{`^a(?:bc)+$`, onePass, noStr},
-	{`^a(?:[bcd])+$`, onePass, noStr},
-	{`^a((?:[bcd])+)$`, onePass, noStr},
-	{`^a(:?b|c)*d$`, onePass, `abbbccbbcbbd"`},
-	{`^.bc(d|e)*$`, onePass, `abcddddddeeeededd`},
-	{`^(?:(?:aa)|.)$`, notOnePass, `a`},
-	{`^(?:(?:a{1,2}){1,2})$`, notOnePass, `aaaa`},
+	{`^(?:a|(?:a*))$`, notOnePass},
+	{`^(?:(a)|(?:a*))$`, notOnePass},
+	{`^(?:(?:(?:.(?:$))?))$`, onePass},
+	{`^abcd$`, onePass},
+	{`^(?:(?:a{0,})*?)$`, onePass},
+	{`^(?:(?:a+)*)$`, onePass},
+	{`^(?:(?:a|(?:aa)))$`, onePass},
+	{`^(?:[^\s\S])$`, onePass},
+	{`^(?:(?:a{3,4}){0,})$`, notOnePass},
+	{`^(?:(?:(?:a*)+))$`, onePass},
+	{`^[a-c]+$`, onePass},
+	{`^[a-c]*$`, onePass},
+	{`^(?:a*)$`, onePass},
+	{`^(?:(?:aa)|a)$`, onePass},
+	{`^[a-c]*`, notOnePass},
+	{`^...$`, onePass},
+	{`^(?:a|(?:aa))$`, onePass},
+	{`^a((b))c$`, onePass},
+	{`^a.[l-nA-Cg-j]?e$`, onePass},
+	{`^a((b))$`, onePass},
+	{`^a(?:(b)|(c))c$`, onePass},
+	{`^a(?:(b*)|(c))c$`, notOnePass},
+	{`^a(?:b|c)$`, onePass},
+	{`^a(?:b?|c)$`, onePass},
+	{`^a(?:b?|c?)$`, notOnePass},
+	{`^a(?:b?|c+)$`, onePass},
+	{`^a(?:b+|(bc))d$`, notOnePass},
+	{`^a(?:bc)+$`, onePass},
+	{`^a(?:[bcd])+$`, onePass},
+	{`^a((?:[bcd])+)$`, onePass},
+	{`^a(:?b|c)*d$`, onePass},
+	{`^.bc(d|e)*$`, onePass},
+	{`^(?:(?:aa)|.)$`, notOnePass},
+	{`^(?:(?:a{1,2}){1,2})$`, notOnePass},
+	{`^l` + strings.Repeat("o", 2<<8) + `ng$`, onePass},
 }
 
 func TestCompileOnePass(t *testing.T) {
@@ -204,5 +198,50 @@ func TestCompileOnePass(t *testing.T) {
 		if (onePass == notOnePass) != (test.onePass == notOnePass) {
 			t.Errorf("CompileOnePass(%q) got %v, expected %v", test.re, onePass, test.onePass)
 		}
+	}
+}
+
+// TODO(cespare): Unify with onePassTests and rationalize one-pass test cases.
+var onePassTests1 = []struct {
+	re    string
+	match string
+}{
+	{`^a(/b+(#c+)*)*$`, "a/b#c"}, // golang.org/issue/11905
+}
+
+func TestRunOnePass(t *testing.T) {
+	for _, test := range onePassTests1 {
+		re, err := Compile(test.re)
+		if err != nil {
+			t.Errorf("Compile(%q): got err: %s", test.re, err)
+			continue
+		}
+		if re.onepass == notOnePass {
+			t.Errorf("Compile(%q): got notOnePass, want one-pass", test.re)
+			continue
+		}
+		if !re.MatchString(test.match) {
+			t.Errorf("onepass %q did not match %q", test.re, test.match)
+		}
+	}
+}
+
+func BenchmarkCompileOnepass(b *testing.B) {
+	for _, test := range onePassTests {
+		if test.onePass == notOnePass {
+			continue
+		}
+		name := test.re
+		if len(name) > 20 {
+			name = name[:20] + "..."
+		}
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if _, err := Compile(test.re); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

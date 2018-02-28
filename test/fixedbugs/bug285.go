@@ -1,12 +1,12 @@
 // run
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Test for issue 778: Map key values that are assignment
 // compatible with the map key type must be accepted according
-// to the spec: http://golang.org/doc/go_spec.html#Indexes .
+// to the spec: https://golang.org/doc/go_spec.html#Indexes .
 
 package main
 

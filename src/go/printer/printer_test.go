@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -196,12 +197,17 @@ var data = []entry{
 }
 
 func TestFiles(t *testing.T) {
+	t.Parallel()
 	for _, e := range data {
 		source := filepath.Join(dataDir, e.source)
 		golden := filepath.Join(dataDir, e.golden)
-		check(t, source, golden, e.mode)
-		// TODO(gri) check that golden is idempotent
-		//check(t, golden, golden, e.mode)
+		mode := e.mode
+		t.Run(e.source, func(t *testing.T) {
+			t.Parallel()
+			check(t, source, golden, mode)
+			// TODO(gri) check that golden is idempotent
+			//check(t, golden, golden, e.mode)
+		})
 	}
 }
 
@@ -294,6 +300,7 @@ func testComment(t *testing.T, f *ast.File, srclen int, comment *ast.Comment) {
 // even if the position information of comments introducing newlines
 // is incorrect.
 func TestBadComments(t *testing.T) {
+	t.Parallel()
 	const src = `
 // first comment - text and position changed by test
 package p
@@ -356,7 +363,7 @@ func identCount(f *ast.File) int {
 	return n
 }
 
-// Verify that the SourcePos mode emits correct //line comments
+// Verify that the SourcePos mode emits correct //line directives
 // by testing that position information for matching identifiers
 // is maintained.
 func TestSourcePos(t *testing.T) {
@@ -387,7 +394,7 @@ func (t *t) foo(a, b, c int) int {
 	}
 
 	// parse pretty printed original
-	// (//line comments must be interpreted even w/o parser.ParseComments set)
+	// (//line directives must be interpreted even w/o parser.ParseComments set)
 	f2, err := parser.ParseFile(fset, "", buf.Bytes(), 0)
 	if err != nil {
 		t.Fatalf("%s\n%s", err, buf.Bytes())
@@ -424,6 +431,53 @@ func (t *t) foo(a, b, c int) int {
 
 	if t.Failed() {
 		t.Logf("\n%s", buf.Bytes())
+	}
+}
+
+// Verify that the SourcePos mode doesn't emit unnecessary //line directives
+// before empty lines.
+func TestIssue5945(t *testing.T) {
+	const orig = `
+package p   // line 2
+func f() {} // line 3
+
+var x, y, z int
+
+
+func g() { // line 8
+}
+`
+
+	const want = `//line src.go:2
+package p
+
+//line src.go:3
+func f() {}
+
+var x, y, z int
+
+//line src.go:8
+func g() {
+}
+`
+
+	// parse original
+	f1, err := parser.ParseFile(fset, "src.go", orig, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// pretty-print original
+	var buf bytes.Buffer
+	err = (&Config{Mode: UseSpaces | SourcePos, Tabwidth: 8}).Fprint(&buf, fset, f1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+
+	// compare original with desired output
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s\n", got, want)
 	}
 }
 
@@ -480,6 +534,7 @@ func TestStmtLists(t *testing.T) {
 }
 
 func TestBaseIndent(t *testing.T) {
+	t.Parallel()
 	// The testfile must not contain multi-line raw strings since those
 	// are not indented (because their values must not change) and make
 	// this test fail.
@@ -494,28 +549,31 @@ func TestBaseIndent(t *testing.T) {
 		panic(err) // error in test
 	}
 
-	var buf bytes.Buffer
 	for indent := 0; indent < 4; indent++ {
-		buf.Reset()
-		(&Config{Tabwidth: tabwidth, Indent: indent}).Fprint(&buf, fset, file)
-		// all code must be indented by at least 'indent' tabs
-		lines := bytes.Split(buf.Bytes(), []byte{'\n'})
-		for i, line := range lines {
-			if len(line) == 0 {
-				continue // empty lines don't have indentation
-			}
-			n := 0
-			for j, b := range line {
-				if b != '\t' {
-					// end of indentation
-					n = j
-					break
+		indent := indent
+		t.Run(fmt.Sprint(indent), func(t *testing.T) {
+			t.Parallel()
+			var buf bytes.Buffer
+			(&Config{Tabwidth: tabwidth, Indent: indent}).Fprint(&buf, fset, file)
+			// all code must be indented by at least 'indent' tabs
+			lines := bytes.Split(buf.Bytes(), []byte{'\n'})
+			for i, line := range lines {
+				if len(line) == 0 {
+					continue // empty lines don't have indentation
+				}
+				n := 0
+				for j, b := range line {
+					if b != '\t' {
+						// end of indentation
+						n = j
+						break
+					}
+				}
+				if n < indent {
+					t.Errorf("line %d: got only %d tabs; want at least %d: %q", i, n, indent, line)
 				}
 			}
-			if n < indent {
-				t.Errorf("line %d: got only %d tabs; want at least %d: %q", i, n, indent, line)
-			}
-		}
+		})
 	}
 }
 
@@ -548,6 +606,47 @@ func f()
 	}
 }
 
+type limitWriter struct {
+	remaining int
+	errCount  int
+}
+
+func (l *limitWriter) Write(buf []byte) (n int, err error) {
+	n = len(buf)
+	if n >= l.remaining {
+		n = l.remaining
+		err = io.EOF
+		l.errCount++
+	}
+	l.remaining -= n
+	return n, err
+}
+
+// Test whether the printer stops writing after the first error
+func TestWriteErrors(t *testing.T) {
+	t.Parallel()
+	const filename = "printer.go"
+	src, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err) // error in test
+	}
+	file, err := parser.ParseFile(fset, filename, src, 0)
+	if err != nil {
+		panic(err) // error in test
+	}
+	for i := 0; i < 20; i++ {
+		lw := &limitWriter{remaining: i}
+		err := (&Config{Mode: RawFormat}).Fprint(lw, fset, file)
+		if lw.errCount > 1 {
+			t.Fatal("Writes continued after first error returned")
+		}
+		// We expect errCount be 1 iff err is set
+		if (lw.errCount != 0) != (err != nil) {
+			t.Fatal("Expected err when errCount != 0")
+		}
+	}
+}
+
 // TextX is a skeleton test that can be filled in for debugging one-off cases.
 // Do not remove.
 func TestX(t *testing.T) {
@@ -558,5 +657,79 @@ func _() {}
 	_, err := format([]byte(src), 0)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestCommentedNode(t *testing.T) {
+	const (
+		input = `package main
+
+func foo() {
+	// comment inside func
+}
+
+// leading comment
+type bar int // comment2
+
+`
+
+		foo = `func foo() {
+	// comment inside func
+}`
+
+		bar = `// leading comment
+type bar int	// comment2
+`
+	)
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "input.go", input, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+
+	err = Fprint(&buf, fset, &CommentedNode{Node: f.Decls[0], Comments: f.Comments})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if buf.String() != foo {
+		t.Errorf("got %q, want %q", buf.String(), foo)
+	}
+
+	buf.Reset()
+
+	err = Fprint(&buf, fset, &CommentedNode{Node: f.Decls[1], Comments: f.Comments})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if buf.String() != bar {
+		t.Errorf("got %q, want %q", buf.String(), bar)
+	}
+}
+
+func TestIssue11151(t *testing.T) {
+	const src = "package p\t/*\r/1\r*\r/2*\r\r\r\r/3*\r\r+\r\r/4*/\n"
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	Fprint(&buf, fset, f)
+	got := buf.String()
+	const want = "package p\t/*/1*\r/2*\r/3*+/4*/\n" // \r following opening /* should be stripped
+	if got != want {
+		t.Errorf("\ngot : %q\nwant: %q", got, want)
+	}
+
+	// the resulting program must be valid
+	_, err = parser.ParseFile(fset, "", got, 0)
+	if err != nil {
+		t.Errorf("%v\norig: %q\ngot : %q", err, src, got)
 	}
 }

@@ -214,7 +214,7 @@ func TestFileSetCacheUnlikely(t *testing.T) {
 	}
 }
 
-// issue 4345. Test concurrent use of FileSet.Pos does not trigger a
+// issue 4345. Test that concurrent use of FileSet.Pos does not trigger a
 // race in the FileSet position cache.
 func TestFileSetRace(t *testing.T) {
 	fset := NewFileSet()
@@ -235,6 +235,35 @@ func TestFileSetRace(t *testing.T) {
 		}()
 	}
 	stop.Wait()
+}
+
+// issue 16548. Test that concurrent use of File.AddLine and FileSet.PositionFor
+// does not trigger a race in the FileSet position cache.
+func TestFileSetRace2(t *testing.T) {
+	const N = 1e3
+	var (
+		fset = NewFileSet()
+		file = fset.AddFile("", -1, N)
+		ch   = make(chan int, 2)
+	)
+
+	go func() {
+		for i := 0; i < N; i++ {
+			file.AddLine(i)
+		}
+		ch <- 1
+	}()
+
+	go func() {
+		pos := file.Pos(0)
+		for i := 0; i < N; i++ {
+			fset.PositionFor(pos, false)
+		}
+		ch <- 1
+	}()
+
+	<-ch
+	<-ch
 }
 
 func TestPositionFor(t *testing.T) {

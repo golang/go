@@ -10,31 +10,78 @@ usr	src=../misc/nacl/testdata
 go	src=..
 	src
 		cmd
+			api
+				testdata
+					+
 			asm
 				internal
 					asm
 						testdata
 							+
+			compile
+				internal
+					syntax
+						parser.go
+			cover
+				testdata
+					+
+			doc
+				main.go
+				pkg.go
+				doc_test.go
+				testdata
+					+
 			internal
 				objfile
 					objfile.go
-				rsc.io
-					arm
-						armasm
-							testdata
-								+
-					x86
-						x86asm
-							testdata
-								+
+				buildid
+					testdata
+						+
 			gofmt
 				gofmt.go
 				gofmt_test.go
 				testdata
 					+
-			link
-				testdata
-					+
+			vendor
+				github.com
+					google
+						pprof
+							internal
+								driver
+									testdata
+										+
+								graph
+									testdata
+										+
+								report
+									testdata
+										+
+							profile
+								testdata
+									+
+					ianlancetaylor
+						demangle
+							testdata
+								+
+				golang.org
+					x
+						arch
+							arm
+								armasm
+									testdata
+										+
+							arm64
+								arm64asm
+									testdata
+										+
+							x86
+								x86asm
+									testdata
+										+
+							ppc64
+								ppc64asm
+									testdata
+										+
 		archive
 			tar
 				testdata
@@ -47,6 +94,8 @@ go	src=..
 				testdata
 					+
 			flate
+				testdata
+					+
 			gzip
 				testdata
 					+
@@ -98,6 +147,10 @@ go	src=..
 			png
 				testdata
 					+
+		internal
+			trace
+				testdata
+					+
 		io
 			+
 		mime
@@ -119,6 +172,8 @@ go	src=..
 		regexp
 			testdata
 				+
+		runtime
+			textflag.h
 		strconv
 			testdata
 				+

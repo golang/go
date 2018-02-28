@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package debug
+package debug_test
 
 import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	. "runtime/debug"
 	"testing"
 )
 
@@ -37,7 +38,7 @@ type Obj struct {
 }
 
 func objfin(x *Obj) {
-	println("finalized", x)
+	//println("finalized", x)
 }
 
 func TestWriteHeapDumpFinalizers(t *testing.T) {

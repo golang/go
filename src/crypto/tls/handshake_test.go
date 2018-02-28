@@ -13,9 +13,11 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 )
 
 // TLS reference tests run a connection against a reference implementation
@@ -30,12 +32,57 @@ import (
 // implementation.
 //
 // Tests can be updated by running them with the -update flag. This will cause
-// the test files. Generally one should combine the -update flag with -test.run
-// to updated a specific test. Since the reference implementation will always
-// generate fresh random numbers, large parts of the reference connection will
-// always change.
+// the test files to be regenerated. Generally one should combine the -update
+// flag with -test.run to updated a specific test. Since the reference
+// implementation will always generate fresh random numbers, large parts of
+// the reference connection will always change.
 
-var update = flag.Bool("update", false, "update golden files on disk")
+var (
+	update = flag.Bool("update", false, "update golden files on disk")
+
+	opensslVersionTestOnce sync.Once
+	opensslVersionTestErr  error
+)
+
+func checkOpenSSLVersion(t *testing.T) {
+	opensslVersionTestOnce.Do(testOpenSSLVersion)
+	if opensslVersionTestErr != nil {
+		t.Fatal(opensslVersionTestErr)
+	}
+}
+
+func testOpenSSLVersion() {
+	// This test ensures that the version of OpenSSL looks reasonable
+	// before updating the test data.
+
+	if !*update {
+		return
+	}
+
+	openssl := exec.Command("openssl", "version")
+	output, err := openssl.CombinedOutput()
+	if err != nil {
+		opensslVersionTestErr = err
+		return
+	}
+
+	version := string(output)
+	if strings.HasPrefix(version, "OpenSSL 1.1.0") {
+		return
+	}
+
+	println("***********************************************")
+	println("")
+	println("You need to build OpenSSL 1.1.0 from source in order")
+	println("to update the test data.")
+	println("")
+	println("Configure it with:")
+	println("./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl3-method -static linux-x86_64")
+	println("and then add the apps/ directory at the front of your PATH.")
+	println("***********************************************")
+
+	opensslVersionTestErr = errors.New("version of OpenSSL does not appear to be suitable for updating test data")
+}
 
 // recordingConn is a net.Conn that records the traffic that passes through it.
 // WriteTo can be used to produce output that can be later be loaded with
@@ -88,21 +135,33 @@ func (r *recordingConn) Write(b []byte) (n int, err error) {
 }
 
 // WriteTo writes Go source code to w that contains the recorded traffic.
-func (r *recordingConn) WriteTo(w io.Writer) {
+func (r *recordingConn) WriteTo(w io.Writer) (int64, error) {
 	// TLS always starts with a client to server flow.
 	clientToServer := true
-
+	var written int64
 	for i, flow := range r.flows {
 		source, dest := "client", "server"
 		if !clientToServer {
 			source, dest = dest, source
 		}
-		fmt.Fprintf(w, ">>> Flow %d (%s to %s)\n", i+1, source, dest)
+		n, err := fmt.Fprintf(w, ">>> Flow %d (%s to %s)\n", i+1, source, dest)
+		written += int64(n)
+		if err != nil {
+			return written, err
+		}
 		dumper := hex.Dumper(w)
-		dumper.Write(flow)
-		dumper.Close()
+		n, err = dumper.Write(flow)
+		written += int64(n)
+		if err != nil {
+			return written, err
+		}
+		err = dumper.Close()
+		if err != nil {
+			return written, err
+		}
 		clientToServer = !clientToServer
 	}
+	return written, nil
 }
 
 func parseTestData(r io.Reader) (flows [][]byte, err error) {

@@ -6,12 +6,11 @@ package big
 
 import (
 	"bytes"
-	"encoding/gob"
 	"encoding/hex"
-	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"math/rand"
+	"strconv"
+	"strings"
 	"testing"
 	"testing/quick"
 )
@@ -219,11 +218,50 @@ func TestMulRangeZ(t *testing.T) {
 	}
 }
 
+func TestBinomial(t *testing.T) {
+	var z Int
+	for _, test := range []struct {
+		n, k int64
+		want string
+	}{
+		{0, 0, "1"},
+		{0, 1, "0"},
+		{1, 0, "1"},
+		{1, 1, "1"},
+		{1, 10, "0"},
+		{4, 0, "1"},
+		{4, 1, "4"},
+		{4, 2, "6"},
+		{4, 3, "4"},
+		{4, 4, "1"},
+		{10, 1, "10"},
+		{10, 9, "10"},
+		{10, 5, "252"},
+		{11, 5, "462"},
+		{11, 6, "462"},
+		{100, 10, "17310309456440"},
+		{100, 90, "17310309456440"},
+		{1000, 10, "263409560461970212832400"},
+		{1000, 990, "263409560461970212832400"},
+	} {
+		if got := z.Binomial(test.n, test.k).String(); got != test.want {
+			t.Errorf("Binomial(%d, %d) = %s; want %s", test.n, test.k, got, test.want)
+		}
+	}
+}
+
+func BenchmarkBinomial(b *testing.B) {
+	var z Int
+	for i := b.N - 1; i >= 0; i-- {
+		z.Binomial(1000, 990)
+	}
+}
+
 // Examples from the Go Language Spec, section "Arithmetic operators"
 var divisionSignsTests = []struct {
 	x, y int64
 	q, r int64 // T-division
-	d, m int64 // Euclidian division
+	d, m int64 // Euclidean division
 }{
 	{5, 3, 1, 2, 1, 2},
 	{-5, 3, -1, -2, -2, 1},
@@ -290,15 +328,6 @@ func TestDivisionSigns(t *testing.T) {
 	}
 }
 
-var bitsTests = []nat{
-	nil,
-	{0},
-	{1},
-	{0, 1, 2, 3, 4},
-	{4, 3, 2, 1, 0},
-	{4, 3, 2, 1, 0, 0, 0, 0},
-}
-
 func norm(x nat) nat {
 	i := len(x)
 	for i > 0 && x[i-1] == 0 {
@@ -308,7 +337,14 @@ func norm(x nat) nat {
 }
 
 func TestBits(t *testing.T) {
-	for _, test := range bitsTests {
+	for _, test := range []nat{
+		nil,
+		{0},
+		{1},
+		{0, 1, 2, 3, 4},
+		{4, 3, 2, 1, 0},
+		{4, 3, 2, 1, 0, 0, 0, 0},
+	} {
 		var z Int
 		z.neg = true
 		got := z.SetBits(test)
@@ -318,7 +354,7 @@ func TestBits(t *testing.T) {
 		}
 
 		if got.neg {
-			t.Errorf("SetBits(%v): got negative result")
+			t.Errorf("SetBits(%v): got negative result", test)
 		}
 
 		bits := nat(z.Bits())
@@ -350,12 +386,17 @@ func TestSetBytes(t *testing.T) {
 }
 
 func checkBytes(b []byte) bool {
+	// trim leading zero bytes since Bytes() won't return them
+	// (was issue 12231)
+	for len(b) > 0 && b[0] == 0 {
+		b = b[1:]
+	}
 	b2 := new(Int).SetBytes(b).Bytes()
 	return bytes.Equal(b, b2)
 }
 
 func TestBytes(t *testing.T) {
-	if err := quick.Check(checkSetBytes, nil); err != nil {
+	if err := quick.Check(checkBytes, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -439,6 +480,18 @@ func TestQuoStepD6(t *testing.T) {
 	}
 }
 
+func BenchmarkQuoRem(b *testing.B) {
+	x, _ := new(Int).SetString("153980389784927331788354528594524332344709972855165340650588877572729725338415474372475094155672066328274535240275856844648695200875763869073572078279316458648124537905600131008790701752441155668003033945258023841165089852359980273279085783159654751552359397986180318708491098942831252291841441726305535546071", 0)
+	y, _ := new(Int).SetString("7746362281539803897849273317883545285945243323447099728551653406505888775727297253384154743724750941556720663282745352402758568446486952008757638690735720782793164586481245379056001310087907017524411556680030339452580238411650898523599802732790857831596547515523593979861803187084910989428312522918414417263055355460715745539358014631136245887418412633787074173796862711588221766398229333338511838891484974940633857861775630560092874987828057333663969469797013996401149696897591265769095952887917296740109742927689053276850469671231961384715398038978492733178835452859452433234470997285516534065058887757272972533841547437247509415567206632827453524027585684464869520087576386907357207827931645864812453790560013100879070175244115566800303394525802384116508985235998027327908578315965475155235939798618031870849109894283125229184144172630553554607112725169432413343763989564437170644270643461665184965150423819594083121075825", 0)
+	q := new(Int)
+	r := new(Int)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		q.QuoRem(y, x, r)
+	}
+}
+
 var bitLenTests = []struct {
 	in  string
 	out int
@@ -488,6 +541,7 @@ var expTests = []struct {
 	{"1234", "-1", "1", "0"},
 
 	// misc
+	{"5", "1", "3", "2"},
 	{"5", "-7", "", "1"},
 	{"-5", "-7", "", "1"},
 	{"5", "0", "", "1"},
@@ -504,6 +558,9 @@ var expTests = []struct {
 	{"0x8000000000000000", "1000", "6719", "1603"},
 	{"0x8000000000000000", "1000000", "6719", "3199"},
 	{"0x8000000000000000", "-1000000", "6719", "1"},
+
+	{"0xffffffffffffffffffffffffffffffff", "0x12345678123456781234567812345678123456789", "0x01112222333344445555666677778889", "0x36168FA1DB3AAE6C8CE647E137F97A"},
+
 	{
 		"2938462938472983472983659726349017249287491026512746239764525612965293865296239471239874193284792387498274256129746192347",
 		"298472983472983471903246121093472394872319615612417471234712061",
@@ -512,10 +569,35 @@ var expTests = []struct {
 	},
 	// test case for issue 8822
 	{
+		"11001289118363089646017359372117963499250546375269047542777928006103246876688756735760905680604646624353196869572752623285140408755420374049317646428185270079555372763503115646054602867593662923894140940837479507194934267532831694565516466765025434902348314525627418515646588160955862839022051353653052947073136084780742729727874803457643848197499548297570026926927502505634297079527299004267769780768565695459945235586892627059178884998772989397505061206395455591503771677500931269477503508150175717121828518985901959919560700853226255420793148986854391552859459511723547532575574664944815966793196961286234040892865",
+		"0xB08FFB20760FFED58FADA86DFEF71AD72AA0FA763219618FE022C197E54708BB1191C66470250FCE8879487507CEE41381CA4D932F81C2B3F1AB20B539D50DCD",
+		"0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF73",
+		"21484252197776302499639938883777710321993113097987201050501182909581359357618579566746556372589385361683610524730509041328855066514963385522570894839035884713051640171474186548713546686476761306436434146475140156284389181808675016576845833340494848283681088886584219750554408060556769486628029028720727393293111678826356480455433909233520504112074401376133077150471237549474149190242010469539006449596611576612573955754349042329130631128234637924786466585703488460540228477440853493392086251021228087076124706778899179648655221663765993962724699135217212118535057766739392069738618682722216712319320435674779146070442",
+	},
+	{
 		"-0x1BCE04427D8032319A89E5C4136456671AC620883F2C4139E57F91307C485AD2D6204F4F87A58262652DB5DBBAC72B0613E51B835E7153BEC6068F5C8D696B74DBD18FEC316AEF73985CF0475663208EB46B4F17DD9DA55367B03323E5491A70997B90C059FB34809E6EE55BCFBD5F2F52233BFE62E6AA9E4E26A1D4C2439883D14F2633D55D8AA66A1ACD5595E778AC3A280517F1157989E70C1A437B849F1877B779CC3CDDEDE2DAA6594A6C66D181A00A5F777EE60596D8773998F6E988DEAE4CCA60E4DDCF9590543C89F74F603259FCAD71660D30294FBBE6490300F78A9D63FA660DC9417B8B9DDA28BEB3977B621B988E23D4D954F322C3540541BC649ABD504C50FADFD9F0987D58A2BF689313A285E773FF02899A6EF887D1D4A0D2",
 		"0xB08FFB20760FFED58FADA86DFEF71AD72AA0FA763219618FE022C197E54708BB1191C66470250FCE8879487507CEE41381CA4D932F81C2B3F1AB20B539D50DCD",
 		"0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF73",
 		"21484252197776302499639938883777710321993113097987201050501182909581359357618579566746556372589385361683610524730509041328855066514963385522570894839035884713051640171474186548713546686476761306436434146475140156284389181808675016576845833340494848283681088886584219750554408060556769486628029028720727393293111678826356480455433909233520504112074401376133077150471237549474149190242010469539006449596611576612573955754349042329130631128234637924786466585703488460540228477440853493392086251021228087076124706778899179648655221663765993962724699135217212118535057766739392069738618682722216712319320435674779146070442",
+	},
+
+	// test cases for issue 13907
+	{"0xffffffff00000001", "0xffffffff00000001", "0xffffffff00000001", "0"},
+	{"0xffffffffffffffff00000001", "0xffffffffffffffff00000001", "0xffffffffffffffff00000001", "0"},
+	{"0xffffffffffffffffffffffff00000001", "0xffffffffffffffffffffffff00000001", "0xffffffffffffffffffffffff00000001", "0"},
+	{"0xffffffffffffffffffffffffffffffff00000001", "0xffffffffffffffffffffffffffffffff00000001", "0xffffffffffffffffffffffffffffffff00000001", "0"},
+
+	{
+		"2",
+		"0xB08FFB20760FFED58FADA86DFEF71AD72AA0FA763219618FE022C197E54708BB1191C66470250FCE8879487507CEE41381CA4D932F81C2B3F1AB20B539D50DCD",
+		"0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF73", // odd
+		"0x6AADD3E3E424D5B713FCAA8D8945B1E055166132038C57BBD2D51C833F0C5EA2007A2324CE514F8E8C2F008A2F36F44005A4039CB55830986F734C93DAF0EB4BAB54A6A8C7081864F44346E9BC6F0A3EB9F2C0146A00C6A05187D0C101E1F2D038CDB70CB5E9E05A2D188AB6CBB46286624D4415E7D4DBFAD3BCC6009D915C406EED38F468B940F41E6BEDC0430DD78E6F19A7DA3A27498A4181E24D738B0072D8F6ADB8C9809A5B033A09785814FD9919F6EF9F83EEA519BEC593855C4C10CBEEC582D4AE0792158823B0275E6AEC35242740468FAF3D5C60FD1E376362B6322F78B7ED0CA1C5BBCD2B49734A56C0967A1D01A100932C837B91D592CE08ABFF",
+	},
+	{
+		"2",
+		"0xB08FFB20760FFED58FADA86DFEF71AD72AA0FA763219618FE022C197E54708BB1191C66470250FCE8879487507CEE41381CA4D932F81C2B3F1AB20B539D50DCD",
+		"0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF72", // even
+		"0x7858794B5897C29F4ED0B40913416AB6C48588484E6A45F2ED3E26C941D878E923575AAC434EE2750E6439A6976F9BB4D64CEDB2A53CE8D04DD48CADCDF8E46F22747C6B81C6CEA86C0D873FBF7CEF262BAAC43A522BD7F32F3CDAC52B9337C77B3DCFB3DB3EDD80476331E82F4B1DF8EFDC1220C92656DFC9197BDC1877804E28D928A2A284B8DED506CBA304435C9D0133C246C98A7D890D1DE60CBC53A024361DA83A9B8775019083D22AC6820ED7C3C68F8E801DD4EC779EE0A05C6EB682EF9840D285B838369BA7E148FA27691D524FAEAF7C6ECE2A4B99A294B9F2C241857B5B90CC8BFFCFCF18DFA7D676131D5CD3855A5A3E8EBFA0CDFADB4D198B4A",
 	},
 }
 
@@ -544,7 +626,7 @@ func TestExp(t *testing.T) {
 			t.Errorf("#%d: %v is not normalized", i, *z1)
 		}
 		if z1.Cmp(out) != 0 {
-			t.Errorf("#%d: got %s want %s", i, z1, out)
+			t.Errorf("#%d: got %x want %x", i, z1, out)
 		}
 
 		if m == nil {
@@ -553,9 +635,29 @@ func TestExp(t *testing.T) {
 			m = &Int{abs: nat{}} // m != nil && len(m.abs) == 0
 			z2 := new(Int).Exp(x, y, m)
 			if z2.Cmp(z1) != 0 {
-				t.Errorf("#%d: got %s want %s", i, z2, z1)
+				t.Errorf("#%d: got %x want %x", i, z2, z1)
 			}
 		}
+	}
+}
+
+func BenchmarkExp(b *testing.B) {
+	x, _ := new(Int).SetString("11001289118363089646017359372117963499250546375269047542777928006103246876688756735760905680604646624353196869572752623285140408755420374049317646428185270079555372763503115646054602867593662923894140940837479507194934267532831694565516466765025434902348314525627418515646588160955862839022051353653052947073136084780742729727874803457643848197499548297570026926927502505634297079527299004267769780768565695459945235586892627059178884998772989397505061206395455591503771677500931269477503508150175717121828518985901959919560700853226255420793148986854391552859459511723547532575574664944815966793196961286234040892865", 0)
+	y, _ := new(Int).SetString("0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF72", 0)
+	n, _ := new(Int).SetString("0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF73", 0)
+	out := new(Int)
+	for i := 0; i < b.N; i++ {
+		out.Exp(x, y, n)
+	}
+}
+
+func BenchmarkExp2(b *testing.B) {
+	x, _ := new(Int).SetString("2", 0)
+	y, _ := new(Int).SetString("0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF72", 0)
+	n, _ := new(Int).SetString("0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF73", 0)
+	out := new(Int)
+	for i := 0; i < b.N; i++ {
+		out.Exp(x, y, n)
 	}
 }
 
@@ -571,6 +673,37 @@ func checkGcd(aBytes, bBytes []byte) bool {
 	x.Add(x, y)
 
 	return x.Cmp(d) == 0
+}
+
+// euclidGCD is a reference implementation of Euclid's GCD
+// algorithm for testing against optimized algorithms.
+// Requirements: a, b > 0
+func euclidGCD(a, b *Int) *Int {
+
+	A := new(Int).Set(a)
+	B := new(Int).Set(b)
+	t := new(Int)
+
+	for len(B.abs) > 0 {
+		// A, B = B, A % B
+		t.Rem(A, B)
+		A, B, t = B, t, A
+	}
+	return A
+}
+
+func checkLehmerGcd(aBytes, bBytes []byte) bool {
+	a := new(Int).SetBytes(aBytes)
+	b := new(Int).SetBytes(bBytes)
+
+	if a.Sign() <= 0 || b.Sign() <= 0 {
+		return true // can only test positive arguments
+	}
+
+	d := new(Int).lehmerGCD(a, b)
+	d0 := euclidGCD(a, b)
+
+	return d.Cmp(d0) == 0
 }
 
 var gcdTests = []struct {
@@ -606,23 +739,28 @@ func testGcd(t *testing.T, d, x, y, a, b *Int) {
 
 	D := new(Int).GCD(X, Y, a, b)
 	if D.Cmp(d) != 0 {
-		t.Errorf("GCD(%s, %s): got d = %s, want %s", a, b, D, d)
+		t.Errorf("GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, D, d)
 	}
 	if x != nil && X.Cmp(x) != 0 {
-		t.Errorf("GCD(%s, %s): got x = %s, want %s", a, b, X, x)
+		t.Errorf("GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, X, x)
 	}
 	if y != nil && Y.Cmp(y) != 0 {
-		t.Errorf("GCD(%s, %s): got y = %s, want %s", a, b, Y, y)
+		t.Errorf("GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, Y, y)
 	}
 
-	// binaryGCD requires a > 0 && b > 0
-	if a.Sign() <= 0 || b.Sign() <= 0 {
-		return
+	// check results in presence of aliasing (issue #11284)
+	a2 := new(Int).Set(a)
+	b2 := new(Int).Set(b)
+	a2.GCD(X, Y, a2, b2) // result is same as 1st argument
+	if a2.Cmp(d) != 0 {
+		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, a2, d)
 	}
 
-	D.binaryGCD(a, b)
-	if D.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
+	a2 = new(Int).Set(a)
+	b2 = new(Int).Set(b)
+	b2.GCD(X, Y, a2, b2) // result is same as 2nd argument
+	if b2.Cmp(d) != 0 {
+		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, b2, d)
 	}
 }
 
@@ -640,78 +778,12 @@ func TestGcd(t *testing.T) {
 		testGcd(t, d, x, y, a, b)
 	}
 
-	quick.Check(checkGcd, nil)
-}
-
-var primes = []string{
-	"2",
-	"3",
-	"5",
-	"7",
-	"11",
-
-	"13756265695458089029",
-	"13496181268022124907",
-	"10953742525620032441",
-	"17908251027575790097",
-
-	// http://golang.org/issue/638
-	"18699199384836356663",
-
-	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
-	"94560208308847015747498523884063394671606671904944666360068158221458669711639",
-
-	// http://primes.utm.edu/lists/small/small3.html
-	"449417999055441493994709297093108513015373787049558499205492347871729927573118262811508386655998299074566974373711472560655026288668094291699357843464363003144674940345912431129144354948751003607115263071543163",
-	"230975859993204150666423538988557839555560243929065415434980904258310530753006723857139742334640122533598517597674807096648905501653461687601339782814316124971547968912893214002992086353183070342498989426570593",
-	"5521712099665906221540423207019333379125265462121169655563495403888449493493629943498064604536961775110765377745550377067893607246020694972959780839151452457728855382113555867743022746090187341871655890805971735385789993",
-	"203956878356401977405765866929034577280193993314348263094772646453283062722701277632936616063144088173312372882677123879538709400158306567338328279154499698366071906766440037074217117805690872792848149112022286332144876183376326512083574821647933992961249917319836219304274280243803104015000563790123",
-}
-
-var composites = []string{
-	"0",
-	"1",
-	"21284175091214687912771199898307297748211672914763848041968395774954376176754",
-	"6084766654921918907427900243509372380954290099172559290432744450051395395951",
-	"84594350493221918389213352992032324280367711247940675652888030554255915464401",
-	"82793403787388584738507275144194252681",
-}
-
-func TestProbablyPrime(t *testing.T) {
-	nreps := 20
-	if testing.Short() {
-		nreps = 1
-	}
-	for i, s := range primes {
-		p, _ := new(Int).SetString(s, 10)
-		if !p.ProbablyPrime(nreps) {
-			t.Errorf("#%d prime found to be non-prime (%s)", i, s)
-		}
+	if err := quick.Check(checkGcd, nil); err != nil {
+		t.Error(err)
 	}
 
-	for i, s := range composites {
-		c, _ := new(Int).SetString(s, 10)
-		if c.ProbablyPrime(nreps) {
-			t.Errorf("#%d composite found to be prime (%s)", i, s)
-		}
-		if testing.Short() {
-			break
-		}
-	}
-
-	// check that ProbablyPrime panics if n <= 0
-	c := NewInt(11) // a prime
-	for _, n := range []int{-1, 0, 1} {
-		func() {
-			defer func() {
-				if n <= 0 && recover() == nil {
-					t.Fatalf("expected panic from ProbablyPrime(%d)", n)
-				}
-			}()
-			if !c.ProbablyPrime(n) {
-				t.Fatalf("%v should be a prime", c)
-			}
-		}()
+	if err := quick.Check(checkLehmerGcd, nil); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -857,56 +929,162 @@ func TestLshRsh(t *testing.T) {
 	}
 }
 
-var int64Tests = []int64{
-	0,
-	1,
-	-1,
-	4294967295,
-	-4294967295,
-	4294967296,
-	-4294967296,
-	9223372036854775807,
-	-9223372036854775807,
-	-9223372036854775808,
+// Entries must be sorted by value in ascending order.
+var cmpAbsTests = []string{
+	"0",
+	"1",
+	"2",
+	"10",
+	"10000000",
+	"2783678367462374683678456387645876387564783686583485",
+	"2783678367462374683678456387645876387564783686583486",
+	"32957394867987420967976567076075976570670947609750670956097509670576075067076027578341538",
 }
 
-func TestInt64(t *testing.T) {
-	for i, testVal := range int64Tests {
-		in := NewInt(testVal)
-		out := in.Int64()
+func TestCmpAbs(t *testing.T) {
+	values := make([]*Int, len(cmpAbsTests))
+	var prev *Int
+	for i, s := range cmpAbsTests {
+		x, ok := new(Int).SetString(s, 0)
+		if !ok {
+			t.Fatalf("SetString(%s, 0) failed", s)
+		}
+		if prev != nil && prev.Cmp(x) >= 0 {
+			t.Fatal("cmpAbsTests entries not sorted in ascending order")
+		}
+		values[i] = x
+		prev = x
+	}
 
-		if out != testVal {
-			t.Errorf("#%d got %d want %d", i, out, testVal)
+	for i, x := range values {
+		for j, y := range values {
+			// try all combinations of signs for x, y
+			for k := 0; k < 4; k++ {
+				var a, b Int
+				a.Set(x)
+				b.Set(y)
+				if k&1 != 0 {
+					a.Neg(&a)
+				}
+				if k&2 != 0 {
+					b.Neg(&b)
+				}
+
+				got := a.CmpAbs(&b)
+				want := 0
+				switch {
+				case i > j:
+					want = 1
+				case i < j:
+					want = -1
+				}
+				if got != want {
+					t.Errorf("absCmp |%s|, |%s|: got %d; want %d", &a, &b, got, want)
+				}
+			}
 		}
 	}
 }
 
-var uint64Tests = []uint64{
-	0,
-	1,
-	4294967295,
-	4294967296,
-	8589934591,
-	8589934592,
-	9223372036854775807,
-	9223372036854775808,
-	18446744073709551615, // 1<<64 - 1
+var int64Tests = []string{
+	// int64
+	"0",
+	"1",
+	"-1",
+	"4294967295",
+	"-4294967295",
+	"4294967296",
+	"-4294967296",
+	"9223372036854775807",
+	"-9223372036854775807",
+	"-9223372036854775808",
+
+	// not int64
+	"0x8000000000000000",
+	"-0x8000000000000001",
+	"38579843757496759476987459679745",
+	"-38579843757496759476987459679745",
+}
+
+func TestInt64(t *testing.T) {
+	for _, s := range int64Tests {
+		var x Int
+		_, ok := x.SetString(s, 0)
+		if !ok {
+			t.Errorf("SetString(%s, 0) failed", s)
+			continue
+		}
+
+		want, err := strconv.ParseInt(s, 0, 64)
+		if err != nil {
+			if err.(*strconv.NumError).Err == strconv.ErrRange {
+				if x.IsInt64() {
+					t.Errorf("IsInt64(%s) succeeded unexpectedly", s)
+				}
+			} else {
+				t.Errorf("ParseInt(%s) failed", s)
+			}
+			continue
+		}
+
+		if !x.IsInt64() {
+			t.Errorf("IsInt64(%s) failed unexpectedly", s)
+		}
+
+		got := x.Int64()
+		if got != want {
+			t.Errorf("Int64(%s) = %d; want %d", s, got, want)
+		}
+	}
+}
+
+var uint64Tests = []string{
+	// uint64
+	"0",
+	"1",
+	"4294967295",
+	"4294967296",
+	"8589934591",
+	"8589934592",
+	"9223372036854775807",
+	"9223372036854775808",
+	"0x08000000000000000",
+
+	// not uint64
+	"0x10000000000000000",
+	"-0x08000000000000000",
+	"-1",
 }
 
 func TestUint64(t *testing.T) {
-	in := new(Int)
-	for i, testVal := range uint64Tests {
-		in.SetUint64(testVal)
-		out := in.Uint64()
-
-		if out != testVal {
-			t.Errorf("#%d got %d want %d", i, out, testVal)
+	for _, s := range uint64Tests {
+		var x Int
+		_, ok := x.SetString(s, 0)
+		if !ok {
+			t.Errorf("SetString(%s, 0) failed", s)
+			continue
 		}
 
-		str := fmt.Sprint(testVal)
-		strOut := in.String()
-		if strOut != str {
-			t.Errorf("#%d.String got %s want %s", i, strOut, str)
+		want, err := strconv.ParseUint(s, 0, 64)
+		if err != nil {
+			// check for sign explicitly (ErrRange doesn't cover signed input)
+			if s[0] == '-' || err.(*strconv.NumError).Err == strconv.ErrRange {
+				if x.IsUint64() {
+					t.Errorf("IsUint64(%s) succeeded unexpectedly", s)
+				}
+			} else {
+				t.Errorf("ParseUint(%s) failed", s)
+			}
+			continue
+		}
+
+		if !x.IsUint64() {
+			t.Errorf("IsUint64(%s) failed unexpectedly", s)
+		}
+
+		got := x.Uint64()
+		if got != want {
+			t.Errorf("Uint64(%s) = %d; want %d", s, got, want)
 		}
 	}
 }
@@ -1120,6 +1298,59 @@ func BenchmarkBitsetNegOrig(b *testing.B) {
 	}
 }
 
+// tri generates the trinomial 2**(n*2) - 2**n - 1, which is always 3 mod 4 and
+// 7 mod 8, so that 2 is always a quadratic residue.
+func tri(n uint) *Int {
+	x := NewInt(1)
+	x.Lsh(x, n)
+	x2 := new(Int).Lsh(x, n)
+	x2.Sub(x2, x)
+	x2.Sub(x2, intOne)
+	return x2
+}
+
+func BenchmarkModSqrt225_Tonelli(b *testing.B) {
+	p := tri(225)
+	x := NewInt(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrtTonelliShanks(x, p)
+	}
+}
+
+func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+	p := tri(225)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrt3Mod4Prime(x, p)
+	}
+}
+
+func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
+	if isRaceBuilder {
+		b.Skip("skipping on race builder")
+	}
+	p := tri(5430)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrtTonelliShanks(x, p)
+	}
+}
+
+func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
+	if isRaceBuilder {
+		b.Skip("skipping on race builder")
+	}
+	p := tri(5430)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrt3Mod4Prime(x, p)
+	}
+}
+
 func TestBitwise(t *testing.T) {
 	x := new(Int)
 	y := new(Int)
@@ -1177,6 +1408,7 @@ var modInverseTests = []struct {
 }{
 	{"1234567", "458948883992"},
 	{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
+	{"-10", "13"}, // issue #16984
 }
 
 func TestModInverse(t *testing.T) {
@@ -1211,140 +1443,234 @@ func TestModInverse(t *testing.T) {
 	}
 }
 
-var encodingTests = []string{
-	"-539345864568634858364538753846587364875430589374589",
-	"-678645873",
-	"-100",
-	"-2",
-	"-1",
-	"0",
-	"1",
-	"2",
-	"10",
-	"42",
-	"1234567890",
-	"298472983472983471903246121093472394872319615612417471234712061",
+// testModSqrt is a helper for TestModSqrt,
+// which checks that ModSqrt can compute a square-root of elt^2.
+func testModSqrt(t *testing.T, elt, mod, sq, sqrt *Int) bool {
+	var sqChk, sqrtChk, sqrtsq Int
+	sq.Mul(elt, elt)
+	sq.Mod(sq, mod)
+	z := sqrt.ModSqrt(sq, mod)
+	if z != sqrt {
+		t.Errorf("ModSqrt returned wrong value %s", z)
+	}
+
+	// test ModSqrt arguments outside the range [0,mod)
+	sqChk.Add(sq, mod)
+	z = sqrtChk.ModSqrt(&sqChk, mod)
+	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
+		t.Errorf("ModSqrt returned inconsistent value %s", z)
+	}
+	sqChk.Sub(sq, mod)
+	z = sqrtChk.ModSqrt(&sqChk, mod)
+	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
+		t.Errorf("ModSqrt returned inconsistent value %s", z)
+	}
+
+	// test x aliasing z
+	z = sqrtChk.ModSqrt(sqrtChk.Set(sq), mod)
+	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
+		t.Errorf("ModSqrt returned inconsistent value %s", z)
+	}
+
+	// make sure we actually got a square root
+	if sqrt.Cmp(elt) == 0 {
+		return true // we found the "desired" square root
+	}
+	sqrtsq.Mul(sqrt, sqrt) // make sure we found the "other" one
+	sqrtsq.Mod(&sqrtsq, mod)
+	return sq.Cmp(&sqrtsq) == 0
 }
 
-func TestIntGobEncoding(t *testing.T) {
-	var medium bytes.Buffer
-	enc := gob.NewEncoder(&medium)
-	dec := gob.NewDecoder(&medium)
-	for _, test := range encodingTests {
-		medium.Reset() // empty buffer for each test case (in case of failures)
-		var tx Int
-		tx.SetString(test, 10)
-		if err := enc.Encode(&tx); err != nil {
-			t.Errorf("encoding of %s failed: %s", &tx, err)
-		}
-		var rx Int
-		if err := dec.Decode(&rx); err != nil {
-			t.Errorf("decoding of %s failed: %s", &tx, err)
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
-		}
-	}
-}
+func TestModSqrt(t *testing.T) {
+	var elt, mod, modx4, sq, sqrt Int
+	r := rand.New(rand.NewSource(9))
+	for i, s := range primes[1:] { // skip 2, use only odd primes
+		mod.SetString(s, 10)
+		modx4.Lsh(&mod, 2)
 
-// Sending a nil Int pointer (inside a slice) on a round trip through gob should yield a zero.
-// TODO: top-level nils.
-func TestGobEncodingNilIntInSlice(t *testing.T) {
-	buf := new(bytes.Buffer)
-	enc := gob.NewEncoder(buf)
-	dec := gob.NewDecoder(buf)
-
-	var in = make([]*Int, 1)
-	err := enc.Encode(&in)
-	if err != nil {
-		t.Errorf("gob encode failed: %q", err)
-	}
-	var out []*Int
-	err = dec.Decode(&out)
-	if err != nil {
-		t.Fatalf("gob decode failed: %q", err)
-	}
-	if len(out) != 1 {
-		t.Fatalf("wrong len; want 1 got %d", len(out))
-	}
-	var zero Int
-	if out[0].Cmp(&zero) != 0 {
-		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
-	}
-}
-
-func TestIntJSONEncoding(t *testing.T) {
-	for _, test := range encodingTests {
-		var tx Int
-		tx.SetString(test, 10)
-		b, err := json.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+		// test a few random elements per prime
+		for x := 1; x < 5; x++ {
+			elt.Rand(r, &modx4)
+			elt.Sub(&elt, &mod) // test range [-mod, 3*mod)
+			if !testModSqrt(t, &elt, &mod, &sq, &sqrt) {
+				t.Errorf("#%d: failed (sqrt(e) = %s)", i, &sqrt)
+			}
 		}
-		var rx Int
-		if err := json.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+
+		if testing.Short() && i > 2 {
+			break
 		}
 	}
-}
 
-var intVals = []string{
-	"-141592653589793238462643383279502884197169399375105820974944592307816406286",
-	"-1415926535897932384626433832795028841971",
-	"-141592653589793",
-	"-1",
-	"0",
-	"1",
-	"141592653589793",
-	"1415926535897932384626433832795028841971",
-	"141592653589793238462643383279502884197169399375105820974944592307816406286",
-}
+	if testing.Short() {
+		return
+	}
 
-func TestIntJSONEncodingTextMarshaller(t *testing.T) {
-	for _, num := range intVals {
-		var tx Int
-		tx.SetString(num, 0)
-		b, err := json.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+	// exhaustive test for small values
+	for n := 3; n < 100; n++ {
+		mod.SetInt64(int64(n))
+		if !mod.ProbablyPrime(10) {
 			continue
 		}
-		var rx Int
-		if err := json.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-			continue
+		isSquare := make([]bool, n)
+
+		// test all the squares
+		for x := 1; x < n; x++ {
+			elt.SetInt64(int64(x))
+			if !testModSqrt(t, &elt, &mod, &sq, &sqrt) {
+				t.Errorf("#%d: failed (sqrt(%d,%d) = %s)", x, &elt, &mod, &sqrt)
+			}
+			isSquare[sq.Uint64()] = true
 		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+
+		// test all non-squares
+		for x := 1; x < n; x++ {
+			sq.SetInt64(int64(x))
+			z := sqrt.ModSqrt(&sq, &mod)
+			if !isSquare[x] && z != nil {
+				t.Errorf("#%d: failed (sqrt(%d,%d) = nil)", x, &sqrt, &mod)
+			}
 		}
 	}
 }
 
-func TestIntXMLEncodingTextMarshaller(t *testing.T) {
-	for _, num := range intVals {
-		var tx Int
-		tx.SetString(num, 0)
-		b, err := xml.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		var rx Int
-		if err := xml.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+func TestJacobi(t *testing.T) {
+	testCases := []struct {
+		x, y   int64
+		result int
+	}{
+		{0, 1, 1},
+		{0, -1, 1},
+		{1, 1, 1},
+		{1, -1, 1},
+		{0, 5, 0},
+		{1, 5, 1},
+		{2, 5, -1},
+		{-2, 5, -1},
+		{2, -5, -1},
+		{-2, -5, 1},
+		{3, 5, -1},
+		{5, 5, 0},
+		{-5, 5, 0},
+		{6, 5, 1},
+		{6, -5, 1},
+		{-6, 5, 1},
+		{-6, -5, -1},
+	}
+
+	var x, y Int
+
+	for i, test := range testCases {
+		x.SetInt64(test.x)
+		y.SetInt64(test.y)
+		expected := test.result
+		actual := Jacobi(&x, &y)
+		if actual != expected {
+			t.Errorf("#%d: Jacobi(%d, %d) = %d, but expected %d", i, test.x, test.y, actual, expected)
 		}
 	}
+}
+
+func TestJacobiPanic(t *testing.T) {
+	const failureMsg = "test failure"
+	defer func() {
+		msg := recover()
+		if msg == nil || msg == failureMsg {
+			panic(msg)
+		}
+		t.Log(msg)
+	}()
+	x := NewInt(1)
+	y := NewInt(2)
+	// Jacobi should panic when the second argument is even.
+	Jacobi(x, y)
+	panic(failureMsg)
 }
 
 func TestIssue2607(t *testing.T) {
 	// This code sequence used to hang.
 	n := NewInt(10)
 	n.Rand(rand.New(rand.NewSource(9)), n)
+}
+
+func TestSqrt(t *testing.T) {
+	root := 0
+	r := new(Int)
+	for i := 0; i < 10000; i++ {
+		if (root+1)*(root+1) <= i {
+			root++
+		}
+		n := NewInt(int64(i))
+		r.SetInt64(-2)
+		r.Sqrt(n)
+		if r.Cmp(NewInt(int64(root))) != 0 {
+			t.Errorf("Sqrt(%v) = %v, want %v", n, r, root)
+		}
+	}
+
+	for i := 0; i < 1000; i += 10 {
+		n, _ := new(Int).SetString("1"+strings.Repeat("0", i), 10)
+		r := new(Int).Sqrt(n)
+		root, _ := new(Int).SetString("1"+strings.Repeat("0", i/2), 10)
+		if r.Cmp(root) != 0 {
+			t.Errorf("Sqrt(1e%d) = %v, want 1e%d", i, r, i/2)
+		}
+	}
+
+	// Test aliasing.
+	r.SetInt64(100)
+	r.Sqrt(r)
+	if r.Int64() != 10 {
+		t.Errorf("Sqrt(100) = %v, want 10 (aliased output)", r.Int64())
+	}
+}
+
+// We can't test this together with the other Exp tests above because
+// it requires a different receiver setup.
+func TestIssue22830(t *testing.T) {
+	one := new(Int).SetInt64(1)
+	base, _ := new(Int).SetString("84555555300000000000", 10)
+	mod, _ := new(Int).SetString("66666670001111111111", 10)
+	want, _ := new(Int).SetString("17888885298888888889", 10)
+
+	var tests = []int64{
+		0, 1, -1,
+	}
+
+	for _, n := range tests {
+		m := NewInt(n)
+		if got := m.Exp(base, one, mod); got.Cmp(want) != 0 {
+			t.Errorf("(%v).Exp(%s, 1, %s) = %s, want %s", n, base, mod, got, want)
+		}
+	}
+}
+
+func BenchmarkSqrt(b *testing.B) {
+	n, _ := new(Int).SetString("1"+strings.Repeat("0", 1001), 10)
+	b.ResetTimer()
+	t := new(Int)
+	for i := 0; i < b.N; i++ {
+		t.Sqrt(n)
+	}
+}
+
+func benchmarkIntSqr(b *testing.B, nwords int) {
+	x := new(Int)
+	x.abs = rndNat(nwords)
+	t := new(Int)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		t.Mul(x, x)
+	}
+}
+
+func BenchmarkIntSqr(b *testing.B) {
+	for _, n := range sqrBenchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			benchmarkIntSqr(b, n)
+		})
+	}
 }

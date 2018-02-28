@@ -1,8 +1,6 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
-// +build api_tool
 
 // Binary api computes the exported API of a set of Go packages.
 package main
@@ -16,6 +14,7 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io"
 	"io/ioutil"
 	"log"
@@ -26,9 +25,19 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-
-	"code.google.com/p/go.tools/go/types"
 )
+
+func goCmd() string {
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	return "go"
+}
 
 // Flags
 var (
@@ -130,7 +139,7 @@ func main() {
 	if flag.NArg() > 0 {
 		pkgNames = flag.Args()
 	} else {
-		stds, err := exec.Command("go", "list", "std").Output()
+		stds, err := exec.Command(goCmd(), "list", "std").Output()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -146,6 +155,11 @@ func main() {
 		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
 
 		for _, name := range pkgNames {
+			// Vendored packages do not contribute to our
+			// public API surface.
+			if strings.HasPrefix(name, "vendor/") {
+				continue
+			}
 			// - Package "unsafe" contains special signatures requiring
 			//   extra care when printing them - ignore since it is not
 			//   going to change w/o a language change.
@@ -155,7 +169,8 @@ func main() {
 					// w.Import(name) will return nil
 					continue
 				}
-				w.export(w.Import(name))
+				pkg, _ := w.Import(name)
+				w.export(pkg)
 			}
 		}
 
@@ -205,7 +220,8 @@ func main() {
 	}
 	optional := fileFeatures(*nextFile)
 	exception := fileFeatures(*exceptFile)
-	fail = !compareAPI(bw, features, required, optional, exception)
+	fail = !compareAPI(bw, features, required, optional, exception,
+		*allowNew && strings.Contains(runtime.Version(), "devel"))
 }
 
 // export emits the exported package features.
@@ -241,7 +257,7 @@ func featureWithoutContext(f string) string {
 	return spaceParensRx.ReplaceAllString(f, "")
 }
 
-func compareAPI(w io.Writer, features, required, optional, exception []string) (ok bool) {
+func compareAPI(w io.Writer, features, required, optional, exception []string, allowAdd bool) (ok bool) {
 	ok = true
 
 	optionalSet := set(optional)
@@ -283,7 +299,7 @@ func compareAPI(w io.Writer, features, required, optional, exception []string) (
 				delete(optionalSet, newFeature)
 			} else {
 				fmt.Fprintf(w, "+%s\n", newFeature)
-				if !*allowNew || !strings.Contains(runtime.Version(), "devel") {
+				if !allowAdd {
 					ok = false // we're in lock-down mode for next release
 				}
 			}
@@ -369,15 +385,6 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	return f, nil
 }
 
-func contains(list []string, s string) bool {
-	for _, t := range list {
-		if t == s {
-			return true
-		}
-	}
-	return false
-}
-
 // The package cache doesn't operate correctly in rare (so far artificial)
 // circumstances (issue 8425). Disable before debugging non-obvious errors
 // from the type-checker.
@@ -419,20 +426,25 @@ func tagKey(dir string, context *build.Context, tags []string) string {
 // for a package that is in the process of being imported.
 var importing types.Package
 
-func (w *Walker) Import(name string) (pkg *types.Package) {
-	pkg = w.imported[name]
+func (w *Walker) Import(name string) (*types.Package, error) {
+	pkg := w.imported[name]
 	if pkg != nil {
 		if pkg == &importing {
 			log.Fatalf("cycle importing package %q", name)
 		}
-		return pkg
+		return pkg, nil
 	}
 	w.imported[name] = &importing
 
+	root := w.root
+	if strings.HasPrefix(name, "golang_org/x/") {
+		root = filepath.Join(root, "vendor")
+	}
+
 	// Determine package files.
-	dir := filepath.Join(w.root, filepath.FromSlash(name))
+	dir := filepath.Join(root, filepath.FromSlash(name))
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		log.Fatalf("no source in tree for package %q", pkg)
+		log.Fatalf("no source in tree for import %q: %v", name, err)
 	}
 
 	context := w.context
@@ -449,7 +461,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 			key = tagKey(dir, context, tags)
 			if pkg := pkgCache[key]; pkg != nil {
 				w.imported[name] = pkg
-				return pkg
+				return pkg, nil
 			}
 		}
 	}
@@ -457,7 +469,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	info, err := context.ImportDir(dir, 0)
 	if err != nil {
 		if _, nogo := err.(*build.NoGoError); nogo {
-			return
+			return nil, nil
 		}
 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
 	}
@@ -486,11 +498,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	conf := types.Config{
 		IgnoreFuncBodies: true,
 		FakeImportC:      true,
-		Import: func(imports map[string]*types.Package, name string) (*types.Package, error) {
-			pkg := w.Import(name)
-			imports[name] = pkg
-			return pkg, nil
-		},
+		Importer:         w,
 	}
 	pkg, err = conf.Check(name, fset, files, nil)
 	if err != nil {
@@ -506,7 +514,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	}
 
 	w.imported[name] = pkg
-	return
+	return pkg, nil
 }
 
 // pushScope enters a new scope (walking a package, type, node, etc)
@@ -608,12 +616,14 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 	case *types.Chan:
 		var s string
 		switch typ.Dir() {
-		case ast.SEND:
+		case types.SendOnly:
 			s = "chan<- "
-		case ast.RECV:
+		case types.RecvOnly:
 			s = "<-chan "
-		default:
+		case types.SendRecv:
 			s = "chan "
+		default:
+			panic("unreachable")
 		}
 		buf.WriteString(s)
 		w.writeType(buf, typ.Elem())
@@ -633,7 +643,7 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 }
 
 func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
-	w.writeParams(buf, sig.Params(), sig.IsVariadic())
+	w.writeParams(buf, sig.Params(), sig.Variadic())
 	switch res := sig.Results(); res.Len() {
 	case 0:
 		// nothing to do
@@ -678,7 +688,14 @@ func (w *Walker) emitObj(obj types.Object) {
 	switch obj := obj.(type) {
 	case *types.Const:
 		w.emitf("const %s %s", obj.Name(), w.typeString(obj.Type()))
-		w.emitf("const %s = %s", obj.Name(), obj.Val())
+		x := obj.Val()
+		short := x.String()
+		exact := x.ExactString()
+		if short == exact {
+			w.emitf("const %s = %s", obj.Name(), short)
+		} else {
+			w.emitf("const %s = %s  // %s", obj.Name(), short, exact)
+		}
 	case *types.Var:
 		w.emitf("var %s %s", obj.Name(), w.typeString(obj.Type()))
 	case *types.TypeName:
@@ -705,10 +722,10 @@ func (w *Walker) emitType(obj *types.TypeName) {
 
 	// emit methods with value receiver
 	var methodNames map[string]bool
-	vset := typ.MethodSet()
+	vset := types.NewMethodSet(typ)
 	for i, n := 0, vset.Len(); i < n; i++ {
 		m := vset.At(i)
-		if m.Obj().IsExported() {
+		if m.Obj().Exported() {
 			w.emitMethod(m)
 			if methodNames == nil {
 				methodNames = make(map[string]bool)
@@ -720,10 +737,10 @@ func (w *Walker) emitType(obj *types.TypeName) {
 	// emit methods with pointer receiver; exclude
 	// methods that we have emitted already
 	// (the method set of *T includes the methods of T)
-	pset := types.NewPointer(typ).MethodSet()
+	pset := types.NewMethodSet(types.NewPointer(typ))
 	for i, n := 0, pset.Len(); i < n; i++ {
 		m := pset.At(i)
-		if m.Obj().IsExported() && !methodNames[m.Obj().Name()] {
+		if m.Obj().Exported() && !methodNames[m.Obj().Name()] {
 			w.emitMethod(m)
 		}
 	}
@@ -736,7 +753,7 @@ func (w *Walker) emitStructType(name string, typ *types.Struct) {
 
 	for i := 0; i < typ.NumFields(); i++ {
 		f := typ.Field(i)
-		if !f.IsExported() {
+		if !f.Exported() {
 			continue
 		}
 		typ := f.Type()
@@ -753,10 +770,10 @@ func (w *Walker) emitIfaceType(name string, typ *types.Interface) {
 
 	var methodNames []string
 	complete := true
-	mset := typ.MethodSet()
+	mset := types.NewMethodSet(typ)
 	for i, n := 0, mset.Len(); i < n; i++ {
 		m := mset.At(i).Obj().(*types.Func)
-		if !m.IsExported() {
+		if !m.Exported() {
 			complete = false
 			continue
 		}
@@ -807,7 +824,7 @@ func (w *Walker) emitMethod(m *types.Selection) {
 		if p, _ := recv.(*types.Pointer); p != nil {
 			base = p.Elem()
 		}
-		if obj := base.(*types.Named).Obj(); !obj.IsExported() {
+		if obj := base.(*types.Named).Obj(); !obj.Exported() {
 			log.Fatalf("exported method with unexported receiver base type: %s", m)
 		}
 	}

@@ -135,23 +135,17 @@ func FullPath(name string) (path string, err error) {
 	if err != nil {
 		return "", err
 	}
-	buf := make([]uint16, 100)
-	n, err := GetFullPathName(p, uint32(len(buf)), &buf[0], nil)
-	if err != nil {
-		return "", err
-	}
-	if n > uint32(len(buf)) {
-		// Windows is asking for bigger buffer.
-		buf = make([]uint16, n)
+	n := uint32(100)
+	for {
+		buf := make([]uint16, n)
 		n, err = GetFullPathName(p, uint32(len(buf)), &buf[0], nil)
 		if err != nil {
 			return "", err
 		}
-		if n > uint32(len(buf)) {
-			return "", EINVAL
+		if n <= uint32(len(buf)) {
+			return UTF16ToString(buf[:n]), nil
 		}
 	}
-	return UTF16ToString(buf[:n]), nil
 }
 
 func isSlash(c uint8) bool {
@@ -215,8 +209,6 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
 			return FullPath(d + "\\" + p)
 		}
 	}
-	// we shouldn't be here
-	return "", EINVAL
 }
 
 type ProcAttr struct {
@@ -230,6 +222,7 @@ type SysProcAttr struct {
 	HideWindow    bool
 	CmdLine       string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
 	CreationFlags uint32
+	Token         Token // if set, runs new process in the security context represented by the token
 }
 
 var zeroProcAttr ProcAttr
@@ -249,6 +242,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 	if len(attr.Files) > 3 {
 		return 0, 0, EWINDOWS
+	}
+	if len(attr.Files) < 3 {
+		return 0, 0, EINVAL
 	}
 
 	if len(attr.Dir) != 0 {
@@ -326,7 +322,11 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	pi := new(ProcessInformation)
 
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
-	err = CreateProcess(argv0p, argvp, nil, nil, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+	if sys.Token != 0 {
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, nil, nil, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+	} else {
+		err = CreateProcess(argv0p, argvp, nil, nil, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+	}
 	if err != nil {
 		return 0, 0, err
 	}

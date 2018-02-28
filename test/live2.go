@@ -1,6 +1,6 @@
 // errorcheck -0 -live -wb=0
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -14,26 +14,29 @@ package main
 
 func printnl()
 
+//go:noescape
+func useT40(*T40)
+
 type T40 struct {
 	m map[int]int
 }
 
 func newT40() *T40 {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret"
+	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: &ret$"
 	return &ret
 }
 
 func bad40() {
-	t := newT40() // ERROR "live at call to makemap: autotmp_.* ret"
-	printnl()     // ERROR "live at call to printnl: autotmp_.* ret"
-	_ = t
+	t := newT40() // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+	printnl()     // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
+	useT40(t)     // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
 }
 
 func good40() {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: autotmp_.* ret"
+	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
 	t := &ret
-	printnl() // ERROR "live at call to printnl: autotmp_.* ret"
-	_ = t
+	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
+	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
 }

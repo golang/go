@@ -7,7 +7,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("r0   ", hex(c.r0()), "\t")
@@ -50,95 +53,35 @@ func dumpregs(c *sigctxt) {
 	print("trap ", hex(c.trap()), "\n")
 }
 
-func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
-	_g_ := getg()
-	c := &sigctxt{info, ctxt}
+//go:nosplit
+//go:nowritebarrierrec
+func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
 
-	if sig == _SIGPROF {
-		sigprof((*byte)(unsafe.Pointer(uintptr(c.pc()))), (*byte)(unsafe.Pointer(uintptr(c.sp()))), (*byte)(unsafe.Pointer(uintptr(c.link()))), gp, _g_.m)
-		return
-	}
-	flags := int32(_SigThrow)
-	if sig < uint32(len(sigtable)) {
-		flags = sigtable[sig].flags
-	}
-	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
-		// Make it look like a call to the signal func.
-		// Have to pass arguments out of band since
-		// augmenting the stack frame would break
-		// the unwinding code.
-		gp.sig = sig
-		gp.sigcode0 = uintptr(c.sigcode())
-		gp.sigcode1 = uintptr(c.fault())
-		gp.sigpc = uintptr(c.pc())
+func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+func (c *sigctxt) siglr() uintptr { return uintptr(c.link()) }
 
-		// We arrange link, and pc to pretend the panicking
-		// function calls sigpanic directly.
-		// Always save LINK to stack so that panics in leaf
-		// functions are correctly handled. This smashes
-		// the stack frame but we're not going back there
-		// anyway.
-		sp := c.sp() - ptrSize
-		c.set_sp(sp)
-		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+// preparePanic sets up the stack to look like a call to sigpanic.
+func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+	// We arrange link, and pc to pretend the panicking
+	// function calls sigpanic directly.
+	// Always save LINK to stack so that panics in leaf
+	// functions are correctly handled. This smashes
+	// the stack frame but we're not going back there
+	// anyway.
+	sp := c.sp() - sys.MinFrameSize
+	c.set_sp(sp)
+	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
 
-		// Don't bother saving PC if it's zero, which is
-		// probably a call to a nil func: the old link register
-		// is more useful in the stack trace.
-		if gp.sigpc != 0 {
-			c.set_link(uint64(gp.sigpc))
-		}
+	pc := gp.sigpc
 
-		// In case we are panicking from external C code
-		c.set_r0(0)
-		c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
-		c.set_pc(uint64(funcPC(sigpanic)))
-		return
+	if shouldPushSigpanic(gp, pc, uintptr(c.link())) {
+		// Make it look the like faulting PC called sigpanic.
+		c.set_link(uint64(pc))
 	}
 
-	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
-		if sigsend(sig) {
-			return
-		}
-	}
-
-	if flags&_SigKill != 0 {
-		exit(2)
-	}
-
-	if flags&_SigThrow == 0 {
-		return
-	}
-
-	_g_.m.throwing = 1
-	_g_.m.caughtsig = gp
-	startpanic()
-
-	if sig < uint32(len(sigtable)) {
-		print(sigtable[sig].name, "\n")
-	} else {
-		print("Signal ", sig, "\n")
-	}
-
-	print("PC=", hex(c.pc()), "\n")
-	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
-		print("signal arrived during cgo execution\n")
-		gp = _g_.m.lockedg
-	}
-	print("\n")
-
-	var docrash bool
-	if gotraceback(&docrash) > 0 {
-		goroutineheader(gp)
-		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp)
-		tracebackothers(gp)
-		print("\n")
-		dumpregs(c)
-	}
-
-	if docrash {
-		crash()
-	}
-
-	exit(2)
+	// In case we are panicking from external C code
+	c.set_r0(0)
+	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
+	c.set_r12(uint64(funcPC(sigpanic)))
+	c.set_pc(uint64(funcPC(sigpanic)))
 }

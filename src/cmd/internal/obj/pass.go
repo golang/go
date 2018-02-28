@@ -1,5 +1,5 @@
 // Inferno utils/6l/pass.c
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/pass.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/pass.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,86 +32,66 @@ package obj
 
 // Code and data passes.
 
-func Brchain(ctxt *Link, p *Prog) *Prog {
-	for i := 0; i < 20; i++ {
-		if p == nil || p.As != AJMP || p.Pcond == nil {
-			return p
-		}
-		p = p.Pcond
-	}
-
-	return nil
-}
-
-func brloop(ctxt *Link, p *Prog) *Prog {
-	var q *Prog
-
+// brloop returns the ultimate destination of the series of unconditional jumps beginning at p.
+// In the case of an infinite loop, brloop returns nil.
+func brloop(p *Prog) *Prog {
 	c := 0
-	for q = p; q != nil; q = q.Pcond {
+	for q := p; q != nil; q = q.Pcond {
 		if q.As != AJMP || q.Pcond == nil {
-			break
+			return q
 		}
 		c++
 		if c >= 5000 {
+			// infinite loop
 			return nil
 		}
 	}
-
-	return q
+	panic("unreachable")
 }
 
+// checkaddr checks that a has an expected encoding, especially TYPE_CONST vs TYPE_ADDR.
 func checkaddr(ctxt *Link, p *Prog, a *Addr) {
-	// Check expected encoding, especially TYPE_CONST vs TYPE_ADDR.
 	switch a.Type {
-	case TYPE_NONE:
+	case TYPE_NONE, TYPE_REGREG2, TYPE_REGLIST:
 		return
 
-	case TYPE_BRANCH:
+	case TYPE_BRANCH, TYPE_TEXTSIZE:
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 {
 			break
 		}
 		return
 
-	case TYPE_TEXTSIZE:
-		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 {
-			break
-		}
-		return
-
-		//if(a->u.bits != 0)
-	//	break;
 	case TYPE_MEM:
 		return
 
-		// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
 	case TYPE_CONST:
+		// TODO(rsc): After fixing SHRQ, check a.Index != 0 too.
 		if a.Name != 0 || a.Sym != nil || a.Reg != 0 {
 			ctxt.Diag("argument is TYPE_CONST, should be TYPE_ADDR, in %v", p)
 			return
 		}
 
-		if a.Reg != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
+		if a.Reg != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
 			break
 		}
 		return
 
-	case TYPE_FCONST,
-		TYPE_SCONST:
+	case TYPE_FCONST, TYPE_SCONST:
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Offset != 0 || a.Sym != nil {
 			break
 		}
 		return
 
-		// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
-	// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
 	case TYPE_REG:
+		// TODO(rsc): After fixing PINSRQ, check a.Offset != 0 too.
+		// TODO(rsc): After fixing SHRQ, check a.Index != 0 too.
 		if a.Scale != 0 || a.Name != 0 || a.Sym != nil {
 			break
 		}
 		return
 
 	case TYPE_ADDR:
-		if a.U.Bits != 0 {
+		if a.Val != nil {
 			break
 		}
 		if a.Reg == 0 && a.Index == 0 && a.Scale == 0 && a.Name == 0 && a.Sym == nil {
@@ -119,25 +99,16 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		}
 		return
 
-	case TYPE_SHIFT:
-		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
+	case TYPE_SHIFT, TYPE_REGREG:
+		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
 			break
 		}
 		return
 
-	case TYPE_REGREG:
-		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
-			break
-		}
-		return
-
-	case TYPE_REGREG2:
-		return
-
-		// Expect sym and name to be set, nothing else.
-	// Technically more is allowed, but this is only used for *name(SB).
 	case TYPE_INDIR:
-		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.U.Bits != 0 {
+		// Expect sym and name to be set, nothing else.
+		// Technically more is allowed, but this is only used for *name(SB).
+		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.Val != nil {
 			break
 		}
 		return
@@ -146,28 +117,27 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 	ctxt.Diag("invalid encoding for argument %v", p)
 }
 
-func linkpatch(ctxt *Link, sym *LSym) {
+func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	var c int32
 	var name string
 	var q *Prog
 
-	ctxt.Cursym = sym
-
-	for p := sym.Text; p != nil; p = p.Link {
+	for p := sym.Func.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
-		checkaddr(ctxt, p, &p.From3)
+		if p.GetFrom3() != nil {
+			checkaddr(ctxt, p, p.GetFrom3())
+		}
 		checkaddr(ctxt, p, &p.To)
 
 		if ctxt.Arch.Progedit != nil {
-			ctxt.Arch.Progedit(ctxt, p)
+			ctxt.Arch.Progedit(ctxt, p, newprog)
 		}
 		if p.To.Type != TYPE_BRANCH {
 			continue
 		}
-		if p.To.U.Branch != nil {
-			// TODO: Remove to.u.branch in favor of p->pcond.
-			p.Pcond = p.To.U.Branch
-
+		if p.To.Val != nil {
+			// TODO: Remove To.Val.(*Prog) in favor of p->pcond.
+			p.Pcond = p.To.Val.(*Prog)
 			continue
 		}
 
@@ -175,7 +145,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 			continue
 		}
 		c = int32(p.To.Offset)
-		for q = sym.Text; q != nil; {
+		for q = sym.Func.Text; q != nil; {
 			if int64(c) == q.Pc {
 				break
 			}
@@ -195,19 +165,22 @@ func linkpatch(ctxt *Link, sym *LSym) {
 			p.To.Type = TYPE_NONE
 		}
 
-		p.To.U.Branch = q
+		p.To.Val = q
 		p.Pcond = q
 	}
 
-	for p := sym.Text; p != nil; p = p.Link {
-		p.Mark = 0 /* initialization for follow */
-		if p.Pcond != nil {
-			p.Pcond = brloop(ctxt, p.Pcond)
-			if p.Pcond != nil {
-				if p.To.Type == TYPE_BRANCH {
-					p.To.Offset = p.Pcond.Pc
-				}
-			}
+	if !ctxt.Flag_optimize {
+		return
+	}
+
+	// Collapse series of jumps to jumps.
+	for p := sym.Func.Text; p != nil; p = p.Link {
+		if p.Pcond == nil {
+			continue
+		}
+		p.Pcond = brloop(p.Pcond)
+		if p.Pcond != nil && p.To.Type == TYPE_BRANCH {
+			p.To.Offset = p.Pcond.Pc
 		}
 	}
 }

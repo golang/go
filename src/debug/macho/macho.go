@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -41,6 +41,16 @@ const (
 	TypeBundle Type = 8
 )
 
+var typeStrings = []intName{
+	{uint32(TypeObj), "Obj"},
+	{uint32(TypeExec), "Exec"},
+	{uint32(TypeDylib), "Dylib"},
+	{uint32(TypeBundle), "Bundle"},
+}
+
+func (t Type) String() string   { return stringName(uint32(t), typeStrings, false) }
+func (t Type) GoString() string { return stringName(uint32(t), typeStrings, true) }
+
 // A Cpu is a Mach-O cpu type.
 type Cpu uint32
 
@@ -69,14 +79,15 @@ func (i Cpu) GoString() string { return stringName(uint32(i), cpuStrings, true) 
 type LoadCmd uint32
 
 const (
-	LoadCmdSegment    LoadCmd = 1
-	LoadCmdSymtab     LoadCmd = 2
-	LoadCmdThread     LoadCmd = 4
-	LoadCmdUnixThread LoadCmd = 5 // thread+stack
-	LoadCmdDysymtab   LoadCmd = 11
-	LoadCmdDylib      LoadCmd = 12
-	LoadCmdDylinker   LoadCmd = 15
-	LoadCmdSegment64  LoadCmd = 25
+	LoadCmdSegment    LoadCmd = 0x1
+	LoadCmdSymtab     LoadCmd = 0x2
+	LoadCmdThread     LoadCmd = 0x4
+	LoadCmdUnixThread LoadCmd = 0x5 // thread+stack
+	LoadCmdDysymtab   LoadCmd = 0xb
+	LoadCmdDylib      LoadCmd = 0xc // load dylib command
+	LoadCmdDylinker   LoadCmd = 0xf // id dylinker command (not load dylinker command)
+	LoadCmdSegment64  LoadCmd = 0x19
+	LoadCmdRpath      LoadCmd = 0x8000001c
 )
 
 var cmdStrings = []intName{
@@ -85,50 +96,131 @@ var cmdStrings = []intName{
 	{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
 	{uint32(LoadCmdDylib), "LoadCmdDylib"},
 	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
+	{uint32(LoadCmdRpath), "LoadCmdRpath"},
 }
 
 func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }
 func (i LoadCmd) GoString() string { return stringName(uint32(i), cmdStrings, true) }
 
-// A Segment64 is a 64-bit Mach-O segment load command.
-type Segment64 struct {
-	Cmd     LoadCmd
-	Len     uint32
-	Name    [16]byte
-	Addr    uint64
-	Memsz   uint64
-	Offset  uint64
-	Filesz  uint64
-	Maxprot uint32
-	Prot    uint32
-	Nsect   uint32
-	Flag    uint32
-}
+type (
+	// A Segment32 is a 32-bit Mach-O segment load command.
+	Segment32 struct {
+		Cmd     LoadCmd
+		Len     uint32
+		Name    [16]byte
+		Addr    uint32
+		Memsz   uint32
+		Offset  uint32
+		Filesz  uint32
+		Maxprot uint32
+		Prot    uint32
+		Nsect   uint32
+		Flag    uint32
+	}
 
-// A Segment32 is a 32-bit Mach-O segment load command.
-type Segment32 struct {
-	Cmd     LoadCmd
-	Len     uint32
-	Name    [16]byte
-	Addr    uint32
-	Memsz   uint32
-	Offset  uint32
-	Filesz  uint32
-	Maxprot uint32
-	Prot    uint32
-	Nsect   uint32
-	Flag    uint32
-}
+	// A Segment64 is a 64-bit Mach-O segment load command.
+	Segment64 struct {
+		Cmd     LoadCmd
+		Len     uint32
+		Name    [16]byte
+		Addr    uint64
+		Memsz   uint64
+		Offset  uint64
+		Filesz  uint64
+		Maxprot uint32
+		Prot    uint32
+		Nsect   uint32
+		Flag    uint32
+	}
 
-// A DylibCmd is a Mach-O load dynamic library command.
-type DylibCmd struct {
-	Cmd            LoadCmd
-	Len            uint32
-	Name           uint32
-	Time           uint32
-	CurrentVersion uint32
-	CompatVersion  uint32
-}
+	// A SymtabCmd is a Mach-O symbol table command.
+	SymtabCmd struct {
+		Cmd     LoadCmd
+		Len     uint32
+		Symoff  uint32
+		Nsyms   uint32
+		Stroff  uint32
+		Strsize uint32
+	}
+
+	// A DysymtabCmd is a Mach-O dynamic symbol table command.
+	DysymtabCmd struct {
+		Cmd            LoadCmd
+		Len            uint32
+		Ilocalsym      uint32
+		Nlocalsym      uint32
+		Iextdefsym     uint32
+		Nextdefsym     uint32
+		Iundefsym      uint32
+		Nundefsym      uint32
+		Tocoffset      uint32
+		Ntoc           uint32
+		Modtaboff      uint32
+		Nmodtab        uint32
+		Extrefsymoff   uint32
+		Nextrefsyms    uint32
+		Indirectsymoff uint32
+		Nindirectsyms  uint32
+		Extreloff      uint32
+		Nextrel        uint32
+		Locreloff      uint32
+		Nlocrel        uint32
+	}
+
+	// A DylibCmd is a Mach-O load dynamic library command.
+	DylibCmd struct {
+		Cmd            LoadCmd
+		Len            uint32
+		Name           uint32
+		Time           uint32
+		CurrentVersion uint32
+		CompatVersion  uint32
+	}
+
+	// A RpathCmd is a Mach-O rpath command.
+	RpathCmd struct {
+		Cmd  LoadCmd
+		Len  uint32
+		Path uint32
+	}
+
+	// A Thread is a Mach-O thread state command.
+	Thread struct {
+		Cmd  LoadCmd
+		Len  uint32
+		Type uint32
+		Data []uint32
+	}
+)
+
+const (
+	FlagNoUndefs              uint32 = 0x1
+	FlagIncrLink              uint32 = 0x2
+	FlagDyldLink              uint32 = 0x4
+	FlagBindAtLoad            uint32 = 0x8
+	FlagPrebound              uint32 = 0x10
+	FlagSplitSegs             uint32 = 0x20
+	FlagLazyInit              uint32 = 0x40
+	FlagTwoLevel              uint32 = 0x80
+	FlagForceFlat             uint32 = 0x100
+	FlagNoMultiDefs           uint32 = 0x200
+	FlagNoFixPrebinding       uint32 = 0x400
+	FlagPrebindable           uint32 = 0x800
+	FlagAllModsBound          uint32 = 0x1000
+	FlagSubsectionsViaSymbols uint32 = 0x2000
+	FlagCanonical             uint32 = 0x4000
+	FlagWeakDefines           uint32 = 0x8000
+	FlagBindsToWeak           uint32 = 0x10000
+	FlagAllowStackExecution   uint32 = 0x20000
+	FlagRootSafe              uint32 = 0x40000
+	FlagSetuidSafe            uint32 = 0x80000
+	FlagNoReexportedDylibs    uint32 = 0x100000
+	FlagPIE                   uint32 = 0x200000
+	FlagDeadStrippableDylib   uint32 = 0x400000
+	FlagHasTLVDescriptors     uint32 = 0x800000
+	FlagNoHeapExecution       uint32 = 0x1000000
+	FlagAppExtensionSafe      uint32 = 0x2000000
+)
 
 // A Section32 is a 32-bit Mach-O section header.
 type Section32 struct {
@@ -145,7 +237,7 @@ type Section32 struct {
 	Reserve2 uint32
 }
 
-// A Section32 is a 64-bit Mach-O section header.
+// A Section64 is a 64-bit Mach-O section header.
 type Section64 struct {
 	Name     [16]byte
 	Seg      [16]byte
@@ -159,40 +251,6 @@ type Section64 struct {
 	Reserve1 uint32
 	Reserve2 uint32
 	Reserve3 uint32
-}
-
-// A SymtabCmd is a Mach-O symbol table command.
-type SymtabCmd struct {
-	Cmd     LoadCmd
-	Len     uint32
-	Symoff  uint32
-	Nsyms   uint32
-	Stroff  uint32
-	Strsize uint32
-}
-
-// A DysymtabCmd is a Mach-O dynamic symbol table command.
-type DysymtabCmd struct {
-	Cmd            LoadCmd
-	Len            uint32
-	Ilocalsym      uint32
-	Nlocalsym      uint32
-	Iextdefsym     uint32
-	Nextdefsym     uint32
-	Iundefsym      uint32
-	Nundefsym      uint32
-	Tocoffset      uint32
-	Ntoc           uint32
-	Modtaboff      uint32
-	Nmodtab        uint32
-	Extrefsymoff   uint32
-	Nextrefsyms    uint32
-	Indirectsymoff uint32
-	Nindirectsyms  uint32
-	Extreloff      uint32
-	Nextrel        uint32
-	Locreloff      uint32
-	Nlocrel        uint32
 }
 
 // An Nlist32 is a Mach-O 32-bit symbol table entry.
@@ -211,23 +269,6 @@ type Nlist64 struct {
 	Sect  uint8
 	Desc  uint16
 	Value uint64
-}
-
-// A Symbol is a Mach-O 32-bit or 64-bit symbol table entry.
-type Symbol struct {
-	Name  string
-	Type  uint8
-	Sect  uint8
-	Desc  uint16
-	Value uint64
-}
-
-// A Thread is a Mach-O thread state command.
-type Thread struct {
-	Cmd  LoadCmd
-	Len  uint32
-	Type uint32
-	Data []uint32
 }
 
 // Regs386 is the Mach-O 386 register structure.
@@ -290,27 +331,4 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 		}
 	}
 	return strconv.FormatUint(uint64(i), 10)
-}
-
-func flagName(i uint32, names []intName, goSyntax bool) string {
-	s := ""
-	for _, n := range names {
-		if n.i&i == n.i {
-			if len(s) > 0 {
-				s += "+"
-			}
-			if goSyntax {
-				s += "macho."
-			}
-			s += n.s
-			i -= n.i
-		}
-	}
-	if len(s) == 0 {
-		return "0x" + strconv.FormatUint(uint64(i), 16)
-	}
-	if i != 0 {
-		s += "+0x" + strconv.FormatUint(uint64(i), 16)
-	}
-	return s
 }

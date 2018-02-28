@@ -5,8 +5,10 @@
 package tls
 
 import (
+	"bytes"
 	"math/rand"
 	"reflect"
+	"strings"
 	"testing"
 	"testing/quick"
 )
@@ -96,8 +98,8 @@ func TestFuzz(t *testing.T) {
 
 func randomBytes(n int, rand *rand.Rand) []byte {
 	r := make([]byte, n)
-	for i := 0; i < n; i++ {
-		r[i] = byte(rand.Int31())
+	if _, err := rand.Read(r); err != nil {
+		panic("rand.Read failed: " + err.Error())
 	}
 	return r
 }
@@ -114,7 +116,11 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m.sessionId = randomBytes(rand.Intn(32), rand)
 	m.cipherSuites = make([]uint16, rand.Intn(63)+1)
 	for i := 0; i < len(m.cipherSuites); i++ {
-		m.cipherSuites[i] = uint16(rand.Int31())
+		cs := uint16(rand.Int31())
+		if cs == scsvRenegotiation {
+			cs += 1
+		}
+		m.cipherSuites[i] = cs
 	}
 	m.compressionMethods = randomBytes(rand.Intn(63)+1, rand)
 	if rand.Intn(10) > 5 {
@@ -122,6 +128,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 	if rand.Intn(10) > 5 {
 		m.serverName = randomString(rand.Intn(255), rand)
+		for strings.HasSuffix(m.serverName, ".") {
+			m.serverName = m.serverName[:len(m.serverName)-1]
+		}
 	}
 	m.ocspStapling = rand.Intn(10) > 5
 	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
@@ -136,11 +145,14 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.signatureAndHashes = supportedSKXSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
 	}
 	m.alpnProtocols = make([]string, rand.Intn(5))
 	for i := range m.alpnProtocols {
 		m.alpnProtocols[i] = randomString(rand.Intn(20)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.scts = true
 	}
 
 	return reflect.ValueOf(m)
@@ -171,6 +183,14 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.ticketSupported = true
 	}
 	m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
+
+	if rand.Intn(10) > 5 {
+		numSCTs := rand.Intn(4)
+		m.scts = make([][]byte, numSCTs)
+		for i := range m.scts {
+			m.scts[i] = randomBytes(rand.Intn(500), rand)
+		}
+	}
 
 	return reflect.ValueOf(m)
 }
@@ -248,4 +268,66 @@ func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 		s.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
 	}
 	return reflect.ValueOf(s)
+}
+
+func TestRejectEmptySCTList(t *testing.T) {
+	// https://tools.ietf.org/html/rfc6962#section-3.3.1 specifies that
+	// empty SCT lists are invalid.
+
+	var random [32]byte
+	sct := []byte{0x42, 0x42, 0x42, 0x42}
+	serverHello := serverHelloMsg{
+		vers:   VersionTLS12,
+		random: random[:],
+		scts:   [][]byte{sct},
+	}
+	serverHelloBytes := serverHello.marshal()
+
+	var serverHelloCopy serverHelloMsg
+	if !serverHelloCopy.unmarshal(serverHelloBytes) {
+		t.Fatal("Failed to unmarshal initial message")
+	}
+
+	// Change serverHelloBytes so that the SCT list is empty
+	i := bytes.Index(serverHelloBytes, sct)
+	if i < 0 {
+		t.Fatal("Cannot find SCT in ServerHello")
+	}
+
+	var serverHelloEmptySCT []byte
+	serverHelloEmptySCT = append(serverHelloEmptySCT, serverHelloBytes[:i-6]...)
+	// Append the extension length and SCT list length for an empty list.
+	serverHelloEmptySCT = append(serverHelloEmptySCT, []byte{0, 2, 0, 0}...)
+	serverHelloEmptySCT = append(serverHelloEmptySCT, serverHelloBytes[i+4:]...)
+
+	// Update the handshake message length.
+	serverHelloEmptySCT[1] = byte((len(serverHelloEmptySCT) - 4) >> 16)
+	serverHelloEmptySCT[2] = byte((len(serverHelloEmptySCT) - 4) >> 8)
+	serverHelloEmptySCT[3] = byte(len(serverHelloEmptySCT) - 4)
+
+	// Update the extensions length
+	serverHelloEmptySCT[42] = byte((len(serverHelloEmptySCT) - 44) >> 8)
+	serverHelloEmptySCT[43] = byte((len(serverHelloEmptySCT) - 44))
+
+	if serverHelloCopy.unmarshal(serverHelloEmptySCT) {
+		t.Fatal("Unmarshaled ServerHello with empty SCT list")
+	}
+}
+
+func TestRejectEmptySCT(t *testing.T) {
+	// Not only must the SCT list be non-empty, but the SCT elements must
+	// not be zero length.
+
+	var random [32]byte
+	serverHello := serverHelloMsg{
+		vers:   VersionTLS12,
+		random: random[:],
+		scts:   [][]byte{nil},
+	}
+	serverHelloBytes := serverHello.marshal()
+
+	var serverHelloCopy serverHelloMsg
+	if serverHelloCopy.unmarshal(serverHelloBytes) {
+		t.Fatal("Unmarshaled ServerHello with zero-length SCT")
+	}
 }

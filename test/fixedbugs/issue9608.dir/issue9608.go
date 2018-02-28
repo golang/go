@@ -67,6 +67,15 @@ func init() {
 	case true:
 		fail()
 	}
+
+	// Test dead code elimination in large ranges.
+	switch 5 {
+	case 3, 4, 5, 6, 7:
+	case 0, 1, 2:
+		fail()
+	default:
+		fail()
+	}
 }
 
 func main() {

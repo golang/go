@@ -37,7 +37,7 @@ func encode(prefix, s string) (string, error) {
 	delta, n, bias := int32(0), initialN, initialBias
 	b, remaining := int32(0), int32(0)
 	for _, r := range s {
-		if r < 0x80 {
+		if r < utf8.RuneSelf {
 			b++
 			output = append(output, byte(r))
 		} else {

@@ -6,7 +6,7 @@
 //   xxhash: https://code.google.com/p/xxhash/
 // cityhash: https://code.google.com/p/cityhash/
 
-// +build amd64 amd64p32 ppc64 ppc64le
+// +build amd64 amd64p32 arm64 mips64 mips64le ppc64 ppc64le s390x
 
 package runtime
 
@@ -53,9 +53,9 @@ tail:
 		h = rotl_31(h*m1) * m2
 	default:
 		v1 := h
-		v2 := uint64(hashkey[1])
-		v3 := uint64(hashkey[2])
-		v4 := uint64(hashkey[3])
+		v2 := uint64(seed * hashkey[1])
+		v3 := uint64(seed * hashkey[2])
+		v4 := uint64(seed * hashkey[3])
 		for s >= 32 {
 			v1 ^= readUnaligned64(p)
 			v1 = rotl_31(v1*m1) * m2
@@ -75,6 +75,28 @@ tail:
 		goto tail
 	}
 
+	h ^= h >> 29
+	h *= m3
+	h ^= h >> 32
+	return uintptr(h)
+}
+
+func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
+	h := uint64(seed + 4*hashkey[0])
+	v := uint64(readUnaligned32(p))
+	h ^= v
+	h ^= v << 32
+	h = rotl_31(h*m1) * m2
+	h ^= h >> 29
+	h *= m3
+	h ^= h >> 32
+	return uintptr(h)
+}
+
+func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
+	h := uint64(seed + 8*hashkey[0])
+	h ^= uint64(readUnaligned32(p)) | uint64(readUnaligned32(add(p, 4)))<<32
+	h = rotl_31(h*m1) * m2
 	h ^= h >> 29
 	h *= m3
 	h ^= h >> 32

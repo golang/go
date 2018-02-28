@@ -54,14 +54,18 @@ var utf8map = []Utf8Map{
 	{0x00ff, "\xc3\xbf"},
 	{0x0100, "\xc4\x80"},
 	{0x07ff, "\xdf\xbf"},
+	{0x0400, "\xd0\x80"},
 	{0x0800, "\xe0\xa0\x80"},
 	{0x0801, "\xe0\xa0\x81"},
+	{0x1000, "\xe1\x80\x80"},
+	{0xd000, "\xed\x80\x80"},
 	{0xd7ff, "\xed\x9f\xbf"}, // last code point before surrogate half.
 	{0xe000, "\xee\x80\x80"}, // first code point after surrogate half.
 	{0xfffe, "\xef\xbf\xbe"},
 	{0xffff, "\xef\xbf\xbf"},
 	{0x10000, "\xf0\x90\x80\x80"},
 	{0x10001, "\xf0\x90\x80\x81"},
+	{0x40000, "\xf1\x80\x80\x80"},
 	{0x10fffe, "\xf4\x8f\xbf\xbe"},
 	{0x10ffff, "\xf4\x8f\xbf\xbf"},
 	{0xFFFD, "\xef\xbf\xbd"},
@@ -98,6 +102,15 @@ func TestFullRune(t *testing.T) {
 		s1 := string(b1)
 		if FullRuneInString(s1) {
 			t.Errorf("FullRune(%q) = true, want false", s1)
+		}
+	}
+	for _, s := range []string{"\xc0", "\xc1"} {
+		b := []byte(s)
+		if !FullRune(b) {
+			t.Errorf("FullRune(%q) = false, want true", s)
+		}
+		if !FullRuneInString(s) {
+			t.Errorf("FullRuneInString(%q) = false, want true", s)
 		}
 	}
 }
@@ -219,6 +232,93 @@ func TestIntConversion(t *testing.T) {
 	}
 }
 
+var invalidSequenceTests = []string{
+	"\xed\xa0\x80\x80", // surrogate min
+	"\xed\xbf\xbf\x80", // surrogate max
+
+	// xx
+	"\x91\x80\x80\x80",
+
+	// s1
+	"\xC2\x7F\x80\x80",
+	"\xC2\xC0\x80\x80",
+	"\xDF\x7F\x80\x80",
+	"\xDF\xC0\x80\x80",
+
+	// s2
+	"\xE0\x9F\xBF\x80",
+	"\xE0\xA0\x7F\x80",
+	"\xE0\xBF\xC0\x80",
+	"\xE0\xC0\x80\x80",
+
+	// s3
+	"\xE1\x7F\xBF\x80",
+	"\xE1\x80\x7F\x80",
+	"\xE1\xBF\xC0\x80",
+	"\xE1\xC0\x80\x80",
+
+	//s4
+	"\xED\x7F\xBF\x80",
+	"\xED\x80\x7F\x80",
+	"\xED\x9F\xC0\x80",
+	"\xED\xA0\x80\x80",
+
+	// s5
+	"\xF0\x8F\xBF\xBF",
+	"\xF0\x90\x7F\xBF",
+	"\xF0\x90\x80\x7F",
+	"\xF0\xBF\xBF\xC0",
+	"\xF0\xBF\xC0\x80",
+	"\xF0\xC0\x80\x80",
+
+	// s6
+	"\xF1\x7F\xBF\xBF",
+	"\xF1\x80\x7F\xBF",
+	"\xF1\x80\x80\x7F",
+	"\xF1\xBF\xBF\xC0",
+	"\xF1\xBF\xC0\x80",
+	"\xF1\xC0\x80\x80",
+
+	// s7
+	"\xF4\x7F\xBF\xBF",
+	"\xF4\x80\x7F\xBF",
+	"\xF4\x80\x80\x7F",
+	"\xF4\x8F\xBF\xC0",
+	"\xF4\x8F\xC0\x80",
+	"\xF4\x90\x80\x80",
+}
+
+func runtimeDecodeRune(s string) rune {
+	for _, r := range s {
+		return r
+	}
+	return -1
+}
+
+func TestDecodeInvalidSequence(t *testing.T) {
+	for _, s := range invalidSequenceTests {
+		r1, _ := DecodeRune([]byte(s))
+		if want := RuneError; r1 != want {
+			t.Errorf("DecodeRune(%#x) = %#04x, want %#04x", s, r1, want)
+			return
+		}
+		r2, _ := DecodeRuneInString(s)
+		if want := RuneError; r2 != want {
+			t.Errorf("DecodeRuneInString(%q) = %#04x, want %#04x", s, r2, want)
+			return
+		}
+		if r1 != r2 {
+			t.Errorf("DecodeRune(%#x) = %#04x mismatch with DecodeRuneInString(%q) = %#04x", s, r1, s, r2)
+			return
+		}
+		r3 := runtimeDecodeRune(s)
+		if r2 != r3 {
+			t.Errorf("DecodeRuneInString(%q) = %#04x mismatch with runtime.decoderune(%q) = %#04x", s, r2, s, r3)
+			return
+		}
+	}
+}
+
 func testSequence(t *testing.T, s string) {
 	type info struct {
 		index int
@@ -300,6 +400,8 @@ var runecounttests = []RuneCountTest{
 	{"☺☻☹", 3},
 	{"1,2,3,4", 7},
 	{"\xe2\x00", 2},
+	{"\xe2\x80", 2},
+	{"a\xe2\x80", 3},
 }
 
 func TestRuneCount(t *testing.T) {
@@ -352,6 +454,7 @@ var validTests = []ValidTest{
 	{"ЖЖ", true},
 	{"брэд-ЛГТМ", true},
 	{"☺☻☹", true},
+	{"aa\xe2", false},
 	{string([]byte{66, 250}), false},
 	{string([]byte{66, 250, 67}), false},
 	{"a\uFFFDb", true},
@@ -404,14 +507,54 @@ func TestValidRune(t *testing.T) {
 }
 
 func BenchmarkRuneCountTenASCIIChars(b *testing.B) {
+	s := []byte("0123456789")
+	for i := 0; i < b.N; i++ {
+		RuneCount(s)
+	}
+}
+
+func BenchmarkRuneCountTenJapaneseChars(b *testing.B) {
+	s := []byte("日本語日本語日本語日")
+	for i := 0; i < b.N; i++ {
+		RuneCount(s)
+	}
+}
+
+func BenchmarkRuneCountInStringTenASCIIChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		RuneCountInString("0123456789")
 	}
 }
 
-func BenchmarkRuneCountTenJapaneseChars(b *testing.B) {
+func BenchmarkRuneCountInStringTenJapaneseChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		RuneCountInString("日本語日本語日本語日")
+	}
+}
+
+func BenchmarkValidTenASCIIChars(b *testing.B) {
+	s := []byte("0123456789")
+	for i := 0; i < b.N; i++ {
+		Valid(s)
+	}
+}
+
+func BenchmarkValidTenJapaneseChars(b *testing.B) {
+	s := []byte("日本語日本語日本語日")
+	for i := 0; i < b.N; i++ {
+		Valid(s)
+	}
+}
+
+func BenchmarkValidStringTenASCIIChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString("0123456789")
+	}
+}
+
+func BenchmarkValidStringTenJapaneseChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString("日本語日本語日本語日")
 	}
 }
 
@@ -440,5 +583,19 @@ func BenchmarkDecodeJapaneseRune(b *testing.B) {
 	nihon := []byte("本")
 	for i := 0; i < b.N; i++ {
 		DecodeRune(nihon)
+	}
+}
+
+func BenchmarkFullASCIIRune(b *testing.B) {
+	a := []byte{'a'}
+	for i := 0; i < b.N; i++ {
+		FullRune(a)
+	}
+}
+
+func BenchmarkFullJapaneseRune(b *testing.B) {
+	nihon := []byte("本")
+	for i := 0; i < b.N; i++ {
+		FullRune(nihon)
 	}
 }

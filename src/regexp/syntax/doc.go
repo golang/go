@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -66,7 +66,7 @@ Grouping:
 
 Empty strings:
   ^              at beginning of text or line (flag m=true)
-  $              at end of text (like \z not \Z) or line (flag m=true)
+  $              at end of text (like \z not Perl's \Z) or line (flag m=true)
   \A             at beginning of text
   \b             at ASCII word boundary (\w on one side and \W, \A, or \z on the other)
   \B             not at ASCII word boundary

@@ -11,7 +11,7 @@ The receiver verifies the hash by recomputing it using the same key.
 Receivers should be careful to use Equal to compare MACs in order to avoid
 timing side-channels:
 
-	// CheckMAC returns true if messageMAC is a valid HMAC tag for message.
+	// CheckMAC reports whether messageMAC is a valid HMAC tag for message.
 	func CheckMAC(message, messageMAC, key []byte) bool {
 		mac := hmac.New(sha256.New, key)
 		mac.Write(message)
@@ -26,8 +26,8 @@ import (
 	"hash"
 )
 
-// FIPS 198:
-// http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
+// FIPS 198-1:
+// http://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
 
 // key is zero padded to the block size of the hash function
 // ipad = 0x36 byte repeated for key length
@@ -37,26 +37,16 @@ import (
 type hmac struct {
 	size         int
 	blocksize    int
-	key, tmp     []byte
+	opad, ipad   []byte
 	outer, inner hash.Hash
-}
-
-func (h *hmac) tmpPad(xor byte) {
-	for i, k := range h.key {
-		h.tmp[i] = xor ^ k
-	}
-	for i := len(h.key); i < h.blocksize; i++ {
-		h.tmp[i] = xor
-	}
 }
 
 func (h *hmac) Sum(in []byte) []byte {
 	origLen := len(in)
 	in = h.inner.Sum(in)
-	h.tmpPad(0x5c)
-	copy(h.tmp[h.blocksize:], in[origLen:])
 	h.outer.Reset()
-	h.outer.Write(h.tmp)
+	h.outer.Write(h.opad)
+	h.outer.Write(in[origLen:])
 	return h.outer.Sum(in[:origLen])
 }
 
@@ -70,26 +60,35 @@ func (h *hmac) BlockSize() int { return h.blocksize }
 
 func (h *hmac) Reset() {
 	h.inner.Reset()
-	h.tmpPad(0x36)
-	h.inner.Write(h.tmp[:h.blocksize])
+	h.inner.Write(h.ipad)
 }
 
 // New returns a new HMAC hash using the given hash.Hash type and key.
+// Note that unlike other hash implementations in the standard library,
+// the returned Hash does not implement encoding.BinaryMarshaler
+// or encoding.BinaryUnmarshaler.
 func New(h func() hash.Hash, key []byte) hash.Hash {
 	hm := new(hmac)
 	hm.outer = h()
 	hm.inner = h()
 	hm.size = hm.inner.Size()
 	hm.blocksize = hm.inner.BlockSize()
-	hm.tmp = make([]byte, hm.blocksize+hm.size)
+	hm.ipad = make([]byte, hm.blocksize)
+	hm.opad = make([]byte, hm.blocksize)
 	if len(key) > hm.blocksize {
 		// If key is too big, hash it.
 		hm.outer.Write(key)
 		key = hm.outer.Sum(nil)
 	}
-	hm.key = make([]byte, len(key))
-	copy(hm.key, key)
-	hm.Reset()
+	copy(hm.ipad, key)
+	copy(hm.opad, key)
+	for i := range hm.ipad {
+		hm.ipad[i] ^= 0x36
+	}
+	for i := range hm.opad {
+		hm.opad[i] ^= 0x5c
+	}
+	hm.inner.Write(hm.ipad)
 	return hm
 }
 
@@ -98,5 +97,5 @@ func Equal(mac1, mac2 []byte) bool {
 	// We don't have to be constant time if the lengths of the MACs are
 	// different as that suggests that a completely different hash function
 	// was used.
-	return len(mac1) == len(mac2) && subtle.ConstantTimeCompare(mac1, mac2) == 1
+	return subtle.ConstantTimeCompare(mac1, mac2) == 1
 }

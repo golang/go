@@ -5,64 +5,75 @@
 package os
 
 import (
-	"io"
+	"internal/poll"
+	"internal/syscall/windows"
 	"runtime"
-	"sync"
 	"syscall"
 	"unicode/utf16"
-	"unicode/utf8"
 	"unsafe"
 )
-
-// File represents an open file descriptor.
-type File struct {
-	*file
-}
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	fd      syscall.Handle
+	pfd     poll.FD
 	name    string
-	dirinfo *dirInfo   // nil unless directory being read
-	l       sync.Mutex // used to implement windows pread/pwrite
-
-	// only for console io
-	isConsole bool
-	lastbits  []byte // first few bytes of the last incomplete rune in last write
-	readbuf   []rune // input console buffer
+	dirinfo *dirInfo // nil unless directory being read
 }
 
 // Fd returns the Windows handle referencing the open file.
 // The handle is valid only until f.Close is called or f is garbage collected.
+// On Unix systems this will cause the SetDeadline methods to stop working.
 func (file *File) Fd() uintptr {
 	if file == nil {
 		return uintptr(syscall.InvalidHandle)
 	}
-	return uintptr(file.fd)
+	return uintptr(file.pfd.Sysfd)
 }
 
 // newFile returns a new File with the given file handle and name.
 // Unlike NewFile, it does not check that h is syscall.InvalidHandle.
-func newFile(h syscall.Handle, name string) *File {
-	f := &File{&file{fd: h, name: name}}
-	var m uint32
-	if syscall.GetConsoleMode(f.fd, &m) == nil {
-		f.isConsole = true
+func newFile(h syscall.Handle, name string, kind string) *File {
+	if kind == "file" {
+		var m uint32
+		if syscall.GetConsoleMode(h, &m) == nil {
+			kind = "console"
+		}
 	}
+
+	f := &File{&file{
+		pfd: poll.FD{
+			Sysfd:         h,
+			IsStream:      true,
+			ZeroReadIsEOF: true,
+		},
+		name: name,
+	}}
 	runtime.SetFinalizer(f.file, (*file).close)
+
+	// Ignore initialization errors.
+	// Assume any problems will show up in later I/O.
+	f.pfd.Init(kind, false)
+
 	return f
 }
 
-// NewFile returns a new File with the given file descriptor and name.
+// newConsoleFile creates new File that will be used as console.
+func newConsoleFile(h syscall.Handle, name string) *File {
+	return newFile(h, name, "console")
+}
+
+// NewFile returns a new File with the given file descriptor and
+// name. The returned value will be nil if fd is not a valid file
+// descriptor.
 func NewFile(fd uintptr, name string) *File {
 	h := syscall.Handle(fd)
 	if h == syscall.InvalidHandle {
 		return nil
 	}
-	return newFile(h, name)
+	return newFile(h, name, "file")
 }
 
 // Auxiliary information if the File describes a directory
@@ -81,15 +92,24 @@ const DevNull = "NUL"
 func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
 
 func openFile(name string, flag int, perm FileMode) (file *File, err error) {
-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+	r, e := syscall.Open(fixLongPath(name), flag|syscall.O_CLOEXEC, syscallMode(perm))
 	if e != nil {
 		return nil, e
 	}
-	return NewFile(uintptr(r), name), nil
+	return newFile(r, name, "file"), nil
 }
 
 func openDir(name string) (file *File, err error) {
-	maskp, e := syscall.UTF16PtrFromString(name + `\*`)
+	var mask string
+
+	path := fixLongPath(name)
+
+	if len(path) == 2 && path[1] == ':' || (len(path) > 0 && path[len(path)-1] == '\\') { // it is a drive letter, like C:
+		mask = path + `*`
+	} else {
+		mask = path + `\*`
+	}
+	maskp, e := syscall.UTF16PtrFromString(mask)
 	if e != nil {
 		return nil, e
 	}
@@ -103,11 +123,11 @@ func openDir(name string) (file *File, err error) {
 			return nil, e
 		}
 		var fa syscall.Win32FileAttributeData
-		namep, e := syscall.UTF16PtrFromString(name)
+		pathp, e := syscall.UTF16PtrFromString(path)
 		if e != nil {
 			return nil, e
 		}
-		e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+		e = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
 		if e != nil {
 			return nil, e
 		}
@@ -116,24 +136,20 @@ func openDir(name string) (file *File, err error) {
 		}
 		d.isempty = true
 	}
-	d.path = name
+	d.path = path
 	if !isAbs(d.path) {
 		d.path, e = syscall.FullPath(d.path)
 		if e != nil {
 			return nil, e
 		}
 	}
-	f := newFile(r, name)
+	f := newFile(r, name, "dir")
 	f.dirinfo = d
 	return f, nil
 }
 
-// OpenFile is the generalized open call; most users will use Open
-// or Create instead.  It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
-// methods on the returned File can be used for I/O.
-// If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+// openFileNolog is the Windows implementation of OpenFile.
+func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if name == "" {
 		return nil, &PathError{"open", name, syscall.ENOENT}
 	}
@@ -169,237 +185,50 @@ func (file *file) close() error {
 		// "special" empty directories
 		return nil
 	}
-	if file.fd == syscall.InvalidHandle {
-		return syscall.EINVAL
-	}
-	var e error
-	if file.isdir() {
-		e = syscall.FindClose(syscall.Handle(file.fd))
-	} else {
-		e = syscall.CloseHandle(syscall.Handle(file.fd))
-	}
 	var err error
-	if e != nil {
+	if e := file.pfd.Close(); e != nil {
+		if e == poll.ErrFileClosing {
+			e = ErrClosed
+		}
 		err = &PathError{"close", file.name, e}
 	}
-	file.fd = syscall.InvalidHandle // so it can't be closed again
 
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(file, nil)
 	return err
 }
 
-func (file *File) readdir(n int) (fi []FileInfo, err error) {
-	if file == nil {
-		return nil, syscall.EINVAL
-	}
-	if !file.isdir() {
-		return nil, &PathError{"Readdir", file.name, syscall.ENOTDIR}
-	}
-	if !file.dirinfo.isempty && file.fd == syscall.InvalidHandle {
-		return nil, syscall.EINVAL
-	}
-	wantAll := n <= 0
-	size := n
-	if wantAll {
-		n = -1
-		size = 100
-	}
-	fi = make([]FileInfo, 0, size) // Empty with room to grow.
-	d := &file.dirinfo.data
-	for n != 0 && !file.dirinfo.isempty {
-		if file.dirinfo.needdata {
-			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
-			if e != nil {
-				if e == syscall.ERROR_NO_MORE_FILES {
-					break
-				} else {
-					err = &PathError{"FindNextFile", file.name, e}
-					if !wantAll {
-						fi = nil
-					}
-					return
-				}
-			}
-		}
-		file.dirinfo.needdata = true
-		name := string(syscall.UTF16ToString(d.FileName[0:]))
-		if name == "." || name == ".." { // Useless names
-			continue
-		}
-		f := &fileStat{
-			name: name,
-			sys: syscall.Win32FileAttributeData{
-				FileAttributes: d.FileAttributes,
-				CreationTime:   d.CreationTime,
-				LastAccessTime: d.LastAccessTime,
-				LastWriteTime:  d.LastWriteTime,
-				FileSizeHigh:   d.FileSizeHigh,
-				FileSizeLow:    d.FileSizeLow,
-			},
-			path: file.dirinfo.path + `\` + name,
-		}
-		n--
-		fi = append(fi, f)
-	}
-	if !wantAll && len(fi) == 0 {
-		return fi, io.EOF
-	}
-	return fi, nil
-}
-
-// readConsole reads utf16 characters from console File,
-// encodes them into utf8 and stores them in buffer b.
-// It returns the number of utf8 bytes read and an error, if any.
-func (f *File) readConsole(b []byte) (n int, err error) {
-	if len(b) == 0 {
-		return 0, nil
-	}
-	if len(f.readbuf) == 0 {
-		// syscall.ReadConsole seems to fail, if given large buffer.
-		// So limit the buffer to 16000 characters.
-		numBytes := len(b)
-		if numBytes > 16000 {
-			numBytes = 16000
-		}
-		// get more input data from os
-		wchars := make([]uint16, numBytes)
-		var p *uint16
-		if len(b) > 0 {
-			p = &wchars[0]
-		}
-		var nw uint32
-		err := syscall.ReadConsole(f.fd, p, uint32(len(wchars)), &nw, nil)
-		if err != nil {
-			return 0, err
-		}
-		f.readbuf = utf16.Decode(wchars[:nw])
-	}
-	for i, r := range f.readbuf {
-		if utf8.RuneLen(r) > len(b) {
-			f.readbuf = f.readbuf[i:]
-			return n, nil
-		}
-		nr := utf8.EncodeRune(b, r)
-		b = b[nr:]
-		n += nr
-	}
-	f.readbuf = nil
-	return n, nil
-}
-
 // read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
 func (f *File) read(b []byte) (n int, err error) {
-	f.l.Lock()
-	defer f.l.Unlock()
-	if f.isConsole {
-		return f.readConsole(b)
-	}
-	return fixCount(syscall.Read(f.fd, b))
+	n, err = f.pfd.Read(b)
+	runtime.KeepAlive(f)
+	return n, err
 }
 
 // pread reads len(b) bytes from the File starting at byte offset off.
 // It returns the number of bytes read and the error, if any.
 // EOF is signaled by a zero count with err set to 0.
 func (f *File) pread(b []byte, off int64) (n int, err error) {
-	f.l.Lock()
-	defer f.l.Unlock()
-	curoffset, e := syscall.Seek(f.fd, 0, 1)
-	if e != nil {
-		return 0, e
-	}
-	defer syscall.Seek(f.fd, curoffset, 0)
-	o := syscall.Overlapped{
-		OffsetHigh: uint32(off >> 32),
-		Offset:     uint32(off),
-	}
-	var done uint32
-	e = syscall.ReadFile(syscall.Handle(f.fd), b, &done, &o)
-	if e != nil {
-		if e == syscall.ERROR_HANDLE_EOF {
-			// end of file
-			return 0, nil
-		}
-		return 0, e
-	}
-	return int(done), nil
-}
-
-// writeConsole writes len(b) bytes to the console File.
-// It returns the number of bytes written and an error, if any.
-func (f *File) writeConsole(b []byte) (n int, err error) {
-	n = len(b)
-	runes := make([]rune, 0, 256)
-	if len(f.lastbits) > 0 {
-		b = append(f.lastbits, b...)
-		f.lastbits = nil
-
-	}
-	for len(b) >= utf8.UTFMax || utf8.FullRune(b) {
-		r, l := utf8.DecodeRune(b)
-		runes = append(runes, r)
-		b = b[l:]
-	}
-	if len(b) > 0 {
-		f.lastbits = make([]byte, len(b))
-		copy(f.lastbits, b)
-	}
-	// syscall.WriteConsole seems to fail, if given large buffer.
-	// So limit the buffer to 16000 characters. This number was
-	// discovered by experimenting with syscall.WriteConsole.
-	const maxWrite = 16000
-	for len(runes) > 0 {
-		m := len(runes)
-		if m > maxWrite {
-			m = maxWrite
-		}
-		chunk := runes[:m]
-		runes = runes[m:]
-		uint16s := utf16.Encode(chunk)
-		for len(uint16s) > 0 {
-			var written uint32
-			err = syscall.WriteConsole(f.fd, &uint16s[0], uint32(len(uint16s)), &written, nil)
-			if err != nil {
-				return 0, nil
-			}
-			uint16s = uint16s[written:]
-		}
-	}
-	return n, nil
+	n, err = f.pfd.Pread(b, off)
+	runtime.KeepAlive(f)
+	return n, err
 }
 
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 func (f *File) write(b []byte) (n int, err error) {
-	f.l.Lock()
-	defer f.l.Unlock()
-	if f.isConsole {
-		return f.writeConsole(b)
-	}
-	return fixCount(syscall.Write(f.fd, b))
+	n, err = f.pfd.Write(b)
+	runtime.KeepAlive(f)
+	return n, err
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
 func (f *File) pwrite(b []byte, off int64) (n int, err error) {
-	f.l.Lock()
-	defer f.l.Unlock()
-	curoffset, e := syscall.Seek(f.fd, 0, 1)
-	if e != nil {
-		return 0, e
-	}
-	defer syscall.Seek(f.fd, curoffset, 0)
-	o := syscall.Overlapped{
-		OffsetHigh: uint32(off >> 32),
-		Offset:     uint32(off),
-	}
-	var done uint32
-	e = syscall.WriteFile(syscall.Handle(f.fd), b, &done, &o)
-	if e != nil {
-		return 0, e
-	}
-	return int(done), nil
+	n, err = f.pfd.Pwrite(b, off)
+	runtime.KeepAlive(f)
+	return n, err
 }
 
 // seek sets the offset for the next Read or Write on file to offset, interpreted
@@ -407,9 +236,9 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	f.l.Lock()
-	defer f.l.Unlock()
-	return syscall.Seek(f.fd, offset, whence)
+	ret, err = f.pfd.Seek(offset, whence)
+	runtime.KeepAlive(f)
+	return ret, err
 }
 
 // Truncate changes the size of the named file.
@@ -430,7 +259,7 @@ func Truncate(name string, size int64) error {
 // Remove removes the named file or directory.
 // If there is an error, it will be of type *PathError.
 func Remove(name string) error {
-	p, e := syscall.UTF16PtrFromString(name)
+	p, e := syscall.UTF16PtrFromString(fixLongPath(name))
 	if e != nil {
 		return &PathError{"remove", name, e}
 	}
@@ -454,63 +283,65 @@ func Remove(name string) error {
 		} else {
 			if a&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
 				e = e1
+			} else if a&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+				if e1 = syscall.SetFileAttributes(p, a&^syscall.FILE_ATTRIBUTE_READONLY); e1 == nil {
+					if e = syscall.DeleteFile(p); e == nil {
+						return nil
+					}
+				}
 			}
 		}
 	}
 	return &PathError{"remove", name, e}
 }
 
+func rename(oldname, newname string) error {
+	e := windows.Rename(fixLongPath(oldname), fixLongPath(newname))
+	if e != nil {
+		return &LinkError{"rename", oldname, newname, e}
+	}
+	return nil
+}
+
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
 // It returns the files and an error, if any.
 func Pipe() (r *File, w *File, err error) {
 	var p [2]syscall.Handle
-
-	// See ../syscall/exec.go for description of lock.
-	syscall.ForkLock.RLock()
-	e := syscall.Pipe(p[0:])
+	e := syscall.CreatePipe(&p[0], &p[1], nil, 0)
 	if e != nil {
-		syscall.ForkLock.RUnlock()
 		return nil, nil, NewSyscallError("pipe", e)
 	}
-	syscall.CloseOnExec(p[0])
-	syscall.CloseOnExec(p[1])
-	syscall.ForkLock.RUnlock()
-
-	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
+	return newFile(p[0], "|0", "file"), newFile(p[1], "|1", "file"), nil
 }
 
-// TempDir returns the default directory to use for temporary files.
-func TempDir() string {
-	const pathSep = '\\'
-	dirw := make([]uint16, syscall.MAX_PATH)
-	n, _ := syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
-	if n > uint32(len(dirw)) {
-		dirw = make([]uint16, n)
-		n, _ = syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
-		if n > uint32(len(dirw)) {
-			n = 0
+func tempDir() string {
+	n := uint32(syscall.MAX_PATH)
+	for {
+		b := make([]uint16, n)
+		n, _ = syscall.GetTempPath(uint32(len(b)), &b[0])
+		if n > uint32(len(b)) {
+			continue
 		}
+		if n > 0 && b[n-1] == '\\' {
+			n--
+		}
+		return string(utf16.Decode(b[:n]))
 	}
-	if n > 0 && dirw[n-1] == pathSep {
-		n--
-	}
-	return string(utf16.Decode(dirw[0:n]))
 }
 
 // Link creates newname as a hard link to the oldname file.
 // If there is an error, it will be of type *LinkError.
 func Link(oldname, newname string) error {
-	n, err := syscall.UTF16PtrFromString(newname)
+	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
 	if err != nil {
 		return &LinkError{"link", oldname, newname, err}
 	}
-	o, err := syscall.UTF16PtrFromString(oldname)
+	o, err := syscall.UTF16PtrFromString(fixLongPath(oldname))
 	if err != nil {
 		return &LinkError{"link", oldname, newname, err}
 	}
-
-	e := syscall.CreateHardLink(n, o, 0)
-	if e != nil {
+	err = syscall.CreateHardLink(n, o, 0)
+	if err != nil {
 		return &LinkError{"link", oldname, newname, err}
 	}
 	return nil
@@ -519,11 +350,6 @@ func Link(oldname, newname string) error {
 // Symlink creates newname as a symbolic link to oldname.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
-	// CreateSymbolicLink is not supported before Windows Vista
-	if syscall.LoadCreateSymbolicLink() != nil {
-		return &LinkError{"symlink", oldname, newname, syscall.EWINDOWS}
-	}
-
 	// '/' does not work in link's content
 	oldname = fromSlash(oldname)
 
@@ -536,11 +362,11 @@ func Symlink(oldname, newname string) error {
 	fi, err := Lstat(destpath)
 	isdir := err == nil && fi.IsDir()
 
-	n, err := syscall.UTF16PtrFromString(newname)
+	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
-	o, err := syscall.UTF16PtrFromString(oldname)
+	o, err := syscall.UTF16PtrFromString(fixLongPath(oldname))
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
@@ -554,43 +380,4 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
 	return nil
-}
-
-func fromSlash(path string) string {
-	// Replace each '/' with '\\' if present
-	var pathbuf []byte
-	var lastSlash int
-	for i, b := range path {
-		if b == '/' {
-			if pathbuf == nil {
-				pathbuf = make([]byte, len(path))
-			}
-			copy(pathbuf[lastSlash:], path[lastSlash:i])
-			pathbuf[i] = '\\'
-			lastSlash = i + 1
-		}
-	}
-	if pathbuf == nil {
-		return path
-	}
-
-	copy(pathbuf[lastSlash:], path[lastSlash:])
-	return string(pathbuf)
-}
-
-func dirname(path string) string {
-	vol := volumeName(path)
-	i := len(path) - 1
-	for i >= len(vol) && !IsPathSeparator(path[i]) {
-		i--
-	}
-	dir := path[len(vol) : i+1]
-	last := len(dir) - 1
-	if last > 0 && IsPathSeparator(dir[last]) {
-		dir = dir[:last]
-	}
-	if dir == "" {
-		dir = "."
-	}
-	return vol + dir
 }

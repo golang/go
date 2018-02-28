@@ -13,7 +13,8 @@ import (
 	"text/scanner"
 
 	"cmd/asm/internal/flags"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
+	"cmd/internal/src"
 )
 
 // Input is the main input: a stack of readers and some macro definitions.
@@ -31,7 +32,7 @@ type Input struct {
 	peekText        string
 }
 
-// NewInput returns a
+// NewInput returns an Input from the given path.
 func NewInput(name string) *Input {
 	return &Input{
 		// include directories: look in source dir, then -I directories.
@@ -64,7 +65,12 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 	return macros
 }
 
+var panicOnError bool // For testing.
+
 func (in *Input) Error(args ...interface{}) {
+	if panicOnError {
+		panic(fmt.Errorf("%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...)))
+	}
 	fmt.Fprintf(os.Stderr, "%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...))
 	os.Exit(1)
 }
@@ -114,6 +120,10 @@ func (in *Input) Next() ScanToken {
 			}
 			fallthrough
 		default:
+			if tok == scanner.EOF && len(in.ifdefStack) > 0 {
+				// We're skipping text but have run out of input with no #endif.
+				in.Error("unclosed #ifdef or #ifndef")
+			}
 			in.beginningOfLine = tok == '\n'
 			if in.enabled() {
 				in.text = in.Stack.Text()
@@ -137,10 +147,11 @@ func (in *Input) hash() bool {
 		in.expectText("expected identifier after '#'")
 	}
 	if !in.enabled() {
-		// Can only start including again if we are at #else or #endif.
+		// Can only start including again if we are at #else or #endif but also
+		// need to keep track of nested #if[n]defs.
 		// We let #line through because it might affect errors.
 		switch in.Stack.Text() {
-		case "else", "endif", "line":
+		case "else", "endif", "ifdef", "ifndef", "line":
 			// Press on.
 		default:
 			return false
@@ -251,6 +262,9 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 	var tokens []Token
 	// Scan to newline. Backslashes escape newlines.
 	for tok != '\n' {
+		if tok == scanner.EOF {
+			in.Error("missing newline in definition for macro:", name)
+		}
 		if tok == '\\' {
 			tok = in.Stack.Next()
 			if tok != '\n' && tok != '\\' {
@@ -278,7 +292,7 @@ func lookup(args []string, arg string) int {
 func (in *Input) invokeMacro(macro *Macro) {
 	// If the macro has no arguments, just substitute the text.
 	if macro.args == nil {
-		in.Push(NewSlice(in.File(), in.Line(), macro.tokens))
+		in.Push(NewSlice(in.Base(), in.Line(), macro.tokens))
 		return
 	}
 	tok := in.Stack.Next()
@@ -288,7 +302,7 @@ func (in *Input) invokeMacro(macro *Macro) {
 		in.peekToken = tok
 		in.peekText = in.text
 		in.peek = true
-		in.Push(NewSlice(in.File(), in.Line(), []Token{Make(macroName, macro.name)}))
+		in.Push(NewSlice(in.Base(), in.Line(), []Token{Make(macroName, macro.name)}))
 		return
 	}
 	actuals := in.argsFor(macro)
@@ -305,7 +319,7 @@ func (in *Input) invokeMacro(macro *Macro) {
 		}
 		tokens = append(tokens, substitution...)
 	}
-	in.Push(NewSlice(in.File(), in.Line(), tokens))
+	in.Push(NewSlice(in.Base(), in.Line(), tokens))
 }
 
 // argsFor returns a map from formal name to actual value for this argumented macro invocation.
@@ -361,7 +375,9 @@ func (in *Input) collectArgument(macro *Macro) ([]Token, ScanToken) {
 func (in *Input) ifdef(truth bool) {
 	name := in.macroName()
 	in.expectNewline("#if[n]def")
-	if _, defined := in.macros[name]; !defined {
+	if !in.enabled() {
+		truth = false
+	} else if _, defined := in.macros[name]; !defined {
 		truth = !truth
 	}
 	in.ifdefStack = append(in.ifdefStack, truth)
@@ -373,7 +389,9 @@ func (in *Input) else_() {
 	if len(in.ifdefStack) == 0 {
 		in.Error("unmatched #else")
 	}
-	in.ifdefStack[len(in.ifdefStack)-1] = !in.ifdefStack[len(in.ifdefStack)-1]
+	if len(in.ifdefStack) == 1 || in.ifdefStack[len(in.ifdefStack)-2] {
+		in.ifdefStack[len(in.ifdefStack)-1] = !in.ifdefStack[len(in.ifdefStack)-1]
+	}
 }
 
 // #endif processing.
@@ -436,8 +454,8 @@ func (in *Input) line() {
 	if tok != '\n' {
 		in.Error("unexpected token at end of #line: ", tok)
 	}
-	obj.Linklinehist(linkCtxt, histLine, file, line)
-	in.Stack.SetPos(line, file)
+	pos := src.MakePos(in.Base(), uint(in.Line())+1, 1) // +1 because #line nnn means line nnn starts on next line
+	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, objabi.AbsFile(objabi.WorkingDir(), file, *flags.TrimPath), uint(line), 1))
 }
 
 // #undef processing

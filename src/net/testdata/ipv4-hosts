@@ -1,0 +1,12 @@
+# See https://tools.ietf.org/html/rfc1123.
+#
+# The literal IPv4 address parser in the net package is a relaxed
+# one. It may accept a literal IPv4 address in dotted-decimal notation
+# with leading zeros such as "001.2.003.4".
+
+# internet address and host name
+127.0.0.1	localhost	# inline comment separated by tab
+127.000.000.002	localhost       # inline comment separated by space
+
+# internet address, host name and aliases
+127.000.000.003	localhost	localhost.localdomain

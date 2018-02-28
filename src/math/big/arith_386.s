@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !math_big_pure_go
+
 #include "textflag.h"
 
 // This file provides fast assembly versions for the elementary
@@ -266,15 +268,4 @@ E7:	SUBL $1, BX		// i--
 	JGE L7			// i >= 0
 
 	MOVL DX, r+32(FP)
-	RET
-
-// func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),NOSPLIT,$0
-	BSRL x+0(FP), AX
-	JZ Z1
-	INCL AX
-	MOVL AX, n+4(FP)
-	RET
-
-Z1:	MOVL $0, n+4(FP)
 	RET

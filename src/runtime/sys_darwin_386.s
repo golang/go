@@ -19,34 +19,68 @@ TEXT runtime·exit(SB),NOSPLIT,$0
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT runtime·exit1(SB),NOSPLIT,$0
+TEXT exit1<>(SB),NOSPLIT,$16-0
+	// __bsdthread_terminate takes 4 word-size arguments.
+	// Set them all to 0. (None are an exit status.)
+	MOVL	$0, 0(SP)
+	MOVL	$0, 4(SP)
+	MOVL	$0, 8(SP)
+	MOVL	$0, 12(SP)
 	MOVL	$361, AX
 	INT	$0x80
 	JAE 2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
+GLOBL exitStack<>(SB),RODATA,$(4*4)
+DATA exitStack<>+0x00(SB)/4, $0
+DATA exitStack<>+0x04(SB)/4, $0
+DATA exitStack<>+0x08(SB)/4, $0
+DATA exitStack<>+0x0c(SB)/4, $0
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVL	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	// __bsdthread_terminate takes 4 arguments, which it expects
+	// on the stack. They should all be 0, so switch over to a
+	// fake stack of 0s. It won't write to the stack.
+	MOVL	$exitStack<>(SB), SP
+	MOVL	$361, AX	// __bsdthread_terminate
+	INT	$0x80
+	MOVL	$0xf1, 0xf1  // crash
+	JMP	0(PC)
+
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	$5, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	$6, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	$3, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	$4, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -69,7 +103,13 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	$197, AX
 	INT	$0x80
-	MOVL	AX, ret+24(FP)
+	JAE	ok
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
@@ -106,6 +146,16 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 // 64-bit unix nanoseconds returned in DX:AX.
 // I'd much rather write this in C but we need
 // assembly for the 96-bit multiply and RDTSC.
+//
+// Note that we could arrange to return monotonic time here
+// as well, but we don't bother, for two reasons:
+// 1. macOS only supports 64-bit systems, so no one should
+// be using the 32-bit code in production.
+// This code is only maintained to make it easier for developers
+// using Macs to test the 32-bit compiler.
+// 2. On some (probably now unsupported) CPUs,
+// the code falls back to the system call always,
+// so it can't even use the comm page at all. 
 TEXT runtime·now(SB),NOSPLIT,$40
 	MOVL	$0xffff0000, BP /* comm page base */
 	
@@ -188,11 +238,17 @@ timeloop:
 
 systime:
 	// Fall back to system call (usually first call in this thread)
-	LEAL	12(SP), AX	// must be non-nil, unused
+	LEAL	16(SP), AX	// must be non-nil, unused
 	MOVL	AX, 4(SP)
 	MOVL	$0, 8(SP)	// time zone pointer
-	MOVL	$116, AX
+	MOVL	$0, 12(SP)	// required as of Sierra; Issue 16570
+	MOVL	$116, AX // SYS_GETTIMEOFDAY
 	INT	$0x80
+	CMPL	AX, $0
+	JNE	inreg
+	MOVL	16(SP), AX
+	MOVL	20(SP), DX
+inreg:
 	// sec is in AX, usec in DX
 	// convert to DX:AX nsec
 	MOVL	DX, BX
@@ -203,9 +259,15 @@ systime:
 	ADCL	$0, DX
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$0
+// func now() (sec int64, nsec int32, mono uint64)
+TEXT time·now(SB),NOSPLIT,$0-20
 	CALL	runtime·now(SB)
+	MOVL	AX, BX
+	MOVL	DX, BP
+	SUBL	runtime·startNano(SB), BX
+	SBBL	runtime·startNano+4(SB), BP
+	MOVL	BX, mono+12(FP)
+	MOVL	BP, mono+16(FP)
 	MOVL	$1000000000, CX
 	DIVL	CX
 	MOVL	AX, sec+0(FP)
@@ -213,10 +275,11 @@ TEXT time·now(SB),NOSPLIT,$0
 	MOVL	DX, nsec+8(FP)
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
+// func nanotime() int64
 TEXT runtime·nanotime(SB),NOSPLIT,$0
 	CALL	runtime·now(SB)
+	SUBL	runtime·startNano(SB), AX
+	SBBL	runtime·startNano+4(SB), DX
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
 	RET
@@ -235,56 +298,43 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVL	fn+0(FP), AX
+	MOVL	sig+4(FP), BX
+	MOVL	info+8(FP), CX
+	MOVL	ctx+12(FP), DX
+	MOVL	SP, SI
+	SUBL	$32, SP
+	ANDL	$~15, SP	// align stack: handler might be a C function
+	MOVL	BX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
+	CALL	AX
+	MOVL	12(SP), AX
+	MOVL	AX, SP
+	RET
+
 // Sigtramp's job is to call the actual signal handler.
 // It is called with the following arguments on the stack:
-//	0(FP)	"return address" - ignored
-//	4(FP)	actual handler
-//	8(FP)	signal number
-//	12(FP)	siginfo style
-//	16(FP)	siginfo
-//	20(FP)	context
-TEXT runtime·sigtramp(SB),NOSPLIT,$40
-	get_tls(CX)
-	
-	// check that g exists
-	MOVL	g(CX), DI
-	CMPL	DI, $0
-	JNE	6(PC)
-	MOVL	sig+8(FP), BX
-	MOVL	BX, 0(SP)
-	MOVL	$runtime·badsignal(SB), AX
-	CALL	AX
-	JMP 	ret
-
-	// save g
-	MOVL	DI, 20(SP)
-
-	// g = m->gsignal
-	MOVL	g_m(DI), BP
-	MOVL	m_gsignal(BP), BP
-	MOVL	BP, g(CX)
-
-	// copy arguments to sighandler
+//	0(SP)	"return address" - ignored
+//	4(SP)	actual handler
+//	8(SP)	siginfo style
+//	12(SP)	signal number
+//	16(SP)	siginfo
+//	20(SP)	context
+TEXT runtime·sigtramp(SB),NOSPLIT,$20
 	MOVL	sig+8(FP), BX
 	MOVL	BX, 0(SP)
 	MOVL	info+12(FP), BX
 	MOVL	BX, 4(SP)
-	MOVL	context+16(FP), BX
+	MOVL	ctx+16(FP), BX
 	MOVL	BX, 8(SP)
-	MOVL	DI, 12(SP)
+	CALL	runtime·sigtrampgo(SB)
 
-	MOVL	handler+0(FP), BX
-	CALL	BX
-
-	// restore g
-	get_tls(CX)
-	MOVL	20(SP), DI
-	MOVL	DI, g(CX)
-
-ret:
 	// call sigreturn
-	MOVL	context+16(FP), CX
-	MOVL	style+4(FP), BX
+	MOVL	ctx+16(FP), CX
+	MOVL	infostyle+4(FP), BX
 	MOVL	$0, 0(SP)	// "caller PC" - ignored
 	MOVL	CX, 4(SP)
 	MOVL	BX, 8(SP)
@@ -320,33 +370,32 @@ TEXT runtime·usleep(SB),NOSPLIT,$32
 	INT	$0x80
 	RET
 
-// void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
+// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 // System call args are: func arg stack pthread flags.
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
 	MOVL	$360, AX
 	// 0(SP) is where the caller PC would be; kernel skips it
-	MOVL	fn+12(FP), BX
+	MOVL	fn+8(FP), BX
 	MOVL	BX, 4(SP)	// func
-	MOVL	mm+4(FP), BX
+	MOVL	arg+4(FP), BX
 	MOVL	BX, 8(SP)	// arg
 	MOVL	stk+0(FP), BX
 	MOVL	BX, 12(SP)	// stack
-	MOVL	gg+8(FP), BX
-	MOVL	BX, 16(SP)	// pthread
+	MOVL    $0, 16(SP)      // pthread
 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
 	INT	$0x80
 	JAE	4(PC)
 	NEGL	AX
-	MOVL	AX, ret+16(FP)
+	MOVL	AX, ret+12(FP)
 	RET
 	MOVL	$0, AX
-	MOVL	AX, ret+16(FP)
+	MOVL	AX, ret+12(FP)
 	RET
 
 // The thread that bsdthread_create creates starts executing here,
 // because we registered this function using bsdthread_register
 // at startup.
-//	AX = "pthread" (= g)
+//	AX = "pthread" (= 0x0)
 //	BX = mach thread port
 //	CX = "func" (= fn)
 //	DX = "arg" (= m)
@@ -355,10 +404,8 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
 //	SP = stack - C_32_STK_ALIGN
 TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	// set up ldt 7+id to point at m->tls.
-	// m->tls is at m+40.  newosproc left
-	// the m->id in tls[0].
 	LEAL	m_tls(DX), BP
-	MOVL	0(BP), DI
+	MOVL	m_id(DX), DI
 	ADDL	$7, DI	// m0 is LDT#7. count up.
 	// setldt(tls#, &tls, sizeof tls)
 	PUSHAL	// save registers
@@ -371,17 +418,18 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	POPL	AX
 	POPAL
 
-	// Now segment is established.  Initialize m, g.
+	// Now segment is established. Initialize m, g.
 	get_tls(BP)
+	MOVL    m_g0(DX), AX
 	MOVL	AX, g(BP)
 	MOVL	DX, g_m(AX)
 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
 	CALL	runtime·stackcheck(SB)		// smashes AX
 	CALL	CX	// fn()
-	CALL	runtime·exit1(SB)
+	CALL	exit1<>(SB)
 	RET
 
-// void bsdthread_register(void)
+// func bsdthread_register() int32
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
 TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
@@ -440,35 +488,35 @@ TEXT runtime·mach_task_self(SB),NOSPLIT,$0
 // Mach provides trap versions of the semaphore ops,
 // instead of requiring the use of RPC.
 
-// uint32 mach_semaphore_wait(uint32)
+// func mach_semaphore_wait(sema uint32) int32
 TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	$-36, AX
 	CALL	runtime·sysenter(SB)
 	MOVL	AX, ret+4(FP)
 	RET
 
-// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+// func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
 TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	$-38, AX
 	CALL	runtime·sysenter(SB)
 	MOVL	AX, ret+12(FP)
 	RET
 
-// uint32 mach_semaphore_signal(uint32)
+// func mach_semaphore_signal(sema uint32) int32
 TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	$-33, AX
 	CALL	runtime·sysenter(SB)
 	MOVL	AX, ret+4(FP)
 	RET
 
-// uint32 mach_semaphore_signal_all(uint32)
+// func mach_semaphore_signal_all(sema uint32) int32
 TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	$-34, AX
 	CALL	runtime·sysenter(SB)
 	MOVL	AX, ret+4(FP)
 	RET
 
-// setldt(int entry, int address, int limit)
+// func setldt(entry int, address int, limit int)
 // entry and limit are ignored.
 TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	address+4(FP), BX	// aka base
@@ -515,7 +563,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVL	AX, ret+24(FP)
 	RET
 
-// int32 runtime·kqueue(void);
+// func kqueue() int32
 TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	$362, AX
 	INT	$0x80
@@ -524,7 +572,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	AX, ret+0(FP)
 	RET
 
-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	$363, AX
 	INT	$0x80
@@ -533,7 +581,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	AX, ret+24(FP)
 	RET
 
-// int32 runtime·closeonexec(int32 fd);
+// func closeonexec(fd int32)
 TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	MOVL	$92, AX  // fcntl
 	// 0(SP) is where the caller PC would be; kernel skips it

@@ -10,7 +10,7 @@ package math
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/e_log.c
-// and came with this notice.  The go code is a simpler
+// and came with this notice. The go code is a simpler
 // version of the original C.
 //
 // ====================================================

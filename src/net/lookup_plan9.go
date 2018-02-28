@@ -1,22 +1,24 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package net
 
 import (
+	"context"
 	"errors"
+	"io"
 	"os"
 )
 
-func query(filename, query string, bufSize int) (res []string, err error) {
+func query(ctx context.Context, filename, query string, bufSize int) (res []string, err error) {
 	file, err := os.OpenFile(filename, os.O_RDWR, 0)
 	if err != nil {
 		return
 	}
 	defer file.Close()
 
-	_, err = file.Seek(0, 0)
+	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		return
 	}
@@ -24,7 +26,7 @@ func query(filename, query string, bufSize int) (res []string, err error) {
 	if err != nil {
 		return
 	}
-	_, err = file.Seek(0, 0)
+	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		return
 	}
@@ -39,7 +41,7 @@ func query(filename, query string, bufSize int) (res []string, err error) {
 	return
 }
 
-func queryCS(net, host, service string) (res []string, err error) {
+func queryCS(ctx context.Context, net, host, service string) (res []string, err error) {
 	switch net {
 	case "tcp4", "tcp6":
 		net = "tcp"
@@ -49,15 +51,15 @@ func queryCS(net, host, service string) (res []string, err error) {
 	if host == "" {
 		host = "*"
 	}
-	return query(netdir+"/cs", net+"!"+host+"!"+service, 128)
+	return query(ctx, netdir+"/cs", net+"!"+host+"!"+service, 128)
 }
 
-func queryCS1(net string, ip IP, port int) (clone, dest string, err error) {
+func queryCS1(ctx context.Context, net string, ip IP, port int) (clone, dest string, err error) {
 	ips := "*"
 	if len(ip) != 0 && !ip.IsUnspecified() {
 		ips = ip.String()
 	}
-	lines, err := queryCS(net, ips, itoa(port))
+	lines, err := queryCS(ctx, net, ips, itoa(port))
 	if err != nil {
 		return
 	}
@@ -69,8 +71,8 @@ func queryCS1(net string, ip IP, port int) (clone, dest string, err error) {
 	return
 }
 
-func queryDNS(addr string, typ string) (res []string, err error) {
-	return query(netdir+"/dns", addr+" "+typ, 1024)
+func queryDNS(ctx context.Context, addr string, typ string) (res []string, err error) {
+	return query(ctx, netdir+"/dns", addr+" "+typ, 1024)
 }
 
 // toLower returns a lower-case version of in. Restricting us to
@@ -96,31 +98,33 @@ func toLower(in string) string {
 
 // lookupProtocol looks up IP protocol name and returns
 // the corresponding protocol number.
-func lookupProtocol(name string) (proto int, err error) {
-	lines, err := query(netdir+"/cs", "!protocol="+toLower(name), 128)
+func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
+	lines, err := query(ctx, netdir+"/cs", "!protocol="+toLower(name), 128)
 	if err != nil {
 		return 0, err
 	}
-	unknownProtoError := errors.New("unknown IP protocol specified: " + name)
 	if len(lines) == 0 {
-		return 0, unknownProtoError
+		return 0, UnknownNetworkError(name)
 	}
 	f := getFields(lines[0])
 	if len(f) < 2 {
-		return 0, unknownProtoError
+		return 0, UnknownNetworkError(name)
 	}
 	s := f[1]
-	if n, _, ok := dtoi(s, byteIndex(s, '=')+1); ok {
+	if n, _, ok := dtoi(s[byteIndex(s, '=')+1:]); ok {
 		return n, nil
 	}
-	return 0, unknownProtoError
+	return 0, UnknownNetworkError(name)
 }
 
-func lookupHost(host string) (addrs []string, err error) {
+func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Use netdir/cs instead of netdir/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
-	lines, err := queryCS("net", host, "1")
+	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
+		if stringsHasSuffix(err.Error(), "dns failure") {
+			err = errNoSuchHost
+		}
 		return
 	}
 loop:
@@ -147,31 +151,33 @@ loop:
 	return
 }
 
-func lookupIP(host string) (ips []IP, err error) {
-	addrs, err := LookupHost(host)
+func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	lits, err := r.lookupHost(ctx, host)
 	if err != nil {
 		return
 	}
-	for _, addr := range addrs {
-		if ip := ParseIP(addr); ip != nil {
-			ips = append(ips, ip)
+	for _, lit := range lits {
+		host, zone := splitHostZone(lit)
+		if ip := ParseIP(host); ip != nil {
+			addr := IPAddr{IP: ip, Zone: zone}
+			addrs = append(addrs, addr)
 		}
 	}
 	return
 }
 
-func lookupPort(network, service string) (port int, err error) {
+func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
 	case "udp4", "udp6":
 		network = "udp"
 	}
-	lines, err := queryCS(network, "127.0.0.1", service)
+	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
 		return
 	}
-	unknownPortError := &AddrError{"unknown port", network + "/" + service}
+	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
 	if len(lines) == 0 {
 		return 0, unknownPortError
 	}
@@ -183,15 +189,19 @@ func lookupPort(network, service string) (port int, err error) {
 	if i := byteIndex(s, '!'); i >= 0 {
 		s = s[i+1:] // remove address
 	}
-	if n, _, ok := dtoi(s, 0); ok {
+	if n, _, ok := dtoi(s); ok {
 		return n, nil
 	}
 	return 0, unknownPortError
 }
 
-func lookupCNAME(name string) (cname string, err error) {
-	lines, err := queryDNS(name, "cname")
+func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
+		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
+			cname = name + "."
+			err = nil
+		}
 		return
 	}
 	if len(lines) > 0 {
@@ -202,14 +212,14 @@ func lookupCNAME(name string) (cname string, err error) {
 	return "", errors.New("bad response from ndb/dns")
 }
 
-func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
+func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
 	var target string
 	if service == "" && proto == "" {
 		target = name
 	} else {
 		target = "_" + service + "._" + proto + "." + name
 	}
-	lines, err := queryDNS(target, "srv")
+	lines, err := queryDNS(ctx, target, "srv")
 	if err != nil {
 		return
 	}
@@ -218,21 +228,21 @@ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 		if len(f) < 6 {
 			continue
 		}
-		port, _, portOk := dtoi(f[4], 0)
-		priority, _, priorityOk := dtoi(f[3], 0)
-		weight, _, weightOk := dtoi(f[2], 0)
+		port, _, portOk := dtoi(f[4])
+		priority, _, priorityOk := dtoi(f[3])
+		weight, _, weightOk := dtoi(f[2])
 		if !(portOk && priorityOk && weightOk) {
 			continue
 		}
-		addrs = append(addrs, &SRV{f[5], uint16(port), uint16(priority), uint16(weight)})
-		cname = f[0]
+		addrs = append(addrs, &SRV{absDomainName([]byte(f[5])), uint16(port), uint16(priority), uint16(weight)})
+		cname = absDomainName([]byte(f[0]))
 	}
 	byPriorityWeight(addrs).sort()
 	return
 }
 
-func lookupMX(name string) (mx []*MX, err error) {
-	lines, err := queryDNS(name, "mx")
+func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+	lines, err := queryDNS(ctx, name, "mx")
 	if err != nil {
 		return
 	}
@@ -241,16 +251,16 @@ func lookupMX(name string) (mx []*MX, err error) {
 		if len(f) < 4 {
 			continue
 		}
-		if pref, _, ok := dtoi(f[2], 0); ok {
-			mx = append(mx, &MX{f[3], uint16(pref)})
+		if pref, _, ok := dtoi(f[2]); ok {
+			mx = append(mx, &MX{absDomainName([]byte(f[3])), uint16(pref)})
 		}
 	}
 	byPref(mx).sort()
 	return
 }
 
-func lookupNS(name string) (ns []*NS, err error) {
-	lines, err := queryDNS(name, "ns")
+func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+	lines, err := queryDNS(ctx, name, "ns")
 	if err != nil {
 		return
 	}
@@ -259,30 +269,30 @@ func lookupNS(name string) (ns []*NS, err error) {
 		if len(f) < 3 {
 			continue
 		}
-		ns = append(ns, &NS{f[2]})
+		ns = append(ns, &NS{absDomainName([]byte(f[2]))})
 	}
 	return
 }
 
-func lookupTXT(name string) (txt []string, err error) {
-	lines, err := queryDNS(name, "txt")
+func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+	lines, err := queryDNS(ctx, name, "txt")
 	if err != nil {
 		return
 	}
 	for _, line := range lines {
 		if i := byteIndex(line, '\t'); i >= 0 {
-			txt = append(txt, line[i+1:])
+			txt = append(txt, absDomainName([]byte(line[i+1:])))
 		}
 	}
 	return
 }
 
-func lookupAddr(addr string) (name []string, err error) {
+func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return
 	}
-	lines, err := queryDNS(arpa, "ptr")
+	lines, err := queryDNS(ctx, arpa, "ptr")
 	if err != nil {
 		return
 	}
@@ -291,7 +301,7 @@ func lookupAddr(addr string) (name []string, err error) {
 		if len(f) < 3 {
 			continue
 		}
-		name = append(name, f[2])
+		name = append(name, absDomainName([]byte(f[2])))
 	}
 	return
 }

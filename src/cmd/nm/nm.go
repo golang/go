@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,8 +15,21 @@ import (
 	"cmd/internal/objfile"
 )
 
+const helpText = `usage: go tool nm [options] file...
+  -n
+      an alias for -sort address (numeric),
+      for compatibility with other nm commands
+  -size
+      print symbol size in decimal between address and type
+  -sort {address,name,none,size}
+      sort output in the given order (default name)
+      size orders from largest to smallest
+  -type
+      print symbol type after name
+`
+
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: go tool nm [-n] [-size] [-sort order] [-type] file...\n")
+	fmt.Fprintf(os.Stderr, helpText)
 	os.Exit(2)
 }
 
@@ -93,59 +106,62 @@ func nm(file string) {
 	}
 	defer f.Close()
 
-	syms, err := f.Symbols()
-	if err != nil {
-		errorf("reading %s: %v", file, err)
+	w := bufio.NewWriter(os.Stdout)
+
+	entries := f.Entries()
+
+	var found bool
+
+	for _, e := range entries {
+		syms, err := e.Symbols()
+		if err != nil {
+			errorf("reading %s: %v", file, err)
+		}
+		if len(syms) == 0 {
+			continue
+		}
+
+		found = true
+
+		switch *sortOrder {
+		case "address":
+			sort.Slice(syms, func(i, j int) bool { return syms[i].Addr < syms[j].Addr })
+		case "name":
+			sort.Slice(syms, func(i, j int) bool { return syms[i].Name < syms[j].Name })
+		case "size":
+			sort.Slice(syms, func(i, j int) bool { return syms[i].Size > syms[j].Size })
+		}
+
+		for _, sym := range syms {
+			if len(entries) > 1 {
+				name := e.Name()
+				if name == "" {
+					fmt.Fprintf(w, "%s(%s):\t", file, "_go_.o")
+				} else {
+					fmt.Fprintf(w, "%s(%s):\t", file, name)
+				}
+			} else if filePrefix {
+				fmt.Fprintf(w, "%s:\t", file)
+			}
+			if sym.Code == 'U' {
+				fmt.Fprintf(w, "%8s", "")
+			} else {
+				fmt.Fprintf(w, "%8x", sym.Addr)
+			}
+			if *printSize {
+				fmt.Fprintf(w, " %10d", sym.Size)
+			}
+			fmt.Fprintf(w, " %c %s", sym.Code, sym.Name)
+			if *printType && sym.Type != "" {
+				fmt.Fprintf(w, " %s", sym.Type)
+			}
+			fmt.Fprintf(w, "\n")
+		}
 	}
-	if len(syms) == 0 {
+
+	if !found {
 		errorf("reading %s: no symbols", file)
 	}
 
-	switch *sortOrder {
-	case "address":
-		sort.Sort(byAddr(syms))
-	case "name":
-		sort.Sort(byName(syms))
-	case "size":
-		sort.Sort(bySize(syms))
-	}
-
-	w := bufio.NewWriter(os.Stdout)
-	for _, sym := range syms {
-		if filePrefix {
-			fmt.Fprintf(w, "%s:\t", file)
-		}
-		if sym.Code == 'U' {
-			fmt.Fprintf(w, "%8s", "")
-		} else {
-			fmt.Fprintf(w, "%8x", sym.Addr)
-		}
-		if *printSize {
-			fmt.Fprintf(w, " %10d", sym.Size)
-		}
-		fmt.Fprintf(w, " %c %s", sym.Code, sym.Name)
-		if *printType && sym.Type != "" {
-			fmt.Fprintf(w, " %s", sym.Type)
-		}
-		fmt.Fprintf(w, "\n")
-	}
 	w.Flush()
 }
-
-type byAddr []objfile.Sym
-
-func (x byAddr) Len() int           { return len(x) }
-func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
-
-type byName []objfile.Sym
-
-func (x byName) Len() int           { return len(x) }
-func (x byName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byName) Less(i, j int) bool { return x[i].Name < x[j].Name }
-
-type bySize []objfile.Sym
-
-func (x bySize) Len() int           { return len(x) }
-func (x bySize) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x bySize) Less(i, j int) bool { return x[i].Size > x[j].Size }

@@ -16,10 +16,10 @@ type queue struct {
 	dense  []entry
 }
 
-// A entry is an entry on a queue.
+// An entry is an entry on a queue.
 // It holds both the instruction pc and the actual thread.
 // Some queue entries are just place holders so that the machine
-// knows it has considered that pc.  Such entries have t == nil.
+// knows it has considered that pc. Such entries have t == nil.
 type entry struct {
 	pc uint32
 	t  *thread
@@ -35,13 +35,15 @@ type thread struct {
 
 // A machine holds all the state during an NFA simulation for p.
 type machine struct {
-	re       *Regexp      // corresponding Regexp
-	p        *syntax.Prog // compiled program
-	op       *onePassProg // compiled onepass program, or notOnePass
-	q0, q1   queue        // two queues for runq, nextq
-	pool     []*thread    // pool of available threads
-	matched  bool         // whether a match was found
-	matchcap []int        // capture information for the match
+	re             *Regexp      // corresponding Regexp
+	p              *syntax.Prog // compiled program
+	op             *onePassProg // compiled onepass program, or notOnePass
+	maxBitStateLen int          // max length of string to search with bitstate
+	b              *bitState    // state for backtracker, allocated lazily
+	q0, q1         queue        // two queues for runq, nextq
+	pool           []*thread    // pool of available threads
+	matched        bool         // whether a match was found
+	matchcap       []int        // capture information for the match
 
 	// cached inputs, to avoid allocation
 	inputBytes  inputBytes
@@ -76,6 +78,9 @@ func progMachine(p *syntax.Prog, op *onePassProg) *machine {
 	if ncap < 2 {
 		ncap = 2
 	}
+	if op == notOnePass {
+		m.maxBitStateLen = maxBitStateLen(p)
+	}
 	m.matchcap = make([]int, ncap)
 	return m
 }
@@ -100,14 +105,6 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 	}
 	t.inst = i
 	return t
-}
-
-// free returns t to the free pool.
-func (m *machine) free(t *thread) {
-	m.inputBytes.str = nil
-	m.inputString.str = ""
-	m.inputReader.r = nil
-	m.pool = append(m.pool, t)
 }
 
 // match runs the machine over the input starting at pos.
@@ -187,7 +184,6 @@ func (m *machine) match(i input, pos int) bool {
 func (m *machine) clear(q *queue) {
 	for _, d := range q.dense {
 		if d.t != nil {
-			// m.free(d.t)
 			m.pool = append(m.pool, d.t)
 		}
 	}
@@ -208,7 +204,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 			continue
 		}
 		if longest && m.matched && len(t.cap) > 0 && m.matchcap[0] < t.cap[0] {
-			// m.free(t)
 			m.pool = append(m.pool, t)
 			continue
 		}
@@ -227,7 +222,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 				// First-match mode: cut off all lower-priority threads.
 				for _, d := range runq.dense[j+1:] {
 					if d.t != nil {
-						// m.free(d.t)
 						m.pool = append(m.pool, d.t)
 					}
 				}
@@ -248,7 +242,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 			t = m.add(nextq, i.Out, nextPos, t.cap, nextCond, t)
 		}
 		if t != nil {
-			// m.free(t)
 			m.pool = append(m.pool, t)
 		}
 	}
@@ -316,12 +309,14 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 // onepass runs the machine over the input starting at pos.
 // It reports whether a match was found.
 // If so, m.matchcap holds the submatch information.
-func (m *machine) onepass(i input, pos int) bool {
+// ncap is the number of captures.
+func (m *machine) onepass(i input, pos, ncap int) bool {
 	startCond := m.re.cond
 	if startCond == ^syntax.EmptyOp(0) { // impossible
 		return false
 	}
 	m.matched = false
+	m.matchcap = m.matchcap[:ncap]
 	for i := range m.matchcap {
 		m.matchcap[i] = -1
 	}
@@ -343,15 +338,14 @@ func (m *machine) onepass(i input, pos int) bool {
 	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
 		len(m.re.prefix) > 0 && i.canCheckPrefix() {
 		// Match requires literal prefix; fast search for it.
-		if i.hasPrefix(m.re) {
-			pos += len(m.re.prefix)
-			r, width = i.step(pos)
-			r1, width1 = i.step(pos + width)
-			flag = i.context(pos)
-			pc = int(m.re.prefixEnd)
-		} else {
+		if !i.hasPrefix(m.re) {
 			return m.matched
 		}
+		pos += len(m.re.prefix)
+		r, width = i.step(pos)
+		r1, width1 = i.step(pos + width)
+		flag = i.context(pos)
+		pc = int(m.re.prefixEnd)
 	}
 	for {
 		inst = m.op.Inst[pc]
@@ -412,25 +406,38 @@ func (m *machine) onepass(i input, pos int) bool {
 	return m.matched
 }
 
-// empty is a non-nil 0-element slice,
-// so doExecute can avoid an allocation
-// when 0 captures are requested from a successful match.
-var empty = make([]int, 0)
+// doMatch reports whether either r, b or s match the regexp.
+func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
+	return re.doExecute(r, b, s, 0, 0, nil) != nil
+}
 
-// doExecute finds the leftmost match in the input and returns
-// the position of its subexpressions.
-func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int) []int {
+// doExecute finds the leftmost match in the input, appends the position
+// of its subexpressions to dstCap and returns dstCap.
+//
+// nil is returned if no matches are found and non-nil if matches are found.
+func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
 	m := re.get()
 	var i input
+	var size int
 	if r != nil {
 		i = m.newInputReader(r)
 	} else if b != nil {
 		i = m.newInputBytes(b)
+		size = len(b)
 	} else {
 		i = m.newInputString(s)
+		size = len(s)
 	}
 	if m.op != notOnePass {
-		if !m.onepass(i, pos) {
+		if !m.onepass(i, pos, ncap) {
+			re.put(m)
+			return nil
+		}
+	} else if size < m.maxBitStateLen && r == nil {
+		if m.b == nil {
+			m.b = newBitState(m.p)
+		}
+		if !m.backtrack(i, pos, size, ncap) {
 			re.put(m)
 			return nil
 		}
@@ -441,12 +448,15 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 			return nil
 		}
 	}
-	if ncap == 0 {
-		re.put(m)
-		return empty // empty but not nil
+	dstCap = append(dstCap, m.matchcap...)
+	if dstCap == nil {
+		// Keep the promise of returning non-nil value on match.
+		dstCap = arrayNoInts[:0]
 	}
-	cap := make([]int, len(m.matchcap))
-	copy(cap, m.matchcap)
 	re.put(m)
-	return cap
+	return dstCap
 }
+
+// arrayNoInts is returned by doExecute match if nil dstCap is passed
+// to it with ncap=0.
+var arrayNoInts [0]int

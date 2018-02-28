@@ -607,6 +607,24 @@ func _() {
 	_ = a
 }
 
+// Test cases from issues 11274, 15137:
+// Semicolon must not be lost when multiple statements are on the same line with a comment.
+func _() {
+    x := 0 /**/; y := 1
+}
+
+func _() {
+	f(); f()
+	f(); /* comment */ f()
+	f() /* comment */; f()	
+	f(); /* a */ /* b */ f()
+	f() /* a */ /* b */; f()
+	f() /* a */; /* b */ f()
+}
+
+func _() {
+	f() /* a */ /* b */ }
+
 // Comments immediately adjacent to punctuation followed by a newline
 // remain after the punctuation (looks better and permits alignment of
 // comments).
@@ -705,6 +723,34 @@ func _() {
    line 2:    
    line 3:    			
 */
+}
+
+var _ = []T{/* lone comment */}
+
+var _ = []T{
+/* lone comment */
+}
+
+var _ = []T{
+// lone comments
+// in composite lit
+}
+
+var _ = [][]T{
+	{
+		// lone comments
+		// in composite lit
+	},
+}
+
+// TODO: gofmt doesn't add these tabs; make it so that these golden
+// tests run the printer in a way that it's exactly like gofmt.
+
+var _ = []T{// lone comment
+}
+
+var _ = []T{// lone comments
+// in composite lit
 }
 
 /* This comment is the last entry in this file. It must be printed and should be followed by a newline */

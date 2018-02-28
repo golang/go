@@ -10,6 +10,8 @@ package net
 import (
 	"io"
 	"os"
+	"time"
+	_ "unsafe" // For go:linkname
 )
 
 type file struct {
@@ -67,17 +69,22 @@ func open(name string) (*file, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &file{fd, make([]byte, 0, os.Getpagesize()), false}, nil
+	return &file{fd, make([]byte, 0, 64*1024), false}, nil
 }
 
-func byteIndex(s string, c byte) int {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return i
-		}
+func stat(name string) (mtime time.Time, size int64, err error) {
+	st, err := os.Stat(name)
+	if err != nil {
+		return time.Time{}, 0, err
 	}
-	return -1
+	return st.ModTime(), st.Size(), nil
 }
+
+// byteIndex is strings.IndexByte. It returns the index of the
+// first instance of c in s, or -1 if c is not present in s.
+// strings.IndexByte is implemented in  runtime/asm_$GOARCH.s
+//go:linkname byteIndex strings.IndexByte
+func byteIndex(s string, c byte) int
 
 // Count occurrences in s of any bytes in t.
 func countAnyByte(s string, t string) int {
@@ -98,14 +105,14 @@ func splitAtBytes(s string, t string) []string {
 	for i := 0; i < len(s); i++ {
 		if byteIndex(t, s[i]) >= 0 {
 			if last < i {
-				a[n] = string(s[last:i])
+				a[n] = s[last:i]
 				n++
 			}
 			last = i + 1
 		}
 	}
 	if last < len(s) {
-		a[n] = string(s[last:])
+		a[n] = s[last:]
 		n++
 	}
 	return a[0:n]
@@ -116,27 +123,27 @@ func getFields(s string) []string { return splitAtBytes(s, " \r\t\n") }
 // Bigger than we need, not too big to worry about overflow
 const big = 0xFFFFFF
 
-// Decimal to integer starting at &s[i0].
-// Returns number, new offset, success.
-func dtoi(s string, i0 int) (n int, i int, ok bool) {
+// Decimal to integer.
+// Returns number, characters consumed, success.
+func dtoi(s string) (n int, i int, ok bool) {
 	n = 0
-	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+	for i = 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
 		n = n*10 + int(s[i]-'0')
 		if n >= big {
-			return 0, i, false
+			return big, i, false
 		}
 	}
-	if i == i0 {
-		return 0, i, false
+	if i == 0 {
+		return 0, 0, false
 	}
 	return n, i, true
 }
 
-// Hexadecimal to integer starting at &s[i0].
-// Returns number, new offset, success.
-func xtoi(s string, i0 int) (n int, i int, ok bool) {
+// Hexadecimal to integer.
+// Returns number, characters consumed, success.
+func xtoi(s string) (n int, i int, ok bool) {
 	n = 0
-	for i = i0; i < len(s); i++ {
+	for i = 0; i < len(s); i++ {
 		if '0' <= s[i] && s[i] <= '9' {
 			n *= 16
 			n += int(s[i] - '0')
@@ -153,7 +160,7 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
 			return 0, i, false
 		}
 	}
-	if i == i0 {
+	if i == 0 {
 		return 0, i, false
 	}
 	return n, i, true
@@ -167,7 +174,7 @@ func xtoi2(s string, e byte) (byte, bool) {
 	if len(s) > 2 && s[2] != e {
 		return 0, false
 	}
-	n, ei, ok := xtoi(s[:2], 0)
+	n, ei, ok := xtoi(s[:2])
 	return byte(n), ok && ei == 2
 }
 
@@ -231,4 +238,157 @@ func last(s string, b byte) int {
 		}
 	}
 	return i
+}
+
+// lowerASCIIBytes makes x ASCII lowercase in-place.
+func lowerASCIIBytes(x []byte) {
+	for i, b := range x {
+		if 'A' <= b && b <= 'Z' {
+			x[i] += 'a' - 'A'
+		}
+	}
+}
+
+// lowerASCII returns the ASCII lowercase version of b.
+func lowerASCII(b byte) byte {
+	if 'A' <= b && b <= 'Z' {
+		return b + ('a' - 'A')
+	}
+	return b
+}
+
+// trimSpace returns x without any leading or trailing ASCII whitespace.
+func trimSpace(x []byte) []byte {
+	for len(x) > 0 && isSpace(x[0]) {
+		x = x[1:]
+	}
+	for len(x) > 0 && isSpace(x[len(x)-1]) {
+		x = x[:len(x)-1]
+	}
+	return x
+}
+
+// isSpace reports whether b is an ASCII space character.
+func isSpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
+// removeComment returns line, removing any '#' byte and any following
+// bytes.
+func removeComment(line []byte) []byte {
+	if i := bytesIndexByte(line, '#'); i != -1 {
+		return line[:i]
+	}
+	return line
+}
+
+// foreachLine runs fn on each line of x.
+// Each line (except for possibly the last) ends in '\n'.
+// It returns the first non-nil error returned by fn.
+func foreachLine(x []byte, fn func(line []byte) error) error {
+	for len(x) > 0 {
+		nl := bytesIndexByte(x, '\n')
+		if nl == -1 {
+			return fn(x)
+		}
+		line := x[:nl+1]
+		x = x[nl+1:]
+		if err := fn(line); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// foreachField runs fn on each non-empty run of non-space bytes in x.
+// It returns the first non-nil error returned by fn.
+func foreachField(x []byte, fn func(field []byte) error) error {
+	x = trimSpace(x)
+	for len(x) > 0 {
+		sp := bytesIndexByte(x, ' ')
+		if sp == -1 {
+			return fn(x)
+		}
+		if field := trimSpace(x[:sp]); len(field) > 0 {
+			if err := fn(field); err != nil {
+				return err
+			}
+		}
+		x = trimSpace(x[sp+1:])
+	}
+	return nil
+}
+
+// bytesIndexByte is bytes.IndexByte. It returns the index of the
+// first instance of c in s, or -1 if c is not present in s.
+// bytes.IndexByte is implemented in  runtime/asm_$GOARCH.s
+//go:linkname bytesIndexByte bytes.IndexByte
+func bytesIndexByte(s []byte, c byte) int
+
+// stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
+// suffix.
+func stringsHasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+// stringsHasSuffixFold reports whether s ends in suffix,
+// ASCII-case-insensitively.
+func stringsHasSuffixFold(s, suffix string) bool {
+	return len(s) >= len(suffix) && stringsEqualFold(s[len(s)-len(suffix):], suffix)
+}
+
+// stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
+func stringsHasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+// stringsEqualFold is strings.EqualFold, ASCII only. It reports whether s and t
+// are equal, ASCII-case-insensitively.
+func stringsEqualFold(s, t string) bool {
+	if len(s) != len(t) {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if lowerASCII(s[i]) != lowerASCII(t[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func readFull(r io.Reader) (all []byte, err error) {
+	buf := make([]byte, 1024)
+	for {
+		n, err := r.Read(buf)
+		all = append(all, buf[:n]...)
+		if err == io.EOF {
+			return all, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+}
+
+// goDebugString returns the value of the named GODEBUG key.
+// GODEBUG is of the form "key=val,key2=val2"
+func goDebugString(key string) string {
+	s := os.Getenv("GODEBUG")
+	for i := 0; i < len(s)-len(key)-1; i++ {
+		if i > 0 && s[i-1] != ',' {
+			continue
+		}
+		afterKey := s[i+len(key):]
+		if afterKey[0] != '=' || s[i:i+len(key)] != key {
+			continue
+		}
+		val := afterKey[1:]
+		for i, b := range val {
+			if b == ',' {
+				return val[:i]
+			}
+		}
+		return val
+	}
+	return ""
 }

@@ -4,25 +4,30 @@
 
 package tls
 
-import "bytes"
+import (
+	"bytes"
+	"strings"
+)
 
 type clientHelloMsg struct {
-	raw                 []byte
-	vers                uint16
-	random              []byte
-	sessionId           []byte
-	cipherSuites        []uint16
-	compressionMethods  []uint8
-	nextProtoNeg        bool
-	serverName          string
-	ocspStapling        bool
-	supportedCurves     []CurveID
-	supportedPoints     []uint8
-	ticketSupported     bool
-	sessionTicket       []uint8
-	signatureAndHashes  []signatureAndHash
-	secureRenegotiation bool
-	alpnProtocols       []string
+	raw                          []byte
+	vers                         uint16
+	random                       []byte
+	sessionId                    []byte
+	cipherSuites                 []uint16
+	compressionMethods           []uint8
+	nextProtoNeg                 bool
+	serverName                   string
+	ocspStapling                 bool
+	scts                         bool
+	supportedCurves              []CurveID
+	supportedPoints              []uint8
+	ticketSupported              bool
+	sessionTicket                []uint8
+	supportedSignatureAlgorithms []SignatureScheme
+	secureRenegotiation          []byte
+	secureRenegotiationSupported bool
+	alpnProtocols                []string
 }
 
 func (m *clientHelloMsg) equal(i interface{}) bool {
@@ -40,12 +45,14 @@ func (m *clientHelloMsg) equal(i interface{}) bool {
 		m.nextProtoNeg == m1.nextProtoNeg &&
 		m.serverName == m1.serverName &&
 		m.ocspStapling == m1.ocspStapling &&
+		m.scts == m1.scts &&
 		eqCurveIDs(m.supportedCurves, m1.supportedCurves) &&
 		bytes.Equal(m.supportedPoints, m1.supportedPoints) &&
 		m.ticketSupported == m1.ticketSupported &&
 		bytes.Equal(m.sessionTicket, m1.sessionTicket) &&
-		eqSignatureAndHashes(m.signatureAndHashes, m1.signatureAndHashes) &&
-		m.secureRenegotiation == m1.secureRenegotiation &&
+		eqSignatureAlgorithms(m.supportedSignatureAlgorithms, m1.supportedSignatureAlgorithms) &&
+		m.secureRenegotiationSupported == m1.secureRenegotiationSupported &&
+		bytes.Equal(m.secureRenegotiation, m1.secureRenegotiation) &&
 		eqStrings(m.alpnProtocols, m1.alpnProtocols)
 }
 
@@ -80,12 +87,12 @@ func (m *clientHelloMsg) marshal() []byte {
 		extensionsLength += len(m.sessionTicket)
 		numExtensions++
 	}
-	if len(m.signatureAndHashes) > 0 {
-		extensionsLength += 2 + 2*len(m.signatureAndHashes)
+	if len(m.supportedSignatureAlgorithms) > 0 {
+		extensionsLength += 2 + 2*len(m.supportedSignatureAlgorithms)
 		numExtensions++
 	}
-	if m.secureRenegotiation {
-		extensionsLength += 1
+	if m.secureRenegotiationSupported {
+		extensionsLength += 1 + len(m.secureRenegotiation)
 		numExtensions++
 	}
 	if len(m.alpnProtocols) > 0 {
@@ -97,6 +104,9 @@ func (m *clientHelloMsg) marshal() []byte {
 			extensionsLength++
 			extensionsLength += len(s)
 		}
+		numExtensions++
+	}
+	if m.scts {
 		numExtensions++
 	}
 	if numExtensions > 0 {
@@ -209,7 +219,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[4] = byte(l)
 		z = z[5:]
 		for _, pointFormat := range m.supportedPoints {
-			z[0] = byte(pointFormat)
+			z[0] = pointFormat
 			z = z[1:]
 		}
 	}
@@ -224,11 +234,11 @@ func (m *clientHelloMsg) marshal() []byte {
 		copy(z, m.sessionTicket)
 		z = z[len(m.sessionTicket):]
 	}
-	if len(m.signatureAndHashes) > 0 {
+	if len(m.supportedSignatureAlgorithms) > 0 {
 		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
 		z[0] = byte(extensionSignatureAlgorithms >> 8)
 		z[1] = byte(extensionSignatureAlgorithms)
-		l := 2 + 2*len(m.signatureAndHashes)
+		l := 2 + 2*len(m.supportedSignatureAlgorithms)
 		z[2] = byte(l >> 8)
 		z[3] = byte(l)
 		z = z[4:]
@@ -237,18 +247,21 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[0] = byte(l >> 8)
 		z[1] = byte(l)
 		z = z[2:]
-		for _, sigAndHash := range m.signatureAndHashes {
-			z[0] = sigAndHash.hash
-			z[1] = sigAndHash.signature
+		for _, sigAlgo := range m.supportedSignatureAlgorithms {
+			z[0] = byte(sigAlgo >> 8)
+			z[1] = byte(sigAlgo)
 			z = z[2:]
 		}
 	}
-	if m.secureRenegotiation {
+	if m.secureRenegotiationSupported {
 		z[0] = byte(extensionRenegotiationInfo >> 8)
 		z[1] = byte(extensionRenegotiationInfo & 0xff)
 		z[2] = 0
-		z[3] = 1
+		z[3] = byte(len(m.secureRenegotiation) + 1)
+		z[4] = byte(len(m.secureRenegotiation))
 		z = z[5:]
+		copy(z, m.secureRenegotiation)
+		z = z[len(m.secureRenegotiation):]
 	}
 	if len(m.alpnProtocols) > 0 {
 		z[0] = byte(extensionALPN >> 8)
@@ -270,6 +283,13 @@ func (m *clientHelloMsg) marshal() []byte {
 		stringsLength += 2
 		lengths[0] = byte(stringsLength >> 8)
 		lengths[1] = byte(stringsLength)
+	}
+	if m.scts {
+		// https://tools.ietf.org/html/rfc6962#section-3.3.1
+		z[0] = byte(extensionSCT >> 8)
+		z[1] = byte(extensionSCT)
+		// zero uint16 for the zero-length extension_data
+		z = z[4:]
 	}
 
 	m.raw = x
@@ -304,7 +324,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	for i := 0; i < numCipherSuites; i++ {
 		m.cipherSuites[i] = uint16(data[2+2*i])<<8 | uint16(data[3+2*i])
 		if m.cipherSuites[i] == scsvRenegotiation {
-			m.secureRenegotiation = true
+			m.secureRenegotiationSupported = true
 		}
 	}
 	data = data[2+cipherSuiteLen:]
@@ -324,8 +344,9 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	m.ocspStapling = false
 	m.ticketSupported = false
 	m.sessionTicket = nil
-	m.signatureAndHashes = nil
+	m.supportedSignatureAlgorithms = nil
 	m.alpnProtocols = nil
+	m.scts = false
 
 	if len(data) == 0 {
 		// ClientHello is optionally followed by extension data
@@ -354,12 +375,16 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 
 		switch extension {
 		case extensionServerName:
-			if length < 2 {
+			d := data[:length]
+			if len(d) < 2 {
 				return false
 			}
-			numNames := int(data[0])<<8 | int(data[1])
-			d := data[2:]
-			for i := 0; i < numNames; i++ {
+			namesLen := int(d[0])<<8 | int(d[1])
+			d = d[2:]
+			if len(d) != namesLen {
+				return false
+			}
+			for len(d) > 0 {
 				if len(d) < 3 {
 					return false
 				}
@@ -370,7 +395,13 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 					return false
 				}
 				if nameType == 0 {
-					m.serverName = string(d[0:nameLen])
+					m.serverName = string(d[:nameLen])
+					// An SNI value may not include a
+					// trailing dot. See
+					// https://tools.ietf.org/html/rfc6066#section-3.
+					if strings.HasSuffix(m.serverName, ".") {
+						return false
+					}
 					break
 				}
 				d = d[nameLen:]
@@ -424,17 +455,24 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			}
 			n := l / 2
 			d := data[2:]
-			m.signatureAndHashes = make([]signatureAndHash, n)
-			for i := range m.signatureAndHashes {
-				m.signatureAndHashes[i].hash = d[0]
-				m.signatureAndHashes[i].signature = d[1]
+			m.supportedSignatureAlgorithms = make([]SignatureScheme, n)
+			for i := range m.supportedSignatureAlgorithms {
+				m.supportedSignatureAlgorithms[i] = SignatureScheme(d[0])<<8 | SignatureScheme(d[1])
 				d = d[2:]
 			}
 		case extensionRenegotiationInfo:
-			if length != 1 || data[0] != 0 {
+			if length == 0 {
 				return false
 			}
-			m.secureRenegotiation = true
+			d := data[:length]
+			l := int(d[0])
+			d = d[1:]
+			if l != len(d) {
+				return false
+			}
+
+			m.secureRenegotiation = d
+			m.secureRenegotiationSupported = true
 		case extensionALPN:
 			if length < 2 {
 				return false
@@ -453,6 +491,11 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				m.alpnProtocols = append(m.alpnProtocols, string(d[:stringLen]))
 				d = d[stringLen:]
 			}
+		case extensionSCT:
+			m.scts = true
+			if length != 0 {
+				return false
+			}
 		}
 		data = data[length:]
 	}
@@ -461,24 +504,35 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 }
 
 type serverHelloMsg struct {
-	raw                 []byte
-	vers                uint16
-	random              []byte
-	sessionId           []byte
-	cipherSuite         uint16
-	compressionMethod   uint8
-	nextProtoNeg        bool
-	nextProtos          []string
-	ocspStapling        bool
-	ticketSupported     bool
-	secureRenegotiation bool
-	alpnProtocol        string
+	raw                          []byte
+	vers                         uint16
+	random                       []byte
+	sessionId                    []byte
+	cipherSuite                  uint16
+	compressionMethod            uint8
+	nextProtoNeg                 bool
+	nextProtos                   []string
+	ocspStapling                 bool
+	scts                         [][]byte
+	ticketSupported              bool
+	secureRenegotiation          []byte
+	secureRenegotiationSupported bool
+	alpnProtocol                 string
 }
 
 func (m *serverHelloMsg) equal(i interface{}) bool {
 	m1, ok := i.(*serverHelloMsg)
 	if !ok {
 		return false
+	}
+
+	if len(m.scts) != len(m1.scts) {
+		return false
+	}
+	for i, sct := range m.scts {
+		if !bytes.Equal(sct, m1.scts[i]) {
+			return false
+		}
 	}
 
 	return bytes.Equal(m.raw, m1.raw) &&
@@ -491,7 +545,8 @@ func (m *serverHelloMsg) equal(i interface{}) bool {
 		eqStrings(m.nextProtos, m1.nextProtos) &&
 		m.ocspStapling == m1.ocspStapling &&
 		m.ticketSupported == m1.ticketSupported &&
-		m.secureRenegotiation == m1.secureRenegotiation &&
+		m.secureRenegotiationSupported == m1.secureRenegotiationSupported &&
+		bytes.Equal(m.secureRenegotiation, m1.secureRenegotiation) &&
 		m.alpnProtocol == m1.alpnProtocol
 }
 
@@ -519,8 +574,8 @@ func (m *serverHelloMsg) marshal() []byte {
 	if m.ticketSupported {
 		numExtensions++
 	}
-	if m.secureRenegotiation {
-		extensionsLength += 1
+	if m.secureRenegotiationSupported {
+		extensionsLength += 1 + len(m.secureRenegotiation)
 		numExtensions++
 	}
 	if alpnLen := len(m.alpnProtocol); alpnLen > 0 {
@@ -528,6 +583,14 @@ func (m *serverHelloMsg) marshal() []byte {
 			panic("invalid ALPN protocol")
 		}
 		extensionsLength += 2 + 1 + alpnLen
+		numExtensions++
+	}
+	sctLen := 0
+	if len(m.scts) > 0 {
+		for _, sct := range m.scts {
+			sctLen += len(sct) + 2
+		}
+		extensionsLength += 2 + sctLen
 		numExtensions++
 	}
 
@@ -549,7 +612,7 @@ func (m *serverHelloMsg) marshal() []byte {
 	z := x[39+len(m.sessionId):]
 	z[0] = uint8(m.cipherSuite >> 8)
 	z[1] = uint8(m.cipherSuite)
-	z[2] = uint8(m.compressionMethod)
+	z[2] = m.compressionMethod
 
 	z = z[3:]
 	if numExtensions > 0 {
@@ -584,12 +647,15 @@ func (m *serverHelloMsg) marshal() []byte {
 		z[1] = byte(extensionSessionTicket)
 		z = z[4:]
 	}
-	if m.secureRenegotiation {
+	if m.secureRenegotiationSupported {
 		z[0] = byte(extensionRenegotiationInfo >> 8)
 		z[1] = byte(extensionRenegotiationInfo & 0xff)
 		z[2] = 0
-		z[3] = 1
+		z[3] = byte(len(m.secureRenegotiation) + 1)
+		z[4] = byte(len(m.secureRenegotiation))
 		z = z[5:]
+		copy(z, m.secureRenegotiation)
+		z = z[len(m.secureRenegotiation):]
 	}
 	if alpnLen := len(m.alpnProtocol); alpnLen > 0 {
 		z[0] = byte(extensionALPN >> 8)
@@ -604,6 +670,23 @@ func (m *serverHelloMsg) marshal() []byte {
 		z[6] = byte(l)
 		copy(z[7:], []byte(m.alpnProtocol))
 		z = z[7+alpnLen:]
+	}
+	if sctLen > 0 {
+		z[0] = byte(extensionSCT >> 8)
+		z[1] = byte(extensionSCT)
+		l := sctLen + 2
+		z[2] = byte(l >> 8)
+		z[3] = byte(l)
+		z[4] = byte(sctLen >> 8)
+		z[5] = byte(sctLen)
+
+		z = z[6:]
+		for _, sct := range m.scts {
+			z[0] = byte(len(sct) >> 8)
+			z[1] = byte(len(sct))
+			copy(z[2:], sct)
+			z = z[len(sct)+2:]
+		}
 	}
 
 	m.raw = x
@@ -634,6 +717,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 	m.nextProtoNeg = false
 	m.nextProtos = nil
 	m.ocspStapling = false
+	m.scts = nil
 	m.ticketSupported = false
 	m.alpnProtocol = ""
 
@@ -686,10 +770,18 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 			}
 			m.ticketSupported = true
 		case extensionRenegotiationInfo:
-			if length != 1 || data[0] != 0 {
+			if length == 0 {
 				return false
 			}
-			m.secureRenegotiation = true
+			d := data[:length]
+			l := int(d[0])
+			d = d[1:]
+			if l != len(d) {
+				return false
+			}
+
+			m.secureRenegotiation = d
+			m.secureRenegotiationSupported = true
 		case extensionALPN:
 			d := data[:length]
 			if len(d) < 3 {
@@ -705,7 +797,36 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 				return false
 			}
 			d = d[1:]
+			if len(d) == 0 {
+				// ALPN protocols must not be empty.
+				return false
+			}
 			m.alpnProtocol = string(d)
+		case extensionSCT:
+			d := data[:length]
+
+			if len(d) < 2 {
+				return false
+			}
+			l := int(d[0])<<8 | int(d[1])
+			d = d[2:]
+			if len(d) != l || l == 0 {
+				return false
+			}
+
+			m.scts = make([][]byte, 0, 3)
+			for len(d) != 0 {
+				if len(d) < 2 {
+					return false
+				}
+				sctLen := int(d[0])<<8 | int(d[1])
+				d = d[2:]
+				if sctLen == 0 || len(d) < sctLen {
+					return false
+				}
+				m.scts = append(m.scts, d[:sctLen])
+				d = d[sctLen:]
+			}
 		}
 		data = data[length:]
 	}
@@ -1081,9 +1202,9 @@ type certificateRequestMsg struct {
 	// 1.2.
 	hasSignatureAndHash bool
 
-	certificateTypes       []byte
-	signatureAndHashes     []signatureAndHash
-	certificateAuthorities [][]byte
+	certificateTypes             []byte
+	supportedSignatureAlgorithms []SignatureScheme
+	certificateAuthorities       [][]byte
 }
 
 func (m *certificateRequestMsg) equal(i interface{}) bool {
@@ -1095,7 +1216,7 @@ func (m *certificateRequestMsg) equal(i interface{}) bool {
 	return bytes.Equal(m.raw, m1.raw) &&
 		bytes.Equal(m.certificateTypes, m1.certificateTypes) &&
 		eqByteSlices(m.certificateAuthorities, m1.certificateAuthorities) &&
-		eqSignatureAndHashes(m.signatureAndHashes, m1.signatureAndHashes)
+		eqSignatureAlgorithms(m.supportedSignatureAlgorithms, m1.supportedSignatureAlgorithms)
 }
 
 func (m *certificateRequestMsg) marshal() (x []byte) {
@@ -1112,7 +1233,7 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 	length += casLength
 
 	if m.hasSignatureAndHash {
-		length += 2 + 2*len(m.signatureAndHashes)
+		length += 2 + 2*len(m.supportedSignatureAlgorithms)
 	}
 
 	x = make([]byte, 4+length)
@@ -1127,13 +1248,13 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 	y := x[5+len(m.certificateTypes):]
 
 	if m.hasSignatureAndHash {
-		n := len(m.signatureAndHashes) * 2
+		n := len(m.supportedSignatureAlgorithms) * 2
 		y[0] = uint8(n >> 8)
 		y[1] = uint8(n)
 		y = y[2:]
-		for _, sigAndHash := range m.signatureAndHashes {
-			y[0] = sigAndHash.hash
-			y[1] = sigAndHash.signature
+		for _, sigAlgo := range m.supportedSignatureAlgorithms {
+			y[0] = uint8(sigAlgo >> 8)
+			y[1] = uint8(sigAlgo)
 			y = y[2:]
 		}
 	}
@@ -1190,11 +1311,10 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
 		if len(data) < int(sigAndHashLen) {
 			return false
 		}
-		numSigAndHash := sigAndHashLen / 2
-		m.signatureAndHashes = make([]signatureAndHash, numSigAndHash)
-		for i := range m.signatureAndHashes {
-			m.signatureAndHashes[i].hash = data[0]
-			m.signatureAndHashes[i].signature = data[1]
+		numSigAlgos := sigAndHashLen / 2
+		m.supportedSignatureAlgorithms = make([]SignatureScheme, numSigAlgos)
+		for i := range m.supportedSignatureAlgorithms {
+			m.supportedSignatureAlgorithms[i] = SignatureScheme(data[0])<<8 | SignatureScheme(data[1])
 			data = data[2:]
 		}
 	}
@@ -1226,17 +1346,14 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
 		m.certificateAuthorities = append(m.certificateAuthorities, cas[:caLen])
 		cas = cas[caLen:]
 	}
-	if len(data) > 0 {
-		return false
-	}
 
-	return true
+	return len(data) == 0
 }
 
 type certificateVerifyMsg struct {
 	raw                 []byte
 	hasSignatureAndHash bool
-	signatureAndHash    signatureAndHash
+	signatureAlgorithm  SignatureScheme
 	signature           []byte
 }
 
@@ -1248,8 +1365,7 @@ func (m *certificateVerifyMsg) equal(i interface{}) bool {
 
 	return bytes.Equal(m.raw, m1.raw) &&
 		m.hasSignatureAndHash == m1.hasSignatureAndHash &&
-		m.signatureAndHash.hash == m1.signatureAndHash.hash &&
-		m.signatureAndHash.signature == m1.signatureAndHash.signature &&
+		m.signatureAlgorithm == m1.signatureAlgorithm &&
 		bytes.Equal(m.signature, m1.signature)
 }
 
@@ -1271,8 +1387,8 @@ func (m *certificateVerifyMsg) marshal() (x []byte) {
 	x[3] = uint8(length)
 	y := x[4:]
 	if m.hasSignatureAndHash {
-		y[0] = m.signatureAndHash.hash
-		y[1] = m.signatureAndHash.signature
+		y[0] = uint8(m.signatureAlgorithm >> 8)
+		y[1] = uint8(m.signatureAlgorithm)
 		y = y[2:]
 	}
 	y[0] = uint8(siglength >> 8)
@@ -1298,8 +1414,7 @@ func (m *certificateVerifyMsg) unmarshal(data []byte) bool {
 
 	data = data[4:]
 	if m.hasSignatureAndHash {
-		m.signatureAndHash.hash = data[0]
-		m.signatureAndHash.signature = data[1]
+		m.signatureAlgorithm = SignatureScheme(data[0])<<8 | SignatureScheme(data[1])
 		data = data[2:]
 	}
 
@@ -1376,6 +1491,17 @@ func (m *newSessionTicketMsg) unmarshal(data []byte) bool {
 	return true
 }
 
+type helloRequestMsg struct {
+}
+
+func (*helloRequestMsg) marshal() []byte {
+	return []byte{typeHelloRequest, 0, 0, 0}
+}
+
+func (*helloRequestMsg) unmarshal(data []byte) bool {
+	return len(data) == 4
+}
+
 func eqUint16s(x, y []uint16) bool {
 	if len(x) != len(y) {
 		return false
@@ -1424,13 +1550,12 @@ func eqByteSlices(x, y [][]byte) bool {
 	return true
 }
 
-func eqSignatureAndHashes(x, y []signatureAndHash) bool {
+func eqSignatureAlgorithms(x, y []SignatureScheme) bool {
 	if len(x) != len(y) {
 		return false
 	}
 	for i, v := range x {
-		v2 := y[i]
-		if v.hash != v2.hash || v.signature != v2.signature {
+		if v != y[i] {
 			return false
 		}
 	}

@@ -7,6 +7,7 @@ package multipart
 import (
 	"bytes"
 	"io/ioutil"
+	"net/textproto"
 	"strings"
 	"testing"
 )
@@ -79,8 +80,6 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterSetBoundary(t *testing.T) {
-	var b bytes.Buffer
-	w := NewWriter(&b)
 	tests := []struct {
 		b  string
 		ok bool
@@ -89,12 +88,16 @@ func TestWriterSetBoundary(t *testing.T) {
 		{"", false},
 		{"ungültig", false},
 		{"!", false},
-		{strings.Repeat("x", 69), true},
-		{strings.Repeat("x", 70), false},
+		{strings.Repeat("x", 70), true},
+		{strings.Repeat("x", 71), false},
 		{"bad!ascii!", false},
 		{"my-separator", true},
+		{"with space", true},
+		{"badspace ", false},
 	}
 	for i, tt := range tests {
+		var b bytes.Buffer
+		w := NewWriter(&b)
 		err := w.SetBoundary(tt.b)
 		got := err == nil
 		if got != tt.ok {
@@ -104,11 +107,12 @@ func TestWriterSetBoundary(t *testing.T) {
 			if got != tt.b {
 				t.Errorf("boundary = %q; want %q", got, tt.b)
 			}
+			w.Close()
+			wantSub := "\r\n--" + tt.b + "--\r\n"
+			if got := b.String(); !strings.Contains(got, wantSub) {
+				t.Errorf("expected %q in output. got: %q", wantSub, got)
+			}
 		}
-	}
-	w.Close()
-	if got := b.String(); !strings.Contains(got, "\r\n--my-separator--\r\n") {
-		t.Errorf("expected my-separator in output. got: %q", got)
 	}
 }
 
@@ -125,4 +129,33 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
 	}()
 	w.Boundary()
 	<-done
+}
+
+func TestSortedHeader(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	if err := w.SetBoundary("MIMEBOUNDARY"); err != nil {
+		t.Fatalf("Error setting mime boundary: %v", err)
+	}
+
+	header := textproto.MIMEHeader{
+		"A": {"2"},
+		"B": {"5", "7", "6"},
+		"C": {"4"},
+		"M": {"3"},
+		"Z": {"1"},
+	}
+
+	part, err := w.CreatePart(header)
+	if err != nil {
+		t.Fatalf("Unable to create part: %v", err)
+	}
+	part.Write([]byte("foo"))
+
+	w.Close()
+
+	want := "--MIMEBOUNDARY\r\nA: 2\r\nB: 5\r\nB: 7\r\nB: 6\r\nC: 4\r\nM: 3\r\nZ: 1\r\n\r\nfoo\r\n--MIMEBOUNDARY--\r\n"
+	if want != buf.String() {
+		t.Fatalf("\n got: %q\nwant: %q\n", buf.String(), want)
+	}
 }

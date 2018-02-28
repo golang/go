@@ -6,6 +6,9 @@ package syscall_test
 
 import (
 	"fmt"
+	"internal/testenv"
+	"os"
+	"runtime"
 	"syscall"
 	"testing"
 )
@@ -43,5 +46,30 @@ func TestItoa(t *testing.T) {
 	f := fmt.Sprint(i)
 	if s != f {
 		t.Fatalf("itoa(%d) = %s, want %s", i, s, f)
+	}
+}
+
+// Check that permuting child process fds doesn't interfere with
+// reporting of fork/exec status. See Issue 14979.
+func TestExecErrPermutedFds(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	attr := &os.ProcAttr{Files: []*os.File{os.Stdin, os.Stderr, os.Stdout}}
+	_, err := os.StartProcess("/", []string{"/"}, attr)
+	if err == nil {
+		t.Fatalf("StartProcess of invalid program returned err = nil")
+	}
+}
+
+func TestGettimeofday(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("not implemented on nacl")
+	}
+	tv := &syscall.Timeval{}
+	if err := syscall.Gettimeofday(tv); err != nil {
+		t.Fatal(err)
+	}
+	if tv.Sec == 0 && tv.Usec == 0 {
+		t.Fatal("Sec and Usec both zero")
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,6 +13,11 @@ void scatter() {
 	void *p = scatter;
 	printf("scatter = %p\n", p);
 }
+
+// Adding this explicit extern declaration makes this a test for
+// https://gcc.gnu.org/PR68072 aka https://golang.org/issue/13344 .
+// It used to cause a cgo error when building with GCC 6.
+extern int hola;
 
 // this example is in issue 3253
 int hola = 0;

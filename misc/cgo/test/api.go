@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,11 @@
 package cgotest
 
 // #include <stdlib.h>
+//
+// // Test for issue 17723.
+// typedef char *cstring_pointer;
+// static void cstring_pointer_fun(cstring_pointer dummy) { }
+//
 // const char *api_hello = "hello!";
 import "C"
 import "unsafe"
@@ -21,4 +26,5 @@ func testAPI() {
 	var b []byte
 	b = C.GoBytes(unsafe.Pointer(C.api_hello), C.int(6))
 	_, _ = s, b
+	C.cstring_pointer_fun(nil)
 }

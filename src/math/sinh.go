@@ -22,7 +22,9 @@ package math
 //	Sinh(±0) = ±0
 //	Sinh(±Inf) = ±Inf
 //	Sinh(NaN) = NaN
-func Sinh(x float64) float64 {
+func Sinh(x float64) float64
+
+func sinh(x float64) float64 {
 	// The coefficients are #2029 from Hart & Cheney. (20.36D)
 	const (
 		P0 = -0.6307673640497716991184787251e+6
@@ -43,10 +45,11 @@ func Sinh(x float64) float64 {
 	var temp float64
 	switch true {
 	case x > 21:
-		temp = Exp(x) / 2
+		temp = Exp(x) * 0.5
 
 	case x > 0.5:
-		temp = (Exp(x) - Exp(-x)) / 2
+		ex := Exp(x)
+		temp = (ex - 1/ex) * 0.5
 
 	default:
 		sq := x * x
@@ -66,12 +69,13 @@ func Sinh(x float64) float64 {
 //	Cosh(±0) = 1
 //	Cosh(±Inf) = +Inf
 //	Cosh(NaN) = NaN
-func Cosh(x float64) float64 {
-	if x < 0 {
-		x = -x
-	}
+func Cosh(x float64) float64
+
+func cosh(x float64) float64 {
+	x = Abs(x)
 	if x > 21 {
-		return Exp(x) / 2
+		return Exp(x) * 0.5
 	}
-	return (Exp(x) + Exp(-x)) / 2
+	ex := Exp(x)
+	return (ex + 1/ex) * 0.5
 }

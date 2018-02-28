@@ -22,8 +22,8 @@ var sigtable = [...]sigTabT{
 	{_SigThrow, "sys: trap: invalid opcode"},
 
 	// We can recover from some memory errors in runtime·sigpanic.
-	{_SigPanic, "sys: trap: fault read addr"},  // SIGRFAULT
-	{_SigPanic, "sys: trap: fault write addr"}, // SIGWFAULT
+	{_SigPanic, "sys: trap: fault read"},  // SIGRFAULT
+	{_SigPanic, "sys: trap: fault write"}, // SIGWFAULT
 
 	// We can also recover from math errors.
 	{_SigPanic, "sys: trap: divide error"}, // SIGINTDIV
@@ -51,4 +51,7 @@ var sigtable = [...]sigTabT{
 
 	// Alarms can be handled if desired, otherwise they're ignored.
 	{_SigNotify, "alarm"},
+
+	// Aborts can be handled if desired, otherwise they cause a stack trace.
+	{_SigNotify + _SigThrow, "abort"},
 }

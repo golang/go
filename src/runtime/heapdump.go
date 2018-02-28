@@ -2,33 +2,29 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Implementation of runtime/debug.WriteHeapDump.  Writes all
+// Implementation of runtime/debug.WriteHeapDump. Writes all
 // objects in the heap plus additional info (roots, threads,
 // finalizers, etc.) to a file.
 
 // The format of the dumped file is described at
-// http://golang.org/s/go14heapdump.
+// https://golang.org/s/go15heapdump.
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
 func runtime_debug_WriteHeapDump(fd uintptr) {
-	semacquire(&worldsema, false)
-	gp := getg()
-	gp.m.preemptoff = "write heap dump"
-	systemstack(stoptheworld)
+	stopTheWorld("write heap dump")
 
 	systemstack(func() {
 		writeheapdump_m(fd)
 	})
 
-	gp.m.preemptoff = ""
-	gp.m.locks++
-	semrelease(&worldsema)
-	systemstack(starttheworld)
-	gp.m.locks--
+	startTheWorld()
 }
 
 const (
@@ -77,7 +73,7 @@ func dwrite(data unsafe.Pointer, len uintptr) {
 		return
 	}
 
-	write(dumpfd, (unsafe.Pointer)(&buf), int32(nbuf))
+	write(dumpfd, unsafe.Pointer(&buf), int32(nbuf))
 	if len >= bufSize {
 		write(dumpfd, data, int32(len))
 		nbuf = 0
@@ -92,7 +88,7 @@ func dwritebyte(b byte) {
 }
 
 func flush() {
-	write(dumpfd, (unsafe.Pointer)(&buf), int32(nbuf))
+	write(dumpfd, unsafe.Pointer(&buf), int32(nbuf))
 	nbuf = 0
 }
 
@@ -101,7 +97,7 @@ func flush() {
 // Inside a bucket, we keep a list of types that
 // have been serialized so far, most recently used first.
 // Note: when a bucket overflows we may end up
-// serializing a type more than once.  That's ok.
+// serializing a type more than once. That's ok.
 const (
 	typeCacheBuckets = 256
 	typeCacheAssoc   = 4
@@ -149,7 +145,7 @@ func dumpslice(b []byte) {
 }
 
 func dumpstr(s string) {
-	sp := (*stringStruct)(unsafe.Pointer(&s))
+	sp := stringStructOf(&s)
 	dumpmemrange(sp.str, uintptr(sp.len))
 }
 
@@ -176,7 +172,7 @@ func dumptype(t *_type) {
 		}
 	}
 
-	// Might not have been dumped yet.  Dump it and
+	// Might not have been dumped yet. Dump it and
 	// remember we did so.
 	for j := typeCacheAssoc - 1; j > 0; j-- {
 		b.t[j] = b.t[j-1]
@@ -187,11 +183,13 @@ func dumptype(t *_type) {
 	dumpint(tagType)
 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 	dumpint(uint64(t.size))
-	if t.x == nil || t.x.pkgpath == nil || t.x.name == nil {
-		dumpstr(*t._string)
+	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
+		dumpstr(t.string())
 	} else {
-		pkgpath := (*stringStruct)(unsafe.Pointer(&t.x.pkgpath))
-		name := (*stringStruct)(unsafe.Pointer(&t.x.name))
+		pkgpathstr := t.nameOff(x.pkgpath).name()
+		pkgpath := stringStructOf(&pkgpathstr)
+		namestr := t.name()
+		name := stringStructOf(&namestr)
 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
 		dwrite(pkgpath.str, uintptr(pkgpath.len))
 		dwritebyte('.')
@@ -202,7 +200,6 @@ func dumptype(t *_type) {
 
 // dump an object
 func dumpobj(obj unsafe.Pointer, size uintptr, bv bitvector) {
-	dumpbvtypes(&bv, obj)
 	dumpint(tagObject)
 	dumpint(uint64(uintptr(obj)))
 	dumpmemrange(obj, size)
@@ -237,18 +234,10 @@ type childInfo struct {
 // dump kinds & offsets of interesting fields in bv
 func dumpbv(cbv *bitvector, offset uintptr) {
 	bv := gobv(*cbv)
-	for i := uintptr(0); i < uintptr(bv.n); i += typeBitsWidth {
-		switch bv.bytedata[i/8] >> (i % 8) & typeMask {
-		default:
-			throw("unexpected pointer bits")
-		case typeDead:
-			// typeDead has already been processed in makeheapobjbv.
-			// We should only see it in stack maps, in which case we should continue processing.
-		case typeScalar:
-			// ok
-		case typePointer:
+	for i := uintptr(0); i < bv.n; i++ {
+		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
 			dumpint(fieldKindPtr)
-			dumpint(uint64(offset + i/typeBitsWidth*ptrSize))
+			dumpint(uint64(offset + i*sys.PtrSize))
 		}
 	}
 }
@@ -262,23 +251,18 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	if pc != f.entry {
 		pc--
 	}
-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc)
+	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
-		// stackmap for this function.  It is likely that we are looking
+		// stackmap for this function. It is likely that we are looking
 		// at the function prologue, assume so and hope for the best.
 		pcdata = 0
 	}
 	stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
 
-	// Dump any types we will need to resolve Efaces.
-	if child.args.n >= 0 {
-		dumpbvtypes(&child.args, unsafe.Pointer(s.sp+child.argoff))
-	}
 	var bv bitvector
 	if stkmap != nil && stkmap.n > 0 {
 		bv = stackmapdata(stkmap, pcdata)
-		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n/typeBitsWidth*ptrSize)))
 	} else {
 		bv.n = -1
 	}
@@ -303,7 +287,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 		dumpbv(&child.args, child.argoff)
 	} else {
 		// conservative - everything might be a pointer
-		for off := child.argoff; off < child.argoff+child.arglen; off += ptrSize {
+		for off := child.argoff; off < child.argoff+child.arglen; off += sys.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
@@ -312,21 +296,21 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	// Dump fields in the local vars section
 	if stkmap == nil {
 		// No locals information, dump everything.
-		for off := child.arglen; off < s.varp-s.sp; off += ptrSize {
+		for off := child.arglen; off < s.varp-s.sp; off += sys.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
 	} else if stkmap.n < 0 {
 		// Locals size information, dump just the locals.
 		size := uintptr(-stkmap.n)
-		for off := s.varp - size - s.sp; off < s.varp-s.sp; off += ptrSize {
+		for off := s.varp - size - s.sp; off < s.varp-s.sp; off += sys.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
 	} else if stkmap.n > 0 {
 		// Locals bitmap information, scan just the pointers in
 		// locals.
-		dumpbv(&bv, s.varp-uintptr(bv.n)/typeBitsWidth*ptrSize-s.sp)
+		dumpbv(&bv, s.varp-uintptr(bv.n)*sys.PtrSize-s.sp)
 	}
 	dumpint(fieldKindEol)
 
@@ -394,7 +378,7 @@ func dumpgoroutine(gp *g) {
 		dumpint(tagPanic)
 		dumpint(uint64(uintptr(unsafe.Pointer(p))))
 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
-		eface := (*eface)(unsafe.Pointer(&p.arg))
+		eface := efaceOf(&p.arg)
 		dumpint(uint64(uintptr(unsafe.Pointer(eface._type))))
 		dumpint(uint64(uintptr(unsafe.Pointer(eface.data))))
 		dumpint(0) // was p->defer, no longer recorded
@@ -431,24 +415,21 @@ func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, o
 }
 
 func dumproots() {
+	// TODO(mwhudson): dump datamask etc from all objects
 	// data segment
-	dumpbvtypes(&gcdatamask, unsafe.Pointer(&data))
 	dumpint(tagData)
-	dumpint(uint64(uintptr(unsafe.Pointer(&data))))
-	dumpmemrange(unsafe.Pointer(&data), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)))
-	dumpfields(gcdatamask)
+	dumpint(uint64(firstmoduledata.data))
+	dumpmemrange(unsafe.Pointer(firstmoduledata.data), firstmoduledata.edata-firstmoduledata.data)
+	dumpfields(firstmoduledata.gcdatamask)
 
 	// bss segment
-	dumpbvtypes(&gcbssmask, unsafe.Pointer(&bss))
 	dumpint(tagBSS)
-	dumpint(uint64(uintptr(unsafe.Pointer(&bss))))
-	dumpmemrange(unsafe.Pointer(&bss), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
-	dumpfields(gcbssmask)
+	dumpint(uint64(firstmoduledata.bss))
+	dumpmemrange(unsafe.Pointer(firstmoduledata.bss), firstmoduledata.ebss-firstmoduledata.bss)
+	dumpfields(firstmoduledata.gcbssmask)
 
 	// MSpan.types
-	allspans := h_allspans
-	for spanidx := uint32(0); spanidx < mheap_.nspan; spanidx++ {
-		s := allspans[spanidx]
+	for _, s := range mheap_.allspans {
 		if s.state == _MSpanInUse {
 			// Finalizers
 			for sp := s.specials; sp != nil; sp = sp.next {
@@ -456,7 +437,7 @@ func dumproots() {
 					continue
 				}
 				spf := (*specialfinalizer)(unsafe.Pointer(sp))
-				p := unsafe.Pointer((uintptr(s.start) << _PageShift) + uintptr(spf.special.offset))
+				p := unsafe.Pointer(s.base() + uintptr(spf.special.offset))
 				dumpfinalizer(p, spf.fn, spf.fint, spf.ot)
 			}
 		}
@@ -471,20 +452,23 @@ func dumproots() {
 var freemark [_PageSize / 8]bool
 
 func dumpobjs() {
-	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
-		s := h_allspans[i]
+	for _, s := range mheap_.allspans {
 		if s.state != _MSpanInUse {
 			continue
 		}
-		p := uintptr(s.start << _PageShift)
+		p := s.base()
 		size := s.elemsize
 		n := (s.npages << _PageShift) / size
 		if n > uintptr(len(freemark)) {
 			throw("freemark array doesn't have enough entries")
 		}
-		for l := s.freelist; l.ptr() != nil; l = l.ptr().next {
-			freemark[(uintptr(l)-p)/size] = true
+
+		for freeIndex := uintptr(0); freeIndex < s.nelems; freeIndex++ {
+			if s.isFree(freeIndex) {
+				freemark[freeIndex] = true
+			}
 		}
+
 		for j := uintptr(0); j < n; j, p = j+1, p+size {
 			if freemark[j] {
 				freemark[j] = false
@@ -503,38 +487,38 @@ func dumpparams() {
 	} else {
 		dumpbool(true) // big-endian ptrs
 	}
-	dumpint(ptrSize)
-	dumpint(uint64(mheap_.arena_start))
-	dumpint(uint64(mheap_.arena_used))
-	dumpint(thechar)
-	dumpstr(goexperiment)
+	dumpint(sys.PtrSize)
+	var arenaStart, arenaEnd uintptr
+	for i1 := range mheap_.arenas {
+		if mheap_.arenas[i1] == nil {
+			continue
+		}
+		for i, ha := range mheap_.arenas[i1] {
+			if ha == nil {
+				continue
+			}
+			base := arenaBase(arenaIdx(i1)<<arenaL1Shift | arenaIdx(i))
+			if arenaStart == 0 || base < arenaStart {
+				arenaStart = base
+			}
+			if base+heapArenaBytes > arenaEnd {
+				arenaEnd = base + heapArenaBytes
+			}
+		}
+	}
+	dumpint(uint64(arenaStart))
+	dumpint(uint64(arenaEnd))
+	dumpstr(sys.GOARCH)
+	dumpstr(sys.Goexperiment)
 	dumpint(uint64(ncpu))
 }
 
 func itab_callback(tab *itab) {
 	t := tab._type
-	// Dump a map from itab* to the type of its data field.
-	// We want this map so we can deduce types of interface referents.
-	if t.kind&kindDirectIface == 0 {
-		// indirect - data slot is a pointer to t.
-		dumptype(t.ptrto)
-		dumpint(tagItab)
-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
-		dumpint(uint64(uintptr(unsafe.Pointer(t.ptrto))))
-	} else if t.kind&kindNoPointers == 0 {
-		// t is pointer-like - data slot is a t.
-		dumptype(t)
-		dumpint(tagItab)
-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
-		dumpint(uint64(uintptr(unsafe.Pointer(t))))
-	} else {
-		// Data slot is a scalar.  Dump type just for fun.
-		// With pointer-only interfaces, this shouldn't happen.
-		dumptype(t)
-		dumpint(tagItab)
-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
-		dumpint(uint64(uintptr(unsafe.Pointer(t))))
-	}
+	dumptype(t)
+	dumpint(tagItab)
+	dumpint(uint64(uintptr(unsafe.Pointer(tab))))
+	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 }
 
 func dumpitabs() {
@@ -574,7 +558,7 @@ func dumpmemstats() {
 	dumpint(memstats.gc_sys)
 	dumpint(memstats.other_sys)
 	dumpint(memstats.next_gc)
-	dumpint(memstats.last_gc)
+	dumpint(memstats.last_gc_unix)
 	dumpint(memstats.pause_total_ns)
 	for i := 0; i < 256; i++ {
 		dumpint(memstats.pause_ns[i])
@@ -591,7 +575,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 	for i := uintptr(0); i < nstk; i++ {
 		pc := stk[i]
 		f := findfunc(pc)
-		if f == nil {
+		if !f.valid() {
 			var buf [64]byte
 			n := len(buf)
 			n--
@@ -631,9 +615,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 
 func dumpmemprof() {
 	iterate_memprof(dumpmemprof_callback)
-	allspans := h_allspans
-	for spanidx := uint32(0); spanidx < mheap_.nspan; spanidx++ {
-		s := allspans[spanidx]
+	for _, s := range mheap_.allspans {
 		if s.state != _MSpanInUse {
 			continue
 		}
@@ -642,7 +624,7 @@ func dumpmemprof() {
 				continue
 			}
 			spp := (*specialprofile)(unsafe.Pointer(sp))
-			p := uintptr(s.start<<_PageShift) + uintptr(spp.special.offset)
+			p := s.base() + uintptr(spp.special.offset)
 			dumpint(tagAllocSample)
 			dumpint(uint64(p))
 			dumpint(uint64(uintptr(unsafe.Pointer(spp.b))))
@@ -650,17 +632,16 @@ func dumpmemprof() {
 	}
 }
 
-var dumphdr = []byte("go1.4 heap dump\n")
+var dumphdr = []byte("go1.7 heap dump\n")
 
 func mdump() {
 	// make sure we're done sweeping
-	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
-		s := h_allspans[i]
+	for _, s := range mheap_.allspans {
 		if s.state == _MSpanInUse {
-			mSpan_EnsureSwept(s)
+			s.ensureSwept()
 		}
 	}
-	memclr(unsafe.Pointer(&typecache), unsafe.Sizeof(typecache))
+	memclrNoHeapPointers(unsafe.Pointer(&typecache), unsafe.Sizeof(typecache))
 	dwrite(unsafe.Pointer(&dumphdr[0]), uintptr(len(dumphdr)))
 	dumpparams()
 	dumpitabs()
@@ -682,7 +663,7 @@ func writeheapdump_m(fd uintptr) {
 	// Update stats so we can dump them.
 	// As a side effect, flushes all the MCaches so the MSpan.freelist
 	// lists contain all the free objects.
-	updatememstats(nil)
+	updatememstats()
 
 	// Set dump file.
 	dumpfd = fd
@@ -706,41 +687,34 @@ func dumpfields(bv bitvector) {
 	dumpint(fieldKindEol)
 }
 
-// The heap dump reader needs to be able to disambiguate
-// Eface entries.  So it needs to know every type that might
-// appear in such an entry.  The following routine accomplishes that.
-// TODO(rsc, khr): Delete - no longer possible.
-
-// Dump all the types that appear in the type field of
-// any Eface described by this bit vector.
-func dumpbvtypes(bv *bitvector, base unsafe.Pointer) {
-}
-
 func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	// Extend the temp buffer if necessary.
-	nptr := size / ptrSize
-	if uintptr(len(tmpbuf)) < nptr*typeBitsWidth/8+1 {
+	nptr := size / sys.PtrSize
+	if uintptr(len(tmpbuf)) < nptr/8+1 {
 		if tmpbuf != nil {
 			sysFree(unsafe.Pointer(&tmpbuf[0]), uintptr(len(tmpbuf)), &memstats.other_sys)
 		}
-		n := nptr*typeBitsWidth/8 + 1
+		n := nptr/8 + 1
 		p := sysAlloc(n, &memstats.other_sys)
 		if p == nil {
 			throw("heapdump: out of memory")
 		}
 		tmpbuf = (*[1 << 30]byte)(p)[:n]
 	}
-	// Convert heap bitmap to type bitmap.
+	// Convert heap bitmap to pointer bitmap.
+	for i := uintptr(0); i < nptr/8+1; i++ {
+		tmpbuf[i] = 0
+	}
 	i := uintptr(0)
 	hbits := heapBitsForAddr(p)
 	for ; i < nptr; i++ {
-		bits := hbits.typeBits()
-		if bits == typeDead {
+		if i != 1 && !hbits.morePointers() {
 			break // end of object
 		}
+		if hbits.isPointer() {
+			tmpbuf[i/8] |= 1 << (i % 8)
+		}
 		hbits = hbits.next()
-		tmpbuf[i*typeBitsWidth/8] &^= (typeMask << ((i * typeBitsWidth) % 8))
-		tmpbuf[i*typeBitsWidth/8] |= bits << ((i * typeBitsWidth) % 8)
 	}
-	return bitvector{int32(i * typeBitsWidth), &tmpbuf[0]}
+	return bitvector{int32(i), &tmpbuf[0]}
 }

@@ -18,17 +18,22 @@ import (
 	"time"
 )
 
-// One of the copies, say from b to r2, could be avoided by using a more
-// elaborate trick where the other copy is made during Request/Response.Write.
-// This would complicate things too much, given that these functions are for
-// debugging only.
+// drainBody reads all of b to memory and then returns two equivalent
+// ReadClosers yielding the same bytes.
+//
+// It returns an error if the initial slurp of all bytes fails. It does not attempt
+// to make the returned ReadClosers have identical error-matching behavior.
 func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
+	if b == http.NoBody {
+		// No copying needed. Preserve the magic sentinel meaning of NoBody.
+		return http.NoBody, http.NoBody, nil
+	}
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(b); err != nil {
-		return nil, nil, err
+		return nil, b, err
 	}
 	if err = b.Close(); err != nil {
-		return nil, nil, err
+		return nil, b, err
 	}
 	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }
@@ -55,9 +60,9 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// DumpRequestOut is like DumpRequest but includes
-// headers that the standard http.Transport adds,
-// such as User-Agent.
+// DumpRequestOut is like DumpRequest but for outgoing client requests. It
+// includes any headers that the standard http.Transport adds, such as
+// User-Agent.
 func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	save := req.Body
 	dummyBody := false
@@ -128,7 +133,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 
 	// If we used a dummy body above, remove it now.
 	// TODO: if the req.ContentLength is large, we allocate memory
-	// unnecessarily just to slice it off here.  But this is just
+	// unnecessarily just to slice it off here. But this is just
 	// a debug function, so this is acceptable for now. We could
 	// discard the body earlier if this matters.
 	if dummyBody {
@@ -163,47 +168,63 @@ func valueOrDefault(value, def string) string {
 
 var reqWriteExcludeHeaderDump = map[string]bool{
 	"Host":              true, // not in Header map anyway
-	"Content-Length":    true,
 	"Transfer-Encoding": true,
 	"Trailer":           true,
 }
 
-// dumpAsReceived writes req to w in the form as it was received, or
-// at least as accurately as possible from the information retained in
-// the request.
-func dumpAsReceived(req *http.Request, w io.Writer) error {
-	return nil
-}
-
-// DumpRequest returns the as-received wire representation of req,
-// optionally including the request body, for debugging.
-// DumpRequest is semantically a no-op, but in order to
-// dump the body, it reads the body data into memory and
-// changes req.Body to refer to the in-memory copy.
+// DumpRequest returns the given request in its HTTP/1.x wire
+// representation. It should only be used by servers to debug client
+// requests. The returned representation is an approximation only;
+// some details of the initial request are lost while parsing it into
+// an http.Request. In particular, the order and case of header field
+// names are lost. The order of values in multi-valued headers is kept
+// intact. HTTP/2 requests are dumped in HTTP/1.x form, not in their
+// original binary representations.
+//
+// If body is true, DumpRequest also returns the body. To do so, it
+// consumes req.Body and then replaces it with a new io.ReadCloser
+// that yields the same bytes. If DumpRequest returns an error,
+// the state of req is undefined.
+//
 // The documentation for http.Request.Write details which fields
-// of req are used.
-func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
+// of req are included in the dump.
+func DumpRequest(req *http.Request, body bool) ([]byte, error) {
+	var err error
 	save := req.Body
 	if !body || req.Body == nil {
 		req.Body = nil
 	} else {
 		save, req.Body, err = drainBody(req.Body)
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 
 	var b bytes.Buffer
 
-	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"),
-		req.URL.RequestURI(), req.ProtoMajor, req.ProtoMinor)
-
-	host := req.Host
-	if host == "" && req.URL != nil {
-		host = req.URL.Host
+	// By default, print out the unmodified req.RequestURI, which
+	// is always set for incoming server requests. But because we
+	// previously used req.URL.RequestURI and the docs weren't
+	// always so clear about when to use DumpRequest vs
+	// DumpRequestOut, fall back to the old way if the caller
+	// provides a non-server Request.
+	reqURI := req.RequestURI
+	if reqURI == "" {
+		reqURI = req.URL.RequestURI()
 	}
-	if host != "" {
-		fmt.Fprintf(&b, "Host: %s\r\n", host)
+
+	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"),
+		reqURI, req.ProtoMajor, req.ProtoMinor)
+
+	absRequestURI := strings.HasPrefix(req.RequestURI, "http://") || strings.HasPrefix(req.RequestURI, "https://")
+	if !absRequestURI {
+		host := req.Host
+		if host == "" && req.URL != nil {
+			host = req.URL.Host
+		}
+		if host != "" {
+			fmt.Fprintf(&b, "Host: %s\r\n", host)
+		}
 	}
 
 	chunked := len(req.TransferEncoding) > 0 && req.TransferEncoding[0] == "chunked"
@@ -216,7 +237,7 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 
 	err = req.Header.WriteSubset(&b, reqWriteExcludeHeaderDump)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	io.WriteString(&b, "\r\n")
@@ -235,41 +256,48 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 
 	req.Body = save
 	if err != nil {
-		return
+		return nil, err
 	}
-	dump = b.Bytes()
-	return
+	return b.Bytes(), nil
 }
 
-// errNoBody is a sentinel error value used by failureToReadBody so we can detect
-// that the lack of body was intentional.
+// errNoBody is a sentinel error value used by failureToReadBody so we
+// can detect that the lack of body was intentional.
 var errNoBody = errors.New("sentinel error value")
 
 // failureToReadBody is a io.ReadCloser that just returns errNoBody on
-// Read.  It's swapped in when we don't actually want to consume the
-// body, but need a non-nil one, and want to distinguish the error
-// from reading the dummy body.
+// Read. It's swapped in when we don't actually want to consume
+// the body, but need a non-nil one, and want to distinguish the
+// error from reading the dummy body.
 type failureToReadBody struct{}
 
 func (failureToReadBody) Read([]byte) (int, error) { return 0, errNoBody }
 func (failureToReadBody) Close() error             { return nil }
 
+// emptyBody is an instance of empty reader.
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 
 // DumpResponse is like DumpRequest but dumps a response.
-func DumpResponse(resp *http.Response, body bool) (dump []byte, err error) {
+func DumpResponse(resp *http.Response, body bool) ([]byte, error) {
 	var b bytes.Buffer
+	var err error
 	save := resp.Body
 	savecl := resp.ContentLength
 
 	if !body {
-		resp.Body = failureToReadBody{}
+		// For content length of zero. Make sure the body is an empty
+		// reader, instead of returning error through failureToReadBody{}.
+		if resp.ContentLength == 0 {
+			resp.Body = emptyBody
+		} else {
+			resp.Body = failureToReadBody{}
+		}
 	} else if resp.Body == nil {
 		resp.Body = emptyBody
 	} else {
 		save, resp.Body, err = drainBody(resp.Body)
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 	err = resp.Write(&b)

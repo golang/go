@@ -162,14 +162,14 @@ func jsValEscaper(args ...interface{}) string {
 		// a division operator it is not turned into a line comment:
 		//     x/{{y}}
 		// turning into
-		//     x//* error marshalling y:
+		//     x//* error marshaling y:
 		//          second line of error message */null
 		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.Error(), "*/", "* /", -1))
 	}
 
 	// TODO: maybe post-process output to prevent it from containing
 	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
-	// in case custom marshallers produce output containing those.
+	// in case custom marshalers produce output containing those.
 
 	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
 	if len(b) == 0 {
@@ -246,8 +246,10 @@ func jsRegexpEscaper(args ...interface{}) string {
 // `\u2029`.
 func replace(s string, replacementTable []string) string {
 	var b bytes.Buffer
-	written := 0
-	for i, r := range s {
+	r, w, written := rune(0), 0, 0
+	for i := 0; i < len(s); i += w {
+		// See comment in htmlEscaper.
+		r, w = utf8.DecodeRuneInString(s[i:])
 		var repl string
 		switch {
 		case int(r) < len(replacementTable) && replacementTable[r] != "":
@@ -261,7 +263,7 @@ func replace(s string, replacementTable []string) string {
 		}
 		b.WriteString(s[written:i])
 		b.WriteString(repl)
-		written = i + utf8.RuneLen(r)
+		written = i + w
 	}
 	if written == 0 {
 		return s
@@ -359,4 +361,44 @@ func isJSIdentPart(r rune) bool {
 		return true
 	}
 	return false
+}
+
+// isJSType returns true if the given MIME type should be considered JavaScript.
+//
+// It is used to determine whether a script tag with a type attribute is a javascript container.
+func isJSType(mimeType string) bool {
+	// per
+	//   https://www.w3.org/TR/html5/scripting-1.html#attr-script-type
+	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
+	//   https://tools.ietf.org/html/rfc4329#section-3
+	//   https://www.ietf.org/rfc/rfc4627.txt
+	mimeType = strings.ToLower(mimeType)
+	// discard parameters
+	if i := strings.Index(mimeType, ";"); i >= 0 {
+		mimeType = mimeType[:i]
+	}
+	mimeType = strings.TrimSpace(mimeType)
+	switch mimeType {
+	case
+		"application/ecmascript",
+		"application/javascript",
+		"application/json",
+		"application/x-ecmascript",
+		"application/x-javascript",
+		"text/ecmascript",
+		"text/javascript",
+		"text/javascript1.0",
+		"text/javascript1.1",
+		"text/javascript1.2",
+		"text/javascript1.3",
+		"text/javascript1.4",
+		"text/javascript1.5",
+		"text/jscript",
+		"text/livescript",
+		"text/x-ecmascript",
+		"text/x-javascript":
+		return true
+	default:
+		return false
+	}
 }
