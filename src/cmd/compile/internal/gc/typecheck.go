@@ -2992,10 +2992,11 @@ func typecheckcomplit(n *Node) *Node {
 			t.SetNumElem(length)
 		}
 		if t.IsSlice() {
-			n.Right = nodintconst(length)
 			n.Op = OSLICELIT
+			n.Right = nodintconst(length)
 		} else {
 			n.Op = OARRAYLIT
+			n.Right = nil
 		}
 
 	case TMAP:
@@ -3025,6 +3026,7 @@ func typecheckcomplit(n *Node) *Node {
 		}
 
 		n.Op = OMAPLIT
+		n.Right = nil
 
 	case TSTRUCT:
 		// Need valid field offsets for Xoffset below.
@@ -3126,6 +3128,7 @@ func typecheckcomplit(n *Node) *Node {
 		}
 
 		n.Op = OSTRUCTLIT
+		n.Right = nil
 	}
 
 	if nerr != nerrors {
