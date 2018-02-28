@@ -531,20 +531,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.Link = q
 			p1 = q.Link
 
-			var regOff int16
+			var addrOff int64
 			if c.ctxt.Arch.ByteOrder == binary.BigEndian {
-				regOff = 1 // load odd register first
+				addrOff = 4 // swap load/save order
 			}
 			if p.From.Type == obj.TYPE_MEM {
 				reg := REG_F0 + (p.To.Reg-REG_F0)&^1
-				p.To.Reg = reg + regOff
-				q.To.Reg = reg + 1 - regOff
-				q.From.Offset += 4
+				p.To.Reg = reg
+				q.To.Reg = reg + 1
+				p.From.Offset += addrOff
+				q.From.Offset += 4 - addrOff
 			} else if p.To.Type == obj.TYPE_MEM {
 				reg := REG_F0 + (p.From.Reg-REG_F0)&^1
-				p.From.Reg = reg + regOff
-				q.From.Reg = reg + 1 - regOff
-				q.To.Offset += 4
+				p.From.Reg = reg
+				q.From.Reg = reg + 1
+				p.To.Offset += addrOff
+				q.To.Offset += 4 - addrOff
 			}
 		}
 	}
