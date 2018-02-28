@@ -947,14 +947,20 @@ func (debugInfo *FuncDebug) PutLocationList(list []byte, ctxt *obj.Link, listSym
 	getPC := debugInfo.GetPC
 	// Re-read list, translating its address from block/value ID to PC.
 	for i := 0; i < len(list); {
-		translate := func() {
-			bv := readPtr(ctxt, list[i:])
-			pc := getPC(decodeValue(ctxt, bv))
-			writePtr(ctxt, list[i:], uint64(pc))
-			i += ctxt.Arch.PtrSize
+		begin := getPC(decodeValue(ctxt, readPtr(ctxt, list[i:])))
+		end := getPC(decodeValue(ctxt, readPtr(ctxt, list[i+ctxt.Arch.PtrSize:])))
+
+		// Horrible hack. If a range contains only zero-width
+		// instructions, e.g. an Arg, and it's at the beginning of the
+		// function, this would be indistinguishable from an
+		// end entry. Fudge it.
+		if begin == 0 && end == 0 {
+			end = 1
 		}
-		translate()
-		translate()
+
+		writePtr(ctxt, list[i:], uint64(begin))
+		writePtr(ctxt, list[i+ctxt.Arch.PtrSize:], uint64(end))
+		i += 2 * ctxt.Arch.PtrSize
 		i += 2 + int(ctxt.Arch.ByteOrder.Uint16(list[i:]))
 	}
 
