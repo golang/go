@@ -718,6 +718,8 @@ type InternalTest struct {
 	F    func(*T)
 }
 
+var errNilPanicOrGoexit = errors.New("test executed panic(nil) or runtime.Goexit")
+
 func tRunner(t *T, fn func(t *T)) {
 	t.runner = callerName(0)
 
@@ -733,8 +735,17 @@ func tRunner(t *T, fn func(t *T)) {
 		t.duration += time.Since(t.start)
 		// If the test panicked, print any test output before dying.
 		err := recover()
+		signal := true
 		if !t.finished && err == nil {
-			err = fmt.Errorf("test executed panic(nil) or runtime.Goexit")
+			err = errNilPanicOrGoexit
+			for p := t.parent; p != nil; p = p.parent {
+				if p.finished {
+					t.Errorf("%v: subtest may have called FailNow on a parent test", err)
+					err = nil
+					signal = false
+					break
+				}
+			}
 		}
 		if err != nil {
 			t.Fail()
@@ -769,7 +780,7 @@ func tRunner(t *T, fn func(t *T)) {
 		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
 			t.setRan()
 		}
-		t.signal <- true
+		t.signal <- signal
 	}()
 
 	t.start = time.Now()
@@ -822,7 +833,11 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	// without being preempted, even when their parent is a parallel test. This
 	// may especially reduce surprises if *parallel == 1.
 	go tRunner(t, f)
-	<-t.signal
+	if !<-t.signal {
+		// At this point, it is likely that FailNow was called on one of the
+		// parent tests by one of the subtests. Continue aborting up the chain.
+		runtime.Goexit()
+	}
 	return !t.failed
 }
 
