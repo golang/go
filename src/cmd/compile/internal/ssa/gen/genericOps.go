@@ -285,8 +285,8 @@ var genericOps = []opData{
 
 	// Data movement, max argument length for Phi is indefinite so just pick
 	// a really large number
-	{name: "Phi", argLength: -1}, // select an argument based on which predecessor block we came from
-	{name: "Copy", argLength: 1}, // output = arg0
+	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
+	{name: "Copy", argLength: 1},                  // output = arg0
 	// Convert converts between pointers and integers.
 	// We have a special op for this so as to not confuse GC
 	// (particularly stack maps).  It takes a memory arg so it
@@ -311,8 +311,8 @@ var genericOps = []opData{
 	{name: "ConstSlice"},               // nil slice
 
 	// Constant-like things
-	{name: "InitMem"},                               // memory input to the function.
-	{name: "Arg", aux: "SymOff", symEffect: "Read"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
+	{name: "Arg", aux: "SymOff", symEffect: "Read", zeroWidth: true}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
 	// The address of a variable.  arg0 is the base pointer.
 	// If the variable is a global, the base pointer will be SB and
@@ -321,9 +321,9 @@ var genericOps = []opData{
 	// the Aux field will be a *gc.Node.
 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
 
-	{name: "SP"},                 // stack pointer
-	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
-	{name: "Invalid"},            // unused value
+	{name: "SP", zeroWidth: true},                 // stack pointer
+	{name: "SB", typ: "Uintptr", zeroWidth: true}, // static base pointer (a.k.a. globals pointer)
+	{name: "Invalid"},                             // unused value
 
 	// Memory operations
 	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
@@ -395,10 +395,10 @@ var genericOps = []opData{
 	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns void.
 
 	// Pseudo-ops
-	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
-	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
-	{name: "GetCallerPC"},        // for getcallerpc intrinsic
-	{name: "GetCallerSP"},        // for getcallersp intrinsic
+	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
+	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
+	{name: "GetCallerPC"},                         // for getcallerpc intrinsic
+	{name: "GetCallerSP"},                         // for getcallersp intrinsic
 
 	// Indexing operations
 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
@@ -451,10 +451,10 @@ var genericOps = []opData{
 	// Unknown value. Used for Values whose values don't matter because they are dead code.
 	{name: "Unknown"},
 
-	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
-	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
-	{name: "KeepAlive", argLength: 2, typ: "Mem"},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
 
 	// Ops for breaking 64-bit operations on 32-bit architectures
 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
@@ -481,8 +481,8 @@ var genericOps = []opData{
 	{name: "Cvt64Fto64U", argLength: 1}, // float64 -> uint64, only used on archs that has the instruction
 
 	// pseudo-ops for breaking Tuple
-	{name: "Select0", argLength: 1}, // the first component of a tuple
-	{name: "Select1", argLength: 1}, // the second component of a tuple
+	{name: "Select0", argLength: 1, zeroWidth: true}, // the first component of a tuple
+	{name: "Select1", argLength: 1, zeroWidth: true}, // the second component of a tuple
 
 	// Atomic operations used for semantically inlining runtime/internal/atomic.
 	// Atomic loads return a new memory so that the loads are properly ordered

@@ -35,6 +35,7 @@ type opInfo struct {
 	faultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)
 	usesScratch       bool      // this op requires scratch memory space
 	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	symEffect         SymEffect // effect this op has on symbol in aux
 }
 

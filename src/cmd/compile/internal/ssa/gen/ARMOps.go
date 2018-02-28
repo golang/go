@@ -514,7 +514,7 @@ func init() {
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
 		// use of R7 (arm.REGCTXT, the closure pointer)
-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}},
+		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}, zeroWidth: true},
 
 		// LoweredGetCallerSP returns the SP of the caller of the current function.
 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
