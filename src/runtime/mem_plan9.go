@@ -9,6 +9,7 @@ import "unsafe"
 const memDebug = false
 
 var bloc uintptr
+var blocMax uintptr
 var memlock mutex
 
 type memHdr struct {
@@ -122,14 +123,18 @@ func memRound(p uintptr) uintptr {
 
 func initBloc() {
 	bloc = memRound(firstmoduledata.end)
+	blocMax = bloc
 }
 
 func sbrk(n uintptr) unsafe.Pointer {
 	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
 	bl := bloc
 	n = memRound(n)
-	if brk_(unsafe.Pointer(bl+n)) < 0 {
-		return nil
+	if bl+n > blocMax {
+		if brk_(unsafe.Pointer(bl+n)) < 0 {
+			return nil
+		}
+		blocMax = bl + n
 	}
 	bloc += n
 	return unsafe.Pointer(bl)
@@ -150,10 +155,11 @@ func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatDec(sysStat, n)
 	lock(&memlock)
 	if uintptr(v)+n == bloc {
-		// address range being freed is at the end of memory,
-		// so shrink the address space
+		// Address range being freed is at the end of memory,
+		// so record a new lower value for end of memory.
+		// Can't actually shrink address space because segment is shared.
+		memclrNoHeapPointers(v, n)
 		bloc -= n
-		brk_(unsafe.Pointer(bloc))
 	} else {
 		memFree(v, n)
 		memCheck()
@@ -180,8 +186,8 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	lock(&memlock)
 	var p unsafe.Pointer
 	if uintptr(v) == bloc {
-		// address hint is the current end of memory,
-		// so try to extend the address space
+		// Address hint is the current end of memory,
+		// so try to extend the address space.
 		p = sbrk(n)
 	}
 	if p == nil {
