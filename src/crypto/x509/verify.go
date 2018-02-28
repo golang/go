@@ -6,12 +6,14 @@ package x509
 
 import (
 	"bytes"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -178,10 +180,14 @@ type VerifyOptions struct {
 	Intermediates *CertPool
 	Roots         *CertPool // if nil, the system roots are used
 	CurrentTime   time.Time // if zero, the current time is used
-	// KeyUsage specifies which Extended Key Usage values are acceptable.
-	// An empty list means ExtKeyUsageServerAuth. Key usage is considered a
-	// constraint down the chain which mirrors Windows CryptoAPI behavior,
-	// but not the spec. To accept any key usage, include ExtKeyUsageAny.
+	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
+	// certificate is accepted if it contains any of the listed values. An empty
+	// list means ExtKeyUsageServerAuth. To accept any key usage, include
+	// ExtKeyUsageAny.
+	//
+	// Certificate chains are required to nest extended key usage values,
+	// irrespective of this value. This matches the Windows CryptoAPI behavior,
+	// but not the spec.
 	KeyUsages []ExtKeyUsage
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
@@ -786,6 +792,18 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	return nil
 }
 
+// formatOID formats an ASN.1 OBJECT IDENTIFER in the common, dotted style.
+func formatOID(oid asn1.ObjectIdentifier) string {
+	ret := ""
+	for i, v := range oid {
+		if i > 0 {
+			ret += "."
+		}
+		ret += strconv.Itoa(v)
+	}
+	return ret
+}
+
 // Verify attempts to verify c by building one or more chains from c to a
 // certificate in opts.Roots, using certificates in opts.Intermediates if
 // needed. If successful, it returns one or more chains where the first
@@ -860,16 +878,33 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	}
 
 	if checkEKU {
+		foundMatch := false
 	NextUsage:
 		for _, eku := range requestedKeyUsages {
 			for _, leafEKU := range c.ExtKeyUsage {
 				if ekuPermittedBy(eku, leafEKU, checkingAgainstLeafCert) {
-					continue NextUsage
+					foundMatch = true
+					break NextUsage
 				}
 			}
+		}
 
-			oid, _ := oidFromExtKeyUsage(eku)
-			return nil, CertificateInvalidError{c, IncompatibleUsage, fmt.Sprintf("%#v", oid)}
+		if !foundMatch {
+			msg := "leaf contains the following, recognized EKUs: "
+
+			for i, leafEKU := range c.ExtKeyUsage {
+				oid, ok := oidFromExtKeyUsage(leafEKU)
+				if !ok {
+					continue
+				}
+
+				if i > 0 {
+					msg += ", "
+				}
+				msg += formatOID(oid)
+			}
+
+			return nil, CertificateInvalidError{c, IncompatibleUsage, msg}
 		}
 	}
 
