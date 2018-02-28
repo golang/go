@@ -9,6 +9,7 @@ import "unsafe"
 var (
 	libc_chdir,
 	libc_chroot,
+	libc_close,
 	libc_execve,
 	libc_fcntl,
 	libc_forkx,

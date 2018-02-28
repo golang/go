@@ -12,9 +12,7 @@ import "unsafe"
 
 //go:cgo_import_dynamic libc____errno ___errno "libc.so"
 //go:cgo_import_dynamic libc_clock_gettime clock_gettime "libc.so"
-//go:cgo_import_dynamic libc_close close "libc.so"
 //go:cgo_import_dynamic libc_exit exit "libc.so"
-//go:cgo_import_dynamic libc_fstat fstat "libc.so"
 //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
 //go:cgo_import_dynamic libc_kill kill "libc.so"
 //go:cgo_import_dynamic libc_madvise madvise "libc.so"
@@ -46,9 +44,7 @@ import "unsafe"
 
 //go:linkname libc____errno libc____errno
 //go:linkname libc_clock_gettime libc_clock_gettime
-//go:linkname libc_close libc_close
 //go:linkname libc_exit libc_exit
-//go:linkname libc_fstat libc_fstat
 //go:linkname libc_getcontext libc_getcontext
 //go:linkname libc_kill libc_kill
 //go:linkname libc_madvise libc_madvise
@@ -81,9 +77,7 @@ import "unsafe"
 var (
 	libc____errno,
 	libc_clock_gettime,
-	libc_close,
 	libc_exit,
-	libc_fstat,
 	libc_getcontext,
 	libc_kill,
 	libc_madvise,
