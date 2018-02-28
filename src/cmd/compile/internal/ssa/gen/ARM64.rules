@@ -1545,6 +1545,63 @@
 	&& isSamePtr(ptr0, ptr1)
 	&& clobber(x)
 	-> (MOVDstore [i-4] {s} ptr0 w0 mem)
+(MOVBstore [i] {s} ptr w
+	x0:(MOVBstore [i-1] {s} ptr (SRLconst [8] w)
+	x1:(MOVBstore [i-2] {s} ptr (SRLconst [16] w)
+	x2:(MOVBstore [i-3] {s} ptr (SRLconst [24] w)
+	x3:(MOVBstore [i-4] {s} ptr (SRLconst [32] w)
+	x4:(MOVBstore [i-5] {s} ptr (SRLconst [40] w)
+	x5:(MOVBstore [i-6] {s} ptr (SRLconst [48] w)
+	x6:(MOVBstore [i-7] {s} ptr (SRLconst [56] w) mem))))))))
+	&& x0.Uses == 1
+	&& x1.Uses == 1
+	&& x2.Uses == 1
+	&& x3.Uses == 1
+	&& x4.Uses == 1
+	&& x5.Uses == 1
+	&& x6.Uses == 1
+	&& clobber(x0)
+	&& clobber(x1)
+	&& clobber(x2)
+	&& clobber(x3)
+	&& clobber(x4)
+	&& clobber(x5)
+	&& clobber(x6)
+	-> (MOVDstore [i-7] {s} ptr (REV <w.Type> w) mem)
+(MOVBstore [i] {s} ptr w
+	x0:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVWUreg w))
+	x1:(MOVBstore [i-2] {s} ptr (SRLconst [16] (MOVWUreg w))
+	x2:(MOVBstore [i-3] {s} ptr (SRLconst [24] (MOVWUreg w)) mem))))
+	&& x0.Uses == 1
+	&& x1.Uses == 1
+	&& x2.Uses == 1
+	&& clobber(x0)
+	&& clobber(x1)
+	&& clobber(x2)
+	-> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
+(MOVBstore [i] {s} ptr w
+	x0:(MOVBstore [i-1] {s} ptr (SRLconst [8] w)
+	x1:(MOVBstore [i-2] {s} ptr (SRLconst [16] w)
+	x2:(MOVBstore [i-3] {s} ptr (SRLconst [24] w) mem))))
+	&& x0.Uses == 1
+	&& x1.Uses == 1
+	&& x2.Uses == 1
+	&& clobber(x0)
+	&& clobber(x1)
+	&& clobber(x2)
+	-> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
+(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] w) mem))
+	&& x.Uses == 1
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
+(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVHUreg w)) mem))
+	&& x.Uses == 1
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
+(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVWUreg w)) mem))
+	&& x.Uses == 1
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
 
 // FP simplification
 (FNEGS (FMULS x y)) -> (FNMULS x y)
