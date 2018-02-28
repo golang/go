@@ -90,7 +90,7 @@ func TestAnalyzeAnnotations(t *testing.T) {
 	// TODO: classify taskless spans
 
 	// Run prog0 and capture the execution trace.
-	if err := traceProgram(prog0, "TestAnalyzeAnnotations"); err != nil {
+	if err := traceProgram(t, prog0, "TestAnalyzeAnnotations"); err != nil {
 		t.Fatalf("failed to trace the program: %v", err)
 	}
 
@@ -155,7 +155,7 @@ func prog1() {
 
 func TestAnalyzeAnnotationTaskTree(t *testing.T) {
 	// Run prog1 and capture the execution trace.
-	if err := traceProgram(prog1, "TestAnalyzeAnnotationTaskTree"); err != nil {
+	if err := traceProgram(t, prog1, "TestAnalyzeAnnotationTaskTree"); err != nil {
 		t.Fatalf("failed to trace the program: %v", err)
 	}
 
@@ -239,7 +239,7 @@ func prog2() (gcTime time.Duration) {
 
 func TestAnalyzeAnnotationGC(t *testing.T) {
 	var gcTime time.Duration
-	err := traceProgram(func() {
+	err := traceProgram(t, func() {
 		oldGC := debug.SetGCPercent(10000) // gc, and effectively disable GC
 		defer debug.SetGCPercent(oldGC)
 
@@ -272,9 +272,19 @@ func TestAnalyzeAnnotationGC(t *testing.T) {
 	for _, task := range res.tasks {
 		got := task.overlappingGCDuration(res.gcEvents)
 		switch task.name {
+		case "taskWithoutGC":
+			if got != 0 {
+				t.Errorf("%s reported %v as overlapping GC time; want 0: %v", task.name, got, task)
+			}
 		case "taskWithGC":
-			if got <= 0 || got >= gcTime {
-				t.Errorf("%s reported %v as overlapping GC time; want (0, %v):\n%v", task.name, got, gcTime, task)
+			upperBound := task.duration()
+			// TODO(hyangah): a tighter upper bound is gcTime, but
+			// use of it will make the test flaky due to the issue
+			// described in golang.org/issue/16755. Tighten the upper
+			// bound when the issue with the timestamp computed
+			// based on clockticks is resolved.
+			if got <= 0 || got > upperBound {
+				t.Errorf("%s reported %v as overlapping GC time; want (0, %v):\n%v", task.name, got, upperBound, task)
 				buf := new(bytes.Buffer)
 				fmt.Fprintln(buf, "GC Events")
 				for _, ev := range res.gcEvents {
@@ -287,10 +297,6 @@ func TestAnalyzeAnnotationGC(t *testing.T) {
 
 				t.Logf("\n%s", buf)
 			}
-		case "taskWithoutGC":
-			if got != 0 {
-				t.Errorf("%s reported %v as overlapping GC time; want 0: %v", task.name, got, task)
-			}
 		}
 	}
 }
@@ -300,7 +306,8 @@ func TestAnalyzeAnnotationGC(t *testing.T) {
 // point to the parsed trace.
 //
 // If savetraces flag is set, the captured trace will be saved in the named file.
-func traceProgram(f func(), name string) error {
+func traceProgram(t *testing.T, f func(), name string) error {
+	t.Helper()
 	buf := new(bytes.Buffer)
 	if err := trace.Start(buf); err != nil {
 		return err
@@ -310,7 +317,9 @@ func traceProgram(f func(), name string) error {
 
 	saveTrace(buf, name)
 	res, err := traceparser.Parse(buf, name+".faketrace")
-	if err != nil {
+	if err == traceparser.ErrTimeOrder {
+		t.Skipf("skipping due to golang.org/issue/16755: %v", err)
+	} else if err != nil {
 		return err
 	}
 
