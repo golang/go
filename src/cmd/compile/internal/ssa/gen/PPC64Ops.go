@@ -316,7 +316,7 @@ func init() {
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
 		// use of the closure pointer.
-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}},
+		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}, zeroWidth: true},
 
 		// LoweredGetCallerSP returns the SP of the caller of the current function.
 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
@@ -324,8 +324,8 @@ func init() {
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
 		// Round ops to block fused-multiply-add extraction.
-		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
-		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
+		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 
 		// Convert pointer to integer, takes a memory operand for ordering.
 		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},

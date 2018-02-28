@@ -4394,8 +4394,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetClosurePtr",
-		argLen: 0,
+		name:      "LoweredGetClosurePtr",
+		argLen:    0,
+		zeroWidth: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 4}, // DX
@@ -4452,6 +4453,7 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVLconvert",
 		argLen:       2,
 		resultInArg0: true,
+		zeroWidth:    true,
 		asm:          x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -8308,8 +8310,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetClosurePtr",
-		argLen: 0,
+		name:      "LoweredGetClosurePtr",
+		argLen:    0,
+		zeroWidth: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 4}, // DX
@@ -8366,6 +8369,7 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVQconvert",
 		argLen:       2,
 		resultInArg0: true,
+		zeroWidth:    true,
 		asm:          x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -8380,6 +8384,7 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVLconvert",
 		argLen:       2,
 		resultInArg0: true,
+		zeroWidth:    true,
 		asm:          x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12082,8 +12087,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetClosurePtr",
-		argLen: 0,
+		name:      "LoweredGetClosurePtr",
+		argLen:    0,
+		zeroWidth: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 128}, // R7
@@ -12908,6 +12914,7 @@ var opcodeTable = [...]opInfo{
 		name:         "LoweredRound32F",
 		argLen:       1,
 		resultInArg0: true,
+		zeroWidth:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -12921,6 +12928,7 @@ var opcodeTable = [...]opInfo{
 		name:         "LoweredRound64F",
 		argLen:       1,
 		resultInArg0: true,
+		zeroWidth:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -14667,8 +14675,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetClosurePtr",
-		argLen: 0,
+		name:      "LoweredGetClosurePtr",
+		argLen:    0,
+		zeroWidth: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 67108864}, // R26
@@ -16269,8 +16278,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetClosurePtr",
-		argLen: 0,
+		name:      "LoweredGetClosurePtr",
+		argLen:    0,
+		zeroWidth: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 4194304}, // R22
@@ -17801,8 +17811,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetClosurePtr",
-		argLen: 0,
+		name:      "LoweredGetClosurePtr",
+		argLen:    0,
+		zeroWidth: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 4194304}, // R22
@@ -19488,8 +19499,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetClosurePtr",
-		argLen: 0,
+		name:      "LoweredGetClosurePtr",
+		argLen:    0,
+		zeroWidth: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 2048}, // R11
@@ -19523,6 +19535,7 @@ var opcodeTable = [...]opInfo{
 		name:         "LoweredRound32F",
 		argLen:       1,
 		resultInArg0: true,
+		zeroWidth:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
@@ -19536,6 +19549,7 @@ var opcodeTable = [...]opInfo{
 		name:         "LoweredRound64F",
 		argLen:       1,
 		resultInArg0: true,
+		zeroWidth:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
@@ -22594,8 +22608,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredGetClosurePtr",
-		argLen: 0,
+		name:      "LoweredGetClosurePtr",
+		argLen:    0,
+		zeroWidth: true,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 4096}, // R12
@@ -22628,6 +22643,7 @@ var opcodeTable = [...]opInfo{
 		name:         "LoweredRound32F",
 		argLen:       1,
 		resultInArg0: true,
+		zeroWidth:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -22641,6 +22657,7 @@ var opcodeTable = [...]opInfo{
 		name:         "LoweredRound64F",
 		argLen:       1,
 		resultInArg0: true,
+		zeroWidth:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -24092,9 +24109,10 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Phi",
-		argLen:  -1,
-		generic: true,
+		name:      "Phi",
+		argLen:    -1,
+		zeroWidth: true,
+		generic:   true,
 	},
 	{
 		name:    "Copy",
@@ -24170,14 +24188,16 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "InitMem",
-		argLen:  0,
-		generic: true,
+		name:      "InitMem",
+		argLen:    0,
+		zeroWidth: true,
+		generic:   true,
 	},
 	{
 		name:      "Arg",
 		auxType:   auxSymOff,
 		argLen:    0,
+		zeroWidth: true,
 		symEffect: SymRead,
 		generic:   true,
 	},
@@ -24189,14 +24209,16 @@ var opcodeTable = [...]opInfo{
 		generic:   true,
 	},
 	{
-		name:    "SP",
-		argLen:  0,
-		generic: true,
+		name:      "SP",
+		argLen:    0,
+		zeroWidth: true,
+		generic:   true,
 	},
 	{
-		name:    "SB",
-		argLen:  0,
-		generic: true,
+		name:      "SB",
+		argLen:    0,
+		zeroWidth: true,
+		generic:   true,
 	},
 	{
 		name:    "Load",
@@ -24439,9 +24461,10 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GetG",
-		argLen:  1,
-		generic: true,
+		name:      "GetG",
+		argLen:    1,
+		zeroWidth: true,
+		generic:   true,
 	},
 	{
 		name:    "GetClosurePtr",
@@ -24607,6 +24630,7 @@ var opcodeTable = [...]opInfo{
 		name:      "VarDef",
 		auxType:   auxSym,
 		argLen:    1,
+		zeroWidth: true,
 		symEffect: SymNone,
 		generic:   true,
 	},
@@ -24621,13 +24645,15 @@ var opcodeTable = [...]opInfo{
 		name:      "VarLive",
 		auxType:   auxSym,
 		argLen:    1,
+		zeroWidth: true,
 		symEffect: SymRead,
 		generic:   true,
 	},
 	{
-		name:    "KeepAlive",
-		argLen:  2,
-		generic: true,
+		name:      "KeepAlive",
+		argLen:    2,
+		zeroWidth: true,
+		generic:   true,
 	},
 	{
 		name:    "Int64Make",
@@ -24722,14 +24748,16 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Select0",
-		argLen:  1,
-		generic: true,
+		name:      "Select0",
+		argLen:    1,
+		zeroWidth: true,
+		generic:   true,
 	},
 	{
-		name:    "Select1",
-		argLen:  1,
-		generic: true,
+		name:      "Select1",
+		argLen:    1,
+		zeroWidth: true,
+		generic:   true,
 	},
 	{
 		name:    "AtomicLoad32",
