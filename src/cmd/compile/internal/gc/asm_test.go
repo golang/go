@@ -3318,6 +3318,33 @@ var linuxARM64Tests = []*asmTest{
 		pos: []string{"MOVD"},
 		neg: []string{"MOVB", "MOVH", "MOVW"},
 	},
+	{
+		fn: `
+		func $(b []byte, v uint16) {
+			binary.BigEndian.PutUint16(b, v)
+		}
+		`,
+		pos: []string{"MOVH"},
+		neg: []string{"MOVB"},
+	},
+	{
+		fn: `
+		func $(b []byte, v uint32) {
+			binary.BigEndian.PutUint32(b, v)
+		}
+		`,
+		pos: []string{"MOVW"},
+		neg: []string{"MOVB", "MOVH"},
+	},
+	{
+		fn: `
+		func $(b []byte, v uint64) {
+			binary.BigEndian.PutUint64(b, v)
+		}
+		`,
+		pos: []string{"MOVD"},
+		neg: []string{"MOVB", "MOVH", "MOVW"},
+	},
 }
 
 var linuxMIPSTests = []*asmTest{
