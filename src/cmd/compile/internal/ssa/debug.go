@@ -790,24 +790,24 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 		state.mergePredecessors(b, blockLocs)
 
-		phisPending := false
+		zeroWidthPending := false
 		for _, v := range b.Values {
 			slots := state.valueNames[v.ID]
 			reg, _ := state.f.getHome(v.ID).(*Register)
 			changed := state.processValue(v, slots, reg)
 
-			if v.Op == OpPhi {
+			if opcodeTable[v.Op].zeroWidth {
 				if changed {
-					phisPending = true
+					zeroWidthPending = true
 				}
 				continue
 			}
 
-			if !changed && !phisPending {
+			if !changed && !zeroWidthPending {
 				continue
 			}
 
-			phisPending = false
+			zeroWidthPending = false
 			for _, varID := range state.changedVars.contents() {
 				state.updateVar(VarID(varID), v, state.currentState.slots)
 			}
