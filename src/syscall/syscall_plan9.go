@@ -244,7 +244,7 @@ func Await(w *Waitmsg) (err error) {
 }
 
 func Unmount(name, old string) (err error) {
-	Fixwd()
+	fixwd(name, old)
 	oldp, err := BytePtrFromString(old)
 	if err != nil {
 		return err
@@ -326,43 +326,43 @@ func Getgroups() (gids []int, err error) {
 
 //sys	open(path string, mode int) (fd int, err error)
 func Open(path string, mode int) (fd int, err error) {
-	Fixwd()
+	fixwd(path)
 	return open(path, mode)
 }
 
 //sys	create(path string, mode int, perm uint32) (fd int, err error)
 func Create(path string, mode int, perm uint32) (fd int, err error) {
-	Fixwd()
+	fixwd(path)
 	return create(path, mode, perm)
 }
 
 //sys	remove(path string) (err error)
 func Remove(path string) error {
-	Fixwd()
+	fixwd(path)
 	return remove(path)
 }
 
 //sys	stat(path string, edir []byte) (n int, err error)
 func Stat(path string, edir []byte) (n int, err error) {
-	Fixwd()
+	fixwd(path)
 	return stat(path, edir)
 }
 
 //sys	bind(name string, old string, flag int) (err error)
 func Bind(name string, old string, flag int) (err error) {
-	Fixwd()
+	fixwd(name, old)
 	return bind(name, old, flag)
 }
 
 //sys	mount(fd int, afd int, old string, flag int, aname string) (err error)
 func Mount(fd int, afd int, old string, flag int, aname string) (err error) {
-	Fixwd()
+	fixwd(old)
 	return mount(fd, afd, old, flag, aname)
 }
 
 //sys	wstat(path string, edir []byte) (err error)
 func Wstat(path string, edir []byte) (err error) {
-	Fixwd()
+	fixwd(path)
 	return wstat(path, edir)
 }
 
