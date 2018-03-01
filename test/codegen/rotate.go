@@ -21,5 +21,7 @@ func rot64(x uint64) uint64 {
 }
 
 func copysign(a, b float64) float64 {
+	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+	// ppc64le:"FCPSGN" s390x:"CPSDR",-"MOVD"
 	return math.Copysign(a, b)
 }

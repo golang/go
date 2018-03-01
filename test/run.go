@@ -1247,8 +1247,23 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 	return
 }
 
+const (
+	// Regexp to match a single opcode check: optionally begin with "-" (to indicate
+	// a negative check), followed by a string literal enclosed in "" or ``. For "",
+	// backslashes must be handled.
+	reMatchCheck = `-?(?:\x60[^\x60]*\x60|"(?:[^"\\]|\\.)*")`
+)
+
 var (
-	rxAsmCheck = regexp.MustCompile(`//(?:\s+(\w+):((?:"(?:.+?)")|(?:` + "`" + `(?:.+?)` + "`" + `)))+`)
+	// Regexp to split a line in code and comment, trimming spaces
+	rxAsmComment = regexp.MustCompile(`^\s*(.*?)\s*(?:\/\/\s*(.+)\s*)?$`)
+
+	// Regexp to extract an architecture check: architecture name, followed by semi-colon,
+	// followed by a comma-separated list of opcode checks.
+	rxAsmPlatform = regexp.MustCompile(`(\w+):(` + reMatchCheck + `(?:,` + reMatchCheck + `)*)`)
+
+	// Regexp to extract a single opcoded check
+	rxAsmCheck = regexp.MustCompile(reMatchCheck)
 )
 
 type wantedAsmOpcode struct {
@@ -1262,33 +1277,52 @@ func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpc
 	ops := make(map[string]map[string][]wantedAsmOpcode)
 	archs := make(map[string]bool)
 
+	comment := ""
 	src, _ := ioutil.ReadFile(fn)
 	for i, line := range strings.Split(string(src), "\n") {
-		matches := rxAsmCheck.FindStringSubmatch(line)
-		if len(matches) == 0 {
+		matches := rxAsmComment.FindStringSubmatch(line)
+		code, cmt := matches[1], matches[2]
+
+		// Keep comments pending in the comment variable until
+		// we find a line that contains some code.
+		comment += " " + cmt
+		if code == "" {
 			continue
 		}
 
+		// Parse and extract any architecture check from comments,
+		// made by one architecture name and multiple checks.
 		lnum := fn + ":" + strconv.Itoa(i+1)
-		for j := 1; j < len(matches); j += 2 {
-			rxsrc, err := strconv.Unquote(matches[j+1])
-			if err != nil {
-				log.Fatalf("%s:%d: error unquoting string: %v", t.goFileName(), i+1, err)
+		for _, ac := range rxAsmPlatform.FindAllStringSubmatch(comment, -1) {
+			arch, allchecks := ac[1], ac[2]
+
+			for _, m := range rxAsmCheck.FindAllString(allchecks, -1) {
+				negative := false
+				if m[0] == '-' {
+					negative = true
+					m = m[1:]
+				}
+
+				rxsrc, err := strconv.Unquote(m)
+				if err != nil {
+					log.Fatalf("%s:%d: error unquoting string: %v", t.goFileName(), i+1, err)
+				}
+				oprx, err := regexp.Compile(rxsrc)
+				if err != nil {
+					log.Fatalf("%s:%d: %v", t.goFileName(), i+1, err)
+				}
+				if ops[arch] == nil {
+					ops[arch] = make(map[string][]wantedAsmOpcode)
+				}
+				archs[arch] = true
+				ops[arch][lnum] = append(ops[arch][lnum], wantedAsmOpcode{
+					negative: negative,
+					line:     i + 1,
+					opcode:   oprx,
+				})
 			}
-			oprx, err := regexp.Compile(rxsrc)
-			if err != nil {
-				log.Fatalf("%s:%d: %v", t.goFileName(), i+1, err)
-			}
-			arch := matches[j]
-			if ops[arch] == nil {
-				ops[arch] = make(map[string][]wantedAsmOpcode)
-			}
-			archs[arch] = true
-			ops[arch][lnum] = append(ops[arch][lnum], wantedAsmOpcode{
-				line:   i + 1,
-				opcode: oprx,
-			})
 		}
+		comment = ""
 	}
 
 	var sarchs []string
