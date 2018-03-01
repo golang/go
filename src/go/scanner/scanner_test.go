@@ -503,39 +503,52 @@ func TestSemis(t *testing.T) {
 }
 
 type segment struct {
-	srcline  string // a line of source text
-	filename string // filename for current token
-	line     int    // line number for current token
+	srcline      string // a line of source text
+	filename     string // filename for current token
+	line, column int    // line number for current token
 }
 
 var segments = []segment{
 	// exactly one token per line since the test consumes one token per segment
-	{"  line1", filepath.Join("dir", "TestLineComments"), 1},
-	{"\nline2", filepath.Join("dir", "TestLineComments"), 2},
-	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineComments"), 3}, // bad line comment, ignored
-	{"\nline4", filepath.Join("dir", "TestLineComments"), 4},
-	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100},
-	{"\n//line  \t :42\n  line1", "", 42},
-	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200},
-	{"\n//line foo\t:42\n  line42", filepath.Join("dir", "foo"), 42},
-	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44},           // bad line comment, ignored
-	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46},            // bad line comment, ignored
-	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48}, // bad line comment, ignored
-	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42},
-	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100},
+	{"  line1", filepath.Join("dir", "TestLineDirectives"), 1, 3},
+	{"\nline2", filepath.Join("dir", "TestLineDirectives"), 2, 1},
+	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineDirectives"), 3, 1}, // bad line comment, ignored
+	{"\nline4", filepath.Join("dir", "TestLineDirectives"), 4, 1},
+	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100, 0},
+	{"\n//line  \t :42\n  line1", "", 42, 0},
+	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200, 0},
+	{"\n//line foo\t:42\n  line42", filepath.Join("dir", "foo"), 42, 0},
+	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44, 0},           // bad line comment, ignored
+	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46, 0},            // bad line comment, ignored
+	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48, 0}, // bad line comment, ignored
+	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42, 0},
+	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100, 0},
+
+	// tests for new line directive syntax
+	{"\n//line :100\na1", "", 100, 0}, // missing filename means empty filename
+	{"\n//line bar:100\nb1", filepath.Join("dir", "bar"), 100, 0},
+	{"\n//line :100:10\nc1", filepath.Join("dir", "bar"), 100, 10}, // missing filename means current filename
+	{"\n//line foo:100:10\nd1", filepath.Join("dir", "foo"), 100, 10},
+
+	{"\n/*line :100*/a2", "", 100, 0}, // missing filename means empty filename
+	{"\n/*line bar:100*/b2", filepath.Join("dir", "bar"), 100, 0},
+	{"\n/*line :100:10*/c2", filepath.Join("dir", "bar"), 100, 10}, // missing filename means current filename
+	{"\n/*line foo:100:10*/d2", filepath.Join("dir", "foo"), 100, 10},
+	{"\n/*line foo:100:10*/    e2", filepath.Join("dir", "foo"), 100, 14}, // line-directive relative column
+	{"\n/*line foo:100:10*/\n\nf2", filepath.Join("dir", "foo"), 102, 1},  // absolute column since on new line
 }
 
 var unixsegments = []segment{
-	{"\n//line /bar:42\n  line42", "/bar", 42},
+	{"\n//line /bar:42\n  line42", "/bar", 42, 0},
 }
 
 var winsegments = []segment{
-	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42},
-	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100},
+	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42, 0},
+	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100, 0},
 }
 
-// Verify that comments of the form "//line filename:line" are interpreted correctly.
-func TestLineComments(t *testing.T) {
+// Verify that line directives are interpreted correctly.
+func TestLineDirectives(t *testing.T) {
 	segs := segments
 	if runtime.GOOS == "windows" {
 		segs = append(segs, winsegments...)
@@ -551,8 +564,8 @@ func TestLineComments(t *testing.T) {
 
 	// verify scan
 	var S Scanner
-	file := fset.AddFile(filepath.Join("dir", "TestLineComments"), fset.Base(), len(src))
-	S.Init(file, []byte(src), nil, dontInsertSemis)
+	file := fset.AddFile(filepath.Join("dir", "TestLineDirectives"), fset.Base(), len(src))
+	S.Init(file, []byte(src), func(pos token.Position, msg string) { t.Error(Error{pos, msg}) }, dontInsertSemis)
 	for _, s := range segs {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)
@@ -560,7 +573,7 @@ func TestLineComments(t *testing.T) {
 			Filename: s.filename,
 			Offset:   pos.Offset,
 			Line:     s.line,
-			Column:   pos.Column,
+			Column:   s.column,
 		})
 	}
 
