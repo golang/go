@@ -1486,7 +1486,7 @@ TEXT p256MulInternal(SB),NOSPLIT,$0
 	ADCQ mul0, acc2
 	ADCQ $0, mul1
 	MOVQ mul1, acc3
-	BYTE $0x48; BYTE $0xc7; BYTE $0xc5; BYTE $0x00; BYTE $0x00; BYTE $0x00; BYTE $0x00   // MOVQ $0, BP
+	MOVQ $0, BP
 	// Add bits [511:256] of the result
 	ADCQ acc0, acc4
 	ADCQ acc1, acc5
@@ -1628,7 +1628,7 @@ TEXT p256SqrInternal(SB),NOSPLIT,$0
 	ADCQ mul0, acc2
 	ADCQ $0, mul1
 	MOVQ mul1, acc3
-	BYTE $0x48; BYTE $0xc7; BYTE $0xc5; BYTE $0x00; BYTE $0x00; BYTE $0x00; BYTE $0x00   // MOVQ $0, BP
+	MOVQ $0, BP
 	// Add bits [511:256] of the result
 	ADCQ acc0, t0
 	ADCQ acc1, t1
