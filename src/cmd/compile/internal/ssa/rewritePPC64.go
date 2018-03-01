@@ -452,7 +452,7 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpPPC64MOVBreg:
 		return rewriteValuePPC64_OpPPC64MOVBreg_0(v)
 	case OpPPC64MOVBstore:
-		return rewriteValuePPC64_OpPPC64MOVBstore_0(v) || rewriteValuePPC64_OpPPC64MOVBstore_10(v)
+		return rewriteValuePPC64_OpPPC64MOVBstore_0(v) || rewriteValuePPC64_OpPPC64MOVBstore_10(v) || rewriteValuePPC64_OpPPC64MOVBstore_20(v)
 	case OpPPC64MOVBstorezero:
 		return rewriteValuePPC64_OpPPC64MOVBstorezero_0(v)
 	case OpPPC64MOVDload:
@@ -461,6 +461,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64MOVDstore_0(v)
 	case OpPPC64MOVDstorezero:
 		return rewriteValuePPC64_OpPPC64MOVDstorezero_0(v)
+	case OpPPC64MOVHBRstore:
+		return rewriteValuePPC64_OpPPC64MOVHBRstore_0(v)
 	case OpPPC64MOVHZload:
 		return rewriteValuePPC64_OpPPC64MOVHZload_0(v)
 	case OpPPC64MOVHZreg:
@@ -473,6 +475,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64MOVHstore_0(v)
 	case OpPPC64MOVHstorezero:
 		return rewriteValuePPC64_OpPPC64MOVHstorezero_0(v)
+	case OpPPC64MOVWBRstore:
+		return rewriteValuePPC64_OpPPC64MOVWBRstore_0(v)
 	case OpPPC64MOVWZload:
 		return rewriteValuePPC64_OpPPC64MOVWZload_0(v)
 	case OpPPC64MOVWZreg:
@@ -492,7 +496,7 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpPPC64NotEqual:
 		return rewriteValuePPC64_OpPPC64NotEqual_0(v)
 	case OpPPC64OR:
-		return rewriteValuePPC64_OpPPC64OR_0(v) || rewriteValuePPC64_OpPPC64OR_10(v) || rewriteValuePPC64_OpPPC64OR_20(v) || rewriteValuePPC64_OpPPC64OR_30(v)
+		return rewriteValuePPC64_OpPPC64OR_0(v) || rewriteValuePPC64_OpPPC64OR_10(v) || rewriteValuePPC64_OpPPC64OR_20(v) || rewriteValuePPC64_OpPPC64OR_30(v) || rewriteValuePPC64_OpPPC64OR_40(v) || rewriteValuePPC64_OpPPC64OR_50(v) || rewriteValuePPC64_OpPPC64OR_60(v) || rewriteValuePPC64_OpPPC64OR_70(v) || rewriteValuePPC64_OpPPC64OR_80(v) || rewriteValuePPC64_OpPPC64OR_90(v) || rewriteValuePPC64_OpPPC64OR_100(v) || rewriteValuePPC64_OpPPC64OR_110(v)
 	case OpPPC64ORN:
 		return rewriteValuePPC64_OpPPC64ORN_0(v)
 	case OpPPC64ORconst:
@@ -7719,6 +7723,140 @@ func rewriteValuePPC64_OpPPC64MOVBstore_10(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (MOVBstore [i3] {s} p w x0:(MOVBstore [i2] {s} p (SRWconst w [8]) x1:(MOVBstore [i1] {s} p (SRWconst w [16]) x2:(MOVBstore [i0] {s} p (SRWconst w [24]) mem))))
+	// cond: !config.BigEndian && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && clobber(x0) && clobber(x1) && clobber(x2)
+	// result: (MOVWBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
+	for {
+		i3 := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		p := v.Args[0]
+		w := v.Args[1]
+		x0 := v.Args[2]
+		if x0.Op != OpPPC64MOVBstore {
+			break
+		}
+		i2 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[2]
+		if p != x0.Args[0] {
+			break
+		}
+		x0_1 := x0.Args[1]
+		if x0_1.Op != OpPPC64SRWconst {
+			break
+		}
+		if x0_1.AuxInt != 8 {
+			break
+		}
+		if w != x0_1.Args[0] {
+			break
+		}
+		x1 := x0.Args[2]
+		if x1.Op != OpPPC64MOVBstore {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[2]
+		if p != x1.Args[0] {
+			break
+		}
+		x1_1 := x1.Args[1]
+		if x1_1.Op != OpPPC64SRWconst {
+			break
+		}
+		if x1_1.AuxInt != 16 {
+			break
+		}
+		if w != x1_1.Args[0] {
+			break
+		}
+		x2 := x1.Args[2]
+		if x2.Op != OpPPC64MOVBstore {
+			break
+		}
+		i0 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[2]
+		if p != x2.Args[0] {
+			break
+		}
+		x2_1 := x2.Args[1]
+		if x2_1.Op != OpPPC64SRWconst {
+			break
+		}
+		if x2_1.AuxInt != 24 {
+			break
+		}
+		if w != x2_1.Args[0] {
+			break
+		}
+		mem := x2.Args[2]
+		if !(!config.BigEndian && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && clobber(x0) && clobber(x1) && clobber(x2)) {
+			break
+		}
+		v.reset(OpPPC64MOVWBRstore)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v0.AuxInt = i0
+		v0.Aux = s
+		v0.AddArg(p)
+		v.AddArg(v0)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [i1] {s} p w x0:(MOVBstore [i0] {s} p (SRWconst w [8]) mem))
+	// cond: !config.BigEndian && x0.Uses == 1 && i1 == i0+1 && clobber(x0)
+	// result: (MOVHBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
+	for {
+		i1 := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		p := v.Args[0]
+		w := v.Args[1]
+		x0 := v.Args[2]
+		if x0.Op != OpPPC64MOVBstore {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[2]
+		if p != x0.Args[0] {
+			break
+		}
+		x0_1 := x0.Args[1]
+		if x0_1.Op != OpPPC64SRWconst {
+			break
+		}
+		if x0_1.AuxInt != 8 {
+			break
+		}
+		if w != x0_1.Args[0] {
+			break
+		}
+		mem := x0.Args[2]
+		if !(!config.BigEndian && x0.Uses == 1 && i1 == i0+1 && clobber(x0)) {
+			break
+		}
+		v.reset(OpPPC64MOVHBRstore)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v0.AuxInt = i0
+		v0.Aux = s
+		v0.AddArg(p)
+		v.AddArg(v0)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
 	// match: (MOVBstore [i7] {s} p (SRDconst w [56]) x0:(MOVBstore [i6] {s} p (SRDconst w [48]) x1:(MOVBstore [i5] {s} p (SRDconst w [40]) x2:(MOVBstore [i4] {s} p (SRDconst w [32]) x3:(MOVWstore [i0] {s} p w mem)))))
 	// cond: !config.BigEndian && i0%4 == 0 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
 	// result: (MOVDstore [i0] {s} p w mem)
@@ -7824,6 +7962,192 @@ func rewriteValuePPC64_OpPPC64MOVBstore_10(v *Value) bool {
 		v.AuxInt = i0
 		v.Aux = s
 		v.AddArg(p)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MOVBstore_20(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (MOVBstore [i7] {s} p w x0:(MOVBstore [i6] {s} p (SRDconst w [8]) x1:(MOVBstore [i5] {s} p (SRDconst w [16]) x2:(MOVBstore [i4] {s} p (SRDconst w [24]) x3:(MOVBstore [i3] {s} p (SRDconst w [32]) x4:(MOVBstore [i2] {s} p (SRDconst w [40]) x5:(MOVBstore [i1] {s} p (SRDconst w [48]) x6:(MOVBstore [i0] {s} p (SRDconst w [56]) mem))))))))
+	// cond: !config.BigEndian && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6)
+	// result: (MOVDBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
+	for {
+		i7 := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		p := v.Args[0]
+		w := v.Args[1]
+		x0 := v.Args[2]
+		if x0.Op != OpPPC64MOVBstore {
+			break
+		}
+		i6 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[2]
+		if p != x0.Args[0] {
+			break
+		}
+		x0_1 := x0.Args[1]
+		if x0_1.Op != OpPPC64SRDconst {
+			break
+		}
+		if x0_1.AuxInt != 8 {
+			break
+		}
+		if w != x0_1.Args[0] {
+			break
+		}
+		x1 := x0.Args[2]
+		if x1.Op != OpPPC64MOVBstore {
+			break
+		}
+		i5 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[2]
+		if p != x1.Args[0] {
+			break
+		}
+		x1_1 := x1.Args[1]
+		if x1_1.Op != OpPPC64SRDconst {
+			break
+		}
+		if x1_1.AuxInt != 16 {
+			break
+		}
+		if w != x1_1.Args[0] {
+			break
+		}
+		x2 := x1.Args[2]
+		if x2.Op != OpPPC64MOVBstore {
+			break
+		}
+		i4 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[2]
+		if p != x2.Args[0] {
+			break
+		}
+		x2_1 := x2.Args[1]
+		if x2_1.Op != OpPPC64SRDconst {
+			break
+		}
+		if x2_1.AuxInt != 24 {
+			break
+		}
+		if w != x2_1.Args[0] {
+			break
+		}
+		x3 := x2.Args[2]
+		if x3.Op != OpPPC64MOVBstore {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[2]
+		if p != x3.Args[0] {
+			break
+		}
+		x3_1 := x3.Args[1]
+		if x3_1.Op != OpPPC64SRDconst {
+			break
+		}
+		if x3_1.AuxInt != 32 {
+			break
+		}
+		if w != x3_1.Args[0] {
+			break
+		}
+		x4 := x3.Args[2]
+		if x4.Op != OpPPC64MOVBstore {
+			break
+		}
+		i2 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[2]
+		if p != x4.Args[0] {
+			break
+		}
+		x4_1 := x4.Args[1]
+		if x4_1.Op != OpPPC64SRDconst {
+			break
+		}
+		if x4_1.AuxInt != 40 {
+			break
+		}
+		if w != x4_1.Args[0] {
+			break
+		}
+		x5 := x4.Args[2]
+		if x5.Op != OpPPC64MOVBstore {
+			break
+		}
+		i1 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[2]
+		if p != x5.Args[0] {
+			break
+		}
+		x5_1 := x5.Args[1]
+		if x5_1.Op != OpPPC64SRDconst {
+			break
+		}
+		if x5_1.AuxInt != 48 {
+			break
+		}
+		if w != x5_1.Args[0] {
+			break
+		}
+		x6 := x5.Args[2]
+		if x6.Op != OpPPC64MOVBstore {
+			break
+		}
+		i0 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[2]
+		if p != x6.Args[0] {
+			break
+		}
+		x6_1 := x6.Args[1]
+		if x6_1.Op != OpPPC64SRDconst {
+			break
+		}
+		if x6_1.AuxInt != 56 {
+			break
+		}
+		if w != x6_1.Args[0] {
+			break
+		}
+		mem := x6.Args[2]
+		if !(!config.BigEndian && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6)) {
+			break
+		}
+		v.reset(OpPPC64MOVDBRstore)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v0.AuxInt = i0
+		v0.Aux = s
+		v0.AddArg(p)
+		v.AddArg(v0)
 		v.AddArg(w)
 		v.AddArg(mem)
 		return true
@@ -8115,6 +8439,89 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValuePPC64_OpPPC64MOVHBRstore_0(v *Value) bool {
+	// match: (MOVHBRstore {sym} ptr (MOVHreg x) mem)
+	// cond:
+	// result: (MOVHBRstore {sym} ptr x mem)
+	for {
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVHreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpPPC64MOVHBRstore)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHBRstore {sym} ptr (MOVHZreg x) mem)
+	// cond:
+	// result: (MOVHBRstore {sym} ptr x mem)
+	for {
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVHZreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpPPC64MOVHBRstore)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHBRstore {sym} ptr (MOVWreg x) mem)
+	// cond:
+	// result: (MOVHBRstore {sym} ptr x mem)
+	for {
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVWreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpPPC64MOVHBRstore)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHBRstore {sym} ptr (MOVWZreg x) mem)
+	// cond:
+	// result: (MOVHBRstore {sym} ptr x mem)
+	for {
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVWZreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpPPC64MOVHBRstore)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
 func rewriteValuePPC64_OpPPC64MOVHZload_0(v *Value) bool {
 	// match: (MOVHZload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2) && (ptr.Op != OpSB || p.Uses == 1)
@@ -8206,6 +8613,20 @@ func rewriteValuePPC64_OpPPC64MOVHZreg_0(v *Value) bool {
 		if y.Op != OpPPC64MOVBZreg {
 			break
 		}
+		v.reset(OpCopy)
+		v.Type = y.Type
+		v.AddArg(y)
+		return true
+	}
+	// match: (MOVHZreg y:(MOVHBRload _ _))
+	// cond:
+	// result: y
+	for {
+		y := v.Args[0]
+		if y.Op != OpPPC64MOVHBRload {
+			break
+		}
+		_ = y.Args[1]
 		v.reset(OpCopy)
 		v.Type = y.Type
 		v.AddArg(y)
@@ -8701,6 +9122,49 @@ func rewriteValuePPC64_OpPPC64MOVHstorezero_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValuePPC64_OpPPC64MOVWBRstore_0(v *Value) bool {
+	// match: (MOVWBRstore {sym} ptr (MOVWreg x) mem)
+	// cond:
+	// result: (MOVWBRstore {sym} ptr x mem)
+	for {
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVWreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpPPC64MOVWBRstore)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWBRstore {sym} ptr (MOVWZreg x) mem)
+	// cond:
+	// result: (MOVWBRstore {sym} ptr x mem)
+	for {
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVWZreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpPPC64MOVWBRstore)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
 func rewriteValuePPC64_OpPPC64MOVWZload_0(v *Value) bool {
 	// match: (MOVWZload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2) && (ptr.Op != OpSB || p.Uses == 1)
@@ -8849,6 +9313,34 @@ func rewriteValuePPC64_OpPPC64MOVWZreg_0(v *Value) bool {
 		if y.Op != OpPPC64MOVBZreg {
 			break
 		}
+		v.reset(OpCopy)
+		v.Type = y.Type
+		v.AddArg(y)
+		return true
+	}
+	// match: (MOVWZreg y:(MOVHBRload _ _))
+	// cond:
+	// result: y
+	for {
+		y := v.Args[0]
+		if y.Op != OpPPC64MOVHBRload {
+			break
+		}
+		_ = y.Args[1]
+		v.reset(OpCopy)
+		v.Type = y.Type
+		v.AddArg(y)
+		return true
+	}
+	// match: (MOVWZreg y:(MOVWBRload _ _))
+	// cond:
+	// result: y
+	for {
+		y := v.Args[0]
+		if y.Op != OpPPC64MOVWBRload {
+			break
+		}
+		_ = y.Args[1]
 		v.reset(OpCopy)
 		v.Type = y.Type
 		v.AddArg(y)
@@ -9745,6 +10237,8 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (OR x (MOVDconst [c]))
 	// cond: isU32Bit(c)
 	// result: (ORconst [c] x)
@@ -9981,6 +10475,455 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 		v0.Aux = s
 		v0.AddArg(p)
 		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x0:(MOVBZload [i1] {s} p mem) o1:(SLWconst x1:(MOVBZload [i0] {s} p mem) [8]))
+	// cond: !config.BigEndian && i1 == i0+1 && x0.Uses ==1 && x1.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(o1)
+	// result: @mergePoint(b,x0,x1) (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x0 := v.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o1 := v.Args[1]
+		if o1.Op != OpPPC64SLWconst {
+			break
+		}
+		if o1.AuxInt != 8 {
+			break
+		}
+		x1 := o1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && x0.Uses == 1 && x1.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(o1)) {
+			break
+		}
+		b = mergePoint(b, x0, x1)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o1:(SLWconst x1:(MOVBZload [i0] {s} p mem) [8]) x0:(MOVBZload [i1] {s} p mem))
+	// cond: !config.BigEndian && i1 == i0+1 && x0.Uses ==1 && x1.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(o1)
+	// result: @mergePoint(b,x0,x1) (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o1 := v.Args[0]
+		if o1.Op != OpPPC64SLWconst {
+			break
+		}
+		if o1.AuxInt != 8 {
+			break
+		}
+		x1 := o1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		x0 := v.Args[1]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && x0.Uses == 1 && x1.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(o1)) {
+			break
+		}
+		b = mergePoint(b, x0, x1)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x0:(MOVBZload [i1] {s} p mem) o1:(SLDconst x1:(MOVBZload [i0] {s} p mem) [8]))
+	// cond: !config.BigEndian && i1 == i0+1 && x0.Uses ==1 && x1.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(o1)
+	// result: @mergePoint(b,x0,x1) (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x0 := v.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o1 := v.Args[1]
+		if o1.Op != OpPPC64SLDconst {
+			break
+		}
+		if o1.AuxInt != 8 {
+			break
+		}
+		x1 := o1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && x0.Uses == 1 && x1.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(o1)) {
+			break
+		}
+		b = mergePoint(b, x0, x1)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o1:(SLDconst x1:(MOVBZload [i0] {s} p mem) [8]) x0:(MOVBZload [i1] {s} p mem))
+	// cond: !config.BigEndian && i1 == i0+1 && x0.Uses ==1 && x1.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(o1)
+	// result: @mergePoint(b,x0,x1) (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o1 := v.Args[0]
+		if o1.Op != OpPPC64SLDconst {
+			break
+		}
+		if o1.AuxInt != 8 {
+			break
+		}
+		x1 := o1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		x0 := v.Args[1]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && x0.Uses == 1 && x1.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(o1)) {
+			break
+		}
+		b = mergePoint(b, x0, x1)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (OR <t> s0:(SLWconst x0:(MOVBZload [i1] {s} p mem) [n1]) s1:(SLWconst x1:(MOVBZload [i0] {s} p mem) [n2]))
+	// cond: !config.BigEndian && i1 == i0+1 && n1%8 == 0 && n2 == n1+8 && x0.Uses == 1 && x1.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)
+	// result: @mergePoint(b,x0,x1) (SLDconst <t> (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [n1])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		n1 := s0.AuxInt
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		s1 := v.Args[1]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		n2 := s1.AuxInt
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && n1%8 == 0 && n2 == n1+8 && x0.Uses == 1 && x1.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)) {
+			break
+		}
+		b = mergePoint(b, x0, x1)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = n1
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> s1:(SLWconst x1:(MOVBZload [i0] {s} p mem) [n2]) s0:(SLWconst x0:(MOVBZload [i1] {s} p mem) [n1]))
+	// cond: !config.BigEndian && i1 == i0+1 && n1%8 == 0 && n2 == n1+8 && x0.Uses == 1 && x1.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)
+	// result: @mergePoint(b,x0,x1) (SLDconst <t> (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [n1])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s1 := v.Args[0]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		n2 := s1.AuxInt
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		n1 := s0.AuxInt
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && n1%8 == 0 && n2 == n1+8 && x0.Uses == 1 && x1.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)) {
+			break
+		}
+		b = mergePoint(b, x0, x1)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = n1
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i1] {s} p mem) [n1]) s1:(SLDconst x1:(MOVBZload [i0] {s} p mem) [n2]))
+	// cond: !config.BigEndian && i1 == i0+1 && n1%8 == 0 && n2 == n1+8 && x0.Uses == 1 && x1.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)
+	// result: @mergePoint(b,x0,x1) (SLDconst <t> (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [n1])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		n1 := s0.AuxInt
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		s1 := v.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		n2 := s1.AuxInt
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && n1%8 == 0 && n2 == n1+8 && x0.Uses == 1 && x1.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)) {
+			break
+		}
+		b = mergePoint(b, x0, x1)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = n1
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> s1:(SLDconst x1:(MOVBZload [i0] {s} p mem) [n2]) s0:(SLDconst x0:(MOVBZload [i1] {s} p mem) [n1]))
+	// cond: !config.BigEndian && i1 == i0+1 && n1%8 == 0 && n2 == n1+8 && x0.Uses == 1 && x1.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)
+	// result: @mergePoint(b,x0,x1) (SLDconst <t> (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [n1])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s1 := v.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		n2 := s1.AuxInt
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		n1 := s0.AuxInt
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && n1%8 == 0 && n2 == n1+8 && x0.Uses == 1 && x1.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)) {
+			break
+		}
+		b = mergePoint(b, x0, x1)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = n1
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
 		return true
 	}
 	// match: (OR <t> s1:(SLWconst x2:(MOVBZload [i3] {s} p mem) [24]) o0:(OR <t> s0:(SLWconst x1:(MOVBZload [i2] {s} p mem) [16]) x0:(MOVHZload [i0] {s} p mem)))
@@ -10303,13 +11246,6 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 		v0.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
 	// match: (OR <t> s1:(SLDconst x2:(MOVBZload [i3] {s} p mem) [24]) o0:(OR <t> s0:(SLDconst x1:(MOVBZload [i2] {s} p mem) [16]) x0:(MOVHZload [i0] {s} p mem)))
 	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses ==1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
 	// result: @mergePoint(b,x0,x1,x2) (MOVWZload <t> {s} [i0] p mem)
@@ -10470,6 +11406,15 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 		v0.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (OR <t> o0:(OR <t> s0:(SLDconst x1:(MOVBZload [i2] {s} p mem) [16]) x0:(MOVHZload [i0] {s} p mem)) s1:(SLDconst x2:(MOVBZload [i3] {s} p mem) [24]))
 	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses ==1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
 	// result: @mergePoint(b,x0,x1,x2) (MOVWZload <t> {s} [i0] p mem)
@@ -10628,6 +11573,2312 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 		v0.Aux = s
 		v0.AddArg(p)
 		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s1:(SLWconst x2:(MOVBZload [i0] {s} p mem) [24]) o0:(OR <t> s0:(SLWconst x1:(MOVBZload [i1] {s} p mem) [16]) x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem)))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s1 := v.Args[0]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		if s1.AuxInt != 24 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 16 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		x0 := o0.Args[1]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s1:(SLWconst x2:(MOVBZload [i0] {s} p mem) [24]) o0:(OR <t> x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) s0:(SLWconst x1:(MOVBZload [i1] {s} p mem) [16])))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s1 := v.Args[0]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		if s1.AuxInt != 24 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		x0 := o0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 16 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s0:(SLWconst x1:(MOVBZload [i1] {s} p mem) [16]) x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem)) s1:(SLWconst x2:(MOVBZload [i0] {s} p mem) [24]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 16 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		x0 := o0.Args[1]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		s1 := v.Args[1]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		if s1.AuxInt != 24 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) s0:(SLWconst x1:(MOVBZload [i1] {s} p mem) [16])) s1:(SLWconst x2:(MOVBZload [i0] {s} p mem) [24]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		x0 := o0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		s := x0_0.Aux
+		p := x0_0.Args[0]
+		mem := x0.Args[1]
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 16 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s1 := v.Args[1]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		if s1.AuxInt != 24 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s1:(SLDconst x2:(MOVBZload [i0] {s} p mem) [24]) o0:(OR <t> s0:(SLDconst x1:(MOVBZload [i1] {s} p mem) [16]) x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem)))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s1 := v.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 24 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 16 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		x0 := o0.Args[1]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s1:(SLDconst x2:(MOVBZload [i0] {s} p mem) [24]) o0:(OR <t> x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) s0:(SLDconst x1:(MOVBZload [i1] {s} p mem) [16])))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s1 := v.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 24 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		x0 := o0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 16 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s0:(SLDconst x1:(MOVBZload [i1] {s} p mem) [16]) x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem)) s1:(SLDconst x2:(MOVBZload [i0] {s} p mem) [24]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 16 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		x0 := o0.Args[1]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		s1 := v.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 24 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) s0:(SLDconst x1:(MOVBZload [i1] {s} p mem) [16])) s1:(SLDconst x2:(MOVBZload [i0] {s} p mem) [24]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		x0 := o0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		s := x0_0.Aux
+		p := x0_0.Args[0]
+		mem := x0.Args[1]
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 16 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s1 := v.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 24 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (OR <t> x0:(MOVBZload [i3] {s} p mem) o0:(OR <t> s0:(SLWconst x1:(MOVBZload [i2] {s} p mem) [8]) s1:(SLWconst x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16])))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x0 := v.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 8 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		if s1.AuxInt != 16 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x2.Type != t {
+			break
+		}
+		_ = x2.Args[1]
+		x2_0 := x2.Args[0]
+		if x2_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x2_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x2_0.AuxInt
+		if x2_0.Aux != s {
+			break
+		}
+		if p != x2_0.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x0:(MOVBZload [i3] {s} p mem) o0:(OR <t> s1:(SLWconst x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16]) s0:(SLWconst x1:(MOVBZload [i2] {s} p mem) [8])))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x0 := v.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		if s1.AuxInt != 16 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x2.Type != t {
+			break
+		}
+		_ = x2.Args[1]
+		x2_0 := x2.Args[0]
+		if x2_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x2_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x2_0.AuxInt
+		if x2_0.Aux != s {
+			break
+		}
+		if p != x2_0.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 8 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s0:(SLWconst x1:(MOVBZload [i2] {s} p mem) [8]) s1:(SLWconst x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16])) x0:(MOVBZload [i3] {s} p mem))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 8 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		if s1.AuxInt != 16 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x2.Type != t {
+			break
+		}
+		_ = x2.Args[1]
+		x2_0 := x2.Args[0]
+		if x2_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x2_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x2_0.AuxInt
+		if x2_0.Aux != s {
+			break
+		}
+		if p != x2_0.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		x0 := v.Args[1]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s1:(SLWconst x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16]) s0:(SLWconst x1:(MOVBZload [i2] {s} p mem) [8])) x0:(MOVBZload [i3] {s} p mem))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLWconst {
+			break
+		}
+		if s1.AuxInt != 16 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x2.Type != t {
+			break
+		}
+		_ = x2.Args[1]
+		x2_0 := x2.Args[0]
+		if x2_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x2_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x2_0.AuxInt
+		s := x2_0.Aux
+		p := x2_0.Args[0]
+		mem := x2.Args[1]
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 8 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		x0 := v.Args[1]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x0:(MOVBZload [i3] {s} p mem) o0:(OR <t> s0:(SLDconst x1:(MOVBZload [i2] {s} p mem) [8]) s1:(SLDconst x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16])))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x0 := v.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 8 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 16 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x2.Type != t {
+			break
+		}
+		_ = x2.Args[1]
+		x2_0 := x2.Args[0]
+		if x2_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x2_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x2_0.AuxInt
+		if x2_0.Aux != s {
+			break
+		}
+		if p != x2_0.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x0:(MOVBZload [i3] {s} p mem) o0:(OR <t> s1:(SLDconst x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16]) s0:(SLDconst x1:(MOVBZload [i2] {s} p mem) [8])))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x0 := v.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 16 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x2.Type != t {
+			break
+		}
+		_ = x2.Args[1]
+		x2_0 := x2.Args[0]
+		if x2_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x2_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x2_0.AuxInt
+		if x2_0.Aux != s {
+			break
+		}
+		if p != x2_0.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 8 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s0:(SLDconst x1:(MOVBZload [i2] {s} p mem) [8]) s1:(SLDconst x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16])) x0:(MOVBZload [i3] {s} p mem))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 8 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 16 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x2.Type != t {
+			break
+		}
+		_ = x2.Args[1]
+		x2_0 := x2.Args[0]
+		if x2_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x2_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x2_0.AuxInt
+		if x2_0.Aux != s {
+			break
+		}
+		if p != x2_0.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		x0 := v.Args[1]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s1:(SLDconst x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16]) s0:(SLDconst x1:(MOVBZload [i2] {s} p mem) [8])) x0:(MOVBZload [i3] {s} p mem))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 16 {
+			break
+		}
+		x2 := s1.Args[0]
+		if x2.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x2.Type != t {
+			break
+		}
+		_ = x2.Args[1]
+		x2_0 := x2.Args[0]
+		if x2_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x2_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x2_0.AuxInt
+		s := x2_0.Aux
+		p := x2_0.Args[0]
+		mem := x2.Args[1]
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 8 {
+			break
+		}
+		x1 := s0.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		x0 := v.Args[1]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s2:(SLDconst x2:(MOVBZload [i3] {s} p mem) [32]) o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i2] {s} p mem) [40]) s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [48])))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s2 := v.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 32 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 40 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 48 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = 32
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> s2:(SLDconst x2:(MOVBZload [i3] {s} p mem) [32]) o0:(OR <t> s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [48]) s1:(SLDconst x1:(MOVBZload [i2] {s} p mem) [40])))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s2 := v.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 32 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 48 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 40 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = 32
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (OR <t> o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i2] {s} p mem) [40]) s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [48])) s2:(SLDconst x2:(MOVBZload [i3] {s} p mem) [32]))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 40 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 48 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		s2 := v.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 32 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = 32
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [48]) s1:(SLDconst x1:(MOVBZload [i2] {s} p mem) [40])) s2:(SLDconst x2:(MOVBZload [i3] {s} p mem) [32]))
+	// cond: !config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 48 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x0_0.AuxInt
+		s := x0_0.Aux
+		p := x0_0.Args[0]
+		mem := x0.Args[1]
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 40 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s2 := v.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 32 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = 32
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> s2:(SLDconst x2:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) [32])))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s2 := v.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 56 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = 32
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> s2:(SLDconst x2:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) [32]) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s2 := v.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 56 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = 32
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) [32])) s2:(SLDconst x2:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		s0 := o0.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		if x0_0.Aux != s {
+			break
+		}
+		if p != x0_0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		s2 := v.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 56 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = 32
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) [32]) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])) s2:(SLDconst x2:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)
+	// result: @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s0 := o0.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVHBRload {
+			break
+		}
+		if x0.Type != t {
+			break
+		}
+		_ = x0.Args[1]
+		x0_0 := x0.Args[0]
+		if x0_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x0_0.Type != typ.Uintptr {
+			break
+		}
+		i2 := x0_0.AuxInt
+		s := x0_0.Aux
+		p := x0_0.Args[0]
+		mem := x0.Args[1]
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s2 := v.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 56 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && o0.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2)
+		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = 32
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v2.AuxInt = i0
+		v2.Aux = s
+		v2.AddArg(p)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v0.AddArg(v1)
 		return true
 	}
 	// match: (OR <t> s6:(SLDconst x7:(MOVBZload [i7] {s} p mem) [56]) o5:(OR <t> s5:(SLDconst x6:(MOVBZload [i6] {s} p mem) [48]) o4:(OR <t> s4:(SLDconst x5:(MOVBZload [i5] {s} p mem) [40]) o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32]) x0:(MOVWZload {s} [i0] p mem)))))
@@ -11190,6 +14441,13 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 		v0.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (OR <t> s6:(SLDconst x7:(MOVBZload [i7] {s} p mem) [56]) o5:(OR <t> o4:(OR <t> s4:(SLDconst x5:(MOVBZload [i5] {s} p mem) [40]) o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32]) x0:(MOVWZload {s} [i0] p mem))) s5:(SLDconst x6:(MOVBZload [i6] {s} p mem) [48])))
 	// cond: !config.BigEndian && i0%4 == 0 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x0.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses ==1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x0, x4, x5, x6, x7) != nil && clobber(x0) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(s3) && clobber(s4) && clobber(s5) && clobber (s6) && clobber(o3) && clobber(o4) && clobber(o5)
 	// result: @mergePoint(b,x0,x4,x5,x6,x7) (MOVDload <t> {s} [i0] p mem)
@@ -11470,13 +14728,6 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 		v0.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
 	// match: (OR <t> s6:(SLDconst x7:(MOVBZload [i7] {s} p mem) [56]) o5:(OR <t> o4:(OR <t> o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32]) x0:(MOVWZload {s} [i0] p mem)) s4:(SLDconst x5:(MOVBZload [i5] {s} p mem) [40])) s5:(SLDconst x6:(MOVBZload [i6] {s} p mem) [48])))
 	// cond: !config.BigEndian && i0%4 == 0 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x0.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses ==1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x0, x4, x5, x6, x7) != nil && clobber(x0) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(s3) && clobber(s4) && clobber(s5) && clobber (s6) && clobber(o3) && clobber(o4) && clobber(o5)
 	// result: @mergePoint(b,x0,x4,x5,x6,x7) (MOVDload <t> {s} [i0] p mem)
@@ -12597,6 +15848,15 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 		v0.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (OR <t> o5:(OR <t> o4:(OR <t> o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32]) x0:(MOVWZload {s} [i0] p mem)) s4:(SLDconst x5:(MOVBZload [i5] {s} p mem) [40])) s5:(SLDconst x6:(MOVBZload [i6] {s} p mem) [48])) s6:(SLDconst x7:(MOVBZload [i7] {s} p mem) [56]))
 	// cond: !config.BigEndian && i0%4 == 0 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x0.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses ==1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x0, x4, x5, x6, x7) != nil && clobber(x0) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(s3) && clobber(s4) && clobber(s5) && clobber (s6) && clobber(o3) && clobber(o4) && clobber(o5)
 	// result: @mergePoint(b,x0,x4,x5,x6,x7) (MOVDload <t> {s} [i0] p mem)
@@ -12874,6 +16134,7290 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 		v0.AuxInt = i0
 		v0.Aux = s
 		v0.AddArg(p)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]) o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]) x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem)))))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		o1 := o0.Args[1]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		s2 := o1.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		o2 := o1.Args[1]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		s3 := o2.Args[0]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x4 := o2.Args[1]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]) o2:(OR <t> x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem) s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32])))))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		o1 := o0.Args[1]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		s2 := o1.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		o2 := o1.Args[1]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		x4 := o2.Args[0]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s3 := o2.Args[1]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) o1:(OR <t> o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]) x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem)) s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]))))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		o1 := o0.Args[1]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		o2 := o1.Args[0]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		s3 := o2.Args[0]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x4 := o2.Args[1]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s2 := o1.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) o1:(OR <t> o2:(OR <t> x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem) s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32])) s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]))))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		o1 := o0.Args[1]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		o2 := o1.Args[0]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		x4 := o2.Args[0]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s3 := o2.Args[1]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s2 := o1.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]) o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]) x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem))) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		o1 := o0.Args[0]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		s2 := o1.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		o2 := o1.Args[1]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		s3 := o2.Args[0]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x4 := o2.Args[1]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]) o2:(OR <t> x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem) s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]))) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		o1 := o0.Args[0]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		s2 := o1.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		o2 := o1.Args[1]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		x4 := o2.Args[0]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s3 := o2.Args[1]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> o1:(OR <t> o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]) x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem)) s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40])) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		o1 := o0.Args[0]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		o2 := o1.Args[0]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		s3 := o2.Args[0]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x4 := o2.Args[1]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s2 := o1.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]) o0:(OR <t> o1:(OR <t> o2:(OR <t> x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem) s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32])) s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40])) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		s0 := v.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		s := x0.Aux
+		_ = x0.Args[1]
+		p := x0.Args[0]
+		mem := x0.Args[1]
+		o0 := v.Args[1]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		o1 := o0.Args[0]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		o2 := o1.Args[0]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		x4 := o2.Args[0]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s3 := o2.Args[1]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s2 := o1.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (OR <t> o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]) o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]) x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem)))) s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		o1 := o0.Args[1]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		s2 := o1.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		o2 := o1.Args[1]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		s3 := o2.Args[0]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x4 := o2.Args[1]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]) o2:(OR <t> x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem) s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32])))) s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		o1 := o0.Args[1]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		s2 := o1.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		o2 := o1.Args[1]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		x4 := o2.Args[0]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s3 := o2.Args[1]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) o1:(OR <t> o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]) x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem)) s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]))) s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		o1 := o0.Args[1]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		o2 := o1.Args[0]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		s3 := o2.Args[0]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x4 := o2.Args[1]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s2 := o1.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48]) o1:(OR <t> o2:(OR <t> x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem) s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32])) s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]))) s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		s1 := o0.Args[0]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		s := x1.Aux
+		_ = x1.Args[1]
+		p := x1.Args[0]
+		mem := x1.Args[1]
+		o1 := o0.Args[1]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		o2 := o1.Args[0]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		x4 := o2.Args[0]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s3 := o2.Args[1]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s2 := o1.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]) o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]) x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem))) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])) s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		o1 := o0.Args[0]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		s2 := o1.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o2 := o1.Args[1]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		s3 := o2.Args[0]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x4 := o2.Args[1]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40]) o2:(OR <t> x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem) s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]))) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])) s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		o1 := o0.Args[0]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		s2 := o1.Args[0]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		s := x2.Aux
+		_ = x2.Args[1]
+		p := x2.Args[0]
+		mem := x2.Args[1]
+		o2 := o1.Args[1]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		x4 := o2.Args[0]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s3 := o2.Args[1]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		if x3.Aux != s {
+			break
+		}
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> o1:(OR <t> o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32]) x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem)) s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40])) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])) s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		o1 := o0.Args[0]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		o2 := o1.Args[0]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		s3 := o2.Args[0]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		s := x3.Aux
+		_ = x3.Args[1]
+		p := x3.Args[0]
+		mem := x3.Args[1]
+		x4 := o2.Args[1]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		if p != x4_0.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s2 := o1.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o0:(OR <t> o1:(OR <t> o2:(OR <t> x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem) s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32])) s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40])) s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])) s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56]))
+	// cond: !config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	// result: @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o0 := v.Args[0]
+		if o0.Op != OpPPC64OR {
+			break
+		}
+		if o0.Type != t {
+			break
+		}
+		_ = o0.Args[1]
+		o1 := o0.Args[0]
+		if o1.Op != OpPPC64OR {
+			break
+		}
+		if o1.Type != t {
+			break
+		}
+		_ = o1.Args[1]
+		o2 := o1.Args[0]
+		if o2.Op != OpPPC64OR {
+			break
+		}
+		if o2.Type != t {
+			break
+		}
+		_ = o2.Args[1]
+		x4 := o2.Args[0]
+		if x4.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x4.Type != t {
+			break
+		}
+		_ = x4.Args[1]
+		x4_0 := x4.Args[0]
+		if x4_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x4_0.Type != typ.Uintptr {
+			break
+		}
+		i4 := x4_0.AuxInt
+		p := x4_0.Args[0]
+		mem := x4.Args[1]
+		s3 := o2.Args[1]
+		if s3.Op != OpPPC64SLDconst {
+			break
+		}
+		if s3.AuxInt != 32 {
+			break
+		}
+		x3 := s3.Args[0]
+		if x3.Op != OpPPC64MOVBZload {
+			break
+		}
+		i3 := x3.AuxInt
+		s := x3.Aux
+		_ = x3.Args[1]
+		if p != x3.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s2 := o1.Args[1]
+		if s2.Op != OpPPC64SLDconst {
+			break
+		}
+		if s2.AuxInt != 40 {
+			break
+		}
+		x2 := s2.Args[0]
+		if x2.Op != OpPPC64MOVBZload {
+			break
+		}
+		i2 := x2.AuxInt
+		if x2.Aux != s {
+			break
+		}
+		_ = x2.Args[1]
+		if p != x2.Args[0] {
+			break
+		}
+		if mem != x2.Args[1] {
+			break
+		}
+		s1 := o0.Args[1]
+		if s1.Op != OpPPC64SLDconst {
+			break
+		}
+		if s1.AuxInt != 48 {
+			break
+		}
+		x1 := s1.Args[0]
+		if x1.Op != OpPPC64MOVBZload {
+			break
+		}
+		i1 := x1.AuxInt
+		if x1.Aux != s {
+			break
+		}
+		_ = x1.Args[1]
+		if p != x1.Args[0] {
+			break
+		}
+		if mem != x1.Args[1] {
+			break
+		}
+		s0 := v.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 56 {
+			break
+		}
+		x0 := s0.Args[0]
+		if x0.Op != OpPPC64MOVBZload {
+			break
+		}
+		i0 := x0.AuxInt
+		if x0.Aux != s {
+			break
+		}
+		_ = x0.Args[1]
+		if p != x0.Args[0] {
+			break
+		}
+		if mem != x0.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && mergePoint(b, x0, x1, x2, x3, x4) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)) {
+			break
+		}
+		b = mergePoint(b, x0, x1, x2, x3, x4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])))))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])))))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]))))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> o3:(OR <t> s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]))))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]))) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]))) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> o4:(OR <t> o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> o4:(OR <t> o3:(OR <t> s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])))) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		s := x6.Aux
+		_ = x6.Args[1]
+		p := x6.Args[0]
+		mem := x6.Args[1]
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])))) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		s := x6.Aux
+		_ = x6.Args[1]
+		p := x6.Args[0]
+		mem := x6.Args[1]
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]))) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		s := x6.Aux
+		_ = x6.Args[1]
+		p := x6.Args[0]
+		mem := x6.Args[1]
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> o3:(OR <t> s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]))) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		s := x6.Aux
+		_ = x6.Args[1]
+		p := x6.Args[0]
+		mem := x6.Args[1]
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (OR <t> o5:(OR <t> o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]))) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		s := x5.Aux
+		_ = x5.Args[1]
+		p := x5.Args[0]
+		mem := x5.Args[1]
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]))) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		s := x5.Aux
+		_ = x5.Args[1]
+		p := x5.Args[0]
+		mem := x5.Args[1]
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> o4:(OR <t> o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		s := x4.Aux
+		_ = x4.Args[1]
+		p := x4.Args[0]
+		mem := x4.Args[1]
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> o4:(OR <t> o3:(OR <t> s0:(SLWconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLWconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		s := x3_0.Aux
+		p := x3_0.Args[0]
+		mem := x3.Args[1]
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])))))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])))))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]))))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> o3:(OR <t> s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]))))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]))) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]))) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> o4:(OR <t> o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> x7:(MOVBZload [i7] {s} p mem) o5:(OR <t> o4:(OR <t> o3:(OR <t> s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x7 := v.Args[0]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		s := x7.Aux
+		_ = x7.Args[1]
+		p := x7.Args[0]
+		mem := x7.Args[1]
+		o5 := v.Args[1]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])))) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		s := x6.Aux
+		_ = x6.Args[1]
+		p := x6.Args[0]
+		mem := x6.Args[1]
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])))) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		s := x6.Aux
+		_ = x6.Args[1]
+		p := x6.Args[0]
+		mem := x6.Args[1]
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]))) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		s := x6.Aux
+		_ = x6.Args[1]
+		p := x6.Args[0]
+		mem := x6.Args[1]
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8]) o4:(OR <t> o3:(OR <t> s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]))) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		s6 := o5.Args[0]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		s := x6.Aux
+		_ = x6.Args[1]
+		p := x6.Args[0]
+		mem := x6.Args[1]
+		o4 := o5.Args[1]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]))) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		s := x5.Aux
+		_ = x5.Args[1]
+		p := x5.Args[0]
+		mem := x5.Args[1]
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16]) o3:(OR <t> s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]))) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		s5 := o4.Args[0]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		s := x5.Aux
+		_ = x5.Args[1]
+		p := x5.Args[0]
+		mem := x5.Args[1]
+		o3 := o4.Args[1]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> o4:(OR <t> o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24]) s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s4 := o3.Args[0]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		s := x4.Aux
+		_ = x4.Args[1]
+		p := x4.Args[0]
+		mem := x4.Args[1]
+		s0 := o3.Args[1]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		if x3_0.Aux != s {
+			break
+		}
+		if p != x3_0.Args[0] {
+			break
+		}
+		if mem != x3.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (OR <t> o5:(OR <t> o4:(OR <t> o3:(OR <t> s0:(SLDconst x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32]) s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])) s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])) s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])) x7:(MOVBZload [i7] {s} p mem))
+	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	// result: @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		o5 := v.Args[0]
+		if o5.Op != OpPPC64OR {
+			break
+		}
+		if o5.Type != t {
+			break
+		}
+		_ = o5.Args[1]
+		o4 := o5.Args[0]
+		if o4.Op != OpPPC64OR {
+			break
+		}
+		if o4.Type != t {
+			break
+		}
+		_ = o4.Args[1]
+		o3 := o4.Args[0]
+		if o3.Op != OpPPC64OR {
+			break
+		}
+		if o3.Type != t {
+			break
+		}
+		_ = o3.Args[1]
+		s0 := o3.Args[0]
+		if s0.Op != OpPPC64SLDconst {
+			break
+		}
+		if s0.AuxInt != 32 {
+			break
+		}
+		x3 := s0.Args[0]
+		if x3.Op != OpPPC64MOVWBRload {
+			break
+		}
+		if x3.Type != t {
+			break
+		}
+		_ = x3.Args[1]
+		x3_0 := x3.Args[0]
+		if x3_0.Op != OpPPC64MOVDaddr {
+			break
+		}
+		if x3_0.Type != typ.Uintptr {
+			break
+		}
+		i0 := x3_0.AuxInt
+		s := x3_0.Aux
+		p := x3_0.Args[0]
+		mem := x3.Args[1]
+		s4 := o3.Args[1]
+		if s4.Op != OpPPC64SLDconst {
+			break
+		}
+		if s4.AuxInt != 24 {
+			break
+		}
+		x4 := s4.Args[0]
+		if x4.Op != OpPPC64MOVBZload {
+			break
+		}
+		i4 := x4.AuxInt
+		if x4.Aux != s {
+			break
+		}
+		_ = x4.Args[1]
+		if p != x4.Args[0] {
+			break
+		}
+		if mem != x4.Args[1] {
+			break
+		}
+		s5 := o4.Args[1]
+		if s5.Op != OpPPC64SLDconst {
+			break
+		}
+		if s5.AuxInt != 16 {
+			break
+		}
+		x5 := s5.Args[0]
+		if x5.Op != OpPPC64MOVBZload {
+			break
+		}
+		i5 := x5.AuxInt
+		if x5.Aux != s {
+			break
+		}
+		_ = x5.Args[1]
+		if p != x5.Args[0] {
+			break
+		}
+		if mem != x5.Args[1] {
+			break
+		}
+		s6 := o5.Args[1]
+		if s6.Op != OpPPC64SLDconst {
+			break
+		}
+		if s6.AuxInt != 8 {
+			break
+		}
+		x6 := s6.Args[0]
+		if x6.Op != OpPPC64MOVBZload {
+			break
+		}
+		i6 := x6.AuxInt
+		if x6.Aux != s {
+			break
+		}
+		_ = x6.Args[1]
+		if p != x6.Args[0] {
+			break
+		}
+		if mem != x6.Args[1] {
+			break
+		}
+		x7 := v.Args[1]
+		if x7.Op != OpPPC64MOVBZload {
+			break
+		}
+		i7 := x7.AuxInt
+		if x7.Aux != s {
+			break
+		}
+		_ = x7.Args[1]
+		if p != x7.Args[0] {
+			break
+		}
+		if mem != x7.Args[1] {
+			break
+		}
+		if !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x3, x4, x5, x6, x7) != nil && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)) {
+			break
+		}
+		b = mergePoint(b, x3, x4, x5, x6, x7)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1.AuxInt = i0
+		v1.Aux = s
+		v1.AddArg(p)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		return true
 	}
