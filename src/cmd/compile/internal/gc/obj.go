@@ -401,8 +401,8 @@ func dsymptr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	return off
 }
 
-func dsymptrOff(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
-	s.WriteOff(Ctxt, int64(off), x, int64(xoff))
+func dsymptrOff(s *obj.LSym, off int, x *obj.LSym) int {
+	s.WriteOff(Ctxt, int64(off), x, 0)
 	off += 4
 	return off
 }
