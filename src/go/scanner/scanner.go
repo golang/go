@@ -141,46 +141,26 @@ func (s *Scanner) error(offs int, msg string) {
 	s.ErrorCount++
 }
 
-var prefix = []byte("//line ")
-
-func (s *Scanner) interpretLineComment(text []byte) {
-	if bytes.HasPrefix(text, prefix) {
-		// get filename and line number, if any
-		if i := bytes.LastIndex(text, []byte{':'}); i > 0 {
-			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
-				// valid //line filename:line comment
-				filename := string(bytes.TrimSpace(text[len(prefix):i]))
-				if filename != "" {
-					filename = filepath.Clean(filename)
-					if !filepath.IsAbs(filename) {
-						// make filename relative to current directory
-						filename = filepath.Join(s.dir, filename)
-					}
-				}
-				// update scanner position
-				s.file.AddLineInfo(s.lineOffset+len(text)+1, filename, line) // +len(text)+1 since comment applies to next line
-			}
-		}
-	}
-}
-
 func (s *Scanner) scanComment() string {
 	// initial '/' already consumed; s.ch == '/' || s.ch == '*'
 	offs := s.offset - 1 // position of initial '/'
-	hasCR := false
+	next := -1           // position immediately following the comment; < 0 means invalid comment
+	numCR := 0
 
 	if s.ch == '/' {
 		//-style comment
+		// (the final '\n' is not considered part of the comment)
 		s.next()
 		for s.ch != '\n' && s.ch >= 0 {
 			if s.ch == '\r' {
-				hasCR = true
+				numCR++
 			}
 			s.next()
 		}
-		if offs == s.lineOffset {
-			// comment starts at the beginning of the current line
-			s.interpretLineComment(s.src[offs:s.offset])
+		// if we are at '\n', the position following the comment is afterwards
+		next = s.offset
+		if s.ch == '\n' {
+			next++
 		}
 		goto exit
 	}
@@ -190,11 +170,12 @@ func (s *Scanner) scanComment() string {
 	for s.ch >= 0 {
 		ch := s.ch
 		if ch == '\r' {
-			hasCR = true
+			numCR++
 		}
 		s.next()
 		if ch == '*' && s.ch == '/' {
 			s.next()
+			next = s.offset
 			goto exit
 		}
 	}
@@ -203,11 +184,114 @@ func (s *Scanner) scanComment() string {
 
 exit:
 	lit := s.src[offs:s.offset]
-	if hasCR {
+
+	// On Windows, a (//-comment) line may end in "\r\n".
+	// Remove the final '\r' before analyzing the text for
+	// line directives (matching the compiler). Remove any
+	// other '\r' afterwards (matching the pre-existing be-
+	// havior of the scanner).
+	if numCR > 0 && len(lit) >= 2 && lit[1] == '/' && lit[len(lit)-1] == '\r' {
+		lit = lit[:len(lit)-1]
+		numCR--
+	}
+
+	// interpret line directives
+	// (//line directives must start at the beginning of the current line)
+	if next >= 0 /* implies valid comment */ && (lit[1] == '*' || offs == s.lineOffset) && bytes.HasPrefix(lit[2:], prefix) {
+		s.updateLineInfo(next, offs, lit)
+	}
+
+	if numCR > 0 {
 		lit = stripCR(lit, lit[1] == '*')
 	}
 
 	return string(lit)
+}
+
+var prefix = []byte("line ")
+
+// updateLineInfo parses the incoming comment text at offset offs
+// as a line directive. If successful, it updates the line info table
+// for the position next per the line directive.
+func (s *Scanner) updateLineInfo(next, offs int, text []byte) {
+	// the existing code used to ignore incorrect line/column values
+	// TODO(gri) adjust once we agree on the directive syntax (issue #24183)
+	reportErrors := false
+
+	// extract comment text
+	if text[1] == '*' {
+		text = text[:len(text)-2] // lop off trailing "*/"
+	}
+	text = text[7:] // lop off leading "//line " or "/*line "
+	offs += 7
+
+	i, n, ok := trailingDigits(text)
+	if i == 0 {
+		return // ignore (not a line directive)
+	}
+	// i > 0
+
+	if !ok {
+		// text has a suffix :xxx but xxx is not a number
+		if reportErrors {
+			s.error(offs+i, "invalid line number: "+string(text[i:]))
+		}
+		return
+	}
+
+	var line, col int
+	i2, n2, ok2 := trailingDigits(text[:i-1])
+	if ok2 {
+		//line filename:line:col
+		i, i2 = i2, i
+		line, col = n2, n
+		if col == 0 {
+			if reportErrors {
+				s.error(offs+i2, "invalid column number: "+string(text[i2:]))
+			}
+			return
+		}
+		text = text[:i2-1] // lop off ":col"
+	} else {
+		//line filename:line
+		line = n
+	}
+
+	if line == 0 {
+		if reportErrors {
+			s.error(offs+i, "invalid line number: "+string(text[i:]))
+		}
+		return
+	}
+
+	// the existing code used to trim whitespace around filenames
+	// TODO(gri) adjust once we agree on the directive syntax (issue #24183)
+	filename := string(bytes.TrimSpace(text[:i-1])) // lop off ":line", and trim white space
+
+	// If we have a column (//line filename:line:col form),
+	// an empty filename means to use the previous filename.
+	if filename != "" {
+		filename = filepath.Clean(filename)
+		if !filepath.IsAbs(filename) {
+			// make filename relative to current directory
+			filename = filepath.Join(s.dir, filename)
+		}
+	} else if ok2 {
+		// use existing filename
+		filename = s.file.Position(s.file.Pos(offs)).Filename
+	}
+
+	s.file.AddLineColumnInfo(next, filename, line, col)
+}
+
+func trailingDigits(text []byte) (int, int, bool) {
+	i := bytes.LastIndexByte(text, ':') // look from right (Windows filenames may contain ':')
+	if i < 0 {
+		return 0, 0, false // no ":"
+	}
+	// i >= 0
+	n, err := strconv.ParseUint(string(text[i+1:]), 10, 0)
+	return i + 1, int(n), err == nil
 }
 
 func (s *Scanner) findLineEnd() bool {
