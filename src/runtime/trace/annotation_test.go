@@ -50,6 +50,10 @@ func TestUserTaskSpan(t *testing.T) {
 
 	saveTrace(t, buf, "TestUserTaskSpan")
 	res, err := trace.Parse(buf, "")
+	if err == trace.ErrTimeOrder {
+		// golang.org/issues/16755
+		t.Skipf("skipping trace: %v", err)
+	}
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
