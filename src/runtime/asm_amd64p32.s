@@ -904,7 +904,7 @@ sse:
 
 condition:
 	CMPL DI, R11
-	JLT sse
+	JNE sse
 
 	// search the end
 	MOVL SI, CX
