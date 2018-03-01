@@ -3455,12 +3455,8 @@ func walkcompare(n *Node, init *Nodes) *Node {
 // 	n.Left = finishcompare(n.Left, x, r, init)
 func finishcompare(n, r *Node, init *Nodes) *Node {
 	r = typecheck(r, Erv)
+	r = conv(r, n.Type)
 	r = walkexpr(r, init)
-	if r.Type != n.Type {
-		r = nod(OCONVNOP, r, nil)
-		r.Type = n.Type
-		r = typecheck(r, Erv)
-	}
 	return r
 }
 
