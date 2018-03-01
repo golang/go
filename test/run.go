@@ -1307,7 +1307,16 @@ func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpc
 				if err != nil {
 					log.Fatalf("%s:%d: error unquoting string: %v", t.goFileName(), i+1, err)
 				}
-				oprx, err := regexp.Compile(rxsrc)
+
+				// Compile the checks as regular expressions. Notice that we
+				// consider checks as matching from the beginning of the actual
+				// assembler source (that is, what is left on each line of the
+				// compile -S output after we strip file/line info) to avoid
+				// trivial bugs such as "ADD" matching "FADD". This
+				// doesn't remove genericity: it's still possible to write
+				// something like "F?ADD", but we make common cases simpler
+				// to get right.
+				oprx, err := regexp.Compile("^" + rxsrc)
 				if err != nil {
 					log.Fatalf("%s:%d: %v", t.goFileName(), i+1, err)
 				}
