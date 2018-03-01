@@ -564,11 +564,11 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
 		ns := Ctxt.Lookup(`type..importpath."".`)
-		return dsymptrOff(s, ot, ns, 0)
+		return dsymptrOff(s, ot, ns)
 	}
 
 	dimportpath(pkg)
-	return dsymptrOff(s, ot, pkg.Pathsym, 0)
+	return dsymptrOff(s, ot, pkg.Pathsym)
 }
 
 // dnameField dumps a reflect.name for a struct field.
@@ -723,7 +723,7 @@ func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
 		}
 		nsym := dname(a.name, "", pkg, exported)
 
-		ot = dsymptrOff(lsym, ot, nsym, 0)
+		ot = dsymptrOff(lsym, ot, nsym)
 		ot = dmethodptrOff(lsym, ot, dtypesym(a.mtype))
 		ot = dmethodptrOff(lsym, ot, a.isym.Linksym())
 		ot = dmethodptrOff(lsym, ot, a.tsym.Linksym())
@@ -841,11 +841,7 @@ var (
 )
 
 // dcommontype dumps the contents of a reflect.rtype (runtime._type).
-func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
-	if ot != 0 {
-		Fatalf("dcommontype %d", ot)
-	}
-
+func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	sizeofAlg := 2 * Widthptr
 	if algarray == nil {
 		algarray = sysfunc("algarray")
@@ -884,6 +880,7 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 	//		str           nameOff
 	//		ptrToThis     typeOff
 	//	}
+	ot := 0
 	ot = duintptr(lsym, ot, uint64(t.Width))
 	ot = duintptr(lsym, ot, uint64(ptrdata))
 	ot = duint32(lsym, ot, typehash(t))
@@ -948,14 +945,14 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 	ot = dsymptr(lsym, ot, gcsym, 0) // gcdata
 
 	nsym := dname(p, "", nil, exported)
-	ot = dsymptrOff(lsym, ot, nsym, 0) // str
+	ot = dsymptrOff(lsym, ot, nsym) // str
 	// ptrToThis
 	if sptr == nil {
 		ot = duint32(lsym, ot, 0)
 	} else if sptrWeak {
 		ot = dsymptrWeakOff(lsym, ot, sptr)
 	} else {
-		ot = dsymptrOff(lsym, ot, sptr, 0)
+		ot = dsymptrOff(lsym, ot, sptr)
 	}
 
 	return ot
@@ -1186,7 +1183,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 	ot := 0
 	switch t.Etype {
 	default:
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 		ot = dextratype(lsym, ot, t, 0)
 
 	case TARRAY:
@@ -1194,7 +1191,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		s1 := dtypesym(t.Elem())
 		t2 := types.NewSlice(t.Elem())
 		s2 := dtypesym(t2)
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 		ot = dsymptr(lsym, ot, s1, 0)
 		ot = dsymptr(lsym, ot, s2, 0)
 		ot = duintptr(lsym, ot, uint64(t.NumElem()))
@@ -1203,14 +1200,14 @@ func dtypesym(t *types.Type) *obj.LSym {
 	case TSLICE:
 		// ../../../../runtime/type.go:/sliceType
 		s1 := dtypesym(t.Elem())
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 		ot = dsymptr(lsym, ot, s1, 0)
 		ot = dextratype(lsym, ot, t, 0)
 
 	case TCHAN:
 		// ../../../../runtime/type.go:/chanType
 		s1 := dtypesym(t.Elem())
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 		ot = dsymptr(lsym, ot, s1, 0)
 		ot = duintptr(lsym, ot, uint64(t.ChanDir()))
 		ot = dextratype(lsym, ot, t, 0)
@@ -1228,7 +1225,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 			dtypesym(t1.Type)
 		}
 
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 		inCount := t.NumRecvs() + t.NumParams()
 		outCount := t.NumResults()
 		if isddd {
@@ -1262,7 +1259,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		}
 
 		// ../../../../runtime/type.go:/interfaceType
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 
 		var tpkg *types.Pkg
 		if t.Sym != nil && t != types.Types[t.Etype] && t != types.Errortype {
@@ -1285,8 +1282,8 @@ func dtypesym(t *types.Type) *obj.LSym {
 			}
 			nsym := dname(a.name, "", pkg, exported)
 
-			ot = dsymptrOff(lsym, ot, nsym, 0)
-			ot = dsymptrOff(lsym, ot, dtypesym(a.type_), 0)
+			ot = dsymptrOff(lsym, ot, nsym)
+			ot = dsymptrOff(lsym, ot, dtypesym(a.type_))
 		}
 
 	// ../../../../runtime/type.go:/mapType
@@ -1295,7 +1292,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		s2 := dtypesym(t.Val())
 		s3 := dtypesym(bmap(t))
 		s4 := dtypesym(hmap(t))
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 		ot = dsymptr(lsym, ot, s1, 0)
 		ot = dsymptr(lsym, ot, s2, 0)
 		ot = dsymptr(lsym, ot, s3, 0)
@@ -1324,7 +1321,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 	case TPTR32, TPTR64:
 		if t.Elem().Etype == TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
-			ot = dcommontype(lsym, ot, t)
+			ot = dcommontype(lsym, t)
 			ot = dextratype(lsym, ot, t, 0)
 
 			break
@@ -1333,7 +1330,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		// ../../../../runtime/type.go:/ptrType
 		s1 := dtypesym(t.Elem())
 
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 		ot = dsymptr(lsym, ot, s1, 0)
 		ot = dextratype(lsym, ot, t, 0)
 
@@ -1358,7 +1355,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 			}
 		}
 
-		ot = dcommontype(lsym, ot, t)
+		ot = dcommontype(lsym, t)
 		ot = dgopkgpath(lsym, ot, spkg)
 		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
 		ot = duintptr(lsym, ot, uint64(len(fields)))
@@ -1554,8 +1551,8 @@ func dumptabs() {
 			//	typ  typeOff // pointer to symbol
 			// }
 			nsym := dname(p.s.Name, "", nil, true)
-			ot = dsymptrOff(s, ot, nsym, 0)
-			ot = dsymptrOff(s, ot, dtypesym(p.t), 0)
+			ot = dsymptrOff(s, ot, nsym)
+			ot = dsymptrOff(s, ot, dtypesym(p.t))
 		}
 		ggloblsym(s, int32(ot), int16(obj.RODATA))
 

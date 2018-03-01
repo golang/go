@@ -390,7 +390,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCall
 	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
 	var inlcalls dwarf.InlCalls
 	if genDwarfInline > 0 {
-		inlcalls = assembleInlines(fnsym, fn, dwarfVars)
+		inlcalls = assembleInlines(fnsym, dwarfVars)
 	}
 	return scopes, inlcalls
 }
@@ -457,7 +457,7 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
 
 // createComplexVars creates recomposed DWARF vars with location lists,
 // suitable for describing optimized code.
-func createComplexVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	debugInfo := fn.DebugInfo
 
 	// Produce a DWARF variable entry for each user variable.
@@ -489,7 +489,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 	var decls []*Node
 	var selected map[*Node]bool
 	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil {
-		decls, vars, selected = createComplexVars(fnsym, fn, automDecls)
+		decls, vars, selected = createComplexVars(fn)
 	} else {
 		decls, vars, selected = createSimpleVars(automDecls)
 	}

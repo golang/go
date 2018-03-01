@@ -424,14 +424,14 @@ func isartificial(n *Node) bool {
 	return false
 }
 
-func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+func callinstr(np **Node, init *Nodes, wr int, skip int) {
 	n := *np
 
 	//fmt.Printf("callinstr for %v [ %v ] etype=%v class=%v\n",
 	//	n, n.Op, n.Type.Etype, n.Class)
 
 	if skip != 0 || n.Type == nil || n.Type.Etype >= TIDEAL {
-		return false
+		return
 	}
 	t := n.Type
 	// dowidth may not have been called for PEXTERN.
@@ -441,17 +441,17 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 		Fatalf("instrument: %v badwidth", t)
 	}
 	if w == 0 {
-		return false // can't race on zero-sized things
+		return // can't race on zero-sized things
 	}
 	if isartificial(n) {
-		return false
+		return
 	}
 
 	b := outervalue(n)
 
 	// it skips e.g. stores to ... parameter array
 	if isartificial(b) {
-		return false
+		return
 	}
 	class := b.Class()
 
@@ -502,10 +502,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 		}
 
 		init.Append(f)
-		return true
 	}
-
-	return false
 }
 
 // makeaddable returns a node whose memory location is the
