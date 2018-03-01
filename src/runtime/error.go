@@ -121,7 +121,6 @@ func printany(i interface{}) {
 // strings.IndexByte is implemented in runtime/asm_$goarch.s
 // but amusingly we need go:linkname to get access to it here in the runtime.
 //go:linkname stringsIndexByte strings.IndexByte
-//go:noescape
 func stringsIndexByte(s string, c byte) int
 
 // panicwrap generates a panic for a call to a wrapped value method
