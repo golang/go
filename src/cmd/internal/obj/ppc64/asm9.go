@@ -4973,6 +4973,8 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		return OPVCC(31, 661, 0, 0) /* stswx */
 	case AMOVWBR:
 		return OPVCC(31, 662, 0, 0) /* stwbrx */
+	case AMOVDBR:
+		return OPVCC(31, 660, 0, 0) /* stdbrx */
 	case ASTBCCC:
 		return OPVCC(31, 694, 0, 1) /* stbcx. */
 	case ASTWCCC:

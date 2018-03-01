@@ -619,35 +619,31 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = ppc64.REGTMP // discard result
 
 	case ssa.OpPPC64MOVDaddr:
-		p := s.Prog(ppc64.AMOVD)
-		p.From.Type = obj.TYPE_ADDR
-		p.From.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-
-		var wantreg string
-		// Suspect comment, copied from ARM code
-		// MOVD $sym+off(base), R
-		// the assembler expands it as the following:
-		// - base is SP: add constant offset to SP
-		//               when constant is large, tmp register (R11) may be used
-		// - base is SB: load external address from constant pool (use relocation)
 		switch v.Aux.(type) {
 		default:
-			v.Fatalf("aux is of unknown type %T", v.Aux)
-		case *obj.LSym:
-			wantreg = "SB"
-			gc.AddAux(&p.From, v)
-		case *gc.Node:
-			wantreg = "SP"
-			gc.AddAux(&p.From, v)
+			v.Fatalf("aux in MOVDaddr is of unknown type %T", v.Aux)
 		case nil:
-			// No sym, just MOVD $off(SP), R
-			wantreg = "SP"
-			p.From.Offset = v.AuxInt
-		}
-		if reg := v.Args[0].RegName(); reg != wantreg {
-			v.Fatalf("bad reg %s for symbol type %T, want %s", reg, v.Aux, wantreg)
+			// If aux offset and aux int are both 0, and the same
+			// input and output regs are used, no instruction
+			// needs to be generated, since it would just be
+			// addi rx, rx, 0.
+			if v.AuxInt != 0 || v.Args[0].Reg() != v.Reg() {
+				p := s.Prog(ppc64.AMOVD)
+				p.From.Type = obj.TYPE_ADDR
+				p.From.Reg = v.Args[0].Reg()
+				p.From.Offset = v.AuxInt
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = v.Reg()
+			}
+
+		case *obj.LSym, *gc.Node:
+			p := s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_ADDR
+			p.From.Reg = v.Args[0].Reg()
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+			gc.AddAux(&p.From, v)
+
 		}
 
 	case ssa.OpPPC64MOVDconst:
@@ -728,6 +724,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
+	case ssa.OpPPC64MOVDBRload, ssa.OpPPC64MOVWBRload, ssa.OpPPC64MOVHBRload:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpPPC64MOVDBRstore, ssa.OpPPC64MOVWBRstore, ssa.OpPPC64MOVHBRstore:
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
 
 	case ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
 		p := s.Prog(v.Op.Asm())
