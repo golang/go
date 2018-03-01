@@ -1367,27 +1367,33 @@ func (t *test) asmCheck(outStr string, fn string, arch string, fullops map[strin
 		}
 	}
 
-	var notfound []wantedAsmOpcode
+	var failed []wantedAsmOpcode
 	for _, ops := range fullops {
 		for _, o := range ops {
-			if !o.found {
-				notfound = append(notfound, o)
+			// There's a failure if a negative match was found,
+			// or a positive match was not found.
+			if o.negative == o.found {
+				failed = append(failed, o)
 			}
 		}
 	}
-	if len(notfound) == 0 {
+	if len(failed) == 0 {
 		return
 	}
 
 	// At least one asmcheck failed; report them
-	sort.Slice(notfound, func(i, j int) bool {
-		return notfound[i].line < notfound[j].line
+	sort.Slice(failed, func(i, j int) bool {
+		return failed[i].line < failed[j].line
 	})
 
 	var errbuf bytes.Buffer
 	fmt.Fprintln(&errbuf)
-	for _, o := range notfound {
-		fmt.Fprintf(&errbuf, "%s:%d: %s: no match for opcode: %q\n", t.goFileName(), o.line, arch, o.opcode.String())
+	for _, o := range failed {
+		if o.negative {
+			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %q\n", t.goFileName(), o.line, arch, o.opcode.String())
+		} else {
+			fmt.Fprintf(&errbuf, "%s:%d: %s: opcode not found: %q\n", t.goFileName(), o.line, arch, o.opcode.String())
+		}
 	}
 	err = errors.New(errbuf.String())
 	return
