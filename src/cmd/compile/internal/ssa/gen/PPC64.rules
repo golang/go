@@ -63,6 +63,7 @@
 (Floor x) -> (FFLOOR x)
 (Ceil x) -> (FCEIL x)
 (Trunc x) -> (FTRUNC x)
+(Round x) -> (FROUND x)
 (Copysign x y) -> (FCPSGN y x)
 (Abs x) -> (FABS x)
 

@@ -13,18 +13,22 @@ var sink64 [8]float64
 func approx(x float64) {
 	// s390x:"FIDBR\t[$]6"
 	// arm64:"FRINTPD"
+	// ppc64le:"FRIP"
 	sink64[0] = math.Ceil(x)
 
 	// s390x:"FIDBR\t[$]7"
 	// arm64:"FRINTMD"
+	// ppc64le:"FRIM"
 	sink64[1] = math.Floor(x)
 
 	// s390x:"FIDBR\t[$]1"
 	// arm64:"FRINTAD"
+	// ppc64le:"FRIN"
 	sink64[2] = math.Round(x)
 
 	// s390x:"FIDBR\t[$]5"
 	// arm64:"FRINTZD"
+	// ppc64le:"FRIZ"
 	sink64[3] = math.Trunc(x)
 
 	// s390x:"FIDBR\t[$]4"
