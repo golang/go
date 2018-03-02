@@ -916,6 +916,23 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 }
 
 func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
+	cname := ""
+	if ctx.mode == taskTraceview && ev.G != 0 {
+		overlapping := false
+		for _, task := range ctx.tasks {
+			if task.overlappingInstant(ev) {
+				overlapping = true
+				break
+			}
+		}
+		// grey out or skip if non-overlapping instant.
+		if !overlapping {
+			if isUserAnnotationEvent(ev) {
+				return // don't display unrelated task events.
+			}
+			cname = "grey"
+		}
+	}
 	var arg interface{}
 	if ev.Type == trace.EvProcStart {
 		type Arg struct {
@@ -931,6 +948,7 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
 		Time:     ctx.time(ev),
 		Tid:      ctx.proc(ev),
 		Stack:    ctx.stack(ev.Stk),
+		Cname:    cname,
 		Arg:      arg})
 }
 
@@ -948,6 +966,20 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
 		// Trace-viewer discards arrows if they don't start/end inside of a slice or instant.
 		// So emit a fake instant at the start of the arrow.
 		ctx.emitInstant(&trace.Event{P: ev.P, Ts: ev.Ts}, "unblock", "")
+	}
+
+	if ctx.mode == taskTraceview {
+		overlapping := false
+		// skip non-overlapping arrows.
+		for _, task := range ctx.tasks {
+			if _, overlapped := task.overlappingDuration(ev); overlapped {
+				overlapping = true
+				break
+			}
+		}
+		if !overlapping {
+			return
+		}
 	}
 
 	ctx.arrowSeq++
