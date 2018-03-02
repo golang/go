@@ -280,8 +280,9 @@ func freedefer(d *_defer) {
 	d.started = false
 	d.sp = 0
 	d.pc = 0
-	d.fn = nil
-	d._panic = nil
+	// d._panic and d.fn must be nil already.
+	// If not, we would have called freedeferpanic or freedeferfn above,
+	// both of which throw.
 	d.link = nil
 
 	pp.deferpool[sc] = append(pp.deferpool[sc], d)
