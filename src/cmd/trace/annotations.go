@@ -152,6 +152,65 @@ type annotationAnalysisResult struct {
 	gcEvents []*trace.Event       // GCStartevents, sorted
 }
 
+type activeSpanTracker struct {
+	stacks map[uint64][]*trace.Event // goid to stack of active span start events
+}
+
+func (t *activeSpanTracker) top(goid uint64) *trace.Event {
+	if t.stacks == nil {
+		return nil
+	}
+	stk := t.stacks[goid]
+	if len(stk) == 0 {
+		return nil
+	}
+	return stk[len(stk)-1]
+}
+
+func (t *activeSpanTracker) addSpanEvent(ev *trace.Event, task *taskDesc) *spanDesc {
+	if ev.Type != trace.EvUserSpan {
+		return nil
+	}
+	if t.stacks == nil {
+		t.stacks = make(map[uint64][]*trace.Event)
+	}
+
+	goid := ev.G
+	stk := t.stacks[goid]
+
+	var sd *spanDesc
+	switch mode := ev.Args[1]; mode {
+	case 0: // span start
+		t.stacks[goid] = append(stk, ev) // push
+		sd = &spanDesc{
+			name:  ev.SArgs[0],
+			task:  task,
+			goid:  goid,
+			start: ev,
+			end:   ev.Link,
+		}
+	case 1: // span end
+		if n := len(stk); n > 0 {
+			stk = stk[:n-1] // pop
+		} else {
+			// There is no matching span start event; can happen if the span start was before tracing.
+			sd = &spanDesc{
+				name:  ev.SArgs[0],
+				task:  task,
+				goid:  goid,
+				start: nil,
+				end:   ev,
+			}
+		}
+		if len(stk) == 0 {
+			delete(t.stacks, goid)
+		} else {
+			t.stacks[goid] = stk
+		}
+	}
+	return sd
+}
+
 // analyzeAnnotations analyzes user annotation events and
 // returns the task descriptors keyed by internal task id.
 func analyzeAnnotations() (annotationAnalysisResult, error) {
@@ -166,14 +225,14 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 	}
 
 	tasks := allTasks{}
-	activeSpans := map[uint64][]*trace.Event{} // goid to active span start events
 	var gcEvents []*trace.Event
+	var activeSpans activeSpanTracker
 
 	for _, ev := range events {
 		goid := ev.G
 
 		switch typ := ev.Type; typ {
-		case trace.EvUserTaskCreate, trace.EvUserTaskEnd, trace.EvUserLog, trace.EvUserSpan:
+		case trace.EvUserTaskCreate, trace.EvUserTaskEnd, trace.EvUserLog:
 			taskid := ev.Args[0]
 			task := tasks.task(taskid)
 			task.addEvent(ev)
@@ -189,18 +248,13 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 				}
 			}
 
-			if typ == trace.EvUserSpan {
-				mode := ev.Args[1]
-				spans := activeSpans[goid]
-				if mode == 0 { // start
-					activeSpans[goid] = append(spans, ev) // push
-				} else { // end
-					if n := len(spans); n > 1 {
-						activeSpans[goid] = spans[:n-1] // pop
-					} else if n == 1 {
-						delete(activeSpans, goid)
-					}
-				}
+		case trace.EvUserSpan:
+			taskid := ev.Args[0]
+			task := tasks.task(taskid)
+			task.addEvent(ev)
+			sd := activeSpans.addSpanEvent(ev, task)
+			if task != nil && sd != nil {
+				task.spans = append(task.spans, sd)
 			}
 
 		case trace.EvGoCreate:
@@ -209,11 +263,11 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 			//
 			// TODO(hyangah): the task info needs to propagate
 			// to all decendents, not only to the immediate child.
-			spans := activeSpans[goid]
-			if len(spans) == 0 {
+			s := activeSpans.top(goid)
+			if s == nil {
 				continue
 			}
-			taskid := spans[len(spans)-1].Args[0]
+			taskid := s.Args[0]
 			task := tasks.task(taskid)
 			task.addEvent(ev)
 
@@ -326,21 +380,6 @@ func (task *taskDesc) addEvent(ev *trace.Event) {
 		task.create = ev
 	case trace.EvUserTaskEnd:
 		task.end = ev
-	case trace.EvUserSpan:
-		if mode := ev.Args[1]; mode == 0 { // start
-			task.spans = append(task.spans, &spanDesc{
-				name:  ev.SArgs[0],
-				task:  task,
-				goid:  ev.G,
-				start: ev,
-				end:   ev.Link})
-		} else if ev.Link == nil { // span end without matching start
-			task.spans = append(task.spans, &spanDesc{
-				name: ev.SArgs[0],
-				task: task,
-				goid: ev.G,
-				end:  ev})
-		}
 	}
 }
 

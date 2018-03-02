@@ -56,8 +56,7 @@ type Event struct {
 	// for GoSysExit: the next GoStart
 	// for GCMarkAssistStart: the associated GCMarkAssistDone
 	// for UserTaskCreate: the UserTaskEnd
-	// for UsetTaskEnd: the UserTaskCreate
-	// for UserSpan: the corresponding span start or end event
+	// for UserSpan: if the start span, the corresponding UserSpan end event
 	Link *Event
 }
 
@@ -810,9 +809,10 @@ func postProcessTrace(ver int, events []*Event) error {
 			}
 			tasks[ev.Args[0]] = ev
 		case EvUserTaskEnd:
-			if prevEv, ok := tasks[ev.Args[0]]; ok {
-				prevEv.Link = ev
-				ev.Link = prevEv
+			taskid := ev.Args[0]
+			if taskCreateEv, ok := tasks[taskid]; ok {
+				taskCreateEv.Link = ev
+				delete(tasks, taskid)
 			}
 		case EvUserSpan:
 			mode := ev.Args[1]
@@ -828,7 +828,6 @@ func postProcessTrace(ver int, events []*Event) error {
 					}
 					// Link span start event with span end event
 					s.Link = ev
-					ev.Link = s
 
 					if n > 1 {
 						activeSpans[ev.G] = spans[:n-1]
