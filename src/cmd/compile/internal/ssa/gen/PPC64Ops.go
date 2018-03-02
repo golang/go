@@ -249,6 +249,7 @@ func init() {
 		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                              // floor(arg0), float64
 		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                               // ceil(arg0), float64
 		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                              // trunc(arg0), float64
+		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                              // round(arg0), float64
 		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                // abs(arg0), float64
 		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                              // -abs(arg0), float64
 		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                            // copysign arg0 -> arg1, float64

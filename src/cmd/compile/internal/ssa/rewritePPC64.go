@@ -505,6 +505,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPopCount64_0(v)
 	case OpPopCount8:
 		return rewriteValuePPC64_OpPopCount8_0(v)
+	case OpRound:
+		return rewriteValuePPC64_OpRound_0(v)
 	case OpRound32F:
 		return rewriteValuePPC64_OpRound32F_0(v)
 	case OpRound64F:
@@ -13465,6 +13467,15 @@ func rewriteValuePPC64_OpPopCount8_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+}
+func rewriteValuePPC64_OpRound_0(v *Value) bool {
+	// match: (Round x)
+	// cond:
+	// result: (FROUND x)
+	x := v.Args[0]
+	v.reset(OpPPC64FROUND)
+	v.AddArg(x)
+	return true
 }
 func rewriteValuePPC64_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)
