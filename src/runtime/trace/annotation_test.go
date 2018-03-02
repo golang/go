@@ -3,9 +3,11 @@ package trace_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"internal/trace"
 	"reflect"
 	. "runtime/trace"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -102,13 +104,20 @@ func TestUserTaskSpan(t *testing.T) {
 		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{0}, true},
 		{trace.EvUserSpan, []string{"task0", "span1"}, []uint64{0}, true},
 		{trace.EvUserLog, []string{"task0", "key0", "0123456789abcdef"}, nil, false},
-		{trace.EvUserSpan, []string{"task0", "span1"}, []uint64{1}, true},
-		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{1}, true},
-		{trace.EvUserTaskEnd, []string{"task0"}, nil, true},
+		{trace.EvUserSpan, []string{"task0", "span1"}, []uint64{1}, false},
+		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{1}, false},
+		{trace.EvUserTaskEnd, []string{"task0"}, nil, false},
 		{trace.EvUserSpan, []string{"", "pre-existing span"}, []uint64{1}, false},
 		{trace.EvUserSpan, []string{"", "post-existing span"}, []uint64{0}, false},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Got user span related events %+v\nwant: %+v", got, want)
+		pretty := func(data []testData) string {
+			var s strings.Builder
+			for _, d := range data {
+				s.WriteString(fmt.Sprintf("\t%+v\n", d))
+			}
+			return s.String()
+		}
+		t.Errorf("Got user span related events\n%+v\nwant:\n%+v", pretty(got), pretty(want))
 	}
 }
