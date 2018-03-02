@@ -268,6 +268,7 @@ func sysauxv(auxv []uintptr) int {
 		}
 
 		archauxv(tag, val)
+		vdsoauxv(tag, val)
 	}
 	return i / 2
 }

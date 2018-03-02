@@ -10,6 +10,9 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define CLOCK_REALTIME	0
+#define CLOCK_MONOTONIC	1
+
 // for EABI, as we don't support OABI
 #define SYS_BASE 0x0
 
@@ -209,31 +212,90 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·walltime(SB), NOSPLIT, $32
-	MOVW	$0, R0  // CLOCK_REALTIME
-	MOVW	$8(R13), R1  // timespec
+TEXT runtime·walltime(SB),NOSPLIT,$0-12
+	// We don't know how much stack space the VDSO code will need,
+	// so switch to g0.
+
+	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
+	MOVW	R13, R4	// R4 is unchanged by C code.
+
+	MOVW	g_m(g), R1
+	MOVW	m_curg(R1), R0
+
+	CMP	R1, R0		// Only switch if on curg.
+	B.NE	noswitch
+
+	MOVW	m_g0(R1), R0
+	MOVW	(g_sched+gobuf_sp)(R0), R13	 // Set SP to g0 stack
+
+noswitch:
+	SUB	$24, R13	// Space for results
+	BIC	$0x7, R13	// Align for C code
+
+	MOVW	$CLOCK_REALTIME, R0
+	MOVW	$8(R13), R1	// timespec
+	MOVW	runtime·__vdso_clock_gettime_sym(SB), R11
+	CMP	$0, R11
+	B.EQ	fallback
+
+	BL	(R11)
+	JMP	finish
+
+fallback:
 	MOVW	$SYS_clock_gettime, R7
 	SWI	$0
-	
+
+finish:
 	MOVW	8(R13), R0  // sec
 	MOVW	12(R13), R2  // nsec
-	
+
+	MOVW	R4, R13		// Restore real SP
+
 	MOVW	R0, sec_lo+0(FP)
 	MOVW	$0, R1
 	MOVW	R1, sec_hi+4(FP)
 	MOVW	R2, nsec+8(FP)
-	RET	
+	RET
 
 // int64 nanotime(void)
-TEXT runtime·nanotime(SB),NOSPLIT,$32
-	MOVW	$1, R0  // CLOCK_MONOTONIC
-	MOVW	$8(R13), R1  // timespec
+TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+	// Switch to g0 stack. See comment above in runtime·walltime.
+
+	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
+	MOVW	R13, R4	// R4 is unchanged by C code.
+
+	MOVW	g_m(g), R1
+	MOVW	m_curg(R1), R0
+
+	CMP	R1, R0		// Only switch if on curg.
+	B.NE	noswitch
+
+	MOVW	m_g0(R1), R0
+	MOVW	(g_sched+gobuf_sp)(R0), R13	// Set SP to g0 stack
+
+noswitch:
+	SUB	$24, R13	// Space for results
+	BIC	$0x7, R13	// Align for C code
+
+	MOVW	$CLOCK_MONOTONIC, R0
+	MOVW	$8(R13), R1	// timespec
+	MOVW	runtime·__vdso_clock_gettime_sym(SB), R11
+	CMP	$0, R11
+	B.EQ	fallback
+
+	BL	(R11)
+	JMP	finish
+
+fallback:
 	MOVW	$SYS_clock_gettime, R7
 	SWI	$0
-	
-	MOVW	8(R13), R0  // sec
-	MOVW	12(R13), R2  // nsec
-	
+
+finish:
+	MOVW	8(R13), R0	// sec
+	MOVW	12(R13), R2	// nsec
+
+	MOVW	R4, R13		// Restore real SP
+
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
 	MOVW	$0, R4
