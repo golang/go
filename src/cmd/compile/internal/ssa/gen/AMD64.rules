@@ -962,6 +962,16 @@
 	(MOV(Q|L|W|B|SS|SD|O)store  [off1+off2] {sym} ptr val mem)
 (SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)mem [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(off1+off2) ->
 	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)mem [off1+off2] {sym} base val mem)
+((ADD|SUB|AND|OR|XOR)Qmem [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|AND|OR|XOR)Qmem [off1+off2] {sym} val base mem)
+((ADD|SUB|AND|OR|XOR)Lmem [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|AND|OR|XOR)Lmem [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL)SSmem [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL)SSmem [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL)SDmem [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL)SDmem [off1+off2] {sym} val base mem)
+(ADD(L|Q)constmem [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	(ADD(L|Q)constmem [ValAndOff(valoff1).add(off2)] {sym} base mem)
 
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
@@ -990,6 +1000,21 @@
 (SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)mem [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)mem [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+((ADD|SUB|AND|OR|XOR)Qmem [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	((ADD|SUB|AND|OR|XOR)Qmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|AND|OR|XOR)Lmem [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	((ADD|SUB|AND|OR|XOR)Lmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL)SSmem [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	((ADD|SUB|MUL)SSmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL)SDmem [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	((ADD|SUB|MUL)SDmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+(ADD(L|Q)constmem [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
+	(ADD(L|Q)constmem [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 
 // generating indexed loads and stores
 (MOV(B|W|L|Q|SS|SD)load [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
