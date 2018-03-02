@@ -582,48 +582,6 @@ var linuxAMD64Tests = []*asmTest{
 	},
 	{
 		fn: `
-		func f48(a uint64) int {
-			return bits.Len64(a)
-		}
-		`,
-		pos: []string{"\tBSRQ\t"},
-	},
-	{
-		fn: `
-		func f49(a uint32) int {
-			return bits.Len32(a)
-		}
-		`,
-		pos: []string{"\tBSRQ\t"},
-	},
-	{
-		fn: `
-		func f50(a uint16) int {
-			return bits.Len16(a)
-		}
-		`,
-		pos: []string{"\tBSRQ\t"},
-	},
-	/* see ssa.go
-	{
-		fn:`
-		func f51(a uint8) int {
-			return bits.Len8(a)
-		}
-		`,
-		pos:[]string{"\tBSRQ\t"},
-	},
-	*/
-	{
-		fn: `
-		func f52(a uint) int {
-			return bits.Len(a)
-		}
-		`,
-		pos: []string{"\tBSRQ\t"},
-	},
-	{
-		fn: `
 		func f53(a uint64) int {
 			return bits.LeadingZeros64(a)
 		}
@@ -1366,46 +1324,6 @@ var linuxS390XTests = []*asmTest{
 	},
 	{
 		fn: `
-		func f24(a uint64) int {
-			return bits.Len64(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f25(a uint32) int {
-			return bits.Len32(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f26(a uint16) int {
-			return bits.Len16(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f27(a uint8) int {
-			return bits.Len8(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f28(a uint) int {
-			return bits.Len(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
 		func f29(a uint64) int {
 			return bits.LeadingZeros64(a)
 		}
@@ -1500,46 +1418,6 @@ var linuxARMTests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
-	},
-	{
-		fn: `
-		func f3(a uint64) int {
-			return bits.Len64(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f4(a uint32) int {
-			return bits.Len32(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f5(a uint16) int {
-			return bits.Len16(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f6(a uint8) int {
-			return bits.Len8(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f7(a uint) int {
-			return bits.Len(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
 	},
 	{
 		fn: `
@@ -1714,46 +1592,6 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tREVW\t"},
-	},
-	{
-		fn: `
-		func f24(a uint64) int {
-			return bits.Len64(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f25(a uint32) int {
-			return bits.Len32(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f26(a uint16) int {
-			return bits.Len16(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f27(a uint8) int {
-			return bits.Len8(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f28(a uint) int {
-			return bits.Len(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
 	},
 	{
 		fn: `
@@ -2177,46 +2015,6 @@ var linuxARM64Tests = []*asmTest{
 
 var linuxMIPSTests = []*asmTest{
 	// Intrinsic tests for math/bits
-	{
-		fn: `
-		func f0(a uint64) int {
-			return bits.Len64(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f1(a uint32) int {
-			return bits.Len32(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f2(a uint16) int {
-			return bits.Len16(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f3(a uint8) int {
-			return bits.Len8(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f4(a uint) int {
-			return bits.Len(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
 	{
 		fn: `
 		func f5(a uint64) int {
