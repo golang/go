@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build 386 amd64
+// +build 386 amd64 arm
 
 package runtime
 
@@ -264,7 +264,7 @@ func vdso_parse_symbols(info *vdso_info, version int32) {
 	}
 }
 
-func archauxv(tag, val uintptr) {
+func vdsoauxv(tag, val uintptr) {
 	switch tag {
 	case _AT_SYSINFO_EHDR:
 		if val == 0 {
