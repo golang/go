@@ -447,6 +447,10 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
 func TestEmptyDwarfRanges(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
 	dir, err := ioutil.TempDir("", "TestEmptyDwarfRanges")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
