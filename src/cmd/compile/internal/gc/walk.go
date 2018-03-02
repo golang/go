@@ -476,6 +476,10 @@ func walkexpr(n *Node, init *Nodes) *Node {
 		Fatalf("missed typecheck: %+v", n)
 	}
 
+	if n.Type.IsUntyped() {
+		Fatalf("expression has untyped type: %+v", n)
+	}
+
 	if n.Op == ONAME && n.Class() == PAUTOHEAP {
 		nn := nod(OIND, n.Name.Param.Heapaddr, nil)
 		nn = typecheck(nn, Erv)
@@ -1234,10 +1238,7 @@ opswitch:
 		if (Op(n.Etype) == OEQ || Op(n.Etype) == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
 			// TODO(marvin): Fix Node.EType type union.
 			r := nod(Op(n.Etype), nod(OLEN, n.Left.List.First(), nil), nodintconst(0))
-			r = typecheck(r, Erv)
-			r = walkexpr(r, init)
-			r.Type = n.Type
-			n = r
+			n = finishcompare(n, r, init)
 			break
 		}
 
@@ -1337,10 +1338,7 @@ opswitch:
 					remains -= step
 					i += step
 				}
-				r = typecheck(r, Erv)
-				r = walkexpr(r, init)
-				r.Type = n.Type
-				n = r
+				n = finishcompare(n, r, init)
 				break
 			}
 		}
@@ -1374,9 +1372,6 @@ opswitch:
 				r = nod(ONOT, r, nil)
 				r = nod(OOROR, nod(ONE, llen, rlen), r)
 			}
-
-			r = typecheck(r, Erv)
-			r = walkexpr(r, nil)
 		} else {
 			// sys_cmpstring(s1, s2) :: 0
 			r = mkcall("cmpstring", types.Types[TINT], init, conv(n.Left, types.Types[TSTRING]), conv(n.Right, types.Types[TSTRING]))
@@ -1384,12 +1379,7 @@ opswitch:
 			r = nod(Op(n.Etype), r, nodintconst(0))
 		}
 
-		r = typecheck(r, Erv)
-		if !n.Type.IsBoolean() {
-			Fatalf("cmp %v", n.Type)
-		}
-		r.Type = n.Type
-		n = r
+		n = finishcompare(n, r, init)
 
 	case OADDSTR:
 		n = addstr(n, init)
