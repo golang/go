@@ -2223,6 +2223,9 @@ func (mux *ServeMux) redirectToPathSlash(host, path string, u *url.URL) (*url.UR
 // path+"/". This should happen if a handler is registered for path+"/" but
 // not path -- see comments at ServeMux.
 func (mux *ServeMux) shouldRedirect(host, path string) bool {
+	mux.mu.RLock()
+	defer mux.mu.RUnlock()
+
 	p := []string{path, host + path}
 
 	for _, c := range p {
