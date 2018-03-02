@@ -1495,34 +1495,6 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-28
 	LEAL	ret+24(FP), AX
 	JMP	runtime·cmpbody(SB)
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
-	MOVL	s+0(FP), SI
-	MOVL	s_len+4(FP), CX
-	MOVB	c+12(FP), AL
-	MOVL	SI, DI
-	CLD; REPN; SCASB
-	JZ 3(PC)
-	MOVL	$-1, ret+16(FP)
-	RET
-	SUBL	SI, DI
-	SUBL	$1, DI
-	MOVL	DI, ret+16(FP)
-	RET
-
-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
-	MOVL	s+0(FP), SI
-	MOVL	s_len+4(FP), CX
-	MOVB	c+8(FP), AL
-	MOVL	SI, DI
-	CLD; REPN; SCASB
-	JZ 3(PC)
-	MOVL	$-1, ret+12(FP)
-	RET
-	SUBL	SI, DI
-	SUBL	$1, DI
-	MOVL	DI, ret+12(FP)
-	RET
-
 // input:
 //   SI = a
 //   DI = b

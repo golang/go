@@ -24,7 +24,6 @@ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: count
 runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declaration
 runtime/asm_amd64.s: [amd64] memeqbody: function memeqbody missing Go declaration
 runtime/asm_amd64.s: [amd64] cmpbody: function cmpbody missing Go declaration
-runtime/asm_amd64.s: [amd64] indexbytebody: function indexbytebody missing Go declaration
 runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
 runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
 runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration

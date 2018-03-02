@@ -49,7 +49,9 @@ import (
 func isRuntimeDepPkg(pkg string) bool {
 	switch pkg {
 	case "runtime",
-		"sync/atomic": // runtime may call to sync/atomic, due to go:linkname
+		"sync/atomic",      // runtime may call to sync/atomic, due to go:linkname
+		"internal/bytealg", // for IndexByte
+		"internal/cpu":     // for cpu features
 		return true
 	}
 	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
@@ -1874,7 +1876,6 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
 	// Only break at outermost syms.
 
 	if ctxt.Arch.InFamily(sys.PPC64) && s.Outer == nil && ctxt.IsELF && ctxt.LinkMode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(s, isTramp) > 0x1c00000 {
-
 		// Set the length for the previous text section
 		sect.Length = va - sect.Vaddr
 

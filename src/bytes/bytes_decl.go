@@ -6,8 +6,8 @@ package bytes
 
 //go:noescape
 
-// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
-func IndexByte(s []byte, c byte) int // ../runtime/asm_$GOARCH.s
+// IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
+func IndexByte(b []byte, c byte) int // in internal/bytealg
 
 //go:noescape
 

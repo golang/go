@@ -1,7 +1,6 @@
 runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
 runtime/asm_s390x.s: [s390x] memeqbody: function memeqbody missing Go declaration
 runtime/asm_s390x.s: [s390x] memeqbodyclc: function memeqbodyclc missing Go declaration
-runtime/asm_s390x.s: [s390x] indexbytebody: function indexbytebody missing Go declaration
 runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
 runtime/asm_s390x.s: [s390x] cmpbody: function cmpbody missing Go declaration
 runtime/asm_s390x.s: [s390x] cmpbodyclc: function cmpbodyclc missing Go declaration

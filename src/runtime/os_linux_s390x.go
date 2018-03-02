@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	internalcpu "internal/cpu"
 	"runtime/internal/sys"
 )
 
@@ -22,11 +23,13 @@ type facilities struct {
 
 // cpu indicates the availability of s390x facilities that can be used in
 // Go assembly but are optional on models supported by Go.
+// TODO: remove this once we're only using internal/cpu.
 var cpu facilities
 
 func archauxv(tag, val uintptr) {
 	switch tag {
 	case _AT_HWCAP: // CPU capability bit flags
+		internalcpu.S390X.HasVX = val&_HWCAP_S390_VX != 0
 		cpu.hasVX = val&_HWCAP_S390_VX != 0
 	}
 }
