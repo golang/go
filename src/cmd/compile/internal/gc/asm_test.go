@@ -224,19 +224,19 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "amd64",
 		os:      "linux",
-		imports: []string{"encoding/binary", "math", "math/bits", "unsafe", "runtime"},
+		imports: []string{"math", "math/bits", "unsafe", "runtime"},
 		tests:   linuxAMD64Tests,
 	},
 	{
 		arch:    "386",
 		os:      "linux",
-		imports: []string{"encoding/binary", "math"},
+		imports: []string{"math"},
 		tests:   linux386Tests,
 	},
 	{
 		arch:    "s390x",
 		os:      "linux",
-		imports: []string{"encoding/binary", "math", "math/bits"},
+		imports: []string{"math", "math/bits"},
 		tests:   linuxS390XTests,
 	},
 	{
@@ -248,7 +248,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "arm64",
 		os:      "linux",
-		imports: []string{"encoding/binary", "math", "math/bits"},
+		imports: []string{"math", "math/bits"},
 		tests:   linuxARM64Tests,
 	},
 	{
@@ -266,7 +266,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "ppc64le",
 		os:      "linux",
-		imports: []string{"encoding/binary", "math", "math/bits"},
+		imports: []string{"math", "math/bits"},
 		tests:   linuxPPC64LETests,
 	},
 	{
@@ -304,183 +304,6 @@ var linuxAMD64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
-	},
-	// Load-combining tests.
-	{
-		fn: `
-		func f2(b []byte) uint64 {
-			return binary.LittleEndian.Uint64(b)
-		}
-		`,
-		pos: []string{"\tMOVQ\t\\(.*\\),"},
-	},
-	{
-		fn: `
-		func f3(b []byte, i int) uint64 {
-			return binary.LittleEndian.Uint64(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVQ\t\\(.*\\)\\(.*\\*1\\),"},
-	},
-	{
-		fn: `
-		func f4(b []byte) uint32 {
-			return binary.LittleEndian.Uint32(b)
-		}
-		`,
-		pos: []string{"\tMOVL\t\\(.*\\),"},
-	},
-	{
-		fn: `
-		func f5(b []byte, i int) uint32 {
-			return binary.LittleEndian.Uint32(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
-	},
-	{
-		fn: `
-		func $(b []byte, v uint64) {
-			binary.LittleEndian.PutUint64(b, v)
-		}
-		`,
-		neg: []string{"SHRQ"},
-	},
-	{
-		fn: `
-		func $(b []byte, i int, v uint64) {
-			binary.LittleEndian.PutUint64(b[i:], v)
-		}
-		`,
-		neg: []string{"SHRQ"},
-	},
-	{
-		fn: `
-		func $(b []byte, v uint32) {
-			binary.LittleEndian.PutUint32(b, v)
-		}
-		`,
-		neg: []string{"SHRL", "SHRQ"},
-	},
-	{
-		fn: `
-		func $(b []byte, i int, v uint32) {
-			binary.LittleEndian.PutUint32(b[i:], v)
-		}
-		`,
-		neg: []string{"SHRL", "SHRQ"},
-	},
-	{
-		fn: `
-		func $(b []byte, v uint16) {
-			binary.LittleEndian.PutUint16(b, v)
-		}
-		`,
-		neg: []string{"SHRW", "SHRL", "SHRQ"},
-	},
-	{
-		fn: `
-		func $(b []byte, i int, v uint16) {
-			binary.LittleEndian.PutUint16(b[i:], v)
-		}
-		`,
-		neg: []string{"SHRW", "SHRL", "SHRQ"},
-	},
-	{
-		fn: `
-		func f6(b []byte) uint64 {
-			return binary.BigEndian.Uint64(b)
-		}
-		`,
-		pos: []string{"\tBSWAPQ\t"},
-	},
-	{
-		fn: `
-		func f7(b []byte, i int) uint64 {
-			return binary.BigEndian.Uint64(b[i:])
-		}
-		`,
-		pos: []string{"\tBSWAPQ\t"},
-	},
-	{
-		fn: `
-		func f8(b []byte, v uint64) {
-			binary.BigEndian.PutUint64(b, v)
-		}
-		`,
-		pos: []string{"\tBSWAPQ\t"},
-	},
-	{
-		fn: `
-		func f9(b []byte, i int, v uint64) {
-			binary.BigEndian.PutUint64(b[i:], v)
-		}
-		`,
-		pos: []string{"\tBSWAPQ\t"},
-	},
-	{
-		fn: `
-		func f10(b []byte) uint32 {
-			return binary.BigEndian.Uint32(b)
-		}
-		`,
-		pos: []string{"\tBSWAPL\t"},
-	},
-	{
-		fn: `
-		func f11(b []byte, i int) uint32 {
-			return binary.BigEndian.Uint32(b[i:])
-		}
-		`,
-		pos: []string{"\tBSWAPL\t"},
-	},
-	{
-		fn: `
-		func f12(b []byte, v uint32) {
-			binary.BigEndian.PutUint32(b, v)
-		}
-		`,
-		pos: []string{"\tBSWAPL\t"},
-	},
-	{
-		fn: `
-		func f13(b []byte, i int, v uint32) {
-			binary.BigEndian.PutUint32(b[i:], v)
-		}
-		`,
-		pos: []string{"\tBSWAPL\t"},
-	},
-	{
-		fn: `
-		func f14(b []byte) uint16 {
-			return binary.BigEndian.Uint16(b)
-		}
-		`,
-		pos: []string{"\tROLW\t\\$8,"},
-	},
-	{
-		fn: `
-		func f15(b []byte, i int) uint16 {
-			return binary.BigEndian.Uint16(b[i:])
-		}
-		`,
-		pos: []string{"\tROLW\t\\$8,"},
-	},
-	{
-		fn: `
-		func f16(b []byte, v uint16) {
-			binary.BigEndian.PutUint16(b, v)
-		}
-		`,
-		pos: []string{"\tROLW\t\\$8,"},
-	},
-	{
-		fn: `
-		func f17(b []byte, i int, v uint16) {
-			binary.BigEndian.PutUint16(b[i:], v)
-		}
-		`,
-		pos: []string{"\tROLW\t\\$8,"},
 	},
 	// Structure zeroing.  See issue #18370.
 	{
@@ -1336,23 +1159,6 @@ var linuxAMD64Tests = []*asmTest{
 }
 
 var linux386Tests = []*asmTest{
-	{
-		fn: `
-		func f0(b []byte) uint32 {
-			return binary.LittleEndian.Uint32(b)
-		}
-		`,
-		pos: []string{"\tMOVL\t\\(.*\\),"},
-	},
-	{
-		fn: `
-		func f1(b []byte, i int) uint32 {
-			return binary.LittleEndian.Uint32(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
-	},
-
 	// multiplication by powers of two
 	{
 		fn: `
@@ -1497,70 +1303,6 @@ var linux386Tests = []*asmTest{
 }
 
 var linuxS390XTests = []*asmTest{
-	{
-		fn: `
-		func f0(b []byte) uint32 {
-			return binary.LittleEndian.Uint32(b)
-		}
-		`,
-		pos: []string{"\tMOVWBR\t\\(.*\\),"},
-	},
-	{
-		fn: `
-		func f1(b []byte, i int) uint32 {
-			return binary.LittleEndian.Uint32(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVWBR\t\\(.*\\)\\(.*\\*1\\),"},
-	},
-	{
-		fn: `
-		func f2(b []byte) uint64 {
-			return binary.LittleEndian.Uint64(b)
-		}
-		`,
-		pos: []string{"\tMOVDBR\t\\(.*\\),"},
-	},
-	{
-		fn: `
-		func f3(b []byte, i int) uint64 {
-			return binary.LittleEndian.Uint64(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVDBR\t\\(.*\\)\\(.*\\*1\\),"},
-	},
-	{
-		fn: `
-		func f4(b []byte) uint32 {
-			return binary.BigEndian.Uint32(b)
-		}
-		`,
-		pos: []string{"\tMOVWZ\t\\(.*\\),"},
-	},
-	{
-		fn: `
-		func f5(b []byte, i int) uint32 {
-			return binary.BigEndian.Uint32(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVWZ\t\\(.*\\)\\(.*\\*1\\),"},
-	},
-	{
-		fn: `
-		func f6(b []byte) uint64 {
-			return binary.BigEndian.Uint64(b)
-		}
-		`,
-		pos: []string{"\tMOVD\t\\(.*\\),"},
-	},
-	{
-		fn: `
-		func f7(b []byte, i int) uint64 {
-			return binary.BigEndian.Uint64(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVD\t\\(.*\\)\\(.*\\*1\\),"},
-	},
 	{
 		fn: `
 		func f8(x uint64) uint64 {
@@ -2390,70 +2132,6 @@ var linuxARM64Tests = []*asmTest{
 	// Load-combining tests.
 	{
 		fn: `
-		func $(b []byte) uint64 {
-			return binary.LittleEndian.Uint64(b)
-		}
-		`,
-		pos: []string{"\tMOVD\t\\(R[0-9]+\\)"},
-	},
-	{
-		fn: `
-		func $(b []byte, i int) uint64 {
-			return binary.LittleEndian.Uint64(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVD\t\\(R[0-9]+\\)"},
-	},
-	{
-		fn: `
-		func $(b []byte) uint32 {
-			return binary.LittleEndian.Uint32(b)
-		}
-		`,
-		pos: []string{"\tMOVWU\t\\(R[0-9]+\\)"},
-	},
-	{
-		fn: `
-		func $(b []byte, i int) uint32 {
-			return binary.LittleEndian.Uint32(b[i:])
-		}
-		`,
-		pos: []string{"\tMOVWU\t\\(R[0-9]+\\)"},
-	},
-	{
-		fn: `
-		func $(b []byte) uint64 {
-			return binary.BigEndian.Uint64(b)
-		}
-		`,
-		pos: []string{"\tREV\t"},
-	},
-	{
-		fn: `
-		func $(b []byte, i int) uint64 {
-			return binary.BigEndian.Uint64(b[i:])
-		}
-		`,
-		pos: []string{"\tREV\t"},
-	},
-	{
-		fn: `
-		func $(b []byte) uint32 {
-			return binary.BigEndian.Uint32(b)
-		}
-		`,
-		pos: []string{"\tREVW\t"},
-	},
-	{
-		fn: `
-		func $(b []byte, i int) uint32 {
-			return binary.BigEndian.Uint32(b[i:])
-		}
-		`,
-		pos: []string{"\tREVW\t"},
-	},
-	{
-		fn: `
 		func $(s []byte) uint16 {
 			return uint16(s[0]) | uint16(s[1]) << 8
 		}
@@ -2759,61 +2437,6 @@ var linuxARM64Tests = []*asmTest{
 		pos: []string{"STP"},
 		neg: []string{"MOVB", "MOVH", "MOVW"},
 	},
-	// Check that stores are combine into larger stores
-	{
-		fn: `
-		func $(b []byte, v uint16) {
-			binary.LittleEndian.PutUint16(b, v)
-		}
-		`,
-		pos: []string{"MOVH"},
-		neg: []string{"MOVB"},
-	},
-	{
-		fn: `
-		func $(b []byte, v uint32) {
-			binary.LittleEndian.PutUint32(b, v)
-		}
-		`,
-		pos: []string{"MOVW"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(b []byte, v uint64) {
-			binary.LittleEndian.PutUint64(b, v)
-		}
-		`,
-		pos: []string{"MOVD"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(b []byte, v uint16) {
-			binary.BigEndian.PutUint16(b, v)
-		}
-		`,
-		pos: []string{"MOVH"},
-		neg: []string{"MOVB"},
-	},
-	{
-		fn: `
-		func $(b []byte, v uint32) {
-			binary.BigEndian.PutUint32(b, v)
-		}
-		`,
-		pos: []string{"MOVW"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(b []byte, v uint64) {
-			binary.BigEndian.PutUint64(b, v)
-		}
-		`,
-		pos: []string{"MOVD"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
 }
 
 var linuxMIPSTests = []*asmTest{
@@ -3056,61 +2679,6 @@ var linuxPPC64LETests = []*asmTest{
                 }
                 `,
 		pos: []string{"\tFABS\t"},
-	},
-
-	{
-		fn: `
-		func f14(b []byte) uint16 {
-			return binary.LittleEndian.Uint16(b)
-	}
-		`,
-		pos: []string{"\tMOVHZ\t"},
-	},
-	{
-		fn: `
-		func f15(b []byte) uint32 {
-			return binary.LittleEndian.Uint32(b)
-		}
-		`,
-		pos: []string{"\tMOVWZ\t"},
-	},
-
-	{
-		fn: `
-		func f16(b []byte) uint64 {
-			return binary.LittleEndian.Uint64(b)
-		}
-		`,
-		pos: []string{"\tMOVD\t"},
-		neg: []string{"MOVBZ", "MOVHZ", "MOVWZ"},
-	},
-
-	{
-		fn: `
-		func f17(b []byte, v uint16) {
-			binary.LittleEndian.PutUint16(b, v)
-		}
-		`,
-		pos: []string{"\tMOVH\t"},
-	},
-
-	{
-		fn: `
-		func f18(b []byte, v uint32) {
-			binary.LittleEndian.PutUint32(b, v)
-		}
-		`,
-		pos: []string{"\tMOVW\t"},
-	},
-
-	{
-		fn: `
-		func f19(b []byte, v uint64) {
-			binary.LittleEndian.PutUint64(b, v)
-		}
-		`,
-		pos: []string{"\tMOVD\t"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
 	},
 
 	{
