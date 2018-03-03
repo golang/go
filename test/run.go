@@ -1294,10 +1294,11 @@ var (
 )
 
 type wantedAsmOpcode struct {
-	line     int
-	opcode   *regexp.Regexp
-	negative bool
-	found    bool
+	fileline string         // original source file/line (eg: "/path/foo.go:45")
+	line     int            // original source line
+	opcode   *regexp.Regexp // opcode check to be performed on assembly output
+	negative bool           // true if the check is supposed to fail rather than pass
+	found    bool           // true if the opcode check matched at least one in the output
 }
 
 func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpcode, []string) {
@@ -1353,6 +1354,7 @@ func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpc
 				archs[arch] = true
 				ops[arch][lnum] = append(ops[arch][lnum], wantedAsmOpcode{
 					negative: negative,
+					fileline: lnum,
 					line:     i + 1,
 					opcode:   oprx,
 				})
@@ -1371,28 +1373,46 @@ func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpc
 }
 
 func (t *test) asmCheck(outStr string, fn string, arch string, fullops map[string][]wantedAsmOpcode) (err error) {
-	defer func() {
-		if *verbose && err != nil {
-			log.Printf("%s gc output:\n%s", t, outStr)
-		}
-	}()
+	// The assembly output contains the concatenated dump of multiple functions.
+	// the first line of each function begins at column 0, while the rest is
+	// indented by a tabulation. These data structures help us index the
+	// output by function.
+	functionMarkers := make([]int, 1)
+	lineFuncMap := make(map[string]int)
 
+	lines := strings.Split(outStr, "\n")
 	rxLine := regexp.MustCompile(fmt.Sprintf(`\((%s:\d+)\)\s+(.*)`, regexp.QuoteMeta(fn)))
 
-	for _, line := range strings.Split(outStr, "\n") {
+	for nl, line := range lines {
+		// Check if this line begins a function
+		if len(line) > 0 && line[0] != '\t' {
+			functionMarkers = append(functionMarkers, nl)
+		}
+
+		// Search if this line contains a assembly opcode (which is prefixed by the
+		// original source file/line in parenthesis)
 		matches := rxLine.FindStringSubmatch(line)
 		if len(matches) == 0 {
 			continue
 		}
+		srcFileLine, asm := matches[1], matches[2]
 
-		ops := fullops[matches[1]]
-		asm := matches[2]
-		for i := range ops {
-			if !ops[i].found && ops[i].opcode.FindString(asm) != "" {
-				ops[i].found = true
+		// Associate the original file/line information to the current
+		// function in the output; it will be useful to dump it in case
+		// of error.
+		lineFuncMap[srcFileLine] = len(functionMarkers) - 1
+
+		// If there are opcode checks associated to this source file/line,
+		// run the checks.
+		if ops, found := fullops[srcFileLine]; found {
+			for i := range ops {
+				if !ops[i].found && ops[i].opcode.FindString(asm) != "" {
+					ops[i].found = true
+				}
 			}
 		}
 	}
+	functionMarkers = append(functionMarkers, len(lines))
 
 	var failed []wantedAsmOpcode
 	for _, ops := range fullops {
@@ -1413,9 +1433,19 @@ func (t *test) asmCheck(outStr string, fn string, arch string, fullops map[strin
 		return failed[i].line < failed[j].line
 	})
 
+	lastFunction := -1
 	var errbuf bytes.Buffer
 	fmt.Fprintln(&errbuf)
 	for _, o := range failed {
+		// Dump the function in which this opcode check was supposed to
+		// pass but failed.
+		funcIdx := lineFuncMap[o.fileline]
+		if funcIdx != 0 && funcIdx != lastFunction {
+			funcLines := lines[functionMarkers[funcIdx]:functionMarkers[funcIdx+1]]
+			log.Println(strings.Join(funcLines, "\n"))
+			lastFunction = funcIdx // avoid printing same function twice
+		}
+
 		if o.negative {
 			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %q\n", t.goFileName(), o.line, arch, o.opcode.String())
 		} else {
