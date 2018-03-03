@@ -712,58 +712,6 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	B	(ZR)
 	UNDEF
 
-TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
-	MOVD	s1_base+0(FP), R2
-	MOVD	s1_len+8(FP), R0
-	MOVD	s2_base+16(FP), R3
-	MOVD	s2_len+24(FP), R1
-	ADD	$40, RSP, R7
-	B	runtime·cmpbody<>(SB)
-
-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
-	MOVD	s1+0(FP), R2
-	MOVD	s1+8(FP), R0
-	MOVD	s2+24(FP), R3
-	MOVD	s2+32(FP), R1
-	ADD	$56, RSP, R7
-	B	runtime·cmpbody<>(SB)
-
-// On entry:
-// R0 is the length of s1
-// R1 is the length of s2
-// R2 points to the start of s1
-// R3 points to the start of s2
-// R7 points to return value (-1/0/1 will be written here)
-//
-// On exit:
-// R4, R5, and R6 are clobbered
-TEXT runtime·cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
-	CMP	R2, R3
-	BEQ	samebytes // same starting pointers; compare lengths
-	CMP	R0, R1
-	CSEL    LT, R1, R0, R6 // R6 is min(R0, R1)
-
-	ADD	R2, R6	// R2 is current byte in s1, R6 is last byte in s1 to compare
-loop:
-	CMP	R2, R6
-	BEQ	samebytes // all compared bytes were the same; compare lengths
-	MOVBU.P	1(R2), R4
-	MOVBU.P	1(R3), R5
-	CMP	R4, R5
-	BEQ	loop
-	// bytes differed
-	MOVD	$1, R4
-	CSNEG	LT, R4, R4, R4
-	MOVD	R4, (R7)
-	RET
-samebytes:
-	MOVD	$1, R4
-	CMP	R0, R1
-	CSNEG	LT, R4, R4, R4
-	CSEL	EQ, ZR, R4, R4
-	MOVD	R4, (R7)
-	RET
-
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R0
 	RET
