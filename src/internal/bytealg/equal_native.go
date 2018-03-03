@@ -15,9 +15,12 @@ import (
 // TODO: find a better way to do this?
 
 // Offsets into internal/cpu records for use in assembly.
-const x86_HasSSE2 = unsafe.Offsetof(cpu.X86.HasSSE2)
-const x86_HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
-const s390x_HasVX = unsafe.Offsetof(cpu.S390X.HasVX)
+const (
+	x86_HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
+	x86_HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
+	x86_HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
+	s390x_HasVX   = unsafe.Offsetof(cpu.S390X.HasVX)
+)
 
 //go:noescape
 func Equal(a, b []byte) bool

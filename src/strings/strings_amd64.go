@@ -77,12 +77,3 @@ func Index(s, substr string) int {
 	}
 	return indexRabinKarp(s, substr)
 }
-
-// Count counts the number of non-overlapping instances of substr in s.
-// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
-func Count(s, substr string) int {
-	if len(substr) == 1 && cpu.X86.HasPOPCNT {
-		return countByte(s, byte(substr[0]))
-	}
-	return countGeneric(s, substr)
-}

@@ -13,8 +13,6 @@ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument fram
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package strings
 runtime/asm_amd64.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: countByte is in package strings
-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: countByte is in package bytes
 
 // Intentionally missing declarations. These are special assembly routines.
 // Some are jumped into from other routines, with values in specific registers.
@@ -28,4 +26,3 @@ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
 runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
 runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
 runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
-runtime/asm_amd64.s: [amd64] countByte: function countByte missing Go declaration

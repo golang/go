@@ -78,9 +78,3 @@ func Index(s, substr string) int {
 	}
 	return indexRabinKarp(s, substr)
 }
-
-// Count counts the number of non-overlapping instances of substr in s.
-// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
-func Count(s, substr string) int {
-	return countGeneric(s, substr)
-}
