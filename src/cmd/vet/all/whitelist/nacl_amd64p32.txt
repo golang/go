@@ -20,7 +20,6 @@ runtime/sys_nacl_amd64p32.s: [amd64p32] settls: function settls missing Go decla
 runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
 runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
 
-runtime/asm_amd64p32.s: [amd64p32] memeqbody: function memeqbody missing Go declaration
 runtime/asm_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
 runtime/asm_amd64p32.s: [amd64p32] cmpbody: function cmpbody missing Go declaration
 runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
