@@ -444,7 +444,7 @@ func (s *regAllocState) makeSpill(v *Value, b *Block) *Value {
 // *Value which is either v or a copy of v allocated to the chosen register.
 func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos src.XPos) *Value {
 	vi := &s.values[v.ID]
-
+	pos = pos.WithNotStmt()
 	// Check if v is already in a requested register.
 	if mask&vi.regs != 0 {
 		r := pickReg(mask & vi.regs)
@@ -1893,18 +1893,20 @@ func (e *edgeState) process() {
 			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc, c)
 		}
 		e.erase(r)
+		pos := d.pos.WithNotStmt()
 		if _, isReg := loc.(*Register); isReg {
-			c = e.p.NewValue1(d.pos, OpCopy, c.Type, c)
+			c = e.p.NewValue1(pos, OpCopy, c.Type, c)
 		} else {
-			c = e.p.NewValue1(d.pos, OpLoadReg, c.Type, c)
+			c = e.p.NewValue1(pos, OpLoadReg, c.Type, c)
 		}
-		e.set(r, vid, c, false, d.pos)
+		e.set(r, vid, c, false, pos)
 	}
 }
 
 // processDest generates code to put value vid into location loc. Returns true
 // if progress was made.
 func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XPos) bool {
+	pos = pos.WithNotStmt()
 	occupant := e.contents[loc]
 	if occupant.vid == vid {
 		// Value is already in the correct place.
