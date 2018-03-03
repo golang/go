@@ -224,19 +224,18 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "amd64",
 		os:      "linux",
-		imports: []string{"math", "math/bits", "unsafe", "runtime"},
+		imports: []string{"math/bits", "unsafe", "runtime"},
 		tests:   linuxAMD64Tests,
 	},
 	{
-		arch:    "386",
-		os:      "linux",
-		imports: []string{"math"},
-		tests:   linux386Tests,
+		arch:  "386",
+		os:    "linux",
+		tests: linux386Tests,
 	},
 	{
 		arch:    "s390x",
 		os:      "linux",
-		imports: []string{"math", "math/bits"},
+		imports: []string{"math/bits"},
 		tests:   linuxS390XTests,
 	},
 	{
@@ -248,25 +247,24 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "arm64",
 		os:      "linux",
-		imports: []string{"math", "math/bits"},
+		imports: []string{"math/bits"},
 		tests:   linuxARM64Tests,
 	},
 	{
 		arch:    "mips",
 		os:      "linux",
-		imports: []string{"math/bits", "math"},
+		imports: []string{"math/bits"},
 		tests:   linuxMIPSTests,
 	},
 	{
-		arch:    "mips64",
-		os:      "linux",
-		imports: []string{"math"},
-		tests:   linuxMIPS64Tests,
+		arch:  "mips64",
+		os:    "linux",
+		tests: linuxMIPS64Tests,
 	},
 	{
 		arch:    "ppc64le",
 		os:      "linux",
-		imports: []string{"math", "math/bits"},
+		imports: []string{"math/bits"},
 		tests:   linuxPPC64LETests,
 	},
 	{
@@ -694,14 +692,6 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
 	},
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Sqrt(x)
-		}
-		`,
-		pos: []string{"SQRTSD"},
-	},
 	// multiplication merging tests
 	{
 		fn: `
@@ -975,57 +965,7 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"TEXT\t.*, [$]0-8"},
 	},
-	// math.Abs using integer registers
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Abs(x)
-		}
-		`,
-		pos: []string{"\tSHLQ\t[$]1,", "\tSHRQ\t[$]1,"},
-	},
-	// math.Copysign using integer registers
-	{
-		fn: `
-		func $(x, y float64) float64 {
-			return math.Copysign(x, y)
-		}
-		`,
-		pos: []string{"\tSHLQ\t[$]1,", "\tSHRQ\t[$]1,", "\tSHRQ\t[$]63,", "\tSHLQ\t[$]63,", "\tORQ\t"},
-	},
 	// int <-> fp moves
-	{
-		fn: `
-		func $(x float64) uint64 {
-			return math.Float64bits(x+1) + 1
-		}
-		`,
-		pos: []string{"\tMOVQ\tX.*, [^X].*"},
-	},
-	{
-		fn: `
-		func $(x float32) uint32 {
-			return math.Float32bits(x+1) + 1
-		}
-		`,
-		pos: []string{"\tMOVL\tX.*, [^X].*"},
-	},
-	{
-		fn: `
-		func $(x uint64) float64 {
-			return math.Float64frombits(x+1) + 1
-		}
-		`,
-		pos: []string{"\tMOVQ\t[^X].*, X.*"},
-	},
-	{
-		fn: `
-		func $(x uint32) float32 {
-			return math.Float32frombits(x+1) + 1
-		}
-		`,
-		pos: []string{"\tMOVL\t[^X].*, X.*"},
-	},
 	{
 		fn: `
 		func $(x uint32) bool {
@@ -1290,16 +1230,6 @@ var linux386Tests = []*asmTest{
 		`,
 		neg: []string{"memmove"},
 	},
-
-	// Intrinsic tests for math
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Sqrt(x)
-		}
-		`,
-		pos: []string{"FSQRT|SQRTSD"}, // 387|sse2
-	},
 }
 
 var linuxS390XTests = []*asmTest{
@@ -1514,47 +1444,6 @@ var linuxS390XTests = []*asmTest{
 		`,
 		pos: []string{"\tFLOGR\t"},
 	},
-	// Intrinsic tests for math.
-	{
-		fn: `
-		func ceil(x float64) float64 {
-			return math.Ceil(x)
-		}
-		`,
-		pos: []string{"\tFIDBR\t[$]6"},
-	},
-	{
-		fn: `
-		func floor(x float64) float64 {
-			return math.Floor(x)
-		}
-		`,
-		pos: []string{"\tFIDBR\t[$]7"},
-	},
-	{
-		fn: `
-		func round(x float64) float64 {
-			return math.Round(x)
-		}
-		`,
-		pos: []string{"\tFIDBR\t[$]1"},
-	},
-	{
-		fn: `
-		func trunc(x float64) float64 {
-			return math.Trunc(x)
-		}
-		`,
-		pos: []string{"\tFIDBR\t[$]5"},
-	},
-	{
-		fn: `
-		func roundToEven(x float64) float64 {
-			return math.RoundToEven(x)
-		}
-		`,
-		pos: []string{"\tFIDBR\t[$]4"},
-	},
 	{
 		// check that stack store is optimized away
 		fn: `
@@ -1564,118 +1453,6 @@ var linuxS390XTests = []*asmTest{
 		}
 		`,
 		pos: []string{"TEXT\t.*, [$]0-8"},
-	},
-	// Constant propagation through raw bits conversions.
-	{
-		// uint32 constant converted to float32 constant
-		fn: `
-		func $(x float32) float32 {
-			if x > math.Float32frombits(0x3f800000) {
-				return -x
-			}
-			return x
-		}
-		`,
-		pos: []string{"\tFMOVS\t[$]f32.3f800000\\(SB\\)"},
-	},
-	{
-		// float32 constant converted to uint32 constant
-		fn: `
-		func $(x uint32) uint32 {
-			if x > math.Float32bits(1) {
-				return -x
-			}
-			return x
-		}
-		`,
-		neg: []string{"\tFMOVS\t"},
-	},
-	// Constant propagation through float comparisons.
-	{
-		fn: `
-		func $() bool {
-			return 0.5 == float64(uint32(1)) ||
-				1.5 > float64(uint64(1<<63)) ||
-				math.NaN() == math.NaN()
-		}
-		`,
-		pos: []string{"\tMOV(B|BZ|D)\t[$]0,"},
-		neg: []string{"\tFCMPU\t", "\tMOV(B|BZ|D)\t[$]1,"},
-	},
-	{
-		fn: `
-		func $() bool {
-			return float32(0.5) <= float32(int64(1)) &&
-				float32(1.5) >= float32(int32(-1<<31)) &&
-				float32(math.NaN()) != float32(math.NaN())
-		}
-		`,
-		pos: []string{"\tMOV(B|BZ|D)\t[$]1,"},
-		neg: []string{"\tCEBR\t", "\tMOV(B|BZ|D)\t[$]0,"},
-	},
-	// math tests
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Abs(x)
-		}
-		`,
-		pos: []string{"\tLPDFR\t"},
-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
-	},
-	{
-		fn: `
-		func $(x float32) float32 {
-			return float32(math.Abs(float64(x)))
-		}
-		`,
-		pos: []string{"\tLPDFR\t"},
-		neg: []string{"\tLDEBR\t", "\tLEDBR\t"}, // no float64 conversion
-	},
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Float64frombits(math.Float64bits(x)|1<<63)
-		}
-		`,
-		pos: []string{"\tLNDFR\t"},
-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
-	},
-	{
-		fn: `
-		func $(x float64) float64 {
-			return -math.Abs(x)
-		}
-		`,
-		pos: []string{"\tLNDFR\t"},
-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
-	},
-	{
-		fn: `
-		func $(x, y float64) float64 {
-			return math.Copysign(x, y)
-		}
-		`,
-		pos: []string{"\tCPSDR\t"},
-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
-	},
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Copysign(x, -1)
-		}
-		`,
-		pos: []string{"\tLNDFR\t"},
-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
-	},
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Copysign(-1, x)
-		}
-		`,
-		pos: []string{"\tCPSDR\t"},
-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
 	},
 }
 
@@ -2139,47 +1916,6 @@ var linuxARM64Tests = []*asmTest{
 		pos: []string{"\tMOVHU\t\\(R[0-9]+\\)"},
 		neg: []string{"ORR\tR[0-9]+<<8\t"},
 	},
-	// Intrinsic tests for math.
-	{
-		fn: `
-		func sqrt(x float64) float64 {
-			return math.Sqrt(x)
-		}
-		`,
-		pos: []string{"FSQRTD"},
-	},
-	{
-		fn: `
-		func ceil(x float64) float64 {
-			return math.Ceil(x)
-		}
-		`,
-		pos: []string{"FRINTPD"},
-	},
-	{
-		fn: `
-		func floor(x float64) float64 {
-			return math.Floor(x)
-		}
-		`,
-		pos: []string{"FRINTMD"},
-	},
-	{
-		fn: `
-		func round(x float64) float64 {
-			return math.Round(x)
-		}
-		`,
-		pos: []string{"FRINTAD"},
-	},
-	{
-		fn: `
-		func trunc(x float64) float64 {
-			return math.Trunc(x)
-		}
-		`,
-		pos: []string{"FRINTZD"},
-	},
 	{
 		// make sure that CSEL is emitted for conditional moves
 		fn: `
@@ -2521,15 +2257,6 @@ var linuxMIPSTests = []*asmTest{
 		`,
 		pos: []string{"\tCLZ\t"},
 	},
-	// Intrinsic tests for math.
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Sqrt(x)
-		}
-		`,
-		pos: []string{"SQRTD"},
-	},
 	{
 		// check that stack store is optimized away
 		fn: `
@@ -2552,15 +2279,6 @@ var linuxMIPS64Tests = []*asmTest{
 		`,
 		pos: []string{"SLLV\t\\$17"},
 		neg: []string{"SGT"},
-	},
-	// Intrinsic tests for math.
-	{
-		fn: `
-		func $(x float64) float64 {
-			return math.Sqrt(x)
-		}
-		`,
-		pos: []string{"SQRTD"},
 	},
 }
 
@@ -2664,24 +2382,6 @@ var linuxPPC64LETests = []*asmTest{
 	},
 
 	{
-		fn: `
-                func f12(a, b float64) float64 {
-                        return math.Copysign(a, b)
-                }
-                `,
-		pos: []string{"\tFCPSGN\t"},
-	},
-
-	{
-		fn: `
-                func f13(a float64) float64 {
-                        return math.Abs(a)
-                }
-                `,
-		pos: []string{"\tFABS\t"},
-	},
-
-	{
 		// check that stack store is optimized away
 		fn: `
 		func $() int {
@@ -2690,31 +2390,6 @@ var linuxPPC64LETests = []*asmTest{
 		}
 		`,
 		pos: []string{"TEXT\t.*, [$]0-8"},
-	},
-	// Constant propagation through raw bits conversions.
-	{
-		// uint32 constant converted to float32 constant
-		fn: `
-		func $(x float32) float32 {
-			if x > math.Float32frombits(0x3f800000) {
-				return -x
-			}
-			return x
-		}
-		`,
-		pos: []string{"\tFMOVS\t[$]f32.3f800000\\(SB\\)"},
-	},
-	{
-		// float32 constant converted to uint32 constant
-		fn: `
-		func $(x uint32) uint32 {
-			if x > math.Float32bits(1) {
-				return -x
-			}
-			return x
-		}
-		`,
-		neg: []string{"\tFMOVS\t"},
 	},
 }
 
