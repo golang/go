@@ -11,7 +11,9 @@ go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have 
 
 // Nothing much to do about cross-package assembly. Unfortunate.
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal is in package runtime
+internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal_varlen is in package runtime
 internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
 internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
 
