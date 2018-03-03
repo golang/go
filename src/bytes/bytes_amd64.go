@@ -77,12 +77,3 @@ func Index(s, sep []byte) int {
 	}
 	return indexRabinKarp(s, sep)
 }
-
-// Count counts the number of non-overlapping instances of sep in s.
-// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
-func Count(s, sep []byte) int {
-	if len(sep) == 1 && cpu.X86.HasPOPCNT {
-		return countByte(s, sep[0])
-	}
-	return countGeneric(s, sep)
-}

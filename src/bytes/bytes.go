@@ -7,6 +7,7 @@
 package bytes
 
 import (
+	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
 )
@@ -46,11 +47,15 @@ func explode(s []byte, n int) [][]byte {
 	return a[0:na]
 }
 
-// countGeneric actually implements Count
-func countGeneric(s, sep []byte) int {
+// Count counts the number of non-overlapping instances of sep in s.
+// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
+func Count(s, sep []byte) int {
 	// special case
 	if len(sep) == 0 {
 		return utf8.RuneCount(s) + 1
+	}
+	if len(sep) == 1 {
+		return bytealg.Count(s, sep[0])
 	}
 	n := 0
 	for {

@@ -754,6 +754,7 @@ var (
 	// Set on startup in asm_{386,amd64,amd64p32}.s.
 	// Packages outside the runtime should not use these
 	// as they are not an external api.
+	// TODO: deprecate these; use internal/cpu directly.
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool

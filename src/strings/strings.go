@@ -8,6 +8,7 @@
 package strings
 
 import (
+	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
 )
@@ -72,11 +73,15 @@ func hashStrRev(sep string) (uint32, uint32) {
 	return hash, pow
 }
 
-// countGeneric implements Count.
-func countGeneric(s, substr string) int {
+// Count counts the number of non-overlapping instances of substr in s.
+// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+func Count(s, substr string) int {
 	// special case
 	if len(substr) == 0 {
 		return utf8.RuneCountInString(s) + 1
+	}
+	if len(substr) == 1 {
+		return bytealg.CountString(s, substr[0])
 	}
 	n := 0
 	for {
