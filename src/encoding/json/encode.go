@@ -281,6 +281,11 @@ func newEncodeState() *encodeState {
 	return new(encodeState)
 }
 
+// jsonError is an error wrapper type for internal use only.
+// Panics with errors are wrapped in jsonError so that the top-level recover
+// can distinguish intentional panics from this package.
+type jsonError struct{ error }
+
 func (e *encodeState) marshal(v interface{}, opts encOpts) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
