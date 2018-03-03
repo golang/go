@@ -621,10 +621,23 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 		}
 		return
 	}
-	// s's expression is an interface. This is fairly rare, so keep this simple.
-	// Duplicates are only duplicates if they have the same type and the same value.
+
+	// s's expression is an interface. This is fairly rare, so
+	// keep this simple. Case expressions are only duplicates if
+	// they have the same value and identical types.
+	//
+	// In general, we have to use eqtype to test type identity,
+	// because == gives false negatives for anonymous types and
+	// the byte/uint8 and rune/int32 builtin type aliases.
+	// However, this is not a problem here, because constant
+	// expressions are always untyped or have a named type, and we
+	// explicitly handle the builtin type aliases below.
+	//
+	// This approach may need to be revisited though if we fix
+	// #21866 by treating all type aliases like byte/uint8 and
+	// rune/int32.
 	type typeVal struct {
-		typ string
+		typ *types.Type
 		val interface{}
 	}
 	seen := make(map[typeVal]*Node)
@@ -634,8 +647,14 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 				continue
 			}
 			tv := typeVal{
-				typ: n.Type.LongString(),
+				typ: n.Type,
 				val: n.Val().Interface(),
+			}
+			switch tv.typ {
+			case types.Bytetype:
+				tv.typ = types.Types[TUINT8]
+			case types.Runetype:
+				tv.typ = types.Types[TINT32]
 			}
 			prev, dup := seen[tv]
 			if !dup {
