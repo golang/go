@@ -1,19 +1,15 @@
 // amd64-specific vet whitelist. See readme.txt for details.
 
-internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: Compare is in package bytes
-internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: cmpstring is in package runtime
-
 // False positives.
 
+// Nothing much to do about cross-package assembly. Unfortunate.
+internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: Compare is in package bytes
+internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: cmpstring is in package runtime
 
 // reflect trampolines intentionally omit arg size. Same for morestack.
 runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
 runtime/asm_amd64.s: [amd64] morestack: use of 16(SP) points beyond argument frame
 runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
-
-// Nothing much to do about cross-package assembly. Unfortunate.
-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package strings
-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
 
 // Intentionally missing declarations. These are special assembly routines.
 // Some are jumped into from other routines, with values in specific registers.
@@ -25,4 +21,3 @@ runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go de
 runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
 runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
 runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
-runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration

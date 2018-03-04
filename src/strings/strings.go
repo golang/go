@@ -932,6 +932,85 @@ func EqualFold(s, t string) bool {
 	return s == t
 }
 
+// Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
+func Index(s, substr string) int {
+	n := len(substr)
+	switch {
+	case n == 0:
+		return 0
+	case n == 1:
+		return IndexByte(s, substr[0])
+	case n == len(s):
+		if substr == s {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
+	case n <= bytealg.MaxLen:
+		// Use brute force when s and substr both are small
+		if len(s) <= bytealg.MaxBruteForce {
+			return bytealg.IndexString(s, substr)
+		}
+		c := substr[0]
+		i := 0
+		t := s[:len(s)-n+1]
+		fails := 0
+		for i < len(t) {
+			if t[i] != c {
+				// IndexByte is faster than bytealg.IndexString, so use it as long as
+				// we're not getting lots of false positives.
+				o := IndexByte(t[i:], c)
+				if o < 0 {
+					return -1
+				}
+				i += o
+			}
+			if s[i:i+n] == substr {
+				return i
+			}
+			fails++
+			i++
+			// Switch to bytealg.IndexString when IndexByte produces too many false positives.
+			if fails > bytealg.Cutover(i) {
+				r := bytealg.IndexString(s[i:], substr)
+				if r >= 0 {
+					return r + i
+				}
+				return -1
+			}
+		}
+		return -1
+	}
+	c := substr[0]
+	i := 0
+	t := s[:len(s)-n+1]
+	fails := 0
+	for i < len(t) {
+		if t[i] != c {
+			o := IndexByte(t[i:], c)
+			if o < 0 {
+				return -1
+			}
+			i += o
+		}
+		if s[i:i+n] == substr {
+			return i
+		}
+		i++
+		fails++
+		if fails >= 4+i>>4 && i < len(t) {
+			// See comment in ../bytes/bytes_generic.go.
+			j := indexRabinKarp(s[i:], substr)
+			if j < 0 {
+				return -1
+			}
+			return i + j
+		}
+	}
+	return -1
+}
+
 func indexRabinKarp(s, substr string) int {
 	// Rabin-Karp search
 	hashss, pow := hashStr(substr)
