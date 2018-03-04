@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"sync/atomic"
 	"syscall"
+	"time"
 )
 
 // Network file descriptor.
@@ -297,4 +298,16 @@ func (fd *netFD) dup() (f *os.File, err error) {
 	}
 
 	return os.NewFile(uintptr(ns), fd.name()), nil
+}
+
+func (fd *netFD) SetDeadline(t time.Time) error {
+	return fd.pfd.SetDeadline(t)
+}
+
+func (fd *netFD) SetReadDeadline(t time.Time) error {
+	return fd.pfd.SetReadDeadline(t)
+}
+
+func (fd *netFD) SetWriteDeadline(t time.Time) error {
+	return fd.pfd.SetWriteDeadline(t)
 }
