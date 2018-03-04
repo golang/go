@@ -193,3 +193,7 @@ TEXT ·nanotime(SB), NOSPLIT, $0
 TEXT ·walltime(SB), NOSPLIT, $0
 	CallImport
 	RET
+
+TEXT ·getRandomData(SB), NOSPLIT, $0
+	CallImport
+	RET
