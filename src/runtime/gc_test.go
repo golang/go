@@ -155,6 +155,10 @@ func TestHugeGCInfo(t *testing.T) {
 }
 
 func TestPeriodicGC(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no sysmon on wasm yet")
+	}
+
 	// Make sure we're not in the middle of a GC.
 	runtime.GC()
 

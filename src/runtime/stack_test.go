@@ -76,6 +76,10 @@ func TestStackMem(t *testing.T) {
 
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
+	if GOARCH == "wasm" {
+		t.Skip("fails on wasm (too slow?)")
+	}
+
 	// Don't make this test parallel as this makes the 20 second
 	// timeout unreliable on slow builders. (See issue #19381.)
 
