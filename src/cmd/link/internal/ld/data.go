@@ -1852,6 +1852,10 @@ func (ctxt *Link) textaddress() {
 // Note: once we have trampoline insertion support for external linking, this function
 // will not need to create new text sections, and so no need to return sect and n.
 func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64) {
+	if thearch.AssignAddress != nil {
+		return thearch.AssignAddress(ctxt, sect, n, s, va, isTramp)
+	}
+
 	s.Sect = sect
 	if s.Attr.SubSymbol() {
 		return sect, n, va

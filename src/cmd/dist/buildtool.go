@@ -80,6 +80,7 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/s390x",
 	"cmd/link/internal/sym",
 	"cmd/link/internal/x86",
+	"cmd/link/internal/wasm",
 	"container/heap",
 	"debug/dwarf",
 	"debug/elf",

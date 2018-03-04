@@ -1675,7 +1675,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	if *FlagS && ctxt.HeadType != objabi.Hdarwin {
 		return
 	}
-	if ctxt.HeadType == objabi.Hplan9 {
+	if ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hjs {
 		return
 	}
 

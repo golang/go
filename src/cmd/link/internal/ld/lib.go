@@ -121,6 +121,9 @@ type Arch struct {
 	// symbol in an executable, which is typical when internally
 	// linking PIE binaries.
 	TLSIEtoLE func(s *sym.Symbol, off, size int)
+
+	// optional override for assignAddress
+	AssignAddress func(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64)
 }
 
 var (

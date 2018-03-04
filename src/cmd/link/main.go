@@ -15,6 +15,7 @@ import (
 	"cmd/link/internal/mips64"
 	"cmd/link/internal/ppc64"
 	"cmd/link/internal/s390x"
+	"cmd/link/internal/wasm"
 	"cmd/link/internal/x86"
 	"fmt"
 	"os"
@@ -58,6 +59,8 @@ func main() {
 		arch, theArch = ppc64.Init()
 	case "s390x":
 		arch, theArch = s390x.Init()
+	case "wasm":
+		arch, theArch = wasm.Init()
 	}
 	ld.Main(arch, theArch)
 }
