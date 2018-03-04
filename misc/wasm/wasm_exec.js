@@ -145,7 +145,7 @@ async function compile(source) {
 
 async function run() {
 	let importObject = {
-		js: {
+		go: {
 			// func wasmexit(code int32)
 			"runtime.wasmexit": function (sp) {
 				process.exit(mem().getInt32(sp + 8, true));

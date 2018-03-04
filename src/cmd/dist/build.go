@@ -68,12 +68,14 @@ var okgoarch = []string{
 	"ppc64",
 	"ppc64le",
 	"s390x",
+	"wasm",
 }
 
 // The known operating systems.
 var okgoos = []string{
 	"darwin",
 	"dragonfly",
+	"js",
 	"linux",
 	"android",
 	"solaris",
