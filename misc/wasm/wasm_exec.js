@@ -172,47 +172,47 @@ async function run() {
 			},
 
 			// func boolVal(value bool) Value
-			"runtime/js.boolVal": function (sp) {
+			"syscall/js.boolVal": function (sp) {
 				storeValue(sp + 16, mem().getUint8(sp + 8) !== 0);
 			},
 
 			// func intVal(value int) Value
-			"runtime/js.intVal": function (sp) {
+			"syscall/js.intVal": function (sp) {
 				storeValue(sp + 16, getInt64(sp + 8));
 			},
 
 			// func floatVal(value float64) Value
-			"runtime/js.floatVal": function (sp) {
+			"syscall/js.floatVal": function (sp) {
 				storeValue(sp + 16, mem().getFloat64(sp + 8, true));
 			},
 
 			// func stringVal(value string) Value
-			"runtime/js.stringVal": function (sp) {
+			"syscall/js.stringVal": function (sp) {
 				storeValue(sp + 24, loadString(sp + 8));
 			},
 
 			// func (v Value) Get(key string) Value
-			"runtime/js.Value.Get": function (sp) {
+			"syscall/js.Value.Get": function (sp) {
 				storeValue(sp + 32, Reflect.get(loadValue(sp + 8), loadString(sp + 16)));
 			},
 
 			// func (v Value) set(key string, value Value)
-			"runtime/js.Value.set": function (sp) {
+			"syscall/js.Value.set": function (sp) {
 				Reflect.set(loadValue(sp + 8), loadString(sp + 16), loadValue(sp + 32));
 			},
 
 			// func (v Value) Index(i int) Value
-			"runtime/js.Value.Index": function (sp) {
+			"syscall/js.Value.Index": function (sp) {
 				storeValue(sp + 24, Reflect.get(loadValue(sp + 8), getInt64(sp + 16)));
 			},
 
 			// func (v Value) setIndex(i int, value Value)
-			"runtime/js.Value.setIndex": function (sp) {
+			"syscall/js.Value.setIndex": function (sp) {
 				Reflect.set(loadValue(sp + 8), getInt64(sp + 16), loadValue(sp + 24));
 			},
 
 			// func (v Value) call(name string, args []Value) (Value, bool)
-			"runtime/js.Value.call": function (sp) {
+			"syscall/js.Value.call": function (sp) {
 				try {
 					const v = loadValue(sp + 8);
 					const m = Reflect.get(v, loadString(sp + 16));
@@ -226,7 +226,7 @@ async function run() {
 			},
 
 			// func (v Value) invoke(args []Value) (Value, bool)
-			"runtime/js.Value.invoke": function (sp) {
+			"syscall/js.Value.invoke": function (sp) {
 				try {
 					const v = loadValue(sp + 8);
 					const args = loadSliceOfValues(sp + 16);
@@ -238,8 +238,8 @@ async function run() {
 				}
 			},
 
-			// func (v Value) wasmnew(args []Value) (Value, bool)
-			"runtime/js.Value.wasmnew": function (sp) {
+			// func (v Value) new(args []Value) (Value, bool)
+			"syscall/js.Value.new": function (sp) {
 				try {
 					const v = loadValue(sp + 8);
 					const args = loadSliceOfValues(sp + 16);
@@ -252,34 +252,34 @@ async function run() {
 			},
 
 			// func (v Value) Float() float64
-			"runtime/js.Value.Float": function (sp) {
+			"syscall/js.Value.Float": function (sp) {
 				mem().setFloat64(sp + 16, parseFloat(loadValue(sp + 8)), true);
 			},
 
 			// func (v Value) Int() int
-			"runtime/js.Value.Int": function (sp) {
+			"syscall/js.Value.Int": function (sp) {
 				setInt64(sp + 16, parseInt(loadValue(sp + 8)));
 			},
 
 			// func (v Value) Bool() bool
-			"runtime/js.Value.Bool": function (sp) {
+			"syscall/js.Value.Bool": function (sp) {
 				mem().setUint8(sp + 16, !!loadValue(sp + 8));
 			},
 
 			// func (v Value) Length() int
-			"runtime/js.Value.Length": function (sp) {
+			"syscall/js.Value.Length": function (sp) {
 				setInt64(sp + 16, parseInt(loadValue(sp + 8).length));
 			},
 
 			// func (v Value) prepareString() (Value, int)
-			"runtime/js.Value.prepareString": function (sp) {
+			"syscall/js.Value.prepareString": function (sp) {
 				const str = encoder.encode(String(loadValue(sp + 8)));
 				storeValue(sp + 16, str);
 				setInt64(sp + 24, str.length);
 			},
 
 			// func (v Value) loadString(b []byte)
-			"runtime/js.Value.loadString": function (sp) {
+			"syscall/js.Value.loadString": function (sp) {
 				const str = loadValue(sp + 8);
 				loadSlice(sp + 16).set(str);
 			},
