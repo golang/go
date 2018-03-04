@@ -829,6 +829,92 @@ func EqualFold(s, t []byte) bool {
 	return len(s) == len(t)
 }
 
+// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+func Index(s, sep []byte) int {
+	n := len(sep)
+	switch {
+	case n == 0:
+		return 0
+	case n == 1:
+		return IndexByte(s, sep[0])
+	case n == len(s):
+		if Equal(sep, s) {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
+	case n <= bytealg.MaxLen:
+		// Use brute force when s and sep both are small
+		if len(s) <= bytealg.MaxBruteForce {
+			return bytealg.Index(s, sep)
+		}
+		c := sep[0]
+		i := 0
+		t := s[:len(s)-n+1]
+		fails := 0
+		for i < len(t) {
+			if t[i] != c {
+				// IndexByte is faster than bytealg.Index, so use it as long as
+				// we're not getting lots of false positives.
+				o := IndexByte(t[i:], c)
+				if o < 0 {
+					return -1
+				}
+				i += o
+			}
+			if Equal(s[i:i+n], sep) {
+				return i
+			}
+			fails++
+			i++
+			// Switch to bytealg.Index when IndexByte produces too many false positives.
+			if fails > bytealg.Cutover(i) {
+				r := bytealg.Index(s[i:], sep)
+				if r >= 0 {
+					return r + i
+				}
+				return -1
+			}
+		}
+		return -1
+	}
+	c := sep[0]
+	i := 0
+	fails := 0
+	t := s[:len(s)-n+1]
+	for i < len(t) {
+		if t[i] != c {
+			o := IndexByte(t[i:], c)
+			if o < 0 {
+				break
+			}
+			i += o
+		}
+		if Equal(s[i:i+n], sep) {
+			return i
+		}
+		i++
+		fails++
+		if fails >= 4+i>>4 && i < len(t) {
+			// Give up on IndexByte, it isn't skipping ahead
+			// far enough to be better than Rabin-Karp.
+			// Experiments (using IndexPeriodic) suggest
+			// the cutover is about 16 byte skips.
+			// TODO: if large prefixes of sep are matching
+			// we should cutover at even larger average skips,
+			// because Equal becomes that much more expensive.
+			// This code does not take that effect into account.
+			j := indexRabinKarp(s[i:], sep)
+			if j < 0 {
+				return -1
+			}
+			return i + j
+		}
+	}
+	return -1
+}
+
 func indexRabinKarp(s, sep []byte) int {
 	// Rabin-Karp search
 	hashsep, pow := hashStr(sep)
