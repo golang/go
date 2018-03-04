@@ -175,6 +175,13 @@ func (d *decodeState) unmarshal(v interface{}) error {
 
 	d.scan.reset()
 	d.scanWhile(scanSkipSpace)
+
+	// Set rv to a new zero value of its underlying type.
+	// This is to avoid nested reference types (like slices) leaking
+	// i.e. Unmarshalling repeatedly into the same target
+	zv := reflect.Zero(reflect.TypeOf(v).Elem())
+	rv.Elem().Set(zv)
+
 	// We decode rv not rv.Elem because the Unmarshaler interface
 	// test must be applied at the top level of the value.
 	err := d.value(rv)
