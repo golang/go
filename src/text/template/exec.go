@@ -19,7 +19,14 @@ import (
 // templates. This limit is only practically reached by accidentally
 // recursive template invocations. This limit allows us to return
 // an error instead of triggering a stack overflow.
-const maxExecDepth = 100000
+var maxExecDepth = initMaxExecDepth()
+
+func initMaxExecDepth() int {
+	if runtime.GOARCH == "wasm" {
+		return 1000
+	}
+	return 100000
+}
 
 // state represents the state of an execution. It's not part of the
 // template so that multiple executions of the same template

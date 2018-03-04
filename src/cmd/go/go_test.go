@@ -48,7 +48,7 @@ func tooSlow(t *testing.T) {
 
 func init() {
 	switch runtime.GOOS {
-	case "android", "nacl":
+	case "android", "js", "nacl":
 		canRun = false
 	case "darwin":
 		switch runtime.GOARCH {
