@@ -22,7 +22,6 @@
 #define SYS_getpid		5038
 #define SYS_kill		5060
 #define SYS_fcntl		5080
-#define SYS_gettimeofday	5094
 #define SYS_mmap		5009
 #define SYS_munmap		5011
 #define SYS_setitimer		5036
