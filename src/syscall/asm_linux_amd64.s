@@ -152,7 +152,7 @@ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
 TEXT ·gettimeofday(SB),NOSPLIT,$0-16
 	MOVQ	tv+0(FP), DI
 	MOVQ	$0, SI
-	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
+	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
 	CALL	AX
 
 	CMPQ	AX, $0xfffffffffffff001

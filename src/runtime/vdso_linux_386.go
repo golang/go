@@ -11,11 +11,11 @@ const (
 	vdsoArrayMax = 1<<31 - 1
 )
 
-var sym_keys = []symbol_key{
-	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
+var vdsoSymbolKeys = []vdsoSymbolKey{
+	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
 }
 
 // initialize to fall back to syscall
 var (
-	__vdso_clock_gettime_sym uintptr = 0
+	vdsoClockgettimeSym uintptr = 0
 )
