@@ -241,7 +241,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "arm",
 		os:      "linux",
-		imports: []string{"math/bits", "runtime"},
+		imports: []string{"runtime"},
 		tests:   linuxARMTests,
 	},
 	{
@@ -251,10 +251,9 @@ var allAsmTests = []*asmTests{
 		tests:   linuxARM64Tests,
 	},
 	{
-		arch:    "mips",
-		os:      "linux",
-		imports: []string{"math/bits"},
-		tests:   linuxMIPSTests,
+		arch:  "mips",
+		os:    "linux",
+		tests: linuxMIPSTests,
 	},
 	{
 		arch:  "mips64",
@@ -579,48 +578,6 @@ var linuxAMD64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tROLW\t\\$8,"},
-	},
-	{
-		fn: `
-		func f53(a uint64) int {
-			return bits.LeadingZeros64(a)
-		}
-		`,
-		pos: []string{"\tBSRQ\t"},
-	},
-	{
-		fn: `
-		func f54(a uint32) int {
-			return bits.LeadingZeros32(a)
-		}
-		`,
-		pos: []string{"\tBSRQ\t"},
-	},
-	{
-		fn: `
-		func f55(a uint16) int {
-			return bits.LeadingZeros16(a)
-		}
-		`,
-		pos: []string{"\tBSRQ\t"},
-	},
-	/* see ssa.go
-	{
-		fn:`
-		func f56(a uint8) int {
-			return bits.LeadingZeros8(a)
-		}
-		`,
-		pos:[]string{"\tBSRQ\t"},
-	},
-	*/
-	{
-		fn: `
-		func f57(a uint) int {
-			return bits.LeadingZeros(a)
-		}
-		`,
-		pos: []string{"\tBSRQ\t"},
 	},
 	{
 		fn: `
@@ -1323,46 +1280,6 @@ var linuxS390XTests = []*asmTest{
 		pos: []string{"\tMOVWBR\t"},
 	},
 	{
-		fn: `
-		func f29(a uint64) int {
-			return bits.LeadingZeros64(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f30(a uint32) int {
-			return bits.LeadingZeros32(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f31(a uint16) int {
-			return bits.LeadingZeros16(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f32(a uint8) int {
-			return bits.LeadingZeros8(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f33(a uint) int {
-			return bits.LeadingZeros(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
 		// check that stack store is optimized away
 		fn: `
 		func $() int {
@@ -1418,46 +1335,6 @@ var linuxARMTests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
-	},
-	{
-		fn: `
-		func f8(a uint64) int {
-			return bits.LeadingZeros64(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f9(a uint32) int {
-			return bits.LeadingZeros32(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f10(a uint16) int {
-			return bits.LeadingZeros16(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f11(a uint8) int {
-			return bits.LeadingZeros8(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f12(a uint) int {
-			return bits.LeadingZeros(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
 	},
 	{
 		// make sure assembly output has matching offset and base register.
@@ -1592,46 +1469,6 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tREVW\t"},
-	},
-	{
-		fn: `
-		func f29(a uint64) int {
-			return bits.LeadingZeros64(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f30(a uint32) int {
-			return bits.LeadingZeros32(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f31(a uint16) int {
-			return bits.LeadingZeros16(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f32(a uint8) int {
-			return bits.LeadingZeros8(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f33(a uint) int {
-			return bits.LeadingZeros(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
 	},
 	{
 		fn: `
@@ -2014,47 +1851,6 @@ var linuxARM64Tests = []*asmTest{
 }
 
 var linuxMIPSTests = []*asmTest{
-	// Intrinsic tests for math/bits
-	{
-		fn: `
-		func f5(a uint64) int {
-			return bits.LeadingZeros64(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f6(a uint32) int {
-			return bits.LeadingZeros32(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f7(a uint16) int {
-			return bits.LeadingZeros16(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f8(a uint8) int {
-			return bits.LeadingZeros8(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
-	{
-		fn: `
-		func f9(a uint) int {
-			return bits.LeadingZeros(a)
-		}
-		`,
-		pos: []string{"\tCLZ\t"},
-	},
 	{
 		// check that stack store is optimized away
 		fn: `
