@@ -109,7 +109,9 @@ func (p *Process) Release() error {
 	return p.release()
 }
 
-// Kill causes the Process to exit immediately.
+// Kill causes the Process to exit immediately. Kill does not wait until
+// the Process has actually exited. This only kills the Process itself,
+// not any other processes it may have started.
 func (p *Process) Kill() error {
 	return p.kill()
 }
