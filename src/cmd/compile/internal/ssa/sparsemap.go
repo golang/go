@@ -26,6 +26,10 @@ func newSparseMap(n int) *sparseMap {
 	return &sparseMap{dense: nil, sparse: make([]int32, n)}
 }
 
+func (s *sparseMap) cap() int {
+	return len(s.sparse)
+}
+
 func (s *sparseMap) size() int {
 	return len(s.dense)
 }
