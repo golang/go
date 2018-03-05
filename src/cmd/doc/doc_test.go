@@ -7,6 +7,9 @@ package main
 import (
 	"bytes"
 	"flag"
+	"go/build"
+	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -19,6 +22,39 @@ func maybeSkip(t *testing.T) {
 	}
 	if runtime.GOOS == "darwin" && strings.HasPrefix(runtime.GOARCH, "arm") {
 		t.Skip("darwin/arm does not have a full file tree")
+	}
+}
+
+type isDotSlashTest struct {
+	str    string
+	result bool
+}
+
+var isDotSlashTests = []isDotSlashTest{
+	{``, false},
+	{`x`, false},
+	{`...`, false},
+	{`.../`, false},
+	{`...\`, false},
+
+	{`.`, true},
+	{`./`, true},
+	{`.\`, true},
+	{`./x`, true},
+	{`.\x`, true},
+
+	{`..`, true},
+	{`../`, true},
+	{`..\`, true},
+	{`../x`, true},
+	{`..\x`, true},
+}
+
+func TestIsDotSlashPath(t *testing.T) {
+	for _, test := range isDotSlashTests {
+		if result := isDotSlash(test.str); result != test.result {
+			t.Errorf("isDotSlash(%q) = %t; expected %t", test.str, result, test.result)
+		}
 	}
 }
 
@@ -600,6 +636,37 @@ func TestTwoArgLookup(t *testing.T) {
 		} else if !strings.Contains(err.Error(), "no such package") {
 			t.Errorf("unexpected error %q from nosuchpackage Foo", err)
 		}
+	}
+}
+
+// Test the code to look up packages when the first argument starts with "./".
+// Our test case is in effect "cd src/text; doc ./template". This should get
+// text/template but before Issue 23383 was fixed would give html/template.
+func TestDotSlashLookup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("scanning file system takes too long")
+	}
+	maybeSkip(t)
+	where := pwd()
+	defer func() {
+		if err := os.Chdir(where); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := os.Chdir(filepath.Join(build.Default.GOROOT, "src", "text")); err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	var flagSet flag.FlagSet
+	err := do(&b, &flagSet, []string{"./template"})
+	if err != nil {
+		t.Errorf("unexpected error %q from ./template", err)
+	}
+	// The output should contain information about the text/template package.
+	const want = `package template // import "text/template"`
+	output := b.String()
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("wrong package: %.*q...", len(want), output)
 	}
 }
 
