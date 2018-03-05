@@ -433,6 +433,22 @@ func TestWalk(t *testing.T) {
 			defer restore()
 		}
 	}
+
+	tmpDir, err := ioutil.TempDir("", "TestWalk")
+	if err != nil {
+		t.Fatal("creating temp dir:", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal("finding working dir:", err)
+	}
+	if err = os.Chdir(tmpDir); err != nil {
+		t.Fatal("entering temp dir:", err)
+	}
+	defer os.Chdir(origDir)
+
 	makeTree(t)
 	errors := make([]error, 0, 10)
 	clear := true
@@ -440,7 +456,7 @@ func TestWalk(t *testing.T) {
 		return mark(info, err, &errors, clear)
 	}
 	// Expect no errors.
-	err := filepath.Walk(tree.name, markFn)
+	err = filepath.Walk(tree.name, markFn)
 	if err != nil {
 		t.Fatalf("no error expected, found: %s", err)
 	}
@@ -498,11 +514,6 @@ func TestWalk(t *testing.T) {
 		// restore permissions
 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0770)
 		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0770)
-	}
-
-	// cleanup
-	if err := os.RemoveAll(tree.name); err != nil {
-		t.Errorf("removeTree: %v", err)
 	}
 }
 
