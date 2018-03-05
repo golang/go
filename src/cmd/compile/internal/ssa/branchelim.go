@@ -19,7 +19,10 @@ package ssa
 // rewrite Phis in the postdominator as CondSelects.
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
-	if f.Config.arch != "arm64" {
+	switch f.Config.arch {
+	case "arm64", "amd64":
+		// implemented
+	default:
 		return
 	}
 
@@ -32,10 +35,22 @@ func branchelim(f *Func) {
 	}
 }
 
-func canCondSelect(v *Value) bool {
+func canCondSelect(v *Value, arch string) bool {
 	// For now, stick to simple scalars that fit in registers
-	sz := v.Type.Size()
-	return sz <= v.Block.Func.Config.RegSize && (v.Type.IsInteger() || v.Type.IsPtrShaped())
+	switch {
+	case v.Type.Size() > v.Block.Func.Config.RegSize:
+		return false
+	case v.Type.IsPtrShaped():
+		return true
+	case v.Type.IsInteger():
+		if arch == "amd64" && v.Type.Size() < 2 {
+			// amd64 doesn't support CMOV with byte registers
+			return false
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 func elimIf(f *Func, dom *Block) bool {
@@ -68,7 +83,7 @@ func elimIf(f *Func, dom *Block) bool {
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
-			if !canCondSelect(v) {
+			if !canCondSelect(v, f.Config.arch) {
 				return false
 			}
 		}
@@ -169,7 +184,7 @@ func elimIfElse(f *Func, b *Block) bool {
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
-			if !canCondSelect(v) {
+			if !canCondSelect(v, f.Config.arch) {
 				return false
 			}
 		}

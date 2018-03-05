@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
@@ -22,6 +23,7 @@ var Copyelim = copyelim
 var testCtxts = map[string]*obj.Link{
 	"amd64": obj.Linknew(&x86.Linkamd64),
 	"s390x": obj.Linknew(&s390x.Links390x),
+	"arm64": obj.Linknew(&arm64.Linkarm64),
 }
 
 func testConfig(tb testing.TB) *Conf      { return testConfigArch(tb, "amd64") }
