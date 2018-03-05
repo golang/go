@@ -64,24 +64,24 @@ const (
 func _ELF_ST_BIND(val byte) byte { return val >> 4 }
 func _ELF_ST_TYPE(val byte) byte { return val & 0xf }
 
-type symbol_key struct {
-	name     string
-	sym_hash uint32
-	gnu_hash uint32
-	ptr      *uintptr
+type vdsoSymbolKey struct {
+	name    string
+	symHash uint32
+	gnuHash uint32
+	ptr     *uintptr
 }
 
-type version_key struct {
-	version  string
-	ver_hash uint32
+type vdsoVersionKey struct {
+	version string
+	verHash uint32
 }
 
-type vdso_info struct {
+type vdsoInfo struct {
 	valid bool
 
 	/* Load information */
-	load_addr   uintptr
-	load_offset uintptr /* load_addr - recorded vaddr */
+	loadAddr   uintptr
+	loadOffset uintptr /* loadAddr - recorded vaddr */
 
 	/* Symbol table */
 	symtab     *[vdsoSymTabSize]elfSym
@@ -96,35 +96,35 @@ type vdso_info struct {
 	verdef *elfVerdef
 }
 
-var linux26 = version_key{"LINUX_2.6", 0x3ae75f6}
+var linux26 = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
 
-// see vdso_linux_*.go for sym_keys[] and __vdso_* vars
+// see vdso_linux_*.go for vdsoSymbolKeys[] and vdso*Sym vars
 
-func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elfEhdr) {
+func vdsoInitFromSysinfoEhdr(info *vdsoInfo, hdr *elfEhdr) {
 	info.valid = false
-	info.load_addr = uintptr(unsafe.Pointer(hdr))
+	info.loadAddr = uintptr(unsafe.Pointer(hdr))
 
-	pt := unsafe.Pointer(info.load_addr + uintptr(hdr.e_phoff))
+	pt := unsafe.Pointer(info.loadAddr + uintptr(hdr.e_phoff))
 
 	// We need two things from the segment table: the load offset
 	// and the dynamic table.
-	var found_vaddr bool
+	var foundVaddr bool
 	var dyn *[vdsoDynSize]elfDyn
 	for i := uint16(0); i < hdr.e_phnum; i++ {
 		pt := (*elfPhdr)(add(pt, uintptr(i)*unsafe.Sizeof(elfPhdr{})))
 		switch pt.p_type {
 		case _PT_LOAD:
-			if !found_vaddr {
-				found_vaddr = true
-				info.load_offset = info.load_addr + uintptr(pt.p_offset-pt.p_vaddr)
+			if !foundVaddr {
+				foundVaddr = true
+				info.loadOffset = info.loadAddr + uintptr(pt.p_offset-pt.p_vaddr)
 			}
 
 		case _PT_DYNAMIC:
-			dyn = (*[vdsoDynSize]elfDyn)(unsafe.Pointer(info.load_addr + uintptr(pt.p_offset)))
+			dyn = (*[vdsoDynSize]elfDyn)(unsafe.Pointer(info.loadAddr + uintptr(pt.p_offset)))
 		}
 	}
 
-	if !found_vaddr || dyn == nil {
+	if !foundVaddr || dyn == nil {
 		return // Failed
 	}
 
@@ -137,7 +137,7 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elfEhdr) {
 	info.verdef = nil
 	for i := 0; dyn[i].d_tag != _DT_NULL; i++ {
 		dt := &dyn[i]
-		p := info.load_offset + uintptr(dt.d_val)
+		p := info.loadOffset + uintptr(dt.d_val)
 		switch dt.d_tag {
 		case _DT_STRTAB:
 			info.symstrings = (*[vdsoSymStringsSize]byte)(unsafe.Pointer(p))
@@ -182,7 +182,7 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elfEhdr) {
 	info.valid = true
 }
 
-func vdso_find_version(info *vdso_info, ver *version_key) int32 {
+func vdsoFindVersion(info *vdsoInfo, ver *vdsoVersionKey) int32 {
 	if !info.valid {
 		return 0
 	}
@@ -191,7 +191,7 @@ func vdso_find_version(info *vdso_info, ver *version_key) int32 {
 	for {
 		if def.vd_flags&_VER_FLG_BASE == 0 {
 			aux := (*elfVerdaux)(add(unsafe.Pointer(def), uintptr(def.vd_aux)))
-			if def.vd_hash == ver.ver_hash && ver.version == gostringnocopy(&info.symstrings[aux.vda_name]) {
+			if def.vd_hash == ver.verHash && ver.version == gostringnocopy(&info.symstrings[aux.vda_name]) {
 				return int32(def.vd_ndx & 0x7fff)
 			}
 		}
@@ -205,12 +205,12 @@ func vdso_find_version(info *vdso_info, ver *version_key) int32 {
 	return -1 // cannot match any version
 }
 
-func vdso_parse_symbols(info *vdso_info, version int32) {
+func vdsoParseSymbols(info *vdsoInfo, version int32) {
 	if !info.valid {
 		return
 	}
 
-	apply := func(symIndex uint32, k symbol_key) bool {
+	apply := func(symIndex uint32, k vdsoSymbolKey) bool {
 		sym := &info.symtab[symIndex]
 		typ := _ELF_ST_TYPE(sym.st_info)
 		bind := _ELF_ST_BIND(sym.st_info)
@@ -226,14 +226,14 @@ func vdso_parse_symbols(info *vdso_info, version int32) {
 			return false
 		}
 
-		*k.ptr = info.load_offset + uintptr(sym.st_value)
+		*k.ptr = info.loadOffset + uintptr(sym.st_value)
 		return true
 	}
 
 	if !info.isGNUHash {
 		// Old-style DT_HASH table.
-		for _, k := range sym_keys {
-			for chain := info.bucket[k.sym_hash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
+		for _, k := range vdsoSymbolKeys {
+			for chain := info.bucket[k.symHash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
 				if apply(chain, k) {
 					break
 				}
@@ -243,14 +243,14 @@ func vdso_parse_symbols(info *vdso_info, version int32) {
 	}
 
 	// New-style DT_GNU_HASH table.
-	for _, k := range sym_keys {
-		symIndex := info.bucket[k.gnu_hash%uint32(len(info.bucket))]
+	for _, k := range vdsoSymbolKeys {
+		symIndex := info.bucket[k.gnuHash%uint32(len(info.bucket))]
 		if symIndex < info.symOff {
 			continue
 		}
 		for ; ; symIndex++ {
 			hash := info.chain[symIndex-info.symOff]
-			if hash|1 == k.gnu_hash|1 {
+			if hash|1 == k.gnuHash|1 {
 				// Found a hash match.
 				if apply(symIndex, k) {
 					break
@@ -271,11 +271,11 @@ func vdsoauxv(tag, val uintptr) {
 			// Something went wrong
 			return
 		}
-		var info vdso_info
+		var info vdsoInfo
 		// TODO(rsc): I don't understand why the compiler thinks info escapes
 		// when passed to the three functions below.
-		info1 := (*vdso_info)(noescape(unsafe.Pointer(&info)))
-		vdso_init_from_sysinfo_ehdr(info1, (*elfEhdr)(unsafe.Pointer(val)))
-		vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
+		info1 := (*vdsoInfo)(noescape(unsafe.Pointer(&info)))
+		vdsoInitFromSysinfoEhdr(info1, (*elfEhdr)(unsafe.Pointer(val)))
+		vdsoParseSymbols(info1, vdsoFindVersion(info1, &linux26))
 	}
 }

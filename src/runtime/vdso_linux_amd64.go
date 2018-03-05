@@ -10,13 +10,13 @@ const (
 	vdsoArrayMax = 1<<50 - 1
 )
 
-var sym_keys = []symbol_key{
-	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &__vdso_gettimeofday_sym},
-	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
+var vdsoSymbolKeys = []vdsoSymbolKey{
+	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &vdsoGettimeofdaySym},
+	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
 }
 
 // initialize with vsyscall fallbacks
 var (
-	__vdso_gettimeofday_sym  uintptr = 0xffffffffff600000
-	__vdso_clock_gettime_sym uintptr = 0
+	vdsoGettimeofdaySym uintptr = 0xffffffffff600000
+	vdsoClockgettimeSym uintptr = 0
 )

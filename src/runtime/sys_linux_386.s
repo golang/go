@@ -221,7 +221,7 @@ noswitch:
 	//     4    &ts             -
 	//     0    CLOCK_<id>      -
 
-	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
+	MOVL	runtime·vdsoClockgettimeSym(SB), AX
 	CMPL	AX, $0
 	JEQ	fallback
 
@@ -270,7 +270,7 @@ noswitch:
 	SUBL	$16, SP		// Space for results
 	ANDL	$~15, SP	// Align for C code
 
-	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
+	MOVL	runtime·vdsoClockgettimeSym(SB), AX
 	CMPL	AX, $0
 	JEQ	fallback
 

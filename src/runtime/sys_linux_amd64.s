@@ -200,7 +200,7 @@ noswitch:
 	SUBQ	$16, SP		// Space for results
 	ANDQ	$~15, SP	// Align for C code
 
-	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
+	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
 	MOVL	$0, DI // CLOCK_REALTIME
@@ -215,7 +215,7 @@ noswitch:
 fallback:
 	LEAQ	0(SP), DI
 	MOVQ	$0, SI
-	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
+	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
 	CALL	AX
 	MOVQ	0(SP), AX	// sec
 	MOVL	8(SP), DX	// usec
@@ -244,7 +244,7 @@ noswitch:
 	SUBQ	$16, SP		// Space for results
 	ANDQ	$~15, SP	// Align for C code
 
-	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
+	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
 	MOVL	$1, DI // CLOCK_MONOTONIC
@@ -262,7 +262,7 @@ noswitch:
 fallback:
 	LEAQ	0(SP), DI
 	MOVQ	$0, SI
-	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
+	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
 	CALL	AX
 	MOVQ	0(SP), AX	// sec
 	MOVL	8(SP), DX	// usec
