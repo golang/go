@@ -1520,6 +1520,11 @@
 	&& isSamePtr(ptr0, ptr1)
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr0 w mem)
+(MOVBstore [i] {s} ptr0 (SRLconst [8] (MOVDreg w)) x:(MOVBstore [i-1] {s} ptr1 w mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr0 w mem)
 (MOVBstore [i] {s} ptr0 (SRLconst [j] w) x:(MOVBstore [i-1] {s} ptr1 w0:(SRLconst [j-8] w) mem))
 	&& x.Uses == 1
 	&& isSamePtr(ptr0, ptr1)
@@ -1530,12 +1535,22 @@
 	&& isSamePtr(ptr0, ptr1)
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr0 w0 mem)
+(MOVBstore [i] {s} ptr0 (SRLconst [j] (MOVDreg w)) x:(MOVBstore [i-1] {s} ptr1 w0:(SRLconst [j-8] (MOVDreg w)) mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr0 w0 mem)
 (MOVHstore [i] {s} ptr0 (SRLconst [16] w) x:(MOVHstore [i-2] {s} ptr1 w mem))
 	&& x.Uses == 1
 	&& isSamePtr(ptr0, ptr1)
 	&& clobber(x)
 	-> (MOVWstore [i-2] {s} ptr0 w mem)
 (MOVHstore [i] {s} ptr0 (SRLconst [16] (MOVWUreg w)) x:(MOVHstore [i-2] {s} ptr1 w mem))
+	&& x.Uses == 1
+	&& isSamePtr(ptr0, ptr1)
+	&& clobber(x)
+	-> (MOVWstore [i-2] {s} ptr0 w mem)
+(MOVHstore [i] {s} ptr0 (SRLconst [16] (MOVDreg w)) x:(MOVHstore [i-2] {s} ptr1 w mem))
 	&& x.Uses == 1
 	&& isSamePtr(ptr0, ptr1)
 	&& clobber(x)
@@ -1590,6 +1605,17 @@
 	&& clobber(x2)
 	-> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
 (MOVBstore [i] {s} ptr w
+	x0:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVDreg w))
+	x1:(MOVBstore [i-2] {s} ptr (SRLconst [16] (MOVDreg w))
+	x2:(MOVBstore [i-3] {s} ptr (SRLconst [24] (MOVDreg w)) mem))))
+	&& x0.Uses == 1
+	&& x1.Uses == 1
+	&& x2.Uses == 1
+	&& clobber(x0)
+	&& clobber(x1)
+	&& clobber(x2)
+	-> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
+(MOVBstore [i] {s} ptr w
 	x0:(MOVBstore [i-1] {s} ptr (SRLconst [8] w)
 	x1:(MOVBstore [i-2] {s} ptr (SRLconst [16] w)
 	x2:(MOVBstore [i-3] {s} ptr (SRLconst [24] w) mem))))
@@ -1608,7 +1634,15 @@
 	&& x.Uses == 1
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
+(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVDreg w)) mem))
+	&& x.Uses == 1
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
 (MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVWUreg w)) mem))
+	&& x.Uses == 1
+	&& clobber(x)
+	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
+(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVDreg w)) mem))
 	&& x.Uses == 1
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
