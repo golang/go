@@ -31,10 +31,6 @@ TEXT indexbody<>(SB),NOSPLIT,$0-56
 	// main idea is to load 'sep' into separate register(s)
 	// to avoid repeatedly re-load it again and again
 	// for sebsequent substring comparisons
-	MOVD	a_base+0(FP), R0
-	MOVD	a_len+8(FP), R1
-	MOVD	b_base+24(FP), R2
-	MOVD	b_len+32(FP), R3
 	SUB	R3, R1, R4
 	// R4 contains the start of last substring for comparsion
 	ADD	R0, R4, R4
