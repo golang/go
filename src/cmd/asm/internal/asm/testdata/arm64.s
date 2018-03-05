@@ -135,6 +135,11 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VLD1.P	64(R1), [V5.B16, V6.B16, V7.B16, V8.B16]        // 2520df4c
 	VST1.P	[V4.S4, V5.S4], 32(R1)                          // 24a89f4c
 	VST1	[V0.S4, V1.S4], (R0)                            // 00a8004c
+	VLD1	(R30), [V15.S2, V16.S2]                         // cfab400c
+	VLD1.P	24(R30), [V3.S2,V4.S2,V5.S2]                    // c36bdf0c
+	VST1.P	[V24.S2], 8(R2)                                 // 58789f0c
+	VST1	[V29.S2, V30.S2], (R29)                         // bdab000c
+	VST1	[V14.H4, V15.H4, V16.H4], (R27)                 // 6e67000c
 	VMOVS	V20, (R0)                                       // 140000bd
 	VMOVS.P	V20, 4(R0)                                      // 144400bc
 	VMOVS.W	V20, 4(R0)                                      // 144c00bc
