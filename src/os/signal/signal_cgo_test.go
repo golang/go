@@ -89,6 +89,8 @@ func TestTerminalSignal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "-i")
+	// Clear HISTFILE so that we don't read or clobber the user's bash history.
+	cmd.Env = append(os.Environ(), "HISTFILE=")
 	cmd.Stdin = slave
 	cmd.Stdout = slave
 	cmd.Stderr = slave
