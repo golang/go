@@ -545,8 +545,9 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) error {
 }
 
 func cstring(b []byte) string {
-	var i int
-	for i = 0; i < len(b) && b[i] != 0; i++ {
+	i := bytes.IndexByte(b, 0)
+	if i == -1 {
+		i = len(b)
 	}
 	return string(b[0:i])
 }
