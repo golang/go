@@ -830,7 +830,7 @@ func isInlinableMemmoveSize(sz int64, c *Config) bool {
 	switch c.arch {
 	case "amd64", "amd64p32":
 		return sz <= 16
-	case "386", "ppc64", "s390x", "ppc64le":
+	case "386", "ppc64", "s390x", "ppc64le", "arm64":
 		return sz <= 8
 	case "arm", "mips", "mips64", "mipsle", "mips64le":
 		return sz <= 4
