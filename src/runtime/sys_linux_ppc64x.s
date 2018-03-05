@@ -23,8 +23,6 @@
 #define SYS_kill		 37
 #define SYS_brk			 45
 #define SYS_fcntl		 55
-#define SYS_gettimeofday	 78
-#define SYS_select		 82	// always return -ENOSYS
 #define SYS_mmap		 90
 #define SYS_munmap		 91
 #define SYS_setitimer		104

@@ -18,7 +18,6 @@
 #define SYS_openat		56
 #define SYS_close		57
 #define SYS_fcntl		25
-#define SYS_gettimeofday	169
 #define SYS_pselect6		72
 #define SYS_mmap		222
 #define SYS_munmap		215
