@@ -387,9 +387,9 @@ func xgetgoarm() string {
 		// NaCl guarantees VFPv3 and is always cross-compiled.
 		return "7"
 	}
-	if goos == "darwin" {
-		// Assume all darwin/arm devices are have VFPv3. This
-		// port is also mostly cross-compiled, so it makes little
+	if goos == "darwin" || goos == "android" {
+		// Assume all darwin/arm and android devices have VFPv3.
+		// These ports are also mostly cross-compiled, so it makes little
 		// sense to auto-detect the setting.
 		return "7"
 	}
