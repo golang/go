@@ -525,38 +525,6 @@ var linuxAMD64Tests = []*asmTest{
 	// Intrinsic tests for math/bits
 	{
 		fn: `
-		func f41(a uint64) int {
-			return bits.TrailingZeros64(a)
-		}
-		`,
-		pos: []string{"\tBSFQ\t", "\tMOVL\t\\$64,", "\tCMOVQEQ\t"},
-	},
-	{
-		fn: `
-		func f42(a uint32) int {
-			return bits.TrailingZeros32(a)
-		}
-		`,
-		pos: []string{"\tBSFQ\t", "\tORQ\t[^$]", "\tMOVQ\t\\$4294967296,"},
-	},
-	{
-		fn: `
-		func f43(a uint16) int {
-			return bits.TrailingZeros16(a)
-		}
-		`,
-		pos: []string{"\tBSFQ\t", "\tORQ\t\\$65536,"},
-	},
-	{
-		fn: `
-		func f44(a uint8) int {
-			return bits.TrailingZeros8(a)
-		}
-		`,
-		pos: []string{"\tBSFQ\t", "\tORQ\t\\$256,"},
-	},
-	{
-		fn: `
 		func f45(a uint64) uint64 {
 			return bits.ReverseBytes64(a)
 		}
@@ -1228,39 +1196,6 @@ var linuxS390XTests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tFMSUBS\t"},
-	},
-	// Intrinsic tests for math/bits
-	{
-		fn: `
-		func f18(a uint64) int {
-			return bits.TrailingZeros64(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t"},
-	},
-	{
-		fn: `
-		func f19(a uint32) int {
-			return bits.TrailingZeros32(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t", "\tMOVWZ\t"},
-	},
-	{
-		fn: `
-		func f20(a uint16) int {
-			return bits.TrailingZeros16(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t", "\tOR\t\\$65536,"},
-	},
-	{
-		fn: `
-		func f21(a uint8) int {
-			return bits.TrailingZeros8(a)
-		}
-		`,
-		pos: []string{"\tFLOGR\t", "\tOR\t\\$256,"},
 	},
 	// Intrinsic tests for math/bits
 	{
