@@ -724,13 +724,13 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			taskName := fmt.Sprintf("Task %s(%d)", task.name, task.id)
 			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: taskRow, Arg: &NameArg{"Tasks"}})
 			ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: taskRow, Arg: &SortIndexArg{-3}})
-			tBegin := &ViewerEvent{Category: "task", Name: taskName, Phase: "b", Time: float64(task.firstTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"}
+			tBegin := &ViewerEvent{Category: "task", Name: taskName, Phase: "b", Time: float64(task.firstTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: colorBlue}
 			if task.create != nil {
 				tBegin.Stack = ctx.stack(task.create.Stk)
 			}
 			ctx.emit(tBegin)
 
-			tEnd := &ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.lastTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"}
+			tEnd := &ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.lastTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: colorBlue}
 			if task.end != nil {
 				tEnd.Stack = ctx.stack(task.end.Stk)
 			}
@@ -817,7 +817,7 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 			}
 		}
 		if !overlapping {
-			sl.Cname = "grey"
+			sl.Cname = colorLightGrey
 		}
 	}
 	ctx.emit(sl)
@@ -839,6 +839,7 @@ func (ctx *traceContext) emitSpan(s *spanDesc) {
 		Tid:      s.goid,
 		ID:       s.goid,
 		Scope:    scopeID,
+		Cname:    colorDeepMagenta,
 	}
 	if s.start != nil {
 		sl0.Stack = ctx.stack(s.start.Stk)
@@ -853,6 +854,7 @@ func (ctx *traceContext) emitSpan(s *spanDesc) {
 		Tid:      s.goid,
 		ID:       s.goid,
 		Scope:    scopeID,
+		Cname:    colorDeepMagenta,
 	}
 	if s.end != nil {
 		sl1.Stack = ctx.stack(s.end.Stk)
@@ -930,7 +932,7 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
 			if isUserAnnotationEvent(ev) {
 				return // don't display unrelated task events.
 			}
-			cname = "grey"
+			cname = colorLightGrey
 		}
 	}
 	var arg interface{}
@@ -1074,3 +1076,41 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
 		},
 	}
 }
+
+// Mapping from more reasonable color names to the reserved color names in
+// https://github.com/catapult-project/catapult/blob/master/tracing/tracing/base/color_scheme.html#L50
+// The chrome trace viewer allows only those as cname values.
+const (
+	colorLightMauve      string = "thread_state_uninterruptible" // 182, 125, 143
+	colorOrange                 = "thread_state_iowait"          // 255, 140, 0
+	colorSeafoamGreen           = "thread_state_running"         // 126, 200, 148
+	colorVistaBlue              = "thread_state_runnable"        // 133, 160, 210
+	colorTan                    = "thread_state_unknown"         // 199, 155, 125
+	colorIrisBlue               = "background_memory_dump"       // 0, 180, 180
+	colorMidnightBlue           = "light_memory_dump"            // 0, 0, 180
+	colorDeepMagenta            = "detailed_memory_dump"         // 180, 0, 180
+	colorBlue                   = "vsync_highlight_color"        // 0, 0, 255
+	colorGrey                   = "generic_work"                 // 125, 125, 125
+	colorGreen                  = "good"                         // 0, 125, 0
+	colorDarkGoldenrod          = "bad"                          // 180, 125, 0
+	colorPeach                  = "terrible"                     // 180, 0, 0
+	colorBlack                  = "black"                        // 0, 0, 0
+	colorLightGrey              = "grey"                         // 221, 221, 221
+	colorWhite                  = "white"                        // 255, 255, 255
+	colorYellow                 = "yellow"                       // 255, 255, 0
+	colorOlive                  = "olive"                        // 100, 100, 0
+	colorCornflowerBlue         = "rail_response"                // 67, 135, 253
+	colorSunsetOrange           = "rail_animation"               // 244, 74, 63
+	colorTangerine              = "rail_idle"                    // 238, 142, 0
+	colorShamrockGreen          = "rail_load"                    // 13, 168, 97
+	colorGreenishYellow         = "startup"                      // 230, 230, 0
+	colorDarkGrey               = "heap_dump_stack_frame"        // 128, 128, 128
+	colorTawny                  = "heap_dump_child_node_arrow"   // 204, 102, 0
+	colorLemon                  = "cq_build_running"             // 255, 255, 119
+	colorLime                   = "cq_build_passed"              // 153, 238, 102
+	colorPink                   = "cq_build_failed"              // 238, 136, 136
+	colorSilver                 = "cq_build_abandoned"           // 187, 187, 187
+	colorManzGreen              = "cq_build_attempt_running"     // 222, 222, 75
+	colorKellyGreen             = "cq_build_attempt_passed"      // 108, 218, 35
+	colorFuzzyWuzzyBrown        = "cq_build_attempt_failed"      // 187, 187, 187
+)
