@@ -426,7 +426,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R17"), buildReg("R16")},
-				clobbers: buildReg("R16 R17 R30"),
+				clobbers: buildReg("R16 R17 R26 R30"),
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,

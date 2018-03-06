@@ -462,11 +462,21 @@
 		(Move [s-s%8] dst src mem))
 
 // medium move uses a duff device
-// 8 and 128 are magic constants, see runtime/mkduff.go
 (Move [s] dst src mem)
-	&& s%8 == 0 && s > 24 && s <= 8*128
+	&& s > 32 && s <= 16*64 && s%16 == 8
 	&& !config.noDuffDevice ->
-	(DUFFCOPY [8 * (128 - s/8)] dst src mem)
+	(MOVDstore [s-8] dst (MOVDload [s-8] src mem)
+		(DUFFCOPY <types.TypeMem> [8*(64-(s-8)/16)] dst src mem))
+(Move [s] dst src mem)
+	&& s > 32 && s <= 16*64 && s%16 == 0
+	&& !config.noDuffDevice ->
+	(DUFFCOPY [8 * (64 - s/16)] dst src mem)
+// 8 is the number of bytes to encode:
+//
+// LDP.P   16(R16), (R26, R27)
+// STP.P   (R26, R27), 16(R17)
+//
+// 64 is number of these blocks. See runtime/duff_arm64.s:duffcopy
 
 // large move uses a loop
 (Move [s] dst src mem)

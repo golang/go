@@ -164,12 +164,13 @@ func zeroARM64(w io.Writer) {
 func copyARM64(w io.Writer) {
 	// R16 (aka REGRT1): ptr to source memory
 	// R17 (aka REGRT2): ptr to destination memory
-	// R27 (aka REGTMP): scratch space
+	// R26, R27 (aka REGTMP): scratch space
 	// R16 and R17 are updated as a side effect
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
-	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVD.P\t8(R16), R27")
-		fmt.Fprintln(w, "\tMOVD.P\tR27, 8(R17)")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+
+	for i := 0; i < 64; i++ {
+		fmt.Fprintln(w, "\tLDP.P\t16(R16), (R26, R27)")
+		fmt.Fprintln(w, "\tSTP.P\t(R26, R27), 16(R17)")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")
