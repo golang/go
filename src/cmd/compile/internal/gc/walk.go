@@ -242,9 +242,18 @@ func walkstmt(n *Node) *Node {
 
 	case ODEFER:
 		Curfn.Func.SetHasDefer(true)
+		fallthrough
+	case OPROC:
 		switch n.Left.Op {
 		case OPRINT, OPRINTN:
-			n.Left = walkprintfunc(n.Left, &n.Ninit)
+			n.Left = wrapCall(n.Left, &n.Ninit)
+
+		case ODELETE:
+			if mapfast(n.Left.List.First().Type) == mapslow {
+				n.Left = wrapCall(n.Left, &n.Ninit)
+			} else {
+				n.Left = walkexpr(n.Left, &n.Ninit)
+			}
 
 		case OCOPY:
 			n.Left = copyany(n.Left, &n.Ninit, true)
@@ -272,21 +281,6 @@ func walkstmt(n *Node) *Node {
 		n.Left = walkexpr(n.Left, &n.Ninit)
 		walkstmtlist(n.Nbody.Slice())
 		walkstmtlist(n.Rlist.Slice())
-
-	case OPROC:
-		switch n.Left.Op {
-		case OPRINT, OPRINTN:
-			n.Left = walkprintfunc(n.Left, &n.Ninit)
-
-		case OCOPY:
-			n.Left = copyany(n.Left, &n.Ninit, true)
-
-		default:
-			n.Left = walkexpr(n.Left, &n.Ninit)
-		}
-
-		// make room for size & fn arguments.
-		adjustargs(n, 2*Widthptr)
 
 	case ORETURN:
 		walkexprlist(n.List.Slice(), &n.Ninit)
@@ -3847,45 +3841,43 @@ func candiscard(n *Node) bool {
 	return true
 }
 
-// rewrite
-//	print(x, y, z)
+// Rewrite
+//	go builtin(x, y, z)
 // into
-//	func(a1, a2, a3) {
-//		print(a1, a2, a3)
+//	go func(a1, a2, a3) {
+//		builtin(a1, a2, a3)
 //	}(x, y, z)
-// and same for println.
+// for print, println, and delete.
 
-var walkprintfunc_prgen int
+var wrapCall_prgen int
 
-// The result of walkprintfunc MUST be assigned back to n, e.g.
-// 	n.Left = walkprintfunc(n.Left, init)
-func walkprintfunc(n *Node, init *Nodes) *Node {
+// The result of wrapCall MUST be assigned back to n, e.g.
+// 	n.Left = wrapCall(n.Left, init)
+func wrapCall(n *Node, init *Nodes) *Node {
 	if n.Ninit.Len() != 0 {
 		walkstmtlist(n.Ninit.Slice())
 		init.AppendNodes(&n.Ninit)
 	}
 
 	t := nod(OTFUNC, nil, nil)
-	var printargs []*Node
-	for i, n1 := range n.List.Slice() {
+	var args []*Node
+	for i, arg := range n.List.Slice() {
 		buf := fmt.Sprintf("a%d", i)
-		a := namedfield(buf, n1.Type)
+		a := namedfield(buf, arg.Type)
 		t.List.Append(a)
-		printargs = append(printargs, a.Left)
+		args = append(args, a.Left)
 	}
 
 	oldfn := Curfn
 	Curfn = nil
 
-	walkprintfunc_prgen++
-	sym := lookupN("print·%d", walkprintfunc_prgen)
+	wrapCall_prgen++
+	sym := lookupN("wrap·", wrapCall_prgen)
 	fn := dclfunc(sym, t)
 
 	a := nod(n.Op, nil, nil)
-	a.List.Set(printargs)
+	a.List.Set(args)
 	a = typecheck(a, Etop)
-	a = walkstmt(a)
-
 	fn.Nbody.Set1(a)
 
 	funcbody()

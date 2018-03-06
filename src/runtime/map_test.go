@@ -875,3 +875,24 @@ func BenchmarkMapDelete(b *testing.B) {
 	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
 	b.Run("Str", runWith(benchmarkMapDeleteStr, 100, 1000, 10000))
 }
+
+func TestDeferDeleteSlow(t *testing.T) {
+	ks := []complex128{0, 1, 2, 3}
+
+	m := make(map[interface{}]int)
+	for i, k := range ks {
+		m[k] = i
+	}
+	if len(m) != len(ks) {
+		t.Errorf("want %d elements, got %d", len(ks), len(m))
+	}
+
+	func() {
+		for _, k := range ks {
+			defer delete(m, k)
+		}
+	}()
+	if len(m) != 0 {
+		t.Errorf("want 0 elements, got %d", len(m))
+	}
+}

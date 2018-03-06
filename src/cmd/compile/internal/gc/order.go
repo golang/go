@@ -618,25 +618,7 @@ func (o *Order) stmt(n *Node) {
 	// Special: order arguments to inner call but not call itself.
 	case ODEFER, OPROC:
 		t := o.markTemp()
-
-		switch n.Left.Op {
-		// Delete will take the address of the key.
-		// Copy key into new temp and do not clean it
-		// (it persists beyond the statement).
-		case ODELETE:
-			o.exprList(n.Left.List)
-
-			if mapfast(n.Left.List.First().Type) == mapslow {
-				t1 := o.markTemp()
-				np := n.Left.List.Addr(1) // map key
-				*np = o.copyExpr(*np, (*np).Type, false)
-				o.popTemp(t1)
-			}
-
-		default:
-			o.call(n.Left)
-		}
-
+		o.call(n.Left)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
