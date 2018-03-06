@@ -59,7 +59,13 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.isBlocking = true
 		return nil
 	}
-	return fd.pd.init(fd)
+	err := fd.pd.init(fd)
+	if err != nil {
+		// If we could not initialize the runtime poller,
+		// assume we are using blocking mode.
+		fd.isBlocking = true
+	}
+	return err
 }
 
 // Destroy closes the file descriptor. This is called when there are
