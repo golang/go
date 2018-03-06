@@ -547,34 +547,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tROLW\t\\$8,"},
 	},
-	{
-		fn: `
-		func pop1(x uint64) int {
-			return bits.OnesCount64(x)
-		}`,
-		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
-	},
-	{
-		fn: `
-		func pop2(x uint32) int {
-			return bits.OnesCount32(x)
-		}`,
-		pos: []string{"\tPOPCNTL\t", "support_popcnt"},
-	},
-	{
-		fn: `
-		func pop3(x uint16) int {
-			return bits.OnesCount16(x)
-		}`,
-		pos: []string{"\tPOPCNTL\t", "support_popcnt"},
-	},
-	{
-		fn: `
-		func pop4(x uint) int {
-			return bits.OnesCount(x)
-		}`,
-		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
-	},
 	// multiplication merging tests
 	{
 		fn: `
@@ -1491,30 +1463,6 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"TBZ"},
-	},
-	{
-		fn: `
-		func $(x uint64) int {
-			return bits.OnesCount64(x)
-		}
-		`,
-		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
-	},
-	{
-		fn: `
-		func $(x uint32) int {
-			return bits.OnesCount32(x)
-		}
-		`,
-		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
-	},
-	{
-		fn: `
-		func $(x uint16) int {
-			return bits.OnesCount16(x)
-		}
-		`,
-		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
 	},
 	// Load-combining tests.
 	{
