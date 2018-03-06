@@ -665,3 +665,22 @@ func BenchmarkNatSqr(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkNatSetBytes(b *testing.B) {
+	const maxLength = 128
+	lengths := []int{
+		// No remainder:
+		8, 24, maxLength,
+		// With remainder:
+		7, 23, maxLength - 1,
+	}
+	n := make(nat, maxLength/_W) // ensure n doesn't need to grow during the test
+	buf := make([]byte, maxLength)
+	for _, l := range lengths {
+		b.Run(fmt.Sprint(l), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				n.setBytes(buf[:l])
+			}
+		})
+	}
+}

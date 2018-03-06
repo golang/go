@@ -9,6 +9,7 @@
 package big
 
 import (
+	"encoding/binary"
 	"math/bits"
 	"math/rand"
 	"sync"
@@ -1208,25 +1209,32 @@ func (z nat) bytes(buf []byte) (i int) {
 	return
 }
 
+// bigEndianWord returns the contents of buf interpreted as a big-endian encoded Word value.
+func bigEndianWord(buf []byte) Word {
+	if _W == 64 {
+		return Word(binary.BigEndian.Uint64(buf))
+	} else { // Explicit else is required to get inlining. See #23521
+		return Word(binary.BigEndian.Uint32(buf))
+	}
+}
+
 // setBytes interprets buf as the bytes of a big-endian unsigned
 // integer, sets z to that value, and returns z.
 func (z nat) setBytes(buf []byte) nat {
 	z = z.make((len(buf) + _S - 1) / _S)
 
-	k := 0
-	s := uint(0)
-	var d Word
-	for i := len(buf); i > 0; i-- {
-		d |= Word(buf[i-1]) << s
-		if s += 8; s == _S*8 {
-			z[k] = d
-			k++
-			s = 0
-			d = 0
-		}
+	i := len(buf)
+	for k := 0; i >= _S; k++ {
+		z[k] = bigEndianWord(buf[i-_S : i])
+		i -= _S
 	}
-	if k < len(z) {
-		z[k] = d
+	if i > 0 {
+		var d Word
+		for s := uint(0); i > 0; s += 8 {
+			d |= Word(buf[i-1]) << s
+			i--
+		}
+		z[len(z)-1] = d
 	}
 
 	return z.norm()
