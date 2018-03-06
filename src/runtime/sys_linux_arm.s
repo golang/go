@@ -221,7 +221,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
 	MOVW	g_m(g), R1
 	MOVW	m_curg(R1), R0
 
-	CMP	R1, R0		// Only switch if on curg.
+	CMP	g, R0		// Only switch if on curg.
 	B.NE	noswitch
 
 	MOVW	m_g0(R1), R0
@@ -266,7 +266,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	MOVW	g_m(g), R1
 	MOVW	m_curg(R1), R0
 
-	CMP	R1, R0		// Only switch if on curg.
+	CMP	g, R0		// Only switch if on curg.
 	B.NE	noswitch
 
 	MOVW	m_g0(R1), R0
