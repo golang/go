@@ -17371,19 +17371,47 @@ func rewriteValueARM64_OpMove_10(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s%8 == 0 && s > 24 && s <= 8*128 && !config.noDuffDevice
-	// result: (DUFFCOPY [8 * (128 - s/8)] dst src mem)
+	// cond: s > 32 && s <= 16*64 && s%16 == 8 && !config.noDuffDevice
+	// result: (MOVDstore [s-8] dst (MOVDload [s-8] src mem) (DUFFCOPY <types.TypeMem> [8*(64-(s-8)/16)] dst src mem))
 	for {
 		s := v.AuxInt
 		_ = v.Args[2]
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(s%8 == 0 && s > 24 && s <= 8*128 && !config.noDuffDevice) {
+		if !(s > 32 && s <= 16*64 && s%16 == 8 && !config.noDuffDevice) {
+			break
+		}
+		v.reset(OpARM64MOVDstore)
+		v.AuxInt = s - 8
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+		v0.AuxInt = s - 8
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpARM64DUFFCOPY, types.TypeMem)
+		v1.AuxInt = 8 * (64 - (s-8)/16)
+		v1.AddArg(dst)
+		v1.AddArg(src)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: s > 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice
+	// result: (DUFFCOPY [8 * (64 - s/16)] dst src mem)
+	for {
+		s := v.AuxInt
+		_ = v.Args[2]
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(s > 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice) {
 			break
 		}
 		v.reset(OpARM64DUFFCOPY)
-		v.AuxInt = 8 * (128 - s/8)
+		v.AuxInt = 8 * (64 - s/16)
 		v.AddArg(dst)
 		v.AddArg(src)
 		v.AddArg(mem)
