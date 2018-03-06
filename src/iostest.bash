@@ -69,5 +69,5 @@ if [ "$GOIOS_DEV_ID" = "" ]; then
 	eval $(GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go run ../misc/ios/detect.go)
 fi
 
-# Run standard build and tests.
-./all.bash --no-clean
+# Run standard tests.
+bash run.bash --no-rebuild
