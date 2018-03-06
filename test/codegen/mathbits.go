@@ -96,6 +96,34 @@ func Len8(n uint8) int {
 	return bits.Len8(n)
 }
 
+// -------------------- //
+//    bits.OnesCount    //
+// -------------------- //
+
+func OnesCount(n uint) int {
+	//amd64:"POPCNTQ",".*support_popcnt"
+	//arm64:"VCNT","VUADDLV"
+	return bits.OnesCount(n)
+}
+
+func OnesCount64(n uint64) int {
+	//amd64:"POPCNTQ",".*support_popcnt"
+	//arm64:"VCNT","VUADDLV"
+	return bits.OnesCount64(n)
+}
+
+func OnesCount32(n uint32) int {
+	//amd64:"POPCNTL",".*support_popcnt"
+	//arm64:"VCNT","VUADDLV"
+	return bits.OnesCount32(n)
+}
+
+func OnesCount16(n uint16) int {
+	//amd64:"POPCNTL",".*support_popcnt"
+	//arm64:"VCNT","VUADDLV"
+	return bits.OnesCount16(n)
+}
+
 // ------------------------ //
 //    bits.TrailingZeros    //
 // ------------------------ //
