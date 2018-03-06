@@ -3160,7 +3160,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.As == ASTXP || p.As == ASTXPW || p.As == ASTLXP || p.As == ASTLXPW {
 			o1 |= uint32(p.From.Offset&31) << 10
 		}
-		o1 |= uint32(p.To.Reg&31) << 5 | uint32(p.From.Reg & 31)
+		o1 |= uint32(p.To.Reg&31)<<5 | uint32(p.From.Reg&31)
 
 	case 60: /* adrp label,r */
 		d := c.brdist(p, 12, 21, 0)
