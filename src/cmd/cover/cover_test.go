@@ -59,6 +59,17 @@ func TestCover(t *testing.T) {
 	for i, line := range lines {
 		lines[i] = bytes.Replace(line, []byte("LINE"), []byte(fmt.Sprint(i+1)), -1)
 	}
+
+	// Add a function that is not gofmt'ed. This used to cause a crash.
+	// We don't put it in test.go because then we would have to gofmt it.
+	// Issue 23927.
+	lines = append(lines, []byte("func unFormatted() {"),
+		[]byte("\tif true {"),
+		[]byte("\t}else{"),
+		[]byte("\t}"),
+		[]byte("}"))
+	lines = append(lines, []byte("func unFormatted2(b bool) {if b{}else{}}"))
+
 	if err := ioutil.WriteFile(coverInput, bytes.Join(lines, []byte("\n")), 0666); err != nil {
 		t.Fatal(err)
 	}
@@ -246,6 +257,7 @@ func TestCoverFunc(t *testing.T) {
 }
 
 func run(c *exec.Cmd, t *testing.T) {
+	t.Helper()
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	err := c.Run()
