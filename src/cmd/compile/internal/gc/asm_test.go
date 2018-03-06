@@ -224,7 +224,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "amd64",
 		os:      "linux",
-		imports: []string{"math/bits", "unsafe", "runtime"},
+		imports: []string{"unsafe", "runtime"},
 		tests:   linuxAMD64Tests,
 	},
 	{
@@ -233,10 +233,9 @@ var allAsmTests = []*asmTests{
 		tests: linux386Tests,
 	},
 	{
-		arch:    "s390x",
-		os:      "linux",
-		imports: []string{"math/bits"},
-		tests:   linuxS390XTests,
+		arch:  "s390x",
+		os:    "linux",
+		tests: linuxS390XTests,
 	},
 	{
 		arch:    "arm",
@@ -245,10 +244,9 @@ var allAsmTests = []*asmTests{
 		tests:   linuxARMTests,
 	},
 	{
-		arch:    "arm64",
-		os:      "linux",
-		imports: []string{"math/bits"},
-		tests:   linuxARM64Tests,
+		arch:  "arm64",
+		os:    "linux",
+		tests: linuxARM64Tests,
 	},
 	{
 		arch:  "mips",
@@ -521,31 +519,6 @@ var linuxAMD64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tBTQ\t\\$60"},
-	},
-	// Intrinsic tests for math/bits
-	{
-		fn: `
-		func f45(a uint64) uint64 {
-			return bits.ReverseBytes64(a)
-		}
-		`,
-		pos: []string{"\tBSWAPQ\t"},
-	},
-	{
-		fn: `
-		func f46(a uint32) uint32 {
-			return bits.ReverseBytes32(a)
-		}
-		`,
-		pos: []string{"\tBSWAPL\t"},
-	},
-	{
-		fn: `
-		func f47(a uint16) uint16 {
-			return bits.ReverseBytes16(a)
-		}
-		`,
-		pos: []string{"\tROLW\t\\$8,"},
 	},
 	// multiplication merging tests
 	{
@@ -1169,23 +1142,6 @@ var linuxS390XTests = []*asmTest{
 		`,
 		pos: []string{"\tFMSUBS\t"},
 	},
-	// Intrinsic tests for math/bits
-	{
-		fn: `
-		func f22(a uint64) uint64 {
-			return bits.ReverseBytes64(a)
-		}
-		`,
-		pos: []string{"\tMOVDBR\t"},
-	},
-	{
-		fn: `
-		func f23(a uint32) uint32 {
-			return bits.ReverseBytes32(a)
-		}
-		`,
-		pos: []string{"\tMOVWBR\t"},
-	},
 	{
 		// check that stack store is optimized away
 		fn: `
@@ -1360,22 +1316,6 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		pos: []string{"\tORN\t"},
 		neg: []string{"\tORR\t"},
-	},
-	{
-		fn: `
-		func f22(a uint64) uint64 {
-			return bits.ReverseBytes64(a)
-		}
-		`,
-		pos: []string{"\tREV\t"},
-	},
-	{
-		fn: `
-		func f23(a uint32) uint32 {
-			return bits.ReverseBytes32(a)
-		}
-		`,
-		pos: []string{"\tREVW\t"},
 	},
 	{
 		fn: `

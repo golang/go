@@ -124,6 +124,36 @@ func OnesCount16(n uint16) int {
 	return bits.OnesCount16(n)
 }
 
+// ----------------------- //
+//    bits.ReverseBytes    //
+// ----------------------- //
+
+func ReverseBytes(n uint) uint {
+	//amd64:"BSWAPQ"
+	//s390x:"MOVDBR"
+	//arm64:"REV"
+	return bits.ReverseBytes(n)
+}
+
+func ReverseBytes64(n uint64) uint64 {
+	//amd64:"BSWAPQ"
+	//s390x:"MOVDBR"
+	//arm64:"REV"
+	return bits.ReverseBytes64(n)
+}
+
+func ReverseBytes32(n uint32) uint32 {
+	//amd64:"BSWAPL"
+	//s390x:"MOVWBR"
+	//arm64:"REVW"
+	return bits.ReverseBytes32(n)
+}
+
+func ReverseBytes16(n uint16) uint16 {
+	//amd64:"ROLW"
+	return bits.ReverseBytes16(n)
+}
+
 // ------------------------ //
 //    bits.TrailingZeros    //
 // ------------------------ //
