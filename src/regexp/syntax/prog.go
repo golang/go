@@ -16,8 +16,9 @@ import (
 // A Prog is a compiled regular expression program.
 type Prog struct {
 	Inst   []Inst
-	Start  int // index of start instruction
-	NumCap int // number of InstCapture insts in re
+	Start  int   // index of start instruction
+	Fork   []int // index of start instruction of forking processes
+	NumCap int   // number of InstCapture insts in re
 }
 
 // An InstOp is an instruction opcode.
@@ -30,6 +31,9 @@ const (
 	InstEmptyWidth
 	InstMatch
 	InstFail
+	InstRepeatAny
+	InstCheckProc
+	InstMatchProc
 	InstNop
 	InstRune
 	InstRune1
@@ -44,7 +48,11 @@ var instOpNames = []string{
 	"InstEmptyWidth",
 	"InstMatch",
 	"InstFail",
+	"InstRepeatAny",
+	"InstCheckProc",
+	"InstMatchProc",
 	"InstNop",
+	"InstCondMatch",
 	"InstRune",
 	"InstRune1",
 	"InstRuneAny",
@@ -112,7 +120,7 @@ func IsWordChar(r rune) bool {
 type Inst struct {
 	Op   InstOp
 	Out  uint32 // all but InstMatch, InstFail
-	Arg  uint32 // InstAlt, InstAltMatch, InstCapture, InstEmptyWidth
+	Arg  uint32 // InstAlt, InstAltMatch, InstCheckProc, InstMatchProc, InstCapture, InstEmptyWidth
 	Rune []rune
 }
 
@@ -147,6 +155,10 @@ func (i *Inst) op() InstOp {
 // regexp must start with. Complete is true if the prefix
 // is the entire match.
 func (p *Prog) Prefix() (prefix string, complete bool) {
+	if len(p.Fork) > 0 {
+		return "", false
+	}
+
 	i, _ := p.skipNop(uint32(p.Start))
 
 	// Avoid allocation of buffer if prefix is empty.
@@ -281,6 +293,11 @@ func bw(b *bytes.Buffer, args ...string) {
 }
 
 func dumpProg(b *bytes.Buffer, p *Prog) {
+	forkSet := make(map[int]struct{}, len(p.Fork))
+	for _, i := range p.Fork {
+		forkSet[i] = struct{}{}
+	}
+
 	for j := range p.Inst {
 		i := &p.Inst[j]
 		pc := strconv.Itoa(j)
@@ -289,6 +306,9 @@ func dumpProg(b *bytes.Buffer, p *Prog) {
 		}
 		if j == p.Start {
 			pc += "*"
+		}
+		if _, ok := forkSet[j]; ok {
+			pc += "#"
 		}
 		bw(b, pc, "\t")
 		dumpInst(b, i)
@@ -314,6 +334,17 @@ func dumpInst(b *bytes.Buffer, i *Inst) {
 		bw(b, "match")
 	case InstFail:
 		bw(b, "fail")
+	case InstRepeatAny:
+		bw(b, "repeatany -> ", u32(i.Arg))
+	case InstCheckProc:
+		not := ""
+		n := i.Arg >> 1
+		if i.Arg&1 == 1 {
+			not = "not "
+		}
+		bw(b, "checkproc ", not, u32(n), " -> ", u32(i.Out))
+	case InstMatchProc:
+		bw(b, "matchproc ", u32(i.Arg))
 	case InstNop:
 		bw(b, "nop -> ", u32(i.Out))
 	case InstRune:

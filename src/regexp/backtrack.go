@@ -66,7 +66,7 @@ func newBitState(prog *syntax.Prog) *bitState {
 // shouldBacktrack reports whether the program is too
 // long for the backtracker to run.
 func shouldBacktrack(prog *syntax.Prog) bool {
-	return len(prog.Inst) <= maxBacktrackProg
+	return len(prog.Inst) <= maxBacktrackProg && len(prog.Fork) == 0
 }
 
 // reset resets the state of the backtracker.

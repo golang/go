@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp/syntax"
 	"strconv"
 	"strings"
@@ -753,5 +754,25 @@ func TestProgramTooLongForBacktrack(t *testing.T) {
 	}
 	if longRegex.MatchString("xxx") {
 		t.Errorf("longRegex.MatchString(\"xxx\") was true, want false")
+	}
+}
+
+func TestLookBehind(t *testing.T) {
+	lbRegex := MustCompile(`(?<=f..)(?<=.o.(?<=..o))`)
+	if m := lbRegex.FindAllStringIndex("barfoobar", -1); !reflect.DeepEqual(m, [][]int{{6, 6}}) {
+		t.Errorf("lbRegex.FindStringIndex(\"barfoobar\") was %v", m)
+	}
+	if m := lbRegex.FindAllStringIndex("barfoofoobar", -1); !reflect.DeepEqual(m, [][]int{{6, 6}, {9, 9}}) {
+		t.Errorf("lbRegex.FindStringIndex(\"barfoofoobar\") was %v", m)
+	}
+}
+
+func TestNegativeLookBehind(t *testing.T) {
+	nlbRegex := MustCompile(`(?<!(?<=foo) )b`)
+	if m := nlbRegex.FindAllStringIndex("bar foo bar", -1); !reflect.DeepEqual(m, [][]int{{0, 1}}) {
+		t.Errorf("nlbRegex.FindStringIndex(\"bar foo bar\") was %v", m)
+	}
+	if m := nlbRegex.FindAllStringIndex("bar foo bar bar", -1); !reflect.DeepEqual(m, [][]int{{0, 1}, {12, 13}}) {
+		t.Errorf("nlbRegex.FindStringIndex(\"bar foo bar bar\") was %v", m)
 	}
 }

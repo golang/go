@@ -37,25 +37,27 @@ type Op uint8
 // (OpLiteral, OpCharClass, OpAnyCharNotNL, OpAnyChar).
 
 const (
-	OpNoMatch        Op = 1 + iota // matches no strings
-	OpEmptyMatch                   // matches empty string
-	OpLiteral                      // matches Runes sequence
-	OpCharClass                    // matches Runes interpreted as range pair list
-	OpAnyCharNotNL                 // matches any character except newline
-	OpAnyChar                      // matches any character
-	OpBeginLine                    // matches empty string at beginning of line
-	OpEndLine                      // matches empty string at end of line
-	OpBeginText                    // matches empty string at beginning of text
-	OpEndText                      // matches empty string at end of text
-	OpWordBoundary                 // matches word boundary `\b`
-	OpNoWordBoundary               // matches word non-boundary `\B`
-	OpCapture                      // capturing subexpression with index Cap, optional name Name
-	OpStar                         // matches Sub[0] zero or more times
-	OpPlus                         // matches Sub[0] one or more times
-	OpQuest                        // matches Sub[0] zero or one times
-	OpRepeat                       // matches Sub[0] at least Min times, at most Max (Max == -1 is no limit)
-	OpConcat                       // matches concatenation of Subs
-	OpAlternate                    // matches alternation of Subs
+	OpNoMatch            Op = 1 + iota // matches no strings
+	OpEmptyMatch                       // matches empty string
+	OpLiteral                          // matches Runes sequence
+	OpCharClass                        // matches Runes interpreted as range pair list
+	OpAnyCharNotNL                     // matches any character except newline
+	OpAnyChar                          // matches any character
+	OpBeginLine                        // matches empty string at beginning of line
+	OpEndLine                          // matches empty string at end of line
+	OpBeginText                        // matches empty string at beginning of text
+	OpEndText                          // matches empty string at end of text
+	OpWordBoundary                     // matches word boundary `\b`
+	OpNoWordBoundary                   // matches word non-boundary `\B`
+	OpLookBehind                       // matches empty string if Sub[0] is matched
+	OpNegativeLookBehind               // matches empty string if Sub[0] is not matched
+	OpCapture                          // capturing subexpression with index Cap, optional name Name
+	OpStar                             // matches Sub[0] zero or more times
+	OpPlus                             // matches Sub[0] one or more times
+	OpQuest                            // matches Sub[0] zero or one times
+	OpRepeat                           // matches Sub[0] at least Min times, at most Max (Max == -1 is no limit)
+	OpConcat                           // matches concatenation of Subs
+	OpAlternate                        // matches alternation of Subs
 )
 
 const opPseudo Op = 128 // where pseudo-ops start
@@ -102,6 +104,11 @@ func (x *Regexp) Equal(y *Regexp) bool {
 
 	case OpRepeat:
 		if x.Flags&NonGreedy != y.Flags&NonGreedy || x.Min != y.Min || x.Max != y.Max || !x.Sub[0].Equal(y.Sub[0]) {
+			return false
+		}
+
+	case OpLookBehind, OpNegativeLookBehind:
+		if !x.Sub[0].Equal(y.Sub[0]) {
 			return false
 		}
 
@@ -183,6 +190,14 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 		b.WriteString(`\b`)
 	case OpNoWordBoundary:
 		b.WriteString(`\B`)
+	case OpLookBehind:
+		b.WriteString(`(?<=`)
+		writeRegexp(b, re.Sub[0])
+		b.WriteRune(')')
+	case OpNegativeLookBehind:
+		b.WriteString(`(?<!`)
+		writeRegexp(b, re.Sub[0])
+		b.WriteRune(')')
 	case OpCapture:
 		if re.Name != "" {
 			b.WriteString(`(?P<`)

@@ -38,6 +38,7 @@ const (
 	ErrInvalidRepeatOp       ErrorCode = "invalid nested repetition operator"
 	ErrInvalidRepeatSize     ErrorCode = "invalid repeat count"
 	ErrInvalidUTF8           ErrorCode = "invalid UTF-8"
+	ErrInvalidCapture        ErrorCode = "invalid captures in look-behind"
 	ErrMissingBracket        ErrorCode = "missing closing ]"
 	ErrMissingParen          ErrorCode = "missing closing )"
 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
@@ -73,6 +74,8 @@ const (
 // Pseudo-ops for parsing stack.
 const (
 	opLeftParen = opPseudo + iota
+	opLeftLookBehind
+	opLeftNegativeLookBehind
 	opVerticalBar
 )
 
@@ -947,6 +950,33 @@ func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
 func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 	t := s
 
+	// Check for look-behind.
+	//
+	//   (?<=expr)    positive look-behind
+	//   (?<!expr)    negative look-behind
+	if len(t) > 4 && t[2] == '<' {
+		var op Op
+
+		// positive look-behind:
+		if t[3] == '=' {
+			op = opLeftLookBehind
+		}
+
+		// negative look-behind:
+		if t[3] == '!' {
+			op = opLeftNegativeLookBehind
+		}
+
+		if op == 0 {
+			return "", &Error{ErrInvalidPerlOp, s[:len(s)-3]}
+		} else {
+			// Save the current number of captures to check captures
+			// in look-behind after closing look-behind paren.
+			p.op(op).Cap = p.numCap
+			return t[4:], nil
+		}
+	}
+
 	// Check for named captures, first introduced in Python's regexp library.
 	// As usual, there are three slightly different syntaxes:
 	//
@@ -1222,19 +1252,36 @@ func (p *parser) parseRightParen() error {
 	re1 := p.stack[n-1]
 	re2 := p.stack[n-2]
 	p.stack = p.stack[:n-2]
-	if re2.Op != opLeftParen {
-		return &Error{ErrUnexpectedParen, p.wholeRegexp}
-	}
-	// Restore flags at time of paren.
-	p.flags = re2.Flags
-	if re2.Cap == 0 {
-		// Just for grouping.
-		p.push(re1)
-	} else {
-		re2.Op = OpCapture
+	switch re2.Op {
+	case opLeftParen:
+		// Restore flags at time of paren.
+		p.flags = re2.Flags
+		if re2.Cap == 0 {
+			// Just for grouping.
+			p.push(re1)
+		} else {
+			re2.Op = OpCapture
+			re2.Sub = re2.Sub0[:1]
+			re2.Sub[0] = re1
+			p.push(re2)
+		}
+	case opLeftLookBehind, opLeftNegativeLookBehind:
+		if p.numCap != re2.Cap {
+			// Look-behind cannot contain captures.
+			return &Error{ErrInvalidCapture, p.wholeRegexp}
+		}
+		switch re2.Op {
+		case opLeftLookBehind:
+			re2.Op = OpLookBehind
+		case opLeftNegativeLookBehind:
+			re2.Op = OpNegativeLookBehind
+		}
 		re2.Sub = re2.Sub0[:1]
+		re2.Cap = 0
 		re2.Sub[0] = re1
 		p.push(re2)
+	default:
+		return &Error{ErrUnexpectedParen, p.wholeRegexp}
 	}
 	return nil
 }

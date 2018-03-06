@@ -219,6 +219,10 @@ func cleanupOnePass(prog *onePassProg, original *syntax.Prog) {
 
 // onePassCopy creates a copy of the original Prog, as we'll be modifying it
 func onePassCopy(prog *syntax.Prog) *onePassProg {
+	if len(prog.Fork) > 0 {
+		return notOnePass
+	}
+
 	p := &onePassProg{
 		Start:  prog.Start,
 		NumCap: prog.NumCap,
@@ -298,7 +302,7 @@ var anyRune = []rune{0, unicode.MaxRune}
 // to the size of the Prog.
 func makeOnePass(p *onePassProg) *onePassProg {
 	// If the machine is very long, it's not worth the time to check if we can use one pass.
-	if len(p.Inst) >= 1000 {
+	if p == notOnePass || len(p.Inst) >= 1000 {
 		return notOnePass
 	}
 

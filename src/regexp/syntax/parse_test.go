@@ -93,6 +93,8 @@ var parseTests = []parseTest{
 	{`(?i)\w`, `cc{0x30-0x39 0x41-0x5a 0x5f 0x61-0x7a 0x17f 0x212a}`},
 	{`(?i)\W`, `cc{0x0-0x2f 0x3a-0x40 0x5b-0x5e 0x60 0x7b-0x17e 0x180-0x2129 0x212b-0x10ffff}`},
 	{`[^\\]`, `cc{0x0-0x5b 0x5d-0x10ffff}`},
+	{`(?<=a)`, `lb{lit{a}}`},
+	{`(?<!a)`, `nlb{lit{a}}`},
 	//	{ `\C`, `byte{}` },  // probably never
 
 	// Unicode, negatives, and a double negative.
@@ -288,25 +290,27 @@ func dump(re *Regexp) string {
 }
 
 var opNames = []string{
-	OpNoMatch:        "no",
-	OpEmptyMatch:     "emp",
-	OpLiteral:        "lit",
-	OpCharClass:      "cc",
-	OpAnyCharNotNL:   "dnl",
-	OpAnyChar:        "dot",
-	OpBeginLine:      "bol",
-	OpEndLine:        "eol",
-	OpBeginText:      "bot",
-	OpEndText:        "eot",
-	OpWordBoundary:   "wb",
-	OpNoWordBoundary: "nwb",
-	OpCapture:        "cap",
-	OpStar:           "star",
-	OpPlus:           "plus",
-	OpQuest:          "que",
-	OpRepeat:         "rep",
-	OpConcat:         "cat",
-	OpAlternate:      "alt",
+	OpNoMatch:            "no",
+	OpEmptyMatch:         "emp",
+	OpLiteral:            "lit",
+	OpCharClass:          "cc",
+	OpAnyCharNotNL:       "dnl",
+	OpAnyChar:            "dot",
+	OpBeginLine:          "bol",
+	OpEndLine:            "eol",
+	OpBeginText:          "bot",
+	OpEndText:            "eot",
+	OpWordBoundary:       "wb",
+	OpNoWordBoundary:     "nwb",
+	OpLookBehind:         "lb",
+	OpNegativeLookBehind: "nlb",
+	OpCapture:            "cap",
+	OpStar:               "star",
+	OpPlus:               "plus",
+	OpQuest:              "que",
+	OpRepeat:             "rep",
+	OpConcat:             "cat",
+	OpAlternate:          "alt",
 }
 
 // dumpRegexp writes an encoding of the syntax tree for the regexp re to b.
@@ -354,7 +358,7 @@ func dumpRegexp(b *bytes.Buffer, re *Regexp) {
 		for _, sub := range re.Sub {
 			dumpRegexp(b, sub)
 		}
-	case OpStar, OpPlus, OpQuest:
+	case OpStar, OpPlus, OpQuest, OpLookBehind, OpNegativeLookBehind:
 		dumpRegexp(b, re.Sub[0])
 	case OpRepeat:
 		fmt.Fprintf(b, "%d,%d ", re.Min, re.Max)

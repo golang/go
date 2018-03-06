@@ -45,6 +45,14 @@ type machine struct {
 	matched        bool         // whether a match was found
 	matchcap       []int        // capture information for the match
 
+	needSaveFork bool
+	// index of instrument of forked threads
+	fork     []int
+	nextfork []int
+	// index of instrument of forked threads on last match
+	matchfork     []int
+	matchnextfork []int
+
 	// cached inputs, to avoid allocation
 	inputBytes  inputBytes
 	inputString inputString
@@ -74,6 +82,12 @@ func progMachine(p *syntax.Prog, op *onePassProg) *machine {
 	n := len(m.p.Inst)
 	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
 	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
+	if len(m.p.Fork) > 0 {
+		m.fork = make([]int, 0, n)
+		m.nextfork = make([]int, 0, n)
+		m.matchfork = make([]int, 0, n)
+		m.matchnextfork = make([]int, 0, n)
+	}
 	ncap := p.NumCap
 	if ncap < 2 {
 		ncap = 2
@@ -110,7 +124,7 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 // match runs the machine over the input starting at pos.
 // It reports whether a match was found.
 // If so, m.matchcap holds the submatch information.
-func (m *machine) match(i input, pos int) bool {
+func (m *machine) match(i input, pos int, proc []int) bool {
 	startCond := m.re.cond
 	if startCond == ^syntax.EmptyOp(0) { // impossible
 		return false
@@ -132,8 +146,16 @@ func (m *machine) match(i input, pos int) bool {
 	} else {
 		flag = i.context(pos)
 	}
+	var matchproc []bool
+	if len(m.p.Fork) > 0 {
+		matchproc = make([]bool, len(m.p.Fork))
+		for _, n := range proc {
+			m.add(runq, uint32(n), pos, m.matchcap, flag, nil, matchproc, true)
+		}
+	}
+	numFork := len(runq.dense)
 	for {
-		if len(runq.dense) == 0 {
+		if len(runq.dense)-numFork == 0 {
 			if startCond&syntax.EmptyBeginText != 0 && pos != 0 {
 				// Anchored match, past beginning of text.
 				break
@@ -157,10 +179,19 @@ func (m *machine) match(i input, pos int) bool {
 			if len(m.matchcap) > 0 {
 				m.matchcap[0] = pos
 			}
-			m.add(runq, uint32(m.p.Start), pos, m.matchcap, flag, nil)
+			m.add(runq, uint32(m.p.Start), pos, m.matchcap, flag, nil, matchproc, false)
+		}
+		if len(m.p.Fork) > 0 {
+			for i := range matchproc {
+				matchproc[i] = false
+			}
+			if m.needSaveFork {
+				m.fork = append(m.fork[:0], m.nextfork...)
+				m.nextfork = m.nextfork[:0]
+			}
 		}
 		flag = syntax.EmptyOpContext(r, r1)
-		m.step(runq, nextq, pos, pos+width, r, flag)
+		numFork = m.step(runq, nextq, pos, pos+width, r, flag, numFork, matchproc)
 		if width == 0 {
 			break
 		}
@@ -195,9 +226,13 @@ func (m *machine) clear(q *queue) {
 // The step processes the rune c (which may be endOfText),
 // which starts at position pos and ends at nextPos.
 // nextCond gives the setting for the empty-width flags after c.
-func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond syntax.EmptyOp) {
+func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond syntax.EmptyOp, numFork int, matchproc []bool) (nextNumFork int) {
 	longest := m.re.longest
 	for j := 0; j < len(runq.dense); j++ {
+		if numFork == j+1 {
+			nextNumFork = len(nextq.dense)
+		}
+
 		d := &runq.dense[j]
 		t := d.t
 		if t == nil {
@@ -217,6 +252,10 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 			if len(t.cap) > 0 && (!longest || !m.matched || m.matchcap[1] < pos) {
 				t.cap[1] = pos
 				copy(m.matchcap, t.cap)
+				if len(m.p.Fork) > 0 && m.needSaveFork {
+					m.matchfork = append(m.matchfork[:0], m.fork...)
+					m.matchnextfork = append(m.matchnextfork[:0], m.nextfork...)
+				}
 			}
 			if !longest {
 				// First-match mode: cut off all lower-priority threads.
@@ -233,28 +272,41 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 			add = i.MatchRune(c)
 		case syntax.InstRune1:
 			add = c == i.Rune[0]
-		case syntax.InstRuneAny:
+		case syntax.InstRuneAny, syntax.InstRepeatAny:
 			add = true
 		case syntax.InstRuneAnyNotNL:
 			add = c != '\n'
 		}
 		if add {
-			t = m.add(nextq, i.Out, nextPos, t.cap, nextCond, t)
+			t = m.add(nextq, i.Out, nextPos, t.cap, nextCond, t, matchproc, j < numFork)
 		}
 		if t != nil {
 			m.pool = append(m.pool, t)
 		}
 	}
 	runq.dense = runq.dense[:0]
+	return
 }
 
 // add adds an entry to q for pc, unless the q already has such an entry.
 // It also recursively adds an entry for all instructions reachable from pc by following
 // empty-width conditions satisfied by cond.  pos gives the current position
 // in the input.
-func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.EmptyOp, t *thread) *thread {
+func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.EmptyOp, t *thread, matchproc []bool, forked bool) *thread {
 	if pc == 0 {
 		return t
+	}
+	if forked && m.needSaveFork {
+		ok := true
+		for _, n := range m.nextfork {
+			if uint32(n) == pc {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			m.nextfork = append(m.nextfork, int(pc))
+		}
 	}
 	if j := q.sparse[pc]; j < uint32(len(q.dense)) && q.dense[j].pc == pc {
 		return t
@@ -274,24 +326,31 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 	case syntax.InstFail:
 		// nothing
 	case syntax.InstAlt, syntax.InstAltMatch:
-		t = m.add(q, i.Out, pos, cap, cond, t)
-		t = m.add(q, i.Arg, pos, cap, cond, t)
+		t = m.add(q, i.Out, pos, cap, cond, t, matchproc, forked)
+		t = m.add(q, i.Arg, pos, cap, cond, t, matchproc, forked)
 	case syntax.InstEmptyWidth:
 		if syntax.EmptyOp(i.Arg)&^cond == 0 {
-			t = m.add(q, i.Out, pos, cap, cond, t)
+			t = m.add(q, i.Out, pos, cap, cond, t, matchproc, forked)
 		}
 	case syntax.InstNop:
-		t = m.add(q, i.Out, pos, cap, cond, t)
+		t = m.add(q, i.Out, pos, cap, cond, t, matchproc, forked)
 	case syntax.InstCapture:
 		if int(i.Arg) < len(cap) {
 			opos := cap[i.Arg]
 			cap[i.Arg] = pos
-			m.add(q, i.Out, pos, cap, cond, nil)
+			m.add(q, i.Out, pos, cap, cond, nil, matchproc, forked)
 			cap[i.Arg] = opos
 		} else {
-			t = m.add(q, i.Out, pos, cap, cond, t)
+			t = m.add(q, i.Out, pos, cap, cond, t, matchproc, forked)
 		}
-	case syntax.InstMatch, syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
+	case syntax.InstMatchProc:
+		matchproc[i.Arg] = true
+	case syntax.InstCheckProc:
+		need := i.Arg&1 == 0
+		if need == matchproc[i.Arg>>1] {
+			m.add(q, i.Out, pos, cap, cond, nil, matchproc, forked)
+		}
+	case syntax.InstMatch, syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL, syntax.InstRepeatAny:
 		if t == nil {
 			t = m.alloc(i)
 		} else {
@@ -302,6 +361,9 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 		}
 		d.t = t
 		t = nil
+		if i.Op == syntax.InstRepeatAny {
+			m.add(q, i.Arg, pos, cap, cond, nil, matchproc, forked)
+		}
 	}
 	return t
 }
@@ -417,6 +479,18 @@ func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
 // nil is returned if no matches are found and non-nil if matches are found.
 func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
 	m := re.get()
+	cap := re.doExecuteWithMachine(r, b, s, pos, ncap, dstCap, m.p.Fork, m)
+	re.put(m)
+	return cap
+}
+
+func (re *Regexp) doExecuteWithMachine(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int, proc []int, m *machine) []int {
+	if len(m.p.Fork) > 0 && m.needSaveFork {
+		m.fork = m.fork[:0]
+		m.nextfork = m.nextfork[:0]
+		m.clear(&m.q0)
+		m.clear(&m.q1)
+	}
 	var i input
 	var size int
 	if r != nil {
@@ -430,7 +504,6 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 	}
 	if m.op != notOnePass {
 		if !m.onepass(i, pos, ncap) {
-			re.put(m)
 			return nil
 		}
 	} else if size < m.maxBitStateLen && r == nil {
@@ -438,13 +511,11 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 			m.b = newBitState(m.p)
 		}
 		if !m.backtrack(i, pos, size, ncap) {
-			re.put(m)
 			return nil
 		}
 	} else {
 		m.init(ncap)
-		if !m.match(i, pos) {
-			re.put(m)
+		if !m.match(i, pos, proc) {
 			return nil
 		}
 	}
@@ -453,7 +524,6 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 		// Keep the promise of returning non-nil value on match.
 		dstCap = arrayNoInts[:0]
 	}
-	re.put(m)
 	return dstCap
 }
 

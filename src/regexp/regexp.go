@@ -213,6 +213,7 @@ func (re *Regexp) get() *machine {
 		z := re.machine[n-1]
 		re.machine = re.machine[:n-1]
 		re.mu.Unlock()
+		z.needSaveFork = false
 		return z
 	}
 	re.mu.Unlock()
@@ -527,8 +528,12 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 	}
 
 	var dstCap [2]int
+	m := re.get()
+	m.needSaveFork = true
+	proc := append(make([]int, 0, len(m.p.Inst)), m.p.Fork...)
 	for searchPos <= endPos {
-		a := re.doExecute(nil, bsrc, src, searchPos, nmatch, dstCap[:0])
+		var a []int
+		a = re.doExecuteWithMachine(nil, bsrc, src, searchPos, nmatch, dstCap[:0], proc, m)
 		if len(a) == 0 {
 			break // no more matches
 		}
@@ -558,14 +563,17 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 		}
 		if searchPos+width > a[1] {
 			searchPos += width
+			proc = append(proc[:0], m.matchnextfork...)
 		} else if searchPos+1 > a[1] {
 			// This clause is only needed at the end of the input
 			// string. In that case, DecodeRuneInString returns width=0.
 			searchPos++
 		} else {
 			searchPos = a[1]
+			proc = append(proc[:0], m.matchfork...)
 		}
 	}
+	re.put(m)
 
 	// Copy the unmatched characters after the last match.
 	if bsrc != nil {
@@ -684,8 +692,12 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 		end = len(b)
 	}
 
+	m := re.get()
+	m.needSaveFork = true
+	proc := append(make([]int, 0, len(m.p.Inst)), re.prog.Fork...)
 	for pos, i, prevMatchEnd := 0, 0, -1; i < n && pos <= end; {
-		matches := re.doExecute(nil, b, s, pos, re.prog.NumCap, nil)
+		var matches []int
+		matches = re.doExecuteWithMachine(nil, b, s, pos, re.prog.NumCap, nil, proc, m)
 		if len(matches) == 0 {
 			break
 		}
@@ -710,8 +722,10 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 			} else {
 				pos = end + 1
 			}
+			proc = append(proc[:0], m.matchnextfork...)
 		} else {
 			pos = matches[1]
+			proc = append(proc[:0], m.matchfork...)
 		}
 		prevMatchEnd = matches[1]
 
@@ -720,6 +734,8 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 			i++
 		}
 	}
+
+	re.put(m)
 }
 
 // Find returns a slice holding the text of the leftmost match in b of the regular expression.

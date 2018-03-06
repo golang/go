@@ -133,6 +133,10 @@ func (c *compiler) compile(re *Regexp) frag {
 		return c.empty(EmptyWordBoundary)
 	case OpNoWordBoundary:
 		return c.empty(EmptyNoWordBoundary)
+	case OpLookBehind:
+		return c.lookBehind(re.Sub[0], true)
+	case OpNegativeLookBehind:
+		return c.lookBehind(re.Sub[0], false)
 	case OpCapture:
 		bra := c.cap(uint32(re.Cap << 1))
 		sub := c.compile(re.Sub[0])
@@ -193,6 +197,29 @@ func (c *compiler) cap(arg uint32) frag {
 		c.p.NumCap = int(arg) + 1
 	}
 	return f
+}
+
+func (c *compiler) lookBehind(re *Regexp, positive bool) frag {
+	repeat := c.inst(InstRepeatAny)
+	f := c.compile(re)
+	c.p.Inst[repeat.i].Out = uint32(repeat.i)
+	repeat.out = patchList(repeat.i<<1 | 1)
+	repeat.out.patch(c.p, f.i)
+
+	n := len(c.p.Fork)
+	c.p.Fork = append(c.p.Fork, int(repeat.i))
+	match := c.inst(InstMatchProc)
+	c.p.Inst[match.i].Arg = uint32(n)
+	f.out.patch(c.p, match.i)
+
+	check := c.inst(InstCheckProc)
+	if positive {
+		c.p.Inst[check.i].Arg = uint32(n) << 1
+	} else {
+		c.p.Inst[check.i].Arg = uint32(n)<<1 | 1
+	}
+	check.out = patchList(check.i << 1)
+	return check
 }
 
 func (c *compiler) cat(f1, f2 frag) frag {
