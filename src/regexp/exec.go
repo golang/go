@@ -82,12 +82,6 @@ func progMachine(p *syntax.Prog, op *onePassProg) *machine {
 	n := len(m.p.Inst)
 	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
 	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
-	if len(m.p.Fork) > 0 {
-		m.fork = make([]int, 0, n)
-		m.nextfork = make([]int, 0, n)
-		m.matchfork = make([]int, 0, n)
-		m.matchnextfork = make([]int, 0, n)
-	}
 	ncap := p.NumCap
 	if ncap < 2 {
 		ncap = 2
