@@ -3235,6 +3235,10 @@ func TestGoVetWithOnlyTestFiles(t *testing.T) {
 
 // Issue 24193.
 func TestVetWithOnlyCgoFiles(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
