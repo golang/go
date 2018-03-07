@@ -668,11 +668,6 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
 	for i, n := range l {
 		f := structfield(n)
 		f.Funarg = funarg
-
-		// esc.go needs to find f given a PPARAM to add the tag.
-		if n.Left != nil && n.Left.Class() == PPARAM {
-			n.Left.Name.Param.Field = f
-		}
 		if f.Broke() {
 			t.SetBroke(true)
 		}
@@ -688,11 +683,6 @@ func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
 
 	for _, f := range fields {
 		f.Funarg = funarg
-
-		// esc.go needs to find f given a PPARAM to add the tag.
-		if asNode(f.Nname) != nil && asNode(f.Nname).Class() == PPARAM {
-			asNode(f.Nname).Name.Param.Field = f
-		}
 	}
 	t.SetFields(fields)
 	return t
