@@ -39,6 +39,8 @@ var writeTests = []struct {
 	{Input: [][]string{{"a", "a", ""}}, Output: "a,a,\n"},
 	{Input: [][]string{{"a", "a", "a"}}, Output: "a,a,a\n"},
 	{Input: [][]string{{`\.`}}, Output: "\"\\.\"\n"},
+	{Input: [][]string{{"x09\x41\xb4\x1c", "aktau"}}, Output: "x09\x41\xb4\x1c,aktau\n"},
+	{Input: [][]string{{",x09\x41\xb4\x1c", "aktau"}}, Output: "\",x09\x41\xb4\x1c\",aktau\n"},
 }
 
 func TestWrite(t *testing.T) {
