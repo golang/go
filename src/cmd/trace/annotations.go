@@ -662,8 +662,28 @@ func newTaskFilter(r *http.Request) (*taskFilter, error) {
 			return t.complete() && t.duration() <= lat
 		})
 	}
+	if text := r.FormValue("logtext"); text != "" {
+		name = append(name, fmt.Sprintf("log contains %q", text))
+		conditions = append(conditions, func(t *taskDesc) bool {
+			return taskMatches(t, text)
+		})
+	}
 
 	return &taskFilter{name: strings.Join(name, ","), cond: conditions}, nil
+}
+
+func taskMatches(t *taskDesc, text string) bool {
+	for _, ev := range t.events {
+		switch ev.Type {
+		case trace.EvUserTaskCreate, trace.EvUserSpan, trace.EvUserLog:
+			for _, s := range ev.SArgs {
+				if strings.Contains(s, text) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 type durationHistogram struct {
@@ -804,6 +824,7 @@ var templUserTaskTypes = template.Must(template.New("").Parse(`
 
 </style>
 <body>
+Search log text: <form action="/usertask"><input name="logtext" type="text"><input type="submit"></form><br>
 <table border="1" sortable="1">
 <tr>
 <th>Task type</th>
@@ -869,6 +890,10 @@ var templUserTaskType = template.Must(template.New("userTask").Funcs(template.Fu
 <body>
 
 <h2>User Task: {{.Name}}</h2>
+
+Search log text: <form onsubmit="window.location.search+='&logtext='+window.logtextinput.value; return false">
+<input name="logtext" id="logtextinput" type="text"><input type="submit">
+</form><br>
 
 <table id="reqs">
 <tr><th>When</th><th>Elapsed</th><th>Goroutine ID</th><th>Events</th></tr>
