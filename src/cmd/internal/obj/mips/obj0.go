@@ -1411,33 +1411,37 @@ func (c *ctxt0) compound(p *obj.Prog) bool {
 }
 
 var Linkmips64 = obj.LinkArch{
-	Arch:       sys.ArchMIPS64,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span0,
-	Progedit:   progedit,
+	Arch:           sys.ArchMIPS64,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span0,
+	Progedit:       progedit,
+	DWARFRegisters: MIPSDWARFRegisters,
 }
 
 var Linkmips64le = obj.LinkArch{
-	Arch:       sys.ArchMIPS64LE,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span0,
-	Progedit:   progedit,
+	Arch:           sys.ArchMIPS64LE,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span0,
+	Progedit:       progedit,
+	DWARFRegisters: MIPSDWARFRegisters,
 }
 
 var Linkmips = obj.LinkArch{
-	Arch:       sys.ArchMIPS,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span0,
-	Progedit:   progedit,
+	Arch:           sys.ArchMIPS,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span0,
+	Progedit:       progedit,
+	DWARFRegisters: MIPSDWARFRegisters,
 }
 
 var Linkmipsle = obj.LinkArch{
-	Arch:       sys.ArchMIPSLE,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span0,
-	Progedit:   progedit,
+	Arch:           sys.ArchMIPSLE,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span0,
+	Progedit:       progedit,
+	DWARFRegisters: MIPSDWARFRegisters,
 }
