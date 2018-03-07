@@ -46,4 +46,3 @@ func (c *Cache) Reset() {
 	}
 
 }
-
