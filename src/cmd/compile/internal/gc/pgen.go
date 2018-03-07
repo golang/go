@@ -204,13 +204,11 @@ func funccompile(fn *Node) {
 	}
 
 	dclcontext = PAUTO
-	funcdepth = fn.Func.Depth + 1
 	Curfn = fn
 
 	compile(fn)
 
 	Curfn = nil
-	funcdepth = 0
 	dclcontext = PEXTERN
 }
 

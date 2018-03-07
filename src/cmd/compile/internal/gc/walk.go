@@ -3868,9 +3868,6 @@ func wrapCall(n *Node, init *Nodes) *Node {
 		args = append(args, a.Left)
 	}
 
-	oldfn := Curfn
-	Curfn = nil
-
 	wrapCall_prgen++
 	sym := lookupN("wrap·", wrapCall_prgen)
 	fn := dclfunc(sym, t)
@@ -3885,7 +3882,6 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)
 	xtop = append(xtop, fn)
-	Curfn = oldfn
 
 	a = nod(OCALL, nil, nil)
 	a.Left = fn.Func.Nname

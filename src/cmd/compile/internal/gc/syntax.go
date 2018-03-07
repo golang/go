@@ -242,7 +242,6 @@ type Name struct {
 	Param     *Param     // additional fields for ONAME, OTYPE
 	Decldepth int32      // declaration loop depth, increased for every loop or label
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-	Funcdepth int32
 
 	used  bool // for variable declared and not used error
 	flags bitset8
@@ -433,7 +432,6 @@ type Func struct {
 
 	Inl     Nodes // copy of the body for use in inlining
 	InlCost int32
-	Depth   int32
 
 	Label int32 // largest auto-generated label in this function
 

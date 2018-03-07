@@ -436,13 +436,6 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " colas(%v)", n.Colas())
 	}
 
-	if n.Name != nil && n.Name.Funcdepth != 0 {
-		fmt.Fprintf(s, " f(%d)", n.Name.Funcdepth)
-	}
-	if n.Func != nil && n.Func.Depth != 0 {
-		fmt.Fprintf(s, " ff(%d)", n.Func.Depth)
-	}
-
 	switch n.Esc {
 	case EscUnknown:
 		break
