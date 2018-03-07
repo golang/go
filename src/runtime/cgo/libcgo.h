@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#undef nil
 #define nil ((void*)0)
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
 
