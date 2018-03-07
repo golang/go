@@ -27,32 +27,32 @@ var (
 	compilequeue    []*Node // functions waiting to be compiled
 )
 
-func emitptrargsmap() {
-	if Curfn.funcname() == "_" {
+func emitptrargsmap(fn *Node) {
+	if fn.funcname() == "_" {
 		return
 	}
-	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.funcname()))
+	sym := lookup(fmt.Sprintf("%s.args_stackmap", fn.funcname()))
 	lsym := sym.Linksym()
 
-	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
+	nptr := int(fn.Type.ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
-	if Curfn.Type.NumResults() > 0 {
+	if fn.Type.NumResults() > 0 {
 		nbitmap = 2
 	}
 	off := duint32(lsym, 0, uint32(nbitmap))
 	off = duint32(lsym, off, uint32(bv.n))
 
-	if Curfn.IsMethod() {
-		onebitwalktype1(Curfn.Type.Recvs(), 0, bv)
+	if fn.IsMethod() {
+		onebitwalktype1(fn.Type.Recvs(), 0, bv)
 	}
-	if Curfn.Type.NumParams() > 0 {
-		onebitwalktype1(Curfn.Type.Params(), 0, bv)
+	if fn.Type.NumParams() > 0 {
+		onebitwalktype1(fn.Type.Params(), 0, bv)
 	}
 	off = dbvec(lsym, off, bv)
 
-	if Curfn.Type.NumResults() > 0 {
-		onebitwalktype1(Curfn.Type.Results(), 0, bv)
+	if fn.Type.NumResults() > 0 {
+		onebitwalktype1(fn.Type.Results(), 0, bv)
 		off = dbvec(lsym, off, bv)
 	}
 
@@ -183,15 +183,38 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stkptrsize = Rnd(s.stkptrsize, int64(Widthreg))
 }
 
-func compile(fn *Node) {
-	Curfn = fn
-	dowidth(fn.Type)
+func funccompile(fn *Node) {
+	if Curfn != nil {
+		Fatalf("funccompile %v inside %v", fn.Func.Nname.Sym, Curfn.Func.Nname.Sym)
+	}
 
-	if fn.Nbody.Len() == 0 {
-		emitptrargsmap()
+	if fn.Type == nil {
+		if nerrors == 0 {
+			Fatalf("funccompile missing type")
+		}
 		return
 	}
 
+	// assign parameter offsets
+	dowidth(fn.Type)
+
+	if fn.Nbody.Len() == 0 {
+		emitptrargsmap(fn)
+		return
+	}
+
+	dclcontext = PAUTO
+	funcdepth = fn.Func.Depth + 1
+	Curfn = fn
+
+	compile(fn)
+
+	Curfn = nil
+	funcdepth = 0
+	dclcontext = PEXTERN
+}
+
+func compile(fn *Node) {
 	saveerrors()
 
 	order(fn)
