@@ -16,7 +16,6 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 	n := p.nod(expr, OCLOSURE, nil, nil)
 	n.Func.SetIsHiddenClosure(Curfn != nil)
 	n.Func.Ntype = ntype
-	n.Func.Depth = funcdepth
 	n.Func.Outerfunc = Curfn
 
 	old := p.funchdr(n)
@@ -220,8 +219,6 @@ func makeclosure(func_ *Node) *Node {
 	xfunc.Func.Nname.Name.Param.Ntype = xtype
 	xfunc.Func.Nname.Name.Defn = xfunc
 	declare(xfunc.Func.Nname, PFUNC)
-	xfunc.Func.Nname.Name.Funcdepth = func_.Func.Depth
-	xfunc.Func.Depth = func_.Func.Depth
 	xfunc.Func.Endlineno = func_.Func.Endlineno
 	if Ctxt.Flag_dynlink {
 		makefuncsym(xfunc.Func.Nname.Sym)

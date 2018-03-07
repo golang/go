@@ -178,8 +178,8 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 		}
 		i0 = i
 
-		if funcdepth != 0 {
-			p.formatErrorf("unexpected Funcdepth %d", funcdepth)
+		if Curfn != nil {
+			p.formatErrorf("unexpected Curfn %v", Curfn)
 		}
 
 		// Note: In the original code, funchdr and funcbody are called for
