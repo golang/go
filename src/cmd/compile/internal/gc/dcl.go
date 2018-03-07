@@ -1020,29 +1020,6 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 	return f
 }
 
-func funccompile(n *Node) {
-	if n.Type == nil {
-		if nerrors == 0 {
-			Fatalf("funccompile missing type")
-		}
-		return
-	}
-
-	// assign parameter offsets
-	checkwidth(n.Type)
-
-	if Curfn != nil {
-		Fatalf("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
-	}
-
-	dclcontext = PAUTO
-	funcdepth = n.Func.Depth + 1
-	compile(n)
-	Curfn = nil
-	funcdepth = 0
-	dclcontext = PEXTERN
-}
-
 func funcsymname(s *types.Sym) string {
 	return s.Name + "·f"
 }
