@@ -885,10 +885,11 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Linkarm = obj.LinkArch{
-	Arch:       sys.ArchARM,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span5,
-	Progedit:   progedit,
-	UnaryDst:   unaryDst,
+	Arch:           sys.ArchARM,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span5,
+	Progedit:       progedit,
+	UnaryDst:       unaryDst,
+	DWARFRegisters: ARMDWARFRegisters,
 }

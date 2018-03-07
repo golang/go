@@ -1001,7 +1001,7 @@ func decodeValue(ctxt *obj.Link, word uint64) (ID, ID) {
 	if ctxt.Arch.PtrSize != 4 {
 		panic("unexpected pointer size")
 	}
-	return ID(word >> 16), ID(word)
+	return ID(word >> 16), ID(int16(word))
 }
 
 // Append a pointer-sized uint to buf.
