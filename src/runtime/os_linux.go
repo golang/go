@@ -378,28 +378,26 @@ func setsig(i uint32, fn uintptr) {
 		}
 	}
 	sa.sa_handler = fn
-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
 func setsigstack(i uint32) {
 	var sa sigactiont
-	rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, nil, &sa)
 	if sa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	sa.sa_flags |= _SA_ONSTACK
-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
 func getsig(i uint32) uintptr {
 	var sa sigactiont
-	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		throw("rt_sigaction read failure")
-	}
+	sigaction(i, nil, &sa)
 	return sa.sa_handler
 }
 
@@ -411,3 +409,15 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
+
+// sysSigaction calls the rt_sigaction system call.
+//go:nosplit
+func sysSigaction(sig uint32, new, old *sigactiont) {
+	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
+		throw("sigaction failed")
+	}
+}
+
+// rt_sigaction is implemented in assembly.
+//go:noescape
+func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
