@@ -279,9 +279,6 @@ type Param struct {
 	// ONAME PAUTOHEAP
 	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
 
-	// ONAME PPARAM
-	Field *types.Field // TFIELD in arg struct
-
 	// ONAME closure linkage
 	// Consider:
 	//
