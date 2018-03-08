@@ -142,20 +142,13 @@ func testMultiWriter(t *testing.T, sink interface {
 	}
 }
 
-// writerFunc is an io.Writer implemented by the underlying func.
-type writerFunc func(p []byte) (int, error)
-
-func (f writerFunc) Write(p []byte) (int, error) {
-	return f(p)
-}
-
 // Test that MultiWriter properly flattens chained multiWriters,
 func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	pc := make([]uintptr, 1000) // 1000 should fit the full stack
 	n := runtime.Callers(0, pc)
 	var myDepth = callDepth(pc[:n])
 	var writeDepth int // will contain the depth from which writerFunc.Writer was called
-	var w Writer = MultiWriter(writerFunc(func(p []byte) (int, error) {
+	var w Writer = MultiWriter(WriterFunc(func(p []byte) (int, error) {
 		n := runtime.Callers(1, pc)
 		writeDepth += callDepth(pc[:n])
 		return 0, nil
@@ -177,10 +170,10 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 }
 
 func TestMultiWriterError(t *testing.T) {
-	f1 := writerFunc(func(p []byte) (int, error) {
+	f1 := WriterFunc(func(p []byte) (int, error) {
 		return len(p) / 2, ErrShortWrite
 	})
-	f2 := writerFunc(func(p []byte) (int, error) {
+	f2 := WriterFunc(func(p []byte) (int, error) {
 		t.Errorf("MultiWriter called f2.Write")
 		return len(p), nil
 	})

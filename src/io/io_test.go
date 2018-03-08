@@ -113,28 +113,17 @@ func TestCopyPriority(t *testing.T) {
 	}
 }
 
-type zeroErrReader struct {
-	err error
-}
-
-func (r zeroErrReader) Read(p []byte) (int, error) {
-	return copy(p, []byte{0}), r.err
-}
-
-type errWriter struct {
-	err error
-}
-
-func (w errWriter) Write([]byte) (int, error) {
-	return 0, w.err
-}
-
 // In case a Read results in an error with non-zero bytes read, and
 // the subsequent Write also results in an error, the error from Write
 // is returned, as it is the one that prevented progressing further.
 func TestCopyReadErrWriteErr(t *testing.T) {
 	er, ew := errors.New("readError"), errors.New("writeError")
-	r, w := zeroErrReader{err: er}, errWriter{err: ew}
+	r := ReaderFunc(func(p []byte) (int, error) {
+		return copy(p, []byte{0}), er
+	})
+	w := WriterFunc(func([]byte) (int, error) {
+		return 0, ew
+	})
 	n, err := Copy(w, r)
 	if n != 0 || err != ew {
 		t.Errorf("Copy(zeroErrReader, errWriter) = %d, %v; want 0, writeError", n, err)
@@ -203,12 +192,6 @@ func (w *noReadFrom) Write(p []byte) (n int, err error) {
 	return w.w.Write(p)
 }
 
-type wantedAndErrReader struct{}
-
-func (wantedAndErrReader) Read(p []byte) (int, error) {
-	return len(p), errors.New("wantedAndErrReader error")
-}
-
 func TestCopyNEOF(t *testing.T) {
 	// Test that EOF behavior is the same regardless of whether
 	// argument to CopyN has ReadFrom.
@@ -235,12 +218,16 @@ func TestCopyNEOF(t *testing.T) {
 		t.Errorf("CopyN(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
 	}
 
-	n, err = CopyN(b, wantedAndErrReader{}, 5)
+	r := ReaderFunc(func(p []byte) (int, error) {
+		return len(p), errors.New("wantedAndErrReader error")
+	})
+
+	n, err = CopyN(b, r, 5)
 	if n != 5 || err != nil {
 		t.Errorf("CopyN(bytes.Buffer, wantedAndErrReader, 5) = %d, %v; want 5, nil", n, err)
 	}
 
-	n, err = CopyN(&noReadFrom{b}, wantedAndErrReader{}, 5)
+	n, err = CopyN(&noReadFrom{b}, r, 5)
 	if n != 5 || err != nil {
 		t.Errorf("CopyN(noReadFrom, wantedAndErrReader, 5) = %d, %v; want 5, nil", n, err)
 	}

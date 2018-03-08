@@ -78,6 +78,16 @@ type Reader interface {
 	Read(p []byte) (n int, err error)
 }
 
+// ReaderFunc type is an adapter to allow the use of ordinary
+// functions as Readers. If f is a function with the appropriate
+// signature, ReaderFunc(f) is a Reader that calls f.
+type ReaderFunc func([]byte) (int, error)
+
+// Read calls f(p)
+func (f ReaderFunc) Read(p []byte) (int, error) {
+	return f(p)
+}
+
 // Writer is the interface that wraps the basic Write method.
 //
 // Write writes len(p) bytes from p to the underlying data stream.
@@ -91,12 +101,32 @@ type Writer interface {
 	Write(p []byte) (n int, err error)
 }
 
+// WriterFunc type is an adapter to allow the use of ordinary
+// functions as Writers. If f is a function with the appropriate
+// signature, WriterFunc(f) is a Writer that calls f.
+type WriterFunc func([]byte) (int, error)
+
+// Write calls f(p)
+func (f WriterFunc) Write(p []byte) (int, error) {
+	return f(p)
+}
+
 // Closer is the interface that wraps the basic Close method.
 //
 // The behavior of Close after the first call is undefined.
 // Specific implementations may document their own behavior.
 type Closer interface {
 	Close() error
+}
+
+// CloserFunc type is an adapter to allow the use of ordinary
+// functions as Closers. If f is a function with the appropriate
+// signature, CloserFunc(f) is a Closer that calls f.
+type CloserFunc func() error
+
+// Close call f()
+func (f CloserFunc) Close() error {
+	return f()
 }
 
 // Seeker is the interface that wraps the basic Seek method.
@@ -521,20 +551,13 @@ func (s *SectionReader) Size() int64 { return s.limit - s.base }
 // the write must complete before the read completes.
 // Any error encountered while writing is reported as a read error.
 func TeeReader(r Reader, w Writer) Reader {
-	return &teeReader{r, w}
-}
-
-type teeReader struct {
-	r Reader
-	w Writer
-}
-
-func (t *teeReader) Read(p []byte) (n int, err error) {
-	n, err = t.r.Read(p)
-	if n > 0 {
-		if n, err := t.w.Write(p[:n]); err != nil {
-			return n, err
+	return ReaderFunc(func(p []byte) (n int, err error) {
+		n, err = r.Read(p)
+		if n > 0 {
+			if n, err := w.Write(p[:n]); err != nil {
+				return n, err
+			}
 		}
-	}
-	return
+		return
+	})
 }
