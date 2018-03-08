@@ -526,15 +526,14 @@ func (o *Order) stmt(n *Node) {
 		n.Left = o.safeExpr(n.Left)
 		tmp1 := treecopy(n.Left, src.NoXPos)
 		if tmp1.Op == OINDEXMAP {
-			tmp1.Etype = 0 // now an rvalue not an lvalue
+			tmp1.SetIndexMapLValue(false)
 		}
 		tmp1 = o.copyExpr(tmp1, n.Left.Type, false)
-		// TODO(marvin): Fix Node.EType type union.
-		n.Right = nod(Op(n.Etype), tmp1, n.Right)
+		n.Right = nod(n.SubOp(), tmp1, n.Right)
 		n.Right = typecheck(n.Right, Erv)
 		n.Right = o.expr(n.Right, nil)
-		n.Etype = 0
 		n.Op = OAS
+		n.ResetAux()
 		o.mapAssign(n)
 		o.cleanTemp(t)
 
@@ -1015,7 +1014,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		n.Right = o.expr(n.Right, nil)
 		needCopy := false
 
-		if n.Etype == 0 && instrumenting {
+		if !n.IndexMapLValue() && instrumenting {
 			// Race detector needs the copy so it can
 			// call treecopy on the result.
 			needCopy = true
@@ -1031,7 +1030,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		// the map index, because the map access is going to
 		// be forced to happen immediately following this
 		// conversion (by the ordercopyexpr a few lines below).
-		if n.Etype == 0 && n.Right.Op == OARRAYBYTESTR {
+		if !n.IndexMapLValue() && n.Right.Op == OARRAYBYTESTR {
 			n.Right.Op = OARRAYBYTESTRTMP
 			needCopy = true
 		}

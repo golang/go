@@ -233,7 +233,6 @@ func genhash(sym *types.Sym, t *types.Type) {
 		nx := nod(OINDEX, np, ni)
 		nx.SetBounded(true)
 		na := nod(OADDR, nx, nil)
-		na.Etype = 1 // no escape to heap
 		call.List.Append(na)
 		call.List.Append(nh)
 		n.Nbody.Append(nod(OAS, nh, call))
@@ -258,7 +257,6 @@ func genhash(sym *types.Sym, t *types.Type) {
 				call := nod(OCALL, hashel, nil)
 				nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
 				na := nod(OADDR, nx, nil)
-				na.Etype = 1 // no escape to heap
 				call.List.Append(na)
 				call.List.Append(nh)
 				fn.Nbody.Append(nod(OAS, nh, call))
@@ -274,7 +272,6 @@ func genhash(sym *types.Sym, t *types.Type) {
 			call := nod(OCALL, hashel, nil)
 			nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
 			na := nod(OADDR, nx, nil)
-			na.Etype = 1 // no escape to heap
 			call.List.Append(na)
 			call.List.Append(nh)
 			call.List.Append(nodintconst(size))
@@ -518,9 +515,7 @@ func eqfield(p *Node, q *Node, field *types.Sym) *Node {
 // 	memequal(&p.field, &q.field [, size])
 func eqmem(p *Node, q *Node, field *types.Sym, size int64) *Node {
 	nx := nod(OADDR, nodSym(OXDOT, p, field), nil)
-	nx.Etype = 1 // does not escape
 	ny := nod(OADDR, nodSym(OXDOT, q, field), nil)
-	ny.Etype = 1 // does not escape
 	nx = typecheck(nx, Erv)
 	ny = typecheck(ny, Erv)
 

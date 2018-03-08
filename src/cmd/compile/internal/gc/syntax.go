@@ -55,8 +55,62 @@ type Node struct {
 
 	Esc uint16 // EscXXX
 
-	Op    Op
-	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+	Op  Op
+	aux uint8
+}
+
+func (n *Node) ResetAux() {
+	n.aux = 0
+}
+
+func (n *Node) SubOp() Op {
+	switch n.Op {
+	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	default:
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return Op(n.aux)
+}
+
+func (n *Node) SetSubOp(op Op) {
+	switch n.Op {
+	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	default:
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	n.aux = uint8(op)
+}
+
+func (n *Node) IndexMapLValue() bool {
+	if n.Op != OINDEXMAP {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return n.aux != 0
+}
+
+func (n *Node) SetIndexMapLValue(b bool) {
+	if n.Op != OINDEXMAP {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	if b {
+		n.aux = 1
+	} else {
+		n.aux = 0
+	}
+}
+
+func (n *Node) TChanDir() types.ChanDir {
+	if n.Op != OTCHAN {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return types.ChanDir(n.aux)
+}
+
+func (n *Node) SetTChanDir(dir types.ChanDir) {
+	if n.Op != OTCHAN {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	n.aux = uint8(dir)
 }
 
 func (n *Node) IsSynthetic() bool {

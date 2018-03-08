@@ -1124,7 +1124,7 @@ func (p *importer) node() *Node {
 
 	case OASOP:
 		n := nodl(p.pos(), OASOP, nil, nil)
-		n.Etype = types.EType(p.int())
+		n.SetSubOp(p.op())
 		n.Left = p.expr()
 		if !p.bool() {
 			n.Right = nodintconst(1)
