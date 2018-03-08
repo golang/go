@@ -948,7 +948,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 
 	case OCLOSURE:
 		// Link addresses of captured variables to closure.
-		for _, v := range n.Func.Cvars.Slice() {
+		for _, v := range n.Func.Closure.Func.Cvars.Slice() {
 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
 				continue
 			}

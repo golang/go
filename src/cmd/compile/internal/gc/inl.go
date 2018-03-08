@@ -816,7 +816,7 @@ func mkinlcall1(n, fn *Node) *Node {
 
 		// handle captured variables when inlining closures
 		if c := fn.Name.Defn.Func.Closure; c != nil {
-			for _, v := range c.Func.Cvars.Slice() {
+			for _, v := range c.Func.Closure.Func.Cvars.Slice() {
 				if v.Op == OXXX {
 					continue
 				}
