@@ -604,7 +604,7 @@ opswitch:
 		n = mkcall("gopanic", nil, init, n.Left)
 
 	case ORECOVER:
-		n = mkcall("gorecover", n.Type, init, callerSP)
+		n = mkcall("gorecover", n.Type, init, nod(OADDR, nodfp, nil))
 
 	case OCLOSUREVAR, OCFUNC:
 		n.SetAddable(true)
