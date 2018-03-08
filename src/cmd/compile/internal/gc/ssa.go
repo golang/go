@@ -118,7 +118,6 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	if fn.Func.Pragma&Nosplit != 0 {
 		s.f.NoSplit = true
 	}
-	s.exitCode = fn.Func.Exit
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
 
@@ -191,9 +190,6 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 
 	s.insertPhis()
 
-	// Don't carry reference this around longer than necessary
-	s.exitCode = Nodes{}
-
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 	return s.f
@@ -245,10 +241,6 @@ type state struct {
 	// labels and labeled control flow nodes (OFOR, OFORUNTIL, OSWITCH, OSELECT) in f
 	labels       map[string]*ssaLabel
 	labeledNodes map[*Node]*ssaLabel
-
-	// Code that must precede any return
-	// (e.g., copying value of heap-escaped paramout back to true paramout)
-	exitCode Nodes
 
 	// unlabeled break and continue statement tracking
 	breakTo    *ssa.Block // current target for plain break statement
@@ -1018,7 +1010,7 @@ func (s *state) exit() *ssa.Block {
 
 	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
 	// variables back to the stack.
-	s.stmtList(s.exitCode)
+	s.stmtList(s.curfn.Func.Exit)
 
 	// Store SSAable PPARAMOUT variables back to stack locations.
 	for _, n := range s.returns {
