@@ -50,6 +50,10 @@ type Value struct {
 	// Use count. Each appearance in Value.Args and Block.Control counts once.
 	Uses int32
 
+	// wasm: Value stays on the WebAssembly stack. This value will not get a "register" (WebAssembly variable)
+	// nor a slot on Go stack, and the generation of this value is delayed to its use time.
+	OnWasmStack bool
+
 	// Storage for the first three args
 	argstorage [3]*Value
 }

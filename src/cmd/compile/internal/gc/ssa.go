@@ -4701,6 +4701,9 @@ type SSAGenState struct {
 	// within a single block sharing the same line number
 	// Used to move statement marks to the beginning of such runs.
 	lineRunStart *obj.Prog
+
+	// wasm: The number of values on the WebAssembly stack. This is only used as a safeguard.
+	OnWasmStackSkipped int
 }
 
 // Prog appends a new Prog.
