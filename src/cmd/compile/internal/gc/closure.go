@@ -417,7 +417,6 @@ func transformclosure(xfunc *Node) {
 
 		if len(body) > 0 {
 			typecheckslice(body, Etop)
-			walkstmtlist(body)
 			xfunc.Func.Enter.Set(body)
 			xfunc.Func.SetNeedctxt(true)
 		}
