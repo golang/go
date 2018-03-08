@@ -1005,7 +1005,6 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	}
 
 	retlabel := autolabel(".i")
-	retlabel.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
 
 	inlgen++
 

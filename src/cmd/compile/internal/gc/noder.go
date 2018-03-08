@@ -654,7 +654,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		return p.nod(expr, OTMAP, p.typeExpr(expr.Key), p.typeExpr(expr.Value))
 	case *syntax.ChanType:
 		n := p.nod(expr, OTCHAN, p.typeExpr(expr.Elem), nil)
-		n.Etype = types.EType(p.chanDir(expr.Dir))
+		n.SetTChanDir(p.chanDir(expr.Dir))
 		return n
 
 	case *syntax.TypeSwitchGuard:
@@ -902,7 +902,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			n := p.nod(stmt, OASOP, p.expr(stmt.Lhs), p.expr(stmt.Rhs))
 			n.SetImplicit(stmt.Rhs == syntax.ImplicitOne)
-			n.Etype = types.EType(p.binOp(stmt.Op))
+			n.SetSubOp(p.binOp(stmt.Op))
 			return n
 		}
 

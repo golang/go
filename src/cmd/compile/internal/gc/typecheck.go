@@ -263,7 +263,7 @@ func typecheck1(n *Node, top int) *Node {
 		// n.Sym is a field/method name, not a variable.
 	default:
 		if n.Sym != nil {
-			if n.Op == ONAME && n.Etype != 0 && top&Ecall == 0 {
+			if n.Op == ONAME && n.SubOp() != 0 && top&Ecall == 0 {
 				yyerror("use of builtin %v not in function call", n.Sym)
 				n.Type = nil
 				return n
@@ -300,7 +300,7 @@ func typecheck1(n *Node, top int) *Node {
 		if n.Name.Decldepth == 0 {
 			n.Name.Decldepth = decldepth
 		}
-		if n.Etype != 0 {
+		if n.SubOp() != 0 {
 			ok |= Ecall
 			break
 		}
@@ -428,11 +428,11 @@ func typecheck1(n *Node, top int) *Node {
 		if l.Type.NotInHeap() {
 			yyerror("chan of go:notinheap type not allowed")
 		}
-		t := types.NewChan(l.Type, types.ChanDir(n.Etype)) // TODO(marvin): Fix Node.EType type union.
+		t := types.NewChan(l.Type, n.TChanDir())
 		n.Op = OTYPE
 		n.Type = t
 		n.Left = nil
-		n.Etype = 0
+		n.ResetAux()
 
 	case OTSTRUCT:
 		ok |= Etype
@@ -540,7 +540,7 @@ func typecheck1(n *Node, top int) *Node {
 				return n
 			}
 			// TODO(marvin): Fix Node.EType type union.
-			op = Op(n.Etype)
+			op = n.SubOp()
 		} else {
 			ok |= Erv
 			n.Left = typecheck(n.Left, Erv)
@@ -712,9 +712,9 @@ func typecheck1(n *Node, top int) *Node {
 
 		if et == TSTRING {
 			if iscmp[n.Op] {
-				// TODO(marvin): Fix Node.EType type union.
-				n.Etype = types.EType(n.Op)
+				ot := n.Op
 				n.Op = OCMPSTR
+				n.SetSubOp(ot)
 			} else if n.Op == OADD {
 				// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
 				n.Op = OADDSTR
@@ -743,9 +743,9 @@ func typecheck1(n *Node, top int) *Node {
 			} else if r.Op == OLITERAL && r.Val().Ctype() == CTNIL {
 			} else // leave alone for back end
 			if r.Type.IsInterface() == l.Type.IsInterface() {
-				// TODO(marvin): Fix Node.EType type union.
-				n.Etype = types.EType(n.Op)
+				ot := n.Op
 				n.Op = OCMPIFACE
+				n.SetSubOp(ot)
 			}
 		}
 
@@ -1026,13 +1026,13 @@ func typecheck1(n *Node, top int) *Node {
 			}
 
 		case TMAP:
-			n.Etype = 0
 			n.Right = defaultlit(n.Right, t.Key())
 			if n.Right.Type != nil {
 				n.Right = assignconv(n.Right, t.Key(), "map index")
 			}
 			n.Type = t.Val()
 			n.Op = OINDEXMAP
+			n.ResetAux()
 		}
 
 	case ORECV:
@@ -1088,10 +1088,6 @@ func typecheck1(n *Node, top int) *Node {
 			return n
 		}
 		n.Right = assignconv(r, t.Elem(), "send")
-
-		// TODO: more aggressive
-		n.Etype = 0
-
 		n.Type = nil
 
 	case OSLICE, OSLICE3:
@@ -1177,15 +1173,13 @@ func typecheck1(n *Node, top int) *Node {
 
 		l := n.Left
 
-		if l.Op == ONAME && l.Etype != 0 {
-			// TODO(marvin): Fix Node.EType type union.
-			if n.Isddd() && Op(l.Etype) != OAPPEND {
+		if l.Op == ONAME && l.SubOp() != 0 {
+			if n.Isddd() && l.SubOp() != OAPPEND {
 				yyerror("invalid use of ... with builtin %v", l)
 			}
 
 			// builtin: OLEN, OCAP, etc.
-			// TODO(marvin): Fix Node.EType type union.
-			n.Op = Op(l.Etype)
+			n.Op = l.SubOp()
 			n.Left = n.Right
 			n.Right = nil
 			n = typecheck1(n, top)
@@ -3214,7 +3208,7 @@ func checkassign(stmt *Node, n *Node) {
 		return
 	}
 	if n.Op == OINDEXMAP {
-		n.Etype = 1
+		n.SetIndexMapLValue(true)
 		return
 	}
 
@@ -3705,7 +3699,7 @@ func typecheckdef(n *Node) {
 			break
 		}
 		if n.Name.Defn == nil {
-			if n.Etype != 0 { // like OPRINTN
+			if n.SubOp() != 0 { // like OPRINTN
 				break
 			}
 			if nsavederrors+nerrors > 0 {
