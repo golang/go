@@ -376,6 +376,17 @@ func Symlink(oldname, newname string) error {
 		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
 	}
 	err = syscall.CreateSymbolicLink(n, o, flags)
+
+	// creating symlinks unelevated is unsupported
+	// below Windows 10 (1607, v10.0.14393).
+	// retry without the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+	if err == syscall.ERROR_INVALID_PARAMETER {
+		flags &^= syscall.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+
+		err = syscall.CreateSymbolicLink(n, o, flags)
+	}
+
+	// handle error
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
