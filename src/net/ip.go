@@ -260,6 +260,25 @@ func (ip IP) Mask(mask IPMask) IP {
 	return out
 }
 
+// ubtoa encodes the string form of the integer v to dst[start:] and
+// returns the number of bytes written to dst. The caller must ensure
+// that dst has sufficient length.
+func ubtoa(dst []byte, start int, v byte) int {
+	if v < 10 {
+		dst[start] = byte(v + '0')
+		return 1
+	} else if v < 100 {
+		dst[start+1] = byte(v%10 + '0')
+		dst[start] = byte(v/10 + '0')
+		return 2
+	}
+
+	dst[start+2] = byte(v%10 + '0')
+	dst[start+1] = byte((v/10)%10 + '0')
+	dst[start] = byte(v/100 + '0')
+	return 3
+}
+
 // String returns the string form of the IP address ip.
 // It returns one of 4 forms:
 //   - "<nil>", if ip has length 0
@@ -275,10 +294,23 @@ func (ip IP) String() string {
 
 	// If IPv4, use dotted notation.
 	if p4 := p.To4(); len(p4) == IPv4len {
-		return uitoa(uint(p4[0])) + "." +
-			uitoa(uint(p4[1])) + "." +
-			uitoa(uint(p4[2])) + "." +
-			uitoa(uint(p4[3]))
+		const maxIPv4StringLen = len("255.255.255.255")
+		b := make([]byte, maxIPv4StringLen)
+
+		n := ubtoa(b, 0, p4[0])
+		b[n] = '.'
+		n++
+
+		n += ubtoa(b, n, p4[1])
+		b[n] = '.'
+		n++
+
+		n += ubtoa(b, n, p4[2])
+		b[n] = '.'
+		n++
+
+		n += ubtoa(b, n, p4[3])
+		return string(b[:n])
 	}
 	if len(p) != IPv6len {
 		return "?" + hexString(ip)
