@@ -292,9 +292,9 @@ func bw(b *bytes.Buffer, args ...string) {
 }
 
 func dumpProg(b *bytes.Buffer, p *Prog) {
-	forkSet := make(map[int]struct{}, len(p.Fork))
+	forkSet := make(map[int]bool, len(p.Fork))
 	for _, i := range p.Fork {
-		forkSet[i] = struct{}{}
+		forkSet[i] = true
 	}
 
 	for j := range p.Inst {
@@ -306,7 +306,7 @@ func dumpProg(b *bytes.Buffer, p *Prog) {
 		if j == p.Start {
 			pc += "*"
 		}
-		if _, ok := forkSet[j]; ok {
+		if forkSet[j] {
 			pc += "#"
 		}
 		bw(b, pc, "\t")
