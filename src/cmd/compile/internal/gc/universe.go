@@ -466,8 +466,19 @@ func finishUniverse() {
 		s1.Block = s.Block
 	}
 
-	nodfp = newname(lookup(".fp"))
-	nodfp.Type = types.Types[TINT32]
-	nodfp.SetClass(PPARAM)
-	nodfp.Name.SetUsed(true)
+	callerSP = newname(lookup(".sp"))
+	callerSP.Type = types.Types[TUINTPTR]
+	callerSP.SetClass(PPARAM)
+	callerSP.Name.SetUsed(true)
+
+	callerPC = newname(lookup(".pc"))
+	callerPC.Type = types.Types[TUINTPTR]
+	callerPC.SetClass(PPARAM)
+	callerPC.Name.SetUsed(true)
 }
+
+var (
+	// Pseudo variables that represent the caller's SP and PC, respectively.
+	callerSP *Node
+	callerPC *Node
+)

@@ -22,7 +22,7 @@ func throwinit()
 func panicwrap()
 
 func gopanic(interface{})
-func gorecover(*int32) interface{}
+func gorecover(uintptr) interface{}
 func goschedguarded()
 
 func printbool(bool)

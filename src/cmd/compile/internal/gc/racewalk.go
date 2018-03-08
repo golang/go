@@ -64,21 +64,11 @@ func instrument(fn *Node) {
 	}
 
 	if flag_race {
-		// nodpc is the PC of the caller as extracted by
-		// getcallerpc. We use -widthptr(FP) for x86.
-		// BUG: this will not work on arm.
-		nodpc := *nodfp
-		nodpc.Type = types.Types[TUINTPTR]
-		nodpc.Xoffset = int64(-Widthptr)
-		savedLineno := lineno
+		lno := lineno
 		lineno = src.NoXPos
-		nd := mkcall("racefuncenter", nil, nil, &nodpc)
-
-		fn.Func.Enter.Prepend(nd)
-		nd = mkcall("racefuncexit", nil, nil)
-		fn.Func.Exit.Append(nd)
-		fn.Func.Dcl = append(fn.Func.Dcl, &nodpc)
-		lineno = savedLineno
+		fn.Func.Enter.Prepend(mkcall("racefuncenter", nil, nil, callerPC))
+		fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
+		lineno = lno
 	}
 
 	if Debug['W'] != 0 {
