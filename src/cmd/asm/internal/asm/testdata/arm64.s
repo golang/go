@@ -31,6 +31,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	AND	R1@>33, R2, R3
 	ADD	R1.UXTB, R2, R3                 // 4300218b
 	ADD	R1.UXTB<<4, R2, R3              // 4310218b
+	ADD	R2, RSP, RSP                    // ff63228b
+	ADD	R2.SXTX<<1, RSP, RSP            // ffe7228b
+	ADD	ZR.SXTX<<1, R2, R3              // 43e43f8b
 	ADDW	R2.SXTW, R10, R12               // 4cc1220b
 	ADD	R18.UXTX, R14, R17              // d161328b
 	ADDSW	R18.UXTW, R14, R17              // d141322b
@@ -39,6 +42,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	SUBW	R1.UXTX<<1, R3, R2              // 6264214b
 	SUBS	R3.UXTX, R8, R9                 // 096123eb
 	SUBSW	R17.UXTH, R15, R21              // f521316b
+	SUBW	ZR<<14, R19, R13                // 6d3a1f4b
 	CMP	R2.SXTH, R13                    // bfa122eb
 	CMN	R1.SXTX<<2, R10                 // 5fe921ab
 	CMPW	R2.UXTH<<3, R11                 // 7f2d226b

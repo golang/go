@@ -2227,6 +2227,41 @@ func (c *ctxt7) checkindex(p *obj.Prog, index, maxindex int) {
 	}
 }
 
+/* checkoffset checks whether the immediate offset is valid for VLD1.P and VST1.P*/
+func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
+	var offset, list, n int64
+	switch as {
+	case AVLD1:
+		offset = p.From.Offset
+		list = p.To.Offset
+	case AVST1:
+		offset = p.To.Offset
+		list = p.From.Offset
+	default:
+		c.ctxt.Diag("invalid operation on op %v", p.As)
+	}
+	opcode := (list >> 12) & 15
+	q := (list >> 30) & 1
+	if offset == 0 {
+		return
+	}
+	switch opcode {
+	case 0x7:
+		n = 1 // one register
+	case 0xa:
+		n = 2 // two registers
+	case 0x6:
+		n = 3 // three registers
+	case 0x2:
+		n = 4 // four registers
+	default:
+		c.ctxt.Diag("invalid register numbers in ARM64 register list: %v", p)
+	}
+	if !(q == 0 && offset == n*8) && !(q == 1 && offset == n*16) {
+		c.ctxt.Diag("invalid post-increment offset: %v", p)
+	}
+}
+
 func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	o1 := uint32(0)
 	o2 := uint32(0)
@@ -2278,6 +2313,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 3: /* op R<<n[,R],R (shifted register) */
 		o1 = c.oprrr(p, p.As)
 
+		amount := (p.From.Offset >> 10) & 63
+		is64bit := o1 & (1 << 31)
+		if is64bit == 0 && amount >= 32 {
+			c.ctxt.Diag("shift amount out of range 0 to 31: %v", p)
+		}
 		o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
 		rt := int(p.To.Reg)
 		if p.To.Type == obj.TYPE_NONE {
@@ -3634,6 +3674,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 1 << 23
 			if p.From.Index == 0 {
 				// immediate offset variant
+				c.checkoffset(p, p.As)
 				o1 |= 0x1f << 16
 			} else {
 				// register offset variant
@@ -3722,6 +3763,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 1 << 23
 			if p.To.Index == 0 {
 				// immediate offset variant
+				c.checkoffset(p, p.As)
 				o1 |= 0x1f << 16
 			} else {
 				// register offset variant
