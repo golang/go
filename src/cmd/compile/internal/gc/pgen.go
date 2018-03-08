@@ -131,7 +131,12 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		for _, v := range b.Values {
 			if n, ok := v.Aux.(*Node); ok {
 				switch n.Class() {
-				case PAUTO, PPARAM, PPARAMOUT:
+				case PPARAM, PPARAMOUT:
+					// Don't modify nodfp; it is a global.
+					if n != nodfp {
+						n.Name.SetUsed(true)
+					}
+				case PAUTO:
 					n.Name.SetUsed(true)
 				}
 			}
