@@ -52,7 +52,6 @@ var instOpNames = []string{
 	"InstCheckProc",
 	"InstMatchProc",
 	"InstNop",
-	"InstCondMatch",
 	"InstRune",
 	"InstRune1",
 	"InstRuneAny",
