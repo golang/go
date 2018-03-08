@@ -4,7 +4,7 @@
 
 // +build freebsd openbsd netbsd
 
-package imports
+package fastwalk
 
 import "syscall"
 

@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/fastwalk"
 )
 
 // Debug controls verbose logging.
@@ -545,16 +546,13 @@ func skipDir(fi os.FileInfo) bool {
 	return false
 }
 
-// shouldTraverse reports whether the symlink fi should, found in dir,
+// shouldTraverse reports whether the symlink fi, found in dir,
 // should be followed.  It makes sure symlinks were never visited
 // before to avoid symlink loops.
 func shouldTraverse(dir string, fi os.FileInfo) bool {
 	path := filepath.Join(dir, fi.Name())
 	target, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			fmt.Fprintln(os.Stderr, err)
-		}
 		return false
 	}
 	ts, err := os.Stat(target)
@@ -674,12 +672,12 @@ func scanGoDirs(goRoot bool) {
 					return nil
 				}
 				if shouldTraverse(dir, fi) {
-					return traverseLink
+					return fastwalk.TraverseLink
 				}
 			}
 			return nil
 		}
-		if err := fastWalk(srcDir, walkFn); err != nil {
+		if err := fastwalk.Walk(srcDir, walkFn); err != nil {
 			log.Printf("goimports: scanning directory %v: %v", srcDir, err)
 		}
 	}

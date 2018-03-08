@@ -4,7 +4,7 @@
 
 // +build appengine !linux,!darwin,!freebsd,!openbsd,!netbsd
 
-package imports
+package fastwalk
 
 import (
 	"io/ioutil"

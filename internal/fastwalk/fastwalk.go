@@ -2,17 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A faster implementation of filepath.Walk.
-//
-// filepath.Walk's design necessarily calls os.Lstat on each file,
-// even if the caller needs less info. And goimports only need to know
-// the type of each file. The kernel interface provides the type in
-// the Readdir call but the standard library ignored it.
-// fastwalk_unix.go contains a fork of the syscall routines.
-//
-// See golang.org/issue/16399
-
-package imports
+// Package fastwalk provides a faster version of filepath.Walk for file system
+// scanning tools.
+package fastwalk
 
 import (
 	"errors"
@@ -22,10 +14,22 @@ import (
 	"sync"
 )
 
-// traverseLink is a sentinel error for fastWalk, similar to filepath.SkipDir.
-var traverseLink = errors.New("traverse symlink, assuming target is a directory")
+// TraverseLink is used as a return value from WalkFuncs to indicate that the
+// symlink named in the call may be traversed.
+var TraverseLink = errors.New("fastwalk: traverse symlink, assuming target is a directory")
 
-// fastWalk walks the file tree rooted at root, calling walkFn for
+// Walk is a faster implementation of filepath.Walk.
+//
+// filepath.Walk's design necessarily calls os.Lstat on each file,
+// even if the caller needs less info.
+// Many tools need only the type of each file.
+// On some platforms, this information is provided directly by the readdir
+// system call, avoiding the need to stat each file individually.
+// fastwalk_unix.go contains a fork of the syscall routines.
+//
+// See golang.org/issue/16399
+//
+// Walk walks the file tree rooted at root, calling walkFn for
 // each file or directory in the tree, including root.
 //
 // If fastWalk returns filepath.SkipDir, the directory is skipped.
@@ -36,10 +40,10 @@ var traverseLink = errors.New("traverse symlink, assuming target is a directory"
 //     any permission bits.
 //   * multiple goroutines stat the filesystem concurrently. The provided
 //     walkFn must be safe for concurrent use.
-//   * fastWalk can follow symlinks if walkFn returns the traverseLink
+//   * fastWalk can follow symlinks if walkFn returns the TraverseLink
 //     sentinel error. It is the walkFn's responsibility to prevent
 //     fastWalk from going into symlink cycles.
-func fastWalk(root string, walkFn func(path string, typ os.FileMode) error) error {
+func Walk(root string, walkFn func(path string, typ os.FileMode) error) error {
 	// TODO(bradfitz): make numWorkers configurable? We used a
 	// minimum of 4 to give the kernel more info about multiple
 	// things we want, in hopes its I/O scheduling can take
@@ -158,7 +162,7 @@ func (w *walker) onDirEnt(dirName, baseName string, typ os.FileMode) error {
 
 	err := w.fn(joined, typ)
 	if typ == os.ModeSymlink {
-		if err == traverseLink {
+		if err == TraverseLink {
 			// Set callbackDone so we don't call it twice for both the
 			// symlink-as-symlink and the symlink-as-directory later:
 			w.enqueue(walkItem{dir: joined, callbackDone: true})
