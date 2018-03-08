@@ -1124,7 +1124,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case OCLOSURE:
-		if n.Noescape() && n.Func.Cvars.Len() > 0 {
+		if n.Noescape() && n.Func.Closure.Func.Cvars.Len() > 0 {
 			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
 		}
 
