@@ -272,26 +272,6 @@ var allAsmTests = []*asmTests{
 }
 
 var linuxAMD64Tests = []*asmTest{
-	// multiplication by powers of two
-	{
-		fn: `
-		func $(n int) int {
-			return n * 64
-		}
-		`,
-		pos: []string{"\tSHLQ\t\\$6,"},
-		neg: []string{"IMULQ"},
-	},
-	{
-		fn: `
-		func $(n int) int {
-			return -128*n
-		}
-		`,
-		pos: []string{"SHLQ"},
-		neg: []string{"IMULQ"},
-	},
-
 	{
 		fn: `
 		func $(x int) int {
@@ -927,26 +907,6 @@ var linuxAMD64Tests = []*asmTest{
 }
 
 var linux386Tests = []*asmTest{
-	// multiplication by powers of two
-	{
-		fn: `
-		func $(n int) int {
-			return 32*n
-		}
-		`,
-		pos: []string{"SHLL"},
-		neg: []string{"IMULL"},
-	},
-	{
-		fn: `
-		func $(n int) int {
-			return -64*n
-		}
-		`,
-		pos: []string{"SHLL"},
-		neg: []string{"IMULL"},
-	},
-
 	// multiplication merging tests
 	{
 		fn: `
@@ -1155,26 +1115,6 @@ var linuxS390XTests = []*asmTest{
 }
 
 var linuxARMTests = []*asmTest{
-	// multiplication by powers of two
-	{
-		fn: `
-		func $(n int) int {
-			return 16*n
-		}
-		`,
-		pos: []string{"\tSLL\t[$]4"},
-		neg: []string{"\tMUL\t"},
-	},
-	{
-		fn: `
-		func $(n int) int {
-			return -32*n
-		}
-		`,
-		pos: []string{"\tSLL\t[$]5"},
-		neg: []string{"\tMUL\t"},
-	},
-
 	{
 		fn: `
 		func f0(x uint32) uint32 {
@@ -1222,26 +1162,6 @@ var linuxARMTests = []*asmTest{
 }
 
 var linuxARM64Tests = []*asmTest{
-	// multiplication by powers of two
-	{
-		fn: `
-		func $(n int) int {
-			return 64*n
-		}
-		`,
-		pos: []string{"\tLSL\t[$]6"},
-		neg: []string{"\tMUL\t"},
-	},
-	{
-		fn: `
-		func $(n int) int {
-			return -128*n
-		}
-		`,
-		pos: []string{"\tLSL\t[$]7"},
-		neg: []string{"\tMUL\t"},
-	},
-
 	{
 		fn: `
 		func f0(x uint64) uint64 {
