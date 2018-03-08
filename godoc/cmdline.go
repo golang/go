@@ -48,6 +48,9 @@ func CommandLine(w io.Writer, fs vfs.NameSpace, pres *Presentation, args []strin
 		// the fake built-in package contains unexported identifiers
 		mode = NoFiltering | NoTypeAssoc
 	}
+	if pres.AllMode {
+		mode |= NoFiltering
+	}
 	if srcMode {
 		// only filter exports if we don't have explicit command-line filter arguments
 		if len(args) > 1 {
