@@ -379,6 +379,18 @@ func TestServeMuxHandler(t *testing.T) {
 	}
 }
 
+// Issue 24297
+func TestServeMuxHandleFuncWithNilHandler(t *testing.T) {
+	setParallel(t)
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("expected call to mux.HandleFunc to panic")
+		}
+	}()
+	mux := NewServeMux()
+	mux.HandleFunc("/", nil)
+}
+
 var serveMuxTests2 = []struct {
 	method  string
 	host    string

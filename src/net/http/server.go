@@ -2358,6 +2358,9 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 
 // HandleFunc registers the handler function for the given pattern.
 func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
+	if handler == nil {
+		panic("http: nil handler")
+	}
 	mux.Handle(pattern, HandlerFunc(handler))
 }
 
