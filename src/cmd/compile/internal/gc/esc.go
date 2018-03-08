@@ -2025,10 +2025,6 @@ func addrescapes(n *Node) {
 		// Nothing to do.
 
 	case ONAME:
-		if n == nodfp {
-			break
-		}
-
 		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
 		// on PPARAM it means something different.
 		if n.Class() == PAUTO && n.Esc == EscNever {
