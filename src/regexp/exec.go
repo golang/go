@@ -220,8 +220,9 @@ func (m *machine) clear(q *queue) {
 // The step processes the rune c (which may be endOfText),
 // which starts at position pos and ends at nextPos.
 // nextCond gives the setting for the empty-width flags after c.
-func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond syntax.EmptyOp, numFork int, matchproc []bool) (nextNumFork int) {
+func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond syntax.EmptyOp, numFork int, matchproc []bool) int {
 	longest := m.re.longest
+	var nextNumFork int
 	for j := 0; j < len(runq.dense); j++ {
 		if numFork == j+1 {
 			nextNumFork = len(nextq.dense)
@@ -279,7 +280,7 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 		}
 	}
 	runq.dense = runq.dense[:0]
-	return
+	return nextNumFork
 }
 
 // add adds an entry to q for pc, unless the q already has such an entry.
