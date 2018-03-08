@@ -371,7 +371,7 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
 
-	var flags uint32
+	var flags uint32 = syscall.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 	if isdir {
 		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
 	}
