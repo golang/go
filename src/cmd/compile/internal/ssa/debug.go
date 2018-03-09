@@ -578,12 +578,12 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 
 	// A slot is live if it was seen in all predecessors, and they all had
 	// some storage in common.
-	for slotID := range p0 {
-		slotLoc := slotLocs[slotID]
+	for _, predSlot := range p0 {
+		slotLoc := slotLocs[predSlot.slot]
 
-		if state.liveCount[slotID] != len(preds) {
+		if state.liveCount[predSlot.slot] != len(preds) {
 			// Seen in only some predecessors. Clear it out.
-			slotLocs[slotID] = VarLoc{}
+			slotLocs[predSlot.slot] = VarLoc{}
 			continue
 		}
 
@@ -596,7 +596,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 			reg := uint8(TrailingZeros64(mask))
 			mask &^= 1 << reg
 
-			state.currentState.registers[reg] = append(state.currentState.registers[reg], SlotID(slotID))
+			state.currentState.registers[reg] = append(state.currentState.registers[reg], predSlot.slot)
 		}
 	}
 	return nil, false
