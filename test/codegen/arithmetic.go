@@ -24,3 +24,37 @@ func Pow2Muls(n1, n2 int) (int, int) {
 
 	return a, b
 }
+
+// ------------------ //
+//    MULs merging    //
+// ------------------ //
+
+func MergeMuls1(n int) int {
+	// amd64:"IMULQ\t[$]46"
+	// 386:"IMULL\t[$]46"
+	return 15*n + 31*n // 46n
+}
+
+func MergeMuls2(n int) int {
+	// amd64:"IMULQ\t[$]23","ADDQ\t[$]29"
+	// 386:"IMULL\t[$]23","ADDL\t[$]29"
+	return 5*n + 7*(n+1) + 11*(n+2) // 23n + 29
+}
+
+func MergeMuls3(a, n int) int {
+	// amd64:"ADDQ\t[$]19",-"IMULQ\t[$]19"
+	// 386:"ADDL\t[$]19",-"IMULL\t[$]19"
+	return a*n + 19*n // (a+19)n
+}
+
+func MergeMuls4(n int) int {
+	// amd64:"IMULQ\t[$]14"
+	// 386:"IMULL\t[$]14"
+	return 23*n - 9*n // 14n
+}
+
+func MergeMuls5(a, n int) int {
+	// amd64:"ADDQ\t[$]-19",-"IMULQ\t[$]19"
+	// 386:"ADDL\t[$]-19",-"IMULL\t[$]19"
+	return a*n - 19*n // (a-19)n
+}

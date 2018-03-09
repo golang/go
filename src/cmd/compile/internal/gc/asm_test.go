@@ -499,43 +499,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tBTQ\t\\$60"},
 	},
-	// multiplication merging tests
-	{
-		fn: `
-		func mul1(n int) int {
-			return 15*n + 31*n
-		}`,
-		pos: []string{"\tIMULQ\t[$]46"}, // 46*n
-	},
-	{
-		fn: `
-		func mul2(n int) int {
-			return 5*n + 7*(n+1) + 11*(n+2)
-		}`,
-		pos: []string{"\tIMULQ\t[$]23", "\tADDQ\t[$]29"}, // 23*n + 29
-	},
-	{
-		fn: `
-		func mul3(a, n int) int {
-			return a*n + 19*n
-		}`,
-		pos: []string{"\tADDQ\t[$]19", "\tIMULQ"}, // (a+19)*n
-	},
-	{
-		fn: `
-		func mul4(n int) int {
-			return 23*n - 9*n
-		}`,
-		pos: []string{"\tIMULQ\t[$]14"}, // 14*n
-	},
-	{
-		fn: `
-		func mul5(a, n int) int {
-			return a*n - 19*n
-		}`,
-		pos: []string{"\tADDQ\t[$]-19", "\tIMULQ"}, // (a-19)*n
-	},
-
 	// see issue 19595.
 	// We want to merge load+op in f58, but not in f59.
 	{
@@ -906,21 +869,6 @@ var linuxAMD64Tests = []*asmTest{
 }
 
 var linux386Tests = []*asmTest{
-	// multiplication merging tests
-	{
-		fn: `
-		func $(n int) int {
-			return 9*n + 14*n
-		}`,
-		pos: []string{"\tIMULL\t[$]23"}, // 23*n
-	},
-	{
-		fn: `
-		func $(a, n int) int {
-			return 19*a + a*n
-		}`,
-		pos: []string{"\tADDL\t[$]19", "\tIMULL"}, // (n+19)*a
-	},
 	{
 		// check that stack store is optimized away
 		fn: `
@@ -930,20 +878,6 @@ var linux386Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"TEXT\t.*, [$]0-4"},
-	},
-	{
-		fn: `
-		func mul3(n int) int {
-			return 23*n - 9*n
-		}`,
-		pos: []string{"\tIMULL\t[$]14"}, // 14*n
-	},
-	{
-		fn: `
-		func mul4(a, n int) int {
-			return n*a - a*19
-		}`,
-		pos: []string{"\tADDL\t[$]-19", "\tIMULL"}, // (n-19)*a
 	},
 	// Check that len() and cap() div by a constant power of two
 	// are compiled into SHRL.
