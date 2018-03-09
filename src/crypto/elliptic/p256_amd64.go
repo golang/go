@@ -31,7 +31,7 @@ type (
 
 var (
 	p256            p256Curve
-	p256Precomputed *[37][64 * 8]uint64
+	p256Precomputed *[43][32 * 8]uint64
 	precomputeOnce  sync.Once
 )
 
@@ -50,14 +50,14 @@ func (curve p256Curve) Params() *CurveParams {
 	return curve.CurveParams
 }
 
-// Functions implemented in p256_asm_amd64.s
+// Functions implemented in p256_asm_*64.s
 // Montgomery multiplication modulo P256
 //go:noescape
 func p256Mul(res, in1, in2 []uint64)
 
-// Montgomery square modulo P256
+// Montgomery square modulo P256, repeated n times (n >= 1)
 //go:noescape
-func p256Sqr(res, in []uint64)
+func p256Sqr(res, in []uint64, n int)
 
 // Montgomery multiplication by 1
 //go:noescape
@@ -121,11 +121,20 @@ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
 		k = new(big.Int).Mod(k, p256.N)
 	}
 
-	// table will store precomputed powers of x. The four words at index
-	// 4×i store x^(i+1).
-	var table [4 * 15]uint64
+	// table will store precomputed powers of x.
+	var table [4 * 9]uint64
+	var (
+		_1      = table[4*0 : 4*1]
+		_11     = table[4*1 : 4*2]
+		_101    = table[4*2 : 4*3]
+		_111    = table[4*3 : 4*4]
+		_1111   = table[4*4 : 4*5]
+		_10101  = table[4*5 : 4*6]
+		_101111 = table[4*6 : 4*7]
+		x       = table[4*7 : 4*8]
+		t       = table[4*8 : 4*9]
+	)
 
-	x := make([]uint64, 4)
 	fromBig(x[:], k)
 	// This code operates in the Montgomery domain where R = 2^256 mod n
 	// and n is the order of the scalar field. (See initP256 for the
@@ -133,53 +142,49 @@ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
 	// multiplication of x and y in the calculates (x × y × R^-1) mod n. RR
 	// is R×R mod n thus the Montgomery multiplication x and RR gives x×R,
 	// i.e. converts x into the Montgomery domain.
+	// Window values borrowed from https://briansmith.org/ecc-inversion-addition-chains-01#p256_scalar_inversion
 	RR := []uint64{0x83244c95be79eea2, 0x4699799c49bd6fa6, 0x2845b2392b6bec59, 0x66e12d94f3d95620}
-	p256OrdMul(table[:4], x, RR)
+	p256OrdMul(_1, x, RR)      // _1
+	p256OrdSqr(x, _1, 1)       // _10
+	p256OrdMul(_11, x, _1)     // _11
+	p256OrdMul(_101, x, _11)   // _101
+	p256OrdMul(_111, x, _101)  // _111
+	p256OrdSqr(x, _101, 1)     // _1010
+	p256OrdMul(_1111, _101, x) // _1111
 
-	// Prepare the table, no need in constant time access, because the
-	// power is not a secret. (Entry 0 is never used.)
-	for i := 2; i < 16; i += 2 {
-		p256OrdSqr(table[4*(i-1):], table[4*((i/2)-1):], 1)
-		p256OrdMul(table[4*i:], table[4*(i-1):], table[:4])
-	}
+	p256OrdSqr(t, x, 1)          // _10100
+	p256OrdMul(_10101, t, _1)    // _10101
+	p256OrdSqr(x, _10101, 1)     // _101010
+	p256OrdMul(_101111, _101, x) // _101111
+	p256OrdMul(x, _10101, x)     // _111111 = x6
+	p256OrdSqr(t, x, 2)          // _11111100
+	p256OrdMul(t, t, _11)        // _11111111 = x8
+	p256OrdSqr(x, t, 8)          // _ff00
+	p256OrdMul(x, x, t)          // _ffff = x16
+	p256OrdSqr(t, x, 16)         // _ffff0000
+	p256OrdMul(t, t, x)          // _ffffffff = x32
 
-	x[0] = table[4*14+0] // f
-	x[1] = table[4*14+1]
-	x[2] = table[4*14+2]
-	x[3] = table[4*14+3]
+	p256OrdSqr(x, t, 64)
+	p256OrdMul(x, x, t)
+	p256OrdSqr(x, x, 32)
+	p256OrdMul(x, x, t)
 
-	p256OrdSqr(x, x, 4)
-	p256OrdMul(x, x, table[4*14:4*14+4]) // ff
-	t := make([]uint64, 4, 4)
-	t[0] = x[0]
-	t[1] = x[1]
-	t[2] = x[2]
-	t[3] = x[3]
+	sqrs := []uint8{
+		6, 5, 4, 5, 5,
+		4, 3, 3, 5, 9,
+		6, 2, 5, 6, 5,
+		4, 5, 5, 3, 10,
+		2, 5, 5, 3, 7, 6}
+	muls := [][]uint64{
+		_101111, _111, _11, _1111, _10101,
+		_101, _101, _101, _111, _101111,
+		_1111, _1, _1, _1111, _111,
+		_111, _111, _101, _11, _101111,
+		_11, _11, _11, _1, _10101, _1111}
 
-	p256OrdSqr(x, x, 8)
-	p256OrdMul(x, x, t) // ffff
-	t[0] = x[0]
-	t[1] = x[1]
-	t[2] = x[2]
-	t[3] = x[3]
-
-	p256OrdSqr(x, x, 16)
-	p256OrdMul(x, x, t) // ffffffff
-	t[0] = x[0]
-	t[1] = x[1]
-	t[2] = x[2]
-	t[3] = x[3]
-
-	p256OrdSqr(x, x, 64) // ffffffff0000000000000000
-	p256OrdMul(x, x, t)  // ffffffff00000000ffffffff
-	p256OrdSqr(x, x, 32) // ffffffff00000000ffffffff00000000
-	p256OrdMul(x, x, t)  // ffffffff00000000ffffffffffffffff
-
-	// Remaining 32 windows
-	expLo := [32]byte{0xb, 0xc, 0xe, 0x6, 0xf, 0xa, 0xa, 0xd, 0xa, 0x7, 0x1, 0x7, 0x9, 0xe, 0x8, 0x4, 0xf, 0x3, 0xb, 0x9, 0xc, 0xa, 0xc, 0x2, 0xf, 0xc, 0x6, 0x3, 0x2, 0x5, 0x4, 0xf}
-	for i := 0; i < 32; i++ {
-		p256OrdSqr(x, x, 4)
-		p256OrdMul(x, x, table[4*(expLo[i]-1):])
+	for i, s := range sqrs {
+		p256OrdSqr(x, x, int(s))
+		p256OrdMul(x, x, muls[i])
 	}
 
 	// Multiplying by one in the Montgomery domain converts a Montgomery
@@ -309,7 +314,7 @@ func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
 	zInv := make([]uint64, 4)
 	zInvSq := make([]uint64, 4)
 	p256Inverse(zInv, p.xyz[8:12])
-	p256Sqr(zInvSq, zInv)
+	p256Sqr(zInvSq, zInv, 1)
 	p256Mul(zInv, zInv, zInvSq)
 
 	p256Mul(zInvSq, p.xyz[0:4], zInvSq)
@@ -346,71 +351,43 @@ func p256Inverse(out, in []uint64) {
 	p16 := stack[4*3 : 4*3+4]
 	p32 := stack[4*4 : 4*4+4]
 
-	p256Sqr(out, in)
+	p256Sqr(out, in, 1)
 	p256Mul(p2, out, in) // 3*p
 
-	p256Sqr(out, p2)
-	p256Sqr(out, out)
+	p256Sqr(out, p2, 2)
 	p256Mul(p4, out, p2) // f*p
 
-	p256Sqr(out, p4)
-	p256Sqr(out, out)
-	p256Sqr(out, out)
-	p256Sqr(out, out)
+	p256Sqr(out, p4, 4)
 	p256Mul(p8, out, p4) // ff*p
 
-	p256Sqr(out, p8)
-
-	for i := 0; i < 7; i++ {
-		p256Sqr(out, out)
-	}
+	p256Sqr(out, p8, 8)
 	p256Mul(p16, out, p8) // ffff*p
 
-	p256Sqr(out, p16)
-	for i := 0; i < 15; i++ {
-		p256Sqr(out, out)
-	}
+	p256Sqr(out, p16, 16)
 	p256Mul(p32, out, p16) // ffffffff*p
 
-	p256Sqr(out, p32)
-
-	for i := 0; i < 31; i++ {
-		p256Sqr(out, out)
-	}
+	p256Sqr(out, p32, 32)
 	p256Mul(out, out, in)
 
-	for i := 0; i < 32*4; i++ {
-		p256Sqr(out, out)
-	}
+	p256Sqr(out, out, 128)
 	p256Mul(out, out, p32)
 
-	for i := 0; i < 32; i++ {
-		p256Sqr(out, out)
-	}
+	p256Sqr(out, out, 32)
 	p256Mul(out, out, p32)
 
-	for i := 0; i < 16; i++ {
-		p256Sqr(out, out)
-	}
+	p256Sqr(out, out, 16)
 	p256Mul(out, out, p16)
 
-	for i := 0; i < 8; i++ {
-		p256Sqr(out, out)
-	}
+	p256Sqr(out, out, 8)
 	p256Mul(out, out, p8)
 
-	p256Sqr(out, out)
-	p256Sqr(out, out)
-	p256Sqr(out, out)
-	p256Sqr(out, out)
+	p256Sqr(out, out, 4)
 	p256Mul(out, out, p4)
 
-	p256Sqr(out, out)
-	p256Sqr(out, out)
+	p256Sqr(out, out, 2)
 	p256Mul(out, out, p2)
 
-	p256Sqr(out, out)
-	p256Sqr(out, out)
+	p256Sqr(out, out, 2)
 	p256Mul(out, out, in)
 }
 
@@ -426,16 +403,16 @@ func boothW5(in uint) (int, int) {
 	return int(d), int(s & 1)
 }
 
-func boothW7(in uint) (int, int) {
-	var s uint = ^((in >> 7) - 1)
-	var d uint = (1 << 8) - in - 1
+func boothW6(in uint) (int, int) {
+	var s uint = ^((in >> 6) - 1)
+	var d uint = (1 << 7) - in - 1
 	d = (d & s) | (in & (^s))
 	d = (d >> 1) + (d & 1)
 	return int(d), int(s & 1)
 }
 
 func initTable() {
-	p256Precomputed = new([37][64 * 8]uint64)
+	p256Precomputed = new([43][32 * 8]uint64)
 
 	basePoint := []uint64{
 		0x79e730d418a9143c, 0x75ba95fc5fedb601, 0x79fb732b77622510, 0x18905f76a53755c6,
@@ -448,19 +425,19 @@ func initTable() {
 
 	zInv := make([]uint64, 4)
 	zInvSq := make([]uint64, 4)
-	for j := 0; j < 64; j++ {
+	for j := 0; j < 32; j++ {
 		copy(t1, t2)
-		for i := 0; i < 37; i++ {
-			// The window size is 7 so we need to double 7 times.
+		for i := 0; i < 43; i++ {
+			// The window size is 6 so we need to double 6 times.
 			if i != 0 {
-				for k := 0; k < 7; k++ {
+				for k := 0; k < 6; k++ {
 					p256PointDoubleAsm(t1, t1)
 				}
 			}
 			// Convert the point to affine form. (Its values are
 			// still in Montgomery form however.)
 			p256Inverse(zInv, t1[8:12])
-			p256Sqr(zInvSq, zInv)
+			p256Sqr(zInvSq, zInv, 1)
 			p256Mul(zInv, zInv, zInvSq)
 
 			p256Mul(t1[:4], t1[:4], zInvSq)
@@ -481,8 +458,8 @@ func initTable() {
 func (p *p256Point) p256BaseMult(scalar []uint64) {
 	precomputeOnce.Do(initTable)
 
-	wvalue := (scalar[0] << 1) & 0xff
-	sel, sign := boothW7(uint(wvalue))
+	wvalue := (scalar[0] << 1) & 0x7f
+	sel, sign := boothW6(uint(wvalue))
 	p256SelectBase(p.xyz[0:8], p256Precomputed[0][0:], sel)
 	p256NegCond(p.xyz[4:8], sign)
 
@@ -499,17 +476,17 @@ func (p *p256Point) p256BaseMult(scalar []uint64) {
 	t0.xyz[10] = 0xffffffffffffffff
 	t0.xyz[11] = 0x00000000fffffffe
 
-	index := uint(6)
+	index := uint(5)
 	zero := sel
 
-	for i := 1; i < 37; i++ {
+	for i := 1; i < 43; i++ {
 		if index < 192 {
-			wvalue = ((scalar[index/64] >> (index % 64)) + (scalar[index/64+1] << (64 - (index % 64)))) & 0xff
+			wvalue = ((scalar[index/64] >> (index % 64)) + (scalar[index/64+1] << (64 - (index % 64)))) & 0x7f
 		} else {
-			wvalue = (scalar[index/64] >> (index % 64)) & 0xff
+			wvalue = (scalar[index/64] >> (index % 64)) & 0x7f
 		}
-		index += 7
-		sel, sign = boothW7(uint(wvalue))
+		index += 6
+		sel, sign = boothW6(uint(wvalue))
 		p256SelectBase(t0.xyz[0:8], p256Precomputed[i][0:], sel)
 		p256PointAddAffineAsm(p.xyz[0:12], p.xyz[0:12], t0.xyz[0:8], sign, sel, zero)
 		zero |= sel
