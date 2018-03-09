@@ -16,7 +16,7 @@ const (
 
 var randomNumber uint32
 var armArch uint8 = 6 // we default to ARMv6
-var hwcap uint32      // set by setup_auxv
+var hwcap uint32      // set by archauxv
 var hardDiv bool      // set if a hardware divider is available
 
 func checkgoarm() {
