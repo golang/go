@@ -4,6 +4,7 @@
 
 // +build !linux
 // +build !darwin
+// +build !freebsd
 
 package runtime
 
