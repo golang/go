@@ -213,18 +213,17 @@ func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
 	if len(x) != n || len(y) != n || len(m) != n {
 		panic("math/big: mismatched montgomery number lengths")
 	}
-	z = z.make(n)
+	z = z.make(n * 2)
 	z.clear()
 	var c Word
 	for i := 0; i < n; i++ {
 		d := y[i]
-		c2 := addMulVVW(z, x, d)
-		t := z[0] * k
-		c3 := addMulVVW(z, m, t)
-		copy(z, z[1:])
+		c2 := addMulVVW(z[i:n+i], x, d)
+		t := z[i] * k
+		c3 := addMulVVW(z[i:n+i], m, t)
 		cx := c + c2
 		cy := cx + c3
-		z[n-1] = cy
+		z[n+i] = cy
 		if cx < c2 || cy < c3 {
 			c = 1
 		} else {
@@ -232,9 +231,11 @@ func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
 		}
 	}
 	if c != 0 {
-		subVV(z, z, m)
+		subVV(z[:n], z[n:], m)
+	} else {
+		copy(z[:n], z[n:])
 	}
-	return z
+	return z[:n]
 }
 
 // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
