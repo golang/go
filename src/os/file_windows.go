@@ -371,22 +371,20 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
 
-	var flags uint32 = syscall.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+	var flags uint32 = windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 	if isdir {
 		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
 	}
 	err = syscall.CreateSymbolicLink(n, o, flags)
 
-	// creating symlinks unelevated is unsupported
-	// below Windows 10 (1607, v10.0.14393).
-	// retry without the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
-	if err == syscall.ERROR_INVALID_PARAMETER {
-		flags &^= syscall.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+	if err == windows.ERROR_INVALID_PARAMETER {
+		// the unprivileged create flag is unsupported
+		// below Windows 10 (1607, v10.0.14393). retry without it.
+		flags &^= windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 
 		err = syscall.CreateSymbolicLink(n, o, flags)
 	}
 
-	// handle error
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
