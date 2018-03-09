@@ -22,7 +22,7 @@ func TestSymlink(t *testing.T) {
 	// the expected result depends on it
 	devMode, _ := isDeveloperModeActive()
 
-	t.Logf("Windows developer mode active: %v\n", devMode)
+	t.Logf("Windows developer mode active: %v", devMode)
 
 	// create dummy file to symlink
 	dummyFile := filepath.Join(os.TempDir(), "issue22874.test")
@@ -52,7 +52,7 @@ func TestSymlink(t *testing.T) {
 					}
 
 					// developer mode is disabled, and the error is expected
-					fmt.Printf("Success: Creating symlink failed with expected ERROR_PRIVILEGE_NOT_HELD error\n")
+					t.Logf("Success: Creating symlink failed with expected ERROR_PRIVILEGE_NOT_HELD error")
 
 					return nil
 				}
@@ -65,7 +65,7 @@ func TestSymlink(t *testing.T) {
 	// remove the link. don't care for any errors
 	os.Remove(linkFile)
 
-	t.Logf("Success: Creating symlink succeeded\n")
+	t.Logf("Success: Creating symlink succeeded")
 
 	return nil
 }
