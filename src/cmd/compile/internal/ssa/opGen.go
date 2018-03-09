@@ -2680,9 +2680,8 @@ var opcodeTable = [...]opInfo{
 		name:         "MULLconst",
 		auxType:      auxInt32,
 		argLen:       1,
-		resultInArg0: true,
 		clobberFlags: true,
-		asm:          x86.AIMULL,
+		asm:          x86.AIMUL3L,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -5216,9 +5215,8 @@ var opcodeTable = [...]opInfo{
 		name:         "MULQconst",
 		auxType:      auxInt32,
 		argLen:       1,
-		resultInArg0: true,
 		clobberFlags: true,
-		asm:          x86.AIMULQ,
+		asm:          x86.AIMUL3Q,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5232,9 +5230,8 @@ var opcodeTable = [...]opInfo{
 		name:         "MULLconst",
 		auxType:      auxInt32,
 		argLen:       1,
-		resultInArg0: true,
 		clobberFlags: true,
-		asm:          x86.AIMULL,
+		asm:          x86.AIMUL3L,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
