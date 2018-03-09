@@ -43,7 +43,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// stack. Abort in the signal handler instead.
 		flags = (flags &^ _SigPanic) | _SigThrow
 	}
-	if c.sigpc() == funcPC(abort) || (GOARCH == "arm" && c.sigpc() == funcPC(abort)+4) {
+	if isAbortPC(c.sigpc()) {
 		// On many architectures, the abort function just
 		// causes a memory fault. Don't turn that into a panic.
 		flags = _SigThrow

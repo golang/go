@@ -710,7 +710,8 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
-	B	(ZR)
+	MOVD	ZR, R0
+	MOVD	(R0), R0
 	UNDEF
 
 TEXT runtime·return0(SB), NOSPLIT, $0
