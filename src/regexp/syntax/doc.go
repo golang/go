@@ -71,6 +71,8 @@ Empty strings:
   \b             at ASCII word boundary (\w on one side and \W, \A, or \z on the other)
   \B             not at ASCII word boundary
   \z             at end of text
+  (?<=re)        positive look-behind assertion
+  (?<!re)        negative look-behind assertion
 
 Escape sequences:
   \a             bell (== \007)
