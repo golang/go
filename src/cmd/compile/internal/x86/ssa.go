@@ -335,19 +335,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.Op386MULLconst:
 		r := v.Reg()
-		if r != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
-		// then we don't need to use resultInArg0 for these ops.
-		//p.From3 = new(obj.Addr)
-		//p.From3.Type = obj.TYPE_REG
-		//p.From3.Reg = v.Args[0].Reg()
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
 
 	case ssa.Op386SUBLconst,
 		ssa.Op386ADCLconst,
