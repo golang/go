@@ -162,10 +162,14 @@ TEXT ·p256NegCond(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-// func p256Sqr(res, in []uint64)
+// func p256Sqr(res, in []uint64, n int)
 TEXT ·p256Sqr(SB),NOSPLIT,$0
 	MOVQ res+0(FP), res_ptr
 	MOVQ in+24(FP), x_ptr
+	MOVQ n+48(FP), BX
+
+sqrLoop:
+
 	// y[1:] * y[0]
 	MOVQ (8*0)(x_ptr), t0
 
@@ -316,6 +320,9 @@ TEXT ·p256Sqr(SB),NOSPLIT,$0
 	MOVQ acc1, (8*1)(res_ptr)
 	MOVQ acc2, (8*2)(res_ptr)
 	MOVQ acc3, (8*3)(res_ptr)
+	MOVQ res_ptr, x_ptr
+	DECQ BX
+	JNE  sqrLoop
 
 	RET
 /* ---------------------------------------*/
@@ -677,7 +684,7 @@ TEXT ·p256SelectBase(SB),NOSPLIT,$0
 	PXOR X1, X1
 	PXOR X2, X2
 	PXOR X3, X3
-	MOVQ $32, AX
+	MOVQ $16, AX
 
 	MOVOU X15, X13
 
