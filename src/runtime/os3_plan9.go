@@ -35,7 +35,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		print("sighandler: note is longer than ERRMAX\n")
 		goto Throw
 	}
-	if c.pc() == funcPC(abort) || (GOARCH == "arm" && c.pc() == funcPC(abort)+4) {
+	if isAbortPC(c.pc()) {
 		// Never turn abort into a panic.
 		goto Throw
 	}
