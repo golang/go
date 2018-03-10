@@ -458,18 +458,86 @@ again:
 	CALL	foo(SB)
 
 // LDP/STP
-	LDP	(R0), (R1, R2)
-	LDP	8(R0), (R1, R2)
-	LDP.W	8(R0), (R1, R2)
-	LDP.P	8(R0), (R1, R2)
+	LDP	(R0), (R1, R2)      // 010840a9
+	LDP	8(R0), (R1, R2)     // 018840a9
+	LDP	-8(R0), (R1, R2)    // 01887fa9
+	LDP	11(R0), (R1, R2)    // 1b2c0091610b40a9
+	LDP	1024(R0), (R1, R2)  // 1b001091610b40a9
+	LDP.W	8(R0), (R1, R2)     // 0188c0a9
+	LDP.P	8(R0), (R1, R2)     // 0188c0a8
+	LDP	(RSP), (R1, R2)     // e10b40a9
+	LDP	8(RSP), (R1, R2)    // e18b40a9
+	LDP	-8(RSP), (R1, R2)   // e18b7fa9
+	LDP	11(RSP), (R1, R2)   // fb2f0091610b40a9
+	LDP	1024(RSP), (R1, R2) // fb031091610b40a9
+	LDP.W	8(RSP), (R1, R2)    // e18bc0a9
+	LDP.P	8(RSP), (R1, R2)    // e18bc0a8
 	LDP	x(SB), (R1, R2)
 	LDP	x+8(SB), (R1, R2)
-	STP	(R3, R4), (R5)
-	STP	(R3, R4), 8(R5)
-	STP.W	(R3, R4), 8(R5)
-	STP.P	(R3, R4), 8(R5)
+	LDPW	(R0), (R1, R2)      // 01084029
+	LDPW	4(R0), (R1, R2)     // 01884029
+	LDPW	-4(R0), (R1, R2)    // 01887f29
+	LDPW.W	4(R0), (R1, R2)     // 0188c029
+	LDPW.P	4(R0), (R1, R2)     // 0188c028
+	LDPW	11(R0), (R1, R2)    // 1b2c0091610b4029
+	LDPW	1024(R0), (R1, R2)  // 1b001091610b4029
+	LDPW	(RSP), (R1, R2)     // e10b4029
+	LDPW	4(RSP), (R1, R2)    // e18b4029
+	LDPW	-4(RSP), (R1, R2)   // e18b7f29
+	LDPW.W	4(RSP), (R1, R2)    // e18bc029
+	LDPW.P	4(RSP), (R1, R2)    // e18bc028
+	LDPW	11(RSP), (R1, R2)   // fb2f0091610b4029
+	LDPW	1024(RSP), (R1, R2) // fb031091610b4029
+	LDPW	x(SB), (R1, R2)
+	LDPW	x+8(SB), (R1, R2)
+	LDPSW	(R0), (R1, R2)      // 01084069
+	LDPSW	4(R0), (R1, R2)     // 01884069
+	LDPSW	-4(R0), (R1, R2)    // 01887f69
+	LDPSW.W	4(R0), (R1, R2)     // 0188c069
+	LDPSW.P	4(R0), (R1, R2)     // 0188c068
+	LDPSW	11(R0), (R1, R2)    // 1b2c0091610b4069
+	LDPSW	1024(R0), (R1, R2)  // 1b001091610b4069
+	LDPSW	(RSP), (R1, R2)     // e10b4069
+	LDPSW	4(RSP), (R1, R2)    // e18b4069
+	LDPSW	-4(RSP), (R1, R2)   // e18b7f69
+	LDPSW.W	4(RSP), (R1, R2)    // e18bc069
+	LDPSW.P	4(RSP), (R1, R2)    // e18bc068
+	LDPSW	11(RSP), (R1, R2)   // fb2f0091610b4069
+	LDPSW	1024(RSP), (R1, R2) // fb031091610b4069
+	LDPSW	x(SB), (R1, R2)
+	LDPSW	x+8(SB), (R1, R2)
+	STP	(R3, R4), (R5)      // a31000a9
+	STP	(R3, R4), 8(R5)     // a39000a9
+	STP.W	(R3, R4), 8(R5)     // a39080a9
+	STP.P	(R3, R4), 8(R5)     // a39080a8
+	STP	(R3, R4), -8(R5)    // a3903fa9
+	STP	(R3, R4), 11(R0)    // 1b2c0091631300a9
+	STP	(R3, R4), 1024(R0)  // 1b001091631300a9
+	STP	(R3, R4), (RSP)     // e31300a9
+	STP	(R3, R4), 8(RSP)    // e39300a9
+	STP.W	(R3, R4), 8(RSP)    // e39380a9
+	STP.P	(R3, R4), 8(RSP)    // e39380a8
+	STP	(R3, R4), -8(RSP)   // e3933fa9
+	STP	(R3, R4), 11(RSP)   // fb2f0091631300a9
+	STP	(R3, R4), 1024(RSP) // fb031091631300a9
 	STP	(R3, R4), x(SB)
 	STP	(R3, R4), x+8(SB)
+	STPW	(R3, R4), (R5)      // a3100029
+	STPW	(R3, R4), 4(R5)     // a3900029
+	STPW.W	(R3, R4), 4(R5)     // a3908029
+	STPW.P	(R3, R4), 4(R5)     // a3908028
+	STPW	(R3, R4), -4(R5)    // a3903f29
+	STPW	(R3, R4), 11(R0)    // 1b2c009163130029
+	STPW	(R3, R4), 1024(R0)  // 1b00109163130029
+	STPW	(R3, R4), (RSP)     // e3130029
+	STPW	(R3, R4), 4(RSP)    // e3930029
+	STPW.W	(R3, R4), 4(RSP)    // e3938029
+	STPW.P	(R3, R4), 4(RSP)    // e3938028
+	STPW	(R3, R4), -4(RSP)   // e3933f29
+	STPW	(R3, R4), 11(RSP)   // fb2f009163130029
+	STPW	(R3, R4), 1024(RSP) // fb03109163130029
+	STPW	(R3, R4), x(SB)
+	STPW	(R3, R4), x+8(SB)
 
 // END
 //
