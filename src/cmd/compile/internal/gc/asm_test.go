@@ -316,115 +316,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.gcWriteBarrier\\(SB\\)"},
 	},
-	// Rotate tests
-	{
-		fn: `
-		func f20(x uint64) uint64 {
-			return x<<7 | x>>57
-		}
-		`,
-		pos: []string{"\tROLQ\t[$]7,"},
-	},
-	{
-		fn: `
-		func f21(x uint64) uint64 {
-			return x<<7 + x>>57
-		}
-		`,
-		pos: []string{"\tROLQ\t[$]7,"},
-	},
-	{
-		fn: `
-		func f22(x uint64) uint64 {
-			return x<<7 ^ x>>57
-		}
-		`,
-		pos: []string{"\tROLQ\t[$]7,"},
-	},
-	{
-		fn: `
-		func f23(x uint32) uint32 {
-			return x<<7 + x>>25
-		}
-		`,
-		pos: []string{"\tROLL\t[$]7,"},
-	},
-	{
-		fn: `
-		func f24(x uint32) uint32 {
-			return x<<7 | x>>25
-		}
-		`,
-		pos: []string{"\tROLL\t[$]7,"},
-	},
-	{
-		fn: `
-		func f25(x uint32) uint32 {
-			return x<<7 ^ x>>25
-		}
-		`,
-		pos: []string{"\tROLL\t[$]7,"},
-	},
-	{
-		fn: `
-		func f26(x uint16) uint16 {
-			return x<<7 + x>>9
-		}
-		`,
-		pos: []string{"\tROLW\t[$]7,"},
-	},
-	{
-		fn: `
-		func f27(x uint16) uint16 {
-			return x<<7 | x>>9
-		}
-		`,
-		pos: []string{"\tROLW\t[$]7,"},
-	},
-	{
-		fn: `
-		func f28(x uint16) uint16 {
-			return x<<7 ^ x>>9
-		}
-		`,
-		pos: []string{"\tROLW\t[$]7,"},
-	},
-	{
-		fn: `
-		func f29(x uint8) uint8 {
-			return x<<7 + x>>1
-		}
-		`,
-		pos: []string{"\tROLB\t[$]7,"},
-	},
-	{
-		fn: `
-		func f30(x uint8) uint8 {
-			return x<<7 | x>>1
-		}
-		`,
-		pos: []string{"\tROLB\t[$]7,"},
-	},
-	{
-		fn: `
-		func f31(x uint8) uint8 {
-			return x<<7 ^ x>>1
-		}
-		`,
-		pos: []string{"\tROLB\t[$]7,"},
-	},
-	// Rotate after inlining (see issue 18254).
-	{
-		fn: `
-		func f32(x uint32) uint32 {
-			return g(x, 7)
-		}
-		func g(x uint32, k uint) uint32 {
-			return x<<k | x>>(32-k)
-		}
-		`,
-		pos: []string{"\tROLL\t[$]7,"},
-	},
 	{
 		fn: `
 		func f33(m map[int]int) int {
@@ -569,63 +460,6 @@ var linuxAMD64Tests = []*asmTest{
 		    return a == "xxxxxxxx"
 		}`,
 		pos: []string{"\tCMPQ\t[A-Z]"},
-	},
-	// Non-constant rotate
-	{
-		fn: `func rot64l(x uint64, y int) uint64 {
-			z := uint(y & 63)
-			return x << z | x >> (64-z)
-		}`,
-		pos: []string{"\tROLQ\t"},
-	},
-	{
-		fn: `func rot64r(x uint64, y int) uint64 {
-			z := uint(y & 63)
-			return x >> z | x << (64-z)
-		}`,
-		pos: []string{"\tRORQ\t"},
-	},
-	{
-		fn: `func rot32l(x uint32, y int) uint32 {
-			z := uint(y & 31)
-			return x << z | x >> (32-z)
-		}`,
-		pos: []string{"\tROLL\t"},
-	},
-	{
-		fn: `func rot32r(x uint32, y int) uint32 {
-			z := uint(y & 31)
-			return x >> z | x << (32-z)
-		}`,
-		pos: []string{"\tRORL\t"},
-	},
-	{
-		fn: `func rot16l(x uint16, y int) uint16 {
-			z := uint(y & 15)
-			return x << z | x >> (16-z)
-		}`,
-		pos: []string{"\tROLW\t"},
-	},
-	{
-		fn: `func rot16r(x uint16, y int) uint16 {
-			z := uint(y & 15)
-			return x >> z | x << (16-z)
-		}`,
-		pos: []string{"\tRORW\t"},
-	},
-	{
-		fn: `func rot8l(x uint8, y int) uint8 {
-			z := uint(y & 7)
-			return x << z | x >> (8-z)
-		}`,
-		pos: []string{"\tROLB\t"},
-	},
-	{
-		fn: `func rot8r(x uint8, y int) uint8 {
-			z := uint(y & 7)
-			return x >> z | x << (8-z)
-		}`,
-		pos: []string{"\tRORB\t"},
 	},
 	// Check that array compare uses 2/4/8 byte compares
 	{
@@ -954,54 +788,6 @@ var linux386Tests = []*asmTest{
 }
 
 var linuxS390XTests = []*asmTest{
-	{
-		fn: `
-		func f8(x uint64) uint64 {
-			return x<<7 + x>>57
-		}
-		`,
-		pos: []string{"\tRLLG\t[$]7,"},
-	},
-	{
-		fn: `
-		func f9(x uint64) uint64 {
-			return x<<7 | x>>57
-		}
-		`,
-		pos: []string{"\tRLLG\t[$]7,"},
-	},
-	{
-		fn: `
-		func f10(x uint64) uint64 {
-			return x<<7 ^ x>>57
-		}
-		`,
-		pos: []string{"\tRLLG\t[$]7,"},
-	},
-	{
-		fn: `
-		func f11(x uint32) uint32 {
-			return x<<7 + x>>25
-		}
-		`,
-		pos: []string{"\tRLL\t[$]7,"},
-	},
-	{
-		fn: `
-		func f12(x uint32) uint32 {
-			return x<<7 | x>>25
-		}
-		`,
-		pos: []string{"\tRLL\t[$]7,"},
-	},
-	{
-		fn: `
-		func f13(x uint32) uint32 {
-			return x<<7 ^ x>>25
-		}
-		`,
-		pos: []string{"\tRLL\t[$]7,"},
-	},
 	// Fused multiply-add/sub instructions.
 	{
 		fn: `
@@ -1049,30 +835,6 @@ var linuxS390XTests = []*asmTest{
 
 var linuxARMTests = []*asmTest{
 	{
-		fn: `
-		func f0(x uint32) uint32 {
-			return x<<7 + x>>25
-		}
-		`,
-		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
-	},
-	{
-		fn: `
-		func f1(x uint32) uint32 {
-			return x<<7 | x>>25
-		}
-		`,
-		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
-	},
-	{
-		fn: `
-		func f2(x uint32) uint32 {
-			return x<<7 ^ x>>25
-		}
-		`,
-		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
-	},
-	{
 		// make sure assembly output has matching offset and base register.
 		fn: `
 		func f13(a, b int) int {
@@ -1095,54 +857,6 @@ var linuxARMTests = []*asmTest{
 }
 
 var linuxARM64Tests = []*asmTest{
-	{
-		fn: `
-		func f0(x uint64) uint64 {
-			return x<<7 + x>>57
-		}
-		`,
-		pos: []string{"\tROR\t[$]57,"},
-	},
-	{
-		fn: `
-		func f1(x uint64) uint64 {
-			return x<<7 | x>>57
-		}
-		`,
-		pos: []string{"\tROR\t[$]57,"},
-	},
-	{
-		fn: `
-		func f2(x uint64) uint64 {
-			return x<<7 ^ x>>57
-		}
-		`,
-		pos: []string{"\tROR\t[$]57,"},
-	},
-	{
-		fn: `
-		func f3(x uint32) uint32 {
-			return x<<7 + x>>25
-		}
-		`,
-		pos: []string{"\tRORW\t[$]25,"},
-	},
-	{
-		fn: `
-		func f4(x uint32) uint32 {
-			return x<<7 | x>>25
-		}
-		`,
-		pos: []string{"\tRORW\t[$]25,"},
-	},
-	{
-		fn: `
-		func f5(x uint32) uint32 {
-			return x<<7 ^ x>>25
-		}
-		`,
-		pos: []string{"\tRORW\t[$]25,"},
-	},
 	{
 		fn: `
 		func $(x, y uint32) uint32 {
@@ -1585,54 +1299,6 @@ var linuxPPC64LETests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tFMSUBS\t"},
-	},
-	{
-		fn: `
-		func f4(x uint32) uint32 {
-			return x<<7 | x>>25
-		}
-		`,
-		pos: []string{"\tROTLW\t"},
-	},
-	{
-		fn: `
-		func f5(x uint32) uint32 {
-			return x<<7 + x>>25
-		}
-		`,
-		pos: []string{"\tROTLW\t"},
-	},
-	{
-		fn: `
-		func f6(x uint32) uint32 {
-			return x<<7 ^ x>>25
-		}
-		`,
-		pos: []string{"\tROTLW\t"},
-	},
-	{
-		fn: `
-		func f7(x uint64) uint64 {
-			return x<<7 | x>>57
-		}
-		`,
-		pos: []string{"\tROTL\t"},
-	},
-	{
-		fn: `
-		func f8(x uint64) uint64 {
-			return x<<7 + x>>57
-		}
-		`,
-		pos: []string{"\tROTL\t"},
-	},
-	{
-		fn: `
-		func f9(x uint64) uint64 {
-			return x<<7 ^ x>>57
-		}
-		`,
-		pos: []string{"\tROTL\t"},
 	},
 	{
 		// check that stack store is optimized away
