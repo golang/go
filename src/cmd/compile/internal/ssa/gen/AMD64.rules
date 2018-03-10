@@ -666,9 +666,6 @@
 (XORLconst [1] (SETBE x)) -> (SETA  x)
 (XORLconst [1] (SETA  x)) -> (SETBE x)
 
-// Convert BTQconst to BTLconst if possible. It has a shorter encoding.
-(BTQconst [c] x) && c < 32 -> (BTLconst [c] x)
-
 // Special case for floating point - LF/LEF not generated
 (NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no) -> (UGT  cmp yes no)
 (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no) -> (UGE  cmp yes no)

@@ -53,8 +53,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64ANDQmem_0(v)
 	case OpAMD64BSFQ:
 		return rewriteValueAMD64_OpAMD64BSFQ_0(v)
-	case OpAMD64BTQconst:
-		return rewriteValueAMD64_OpAMD64BTQconst_0(v)
 	case OpAMD64CMOVLCC:
 		return rewriteValueAMD64_OpAMD64CMOVLCC_0(v)
 	case OpAMD64CMOVLCS:
@@ -3332,23 +3330,6 @@ func rewriteValueAMD64_OpAMD64BSFQ_0(v *Value) bool {
 		v0.AuxInt = 1 << 16
 		v0.AddArg(x)
 		v.AddArg(v0)
-		return true
-	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64BTQconst_0(v *Value) bool {
-	// match: (BTQconst [c] x)
-	// cond: c < 32
-	// result: (BTLconst [c] x)
-	for {
-		c := v.AuxInt
-		x := v.Args[0]
-		if !(c < 32) {
-			break
-		}
-		v.reset(OpAMD64BTLconst)
-		v.AuxInt = c
-		v.AddArg(x)
 		return true
 	}
 	return false
