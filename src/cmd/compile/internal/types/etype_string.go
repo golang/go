@@ -2,7 +2,7 @@
 
 package types
 
-import "fmt"
+import "strconv"
 
 const _EType_name = "xxxINT8UINT8INT16UINT16INT32UINT32INT64UINT64INTUINTUINTPTRCOMPLEX64COMPLEX128FLOAT32FLOAT64BOOLPTR32PTR64FUNCSLICEARRAYSTRUCTCHANMAPINTERFORWANYSTRINGUNSAFEPTRIDEALNILBLANKFUNCARGSCHANARGSDDDFIELDSSATUPLENTYPE"
 
@@ -10,7 +10,7 @@ var _EType_index = [...]uint8{0, 3, 7, 12, 17, 23, 28, 34, 39, 45, 48, 52, 59, 6
 
 func (i EType) String() string {
 	if i >= EType(len(_EType_index)-1) {
-		return fmt.Sprintf("EType(%d)", i)
+		return "EType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _EType_name[_EType_index[i]:_EType_index[i+1]]
 }
