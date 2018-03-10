@@ -1,4 +1,4 @@
-// DO NOT EDIT; AUTO-GENERATED from sort.go using genzfunc.go
+// Code generated from sort.go using genzfunc.go; DO NOT EDIT.
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
