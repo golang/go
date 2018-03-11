@@ -404,6 +404,12 @@ var testedAlreadyLeaked = false
 // stdin, stdout, stderr, epoll/kqueue, maybe testlog
 func basefds() uintptr {
 	n := os.Stderr.Fd() + 1
+	// The poll (epoll/kqueue) descriptor can be numerically
+	// either between stderr and the testlog-fd, or after
+	// testlog-fd.
+	if poll.PollDescriptor() == n {
+		n++
+	}
 	for _, arg := range os.Args {
 		if strings.HasPrefix(arg, "-test.testlogfile=") {
 			n++
