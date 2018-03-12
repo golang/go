@@ -188,6 +188,11 @@ func newFactsTable() *factsTable {
 // update updates the set of relations between v and w in domain d
 // restricting it to r.
 func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+	// No need to do anything else if we already found unsat.
+	if ft.unsat {
+		return
+	}
+
 	if lessByID(w, v) {
 		v, w = w, v
 		r = reverseBits[r]
@@ -202,10 +207,16 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			oldR = lt | eq | gt
 		}
 	}
+	// No changes compared to information already in facts table.
+	if oldR == r {
+		return
+	}
 	ft.stack = append(ft.stack, fact{p, oldR})
 	ft.facts[p] = oldR & r
+	// If this relation is not satisfiable, mark it and exit right away
 	if oldR&r == 0 {
 		ft.unsat = true
+		return
 	}
 
 	// Extract bounds when comparing against constants
@@ -298,11 +309,12 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
 		lim = old.intersect(lim)
 		ft.limits[v.ID] = lim
-		if lim.min > lim.max || lim.umin > lim.umax {
-			ft.unsat = true
-		}
 		if v.Block.Func.pass.debug > 2 {
 			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
+		}
+		if lim.min > lim.max || lim.umin > lim.umax {
+			ft.unsat = true
+			return
 		}
 	}
 
