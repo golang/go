@@ -193,6 +193,15 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		return
 	}
 
+	// Self-fact. It's wasteful to register it into the facts
+	// table, so just note whether it's satisfiable
+	if v == w {
+		if r&eq == 0 {
+			ft.unsat = true
+		}
+		return
+	}
+
 	if lessByID(w, v) {
 		v, w = w, v
 		r = reverseBits[r]
