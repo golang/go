@@ -50,4 +50,7 @@ TEXT errors(SB),$0
 	VFMLS	V1.H4, V12.H4, V3.H4        // ERROR "invalid arrangement"
 	VFMLS	V1.H8, V12.H8, V3.H8        // ERROR "invalid arrangement"
 	VFMLS	V1.H4, V12.H4, V3.H4        // ERROR "invalid arrangement"
+
+	AND	$1, RSP                     // ERROR "illegal combination"
+	ANDS	$1, R0, RSP                 // ERROR "illegal combination"
 	RET
