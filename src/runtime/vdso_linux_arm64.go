@@ -6,15 +6,15 @@ package runtime
 
 const (
 	// vdsoArrayMax is the byte-size of a maximally sized array on this architecture.
-	// See cmd/compile/internal/arm/galign.go arch.MAXWIDTH initialization, but must also
-	// be constrained to max +ve int.
-	vdsoArrayMax = 1<<31 - 1
+	// See cmd/compile/internal/arm64/galign.go arch.MAXWIDTH initialization.
+	vdsoArrayMax = 1<<50 - 1
 )
 
-var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
+// key and version at man 7 vdso : aarch64
+var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6.39", 0x75fcb89}
 
 var vdsoSymbolKeys = []vdsoSymbolKey{
-	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+	{"__kernel_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
 }
 
 // initialize to fall back to syscall
