@@ -2090,8 +2090,7 @@ const x = mypkg.Sprintf("%s", "my package")
 
 // end
 `
-
 	if got := string(out); got != want {
-		t.Errorf("Process returned unexpected result.\ngot:\n%v\nwant:\n%v", got, want)
+		t.Errorf("Process returned unexpected result.\ngot:\n%.100v\nwant:\n%.100v", got, want)
 	}
 }
