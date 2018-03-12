@@ -12,6 +12,9 @@
 
 #define AT_FDCWD -100
 
+#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 1
+
 #define SYS_exit		93
 #define SYS_read		63
 #define SYS_write		64
@@ -180,23 +183,87 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$24-12
-	MOVW	$0, R0 // CLOCK_REALTIME
+	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
+
+	MOVD	g_m(g), R21	// R21 = m
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVD	LR, m_vdsoPC(R21)
+	MOVD	R20, m_vdsoSP(R21)
+
+	MOVD	m_curg(R21), R0
+	CMP	g, R0
+	BNE	noswitch
+
+	MOVD	m_g0(R21), R3
+	MOVD	(g_sched+gobuf_sp)(R3), R1	// Set RSP to g0 stack
+
+noswitch:
+	SUB	$16, R1
+	BIC	$15, R1	// Align for C code
+	MOVD	R1, RSP
+
+	MOVW	$CLOCK_REALTIME, R0
+	MOVD	runtime·vdsoClockgettimeSym(SB), R2
+	CBZ	R2, fallback
+	BL	(R2)
+	B	finish
+
+fallback:
 	MOVD	$SYS_clock_gettime, R8
 	SVC
+
+finish:
 	MOVD	0(RSP), R3	// sec
 	MOVD	8(RSP), R5	// nsec
+
+	MOVD	R20, RSP	// restore SP
+	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
+
 	MOVD	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
 
 TEXT runtime·nanotime(SB),NOSPLIT,$24-8
-	MOVW	$1, R0 // CLOCK_MONOTONIC
+	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
+
+	MOVD	g_m(g), R21	// R21 = m
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVD	LR, m_vdsoPC(R21)
+	MOVD	R20, m_vdsoSP(R21)
+
+	MOVD	m_curg(R21), R0
+	CMP	g, R0
+	BNE	noswitch
+
+	MOVD	m_g0(R21), R3
+	MOVD	(g_sched+gobuf_sp)(R3), R1	// Set RSP to g0 stack
+
+noswitch:
+	SUB	$16, R1
+	BIC	$15, R1
+	MOVD	R1, RSP
+
+	MOVW	$CLOCK_MONOTONIC, R0
+	MOVD	runtime·vdsoClockgettimeSym(SB), R2
+	CBZ	R2, fallback
+	BL	(R2)
+	B	finish
+
+fallback:
 	MOVD	$SYS_clock_gettime, R8
 	SVC
+
+finish:
 	MOVD	0(RSP), R3	// sec
 	MOVD	8(RSP), R5	// nsec
+
+	MOVD	R20, RSP	// restore SP
+	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
+
 	// sec is in R3, nsec in R5
 	// return nsec in R3
 	MOVD	$1000000000, R4
