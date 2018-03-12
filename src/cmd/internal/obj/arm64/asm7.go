@@ -211,28 +211,28 @@ var optab = []Optab{
 	/* logical operations */
 	{AAND, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
 	{AAND, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
-	{ABIC, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
-	{ABIC, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
-	{AAND, C_MBCON, C_REG, C_REG, 53, 4, 0, 0, 0},
+	{AANDS, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
+	{AANDS, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+	{AAND, C_MBCON, C_REG, C_RSP, 53, 4, 0, 0, 0},
 	{AAND, C_MBCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
-	{ABIC, C_MBCON, C_REG, C_REG, 53, 4, 0, 0, 0},
-	{ABIC, C_MBCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
-	{AAND, C_BITCON, C_REG, C_REG, 53, 4, 0, 0, 0},
+	{AANDS, C_MBCON, C_REG, C_REG, 53, 4, 0, 0, 0},
+	{AANDS, C_MBCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
+	{AAND, C_BITCON, C_REG, C_RSP, 53, 4, 0, 0, 0},
 	{AAND, C_BITCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
-	{ABIC, C_BITCON, C_REG, C_REG, 53, 4, 0, 0, 0},
-	{ABIC, C_BITCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
-	{AAND, C_MOVCON, C_REG, C_REG, 62, 8, 0, 0, 0},
+	{AANDS, C_BITCON, C_REG, C_REG, 53, 4, 0, 0, 0},
+	{AANDS, C_BITCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
+	{AAND, C_MOVCON, C_REG, C_RSP, 62, 8, 0, 0, 0},
 	{AAND, C_MOVCON, C_NONE, C_REG, 62, 8, 0, 0, 0},
-	{ABIC, C_MOVCON, C_REG, C_REG, 62, 8, 0, 0, 0},
-	{ABIC, C_MOVCON, C_NONE, C_REG, 62, 8, 0, 0, 0},
-	{AAND, C_VCON, C_REG, C_REG, 28, 8, 0, LFROM, 0},
+	{AANDS, C_MOVCON, C_REG, C_REG, 62, 8, 0, 0, 0},
+	{AANDS, C_MOVCON, C_NONE, C_REG, 62, 8, 0, 0, 0},
+	{AAND, C_VCON, C_REG, C_RSP, 28, 8, 0, LFROM, 0},
 	{AAND, C_VCON, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
-	{ABIC, C_VCON, C_REG, C_REG, 28, 8, 0, LFROM, 0},
-	{ABIC, C_VCON, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
+	{AANDS, C_VCON, C_REG, C_REG, 28, 8, 0, LFROM, 0},
+	{AANDS, C_VCON, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
 	{AAND, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
 	{AAND, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
-	{ABIC, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
-	{ABIC, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
+	{AANDS, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
+	{AANDS, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AMOVD, C_RSP, C_NONE, C_RSP, 24, 4, 0, 0, 0},
 	{AMVN, C_REG, C_NONE, C_REG, 24, 4, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_REG, 45, 4, 0, 0, 0},
@@ -1729,24 +1729,22 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASUBSW, t)
 
 		case AAND: /* logical immediate, logical shifted register */
-			oprangeset(AANDS, t)
-
-			oprangeset(AANDSW, t)
 			oprangeset(AANDW, t)
 			oprangeset(AEOR, t)
 			oprangeset(AEORW, t)
 			oprangeset(AORR, t)
 			oprangeset(AORRW, t)
-
-		case ABIC: /* only logical shifted register */
-			oprangeset(ABICS, t)
-
-			oprangeset(ABICSW, t)
+			oprangeset(ABIC, t)
 			oprangeset(ABICW, t)
 			oprangeset(AEON, t)
 			oprangeset(AEONW, t)
 			oprangeset(AORN, t)
 			oprangeset(AORNW, t)
+
+		case AANDS: /* logical immediate, logical shifted register, set flags, cannot target RSP */
+			oprangeset(AANDSW, t)
+			oprangeset(ABICS, t)
+			oprangeset(ABICSW, t)
 
 		case ANEG:
 			oprangeset(ANEGS, t)

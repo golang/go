@@ -101,6 +101,13 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	EOR	$(1<<63), R1   // EOR	$-9223372036854775808, R1 // 210041d2
 	EOR	$(1<<63-1), R1 // EOR	$9223372036854775807, R1  // 21f840d2
 
+	AND	$8, R0, RSP // 1f007d92
+	ORR	$8, R0, RSP // 1f007db2
+	EOR	$8, R0, RSP // 1f007dd2
+	BIC	$8, R0, RSP // 1ff87c92
+	ORN	$8, R0, RSP // 1ff87cb2
+	EON	$8, R0, RSP // 1ff87cd2
+
 //
 // CLS
 //
