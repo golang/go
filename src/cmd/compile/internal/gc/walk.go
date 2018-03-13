@@ -2669,8 +2669,6 @@ func paramstoheap(params *types.Type) []*Node {
 // even allocations to move params/results to the heap.
 // The generated code is added to Curfn's Enter list.
 func zeroResults() {
-	lno := lineno
-	lineno = Curfn.Pos
 	for _, f := range Curfn.Type.Results().Fields().Slice() {
 		if v := asNode(f.Nname); v != nil && v.Name.Param.Heapaddr != nil {
 			// The local which points to the return value is the
@@ -2679,9 +2677,8 @@ func zeroResults() {
 			continue
 		}
 		// Zero the stack location containing f.
-		Curfn.Func.Enter.Append(nod(OAS, nodarg(f, 1), nil))
+		Curfn.Func.Enter.Append(nodl(Curfn.Pos, OAS, nodarg(f, 1), nil))
 	}
-	lineno = lno
 }
 
 // returnsfromheap returns code to copy values for heap-escaped parameters
