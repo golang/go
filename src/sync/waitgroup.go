@@ -23,16 +23,17 @@ type WaitGroup struct {
 	// 64-bit value: high 32 bits are counter, low 32 bits are waiter count.
 	// 64-bit atomic operations require 64-bit alignment, but 32-bit
 	// compilers do not ensure it. So we allocate 12 bytes and then use
-	// the aligned 8 bytes in them as state.
-	state1 [12]byte
-	sema   uint32
+	// the aligned 8 bytes in them as state, and the other 4 as storage
+	// for the sema.
+	state1 [3]uint32
 }
 
-func (wg *WaitGroup) state() *uint64 {
+// state returns pointers to the state and sema fields stored within wg.state1.
+func (wg *WaitGroup) state() (statep *uint64, semap *uint32) {
 	if uintptr(unsafe.Pointer(&wg.state1))%8 == 0 {
-		return (*uint64)(unsafe.Pointer(&wg.state1))
+		return (*uint64)(unsafe.Pointer(&wg.state1)), &wg.state1[2]
 	} else {
-		return (*uint64)(unsafe.Pointer(&wg.state1[4]))
+		return (*uint64)(unsafe.Pointer(&wg.state1[1])), &wg.state1[0]
 	}
 }
 
@@ -50,7 +51,7 @@ func (wg *WaitGroup) state() *uint64 {
 // new Add calls must happen after all previous Wait calls have returned.
 // See the WaitGroup example.
 func (wg *WaitGroup) Add(delta int) {
-	statep := wg.state()
+	statep, semap := wg.state()
 	if race.Enabled {
 		_ = *statep // trigger nil deref early
 		if delta < 0 {
@@ -67,7 +68,7 @@ func (wg *WaitGroup) Add(delta int) {
 		// The first increment must be synchronized with Wait.
 		// Need to model this as a read, because there can be
 		// several concurrent wg.counter transitions from 0.
-		race.Read(unsafe.Pointer(&wg.sema))
+		race.Read(unsafe.Pointer(semap))
 	}
 	if v < 0 {
 		panic("sync: negative WaitGroup counter")
@@ -89,7 +90,7 @@ func (wg *WaitGroup) Add(delta int) {
 	// Reset waiters count to 0.
 	*statep = 0
 	for ; w != 0; w-- {
-		runtime_Semrelease(&wg.sema, false)
+		runtime_Semrelease(semap, false)
 	}
 }
 
@@ -100,7 +101,7 @@ func (wg *WaitGroup) Done() {
 
 // Wait blocks until the WaitGroup counter is zero.
 func (wg *WaitGroup) Wait() {
-	statep := wg.state()
+	statep, semap := wg.state()
 	if race.Enabled {
 		_ = *statep // trigger nil deref early
 		race.Disable()
@@ -124,9 +125,9 @@ func (wg *WaitGroup) Wait() {
 				// Need to model this is as a write to race with the read in Add.
 				// As a consequence, can do the write only for the first waiter,
 				// otherwise concurrent Waits will race with each other.
-				race.Write(unsafe.Pointer(&wg.sema))
+				race.Write(unsafe.Pointer(semap))
 			}
-			runtime_Semacquire(&wg.sema)
+			runtime_Semacquire(semap)
 			if *statep != 0 {
 				panic("sync: WaitGroup is reused before previous Wait has returned")
 			}
