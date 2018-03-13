@@ -13,7 +13,7 @@
 //      0: disabled
 //      1: 80-nodes leaf functions, oneliners, lazy typechecking (default)
 //      2: (unassigned)
-//      3: allow variadic functions
+//      3: (unassigned)
 //      4: allow non-leaf functions
 //
 // At some point this may get another default and become switch-offable with -N.
@@ -23,9 +23,6 @@
 //
 // The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
 // which calls get inlined or not, more is for debugging, and may go away at any point.
-//
-// TODO:
-//   - inline functions with ... args
 
 package gc
 
@@ -139,17 +136,6 @@ func caninl(fn *Node) {
 
 	if fn.Typecheck() == 0 {
 		Fatalf("caninl on non-typechecked function %v", fn)
-	}
-
-	// can't handle ... args yet
-	if Debug['l'] < 3 {
-		f := fn.Type.Params().Fields()
-		if len := f.Len(); len > 0 {
-			if t := f.Index(len - 1); t.Isddd() {
-				reason = "has ... args"
-				return
-			}
-		}
 	}
 
 	// Runtime package must not be instrumented.
