@@ -7,7 +7,6 @@
 package codegen
 
 func movesmall() {
-	// arm64:-"memmove"
 	x := [...]byte{1, 2, 3, 4, 5, 6, 7}
-	copy(x[1:], x[:])
+	copy(x[1:], x[:]) // arm64:-".*memmove"
 }

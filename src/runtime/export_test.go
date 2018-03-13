@@ -444,3 +444,5 @@ func MapNextArenaHint() (start, end uintptr) {
 func GetNextArenaHint() uintptr {
 	return mheap_.arenaHints.addr
 }
+
+type G = g

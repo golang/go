@@ -279,3 +279,14 @@ func vdsoauxv(tag, val uintptr) {
 		vdsoParseSymbols(info1, vdsoFindVersion(info1, &linux26))
 	}
 }
+
+// vdsoMarker returns whether PC is on the VDSO page.
+func inVDSOPage(pc uintptr) bool {
+	for _, k := range vdsoSymbolKeys {
+		if *k.ptr != 0 {
+			page := *k.ptr &^ (physPageSize - 1)
+			return pc >= page && pc < page+physPageSize
+		}
+	}
+	return false
+}

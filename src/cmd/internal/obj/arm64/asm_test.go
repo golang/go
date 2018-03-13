@@ -52,6 +52,7 @@ func TestLarge(t *testing.T) {
 // gen generates a very large program, with a very far conditional branch.
 func gen(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "TEXT f(SB),0,$0-0")
+	fmt.Fprintln(buf, "TBZ $5, R0, label")
 	fmt.Fprintln(buf, "CBZ R0, label")
 	fmt.Fprintln(buf, "BEQ label")
 	for i := 0; i < 1<<19; i++ {

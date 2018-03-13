@@ -222,6 +222,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	MOVD	$runtime·badsystemstack(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
+	BL	runtime·abort(SB)
 
 switch:
 	// save our state in g->sched. Pretend to

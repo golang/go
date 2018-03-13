@@ -46,6 +46,11 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 		return false
 	}
 
+	if isAbortPC(r.ip()) {
+		// Never turn abort into a panic.
+		return false
+	}
+
 	// Go will only handle some exceptions.
 	switch info.exceptioncode {
 	default:

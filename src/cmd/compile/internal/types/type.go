@@ -726,6 +726,11 @@ var RecvsParamsResults = [3]func(*Type) *Type{
 	(*Type).Recvs, (*Type).Params, (*Type).Results,
 }
 
+// RecvsParams is like RecvsParamsResults, but omits result parameters.
+var RecvsParams = [2]func(*Type) *Type{
+	(*Type).Recvs, (*Type).Params,
+}
+
 // ParamsResults is like RecvsParamsResults, but omits receiver parameters.
 var ParamsResults = [2]func(*Type) *Type{
 	(*Type).Params, (*Type).Results,

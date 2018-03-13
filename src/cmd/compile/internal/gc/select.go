@@ -308,6 +308,7 @@ func walkselectcases(cases *Nodes) []*Node {
 
 		cond := nod(OEQ, chosen, nodintconst(int64(i)))
 		cond = typecheck(cond, Erv)
+		cond = defaultlit(cond, nil)
 
 		r = nod(OIF, cond, nil)
 		r.Nbody.AppendNodes(&cas.Nbody)

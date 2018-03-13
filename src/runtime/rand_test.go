@@ -25,7 +25,7 @@ func BenchmarkFastrandHashiter(b *testing.B) {
 	}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			for _ = range m {
+			for range m {
 				break
 			}
 		}

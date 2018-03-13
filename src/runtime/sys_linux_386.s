@@ -202,12 +202,18 @@ TEXT runtime·walltime(SB), NOSPLIT, $0-12
 
 	get_tls(CX)
 	MOVL	g(CX), AX
-	MOVL	g_m(AX), CX
+	MOVL	g_m(AX), SI // SI unchanged by C code.
 
-	CMPL	AX, m_curg(CX)	// Only switch if on curg.
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVL	0(SP), DX
+	MOVL	DX, m_vdsoPC(SI)
+	LEAL	sec+0(SP), DX
+	MOVL	DX, m_vdsoSP(SI)
+
+	CMPL	AX, m_curg(SI)	// Only switch if on curg.
 	JNE	noswitch
 
-	MOVL	m_g0(CX), DX
+	MOVL	m_g0(SI), DX
 	MOVL	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
@@ -242,6 +248,7 @@ finish:
 	MOVL	12(SP), BX	// nsec
 
 	MOVL	BP, SP		// Restore real SP
+	MOVL	$0, m_vdsoSP(SI)
 
 	// sec is in AX, nsec in BX
 	MOVL	AX, sec_lo+0(FP)
@@ -258,12 +265,18 @@ TEXT runtime·nanotime(SB), NOSPLIT, $0-8
 
 	get_tls(CX)
 	MOVL	g(CX), AX
-	MOVL	g_m(AX), CX
+	MOVL	g_m(AX), SI // SI unchanged by C code.
 
-	CMPL	AX, m_curg(CX)	// Only switch if on curg.
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVL	0(SP), DX
+	MOVL	DX, m_vdsoPC(SI)
+	LEAL	ret+0(SP), DX
+	MOVL	DX, m_vdsoSP(SI)
+
+	CMPL	AX, m_curg(SI)	// Only switch if on curg.
 	JNE	noswitch
 
-	MOVL	m_g0(CX), DX
+	MOVL	m_g0(SI), DX
 	MOVL	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
@@ -291,6 +304,7 @@ finish:
 	MOVL	12(SP), BX	// nsec
 
 	MOVL	BP, SP		// Restore real SP
+	MOVL	$0, m_vdsoSP(SI)
 
 	// sec is in AX, nsec in BX
 	// convert to DX:AX nsec

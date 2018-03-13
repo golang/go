@@ -267,7 +267,7 @@ func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
 		curSize = 1
 		curQ = 1
 	case "S2":
-		curSize = 1
+		curSize = 2
 		curQ = 0
 	case "S4":
 		curSize = 2

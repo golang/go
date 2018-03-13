@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sync"
 
 	_ "net/http/pprof" // Required to use pprof
@@ -119,21 +120,12 @@ func main() {
 		os.Exit(0)
 	}
 	reportMemoryUsage("after parsing trace")
-
-	log.Print("Serializing trace...")
-	params := &traceParams{
-		parsed:  res,
-		endTime: int64(1<<63 - 1),
-	}
-	data, err := generateTrace(params)
-	if err != nil {
-		dief("%v\n", err)
-	}
-	reportMemoryUsage("after generating trace")
+	debug.FreeOSMemory()
 
 	log.Print("Splitting trace...")
-	ranges = splitTrace(data)
+	ranges = splitTrace(res)
 	reportMemoryUsage("after spliting trace")
+	debug.FreeOSMemory()
 
 	addr := "http://" + ln.Addr().String()
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)

@@ -133,6 +133,9 @@ func TestIntendedInlining(t *testing.T) {
 		"regexp": {
 			"(*bitState).push",
 		},
+		"math/big": {
+			"bigEndianWord",
+		},
 	}
 
 	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" {

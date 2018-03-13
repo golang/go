@@ -182,7 +182,6 @@ func fninit(n []*Node) {
 		loop.Ninit.Set1(zero)
 
 		loop = typecheck(loop, Etop)
-		loop = walkstmt(loop)
 		r = append(r, loop)
 	}
 

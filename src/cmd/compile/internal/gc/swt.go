@@ -217,6 +217,7 @@ func walkswitch(sw *Node) {
 	if sw.Left == nil {
 		sw.Left = nodbool(true)
 		sw.Left = typecheck(sw.Left, Erv)
+		sw.Left = defaultlit(sw.Left, nil)
 	}
 
 	if sw.Left.Op == OTYPESW {
@@ -314,21 +315,16 @@ func (s *exprSwitch) walkCases(cc []caseClause) *Node {
 				low := nod(OGE, s.exprname, rng[0])
 				high := nod(OLE, s.exprname, rng[1])
 				a.Left = nod(OANDAND, low, high)
-				a.Left = typecheck(a.Left, Erv)
-				a.Left = defaultlit(a.Left, nil)
-				a.Left = walkexpr(a.Left, nil) // give walk the opportunity to optimize the range check
 			} else if (s.kind != switchKindTrue && s.kind != switchKindFalse) || assignop(n.Left.Type, s.exprname.Type, nil) == OCONVIFACE || assignop(s.exprname.Type, n.Left.Type, nil) == OCONVIFACE {
 				a.Left = nod(OEQ, s.exprname, n.Left) // if name == val
-				a.Left = typecheck(a.Left, Erv)
-				a.Left = defaultlit(a.Left, nil)
 			} else if s.kind == switchKindTrue {
 				a.Left = n.Left // if val
 			} else {
 				// s.kind == switchKindFalse
 				a.Left = nod(ONOT, n.Left, nil) // if !val
-				a.Left = typecheck(a.Left, Erv)
-				a.Left = defaultlit(a.Left, nil)
 			}
+			a.Left = typecheck(a.Left, Erv)
+			a.Left = defaultlit(a.Left, nil)
 			a.Nbody.Set1(n.Right) // goto l
 
 			cas = append(cas, a)
@@ -750,6 +746,7 @@ func (s *typeSwitch) walk(sw *Node) {
 		def = blk
 	}
 	i.Left = typecheck(i.Left, Erv)
+	i.Left = defaultlit(i.Left, nil)
 	cas = append(cas, i)
 
 	// Load hash from type or itab.
@@ -869,6 +866,7 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
 			a := nod(OIF, nil, nil)
 			a.Left = nod(OEQ, s.hashname, nodintconst(int64(c.hash)))
 			a.Left = typecheck(a.Left, Erv)
+			a.Left = defaultlit(a.Left, nil)
 			a.Nbody.Set1(n.Right)
 			cas = append(cas, a)
 		}
@@ -880,6 +878,7 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
 	a := nod(OIF, nil, nil)
 	a.Left = nod(OLE, s.hashname, nodintconst(int64(cc[half-1].hash)))
 	a.Left = typecheck(a.Left, Erv)
+	a.Left = defaultlit(a.Left, nil)
 	a.Nbody.Set1(s.walkCases(cc[:half]))
 	a.Rlist.Set1(s.walkCases(cc[half:]))
 	return a

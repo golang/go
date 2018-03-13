@@ -110,6 +110,20 @@ const (
 	FREGTMP = REG_F15
 )
 
+// http://infocenter.arm.com/help/topic/com.arm.doc.ihi0040b/IHI0040B_aadwarf.pdf
+var ARMDWARFRegisters = map[int16]int16{}
+
+func init() {
+	// f assigns dwarfregisters[from:to] = (base):(step*(to-from)+base)
+	f := func(from, to, base, step int16) {
+		for r := int16(from); r <= to; r++ {
+			ARMDWARFRegisters[r] = step*(r-from) + base
+		}
+	}
+	f(REG_R0, REG_R15, 0, 1)
+	f(REG_F0, REG_F15, 64, 2) // Use d0 through D15, aka S0, S2, ..., S30
+}
+
 const (
 	C_NONE = iota
 	C_REG

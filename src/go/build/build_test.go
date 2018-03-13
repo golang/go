@@ -395,3 +395,19 @@ func TestImportDirTarget(t *testing.T) {
 		t.Errorf("p.PkgTargetRoot == %q, p.PkgObj == %q, want non-empty", p.PkgTargetRoot, p.PkgObj)
 	}
 }
+
+// TestIssue23594 prevents go/build from regressing and populating Package.Doc
+// from comments in test files.
+func TestIssue23594(t *testing.T) {
+	// Package testdata/doc contains regular and external test files
+	// with comments attached to their package declarations. The names of the files
+	// ensure that we see the comments from the test files first.
+	p, err := ImportDir("testdata/doc", 0)
+	if err != nil {
+		t.Fatalf("could not import testdata: %v", err)
+	}
+
+	if p.Doc != "Correct" {
+		t.Fatalf("incorrectly set .Doc to %q", p.Doc)
+	}
+}

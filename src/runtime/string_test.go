@@ -125,7 +125,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					for _ = range sd.data {
+					for range sd.data {
 					}
 				}
 			})
@@ -135,7 +135,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					for _, _ = range sd.data {
+					for range sd.data {
 					}
 				}
 			})
