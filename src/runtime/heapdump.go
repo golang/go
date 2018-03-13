@@ -349,7 +349,7 @@ func dumpgoroutine(gp *g) {
 	dumpbool(isSystemGoroutine(gp))
 	dumpbool(false) // isbackground
 	dumpint(uint64(gp.waitsince))
-	dumpstr(gp.waitreason.String())
+	dumpstr(gp.waitreason)
 	dumpint(uint64(uintptr(gp.sched.ctxt)))
 	dumpint(uint64(uintptr(unsafe.Pointer(gp.m))))
 	dumpint(uint64(uintptr(unsafe.Pointer(gp._defer))))
@@ -658,7 +658,7 @@ func mdump() {
 func writeheapdump_m(fd uintptr) {
 	_g_ := getg()
 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
-	_g_.waitreason = waitReasonDumpingHeap
+	_g_.waitreason = "dumping heap"
 
 	// Update stats so we can dump them.
 	// As a side effect, flushes all the MCaches so the MSpan.freelist

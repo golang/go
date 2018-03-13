@@ -392,7 +392,7 @@ func ReadTrace() []byte {
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
 		trace.reader.set(getg())
-		goparkunlock(&trace.lock, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
+		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
 		lock(&trace.lock)
 	}
 	// Write a buffer.
