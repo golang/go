@@ -14,7 +14,16 @@
 <link rel="search" type="application/opensearchdescription+xml" title="godoc" href="/opensearch.xml" />
 {{end}}
 <link rel="stylesheet" href="/lib/godoc/jquery.treeview.css">
-<script type="text/javascript">window.initFuncs = [];</script>
+<script>window.initFuncs = [];</script>
+<script src="/lib/godoc/jquery.js" defer></script>
+<script src="/lib/godoc/jquery.treeview.js" defer></script>
+<script src="/lib/godoc/jquery.treeview.edit.js" defer></script>
+
+{{if .Playground}}
+<script src="/lib/godoc/playground.js" defer></script>
+{{end}}
+{{with .Version}}<script>var goVersion = {{printf "%q" .}};</script>{{end}}
+<script src="/lib/godoc/godocs.js" defer></script>
 </head>
 <body>
 
@@ -103,18 +112,6 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
 
 </div><!-- .container -->
 </div><!-- #page -->
-
-<!-- TODO(adonovan): load these from <head> using "defer" attribute? -->
-<script type="text/javascript" src="/lib/godoc/jquery.js"></script>
-<script type="text/javascript" src="/lib/godoc/jquery.treeview.js"></script>
-<script type="text/javascript" src="/lib/godoc/jquery.treeview.edit.js"></script>
-
-{{if .Playground}}
-<script type="text/javascript" src="/lib/godoc/playground.js"></script>
-{{end}}
-{{with .Version}}<script>var goVersion = {{printf "%q" .}};</script>{{end}}
-<script type="text/javascript" src="/lib/godoc/godocs.js"></script>
-
 </body>
 </html>
 
