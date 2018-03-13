@@ -41,7 +41,7 @@ type Writer struct {
 // NewWriter returns a new Writer.
 // Writes to the returned writer are compressed and written to w.
 //
-// It is the caller's responsibility to call Close on the WriteCloser when done.
+// It is the caller's responsibility to call Close on the Writer when done.
 // Writes may be buffered and not flushed until Close.
 //
 // Callers that wish to set the fields in Writer.Header must do so before

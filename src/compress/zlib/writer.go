@@ -38,7 +38,7 @@ type Writer struct {
 // NewWriter creates a new Writer.
 // Writes to the returned Writer are compressed and written to w.
 //
-// It is the caller's responsibility to call Close on the WriteCloser when done.
+// It is the caller's responsibility to call Close on the Writer when done.
 // Writes may be buffered and not flushed until Close.
 func NewWriter(w io.Writer) *Writer {
 	z, _ := NewWriterLevelDict(w, DefaultCompression, nil)
