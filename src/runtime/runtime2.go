@@ -358,20 +358,20 @@ type g struct {
 	atomicstatus   uint32
 	stackLock      uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
 	goid           int64
+	waitsince      int64  // approx time when the g become blocked
+	waitreason     string // if status==Gwaiting
 	schedlink      guintptr
-	waitsince      int64      // approx time when the g become blocked
-	waitreason     waitReason // if status==Gwaiting
-	preempt        bool       // preemption signal, duplicates stackguard0 = stackpreempt
-	paniconfault   bool       // panic (instead of crash) on unexpected fault address
-	preemptscan    bool       // preempted g does scan for gc
-	gcscandone     bool       // g has scanned stack; protected by _Gscan bit in status
-	gcscanvalid    bool       // false at start of gc cycle, true if G has not run since last scan; TODO: remove?
-	throwsplit     bool       // must not split stack
-	raceignore     int8       // ignore race detection events
-	sysblocktraced bool       // StartTrace has emitted EvGoInSyscall about this goroutine
-	sysexitticks   int64      // cputicks when syscall has returned (for tracing)
-	traceseq       uint64     // trace event sequencer
-	tracelastp     puintptr   // last P emitted an event for this goroutine
+	preempt        bool     // preemption signal, duplicates stackguard0 = stackpreempt
+	paniconfault   bool     // panic (instead of crash) on unexpected fault address
+	preemptscan    bool     // preempted g does scan for gc
+	gcscandone     bool     // g has scanned stack; protected by _Gscan bit in status
+	gcscanvalid    bool     // false at start of gc cycle, true if G has not run since last scan; TODO: remove?
+	throwsplit     bool     // must not split stack
+	raceignore     int8     // ignore race detection events
+	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
+	sysexitticks   int64    // cputicks when syscall has returned (for tracing)
+	traceseq       uint64   // trace event sequencer
+	tracelastp     puintptr // last P emitted an event for this goroutine
 	lockedm        muintptr
 	sig            uint32
 	writebuf       []byte
@@ -751,69 +751,6 @@ const (
 
 // The maximum number of frames we print for a traceback
 const _TracebackMaxFrames = 100
-
-// A waitReason explains why a goroutine has been stopped.
-// See gopark. Do not re-use waitReasons, add new ones.
-type waitReason uint8
-
-const (
-	waitReasonZero                  waitReason = iota // ""
-	waitReasonGCAssistMarking                         // "GC assist marking"
-	waitReasonIOWait                                  // "IO wait"
-	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
-	waitReasonChanSendNilChan                         // "chan send (nil chan)"
-	waitReasonDumpingHeap                             // "dumping heap"
-	waitReasonGarbageCollection                       // "garbage collection"
-	waitReasonGarbageCollectionScan                   // "garbage collection scan"
-	waitReasonPanicWait                               // "panicwait"
-	waitReasonSelect                                  // "select"
-	waitReasonSelectNoCases                           // "select (no cases)"
-	waitReasonGCAssistWait                            // "GC assist wait"
-	waitReasonGCSweepWait                             // "GC sweep wait"
-	waitReasonChanReceive                             // "chan receive"
-	waitReasonChanSend                                // "chan send"
-	waitReasonFinalizerWait                           // "finalizer wait"
-	waitReasonForceGGIdle                             // "force gc (idle)"
-	waitReasonSemacquire                              // "semacquire"
-	waitReasonSleep                                   // "sleep"
-	waitReasonTimerGoroutineIdle                      // "timer goroutine (idle)"
-	waitReasonTraceReaderBlocked                      // "trace reader (blocked)"
-	waitReasonWaitForGCCycle                          // "wait for GC cycle"
-	waitReasonGCWorkerIdle                            // "GC worker (idle)"
-)
-
-var waitReasonStrings = [...]string{
-	waitReasonZero:                  "",
-	waitReasonGCAssistMarking:       "GC assist marking",
-	waitReasonIOWait:                "IO wait",
-	waitReasonChanReceiveNilChan:    "chan receive (nil chan)",
-	waitReasonChanSendNilChan:       "chan send (nil chan)",
-	waitReasonDumpingHeap:           "dumping heap",
-	waitReasonGarbageCollection:     "garbage collection",
-	waitReasonGarbageCollectionScan: "garbage collection scan",
-	waitReasonPanicWait:             "panicwait",
-	waitReasonSelect:                "select",
-	waitReasonSelectNoCases:         "select (no cases)",
-	waitReasonGCAssistWait:          "GC assist wait",
-	waitReasonGCSweepWait:           "GC sweep wait",
-	waitReasonChanReceive:           "chan receive",
-	waitReasonChanSend:              "chan send",
-	waitReasonFinalizerWait:         "finalizer wait",
-	waitReasonForceGGIdle:           "force gc (idle)",
-	waitReasonSemacquire:            "semacquire",
-	waitReasonSleep:                 "sleep",
-	waitReasonTimerGoroutineIdle:    "timer goroutine (idle)",
-	waitReasonTraceReaderBlocked:    "trace reader (blocked)",
-	waitReasonWaitForGCCycle:        "wait for GC cycle",
-	waitReasonGCWorkerIdle:          "GC worker (idle)",
-}
-
-func (w waitReason) String() string {
-	if w < 0 || w >= waitReason(len(waitReasonStrings)) {
-		return "unknown wait reason"
-	}
-	return waitReasonStrings[w]
-}
 
 var (
 	allglen    uintptr

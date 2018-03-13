@@ -214,7 +214,7 @@ func main() {
 		}
 	}
 	if atomic.Load(&panicking) != 0 {
-		gopark(nil, nil, waitReasonPanicWait, traceEvGoStop, 1)
+		gopark(nil, nil, "panicwait", traceEvGoStop, 1)
 	}
 
 	exit(0)
@@ -245,7 +245,7 @@ func forcegchelper() {
 			throw("forcegc: phase error")
 		}
 		atomic.Store(&forcegc.idle, 1)
-		goparkunlock(&forcegc.lock, waitReasonForceGGIdle, traceEvGoBlock, 1)
+		goparkunlock(&forcegc.lock, "force gc (idle)", traceEvGoBlock, 1)
 		// this goroutine is explicitly resumed by sysmon
 		if debug.gctrace > 0 {
 			println("GC forced")
@@ -274,11 +274,7 @@ func goschedguarded() {
 // If unlockf returns false, the goroutine is resumed.
 // unlockf must not access this G's stack, as it may be moved between
 // the call to gopark and the call to unlockf.
-// Reason explains why the goroutine has been parked.
-// It is displayed in stack traces and heap dumps.
-// Reasons should be unique and descriptive.
-// Do not re-use reasons, add new ones.
-func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceEv byte, traceskip int) {
+func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
 	mp := acquirem()
 	gp := mp.curg
 	status := readgstatus(gp)
@@ -297,7 +293,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
 
 // Puts the current goroutine into a waiting state and unlocks the lock.
 // The goroutine can be made runnable again by calling goready(gp).
-func goparkunlock(lock *mutex, reason waitReason, traceEv byte, traceskip int) {
+func goparkunlock(lock *mutex, reason string, traceEv byte, traceskip int) {
 	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv, traceskip)
 }
 
@@ -2671,7 +2667,7 @@ func goexit0(gp *g) {
 	gp._defer = nil // should be true already but just in case.
 	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
 	gp.writebuf = nil
-	gp.waitreason = 0
+	gp.waitreason = ""
 	gp.param = nil
 	gp.labels = nil
 	gp.timer = nil
@@ -4497,7 +4493,7 @@ func schedtrace(detailed bool) {
 		if lockedm != nil {
 			id2 = lockedm.id
 		}
-		print("  G", gp.goid, ": status=", readgstatus(gp), "(", gp.waitreason.String(), ") m=", id1, " lockedm=", id2, "\n")
+		print("  G", gp.goid, ": status=", readgstatus(gp), "(", gp.waitreason, ") m=", id1, " lockedm=", id2, "\n")
 	}
 	unlock(&allglock)
 	unlock(&sched.lock)
