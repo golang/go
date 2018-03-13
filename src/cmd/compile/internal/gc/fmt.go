@@ -436,13 +436,6 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " colas(%v)", n.Colas())
 	}
 
-	if n.Name != nil && n.Name.Funcdepth != 0 {
-		fmt.Fprintf(s, " f(%d)", n.Name.Funcdepth)
-	}
-	if n.Func != nil && n.Func.Depth != 0 {
-		fmt.Fprintf(s, " ff(%d)", n.Func.Depth)
-	}
-
 	switch n.Esc {
 	case EscUnknown:
 		break
@@ -933,7 +926,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 
 	case OASOP:
 		if n.Implicit() {
-			if Op(n.Etype) == OADD {
+			if n.SubOp() == OADD {
 				mode.Fprintf(s, "%v++", n.Left)
 			} else {
 				mode.Fprintf(s, "%v--", n.Left)
@@ -941,7 +934,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 			break
 		}
 
-		mode.Fprintf(s, "%v %#v= %v", n.Left, Op(n.Etype), n.Right)
+		mode.Fprintf(s, "%v %#v= %v", n.Left, n.SubOp(), n.Right)
 
 	case OAS2:
 		if n.Colas() && !complexinit {
@@ -1281,7 +1274,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		mode.Fprintf(s, "map[%v]%v", n.Left, n.Right)
 
 	case OTCHAN:
-		switch types.ChanDir(n.Etype) {
+		switch n.TChanDir() {
 		case types.Crecv:
 			mode.Fprintf(s, "<-chan %v", n.Left)
 
@@ -1289,7 +1282,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			mode.Fprintf(s, "chan<- %v", n.Left)
 
 		default:
-			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && types.ChanDir(n.Left.Etype) == types.Crecv {
+			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && n.Left.TChanDir() == types.Crecv {
 				mode.Fprintf(s, "chan (%v)", n.Left)
 			} else {
 				mode.Fprintf(s, "chan %v", n.Left)
@@ -1524,8 +1517,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OCMPSTR, OCMPIFACE:
 		n.Left.exprfmt(s, nprec, mode)
-		// TODO(marvin): Fix Node.EType type union.
-		mode.Fprintf(s, " %#v ", Op(n.Etype))
+		mode.Fprintf(s, " %#v ", n.SubOp())
 		n.Right.exprfmt(s, nprec+1, mode)
 
 	default:
@@ -1600,7 +1592,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 
 	case OASOP:
-		mode.Fprintf(s, "%v-%v%j", n.Op, Op(n.Etype), n)
+		mode.Fprintf(s, "%v-%v%j", n.Op, n.SubOp(), n)
 
 	case OTYPE:
 		mode.Fprintf(s, "%v %v%j type=%v", n.Op, n.Sym, n, n.Type)

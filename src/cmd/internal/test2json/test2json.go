@@ -175,6 +175,7 @@ func (c *converter) handleInputLine(line []byte) {
 	// "=== RUN   "
 	// "=== PAUSE "
 	// "=== CONT  "
+	actionColon := false
 	origLine := line
 	ok := false
 	indent := 0
@@ -196,6 +197,7 @@ func (c *converter) handleInputLine(line []byte) {
 		}
 		for _, magic := range reports {
 			if bytes.HasPrefix(line, magic) {
+				actionColon = true
 				ok = true
 				break
 			}
@@ -209,7 +211,10 @@ func (c *converter) handleInputLine(line []byte) {
 	}
 
 	// Parse out action and test name.
-	i := bytes.IndexByte(line, ':') + 1
+	i := 0
+	if actionColon {
+		i = bytes.IndexByte(line, ':') + 1
+	}
 	if i == 0 {
 		i = len(updates[0])
 	}

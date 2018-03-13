@@ -133,9 +133,7 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 		}()
 		rc = f
 	}
-	defer func() {
-		rc.Close()
-	}()
+	defer rc.Close()
 
 	var hdr string
 	buf := bufio.NewReader(rc)

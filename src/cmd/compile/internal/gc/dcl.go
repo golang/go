@@ -128,7 +128,6 @@ func declare(n *Node, ctxt Class) {
 	s.Lastlineno = lineno
 	s.Def = asTypesNode(n)
 	n.Name.Vargen = int32(gen)
-	n.Name.Funcdepth = funcdepth
 	n.SetClass(ctxt)
 
 	autoexport(n, ctxt)
@@ -160,7 +159,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 			declare(v, dclcontext)
 			v.Name.Param.Ntype = t
 			v.Name.Defn = as2
-			if funcdepth > 0 {
+			if Curfn != nil {
 				init = append(init, nod(ODCL, v, nil))
 			}
 		}
@@ -183,8 +182,8 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		declare(v, dclcontext)
 		v.Name.Param.Ntype = t
 
-		if e != nil || funcdepth > 0 || isblank(v) {
-			if funcdepth > 0 {
+		if e != nil || Curfn != nil || isblank(v) {
+			if Curfn != nil {
 				init = append(init, nod(ODCL, v, nil))
 			}
 			e = nod(OAS, v, e)
@@ -276,7 +275,7 @@ func oldname(s *types.Sym) *Node {
 		return newnoname(s)
 	}
 
-	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != funcdepth {
+	if Curfn != nil && n.Op == ONAME && n.Name.Curfn != nil && n.Name.Curfn != Curfn {
 		// Inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we
@@ -284,7 +283,7 @@ func oldname(s *types.Sym) *Node {
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
 		c := n.Name.Param.Innermost
-		if c == nil || c.Name.Funcdepth != funcdepth {
+		if c == nil || c.Name.Curfn != Curfn {
 			// Do not have a closure var for the active closure yet; make one.
 			c = newname(s)
 			c.SetClass(PAUTOHEAP)
@@ -292,7 +291,6 @@ func oldname(s *types.Sym) *Node {
 			c.SetIsddd(n.Isddd())
 			c.Name.Defn = n
 			c.SetAddable(false)
-			c.Name.Funcdepth = funcdepth
 
 			// Link into list of active closure variables.
 			// Popped from list in func closurebody.
@@ -384,12 +382,14 @@ func ifacedcl(n *Node) {
 // returns in auto-declaration context.
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
-	if funcdepth == 0 && dclcontext != PEXTERN {
+	if Curfn == nil && dclcontext != PEXTERN {
 		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
 	dclcontext = PAUTO
-	funcstart(n)
+	types.Markdcl()
+	funcstack = append(funcstack, Curfn)
+	Curfn = n
 
 	if n.Func.Nname != nil {
 		funcargs(n.Func.Nname.Name.Param.Ntype)
@@ -523,16 +523,6 @@ func funcargs2(t *types.Type) {
 }
 
 var funcstack []*Node // stack of previous values of Curfn
-var funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
-
-// start the function.
-// called before funcargs; undone at end of funcbody.
-func funcstart(n *Node) {
-	types.Markdcl()
-	funcstack = append(funcstack, Curfn)
-	funcdepth++
-	Curfn = n
-}
 
 // finish the body.
 // called in auto-declaration context.
@@ -544,8 +534,7 @@ func funcbody() {
 	}
 	types.Popdcl()
 	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
-	funcdepth--
-	if funcdepth == 0 {
+	if Curfn == nil {
 		dclcontext = PEXTERN
 	}
 }
@@ -679,11 +668,6 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
 	for i, n := range l {
 		f := structfield(n)
 		f.Funarg = funarg
-
-		// esc.go needs to find f given a PPARAM to add the tag.
-		if n.Left != nil && n.Left.Class() == PPARAM {
-			n.Left.Name.Param.Field = f
-		}
 		if f.Broke() {
 			t.SetBroke(true)
 		}
@@ -699,11 +683,6 @@ func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
 
 	for _, f := range fields {
 		f.Funarg = funarg
-
-		// esc.go needs to find f given a PPARAM to add the tag.
-		if asNode(f.Nname) != nil && asNode(f.Nname).Class() == PPARAM {
-			asNode(f.Nname).Name.Param.Field = f
-		}
 	}
 	t.SetFields(fields)
 	return t
@@ -1018,29 +997,6 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 
 	mt.Methods().Append(f)
 	return f
-}
-
-func funccompile(n *Node) {
-	if n.Type == nil {
-		if nerrors == 0 {
-			Fatalf("funccompile missing type")
-		}
-		return
-	}
-
-	// assign parameter offsets
-	checkwidth(n.Type)
-
-	if Curfn != nil {
-		Fatalf("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
-	}
-
-	dclcontext = PAUTO
-	funcdepth = n.Func.Depth + 1
-	compile(n)
-	Curfn = nil
-	funcdepth = 0
-	dclcontext = PEXTERN
 }
 
 func funcsymname(s *types.Sym) string {

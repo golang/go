@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"text/tabwriter"
 	"unicode"
@@ -192,13 +191,13 @@ func (p *printer) linesFrom(line int) int {
 
 func (p *printer) posFor(pos token.Pos) token.Position {
 	// not used frequently enough to cache entire token.Position
-	return p.fset.Position(pos)
+	return p.fset.PositionFor(pos, false /* absolute position */)
 }
 
 func (p *printer) lineFor(pos token.Pos) int {
 	if pos != p.cachedPos {
 		p.cachedPos = pos
-		p.cachedLine = p.fset.Position(pos).Line
+		p.cachedLine = p.fset.PositionFor(pos, false /* absolute position */).Line
 	}
 	return p.cachedLine
 }
@@ -622,24 +621,10 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	const linePrefix = "//line "
 	if strings.HasPrefix(text, linePrefix) && (!pos.IsValid() || pos.Column == 1) {
-		// possibly a line directive
-		ldir := strings.TrimSpace(text[len(linePrefix):])
-		if i := strings.LastIndex(ldir, ":"); i >= 0 {
-			if line, err := strconv.Atoi(ldir[i+1:]); err == nil && line > 0 {
-				// The line directive we are about to print changed
-				// the Filename and Line number used for subsequent
-				// tokens. We have to update our AST-space position
-				// accordingly and suspend indentation temporarily.
-				indent := p.indent
-				p.indent = 0
-				defer func() {
-					p.pos.Filename = ldir[:i]
-					p.pos.Line = line
-					p.pos.Column = 1
-					p.indent = indent
-				}()
-			}
-		}
+		// Possibly a //-style line directive.
+		// Suspend indentation temporarily to keep line directive valid.
+		defer func(indent int) { p.indent = indent }(p.indent)
+		p.indent = 0
 	}
 
 	// shortcut common case of //-style comments

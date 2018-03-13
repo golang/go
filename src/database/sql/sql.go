@@ -1940,7 +1940,7 @@ func (tx *Tx) closePrepared() {
 // Commit commits the transaction.
 func (tx *Tx) Commit() error {
 	// Check context first to avoid transaction leak.
-	// If put it behind tx.done CompareAndSwap statement, we cant't ensure
+	// If put it behind tx.done CompareAndSwap statement, we can't ensure
 	// the consistency between tx.done and the real COMMIT operation.
 	select {
 	default:

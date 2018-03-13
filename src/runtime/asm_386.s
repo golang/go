@@ -132,7 +132,7 @@ bad_proc: // show that the program requires MMX.
 	CALL	runtime·write(SB)
 	MOVL	$1, 0(SP)
 	CALL	runtime·exit(SB)
-	INT	$3
+	CALL	runtime·abort(SB)
 
 has_cpuid:
 	MOVL	$0, AX
@@ -306,7 +306,7 @@ ok:
 	// start this M
 	CALL	runtime·mstart(SB)
 
-	INT $3
+	CALL	runtime·abort(SB)
 	RET
 
 DATA	bad_proc_msg<>+0x00(SB)/8, $"This pro"
@@ -479,6 +479,7 @@ bad:
 	// Hide call from linker nosplit analysis.
 	MOVL	$runtime·badsystemstack(SB), AX
 	CALL	AX
+	INT	$3
 
 /*
  * support for morestack
@@ -499,14 +500,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	CMPL	g(CX), SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackg0(SB)
-	INT	$3
+	CALL	runtime·abort(SB)
 
 	// Cannot grow signal stack.
 	MOVL	m_gsignal(BX), SI
 	CMPL	g(CX), SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackgsignal(SB)
-	INT	$3
+	CALL	runtime·abort(SB)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -533,7 +534,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVL	-4(AX), BX	// fault if CALL would, before smashing SP
 	MOVL	AX, SP
 	CALL	runtime·newstack(SB)
-	MOVL	$0, 0x1003	// crash if newstack returns
+	CALL	runtime·abort(SB)	// crash if newstack returns
 	RET
 
 TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
@@ -906,16 +907,21 @@ TEXT setg_gcc<>(SB), NOSPLIT, $0
 	MOVL	DX, g(AX)
 	RET
 
+TEXT runtime·abort(SB),NOSPLIT,$0-0
+	INT	$3
+loop:
+	JMP	loop
+
 // check that SP is in range [g->stack.lo, g->stack.hi)
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	get_tls(CX)
 	MOVL	g(CX), AX
 	CMPL	(g_stack+stack_hi)(AX), SP
 	JHI	2(PC)
-	INT	$3
+	CALL	runtime·abort(SB)
 	CMPL	SP, (g_stack+stack_lo)(AX)
 	JHI	2(PC)
-	INT	$3
+	CALL	runtime·abort(SB)
 	RET
 
 // func cputicks() int64

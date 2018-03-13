@@ -3233,6 +3233,20 @@ func TestGoVetWithOnlyTestFiles(t *testing.T) {
 	tg.run("vet", "p")
 }
 
+// Issue 24193.
+func TestVetWithOnlyCgoFiles(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/p/p.go", "package p; import \"C\"; func F() {}")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("vet", "p")
+}
+
 // Issue 9767, 19769.
 func TestGoGetDotSlashDownload(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)

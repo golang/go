@@ -446,12 +446,42 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
 	return overlapping
 }
 
+// overlappingInstant returns true if the instantaneous event, ev, occurred during
+// any of the task's span if ev is a goroutine-local event, or overlaps with the
+// task's lifetime if ev is a global event.
+func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
+	if isUserAnnotationEvent(ev) && task.id != ev.Args[0] {
+		return false // not this task's user event.
+	}
+
+	ts := ev.Ts
+	taskStart := task.firstTimestamp()
+	taskEnd := task.lastTimestamp()
+	if ts < taskStart || taskEnd < ts {
+		return false
+	}
+	if ev.P == trace.GCP {
+		return true
+	}
+
+	// Goroutine local event. Check whether there are spans overlapping with the event.
+	goid := ev.G
+	for _, span := range task.spans {
+		if span.goid != goid {
+			continue
+		}
+		if span.firstTimestamp() <= ts && ts <= span.lastTimestamp() {
+			return true
+		}
+	}
+	return false
+}
+
 // overlappingDuration returns whether the durational event, ev, overlaps with
 // any of the task's span if ev is a goroutine-local event, or overlaps with
 // the task's lifetime if ev is a global event. It returns the overlapping time
 // as well.
 func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool) {
-	// TODO: check whether ev is a 'durational' event.
 	start := ev.Ts
 	end := lastTimestamp()
 	if ev.Link != nil {
@@ -463,9 +493,13 @@ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool)
 	}
 
 	goid := ev.G
+	goid2 := ev.G
+	if ev.Link != nil {
+		goid2 = ev.Link.G
+	}
 
-	// This event is a global event (G=0)
-	if goid == 0 {
+	// This event is a global GC event
+	if ev.P == trace.GCP {
 		taskStart := task.firstTimestamp()
 		taskEnd := task.lastTimestamp()
 		o := overlappingDuration(taskStart, taskEnd, start, end)
@@ -476,7 +510,7 @@ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool)
 	var overlapping time.Duration
 	var lastSpanEnd int64 // the end of previous overlapping span
 	for _, span := range task.spans {
-		if span.goid != goid {
+		if span.goid != goid && span.goid != goid2 {
 			continue
 		}
 		spanStart, spanEnd := span.firstTimestamp(), span.lastTimestamp()
@@ -924,4 +958,12 @@ func describeEvent(ev *trace.Event) string {
 		return "task end"
 	}
 	return ""
+}
+
+func isUserAnnotationEvent(ev *trace.Event) bool {
+	switch ev.Type {
+	case trace.EvUserLog, trace.EvUserSpan, trace.EvUserTaskCreate, trace.EvUserTaskEnd:
+		return true
+	}
+	return false
 }

@@ -5,7 +5,6 @@ internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly functi
 
 // Intentionally missing declarations.
 runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
-runtime/asm_arm.s: [arm] abort: function abort missing Go declaration
 runtime/asm_arm.s: [arm] armPublicationBarrier: function armPublicationBarrier missing Go declaration
 runtime/asm_arm.s: [arm] usplitR0: function usplitR0 missing Go declaration
 runtime/asm_arm.s: [arm] addmoduledata: function addmoduledata missing Go declaration

@@ -2238,37 +2238,29 @@ func (e *EscState) esctag(fn *Node) {
 		}
 	}
 
-	for _, ln := range fn.Func.Dcl {
-		if ln.Op != ONAME {
-			continue
-		}
-
-		switch ln.Esc & EscMask {
-		case EscNone, // not touched by escflood
-			EscReturn:
-			if types.Haspointers(ln.Type) { // don't bother tagging for scalars
-				if ln.Name.Param.Field.Note != uintptrEscapesTag {
-					ln.Name.Param.Field.Note = mktag(int(ln.Esc))
-				}
+	for _, fs := range types.RecvsParams {
+		for _, f := range fs(fn.Type).Fields().Slice() {
+			if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+				continue
+			}
+			if f.Note == uintptrEscapesTag {
+				// Note is already set in the loop above.
+				continue
 			}
 
-		case EscHeap: // touched by escflood, moved to heap
-		}
-	}
+			// Unnamed parameters are unused and therefore do not escape.
+			if f.Sym == nil || f.Sym.IsBlank() {
+				f.Note = mktag(EscNone)
+				continue
+			}
 
-	// Unnamed parameters are unused and therefore do not escape.
-	// (Unnamed parameters are not in the Dcl list in the loop above
-	// so we need to mark them separately.)
-	for _, f := range fn.Type.Params().Fields().Slice() {
-		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
-			continue
-		}
-		if f.Note == uintptrEscapesTag {
-			// Note is already set in the loop above.
-			continue
-		}
-		if f.Sym == nil || f.Sym.IsBlank() {
-			f.Note = mktag(EscNone)
+			switch esc := asNode(f.Nname).Esc; esc & EscMask {
+			case EscNone, // not touched by escflood
+				EscReturn:
+				f.Note = mktag(int(esc))
+
+			case EscHeap: // touched by escflood, moved to heap
+			}
 		}
 	}
 }

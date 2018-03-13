@@ -163,3 +163,15 @@ func f13() {
 	f12(&x)               // ERROR "&x does not escape"
 	runtime.KeepAlive(&x) // ERROR "&x does not escape"
 }
+
+// Test for issue 24305 (passing to unnamed receivers does not escape).
+type U int
+
+func (*U) M()   {}
+func (_ *U) N() {}
+
+func _() {
+	var u U
+	u.M() // ERROR "u does not escape"
+	u.N() // ERROR "u does not escape"
+}

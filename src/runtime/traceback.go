@@ -827,8 +827,8 @@ func goroutineheader(gp *g) {
 	}
 
 	// Override.
-	if gpstatus == _Gwaiting && gp.waitreason != "" {
-		status = gp.waitreason
+	if gpstatus == _Gwaiting && gp.waitreason != waitReasonZero {
+		status = gp.waitreason.String()
 	}
 
 	// approx time the G is blocked, in minutes

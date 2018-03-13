@@ -434,6 +434,7 @@ func walkrange(n *Node) *Node {
 	typecheckslice(n.Left.Ninit.Slice(), Etop)
 
 	n.Left = typecheck(n.Left, Erv)
+	n.Left = defaultlit(n.Left, nil)
 	n.Right = typecheck(n.Right, Etop)
 	typecheckslice(body, Etop)
 	n.Nbody.Prepend(body...)
@@ -529,6 +530,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	n.Nbody.Append(v1)
 
 	n.Left = typecheck(n.Left, Erv)
+	n.Left = defaultlit(n.Left, nil)
 	typecheckslice(n.Nbody.Slice(), Etop)
 	n = walkstmt(n)
 	return true

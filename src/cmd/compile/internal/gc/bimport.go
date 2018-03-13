@@ -178,8 +178,8 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 		}
 		i0 = i
 
-		if funcdepth != 0 {
-			p.formatErrorf("unexpected Funcdepth %d", funcdepth)
+		if Curfn != nil {
+			p.formatErrorf("unexpected Curfn %v", Curfn)
 		}
 
 		// Note: In the original code, funchdr and funcbody are called for
@@ -1124,7 +1124,7 @@ func (p *importer) node() *Node {
 
 	case OASOP:
 		n := nodl(p.pos(), OASOP, nil, nil)
-		n.Etype = types.EType(p.int())
+		n.SetSubOp(p.op())
 		n.Left = p.expr()
 		if !p.bool() {
 			n.Right = nodintconst(1)

@@ -1461,7 +1461,7 @@ func (p *exporter) expr(n *Node) {
 		p.exprList(n.List)
 
 	case OCMPSTR, OCMPIFACE:
-		p.op(Op(n.Etype))
+		p.op(n.SubOp())
 		p.pos(n)
 		p.expr(n.Left)
 		p.expr(n.Right)
@@ -1527,7 +1527,7 @@ func (p *exporter) stmt(n *Node) {
 	case OASOP:
 		p.op(OASOP)
 		p.pos(n)
-		p.int(int(n.Etype))
+		p.op(n.SubOp())
 		p.expr(n.Left)
 		if p.bool(!n.Implicit()) {
 			p.expr(n.Right)

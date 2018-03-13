@@ -9,6 +9,7 @@ package main
 import (
 	"bytes"
 	"internal/trace"
+	"io/ioutil"
 	"runtime"
 	rtrace "runtime/trace"
 	"sync"
@@ -79,19 +80,21 @@ func TestGoroutineInSyscall(t *testing.T) {
 
 	// Check only one thread for the pipe read goroutine is
 	// considered in-syscall.
-	viewerData, err := generateTrace(&traceParams{
-		parsed:  res,
-		endTime: int64(1<<63 - 1),
-	})
-	if err != nil {
-		t.Fatalf("failed to generate ViewerData: %v", err)
-	}
-	for _, ev := range viewerData.Events {
+	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
 		if ev.Name == "Threads" {
 			arg := ev.Arg.(*threadCountersArg)
 			if arg.InSyscall > 1 {
 				t.Errorf("%d threads in syscall at time %v; want less than 1 thread in syscall", arg.InSyscall, ev.Time)
 			}
 		}
+	}
+
+	param := &traceParams{
+		parsed:  res,
+		endTime: int64(1<<63 - 1),
+	}
+	if err := generateTrace(param, c); err != nil {
+		t.Fatalf("failed to generate ViewerData: %v", err)
 	}
 }

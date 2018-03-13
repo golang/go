@@ -188,12 +188,18 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
 
 	get_tls(CX)
 	MOVQ	g(CX), AX
-	MOVQ	g_m(AX), CX
+	MOVQ	g_m(AX), BX // BX unchanged by C code.
 
-	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVQ	0(SP), DX
+	MOVQ	DX, m_vdsoPC(BX)
+	LEAQ	sec+0(SP), DX
+	MOVQ	DX, m_vdsoSP(BX)
+
+	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
 	JNE	noswitch
 
-	MOVQ	m_g0(CX), DX
+	MOVQ	m_g0(BX), DX
 	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
@@ -209,6 +215,7 @@ noswitch:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
 	MOVQ	BP, SP		// Restore real SP
+	MOVQ	$0, m_vdsoSP(BX)
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
@@ -221,6 +228,7 @@ fallback:
 	MOVL	8(SP), DX	// usec
 	IMULQ	$1000, DX
 	MOVQ	BP, SP		// Restore real SP
+	MOVQ	$0, m_vdsoSP(BX)
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
@@ -228,16 +236,22 @@ fallback:
 TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
-	MOVQ	SP, BP	// Save old SP; BX unchanged by C code.
+	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
 
 	get_tls(CX)
 	MOVQ	g(CX), AX
-	MOVQ	g_m(AX), CX
+	MOVQ	g_m(AX), BX // BX unchanged by C code.
 
-	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVQ	0(SP), DX
+	MOVQ	DX, m_vdsoPC(BX)
+	LEAQ	ret+0(SP), DX
+	MOVQ	DX, m_vdsoSP(BX)
+
+	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
 	JNE	noswitch
 
-	MOVQ	m_g0(CX), DX
+	MOVQ	m_g0(BX), DX
 	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
@@ -253,6 +267,7 @@ noswitch:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
 	MOVQ	BP, SP		// Restore real SP
+	MOVQ	$0, m_vdsoSP(BX)
 	// sec is in AX, nsec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
@@ -267,6 +282,7 @@ fallback:
 	MOVQ	0(SP), AX	// sec
 	MOVL	8(SP), DX	// usec
 	MOVQ	BP, SP		// Restore real SP
+	MOVQ	$0, m_vdsoSP(BX)
 	IMULQ	$1000, DX
 	// sec is in AX, nsec in DX
 	// return nsec in AX
@@ -287,7 +303,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sysSigaction(SB),NOSPLIT,$0-36
+TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-36
 	MOVQ	sig+0(FP), DI
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX

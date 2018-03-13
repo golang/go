@@ -862,9 +862,9 @@
 (MNEG x (MOVDconst [c])) && isPowerOfTwo(c) -> (NEG (SLLconst <x.Type> [log2(c)] x))
 (MNEG x (MOVDconst [c])) && isPowerOfTwo(c-1) && c >= 3 -> (NEG (ADDshiftLL <x.Type> x x [log2(c-1)]))
 (MNEG x (MOVDconst [c])) && isPowerOfTwo(c+1) && c >= 7 -> (NEG (ADDshiftLL <x.Type> (NEG <x.Type> x) x [log2(c+1)]))
-(MNEG x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) -> (NEG (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])))
+(MNEG x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) -> (SLLconst <x.Type> [log2(c/3)] (SUBshiftLL <x.Type> x x [2]))
 (MNEG x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) -> (NEG (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])))
-(MNEG x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) -> (NEG (SLLconst <x.Type> [log2(c/7)] (ADDshiftLL <x.Type> (NEG <x.Type> x) x [3])))
+(MNEG x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) -> (SLLconst <x.Type> [log2(c/7)] (SUBshiftLL <x.Type> x x [3]))
 (MNEG x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) -> (NEG (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])))
 
 (MNEGW x (MOVDconst [c])) && int32(c)==-1 -> x
@@ -873,9 +873,9 @@
 (MNEGW x (MOVDconst [c])) && isPowerOfTwo(c) -> (NEG (SLLconst <x.Type> [log2(c)] x))
 (MNEGW x (MOVDconst [c])) && isPowerOfTwo(c-1) && int32(c) >= 3 -> (NEG (ADDshiftLL <x.Type> x x [log2(c-1)]))
 (MNEGW x (MOVDconst [c])) && isPowerOfTwo(c+1) && int32(c) >= 7 -> (NEG (ADDshiftLL <x.Type> (NEG <x.Type> x) x [log2(c+1)]))
-(MNEGW x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c) -> (NEG (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])))
+(MNEGW x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c) -> (SLLconst <x.Type> [log2(c/3)] (SUBshiftLL <x.Type> x x [2]))
 (MNEGW x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c) -> (NEG (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])))
-(MNEGW x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c) -> (NEG (SLLconst <x.Type> [log2(c/7)] (ADDshiftLL <x.Type> (NEG <x.Type> x) x [3])))
+(MNEGW x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c) -> (SLLconst <x.Type> [log2(c/7)] (SUBshiftLL <x.Type> x x [3]))
 (MNEGW x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c) -> (NEG (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])))
 
 // div by constant

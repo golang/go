@@ -57,33 +57,46 @@ func (w *Writer) Write(record []string) error {
 			}
 			continue
 		}
+
 		if err := w.w.WriteByte('"'); err != nil {
 			return err
 		}
-
-		for _, r1 := range field {
-			var err error
-			switch r1 {
-			case '"':
-				_, err = w.w.WriteString(`""`)
-			case '\r':
-				if !w.UseCRLF {
-					err = w.w.WriteByte('\r')
-				}
-			case '\n':
-				if w.UseCRLF {
-					_, err = w.w.WriteString("\r\n")
-				} else {
-					err = w.w.WriteByte('\n')
-				}
-			default:
-				_, err = w.w.WriteRune(r1)
+		for len(field) > 0 {
+			// Search for special characters.
+			i := strings.IndexAny(field, "\"\r\n")
+			if i < 0 {
+				i = len(field)
 			}
-			if err != nil {
+
+			// Copy verbatim everything before the special character.
+			if _, err := w.w.WriteString(field[:i]); err != nil {
 				return err
 			}
-		}
+			field = field[i:]
 
+			// Encode the special character.
+			if len(field) > 0 {
+				var err error
+				switch field[0] {
+				case '"':
+					_, err = w.w.WriteString(`""`)
+				case '\r':
+					if !w.UseCRLF {
+						err = w.w.WriteByte('\r')
+					}
+				case '\n':
+					if w.UseCRLF {
+						_, err = w.w.WriteString("\r\n")
+					} else {
+						err = w.w.WriteByte('\n')
+					}
+				}
+				field = field[1:]
+				if err != nil {
+					return err
+				}
+			}
+		}
 		if err := w.w.WriteByte('"'); err != nil {
 			return err
 		}

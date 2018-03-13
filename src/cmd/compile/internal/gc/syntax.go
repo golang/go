@@ -55,8 +55,62 @@ type Node struct {
 
 	Esc uint16 // EscXXX
 
-	Op    Op
-	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+	Op  Op
+	aux uint8
+}
+
+func (n *Node) ResetAux() {
+	n.aux = 0
+}
+
+func (n *Node) SubOp() Op {
+	switch n.Op {
+	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	default:
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return Op(n.aux)
+}
+
+func (n *Node) SetSubOp(op Op) {
+	switch n.Op {
+	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	default:
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	n.aux = uint8(op)
+}
+
+func (n *Node) IndexMapLValue() bool {
+	if n.Op != OINDEXMAP {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return n.aux != 0
+}
+
+func (n *Node) SetIndexMapLValue(b bool) {
+	if n.Op != OINDEXMAP {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	if b {
+		n.aux = 1
+	} else {
+		n.aux = 0
+	}
+}
+
+func (n *Node) TChanDir() types.ChanDir {
+	if n.Op != OTCHAN {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return types.ChanDir(n.aux)
+}
+
+func (n *Node) SetTChanDir(dir types.ChanDir) {
+	if n.Op != OTCHAN {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	n.aux = uint8(dir)
 }
 
 func (n *Node) IsSynthetic() bool {
@@ -242,7 +296,6 @@ type Name struct {
 	Param     *Param     // additional fields for ONAME, OTYPE
 	Decldepth int32      // declaration loop depth, increased for every loop or label
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-	Funcdepth int32
 
 	used  bool // for variable declared and not used error
 	flags bitset8
@@ -279,9 +332,6 @@ type Param struct {
 
 	// ONAME PAUTOHEAP
 	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
-
-	// ONAME PPARAM
-	Field *types.Field // TFIELD in arg struct
 
 	// ONAME closure linkage
 	// Consider:
@@ -433,7 +483,6 @@ type Func struct {
 
 	Inl     Nodes // copy of the body for use in inlining
 	InlCost int32
-	Depth   int32
 
 	Label int32 // largest auto-generated label in this function
 

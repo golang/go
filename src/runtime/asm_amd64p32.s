@@ -124,7 +124,7 @@ needtls:
 	MOVQ	runtime·m0+m_tls(SB), AX
 	CMPQ	AX, $0x123
 	JEQ 2(PC)
-	MOVL	AX, 0	// abort
+	CALL	runtime·abort(SB)
 ok:
 	// set the per-goroutine and per-mach "registers"
 	get_tls(BX)
@@ -310,6 +310,7 @@ bad:
 	// Hide call from linker nosplit analysis.
 	MOVL	$runtime·badsystemstack(SB), AX
 	CALL	AX
+	INT	$3
 
 /*
  * support for morestack
@@ -532,6 +533,11 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$0-16
 TEXT runtime·setg(SB), NOSPLIT, $0-4
 	MOVL	0, AX
 	RET
+
+TEXT runtime·abort(SB),NOSPLIT,$0-0
+	INT	$3
+loop:
+	JMP	loop
 
 // check that SP is in range [g->stack.lo, g->stack.hi)
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0

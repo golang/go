@@ -6,6 +6,11 @@
 
 package runtime
 
-// rt_sigaction calls the rt_sigaction system call. It is implemented in assembly.
-//go:noescape
-func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+// This version is used on Linux systems on which we don't use cgo to
+// call the C version of sigaction.
+
+//go:nosplit
+//go:nowritebarrierrec
+func sigaction(sig uint32, new, old *sigactiont) {
+	sysSigaction(sig, new, old)
+}
