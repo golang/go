@@ -15,25 +15,25 @@
 		{
 			"canonical": "golang.org/x/arch/x86/x86asm",
 			"local": "golang.org/x/arch/x86/x86asm",
-			"revision": "98fd8d9907002617e6000a77c0740a72947ca1c2"
+			"revision": "98fd8d9907002617e6000a77c0740a72947ca1c2",
 			"revisionTime": "2017-12-26T02:13:20Z"
 		},
 		{
 			"canonical": "golang.org/x/arch/arm/armasm",
 			"local": "golang.org/x/arch/arm/armasm",
-			"revision": "98fd8d9907002617e6000a77c0740a72947ca1c2"
+			"revision": "98fd8d9907002617e6000a77c0740a72947ca1c2",
 			"revisionTime": "2017-12-26T02:13:20Z"
 		},
 		{
 			"canonical": "golang.org/x/arch/ppc64/ppc64asm",
 			"local": "golang.org/x/arch/ppc64/ppc64asm",
-			"revision": "98fd8d9907002617e6000a77c0740a72947ca1c2"
+			"revision": "98fd8d9907002617e6000a77c0740a72947ca1c2",
 			"revisionTime": "2017-12-26T02:13:20Z"
 		},
 		{
 			"canonical": "golang.org/x/arch/arm64/arm6464asm",
 			"local": "golang.org/x/arch/arm64/arm64asm",
-			"revision": "98fd8d9907002617e6000a77c0740a72947ca1c2"
+			"revision": "98fd8d9907002617e6000a77c0740a72947ca1c2",
 			"revisionTime": "2017-12-26T02:13:20Z"
 		}
 	]
