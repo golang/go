@@ -603,12 +603,12 @@ func inlnode(n *Node) *Node {
 			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
 		}
 		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall(n) { // normal case
-			n = mkinlcall(n, n.Left, n.Isddd())
+			n = mkinlcall(n, n.Left)
 		} else if n.Left.isMethodExpression() && asNode(n.Left.Sym.Def) != nil {
-			n = mkinlcall(n, asNode(n.Left.Sym.Def), n.Isddd())
+			n = mkinlcall(n, asNode(n.Left.Sym.Def))
 		} else if n.Left.Op == OCLOSURE {
 			if f := inlinableClosure(n.Left); f != nil {
-				n = mkinlcall(n, f, n.Isddd())
+				n = mkinlcall(n, f)
 			}
 		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
 			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
@@ -634,7 +634,7 @@ func inlnode(n *Node) *Node {
 						}
 						break
 					}
-					n = mkinlcall(n, f, n.Isddd())
+					n = mkinlcall(n, f)
 				}
 			}
 		}
@@ -653,7 +653,7 @@ func inlnode(n *Node) *Node {
 			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
 		}
 
-		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname), n.Isddd())
+		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname))
 	}
 
 	lineno = lno
@@ -754,7 +754,7 @@ func (v *reassignVisitor) visitList(l Nodes) *Node {
 
 // The result of mkinlcall MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
+func mkinlcall(n *Node, fn *Node) *Node {
 	save_safemode := safemode
 
 	// imported functions may refer to unsafe as long as the
@@ -764,7 +764,7 @@ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
 	if pkg != localpkg && pkg != nil {
 		safemode = false
 	}
-	n = mkinlcall1(n, fn, isddd)
+	n = mkinlcall1(n, fn)
 	safemode = save_safemode
 	return n
 }
@@ -790,7 +790,7 @@ var inlgen int
 // parameters.
 // The result of mkinlcall1 MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall1(n.Left, fn, isddd)
-func mkinlcall1(n, fn *Node, isddd bool) *Node {
+func mkinlcall1(n, fn *Node) *Node {
 	if fn.Func.Inl.Len() == 0 {
 		// No inlinable body.
 		return n
@@ -958,7 +958,7 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 		// For ordinary parameters or variadic parameters in
 		// dotted calls, just add the variable to the
 		// assignment list, and we're done.
-		if !param.Isddd() || isddd {
+		if !param.Isddd() || n.Isddd() {
 			as.List.Append(tinlvar(param, inlvars))
 			continue
 		}
