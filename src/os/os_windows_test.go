@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"internal/poll"
 	"internal/syscall/windows"
+	"internal/syscall/windows/registry"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -20,6 +22,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -892,4 +895,101 @@ func main() {
 			continue
 		}
 	}
+}
+
+// TestSymlinkWindowsDeveloperModeActive verifies that creating a symbolic link
+// works on Windows when developer mode is active.
+// This is supported starting Windows 10 (1703, v10.0.14972).
+func TestSymlinkWindowsDeveloperModeActive(t *testing.T) {
+	if !isWindowsDeveloperModeActive() {
+		t.Skip("Windows developer mode is not active")
+	}
+
+	// create dummy file to symlink
+	rand.Seed(time.Now().UnixNano())
+
+	dummyFile := filepath.Join(os.TempDir(), fmt.Sprintf("issue22874.test.%v", 1000000+rand.Int31n(8999999)))
+	err := ioutil.WriteFile(dummyFile, []byte(""), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create dummy file: %v", err)
+	}
+
+	defer os.Remove(dummyFile)
+
+	// create the symlink
+	linkFile := fmt.Sprintf("%v.link", dummyFile)
+	err = os.Symlink(dummyFile, linkFile)
+	if err != nil {
+		// only the ERROR_PRIVILEGE_NOT_HELD error is allowed
+		if errLink, ok := err.(*os.LinkError); ok {
+			if errNo, ok := errLink.Err.(syscall.Errno); ok {
+
+				if errNo == syscall.ERROR_PRIVILEGE_NOT_HELD {
+					t.Fatalf("Windows developer mode is active, but creating symlink failed with ERROR_PRIVILEGE_NOT_HELD anyway: %v", err)
+				}
+			}
+		}
+
+		t.Fatalf("Failed to create symlink: %v", err)
+	}
+	// remove the link. don't care for any errors
+	os.Remove(linkFile)
+}
+
+// TestSymlinkWindowsDeveloperModeInactive verifies that creating a symbolic link
+// will fail with the correct error message if developer mode is inactive.
+// This test also checks for backward compatibility.
+func TestSymlinkWindowsDeveloperModeInactive(t *testing.T) {
+	if isWindowsDeveloperModeActive() {
+		t.Skip("Windows developer mode is active")
+	}
+
+	// create dummy file to symlink
+	rand.Seed(time.Now().UnixNano())
+
+	dummyFile := filepath.Join(os.TempDir(), fmt.Sprintf("issue22874.test.%v", 1000000+rand.Int31n(8999999)))
+	err := ioutil.WriteFile(dummyFile, []byte(""), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create dummy file: %v", err)
+	}
+
+	defer os.Remove(dummyFile)
+
+	// create the symlink
+	linkFile := fmt.Sprintf("%v.link", dummyFile)
+	err = os.Symlink(dummyFile, linkFile)
+	if err == nil {
+		os.Remove(linkFile)
+		t.Fatal("Creating the symlink should have failed")
+	}
+
+	// only the ERROR_PRIVILEGE_NOT_HELD error is allowed
+	if errLink, ok := err.(*os.LinkError); ok {
+		if errNo, ok := errLink.Err.(syscall.Errno); ok {
+
+			if errNo == syscall.ERROR_PRIVILEGE_NOT_HELD {
+				// this error is expected
+				return
+			}
+		}
+	}
+
+	t.Fatalf("Creating symlink failed with unexpected error: %v", err)
+}
+
+// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
+// Returns false for prior Windows versions.
+// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
+func isWindowsDeveloperModeActive() bool {
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
+	if err != nil {
+		return false
+	}
+
+	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
+	if err != nil {
+		return false
+	}
+
+	return val != 0
 }
