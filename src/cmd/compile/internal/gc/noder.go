@@ -569,7 +569,8 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		lineno = p.makeXPos(expr.Rbrace)
 		return n
 	case *syntax.KeyValueExpr:
-		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+		// use position of expr.Key rather than of expr (which has position of ':')
+		return p.nod(expr.Key, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		return p.funcLit(expr)
 	case *syntax.ParenExpr:
