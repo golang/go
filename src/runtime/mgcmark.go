@@ -251,7 +251,7 @@ func markroot(gcw *gcWork, i uint32) {
 			selfScan := gp == userG && readgstatus(userG) == _Grunning
 			if selfScan {
 				casgstatus(userG, _Grunning, _Gwaiting)
-				userG.waitreason = waitReasonGarbageCollectionScan
+				userG.waitreason = "garbage collection scan"
 			}
 
 			// TODO: scang blocks until gp's stack has
@@ -549,7 +549,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 
 	// gcDrainN requires the caller to be preemptible.
 	casgstatus(gp, _Grunning, _Gwaiting)
-	gp.waitreason = waitReasonGCAssistMarking
+	gp.waitreason = "GC assist marking"
 
 	// drain own cached work first in the hopes that it
 	// will be more cache friendly.
@@ -648,7 +648,7 @@ func gcParkAssist() bool {
 		return false
 	}
 	// Park.
-	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceEvGoBlockGC, 2)
+	goparkunlock(&work.assistQueue.lock, "GC assist wait", traceEvGoBlockGC, 2)
 	return true
 }
 
