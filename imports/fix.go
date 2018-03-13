@@ -49,7 +49,7 @@ func localPrefixes() []string {
 var importToGroup = []func(importPath string) (num int, ok bool){
 	func(importPath string) (num int, ok bool) {
 		for _, p := range localPrefixes() {
-			if strings.HasPrefix(importPath, p) {
+			if strings.HasPrefix(importPath, p) || strings.TrimSuffix(p, "/") == importPath {
 				return 3, true
 			}
 		}
