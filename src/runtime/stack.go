@@ -1000,7 +1000,7 @@ func newstack() {
 			"\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
 	}
 	if sp < gp.stack.lo {
-		print("runtime: gp=", gp, ", gp->status=", hex(readgstatus(gp)), "\n ")
+		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->status=", hex(readgstatus(gp)), "\n ")
 		print("runtime: split stack overflow: ", hex(sp), " < ", hex(gp.stack.lo), "\n")
 		throw("runtime: split stack overflow")
 	}
