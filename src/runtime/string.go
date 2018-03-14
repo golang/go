@@ -411,6 +411,18 @@ func findnull(s *byte) int {
 		return 0
 	}
 
+	// Avoid IndexByteString on Plan 9 because it uses SSE instructions
+	// on x86 machines, and those are classified as floating point instructions,
+	// which are illegal in a note handler.
+	if GOOS == "plan9" {
+		p := (*[maxAlloc/2 - 1]byte)(unsafe.Pointer(s))
+		l := 0
+		for p[l] != 0 {
+			l++
+		}
+		return l
+	}
+
 	// pageSize is the unit we scan at a time looking for NULL.
 	// It must be the minimum page size for any architecture Go
 	// runs on. It's okay (just a minor performance loss) if the
