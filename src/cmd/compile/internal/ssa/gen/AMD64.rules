@@ -328,6 +328,25 @@
 (Move [16] dst src mem) && !config.useSSE ->
 	(MOVQstore [8] dst (MOVQload [8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
+
+(Move [32] dst src mem) ->
+	(Move [16]
+		(OffPtr <dst.Type> dst [16])
+		(OffPtr <src.Type> src [16])
+		(Move [16] dst src mem))
+
+(Move [48] dst src mem) && config.useSSE ->
+	(Move [32]
+		(OffPtr <dst.Type> dst [16])
+		(OffPtr <src.Type> src [16])
+		(Move [16] dst src mem))
+
+(Move [64] dst src mem) && config.useSSE ->
+	(Move [32]
+		(OffPtr <dst.Type> dst [32])
+		(OffPtr <src.Type> src [32])
+		(Move [32] dst src mem))
+
 (Move [3] dst src mem) ->
 	(MOVBstore [2] dst (MOVBload [2] src mem)
 		(MOVWstore dst (MOVWload src mem) mem))
@@ -367,7 +386,7 @@
 
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
-	&& s >= 32 && s <= 16*64 && s%16 == 0
+	&& s > 64 && s <= 16*64 && s%16 == 0
 	&& !config.noDuffDevice ->
 	(DUFFCOPY [14*(64-s/16)] dst src mem)
 // 14 and 64 are magic constants.  14 is the number of bytes to encode:
