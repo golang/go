@@ -487,8 +487,8 @@ func (lv *Liveness) prologue() {
 
 		// Walk the block instructions forward to update avarinit bits.
 		// avarinit describes the effect at the end of the block, not the beginning.
-		for j := 0; j < len(b.Values); j++ {
-			pos, e := lv.valueEffects(b.Values[j])
+		for _, val := range b.Values {
+			pos, e := lv.valueEffects(val)
 			if e&varkill != 0 {
 				be.avarinit.Unset(pos)
 			}
