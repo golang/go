@@ -438,7 +438,14 @@ func (o *Order) mapAssign(n *Node) {
 		if n.Left.Op == OINDEXMAP {
 			// Make sure we evaluate the RHS before starting the map insert.
 			// We need to make sure the RHS won't panic.  See issue 22881.
-			n.Right = o.cheapExpr(n.Right)
+			if n.Right.Op == OAPPEND {
+				s := n.Right.List.Slice()[1:]
+				for i, n := range s {
+					s[i] = o.cheapExpr(n)
+				}
+			} else {
+				n.Right = o.cheapExpr(n.Right)
+			}
 		}
 		o.out = append(o.out, n)
 
