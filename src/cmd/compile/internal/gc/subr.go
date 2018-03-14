@@ -73,9 +73,9 @@ func flusherrors() {
 		return
 	}
 	sort.Stable(byPos(errors))
-	for i := 0; i < len(errors); i++ {
-		if i == 0 || errors[i].msg != errors[i-1].msg {
-			fmt.Printf("%s", errors[i].msg)
+	for i, err := range errors {
+		if i == 0 || err.msg != errors[i-1].msg {
+			fmt.Printf("%s", err.msg)
 		}
 	}
 	errors = errors[:0]
