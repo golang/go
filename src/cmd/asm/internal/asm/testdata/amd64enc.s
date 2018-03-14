@@ -8742,8 +8742,6 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPERMQ $7, (R11), Y11                   // c443fd001b07
 	VPERMQ $7, Y2, Y11                      // c463fd00da07
 	VPERMQ $7, Y11, Y11                     // c443fd00db07
-	VPERMQ $-40, Y8, Y8                     // c4407800c0d8
-	VPERMQ $216, Y8, Y8                     // c443fd00c0d8
 	VPEXTRB $7, X2, (BX)                    // c4e379141307
 	VPEXTRB $7, X11, (BX)                   // c46379141b07
 	VPEXTRB $7, X2, (R11)                   // c4c379141307
