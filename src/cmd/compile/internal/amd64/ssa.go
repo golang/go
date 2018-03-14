@@ -398,18 +398,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
-	case ssa.OpAMD64CMOVQEQ, ssa.OpAMD64CMOVLEQ, ssa.OpAMD64CMOVWEQ,
-		ssa.OpAMD64CMOVQLT, ssa.OpAMD64CMOVLLT, ssa.OpAMD64CMOVWLT,
-		ssa.OpAMD64CMOVQNE, ssa.OpAMD64CMOVLNE, ssa.OpAMD64CMOVWNE,
-		ssa.OpAMD64CMOVQGT, ssa.OpAMD64CMOVLGT, ssa.OpAMD64CMOVWGT,
-		ssa.OpAMD64CMOVQLE, ssa.OpAMD64CMOVLLE, ssa.OpAMD64CMOVWLE,
-		ssa.OpAMD64CMOVQGE, ssa.OpAMD64CMOVLGE, ssa.OpAMD64CMOVWGE,
-		ssa.OpAMD64CMOVQHI, ssa.OpAMD64CMOVLHI, ssa.OpAMD64CMOVWHI,
-		ssa.OpAMD64CMOVQLS, ssa.OpAMD64CMOVLLS, ssa.OpAMD64CMOVWLS,
-		ssa.OpAMD64CMOVQCC, ssa.OpAMD64CMOVLCC, ssa.OpAMD64CMOVWCC,
-		ssa.OpAMD64CMOVQCS, ssa.OpAMD64CMOVLCS, ssa.OpAMD64CMOVWCS,
-		ssa.OpAMD64CMOVQGTF, ssa.OpAMD64CMOVLGTF, ssa.OpAMD64CMOVWGTF,
-		ssa.OpAMD64CMOVQGEF, ssa.OpAMD64CMOVLGEF, ssa.OpAMD64CMOVWGEF:
+	case ssa.OpAMD64CMOVQEQ, ssa.OpAMD64CMOVLEQ:
 		r := v.Reg()
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
@@ -419,71 +408,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-
-	case ssa.OpAMD64CMOVQNEF, ssa.OpAMD64CMOVLNEF, ssa.OpAMD64CMOVWNEF:
-		r := v.Reg()
-		if r != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
-		// Flag condition: ^ZERO || PARITY
-		// Generate:
-		//   CMOV*NE  SRC,DST
-		//   CMOV*PS  SRC,DST
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[1].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		var q *obj.Prog
-		if v.Op == ssa.OpAMD64CMOVQNEF {
-			q = s.Prog(x86.ACMOVQPS)
-		} else if v.Op == ssa.OpAMD64CMOVLNEF {
-			q = s.Prog(x86.ACMOVLPS)
-		} else {
-			q = s.Prog(x86.ACMOVWPS)
-		}
-		q.From.Type = obj.TYPE_REG
-		q.From.Reg = v.Args[1].Reg()
-		q.To.Type = obj.TYPE_REG
-		q.To.Reg = r
-
-	case ssa.OpAMD64CMOVQEQF, ssa.OpAMD64CMOVLEQF, ssa.OpAMD64CMOVWEQF:
-		r := v.Reg()
-		if r != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
-
-		// Flag condition: ZERO && !PARITY
-		// Generate:
-		//   MOV      SRC,AX
-		//   CMOV*NE  DST,AX
-		//   CMOV*PC  AX,DST
-		//
-		// TODO(rasky): we could generate:
-		//   CMOV*NE  DST,SRC
-		//   CMOV*PC  SRC,DST
-		// But this requires a way for regalloc to know that SRC might be
-		// clobbered by this instruction.
-		if v.Args[1].Reg() != x86.REG_AX {
-			opregreg(s, moveByType(v.Type), x86.REG_AX, v.Args[1].Reg())
-		}
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x86.REG_AX
-		var q *obj.Prog
-		if v.Op == ssa.OpAMD64CMOVQEQF {
-			q = s.Prog(x86.ACMOVQPC)
-		} else if v.Op == ssa.OpAMD64CMOVLEQF {
-			q = s.Prog(x86.ACMOVLPC)
-		} else {
-			q = s.Prog(x86.ACMOVWPC)
-		}
-		q.From.Type = obj.TYPE_REG
-		q.From.Reg = x86.REG_AX
-		q.To.Type = obj.TYPE_REG
-		q.To.Reg = r
 
 	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst:
 		r := v.Reg()

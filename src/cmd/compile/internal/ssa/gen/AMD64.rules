@@ -475,52 +475,6 @@
 (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
-// Lowering conditional moves
-// If the condition is a SETxx, we can just run a CMOV from the comparison that was
-// setting the flags.
-// Legend: HI=unsigned ABOVE, CS=unsigned BELOW, CC=unsigned ABOVE EQUAL, LS=unsigned BELOW EQUAL
-(CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && (is64BitInt(t) || isPtr(t))
-    -> (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
-(CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && is32BitInt(t)
-    -> (CMOVL(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
-(CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && is16BitInt(t)
-    -> (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
-
-// If the condition does not set the flags, we need to generate a comparison.
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1
-    -> (CondSelect <t> x y (MOVBQZX <typ.UInt64> check))
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2
-    -> (CondSelect <t> x y (MOVWQZX <typ.UInt64> check))
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4
-    -> (CondSelect <t> x y (MOVLQZX <typ.UInt64> check))
-
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
-    -> (CMOVQNE y x (CMPQconst [0] check))
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is32BitInt(t)
-    -> (CMOVLNE y x (CMPQconst [0] check))
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is16BitInt(t)
-    -> (CMOVWNE y x (CMPQconst [0] check))
-
-// Absorb InvertFlags
-(CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS) x y (InvertFlags cond))
-    -> (CMOVQ(EQ|NE|GT|LT|GE|LE|CS|HI|LS|CC) x y cond)
-(CMOVL(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS) x y (InvertFlags cond))
-    -> (CMOVL(EQ|NE|GT|LT|GE|LE|CS|HI|LS|CC) x y cond)
-(CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS) x y (InvertFlags cond))
-    -> (CMOVW(EQ|NE|GT|LT|GE|LE|CS|HI|LS|CC) x y cond)
-
-// Absorb constants generated during lower
-(CMOVQ(EQ|LE|GE|CC|LS) _ x (FlagEQ)) -> x
-(CMOVQ(NE|LT|GT|CS|HI) y _ (FlagEQ)) -> y
-(CMOVQ(NE|GT|GE|HI|CC) _ x (FlagGT_UGT)) -> x
-(CMOVQ(EQ|LE|LT|LS|CS) y _ (FlagGT_UGT)) -> y
-(CMOVQ(NE|GT|GE|LS|CS) _ x (FlagGT_ULT)) -> x
-(CMOVQ(EQ|LE|LT|HI|CC) y _ (FlagGT_ULT)) -> y
-(CMOVQ(NE|LT|LE|CS|LS) _ x (FlagLT_ULT)) -> x
-(CMOVQ(EQ|GT|GE|HI|CC) y _ (FlagLT_ULT)) -> y
-(CMOVQ(NE|LT|LE|HI|CC) _ x (FlagLT_UGT)) -> x
-(CMOVQ(EQ|GT|GE|CS|LS) y _ (FlagLT_ULT)) -> y
-
 // Miscellaneous
 (Convert <t> x mem) && config.PtrSize == 8 -> (MOVQconvert <t> x mem)
 (Convert <t> x mem) && config.PtrSize == 4 -> (MOVLconvert <t> x mem)
@@ -1396,10 +1350,6 @@
 (CMPLconst x [0]) -> (TESTL x x)
 (CMPWconst x [0]) -> (TESTW x x)
 (CMPBconst x [0]) -> (TESTB x x)
-(TESTQconst [-1] x) -> (TESTQ x x)
-(TESTLconst [-1] x) -> (TESTL x x)
-(TESTWconst [-1] x) -> (TESTW x x)
-(TESTBconst [-1] x) -> (TESTB x x)
 
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
