@@ -51484,6 +51484,108 @@ func rewriteValueAMD64_OpMove_0(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
+	// match: (Move [32] dst src mem)
+	// cond:
+	// result: (Move [16] (OffPtr <dst.Type> dst [16]) (OffPtr <src.Type> src [16]) (Move [16] dst src mem))
+	for {
+		if v.AuxInt != 32 {
+			break
+		}
+		_ = v.Args[2]
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpMove)
+		v.AuxInt = 16
+		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
+		v0.AuxInt = 16
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
+		v1.AuxInt = 16
+		v1.AddArg(src)
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpMove, types.TypeMem)
+		v2.AuxInt = 16
+		v2.AddArg(dst)
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Move [48] dst src mem)
+	// cond: config.useSSE
+	// result: (Move [32] (OffPtr <dst.Type> dst [16]) (OffPtr <src.Type> src [16]) (Move [16] dst src mem))
+	for {
+		if v.AuxInt != 48 {
+			break
+		}
+		_ = v.Args[2]
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(config.useSSE) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = 32
+		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
+		v0.AuxInt = 16
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
+		v1.AuxInt = 16
+		v1.AddArg(src)
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpMove, types.TypeMem)
+		v2.AuxInt = 16
+		v2.AddArg(dst)
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Move [64] dst src mem)
+	// cond: config.useSSE
+	// result: (Move [32] (OffPtr <dst.Type> dst [32]) (OffPtr <src.Type> src [32]) (Move [32] dst src mem))
+	for {
+		if v.AuxInt != 64 {
+			break
+		}
+		_ = v.Args[2]
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(config.useSSE) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = 32
+		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
+		v0.AuxInt = 32
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
+		v1.AuxInt = 32
+		v1.AddArg(src)
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpMove, types.TypeMem)
+		v2.AuxInt = 32
+		v2.AddArg(dst)
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v.AddArg(v2)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpMove_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (Move [3] dst src mem)
 	// cond:
 	// result: (MOVBstore [2] dst (MOVBload [2] src mem) (MOVWstore dst (MOVWload src mem) mem))
@@ -51571,15 +51673,6 @@ func rewriteValueAMD64_OpMove_0(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpMove_10(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
-	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Move [7] dst src mem)
 	// cond:
 	// result: (MOVLstore [3] dst (MOVLload [3] src mem) (MOVLstore dst (MOVLload src mem) mem))
@@ -51745,7 +51838,7 @@ func rewriteValueAMD64_OpMove_10(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s >= 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice
+	// cond: s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice
 	// result: (DUFFCOPY [14*(64-s/16)] dst src mem)
 	for {
 		s := v.AuxInt
@@ -51753,7 +51846,7 @@ func rewriteValueAMD64_OpMove_10(v *Value) bool {
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(s >= 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice) {
+		if !(s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice) {
 			break
 		}
 		v.reset(OpAMD64DUFFCOPY)
