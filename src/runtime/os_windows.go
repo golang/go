@@ -304,8 +304,6 @@ func osinit() {
 
 	disableWER()
 
-	externalthreadhandlerp = funcPC(externalthreadhandler)
-
 	initExceptionHandler()
 
 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)

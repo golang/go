@@ -35,56 +35,14 @@ import (
 
 const usesLR = sys.MinFrameSize > 0
 
-var (
-	// initialized in tracebackinit
-	goexitPC             uintptr
-	jmpdeferPC           uintptr
-	mcallPC              uintptr
-	morestackPC          uintptr
-	mstartPC             uintptr
-	rt0_goPC             uintptr
-	asmcgocallPC         uintptr
-	sigpanicPC           uintptr
-	runfinqPC            uintptr
-	bgsweepPC            uintptr
-	forcegchelperPC      uintptr
-	timerprocPC          uintptr
-	gcBgMarkWorkerPC     uintptr
-	systemstack_switchPC uintptr
-	systemstackPC        uintptr
-	cgocallback_gofuncPC uintptr
-	skipPC               uintptr
-
-	gogoPC uintptr
-
-	externalthreadhandlerp uintptr // initialized elsewhere
-)
+var skipPC uintptr
 
 func tracebackinit() {
 	// Go variable initialization happens late during runtime startup.
 	// Instead of initializing the variables above in the declarations,
 	// schedinit calls this function so that the variables are
 	// initialized and available earlier in the startup sequence.
-	goexitPC = funcPC(goexit)
-	jmpdeferPC = funcPC(jmpdefer)
-	mcallPC = funcPC(mcall)
-	morestackPC = funcPC(morestack)
-	mstartPC = funcPC(mstart)
-	rt0_goPC = funcPC(rt0_go)
-	asmcgocallPC = funcPC(asmcgocall)
-	sigpanicPC = funcPC(sigpanic)
-	runfinqPC = funcPC(runfinq)
-	bgsweepPC = funcPC(bgsweep)
-	forcegchelperPC = funcPC(forcegchelper)
-	timerprocPC = funcPC(timerproc)
-	gcBgMarkWorkerPC = funcPC(gcBgMarkWorker)
-	systemstack_switchPC = funcPC(systemstack_switch)
-	systemstackPC = funcPC(systemstack)
-	cgocallback_gofuncPC = funcPC(cgocallback_gofunc)
 	skipPC = funcPC(skipPleaseUseCallersFrames)
-
-	// used by sigprof handler
-	gogoPC = funcPC(gogo)
 }
 
 // Traceback over the deferred function calls.
@@ -136,9 +94,6 @@ func skipPleaseUseCallersFrames()
 func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
 	if skip > 0 && callback != nil {
 		throw("gentraceback callback cannot be used with non-zero skip")
-	}
-	if goexitPC == 0 {
-		throw("gentraceback before goexitPC initialization")
 	}
 	g := getg()
 	if g == gp && g == g.m.curg {
@@ -241,7 +196,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// g0, this systemstack is at the top of the stack.
 			// if we're not on g0 or there's a no curg, then this is a regular call.
 			sp := frame.sp
-			if flags&_TraceJumpStack != 0 && f.entry == systemstackPC && gp == g.m.g0 && gp.m.curg != nil {
+			if flags&_TraceJumpStack != 0 && f.funcID == funcID_systemstack && gp == g.m.g0 && gp.m.curg != nil {
 				sp = gp.m.curg.sched.sp
 				frame.sp = sp
 				cgoCtxt = gp.m.curg.cgoCtxt
@@ -256,7 +211,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		if topofstack(f, gp.m != nil && gp == gp.m.g0) {
 			frame.lr = 0
 			flr = funcInfo{}
-		} else if usesLR && f.entry == jmpdeferPC {
+		} else if usesLR && f.funcID == funcID_jmpdefer {
 			// jmpdefer modifies SP/LR/PC non-atomically.
 			// If a profiling interrupt arrives during jmpdefer,
 			// the stack unwind may see a mismatched register set
@@ -287,7 +242,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				// But if callback is set, we're doing a garbage collection and must
 				// get everything, so crash loudly.
 				doPrint := printing
-				if doPrint && gp.m.incgo {
+				if doPrint && gp.m.incgo && f.funcID == funcID_sigpanic {
 					// We can inject sigpanic
 					// calls directly into C code,
 					// in which case we'll see a C
@@ -396,8 +351,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				// if there's room, pcbuf[1] is a skip PC that encodes the number of skipped frames in pcbuf[0]
 				if n+1 < max {
 					n++
-					skipPC := funcPC(skipPleaseUseCallersFrames) + uintptr(logicalSkipped)
-					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = skipPC
+					pc := skipPC + uintptr(logicalSkipped)
+					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
 				}
 			}
 		}
@@ -466,7 +421,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		n++
 
 	skipped:
-		if f.entry == cgocallback_gofuncPC && len(cgoCtxt) > 0 {
+		if f.funcID == funcID_cgocallback_gofunc && len(cgoCtxt) > 0 {
 			ctxt := cgoCtxt[len(cgoCtxt)-1]
 			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
 
@@ -478,7 +433,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 		}
 
-		waspanic = f.entry == sigpanicPC
+		waspanic = f.funcID == funcID_sigpanic
 
 		// Do not unwind past the bottom of the stack.
 		if !flr.valid() {
@@ -931,30 +886,32 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 
 // Does f mark the top of a goroutine stack?
 func topofstack(f funcInfo, g0 bool) bool {
-	pc := f.entry
-	return pc == goexitPC ||
-		pc == mstartPC ||
-		pc == mcallPC ||
-		pc == morestackPC ||
-		pc == rt0_goPC ||
-		externalthreadhandlerp != 0 && pc == externalthreadhandlerp ||
+	return f.funcID == funcID_goexit ||
+		f.funcID == funcID_mstart ||
+		f.funcID == funcID_mcall ||
+		f.funcID == funcID_morestack ||
+		f.funcID == funcID_rt0_go ||
+		f.funcID == funcID_externalthreadhandler ||
 		// asmcgocall is TOS on the system stack because it
 		// switches to the system stack, but in this case we
 		// can come back to the regular stack and still want
 		// to be able to unwind through the call that appeared
 		// on the regular stack.
-		(g0 && pc == asmcgocallPC)
+		(g0 && f.funcID == funcID_asmcgocall)
 }
 
 // isSystemGoroutine reports whether the goroutine g must be omitted in
 // stack dumps and deadlock detector.
 func isSystemGoroutine(gp *g) bool {
-	pc := gp.startpc
-	return pc == runfinqPC && !fingRunning ||
-		pc == bgsweepPC ||
-		pc == forcegchelperPC ||
-		pc == timerprocPC ||
-		pc == gcBgMarkWorkerPC
+	f := findfunc(gp.startpc)
+	if !f.valid() {
+		return false
+	}
+	return f.funcID == funcID_runfinq && !fingRunning ||
+		f.funcID == funcID_bgsweep ||
+		f.funcID == funcID_forcegchelper ||
+		f.funcID == funcID_timerproc ||
+		f.funcID == funcID_gcBgMarkWorker
 }
 
 // SetCgoTraceback records three C functions to use to gather
