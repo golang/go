@@ -26,18 +26,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 	xfunc.Func.Closure = clo
 	clo.Func.Closure = xfunc
 
-	oldScope := p.funchdr(xfunc)
-
-	body := p.stmts(expr.Body.List)
-	if body == nil {
-		body = []*Node{nod(OEMPTY, nil, nil)}
-	}
-	xfunc.Nbody.Set(body)
-
-	lineno = p.makeXPos(expr.Body.Rbrace)
-	xfunc.Func.Endlineno = lineno
-
-	p.funcbody(oldScope)
+	p.funcBody(xfunc, expr.Body)
 
 	// closure-specific variables are hanging off the
 	// ordinary ones in the symbol table; see oldname.
