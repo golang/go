@@ -631,36 +631,6 @@ var linuxAMD64Tests = []*asmTest{
 		pos: []string{"\tANDQ\t\\$4095,"},
 	},
 	{
-		// Test that small memmove was replaced with direct movs
-		fn: `
-                func $() {
-                       x := [...]byte{1, 2, 3, 4, 5, 6, 7}
-                       copy(x[1:], x[:])
-                }
-		`,
-		neg: []string{"memmove"},
-	},
-	{
-		// Same as above but with different size
-		fn: `
-                func $() {
-                       x := [...]byte{1, 2, 3, 4}
-                       copy(x[1:], x[:])
-                }
-		`,
-		neg: []string{"memmove"},
-	},
-	{
-		// Same as above but with different size
-		fn: `
-                func $() {
-                       x := [...]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-                       copy(x[1:], x[:])
-                }
-		`,
-		neg: []string{"memmove"},
-	},
-	{
 		fn: `
 		func $(p int, q *int) bool {
 			return p < *q
@@ -764,26 +734,6 @@ var linux386Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tANDL\t\\$4095,"},
-	},
-	{
-		// Test that small memmove was replaced with direct movs
-		fn: `
-                func $() {
-                       x := [...]byte{1, 2, 3, 4, 5, 6, 7}
-                       copy(x[1:], x[:])
-                }
-		`,
-		neg: []string{"memmove"},
-	},
-	{
-		// Same as above but with different size
-		fn: `
-                func $() {
-                       x := [...]byte{1, 2, 3, 4}
-                       copy(x[1:], x[:])
-                }
-		`,
-		neg: []string{"memmove"},
 	},
 }
 
