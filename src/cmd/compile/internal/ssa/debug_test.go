@@ -135,10 +135,10 @@ func TestNexting(t *testing.T) {
 		t.Skip(skipReasons[:len(skipReasons)-2])
 	}
 
-	optFlags := "-dwarflocationlists"
+	optFlags := "" // Whatever flags are needed to test debugging of optimized code.
 	if !*useDelve && !*inlines {
 		// For gdb (default), disable inlining so that a compiler test does not depend on library code.
-		// TODO: This may not be necessary with 1.10 and later.
+		// TODO: Technically not necessary in 1.10, but it causes a largish regression that needs investigation.
 		optFlags += " -l"
 	}
 
