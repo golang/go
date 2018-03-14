@@ -2432,6 +2432,7 @@ function PlaygroundOutput(el) {
   //  shareEl - share button element (optional)
   //  shareURLEl - share URL text input element (optional)
   //  shareRedirect - base URL to redirect to on share (optional)
+  //  vetEl - vet button element (optional)
   //  toysEl - toys select element (optional)
   //  enableHistory - enable using HTML5 history API (optional)
   //  transport - playground transport to use (default is HTTPTransport)
@@ -2562,6 +2563,11 @@ function PlaygroundOutput(el) {
       if (running) running.Kill();
       output.removeClass("error").text('Waiting for remote server...');
     }
+    function noError() {
+      lineClear();
+      if (running) running.Kill();
+      output.removeClass("error").text('No errors.');
+    }
     function run() {
       loading();
       running = transport.Run(body(), highlightOutput(PlaygroundOutput(output[0])));
@@ -2584,6 +2590,26 @@ function PlaygroundOutput(el) {
             setBody(data.Body);
             setError("");
           }
+        }
+      });
+    }
+
+    function vet() {
+      loading();
+      var data = {"body": body()};
+      $.ajax("/vet", {
+        data: data,
+        type: "POST",
+        dataType: "json",
+        success: function(data) {
+          if (data.Errors) {
+            setError(data.Errors);
+          } else {
+            noError();
+          }
+        },
+        error: function() {
+          setError('Error communicating with remote server.');
         }
       });
     }
@@ -2635,6 +2661,7 @@ function PlaygroundOutput(el) {
 
     $(opts.runEl).click(run);
     $(opts.fmtEl).click(fmt);
+    $(opts.vetEl).click(vet);
 
     if (opts.shareEl !== null && (opts.shareURLEl !== null || opts.shareRedirect !== null)) {
       if (opts.shareURLEl) {
