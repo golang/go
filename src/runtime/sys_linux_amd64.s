@@ -21,7 +21,6 @@
 #define SYS_rt_sigaction	13
 #define SYS_rt_sigprocmask	14
 #define SYS_rt_sigreturn	15
-#define SYS_access		21
 #define SYS_sched_yield 	24
 #define SYS_mincore		27
 #define SYS_madvise		28
@@ -43,6 +42,7 @@
 #define SYS_exit_group		231
 #define SYS_epoll_ctl		233
 #define SYS_openat		257
+#define SYS_faccessat		269
 #define SYS_pselect6		270
 #define SYS_epoll_pwait		281
 #define SYS_epoll_create1	291
@@ -687,9 +687,12 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 
 // int access(const char *name, int mode)
 TEXT runtime·access(SB),NOSPLIT,$0
-	MOVQ	name+0(FP), DI
-	MOVL	mode+8(FP), SI
-	MOVL	$SYS_access, AX
+	// This uses faccessat instead of access, because Android O blocks access.
+	MOVL	$AT_FDCWD, DI // AT_FDCWD, so this acts like access
+	MOVQ	name+0(FP), SI
+	MOVL	mode+8(FP), DX
+	MOVL	$0, R10
+	MOVL	$SYS_faccessat, AX
 	SYSCALL
 	MOVL	AX, ret+16(FP)
 	RET
