@@ -114,18 +114,19 @@ func initConfVal() {
 // canUseCgo reports whether calling cgo functions is allowed
 // for non-hostname lookups.
 func (c *conf) canUseCgo() bool {
-	return c.hostLookupOrder("") == hostLookupCgo
+	return c.hostLookupOrder(nil, "") == hostLookupCgo
 }
 
 // hostLookupOrder determines which strategy to use to resolve hostname.
-func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
+// The provided Resolver is optional. nil means to not consider its options.
+func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrder) {
 	if c.dnsDebugLevel > 1 {
 		defer func() {
 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
 		}()
 	}
 	fallbackOrder := hostLookupCgo
-	if c.netGo {
+	if c.netGo || (r != nil && r.PreferGo) {
 		fallbackOrder = hostLookupFilesDNS
 	}
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
