@@ -51,21 +51,19 @@ type Sig struct {
 	offset int32
 }
 
-// siglt sorts method signatures by name, then package path.
+// siglt sorts method signatures by name with exported methods first,
+// and then non-exported methods by their package path.
 func siglt(a, b *Sig) bool {
+	if (a.pkg == nil) != (b.pkg == nil) {
+		return a.pkg == nil
+	}
 	if a.name != b.name {
 		return a.name < b.name
 	}
-	if a.pkg == b.pkg {
-		return false
+	if a.pkg != nil && a.pkg != b.pkg {
+		return a.pkg.Path < b.pkg.Path
 	}
-	if a.pkg == nil {
-		return true
-	}
-	if b.pkg == nil {
-		return false
-	}
-	return a.pkg.Path < b.pkg.Path
+	return false
 }
 
 // Builds a type representing a Bucket structure for
@@ -403,7 +401,7 @@ func methods(t *types.Type) []*Sig {
 
 		method := f.Sym
 		if method == nil {
-			continue
+			break
 		}
 
 		// get receiver type for this particular method.
@@ -683,12 +681,13 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	if mcount != int(uint16(mcount)) {
 		Fatalf("too many methods on %v: %d", t, mcount)
 	}
+	xcount := sort.Search(mcount, func(i int) bool { return m[i].pkg != nil })
 	if dataAdd != int(uint32(dataAdd)) {
 		Fatalf("methods are too far away on %v: %d", t, dataAdd)
 	}
 
 	ot = duint16(lsym, ot, uint16(mcount))
-	ot = duint16(lsym, ot, 0)
+	ot = duint16(lsym, ot, uint16(xcount))
 	ot = duint32(lsym, ot, uint32(dataAdd))
 	ot = duint32(lsym, ot, 0)
 	return ot

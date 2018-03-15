@@ -373,7 +373,8 @@ func saveorignode(n *Node) {
 	n.Orig = norig
 }
 
-// methcmp sorts by symbol, then by package path for unexported symbols.
+// methcmp sorts methods by name with exported methods first,
+// and then non-exported methods by their package path.
 type methcmp []*types.Field
 
 func (x methcmp) Len() int      { return len(x) }
@@ -381,22 +382,31 @@ func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x methcmp) Less(i, j int) bool {
 	a := x[i]
 	b := x[j]
-	if a.Sym == nil && b.Sym == nil {
+	if a.Sym == b.Sym {
 		return false
 	}
+
+	// Blank methods to the end.
 	if a.Sym == nil {
-		return true
+		return false
 	}
 	if b.Sym == nil {
-		return false
+		return true
 	}
+
+	// Exported methods to the front.
+	ea := exportname(a.Sym.Name)
+	eb := exportname(b.Sym.Name)
+	if ea != eb {
+		return ea
+	}
+
+	// Sort by name and then package.
 	if a.Sym.Name != b.Sym.Name {
 		return a.Sym.Name < b.Sym.Name
 	}
-	if !exportname(a.Sym.Name) {
-		if a.Sym.Pkg.Path != b.Sym.Pkg.Path {
-			return a.Sym.Pkg.Path < b.Sym.Pkg.Path
-		}
+	if !ea && a.Sym.Pkg.Path != b.Sym.Pkg.Path {
+		return a.Sym.Pkg.Path < b.Sym.Pkg.Path
 	}
 
 	return false
