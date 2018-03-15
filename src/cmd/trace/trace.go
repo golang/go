@@ -836,8 +836,8 @@ func (ctx *traceContext) emitSpan(s spanDesc) {
 		Name:     s.Name,
 		Phase:    "b",
 		Time:     float64(s.firstTimestamp()) / 1e3,
-		Tid:      s.goid,
-		ID:       s.goid,
+		Tid:      s.G,
+		ID:       s.G,
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
 	}
@@ -851,8 +851,8 @@ func (ctx *traceContext) emitSpan(s spanDesc) {
 		Name:     s.Name,
 		Phase:    "e",
 		Time:     float64(s.lastTimestamp()) / 1e3,
-		Tid:      s.goid,
-		ID:       s.goid,
+		Tid:      s.G,
+		ID:       s.G,
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
 	}
