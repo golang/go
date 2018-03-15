@@ -1782,6 +1782,16 @@ func (c *conn) serve(ctx context.Context) {
 			c.rwc.SetWriteDeadline(time.Now().Add(d))
 		}
 		if err := tlsConn.Handshake(); err != nil {
+			// If the handshake failed, one reason might be a
+			// misconfigured client sending an HTTP request. If so, reach
+			// into the *tls.Conn unexported fields in a gross way so we
+			// can reply on the plaintext connection. At least there's a
+			// test that'll break if we rearrange the *tls.Conn struct.
+			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
+				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+				re.Conn.Close()
+				return
+			}
 			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), err)
 			return
 		}
@@ -3387,6 +3397,16 @@ func strSliceContains(ss []string, s string) bool {
 		if v == s {
 			return true
 		}
+	}
+	return false
+}
+
+// tlsRecordHeaderLooksLikeHTTP reports whether a TLS record header
+// looks like it might've been a misdirected plaintext HTTP request.
+func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
+	switch string(hdr[:]) {
+	case "GET /", "HEAD ", "POST ", "PUT /", "OPTIO":
+		return true
 	}
 	return false
 }
