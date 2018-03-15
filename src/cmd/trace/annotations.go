@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -16,6 +17,8 @@ import (
 func init() {
 	http.HandleFunc("/usertasks", httpUserTasks)
 	http.HandleFunc("/usertask", httpUserTask)
+	http.HandleFunc("/userspans", httpUserSpans)
+	http.HandleFunc("/userspan", httpUserSpan)
 }
 
 // httpUserTasks reports all tasks found in the trace.
@@ -49,6 +52,80 @@ func httpUserTasks(w http.ResponseWriter, r *http.Request) {
 
 	// Emit table.
 	err = templUserTaskTypes.Execute(w, userTasks)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func httpUserSpans(w http.ResponseWriter, r *http.Request) {
+	res, err := analyzeAnnotations()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	allSpans := res.spans
+
+	summary := make(map[spanTypeID]spanStats)
+	for id, spans := range allSpans {
+		stats, ok := summary[id]
+		if !ok {
+			stats.spanTypeID = id
+		}
+		for _, s := range spans {
+			stats.add(s)
+		}
+		summary[id] = stats
+	}
+	// Sort spans by pc and name
+	userSpans := make([]spanStats, 0, len(summary))
+	for _, stats := range summary {
+		userSpans = append(userSpans, stats)
+	}
+	sort.Slice(userSpans, func(i, j int) bool {
+		if userSpans[i].Type != userSpans[j].Type {
+			return userSpans[i].Type < userSpans[j].Type
+		}
+		return userSpans[i].Frame.PC < userSpans[j].Frame.PC
+	})
+	// Emit table.
+	err = templUserSpanTypes.Execute(w, userSpans)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func httpUserSpan(w http.ResponseWriter, r *http.Request) {
+	filter, err := newSpanFilter(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	res, err := analyzeAnnotations()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	allSpans := res.spans
+
+	var data []spanDesc
+
+	for id, spans := range allSpans {
+		for _, s := range spans {
+			if !filter.match(id, s) {
+				continue
+			}
+			data = append(data, s)
+		}
+	}
+
+	err = templUserSpanType.Execute(w, struct {
+		Data  []spanDesc
+		Title string
+	}{
+		Data:  data,
+		Title: filter.name})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
 		return
@@ -156,8 +233,14 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
 }
 
 type annotationAnalysisResult struct {
-	tasks    map[uint64]*taskDesc // tasks
-	gcEvents []*trace.Event       // GCStartevents, sorted
+	tasks    map[uint64]*taskDesc      // tasks
+	spans    map[spanTypeID][]spanDesc // spans
+	gcEvents []*trace.Event            // GCStartevents, sorted
+}
+
+type spanTypeID struct {
+	Frame trace.Frame // top frame
+	Type  string
 }
 
 // analyzeAnnotations analyzes user annotation events and
@@ -174,6 +257,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 	}
 
 	tasks := allTasks{}
+	spans := map[spanTypeID][]spanDesc{}
 	var gcEvents []*trace.Event
 
 	for _, ev := range events {
@@ -207,7 +291,13 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 			}
 			task := tasks.task(s.TaskID)
 			task.goroutines[goid] = struct{}{}
-			task.spans = append(task.spans, spanDesc{UserSpanDesc: s, goid: goid})
+			task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
+			var frame trace.Frame
+			if s.Start != nil {
+				frame = *s.Start.Stk[0]
+			}
+			id := spanTypeID{Frame: frame, Type: s.Name}
+			spans[id] = append(spans[id], spanDesc{UserSpanDesc: s, G: goid})
 		}
 	}
 
@@ -221,7 +311,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 			return task.spans[i].lastTimestamp() < task.spans[i].lastTimestamp()
 		})
 	}
-	return annotationAnalysisResult{tasks: tasks, gcEvents: gcEvents}, nil
+	return annotationAnalysisResult{tasks: tasks, spans: spans, gcEvents: gcEvents}, nil
 }
 
 // taskDesc represents a task.
@@ -256,7 +346,7 @@ func (task *taskDesc) String() string {
 	fmt.Fprintf(wb, "\t%d goroutines\n", len(task.goroutines))
 	fmt.Fprintf(wb, "\t%d spans:\n", len(task.spans))
 	for _, s := range task.spans {
-		fmt.Fprintf(wb, "\t\t%s(goid=%d)\n", s.Name, s.goid)
+		fmt.Fprintf(wb, "\t\t%s(goid=%d)\n", s.Name, s.G)
 	}
 	if task.parent != nil {
 		fmt.Fprintf(wb, "\tparent: %s\n", task.parent.name)
@@ -272,7 +362,7 @@ func (task *taskDesc) String() string {
 // spanDesc represents a span.
 type spanDesc struct {
 	*trace.UserSpanDesc
-	goid uint64 // id of goroutine where the span was defined
+	G uint64 // id of goroutine where the span was defined
 }
 
 type allTasks map[uint64]*taskDesc
@@ -361,6 +451,10 @@ func (task *taskDesc) duration() time.Duration {
 	return time.Duration(task.lastTimestamp()-task.firstTimestamp()) * time.Nanosecond
 }
 
+func (span *spanDesc) duration() time.Duration {
+	return time.Duration(span.lastTimestamp()-span.firstTimestamp()) * time.Nanosecond
+}
+
 // overlappingGCDuration returns the sum of GC period overlapping with the task's lifetime.
 func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping time.Duration) {
 	for _, ev := range evs {
@@ -397,7 +491,7 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
 	// Goroutine local event. Check whether there are spans overlapping with the event.
 	goid := ev.G
 	for _, span := range task.spans {
-		if span.goid != goid {
+		if span.G != goid {
 			continue
 		}
 		if span.firstTimestamp() <= ts && ts <= span.lastTimestamp() {
@@ -440,7 +534,7 @@ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool)
 	var overlapping time.Duration
 	var lastSpanEnd int64 // the end of previous overlapping span
 	for _, span := range task.spans {
-		if span.goid != goid && span.goid != goid2 {
+		if span.G != goid && span.G != goid2 {
 			continue
 		}
 		spanStart, spanEnd := span.firstTimestamp(), span.lastTimestamp()
@@ -616,6 +710,58 @@ func taskMatches(t *taskDesc, text string) bool {
 	return false
 }
 
+type spanFilter struct {
+	name string
+	cond []func(spanTypeID, spanDesc) bool
+}
+
+func (f *spanFilter) match(id spanTypeID, s spanDesc) bool {
+	for _, c := range f.cond {
+		if !c(id, s) {
+			return false
+		}
+	}
+	return true
+}
+
+func newSpanFilter(r *http.Request) (*spanFilter, error) {
+	if err := r.ParseForm(); err != nil {
+		return nil, err
+	}
+
+	var name []string
+	var conditions []func(spanTypeID, spanDesc) bool
+
+	param := r.Form
+	if typ, ok := param["type"]; ok && len(typ) > 0 {
+		name = append(name, "type="+typ[0])
+		conditions = append(conditions, func(id spanTypeID, s spanDesc) bool {
+			return id.Type == typ[0]
+		})
+	}
+	if pc, err := strconv.ParseUint(r.FormValue("pc"), 16, 64); err == nil {
+		name = append(name, fmt.Sprintf("pc=%x", pc))
+		conditions = append(conditions, func(id spanTypeID, s spanDesc) bool {
+			return id.Frame.PC == pc
+		})
+	}
+
+	if lat, err := time.ParseDuration(r.FormValue("latmin")); err == nil {
+		name = append(name, fmt.Sprintf("latency >= %s", lat))
+		conditions = append(conditions, func(_ spanTypeID, s spanDesc) bool {
+			return s.duration() >= lat
+		})
+	}
+	if lat, err := time.ParseDuration(r.FormValue("latmax")); err == nil {
+		name = append(name, fmt.Sprintf("latency <= %s", lat))
+		conditions = append(conditions, func(_ spanTypeID, s spanDesc) bool {
+			return s.duration() <= lat
+		})
+	}
+
+	return &spanFilter{name: strings.Join(name, ","), cond: conditions}, nil
+}
+
 type durationHistogram struct {
 	Count                int
 	Buckets              []int
@@ -724,6 +870,49 @@ func (h *durationHistogram) String() string {
 	}
 	return w.String()
 }
+
+type spanStats struct {
+	spanTypeID
+	Histogram durationHistogram
+}
+
+func (s *spanStats) UserSpanURL() func(min, max time.Duration) string {
+	return func(min, max time.Duration) string {
+		return fmt.Sprintf("/userspan?type=%s&pc=%x&latmin=%v&latmax=%v", template.URLQueryEscaper(s.Type), s.Frame.PC, template.URLQueryEscaper(min), template.URLQueryEscaper(max))
+	}
+}
+
+func (s *spanStats) add(span spanDesc) {
+	s.Histogram.add(span.duration())
+}
+
+var templUserSpanTypes = template.Must(template.New("").Parse(`
+<html>
+<style type="text/css">
+.histoTime {
+   width: 20%;
+   white-space:nowrap;
+}
+
+</style>
+<body>
+<table border="1" sortable="1">
+<tr>
+<th>Span type</th>
+<th>Count</th>
+<th>Duration distribution (complete tasks)</th>
+</tr>
+{{range $}}
+  <tr>
+    <td>{{.Type}}<br>{{.Frame.Fn}}<br>{{.Frame.File}}:{{.Frame.Line}}</td>
+    <td><a href="/userspan?type={{.Type}}&pc={{.Frame.PC}}">{{.Histogram.Count}}</a></td>
+    <td>{{.Histogram.ToHTML (.UserSpanURL)}}</td>
+  </tr>
+{{end}}
+</table>
+</body>
+</html>
+`))
 
 type taskStats struct {
 	Type      string
@@ -923,3 +1112,41 @@ func isUserAnnotationEvent(ev *trace.Event) bool {
 	}
 	return false
 }
+
+var templUserSpanType = template.Must(template.New("").Parse(`
+<html>
+<body>
+<h2>{{.Title}}</h2>
+<table border="1" sortable="1">
+<tr>
+<th> Goroutine </th>
+<th> Task </th>
+<th> Total time, ns </th>
+<th> Execution time, ns </th>
+<th> Network wait time, ns </th>
+<th> Sync block time, ns </th>
+<th> Blocking syscall time, ns </th>
+<th> Scheduler wait time, ns </th>
+<th> GC sweeping time, ns </th>
+<th> GC pause time, ns </th>
+<th> Logs </th>
+</tr>
+{{range .Data}}
+  <tr>
+    <td> <a href="/trace?goid={{.G}}">{{.G}}</a> </td>
+    <td> <a href="/trace?taskid={{.TaskID}}">{{.TaskID}}</a> </td>
+    <td> {{.TotalTime}} </td>
+    <td> {{.ExecTime}} </td>
+    <td> {{.IOTime}} </td>
+    <td> {{.BlockTime}} </td>
+    <td> {{.SyscallTime}} </td>
+    <td> {{.SchedWaitTime}} </td>
+    <td> {{.SweepTime}} </td>
+    <td> {{.GCTime}} </td>
+    <td> /* TODO */ </td>
+  </tr>
+{{end}}
+</table>
+</body>
+</html>
+`))
