@@ -74,7 +74,7 @@ func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, erro
 }
 
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
-	order := systemConf().hostLookupOrder(host)
+	order := systemConf().hostLookupOrder(r, host)
 	if !r.PreferGo && order == hostLookupCgo {
 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
 			return addrs, err
@@ -89,7 +89,7 @@ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, e
 	if r.PreferGo {
 		return r.goLookupIP(ctx, host)
 	}
-	order := systemConf().hostLookupOrder(host)
+	order := systemConf().hostLookupOrder(r, host)
 	if order == hostLookupCgo {
 		if addrs, err, ok := cgoLookupIP(ctx, host); ok {
 			return addrs, err
