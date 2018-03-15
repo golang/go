@@ -791,3 +791,28 @@ func TestLookupNonLDH(t *testing.T) {
 		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
 	}
 }
+
+func TestLookupContextCancel(t *testing.T) {
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
+	}
+	if runtime.GOOS == "nacl" {
+		t.Skip("skip on nacl")
+	}
+
+	defer dnsWaitGroup.Wait()
+
+	ctx, ctxCancel := context.WithCancel(context.Background())
+	ctxCancel()
+	_, err := DefaultResolver.LookupIPAddr(ctx, "google.com")
+	if err != errCanceled {
+		testenv.SkipFlakyNet(t)
+		t.Fatal(err)
+	}
+	ctx = context.Background()
+	_, err = DefaultResolver.LookupIPAddr(ctx, "google.com")
+	if err != nil {
+		testenv.SkipFlakyNet(t)
+		t.Fatal(err)
+	}
+}
