@@ -1628,6 +1628,7 @@ func expandmeth(t *types.Type) {
 	}
 
 	ms = append(ms, t.Methods().Slice()...)
+	sort.Sort(methcmp(ms))
 	t.AllMethods().Set(ms)
 }
 
@@ -1847,57 +1848,63 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		return false
 	}
 
-	// if this is too slow,
-	// could sort these first
-	// and then do one loop.
-
 	if t.IsInterface() {
-	Outer:
+		i := 0
+		tms := t.Fields().Slice()
 		for _, im := range iface.Fields().Slice() {
-			for _, tm := range t.Fields().Slice() {
-				if tm.Sym == im.Sym {
-					if eqtype(tm.Type, im.Type) {
-						continue Outer
-					}
-					*m = im
-					*samename = tm
-					*ptr = 0
-					return false
-				}
+			for i < len(tms) && tms[i].Sym != im.Sym {
+				i++
 			}
-
-			*m = im
-			*samename = nil
-			*ptr = 0
-			return false
+			if i == len(tms) {
+				*m = im
+				*samename = nil
+				*ptr = 0
+				return false
+			}
+			tm := tms[i]
+			if !eqtype(tm.Type, im.Type) {
+				*m = im
+				*samename = tm
+				*ptr = 0
+				return false
+			}
 		}
 
 		return true
 	}
 
 	t = methtype(t)
+	var tms []*types.Field
 	if t != nil {
 		expandmeth(t)
+		tms = t.AllMethods().Slice()
 	}
+	i := 0
 	for _, im := range iface.Fields().Slice() {
 		if im.Broke() {
 			continue
 		}
-		tm, followptr := ifacelookdot(im.Sym, t, false)
-		if tm == nil || tm.Nointerface() || !eqtype(tm.Type, im.Type) {
-			if tm == nil {
-				tm, followptr = ifacelookdot(im.Sym, t, true)
-			}
+		for i < len(tms) && tms[i].Sym != im.Sym {
+			i++
+		}
+		if i == len(tms) {
+			*m = im
+			*samename, _ = ifacelookdot(im.Sym, t, true)
+			*ptr = 0
+			return false
+		}
+		tm := tms[i]
+		if tm.Nointerface() || !eqtype(tm.Type, im.Type) {
 			*m = im
 			*samename = tm
 			*ptr = 0
 			return false
 		}
+		followptr := tm.Embedded == 2
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
 		rcvr := tm.Type.Recv().Type
-
 		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
 				yyerror("interface pointer mismatch")

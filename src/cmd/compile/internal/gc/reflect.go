@@ -454,7 +454,6 @@ func methods(t *types.Type) []*Sig {
 		}
 	}
 
-	obj.SortSlice(ms, func(i, j int) bool { return siglt(ms[i], ms[j]) })
 	return ms
 }
 
