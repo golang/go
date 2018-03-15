@@ -40,7 +40,7 @@ type gdesc struct {
 func GoroutineStats(events []*Event) map[uint64]*GDesc {
 	gs := make(map[uint64]*GDesc)
 	var lastTs int64
-	var gcStartTime int64
+	var gcStartTime int64 // gcStartTime == 0 indicates gc is inactive.
 	for _, ev := range events {
 		lastTs = ev.Ts
 		switch ev.Type {
@@ -67,6 +67,15 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			g.ExecTime += ev.Ts - g.lastStartTime
 			g.TotalTime = ev.Ts - g.CreationTime
 			g.EndTime = ev.Ts
+			if gcStartTime != 0 {
+				if g.CreationTime < gcStartTime {
+					g.GCTime += ev.Ts - gcStartTime
+				} else {
+					// The goroutine's lifetime overlaps
+					// with a GC completely.
+					g.GCTime += ev.Ts - g.CreationTime
+				}
+			}
 		case EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
 			EvGoBlockSync, EvGoBlockCond:
 			g := gs[ev.G]
@@ -125,10 +134,16 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			gcStartTime = ev.Ts
 		case EvGCDone:
 			for _, g := range gs {
-				if g.EndTime == 0 {
+				if g.EndTime != 0 {
+					continue
+				}
+				if gcStartTime < g.CreationTime {
+					g.GCTime += ev.Ts - g.CreationTime
+				} else {
 					g.GCTime += ev.Ts - gcStartTime
 				}
 			}
+			gcStartTime = 0 // indicates gc is inactive.
 		}
 	}
 
