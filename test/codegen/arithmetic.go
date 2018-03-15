@@ -118,3 +118,42 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 
 	return a, b
 }
+
+// Check that len() and cap() calls divided by powers of two are
+// optimized into shifts and ands
+
+func LenDiv1(a []int) int {
+	// 386:"SHRL\t[$]10"
+	// amd64:"SHRQ\t[$]10"
+	return len(a) / 1024
+}
+
+func LenDiv2(s string) int {
+	// 386:"SHRL\t[$]11"
+	// amd64:"SHRQ\t[$]11"
+	return len(s) / (4097 >> 1)
+}
+
+func LenMod1(a []int) int {
+	// 386:"ANDL\t[$]1023"
+	// amd64:"ANDQ\t[$]1023"
+	return len(a) % 1024
+}
+
+func LenMod2(s string) int {
+	// 386:"ANDL\t[$]2047"
+	// amd64:"ANDQ\t[$]2047"
+	return len(s) % (4097 >> 1)
+}
+
+func CapDiv(a []int) int {
+	// 386:"SHRL\t[$]12"
+	// amd64:"SHRQ\t[$]12"
+	return cap(a) / ((1 << 11) + 2048)
+}
+
+func CapMod(a []int) int {
+	// 386:"ANDL\t[$]4095"
+	// amd64:"ANDQ\t[$]4095"
+	return cap(a) % ((1 << 11) + 2048)
+}

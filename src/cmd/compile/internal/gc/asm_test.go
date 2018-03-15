@@ -578,58 +578,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tSETHI\t.*\\(SP\\)"},
 	},
-	// Check that len() and cap() div by a constant power of two
-	// are compiled into SHRQ.
-	{
-		fn: `
-		func $(a []int) int {
-			return len(a) / 1024
-		}
-		`,
-		pos: []string{"\tSHRQ\t\\$10,"},
-	},
-	{
-		fn: `
-		func $(s string) int {
-			return len(s) / (4097 >> 1)
-		}
-		`,
-		pos: []string{"\tSHRQ\t\\$11,"},
-	},
-	{
-		fn: `
-		func $(a []int) int {
-			return cap(a) / ((1 << 11) + 2048)
-		}
-		`,
-		pos: []string{"\tSHRQ\t\\$12,"},
-	},
-	// Check that len() and cap() mod by a constant power of two
-	// are compiled into ANDQ.
-	{
-		fn: `
-		func $(a []int) int {
-			return len(a) % 1024
-		}
-		`,
-		pos: []string{"\tANDQ\t\\$1023,"},
-	},
-	{
-		fn: `
-		func $(s string) int {
-			return len(s) % (4097 >> 1)
-		}
-		`,
-		pos: []string{"\tANDQ\t\\$2047,"},
-	},
-	{
-		fn: `
-		func $(a []int) int {
-			return cap(a) % ((1 << 11) + 2048)
-		}
-		`,
-		pos: []string{"\tANDQ\t\\$4095,"},
-	},
 	{
 		fn: `
 		func $(p int, q *int) bool {
@@ -682,58 +630,6 @@ var linux386Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"TEXT\t.*, [$]0-4"},
-	},
-	// Check that len() and cap() div by a constant power of two
-	// are compiled into SHRL.
-	{
-		fn: `
-		func $(a []int) int {
-			return len(a) / 1024
-		}
-		`,
-		pos: []string{"\tSHRL\t\\$10,"},
-	},
-	{
-		fn: `
-		func $(s string) int {
-			return len(s) / (4097 >> 1)
-		}
-		`,
-		pos: []string{"\tSHRL\t\\$11,"},
-	},
-	{
-		fn: `
-		func $(a []int) int {
-			return cap(a) / ((1 << 11) + 2048)
-		}
-		`,
-		pos: []string{"\tSHRL\t\\$12,"},
-	},
-	// Check that len() and cap() mod by a constant power of two
-	// are compiled into ANDL.
-	{
-		fn: `
-		func $(a []int) int {
-			return len(a) % 1024
-		}
-		`,
-		pos: []string{"\tANDL\t\\$1023,"},
-	},
-	{
-		fn: `
-		func $(s string) int {
-			return len(s) % (4097 >> 1)
-		}
-		`,
-		pos: []string{"\tANDL\t\\$2047,"},
-	},
-	{
-		fn: `
-		func $(a []int) int {
-			return cap(a) % ((1 << 11) + 2048)
-		}
-		`,
-		pos: []string{"\tANDL\t\\$4095,"},
 	},
 }
 
