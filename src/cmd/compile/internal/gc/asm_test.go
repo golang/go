@@ -410,35 +410,6 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		pos: []string{"\tADDQ\t[A-Z]"},
 	},
-	// Floating-point strength reduction
-	{
-		fn: `
-		func f60(f float64) float64 {
-			return f * 2.0
-		}`,
-		pos: []string{"\tADDSD\t"},
-	},
-	{
-		fn: `
-		func f62(f float64) float64 {
-			return f / 16.0
-		}`,
-		pos: []string{"\tMULSD\t"},
-	},
-	{
-		fn: `
-		func f63(f float64) float64 {
-			return f / 0.125
-		}`,
-		pos: []string{"\tMULSD\t"},
-	},
-	{
-		fn: `
-		func f64(f float64) float64 {
-			return f / 0.5
-		}`,
-		pos: []string{"\tADDSD\t"},
-	},
 	// Check that compare to constant string uses 2/4/8 byte compares
 	{
 		fn: `
@@ -634,39 +605,6 @@ var linux386Tests = []*asmTest{
 }
 
 var linuxS390XTests = []*asmTest{
-	// Fused multiply-add/sub instructions.
-	{
-		fn: `
-		func f14(x, y, z float64) float64 {
-			return x * y + z
-		}
-		`,
-		pos: []string{"\tFMADD\t"},
-	},
-	{
-		fn: `
-		func f15(x, y, z float64) float64 {
-			return x * y - z
-		}
-		`,
-		pos: []string{"\tFMSUB\t"},
-	},
-	{
-		fn: `
-		func f16(x, y, z float32) float32 {
-			return x * y + z
-		}
-		`,
-		pos: []string{"\tFMADDS\t"},
-	},
-	{
-		fn: `
-		func f17(x, y, z float32) float32 {
-			return x * y - z
-		}
-		`,
-		pos: []string{"\tFMSUBS\t"},
-	},
 	{
 		// check that stack store is optimized away
 		fn: `
@@ -1113,39 +1051,6 @@ var linuxMIPS64Tests = []*asmTest{
 }
 
 var linuxPPC64LETests = []*asmTest{
-	// Fused multiply-add/sub instructions.
-	{
-		fn: `
-		func f0(x, y, z float64) float64 {
-			return x * y + z
-		}
-		`,
-		pos: []string{"\tFMADD\t"},
-	},
-	{
-		fn: `
-		func f1(x, y, z float64) float64 {
-			return x * y - z
-		}
-		`,
-		pos: []string{"\tFMSUB\t"},
-	},
-	{
-		fn: `
-		func f2(x, y, z float32) float32 {
-			return x * y + z
-		}
-		`,
-		pos: []string{"\tFMADDS\t"},
-	},
-	{
-		fn: `
-		func f3(x, y, z float32) float32 {
-			return x * y - z
-		}
-		`,
-		pos: []string{"\tFMSUBS\t"},
-	},
 	{
 		// check that stack store is optimized away
 		fn: `

@@ -7,7 +7,8 @@
 package codegen
 
 // This file contains codegen tests related to arithmetic
-// simplifications/optimizations.
+// simplifications and optimizations on integer types.
+// For codegen tests on float types, see floats.go.
 
 // -------------------- //
 //    Multiplication    //
