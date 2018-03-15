@@ -455,7 +455,7 @@ class GoroutinesCmd(gdb.Command):
 def find_goroutine(goid):
 	"""
 	find_goroutine attempts to find the goroutine identified by goid.
-	It returns a tuple of gdv.Value's representing the stack pointer
+	It returns a tuple of gdb.Value's representing the stack pointer
 	and program counter pointer for the goroutine.
 
 	@param int goid
