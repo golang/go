@@ -202,7 +202,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		}
 		annotRes, _ := analyzeAnnotations()
 		task, ok := annotRes.tasks[taskid]
-		if !ok {
+		if !ok || len(task.events) == 0 {
 			log.Printf("failed to find task with id %d", taskid)
 			return
 		}
@@ -824,16 +824,16 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 	return sl
 }
 
-func (ctx *traceContext) emitSpan(s *spanDesc) {
-	id := uint64(0)
-	if task := s.task; task != nil {
-		id = task.id
+func (ctx *traceContext) emitSpan(s spanDesc) {
+	if s.Name == "" {
+		return
 	}
+	id := s.TaskID
 	scopeID := fmt.Sprintf("%x", id)
 
 	sl0 := &ViewerEvent{
 		Category: "Span",
-		Name:     s.name,
+		Name:     s.Name,
 		Phase:    "b",
 		Time:     float64(s.firstTimestamp()) / 1e3,
 		Tid:      s.goid,
@@ -841,14 +841,14 @@ func (ctx *traceContext) emitSpan(s *spanDesc) {
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
 	}
-	if s.start != nil {
-		sl0.Stack = ctx.stack(s.start.Stk)
+	if s.Start != nil {
+		sl0.Stack = ctx.stack(s.Start.Stk)
 	}
 	ctx.emit(sl0)
 
 	sl1 := &ViewerEvent{
 		Category: "Span",
-		Name:     s.name,
+		Name:     s.Name,
 		Phase:    "e",
 		Time:     float64(s.lastTimestamp()) / 1e3,
 		Tid:      s.goid,
@@ -856,8 +856,8 @@ func (ctx *traceContext) emitSpan(s *spanDesc) {
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
 	}
-	if s.end != nil {
-		sl1.Stack = ctx.stack(s.end.Stk)
+	if s.End != nil {
+		sl1.Stack = ctx.stack(s.End.Stk)
 	}
 	ctx.emit(sl1)
 }
