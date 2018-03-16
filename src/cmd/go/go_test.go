@@ -5700,6 +5700,9 @@ func TestFailFast(t *testing.T) {
 		// non-parallel subtests:
 		{"TestFailingSubtestsA", true, 1},
 		{"TestFailingSubtestsA", false, 2},
+		// fatal test
+		{"TestFatal[CD]", true, 1},
+		{"TestFatal[CD]", false, 2},
 	}
 
 	for _, tt := range tests {
