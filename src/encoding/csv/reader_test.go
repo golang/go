@@ -41,15 +41,16 @@ func TestRead(t *testing.T) {
 		Output: [][]string{{"a", "b\rc", "d"}},
 	}, {
 		Name: "LeadingQuote",
-		Input: `name	age
-"The Rock" Dwayne Johnson	35
+		Input: `name,age
+"The Rock" Dwayne Johnson,35
 `,
 		Output: [][]string{
 			{"name", "age"},
 			{`"The Rock" Dwayne Johnson`, "35"},
 		},
-		Comma:      '\t',
-		LazyQuotes: true,
+		LazyQuotes:         true,
+		UseFieldsPerRecord: true,
+		FieldsPerRecord:    2,
 	}, {
 		Name: "RFC4180test",
 		Input: `#field1,field2,field3
