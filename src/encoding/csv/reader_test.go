@@ -40,6 +40,17 @@ func TestRead(t *testing.T) {
 		Input:  "a,b\rc,d\r\n",
 		Output: [][]string{{"a", "b\rc", "d"}},
 	}, {
+		Name: "LeadingQuote",
+		Input: `name	age
+"The Rock" Dwayne Johnson	35
+`,
+		Output: [][]string{
+			{"name", "age"},
+			{`"The Rock" Dwayne Johnson`, "35"},
+		},
+		Comma:      '\t',
+		LazyQuotes: true,
+	}, {
 		Name: "RFC4180test",
 		Input: `#field1,field2,field3
 "aaa","bb

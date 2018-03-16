@@ -289,7 +289,7 @@ parseField:
 		if r.TrimLeadingSpace {
 			line = bytes.TrimLeftFunc(line, unicode.IsSpace)
 		}
-		if len(line) == 0 || line[0] != '"' {
+		if len(line) == 0 || line[0] != '"' || r.Comma == '\t' {
 			// Non-quoted string field
 			i := bytes.IndexRune(line, r.Comma)
 			field := line
