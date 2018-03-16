@@ -56,5 +56,5 @@ references to field f int
 
 -------- @referrers ref-type-U --------
 references to type U int
-open testdata/src/referrers/nosuchfile.y: no such file or directory (+ 1 more refs in this file)
+open nosuchfile.y: no such file or directory (+ 1 more refs in this file)
 
