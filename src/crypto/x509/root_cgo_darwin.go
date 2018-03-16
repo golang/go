@@ -78,6 +78,8 @@ int useOldCode() {
 // Note: The CFDataRef returned in pemRoots and untrustedPemRoots must
 // be released (using CFRelease) after we've consumed its content.
 int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
+	int i;
+
 	if (useOldCode()) {
 		return FetchPEMRoots_MountainLion(pemRoots);
 	}
@@ -101,7 +103,8 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 
 	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
 	CFMutableDataRef combinedUntrustedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
-	for (int i = 0; i < numDomains; i++) {
+	for (i = 0; i < numDomains; i++) {
+		int j;
 		CFArrayRef certs = NULL;
 		OSStatus err = SecTrustSettingsCopyCertificates(domains[i], &certs);
 		if (err != noErr) {
@@ -109,7 +112,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 		}
 
 		CFIndex numCerts = CFArrayGetCount(certs);
-		for (int j = 0; j < numCerts; j++) {
+		for (j = 0; j < numCerts; j++) {
 			CFDataRef data = NULL;
 			CFErrorRef errRef = NULL;
 			CFArrayRef trustSettings = NULL;
@@ -124,6 +127,9 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 			if (i == 0) {
 				trustAsRoot = 1;
 			} else {
+				int k;
+				CFIndex m;
+
 				// Certs found in the system domain are always trusted. If the user
 				// configures "Never Trust" on such a cert, it will also be found in the
 				// admin or user domain, causing it to be added to untrustedPemRoots. The
@@ -133,7 +139,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 				// SecTrustServer.c, "user trust settings overrule admin trust settings",
 				// so take the last trust settings array we find.
 				// Skip the system domain since it is always trusted.
-				for (int k = i; k < numDomains; k++) {
+				for (k = i; k < numDomains; k++) {
 					CFArrayRef domainTrustSettings = NULL;
 					err = SecTrustSettingsCopyTrustSettings(cert, domains[k], &domainTrustSettings);
 					if (err == errSecSuccess && domainTrustSettings != NULL) {
@@ -147,9 +153,9 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 					// "this certificate must be verified to a known trusted certificate"; aka not a root.
 					continue;
 				}
-				for (CFIndex k = 0; k < CFArrayGetCount(trustSettings); k++) {
+				for (m = 0; m < CFArrayGetCount(trustSettings); m++) {
 					CFNumberRef cfNum;
-					CFDictionaryRef tSetting = (CFDictionaryRef)CFArrayGetValueAtIndex(trustSettings, k);
+					CFDictionaryRef tSetting = (CFDictionaryRef)CFArrayGetValueAtIndex(trustSettings, m);
 					if (CFDictionaryGetValueIfPresent(tSetting, policy, (const void**)&cfNum)){
 						SInt32 result = 0;
 						CFNumberGetValue(cfNum, kCFNumberSInt32Type, &result);
