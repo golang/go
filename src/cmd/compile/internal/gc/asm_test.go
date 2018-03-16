@@ -279,43 +279,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
 	},
-	// Structure zeroing.  See issue #18370.
-	{
-		fn: `
-		type T1 struct {
-			a, b, c int
-		}
-		func $(t *T1) {
-			*t = T1{}
-		}
-		`,
-		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
-	},
-	// SSA-able composite literal initialization. Issue 18872.
-	{
-		fn: `
-		type T18872 struct {
-			a, b, c, d int
-		}
-
-		func f18872(p *T18872) {
-			*p = T18872{1, 2, 3, 4}
-		}
-		`,
-		pos: []string{"\tMOVQ\t[$]1", "\tMOVQ\t[$]2", "\tMOVQ\t[$]3", "\tMOVQ\t[$]4"},
-	},
-	// Also test struct containing pointers (this was special because of write barriers).
-	{
-		fn: `
-		type T2 struct {
-			a, b, c *int
-		}
-		func f19(t *T2) {
-			*t = T2{}
-		}
-		`,
-		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.gcWriteBarrier\\(SB\\)"},
-	},
 	{
 		fn: `
 		func f33(m map[int]int) int {
