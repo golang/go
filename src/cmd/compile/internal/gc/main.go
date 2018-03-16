@@ -405,7 +405,7 @@ func Main(archInit func(*Arch)) {
 		Debug['l'] = 1 - Debug['l']
 	}
 
-	trackScopes = flagDWARF && (Debug['l'] == 0 && Debug['N'] != 0)
+	trackScopes = flagDWARF
 
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
