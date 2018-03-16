@@ -22,9 +22,9 @@ dy = <Optimized out, as expected>
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 0, 0, 0, 0, 0, 0}
 i = 1
 81:			hist = ensure(int(i), hist)
@@ -32,9 +32,9 @@ i = 1
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 1, 0, 0, 0, 0, 0}
 i = 1
 81:			hist = ensure(int(i), hist)
@@ -42,9 +42,9 @@ i = 1
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 2, 0, 0, 0, 0, 0}
 i = 1
 81:			hist = ensure(int(i), hist)
@@ -52,9 +52,9 @@ i = 1
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 3, 0, 0, 0, 0, 0}
 i = 2
 81:			hist = ensure(int(i), hist)
@@ -62,9 +62,9 @@ i = 2
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 3, 1, 0, 0, 0, 0}
 i = 2
 81:			hist = ensure(int(i), hist)
@@ -72,9 +72,9 @@ i = 2
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 3, 2, 0, 0, 0, 0}
 i = 2
 81:			hist = ensure(int(i), hist)
@@ -82,9 +82,9 @@ i = 2
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 3, 3, 0, 0, 0, 0}
 i = 4
 81:			hist = ensure(int(i), hist)
@@ -92,9 +92,9 @@ i = 4
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 3, 3, 0, 1, 0, 0}
 i = 4
 81:			hist = ensure(int(i), hist)
@@ -102,9 +102,9 @@ i = 4
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 scanner = (struct bufio.Scanner *) <A>
 75:			s := scanner.Text()
-76:			i, err2 := strconv.ParseInt(s, 10, 64)
-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-err2 = {tab = 0x0, data = 0x0}
+76:			i, err := strconv.ParseInt(s, 10, 64)
+77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+err = {tab = 0x0, data = 0x0}
 hist =  []int = {0, 3, 3, 0, 2, 0, 0}
 i = 5
 81:			hist = ensure(int(i), hist)
