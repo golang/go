@@ -1746,9 +1746,10 @@ type edgeState struct {
 	destinations []dstRecord
 	extra        []dstRecord
 
-	usedRegs   regMask // registers currently holding something
-	uniqueRegs regMask // registers holding the only copy of a value
-	finalRegs  regMask // registers holding final target
+	usedRegs              regMask // registers currently holding something
+	uniqueRegs            regMask // registers holding the only copy of a value
+	finalRegs             regMask // registers holding final target
+	rematerializeableRegs regMask // registers that hold rematerializeable values
 }
 
 type contentRecord struct {
@@ -1782,6 +1783,7 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	e.usedRegs = 0
 	e.uniqueRegs = 0
 	e.finalRegs = 0
+	e.rematerializeableRegs = 0
 
 	// Live registers can be sources.
 	for _, x := range srcReg {
@@ -2041,6 +2043,9 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos
 				e.uniqueRegs &^= regMask(1) << uint(t.num)
 			}
 		}
+		if e.s.values[vid].rematerializeable {
+			e.rematerializeableRegs |= regMask(1) << uint(r.num)
+		}
 	}
 	if e.s.f.pass.debug > regDebug {
 		fmt.Printf("%s\n", c.LongString())
@@ -2082,6 +2087,7 @@ func (e *edgeState) erase(loc Location) {
 		if cr.final {
 			e.finalRegs &^= regMask(1) << uint(r.num)
 		}
+		e.rematerializeableRegs &^= regMask(1) << uint(r.num)
 	}
 	if len(a) == 1 {
 		if r, ok := e.s.f.getHome(a[0].ID).(*Register); ok {
@@ -2105,7 +2111,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// 1) an unused register
 	// 2) a non-unique register not holding a final value
 	// 3) a non-unique register
-	// 4) TODO: a register holding a rematerializeable value
+	// 4) a register holding a rematerializeable value
 	x := m &^ e.usedRegs
 	if x != 0 {
 		return &e.s.registers[pickReg(x)]
@@ -2115,6 +2121,10 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 		return &e.s.registers[pickReg(x)]
 	}
 	x = m &^ e.uniqueRegs
+	if x != 0 {
+		return &e.s.registers[pickReg(x)]
+	}
+	x = m & e.rematerializeableRegs
 	if x != 0 {
 		return &e.s.registers[pickReg(x)]
 	}
@@ -2145,7 +2155,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 		}
 	}
 
-	fmt.Printf("m:%d unique:%d final:%d\n", m, e.uniqueRegs, e.finalRegs)
+	fmt.Printf("m:%d unique:%d final:%d rematerializable:%d\n", m, e.uniqueRegs, e.finalRegs, e.rematerializeableRegs)
 	for _, vid := range e.cachedVals {
 		a := e.cache[vid]
 		for _, c := range a {
