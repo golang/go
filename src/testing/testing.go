@@ -731,6 +731,10 @@ func tRunner(t *T, fn func(t *T)) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
+		if t.failed {
+			atomic.AddUint32(&numFailed, 1)
+		}
+
 		if t.raceErrors+race.Errors() > 0 {
 			t.Errorf("race detected during execution of test")
 		}
@@ -790,9 +794,7 @@ func tRunner(t *T, fn func(t *T)) {
 	t.raceErrors = -race.Errors()
 	fn(t)
 
-	if t.failed {
-		atomic.AddUint32(&numFailed, 1)
-	}
+	// code beyond here will not be executed when FailNow is invoked
 	t.finished = true
 }
 
