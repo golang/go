@@ -86,6 +86,8 @@ func arrange(a int) string {
 		return "S"
 	case ARNG_D:
 		return "D"
+	case ARNG_1Q:
+		return "Q1"
 	default:
 		return ""
 	}
