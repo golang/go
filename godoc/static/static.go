@@ -1939,6 +1939,7 @@ function cgAddChild(tree, ul, cgn) {
 		<li><a href="//godoc.org/golang.org/x/net">net</a> — additional networking packages.</li>
 		<li><a href="//godoc.org/golang.org/x/sys">sys</a> — packages for making system calls.</li>
 		<li><a href="//godoc.org/golang.org/x/text">text</a> — packages for working with text.</li>
+		<li><a href="//godoc.org/golang.org/x/time">time</a> — additional time packages.</li>
 		<li><a href="//godoc.org/golang.org/x/tools">tools</a> — godoc, goimports, gorename, and other tools.</li>
 		<li><a href="//godoc.org/golang.org/x/tour">tour</a> — <a href="//tour.golang.org">tour.golang.org</a>'s implementation.</li>
 		<li><a href="//godoc.org/golang.org/x/exp">exp</a> — experimental and deprecated packages (handle with care; may change without warning).</li>
