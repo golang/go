@@ -321,11 +321,17 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info.GoogleCN = googleCN(r)
+	var body []byte
+	if info.Dirname == "/src" {
+		body = applyTemplate(h.p.PackageRootHTML, "packageRootHTML", info)
+	} else {
+		body = applyTemplate(h.p.PackageHTML, "packageHTML", info)
+	}
 	h.p.ServePage(w, Page{
 		Title:    title,
 		Tabtitle: tabtitle,
 		Subtitle: subtitle,
-		Body:     applyTemplate(h.p.PackageHTML, "packageHTML", info),
+		Body:     body,
 		GoogleCN: info.GoogleCN,
 	})
 }

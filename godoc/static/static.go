@@ -1865,12 +1865,69 @@ function cgAddChild(tree, ul, cgn) {
 	{{if $.PDoc}}
 		<h2 id="pkg-subdirectories">Subdirectories</h2>
 	{{end}}
-	{{if eq $.Dirname "/src"}}
+	<div class="pkg-dir">
+		<table>
+			<tr>
+				<th class="pkg-name">Name</th>
+				<th class="pkg-synopsis">Synopsis</th>
+			</tr>
+
+			{{if not ((eq $.Dirname "/src/cmd") $.DirFlat)}}
+			<tr>
+				<td colspan="2"><a href="..">..</a></td>
+			</tr>
+			{{end}}
+
+			{{range .List}}
+				<tr>
+				{{if $.DirFlat}}
+					{{if .HasPkg}}
+						<td class="pkg-name">
+							<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
+						</td>
+					{{end}}
+				{{else}}
+					<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
+						<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
+					</td>
+				{{end}}
+					<td class="pkg-synopsis">
+						{{html .Synopsis}}
+					</td>
+				</tr>
+			{{end}}
+		</table>
+	</div>
+{{end}}
+`,
+
+	"packageroot.html": `<!--
+	Copyright 2018 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+<!--
+	Note: Static (i.e., not template-generated) href and id
+	attributes start with "pkg-" to make it impossible for
+	them to conflict with generated attributes (some of which
+	correspond to Go identifiers).
+-->
+{{with .PAst}}
+	{{range $filename, $ast := .}}
+		<a href="{{$filename|srcLink|html}}">{{$filename|filename|html}}</a>:<pre>{{node_html $ $ast false}}</pre>
+	{{end}}
+{{end}}
+
+{{with .Dirs}}
+	{{/* DirList entries are numbers and strings - no need for FSet */}}
+	{{if $.PDoc}}
+		<h2 id="pkg-subdirectories">Subdirectories</h2>
+	{{end}}
 		<div id="manual-nav">
 			<dl>
 				<dt><a href="#stdlib">Standard library</a></dt>
 				{{if hasThirdParty .List }}
-				<dt><a href="#thirdparty">Third party</a></dt>
+					<dt><a href="#thirdparty">Third party</a></dt>
 				{{end}}
 				<dt><a href="#other">Other packages</a></dt>
 				<dd><a href="#subrepo">Sub-repositories</a></dd>
@@ -1879,90 +1936,22 @@ function cgAddChild(tree, ul, cgn) {
 		</div>
 
 		<div id="stdlib" class="toggleVisible">
-		<div class="collapsed">
-			<h2 class="toggleButton" title="Click to show Standard library section">Standard library ▹</h2>
-		</div>
-		<div class="expanded">
-			<h2 class="toggleButton" title="Click to hide Standard library section">Standard library ▾</h2>
-			<img alt="" class="gopher" src="/doc/gopher/pkg.png"/>
-	{{end}}
-		<div class="pkg-dir">
-			<table>
-				<tr>
-					<th class="pkg-name">Name</th>
-					<th class="pkg-synopsis">Synopsis</th>
-				</tr>
-
-				{{if not (or (eq $.Dirname "/src") (eq $.Dirname "/src/cmd") $.DirFlat)}}
-				<tr>
-					<td colspan="2"><a href="..">..</a></td>
-				</tr>
-				{{end}}
-
-				{{if eq $.Dirname "/src"}}
-					{{range .List}}
+			<div class="collapsed">
+				<h2 class="toggleButton" title="Click to show Standard library section">Standard library ▹</h2>
+			</div>
+			<div class="expanded">
+				<h2 class="toggleButton" title="Click to hide Standard library section">Standard library ▾</h2>
+				<img alt="" class="gopher" src="/doc/gopher/pkg.png"/>
+				<div class="pkg-dir">
+					<table>
 						<tr>
-						{{if eq .FsRootType "GOROOT"}}
-						{{if $.DirFlat}}
-							{{if .HasPkg}}
-									<td class="pkg-name">
-										<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
-									</td>
-							{{end}}
-						{{else}}
-								<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
-									<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
-								</td>
-						{{end}}
-							<td class="pkg-synopsis">
-								{{html .Synopsis}}
-							</td>
-						{{end}}
+							<th class="pkg-name">Name</th>
+							<th class="pkg-synopsis">Synopsis</th>
 						</tr>
-					{{end}}
-				{{else}}
-					{{range .List}}
-						<tr>
-						{{if $.DirFlat}}
-							{{if .HasPkg}}
-									<td class="pkg-name">
-										<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
-									</td>
-							{{end}}
-						{{else}}
-								<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
-									<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
-								</td>
-						{{end}}
-							<td class="pkg-synopsis">
-								{{html .Synopsis}}
-							</td>
-						</tr>
-					{{end}}
-				{{end}}
-			</table>
-		</div>
-	{{if eq $.Dirname "/src"}}
-		</div>
-	</div>
 
-	{{if hasThirdParty .List }}
-	<div id="thirdparty" class="toggleVisible">
-		<div class="collapsed">
-			<h2 class="toggleButton" title="Click to show Third party section">Third party ▹</h2>
-		</div>
-		<div class="expanded">
-			<h2 class="toggleButton" title="Click to hide Third party section">Third party ▾</h2>
-			<div class="pkg-dir">
-				<table>
-					<tr>
-						<th class="pkg-name">Name</th>
-						<th class="pkg-synopsis">Synopsis</th>
-					</tr>
-
-					{{range .List}}
-						<tr>
-							{{if eq .FsRootType "GOPATH"}}
+						{{range .List}}
+							<tr>
+							{{if eq .FsRootType "GOROOT"}}
 							{{if $.DirFlat}}
 								{{if .HasPkg}}
 										<td class="pkg-name">
@@ -1978,12 +1967,51 @@ function cgAddChild(tree, ul, cgn) {
 									{{html .Synopsis}}
 								</td>
 							{{end}}
-						</tr>
-					{{end}}
-				</table>
+							</tr>
+						{{end}}
+					</table>
+				</div> <!-- .pkg-dir -->
+			</div> <!-- .expanded -->
+		</div> <!-- #stdlib .toggleVisible -->
+
+	{{if hasThirdParty .List }}
+		<div id="thirdparty" class="toggleVisible">
+			<div class="collapsed">
+				<h2 class="toggleButton" title="Click to show Third party section">Third party ▹</h2>
 			</div>
-		</div>
-	</div>
+			<div class="expanded">
+				<h2 class="toggleButton" title="Click to hide Third party section">Third party ▾</h2>
+				<div class="pkg-dir">
+					<table>
+						<tr>
+							<th class="pkg-name">Name</th>
+							<th class="pkg-synopsis">Synopsis</th>
+						</tr>
+
+						{{range .List}}
+							<tr>
+								{{if eq .FsRootType "GOPATH"}}
+								{{if $.DirFlat}}
+									{{if .HasPkg}}
+											<td class="pkg-name">
+												<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
+											</td>
+									{{end}}
+								{{else}}
+										<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
+											<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
+										</td>
+								{{end}}
+									<td class="pkg-synopsis">
+										{{html .Synopsis}}
+									</td>
+								{{end}}
+							</tr>
+						{{end}}
+					</table>
+				</div> <!-- .pkg-dir -->
+			</div> <!-- .expanded -->
+		</div> <!-- #stdlib .toggleVisible -->
 	{{end}}
 
 	<h2 id="other">Other packages</h2>
@@ -2022,7 +2050,6 @@ function cgAddChild(tree, ul, cgn) {
 		<li><a href="http://go-search.org">Go Search</a> - a code search engine.</li>
 		<li><a href="/wiki/Projects">Projects at the Go Wiki</a> - a curated list of Go projects.</li>
 	</ul>
-	{{end}}
 {{end}}
 `,
 

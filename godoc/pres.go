@@ -33,6 +33,7 @@ type Presentation struct {
 	ImplementsHTML,
 	MethodSetHTML,
 	PackageHTML,
+	PackageRootHTML,
 	PackageText,
 	SearchHTML,
 	SearchDocHTML,
