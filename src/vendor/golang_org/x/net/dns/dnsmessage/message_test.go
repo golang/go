@@ -158,6 +158,28 @@ func TestNamePackUnpack(t *testing.T) {
 	}
 }
 
+func TestIncompressibleName(t *testing.T) {
+	name := mustNewName("example.com.")
+	compression := map[string]int{}
+	buf, err := name.pack(make([]byte, 0, 100), compression, 0)
+	if err != nil {
+		t.Fatal("First packing failed:", err)
+	}
+	buf, err = name.pack(buf, compression, 0)
+	if err != nil {
+		t.Fatal("Second packing failed:", err)
+	}
+	var n1 Name
+	off, err := n1.unpackCompressed(buf, 0, false /* allowCompression */)
+	if err != nil {
+		t.Fatal("Unpacking incompressible name without pointers failed:", err)
+	}
+	var n2 Name
+	if _, err := n2.unpackCompressed(buf, off, false /* allowCompression */); err != errCompressedSRV {
+		t.Errorf("Unpacking compressed incompressible name with pointers: got err = %v, want = %v", err, errCompressedSRV)
+	}
+}
+
 func checkErrorPrefix(err error, prefix string) bool {
 	e, ok := err.(*nestedError)
 	return ok && e.s == prefix
