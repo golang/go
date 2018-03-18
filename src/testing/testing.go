@@ -731,7 +731,7 @@ func tRunner(t *T, fn func(t *T)) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
-		if t.failed {
+		if t.Failed() {
 			atomic.AddUint32(&numFailed, 1)
 		}
 
