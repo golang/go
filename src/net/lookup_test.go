@@ -814,3 +814,27 @@ func TestLookupContextCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Issue 24330: treat the nil *Resolver like a zero value. Verify nothing
+// crashes if nil is used.
+func TestNilResolverLookup(t *testing.T) {
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
+	}
+	if runtime.GOOS == "nacl" {
+		t.Skip("skip on nacl")
+	}
+	var r *Resolver = nil
+	ctx := context.Background()
+
+	// Don't care about the results, just that nothing panics:
+	r.LookupAddr(ctx, "8.8.8.8")
+	r.LookupCNAME(ctx, "google.com")
+	r.LookupHost(ctx, "google.com")
+	r.LookupIPAddr(ctx, "google.com")
+	r.LookupMX(ctx, "gmail.com")
+	r.LookupNS(ctx, "google.com")
+	r.LookupPort(ctx, "tcp", "smtp")
+	r.LookupSRV(ctx, "service", "proto", "name")
+	r.LookupTXT(ctx, "gmail.com")
+}

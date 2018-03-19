@@ -137,6 +137,9 @@ type Resolver struct {
 	// TODO(bradfitz): Timeout time.Duration?
 }
 
+func (r *Resolver) preferGo() bool     { return r != nil && r.PreferGo }
+func (r *Resolver) strictErrors() bool { return r != nil && r.StrictErrors }
+
 // LookupHost looks up the given host using the local resolver.
 // It returns a slice of that host's addresses.
 func LookupHost(host string) (addrs []string, err error) {
