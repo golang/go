@@ -61,7 +61,7 @@ func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, erro
 	// addresses, which Dial will use without a DNS lookup.
 	var c Conn
 	var err error
-	if r.Dial != nil {
+	if r != nil && r.Dial != nil {
 		c, err = r.Dial(ctx, network, server)
 	} else {
 		var d Dialer
@@ -75,7 +75,7 @@ func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, erro
 
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	order := systemConf().hostLookupOrder(r, host)
-	if !r.PreferGo && order == hostLookupCgo {
+	if !r.preferGo() && order == hostLookupCgo {
 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
 			return addrs, err
 		}
@@ -86,7 +86,7 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
 }
 
 func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
-	if r.PreferGo {
+	if r.preferGo() {
 		return r.goLookupIP(ctx, host)
 	}
 	order := systemConf().hostLookupOrder(r, host)
@@ -102,7 +102,7 @@ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, e
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
-	if !r.PreferGo && systemConf().canUseCgo() {
+	if !r.preferGo() && systemConf().canUseCgo() {
 		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
 			if err != nil {
 				// Issue 18213: if cgo fails, first check to see whether we
@@ -118,7 +118,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
-	if !r.PreferGo && systemConf().canUseCgo() {
+	if !r.preferGo() && systemConf().canUseCgo() {
 		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
 			return cname, err
 		}
@@ -308,7 +308,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
-	if !r.PreferGo && systemConf().canUseCgo() {
+	if !r.preferGo() && systemConf().canUseCgo() {
 		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
 			return ptrs, err
 		}

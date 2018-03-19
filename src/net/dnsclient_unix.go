@@ -377,7 +377,7 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		if err == nil {
 			break
 		}
-		if nerr, ok := err.(Error); ok && nerr.Temporary() && r.StrictErrors {
+		if nerr, ok := err.(Error); ok && nerr.Temporary() && r.strictErrors() {
 			// If we hit a temporary error with StrictErrors enabled,
 			// stop immediately instead of trying more names.
 			break
@@ -565,7 +565,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 		for range qtypes {
 			racer := <-lane
 			if racer.error != nil {
-				if nerr, ok := racer.error.(Error); ok && nerr.Temporary() && r.StrictErrors {
+				if nerr, ok := racer.error.(Error); ok && nerr.Temporary() && r.strictErrors() {
 					// This error will abort the nameList loop.
 					hitStrictError = true
 					lastErr = racer.error

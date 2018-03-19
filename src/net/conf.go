@@ -126,7 +126,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		}()
 	}
 	fallbackOrder := hostLookupCgo
-	if c.netGo || (r != nil && r.PreferGo) {
+	if c.netGo || r.preferGo() {
 		fallbackOrder = hostLookupFilesDNS
 	}
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
