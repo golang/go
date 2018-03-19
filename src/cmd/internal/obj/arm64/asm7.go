@@ -3910,7 +3910,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		default:
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
-		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(imm4&0xf) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
+		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(imm4&0xf) << 11) | (uint32(rf&31) << 5) | uint32(rt&31)
 
 		break
 
