@@ -279,41 +279,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
 	},
-	{
-		fn: `
-		func f33(m map[int]int) int {
-			return m[5]
-		}
-		`,
-		pos: []string{"\tMOVQ\t[$]5,"},
-	},
-	// Direct use of constants in fast map access calls. Issue 19015.
-	{
-		fn: `
-		func f34(m map[int]int) bool {
-			_, ok := m[5]
-			return ok
-		}
-		`,
-		pos: []string{"\tMOVQ\t[$]5,"},
-	},
-	{
-		fn: `
-		func f35(m map[string]int) int {
-			return m["abc"]
-		}
-		`,
-		pos: []string{"\"abc\""},
-	},
-	{
-		fn: `
-		func f36(m map[string]int) bool {
-			_, ok := m["abc"]
-			return ok
-		}
-		`,
-		pos: []string{"\"abc\""},
-	},
 	// Bit test ops on amd64, issue 18943.
 	{
 		fn: `
