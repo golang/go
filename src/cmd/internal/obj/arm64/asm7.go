@@ -3563,7 +3563,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		imm5 := 0
 		o1 = 1<<30 | 7<<25 | 7<<10
-		index := int(p.From.Index)
+		index := int(p.To.Index)
 		switch (p.To.Reg >> 5) & 15 {
 		case ARNG_B:
 			c.checkindex(p, index, 15)

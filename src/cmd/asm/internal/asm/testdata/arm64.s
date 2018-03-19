@@ -230,6 +230,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VMOV	V0.D[0], R11          // 0b3c084e
 	VMOV	V0.D[1], R11          // 0b3c184e
 	VMOV	R20, V1.S[0]          // 811e044e
+	VMOV	R20, V1.S[1]          // 811e0c4e
 	VMOV	R1, V9.H4             // 290c020e
 	VMOV	R22, V11.D2           // cb0e084e
 	VMOV 	V2.B16, V4.B16        // 441ca24e
