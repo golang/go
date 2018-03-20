@@ -36,6 +36,7 @@ var cnames7 = []string{
 	"AECON",
 	"SBRA",
 	"LBRA",
+	"ZAUTO",
 	"NPAUTO",
 	"NSAUTO",
 	"PSAUTO_8",

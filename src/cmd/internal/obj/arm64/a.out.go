@@ -424,6 +424,7 @@ const (
 	C_SBRA // for TYPE_BRANCH
 	C_LBRA
 
+	C_ZAUTO      // 0(RSP)
 	C_NPAUTO     // -512 <= x < 0, 0 mod 8
 	C_NSAUTO     // -256 <= x < 0
 	C_PSAUTO_8   // 0 to 255, 0 mod 8
@@ -748,6 +749,10 @@ const (
 	AMOVPS
 	AMOVPSW
 	AMOVPW
+	ASWPD
+	ASWPW
+	ASWPH
+	ASWPB
 	ABEQ
 	ABNE
 	ABCS

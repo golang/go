@@ -78,6 +78,17 @@ func IsARM64STLXR(op obj.As) bool {
 	return false
 }
 
+// IsARM64SWP reports whether the op (as defined by an arm64.A*
+// constant) is one of the SWP-like instructions that require special
+// handling.
+func IsARM64SWP(op obj.As) bool {
+	switch op {
+	case arm64.ASWPD, arm64.ASWPW, arm64.ASWPH, arm64.ASWPB:
+		return true
+	}
+	return false
+}
+
 // ARM64Suffix handles the special suffix for the ARM64.
 // It returns a boolean to indicate success; failure means
 // cond was unrecognized.

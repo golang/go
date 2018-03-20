@@ -458,6 +458,10 @@ var optab = []Optab{
 	{AMOVH, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 
+	/* SWPD/SWPW/SWPH/SWPB */
+	{ASWPD, C_ZAUTO, C_REG, C_REG, 47, 4, REGSP, 0, 0},
+	{ASWPD, C_ZOREG, C_REG, C_REG, 47, 4, 0, 0, 0},
+
 	/* pre/post-indexed/signed-offset load/store register pair
 	   (unscaled, signed 10-bit quad-aligned and long offset) */
 	{ALDP, C_NPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
@@ -966,7 +970,8 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	case C_ADDCON:
 		fallthrough
 
-	case C_PSAUTO,
+	case C_ZAUTO,
+		C_PSAUTO,
 		C_PSAUTO_8,
 		C_PSAUTO_4,
 		C_PPAUTO,
@@ -1200,6 +1205,10 @@ func log2(x uint64) uint32 {
 }
 
 func autoclass(l int64) int {
+	if l == 0 {
+		return C_ZAUTO
+	}
+
 	if l < 0 {
 		if l >= -256 {
 			return C_NSAUTO
@@ -1260,10 +1269,7 @@ func autoclass(l int64) int {
 }
 
 func oregclass(l int64) int {
-	if l == 0 {
-		return C_ZOREG
-	}
-	return autoclass(l) - C_NPAUTO + C_NPOREG
+	return autoclass(l) - C_ZAUTO + C_ZOREG
 }
 
 /*
@@ -1632,42 +1638,47 @@ func cmp(a int, b int) bool {
 			return true
 		}
 
+	case C_PSAUTO_8:
+		if b == C_ZAUTO {
+			return true
+		}
+
 	case C_PSAUTO_4:
-		if b == C_PSAUTO_8 {
+		if b == C_ZAUTO || b == C_PSAUTO_8 {
 			return true
 		}
 
 	case C_PSAUTO:
-		if b == C_PSAUTO_8 || b == C_PSAUTO_4 {
+		if b == C_ZAUTO || b == C_PSAUTO_8 || b == C_PSAUTO_4 {
 			return true
 		}
 
 	case C_PPAUTO:
-		if b == C_PSAUTO_8 {
+		if b == C_ZAUTO || b == C_PSAUTO_8 {
 			return true
 		}
 
 	case C_UAUTO4K:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
+		case C_ZAUTO, C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
 			return true
 		}
 
 	case C_UAUTO8K:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
+		case C_ZAUTO, C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
 			return true
 		}
 
 	case C_UAUTO16K:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
+		case C_ZAUTO, C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
 			return true
 		}
 
 	case C_UAUTO32K:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
+		case C_ZAUTO, C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
 			return true
 		}
 
@@ -1676,7 +1687,7 @@ func cmp(a int, b int) bool {
 
 	case C_LAUTO:
 		switch b {
-		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO,
+		case C_ZAUTO, C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO,
 			C_UAUTO4K, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8,
 			C_UAUTO8K, C_UAUTO8K_4, C_UAUTO8K_8,
 			C_UAUTO16K, C_UAUTO16K_8,
@@ -1885,6 +1896,11 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AMOVNW, t)
 			oprangeset(AMOVZ, t)
 			oprangeset(AMOVZW, t)
+
+		case ASWPD:
+			oprangeset(ASWPB, t)
+			oprangeset(ASWPH, t)
+			oprangeset(ASWPW, t)
 
 		case ABEQ:
 			oprangeset(ABNE, t)
@@ -3212,6 +3228,28 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 |= uint32(p.From.Reg&31) << 5
 		o1 |= uint32(p.To.Reg & 31)
+
+	case 47: /* SWPx Rs, (Rb), Rt: Rs -> (Rb) -> Rt */
+		v := int32(c.regoff(&p.From))
+		rb := int(p.From.Reg)
+		if v != 0 {
+			c.ctxt.Diag("invalid offset: %v\n", p)
+		}
+		rs := p.Reg
+		rt := p.To.Reg
+		switch p.As {
+		case ASWPD:
+			o1 = 3 << 30
+		case ASWPW:
+			o1 = 2 << 30
+		case ASWPH:
+			o1 = 1 << 30
+		case ASWPB:
+			o1 = 0 << 30
+		default:
+			c.ctxt.Diag("illegal instruction: %v\n", p)
+		}
+		o1 |= 0x1c1<<21 | 0x20<<10 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 
 	case 50: /* sys/sysl */
 		o1 = c.opirr(p, p.As)
