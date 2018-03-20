@@ -218,7 +218,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 			// So the base should be:
 			if stextOffset != nil && (start%pageSize) == (*stextOffset%pageSize) {
 				// perf uses the address of _stext as start. Some tools may
-				// adjust for this before calling GetBase, in which case the the page
+				// adjust for this before calling GetBase, in which case the page
 				// alignment should be different from that of stextOffset.
 				return start - *stextOffset, nil
 			}
