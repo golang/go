@@ -620,6 +620,27 @@ func main() {
 				t.Fatalf("can't locate origin DIE at off %v", ooff)
 			}
 
+			// Walk the children of the abstract subroutine. We expect
+			// to see child variables there, even if (perhaps due to
+			// optimization) there are no references to them from the
+			// inlined subroutine DIE.
+			absFcnIdx := ex.idxFromOffset(ooff)
+			absFcnChildDies := ex.Children(absFcnIdx)
+			if len(absFcnChildDies) != 2 {
+				t.Fatalf("expected abstract function: expected 2 children, got %d children", len(absFcnChildDies))
+			}
+			formalCount := 0
+			for _, absChild := range absFcnChildDies {
+				if absChild.Tag == dwarf.TagFormalParameter {
+					formalCount += 1
+					continue
+				}
+				t.Fatalf("abstract function child DIE: expected formal, got %v", absChild.Tag)
+			}
+			if formalCount != 2 {
+				t.Fatalf("abstract function DIE: expected 2 formals, got %d", formalCount)
+			}
+
 			if exCount >= len(expectedInl) {
 				t.Fatalf("too many inlined subroutines found in main.main")
 			}

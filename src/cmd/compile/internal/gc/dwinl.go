@@ -209,7 +209,9 @@ func unversion(name string) string {
 // Given a function that was inlined as part of the compilation, dig
 // up the pre-inlining DCL list for the function and create a map that
 // supports lookup of pre-inline dcl index, based on variable
-// position/name.
+// position/name. NB: the recipe for computing variable pos/file/line
+// needs to be kept in sync with the similar code in gc.createSimpleVars
+// and related functions.
 func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
 	dcl := preInliningDcls(fnsym)
 	m := make(map[varPos]int)
@@ -218,8 +220,8 @@ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
 		pos := Ctxt.InnermostPos(n.Pos)
 		vp := varPos{
 			DeclName: unversion(n.Sym.Name),
-			DeclFile: pos.Base().SymFilename(),
-			DeclLine: pos.Line(),
+			DeclFile: pos.RelFilename(),
+			DeclLine: pos.RelLine(),
 			DeclCol:  pos.Col(),
 		}
 		if _, found := m[vp]; found {
