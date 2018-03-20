@@ -224,7 +224,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "amd64",
 		os:      "linux",
-		imports: []string{"unsafe", "runtime"},
+		imports: []string{"runtime"},
 		tests:   linuxAMD64Tests,
 	},
 	{
@@ -337,80 +337,6 @@ var linuxAMD64Tests = []*asmTest{
 			}
 		}`,
 		pos: []string{"\tADDQ\t[A-Z]"},
-	},
-	// Check that compare to constant string uses 2/4/8 byte compares
-	{
-		fn: `
-		func f65(a string) bool {
-		    return a == "xx"
-		}`,
-		pos: []string{"\tCMPW\t\\(.*\\), [$]"},
-	},
-	{
-		fn: `
-		func f66(a string) bool {
-		    return a == "xxxx"
-		}`,
-		pos: []string{"\tCMPL\t\\(.*\\), [$]"},
-	},
-	{
-		fn: `
-		func f67(a string) bool {
-		    return a == "xxxxxxxx"
-		}`,
-		pos: []string{"\tCMPQ\t[A-Z]"},
-	},
-	// Check that array compare uses 2/4/8 byte compares
-	{
-		fn: `
-		func f68(a,b [2]byte) bool {
-		    return a == b
-		}`,
-		pos: []string{"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]"},
-	},
-	{
-		fn: `
-		func f69(a,b [3]uint16) bool {
-		    return a == b
-		}`,
-		pos: []string{
-			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
-			"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
-		},
-	},
-	{
-		fn: `
-		func $(a,b [3]int16) bool {
-		    return a == b
-		}`,
-		pos: []string{
-			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
-			"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
-		},
-	},
-	{
-		fn: `
-		func $(a,b [12]int8) bool {
-		    return a == b
-		}`,
-		pos: []string{
-			"\tCMPQ\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
-			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
-		},
-	},
-	{
-		fn: `
-		func f70(a,b [15]byte) bool {
-		    return a == b
-		}`,
-		pos: []string{"\tCMPQ\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]"},
-	},
-	{
-		fn: `
-		func f71(a,b unsafe.Pointer) bool { // This was a TODO in mapaccess1_faststr
-		    return *((*[4]byte)(a)) != *((*[4]byte)(b))
-		}`,
-		pos: []string{"\tCMPL\t\\(.*\\), [A-Z]"},
 	},
 	{
 		// make sure assembly output has matching offset and base register.
