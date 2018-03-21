@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"flag"
-	"go/build"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,6 +14,14 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	// otherwise the tests are brittle, as they may give unexpected
+	// output or errors when a suffix match with GOPATH takes place
+	buildCtx.GOPATH = ""
+	dirsInit()
+	os.Exit(m.Run())
+}
 
 func maybeSkip(t *testing.T) {
 	if strings.HasPrefix(runtime.GOOS, "nacl") {
@@ -653,7 +660,7 @@ func TestDotSlashLookup(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	if err := os.Chdir(filepath.Join(build.Default.GOROOT, "src", "text")); err != nil {
+	if err := os.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text")); err != nil {
 		t.Fatal(err)
 	}
 	var b bytes.Buffer
