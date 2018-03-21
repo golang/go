@@ -69,6 +69,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("doc: ")
+	dirsInit()
 	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
 	if err != nil {
 		log.Fatal(err)
@@ -355,9 +356,11 @@ func findPackage(pkg string) (string, bool) {
 	}
 }
 
+var buildCtx = build.Default
+
 // splitGopath splits $GOPATH into a list of roots.
 func splitGopath() []string {
-	return filepath.SplitList(build.Default.GOPATH)
+	return filepath.SplitList(buildCtx.GOPATH)
 }
 
 // pwd returns the current directory.
