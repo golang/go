@@ -174,9 +174,8 @@ func QueryUnescape(s string) (string, error) {
 
 // PathUnescape does the inverse transformation of PathEscape,
 // converting each 3-byte encoded substring of the form "%AB" into the
-// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
-// It returns an error if any % is not followed by two hexadecimal
-// digits.
+// hex-decoded byte 0xAB. It returns an error if any % is not followed
+// by two hexadecimal digits.
 //
 // PathUnescape is identical to QueryUnescape except that it does not
 // unescape '+' to ' ' (space).
