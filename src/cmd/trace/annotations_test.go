@@ -238,12 +238,10 @@ func prog2() (gcTime time.Duration) {
 }
 
 func TestAnalyzeAnnotationGC(t *testing.T) {
-	var gcTime time.Duration
 	err := traceProgram(t, func() {
 		oldGC := debug.SetGCPercent(10000) // gc, and effectively disable GC
 		defer debug.SetGCPercent(oldGC)
-
-		gcTime = prog2()
+		prog2()
 	}, "TestAnalyzeAnnotationGC")
 	if err != nil {
 		t.Fatalf("failed to trace the program: %v", err)
