@@ -971,8 +971,10 @@ func (s *state) stmt(n *Node) {
 
 	case OFOR, OFORUNTIL:
 		// OFOR: for Ninit; Left; Right { Nbody }
-		// For      = cond; body; incr
-		// Foruntil = body; incr; cond
+		// cond (Left); body (Nbody); incr (Right)
+		//
+		// OFORUNTIL: for Ninit; Left; Right; List { Nbody }
+		// => body: { Nbody }; incr: Right; if Left { lateincr: List; goto body }; end:
 		bCond := s.f.NewBlock(ssa.BlockPlain)
 		bBody := s.f.NewBlock(ssa.BlockPlain)
 		bIncr := s.f.NewBlock(ssa.BlockPlain)
@@ -1025,30 +1027,29 @@ func (s *state) stmt(n *Node) {
 			b.AddEdgeTo(bIncr)
 		}
 
-		// generate incr
+		// generate incr (and, for OFORUNTIL, condition)
 		s.startBlock(bIncr)
 		if n.Right != nil {
 			s.stmt(n.Right)
 		}
-		if b := s.endBlock(); b != nil {
-			b.AddEdgeTo(bCond)
-			// It can happen that bIncr ends in a block containing only VARKILL,
-			// and that muddles the debugging experience.
-			if n.Op != OFORUNTIL && b.Pos == src.NoXPos {
-				b.Pos = bCond.Pos
+		if n.Op == OFOR {
+			if b := s.endBlock(); b != nil {
+				b.AddEdgeTo(bCond)
+				// It can happen that bIncr ends in a block containing only VARKILL,
+				// and that muddles the debugging experience.
+				if n.Op != OFORUNTIL && b.Pos == src.NoXPos {
+					b.Pos = bCond.Pos
+				}
 			}
-		}
-
-		if n.Op == OFORUNTIL {
-			// generate code to test condition
-			s.startBlock(bCond)
-			if n.Left != nil {
-				s.condBranch(n.Left, bBody, bEnd, 1)
-			} else {
-				b := s.endBlock()
-				b.Kind = ssa.BlockPlain
-				b.AddEdgeTo(bBody)
-			}
+		} else {
+			// bCond is unused in OFORUNTIL, so repurpose it.
+			bLateIncr := bCond
+			// test condition
+			s.condBranch(n.Left, bLateIncr, bEnd, 1)
+			// generate late increment
+			s.startBlock(bLateIncr)
+			s.stmtList(n.List)
+			s.endBlock().AddEdgeTo(bBody)
 		}
 
 		s.startBlock(bEnd)
