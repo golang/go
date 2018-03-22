@@ -67,3 +67,42 @@ func CompareArray6(a, b unsafe.Pointer) bool {
 	// amd64:`CMPL\t\(.*\), [A-Z]`
 	return *((*[4]byte)(a)) != *((*[4]byte)(b))
 }
+
+// -------------- //
+//    Ordering    //
+// -------------- //
+
+// Test that LEAQ/ADDQconst are folded into SETx ops
+
+func CmpFold(x uint32) bool {
+	// amd64:`SETHI\t.*\(SP\)`
+	return x > 4
+}
+
+// Test that direct comparisons with memory are generated when
+// possible
+
+func CmpMem1(p int, q *int) bool {
+	// amd64:`CMPQ\t\(.*\), [A-Z]`
+	return p < *q
+}
+
+func CmpMem2(p *int, q int) bool {
+	// amd64:`CMPQ\t\(.*\), [A-Z]`
+	return *p < q
+}
+
+func CmpMem3(p *int) bool {
+	// amd64:`CMPQ\t\(.*\), [$]7`
+	return *p < 7
+}
+
+func CmpMem4(p *int) bool {
+	// amd64:`CMPQ\t\(.*\), [$]7`
+	return 7 < *p
+}
+
+func CmpMem5(p **int) {
+	// amd64:`CMPL\truntime.writeBarrier\(SB\), [$]0`
+	*p = nil
+}

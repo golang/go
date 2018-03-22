@@ -394,55 +394,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"TEXT\t.*, [$]0-8"},
 	},
-	// int <-> fp moves
-	{
-		fn: `
-		func $(x uint32) bool {
-			return x > 4
-		}
-		`,
-		pos: []string{"\tSETHI\t.*\\(SP\\)"},
-	},
-	{
-		fn: `
-		func $(p int, q *int) bool {
-			return p < *q
-		}
-		`,
-		pos: []string{"CMPQ\t\\(.*\\), [A-Z]"},
-	},
-	{
-		fn: `
-		func $(p *int, q int) bool {
-			return *p < q
-		}
-		`,
-		pos: []string{"CMPQ\t\\(.*\\), [A-Z]"},
-	},
-	{
-		fn: `
-		func $(p *int) bool {
-			return *p < 7
-		}
-		`,
-		pos: []string{"CMPQ\t\\(.*\\), [$]7"},
-	},
-	{
-		fn: `
-		func $(p *int) bool {
-			return 7 < *p
-		}
-		`,
-		pos: []string{"CMPQ\t\\(.*\\), [$]7"},
-	},
-	{
-		fn: `
-		func $(p **int) {
-			*p = nil
-		}
-		`,
-		pos: []string{"CMPL\truntime.writeBarrier\\(SB\\), [$]0"},
-	},
 }
 
 var linux386Tests = []*asmTest{
