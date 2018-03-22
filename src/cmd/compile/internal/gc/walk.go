@@ -276,6 +276,9 @@ func walkstmt(n *Node) *Node {
 		}
 
 		n.Right = walkstmt(n.Right)
+		if n.Op == OFORUNTIL {
+			walkstmtlist(n.List.Slice())
+		}
 		walkstmtlist(n.Nbody.Slice())
 
 	case OIF:
