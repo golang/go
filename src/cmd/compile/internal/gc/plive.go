@@ -120,12 +120,40 @@ type Liveness struct {
 	// Indexed sequentially by safe points in Block and Value order.
 	livevars []bvec
 
-	// stackMapIndex maps from safe points (i.e., CALLs) to their
-	// index within stackMaps.
-	stackMapIndex map[*ssa.Value]int
-	stackMaps     []bvec
+	// livenessMap maps from safe points (i.e., CALLs) to their
+	// liveness map indexes.
+	//
+	// TODO(austin): Now that we have liveness at almost every PC,
+	// should this be a dense structure?
+	livenessMap LivenessMap
+	stackMaps   []bvec
 
 	cache progeffectscache
+}
+
+// LivenessMap maps from *ssa.Value to LivenessIndex.
+type LivenessMap struct {
+	m map[*ssa.Value]LivenessIndex
+}
+
+func (m LivenessMap) Get(v *ssa.Value) LivenessIndex {
+	if i, ok := m.m[v]; ok {
+		return i
+	}
+	// Not a safe point.
+	return LivenessInvalid
+}
+
+// LivenessIndex stores the liveness map index for a safe-point.
+type LivenessIndex struct {
+	stackMapIndex int
+}
+
+// LivenessInvalid indicates an unsafe point.
+var LivenessInvalid = LivenessIndex{-1}
+
+func (idx LivenessIndex) Valid() bool {
+	return idx.stackMapIndex >= 0
 }
 
 type progeffectscache struct {
@@ -817,10 +845,10 @@ func (lv *Liveness) clobber() {
 				before = false
 			}
 			if before {
-				clobber(lv, b, lv.stackMaps[lv.stackMapIndex[v]])
+				clobber(lv, b, lv.stackMaps[lv.livenessMap.Get(v).stackMapIndex])
 			}
 			b.Values = append(b.Values, v)
-			clobber(lv, b, lv.stackMaps[lv.stackMapIndex[v]])
+			clobber(lv, b, lv.stackMaps[lv.livenessMap.Get(v).stackMapIndex])
 		}
 	}
 }
@@ -1006,12 +1034,12 @@ Outer:
 	// These will later become PCDATA instructions.
 	lv.showlive(nil, lv.stackMaps[0])
 	pos := 1
-	lv.stackMapIndex = make(map[*ssa.Value]int)
+	lv.livenessMap = LivenessMap{make(map[*ssa.Value]LivenessIndex)}
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
 			if issafepoint(v) {
 				lv.showlive(v, lv.stackMaps[remap[pos]])
-				lv.stackMapIndex[v] = remap[pos]
+				lv.livenessMap.m[v] = LivenessIndex{remap[pos]}
 				pos++
 			}
 		}
@@ -1153,8 +1181,8 @@ func (lv *Liveness) printDebug() {
 		for _, v := range b.Values {
 			fmt.Printf("(%s) %v\n", linestr(v.Pos), v.LongString())
 
-			if pos, ok := lv.stackMapIndex[v]; ok {
-				pcdata = pos
+			if pos := lv.livenessMap.Get(v); pos.Valid() {
+				pcdata = pos.stackMapIndex
 			}
 
 			pos, effect := lv.valueEffects(v)
@@ -1265,7 +1293,7 @@ func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
-func liveness(e *ssafn, f *ssa.Func) map[*ssa.Value]int {
+func liveness(e *ssafn, f *ssa.Func) LivenessMap {
 	// Construct the global liveness state.
 	vars, idx := getvariables(e.curfn)
 	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
@@ -1284,5 +1312,5 @@ func liveness(e *ssafn, f *ssa.Func) map[*ssa.Value]int {
 	if ls := e.curfn.Func.lsym; ls != nil {
 		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals)
 	}
-	return lv.stackMapIndex
+	return lv.livenessMap
 }
