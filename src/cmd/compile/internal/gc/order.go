@@ -236,7 +236,8 @@ func (o *Order) popTemp(mark ordermarker) {
 // Cleantempnopop emits VARKILL and if needed VARLIVE instructions
 // to *out for each temporary above the mark on the temporary stack.
 // It does not pop the temporaries from the stack.
-func (o *Order) cleanTempNoPop(mark ordermarker, out *[]*Node) {
+func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
+	var out []*Node
 	for i := len(o.temp) - 1; i >= int(mark); i-- {
 		n := o.temp[i]
 		if n.Name.Keepalive() {
@@ -244,18 +245,19 @@ func (o *Order) cleanTempNoPop(mark ordermarker, out *[]*Node) {
 			n.SetAddrtaken(true) // ensure SSA keeps the n variable
 			live := nod(OVARLIVE, n, nil)
 			live = typecheck(live, Etop)
-			*out = append(*out, live)
+			out = append(out, live)
 		}
 		kill := nod(OVARKILL, n, nil)
 		kill = typecheck(kill, Etop)
-		*out = append(*out, kill)
+		out = append(out, kill)
 	}
+	return out
 }
 
 // cleanTemp emits VARKILL instructions for each temporary above the
 // mark on the temporary stack and removes them from the stack.
 func (o *Order) cleanTemp(top ordermarker) {
-	o.cleanTempNoPop(top, &o.out)
+	o.out = append(o.out, o.cleanTempNoPop(top)...)
 	o.popTemp(top)
 }
 
@@ -646,9 +648,7 @@ func (o *Order) stmt(n *Node) {
 	case OFOR:
 		t := o.markTemp()
 		n.Left = o.exprInPlace(n.Left)
-		var l []*Node
-		o.cleanTempNoPop(t, &l)
-		n.Nbody.Prepend(l...)
+		n.Nbody.Prepend(o.cleanTempNoPop(t)...)
 		orderBlock(&n.Nbody)
 		n.Right = orderStmtInPlace(n.Right)
 		o.out = append(o.out, n)
@@ -659,12 +659,8 @@ func (o *Order) stmt(n *Node) {
 	case OIF:
 		t := o.markTemp()
 		n.Left = o.exprInPlace(n.Left)
-		var l []*Node
-		o.cleanTempNoPop(t, &l)
-		n.Nbody.Prepend(l...)
-		l = nil
-		o.cleanTempNoPop(t, &l)
-		n.Rlist.Prepend(l...)
+		n.Nbody.Prepend(o.cleanTempNoPop(t)...)
+		n.Rlist.Prepend(o.cleanTempNoPop(t)...)
 		o.popTemp(t)
 		orderBlock(&n.Nbody)
 		orderBlock(&n.Rlist)
@@ -881,9 +877,11 @@ func (o *Order) stmt(n *Node) {
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
 		for _, n3 := range n.List.Slice() {
-			s := n3.Ninit.Slice()
-			o.cleanTempNoPop(t, &s)
-			n3.Nbody.Prepend(s...)
+			n3.Nbody.Prepend(o.cleanTempNoPop(t)...)
+
+			// TODO(mdempsky): Is this actually necessary?
+			// walkselect appears to walk Ninit.
+			n3.Nbody.Prepend(n3.Ninit.Slice()...)
 			n3.Ninit.Set(nil)
 		}
 
@@ -1082,10 +1080,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		// Clean temporaries from first branch at beginning of second.
 		// Leave them on the stack so that they can be killed in the outer
 		// context in case the short circuit is taken.
-		var s []*Node
-
-		o.cleanTempNoPop(mark, &s)
-		n.Right = addinit(n.Right, s)
+		n.Right = addinit(n.Right, o.cleanTempNoPop(mark))
 		n.Right = o.exprInPlace(n.Right)
 
 	case OCALLFUNC,
