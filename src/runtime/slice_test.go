@@ -31,6 +31,12 @@ func BenchmarkGrowSlice(b *testing.B) {
 			_ = append([]byte(nil), x...)
 		}
 	})
+	b.Run("Int16", func(b *testing.B) {
+		x := make([]int16, 9)
+		for i := 0; i < b.N; i++ {
+			_ = append([]int16(nil), x...)
+		}
+	})
 	b.Run("Int", func(b *testing.B) {
 		x := make([]int, 9)
 		for i := 0; i < b.N; i++ {
