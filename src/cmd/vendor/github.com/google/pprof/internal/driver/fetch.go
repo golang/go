@@ -534,8 +534,7 @@ func convertPerfData(perfPath string, ui plugin.UI) (*os.File, error) {
 		return nil, err
 	}
 	deferDeleteTempFile(profile.Name())
-	cmd := exec.Command("perf_to_profile", "-i", perfPath, "-o", profile.Name(), "-f")
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	cmd := exec.Command("perf_to_profile", perfPath, profile.Name())
 	if err := cmd.Run(); err != nil {
 		profile.Close()
 		return nil, fmt.Errorf("failed to convert perf.data file. Try github.com/google/perf_data_converter: %v", err)
