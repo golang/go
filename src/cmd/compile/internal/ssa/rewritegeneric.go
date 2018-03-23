@@ -18048,6 +18048,65 @@ func rewriteValuegeneric_OpNeqPtr_0(v *Value) bool {
 		v.AddArg(p)
 		return true
 	}
+	// match: (NeqPtr x x)
+	// cond:
+	// result: (ConstBool [0])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (NeqPtr (Addr {a} x) (Addr {b} x))
+	// cond:
+	// result: (ConstBool [b2i(a != b)])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		a := v_0.Aux
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		b := v_1.Aux
+		if x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(a != b)
+		return true
+	}
+	// match: (NeqPtr (Addr {b} x) (Addr {a} x))
+	// cond:
+	// result: (ConstBool [b2i(a != b)])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		b := v_0.Aux
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		a := v_1.Aux
+		if x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(a != b)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpNeqSlice_0(v *Value) bool {
