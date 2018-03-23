@@ -380,7 +380,7 @@ func sysargs(argc int32, argv **byte) {
 const (
 	_AT_NULL   = 0  // Terminates the vector
 	_AT_PAGESZ = 6  // Page size in bytes
-	_AT_HWCAP  = 16 // CPU feature flags
+	_AT_HWCAP  = 26 // CPU feature flags
 )
 
 func sysauxv(auxv []uintptr) {
