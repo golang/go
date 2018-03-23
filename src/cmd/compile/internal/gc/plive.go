@@ -304,17 +304,16 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 		return nil, 0
 	}
 
-	var n *Node
 	switch a := v.Aux.(type) {
 	case nil, *obj.LSym:
 		// ok, but no node
+		return nil, e
 	case *Node:
-		n = a
+		return a, e
 	default:
 		Fatalf("weird aux: %s", v.LongString())
+		return nil, e
 	}
-
-	return n, e
 }
 
 // Constructs a new liveness structure used to hold the global state of the

@@ -343,9 +343,8 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 		in = append(in, d)
 	}
 
-	var d *Node
 	for _, t := range f.Params().Fields().Slice() {
-		d = nod(ODCLFIELD, nil, nil)
+		d := nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		d.SetIsddd(t.Isddd())
 		in = append(in, d)
@@ -353,7 +352,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 
 	var out []*Node
 	for _, t := range f.Results().Fields().Slice() {
-		d = nod(ODCLFIELD, nil, nil)
+		d := nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		out = append(out, d)
 	}

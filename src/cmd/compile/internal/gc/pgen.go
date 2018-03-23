@@ -465,8 +465,8 @@ func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	var vars []*dwarf.Var
 	ssaVars := make(map[*Node]bool)
 
-	for varID := range debugInfo.Vars {
-		n := debugInfo.Vars[varID].(*Node)
+	for varID, dvar := range debugInfo.Vars {
+		n := dvar.(*Node)
 		ssaVars[n] = true
 		for _, slot := range debugInfo.VarSlots[varID] {
 			ssaVars[debugInfo.Slots[slot].N.(*Node)] = true
