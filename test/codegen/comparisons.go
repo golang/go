@@ -106,3 +106,29 @@ func CmpMem5(p **int) {
 	// amd64:`CMPL\truntime.writeBarrier\(SB\), [$]0`
 	*p = nil
 }
+
+// Check tbz/tbnz are generated when comparing against zero on arm64
+
+func CmpZero1(a int32, ptr *int) {
+	if a < 0 { // arm64:"TBZ"
+		*ptr = 0
+	}
+}
+
+func CmpZero2(a int64, ptr *int) {
+	if a < 0 { // arm64:"TBZ"
+		*ptr = 0
+	}
+}
+
+func CmpZero3(a int32, ptr *int) {
+	if a >= 0 { // arm64:"TBNZ"
+		*ptr = 0
+	}
+}
+
+func CmpZero4(a int64, ptr *int) {
+	if a >= 0 { // arm64:"TBNZ"
+		*ptr = 0
+	}
+}

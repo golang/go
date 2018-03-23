@@ -481,46 +481,6 @@ var linuxARM64Tests = []*asmTest{
 		pos: []string{"LSL\t\\$17"},
 		neg: []string{"CMP"},
 	},
-	{
-		fn: `
-		func $(a int32, ptr *int) {
-			if a >= 0 {
-				*ptr = 0
-			}
-		}
-		`,
-		pos: []string{"TBNZ"},
-	},
-	{
-		fn: `
-		func $(a int64, ptr *int) {
-			if a >= 0 {
-				*ptr = 0
-			}
-		}
-		`,
-		pos: []string{"TBNZ"},
-	},
-	{
-		fn: `
-		func $(a int32, ptr *int) {
-			if a < 0 {
-				*ptr = 0
-			}
-		}
-		`,
-		pos: []string{"TBZ"},
-	},
-	{
-		fn: `
-		func $(a int64, ptr *int) {
-			if a < 0 {
-				*ptr = 0
-			}
-		}
-		`,
-		pos: []string{"TBZ"},
-	},
 	// Load-combining tests.
 	{
 		fn: `
