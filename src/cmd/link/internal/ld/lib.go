@@ -731,6 +731,10 @@ func genhash(ctxt *Link, lib *sym.Library) {
 		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
 		return
 	}
+	if arhdr.name != pkgdef {
+		Errorf(nil, "%s: missing package data entry", lib.File)
+		return
+	}
 
 	h := sha1.New()
 
