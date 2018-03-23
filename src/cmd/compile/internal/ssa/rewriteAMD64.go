@@ -19847,6 +19847,20 @@ func rewriteValueAMD64_OpAMD64MULSSmem_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64NEGL_0(v *Value) bool {
+	// match: (NEGL (NEGL x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64NEGL {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	// match: (NEGL (MOVLconst [c]))
 	// cond:
 	// result: (MOVLconst [int64(int32(-c))])
@@ -19863,6 +19877,20 @@ func rewriteValueAMD64_OpAMD64NEGL_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64NEGQ_0(v *Value) bool {
+	// match: (NEGQ (NEGQ x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64NEGQ {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	// match: (NEGQ (MOVQconst [c]))
 	// cond:
 	// result: (MOVQconst [-c])
