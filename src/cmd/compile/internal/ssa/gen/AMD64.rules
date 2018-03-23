@@ -1441,6 +1441,10 @@
 // If we cared, we might do:
 //  (ANDLconst <t> [c] x) && t.Size()==1 && int8(x)==0 -> (MOVLconst [0])
 
+// Remove redundant ops
+// Not in generic rules, because they may appear after lowering e. g. Slicemask
+(NEG(Q|L) (NEG(Q|L) x)) -> x
+
 // Convert constant subtracts to constant adds
 (SUBQconst [c] x) && c != -(1<<31) -> (ADDQconst [-c] x)
 (SUBLconst [c] x) -> (ADDLconst [int64(int32(-c))] x)
