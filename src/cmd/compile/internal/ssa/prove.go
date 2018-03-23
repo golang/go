@@ -369,6 +369,37 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		}
 	}
 
+	// Derived facts below here are only about numbers.
+	if d != signed && d != unsigned {
+		return
+	}
+
+	// Additional facts we know given the relationship between len and cap.
+	//
+	// TODO: Since prove now derives transitive relations, it
+	// should be sufficient to learn that len(w) <= cap(w) at the
+	// beginning of prove where we look for all len/cap ops.
+	if v.Op == OpSliceLen && r&lt == 0 && ft.caps[v.Args[0].ID] != nil {
+		// len(s) > w implies cap(s) > w
+		// len(s) >= w implies cap(s) >= w
+		// len(s) == w implies cap(s) >= w
+		ft.update(parent, ft.caps[v.Args[0].ID], w, d, r|gt)
+	}
+	if w.Op == OpSliceLen && r&gt == 0 && ft.caps[w.Args[0].ID] != nil {
+		// same, length on the RHS.
+		ft.update(parent, v, ft.caps[w.Args[0].ID], d, r|lt)
+	}
+	if v.Op == OpSliceCap && r&gt == 0 && ft.lens[v.Args[0].ID] != nil {
+		// cap(s) < w implies len(s) < w
+		// cap(s) <= w implies len(s) <= w
+		// cap(s) == w implies len(s) <= w
+		ft.update(parent, ft.lens[v.Args[0].ID], w, d, r|lt)
+	}
+	if w.Op == OpSliceCap && r&lt == 0 && ft.lens[w.Args[0].ID] != nil {
+		// same, capacity on the RHS.
+		ft.update(parent, v, ft.lens[w.Args[0].ID], d, r|gt)
+	}
+
 	// Process fence-post implications.
 	//
 	// First, make the condition > or >=.
@@ -931,31 +962,6 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 			continue
 		}
 		ft.update(parent, v, w, i, r)
-
-		// Additional facts we know given the relationship between len and cap.
-		if i != signed && i != unsigned {
-			continue
-		}
-		if v.Op == OpSliceLen && r&lt == 0 && ft.caps[v.Args[0].ID] != nil {
-			// len(s) > w implies cap(s) > w
-			// len(s) >= w implies cap(s) >= w
-			// len(s) == w implies cap(s) >= w
-			ft.update(parent, ft.caps[v.Args[0].ID], w, i, r|gt)
-		}
-		if w.Op == OpSliceLen && r&gt == 0 && ft.caps[w.Args[0].ID] != nil {
-			// same, length on the RHS.
-			ft.update(parent, v, ft.caps[w.Args[0].ID], i, r|lt)
-		}
-		if v.Op == OpSliceCap && r&gt == 0 && ft.lens[v.Args[0].ID] != nil {
-			// cap(s) < w implies len(s) < w
-			// cap(s) <= w implies len(s) <= w
-			// cap(s) == w implies len(s) <= w
-			ft.update(parent, ft.lens[v.Args[0].ID], w, i, r|lt)
-		}
-		if w.Op == OpSliceCap && r&lt == 0 && ft.lens[w.Args[0].ID] != nil {
-			// same, capacity on the RHS.
-			ft.update(parent, v, ft.lens[w.Args[0].ID], i, r|gt)
-		}
 	}
 }
 
