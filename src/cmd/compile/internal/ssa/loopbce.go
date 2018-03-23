@@ -165,30 +165,7 @@ nextb:
 		}
 
 		if f.pass.debug >= 1 {
-			mb1, mb2 := "[", "]"
-			if flags&indVarMinExc != 0 {
-				mb1 = "("
-			}
-			if flags&indVarMaxInc == 0 {
-				mb2 = ")"
-			}
-
-			mlim1, mlim2 := fmt.Sprint(min.AuxInt), fmt.Sprint(max.AuxInt)
-			if !min.isGenericIntConst() {
-				if f.pass.debug >= 2 {
-					mlim1 = fmt.Sprint(min)
-				} else {
-					mlim1 = "?"
-				}
-			}
-			if !max.isGenericIntConst() {
-				if f.pass.debug >= 2 {
-					mlim2 = fmt.Sprint(max)
-				} else {
-					mlim2 = "?"
-				}
-			}
-			b.Func.Warnl(b.Pos, "Induction variable: limits %v%v,%v%v, increment %d", mb1, mlim1, mlim2, mb2, inc.AuxInt)
+			printIndVar(b, ind, min, max, inc.AuxInt, flags)
 		}
 
 		iv = append(iv, indVar{
@@ -214,4 +191,35 @@ func dropAdd64(v *Value) (*Value, int64) {
 		return v.Args[0], v.Args[1].AuxInt
 	}
 	return v, 0
+}
+
+func printIndVar(b *Block, i, min, max *Value, inc int64, flags indVarFlags) {
+	mb1, mb2 := "[", "]"
+	if flags&indVarMinExc != 0 {
+		mb1 = "("
+	}
+	if flags&indVarMaxInc == 0 {
+		mb2 = ")"
+	}
+
+	mlim1, mlim2 := fmt.Sprint(min.AuxInt), fmt.Sprint(max.AuxInt)
+	if !min.isGenericIntConst() {
+		if b.Func.pass.debug >= 2 {
+			mlim1 = fmt.Sprint(min)
+		} else {
+			mlim1 = "?"
+		}
+	}
+	if !max.isGenericIntConst() {
+		if b.Func.pass.debug >= 2 {
+			mlim2 = fmt.Sprint(max)
+		} else {
+			mlim2 = "?"
+		}
+	}
+	extra := ""
+	if b.Func.pass.debug >= 2 {
+		extra = fmt.Sprintf(" (%s)", i)
+	}
+	b.Func.Warnl(b.Pos, "Induction variable: limits %v%v,%v%v, increment %d%s", mb1, mlim1, mlim2, mb2, inc, extra)
 }

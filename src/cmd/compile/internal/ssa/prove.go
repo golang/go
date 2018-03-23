@@ -827,6 +827,9 @@ func prove(f *Func) {
 				// ft when we unwind.
 			}
 
+			// Add inductive facts for phis in this block.
+			addLocalInductiveFacts(ft, node.block)
+
 			work = append(work, bp{
 				block: node.block,
 				state: simplify,
@@ -962,6 +965,108 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 			continue
 		}
 		ft.update(parent, v, w, i, r)
+	}
+}
+
+// addLocalInductiveFacts adds inductive facts when visiting b, where
+// b is a join point in a loop. In contrast with findIndVar, this
+// depends on facts established for b, which is why it happens when
+// visiting b. addLocalInductiveFacts specifically targets the pattern
+// created by OFORUNTIL, which isn't detected by findIndVar.
+//
+// TODO: It would be nice to combine this with findIndVar.
+func addLocalInductiveFacts(ft *factsTable, b *Block) {
+	// This looks for a specific pattern of induction:
+	//
+	// 1. i1 = OpPhi(min, i2) in b
+	// 2. i2 = i1 + 1
+	// 3. i2 < max at exit from b.Preds[1]
+	// 4. min < max
+	//
+	// If all of these conditions are true, then i1 < max and i1 >= min.
+
+	for _, i1 := range b.Values {
+		if i1.Op != OpPhi {
+			continue
+		}
+
+		// Check for conditions 1 and 2. This is easy to do
+		// and will throw out most phis.
+		min, i2 := i1.Args[0], i1.Args[1]
+		if i1q, delta := isConstDelta(i2); i1q != i1 || delta != 1 {
+			continue
+		}
+
+		// Try to prove condition 3. We can't just query the
+		// fact table for this because we don't know what the
+		// facts of b.Preds[1] are (in general, b.Preds[1] is
+		// a loop-back edge, so we haven't even been there
+		// yet). As a conservative approximation, we look for
+		// this condition in the predecessor chain until we
+		// hit a join point.
+		uniquePred := func(b *Block) *Block {
+			if len(b.Preds) == 1 {
+				return b.Preds[0].b
+			}
+			return nil
+		}
+		pred, child := b.Preds[1].b, b
+		for ; pred != nil; pred = uniquePred(pred) {
+			if pred.Kind != BlockIf {
+				continue
+			}
+
+			br := unknown
+			if pred.Succs[0].b == child {
+				br = positive
+			}
+			if pred.Succs[1].b == child {
+				if br != unknown {
+					continue
+				}
+				br = negative
+			}
+
+			tr, has := domainRelationTable[pred.Control.Op]
+			if !has {
+				continue
+			}
+			r := tr.r
+			if br == negative {
+				// Negative branch taken to reach b.
+				// Complement the relations.
+				r = (lt | eq | gt) ^ r
+			}
+
+			// Check for i2 < max or max > i2.
+			var max *Value
+			if r == lt && pred.Control.Args[0] == i2 {
+				max = pred.Control.Args[1]
+			} else if r == gt && pred.Control.Args[1] == i2 {
+				max = pred.Control.Args[0]
+			} else {
+				continue
+			}
+
+			// Check condition 4 now that we have a
+			// candidate max. For this we can query the
+			// fact table. We "prove" min < max by showing
+			// that min >= max is unsat. (This may simply
+			// compare two constants; that's fine.)
+			ft.checkpoint()
+			ft.update(b, min, max, tr.d, gt|eq)
+			proved := ft.unsat
+			ft.restore()
+
+			if proved {
+				// We know that min <= i1 < max.
+				if b.Func.pass.debug > 0 {
+					printIndVar(b, i1, min, max, 1, 0)
+				}
+				ft.update(b, min, i1, tr.d, lt|eq)
+				ft.update(b, i1, max, tr.d, lt)
+			}
+		}
 	}
 }
 

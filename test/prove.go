@@ -648,6 +648,20 @@ func constsuffix(s string) bool {
 	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$"
 }
 
+// oforuntil tests the pattern created by OFORUNTIL blocks. These are
+// handled by addLocalInductiveFacts rather than findIndVar.
+func oforuntil(b []int) {
+	i := 0
+	if len(b) > i {
+	top:
+		println(b[i]) // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		i++
+		if i < len(b) {
+			goto top
+		}
+	}
+}
+
 //go:noinline
 func useInt(a int) {
 }
