@@ -4003,13 +4003,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				break
 
 			case Zlit:
-				for ; ; z++ {
-					op = int(o.op[z])
-					if op == 0 {
-						break
-					}
-					asmbuf.Put1(byte(op))
-				}
+				asmbuf.PutOpBytesLit(z, &o.op)
 
 			case Zlitr_m:
 				asmbuf.PutOpBytesLit(z, &o.op)
@@ -4054,15 +4048,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				asmbuf.Put1(byte(p.To.Offset))
 
 			case Zibm_r, Zibr_m:
-				for {
-					tmp1 := z
-					z++
-					op = int(o.op[tmp1])
-					if op == 0 {
-						break
-					}
-					asmbuf.Put1(byte(op))
-				}
+				asmbuf.PutOpBytesLit(z, &o.op)
 				if yt.zcase == Zibr_m {
 					asmbuf.asmand(ctxt, cursym, p, &p.To, p.GetFrom3())
 				} else {
