@@ -10,8 +10,8 @@ const (
 	_HWCAP_IDIVA = 1 << 17
 )
 
-var hwcap uint32 // set by archauxv
-var hardDiv bool // set if a hardware divider is available
+var hwcap = ^uint32(0) // set by archauxv
+var hardDiv bool       // set if a hardware divider is available
 
 func checkgoarm() {
 	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
