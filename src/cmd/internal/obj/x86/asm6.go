@@ -2115,7 +2115,7 @@ func naclpad(ctxt *obj.Link, s *obj.LSym, c int32, pad int32) int32 {
 	return c + pad
 }
 
-func spadjop(ctxt *obj.Link, p *obj.Prog, l, q obj.As) obj.As {
+func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
 	if ctxt.Arch.Family != sys.AMD64 || ctxt.Arch.PtrSize == 4 {
 		return l
 	}
@@ -2144,9 +2144,9 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Reg = REG_SP
 			v := int32(-p.From.Offset)
 			p.From.Offset = int64(v)
-			p.As = spadjop(ctxt, p, AADDL, AADDQ)
+			p.As = spadjop(ctxt, AADDL, AADDQ)
 			if v < 0 {
-				p.As = spadjop(ctxt, p, ASUBL, ASUBQ)
+				p.As = spadjop(ctxt, ASUBL, ASUBQ)
 				v = -v
 				p.From.Offset = int64(v)
 			}
@@ -2173,9 +2173,9 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Reg = REG_SP
 			v := int32(-p.From.Offset)
 			p.From.Offset = int64(v)
-			p.As = spadjop(ctxt, p, AADDL, AADDQ)
+			p.As = spadjop(ctxt, AADDL, AADDQ)
 			if v < 0 {
-				p.As = spadjop(ctxt, p, ASUBL, ASUBQ)
+				p.As = spadjop(ctxt, ASUBL, ASUBQ)
 				v = -v
 				p.From.Offset = int64(v)
 			}
@@ -2496,7 +2496,7 @@ func instinit(ctxt *obj.Link) {
 
 var isAndroid = (objabi.GOOS == "android")
 
-func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
 		return 0
 	}
@@ -3797,11 +3797,11 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		return
 	}
 
-	pre := prefixof(ctxt, p, &p.From)
+	pre := prefixof(ctxt, &p.From)
 	if pre != 0 {
 		asmbuf.Put1(byte(pre))
 	}
-	pre = prefixof(ctxt, p, &p.To)
+	pre = prefixof(ctxt, &p.To)
 	if pre != 0 {
 		asmbuf.Put1(byte(pre))
 	}
