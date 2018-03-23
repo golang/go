@@ -279,6 +279,21 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		old, ok := ft.limits[v.ID]
 		if !ok {
 			old = noLimit
+			if v.isGenericIntConst() {
+				switch d {
+				case signed:
+					old.min, old.max = v.AuxInt, v.AuxInt
+					if v.AuxInt >= 0 {
+						old.umin, old.umax = uint64(v.AuxInt), uint64(v.AuxInt)
+					}
+				case unsigned:
+					old.umin = v.AuxUnsigned()
+					old.umax = old.umin
+					if int64(old.umin) >= 0 {
+						old.min, old.max = int64(old.umin), int64(old.umin)
+					}
+				}
+			}
 		}
 		lim := noLimit
 		switch d {
