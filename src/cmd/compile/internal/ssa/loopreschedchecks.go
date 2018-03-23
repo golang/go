@@ -179,7 +179,9 @@ func insertLoopReschedChecks(f *Func) {
 		if p.i != 0 {
 			likely = BranchUnlikely
 		}
-		bb.Likely = likely
+		if bb.Kind != BlockPlain { // backedges can be unconditional. e.g., if x { something; continue }
+			bb.Likely = likely
+		}
 
 		// rewrite edge to include reschedule check
 		// existing edges:
