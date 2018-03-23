@@ -1223,7 +1223,7 @@ func concurrentBackendAllowed() bool {
 		return false
 	}
 	// TODO: Test and delete these conditions.
-	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 || objabi.Clobberdead_enabled != 0 {
+	if objabi.Fieldtrack_enabled != 0 || objabi.Clobberdead_enabled != 0 {
 		return false
 	}
 	// TODO: fix races and enable the following flags
