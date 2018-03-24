@@ -122,15 +122,13 @@ func (p *Prog) String() string {
 	return b.String()
 }
 
-// skipNop follows any no-op or capturing instructions
-// and returns the resulting pc.
-func (p *Prog) skipNop(pc uint32) (*Inst, uint32) {
+// skipNop follows any no-op or capturing instructions.
+func (p *Prog) skipNop(pc uint32) *Inst {
 	i := &p.Inst[pc]
 	for i.Op == InstNop || i.Op == InstCapture {
-		pc = i.Out
-		i = &p.Inst[pc]
+		i = &p.Inst[i.Out]
 	}
-	return i, pc
+	return i
 }
 
 // op returns i.Op but merges all the Rune special cases into InstRune
@@ -147,7 +145,7 @@ func (i *Inst) op() InstOp {
 // regexp must start with. Complete is true if the prefix
 // is the entire match.
 func (p *Prog) Prefix() (prefix string, complete bool) {
-	i, _ := p.skipNop(uint32(p.Start))
+	i := p.skipNop(uint32(p.Start))
 
 	// Avoid allocation of buffer if prefix is empty.
 	if i.op() != InstRune || len(i.Rune) != 1 {
@@ -158,7 +156,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 	var buf bytes.Buffer
 	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
 		buf.WriteRune(i.Rune[0])
-		i, _ = p.skipNop(i.Out)
+		i = p.skipNop(i.Out)
 	}
 	return buf.String(), i.Op == InstMatch
 }
