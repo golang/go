@@ -130,16 +130,21 @@ func (v *Value) LongString() string {
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
-	r := v.Block.Func.RegAlloc
+	var r []Location
+	if v.Block != nil {
+		r = v.Block.Func.RegAlloc
+	}
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].String()
 	}
 	var names []string
-	for name, values := range v.Block.Func.NamedValues {
-		for _, value := range values {
-			if value == v {
-				names = append(names, name.String())
-				break // drop duplicates.
+	if v.Block != nil {
+		for name, values := range v.Block.Func.NamedValues {
+			for _, value := range values {
+				if value == v {
+					names = append(names, name.String())
+					break // drop duplicates.
+				}
 			}
 		}
 	}
@@ -244,6 +249,10 @@ func (v *Value) resetArgs() {
 
 func (v *Value) reset(op Op) {
 	v.Op = op
+	if op != OpCopy && notStmtBoundary(op) {
+		// Special case for OpCopy because of how it is used in rewrite
+		v.Pos = v.Pos.WithNotStmt()
+	}
 	v.resetArgs()
 	v.AuxInt = 0
 	v.Aux = nil
@@ -251,7 +260,7 @@ func (v *Value) reset(op Op) {
 
 // copyInto makes a new value identical to v and adds it to the end of b.
 func (v *Value) copyInto(b *Block) *Value {
-	c := b.NewValue0(v.Pos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
+	c := b.NewValue0(v.Pos.WithNotStmt(), v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
 	c.AddArgs(v.Args...)
@@ -261,13 +270,6 @@ func (v *Value) copyInto(b *Block) *Value {
 		}
 	}
 	return c
-}
-
-// copyIntoNoXPos makes a new value identical to v and adds it to the end of b.
-// The copied value receives no source code position to avoid confusing changes
-// in debugger information (the intended user is the register allocator).
-func (v *Value) copyIntoNoXPos(b *Block) *Value {
-	return v.copyIntoWithXPos(b, src.NoXPos)
 }
 
 // copyIntoWithXPos makes a new value identical to v and adds it to the end of b.

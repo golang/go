@@ -30,6 +30,11 @@ func (p XPos) Before(q XPos) bool {
 	return n < m || n == m && p.lico < q.lico
 }
 
+// SameFile reports whether p and q are positions in the same file.
+func (p XPos) SameFile(q XPos) bool {
+	return p.index == q.index
+}
+
 // After reports whether the position p comes after q in the source.
 // For positions with different bases, ordering is by base index.
 func (p XPos) After(q XPos) bool {

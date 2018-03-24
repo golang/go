@@ -113,6 +113,17 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 
 	p.As = as
 	p.Pos = pp.pos
+	if pp.pos.IsStmt() == src.PosIsStmt {
+		// Clear IsStmt for later Progs at this pos provided that as generates executable code.
+		switch as {
+		// TODO: this is an artifact of how funcpctab combines information for instructions at a single PC.
+		// Should try to fix it there.  There is a similar workaround in *SSAGenState.Prog in gc/ssa.go.
+		case obj.APCDATA, obj.AFUNCDATA:
+			// is_stmt does not work for these; it DOES for ANOP
+			return p
+		}
+		pp.pos = pp.pos.WithNotStmt()
+	}
 	return p
 }
 
