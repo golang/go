@@ -274,7 +274,11 @@ func setsig(i uint32, fn uintptr) {
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
 	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+		if iscgo {
+			fn = funcPC(cgoSigtramp)
+		} else {
+			fn = funcPC(sigtramp)
+		}
 	}
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
 	sigaction(i, &sa, nil)
@@ -283,6 +287,7 @@ func setsig(i uint32, fn uintptr) {
 // sigtramp is the callback from libc when a signal is received.
 // It is called with the C calling convention.
 func sigtramp()
+func cgoSigtramp()
 
 //go:nosplit
 //go:nowritebarrierrec

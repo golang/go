@@ -227,6 +227,9 @@ nog:
 
 	RET
 
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	JMP	runtime·sigtramp(SB)
+
 TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
 	MOVW	4(R0), R1	// arg 2 new
 	MOVW	8(R0), R2	// arg 3 old
