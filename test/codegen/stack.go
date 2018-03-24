@@ -87,9 +87,9 @@ func ArrayInit(i, j int) [4]int {
 // Check that assembly output has matching offset and base register
 // (issue #21064).
 
-// amd64:`.*b\+24\(SP\)`
-// arm:`.*b\+4\(FP\)`
 func check_asmout(a, b int) int {
 	runtime.GC() // use some frame
+	// amd64:`.*b\+24\(SP\)`
+	// arm:`.*b\+4\(FP\)`
 	return b
 }

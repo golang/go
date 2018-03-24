@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"fmt"
 	"io"
 	"math"
@@ -16,6 +17,8 @@ import (
 
 func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	// repeat rewrites until we find no more rewrites
+	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+	pendingLines.clear()
 	for {
 		change := false
 		for _, b := range f.Blocks {
@@ -27,7 +30,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 			if rb(b) {
 				change = true
 			}
-			for _, v := range b.Values {
+			for j, v := range b.Values {
 				change = phielimValue(v) || change
 
 				// Eliminate copy inputs.
@@ -41,7 +44,27 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 					if a.Op != OpCopy {
 						continue
 					}
-					v.SetArg(i, copySource(a))
+					aa := copySource(a)
+					v.SetArg(i, aa)
+					// If a, a copy, has a line boundary indicator, attempt to find a new value
+					// to hold it.  The first candidate is the value that will replace a (aa),
+					// if it shares the same block and line and is eligible.
+					// The second option is v, which has a as an input.  Because aa is earlier in
+					// the data flow, it is the better choice.
+					if a.Pos.IsStmt() == src.PosIsStmt {
+						if aa.Block == a.Block && aa.Pos.Line() == a.Pos.Line() && aa.Pos.IsStmt() != src.PosNotStmt {
+							aa.Pos = aa.Pos.WithIsStmt()
+						} else if v.Block == a.Block && v.Pos.Line() == a.Pos.Line() && v.Pos.IsStmt() != src.PosNotStmt {
+							v.Pos = v.Pos.WithIsStmt()
+						} else {
+							// Record the lost line and look for a new home after all rewrites are complete.
+							// TODO: it's possible (in FOR loops, in particular) for statement boundaries for the same
+							// line to appear in more than one block, but only one block is stored, so if both end
+							// up here, then one will be lost.
+							pendingLines.set(a.Pos.Line(), int32(a.Block.ID))
+						}
+						a.Pos = a.Pos.WithNotStmt()
+					}
 					change = true
 					for a.Uses == 0 {
 						b := a.Args[0]
@@ -53,6 +76,13 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 				// apply rewrite function
 				if rv(v) {
 					change = true
+					// If value changed to a poor choice for a statement boundary, move the boundary
+					if v.Pos.IsStmt() == src.PosIsStmt {
+						if k := nextGoodStatementIndex(v, j, b); k != j {
+							v.Pos = v.Pos.WithNotStmt()
+							b.Values[k].Pos = b.Values[k].Pos.WithIsStmt()
+						}
+					}
 				}
 			}
 		}
@@ -64,14 +94,26 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	for _, b := range f.Blocks {
 		j := 0
 		for i, v := range b.Values {
+			vl := v.Pos.Line()
 			if v.Op == OpInvalid {
+				if v.Pos.IsStmt() == src.PosIsStmt {
+					pendingLines.set(vl, int32(b.ID))
+				}
 				f.freeValue(v)
 				continue
+			}
+			if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.get(vl) == int32(b.ID) {
+				pendingLines.remove(vl)
+				v.Pos = v.Pos.WithIsStmt()
 			}
 			if i != j {
 				b.Values[j] = v
 			}
 			j++
+		}
+		if pendingLines.get(b.Pos.Line()) == int32(b.ID) {
+			b.Pos = b.Pos.WithIsStmt()
+			pendingLines.remove(b.Pos.Line())
 		}
 		if j != len(b.Values) {
 			tail := b.Values[j:]

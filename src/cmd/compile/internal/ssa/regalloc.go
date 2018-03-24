@@ -2006,7 +2006,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
 		}
 		if dstReg {
-			x = v.copyIntoNoXPos(e.p)
+			x = v.copyInto(e.p)
 		} else {
 			// Rematerialize into stack slot. Need a free
 			// register to accomplish this.
