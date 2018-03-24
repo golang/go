@@ -140,7 +140,7 @@ func rewriteValue386(v *Value) bool {
 	case Op386MULL:
 		return rewriteValue386_Op386MULL_0(v)
 	case Op386MULLconst:
-		return rewriteValue386_Op386MULLconst_0(v) || rewriteValue386_Op386MULLconst_10(v) || rewriteValue386_Op386MULLconst_20(v)
+		return rewriteValue386_Op386MULLconst_0(v) || rewriteValue386_Op386MULLconst_10(v) || rewriteValue386_Op386MULLconst_20(v) || rewriteValue386_Op386MULLconst_30(v)
 	case Op386NEGL:
 		return rewriteValue386_Op386NEGL_0(v)
 	case Op386NOTL:
@@ -8339,6 +8339,51 @@ func rewriteValue386_Op386MULLconst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MULLconst [-9] x)
+	// cond:
+	// result: (NEGL (LEAL8 <v.Type> x x))
+	for {
+		if v.AuxInt != -9 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(Op386NEGL)
+		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULLconst [-5] x)
+	// cond:
+	// result: (NEGL (LEAL4 <v.Type> x x))
+	for {
+		if v.AuxInt != -5 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(Op386NEGL)
+		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULLconst [-3] x)
+	// cond:
+	// result: (NEGL (LEAL2 <v.Type> x x))
+	for {
+		if v.AuxInt != -3 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(Op386NEGL)
+		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (MULLconst [-1] x)
 	// cond:
 	// result: (NEGL x)
@@ -8403,19 +8448,25 @@ func rewriteValue386_Op386MULLconst_0(v *Value) bool {
 	}
 	// match: (MULLconst [7] x)
 	// cond:
-	// result: (LEAL8 (NEGL <v.Type> x) x)
+	// result: (LEAL2 x (LEAL2 <v.Type> x x))
 	for {
 		if v.AuxInt != 7 {
 			break
 		}
 		x := v.Args[0]
-		v.reset(Op386LEAL8)
-		v0 := b.NewValue0(v.Pos, Op386NEGL, v.Type)
+		v.reset(Op386LEAL2)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v0.AddArg(x)
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValue386_Op386MULLconst_10(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (MULLconst [9] x)
 	// cond:
 	// result: (LEAL8 x x)
@@ -8461,11 +8512,22 @@ func rewriteValue386_Op386MULLconst_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValue386_Op386MULLconst_10(v *Value) bool {
-	b := v.Block
-	_ = b
+	// match: (MULLconst [19] x)
+	// cond:
+	// result: (LEAL2 x (LEAL8 <v.Type> x x))
+	for {
+		if v.AuxInt != 19 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(Op386LEAL2)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (MULLconst [21] x)
 	// cond:
 	// result: (LEAL4 x (LEAL4 <v.Type> x x))
@@ -8496,6 +8558,25 @@ func rewriteValue386_Op386MULLconst_10(v *Value) bool {
 		v0.AddArg(x)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (MULLconst [27] x)
+	// cond:
+	// result: (LEAL8 (LEAL2 <v.Type> x x) (LEAL2 <v.Type> x x))
+	for {
+		if v.AuxInt != 27 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v1.AddArg(x)
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 	// match: (MULLconst [37] x)
@@ -8530,6 +8611,30 @@ func rewriteValue386_Op386MULLconst_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (MULLconst [45] x)
+	// cond:
+	// result: (LEAL8 (LEAL4 <v.Type> x x) (LEAL4 <v.Type> x x))
+	for {
+		if v.AuxInt != 45 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v1.AddArg(x)
+		v1.AddArg(x)
+		v.AddArg(v1)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386MULLconst_20(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (MULLconst [73] x)
 	// cond:
 	// result: (LEAL8 x (LEAL8 <v.Type> x x))
@@ -8544,6 +8649,25 @@ func rewriteValue386_Op386MULLconst_10(v *Value) bool {
 		v0.AddArg(x)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (MULLconst [81] x)
+	// cond:
+	// result: (LEAL8 (LEAL8 <v.Type> x x) (LEAL8 <v.Type> x x))
+	for {
+		if v.AuxInt != 81 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v1.AddArg(x)
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 	// match: (MULLconst [c] x)
@@ -8631,11 +8755,6 @@ func rewriteValue386_Op386MULLconst_10(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
-}
-func rewriteValue386_Op386MULLconst_20(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (MULLconst [c] x)
 	// cond: c%3 == 0 && isPowerOfTwo(c/3)
 	// result: (SHLLconst [log2(c/3)] (LEAL2 <v.Type> x x))
@@ -8687,6 +8806,9 @@ func rewriteValue386_Op386MULLconst_20(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	return false
+}
+func rewriteValue386_Op386MULLconst_30(v *Value) bool {
 	// match: (MULLconst [c] (MOVLconst [d]))
 	// cond:
 	// result: (MOVLconst [int64(int32(c*d))])

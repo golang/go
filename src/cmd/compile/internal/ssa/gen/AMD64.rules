@@ -954,24 +954,34 @@
 
 // strength reduction
 // Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
-//    1 - addq, shlq, leaq, negq
+//    1 - addq, shlq, leaq, negq, subq
 //    3 - imulq
 // This limits the rewrites to two instructions.
-// TODO: 27, 81
+// Note that negq always operates in-place,
+// which can require a register-register move
+// to preserve the original value,
+// so it must be used with care.
+(MULQconst [-9] x) -> (NEGQ (LEAQ8 <v.Type> x x))
+(MULQconst [-5] x) -> (NEGQ (LEAQ4 <v.Type> x x))
+(MULQconst [-3] x) -> (NEGQ (LEAQ2 <v.Type> x x))
 (MULQconst [-1] x) -> (NEGQ x)
 (MULQconst [0] _) -> (MOVQconst [0])
 (MULQconst [1] x) -> x
 (MULQconst [3] x) -> (LEAQ2 x x)
 (MULQconst [5] x) -> (LEAQ4 x x)
-(MULQconst [7] x) -> (LEAQ8 (NEGQ <v.Type> x) x)
+(MULQconst [7] x) -> (LEAQ2 x (LEAQ2 <v.Type> x x))
 (MULQconst [9] x) -> (LEAQ8 x x)
 (MULQconst [11] x) -> (LEAQ2 x (LEAQ4 <v.Type> x x))
 (MULQconst [13] x) -> (LEAQ4 x (LEAQ2 <v.Type> x x))
+(MULQconst [19] x) -> (LEAQ2 x (LEAQ8 <v.Type> x x))
 (MULQconst [21] x) -> (LEAQ4 x (LEAQ4 <v.Type> x x))
 (MULQconst [25] x) -> (LEAQ8 x (LEAQ2 <v.Type> x x))
+(MULQconst [27] x) -> (LEAQ8 (LEAQ2 <v.Type> x x) (LEAQ2 <v.Type> x x))
 (MULQconst [37] x) -> (LEAQ4 x (LEAQ8 <v.Type> x x))
 (MULQconst [41] x) -> (LEAQ8 x (LEAQ4 <v.Type> x x))
+(MULQconst [45] x) -> (LEAQ8 (LEAQ4 <v.Type> x x) (LEAQ4 <v.Type> x x))
 (MULQconst [73] x) -> (LEAQ8 x (LEAQ8 <v.Type> x x))
+(MULQconst [81] x) -> (LEAQ8 (LEAQ8 <v.Type> x x) (LEAQ8 <v.Type> x x))
 
 (MULQconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBQ (SHLQconst <v.Type> [log2(c+1)] x) x)
 (MULQconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (LEAQ1 (SHLQconst <v.Type> [log2(c-1)] x) x)

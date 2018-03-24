@@ -495,24 +495,34 @@
 
 // strength reduction
 // Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
-//    1 - addq, shlq, leaq, negq
-//    3 - imulq
+//    1 - addl, shll, leal, negl, subl
+//    3 - imull
 // This limits the rewrites to two instructions.
-// TODO: 27, 81
+// Note that negl always operates in-place,
+// which can require a register-register move
+// to preserve the original value,
+// so it must be used with care.
+(MULLconst [-9] x) -> (NEGL (LEAL8 <v.Type> x x))
+(MULLconst [-5] x) -> (NEGL (LEAL4 <v.Type> x x))
+(MULLconst [-3] x) -> (NEGL (LEAL2 <v.Type> x x))
 (MULLconst [-1] x) -> (NEGL x)
 (MULLconst [0] _) -> (MOVLconst [0])
 (MULLconst [1] x) -> x
 (MULLconst [3] x) -> (LEAL2 x x)
 (MULLconst [5] x) -> (LEAL4 x x)
-(MULLconst [7] x) -> (LEAL8 (NEGL <v.Type> x) x)
+(MULLconst [7] x) -> (LEAL2 x (LEAL2 <v.Type> x x))
 (MULLconst [9] x) -> (LEAL8 x x)
 (MULLconst [11] x) -> (LEAL2 x (LEAL4 <v.Type> x x))
 (MULLconst [13] x) -> (LEAL4 x (LEAL2 <v.Type> x x))
+(MULLconst [19] x) -> (LEAL2 x (LEAL8 <v.Type> x x))
 (MULLconst [21] x) -> (LEAL4 x (LEAL4 <v.Type> x x))
 (MULLconst [25] x) -> (LEAL8 x (LEAL2 <v.Type> x x))
+(MULLconst [27] x) -> (LEAL8 (LEAL2 <v.Type> x x) (LEAL2 <v.Type> x x))
 (MULLconst [37] x) -> (LEAL4 x (LEAL8 <v.Type> x x))
 (MULLconst [41] x) -> (LEAL8 x (LEAL4 <v.Type> x x))
+(MULLconst [45] x) -> (LEAL8 (LEAL4 <v.Type> x x) (LEAL4 <v.Type> x x))
 (MULLconst [73] x) -> (LEAL8 x (LEAL8 <v.Type> x x))
+(MULLconst [81] x) -> (LEAL8 (LEAL8 <v.Type> x x) (LEAL8 <v.Type> x x))
 
 (MULLconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBL (SHLLconst <v.Type> [log2(c+1)] x) x)
 (MULLconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (LEAL1 (SHLLconst <v.Type> [log2(c-1)] x) x)
