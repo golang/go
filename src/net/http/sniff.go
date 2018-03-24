@@ -140,6 +140,7 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("OTTO"), "application/font-off"},
 	&exactSig{[]byte("ttcf"), "application/font-cff"},
 	&exactSig{[]byte("wOFF"), "application/font-woff"},
+	&exactSig{[]byte("wOF2"), "application/font-woff2"},
 
 	&exactSig{[]byte("\x1A\x45\xDF\xA3"), "video/webm"},
 	&exactSig{[]byte("\x52\x61\x72\x20\x1A\x07\x00"), "application/x-rar-compressed"},

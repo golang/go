@@ -64,8 +64,7 @@ var sniffTests = []struct {
 	{"OTTO sample  I", []byte("\x4f\x54\x54\x4f\x00\x0e\x00\x80\x00\x03\x00\x60\x42\x41\x53\x45"), "application/font-off"},
 
 	{"woff sample  I", []byte("\x77\x4f\x46\x46\x00\x01\x00\x00\x00\x00\x30\x54\x00\x0d\x00\x00"), "application/font-woff"},
-	// Woff2 is not yet recognized, change this test once mime-sniff working group adds woff2
-	{"woff2 not recognized", []byte("\x77\x4f\x46\x32\x00\x01\x00\x00\x00"), "application/octet-stream"},
+	{"woff2 sample", []byte("\x77\x4f\x46\x32\x00\x01\x00\x00\x00"), "application/font-woff2"},
 }
 
 func TestDetectContentType(t *testing.T) {
