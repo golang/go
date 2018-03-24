@@ -300,7 +300,7 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAMD64MULQ:
 		return rewriteValueAMD64_OpAMD64MULQ_0(v)
 	case OpAMD64MULQconst:
-		return rewriteValueAMD64_OpAMD64MULQconst_0(v) || rewriteValueAMD64_OpAMD64MULQconst_10(v) || rewriteValueAMD64_OpAMD64MULQconst_20(v)
+		return rewriteValueAMD64_OpAMD64MULQconst_0(v) || rewriteValueAMD64_OpAMD64MULQconst_10(v) || rewriteValueAMD64_OpAMD64MULQconst_20(v) || rewriteValueAMD64_OpAMD64MULQconst_30(v)
 	case OpAMD64MULSD:
 		return rewriteValueAMD64_OpAMD64MULSD_0(v)
 	case OpAMD64MULSDmem:
@@ -19190,6 +19190,51 @@ func rewriteValueAMD64_OpAMD64MULQconst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MULQconst [-9] x)
+	// cond:
+	// result: (NEGQ (LEAQ8 <v.Type> x x))
+	for {
+		if v.AuxInt != -9 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64NEGQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [-5] x)
+	// cond:
+	// result: (NEGQ (LEAQ4 <v.Type> x x))
+	for {
+		if v.AuxInt != -5 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64NEGQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [-3] x)
+	// cond:
+	// result: (NEGQ (LEAQ2 <v.Type> x x))
+	for {
+		if v.AuxInt != -3 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64NEGQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (MULQconst [-1] x)
 	// cond:
 	// result: (NEGQ x)
@@ -19254,19 +19299,25 @@ func rewriteValueAMD64_OpAMD64MULQconst_0(v *Value) bool {
 	}
 	// match: (MULQconst [7] x)
 	// cond:
-	// result: (LEAQ8 (NEGQ <v.Type> x) x)
+	// result: (LEAQ2 x (LEAQ2 <v.Type> x x))
 	for {
 		if v.AuxInt != 7 {
 			break
 		}
 		x := v.Args[0]
-		v.reset(OpAMD64LEAQ8)
-		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, v.Type)
+		v.reset(OpAMD64LEAQ2)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
+		v0.AddArg(x)
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (MULQconst [9] x)
 	// cond:
 	// result: (LEAQ8 x x)
@@ -19312,11 +19363,22 @@ func rewriteValueAMD64_OpAMD64MULQconst_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
-	b := v.Block
-	_ = b
+	// match: (MULQconst [19] x)
+	// cond:
+	// result: (LEAQ2 x (LEAQ8 <v.Type> x x))
+	for {
+		if v.AuxInt != 19 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ2)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (MULQconst [21] x)
 	// cond:
 	// result: (LEAQ4 x (LEAQ4 <v.Type> x x))
@@ -19347,6 +19409,25 @@ func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
 		v0.AddArg(x)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [27] x)
+	// cond:
+	// result: (LEAQ8 (LEAQ2 <v.Type> x x) (LEAQ2 <v.Type> x x))
+	for {
+		if v.AuxInt != 27 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
+		v1.AddArg(x)
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 	// match: (MULQconst [37] x)
@@ -19381,6 +19462,30 @@ func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (MULQconst [45] x)
+	// cond:
+	// result: (LEAQ8 (LEAQ4 <v.Type> x x) (LEAQ4 <v.Type> x x))
+	for {
+		if v.AuxInt != 45 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
+		v1.AddArg(x)
+		v1.AddArg(x)
+		v.AddArg(v1)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (MULQconst [73] x)
 	// cond:
 	// result: (LEAQ8 x (LEAQ8 <v.Type> x x))
@@ -19395,6 +19500,25 @@ func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
 		v0.AddArg(x)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [81] x)
+	// cond:
+	// result: (LEAQ8 (LEAQ8 <v.Type> x x) (LEAQ8 <v.Type> x x))
+	for {
+		if v.AuxInt != 81 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
+		v1.AddArg(x)
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 	// match: (MULQconst [c] x)
@@ -19482,11 +19606,6 @@ func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (MULQconst [c] x)
 	// cond: c%3 == 0 && isPowerOfTwo(c/3)
 	// result: (SHLQconst [log2(c/3)] (LEAQ2 <v.Type> x x))
@@ -19538,6 +19657,9 @@ func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64MULQconst_30(v *Value) bool {
 	// match: (MULQconst [c] (MOVQconst [d]))
 	// cond:
 	// result: (MOVQconst [c*d])

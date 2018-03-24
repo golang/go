@@ -24,20 +24,27 @@ type op struct {
 	name, symbol string
 }
 type szD struct {
-	name string
-	sn   string
-	u    []uint64
-	i    []int64
+	name   string
+	sn     string
+	u      []uint64
+	i      []int64
+	oponly string
 }
 
 var szs = []szD{
 	{name: "uint64", sn: "64", u: []uint64{0, 1, 4294967296, 0x8000000000000000, 0xffffFFFFffffFFFF}},
+	{name: "uint64", sn: "64", u: []uint64{3, 5, 7, 9, 10, 11, 13, 19, 21, 25, 27, 37, 41, 45, 73, 81}, oponly: "mul"},
+
 	{name: "int64", sn: "64", i: []int64{-0x8000000000000000, -0x7FFFFFFFFFFFFFFF,
 		-4294967296, -1, 0, 1, 4294967296, 0x7FFFFFFFFFFFFFFE, 0x7FFFFFFFFFFFFFFF}},
+	{name: "int64", sn: "64", i: []int64{-9, -5, -3, 3, 5, 7, 9, 10, 11, 13, 19, 21, 25, 27, 37, 41, 45, 73, 81}, oponly: "mul"},
 
 	{name: "uint32", sn: "32", u: []uint64{0, 1, 4294967295}},
+	{name: "uint32", sn: "32", u: []uint64{3, 5, 7, 9, 10, 11, 13, 19, 21, 25, 27, 37, 41, 45, 73, 81}, oponly: "mul"},
+
 	{name: "int32", sn: "32", i: []int64{-0x80000000, -0x7FFFFFFF, -1, 0,
 		1, 0x7FFFFFFF}},
+	{name: "int32", sn: "32", i: []int64{-9, -5, -3, 3, 5, 7, 9, 10, 11, 13, 19, 21, 25, 27, 37, 41, 45, 73, 81}, oponly: "mul"},
 
 	{name: "uint16", sn: "16", u: []uint64{0, 1, 65535}},
 	{name: "int16", sn: "16", i: []int64{-32768, -32767, -1, 0, 1, 32766, 32767}},
@@ -162,6 +169,9 @@ func {{.Name}}_{{.FNumber}}_{{.Type_}}(a {{.Type_}}) {{.Type_}} { return {{.Numb
 
 	for _, s := range szs {
 		for _, o := range ops {
+			if s.oponly != "" && s.oponly != o.name {
+				continue
+			}
 			fd := fncData{o.name, s.name, o.symbol, "", ""}
 
 			// unsigned test cases
@@ -218,17 +228,20 @@ func {{.Name}}_{{.FNumber}}_{{.Type_}}(a {{.Type_}}) {{.Type_}} { return {{.Numb
 	}
 	for _, s := range szs {
 		fmt.Fprintf(w, `
-type test_%[1]s struct {
+type test_%[1]s%[2]s struct {
 	fn func (%[1]s) %[1]s
 	fnname string
 	in %[1]s
 	want %[1]s
 }
-`, s.name)
-		fmt.Fprintf(w, "var tests_%[1]s =[]test_%[1]s {\n\n", s.name)
+`, s.name, s.oponly)
+		fmt.Fprintf(w, "var tests_%[1]s%[2]s =[]test_%[1]s {\n\n", s.name, s.oponly)
 
 		if len(s.u) > 0 {
 			for _, o := range ops {
+				if s.oponly != "" && s.oponly != o.name {
+					continue
+				}
 				fd := cfncData{s.name, o.name, s.name, o.symbol, "", "", "", ""}
 				for _, i := range s.u {
 					fd.Number = fmt.Sprintf("%d", i)
@@ -262,6 +275,9 @@ type test_%[1]s struct {
 		// signed
 		if len(s.i) > 0 {
 			for _, o := range ops {
+				if s.oponly != "" && s.oponly != o.name {
+					continue
+				}
 				// don't generate tests for shifts by signed integers
 				if o.name == "lsh" || o.name == "rsh" {
 					continue
@@ -303,7 +319,7 @@ func main() {
 `)
 
 	for _, s := range szs {
-		fmt.Fprintf(w, `for _, test := range tests_%s {`, s.name)
+		fmt.Fprintf(w, `for _, test := range tests_%s%s {`, s.name, s.oponly)
 		// Use WriteString here to avoid a vet warning about formatting directives.
 		w.WriteString(`if got := test.fn(test.in); got != test.want {
 			fmt.Printf("%s(%d) = %d, want %d\n", test.fnname, test.in, got, test.want)
