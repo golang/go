@@ -282,17 +282,11 @@
 (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) ->
   (Add32 (Const32 <t> [int64(int32(c*d))]) (Mul32 <t> (Const32 <t> [c]) x))
 
-// Rewrite x*y + x*z  to  x*(y+z)
-(Add64 <t> (Mul64 x y) (Mul64 x z)) -> (Mul64 x (Add64 <t> y z))
-(Add32 <t> (Mul32 x y) (Mul32 x z)) -> (Mul32 x (Add32 <t> y z))
-(Add16 <t> (Mul16 x y) (Mul16 x z)) -> (Mul16 x (Add16 <t> y z))
-(Add8  <t> (Mul8  x y) (Mul8  x z)) -> (Mul8  x (Add8  <t> y z))
-
-// Rewrite x*y - x*z  to  x*(y-z)
-(Sub64 <t> (Mul64 x y) (Mul64 x z)) -> (Mul64 x (Sub64 <t> y z))
-(Sub32 <t> (Mul32 x y) (Mul32 x z)) -> (Mul32 x (Sub32 <t> y z))
-(Sub16 <t> (Mul16 x y) (Mul16 x z)) -> (Mul16 x (Sub16 <t> y z))
-(Sub8  <t> (Mul8  x y) (Mul8  x z)) -> (Mul8  x (Sub8  <t> y z))
+// Rewrite x*y ± x*z  to  x*(y±z)
+(Add(64|32|16|8) <t> (Mul(64|32|16|8) x y) (Mul(64|32|16|8) x z))
+	-> (Mul(64|32|16|8) x (Add(64|32|16|8) <t> y z))
+(Sub(64|32|16|8) <t> (Mul(64|32|16|8) x y) (Mul(64|32|16|8) x z))
+	-> (Mul(64|32|16|8) x (Sub(64|32|16|8) <t> y z))
 
 // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
 // the number of the other rewrite rules for const shifts
@@ -337,20 +331,11 @@
 (Rsh8Ux8  <t> x (Const8  [c])) -> (Rsh8Ux64 x (Const64 <t> [int64(uint8(c))]))
 
 // shifts by zero
-(Lsh64x64  x (Const64 [0])) -> x
-(Rsh64x64  x (Const64 [0])) -> x
-(Rsh64Ux64 x (Const64 [0])) -> x
-(Lsh32x64  x (Const64 [0])) -> x
-(Rsh32x64  x (Const64 [0])) -> x
-(Rsh32Ux64 x (Const64 [0])) -> x
-(Lsh16x64  x (Const64 [0])) -> x
-(Rsh16x64  x (Const64 [0])) -> x
-(Rsh16Ux64 x (Const64 [0])) -> x
-(Lsh8x64   x (Const64 [0])) -> x
-(Rsh8x64   x (Const64 [0])) -> x
-(Rsh8Ux64  x (Const64 [0])) -> x
+(Lsh(64|32|16|8)x64  x (Const64 [0])) -> x
+(Rsh(64|32|16|8)x64  x (Const64 [0])) -> x
+(Rsh(64|32|16|8)Ux64 x (Const64 [0])) -> x
 
-// zero shifted.
+// zero shifted
 (Lsh64x(64|32|16|8)  (Const64 [0]) _) -> (Const64 [0])
 (Rsh64x(64|32|16|8)  (Const64 [0]) _) -> (Const64 [0])
 (Rsh64Ux(64|32|16|8) (Const64 [0]) _) -> (Const64 [0])
@@ -481,19 +466,10 @@
 
 (Neg(64|32|16|8) (Sub(64|32|16|8) x y)) -> (Sub(64|32|16|8) y x)
 
-(Add8  (Const8  [1]) (Com8  x)) -> (Neg8  x)
-(Add16 (Const16 [1]) (Com16 x)) -> (Neg16 x)
-(Add32 (Const32 [1]) (Com32 x)) -> (Neg32 x)
-(Add64 (Const64 [1]) (Com64 x)) -> (Neg64 x)
+(Add(64|32|16|8) (Const(64|32|16|8) [1]) (Com(64|32|16|8) x)) -> (Neg(64|32|16|8) x)
 
-(And64 x (And64 x y)) -> (And64 x y)
-(And32 x (And32 x y)) -> (And32 x y)
-(And16 x (And16 x y)) -> (And16 x y)
-(And8  x (And8  x y)) -> (And8  x y)
-(Or64 x (Or64 x y)) -> (Or64 x y)
-(Or32 x (Or32 x y)) -> (Or32 x y)
-(Or16 x (Or16 x y)) -> (Or16 x y)
-(Or8  x (Or8  x y)) -> (Or8  x y)
+(And(64|32|16|8) x (And(64|32|16|8) x y)) -> (And(64|32|16|8) x y)
+(Or(64|32|16|8) x (Or(64|32|16|8) x y)) -> (Or(64|32|16|8) x y)
 (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) -> y
 
 // Ands clear bits. Ors set bits.
