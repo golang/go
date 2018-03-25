@@ -822,6 +822,11 @@ func (v Values) Del(key string) {
 	delete(v, key)
 }
 
+// SetQuery sets query parameters for a URL.
+func (u *URL) SetQuery(values Values) {
+	u.RawQuery = values.Encode()
+}
+
 // ParseQuery parses the URL-encoded query string and returns
 // a map listing the values specified for each key.
 // ParseQuery always returns a non-nil map containing all the

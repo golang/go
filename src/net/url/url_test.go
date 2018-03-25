@@ -1742,3 +1742,46 @@ func TestInvalidUserPassword(t *testing.T) {
 		t.Errorf("error = %q; want substring %q", got, wantsub)
 	}
 }
+
+func TestSetQuery(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    Values
+		expected URL
+	}{
+		{
+			name:     "NoValues",
+			input:    Values{},
+			expected: URL{},
+		},
+		{
+			name: "TwoValuesForSameKey",
+			input: Values{
+				"a": {"1", "2"},
+			},
+			expected: URL{
+				RawQuery: "a=1&a=2",
+			},
+		},
+		{
+			name: "TwoDifferentKeys",
+			input: Values{
+				"b": {"1"},
+				"a": {"2"},
+			},
+			expected: URL{
+				RawQuery: "a=2&b=1",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var u URL
+			u.SetQuery(tt.input)
+			if u != tt.expected {
+				t.Errorf("Got %q; expected %q", u.String(), tt.expected.String())
+			}
+		})
+	}
+}
