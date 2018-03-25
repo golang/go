@@ -60,6 +60,8 @@ var lookupGoogleSRVTests = []struct {
 	},
 }
 
+var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 30 * time.Second}
+
 func TestLookupGoogleSRV(t *testing.T) {
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
@@ -69,10 +71,20 @@ func TestLookupGoogleSRV(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
-	for _, tt := range lookupGoogleSRVTests {
+	attempts := 0
+	for i := 0; i < len(lookupGoogleSRVTests); i++ {
+		tt := lookupGoogleSRVTests[i]
 		cname, srvs, err := LookupSRV(tt.service, tt.proto, tt.name)
 		if err != nil {
 			testenv.SkipFlakyNet(t)
+			if attempts < len(backoffDuration) {
+				dur := backoffDuration[attempts]
+				t.Logf("backoff %v after failure %v\n", dur, err)
+				time.Sleep(dur)
+				attempts++
+				i--
+				continue
+			}
 			t.Fatal(err)
 		}
 		if len(srvs) == 0 {
@@ -107,9 +119,20 @@ func TestLookupGmailMX(t *testing.T) {
 
 	defer dnsWaitGroup.Wait()
 
-	for _, tt := range lookupGmailMXTests {
+	attempts := 0
+	for i := 0; i < len(lookupGmailMXTests); i++ {
+		tt := lookupGmailMXTests[i]
 		mxs, err := LookupMX(tt.name)
 		if err != nil {
+			testenv.SkipFlakyNet(t)
+			if attempts < len(backoffDuration) {
+				dur := backoffDuration[attempts]
+				t.Logf("backoff %v after failure %v\n", dur, err)
+				time.Sleep(dur)
+				attempts++
+				i--
+				continue
+			}
 			t.Fatal(err)
 		}
 		if len(mxs) == 0 {
@@ -176,9 +199,20 @@ func TestLookupGmailTXT(t *testing.T) {
 
 	defer dnsWaitGroup.Wait()
 
-	for _, tt := range lookupGmailTXTTests {
+	attempts := 0
+	for i := 0; i < len(lookupGmailTXTTests); i++ {
+		tt := lookupGmailTXTTests[i]
 		txts, err := LookupTXT(tt.name)
 		if err != nil {
+			testenv.SkipFlakyNet(t)
+			if attempts < len(backoffDuration) {
+				dur := backoffDuration[attempts]
+				t.Logf("backoff %v after failure %v\n", dur, err)
+				time.Sleep(dur)
+				attempts++
+				i--
+				continue
+			}
 			t.Fatal(err)
 		}
 		if len(txts) == 0 {
