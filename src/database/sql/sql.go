@@ -1098,7 +1098,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			select {
 			default:
 			case ret, ok := <-req:
-				if ok {
+				if ok && ret.conn != nil {
 					db.putConn(ret.conn, ret.err, false)
 				}
 			}
