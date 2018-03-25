@@ -234,7 +234,6 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		r = reverseBits[r]
 	}
 	if v != nil && w.isGenericIntConst() {
-		c := w.AuxInt
 		// Note: all the +1/-1 below could overflow/underflow. Either will
 		// still generate correct results, it will just lead to imprecision.
 		// In fact if there is overflow/underflow, the corresponding
@@ -247,6 +246,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		lim := noLimit
 		switch d {
 		case signed:
+			c := w.AuxInt
 			switch r {
 			case lt:
 				lim.max = c - 1
@@ -279,17 +279,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 				lim.umax = uint64(lim.max)
 			}
 		case unsigned:
-			var uc uint64
-			switch w.Op {
-			case OpConst64:
-				uc = uint64(c)
-			case OpConst32:
-				uc = uint64(uint32(c))
-			case OpConst16:
-				uc = uint64(uint16(c))
-			case OpConst8:
-				uc = uint64(uint8(c))
-			}
+			uc := w.AuxUnsigned()
 			switch r {
 			case lt:
 				lim.umax = uc - 1
