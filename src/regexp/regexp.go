@@ -30,8 +30,8 @@
 // matches of the entire expression. Empty matches abutting a preceding
 // match are ignored. The return value is a slice containing the successive
 // return values of the corresponding non-'All' routine. These routines take
-// an extra integer argument, n; if n >= 0, the function returns at most n
-// matches/submatches.
+// an extra integer argument, n. If n >= 0, the function returns at most n
+// matches/submatches; otherwise, it returns all of them.
 //
 // If 'String' is present, the argument is a string; otherwise it is a slice
 // of bytes; return values are adjusted as appropriate.
