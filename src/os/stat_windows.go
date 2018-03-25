@@ -8,6 +8,24 @@ import (
 	"syscall"
 )
 
+// isNulName returns true if name is NUL file name.
+// For example, it returns true for both "NUL" and "nul".
+func isNulName(name string) bool {
+	if len(name) != 3 {
+		return false
+	}
+	if name[0] != 'n' && name[0] != 'N' {
+		return false
+	}
+	if name[1] != 'u' && name[1] != 'U' {
+		return false
+	}
+	if name[2] != 'l' && name[2] != 'L' {
+		return false
+	}
+	return true
+}
+
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
 func (file *File) Stat() (FileInfo, error) {
@@ -19,7 +37,7 @@ func (file *File) Stat() (FileInfo, error) {
 		// I don't know any better way to do that for directory
 		return Stat(file.dirinfo.path)
 	}
-	if file.name == DevNull {
+	if isNulName(file.name) {
 		return &devNullStat, nil
 	}
 
@@ -45,7 +63,7 @@ func statNolog(name string) (FileInfo, error) {
 	if len(name) == 0 {
 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
-	if name == DevNull {
+	if isNulName(name) {
 		return &devNullStat, nil
 	}
 	namep, err := syscall.UTF16PtrFromString(fixLongPath(name))
@@ -80,7 +98,7 @@ func lstatNolog(name string) (FileInfo, error) {
 	if len(name) == 0 {
 		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
-	if name == DevNull {
+	if isNulName(name) {
 		return &devNullStat, nil
 	}
 	namep, err := syscall.UTF16PtrFromString(fixLongPath(name))
