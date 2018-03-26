@@ -551,7 +551,9 @@ type gdbState struct {
 
 func newGdb(tag, executable string, args ...string) dbgr {
 	// Turn off shell, necessary for Darwin apparently
-	cmd := exec.Command(gdb, "-ex", "set startup-with-shell off", executable)
+	cmd := exec.Command(gdb, "-nx",
+		"-iex", fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
+		"-ex", "set startup-with-shell off", executable)
 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
 	s := &gdbState{tagg: tag, cmd: cmd, args: args}
 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
