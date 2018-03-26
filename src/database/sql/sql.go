@@ -2856,7 +2856,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //
 // Source values of type time.Time may be scanned into values of type
 // *time.Time, *interface{}, *string, or *[]byte. When converting to
-// the latter two, time.Format3339Nano is used.
+// the latter two, time.RFC3339Nano is used.
 //
 // Source values of type bool may be scanned into types *bool,
 // *interface{}, *string, *[]byte, or *RawBytes.
