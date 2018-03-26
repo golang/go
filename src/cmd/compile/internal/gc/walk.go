@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"encoding/binary"
 	"fmt"
 	"strings"
 )
@@ -1281,21 +1282,14 @@ opswitch:
 			maxRewriteLen := 6
 			// Some architectures can load unaligned byte sequence as 1 word.
 			// So we can cover longer strings with the same amount of code.
-			canCombineLoads := false
+			canCombineLoads := canMergeLoads()
 			combine64bit := false
-			// TODO: does this improve performance on any other architectures?
-			switch thearch.LinkArch.Family {
-			case sys.AMD64:
-				// Larger compare require longer instructions, so keep this reasonably low.
-				// Data from CL 26758 shows that longer strings are rare.
-				// If we really want we can do 16 byte SSE comparisons in the future.
-				maxRewriteLen = 16
-				canCombineLoads = true
-				combine64bit = true
-			case sys.I386:
-				maxRewriteLen = 8
-				canCombineLoads = true
+			if canCombineLoads {
+				// Keep this low enough to generate less code than a function call.
+				maxRewriteLen = 2 * thearch.LinkArch.RegSize
+				combine64bit = thearch.LinkArch.RegSize >= 8
 			}
+
 			var and Op
 			switch cmp {
 			case OEQ:
@@ -3288,15 +3282,10 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	var inline bool
 
 	maxcmpsize := int64(4)
-	unalignedLoad := false
-	switch thearch.LinkArch.Family {
-	case sys.AMD64, sys.ARM64, sys.S390X:
-		// Keep this low enough, to generate less code than function call.
-		maxcmpsize = 16
-		unalignedLoad = true
-	case sys.I386:
-		maxcmpsize = 8
-		unalignedLoad = true
+	unalignedLoad := canMergeLoads()
+	if unalignedLoad {
+		// Keep this low enough to generate less code than a function call.
+		maxcmpsize = 2 * int64(thearch.LinkArch.RegSize)
 	}
 
 	switch t.Etype {
@@ -3912,4 +3901,19 @@ func substArgTypes(old *Node, types_ ...*types.Type) *Node {
 		Fatalf("substArgTypes: too many argument types")
 	}
 	return n
+}
+
+// canMergeLoads reports whether the backend optimization passes for
+// the current architecture can combine adjacent loads into a single
+// larger, possibly unaligned, load. Note that currently the
+// optimizations must be able to handle little endian byte order.
+func canMergeLoads() bool {
+	switch thearch.LinkArch.Family {
+	case sys.ARM64, sys.AMD64, sys.I386, sys.S390X:
+		return true
+	case sys.PPC64:
+		// Load combining only supported on ppc64le.
+		return thearch.LinkArch.ByteOrder == binary.LittleEndian
+	}
+	return false
 }
