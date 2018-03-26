@@ -1835,12 +1835,6 @@ func testDevNullFile(t *testing.T, devNullName string, ignoreCase bool) {
 		t.Fatalf("Stat(%s): %v", devNullName, err)
 	}
 	testDevNullFileInfo(t, "Stat", devNullName, fi, ignoreCase)
-
-	fi, err = Lstat(devNullName)
-	if err != nil {
-		t.Fatalf("Lstat(%s): %v", devNullName, err)
-	}
-	testDevNullFileInfo(t, "Lstat", devNullName, fi, ignoreCase)
 }
 
 func TestDevNullFile(t *testing.T) {
