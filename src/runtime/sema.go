@@ -507,7 +507,7 @@ func notifyListWait(l *notifyList, t uint32) {
 		l.tail.next = s
 	}
 	l.tail = s
-	goparkunlock(&l.lock, "semacquire", traceEvGoBlockCond, 3)
+	goparkunlock(&l.lock, "sync.Cond.Wait", traceEvGoBlockCond, 3)
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
 	}
