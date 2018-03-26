@@ -2563,6 +2563,9 @@ type Rows struct {
 }
 
 func (rs *Rows) initContextClose(ctx, txctx context.Context) {
+	if ctx.Done() == nil && (txctx == nil || txctx.Done() == nil) {
+		return
+	}
 	ctx, rs.cancel = context.WithCancel(ctx)
 	go rs.awaitDone(ctx, txctx)
 }
