@@ -5,7 +5,6 @@
 package tar
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"path"
@@ -176,7 +175,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		sort.Strings(keys)
 
 		// Write each record to a buffer.
-		var buf bytes.Buffer
+		var buf strings.Builder
 		for _, k := range keys {
 			rec, err := formatPAXRecord(k, paxHdrs[k])
 			if err != nil {

@@ -5,9 +5,9 @@
 package regexp
 
 import (
-	"bytes"
 	"regexp/syntax"
 	"sort"
+	"strings"
 	"unicode"
 )
 
@@ -54,7 +54,7 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 	}
 
 	// Have prefix; gather characters.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for iop(i) == syntax.InstRune && len(i.Rune) == 1 && syntax.Flags(i.Arg)&syntax.FoldCase == 0 {
 		buf.WriteRune(i.Rune[0])
 		pc, i = i.Out, &p.Inst[i.Out]
