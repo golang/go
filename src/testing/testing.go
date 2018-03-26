@@ -376,7 +376,7 @@ func (c *common) decorate(s string) string {
 		file = "???"
 		line = 1
 	}
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	// Every line is indented at least one tab.
 	buf.WriteByte('\t')
 	fmt.Fprintf(buf, "%s:%d: ", file, line)
