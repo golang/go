@@ -1136,7 +1136,11 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 func (b *Builder) cleanup(a *Action) {
 	if !cfg.BuildWork {
 		if cfg.BuildX {
-			b.Showcmd("", "rm -r %s", a.Objdir)
+			// Don't say we are removing the directory if
+			// we never created it.
+			if _, err := os.Stat(a.Objdir); err == nil || cfg.BuildN {
+				b.Showcmd("", "rm -r %s", a.Objdir)
+			}
 		}
 		os.RemoveAll(a.Objdir)
 	}

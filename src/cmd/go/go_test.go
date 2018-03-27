@@ -5960,3 +5960,19 @@ func TestFilepathUnderCwdFormat(t *testing.T) {
 	tg.run("test", "-x", "-cover", "log")
 	tg.grepStderrNot(`\.log\.cover\.go`, "-x output should contain correctly formatted filepath under cwd")
 }
+
+// Issue 24396.
+func TestDontReportRemoveOfEmptyDir(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/a/a.go", `package a`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("install", "-x", "a")
+	tg.run("install", "-x", "a")
+	// The second install should have printed only a WORK= line,
+	// nothing else.
+	if bytes.Count(tg.stdout.Bytes(), []byte{'\n'})+bytes.Count(tg.stderr.Bytes(), []byte{'\n'}) > 1 {
+		t.Error("unnecessary output when installing installed package")
+	}
+}
