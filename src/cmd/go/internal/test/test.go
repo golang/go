@@ -331,14 +331,13 @@ profile the tests during execution:
 	    Writes test binary as -c would.
 
 	-memprofile mem.out
-	    Write a memory profile to the file after all tests have passed.
+	    Write an allocation profile to the file after all tests have passed.
 	    Writes test binary as -c would.
 
 	-memprofilerate n
-	    Enable more precise (and expensive) memory profiles by setting
-	    runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
-	    To profile all memory allocations, use -test.memprofilerate=1
-	    and pass --alloc_space flag to the pprof tool.
+	    Enable more precise (and expensive) memory allocation profiles by
+	    setting runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
+	    To profile all memory allocations, use -test.memprofilerate=1.
 
 	-mutexprofile mutex.out
 	    Write a mutex contention profile to the specified file
