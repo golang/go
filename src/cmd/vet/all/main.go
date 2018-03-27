@@ -192,6 +192,12 @@ func vetPlatforms(pp []platform) {
 }
 
 func (p platform) vet() {
+	if p.os == "js" && p.arch == "wasm" {
+		// TODO(neelance): enable as soon as js/wasm has fully landed
+		fmt.Println("skipping js/wasm")
+		return
+	}
+
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
 
