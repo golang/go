@@ -2288,19 +2288,25 @@ func convas(n *Node, init *Nodes) *Node {
 // then it is done first. otherwise must
 // make temp variables
 func reorder1(all []*Node) []*Node {
-	if len(all) == 1 {
-		return all
-	}
+	// When instrumenting, force all arguments into temporary
+	// variables to prevent instrumentation calls from clobbering
+	// arguments already on the stack.
 
 	funcCalls := 0
-	for _, n := range all {
-		updateHasCall(n)
-		if n.HasCall() {
-			funcCalls++
+	if !instrumenting {
+		if len(all) == 1 {
+			return all
 		}
-	}
-	if funcCalls == 0 {
-		return all
+
+		for _, n := range all {
+			updateHasCall(n)
+			if n.HasCall() {
+				funcCalls++
+			}
+		}
+		if funcCalls == 0 {
+			return all
+		}
 	}
 
 	var g []*Node // fncalls assigned to tempnames
@@ -2308,15 +2314,17 @@ func reorder1(all []*Node) []*Node {
 	var r []*Node // non fncalls and tempnames assigned to stack
 	d := 0
 	for _, n := range all {
-		if !n.HasCall() {
-			r = append(r, n)
-			continue
-		}
+		if !instrumenting {
+			if !n.HasCall() {
+				r = append(r, n)
+				continue
+			}
 
-		d++
-		if d == funcCalls {
-			f = n
-			continue
+			d++
+			if d == funcCalls {
+				f = n
+				continue
+			}
 		}
 
 		// make assignment of fncall to tempname
