@@ -159,6 +159,9 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	gclocals := &s.Func.GCLocals
 	gclocals.Set(AttrDuplicateOK, true)
 	gclocals.Type = objabi.SRODATA
+	gcregs := &s.Func.GCRegs
+	gcregs.Set(AttrDuplicateOK, true)
+	gcregs.Type = objabi.SRODATA
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
@@ -202,6 +205,15 @@ func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+
+	// Same, with register map.
+	pcdata = Appendp(pcdata, newprog)
+	pcdata.Pos = s.Func.Text.Pos
+	pcdata.As = APCDATA
+	pcdata.From.Type = TYPE_CONST
+	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.To.Type = TYPE_CONST
+	pcdata.To.Offset = -1
 
 	return pcdata
 }

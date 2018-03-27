@@ -116,6 +116,14 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
 		Addrconst(&p.To, int64(idx))
 	}
+	if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
+		// Emit register map index change.
+		idx := pp.nextLive.regMapIndex
+		pp.prevLive.regMapIndex = idx
+		p := pp.Prog(obj.APCDATA)
+		Addrconst(&p.From, objabi.PCDATA_RegMapIndex)
+		Addrconst(&p.To, int64(idx))
+	}
 
 	p := pp.next
 	pp.next = pp.NewProg()
@@ -189,6 +197,12 @@ func (pp *Progs) settext(fn *Node) {
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = &fn.Func.lsym.Func.GCLocals
+
+	p = pp.Prog(obj.AFUNCDATA)
+	Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = &fn.Func.lsym.Func.GCRegs
 }
 
 func (f *Func) initLSym() {

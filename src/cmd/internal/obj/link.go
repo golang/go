@@ -404,6 +404,7 @@ type FuncInfo struct {
 
 	GCArgs   LSym
 	GCLocals LSym
+	GCRegs   LSym
 }
 
 // Attribute is a set of symbol attributes.
