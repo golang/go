@@ -5,7 +5,6 @@
 package main
 
 import (
-	"go/build"
 	"log"
 	"os"
 	"path"
@@ -25,7 +24,7 @@ type Dirs struct {
 
 var dirs Dirs
 
-func init() {
+func dirsInit() {
 	dirs.paths = make([]string, 0, 1000)
 	dirs.scan = make(chan string)
 	go dirs.walk()
@@ -55,7 +54,7 @@ func (d *Dirs) Next() (string, bool) {
 
 // walk walks the trees in GOROOT and GOPATH.
 func (d *Dirs) walk() {
-	d.bfsWalkRoot(build.Default.GOROOT)
+	d.bfsWalkRoot(buildCtx.GOROOT)
 	for _, root := range splitGopath() {
 		d.bfsWalkRoot(root)
 	}

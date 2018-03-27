@@ -1,0 +1,27 @@
+  src/cmd/compile/internal/ssa/testdata/scopes.go
+18:	func test() {
+19:		x := id(0)
+20:		y := id(0)
+21:		fmt.Println(x)
+0:
+23:			x := i * i
+24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+x = 0
+y = 0
+22:		for i := x; i < 3; i++ {
+23:			x := i * i
+24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+x = 1
+y = 0
+22:		for i := x; i < 3; i++ {
+23:			x := i * i
+24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+x = 4
+y = 1
+22:		for i := x; i < 3; i++ {
+26:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+x = 0
+y = 5
+27:		fmt.Println(x, y)
+0: 5
+11:	}

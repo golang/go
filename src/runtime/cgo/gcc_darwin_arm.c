@@ -9,11 +9,11 @@
 #include <sys/param.h>
 #include <unistd.h>
 
-#include "libcgo.h"
-#include "libcgo_unix.h"
-
 #include <CoreFoundation/CFBundle.h>
 #include <CoreFoundation/CFString.h>
+
+#include "libcgo.h"
+#include "libcgo_unix.h"
 
 #define magic (0xe696c4f4U)
 

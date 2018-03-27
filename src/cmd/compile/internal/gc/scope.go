@@ -113,14 +113,6 @@ func compactScopes(dwarfScopes []dwarf.Scope) []dwarf.Scope {
 	return dwarfScopes
 }
 
-type pcsByPC []scopedPCs
-
-func (s pcsByPC) Len() int      { return len(s) }
-func (s pcsByPC) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s pcsByPC) Less(i, j int) bool {
-	return s[i].start < s[j].start
-}
-
 type varsByScopeAndOffset struct {
 	vars   []*dwarf.Var
 	scopes []ScopeID

@@ -28,7 +28,7 @@ type Func struct {
 	Cache  *Cache      // re-usable cache
 	fe     Frontend    // frontend state associated with this Func, callbacks into compiler frontend
 	pass   *pass       // current pass information (name, options, etc.)
-	Name   string      // e.g. bytes·Compare
+	Name   string      // e.g. NewFunc or (*Func).NumBlocks (no package prefix)
 	Type   *types.Type // type signature of the function.
 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
 	Entry  *Block      // the entry basic block
@@ -84,9 +84,9 @@ func (f *Func) NumValues() int {
 
 // newSparseSet returns a sparse set that can store at least up to n integers.
 func (f *Func) newSparseSet(n int) *sparseSet {
-	for i, scr := range f.Cache.scrSparse {
+	for i, scr := range f.Cache.scrSparseSet {
 		if scr != nil && scr.cap() >= n {
-			f.Cache.scrSparse[i] = nil
+			f.Cache.scrSparseSet[i] = nil
 			scr.clear()
 			return scr
 		}
@@ -94,15 +94,40 @@ func (f *Func) newSparseSet(n int) *sparseSet {
 	return newSparseSet(n)
 }
 
-// retSparseSet returns a sparse set to the config's cache of sparse sets to be reused by f.newSparseSet.
+// retSparseSet returns a sparse set to the config's cache of sparse
+// sets to be reused by f.newSparseSet.
 func (f *Func) retSparseSet(ss *sparseSet) {
-	for i, scr := range f.Cache.scrSparse {
+	for i, scr := range f.Cache.scrSparseSet {
 		if scr == nil {
-			f.Cache.scrSparse[i] = ss
+			f.Cache.scrSparseSet[i] = ss
 			return
 		}
 	}
-	f.Cache.scrSparse = append(f.Cache.scrSparse, ss)
+	f.Cache.scrSparseSet = append(f.Cache.scrSparseSet, ss)
+}
+
+// newSparseMap returns a sparse map that can store at least up to n integers.
+func (f *Func) newSparseMap(n int) *sparseMap {
+	for i, scr := range f.Cache.scrSparseMap {
+		if scr != nil && scr.cap() >= n {
+			f.Cache.scrSparseMap[i] = nil
+			scr.clear()
+			return scr
+		}
+	}
+	return newSparseMap(n)
+}
+
+// retSparseMap returns a sparse map to the config's cache of sparse
+// sets to be reused by f.newSparseMap.
+func (f *Func) retSparseMap(ss *sparseMap) {
+	for i, scr := range f.Cache.scrSparseMap {
+		if scr == nil {
+			f.Cache.scrSparseMap[i] = ss
+			return
+		}
+	}
+	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.

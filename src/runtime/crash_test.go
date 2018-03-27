@@ -621,3 +621,36 @@ func TestBadTraceback(t *testing.T) {
 		}
 	}
 }
+
+func TestTimePprof(t *testing.T) {
+	fn := runTestProg(t, "testprog", "TimeProf")
+	fn = strings.TrimSpace(fn)
+	defer os.Remove(fn)
+
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", fn))
+	cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
+	top, err := cmd.CombinedOutput()
+	t.Logf("%s", top)
+	if err != nil {
+		t.Error(err)
+	} else if bytes.Contains(top, []byte("ExternalCode")) {
+		t.Error("profiler refers to ExternalCode")
+	}
+}
+
+// Test that runtime.abort does so.
+func TestAbort(t *testing.T) {
+	output := runTestProg(t, "testprog", "Abort")
+	if want := "runtime.abort"; !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+	if strings.Contains(output, "BAD") {
+		t.Errorf("output contains BAD:\n%s", output)
+	}
+	// Check that it's a signal-style traceback.
+	if runtime.GOOS != "windows" {
+		if want := "PC="; !strings.Contains(output, want) {
+			t.Errorf("output does not contain %q:\n%s", want, output)
+		}
+	}
+}

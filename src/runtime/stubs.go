@@ -53,8 +53,13 @@ func mcall(fn func(*g))
 //go:noescape
 func systemstack(fn func())
 
+var badsystemstackMsg = "fatal: systemstack called from unexpected goroutine"
+
+//go:nosplit
+//go:nowritebarrierrec
 func badsystemstack() {
-	throw("systemstack called from unexpected goroutine")
+	sp := stringStructOf(&badsystemstackMsg)
+	write(2, sp.str, int32(sp.len))
 }
 
 // memclrNoHeapPointers clears n bytes starting at ptr.
@@ -308,3 +313,10 @@ func bool2int(x bool) int {
 	// exactly what you would want it to.
 	return int(uint8(*(*uint8)(unsafe.Pointer(&x))))
 }
+
+// abort crashes the runtime in situations where even throw might not
+// work. In general it should do something a debugger will recognize
+// (e.g., an INT3 on x86). A crash in abort is recognized by the
+// signal handler, which will attempt to tear down the runtime
+// immediately.
+func abort()

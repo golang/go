@@ -23,7 +23,7 @@ type varPos struct {
 // This is the main entry point for collection of raw material to
 // drive generation of DWARF "inlined subroutine" DIEs. See proposal
 // 22080 for more details and background info.
-func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCalls {
+func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 	var inlcalls dwarf.InlCalls
 
 	if Debug_gendwarfinl != 0 {
@@ -100,8 +100,8 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 		var m map[varPos]int
 		if ii == 0 {
 			if !fnsym.WasInlined() {
-				for j := 0; j < len(sl); j++ {
-					sl[j].ChildIndex = int32(j)
+				for j, v := range sl {
+					v.ChildIndex = int32(j)
 				}
 				continue
 			}
@@ -121,19 +121,19 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 		// parented by the inlined routine and not the top-level
 		// caller.
 		synthCount := len(m)
-		for j := 0; j < len(sl); j++ {
-			canonName := unversion(sl[j].Name)
+		for _, v := range sl {
+			canonName := unversion(v.Name)
 			vp := varPos{
 				DeclName: canonName,
-				DeclFile: sl[j].DeclFile,
-				DeclLine: sl[j].DeclLine,
-				DeclCol:  sl[j].DeclCol,
+				DeclFile: v.DeclFile,
+				DeclLine: v.DeclLine,
+				DeclCol:  v.DeclCol,
 			}
-			synthesized := strings.HasPrefix(sl[j].Name, "~r") || canonName == "_"
+			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_"
 			if idx, found := m[vp]; found {
-				sl[j].ChildIndex = int32(idx)
-				sl[j].IsInAbstract = !synthesized
-				sl[j].Name = canonName
+				v.ChildIndex = int32(idx)
+				v.IsInAbstract = !synthesized
+				v.Name = canonName
 			} else {
 				// Variable can't be found in the pre-inline dcl list.
 				// In the top-level case (ii=0) this can happen
@@ -141,7 +141,7 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 				// and we're looking at a piece. We can also see
 				// return temps (~r%d) that were created during
 				// lowering, or unnamed params ("_").
-				sl[j].ChildIndex = int32(synthCount)
+				v.ChildIndex = int32(synthCount)
 				synthCount += 1
 			}
 		}
@@ -209,17 +209,18 @@ func unversion(name string) string {
 // Given a function that was inlined as part of the compilation, dig
 // up the pre-inlining DCL list for the function and create a map that
 // supports lookup of pre-inline dcl index, based on variable
-// position/name.
+// position/name. NB: the recipe for computing variable pos/file/line
+// needs to be kept in sync with the similar code in gc.createSimpleVars
+// and related functions.
 func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
 	dcl := preInliningDcls(fnsym)
 	m := make(map[varPos]int)
-	for i := 0; i < len(dcl); i++ {
-		n := dcl[i]
+	for i, n := range dcl {
 		pos := Ctxt.InnermostPos(n.Pos)
 		vp := varPos{
 			DeclName: unversion(n.Sym.Name),
-			DeclFile: pos.Base().SymFilename(),
-			DeclLine: pos.Line(),
+			DeclFile: pos.RelFilename(),
+			DeclLine: pos.RelLine(),
 			DeclCol:  pos.Col(),
 		}
 		if _, found := m[vp]; found {
@@ -336,7 +337,7 @@ func (s byClassThenName) Less(i, j int) bool { return cmpDwarfVar(s[i], s[j]) }
 func (s byClassThenName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
-	for i := 0; i < ilevel; i += 1 {
+	for i := 0; i < ilevel; i++ {
 		Ctxt.Logf("  ")
 	}
 	ic := inlcalls.Calls[idx]
@@ -361,9 +362,8 @@ func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
 }
 
 func dumpInlCalls(inlcalls dwarf.InlCalls) {
-	n := len(inlcalls.Calls)
-	for k := 0; k < n; k += 1 {
-		if inlcalls.Calls[k].Root {
+	for k, c := range inlcalls.Calls {
+		if c.Root {
 			dumpInlCall(inlcalls, k, 0)
 		}
 	}

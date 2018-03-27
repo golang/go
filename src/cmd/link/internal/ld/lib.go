@@ -185,13 +185,6 @@ var (
 	Segdwarf     sym.Segment
 )
 
-/* whence for ldpkg */
-const (
-	FileObj = 0 + iota
-	ArchiveObj
-	Pkgdef
-)
-
 const pkgdef = "__.PKGDEF"
 
 var (
@@ -731,6 +724,10 @@ func genhash(ctxt *Link, lib *sym.Library) {
 		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
 		return
 	}
+	if arhdr.name != pkgdef {
+		Errorf(nil, "%s: missing package data entry", lib.File)
+		return
+	}
 
 	h := sha1.New()
 
@@ -775,6 +772,27 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 	if err != nil {
 		Exitf("cannot open file %s: %v", lib.File, err)
 	}
+	defer f.Close()
+	defer func() {
+		if pkg == "main" && !lib.Main {
+			Exitf("%s: not package main", lib.File)
+		}
+
+		// Ideally, we'd check that *all* object files within
+		// the archive were marked safe, but here we settle
+		// for *any*.
+		//
+		// Historically, cmd/link only checked the __.PKGDEF
+		// file, which in turn came from the first object
+		// file, typically produced by cmd/compile. The
+		// remaining object files are normally produced by
+		// cmd/asm, which doesn't support marking files as
+		// safe anyway. So at least in practice, this matches
+		// how safe mode has always worked.
+		if *flagU && !lib.Safe {
+			Exitf("%s: load of unsafe package %s", lib.File, pkg)
+		}
+	}()
 
 	for i := 0; i < len(ARMAG); i++ {
 		if c, err := f.ReadByte(); err == nil && c == ARMAG[i] {
@@ -783,33 +801,10 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 
 		/* load it as a regular file */
 		l := f.Seek(0, 2)
-
 		f.Seek(0, 0)
-		ldobj(ctxt, f, lib, l, lib.File, lib.File, FileObj)
-		f.Close()
-
+		ldobj(ctxt, f, lib, l, lib.File, lib.File)
 		return
 	}
-
-	/* process __.PKGDEF */
-	off := f.Offset()
-
-	var arhdr ArHdr
-	l := nextar(f, off, &arhdr)
-	var pname string
-	if l <= 0 {
-		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
-		goto out
-	}
-
-	if !strings.HasPrefix(arhdr.name, pkgdef) {
-		Errorf(nil, "%s: cannot find package header", lib.File)
-		goto out
-	}
-
-	off += l
-
-	ldpkg(ctxt, f, pkg, atolwhex(arhdr.size), lib.File, Pkgdef)
 
 	/*
 	 * load all the object files from the archive now.
@@ -823,24 +818,30 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 	 * loading every object will also make it possible to
 	 * load foreign objects not referenced by __.PKGDEF.
 	 */
+	var arhdr ArHdr
+	off := f.Offset()
 	for {
-		l = nextar(f, off, &arhdr)
+		l := nextar(f, off, &arhdr)
 		if l == 0 {
 			break
 		}
 		if l < 0 {
 			Exitf("%s: malformed archive", lib.File)
 		}
-
 		off += l
 
-		pname = fmt.Sprintf("%s(%s)", lib.File, arhdr.name)
-		l = atolwhex(arhdr.size)
-		ldobj(ctxt, f, lib, l, pname, lib.File, ArchiveObj)
-	}
+		// __.PKGDEF isn't a real Go object file, and it's
+		// absent in -linkobj builds anyway. Skipping it
+		// ensures consistency between -linkobj and normal
+		// build modes.
+		if arhdr.name == pkgdef {
+			continue
+		}
 
-out:
-	f.Close()
+		pname := fmt.Sprintf("%s(%s)", lib.File, arhdr.name)
+		l = atolwhex(arhdr.size)
+		ldobj(ctxt, f, lib, l, pname, lib.File)
+	}
 }
 
 type Hostobj struct {
@@ -1378,7 +1379,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 // ldobj loads an input object. If it is a host object (an object
 // compiled by a non-Go compiler) it returns the Hostobj pointer. If
 // it is a Go object, it returns nil.
-func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string, file string, whence int) *Hostobj {
+func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string, file string) *Hostobj {
 	pkg := objabi.PathToPrefix(lib.Pkg)
 
 	eof := f.Offset() + length
@@ -1509,7 +1510,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	import1 := f.Offset()
 
 	f.Seek(import0, 0)
-	ldpkg(ctxt, f, pkg, import1-import0-2, pn, whence) // -2 for !\n
+	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
 	f.Seek(import1, 0)
 
 	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)

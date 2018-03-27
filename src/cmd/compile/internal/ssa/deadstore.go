@@ -19,7 +19,8 @@ func dse(f *Func) {
 	defer f.retSparseSet(loadUse)
 	storeUse := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(storeUse)
-	shadowed := newSparseMap(f.NumValues()) // TODO: cache
+	shadowed := f.newSparseMap(f.NumValues())
+	defer f.retSparseMap(shadowed)
 	for _, b := range f.Blocks {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.

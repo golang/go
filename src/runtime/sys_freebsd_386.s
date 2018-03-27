@@ -19,6 +19,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
 TEXT runtime·thr_new(SB),NOSPLIT,$-4
 	MOVL	$455, AX
 	INT	$0x80
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·thr_start(SB),NOSPLIT,$0
@@ -211,11 +212,10 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	RET
 
 
-TEXT runtime·sigaction(SB),NOSPLIT,$-4
+TEXT runtime·asmSigaction(SB),NOSPLIT,$-4
 	MOVL	$416, AX
 	INT	$0x80
-	JAE	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$12-16

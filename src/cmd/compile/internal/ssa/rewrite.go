@@ -830,10 +830,46 @@ func isInlinableMemmoveSize(sz int64, c *Config) bool {
 	switch c.arch {
 	case "amd64", "amd64p32":
 		return sz <= 16
-	case "386", "ppc64", "s390x", "ppc64le":
+	case "386", "ppc64", "s390x", "ppc64le", "arm64":
 		return sz <= 8
 	case "arm", "mips", "mips64", "mipsle", "mips64le":
 		return sz <= 4
 	}
 	return false
+}
+
+// encodes the lsb and width for arm64 bitfield ops into the expected auxInt format.
+func arm64BFAuxInt(lsb, width int64) int64 {
+	if lsb < 0 || lsb > 63 {
+		panic("ARM64 bit field lsb constant out of range")
+	}
+	if width < 1 || width > 64 {
+		panic("ARM64 bit field width constant out of range")
+	}
+	return width | lsb<<8
+}
+
+// returns the lsb part of the auxInt field of arm64 bitfield ops.
+func getARM64BFlsb(bfc int64) int64 {
+	return int64(uint64(bfc) >> 8)
+}
+
+// returns the width part of the auxInt field of arm64 bitfield ops.
+func getARM64BFwidth(bfc int64) int64 {
+	return bfc & 0xff
+}
+
+// checks if mask >> rshift applied at lsb is a valid arm64 bitfield op mask.
+func isARM64BFMask(lsb, mask, rshift int64) bool {
+	shiftedMask := int64(uint64(mask) >> uint64(rshift))
+	return shiftedMask != 0 && isPowerOfTwo(shiftedMask+1) && nto(shiftedMask)+lsb < 64
+}
+
+// returns the bitfield width of mask >> rshift for arm64 bitfield ops
+func arm64BFWidth(mask, rshift int64) int64 {
+	shiftedMask := int64(uint64(mask) >> uint64(rshift))
+	if shiftedMask == 0 {
+		panic("ARM64 BF mask is zero")
+	}
+	return nto(shiftedMask)
 }

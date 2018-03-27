@@ -73,9 +73,9 @@ func test() {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() { //gdb-opt=(scanner/A)
 		s := scanner.Text()
-		i, err2 := strconv.ParseInt(s, 10, 64)
-		if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err2)
+		i, err := strconv.ParseInt(s, 10, 64)
+		if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err)
 			return
 		}
 		hist = ensure(int(i), hist)

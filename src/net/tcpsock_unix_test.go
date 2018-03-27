@@ -87,6 +87,7 @@ func TestTCPSpuriousConnSetupCompletionWithCancel(t *testing.T) {
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
+	defer dnsWaitGroup.Wait()
 	t.Parallel()
 	const tries = 10000
 	var wg sync.WaitGroup

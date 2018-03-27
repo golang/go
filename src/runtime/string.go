@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/bytealg"
+	"unsafe"
+)
 
 // The constant is known to the compiler.
 // There is no fundamental theory behind this number.
@@ -407,12 +410,43 @@ func findnull(s *byte) int {
 	if s == nil {
 		return 0
 	}
-	p := (*[maxAlloc/2 - 1]byte)(unsafe.Pointer(s))
-	l := 0
-	for p[l] != 0 {
-		l++
+
+	// Avoid IndexByteString on Plan 9 because it uses SSE instructions
+	// on x86 machines, and those are classified as floating point instructions,
+	// which are illegal in a note handler.
+	if GOOS == "plan9" {
+		p := (*[maxAlloc/2 - 1]byte)(unsafe.Pointer(s))
+		l := 0
+		for p[l] != 0 {
+			l++
+		}
+		return l
 	}
-	return l
+
+	// pageSize is the unit we scan at a time looking for NULL.
+	// It must be the minimum page size for any architecture Go
+	// runs on. It's okay (just a minor performance loss) if the
+	// actual system page size is larger than this value.
+	const pageSize = 4096
+
+	offset := 0
+	ptr := unsafe.Pointer(s)
+	// IndexByteString uses wide reads, so we need to be careful
+	// with page boundaries. Call IndexByteString on
+	// [ptr, endOfPage) interval.
+	safeLen := int(pageSize - uintptr(ptr)%pageSize)
+
+	for {
+		t := *(*string)(unsafe.Pointer(&stringStruct{ptr, safeLen}))
+		// Check one page at a time.
+		if i := bytealg.IndexByteString(t, 0); i != -1 {
+			return offset + i
+		}
+		// Move to next page
+		ptr = unsafe.Pointer(uintptr(ptr) + uintptr(safeLen))
+		offset += safeLen
+		safeLen = pageSize
+	}
 }
 
 func findnullw(s *uint16) int {

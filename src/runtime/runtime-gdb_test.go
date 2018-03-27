@@ -234,11 +234,16 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("print strvar failed: %s", bl)
 	}
 
-	// Issue 16338: ssa decompose phase can split a structure into
-	// a collection of scalar vars holding the fields. In such cases
+	// The exact format of composite values has changed over time.
+	// For issue 16338: ssa decompose phase split a slice into
+	// a collection of scalar vars holding its fields. In such cases
 	// the DWARF variable location expression should be of the
 	// form "var.field" and not just "field".
-	infoLocalsRe := regexp.MustCompile(`.*\sslicevar.cap = `)
+	// However, the newer dwarf location list code reconstituted
+	// aggregates from their fields and reverted their printing
+	// back to its original form.
+
+	infoLocalsRe := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
 	if bl := blocks["info locals"]; !infoLocalsRe.MatchString(bl) {
 		t.Fatalf("info locals failed: %s", bl)
 	}

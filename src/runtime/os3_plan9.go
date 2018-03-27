@@ -35,6 +35,10 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		print("sighandler: note is longer than ERRMAX\n")
 		goto Throw
 	}
+	if isAbortPC(c.pc()) {
+		// Never turn abort into a panic.
+		goto Throw
+	}
 	// See if the note matches one of the patterns in sigtab.
 	// Notes that do not match any pattern can be handled at a higher
 	// level by the program but will otherwise be ignored.
@@ -121,7 +125,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 Throw:
 	_g_.m.throwing = 1
 	_g_.m.caughtsig.set(gp)
-	startpanic()
+	startpanic_m()
 	print(notestr, "\n")
 	print("PC=", hex(c.pc()), "\n")
 	print("\n")

@@ -205,6 +205,16 @@ func archArm() *Arch {
 		"R": true,
 	}
 
+	// special operands for DMB/DSB instructions
+	register["MB_SY"] = arm.REG_MB_SY
+	register["MB_ST"] = arm.REG_MB_ST
+	register["MB_ISH"] = arm.REG_MB_ISH
+	register["MB_ISHST"] = arm.REG_MB_ISHST
+	register["MB_NSH"] = arm.REG_MB_NSH
+	register["MB_NSHST"] = arm.REG_MB_NSHST
+	register["MB_OSH"] = arm.REG_MB_OSH
+	register["MB_OSHST"] = arm.REG_MB_OSHST
+
 	instructions := make(map[string]obj.As)
 	for i, s := range obj.Anames {
 		instructions[s] = obj.As(i)
@@ -260,6 +270,7 @@ func archArm64() *Arch {
 	register["SPSel"] = arm64.REG_SPSel
 	register["DAIFSet"] = arm64.REG_DAIFSet
 	register["DAIFClr"] = arm64.REG_DAIFClr
+	register["DCZID_EL0"] = arm64.REG_DCZID_EL0
 	register["PLDL1KEEP"] = arm64.REG_PLDL1KEEP
 	register["PLDL1STRM"] = arm64.REG_PLDL1STRM
 	register["PLDL2KEEP"] = arm64.REG_PLDL2KEEP

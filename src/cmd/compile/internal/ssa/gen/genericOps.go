@@ -17,8 +17,6 @@ package main
 // all args take signed inputs, or don't care whether their inputs
 // are signed or unsigned.
 
-// Unused portions of AuxInt are filled by sign-extending the used portion.
-// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
 var genericOps = []opData{
 	// 2-input arithmetic
 	// Types must be consistent with Go typing. Add, for example, must take two values

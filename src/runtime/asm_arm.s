@@ -317,6 +317,7 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
 	// Hide call from linker nosplit analysis.
 	MOVW	$runtime·badsystemstack(SB), R0
 	BL	(R0)
+	B	runtime·abort(SB)
 
 switch:
 	// save our state in g->sched. Pretend to
@@ -784,7 +785,7 @@ TEXT runtime·armPublicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)
-	WORD $0xf57ff05e	// DMB ST
+	DMB	MB_ST
 	RET
 
 // AES hashing not implemented for ARM

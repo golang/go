@@ -128,18 +128,21 @@ func (z *Float) sqrtInverse(x *Float) {
 	//   g(t) = f(t)/f'(t) = -½t(1 - xt²)
 	// and the next guess is given by
 	//   t2 = t - g(t) = ½t(3 - xt²)
-	u := new(Float)
+	u := newFloat(z.prec)
+	v := newFloat(z.prec)
 	ng := func(t *Float) *Float {
 		u.prec = t.prec
+		v.prec = t.prec
 		u.Mul(t, t)           // u = t²
 		u.Mul(x, u)           //   = xt²
-		u.Sub(three, u)       //   = 3 - xt²
-		u.Mul(t, u)           //   = t(3 - xt²)
+		v.Sub(three, u)       // v = 3 - xt²
+		u.Mul(t, v)           // u = t(3 - xt²)
 		return t.Mul(half, u) //   = ½t(3 - xt²)
 	}
 
 	xf, _ := x.Float64()
-	sqi := NewFloat(1 / math.Sqrt(xf))
+	sqi := newFloat(z.prec)
+	sqi.SetFloat64(1 / math.Sqrt(xf))
 	for prec := z.prec + 32; sqi.prec < prec; {
 		sqi.prec *= 2
 		sqi = ng(sqi)
@@ -148,4 +151,13 @@ func (z *Float) sqrtInverse(x *Float) {
 
 	// x/√x = √x
 	z.Mul(x, sqi)
+}
+
+// newFloat returns a new *Float with space for twice the given
+// precision.
+func newFloat(prec2 uint32) *Float {
+	z := new(Float)
+	// nat.make ensures the slice length is > 0
+	z.mant = z.mant.make(int(prec2/_W) * 2)
+	return z
 }

@@ -263,7 +263,8 @@ func Dconv(p *Prog, a *Addr) string {
 			}
 		case "arm64":
 			op := ops[((v>>22)&3)<<1:]
-			str = fmt.Sprintf("R%d%c%c%d", (v>>16)&31, op[0], op[1], (v>>10)&63)
+			r := (v >> 16) & 31
+			str = fmt.Sprintf("%s%c%c%d", Rconv(r+RBaseARM64), op[0], op[1], (v>>10)&63)
 		default:
 			panic("TYPE_SHIFT is not supported on " + objabi.GOARCH)
 		}

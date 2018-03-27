@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"internal/poll"
 	"internal/syscall/windows"
+	"internal/syscall/windows/registry"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -891,5 +892,122 @@ func main() {
 			t.Errorf("wrong output of executing %q: have %q want %q", args, have, want)
 			continue
 		}
+	}
+}
+
+func testIsDir(t *testing.T, path string, fi os.FileInfo) {
+	t.Helper()
+	if !fi.IsDir() {
+		t.Errorf("%q should be a directory", path)
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		t.Errorf("%q should not be a symlink", path)
+	}
+}
+
+func findOneDriveDir() (string, error) {
+	// as per https://stackoverflow.com/questions/42519624/how-to-determine-location-of-onedrive-on-windows-7-and-8-in-c
+	const onedrivekey = `SOFTWARE\Microsoft\OneDrive`
+	k, err := registry.OpenKey(registry.CURRENT_USER, onedrivekey, registry.READ)
+	if err != nil {
+		return "", fmt.Errorf("OpenKey(%q) failed: %v", onedrivekey, err)
+	}
+	defer k.Close()
+
+	path, _, err := k.GetStringValue("UserFolder")
+	if err != nil {
+		return "", fmt.Errorf("reading UserFolder failed: %v", err)
+	}
+	return path, nil
+}
+
+// TestOneDrive verifies that OneDrive folder is a directory and not a symlink.
+func TestOneDrive(t *testing.T) {
+	dir, err := findOneDriveDir()
+	if err != nil {
+		t.Skipf("Skipping, because we did not find OneDrive directory: %v", err)
+	}
+
+	// test os.Stat
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testIsDir(t, dir, fi)
+
+	// test os.Lstat
+	fi, err = os.Lstat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testIsDir(t, dir, fi)
+
+	// test os.File.Stat
+	f, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	fi, err = f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	testIsDir(t, dir, fi)
+
+	// test os.FileInfo returned by os.Readdir
+	parent, err := os.Open(filepath.Dir(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer parent.Close()
+
+	fis, err := parent.Readdir(-1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi = nil
+	base := filepath.Base(dir)
+	for _, fi2 := range fis {
+		if fi2.Name() == base {
+			fi = fi2
+			break
+		}
+	}
+	if fi == nil {
+		t.Errorf("failed to find %q in its parent", dir)
+	}
+	testIsDir(t, dir, fi)
+}
+
+func TestWindowsDevNullFile(t *testing.T) {
+	testDevNullFile(t, "NUL", true)
+	testDevNullFile(t, "nul", true)
+	testDevNullFile(t, "Nul", true)
+
+	f1, err := os.Open("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f1.Close()
+
+	fi1, err := f1.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f2, err := os.Open("nul")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f2.Close()
+
+	fi2, err := f2.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !os.SameFile(fi1, fi2) {
+		t.Errorf(`"NUL" and "nul" are not the same file`)
 	}
 }

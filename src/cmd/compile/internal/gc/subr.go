@@ -73,9 +73,9 @@ func flusherrors() {
 		return
 	}
 	sort.Stable(byPos(errors))
-	for i := 0; i < len(errors); i++ {
-		if i == 0 || errors[i].msg != errors[i-1].msg {
-			fmt.Printf("%s", errors[i].msg)
+	for i, err := range errors {
+		if i == 0 || err.msg != errors[i-1].msg {
+			fmt.Printf("%s", err.msg)
 		}
 	}
 	errors = errors[:0]
@@ -373,7 +373,8 @@ func saveorignode(n *Node) {
 	n.Orig = norig
 }
 
-// methcmp sorts by symbol, then by package path for unexported symbols.
+// methcmp sorts methods by name with exported methods first,
+// and then non-exported methods by their package path.
 type methcmp []*types.Field
 
 func (x methcmp) Len() int      { return len(x) }
@@ -381,22 +382,31 @@ func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x methcmp) Less(i, j int) bool {
 	a := x[i]
 	b := x[j]
-	if a.Sym == nil && b.Sym == nil {
+	if a.Sym == b.Sym {
 		return false
 	}
+
+	// Blank methods to the end.
 	if a.Sym == nil {
-		return true
+		return false
 	}
 	if b.Sym == nil {
-		return false
+		return true
 	}
+
+	// Exported methods to the front.
+	ea := exportname(a.Sym.Name)
+	eb := exportname(b.Sym.Name)
+	if ea != eb {
+		return ea
+	}
+
+	// Sort by name and then package.
 	if a.Sym.Name != b.Sym.Name {
 		return a.Sym.Name < b.Sym.Name
 	}
-	if !exportname(a.Sym.Name) {
-		if a.Sym.Pkg.Path != b.Sym.Pkg.Path {
-			return a.Sym.Pkg.Path < b.Sym.Pkg.Path
-		}
+	if !ea && a.Sym.Pkg.Path != b.Sym.Pkg.Path {
+		return a.Sym.Pkg.Path < b.Sym.Pkg.Path
 	}
 
 	return false
@@ -1506,25 +1516,20 @@ func adddot(n *Node) *Node {
 	return n
 }
 
-// code to help generate trampoline
-// functions for methods on embedded
-// subtypes.
-// these are approx the same as
-// the corresponding adddot routines
-// except that they expect to be called
-// with unique tasks and they return
-// the actual methods.
+// Code to help generate trampoline functions for methods on embedded
+// types. These are approx the same as the corresponding adddot
+// routines except that they expect to be called with unique tasks and
+// they return the actual methods.
+
 type Symlink struct {
-	field     *types.Field
-	followptr bool
+	field *types.Field
 }
 
 var slist []Symlink
 
-func expand0(t *types.Type, followptr bool) {
+func expand0(t *types.Type) {
 	u := t
 	if u.IsPtr() {
-		followptr = true
 		u = u.Elem()
 	}
 
@@ -1534,7 +1539,7 @@ func expand0(t *types.Type, followptr bool) {
 				continue
 			}
 			f.Sym.SetUniq(true)
-			slist = append(slist, Symlink{field: f, followptr: followptr})
+			slist = append(slist, Symlink{field: f})
 		}
 
 		return
@@ -1547,24 +1552,23 @@ func expand0(t *types.Type, followptr bool) {
 				continue
 			}
 			f.Sym.SetUniq(true)
-			slist = append(slist, Symlink{field: f, followptr: followptr})
+			slist = append(slist, Symlink{field: f})
 		}
 	}
 }
 
-func expand1(t *types.Type, top, followptr bool) {
+func expand1(t *types.Type, top bool) {
 	if t.Recur() {
 		return
 	}
 	t.SetRecur(true)
 
 	if !top {
-		expand0(t, followptr)
+		expand0(t)
 	}
 
 	u := t
 	if u.IsPtr() {
-		followptr = true
 		u = u.Elem()
 	}
 
@@ -1576,7 +1580,7 @@ func expand1(t *types.Type, top, followptr bool) {
 			if f.Sym == nil {
 				continue
 			}
-			expand1(f.Type, false, followptr)
+			expand1(f.Type, false)
 		}
 	}
 
@@ -1596,7 +1600,7 @@ func expandmeth(t *types.Type) {
 
 	// generate all reachable methods
 	slist = slist[:0]
-	expand1(t, true, false)
+	expand1(t, true)
 
 	// check each method to be uniquely reachable
 	var ms []*types.Field
@@ -1605,7 +1609,8 @@ func expandmeth(t *types.Type) {
 		sl.field.Sym.SetUniq(false)
 
 		var f *types.Field
-		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
+		path, _ := dotpath(sl.field.Sym, t, &f, false)
+		if path == nil {
 			continue
 		}
 
@@ -1617,8 +1622,11 @@ func expandmeth(t *types.Type) {
 		// add it to the base type method list
 		f = f.Copy()
 		f.Embedded = 1 // needs a trampoline
-		if sl.followptr {
-			f.Embedded = 2
+		for _, d := range path {
+			if d.field.Type.IsPtr() {
+				f.Embedded = 2
+				break
+			}
 		}
 		ms = append(ms, f)
 	}
@@ -1628,6 +1636,7 @@ func expandmeth(t *types.Type) {
 	}
 
 	ms = append(ms, t.Methods().Slice()...)
+	sort.Sort(methcmp(ms))
 	t.AllMethods().Set(ms)
 }
 
@@ -1847,57 +1856,63 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		return false
 	}
 
-	// if this is too slow,
-	// could sort these first
-	// and then do one loop.
-
 	if t.IsInterface() {
-	Outer:
+		i := 0
+		tms := t.Fields().Slice()
 		for _, im := range iface.Fields().Slice() {
-			for _, tm := range t.Fields().Slice() {
-				if tm.Sym == im.Sym {
-					if eqtype(tm.Type, im.Type) {
-						continue Outer
-					}
-					*m = im
-					*samename = tm
-					*ptr = 0
-					return false
-				}
+			for i < len(tms) && tms[i].Sym != im.Sym {
+				i++
 			}
-
-			*m = im
-			*samename = nil
-			*ptr = 0
-			return false
+			if i == len(tms) {
+				*m = im
+				*samename = nil
+				*ptr = 0
+				return false
+			}
+			tm := tms[i]
+			if !eqtype(tm.Type, im.Type) {
+				*m = im
+				*samename = tm
+				*ptr = 0
+				return false
+			}
 		}
 
 		return true
 	}
 
 	t = methtype(t)
+	var tms []*types.Field
 	if t != nil {
 		expandmeth(t)
+		tms = t.AllMethods().Slice()
 	}
+	i := 0
 	for _, im := range iface.Fields().Slice() {
 		if im.Broke() {
 			continue
 		}
-		tm, followptr := ifacelookdot(im.Sym, t, false)
-		if tm == nil || tm.Nointerface() || !eqtype(tm.Type, im.Type) {
-			if tm == nil {
-				tm, followptr = ifacelookdot(im.Sym, t, true)
-			}
+		for i < len(tms) && tms[i].Sym != im.Sym {
+			i++
+		}
+		if i == len(tms) {
+			*m = im
+			*samename, _ = ifacelookdot(im.Sym, t, true)
+			*ptr = 0
+			return false
+		}
+		tm := tms[i]
+		if tm.Nointerface() || !eqtype(tm.Type, im.Type) {
 			*m = im
 			*samename = tm
 			*ptr = 0
 			return false
 		}
+		followptr := tm.Embedded == 2
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
 		rcvr := tm.Type.Recv().Type
-
 		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
 				yyerror("interface pointer mismatch")

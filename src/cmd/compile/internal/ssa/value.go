@@ -31,6 +31,10 @@ type Value struct {
 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
 	// AuxInt is used for integer values, Aux is used for other values.
 	// Floats are stored in AuxInt using math.Float64bits(f).
+	// Unused portions of AuxInt are filled by sign-extending the used portion,
+	// even if the represented value is unsigned.
+	// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
+	// Use Value.AuxUnsigned to get the zero-extended value of AuxInt.
 	AuxInt int64
 	Aux    interface{}
 
@@ -84,6 +88,25 @@ func (v *Value) AuxInt32() int32 {
 		v.Fatalf("op %s doesn't have an int32 aux field", v.Op)
 	}
 	return int32(v.AuxInt)
+}
+
+// AuxUnsigned returns v.AuxInt as an unsigned value for OpConst*.
+// v.AuxInt is always sign-extended to 64 bits, even if the
+// represented value is unsigned. This undoes that sign extension.
+func (v *Value) AuxUnsigned() uint64 {
+	c := v.AuxInt
+	switch v.Op {
+	case OpConst64:
+		return uint64(c)
+	case OpConst32:
+		return uint64(uint32(c))
+	case OpConst16:
+		return uint64(uint16(c))
+	case OpConst8:
+		return uint64(uint8(c))
+	}
+	v.Fatalf("op %s isn't OpConst*", v.Op)
+	return 0
 }
 
 func (v *Value) AuxFloat() float64 {

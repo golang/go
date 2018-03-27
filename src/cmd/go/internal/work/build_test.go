@@ -220,7 +220,7 @@ func TestRespectSetgidDir(t *testing.T) {
 	defer pkgfile.Close()
 
 	dirGIDFile := filepath.Join(setgiddir, "setgid")
-	if err := b.moveOrCopyFile(nil, dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
+	if err := b.moveOrCopyFile(dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
 		t.Fatalf("moveOrCopyFile: %v", err)
 	}
 

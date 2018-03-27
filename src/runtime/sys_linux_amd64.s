@@ -21,7 +21,6 @@
 #define SYS_rt_sigaction	13
 #define SYS_rt_sigprocmask	14
 #define SYS_rt_sigreturn	15
-#define SYS_access		21
 #define SYS_sched_yield 	24
 #define SYS_mincore		27
 #define SYS_madvise		28
@@ -43,6 +42,7 @@
 #define SYS_exit_group		231
 #define SYS_epoll_ctl		233
 #define SYS_openat		257
+#define SYS_faccessat		269
 #define SYS_pselect6		270
 #define SYS_epoll_pwait		281
 #define SYS_epoll_create1	291
@@ -188,12 +188,18 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
 
 	get_tls(CX)
 	MOVQ	g(CX), AX
-	MOVQ	g_m(AX), CX
+	MOVQ	g_m(AX), BX // BX unchanged by C code.
 
-	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVQ	0(SP), DX
+	MOVQ	DX, m_vdsoPC(BX)
+	LEAQ	sec+0(SP), DX
+	MOVQ	DX, m_vdsoSP(BX)
+
+	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
 	JNE	noswitch
 
-	MOVQ	m_g0(CX), DX
+	MOVQ	m_g0(BX), DX
 	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
@@ -209,6 +215,7 @@ noswitch:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
 	MOVQ	BP, SP		// Restore real SP
+	MOVQ	$0, m_vdsoSP(BX)
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
@@ -221,6 +228,7 @@ fallback:
 	MOVL	8(SP), DX	// usec
 	IMULQ	$1000, DX
 	MOVQ	BP, SP		// Restore real SP
+	MOVQ	$0, m_vdsoSP(BX)
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
@@ -228,16 +236,22 @@ fallback:
 TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
-	MOVQ	SP, BP	// Save old SP; BX unchanged by C code.
+	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
 
 	get_tls(CX)
 	MOVQ	g(CX), AX
-	MOVQ	g_m(AX), CX
+	MOVQ	g_m(AX), BX // BX unchanged by C code.
 
-	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVQ	0(SP), DX
+	MOVQ	DX, m_vdsoPC(BX)
+	LEAQ	ret+0(SP), DX
+	MOVQ	DX, m_vdsoSP(BX)
+
+	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
 	JNE	noswitch
 
-	MOVQ	m_g0(CX), DX
+	MOVQ	m_g0(BX), DX
 	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
@@ -253,6 +267,7 @@ noswitch:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
 	MOVQ	BP, SP		// Restore real SP
+	MOVQ	$0, m_vdsoSP(BX)
 	// sec is in AX, nsec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
@@ -267,6 +282,7 @@ fallback:
 	MOVQ	0(SP), AX	// sec
 	MOVL	8(SP), DX	// usec
 	MOVQ	BP, SP		// Restore real SP
+	MOVQ	$0, m_vdsoSP(BX)
 	IMULQ	$1000, DX
 	// sec is in AX, nsec in DX
 	// return nsec in AX
@@ -287,7 +303,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sysSigaction(SB),NOSPLIT,$0-36
+TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-36
 	MOVQ	sig+0(FP), DI
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
@@ -671,9 +687,12 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 
 // int access(const char *name, int mode)
 TEXT runtime·access(SB),NOSPLIT,$0
-	MOVQ	name+0(FP), DI
-	MOVL	mode+8(FP), SI
-	MOVL	$SYS_access, AX
+	// This uses faccessat instead of access, because Android O blocks access.
+	MOVL	$AT_FDCWD, DI // AT_FDCWD, so this acts like access
+	MOVQ	name+0(FP), SI
+	MOVL	mode+8(FP), DX
+	MOVL	$0, R10
+	MOVL	$SYS_faccessat, AX
 	SYSCALL
 	MOVL	AX, ret+16(FP)
 	RET

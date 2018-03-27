@@ -272,6 +272,23 @@ func BenchmarkAddVW(b *testing.B) {
 	}
 }
 
+func BenchmarkSubVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				subVW(z, x, y)
+			}
+		})
+	}
+}
+
 type funVWW func(z, x []Word, y, r Word) (c Word)
 type argVWW struct {
 	z, x nat

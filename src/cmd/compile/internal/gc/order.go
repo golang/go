@@ -14,7 +14,7 @@ import (
 // order of evaluation. Makes walk easier, because it
 // can (after this runs) reorder at will within an expression.
 //
-// Rewrite x op= y into x = x op y.
+// Rewrite m[k] op= r into m[k] = m[k] op r if op is / or %.
 //
 // Introduce temporaries as needed by runtime routines.
 // For example, the map runtime routines take the map key
@@ -434,11 +434,18 @@ func (o *Order) mapAssign(n *Node) {
 	default:
 		Fatalf("ordermapassign %v", n.Op)
 
-	case OAS:
+	case OAS, OASOP:
 		if n.Left.Op == OINDEXMAP {
 			// Make sure we evaluate the RHS before starting the map insert.
 			// We need to make sure the RHS won't panic.  See issue 22881.
-			n.Right = o.cheapExpr(n.Right)
+			if n.Right.Op == OAPPEND {
+				s := n.Right.List.Slice()[1:]
+				for i, n := range s {
+					s[i] = o.cheapExpr(n)
+				}
+			} else {
+				n.Right = o.cheapExpr(n.Right)
+			}
 		}
 		o.out = append(o.out, n)
 
@@ -514,27 +521,31 @@ func (o *Order) stmt(n *Node) {
 		o.cleanTemp(t)
 
 	case OASOP:
-		// Special: rewrite l op= r into l = l op r.
-		// This simplifies quite a few operations;
-		// most important is that it lets us separate
-		// out map read from map write when l is
-		// a map index expression.
 		t := o.markTemp()
 		n.Left = o.expr(n.Left, nil)
 		n.Right = o.expr(n.Right, nil)
 
-		n.Left = o.safeExpr(n.Left)
-		tmp1 := treecopy(n.Left, src.NoXPos)
-		if tmp1.Op == OINDEXMAP {
-			tmp1.Etype = 0 // now an rvalue not an lvalue
+		if instrumenting || n.Left.Op == OINDEXMAP && (n.SubOp() == ODIV || n.SubOp() == OMOD) {
+			// Rewrite m[k] op= r into m[k] = m[k] op r so
+			// that we can ensure that if op panics
+			// because r is zero, the panic happens before
+			// the map assignment.
+
+			n.Left = o.safeExpr(n.Left)
+
+			l := treecopy(n.Left, src.NoXPos)
+			if l.Op == OINDEXMAP {
+				l.SetIndexMapLValue(false)
+			}
+			l = o.copyExpr(l, n.Left.Type, false)
+			n.Right = nod(n.SubOp(), l, n.Right)
+			n.Right = typecheck(n.Right, Erv)
+			n.Right = o.expr(n.Right, nil)
+
+			n.Op = OAS
+			n.ResetAux()
 		}
-		tmp1 = o.copyExpr(tmp1, n.Left.Type, false)
-		// TODO(marvin): Fix Node.EType type union.
-		n.Right = nod(Op(n.Etype), tmp1, n.Right)
-		n.Right = typecheck(n.Right, Erv)
-		n.Right = o.expr(n.Right, nil)
-		n.Etype = 0
-		n.Op = OAS
+
 		o.mapAssign(n)
 		o.cleanTemp(t)
 
@@ -618,25 +629,7 @@ func (o *Order) stmt(n *Node) {
 	// Special: order arguments to inner call but not call itself.
 	case ODEFER, OPROC:
 		t := o.markTemp()
-
-		switch n.Left.Op {
-		// Delete will take the address of the key.
-		// Copy key into new temp and do not clean it
-		// (it persists beyond the statement).
-		case ODELETE:
-			o.exprList(n.Left.List)
-
-			if mapfast(n.Left.List.First().Type) == mapslow {
-				t1 := o.markTemp()
-				np := n.Left.List.Addr(1) // map key
-				*np = o.copyExpr(*np, (*np).Type, false)
-				o.popTemp(t1)
-			}
-
-		default:
-			o.call(n.Left)
-		}
-
+		o.call(n.Left)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -1033,7 +1026,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		n.Right = o.expr(n.Right, nil)
 		needCopy := false
 
-		if n.Etype == 0 && instrumenting {
+		if !n.IndexMapLValue() && instrumenting {
 			// Race detector needs the copy so it can
 			// call treecopy on the result.
 			needCopy = true
@@ -1049,7 +1042,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		// the map index, because the map access is going to
 		// be forced to happen immediately following this
 		// conversion (by the ordercopyexpr a few lines below).
-		if n.Etype == 0 && n.Right.Op == OARRAYBYTESTR {
+		if !n.IndexMapLValue() && n.Right.Op == OARRAYBYTESTR {
 			n.Right.Op = OARRAYBYTESTRTMP
 			needCopy = true
 		}
@@ -1138,7 +1131,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case OCLOSURE:
-		if n.Noescape() && n.Func.Cvars.Len() > 0 {
+		if n.Noescape() && n.Func.Closure.Func.Cvars.Len() > 0 {
 			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
 		}
 

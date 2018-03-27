@@ -41,12 +41,12 @@ func sqrt(x float64) float64 {
 
 // Check that it's using integer registers
 func abs(x, y float64) {
-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1,"
+	// amd64:"BTRQ\t[$]63"
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FABS\t"
 	sink64[0] = math.Abs(x)
 
-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1,"
+	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FNABS\t"
 	sink64[1] = -math.Abs(y)
@@ -60,12 +60,12 @@ func abs32(x float32) float32 {
 
 // Check that it's using integer registers
 func copysign(a, b, c float64) {
-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+	// amd64:"BTRQ\t[$]63","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
 	// ppc64le:"FCPSGN"
 	sink64[0] = math.Copysign(a, b)
 
-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1",-"SHRQ\t[$]63",-"SHLQ\t[$]63","ORQ"
+	// amd64:"BTSQ\t[$]63"
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FCPSGN"
 	sink64[1] = math.Copysign(c, -1)

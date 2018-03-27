@@ -1,4 +1,3 @@
-runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
 internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
 internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: cmpstring is in package runtime
 runtime/asm_s390x.s: [s390x] addmoduledata: function addmoduledata missing Go declaration

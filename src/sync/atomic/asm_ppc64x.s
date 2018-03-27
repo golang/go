@@ -12,7 +12,7 @@ TEXT ·SwapInt32(SB),NOSPLIT,$0-20
 TEXT ·SwapUint32(SB),NOSPLIT,$0-20
 	MOVD	addr+0(FP), R3
 	MOVW	new+8(FP), R4
-	SYNC
+	LWSYNC
 	LWAR	(R3), R5
 	STWCCC	R4, (R3)
 	BNE	-2(PC)
@@ -26,7 +26,7 @@ TEXT ·SwapInt64(SB),NOSPLIT,$0-24
 TEXT ·SwapUint64(SB),NOSPLIT,$0-24
 	MOVD	addr+0(FP), R3
 	MOVD	new+8(FP), R4
-	SYNC
+	LWSYNC
 	LDAR	(R3), R5
 	STDCCC	R4, (R3)
 	BNE	-2(PC)
@@ -44,13 +44,13 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
 	MOVD	addr+0(FP), R3
 	MOVW	old+8(FP), R4
 	MOVW	new+12(FP), R5
-	SYNC
+	LWSYNC
 	LWAR	(R3), R6
 	CMPW	R6, R4
 	BNE	7(PC)
 	STWCCC	R5, (R3)
 	BNE	-4(PC)
-	ISYNC
+	LWSYNC
 	MOVD	$1, R3
 	MOVB	R3, swapped+16(FP)
 	RET
@@ -67,13 +67,13 @@ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
 	MOVD	addr+0(FP), R3
 	MOVD	old+8(FP), R4
 	MOVD	new+16(FP), R5
-	SYNC
+	LWSYNC
 	LDAR	(R3), R6
 	CMP	R6, R4
 	BNE	7(PC)
 	STDCCC	R5, (R3)
 	BNE	-4(PC)
-	ISYNC
+	LWSYNC
 	MOVD	$1, R3
 	MOVB	R3, swapped+24(FP)
 	RET
@@ -86,12 +86,11 @@ TEXT ·AddInt32(SB),NOSPLIT,$0-20
 TEXT ·AddUint32(SB),NOSPLIT,$0-20
 	MOVD	addr+0(FP), R3
 	MOVW	delta+8(FP), R4
-	SYNC
+	LWSYNC
 	LWAR	(R3), R5
 	ADD	R4, R5
 	STWCCC	R5, (R3)
 	BNE	-3(PC)
-	ISYNC
 	MOVW	R5, new+16(FP)
 	RET
 
@@ -104,12 +103,11 @@ TEXT ·AddInt64(SB),NOSPLIT,$0-24
 TEXT ·AddUint64(SB),NOSPLIT,$0-24
 	MOVD	addr+0(FP), R3
 	MOVD	delta+8(FP), R4
-	SYNC
+	LWSYNC
 	LDAR	(R3), R5
 	ADD	R4, R5
 	STDCCC	R5, (R3)
 	BNE	-3(PC)
-	ISYNC
 	MOVD	R5, new+16(FP)
 	RET
 

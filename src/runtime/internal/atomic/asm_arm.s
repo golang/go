@@ -30,7 +30,7 @@ casl:
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)
-	WORD	$0xf57ff05a	// dmb ishst
+	DMB	MB_ISHST
 
 	STREX	R3, (R1), R0
 	CMP	$0, R0
@@ -40,7 +40,7 @@ casl:
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)
-	WORD	$0xf57ff05b	// dmb ish
+	DMB	MB_ISH
 
 	MOVB	R0, ret+12(FP)
 	RET

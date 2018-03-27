@@ -7,7 +7,6 @@
 package httptest
 
 import (
-	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
@@ -17,6 +16,7 @@ import (
 	"net/http"
 	"net/http/internal"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -224,7 +224,7 @@ func (s *Server) Close() {
 func (s *Server) logCloseHangDebugInfo() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var buf bytes.Buffer
+	var buf strings.Builder
 	buf.WriteString("httptest.Server blocked in Close after 5 seconds, waiting for connections:\n")
 	for c, st := range s.conns {
 		fmt.Fprintf(&buf, "  %T %p %v in state %v\n", c, c, c.RemoteAddr(), st)

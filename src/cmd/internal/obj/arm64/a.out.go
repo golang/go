@@ -208,6 +208,7 @@ const (
 	REG_SPSel
 	REG_DAIFSet
 	REG_DAIFClr
+	REG_DCZID_EL0
 	REG_PLDL1KEEP
 	REG_PLDL1STRM
 	REG_PLDL2KEEP
@@ -424,6 +425,7 @@ const (
 	C_NPAUTO     // -512 <= x < 0, 0 mod 8
 	C_NSAUTO     // -256 <= x < 0
 	C_PSAUTO_8   // 0 to 255, 0 mod 8
+	C_PSAUTO_4   // 0 to 255, 0 mod 4
 	C_PSAUTO     // 0 to 255
 	C_PPAUTO     // 0 to 504, 0 mod 8
 	C_UAUTO4K_8  // 0 to 4095, 0 mod 8
@@ -449,6 +451,7 @@ const (
 	C_NPOREG // must mirror NPAUTO, etc
 	C_NSOREG
 	C_PSOREG_8
+	C_PSOREG_4
 	C_PSOREG
 	C_PPOREG
 	C_UOREG4K_8
@@ -593,6 +596,8 @@ const (
 	ALDAXRH
 	ALDAXRW
 	ALDP
+	ALDPW
+	ALDPSW
 	ALDXR
 	ALDXRB
 	ALDXRH
@@ -685,6 +690,7 @@ const (
 	ASTLXRH
 	ASTLXRW
 	ASTP
+	ASTPW
 	ASUB
 	ASUBS
 	ASUBSW

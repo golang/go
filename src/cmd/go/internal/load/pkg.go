@@ -1473,6 +1473,7 @@ func PackagesForBuild(args []string) []*Package {
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {
 			base.Errorf("can't load package: %s", pkg.Error)
+			printed[pkg.Error] = true
 		}
 		for _, err := range pkg.DepsErrors {
 			// Since these are errors in dependencies,

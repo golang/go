@@ -124,12 +124,9 @@ TEXT runtime∕internal∕atomic·Load64(SB), NOSPLIT, $0-12
 	JZ	2(PC)
 	MOVL	0, AX // crash with nil ptr deref
 	LEAL	ret_lo+4(FP), BX
-	// MOVQ (%EAX), %MM0
-	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
-	// MOVQ %MM0, 0(%EBX)
-	BYTE $0x0f; BYTE $0x7f; BYTE $0x03
-	// EMMS
-	BYTE $0x0F; BYTE $0x77
+	MOVQ	(AX), M0
+	MOVQ	M0, (BX)
+	EMMS
 	RET
 
 // void runtime∕internal∕atomic·Store64(uint64 volatile* addr, uint64 v);
@@ -139,12 +136,9 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-12
 	JZ	2(PC)
 	MOVL	0, AX // crash with nil ptr deref
 	// MOVQ and EMMS were introduced on the Pentium MMX.
-	// MOVQ 0x8(%ESP), %MM0
-	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
-	// MOVQ %MM0, (%EAX)
-	BYTE $0x0f; BYTE $0x7f; BYTE $0x00 
-	// EMMS
-	BYTE $0x0F; BYTE $0x77
+	MOVQ	val+4(FP), M0
+	MOVQ	M0, (AX)
+	EMMS
 	// This is essentially a no-op, but it provides required memory fencing.
 	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
 	MOVL	$0, AX

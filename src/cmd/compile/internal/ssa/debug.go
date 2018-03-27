@@ -372,6 +372,26 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 		state.varParts[topSlot.N] = append(state.varParts[topSlot.N], SlotID(i))
 	}
 
+	// Recreate the LocalSlot for each stack-only variable.
+	// This would probably be better as an output from stackframe.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op == OpVarDef || v.Op == OpVarKill {
+				n := v.Aux.(GCNode)
+				if n.IsSynthetic() {
+					continue
+				}
+
+				if _, ok := state.varParts[n]; !ok {
+					slot := LocalSlot{N: n, Type: v.Type, Off: 0}
+					state.slots = append(state.slots, slot)
+					state.varParts[n] = []SlotID{SlotID(len(state.slots) - 1)}
+					state.vars = append(state.vars, n)
+				}
+			}
+		}
+	}
+
 	// Fill in the var<->slot mappings.
 	if cap(state.varSlots) < len(state.vars) {
 		state.varSlots = make([][]SlotID, len(state.vars))
@@ -578,12 +598,12 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 
 	// A slot is live if it was seen in all predecessors, and they all had
 	// some storage in common.
-	for slotID := range p0 {
-		slotLoc := slotLocs[slotID]
+	for _, predSlot := range p0 {
+		slotLoc := slotLocs[predSlot.slot]
 
-		if state.liveCount[slotID] != len(preds) {
+		if state.liveCount[predSlot.slot] != len(preds) {
 			// Seen in only some predecessors. Clear it out.
-			slotLocs[slotID] = VarLoc{}
+			slotLocs[predSlot.slot] = VarLoc{}
 			continue
 		}
 
@@ -596,7 +616,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 			reg := uint8(TrailingZeros64(mask))
 			mask &^= 1 << reg
 
-			state.currentState.registers[reg] = append(state.currentState.registers[reg], SlotID(slotID))
+			state.currentState.registers[reg] = append(state.currentState.registers[reg], predSlot.slot)
 		}
 	}
 	return nil, false
@@ -644,6 +664,26 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	}
 
 	switch {
+	case v.Op == OpVarDef, v.Op == OpVarKill:
+		n := v.Aux.(GCNode)
+		if n.IsSynthetic() {
+			break
+		}
+
+		slotID := state.varParts[n][0]
+		var stackOffset StackOffset
+		if v.Op == OpVarDef {
+			stackOffset = StackOffset(state.stackOffset(state.slots[slotID])<<1 | 1)
+		}
+		setSlot(slotID, VarLoc{0, stackOffset})
+		if state.loggingEnabled {
+			if v.Op == OpVarDef {
+				state.logf("at %v: stack-only var %v now live\n", v.ID, state.slots[slotID])
+			} else {
+				state.logf("at %v: stack-only var %v now dead\n", v.ID, state.slots[slotID])
+			}
+		}
+
 	case v.Op == OpArg:
 		home := state.f.getHome(v.ID).(LocalSlot)
 		stackOffset := state.stackOffset(home)<<1 | 1
@@ -825,7 +865,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, BlockEnd.ID)
 		list := state.lists[varID]
 		if len(list) == 0 {
-			continue
+			state.logf("\t%v : empty list\n", state.vars[varID])
 		}
 
 		if state.loggingEnabled {
@@ -1001,7 +1041,7 @@ func decodeValue(ctxt *obj.Link, word uint64) (ID, ID) {
 	if ctxt.Arch.PtrSize != 4 {
 		panic("unexpected pointer size")
 	}
-	return ID(word >> 16), ID(word)
+	return ID(word >> 16), ID(int16(word))
 }
 
 // Append a pointer-sized uint to buf.

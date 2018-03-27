@@ -52,14 +52,7 @@ func TestNegativeZero(t *testing.T) {
 	}
 }
 
-// nan is a good test because nan != nan, and nan has
-// a randomized hash value.
-func TestNan(t *testing.T) {
-	m := make(map[float64]int, 0)
-	nan := math.NaN()
-	m[nan] = 1
-	m[nan] = 2
-	m[nan] = 4
+func testMapNan(t *testing.T, m map[float64]int) {
 	if len(m) != 3 {
 		t.Error("length wrong")
 	}
@@ -78,6 +71,67 @@ func TestNan(t *testing.T) {
 	}
 }
 
+// nan is a good test because nan != nan, and nan has
+// a randomized hash value.
+func TestMapAssignmentNan(t *testing.T) {
+	m := make(map[float64]int, 0)
+	nan := math.NaN()
+
+	// Test assignment.
+	m[nan] = 1
+	m[nan] = 2
+	m[nan] = 4
+	testMapNan(t, m)
+}
+
+// nan is a good test because nan != nan, and nan has
+// a randomized hash value.
+func TestMapOperatorAssignmentNan(t *testing.T) {
+	m := make(map[float64]int, 0)
+	nan := math.NaN()
+
+	// Test assignment operations.
+	m[nan] += 1
+	m[nan] += 2
+	m[nan] += 4
+	testMapNan(t, m)
+}
+
+func TestMapOperatorAssignment(t *testing.T) {
+	m := make(map[int]int, 0)
+
+	// "m[k] op= x" is rewritten into "m[k] = m[k] op x"
+	// differently when op is / or % than when it isn't.
+	// Simple test to make sure they all work as expected.
+	m[0] = 12345
+	m[0] += 67890
+	m[0] /= 123
+	m[0] %= 456
+
+	const want = (12345 + 67890) / 123 % 456
+	if got := m[0]; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+}
+
+var sinkAppend bool
+
+func TestMapAppendAssignment(t *testing.T) {
+	m := make(map[int][]int, 0)
+
+	m[0] = nil
+	m[0] = append(m[0], 12345)
+	m[0] = append(m[0], 67890)
+	sinkAppend, m[0] = !sinkAppend, append(m[0], 123, 456)
+	a := []int{7, 8, 9, 0}
+	m[0] = append(m[0], a...)
+
+	want := []int{12345, 67890, 123, 456, 7, 8, 9, 0}
+	if got := m[0]; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 // Maps aren't actually copied on assignment.
 func TestAlias(t *testing.T) {
 	m := make(map[int]int, 0)
@@ -92,17 +146,24 @@ func TestAlias(t *testing.T) {
 func TestGrowWithNaN(t *testing.T) {
 	m := make(map[float64]int, 4)
 	nan := math.NaN()
+
+	// Use both assignment and assignment operations as they may
+	// behave differently.
 	m[nan] = 1
 	m[nan] = 2
-	m[nan] = 4
+	m[nan] += 4
+
 	cnt := 0
 	s := 0
 	growflag := true
 	for k, v := range m {
 		if growflag {
 			// force a hashtable resize
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 50; i++ {
 				m[float64(i)] = i
+			}
+			for i := 50; i < 100; i++ {
+				m[float64(i)] += i
 			}
 			growflag = false
 		}
@@ -128,8 +189,8 @@ func TestGrowWithNegativeZero(t *testing.T) {
 	negzero := math.Copysign(0.0, -1.0)
 	m := make(map[FloatInt]int, 4)
 	m[FloatInt{0.0, 0}] = 1
-	m[FloatInt{0.0, 1}] = 2
-	m[FloatInt{0.0, 2}] = 4
+	m[FloatInt{0.0, 1}] += 2
+	m[FloatInt{0.0, 2}] += 4
 	m[FloatInt{0.0, 3}] = 8
 	growflag := true
 	s := 0
@@ -211,8 +272,11 @@ func TestIterGrowAndDelete(t *testing.T) {
 // an iterator is still using them.
 func TestIterGrowWithGC(t *testing.T) {
 	m := make(map[int]int, 4)
-	for i := 0; i < 16; i++ {
+	for i := 0; i < 8; i++ {
 		m[i] = i
+	}
+	for i := 8; i < 16; i++ {
+		m[i] += i
 	}
 	growflag := true
 	bitmask := 0
@@ -786,6 +850,23 @@ func benchmarkMapAssignInt32(b *testing.B, n int) {
 	}
 }
 
+func benchmarkMapOperatorAssignInt32(b *testing.B, n int) {
+	a := make(map[int32]int)
+	for i := 0; i < b.N; i++ {
+		a[int32(i&(n-1))] += i
+	}
+}
+
+func benchmarkMapAppendAssignInt32(b *testing.B, n int) {
+	a := make(map[int32][]int)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		key := int32(i & (n - 1))
+		a[key] = append(a[key], i)
+	}
+}
+
 func benchmarkMapDeleteInt32(b *testing.B, n int) {
 	a := make(map[int32]int, n)
 	b.ResetTimer()
@@ -805,6 +886,23 @@ func benchmarkMapAssignInt64(b *testing.B, n int) {
 	a := make(map[int64]int)
 	for i := 0; i < b.N; i++ {
 		a[int64(i&(n-1))] = i
+	}
+}
+
+func benchmarkMapOperatorAssignInt64(b *testing.B, n int) {
+	a := make(map[int64]int)
+	for i := 0; i < b.N; i++ {
+		a[int64(i&(n-1))] += i
+	}
+}
+
+func benchmarkMapAppendAssignInt64(b *testing.B, n int) {
+	a := make(map[int64][]int)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		key := int64(i & (n - 1))
+		a[key] = append(a[key], i)
 	}
 }
 
@@ -832,6 +930,33 @@ func benchmarkMapAssignStr(b *testing.B, n int) {
 	a := make(map[string]int)
 	for i := 0; i < b.N; i++ {
 		a[k[i&(n-1)]] = i
+	}
+}
+
+func benchmarkMapOperatorAssignStr(b *testing.B, n int) {
+	k := make([]string, n)
+	for i := 0; i < len(k); i++ {
+		k[i] = strconv.Itoa(i)
+	}
+	b.ResetTimer()
+	a := make(map[string]string)
+	for i := 0; i < b.N; i++ {
+		key := k[i&(n-1)]
+		a[key] += key
+	}
+}
+
+func benchmarkMapAppendAssignStr(b *testing.B, n int) {
+	k := make([]string, n)
+	for i := 0; i < len(k); i++ {
+		k[i] = strconv.Itoa(i)
+	}
+	a := make(map[string][]string)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		key := k[i&(n-1)]
+		a[key] = append(a[key], key)
 	}
 }
 
@@ -870,8 +995,41 @@ func BenchmarkMapAssign(b *testing.B) {
 	b.Run("Str", runWith(benchmarkMapAssignStr, 1<<8, 1<<16))
 }
 
+func BenchmarkMapOperatorAssign(b *testing.B) {
+	b.Run("Int32", runWith(benchmarkMapOperatorAssignInt32, 1<<8, 1<<16))
+	b.Run("Int64", runWith(benchmarkMapOperatorAssignInt64, 1<<8, 1<<16))
+	b.Run("Str", runWith(benchmarkMapOperatorAssignStr, 1<<8, 1<<16))
+}
+
+func BenchmarkMapAppendAssign(b *testing.B) {
+	b.Run("Int32", runWith(benchmarkMapAppendAssignInt32, 1<<8, 1<<16))
+	b.Run("Int64", runWith(benchmarkMapAppendAssignInt64, 1<<8, 1<<16))
+	b.Run("Str", runWith(benchmarkMapAppendAssignStr, 1<<8, 1<<16))
+}
+
 func BenchmarkMapDelete(b *testing.B) {
 	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 100, 1000, 10000))
 	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
 	b.Run("Str", runWith(benchmarkMapDeleteStr, 100, 1000, 10000))
+}
+
+func TestDeferDeleteSlow(t *testing.T) {
+	ks := []complex128{0, 1, 2, 3}
+
+	m := make(map[interface{}]int)
+	for i, k := range ks {
+		m[k] = i
+	}
+	if len(m) != len(ks) {
+		t.Errorf("want %d elements, got %d", len(ks), len(m))
+	}
+
+	func() {
+		for _, k := range ks {
+			defer delete(m, k)
+		}
+	}()
+	if len(m) != 0 {
+		t.Errorf("want 0 elements, got %d", len(m))
+	}
 }

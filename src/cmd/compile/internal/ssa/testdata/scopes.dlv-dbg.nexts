@@ -1,0 +1,19 @@
+  ./testdata/scopes.go
+18:	func test() {
+19:		x := id(0)
+20:		y := id(0)
+21:		fmt.Println(x)
+22:		for i := x; i < 3; i++ {
+23:			x := i * i
+24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+22:		for i := x; i < 3; i++ {
+23:			x := i * i
+24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+22:		for i := x; i < 3; i++ {
+23:			x := i * i
+24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+22:		for i := x; i < 3; i++ {
+26:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+27:		fmt.Println(x, y)
+28:	}
+11:	}

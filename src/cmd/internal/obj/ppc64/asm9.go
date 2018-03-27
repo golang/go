@@ -71,6 +71,14 @@ type Optab struct {
 	param int16
 }
 
+// This optab contains a list of opcodes with the operand
+// combinations that are implemented. Not all opcodes are in this
+// table, but are added later in buildop by calling opset for those
+// opcodes which allow the same operand combinations as an opcode
+// already in the table.
+//
+// The type field in the Optabl identifies the case in asmout where
+// the instruction word is assembled.
 var optab = []Optab{
 	{obj.ATEXT, C_LEXT, C_NONE, C_NONE, C_TEXTSIZE, 0, 0, 0},
 	{obj.ATEXT, C_LEXT, C_NONE, C_LCON, C_TEXTSIZE, 0, 0, 0},
@@ -84,14 +92,18 @@ var optab = []Optab{
 	{AMOVWZ, C_REG, C_NONE, C_NONE, C_REG, 13, 4, 0},
 	{AADD, C_REG, C_REG, C_NONE, C_REG, 2, 4, 0},
 	{AADD, C_REG, C_NONE, C_NONE, C_REG, 2, 4, 0},
+	{AADD, C_SCON, C_REG, C_NONE, C_REG, 4, 4, 0},
+	{AADD, C_SCON, C_NONE, C_NONE, C_REG, 4, 4, 0},
 	{AADD, C_ADDCON, C_REG, C_NONE, C_REG, 4, 4, 0},
 	{AADD, C_ADDCON, C_NONE, C_NONE, C_REG, 4, 4, 0},
 	{AADD, C_UCON, C_REG, C_NONE, C_REG, 20, 4, 0},
 	{AADD, C_UCON, C_NONE, C_NONE, C_REG, 20, 4, 0},
-	{AADDIS, C_ADDCON, C_REG, C_NONE, C_REG, 20, 4, 0},
-	{AADDIS, C_ADDCON, C_NONE, C_NONE, C_REG, 20, 4, 0},
+	{AADD, C_ANDCON, C_REG, C_NONE, C_REG, 22, 8, 0},
+	{AADD, C_ANDCON, C_NONE, C_NONE, C_REG, 22, 8, 0},
 	{AADD, C_LCON, C_REG, C_NONE, C_REG, 22, 12, 0},
 	{AADD, C_LCON, C_NONE, C_NONE, C_REG, 22, 12, 0},
+	{AADDIS, C_ADDCON, C_REG, C_NONE, C_REG, 20, 4, 0},
+	{AADDIS, C_ADDCON, C_NONE, C_NONE, C_REG, 20, 4, 0},
 	{AADDC, C_REG, C_REG, C_NONE, C_REG, 2, 4, 0},
 	{AADDC, C_REG, C_NONE, C_NONE, C_REG, 2, 4, 0},
 	{AADDC, C_ADDCON, C_REG, C_NONE, C_REG, 4, 4, 0},
@@ -106,10 +118,12 @@ var optab = []Optab{
 	{AANDCC, C_ANDCON, C_REG, C_NONE, C_REG, 58, 4, 0},
 	{AANDCC, C_UCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
 	{AANDCC, C_UCON, C_REG, C_NONE, C_REG, 59, 4, 0},
-	{AANDISCC, C_ANDCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
-	{AANDISCC, C_ANDCON, C_REG, C_NONE, C_REG, 59, 4, 0},
+	{AANDCC, C_ADDCON, C_NONE, C_NONE, C_REG, 23, 8, 0},
+	{AANDCC, C_ADDCON, C_REG, C_NONE, C_REG, 23, 8, 0},
 	{AANDCC, C_LCON, C_NONE, C_NONE, C_REG, 23, 12, 0},
 	{AANDCC, C_LCON, C_REG, C_NONE, C_REG, 23, 12, 0},
+	{AANDISCC, C_ANDCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
+	{AANDISCC, C_ANDCON, C_REG, C_NONE, C_REG, 59, 4, 0},
 	{AMULLW, C_REG, C_REG, C_NONE, C_REG, 2, 4, 0},
 	{AMULLW, C_REG, C_NONE, C_NONE, C_REG, 2, 4, 0},
 	{AMULLW, C_ADDCON, C_REG, C_NONE, C_REG, 4, 4, 0},
@@ -128,10 +142,12 @@ var optab = []Optab{
 	{AOR, C_ANDCON, C_REG, C_NONE, C_REG, 58, 4, 0},
 	{AOR, C_UCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
 	{AOR, C_UCON, C_REG, C_NONE, C_REG, 59, 4, 0},
-	{AORIS, C_ANDCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
-	{AORIS, C_ANDCON, C_REG, C_NONE, C_REG, 59, 4, 0},
+	{AOR, C_ADDCON, C_NONE, C_NONE, C_REG, 23, 8, 0},
+	{AOR, C_ADDCON, C_REG, C_NONE, C_REG, 23, 8, 0},
 	{AOR, C_LCON, C_NONE, C_NONE, C_REG, 23, 12, 0},
 	{AOR, C_LCON, C_REG, C_NONE, C_REG, 23, 12, 0},
+	{AORIS, C_ANDCON, C_NONE, C_NONE, C_REG, 59, 4, 0},
+	{AORIS, C_ANDCON, C_REG, C_NONE, C_REG, 59, 4, 0},
 	{ADIVW, C_REG, C_REG, C_NONE, C_REG, 2, 4, 0}, /* op r1[,r2],r3 */
 	{ADIVW, C_REG, C_NONE, C_NONE, C_REG, 2, 4, 0},
 	{ASUB, C_REG, C_REG, C_NONE, C_REG, 10, 4, 0}, /* op r2[,r1],r3 */
@@ -277,16 +293,19 @@ var optab = []Optab{
 	{AMOVD, C_LECON, C_NONE, C_NONE, C_REG, 26, 8, REGSB},
 	{AMOVD, C_LACON, C_NONE, C_NONE, C_REG, 26, 8, REGSP},
 	{AMOVD, C_ADDCON, C_NONE, C_NONE, C_REG, 3, 4, REGZERO},
+	{AMOVD, C_ANDCON, C_NONE, C_NONE, C_REG, 3, 4, REGZERO},
 	{AMOVW, C_SECON, C_NONE, C_NONE, C_REG, 3, 4, REGSB}, /* TO DO: check */
 	{AMOVW, C_SACON, C_NONE, C_NONE, C_REG, 3, 4, REGSP},
 	{AMOVW, C_LECON, C_NONE, C_NONE, C_REG, 26, 8, REGSB},
 	{AMOVW, C_LACON, C_NONE, C_NONE, C_REG, 26, 8, REGSP},
 	{AMOVW, C_ADDCON, C_NONE, C_NONE, C_REG, 3, 4, REGZERO},
+	{AMOVW, C_ANDCON, C_NONE, C_NONE, C_REG, 3, 4, REGZERO},
 	{AMOVWZ, C_SECON, C_NONE, C_NONE, C_REG, 3, 4, REGSB}, /* TO DO: check */
 	{AMOVWZ, C_SACON, C_NONE, C_NONE, C_REG, 3, 4, REGSP},
 	{AMOVWZ, C_LECON, C_NONE, C_NONE, C_REG, 26, 8, REGSB},
 	{AMOVWZ, C_LACON, C_NONE, C_NONE, C_REG, 26, 8, REGSP},
 	{AMOVWZ, C_ADDCON, C_NONE, C_NONE, C_REG, 3, 4, REGZERO},
+	{AMOVWZ, C_ANDCON, C_NONE, C_NONE, C_REG, 3, 4, REGZERO},
 
 	/* load unsigned/long constants (TO DO: check) */
 	{AMOVD, C_UCON, C_NONE, C_NONE, C_REG, 3, 4, REGZERO},
@@ -562,6 +581,8 @@ var optab = []Optab{
 	{AECIWX, C_ZOREG, C_REG, C_NONE, C_REG, 45, 4, 0},
 	{AECOWX, C_REG, C_NONE, C_NONE, C_ZOREG, 44, 4, 0},
 	{AECIWX, C_ZOREG, C_NONE, C_NONE, C_REG, 45, 4, 0},
+	{ALDAR, C_ZOREG, C_NONE, C_NONE, C_REG, 45, 4, 0},
+	{ALDAR, C_ZOREG, C_NONE, C_ANDCON, C_REG, 45, 4, 0},
 	{AEIEIO, C_NONE, C_NONE, C_NONE, C_NONE, 46, 4, 0},
 	{ATLBIE, C_REG, C_NONE, C_NONE, C_NONE, 49, 4, 0},
 	{ATLBIE, C_SCON, C_NONE, C_NONE, C_REG, 49, 4, 0},
@@ -1048,13 +1069,25 @@ func (x ocmp) Swap(i, j int) {
 	x[i], x[j] = x[j], x[i]
 }
 
+// Used when sorting the optab. Sorting is
+// done in a way so that the best choice of
+// opcode/operand combination is considered first.
 func (x ocmp) Less(i, j int) bool {
 	p1 := &x[i]
 	p2 := &x[j]
 	n := int(p1.as) - int(p2.as)
+	// same opcode
 	if n != 0 {
 		return n < 0
 	}
+	// Consider those that generate fewer
+	// instructions first.
+	n = int(p1.size) - int(p2.size)
+	if n != 0 {
+		return n < 0
+	}
+	// operand order should match
+	// better choices first
 	n = int(p1.a1) - int(p2.a1)
 	if n != 0 {
 		return n < 0
@@ -1073,10 +1106,15 @@ func (x ocmp) Less(i, j int) bool {
 	}
 	return false
 }
+
+// Add an entry to the opcode table for
+// a new opcode b0 with the same operand combinations
+// as opcode a.
 func opset(a, b0 obj.As) {
 	oprange[a&obj.AMask] = oprange[b0]
 }
 
+// Build the opcode table
 func buildop(ctxt *obj.Link) {
 	if oprange[AANDN&obj.AMask] != nil {
 		// Already initialized; stop now.
@@ -1755,10 +1793,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AFMOVS, r0)
 			opset(AFMOVSU, r0)
 
-		case AECIWX:
+		case ALDAR:
 			opset(ALBAR, r0)
+			opset(ALHAR, r0)
 			opset(ALWAR, r0)
-			opset(ALDAR, r0)
 
 		case ASYSCALL: /* just the op; flow of control */
 			opset(ARFI, r0)
@@ -1825,6 +1863,7 @@ func buildop(ctxt *obj.Link) {
 			AVMSUMUDM,
 			AADDEX,
 			ACMPEQB,
+			AECIWX,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -1955,6 +1994,11 @@ func AOP_XX4(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
 /* Z23-form, 3-register operands + CY field */
 func AOP_Z23I(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
 	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<7
+}
+
+/* X-form, 3-register operands + EH field */
+func AOP_RRRI(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
+	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c & 1)
 }
 
 func LOP_RRR(op uint32, a uint32, s uint32, b uint32) uint32 {
@@ -2256,7 +2300,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
 
-	case 3: /* mov $soreg/addcon/ucon, r ==> addis/addi $i,reg',r */
+	case 3: /* mov $soreg/addcon/andcon/ucon, r ==> addis/oris/addi/ori $i,reg',r */
 		d := c.vregoff(&p.From)
 
 		v := int32(d)
@@ -2272,6 +2316,8 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			if d&0xffff != 0 {
 				log.Fatalf("invalid handling of %v", p)
 			}
+			// For UCON operands the value is right shifted 16, using ADDIS if the
+			// value should be signed, ORIS if unsigned.
 			v >>= 16
 			if r == REGZERO && isuint32(uint64(d)) {
 				o1 = LOP_IRR(OP_ORIS, uint32(p.To.Reg), REGZERO, uint32(v))
@@ -2279,8 +2325,16 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			}
 
 			a = OP_ADDIS
-		} else {
-			if int64(int16(d)) != d {
+		} else if int64(int16(d)) != d {
+			// Operand is 16 bit value with sign bit set
+			if o.a1 == C_ANDCON {
+				// Needs unsigned 16 bit so use ORI
+				if r == 0 || r == REGZERO {
+					o1 = LOP_IRR(uint32(OP_ORI), uint32(p.To.Reg), uint32(0), uint32(v))
+					break
+				}
+				// With ADDCON, needs signed 16 bit value, fall through to use ADDI
+			} else if o.a1 != C_ADDCON {
 				log.Fatalf("invalid handling of %v", p)
 			}
 		}
@@ -2632,8 +2686,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1, o2 = c.symbolAccess(p.From.Sym, d, p.To.Reg, OP_ADDI)
 		}
 
-	//if(dlm) reloc(&p->from, p->pc, 0);
-
 	case 20: /* add $ucon,,r | addis $addcon,r,r */
 		v := c.regoff(&p.From)
 
@@ -2650,43 +2702,53 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = AOP_IRR(c.opirr(AADDIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
 		}
 
-	case 22: /* add $lcon,r1,r2 ==> cau+or+add */ /* could do add/sub more efficiently */
+	case 22: /* add $lcon/$andcon,r1,r2 ==> oris+ori+add/ori+add */
 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
 			c.ctxt.Diag("can't synthesize large constant\n%v", p)
 		}
 		d := c.vregoff(&p.From)
-		o1 = loadu32(REGTMP, d)
-		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))
 		r := int(p.Reg)
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o3 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
 		if p.From.Sym != nil {
 			c.ctxt.Diag("%v is not supported", p)
 		}
+		// If operand is ANDCON, generate 2 instructions using
+		// ORI for unsigned value; with LCON 3 instructions.
+		if o.size == 8 {
+			o1 = LOP_IRR(OP_ORI, REGTMP, REGZERO, uint32(int32(d)))
+			o2 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
+		} else {
+			o1 = loadu32(REGTMP, d)
+			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))
+			o3 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
+		}
 
-	//if(dlm) reloc(&p->from, p->pc, 0);
-
-	case 23: /* and $lcon,r1,r2 ==> cau+or+and */ /* masks could be done using rlnm etc. */
+	case 23: /* and $lcon/$addcon,r1,r2 ==> oris+ori+and/addi+and */
 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
 			c.ctxt.Diag("can't synthesize large constant\n%v", p)
 		}
 		d := c.vregoff(&p.From)
-		o1 = loadu32(REGTMP, d)
-		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))
 		r := int(p.Reg)
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o3 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
+
+		// With ADDCON operand, generate 2 instructions using ADDI for signed value,
+		// with LCON operand generate 3 instructions.
+		if o.size == 8 {
+			o1 = LOP_IRR(OP_ADDI, REGZERO, REGTMP, uint32(int32(d)))
+			o2 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
+		} else {
+			o1 = loadu32(REGTMP, d)
+			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))
+			o3 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
+		}
 		if p.From.Sym != nil {
 			c.ctxt.Diag("%v is not supported", p)
 		}
 
-		//if(dlm) reloc(&p->from, p->pc, 0);
-
-		/*24*/
 	case 25:
 		/* sld[.] $sh,rS,rA -> rldicr[.] $sh,rS,mask(0,63-sh),rA; srd[.] -> rldicl */
 		v := c.regoff(&p.From)
@@ -2940,8 +3002,24 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(c.opstorex(p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(p.To.Reg))
 
 	case 45: /* indexed load */
-		o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
-
+		switch p.As {
+		/* The assembler accepts a 4-operand l*arx instruction. The fourth operand is an Exclusive Access Hint (EH) */
+		/* The EH field can be used as a lock acquire/release hint as follows: */
+		/* 0 = Atomic Update (fetch-and-operate or similar algorithm) */
+		/* 1 = Exclusive Access (lock acquire and release) */
+		case ALBAR, ALHAR, ALWAR, ALDAR:
+			if p.From3Type() != obj.TYPE_NONE {
+				eh := int(c.regoff(p.GetFrom3()))
+				if eh > 1 {
+					c.ctxt.Diag("illegal EH field\n%v", p)
+				}
+				o1 = AOP_RRRI(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg), uint32(eh))
+			} else {
+				o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
+			}
+		default:
+			o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
+		}
 	case 46: /* plain op */
 		o1 = c.oprrr(p.As)
 
@@ -3090,7 +3168,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case AXOR:
 			o1 = LOP_IRR(c.opirr(AXORIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
 		case AANDCC:
-			o1 = LOP_IRR(c.opirr(AANDCC), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
+			o1 = LOP_IRR(c.opirr(AANDISCC), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
 		default:
 			o1 = LOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
 		}
@@ -4711,10 +4789,12 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		return OPVCC(31, 310, 0, 0) /* eciwx */
 	case ALBAR:
 		return OPVCC(31, 52, 0, 0) /* lbarx */
+	case ALHAR:
+		return OPVCC(31, 116, 0, 0) /* lharx */
 	case ALWAR:
 		return OPVCC(31, 20, 0, 0) /* lwarx */
 	case ALDAR:
-		return OPVCC(31, 84, 0, 0)
+		return OPVCC(31, 84, 0, 0) /* ldarx */
 	case ALSW:
 		return OPVCC(31, 533, 0, 0) /* lswx */
 	case AMOVD:
