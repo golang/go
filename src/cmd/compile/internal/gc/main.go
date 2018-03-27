@@ -290,17 +290,23 @@ func Main(archInit func(*Arch)) {
 
 	startProfile()
 
+	if flag_race && flag_msan {
+		log.Fatal("cannot use both -race and -msan")
+	}
+	if ispkgin(omit_pkgs) {
+		flag_race = false
+		flag_msan = false
+	}
 	if flag_race {
 		racepkg = types.NewPkg("runtime/race", "race")
 	}
 	if flag_msan {
 		msanpkg = types.NewPkg("runtime/msan", "msan")
 	}
-	if flag_race && flag_msan {
-		log.Fatal("cannot use both -race and -msan")
-	} else if flag_race || flag_msan {
+	if flag_race || flag_msan {
 		instrumenting = true
 	}
+
 	if compiling_runtime && Debug['N'] != 0 {
 		log.Fatal("cannot disable optimizations while compiling runtime")
 	}

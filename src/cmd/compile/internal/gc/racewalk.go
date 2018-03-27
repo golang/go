@@ -52,7 +52,7 @@ func ispkgin(pkgs []string) bool {
 }
 
 func instrument(fn *Node) {
-	if ispkgin(omit_pkgs) || fn.Func.Pragma&Norace != 0 {
+	if fn.Func.Pragma&Norace != 0 {
 		return
 	}
 
