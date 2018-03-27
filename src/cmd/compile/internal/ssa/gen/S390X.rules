@@ -58,10 +58,8 @@
 (Xor64 x y) -> (XOR x y)
 (Xor(32|16|8) x y) -> (XORW x y)
 
-(Neg64  x) -> (NEG x)
-(Neg32  x) -> (NEGW x)
-(Neg16  x) -> (NEGW (MOVHreg x))
-(Neg8   x) -> (NEGW (MOVBreg x))
+(Neg64 x) -> (NEG x)
+(Neg(32|16|8) x) -> (NEGW x)
 (Neg32F x) -> (FNEGS x)
 (Neg64F x) -> (FNEG x)
 
