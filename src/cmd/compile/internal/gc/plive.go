@@ -153,7 +153,13 @@ type LivenessIndex struct {
 }
 
 // LivenessInvalid indicates an unsafe point.
-var LivenessInvalid = LivenessIndex{-1}
+//
+// We use index -2 because PCDATA tables conventionally start at -1,
+// so -1 is used to mean the entry liveness map (which is actually at
+// index 0; sigh). TODO(austin): Maybe we should use PCDATA+1 as the
+// index into the liveness map so -1 uniquely refers to the entry
+// liveness map.
+var LivenessInvalid = LivenessIndex{-2}
 
 func (idx LivenessIndex) Valid() bool {
 	return idx.stackMapIndex >= 0
