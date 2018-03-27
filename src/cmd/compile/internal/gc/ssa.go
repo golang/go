@@ -15,7 +15,6 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
@@ -4818,12 +4817,17 @@ func genssa(f *ssa.Func, pp *Progs) {
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
+		s.pp.nextLive = LivenessInvalid
 		s.lineRunStart = nil
+
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
 			x := s.pp.next
 			s.DebugFriendlySetPosFrom(v)
+			// Attach this safe point to the next
+			// instruction.
+			s.pp.nextLive = s.livenessMap.Get(v)
 			switch v.Op {
 			case ssa.OpInitMem:
 				// memory arg needs no code
@@ -5279,9 +5283,6 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 			Fatalf("missing stack map index for %v", v.LongString())
 		}
 	}
-	p := s.Prog(obj.APCDATA)
-	Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
-	Addrconst(&p.To, int64(idx.stackMapIndex))
 
 	if sym, _ := v.Aux.(*obj.LSym); sym == Deferreturn {
 		// Deferred calls will appear to be returning to

@@ -49,6 +49,9 @@ type Progs struct {
 	curfn     *Node      // fn these Progs are for
 	progcache []obj.Prog // local progcache
 	cacheidx  int        // first free element of progcache
+
+	nextLive LivenessIndex // liveness index for the next Prog
+	prevLive LivenessIndex // last emitted liveness index
 }
 
 // newProgs returns a new Progs for fn.
@@ -67,6 +70,8 @@ func newProgs(fn *Node, worker int) *Progs {
 
 	pp.pos = fn.Pos
 	pp.settext(fn)
+	pp.nextLive = LivenessInvalid
+	pp.prevLive = LivenessInvalid
 	return pp
 }
 
@@ -103,6 +108,15 @@ func (pp *Progs) Free() {
 
 // Prog adds a Prog with instruction As to pp.
 func (pp *Progs) Prog(as obj.As) *obj.Prog {
+	if pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
+		// Emit stack map index change.
+		idx := pp.nextLive.stackMapIndex
+		pp.prevLive.stackMapIndex = idx
+		p := pp.Prog(obj.APCDATA)
+		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
+		Addrconst(&p.To, int64(idx))
+	}
+
 	p := pp.next
 	pp.next = pp.NewProg()
 	pp.clearp(pp.next)
