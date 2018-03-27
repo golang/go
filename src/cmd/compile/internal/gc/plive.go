@@ -594,6 +594,20 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	}
 }
 
+// usedRegs returns the maximum width of the live register map.
+func (lv *Liveness) usedRegs() int32 {
+	var any liveRegMask
+	for _, live := range lv.regMaps {
+		any |= live
+	}
+	i := int32(0)
+	for any != 0 {
+		any >>= 1
+		i++
+	}
+	return i
+}
+
 // Generates live pointer value maps for arguments and local variables. The
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
@@ -1615,7 +1629,7 @@ func (lv *Liveness) printDebug() {
 // first word dumped is the total number of bitmaps. The second word is the
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
-func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
+func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
 	// Size args bitmaps to be just large enough to hold the largest pointer.
 	// First, find the largest Xoffset node we care about.
 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
@@ -1643,7 +1657,6 @@ func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
 	// This would require shifting all bitmaps.
 	maxLocals := lv.stkptrsize
 
-	// TODO(austin): Emit a register map.
 	args := bvalloc(int32(maxArgs / int64(Widthptr)))
 	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
 	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
@@ -1662,6 +1675,22 @@ func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
 		loff = dbvec(livesym, loff, locals)
 	}
 
+	regs := bvalloc(lv.usedRegs())
+	roff := duint32(regssym, 0, uint32(len(lv.regMaps))) // number of bitmaps
+	roff = duint32(regssym, roff, uint32(regs.n))        // number of bits in each bitmap
+	if regs.n > 32 {
+		// Our uint32 conversion below won't work.
+		Fatalf("GP registers overflow uint32")
+	}
+
+	if regs.n > 0 {
+		for _, live := range lv.regMaps {
+			regs.Clear()
+			regs.b[0] = uint32(live)
+			roff = dbvec(regssym, roff, regs)
+		}
+	}
+
 	// Give these LSyms content-addressable names,
 	// so that they can be de-duplicated.
 	// This provides significant binary size savings.
@@ -1669,6 +1698,7 @@ func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
 	// they are tracked separately from ctxt.hash.
 	argssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(argssym.P))
 	livesym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(livesym.P))
+	regssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(regssym.P))
 }
 
 // Entry pointer for liveness analysis. Solves for the liveness of
@@ -1692,7 +1722,7 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
 
 	// Emit the live pointer map data structures
 	if ls := e.curfn.Func.lsym; ls != nil {
-		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals)
+		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals, &ls.Func.GCRegs)
 	}
 	return lv.livenessMap
 }
