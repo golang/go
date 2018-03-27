@@ -138,17 +138,6 @@ func caninl(fn *Node) {
 		Fatalf("caninl on non-typechecked function %v", fn)
 	}
 
-	// Runtime package must not be instrumented.
-	// Instrument skips runtime package. However, some runtime code can be
-	// inlined into other packages and instrumented there. To avoid this,
-	// we disable inlining of runtime functions when instrumenting.
-	// The example that we observed is inlining of LockOSThread,
-	// which lead to false race reports on m contents.
-	if instrumenting && myimportpath == "runtime" {
-		reason = "instrumenting and is runtime function"
-		return
-	}
-
 	n := fn.Func.Nname
 	if n.Func.InlinabilityChecked() {
 		return
@@ -780,6 +769,16 @@ func mkinlcall1(n, fn *Node) *Node {
 
 	if fn == Curfn || fn.Name.Defn == Curfn {
 		// Can't recursively inline a function into itself.
+		return n
+	}
+
+	if instrumenting && isRuntimePkg(fn.Sym.Pkg) {
+		// Runtime package must not be instrumented.
+		// Instrument skips runtime package. However, some runtime code can be
+		// inlined into other packages and instrumented there. To avoid this,
+		// we disable inlining of runtime functions when instrumenting.
+		// The example that we observed is inlining of LockOSThread,
+		// which lead to false race reports on m contents.
 		return n
 	}
 
