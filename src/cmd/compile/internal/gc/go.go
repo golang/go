@@ -298,6 +298,12 @@ var (
 	gcWriteBarrier,
 	typedmemmove,
 	typedmemclr,
+	raceread,
+	racewrite,
+	racereadrange,
+	racewriterange,
+	msanread,
+	msanwrite,
 	Udiv *obj.LSym
 
 	// GO386=387

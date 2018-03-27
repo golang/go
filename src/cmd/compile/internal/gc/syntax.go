@@ -532,6 +532,7 @@ const (
 	funcNilCheckDisabled    // disable nil checks when compiling this function
 	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
 	funcExportInline        // include inline body in export data
+	funcInstrumentBody      // add race/msan instrumentation during SSA construction
 )
 
 func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
@@ -543,6 +544,7 @@ func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
 func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
+func (f *Func) InstrumentBody() bool      { return f.flags&funcInstrumentBody != 0 }
 
 func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
@@ -553,6 +555,7 @@ func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
 func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
+func (f *Func) SetInstrumentBody(b bool)      { f.flags.set(funcInstrumentBody, b) }
 
 func (f *Func) setWBPos(pos src.XPos) {
 	if Debug_wb != 0 {

@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"strings"
 )
 
 // needwb returns whether we need write barrier for store op v.
@@ -344,6 +345,39 @@ func IsStackAddr(v *Value) bool {
 		return true
 	case OpAddr:
 		return v.Args[0].Op == OpSP
+	}
+	return false
+}
+
+// IsSanitizerSafeAddr reports whether v is known to be an address
+// that doesn't need instrumentation.
+func IsSanitizerSafeAddr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+		v = v.Args[0]
+	}
+	switch v.Op {
+	case OpSP:
+		// Stack addresses are always safe.
+		return true
+	case OpITab, OpStringPtr, OpGetClosurePtr:
+		// Itabs, string data, and closure fields are
+		// read-only once initialized.
+		return true
+	case OpAddr:
+		switch v.Args[0].Op {
+		case OpSP:
+			return true
+		case OpSB:
+			sym := v.Aux.(*obj.LSym)
+			// TODO(mdempsky): Find a cleaner way to
+			// detect this. It would be nice if we could
+			// test sym.Type==objabi.SRODATA, but we don't
+			// initialize sym.Type until after function
+			// compilation.
+			if strings.HasPrefix(sym.Name, `"".statictmp_`) {
+				return true
+			}
+		}
 	}
 	return false
 }

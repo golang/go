@@ -74,6 +74,12 @@ func initssaconfig() {
 	gcWriteBarrier = sysfunc("gcWriteBarrier")
 	typedmemmove = sysfunc("typedmemmove")
 	typedmemclr = sysfunc("typedmemclr")
+	raceread = sysfunc("raceread")
+	racewrite = sysfunc("racewrite")
+	racereadrange = sysfunc("racereadrange")
+	racewriterange = sysfunc("racewriterange")
+	msanread = sysfunc("msanread")
+	msanwrite = sysfunc("msanwrite")
 	Udiv = sysfunc("udiv")
 
 	// GO386=387 runtime functions
@@ -567,7 +573,62 @@ func (s *state) newValueOrSfCall2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Valu
 	return s.newValue2(op, t, arg0, arg1)
 }
 
+func (s *state) instrument(t *types.Type, addr *ssa.Value, wr bool) {
+	if !s.curfn.Func.InstrumentBody() {
+		return
+	}
+
+	w := t.Size()
+	if w == 0 {
+		return // can't race on zero-sized things
+	}
+
+	if ssa.IsSanitizerSafeAddr(addr) {
+		return
+	}
+
+	var fn *obj.LSym
+	needWidth := false
+
+	if flag_msan {
+		fn = msanread
+		if wr {
+			fn = msanwrite
+		}
+		needWidth = true
+	} else if flag_race && t.NumComponents(types.CountBlankFields) > 1 {
+		// for composite objects we have to write every address
+		// because a write might happen to any subobject.
+		// composites with only one element don't have subobjects, though.
+		fn = racereadrange
+		if wr {
+			fn = racewriterange
+		}
+		needWidth = true
+	} else if flag_race {
+		// for non-composite objects we can write just the start
+		// address, as any write must write the first byte.
+		fn = raceread
+		if wr {
+			fn = racewrite
+		}
+	} else {
+		panic("unreachable")
+	}
+
+	args := []*ssa.Value{addr}
+	if needWidth {
+		args = append(args, s.constInt(types.Types[TUINTPTR], w))
+	}
+	s.rtcall(fn, true, nil, args...)
+}
+
 func (s *state) load(t *types.Type, src *ssa.Value) *ssa.Value {
+	s.instrument(t, src, false)
+	return s.rawLoad(t, src)
+}
+
+func (s *state) rawLoad(t *types.Type, src *ssa.Value) *ssa.Value {
 	return s.newValue2(ssa.OpLoad, t, src, s.mem())
 }
 
@@ -576,12 +637,15 @@ func (s *state) store(t *types.Type, dst, val *ssa.Value) {
 }
 
 func (s *state) zero(t *types.Type, dst *ssa.Value) {
+	s.instrument(t, dst, true)
 	store := s.newValue2I(ssa.OpZero, types.TypeMem, t.Size(), dst, s.mem())
 	store.Aux = t
 	s.vars[&memVar] = store
 }
 
 func (s *state) move(t *types.Type, dst, src *ssa.Value) {
+	s.instrument(t, src, false)
+	s.instrument(t, dst, true)
 	store := s.newValue3I(ssa.OpMove, types.TypeMem, t.Size(), dst, src, s.mem())
 	store.Aux = t
 	s.vars[&memVar] = store
@@ -3431,7 +3495,12 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	case k == callGo:
 		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Newproc, s.mem())
 	case closure != nil:
-		codeptr = s.load(types.Types[TUINTPTR], closure)
+		// rawLoad because loading the code pointer from a
+		// closure is always safe, but IsSanitizerSafeAddr
+		// can't always figure that out currently, and it's
+		// critical that we not clobber any arguments already
+		// stored onto the stack.
+		codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
 		call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, closure, s.mem())
 	case codeptr != nil:
 		call = s.newValue2(ssa.OpInterCall, types.TypeMem, codeptr, s.mem())
@@ -3643,6 +3712,14 @@ func canSSAType(t *types.Type) bool {
 		}
 		return false
 	case TSTRUCT:
+		// When instrumenting, don't SSA structs with more
+		// than one field. Otherwise, an access like "x.f" may
+		// be compiled into a full load of x, which can
+		// introduce false dependencies on other "x.g" fields.
+		if instrumenting && t.NumFields() > 1 {
+			return false
+		}
+
 		if t.NumFields() > ssa.MaxStruct {
 			return false
 		}
@@ -3795,8 +3872,10 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	return res
 }
 
-/// do *left = right for type t.
+// do *left = right for type t.
 func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask, leftIsStmt bool) {
+	s.instrument(t, left, true)
+
 	if skip == 0 && (!types.Haspointers(t) || ssa.IsStackAddr(left)) {
 		// Known to not have write barrier. Store the whole type.
 		s.vars[&memVar] = s.newValue3Apos(ssa.OpStore, types.TypeMem, t, left, right, s.mem(), leftIsStmt)
