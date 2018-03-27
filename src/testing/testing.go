@@ -260,8 +260,8 @@ var (
 	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
 	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
 	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
-	memProfile           = flag.String("test.memprofile", "", "write a memory profile to `file`")
-	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
+	memProfile           = flag.String("test.memprofile", "", "write an allocation profile to `file`")
+	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
 	cpuProfile           = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
 	blockProfile         = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
 	blockProfileRate     = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
@@ -909,7 +909,6 @@ type matchStringOnly func(pat, str string) (bool, error)
 func (f matchStringOnly) MatchString(pat, str string) (bool, error)   { return f(pat, str) }
 func (f matchStringOnly) StartCPUProfile(w io.Writer) error           { return errMain }
 func (f matchStringOnly) StopCPUProfile()                             {}
-func (f matchStringOnly) WriteHeapProfile(w io.Writer) error          { return errMain }
 func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
 func (f matchStringOnly) ImportPath() string                          { return "" }
 func (f matchStringOnly) StartTestLog(io.Writer)                      {}
@@ -949,7 +948,6 @@ type testDeps interface {
 	StopCPUProfile()
 	StartTestLog(io.Writer)
 	StopTestLog() error
-	WriteHeapProfile(io.Writer) error
 	WriteProfileTo(string, io.Writer, int) error
 }
 
@@ -1188,7 +1186,7 @@ func (m *M) writeProfiles() {
 			os.Exit(2)
 		}
 		runtime.GC() // materialize all statistics
-		if err = m.deps.WriteHeapProfile(f); err != nil {
+		if err = m.deps.WriteProfileTo("allocs", f, 0); err != nil {
 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
 			os.Exit(2)
 		}
