@@ -4564,19 +4564,13 @@ func rewriteValueS390X_OpMul8_0(v *Value) bool {
 	}
 }
 func rewriteValueS390X_OpNeg16_0(v *Value) bool {
-	b := v.Block
-	_ = b
-	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Neg16 x)
 	// cond:
-	// result: (NEGW (MOVHreg x))
+	// result: (NEGW x)
 	for {
 		x := v.Args[0]
 		v.reset(OpS390XNEGW)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHreg, typ.Int64)
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.AddArg(x)
 		return true
 	}
 }
@@ -4625,19 +4619,13 @@ func rewriteValueS390X_OpNeg64F_0(v *Value) bool {
 	}
 }
 func rewriteValueS390X_OpNeg8_0(v *Value) bool {
-	b := v.Block
-	_ = b
-	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Neg8 x)
 	// cond:
-	// result: (NEGW (MOVBreg x))
+	// result: (NEGW x)
 	for {
 		x := v.Args[0]
 		v.reset(OpS390XNEGW)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBreg, typ.Int64)
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.AddArg(x)
 		return true
 	}
 }
