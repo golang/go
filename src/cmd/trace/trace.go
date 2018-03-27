@@ -737,8 +737,8 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			ctx.emit(tEnd)
 
 			// Spans
-			for _, s := range task.spans {
-				ctx.emitSpan(s)
+			for i, s := range task.spans {
+				ctx.emitSpan(s, i)
 			}
 		}
 	}
@@ -824,7 +824,7 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 	return sl
 }
 
-func (ctx *traceContext) emitSpan(s spanDesc) {
+func (ctx *traceContext) emitSpan(s spanDesc, spanID int) {
 	if s.Name == "" {
 		return
 	}
@@ -837,7 +837,7 @@ func (ctx *traceContext) emitSpan(s spanDesc) {
 		Phase:    "b",
 		Time:     float64(s.firstTimestamp()) / 1e3,
 		Tid:      s.G,
-		ID:       s.G,
+		ID:       uint64(spanID),
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
 	}
@@ -852,7 +852,7 @@ func (ctx *traceContext) emitSpan(s spanDesc) {
 		Phase:    "e",
 		Time:     float64(s.lastTimestamp()) / 1e3,
 		Tid:      s.G,
-		ID:       s.G,
+		ID:       uint64(spanID),
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
 	}
