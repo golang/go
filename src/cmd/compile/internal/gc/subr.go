@@ -1516,25 +1516,20 @@ func adddot(n *Node) *Node {
 	return n
 }
 
-// code to help generate trampoline
-// functions for methods on embedded
-// subtypes.
-// these are approx the same as
-// the corresponding adddot routines
-// except that they expect to be called
-// with unique tasks and they return
-// the actual methods.
+// Code to help generate trampoline functions for methods on embedded
+// types. These are approx the same as the corresponding adddot
+// routines except that they expect to be called with unique tasks and
+// they return the actual methods.
+
 type Symlink struct {
-	field     *types.Field
-	followptr bool
+	field *types.Field
 }
 
 var slist []Symlink
 
-func expand0(t *types.Type, followptr bool) {
+func expand0(t *types.Type) {
 	u := t
 	if u.IsPtr() {
-		followptr = true
 		u = u.Elem()
 	}
 
@@ -1544,7 +1539,7 @@ func expand0(t *types.Type, followptr bool) {
 				continue
 			}
 			f.Sym.SetUniq(true)
-			slist = append(slist, Symlink{field: f, followptr: followptr})
+			slist = append(slist, Symlink{field: f})
 		}
 
 		return
@@ -1557,24 +1552,23 @@ func expand0(t *types.Type, followptr bool) {
 				continue
 			}
 			f.Sym.SetUniq(true)
-			slist = append(slist, Symlink{field: f, followptr: followptr})
+			slist = append(slist, Symlink{field: f})
 		}
 	}
 }
 
-func expand1(t *types.Type, top, followptr bool) {
+func expand1(t *types.Type, top bool) {
 	if t.Recur() {
 		return
 	}
 	t.SetRecur(true)
 
 	if !top {
-		expand0(t, followptr)
+		expand0(t)
 	}
 
 	u := t
 	if u.IsPtr() {
-		followptr = true
 		u = u.Elem()
 	}
 
@@ -1586,7 +1580,7 @@ func expand1(t *types.Type, top, followptr bool) {
 			if f.Sym == nil {
 				continue
 			}
-			expand1(f.Type, false, followptr)
+			expand1(f.Type, false)
 		}
 	}
 
@@ -1606,7 +1600,7 @@ func expandmeth(t *types.Type) {
 
 	// generate all reachable methods
 	slist = slist[:0]
-	expand1(t, true, false)
+	expand1(t, true)
 
 	// check each method to be uniquely reachable
 	var ms []*types.Field
@@ -1615,7 +1609,8 @@ func expandmeth(t *types.Type) {
 		sl.field.Sym.SetUniq(false)
 
 		var f *types.Field
-		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
+		path, _ := dotpath(sl.field.Sym, t, &f, false)
+		if path == nil {
 			continue
 		}
 
@@ -1627,8 +1622,11 @@ func expandmeth(t *types.Type) {
 		// add it to the base type method list
 		f = f.Copy()
 		f.Embedded = 1 // needs a trampoline
-		if sl.followptr {
-			f.Embedded = 2
+		for _, d := range path {
+			if d.field.Type.IsPtr() {
+				f.Embedded = 2
+				break
+			}
 		}
 		ms = append(ms, f)
 	}
