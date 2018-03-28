@@ -128,7 +128,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		args = append(args, mkAbs(p.Dir, f))
 	}
 
-	output, err = b.runOut(p.Dir, p.ImportPath, nil, args...)
+	output, err = b.runOut(p.Dir, nil, args...)
 	return ofile, output, err
 }
 
@@ -289,14 +289,14 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 	if cfg.BuildN {
 		return nil
 	}
-	if err := packInternal(b, absAfile, absOfiles); err != nil {
+	if err := packInternal(absAfile, absOfiles); err != nil {
 		b.showOutput(a, p.Dir, p.ImportPath, err.Error()+"\n")
 		return errPrintedOutput
 	}
 	return nil
 }
 
-func packInternal(b *Builder, afile string, ofiles []string) error {
+func packInternal(afile string, ofiles []string) error {
 	dst, err := os.OpenFile(afile, os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
 		return err

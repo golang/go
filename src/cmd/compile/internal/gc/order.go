@@ -438,7 +438,14 @@ func (o *Order) mapAssign(n *Node) {
 		if n.Left.Op == OINDEXMAP {
 			// Make sure we evaluate the RHS before starting the map insert.
 			// We need to make sure the RHS won't panic.  See issue 22881.
-			n.Right = o.cheapExpr(n.Right)
+			if n.Right.Op == OAPPEND {
+				s := n.Right.List.Slice()[1:]
+				for i, n := range s {
+					s[i] = o.cheapExpr(n)
+				}
+			} else {
+				n.Right = o.cheapExpr(n.Right)
+			}
 		}
 		o.out = append(o.out, n)
 
@@ -1124,7 +1131,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case OCLOSURE:
-		if n.Noescape() && n.Func.Cvars.Len() > 0 {
+		if n.Noescape() && n.Func.Closure.Func.Cvars.Len() > 0 {
 			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
 		}
 

@@ -180,6 +180,12 @@ func syscall_rawsyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	panic("RawSyscall not available on Solaris")
 }
 
+// This is syscall.RawSyscall6, it exists to avoid a linker error because
+// syscall.RawSyscall6 is already declared. See golang.org/issue/24357
+func syscall_rawsyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	panic("RawSyscall6 not available on Solaris")
+}
+
 //go:nosplit
 func syscall_setgid(gid uintptr) (err uintptr) {
 	call := libcall{
@@ -235,12 +241,6 @@ func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
 	return call.err
 }
 
-// This is syscall.Syscall, it exists to satisfy some build dependency,
-// but it doesn't work correctly.
-//
-// DO NOT USE!
-//
-// TODO(aram): make this panic once we stop calling fcntl(2) in net using it.
 func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_syscall)),

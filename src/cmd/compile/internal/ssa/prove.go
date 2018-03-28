@@ -188,6 +188,20 @@ func newFactsTable() *factsTable {
 // update updates the set of relations between v and w in domain d
 // restricting it to r.
 func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+	// No need to do anything else if we already found unsat.
+	if ft.unsat {
+		return
+	}
+
+	// Self-fact. It's wasteful to register it into the facts
+	// table, so just note whether it's satisfiable
+	if v == w {
+		if r&eq == 0 {
+			ft.unsat = true
+		}
+		return
+	}
+
 	if lessByID(w, v) {
 		v, w = w, v
 		r = reverseBits[r]
@@ -202,10 +216,16 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			oldR = lt | eq | gt
 		}
 	}
+	// No changes compared to information already in facts table.
+	if oldR == r {
+		return
+	}
 	ft.stack = append(ft.stack, fact{p, oldR})
 	ft.facts[p] = oldR & r
+	// If this relation is not satisfiable, mark it and exit right away
 	if oldR&r == 0 {
 		ft.unsat = true
+		return
 	}
 
 	// Extract bounds when comparing against constants
@@ -214,7 +234,6 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		r = reverseBits[r]
 	}
 	if v != nil && w.isGenericIntConst() {
-		c := w.AuxInt
 		// Note: all the +1/-1 below could overflow/underflow. Either will
 		// still generate correct results, it will just lead to imprecision.
 		// In fact if there is overflow/underflow, the corresponding
@@ -227,6 +246,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		lim := noLimit
 		switch d {
 		case signed:
+			c := w.AuxInt
 			switch r {
 			case lt:
 				lim.max = c - 1
@@ -259,17 +279,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 				lim.umax = uint64(lim.max)
 			}
 		case unsigned:
-			var uc uint64
-			switch w.Op {
-			case OpConst64:
-				uc = uint64(c)
-			case OpConst32:
-				uc = uint64(uint32(c))
-			case OpConst16:
-				uc = uint64(uint16(c))
-			case OpConst8:
-				uc = uint64(uint8(c))
-			}
+			uc := w.AuxUnsigned()
 			switch r {
 			case lt:
 				lim.umax = uc - 1
@@ -298,11 +308,12 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
 		lim = old.intersect(lim)
 		ft.limits[v.ID] = lim
-		if lim.min > lim.max || lim.umin > lim.umax {
-			ft.unsat = true
-		}
 		if v.Block.Func.pass.debug > 2 {
 			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
+		}
+		if lim.min > lim.max || lim.umin > lim.umax {
+			ft.unsat = true
+			return
 		}
 	}
 

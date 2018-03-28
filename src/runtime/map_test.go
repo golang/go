@@ -114,6 +114,24 @@ func TestMapOperatorAssignment(t *testing.T) {
 	}
 }
 
+var sinkAppend bool
+
+func TestMapAppendAssignment(t *testing.T) {
+	m := make(map[int][]int, 0)
+
+	m[0] = nil
+	m[0] = append(m[0], 12345)
+	m[0] = append(m[0], 67890)
+	sinkAppend, m[0] = !sinkAppend, append(m[0], 123, 456)
+	a := []int{7, 8, 9, 0}
+	m[0] = append(m[0], a...)
+
+	want := []int{12345, 67890, 123, 456, 7, 8, 9, 0}
+	if got := m[0]; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 // Maps aren't actually copied on assignment.
 func TestAlias(t *testing.T) {
 	m := make(map[int]int, 0)
@@ -839,6 +857,16 @@ func benchmarkMapOperatorAssignInt32(b *testing.B, n int) {
 	}
 }
 
+func benchmarkMapAppendAssignInt32(b *testing.B, n int) {
+	a := make(map[int32][]int)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		key := int32(i & (n - 1))
+		a[key] = append(a[key], i)
+	}
+}
+
 func benchmarkMapDeleteInt32(b *testing.B, n int) {
 	a := make(map[int32]int, n)
 	b.ResetTimer()
@@ -865,6 +893,16 @@ func benchmarkMapOperatorAssignInt64(b *testing.B, n int) {
 	a := make(map[int64]int)
 	for i := 0; i < b.N; i++ {
 		a[int64(i&(n-1))] += i
+	}
+}
+
+func benchmarkMapAppendAssignInt64(b *testing.B, n int) {
+	a := make(map[int64][]int)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		key := int64(i & (n - 1))
+		a[key] = append(a[key], i)
 	}
 }
 
@@ -908,6 +946,20 @@ func benchmarkMapOperatorAssignStr(b *testing.B, n int) {
 	}
 }
 
+func benchmarkMapAppendAssignStr(b *testing.B, n int) {
+	k := make([]string, n)
+	for i := 0; i < len(k); i++ {
+		k[i] = strconv.Itoa(i)
+	}
+	a := make(map[string][]string)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		key := k[i&(n-1)]
+		a[key] = append(a[key], key)
+	}
+}
+
 func benchmarkMapDeleteStr(b *testing.B, n int) {
 	i2s := make([]string, n)
 	for i := 0; i < n; i++ {
@@ -947,6 +999,12 @@ func BenchmarkMapOperatorAssign(b *testing.B) {
 	b.Run("Int32", runWith(benchmarkMapOperatorAssignInt32, 1<<8, 1<<16))
 	b.Run("Int64", runWith(benchmarkMapOperatorAssignInt64, 1<<8, 1<<16))
 	b.Run("Str", runWith(benchmarkMapOperatorAssignStr, 1<<8, 1<<16))
+}
+
+func BenchmarkMapAppendAssign(b *testing.B) {
+	b.Run("Int32", runWith(benchmarkMapAppendAssignInt32, 1<<8, 1<<16))
+	b.Run("Int64", runWith(benchmarkMapAppendAssignInt64, 1<<8, 1<<16))
+	b.Run("Str", runWith(benchmarkMapAppendAssignStr, 1<<8, 1<<16))
 }
 
 func BenchmarkMapDelete(b *testing.B) {

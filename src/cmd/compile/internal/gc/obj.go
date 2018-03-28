@@ -62,69 +62,68 @@ func dumpobj1(outfile string, mode int) {
 		errorexit()
 	}
 	defer bout.Close()
-
-	startobj := int64(0)
-	var arhdr [ArhdrSize]byte
-	if writearchive {
-		bout.WriteString("!<arch>\n")
-		arhdr = [ArhdrSize]byte{}
-		bout.Write(arhdr[:])
-		startobj = bout.Offset()
-	}
-
-	printheader := func() {
-		fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-		if buildid != "" {
-			fmt.Fprintf(bout, "build id %q\n", buildid)
-		}
-		if localpkg.Name == "main" {
-			fmt.Fprintf(bout, "main\n")
-		}
-		if safemode {
-			fmt.Fprintf(bout, "safe\n")
-		} else {
-			fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
-		}
-		fmt.Fprintf(bout, "\n") // header ends with blank line
-	}
-
-	printheader()
+	bout.WriteString("!<arch>\n")
 
 	if mode&modeCompilerObj != 0 {
-		dumpexport(bout)
+		start := startArchiveEntry(bout)
+		dumpCompilerObj(bout)
+		finishArchiveEntry(bout, start, "__.PKGDEF")
 	}
+	if mode&modeLinkerObj != 0 {
+		start := startArchiveEntry(bout)
+		dumpLinkerObj(bout)
+		finishArchiveEntry(bout, start, "_go_.o")
+	}
+}
 
-	if writearchive {
-		bout.Flush()
-		size := bout.Offset() - startobj
-		if size&1 != 0 {
-			bout.WriteByte(0)
-		}
-		bout.Seek(startobj-ArhdrSize, 0)
-		formathdr(arhdr[:], "__.PKGDEF", size)
-		bout.Write(arhdr[:])
-		bout.Flush()
-		bout.Seek(startobj+size+(size&1), 0)
+func printObjHeader(bout *bio.Writer) {
+	fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
+	if buildid != "" {
+		fmt.Fprintf(bout, "build id %q\n", buildid)
 	}
+	if localpkg.Name == "main" {
+		fmt.Fprintf(bout, "main\n")
+	}
+	if safemode {
+		fmt.Fprintf(bout, "safe\n")
+	} else {
+		fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
+	}
+	fmt.Fprintf(bout, "\n") // header ends with blank line
+}
 
-	if mode&modeLinkerObj == 0 {
-		return
-	}
+func startArchiveEntry(bout *bio.Writer) int64 {
+	var arhdr [ArhdrSize]byte
+	bout.Write(arhdr[:])
+	return bout.Offset()
+}
 
-	if writearchive {
-		// start object file
-		arhdr = [ArhdrSize]byte{}
-		bout.Write(arhdr[:])
-		startobj = bout.Offset()
-		printheader()
+func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
+	bout.Flush()
+	size := bout.Offset() - start
+	if size&1 != 0 {
+		bout.WriteByte(0)
 	}
+	bout.Seek(start-ArhdrSize, 0)
+
+	var arhdr [ArhdrSize]byte
+	formathdr(arhdr[:], name, size)
+	bout.Write(arhdr[:])
+	bout.Flush()
+	bout.Seek(start+size+(size&1), 0)
+}
+
+func dumpCompilerObj(bout *bio.Writer) {
+	printObjHeader(bout)
+	dumpexport(bout)
+}
+
+func dumpLinkerObj(bout *bio.Writer) {
+	printObjHeader(bout)
 
 	if pragcgobuf != "" {
-		if writearchive {
-			// write empty export section; must be before cgo section
-			fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
-		}
-
+		// write empty export section; must be before cgo section
+		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
 		fmt.Fprintf(bout, "\n$$  // cgo\n")
 		fmt.Fprintf(bout, "%s\n$$\n\n", pragcgobuf)
 	}
@@ -158,17 +157,6 @@ func dumpobj1(outfile string, mode int) {
 	addGCLocals()
 
 	obj.WriteObjFile(Ctxt, bout.Writer)
-
-	if writearchive {
-		bout.Flush()
-		size := bout.Offset() - startobj
-		if size&1 != 0 {
-			bout.WriteByte(0)
-		}
-		bout.Seek(startobj-ArhdrSize, 0)
-		formathdr(arhdr[:], "_go_.o", size)
-		bout.Write(arhdr[:])
-	}
 }
 
 func addptabs() {
@@ -401,8 +389,8 @@ func dsymptr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	return off
 }
 
-func dsymptrOff(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
-	s.WriteOff(Ctxt, int64(off), x, int64(xoff))
+func dsymptrOff(s *obj.LSym, off int, x *obj.LSym) int {
+	s.WriteOff(Ctxt, int64(off), x, 0)
 	off += 4
 	return off
 }

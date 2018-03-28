@@ -7,9 +7,9 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // A MethodSet is an ordered set of concrete or abstract (interface) methods;
@@ -24,7 +24,7 @@ func (s *MethodSet) String() string {
 		return "MethodSet {}"
 	}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprintln(&buf, "MethodSet {")
 	for _, f := range s.list {
 		fmt.Fprintf(&buf, "\t%s\n", f)

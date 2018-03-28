@@ -304,17 +304,16 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 		return nil, 0
 	}
 
-	var n *Node
 	switch a := v.Aux.(type) {
 	case nil, *obj.LSym:
 		// ok, but no node
+		return nil, e
 	case *Node:
-		n = a
+		return a, e
 	default:
 		Fatalf("weird aux: %s", v.LongString())
+		return nil, e
 	}
-
-	return n, e
 }
 
 // Constructs a new liveness structure used to hold the global state of the
@@ -487,8 +486,8 @@ func (lv *Liveness) prologue() {
 
 		// Walk the block instructions forward to update avarinit bits.
 		// avarinit describes the effect at the end of the block, not the beginning.
-		for j := 0; j < len(b.Values); j++ {
-			pos, e := lv.valueEffects(b.Values[j])
+		for _, val := range b.Values {
+			pos, e := lv.valueEffects(val)
 			if e&varkill != 0 {
 				be.avarinit.Unset(pos)
 			}

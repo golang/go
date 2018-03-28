@@ -464,7 +464,7 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
 TEXT runtime·sysenter(SB),NOSPLIT,$0
 	POPL	DX
 	MOVL	SP, CX
-	BYTE $0x0F; BYTE $0x34;  // SYSENTER
+	SYSENTER
 	// returns to DX with SP set to CX
 
 TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0

@@ -59,6 +59,7 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVW size+4(FP), R1
 	MOVW $SYS_thr_new, R7
 	SWI $0
+	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·thr_start(SB),NOSPLIT,$0
@@ -207,14 +208,14 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVW R1, ret_hi+4(FP)
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·asmSigaction(SB),NOSPLIT|NOFRAME,$0
 	MOVW sig+0(FP), R0		// arg 1 sig
 	MOVW new+4(FP), R1		// arg 2 act
 	MOVW old+8(FP), R2		// arg 3 oact
 	MOVW $SYS_sigaction, R7
 	SWI $0
-	MOVW.CS $0, R8 // crash on syscall failure
-	MOVW.CS R8, (R8)
+	MOVW.CS	$-1, R0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$12

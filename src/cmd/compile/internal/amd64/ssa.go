@@ -194,7 +194,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpAMD64RORQ, ssa.OpAMD64RORL, ssa.OpAMD64RORW, ssa.OpAMD64RORB,
 		ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD, ssa.OpAMD64SUBSS, ssa.OpAMD64SUBSD,
 		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD, ssa.OpAMD64DIVSS, ssa.OpAMD64DIVSD,
-		ssa.OpAMD64PXOR:
+		ssa.OpAMD64PXOR,
+		ssa.OpAMD64BTSL, ssa.OpAMD64BTSQ,
+		ssa.OpAMD64BTCL, ssa.OpAMD64BTCQ,
+		ssa.OpAMD64BTRL, ssa.OpAMD64BTRQ:
 		r := v.Reg()
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
@@ -562,8 +565,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = v.AuxInt
+	case ssa.OpAMD64BTLconst, ssa.OpAMD64BTQconst:
+		op := v.Op
+		if op == ssa.OpAMD64BTQconst && v.AuxInt < 32 {
+			// Emit 32-bit version because it's shorter
+			op = ssa.OpAMD64BTLconst
+		}
+		p := s.Prog(op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Args[0].Reg()
 	case ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst,
-		ssa.OpAMD64BTLconst, ssa.OpAMD64BTQconst:
+		ssa.OpAMD64BTSLconst, ssa.OpAMD64BTSQconst,
+		ssa.OpAMD64BTCLconst, ssa.OpAMD64BTCQconst,
+		ssa.OpAMD64BTRLconst, ssa.OpAMD64BTRQconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt

@@ -110,6 +110,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 
 	s.f = ssa.NewFunc(&fe)
 	s.config = ssaConfig
+	s.f.Type = fn.Type
 	s.f.Config = ssaConfig
 	s.f.Cache = &ssaCaches[worker]
 	s.f.Cache.Reset()

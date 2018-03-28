@@ -425,8 +425,7 @@ func walkrange(n *Node) *Node {
 
 	if ifGuard != nil {
 		ifGuard.Ninit.Append(init...)
-		typecheckslice(ifGuard.Left.Ninit.Slice(), Etop)
-		ifGuard.Left = typecheck(ifGuard.Left, Erv)
+		ifGuard = typecheck(ifGuard, Etop)
 	} else {
 		n.Ninit.Append(init...)
 	}

@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -504,69 +503,55 @@ func TestSemis(t *testing.T) {
 
 type segment struct {
 	srcline      string // a line of source text
-	filename     string // filename for current token
-	line, column int    // line number for current token
+	filename     string // filename for current token; error message for invalid line directives
+	line, column int    // line and column for current token; error position for invalid line directives
 }
 
 var segments = []segment{
 	// exactly one token per line since the test consumes one token per segment
-	{"  line1", filepath.Join("dir", "TestLineDirectives"), 1, 3},
-	{"\nline2", filepath.Join("dir", "TestLineDirectives"), 2, 1},
-	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineDirectives"), 3, 1}, // bad line comment, ignored
-	{"\nline4", filepath.Join("dir", "TestLineDirectives"), 4, 1},
-	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100, 0},
-	{"\n//line  \t :42\n  line1", "", 42, 0},
-	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200, 0},
-	{"\n//line foo\t:42\n  line42", filepath.Join("dir", "foo"), 42, 0},
-	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44, 0},           // bad line comment, ignored
-	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46, 0},            // bad line comment, ignored
-	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48, 0}, // bad line comment, ignored
-	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42, 0},
-	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100, 0},
+	{"  line1", "TestLineDirectives", 1, 3},
+	{"\nline2", "TestLineDirectives", 2, 1},
+	{"\nline3  //line File1.go:100", "TestLineDirectives", 3, 1}, // bad line comment, ignored
+	{"\nline4", "TestLineDirectives", 4, 1},
+	{"\n//line File1.go:100\n  line100", "File1.go", 100, 0},
+	{"\n//line  \t :42\n  line1", " \t ", 42, 0},
+	{"\n//line File2.go:200\n  line200", "File2.go", 200, 0},
+	{"\n//line foo\t:42\n  line42", "foo\t", 42, 0},
+	{"\n //line foo:42\n  line43", "foo\t", 44, 0}, // bad line comment, ignored (use existing, prior filename)
+	{"\n//line foo 42\n  line44", "foo\t", 46, 0},  // bad line comment, ignored (use existing, prior filename)
+	{"\n//line /bar:42\n  line45", "/bar", 42, 0},
+	{"\n//line ./foo:42\n  line46", "./foo", 42, 0},
+	{"\n//line a/b/c/File1.go:100\n  line100", "a/b/c/File1.go", 100, 0},
+	{"\n//line c:\\bar:42\n  line200", "c:\\bar", 42, 0},
+	{"\n//line c:\\dir\\File1.go:100\n  line201", "c:\\dir\\File1.go", 100, 0},
 
 	// tests for new line directive syntax
 	{"\n//line :100\na1", "", 100, 0}, // missing filename means empty filename
-	{"\n//line bar:100\nb1", filepath.Join("dir", "bar"), 100, 0},
-	{"\n//line :100:10\nc1", filepath.Join("dir", "bar"), 100, 10}, // missing filename means current filename
-	{"\n//line foo:100:10\nd1", filepath.Join("dir", "foo"), 100, 10},
+	{"\n//line bar:100\nb1", "bar", 100, 0},
+	{"\n//line :100:10\nc1", "bar", 100, 10}, // missing filename means current filename
+	{"\n//line foo:100:10\nd1", "foo", 100, 10},
 
 	{"\n/*line :100*/a2", "", 100, 0}, // missing filename means empty filename
-	{"\n/*line bar:100*/b2", filepath.Join("dir", "bar"), 100, 0},
-	{"\n/*line :100:10*/c2", filepath.Join("dir", "bar"), 100, 10}, // missing filename means current filename
-	{"\n/*line foo:100:10*/d2", filepath.Join("dir", "foo"), 100, 10},
-	{"\n/*line foo:100:10*/    e2", filepath.Join("dir", "foo"), 100, 14}, // line-directive relative column
-	{"\n/*line foo:100:10*/\n\nf2", filepath.Join("dir", "foo"), 102, 1},  // absolute column since on new line
-}
-
-var unixsegments = []segment{
-	{"\n//line /bar:42\n  line42", "/bar", 42, 0},
-}
-
-var winsegments = []segment{
-	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42, 0},
-	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100, 0},
+	{"\n/*line bar:100*/b2", "bar", 100, 0},
+	{"\n/*line :100:10*/c2", "bar", 100, 10}, // missing filename means current filename
+	{"\n/*line foo:100:10*/d2", "foo", 100, 10},
+	{"\n/*line foo:100:10*/    e2", "foo", 100, 14}, // line-directive relative column
+	{"\n/*line foo:100:10*/\n\nf2", "foo", 102, 1},  // absolute column since on new line
 }
 
 // Verify that line directives are interpreted correctly.
 func TestLineDirectives(t *testing.T) {
-	segs := segments
-	if runtime.GOOS == "windows" {
-		segs = append(segs, winsegments...)
-	} else {
-		segs = append(segs, unixsegments...)
-	}
-
 	// make source
 	var src string
-	for _, e := range segs {
+	for _, e := range segments {
 		src += e.srcline
 	}
 
 	// verify scan
 	var S Scanner
-	file := fset.AddFile(filepath.Join("dir", "TestLineDirectives"), fset.Base(), len(src))
+	file := fset.AddFile("TestLineDirectives", fset.Base(), len(src))
 	S.Init(file, []byte(src), func(pos token.Position, msg string) { t.Error(Error{pos, msg}) }, dontInsertSemis)
-	for _, s := range segs {
+	for _, s := range segments {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)
 		checkPos(t, lit, p, token.Position{
@@ -578,7 +563,46 @@ func TestLineDirectives(t *testing.T) {
 	}
 
 	if S.ErrorCount != 0 {
-		t.Errorf("found %d errors", S.ErrorCount)
+		t.Errorf("got %d errors", S.ErrorCount)
+	}
+}
+
+// The filename is used for the error message in these test cases.
+// The first line directive is valid and used to control the expected error line.
+var invalidSegments = []segment{
+	{"\n//line :1:1\n//line foo:42 extra text\ndummy", "invalid line number: 42 extra text", 1, 12},
+	{"\n//line :2:1\n//line foobar:\ndummy", "invalid line number: ", 2, 15},
+	{"\n//line :5:1\n//line :0\ndummy", "invalid line number: 0", 5, 9},
+	{"\n//line :10:1\n//line :1:0\ndummy", "invalid column number: 0", 10, 11},
+	{"\n//line :1:1\n//line :foo:0\ndummy", "invalid line number: 0", 1, 13}, // foo is considered part of the filename
+}
+
+// Verify that invalid line directives get the correct error message.
+func TestInvalidLineDirectives(t *testing.T) {
+	// make source
+	var src string
+	for _, e := range invalidSegments {
+		src += e.srcline
+	}
+
+	// verify scan
+	var S Scanner
+	var s segment // current segment
+	file := fset.AddFile(filepath.Join("dir", "TestInvalidLineDirectives"), fset.Base(), len(src))
+	S.Init(file, []byte(src), func(pos token.Position, msg string) {
+		if msg != s.filename {
+			t.Errorf("got error %q; want %q", msg, s.filename)
+		}
+		if pos.Line != s.line || pos.Column != s.column {
+			t.Errorf("got position %d:%d; want %d:%d", pos.Line, pos.Column, s.line, s.column)
+		}
+	}, dontInsertSemis)
+	for _, s = range invalidSegments {
+		S.Scan()
+	}
+
+	if S.ErrorCount != len(invalidSegments) {
+		t.Errorf("go %d errors; want %d", S.ErrorCount, len(invalidSegments))
 	}
 }
 

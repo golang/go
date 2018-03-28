@@ -4,6 +4,8 @@
 
 // +build !linux
 // +build !darwin
+// +build !freebsd
+// +build !netbsd
 
 package runtime
 

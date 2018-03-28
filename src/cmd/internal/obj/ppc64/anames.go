@@ -126,6 +126,7 @@ var Anames = []string{
 	"ISEL",
 	"MOVMW",
 	"LBAR",
+	"LHAR",
 	"LSW",
 	"LWAR",
 	"LWSYNC",

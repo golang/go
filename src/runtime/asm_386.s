@@ -930,10 +930,10 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	JNE	done
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
 	JNE	mfence
-	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
+	LFENCE
 	JMP	done
 mfence:
-	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
+	MFENCE
 done:
 	RDTSC
 	MOVL	AX, ret_lo+0(FP)

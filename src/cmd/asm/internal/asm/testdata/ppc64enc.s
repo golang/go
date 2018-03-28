@@ -84,4 +84,18 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XOR $1234567, R5                // 641f001263ffd6877fe52a78
 	XOR $1234567, R5, R3            // 641f001263ffd6877fe32a78
 
+	// load-and-reserve
+	LBAR (R4)(R3*1),$1,R5           // 7ca32069
+	LBAR (R4),$0,R5                 // 7ca02068
+	LBAR (R3),R5                    // 7ca01868
+	LHAR (R4)(R3*1),$1,R5           // 7ca320e9
+	LHAR (R4),$0,R5                 // 7ca020e8
+	LHAR (R3),R5                    // 7ca018e8
+	LWAR (R4)(R3*1),$1,R5           // 7ca32029
+	LWAR (R4),$0,R5                 // 7ca02028
+	LWAR (R3),R5                    // 7ca01828
+	LDAR (R4)(R3*1),$1,R5           // 7ca320a9
+	LDAR (R4),$0,R5                 // 7ca020a8
+	LDAR (R3),R5                    // 7ca018a8
+
 	RET

@@ -136,16 +136,24 @@ type noder struct {
 	lastCloseScopePos syntax.Pos
 }
 
-func (p *noder) funchdr(n *Node) ScopeID {
-	old := p.scope
+func (p *noder) funcBody(fn *Node, block *syntax.BlockStmt) {
+	oldScope := p.scope
 	p.scope = 0
-	funchdr(n)
-	return old
-}
+	funchdr(fn)
 
-func (p *noder) funcbody(old ScopeID) {
+	if block != nil {
+		body := p.stmts(block.List)
+		if body == nil {
+			body = []*Node{nod(OEMPTY, nil, nil)}
+		}
+		fn.Nbody.Set(body)
+
+		lineno = p.makeXPos(block.Rbrace)
+		fn.Func.Endlineno = lineno
+	}
+
 	funcbody()
-	p.scope = old
+	p.scope = oldScope
 }
 
 func (p *noder) openScope(pos syntax.Pos) {
@@ -459,28 +467,18 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		declare(f.Func.Nname, PFUNC)
 	}
 
-	oldScope := p.funchdr(f)
+	p.funcBody(f, fun.Body)
 
 	if fun.Body != nil {
 		if f.Noescape() {
 			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
 		}
-
-		body := p.stmts(fun.Body.List)
-		if body == nil {
-			body = []*Node{p.nod(fun, OEMPTY, nil, nil)}
-		}
-		f.Nbody.Set(body)
-
-		lineno = p.makeXPos(fun.Body.Rbrace)
-		f.Func.Endlineno = lineno
 	} else {
 		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
 			yyerrorl(f.Pos, "missing function body")
 		}
 	}
 
-	p.funcbody(oldScope)
 	return f
 }
 
@@ -569,7 +567,8 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		lineno = p.makeXPos(expr.Rbrace)
 		return n
 	case *syntax.KeyValueExpr:
-		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+		// use position of expr.Key rather than of expr (which has position of ':')
+		return p.nod(expr.Key, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		return p.funcLit(expr)
 	case *syntax.ParenExpr:

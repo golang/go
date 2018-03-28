@@ -963,7 +963,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 
 			// Save the starting state for use by merge edges.
-			var regList []startReg
+			// We append to a stack allocated variable that we'll
+			// later copy into s.startRegs in one fell swoop, to save
+			// on allocations.
+			regList := make([]startReg, 0, 32)
 			for r := register(0); r < s.numRegs; r++ {
 				v := s.regs[r].v
 				if v == nil {
@@ -976,7 +979,8 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				regList = append(regList, startReg{r, v, s.regs[r].c, s.values[v.ID].uses.pos})
 			}
-			s.startRegs[b.ID] = regList
+			s.startRegs[b.ID] = make([]startReg, len(regList))
+			copy(s.startRegs[b.ID], regList)
 
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("after phis\n")
@@ -987,9 +991,13 @@ func (s *regAllocState) regalloc(f *Func) {
 		}
 
 		// Allocate space to record the desired registers for each value.
-		dinfo = dinfo[:0]
-		for i := 0; i < len(oldSched); i++ {
-			dinfo = append(dinfo, dentry{})
+		if l := len(oldSched); cap(dinfo) < l {
+			dinfo = make([]dentry, l)
+		} else {
+			dinfo = dinfo[:l]
+			for i := range dinfo {
+				dinfo[i] = dentry{}
+			}
 		}
 
 		// Load static desired register info at the end of the block.
@@ -1415,7 +1423,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// For this to be worthwhile, the loop must have no calls in it.
 			top := b.Succs[0].b
 			loop := s.loopnest.b2l[top.ID]
-			if loop == nil || loop.header != top || loop.containsCall {
+			if loop == nil || loop.header != top || loop.containsUnavoidableCall {
 				goto badloop
 			}
 
@@ -2183,8 +2191,10 @@ func (s *regAllocState) computeLive() {
 	s.desired = make([]desiredState, f.NumBlocks())
 	var phis []*Value
 
-	live := newSparseMap(f.NumValues())
-	t := newSparseMap(f.NumValues())
+	live := f.newSparseMap(f.NumValues())
+	defer f.retSparseMap(live)
+	t := f.newSparseMap(f.NumValues())
+	defer f.retSparseMap(t)
 
 	// Keep track of which value we want in each register.
 	var desired desiredState

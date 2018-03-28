@@ -3231,8 +3231,21 @@ func checkassignlist(stmt *Node, l Nodes) {
 	}
 }
 
-// Check whether l and r are the same side effect-free expression,
-// so that it is safe to reuse one instead of computing both.
+// samesafeexpr checks whether it is safe to reuse one of l and r
+// instead of computing both. samesafeexpr assumes that l and r are
+// used in the same statement or expression. In order for it to be
+// safe to reuse l or r, they must:
+// * be the same expression
+// * not have side-effects (no function calls, no channel ops);
+//   however, panics are ok
+// * not cause inappropriate aliasing; e.g. two string to []byte
+//   conversions, must result in two distinct slices
+//
+// The handling of OINDEXMAP is subtle. OINDEXMAP can occur both
+// as an lvalue (map assignment) and an rvalue (map access). This is
+// currently OK, since the only place samesafeexpr gets used on an
+// lvalue expression is for OSLICE and OAPPEND optimizations, and it
+// is correct in those settings.
 func samesafeexpr(l *Node, r *Node) bool {
 	if l.Op != r.Op || !eqtype(l.Type, r.Type) {
 		return false
@@ -3253,7 +3266,7 @@ func samesafeexpr(l *Node, r *Node) bool {
 		// Allow only numeric-ish types. This is a bit conservative.
 		return issimple[l.Type.Etype] && samesafeexpr(l.Left, r.Left)
 
-	case OINDEX:
+	case OINDEX, OINDEXMAP:
 		return samesafeexpr(l.Left, r.Left) && samesafeexpr(l.Right, r.Right)
 
 	case OLITERAL:

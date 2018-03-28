@@ -329,7 +329,7 @@ type method struct {
 type uncommontype struct {
 	pkgpath nameOff
 	mcount  uint16 // number of methods
-	_       uint16 // unused
+	xcount  uint16 // number of exported methods
 	moff    uint32 // offset from this uncommontype to [mcount]method
 	_       uint32 // unused
 }

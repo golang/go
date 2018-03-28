@@ -70,6 +70,12 @@ func typecheckswitch(n *Node) {
 		if t != nil && !t.IsInterface() {
 			yyerrorl(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
 		}
+		if v := n.Left.Left; v != nil && !isblank(v) && n.List.Len() == 0 {
+			// We don't actually declare the type switch's guarded
+			// declaration itself. So if there are no cases, we
+			// won't notice that it went unused.
+			yyerrorl(v.Pos, "%v declared and not used", v.Sym)
+		}
 	} else {
 		// expression switch
 		top = Erv
@@ -797,19 +803,19 @@ func (s *typeSwitch) walk(sw *Node) {
 		}
 
 		// combine adjacent cases with the same hash
-		ncase := 0
-		for i := 0; i < run; i++ {
-			ncase++
+		var batch []caseClause
+		for i, j := 0, 0; i < run; i = j {
 			hash := []*Node{cc[i].node.Right}
-			for j := i + 1; j < run && cc[i].hash == cc[j].hash; j++ {
+			for j = i + 1; j < run && cc[i].hash == cc[j].hash; j++ {
 				hash = append(hash, cc[j].node.Right)
 			}
 			cc[i].node.Right = liststmt(hash)
+			batch = append(batch, cc[i])
 		}
 
 		// binary search among cases to narrow by hash
-		cas = append(cas, s.walkCases(cc[:ncase]))
-		cc = cc[ncase:]
+		cas = append(cas, s.walkCases(batch))
+		cc = cc[run:]
 	}
 
 	// handle default case

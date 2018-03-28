@@ -192,7 +192,7 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
 	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
-	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", false, "add location lists to DWARF in optimized mode")
+	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
 	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
@@ -211,7 +211,7 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
-	flag.BoolVar(&writearchive, "pack", false, "write package file instead of object file")
+	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
 	objabi.Flagcount("r", "debug generated wrappers", &Debug['r'])
 	flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
@@ -405,7 +405,7 @@ func Main(archInit func(*Arch)) {
 		Debug['l'] = 1 - Debug['l']
 	}
 
-	trackScopes = flagDWARF && (Debug['l'] == 0 && Debug['N'] != 0)
+	trackScopes = flagDWARF
 
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
@@ -1223,7 +1223,7 @@ func concurrentBackendAllowed() bool {
 		return false
 	}
 	// TODO: Test and delete these conditions.
-	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 || objabi.Clobberdead_enabled != 0 {
+	if objabi.Fieldtrack_enabled != 0 || objabi.Clobberdead_enabled != 0 {
 		return false
 	}
 	// TODO: fix races and enable the following flags

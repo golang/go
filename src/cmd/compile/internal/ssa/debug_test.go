@@ -135,23 +135,28 @@ func TestNexting(t *testing.T) {
 		t.Skip(skipReasons[:len(skipReasons)-2])
 	}
 
-	optFlags := "-dwarflocationlists"
+	optFlags := "" // Whatever flags are needed to test debugging of optimized code.
+	dbgFlags := "-N -l"
 	if !*useDelve && !*inlines {
 		// For gdb (default), disable inlining so that a compiler test does not depend on library code.
-		// TODO: This may not be necessary with 1.10 and later.
+		// TODO: Technically not necessary in 1.10, but it causes a largish regression that needs investigation.
 		optFlags += " -l"
 	}
 
-	subTest(t, debugger+"-dbg", "hist", "-N -l")
-	subTest(t, debugger+"-dbg-race", "i22600", "-N -l", "-race")
-	subTest(t, debugger+"-dbg-22558", "i22558", "-N -l")
+	subTest(t, debugger+"-dbg", "hist", dbgFlags)
+	subTest(t, debugger+"-dbg", "scopes", dbgFlags)
+	subTest(t, debugger+"-dbg", "i22558", dbgFlags)
+
+	subTest(t, debugger+"-dbg-race", "i22600", dbgFlags, "-race")
+
 	optSubTest(t, debugger+"-opt", "hist", optFlags)
+	optSubTest(t, debugger+"-opt", "scopes", optFlags)
 }
 
 // subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,
 // then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
 func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
-	t.Run(tag, func(t *testing.T) {
+	t.Run(tag+"-"+basename, func(t *testing.T) {
 		testNexting(t, basename, tag, gcflags, moreargs...)
 	})
 }
@@ -161,7 +166,7 @@ func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs
 func optSubTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
 	// If optimized test is run with unoptimized libraries (compiled with -N -l), it is very likely to fail.
 	// This occurs in the noopt builders (for example).
-	t.Run(tag, func(t *testing.T) {
+	t.Run(tag+"-"+basename, func(t *testing.T) {
 		if *force || optimizedLibs {
 			testNexting(t, basename, tag, gcflags, moreargs...)
 		} else {
@@ -546,7 +551,9 @@ type gdbState struct {
 
 func newGdb(tag, executable string, args ...string) dbgr {
 	// Turn off shell, necessary for Darwin apparently
-	cmd := exec.Command(gdb, "-ex", "set startup-with-shell off", executable)
+	cmd := exec.Command(gdb, "-nx",
+		"-iex", fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
+		"-ex", "set startup-with-shell off", executable)
 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
 	s := &gdbState{tagg: tag, cmd: cmd, args: args}
 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")

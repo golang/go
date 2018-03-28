@@ -43,30 +43,34 @@ func (t *huffmanTree) Decode(br *bitReader) (v uint16) {
 		if br.bits > 0 {
 			// Get next bit - fast path.
 			br.bits--
-			bit = 0 - (uint16(br.n>>br.bits) & 1)
+			bit = uint16(br.n>>(br.bits&63)) & 1
 		} else {
 			// Get next bit - slow path.
 			// Use ReadBits to retrieve a single bit
 			// from the underling io.ByteReader.
-			bit = 0 - uint16(br.ReadBits(1))
+			bit = uint16(br.ReadBits(1))
 		}
-		// now
-		// bit = 0xffff if the next bit was 1
-		// bit = 0x0000 if the next bit was 0
 
-		// 1 means left, 0 means right.
-		//
-		// if bit == 0xffff {
-		//     nodeIndex = node.left
-		// } else {
-		//     nodeIndex = node.right
-		// }
-		nodeIndex = (bit & node.left) | (^bit & node.right)
+		// Trick a compiler into generating conditional move instead of branch,
+		// by making both loads unconditional.
+		l, r := node.left, node.right
+
+		if bit == 1 {
+			nodeIndex = l
+		} else {
+			nodeIndex = r
+		}
 
 		if nodeIndex == invalidNodeValue {
 			// We found a leaf. Use the value of bit to decide
 			// whether is a left or a right value.
-			return (bit & node.leftValue) | (^bit & node.rightValue)
+			l, r := node.leftValue, node.rightValue
+			if bit == 1 {
+				v = l
+			} else {
+				v = r
+			}
+			return
 		}
 	}
 }

@@ -7,7 +7,12 @@
 package codegen
 
 // This file contains codegen tests related to arithmetic
-// simplifications/optimizations.
+// simplifications and optimizations on integer types.
+// For codegen tests on float types, see floats.go.
+
+// -------------------- //
+//    Multiplication    //
+// -------------------- //
 
 func Pow2Muls(n1, n2 int) (int, int) {
 	// amd64:"SHLQ\t[$]5",-"IMULQ"
@@ -25,9 +30,7 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	return a, b
 }
 
-// ------------------ //
-//    MULs merging    //
-// ------------------ //
+// Multiplications merging tests
 
 func MergeMuls1(n int) int {
 	// amd64:"IMUL3Q\t[$]46"
@@ -57,4 +60,101 @@ func MergeMuls5(a, n int) int {
 	// amd64:"ADDQ\t[$]-19",-"IMULQ\t[$]19"
 	// 386:"ADDL\t[$]-19",-"IMULL\t[$]19"
 	return a*n - 19*n // (a-19)n
+}
+
+// -------------- //
+//    Division    //
+// -------------- //
+
+func Pow2Divs(n1 uint, n2 int) (uint, int) {
+	// 386:"SHRL\t[$]5",-"DIVL"
+	// amd64:"SHRQ\t[$]5",-"DIVQ"
+	// arm:"SRL\t[$]5",-".*udiv"
+	// arm64:"LSR\t[$]5",-"UDIV"
+	a := n1 / 32 // unsigned
+
+	// amd64:"SARQ\t[$]6",-"IDIVQ"
+	// 386:"SARL\t[$]6",-"IDIVL"
+	// arm:"SRA\t[$]6",-".*udiv"
+	// arm64:"ASR\t[$]6",-"SDIV"
+	b := n2 / 64 // signed
+
+	return a, b
+}
+
+// Check that constant divisions get turned into MULs
+func ConstDivs(n1 uint, n2 int) (uint, int) {
+	// amd64:"MOVQ\t[$]-1085102592571150095","MULQ",-"DIVQ"
+	a := n1 / 17 // unsigned
+
+	// amd64:"MOVQ\t[$]-1085102592571150095","IMULQ",-"IDIVQ"
+	b := n2 / 17 // signed
+
+	return a, b
+}
+
+func Pow2Mods(n1 uint, n2 int) (uint, int) {
+	// 386:"ANDL\t[$]31",-"DIVL"
+	// amd64:"ANDQ\t[$]31",-"DIVQ"
+	// arm:"AND\t[$]31",-".*udiv"
+	// arm64:"AND\t[$]31",-"UDIV"
+	a := n1 % 32 // unsigned
+
+	// 386:-"IDIVL"
+	// amd64:-"IDIVQ"
+	// arm:-".*udiv"
+	// arm64:-"REM"
+	b := n2 % 64 // signed
+
+	return a, b
+}
+
+// Check that constant modulo divs get turned into MULs
+func ConstMods(n1 uint, n2 int) (uint, int) {
+	// amd64:"MOVQ\t[$]-1085102592571150095","MULQ",-"DIVQ"
+	a := n1 % 17 // unsigned
+
+	// amd64:"MOVQ\t[$]-1085102592571150095","IMULQ",-"IDIVQ"
+	b := n2 % 17 // signed
+
+	return a, b
+}
+
+// Check that len() and cap() calls divided by powers of two are
+// optimized into shifts and ands
+
+func LenDiv1(a []int) int {
+	// 386:"SHRL\t[$]10"
+	// amd64:"SHRQ\t[$]10"
+	return len(a) / 1024
+}
+
+func LenDiv2(s string) int {
+	// 386:"SHRL\t[$]11"
+	// amd64:"SHRQ\t[$]11"
+	return len(s) / (4097 >> 1)
+}
+
+func LenMod1(a []int) int {
+	// 386:"ANDL\t[$]1023"
+	// amd64:"ANDQ\t[$]1023"
+	return len(a) % 1024
+}
+
+func LenMod2(s string) int {
+	// 386:"ANDL\t[$]2047"
+	// amd64:"ANDQ\t[$]2047"
+	return len(s) % (4097 >> 1)
+}
+
+func CapDiv(a []int) int {
+	// 386:"SHRL\t[$]12"
+	// amd64:"SHRQ\t[$]12"
+	return cap(a) / ((1 << 11) + 2048)
+}
+
+func CapMod(a []int) int {
+	// 386:"ANDL\t[$]4095"
+	// amd64:"ANDQ\t[$]4095"
+	return cap(a) % ((1 << 11) + 2048)
 }

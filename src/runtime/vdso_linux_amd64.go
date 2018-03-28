@@ -10,6 +10,8 @@ const (
 	vdsoArrayMax = 1<<50 - 1
 )
 
+var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
+
 var vdsoSymbolKeys = []vdsoSymbolKey{
 	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &vdsoGettimeofdaySym},
 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},

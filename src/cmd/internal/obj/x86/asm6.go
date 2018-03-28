@@ -952,6 +952,9 @@ var yvex_xi3 = []ytab{
 }
 
 var yvex_vpermpd = []ytab{
+	{Zvex_i_rm_r, 2, argList{Yu8, Yym, Yyr}},
+	// Allow int8 for backwards compatibility with negative values
+	// like $-1.
 	{Zvex_i_rm_r, 2, argList{Yi8, Yym, Yyr}},
 }
 
@@ -4000,13 +4003,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				break
 
 			case Zlit:
-				for ; ; z++ {
-					op = int(o.op[z])
-					if op == 0 {
-						break
-					}
-					asmbuf.Put1(byte(op))
-				}
+				asmbuf.PutOpBytesLit(z, &o.op)
 
 			case Zlitr_m:
 				asmbuf.PutOpBytesLit(z, &o.op)
@@ -4051,15 +4048,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				asmbuf.Put1(byte(p.To.Offset))
 
 			case Zibm_r, Zibr_m:
-				for {
-					tmp1 := z
-					z++
-					op = int(o.op[tmp1])
-					if op == 0 {
-						break
-					}
-					asmbuf.Put1(byte(op))
-				}
+				asmbuf.PutOpBytesLit(z, &o.op)
 				if yt.zcase == Zibr_m {
 					asmbuf.asmand(ctxt, cursym, p, &p.To, p.GetFrom3())
 				} else {
@@ -4612,7 +4601,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
 						case objabi.Hlinux,
-							objabi.Hnacl:
+							objabi.Hnacl, objabi.Hfreebsd:
 							if ctxt.Flag_shared {
 								// Note that this is not generating the same insns as the other cases.
 								//     MOV TLS, dst
@@ -4684,9 +4673,9 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					default:
 						log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
-					case objabi.Hlinux:
+					case objabi.Hlinux, objabi.Hfreebsd:
 						if !ctxt.Flag_shared {
-							log.Fatalf("unknown TLS base location for linux without -shared")
+							log.Fatalf("unknown TLS base location for linux/freebsd without -shared")
 						}
 						// Note that this is not generating the same insn as the other cases.
 						//     MOV TLS, R_to

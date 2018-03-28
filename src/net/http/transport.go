@@ -1078,12 +1078,6 @@ func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) erro
 		}
 		return err
 	}
-	if !cfg.InsecureSkipVerify {
-		if err := tlsConn.VerifyHostname(cfg.ServerName); err != nil {
-			plainConn.Close()
-			return err
-		}
-	}
 	cs := tlsConn.ConnectionState()
 	if trace != nil && trace.TLSHandshakeDone != nil {
 		trace.TLSHandshakeDone(cs, nil)

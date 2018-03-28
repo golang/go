@@ -5,6 +5,11 @@
 // This file implements unsigned multi-precision integers (natural
 // numbers). They are the building blocks for the implementation
 // of signed integers, rationals, and floating-point numbers.
+//
+// Caution: This implementation relies on the function "alias"
+//          which assumes that (nat) slice capacities are never
+//          changed (no 3-operand slice expressions). If that
+//          changes, alias needs to be updated for correctness.
 
 package big
 
@@ -208,18 +213,17 @@ func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
 	if len(x) != n || len(y) != n || len(m) != n {
 		panic("math/big: mismatched montgomery number lengths")
 	}
-	z = z.make(n)
+	z = z.make(n * 2)
 	z.clear()
 	var c Word
 	for i := 0; i < n; i++ {
 		d := y[i]
-		c2 := addMulVVW(z, x, d)
-		t := z[0] * k
-		c3 := addMulVVW(z, m, t)
-		copy(z, z[1:])
+		c2 := addMulVVW(z[i:n+i], x, d)
+		t := z[i] * k
+		c3 := addMulVVW(z[i:n+i], m, t)
 		cx := c + c2
 		cy := cx + c3
-		z[n-1] = cy
+		z[n+i] = cy
 		if cx < c2 || cy < c3 {
 			c = 1
 		} else {
@@ -227,9 +231,11 @@ func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
 		}
 	}
 	if c != 0 {
-		subVV(z, z, m)
+		subVV(z[:n], z[n:], m)
+	} else {
+		copy(z[:n], z[n:])
 	}
-	return z
+	return z[:n]
 }
 
 // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
@@ -352,6 +358,10 @@ func karatsuba(z, x, y nat) {
 }
 
 // alias reports whether x and y share the same base array.
+// Note: alias assumes that the capacity of underlying arrays
+//       is never changed for nat values; i.e. that there are
+//       no 3-operand slice expressions in this code (or worse,
+//       reflect-based operations to the same effect).
 func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
@@ -719,8 +729,21 @@ func (x nat) trailingZeroBits() uint {
 	return i*_W + uint(bits.TrailingZeros(uint(x[i])))
 }
 
+func same(x, y nat) bool {
+	return len(x) == len(y) && len(x) > 0 && &x[0] == &y[0]
+}
+
 // z = x << s
 func (z nat) shl(x nat, s uint) nat {
+	if s == 0 {
+		if same(z, x) {
+			return z
+		}
+		if !alias(z, x) {
+			return z.set(x)
+		}
+	}
+
 	m := len(x)
 	if m == 0 {
 		return z[:0]
@@ -737,6 +760,15 @@ func (z nat) shl(x nat, s uint) nat {
 
 // z = x >> s
 func (z nat) shr(x nat, s uint) nat {
+	if s == 0 {
+		if same(z, x) {
+			return z
+		}
+		if !alias(z, x) {
+			return z.set(x)
+		}
+	}
+
 	m := len(x)
 	n := m - int(s/_W)
 	if n <= 0 {

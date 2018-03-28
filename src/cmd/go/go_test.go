@@ -1359,6 +1359,22 @@ func TestImportCommentConflict(t *testing.T) {
 	tg.grepStderr("found import comments", "go build did not mention comment conflict")
 }
 
+func TestImportCycle(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/importcycle"))
+	tg.runFail("build", "selfimport")
+
+	count := tg.grepCountBoth("import cycle not allowed")
+	if count == 0 {
+		t.Fatal("go build did not mention cyclical import")
+	}
+	if count > 1 {
+		t.Fatal("go build mentioned import cycle more than once")
+	}
+}
+
 // cmd/go: custom import path checking should not apply to Go packages without import comment.
 func TestIssue10952(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
@@ -4821,7 +4837,8 @@ func TestBuildmodePIE(t *testing.T) {
 	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 	switch platform {
 	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
-		"android/amd64", "android/arm", "android/arm64", "android/386":
+		"android/amd64", "android/arm", "android/arm64", "android/386",
+		"freebsd/amd64":
 	case "darwin/amd64":
 	default:
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
@@ -4836,7 +4853,7 @@ func TestBuildmodePIE(t *testing.T) {
 	tg.run("build", "-buildmode=pie", "-o", obj, src)
 
 	switch runtime.GOOS {
-	case "linux", "android":
+	case "linux", "android", "freebsd":
 		f, err := elf.Open(obj)
 		if err != nil {
 			t.Fatal(err)
@@ -5754,6 +5771,21 @@ func TestAtomicCoverpkgAll(t *testing.T) {
 	}
 }
 
+// Issue 23882.
+func TestCoverpkgAllRuntime(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("src/x/x.go", `package x; import _ "runtime"; func F() {}`)
+	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-coverpkg=all", "x")
+	if canRace {
+		tg.run("test", "-coverpkg=all", "-race", "x")
+	}
+}
+
 func TestBadCommandLines(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -5942,4 +5974,20 @@ func TestFilepathUnderCwdFormat(t *testing.T) {
 	defer tg.cleanup()
 	tg.run("test", "-x", "-cover", "log")
 	tg.grepStderrNot(`\.log\.cover\.go`, "-x output should contain correctly formatted filepath under cwd")
+}
+
+// Issue 24396.
+func TestDontReportRemoveOfEmptyDir(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/a/a.go", `package a`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("install", "-x", "a")
+	tg.run("install", "-x", "a")
+	// The second install should have printed only a WORK= line,
+	// nothing else.
+	if bytes.Count(tg.stdout.Bytes(), []byte{'\n'})+bytes.Count(tg.stderr.Bytes(), []byte{'\n'}) > 1 {
+		t.Error("unnecessary output when installing installed package")
+	}
 }

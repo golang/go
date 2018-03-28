@@ -333,7 +333,7 @@ type method struct {
 type uncommonType struct {
 	pkgPath nameOff // import path; empty for built-in types like int, string
 	mcount  uint16  // number of methods
-	_       uint16  // unused
+	xcount  uint16  // number of exported methods
 	moff    uint32  // offset from this uncommontype to [mcount]method
 	_       uint32  // unused
 }
@@ -639,6 +639,13 @@ func (t *uncommonType) methods() []method {
 	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.mcount > 0"))[:t.mcount:t.mcount]
 }
 
+func (t *uncommonType) exportedMethods() []method {
+	if t.xcount == 0 {
+		return nil
+	}
+	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.xcount > 0"))[:t.xcount:t.xcount]
+}
+
 // resolveNameOff resolves a name offset from a base pointer.
 // The (*rtype).nameOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
@@ -783,52 +790,18 @@ func (t *rtype) pointers() bool { return t.kind&kindNoPointers == 0 }
 
 func (t *rtype) common() *rtype { return t }
 
-var methodCache sync.Map // map[*rtype][]method
-
 func (t *rtype) exportedMethods() []method {
-	methodsi, found := methodCache.Load(t)
-	if found {
-		return methodsi.([]method)
-	}
-
 	ut := t.uncommon()
 	if ut == nil {
 		return nil
 	}
-	allm := ut.methods()
-	allExported := true
-	for _, m := range allm {
-		name := t.nameOff(m.name)
-		if !name.isExported() {
-			allExported = false
-			break
-		}
-	}
-	var methods []method
-	if allExported {
-		methods = allm
-	} else {
-		methods = make([]method, 0, len(allm))
-		for _, m := range allm {
-			name := t.nameOff(m.name)
-			if name.isExported() {
-				methods = append(methods, m)
-			}
-		}
-		methods = methods[:len(methods):len(methods)]
-	}
-
-	methodsi, _ = methodCache.LoadOrStore(t, methods)
-	return methodsi.([]method)
+	return ut.exportedMethods()
 }
 
 func (t *rtype) NumMethod() int {
 	if t.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.NumMethod()
-	}
-	if t.tflag&tflagUncommon == 0 {
-		return 0 // avoid methodCache synchronization
 	}
 	return len(t.exportedMethods())
 }
@@ -876,16 +849,10 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 	if ut == nil {
 		return Method{}, false
 	}
-	utmethods := ut.methods()
-	var eidx int
-	for i := 0; i < int(ut.mcount); i++ {
-		p := utmethods[i]
-		pname := t.nameOff(p.name)
-		if pname.isExported() {
-			if pname.name() == name {
-				return t.Method(eidx), true
-			}
-			eidx++
+	// TODO(mdempsky): Binary search.
+	for i, p := range ut.exportedMethods() {
+		if t.nameOff(p.name).name() == name {
+			return t.Method(i), true
 		}
 	}
 	return Method{}, false
@@ -2627,7 +2594,12 @@ func StructOf(fields []StructField) Type {
 	default:
 		panic("reflect.StructOf: too many methods")
 	}
+	// TODO(sbinet): Once we allow embedding multiple types,
+	// methods will need to be sorted like the compiler does.
+	// TODO(sbinet): Once we allow non-exported methods, we will
+	// need to compute xcount as the number of exported methods.
 	ut.mcount = uint16(len(methods))
+	ut.xcount = ut.mcount
 	ut.moff = uint32(unsafe.Sizeof(uncommonType{}))
 
 	if len(fs) > 0 {

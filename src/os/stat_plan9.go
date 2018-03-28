@@ -35,6 +35,10 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	if d.Type != 'M' {
 		fs.mode |= ModeDevice
 	}
+	// Consider all files served by #c as character device files.
+	if d.Type == 'c' {
+		fs.mode |= ModeCharDevice
+	}
 	return fs
 }
 

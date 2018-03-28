@@ -1541,6 +1541,23 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 		expectedError: "cannot parse rfc822Name",
 	},
+
+	// #80: if several EKUs are requested, satisfying any of them is sufficient.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:example.com"},
+			ekus: []string{"email"},
+		},
+		requestedEKUs: []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageEmailProtection},
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {

@@ -445,7 +445,7 @@ func (t Time) abs() uint64 {
 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
 			sec += int64(l.cacheZone.offset)
 		} else {
-			_, offset, _, _, _ := l.lookup(sec)
+			_, offset, _, _ := l.lookup(sec)
 			sec += int64(offset)
 		}
 	}
@@ -466,7 +466,7 @@ func (t Time) locabs() (name string, offset int, abs uint64) {
 			name = l.cacheZone.name
 			offset = l.cacheZone.offset
 		} else {
-			name, offset, _, _, _ = l.lookup(sec)
+			name, offset, _, _ = l.lookup(sec)
 		}
 		sec += int64(offset)
 	} else {
@@ -1088,7 +1088,7 @@ func (t Time) Location() *Location {
 // Zone computes the time zone in effect at time t, returning the abbreviated
 // name of the zone (such as "CET") and its offset in seconds east of UTC.
 func (t Time) Zone() (name string, offset int) {
-	name, offset, _, _, _ = t.loc.lookup(t.unixSec())
+	name, offset, _, _ = t.loc.lookup(t.unixSec())
 	return
 }
 
@@ -1181,7 +1181,7 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 
 	if offset == -1*60 {
 		t.setLoc(&utcLoc)
-	} else if _, localoff, _, _, _ := Local.lookup(t.unixSec()); offset == localoff {
+	} else if _, localoff, _, _ := Local.lookup(t.unixSec()); offset == localoff {
 		t.setLoc(Local)
 	} else {
 		t.setLoc(FixedZone("", offset))
@@ -1366,13 +1366,13 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	// The lookup function expects UTC, so we pass t in the
 	// hope that it will not be too close to a zone transition,
 	// and then adjust if it is.
-	_, offset, _, start, end := loc.lookup(unix)
+	_, offset, start, end := loc.lookup(unix)
 	if offset != 0 {
 		switch utc := unix - int64(offset); {
 		case utc < start:
-			_, offset, _, _, _ = loc.lookup(start - 1)
+			_, offset, _, _ = loc.lookup(start - 1)
 		case utc >= end:
-			_, offset, _, _, _ = loc.lookup(end)
+			_, offset, _, _ = loc.lookup(end)
 		}
 		unix -= int64(offset)
 	}

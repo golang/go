@@ -1199,6 +1199,26 @@ label1:
 	CALL	foo(SB)
 	RET	foo(SB)
 
+// load-and-reserve
+//	L*AR (RB)(RA*1),EH,RT produces
+//	l*arx RT,RA,RB,EH
+//
+//	Extended forms also accepted. Assumes RA=0, EH=0:
+//	L*AR (RB),RT
+//	L*AR (RB),EH,RT
+	LBAR (R4)(R3*1), $1, R5
+	LBAR (R4), $0, R5
+	LBAR (R3), R5
+	LHAR (R4)(R3*1), $1, R5
+	LHAR (R4), $0, R5
+	LHAR (R3), R5
+	LWAR (R4)(R3*1), $1, R5
+	LWAR (R4), $0, R5
+	LWAR (R3), R5
+	LDAR (R4)(R3*1), $1, R5
+	LDAR (R4), $0, R5
+	LDAR (R3), R5
+
 // END
 //
 //	LEND	comma // asm doesn't support the trailing comma.

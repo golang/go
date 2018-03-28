@@ -980,6 +980,38 @@ func TestOneDrive(t *testing.T) {
 	testIsDir(t, dir, fi)
 }
 
+func TestWindowsDevNullFile(t *testing.T) {
+	testDevNullFile(t, "NUL", true)
+	testDevNullFile(t, "nul", true)
+	testDevNullFile(t, "Nul", true)
+
+	f1, err := os.Open("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f1.Close()
+
+	fi1, err := f1.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f2, err := os.Open("nul")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f2.Close()
+
+	fi2, err := f2.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !os.SameFile(fi1, fi2) {
+		t.Errorf(`"NUL" and "nul" are not the same file`)
+	}
+}
+
 // TestSymlinkCreation verifies that creating a symbolic link
 // works on Windows when developer mode is active.
 // This is supported starting Windows 10 (1703, v10.0.14972).

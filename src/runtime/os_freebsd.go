@@ -12,13 +12,10 @@ import (
 type mOS struct{}
 
 //go:noescape
-func thr_new(param *thrparam, size int32)
+func thr_new(param *thrparam, size int32) int32
 
 //go:noescape
 func sigaltstack(new, old *stackt)
-
-//go:noescape
-func sigaction(sig uint32, new, old *sigactiont)
 
 //go:noescape
 func sigprocmask(how int32, new, old *sigset)
@@ -185,13 +182,11 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
-	// NOTE(rsc): This code is confused. stackbase is the top of the stack
-	// and is equal to stk. However, it's working, so I'm not changing it.
 	param := thrparam{
 		start_func: funcPC(thr_start),
 		arg:        unsafe.Pointer(mp),
-		stack_base: mp.g0.stack.hi,
-		stack_size: uintptr(stk) - mp.g0.stack.hi,
+		stack_base: mp.g0.stack.lo,
+		stack_size: uintptr(stk) - mp.g0.stack.lo,
 		child_tid:  unsafe.Pointer(&mp.procid),
 		parent_tid: nil,
 		tls_base:   unsafe.Pointer(&mp.tls[0]),
@@ -201,13 +196,66 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	// TODO: Check for error.
-	thr_new(&param, int32(unsafe.Sizeof(param)))
+	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
+	if ret < 0 {
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+		throw("newosproc")
+	}
+}
+
+// Version of newosproc that doesn't require a valid G.
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+	if stack == nil {
+		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		exit(1)
+	}
+	// This code "knows" it's being called once from the library
+	// initialization code, and so it's using the static m0 for the
+	// tls and procid (thread) pointers. thr_new() requires the tls
+	// pointers, though the tid pointers can be nil.
+	// However, newosproc0 is currently unreachable because builds
+	// utilizing c-shared/c-archive force external linking.
+	param := thrparam{
+		start_func: funcPC(fn),
+		arg:        nil,
+		stack_base: uintptr(stack), //+stacksize?
+		stack_size: stacksize,
+		child_tid:  unsafe.Pointer(&m0.procid),
+		parent_tid: nil,
+		tls_base:   unsafe.Pointer(&m0.tls[0]),
+		tls_size:   unsafe.Sizeof(m0.tls),
+	}
+
+	var oset sigset
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
+	sigprocmask(_SIG_SETMASK, &oset, nil)
+	if ret < 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+}
+
+var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+
+// Called to do synchronous initialization of Go code built with
+// -buildmode=c-archive or -buildmode=c-shared.
+// None of the Go runtime is initialized.
+//go:nosplit
+//go:nowritebarrierrec
+func libpreinit() {
+	initsig(true)
 }
 
 func osinit() {
 	ncpu = getncpu()
-	physPageSize = getPageSize()
+	if physPageSize == 0 {
+		physPageSize = getPageSize()
+	}
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -272,23 +320,18 @@ type sigactiont struct {
 	sa_mask    sigset
 }
 
-//go:nosplit
-//go:nowritebarrierrec
-func setsig(i uint32, fn uintptr) {
-	var sa sigactiont
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
-	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
-	}
-	sa.sa_handler = fn
-	sigaction(i, &sa, nil)
-}
+// See os_freebsd2.go, os_freebsd_amd64.go for setsig function
 
 //go:nosplit
 //go:nowritebarrierrec
 func setsigstack(i uint32) {
-	throw("setsigstack")
+	var sa sigactiont
+	sigaction(i, nil, &sa)
+	if sa.sa_flags&_SA_ONSTACK != 0 {
+		return
+	}
+	sa.sa_flags |= _SA_ONSTACK
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
@@ -317,3 +360,53 @@ func sigdelset(mask *sigset, i int) {
 
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
+
+func sysargs(argc int32, argv **byte) {
+	n := argc + 1
+
+	// skip over argv, envp to get to auxv
+	for argv_index(argv, n) != nil {
+		n++
+	}
+
+	// skip NULL separator
+	n++
+
+	// now argv+n is auxv
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	sysauxv(auxv[:])
+}
+
+const (
+	_AT_NULL   = 0  // Terminates the vector
+	_AT_PAGESZ = 6  // Page size in bytes
+	_AT_HWCAP  = 26 // CPU feature flags
+)
+
+func sysauxv(auxv []uintptr) {
+	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+		tag, val := auxv[i], auxv[i+1]
+		switch tag {
+		// _AT_NCPUS from auxv shouldn't be used due to golang.org/issue/15206
+		case _AT_PAGESZ:
+			physPageSize = val
+		}
+
+		archauxv(tag, val)
+	}
+}
+
+// sysSigaction calls the sigaction system call.
+//go:nosplit
+func sysSigaction(sig uint32, new, old *sigactiont) {
+	// Use system stack to avoid split stack overflow on amd64
+	if asmSigaction(uintptr(sig), new, old) != 0 {
+		systemstack(func() {
+			throw("sigaction failed")
+		})
+	}
+}
+
+// asmSigaction is implemented in assembly.
+//go:noescape
+func asmSigaction(sig uintptr, new, old *sigactiont) int32

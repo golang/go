@@ -5,8 +5,8 @@
 package syntax
 
 import (
-	"bytes"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
@@ -117,20 +117,18 @@ type Inst struct {
 }
 
 func (p *Prog) String() string {
-	var b bytes.Buffer
+	var b strings.Builder
 	dumpProg(&b, p)
 	return b.String()
 }
 
-// skipNop follows any no-op or capturing instructions
-// and returns the resulting pc.
-func (p *Prog) skipNop(pc uint32) (*Inst, uint32) {
+// skipNop follows any no-op or capturing instructions.
+func (p *Prog) skipNop(pc uint32) *Inst {
 	i := &p.Inst[pc]
 	for i.Op == InstNop || i.Op == InstCapture {
-		pc = i.Out
-		i = &p.Inst[pc]
+		i = &p.Inst[i.Out]
 	}
-	return i, pc
+	return i
 }
 
 // op returns i.Op but merges all the Rune special cases into InstRune
@@ -147,7 +145,7 @@ func (i *Inst) op() InstOp {
 // regexp must start with. Complete is true if the prefix
 // is the entire match.
 func (p *Prog) Prefix() (prefix string, complete bool) {
-	i, _ := p.skipNop(uint32(p.Start))
+	i := p.skipNop(uint32(p.Start))
 
 	// Avoid allocation of buffer if prefix is empty.
 	if i.op() != InstRune || len(i.Rune) != 1 {
@@ -155,10 +153,10 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 	}
 
 	// Have prefix; gather characters.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
 		buf.WriteRune(i.Rune[0])
-		i, _ = p.skipNop(i.Out)
+		i = p.skipNop(i.Out)
 	}
 	return buf.String(), i.Op == InstMatch
 }
@@ -269,18 +267,18 @@ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 }
 
 func (i *Inst) String() string {
-	var b bytes.Buffer
+	var b strings.Builder
 	dumpInst(&b, i)
 	return b.String()
 }
 
-func bw(b *bytes.Buffer, args ...string) {
+func bw(b *strings.Builder, args ...string) {
 	for _, s := range args {
 		b.WriteString(s)
 	}
 }
 
-func dumpProg(b *bytes.Buffer, p *Prog) {
+func dumpProg(b *strings.Builder, p *Prog) {
 	for j := range p.Inst {
 		i := &p.Inst[j]
 		pc := strconv.Itoa(j)
@@ -300,7 +298,7 @@ func u32(i uint32) string {
 	return strconv.FormatUint(uint64(i), 10)
 }
 
-func dumpInst(b *bytes.Buffer, i *Inst) {
+func dumpInst(b *strings.Builder, i *Inst) {
 	switch i.Op {
 	case InstAlt:
 		bw(b, "alt -> ", u32(i.Out), ", ", u32(i.Arg))

@@ -136,7 +136,7 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) 
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
-	if r.PreferGo {
+	if r.preferGo() {
 		return lookupPortMap(network, service)
 	}
 

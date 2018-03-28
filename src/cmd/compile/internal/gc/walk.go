@@ -670,8 +670,19 @@ opswitch:
 	case OAS, OASOP:
 		init.AppendNodes(&n.Ninit)
 
+		// Recognize m[k] = append(m[k], ...) so we can reuse
+		// the mapassign call.
+		mapAppend := n.Left.Op == OINDEXMAP && n.Right.Op == OAPPEND
+		if mapAppend && !samesafeexpr(n.Left, n.Right.List.First()) {
+			Fatalf("not same expressions: %v != %v", n.Left, n.Right.List.First())
+		}
+
 		n.Left = walkexpr(n.Left, init)
 		n.Left = safeexpr(n.Left, init)
+
+		if mapAppend {
+			n.Right.List.SetFirst(n.Left)
+		}
 
 		if n.Op == OASOP {
 			// Rewrite x op= y into x = x op y.

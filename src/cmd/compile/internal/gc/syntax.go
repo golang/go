@@ -471,8 +471,11 @@ type Func struct {
 	// Marks records scope boundary changes.
 	Marks []Mark
 
-	Closgen    int
-	Outerfunc  *Node // outer function (for closure)
+	// Closgen tracks how many closures have been generated within
+	// this function. Used by closurename for creating unique
+	// function names.
+	Closgen int
+
 	FieldTrack map[*types.Sym]struct{}
 	DebugInfo  *ssa.FuncDebug
 	Ntype      *Node // signature

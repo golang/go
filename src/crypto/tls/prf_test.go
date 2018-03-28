@@ -34,14 +34,15 @@ func TestSplitPreMasterSecret(t *testing.T) {
 }
 
 type testKeysFromTest struct {
-	version                    uint16
-	suite                      *cipherSuite
-	preMasterSecret            string
-	clientRandom, serverRandom string
-	masterSecret               string
-	clientMAC, serverMAC       string
-	clientKey, serverKey       string
-	macLen, keyLen             int
+	version                                        uint16
+	suite                                          *cipherSuite
+	preMasterSecret                                string
+	clientRandom, serverRandom                     string
+	masterSecret                                   string
+	clientMAC, serverMAC                           string
+	clientKey, serverKey                           string
+	macLen, keyLen                                 int
+	contextKeyingMaterial, noContextKeyingMaterial string
 }
 
 func TestKeysFromPreMasterSecret(t *testing.T) {
@@ -66,6 +67,22 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
 			clientKeyString != test.clientKey ||
 			serverKeyString != test.serverKey {
 			t.Errorf("#%d: got: (%s, %s, %s, %s) want: (%s, %s, %s, %s)", i, clientMACString, serverMACString, clientKeyString, serverKeyString, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
+		}
+
+		ekm := ekmFromMasterSecret(test.version, test.suite, masterSecret, clientRandom, serverRandom)
+		contextKeyingMaterial, ok := ekm("label", []byte("context"), 32)
+		if !ok {
+			t.Fatalf("ekmFromMasterSecret failed")
+		}
+
+		noContextKeyingMaterial, ok := ekm("label", nil, 32)
+		if !ok {
+			t.Fatalf("ekmFromMasterSecret failed")
+		}
+
+		if hex.EncodeToString(contextKeyingMaterial) != test.contextKeyingMaterial ||
+			hex.EncodeToString(noContextKeyingMaterial) != test.noContextKeyingMaterial {
+			t.Errorf("#%d: got keying material: (%s, %s) want: (%s, %s)", i, contextKeyingMaterial, noContextKeyingMaterial, test.contextKeyingMaterial, test.noContextKeyingMaterial)
 		}
 	}
 }
@@ -94,6 +111,8 @@ var testKeysFromTests = []testKeysFromTest{
 		"e076e33206b30507a85c32855acd0919",
 		20,
 		16,
+		"4d1bb6fc278c37d27aa6e2a13c2e079095d143272c2aa939da33d88c1c0cec22",
+		"93fba89599b6321ae538e27c6548ceb8b46821864318f5190d64a375e5d69d41",
 	},
 	{
 		VersionTLS10,
@@ -108,6 +127,8 @@ var testKeysFromTests = []testKeysFromTest{
 		"df3f94f6e1eacc753b815fe16055cd43",
 		20,
 		16,
+		"2c9f8961a72b97cbe76553b5f954caf8294fc6360ef995ac1256fe9516d0ce7f",
+		"274f19c10291d188857ad8878e2119f5aa437d4da556601cf1337aff23154016",
 	},
 	{
 		VersionTLS10,
@@ -122,6 +143,8 @@ var testKeysFromTests = []testKeysFromTest{
 		"ff07edde49682b45466bd2e39464b306",
 		20,
 		16,
+		"678b0d43f607de35241dc7e9d1a7388a52c35033a1a0336d4d740060a6638fe2",
+		"f3b4ac743f015ef21d79978297a53da3e579ee047133f38c234d829c0f907dab",
 	},
 	{
 		VersionSSL30,
@@ -136,5 +159,7 @@ var testKeysFromTests = []testKeysFromTest{
 		"2b9d4b4a60cb7f396780ebff50650419",
 		20,
 		16,
+		"d230d8fc4f695be60368635e5268c414ca3ae0995dd93aba9f877272049f35bf",
+		"6b5e9646e04df8e99482a9b22dbfbe42ddd4725e4b041d02d11e4ef44ad13120",
 	},
 }

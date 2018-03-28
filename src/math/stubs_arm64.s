@@ -27,9 +27,6 @@ TEXT ·Atan(SB),NOSPLIT,$0
 TEXT ·Atanh(SB),NOSPLIT,$0
 	B ·atanh(SB)
 
-TEXT ·Exp2(SB),NOSPLIT,$0
-	B ·exp2(SB)
-
 TEXT ·Erf(SB),NOSPLIT,$0
 	B ·erf(SB)
 
@@ -44,9 +41,6 @@ TEXT ·Cosh(SB),NOSPLIT,$0
 
 TEXT ·Expm1(SB),NOSPLIT,$0
 	B ·expm1(SB)
-
-TEXT ·Exp(SB),NOSPLIT,$0
-	B ·exp(SB)
 
 TEXT ·Frexp(SB),NOSPLIT,$0
 	B ·frexp(SB)

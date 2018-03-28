@@ -267,6 +267,34 @@ func TestShiftRight(t *testing.T) {
 	}
 }
 
+func BenchmarkZeroShifts(b *testing.B) {
+	x := rndNat(800)
+
+	b.Run("Shl", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var z nat
+			z.shl(x, 0)
+		}
+	})
+	b.Run("ShlSame", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			x.shl(x, 0)
+		}
+	})
+
+	b.Run("Shr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var z nat
+			z.shr(x, 0)
+		}
+	})
+	b.Run("ShrSame", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			x.shr(x, 0)
+		}
+	})
+}
+
 type modWTest struct {
 	in       string
 	dividend string

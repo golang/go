@@ -948,7 +948,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 
 	case OCLOSURE:
 		// Link addresses of captured variables to closure.
-		for _, v := range n.Func.Cvars.Slice() {
+		for _, v := range n.Func.Closure.Func.Cvars.Slice() {
 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
 				continue
 			}
@@ -2168,9 +2168,7 @@ func moveToHeap(n *Node) {
 // This special tag is applied to uintptr variables
 // that we believe may hold unsafe.Pointers for
 // calls into assembly functions.
-// It is logically a constant, but using a var
-// lets us take the address below to get a *string.
-var unsafeUintptrTag = "unsafe-uintptr"
+const unsafeUintptrTag = "unsafe-uintptr"
 
 // This special tag is applied to uintptr parameters of functions
 // marked go:uintptrescapes.
