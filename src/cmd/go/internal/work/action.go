@@ -223,6 +223,10 @@ func (b *Builder) Init() {
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
+		if !filepath.IsAbs(b.WorkDir) {
+			os.RemoveAll(b.WorkDir)
+			base.Fatalf("cmd/go: relative tmpdir not supported")
+		}
 		if cfg.BuildX || cfg.BuildWork {
 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
 		}

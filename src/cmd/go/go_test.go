@@ -5991,3 +5991,26 @@ func TestDontReportRemoveOfEmptyDir(t *testing.T) {
 		t.Error("unnecessary output when installing installed package")
 	}
 }
+
+// Issue 23264.
+func TestNoRelativeTmpdir(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("src/a/a.go", `package a`)
+	tg.cd(tg.path("."))
+	tg.must(os.Mkdir("tmp", 0777))
+
+	tg.setenv("GOCACHE", "off")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GOTMPDIR", "tmp")
+	tg.runFail("build", "a")
+	tg.grepStderr("relative tmpdir", "wrong error")
+
+	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
+		tg.unsetenv("GOTMPDIR")
+		tg.setenv("TMPDIR", "tmp")
+		tg.runFail("build", "a")
+		tg.grepStderr("relative tmpdir", "wrong error")
+	}
+}
