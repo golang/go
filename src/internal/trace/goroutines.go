@@ -81,8 +81,14 @@ func (g *GDesc) snapshotStat(lastTs, activeGCStartTime int64) (ret GExecutionSta
 		return ret // finalized GDesc. No pending state.
 	}
 
-	if activeGCStartTime != 0 {
-		ret.GCTime += lastTs - activeGCStartTime
+	if activeGCStartTime != 0 { // terminating while GC is active
+		if g.CreationTime < activeGCStartTime {
+			ret.GCTime += lastTs - activeGCStartTime
+		} else {
+			// The goroutine's lifetime completely overlaps
+			// with a GC.
+			ret.GCTime += lastTs - g.CreationTime
+		}
 	}
 
 	if g.TotalTime == 0 {
@@ -110,15 +116,22 @@ func (g *GDesc) snapshotStat(lastTs, activeGCStartTime int64) (ret GExecutionSta
 	return ret
 }
 
-// finalizeActiveSpans is called when processing a goroutine end event
-// to finalize any active spans in the goroutine.
-func (g *GDesc) finalizeActiveSpans(lastTs, activeGCStartTime int64, trigger *Event) {
+// finalize is called when processing a goroutine end event or at
+// the end of trace processing. This finalizes the execution stat
+// and any active spans in the goroutine, in which case trigger is nil.
+func (g *GDesc) finalize(lastTs, activeGCStartTime int64, trigger *Event) {
+	if trigger != nil {
+		g.EndTime = trigger.Ts
+	}
+	finalStat := g.snapshotStat(lastTs, activeGCStartTime)
+
+	g.GExecutionStat = finalStat
 	for _, s := range g.activeSpans {
 		s.End = trigger
-		s.GExecutionStat = g.snapshotStat(lastTs, activeGCStartTime).sub(s.GExecutionStat)
+		s.GExecutionStat = finalStat.sub(s.GExecutionStat)
 		g.Spans = append(g.Spans, s)
 	}
-	g.activeSpans = nil
+	*(g.gdesc) = gdesc{}
 }
 
 // gdesc is a private part of GDesc that is required only during analysis.
@@ -175,20 +188,7 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			}
 		case EvGoEnd, EvGoStop:
 			g := gs[ev.G]
-			g.ExecTime += ev.Ts - g.lastStartTime
-			g.lastStartTime = 0
-			g.TotalTime = ev.Ts - g.CreationTime
-			g.EndTime = ev.Ts
-			if gcStartTime != 0 { // terminating while GC is active
-				if g.CreationTime < gcStartTime {
-					g.GCTime += ev.Ts - gcStartTime
-				} else {
-					// The goroutine's lifetime overlaps
-					// with a GC completely.
-					g.GCTime += ev.Ts - g.CreationTime
-				}
-			}
-			g.finalizeActiveSpans(lastTs, gcStartTime, ev)
+			g.finalize(ev.Ts, gcStartTime, ev)
 		case EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
 			EvGoBlockSync, EvGoBlockCond:
 			g := gs[ev.G]
@@ -294,8 +294,8 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 	}
 
 	for _, g := range gs {
-		g.GExecutionStat = g.snapshotStat(lastTs, gcStartTime)
-		g.finalizeActiveSpans(lastTs, gcStartTime, nil)
+		g.finalize(lastTs, gcStartTime, nil)
+
 		// sort based on span start time
 		sort.Slice(g.Spans, func(i, j int) bool {
 			x := g.Spans[i].Start
@@ -308,6 +308,7 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			}
 			return x.Ts < y.Ts
 		})
+
 		g.gdesc = nil
 	}
 
