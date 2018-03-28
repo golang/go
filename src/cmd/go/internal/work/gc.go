@@ -89,7 +89,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		gcargs = append(gcargs, "-buildid", a.buildID)
 	}
 	platform := cfg.Goos + "/" + cfg.Goarch
-	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || cfg.Goos == "plan9" {
+	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
 		gcargs = append(gcargs, "-dwarf=false")
 	}
 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {

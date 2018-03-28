@@ -364,6 +364,7 @@ const (
 	ABaseARM64
 	ABaseMIPS
 	ABaseS390X
+	ABaseWasm
 
 	AllowedOpCodes = 1 << 11            // The number of opcodes available for any given architecture.
 	AMask          = AllowedOpCodes - 1 // AND with this to use the opcode as an array index.
@@ -595,7 +596,7 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
 	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386:
+	case sys.AMD64, sys.I386, sys.Wasm:
 		return 0
 	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to

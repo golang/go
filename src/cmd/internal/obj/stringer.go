@@ -26,7 +26,7 @@ var (
 	pkg    = flag.String("p", "", "package name")
 )
 
-var Are = regexp.MustCompile(`^\tA([A-Z0-9]+)`)
+var Are = regexp.MustCompile(`^\tA([A-Za-z0-9]+)`)
 
 func main() {
 	flag.Parse()

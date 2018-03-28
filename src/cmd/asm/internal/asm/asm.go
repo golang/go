@@ -343,6 +343,13 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		As:   op,
 	}
 	switch len(a) {
+	case 0:
+		if p.arch.Family == sys.Wasm {
+			target = &obj.Addr{Type: obj.TYPE_NONE}
+			break
+		}
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
 	case 1:
 		target = &a[0]
 	case 2:
@@ -445,6 +452,8 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 	case target.Type == obj.TYPE_CONST:
 		// JMP $4
 		prog.To = a[0]
+	case target.Type == obj.TYPE_NONE:
+		// JMP
 	default:
 		p.errorf("cannot assemble jump %+v", target)
 		return

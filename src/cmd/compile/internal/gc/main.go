@@ -180,6 +180,7 @@ func Main(archInit func(*Arch)) {
 	gopkg = types.NewPkg("go", "")
 
 	Nacl = objabi.GOOS == "nacl"
+	Wasm := objabi.GOARCH == "wasm"
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
@@ -200,7 +201,7 @@ func Main(archInit func(*Arch)) {
 	flag.IntVar(&nBackendWorkers, "c", 1, "concurrency during compilation, 1 means no concurrency")
 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
-	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
+	flag.BoolVar(&flagDWARF, "dwarf", !Wasm, "generate DWARF symbols")
 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
@@ -265,6 +266,7 @@ func Main(archInit func(*Arch)) {
 	} else {
 		// turn off inline generation if no dwarf at all
 		genDwarfInline = 0
+		Ctxt.Flag_locationlists = false
 	}
 
 	if flag.NArg() < 1 && debugstr != "help" && debugstr != "ssa/help" {
