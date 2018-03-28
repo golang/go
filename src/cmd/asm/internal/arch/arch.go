@@ -11,6 +11,7 @@ import (
 	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/s390x"
+	"cmd/internal/obj/wasm"
 	"cmd/internal/obj/x86"
 	"fmt"
 	"strings"
@@ -87,12 +88,18 @@ func Set(GOARCH string) *Arch {
 		a := archS390x()
 		a.LinkArch = &s390x.Links390x
 		return a
+	case "wasm":
+		return archWasm()
 	}
 	return nil
 }
 
 func jumpX86(word string) bool {
 	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP") || word == "XBEGIN"
+}
+
+func jumpWasm(word string) bool {
+	return word == "JMP" || word == "CALL" || word == "Call" || word == "Br" || word == "BrIf"
 }
 
 func archX86(linkArch *obj.LinkArch) *Arch {
@@ -575,5 +582,26 @@ func archS390x() *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: s390xRegisterNumber,
 		IsJump:         jumpS390x,
+	}
+}
+
+func archWasm() *Arch {
+	instructions := make(map[string]obj.As)
+	for i, s := range obj.Anames {
+		instructions[s] = obj.As(i)
+	}
+	for i, s := range wasm.Anames {
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseWasm
+		}
+	}
+
+	return &Arch{
+		LinkArch:       &wasm.Linkwasm,
+		Instructions:   instructions,
+		Register:       wasm.Register,
+		RegisterPrefix: nil,
+		RegisterNumber: nilRegisterNumber,
+		IsJump:         jumpWasm,
 	}
 }

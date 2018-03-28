@@ -193,6 +193,9 @@ const (
 	// R_ADDRCUOFF resolves to a pointer-sized offset from the start of the
 	// symbol's DWARF compile unit.
 	R_ADDRCUOFF
+
+	// R_WASMIMPORT resolves to the index of the WebAssembly function import.
+	R_WASMIMPORT
 )
 
 // IsDirectJump returns whether r is a relocation for a direct jump.
