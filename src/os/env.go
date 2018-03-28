@@ -21,7 +21,12 @@ func Expand(s string, mapping func(string) string) string {
 		if s[j] == '$' && j+1 < len(s) {
 			buf = append(buf, s[i:j]...)
 			name, w := getShellName(s[j+1:])
-			buf = append(buf, mapping(name)...)
+			// If the name is empty, keep the $.
+			if name == "" {
+				buf = append(buf, s[j])
+			} else {
+				buf = append(buf, mapping(name)...)
+			}
 			j += w
 			i = j + 1
 		}
