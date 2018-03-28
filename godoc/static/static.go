@@ -1937,6 +1937,9 @@ function cgAddChild(tree, ul, cgn) {
 		<li><a href="//godoc.org/golang.org/x/image">image</a> — additional imaging packages.</li>
 		<li><a href="//godoc.org/golang.org/x/mobile">mobile</a> — experimental support for Go on mobile platforms.</li>
 		<li><a href="//godoc.org/golang.org/x/net">net</a> — additional networking packages.</li>
+		<li><a href="//godoc.org/golang.org/x/perf">perf</a> — packages and tools for performance measurement, storage, and analysis.</li>
+		<li><a href="//godoc.org/golang.org/x/review">review</a> — a tool for working with Gerrit code reviews.</li>
+		<li><a href="//godoc.org/golang.org/x/sync">sync</a> — additional concurrency primitives.</li>
 		<li><a href="//godoc.org/golang.org/x/sys">sys</a> — packages for making system calls.</li>
 		<li><a href="//godoc.org/golang.org/x/text">text</a> — packages for working with text.</li>
 		<li><a href="//godoc.org/golang.org/x/time">time</a> — additional time packages.</li>

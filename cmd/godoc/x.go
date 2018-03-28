@@ -22,9 +22,9 @@ type xRepo struct {
 }
 
 var xMap = map[string]xRepo{
-	"codereview": {"https://code.google.com/p/go.codereview", "hg"},
+	"codereview": {"https://code.google.com/p/go.codereview", "hg"}, // Not included at https://golang.org/pkg/#subrepo.
 
-	"arch":       {"https://go.googlesource.com/arch", "git"},
+	"arch":       {"https://go.googlesource.com/arch", "git"}, // Not included at https://golang.org/pkg/#subrepo.
 	"benchmarks": {"https://go.googlesource.com/benchmarks", "git"},
 	"blog":       {"https://go.googlesource.com/blog", "git"},
 	"build":      {"https://go.googlesource.com/build", "git"},
@@ -32,22 +32,22 @@ var xMap = map[string]xRepo{
 	"debug":      {"https://go.googlesource.com/debug", "git"},
 	"exp":        {"https://go.googlesource.com/exp", "git"},
 	"image":      {"https://go.googlesource.com/image", "git"},
-	"lint":       {"https://go.googlesource.com/lint", "git"},
+	"lint":       {"https://go.googlesource.com/lint", "git"}, // Not included at https://golang.org/pkg/#subrepo.
 	"mobile":     {"https://go.googlesource.com/mobile", "git"},
 	"net":        {"https://go.googlesource.com/net", "git"},
-	"oauth2":     {"https://go.googlesource.com/oauth2", "git"},
+	"oauth2":     {"https://go.googlesource.com/oauth2", "git"}, // Not included at https://golang.org/pkg/#subrepo.
 	"perf":       {"https://go.googlesource.com/perf", "git"},
-	"playground": {"https://go.googlesource.com/playground", "git"},
+	"playground": {"https://go.googlesource.com/playground", "git"}, // Not included at https://golang.org/pkg/#subrepo.
 	"review":     {"https://go.googlesource.com/review", "git"},
 	"sync":       {"https://go.googlesource.com/sync", "git"},
 	"sys":        {"https://go.googlesource.com/sys", "git"},
-	"talks":      {"https://go.googlesource.com/talks", "git"},
-	"term":       {"https://go.googlesource.com/term", "git"},
+	"talks":      {"https://go.googlesource.com/talks", "git"}, // Not included at https://golang.org/pkg/#subrepo.
+	"term":       {"https://go.googlesource.com/term", "git"},  // Not included at https://golang.org/pkg/#subrepo.
 	"text":       {"https://go.googlesource.com/text", "git"},
 	"time":       {"https://go.googlesource.com/time", "git"},
 	"tools":      {"https://go.googlesource.com/tools", "git"},
 	"tour":       {"https://go.googlesource.com/tour", "git"},
-	"vgo":        {"https://go.googlesource.com/vgo", "git"},
+	"vgo":        {"https://go.googlesource.com/vgo", "git"}, // Not included at https://golang.org/pkg/#subrepo.
 }
 
 func init() {
