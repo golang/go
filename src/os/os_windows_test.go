@@ -12,7 +12,6 @@ import (
 	"internal/testenv"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -22,7 +21,6 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -982,84 +980,32 @@ func TestOneDrive(t *testing.T) {
 	testIsDir(t, dir, fi)
 }
 
-// TestSymlinkWindowsDeveloperModeActive verifies that creating a symbolic link
+// TestSymlinkCreation verifies that creating a symbolic link
 // works on Windows when developer mode is active.
 // This is supported starting Windows 10 (1703, v10.0.14972).
-func TestSymlinkWindowsDeveloperModeActive(t *testing.T) {
+func TestSymlinkCreation(t *testing.T) {
 	if !isWindowsDeveloperModeActive() {
 		t.Skip("Windows developer mode is not active")
 	}
 
 	// create dummy file to symlink
-	rand.Seed(time.Now().UnixNano())
+	temp, err := ioutil.TempDir("", "TestSymlinkCreation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(temp)
 
-	dummyFile := filepath.Join(os.TempDir(), fmt.Sprintf("issue22874.test.%v", 1000000+rand.Int31n(8999999)))
-	err := ioutil.WriteFile(dummyFile, []byte(""), 0644)
+	dummyFile := filepath.Join(temp, "file")
+	err = ioutil.WriteFile(dummyFile, []byte(""), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create dummy file: %v", err)
 	}
 
-	defer os.Remove(dummyFile)
-
-	// create the symlink
-	linkFile := fmt.Sprintf("%v.link", dummyFile)
+	linkFile := filepath.Join(temp, "link")
 	err = os.Symlink(dummyFile, linkFile)
 	if err != nil {
-		// only the ERROR_PRIVILEGE_NOT_HELD error is allowed
-		if errLink, ok := err.(*os.LinkError); ok {
-			if errNo, ok := errLink.Err.(syscall.Errno); ok {
-
-				if errNo == syscall.ERROR_PRIVILEGE_NOT_HELD {
-					t.Fatalf("Windows developer mode is active, but creating symlink failed with ERROR_PRIVILEGE_NOT_HELD anyway: %v", err)
-				}
-			}
-		}
-
 		t.Fatalf("Failed to create symlink: %v", err)
 	}
-	// remove the link. don't care for any errors
-	os.Remove(linkFile)
-}
-
-// TestSymlinkWindowsDeveloperModeInactive verifies that creating a symbolic link
-// will fail with the correct error message if developer mode is inactive.
-// This test also checks for backward compatibility.
-func TestSymlinkWindowsDeveloperModeInactive(t *testing.T) {
-	if isWindowsDeveloperModeActive() {
-		t.Skip("Windows developer mode is active")
-	}
-
-	// create dummy file to symlink
-	rand.Seed(time.Now().UnixNano())
-
-	dummyFile := filepath.Join(os.TempDir(), fmt.Sprintf("issue22874.test.%v", 1000000+rand.Int31n(8999999)))
-	err := ioutil.WriteFile(dummyFile, []byte(""), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create dummy file: %v", err)
-	}
-
-	defer os.Remove(dummyFile)
-
-	// create the symlink
-	linkFile := fmt.Sprintf("%v.link", dummyFile)
-	err = os.Symlink(dummyFile, linkFile)
-	if err == nil {
-		os.Remove(linkFile)
-		t.Fatal("Creating the symlink should have failed")
-	}
-
-	// only the ERROR_PRIVILEGE_NOT_HELD error is allowed
-	if errLink, ok := err.(*os.LinkError); ok {
-		if errNo, ok := errLink.Err.(syscall.Errno); ok {
-
-			if errNo == syscall.ERROR_PRIVILEGE_NOT_HELD {
-				// this error is expected
-				return
-			}
-		}
-	}
-
-	t.Fatalf("Creating symlink failed with unexpected error: %v", err)
 }
 
 // isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
