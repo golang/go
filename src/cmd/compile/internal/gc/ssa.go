@@ -5080,7 +5080,35 @@ func (s *SSAGenState) AddrScratch(a *obj.Addr) {
 	a.Offset = s.ScratchFpMem.Xoffset
 }
 
+// Call returns a new CALL instruction for the SSA value v.
+// It uses PrepareCall to prepare the call.
 func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+	s.PrepareCall(v)
+
+	p := s.Prog(obj.ACALL)
+	if sym, ok := v.Aux.(*obj.LSym); ok {
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = sym
+	} else {
+		// TODO(mdempsky): Can these differences be eliminated?
+		switch thearch.LinkArch.Family {
+		case sys.AMD64, sys.I386, sys.PPC64, sys.S390X:
+			p.To.Type = obj.TYPE_REG
+		case sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
+			p.To.Type = obj.TYPE_MEM
+		default:
+			Fatalf("unknown indirect call family")
+		}
+		p.To.Reg = v.Args[0].Reg()
+	}
+	return p
+}
+
+// PrepareCall prepares to emit a CALL instruction for v and does call-related bookkeeping.
+// It must be called immediately before emitting the actual CALL instruction,
+// since it emits PCDATA for the stack map at the call (calls are safe points).
+func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 	idx, ok := s.stackMapIndex[v]
 	if !ok {
 		Fatalf("missing stack map index for %v", v.LongString())
@@ -5101,33 +5129,17 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 		thearch.Ginsnop(s.pp)
 	}
 
-	p = s.Prog(obj.ACALL)
 	if sym, ok := v.Aux.(*obj.LSym); ok {
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = sym
-
 		// Record call graph information for nowritebarrierrec
 		// analysis.
 		if nowritebarrierrecCheck != nil {
 			nowritebarrierrecCheck.recordCall(s.pp.curfn, sym, v.Pos)
 		}
-	} else {
-		// TODO(mdempsky): Can these differences be eliminated?
-		switch thearch.LinkArch.Family {
-		case sys.AMD64, sys.I386, sys.PPC64, sys.S390X:
-			p.To.Type = obj.TYPE_REG
-		case sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
-			p.To.Type = obj.TYPE_MEM
-		default:
-			Fatalf("unknown indirect call family")
-		}
-		p.To.Reg = v.Args[0].Reg()
 	}
+
 	if s.maxarg < v.AuxInt {
 		s.maxarg = v.AuxInt
 	}
-	return p
 }
 
 // fieldIdx finds the index of the field referred to by the ODOT node n.
