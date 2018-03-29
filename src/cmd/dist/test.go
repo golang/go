@@ -312,7 +312,6 @@ func (t *tester) registerStdTest(pkg string) {
 					break
 				}
 			}
-
 			args := []string{
 				"test",
 				short(),
@@ -355,7 +354,8 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 				"test",
 				short(),
 				"-race",
-				"-run=^$", // nothing. only benchmarks.
+				t.timeout(1200), // longer timeout for race with benchmarks
+				"-run=^$",       // nothing. only benchmarks.
 				"-benchtime=.1s",
 				"-cpu=4",
 			}
@@ -1318,7 +1318,7 @@ func (t *tester) raceDetectorSupported() bool {
 	case "linux", "darwin", "freebsd", "windows":
 		// The race detector doesn't work on Alpine Linux:
 		// golang.org/issue/14481
-		return t.cgoEnabled && goarch == "amd64" && gohostos == goos && !isAlpineLinux()
+		return t.cgoEnabled && (goarch == "amd64" || goarch == "ppc64le") && gohostos == goos && !isAlpineLinux()
 	}
 	return false
 }

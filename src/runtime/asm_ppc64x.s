@@ -24,6 +24,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVD	$runtime·g0(SB), g
+	BL	runtime·save_g(SB)
 	MOVD	$(-64*1024), R31
 	ADD	R31, R1, R3
 	MOVD	R3, g_stackguard0(g)
