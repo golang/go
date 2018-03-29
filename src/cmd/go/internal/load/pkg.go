@@ -1294,7 +1294,13 @@ func (p *Package) mkAbs(list []string) []string {
 // InternalGoFiles returns the list of Go files being built for the package,
 // using absolute paths.
 func (p *Package) InternalGoFiles() []string {
-	return p.mkAbs(str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
+	return p.mkAbs(str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles))
+}
+
+// InternalXGoFiles returns the list of Go files being built for the XTest package,
+// using absolute paths.
+func (p *Package) InternalXGoFiles() []string {
+	return p.mkAbs(p.XTestGoFiles)
 }
 
 // InternalGoFiles returns the list of all Go files possibly relevant for the package,
