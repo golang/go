@@ -46,7 +46,7 @@
 		%x	base 16, lower-case, two characters per byte
 		%X	base 16, upper-case, two characters per byte
 	Slice:
-		%p	pointer to the first element of the slice in base 16 notation, with leading 0x
+		%p	address of 0th element in base 16 notation, with leading 0x
 	Pointer:
 		%p	base 16 notation, with leading 0x
 		The %b, %d, %o, %x and %X verbs also work with pointers,
