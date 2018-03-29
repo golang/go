@@ -3472,6 +3472,10 @@ func dolockOSThread() {
 // If the calling goroutine exits without unlocking the thread,
 // the thread will be terminated.
 //
+// All init functions are run on the startup thread. Calling LockOSThread
+// from an init function will cause the main function to be invoked on
+// that thread.
+//
 // A goroutine should call LockOSThread before calling OS services or
 // non-Go library functions that depend on per-thread state.
 func LockOSThread() {
