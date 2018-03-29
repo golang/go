@@ -228,16 +228,6 @@ var allAsmTests = []*asmTests{
 		tests:   linuxAMD64Tests,
 	},
 	{
-		arch:  "386",
-		os:    "linux",
-		tests: linux386Tests,
-	},
-	{
-		arch:  "s390x",
-		os:    "linux",
-		tests: linuxS390XTests,
-	},
-	{
 		arch:    "arm",
 		os:      "linux",
 		imports: []string{"runtime"},
@@ -249,19 +239,9 @@ var allAsmTests = []*asmTests{
 		tests: linuxARM64Tests,
 	},
 	{
-		arch:  "mips",
-		os:    "linux",
-		tests: linuxMIPSTests,
-	},
-	{
 		arch:  "mips64",
 		os:    "linux",
 		tests: linuxMIPS64Tests,
-	},
-	{
-		arch:  "ppc64le",
-		os:    "linux",
-		tests: linuxPPC64LETests,
 	},
 	{
 		arch:  "amd64",
@@ -345,42 +325,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		neg: []string{"MOVUPS"},
 	},
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]0-8"},
-	},
-}
-
-var linux386Tests = []*asmTest{
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]0-4"},
-	},
-}
-
-var linuxS390XTests = []*asmTest{
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]0-8"},
-	},
 }
 
 var linuxARMTests = []*asmTest{
@@ -393,16 +337,6 @@ var linuxARMTests = []*asmTest{
 		}
 		`,
 		pos: []string{"b\\+4\\(FP\\)"},
-	},
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]-4-4"},
 	},
 }
 
@@ -459,16 +393,6 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
-	},
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]-8-8"},
 	},
 	{
 		// check that we don't emit comparisons for constant shift
@@ -750,19 +674,6 @@ var linuxARM64Tests = []*asmTest{
 	},
 }
 
-var linuxMIPSTests = []*asmTest{
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]-4-4"},
-	},
-}
-
 var linuxMIPS64Tests = []*asmTest{
 	{
 		// check that we don't emit comparisons for constant shift
@@ -773,19 +684,6 @@ var linuxMIPS64Tests = []*asmTest{
 		`,
 		pos: []string{"SLLV\t\\$17"},
 		neg: []string{"SGT"},
-	},
-}
-
-var linuxPPC64LETests = []*asmTest{
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]0-8"},
 	},
 }
 
