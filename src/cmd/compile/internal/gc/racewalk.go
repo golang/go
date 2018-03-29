@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 )
 
 // The racewalk pass is currently handled in two parts.
@@ -58,17 +59,23 @@ func instrument(fn *Node) {
 		lno := lineno
 		lineno = src.NoXPos
 
-		// nodpc is the PC of the caller as extracted by
-		// getcallerpc. We use -widthptr(FP) for x86.
-		// BUG: this will not work on arm.
-		nodpc := nodfp.copy()
-		nodpc.Type = types.Types[TUINTPTR]
-		nodpc.Xoffset = int64(-Widthptr)
-		fn.Func.Dcl = append(fn.Func.Dcl, nodpc)
+		if thearch.LinkArch.Arch == sys.ArchPPC64LE {
+			fn.Func.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
+			fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
+		} else {
 
-		fn.Func.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
-		fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
-
+			// nodpc is the PC of the caller as extracted by
+			// getcallerpc. We use -widthptr(FP) for x86.
+			// BUG: This only works for amd64. This will not
+			// work on arm or others that might support
+			// race in the future.
+			nodpc := nodfp.copy()
+			nodpc.Type = types.Types[TUINTPTR]
+			nodpc.Xoffset = int64(-Widthptr)
+			fn.Func.Dcl = append(fn.Func.Dcl, nodpc)
+			fn.Func.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
+			fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
+		}
 		lineno = lno
 	}
 }
