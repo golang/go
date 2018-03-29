@@ -141,51 +141,40 @@ appended to slice
 appendee slice
 arg to ...
 arg to recursive call
-array literal element
 array-element-equals
-assign-pair
-assign-pair-dot-type
-assign-pair-func-call
+array literal element
 assigned
 assigned to top level variable
-call part
+assign-pair-dot-type
+assign-pair-func-call
 captured by a closure
-closure-var
-converted
-copied slice
-defer func
-defer func ...
-defer func arg
+captured by called closure
 dot
-dot of pointer
 dot-equals
+dot of pointer
 fixed-array-index-of
-go func
-go func ...
 go func arg
 indirection
 interface-converted
 key of map put
 map literal key
 map literal value
+non-constant size
+panic
 parameter to indirect call
+passed-to-and-returned-from-call
 passed to call[argument content escapes]
 passed to call[argument escapes]
-passed-to-and-returned-from-call
 pointer literal
-range
 range-deref
 receiver in indirect call
 return
 returned from recursive function
-send
-slice
 slice-element-equals
 slice-literal-element
 star-dot-equals
 star-equals
 struct literal element
-switch case
 too large for stack
 value of map put
 */
@@ -198,7 +187,6 @@ assign-pair-mapr
 assign-pair-receive
 call receiver
 map index
-panic
 pointer literal [assign]
 slice literal element
 */
