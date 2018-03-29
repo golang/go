@@ -4,6 +4,7 @@
 
 // +build !linux
 // +build !darwin
+// +build !dragonfly
 // +build !freebsd
 // +build !netbsd
 
