@@ -2622,6 +2622,17 @@ func TestCoverageFunc(t *testing.T) {
 	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
 }
 
+// Issue 24588.
+func TestCoverageDashC(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "-c", "-o", tg.path("coverdep"), "-coverprofile="+tg.path("no/such/dir/cover.out"), "coverdep")
+	tg.wantExecutable(tg.path("coverdep"), "go -test -c -coverprofile did not create executable")
+}
+
 func TestPluginNonMain(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
