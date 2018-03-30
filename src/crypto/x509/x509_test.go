@@ -1656,9 +1656,6 @@ func TestSystemCertPool(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("not implemented on Windows; Issue 16736, 18609")
 	}
-	if runtime.GOOS == "nacl" {
-		t.Skip("not implemented on NaCl; Issue 24561")
-	}
 	a, err := SystemCertPool()
 	if err != nil {
 		t.Fatal(err)
