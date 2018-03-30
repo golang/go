@@ -308,9 +308,20 @@ func TestLookupCNAME(t *testing.T) {
 
 	defer dnsWaitGroup.Wait()
 
-	for _, tt := range lookupCNAMETests {
+	attempts := 0
+	for i := 0; i < len(lookupCNAMETests); i++ {
+		tt := lookupCNAMETests[i]
 		cname, err := LookupCNAME(tt.name)
 		if err != nil {
+			testenv.SkipFlakyNet(t)
+			if attempts < len(backoffDuration) {
+				dur := backoffDuration[attempts]
+				t.Logf("backoff %v after failure %v\n", dur, err)
+				time.Sleep(dur)
+				attempts++
+				i--
+				continue
+			}
 			t.Fatal(err)
 		}
 		if !strings.HasSuffix(cname, tt.cname) {
