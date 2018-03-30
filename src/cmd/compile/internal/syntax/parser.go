@@ -907,6 +907,7 @@ loop:
 				p.next()
 				if p.got(_Type) {
 					t := new(TypeSwitchGuard)
+					// t.Lhs is filled in by parser.simpleStmt
 					t.pos = pos
 					t.X = x
 					x = t
@@ -914,7 +915,7 @@ loop:
 					t := new(AssertExpr)
 					t.pos = pos
 					t.X = x
-					t.Type = p.expr()
+					t.Type = p.type_()
 					x = t
 				}
 				p.want(_Rparen)
@@ -1584,12 +1585,12 @@ func (p *parser) bad() *BadExpr {
 var ImplicitOne = &BasicLit{Value: "1"}
 
 // SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
-func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
+func (p *parser) simpleStmt(lhs Expr, keyword token) SimpleStmt {
 	if trace {
 		defer p.trace("simpleStmt")()
 	}
 
-	if rangeOk && p.tok == _Range {
+	if keyword == _For && p.tok == _Range {
 		// _Range expr
 		if debug && lhs != nil {
 			panic("invalid call of simpleStmt")
@@ -1636,51 +1637,35 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 	}
 
 	// expr_list
-	pos := p.pos()
 	switch p.tok {
-	case _Assign:
+	case _Assign, _Define:
+		pos := p.pos()
+		var op Operator
+		if p.tok == _Define {
+			op = Def
+		}
 		p.next()
 
-		if rangeOk && p.tok == _Range {
-			// expr_list '=' _Range expr
-			return p.newRangeClause(lhs, false)
+		if keyword == _For && p.tok == _Range {
+			// expr_list op= _Range expr
+			return p.newRangeClause(lhs, op == Def)
 		}
 
-		// expr_list '=' expr_list
-		return p.newAssignStmt(pos, 0, lhs, p.exprList())
-
-	case _Define:
-		p.next()
-
-		if rangeOk && p.tok == _Range {
-			// expr_list ':=' range expr
-			return p.newRangeClause(lhs, true)
-		}
-
-		// expr_list ':=' expr_list
+		// expr_list op= expr_list
 		rhs := p.exprList()
 
-		if x, ok := rhs.(*TypeSwitchGuard); ok {
-			switch lhs := lhs.(type) {
-			case *Name:
+		if x, ok := rhs.(*TypeSwitchGuard); ok && keyword == _Switch && op == Def {
+			if lhs, ok := lhs.(*Name); ok {
+				// switch … lhs := rhs.(type)
 				x.Lhs = lhs
-			case *ListExpr:
-				p.errorAt(lhs.Pos(), fmt.Sprintf("cannot assign 1 value to %d variables", len(lhs.ElemList)))
-				// make the best of what we have
-				if lhs, ok := lhs.ElemList[0].(*Name); ok {
-					x.Lhs = lhs
-				}
-			default:
-				p.errorAt(lhs.Pos(), fmt.Sprintf("invalid variable name %s in type switch", String(lhs)))
+				s := new(ExprStmt)
+				s.pos = x.Pos()
+				s.X = x
+				return s
 			}
-			s := new(ExprStmt)
-			s.pos = x.Pos()
-			s.X = x
-			return s
 		}
 
-		as := p.newAssignStmt(pos, Def, lhs, rhs)
-		return as
+		return p.newAssignStmt(pos, op, lhs, rhs)
 
 	default:
 		p.syntaxError("expecting := or = or comma")
@@ -1820,7 +1805,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		if p.got(_Var) {
 			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
 		}
-		init = p.simpleStmt(nil, keyword == _For)
+		init = p.simpleStmt(nil, keyword)
 		// If we have a range clause, we are done (can only happen for keyword == _For).
 		if _, ok := init.(*RangeClause); ok {
 			p.xnest = outer
@@ -1847,17 +1832,17 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 					p.syntaxError("expecting for loop condition")
 					goto done
 				}
-				condStmt = p.simpleStmt(nil, false)
+				condStmt = p.simpleStmt(nil, 0 /* range not permitted */)
 			}
 			p.want(_Semi)
 			if p.tok != _Lbrace {
-				post = p.simpleStmt(nil, false)
+				post = p.simpleStmt(nil, 0 /* range not permitted */)
 				if a, _ := post.(*AssignStmt); a != nil && a.Op == Def {
 					p.syntaxErrorAt(a.Pos(), "cannot declare in post statement of for loop")
 				}
 			}
 		} else if p.tok != _Lbrace {
-			condStmt = p.simpleStmt(nil, false)
+			condStmt = p.simpleStmt(nil, keyword)
 		}
 	} else {
 		condStmt = init
@@ -2003,7 +1988,7 @@ func (p *parser) commClause() *CommClause {
 	switch p.tok {
 	case _Case:
 		p.next()
-		c.Comm = p.simpleStmt(nil, false)
+		c.Comm = p.simpleStmt(nil, 0)
 
 		// The syntax restricts the possible simple statements here to:
 		//
@@ -2049,7 +2034,7 @@ func (p *parser) stmtOrNil() Stmt {
 		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
 			return p.labeledStmtOrNil(label)
 		}
-		return p.simpleStmt(lhs, false)
+		return p.simpleStmt(lhs, 0)
 	}
 
 	switch p.tok {
@@ -2068,13 +2053,13 @@ func (p *parser) stmtOrNil() Stmt {
 	case _Operator, _Star:
 		switch p.op {
 		case Add, Sub, Mul, And, Xor, Not:
-			return p.simpleStmt(nil, false) // unary operators
+			return p.simpleStmt(nil, 0) // unary operators
 		}
 
 	case _Literal, _Func, _Lparen, // operands
 		_Lbrack, _Struct, _Map, _Chan, _Interface, // composite types
 		_Arrow: // receive operator
-		return p.simpleStmt(nil, false)
+		return p.simpleStmt(nil, 0)
 
 	case _For:
 		return p.forStmt()

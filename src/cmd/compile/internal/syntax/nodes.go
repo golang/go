@@ -198,9 +198,16 @@ type (
 
 	// X.(Type)
 	AssertExpr struct {
-		X Expr
-		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
+		X    Expr
 		Type Expr
+		expr
+	}
+
+	// X.(type)
+	// Lhs := X.(type)
+	TypeSwitchGuard struct {
+		Lhs *Name // nil means no Lhs :=
+		X   Expr  // X.(type)
 		expr
 	}
 
@@ -411,13 +418,6 @@ type (
 		Def bool // means :=
 		X   Expr // range X
 		simpleStmt
-	}
-
-	TypeSwitchGuard struct {
-		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
-		Lhs *Name // nil means no Lhs :=
-		X   Expr  // X.(type)
-		expr
 	}
 
 	CaseClause struct {

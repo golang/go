@@ -598,13 +598,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		n.SetSliceBounds(index[0], index[1], index[2])
 		return n
 	case *syntax.AssertExpr:
-		if expr.Type == nil {
-			panic("unexpected AssertExpr")
-		}
-		// TODO(mdempsky): parser.pexpr uses p.expr(), but
-		// seems like the type field should be parsed with
-		// ntype? Shrug, doesn't matter here.
-		return p.nod(expr, ODOTTYPE, p.expr(expr.X), p.expr(expr.Type))
+		return p.nod(expr, ODOTTYPE, p.expr(expr.X), p.typeExpr(expr.Type))
 	case *syntax.Operation:
 		if expr.Op == syntax.Add && expr.Y != nil {
 			return p.sum(expr)
