@@ -80,7 +80,7 @@ func loadSystemRoots() (*CertPool, error) {
 		}
 	}
 
-	if len(roots.certs) > 0 {
+	if len(roots.certs) > 0 || firstErr == nil {
 		return roots, nil
 	}
 
