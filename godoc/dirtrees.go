@@ -14,6 +14,7 @@ import (
 	"os"
 	pathpkg "path"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -172,6 +173,12 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 			dirs = append(dirs, d)
 		}
 	}
+
+	// We need to sort the dirs slice because
+	// it is appended again after reading from dirchs.
+	sort.Slice(dirs, func(i, j int) bool {
+		return dirs[i].Name < dirs[j].Name
+	})
 
 	// if there are no package files and no subdirectories
 	// containing package files, ignore the directory
