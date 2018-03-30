@@ -461,7 +461,7 @@ func callinstr(np **Node, init *Nodes, wr, skip bool) {
 				name = "msanwrite"
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
-		} else if flag_race && t.NumComponents() > 1 {
+		} else if flag_race && t.NumComponents(types.CountBlankFields) > 1 {
 			// for composite objects we have to write every address
 			// because a write might happen to any subobject.
 			// composites with only one element don't have subobjects, though.
