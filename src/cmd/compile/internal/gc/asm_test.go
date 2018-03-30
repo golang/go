@@ -431,54 +431,6 @@ var linuxARM64Tests = []*asmTest{
 	// Check that zero stores are combine into larger stores
 	{
 		fn: `
-		func $(b []byte) {
-			_ = b[1] // early bounds check to guarantee safety of writes below
-			b[0] = 0
-			b[1] = 0
-		}
-		`,
-		pos: []string{"MOVH\tZR"},
-		neg: []string{"MOVB"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[1] // early bounds check to guarantee safety of writes below
-			b[1] = 0
-			b[0] = 0
-		}
-		`,
-		pos: []string{"MOVH\tZR"},
-		neg: []string{"MOVB"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[3] // early bounds check to guarantee safety of writes below
-			b[0] = 0
-			b[1] = 0
-			b[2] = 0
-			b[3] = 0
-		}
-		`,
-		pos: []string{"MOVW\tZR"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[3] // early bounds check to guarantee safety of writes below
-			b[2] = 0
-			b[3] = 0
-			b[1] = 0
-			b[0] = 0
-		}
-		`,
-		pos: []string{"MOVW\tZR"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
 		func $(h []uint16) {
 			_ = h[1] // early bounds check to guarantee safety of writes below
 			h[0] = 0
@@ -498,23 +450,6 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		pos: []string{"MOVW\tZR"},
 		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[7] // early bounds check to guarantee safety of writes below
-			b[0] = 0
-			b[1] = 0
-			b[2] = 0
-			b[3] = 0
-			b[4] = 0
-			b[5] = 0
-			b[6] = 0
-			b[7] = 0
-		}
-		`,
-		pos: []string{"MOVD\tZR"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
 	},
 	{
 		fn: `
@@ -562,31 +497,6 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"MOVD\tZR"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[15] // early bounds check to guarantee safety of writes below
-			b[0] = 0
-			b[1] = 0
-			b[2] = 0
-			b[3] = 0
-			b[4] = 0
-			b[5] = 0
-			b[6] = 0
-			b[7] = 0
-			b[8] = 0
-			b[9] = 0
-			b[10] = 0
-			b[11] = 0
-			b[12] = 0
-			b[13] = 0
-			b[15] = 0
-			b[14] = 0
-		}
-		`,
-		pos: []string{"STP"},
 		neg: []string{"MOVB", "MOVH", "MOVW"},
 	},
 	{

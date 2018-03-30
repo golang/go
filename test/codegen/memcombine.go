@@ -12,6 +12,10 @@ var sink64 uint64
 var sink32 uint32
 var sink16 uint16
 
+// ------------- //
+//    Loading    //
+// ------------- //
+
 func load_le64(b []byte) {
 	// amd64:`MOVQ\s\(.*\),`
 	// s390x:`MOVDBR\s\(.*\),`
@@ -94,6 +98,10 @@ func load_be16_idx(b []byte, idx int) {
 	sink16 = binary.BigEndian.Uint16(b[idx:])
 }
 
+// ------------- //
+//    Storing    //
+// ------------- //
+
 func store_le64(b []byte) {
 	// amd64:`MOVQ\s.*\(.*\)$`,-`SHR.`
 	// arm64:`MOVD`,-`MOV[WBH]`
@@ -170,4 +178,37 @@ func store_be16_idx(b []byte, idx int) {
 	// amd64:`ROLW\s\$8`,-`SHR.`
 	// arm64:`MOVH`,`REV16W`,-`MOVB`
 	binary.BigEndian.PutUint16(b[idx:], sink16)
+}
+
+// ------------- //
+//    Zeroing    //
+// ------------- //
+
+// Check that zero stores are combined into larger stores
+
+func zero_2(b1, b2 []byte) {
+	// bounds checks to guarantee safety of writes below
+	_, _ = b1[1], b2[1]
+	b1[0], b1[1] = 0, 0 // arm64:"MOVH\tZR",-"MOVB"
+	b2[1], b2[0] = 0, 0 // arm64:"MOVH\tZR",-"MOVB"
+}
+
+func zero_4(b1, b2 []byte) {
+	_, _ = b1[3], b2[3]
+	b1[0], b1[1], b1[2], b1[3] = 0, 0, 0, 0 // arm64:"MOVW\tZR",-"MOVB",-"MOVH"
+	b2[2], b2[3], b2[1], b2[0] = 0, 0, 0, 0 // arm64:"MOVW\tZR",-"MOVB",-"MOVH"
+}
+
+func zero_8(b []byte) {
+	_ = b[7]
+	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
+	b[4], b[5], b[6], b[7] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+}
+
+func zero_16(b []byte) {
+	_ = b[15]
+	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
+	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
+	b[8], b[9], b[10], b[11] = 0, 0, 0, 0
+	b[12], b[13], b[14], b[15] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
 }
