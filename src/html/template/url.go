@@ -181,7 +181,7 @@ func isHTMLSpace(c byte) bool {
 	return (c <= 0x20) && 0 != (htmlSpaceAndASCIIAlnumBytes[c>>3]&(1<<uint(c&0x7)))
 }
 
-func isHTMLSpaceOrAsciiAlnum(c byte) bool {
+func isHTMLSpaceOrASCIIAlnum(c byte) bool {
 	return (c < 0x80) && 0 != (htmlSpaceAndASCIIAlnumBytes[c>>3]&(1<<uint(c&0x7)))
 }
 
@@ -202,7 +202,7 @@ func filterSrcsetElement(s string, left int, right int, b *bytes.Buffer) {
 		// we don't need to URL normalize it.
 		metadataOk := true
 		for i := end; i < right; i++ {
-			if !isHTMLSpaceOrAsciiAlnum(s[i]) {
+			if !isHTMLSpaceOrASCIIAlnum(s[i]) {
 				metadataOk = false
 				break
 			}
