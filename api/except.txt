@@ -2,6 +2,7 @@ pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
 pkg math/big, const MaxBase = 36
 pkg math/big, type Word uintptr
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
+pkg os, const ModeType = 2399141888
 pkg os (linux-arm), const O_SYNC = 4096
 pkg os (linux-arm-cgo), const O_SYNC = 4096
 pkg syscall (darwin-386), const ImplementsGetwd = false
