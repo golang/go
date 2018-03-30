@@ -2152,7 +2152,7 @@ func pathMatch(pattern, path string) bool {
 	return len(path) >= n && path[0:n] == pattern
 }
 
-// Return the canonical path for p, eliminating . and .. elements.
+// cleanPath returns the canonical path for p, eliminating . and .. elements.
 func cleanPath(p string) string {
 	if p == "" {
 		return "/"
