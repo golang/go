@@ -364,15 +364,6 @@ func nodSym(op Op, left *Node, sym *types.Sym) *Node {
 	return n
 }
 
-func saveorignode(n *Node) {
-	if n.Orig != nil {
-		return
-	}
-	norig := nod(n.Op, nil, nil)
-	*norig = *n
-	n.Orig = norig
-}
-
 // methcmp sorts methods by name with exported methods first,
 // and then non-exported methods by their package path.
 type methcmp []*types.Field
@@ -422,19 +413,6 @@ func nodfltconst(v *Mpflt) *Node {
 	u := newMpflt()
 	u.Set(v)
 	return nodlit(Val{u})
-}
-
-func nodconst(n *Node, t *types.Type, v int64) {
-	*n = Node{}
-	n.Op = OLITERAL
-	n.SetAddable(true)
-	n.SetVal(Val{new(Mpint)})
-	n.Val().U.(*Mpint).SetInt64(v)
-	n.Type = t
-
-	if t.IsFloat() {
-		Fatalf("nodconst: bad type %v", t)
-	}
 }
 
 func nodnil() *Node {
