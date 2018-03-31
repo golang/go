@@ -53,6 +53,18 @@ func exportsym(n *Node) {
 	exportlist = append(exportlist, n)
 }
 
+// reexportsym marks n for reexport.
+func reexportsym(n *Node) {
+	if exportedsym(n.Sym) {
+		return
+	}
+
+	if Debug['E'] != 0 {
+		fmt.Printf("reexport name %v\n", n.Sym)
+	}
+	exportlist = append(exportlist, n)
+}
+
 func exportname(s string) bool {
 	if r := s[0]; r < utf8.RuneSelf {
 		return 'A' <= r && r <= 'Z'
@@ -94,125 +106,6 @@ func autoexport(n *Node, ctxt Class) {
 		n.Sym.SetAsm(true)
 		asmlist = append(asmlist, n)
 	}
-}
-
-// Look for anything we need for the inline body
-func reexportdeplist(ll Nodes) {
-	for _, n := range ll.Slice() {
-		reexportdep(n)
-	}
-}
-
-func reexportdep(n *Node) {
-	if n == nil {
-		return
-	}
-
-	//print("reexportdep %+hN\n", n);
-	switch n.Op {
-	case ONAME:
-		switch n.Class() {
-		case PFUNC:
-			// methods will be printed along with their type
-			// nodes for T.Method expressions
-			if n.isMethodExpression() {
-				break
-			}
-
-			// nodes for method calls.
-			if n.Type == nil || n.IsMethod() {
-				break
-			}
-			fallthrough
-
-		case PEXTERN:
-			if n.Sym != nil && !exportedsym(n.Sym) {
-				if Debug['E'] != 0 {
-					fmt.Printf("reexport name %v\n", n.Sym)
-				}
-				exportlist = append(exportlist, n)
-			}
-		}
-
-	// Local variables in the bodies need their type.
-	case ODCL:
-		t := n.Left.Type
-
-		if t != types.Types[t.Etype] && t != types.Idealbool && t != types.Idealstring {
-			if t.IsPtr() {
-				t = t.Elem()
-			}
-			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
-				if Debug['E'] != 0 {
-					fmt.Printf("reexport type %v from declaration\n", t.Sym)
-				}
-				exportlist = append(exportlist, asNode(t.Sym.Def))
-			}
-		}
-
-	case OLITERAL:
-		t := n.Type
-		if t != types.Types[n.Type.Etype] && t != types.Idealbool && t != types.Idealstring {
-			if t.IsPtr() {
-				t = t.Elem()
-			}
-			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
-				if Debug['E'] != 0 {
-					fmt.Printf("reexport literal type %v\n", t.Sym)
-				}
-				exportlist = append(exportlist, asNode(t.Sym.Def))
-			}
-		}
-		fallthrough
-
-	case OTYPE:
-		if n.Sym != nil && n.Sym.Def != nil && !exportedsym(n.Sym) {
-			if Debug['E'] != 0 {
-				fmt.Printf("reexport literal/type %v\n", n.Sym)
-			}
-			exportlist = append(exportlist, n)
-		}
-
-	// for operations that need a type when rendered, put the type on the export list.
-	case OCONV,
-		OCONVIFACE,
-		OCONVNOP,
-		ORUNESTR,
-		OARRAYBYTESTR,
-		OARRAYRUNESTR,
-		OSTRARRAYBYTE,
-		OSTRARRAYRUNE,
-		ODOTTYPE,
-		ODOTTYPE2,
-		OSTRUCTLIT,
-		OARRAYLIT,
-		OSLICELIT,
-		OPTRLIT,
-		OMAKEMAP,
-		OMAKESLICE,
-		OMAKECHAN:
-		t := n.Type
-
-		switch t.Etype {
-		case TARRAY, TCHAN, TPTR32, TPTR64, TSLICE:
-			if t.Sym == nil {
-				t = t.Elem()
-			}
-		}
-		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
-			if Debug['E'] != 0 {
-				fmt.Printf("reexport type for expression %v\n", t.Sym)
-			}
-			exportlist = append(exportlist, asNode(t.Sym.Def))
-		}
-	}
-
-	reexportdep(n.Left)
-	reexportdep(n.Right)
-	reexportdeplist(n.List)
-	reexportdeplist(n.Rlist)
-	reexportdeplist(n.Ninit)
-	reexportdeplist(n.Nbody)
 }
 
 // methodbyname sorts types by symbol name.
