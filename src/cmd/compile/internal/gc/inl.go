@@ -200,10 +200,20 @@ func inlFlood(n *Node) {
 
 	typecheckinl(n)
 
-	// Recursively flood any functions called by this one.
 	inspectList(n.Func.Inl, func(n *Node) bool {
 		switch n.Op {
+		case ONAME:
+			// Mark any referenced global variables or
+			// functions for reexport. Skip methods,
+			// because they're reexported alongside their
+			// receiver type.
+			if n.Class() == PEXTERN || n.Class() == PFUNC && !n.isMethodExpression() {
+				reexportsym(n)
+			}
+
 		case OCALLFUNC, OCALLMETH:
+			// Recursively flood any functions called by
+			// this one.
 			inlFlood(asNode(n.Left.Type.Nname()))
 		}
 		return true
