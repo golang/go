@@ -124,7 +124,7 @@ type Arch struct {
 }
 
 var (
-	Thearch Arch
+	thearch Arch
 	Lcsize  int32
 	rpath   Rpath
 	Spsize  int32
@@ -212,7 +212,7 @@ func mayberemoveoutfile() {
 }
 
 func libinit(ctxt *Link) {
-	Funcalign = Thearch.Funcalign
+	Funcalign = thearch.Funcalign
 
 	// add goroot to the end of the libdir list.
 	suffix := ""
