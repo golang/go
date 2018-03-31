@@ -146,13 +146,13 @@ async function compile(source) {
 async function run() {
 	let importObject = {
 		go: {
-			// func wasmexit(code int32)
-			"runtime.wasmexit": function (sp) {
+			// func wasmExit(code int32)
+			"runtime.wasmExit": function (sp) {
 				process.exit(mem().getInt32(sp + 8, true));
 			},
 
-			// func wasmwrite(fd uintptr, p unsafe.Pointer, n int32)
-			"runtime.wasmwrite": function (sp) {
+			// func wasmWrite(fd uintptr, p unsafe.Pointer, n int32)
+			"runtime.wasmWrite": function (sp) {
 				const fd = getInt64(sp + 8);
 				const p = getInt64(sp + 16);
 				const n = mem().getInt32(sp + 24, true);

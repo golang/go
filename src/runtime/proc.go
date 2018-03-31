@@ -125,9 +125,11 @@ func main() {
 	// Allow newproc to start new Ms.
 	mainStarted = true
 
-	systemstack(func() {
-		newm(sysmon, nil)
-	})
+	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
+		systemstack(func() {
+			newm(sysmon, nil)
+		})
+	}
 
 	// Lock the main goroutine onto this, the main OS thread,
 	// during initialization. Most programs won't care, but a few
@@ -1891,6 +1893,9 @@ func newm1(mp *m) {
 //
 // The calling thread must itself be in a known-good state.
 func startTemplateThread() {
+	if GOARCH == "wasm" { // no threads on wasm yet
+		return
+	}
 	if !atomic.Cas(&newmHandoff.haveTemplateThread, 0, 1) {
 		return
 	}
@@ -2699,6 +2704,11 @@ func goexit0(gp *g) {
 	gp.gcscanvalid = true
 	dropg()
 
+	if GOARCH == "wasm" { // no threads yet on wasm
+		gfput(_g_.m.p.ptr(), gp)
+		schedule() // never returns
+	}
+
 	if _g_.m.lockedInt != 0 {
 		print("invalid m->lockedInt = ", _g_.m.lockedInt, "\n")
 		throw("internal lockOSThread error")
@@ -3497,6 +3507,9 @@ func Breakpoint() {
 // or else the m might be different in this function than in the caller.
 //go:nosplit
 func dolockOSThread() {
+	if GOARCH == "wasm" {
+		return // no threads on wasm yet
+	}
 	_g_ := getg()
 	_g_.m.lockedg.set(_g_)
 	_g_.lockedm.set(_g_.m)
@@ -3545,6 +3558,9 @@ func lockOSThread() {
 // or else the m might be in different in this function than in the caller.
 //go:nosplit
 func dounlockOSThread() {
+	if GOARCH == "wasm" {
+		return // no threads on wasm yet
+	}
 	_g_ := getg()
 	if _g_.m.lockedInt != 0 || _g_.m.lockedExt != 0 {
 		return
