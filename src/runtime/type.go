@@ -285,7 +285,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 		res = md.text + uintptr(off)
 	}
 
-	if res > md.etext {
+	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
 		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
 		throw("runtime: text offset out of range")
 	}
