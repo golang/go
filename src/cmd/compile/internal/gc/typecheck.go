@@ -1294,12 +1294,10 @@ func typecheck1(n *Node, top int) *Node {
 			n.Type = nil
 			return n
 		}
+		n.Type = types.Types[TUINTPTR]
 
 		// any side effects disappear; ignore init
-		var r Node
-		nodconst(&r, types.Types[TUINTPTR], evalunsafe(n))
-		r.Orig = n
-		n = &r
+		setintconst(n, evalunsafe(n))
 
 	case OCAP, OLEN:
 		ok |= Erv
@@ -1330,7 +1328,9 @@ func typecheck1(n *Node, top int) *Node {
 			return n
 		}
 
-		// result might be constant
+		n.Type = types.Types[TINT]
+
+		// Result might be constant.
 		var res int64 = -1 // valid if >= 0
 		switch t.Etype {
 		case TSTRING:
@@ -1344,13 +1344,8 @@ func typecheck1(n *Node, top int) *Node {
 			}
 		}
 		if res >= 0 {
-			var r Node
-			nodconst(&r, types.Types[TINT], res)
-			r.Orig = n
-			n = &r
+			setintconst(n, res)
 		}
-
-		n.Type = types.Types[TINT]
 
 	case OREAL, OIMAG:
 		ok |= Erv
@@ -1367,11 +1362,21 @@ func typecheck1(n *Node, top int) *Node {
 			return n
 		}
 
-		if t.Etype != TIDEAL && !t.IsComplex() {
+		// Determine result type.
+		et := t.Etype
+		switch et {
+		case TIDEAL:
+			// result is ideal
+		case TCOMPLEX64:
+			et = TFLOAT32
+		case TCOMPLEX128:
+			et = TFLOAT64
+		default:
 			yyerror("invalid argument %L for %v", l, n.Op)
 			n.Type = nil
 			return n
 		}
+		n.Type = types.Types[et]
 
 		// if the argument is a constant, the result is a constant
 		// (any untyped numeric constant can be represented as a
@@ -1400,24 +1405,8 @@ func typecheck1(n *Node, top int) *Node {
 				}
 				re = im
 			}
-			orig := n
-			n = nodfltconst(re)
-			n.Orig = orig
+			setconst(n, Val{re})
 		}
-
-		// determine result type
-		et := t.Etype
-		switch et {
-		case TIDEAL:
-			// result is ideal
-		case TCOMPLEX64:
-			et = TFLOAT32
-		case TCOMPLEX128:
-			et = TFLOAT64
-		default:
-			Fatalf("unexpected Etype: %v\n", et)
-		}
-		n.Type = types.Types[et]
 
 	case OCOMPLEX:
 		ok |= Erv
@@ -1489,16 +1478,15 @@ func typecheck1(n *Node, top int) *Node {
 		case TFLOAT64:
 			t = types.Types[TCOMPLEX128]
 		}
+		n.Type = t
 
 		if l.Op == OLITERAL && r.Op == OLITERAL {
 			// make it a complex literal
-			r = nodcplxlit(l.Val(), r.Val())
-
-			r.Orig = n
-			n = r
+			c := new(Mpcplx)
+			c.Real.Set(toflt(l.Val()).U.(*Mpflt))
+			c.Imag.Set(toflt(r.Val()).U.(*Mpflt))
+			setconst(n, Val{c})
 		}
-
-		n.Type = t
 
 	case OCLOSE:
 		if !onearg(n, "%v", n.Op) {
@@ -1701,7 +1689,6 @@ func typecheck1(n *Node, top int) *Node {
 
 	case OCONV:
 		ok |= Erv
-		saveorignode(n)
 		checkwidth(n.Type) // ensure width is calculated for backend
 		n.Left = typecheck(n.Left, Erv)
 		n.Left = convlit1(n.Left, n.Type, true, noReuse)
@@ -1717,19 +1704,16 @@ func typecheck1(n *Node, top int) *Node {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
 				n.SetDiag(true)
 			}
-
 			n.Op = OCONV
+			n.Type = nil
+			return n
 		}
 
 		switch n.Op {
 		case OCONVNOP:
 			if n.Left.Op == OLITERAL {
-				r := nod(OXXX, nil, nil)
 				n.Op = OCONV
-				n.Orig = r
-				*r = *n
-				n.Op = OLITERAL
-				n.SetVal(n.Left.Val())
+				setconst(n, n.Left.Val())
 			} else if t.Etype == n.Type.Etype {
 				switch t.Etype {
 				case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:

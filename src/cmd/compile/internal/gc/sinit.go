@@ -790,7 +790,8 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		}
 
 		var v Node
-		nodconst(&v, types.Types[TINT], t.NumElem())
+		v.Type = types.Types[TINT]
+		setintconst(&v, t.NumElem())
 
 		nam.Xoffset += int64(array_array)
 		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)

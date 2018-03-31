@@ -548,7 +548,7 @@ opswitch:
 		}
 		if t.IsArray() {
 			safeexpr(n.Left, init)
-			nodconst(n, n.Type, t.NumElem())
+			setintconst(n, t.NumElem())
 			n.SetTypecheck(1)
 		}
 
