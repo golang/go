@@ -49,6 +49,7 @@ func TestIntendedInlining(t *testing.T) {
 			"fastrand",
 			"float64bits",
 			"funcPC",
+			"getArgInfoFast",
 			"getm",
 			"isDirectIface",
 			"itabHashFunc",
