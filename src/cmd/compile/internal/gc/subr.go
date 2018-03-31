@@ -413,21 +413,15 @@ func (x methcmp) Less(i, j int) bool {
 }
 
 func nodintconst(v int64) *Node {
-	c := nod(OLITERAL, nil, nil)
-	c.SetAddable(true)
-	c.SetVal(Val{new(Mpint)})
-	c.Val().U.(*Mpint).SetInt64(v)
-	c.Type = types.Types[TIDEAL]
-	return c
+	u := new(Mpint)
+	u.SetInt64(v)
+	return nodlit(Val{u})
 }
 
 func nodfltconst(v *Mpflt) *Node {
-	c := nod(OLITERAL, nil, nil)
-	c.SetAddable(true)
-	c.SetVal(Val{newMpflt()})
-	c.Val().U.(*Mpflt).Set(v)
-	c.Type = types.Types[TIDEAL]
-	return c
+	u := newMpflt()
+	u.Set(v)
+	return nodlit(Val{u})
 }
 
 func nodconst(n *Node, t *types.Type, v int64) {
@@ -444,17 +438,11 @@ func nodconst(n *Node, t *types.Type, v int64) {
 }
 
 func nodnil() *Node {
-	c := nodintconst(0)
-	c.SetVal(Val{new(NilVal)})
-	c.Type = types.Types[TNIL]
-	return c
+	return nodlit(Val{new(NilVal)})
 }
 
 func nodbool(b bool) *Node {
-	c := nodintconst(0)
-	c.SetVal(Val{b})
-	c.Type = types.Idealbool
-	return c
+	return nodlit(Val{b})
 }
 
 func nodstr(s string) *Node {

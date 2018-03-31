@@ -1246,6 +1246,7 @@ illegal:
 	}
 }
 
+// nodlit returns a new untyped constant with value v.
 func nodlit(v Val) *Node {
 	n := nod(OLITERAL, nil, nil)
 	n.SetVal(v)
