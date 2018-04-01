@@ -544,64 +544,60 @@ type bitvector struct {
 	bytedata *uint8
 }
 
-type gobitvector struct {
-	n        uintptr
-	bytedata []uint8
-}
-
-func gobv(bv bitvector) gobitvector {
-	return gobitvector{
-		uintptr(bv.n),
-		(*[1 << 30]byte)(unsafe.Pointer(bv.bytedata))[:(bv.n+7)/8],
-	}
-}
-
-func ptrbit(bv *gobitvector, i uintptr) uint8 {
-	return (bv.bytedata[i/8] >> (i % 8)) & 1
+// ptrbit returns the i'th bit in bv.
+// ptrbit is less efficient than iterating directly over bitvector bits,
+// and should only be used in non-performance-critical code.
+// See adjustpointers for an example of a high-efficiency walk of a bitvector.
+func (bv *bitvector) ptrbit(i uintptr) uint8 {
+	b := *(addb(bv.bytedata, i/8))
+	return (b >> (i % 8)) & 1
 }
 
 // bv describes the memory starting at address scanp.
 // Adjust any pointers contained therein.
-func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f funcInfo) {
-	bv := gobv(*cbv)
+func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f funcInfo) {
 	minp := adjinfo.old.lo
 	maxp := adjinfo.old.hi
 	delta := adjinfo.delta
-	num := bv.n
+	num := uintptr(bv.n)
 	// If this frame might contain channel receive slots, use CAS
 	// to adjust pointers. If the slot hasn't been received into
 	// yet, it may contain stack pointers and a concurrent send
 	// could race with adjusting those pointers. (The sent value
 	// itself can never contain stack pointers.)
 	useCAS := uintptr(scanp) < adjinfo.sghi
-	for i := uintptr(0); i < num; i++ {
+	for i := uintptr(0); i < num; i += 8 {
 		if stackDebug >= 4 {
-			print("        ", add(scanp, i*sys.PtrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*sys.PtrSize))), " # ", i, " ", bv.bytedata[i/8], "\n")
-		}
-		if ptrbit(&bv, i) != 1 {
-			continue
-		}
-		pp := (*uintptr)(add(scanp, i*sys.PtrSize))
-	retry:
-		p := *pp
-		if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
-			// Looks like a junk value in a pointer slot.
-			// Live analysis wrong?
-			getg().m.traceback = 2
-			print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
-			throw("invalid pointer found on stack")
-		}
-		if minp <= p && p < maxp {
-			if stackDebug >= 3 {
-				print("adjust ptr ", hex(p), " ", funcname(f), "\n")
+			for j := uintptr(0); j < 8; j++ {
+				print("        ", add(scanp, (i+j)*sys.PtrSize), ":", ptrnames[bv.ptrbit(i+j)], ":", hex(*(*uintptr)(add(scanp, (i+j)*sys.PtrSize))), " # ", i, " ", *addb(bv.bytedata, i/8), "\n")
 			}
-			if useCAS {
-				ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
-				if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
-					goto retry
+		}
+		b := *(addb(bv.bytedata, i/8))
+		for b != 0 {
+			j := uintptr(sys.Ctz8(b))
+			b &= b - 1
+			pp := (*uintptr)(add(scanp, (i+j)*sys.PtrSize))
+		retry:
+			p := *pp
+			if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
+				// Looks like a junk value in a pointer slot.
+				// Live analysis wrong?
+				getg().m.traceback = 2
+				print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
+				throw("invalid pointer found on stack")
+			}
+			if minp <= p && p < maxp {
+				if stackDebug >= 3 {
+					print("adjust ptr ", hex(p), " ", funcname(f), "\n")
 				}
-			} else {
-				*pp = p + delta
+				if useCAS {
+					ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
+					if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
+						goto retry
+					}
+				} else {
+					*pp = p + delta
+				}
 			}
 		}
 	}
