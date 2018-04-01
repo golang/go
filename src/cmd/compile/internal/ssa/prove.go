@@ -594,12 +594,15 @@ func prove(f *Func) {
 
 		switch node.state {
 		case descend:
+			ft.checkpoint()
 			if branch != unknown {
-				if !tryPushBranch(ft, parent, branch) {
+				addBranchRestrictions(ft, parent, branch)
+				if ft.unsat {
 					// node.block is unreachable.
 					// Remove it and don't visit
 					// its children.
 					removeBranch(parent, branch)
+					ft.restore()
 					break
 				}
 				// Otherwise, we can now commit to
@@ -620,10 +623,7 @@ func prove(f *Func) {
 
 		case simplify:
 			simplifyBlock(sdom, ft, node.block)
-
-			if branch != unknown {
-				popBranch(ft)
-			}
+			ft.restore()
 		}
 	}
 }
@@ -649,41 +649,22 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 	return unknown
 }
 
-// tryPushBranch tests whether it is possible to branch from Block b
-// in direction br and, if so, pushes the branch conditions in the
-// factsTable and returns true. A successful tryPushBranch must be
-// paired with a popBranch.
-func tryPushBranch(ft *factsTable, b *Block, br branch) bool {
-	ft.checkpoint()
+// addBranchRestrictions updates the factsTables ft with the facts learned when
+// branching from Block b in direction br.
+func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 	c := b.Control
-	updateRestrictions(b, ft, boolean, nil, c, lt|gt, br)
+	addRestrictions(b, ft, boolean, nil, c, lt|gt, br)
 	if tr, has := domainRelationTable[b.Control.Op]; has {
 		// When we branched from parent we learned a new set of
 		// restrictions. Update the factsTable accordingly.
-		updateRestrictions(b, ft, tr.d, c.Args[0], c.Args[1], tr.r, br)
+		addRestrictions(b, ft, tr.d, c.Args[0], c.Args[1], tr.r, br)
 	}
-	if ft.unsat {
-		// This branch's conditions contradict some known
-		// fact, so it cannot be taken. Unwind the facts.
-		//
-		// (Since we never checkpoint an unsat factsTable, we
-		// don't really need factsTable.unsatDepth, but
-		// there's no cost to keeping checkpoint/restore more
-		// general.)
-		ft.restore()
-		return false
-	}
-	return true
+
 }
 
-// popBranch undoes the effects of a successful tryPushBranch.
-func popBranch(ft *factsTable) {
-	ft.restore()
-}
-
-// updateRestrictions updates restrictions from the immediate
+// addRestrictions updates restrictions from the immediate
 // dominating block (p) using r. r is adjusted according to the branch taken.
-func updateRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
+func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
 	if t == 0 || branch == unknown {
 		// Trivial case: nothing to do, or branch unknown.
 		// Shoult not happen, but just in case.
@@ -797,7 +778,11 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		}
 		// For edges to other blocks, this can trim a branch
 		// even if we couldn't get rid of the child itself.
-		if !tryPushBranch(ft, parent, branch) {
+		ft.checkpoint()
+		addBranchRestrictions(ft, parent, branch)
+		unsat := ft.unsat
+		ft.restore()
+		if unsat {
 			// This branch is impossible, so remove it
 			// from the block.
 			removeBranch(parent, branch)
@@ -808,7 +793,6 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// BlockExit, but it doesn't seem worth it.)
 			break
 		}
-		popBranch(ft)
 	}
 }
 
