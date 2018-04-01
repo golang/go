@@ -59,6 +59,10 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		}
 	}()
 
+	if len(data) > 0 && data[0] == 'i' {
+		return iImportData(fset, imports, data[1:], path)
+	}
+
 	p := importer{
 		imports:    imports,
 		data:       data,

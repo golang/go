@@ -442,6 +442,8 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	xfunc.Func.SetDupok(true)
 	xfunc.Func.SetNeedctxt(true)
 
+	tfn.Type.SetPkg(t0.Pkg())
+
 	// Declare and initialize variable holding receiver.
 
 	cv := nod(OCLOSUREVAR, nil, nil)

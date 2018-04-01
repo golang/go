@@ -1588,6 +1588,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
 			gen++
 		}
 		a := symfield(s, t.Type)
+		a.Pos = t.Pos
 		a.SetIsddd(t.Isddd())
 		args = append(args, a)
 	}
@@ -1705,7 +1706,13 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	Curfn = fn
 	typecheckslice(fn.Nbody.Slice(), Etop)
 
-	inlcalls(fn)
+	// TODO(mdempsky): Investigate why this doesn't work with
+	// indexed export. For now, we disable even in non-indexed
+	// mode to ensure fair benchmark comparisons and to track down
+	// unintended compilation differences.
+	if false {
+		inlcalls(fn)
+	}
 	escAnalyze([]*Node{fn}, false)
 
 	Curfn = nil
