@@ -63,6 +63,7 @@ var lookupGoogleSRVTests = []struct {
 var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 30 * time.Second}
 
 func TestLookupGoogleSRV(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -109,6 +110,7 @@ var lookupGmailMXTests = []struct {
 }
 
 func TestLookupGmailMX(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -189,6 +191,7 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -298,6 +301,7 @@ var lookupCNAMETests = []struct {
 }
 
 func TestLookupCNAME(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
