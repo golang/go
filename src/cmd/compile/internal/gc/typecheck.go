@@ -32,21 +32,30 @@ var typecheckdefstack []*Node
 
 // resolve ONONAME to definition, if any.
 func resolve(n *Node) *Node {
-	if n != nil && n.Op == ONONAME && n.Sym != nil {
-		r := asNode(n.Sym.Def)
-		if r != nil {
-			if r.Op != OIOTA {
-				n = r
-			} else if len(typecheckdefstack) > 0 {
-				x := typecheckdefstack[len(typecheckdefstack)-1]
-				if x.Op == OLITERAL {
-					n = nodintconst(x.Iota())
-				}
-			}
-		}
+	if n == nil || n.Op != ONONAME {
+		return n
 	}
 
-	return n
+	if n.Sym.Pkg != localpkg {
+		expandDecl(n)
+		return n
+	}
+
+	r := asNode(n.Sym.Def)
+	if r == nil {
+		return n
+	}
+
+	if r.Op == OIOTA {
+		if i := len(typecheckdefstack); i > 0 {
+			if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
+				return nodintconst(x.Iota())
+			}
+		}
+		return n
+	}
+
+	return r
 }
 
 func typecheckslice(l []*Node, top int) {

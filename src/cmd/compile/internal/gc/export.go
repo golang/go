@@ -5,8 +5,6 @@
 package gc
 
 import (
-	"bufio"
-	"bytes"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/src"
@@ -14,6 +12,8 @@ import (
 )
 
 var (
+	flagiexport bool // if set, use indexed export data format
+
 	Debug_export int // if set, print debugging information about export data
 )
 
@@ -72,32 +72,15 @@ func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
 
 func dumpexport(bout *bio.Writer) {
-	size := 0 // size of export section without enclosing markers
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
-	if debugFormat {
-		// save a copy of the export data
-		var copy bytes.Buffer
-		bcopy := bufio.NewWriter(&copy)
-		size = export(bcopy, Debug_export != 0)
-		bcopy.Flush() // flushing to bytes.Buffer cannot fail
-		if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
-			Fatalf("error writing export data: got %d bytes, want %d bytes, err = %v", n, size, err)
-		}
-		// export data must contain no '$' so that we can find the end by searching for "$$"
-		// TODO(gri) is this still needed?
-		if bytes.IndexByte(copy.Bytes(), '$') >= 0 {
-			Fatalf("export data contains $")
-		}
-
-		// verify that we can read the copied export data back in
-		// (use empty package map to avoid collisions)
-		types.CleanroomDo(func() {
-			Import(types.NewPkg("", ""), bufio.NewReader(&copy)) // must not die
-		})
+	off := bout.Offset()
+	if flagiexport {
+		iexport(bout.Writer)
 	} else {
-		size = export(bout.Writer, Debug_export != 0)
+		export(bout.Writer, Debug_export != 0)
 	}
+	size := bout.Offset() - off
 	exportf(bout, "\n$$\n")
 
 	if Debug_export != 0 {
@@ -108,6 +91,14 @@ func dumpexport(bout *bio.Writer) {
 func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
 	n := asNode(s.Def)
 	if n == nil {
+		// iimport should have created a stub ONONAME
+		// declaration for all imported symbols. The exception
+		// is declarations for Runtimepkg, which are populated
+		// by loadsys instead.
+		if flagiexport && s.Pkg != Runtimepkg {
+			Fatalf("missing ONONAME for %v\n", s)
+		}
+
 		n = dclname(s)
 		s.Def = asTypesNode(n)
 		s.Importdef = ipkg

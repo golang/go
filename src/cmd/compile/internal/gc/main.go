@@ -244,6 +244,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+	flag.BoolVar(&flagiexport, "iexport", false, "export indexed package data")
 	objabi.Flagparse(usage)
 
 	// Record flags that affect the build result. (And don't
@@ -1107,7 +1108,20 @@ func importfile(f *Val) *types.Pkg {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}
 		imp.ReadByte() // skip \n after $$B
-		Import(importpkg, imp.Reader)
+
+		c, err = imp.ReadByte()
+		if err != nil {
+			yyerror("import %s: reading input: %v", file, err)
+			errorexit()
+		}
+
+		if c == 'i' {
+			iimport(importpkg, imp)
+		} else {
+			// Old export format always starts with 'c', 'd', or 'v'.
+			imp.UnreadByte()
+			Import(importpkg, imp.Reader)
+		}
 
 	default:
 		yyerror("no import in %q", path_)
