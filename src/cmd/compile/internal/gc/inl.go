@@ -198,10 +198,6 @@ func inlFlood(n *Node) {
 		Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op, n.Class())
 	}
 	if n.Func == nil {
-		// TODO(mdempsky): Should init have a Func too?
-		if n.Sym.Name == "init" {
-			return
-		}
 		Fatalf("inlFlood: missing Func on %v", n)
 	}
 	if n.Func.Inl.Len() == 0 {

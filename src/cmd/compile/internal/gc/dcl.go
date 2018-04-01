@@ -1060,7 +1060,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	}
 
 	fn := nod(ODCLFUNC, nil, nil)
-	fn.Func.Nname = newname(sym)
+	fn.Func.Nname = newfuncname(sym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
 	declare(fn.Func.Nname, PFUNC)

@@ -676,7 +676,7 @@ func fileLine(n *Node) (file string, line int) {
 }
 
 func isInlineable(n *Node) bool {
-	if exportInlined && n != nil && n.Func != nil {
+	if exportInlined && n != nil {
 		// When lazily typechecking inlined bodies, some
 		// re-exported ones may not have been typechecked yet.
 		// Currently that can leave unresolved ONONAMEs in
