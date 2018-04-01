@@ -165,26 +165,26 @@ func (z *Writer) Write(p []byte) (int, error) {
 			z.buf[8] = 4
 		}
 		z.buf[9] = z.OS
-		n, z.err = z.w.Write(z.buf[:10])
+		_, z.err = z.w.Write(z.buf[:10])
 		if z.err != nil {
-			return n, z.err
+			return 0, z.err
 		}
 		if z.Extra != nil {
 			z.err = z.writeBytes(z.Extra)
 			if z.err != nil {
-				return n, z.err
+				return 0, z.err
 			}
 		}
 		if z.Name != "" {
 			z.err = z.writeString(z.Name)
 			if z.err != nil {
-				return n, z.err
+				return 0, z.err
 			}
 		}
 		if z.Comment != "" {
 			z.err = z.writeString(z.Comment)
 			if z.err != nil {
-				return n, z.err
+				return 0, z.err
 			}
 		}
 		if z.compressor == nil {
