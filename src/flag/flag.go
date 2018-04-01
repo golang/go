@@ -395,8 +395,8 @@ func Set(name, value string) error {
 	return CommandLine.Set(name, value)
 }
 
-// isZeroValue guesses whether the string represents the zero
-// value for a flag. It is not accurate but in practice works OK.
+// isZeroValue determines whether the string represents the zero
+// value for a flag.
 func isZeroValue(flag *Flag, value string) bool {
 	// Build a zero value of the flag's Value type, and see if the
 	// result of calling its String method equals the value passed in.
@@ -408,15 +408,7 @@ func isZeroValue(flag *Flag, value string) bool {
 	} else {
 		z = reflect.Zero(typ)
 	}
-	if value == z.Interface().(Value).String() {
-		return true
-	}
-
-	switch value {
-	case "false", "", "0":
-		return true
-	}
-	return false
+	return value == z.Interface().(Value).String()
 }
 
 // UnquoteUsage extracts a back-quoted name from the usage
