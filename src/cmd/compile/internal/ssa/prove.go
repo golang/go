@@ -653,26 +653,33 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 // branching from Block b in direction br.
 func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 	c := b.Control
-	addRestrictions(b, ft, boolean, nil, c, lt|gt, br)
+	switch br {
+	case negative:
+		addRestrictions(b, ft, boolean, nil, c, eq)
+	case positive:
+		addRestrictions(b, ft, boolean, nil, c, lt|gt)
+	default:
+		panic("unknown branch")
+	}
 	if tr, has := domainRelationTable[b.Control.Op]; has {
 		// When we branched from parent we learned a new set of
 		// restrictions. Update the factsTable accordingly.
-		addRestrictions(b, ft, tr.d, c.Args[0], c.Args[1], tr.r, br)
+		switch br {
+		case negative:
+			addRestrictions(b, ft, tr.d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
+		case positive:
+			addRestrictions(b, ft, tr.d, c.Args[0], c.Args[1], tr.r)
+		}
 	}
-
 }
 
 // addRestrictions updates restrictions from the immediate
-// dominating block (p) using r. r is adjusted according to the branch taken.
-func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
-	if t == 0 || branch == unknown {
-		// Trivial case: nothing to do, or branch unknown.
+// dominating block (p) using r.
+func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation) {
+	if t == 0 {
+		// Trivial case: nothing to do.
 		// Shoult not happen, but just in case.
 		return
-	}
-	if branch == negative {
-		// Negative branch taken, complement the relations.
-		r = (lt | eq | gt) ^ r
 	}
 	for i := domain(1); i <= t; i <<= 1 {
 		if t&i == 0 {
