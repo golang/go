@@ -137,7 +137,7 @@ nextb:
 			}
 		}
 
-		if f.pass.debug > 1 {
+		if f.pass.debug >= 1 {
 			if min.Op == OpConst64 {
 				b.Func.Warnl(b.Pos, "Induction variable with minimum %d and increment %d", min.AuxInt, inc.AuxInt)
 			} else {
