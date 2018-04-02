@@ -36,11 +36,7 @@ func exportsym(n *Node) {
 	n.Sym.SetOnExportList(true)
 
 	if Debug['E'] != 0 {
-		if n.Sym.Pkg == localpkg {
-			fmt.Printf("export symbol %v\n", n.Sym)
-		} else {
-			fmt.Printf("reexport name %v\n", n.Sym)
-		}
+		fmt.Printf("export symbol %v\n", n.Sym)
 	}
 
 	exportlist = append(exportlist, n)
