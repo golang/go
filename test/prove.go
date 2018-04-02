@@ -62,7 +62,7 @@ func f1c(a []int, i int64) int {
 }
 
 func f2(a []int) int {
-	for i := range a { // ERROR "Induction variable with minimum 0 and increment 1"
+	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1"
 		a[i+1] = i
 		a[i+1] = i // ERROR "Proved IsInBounds$"
 	}
@@ -464,7 +464,7 @@ func f16(s []int) []int {
 }
 
 func f17(b []int) {
-	for i := 0; i < len(b); i++ { // ERROR "Induction variable with minimum 0 and increment 1"
+	for i := 0; i < len(b); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1"
 		// This tests for i <= cap, which we can only prove
 		// using the derived relation between len and cap.
 		// This depends on finding the contradiction, since we

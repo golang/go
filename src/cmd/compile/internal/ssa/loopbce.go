@@ -1,5 +1,7 @@
 package ssa
 
+import "fmt"
+
 type indVar struct {
 	ind   *Value // induction variable
 	inc   *Value // increment, a constant
@@ -138,11 +140,22 @@ nextb:
 		}
 
 		if f.pass.debug >= 1 {
-			if min.Op == OpConst64 {
-				b.Func.Warnl(b.Pos, "Induction variable with minimum %d and increment %d", min.AuxInt, inc.AuxInt)
-			} else {
-				b.Func.Warnl(b.Pos, "Induction variable with non-const minimum and increment %d", inc.AuxInt)
+			mlim1, mlim2 := fmt.Sprint(min.AuxInt), fmt.Sprint(max.AuxInt)
+			if !min.isGenericIntConst() {
+				if f.pass.debug >= 2 {
+					mlim1 = fmt.Sprint(min)
+				} else {
+					mlim1 = "?"
+				}
 			}
+			if !max.isGenericIntConst() {
+				if f.pass.debug >= 2 {
+					mlim2 = fmt.Sprint(max)
+				} else {
+					mlim2 = "?"
+				}
+			}
+			b.Func.Warnl(b.Pos, "Induction variable: limits [%v,%v), increment %d", mlim1, mlim2, inc.AuxInt)
 		}
 
 		iv = append(iv, indVar{
