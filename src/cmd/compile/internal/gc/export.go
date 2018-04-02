@@ -28,40 +28,21 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
 
 var asmlist []*Node
 
-// Mark n's symbol as exported
+// exportsym marks n for export (or reexport).
 func exportsym(n *Node) {
-	if n == nil || n.Sym == nil {
+	if n.Sym.OnExportList() {
 		return
 	}
-	if n.Sym.Export() || n.Sym.Package() {
-		if n.Sym.Package() {
-			Fatalf("export/package mismatch: %v", n.Sym)
+	n.Sym.SetOnExportList(true)
+
+	if Debug['E'] != 0 {
+		if n.Sym.Pkg == localpkg {
+			fmt.Printf("export symbol %v\n", n.Sym)
+		} else {
+			fmt.Printf("reexport name %v\n", n.Sym)
 		}
-		return
 	}
 
-	n.Sym.SetExport(true)
-	if Debug['E'] != 0 {
-		fmt.Printf("export symbol %v\n", n.Sym)
-	}
-
-	// Ensure original types are on exportlist before type aliases.
-	if IsAlias(n.Sym) {
-		exportlist = append(exportlist, asNode(n.Sym.Def))
-	}
-
-	exportlist = append(exportlist, n)
-}
-
-// reexportsym marks n for reexport.
-func reexportsym(n *Node) {
-	if exportedsym(n.Sym) {
-		return
-	}
-
-	if Debug['E'] != 0 {
-		fmt.Printf("reexport name %v\n", n.Sym)
-	}
 	exportlist = append(exportlist, n)
 }
 
@@ -77,19 +58,8 @@ func initname(s string) bool {
 	return s == "init"
 }
 
-// exportedsym reports whether a symbol will be visible
-// to files that import our package.
-func exportedsym(sym *types.Sym) bool {
-	// Builtins are visible everywhere.
-	if sym.Pkg == builtinpkg || sym.Origpkg == builtinpkg {
-		return true
-	}
-
-	return sym.Pkg == localpkg && exportname(sym.Name)
-}
-
 func autoexport(n *Node, ctxt Class) {
-	if n == nil || n.Sym == nil {
+	if n.Sym.Pkg != localpkg {
 		return
 	}
 	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
@@ -102,7 +72,7 @@ func autoexport(n *Node, ctxt Class) {
 	if exportname(n.Sym.Name) || initname(n.Sym.Name) {
 		exportsym(n)
 	}
-	if asmhdr != "" && n.Sym.Pkg == localpkg && !n.Sym.Asm() {
+	if asmhdr != "" && !n.Sym.Asm() {
 		n.Sym.SetAsm(true)
 		asmlist = append(asmlist, n)
 	}
@@ -159,15 +129,6 @@ func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
 	if asNode(s.Def) != nil && asNode(s.Def).Op != op {
 		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
 		redeclare(s, pkgstr)
-	}
-
-	// mark the symbol so it is not reexported
-	if asNode(s.Def) == nil {
-		if exportname(s.Name) || initname(s.Name) {
-			s.SetExport(true)
-		} else {
-			s.SetPackage(true) // package scope
-		}
 	}
 }
 
