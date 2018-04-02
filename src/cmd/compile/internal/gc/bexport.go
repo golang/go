@@ -261,13 +261,6 @@ func export(out *bufio.Writer, trace bool) int {
 		p.marked = make(map[*types.Type]bool)
 		for _, n := range exportlist {
 			sym := n.Sym
-			if sym.Exported() {
-				// Closures are added to exportlist, but with Exported
-				// already set. The export code below skips over them, so
-				// we have to here as well.
-				// TODO(mdempsky): Investigate why. This seems suspicious.
-				continue
-			}
 			p.markType(asNode(sym.Def).Type)
 		}
 		p.marked = nil
@@ -277,11 +270,6 @@ func export(out *bufio.Writer, trace bool) int {
 	objcount := 0
 	for _, n := range exportlist[:numglobals] {
 		sym := n.Sym
-
-		if sym.Exported() {
-			continue
-		}
-		sym.SetExported(true)
 
 		// TODO(gri) Closures have dots in their names;
 		// e.g., TestFloatZeroValue.func1 in math/big tests.
@@ -336,11 +324,6 @@ func export(out *bufio.Writer, trace bool) int {
 		// the loop body above. Leave alone for now since there
 		// are different optimization opportunities, but factor
 		// eventually.
-
-		if sym.Exported() {
-			continue
-		}
-		sym.SetExported(true)
 
 		// TODO(gri) Closures have dots in their names;
 		// e.g., TestFloatZeroValue.func1 in math/big tests.

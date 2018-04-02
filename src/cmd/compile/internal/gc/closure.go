@@ -91,7 +91,7 @@ func typecheckclosure(clo *Node, top int) {
 	}
 
 	xfunc.Func.Nname.Sym = closurename(Curfn)
-	xfunc.Func.Nname.Sym.SetExported(true) // disable export
+	xfunc.Func.Nname.Sym.SetOnExportList(true) // disable export
 	declare(xfunc.Func.Nname, PFUNC)
 	xfunc = typecheck(xfunc, Etop)
 
@@ -496,7 +496,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 
 	xfunc.Func.SetDupok(true)
 	xfunc.Func.Nname = newfuncname(sym)
-	xfunc.Func.Nname.Sym.SetExported(true) // disable export
+	xfunc.Func.Nname.Sym.SetOnExportList(true) // disable export
 	xfunc.Func.Nname.Name.Param.Ntype = xtype
 	xfunc.Func.Nname.Name.Defn = xfunc
 	declare(xfunc.Func.Nname, PFUNC)

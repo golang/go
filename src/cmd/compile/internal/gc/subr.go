@@ -1689,9 +1689,9 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 	t.List.Set(append(l, in...))
 	t.Rlist.Set(out)
 
+	newnam.SetOnExportList(true) // prevent export; see closure.go
 	fn := dclfunc(newnam, t)
 	fn.Func.SetDupok(true)
-	fn.Func.Nname.Sym.SetExported(true) // prevent export; see closure.go
 
 	// arg list
 	var args []*Node

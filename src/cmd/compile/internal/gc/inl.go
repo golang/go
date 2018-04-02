@@ -208,7 +208,7 @@ func inlFlood(n *Node) {
 			// because they're reexported alongside their
 			// receiver type.
 			if n.Class() == PEXTERN || n.Class() == PFUNC && !n.isMethodExpression() {
-				reexportsym(n)
+				exportsym(n)
 			}
 
 		case OCALLFUNC, OCALLMETH:
