@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang_org/x/net/http/httpguts"
 	"golang_org/x/net/lex/httplex"
 )
 
@@ -510,10 +511,8 @@ func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
 // written in the trailers at the end of the response.
 func (w *response) declareTrailer(k string) {
 	k = CanonicalHeaderKey(k)
-	switch k {
-	case "Transfer-Encoding", "Content-Length", "Trailer":
-		// Forbidden by RFC 2616 14.40.
-		// TODO: inconsistent with RFC 7230, section 4.1.2
+	if !httpguts.ValidTrailerHeader(k) {
+		// Forbidden by RFC 7230, section 4.1.2
 		return
 	}
 	w.trailers = append(w.trailers, k)
