@@ -452,6 +452,26 @@ func TestStackPanic(t *testing.T) {
 	panic("test panic")
 }
 
+func BenchmarkStackCopyPtr(b *testing.B) {
+	c := make(chan bool)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			i := 1000000
+			countp(&i)
+			c <- true
+		}()
+		<-c
+	}
+}
+
+func countp(n *int) {
+	if *n == 0 {
+		return
+	}
+	*n--
+	countp(n)
+}
+
 func BenchmarkStackCopy(b *testing.B) {
 	c := make(chan bool)
 	for i := 0; i < b.N; i++ {
@@ -482,165 +502,34 @@ func BenchmarkStackCopyNoCache(b *testing.B) {
 }
 
 func count1(n int) int {
-	if n == 0 {
+	if n <= 0 {
 		return 0
 	}
 	return 1 + count2(n-1)
 }
 
-func count2(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count3(n-1)
-}
-
-func count3(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count4(n-1)
-}
-
-func count4(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count5(n-1)
-}
-
-func count5(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count6(n-1)
-}
-
-func count6(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count7(n-1)
-}
-
-func count7(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count8(n-1)
-}
-
-func count8(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count9(n-1)
-}
-
-func count9(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count10(n-1)
-}
-
-func count10(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count11(n-1)
-}
-
-func count11(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count12(n-1)
-}
-
-func count12(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count13(n-1)
-}
-
-func count13(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count14(n-1)
-}
-
-func count14(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count15(n-1)
-}
-
-func count15(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count16(n-1)
-}
-
-func count16(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count17(n-1)
-}
-
-func count17(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count18(n-1)
-}
-
-func count18(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count19(n-1)
-}
-
-func count19(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count20(n-1)
-}
-
-func count20(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count21(n-1)
-}
-
-func count21(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count22(n-1)
-}
-
-func count22(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count23(n-1)
-}
-
-func count23(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count1(n-1)
-}
+func count2(n int) int  { return 1 + count3(n-1) }
+func count3(n int) int  { return 1 + count4(n-1) }
+func count4(n int) int  { return 1 + count5(n-1) }
+func count5(n int) int  { return 1 + count6(n-1) }
+func count6(n int) int  { return 1 + count7(n-1) }
+func count7(n int) int  { return 1 + count8(n-1) }
+func count8(n int) int  { return 1 + count9(n-1) }
+func count9(n int) int  { return 1 + count10(n-1) }
+func count10(n int) int { return 1 + count11(n-1) }
+func count11(n int) int { return 1 + count12(n-1) }
+func count12(n int) int { return 1 + count13(n-1) }
+func count13(n int) int { return 1 + count14(n-1) }
+func count14(n int) int { return 1 + count15(n-1) }
+func count15(n int) int { return 1 + count16(n-1) }
+func count16(n int) int { return 1 + count17(n-1) }
+func count17(n int) int { return 1 + count18(n-1) }
+func count18(n int) int { return 1 + count19(n-1) }
+func count19(n int) int { return 1 + count20(n-1) }
+func count20(n int) int { return 1 + count21(n-1) }
+func count21(n int) int { return 1 + count22(n-1) }
+func count22(n int) int { return 1 + count23(n-1) }
+func count23(n int) int { return 1 + count1(n-1) }
 
 type structWithMethod struct{}
 
