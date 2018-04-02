@@ -93,8 +93,6 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueMIPS64_OpConstNil_0(v)
-	case OpConvert:
-		return rewriteValueMIPS64_OpConvert_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueMIPS64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64:
@@ -1178,20 +1176,6 @@ func rewriteValueMIPS64_OpConstNil_0(v *Value) bool {
 	for {
 		v.reset(OpMIPS64MOVVconst)
 		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueMIPS64_OpConvert_0(v *Value) bool {
-	// match: (Convert x mem)
-	// cond:
-	// result: (MOVVconvert x mem)
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpMIPS64MOVVconvert)
-		v.AddArg(x)
-		v.AddArg(mem)
 		return true
 	}
 }

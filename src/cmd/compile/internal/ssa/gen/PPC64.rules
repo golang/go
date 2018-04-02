@@ -606,7 +606,6 @@
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // Miscellaneous
-(Convert <t> x mem) -> (MOVDconvert <t> x mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
 (IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))

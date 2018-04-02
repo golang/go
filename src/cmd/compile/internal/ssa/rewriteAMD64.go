@@ -587,8 +587,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueAMD64_OpConstNil_0(v)
-	case OpConvert:
-		return rewriteValueAMD64_OpConvert_0(v)
 	case OpCtz32:
 		return rewriteValueAMD64_OpCtz32_0(v)
 	case OpCtz64:
@@ -53165,47 +53163,6 @@ func rewriteValueAMD64_OpConstNil_0(v *Value) bool {
 		}
 		v.reset(OpAMD64MOVLconst)
 		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueAMD64_OpConvert_0(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
-	// match: (Convert <t> x mem)
-	// cond: config.PtrSize == 8
-	// result: (MOVQconvert <t> x mem)
-	for {
-		t := v.Type
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		if !(config.PtrSize == 8) {
-			break
-		}
-		v.reset(OpAMD64MOVQconvert)
-		v.Type = t
-		v.AddArg(x)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Convert <t> x mem)
-	// cond: config.PtrSize == 4
-	// result: (MOVLconvert <t> x mem)
-	for {
-		t := v.Type
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64MOVLconvert)
-		v.Type = t
-		v.AddArg(x)
-		v.AddArg(mem)
 		return true
 	}
 	return false

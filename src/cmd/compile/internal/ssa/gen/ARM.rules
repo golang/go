@@ -362,7 +362,6 @@
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
-(Convert x mem) -> (MOVWconvert x mem)
 
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)

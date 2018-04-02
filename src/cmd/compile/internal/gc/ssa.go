@@ -4806,6 +4806,11 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
+			case ssa.OpConvert:
+				// nothing to do; no-op conversion for liveness
+				if v.Args[0].Reg() != v.Reg() {
+					v.Fatalf("OpConvert should be a no-op: %s; %s", v.Args[0].LongString(), v.LongString())
+				}
 			default:
 				// let the backend handle it
 				// Special case for first line in function; move it to the start.

@@ -94,7 +94,7 @@ func genshift(s *gc.SSAGenState, as obj.As, r0, r1, r int16, typ int64, n int64)
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpARM64MOVDconvert, ssa.OpARM64MOVDreg:
+	case ssa.OpCopy, ssa.OpARM64MOVDreg:
 		if v.Type.IsMemory() {
 			return
 		}
