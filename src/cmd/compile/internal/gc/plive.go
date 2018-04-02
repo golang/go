@@ -351,7 +351,7 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 // on future calls with the same type t.
 func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
-		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
+		Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
 	}
 
 	switch t.Etype {
@@ -420,16 +420,6 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	default:
 		Fatalf("onebitwalktype1: unexpected type, %v", t)
 	}
-}
-
-// localWords returns the number of words of local variables.
-func (lv *Liveness) localWords() int32 {
-	return int32(lv.stkptrsize / int64(Widthptr))
-}
-
-// argWords returns the number of words of in and out arguments.
-func (lv *Liveness) argWords() int32 {
-	return int32(lv.fn.Type.ArgWidth() / int64(Widthptr))
 }
 
 // Generates live pointer value maps for arguments and local variables. The
@@ -1217,11 +1207,38 @@ func (lv *Liveness) printDebug() {
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
 func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
-	args := bvalloc(lv.argWords())
+	// Size args bitmaps to be just large enough to hold the largest pointer.
+	// First, find the largest Xoffset node we care about.
+	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
+	var maxArgNode *Node
+	for _, n := range lv.vars {
+		switch n.Class() {
+		case PPARAM, PPARAMOUT:
+			if maxArgNode == nil || n.Xoffset > maxArgNode.Xoffset {
+				maxArgNode = n
+			}
+		}
+	}
+	// Next, find the offset of the largest pointer in the largest node.
+	var maxArgs int64
+	if maxArgNode != nil {
+		maxArgs = maxArgNode.Xoffset + typeptrdata(maxArgNode.Type)
+	}
+
+	// Size locals bitmaps to be stkptrsize sized.
+	// We cannot shrink them to only hold the largest pointer,
+	// because their size is used to calculate the beginning
+	// of the local variables frame.
+	// Further discussion in https://golang.org/cl/104175.
+	// TODO: consider trimming leading zeros.
+	// This would require shifting all bitmaps.
+	maxLocals := lv.stkptrsize
+
+	args := bvalloc(int32(maxArgs / int64(Widthptr)))
 	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
 	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
 
-	locals := bvalloc(lv.localWords())
+	locals := bvalloc(int32(maxLocals / int64(Widthptr)))
 	loff := duint32(livesym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
 	loff = duint32(livesym, loff, uint32(locals.n))        // number of bits in each bitmap
 
