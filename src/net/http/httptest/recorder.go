@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"golang_org/x/net/http/httpguts"
 )
 
 // ResponseRecorder is an implementation of http.ResponseWriter that
@@ -186,16 +188,11 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	if trailers, ok := rw.snapHeader["Trailer"]; ok {
 		res.Trailer = make(http.Header, len(trailers))
 		for _, k := range trailers {
-			// TODO: use http2.ValidTrailerHeader, but we can't
-			// get at it easily because it's bundled into net/http
-			// unexported. This is good enough for now:
-			switch k {
-			case "Transfer-Encoding", "Content-Length", "Trailer":
-				// Ignore since forbidden by RFC 2616 14.40.
-				// TODO: inconsistent with RFC 7230, section 4.1.2.
+			k = http.CanonicalHeaderKey(k)
+			if !httpguts.ValidTrailerHeader(k) {
+				// Ignore since forbidden by RFC 7230, section 4.1.2.
 				continue
 			}
-			k = http.CanonicalHeaderKey(k)
 			vv, ok := rw.HeaderMap[k]
 			if !ok {
 				continue
