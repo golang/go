@@ -459,8 +459,6 @@
 (CMOV(QEQ|QGT|QGE|QCS|QLS|LEQ|LGT|LGE|LCS|LLS|WEQ|WGT|WGE|WCS|WLS) y _ (FlagLT_UGT)) -> y
 
 // Miscellaneous
-(Convert <t> x mem) && config.PtrSize == 8 -> (MOVQconvert <t> x mem)
-(Convert <t> x mem) && config.PtrSize == 4 -> (MOVLconvert <t> x mem)
 (IsNonNil p) && config.PtrSize == 8 -> (SETNE (TESTQ p p))
 (IsNonNil p) && config.PtrSize == 4 -> (SETNE (TESTL p p))
 (IsInBounds idx len) && config.PtrSize == 8 -> (SETB (CMPQ idx len))

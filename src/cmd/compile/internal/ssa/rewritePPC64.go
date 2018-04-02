@@ -103,8 +103,6 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValuePPC64_OpConstNil_0(v)
-	case OpConvert:
-		return rewriteValuePPC64_OpConvert_0(v)
 	case OpCopysign:
 		return rewriteValuePPC64_OpCopysign_0(v)
 	case OpCtz32:
@@ -1272,22 +1270,6 @@ func rewriteValuePPC64_OpConstNil_0(v *Value) bool {
 	for {
 		v.reset(OpPPC64MOVDconst)
 		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValuePPC64_OpConvert_0(v *Value) bool {
-	// match: (Convert <t> x mem)
-	// cond:
-	// result: (MOVDconvert <t> x mem)
-	for {
-		t := v.Type
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpPPC64MOVDconvert)
-		v.Type = t
-		v.AddArg(x)
-		v.AddArg(mem)
 		return true
 	}
 }

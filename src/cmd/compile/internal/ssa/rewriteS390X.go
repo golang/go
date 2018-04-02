@@ -101,8 +101,6 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueS390X_OpConstNil_0(v)
-	case OpConvert:
-		return rewriteValueS390X_OpConvert_0(v)
 	case OpCtz32:
 		return rewriteValueS390X_OpCtz32_0(v)
 	case OpCtz64:
@@ -1388,22 +1386,6 @@ func rewriteValueS390X_OpConstNil_0(v *Value) bool {
 	for {
 		v.reset(OpS390XMOVDconst)
 		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueS390X_OpConvert_0(v *Value) bool {
-	// match: (Convert <t> x mem)
-	// cond:
-	// result: (MOVDconvert <t> x mem)
-	for {
-		t := v.Type
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpS390XMOVDconvert)
-		v.Type = t
-		v.AddArg(x)
-		v.AddArg(mem)
 		return true
 	}
 }

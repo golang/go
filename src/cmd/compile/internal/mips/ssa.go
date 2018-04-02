@@ -76,7 +76,7 @@ func storeByType(t *types.Type, r int16) obj.As {
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpMIPSMOVWconvert, ssa.OpMIPSMOVWreg:
+	case ssa.OpCopy, ssa.OpMIPSMOVWreg:
 		t := v.Type
 		if t.IsMemory() {
 			return

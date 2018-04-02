@@ -373,7 +373,6 @@
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // Miscellaneous
-(Convert <t> x mem) -> (MOVDconvert <t> x mem)
 (IsNonNil p) -> (MOVDNE (MOVDconst [0]) (MOVDconst [1]) (CMPconst p [0]))
 (IsInBounds idx len) -> (MOVDLT (MOVDconst [0]) (MOVDconst [1]) (CMPU idx len))
 (IsSliceInBounds idx len) -> (MOVDLE (MOVDconst [0]) (MOVDconst [1]) (CMPU idx len))

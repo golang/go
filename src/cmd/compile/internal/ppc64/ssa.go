@@ -132,7 +132,7 @@ func ssaGenISEL(s *gc.SSAGenState, v *ssa.Value, cr int64, r1, r2 int16) {
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
+	case ssa.OpCopy:
 		t := v.Type
 		if t.IsMemory() {
 			return

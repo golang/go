@@ -379,8 +379,6 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueARM64_OpConstNil_0(v)
-	case OpConvert:
-		return rewriteValueARM64_OpConvert_0(v)
 	case OpCtz32:
 		return rewriteValueARM64_OpCtz32_0(v)
 	case OpCtz64:
@@ -21152,20 +21150,6 @@ func rewriteValueARM64_OpConstNil_0(v *Value) bool {
 	for {
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM64_OpConvert_0(v *Value) bool {
-	// match: (Convert x mem)
-	// cond:
-	// result: (MOVDconvert x mem)
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpARM64MOVDconvert)
-		v.AddArg(x)
-		v.AddArg(mem)
 		return true
 	}
 }

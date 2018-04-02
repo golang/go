@@ -347,7 +347,6 @@
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // Miscellaneous
-(Convert <t> x mem) -> (MOVLconvert <t> x mem)
 (IsNonNil p) -> (SETNE (TESTL p p))
 (IsInBounds idx len) -> (SETB (CMPL idx len))
 (IsSliceInBounds idx len) -> (SETBE (CMPL idx len))

@@ -289,8 +289,11 @@ var genericOps = []opData{
 	// We have a special op for this so as to not confuse GC
 	// (particularly stack maps).  It takes a memory arg so it
 	// gets correctly ordered with respect to GC safepoints.
+	// It gets compiled to nothing, so its result must in the same
+	// register as its argument. regalloc knows it can use any
+	// allocatable integer register for OpConvert.
 	// arg0=ptr/int arg1=mem, output=int/ptr
-	{name: "Convert", argLength: 2},
+	{name: "Convert", argLength: 2, zeroWidth: true, resultInArg0: true},
 
 	// constants. Constant values are stored in the aux or
 	// auxint fields.

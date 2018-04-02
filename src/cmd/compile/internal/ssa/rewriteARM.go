@@ -481,8 +481,6 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueARM_OpConstNil_0(v)
-	case OpConvert:
-		return rewriteValueARM_OpConvert_0(v)
 	case OpCtz32:
 		return rewriteValueARM_OpCtz32_0(v)
 	case OpCvt32Fto32:
@@ -17912,20 +17910,6 @@ func rewriteValueARM_OpConstNil_0(v *Value) bool {
 	for {
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM_OpConvert_0(v *Value) bool {
-	// match: (Convert x mem)
-	// cond:
-	// result: (MOVWconvert x mem)
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpARMMOVWconvert)
-		v.AddArg(x)
-		v.AddArg(mem)
 		return true
 	}
 }

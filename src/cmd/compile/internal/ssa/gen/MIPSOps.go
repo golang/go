@@ -384,13 +384,6 @@ func init() {
 		// but clobbers R31 (LR) because it's a call
 		// and R23 (REGTMP).
 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
-
-		// MOVWconvert converts between pointers and integers.
-		// We have a special op for this so as to not confuse GC
-		// (particularly stack maps).  It takes a memory arg so it
-		// gets correctly ordered with respect to GC safepoints.
-		// arg0=ptr/int arg1=mem, output=int/ptr
-		{name: "MOVWconvert", argLength: 2, reg: gp11, asm: "MOVW"},
 	}
 
 	blocks := []blockData{
