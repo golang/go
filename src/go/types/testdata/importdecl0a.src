@@ -32,7 +32,7 @@ import f2 "fmt"
 
 // reflect.flag must not be visible in this package
 type flag int
-type _ reflect /* ERROR "not exported" */ .flag
+type _ reflect.flag /* ERROR "not exported" */
 
 // imported package name may conflict with local objects
 type reflect /* ERROR "reflect already declared" */ int

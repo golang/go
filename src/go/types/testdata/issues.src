@@ -84,7 +84,7 @@ func issue10979() {
 		nosuchtype /* ERROR undeclared name: nosuchtype */
 	}
 	type _ interface {
-		fmt /* ERROR Nosuchtype not declared by package fmt */ .Nosuchtype
+		fmt.Nosuchtype /* ERROR Nosuchtype not declared by package fmt */
 	}
 	type _ interface {
 		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
