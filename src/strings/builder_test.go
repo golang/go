@@ -6,7 +6,6 @@ package strings_test
 
 import (
 	"bytes"
-	"runtime"
 	. "strings"
 	"testing"
 )
@@ -86,15 +85,21 @@ func TestBuilderReset(t *testing.T) {
 
 func TestBuilderGrow(t *testing.T) {
 	for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
-		var b Builder
-		b.Grow(growLen)
 		p := bytes.Repeat([]byte{'a'}, growLen)
-		allocs := numAllocs(func() { b.Write(p) })
-		if allocs > 0 {
-			t.Errorf("growLen=%d: allocation occurred during write", growLen)
+		allocs := testing.AllocsPerRun(100, func() {
+			var b Builder
+			b.Grow(growLen) // should be only alloc, when growLen > 0
+			b.Write(p)
+			if b.String() != string(p) {
+				t.Fatalf("growLen=%d: bad data written after Grow", growLen)
+			}
+		})
+		wantAllocs := 1
+		if growLen == 0 {
+			wantAllocs = 0
 		}
-		if b.String() != string(p) {
-			t.Errorf("growLen=%d: bad data written after Grow", growLen)
+		if g, w := int(allocs), wantAllocs; g != w {
+			t.Errorf("growLen=%d: got %d allocs during Write; want %v", growLen, g, w)
 		}
 	}
 }
@@ -168,13 +173,14 @@ func TestBuilderWriteByte(t *testing.T) {
 
 func TestBuilderAllocs(t *testing.T) {
 	var b Builder
-	b.Grow(5)
+	const msg = "hello"
+	b.Grow(len(msg) * 2) // because AllocsPerRun does an extra "warm-up" iteration
 	var s string
-	allocs := numAllocs(func() {
+	allocs := int(testing.AllocsPerRun(1, func() {
 		b.WriteString("hello")
 		s = b.String()
-	})
-	if want := "hello"; s != want {
+	}))
+	if want := msg + msg; s != want {
 		t.Errorf("String: got %#q; want %#q", s, want)
 	}
 	if allocs > 0 {
@@ -192,15 +198,6 @@ func TestBuilderAllocs(t *testing.T) {
 	if n != 1 {
 		t.Errorf("Builder allocs = %v; want 1", n)
 	}
-}
-
-func numAllocs(fn func()) uint64 {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
-	var m1, m2 runtime.MemStats
-	runtime.ReadMemStats(&m1)
-	fn()
-	runtime.ReadMemStats(&m2)
-	return m2.Mallocs - m1.Mallocs
 }
 
 func TestBuilderCopyPanic(t *testing.T) {
