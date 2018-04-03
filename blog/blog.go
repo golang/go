@@ -27,11 +27,8 @@ import (
 var (
 	validJSONPFunc = regexp.MustCompile(`(?i)^[a-z_][a-z0-9_.]*$`)
 	// used to serve relative paths when ServeLocalLinks is enabled.
-	// TODO(agnivade): change blog article links to all have https.
 	golangOrgAbsLinkReplacer = strings.NewReplacer(
-		`href="http://golang.org/pkg`, `href="/pkg`,
 		`href="https://golang.org/pkg`, `href="/pkg`,
-		`href="http://golang.org/cmd`, `href="/cmd`,
 		`href="https://golang.org/cmd`, `href="/cmd`,
 	)
 )

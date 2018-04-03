@@ -15,10 +15,10 @@ func TestLinkRewrite(t *testing.T) {
 		output string
 	}{
 		{
-			`For instance, the <a href="http://golang.org/pkg/bytes/" target="_blank">bytes package</a> from the standard library exports the <code>Buffer</code> type.`,
+			`For instance, the <a href="https://golang.org/pkg/bytes/" target="_blank">bytes package</a> from the standard library exports the <code>Buffer</code> type.`,
 			`For instance, the <a href="/pkg/bytes/" target="_blank">bytes package</a> from the standard library exports the <code>Buffer</code> type.`},
 		{
-			`(The <a href="http://golang.org/cmd/gofmt/" target="_blank">gofmt command</a> has a <code>-r</code> flag that provides a syntax-aware search and replace, making large-scale refactoring easier.)`,
+			`(The <a href="https://golang.org/cmd/gofmt/" target="_blank">gofmt command</a> has a <code>-r</code> flag that provides a syntax-aware search and replace, making large-scale refactoring easier.)`,
 			`(The <a href="/cmd/gofmt/" target="_blank">gofmt command</a> has a <code>-r</code> flag that provides a syntax-aware search and replace, making large-scale refactoring easier.)`,
 		},
 		{
