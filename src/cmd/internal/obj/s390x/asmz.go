@@ -213,6 +213,8 @@ var optab = []Optab{
 	Optab{ACFEBRA, C_FREG, C_NONE, C_NONE, C_REG, 83, 0},
 	Optab{AFIEBR, C_SCON, C_FREG, C_NONE, C_FREG, 48, 0},
 	Optab{ACPSDR, C_FREG, C_FREG, C_NONE, C_FREG, 49, 0},
+	Optab{ALTDBR, C_FREG, C_NONE, C_NONE, C_FREG, 50, 0},
+	Optab{ATCDB, C_FREG, C_NONE, C_NONE, C_SCON, 51, 0},
 
 	// load symbol address (plus offset)
 	Optab{AMOVD, C_SYMADDR, C_NONE, C_NONE, C_REG, 19, 0},
@@ -994,6 +996,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AMOVDLE, r)
 			opset(AMOVDLT, r)
 			opset(AMOVDNE, r)
+		case ALTDBR:
+			opset(ALTEBR, r)
+		case ATCDB:
+			opset(ATCEB, r)
 		case AVL:
 			opset(AVLLEZB, r)
 			opset(AVLLEZH, r)
@@ -3297,6 +3303,27 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 49: // copysign
 		zRRF(op_CPSDR, uint32(p.From.Reg), 0, uint32(p.To.Reg), uint32(p.Reg), asm)
+
+	case 50: // load and test
+		var opcode uint32
+		switch p.As {
+		case ALTEBR:
+			opcode = op_LTEBR
+		case ALTDBR:
+			opcode = op_LTDBR
+		}
+		zRRE(opcode, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+
+	case 51: // test data class (immediate only)
+		var opcode uint32
+		switch p.As {
+		case ATCEB:
+			opcode = op_TCEB
+		case ATCDB:
+			opcode = op_TCDB
+		}
+		d2 := c.regoff(&p.To)
+		zRXE(opcode, uint32(p.From.Reg), 0, 0, uint32(d2), 0, asm)
 
 	case 67: // fmov $0 freg
 		var opcode uint32

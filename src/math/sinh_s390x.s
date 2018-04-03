@@ -69,7 +69,7 @@ TEXT ·sinhAsm(SB),NOSPLIT,$0-16
 	BGT             sinhIsInf
 
 	MOVD    $sinhrodataL21<>+0(SB), R5
-	WORD    $0xB3120000     //ltdbr %f0,%f0
+	LTDBR	F0, F0
 	MOVD    sinhxinit<>+0(SB), R1
 	FMOVD   F0, F4
 	MOVD    R1, R3
