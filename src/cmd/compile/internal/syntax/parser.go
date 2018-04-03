@@ -1824,7 +1824,8 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 			semi.lit = p.lit
 			p.next()
 		} else {
-			p.want(_Semi)
+			// asking for a '{' rather than a ';' here leads to a better error message
+			p.want(_Lbrace)
 		}
 		if keyword == _For {
 			if p.tok != _Semi {
