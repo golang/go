@@ -2870,6 +2870,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 // string inputs parseable by strconv.ParseBool.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	rs.closemu.RLock()
+
+	if rs.lasterr != nil && rs.lasterr != io.EOF {
+		rs.closemu.RUnlock()
+		return rs.lasterr
+	}
 	if rs.closed {
 		rs.closemu.RUnlock()
 		return errors.New("sql: Rows are closed")
