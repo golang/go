@@ -332,13 +332,10 @@ func ismulticall(l Nodes) bool {
 	switch n.Op {
 	default:
 		return false
-
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
-		break
+		// call must return multiple values
+		return n.Left.Type.NumResults() > 1
 	}
-
-	// call must return multiple values
-	return n.Left.Type.NumResults() > 1
 }
 
 // copyRet emits t1, t2, ... = n, where n is a function call,
@@ -381,36 +378,37 @@ func (o *Order) call(n *Node) {
 	n.Right = o.expr(n.Right, nil) // ODDDARG temp
 	o.callArgs(&n.List)
 
-	if n.Op == OCALLFUNC {
-		keepAlive := func(i int) {
-			// If the argument is really a pointer being converted to uintptr,
-			// arrange for the pointer to be kept alive until the call returns,
-			// by copying it into a temp and marking that temp
-			// still alive when we pop the temp stack.
-			xp := n.List.Addr(i)
-			for (*xp).Op == OCONVNOP && !(*xp).Type.IsUnsafePtr() {
-				xp = &(*xp).Left
-			}
-			x := *xp
-			if x.Type.IsUnsafePtr() {
-				x = o.copyExpr(x, x.Type, false)
-				x.Name.SetKeepalive(true)
-				*xp = x
-			}
+	if n.Op != OCALLFUNC {
+		return
+	}
+	keepAlive := func(i int) {
+		// If the argument is really a pointer being converted to uintptr,
+		// arrange for the pointer to be kept alive until the call returns,
+		// by copying it into a temp and marking that temp
+		// still alive when we pop the temp stack.
+		xp := n.List.Addr(i)
+		for (*xp).Op == OCONVNOP && !(*xp).Type.IsUnsafePtr() {
+			xp = &(*xp).Left
 		}
+		x := *xp
+		if x.Type.IsUnsafePtr() {
+			x = o.copyExpr(x, x.Type, false)
+			x.Name.SetKeepalive(true)
+			*xp = x
+		}
+	}
 
-		for i, t := range n.Left.Type.Params().FieldSlice() {
-			// Check for "unsafe-uintptr" tag provided by escape analysis.
-			if t.Isddd() && !n.Isddd() {
-				if t.Note == uintptrEscapesTag {
-					for ; i < n.List.Len(); i++ {
-						keepAlive(i)
-					}
-				}
-			} else {
-				if t.Note == unsafeUintptrTag || t.Note == uintptrEscapesTag {
+	for i, t := range n.Left.Type.Params().FieldSlice() {
+		// Check for "unsafe-uintptr" tag provided by escape analysis.
+		if t.Isddd() && !n.Isddd() {
+			if t.Note == uintptrEscapesTag {
+				for ; i < n.List.Len(); i++ {
 					keepAlive(i)
 				}
+			}
+		} else {
+			if t.Note == unsafeUintptrTag || t.Note == uintptrEscapesTag {
+				keepAlive(i)
 			}
 		}
 	}
@@ -766,117 +764,117 @@ func (o *Order) stmt(n *Node) {
 			if n2.Ninit.Len() != 0 {
 				Fatalf("order select ninit")
 			}
-			if r != nil {
-				switch r.Op {
-				default:
-					Dump("select case", r)
-					Fatalf("unknown op in select %v", r.Op)
+			if r == nil {
+				continue
+			}
+			switch r.Op {
+			default:
+				Dump("select case", r)
+				Fatalf("unknown op in select %v", r.Op)
 
-				// If this is case x := <-ch or case x, y := <-ch, the case has
-				// the ODCL nodes to declare x and y. We want to delay that
-				// declaration (and possible allocation) until inside the case body.
-				// Delete the ODCL nodes here and recreate them inside the body below.
-				case OSELRECV, OSELRECV2:
-					if r.Colas() {
-						i := 0
-						if r.Ninit.Len() != 0 && r.Ninit.First().Op == ODCL && r.Ninit.First().Left == r.Left {
-							i++
-						}
-						if i < r.Ninit.Len() && r.Ninit.Index(i).Op == ODCL && r.List.Len() != 0 && r.Ninit.Index(i).Left == r.List.First() {
-							i++
-						}
-						if i >= r.Ninit.Len() {
-							r.Ninit.Set(nil)
-						}
+			// If this is case x := <-ch or case x, y := <-ch, the case has
+			// the ODCL nodes to declare x and y. We want to delay that
+			// declaration (and possible allocation) until inside the case body.
+			// Delete the ODCL nodes here and recreate them inside the body below.
+			case OSELRECV, OSELRECV2:
+				if r.Colas() {
+					i := 0
+					if r.Ninit.Len() != 0 && r.Ninit.First().Op == ODCL && r.Ninit.First().Left == r.Left {
+						i++
 					}
-
-					if r.Ninit.Len() != 0 {
-						dumplist("ninit", r.Ninit)
-						Fatalf("ninit on select recv")
+					if i < r.Ninit.Len() && r.Ninit.Index(i).Op == ODCL && r.List.Len() != 0 && r.Ninit.Index(i).Left == r.List.First() {
+						i++
 					}
-
-					// case x = <-c
-					// case x, ok = <-c
-					// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
-					// r->left == N means 'case <-c'.
-					// c is always evaluated; x and ok are only evaluated when assigned.
-					r.Right.Left = o.expr(r.Right.Left, nil)
-
-					if r.Right.Left.Op != ONAME {
-						r.Right.Left = o.copyExpr(r.Right.Left, r.Right.Left.Type, false)
-					}
-
-					// Introduce temporary for receive and move actual copy into case body.
-					// avoids problems with target being addressed, as usual.
-					// NOTE: If we wanted to be clever, we could arrange for just one
-					// temporary per distinct type, sharing the temp among all receives
-					// with that temp. Similarly one ok bool could be shared among all
-					// the x,ok receives. Not worth doing until there's a clear need.
-					if r.Left != nil && isblank(r.Left) {
-						r.Left = nil
-					}
-					if r.Left != nil {
-						// use channel element type for temporary to avoid conversions,
-						// such as in case interfacevalue = <-intchan.
-						// the conversion happens in the OAS instead.
-						tmp1 := r.Left
-
-						if r.Colas() {
-							tmp2 := nod(ODCL, tmp1, nil)
-							tmp2 = typecheck(tmp2, Etop)
-							n2.Ninit.Append(tmp2)
-						}
-
-						r.Left = o.newTemp(r.Right.Left.Type.Elem(), types.Haspointers(r.Right.Left.Type.Elem()))
-						tmp2 := nod(OAS, tmp1, r.Left)
-						tmp2 = typecheck(tmp2, Etop)
-						n2.Ninit.Append(tmp2)
-					}
-
-					if r.List.Len() != 0 && isblank(r.List.First()) {
-						r.List.Set(nil)
-					}
-					if r.List.Len() != 0 {
-						tmp1 := r.List.First()
-						if r.Colas() {
-							tmp2 := nod(ODCL, tmp1, nil)
-							tmp2 = typecheck(tmp2, Etop)
-							n2.Ninit.Append(tmp2)
-						}
-
-						r.List.Set1(o.newTemp(types.Types[TBOOL], false))
-						tmp2 := okas(tmp1, r.List.First())
-						tmp2 = typecheck(tmp2, Etop)
-						n2.Ninit.Append(tmp2)
-					}
-					orderBlock(&n2.Ninit)
-
-				case OSEND:
-					if r.Ninit.Len() != 0 {
-						dumplist("ninit", r.Ninit)
-						Fatalf("ninit on select send")
-					}
-
-					// case c <- x
-					// r->left is c, r->right is x, both are always evaluated.
-					r.Left = o.expr(r.Left, nil)
-
-					if !r.Left.IsAutoTmp() {
-						r.Left = o.copyExpr(r.Left, r.Left.Type, false)
-					}
-					r.Right = o.expr(r.Right, nil)
-					if !r.Right.IsAutoTmp() {
-						r.Right = o.copyExpr(r.Right, r.Right.Type, false)
+					if i >= r.Ninit.Len() {
+						r.Ninit.Set(nil)
 					}
 				}
-			}
 
-			orderBlock(&n2.Nbody)
+				if r.Ninit.Len() != 0 {
+					dumplist("ninit", r.Ninit)
+					Fatalf("ninit on select recv")
+				}
+
+				// case x = <-c
+				// case x, ok = <-c
+				// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
+				// r->left == N means 'case <-c'.
+				// c is always evaluated; x and ok are only evaluated when assigned.
+				r.Right.Left = o.expr(r.Right.Left, nil)
+
+				if r.Right.Left.Op != ONAME {
+					r.Right.Left = o.copyExpr(r.Right.Left, r.Right.Left.Type, false)
+				}
+
+				// Introduce temporary for receive and move actual copy into case body.
+				// avoids problems with target being addressed, as usual.
+				// NOTE: If we wanted to be clever, we could arrange for just one
+				// temporary per distinct type, sharing the temp among all receives
+				// with that temp. Similarly one ok bool could be shared among all
+				// the x,ok receives. Not worth doing until there's a clear need.
+				if r.Left != nil && isblank(r.Left) {
+					r.Left = nil
+				}
+				if r.Left != nil {
+					// use channel element type for temporary to avoid conversions,
+					// such as in case interfacevalue = <-intchan.
+					// the conversion happens in the OAS instead.
+					tmp1 := r.Left
+
+					if r.Colas() {
+						tmp2 := nod(ODCL, tmp1, nil)
+						tmp2 = typecheck(tmp2, Etop)
+						n2.Ninit.Append(tmp2)
+					}
+
+					r.Left = o.newTemp(r.Right.Left.Type.Elem(), types.Haspointers(r.Right.Left.Type.Elem()))
+					tmp2 := nod(OAS, tmp1, r.Left)
+					tmp2 = typecheck(tmp2, Etop)
+					n2.Ninit.Append(tmp2)
+				}
+
+				if r.List.Len() != 0 && isblank(r.List.First()) {
+					r.List.Set(nil)
+				}
+				if r.List.Len() != 0 {
+					tmp1 := r.List.First()
+					if r.Colas() {
+						tmp2 := nod(ODCL, tmp1, nil)
+						tmp2 = typecheck(tmp2, Etop)
+						n2.Ninit.Append(tmp2)
+					}
+
+					r.List.Set1(o.newTemp(types.Types[TBOOL], false))
+					tmp2 := okas(tmp1, r.List.First())
+					tmp2 = typecheck(tmp2, Etop)
+					n2.Ninit.Append(tmp2)
+				}
+				orderBlock(&n2.Ninit)
+
+			case OSEND:
+				if r.Ninit.Len() != 0 {
+					dumplist("ninit", r.Ninit)
+					Fatalf("ninit on select send")
+				}
+
+				// case c <- x
+				// r->left is c, r->right is x, both are always evaluated.
+				r.Left = o.expr(r.Left, nil)
+
+				if !r.Left.IsAutoTmp() {
+					r.Left = o.copyExpr(r.Left, r.Left.Type, false)
+				}
+				r.Right = o.expr(r.Right, nil)
+				if !r.Right.IsAutoTmp() {
+					r.Right = o.copyExpr(r.Right, r.Right.Type, false)
+				}
+			}
 		}
 		// Now that we have accumulated all the temporaries, clean them.
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
 		for _, n3 := range n.List.Slice() {
+			orderBlock(&n3.Nbody)
 			n3.Nbody.Prepend(o.cleanTempNoPop(t)...)
 
 			// TODO(mdempsky): Is this actually necessary?
