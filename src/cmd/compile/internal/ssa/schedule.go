@@ -301,7 +301,11 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	f := values[0].Block.Func
 
 	// find all stores
-	var stores []*Value // members of values that are store values
+
+	// Members of values that are store values.
+	// A constant bound allows this to be stack-allocated. 64 is
+	// enough to cover almost every storeOrder call.
+	stores := make([]*Value, 0, 64)
 	hasNilCheck := false
 	sset.clear() // sset is the set of stores that are used in other values
 	for _, v := range values {
