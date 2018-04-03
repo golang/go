@@ -347,20 +347,21 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 			n.Type = e.Expr.Type
 			if e.Expr.Op == OLITERAL {
 				gdata(n, e.Expr, int(n.Type.Width))
-			} else {
-				ll := n.copy()
-				ll.Orig = ll // completely separate copy
-				if !staticassign(ll, e.Expr, out) {
-					// Requires computation, but we're
-					// copying someone else's computation.
-					rr := orig.copy()
-					rr.Orig = rr // completely separate copy
-					rr.Type = ll.Type
-					rr.Xoffset += e.Xoffset
-					setlineno(rr)
-					*out = append(*out, nod(OAS, ll, rr))
-				}
+				continue
 			}
+			ll := n.copy()
+			ll.Orig = ll // completely separate copy
+			if staticassign(ll, e.Expr, out) {
+				continue
+			}
+			// Requires computation, but we're
+			// copying someone else's computation.
+			rr := orig.copy()
+			rr.Orig = rr // completely separate copy
+			rr.Type = ll.Type
+			rr.Xoffset += e.Xoffset
+			setlineno(rr)
+			*out = append(*out, nod(OAS, ll, rr))
 		}
 
 		return true
@@ -449,13 +450,13 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			n.Type = e.Expr.Type
 			if e.Expr.Op == OLITERAL {
 				gdata(n, e.Expr, int(n.Type.Width))
-			} else {
-				setlineno(e.Expr)
-				a := n.copy()
-				a.Orig = a // completely separate copy
-				if !staticassign(a, e.Expr, out) {
-					*out = append(*out, nod(OAS, a, e.Expr))
-				}
+				continue
+			}
+			setlineno(e.Expr)
+			a := n.copy()
+			a.Orig = a // completely separate copy
+			if !staticassign(a, e.Expr, out) {
+				*out = append(*out, nod(OAS, a, e.Expr))
 			}
 		}
 
