@@ -16,7 +16,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 
 	xfunc := p.nod(expr, ODCLFUNC, nil, nil)
 	xfunc.Func.SetIsHiddenClosure(Curfn != nil)
-	xfunc.Func.Nname = newfuncname(nblank.Sym) // filled in by typecheckclosure
+	xfunc.Func.Nname = p.setlineno(expr, newfuncname(nblank.Sym)) // filled in by typecheckclosure
 	xfunc.Func.Nname.Name.Param.Ntype = xtype
 	xfunc.Func.Nname.Name.Defn = xfunc
 

@@ -26,33 +26,28 @@ func testdclstack() {
 	}
 }
 
-// redeclare emits a diagnostic about symbol s being redeclared somewhere.
-func redeclare(s *types.Sym, where string) {
+// redeclare emits a diagnostic about symbol s being redeclared at pos.
+func redeclare(pos src.XPos, s *types.Sym, where string) {
 	if !s.Lastlineno.IsKnown() {
-		var tmp string
-		if s.Origpkg != nil {
-			tmp = s.Origpkg.Path
-		} else {
-			tmp = s.Pkg.Path
+		pkg := s.Origpkg
+		if pkg == nil {
+			pkg = s.Pkg
 		}
-		pkgstr := tmp
-		yyerror("%v redeclared %s\n"+
-			"\tprevious declaration during import %q", s, where, pkgstr)
+		yyerrorl(pos, "%v redeclared %s\n"+
+			"\tprevious declaration during import %q", s, where, pkg.Path)
 	} else {
-		line1 := lineno
-		line2 := s.Lastlineno
+		prevPos := s.Lastlineno
 
 		// When an import and a declaration collide in separate files,
 		// present the import as the "redeclared", because the declaration
 		// is visible where the import is, but not vice versa.
 		// See issue 4510.
 		if s.Def == nil {
-			line2 = line1
-			line1 = s.Lastlineno
+			pos, prevPos = prevPos, pos
 		}
 
-		yyerrorl(line1, "%v redeclared %s\n"+
-			"\tprevious declaration at %v", s, where, linestr(line2))
+		yyerrorl(pos, "%v redeclared %s\n"+
+			"\tprevious declaration at %v", s, where, linestr(prevPos))
 	}
 }
 
@@ -77,25 +72,26 @@ func declare(n *Node, ctxt Class) {
 		// named OLITERAL needs Name; most OLITERALs don't.
 		n.Name = new(Name)
 	}
-	n.Pos = lineno
+
 	s := n.Sym
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
 	if !inimport && !typecheckok && s.Pkg != localpkg {
-		yyerror("cannot declare name %v", s)
+		yyerrorl(n.Pos, "cannot declare name %v", s)
 	}
 
 	gen := 0
 	if ctxt == PEXTERN {
 		if s.Name == "init" {
-			yyerror("cannot declare init - must be func")
+			yyerrorl(n.Pos, "cannot declare init - must be func")
 		}
 		if s.Name == "main" && localpkg.Name == "main" {
-			yyerror("cannot declare main - must be func")
+			yyerrorl(n.Pos, "cannot declare main - must be func")
 		}
 		externdcl = append(externdcl, n)
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
+			lineno = n.Pos
 			Fatalf("automatic outside function")
 		}
 		if Curfn != nil {
@@ -120,7 +116,7 @@ func declare(n *Node, ctxt Class) {
 		// functype will print errors about duplicate function arguments.
 		// Don't repeat the error here.
 		if ctxt != PPARAM && ctxt != PPARAMOUT {
-			redeclare(s, "in this block")
+			redeclare(n.Pos, s, "in this block")
 		}
 	}
 

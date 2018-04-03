@@ -313,8 +313,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		return
 	}
 	if my.Def != nil {
-		lineno = pack.Pos
-		redeclare(my, "as imported package name")
+		redeclare(pack.Pos, my, "as imported package name")
 	}
 	my.Def = asTypesNode(pack)
 	my.Lastlineno = pack.Pos
@@ -425,8 +424,7 @@ func (p *noder) declNames(names []*syntax.Name) []*Node {
 }
 
 func (p *noder) declName(name *syntax.Name) *Node {
-	// TODO(mdempsky): Set lineno?
-	return dclname(p.name(name))
+	return p.setlineno(name, dclname(p.name(name)))
 }
 
 func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
@@ -452,7 +450,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		name = nblank.Sym // filled in by typecheckfunc
 	}
 
-	f.Func.Nname = newfuncname(name)
+	f.Func.Nname = p.setlineno(fun.Name, newfuncname(name))
 	f.Func.Nname.Name.Defn = f
 	f.Func.Nname.Name.Param.Ntype = t
 

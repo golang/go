@@ -339,7 +339,7 @@ func (p *importer) obj(tag int) {
 		sym := p.qualifiedName()
 		typ := p.typ()
 		val := p.value(typ)
-		importconst(p.imp, sym, idealType(typ), npos(pos, nodlit(val)))
+		importconst(pos, p.imp, sym, idealType(typ), val)
 
 	case aliasTag:
 		pos := p.pos()
@@ -376,11 +376,7 @@ func (p *importer) obj(tag int) {
 
 		n := newfuncnamel(pos, sym)
 		n.Type = sig
-		// TODO(mdempsky): Stop clobbering n.Pos in declare.
-		savedlineno := lineno
-		lineno = pos
 		declare(n, PFUNC)
-		lineno = savedlineno
 		p.funcList = append(p.funcList, n)
 		importlist = append(importlist, n)
 
@@ -501,11 +497,7 @@ func (p *importer) typ() *types.Type {
 
 		// read underlying type
 		t0 := p.typ()
-		// TODO(mdempsky): Stop clobbering n.Pos in declare.
-		savedlineno := lineno
-		lineno = pos
 		p.importtype(t, t0)
-		lineno = savedlineno
 
 		// interfaces don't have associated methods
 		if t0.IsInterface() {
@@ -781,6 +773,7 @@ func (p *importer) param(named bool) *types.Field {
 			pkg = p.pkg()
 		}
 		f.Sym = pkg.Lookup(name)
+		// TODO(mdempsky): Need param position.
 		f.Nname = asTypesNode(newname(f.Sym))
 	}
 
@@ -1109,7 +1102,7 @@ func (p *importer) node() *Node {
 			p.bool()
 		}
 		pos := p.pos()
-		lhs := dclname(p.sym())
+		lhs := npos(pos, dclname(p.sym()))
 		typ := typenod(p.typ())
 		return npos(pos, liststmt(variter([]*Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
 

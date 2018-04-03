@@ -268,7 +268,7 @@ func importdot(opkg *types.Pkg, pack *Node) {
 		s1 := lookup(s.Name)
 		if s1.Def != nil {
 			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
-			redeclare(s1, pkgerror)
+			redeclare(lineno, s1, pkgerror)
 			continue
 		}
 
