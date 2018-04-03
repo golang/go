@@ -6,10 +6,11 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/cipherhw"
+	"internal/cpu"
 )
 
 // defined in asm_amd64.s
+
 func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
@@ -18,7 +19,7 @@ type aesCipherAsm struct {
 	aesCipher
 }
 
-var useAsm = cipherhw.AESGCMSupport()
+var useAsm = cpu.X86.HasAES
 
 func newCipher(key []byte) (cipher.Block, error) {
 	if !useAsm {
@@ -35,6 +36,7 @@ func newCipher(key []byte) (cipher.Block, error) {
 	case 256 / 8:
 		rounds = 14
 	}
+
 	expandKeyAsm(rounds, &key[0], &c.enc[0], &c.dec[0])
 	if hasGCMAsm() {
 		return &aesCipherGCM{c}, nil

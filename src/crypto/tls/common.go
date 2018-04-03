@@ -7,12 +7,12 @@ package tls
 import (
 	"container/list"
 	"crypto"
-	"crypto/internal/cipherhw"
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"internal/cpu"
 	"io"
 	"math/big"
 	"net"
@@ -911,7 +911,7 @@ func defaultCipherSuites() []uint16 {
 
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
-	if cipherhw.AESGCMSupport() {
+	if cpu.X86.HasAES {
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
 		topCipherSuites = []uint16{
