@@ -704,6 +704,9 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 		// When we branched from parent we learned a new set of
 		// restrictions. Update the factsTable accordingly.
 		d := tr.d
+		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
+			d |= unsigned
+		}
 		switch br {
 		case negative:
 			switch b.Control.Op { // Special cases
