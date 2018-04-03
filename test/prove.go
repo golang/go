@@ -475,6 +475,21 @@ func f17(b []int) {
 	}
 }
 
+func f18(b []int, x int, y uint) {
+	_ = b[x]
+	_ = b[y]
+
+	if x > len(b) { // ERROR "Disproved Greater64$"
+		return
+	}
+	if y > uint(len(b)) { // ERROR "Disproved Greater64U$"
+		return
+	}
+	if int(y) > len(b) { // ERROR "Disproved Greater64$"
+		return
+	}
+}
+
 func sm1(b []int, x int) {
 	// Test constant argument to slicemask.
 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
