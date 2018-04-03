@@ -1245,9 +1245,8 @@ func (z nat) bytes(buf []byte) (i int) {
 func bigEndianWord(buf []byte) Word {
 	if _W == 64 {
 		return Word(binary.BigEndian.Uint64(buf))
-	} else { // Explicit else is required to get inlining. See #23521
-		return Word(binary.BigEndian.Uint32(buf))
 	}
+	return Word(binary.BigEndian.Uint32(buf))
 }
 
 // setBytes interprets buf as the bytes of a big-endian unsigned
