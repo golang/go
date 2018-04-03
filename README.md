@@ -31,7 +31,7 @@ in your web browser for source installation instructions.
 
 ### Contributing
 
-Go is the work of hundreds of contributors. We appreciate your help!
+Go is the work of thousands of contributors. We appreciate your help!
 
 To contribute, please read the contribution guidelines:
 	https://golang.org/doc/contribute.html
