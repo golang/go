@@ -505,35 +505,35 @@ func (s *state) entryNewValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) 
 
 // const* routines add a new const value to the entry block.
 func (s *state) constSlice(t *types.Type) *ssa.Value {
-	return s.f.ConstSlice(s.peekPos(), t)
+	return s.f.ConstSlice(t)
 }
 func (s *state) constInterface(t *types.Type) *ssa.Value {
-	return s.f.ConstInterface(s.peekPos(), t)
+	return s.f.ConstInterface(t)
 }
-func (s *state) constNil(t *types.Type) *ssa.Value { return s.f.ConstNil(s.peekPos(), t) }
+func (s *state) constNil(t *types.Type) *ssa.Value { return s.f.ConstNil(t) }
 func (s *state) constEmptyString(t *types.Type) *ssa.Value {
-	return s.f.ConstEmptyString(s.peekPos(), t)
+	return s.f.ConstEmptyString(t)
 }
 func (s *state) constBool(c bool) *ssa.Value {
-	return s.f.ConstBool(s.peekPos(), types.Types[TBOOL], c)
+	return s.f.ConstBool(types.Types[TBOOL], c)
 }
 func (s *state) constInt8(t *types.Type, c int8) *ssa.Value {
-	return s.f.ConstInt8(s.peekPos(), t, c)
+	return s.f.ConstInt8(t, c)
 }
 func (s *state) constInt16(t *types.Type, c int16) *ssa.Value {
-	return s.f.ConstInt16(s.peekPos(), t, c)
+	return s.f.ConstInt16(t, c)
 }
 func (s *state) constInt32(t *types.Type, c int32) *ssa.Value {
-	return s.f.ConstInt32(s.peekPos(), t, c)
+	return s.f.ConstInt32(t, c)
 }
 func (s *state) constInt64(t *types.Type, c int64) *ssa.Value {
-	return s.f.ConstInt64(s.peekPos(), t, c)
+	return s.f.ConstInt64(t, c)
 }
 func (s *state) constFloat32(t *types.Type, c float64) *ssa.Value {
-	return s.f.ConstFloat32(s.peekPos(), t, c)
+	return s.f.ConstFloat32(t, c)
 }
 func (s *state) constFloat64(t *types.Type, c float64) *ssa.Value {
-	return s.f.ConstFloat64(s.peekPos(), t, c)
+	return s.f.ConstFloat64(t, c)
 }
 func (s *state) constInt(t *types.Type, c int64) *ssa.Value {
 	if s.config.PtrSize == 8 {
@@ -545,7 +545,7 @@ func (s *state) constInt(t *types.Type, c int64) *ssa.Value {
 	return s.constInt32(t, int32(c))
 }
 func (s *state) constOffPtrSP(t *types.Type, c int64) *ssa.Value {
-	return s.f.ConstOffPtrSP(s.peekPos(), t, c, s.sp)
+	return s.f.ConstOffPtrSP(t, c, s.sp)
 }
 
 // newValueOrSfCall* are wrappers around newValue*, which may create a call to a
