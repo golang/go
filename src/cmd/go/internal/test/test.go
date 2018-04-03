@@ -911,18 +911,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		t.ImportXtest = true
 	}
 
-	if ptest != p {
-		// We have made modifications to the package p being tested
-		// and are rebuilding p (as ptest).
-		// Arrange to rebuild all packages q such that
-		// the test depends on q and q depends on p.
-		// This makes sure that q sees the modifications to p.
-		// Strictly speaking, the rebuild is only necessary if the
-		// modifications to p change its export metadata, but
-		// determining that is a bit tricky, so we rebuild always.
-		recompileForTest(pmain, p, ptest, pxtest)
-	}
-
 	for _, cp := range pmain.Internal.Imports {
 		if len(cp.Internal.CoverVars) > 0 {
 			t.Cover = append(t.Cover, coverInfo{cp, cp.Internal.CoverVars})
@@ -1055,44 +1043,6 @@ func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work
 	// because we are using a custom installAction (created above).
 	if installAction != nil {
 		installAction.Deps = append(installAction.Deps, vet)
-	}
-}
-
-func recompileForTest(pmain, preal, ptest, pxtest *load.Package) {
-	// The "test copy" of preal is ptest.
-	// For each package that depends on preal, make a "test copy"
-	// that depends on ptest. And so on, up the dependency tree.
-	testCopy := map[*load.Package]*load.Package{preal: ptest}
-	for _, p := range load.PackageList([]*load.Package{pmain}) {
-		if p == preal {
-			continue
-		}
-		// Copy on write.
-		didSplit := p == pmain || p == pxtest
-		split := func() {
-			if didSplit {
-				return
-			}
-			didSplit = true
-			if testCopy[p] != nil {
-				panic("recompileForTest loop")
-			}
-			p1 := new(load.Package)
-			testCopy[p] = p1
-			*p1 = *p
-			p1.Internal.Imports = make([]*load.Package, len(p.Internal.Imports))
-			copy(p1.Internal.Imports, p.Internal.Imports)
-			p = p1
-			p.Target = ""
-		}
-
-		// Update p.Internal.Imports to use test copies.
-		for i, imp := range p.Internal.Imports {
-			if p1 := testCopy[imp]; p1 != nil && p1 != imp {
-				split()
-				p.Internal.Imports[i] = p1
-			}
-		}
 	}
 }
 

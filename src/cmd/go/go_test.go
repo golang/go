@@ -5497,7 +5497,7 @@ func TestTestVet(t *testing.T) {
 	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
 }
 
-func TestTestRebuild(t *testing.T) {
+func TestTestVetRebuild(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -5533,6 +5533,7 @@ func TestTestRebuild(t *testing.T) {
 
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("test", "b")
+	tg.run("vet", "b")
 }
 
 func TestInstallDeps(t *testing.T) {
