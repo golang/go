@@ -124,7 +124,7 @@ func dumpexport(bout *bio.Writer) {
 func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
 	if asNode(s.Def) != nil && asNode(s.Def).Op != op {
 		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
-		redeclare(s, pkgstr)
+		redeclare(lineno, s, pkgstr)
 	}
 }
 
@@ -146,27 +146,16 @@ func pkgtype(pos src.XPos, pkg *types.Pkg, s *types.Sym) *types.Type {
 	return asNode(s.Def).Type
 }
 
-// importconst declares symbol s as an imported constant with type t and value n.
+// importconst declares symbol s as an imported constant with type t and value val.
 // pkg is the package being imported
-func importconst(pkg *types.Pkg, s *types.Sym, t *types.Type, n *Node) {
+func importconst(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type, val Val) {
 	importsym(pkg, s, OLITERAL)
-	n = convlit(n, t)
-
 	if asNode(s.Def) != nil { // TODO: check if already the same.
 		return
 	}
 
-	if n.Op != OLITERAL {
-		yyerror("expression must be a constant")
-		return
-	}
-
-	if n.Sym != nil {
-		n1 := *n
-		n = &n1
-	}
-
-	n.Orig = newname(s)
+	n := npos(pos, nodlit(val))
+	n = convlit1(n, t, false, reuseOK)
 	n.Sym = s
 	declare(n, PEXTERN)
 

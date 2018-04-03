@@ -1454,7 +1454,7 @@ func (p *exporter) stmt(n *Node) {
 	switch op := n.Op; op {
 	case ODCL:
 		p.op(ODCL)
-		p.pos(n)
+		p.pos(n.Left) // use declared variable's pos
 		p.sym(n.Left)
 		p.typ(n.Left.Type)
 
