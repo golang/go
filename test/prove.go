@@ -605,6 +605,15 @@ func trans2(a, b []int, i int) {
 	_ = b[i] // ERROR "Proved IsInBounds$"
 }
 
+func trans3(a, b []int, i int) {
+	if len(a) > len(b) {
+		return
+	}
+
+	_ = a[i]
+	_ = b[i] // ERROR "Proved IsInBounds$"
+}
+
 //go:noinline
 func useInt(a int) {
 }
