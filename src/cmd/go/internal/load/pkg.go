@@ -1712,6 +1712,18 @@ func TestPackagesFor(p *Package, forceTest bool) (ptest, pxtest *Package, err er
 		}
 	}
 
+	if p != ptest && pxtest != nil {
+		// We have made modifications to the package p being tested
+		// and are rebuilding p (as ptest).
+		// Arrange to rebuild all packages q such that
+		// pxtest depends on q and q depends on p.
+		// This makes sure that q sees the modifications to p.
+		// Strictly speaking, the rebuild is only necessary if the
+		// modifications to p change its export metadata, but
+		// determining that is a bit tricky, so we rebuild always.
+		recompileForTest(p, ptest, pxtest)
+	}
+
 	return ptest, pxtest, nil
 }
 
@@ -1731,4 +1743,45 @@ Search:
 		break
 	}
 	return stk
+}
+
+func recompileForTest(preal, ptest, pxtest *Package) {
+	// The "test copy" of preal is ptest.
+	// For each package that depends on preal, make a "test copy"
+	// that depends on ptest. And so on, up the dependency tree.
+	testCopy := map[*Package]*Package{preal: ptest}
+	// Only pxtest and its dependencies can legally depend on p.
+	// If ptest or its dependencies depended on p, the dependency
+	// would be circular.
+	for _, p := range PackageList([]*Package{pxtest}) {
+		if p == preal {
+			continue
+		}
+		// Copy on write.
+		didSplit := p == pxtest
+		split := func() {
+			if didSplit {
+				return
+			}
+			didSplit = true
+			if testCopy[p] != nil {
+				panic("recompileForTest loop")
+			}
+			p1 := new(Package)
+			testCopy[p] = p1
+			*p1 = *p
+			p1.Internal.Imports = make([]*Package, len(p.Internal.Imports))
+			copy(p1.Internal.Imports, p.Internal.Imports)
+			p = p1
+			p.Target = ""
+		}
+
+		// Update p.Internal.Imports to use test copies.
+		for i, imp := range p.Internal.Imports {
+			if p1 := testCopy[imp]; p1 != nil && p1 != imp {
+				split()
+				p.Internal.Imports[i] = p1
+			}
+		}
+	}
 }
