@@ -44,7 +44,7 @@ TEXT	·tanAsm(SB), NOSPLIT, $0-16
 	BEQ     atanIsZero
 
 	MOVD	$·tanrodataL13<>+0(SB), R5
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	BLTU	L10
 	FMOVD	F0, F2
 L2:

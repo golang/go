@@ -69,7 +69,7 @@ TEXT ·sinAsm(SB),NOSPLIT,$0-16
 	FMOVD   $(0.0), F1
 	FCMPU   F0, F1
 	BEQ     sinIsZero
-	WORD    $0xB3120000     //ltdbr %f0,%f0
+	LTDBR	F0, F0
 	BLTU    L17
 	FMOVD   F0, F5
 L2:
@@ -219,7 +219,7 @@ sinIsZero:
 
 TEXT ·cosAsm(SB),NOSPLIT,$0-16
 	FMOVD   x+0(FP), F0
-	WORD    $0xB3120000     //ltdbr %f0,%f0
+	LTDBR	F0, F0
 	BLTU    L35
 	FMOVD   F0, F1
 L21:
