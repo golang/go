@@ -280,8 +280,7 @@ type (
 
 	// map[Key]Value
 	MapType struct {
-		Key   Expr
-		Value Expr
+		Key, Value Expr
 		expr
 	}
 
@@ -385,7 +384,7 @@ type (
 		Init SimpleStmt
 		Cond Expr
 		Then *BlockStmt
-		Else Stmt // either *IfStmt or *BlockStmt
+		Else Stmt // either nil, *IfStmt, or *BlockStmt
 		stmt
 	}
 
@@ -399,7 +398,7 @@ type (
 
 	SwitchStmt struct {
 		Init   SimpleStmt
-		Tag    Expr
+		Tag    Expr // incl. *TypeSwitchGuard
 		Body   []*CaseClause
 		Rbrace Pos
 		stmt
