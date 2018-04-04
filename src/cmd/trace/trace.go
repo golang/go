@@ -815,11 +815,18 @@ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
 }
 
 func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
+	// If ViewerEvent.Dur is not a positive value,
+	// trace viewer handles it as a non-terminating time interval.
+	// Avoid it by setting the field with a small value.
+	durationUsec := ctx.time(ev.Link) - ctx.time(ev)
+	if ev.Link.Ts-ev.Ts <= 0 {
+		durationUsec = 0.0001 // 0.1 nanoseconds
+	}
 	sl := &ViewerEvent{
 		Name:     name,
 		Phase:    "X",
 		Time:     ctx.time(ev),
-		Dur:      ctx.time(ev.Link) - ctx.time(ev),
+		Dur:      durationUsec,
 		Tid:      ctx.proc(ev),
 		Stack:    ctx.stack(ev.Stk),
 		EndStack: ctx.stack(ev.Link.Stk),
