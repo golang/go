@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"regexp"
 	. "runtime"
 	"strings"
 	"sync"
@@ -694,5 +695,44 @@ func TestTracebackSystemstack(t *testing.T) {
 	}
 	if countIn != 5 || countOut != 1 {
 		t.Fatalf("expected 5 calls to TracebackSystemstack and 1 call to TestTracebackSystemstack, got:%s", tb.String())
+	}
+}
+
+func TestTracebackAncestors(t *testing.T) {
+	goroutineRegex := regexp.MustCompile(`goroutine [0-9]+ \[`)
+	for _, tracebackDepth := range []int{0, 1, 5, 50} {
+		output := runTestProg(t, "testprog", "TracebackAncestors", fmt.Sprintf("GODEBUG=tracebackancestors=%d", tracebackDepth))
+
+		numGoroutines := 3
+		numFrames := 2
+		ancestorsExpected := numGoroutines
+		if numGoroutines > tracebackDepth {
+			ancestorsExpected = tracebackDepth
+		}
+
+		matches := goroutineRegex.FindAllStringSubmatch(output, -1)
+		if len(matches) != 2 {
+			t.Fatalf("want 2 goroutines, got:\n%s", output)
+		}
+
+		// Check functions in the traceback.
+		fns := []string{"main.recurseThenCallGo", "main.main", "main.printStack", "main.TracebackAncestors"}
+		for _, fn := range fns {
+			if !strings.Contains(output, "\n"+fn+"(") {
+				t.Fatalf("expected %q function in traceback:\n%s", fn, output)
+			}
+		}
+
+		if want, count := "originating from goroutine", ancestorsExpected; strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
+
+		if want, count := "main.recurseThenCallGo(...)", ancestorsExpected*(numFrames+1); strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
+
+		if want, count := "main.recurseThenCallGo(0x", 1; strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
 	}
 }
