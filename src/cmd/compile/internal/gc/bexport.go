@@ -377,11 +377,11 @@ func export(out *bufio.Writer, trace bool) int {
 			// function has inlineable body:
 			// write index and body
 			if p.trace {
-				p.tracef("\n----\nfunc { %#v }\n", f.Inl)
+				p.tracef("\n----\nfunc { %#v }\n", asNodes(f.Inl.Body))
 			}
 			p.int(i)
-			p.int(int(f.InlCost))
-			p.stmtList(f.Inl)
+			p.int(int(f.Inl.Cost))
+			p.stmtList(asNodes(f.Inl.Body))
 			if p.trace {
 				p.tracef("\n")
 			}
