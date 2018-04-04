@@ -112,8 +112,10 @@ func (p *printer) identList(list []*ast.Ident, indent bool) {
 	if !indent {
 		mode = noIndent
 	}
-	p.exprList(token.NoPos, xlist, 1, mode, token.NoPos)
+	p.exprList(token.NoPos, xlist, 1, mode, token.NoPos, false)
 }
+
+const filteredMsg = "contains filtered or unexported fields"
 
 // Print a list of expressions. If the list spans multiple
 // source lines, the original line breaks are respected between
@@ -122,8 +124,18 @@ func (p *printer) identList(list []*ast.Ident, indent bool) {
 // TODO(gri) Consider rewriting this to be independent of []ast.Expr
 //           so that we can use the algorithm for any kind of list
 //           (e.g., pass list via a channel over which to range).
-func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exprListMode, next0 token.Pos) {
+func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exprListMode, next0 token.Pos, isIncomplete bool) {
 	if len(list) == 0 {
+		if isIncomplete {
+			prev := p.posFor(prev0)
+			next := p.posFor(next0)
+			if prev.IsValid() && prev.Line == next.Line {
+				p.print("/* " + filteredMsg + " */")
+			} else {
+				p.print(newline)
+				p.print(indent, "// "+filteredMsg, unindent, newline)
+			}
+		}
 		return
 	}
 
@@ -141,6 +153,9 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 				p.print(x.Pos(), token.COMMA, blank)
 			}
 			p.expr0(x, depth)
+		}
+		if isIncomplete {
+			p.print(token.COMMA, blank, "/* "+filteredMsg+" */")
 		}
 		return
 	}
@@ -272,12 +287,21 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 	if mode&commaTerm != 0 && next.IsValid() && p.pos.Line < next.Line {
 		// Print a terminating comma if the next token is on a new line.
 		p.print(token.COMMA)
+		if isIncomplete {
+			p.print(newline)
+			p.print("// " + filteredMsg)
+		}
 		if ws == ignore && mode&noIndent == 0 {
 			// unindent if we indented
 			p.print(unindent)
 		}
 		p.print(formfeed) // terminating comma needs a line break to look good
 		return
+	}
+
+	if isIncomplete {
+		p.print(token.COMMA, newline)
+		p.print("// "+filteredMsg, newline)
 	}
 
 	if ws == ignore && mode&noIndent == 0 {
@@ -499,7 +523,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				p.print(formfeed)
 			}
 			p.flush(p.posFor(rbrace), token.RBRACE) // make sure we don't lose the last line comment
-			p.setLineComment("// contains filtered or unexported fields")
+			p.setLineComment("// " + filteredMsg)
 		}
 
 	} else { // interface
@@ -851,13 +875,13 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		}
 		p.print(x.Lparen, token.LPAREN)
 		if x.Ellipsis.IsValid() {
-			p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis)
+			p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis, false)
 			p.print(x.Ellipsis, token.ELLIPSIS)
 			if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
 				p.print(token.COMMA, formfeed)
 			}
 		} else {
-			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen)
+			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
 		}
 		p.print(x.Rparen, token.RPAREN)
 		if wasIndented {
@@ -871,7 +895,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		}
 		p.level++
 		p.print(x.Lbrace, token.LBRACE)
-		p.exprList(x.Lbrace, x.Elts, 1, commaTerm, x.Rbrace)
+		p.exprList(x.Lbrace, x.Elts, 1, commaTerm, x.Rbrace, x.Incomplete)
 		// do not insert extra line break following a /*-style comment
 		// before the closing '}' as it might break the code if there
 		// is no trailing ','
@@ -1181,9 +1205,9 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 		if len(s.Lhs) > 1 && len(s.Rhs) > 1 {
 			depth++
 		}
-		p.exprList(s.Pos(), s.Lhs, depth, 0, s.TokPos)
+		p.exprList(s.Pos(), s.Lhs, depth, 0, s.TokPos, false)
 		p.print(blank, s.TokPos, s.Tok, blank)
-		p.exprList(s.TokPos, s.Rhs, depth, 0, token.NoPos)
+		p.exprList(s.TokPos, s.Rhs, depth, 0, token.NoPos, false)
 
 	case *ast.GoStmt:
 		p.print(token.GO, blank)
@@ -1204,10 +1228,10 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 			// lead to more nicely formatted code in general.
 			if p.indentList(s.Results) {
 				p.print(indent)
-				p.exprList(s.Pos(), s.Results, 1, noIndent, token.NoPos)
+				p.exprList(s.Pos(), s.Results, 1, noIndent, token.NoPos, false)
 				p.print(unindent)
 			} else {
-				p.exprList(s.Pos(), s.Results, 1, 0, token.NoPos)
+				p.exprList(s.Pos(), s.Results, 1, 0, token.NoPos, false)
 			}
 		}
 
@@ -1243,7 +1267,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 	case *ast.CaseClause:
 		if s.List != nil {
 			p.print(token.CASE, blank)
-			p.exprList(s.Pos(), s.List, 1, 0, s.Colon)
+			p.exprList(s.Pos(), s.List, 1, 0, s.Colon, false)
 		} else {
 			p.print(token.DEFAULT)
 		}
@@ -1395,7 +1419,7 @@ func (p *printer) valueSpec(s *ast.ValueSpec, keepType bool) {
 	}
 	if s.Values != nil {
 		p.print(vtab, token.ASSIGN, blank)
-		p.exprList(token.NoPos, s.Values, 1, 0, token.NoPos)
+		p.exprList(token.NoPos, s.Values, 1, 0, token.NoPos, false)
 		extraTabs--
 	}
 	if s.Comment != nil {
@@ -1477,7 +1501,7 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 		}
 		if s.Values != nil {
 			p.print(blank, token.ASSIGN, blank)
-			p.exprList(token.NoPos, s.Values, 1, 0, token.NoPos)
+			p.exprList(token.NoPos, s.Values, 1, 0, token.NoPos, false)
 		}
 		p.setComment(s.Comment)
 
