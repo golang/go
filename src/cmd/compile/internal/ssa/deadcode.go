@@ -15,7 +15,8 @@ func findlive(f *Func) (reachable []bool, live []bool) {
 func ReachableBlocks(f *Func) []bool {
 	reachable := make([]bool, f.NumBlocks())
 	reachable[f.Entry.ID] = true
-	p := []*Block{f.Entry} // stack-like worklist
+	p := make([]*Block, 0, 64) // stack-like worklist
+	p = append(p, f.Entry)
 	for len(p) > 0 {
 		// Pop a reachable block
 		b := p[len(p)-1]
