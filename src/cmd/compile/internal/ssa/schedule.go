@@ -74,7 +74,9 @@ func schedule(f *Func) {
 	score := make([]int8, f.NumValues())
 
 	// scheduling order. We queue values in this list in reverse order.
-	var order []*Value
+	// A constant bound allows this to be stack-allocated. 64 is
+	// enough to cover almost every schedule call.
+	order := make([]*Value, 0, 64)
 
 	// maps mem values to the next live memory value
 	nextMem := make([]*Value, f.NumValues())
