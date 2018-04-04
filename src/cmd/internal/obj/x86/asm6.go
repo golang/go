@@ -47,22 +47,22 @@ var (
 
 // Instruction layout.
 
+// Loop alignment constants:
+// want to align loop entry to loopAlign-byte boundary,
+// and willing to insert at most maxLoopPad bytes of NOP to do so.
+// We define a loop entry as the target of a backward jump.
+//
+// gcc uses maxLoopPad = 10 for its 'generic x86-64' config,
+// and it aligns all jump targets, not just backward jump targets.
+//
+// As of 6/1/2012, the effect of setting maxLoopPad = 10 here
+// is very slight but negative, so the alignment is disabled by
+// setting MaxLoopPad = 0. The code is here for reference and
+// for future experiments.
+//
 const (
-	// Loop alignment constants:
-	// want to align loop entry to LoopAlign-byte boundary,
-	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
-	// We define a loop entry as the target of a backward jump.
-	//
-	// gcc uses MaxLoopPad = 10 for its 'generic x86-64' config,
-	// and it aligns all jump targets, not just backward jump targets.
-	//
-	// As of 6/1/2012, the effect of setting MaxLoopPad = 10 here
-	// is very slight but negative, so the alignment is disabled by
-	// setting MaxLoopPad = 0. The code is here for reference and
-	// for future experiments.
-	//
-	LoopAlign  = 16
-	MaxLoopPad = 0
+	loopAlign  = 16
+	maxLoopPad = 0
 )
 
 type Optab struct {
@@ -192,7 +192,7 @@ const (
 	Zm_r_i_xm
 	Zm_r_xm_nr
 	Zr_m_xm_nr
-	Zibm_r /* mmx1,mmx2/mem64,imm8 */
+	Zibm_r // mmx1,mmx2/mem64,imm8
 	Zibr_m
 	Zmb_r
 	Zaut_r
@@ -227,31 +227,31 @@ const (
 const (
 	Px   = 0
 	Px1  = 1    // symbolic; exact value doesn't matter
-	P32  = 0x32 /* 32-bit only */
-	Pe   = 0x66 /* operand escape */
-	Pm   = 0x0f /* 2byte opcode escape */
-	Pq   = 0xff /* both escapes: 66 0f */
-	Pb   = 0xfe /* byte operands */
-	Pf2  = 0xf2 /* xmm escape 1: f2 0f */
-	Pf3  = 0xf3 /* xmm escape 2: f3 0f */
-	Pef3 = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
-	Pq3  = 0x67 /* xmm escape 3: 66 48 0f */
-	Pq4  = 0x68 /* xmm escape 4: 66 0F 38 */
-	Pq4w = 0x69 /* Pq4 with Rex.w 66 0F 38 */
-	Pq5  = 0x6a /* xmm escape 5: F3 0F 38 */
-	Pq5w = 0x6b /* Pq5 with Rex.w F3 0F 38 */
-	Pfw  = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
-	Pw   = 0x48 /* Rex.w */
+	P32  = 0x32 // 32-bit only
+	Pe   = 0x66 // operand escape
+	Pm   = 0x0f // 2byte opcode escape
+	Pq   = 0xff // both escapes: 66 0f
+	Pb   = 0xfe // byte operands
+	Pf2  = 0xf2 // xmm escape 1: f2 0f
+	Pf3  = 0xf3 // xmm escape 2: f3 0f
+	Pef3 = 0xf5 // xmm escape 2 with 16-bit prefix: 66 f3 0f
+	Pq3  = 0x67 // xmm escape 3: 66 48 0f
+	Pq4  = 0x68 // xmm escape 4: 66 0F 38
+	Pq4w = 0x69 // Pq4 with Rex.w 66 0F 38
+	Pq5  = 0x6a // xmm escape 5: F3 0F 38
+	Pq5w = 0x6b // Pq5 with Rex.w F3 0F 38
+	Pfw  = 0xf4 // Pf3 with Rex.w: f3 48 0f
+	Pw   = 0x48 // Rex.w
 	Pw8  = 0x90 // symbolic; exact value doesn't matter
-	Py   = 0x80 /* defaults to 64-bit mode */
+	Py   = 0x80 // defaults to 64-bit mode
 	Py1  = 0x81 // symbolic; exact value doesn't matter
 	Py3  = 0x83 // symbolic; exact value doesn't matter
 	Pvex = 0x84 // symbolic: exact value doesn't matter
 
-	Rxw = 1 << 3 /* =1, 64-bit operand size */
-	Rxr = 1 << 2 /* extend modrm reg */
-	Rxx = 1 << 1 /* extend sib index */
-	Rxb = 1 << 0 /* extend modrm r/m, sib base, or opcode reg */
+	Rxw = 1 << 3 // =1, 64-bit operand size
+	Rxr = 1 << 2 // extend modrm reg
+	Rxx = 1 << 1 // extend sib index
+	Rxb = 1 << 0 // extend modrm r/m, sib base, or opcode reg
 )
 
 const (
@@ -610,7 +610,7 @@ var yfxch = []ytab{
 }
 
 var ycompp = []ytab{
-	{Zo_m, 2, argList{Yf0, Yrf}}, /* botch is really f0,f1 */
+	{Zo_m, 2, argList{Yf0, Yrf}}, // botch is really f0,f1
 }
 
 var ystsw = []ytab{
@@ -1064,64 +1064,62 @@ var ysha1rnds4 = []ytab{
 	{Zibm_r, 2, argList{Yu2, Yxm, Yxr}},
 }
 
-/*
- * You are doasm, holding in your hand a *obj.Prog with p.As set to, say,
- * ACRC32, and p.From and p.To as operands (obj.Addr).  The linker scans optab
- * to find the entry with the given p.As and then looks through the ytable for
- * that instruction (the second field in the optab struct) for a line whose
- * first two values match the Ytypes of the p.From and p.To operands.  The
- * function oclass computes the specific Ytype of an operand and then the set
- * of more general Ytypes that it satisfies is implied by the ycover table, set
- * up in instinit.  For example, oclass distinguishes the constants 0 and 1
- * from the more general 8-bit constants, but instinit says
- *
- *        ycover[Yi0*Ymax+Ys32] = 1
- *        ycover[Yi1*Ymax+Ys32] = 1
- *        ycover[Yi8*Ymax+Ys32] = 1
- *
- * which means that Yi0, Yi1, and Yi8 all count as Ys32 (signed 32)
- * if that's what an instruction can handle.
- *
- * In parallel with the scan through the ytable for the appropriate line, there
- * is a z pointer that starts out pointing at the strange magic byte list in
- * the Optab struct.  With each step past a non-matching ytable line, z
- * advances by the 4th entry in the line.  When a matching line is found, that
- * z pointer has the extra data to use in laying down the instruction bytes.
- * The actual bytes laid down are a function of the 3rd entry in the line (that
- * is, the Ztype) and the z bytes.
- *
- * For example, let's look at AADDL.  The optab line says:
- *        {AADDL, yaddl, Px, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
- *
- * and yaddl says
- *        var yaddl = []ytab{
- *                {Yi8, Ynone, Yml, Zibo_m, 2},
- *                {Yi32, Ynone, Yax, Zil_, 1},
- *                {Yi32, Ynone, Yml, Zilo_m, 2},
- *                {Yrl, Ynone, Yml, Zr_m, 1},
- *                {Yml, Ynone, Yrl, Zm_r, 1},
- *        }
- *
- * so there are 5 possible types of ADDL instruction that can be laid down, and
- * possible states used to lay them down (Ztype and z pointer, assuming z
- * points at [23]uint8{0x83, 00, 0x05,0x81, 00, 0x01, 0x03}) are:
- *
- *        Yi8, Yml -> Zibo_m, z (0x83, 00)
- *        Yi32, Yax -> Zil_, z+2 (0x05)
- *        Yi32, Yml -> Zilo_m, z+2+1 (0x81, 0x00)
- *        Yrl, Yml -> Zr_m, z+2+1+2 (0x01)
- *        Yml, Yrl -> Zm_r, z+2+1+2+1 (0x03)
- *
- * The Pconstant in the optab line controls the prefix bytes to emit.  That's
- * relatively straightforward as this program goes.
- *
- * The switch on yt.zcase in doasm implements the various Z cases.  Zibo_m, for
- * example, is an opcode byte (z[0]) then an asmando (which is some kind of
- * encoded addressing mode for the Yml arg), and then a single immediate byte.
- * Zilo_m is the same but a long (32-bit) immediate.
- */
+// You are doasm, holding in your hand a *obj.Prog with p.As set to, say,
+// ACRC32, and p.From and p.To as operands (obj.Addr).  The linker scans optab
+// to find the entry with the given p.As and then looks through the ytable for
+// that instruction (the second field in the optab struct) for a line whose
+// first two values match the Ytypes of the p.From and p.To operands.  The
+// function oclass computes the specific Ytype of an operand and then the set
+// of more general Ytypes that it satisfies is implied by the ycover table, set
+// up in instinit.  For example, oclass distinguishes the constants 0 and 1
+// from the more general 8-bit constants, but instinit says
+//
+//        ycover[Yi0*Ymax+Ys32] = 1
+//        ycover[Yi1*Ymax+Ys32] = 1
+//        ycover[Yi8*Ymax+Ys32] = 1
+//
+// which means that Yi0, Yi1, and Yi8 all count as Ys32 (signed 32)
+// if that's what an instruction can handle.
+//
+// In parallel with the scan through the ytable for the appropriate line, there
+// is a z pointer that starts out pointing at the strange magic byte list in
+// the Optab struct.  With each step past a non-matching ytable line, z
+// advances by the 4th entry in the line.  When a matching line is found, that
+// z pointer has the extra data to use in laying down the instruction bytes.
+// The actual bytes laid down are a function of the 3rd entry in the line (that
+// is, the Ztype) and the z bytes.
+//
+// For example, let's look at AADDL.  The optab line says:
+//        {AADDL, yaddl, Px, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
+//
+// and yaddl says
+//        var yaddl = []ytab{
+//                {Yi8, Ynone, Yml, Zibo_m, 2},
+//                {Yi32, Ynone, Yax, Zil_, 1},
+//                {Yi32, Ynone, Yml, Zilo_m, 2},
+//                {Yrl, Ynone, Yml, Zr_m, 1},
+//                {Yml, Ynone, Yrl, Zm_r, 1},
+//        }
+//
+// so there are 5 possible types of ADDL instruction that can be laid down, and
+// possible states used to lay them down (Ztype and z pointer, assuming z
+// points at [23]uint8{0x83, 00, 0x05,0x81, 00, 0x01, 0x03}) are:
+//
+//        Yi8, Yml -> Zibo_m, z (0x83, 00)
+//        Yi32, Yax -> Zil_, z+2 (0x05)
+//        Yi32, Yml -> Zilo_m, z+2+1 (0x81, 0x00)
+//        Yrl, Yml -> Zr_m, z+2+1+2 (0x01)
+//        Yml, Yrl -> Zm_r, z+2+1+2+1 (0x03)
+//
+// The Pconstant in the optab line controls the prefix bytes to emit.  That's
+// relatively straightforward as this program goes.
+//
+// The switch on yt.zcase in doasm implements the various Z cases.  Zibo_m, for
+// example, is an opcode byte (z[0]) then an asmando (which is some kind of
+// encoded addressing mode for the Yml arg), and then a single immediate byte.
+// Zilo_m is the same but a long (32-bit) immediate.
 var optab =
-/*	as, ytab, andproto, opcode */
+//	as, ytab, andproto, opcode
 [...]Optab{
 	{obj.AXXX, nil, 0, [23]uint8{}},
 	{AAAA, ynone, P32, [23]uint8{0x37}},
@@ -1298,7 +1296,7 @@ var optab =
 	{ADPPS, yxshuf, Pq, [23]uint8{0x3a, 0x40, 0}},
 	{AEMMS, ynone, Pm, [23]uint8{0x77}},
 	{AEXTRACTPS, yextractps, Pq, [23]uint8{0x3a, 0x17, 0}},
-	{AENTER, nil, 0, [23]uint8{}}, /* botch */
+	{AENTER, nil, 0, [23]uint8{}}, // botch
 	{AFXRSTOR, ysvrs_mo, Pm, [23]uint8{0xae, 01, 0xae, 01}},
 	{AFXSAVE, ysvrs_om, Pm, [23]uint8{0xae, 00, 0xae, 00}},
 	{AFXRSTOR64, ysvrs_mo, Pw, [23]uint8{0x0f, 0xae, 01, 0x0f, 0xae, 01}},
@@ -1635,7 +1633,7 @@ var optab =
 	{ARORW, yshl, Pe, [23]uint8{0xd1, 01, 0xc1, 01, 0xd3, 01, 0xd3, 01}},
 	{ARSQRTPS, yxm, Pm, [23]uint8{0x52}},
 	{ARSQRTSS, yxm, Pf3, [23]uint8{0x52}},
-	{ASAHF, ynone, Px, [23]uint8{0x9e, 00, 0x86, 0xe0, 0x50, 0x9d}}, /* XCHGB AH,AL; PUSH AX; POPFL */
+	{ASAHF, ynone, Px, [23]uint8{0x9e, 00, 0x86, 0xe0, 0x50, 0x9d}}, // XCHGB AH,AL; PUSH AX; POPFL
 	{ASALB, yshb, Pb, [23]uint8{0xd0, 04, 0xc0, 04, 0xd2, 04}},
 	{ASALL, yshl, Px, [23]uint8{0xd1, 04, 0xc1, 04, 0xd3, 04, 0xd3, 04}},
 	{ASALQ, yshl, Pw, [23]uint8{0xd1, 04, 0xc1, 04, 0xd3, 04, 0xd3, 04}},
@@ -1699,7 +1697,7 @@ var optab =
 	{ASUBSS, yxm, Pf3, [23]uint8{0x5c}},
 	{ASUBW, yaddl, Pe, [23]uint8{0x83, 05, 0x2d, 0x81, 05, 0x29, 0x2b}},
 	{ASWAPGS, ynone, Pm, [23]uint8{0x01, 0xf8}},
-	{ASYSCALL, ynone, Px, [23]uint8{0x0f, 0x05}}, /* fast syscall */
+	{ASYSCALL, ynone, Px, [23]uint8{0x0f, 0x05}}, // fast syscall
 	{ATESTB, yxorb, Pb, [23]uint8{0xa8, 0xf6, 00, 0x84, 0x84}},
 	{ATESTL, ytestl, Px, [23]uint8{0xa9, 0xf7, 00, 0x85, 0x85}},
 	{ATESTQ, ytestl, Pw, [23]uint8{0xa9, 0xf7, 00, 0x85, 0x85}},
@@ -1754,8 +1752,8 @@ var optab =
 	{AFCMOVNU, yfcmv, Px, [23]uint8{0xdb, 03}},
 	{AFCMOVU, yfcmv, Px, [23]uint8{0xda, 03}},
 	{AFCMOVUN, yfcmv, Px, [23]uint8{0xda, 03}},
-	{AFCOMD, yfadd, Px, [23]uint8{0xdc, 02, 0xd8, 02, 0xdc, 02}},  /* botch */
-	{AFCOMDP, yfadd, Px, [23]uint8{0xdc, 03, 0xd8, 03, 0xdc, 03}}, /* botch */
+	{AFCOMD, yfadd, Px, [23]uint8{0xdc, 02, 0xd8, 02, 0xdc, 02}},  // botch
+	{AFCOMDP, yfadd, Px, [23]uint8{0xdc, 03, 0xd8, 03, 0xdc, 03}}, // botch
 	{AFCOMDPP, ycompp, Px, [23]uint8{0xde, 03}},
 	{AFCOMF, yfmvx, Px, [23]uint8{0xd8, 02}},
 	{AFCOMFP, yfmvx, Px, [23]uint8{0xd8, 03}},
@@ -2199,11 +2197,11 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			if (p.Back&4 != 0) && c&(LoopAlign-1) != 0 {
+			if (p.Back&4 != 0) && c&(loopAlign-1) != 0 {
 				// pad with NOPs
-				v := -c & (LoopAlign - 1)
+				v := -c & (loopAlign - 1)
 
-				if v <= MaxLoopPad {
+				if v <= maxLoopPad {
 					s.Grow(int64(c) + int64(v))
 					fillnop(s.P[c:], int(v))
 					c += v
@@ -2714,10 +2712,10 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		}
 		l := int32(v)
 		if int64(l) == v {
-			return Ys32 /* can sign extend */
+			return Ys32 // can sign extend
 		}
 		if v>>32 == 0 {
-			return Yi32 /* unsigned */
+			return Yi32 // unsigned
 		}
 		return Yi64
 
@@ -2773,7 +2771,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	case REG_DX, REG_BX:
 		return Yrx
 
-	case REG_R8, /* not really Yrl */
+	case REG_R8, // not really Yrl
 		REG_R9,
 		REG_R10,
 		REG_R11,
@@ -3137,7 +3135,7 @@ bas:
 	default:
 		goto bad
 
-	case REG_NONE: /* must be mod=00 */
+	case REG_NONE: // must be mod=00
 		i |= 5
 
 	case REG_R8,
@@ -3468,7 +3466,7 @@ const (
 )
 
 var ymovtab = []Movtab{
-	/* push */
+	// push
 	{APUSHL, Ycs, Ynone, Ynone, 0, [4]uint8{0x0e, E, 0, 0}},
 	{APUSHL, Yss, Ynone, Ynone, 0, [4]uint8{0x16, E, 0, 0}},
 	{APUSHL, Yds, Ynone, Ynone, 0, [4]uint8{0x1e, E, 0, 0}},
@@ -3484,7 +3482,7 @@ var ymovtab = []Movtab{
 	{APUSHW, Yfs, Ynone, Ynone, 0, [4]uint8{Pe, 0x0f, 0xa0, E}},
 	{APUSHW, Ygs, Ynone, Ynone, 0, [4]uint8{Pe, 0x0f, 0xa8, E}},
 
-	/* pop */
+	// pop
 	{APOPL, Ynone, Ynone, Yds, 0, [4]uint8{0x1f, E, 0, 0}},
 	{APOPL, Ynone, Ynone, Yes, 0, [4]uint8{0x07, E, 0, 0}},
 	{APOPL, Ynone, Ynone, Yss, 0, [4]uint8{0x17, E, 0, 0}},
@@ -3498,7 +3496,7 @@ var ymovtab = []Movtab{
 	{APOPW, Ynone, Ynone, Yfs, 0, [4]uint8{Pe, 0x0f, 0xa1, E}},
 	{APOPW, Ynone, Ynone, Ygs, 0, [4]uint8{Pe, 0x0f, 0xa9, E}},
 
-	/* mov seg */
+	// mov seg
 	{AMOVW, Yes, Ynone, Yml, 1, [4]uint8{0x8c, 0, 0, 0}},
 	{AMOVW, Ycs, Ynone, Yml, 1, [4]uint8{0x8c, 1, 0, 0}},
 	{AMOVW, Yss, Ynone, Yml, 1, [4]uint8{0x8c, 2, 0, 0}},
@@ -3512,7 +3510,7 @@ var ymovtab = []Movtab{
 	{AMOVW, Yml, Ynone, Yfs, 2, [4]uint8{0x8e, 4, 0, 0}},
 	{AMOVW, Yml, Ynone, Ygs, 2, [4]uint8{0x8e, 5, 0, 0}},
 
-	/* mov cr */
+	// mov cr
 	{AMOVL, Ycr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 0, 0}},
 	{AMOVL, Ycr2, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 2, 0}},
 	{AMOVL, Ycr3, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 3, 0}},
@@ -3534,7 +3532,7 @@ var ymovtab = []Movtab{
 	{AMOVQ, Yml, Ynone, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
 	{AMOVQ, Yml, Ynone, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
 
-	/* mov dr */
+	// mov dr
 	{AMOVL, Ydr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 0, 0}},
 	{AMOVL, Ydr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
 	{AMOVL, Ydr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
@@ -3552,13 +3550,13 @@ var ymovtab = []Movtab{
 	{AMOVQ, Yml, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
 	{AMOVQ, Yml, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
 
-	/* mov tr */
+	// mov tr
 	{AMOVL, Ytr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x24, 6, 0}},
 	{AMOVL, Ytr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x24, 7, 0}},
 	{AMOVL, Yml, Ynone, Ytr6, 4, [4]uint8{0x0f, 0x26, 6, E}},
 	{AMOVL, Yml, Ynone, Ytr7, 4, [4]uint8{0x0f, 0x26, 7, E}},
 
-	/* lgdt, sgdt, lidt, sidt */
+	// lgdt, sgdt, lidt, sidt
 	{AMOVL, Ym, Ynone, Ygdtr, 4, [4]uint8{0x0f, 0x01, 2, 0}},
 	{AMOVL, Ygdtr, Ynone, Ym, 3, [4]uint8{0x0f, 0x01, 0, 0}},
 	{AMOVL, Ym, Ynone, Yidtr, 4, [4]uint8{0x0f, 0x01, 3, 0}},
@@ -3568,15 +3566,15 @@ var ymovtab = []Movtab{
 	{AMOVQ, Ym, Ynone, Yidtr, 4, [4]uint8{0x0f, 0x01, 3, 0}},
 	{AMOVQ, Yidtr, Ynone, Ym, 3, [4]uint8{0x0f, 0x01, 1, 0}},
 
-	/* lldt, sldt */
+	// lldt, sldt
 	{AMOVW, Yml, Ynone, Yldtr, 4, [4]uint8{0x0f, 0x00, 2, 0}},
 	{AMOVW, Yldtr, Ynone, Yml, 3, [4]uint8{0x0f, 0x00, 0, 0}},
 
-	/* lmsw, smsw */
+	// lmsw, smsw
 	{AMOVW, Yml, Ynone, Ymsw, 4, [4]uint8{0x0f, 0x01, 6, 0}},
 	{AMOVW, Ymsw, Ynone, Yml, 3, [4]uint8{0x0f, 0x01, 4, 0}},
 
-	/* ltr, str */
+	// ltr, str
 	{AMOVW, Yml, Ynone, Ytask, 4, [4]uint8{0x0f, 0x00, 3, 0}},
 	{AMOVW, Ytask, Ynone, Yml, 3, [4]uint8{0x0f, 0x00, 1, 0}},
 
@@ -3585,7 +3583,7 @@ var ymovtab = []Movtab{
 	Movtab{AMOVW, Yml, Ycol, 5, [4]uint8{Pe, 0, 0, 0}},
 	*/
 
-	/* double shift */
+	// double shift
 	{ASHLL, Yi8, Yrl, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
 	{ASHLL, Ycl, Yrl, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
 	{ASHLL, Ycx, Yrl, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
@@ -3605,7 +3603,7 @@ var ymovtab = []Movtab{
 	{ASHRW, Ycl, Yrl, Yml, 6, [4]uint8{Pe, 0xac, 0xad, 0}},
 	{ASHRW, Ycx, Yrl, Yml, 6, [4]uint8{Pe, 0xac, 0xad, 0}},
 
-	/* load TLS base */
+	// load TLS base
 	{AMOVL, Ytls, Ynone, Yrl, 7, [4]uint8{0, 0, 0, 0}},
 	{AMOVQ, Ytls, Ynone, Yrl, 7, [4]uint8{0, 0, 0, 0}},
 	{0, 0, 0, 0, 0, [4]uint8{}},
@@ -3854,56 +3852,56 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			z += int(yt.zoffset) + xo
 		} else {
 			switch o.prefix {
-			case Px1: /* first option valid only in 32-bit mode */
+			case Px1: // first option valid only in 32-bit mode
 				if ctxt.Arch.Family == sys.AMD64 && z == 0 {
 					z += int(yt.zoffset) + xo
 					continue
 				}
-			case Pq: /* 16 bit escape and opcode escape */
+			case Pq: // 16 bit escape and opcode escape
 				ab.Put2(Pe, Pm)
 
-			case Pq3: /* 16 bit escape and opcode escape + REX.W */
+			case Pq3: // 16 bit escape and opcode escape + REX.W
 				ab.rexflag |= Pw
 				ab.Put2(Pe, Pm)
 
-			case Pq4: /*  66 0F 38 */
+			case Pq4: // 66 0F 38
 				ab.Put3(0x66, 0x0F, 0x38)
 
-			case Pq4w: /*  66 0F 38 + REX.W */
+			case Pq4w: // 66 0F 38 + REX.W
 				ab.rexflag |= Pw
 				ab.Put3(0x66, 0x0F, 0x38)
 
-			case Pq5: /*  F3 0F 38 */
+			case Pq5: // F3 0F 38
 				ab.Put3(0xF3, 0x0F, 0x38)
 
-			case Pq5w: /*  F3 0F 38 + REX.W */
+			case Pq5w: //  F3 0F 38 + REX.W
 				ab.rexflag |= Pw
 				ab.Put3(0xF3, 0x0F, 0x38)
 
-			case Pf2, /* xmm opcode escape */
+			case Pf2, // xmm opcode escape
 				Pf3:
 				ab.Put2(o.prefix, Pm)
 
 			case Pef3:
 				ab.Put3(Pe, Pf3, Pm)
 
-			case Pfw: /* xmm opcode escape + REX.W */
+			case Pfw: // xmm opcode escape + REX.W
 				ab.rexflag |= Pw
 				ab.Put2(Pf3, Pm)
 
-			case Pm: /* opcode escape */
+			case Pm: // opcode escape
 				ab.Put1(Pm)
 
-			case Pe: /* 16 bit escape */
+			case Pe: // 16 bit escape
 				ab.Put1(Pe)
 
-			case Pw: /* 64-bit escape */
+			case Pw: // 64-bit escape
 				if ctxt.Arch.Family != sys.AMD64 {
 					ctxt.Diag("asmins: illegal 64: %v", p)
 				}
 				ab.rexflag |= Pw
 
-			case Pw8: /* 64-bit escape if z >= 8 */
+			case Pw8: // 64-bit escape if z >= 8
 				if z >= 8 {
 					if ctxt.Arch.Family != sys.AMD64 {
 						ctxt.Diag("asmins: illegal 64: %v", p)
@@ -3911,7 +3909,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					ab.rexflag |= Pw
 				}
 
-			case Pb: /* botch */
+			case Pb: // botch
 				if ctxt.Arch.Family != sys.AMD64 && (isbadbyte(&p.From) || isbadbyte(&p.To)) {
 					goto bad
 				}
@@ -3928,22 +3926,22 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					bytereg(&p.To, &p.Tt)
 				}
 
-			case P32: /* 32 bit but illegal if 64-bit mode */
+			case P32: // 32 bit but illegal if 64-bit mode
 				if ctxt.Arch.Family == sys.AMD64 {
 					ctxt.Diag("asmins: illegal in 64-bit mode: %v", p)
 				}
 
-			case Py: /* 64-bit only, no prefix */
+			case Py: // 64-bit only, no prefix
 				if ctxt.Arch.Family != sys.AMD64 {
 					ctxt.Diag("asmins: illegal in %d-bit mode: %v", ctxt.Arch.RegSize*8, p)
 				}
 
-			case Py1: /* 64-bit only if z < 1, no prefix */
+			case Py1: // 64-bit only if z < 1, no prefix
 				if z < 1 && ctxt.Arch.Family != sys.AMD64 {
 					ctxt.Diag("asmins: illegal in %d-bit mode: %v", ctxt.Arch.RegSize*8, p)
 				}
 
-			case Py3: /* 64-bit only if z < 3, no prefix */
+			case Py3: // 64-bit only if z < 3, no prefix
 				if z < 3 && ctxt.Arch.Family != sys.AMD64 {
 					ctxt.Diag("asmins: illegal in %d-bit mode: %v", ctxt.Arch.RegSize*8, p)
 				}
@@ -4178,8 +4176,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				v = vaddr(ctxt, p, &p.From, &rel)
 				l = int(v >> 32)
 				if l == 0 && rel.Siz != 8 {
-					//p->mark |= 0100;
-					//print("zero: %llux %v\n", v, p);
 					ab.rexflag &^= (0x40 | Rxw)
 
 					ab.rexflag |= regrex[p.To.Reg] & Rxb
@@ -4191,16 +4187,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					}
 
 					ab.PutInt32(int32(v))
-				} else if l == -1 && uint64(v)&(uint64(1)<<31) != 0 { /* sign extend */
-
-					//p->mark |= 0100;
-					//print("sign: %llux %v\n", v, p);
+				} else if l == -1 && uint64(v)&(uint64(1)<<31) != 0 { // sign extend
 					ab.Put1(0xc7)
 					ab.asmando(ctxt, cursym, p, &p.To, 0)
 
 					ab.PutInt32(int32(v)) // need all 8
 				} else {
-					//print("all: %llux %v\n", v, p);
 					ab.rexflag |= regrex[p.To.Reg] & Rxb
 					ab.Put1(byte(op + reg[p.To.Reg]))
 					if rel.Type != 0 {
@@ -4410,25 +4402,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 				break
 
-			/*
-				v = q->pc - p->pc - 2;
-				if((v >= -128 && v <= 127) || p->pc == -1 || q->pc == -1) {
-					*ctxt->andptr++ = op;
-					*ctxt->andptr++ = v;
-				} else {
-					v -= 5-2;
-					if(yt.zcase == Zbr) {
-						*ctxt->andptr++ = 0x0f;
-						v--;
-					}
-					*ctxt->andptr++ = o->op[z+1];
-					*ctxt->andptr++ = v;
-					*ctxt->andptr++ = v>>8;
-					*ctxt->andptr++ = v>>16;
-					*ctxt->andptr++ = v>>24;
-				}
-			*/
-
 			case Zbyte:
 				v = vaddr(ctxt, p, &p.From, &rel)
 				if rel.Siz != 0 {
@@ -4467,30 +4440,30 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				default:
 					ctxt.Diag("asmins: unknown mov %d %v", mo[0].code, p)
 
-				case 0: /* lit */
+				case 0: // lit
 					for z = 0; t[z] != E; z++ {
 						ab.Put1(t[z])
 					}
 
-				case 1: /* r,m */
+				case 1: // r,m
 					ab.Put1(t[0])
 					ab.asmando(ctxt, cursym, p, &p.To, int(t[1]))
 
-				case 2: /* m,r */
+				case 2: // m,r
 					ab.Put1(t[0])
 					ab.asmando(ctxt, cursym, p, &p.From, int(t[1]))
 
-				case 3: /* r,m - 2op */
+				case 3: // r,m - 2op
 					ab.Put2(t[0], t[1])
 					ab.asmando(ctxt, cursym, p, &p.To, int(t[2]))
 					ab.rexflag |= regrex[p.From.Reg] & (Rxr | 0x40)
 
-				case 4: /* m,r - 2op */
+				case 4: // m,r - 2op
 					ab.Put2(t[0], t[1])
 					ab.asmando(ctxt, cursym, p, &p.From, int(t[2]))
 					ab.rexflag |= regrex[p.To.Reg] & (Rxr | 0x40)
 
-				case 5: /* load full pointer, trash heap */
+				case 5: // load full pointer, trash heap
 					if t[0] != 0 {
 						ab.Put1(t[0])
 					}
@@ -4516,7 +4489,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 					ab.asmand(ctxt, cursym, p, &p.From, &p.To)
 
-				case 6: /* double shift */
+				case 6: // double shift
 					if t[0] == Pw {
 						if ctxt.Arch.Family != sys.AMD64 {
 							ctxt.Diag("asmins: illegal 64: %v", p)
@@ -4552,7 +4525,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				// where you load the TLS base register into a register and then index off that
 				// register to access the actual TLS variables. Systems that allow direct TLS access
 				// are handled in prefixof above and should not be listed here.
-				case 7: /* mov tls, r */
+				case 7: // mov tls, r
 					if ctxt.Arch.Family == sys.AMD64 && p.As != AMOVQ || ctxt.Arch.Family == sys.I386 && p.As != AMOVL {
 						ctxt.Diag("invalid load of TLS: %v", p)
 					}
@@ -4712,13 +4685,11 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 bad:
 	if ctxt.Arch.Family != sys.AMD64 {
-		/*
-		 * here, the assembly has failed.
-		 * if its a byte instruction that has
-		 * unaddressable registers, try to
-		 * exchange registers and reissue the
-		 * instruction with the operands renamed.
-		 */
+		// here, the assembly has failed.
+		// if its a byte instruction that has
+		// unaddressable registers, try to
+		// exchange registers and reissue the
+		// instruction with the operands renamed.
 		pp := *p
 
 		unbytereg(&pp.From, &pp.Ft)
@@ -5032,13 +5003,11 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	mark := ab.Len()
 	ab.doasm(ctxt, cursym, p)
 	if ab.rexflag != 0 && !ab.vexflag {
-		/*
-		 * as befits the whole approach of the architecture,
-		 * the rex prefix must appear before the first opcode byte
-		 * (and thus after any 66/67/f2/f3/26/2e/3e prefix bytes, but
-		 * before the 0f opcode escape!), or it might be ignored.
-		 * note that the handbook often misleadingly shows 66/f2/f3 in `opcode'.
-		 */
+		// as befits the whole approach of the architecture,
+		// the rex prefix must appear before the first opcode byte
+		// (and thus after any 66/67/f2/f3/26/2e/3e prefix bytes, but
+		// before the 0f opcode escape!), or it might be ignored.
+		// note that the handbook often misleadingly shows 66/f2/f3 in `opcode'.
 		if ctxt.Arch.Family != sys.AMD64 {
 			ctxt.Diag("asmins: illegal in mode %d: %v (%d %d)", ctxt.Arch.RegSize*8, p, p.Ft, p.Tt)
 		}
