@@ -784,6 +784,8 @@ var (
 	support_sse42        bool
 	support_ssse3        bool
 
+	arm64_support_aes bool
+
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link
 )
