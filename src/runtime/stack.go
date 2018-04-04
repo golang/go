@@ -643,24 +643,28 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		minsize = sys.MinFrameSize
 	}
 	if size > minsize {
-		var bv bitvector
 		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
 		if stackmap == nil || stackmap.n <= 0 {
 			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
 			throw("missing stackmap")
 		}
-		// Locals bitmap information, scan just the pointers in locals.
-		if pcdata < 0 || pcdata >= stackmap.n {
-			// don't know where we are
-			print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
-			throw("bad symbol table")
+		// If nbit == 0, there's no work to do.
+		if stackmap.nbit > 0 {
+			// Locals bitmap information, scan just the pointers in locals.
+			if pcdata < 0 || pcdata >= stackmap.n {
+				// don't know where we are
+				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
+				throw("bad symbol table")
+			}
+			bv := stackmapdata(stackmap, pcdata)
+			size = uintptr(bv.n) * sys.PtrSize
+			if stackDebug >= 3 {
+				print("      locals ", pcdata, "/", stackmap.n, " ", size/sys.PtrSize, " words ", bv.bytedata, "\n")
+			}
+			adjustpointers(unsafe.Pointer(frame.varp-size), &bv, adjinfo, f)
+		} else if stackDebug >= 3 {
+			print("      no locals to adjust\n")
 		}
-		bv = stackmapdata(stackmap, pcdata)
-		size = uintptr(bv.n) * sys.PtrSize
-		if stackDebug >= 3 {
-			print("      locals ", pcdata, "/", stackmap.n, " ", size/sys.PtrSize, " words ", bv.bytedata, "\n")
-		}
-		adjustpointers(unsafe.Pointer(frame.varp-size), &bv, adjinfo, f)
 	}
 
 	// Adjust saved base pointer if there is one.
@@ -707,7 +711,9 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		if stackDebug >= 3 {
 			print("      args\n")
 		}
-		adjustpointers(unsafe.Pointer(frame.argp), &bv, adjinfo, funcInfo{})
+		if bv.n > 0 {
+			adjustpointers(unsafe.Pointer(frame.argp), &bv, adjinfo, funcInfo{})
+		}
 	}
 	return true
 }
