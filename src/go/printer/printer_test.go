@@ -188,6 +188,7 @@ var data = []entry{
 	{"comments.input", "comments.golden", 0},
 	{"comments.input", "comments.x", export},
 	{"comments2.input", "comments2.golden", idempotent},
+	{"alignment.input", "alignment.golden", idempotent},
 	{"linebreaks.input", "linebreaks.golden", idempotent},
 	{"expressions.input", "expressions.golden", idempotent},
 	{"expressions.input", "expressions.raw", rawFormat | idempotent},

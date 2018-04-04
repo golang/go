@@ -1668,13 +1668,13 @@ func cmp(a int, b int) bool {
 
 	case C_PSOREG_4:
 		switch b {
-		case  C_ZOREG, C_PSOREG_8:
+		case C_ZOREG, C_PSOREG_8:
 			return true
 		}
 
 	case C_PSOREG:
 		switch b {
-		case  C_ZOREG, C_PSOREG_8, C_PSOREG_4:
+		case C_ZOREG, C_PSOREG_8, C_PSOREG_4:
 			return true
 		}
 
@@ -4014,7 +4014,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int((p.To.Reg) & 31)
 		r := int((p.Reg) & 31)
 
-		o1 |= ((Q&1) << 30) | ((size&3) << 22) | (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
+		o1 |= ((Q & 1) << 30) | ((size & 3) << 22) | (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 94: /* vext $imm4, Vm.<T>, Vn.<T>, Vd.<T> */
 		if p.From3Type() != obj.TYPE_REG {
@@ -4053,7 +4053,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int((p.To.Reg) & 31)
 		r := int((p.Reg) & 31)
 
-		o1 |= ((Q&1) << 30) | (uint32(r&31) << 16) | (uint32(index&15) << 11) | (uint32(rf&31) << 5) | uint32(rt&31)
+		o1 |= ((Q & 1) << 30) | (uint32(r&31) << 16) | (uint32(index&15) << 11) | (uint32(rf&31) << 5) | uint32(rt&31)
 
 	case 95: /* vushr $shift, Vn.<T>, Vd.<T> */
 		at := int((p.To.Reg >> 5) & 15)
@@ -4111,7 +4111,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int((p.To.Reg) & 31)
 		rf := int((p.Reg) & 31)
 
-		o1 |= ((Q&1) << 30) | (uint32(imm&127) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
+		o1 |= ((Q & 1) << 30) | (uint32(imm&127) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
 
 	case 96: /* vst1 Vt1.<T>[index], offset(Rn) */
 		af := int((p.From.Reg >> 5) & 15)
@@ -4183,7 +4183,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 26 << 23
 		}
 
-		o1 |= (uint32(Q&1) << 30) | (uint32(r&31) << 16) | ((opcode&7) << 13) | (uint32(S&1) << 12) | (uint32(size&3) << 10) | (uint32(rf&31) << 5) | uint32(rt&31)
+		o1 |= (uint32(Q&1) << 30) | (uint32(r&31) << 16) | ((opcode & 7) << 13) | (uint32(S&1) << 12) | (uint32(size&3) << 10) | (uint32(rf&31) << 5) | uint32(rt&31)
 
 	case 97: /* vld1 offset(Rn), vt.<T>[index] */
 		at := int((p.To.Reg >> 5) & 15)
@@ -4257,7 +4257,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 106 << 21
 		}
 
-		o1 |= (uint32(Q&1) << 30) | (uint32(r&31) << 16) | ((opcode&7) << 13) | (uint32(S&1) << 12) | (uint32(size&3) << 10) | (uint32(rf&31) << 5) | uint32(rt&31)
+		o1 |= (uint32(Q&1) << 30) | (uint32(r&31) << 16) | ((opcode & 7) << 13) | (uint32(S&1) << 12) | (uint32(size&3) << 10) | (uint32(rf&31) << 5) | uint32(rt&31)
 	}
 	out[0] = o1
 	out[1] = o2

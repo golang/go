@@ -115,7 +115,7 @@ var tests = []test{
 			`var MultiLineVar = map\[struct{ ... }\]struct{ ... }{ ... }`,  // Multi line variable.
 			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
 			`var LongLine = newLongLine\(("someArgument[1-4]", ){4}...\)`,  // Long list of arguments.
-			`type T1 = T2`, // Type alias
+			`type T1 = T2`,                                                 // Type alias
 		},
 		[]string{
 			`const internalConstant = 2`,        // No internal constants.
