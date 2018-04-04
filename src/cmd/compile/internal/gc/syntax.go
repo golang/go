@@ -461,7 +461,6 @@ type Func struct {
 	Exit      Nodes
 	Cvars     Nodes   // closure params
 	Dcl       []*Node // autodcl for this func/closure
-	Inldcl    Nodes   // copy of dcl for use in inlining
 
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
@@ -484,8 +483,7 @@ type Func struct {
 	Nname      *Node
 	lsym       *obj.LSym
 
-	Inl     Nodes // copy of the body for use in inlining
-	InlCost int32
+	Inl *Inline
 
 	Label int32 // largest auto-generated label in this function
 
@@ -500,6 +498,15 @@ type Func struct {
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	nwbrCalls *[]nowritebarrierrecCallSym
+}
+
+// An Inline holds fields used for function bodies that can be inlined.
+type Inline struct {
+	Cost int32 // heuristic cost of inlining this function
+
+	// Copies of Func.Dcl and Nbody for use during inlining.
+	Dcl  []*Node
+	Body []*Node
 }
 
 // A Mark represents a scope boundary.
@@ -736,6 +743,11 @@ const (
 // For fields that are not used in most nodes, this is used instead of
 // a slice to save space.
 type Nodes struct{ slice *[]*Node }
+
+// asNodes returns a slice of *Node as a Nodes value.
+func asNodes(s []*Node) Nodes {
+	return Nodes{&s}
+}
 
 // Slice returns the entries in Nodes as a slice.
 // Changes to the slice entries (as in s[i] = n) will be reflected in

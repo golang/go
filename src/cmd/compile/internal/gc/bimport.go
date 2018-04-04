@@ -188,28 +188,22 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 		// parameter renaming which doesn't matter if we don't have a body.
 
 		inlCost := p.int()
-		if f := p.funcList[i]; f != nil && f.Func.Inl.Len() == 0 {
+		if f := p.funcList[i]; f != nil && f.Func.Inl == nil {
 			// function not yet imported - read body and set it
 			funchdr(f)
 			body := p.stmtList()
-			if body == nil {
-				// Make sure empty body is not interpreted as
-				// no inlineable body (see also parser.fnbody)
-				// (not doing so can cause significant performance
-				// degradation due to unnecessary calls to empty
-				// functions).
-				body = []*Node{nod(OEMPTY, nil, nil)}
+			funcbody()
+			f.Func.Inl = &Inline{
+				Cost: int32(inlCost),
+				Body: body,
 			}
-			f.Func.Inl.Set(body)
-			f.Func.InlCost = int32(inlCost)
-			if Debug['E'] > 0 && Debug['m'] > 2 && f.Func.Inl.Len() != 0 {
+			if Debug['E'] > 0 && Debug['m'] > 2 {
 				if Debug['m'] > 3 {
-					fmt.Printf("inl body for %v: %+v\n", f, f.Func.Inl)
+					fmt.Printf("inl body for %v: %+v\n", f, asNodes(body))
 				} else {
-					fmt.Printf("inl body for %v: %v\n", f, f.Func.Inl)
+					fmt.Printf("inl body for %v: %v\n", f, asNodes(body))
 				}
 			}
-			funcbody()
 		} else {
 			// function already imported - read body but discard declarations
 			dclcontext = PDISCARD // throw away any declarations
