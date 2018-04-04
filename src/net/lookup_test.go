@@ -63,6 +63,7 @@ var lookupGoogleSRVTests = []struct {
 var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 30 * time.Second}
 
 func TestLookupGoogleSRV(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -109,6 +110,7 @@ var lookupGmailMXTests = []struct {
 }
 
 func TestLookupGmailMX(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -116,8 +118,6 @@ func TestLookupGmailMX(t *testing.T) {
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
-
-	defer dnsWaitGroup.Wait()
 
 	attempts := 0
 	for i := 0; i < len(lookupGmailMXTests); i++ {
@@ -189,6 +189,7 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -196,8 +197,6 @@ func TestLookupGmailTXT(t *testing.T) {
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
-
-	defer dnsWaitGroup.Wait()
 
 	attempts := 0
 	for i := 0; i < len(lookupGmailTXTTests); i++ {
