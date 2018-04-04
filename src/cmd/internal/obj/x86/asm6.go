@@ -281,40 +281,6 @@ const (
 	vex0F   = 1 << 3
 	vex0F38 = 2 << 3
 	vex0F3A = 3 << 3
-
-	// Combinations used in the manual.
-	VEX_DDS_LIG_66_0F38_W1    = vexDDS | vexLIG | vex66 | vex0F38 | vexW1
-	VEX_NDD_128_66_0F_WIG     = vexNDD | vex128 | vex66 | vex0F | vexWIG
-	VEX_NDD_256_66_0F_WIG     = vexNDD | vex256 | vex66 | vex0F | vexWIG
-	VEX_NDD_LZ_F2_0F38_W0     = vexNDD | vexLZ | vexF2 | vex0F38 | vexW0
-	VEX_NDD_LZ_F2_0F38_W1     = vexNDD | vexLZ | vexF2 | vex0F38 | vexW1
-	VEX_NDS_128_66_0F_WIG     = vexNDS | vex128 | vex66 | vex0F | vexWIG
-	VEX_NDS_128_66_0F38_WIG   = vexNDS | vex128 | vex66 | vex0F38 | vexWIG
-	VEX_NDS_128_F2_0F_WIG     = vexNDS | vex128 | vexF2 | vex0F | vexWIG
-	VEX_NDS_256_66_0F_WIG     = vexNDS | vex256 | vex66 | vex0F | vexWIG
-	VEX_NDS_256_66_0F38_WIG   = vexNDS | vex256 | vex66 | vex0F38 | vexWIG
-	VEX_NDS_256_66_0F3A_W0    = vexNDS | vex256 | vex66 | vex0F3A | vexW0
-	VEX_NDS_256_66_0F3A_WIG   = vexNDS | vex256 | vex66 | vex0F3A | vexWIG
-	VEX_NDS_LZ_0F38_W0        = vexNDS | vexLZ | vex0F38 | vexW0
-	VEX_NDS_LZ_0F38_W1        = vexNDS | vexLZ | vex0F38 | vexW1
-	VEX_NDS_LZ_66_0F38_W0     = vexNDS | vexLZ | vex66 | vex0F38 | vexW0
-	VEX_NDS_LZ_66_0F38_W1     = vexNDS | vexLZ | vex66 | vex0F38 | vexW1
-	VEX_NDS_LZ_F2_0F38_W0     = vexNDS | vexLZ | vexF2 | vex0F38 | vexW0
-	VEX_NDS_LZ_F2_0F38_W1     = vexNDS | vexLZ | vexF2 | vex0F38 | vexW1
-	VEX_NDS_LZ_F3_0F38_W0     = vexNDS | vexLZ | vexF3 | vex0F38 | vexW0
-	VEX_NDS_LZ_F3_0F38_W1     = vexNDS | vexLZ | vexF3 | vex0F38 | vexW1
-	VEX_NOVSR_128_66_0F_WIG   = vexNOVSR | vex128 | vex66 | vex0F | vexWIG
-	VEX_NOVSR_128_66_0F38_W0  = vexNOVSR | vex128 | vex66 | vex0F38 | vexW0
-	VEX_NOVSR_128_66_0F38_WIG = vexNOVSR | vex128 | vex66 | vex0F38 | vexWIG
-	VEX_NOVSR_128_F2_0F_WIG   = vexNOVSR | vex128 | vexF2 | vex0F | vexWIG
-	VEX_NOVSR_128_F3_0F_WIG   = vexNOVSR | vex128 | vexF3 | vex0F | vexWIG
-	VEX_NOVSR_256_66_0F_WIG   = vexNOVSR | vex256 | vex66 | vex0F | vexWIG
-	VEX_NOVSR_256_66_0F38_W0  = vexNOVSR | vex256 | vex66 | vex0F38 | vexW0
-	VEX_NOVSR_256_66_0F38_WIG = vexNOVSR | vex256 | vex66 | vex0F38 | vexWIG
-	VEX_NOVSR_256_F2_0F_WIG   = vexNOVSR | vex256 | vexF2 | vex0F | vexWIG
-	VEX_NOVSR_256_F3_0F_WIG   = vexNOVSR | vex256 | vexF3 | vex0F | vexWIG
-	VEX_NOVSR_LZ_F2_0F3A_W0   = vexNOVSR | vexLZ | vexF2 | vex0F3A | vexW0
-	VEX_NOVSR_LZ_F2_0F3A_W1   = vexNOVSR | vexLZ | vexF2 | vex0F3A | vexW1
 )
 
 var ycover [Ymax * Ymax]uint8
