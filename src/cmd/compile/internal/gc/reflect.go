@@ -427,16 +427,16 @@ func methods(t *types.Type) []*Sig {
 			sig.pkg = method.Pkg
 		}
 
-		sig.isym = methodsym(method, it, true)
-		sig.tsym = methodsym(method, t, false)
+		sig.isym = methodsym(method, it)
+		sig.tsym = methodsym(method, t)
 		sig.type_ = methodfunc(f.Type, t)
 		sig.mtype = methodfunc(f.Type, nil)
 
 		if !sig.isym.Siggen() {
 			sig.isym.SetSiggen(true)
-			if !eqtype(this, it) || this.Width < int64(Widthptr) {
+			if !eqtype(this, it) {
 				compiling_wrappers = true
-				genwrapper(it, f, sig.isym, true)
+				genwrapper(it, f, sig.isym)
 				compiling_wrappers = false
 			}
 		}
@@ -445,7 +445,7 @@ func methods(t *types.Type) []*Sig {
 			sig.tsym.SetSiggen(true)
 			if !eqtype(this, t) {
 				compiling_wrappers = true
-				genwrapper(t, f, sig.tsym, false)
+				genwrapper(t, f, sig.tsym)
 				compiling_wrappers = false
 			}
 		}
@@ -493,10 +493,10 @@ func imethods(t *types.Type) []*Sig {
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		isym := methodsym(method, t, false)
+		isym := methodsym(method, t)
 		if !isym.Siggen() {
 			isym.SetSiggen(true)
-			genwrapper(t, f, isym, false)
+			genwrapper(t, f, isym)
 		}
 	}
 

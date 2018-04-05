@@ -829,7 +829,7 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
 
 var methodsym_toppkg *types.Pkg
 
-func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
+func methodsym(nsym *types.Sym, t0 *types.Type) *types.Sym {
 	if t0 == nil {
 		Fatalf("methodsym: nil receiver type")
 	}
@@ -850,14 +850,6 @@ func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
 		t0 = types.NewPtr(t)
 	}
 
-	suffix := ""
-	if iface {
-		dowidth(t0)
-		if t0.Width < int64(Widthptr) {
-			suffix = "·i"
-		}
-	}
-
 	var spkg *types.Pkg
 	if s != nil {
 		spkg = s.Pkg
@@ -868,9 +860,9 @@ func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
 	}
 	var p string
 	if t0.Sym == nil && t0.IsPtr() {
-		p = fmt.Sprintf("(%-S)%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
+		p = fmt.Sprintf("(%-S)%s.%s", t0, pkgprefix, nsym.Name)
 	} else {
-		p = fmt.Sprintf("%-S%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
+		p = fmt.Sprintf("%-S%s.%s", t0, pkgprefix, nsym.Name)
 	}
 
 	if spkg == nil {
