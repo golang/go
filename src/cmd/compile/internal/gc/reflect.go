@@ -1390,6 +1390,8 @@ func genfun(t, it *types.Type) []*obj.LSym {
 	sigs := imethods(it)
 	methods := methods(t)
 	out := make([]*obj.LSym, 0, len(sigs))
+	// TODO(mdempsky): Short circuit before calling methods(t)?
+	// See discussion on CL 105039.
 	if len(sigs) == 0 {
 		return nil
 	}
@@ -1397,13 +1399,17 @@ func genfun(t, it *types.Type) []*obj.LSym {
 	// both sigs and methods are sorted by name,
 	// so we can find the intersect in a single pass
 	for _, m := range methods {
-		if m.name.Name == sigs[0].name.Name {
+		if m.name == sigs[0].name {
 			out = append(out, m.isym.Linksym())
 			sigs = sigs[1:]
 			if len(sigs) == 0 {
 				break
 			}
 		}
+	}
+
+	if len(sigs) != 0 {
+		Fatalf("incomplete itab")
 	}
 
 	return out
