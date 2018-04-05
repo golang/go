@@ -472,8 +472,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			}
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
-			n := *l
-			gdata(&n, r.Func.Closure.Func.Nname, Widthptr)
+			gdata(l, r.Func.Closure.Func.Nname, Widthptr)
 			return true
 		}
 		closuredebugruntimecheck(r)
@@ -504,10 +503,10 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		}
 
 		// Create a copy of l to modify while we emit data.
-		n := *l
+		n := l.copy()
 
 		// Emit itab, advance offset.
-		gdata(&n, itab, Widthptr)
+		gdata(n, itab, Widthptr)
 		n.Xoffset += int64(Widthptr)
 
 		// Emit data.
@@ -519,10 +518,10 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			// Copy val directly into n.
 			n.Type = val.Type
 			setlineno(val)
-			a := n
-			a.Orig = &a
-			if !staticassign(&a, val, out) {
-				*out = append(*out, nod(OAS, &a, val))
+			a := n.copy()
+			a.Orig = a
+			if !staticassign(a, val, out) {
+				*out = append(*out, nod(OAS, a, val))
 			}
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
@@ -533,7 +532,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			}
 			ptr := nod(OADDR, a, nil)
 			n.Type = types.NewPtr(val.Type)
-			gdata(&n, ptr, Widthptr)
+			gdata(n, ptr, Widthptr)
 		}
 
 		return true
