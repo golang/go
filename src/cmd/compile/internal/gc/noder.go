@@ -65,6 +65,8 @@ func parseFiles(filenames []string) uint {
 		testdclstack()
 	}
 
+	localpkg.Height = myheight
+
 	return lines
 }
 

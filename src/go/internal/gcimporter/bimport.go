@@ -102,10 +102,10 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 6:
+	// case 7:
 	// 	...
 	//	fallthrough
-	case 5, 4, 3, 2, 1:
+	case 6, 5, 4, 3, 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.int() != 0
 		p.posInfoFormat = p.int() != 0
@@ -181,6 +181,9 @@ func (p *importer) pkg() *types.Package {
 		path = p.path()
 	} else {
 		path = p.string()
+	}
+	if p.version >= 6 {
+		p.int() // package height; unused by go/types
 	}
 
 	// we should never see an empty package name

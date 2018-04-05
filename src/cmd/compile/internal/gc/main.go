@@ -141,6 +141,11 @@ func Main(archInit func(*Arch)) {
 	localpkg = types.NewPkg("", "")
 	localpkg.Prefix = "\"\""
 
+	// We won't know localpkg's height until after import
+	// processing. In the mean time, set to MaxPkgHeight to ensure
+	// height comparisons at least work until then.
+	localpkg.Height = types.MaxPkgHeight
+
 	// pseudo-package, for scoping
 	builtinpkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
 	builtinpkg.Prefix = "go.builtin"            // not go%2ebuiltin
@@ -925,6 +930,10 @@ func loadsys() {
 	inimport = false
 }
 
+// myheight tracks the local package's height based on packages
+// imported so far.
+var myheight int
+
 func importfile(f *Val) *types.Pkg {
 	path_, ok := f.U.(string)
 	if !ok {
@@ -1115,6 +1124,10 @@ func importfile(f *Val) *types.Pkg {
 	default:
 		yyerror("no import in %q", path_)
 		errorexit()
+	}
+
+	if importpkg.Height >= myheight {
+		myheight = importpkg.Height + 1
 	}
 
 	return importpkg
