@@ -1723,7 +1723,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
 		as.Right.Type = rcvr
 		fn.Nbody.Append(as)
-		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr)))
+		fn.Nbody.Append(nodSym(ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
 	} else {
 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
 		call := nod(OCALL, dot, nil)

@@ -170,6 +170,9 @@ func Main(archInit func(*Arch)) {
 	mappkg = types.NewPkg("go.map", "go.map")
 	mappkg.Prefix = "go.map"
 
+	// pseudo-package used for methods with anonymous receivers
+	gopkg = types.NewPkg("go", "")
+
 	Nacl = objabi.GOOS == "nacl"
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")

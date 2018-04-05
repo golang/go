@@ -421,37 +421,9 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	fn.Type = xfunc.Type
 }
 
-var makepartialcall_gopkg *types.Pkg
-
 func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
-	var p string
-
 	rcvrtype := fn.Left.Type
-	if exportname(meth.Name) {
-		p = fmt.Sprintf("(%-S).%s-fm", rcvrtype, meth.Name)
-	} else {
-		p = fmt.Sprintf("(%-S).(%-v)-fm", rcvrtype, meth)
-	}
-	basetype := rcvrtype
-	if rcvrtype.IsPtr() {
-		basetype = basetype.Elem()
-	}
-	if !basetype.IsInterface() && basetype.Sym == nil {
-		Fatalf("missing base type for %v", rcvrtype)
-	}
-
-	var spkg *types.Pkg
-	if basetype.Sym != nil {
-		spkg = basetype.Sym.Pkg
-	}
-	if spkg == nil {
-		if makepartialcall_gopkg == nil {
-			makepartialcall_gopkg = types.NewPkg("go", "")
-		}
-		spkg = makepartialcall_gopkg
-	}
-
-	sym := spkg.Lookup(p)
+	sym := methodSymSuffix(rcvrtype, meth, "-fm")
 
 	if sym.Uniq() {
 		return asNode(sym.Def)

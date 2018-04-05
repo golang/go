@@ -2352,7 +2352,7 @@ func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
 			return false
 		}
 
-		n.Sym = methodsym(n.Sym, t)
+		n.Sym = methodSym(t, n.Sym)
 		n.Xoffset = f1.Offset
 		n.Type = f1.Type
 		n.Op = ODOTINTER
@@ -2378,7 +2378,7 @@ func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
 		return false
 	}
 
-	n.Sym = methodsym(n.Sym, t)
+	n.Sym = methodSym(t, n.Sym)
 	n.Xoffset = f2.Offset
 	n.Type = f2.Type
 	n.Op = ODOTMETH
@@ -2495,10 +2495,9 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 			return nil
 		}
 
-		n.Sym = methodsym(n.Sym, n.Left.Type)
+		n.Sym = methodSym(n.Left.Type, f2.Sym)
 		n.Xoffset = f2.Offset
 		n.Type = f2.Type
-
 		n.Op = ODOTMETH
 
 		return f2
@@ -3449,10 +3448,13 @@ func typecheckfunc(n *Node) {
 	t.FuncType().Nname = asTypesNode(n.Func.Nname)
 	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
-		n.Func.Nname.Sym = methodname(n.Func.Shortname, rcvr.Type)
-		declare(n.Func.Nname, PFUNC)
+		m := addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+		if m == nil {
+			return
+		}
 
-		addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+		n.Func.Nname.Sym = methodSym(rcvr.Type, n.Func.Shortname)
+		declare(n.Func.Nname, PFUNC)
 	}
 
 	if Ctxt.Flag_dynlink && !inimport && n.Func.Nname != nil {
