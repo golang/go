@@ -118,8 +118,8 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	if dbg {
 		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
-		for i := 0; i < len(dst.P); i++ {
-			ctxt.Logf(" %02x", dst.P[i])
+		for _, p := range dst.P {
+			ctxt.Logf(" %02x", p)
 		}
 		ctxt.Logf("\n")
 	}
@@ -342,16 +342,16 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	// funcdata
 	if nfuncdata > 0 {
-		var i int
 		for p := cursym.Func.Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA {
-				i = int(p.From.Offset)
-				pcln.Funcdataoff[i] = p.To.Offset
-				if p.To.Type != TYPE_CONST {
-					// TODO: Dedup.
-					//funcdata_bytes += p->to.sym->size;
-					pcln.Funcdata[i] = p.To.Sym
-				}
+			if p.As != AFUNCDATA {
+				continue
+			}
+			i := int(p.From.Offset)
+			pcln.Funcdataoff[i] = p.To.Offset
+			if p.To.Type != TYPE_CONST {
+				// TODO: Dedup.
+				//funcdata_bytes += p->to.sym->size;
+				pcln.Funcdata[i] = p.To.Sym
 			}
 		}
 	}

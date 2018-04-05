@@ -118,10 +118,6 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 }
 
 func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
-	var c int32
-	var name string
-	var q *Prog
-
 	for p := sym.Func.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
 		if p.GetFrom3() != nil {
@@ -144,12 +140,12 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 		if p.To.Sym != nil {
 			continue
 		}
-		c = int32(p.To.Offset)
-		for q = sym.Func.Text; q != nil; {
-			if int64(c) == q.Pc {
+		q := sym.Func.Text
+		for q != nil {
+			if p.To.Offset == q.Pc {
 				break
 			}
-			if q.Forwd != nil && int64(c) >= q.Forwd.Pc {
+			if q.Forwd != nil && p.To.Offset >= q.Forwd.Pc {
 				q = q.Forwd
 			} else {
 				q = q.Link
@@ -157,11 +153,11 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 		}
 
 		if q == nil {
-			name = "<nil>"
+			name := "<nil>"
 			if p.To.Sym != nil {
 				name = p.To.Sym.Name
 			}
-			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(c), p, name)
+			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(p.To.Offset), p, name)
 			p.To.Type = TYPE_NONE
 		}
 

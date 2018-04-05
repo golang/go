@@ -56,8 +56,8 @@ func (w *objWriter) addLengths(s *LSym) {
 	data += len(pc.Pcfile.P)
 	data += len(pc.Pcline.P)
 	data += len(pc.Pcinline.P)
-	for i := 0; i < len(pc.Pcdata); i++ {
-		data += len(pc.Pcdata[i].P)
+	for _, pcd := range pc.Pcdata {
+		data += len(pcd.P)
 	}
 
 	w.nData += data
@@ -124,8 +124,8 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 		w.wr.Write(pc.Pcfile.P)
 		w.wr.Write(pc.Pcline.P)
 		w.wr.Write(pc.Pcinline.P)
-		for i := 0; i < len(pc.Pcdata); i++ {
-			w.wr.Write(pc.Pcdata[i].P)
+		for _, pcd := range pc.Pcdata {
+			w.wr.Write(pcd.P)
 		}
 	}
 	for _, s := range ctxt.Data {
@@ -175,11 +175,7 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 		w.writeString(s.Name)
 	}
 	// Write "version".
-	if s.Static() {
-		w.writeInt(1)
-	} else {
-		w.writeInt(0)
-	}
+	w.writeBool(s.Static())
 	w.nRefs++
 	s.RefIdx = w.nRefs
 	m[s.Name] = w.nRefs
@@ -188,8 +184,8 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 func (w *objWriter) writeRefs(s *LSym) {
 	w.writeRef(s, false)
 	w.writeRef(s.Gotype, false)
-	for i := range s.R {
-		w.writeRef(s.R[i].Sym, false)
+	for _, r := range s.R {
+		w.writeRef(r.Sym, false)
 	}
 
 	if s.Type == objabi.STEXT {
@@ -309,7 +305,7 @@ func (w *objWriter) writeSym(s *LSym) {
 
 	w.writeInt(int64(len(s.R)))
 	var r *Reloc
-	for i := 0; i < len(s.R); i++ {
+	for i := range s.R {
 		r = &s.R[i]
 		w.writeInt(int64(r.Off))
 		w.writeInt(int64(r.Siz))
@@ -324,11 +320,7 @@ func (w *objWriter) writeSym(s *LSym) {
 
 	w.writeInt(int64(s.Func.Args))
 	w.writeInt(int64(s.Func.Locals))
-	if s.NoSplit() {
-		w.writeInt(1)
-	} else {
-		w.writeInt(0)
-	}
+	w.writeBool(s.NoSplit())
 	flags = int64(0)
 	if s.Leaf() {
 		flags |= 1
@@ -365,14 +357,14 @@ func (w *objWriter) writeSym(s *LSym) {
 	w.writeInt(int64(len(pc.Pcline.P)))
 	w.writeInt(int64(len(pc.Pcinline.P)))
 	w.writeInt(int64(len(pc.Pcdata)))
-	for i := 0; i < len(pc.Pcdata); i++ {
-		w.writeInt(int64(len(pc.Pcdata[i].P)))
+	for _, pcd := range pc.Pcdata {
+		w.writeInt(int64(len(pcd.P)))
 	}
 	w.writeInt(int64(len(pc.Funcdataoff)))
-	for i := 0; i < len(pc.Funcdataoff); i++ {
+	for i := range pc.Funcdataoff {
 		w.writeRefIndex(pc.Funcdata[i])
 	}
-	for i := 0; i < len(pc.Funcdataoff); i++ {
+	for i := range pc.Funcdataoff {
 		w.writeInt(pc.Funcdataoff[i])
 	}
 	w.writeInt(int64(len(pc.File)))
@@ -388,6 +380,14 @@ func (w *objWriter) writeSym(s *LSym) {
 		w.writeRefIndex(fsym)
 		w.writeInt(int64(l))
 		w.writeRefIndex(call.Func)
+	}
+}
+
+func (w *objWriter) writeBool(b bool) {
+	if b {
+		w.writeInt(1)
+	} else {
+		w.writeInt(0)
 	}
 }
 
@@ -766,7 +766,7 @@ func (ft *DwarfFixupTable) RegisterChildDIEOffsets(s *LSym, vars []*dwarf.Var, c
 
 	// Generate the slice of declOffset's based in vars/coffsets
 	doffsets := make([]declOffset, len(coffsets))
-	for i := 0; i < len(coffsets); i++ {
+	for i := range coffsets {
 		doffsets[i].dclIdx = vars[i].ChildIndex
 		doffsets[i].offset = coffsets[i]
 	}
@@ -791,9 +791,9 @@ func (ft *DwarfFixupTable) processFixups(slot int, s *LSym) {
 	sf := &ft.svec[slot]
 	for _, f := range sf.fixups {
 		dfound := false
-		for i := 0; i < len(sf.doffsets); i++ {
-			if sf.doffsets[i].dclIdx == f.dclidx {
-				f.refsym.R[f.relidx].Add += int64(sf.doffsets[i].offset)
+		for _, doffset := range sf.doffsets {
+			if doffset.dclIdx == f.dclidx {
+				f.refsym.R[f.relidx].Add += int64(doffset.offset)
 				dfound = true
 				break
 			}
@@ -833,7 +833,7 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	// resulting list (don't want to rely on map ordering here).
 	fns := make([]*LSym, len(ft.precursor))
 	idx := 0
-	for fn, _ := range ft.precursor {
+	for fn := range ft.precursor {
 		fns[idx] = fn
 		idx++
 	}
@@ -845,8 +845,7 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	}
 
 	// Generate any missing abstract functions.
-	for i := 0; i < len(fns); i++ {
-		s := fns[i]
+	for _, s := range fns {
 		absfn := ft.AbsFuncDwarfSym(s)
 		slot, found := ft.symtab[absfn]
 		if !found || !ft.svec[slot].defseen {
@@ -855,8 +854,7 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	}
 
 	// Apply fixups.
-	for i := 0; i < len(fns); i++ {
-		s := fns[i]
+	for _, s := range fns {
 		absfn := ft.AbsFuncDwarfSym(s)
 		slot, found := ft.symtab[absfn]
 		if !found {
