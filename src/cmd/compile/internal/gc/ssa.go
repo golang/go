@@ -4666,6 +4666,16 @@ func genssa(f *ssa.Func, pp *Progs) {
 		}
 	}
 
+	// If the very first instruction is not tagged as a statement,
+	// debuggers may attribute it to previous function in program.
+	firstPos := src.NoXPos
+	for _, v := range f.Entry.Values {
+		if v.Op != ssa.OpArg && v.Op != ssa.OpVarDef && v.Pos.IsStmt() != src.PosNotStmt { // TODO will be == src.PosIsStmt in pending CL, more accurate
+			firstPos = v.Pos.WithIsStmt()
+			break
+		}
+	}
+
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
@@ -4709,6 +4719,11 @@ func genssa(f *ssa.Func, pp *Progs) {
 				CheckLoweredPhi(v)
 			default:
 				// let the backend handle it
+				// Special case for first line in function; move it to the start.
+				if firstPos != src.NoXPos {
+					s.SetPos(firstPos)
+					firstPos = src.NoXPos
+				}
 				thearch.SSAGenValue(&s, v)
 			}
 
