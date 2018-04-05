@@ -1176,41 +1176,34 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockPPC64FLT, ssa.BlockPPC64FGE,
 		ssa.BlockPPC64FLE, ssa.BlockPPC64FGT:
 		jmp := blockJump[b.Kind]
-		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			s.Br(jmp.invasm, b.Succs[1].Block())
 			if jmp.invasmun {
 				// TODO: The second branch is probably predict-not-taken since it is for FP unordered
-				q := s.Prog(ppc64.ABVS)
-				q.To.Type = obj.TYPE_BRANCH
-				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+				s.Br(ppc64.ABVS, b.Succs[1].Block())
 			}
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Br(jmp.asm, b.Succs[0].Block())
 			if jmp.asmeq {
-				q := s.Prog(ppc64.ABEQ)
-				q.To.Type = obj.TYPE_BRANCH
-				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[0].Block()})
+				s.Br(ppc64.ABEQ, b.Succs[0].Block())
 			}
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			if jmp.asmeq {
-				q := s.Prog(ppc64.ABEQ)
-				q.To.Type = obj.TYPE_BRANCH
-				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[0].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				s.Br(jmp.asm, b.Succs[0].Block())
+				if jmp.asmeq {
+					s.Br(ppc64.ABEQ, b.Succs[0].Block())
+				}
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				s.Br(jmp.invasm, b.Succs[1].Block())
+				if jmp.invasmun {
+					// TODO: The second branch is probably predict-not-taken since it is for FP unordered
+					s.Br(ppc64.ABVS, b.Succs[1].Block())
+				}
+				s.Br(obj.AJMP, b.Succs[0].Block())
 			}
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
 		}
-
 	default:
 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
