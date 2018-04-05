@@ -684,6 +684,13 @@
 (BTLconst [c] (SHLLconst [d] x)) && c>d      -> (BTLconst [c-d] x)
 (BTLconst [0] s:(SHRL x y)) -> (BTL y x)
 
+// Rewrite a & 1 != 1 into a & 1 == 0.
+// Among other things, this lets us turn (a>>b)&1 != 1 into a bit test.
+(SET(NE|EQ) (CMPLconst [1] s:(ANDLconst [1] _))) -> (SET(EQ|NE) (CMPLconst [0] s))
+(SET(NE|EQ)mem [off] {sym} ptr (CMPLconst [1] s:(ANDLconst [1] _)) mem) -> (SET(EQ|NE)mem [off] {sym} ptr (CMPLconst [0] s) mem)
+(SET(NE|EQ) (CMPQconst [1] s:(ANDQconst [1] _))) -> (SET(EQ|NE) (CMPQconst [0] s))
+(SET(NE|EQ)mem [off] {sym} ptr (CMPQconst [1] s:(ANDQconst [1] _)) mem) -> (SET(EQ|NE)mem [off] {sym} ptr (CMPQconst [0] s) mem)
+
 // Recognize bit setting (a |= 1<<b) and toggling (a ^= 1<<b)
 (OR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) && !config.nacl -> (BTS(Q|L) x y)
 (XOR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) && !config.nacl -> (BTC(Q|L) x y)
