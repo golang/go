@@ -4684,6 +4684,16 @@ func (s *SSAGenState) SetPos(pos src.XPos) {
 	s.pp.pos = pos
 }
 
+// Br emits a single branch instruction and returns the instruction.
+// Not all architectures need the returned instruction, but otherwise
+// the boilerplate is common to all.
+func (s *SSAGenState) Br(op obj.As, target *ssa.Block) *obj.Prog {
+	p := s.Prog(op)
+	p.To.Type = obj.TYPE_BRANCH
+	s.Branches = append(s.Branches, Branch{P: p, B: target})
+	return p
+}
+
 // DebugFriendlySetPos sets the position subject to heuristics
 // that reduce "jumpy" line number churn when debugging.
 // Spill/fill/copy instructions from the register allocator,

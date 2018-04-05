@@ -874,20 +874,17 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			p = s.Br(jmp.invasm, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			p = s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				p = s.Br(jmp.asm, b.Succs[0].Block())
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				p = s.Br(jmp.invasm, b.Succs[1].Block())
+				s.Br(obj.AJMP, b.Succs[0].Block())
+			}
 		}
 		if !b.Control.Type.IsFlags() {
 			p.From.Type = obj.TYPE_REG
@@ -898,30 +895,21 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			p.From.Offset = b.Aux.(int64)
-			p.From.Type = obj.TYPE_CONST
-			p.Reg = b.Control.Reg()
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			p = s.Br(jmp.invasm, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			p.From.Offset = b.Aux.(int64)
-			p.From.Type = obj.TYPE_CONST
-			p.Reg = b.Control.Reg()
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			p = s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			p.From.Offset = b.Aux.(int64)
-			p.From.Type = obj.TYPE_CONST
-			p.Reg = b.Control.Reg()
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				p = s.Br(jmp.asm, b.Succs[0].Block())
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				p = s.Br(jmp.invasm, b.Succs[1].Block())
+				s.Br(obj.AJMP, b.Succs[0].Block())
+			}
 		}
+		p.From.Offset = b.Aux.(int64)
+		p.From.Type = obj.TYPE_CONST
+		p.Reg = b.Control.Reg()
 
 	default:
 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
