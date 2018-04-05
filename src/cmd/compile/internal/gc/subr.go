@@ -1654,7 +1654,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
 //	newnam - the eventual mangled name of this function
-func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface bool) {
+func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if false && Debug['r'] != 0 {
 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
 	}
@@ -1676,19 +1676,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 	out := structargs(method.Type.Results(), false)
 
 	t := nod(OTFUNC, nil, nil)
-	l := []*Node{this}
-	if iface && rcvr.Width < int64(Widthptr) {
-		// Building method for interface table and receiver
-		// is smaller than the single pointer-sized word
-		// that the interface call will pass in.
-		// Add a dummy padding argument after the
-		// receiver to make up the difference.
-		tpad := types.NewArray(types.Types[TUINT8], int64(Widthptr)-rcvr.Width)
-		pad := namedfield(".pad", tpad)
-		l = append(l, pad)
-	}
-
-	t.List.Set(append(l, in...))
+	t.List.Set(append([]*Node{this}, in...))
 	t.Rlist.Set(out)
 
 	newnam.SetOnExportList(true) // prevent export; see closure.go
@@ -1735,7 +1723,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
 		as.Right.Type = rcvr
 		fn.Nbody.Append(as)
-		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr, false)))
+		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr)))
 	} else {
 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
 		call := nod(OCALL, dot, nil)
