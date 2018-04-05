@@ -135,7 +135,7 @@ func init() {
 
 		fp01     = regInfo{inputs: nil, outputs: fponly}
 		fp21     = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
-		fp21load  = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
+		fp21load = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
 		fpgp     = regInfo{inputs: fponly, outputs: gponly}
 		gpfp     = regInfo{inputs: gponly, outputs: fponly}
 		fp11     = regInfo{inputs: fponly, outputs: fponly}
