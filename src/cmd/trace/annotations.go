@@ -306,13 +306,15 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 	// combine span info.
 	analyzeGoroutines(events)
 	for goid, stats := range gs {
+		// gs is a global var defined in goroutines.go as a result
+		// of analyzeGoroutines. TODO(hyangah): fix this not to depend
+		// on a 'global' var.
 		for _, s := range stats.Spans {
-			if s.TaskID == 0 {
-				continue
+			if s.TaskID != 0 {
+				task := tasks.task(s.TaskID)
+				task.goroutines[goid] = struct{}{}
+				task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
 			}
-			task := tasks.task(s.TaskID)
-			task.goroutines[goid] = struct{}{}
-			task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
 			var frame trace.Frame
 			if s.Start != nil {
 				frame = *s.Start.Stk[0]
@@ -322,7 +324,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 		}
 	}
 
-	// sort spans based on the timestamps.
+	// sort spans in tasks based on the timestamps.
 	for _, task := range tasks {
 		sort.SliceStable(task.spans, func(i, j int) bool {
 			si, sj := task.spans[i].firstTimestamp(), task.spans[j].firstTimestamp()
@@ -408,7 +410,6 @@ func (tasks allTasks) task(taskID uint64) *taskDesc {
 
 func (task *taskDesc) addEvent(ev *trace.Event) {
 	if task == nil {
-		// TODO(hyangah): handle spans with no task.
 		return
 	}
 
@@ -1229,7 +1230,7 @@ function reloadTable(key, value) {
 {{range .Data}}
   <tr>
     <td> <a href="/trace?goid={{.G}}">{{.G}}</a> </td>
-    <td> <a href="/trace?taskid={{.TaskID}}">{{.TaskID}}</a> </td>
+    <td> {{if .TaskID}}<a href="/trace?taskid={{.TaskID}}">{{.TaskID}}</a>{{end}} </td>
     <td> {{prettyDuration .TotalTime}} </td>
     <td>
         <div class="stacked-bar-graph">
