@@ -95,7 +95,7 @@ func instrumentlist(l Nodes, init *Nodes) {
 	s := l.Slice()
 	for i := range s {
 		var instr Nodes
-		instrumentnode(&s[i], &instr, 0, 0)
+		instrumentnode(&s[i], &instr, flagRead, flagRun)
 		if init == nil {
 			s[i].Ninit.AppendNodes(&instr)
 		} else {
@@ -107,7 +107,7 @@ func instrumentlist(l Nodes, init *Nodes) {
 // walkexpr and walkstmt combined
 // walks the tree and adds calls to the
 // instrumentation code to top-level (statement) nodes' init
-func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+func instrumentnode(np **Node, init *Nodes, wr, skip bool) {
 	n := *np
 
 	if n == nil {
@@ -142,8 +142,8 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		Fatalf("instrument: unknown node type %v", n.Op)
 
 	case OAS, OAS2FUNC:
-		instrumentnode(&n.Left, init, 1, 0)
-		instrumentnode(&n.Right, init, 0, 0)
+		instrumentnode(&n.Left, init, flagWrite, flagRun)
+		instrumentnode(&n.Right, init, flagRead, flagRun)
 
 		// can't matter
 	case OCFUNC, OVARKILL, OVARLIVE:
@@ -161,15 +161,15 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 			if afterCall && op == OAS && iscallret(ls[i].Right) {
 				continue
 			}
-			instrumentnode(&ls[i], &ls[i].Ninit, 0, 0)
+			instrumentnode(&ls[i], &ls[i].Ninit, flagRead, flagRun)
 			afterCall = (op == OCALLFUNC || op == OCALLMETH || op == OCALLINTER)
 		}
 
 	case ODEFER, OPROC:
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 
 	case OCALLINTER:
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 
 	case OCALLFUNC:
 		// Note that runtime.typedslicecopy is the only
@@ -179,7 +179,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		// instrumented in runtime. Calls to the write barrier
 		// and typedmemmove are created later by SSA, so those
 		// still appear as OAS nodes at this point.
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 
 	case ONOT,
 		OMINUS,
@@ -187,94 +187,94 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OREAL,
 		OIMAG,
 		OCOM:
-		instrumentnode(&n.Left, init, wr, 0)
+		instrumentnode(&n.Left, init, wr, flagRun)
 
 	case ODOTINTER:
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 
 	case ODOT:
-		instrumentnode(&n.Left, init, 0, 1)
+		instrumentnode(&n.Left, init, flagRead, flagSkip)
 		callinstr(&n, init, wr, skip)
 
 	case ODOTPTR, // dst = (*x).f with implicit *; otherwise it's ODOT+OIND
 		OIND: // *p
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 		callinstr(&n, init, wr, skip)
 
 	case OSPTR, OLEN, OCAP:
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 		if n.Left.Type.IsMap() {
 			n1 := nod(OCONVNOP, n.Left, nil)
 			n1.Type = types.NewPtr(types.Types[TUINT8])
 			n1 = nod(OIND, n1, nil)
 			n1 = typecheck(n1, Erv)
-			callinstr(&n1, init, 0, skip)
+			callinstr(&n1, init, flagRead, skip)
 		}
 
 	case OLSH, ORSH, OAND, OANDNOT, OOR, OXOR, OSUB,
 		OMUL, OEQ, ONE, OLT, OLE, OGE, OGT, OADD, OCOMPLEX:
-		instrumentnode(&n.Left, init, wr, 0)
-		instrumentnode(&n.Right, init, wr, 0)
+		instrumentnode(&n.Left, init, wr, flagRun)
+		instrumentnode(&n.Right, init, wr, flagRun)
 
 	case OANDAND, OOROR:
-		instrumentnode(&n.Left, init, wr, 0)
+		instrumentnode(&n.Left, init, wr, flagRun)
 
 		// walk has ensured the node has moved to a location where
 		// side effects are safe.
 		// n->right may not be executed,
 		// so instrumentation goes to n->right->ninit, not init.
-		instrumentnode(&n.Right, &n.Right.Ninit, wr, 0)
+		instrumentnode(&n.Right, &n.Right.Ninit, wr, flagRun)
 
 	case ONAME:
 		callinstr(&n, init, wr, skip)
 
 	case OCONV, OCONVNOP:
-		instrumentnode(&n.Left, init, wr, 0)
+		instrumentnode(&n.Left, init, wr, flagRun)
 
 	case ODIV, OMOD:
-		instrumentnode(&n.Left, init, wr, 0)
-		instrumentnode(&n.Right, init, wr, 0)
+		instrumentnode(&n.Left, init, wr, flagRun)
+		instrumentnode(&n.Right, init, wr, flagRun)
 
 	case OINDEX:
 		if !n.Left.Type.IsArray() {
-			instrumentnode(&n.Left, init, 0, 0)
+			instrumentnode(&n.Left, init, flagRead, flagRun)
 		} else if !islvalue(n.Left) {
 			// index of unaddressable array, like Map[k][i].
-			instrumentnode(&n.Left, init, wr, 0)
+			instrumentnode(&n.Left, init, wr, flagRun)
 
-			instrumentnode(&n.Right, init, 0, 0)
+			instrumentnode(&n.Right, init, flagRead, flagRun)
 			break
 		}
 
-		instrumentnode(&n.Right, init, 0, 0)
+		instrumentnode(&n.Right, init, flagRead, flagRun)
 		if !n.Left.Type.IsString() {
 			callinstr(&n, init, wr, skip)
 		}
 
 	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 		low, high, max := n.SliceBounds()
-		instrumentnode(&low, init, 0, 0)
-		instrumentnode(&high, init, 0, 0)
-		instrumentnode(&max, init, 0, 0)
+		instrumentnode(&low, init, flagRead, flagRun)
+		instrumentnode(&high, init, flagRead, flagRun)
+		instrumentnode(&max, init, flagRead, flagRun)
 		n.SetSliceBounds(low, high, max)
 
 	case OADDR:
-		instrumentnode(&n.Left, init, 0, 1)
+		instrumentnode(&n.Left, init, flagRead, flagSkip)
 
 		// n->left is Type* which is not interesting.
 	case OEFACE:
-		instrumentnode(&n.Right, init, 0, 0)
+		instrumentnode(&n.Right, init, flagRead, flagRun)
 
 	case OITAB, OIDATA, OSTRARRAYBYTETMP:
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 
 	case OAS2DOTTYPE:
-		instrumentnode(&n.Left, init, 1, 0)
-		instrumentnode(&n.Right, init, 0, 0)
+		instrumentnode(&n.Left, init, flagWrite, flagRun)
+		instrumentnode(&n.Right, init, flagRead, flagRun)
 
 	case ODOTTYPE, ODOTTYPE2:
-		instrumentnode(&n.Left, init, 0, 0)
+		instrumentnode(&n.Left, init, flagRead, flagRun)
 
 		// should not appear in AST by now
 	case OSEND,
@@ -321,15 +321,15 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 	case OFOR, OFORUNTIL:
 		if n.Left != nil {
-			instrumentnode(&n.Left, &n.Left.Ninit, 0, 0)
+			instrumentnode(&n.Left, &n.Left.Ninit, flagRead, flagRun)
 		}
 		if n.Right != nil {
-			instrumentnode(&n.Right, &n.Right.Ninit, 0, 0)
+			instrumentnode(&n.Right, &n.Right.Ninit, flagRead, flagRun)
 		}
 
 	case OIF, OSWITCH:
 		if n.Left != nil {
-			instrumentnode(&n.Left, &n.Left.Ninit, 0, 0)
+			instrumentnode(&n.Left, &n.Left.Ninit, flagRead, flagRun)
 		}
 
 		// just do generic traversal
@@ -396,13 +396,20 @@ func isartificial(n *Node) bool {
 	return false
 }
 
-func callinstr(np **Node, init *Nodes, wr int, skip int) {
+const (
+	flagWrite = true
+	flagRead  = !flagWrite
+	flagSkip  = true
+	flagRun   = !flagSkip
+)
+
+func callinstr(np **Node, init *Nodes, wr, skip bool) {
 	n := *np
 
 	//fmt.Printf("callinstr for %v [ %v ] etype=%v class=%v\n",
 	//	n, n.Op, n.Type.Etype, n.Class)
 
-	if skip != 0 || n.Type == nil || n.Type.Etype >= TIDEAL {
+	if skip || n.Type == nil || n.Type.Etype >= TIDEAL {
 		return
 	}
 	t := n.Type
@@ -450,7 +457,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) {
 		var f *Node
 		if flag_msan {
 			name := "msanread"
-			if wr != 0 {
+			if wr {
 				name = "msanwrite"
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
@@ -459,7 +466,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) {
 			// because a write might happen to any subobject.
 			// composites with only one element don't have subobjects, though.
 			name := "racereadrange"
-			if wr != 0 {
+			if wr {
 				name = "racewriterange"
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
@@ -467,7 +474,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) {
 			// for non-composite objects we can write just the start
 			// address, as any write must write the first byte.
 			name := "raceread"
-			if wr != 0 {
+			if wr {
 				name = "racewrite"
 			}
 			f = mkcall(name, nil, init, uintptraddr(n))
