@@ -141,9 +141,7 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 	// Clean filenames returned by src.Pos.SymFilename()
 	// or src.PosBase.SymFilename() removing
 	// the leading src.FileSymPrefix.
-	if strings.HasPrefix(filename, src.FileSymPrefix) {
-		filename = filename[len(src.FileSymPrefix):]
-	}
+	filename = strings.TrimPrefix(filename, src.FileSymPrefix)
 
 	// Expand literal "$GOROOT" rewrited by obj.AbsFile()
 	filename = filepath.Clean(os.ExpandEnv(filename))

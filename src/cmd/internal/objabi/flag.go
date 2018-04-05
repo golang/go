@@ -106,21 +106,6 @@ func (c *count) IsCountFlag() bool {
 	return true
 }
 
-type fn0 func()
-
-func (f fn0) Set(s string) error {
-	f()
-	return nil
-}
-
-func (f fn0) Get() interface{} { return nil }
-
-func (f fn0) String() string { return "" }
-
-func (f fn0) IsBoolFlag() bool {
-	return true
-}
-
 type fn1 func(string)
 
 func (f fn1) Set(s string) error {

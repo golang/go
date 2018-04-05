@@ -3168,7 +3168,6 @@ bas:
 bad:
 	ctxt.Diag("asmidx: bad address %d/%d/%d", scale, index, base)
 	ab.Put1(0)
-	return
 }
 
 func (ab *AsmBuf) relput4(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.Addr) {
@@ -3436,7 +3435,6 @@ putrelv:
 
 bad:
 	ctxt.Diag("asmand: bad address %v", obj.Dconv(p, a))
-	return
 }
 
 func (ab *AsmBuf) asmand(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.Addr, ra *obj.Addr) {
@@ -4400,8 +4398,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					ab.PutInt32(0)
 				}
 
-				break
-
 			case Zbyte:
 				v = vaddr(ctxt, p, &p.From, &rel)
 				if rel.Siz != 0 {
@@ -4776,7 +4772,6 @@ bad:
 
 	ctxt.Diag("invalid instruction: %v", p)
 	//	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
-	return
 }
 
 // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)

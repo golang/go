@@ -2844,7 +2844,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[3] = o4
 	out[4] = o5
 	out[5] = o6
-	return
 }
 
 func (c *ctxt5) movxt(p *obj.Prog) uint32 {
@@ -3315,8 +3314,7 @@ func (c *ctxt5) ofsr(a obj.As, r int, v int32, b int, sc int, p *obj.Prog) uint3
 
 // MOVW $"lower 16-bit", Reg
 func (c *ctxt5) omvs(p *obj.Prog, a *obj.Addr, dr int) uint32 {
-	var o1 uint32
-	o1 = ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
+	o1 := ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 	o1 |= 0x30 << 20
 	o1 |= (uint32(dr) & 15) << 12
 	o1 |= uint32(a.Offset) & 0x0fff

@@ -3560,7 +3560,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[2] = o3
 	out[3] = o4
 	out[4] = o5
-	return
 }
 
 func (c *ctxt9) vregoff(a *obj.Addr) int64 {
