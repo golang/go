@@ -42452,6 +42452,63 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (SETEQ (CMPLconst [1] s:(ANDLconst [1] _)))
+	// cond:
+	// result: (SETNE (CMPLconst [0] s))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64CMPLconst {
+			break
+		}
+		if v_0.AuxInt != 1 {
+			break
+		}
+		s := v_0.Args[0]
+		if s.Op != OpAMD64ANDLconst {
+			break
+		}
+		if s.AuxInt != 1 {
+			break
+		}
+		v.reset(OpAMD64SETNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(s)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETEQ (CMPQconst [1] s:(ANDQconst [1] _)))
+	// cond:
+	// result: (SETNE (CMPQconst [0] s))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64CMPQconst {
+			break
+		}
+		if v_0.AuxInt != 1 {
+			break
+		}
+		s := v_0.Args[0]
+		if s.Op != OpAMD64ANDQconst {
+			break
+		}
+		if s.AuxInt != 1 {
+			break
+		}
+		v.reset(OpAMD64SETNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(s)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SETEQ (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2))
 	// cond: z1==z2 && !config.nacl
 	// result: (SETAE (BTQconst [63] x))
@@ -42522,13 +42579,6 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
 	// match: (SETEQ (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2))
 	// cond: z1==z2 && !config.nacl
 	// result: (SETAE (BTQconst [31] x))
@@ -42795,6 +42845,13 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETEQ_20(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SETEQ (TESTL z1:(SHRLconst [31] x) z2))
 	// cond: z1==z2 && !config.nacl
 	// result: (SETAE (BTLconst [31] x))
@@ -42851,9 +42908,6 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETEQ_20(v *Value) bool {
 	// match: (SETEQ (InvertFlags x))
 	// cond:
 	// result: (SETEQ x)
@@ -43228,6 +43282,81 @@ func rewriteValueAMD64_OpAMD64SETEQmem_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (SETEQmem [off] {sym} ptr (CMPLconst [1] s:(ANDLconst [1] _)) mem)
+	// cond:
+	// result: (SETNEmem [off] {sym} ptr (CMPLconst [0] s) mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64CMPLconst {
+			break
+		}
+		if v_1.AuxInt != 1 {
+			break
+		}
+		s := v_1.Args[0]
+		if s.Op != OpAMD64ANDLconst {
+			break
+		}
+		if s.AuxInt != 1 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpAMD64SETNEmem)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(s)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (SETEQmem [off] {sym} ptr (CMPQconst [1] s:(ANDQconst [1] _)) mem)
+	// cond:
+	// result: (SETNEmem [off] {sym} ptr (CMPQconst [0] s) mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64CMPQconst {
+			break
+		}
+		if v_1.AuxInt != 1 {
+			break
+		}
+		s := v_1.Args[0]
+		if s.Op != OpAMD64ANDQconst {
+			break
+		}
+		if s.AuxInt != 1 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpAMD64SETNEmem)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(s)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETEQmem_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SETEQmem [off] {sym} ptr (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2) mem)
 	// cond: z1==z2 && !config.nacl
 	// result: (SETAEmem [off] {sym} ptr (BTQconst [63] x) mem)
@@ -43316,13 +43445,6 @@ func rewriteValueAMD64_OpAMD64SETEQmem_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETEQmem_10(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
 	// match: (SETEQmem [off] {sym} ptr (TESTL z1:(SHLLconst [31] (SHRLconst [31] x)) z2) mem)
 	// cond: z1==z2 && !config.nacl
 	// result: (SETAEmem [off] {sym} ptr (BTLconst [31] x) mem)
@@ -43661,6 +43783,13 @@ func rewriteValueAMD64_OpAMD64SETEQmem_10(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETEQmem_20(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SETEQmem [off] {sym} ptr (TESTL z1:(SHRLconst [31] x) z2) mem)
 	// cond: z1==z2 && !config.nacl
 	// result: (SETAEmem [off] {sym} ptr (BTLconst [31] x) mem)
@@ -43735,11 +43864,6 @@ func rewriteValueAMD64_OpAMD64SETEQmem_10(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETEQmem_20(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (SETEQmem [off] {sym} ptr (InvertFlags x) mem)
 	// cond:
 	// result: (SETEQmem [off] {sym} ptr x mem)
@@ -45243,6 +45367,63 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (SETNE (CMPLconst [1] s:(ANDLconst [1] _)))
+	// cond:
+	// result: (SETEQ (CMPLconst [0] s))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64CMPLconst {
+			break
+		}
+		if v_0.AuxInt != 1 {
+			break
+		}
+		s := v_0.Args[0]
+		if s.Op != OpAMD64ANDLconst {
+			break
+		}
+		if s.AuxInt != 1 {
+			break
+		}
+		v.reset(OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(s)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETNE (CMPQconst [1] s:(ANDQconst [1] _)))
+	// cond:
+	// result: (SETEQ (CMPQconst [0] s))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64CMPQconst {
+			break
+		}
+		if v_0.AuxInt != 1 {
+			break
+		}
+		s := v_0.Args[0]
+		if s.Op != OpAMD64ANDQconst {
+			break
+		}
+		if s.AuxInt != 1 {
+			break
+		}
+		v.reset(OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(s)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SETNE (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2))
 	// cond: z1==z2 && !config.nacl
 	// result: (SETB (BTQconst [63] x))
@@ -45313,13 +45494,6 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
 	// match: (SETNE (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2))
 	// cond: z1==z2 && !config.nacl
 	// result: (SETB (BTQconst [31] x))
@@ -45586,6 +45760,13 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETNE_20(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SETNE (TESTL z1:(SHRLconst [31] x) z2))
 	// cond: z1==z2 && !config.nacl
 	// result: (SETB (BTLconst [31] x))
@@ -45642,9 +45823,6 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETNE_20(v *Value) bool {
 	// match: (SETNE (InvertFlags x))
 	// cond:
 	// result: (SETNE x)
@@ -46019,6 +46197,81 @@ func rewriteValueAMD64_OpAMD64SETNEmem_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (SETNEmem [off] {sym} ptr (CMPLconst [1] s:(ANDLconst [1] _)) mem)
+	// cond:
+	// result: (SETEQmem [off] {sym} ptr (CMPLconst [0] s) mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64CMPLconst {
+			break
+		}
+		if v_1.AuxInt != 1 {
+			break
+		}
+		s := v_1.Args[0]
+		if s.Op != OpAMD64ANDLconst {
+			break
+		}
+		if s.AuxInt != 1 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpAMD64SETEQmem)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(s)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (SETNEmem [off] {sym} ptr (CMPQconst [1] s:(ANDQconst [1] _)) mem)
+	// cond:
+	// result: (SETEQmem [off] {sym} ptr (CMPQconst [0] s) mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64CMPQconst {
+			break
+		}
+		if v_1.AuxInt != 1 {
+			break
+		}
+		s := v_1.Args[0]
+		if s.Op != OpAMD64ANDQconst {
+			break
+		}
+		if s.AuxInt != 1 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpAMD64SETEQmem)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(s)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETNEmem_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SETNEmem [off] {sym} ptr (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2) mem)
 	// cond: z1==z2 && !config.nacl
 	// result: (SETBmem [off] {sym} ptr (BTQconst [63] x) mem)
@@ -46107,13 +46360,6 @@ func rewriteValueAMD64_OpAMD64SETNEmem_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETNEmem_10(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
 	// match: (SETNEmem [off] {sym} ptr (TESTL z1:(SHLLconst [31] (SHRLconst [31] x)) z2) mem)
 	// cond: z1==z2 && !config.nacl
 	// result: (SETBmem [off] {sym} ptr (BTLconst [31] x) mem)
@@ -46452,6 +46698,13 @@ func rewriteValueAMD64_OpAMD64SETNEmem_10(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SETNEmem_20(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SETNEmem [off] {sym} ptr (TESTL z1:(SHRLconst [31] x) z2) mem)
 	// cond: z1==z2 && !config.nacl
 	// result: (SETBmem [off] {sym} ptr (BTLconst [31] x) mem)
@@ -46526,11 +46779,6 @@ func rewriteValueAMD64_OpAMD64SETNEmem_10(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64SETNEmem_20(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (SETNEmem [off] {sym} ptr (InvertFlags x) mem)
 	// cond:
 	// result: (SETNEmem [off] {sym} ptr x mem)
