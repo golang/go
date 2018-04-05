@@ -13,7 +13,6 @@ import (
 )
 
 // The following functions are defined in gcm_amd64.s.
-func hasGCMAsm() bool
 
 //go:noescape
 func aesEncBlock(dst, src *[16]byte, ks []uint32)
@@ -44,7 +43,7 @@ var errOpen = errors.New("cipher: message authentication failed")
 
 // aesCipherGCM implements crypto/cipher.gcmAble so that crypto/cipher.NewGCM
 // will use the optimised implementation in this file when possible. Instances
-// of this type only exist when hasGCMAsm returns true.
+// of this type only exist when hasGCMAsm is true.
 type aesCipherGCM struct {
 	aesCipherAsm
 }

@@ -20,6 +20,7 @@ type aesCipherAsm struct {
 }
 
 var useAsm = cpu.X86.HasAES
+var hasGCMAsm = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ 
 
 func newCipher(key []byte) (cipher.Block, error) {
 	if !useAsm {
@@ -38,7 +39,7 @@ func newCipher(key []byte) (cipher.Block, error) {
 	}
 
 	expandKeyAsm(rounds, &key[0], &c.enc[0], &c.dec[0])
-	if hasGCMAsm() {
+	if hasGCMAsm {
 		return &aesCipherGCM{c}, nil
 	}
 
