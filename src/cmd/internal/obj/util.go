@@ -165,10 +165,6 @@ func (ctxt *Link) CanReuseProgs() bool {
 	return !ctxt.Debugasm
 }
 
-func (ctxt *Link) Dconv(a *Addr) string {
-	return Dconv(nil, a)
-}
-
 func Dconv(p *Prog, a *Addr) string {
 	var str string
 
