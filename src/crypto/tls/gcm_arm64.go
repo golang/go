@@ -8,4 +8,6 @@ import (
 	"internal/cpu"
 )
 
-var hasGCMAsm = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+func hasGCMAsm() bool {
+	return cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+}
