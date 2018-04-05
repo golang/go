@@ -226,7 +226,6 @@ func (s *state) updateUnsetPredPos(b *ssa.Block) {
 		p.Pos = bestPos
 		s.updateUnsetPredPos(p) // We do not expect long chains of these, thus recursion is okay.
 	}
-	return
 }
 
 type state struct {

@@ -722,9 +722,7 @@ func runTest(cmd *base.Command, args []string) {
 		buildTest, runTest, printTest, err := builderTest(&b, p)
 		if err != nil {
 			str := err.Error()
-			if strings.HasPrefix(str, "\n") {
-				str = str[1:]
-			}
+			str = strings.TrimPrefix(str, "\n")
 			failed := fmt.Sprintf("FAIL\t%s [setup failed]\n", p.ImportPath)
 
 			if p.ImportPath != "" {

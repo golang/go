@@ -32,11 +32,6 @@ package x86
 
 import "cmd/internal/obj"
 
-// mark flags
-const (
-	DONE = 1 << iota
-)
-
 const (
 	REG_NONE = 0
 )

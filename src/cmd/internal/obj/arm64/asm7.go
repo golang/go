@@ -1533,9 +1533,6 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 	}
 
 	c.ctxt.Diag("illegal combination: %v %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.To.Type)
-	if ops == nil {
-		ops = optab
-	}
 	// Turn illegal instruction into an UNDEF, avoid crashing in asmout
 	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0}
 }
@@ -4264,7 +4261,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[2] = o3
 	out[3] = o4
 	out[4] = o5
-	return
 }
 
 /*
