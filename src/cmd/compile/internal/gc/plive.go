@@ -86,9 +86,9 @@ import (
 
 // BlockEffects summarizes the liveness effects on an SSA block.
 type BlockEffects struct {
-	lastbitmapindex int // for livenessepilogue
+	lastbitmapindex int // for Liveness.epilogue
 
-	// Computed during livenessprologue using only the content of
+	// Computed during Liveness.prologue using only the content of
 	// individual blocks:
 	//
 	//	uevar: upward exposed variables (used before set in block)
@@ -98,7 +98,7 @@ type BlockEffects struct {
 	varkill  bvec
 	avarinit bvec
 
-	// Computed during livenesssolve using control flow information:
+	// Computed during Liveness.solve using control flow information:
 	//
 	//	livein: variables live at block entry
 	//	liveout: variables live at block exit
@@ -648,7 +648,7 @@ func (lv *Liveness) epilogue() {
 		be := lv.blockEffects(b)
 
 		// Compute avarinitany and avarinitall for entry to block.
-		// This duplicates information known during livenesssolve
+		// This duplicates information known during Liveness.solve
 		// but avoids storing two more vectors for each block.
 		lv.avarinitanyall(b, any, all)
 
