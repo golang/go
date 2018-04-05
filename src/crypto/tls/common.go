@@ -12,7 +12,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"internal/cpu"
 	"io"
 	"math/big"
 	"net"
@@ -911,7 +910,7 @@ func defaultCipherSuites() []uint16 {
 
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
-	if cpu.X86.HasAES {
+	if hasGCMAsm {
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
 		topCipherSuites = []uint16{
