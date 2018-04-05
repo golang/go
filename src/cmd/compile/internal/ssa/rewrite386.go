@@ -1592,8 +1592,12 @@ func rewriteValue386_Op386ADDLmem_0(v *Value) bool {
 	return false
 }
 func rewriteValue386_Op386ADDSD_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (ADDSD x l:(MOVSDload [off] {sym} ptr mem))
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (ADDSDmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -1607,7 +1611,7 @@ func rewriteValue386_Op386ADDSD_0(v *Value) bool {
 		_ = l.Args[1]
 		ptr := l.Args[0]
 		mem := l.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386ADDSDmem)
@@ -1619,7 +1623,7 @@ func rewriteValue386_Op386ADDSD_0(v *Value) bool {
 		return true
 	}
 	// match: (ADDSD l:(MOVSDload [off] {sym} ptr mem) x)
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (ADDSDmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -1633,7 +1637,7 @@ func rewriteValue386_Op386ADDSD_0(v *Value) bool {
 		ptr := l.Args[0]
 		mem := l.Args[1]
 		x := v.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386ADDSDmem)
@@ -1707,8 +1711,12 @@ func rewriteValue386_Op386ADDSDmem_0(v *Value) bool {
 	return false
 }
 func rewriteValue386_Op386ADDSS_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (ADDSS x l:(MOVSSload [off] {sym} ptr mem))
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (ADDSSmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -1722,7 +1730,7 @@ func rewriteValue386_Op386ADDSS_0(v *Value) bool {
 		_ = l.Args[1]
 		ptr := l.Args[0]
 		mem := l.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386ADDSSmem)
@@ -1734,7 +1742,7 @@ func rewriteValue386_Op386ADDSS_0(v *Value) bool {
 		return true
 	}
 	// match: (ADDSS l:(MOVSSload [off] {sym} ptr mem) x)
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (ADDSSmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -1748,7 +1756,7 @@ func rewriteValue386_Op386ADDSS_0(v *Value) bool {
 		ptr := l.Args[0]
 		mem := l.Args[1]
 		x := v.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386ADDSSmem)
@@ -9314,8 +9322,12 @@ func rewriteValue386_Op386MULLconst_30(v *Value) bool {
 	return false
 }
 func rewriteValue386_Op386MULSD_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (MULSD x l:(MOVSDload [off] {sym} ptr mem))
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (MULSDmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -9329,7 +9341,7 @@ func rewriteValue386_Op386MULSD_0(v *Value) bool {
 		_ = l.Args[1]
 		ptr := l.Args[0]
 		mem := l.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386MULSDmem)
@@ -9341,7 +9353,7 @@ func rewriteValue386_Op386MULSD_0(v *Value) bool {
 		return true
 	}
 	// match: (MULSD l:(MOVSDload [off] {sym} ptr mem) x)
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (MULSDmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -9355,7 +9367,7 @@ func rewriteValue386_Op386MULSD_0(v *Value) bool {
 		ptr := l.Args[0]
 		mem := l.Args[1]
 		x := v.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386MULSDmem)
@@ -9429,8 +9441,12 @@ func rewriteValue386_Op386MULSDmem_0(v *Value) bool {
 	return false
 }
 func rewriteValue386_Op386MULSS_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (MULSS x l:(MOVSSload [off] {sym} ptr mem))
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (MULSSmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -9444,7 +9460,7 @@ func rewriteValue386_Op386MULSS_0(v *Value) bool {
 		_ = l.Args[1]
 		ptr := l.Args[0]
 		mem := l.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386MULSSmem)
@@ -9456,7 +9472,7 @@ func rewriteValue386_Op386MULSS_0(v *Value) bool {
 		return true
 	}
 	// match: (MULSS l:(MOVSSload [off] {sym} ptr mem) x)
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (MULSSmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -9470,7 +9486,7 @@ func rewriteValue386_Op386MULSS_0(v *Value) bool {
 		ptr := l.Args[0]
 		mem := l.Args[1]
 		x := v.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386MULSSmem)
@@ -14977,8 +14993,12 @@ func rewriteValue386_Op386SUBLmem_0(v *Value) bool {
 	return false
 }
 func rewriteValue386_Op386SUBSD_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SUBSD x l:(MOVSDload [off] {sym} ptr mem))
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (SUBSDmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -14992,7 +15012,7 @@ func rewriteValue386_Op386SUBSD_0(v *Value) bool {
 		_ = l.Args[1]
 		ptr := l.Args[0]
 		mem := l.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386SUBSDmem)
@@ -15066,8 +15086,12 @@ func rewriteValue386_Op386SUBSDmem_0(v *Value) bool {
 	return false
 }
 func rewriteValue386_Op386SUBSS_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (SUBSS x l:(MOVSSload [off] {sym} ptr mem))
-	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// cond: canMergeLoad(v, l, x) && !config.use387 && clobber(l)
 	// result: (SUBSSmem x [off] {sym} ptr mem)
 	for {
 		_ = v.Args[1]
@@ -15081,7 +15105,7 @@ func rewriteValue386_Op386SUBSS_0(v *Value) bool {
 		_ = l.Args[1]
 		ptr := l.Args[0]
 		mem := l.Args[1]
-		if !(canMergeLoad(v, l, x) && clobber(l)) {
+		if !(canMergeLoad(v, l, x) && !config.use387 && clobber(l)) {
 			break
 		}
 		v.reset(Op386SUBSSmem)
