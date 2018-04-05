@@ -827,79 +827,63 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
 	}
 }
 
-var methodsym_toppkg *types.Pkg
-
-func methodsym(nsym *types.Sym, t0 *types.Type) *types.Sym {
-	if t0 == nil {
-		Fatalf("methodsym: nil receiver type")
-	}
-
-	t := t0
-	s := t.Sym
-	if s == nil && t.IsPtr() {
-		t = t.Elem()
-		if t == nil {
-			Fatalf("methodsym: ptrto nil")
-		}
-		s = t.Sym
-	}
-
-	// if t0 == *t and t0 has a sym,
-	// we want to see *t, not t0, in the method name.
-	if t != t0 && t0.Sym != nil {
-		t0 = types.NewPtr(t)
-	}
-
-	var spkg *types.Pkg
-	if s != nil {
-		spkg = s.Pkg
-	}
-	pkgprefix := ""
-	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) && nsym.Pkg.Prefix != `""` {
-		pkgprefix = "." + nsym.Pkg.Prefix
-	}
-	var p string
-	if t0.Sym == nil && t0.IsPtr() {
-		p = fmt.Sprintf("(%-S)%s.%s", t0, pkgprefix, nsym.Name)
-	} else {
-		p = fmt.Sprintf("%-S%s.%s", t0, pkgprefix, nsym.Name)
-	}
-
-	if spkg == nil {
-		if methodsym_toppkg == nil {
-			methodsym_toppkg = types.NewPkg("go", "")
-		}
-		spkg = methodsym_toppkg
-	}
-
-	return spkg.Lookup(p)
+// methodSym returns the method symbol representing a method name
+// associated with a specific receiver type.
+//
+// Method symbols can be used to distinguish the same method appearing
+// in different method sets. For example, T.M and (*T).M have distinct
+// method symbols.
+func methodSym(recv *types.Type, msym *types.Sym) *types.Sym {
+	return methodSymSuffix(recv, msym, "")
 }
 
-// methodname is a misnomer because this now returns a Sym, rather
-// than an ONAME.
-// TODO(mdempsky): Reconcile with methodsym.
-func methodname(s *types.Sym, recv *types.Type) *types.Sym {
-	star := false
+// methodSymSuffix is like methodsym, but allows attaching a
+// distinguisher suffix. To avoid collisions, the suffix must not
+// start with a letter, number, or period.
+func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sym {
+	if msym.IsBlank() {
+		Fatalf("blank method name")
+	}
+
+	rsym := recv.Sym
 	if recv.IsPtr() {
-		star = true
-		recv = recv.Elem()
+		if rsym != nil {
+			Fatalf("declared pointer receiver type: %v", recv)
+		}
+		rsym = recv.Elem().Sym
 	}
 
-	tsym := recv.Sym
-	if tsym == nil || s.IsBlank() {
-		return s
+	// Find the package the receiver type appeared in. For
+	// anonymous receiver types (i.e., anonymous structs with
+	// embedded fields), use the "go" pseudo-package instead.
+	rpkg := gopkg
+	if rsym != nil {
+		rpkg = rsym.Pkg
 	}
 
-	var p string
-	if star {
-		p = fmt.Sprintf("(*%v).%v", tsym.Name, s)
+	var b bytes.Buffer
+	if recv.IsPtr() {
+		// The parentheses aren't really necessary, but
+		// they're pretty traditional at this point.
+		fmt.Fprintf(&b, "(%-S)", recv)
 	} else {
-		p = fmt.Sprintf("%v.%v", tsym, s)
+		fmt.Fprintf(&b, "%-S", recv)
 	}
 
-	s = tsym.Pkg.Lookup(p)
+	// A particular receiver type may have multiple non-exported
+	// methods with the same name. To disambiguate them, include a
+	// package qualifier for names that came from a different
+	// package than the receiver type.
+	if !exportname(msym.Name) && msym.Pkg != rpkg {
+		b.WriteString(".")
+		b.WriteString(msym.Pkg.Prefix)
+	}
 
-	return s
+	b.WriteString(".")
+	b.WriteString(msym.Name)
+	b.WriteString(suffix)
+
+	return rpkg.LookupBytes(b.Bytes())
 }
 
 // Add a method, declared as a function.

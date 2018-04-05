@@ -529,7 +529,7 @@ func (p *importer) typ() *types.Type {
 				continue
 			}
 
-			n := newfuncnamel(mpos, methodname(sym, recv[0].Type))
+			n := newfuncnamel(mpos, methodSym(recv[0].Type, sym))
 			n.Type = mt
 			n.SetClass(PFUNC)
 			checkwidth(n.Type)
