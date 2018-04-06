@@ -379,7 +379,7 @@ func Symlink(oldname, newname string) error {
 	}
 	err = syscall.CreateSymbolicLink(n, o, flags)
 
-	if err == windows.ERROR_INVALID_PARAMETER {
+	if err != nil {
 		// the unprivileged create flag is unsupported
 		// below Windows 10 (1703, v10.0.14972). retry without it.
 		flags &^= windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
