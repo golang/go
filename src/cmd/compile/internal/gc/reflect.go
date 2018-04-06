@@ -42,13 +42,12 @@ var (
 )
 
 type Sig struct {
-	name   string
-	pkg    *types.Pkg
-	isym   *types.Sym
-	tsym   *types.Sym
-	type_  *types.Type
-	mtype  *types.Type
-	offset int32
+	name  string
+	pkg   *types.Pkg
+	isym  *types.Sym
+	tsym  *types.Sym
+	type_ *types.Type
+	mtype *types.Type
 }
 
 // siglt sorts method signatures by name with exported methods first,
@@ -473,7 +472,6 @@ func imethods(t *types.Type) []*Sig {
 		}
 
 		sig.mtype = f.Type
-		sig.offset = 0
 		sig.type_ = methodfunc(f.Type, nil)
 
 		if n := len(methods); n > 0 {
