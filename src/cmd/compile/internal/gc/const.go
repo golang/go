@@ -1014,10 +1014,10 @@ func evconst(n *Node) {
 		v.U.(*Mpcplx).Imag.Sub(&rv.U.(*Mpcplx).Imag)
 
 	case OMUL_ | CTCPLX_:
-		cmplxmpy(v.U.(*Mpcplx), rv.U.(*Mpcplx))
+		v.U.(*Mpcplx).Mul(rv.U.(*Mpcplx))
 
 	case ODIV_ | CTCPLX_:
-		if !cmplxdiv(v.U.(*Mpcplx), rv.U.(*Mpcplx)) {
+		if !v.U.(*Mpcplx).Div(rv.U.(*Mpcplx)) {
 			yyerror("complex division by zero")
 			rv.U.(*Mpcplx).Real.SetFloat64(1.0)
 			rv.U.(*Mpcplx).Imag.SetFloat64(0.0)
@@ -1520,98 +1520,6 @@ func nonnegintconst(n *Node) int64 {
 	}
 
 	return vi.Int64()
-}
-
-// complex multiply v *= rv
-//	(a, b) * (c, d) = (a*c - b*d, b*c + a*d)
-func cmplxmpy(v *Mpcplx, rv *Mpcplx) {
-	var ac Mpflt
-	var bd Mpflt
-	var bc Mpflt
-	var ad Mpflt
-
-	ac.Set(&v.Real)
-	ac.Mul(&rv.Real) // ac
-
-	bd.Set(&v.Imag)
-
-	bd.Mul(&rv.Imag) // bd
-
-	bc.Set(&v.Imag)
-
-	bc.Mul(&rv.Real) // bc
-
-	ad.Set(&v.Real)
-
-	ad.Mul(&rv.Imag) // ad
-
-	v.Real.Set(&ac)
-
-	v.Real.Sub(&bd) // ac-bd
-
-	v.Imag.Set(&bc)
-
-	v.Imag.Add(&ad) // bc+ad
-}
-
-// complex divide v /= rv
-//	(a, b) / (c, d) = ((a*c + b*d), (b*c - a*d))/(c*c + d*d)
-func cmplxdiv(v *Mpcplx, rv *Mpcplx) bool {
-	if rv.Real.CmpFloat64(0) == 0 && rv.Imag.CmpFloat64(0) == 0 {
-		return false
-	}
-
-	var ac Mpflt
-	var bd Mpflt
-	var bc Mpflt
-	var ad Mpflt
-	var cc_plus_dd Mpflt
-
-	cc_plus_dd.Set(&rv.Real)
-
-	cc_plus_dd.Mul(&rv.Real) // cc
-
-	ac.Set(&rv.Imag)
-
-	ac.Mul(&rv.Imag) // dd
-
-	cc_plus_dd.Add(&ac) // cc+dd
-
-	// We already checked that c and d are not both zero, but we can't
-	// assume that c²+d² != 0 follows, because for tiny values of c
-	// and/or d c²+d² can underflow to zero.  Check that c²+d² is
-	// nonzero,return if it's not.
-	if cc_plus_dd.CmpFloat64(0) == 0 {
-		return false
-	}
-
-	ac.Set(&v.Real)
-
-	ac.Mul(&rv.Real) // ac
-
-	bd.Set(&v.Imag)
-
-	bd.Mul(&rv.Imag) // bd
-
-	bc.Set(&v.Imag)
-
-	bc.Mul(&rv.Real) // bc
-
-	ad.Set(&v.Real)
-
-	ad.Mul(&rv.Imag) // ad
-
-	v.Real.Set(&ac)
-
-	v.Real.Add(&bd)         // ac+bd
-	v.Real.Quo(&cc_plus_dd) // (ac+bd)/(cc+dd)
-
-	v.Imag.Set(&bc)
-
-	v.Imag.Sub(&ad)         // bc-ad
-	v.Imag.Quo(&cc_plus_dd) // (bc+ad)/(cc+dd)
-
-	return true
 }
 
 // Is n a Go language constant (as opposed to a compile-time constant)?
