@@ -359,7 +359,7 @@ func TestSleepZeroDeadlock(t *testing.T) {
 func testReset(d Duration) error {
 	t0 := NewTimer(2 * d)
 	Sleep(d)
-	if t0.Reset(3*d) != true {
+	if !t0.Reset(3 * d) {
 		return errors.New("resetting unfired timer returned false")
 	}
 	Sleep(2 * d)
@@ -375,7 +375,7 @@ func testReset(d Duration) error {
 		return errors.New("reset timer did not fire")
 	}
 
-	if t0.Reset(50*Millisecond) != false {
+	if t0.Reset(50 * Millisecond) {
 		return errors.New("resetting expired timer returned true")
 	}
 	return nil
