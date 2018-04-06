@@ -85,7 +85,7 @@ func ARM64Suffix(prog *obj.Prog, cond string) bool {
 	if cond == "" {
 		return true
 	}
-	bits, ok := ParseARM64Suffix(cond)
+	bits, ok := parseARM64Suffix(cond)
 	if !ok {
 		return false
 	}
@@ -93,10 +93,10 @@ func ARM64Suffix(prog *obj.Prog, cond string) bool {
 	return true
 }
 
-// ParseARM64Suffix parses the suffix attached to an ARM64 instruction.
+// parseARM64Suffix parses the suffix attached to an ARM64 instruction.
 // The input is a single string consisting of period-separated condition
 // codes, such as ".P.W". An initial period is ignored.
-func ParseARM64Suffix(cond string) (uint8, bool) {
+func parseARM64Suffix(cond string) (uint8, bool) {
 	if cond == "" {
 		return 0, true
 	}
