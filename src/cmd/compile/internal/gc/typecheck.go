@@ -2378,6 +2378,16 @@ func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
 		return false
 	}
 
+	// The method expression T.m requires a wrapper when T is
+	// different from m's declared receiver type. We normally
+	// generate these wrappers while writing out runtime type
+	// descriptors, which is always done for types declared at
+	// package scope. However, we need to make sure to generate
+	// wrappers for anonymous receiver types too.
+	if mt.Sym == nil {
+		addsignat(t)
+	}
+
 	n.Sym = methodSym(t, n.Sym)
 	n.Xoffset = f2.Offset
 	n.Type = f2.Type

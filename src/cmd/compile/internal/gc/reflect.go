@@ -1474,6 +1474,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 	return syms[methodnum]
 }
 
+// addsignat ensures that a runtime type descriptor is emitted for t.
 func addsignat(t *types.Type) {
 	signatset[t] = struct{}{}
 }
