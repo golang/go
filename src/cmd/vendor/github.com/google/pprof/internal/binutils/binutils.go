@@ -81,6 +81,26 @@ func (bu *Binutils) update(fn func(r *binrep)) {
 	bu.rep = r
 }
 
+// String returns string representation of the binutils state for debug logging.
+func (bu *Binutils) String() string {
+	r := bu.get()
+	var llvmSymbolizer, addr2line, nm, objdump string
+	if r.llvmSymbolizerFound {
+		llvmSymbolizer = r.llvmSymbolizer
+	}
+	if r.addr2lineFound {
+		addr2line = r.addr2line
+	}
+	if r.nmFound {
+		nm = r.nm
+	}
+	if r.objdumpFound {
+		objdump = r.objdump
+	}
+	return fmt.Sprintf("llvm-symbolizer=%q addr2line=%q nm=%q objdump=%q fast=%t",
+		llvmSymbolizer, addr2line, nm, objdump, r.fast)
+}
+
 // SetFastSymbolization sets a toggle that makes binutils use fast
 // symbolization (using nm), which is much faster than addr2line but
 // provides only symbol name information (no file/line).
@@ -111,6 +131,11 @@ func initTools(b *binrep, config string) {
 	defaultPath := paths[""]
 	b.llvmSymbolizer, b.llvmSymbolizerFound = findExe("llvm-symbolizer", append(paths["llvm-symbolizer"], defaultPath...))
 	b.addr2line, b.addr2lineFound = findExe("addr2line", append(paths["addr2line"], defaultPath...))
+	if !b.addr2lineFound {
+		// On MacOS, brew installs addr2line under gaddr2line name, so search for
+		// that if the tool is not found by its default name.
+		b.addr2line, b.addr2lineFound = findExe("gaddr2line", append(paths["addr2line"], defaultPath...))
+	}
 	b.nm, b.nmFound = findExe("nm", append(paths["nm"], defaultPath...))
 	b.objdump, b.objdumpFound = findExe("objdump", append(paths["objdump"], defaultPath...))
 }
@@ -306,9 +331,9 @@ func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
 }
 
 // fileAddr2Line implements the binutils.ObjFile interface, using
-// 'addr2line' to map addresses to symbols (with file/line number
-// information). It can be slow for large binaries with debug
-// information.
+// llvm-symbolizer, if that's available, or addr2line to map addresses to
+// symbols (with file/line number information). It can be slow for large
+// binaries with debug information.
 type fileAddr2Line struct {
 	once sync.Once
 	file
