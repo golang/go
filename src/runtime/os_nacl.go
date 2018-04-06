@@ -289,6 +289,15 @@ type gsignalStack struct{}
 
 var writelock uint32 // test-and-set spin lock for write
 
+// lastfaketime stores the last faketime value written to fd 1 or 2.
+var lastfaketime int64
+
+// lastfaketimefd stores the fd to which lastfaketime was written.
+//
+// Subsequent writes to the same fd may use the same timestamp,
+// but the timestamp must increase if the fd changes.
+var lastfaketimefd int32
+
 /*
 An attempt at IRT. Doesn't work. See end of sys_nacl_amd64.s.
 
