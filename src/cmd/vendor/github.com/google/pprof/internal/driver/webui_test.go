@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"github.com/google/pprof/internal/plugin"
+	"github.com/google/pprof/internal/proftest"
 	"github.com/google/pprof/profile"
 )
 
@@ -55,9 +56,9 @@ func TestWebInterface(t *testing.T) {
 	// Start server and wait for it to be initialized
 	go serveWebInterface("unused:1234", prof, &plugin.Options{
 		Obj:        fakeObjTool{},
-		UI:         &stdUI{},
+		UI:         &proftest.TestUI{},
 		HTTPServer: creator,
-	}, false)
+	})
 	<-serverCreated
 	defer server.Close()
 
