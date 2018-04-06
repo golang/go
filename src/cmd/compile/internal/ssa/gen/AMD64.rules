@@ -2416,6 +2416,32 @@
 (BSFQ (ORQconst <t> [1<<8] (MOVBQZX x))) -> (BSFQ (ORQconst <t> [1<<8] x))
 (BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) -> (BSFQ (ORQconst <t> [1<<16] x))
 
+// Simplify indexed loads/stores
+(MOVBstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVBstore [i+c] {s} p w mem)
+(MOVWstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVWstore [i+c] {s} p w mem)
+(MOVLstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVLstore [i+c] {s} p w mem)
+(MOVQstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVQstore [i+c] {s} p w mem)
+(MOVWstoreidx2 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+2*c) -> (MOVWstore [i+2*c] {s} p w mem)
+(MOVLstoreidx4 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+4*c) -> (MOVLstore [i+4*c] {s} p w mem)
+(MOVLstoreidx8 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+8*c) -> (MOVLstore [i+8*c] {s} p w mem)
+(MOVQstoreidx8 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+8*c) -> (MOVQstore [i+8*c] {s} p w mem)
+(MOVSSstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVSSstore [i+c] {s} p w mem)
+(MOVSSstoreidx4 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+4*c) -> (MOVSSstore [i+4*c] {s} p w mem)
+(MOVSDstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVSDstore [i+c] {s} p w mem)
+(MOVSDstoreidx8 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+8*c) -> (MOVSDstore [i+8*c] {s} p w mem)
+(MOVBloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVBload [i+c] {s} p mem)
+(MOVWloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVWload [i+c] {s} p mem)
+(MOVLloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVLload [i+c] {s} p mem)
+(MOVQloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVQload [i+c] {s} p mem)
+(MOVWloadidx2 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+2*c) -> (MOVWload [i+2*c] {s} p mem)
+(MOVLloadidx4 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+4*c) -> (MOVLload [i+4*c] {s} p mem)
+(MOVLloadidx8 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+8*c) -> (MOVLload [i+8*c] {s} p mem)
+(MOVQloadidx8 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+8*c) -> (MOVQload [i+8*c] {s} p mem)
+(MOVSSloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVSSload [i+c] {s} p mem)
+(MOVSSloadidx4 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+4*c) -> (MOVSSload [i+4*c] {s} p mem)
+(MOVSDloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVSDload [i+c] {s} p mem)
+(MOVSDloadidx8 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+8*c) -> (MOVSDload [i+8*c] {s} p mem)
+
 // Redundant sign/zero extensions
 // Note: see issue 21963. We have to make sure we use the right type on
 // the resulting extension (the outer type, not the inner type).
