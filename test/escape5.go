@@ -175,3 +175,22 @@ func _() {
 	u.M() // ERROR "u does not escape"
 	u.N() // ERROR "u does not escape"
 }
+
+// Issue 24730: taking address in a loop causes unnecessary escape
+type T24730 struct {
+	x [64]byte
+}
+
+func (t *T24730) g() { // ERROR "t does not escape"
+	y := t.x[:]             // ERROR "t\.x does not escape"
+	for i := range t.x[:] { // ERROR "t\.x does not escape"
+		y = t.x[:] // ERROR "t\.x does not escape"
+		y[i] = 1
+	}
+
+	var z *byte
+	for i := range t.x[:] { // ERROR "t\.x does not escape"
+		z = &t.x[i] // ERROR "t\.x\[i\] does not escape"
+		*z = 2
+	}
+}
