@@ -463,11 +463,9 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 		dotypedef(ctxt, &dwtypes, name, die)
 		newrefattr(die, dwarf.DW_AT_type, mustFind(ctxt, "void"))
 		nfields := decodetypeFuncInCount(ctxt.Arch, gotype)
-		var fld *dwarf.DWDie
-		var s *sym.Symbol
 		for i := 0; i < nfields; i++ {
-			s = decodetypeFuncInType(ctxt.Arch, gotype, i)
-			fld = newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
+			s := decodetypeFuncInType(ctxt.Arch, gotype, i)
+			fld := newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
 		}
 
@@ -476,8 +474,8 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 		}
 		nfields = decodetypeFuncOutCount(ctxt.Arch, gotype)
 		for i := 0; i < nfields; i++ {
-			s = decodetypeFuncOutType(ctxt.Arch, gotype, i)
-			fld = newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
+			s := decodetypeFuncOutType(ctxt.Arch, gotype, i)
+			fld := newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
 			newrefattr(fld, dwarf.DW_AT_type, defptrto(ctxt, defgotype(ctxt, s)))
 		}
 
@@ -667,15 +665,10 @@ func synthesizeslicetypes(ctxt *Link, die *dwarf.DWDie) {
 }
 
 func mkinternaltypename(base string, arg1 string, arg2 string) string {
-	var buf string
-
 	if arg2 == "" {
-		buf = fmt.Sprintf("%s<%s>", base, arg1)
-	} else {
-		buf = fmt.Sprintf("%s<%s,%s>", base, arg1, arg2)
+		return fmt.Sprintf("%s<%s>", base, arg1)
 	}
-	n := buf
-	return n
+	return fmt.Sprintf("%s<%s,%s>", base, arg1, arg2)
 }
 
 // synthesizemaptypes is way too closely married to runtime/hashmap.c
@@ -1208,7 +1201,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 		// example, files mentioned only in an inlined subroutine).
 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
 		importInfoSymbol(ctxt, dsym)
-		for ri := 0; ri < len(dsym.R); ri++ {
+		for ri := range dsym.R {
 			r := &dsym.R[ri]
 			if r.Type != objabi.R_DWARFFILEREF {
 				continue
@@ -1321,9 +1314,8 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 	// DIE flavors (ex: variables) then those DIEs would need to
 	// be included below.
 	missing := make(map[int]interface{})
-	for fidx := 0; fidx < len(funcs); fidx++ {
-		f := funcs[fidx]
-		for ri := 0; ri < len(f.R); ri++ {
+	for _, f := range funcs {
+		for ri := range f.R {
 			r := &f.R[ri]
 			if r.Type != objabi.R_DWARFFILEREF {
 				continue

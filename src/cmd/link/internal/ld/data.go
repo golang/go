@@ -504,7 +504,7 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
 	if s == rel {
 		return
 	}
-	for ri := 0; ri < len(s.R); ri++ {
+	for ri := range s.R {
 		r := &s.R[ri]
 		targ := r.Sym
 		if targ == nil {
@@ -550,7 +550,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 		return
 	}
 
-	for ri := 0; ri < len(s.R); ri++ {
+	for ri := range s.R {
 		r := &s.R[ri]
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
 			// It's expected that some relocations will be done
@@ -620,7 +620,6 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 	}
 
 	eaddr := addr + size
-	var q []byte
 	for _, s := range syms {
 		if !s.Attr.Reachable() {
 			continue
@@ -638,7 +637,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 		}
 
 		ctxt.Logf("%.6x\t%-20s\n", uint64(addr), s.Name)
-		q = s.P
+		q := s.P
 
 		for len(q) >= 16 {
 			ctxt.Logf("%.6x\t% x\n", uint64(addr), q[:16])
@@ -1195,7 +1194,6 @@ func (ctxt *Link) dodata() {
 		sect.Align = dataMaxAlign[sym.SELFGOT]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
-		var toc *sym.Symbol
 		for _, s := range data[sym.SELFGOT] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
@@ -1203,7 +1201,7 @@ func (ctxt *Link) dodata() {
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
 
 			// Resolve .TOC. symbol for this object file (ppc64)
-			toc = ctxt.Syms.ROLookup(".TOC.", int(s.Version))
+			toc := ctxt.Syms.ROLookup(".TOC.", int(s.Version))
 			if toc != nil {
 				toc.Sect = sect
 				toc.Outer = s

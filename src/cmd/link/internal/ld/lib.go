@@ -275,9 +275,9 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
 		return nil
 	}
 
-	for i := 0; i < len(ctxt.Libdir); i++ {
+	for _, libdir := range ctxt.Libdir {
 		if ctxt.linkShared {
-			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")
+			shlibname := filepath.Join(libdir, name+".shlibname")
 			if ctxt.Debugvlog != 0 {
 				ctxt.Logf("searching for %s.a in %s\n", name, shlibname)
 			}
@@ -285,7 +285,7 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
 				return addlibpath(ctxt, "internal", "internal", "", name, shlibname)
 			}
 		}
-		pname := filepath.Join(ctxt.Libdir[i], name+".a")
+		pname := filepath.Join(libdir, name+".a")
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("searching for %s.a in %s\n", name, pname)
 		}
@@ -484,7 +484,7 @@ func (ctxt *Link) loadlib() {
 		x = sym.AttrCgoExportStatic
 	}
 	w := 0
-	for i := 0; i < len(dynexp); i++ {
+	for i := range dynexp {
 		if dynexp[i].Attr&x != 0 {
 			dynexp[w] = dynexp[i]
 			w++
@@ -868,8 +868,8 @@ var internalpkg = []string{
 
 func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType objabi.HeadType, f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
 	isinternal := false
-	for i := 0; i < len(internalpkg); i++ {
-		if pkg == internalpkg[i] {
+	for _, intpkg := range internalpkg {
+		if pkg == intpkg {
 			isinternal = true
 			break
 		}
@@ -1955,22 +1955,18 @@ func usage() {
 	Exit(2)
 }
 
-func doversion() {
-	Exitf("version %s", objabi.Version)
-}
-
 type SymbolType int8
 
 const (
 	// see also http://9p.io/magic/man2html/1/nm
 	TextSym      SymbolType = 'T'
-	DataSym                 = 'D'
-	BSSSym                  = 'B'
-	UndefinedSym            = 'U'
-	TLSSym                  = 't'
-	FrameSym                = 'm'
-	ParamSym                = 'p'
-	AutoSym                 = 'a'
+	DataSym      SymbolType = 'D'
+	BSSSym       SymbolType = 'B'
+	UndefinedSym SymbolType = 'U'
+	TLSSym       SymbolType = 't'
+	FrameSym     SymbolType = 'm'
+	ParamSym     SymbolType = 'p'
+	AutoSym      SymbolType = 'a'
 
 	// Deleted auto (not a real sym, just placeholder for type)
 	DeletedAutoSym = 'x'
@@ -2256,7 +2252,7 @@ func bgetc(r *bio.Reader) int {
 
 type markKind uint8 // for postorder traversal
 const (
-	unvisited markKind = iota
+	_ markKind = iota
 	visiting
 	visited
 )
