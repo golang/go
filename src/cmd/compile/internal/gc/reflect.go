@@ -406,12 +406,7 @@ func methods(t *types.Type) []*Sig {
 		// if pointer receiver but non-pointer t and
 		// this is not an embedded pointer inside a struct,
 		// method does not apply.
-		this := f.Type.Recv().Type
-
-		if this.IsPtr() && this.Elem() == t {
-			continue
-		}
-		if this.IsPtr() && !t.IsPtr() && f.Embedded != 2 && !isifacemethod(f.Type) {
+		if !isMethodApplicable(t, f) {
 			continue
 		}
 
@@ -430,6 +425,8 @@ func methods(t *types.Type) []*Sig {
 		sig.tsym = methodSym(t, method)
 		sig.type_ = methodfunc(f.Type, t)
 		sig.mtype = methodfunc(f.Type, nil)
+
+		this := f.Type.Recv().Type
 
 		if !sig.isym.Siggen() {
 			sig.isym.SetSiggen(true)

@@ -847,30 +847,10 @@ func typecheck1(n *Node, top int) *Node {
 		s := n.Sym
 
 		if n.Left.Op == OTYPE {
-			if !looktypedot(n, t, 0) {
-				if looktypedot(n, t, 1) {
-					yyerror("%v undefined (cannot refer to unexported method %v)", n, n.Sym)
-				} else {
-					yyerror("%v undefined (type %v has no method %v)", n, t, n.Sym)
-				}
-				n.Type = nil
+			n = typecheckMethodExpr(n)
+			if n.Type == nil {
 				return n
 			}
-
-			if n.Type.Etype != TFUNC || !n.IsMethod() {
-				yyerror("type %v has no method %S", n.Left.Type, n.Sym)
-				n.Type = nil
-				return n
-			}
-
-			n.Op = ONAME
-			if n.Name == nil {
-				n.Name = new(Name)
-			}
-			n.Right = newname(n.Sym)
-			n.Type = methodfunc(n.Type, n.Left.Type)
-			n.Xoffset = 0
-			n.SetClass(PFUNC)
 			ok = Erv
 			break
 		}
@@ -2343,56 +2323,73 @@ func lookdot1(errnode *Node, s *types.Sym, t *types.Type, fs *types.Fields, dost
 	return r
 }
 
-func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
-	s := n.Sym
+// typecheckMethodExpr checks selector expressions (ODOT) where the
+// base expression is a type expression (OTYPE).
+func typecheckMethodExpr(n *Node) *Node {
+	t := n.Left.Type
 
+	// Compute the method set for t.
+	var ms *types.Fields
 	if t.IsInterface() {
-		f1 := lookdot1(n, s, t, t.Fields(), dostrcmp)
-		if f1 == nil {
-			return false
+		ms = t.Fields()
+	} else {
+		mt := methtype(t)
+		if mt == nil {
+			yyerror("%v undefined (type %v has no method %v)", n, t, n.Sym)
+			n.Type = nil
+			return n
 		}
+		expandmeth(mt)
+		ms = mt.AllMethods()
 
-		n.Sym = methodSym(t, n.Sym)
-		n.Xoffset = f1.Offset
-		n.Type = f1.Type
-		n.Op = ODOTINTER
-		return true
+		// The method expression T.m requires a wrapper when T
+		// is different from m's declared receiver type. We
+		// normally generate these wrappers while writing out
+		// runtime type descriptors, which is always done for
+		// types declared at package scope. However, we need
+		// to make sure to generate wrappers for anonymous
+		// receiver types too.
+		if mt.Sym == nil {
+			addsignat(t)
+		}
 	}
 
-	// Find the base type: methtype will fail if t
-	// is not of the form T or *T.
-	mt := methtype(t)
-	if mt == nil {
-		return false
+	s := n.Sym
+	m := lookdot1(n, s, t, ms, 0)
+	if m == nil {
+		if lookdot1(n, s, t, ms, 1) != nil {
+			yyerror("%v undefined (cannot refer to unexported method %v)", n, s)
+		} else {
+			yyerror("%v undefined (type %v has no method %v)", n, t, s)
+		}
+		n.Type = nil
+		return n
 	}
 
-	expandmeth(mt)
-	f2 := lookdot1(n, s, mt, mt.AllMethods(), dostrcmp)
-	if f2 == nil {
-		return false
+	if !isMethodApplicable(t, m) {
+		yyerror("invalid method expression %v (needs pointer receiver: (*%v).%S)", n, t, s)
+		n.Type = nil
+		return n
 	}
 
-	// disallow T.m if m requires *T receiver
-	if f2.Type.Recv().Type.IsPtr() && !t.IsPtr() && f2.Embedded != 2 && !isifacemethod(f2.Type) {
-		yyerror("invalid method expression %v (needs pointer receiver: (*%v).%S)", n, t, f2.Sym)
-		return false
+	n.Op = ONAME
+	if n.Name == nil {
+		n.Name = new(Name)
 	}
-
-	// The method expression T.m requires a wrapper when T is
-	// different from m's declared receiver type. We normally
-	// generate these wrappers while writing out runtime type
-	// descriptors, which is always done for types declared at
-	// package scope. However, we need to make sure to generate
-	// wrappers for anonymous receiver types too.
-	if mt.Sym == nil {
-		addsignat(t)
-	}
-
+	n.Right = newname(n.Sym)
 	n.Sym = methodSym(t, n.Sym)
-	n.Xoffset = f2.Offset
-	n.Type = f2.Type
-	n.Op = ODOTMETH
-	return true
+	n.Type = methodfunc(m.Type, n.Left.Type)
+	n.Xoffset = 0
+	n.SetClass(PFUNC)
+	return n
+}
+
+// isMethodApplicable reports whether method m can be called on a
+// value of type t. This is necessary because we compute a single
+// method set for both T and *T, but some *T methods are not
+// applicable to T receivers.
+func isMethodApplicable(t *types.Type, m *types.Field) bool {
+	return t.IsPtr() || !m.Type.Recv().Type.IsPtr() || isifacemethod(m.Type) || m.Embedded == 2
 }
 
 func derefall(t *types.Type) *types.Type {
