@@ -120,7 +120,6 @@ var pkgDeps = map[string][]string{
 		"L2",
 		"crypto",
 		"crypto/cipher",
-		"crypto/internal/cipherhw",
 		"crypto/subtle",
 		"encoding/base32",
 		"encoding/base64",

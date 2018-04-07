@@ -6,7 +6,7 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/cipherhw"
+	"internal/cpu"
 )
 
 type code int
@@ -30,10 +30,8 @@ type aesCipherAsm struct {
 //go:noescape
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
-var useAsm = cipherhw.AESGCMSupport()
-
 func newCipher(key []byte) (cipher.Block, error) {
-	if !useAsm {
+	if !(cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR && cpu.S390x.HasKIMD) {
 		return newCipherGeneric(key)
 	}
 

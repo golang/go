@@ -290,6 +290,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 
 // supportsKMA reports whether the message-security-assist 8 facility is available.
 // This function call may be expensive so hasKMA should be queried instead.
+// TODO: replace this with the internal/cpu.S390X.HasKMA
 func supportsKMA() bool
 
 // hasKMA contains the result of supportsKMA.

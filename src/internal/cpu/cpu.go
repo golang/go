@@ -81,5 +81,12 @@ var S390X s390x
 type s390x struct {
 	_     [CacheLineSize]byte
 	HasVX bool // vector facility. Note: the runtime sets this when it processes auxv records.
-	_     [CacheLineSize]byte
+
+	// TODO: how to populate the below? auxv records or cpuid?
+	HasKM    bool // cipher message (KM)
+	HasKMA   bool // cipher message assist (KMA)
+	HasKMC   bool // cipher message with chaining (KMC)
+	HasKMCTR bool // cipher message with counter (KMCTR)
+	HasKIMD  bool // compute intermediate message digest (KIMD)
+	_        [CacheLineSize]byte
 }
