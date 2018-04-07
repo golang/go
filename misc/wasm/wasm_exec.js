@@ -38,6 +38,7 @@ if (typeof process !== "undefined") { // detect Node.js
 
 	compileAndRun(fs.readFileSync(process.argv[2])).catch((err) => {
 		console.error(err);
+		process.exit(1);
 	});
 } else {
 	window.global = window;
