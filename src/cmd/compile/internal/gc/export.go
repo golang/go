@@ -145,7 +145,7 @@ func importconst(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type, val 
 	}
 
 	n := npos(pos, nodlit(val))
-	n = convlit1(n, t, false, reuseOK)
+	n.Type = t
 	n.Sym = s
 	declare(n, PEXTERN)
 

@@ -331,26 +331,11 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 		case TARRAY:
 			goto bad
 
-		case TPTR32,
-			TPTR64,
-			TINTER,
-			TMAP,
-			TCHAN,
-			TFUNC,
-			TSLICE,
-			TUNSAFEPTR:
-			break
+		case TPTR32, TPTR64, TUNSAFEPTR:
+			n.SetVal(Val{new(Mpint)})
 
-		// A nil literal may be converted to uintptr
-		// if it is an unsafe.Pointer
-		case TUINTPTR:
-			if n.Type.Etype == TUNSAFEPTR {
-				i := new(Mpint)
-				i.SetInt64(0)
-				n.SetVal(Val{i})
-			} else {
-				goto bad
-			}
+		case TCHAN, TFUNC, TINTER, TMAP, TSLICE:
+			break
 		}
 
 	case CTSTR, CTBOOL:
