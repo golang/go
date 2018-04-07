@@ -8,6 +8,7 @@ import (
 	"crypto/cipher"
 	"crypto/subtle"
 	"errors"
+	"internal/cpu"
 )
 
 // This file contains two implementations of AES-GCM. The first implementation
@@ -84,7 +85,7 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 		nonceSize: nonceSize,
 		tagSize:   tagSize,
 	}
-	if hasKMA {
+	if cpu.S390X.HasKMA {
 		g := gcmKMA{g}
 		return &g, nil
 	}
@@ -287,14 +288,6 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	g.counterCrypt(out, ciphertext, &counter)
 	return ret, nil
 }
-
-// supportsKMA reports whether the message-security-assist 8 facility is available.
-// This function call may be expensive so hasKMA should be queried instead.
-// TODO: replace this with the internal/cpu.S390X.HasKMA
-func supportsKMA() bool
-
-// hasKMA contains the result of supportsKMA.
-var hasKMA = supportsKMA()
 
 // gcmKMA implements the cipher.AEAD interface using the KMA instruction. It should
 // only be used if hasKMA is true.

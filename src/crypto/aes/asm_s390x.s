@@ -151,29 +151,6 @@ loop:
 	MOVD	$0, R0
 	RET
 
-// func supportsKMA() bool
-TEXT ·supportsKMA(SB),NOSPLIT,$24-1
-	MOVD	$tmp-24(SP), R1
-	MOVD	$2, R0       // store 24-bytes
-	XC	$24, (R1), (R1)
-	WORD	$0xb2b01000  // STFLE (R1)
-	MOVWZ	16(R1), R2
-	ANDW	$(1<<13), R2 // test bit 146 (message-security-assist 8)
-	BEQ	no
-
-	MOVD	$0, R0       // KMA-Query
-	XC	$16, (R1), (R1)
-	WORD	$0xb9296024  // kma %r6,%r2,%r4
-	MOVWZ	(R1), R2
-	WORD	$0xa7213800  // TMLL R2, $0x3800
-	BVS	yes
-no:
-	MOVB	$0, ret+0(FP)
-	RET
-yes:
-	MOVB	$1, ret+0(FP)
-	RET
-
 // func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
 TEXT ·kmaGCM(SB),NOSPLIT,$112-120
 	MOVD	fn+0(FP), R0

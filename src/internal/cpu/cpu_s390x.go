@@ -12,7 +12,6 @@ const CacheLineSize = 256
 func hasKM() bool
 func hasKMC() bool
 func hasKMCTR() bool
-// TODO: implement hasKMA
 func hasKMA() bool
 func hasKIMD() bool
 
