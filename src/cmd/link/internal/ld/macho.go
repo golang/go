@@ -438,6 +438,10 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 		msect.flag |= S_ATTR_SOME_INSTRUCTIONS
 	}
 
+	if sect.Name == ".text" {
+		msect.flag |= S_ATTR_PURE_INSTRUCTIONS
+	}
+
 	if sect.Name == ".plt" {
 		msect.name = "__symbol_stub1"
 		msect.flag = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS | S_SYMBOL_STUBS
