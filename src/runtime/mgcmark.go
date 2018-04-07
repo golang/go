@@ -839,9 +839,11 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
 			throw("scanframe: bad symbol table")
 		}
-		bv := stackmapdata(stkmap, pcdata)
-		size = uintptr(bv.n) * sys.PtrSize
-		scanblock(frame.varp-size, size, bv.bytedata, gcw)
+		if stkmap.nbit > 0 {
+			bv := stackmapdata(stkmap, pcdata)
+			size = uintptr(bv.n) * sys.PtrSize
+			scanblock(frame.varp-size, size, bv.bytedata, gcw)
+		}
 	}
 
 	// Scan arguments.
@@ -862,7 +864,9 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 			}
 			bv = stackmapdata(stkmap, pcdata)
 		}
-		scanblock(frame.argp, uintptr(bv.n)*sys.PtrSize, bv.bytedata, gcw)
+		if bv.n > 0 {
+			scanblock(frame.argp, uintptr(bv.n)*sys.PtrSize, bv.bytedata, gcw)
+		}
 	}
 }
 
