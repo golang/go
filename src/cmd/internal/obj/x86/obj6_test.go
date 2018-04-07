@@ -74,7 +74,7 @@ func parseTestData(t *testing.T) *ParsedTestData {
 	return r
 }
 
-var spaces_re *regexp.Regexp = regexp.MustCompile("\\s+")
+var spaces_re *regexp.Regexp = regexp.MustCompile(`\s+`)
 
 func normalize(s string) string {
 	return spaces_re.ReplaceAllLiteralString(strings.TrimSpace(s), " ")
@@ -115,7 +115,7 @@ func asmOutput(t *testing.T, s string) []byte {
 
 func parseOutput(t *testing.T, td *ParsedTestData, asmout []byte) {
 	scanner := bufio.NewScanner(bytes.NewReader(asmout))
-	marker := regexp.MustCompile("MOVQ \\$([0-9]+), AX")
+	marker := regexp.MustCompile(`MOVQ \$([0-9]+), AX`)
 	mark := -1
 	td.marker_to_output = make(map[int][]string)
 	for scanner.Scan() {
