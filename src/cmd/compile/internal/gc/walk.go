@@ -703,7 +703,7 @@ opswitch:
 			break
 		}
 
-		if !instrumenting && iszero(n.Right) {
+		if !instrumenting && isZero(n.Right) {
 			break
 		}
 
@@ -783,7 +783,7 @@ opswitch:
 		walkexprlistsafe(n.List.Slice(), init)
 		r.Left = walkexpr(r.Left, init)
 		var n1 *Node
-		if isblank(n.List.First()) {
+		if n.List.First().isBlank() {
 			n1 = nodnil()
 		} else {
 			n1 = nod(OADDR, n.List.First(), nil)
@@ -834,14 +834,14 @@ opswitch:
 		// mapaccess2* returns a typed bool, but due to spec changes,
 		// the boolean result of i.(T) is now untyped so we make it the
 		// same type as the variable on the lhs.
-		if ok := n.List.Second(); !isblank(ok) && ok.Type.IsBoolean() {
+		if ok := n.List.Second(); !ok.isBlank() && ok.Type.IsBoolean() {
 			r.Type.Field(1).Type = ok.Type
 		}
 		n.Rlist.Set1(r)
 		n.Op = OAS2FUNC
 
 		// don't generate a = *var if a is _
-		if !isblank(a) {
+		if !a.isBlank() {
 			var_ := temp(types.NewPtr(t.Val()))
 			var_.SetTypecheck(1)
 			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
@@ -1216,7 +1216,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		low, high, max := n.SliceBounds()
 		low = walkexpr(low, init)
-		if low != nil && iszero(low) {
+		if low != nil && isZero(low) {
 			// Reduce x[0:j] to x[:j] and x[0:j:k] to x[:j:k].
 			low = nil
 		}
@@ -1848,7 +1848,7 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 
 	var nn, mm Nodes
 	for i, l := range nl.Slice() {
-		if isblank(l) {
+		if l.isBlank() {
 			continue
 		}
 		r := nr.Field(i)
@@ -1967,7 +1967,7 @@ func nodarg(t interface{}, fp int) *Node {
 	// Rewrite argument named _ to __,
 	// or else the assignment to _ will be
 	// discarded during code generation.
-	if isblank(n) {
+	if n.isBlank() {
 		n.Sym = lookup("__")
 	}
 
@@ -2268,7 +2268,7 @@ func convas(n *Node, init *Nodes) *Node {
 		return n
 	}
 
-	if isblank(n.Left) {
+	if n.Left.isBlank() {
 		n.Right = defaultlit(n.Right, nil)
 		return n
 	}

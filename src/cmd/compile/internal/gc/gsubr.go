@@ -174,7 +174,7 @@ func (f *Func) initLSym() {
 		Fatalf("Func.initLSym called twice")
 	}
 
-	if nam := f.Nname; !isblank(nam) {
+	if nam := f.Nname; !nam.isBlank() {
 		f.lsym = nam.Sym.Linksym()
 		if f.Pragma&Systemstack != 0 {
 			f.lsym.Set(obj.AttrCFunc, true)

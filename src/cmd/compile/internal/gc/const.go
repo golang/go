@@ -1506,12 +1506,14 @@ func nonnegintconst(n *Node) int64 {
 	return vi.Int64()
 }
 
-// Is n a Go language constant (as opposed to a compile-time constant)?
+// isGoConst reports whether n is a Go language constant (as opposed to a
+// compile-time constant).
+//
 // Expressions derived from nil, like string([]byte(nil)), while they
 // may be known at compile time, are not Go language constants.
 // Only called for expressions known to evaluated to compile-time
 // constants.
-func isgoconst(n *Node) bool {
+func (n *Node) isGoConst() bool {
 	if n.Orig != nil {
 		n = n.Orig
 	}
@@ -1545,18 +1547,18 @@ func isgoconst(n *Node) bool {
 		OCOMPLEX,
 		OREAL,
 		OIMAG:
-		if isgoconst(n.Left) && (n.Right == nil || isgoconst(n.Right)) {
+		if n.Left.isGoConst() && (n.Right == nil || n.Right.isGoConst()) {
 			return true
 		}
 
 	case OCONV:
-		if okforconst[n.Type.Etype] && isgoconst(n.Left) {
+		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
 			return true
 		}
 
 	case OLEN, OCAP:
 		l := n.Left
-		if isgoconst(l) {
+		if l.isGoConst() {
 			return true
 		}
 

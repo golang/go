@@ -800,7 +800,7 @@ func (s *state) stmt(n *Node) {
 				// All literals with nonzero fields have already been
 				// rewritten during walk. Any that remain are just T{}
 				// or equivalents. Use the zero value.
-				if !iszero(rhs) {
+				if !isZero(rhs) {
 					Fatalf("literal with nonzero value in SSA: %v", rhs)
 				}
 				rhs = nil
@@ -828,7 +828,7 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 
-		if isblank(n.Left) {
+		if n.Left.isBlank() {
 			// _ = rhs
 			// Just evaluate rhs for side-effects.
 			if rhs != nil {
@@ -2115,7 +2115,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			// All literals with nonzero fields have already been
 			// rewritten during walk. Any that remain are just T{}
 			// or equivalents. Use the zero value.
-			if !iszero(n.Left) {
+			if !isZero(n.Left) {
 				Fatalf("literal with nonzero value in SSA: %v", n.Left)
 			}
 			return s.zeroVal(n.Type)
@@ -2267,7 +2267,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// All literals with nonzero fields have already been
 		// rewritten during walk. Any that remain are just T{}
 		// or equivalents. Use the zero value.
-		if !iszero(n) {
+		if !isZero(n) {
 			Fatalf("literal with nonzero value in SSA: %v", n)
 		}
 		return s.zeroVal(n.Type)
@@ -2495,7 +2495,7 @@ const (
 // If deref is true and right == nil, just do left = 0.
 // skip indicates assignments (at the top level) that can be avoided.
 func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) {
-	if left.Op == ONAME && isblank(left) {
+	if left.Op == ONAME && left.isBlank() {
 		return
 	}
 	t := left.Type

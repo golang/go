@@ -106,7 +106,7 @@ func typecheckrangeExpr(n *Node) {
 	// "if the second iteration variable is the blank identifier, the range
 	// clause is equivalent to the same clause with only the first variable
 	// present."
-	if isblank(v2) {
+	if v2.isBlank() {
 		if v1 != nil {
 			n.List.Set1(v1)
 		}
@@ -177,11 +177,11 @@ func walkrange(n *Node) *Node {
 		v2 = n.List.Second()
 	}
 
-	if isblank(v2) {
+	if v2.isBlank() {
 		v2 = nil
 	}
 
-	if isblank(v1) && v2 == nil {
+	if v1.isBlank() && v2 == nil {
 		v1 = nil
 	}
 
@@ -478,7 +478,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
 		return false
 	}
 	elemsize := n.Type.Elem().Width
-	if elemsize <= 0 || !iszero(stmt.Right) {
+	if elemsize <= 0 || !isZero(stmt.Right) {
 		return false
 	}
 

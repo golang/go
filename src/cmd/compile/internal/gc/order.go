@@ -461,7 +461,7 @@ func (o *Order) mapAssign(n *Node) {
 					m.Right = o.copyExpr(m.Right, m.Right.Type, false)
 				}
 				fallthrough
-			case instrumenting && n.Op == OAS2FUNC && !isblank(m):
+			case instrumenting && n.Op == OAS2FUNC && !m.isBlank():
 				t := o.newTemp(m.Type, false)
 				n.List.SetIndex(i, t)
 				a := nod(OAS, m, t)
@@ -700,7 +700,7 @@ func (o *Order) stmt(n *Node) {
 			Fatalf("orderstmt range %v", n.Type)
 
 		case TARRAY, TSLICE:
-			if n.List.Len() < 2 || isblank(n.List.Second()) {
+			if n.List.Len() < 2 || n.List.Second().isBlank() {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
 				break
@@ -812,7 +812,7 @@ func (o *Order) stmt(n *Node) {
 				// temporary per distinct type, sharing the temp among all receives
 				// with that temp. Similarly one ok bool could be shared among all
 				// the x,ok receives. Not worth doing until there's a clear need.
-				if r.Left != nil && isblank(r.Left) {
+				if r.Left != nil && r.Left.isBlank() {
 					r.Left = nil
 				}
 				if r.Left != nil {
@@ -833,7 +833,7 @@ func (o *Order) stmt(n *Node) {
 					n2.Ninit.Append(tmp2)
 				}
 
-				if r.List.Len() != 0 && isblank(r.List.First()) {
+				if r.List.Len() != 0 && r.List.First().isBlank() {
 					r.List.Set(nil)
 				}
 				if r.List.Len() != 0 {
@@ -1178,7 +1178,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 // okas creates and returns an assignment of val to ok,
 // including an explicit conversion if necessary.
 func okas(ok, val *Node) *Node {
-	if !isblank(ok) {
+	if !ok.isBlank() {
 		val = conv(val, ok.Type)
 	}
 	return nod(OAS, ok, val)
@@ -1196,7 +1196,7 @@ func (o *Order) as2(n *Node) {
 	tmplist := []*Node{}
 	left := []*Node{}
 	for _, l := range n.List.Slice() {
-		if !isblank(l) {
+		if !l.isBlank() {
 			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
 			tmplist = append(tmplist, tmp)
 			left = append(left, l)
@@ -1213,7 +1213,7 @@ func (o *Order) as2(n *Node) {
 
 	ti := 0
 	for ni, l := range n.List.Slice() {
-		if !isblank(l) {
+		if !l.isBlank() {
 			n.List.SetIndex(ni, tmplist[ti])
 			ti++
 		}
@@ -1224,12 +1224,12 @@ func (o *Order) as2(n *Node) {
 // Just like as2, this also adds temporaries to ensure left-to-right assignment.
 func (o *Order) okAs2(n *Node) {
 	var tmp1, tmp2 *Node
-	if !isblank(n.List.First()) {
+	if !n.List.First().isBlank() {
 		typ := n.Rlist.First().Type
 		tmp1 = o.newTemp(typ, types.Haspointers(typ))
 	}
 
-	if !isblank(n.List.Second()) {
+	if !n.List.Second().isBlank() {
 		tmp2 = o.newTemp(types.Types[TBOOL], false)
 	}
 
