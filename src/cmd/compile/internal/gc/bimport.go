@@ -188,28 +188,22 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 		// parameter renaming which doesn't matter if we don't have a body.
 
 		inlCost := p.int()
-		if f := p.funcList[i]; f != nil && f.Func.Inl.Len() == 0 {
+		if f := p.funcList[i]; f != nil && f.Func.Inl == nil {
 			// function not yet imported - read body and set it
 			funchdr(f)
 			body := p.stmtList()
-			if body == nil {
-				// Make sure empty body is not interpreted as
-				// no inlineable body (see also parser.fnbody)
-				// (not doing so can cause significant performance
-				// degradation due to unnecessary calls to empty
-				// functions).
-				body = []*Node{nod(OEMPTY, nil, nil)}
+			funcbody()
+			f.Func.Inl = &Inline{
+				Cost: int32(inlCost),
+				Body: body,
 			}
-			f.Func.Inl.Set(body)
-			f.Func.InlCost = int32(inlCost)
-			if Debug['E'] > 0 && Debug['m'] > 2 && f.Func.Inl.Len() != 0 {
+			if Debug['E'] > 0 && Debug['m'] > 2 {
 				if Debug['m'] > 3 {
-					fmt.Printf("inl body for %v: %+v\n", f, f.Func.Inl)
+					fmt.Printf("inl body for %v: %+v\n", f, asNodes(body))
 				} else {
-					fmt.Printf("inl body for %v: %v\n", f, f.Func.Inl)
+					fmt.Printf("inl body for %v: %v\n", f, asNodes(body))
 				}
 			}
-			funcbody()
 		} else {
 			// function already imported - read body but discard declarations
 			dclcontext = PDISCARD // throw away any declarations
@@ -339,7 +333,7 @@ func (p *importer) obj(tag int) {
 		sym := p.qualifiedName()
 		typ := p.typ()
 		val := p.value(typ)
-		importconst(p.imp, sym, idealType(typ), npos(pos, nodlit(val)))
+		importconst(pos, p.imp, sym, idealType(typ), val)
 
 	case aliasTag:
 		pos := p.pos()
@@ -376,11 +370,7 @@ func (p *importer) obj(tag int) {
 
 		n := newfuncnamel(pos, sym)
 		n.Type = sig
-		// TODO(mdempsky): Stop clobbering n.Pos in declare.
-		savedlineno := lineno
-		lineno = pos
 		declare(n, PFUNC)
-		lineno = savedlineno
 		p.funcList = append(p.funcList, n)
 		importlist = append(importlist, n)
 
@@ -501,11 +491,7 @@ func (p *importer) typ() *types.Type {
 
 		// read underlying type
 		t0 := p.typ()
-		// TODO(mdempsky): Stop clobbering n.Pos in declare.
-		savedlineno := lineno
-		lineno = pos
 		p.importtype(t, t0)
-		lineno = savedlineno
 
 		// interfaces don't have associated methods
 		if t0.IsInterface() {
@@ -543,7 +529,7 @@ func (p *importer) typ() *types.Type {
 				continue
 			}
 
-			n := newfuncnamel(mpos, methodname(sym, recv[0].Type))
+			n := newfuncnamel(mpos, methodSym(recv[0].Type, sym))
 			n.Type = mt
 			n.SetClass(PFUNC)
 			checkwidth(n.Type)
@@ -781,6 +767,7 @@ func (p *importer) param(named bool) *types.Field {
 			pkg = p.pkg()
 		}
 		f.Sym = pkg.Lookup(name)
+		// TODO(mdempsky): Need param position.
 		f.Nname = asTypesNode(newname(f.Sym))
 	}
 
@@ -1109,7 +1096,7 @@ func (p *importer) node() *Node {
 			p.bool()
 		}
 		pos := p.pos()
-		lhs := dclname(p.sym())
+		lhs := npos(pos, dclname(p.sym()))
 		typ := typenod(p.typ())
 		return npos(pos, liststmt(variter([]*Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
 

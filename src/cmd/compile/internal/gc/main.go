@@ -170,6 +170,9 @@ func Main(archInit func(*Arch)) {
 	mappkg = types.NewPkg("go.map", "go.map")
 	mappkg.Prefix = "go.map"
 
+	// pseudo-package used for methods with anonymous receivers
+	gopkg = types.NewPkg("go", "")
+
 	Nacl = objabi.GOOS == "nacl"
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
@@ -211,7 +214,7 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
-	flag.BoolVar(&writearchive, "pack", false, "write package file instead of object file")
+	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
 	objabi.Flagcount("r", "debug generated wrappers", &Debug['r'])
 	flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
@@ -290,17 +293,23 @@ func Main(archInit func(*Arch)) {
 
 	startProfile()
 
+	if flag_race && flag_msan {
+		log.Fatal("cannot use both -race and -msan")
+	}
+	if ispkgin(omit_pkgs) {
+		flag_race = false
+		flag_msan = false
+	}
 	if flag_race {
 		racepkg = types.NewPkg("runtime/race", "race")
 	}
 	if flag_msan {
 		msanpkg = types.NewPkg("runtime/msan", "msan")
 	}
-	if flag_race && flag_msan {
-		log.Fatal("cannot use both -race and -msan")
-	} else if flag_race || flag_msan {
+	if flag_race || flag_msan {
 		instrumenting = true
 	}
+
 	if compiling_runtime && Debug['N'] != 0 {
 		log.Fatal("cannot disable optimizations while compiling runtime")
 	}
@@ -538,7 +547,7 @@ func Main(archInit func(*Arch)) {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
-			if n.Func.Inl.Len() != 0 {
+			if n.Func.Inl != nil {
 				saveerrors()
 				typecheckinl(n)
 			}
@@ -625,13 +634,6 @@ func Main(archInit func(*Arch)) {
 		}
 
 		compileFunctions()
-
-		// We autogenerate and compile some small functions
-		// such as method wrappers and equality/hash routines
-		// while exporting code.
-		// Disable concurrent compilation from here on,
-		// at least until this convoluted structure has been unwound.
-		nBackendWorkers = 1
 
 		if nowritebarrierrecCheck != nil {
 			// Write barriers are now known. Check the
@@ -1223,7 +1225,7 @@ func concurrentBackendAllowed() bool {
 		return false
 	}
 	// TODO: Test and delete these conditions.
-	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 || objabi.Clobberdead_enabled != 0 {
+	if objabi.Fieldtrack_enabled != 0 || objabi.Clobberdead_enabled != 0 {
 		return false
 	}
 	// TODO: fix races and enable the following flags

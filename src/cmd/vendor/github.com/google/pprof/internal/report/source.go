@@ -576,7 +576,7 @@ func openSourceFile(path, searchPath string) (*os.File, error) {
 	}
 
 	// Scan each component of the path
-	for _, dir := range strings.Split(searchPath, ":") {
+	for _, dir := range filepath.SplitList(searchPath) {
 		// Search up for every parent of each possible path.
 		for {
 			filename := filepath.Join(dir, path)

@@ -29,7 +29,7 @@ func expandpkg(t0 string, pkg string) string {
 //	once the dust settles, try to move some code to
 //		libmach, so that other linkers and ar can share.
 
-func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
+func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename string) {
 	if *flagG {
 		return
 	}
@@ -40,12 +40,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 			errorexit()
 		}
 		return
-	}
-
-	// In a __.PKGDEF, we only care about the package name.
-	// Don't read all the export data.
-	if length > 1000 && whence == Pkgdef {
-		length = 1000
 	}
 
 	bdata := make([]byte, length)
@@ -59,8 +53,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 	data := string(bdata)
 
 	// process header lines
-	isSafe := false
-	isMain := false
 	for data != "" {
 		var line string
 		if i := strings.Index(data, "\n"); i >= 0 {
@@ -69,28 +61,14 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 			line, data = data, ""
 		}
 		if line == "safe" {
-			isSafe = true
+			lib.Safe = true
 		}
 		if line == "main" {
-			isMain = true
+			lib.Main = true
 		}
 		if line == "" {
 			break
 		}
-	}
-
-	if whence == Pkgdef || whence == FileObj {
-		if pkg == "main" && !isMain {
-			Exitf("%s: not package main", filename)
-		}
-		if *flagU && whence != ArchiveObj && !isSafe {
-			Exitf("load of unsafe package %s", filename)
-		}
-	}
-
-	// __.PKGDEF has no cgo section - those are in the C compiler-generated object files.
-	if whence == Pkgdef {
-		return
 	}
 
 	// look for cgo section
@@ -121,7 +99,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 		}
 		p1 += p0
 
-		loadcgo(ctxt, filename, pkg, data[p0:p1])
+		loadcgo(ctxt, filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1])
 	}
 }
 

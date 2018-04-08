@@ -6,84 +6,60 @@ package net
 
 import (
 	"syscall"
-	"testing"
 	"unsafe"
 )
 
-func TestRawConn(t *testing.T) {
-	c, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	cc, err := c.(*UDPConn).SyscallConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var operr error
-	fn := func(s uintptr) {
-		operr = syscall.SetsockoptInt(syscall.Handle(s), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	}
-	err = cc.Control(fn)
-	if err != nil || operr != nil {
-		t.Fatal(err, operr)
-	}
-	c.Close()
-	err = cc.Control(fn)
-	if err == nil {
-		t.Fatal("should fail")
-	}
+func readRawConn(c syscall.RawConn, b []byte) (int, error) {
+	return 0, syscall.EWINDOWS
 }
 
-func TestRawConnListener(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
+func writeRawConn(c syscall.RawConn, b []byte) error {
+	return syscall.EWINDOWS
+}
 
-	cc, err := ln.(*TCPListener).SyscallConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	called := false
-	op := func(uintptr) bool {
-		called = true
-		return true
-	}
-
-	err = cc.Write(op)
-	if err == nil {
-		t.Error("Write should return an error")
-	}
-	if called {
-		t.Error("Write shouldn't call op")
-	}
-
-	called = false
-	err = cc.Read(op)
-	if err == nil {
-		t.Error("Read should return an error")
-	}
-	if called {
-		t.Error("Read shouldn't call op")
-	}
-
+func controlRawConn(c syscall.RawConn, addr Addr) error {
 	var operr error
 	fn := func(s uintptr) {
 		var v, l int32
 		l = int32(unsafe.Sizeof(v))
 		operr = syscall.Getsockopt(syscall.Handle(s), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, (*byte)(unsafe.Pointer(&v)), &l)
+		if operr != nil {
+			return
+		}
+		switch addr := addr.(type) {
+		case *TCPAddr:
+			// There's no guarantee that IP-level socket
+			// options work well with dual stack sockets.
+			// A simple solution would be to take a look
+			// at the bound address to the raw connection
+			// and to classify the address family of the
+			// underlying socket by the bound address:
+			//
+			// - When IP.To16() != nil and IP.To4() == nil,
+			//   we can assume that the raw connection
+			//   consists of an IPv6 socket using only
+			//   IPv6 addresses.
+			//
+			// - When IP.To16() == nil and IP.To4() != nil,
+			//   the raw connection consists of an IPv4
+			//   socket using only IPv4 addresses.
+			//
+			// - Otherwise, the raw connection is a dual
+			//   stack socket, an IPv6 socket using IPv6
+			//   addresses including IPv4-mapped or
+			//   IPv4-embedded IPv6 addresses.
+			if addr.IP.To16() != nil && addr.IP.To4() == nil {
+				operr = syscall.SetsockoptInt(syscall.Handle(s), syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 1)
+			} else if addr.IP.To16() == nil && addr.IP.To4() != nil {
+				operr = syscall.SetsockoptInt(syscall.Handle(s), syscall.IPPROTO_IP, syscall.IP_TTL, 1)
+			}
+		}
 	}
-	err = cc.Control(fn)
-	if err != nil || operr != nil {
-		t.Fatal(err, operr)
+	if err := c.Control(fn); err != nil {
+		return err
 	}
-	ln.Close()
-	err = cc.Control(fn)
-	if err == nil {
-		t.Fatal("Control after Close should fail")
+	if operr != nil {
+		return operr
 	}
+	return nil
 }

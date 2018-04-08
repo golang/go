@@ -2472,11 +2472,6 @@ func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, arg
 // If the query selects no rows, the *Row's Scan will return ErrNoRows.
 // Otherwise, the *Row's Scan scans the first selected row and discards
 // the rest.
-//
-// Example usage:
-//
-//  var name string
-//  err := nameByUseridStmt.QueryRowContext(ctx, id).Scan(&name)
 func (s *Stmt) QueryRowContext(ctx context.Context, args ...interface{}) *Row {
 	rows, err := s.QueryContext(ctx, args...)
 	if err != nil {
@@ -2545,19 +2540,7 @@ func (s *Stmt) finalClose() error {
 }
 
 // Rows is the result of a query. Its cursor starts before the first row
-// of the result set. Use Next to advance through the rows:
-//
-//     rows, err := db.Query("SELECT ...")
-//     ...
-//     defer rows.Close()
-//     for rows.Next() {
-//         var id int
-//         var name string
-//         err = rows.Scan(&id, &name)
-//         ...
-//     }
-//     err = rows.Err() // get any error encountered during iteration
-//     ...
+// of the result set. Use Next to advance from row to row.
 type Rows struct {
 	dc          *driverConn // owned; must call releaseConn when closed to release
 	releaseConn func(error)
@@ -2580,6 +2563,9 @@ type Rows struct {
 }
 
 func (rs *Rows) initContextClose(ctx, txctx context.Context) {
+	if ctx.Done() == nil && (txctx == nil || txctx.Done() == nil) {
+		return
+	}
 	ctx, rs.cancel = context.WithCancel(ctx)
 	go rs.awaitDone(ctx, txctx)
 }
@@ -2873,7 +2859,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //
 // Source values of type time.Time may be scanned into values of type
 // *time.Time, *interface{}, *string, or *[]byte. When converting to
-// the latter two, time.Format3339Nano is used.
+// the latter two, time.RFC3339Nano is used.
 //
 // Source values of type bool may be scanned into types *bool,
 // *interface{}, *string, *[]byte, or *RawBytes.

@@ -1366,7 +1366,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 			if !r.Xsym.Attr.Reachable() {
 				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+			if !thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
 				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}
@@ -1599,7 +1599,7 @@ func (ctxt *Link) doelf() {
 			s.Type = sym.SELFRXSECT
 		}
 
-		Thearch.Elfsetupplt(ctxt)
+		thearch.Elfsetupplt(ctxt)
 
 		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
 		s.Attr |= sym.AttrReachable
@@ -1845,22 +1845,22 @@ func Asmbelf(ctxt *Link, symo int64) {
 		if interpreter == "" {
 			switch ctxt.HeadType {
 			case objabi.Hlinux:
-				interpreter = Thearch.Linuxdynld
+				interpreter = thearch.Linuxdynld
 
 			case objabi.Hfreebsd:
-				interpreter = Thearch.Freebsddynld
+				interpreter = thearch.Freebsddynld
 
 			case objabi.Hnetbsd:
-				interpreter = Thearch.Netbsddynld
+				interpreter = thearch.Netbsddynld
 
 			case objabi.Hopenbsd:
-				interpreter = Thearch.Openbsddynld
+				interpreter = thearch.Openbsddynld
 
 			case objabi.Hdragonfly:
-				interpreter = Thearch.Dragonflydynld
+				interpreter = thearch.Dragonflydynld
 
 			case objabi.Hsolaris:
-				interpreter = Thearch.Solarisdynld
+				interpreter = thearch.Solarisdynld
 			}
 		}
 

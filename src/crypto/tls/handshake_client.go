@@ -91,7 +91,6 @@ NextCipherSuite:
 	return hello, nil
 }
 
-// c.out.Mutex <= L; c.handshakeMutex <= L.
 func (c *Conn) clientHandshake() error {
 	if c.config == nil {
 		c.config = defaultConfig()
@@ -265,6 +264,7 @@ func (hs *clientHandshakeState) handshake() error {
 		}
 	}
 
+	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random)
 	c.didResume = isResume
 	c.handshakeComplete = true
 

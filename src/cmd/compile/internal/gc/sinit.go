@@ -328,42 +328,40 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 		// copy slice
 		a := inittemps[r]
 
-		n := *l
+		n := l.copy()
 		n.Xoffset = l.Xoffset + int64(array_array)
-		gdata(&n, nod(OADDR, a, nil), Widthptr)
+		gdata(n, nod(OADDR, a, nil), Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_nel)
-		gdata(&n, r.Right, Widthptr)
+		gdata(n, r.Right, Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_cap)
-		gdata(&n, r.Right, Widthptr)
+		gdata(n, r.Right, Widthptr)
 		return true
 
 	case OARRAYLIT, OSTRUCTLIT:
 		p := initplans[r]
 
-		n := *l
+		n := l.copy()
 		for i := range p.E {
 			e := &p.E[i]
 			n.Xoffset = l.Xoffset + e.Xoffset
 			n.Type = e.Expr.Type
 			if e.Expr.Op == OLITERAL {
-				gdata(&n, e.Expr, int(n.Type.Width))
-			} else {
-				ll := nod(OXXX, nil, nil)
-				*ll = n
-				ll.Orig = ll // completely separate copy
-				if !staticassign(ll, e.Expr, out) {
-					// Requires computation, but we're
-					// copying someone else's computation.
-					rr := nod(OXXX, nil, nil)
-
-					*rr = *orig
-					rr.Orig = rr // completely separate copy
-					rr.Type = ll.Type
-					rr.Xoffset += e.Xoffset
-					setlineno(rr)
-					*out = append(*out, nod(OAS, ll, rr))
-				}
+				gdata(n, e.Expr, int(n.Type.Width))
+				continue
 			}
+			ll := n.copy()
+			ll.Orig = ll // completely separate copy
+			if staticassign(ll, e.Expr, out) {
+				continue
+			}
+			// Requires computation, but we're
+			// copying someone else's computation.
+			rr := orig.copy()
+			rr.Orig = rr // completely separate copy
+			rr.Type = ll.Type
+			rr.Xoffset += e.Xoffset
+			setlineno(rr)
+			*out = append(*out, nod(OAS, ll, rr))
 		}
 
 		return true
@@ -429,13 +427,13 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		ta := types.NewArray(r.Type.Elem(), bound)
 		a := staticname(ta)
 		inittemps[r] = a
-		n := *l
+		n := l.copy()
 		n.Xoffset = l.Xoffset + int64(array_array)
-		gdata(&n, nod(OADDR, a, nil), Widthptr)
+		gdata(n, nod(OADDR, a, nil), Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_nel)
-		gdata(&n, r.Right, Widthptr)
+		gdata(n, r.Right, Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_cap)
-		gdata(&n, r.Right, Widthptr)
+		gdata(n, r.Right, Widthptr)
 
 		// Fall through to init underlying array.
 		l = a
@@ -445,21 +443,20 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		initplan(r)
 
 		p := initplans[r]
-		n := *l
+		n := l.copy()
 		for i := range p.E {
 			e := &p.E[i]
 			n.Xoffset = l.Xoffset + e.Xoffset
 			n.Type = e.Expr.Type
 			if e.Expr.Op == OLITERAL {
-				gdata(&n, e.Expr, int(n.Type.Width))
-			} else {
-				setlineno(e.Expr)
-				a := nod(OXXX, nil, nil)
-				*a = n
-				a.Orig = a // completely separate copy
-				if !staticassign(a, e.Expr, out) {
-					*out = append(*out, nod(OAS, a, e.Expr))
-				}
+				gdata(n, e.Expr, int(n.Type.Width))
+				continue
+			}
+			setlineno(e.Expr)
+			a := n.copy()
+			a.Orig = a // completely separate copy
+			if !staticassign(a, e.Expr, out) {
+				*out = append(*out, nod(OAS, a, e.Expr))
 			}
 		}
 
@@ -522,11 +519,10 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			// Copy val directly into n.
 			n.Type = val.Type
 			setlineno(val)
-			a := nod(OXXX, nil, nil)
-			*a = n
-			a.Orig = a
-			if !staticassign(a, val, out) {
-				*out = append(*out, nod(OAS, a, val))
+			a := n
+			a.Orig = &a
+			if !staticassign(&a, val, out) {
+				*out = append(*out, nod(OAS, &a, val))
 			}
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
@@ -790,7 +786,8 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		}
 
 		var v Node
-		nodconst(&v, types.Types[TINT], t.NumElem())
+		v.Type = types.Types[TINT]
+		setintconst(&v, t.NumElem())
 
 		nam.Xoffset += int64(array_array)
 		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)

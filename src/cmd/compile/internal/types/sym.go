@@ -35,30 +35,24 @@ type Sym struct {
 }
 
 const (
-	symExport = 1 << iota // added to exportlist (no need to add again)
-	symPackage
-	symExported // already written out by export
+	symOnExportList = 1 << iota // added to exportlist (no need to add again)
 	symUniq
 	symSiggen
 	symAsm
 	symAlgGen
 )
 
-func (sym *Sym) Export() bool   { return sym.flags&symExport != 0 }
-func (sym *Sym) Package() bool  { return sym.flags&symPackage != 0 }
-func (sym *Sym) Exported() bool { return sym.flags&symExported != 0 }
-func (sym *Sym) Uniq() bool     { return sym.flags&symUniq != 0 }
-func (sym *Sym) Siggen() bool   { return sym.flags&symSiggen != 0 }
-func (sym *Sym) Asm() bool      { return sym.flags&symAsm != 0 }
-func (sym *Sym) AlgGen() bool   { return sym.flags&symAlgGen != 0 }
+func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }
+func (sym *Sym) Uniq() bool         { return sym.flags&symUniq != 0 }
+func (sym *Sym) Siggen() bool       { return sym.flags&symSiggen != 0 }
+func (sym *Sym) Asm() bool          { return sym.flags&symAsm != 0 }
+func (sym *Sym) AlgGen() bool       { return sym.flags&symAlgGen != 0 }
 
-func (sym *Sym) SetExport(b bool)   { sym.flags.set(symExport, b) }
-func (sym *Sym) SetPackage(b bool)  { sym.flags.set(symPackage, b) }
-func (sym *Sym) SetExported(b bool) { sym.flags.set(symExported, b) }
-func (sym *Sym) SetUniq(b bool)     { sym.flags.set(symUniq, b) }
-func (sym *Sym) SetSiggen(b bool)   { sym.flags.set(symSiggen, b) }
-func (sym *Sym) SetAsm(b bool)      { sym.flags.set(symAsm, b) }
-func (sym *Sym) SetAlgGen(b bool)   { sym.flags.set(symAlgGen, b) }
+func (sym *Sym) SetOnExportList(b bool) { sym.flags.set(symOnExportList, b) }
+func (sym *Sym) SetUniq(b bool)         { sym.flags.set(symUniq, b) }
+func (sym *Sym) SetSiggen(b bool)       { sym.flags.set(symSiggen, b) }
+func (sym *Sym) SetAsm(b bool)          { sym.flags.set(symAsm, b) }
+func (sym *Sym) SetAlgGen(b bool)       { sym.flags.set(symAlgGen, b) }
 
 func (sym *Sym) IsBlank() bool {
 	return sym != nil && sym.Name == "_"

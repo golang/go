@@ -85,7 +85,7 @@ func ARM64Suffix(prog *obj.Prog, cond string) bool {
 	if cond == "" {
 		return true
 	}
-	bits, ok := ParseARM64Suffix(cond)
+	bits, ok := parseARM64Suffix(cond)
 	if !ok {
 		return false
 	}
@@ -93,10 +93,10 @@ func ARM64Suffix(prog *obj.Prog, cond string) bool {
 	return true
 }
 
-// ParseARM64Suffix parses the suffix attached to an ARM64 instruction.
+// parseARM64Suffix parses the suffix attached to an ARM64 instruction.
 // The input is a single string consisting of period-separated condition
 // codes, such as ".P.W". An initial period is ignored.
-func ParseARM64Suffix(cond string) (uint8, bool) {
+func parseARM64Suffix(cond string) (uint8, bool) {
 	if cond == "" {
 		return 0, true
 	}
@@ -208,11 +208,21 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
 			return errors.New("invalid register extension")
 		}
 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_4S & 15) << 5)
+	case "D1":
+		if isIndex {
+			return errors.New("invalid register extension")
+		}
+		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_1D & 15) << 5)
 	case "D2":
 		if isIndex {
 			return errors.New("invalid register extension")
 		}
 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_2D & 15) << 5)
+	case "Q1":
+		if isIndex {
+			return errors.New("invalid register extension")
+		}
+		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_1Q & 15) << 5)
 	case "B":
 		if !isIndex {
 			return nil

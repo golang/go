@@ -265,7 +265,7 @@ func compileSSA(fn *Node, worker int) {
 	}
 	pp := newProgs(fn, worker)
 	genssa(f, pp)
-	pp.Flush()
+	pp.Flush() // assemble, fill in boilerplate, etc.
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
 	pp.Free()
@@ -465,8 +465,8 @@ func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	var vars []*dwarf.Var
 	ssaVars := make(map[*Node]bool)
 
-	for varID := range debugInfo.Vars {
-		n := debugInfo.Vars[varID].(*Node)
+	for varID, dvar := range debugInfo.Vars {
+		n := dvar.(*Node)
 		ssaVars[n] = true
 		for _, slot := range debugInfo.VarSlots[varID] {
 			ssaVars[debugInfo.Slots[slot].N.(*Node)] = true
@@ -570,13 +570,8 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 // with local vars; disregard this versioning when sorting.
 func preInliningDcls(fnsym *obj.LSym) []*Node {
 	fn := Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*Node)
-	var dcl, rdcl []*Node
-	if fn.Name.Defn != nil {
-		dcl = fn.Func.Inldcl.Slice() // local function
-	} else {
-		dcl = fn.Func.Dcl // imported function
-	}
-	for _, n := range dcl {
+	var rdcl []*Node
+	for _, n := range fn.Func.Inl.Dcl {
 		c := n.Sym.Name[0]
 		// Avoid reporting "_" parameters, since if there are more than
 		// one, it can result in a collision later on, as in #23179.

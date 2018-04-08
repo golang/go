@@ -232,52 +232,44 @@ func export(out *bufio.Writer, trace bool) int {
 		p.tracef("\n")
 	}
 
-	// Mark all inlineable functions that the importer could call.
-	// This is done by tracking down all inlineable methods
-	// reachable from exported types.
-	p.marked = make(map[*types.Type]bool)
-	for _, n := range exportlist {
-		sym := n.Sym
-		if sym.Exported() {
-			// Closures are added to exportlist, but with Exported
-			// already set. The export code below skips over them, so
-			// we have to here as well.
-			// TODO(mdempsky): Investigate why. This seems suspicious.
-			continue
-		}
-		p.markType(asNode(sym.Def).Type)
-	}
-	p.marked = nil
-
 	// export objects
 	//
-	// First, export all exported (package-level) objects; i.e., all objects
-	// in the current exportlist. These objects represent all information
-	// required to import this package and type-check against it; i.e., this
-	// is the platform-independent export data. The format is generic in the
-	// sense that different compilers can use the same representation.
+	// We've already added all exported (package-level) objects to
+	// exportlist. These objects represent all information
+	// required to import this package and type-check against it;
+	// i.e., this is the platform-independent export data. The
+	// format is generic in the sense that different compilers can
+	// use the same representation.
 	//
-	// During this first phase, more objects may be added to the exportlist
-	// (due to inlined function bodies and their dependencies). Export those
-	// objects in a second phase. That data is platform-specific as it depends
-	// on the inlining decisions of the compiler and the representation of the
-	// inlined function bodies.
+	// However, due to inlineable function and their dependencies,
+	// we may need to export (or possibly reexport) additional
+	// objects. We handle these objects separately. This data is
+	// platform-specific as it depends on the inlining decisions
+	// of the compiler and the representation of the inlined
+	// function bodies.
 
-	// remember initial exportlist length
-	var numglobals = len(exportlist)
+	// Remember initial exportlist length.
+	numglobals := len(exportlist)
 
-	// Phase 1: Export objects in _current_ exportlist; exported objects at
-	//          package level.
-	// Use range since we want to ignore objects added to exportlist during
-	// this phase.
-	objcount := 0
-	for _, n := range exportlist {
-		sym := n.Sym
-
-		if sym.Exported() {
-			continue
+	// Phase 0: Mark all inlineable functions that an importing
+	// package could call. This is done by tracking down all
+	// inlineable methods reachable from exported declarations.
+	//
+	// Along the way, we add to exportlist any function and
+	// variable declarations needed by the inline bodies.
+	if exportInlined {
+		p.marked = make(map[*types.Type]bool)
+		for _, n := range exportlist {
+			sym := n.Sym
+			p.markType(asNode(sym.Def).Type)
 		}
-		sym.SetExported(true)
+		p.marked = nil
+	}
+
+	// Phase 1: Export package-level objects.
+	objcount := 0
+	for _, n := range exportlist[:numglobals] {
+		sym := n.Sym
 
 		// TODO(gri) Closures have dots in their names;
 		// e.g., TestFloatZeroValue.func1 in math/big tests.
@@ -323,23 +315,15 @@ func export(out *bufio.Writer, trace bool) int {
 		p.tracef("\n")
 	}
 
-	// Phase 2: Export objects added to exportlist during phase 1.
-	// Don't use range since exportlist may grow during this phase
-	// and we want to export all remaining objects.
+	// Phase 2: Export objects added to exportlist during phase 0.
 	objcount = 0
-	for i := numglobals; exportInlined && i < len(exportlist); i++ {
-		n := exportlist[i]
+	for _, n := range exportlist[numglobals:] {
 		sym := n.Sym
 
 		// TODO(gri) The rest of this loop body is identical with
 		// the loop body above. Leave alone for now since there
 		// are different optimization opportunities, but factor
 		// eventually.
-
-		if sym.Exported() {
-			continue
-		}
-		sym.SetExported(true)
 
 		// TODO(gri) Closures have dots in their names;
 		// e.g., TestFloatZeroValue.func1 in math/big tests.
@@ -389,15 +373,15 @@ func export(out *bufio.Writer, trace bool) int {
 	// Don't use range since funcList may grow.
 	objcount = 0
 	for i := 0; i < len(p.funcList); i++ {
-		if f := p.funcList[i]; f != nil {
+		if f := p.funcList[i]; f.ExportInline() {
 			// function has inlineable body:
 			// write index and body
 			if p.trace {
-				p.tracef("\n----\nfunc { %#v }\n", f.Inl)
+				p.tracef("\n----\nfunc { %#v }\n", asNodes(f.Inl.Body))
 			}
 			p.int(i)
-			p.int(int(f.InlCost))
-			p.stmtList(f.Inl)
+			p.int(int(f.Inl.Cost))
+			p.stmtList(asNodes(f.Inl.Body))
 			if p.trace {
 				p.tracef("\n")
 			}
@@ -584,24 +568,22 @@ func (p *exporter) obj(sym *types.Sym) {
 			p.qualifiedName(sym)
 
 			sig := asNode(sym.Def).Type
-			inlineable := isInlineable(asNode(sym.Def))
 
-			p.paramList(sig.Params(), inlineable)
-			p.paramList(sig.Results(), inlineable)
+			// Theoretically, we only need numbered
+			// parameters if we're supplying an inline
+			// function body. However, it's possible to
+			// import a function from a package that
+			// didn't supply the inline body, and then
+			// another that did. In this case, we would
+			// need to rename the parameters during
+			// import, which is a little sketchy.
+			//
+			// For simplicity, just always number
+			// parameters.
+			p.paramList(sig.Params(), true)
+			p.paramList(sig.Results(), true)
 
-			var f *Func
-			if inlineable && asNode(sym.Def).Func.ExportInline() {
-				f = asNode(sym.Def).Func
-				// TODO(gri) re-examine reexportdeplist:
-				// Because we can trivially export types
-				// in-place, we don't need to collect types
-				// inside function bodies in the exportlist.
-				// With an adjusted reexportdeplist used only
-				// by the binary exporter, we can also avoid
-				// the global exportlist.
-				reexportdeplist(f.Inl)
-			}
-			p.funcList = append(p.funcList, f)
+			p.funcList = append(p.funcList, asNode(sym.Def).Func)
 		} else {
 			// variable
 			p.tag(varTag)
@@ -673,36 +655,6 @@ func fileLine(n *Node) (file string, line int) {
 		line = int(pos.RelLine())
 	}
 	return
-}
-
-func isInlineable(n *Node) bool {
-	if exportInlined && n != nil && n.Func != nil {
-		// When lazily typechecking inlined bodies, some
-		// re-exported ones may not have been typechecked yet.
-		// Currently that can leave unresolved ONONAMEs in
-		// import-dot-ed packages in the wrong package.
-		//
-		// TODO(mdempsky): Having the ExportInline check here
-		// instead of the outer if statement means we end up
-		// exporting parameter names even for functions whose
-		// inline body won't be exported by this package. This
-		// is currently necessary because we might first
-		// import a function/method from a package where it
-		// doesn't need to be re-exported, and then from a
-		// package where it does. If this happens, we'll need
-		// the parameter names.
-		//
-		// We could initially do without the parameter names,
-		// and then fill them in when importing the inline
-		// body. But parameter names are attached to the
-		// function type, and modifying types after the fact
-		// is a little sketchy.
-		if Debug_typecheckinl == 0 && n.Func.ExportInline() {
-			typecheckinl(n)
-		}
-		return true
-	}
-	return false
 }
 
 func (p *exporter) typ(t *types.Type) {
@@ -788,19 +740,15 @@ func (p *exporter) typ(t *types.Type) {
 
 			sig := m.Type
 			mfn := asNode(sig.FuncType().Nname)
-			inlineable := isInlineable(mfn)
 
-			p.paramList(sig.Recvs(), inlineable)
-			p.paramList(sig.Params(), inlineable)
-			p.paramList(sig.Results(), inlineable)
+			// See comment in (*exporter).obj about
+			// numbered parameters.
+			p.paramList(sig.Recvs(), true)
+			p.paramList(sig.Params(), true)
+			p.paramList(sig.Results(), true)
 			p.bool(m.Nointerface()) // record go:nointerface pragma value (see also #16243)
 
-			var f *Func
-			if inlineable && mfn.Func.ExportInline() {
-				f = mfn.Func
-				reexportdeplist(mfn.Func.Inl)
-			}
-			p.funcList = append(p.funcList, f)
+			p.funcList = append(p.funcList, mfn.Func)
 		}
 
 		if p.trace && len(methods) > 0 {
@@ -1506,7 +1454,7 @@ func (p *exporter) stmt(n *Node) {
 	switch op := n.Op; op {
 	case ODCL:
 		p.op(ODCL)
-		p.pos(n)
+		p.pos(n.Left) // use declared variable's pos
 		p.sym(n.Left)
 		p.typ(n.Left.Type)
 

@@ -52,7 +52,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -612,18 +612,20 @@ func (t *test) run() {
 	case "asmcheck":
 		ops, archs := t.wantedAsmOpcodes(long)
 		for _, arch := range archs {
-			os.Setenv("GOOS", "linux")
-			os.Setenv("GOARCH", arch)
-
-			cmdline := []string{goTool(), "build", "-gcflags", "-S"}
+			cmdline := []string{"build", "-gcflags", "-S"}
 			cmdline = append(cmdline, flags...)
 			cmdline = append(cmdline, long)
-			out, err := runcmd(cmdline...)
-			if err != nil {
+			cmd := exec.Command(goTool(), cmdline...)
+			cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+arch)
+
+			var buf bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &buf, &buf
+			if err := cmd.Run(); err != nil {
 				t.err = err
 				return
 			}
-			t.err = t.asmCheck(string(out), long, arch, ops[arch])
+
+			t.err = t.asmCheck(buf.String(), long, arch, ops[arch])
 			if t.err != nil {
 				return
 			}

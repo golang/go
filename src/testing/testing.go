@@ -34,7 +34,7 @@
 // its -bench flag is provided. Benchmarks are run sequentially.
 //
 // For a description of the testing flags, see
-// https://golang.org/cmd/go/#hdr-Description_of_testing_flags.
+// https://golang.org/cmd/go/#hdr-Testing_flags
 //
 // A sample benchmark function looks like this:
 //     func BenchmarkHello(b *testing.B) {
@@ -177,6 +177,9 @@
 //             })
 //         }
 //     }
+//
+// The race detector kills the program if it exceeds 8192 concurrent goroutines,
+// so use care when running parallel tests with the -race flag set.
 //
 // Run does not return until parallel subtests have completed, providing a way
 // to clean up after a group of parallel tests:
@@ -376,7 +379,7 @@ func (c *common) decorate(s string) string {
 		file = "???"
 		line = 1
 	}
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	// Every line is indented at least one tab.
 	buf.WriteByte('\t')
 	fmt.Fprintf(buf, "%s:%d: ", file, line)

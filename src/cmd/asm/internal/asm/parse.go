@@ -219,15 +219,15 @@ func (p *Parser) instruction(op obj.As, word, cond string, operands [][]lex.Toke
 func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
 	switch word {
 	case "DATA":
-		p.asmData(word, operands)
+		p.asmData(operands)
 	case "FUNCDATA":
-		p.asmFuncData(word, operands)
+		p.asmFuncData(operands)
 	case "GLOBL":
-		p.asmGlobl(word, operands)
+		p.asmGlobl(operands)
 	case "PCDATA":
-		p.asmPCData(word, operands)
+		p.asmPCData(operands)
 	case "TEXT":
-		p.asmText(word, operands)
+		p.asmText(operands)
 	default:
 		return false
 	}

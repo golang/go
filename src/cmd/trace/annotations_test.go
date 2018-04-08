@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime/debug"
 	"runtime/trace"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -98,7 +99,6 @@ func TestAnalyzeAnnotations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to analyzeAnnotations: %v", err)
 	}
-	tasks := res.tasks
 
 	// For prog0, we expect
 	//   - task with name = "task0", with three spans.
@@ -111,7 +111,7 @@ func TestAnalyzeAnnotations(t *testing.T) {
 		"task0": {
 			complete:   true,
 			goroutines: 2,
-			spans:      []string{"task0.span0", "task0.span1", "task0.span2"},
+			spans:      []string{"task0.span0", "", "task0.span1", "task0.span2"},
 		},
 		"task1": {
 			complete:   true,
@@ -119,20 +119,38 @@ func TestAnalyzeAnnotations(t *testing.T) {
 		},
 	}
 
-	for _, task := range tasks {
+	for _, task := range res.tasks {
 		want, ok := wantTasks[task.name]
 		if !ok {
 			t.Errorf("unexpected task: %s", task)
 			continue
 		}
 		if task.complete() != want.complete || len(task.goroutines) != want.goroutines || !reflect.DeepEqual(spanNames(task), want.spans) {
-			t.Errorf("got %v; want %+v", task, want)
+			t.Errorf("got task %v; want %+v", task, want)
 		}
 
 		delete(wantTasks, task.name)
 	}
 	if len(wantTasks) > 0 {
 		t.Errorf("no more tasks; want %+v", wantTasks)
+	}
+
+	wantSpans := []string{
+		"", // an auto-created span for the goroutine 3
+		"taskless.span",
+		"task0.span0",
+		"task0.span1",
+		"task0.span2",
+	}
+	var gotSpans []string
+	for spanID := range res.spans {
+		gotSpans = append(gotSpans, spanID.Type)
+	}
+
+	sort.Strings(wantSpans)
+	sort.Strings(gotSpans)
+	if !reflect.DeepEqual(gotSpans, wantSpans) {
+		t.Errorf("got spans %q, want spans %q", gotSpans, wantSpans)
 	}
 }
 
@@ -327,7 +345,7 @@ func traceProgram(t *testing.T, f func(), name string) error {
 
 func spanNames(task *taskDesc) (ret []string) {
 	for _, s := range task.spans {
-		ret = append(ret, s.name)
+		ret = append(ret, s.Name)
 	}
 	return ret
 }
@@ -349,8 +367,13 @@ func childrenNames(task *taskDesc) (ret []string) {
 func swapLoaderData(res traceparser.ParseResult, err error) {
 	// swap loader's data.
 	parseTrace() // fool loader.once.
+
 	loader.res = res
 	loader.err = err
+
+	analyzeGoroutines(nil) // fool gsInit once.
+	gs = traceparser.GoroutineStats(res.Events)
+
 }
 
 func saveTrace(buf *bytes.Buffer, name string) {

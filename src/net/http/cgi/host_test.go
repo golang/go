@@ -524,7 +524,7 @@ func TestEnvOverride(t *testing.T) {
 			"PATH=/wibble"},
 	}
 	expectedMap := map[string]string{
-		"cwd": cwd,
+		"cwd":                 cwd,
 		"env-SCRIPT_FILENAME": cgifile,
 		"env-REQUEST_URI":     "/foo/bar",
 		"env-PATH":            "/wibble",

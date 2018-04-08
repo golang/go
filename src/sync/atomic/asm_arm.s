@@ -12,13 +12,13 @@
 	MOVB	runtime·goarm(SB), R11; \
 	CMP	$7, R11; \
 	BLT	2(PC); \
-	WORD	$0xf57ff05a	// dmb ishst
+	DMB	MB_ISHST
 
 #define DMB_ISH_7 \
 	MOVB	runtime·goarm(SB), R11; \
 	CMP	$7, R11; \
 	BLT	2(PC); \
-	WORD	$0xf57ff05b	// dmb ish
+	DMB	MB_ISH
 
 TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
 	MOVW	addr+0(FP), R1

@@ -68,6 +68,23 @@ func rconv(r int) string {
 
 	case REG_SPSR:
 		return "SPSR"
+
+	case REG_MB_SY:
+		return "MB_SY"
+	case REG_MB_ST:
+		return "MB_ST"
+	case REG_MB_ISH:
+		return "MB_ISH"
+	case REG_MB_ISHST:
+		return "MB_ISHST"
+	case REG_MB_NSH:
+		return "MB_NSH"
+	case REG_MB_NSHST:
+		return "MB_NSHST"
+	case REG_MB_OSH:
+		return "MB_OSH"
+	case REG_MB_OSHST:
+		return "MB_OSHST"
 	}
 
 	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseARM)

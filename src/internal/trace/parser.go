@@ -108,10 +108,7 @@ func parse(r io.Reader, bin string) (int, ParseResult, error) {
 	if err != nil {
 		return 0, ParseResult{}, err
 	}
-	events, err = removeFutile(events)
-	if err != nil {
-		return 0, ParseResult{}, err
-	}
+	events = removeFutile(events)
 	err = postProcessTrace(ver, events)
 	if err != nil {
 		return 0, ParseResult{}, err
@@ -505,7 +502,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 // ahead and acquired the mutex before the first goroutine is scheduled,
 // so the first goroutine has to block again. Such wakeups happen on buffered
 // channels and sync.Mutex, but are generally not interesting for end user.
-func removeFutile(events []*Event) ([]*Event, error) {
+func removeFutile(events []*Event) []*Event {
 	// Two non-trivial aspects:
 	// 1. A goroutine can be preempted during a futile wakeup and migrate to another P.
 	//	We want to remove all of that.
@@ -552,7 +549,7 @@ func removeFutile(events []*Event) ([]*Event, error) {
 			newEvents = append(newEvents, ev)
 		}
 	}
-	return newEvents, nil
+	return newEvents
 }
 
 // ErrTimeOrder is returned by Parse when the trace contains

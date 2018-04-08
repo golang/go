@@ -282,17 +282,11 @@
 (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) ->
   (Add32 (Const32 <t> [int64(int32(c*d))]) (Mul32 <t> (Const32 <t> [c]) x))
 
-// Rewrite x*y + x*z  to  x*(y+z)
-(Add64 <t> (Mul64 x y) (Mul64 x z)) -> (Mul64 x (Add64 <t> y z))
-(Add32 <t> (Mul32 x y) (Mul32 x z)) -> (Mul32 x (Add32 <t> y z))
-(Add16 <t> (Mul16 x y) (Mul16 x z)) -> (Mul16 x (Add16 <t> y z))
-(Add8  <t> (Mul8  x y) (Mul8  x z)) -> (Mul8  x (Add8  <t> y z))
-
-// Rewrite x*y - x*z  to  x*(y-z)
-(Sub64 <t> (Mul64 x y) (Mul64 x z)) -> (Mul64 x (Sub64 <t> y z))
-(Sub32 <t> (Mul32 x y) (Mul32 x z)) -> (Mul32 x (Sub32 <t> y z))
-(Sub16 <t> (Mul16 x y) (Mul16 x z)) -> (Mul16 x (Sub16 <t> y z))
-(Sub8  <t> (Mul8  x y) (Mul8  x z)) -> (Mul8  x (Sub8  <t> y z))
+// Rewrite x*y ± x*z  to  x*(y±z)
+(Add(64|32|16|8) <t> (Mul(64|32|16|8) x y) (Mul(64|32|16|8) x z))
+	-> (Mul(64|32|16|8) x (Add(64|32|16|8) <t> y z))
+(Sub(64|32|16|8) <t> (Mul(64|32|16|8) x y) (Mul(64|32|16|8) x z))
+	-> (Mul(64|32|16|8) x (Sub(64|32|16|8) <t> y z))
 
 // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
 // the number of the other rewrite rules for const shifts
@@ -337,20 +331,11 @@
 (Rsh8Ux8  <t> x (Const8  [c])) -> (Rsh8Ux64 x (Const64 <t> [int64(uint8(c))]))
 
 // shifts by zero
-(Lsh64x64  x (Const64 [0])) -> x
-(Rsh64x64  x (Const64 [0])) -> x
-(Rsh64Ux64 x (Const64 [0])) -> x
-(Lsh32x64  x (Const64 [0])) -> x
-(Rsh32x64  x (Const64 [0])) -> x
-(Rsh32Ux64 x (Const64 [0])) -> x
-(Lsh16x64  x (Const64 [0])) -> x
-(Rsh16x64  x (Const64 [0])) -> x
-(Rsh16Ux64 x (Const64 [0])) -> x
-(Lsh8x64   x (Const64 [0])) -> x
-(Rsh8x64   x (Const64 [0])) -> x
-(Rsh8Ux64  x (Const64 [0])) -> x
+(Lsh(64|32|16|8)x64  x (Const64 [0])) -> x
+(Rsh(64|32|16|8)x64  x (Const64 [0])) -> x
+(Rsh(64|32|16|8)Ux64 x (Const64 [0])) -> x
 
-// zero shifted.
+// zero shifted
 (Lsh64x(64|32|16|8)  (Const64 [0]) _) -> (Const64 [0])
 (Rsh64x(64|32|16|8)  (Const64 [0]) _) -> (Const64 [0])
 (Rsh64Ux(64|32|16|8) (Const64 [0]) _) -> (Const64 [0])
@@ -481,19 +466,10 @@
 
 (Neg(64|32|16|8) (Sub(64|32|16|8) x y)) -> (Sub(64|32|16|8) y x)
 
-(Add8  (Const8  [1]) (Com8  x)) -> (Neg8  x)
-(Add16 (Const16 [1]) (Com16 x)) -> (Neg16 x)
-(Add32 (Const32 [1]) (Com32 x)) -> (Neg32 x)
-(Add64 (Const64 [1]) (Com64 x)) -> (Neg64 x)
+(Add(64|32|16|8) (Const(64|32|16|8) [1]) (Com(64|32|16|8) x)) -> (Neg(64|32|16|8) x)
 
-(And64 x (And64 x y)) -> (And64 x y)
-(And32 x (And32 x y)) -> (And32 x y)
-(And16 x (And16 x y)) -> (And16 x y)
-(And8  x (And8  x y)) -> (And8  x y)
-(Or64 x (Or64 x y)) -> (Or64 x y)
-(Or32 x (Or32 x y)) -> (Or32 x y)
-(Or16 x (Or16 x y)) -> (Or16 x y)
-(Or8  x (Or8  x y)) -> (Or8  x y)
+(And(64|32|16|8) x (And(64|32|16|8) x y)) -> (And(64|32|16|8) x y)
+(Or(64|32|16|8) x (Or(64|32|16|8) x y)) -> (Or(64|32|16|8) x y)
 (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) -> y
 
 // Ands clear bits. Ors set bits.
@@ -869,7 +845,7 @@
         (Const32 <typ.UInt32> [int64(1<<15+(umagic(16,c).m+1)/2)])
         (Rsh32Ux64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [1])))
       (Const64 <typ.UInt64> [16+umagic(16,c).s-2])))
-(Div16u x (Const16 [c])) && umagicOK(16, c) && config.RegSize == 4 ->
+(Div16u x (Const16 [c])) && umagicOK(16, c) && config.RegSize == 4 && config.useAvg ->
   (Trunc32to16
     (Rsh32Ux64 <typ.UInt32>
       (Avg32u
@@ -880,19 +856,19 @@
       (Const64 <typ.UInt64> [16+umagic(16,c).s-1])))
 
 // For 32-bit divides on 32-bit machines
-(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && umagic(32,c).m&1 == 0 ->
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && umagic(32,c).m&1 == 0 && config.useHmul ->
   (Rsh32Ux64 <typ.UInt32>
     (Hmul32u <typ.UInt32>
       (Const32 <typ.UInt32> [int64(int32(1<<31+umagic(32,c).m/2))])
       x)
     (Const64 <typ.UInt64> [umagic(32,c).s-1]))
-(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && c&1 == 0 ->
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && c&1 == 0 && config.useHmul ->
   (Rsh32Ux64 <typ.UInt32>
     (Hmul32u <typ.UInt32>
       (Const32 <typ.UInt32> [int64(int32(1<<31+(umagic(32,c).m+1)/2))])
       (Rsh32Ux64 <typ.UInt32> x (Const64 <typ.UInt64> [1])))
     (Const64 <typ.UInt64> [umagic(32,c).s-2]))
-(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 ->
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && config.useAvg && config.useHmul ->
   (Rsh32Ux64 <typ.UInt32>
     (Avg32u
       x
@@ -917,7 +893,7 @@
         (Const64 <typ.UInt64> [int64(1<<31+(umagic(32,c).m+1)/2)])
         (Rsh64Ux64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [1])))
       (Const64 <typ.UInt64> [32+umagic(32,c).s-2])))
-(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 8 ->
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 8 && config.useAvg ->
   (Trunc64to32
     (Rsh64Ux64 <typ.UInt64>
       (Avg64u
@@ -929,19 +905,19 @@
 
 // For 64-bit divides on 64-bit machines
 // (64-bit divides on 32-bit machines are lowered to a runtime call by the walk pass.)
-(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0 ->
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0 && config.useHmul ->
   (Rsh64Ux64 <typ.UInt64>
     (Hmul64u <typ.UInt64>
       (Const64 <typ.UInt64> [int64(1<<63+umagic(64,c).m/2)])
       x)
     (Const64 <typ.UInt64> [umagic(64,c).s-1]))
-(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && c&1 == 0 ->
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && c&1 == 0 && config.useHmul ->
   (Rsh64Ux64 <typ.UInt64>
     (Hmul64u <typ.UInt64>
       (Const64 <typ.UInt64> [int64(1<<63+(umagic(64,c).m+1)/2)])
       (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [1])))
     (Const64 <typ.UInt64> [umagic(64,c).s-2]))
-(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 ->
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && config.useAvg && config.useHmul ->
   (Rsh64Ux64 <typ.UInt64>
     (Avg64u
       x
@@ -1016,7 +992,7 @@
     (Rsh64x64 <t>
       (SignExt32to64 x)
       (Const64 <typ.UInt64> [63])))
-(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 == 0 ->
+(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 == 0 && config.useHmul ->
   (Sub32 <t>
     (Rsh32x64 <t>
       (Hmul32 <t>
@@ -1026,7 +1002,7 @@
     (Rsh32x64 <t>
       x
       (Const64 <typ.UInt64> [31])))
-(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 != 0 ->
+(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 != 0 && config.useHmul ->
   (Sub32 <t>
     (Rsh32x64 <t>
       (Add32 <t>
@@ -1038,7 +1014,7 @@
     (Rsh32x64 <t>
       x
       (Const64 <typ.UInt64> [31])))
-(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 == 0 ->
+(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 == 0 && config.useHmul ->
   (Sub64 <t>
     (Rsh64x64 <t>
       (Hmul64 <t>
@@ -1048,7 +1024,7 @@
     (Rsh64x64 <t>
       x
       (Const64 <typ.UInt64> [63])))
-(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 != 0 ->
+(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 != 0 && config.useHmul ->
   (Sub64 <t>
     (Rsh64x64 <t>
       (Add64 <t>
@@ -1268,6 +1244,8 @@
 // Address comparison shows up in type assertions.
 (EqPtr x x) -> (ConstBool [1])
 (EqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a == b)])
+(NeqPtr x x) -> (ConstBool [0])
+(NeqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a != b)])
 
 // Inline small runtime.memmove calls with constant length.
 (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))

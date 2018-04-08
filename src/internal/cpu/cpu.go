@@ -63,17 +63,32 @@ var ARM64 arm64
 // The booleans in arm64 contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
 type arm64 struct {
-	_          [CacheLineSize]byte
-	HasFP      bool
-	HasASIMD   bool
-	HasEVTSTRM bool
-	HasAES     bool
-	HasPMULL   bool
-	HasSHA1    bool
-	HasSHA2    bool
-	HasCRC32   bool
-	HasATOMICS bool
-	_          [CacheLineSize]byte
+	_           [CacheLineSize]byte
+	HasFP       bool
+	HasASIMD    bool
+	HasEVTSTRM  bool
+	HasAES      bool
+	HasPMULL    bool
+	HasSHA1     bool
+	HasSHA2     bool
+	HasCRC32    bool
+	HasATOMICS  bool
+	HasFPHP     bool
+	HasASIMDHP  bool
+	HasCPUID    bool
+	HasASIMDRDM bool
+	HasJSCVT    bool
+	HasFCMA     bool
+	HasLRCPC    bool
+	HasDCPOP    bool
+	HasSHA3     bool
+	HasSM3      bool
+	HasSM4      bool
+	HasASIMDDP  bool
+	HasSHA512   bool
+	HasSVE      bool
+	HasASIMDFHM bool
+	_           [CacheLineSize]byte
 }
 
 var S390X s390x

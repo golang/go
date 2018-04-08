@@ -1012,6 +1012,10 @@ var vfexpSC = []float64{
 	1.48852223e+09,
 	1.4885222e+09,
 	1,
+	// near zero
+	3.725290298461915e-09,
+	// denormal
+	-740,
 }
 var expSC = []float64{
 	0,
@@ -1023,6 +1027,8 @@ var expSC = []float64{
 	Inf(1),
 	Inf(1),
 	2.718281828459045,
+	1.0000000037252903,
+	4.2e-322,
 }
 
 var vfexp2SC = []float64{
@@ -1033,6 +1039,10 @@ var vfexp2SC = []float64{
 	NaN(),
 	// smallest float64 that overflows Exp2(x)
 	1024,
+	// near underflow
+	-1.07399999999999e+03,
+	// near zero
+	3.725290298461915e-09,
 }
 var exp2SC = []float64{
 	0,
@@ -1041,6 +1051,8 @@ var exp2SC = []float64{
 	Inf(1),
 	NaN(),
 	Inf(1),
+	5e-324,
+	1.0000000025821745,
 }
 
 var vfexpm1SC = []float64{
@@ -1955,6 +1967,8 @@ var vfldexpBC = []fi{
 	{-1, -1075},
 	{1, 1024},
 	{-1, 1024},
+	{1.0000000000000002, -1075},
+	{1, -1075},
 }
 var ldexpBC = []float64{
 	SmallestNonzeroFloat64,
@@ -1965,6 +1979,8 @@ var ldexpBC = []float64{
 	Copysign(0, -1),
 	Inf(1),
 	Inf(-1),
+	SmallestNonzeroFloat64,
+	0,
 }
 
 var logbBC = []float64{
@@ -2316,7 +2332,7 @@ func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
 	}
 	for i := 0; i < len(vfexp2SC); i++ {
 		if f := Exp2(vfexp2SC[i]); !alike(exp2SC[i], f) {
-			t.Errorf("%s(%g) = %g, want %g", name, vfexpSC[i], f, expSC[i])
+			t.Errorf("%s(%g) = %g, want %g", name, vfexp2SC[i], f, exp2SC[i])
 		}
 	}
 	for n := -1074; n < 1024; n++ {

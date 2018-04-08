@@ -79,7 +79,7 @@ TEXT	·logAsm(SB), NOSPLIT, $0-16
 	BYTE	$0x59
 	MOVW	R1, R7
 	CMPBGT	R7, $22, L17
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	MOVD	$·logx43f<>+0(SB), R1
 	FMOVD	0(R1), F2
 	BLEU	L3
@@ -87,7 +87,7 @@ TEXT	·logAsm(SB), NOSPLIT, $0-16
 	MOVH	$0x8405, R0
 	BR	L15
 L7:
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	BLEU	L3
 L15:
 	FMUL	F2, F0
@@ -161,7 +161,7 @@ L1:
 	FMOVD	F0, ret+8(FP)
 	RET
 L3:
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	BEQ	L20
 	BGE	L1
 	BVS	L1

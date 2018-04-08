@@ -140,9 +140,6 @@ var goodLinkerFlags = [][]string{
 var badLinkerFlags = [][]string{
 	{"-DFOO"},
 	{"-Dfoo=bar"},
-	{"-O"},
-	{"-O2"},
-	{"-Osmall"},
 	{"-W"},
 	{"-Wall"},
 	{"-fobjc-arc"},
@@ -155,7 +152,6 @@ var badLinkerFlags = [][]string{
 	{"-fno-stack-xxx"},
 	{"-mstack-overflow"},
 	{"-mno-stack-overflow"},
-	{"-mmacosx-version"},
 	{"-mnop-fun-dllimport"},
 	{"-std=c99"},
 	{"-xc"},

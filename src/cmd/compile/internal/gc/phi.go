@@ -241,7 +241,7 @@ func (s *phiState) insertVarPhis(n int, var_ *Node, defs []*ssa.Block, typ *type
 				v := c.NewValue0I(currentRoot.Pos, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
 				// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
 				s.s.addNamedValue(var_, v)
-				for i := 0; i < len(c.Preds); i++ {
+				for range c.Preds {
 					v.AddArg(s.placeholder) // Actual args will be filled in by resolveFwdRefs.
 				}
 				if debugPhi {

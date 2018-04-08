@@ -515,9 +515,9 @@ func (c *Client) Do(req *Request) (*Response, error) {
 		method := valueOrDefault(reqs[0].Method, "GET")
 		var urlStr string
 		if resp != nil && resp.Request != nil {
-			urlStr = resp.Request.URL.String()
+			urlStr = stripPassword(resp.Request.URL)
 		} else {
-			urlStr = req.URL.String()
+			urlStr = stripPassword(req.URL)
 		}
 		return &url.Error{
 			Op:  method[:1] + strings.ToLower(method[1:]),
@@ -879,4 +879,13 @@ func isDomainOrSubdomain(sub, parent string) bool {
 		return false
 	}
 	return sub[len(sub)-len(parent)-1] == '.'
+}
+
+func stripPassword(u *url.URL) string {
+	pass, passSet := u.User.Password()
+	if passSet {
+		return strings.Replace(u.String(), pass+"@", "***@", 1)
+	}
+
+	return u.String()
 }

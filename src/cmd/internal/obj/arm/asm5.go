@@ -303,6 +303,9 @@ var optab = []Optab{
 	{AMOVHU, C_ADDR, C_NONE, C_REG, 93, 8, 0, LFROM | LPCREL, 4, C_PBIT | C_WBIT | C_UBIT},
 	{ALDREX, C_SOREG, C_NONE, C_REG, 77, 4, 0, 0, 0, 0},
 	{ASTREX, C_SOREG, C_REG, C_REG, 78, 4, 0, 0, 0, 0},
+	{ADMB, C_NONE, C_NONE, C_NONE, 110, 4, 0, 0, 0, 0},
+	{ADMB, C_LCON, C_NONE, C_NONE, 110, 4, 0, 0, 0, 0},
+	{ADMB, C_SPR, C_NONE, C_NONE, 110, 4, 0, 0, 0, 0},
 	{AMOVF, C_ZFCON, C_NONE, C_FREG, 80, 8, 0, 0, 0, 0},
 	{AMOVF, C_SFCON, C_NONE, C_FREG, 81, 4, 0, 0, 0, 0},
 	{ACMPF, C_FREG, C_FREG, C_NONE, 82, 8, 0, 0, 0, 0},
@@ -329,6 +332,20 @@ var optab = []Optab{
 	{ADATABUNDLE, C_NONE, C_NONE, C_NONE, 100, 4, 0, 0, 0, 0},
 	{ADATABUNDLEEND, C_NONE, C_NONE, C_NONE, 100, 0, 0, 0, 0, 0},
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0, 0},
+}
+
+var mbOp = []struct {
+	reg int16
+	enc uint32
+}{
+	{REG_MB_SY, 15},
+	{REG_MB_ST, 14},
+	{REG_MB_ISH, 11},
+	{REG_MB_ISHST, 10},
+	{REG_MB_NSH, 7},
+	{REG_MB_NSHST, 6},
+	{REG_MB_OSH, 3},
+	{REG_MB_OSHST, 2},
 }
 
 var oprange [ALAST & obj.AMask][]Optab
@@ -1103,6 +1120,9 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 		if a.Reg == REG_CPSR || a.Reg == REG_SPSR {
 			return C_PSR
 		}
+		if a.Reg >= REG_SPECIAL {
+			return C_SPR
+		}
 		return C_GOK
 
 	case obj.TYPE_REGREG:
@@ -1697,6 +1717,7 @@ func buildop(ctxt *obj.Link) {
 			ASTREX,
 			ALDREXD,
 			ASTREXD,
+			ADMB,
 			APLD,
 			AAND,
 			AMULA,
@@ -2786,6 +2807,35 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = rt
 		}
 		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16
+
+	case 110: /* dmb [mbop | $con] */
+		o1 = 0xf57ff050
+		mbop := uint32(0)
+
+		switch c.aclass(&p.From) {
+		case C_SPR:
+			for _, f := range mbOp {
+				if f.reg == p.From.Reg {
+					mbop = f.enc
+					break
+				}
+			}
+		case C_RCON:
+			for _, f := range mbOp {
+				enc := uint32(c.instoffset)
+				if f.enc == enc {
+					mbop = enc
+					break
+				}
+			}
+		case C_NONE:
+			mbop = 0xf
+		}
+
+		if mbop == 0 {
+			c.ctxt.Diag("illegal mb option:\n%v", p)
+		}
+		o1 |= mbop
 	}
 
 	out[0] = o1
@@ -2794,7 +2844,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[3] = o4
 	out[4] = o5
 	out[5] = o6
-	return
 }
 
 func (c *ctxt5) movxt(p *obj.Prog) uint32 {
@@ -3265,8 +3314,7 @@ func (c *ctxt5) ofsr(a obj.As, r int, v int32, b int, sc int, p *obj.Prog) uint3
 
 // MOVW $"lower 16-bit", Reg
 func (c *ctxt5) omvs(p *obj.Prog, a *obj.Addr, dr int) uint32 {
-	var o1 uint32
-	o1 = ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
+	o1 := ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 	o1 |= 0x30 << 20
 	o1 |= (uint32(dr) & 15) << 12
 	o1 |= uint32(a.Offset) & 0x0fff

@@ -42,13 +42,12 @@ var (
 )
 
 type Sig struct {
-	name   string
-	pkg    *types.Pkg
-	isym   *types.Sym
-	tsym   *types.Sym
-	type_  *types.Type
-	mtype  *types.Type
-	offset int32
+	name  string
+	pkg   *types.Pkg
+	isym  *types.Sym
+	tsym  *types.Sym
+	type_ *types.Type
+	mtype *types.Type
 }
 
 // siglt sorts method signatures by name with exported methods first,
@@ -343,9 +342,8 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 		in = append(in, d)
 	}
 
-	var d *Node
 	for _, t := range f.Params().Fields().Slice() {
-		d = nod(ODCLFIELD, nil, nil)
+		d := nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		d.SetIsddd(t.Isddd())
 		in = append(in, d)
@@ -353,7 +351,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 
 	var out []*Node
 	for _, t := range f.Results().Fields().Slice() {
-		d = nod(ODCLFIELD, nil, nil)
+		d := nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		out = append(out, d)
 	}
@@ -408,12 +406,7 @@ func methods(t *types.Type) []*Sig {
 		// if pointer receiver but non-pointer t and
 		// this is not an embedded pointer inside a struct,
 		// method does not apply.
-		this := f.Type.Recv().Type
-
-		if this.IsPtr() && this.Elem() == t {
-			continue
-		}
-		if this.IsPtr() && !t.IsPtr() && f.Embedded != 2 && !isifacemethod(f.Type) {
+		if !isMethodApplicable(t, f) {
 			continue
 		}
 
@@ -428,16 +421,18 @@ func methods(t *types.Type) []*Sig {
 			sig.pkg = method.Pkg
 		}
 
-		sig.isym = methodsym(method, it, true)
-		sig.tsym = methodsym(method, t, false)
+		sig.isym = methodSym(it, method)
+		sig.tsym = methodSym(t, method)
 		sig.type_ = methodfunc(f.Type, t)
 		sig.mtype = methodfunc(f.Type, nil)
 
+		this := f.Type.Recv().Type
+
 		if !sig.isym.Siggen() {
 			sig.isym.SetSiggen(true)
-			if !eqtype(this, it) || this.Width < int64(Widthptr) {
+			if !eqtype(this, it) {
 				compiling_wrappers = true
-				genwrapper(it, f, sig.isym, true)
+				genwrapper(it, f, sig.isym)
 				compiling_wrappers = false
 			}
 		}
@@ -446,7 +441,7 @@ func methods(t *types.Type) []*Sig {
 			sig.tsym.SetSiggen(true)
 			if !eqtype(this, t) {
 				compiling_wrappers = true
-				genwrapper(t, f, sig.tsym, false)
+				genwrapper(t, f, sig.tsym)
 				compiling_wrappers = false
 			}
 		}
@@ -474,7 +469,6 @@ func imethods(t *types.Type) []*Sig {
 		}
 
 		sig.mtype = f.Type
-		sig.offset = 0
 		sig.type_ = methodfunc(f.Type, nil)
 
 		if n := len(methods); n > 0 {
@@ -494,10 +488,10 @@ func imethods(t *types.Type) []*Sig {
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		isym := methodsym(method, t, false)
+		isym := methodSym(t, method)
 		if !isym.Siggen() {
 			isym.SetSiggen(true)
-			genwrapper(t, f, isym, false)
+			genwrapper(t, f, isym)
 		}
 	}
 
@@ -1477,6 +1471,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 	return syms[methodnum]
 }
 
+// addsignat ensures that a runtime type descriptor is emitted for t.
 func addsignat(t *types.Type) {
 	signatset[t] = struct{}{}
 }

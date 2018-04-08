@@ -33,11 +33,6 @@ package x86
 import "cmd/internal/obj"
 
 const (
-	/* mark flags */
-	DONE = 1 << iota
-)
-
-const (
 	REG_NONE = 0
 )
 
@@ -140,11 +135,11 @@ const (
 	REG_FS
 	REG_GS
 
-	REG_GDTR /* global descriptor table register */
-	REG_IDTR /* interrupt descriptor table register */
-	REG_LDTR /* local descriptor table register */
-	REG_MSW  /* machine status word */
-	REG_TASK /* task register */
+	REG_GDTR // global descriptor table register
+	REG_IDTR // interrupt descriptor table register
+	REG_LDTR // local descriptor table register
+	REG_MSW  // machine status word
+	REG_TASK // task register
 
 	REG_CR0
 	REG_CR1
@@ -194,9 +189,9 @@ const (
 	FREGRET  = REG_X0
 	REGSP    = REG_SP
 	REGCTXT  = REG_DX
-	REGEXT   = REG_R15     /* compiler allocates external registers R15 down */
-	FREGMIN  = REG_X0 + 5  /* first register variable */
-	FREGEXT  = REG_X0 + 15 /* first external register */
+	REGEXT   = REG_R15     // compiler allocates external registers R15 down
+	FREGMIN  = REG_X0 + 5  // first register variable
+	FREGEXT  = REG_X0 + 15 // first external register
 	T_TYPE   = 1 << 0
 	T_INDEX  = 1 << 1
 	T_OFFSET = 1 << 2

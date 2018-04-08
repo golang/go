@@ -228,16 +228,6 @@ var allAsmTests = []*asmTests{
 		tests:   linuxAMD64Tests,
 	},
 	{
-		arch:  "386",
-		os:    "linux",
-		tests: linux386Tests,
-	},
-	{
-		arch:  "s390x",
-		os:    "linux",
-		tests: linuxS390XTests,
-	},
-	{
 		arch:    "arm",
 		os:      "linux",
 		imports: []string{"runtime"},
@@ -249,19 +239,9 @@ var allAsmTests = []*asmTests{
 		tests: linuxARM64Tests,
 	},
 	{
-		arch:  "mips",
-		os:    "linux",
-		tests: linuxMIPSTests,
-	},
-	{
 		arch:  "mips64",
 		os:    "linux",
 		tests: linuxMIPS64Tests,
-	},
-	{
-		arch:  "ppc64le",
-		os:    "linux",
-		tests: linuxPPC64LETests,
 	},
 	{
 		arch:  "amd64",
@@ -278,45 +258,6 @@ var linuxAMD64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
-	},
-	// Bit test ops on amd64, issue 18943.
-	{
-		fn: `
-		func f37(a, b uint64) int {
-			if a&(1<<(b&63)) != 0 {
-				return 1
-			}
-			return -1
-		}
-		`,
-		pos: []string{"\tBTQ\t"},
-	},
-	{
-		fn: `
-		func f38(a, b uint64) bool {
-			return a&(1<<(b&63)) != 0
-		}
-		`,
-		pos: []string{"\tBTQ\t"},
-	},
-	{
-		fn: `
-		func f39(a uint64) int {
-			if a&(1<<60) != 0 {
-				return 1
-			}
-			return -1
-		}
-		`,
-		pos: []string{"\tBTQ\t\\$60"},
-	},
-	{
-		fn: `
-		func f40(a uint64) bool {
-			return a&(1<<60) != 0
-		}
-		`,
-		pos: []string{"\tBTQ\t\\$60"},
 	},
 	// see issue 19595.
 	// We want to merge load+op in f58, but not in f59.
@@ -384,91 +325,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		neg: []string{"MOVUPS"},
 	},
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]0-8"},
-	},
-	// int <-> fp moves
-	{
-		fn: `
-		func $(x uint32) bool {
-			return x > 4
-		}
-		`,
-		pos: []string{"\tSETHI\t.*\\(SP\\)"},
-	},
-	{
-		fn: `
-		func $(p int, q *int) bool {
-			return p < *q
-		}
-		`,
-		pos: []string{"CMPQ\t\\(.*\\), [A-Z]"},
-	},
-	{
-		fn: `
-		func $(p *int, q int) bool {
-			return *p < q
-		}
-		`,
-		pos: []string{"CMPQ\t\\(.*\\), [A-Z]"},
-	},
-	{
-		fn: `
-		func $(p *int) bool {
-			return *p < 7
-		}
-		`,
-		pos: []string{"CMPQ\t\\(.*\\), [$]7"},
-	},
-	{
-		fn: `
-		func $(p *int) bool {
-			return 7 < *p
-		}
-		`,
-		pos: []string{"CMPQ\t\\(.*\\), [$]7"},
-	},
-	{
-		fn: `
-		func $(p **int) {
-			*p = nil
-		}
-		`,
-		pos: []string{"CMPL\truntime.writeBarrier\\(SB\\), [$]0"},
-	},
-}
-
-var linux386Tests = []*asmTest{
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]0-4"},
-	},
-}
-
-var linuxS390XTests = []*asmTest{
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]0-8"},
-	},
 }
 
 var linuxARMTests = []*asmTest{
@@ -481,16 +337,6 @@ var linuxARMTests = []*asmTest{
 		}
 		`,
 		pos: []string{"b\\+4\\(FP\\)"},
-	},
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]-4-4"},
 	},
 }
 
@@ -549,16 +395,6 @@ var linuxARM64Tests = []*asmTest{
 		pos: []string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
 	},
 	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]-8-8"},
-	},
-	{
 		// check that we don't emit comparisons for constant shift
 		fn: `
 //go:nosplit
@@ -568,46 +404,6 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		pos: []string{"LSL\t\\$17"},
 		neg: []string{"CMP"},
-	},
-	{
-		fn: `
-		func $(a int32, ptr *int) {
-			if a >= 0 {
-				*ptr = 0
-			}
-		}
-		`,
-		pos: []string{"TBNZ"},
-	},
-	{
-		fn: `
-		func $(a int64, ptr *int) {
-			if a >= 0 {
-				*ptr = 0
-			}
-		}
-		`,
-		pos: []string{"TBNZ"},
-	},
-	{
-		fn: `
-		func $(a int32, ptr *int) {
-			if a < 0 {
-				*ptr = 0
-			}
-		}
-		`,
-		pos: []string{"TBZ"},
-	},
-	{
-		fn: `
-		func $(a int64, ptr *int) {
-			if a < 0 {
-				*ptr = 0
-			}
-		}
-		`,
-		pos: []string{"TBZ"},
 	},
 	// Load-combining tests.
 	{
@@ -632,263 +428,6 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		pos: []string{"\tCSEL\t"},
 	},
-	// Check that zero stores are combine into larger stores
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[1] // early bounds check to guarantee safety of writes below
-			b[0] = 0
-			b[1] = 0
-		}
-		`,
-		pos: []string{"MOVH\tZR"},
-		neg: []string{"MOVB"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[1] // early bounds check to guarantee safety of writes below
-			b[1] = 0
-			b[0] = 0
-		}
-		`,
-		pos: []string{"MOVH\tZR"},
-		neg: []string{"MOVB"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[3] // early bounds check to guarantee safety of writes below
-			b[0] = 0
-			b[1] = 0
-			b[2] = 0
-			b[3] = 0
-		}
-		`,
-		pos: []string{"MOVW\tZR"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[3] // early bounds check to guarantee safety of writes below
-			b[2] = 0
-			b[3] = 0
-			b[1] = 0
-			b[0] = 0
-		}
-		`,
-		pos: []string{"MOVW\tZR"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(h []uint16) {
-			_ = h[1] // early bounds check to guarantee safety of writes below
-			h[0] = 0
-			h[1] = 0
-		}
-		`,
-		pos: []string{"MOVW\tZR"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(h []uint16) {
-			_ = h[1] // early bounds check to guarantee safety of writes below
-			h[1] = 0
-			h[0] = 0
-		}
-		`,
-		pos: []string{"MOVW\tZR"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[7] // early bounds check to guarantee safety of writes below
-			b[0] = 0
-			b[1] = 0
-			b[2] = 0
-			b[3] = 0
-			b[4] = 0
-			b[5] = 0
-			b[6] = 0
-			b[7] = 0
-		}
-		`,
-		pos: []string{"MOVD\tZR"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(h []uint16) {
-			_ = h[3] // early bounds check to guarantee safety of writes below
-			h[0] = 0
-			h[1] = 0
-			h[2] = 0
-			h[3] = 0
-		}
-		`,
-		pos: []string{"MOVD\tZR"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(h []uint16) {
-			_ = h[3] // early bounds check to guarantee safety of writes below
-			h[2] = 0
-			h[3] = 0
-			h[1] = 0
-			h[0] = 0
-		}
-		`,
-		pos: []string{"MOVD\tZR"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(w []uint32) {
-			_ = w[1] // early bounds check to guarantee safety of writes below
-			w[0] = 0
-			w[1] = 0
-		}
-		`,
-		pos: []string{"MOVD\tZR"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(w []uint32) {
-			_ = w[1] // early bounds check to guarantee safety of writes below
-			w[1] = 0
-			w[0] = 0
-		}
-		`,
-		pos: []string{"MOVD\tZR"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(b []byte) {
-			_ = b[15] // early bounds check to guarantee safety of writes below
-			b[0] = 0
-			b[1] = 0
-			b[2] = 0
-			b[3] = 0
-			b[4] = 0
-			b[5] = 0
-			b[6] = 0
-			b[7] = 0
-			b[8] = 0
-			b[9] = 0
-			b[10] = 0
-			b[11] = 0
-			b[12] = 0
-			b[13] = 0
-			b[15] = 0
-			b[14] = 0
-		}
-		`,
-		pos: []string{"STP"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(h []uint16) {
-			_ = h[7] // early bounds check to guarantee safety of writes below
-			h[0] = 0
-			h[1] = 0
-			h[2] = 0
-			h[3] = 0
-			h[4] = 0
-			h[5] = 0
-			h[6] = 0
-			h[7] = 0
-		}
-		`,
-		pos: []string{"STP"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(w []uint32) {
-			_ = w[3] // early bounds check to guarantee safety of writes below
-			w[0] = 0
-			w[1] = 0
-			w[2] = 0
-			w[3] = 0
-		}
-		`,
-		pos: []string{"STP"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(w []uint32) {
-			_ = w[3] // early bounds check to guarantee safety of writes below
-			w[1] = 0
-			w[0] = 0
-			w[3] = 0
-			w[2] = 0
-		}
-		`,
-		pos: []string{"STP"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(d []uint64) {
-			_ = d[1] // early bounds check to guarantee safety of writes below
-			d[0] = 0
-			d[1] = 0
-		}
-		`,
-		pos: []string{"STP"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(d []uint64) {
-			_ = d[1] // early bounds check to guarantee safety of writes below
-			d[1] = 0
-			d[0] = 0
-		}
-		`,
-		pos: []string{"STP"},
-		neg: []string{"MOVB", "MOVH"},
-	},
-	{
-		fn: `
-		func $(a *[39]byte) {
-			*a = [39]byte{}
-		}
-		`,
-		pos: []string{"MOVD"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-	{
-		fn: `
-		func $(a *[30]byte) {
-			*a = [30]byte{}
-		}
-		`,
-		pos: []string{"STP"},
-		neg: []string{"MOVB", "MOVH", "MOVW"},
-	},
-}
-
-var linuxMIPSTests = []*asmTest{
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]-4-4"},
-	},
 }
 
 var linuxMIPS64Tests = []*asmTest{
@@ -901,19 +440,6 @@ var linuxMIPS64Tests = []*asmTest{
 		`,
 		pos: []string{"SLLV\t\\$17"},
 		neg: []string{"SGT"},
-	},
-}
-
-var linuxPPC64LETests = []*asmTest{
-	{
-		// check that stack store is optimized away
-		fn: `
-		func $() int {
-			var x int
-			return *(&x)
-		}
-		`,
-		pos: []string{"TEXT\t.*, [$]0-8"},
 	},
 }
 

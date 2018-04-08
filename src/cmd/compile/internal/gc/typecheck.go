@@ -847,30 +847,10 @@ func typecheck1(n *Node, top int) *Node {
 		s := n.Sym
 
 		if n.Left.Op == OTYPE {
-			if !looktypedot(n, t, 0) {
-				if looktypedot(n, t, 1) {
-					yyerror("%v undefined (cannot refer to unexported method %v)", n, n.Sym)
-				} else {
-					yyerror("%v undefined (type %v has no method %v)", n, t, n.Sym)
-				}
-				n.Type = nil
+			n = typecheckMethodExpr(n)
+			if n.Type == nil {
 				return n
 			}
-
-			if n.Type.Etype != TFUNC || !n.IsMethod() {
-				yyerror("type %v has no method %S", n.Left.Type, n.Sym)
-				n.Type = nil
-				return n
-			}
-
-			n.Op = ONAME
-			if n.Name == nil {
-				n.Name = new(Name)
-			}
-			n.Right = newname(n.Sym)
-			n.Type = methodfunc(n.Type, n.Left.Type)
-			n.Xoffset = 0
-			n.SetClass(PFUNC)
 			ok = Erv
 			break
 		}
@@ -1294,12 +1274,10 @@ func typecheck1(n *Node, top int) *Node {
 			n.Type = nil
 			return n
 		}
+		n.Type = types.Types[TUINTPTR]
 
 		// any side effects disappear; ignore init
-		var r Node
-		nodconst(&r, types.Types[TUINTPTR], evalunsafe(n))
-		r.Orig = n
-		n = &r
+		setintconst(n, evalunsafe(n))
 
 	case OCAP, OLEN:
 		ok |= Erv
@@ -1330,7 +1308,9 @@ func typecheck1(n *Node, top int) *Node {
 			return n
 		}
 
-		// result might be constant
+		n.Type = types.Types[TINT]
+
+		// Result might be constant.
 		var res int64 = -1 // valid if >= 0
 		switch t.Etype {
 		case TSTRING:
@@ -1344,13 +1324,8 @@ func typecheck1(n *Node, top int) *Node {
 			}
 		}
 		if res >= 0 {
-			var r Node
-			nodconst(&r, types.Types[TINT], res)
-			r.Orig = n
-			n = &r
+			setintconst(n, res)
 		}
-
-		n.Type = types.Types[TINT]
 
 	case OREAL, OIMAG:
 		ok |= Erv
@@ -1367,11 +1342,21 @@ func typecheck1(n *Node, top int) *Node {
 			return n
 		}
 
-		if t.Etype != TIDEAL && !t.IsComplex() {
+		// Determine result type.
+		et := t.Etype
+		switch et {
+		case TIDEAL:
+			// result is ideal
+		case TCOMPLEX64:
+			et = TFLOAT32
+		case TCOMPLEX128:
+			et = TFLOAT64
+		default:
 			yyerror("invalid argument %L for %v", l, n.Op)
 			n.Type = nil
 			return n
 		}
+		n.Type = types.Types[et]
 
 		// if the argument is a constant, the result is a constant
 		// (any untyped numeric constant can be represented as a
@@ -1400,24 +1385,8 @@ func typecheck1(n *Node, top int) *Node {
 				}
 				re = im
 			}
-			orig := n
-			n = nodfltconst(re)
-			n.Orig = orig
+			setconst(n, Val{re})
 		}
-
-		// determine result type
-		et := t.Etype
-		switch et {
-		case TIDEAL:
-			// result is ideal
-		case TCOMPLEX64:
-			et = TFLOAT32
-		case TCOMPLEX128:
-			et = TFLOAT64
-		default:
-			Fatalf("unexpected Etype: %v\n", et)
-		}
-		n.Type = types.Types[et]
 
 	case OCOMPLEX:
 		ok |= Erv
@@ -1489,16 +1458,15 @@ func typecheck1(n *Node, top int) *Node {
 		case TFLOAT64:
 			t = types.Types[TCOMPLEX128]
 		}
+		n.Type = t
 
 		if l.Op == OLITERAL && r.Op == OLITERAL {
 			// make it a complex literal
-			r = nodcplxlit(l.Val(), r.Val())
-
-			r.Orig = n
-			n = r
+			c := new(Mpcplx)
+			c.Real.Set(toflt(l.Val()).U.(*Mpflt))
+			c.Imag.Set(toflt(r.Val()).U.(*Mpflt))
+			setconst(n, Val{c})
 		}
-
-		n.Type = t
 
 	case OCLOSE:
 		if !onearg(n, "%v", n.Op) {
@@ -1701,7 +1669,6 @@ func typecheck1(n *Node, top int) *Node {
 
 	case OCONV:
 		ok |= Erv
-		saveorignode(n)
 		checkwidth(n.Type) // ensure width is calculated for backend
 		n.Left = typecheck(n.Left, Erv)
 		n.Left = convlit1(n.Left, n.Type, true, noReuse)
@@ -1717,19 +1684,16 @@ func typecheck1(n *Node, top int) *Node {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
 				n.SetDiag(true)
 			}
-
 			n.Op = OCONV
+			n.Type = nil
+			return n
 		}
 
 		switch n.Op {
 		case OCONVNOP:
 			if n.Left.Op == OLITERAL {
-				r := nod(OXXX, nil, nil)
 				n.Op = OCONV
-				n.Orig = r
-				*r = *n
-				n.Op = OLITERAL
-				n.SetVal(n.Left.Val())
+				setconst(n, n.Left.Val())
 			} else if t.Etype == n.Type.Etype {
 				switch t.Etype {
 				case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
@@ -2359,46 +2323,73 @@ func lookdot1(errnode *Node, s *types.Sym, t *types.Type, fs *types.Fields, dost
 	return r
 }
 
-func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
-	s := n.Sym
+// typecheckMethodExpr checks selector expressions (ODOT) where the
+// base expression is a type expression (OTYPE).
+func typecheckMethodExpr(n *Node) *Node {
+	t := n.Left.Type
 
+	// Compute the method set for t.
+	var ms *types.Fields
 	if t.IsInterface() {
-		f1 := lookdot1(n, s, t, t.Fields(), dostrcmp)
-		if f1 == nil {
-			return false
+		ms = t.Fields()
+	} else {
+		mt := methtype(t)
+		if mt == nil {
+			yyerror("%v undefined (type %v has no method %v)", n, t, n.Sym)
+			n.Type = nil
+			return n
 		}
+		expandmeth(mt)
+		ms = mt.AllMethods()
 
-		n.Sym = methodsym(n.Sym, t, false)
-		n.Xoffset = f1.Offset
-		n.Type = f1.Type
-		n.Op = ODOTINTER
-		return true
+		// The method expression T.m requires a wrapper when T
+		// is different from m's declared receiver type. We
+		// normally generate these wrappers while writing out
+		// runtime type descriptors, which is always done for
+		// types declared at package scope. However, we need
+		// to make sure to generate wrappers for anonymous
+		// receiver types too.
+		if mt.Sym == nil {
+			addsignat(t)
+		}
 	}
 
-	// Find the base type: methtype will fail if t
-	// is not of the form T or *T.
-	mt := methtype(t)
-	if mt == nil {
-		return false
+	s := n.Sym
+	m := lookdot1(n, s, t, ms, 0)
+	if m == nil {
+		if lookdot1(n, s, t, ms, 1) != nil {
+			yyerror("%v undefined (cannot refer to unexported method %v)", n, s)
+		} else {
+			yyerror("%v undefined (type %v has no method %v)", n, t, s)
+		}
+		n.Type = nil
+		return n
 	}
 
-	expandmeth(mt)
-	f2 := lookdot1(n, s, mt, mt.AllMethods(), dostrcmp)
-	if f2 == nil {
-		return false
+	if !isMethodApplicable(t, m) {
+		yyerror("invalid method expression %v (needs pointer receiver: (*%v).%S)", n, t, s)
+		n.Type = nil
+		return n
 	}
 
-	// disallow T.m if m requires *T receiver
-	if f2.Type.Recv().Type.IsPtr() && !t.IsPtr() && f2.Embedded != 2 && !isifacemethod(f2.Type) {
-		yyerror("invalid method expression %v (needs pointer receiver: (*%v).%S)", n, t, f2.Sym)
-		return false
+	n.Op = ONAME
+	if n.Name == nil {
+		n.Name = new(Name)
 	}
+	n.Right = newname(n.Sym)
+	n.Sym = methodSym(t, n.Sym)
+	n.Type = methodfunc(m.Type, n.Left.Type)
+	n.Xoffset = 0
+	n.SetClass(PFUNC)
+	return n
+}
 
-	n.Sym = methodsym(n.Sym, t, false)
-	n.Xoffset = f2.Offset
-	n.Type = f2.Type
-	n.Op = ODOTMETH
-	return true
+// isMethodApplicable reports whether method m can be called on a
+// value of type t. This is necessary because we compute a single
+// method set for both T and *T, but some *T methods are not
+// applicable to T receivers.
+func isMethodApplicable(t *types.Type, m *types.Field) bool {
+	return t.IsPtr() || !m.Type.Recv().Type.IsPtr() || isifacemethod(m.Type) || m.Embedded == 2
 }
 
 func derefall(t *types.Type) *types.Type {
@@ -2511,10 +2502,9 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 			return nil
 		}
 
-		n.Sym = methodsym(n.Sym, n.Left.Type, false)
+		n.Sym = methodSym(n.Left.Type, f2.Sym)
 		n.Xoffset = f2.Offset
 		n.Type = f2.Type
-
 		n.Op = ODOTMETH
 
 		return f2
@@ -2889,9 +2879,7 @@ func typecheckcomplit(n *Node) *Node {
 	}
 
 	// Save original node (including n.Right)
-	norig := nod(n.Op, nil, nil)
-
-	*norig = *n
+	norig := n.copy()
 
 	setlineno(n.Right)
 	n.Right = typecheck(n.Right, Etype|Ecomplit)
@@ -3107,20 +3095,20 @@ func typecheckcomplit(n *Node) *Node {
 				if f == nil {
 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
 						yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
-					} else {
-						p, _ := dotpath(l.Sym, t, nil, true)
-						if p == nil {
-							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
-							continue
-						}
-						// dotpath returns the parent embedded types in reverse order.
-						var ep []string
-						for ei := len(p) - 1; ei >= 0; ei-- {
-							ep = append(ep, p[ei].field.Type.Sym.Name)
-						}
-						ep = append(ep, l.Sym.Name)
-						yyerror("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
+						continue
 					}
+					p, _ := dotpath(l.Sym, t, nil, true)
+					if p == nil {
+						yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
+						continue
+					}
+					// dotpath returns the parent embedded types in reverse order.
+					var ep []string
+					for ei := len(p) - 1; ei >= 0; ei-- {
+						ep = append(ep, p[ei].field.Type.Sym.Name)
+					}
+					ep = append(ep, l.Sym.Name)
+					yyerror("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
 					continue
 				}
 				fielddup(f.Sym.Name, hash)
@@ -3467,10 +3455,13 @@ func typecheckfunc(n *Node) {
 	t.FuncType().Nname = asTypesNode(n.Func.Nname)
 	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
-		n.Func.Nname.Sym = methodname(n.Func.Shortname, rcvr.Type)
-		declare(n.Func.Nname, PFUNC)
+		m := addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+		if m == nil {
+			return
+		}
 
-		addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+		n.Func.Nname.Sym = methodSym(rcvr.Type, n.Func.Shortname)
+		declare(n.Func.Nname, PFUNC)
 	}
 
 	if Ctxt.Flag_dynlink && !inimport && n.Func.Nname != nil {
@@ -3944,24 +3935,45 @@ func deadcode(fn *Node) {
 }
 
 func deadcodeslice(nn Nodes) {
-	for _, n := range nn.Slice() {
+	for i, n := range nn.Slice() {
+		// Cut is set to true when all nodes after i'th position
+		// should be removed.
+		// In other words, it marks whole slice "tail" as dead.
+		cut := false
 		if n == nil {
 			continue
 		}
 		if n.Op == OIF {
 			n.Left = deadcodeexpr(n.Left)
 			if Isconst(n.Left, CTBOOL) {
+				var body Nodes
 				if n.Left.Bool() {
 					n.Rlist = Nodes{}
+					body = n.Nbody
 				} else {
 					n.Nbody = Nodes{}
+					body = n.Rlist
+				}
+				// If "then" or "else" branch ends with panic or return statement,
+				// it is safe to remove all statements after this node.
+				// isterminating is not used to avoid goto-related complications.
+				if body := body.Slice(); len(body) != 0 {
+					switch body[(len(body) - 1)].Op {
+					case ORETURN, ORETJMP, OPANIC:
+						cut = true
+					}
 				}
 			}
 		}
+
 		deadcodeslice(n.Ninit)
 		deadcodeslice(n.Nbody)
 		deadcodeslice(n.List)
 		deadcodeslice(n.Rlist)
+		if cut {
+			*nn.slice = nn.Slice()[:i+1]
+			break
+		}
 	}
 }
 

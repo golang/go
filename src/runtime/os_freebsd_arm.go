@@ -10,8 +10,8 @@ const (
 	_HWCAP_IDIVA = 1 << 17
 )
 
-var hwcap uint32 // set by archauxv
-var hardDiv bool // set if a hardware divider is available
+var hwcap = ^uint32(0) // set by archauxv
+var hardDiv bool       // set if a hardware divider is available
 
 func checkgoarm() {
 	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
@@ -21,7 +21,7 @@ func checkgoarm() {
 	}
 	if goarm > 6 && hwcap&_HWCAP_VFPv3 == 0 {
 		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
-		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
+		print("this GOARM=", goarm, " binary. Recompile using GOARM=5 or GOARM=6.\n")
 		exit(1)
 	}
 

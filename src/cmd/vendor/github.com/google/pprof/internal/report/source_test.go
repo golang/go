@@ -2,6 +2,7 @@ package report
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -35,6 +36,85 @@ func TestWebList(t *testing.T) {
 		if !strings.Contains(output, expect) {
 			t.Errorf("weblist output does not contain '%s':\n%s", expect, output)
 		}
+	}
+}
+
+func TestOpenSourceFile(t *testing.T) {
+	tempdir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	const lsep = string(filepath.ListSeparator)
+	for _, tc := range []struct {
+		desc       string
+		searchPath string
+		fs         []string
+		path       string
+		wantPath   string // If empty, error is wanted.
+	}{
+		{
+			desc:     "exact absolute path is found",
+			fs:       []string{"foo/bar.txt"},
+			path:     "$dir/foo/bar.txt",
+			wantPath: "$dir/foo/bar.txt",
+		},
+		{
+			desc:       "exact relative path is found",
+			searchPath: "$dir",
+			fs:         []string{"foo/bar.txt"},
+			path:       "foo/bar.txt",
+			wantPath:   "$dir/foo/bar.txt",
+		},
+		{
+			desc:       "multiple search path",
+			searchPath: "some/path" + lsep + "$dir",
+			fs:         []string{"foo/bar.txt"},
+			path:       "foo/bar.txt",
+			wantPath:   "$dir/foo/bar.txt",
+		},
+		{
+			desc:       "relative path is found in parent dir",
+			searchPath: "$dir/foo/bar",
+			fs:         []string{"bar.txt", "foo/bar/baz.txt"},
+			path:       "bar.txt",
+			wantPath:   "$dir/bar.txt",
+		},
+		{
+			desc: "error when not found",
+			path: "foo.txt",
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			defer func() {
+				if err := os.RemoveAll(tempdir); err != nil {
+					t.Fatalf("failed to remove dir %q: %v", tempdir, err)
+				}
+			}()
+			for _, f := range tc.fs {
+				path := filepath.Join(tempdir, filepath.FromSlash(f))
+				dir := filepath.Dir(path)
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatalf("failed to create dir %q: %v", dir, err)
+				}
+				if err := ioutil.WriteFile(path, nil, 0644); err != nil {
+					t.Fatalf("failed to create file %q: %v", path, err)
+				}
+			}
+			tc.searchPath = filepath.FromSlash(strings.Replace(tc.searchPath, "$dir", tempdir, -1))
+			tc.path = filepath.FromSlash(strings.Replace(tc.path, "$dir", tempdir, 1))
+			tc.wantPath = filepath.FromSlash(strings.Replace(tc.wantPath, "$dir", tempdir, 1))
+			if file, err := openSourceFile(tc.path, tc.searchPath); err != nil && tc.wantPath != "" {
+				t.Errorf("openSourceFile(%q, %q) = err %v, want path %q", tc.path, tc.searchPath, err, tc.wantPath)
+			} else if err == nil {
+				defer file.Close()
+				gotPath := file.Name()
+				if tc.wantPath == "" {
+					t.Errorf("openSourceFile(%q, %q) = %q, want error", tc.path, tc.searchPath, gotPath)
+				} else if gotPath != tc.wantPath {
+					t.Errorf("openSourceFile(%q, %q) = %q, want path %q", tc.path, tc.searchPath, gotPath, tc.wantPath)
+				}
+			}
+		})
 	}
 }
 

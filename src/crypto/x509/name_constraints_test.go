@@ -1541,6 +1541,23 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 		expectedError: "cannot parse rfc822Name",
 	},
+
+	// #80: if several EKUs are requested, satisfying any of them is sufficient.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:example.com"},
+			ekus: []string{"email"},
+		},
+		requestedEKUs: []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageEmailProtection},
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
@@ -1556,7 +1573,7 @@ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.
 		NotAfter:              time.Unix(2000, 0),
 		KeyUsage:              KeyUsageCertSign,
 		BasicConstraintsValid: true,
-		IsCA: true,
+		IsCA:                  true,
 	}
 
 	if err := addConstraintsToTemplate(constraints, template); err != nil {
@@ -1594,7 +1611,7 @@ func makeConstraintsLeafCert(leaf leafSpec, key *ecdsa.PrivateKey, parent *Certi
 		NotAfter:              time.Unix(2000, 0),
 		KeyUsage:              KeyUsageDigitalSignature,
 		BasicConstraintsValid: true,
-		IsCA: false,
+		IsCA:                  false,
 	}
 
 	for _, name := range leaf.sans {

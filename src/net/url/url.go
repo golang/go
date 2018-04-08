@@ -11,7 +11,6 @@ package url
 // contain references to issue numbers with details.
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -737,7 +736,7 @@ func validOptionalPort(port string) bool {
 //	- if u.RawQuery is empty, ?query is omitted.
 //	- if u.Fragment is empty, #fragment is omitted.
 func (u *URL) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if u.Scheme != "" {
 		buf.WriteString(u.Scheme)
 		buf.WriteByte(':')
@@ -878,7 +877,7 @@ func (v Values) Encode() string {
 	if v == nil {
 		return ""
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	keys := make([]string, 0, len(v))
 	for k := range v {
 		keys = append(keys, k)
@@ -886,12 +885,13 @@ func (v Values) Encode() string {
 	sort.Strings(keys)
 	for _, k := range keys {
 		vs := v[k]
-		prefix := QueryEscape(k) + "="
+		keyEscaped := QueryEscape(k)
 		for _, v := range vs {
 			if buf.Len() > 0 {
 				buf.WriteByte('&')
 			}
-			buf.WriteString(prefix)
+			buf.WriteString(keyEscaped)
+			buf.WriteByte('=')
 			buf.WriteString(QueryEscape(v))
 		}
 	}

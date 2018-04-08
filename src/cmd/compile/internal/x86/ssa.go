@@ -510,6 +510,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.Op386ADDLmem, ssa.Op386SUBLmem, ssa.Op386ANDLmem, ssa.Op386ORLmem, ssa.Op386XORLmem,
+		ssa.Op386ADDSDmem, ssa.Op386ADDSSmem, ssa.Op386SUBSDmem, ssa.Op386SUBSSmem, ssa.Op386MULSDmem, ssa.Op386MULSSmem:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[1].Reg()
+		gc.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		if v.Reg() != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
 	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

@@ -10,32 +10,54 @@ process. This guide assumes you have a basic understanding of Git and Go.
 </p>
 
 <p>
-(Note that the <code>gccgo</code> frontend lives elsewhere;
-see <a href="gccgo_contribute.html">Contributing to gccgo</a>.)
+In addition to the information here, the Go community maintains a
+<a href="https://golang.org/wiki/CodeReview">CodeReview</a> wiki page.
+Feel free to contribute to the wiki as you learn the review process.
 </p>
 
 <p>
-Sensitive security-related issues should be reported to <a href="mailto:security@golang.org">security@golang.org</a>.
+Note that the <code>gccgo</code> front end lives elsewhere;
+see <a href="gccgo_contribute.html">Contributing to gccgo</a>.
 </p>
 
-<h1 id="contributor">Becoming a contributor</h1>
+<h2 id="contributor">Becoming a contributor</h2>
+
+<h3>Overview</h3>
 
 <p>
-Before you can contribute to the Go project you need to setup a few prerequisites.
-The Go project uses <a href="https://www.gerritcodereview.com/">Gerrit</a>, an open
-source online tool, to perform all code reviews.
-Gerrit uses your email address as a unique identifier.
-The Go project contributing flow is currently configured to work only with Google Accounts.
-You must go through the following process <em>prior to contributing</em>.
-You only need to do this once per Google Account.
+The first step is registering as a Go contributor and configuring your environment.
+Here is a very quick checklist of the required steps, that you will need
+to follow:
 </p>
 
-<h2 id="go-contrib-init">Automatically set up &amp; diagnose your development environment</h2>
+<ul>
+<li>
+<b>Step 0</b>: Decide on a single Google Account you would be using to contribute to Go.
+Use that account for all the following steps and make sure that <code>git</code>
+is configured to create commits with that account's e-mail address.
+</li>
+<li>
+<b>Step 1</b>: <a href="https://cla.developers.google.com/clas">Sign and submit</a> a
+CLA (Contributor License Agreement).
+</li>
+<li>
+<b>Step 2</b>: Configure authentication credentials for our <code>git</code> repository.
+Go to <a href="https://go.googlesource.com/">go.googlesource.com</a>, click
+on "Generate Password" (top right), and follow the instructions.
+</li>
+<li>
+<b>Step 3</b>: Register to Gerrit, the code review tool used by the Go team, by <a href="https://go-review.googlesource.com/login/">visiting this page</a>. The CLA and the registration
+need to be done only once for your account.
+</li>
+<li>
+<b>Step 4</b>: Install <code>git-codereview</code> by running
+<code>go get -u golang.org/x/review/git-codereview</code>
+</li>
+</ul>
+
 <p>
-  The <code>go-contrib-init</code> tool configures and debugs your Go
-  development environment, automatically performing many of the steps
-  on this page, or telling you what you need to do next. If you wish
-  to use it, run:
+If you prefer, we have an automated tool that walks through these steps. Just
+run:
 </p>
 
 <pre>
@@ -45,71 +67,57 @@ $ go-contrib-init
 </pre>
 
 <p>
-  The tool will either set things up, tell you that everything is
-  configured, or tell you what steps you need to do manually.
+The rest of this chapter elaborates on these steps.
+If you have completed the steps above (either manually or through the tool), jump to
+<a href="#making_a_change">Making a change</a>.
 </p>
 
-<h2 id="auth">Configure Git to use Gerrit</h2>
+<h3 id="google_account">Step 0: Select a Google Account</h3>
+
 <p>
-You'll need a web browser and a command line terminal.
-You should already have Git installed.
+A contribution to Go is made through a Google account, with a specific
+e-mail address. Make sure to pick one and use it throughout the process and
+for all your contributions. You may need to decide whether to
+use a personal address or a corporate address. The choice will depend on who
+will own the copyright for the code that you will be writing
+and submitting. Consider discussing this with your employer.
 </p>
 
 <p>
-Gerrit uses Google Accounts for authentication.
-If you don't have a Google Account, you can create an account which
-<a href="https://www.google.com/accounts/NewAccount">includes
-a new Gmail email account</a> or create an account associated
+Google Accounts can either be Gmail email accounts, G-Suite organization accounts, or
+accounts associated with an external e-mail address. For instance, if you need to use
+an existing corporate e-mail that is not managed through G-Suite, you can create
+an account associated
 <a href="https://accounts.google.com/SignUpWithoutGmail">with your existing
 email address</a>.
 </p>
 
-<h3>Step 1: Sign in to googlesource and generate a password</h3>
-
 <p>
-Visit <a href="https://go.googlesource.com">go.googlesource.com</a>
-and click on "Generate Password" in the page's top right menu bar.
-You will be redirected to accounts.google.com to sign in.
-</p>
-
-<h3>Step 2: Run the provided script</h3>
+You also need to make sure that <code>git</code> is configured to author commits
+using the same e-mail address. You can either configure it globally
+(as a default for all projects), or locally (for a single specific project).
+You can check the current configuration with this command:
 <p>
-After signing in, you are taken to a page on go.googlesource.com with the title "Configure Git".
-This page contains a personalized script which when run locally will configure git
-to have your unique authentication key.
-This key is paired with one generated server side similar to how ssh keys work.
-</p>
 
-<p>
-Copy and run this script locally in your command line terminal.
-(On a Windows computer using cmd you should instead follow the instructions
-in the yellow box to run the command. If you are using git-bash use the same
-script as *nix.)
-</p>
+<pre>
+$ git config --global user.email  # check current global config
+$ git config user.email           # check current local config
+</pre>
 
-<p>
-Your secret authentication token is now in a <code>.gitcookies</code> file
-and Git is configured to use this file.
-</p>
+<p>To change the configured address:</p>
 
-<h3 id="gerrit">Step 3: Register with Gerrit</h3>
+<pre>
+$ git config --global user.email name@example.com   # change global config
+$ git config user.email name@example.com            # change local config
+</pre>
 
-<p>
-Now that you have your authentication token, you need to register your
-account with Gerrit.
-To do this, visit <a href="https://go-review.googlesource.com/login/">
-go-review.googlesource.com/login/</a>.
-Sign in using the same Google Account you used above.
-</p>
 
-<h2 id="cla">Contributor License Agreement</h2>
+<h3 id="cla">Step 1: Contributor License Agreement</h3>
 
-<h3 id="which_cla">Which CLA</h3>
 <p>
 Before sending your first change to the Go project
 you must have completed one of the following two CLAs.
 Which CLA you should sign depends on who owns the copyright to your work.
-</p>
 
 <ul>
 <li>
@@ -126,21 +134,12 @@ contributor license agreement</a>.<br>
 </ul>
 
 <p>
-<i>If the copyright holder for your contribution has already completed the
+You can check your currently signed agreements and sign new ones, through
+the <a href="https://cla.developers.google.com/clas?pli=1&authuser=1">Google Developers
+Contributor License Agreements</a> website.
+If the copyright holder for your contribution has already completed the
 agreement in connection with another Google open source project,
-it does not need to be completed again.</i>
-</p>
-
-<h3 id="signing_cla">Completing the CLA</h3>
-
-<p>
-You can see your currently signed agreements and sign new ones through the Gerrit
-interface.
-To do this, <a href="https://go-review.googlesource.com/login/">Log into Gerrit</a>,
-then visit the <a href="https://go-review.googlesource.com/settings/agreements">Agreements</a>
-page.
-If you do not have a signed agreement listed there, you can create one
-by clicking "New Contributor Agreement" and following the steps.
+it does not need to be completed again.
 </p>
 
 <p>
@@ -150,18 +149,58 @@ to golang-dev and let us know, so that we can make sure an appropriate agreement
 completed and update the <code>AUTHORS</code> file.
 </p>
 
-<span id="Code_review"></span>
-<h1 id="prepare_dev_env">Preparing a Development Environment for Contributing</h1>
 
-<h2 id="git-codereview">Setting up Git for submission to Gerrit</h2>
+<h3 id="auth">Step 2: Configure git authentication</h3>
+
+<p>
+Go development happens on <a href="go.googlesource.com">go.googlesource.com</a>,
+a <code>git</code> server hosted by Google.
+Authentication on the web server is made through your Google account, but
+you also need to configure <code>git</code> on your computer to access it.
+Follow this steps:
+</p>
+
+<ol>
+<li>
+Visit <a href="https://go.googlesource.com">go.googlesource.com</a>
+and click on "Generate Password" in the page's top right menu bar.
+You will be redirected to accounts.google.com to sign in.
+</li>
+<li>
+After signing in, you are taken to a page with the title "Configure Git".
+This page contains a personalized script that when run locally will configure git
+to have your unique authentication key.
+This key is paired with one generated server side, analogous to how SSH keys work.
+</li>
+<li>
+Copy and run this script locally in your command line terminal, to store your
+secret authentication token in a <code>.gitcookies</code> file.
+(On a Windows computer using <code>cmd</code> you should instead follow the instructions
+in the yellow box to run the command. If you are using <code>git-bash</code> use the same
+script as *nix.).
+</li>
+</ol>
+
+<h3 id="auth">Step 3: Create a Gerrit account </h3>
+
+<p>
+Gerrit is an open-source tool used by Go maintainers to discuss and review
+code submissions.
+</p>
+
+<p>
+To register your account, visit <a href="https://go-review.googlesource.com/login/">
+go-review.googlesource.com/login/</a> and sign in once using the same Google Account you used above.
+</p>
+
+<h3 id="git-codereview_install">Step 4: Install the git-codereview command</h3>
+
 <p>
 Changes to Go must be reviewed before they are accepted, no matter who makes the change.
 A custom git command called <code>git-codereview</code>, discussed below,
-helps manage the code review process through a Google-hosted
-<a href="https://go-review.googlesource.com/">instance</a> of Gerrit.
+helps to send changes to Gerrit.
 </p>
 
-<h3 id="git-codereview_install">Install the git-codereview command</h3>
 <p>
 Install the <code>git-codereview</code> command by running,
 </p>
@@ -190,84 +229,8 @@ Run <code>git --exec-path</code> to discover the right location then create a
 symbolic link or simply copy the executable from $GOPATH/bin to this directory.
 </p>
 
-<p>
-<b>Note to Git aficionados:</b>
-The <code>git-codereview</code> command is not required to
-upload and manage Gerrit code reviews.
-For those who prefer plain Git, the text below gives the Git equivalent of
-each git-codereview command.
-</p>
 
-<p>
-If you do use plain Git, note that you still need the commit hooks that the
-git-codereview command configures; those hooks add a Gerrit
-<code>Change-Id</code> line to the commit message and check that all Go source
-files have been formatted with gofmt.
-Even if you intend to use plain Git for
-daily work, install the hooks in a new Git checkout by running
-<code>git-codereview</code> <code>hooks</code>.
-</p>
-
-<h3 id="git-config">Set up git aliases</h3>
-
-<p>
-The <code>git-codereview</code> command can be run directly from the shell
-by typing, for instance,
-</p>
-
-<pre>
-$ git codereview sync
-</pre>
-
-<p>
-but it is more convenient to set up aliases for <code>git-codereview</code>'s own
-subcommands, so that the above becomes,
-</p>
-
-<pre>
-$ git sync
-</pre>
-
-<p>
-The <code>git-codereview</code> subcommands have been chosen to be distinct from
-Git's own, so it's safe to do so.
-</p>
-
-<p>
-The aliases are optional, but in the rest of this document we will assume
-they are installed.
-To install them, copy this text into your Git configuration file
-(usually <code>.gitconfig</code> in your home directory):
-</p>
-
-<pre>
-[alias]
-	change = codereview change
-	gofmt = codereview gofmt
-	mail = codereview mail
-	pending = codereview pending
-	submit = codereview submit
-	sync = codereview sync
-</pre>
-
-<span id="help"></span>
-<h3 id="understanding_git-codereview">Understanding the git-codereview command</h3>
-
-<p>After installing the <code>git-codereview</code> command, you can run</p>
-
-<pre>
-$ git codereview help
-</pre>
-
-<p>
-to learn more about its commands.
-You can also read the <a href="https://godoc.org/golang.org/x/review/git-codereview">command documentation</a>.
-</p>
-
-
-<h1 id="making_a_contribution">Making a Contribution</h1>
-
-<h2 id="Design">Discuss your design</h2>
+<h2 id="making_a_contribution">Before contributing code</h2>
 
 <p>
 The project welcomes submissions but please let everyone know what
@@ -278,13 +241,36 @@ you're working on if you want to change or add to the Go repositories.
 Before undertaking to write something new for the Go project,
 please <a href="https://golang.org/issue/new">file an issue</a>
 (or claim an <a href="https://golang.org/issues">existing issue</a>).
-Significant changes must go through the
-<a href="https://golang.org/s/proposal-process">change proposal process</a>
-before they can be accepted.
 </p>
 
+<h3>Check the issue tracker</h3>
+
+<p>Whether you already know what contribution to make, or you are searching for
+an idea, the <a href="https://github.com/golang/go/issues">issue tracker</a> is
+always the first place to go. Issues are triaged to categorize them and manage
+the workflow.
+</p>
+
+<p>Most issues will be marked with one of the following workflow labels:
+<ul>
+	<li><b>NeedsInvestigation</b>: The issue is not fully understood well
+	and requires analysis to understand the root cause. </li>
+	<li><b>NeedsDecision</b>: the issue is relatively well understood, but the
+	Go team hasn't yet decided the best way to fix it or implement it among all
+	possible options. It would be better to wait for a decision before
+	writing code. If you are interested on working on an issue in this state,
+	feel free to ping maintainers here if some time has passed without a decision.</li>
+	<li><b>NeedsFix</b>: the issue is fully understood and code can be written
+	to fix it.</li>
+</ul>
+</p>
+
+<h3 id="Design">Open an issue for any new problem</h3>
+
 <p>
-This process gives everyone a chance to validate the design,
+Excluding very trivial changes, all contributions should be connected
+to an existing issue. Feel free to open one and discuss what your
+plans are. This process gives everyone a chance to validate the design,
 helps prevent duplication of effort,
 and ensures that the idea fits inside the goals for the language and tools.
 It also checks that the design is sound before code is written;
@@ -299,85 +285,488 @@ which only bug fixes and doc updates are accepted. New contributions can be
 sent during a feature freeze but will not be accepted until the freeze thaws.
 </p>
 
-<h3 id="scratch">Not sure what change to make?</h3>
+<p>Significant changes must go through the
+<a href="https://golang.org/s/proposal-process">change proposal process</a>
+before they can be accepted.</p>
 
 <p>
-If you want to become familiar with Gerrit and the contribution process,
-but aren't sure what you'd like to contribute just yet, you can use the <a
-href="https://go.googlesource.com/scratch">scratch repository</a> to practice
-making a change.
+Sensitive security-related issues should be reported to <a href="mailto:security@golang.org">security@golang.org</a>.
 </p>
 
-<h2 id="making_a_change">Making a change</h2>
+<h2 id="making_a_contribution">Sending a change via GitHub</h2>
 
-<h3 id="checkout_go">Getting Go Source</h3>
 <p>
-First you need to have a local copy of the source checked out from the correct
-repository.
-As Go builds Go you will also likely need to have a working version
-of Go installed (some documentation changes may not need this).
-This should be a recent version of Go and can be obtained via any package or
-binary distribution or you can build it from source.
+First-time contributors that are already familiar with the
+<a href="https://guides.github.com/introduction/flow/">GitHub flow</a>
+are encouraged to use the same process for Go contributions. Even though Go
+maintainers use Gerrit for code review, a bot has been created to sync
+GitHub pull requests to Gerrit.
 </p>
 
 <p>
-You should checkout the Go source repo anywhere you want as long as it's
-outside of your $GOPATH.
-Go to a directory where you want the source to appear and run the following
-command in a terminal.
+Open a pull request as you would normally do. Gopherbot will automatically
+sync the code and post a link to Gerrit. When somebody comments on the
+change, it will be posted in the pull request, so you will also get a notification.
+</p>
+
+<p>Some things to keep in mind:
+
+<ul>
+<li>
+To update the pull request with new code, just push it to the branch; you can either
+add more commits, or rebase and force-push (both styles are accepted).
+</li>
+<li>
+If the request is accepted, all the commits will be squashed, and the final
+commit description will be composed by concatenating the pull request's
+title and description. The individual commits' descriptions will be discarded.
+See <a href="#commit_messages">Writing good commit messages</a> for some
+suggestions.
+</li>
+<li>
+Gopherbot is unable to sync line-by-line codereview into GitHub: only the
+contents of the overall comment on the request will be synced. Remember you
+can always to go Gerrit to see the fine-grained review.
+</li>
+</ul>
+</p>
+
+<h2 id="making_a_contribution">Sending a change via Gerrit</h2>
+
+<p>
+It is not possible to fully sync Gerrit and GitHub, at least at the moment,
+so we recommend learning Gerrit. It's different but powerful and familiarity
+with help you understand the flow.
+</p>
+
+<h3>Overview</h3>
+
+<p>This is an overview of the overall process:
+<ul>
+<li><b>Step 1:</b> Clone the Go source code from GitHub or go.googlesource.com, and make sure it's stable by compiling and testing it once:
+<pre>
+$ git clone https://github.com/golang/go    # or https://go.googlesource.com/go
+$ cd go/src
+$ ./all.bash                                # compile and test
+</pre>
+<li><b>Step 2:</b> Prepare changes in a new branch, created from the master branch.
+To commit the changes, use <code>git</code> <code>codereview</code> <code>change</code>, that
+will create or amend a single commit in the branch.
+<pre>
+$ git checkout -b mybranch
+$ [edit files...]
+$ git add [files...]
+$ git codereview change   # create commit in the branch
+$ [edit again...]
+$ git add [files...]
+$ git codereview change   # amend the existing commit with new changes
+$ [etc.]
+</pre>
+</li>
+<li>
+<b>Step 3:</b> Test your changes, re-running <code>all.bash</code>.
+<pre>
+$ ./all.bash    # recompile and test
+</pre>
+</li>
+<li>
+<b>Step 4:</b> Send the changes for review to Gerrit using <code>git</code>
+<code>codereview</code> <code>mail</code> (which doesn't use e-mail, despite the name).
+<pre>
+$ git codereview mail     # send changes to Gerrit
+</pre>
+</li>
+<li>
+<b>Step 5:</b> After a review, apply changes to the same single commit, and mail them to Gerrit again:
+<pre>
+$ [edit files...]
+$ git add [files...]
+$ git codereview change   # update same commit
+$ git codereview mail     # send to Gerrit again
+</li>
+</ul>
+</p>
+
+<p>The rest of this chapter describes these steps in more detail.</p>
+
+
+<h3 id="checkout_go">Step 1: Clone the Go source code</h3>
+
+<p>
+In addition to a recent Go installation, you need to have a local copy of the source
+checked out from the correct repository. You should check out the Go source repo anywhere
+you want as long as it's outside of your <code>GOPATH</code>. Either clone from
+<code>go.googlesource.com</code> or GitHub:
 </p>
 
 <pre>
-$ git clone https://go.googlesource.com/go
+$ git clone https://github.com/golang/go   # or https://go.googlesource.com/go
 $ cd go
 </pre>
 
-<h3 id="master">Contributing to the main Go tree</h3>
+<h3 id="checkout_go">Step 2: Prepare changes in a new branch</h3>
 
 <p>
-Most Go installations use a release branch, but new changes should
-only be made based on the master branch. <br>
-(They may be applied later to a release branch as part of the release process,
-but most contributors won't do this themselves.)
-Before making a change, make sure you start on the master branch:
+Each Go change must be made in a separate branch, created from the master branch. You can use
+the normal <code>git</code> commands to create a branch and add changes to the
+staging area:
 </p>
 
 <pre>
-$ git checkout master
-$ git sync
+$ git checkout -b mybranch
+$ [edit files...]
+$ git add [files...]
 </pre>
 
 <p>
-(In Git terms, <code>git</code> <code>sync</code> runs
-<code>git</code> <code>pull</code> <code>-r</code>.)
-</p>
-
-<h3 id="subrepos">Contributing to subrepositories (golang.org/x/...)</h3>
-
-<p>
-If you are contributing a change to a subrepository, obtain the
-Go package using <code>go get</code>. For example, to contribute
-to <code>golang.org/x/oauth2</code>, check out the code by running:
+To commit changes, instead of <code>git commit</code>, use <code>git codereview change</code>.
 </p>
 
 <pre>
-$ go get -d golang.org/x/oauth2/...
+$ git codereview change
+(open $EDITOR)
 </pre>
 
 <p>
-Then, change your directory to the package's source directory
-(<code>$GOPATH/src/golang.org/x/oauth2</code>).
+You can edit the commit description in your favorite editor as usual.
+<code>git</code> <code>codereview</code> <code>change</code> will automatically
+add a <code>Change-Id</code>  line near the bottom. That line is used by
+Gerrit to match successive uploads of the same change. Do not edit or delete it.
+This is an example:
 </p>
 
-<h3 id="change">Make your changes</h3>
+<pre>
+commit fef82cf89a34935a41bd0e3c1e0c2d9d6de29ee2 (HEAD -> test)
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Feb 13 01:07:15 2018 +0100
+
+    cmd/compile: test
+
+    Change-Id: I2fbdbffb3aab626c4b6f56348861b7909e3e8990
+</pre>
 
 <p>
-The entire checked-out tree is editable.
-Make your changes as you see fit ensuring that you create appropriate
-tests along with your changes. Test your changes as you go.
+<code>git</code> <code>codereview</code> <code>change</code> also checks that you've
+run <code>go</code> <code>fmt</code> over the source code, and that
+the commit message follows the <a href="#commit_messages">suggested format</a>.
 </p>
 
-<h3 id="copyright">Copyright</h3>
+<p>
+If you need to edit the files again, you can stage the new changes and
+re-run <code>git</code> <code>codereview</code> <code>change</code>: each subsequent
+run will amend the existing commit.
+</p>
+
+<p>
+Make sure that you always keep a single commit in each branch. If you add more
+commits by mistake, you can use <code>git</code> <code>rebase</code> to
+<a href="https://stackoverflow.com/questions/31668794/squash-all-your-commits-in-one-before-a-pull-request-in-github">squash them together</a>
+into a single one.
+</p>
+
+
+<h3 id="Testing">Step 3: Test changes</h3>
+
+<p>
+You've <a href="code.html">written and tested your code</a>, but
+before sending code out for review, run all the tests for the whole
+tree to make sure the changes don't break other packages or programs:
+</p>
+
+<pre>
+$ cd go/src
+$ ./all.bash
+</pre>
+
+<p>
+(To build under Windows use <code>all.bat</code>; this also requires
+setting the environment variable <code>GOROOT_BOOTSTRAP</code> to the
+bootstrap compiler)
+</p>
+
+<p>
+After running for a while, the command should print:
+</p>
+
+<pre>
+"ALL TESTS PASSED".
+</pre>
+
+<p>Notice that you can use <code>make.bash</code> instead of <code>all.bash</code>
+to just build the compiler without running the testsuite. Once the compiler is
+built, you can run it directly from <code>&lt;GOCLONEDIR&gt;/bin/go</code>; see also
+the section on <a href="#quicktest">quickly test your changes</a>.</p>
+
+<h3 id="mail">Step 4: Send changes for review</h3>
+
+<p>
+Once the change is ready, send it for review.
+This is done via the <code>mail</code> sub-command which despite its name, doesn't
+directly mail anything, it just sends the change to Gerrit:
+</p>
+
+<pre>
+$ git codereview mail
+</pre>
+
+<p>
+Gerrit assigns your change a number and URL, which <code>git</code> <code>codereview</code> <code>mail</code> will print, something like:
+</p>
+
+<pre>
+remote: New Changes:
+remote:   https://go-review.googlesource.com/99999 math: improved Sin, Cos and Tan precision for very large arguments
+</pre>
+
+<p>
+If you get an error instead, check the
+<a href="#troubleshooting_mail">Troubleshooting mail errors</a> section.
+</p>
+
+<p>
+If your change relates to an open GitHub issue and you have followed the <a href="#commit_messages">
+suggested commit message format</a>, the issue will be updated in a few minutes by a bot,
+linking your Gerrit change in it.
+</p>
+
+
+<h3 id="revise">Step 5: Revise changes after a review</h3>
+
+<p>
+Go maintainers will review your code on Gerrit, and you will get notifications via email.
+You can see the review on Gerrit, and comment on them. You can also reply
+<a href="https://gerrit-review.googlesource.com/Documentation/intro-user.html#reply-by-email">via email</a>
+if you prefer.
+</p>
+
+<p>
+When you're ready to revise your submitted code, edit the files in correct branch,
+add them to the git staging area, and then amend the commit with
+<code>git</code> <code>codereview</code> <code>change</code>:
+</p>
+
+<pre>
+$ git codereview change     # amend current commit
+(open $EDITOR)
+$ git codereview mail       # send new changes to Gerrit
+</pre>
+
+<p>
+If you don't need to change the commit description, just save and exit from the editor.
+Remember not to touch the special <code>Change-Id</code> line.
+</p>
+
+<p>
+Make sure that you always keep a single commit in each branch. If you add more
+commits by mistake, you can use <code>git rebase</code> to
+<a href="https://stackoverflow.com/questions/31668794/squash-all-your-commits-in-one-before-a-pull-request-in-github">squash them together</a>
+into a single one.
+</p>
+
+<h2 id="commit_messages">Writing good commit messages</h2>
+
+<p>Commit messages in Go follow a specific convention. Read this chapter
+to learn more about it. This is an example of a good one:
+
+<pre>
+math: improve Sin, Cos and Tan precision for very large arguments
+
+The existing implementation has poor numerical properties for
+large arguments, so use the McGillicutty algorithm to improve
+accuracy above 1e10.
+
+The algorithm is described at http://wikipedia.org/wiki/McGillicutty_Algorithm
+
+Fixes #159
+</pre>
+</p>
+
+<h3>First line</h3>
+
+<p>
+The first line of the change description is conventionally a one-line
+summary of the change, prefixed by the primary affected package.</p>
+
+<p>It should be written so to complete the sentence "This change modifies Go to _____."</p>
+
+<h3>Main content</h3>
+
+<p>The rest of the description elaborates and should provide context for the
+change and explain what it does.
+Write in complete sentences with correct punctuation, just like
+for your comments in Go.
+If there is a helpful reference, mention it here.
+</p>
+
+<h3>Referencing issues</h3>
+
+<p>
+The special notation "Fixes #159" associates the change with issue 159 in the
+<a href="https://golang.org/issue/159">Go issue tracker</a>.
+When this change is eventually applied, the issue
+tracker will automatically mark the issue as fixed.
+</p>
+
+<p>
+If the change is a partial step towards the resolution of the issue,
+uses the notation "Updates #159". This will leave a comment in the issue
+linking back to the change in Gerrit, but it will not close the issue
+when the change is applied.
+</p>
+
+<p>
+If you are sending a change against a subrepository, you must use
+the fully-qualified syntax supported by GitHub, to make sure the change is
+linked to the issue in the main repository. The correct form is "Fixes golang/go#159".
+</p>
+
+
+
+
+
+
+<h2 id="review">The review process</h2>
+
+<p>
+This section explains the review process in details, and how to approach
+reviews after a change was submitted.
+</p>
+
+
+<h3 id="mistakes">Common beginner mistakes</h3>
+
+<p>
+When a change is submitted to Gerrit, it is usually triaged in the next few days.
+A maintainer will give a look and submit some initial review, that for first-time
+contributors usually focus on basic cosmetics and common mistakes. For instance:
+</p>
+
+<ul>
+<li>
+Commit messages might not follow the <a href="#commit_messages">suggested
+format</a>.
+</li>
+<li>
+There might not be a linked GitHub issue. The vast majority of changes
+require a linked issue that describes the bug or the feature that the change
+fixes or implements, and consensus should have been reached on the tracker
+to actually proceed with it. Gerrit reviews do not discuss the merit of the change,
+just its implementation.
+<br>Only very trivial or cosmetic changes will be accepted without a issue.
+</li>
+<li>
+The change might have been submitted during the freeze phase, when the tree
+is closed for some specific kind of change (eg: new features). In this case,
+a maintainer might review the code with a line such as <code>R=go1.11</code>,
+which means that it will be reviewed later when the tree opens for a new
+development window. You can add <code>R=go1.XX</code> as a comment yourself
+if you know that it's not the correct timeframe for the change and help the
+maintainers.
+</li>
+</ul>
+
+<h3 id="trybots">Trybots</h3>
+
+<p>After an initial reading of your patch, maintainers will trigger trybots,
+a cluster of servers that will run the full testsuite on several different
+architectures. Most trybots run complete in a few minutes, and a link will
+be posted in Gerrit where you can see the results.</p>
+
+<p>If the trybot run fails, follow the link and check the full logs of the
+platforms on which the tests failed. Try to understand what broke, and
+update your patch. Maintainers will trigger a new trybot run to see
+if the problem was fixed.</p>
+
+<p>Sometimes, the tree can be broken on some platforms for a few hours; if
+the failure in trybot logs doesn't seem related to your patch, go to the
+<a href="https://build.golang.org">Build Dashboard</a> and check if the same
+failures appears in the recent commits, on the same platform. In this case,
+feel free to write a comment in Gerrit to mention that the failure is
+unrelated to your change, to help maintainers understanding the situation.</p>
+
+<h3 id="reviews">Reviews</h3>
+
+<p>The Go team values very thorough reviews. Consider
+each line comment like a ticket: you are expected to somehow "close" it
+by acting on it, either by implementing the suggestion or convincing the
+reviewer otherwise.</p>
+
+<p>After you update the change, go through line comments and make sure
+to reply on every one. You can click the "Done" button to reply
+indicating that you've implemented the reviewer's suggestion; otherwise,
+click on "Reply" and explain why you have not.</p>
+
+<p>It is absolutely normal for changes to go through several round of reviews,
+in which the reviewer make new comments every time and then wait for an updated
+change to be uploaded. This also happens for experienced contributors, so
+don't feel discouraged by it.</p>
+
+<h3 id="votes">Voting conventions</h3>
+
+<p>
+At some point, reviewers will express a vote on your change. This is the
+voting convention:
+<ul>
+	<li><b>+2</b> The change is approved for being merged. Only Go maintainers
+	can cast a +2.</li>
+	<li><b>+1</b> The change looks good, but either the reviewer is requesting
+	more changes before approving it, or they are not a maintainer and cannot
+	approve it, but would like to encourage an approval.</li>
+	<li><b>-1</b> The change is not good the way it is. -1 are always casted
+	with a comment explaining the reason for it.</li>
+	<li><b>-2</b> The change is blocked by a maintainer and cannot be approved.
+	There will be a comment explaining the decision.</li>
+</ul>
+</p>
+
+<h3 id="submit">Submitting an approved change</h3>
+
+<p>
+After the code has been +2'ed, an approver will
+apply it to the master branch using the Gerrit UI. This is
+called "submission".
+</p>
+
+<p>
+The two steps are separate because in some cases maintainers
+may want to approve it but not to submit it right away (e.g.
+the tree could be temporarily frozen).
+</p>
+
+<p>
+Submission checks the change into the repository.
+The change description will include a link to the code review,
+and the code review will be updated with a link to the change
+in the repository.
+Since the method used to integrate the changes is "Cherry Pick",
+the commit hashes in the repository will be changed by
+the "Submit" operation.
+</p>
+
+<p>If your change has been approved for a few days without being
+submitted, feel free to write a comment in Gerrit requesting
+submission.</p>
+
+
+<h3 id="more_information">More information</h3>
+
+<p>
+In addition to the information here, the Go community maintains a <a
+href="https://golang.org/wiki/CodeReview">CodeReview</a> wiki page.
+Feel free to contribute to this page as you learn the review process.
+</p>
+
+
+
+<h2 id="advanced_topics">Advanced topics</h2>
+
+<p>
+This section contains more in-depth topics on how to contribute to Go. Read it to
+get a better understanding of the contribution process.
+</p>
+
+
+<h3 id="copyright">Copyright headers</h3>
 
 <p>
 Files in the Go repository don't list author names, both to avoid clutter
@@ -404,220 +793,16 @@ Files in the repository are copyright the year they are added.
 Do not update the copyright year on files that you change.
 </p>
 
-<h3 id="commit_changes">Commit your changes</h3>
+
+
+
+<h3 id="troubleshooting_mail">Troubleshooting mail errors</h3>
 
 <p>
-Once you have edited files, you must tell Git that they have been modified.
-You must also tell Git about any files that are added, removed, or renamed files.
-These operations are done with the usual Git commands,
-<code>git</code> <code>add</code>,
-<code>git</code> <code>rm</code>,
-and
-<code>git</code> <code>mv</code>.
-</p>
+The most common way that the <code>git</code> <code>codereview</code> <code>mail</code>
+command fails is because the email address in the commit does not match the one
+that you used during <a href="#google_account">the registration process</a>.
 
-<p>
-Once you have the changes queued up, you will want to commit them.
-In the Go contribution workflow this is done with a <code>git</code>
-<code>change</code> command, which creates a local branch and commits the changes
-directly to that local branch.
-</p>
-
-<p>
-The workflow described here assumes a single change per branch.
-It is also possible to prepare a sequence of (usually related) changes in a single branch.
-See the <a href="https://golang.org/x/review/git-codereview">git-codereview documentation</a> for details.
-</p>
-
-<pre>
-$ git change <i>&lt;branch&gt;</i>
-</pre>
-
-<p>
-The name <i>&lt;branch&gt;</i> is an arbitrary one you choose to identify the
-local branch containing your changes and will not be used elsewhere.
-This is an offline operation and nothing will be sent to the server yet.
-</p>
-
-<p>
-(In Git terms, <code>git</code> <code>change</code> <code>&lt;branch&gt;</code>
-runs <code>git</code> <code>checkout</code> <code>-b</code> <code>branch</code>,
-then <code>git</code> <code>branch</code> <code>--set-upstream-to</code> <code>origin/master</code>,
-then <code>git</code> <code>commit</code>.)
-</p>
-
-<p>
-As the <code>git</code> <code>commit</code> is the final step, Git will open an
-editor to ask for a commit message. (It uses the editor named by
-the <code>$EDITOR</code> environment variable,
-<code>vi</code> by default.)
-
-The file will look like:
-</p>
-
-<pre>
-
-# Please enter the commit message for your changes. Lines starting
-# with '#' will be ignored, and an empty message aborts the commit.
-# On branch foo
-# Changes not staged for commit:
-#	modified:   editedfile.go
-#
-</pre>
-
-<p>
-At the beginning of this file is a blank line; replace it
-with a thorough description of your change.
-The first line of the change description is conventionally a one-line
-summary of the change, prefixed by the primary affected package,
-and is used as the subject for code review email.
-It should complete the sentence "This change modifies Go to _____."
-The rest of the description elaborates and should provide context for the
-change and explain what it does.
-Write in complete sentences with correct punctuation, just like
-for your comments in Go.
-If there is a helpful reference, mention it here.
-If you've fixed an issue, reference it by number with a # before it.
-</p>
-
-<p>
-After editing, the template might now read:
-</p>
-
-<pre>
-math: improve Sin, Cos and Tan precision for very large arguments
-
-The existing implementation has poor numerical properties for
-large arguments, so use the McGillicutty algorithm to improve
-accuracy above 1e10.
-
-The algorithm is described at http://wikipedia.org/wiki/McGillicutty_Algorithm
-
-Fixes #159
-
-# Please enter the commit message for your changes. Lines starting
-# with '#' will be ignored, and an empty message aborts the commit.
-# On branch foo
-# Changes not staged for commit:
-#	modified:   editedfile.go
-#
-</pre>
-
-<p>
-The commented section of the file lists all the modified files in your client.
-It is best to keep unrelated changes in different commits,
-so if you see a file listed that should not be included, abort
-the command and move that file to a different branch.
-</p>
-
-<p>
-The special notation "Fixes #159" associates the change with issue 159 in the
-<a href="https://golang.org/issue/159">Go issue tracker</a>.
-When this change is eventually applied, the issue
-tracker will automatically mark the issue as fixed.
-(There are several such conventions, described in detail in the
-<a href="https://help.github.com/articles/closing-issues-via-commit-messages/">GitHub Issue Tracker documentation</a>.)
-</p>
-
-<p>
-Once you have finished writing the commit message,
-save the file and exit the editor.
-</p>
-
-<p>
-You must have the $EDITOR environment variable set properly and working properly (exiting cleanly)
-for this operation to succeed.
-If you run into any issues at this step, it's likely your editor isn't exiting cleanly.
-Try setting a different editor in your $EDITOR environment variable.
-</p>
-
-<p>
-If you wish to do more editing, re-stage your changes using
-<code>git</code> <code>add</code>, and then run
-</p>
-
-<pre>
-$ git change
-</pre>
-
-<p>
-to update the change description and incorporate the staged changes.
-The change description contains a <code>Change-Id</code> line near the bottom,
-added by a Git commit hook during the initial
-<code>git</code> <code>change</code>.
-That line is used by Gerrit to match successive uploads of the same change.
-Do not edit or delete it.
-</p>
-
-<p>
-(In Git terms, <code>git</code> <code>change</code> with no branch name
-runs <code>git</code> <code>commit</code> <code>--amend</code>.)
-</p>
-
-<h3 id="Testing">Testing</h3>
-
-<p>
-You've <a href="code.html">written and tested your code</a>, but
-before sending code out for review, run all the tests for the whole
-tree to make sure the changes don't break other packages or programs:
-</p>
-
-<pre>
-$ cd go/src
-$ ./all.bash
-</pre>
-
-<p>
-(To build under Windows use <code>all.bat</code>.)
-</p>
-
-<p>
-After running for a while, the command should print
-</p>
-
-<pre>
-"ALL TESTS PASSED".
-</pre>
-
-<h3 id="mail">Send the change for review</h3>
-
-<p>
-Once the change is ready, send it for review.
-This is similar to a <code>git push</code> in a GitHub style workflow.
-This is done via the mail alias setup earlier which despite its name, doesn't
-directly mail anything, it simply sends the change to Gerrit via git push.
-</p>
-
-<pre>
-$ git mail
-</pre>
-
-<p>
-(In Git terms, <code>git</code> <code>mail</code> pushes the local committed
-changes to Gerrit using <code>git</code> <code>push</code> <code>origin</code>
-<code>HEAD:refs/for/master</code>.)
-</p>
-
-<p>
-If your change relates to an open issue, please add a comment to the issue
-announcing your proposed fix, including a link to your change.
-</p>
-
-<p>
-The code review server assigns your change an issue number and URL,
-which <code>git</code> <code>mail</code> will print, something like:
-</p>
-
-<pre>
-remote: New Changes:
-remote:   https://go-review.googlesource.com/99999 math: improved Sin, Cos and Tan precision for very large arguments
-</pre>
-
-<h3>Troubleshooting</h3>
-
-<p>
-The most common way that the <code>git mail</code> command fails is because the
-email address used has not gone through the setup above.
 <br>
 If you see something like...
 </p>
@@ -631,12 +816,8 @@ remote: ERROR:  does not match your user account.
 </pre>
 
 <p>
-You need to either add the email address listed to the CLA or set this repo to use
-another email address already approved.
-</p>
-
-<p>
-First let's change the email address for this repo so this doesn't happen again.
+You need to set this repo to use the email address that you registered with.
+First, let's change the email address for this repo so this doesn't happen again.
 You can change your email address for this repo with the following command:
 </p>
 
@@ -645,7 +826,7 @@ $ git config user.email email@address.com
 </pre>
 
 <p>
-Then change the previous commit to use this alternative email address.
+Then change the commit to use this alternative email address.
 You can do that with:
 </p>
 
@@ -658,8 +839,107 @@ Finally try to resend with:
 </p>
 
 <pre>
-$ git mail
+$ git codereview mail
 </pre>
+
+
+<h3 id="quicktest">Quickly testing your changes</h3>
+
+<p>Running <code>all.bash</code> for every single change to the code tree
+is burdensome. Even though it is strongly suggested to run it before
+sending a change, during the normal development cycle you may want
+to quickly compile and locally test your change.</p>
+
+<ul>
+<li>
+In general, you can run <code>make.bash</code> instead of <code>all.bash</code>
+to only rebuild the Go toolchain without running the whole testsuite. Or you
+can run <code>run.bash</code> to only run the whole testsuite without rebuilding
+the toolchain. You can think of <code>all.bash</code> as <code>make.bash</code>
+followed by <code>run.bash</code>.
+</li>
+<li>The just-built compiler is in <code>&lt;GOCLONEDIR&gt;/bin/go</code>; you
+can run it directly to test whatever you want to test. For instance, if you
+have modified the compiler and you want to test how it affects the
+testsuite of your own project, just run <code>go</code> <code>test</code>
+using it:
+
+<pre>
+$ cd &lt;MYPROJECTDIR&gt;
+$ &lt;GOCLONEDIR&gt;/bin/go test
+</pre>
+</li>
+
+<li>
+If you're changing the standard library, you probably don't need to rebuild
+the compiler: you can run the tests on the package you have changed.
+You can either do that with whatever Go version you normally develop with, or
+using the Go compiler built from your clone (which is
+sometimes required because the standard library code you're modifying
+might require a newer version than the stable one you have installed).
+
+<pre>
+$ cd &lt;GOCLONEDIR&gt;/src/hash/sha1
+$ [make changes...]
+$ &lt;GOCLONEDIR&gt;/bin/go test .
+</pre>
+</li>
+
+<li>
+If you're modyfing the compiler itself, you can just recompile
+the <code>compile</code> tool (which is the internal binary invoked
+by <code>go</code> <code>build</code> to compile each single package).
+After that, you will want to test it by compiling or running something.
+
+<pre>
+$ cd &lt;GOCLONEDIR&gt;/src
+$ [make changes...]
+$ &lt;GOCLONEDIR&gt;/bin/go install cmd/compile
+$ &lt;GOCLONEDIR&gt;/bin/go build [something...]   # test the new compiler
+$ &lt;GOCLONEDIR&gt;/bin/go run [something...]     # test the new compiler
+$ &lt;GOCLONEDIR&gt;/bin/go test [something...]    # test the new compiler
+</pre>
+
+The same applies to other internal tools of the Go toolchain,
+such as <code>asm</code>, <code>cover</code>, <code>link</code>,
+etc. Just recompile and install the tool using <code>go</code>
+<code>install</code> <code>cmd/&lt;TOOL&gt;</code> and then use
+the built Go binary to test it.
+</li>
+
+<li>
+In addition to the standard per-package tests, there is a top-level
+testsuite in <code>&lt;GOCLONEDIR&gt;/test</code> that contains
+several black-box and regression tests. The testsuite is run
+by <code>all.bash</code> but you can also run it manually:
+
+<pre>
+$ cd &lt;GOCLONEDIR&gt;/test
+$ go run run.go
+</pre>
+
+Note that this will use the Go compiler found in <code>PATH</code>.
+</ul>
+
+<h3 id="subrepos">Contributing to subrepositories (golang.org/x/...)</h3>
+
+<p>
+If you are contributing a change to a subrepository, obtain the
+Go package using <code>go get</code>. For example, to contribute
+to <code>golang.org/x/oauth2</code>, check out the code by running:
+</p>
+
+<pre>
+$ go get -d golang.org/x/oauth2/...
+</pre>
+
+<p>
+Then, change your directory to the package's source directory
+(<code>$GOPATH/src/golang.org/x/oauth2</code>), and follow the
+normal contribution flow.
+</p>
+
+
 
 <h3 id="cc">Specifying a reviewer / CCing others</h3>
 
@@ -679,55 +959,16 @@ Both accept a comma-separated list of email addresses:
 </p>
 
 <pre>
-$ git mail -r joe@golang.org -cc mabel@example.com,math-nuts@swtch.com
+$ git codereview mail -r joe@golang.org -cc mabel@example.com,math-nuts@swtch.com
 </pre>
 
-<h2 id="review">Going through the review process</h2>
 
-<p>
-Running <code>git</code> <code>mail</code> will send an email to you and the
-reviewers asking them to visit the issue's URL and make comments on the change.
-When done, the reviewer adds comments through the Gerrit user interface
-and clicks "Reply" to send comments back.
-You will receive a mail notification when this happens.
-You may reply through the web interface or
-<a href="https://gerrit-review.googlesource.com/Documentation/intro-user.html#reply-by-email">via email</a>.
-</p>
 
-<h3 id="revise">Revise and resend</h3>
 
-<p>
-The Go contribution workflow is optimized for iterative revisions based on
-feedback.
-It is rare that an initial contribution will be ready to be applied as is.
-As you revise your contribution and resend Gerrit will retain a history of
-all the changes and comments made in the single URL.
-</p>
 
-<p>
-You may respond to review comments through the web interface or
-<a href="https://gerrit-review.googlesource.com/Documentation/intro-user.html#reply-by-email">via email</a>.
-</p>
 
-<p>
-When you have revised the code and are ready for another round of review,
-stage those changes and use <code>git</code> <code>change</code> to update the
-commit.
-To send the updated change for another round of review,
-run <code>git</code> <code>mail</code> again.
-</p>
 
-<p>
-The reviewer can comment on the new copy, and the process repeats.
-The reviewer approves the change by giving it a positive score
-(+1 or +2) and replying <code>LGTM</code>: looks good to me.
-</p>
 
-<p>
-You can see a list of your pending changes by running <code>git</code>
-<code>pending</code>, and switch between change branches with <code>git</code>
-<code>change</code> <code><i>&lt;branch&gt;</i></code>.
-</p>
 
 <h3 id="sync">Synchronize your client</h3>
 
@@ -745,109 +986,9 @@ $ git sync
 <code>git</code> <code>pull</code> <code>-r</code>.)
 </p>
 
-<h3 id="resolving_conflicts">Resolving Conflicts</h3>
 
-<p>
-If files you were editing have changed, Git does its best to merge the
-remote changes into your local changes.
-It may leave some files to merge by hand.
-</p>
 
-<p>
-For example, suppose you have edited <code>sin.go</code> but
-someone else has committed an independent change.
-When you run <code>git</code> <code>sync</code>,
-you will get the (scary-looking) output:
 
-<pre>
-$ git sync
-Failed to merge in the changes.
-Patch failed at 0023 math: improved Sin, Cos and Tan precision for very large arguments
-The copy of the patch that failed is found in:
-   /home/you/repo/.git/rebase-apply/patch
-
-When you have resolved this problem, run "git rebase --continue".
-If you prefer to skip this patch, run "git rebase --skip" instead.
-To check out the original branch and stop rebasing, run "git rebase --abort".
-</pre>
-
-<p>
-If this happens, run
-</p>
-
-<pre>
-$ git status
-</pre>
-
-<p>
-to see which files failed to merge.
-The output will look something like this:
-</p>
-
-<pre>
-rebase in progress; onto a24c3eb
-You are currently rebasing branch 'mcgillicutty' on 'a24c3eb'.
-  (fix conflicts and then run "git rebase --continue")
-  (use "git rebase --skip" to skip this patch)
-  (use "git rebase --abort" to check out the original branch)
-
-Unmerged paths:
-  (use "git reset HEAD &lt;file&gt;..." to unstage)
-  (use "git add &lt;file&gt;..." to mark resolution)
-
-	<i>both modified: sin.go</i>
-</pre>
-
-<p>
-The only important part in that transcript is the italicized "both modified"
-line: Git failed to merge your changes with the conflicting change.
-When this happens, Git leaves both sets of edits in the file,
-with conflicts marked by <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> and
-<code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>.
-It is now your job to edit the file to combine them.
-Continuing the example, searching for those strings in <code>sin.go</code>
-might turn up:
-</p>
-
-<pre>
-	arg = scale(arg)
-&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
-	if arg &lt; 1e9 {
-=======
-	if arg &lt; 1e10 {
-&gt;&gt;&gt;&gt;&gt;&gt;&gt; mcgillicutty
-		largeReduce(arg)
-</pre>
-
-<p>
-Git doesn't show it, but suppose the original text that both edits
-started with was 1e8; you changed it to 1e10 and the other change to 1e9,
-so the correct answer might now be 1e10.
-First, edit the section to remove the markers and leave the correct code:
-</p>
-
-<pre>
-	arg = scale(arg)
-	if arg &lt; 1e10 {
-		largeReduce(arg)
-</pre>
-
-<p>
-Then tell Git that the conflict is resolved by running
-</p>
-
-<pre>
-$ git add sin.go
-</pre>
-
-<p>
-If you had been editing the file, say for debugging, but do not
-care to preserve your changes, you can run
-<code>git</code> <code>reset</code> <code>HEAD</code> <code>sin.go</code>
-to abandon your changes.
-Then run <code>git</code> <code>rebase</code> <code>--continue</code> to
-restore the change commit.
-</p>
 
 <h3 id="download">Reviewing code by others</h3>
 
@@ -869,29 +1010,56 @@ $ git fetch https://go.googlesource.com/review refs/changes/21/1221/1 &amp;&amp;
 To revert, change back to the branch you were working in.
 </p>
 
-<h2 id="submit">Apply the change to the master branch</h2>
+
+<h3 id="git-config">Set up git aliases</h2>
 
 <p>
-After the code has been <code>LGTM</code>'ed, an approver may
-apply it to the master branch using the Gerrit UI.
-There is a "Submit" button on the web page for the change
-that appears once the change is approved (marked +2).
+The <code>git-codereview</code> command can be run directly from the shell
+by typing, for instance,
 </p>
+
+<pre>
+$ git codereview sync
+</pre>
 
 <p>
-This checks the change into the repository.
-The change description will include a link to the code review,
-and the code review will be updated with a link to the change
-in the repository.
-Since the method used to integrate the changes is "Cherry Pick",
-the commit hashes in the repository will be changed by
-the "Submit" operation.
+but it is more convenient to set up aliases for <code>git-codereview</code>'s own
+subcommands, so that the above becomes,
 </p>
 
-<h2 id="more">More information</h2>
+<pre>
+$ git sync
+</pre>
 
 <p>
-In addition to the information here, the Go community maintains a <a
-href="https://golang.org/wiki/CodeReview">CodeReview</a> wiki page.
-Feel free to contribute to this page as you learn the review process.
+The <code>git-codereview</code> subcommands have been chosen to be distinct from
+Git's own, so it's safe to do so. To install them, copy this text into your
+Git configuration file (usually <code>.gitconfig</code> in your home directory):
 </p>
+
+<pre>
+[alias]
+	change = codereview change
+	gofmt = codereview gofmt
+	mail = codereview mail
+	pending = codereview pending
+	submit = codereview submit
+	sync = codereview sync
+</pre>
+
+
+<h3 id="multiple_changes">Sending multiple dependent changes</h3>
+
+<p>Gerrit allows for changes to be dependent on each other, forming a dependency chain.
+This is an indication for maintainers to better review your code, even though each
+change will technically need to be approved and submitted separately.</p>
+
+<p>To submit a group of dependent changes, keep each change as a different commit under
+the same branch, and then run:
+
+<pre>
+$ git codereview mail HEAD
+</pre>
+
+Make sure to explicitly specify <code>HEAD</code>, which is usually not required when sending
+single changes.</p>

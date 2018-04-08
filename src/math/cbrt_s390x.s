@@ -96,7 +96,7 @@ L1:
 	RET
 L3:
 L2:
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	BEQ	L1
 	FMOVD	F0, F2
 	WORD	$0xED209040	//mdb	%f2,.L10-.L9(%r9)

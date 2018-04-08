@@ -39,7 +39,7 @@ func (mode *BuildMode) Set(s string) error {
 	case "pie":
 		switch objabi.GOOS {
 		case "android", "linux":
-		case "darwin":
+		case "darwin", "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":
 			default:
