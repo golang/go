@@ -34,12 +34,14 @@ var (
 func init() {
 	// Initialize blog only when first accessed.
 	http.HandleFunc(blogPath, func(w http.ResponseWriter, r *http.Request) {
-		blogInitOnce.Do(blogInit)
+		blogInitOnce.Do(func() {
+			blogInit(r.Host)
+		})
 		blogServer.ServeHTTP(w, r)
 	})
 }
 
-func blogInit() {
+func blogInit(host string) {
 	// Binary distributions will include the blog content in "/blog".
 	root := filepath.Join(runtime.GOROOT(), "blog")
 
@@ -57,12 +59,13 @@ func blogInit() {
 	}
 
 	s, err := blog.NewServer(blog.Config{
-		BaseURL:      blogPath,
-		BasePath:     strings.TrimSuffix(blogPath, "/"),
-		ContentPath:  filepath.Join(root, "content"),
-		TemplatePath: filepath.Join(root, "template"),
-		HomeArticles: 5,
-		PlayEnabled:  playEnabled,
+		BaseURL:         blogPath,
+		BasePath:        strings.TrimSuffix(blogPath, "/"),
+		ContentPath:     filepath.Join(root, "content"),
+		TemplatePath:    filepath.Join(root, "template"),
+		HomeArticles:    5,
+		PlayEnabled:     playEnabled,
+		ServeLocalLinks: strings.HasPrefix(host, "localhost"),
 	})
 	if err != nil {
 		log.Fatal(err)

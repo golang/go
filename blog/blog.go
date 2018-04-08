@@ -6,7 +6,6 @@
 package blog // import "golang.org/x/tools/blog"
 
 import (
-	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -24,7 +23,17 @@ import (
 	"golang.org/x/tools/present"
 )
 
-var validJSONPFunc = regexp.MustCompile(`(?i)^[a-z_][a-z0-9_.]*$`)
+var (
+	validJSONPFunc = regexp.MustCompile(`(?i)^[a-z_][a-z0-9_.]*$`)
+	// used to serve relative paths when ServeLocalLinks is enabled.
+	// TODO(agnivade): change blog article links to all have https.
+	golangOrgAbsLinkReplacer = strings.NewReplacer(
+		`href="http://golang.org/pkg`, `href="/pkg`,
+		`href="https://golang.org/pkg`, `href="/pkg`,
+		`href="http://golang.org/cmd`, `href="/cmd`,
+		`href="https://golang.org/cmd`, `href="/cmd`,
+	)
+)
 
 // Config specifies Server configuration values.
 type Config struct {
@@ -40,7 +49,8 @@ type Config struct {
 	FeedArticles int    // Articles to include in Atom and JSON feeds.
 	FeedTitle    string // The title of the Atom XML feed
 
-	PlayEnabled bool
+	PlayEnabled     bool
+	ServeLocalLinks bool // rewrite golang.org/{pkg,cmd} links to host-less, relative paths.
 }
 
 // Doc represents an article adorned with presentation data.
@@ -143,7 +153,7 @@ func sectioned(d *present.Doc) bool {
 
 // authors returns a comma-separated list of author names.
 func authors(authors []present.Author) string {
-	var b bytes.Buffer
+	var b strings.Builder
 	last := len(authors) - 1
 	for i, a := range authors {
 		if i > 0 {
@@ -191,8 +201,8 @@ func (s *Server) loadDocs(root string) error {
 		if err != nil {
 			return err
 		}
-		html := new(bytes.Buffer)
-		err = d.Render(html, s.template.doc)
+		var html strings.Builder
+		err = d.Render(&html, s.template.doc)
 		if err != nil {
 			return err
 		}
@@ -359,7 +369,7 @@ func summary(d *Doc) string {
 			// skip everything but non-text elements
 			continue
 		}
-		var buf bytes.Buffer
+		var buf strings.Builder
 		for _, s := range text.Lines {
 			buf.WriteString(string(present.Style(s)))
 			buf.WriteByte('\n')
@@ -417,7 +427,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		d.Doc = doc
 		t = s.template.article
 	}
-	err := t.ExecuteTemplate(w, "root", d)
+	var err error
+	if s.cfg.ServeLocalLinks {
+		var buf strings.Builder
+		err = t.ExecuteTemplate(&buf, "root", d)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		_, err = golangOrgAbsLinkReplacer.WriteString(w, buf.String())
+	} else {
+		err = t.ExecuteTemplate(w, "root", d)
+	}
 	if err != nil {
 		log.Println(err)
 	}
