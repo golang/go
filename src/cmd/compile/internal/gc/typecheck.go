@@ -307,7 +307,7 @@ func typecheck1(n *Node, top int) *Node {
 
 		if top&Easgn == 0 {
 			// not a write to the variable
-			if isblank(n) {
+			if n.isBlank() {
 				yyerror("cannot use _ as value")
 				n.Type = nil
 				return n
@@ -673,19 +673,19 @@ func typecheck1(n *Node, top int) *Node {
 			return n
 		}
 
-		if l.Type.IsSlice() && !isnil(l) && !isnil(r) {
+		if l.Type.IsSlice() && !l.isNil() && !r.isNil() {
 			yyerror("invalid operation: %v (slice can only be compared to nil)", n)
 			n.Type = nil
 			return n
 		}
 
-		if l.Type.IsMap() && !isnil(l) && !isnil(r) {
+		if l.Type.IsMap() && !l.isNil() && !r.isNil() {
 			yyerror("invalid operation: %v (map can only be compared to nil)", n)
 			n.Type = nil
 			return n
 		}
 
-		if l.Type.Etype == TFUNC && !isnil(l) && !isnil(r) {
+		if l.Type.Etype == TFUNC && !l.isNil() && !r.isNil() {
 			yyerror("invalid operation: %v (func can only be compared to nil)", n)
 			n.Type = nil
 			return n
@@ -3304,7 +3304,7 @@ func typecheckas(n *Node) {
 	if n.Left.Typecheck() == 0 {
 		n.Left = typecheck(n.Left, Erv|Easgn)
 	}
-	if !isblank(n.Left) {
+	if !n.Left.isBlank() {
 		checkwidth(n.Left.Type) // ensure width is calculated for backend
 	}
 }
@@ -3664,7 +3664,7 @@ func typecheckdef(n *Node) {
 			goto ret
 		}
 
-		if e.Type != nil && e.Op != OLITERAL || !isgoconst(e) {
+		if e.Type != nil && e.Op != OLITERAL || !e.isGoConst() {
 			if !e.Diag() {
 				yyerror("const initializer %v is not a constant", e)
 				e.SetDiag(true)

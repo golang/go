@@ -64,7 +64,7 @@ func declare(n *Node, ctxt Class) {
 		return
 	}
 
-	if isblank(n) {
+	if n.isBlank() {
 		return
 	}
 
@@ -178,7 +178,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		declare(v, dclcontext)
 		v.Name.Param.Ntype = t
 
-		if e != nil || Curfn != nil || isblank(v) {
+		if e != nil || Curfn != nil || v.isBlank() {
 			if Curfn != nil {
 				init = append(init, nod(ODCL, v, nil))
 			}
@@ -326,7 +326,7 @@ func colasdefn(left []*Node, defn *Node) {
 
 	var nnew, nerr int
 	for i, n := range left {
-		if isblank(n) {
+		if n.isBlank() {
 			continue
 		}
 		if !colasname(n) {
@@ -367,7 +367,7 @@ func ifacedcl(n *Node) {
 		Fatalf("ifacedcl")
 	}
 
-	if isblank(n.Left) {
+	if n.Left.isBlank() {
 		yyerror("methods must have a unique non-blank name")
 	}
 }
@@ -457,7 +457,7 @@ func funcargs(nt *Node) {
 		// TODO: n->left->missing = 1;
 		n.Left.Op = ONAME
 
-		if isblank(n.Left) {
+		if n.Left.isBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)

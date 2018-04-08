@@ -26,7 +26,7 @@ func anyinit(n []*Node) bool {
 		switch ln.Op {
 		case ODCLFUNC, ODCLCONST, ODCLTYPE, OEMPTY:
 		case OAS:
-			if !isblank(ln.Left) || !candiscard(ln.Right) {
+			if !ln.Left.isBlank() || !candiscard(ln.Right) {
 				return true
 			}
 		default:

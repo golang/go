@@ -56,7 +56,7 @@ func init1(n *Node, out *[]*Node) {
 	switch n.Class() {
 	case PEXTERN, PFUNC:
 	default:
-		if isblank(n) && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder() == InitNotStarted {
+		if n.isBlank() && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder() == InitNotStarted {
 			// blank names initialization is part of init() but not
 			// when they are inside a function.
 			break
@@ -115,7 +115,7 @@ func init1(n *Node, out *[]*Node) {
 				Dump("defn", defn)
 				Fatalf("init1: bad defn")
 			}
-			if isblank(defn.Left) && candiscard(defn.Right) {
+			if defn.Left.isBlank() && candiscard(defn.Right) {
 				defn.Op = OEMPTY
 				defn.Left = nil
 				defn.Right = nil
@@ -126,7 +126,7 @@ func init1(n *Node, out *[]*Node) {
 			if Debug['j'] != 0 {
 				fmt.Printf("%v\n", n.Sym)
 			}
-			if isblank(n) || !staticinit(n, out) {
+			if n.isBlank() || !staticinit(n, out) {
 				if Debug['%'] != 0 {
 					Dump("nonstatic", defn)
 				}
@@ -303,7 +303,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 		return true
 
 	case OLITERAL:
-		if iszero(r) {
+		if isZero(r) {
 			return true
 		}
 		gdata(l, r, int(l.Type.Width))
@@ -380,7 +380,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		return staticcopy(l, r, out)
 
 	case OLITERAL:
-		if iszero(r) {
+		if isZero(r) {
 			return true
 		}
 		gdata(l, r, int(l.Type.Width))
@@ -578,7 +578,7 @@ func staticname(t *types.Type) *Node {
 	return n
 }
 
-func isliteral(n *Node) bool {
+func isLiteral(n *Node) bool {
 	// Treat nils as zeros rather than literals.
 	return n.Op == OLITERAL && n.Val().Ctype() != CTNIL
 }
@@ -607,7 +607,7 @@ const (
 func getdyn(n *Node, top bool) initGenType {
 	switch n.Op {
 	default:
-		if isliteral(n) {
+		if isLiteral(n) {
 			return initConst
 		}
 		return initDynamic
@@ -742,7 +742,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 			continue
 		}
 
-		islit := isliteral(value)
+		islit := isLiteral(value)
 		if (kind == initKindStatic && !islit) || (kind == initKindDynamic && islit) {
 			continue
 		}
@@ -898,7 +898,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			continue
 		}
 
-		if isliteral(value) {
+		if isLiteral(value) {
 			continue
 		}
 
@@ -1264,7 +1264,7 @@ func initplan(n *Node) {
 
 func addvalue(p *InitPlan, xoffset int64, n *Node) {
 	// special case: zero can be dropped entirely
-	if iszero(n) {
+	if isZero(n) {
 		return
 	}
 
@@ -1284,13 +1284,13 @@ func addvalue(p *InitPlan, xoffset int64, n *Node) {
 	p.E = append(p.E, InitEntry{Xoffset: xoffset, Expr: n})
 }
 
-func iszero(n *Node) bool {
+func isZero(n *Node) bool {
 	switch n.Op {
 	case OLITERAL:
 		switch u := n.Val().U.(type) {
 		default:
 			Dump("unexpected literal", n)
-			Fatalf("iszero")
+			Fatalf("isZero")
 		case *NilVal:
 			return true
 		case string:
@@ -1310,7 +1310,7 @@ func iszero(n *Node) bool {
 			if n1.Op == OKEY {
 				n1 = n1.Right
 			}
-			if !iszero(n1) {
+			if !isZero(n1) {
 				return false
 			}
 		}
@@ -1318,7 +1318,7 @@ func iszero(n *Node) bool {
 
 	case OSTRUCTLIT:
 		for _, n1 := range n.List.Slice() {
-			if !iszero(n1.Left) {
+			if !isZero(n1.Left) {
 				return false
 			}
 		}

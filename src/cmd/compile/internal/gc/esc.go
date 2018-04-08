@@ -1066,7 +1066,7 @@ func (e *EscState) escassignSinkWhyWhere(dst, src *Node, reason string, call *No
 // evaluated in curfn.	For expr==nil, dst must still be examined for
 // evaluations inside it (e.g *f(x) = y)
 func (e *EscState) escassign(dst, src *Node, step *EscStep) {
-	if isblank(dst) || dst == nil || src == nil || src.Op == ONONAME || src.Op == OXXX {
+	if dst.isBlank() || dst == nil || src == nil || src.Op == ONONAME || src.Op == OXXX {
 		return
 	}
 

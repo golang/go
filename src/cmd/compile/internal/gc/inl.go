@@ -753,7 +753,7 @@ func mkinlcall(n *Node, fn *Node) *Node {
 }
 
 func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
-	if asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
+	if asNode(t.Nname) != nil && !asNode(t.Nname).isBlank() {
 		inlvar := inlvars[asNode(t.Nname)]
 		if inlvar == nil {
 			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
@@ -885,7 +885,7 @@ func mkinlcall1(n, fn *Node) *Node {
 	for i, t := range fn.Type.Results().Fields().Slice() {
 		var m *Node
 		var mpos src.XPos
-		if t != nil && asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
+		if t != nil && asNode(t.Nname) != nil && !asNode(t.Nname).isBlank() {
 			mpos = asNode(t.Nname).Pos
 			m = inlvar(asNode(t.Nname))
 			m = typecheck(m, Erv)

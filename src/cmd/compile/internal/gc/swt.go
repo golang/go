@@ -70,7 +70,7 @@ func typecheckswitch(n *Node) {
 		if t != nil && !t.IsInterface() {
 			yyerrorl(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
 		}
-		if v := n.Left.Left; v != nil && !isblank(v) && n.List.Len() == 0 {
+		if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
 			// We don't actually declare the type switch's guarded
 			// declaration itself. So if there are no cases, we
 			// won't notice that it went unused.
@@ -143,7 +143,7 @@ func typecheckswitch(n *Node) {
 						} else {
 							yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
 						}
-					case nilonly != "" && !isnil(n1):
+					case nilonly != "" && !n1.isNil():
 						yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
 					case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
 						yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)

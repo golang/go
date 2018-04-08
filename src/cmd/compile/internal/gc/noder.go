@@ -654,7 +654,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		n := p.nod(expr, OTYPESW, nil, p.expr(expr.X))
 		if expr.Lhs != nil {
 			n.Left = p.declName(expr.Lhs)
-			if isblank(n.Left) {
+			if n.Left.isBlank() {
 				yyerror("invalid variable name %v in type switch", n.Left)
 			}
 		}

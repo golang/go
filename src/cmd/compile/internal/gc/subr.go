@@ -438,8 +438,8 @@ func treecopy(n *Node, pos src.XPos) *Node {
 	}
 }
 
-// isnil reports whether n represents the universal untyped zero value "nil".
-func isnil(n *Node) bool {
+// isNil reports whether n represents the universal untyped zero value "nil".
+func (n *Node) isNil() bool {
 	// Check n.Orig because constant propagation may produce typed nil constants,
 	// which don't exist in the Go spec.
 	return Isconst(n.Orig, CTNIL)
@@ -462,7 +462,7 @@ func isptrto(t *types.Type, et types.EType) bool {
 	return true
 }
 
-func isblank(n *Node) bool {
+func (n *Node) isBlank() bool {
 	if n == nil {
 		return false
 	}
