@@ -50,12 +50,21 @@ func TestPPC64minimalFeatures(t *testing.T) {
 }
 
 func TestARM64minimalFeatures(t *testing.T) {
-	if runtime.GOARCH == "arm64" {
-		if !cpu.ARM64.HasASIMD {
-			t.Fatalf("HasASIMD expected true, got false")
-		}
-		if !cpu.ARM64.HasFP {
-			t.Fatalf("HasFP expected true, got false")
-		}
+
+	if runtime.GOARCH != "arm64" {
+		return
+	}
+
+	switch runtime.GOOS {
+	case "linux", "android":
+	default:
+		t.Skipf("%s/arm64 is not supported", runtime.GOOS)
+	}
+
+	if !cpu.ARM64.HasASIMD {
+		t.Fatalf("HasASIMD expected true, got false")
+	}
+	if !cpu.ARM64.HasFP {
+		t.Fatalf("HasFP expected true, got false")
 	}
 }
