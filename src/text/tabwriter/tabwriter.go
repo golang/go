@@ -106,7 +106,27 @@ type Writer struct {
 	widths  []int    // list of column widths in runes - re-used during formatting
 }
 
-func (b *Writer) addLine() { b.lines = append(b.lines, []cell{}) }
+func (b *Writer) addLine() {
+	// Grow slice instead of appending,
+	// as that gives us an opportunity
+	// to re-use an existing []cell.
+	if n := len(b.lines) + 1; n <= cap(b.lines) {
+		b.lines = b.lines[:n]
+		b.lines[n-1] = b.lines[n-1][:0]
+	} else {
+		b.lines = append(b.lines, nil)
+	}
+
+	// The previous line is probably a good indicator
+	// of how many cells the current line will have.
+	// If the current line's capacity is smaller than that,
+	// abandon it and make a new one.
+	if n := len(b.lines); n >= 2 {
+		if prev := len(b.lines[n-2]); prev > cap(b.lines[n-1]) {
+			b.lines[n-1] = make([]cell, 0, prev)
+		}
+	}
+}
 
 // Reset the current state.
 func (b *Writer) reset() {
