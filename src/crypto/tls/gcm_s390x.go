@@ -8,6 +8,5 @@ import (
 	"internal/cpu"
 )
 
-func hasGCMAsm() bool {
-	return (cpu.S390X.HasKMA) || (cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR && cpu.S390x.HasKIMD)
-}
+var hasGCMAsm = (cpu.S390X.HasKMA) || (cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR && cpu.S390x.HasKIMD)
+

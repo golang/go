@@ -7,6 +7,4 @@
 package tls
 
 // generic option when running on platforms that don't have an optimized AES GCM implementation
-func hasGCMAsm() bool {
-	return false
-}
+var hasGCMAsm = false
