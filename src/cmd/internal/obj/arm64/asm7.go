@@ -2511,11 +2511,12 @@ func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
 		if amount != 2 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
-
 	case AMOVD:
 		if amount != 3 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
+	default:
+		panic("invalid operation")
 	}
 }
 
@@ -2955,14 +2956,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (REGZERO & 31 << 5) | uint32(rt&31)
 
 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
-
 		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 {
 			amount := (p.From.Reg >> 5) & 7
 			if amount > 4 {
 				c.ctxt.Diag("shift amount out of range 0 to 4: %v", p)
 			}
 			o1 = c.opxrrr(p, p.As, true)
-			o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
+			o1 |= c.encRegShiftOrExt(&p.From, p.From.Reg) /* includes reg, op, etc */
 		} else {
 			o1 = c.opxrrr(p, p.As, false)
 			o1 |= uint32(p.From.Reg&31) << 16
@@ -4467,11 +4467,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(Q&1) << 30) | (uint32(r&31) << 16) | ((opcode & 7) << 13) | (uint32(S&1) << 12) | (uint32(size&3) << 10) | (uint32(rf&31) << 5) | uint32(rt&31)
 
 	case 98: /* MOVD (Rn)(Rm.SXTW[<<amount]),Rd */
-		if p.From.Offset != 0 {
+		if isRegShiftOrExt(&p.From) {
 			// extended or shifted offset register.
 			c.checkShiftAmount(p, &p.From)
+
 			o1 = c.opldrr(p, p.As, true)
-			o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
+			o1 |= c.encRegShiftOrExt(&p.From, p.From.Index) /* includes reg, op, etc */
 		} else {
 			// (Rn)(Rm), no extension or shift.
 			o1 = c.opldrr(p, p.As, false)
@@ -4482,11 +4483,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(rt & 31)
 
 	case 99: /* MOVD Rt, (Rn)(Rm.SXTW[<<amount]) */
-		if p.To.Offset != 0 {
+		if isRegShiftOrExt(&p.To) {
 			// extended or shifted offset register.
 			c.checkShiftAmount(p, &p.To)
+
 			o1 = c.opstrr(p, p.As, true)
-			o1 |= uint32(p.To.Offset) /* includes reg, op, etc */
+			o1 |= c.encRegShiftOrExt(&p.To, p.To.Index) /* includes reg, op, etc */
 		} else {
 			// (Rn)(Rm), no extension or shift.
 			o1 = c.opstrr(p, p.As, false)
@@ -6092,4 +6094,64 @@ func movesize(a obj.As) int {
 	default:
 		return -1
 	}
+}
+
+// rm is the Rm register value, o is the extension, amount is the left shift value.
+func roff(rm int16, o uint32, amount int16) uint32 {
+	return uint32(rm&31)<<16 | o<<13 | uint32(amount)<<10
+}
+
+// encRegShiftOrExt returns the encoding of shifted/extended register, Rx<<n and Rx.UXTW<<n, etc.
+func (c *ctxt7) encRegShiftOrExt(a *obj.Addr, r int16) uint32 {
+	var num, rm int16
+	num = (r >> 5) & 7
+	rm = r & 31
+	switch {
+	case REG_UXTB <= r && r < REG_UXTH:
+		return roff(rm, 0, num)
+	case REG_UXTH <= r && r < REG_UXTW:
+		return roff(rm, 1, num)
+	case REG_UXTW <= r && r < REG_UXTX:
+		if a.Type == obj.TYPE_MEM {
+			if num == 0 {
+				return roff(rm, 2, 2)
+			} else {
+				return roff(rm, 2, 6)
+			}
+		} else {
+			return roff(rm, 2, num)
+		}
+	case REG_UXTX <= r && r < REG_SXTB:
+		return roff(rm, 3, num)
+	case REG_SXTB <= r && r < REG_SXTH:
+		return roff(rm, 4, num)
+	case REG_SXTH <= r && r < REG_SXTW:
+		return roff(rm, 5, num)
+	case REG_SXTW <= r && r < REG_SXTX:
+		if a.Type == obj.TYPE_MEM {
+			if num == 0 {
+				return roff(rm, 6, 2)
+			} else {
+				return roff(rm, 6, 6)
+			}
+		} else {
+			return roff(rm, 6, num)
+		}
+	case REG_SXTX <= r && r < REG_SPECIAL:
+		if a.Type == obj.TYPE_MEM {
+			if num == 0 {
+				return roff(rm, 7, 2)
+			} else {
+				return roff(rm, 7, 6)
+			}
+		} else {
+			return roff(rm, 7, num)
+		}
+	case REG_LSL <= r && r < (REG_LSL+1<<8):
+		return roff(rm, 3, 6)
+	default:
+		c.ctxt.Diag("unsupported register extension type.")
+	}
+
+	return 0
 }

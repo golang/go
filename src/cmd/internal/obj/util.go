@@ -299,17 +299,7 @@ func Mconv(a *Addr) string {
 		case a.Offset == 0:
 			str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
 		case a.Offset != 0:
-			switch objabi.GOARCH {
-			case "arm64":
-				// the register and the extension/shift are encoded in a.Offset.
-				if a.Index != 0 {
-					str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
-					return str
-				}
-				fallthrough
-			default:
-				str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
-			}
+			str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
 		}
 
 		// Note: a.Reg == REG_NONE encodes the default base register for the NAME_ type.
