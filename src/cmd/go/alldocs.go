@@ -105,7 +105,7 @@
 // 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
 // 	-msan
 // 		enable interoperation with memory sanitizer.
-// 		Supported only on linux/amd64,
+// 		Supported only on linux/amd64, linux/arm64
 // 		and only with Clang/LLVM as the host C compiler.
 // 	-v
 // 		print the names of packages as they are compiled.
