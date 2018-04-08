@@ -144,16 +144,17 @@ func dumpLinkerObj(bout *bio.Writer) {
 	dumpimportstrings()
 	dumpbasictypes()
 
-	// The first call to dumpsignats can generate functions,
+	// Calls to dumpsignats can generate functions,
 	// like method wrappers and hash and equality routines.
-	compileFunctions()
-
-	// Process any new signats added during compilation.
-	// No need to loop here; signats from compiling the generated
-	// functions should not themselves generate new functions.
-	// If they do, we'll know about it; the sanity check of
-	// len(compilequeue) in gc.Main will fail.
-	dumpsignats()
+	// Compile any generated functions, process any new resulting types, repeat.
+	// This can't loop forever, because there is no way to generate an infinite
+	// number of types in a finite amount of code.
+	// In the typical case, we loop 0 or 1 times.
+	// It was not until issue 24761 that we found any code that required a loop at all.
+	for len(compilequeue) > 0 {
+		compileFunctions()
+		dumpsignats()
+	}
 
 	// Dump extra globals.
 	tmp := externdcl
