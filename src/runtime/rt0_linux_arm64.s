@@ -11,7 +11,7 @@ TEXT _rt0_arm64_linux(SB),NOSPLIT|NOFRAME,$0
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
-TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$168
+TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$184
 	// Preserve callee-save registers.
 	MOVD R19, 24(RSP)
 	MOVD R20, 32(RSP)
@@ -30,6 +30,10 @@ TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$168
 	FMOVD F13, 136(RSP)
 	FMOVD F14, 144(RSP)
 	FMOVD F15, 152(RSP)
+	MOVD g, 160(RSP)
+
+	// Initialize g as null in case of using g later e.g. sigaction in cgo_sigaction.go
+	MOVD	ZR, g
 
 	MOVD	R0, _rt0_arm64_linux_lib_argc<>(SB)
 	MOVD	R1, _rt0_arm64_linux_lib_argv<>(SB)
@@ -74,6 +78,7 @@ restore:
 	FMOVD 136(RSP), F13
 	FMOVD 144(RSP), F14
 	FMOVD 152(RSP), F15
+	MOVD 160(RSP), g
 	RET
 
 TEXT _rt0_arm64_linux_lib_go(SB),NOSPLIT,$0
