@@ -525,15 +525,14 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	 * When linking against the system libraries,
 	 * we use its pthread_create and let it set up %gs
 	 * for us.  When we do that, the private storage
-	 * we get is not at 0(GS) but at 0x468(GS).
-	 * 8l rewrites 0(TLS) into 0x468(GS) for us.
+	 * we get is not at 0(GS) but at 0x18(GS).
+	 * The linker rewrites 0(TLS) into 0x18(GS) for us.
 	 * To accommodate that rewrite, we translate the
-	 * address and limit here so that 0x468(GS) maps to 0(address).
+	 * address here so that 0x18(GS) maps to 0(address).
 	 *
-	 * See cgo/gcc_darwin_386.c:/468 for the derivation
-	 * of the constant.
+	 * Constant must match the one in cmd/link/internal/ld/sym.go.
 	 */
-	SUBL	$0x468, BX
+	SUBL	$0x18, BX
 
 	/*
 	 * Must set up as USER_CTHREAD segment because
