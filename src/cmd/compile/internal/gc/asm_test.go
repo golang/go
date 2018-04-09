@@ -259,26 +259,6 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
 	},
-	// see issue 19595.
-	// We want to merge load+op in f58, but not in f59.
-	{
-		fn: `
-		func f58(p, q *int) {
-			x := *p
-			*q += x
-		}`,
-		pos: []string{"\tADDQ\t\\("},
-	},
-	{
-		fn: `
-		func f59(p, q *int) {
-			x := *p
-			for i := 0; i < 10; i++ {
-				*q += x
-			}
-		}`,
-		pos: []string{"\tADDQ\t[A-Z]"},
-	},
 	{
 		// make sure assembly output has matching offset and base register.
 		fn: `
@@ -288,31 +268,6 @@ var linuxAMD64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"b\\+24\\(SP\\)"},
-	},
-	{
-		// check load combining
-		fn: `
-		func f73(a, b byte) (byte,byte) {
-		    return f73(f73(a,b))
-		}
-		`,
-		pos: []string{"\tMOVW\t"},
-	},
-	{
-		fn: `
-		func f74(a, b uint16) (uint16,uint16) {
-		    return f74(f74(a,b))
-		}
-		`,
-		pos: []string{"\tMOVL\t"},
-	},
-	{
-		fn: `
-		func f75(a, b uint32) (uint32,uint32) {
-		    return f75(f75(a,b))
-		}
-		`,
-		pos: []string{"\tMOVQ\t"},
 	},
 	// Make sure we don't put pointers in SSE registers across safe points.
 	{
@@ -383,16 +338,6 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tAND\t"},
-	},
-	{
-		// make sure offsets are folded into load and store.
-		fn: `
-		func f36(_, a [20]byte) (b [20]byte) {
-			b = a
-			return
-		}
-		`,
-		pos: []string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
 	},
 	{
 		// check that we don't emit comparisons for constant shift

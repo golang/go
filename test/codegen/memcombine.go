@@ -98,6 +98,40 @@ func load_be16_idx(b []byte, idx int) {
 	sink16 = binary.BigEndian.Uint16(b[idx:])
 }
 
+// Check load combining across function calls.
+
+func fcall_byte(a, b byte) (byte, byte) {
+	return fcall_byte(fcall_byte(a, b)) // amd64:`MOVW`
+}
+
+func fcall_uint16(a, b uint16) (uint16, uint16) {
+	return fcall_uint16(fcall_uint16(a, b)) // amd64:`MOVL`
+}
+
+func fcall_uint32(a, b uint32) (uint32, uint32) {
+	return fcall_uint32(fcall_uint32(a, b)) // amd64:`MOVQ`
+}
+
+// We want to merge load+op in the first function, but not in the
+// second. See Issue 19595.
+func load_op_merge(p, q *int) {
+	x := *p
+	*q += x // amd64:`ADDQ\t\(`
+}
+func load_op_no_merge(p, q *int) {
+	x := *p
+	for i := 0; i < 10; i++ {
+		*q += x // amd64:`ADDQ\t[A-Z]`
+	}
+}
+
+// Make sure offsets are folded into loads and stores.
+func offsets_fold(_, a [20]byte) (b [20]byte) {
+	// arm64:`MOVD\t""\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, ""\.b\+[0-9]+\(FP\)`
+	b = a
+	return
+}
+
 // ------------- //
 //    Storing    //
 // ------------- //
