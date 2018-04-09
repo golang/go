@@ -239,11 +239,6 @@ var allAsmTests = []*asmTests{
 		tests: linuxARM64Tests,
 	},
 	{
-		arch:  "mips64",
-		os:    "linux",
-		tests: linuxMIPS64Tests,
-	},
-	{
 		arch:  "amd64",
 		os:    "plan9",
 		tests: plan9AMD64Tests,
@@ -251,14 +246,6 @@ var allAsmTests = []*asmTests{
 }
 
 var linuxAMD64Tests = []*asmTest{
-	{
-		fn: `
-		func $(x int) int {
-			return x * 96
-		}
-		`,
-		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
-	},
 	{
 		// make sure assembly output has matching offset and base register.
 		fn: `
@@ -339,17 +326,6 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		pos: []string{"\tAND\t"},
 	},
-	{
-		// check that we don't emit comparisons for constant shift
-		fn: `
-//go:nosplit
-		func $(x int) int {
-			return x << 17
-		}
-		`,
-		pos: []string{"LSL\t\\$17"},
-		neg: []string{"CMP"},
-	},
 	// Load-combining tests.
 	{
 		fn: `
@@ -372,19 +348,6 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		pos: []string{"\tCSEL\t"},
-	},
-}
-
-var linuxMIPS64Tests = []*asmTest{
-	{
-		// check that we don't emit comparisons for constant shift
-		fn: `
-		func $(x int) int {
-			return x << 17
-		}
-		`,
-		pos: []string{"SLLV\t\\$17"},
-		neg: []string{"SGT"},
 	},
 }
 
