@@ -248,7 +248,7 @@ func autolabel(prefix string) *Node {
 }
 
 func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
-	if !exportname(name) && pkg != localpkg {
+	if !types.IsExported(name) && pkg != localpkg {
 		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
 	}
 	return pkg.Lookup(name)
@@ -262,7 +262,7 @@ func importdot(opkg *types.Pkg, pack *Node) {
 		if s.Def == nil {
 			continue
 		}
-		if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
+		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
 			continue
 		}
 		s1 := lookup(s.Name)
@@ -391,8 +391,8 @@ func (x methcmp) Less(i, j int) bool {
 	}
 
 	// Exported methods to the front.
-	ea := exportname(a.Sym.Name)
-	eb := exportname(b.Sym.Name)
+	ea := types.IsExported(a.Sym.Name)
+	eb := types.IsExported(b.Sym.Name)
 	if ea != eb {
 		return ea
 	}

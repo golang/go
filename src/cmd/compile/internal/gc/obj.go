@@ -183,7 +183,7 @@ func addptabs() {
 		if n.Op != ONAME {
 			continue
 		}
-		if !exportname(s.Name) {
+		if !types.IsExported(s.Name) {
 			continue
 		}
 		if s.Pkg.Name != "main" {

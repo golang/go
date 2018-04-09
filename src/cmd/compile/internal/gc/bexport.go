@@ -454,7 +454,7 @@ func (p *exporter) markType(t *types.Type) {
 	// handles their full method set.
 	if t.Sym != nil && t.Etype != TINTER {
 		for _, m := range t.Methods().Slice() {
-			if exportname(m.Sym.Name) {
+			if types.IsExported(m.Sym.Name) {
 				p.markType(m.Type)
 			}
 		}
@@ -481,7 +481,7 @@ func (p *exporter) markType(t *types.Type) {
 
 	case TSTRUCT:
 		for _, f := range t.FieldSlice() {
-			if exportname(f.Sym.Name) || f.Embedded != 0 {
+			if types.IsExported(f.Sym.Name) || f.Embedded != 0 {
 				p.markType(f.Type)
 			}
 		}
@@ -498,7 +498,7 @@ func (p *exporter) markType(t *types.Type) {
 
 	case TINTER:
 		for _, f := range t.FieldSlice() {
-			if exportname(f.Sym.Name) {
+			if types.IsExported(f.Sym.Name) {
 				p.markType(f.Type)
 			}
 		}
@@ -893,7 +893,7 @@ func (p *exporter) fieldName(t *types.Field) {
 		// 3) field name doesn't match base type name (alias name)
 		bname := basetypeName(t.Type)
 		if name == bname {
-			if exportname(name) {
+			if types.IsExported(name) {
 				name = "" // 1) we don't need to know the field name or package
 			} else {
 				name = "?" // 2) use unexported name "?" to force package export
@@ -905,7 +905,7 @@ func (p *exporter) fieldName(t *types.Field) {
 		}
 	}
 	p.string(name)
-	if name != "" && !exportname(name) {
+	if name != "" && !types.IsExported(name) {
 		p.pkg(t.Sym.Pkg)
 	}
 }
@@ -913,7 +913,7 @@ func (p *exporter) fieldName(t *types.Field) {
 // methodName is like qualifiedName but it doesn't record the package for exported names.
 func (p *exporter) methodName(sym *types.Sym) {
 	p.string(sym.Name)
-	if !exportname(sym.Name) {
+	if !types.IsExported(sym.Name) {
 		p.pkg(sym.Pkg)
 	}
 }
@@ -1587,7 +1587,7 @@ func (p *exporter) fieldSym(s *types.Sym, short bool) {
 	// we should never see a _ (blank) here - these are accessible ("read") fields
 	// TODO(gri) can we assert this with an explicit check?
 	p.string(name)
-	if !exportname(name) {
+	if !types.IsExported(name) {
 		p.pkg(s.Pkg)
 	}
 }
