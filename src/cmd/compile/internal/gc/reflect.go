@@ -414,7 +414,7 @@ func methods(t *types.Type) []*Sig {
 		ms = append(ms, &sig)
 
 		sig.name = method.Name
-		if !exportname(method.Name) {
+		if !types.IsExported(method.Name) {
 			if method.Pkg == nil {
 				Fatalf("methods: missing package")
 			}
@@ -461,7 +461,7 @@ func imethods(t *types.Type) []*Sig {
 		var sig = Sig{
 			name: method.Name,
 		}
-		if !exportname(method.Name) {
+		if !types.IsExported(method.Name) {
 			if method.Pkg == nil {
 				Fatalf("imethods: missing package")
 			}
@@ -564,10 +564,10 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 
 // dnameField dumps a reflect.name for a struct field.
 func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
-	if !exportname(ft.Sym.Name) && ft.Sym.Pkg != spkg {
+	if !types.IsExported(ft.Sym.Name) && ft.Sym.Pkg != spkg {
 		Fatalf("package mismatch for %v", ft.Sym)
 	}
-	nsym := dname(ft.Sym.Name, ft.Note, nil, exportname(ft.Sym.Name))
+	nsym := dname(ft.Sym.Name, ft.Note, nil, types.IsExported(ft.Sym.Name))
 	return dsymptr(lsym, ot, nsym, 0)
 }
 
@@ -708,7 +708,7 @@ func typePkg(t *types.Type) *types.Pkg {
 func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
 	for _, a := range methods(t) {
 		// ../../../../runtime/type.go:/method
-		exported := exportname(a.name)
+		exported := types.IsExported(a.name)
 		var pkg *types.Pkg
 		if !exported && a.pkg != typePkg(t) {
 			pkg = a.pkg
@@ -896,11 +896,11 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		p = "*" + p
 		tflag |= tflagExtraStar
 		if t.Sym != nil {
-			exported = exportname(t.Sym.Name)
+			exported = types.IsExported(t.Sym.Name)
 		}
 	} else {
 		if t.Elem() != nil && t.Elem().Sym != nil {
-			exported = exportname(t.Elem().Sym.Name)
+			exported = types.IsExported(t.Elem().Sym.Name)
 		}
 	}
 
@@ -1267,7 +1267,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 
 		for _, a := range m {
 			// ../../../../runtime/type.go:/imethod
-			exported := exportname(a.name)
+			exported := types.IsExported(a.name)
 			var pkg *types.Pkg
 			if !exported && a.pkg != tpkg {
 				pkg = a.pkg
@@ -1341,7 +1341,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		// information from the field descriptors.
 		var spkg *types.Pkg
 		for _, f := range fields {
-			if !exportname(f.Sym.Name) {
+			if !types.IsExported(f.Sym.Name) {
 				spkg = f.Sym.Pkg
 				break
 			}

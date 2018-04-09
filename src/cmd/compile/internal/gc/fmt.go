@@ -757,7 +757,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 				// Check first that a symbol is defined for this type.
 				// Wrong interface definitions may have types lacking a symbol.
 				break
-			case exportname(f.Sym.Name):
+			case types.IsExported(f.Sym.Name):
 				buf = append(buf, sconv(f.Sym, FmtShort, mode)...)
 			default:
 				buf = append(buf, sconv(f.Sym, FmtUnsigned, mode)...)
@@ -1705,7 +1705,7 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
 				name = asNode(f.Nname).modeString(mode)
 			} else if flag&FmtLong != 0 {
 				name = mode.Sprintf("%0S", s)
-				if !exportname(name) && flag&FmtUnsigned == 0 {
+				if !types.IsExported(name) && flag&FmtUnsigned == 0 {
 					name = smodeString(s, mode) // qualify non-exported names (used on structs, not on funarg)
 				}
 			} else {

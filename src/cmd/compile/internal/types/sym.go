@@ -7,6 +7,8 @@ package types
 import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Sym represents an object name. Most commonly, this is a Go identifier naming
@@ -73,4 +75,14 @@ func (sym *Sym) Linksym() *obj.LSym {
 		return nil
 	}
 	return Ctxt.Lookup(sym.LinksymName())
+}
+
+// IsExported reports whether name is an exported Go symbol (that is,
+// whether it begins with an upper-case letter).
+func IsExported(name string) bool {
+	if r := name[0]; r < utf8.RuneSelf {
+		return 'A' <= r && r <= 'Z'
+	}
+	r, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(r)
 }

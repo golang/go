@@ -11,8 +11,6 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/src"
 	"fmt"
-	"unicode"
-	"unicode/utf8"
 )
 
 var (
@@ -42,14 +40,6 @@ func exportsym(n *Node) {
 	exportlist = append(exportlist, n)
 }
 
-func exportname(s string) bool {
-	if r := s[0]; r < utf8.RuneSelf {
-		return 'A' <= r && r <= 'Z'
-	}
-	r, _ := utf8.DecodeRuneInString(s)
-	return unicode.IsUpper(r)
-}
-
 func initname(s string) bool {
 	return s == "init"
 }
@@ -65,7 +55,7 @@ func autoexport(n *Node, ctxt Class) {
 		return
 	}
 
-	if exportname(n.Sym.Name) || initname(n.Sym.Name) {
+	if types.IsExported(n.Sym.Name) || initname(n.Sym.Name) {
 		exportsym(n)
 	}
 	if asmhdr != "" && !n.Sym.Asm() {
