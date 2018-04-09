@@ -77,6 +77,32 @@ func (sym *Sym) Linksym() *obj.LSym {
 	return Ctxt.Lookup(sym.LinksymName())
 }
 
+// Less reports whether symbol a is ordered before symbol b.
+//
+// Symbols are ordered exported before non-exported, then by name, and
+// finally (for non-exported symbols) by package path.
+func (a *Sym) Less(b *Sym) bool {
+	if a == b {
+		return false
+	}
+
+	// Exported symbols before non-exported.
+	ea := IsExported(a.Name)
+	eb := IsExported(b.Name)
+	if ea != eb {
+		return ea
+	}
+
+	// Order by name and then (for non-exported names) by package.
+	if a.Name != b.Name {
+		return a.Name < b.Name
+	}
+	if !ea {
+		return a.Pkg.Path < b.Pkg.Path
+	}
+	return false
+}
+
 // IsExported reports whether name is an exported Go symbol (that is,
 // whether it begins with an upper-case letter).
 func IsExported(name string) bool {
