@@ -933,6 +933,11 @@ func (c *ctxt7) flushpool(p *obj.Prog, skip int) {
 }
 
 /*
+ * MOVD foo(SB), R is actually
+ *   MOVD addr, REGTMP
+ *   MOVD REGTMP, R
+ * where addr is the address of the DWORD containing the address of foo.
+ *
  * TODO: hash
  */
 func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
@@ -942,11 +947,17 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	t.As = AWORD
 	sz := 4
 
-	// MOVD foo(SB), R is actually
-	//	MOVD addr, REGTMP
-	//	MOVD REGTMP, R
-	// where addr is the address of the DWORD containing the address of foo.
-	if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || lit != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
+	if p.As == AMOVD && a.Type == obj.TYPE_CONST {
+		// simplify MOVD to MOVW/MOVWU to reduce constant pool size
+		if lit == int64(int32(lit)) { // -0x80000000 ~ 0x7fffffff
+			p.As = AMOVW
+		} else if uint64(lit) == uint64(uint32(lit)) { // 0 ~ 0xffffffff
+			p.As = AMOVWU
+		} else { // 64-bit
+			t.As = ADWORD
+			sz = 8
+		}
+	} else if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || lit != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
 		// conservative: don't know if we want signed or unsigned extension.
 		// in case of ambiguity, store 64-bit
 		t.As = ADWORD
