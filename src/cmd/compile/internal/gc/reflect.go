@@ -42,27 +42,11 @@ var (
 )
 
 type Sig struct {
-	name  string
-	pkg   *types.Pkg
+	name  *types.Sym
 	isym  *types.Sym
 	tsym  *types.Sym
 	type_ *types.Type
 	mtype *types.Type
-}
-
-// siglt sorts method signatures by name with exported methods first,
-// and then non-exported methods by their package path.
-func siglt(a, b *Sig) bool {
-	if (a.pkg == nil) != (b.pkg == nil) {
-		return a.pkg == nil
-	}
-	if a.name != b.name {
-		return a.name < b.name
-	}
-	if a.pkg != nil && a.pkg != b.pkg {
-		return a.pkg.Path < b.pkg.Path
-	}
-	return false
 }
 
 // Builds a type representing a Bucket structure for
@@ -410,21 +394,14 @@ func methods(t *types.Type) []*Sig {
 			continue
 		}
 
-		var sig Sig
-		ms = append(ms, &sig)
-
-		sig.name = method.Name
-		if !types.IsExported(method.Name) {
-			if method.Pkg == nil {
-				Fatalf("methods: missing package")
-			}
-			sig.pkg = method.Pkg
+		sig := &Sig{
+			name:  method,
+			isym:  methodSym(it, method),
+			tsym:  methodSym(t, method),
+			type_: methodfunc(f.Type, t),
+			mtype: methodfunc(f.Type, nil),
 		}
-
-		sig.isym = methodSym(it, method)
-		sig.tsym = methodSym(t, method)
-		sig.type_ = methodfunc(f.Type, t)
-		sig.mtype = methodfunc(f.Type, nil)
+		ms = append(ms, sig)
 
 		this := f.Type.Recv().Type
 
@@ -457,38 +434,28 @@ func imethods(t *types.Type) []*Sig {
 		if f.Type.Etype != TFUNC || f.Sym == nil {
 			continue
 		}
-		method := f.Sym
-		var sig = Sig{
-			name: method.Name,
+		if f.Sym.IsBlank() {
+			Fatalf("unexpected blank symbol in interface method set")
 		}
-		if !types.IsExported(method.Name) {
-			if method.Pkg == nil {
-				Fatalf("imethods: missing package")
-			}
-			sig.pkg = method.Pkg
-		}
-
-		sig.mtype = f.Type
-		sig.type_ = methodfunc(f.Type, nil)
-
 		if n := len(methods); n > 0 {
 			last := methods[n-1]
-			if !(siglt(last, &sig)) {
-				Fatalf("sigcmp vs sortinter %s %s", last.name, sig.name)
+			if !last.name.Less(f.Sym) {
+				Fatalf("sigcmp vs sortinter %v %v", last.name, f.Sym)
 			}
 		}
-		methods = append(methods, &sig)
 
-		// Compiler can only refer to wrappers for non-blank methods.
-		if method.IsBlank() {
-			continue
+		sig := &Sig{
+			name:  f.Sym,
+			mtype: f.Type,
+			type_: methodfunc(f.Type, nil),
 		}
+		methods = append(methods, sig)
 
 		// NOTE(rsc): Perhaps an oversight that
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		isym := methodSym(t, method)
+		isym := methodSym(t, f.Sym)
 		if !isym.Siggen() {
 			isym.SetSiggen(true)
 			genwrapper(t, f, isym)
@@ -675,7 +642,7 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	if mcount != int(uint16(mcount)) {
 		Fatalf("too many methods on %v: %d", t, mcount)
 	}
-	xcount := sort.Search(mcount, func(i int) bool { return m[i].pkg != nil })
+	xcount := sort.Search(mcount, func(i int) bool { return !types.IsExported(m[i].name.Name) })
 	if dataAdd != int(uint32(dataAdd)) {
 		Fatalf("methods are too far away on %v: %d", t, dataAdd)
 	}
@@ -708,12 +675,12 @@ func typePkg(t *types.Type) *types.Pkg {
 func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
 	for _, a := range methods(t) {
 		// ../../../../runtime/type.go:/method
-		exported := types.IsExported(a.name)
+		exported := types.IsExported(a.name.Name)
 		var pkg *types.Pkg
-		if !exported && a.pkg != typePkg(t) {
-			pkg = a.pkg
+		if !exported && a.name.Pkg != typePkg(t) {
+			pkg = a.name.Pkg
 		}
-		nsym := dname(a.name, "", pkg, exported)
+		nsym := dname(a.name.Name, "", pkg, exported)
 
 		ot = dsymptrOff(lsym, ot, nsym)
 		ot = dmethodptrOff(lsym, ot, dtypesym(a.mtype))
@@ -1267,12 +1234,12 @@ func dtypesym(t *types.Type) *obj.LSym {
 
 		for _, a := range m {
 			// ../../../../runtime/type.go:/imethod
-			exported := types.IsExported(a.name)
+			exported := types.IsExported(a.name.Name)
 			var pkg *types.Pkg
-			if !exported && a.pkg != tpkg {
-				pkg = a.pkg
+			if !exported && a.name.Pkg != tpkg {
+				pkg = a.name.Pkg
 			}
-			nsym := dname(a.name, "", pkg, exported)
+			nsym := dname(a.name.Name, "", pkg, exported)
 
 			ot = dsymptrOff(lsym, ot, nsym)
 			ot = dsymptrOff(lsym, ot, dtypesym(a.type_))
@@ -1430,7 +1397,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
 	// both sigs and methods are sorted by name,
 	// so we can find the intersect in a single pass
 	for _, m := range methods {
-		if m.name == sigs[0].name {
+		if m.name.Name == sigs[0].name.Name {
 			out = append(out, m.isym.Linksym())
 			sigs = sigs[1:]
 			if len(sigs) == 0 {
