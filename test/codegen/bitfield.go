@@ -222,3 +222,11 @@ func ubfx11(x uint64) uint64 {
 	// arm64:"UBFX\t[$]1, R[0-9]+, [$]19",-"LSL",-"LSR"
 	return ((x & 0xfffff) << 3) >> 4
 }
+
+// Check that we don't emit comparisons for constant shifts.
+//go:nosplit
+func shift_no_cmp(x int) int {
+	// arm64:`LSL\t[$]17`,-`CMP`
+	// mips64:`SLLV\t[$]17`,-`SGT`
+	return x << 17
+}

@@ -30,6 +30,11 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	return a, b
 }
 
+func Mul_96(n int) int {
+	// amd64:`SHLQ\t[$]5`,`LEAQ\t\(.*\)\(.*\*2\),`
+	return n * 96
+}
+
 // Multiplications merging tests
 
 func MergeMuls1(n int) int {
