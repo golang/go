@@ -896,9 +896,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		if !ok {
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
-			} else {
-				return errPhase
 			}
+			return errPhase
 		}
 		err := ut.UnmarshalText(s)
 		if err != nil {
@@ -952,9 +951,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		if !ok {
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
-			} else {
-				return errPhase
 			}
+			return errPhase
 		}
 		switch v.Kind() {
 		default:
@@ -985,9 +983,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		if c != '-' && (c < '0' || c > '9') {
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
-			} else {
-				return errPhase
 			}
+			return errPhase
 		}
 		s := string(item)
 		switch v.Kind() {
@@ -1001,9 +998,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			}
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
-			} else {
-				return &UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())}
 			}
+			return &UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())}
 		case reflect.Interface:
 			n, err := d.convertNumber(s)
 			if err != nil {
