@@ -42,7 +42,8 @@ type PublicKey struct {
 	E int      // public exponent
 }
 
-// Size returns the number of bytes for signatures from this key.
+// Size returns the modulus size in bytes. Raw signatures and ciphertexts
+// for or by this public key will have the same size.
 func (pub *PublicKey) Size() int {
 	return (pub.N.BitLen() + 7) / 8
 }
