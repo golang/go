@@ -261,7 +261,7 @@ func run(bin string, args []string) (err error) {
 	started = true
 	startTestsLen := s.out.Len()
 
-	s.do("run")
+	fmt.Fprintln(s.in, "run")
 
 	passed := func(out *buf) bool {
 		// Just to make things fun, lldb sometimes translates \n into \r\n.
