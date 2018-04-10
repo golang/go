@@ -13,7 +13,7 @@ import (
 	"go/types"
 	"testing"
 
-	gcimporter "golang.org/x/tools/go/gcimporter15"
+	"golang.org/x/tools/go/internal/gcimporter"
 )
 
 const src = `
