@@ -289,6 +289,7 @@ var machineStrings = []intName{
 	{60, "EM_ST100"},
 	{61, "EM_TINYJ"},
 	{62, "EM_X86_64"},
+	{183, "EM_AARCH64"},
 
 	/* Non-standard or deprecated. */
 	{6, "EM_486"},
