@@ -771,7 +771,6 @@ var (
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
-	support_aes          bool
 	support_avx          bool
 	support_avx2         bool
 	support_erms         bool
@@ -779,10 +778,6 @@ var (
 	support_popcnt       bool
 	support_sse2         bool
 	support_sse41        bool
-	support_sse42        bool
-	support_ssse3        bool
-
-	arm64_support_aes bool
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link

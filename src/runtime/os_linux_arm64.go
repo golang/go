@@ -29,7 +29,6 @@ func archauxv(tag, val uintptr) {
 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
 	case _AT_HWCAP:
-		arm64_support_aes = ((val>>3)&0x1 == 0x1)
 		cpu_hwcap = uint(val)
 	case _AT_HWCAP2:
 		cpu_hwcap2 = uint(val)

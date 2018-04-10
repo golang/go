@@ -167,20 +167,11 @@ notintel:
 	TESTL	$(1<<26), DX // SSE2
 	SETNE	runtime·support_sse2(SB)
 
-	TESTL	$(1<<9), DI // SSSE3
-	SETNE	runtime·support_ssse3(SB)
-
 	TESTL	$(1<<19), DI // SSE4.1
 	SETNE	runtime·support_sse41(SB)
 
-	TESTL	$(1<<20), DI // SSE4.2
-	SETNE	runtime·support_sse42(SB)
-
 	TESTL	$(1<<23), DI // POPCNT
 	SETNE	runtime·support_popcnt(SB)
-
-	TESTL	$(1<<25), DI // AES
-	SETNE	runtime·support_aes(SB)
 
 	TESTL	$(1<<27), DI // OSXSAVE
 	SETNE	runtime·support_osxsave(SB)
