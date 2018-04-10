@@ -85,7 +85,7 @@ func declare(n *Node, ctxt Class) {
 		if s.Name == "init" {
 			yyerrorl(n.Pos, "cannot declare init - must be func")
 		}
-		if s.Name == "main" && localpkg.Name == "main" {
+		if s.Name == "main" && s.Pkg.Name == "main" {
 			yyerrorl(n.Pos, "cannot declare main - must be func")
 		}
 		externdcl = append(externdcl, n)
