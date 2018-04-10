@@ -283,49 +283,6 @@ var linuxARMTests = []*asmTest{
 }
 
 var linuxARM64Tests = []*asmTest{
-	{
-		fn: `
-		func $(x, y uint32) uint32 {
-			return x &^ y
-		}
-		`,
-		pos: []string{"\tBIC\t"},
-		neg: []string{"\tAND\t"},
-	},
-	{
-		fn: `
-		func $(x, y uint32) uint32 {
-			return x ^ ^y
-		}
-		`,
-		pos: []string{"\tEON\t"},
-		neg: []string{"\tXOR\t"},
-	},
-	{
-		fn: `
-		func $(x, y uint32) uint32 {
-			return x | ^y
-		}
-		`,
-		pos: []string{"\tORN\t"},
-		neg: []string{"\tORR\t"},
-	},
-	{
-		fn: `
-		func f34(a uint64) uint64 {
-			return a & ((1<<63)-1)
-		}
-		`,
-		pos: []string{"\tAND\t"},
-	},
-	{
-		fn: `
-		func f35(a uint64) uint64 {
-			return a & (1<<63)
-		}
-		`,
-		pos: []string{"\tAND\t"},
-	},
 	// Load-combining tests.
 	{
 		fn: `
