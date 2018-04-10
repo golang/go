@@ -192,6 +192,7 @@ func (p *PipeNode) CopyPipe() *PipeNode {
 		vars = append(vars, d.Copy().(*AssignNode))
 	}
 	n := p.tr.newPipeline(p.Pos, p.Line, vars)
+	n.Decl = p.Decl
 	for _, c := range p.Cmds {
 		n.append(c.Copy().(*CommandNode))
 	}
