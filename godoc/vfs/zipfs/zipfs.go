@@ -91,8 +91,6 @@ func (fs *zipFS) RootType(abspath string) vfs.RootType {
 		t = vfs.RootTypeGoRoot
 	case isGoPath(abspath):
 		t = vfs.RootTypeGoPath
-	default:
-		t = vfs.RootTypeStandAlone
 	}
 	return t
 }

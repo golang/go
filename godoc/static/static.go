@@ -1951,7 +1951,7 @@ function cgAddChild(tree, ul, cgn) {
 
 						{{range .List}}
 							<tr>
-							{{if eq .FsRootType "GOROOT"}}
+							{{if eq .RootType "GOROOT"}}
 							{{if $.DirFlat}}
 								{{if .HasPkg}}
 										<td class="pkg-name">
@@ -1990,7 +1990,7 @@ function cgAddChild(tree, ul, cgn) {
 
 						{{range .List}}
 							<tr>
-								{{if eq .FsRootType "GOPATH"}}
+								{{if eq .RootType "GOPATH"}}
 								{{if $.DirFlat}}
 									{{if .HasPkg}}
 											<td class="pkg-name">

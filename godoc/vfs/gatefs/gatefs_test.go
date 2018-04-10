@@ -17,7 +17,7 @@ func TestRootType(t *testing.T) {
 	goPath := os.Getenv("GOPATH")
 	var expectedType vfs.RootType
 	if goPath == "" {
-		expectedType = vfs.RootTypeStandAlone
+		expectedType = ""
 	} else {
 		expectedType = vfs.RootTypeGoPath
 	}
@@ -27,7 +27,7 @@ func TestRootType(t *testing.T) {
 	}{
 		{runtime.GOROOT(), vfs.RootTypeGoRoot},
 		{goPath, expectedType},
-		{"/tmp/", vfs.RootTypeStandAlone},
+		{"/tmp/", ""},
 	}
 
 	for _, item := range tests {

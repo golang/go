@@ -58,7 +58,7 @@ func (e *emptyVFS) String() string {
 }
 
 func (e *emptyVFS) RootType(path string) RootType {
-	return RootTypeStandAlone
+	return ""
 }
 
 // These functions below implement os.FileInfo for the single

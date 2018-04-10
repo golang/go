@@ -392,7 +392,7 @@ func (ns NameSpace) RootType(path string) RootType {
 			return m.fs.RootType(path)
 		}
 	}
-	return RootTypeStandAlone
+	return ""
 }
 
 // byName implements sort.Interface.

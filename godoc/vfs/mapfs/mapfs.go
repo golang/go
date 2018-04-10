@@ -29,11 +29,8 @@ type mapFS map[string]string
 
 func (fs mapFS) String() string { return "mapfs" }
 
-// RootType directly returns vfs.RootTypeAsset because
-// mapFs is only used to return static assets and not for
-// resolving Go files.
 func (fs mapFS) RootType(p string) vfs.RootType {
-	return vfs.RootTypeAsset
+	return ""
 }
 
 func (fs mapFS) Close() error { return nil }

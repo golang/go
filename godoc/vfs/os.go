@@ -26,8 +26,6 @@ func OS(root string) FileSystem {
 		t = RootTypeGoRoot
 	case isGoPath(root):
 		t = RootTypeGoPath
-	default:
-		t = RootTypeStandAlone
 	}
 	return osFS{rootPath: root, rootType: t}
 }
