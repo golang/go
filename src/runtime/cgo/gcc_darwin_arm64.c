@@ -142,8 +142,6 @@ init_working_dir()
 		if (chdir(buf) != 0) {
 			fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", buf);
 		}
-		// Notify the test harness that we're correctly set up
-		raise(SIGINT);
 	}
 }
 
