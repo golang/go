@@ -259,11 +259,9 @@ func run(bin string, args []string) (err error) {
 	}
 
 	started = true
-
-	s.doCmd("run", "stop reason = signal SIGINT", 20*time.Second)
-
 	startTestsLen := s.out.Len()
-	fmt.Fprintln(s.in, `process continue`)
+
+	s.do("run")
 
 	passed := func(out *buf) bool {
 		// Just to make things fun, lldb sometimes translates \n into \r\n.
