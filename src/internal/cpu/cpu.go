@@ -98,3 +98,10 @@ type s390x struct {
 	HasVX bool // vector facility. Note: the runtime sets this when it processes auxv records.
 	_     [CacheLineSize]byte
 }
+
+// initialize examines the processor and sets the relevant variables above.
+// This is called by the runtime package early in program initialization,
+// before normal init functions are run.
+func initialize() {
+	doinit()
+}

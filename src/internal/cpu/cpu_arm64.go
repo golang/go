@@ -42,7 +42,7 @@ const (
 	hwcap_ASIMDFHM = (1 << 23)
 )
 
-func init() {
+func doinit() {
 	// HWCAP feature bits
 	ARM64.HasFP = isSet(arm64_hwcap, hwcap_FP)
 	ARM64.HasASIMD = isSet(arm64_hwcap, hwcap_ASIMD)
