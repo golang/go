@@ -161,16 +161,10 @@ eax7:
 	MOVL	$0, CX
 	CPUID
 
-	TESTL	$(1<<3), BX // BMI1
-	SETNE	runtime·support_bmi1(SB)
-
 	// If OS support for XMM and YMM is not present
 	// support_avx2 will be set back to false later.
 	TESTL	$(1<<5), BX
 	SETNE	runtime·support_avx2(SB)
-
-	TESTL	$(1<<8), BX // BMI2
-	SETNE	runtime·support_bmi2(SB)
 
 	TESTL	$(1<<9), BX // ERMS
 	SETNE	runtime·support_erms(SB)

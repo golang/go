@@ -774,8 +774,6 @@ var (
 	support_aes          bool
 	support_avx          bool
 	support_avx2         bool
-	support_bmi1         bool
-	support_bmi2         bool
 	support_erms         bool
 	support_osxsave      bool
 	support_popcnt       bool
