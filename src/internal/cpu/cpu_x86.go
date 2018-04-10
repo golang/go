@@ -14,7 +14,7 @@ func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
 // xgetbv with ecx = 0 is implemented in cpu_x86.s.
 func xgetbv() (eax, edx uint32)
 
-func init() {
+func doinit() {
 	maxID, _, _, _ := cpuid(0, 0)
 
 	if maxID < 1 {

@@ -466,6 +466,9 @@ const (
 	_GoidCacheBatch = 16
 )
 
+//go:linkname internal_cpu_initialize internal/cpu.initialize
+func internal_cpu_initialize()
+
 // The bootstrap sequence is:
 //
 //	call osinit
@@ -489,10 +492,11 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
-	alginit()       // maps must not be used before this call
-	modulesinit()   // provides activeModules
-	typelinksinit() // uses maps, activeModules
-	itabsinit()     // uses activeModules
+	internal_cpu_initialize() // must run before alginit
+	alginit()                 // maps must not be used before this call
+	modulesinit()             // provides activeModules
+	typelinksinit()           // uses maps, activeModules
+	itabsinit()               // uses activeModules
 
 	msigsave(_g_.m)
 	initSigmask = _g_.m.sigmask

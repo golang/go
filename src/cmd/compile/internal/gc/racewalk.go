@@ -27,7 +27,7 @@ import (
 
 // Do not instrument the following packages at all,
 // at best instrumentation would cause infinite recursion.
-var omit_pkgs = []string{"runtime/internal/atomic", "runtime/internal/sys", "runtime", "runtime/race", "runtime/msan"}
+var omit_pkgs = []string{"runtime/internal/atomic", "runtime/internal/sys", "runtime", "runtime/race", "runtime/msan", "internal/cpu"}
 
 // Only insert racefuncenterfp/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.
