@@ -57,9 +57,14 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		gcargs = append(gcargs, "-std")
 	}
 	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
+	// The runtime package imports a couple of general internal packages.
+	if p.Standard && (p.ImportPath == "internal/cpu" || p.ImportPath == "internal/bytealg") {
+		compilingRuntime = true
+	}
 	if compilingRuntime {
-		// runtime compiles with a special gc flag to emit
-		// additional reflect type data.
+		// runtime compiles with a special gc flag to check for
+		// memory allocations that are invalid in the runtime package,
+		// and to implement some special compiler pragmas.
 		gcargs = append(gcargs, "-+")
 	}
 
