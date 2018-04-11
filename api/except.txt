@@ -371,3 +371,15 @@ pkg text/template/parse, type VariableNode struct
 pkg text/template/parse, type VariableNode struct, Ident []string
 pkg text/template/parse, type VariableNode struct, embedded NodeType
 pkg text/template/parse, type VariableNode struct, embedded Pos
+pkg syscall (windows-386), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
+pkg syscall (windows-386), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
+pkg syscall (windows-386), type CertContext struct, CertInfo uintptr
+pkg syscall (windows-386), type CertRevocationInfo struct, CrlInfo uintptr
+pkg syscall (windows-386), type CertRevocationInfo struct, OidSpecificInfo uintptr
+pkg syscall (windows-386), type CertSimpleChain struct, TrustListInfo uintptr
+pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
+pkg syscall (windows-amd64), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
+pkg syscall (windows-amd64), type CertContext struct, CertInfo uintptr
+pkg syscall (windows-amd64), type CertRevocationInfo struct, CrlInfo uintptr
+pkg syscall (windows-amd64), type CertRevocationInfo struct, OidSpecificInfo uintptr
+pkg syscall (windows-amd64), type CertSimpleChain struct, TrustListInfo uintptr
