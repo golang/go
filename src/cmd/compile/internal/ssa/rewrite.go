@@ -456,6 +456,50 @@ func isSamePtr(p1, p2 *Value) bool {
 	return false
 }
 
+// disjoint reports whether the memory region specified by [p1:p1+n1)
+// does not overlap with [p2:p2+n2).
+// A return value of false does not imply the regions overlap.
+func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
+	if n1 == 0 || n2 == 0 {
+		return true
+	}
+	if p1 == p2 {
+		return false
+	}
+	baseAndOffset := func(ptr *Value) (base *Value, offset int64) {
+		base, offset = ptr, 0
+		if base.Op == OpOffPtr {
+			offset += base.AuxInt
+			base = base.Args[0]
+		}
+		return base, offset
+	}
+	p1, off1 := baseAndOffset(p1)
+	p2, off2 := baseAndOffset(p2)
+	if isSamePtr(p1, p2) {
+		return !overlap(off1, n1, off2, n2)
+	}
+	// p1 and p2 are not the same, so if they are both OpAddrs then
+	// they point to different variables.
+	// If one pointer is on the stack and the other is an argument
+	// then they can't overlap.
+	switch p1.Op {
+	case OpAddr:
+		if p2.Op == OpAddr || p2.Op == OpSP {
+			return true
+		}
+		return p2.Op == OpArg && p1.Args[0].Op == OpSP
+	case OpArg:
+		if p2.Op == OpSP {
+			return true
+		}
+		return p2.Op == OpAddr && p2.Args[0].Op == OpSP
+	case OpSP:
+		return p2.Op == OpAddr || p2.Op == OpArg || p2.Op == OpSP
+	}
+	return false
+}
+
 // moveSize returns the number of bytes an aligned MOV instruction moves
 func moveSize(align int64, c *Config) int64 {
 	switch {
@@ -878,4 +922,31 @@ func arm64BFWidth(mask, rshift int64) int64 {
 		panic("ARM64 BF mask is zero")
 	}
 	return nto(shiftedMask)
+}
+
+// sizeof returns the size of t in bytes.
+// It will panic if t is not a *types.Type.
+func sizeof(t interface{}) int64 {
+	return t.(*types.Type).Size()
+}
+
+// alignof returns the alignment of t in bytes.
+// It will panic if t is not a *types.Type.
+func alignof(t interface{}) int64 {
+	return t.(*types.Type).Alignment()
+}
+
+// registerizable reports whether t is a primitive type that fits in
+// a register. It assumes float64 values will always fit into registers
+// even if that isn't strictly true.
+// It will panic if t is not a *types.Type.
+func registerizable(b *Block, t interface{}) bool {
+	typ := t.(*types.Type)
+	if typ.IsPtrShaped() || typ.IsFloat() {
+		return true
+	}
+	if typ.IsInteger() {
+		return typ.Size() <= b.Func.Config.RegSize
+	}
+	return false
 }
