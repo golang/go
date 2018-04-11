@@ -61,3 +61,21 @@ func gen(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "label:")
 	fmt.Fprintln(buf, "RET")
 }
+
+// Issue 20348.
+func TestNoRet(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testnoret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	tmpfile := filepath.Join(dir, "x.s")
+	if err := ioutil.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd.Env = []string{"GOARCH=arm64", "GOOS=linux"}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("%v\n%s", err, out)
+	}
+}
