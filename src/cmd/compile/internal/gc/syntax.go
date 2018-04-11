@@ -296,9 +296,7 @@ type Name struct {
 	Param     *Param     // additional fields for ONAME, OTYPE
 	Decldepth int32      // declaration loop depth, increased for every loop or label
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-
-	used  bool // for variable declared and not used error
-	flags bitset8
+	flags     bitset8
 }
 
 const (
@@ -308,6 +306,7 @@ const (
 	nameNeedzero  // if it contains pointers, needs to be zeroed on function entry
 	nameKeepalive // mark value live across unknown assembly call
 	nameAutoTemp  // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+	nameUsed      // for variable declared and not used error
 )
 
 func (n *Name) Captured() bool  { return n.flags&nameCaptured != 0 }
@@ -316,7 +315,7 @@ func (n *Name) Byval() bool     { return n.flags&nameByval != 0 }
 func (n *Name) Needzero() bool  { return n.flags&nameNeedzero != 0 }
 func (n *Name) Keepalive() bool { return n.flags&nameKeepalive != 0 }
 func (n *Name) AutoTemp() bool  { return n.flags&nameAutoTemp != 0 }
-func (n *Name) Used() bool      { return n.used }
+func (n *Name) Used() bool      { return n.flags&nameUsed != 0 }
 
 func (n *Name) SetCaptured(b bool)  { n.flags.set(nameCaptured, b) }
 func (n *Name) SetReadonly(b bool)  { n.flags.set(nameReadonly, b) }
@@ -324,7 +323,7 @@ func (n *Name) SetByval(b bool)     { n.flags.set(nameByval, b) }
 func (n *Name) SetNeedzero(b bool)  { n.flags.set(nameNeedzero, b) }
 func (n *Name) SetKeepalive(b bool) { n.flags.set(nameKeepalive, b) }
 func (n *Name) SetAutoTemp(b bool)  { n.flags.set(nameAutoTemp, b) }
-func (n *Name) SetUsed(b bool)      { n.used = b }
+func (n *Name) SetUsed(b bool)      { n.flags.set(nameUsed, b) }
 
 type Param struct {
 	Ntype    *Node
