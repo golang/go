@@ -139,11 +139,6 @@ notintel:
 	TESTL	$(1<<27), CX // OSXSAVE
 	SETNE	runtime·support_osxsave(SB)
 
-	// If OS support for XMM and YMM is not present
-	// support_avx will be set back to false later.
-	TESTL	$(1<<28), CX // AVX
-	SETNE	runtime·support_avx(SB)
-
 eax7:
 	// Load EAX=7/ECX=0 cpuid flags
 	CMPL	SI, $7
@@ -170,7 +165,6 @@ osavx:
 	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
 	JE nocpuinfo
 noavx:
-	MOVB $0, runtime·support_avx(SB)
 	MOVB $0, runtime·support_avx2(SB)
 
 nocpuinfo:

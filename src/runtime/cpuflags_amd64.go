@@ -4,6 +4,8 @@
 
 package runtime
 
+import "internal/cpu"
+
 var useAVXmemmove bool
 
 func init() {
@@ -16,5 +18,5 @@ func init() {
 		processor == 0x306A0 ||
 		processor == 0x306E0
 
-	useAVXmemmove = support_avx && !isIntelBridgeFamily
+	useAVXmemmove = cpu.X86.HasAVX && !isIntelBridgeFamily
 }
