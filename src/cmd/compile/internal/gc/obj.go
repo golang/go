@@ -11,6 +11,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -121,11 +122,14 @@ func dumpCompilerObj(bout *bio.Writer) {
 func dumpLinkerObj(bout *bio.Writer) {
 	printObjHeader(bout)
 
-	if pragcgobuf != "" {
+	if len(pragcgobuf) != 0 {
 		// write empty export section; must be before cgo section
 		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
 		fmt.Fprintf(bout, "\n$$  // cgo\n")
-		fmt.Fprintf(bout, "%s\n$$\n\n", pragcgobuf)
+		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
+			Fatalf("serializing pragcgobuf: %v", err)
+		}
+		fmt.Fprintf(bout, "\n$$\n\n")
 	}
 
 	fmt.Fprintf(bout, "\n!\n")

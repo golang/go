@@ -602,6 +602,7 @@ var knownFormats = map[string]string{
 	"[]*cmd/compile/internal/gc.Node %v":              "",
 	"[]*cmd/compile/internal/ssa.Block %v":            "",
 	"[]*cmd/compile/internal/ssa.Value %v":            "",
+	"[][]string %q":                                   "",
 	"[]byte %s":                                       "",
 	"[]byte %x":                                       "",
 	"[]cmd/compile/internal/ssa.Edge %v":              "",
