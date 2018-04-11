@@ -222,89 +222,9 @@ func (ats *asmTests) runGo(t *testing.T, args ...string) string {
 
 var allAsmTests = []*asmTests{
 	{
-		arch:    "amd64",
-		os:      "linux",
-		imports: []string{"runtime"},
-		tests:   linuxAMD64Tests,
-	},
-	{
-		arch:    "arm",
-		os:      "linux",
-		imports: []string{"runtime"},
-		tests:   linuxARMTests,
-	},
-	{
-		arch:  "arm64",
-		os:    "linux",
-		tests: linuxARM64Tests,
-	},
-	{
 		arch:  "amd64",
 		os:    "plan9",
 		tests: plan9AMD64Tests,
-	},
-}
-
-var linuxAMD64Tests = []*asmTest{
-	{
-		// make sure assembly output has matching offset and base register.
-		fn: `
-		func f72(a, b int) int {
-			runtime.GC() // use some frame
-			return b
-		}
-		`,
-		pos: []string{"b\\+24\\(SP\\)"},
-	},
-	// Make sure we don't put pointers in SSE registers across safe points.
-	{
-		fn: `
-		func $(p, q *[2]*int)  {
-		    a, b := p[0], p[1]
-		    runtime.GC()
-		    q[0], q[1] = a, b
-		}
-		`,
-		neg: []string{"MOVUPS"},
-	},
-}
-
-var linuxARMTests = []*asmTest{
-	{
-		// make sure assembly output has matching offset and base register.
-		fn: `
-		func f13(a, b int) int {
-			runtime.GC() // use some frame
-			return b
-		}
-		`,
-		pos: []string{"b\\+4\\(FP\\)"},
-	},
-}
-
-var linuxARM64Tests = []*asmTest{
-	// Load-combining tests.
-	{
-		fn: `
-		func $(s []byte) uint16 {
-			return uint16(s[0]) | uint16(s[1]) << 8
-		}
-		`,
-		pos: []string{"\tMOVHU\t\\(R[0-9]+\\)"},
-		neg: []string{"ORR\tR[0-9]+<<8\t"},
-	},
-	{
-		// make sure that CSEL is emitted for conditional moves
-		fn: `
-		func f37(c int) int {
-		     x := c + 4
-		     if c < 0 {
-		     	x = 182
-		     }
-		     return x
-		}
-		`,
-		pos: []string{"\tCSEL\t"},
 	},
 }
 
