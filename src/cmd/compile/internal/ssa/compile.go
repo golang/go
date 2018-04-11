@@ -371,6 +371,7 @@ var passes = [...]pass{
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
+	{name: "dead auto elim", fn: elimDeadAutosGeneric},
 	{name: "generic deadcode", fn: deadcode},
 	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
