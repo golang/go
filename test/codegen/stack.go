@@ -6,6 +6,8 @@
 
 package codegen
 
+import "runtime"
+
 // This file contains code generation tests related to the use of the
 // stack.
 
@@ -21,4 +23,14 @@ package codegen
 func StackStore() int {
 	var x int
 	return *(&x)
+}
+
+// Check that assembly output has matching offset and base register
+// (Issue #21064).
+
+// amd64:`.*b\+24\(SP\)`
+// arm:`.*b\+4\(FP\)`
+func check_asmout(a, b int) int {
+	runtime.GC() // use some frame
+	return b
 }

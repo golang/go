@@ -6,7 +6,10 @@
 
 package codegen
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"runtime"
+)
 
 var sink64 uint64
 var sink32 uint32
@@ -98,6 +101,11 @@ func load_be16_idx(b []byte, idx int) {
 	sink16 = binary.BigEndian.Uint16(b[idx:])
 }
 
+func load_byte2_uint16(s []byte) uint16 {
+	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR\tR[0-9]+<<8`
+	return uint16(s[0]) | uint16(s[1])<<8
+}
+
 // Check load combining across function calls.
 
 func fcall_byte(a, b byte) (byte, byte) {
@@ -130,6 +138,15 @@ func offsets_fold(_, a [20]byte) (b [20]byte) {
 	// arm64:`MOVD\t""\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, ""\.b\+[0-9]+\(FP\)`
 	b = a
 	return
+}
+
+// Make sure we don't put pointers in SSE registers across safe
+// points.
+
+func safe_point(p, q *[2]*int) {
+	a, b := p[0], p[1] // amd64:-`MOVUPS`
+	runtime.GC()
+	q[0], q[1] = a, b // amd64:-`MOVUPS`
 }
 
 // ------------- //
