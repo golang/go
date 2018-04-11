@@ -1487,7 +1487,7 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			fmt.Fprintf(h, "env %s %x\n", name, hashGetenv(name))
 		case "chdir":
 			pwd = name // always absolute
-			fmt.Fprintf(h, "cbdir %s %x\n", name, hashStat(name))
+			fmt.Fprintf(h, "chdir %s %x\n", name, hashStat(name))
 		case "stat":
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
