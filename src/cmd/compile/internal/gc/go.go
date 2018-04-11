@@ -78,7 +78,7 @@ var sizeof_Array int // runtime sizeof(Array)
 // } String;
 var sizeof_String int // runtime sizeof(String)
 
-var pragcgobuf string
+var pragcgobuf [][]string
 
 var outfile string
 var linkobj string

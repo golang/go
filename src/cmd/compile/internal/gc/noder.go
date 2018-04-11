@@ -127,7 +127,7 @@ type noder struct {
 
 	file       *syntax.File
 	linknames  []linkname
-	pragcgobuf string
+	pragcgobuf [][]string
 	err        chan syntax.Error
 	scope      ScopeID
 
@@ -246,7 +246,7 @@ func (p *noder) node() {
 		}
 	}
 
-	pragcgobuf += p.pragcgobuf
+	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
 	lineno = src.NoXPos
 	clearImports()
 }
@@ -1417,7 +1417,7 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 			if lib != "" && !safeArg(lib) && !isCgoGeneratedFile(pos) {
 				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
 			}
-			p.pragcgobuf += p.pragcgo(pos, text)
+			p.pragcgo(pos, text)
 			return pragmaValue("go:cgo_import_dynamic")
 		}
 		fallthrough
@@ -1428,7 +1428,7 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 		if !isCgoGeneratedFile(pos) && !compiling_std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in cgo-generated code", text)})
 		}
-		p.pragcgobuf += p.pragcgo(pos, text)
+		p.pragcgo(pos, text)
 		fallthrough // because of //go:cgo_unsafe_args
 	default:
 		verb := text
