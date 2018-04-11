@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build s390x
-
 #include "textflag.h"
 
 // func hasKM() bool
 TEXT ·hasKM(SB),NOSPLIT,$16-1
-    XOR	R0, R0          // set function code to 0 (query)
+ 	XOR	R0, R0          // set function code to 0 (query)
 	LA	mask-16(SP), R1 // 16-byte stack variable for mask
 	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
 
@@ -26,11 +24,11 @@ notfound:
 
 // func hasKMC() bool
 TEXT ·hasKMC(SB),NOSPLIT,$16-1
-    XOR	R0, R0          // set function code to 0 (query)
+ 	XOR	R0, R0          // set function code to 0 (query)
 	LA	mask-16(SP), R1 // 16-byte stack variable for mask
 	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
 
-    // check for KMC AES functions
+	// check for KMC AES functions
 	WORD	$0xB92F0024 // cipher message with chaining (KMC)
 	MOVD	mask-16(SP), R2
 	AND	R3, R2
@@ -44,7 +42,7 @@ notfound:
 
 // func hasKMCTR() bool
 TEXT ·hasKMCTR(SB),NOSPLIT,$16-1
-    XOR	R0, R0          // set function code to 0 (query)
+	XOR	R0, R0          // set function code to 0 (query)
 	LA	mask-16(SP), R1 // 16-byte stack variable for mask
 	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
 
@@ -85,7 +83,7 @@ yes:
 
 // func hasKIMD() bool
 TEXT ·hasKIMD(SB),NOSPLIT,$16-1
-    XOR	R0, R0          // set function code to 0 (query)
+	XOR	R0, R0          // set function code to 0 (query)
 	LA	mask-16(SP), R1 // 16-byte stack variable for mask
 	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
 
