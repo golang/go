@@ -461,6 +461,9 @@ General-purpose environment variables:
 		Examples are amd64, 386, arm, ppc64.
 	GOBIN
 		The directory where 'go install' will install a command.
+	GOCACHE
+		The directory where the go command will store cached
+		information for reuse in future builds.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
@@ -474,9 +477,10 @@ General-purpose environment variables:
 	GOTMPDIR
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
-	GOCACHE
-		The directory where the go command will store
-		cached information for reuse in future builds.
+	GOTOOLDIR
+		The directory where the go tools (compile, cover, doc, etc...)
+		are installed. This is printed by go env, but setting the
+		environment variable has no effect.
 
 Environment variables for use with cgo:
 
