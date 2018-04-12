@@ -94,6 +94,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	appdir := filepath.Join(tmpdir, "gotest.app")
+	os.RemoveAll(appdir)
+
+	if err := assembleApp(appdir, os.Args[1]); err != nil {
+		log.Fatal(err)
+	}
+
 	// This wrapper uses complicated machinery to run iOS binaries. It
 	// works, but only when running one binary at a time.
 	// Use a file lock to make sure only one wrapper is running at a time.
@@ -108,6 +115,7 @@ func main() {
 	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
 		log.Fatal(err)
 	}
+
 	// Approximately 1 in a 100 binaries fail to start. If it happens,
 	// try again. These failures happen for several reasons beyond
 	// our control, but all of them are safe to retry as they happen
@@ -118,7 +126,7 @@ func main() {
 		if i > 0 {
 			fmt.Fprintln(os.Stderr, "start timeout, trying again")
 		}
-		err = run(os.Args[1], os.Args[2:])
+		err = run(appdir, os.Args[2:])
 		if err == nil || err != errRetry {
 			break
 		}
@@ -140,9 +148,7 @@ func getenv(envvar string) string {
 	return s
 }
 
-func run(bin string, args []string) (err error) {
-	appdir := filepath.Join(tmpdir, "gotest.app")
-	os.RemoveAll(appdir)
+func assembleApp(appdir, bin string) error {
 	if err := os.MkdirAll(appdir, 0755); err != nil {
 		return err
 	}
@@ -182,7 +188,10 @@ func run(bin string, args []string) (err error) {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("codesign: %v", err)
 	}
+	return nil
+}
 
+func run(appdir string, args []string) (err error) {
 	oldwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -317,7 +326,6 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
 		iosdPath,
 		"--debug",
 		"-u",
-		"-r",
 		"-n",
 		`--args=` + strings.Join(args, " ") + ``,
 		"--bundle", appdir,
