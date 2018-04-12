@@ -67,11 +67,6 @@ eax7:
 	MOVL	$0, CX
 	CPUID
 
-	// If OS support for XMM and YMM is not present
-	// support_avx2 will be set back to false later.
-	TESTL	$(1<<5), BX
-	SETNE	runtime·support_avx2(SB)
-
 	TESTL	$(1<<9), BX // ERMS
 	SETNE	runtime·support_erms(SB)
 
@@ -80,16 +75,13 @@ osavx:
 	// for XMM and YMM OS support.
 #ifndef GOOS_nacl
 	CMPB	runtime·support_osxsave(SB), $1
-	JNE	noavx
+	JNE	nocpuinfo
 	MOVL	$0, CX
 	// For XGETBV, OSXSAVE bit is required and sufficient
 	XGETBV
 	ANDL	$6, AX
 	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
-	JE nocpuinfo
 #endif
-noavx:
-	MOVB $0, runtime·support_avx2(SB)
 
 nocpuinfo:
 

@@ -779,7 +779,6 @@ var (
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
-	support_avx2         bool
 	support_erms         bool
 	support_osxsave      bool
 	support_popcnt       bool
