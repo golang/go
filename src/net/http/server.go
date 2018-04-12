@@ -2770,10 +2770,13 @@ var ErrServerClosed = errors.New("http: Server closed")
 // Serve always returns a non-nil error. After Shutdown or Close, the
 // returned error is ErrServerClosed.
 func (srv *Server) Serve(l net.Listener) error {
-	defer l.Close()
 	if fn := testHookServerServe; fn != nil {
-		fn(srv, l)
+		fn(srv, l) // call hook with unwrapped listener
 	}
+
+	l = &onceCloseListener{Listener: l}
+	defer l.Close()
+
 	var tempDelay time.Duration // how long to sleep on accept failure
 
 	if err := srv.setupHTTP2_Serve(); err != nil {
@@ -3248,6 +3251,21 @@ func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
 	tc.SetKeepAlivePeriod(3 * time.Minute)
 	return tc, nil
 }
+
+// onceCloseListener wraps a net.Listener, protecting it from
+// multiple Close calls.
+type onceCloseListener struct {
+	net.Listener
+	once     sync.Once
+	closeErr error
+}
+
+func (oc *onceCloseListener) Close() error {
+	oc.once.Do(oc.close)
+	return oc.closeErr
+}
+
+func (oc *onceCloseListener) close() { oc.closeErr = oc.Listener.Close() }
 
 // globalOptionsHandler responds to "OPTIONS *" requests.
 type globalOptionsHandler struct{}
