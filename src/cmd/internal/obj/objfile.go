@@ -457,6 +457,9 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 	}
 }
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+	panic("should be used only in the linker")
+}
+func (c dwCtxt) AddDWARFSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	ls := s.(*LSym)
 	rsym := t.(*LSym)
 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
