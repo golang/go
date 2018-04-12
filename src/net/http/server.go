@@ -2485,7 +2485,7 @@ type Server struct {
 	nextProtoErr      error     // result of http2.ConfigureServer if used
 
 	mu         sync.Mutex
-	listeners  map[net.Listener]struct{}
+	listeners  map[*net.Listener]struct{}
 	activeConn map[*conn]struct{}
 	doneChan   chan struct{}
 	onShutdown []func()
@@ -2621,7 +2621,7 @@ func (s *Server) closeIdleConns() bool {
 func (s *Server) closeListenersLocked() error {
 	var err error
 	for ln := range s.listeners {
-		if cerr := ln.Close(); cerr != nil && err == nil {
+		if cerr := (*ln).Close(); cerr != nil && err == nil {
 			err = cerr
 		}
 		delete(s.listeners, ln)
@@ -2765,8 +2765,8 @@ func (srv *Server) Serve(l net.Listener) error {
 		return err
 	}
 
-	srv.trackListener(l, true)
-	defer srv.trackListener(l, false)
+	srv.trackListener(&l, true)
+	defer srv.trackListener(&l, false)
 
 	baseCtx := context.Background() // base is always background, per Issue 16220
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
@@ -2843,11 +2843,19 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	return srv.Serve(tlsListener)
 }
 
-func (s *Server) trackListener(ln net.Listener, add bool) {
+// trackListener adds or removes a net.Listener to the set of tracked
+// listeners.
+//
+// We store a pointer to interface in the map set, in case the
+// net.Listener is not comparable. This is safe because we only call
+// trackListener via Serve and can track+defer untrack the same
+// pointer to local variable there. We never need to compare a
+// Listener from another caller.
+func (s *Server) trackListener(ln *net.Listener, add bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.listeners == nil {
-		s.listeners = make(map[net.Listener]struct{})
+		s.listeners = make(map[*net.Listener]struct{})
 	}
 	if add {
 		// If the *Server is being reused after a previous
