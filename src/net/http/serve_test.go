@@ -5630,8 +5630,7 @@ func runTimeSensitiveTest(t *testing.T, durations []time.Duration, test func(t *
 // read if it's already done one.
 func TestServerDuplicateBackgroundRead(t *testing.T) {
 	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm" {
-		// http://gnats.netbsd.org/53173
-		t.Skip("skipping to avoid crash")
+		testenv.SkipFlaky(t, 24826)
 	}
 
 	setParallel(t)
