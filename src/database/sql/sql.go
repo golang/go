@@ -2455,17 +2455,11 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, args ...interface{}) (driver.Rows, error) {
 	ds.Lock()
 	defer ds.Unlock()
-
 	dargs, err := driverArgsConnLocked(ci, ds, args)
 	if err != nil {
 		return nil, err
 	}
-
-	rowsi, err := ctxDriverStmtQuery(ctx, ds.si, dargs)
-	if err != nil {
-		return nil, err
-	}
-	return rowsi, nil
+	return ctxDriverStmtQuery(ctx, ds.si, dargs)
 }
 
 // QueryRowContext executes a prepared query statement with the given arguments.
@@ -2986,11 +2980,7 @@ func (r *Row) Scan(dest ...interface{}) error {
 		return err
 	}
 	// Make sure the query can be processed to completion with no errors.
-	if err := r.rows.Close(); err != nil {
-		return err
-	}
-
-	return nil
+	return r.rows.Close()
 }
 
 // A Result summarizes an executed SQL command.
