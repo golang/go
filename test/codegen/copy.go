@@ -6,8 +6,7 @@
 
 package codegen
 
-// These tests check that memmoves calls on small data are replaced
-// with MOVs
+// Check small copies are replaced with moves.
 
 func movesmall4() {
 	x := [...]byte{1, 2, 3, 4}
@@ -30,4 +29,29 @@ func movesmall16() {
 	x := [...]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	// amd64:-".*memmove"
 	copy(x[1:], x[:])
+}
+
+// Check that no branches are generated when the pointers are [not] equal.
+
+var x [256]byte
+
+func ptrEqual() {
+	// amd64:-"JEQ",-"JNE"
+	// ppc64le:-"BEQ",-"BNE"
+	// s390x:-"BEQ",-"BNE"
+	copy(x[:], x[:])
+}
+
+func ptrOneOffset() {
+	// amd64:-"JEQ",-"JNE"
+	// ppc64le:-"BEQ",-"BNE"
+	// s390x:-"BEQ",-"BNE"
+	copy(x[1:], x[:])
+}
+
+func ptrBothOffset() {
+	// amd64:-"JEQ",-"JNE"
+	// ppc64le:-"BEQ",-"BNE"
+	// s390x:-"BEQ",-"BNE"
+	copy(x[1:], x[2:])
 }

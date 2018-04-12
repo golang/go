@@ -528,11 +528,6 @@
 (Phi (Const32 [c]) (Const32 [c])) -> (Const32 [c])
 (Phi (Const64 [c]) (Const64 [c])) -> (Const64 [c])
 
-// user nil checks
-(NeqPtr p (ConstNil)) -> (IsNonNil p)
-(EqPtr p (ConstNil)) -> (Not (IsNonNil p))
-(IsNonNil (ConstNil)) -> (ConstBool [0])
-
 // slice and interface comparisons
 // The frontend ensures that we can only compare against nil,
 // so we need only compare the first word (interface type or slice ptr).
@@ -1241,11 +1236,30 @@
 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
 	-> (Invalid)
 
-// Address comparison shows up in type assertions.
-(EqPtr x x) -> (ConstBool [1])
-(EqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a == b)])
+// Evaluate constant address comparisons.
+(EqPtr  x x) -> (ConstBool [1])
 (NeqPtr x x) -> (ConstBool [0])
-(NeqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a != b)])
+(EqPtr  (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a == b)])
+(NeqPtr (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a != b)])
+(EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == 0)])
+(NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != 0)])
+(EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == o2)])
+(NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != o2)])
+(EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c == d)])
+(NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c != d)])
+
+// Simplify address comparisons.
+(EqPtr  (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (Not (IsNonNil o1))
+(NeqPtr (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (IsNonNil o1)
+(EqPtr  (Const(32|64) [0]) p) -> (Not (IsNonNil p))
+(NeqPtr (Const(32|64) [0]) p) -> (IsNonNil p)
+(EqPtr  (ConstNil) p) -> (Not (IsNonNil p))
+(NeqPtr (ConstNil) p) -> (IsNonNil p)
+
+// Evaluate constant user nil checks.
+(IsNonNil (ConstNil)) -> (ConstBool [0])
+(IsNonNil (Const(32|64) [c])) -> (ConstBool [b2i(c != 0)])
+(IsNonNil (Addr _)) -> (ConstBool [1])
 
 // Inline small runtime.memmove calls with constant length.
 (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
