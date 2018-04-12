@@ -130,9 +130,9 @@ func NewFileCache(maxLen int) *FileCache {
 }
 
 // Line returns the source code line for the given file and line number.
-// If the file is not already cached, reads it , inserts it into the cache,
+// If the file is not already cached, reads it, inserts it into the cache,
 // and removes the least recently used file if necessary.
-// If the file is in cache, moves it up to the front of the list.
+// If the file is in cache, it is moved to the front of the list.
 func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 	if filepath.Ext(filename) != ".go" {
 		return nil, nil
@@ -143,7 +143,7 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 	// the leading src.FileSymPrefix.
 	filename = strings.TrimPrefix(filename, src.FileSymPrefix)
 
-	// Expand literal "$GOROOT" rewrited by obj.AbsFile()
+	// Expand literal "$GOROOT" rewritten by obj.AbsFile()
 	filename = filepath.Clean(os.ExpandEnv(filename))
 
 	var cf *CachedFile
