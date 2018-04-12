@@ -1261,6 +1261,13 @@ opswitch:
 		}
 		if cs != nil {
 			cmp := Op(n.Etype)
+			// Our comparison below assumes that the non-constant string
+			// is on the left hand side, so rewrite "" cmp x to x cmp "".
+			// See issue 24817.
+			if Isconst(n.Left, CTSTR) {
+				cmp = brrev(cmp)
+			}
+
 			// maxRewriteLen was chosen empirically.
 			// It is the value that minimizes cmd/go file size
 			// across most architectures.
