@@ -5843,6 +5843,19 @@ func TestServerValidatesMethod(t *testing.T) {
 	}
 }
 
+// Listener for TestServerListenNotComparableListener.
+type eofListenerNotComparable []int
+
+func (eofListenerNotComparable) Accept() (net.Conn, error) { return nil, io.EOF }
+func (eofListenerNotComparable) Addr() net.Addr            { return nil }
+func (eofListenerNotComparable) Close() error              { return nil }
+
+// Issue 24812: don't crash on non-comparable Listener
+func TestServerListenNotComparableListener(t *testing.T) {
+	var s Server
+	s.Serve(make(eofListenerNotComparable, 1)) // used to panic
+}
+
 func BenchmarkResponseStatusLine(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
