@@ -404,6 +404,8 @@ type traceContext struct {
 	heapStats, prevHeapStats     heapStats
 	threadStats, prevThreadStats threadStats
 	gstates, prevGstates         [gStateCount]int64
+
+	spanID int // last emitted span id. incremented in each emitSpan call.
 }
 
 type heapStats struct {
@@ -758,8 +760,8 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			// If we are in goroutine-oriented mode, we draw spans.
 			// TODO(hyangah): add this for task/P-oriented mode (i.e., focustask view) too.
 			if ctx.mode&modeGoroutineOriented != 0 {
-				for i, s := range task.spans {
-					ctx.emitSpan(s, i)
+				for _, s := range task.spans {
+					ctx.emitSpan(s)
 				}
 			}
 		}
@@ -857,10 +859,13 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 	return sl
 }
 
-func (ctx *traceContext) emitSpan(s spanDesc, spanID int) {
+func (ctx *traceContext) emitSpan(s spanDesc) {
 	if s.Name == "" {
 		return
 	}
+	ctx.spanID++
+	spanID := ctx.spanID
+
 	id := s.TaskID
 	scopeID := fmt.Sprintf("%x", id)
 
