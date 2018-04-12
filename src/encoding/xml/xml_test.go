@@ -916,6 +916,96 @@ func TestIssue5880(t *testing.T) {
 	}
 }
 
+func TestIssue8535(t *testing.T) {
+
+	type ExampleConflict struct {
+		XMLName  Name   `xml:"example"`
+		Link     string `xml:"link"`
+		AtomLink string `xml:"http://www.w3.org/2005/Atom link"` // Same name in a different name space
+	}
+	testCase := `<example>
+			<title>Example</title>
+			<link>http://example.com/default</link> <!-- not assigned -->
+			<link>http://example.com/home</link> <!-- not assigned -->
+			<ns:link xmlns:ns="http://www.w3.org/2005/Atom">http://example.com/ns</ns:link>
+		</example>`
+
+	var dest ExampleConflict
+	d := NewDecoder(strings.NewReader(testCase))
+	if err := d.Decode(&dest); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEncodeXMLNS(t *testing.T) {
+	testCases := []struct {
+		f    func() ([]byte, error)
+		want string
+		ok   bool
+	}{
+		{encodeXMLNS1, `<Test xmlns="http://example.com/ns"><Body>hello world</Body></Test>`, true},
+		{encodeXMLNS2, `<Test><body xmlns="http://example.com/ns">hello world</body></Test>`, true},
+		{encodeXMLNS3, `<Test xmlns="http://example.com/ns"><Body>hello world</Body></Test>`, true},
+		{encodeXMLNS4, `<Test xmlns="http://example.com/ns"><Body>hello world</Body></Test>`, false},
+	}
+
+	for i, tc := range testCases {
+		if b, err := tc.f(); err == nil {
+			if got, want := string(b), tc.want; got != want {
+				t.Errorf("%d: got %s, want %s \n", i, got, want)
+			}
+		} else {
+			t.Errorf("%d: marshal failed with %s", i, err)
+		}
+	}
+}
+
+func encodeXMLNS1() ([]byte, error) {
+
+	type T struct {
+		XMLName Name   `xml:"Test"`
+		Ns      string `xml:"xmlns,attr"`
+		Body    string
+	}
+
+	s := &T{Ns: "http://example.com/ns", Body: "hello world"}
+	return Marshal(s)
+}
+
+func encodeXMLNS2() ([]byte, error) {
+
+	type Test struct {
+		Body string `xml:"http://example.com/ns body"`
+	}
+
+	s := &Test{Body: "hello world"}
+	return Marshal(s)
+}
+
+func encodeXMLNS3() ([]byte, error) {
+
+	type Test struct {
+		XMLName Name `xml:"http://example.com/ns Test"`
+		Body    string
+	}
+
+	//s := &Test{XMLName: Name{"http://example.com/ns",""}, Body: "hello world"} is unusable as the "-" is missing
+	// as documentation states
+	s := &Test{Body: "hello world"}
+	return Marshal(s)
+}
+
+func encodeXMLNS4() ([]byte, error) {
+
+	type Test struct {
+		Ns   string `xml:"xmlns,attr"`
+		Body string
+	}
+
+	s := &Test{Ns: "http://example.com/ns", Body: "hello world"}
+	return Marshal(s)
+}
+
 func TestIssue11405(t *testing.T) {
 	testCases := []string{
 		"<root>",
