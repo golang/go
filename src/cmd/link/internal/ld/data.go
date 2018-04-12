@@ -362,7 +362,6 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		case objabi.R_ADDROFF:
 			// The method offset tables using this relocation expect the offset to be relative
 			// to the start of the first text section, even if there are multiple.
-
 			if r.Sym.Sect.Name == ".text" {
 				o = Symaddr(r.Sym) - int64(Segtext.Sections[0].Vaddr) + r.Add
 			} else {
@@ -450,10 +449,16 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 		if false {
 			nam := "<nil>"
+			var addr int64
 			if r.Sym != nil {
 				nam = r.Sym.Name
+				addr = Symaddr(r.Sym)
 			}
-			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Variant, o)
+			xnam := "<nil>"
+			if r.Xsym != nil {
+				xnam = r.Xsym.Name
+			}
+			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x (xsym: %s +%#x) [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, addr, r.Add, xnam, r.Xadd, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Variant, o)
 		}
 		switch siz {
 		default:

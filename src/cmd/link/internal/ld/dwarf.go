@@ -61,8 +61,14 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 		ls.AddAddrPlus4(t.(*sym.Symbol), 0)
 	}
 	r := &ls.R[len(ls.R)-1]
-	r.Type = objabi.R_DWARFSECREF
+	r.Type = objabi.R_ADDROFF
 	r.Add = ofs
+}
+
+func (c dwctxt) AddDWARFSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+	c.AddSectionOffset(s, size, t, ofs)
+	ls := s.(*sym.Symbol)
+	ls.R[len(ls.R)-1].Type = objabi.R_DWARFSECREF
 }
 
 func (c dwctxt) Logf(format string, args ...interface{}) {
@@ -546,6 +552,9 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 	}
 
 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(kind), 0)
+	if gotype.Attr.Reachable() {
+		newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, gotype)
+	}
 
 	if _, ok := prototypedies[gotype.Name]; ok {
 		prototypedies[gotype.Name] = die
@@ -561,14 +570,21 @@ func nameFromDIESym(dwtype *sym.Symbol) string {
 // Find or construct *T given T.
 func defptrto(ctxt *Link, dwtype *sym.Symbol) *sym.Symbol {
 	ptrname := "*" + nameFromDIESym(dwtype)
-	die := find(ctxt, ptrname)
-	if die == nil {
-		pdie := newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, ptrname, 0)
-		newrefattr(pdie, dwarf.DW_AT_type, dwtype)
-		return dtolsym(pdie.Sym)
+	if die := find(ctxt, ptrname); die != nil {
+		return die
 	}
 
-	return die
+	pdie := newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, ptrname, 0)
+	newrefattr(pdie, dwarf.DW_AT_type, dwtype)
+
+	// The DWARF info synthesizes pointer types that don't exist at the
+	// language level, like *hash<...> and *bucket<...>, and the data
+	// pointers of slices. Link to the ones we can find.
+	gotype := ctxt.Syms.ROLookup("type."+ptrname, 0)
+	if gotype != nil && gotype.Attr.Reachable() {
+		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, gotype)
+	}
+	return dtolsym(pdie.Sym)
 }
 
 // Copies src's children into dst. Copies attributes by value.
@@ -1692,6 +1708,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
 	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(ctxt.Arch.PtrSize), 0)
 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
+	newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_ADDRESS, 0, lookupOrDiag(ctxt, "type.uintptr"))
 
 	// Prototypes needed for type synthesis.
 	prototypedies = map[string]*dwarf.DWDie{

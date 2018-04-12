@@ -93,6 +93,9 @@ const (
 	DW_CLS_REFERENCE
 	DW_CLS_ADDRLOC
 	DW_CLS_STRING
+
+	// Go-specific internal hackery.
+	DW_CLS_GO_TYPEREF
 )
 
 // Table 20
