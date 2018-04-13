@@ -197,6 +197,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 		fc = NewFileCache(8)
 	}
 
+	tw := tabwriter.NewWriter(bw, 18, 8, 1, '\t', tabwriter.StripEscape)
 	for _, sym := range d.syms {
 		symStart := sym.Addr
 		symEnd := sym.Addr + uint64(sym.Size)
@@ -215,7 +216,6 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 		file, _, _ := d.pcln.PCToLine(sym.Addr)
 		fmt.Fprintf(bw, "TEXT %s(SB) %s\n", sym.Name, file)
 
-		tw := tabwriter.NewWriter(bw, 18, 8, 1, '\t', tabwriter.StripEscape)
 		if symEnd > end {
 			symEnd = end
 		}
