@@ -122,12 +122,14 @@ type Liveness struct {
 
 	be []BlockEffects
 
-	// stackMapIndex maps from safe points (i.e., CALLs) to their
-	// index within the stack maps.
-	stackMapIndex map[*ssa.Value]int
-
 	// An array with a bit vector for each safe point tracking live variables.
+	// Indexed sequentially by safe points in Block and Value order.
 	livevars []bvec
+
+	// stackMapIndex maps from safe points (i.e., CALLs) to their
+	// index within stackMaps.
+	stackMapIndex map[*ssa.Value]int
+	stackMaps     []bvec
 
 	cache progeffectscache
 }
@@ -766,7 +768,7 @@ func (lv *Liveness) clobber() {
 	for _, n := range lv.vars {
 		varSize += n.Type.Size()
 	}
-	if len(lv.livevars) > 1000 || varSize > 10000 {
+	if len(lv.stackMaps) > 1000 || varSize > 10000 {
 		// Be careful to avoid doing too much work.
 		// Bail if >1000 safepoints or >10000 bytes of variables.
 		// Otherwise, giant functions make this experiment generate too much code.
@@ -810,7 +812,7 @@ func (lv *Liveness) clobber() {
 				b.Values = append(b.Values, oldSched[0])
 				oldSched = oldSched[1:]
 			}
-			clobber(lv, b, lv.livevars[0])
+			clobber(lv, b, lv.stackMaps[0])
 		}
 
 		// Copy values into schedule, adding clobbering around safepoints.
@@ -831,10 +833,10 @@ func (lv *Liveness) clobber() {
 				before = false
 			}
 			if before {
-				clobber(lv, b, lv.livevars[lv.stackMapIndex[v]])
+				clobber(lv, b, lv.stackMaps[lv.stackMapIndex[v]])
 			}
 			b.Values = append(b.Values, v)
-			clobber(lv, b, lv.livevars[lv.stackMapIndex[v]])
+			clobber(lv, b, lv.stackMaps[lv.stackMapIndex[v]])
 		}
 	}
 }
@@ -980,7 +982,6 @@ func (lv *Liveness) compact() {
 	for i := range remap {
 		remap[i] = -1
 	}
-	uniq := 0 // unique tables found so far
 
 	// Consider bit vectors in turn.
 	// If new, assign next number using uniq,
@@ -996,7 +997,7 @@ Outer:
 			if j < 0 {
 				break
 			}
-			jlive := lv.livevars[j]
+			jlive := lv.stackMaps[j]
 			if live.Eq(jlive) {
 				remap[i] = j
 				continue Outer
@@ -1008,29 +1009,24 @@ Outer:
 			}
 		}
 
-		table[h] = uniq
-		remap[i] = uniq
-		lv.livevars[uniq] = live
-		uniq++
+		table[h] = len(lv.stackMaps)
+		remap[i] = len(lv.stackMaps)
+		lv.stackMaps = append(lv.stackMaps, live)
 	}
 
-	// We've already reordered lv.livevars[0:uniq]. Clear the
-	// pointers later in the array so they can be GC'd.
-	tail := lv.livevars[uniq:]
-	for i := range tail { // memclr loop pattern
-		tail[i] = bvec{}
-	}
-	lv.livevars = lv.livevars[:uniq]
+	// Clear lv.livevars to allow GC of duplicate maps and to
+	// prevent accidental use.
+	lv.livevars = nil
 
 	// Record compacted stack map indexes for each value.
 	// These will later become PCDATA instructions.
-	lv.showlive(nil, lv.livevars[0])
+	lv.showlive(nil, lv.stackMaps[0])
 	pos := 1
 	lv.stackMapIndex = make(map[*ssa.Value]int)
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
 			if issafepoint(v) {
-				lv.showlive(v, lv.livevars[remap[pos]])
+				lv.showlive(v, lv.stackMaps[remap[pos]])
 				lv.stackMapIndex[v] = remap[pos]
 				pos++
 			}
@@ -1153,7 +1149,7 @@ func (lv *Liveness) printDebug() {
 		// program listing, with individual effects listed
 
 		if b == lv.f.Entry {
-			live := lv.livevars[pcdata]
+			live := lv.stackMaps[pcdata]
 			fmt.Printf("(%s) function entry\n", linestr(lv.fn.Func.Nname.Pos))
 			fmt.Printf("\tlive=")
 			printed = false
@@ -1190,7 +1186,7 @@ func (lv *Liveness) printDebug() {
 				continue
 			}
 
-			live := lv.livevars[pcdata]
+			live := lv.stackMaps[pcdata]
 			fmt.Printf("\tlive=")
 			printed = false
 			for j, n := range lv.vars {
@@ -1228,14 +1224,14 @@ func (lv *Liveness) printDebug() {
 // remaining bytes are the raw bitmaps.
 func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
 	args := bvalloc(lv.argWords())
-	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
-	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
+	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
 
 	locals := bvalloc(lv.localWords())
-	loff := duint32(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
-	loff = duint32(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
+	loff := duint32(livesym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	loff = duint32(livesym, loff, uint32(locals.n))        // number of bits in each bitmap
 
-	for _, live := range lv.livevars {
+	for _, live := range lv.stackMaps {
 		args.Clear()
 		locals.Clear()
 
