@@ -97,8 +97,9 @@ func (d *Dirs) bfsWalkRoot(root string) {
 					continue
 				}
 				// Entry is a directory.
-				// No .git or other dot nonsense please.
-				if strings.HasPrefix(name, ".") {
+
+				// The go tool ignores directories starting with ., _, or named "testdata".
+				if name[0] == '.' || name[0] == '_' || name == "testdata" {
 					continue
 				}
 				// Remember this (fully qualified) directory for the next pass.
