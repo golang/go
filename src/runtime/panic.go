@@ -432,15 +432,6 @@ func gopanic(e interface{}) {
 		throw("panic on system stack")
 	}
 
-	// m.softfloat is set during software floating point.
-	// It increments m.locks to avoid preemption.
-	// We moved the memory loads out, so there shouldn't be
-	// any reason for it to panic anymore.
-	if gp.m.softfloat != 0 {
-		gp.m.locks--
-		gp.m.softfloat = 0
-		throw("panic during softfloat")
-	}
 	if gp.m.mallocing != 0 {
 		print("panic: ")
 		printany(e)
@@ -787,7 +778,7 @@ func canpanic(gp *g) bool {
 	if gp == nil || gp != _m_.curg {
 		return false
 	}
-	if _m_.locks-_m_.softfloat != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.preemptoff != "" || _m_.dying != 0 {
+	if _m_.locks != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.preemptoff != "" || _m_.dying != 0 {
 		return false
 	}
 	status := readgstatus(gp)

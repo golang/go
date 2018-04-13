@@ -421,7 +421,6 @@ type m struct {
 	throwing      int32
 	preemptoff    string // if != "", keep curg running on this m
 	locks         int32
-	softfloat     int32
 	dying         int32
 	profilehz     int32
 	helpgc        int32
@@ -445,9 +444,6 @@ type m struct {
 	mcache        *mcache
 	lockedg       guintptr
 	createstack   [32]uintptr    // stack that created this thread.
-	freglo        [16]uint32     // d[i] lsb and f[i]
-	freghi        [16]uint32     // d[i] msb and f[i+16]
-	fflag         uint32         // floating point compare flags
 	lockedExt     uint32         // tracking for external LockOSThread
 	lockedInt     uint32         // tracking for internal lockOSThread
 	nextwaitm     muintptr       // next m waiting for lock
