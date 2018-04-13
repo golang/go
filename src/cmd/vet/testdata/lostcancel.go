@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package testdata
+package main
 
 import (
 	"context"
@@ -31,6 +31,12 @@ func _() {
 	ctx, _ := context.WithCancel()  // ERROR "the cancel function returned by context.WithCancel should be called, not discarded, to avoid a context leak"
 	ctx, _ = context.WithTimeout()  // ERROR "the cancel function returned by context.WithTimeout should be called, not discarded, to avoid a context leak"
 	ctx, _ = context.WithDeadline() // ERROR "the cancel function returned by context.WithDeadline should be called, not discarded, to avoid a context leak"
+}
+
+// Return from main is handled specially.
+// Since the program exits, there's no need to call cancel.
+func main() {
+	var ctx, cancel = context.WithCancel()
 }
 
 func _() {
