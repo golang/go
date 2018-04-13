@@ -16,10 +16,20 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// otherwise the tests are brittle, as they may give unexpected
-	// output or errors when a suffix match with GOPATH takes place
+	// Clear GOPATH so we don't access the user's own packages in the test.
 	buildCtx.GOPATH = ""
+
 	dirsInit()
+
+	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
+	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
+	// a hack that works around the check.
+	testdataDir, err := filepath.Abs("testdata")
+	if err != nil {
+		panic(err)
+	}
+	go func() { dirs.scan <- testdataDir }()
+
 	os.Exit(m.Run())
 }
 
