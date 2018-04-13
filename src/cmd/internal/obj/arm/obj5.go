@@ -255,8 +255,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	c := ctxt5{ctxt: ctxt, cursym: cursym, newprog: newprog}
 
-	c.softfloat()
-
 	p := c.cursym.Func.Text
 	autoffset := int32(p.To.Offset)
 	if autoffset == -4 {
@@ -646,87 +644,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.Spadj = int32(-p.From.Offset)
 			}
 		}
-	}
-}
-
-func isfloatreg(a *obj.Addr) bool {
-	return a.Type == obj.TYPE_REG && REG_F0 <= a.Reg && a.Reg <= REG_F15
-}
-
-func (c *ctxt5) softfloat() {
-	if objabi.GOARM > 5 {
-		return
-	}
-
-	symsfloat := c.ctxt.Lookup("runtime._sfloat")
-
-	wasfloat := 0
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
-		if p.Pcond != nil {
-			p.Pcond.Mark |= LABEL
-		}
-	}
-	var next *obj.Prog
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
-		switch p.As {
-		case AMOVW:
-			if isfloatreg(&p.To) || isfloatreg(&p.From) {
-				goto soft
-			}
-			goto notsoft
-
-		case AMOVWD,
-			AMOVWF,
-			AMOVDW,
-			AMOVFW,
-			AMOVFD,
-			AMOVDF,
-			AMOVF,
-			AMOVD,
-			ACMPF,
-			ACMPD,
-			AADDF,
-			AADDD,
-			ASUBF,
-			ASUBD,
-			AMULF,
-			AMULD,
-			ADIVF,
-			ADIVD,
-			ASQRTF,
-			ASQRTD,
-			AABSF,
-			AABSD,
-			ANEGF,
-			ANEGD:
-			goto soft
-
-		default:
-			goto notsoft
-		}
-
-	soft:
-		if wasfloat == 0 || (p.Mark&LABEL != 0) {
-			next = c.newprog()
-			*next = *p
-
-			// BL runtime·_sfloat(SB)
-			*p = obj.Prog{}
-			p.Ctxt = c.ctxt
-			p.Link = next
-			p.As = ABL
-			p.To.Type = obj.TYPE_BRANCH
-			p.To.Sym = symsfloat
-			p.Pos = next.Pos
-
-			p = next
-			wasfloat = 1
-		}
-
-		continue
-
-	notsoft:
-		wasfloat = 0
 	}
 }
 
