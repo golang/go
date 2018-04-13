@@ -1069,6 +1069,47 @@ func TestAbs(t *testing.T) {
 	}
 }
 
+// Empty path needs to be special-cased on Windows. See golang.org/issue/24441.
+// We test it separately from all other absTests because the empty string is not
+// a valid path, so it can't be used with os.Stat.
+func TestAbsEmptyString(t *testing.T) {
+	root, err := ioutil.TempDir("", "TestAbsEmptyString")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(root)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal("getwd failed: ", err)
+	}
+	err = os.Chdir(root)
+	if err != nil {
+		t.Fatal("chdir failed: ", err)
+	}
+	defer os.Chdir(wd)
+
+	info, err := os.Stat(root)
+	if err != nil {
+		t.Fatalf("%s: %s", root, err)
+	}
+
+	abspath, err := filepath.Abs("")
+	if err != nil {
+		t.Fatalf(`Abs("") error: %v`, err)
+	}
+	absinfo, err := os.Stat(abspath)
+	if err != nil || !os.SameFile(absinfo, info) {
+		t.Errorf(`Abs("")=%q, not the same file`, abspath)
+	}
+	if !filepath.IsAbs(abspath) {
+		t.Errorf(`Abs("")=%q, not an absolute path`, abspath)
+	}
+	if filepath.IsAbs(abspath) && abspath != filepath.Clean(abspath) {
+		t.Errorf(`Abs("")=%q, isn't clean`, abspath)
+	}
+}
+
 type RelTests struct {
 	root, path, want string
 }
