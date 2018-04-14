@@ -2684,8 +2684,6 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		}
 		fallthrough
 
-		// fall through
-
 	case obj.TYPE_CONST:
 		if a.Sym != nil {
 			ctxt.Diag("TYPE_CONST with symbol: %v", obj.Dconv(p, a))
@@ -2695,22 +2693,18 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		if ctxt.Arch.Family == sys.I386 {
 			v = int64(int32(v))
 		}
-		if v == 0 {
+		switch {
+		case v == 0:
 			return Yi0
-		}
-		if v == 1 {
+		case v == 1:
 			return Yi1
-		}
-		if v >= 0 && v <= 3 {
+		case v >= 0 && v <= 3:
 			return Yu2
-		}
-		if v >= 0 && v <= 127 {
+		case v >= 0 && v <= 127:
 			return Yu7
-		}
-		if v >= 0 && v <= 255 {
+		case v >= 0 && v <= 255:
 			return Yu8
-		}
-		if v >= -128 && v <= 127 {
+		case v >= -128 && v <= 127:
 			return Yi8
 		}
 		if ctxt.Arch.Family == sys.I386 {
@@ -3776,12 +3770,10 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		return
 	}
 
-	pre := prefixof(ctxt, &p.From)
-	if pre != 0 {
+	if pre := prefixof(ctxt, &p.From); pre != 0 {
 		ab.Put1(byte(pre))
 	}
-	pre = prefixof(ctxt, &p.To)
-	if pre != 0 {
+	if pre := prefixof(ctxt, &p.To); pre != 0 {
 		ab.Put1(byte(pre))
 	}
 
@@ -3822,7 +3814,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	var rel obj.Reloc
 	var v int64
 
-	args := make([]int, 0, 6)
+	args := make([]int, 0, argListMax)
 	if ft != Ynone*Ymax {
 		args = append(args, ft)
 	}
