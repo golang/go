@@ -42,7 +42,7 @@ func TestLarge(t *testing.T) {
 
 	// build generated file
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
-	cmd.Env = []string{"GOARCH=arm64", "GOOS=linux"}
+	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("Build failed: %v, output: %s", err, out)
@@ -74,7 +74,7 @@ func TestNoRet(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
-	cmd.Env = []string{"GOARCH=arm64", "GOOS=linux"}
+	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("%v\n%s", err, out)
 	}
