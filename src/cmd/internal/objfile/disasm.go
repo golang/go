@@ -253,7 +253,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 					fmt.Fprintf(tw, "%08x", d.byteOrder.Uint32(code[i+j:]))
 				}
 			}
-			fmt.Fprintf(tw, "\t%s\n", text)
+			fmt.Fprintf(tw, "\t%s\t\n", text)
 		})
 		tw.Flush()
 	}
@@ -274,15 +274,10 @@ func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint6
 		i := pc - d.textStart
 		text, size := d.disasm(code[i:], pc, lookup, d.byteOrder)
 		file, line, _ := d.pcln.PCToLine(pc)
-		text += "\t"
-		first := true
+		sep := "\t"
 		for len(relocs) > 0 && relocs[0].Addr < i+uint64(size) {
-			if first {
-				first = false
-			} else {
-				text += " "
-			}
-			text += relocs[0].Stringer.String(pc - start)
+			text += sep + relocs[0].Stringer.String(pc-start)
+			sep = " "
 			relocs = relocs[1:]
 		}
 		f(pc, uint64(size), file, line, text)
