@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64
+// +build amd64 arm64
 
 package aes
 
@@ -13,10 +13,7 @@ import (
 	"errors"
 )
 
-// The following functions are defined in gcm_amd64.s.
-
-//go:noescape
-func aesEncBlock(dst, src *[16]byte, ks []uint32)
+// The following functions are defined in gcm_*.s.
 
 //go:noescape
 func gcmAesInit(productTable *[256]byte, ks []uint32)
@@ -118,7 +115,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
 	}
 
-	aesEncBlock(&tagMask, &counter, g.ks)
+	encryptBlockAsm(len(g.ks)/4-1, &g.ks[0], &tagMask[0], &counter[0])
 
 	var tagOut [gcmTagSize]byte
 	gcmAesData(&g.productTable, data, &tagOut)
@@ -171,7 +168,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
 	}
 
-	aesEncBlock(&tagMask, &counter, g.ks)
+	encryptBlockAsm(len(g.ks)/4-1, &g.ks[0], &tagMask[0], &counter[0])
 
 	var expectedTag [gcmTagSize]byte
 	gcmAesData(&g.productTable, data, &expectedTag)
