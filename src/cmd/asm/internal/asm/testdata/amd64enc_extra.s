@@ -309,5 +309,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVQ DR0, AX // 0f21c0
 	MOVQ DR6, DX // 0f21f2
 	MOVQ DR7, SI // 0f21fe
+	// Test other movtab entries.
+	PUSHQ GS // 0fa8
+	PUSHQ FS // 0fa0
+	POPQ FS  // 0fa1
+	POPQ GS  // 0fa9
 	// End of tests.
 	RET
