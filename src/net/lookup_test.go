@@ -154,6 +154,7 @@ var lookupGmailNSTests = []struct {
 }
 
 func TestLookupGmailNS(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -162,12 +163,20 @@ func TestLookupGmailNS(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
-	defer dnsWaitGroup.Wait()
-
-	for _, tt := range lookupGmailNSTests {
+	attempts := 0
+	for i := 0; i < len(lookupGmailNSTests); i++ {
+		tt := lookupGmailNSTests[i]
 		nss, err := LookupNS(tt.name)
 		if err != nil {
 			testenv.SkipFlakyNet(t)
+			if attempts < len(backoffDuration) {
+				dur := backoffDuration[attempts]
+				t.Logf("backoff %v after failure %v\n", dur, err)
+				time.Sleep(dur)
+				attempts++
+				i--
+				continue
+			}
 			t.Fatal(err)
 		}
 		if len(nss) == 0 {
