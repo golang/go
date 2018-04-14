@@ -113,7 +113,10 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, 
 		// documentation (historic).
 		pkgname = "main" // assume package main since pkginfo.Name == ""
 		pkgfiles = pkginfo.IgnoredGoFiles
-	} else {
+	}
+
+	// get package information, if any
+	if len(pkgfiles) > 0 {
 		// build package AST
 		fset := token.NewFileSet()
 		files, err := h.c.parseFiles(fset, relpath, abspath, pkgfiles)
