@@ -65,6 +65,19 @@ const (
 	maxLoopPad = 0
 )
 
+// Bit flags that are used to express jump target properties.
+const (
+	// branchBackwards marks targets that are located behind.
+	// Used to express jumps to loop headers.
+	branchBackwards = (1 << iota)
+	// branchShort marks branches those target is close,
+	// with offset is in -128..127 range.
+	branchShort
+	// branchLoopHead marks loop entry.
+	// Used to insert padding for misaligned loops.
+	branchLoopHead
+)
+
 type Optab struct {
 	as     obj.As
 	ytab   []ytab
@@ -2125,11 +2138,11 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	var count int64 // rough count of number of instructions
 	for p := s.Func.Text; p != nil; p = p.Link {
 		count++
-		p.Back = 2 // use short branches first time through
+		p.Back = branchShort // use short branches first time through
 		q = p.Pcond
-		if q != nil && (q.Back&2 != 0) {
-			p.Back |= 1 // backward jump
-			q.Back |= 4 // loop head
+		if q != nil && (q.Back&branchShort != 0) {
+			p.Back |= branchBackwards
+			q.Back |= branchLoopHead
 		}
 
 		if p.As == AADJSP {
@@ -2197,7 +2210,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			if (p.Back&4 != 0) && c&(loopAlign-1) != 0 {
+			if (p.Back&branchLoopHead != 0) && c&(loopAlign-1) != 0 {
 				// pad with NOPs
 				v := -c & (loopAlign - 1)
 
@@ -2213,10 +2226,10 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			// process forward jumps to p
 			for q = p.Rel; q != nil; q = q.Forwd {
 				v := int32(p.Pc - (q.Pc + int64(q.Isize)))
-				if q.Back&2 != 0 { // short
+				if q.Back&branchShort != 0 {
 					if v > 127 {
 						loop++
-						q.Back ^= 2
+						q.Back ^= branchShort
 					}
 
 					if q.As == AJCXZL || q.As == AXBEGIN {
@@ -4328,7 +4341,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					log.Fatalf("bad code")
 				}
 
-				if p.Back&1 != 0 {
+				if p.Back&branchBackwards != 0 {
 					v = q.Pc - (p.Pc + 2)
 					if v >= -128 && p.As != AXBEGIN {
 						if p.As == AJCXZL {
@@ -4358,7 +4371,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				p.Forwd = q.Rel
 
 				q.Rel = p
-				if p.Back&2 != 0 && p.As != AXBEGIN { // short
+				if p.Back&branchShort != 0 && p.As != AXBEGIN {
 					if p.As == AJCXZL {
 						ab.Put1(0x67)
 					}
