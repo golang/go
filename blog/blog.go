@@ -6,6 +6,7 @@
 package blog // import "golang.org/x/tools/blog"
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -153,7 +154,7 @@ func sectioned(d *present.Doc) bool {
 
 // authors returns a comma-separated list of author names.
 func authors(authors []present.Author) string {
-	var b strings.Builder
+	var b bytes.Buffer
 	last := len(authors) - 1
 	for i, a := range authors {
 		if i > 0 {
@@ -201,7 +202,7 @@ func (s *Server) loadDocs(root string) error {
 		if err != nil {
 			return err
 		}
-		var html strings.Builder
+		var html bytes.Buffer
 		err = d.Render(&html, s.template.doc)
 		if err != nil {
 			return err
@@ -369,7 +370,7 @@ func summary(d *Doc) string {
 			// skip everything but non-text elements
 			continue
 		}
-		var buf strings.Builder
+		var buf bytes.Buffer
 		for _, s := range text.Lines {
 			buf.WriteString(string(present.Style(s)))
 			buf.WriteByte('\n')
@@ -429,7 +430,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	var err error
 	if s.cfg.ServeLocalLinks {
-		var buf strings.Builder
+		var buf bytes.Buffer
 		err = t.ExecuteTemplate(&buf, "root", d)
 		if err != nil {
 			log.Println(err)

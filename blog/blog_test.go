@@ -5,7 +5,7 @@
 package blog
 
 import (
-	"strings"
+	"bytes"
 	"testing"
 )
 
@@ -31,7 +31,7 @@ func TestLinkRewrite(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		var buf strings.Builder
+		var buf bytes.Buffer
 		_, err := golangOrgAbsLinkReplacer.WriteString(&buf, test.input)
 		if err != nil {
 			t.Errorf("unexpected error during replacing links. Got: %#v, Want: nil.\n", err)
