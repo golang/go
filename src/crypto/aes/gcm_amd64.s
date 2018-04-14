@@ -71,56 +71,6 @@ GLOBL bswapMask<>(SB), (NOPTR+RODATA), $16
 GLOBL gcmPoly<>(SB), (NOPTR+RODATA), $16
 GLOBL andMask<>(SB), (NOPTR+RODATA), $240
 
-// func aesEncBlock(dst, src *[16]byte, ks []uint32)
-TEXT ·aesEncBlock(SB),NOSPLIT,$0
-	MOVQ dst+0(FP), DI
-	MOVQ src+8(FP), SI
-	MOVQ ks_base+16(FP), DX
-	MOVQ ks_len+24(FP), CX
-
-	SHRQ $2, CX
-	DECQ CX
-
-	MOVOU (SI), X0
-	MOVOU (16*0)(DX), X1
-	PXOR X1, X0
-	MOVOU (16*1)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*2)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*3)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*4)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*5)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*6)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*7)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*8)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*9)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*10)(DX), X1
-	CMPQ CX, $12
-	JB encLast
-	AESENC X1, X0
-	MOVOU (16*11)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*12)(DX), X1
-	JE encLast
-	AESENC X1, X0
-	MOVOU (16*13)(DX), X1
-	AESENC X1, X0
-	MOVOU (16*14)(DX), X1
-
-encLast:
-	AESENCLAST X1, X0
-	MOVOU X0, (DI)
-
-	RET
-
 // func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
 TEXT ·gcmAesFinish(SB),NOSPLIT,$0
 #define pTbl DI
