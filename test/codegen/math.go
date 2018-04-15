@@ -33,9 +33,10 @@ func approx(x float64) {
 
 func sqrt(x float64) float64 {
 	// amd64:"SQRTSD"
-	// 386:"FSQRT|SQRTSD"   (387 or sse2)
+	// 386/387:"FSQRT" 386/sse2:"SQRTSD"
 	// arm64:"FSQRTD"
-	// mips:"SQRTD" mips64:"SQRTD"
+	// arm/7:"SQRTD"
+	// mips/hardfloat:"SQRTD" mips64:"SQRTD"
 	return math.Sqrt(x)
 }
 

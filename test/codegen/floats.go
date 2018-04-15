@@ -15,29 +15,33 @@ package codegen
 // --------------------- //
 
 func Mul2(f float64) float64 {
-	// 386:"ADDSD|FADDDP",-"MULSD",-"FMULDP"
+	// 386/sse2:"ADDSD",-"MULSD"
+	// 386/387:"FADDDP",-"FMULDP"
 	// amd64:"ADDSD",-"MULSD"
-	// arm:"ADDD",-"MULD"
+	// arm/7:"ADDD",-"MULD"
 	// arm64:"FADDD",-"FMULD"
 	return f * 2.0
 }
 
 func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
-	// 386:"MULSD|FMULDP",-"DIVSD",-"FDIVDP"
+	// 386/sse2:"MULSD",-"DIVSD"
+	// 386/387:"FMULDP",-"FDIVDP"
 	// amd64:"MULSD",-"DIVSD"
-	// arm:"MULD",-"DIVD"
+	// arm/7:"MULD",-"DIVD"
 	// arm64:"FMULD",-"FDIVD"
 	x := f1 / 16.0
 
-	// 386:"MULSD|FMULDP",-"DIVSD",-"FDIVDP"
+	// 386/sse2:"MULSD",-"DIVSD"
+	// 386/387:"FMULDP",-"FDIVDP"
 	// amd64:"MULSD",-"DIVSD"
-	// arm:"MULD",-"DIVD"
+	// arm/7:"MULD",-"DIVD"
 	// arm64:"FMULD",-"FDIVD"
 	y := f2 / 0.125
 
-	// 386:"ADDSD|FADDDP",-"DIVSD",-"MULSD",-"FDIVDP",-"FMULDP"
+	// 386/sse2:"ADDSD",-"DIVSD",-"MULSD"
+	// 386/387:"FADDDP",-"FDIVDP",-"FMULDP"
 	// amd64:"ADDSD",-"DIVSD",-"MULSD"
-	// arm:"ADDD",-"MULD",-"DIVD"
+	// arm/7:"ADDD",-"MULD",-"DIVD"
 	// arm64:"FADDD",-"FMULD",-"FDIVD"
 	z := f3 / 0.5
 

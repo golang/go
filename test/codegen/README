@@ -94,6 +94,24 @@ For example:
 verifies that NO memmove call is present in the assembly generated for
 the copy() line.
 
+- Architecture specifiers
+
+There are three different ways to specify on which architecture a test
+should be run:
+
+* Specify only the architecture (eg: "amd64"). This indicates that the
+  check should be run on all the supported architecture variants. For
+  instance, arm checks will be run against all supported GOARM
+  variations (5,6,7).
+* Specify both the architecture and a variant, separated by a slash
+  (eg: "arm/7"). This means that the check will be run only on that
+  specific variant.
+* Specify the operating system, the architecture and the variant,
+  separated by slashes (eg: "plan9/386/sse2", "plan9/amd64/"). This is
+  needed in the rare case that you need to do a codegen test affected
+  by a specific operating system; by default, tests are compiled only
+  targeting linux.
+
 
 - Remarks, and Caveats
 
