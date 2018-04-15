@@ -579,13 +579,14 @@ The algorithm is described at http://wikipedia.org/wiki/McGillicutty_Algorithm
 
 Fixes #159
 </pre>
+
 </p>
 
 <h3>First line</h3>
 
 <p>
 The first line of the change description is conventionally a one-line
-summary of the change, prefixed by the primary affected package.</p>
+summary of the change, prefixed by the primary affected package. Keep the first line as short as possible (ideally, under 76 characters).</p>
 
 <p>It should be written so to complete the sentence "This change modifies Go to _____."</p>
 
@@ -595,7 +596,7 @@ summary of the change, prefixed by the primary affected package.</p>
 change and explain what it does.
 Write in complete sentences with correct punctuation, just like
 for your comments in Go.
-If there is a helpful reference, mention it here.
+No Markdown should be used.
 </p>
 
 <h3>Referencing issues</h3>
@@ -619,10 +620,6 @@ If you are sending a change against a subrepository, you must use
 the fully-qualified syntax supported by GitHub, to make sure the change is
 linked to the issue in the main repository. The correct form is "Fixes golang/go#159".
 </p>
-
-
-
-
 
 
 <h2 id="review">The review process</h2>
