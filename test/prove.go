@@ -397,8 +397,7 @@ func f13e(a int) int {
 
 func f13f(a int64) int64 {
 	if a > math.MaxInt64 {
-		// Unreachable, but prove doesn't know that.
-		if a == 0 {
+		if a == 0 { // ERROR "Disproved Eq64$"
 			return 1
 		}
 	}
@@ -573,6 +572,37 @@ func fence4(x, y int64) {
 			return
 		}
 	}
+}
+
+// Check transitive relations
+func trans1(x, y int64) {
+	if x > 5 {
+		if y > x {
+			if y > 2 { // ERROR "Proved Greater64"
+				return
+			}
+		} else if y == x {
+			if y > 5 { // ERROR "Proved Greater64"
+				return
+			}
+		}
+	}
+	if x >= 10 {
+		if y > x {
+			if y > 10 { // ERROR "Proved Greater64"
+				return
+			}
+		}
+	}
+}
+
+func trans2(a, b []int, i int) {
+	if len(a) != len(b) {
+		return
+	}
+
+	_ = a[i]
+	_ = b[i] // ERROR "Proved IsInBounds$"
 }
 
 //go:noinline
