@@ -160,6 +160,11 @@ type factsTable struct {
 	facts map[pair]relation // current known set of relation
 	stack []fact            // previous sets of relations
 
+	// order is a couple of partial order sets that record information
+	// about relations between SSA values in the signed and unsigned
+	// domain.
+	order [2]*poset
+
 	// known lower and upper bounds on individual values.
 	limits     map[ID]limit
 	limitStack []limitFact // previous entries
@@ -178,6 +183,8 @@ var checkpointBound = limitFact{}
 
 func newFactsTable() *factsTable {
 	ft := &factsTable{}
+	ft.order[0] = newPoset(false) // signed
+	ft.order[1] = newPoset(true)  // unsigned
 	ft.facts = make(map[pair]relation)
 	ft.stack = make([]fact, 4)
 	ft.limits = make(map[ID]limit)
@@ -202,30 +209,58 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		return
 	}
 
-	if lessByID(w, v) {
-		v, w = w, v
-		r = reverseBits[r]
-	}
-
-	p := pair{v, w, d}
-	oldR, ok := ft.facts[p]
-	if !ok {
-		if v == w {
-			oldR = eq
-		} else {
-			oldR = lt | eq | gt
+	if d == signed || d == unsigned {
+		var ok bool
+		idx := 0
+		if d == unsigned {
+			idx = 1
 		}
-	}
-	// No changes compared to information already in facts table.
-	if oldR == r {
-		return
-	}
-	ft.stack = append(ft.stack, fact{p, oldR})
-	ft.facts[p] = oldR & r
-	// If this relation is not satisfiable, mark it and exit right away
-	if oldR&r == 0 {
-		ft.unsat = true
-		return
+		switch r {
+		case lt:
+			ok = ft.order[idx].SetOrder(v, w)
+		case gt:
+			ok = ft.order[idx].SetOrder(w, v)
+		case lt | eq:
+			ok = ft.order[idx].SetOrderOrEqual(v, w)
+		case gt | eq:
+			ok = ft.order[idx].SetOrderOrEqual(w, v)
+		case eq:
+			ok = ft.order[idx].SetEqual(v, w)
+		case lt | gt:
+			ok = ft.order[idx].SetNonEqual(v, w)
+		default:
+			panic("unknown relation")
+		}
+		if !ok {
+			ft.unsat = true
+			return
+		}
+	} else {
+		if lessByID(w, v) {
+			v, w = w, v
+			r = reverseBits[r]
+		}
+
+		p := pair{v, w, d}
+		oldR, ok := ft.facts[p]
+		if !ok {
+			if v == w {
+				oldR = eq
+			} else {
+				oldR = lt | eq | gt
+			}
+		}
+		// No changes compared to information already in facts table.
+		if oldR == r {
+			return
+		}
+		ft.stack = append(ft.stack, fact{p, oldR})
+		ft.facts[p] = oldR & r
+		// If this relation is not satisfiable, mark it and exit right away
+		if oldR&r == 0 {
+			ft.unsat = true
+			return
+		}
 	}
 
 	// Extract bounds when comparing against constants
@@ -382,6 +417,8 @@ func (ft *factsTable) checkpoint() {
 	}
 	ft.stack = append(ft.stack, checkpointFact)
 	ft.limitStack = append(ft.limitStack, checkpointBound)
+	ft.order[0].Checkpoint()
+	ft.order[1].Checkpoint()
 }
 
 // restore restores known relation to the state just
@@ -417,6 +454,8 @@ func (ft *factsTable) restore() {
 			ft.limits[old.vid] = old.limit
 		}
 	}
+	ft.order[0].Undo()
+	ft.order[1].Undo()
 }
 
 func lessByID(v, w *Value) bool {
