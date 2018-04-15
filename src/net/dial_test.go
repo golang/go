@@ -729,22 +729,29 @@ func TestDialerKeepAlive(t *testing.T) {
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { testHookSetKeepAlive = func() {} }()
+	defer func() { testHookSetKeepAlive = func(time.Duration) {} }()
 
-	for _, keepAlive := range []bool{false, true} {
-		got := false
-		testHookSetKeepAlive = func() { got = true }
-		var d Dialer
-		if keepAlive {
-			d.KeepAlive = 30 * time.Second
-		}
+	tests := []struct {
+		ka       time.Duration
+		expected time.Duration
+	}{
+		{-1, -1},
+		{0, 15 * time.Second},
+		{5 * time.Second, 5 * time.Second},
+		{30 * time.Second, 30 * time.Second},
+	}
+
+	for _, test := range tests {
+		var got time.Duration = -1
+		testHookSetKeepAlive = func(d time.Duration) { got = d }
+		d := Dialer{KeepAlive: test.ka}
 		c, err := d.Dial("tcp", ls.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
 		c.Close()
-		if got != keepAlive {
-			t.Errorf("Dialer.KeepAlive = %v: SetKeepAlive called = %v, want %v", d.KeepAlive, got, !got)
+		if got != test.expected {
+			t.Errorf("Dialer.KeepAlive = %v: SetKeepAlive set to %v, want %v", d.KeepAlive, got, test.expected)
 		}
 	}
 }
