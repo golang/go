@@ -5032,7 +5032,7 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	}
 }
 
-// Extract 4 operands from p.
-func unpackOps4(p *obj.Prog) (*obj.Addr, *obj.Addr, *obj.Addr, *obj.Addr) {
+// unpackOps4 extracts 4 operands from p.
+func unpackOps4(p *obj.Prog) (arg0, arg1, arg2, dst *obj.Addr) {
 	return &p.From, &p.RestArgs[0], &p.RestArgs[1], &p.To
 }
