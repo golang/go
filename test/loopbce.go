@@ -84,6 +84,22 @@ func g0b(a string) int {
 	return x
 }
 
+func g0c(a string) int {
+	x := 0
+	for i := len(a); i > 0; i-- { // ERROR "Induction variable: limits \(0,\?\], increment -1$"
+		x += int(a[i-1]) // ERROR "Proved IsInBounds$"
+	}
+	return x
+}
+
+func g0d(a string) int {
+	x := 0
+	for i := len(a); 0 < i; i-- { // ERROR "Induction variable: limits \(0,\?\], increment -1$"
+		x += int(a[i-1]) // ERROR "Proved IsInBounds$"
+	}
+	return x
+}
+
 func g1() int {
 	a := "evenlength"
 	x := 0
@@ -183,6 +199,24 @@ func k2(a [100]int) [100]int {
 
 func k3(a [100]int) [100]int {
 	for i := -10; i < 90; i++ { // ERROR "Induction variable: limits \[-10,90\), increment 1$"
+		a[i+9] = i
+		a[i+10] = i // ERROR "Proved IsInBounds$"
+		a[i+11] = i
+	}
+	return a
+}
+
+func k3neg(a [100]int) [100]int {
+	for i := 89; i > -11; i-- { // ERROR "Induction variable: limits \(-11,89\], increment -1$"
+		a[i+9] = i
+		a[i+10] = i // ERROR "Proved IsInBounds$"
+		a[i+11] = i
+	}
+	return a
+}
+
+func k3neg2(a [100]int) [100]int {
+	for i := 89; i >= -10; i-- { // ERROR "Induction variable: limits \[-10,89\], increment -1$"
 		a[i+9] = i
 		a[i+10] = i // ERROR "Proved IsInBounds$"
 		a[i+11] = i

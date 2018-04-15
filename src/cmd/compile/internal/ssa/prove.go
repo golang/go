@@ -799,8 +799,17 @@ func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
 		d |= unsigned
 	}
 
-	addRestrictions(b, ft, d, iv.min, iv.ind, lt|eq)
-	addRestrictions(b, ft, d, iv.ind, iv.max, lt)
+	if iv.flags&indVarMinExc == 0 {
+		addRestrictions(b, ft, d, iv.min, iv.ind, lt|eq)
+	} else {
+		addRestrictions(b, ft, d, iv.min, iv.ind, lt)
+	}
+
+	if iv.flags&indVarMaxInc == 0 {
+		addRestrictions(b, ft, d, iv.ind, iv.max, lt)
+	} else {
+		addRestrictions(b, ft, d, iv.ind, iv.max, lt|eq)
+	}
 }
 
 // addBranchRestrictions updates the factsTables ft with the facts learned when
