@@ -96,7 +96,7 @@ func pragmaValue(verb string) syntax.Pragma {
 func (p *noder) pragcgo(pos syntax.Pos, text string) {
 	f := pragmaFields(text)
 
-	verb := strings.TrimPrefix(f[0][3:], "go:")
+	verb := strings.TrimPrefix(f[0], "go:")
 	f[0] = verb
 
 	switch verb {
