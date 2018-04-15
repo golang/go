@@ -1292,7 +1292,7 @@ var (
 	rxAsmCheck = regexp.MustCompile(reMatchCheck)
 
 	// List of all architecture variants. Key is the GOARCH architecture,
-	// value[1] is the variant-changing environment variable, and values[1:]
+	// value[0] is the variant-changing environment variable, and values[1:]
 	// are the supported variants.
 	archVariants = map[string][]string{
 		"386":     {"GO386", "387", "sse2"},
@@ -1317,18 +1317,18 @@ type wantedAsmOpcode struct {
 }
 
 // A build environment triplet separated by slashes (eg: linux/386/sse2).
-// The third field can be empty if the arch does not support variants (eg: "plan9/amd64")
+// The third field can be empty if the arch does not support variants (eg: "plan9/amd64/")
 type buildEnv string
 
 // Environ returns the environment it represents in cmd.Environ() "key=val" format
 // For instance, "linux/386/sse2".Environ() returns {"GOOS=linux", "GOARCH=386", "GO386=sse2"}
 func (b buildEnv) Environ() []string {
 	fields := strings.Split(string(b), "/")
-	if len(fields) != 3 && len(fields) != 2 {
+	if len(fields) != 3 {
 		panic("invalid buildEnv string: " + string(b))
 	}
 	env := []string{"GOOS=" + fields[0], "GOARCH=" + fields[1]}
-	if len(fields) == 3 {
+	if fields[2] != "" {
 		env = append(env, archVariants[fields[1]][0]+"="+fields[2])
 	}
 	return env
@@ -1395,7 +1395,7 @@ func (t *test) wantedAsmOpcodes(fn string) asmChecks {
 			} else {
 				subarchs := archVariants[arch]
 				if len(subarchs) == 0 {
-					envs = append(envs, buildEnv(os+"/"+arch))
+					envs = append(envs, buildEnv(os+"/"+arch+"/"))
 				} else {
 					for _, sa := range archVariants[arch][1:] {
 						envs = append(envs, buildEnv(os+"/"+arch+"/"+sa))
