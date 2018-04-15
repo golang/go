@@ -21,26 +21,24 @@ package main
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
-	"flag"
 	"fmt"
 	"go/build"
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
 
 const debug = false
-
-var errRetry = errors.New("failed to start test harness (retry attempted)")
 
 var tmpdir string
 
@@ -88,10 +86,17 @@ func main() {
 		bundleID = parts[1]
 	}
 
+	os.Exit(runMain())
+}
+
+func runMain() int {
 	var err error
 	tmpdir, err = ioutil.TempDir("", "go_darwin_arm_exec_")
 	if err != nil {
 		log.Fatal(err)
+	}
+	if !debug {
+		defer os.RemoveAll(tmpdir)
 	}
 
 	appdir := filepath.Join(tmpdir, "gotest.app")
@@ -116,28 +121,36 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Approximately 1 in a 100 binaries fail to start. If it happens,
-	// try again. These failures happen for several reasons beyond
-	// our control, but all of them are safe to retry as they happen
-	// before lldb encounters the initial getwd breakpoint. As we
-	// know the tests haven't started, we are not hiding flaky tests
-	// with this retry.
-	for i := 0; i < 5; i++ {
-		if i > 0 {
-			fmt.Fprintln(os.Stderr, "start timeout, trying again")
-		}
-		err = run(appdir, os.Args[2:])
-		if err == nil || err != errRetry {
-			break
-		}
+	if err := install(appdir); err != nil {
+		log.Fatal(err)
 	}
-	if !debug {
-		os.RemoveAll(tmpdir)
-	}
+
+	deviceApp, err := findDeviceAppPath(bundleID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go_darwin_arm_exec: %v\n", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
+
+	if err := mountDevImage(); err != nil {
+		log.Fatal(err)
+	}
+
+	closer, err := startDebugBridge()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer closer()
+
+	if err := run(appdir, deviceApp, os.Args[2:]); err != nil {
+		// If the lldb driver completed with an exit code, use that.
+		if err, ok := err.(*exec.ExitError); ok {
+			if ws, ok := err.Sys().(interface{ ExitStatus() int }); ok {
+				return ws.ExitStatus()
+			}
+		}
+		fmt.Fprintf(os.Stderr, "go_darwin_arm_exec: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 func getenv(envvar string) string {
@@ -191,282 +204,209 @@ func assembleApp(appdir, bin string) error {
 	return nil
 }
 
-func run(appdir string, args []string) (err error) {
-	oldwd, err := os.Getwd()
+// mountDevImage ensures a developer image is mounted on the device.
+// The image contains the device lldb server for idevicedebugserverproxy
+// to connect to.
+func mountDevImage() error {
+	// Check for existing mount.
+	cmd := idevCmd(exec.Command("ideviceimagemounter", "-l"))
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return err
+		os.Stderr.Write(out)
+		return fmt.Errorf("ideviceimagemounter: %v", err)
 	}
-	if err := os.Chdir(filepath.Join(appdir, "..")); err != nil {
-		return err
-	}
-	defer os.Chdir(oldwd)
-
-	// Setting up lldb is flaky. The test binary itself runs when
-	// started is set to true. Everything before that is considered
-	// part of the setup and is retried.
-	started := false
-	defer func() {
-		if r := recover(); r != nil {
-			if w, ok := r.(waitPanic); ok {
-				err = w.err
-				if !started {
-					fmt.Printf("lldb setup error: %v\n", err)
-					err = errRetry
-				}
-				return
-			}
-			panic(r)
-		}
-	}()
-
-	defer exec.Command("killall", "ios-deploy").Run() // cleanup
-	exec.Command("killall", "ios-deploy").Run()
-
-	var opts options
-	opts, args = parseArgs(args)
-
-	// ios-deploy invokes lldb to give us a shell session with the app.
-	s, err := newSession(appdir, args, opts)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		b := s.out.Bytes()
-		if err == nil && !debug {
-			i := bytes.Index(b, []byte("(lldb) process continue"))
-			if i > 0 {
-				b = b[i:]
-			}
-		}
-		os.Stdout.Write(b)
-	}()
-
-	cond := func(out *buf) bool {
-		i0 := s.out.LastIndex([]byte("(lldb)"))
-		i1 := s.out.LastIndex([]byte("fruitstrap"))
-		i2 := s.out.LastIndex([]byte(" connect"))
-		return i0 > 0 && i1 > 0 && i2 > 0
-	}
-	if err := s.wait("lldb start", cond, 15*time.Second); err != nil {
-		panic(waitPanic{err})
-	}
-
-	// Script LLDB. Oh dear.
-	s.do(`process handle SIGHUP  --stop false --pass true --notify false`)
-	s.do(`process handle SIGPIPE --stop false --pass true --notify false`)
-	s.do(`process handle SIGUSR1 --stop false --pass true --notify false`)
-	s.do(`process handle SIGCONT --stop false --pass true --notify false`)
-	s.do(`process handle SIGSEGV --stop false --pass true --notify false`) // does not work
-	s.do(`process handle SIGBUS  --stop false --pass true --notify false`) // does not work
-
-	if opts.lldb {
-		_, err := io.Copy(s.in, os.Stdin)
-		if err != io.EOF {
-			return err
-		}
+	if len(out) > 0 {
+		// Assume there is an image mounted
 		return nil
 	}
-
-	started = true
-	startTestsLen := s.out.Len()
-
-	fmt.Fprintln(s.in, "run")
-
-	passed := func(out *buf) bool {
-		// Just to make things fun, lldb sometimes translates \n into \r\n.
-		return s.out.LastIndex([]byte("\nPASS\n")) > startTestsLen ||
-			s.out.LastIndex([]byte("\nPASS\r")) > startTestsLen ||
-			s.out.LastIndex([]byte("\n(lldb) PASS\n")) > startTestsLen ||
-			s.out.LastIndex([]byte("\n(lldb) PASS\r")) > startTestsLen ||
-			s.out.LastIndex([]byte("exited with status = 0 (0x00000000) \n")) > startTestsLen ||
-			s.out.LastIndex([]byte("exited with status = 0 (0x00000000) \r")) > startTestsLen
-	}
-	err = s.wait("test completion", passed, opts.timeout)
-	if passed(s.out) {
-		// The returned lldb error code is usually non-zero.
-		// We check for test success by scanning for the final
-		// PASS returned by the test harness, assuming the worst
-		// in its absence.
-		return nil
-	}
-	return err
-}
-
-type lldbSession struct {
-	cmd      *exec.Cmd
-	in       *os.File
-	out      *buf
-	timedout chan struct{}
-	exited   chan error
-}
-
-func newSession(appdir string, args []string, opts options) (*lldbSession, error) {
-	lldbr, in, err := os.Pipe()
+	// No image is mounted. Find a suitable image.
+	imgPath, err := findDevImage()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	s := &lldbSession{
-		in:     in,
-		out:    new(buf),
-		exited: make(chan error),
+	sigPath := imgPath + ".signature"
+	cmd = idevCmd(exec.Command("ideviceimagemounter", imgPath, sigPath))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		os.Stderr.Write(out)
+		return fmt.Errorf("ideviceimagemounter: %v", err)
 	}
+	return nil
+}
 
-	iosdPath, err := exec.LookPath("ios-deploy")
+// findDevImage use the device iOS version and build to locate a suitable
+// developer image.
+func findDevImage() (string, error) {
+	cmd := idevCmd(exec.Command("ideviceinfo"))
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("ideviceinfo: %v", err)
 	}
-	cmdArgs := []string{
-		// lldb tries to be clever with terminals.
-		// So we wrap it in script(1) and be clever
-		// right back at it.
-		"script",
-		"-q", "-t", "0",
-		"/dev/null",
-
-		iosdPath,
-		"--debug",
-		"-u",
-		"-n",
-		`--args=` + strings.Join(args, " ") + ``,
-		"--bundle", appdir,
-	}
-	if deviceID != "" {
-		cmdArgs = append(cmdArgs, "--id", deviceID)
-	}
-	s.cmd = exec.Command(cmdArgs[0], cmdArgs[1:]...)
-	if debug {
-		log.Println(strings.Join(s.cmd.Args, " "))
-	}
-
-	var out io.Writer = s.out
-	if opts.lldb {
-		out = io.MultiWriter(out, os.Stderr)
-	}
-	s.cmd.Stdout = out
-	s.cmd.Stderr = out // everything of interest is on stderr
-	s.cmd.Stdin = lldbr
-
-	if err := s.cmd.Start(); err != nil {
-		return nil, fmt.Errorf("ios-deploy failed to start: %v", err)
-	}
-
-	// Manage the -test.timeout here, outside of the test. There is a lot
-	// of moving parts in an iOS test harness (notably lldb) that can
-	// swallow useful stdio or cause its own ruckus.
-	if opts.timeout > 1*time.Second {
-		s.timedout = make(chan struct{})
-		time.AfterFunc(opts.timeout-1*time.Second, func() {
-			close(s.timedout)
-		})
-	}
-
-	go func() {
-		s.exited <- s.cmd.Wait()
-	}()
-
-	return s, nil
-}
-
-func (s *lldbSession) do(cmd string) { s.doCmd(cmd, "(lldb)", 0) }
-
-func (s *lldbSession) doCmd(cmd string, waitFor string, extraTimeout time.Duration) {
-	startLen := s.out.Len()
-	fmt.Fprintln(s.in, cmd)
-	cond := func(out *buf) bool {
-		i := s.out.LastIndex([]byte(waitFor))
-		return i > startLen
-	}
-	if err := s.wait(fmt.Sprintf("running cmd %q", cmd), cond, extraTimeout); err != nil {
-		panic(waitPanic{err})
-	}
-}
-
-func (s *lldbSession) wait(reason string, cond func(out *buf) bool, extraTimeout time.Duration) error {
-	doTimeout := 2*time.Second + extraTimeout
-	doTimedout := time.After(doTimeout)
-	for {
-		select {
-		case <-s.timedout:
-			if p := s.cmd.Process; p != nil {
-				p.Kill()
-			}
-			return fmt.Errorf("test timeout (%s)", reason)
-		case <-doTimedout:
-			if p := s.cmd.Process; p != nil {
-				p.Kill()
-			}
-			return fmt.Errorf("command timeout (%s for %v)", reason, doTimeout)
-		case err := <-s.exited:
-			return fmt.Errorf("exited (%s: %v)", reason, err)
-		default:
-			if cond(s.out) {
-				return nil
-			}
-			time.Sleep(20 * time.Millisecond)
-		}
-	}
-}
-
-type buf struct {
-	mu  sync.Mutex
-	buf []byte
-}
-
-func (w *buf) Write(in []byte) (n int, err error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.buf = append(w.buf, in...)
-	return len(in), nil
-}
-
-func (w *buf) LastIndex(sep []byte) int {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return bytes.LastIndex(w.buf, sep)
-}
-
-func (w *buf) Bytes() []byte {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	b := make([]byte, len(w.buf))
-	copy(b, w.buf)
-	return b
-}
-
-func (w *buf) Len() int {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return len(w.buf)
-}
-
-type waitPanic struct {
-	err error
-}
-
-type options struct {
-	timeout time.Duration
-	lldb    bool
-}
-
-func parseArgs(binArgs []string) (opts options, remainingArgs []string) {
-	var flagArgs []string
-	for _, arg := range binArgs {
-		if strings.Contains(arg, "-test.timeout") {
-			flagArgs = append(flagArgs, arg)
-		}
-		if strings.Contains(arg, "-lldb") {
-			flagArgs = append(flagArgs, arg)
+	var iosVer, buildVer string
+	lines := bytes.Split(out, []byte("\n"))
+	for _, line := range lines {
+		spl := bytes.SplitN(line, []byte(": "), 2)
+		if len(spl) != 2 {
 			continue
 		}
-		remainingArgs = append(remainingArgs, arg)
+		key, val := string(spl[0]), string(spl[1])
+		switch key {
+		case "ProductVersion":
+			iosVer = val
+		case "BuildVersion":
+			buildVer = val
+		}
 	}
-	f := flag.NewFlagSet("", flag.ContinueOnError)
-	f.DurationVar(&opts.timeout, "test.timeout", 10*time.Minute, "")
-	f.BoolVar(&opts.lldb, "lldb", false, "")
-	f.Parse(flagArgs)
-	return opts, remainingArgs
+	if iosVer == "" || buildVer == "" {
+		return "", errors.New("failed to parse ideviceinfo output")
+	}
+	sdkBase := "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport"
+	patterns := []string{fmt.Sprintf("%s (%s)", iosVer, buildVer), fmt.Sprintf("%s (*)", iosVer), fmt.Sprintf("%s*", iosVer)}
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(filepath.Join(sdkBase, pattern, "DeveloperDiskImage.dmg"))
+		if err != nil {
+			return "", fmt.Errorf("findDevImage: %v", err)
+		}
+		if len(matches) > 0 {
+			return matches[0], nil
+		}
+	}
+	return "", fmt.Errorf("failed to find matching developer image for iOS version %s build %s", iosVer, buildVer)
+}
 
+// startDebugBridge ensures that the idevicedebugserverproxy runs on
+// port 3222.
+func startDebugBridge() (func(), error) {
+	errChan := make(chan error, 1)
+	cmd := idevCmd(exec.Command("idevicedebugserverproxy", "3222"))
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("idevicedebugserverproxy: %v", err)
+	}
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			if _, ok := err.(*exec.ExitError); ok {
+				errChan <- fmt.Errorf("idevicedebugserverproxy: %s", stderr.Bytes())
+			} else {
+				errChan <- fmt.Errorf("idevicedebugserverproxy: %v", err)
+			}
+		}
+		errChan <- nil
+	}()
+	closer := func() {
+		cmd.Process.Kill()
+		<-errChan
+	}
+	// Dial localhost:3222 to ensure the proxy is ready.
+	delay := time.Second / 4
+	for attempt := 0; attempt < 5; attempt++ {
+		conn, err := net.DialTimeout("tcp", "localhost:3222", 5*time.Second)
+		if err == nil {
+			conn.Close()
+			return closer, nil
+		}
+		select {
+		case <-time.After(delay):
+			delay *= 2
+		case err := <-errChan:
+			return nil, err
+		}
+	}
+	closer()
+	return nil, errors.New("failed to set up idevicedebugserverproxy")
+}
+
+// findDeviceAppPath returns the device path to the app with the
+// given bundle ID. It parses the output of ideviceinstaller -l -o xml,
+// looking for the bundle ID and the corresponding Path value.
+func findDeviceAppPath(bundleID string) (string, error) {
+	cmd := idevCmd(exec.Command("ideviceinstaller", "-l", "-o", "xml"))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		os.Stderr.Write(out)
+		return "", fmt.Errorf("ideviceinstaller: -l -o xml %v", err)
+	}
+	var list struct {
+		Apps []struct {
+			Data []byte `xml:",innerxml"`
+		} `xml:"array>dict"`
+	}
+	if err := xml.Unmarshal(out, &list); err != nil {
+		return "", fmt.Errorf("failed to parse ideviceinstaller outout: %v", err)
+	}
+	for _, app := range list.Apps {
+		d := xml.NewDecoder(bytes.NewReader(app.Data))
+		values := make(map[string]string)
+		var key string
+		var hasKey bool
+		for {
+			tok, err := d.Token()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return "", fmt.Errorf("failed to device app data: %v", err)
+			}
+			if tok, ok := tok.(xml.StartElement); ok {
+				if tok.Name.Local == "key" {
+					if err := d.DecodeElement(&key, &tok); err != nil {
+						return "", fmt.Errorf("failed to device app data: %v", err)
+					}
+					hasKey = true
+				} else if hasKey {
+					var val string
+					if err := d.DecodeElement(&val, &tok); err != nil {
+						return "", fmt.Errorf("failed to device app data: %v", err)
+					}
+					values[key] = val
+					hasKey = false
+				} else {
+					if err := d.Skip(); err != nil {
+						return "", fmt.Errorf("failed to device app data: %v", err)
+					}
+				}
+			}
+		}
+		if values["CFBundleIdentifier"] == bundleID {
+			if path, ok := values["Path"]; ok {
+				return path, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("failed to find device path for bundle: %s", bundleID)
+}
+
+func install(appdir string) error {
+	cmd := idevCmd(exec.Command(
+		"ideviceinstaller",
+		"-i", appdir,
+	))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		os.Stderr.Write(out)
+		return fmt.Errorf("ideviceinstaller -i %q: %v", appdir, err)
+	}
+	return nil
+}
+
+func idevCmd(cmd *exec.Cmd) *exec.Cmd {
+	if deviceID != "" {
+		cmd.Args = append(cmd.Args, "-u", deviceID)
+	}
+	return cmd
+}
+
+func run(appdir, deviceapp string, args []string) error {
+	lldb := exec.Command(
+		"python",
+		"-", // Read script from stdin.
+		appdir,
+		deviceapp,
+	)
+	lldb.Args = append(lldb.Args, args...)
+	lldb.Stdin = strings.NewReader(lldbDriver)
+	lldb.Stdout = os.Stdout
+	lldb.Stderr = os.Stderr
+	return lldb.Run()
 }
 
 func copyLocalDir(dst, src string) error {
@@ -661,4 +601,77 @@ const resourceRules = `<?xml version="1.0" encoding="UTF-8"?>
 	</dict>
 </dict>
 </plist>
+`
+
+const lldbDriver = `
+import sys
+import os
+
+exe, device_exe, args = sys.argv[1], sys.argv[2], sys.argv[3:]
+
+env = []
+for k, v in os.environ.items():
+	env.append(k + "=" + v)
+
+sys.path.append('/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Resources/Python')
+
+import lldb
+
+debugger = lldb.SBDebugger.Create()
+debugger.SetAsync(True)
+debugger.SkipLLDBInitFiles(True)
+
+err = lldb.SBError()
+target = debugger.CreateTarget(exe, None, 'remote-ios', True, err)
+if not target.IsValid() or not err.Success():
+	sys.stderr.write("lldb: failed to setup up target: %s\n" % (err))
+	sys.exit(1)
+
+target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_exe))
+
+listener = debugger.GetListener()
+process = target.ConnectRemote(listener, 'connect://localhost:3222', None, err)
+if not err.Success():
+	sys.stderr.write("lldb: failed to connect to remote target: %s\n" % (err))
+	sys.exit(1)
+
+# Don't stop on signals.
+sigs = process.GetUnixSignals()
+for i in range(0, sigs.GetNumSignals()):
+	sig = sigs.GetSignalAtIndex(i)
+	sigs.SetShouldStop(sig, False)
+	sigs.SetShouldNotify(sig, False)
+
+event = lldb.SBEvent()
+while True:
+	if not listener.WaitForEvent(1, event):
+		continue
+	if not lldb.SBProcess.EventIsProcessEvent(event):
+		continue
+	# Pass through stdout and stderr.
+	while True:
+		out = process.GetSTDOUT(8192)
+		if not out:
+			break
+		sys.stdout.write(out)
+	while True:
+		out = process.GetSTDERR(8192)
+		if not out:
+			break
+		sys.stderr.write(out)
+	state = process.GetStateFromEvent(event)
+	if state == lldb.eStateCrashed or state == lldb.eStateDetached or state == lldb.eStateUnloaded or state == lldb.eStateExited:
+		break
+	elif state == lldb.eStateConnected:
+		process.RemoteLaunch(args, env, None, None, None, None, 0, False, err)
+		if not err.Success():
+			sys.stderr.write("lldb: failed to launch remote process: %s\n" % (err))
+			sys.exit(1)
+		# Process stops once at the beginning. Continue.
+		process.Continue()
+
+exitStatus = process.GetExitStatus()
+process.Kill()
+debugger.Terminate()
+sys.exit(exitStatus)
 `
