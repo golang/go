@@ -389,70 +389,78 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		}
 	}
 
-	// Process: x+delta > w    (with delta,w constants)
-	//
-	// We want to derive: x+delta > w  ⇒  x > w-delta
-	//
-	// We do this for signed numbers for now, as that allows to prove many
-	// accesses to slices in loops.
-	//
-	// From x+delta > w, we compute (using integers of the correct size):
-	//    min = w - delta
-	//    max = MaxInt - delta
-	//
-	// And we prove that:
-	//    if min<max: min < x AND x <= max
-	//    if min>max: min < x OR  x <= max
-	//
-	// This is always correct, even in case of overflow.
-	//
-	// If the initial fact is x+delta >= w instead, the derived conditions are:
-	//    if min<max: min <= x AND x <= max
-	//    if min>max: min <= x OR  x <= max
-	//
-	// Notice the conditions for max are still <=, as they handle overflows.
+	// Process: x+delta > w (with delta constant)
+	// Only signed domain for now (useful for accesses to slices in loops).
 	if r == gt || r == gt|eq {
-		if x, delta := isConstDelta(v); x != nil && w.isGenericIntConst() && d == signed {
+		if x, delta := isConstDelta(v); x != nil && d == signed {
 			if parent.Func.pass.debug > 1 {
 				parent.Func.Warnl(parent.Pos, "x+d >= w; x:%v %v delta:%v w:%v d:%v", x, parent.String(), delta, w.AuxInt, d)
 			}
-
-			var min, max int64
-			var vmin, vmax *Value
-			switch x.Type.Size() {
-			case 8:
-				min = w.AuxInt - delta
-				max = int64(^uint64(0)>>1) - delta
-
-				vmin = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, min)
-				vmax = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, max)
-
-			case 4:
-				min = int64(int32(w.AuxInt) - int32(delta))
-				max = int64(int32(^uint32(0)>>1) - int32(delta))
-
-				vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
-				vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
-
-			default:
-				panic("unimplemented")
-			}
-
-			if min < max {
-				// Record that x > min and max >= x
-				ft.update(parent, x, vmin, d, r)
-				ft.update(parent, vmax, x, d, r|eq)
+			if !w.isGenericIntConst() {
+				// If we know that x+delta > w but w is not constant, we can derive:
+				//    if delta < 0 and x > MinInt - delta, then x > w (because x+delta cannot underflow)
+				// This is useful for loops with bounds "len(slice)-K" (delta = -K)
+				if l, has := ft.limits[x.ID]; has && delta < 0 {
+					if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
+						(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
+						ft.update(parent, x, w, signed, r)
+					}
+				}
 			} else {
-				// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
-				// so let's see if we can already prove that one of them is false, in which case
-				// the other must be true
-				if l, has := ft.limits[x.ID]; has {
-					if l.max <= min {
-						// x>min is impossible, so it must be x<=max
-						ft.update(parent, vmax, x, d, r|eq)
-					} else if l.min > max {
-						// x<=max is impossible, so it must be x>min
-						ft.update(parent, x, vmin, d, r)
+				// With w,delta constants, we want to derive: x+delta > w  ⇒  x > w-delta
+				//
+				// We compute (using integers of the correct size):
+				//    min = w - delta
+				//    max = MaxInt - delta
+				//
+				// And we prove that:
+				//    if min<max: min < x AND x <= max
+				//    if min>max: min < x OR  x <= max
+				//
+				// This is always correct, even in case of overflow.
+				//
+				// If the initial fact is x+delta >= w instead, the derived conditions are:
+				//    if min<max: min <= x AND x <= max
+				//    if min>max: min <= x OR  x <= max
+				//
+				// Notice the conditions for max are still <=, as they handle overflows.
+				var min, max int64
+				var vmin, vmax *Value
+				switch x.Type.Size() {
+				case 8:
+					min = w.AuxInt - delta
+					max = int64(^uint64(0)>>1) - delta
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, max)
+
+				case 4:
+					min = int64(int32(w.AuxInt) - int32(delta))
+					max = int64(int32(^uint32(0)>>1) - int32(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
+
+				default:
+					panic("unimplemented")
+				}
+
+				if min < max {
+					// Record that x > min and max >= x
+					ft.update(parent, x, vmin, d, r)
+					ft.update(parent, vmax, x, d, r|eq)
+				} else {
+					// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
+					// so let's see if we can already prove that one of them is false, in which case
+					// the other must be true
+					if l, has := ft.limits[x.ID]; has {
+						if l.max <= min {
+							// x>min is impossible, so it must be x<=max
+							ft.update(parent, vmax, x, d, r|eq)
+						} else if l.min > max {
+							// x<=max is impossible, so it must be x>min
+							ft.update(parent, x, vmin, d, r)
+						}
 					}
 				}
 			}
@@ -661,24 +669,43 @@ func prove(f *Func) {
 	ft := newFactsTable()
 
 	// Find length and capacity ops.
+	var zero *Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
+			// If we found a zero constant, save it (so we don't have
+			// to build one later).
+			if zero == nil && v.Op == OpConst64 && v.AuxInt == 0 {
+				zero = v
+			}
 			if v.Uses == 0 {
 				// We don't care about dead values.
 				// (There can be some that are CSEd but not removed yet.)
 				continue
 			}
 			switch v.Op {
+			case OpStringLen:
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			case OpSliceLen:
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
 				}
 				ft.lens[v.Args[0].ID] = v
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			case OpSliceCap:
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
 				ft.caps[v.Args[0].ID] = v
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			}
 		}
 	}
