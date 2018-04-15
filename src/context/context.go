@@ -334,8 +334,9 @@ func (c *cancelCtx) Done() <-chan struct{} {
 
 func (c *cancelCtx) Err() error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.err
+	err := c.err
+	c.mu.Unlock()
+	return err
 }
 
 func (c *cancelCtx) String() string {
