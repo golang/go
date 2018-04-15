@@ -71,3 +71,25 @@ func FusedSub64(x, y, z float64) float64 {
 	// ppc64le:"FMSUB\t"
 	return x*y - z
 }
+
+// ---------------- //
+//    Non-floats    //
+// ---------------- //
+
+// We should make sure that the compiler doesn't generate floating point
+// instructions for non-float operations on Plan 9, because floating point
+// operations are not allowed in the note handler.
+
+func ArrayZero() [16]byte {
+	// amd64:"MOVUPS"
+	// plan9/amd64/:-"MOVUPS"
+	var a [16]byte
+	return a
+}
+
+func ArrayCopy(a [16]byte) (b [16]byte) {
+	// amd64:"MOVUPS"
+	// plan9/amd64/:-"MOVUPS"
+	b = a
+	return
+}

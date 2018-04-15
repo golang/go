@@ -220,39 +220,7 @@ func (ats *asmTests) runGo(t *testing.T, args ...string) string {
 	return stdout.String()
 }
 
-var allAsmTests = []*asmTests{
-	{
-		arch:  "amd64",
-		os:    "plan9",
-		tests: plan9AMD64Tests,
-	},
-}
-
-var plan9AMD64Tests = []*asmTest{
-	// We should make sure that the compiler doesn't generate floating point
-	// instructions for non-float operations on Plan 9, because floating point
-	// operations are not allowed in the note handler.
-	// Array zeroing.
-	{
-		fn: `
-		func $() [16]byte {
-			var a [16]byte
-			return a
-		}
-		`,
-		pos: []string{"\tMOVQ\t\\$0, \"\""},
-	},
-	// Array copy.
-	{
-		fn: `
-		func $(a [16]byte) (b [16]byte) {
-			b = a
-			return
-		}
-		`,
-		pos: []string{"\tMOVQ\t\"\"\\.a\\+[0-9]+\\(SP\\), (AX|CX)", "\tMOVQ\t(AX|CX), \"\"\\.b\\+[0-9]+\\(SP\\)"},
-	},
-}
+var allAsmTests = []*asmTests{}
 
 // TestLineNumber checks to make sure the generated assembly has line numbers
 // see issue #16214
