@@ -2619,13 +2619,6 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			return Yyvm
 		}
 		if ctxt.Arch.Family == sys.AMD64 {
-			// Offset must fit in a 32-bit signed field (or fit in a 32-bit unsigned field
-			// where the sign extension doesn't matter).
-			// Note: The latter happens only in assembly, for example crypto/sha1/sha1block_amd64.s.
-			if !(a.Offset == int64(int32(a.Offset)) ||
-				a.Offset == int64(uint32(a.Offset)) && p.As == ALEAL) {
-				return Yxxx
-			}
 			switch a.Name {
 			case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
 				// Global variables can't use index registers and their
@@ -3242,15 +3235,26 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 	var rel obj.Reloc
 
 	rex &= 0x40 | Rxr
-	switch {
-	case int64(int32(a.Offset)) == a.Offset:
-		// Offset fits in sign-extended 32 bits.
-	case int64(uint32(a.Offset)) == a.Offset && ab.rexflag&Rxw == 0:
-		// Offset fits in zero-extended 32 bits in a 32-bit instruction.
+	if a.Offset != int64(int32(a.Offset)) {
+		// The rules are slightly different for 386 and AMD64,
+		// mostly for historical reasons. We may unify them later,
+		// but it must be discussed beforehand.
+		//
+		// For 64bit mode only LEAL is allowed to overflow.
+		// It's how https://golang.org/cl/59630 made it.
+		// crypto/sha1/sha1block_amd64.s depends on this feature.
+		//
+		// For 32bit mode rules are more permissive.
+		// If offset fits uint32, it's permitted.
 		// This is allowed for assembly that wants to use 32-bit hex
 		// constants, e.g. LEAL 0x99999999(AX), AX.
-	default:
-		ctxt.Diag("offset too large in %s", p)
+		overflowOK := (ctxt.Arch.Family == sys.AMD64 && p.As == ALEAL) ||
+			(ctxt.Arch.Family != sys.AMD64 &&
+				int64(uint32(a.Offset)) == a.Offset &&
+				ab.rexflag&Rxw == 0)
+		if !overflowOK {
+			ctxt.Diag("offset too large in %s", p)
+		}
 	}
 	v := int32(a.Offset)
 	rel.Siz = 0
