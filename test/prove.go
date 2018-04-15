@@ -42,8 +42,8 @@ func f1b(a []int, i int, j uint) int {
 	if i >= 10 && i < len(a) {
 		return a[i] // ERROR "Proved IsInBounds$"
 	}
-	if i >= 10 && i < len(a) { // todo: handle this case
-		return a[i-10]
+	if i >= 10 && i < len(a) {
+		return a[i-10] // ERROR "Proved IsInBounds$"
 	}
 	if j < uint(len(a)) {
 		return a[j] // ERROR "Proved IsInBounds$"
@@ -611,6 +611,41 @@ func trans3(a, b []int, i int) {
 
 	_ = a[i]
 	_ = b[i] // ERROR "Proved IsInBounds$"
+}
+
+// Derived from nat.cmp
+func natcmp(x, y []uint) (r int) {
+	m := len(x)
+	n := len(y)
+	if m != n || m == 0 {
+		return
+	}
+
+	i := m - 1
+	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment -1"
+		x[i] == // ERROR "Proved IsInBounds$"
+			y[i] { // ERROR "Proved IsInBounds$"
+		i--
+	}
+
+	switch {
+	case x[i] < // todo, cannot prove this because it's dominated by i<=0 || x[i]==y[i]
+		y[i]: // ERROR "Proved IsInBounds$"
+		r = -1
+	case x[i] > // ERROR "Proved IsInBounds$"
+		y[i]: // ERROR "Proved IsInBounds$"
+		r = 1
+	}
+	return
+}
+
+func suffix(s, suffix string) bool {
+	// todo, we're still not able to drop the bound check here in the general case
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+func constsuffix(s string) bool {
+	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$"
 }
 
 //go:noinline

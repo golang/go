@@ -100,6 +100,22 @@ func g0d(a string) int {
 	return x
 }
 
+func g0e(a string) int {
+	x := 0
+	for i := len(a) - 1; i >= 0; i-- { // ERROR "Induction variable: limits \[0,\?\], increment -1$"
+		x += int(a[i]) // ERROR "Proved IsInBounds$"
+	}
+	return x
+}
+
+func g0f(a string) int {
+	x := 0
+	for i := len(a) - 1; 0 <= i; i-- { // ERROR "Induction variable: limits \[0,\?\], increment -1$"
+		x += int(a[i]) // ERROR "Proved IsInBounds$"
+	}
+	return x
+}
+
 func g1() int {
 	a := "evenlength"
 	x := 0
@@ -265,7 +281,14 @@ func nobce2(a string) {
 		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
 	}
 	for i := int64(0); i < int64(len(a))+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		// tests an overflow of StringLen-MinInt64
+		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
+	}
+	j := int64(len(a)) - 123
+	for i := int64(0); i < j+123+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
+	}
+	for i := int64(0); i < j+122+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+		// len(a)-123+122+MinInt overflows when len(a) == 0, so a bound check is needed here
 		useString(a[i:])
 	}
 }
