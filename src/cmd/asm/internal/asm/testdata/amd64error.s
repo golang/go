@@ -34,4 +34,15 @@ TEXT errors(SB),$0
 	VPGATHERDQ X7, 664(X2*8), X2    // ERROR "mask, index, and destination registers should be distinct"
 	// Non-X0 for Yxr0 should produce an error
 	BLENDVPD X1, (BX), X2           // ERROR "invalid instruction"
+	// Check offset overflow. Must fit in int32.
+	MOVQ 2147483647+1(AX), AX       // ERROR "offset too large"
+	MOVQ 3395469782(R10), R8        // ERROR "offset too large"
+	LEAQ 3395469782(AX), AX         // ERROR "offset too large"
+	ADDQ 3395469782(AX), AX         // ERROR "offset too large"
+	ADDL 3395469782(AX), AX         // ERROR "offset too large"
+	ADDW 3395469782(AX), AX         // ERROR "offset too large"
+	LEAQ 433954697820(AX), AX       // ERROR "offset too large"
+	ADDQ 433954697820(AX), AX       // ERROR "offset too large"
+	ADDL 433954697820(AX), AX       // ERROR "offset too large"
+	ADDW 433954697820(AX), AX       // ERROR "offset too large"
 	RET
