@@ -841,7 +841,7 @@
 (MOVSDstoreidx8 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx8 [int64(int32(c+8*d))] {sym} ptr idx val mem)
 
 // Merge load to op
-((ADD|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR)Lmem x [off] {sym} ptr mem)
+((ADD|AND|OR|XOR|SUB)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR|SUB)Lmem x [off] {sym} ptr mem)
 ((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SDmem x [off] {sym} ptr mem)
 ((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SSmem x [off] {sym} ptr mem)
 

@@ -14871,6 +14871,32 @@ func rewriteValue386_Op386SUBL_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (SUBL x l:(MOVLload [off] {sym} ptr mem))
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (SUBLmem x [off] {sym} ptr mem)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		l := v.Args[1]
+		if l.Op != Op386MOVLload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(Op386SUBLmem)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(x)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
 	// match: (SUBL x x)
 	// cond:
 	// result: (MOVLconst [0])

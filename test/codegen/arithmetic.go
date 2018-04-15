@@ -10,6 +10,16 @@ package codegen
 // simplifications and optimizations on integer types.
 // For codegen tests on float types, see floats.go.
 
+// ----------------- //
+//    Subtraction    //
+// ----------------- //
+
+func SubMem(arr []int) int {
+	// 386:"SUBL\t4"
+	// amd64:"SUBQ\t8"
+	return arr[0] - arr[1]
+}
+
 // -------------------- //
 //    Multiplication    //
 // -------------------- //
