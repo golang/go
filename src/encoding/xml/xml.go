@@ -314,15 +314,14 @@ func (d *Decoder) Token() (Token, error) {
 			}
 		}
 
+		d.pushElement(t1.Name)
 		d.translate(&t1.Name, true)
 		for i := range t1.Attr {
 			d.translate(&t1.Attr[i].Name, false)
 		}
-		d.pushElement(t1.Name)
 		t = t1
 
 	case EndElement:
-		d.translate(&t1.Name, true)
 		if !d.popElement(&t1) {
 			return nil, d.err
 		}
@@ -494,6 +493,8 @@ func (d *Decoder) popElement(t *EndElement) bool {
 			" closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
+
+	d.translate(&t.Name, true)
 
 	// Pop stack until a Start or EOF is on the top, undoing the
 	// translations that were associated with the element we just closed.

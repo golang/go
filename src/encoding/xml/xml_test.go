@@ -1059,6 +1059,41 @@ func TestIssue12417(t *testing.T) {
 	}
 }
 
+func TestIssue20685(t *testing.T) {
+	testCases := []struct {
+		s  string
+		ok bool
+	}{
+		{`<x:book xmlns:x="abcd" xmlns:y="abcd"><unclosetag>one</x:book>`, false},
+		{`<x:book xmlns:x="abcd" xmlns:y="abcd">one</x:book>`, true},
+		{`<x:book xmlns:x="abcd" xmlns:y="abcd">one</y:book>`, false},
+		{`<x:book xmlns:y="abcd" xmlns:x="abcd">one</y:book>`, false},
+		{`<x:book xmlns:x="abcd">one</y:book>`, false},
+		{`<x:book>one</y:book>`, false},
+		{`<xbook>one</ybook>`, false},
+	}
+	for _, tc := range testCases {
+		d := NewDecoder(strings.NewReader(tc.s))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				break
+			}
+		}
+		if err != nil && tc.ok {
+			t.Errorf("%q: Closing tag with namespace : expected no error, got %s", tc.s, err)
+			continue
+		}
+		if err == nil && !tc.ok {
+			t.Errorf("%q: Closing tag with namespace : expected error, got nil", tc.s)
+		}
+	}
+}
+
 func tokenMap(mapping func(t Token) Token) func(TokenReader) TokenReader {
 	return func(src TokenReader) TokenReader {
 		return mapper{
