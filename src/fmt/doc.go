@@ -281,9 +281,11 @@
 	The verbs behave analogously to those of Printf.
 	For example, %x will scan an integer as a hexadecimal number,
 	and %v will scan the default representation format for the value.
-	The Printf verbs %p and %T and the flags # and + are not implemented,
-	and the verbs %e %E %f %F %g and %G are all equivalent and scan any
-	floating-point or complex value.
+	The Printf verbs %p and %T and the flags # and + are not implemented.
+	The verbs %e %E %f %F %g and %G are all equivalent and scan any
+	floating-point or complex value. For float and complex literals in
+	scientific notation, both the decimal (e) and binary (p) exponent
+	formats are supported (for example: "2.3e+7" and "4.5p-8").
 
 	Input processed by verbs is implicitly space-delimited: the
 	implementation of every verb except %c starts by discarding
