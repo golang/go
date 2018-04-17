@@ -282,10 +282,13 @@ func (h *dumper) Write(data []byte) (n int, err error) {
 
 func (h *dumper) Close() (err error) {
 	// See the comments in Write() for the details of this format.
-	if h.used == 0 || h.closed {
+	if h.closed {
 		return
 	}
 	h.closed = true
+	if h.used == 0 {
+		return
+	}
 	h.buf[0] = ' '
 	h.buf[1] = ' '
 	h.buf[2] = ' '
