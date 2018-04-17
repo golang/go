@@ -41,12 +41,12 @@ len_8:
 	MOVD	(R2), R5
 loop_8:
 	// R6 contains substring for comparison
+	CMP	R4, R0
+	BHI	not_found
 	MOVD.P	1(R0), R6
 	CMP	R5, R6
-	BEQ	found
-	CMP	R4, R0
-	BLS	loop_8
-	JMP	not_found
+	BNE	loop_8
+	B	found
 len_2_7:
 	TBZ	$2, R3, len_2_3
 	TBZ	$1, R3, len_4_5
@@ -57,31 +57,29 @@ len_7:
 	// 1-byte overlap with R5
 	MOVWU	3(R2), R6
 loop_7:
+	CMP	R4, R0
+	BHI	not_found
 	MOVWU.P	1(R0), R3
 	CMP	R5, R3
-	BNE	not_equal_7
+	BNE	loop_7
 	MOVWU	2(R0), R3
 	CMP	R6, R3
-	BEQ	found
-not_equal_7:
-	CMP	R4, R0
-	BLS	loop_7
-	JMP	not_found
+	BNE	loop_7
+	B	found
 len_6:
 	// R5 and R6 contain 6-byte sep
 	MOVWU	(R2), R5
 	MOVHU	4(R2), R6
 loop_6:
+	CMP	R4, R0
+	BHI	not_found
 	MOVWU.P	1(R0), R3
 	CMP	R5, R3
-	BNE	not_equal_6
+	BNE	loop_6
 	MOVHU	3(R0), R3
 	CMP	R6, R3
-	BEQ	found
-not_equal_6:
-	CMP	R4, R0
-	BLS	loop_6
-	JMP	not_found
+	BNE	loop_6
+	B	found
 len_4_5:
 	TBZ	$0, R3, len_4
 len_5:
@@ -89,26 +87,25 @@ len_5:
 	MOVWU	(R2), R5
 	MOVBU	4(R2), R7
 loop_5:
+	CMP	R4, R0
+	BHI	not_found
 	MOVWU.P	1(R0), R3
 	CMP	R5, R3
-	BNE	not_equal_5
+	BNE	loop_5
 	MOVBU	3(R0), R3
 	CMP	R7, R3
-	BEQ	found
-not_equal_5:
-	CMP	R4, R0
-	BLS	loop_5
-	JMP	not_found
+	BNE	loop_5
+	B	found
 len_4:
 	// R5 contains 4-byte sep
 	MOVWU	(R2), R5
 loop_4:
+	CMP	R4, R0
+	BHI	not_found
 	MOVWU.P	1(R0), R6
 	CMP	R5, R6
-	BEQ	found
-	CMP	R4, R0
-	BLS	loop_4
-	JMP	not_found
+	BNE	loop_4
+	B	found
 len_2_3:
 	TBZ	$0, R3, len_2
 len_3:
@@ -116,30 +113,29 @@ len_3:
 	MOVHU	(R2), R6
 	MOVBU	2(R2), R7
 loop_3:
+	CMP	R4, R0
+	BHI	not_found
 	MOVHU.P	1(R0), R3
 	CMP	R6, R3
-	BNE	not_equal_3
+	BNE	loop_3
 	MOVBU	1(R0), R3
 	CMP	R7, R3
-	BEQ	found
-not_equal_3:
-	CMP	R4, R0
-	BLS	loop_3
-	JMP	not_found
+	BNE	loop_3
+	B	found
 len_2:
 	// R5 contains 2-byte sep
 	MOVHU	(R2), R5
 loop_2:
+	CMP	R4, R0
+	BHI	not_found
 	MOVHU.P	1(R0), R6
 	CMP	R5, R6
-	BEQ	found
-	CMP	R4, R0
-	BLS	loop_2
-not_found:
-	MOVD	$-1, R0
-	MOVD	R0, (R9)
-	RET
+	BNE	loop_2
 found:
 	SUB	R8, R0, R0
+	MOVD	R0, (R9)
+	RET
+not_found:
+	MOVD	$-1, R0
 	MOVD	R0, (R9)
 	RET
