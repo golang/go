@@ -72,10 +72,6 @@ func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
 
 func dumpexport(bout *bio.Writer) {
-	if buildid != "" {
-		exportf(bout, "build id %q\n", buildid)
-	}
-
 	size := 0 // size of export section without enclosing markers
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
