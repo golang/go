@@ -45,17 +45,38 @@ func (r *Ring) Move(n int) *Ring {
 	if r.next == nil {
 		return r.init()
 	}
-	switch {
-	case n < 0:
-		for ; n < 0; n++ {
-			r = r.prev
+	if n == 0 {
+		return r
+	}
+	p := r
+	l := 0
+	isForward := n > 0
+	if !isForward {
+		n = -n
+	}
+	for l < n {
+		l++
+		if isForward {
+			p = p.next
+		} else {
+			p = p.prev
 		}
-	case n > 0:
-		for ; n > 0; n-- {
-			r = r.next
+		// Note: avoid meaningless foreach
+		if p == r {
+			if n >= l {
+				n = n % l
+			}
+			for ; n > 0; n-- {
+				if isForward {
+					p = p.next
+				} else {
+					p = p.prev
+				}
+			}
+			break
 		}
 	}
-	return r
+	return p
 }
 
 // New creates a ring of n elements.
