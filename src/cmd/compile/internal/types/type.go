@@ -132,7 +132,7 @@ type Type struct {
 	// TFORW: *Forward
 	// TFUNC: *Func
 	// TSTRUCT: *Struct
-	// TINTER: *Inter
+	// TINTER: *Interface
 	// TDDDFIELD: DDDField
 	// TFUNCARGS: FuncArgs
 	// TCHANARGS: ChanArgs
@@ -183,6 +183,40 @@ func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
 
+// Pkg returns the package that t appeared in.
+//
+// Pkg is only defined for function, struct, and interface types
+// (i.e., types with named elements). This information isn't used by
+// cmd/compile itself, but we need to track it because it's exposed by
+// the go/types API.
+func (t *Type) Pkg() *Pkg {
+	switch t.Etype {
+	case TFUNC:
+		return t.Extra.(*Func).pkg
+	case TSTRUCT:
+		return t.Extra.(*Struct).pkg
+	case TINTER:
+		return t.Extra.(*Interface).pkg
+	default:
+		Fatalf("Pkg: unexpected kind: %v", t)
+		return nil
+	}
+}
+
+// SetPkg sets the package that t appeared in.
+func (t *Type) SetPkg(pkg *Pkg) {
+	switch t.Etype {
+	case TFUNC:
+		t.Extra.(*Func).pkg = pkg
+	case TSTRUCT:
+		t.Extra.(*Struct).pkg = pkg
+	case TINTER:
+		t.Extra.(*Interface).pkg = pkg
+	default:
+		Fatalf("Pkg: unexpected kind: %v", t)
+	}
+}
+
 // Map contains Type fields specific to maps.
 type Map struct {
 	Key *Type // Key type
@@ -218,6 +252,7 @@ type Func struct {
 	Params   *Type // function params
 
 	Nname *Node
+	pkg   *Pkg
 
 	// Argwid is the total width of the function receiver, params, and results.
 	// It gets calculated via a temporary TFUNCARGS type.
@@ -236,6 +271,7 @@ func (t *Type) FuncType() *Func {
 // StructType contains Type fields specific to struct types.
 type Struct struct {
 	fields Fields
+	pkg    *Pkg
 
 	// Maps have three associated internal structs (see struct MapType).
 	// Map links such structs back to their map type.
@@ -263,6 +299,7 @@ func (t *Type) StructType() *Struct {
 // Interface contains Type fields specific to interface types.
 type Interface struct {
 	Fields Fields
+	pkg    *Pkg
 }
 
 // Ptr contains Type fields specific to pointer types.
