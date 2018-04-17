@@ -37,8 +37,7 @@ type importer struct {
 	posInfoFormat bool
 	prevFile      string
 	prevLine      int
-	fset          *token.FileSet
-	files         map[string]*token.File
+	fake          fakeFileSet
 
 	// debugging support
 	debugFormat bool
@@ -67,8 +66,10 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		version:    -1,           // unknown version
 		strList:    []string{""}, // empty string is mapped to 0
 		pathList:   []string{""}, // empty string is mapped to 0
-		fset:       fset,
-		files:      make(map[string]*token.File),
+		fake: fakeFileSet{
+			fset:  fset,
+			files: make(map[string]*token.File),
+		},
 	}
 
 	// read version info
@@ -324,15 +325,23 @@ func (p *importer) pos() token.Pos {
 	p.prevFile = file
 	p.prevLine = line
 
-	// Synthesize a token.Pos
+	return p.fake.pos(file, line)
+}
 
+// Synthesize a token.Pos
+type fakeFileSet struct {
+	fset  *token.FileSet
+	files map[string]*token.File
+}
+
+func (s *fakeFileSet) pos(file string, line int) token.Pos {
 	// Since we don't know the set of needed file positions, we
 	// reserve maxlines positions per file.
 	const maxlines = 64 * 1024
-	f := p.files[file]
+	f := s.files[file]
 	if f == nil {
-		f = p.fset.AddFile(file, -1, maxlines)
-		p.files[file] = f
+		f = s.fset.AddFile(file, -1, maxlines)
+		s.files[file] = f
 		// Allocate the fake linebreak indices on first use.
 		// TODO(adonovan): opt: save ~512KB using a more complex scheme?
 		fakeLinesOnce.Do(func() {
@@ -546,18 +555,7 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
 			p.record(t)
 		}
 
-		var dir types.ChanDir
-		// tag values must match the constants in cmd/compile/internal/gc/go.go
-		switch d := p.int(); d {
-		case 1 /* Crecv */ :
-			dir = types.RecvOnly
-		case 2 /* Csend */ :
-			dir = types.SendOnly
-		case 3 /* Cboth */ :
-			dir = types.SendRecv
-		default:
-			errorf("unexpected channel dir %d", d)
-		}
+		dir := chanDir(p.int())
 		val := p.typ(parent, nil)
 		*t = *types.NewChan(dir, val)
 		return t
@@ -565,6 +563,21 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
 	default:
 		errorf("unexpected type tag %d", i) // panics
 		panic("unreachable")
+	}
+}
+
+func chanDir(d int) types.ChanDir {
+	// tag values must match the constants in cmd/compile/internal/gc/go.go
+	switch d {
+	case 1 /* Crecv */ :
+		return types.RecvOnly
+	case 2 /* Csend */ :
+		return types.SendOnly
+	case 3 /* Cboth */ :
+		return types.SendRecv
+	default:
+		errorf("unexpected channel dir %d", d)
+		return 0
 	}
 }
 
