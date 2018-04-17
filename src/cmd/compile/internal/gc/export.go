@@ -105,66 +105,98 @@ func dumpexport(bout *bio.Writer) {
 	}
 }
 
-// importsym declares symbol s as an imported object representable by op.
-// pkg is the package being imported
-func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
-	if asNode(s.Def) != nil && asNode(s.Def).Op != op {
-		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
-		redeclare(lineno, s, pkgstr)
+func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
+	n := asNode(s.Def)
+	if n == nil {
+		n = dclname(s)
+		s.Def = asTypesNode(n)
+		s.Importdef = ipkg
 	}
+	if n.Op != ONONAME && n.Op != op {
+		redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
+	}
+	return n
 }
 
 // pkgtype returns the named type declared by symbol s.
 // If no such type has been declared yet, a forward declaration is returned.
-// pkg is the package being imported
-func pkgtype(pos src.XPos, pkg *types.Pkg, s *types.Sym) *types.Type {
-	importsym(pkg, s, OTYPE)
-	if asNode(s.Def) == nil || asNode(s.Def).Op != OTYPE {
+// ipkg is the package being imported
+func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
+	n := importsym(ipkg, pos, s, OTYPE)
+	if n.Op != OTYPE {
 		t := types.New(TFORW)
 		t.Sym = s
-		s.Def = asTypesNode(typenodl(pos, t))
-		asNode(s.Def).Name = new(Name)
+		t.Nod = asTypesNode(n)
+
+		n.Op = OTYPE
+		n.Pos = pos
+		n.Type = t
+		n.SetClass(PEXTERN)
 	}
 
-	if asNode(s.Def).Type == nil {
-		Fatalf("pkgtype %v", s)
+	t := n.Type
+	if t == nil {
+		Fatalf("importtype %v", s)
 	}
-	return asNode(s.Def).Type
+	return t
+}
+
+// importobj declares symbol s as an imported object representable by op.
+// ipkg is the package being imported
+func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
+	n := importsym(ipkg, pos, s, op)
+	if n.Op != ONONAME {
+		if n.Op == op && (n.Class() != ctxt || !eqtype(n.Type, t)) {
+			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
+		}
+		return nil
+	}
+
+	n.Op = op
+	n.Pos = pos
+	n.SetClass(ctxt)
+	n.Type = t
+	return n
 }
 
 // importconst declares symbol s as an imported constant with type t and value val.
-// pkg is the package being imported
-func importconst(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type, val Val) {
-	importsym(pkg, s, OLITERAL)
-	if asNode(s.Def) != nil { // TODO: check if already the same.
+// ipkg is the package being imported
+func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val Val) {
+	n := importobj(ipkg, pos, s, OLITERAL, PEXTERN, t)
+	if n == nil { // TODO: Check that value matches.
 		return
 	}
 
-	n := npos(pos, nodlit(val))
-	n.Type = t
-	n.Sym = s
-	declare(n, PEXTERN)
+	n.SetVal(val)
 
 	if Debug['E'] != 0 {
-		fmt.Printf("import const %v\n", s)
+		fmt.Printf("import const %v %L = %v\n", s, t, val)
+	}
+}
+
+// importfunc declares symbol s as an imported function with type t.
+// ipkg is the package being imported
+func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+	n := importobj(ipkg, pos, s, ONAME, PFUNC, t)
+	if n == nil {
+		return
+	}
+
+	n.Func = new(Func)
+	t.SetNname(asTypesNode(n))
+
+	if Debug['E'] != 0 {
+		fmt.Printf("import func %v%S\n", s, t)
 	}
 }
 
 // importvar declares symbol s as an imported variable with type t.
-// pkg is the package being imported
-func importvar(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type) {
-	importsym(pkg, s, ONAME)
-	if asNode(s.Def) != nil && asNode(s.Def).Op == ONAME {
-		if eqtype(t, asNode(s.Def).Type) {
-			return
-		}
-		yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, asNode(s.Def).Type, s.Importdef.Path, t, pkg.Path)
+// ipkg is the package being imported
+func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+	n := importobj(ipkg, pos, s, ONAME, PEXTERN, t)
+	if n == nil {
+		return
 	}
-
-	n := newnamel(pos, s)
-	s.Importdef = pkg
-	n.Type = t
-	declare(n, PEXTERN)
 
 	if Debug['E'] != 0 {
 		fmt.Printf("import var %v %L\n", s, t)
@@ -172,21 +204,12 @@ func importvar(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type) {
 }
 
 // importalias declares symbol s as an imported type alias with type t.
-// pkg is the package being imported
-func importalias(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type) {
-	importsym(pkg, s, OTYPE)
-	if asNode(s.Def) != nil && asNode(s.Def).Op == OTYPE {
-		if eqtype(t, asNode(s.Def).Type) {
-			return
-		}
-		yyerror("inconsistent definition for type alias %v during import\n\t%v (in %q)\n\t%v (in %q)", s, asNode(s.Def).Type, s.Importdef.Path, t, pkg.Path)
+// ipkg is the package being imported
+func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+	n := importobj(ipkg, pos, s, OTYPE, PEXTERN, t)
+	if n == nil {
+		return
 	}
-
-	n := newnamel(pos, s)
-	n.Op = OTYPE
-	s.Importdef = pkg
-	n.Type = t
-	declare(n, PEXTERN)
 
 	if Debug['E'] != 0 {
 		fmt.Printf("import type %v = %L\n", s, t)
