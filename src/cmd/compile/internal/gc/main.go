@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
+	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -1008,13 +1009,12 @@ func importfile(f *Val) *types.Pkg {
 
 	importpkg.Imported = true
 
-	impf, err := os.Open(file)
+	imp, err := bio.Open(file)
 	if err != nil {
 		yyerror("can't open import: %q: %v", path_, err)
 		errorexit()
 	}
-	defer impf.Close()
-	imp := bufio.NewReader(impf)
+	defer imp.Close()
 
 	// check object header
 	p, err := imp.ReadString('\n')
@@ -1022,13 +1022,10 @@ func importfile(f *Val) *types.Pkg {
 		yyerror("import %s: reading input: %v", file, err)
 		errorexit()
 	}
-	if len(p) > 0 {
-		p = p[:len(p)-1]
-	}
 
-	if p == "!<arch>" { // package archive
+	if p == "!<arch>\n" { // package archive
 		// package export block should be first
-		sz := arsize(imp, "__.PKGDEF")
+		sz := arsize(imp.Reader, "__.PKGDEF")
 		if sz <= 0 {
 			yyerror("import %s: not a package file", file)
 			errorexit()
@@ -1038,22 +1035,16 @@ func importfile(f *Val) *types.Pkg {
 			yyerror("import %s: reading input: %v", file, err)
 			errorexit()
 		}
-		if len(p) > 0 {
-			p = p[:len(p)-1]
-		}
 	}
 
-	if p != "empty archive" {
-		if !strings.HasPrefix(p, "go object ") {
-			yyerror("import %s: not a go object file: %s", file, p)
-			errorexit()
-		}
-
-		q := fmt.Sprintf("%s %s %s %s", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-		if p[10:] != q {
-			yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
-			errorexit()
-		}
+	if !strings.HasPrefix(p, "go object ") {
+		yyerror("import %s: not a go object file: %s", file, p)
+		errorexit()
+	}
+	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
+	if p[10:] != q {
+		yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
+		errorexit()
 	}
 
 	// process header lines
@@ -1119,7 +1110,7 @@ func importfile(f *Val) *types.Pkg {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}
 		imp.ReadByte() // skip \n after $$B
-		Import(importpkg, imp)
+		Import(importpkg, imp.Reader)
 
 	default:
 		yyerror("no import in %q", path_)
