@@ -306,10 +306,10 @@ func Main(archInit func(*Arch)) {
 		flag_msan = false
 	}
 	if flag_race {
-		racepkg = types.NewPkg("runtime/race", "race")
+		racepkg = types.NewPkg("runtime/race", "")
 	}
 	if flag_msan {
-		msanpkg = types.NewPkg("runtime/msan", "msan")
+		msanpkg = types.NewPkg("runtime/msan", "")
 	}
 	if flag_race || flag_msan {
 		instrumenting = true
