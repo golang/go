@@ -80,8 +80,6 @@ import (
 
 // BlockEffects summarizes the liveness effects on an SSA block.
 type BlockEffects struct {
-	lastbitmapindex int // for Liveness.epilogue
-
 	// Computed during Liveness.prologue using only the content of
 	// individual blocks:
 	//
@@ -988,6 +986,7 @@ func (lv *Liveness) epilogue() {
 
 	for _, b := range lv.f.Blocks {
 		be := lv.blockEffects(b)
+		firstBitmapIndex := len(lv.livevars)
 
 		// Compute avarinitany and avarinitall for entry to block.
 		// This duplicates information known during Liveness.solve
@@ -1039,14 +1038,8 @@ func (lv *Liveness) epilogue() {
 			lv.livevars = append(lv.livevars, varRegVec{vars: live})
 		}
 
-		be.lastbitmapindex = len(lv.livevars) - 1
-	}
-
-	for _, b := range lv.f.Blocks {
-		be := lv.blockEffects(b)
-
 		// walk backward, construct maps at each safe point
-		index := int32(be.lastbitmapindex)
+		index := int32(len(lv.livevars) - 1)
 		if index < 0 {
 			// the first block we encounter should have the ATEXT so
 			// at no point should pos ever be less than zero.
@@ -1089,6 +1082,21 @@ func (lv *Liveness) epilogue() {
 			live := &lv.livevars[index]
 			live.Or(*live, liveout)
 		}
+
+		// Check that no registers are live across calls.
+		// For closure calls, the CALLclosure is the last use
+		// of the context register, so it's dead after the call.
+		index = int32(firstBitmapIndex)
+		for _, v := range b.Values {
+			if lv.issafepoint(v) {
+				live := lv.livevars[index]
+				if v.Op.IsCall() && live.regs != 0 {
+					lv.printDebug()
+					v.Fatalf("internal error: %v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
+				}
+				index++
+			}
+		}
 	}
 
 	// Useful sanity check: on entry to the function,
@@ -1106,23 +1114,6 @@ func (lv *Liveness) epilogue() {
 	if regs := lv.livevars[0].regs; regs != 0 {
 		lv.printDebug()
 		lv.f.Fatalf("internal error: %v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
-	}
-	// Check that no registers are live across calls.
-	// For closure calls, the CALLclosure is the last use
-	// of the context register, so it's dead after the call.
-	for _, b := range lv.f.Blocks {
-		index := int32(lv.blockEffects(b).lastbitmapindex)
-		for i := len(b.Values) - 1; i >= 0; i-- {
-			v := b.Values[i]
-			if lv.issafepoint(v) {
-				live := lv.livevars[index]
-				if v.Op.IsCall() && live.regs != 0 {
-					lv.printDebug()
-					v.Fatalf("internal error: %v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
-				}
-				index--
-			}
-		}
 	}
 }
 
