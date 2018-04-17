@@ -68,7 +68,7 @@ func init() {
 }
 
 func main() {
-	_ = go11tag
+	//_ = go11tag
 	flag.Usage = base.Usage
 	flag.Parse()
 	log.SetFlags(0)

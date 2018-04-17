@@ -551,7 +551,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		all := ctxt.gopath()
 		for i, root := range all {
 			rootsrc := ctxt.joinPath(root, "src")
-			if sub, ok := ctxt.hasSubdir(rootsrc, p.Dir); ok && !inTestdata(sub) {
+			if sub, ok := ctxt.hasSubdir(rootsrc, p.Dir); ok {
 				// We found a potential import path for dir,
 				// but check that using it wouldn't find something
 				// else first.
