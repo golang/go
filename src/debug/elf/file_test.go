@@ -763,9 +763,10 @@ func TestCompressedSection(t *testing.T) {
 }
 
 func TestNoSectionOverlaps(t *testing.T) {
-	// Ensure 6l outputs sections without overlaps.
-	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" {
-		return // not ELF
+	// Ensure cmd/link outputs sections without overlaps.
+	switch runtime.GOOS {
+	case "android", "darwin", "nacl", "plan9", "windows":
+		t.Skipf("cmd/link doesn't produce ELF binaries on %s", runtime.GOOS)
 	}
 	_ = net.ResolveIPAddr // force dynamic linkage
 	f, err := Open(os.Args[0])
