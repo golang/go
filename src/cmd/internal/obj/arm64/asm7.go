@@ -971,16 +971,12 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	t.As = AWORD
 	sz := 4
 
-	if p.As == AMOVD && a.Type == obj.TYPE_CONST {
-		// simplify MOVD to MOVW/MOVWU to reduce constant pool size
-		if lit == int64(int32(lit)) { // -0x80000000 ~ 0x7fffffff
-			p.As = AMOVW
-		} else if uint64(lit) == uint64(uint32(lit)) { // 0 ~ 0xffffffff
-			p.As = AMOVWU
-		} else { // 64-bit
+	if a.Type == obj.TYPE_CONST {
+		if lit != int64(int32(lit)) && uint64(lit) != uint64(uint32(lit)) {
+			// out of range -0x80000000 ~ 0xffffffff, must store 64-bit
 			t.As = ADWORD
 			sz = 8
-		}
+		} // else store 32-bit
 	} else if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || lit != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
 		// conservative: don't know if we want signed or unsigned extension.
 		// in case of ambiguity, store 64-bit
@@ -5929,26 +5925,35 @@ func (c *ctxt7) omovlit(as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 
 		o1 |= ((v & 0xFFF) << 10) | (REGZERO & 31 << 5) | int32(dr&31)
 	} else {
-		fp := 0
-		w := 0 /* default: 32 bit, unsigned */
+		fp, w := 0, 0
 		switch as {
 		case AFMOVS:
 			fp = 1
+			w = 0 /* 32-bit SIMD/FP */
 
 		case AFMOVD:
 			fp = 1
-			w = 1 /* 64 bit simd&fp */
+			w = 1 /* 64-bit SIMD/FP */
 
 		case AMOVD:
 			if p.Pcond.As == ADWORD {
-				w = 1 /* 64 bit */
+				w = 1 /* 64-bit */
 			} else if p.Pcond.To.Offset < 0 {
-				w = 2 /* sign extend */
+				w = 2 /* 32-bit, sign-extended to 64-bit */
+			} else if p.Pcond.To.Offset >= 0 {
+				w = 0 /* 32-bit, zero-extended to 64-bit */
+			} else {
+				c.ctxt.Diag("invalid operand %v in %v", a, p)
 			}
 
+		case AMOVBU, AMOVHU, AMOVWU:
+			w = 0 /* 32-bit, zero-extended to 64-bit */
+
 		case AMOVB, AMOVH, AMOVW:
-			w = 2 /* 32 bit, sign-extended to 64 */
-			break
+			w = 2 /* 32-bit, sign-extended to 64-bit */
+
+		default:
+			c.ctxt.Diag("invalid operation %v in %v", as, p)
 		}
 
 		v := int32(c.brdist(p, 0, 19, 2))
