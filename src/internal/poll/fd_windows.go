@@ -946,11 +946,13 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
 		return err
 	}
 	defer fd.writeUnlock()
-	for {
-		if f(uintptr(fd.Sysfd)) {
-			return nil
-		}
+
+	if f(uintptr(fd.Sysfd)) {
+		return nil
 	}
+
+	// TODO(tmm1): find a way to detect socket writability
+	return syscall.EWINDOWS
 }
 
 func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {

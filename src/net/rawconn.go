@@ -9,6 +9,12 @@ import (
 	"syscall"
 )
 
+// BUG(tmm1): On Windows, the Write method of syscall.RawConn
+// does not integrate with the runtime's network poller. It cannot
+// wait for the connection to become writeable, and does not respect
+// deadlines. If the user-provided callback returns false, the Write
+// method will fail immediately.
+
 // BUG(mikio): On NaCl and Plan 9, the Control, Read and Write methods
 // of syscall.RawConn are not implemented.
 
