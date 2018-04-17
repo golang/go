@@ -194,3 +194,37 @@ func (t *T24730) g() { // ERROR "t does not escape"
 		*z = 2
 	}
 }
+
+// Issue 15730: copy causes unnecessary escape
+
+var sink []byte
+var sink2 []int
+var sink3 []*int
+
+func f15730a(args ...interface{}) { // ERROR "args does not escape"
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case string:
+			copy(sink, a)
+		}
+	}
+}
+
+func f15730b(args ...interface{}) { // ERROR "args does not escape"
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case []int:
+			copy(sink2, a)
+		}
+	}
+}
+
+func f15730c(args ...interface{}) { // ERROR "leaking param content: args"
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case []*int:
+			// copy pointerful data should cause escape
+			copy(sink3, a)
+		}
+	}
+}
