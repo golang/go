@@ -81,4 +81,6 @@ TEXT errors(SB),$0
 	VLD1.P	(R8)(R9<<2), [V2.B16]                            // ERROR "invalid extended register"
 	VST1.P	[V1.B16], (R8)(R9.UXTW)                          // ERROR "invalid extended register"
 	VST1.P	[V1.B16], (R8)(R9<<1)                            // ERROR "invalid extended register"
+	VREV64	V1.H4, V2.H8                                     // ERROR "invalid arrangement"
+	VREV64	V1.D1, V2.D1                                     // ERROR "invalid arrangement"
 	RET

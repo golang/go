@@ -309,6 +309,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VMOV	V8.B[0], V12.B[1]     // 0c05036e
 	VMOV	V8.B[7], V4.B[8]      // 043d116e
 	VREV32	V5.B16, V5.B16        // a508206e
+	VREV64	V2.S2, V3.S2          // 4308a00e
+	VREV64	V2.S4, V3.S4          // 4308a04e
 	VDUP	V19.S[0], V17.S4      // 7106044e
 //
 // B/BL

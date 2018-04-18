@@ -2387,6 +2387,7 @@ func buildop(ctxt *obj.Link) {
 
 		case AVREV32:
 			oprangeset(AVRBIT, t)
+			oprangeset(AVREV64, t)
 
 		case ASHA1H,
 			AVCNT,
@@ -3964,8 +3965,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int((p.From.Reg) & 31)
 		rt := int((p.To.Reg) & 31)
 
-		Q := 0
-		size := 0
+		var Q, size uint32
 		switch af {
 		case ARNG_8B:
 			Q = 0
@@ -3979,11 +3979,21 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case ARNG_8H:
 			Q = 1
 			size = 1
+		case ARNG_2S:
+			Q = 0
+			size = 2
+		case ARNG_4S:
+			Q = 1
+			size = 2
 		default:
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
 
 		if (p.As == AVMOV || p.As == AVRBIT) && (af != ARNG_16B && af != ARNG_8B) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		if p.As == AVREV32 && (af == ARNG_2S || af == ARNG_4S) {
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 
@@ -3995,7 +4005,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			size = 1
 		}
 
-		o1 |= (uint32(Q&1) << 30) | (uint32(size&3) << 22) | (uint32(rf&31) << 5) | uint32(rt&31)
+		o1 |= (Q&1) << 30 | (size&3) << 22 | uint32(rf&31) << 5 | uint32(rt&31)
 
 	case 84: /* vst1 [Vt1.<T>, Vt2.<T>, ...], (Rn) */
 		r := int(p.To.Reg)
@@ -5072,6 +5082,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVREV32:
 		return 11<<26 | 2<<24 | 1<<21 | 1<<11
+
+	case AVREV64:
+		return 3<<26 | 2<<24 | 1<<21 | 1<<11
 
 	case AVMOV:
 		return 7<<25 | 5<<21 | 7<<10
