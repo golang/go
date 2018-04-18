@@ -258,6 +258,11 @@ Go Assembly for ARM64 Reference Manual
         <T> Is an arrangement specifier and can have the following values:
         B8, B16, H4, H8
 
+    VREV64: Reverse elements in 64-bit words (vector).
+      REV64 <Vn>.<T>, <Vd>.<T>
+        <T> Is an arrangement specifier and can have the following values:
+        B8, B16, H4, H8, S2, S4
+
     VSHL: Shift Left(immediate)
       VSHL 	$shift, <Vn>.<T>, <Vd>.<T>
         <T> is an arrangement specifier and can have the following values:
