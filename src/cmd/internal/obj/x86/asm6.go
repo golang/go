@@ -2615,8 +2615,10 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		return Yxxx
 
 	case obj.TYPE_MEM:
-		if a.Index == REG_SP {
-			// Can't use SP as the index register
+		// Pseudo registers have negative index, but SP is
+		// not pseudo on x86, hence REG_SP check is not redundant.
+		if a.Index == REG_SP || a.Index < 0 {
+			// Can't use FP/SB/PC/SP as the index register.
 			return Yxxx
 		}
 		if a.Index >= REG_X0 && a.Index <= REG_X15 {
