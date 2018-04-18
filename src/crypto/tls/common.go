@@ -761,10 +761,14 @@ func (c *Config) BuildNameToCertificate() {
 	c.NameToCertificate = make(map[string]*Certificate)
 	for i := range c.Certificates {
 		cert := &c.Certificates[i]
-		x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
-		if err != nil {
-			continue
+		if cert.Leaf == nil {
+			x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+			if err != nil {
+				continue
+			}
+			cert.Leaf = x509Cert
 		}
+		x509Cert := cert.Leaf
 		if len(x509Cert.Subject.CommonName) > 0 {
 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
 		}
