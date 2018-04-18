@@ -81,6 +81,8 @@ func initssaconfig() {
 	msanread = sysfunc("msanread")
 	msanwrite = sysfunc("msanwrite")
 	Udiv = sysfunc("udiv")
+	supportPopcnt = sysfunc("support_popcnt")
+	supportSSE41 = sysfunc("support_sse41")
 
 	// GO386=387 runtime functions
 	ControlWord64trunc = sysfunc("controlWord64trunc")
@@ -3019,8 +3021,7 @@ func init() {
 
 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			aux := syslook("support_sse41").Sym.Linksym()
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportSSE41, s.sb)
 			v := s.load(types.Types[TBOOL], addr)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
@@ -3183,8 +3184,7 @@ func init() {
 		sys.ARM64)
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			aux := syslook("support_popcnt").Sym.Linksym()
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportPopcnt, s.sb)
 			v := s.load(types.Types[TBOOL], addr)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf

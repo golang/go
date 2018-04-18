@@ -304,7 +304,9 @@ var (
 	racewriterange,
 	msanread,
 	msanwrite,
-	Udiv *obj.LSym
+	Udiv,
+	supportPopcnt,
+	supportSSE41 *obj.LSym
 
 	// GO386=387
 	ControlWord64trunc,
