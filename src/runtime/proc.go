@@ -3716,7 +3716,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// transition. We simply require that g and SP match and that the PC is not
 	// in gogo.
 	traceback := true
-	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) {
+	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) || (mp != nil && mp.vdsoSP != 0) {
 		traceback = false
 	}
 	var stk [maxCPUProfStack]uintptr
