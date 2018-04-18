@@ -17,7 +17,7 @@ import (
 func TestReader(t *testing.T) {
 	r := strings.NewReader("0123456789")
 	tests := []struct {
-		off     int64
+		offset  int64
 		seek    int
 		n       int
 		want    string
@@ -25,19 +25,19 @@ func TestReader(t *testing.T) {
 		readerr error
 		seekerr string
 	}{
-		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
-		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
-		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
-		{seek: io.SeekStart, off: -1, seekerr: "strings.Reader.Seek: negative position"},
-		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33, readerr: io.EOF},
-		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
+		{seek: io.SeekStart, offset: 0, n: 20, want: "0123456789"},
+		{seek: io.SeekStart, offset: 1, n: 1, want: "1"},
+		{seek: io.SeekCurrent, offset: 1, wantpos: 3, n: 2, want: "34"},
+		{seek: io.SeekStart, offset: -1, seekerr: "strings.Reader.Seek: negative position"},
+		{seek: io.SeekStart, offset: 1 << 33, wantpos: 1 << 33, readerr: io.EOF},
+		{seek: io.SeekCurrent, offset: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
 		{seek: io.SeekStart, n: 5, want: "01234"},
 		{seek: io.SeekCurrent, n: 5, want: "56789"},
-		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
+		{seek: io.SeekEnd, offset: -1, n: 1, wantpos: 9, want: "9"},
 	}
 
 	for i, tt := range tests {
-		pos, err := r.Seek(tt.off, tt.seek)
+		pos, err := r.Seek(tt.offset, tt.seek)
 		if err == nil && tt.seekerr != "" {
 			t.Errorf("%d. want seek error %q", i, tt.seekerr)
 			continue
@@ -75,7 +75,7 @@ func TestReadAfterBigSeek(t *testing.T) {
 func TestReaderAt(t *testing.T) {
 	r := strings.NewReader("0123456789")
 	tests := []struct {
-		off     int64
+		offset  int64
 		n       int
 		want    string
 		wanterr interface{}
@@ -89,7 +89,7 @@ func TestReaderAt(t *testing.T) {
 	}
 	for i, tt := range tests {
 		b := make([]byte, tt.n)
-		rn, err := r.ReadAt(b, tt.off)
+		rn, err := r.ReadAt(b, tt.offset)
 		got := string(b[:rn])
 		if got != tt.want {
 			t.Errorf("%d. got %q; want %q", i, got, tt.want)
