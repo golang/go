@@ -193,6 +193,11 @@ func elimIfElse(f *Func, b *Block) bool {
 		return false
 	}
 
+	// Don't generate CondSelects if branch is cheaper.
+	if !shouldElimIfElse(no, yes, post, f.Config.arch) {
+		return false
+	}
+
 	// now we're committed: rewrite each Phi as a CondSelect
 	swap := post.Preds[0].Block() != b.Succs[0].Block()
 	for _, v := range post.Values {
@@ -236,6 +241,39 @@ func elimIfElse(f *Func, b *Block) bool {
 
 	f.invalidateCFG()
 	return true
+}
+
+// shouldElimIfElse reports whether estimated cost of eliminating branch
+// is lower than threshold.
+func shouldElimIfElse(no, yes, post *Block, arch string) bool {
+	switch arch {
+	default:
+		return true
+	case "amd64":
+		const maxcost = 2
+		phi := 0
+		other := 0
+		for _, v := range post.Values {
+			if v.Op == OpPhi {
+				// Each phi results in CondSelect, which lowers into CMOV,
+				// CMOV has latency >1 on most CPUs.
+				phi++
+			}
+			for _, x := range v.Args {
+				if x.Block == no || x.Block == yes {
+					other++
+				}
+			}
+		}
+		cost := phi * 1
+		if phi > 1 {
+			// If we have more than 1 phi and some values in post have args
+			// in yes or no blocks, we may have to recalucalte condition, because
+			// those args may clobber flags. For now assume that all operations clobber flags.
+			cost += other * 1
+		}
+		return cost < maxcost
+	}
 }
 
 func allTrivial(b *Block) bool {
