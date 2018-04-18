@@ -7,13 +7,16 @@ package list
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"text/template"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/work"
@@ -139,6 +142,18 @@ printing. Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
 
+The -test flag causes list to report not only the named packages
+but also their test binaries (for packages with tests), to convey to
+source code analysis tools exactly how test binaries are constructed.
+The reported import path for a test binary is the import path of
+the package followed by a ".test" suffix, as in "math/rand.test".
+When building a test, it is sometimes necessary to rebuild certain
+dependencies specially for that test (most commonly the tested
+package itself). The reported import path of a package recompiled
+for a particular test binary is followed by a space and the name of
+the test binary in brackets, as in "math/rand [math/rand.test]"
+or "regexp [sort.test]".
+
 For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
@@ -154,6 +169,7 @@ var listDeps = CmdList.Flag.Bool("deps", false, "")
 var listE = CmdList.Flag.Bool("e", false, "")
 var listFmt = CmdList.Flag.String("f", "{{.ImportPath}}", "")
 var listJson = CmdList.Flag.Bool("json", false, "")
+var listTest = CmdList.Flag.Bool("test", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *base.Command, args []string) {
@@ -206,12 +222,60 @@ func runList(cmd *base.Command, args []string) {
 		pkgs = load.Packages(args)
 	}
 
+	if *listTest {
+		c := cache.Default()
+		if c == nil {
+			base.Fatalf("go list -test requires build cache")
+		}
+		// Add test binaries to packages to be listed.
+		for _, p := range pkgs {
+			if p.Error != nil {
+				continue
+			}
+			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
+				pmain, _, _, err := load.TestPackagesFor(p, nil)
+				if err != nil {
+					if !*listE {
+						base.Errorf("can't load test package: %s", err)
+						continue
+					}
+					pmain = &load.Package{
+						PackagePublic: load.PackagePublic{
+							ImportPath: p.ImportPath + ".test",
+							Error:      &load.PackageError{Err: err.Error()},
+						},
+					}
+				}
+				pkgs = append(pkgs, pmain)
+
+				data := *pmain.Internal.TestmainGo
+				h := cache.NewHash("testmain")
+				h.Write([]byte("testmain\n"))
+				h.Write(data)
+				out, _, err := c.Put(h.Sum(), bytes.NewReader(data))
+				if err != nil {
+					base.Fatalf("%s", err)
+				}
+				pmain.GoFiles[0] = c.OutputFile(out)
+			}
+		}
+	}
+
+	// Remember which packages are named on the command line.
+	cmdline := make(map[*load.Package]bool)
+	for _, p := range pkgs {
+		cmdline[p] = true
+	}
+
 	if *listDeps {
 		// Note: This changes the order of the listed packages
 		// from "as written on the command line" to
 		// "a depth-first post-order traversal".
 		// (The dependency exploration order for a given node
 		// is alphabetical, same as listed in .Deps.)
+		// Note that -deps is applied after -test,
+		// so that you only get descriptions of tests for the things named
+		// explicitly on the command line, not for all dependencies.
 		pkgs = load.PackageList(pkgs)
 	}
 
@@ -230,12 +294,53 @@ func runList(cmd *base.Command, args []string) {
 		b.Do(a)
 	}
 
-	for _, pkg := range pkgs {
+	for _, p := range pkgs {
 		// Show vendor-expanded paths in listing
-		pkg.TestImports = pkg.Vendored(pkg.TestImports)
-		pkg.XTestImports = pkg.Vendored(pkg.XTestImports)
+		p.TestImports = p.Vendored(p.TestImports)
+		p.XTestImports = p.Vendored(p.XTestImports)
+	}
 
-		do(&pkg.PackagePublic)
+	if *listTest {
+		all := pkgs
+		if !*listDeps {
+			all = load.PackageList(pkgs)
+		}
+		// Update import paths to distinguish the real package p
+		// from p recompiled for q.test.
+		// This must happen only once the build code is done
+		// looking at import paths, because it will get very confused
+		// if it sees these.
+		for _, p := range all {
+			if p.ForTest != "" {
+				p.ImportPath += " [" + p.ForTest + ".test]"
+			}
+			p.DepOnly = !cmdline[p]
+		}
+		// Update import path lists to use new strings.
+		for _, p := range all {
+			for i := range p.Imports {
+				p.Imports[i] = p.Internal.Imports[i].ImportPath
+			}
+		}
+		// Recompute deps lists using new strings, from the leaves up.
+		for _, p := range all {
+			deps := make(map[string]bool)
+			for _, p1 := range p.Internal.Imports {
+				deps[p1.ImportPath] = true
+				for _, d := range p1.Deps {
+					deps[d] = true
+				}
+			}
+			p.Deps = make([]string, 0, len(deps))
+			for d := range deps {
+				p.Deps = append(p.Deps, d)
+			}
+			sort.Strings(p.Deps)
+		}
+	}
+
+	for _, p := range pkgs {
+		do(&p.PackagePublic)
 	}
 }
 
