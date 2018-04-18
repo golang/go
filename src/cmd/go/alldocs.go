@@ -697,6 +697,18 @@
 // a non-nil Error field; other information may or may not be missing
 // (zeroed).
 //
+// The -test flag causes list to add to its output test binaries for the
+// named packages that have tests, to make information about test
+// binary construction available to source code analysis tools.
+// The reported import path for a test binary is the import path of
+// the package followed by a ".test" suffix, as in "math/rand.test".
+// When building a test, it is sometimes necessary to rebuild certain
+// dependencies specially for that test (most commonly the tested
+// package itself). The reported import path of a package recompiled
+// for a particular test binary is followed by a space and the name of
+// the test binary in brackets, as in "math/rand [math/rand.test]"
+// or "regexp [sort.test]".
+//
 // For more about build flags, see 'go help build'.
 //
 // For more about specifying packages, see 'go help packages'.

@@ -1919,6 +1919,35 @@ func TestGoListDeps(t *testing.T) {
 	}
 }
 
+func TestGoListTest(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", tg.tempdir)
+
+	tg.run("list", "-test", "-deps", "sort")
+	tg.grepStdout(`^sort.test$`, "missing test main")
+	tg.grepStdout(`^sort$`, "missing real sort")
+	tg.grepStdout(`^sort \[sort.test\]$`, "missing test copy of sort")
+	tg.grepStdout(`^testing \[sort.test\]$`, "missing test copy of testing")
+	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
+
+	tg.run("list", "-test", "sort")
+	tg.grepStdout(`^sort.test$`, "missing test main")
+	tg.grepStdout(`^sort$`, "missing real sort")
+	tg.grepStdoutNot(`^sort \[sort.test\]$`, "unexpected test copy of sort")
+	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
+	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
+
+	tg.run("list", "-test", "cmd/dist", "cmd/doc")
+	tg.grepStdout(`^cmd/dist$`, "missing cmd/dist")
+	tg.grepStdout(`^cmd/doc$`, "missing cmd/doc")
+	tg.grepStdout(`^cmd/doc\.test$`, "missing cmd/doc test")
+	tg.grepStdoutNot(`^cmd/dist\.test$`, "unexpected cmd/dist test")
+	tg.grepStdoutNot(`^testing`, "unexpected testing")
+}
+
 // Issue 4096. Validate the output of unsuccessful go install foo/quxx.
 func TestUnsuccessfulGoInstallShouldMentionMissingPackage(t *testing.T) {
 	tg := testgo(t)

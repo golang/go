@@ -47,6 +47,8 @@ type PackagePublic struct {
 	Root          string `json:",omitempty"` // Go root or Go path dir containing this package
 	ConflictDir   string `json:",omitempty"` // Dir is hidden by this other directory
 	BinaryOnly    bool   `json:",omitempty"` // package cannot be recompiled
+	ForTest       string `json:",omitempty"` // package is only for use in named test
+	DepOnly       bool   `json:",omitempty"` // package is only as a dependency, not explicitly listed
 
 	// Stale and StaleReason remain here *only* for the list command.
 	// They are only initialized in preparation for list execution.
@@ -135,6 +137,7 @@ type PackageInternal struct {
 	CoverVars    map[string]*CoverVar // variables created by coverage analysis
 	OmitDebug    bool                 // tell linker not to write debug information
 	GobinSubdir  bool                 // install target would be subdir of GOBIN
+	TestmainGo   *[]byte              // content for _testmain.go
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
