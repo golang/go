@@ -397,15 +397,7 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// If so, it's up to date and we can reuse it instead of rebuilding it.
 	var buildID string
 	if target != "" && !cfg.BuildA {
-		var err error
-		buildID, err = buildid.ReadFile(target)
-		if err != nil && b.ComputeStaleOnly {
-			if p != nil && !p.Stale {
-				p.Stale = true
-				p.StaleReason = "target missing"
-			}
-			return true
-		}
+		buildID, _ = buildid.ReadFile(target)
 		if strings.HasPrefix(buildID, actionID+buildIDSeparator) {
 			a.buildID = buildID
 			a.built = target
@@ -482,7 +474,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 				}
 			}
 		}
-		return true
+
+		// Fall through to update a.buildID from the build artifact cache,
+		// which will affect the computation of buildIDs for targets
+		// higher up in the dependency graph.
 	}
 
 	// Check the build artifact cache.
@@ -510,6 +505,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 						a.built = file
 						a.Target = "DO NOT USE - using cache"
 						a.buildID = buildID
+						if p := a.Package; p != nil {
+							// Clearer than explaining that something else is stale.
+							p.StaleReason = "not installed but available in build cache"
+						}
 						return true
 					}
 				}
@@ -518,6 +517,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 
 		// Begin saving output for later writing to cache.
 		a.output = []byte{}
+	}
+
+	if b.ComputeStaleOnly {
+		return true
 	}
 
 	return false
