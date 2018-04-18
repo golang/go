@@ -80,6 +80,7 @@ func init() {
 // command line, with arguments separated by NUL bytes.
 // The package initialization registers it as /debug/pprof/cmdline.
 func Cmdline(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
 }
@@ -100,33 +101,36 @@ func durationExceedsWriteTimeout(r *http.Request, seconds float64) bool {
 	return ok && srv.WriteTimeout != 0 && seconds >= srv.WriteTimeout.Seconds()
 }
 
+func serveError(w http.ResponseWriter, status int, txt string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Go-Pprof", "1")
+	w.Header().Del("Content-Disposition")
+	w.WriteHeader(status)
+	fmt.Fprintln(w, txt)
+}
+
 // Profile responds with the pprof-formatted cpu profile.
 // The package initialization registers it as /debug/pprof/profile.
 func Profile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
 	if sec == 0 {
 		sec = 30
 	}
 
 	if durationExceedsWriteTimeout(r, float64(sec)) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Go-Pprof", "1")
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
+		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
 		return
 	}
 
 	// Set Content Type assuming StartCPUProfile will work,
 	// because if it does it starts writing.
 	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", `attachment; filename="profile"`)
 	if err := pprof.StartCPUProfile(w); err != nil {
 		// StartCPUProfile failed, so no writes yet.
-		// Can change header back to text content
-		// and send error code.
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Go-Pprof", "1")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Could not enable CPU profiling: %s\n", err)
+		serveError(w, http.StatusInternalServerError,
+			fmt.Sprintf("Could not enable CPU profiling: %s", err))
 		return
 	}
 	sleep(w, time.Duration(sec)*time.Second)
@@ -137,29 +141,25 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 // Tracing lasts for duration specified in seconds GET parameter, or for 1 second if not specified.
 // The package initialization registers it as /debug/pprof/trace.
 func Trace(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	sec, err := strconv.ParseFloat(r.FormValue("seconds"), 64)
 	if sec <= 0 || err != nil {
 		sec = 1
 	}
 
 	if durationExceedsWriteTimeout(r, sec) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Go-Pprof", "1")
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
+		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
 		return
 	}
 
 	// Set Content Type assuming trace.Start will work,
 	// because if it does it starts writing.
 	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", `attachment; filename="trace"`)
 	if err := trace.Start(w); err != nil {
 		// trace.Start failed, so no writes yet.
-		// Can change header back to text content and send error code.
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Go-Pprof", "1")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Could not enable tracing: %s\n", err)
+		serveError(w, http.StatusInternalServerError,
+			fmt.Sprintf("Could not enable tracing: %s", err))
 		return
 	}
 	sleep(w, time.Duration(sec*float64(time.Second)))
@@ -170,6 +170,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 // responding with a table mapping program counters to function names.
 // The package initialization registers it as /debug/pprof/symbol.
 func Symbol(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	// We have to read the whole POST body before
@@ -222,17 +223,22 @@ func Handler(name string) http.Handler {
 type handler string
 
 func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	debug, _ := strconv.Atoi(r.FormValue("debug"))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	p := pprof.Lookup(string(name))
 	if p == nil {
-		w.WriteHeader(404)
-		fmt.Fprintf(w, "Unknown profile: %s\n", name)
+		serveError(w, http.StatusNotFound, "Unknown profile")
 		return
 	}
 	gc, _ := strconv.Atoi(r.FormValue("gc"))
 	if name == "heap" && gc > 0 {
 		runtime.GC()
+	}
+	debug, _ := strconv.Atoi(r.FormValue("debug"))
+	if debug != 0 {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, name))
 	}
 	p.WriteTo(w, debug)
 }

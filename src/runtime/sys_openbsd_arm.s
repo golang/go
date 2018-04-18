@@ -24,15 +24,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 
 // func exitThread(wait *uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
-	MOVW	wait+0(FP), R0
-	// We're done using the stack.
-	MOVW	$0, R2
-storeloop:
-	LDREX	(R0), R4          // loads R4
-	STREX	R2, (R0), R1      // stores R2
-	CMP	$0, R1
-	BNE	storeloop
-	MOVW	$0, R0			// arg 1 - notdead
+	MOVW	wait+0(FP), R0		// arg 1 - notdead
 	MOVW	$302, R12		// sys___threxit
 	SWI	$0
 	MOVW.CS	$1, R8			// crash on syscall failure

@@ -34,6 +34,8 @@ type Config struct {
 	optimize        bool          // Do optimization
 	noDuffDevice    bool          // Don't use Duff's device
 	useSSE          bool          // Use SSE for non-float operations
+	useAvg          bool          // Use optimizations that need Avg* operations
+	useHmul         bool          // Use optimizations that need Hmul* operations
 	nacl            bool          // GOOS=nacl
 	use387          bool          // GO386=387
 	SoftFloat       bool          //
@@ -190,6 +192,8 @@ const (
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
 	c := &Config{arch: arch, Types: types}
+	c.useAvg = true
+	c.useHmul = true
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8

@@ -27,7 +27,6 @@ const (
 	ERROR_NOT_FOUND           Errno = 1168
 	ERROR_PRIVILEGE_NOT_HELD  Errno = 1314
 	WSAEACCES                 Errno = 10013
-	WSAEMSGSIZE               Errno = 10040
 	WSAECONNABORTED           Errno = 10053
 	WSAECONNRESET             Errno = 10054
 )
@@ -296,6 +295,14 @@ var (
 	OID_SERVER_GATED_CRYPTO = []byte("1.3.6.1.4.1.311.10.3.3\x00")
 	OID_SGC_NETSCAPE        = []byte("2.16.840.1.113730.4.1\x00")
 )
+
+// Pointer represents a pointer to an arbitrary Windows type.
+//
+// Pointer-typed fields may point to one of many different types. It's
+// up to the caller to provide a pointer to the appropriate type, cast
+// to Pointer. The caller must obey the unsafe.Pointer rules while
+// doing so.
+type Pointer *struct{}
 
 // Invented values to support what package os expects.
 type Timeval struct {
@@ -846,11 +853,15 @@ type MibIfRow struct {
 	Descr           [MAXLEN_IFDESCR]byte
 }
 
+type CertInfo struct {
+	// Not implemented
+}
+
 type CertContext struct {
 	EncodingType uint32
 	EncodedCert  *byte
 	Length       uint32
-	CertInfo     uintptr
+	CertInfo     *CertInfo
 	Store        Handle
 }
 
@@ -865,12 +876,16 @@ type CertChainContext struct {
 	RevocationFreshnessTime    uint32
 }
 
+type CertTrustListInfo struct {
+	// Not implemented
+}
+
 type CertSimpleChain struct {
 	Size                       uint32
 	TrustStatus                CertTrustStatus
 	NumElements                uint32
 	Elements                   **CertChainElement
-	TrustListInfo              uintptr
+	TrustListInfo              *CertTrustListInfo
 	HasRevocationFreshnessTime uint32
 	RevocationFreshnessTime    uint32
 }
@@ -885,14 +900,18 @@ type CertChainElement struct {
 	ExtendedErrorInfo *uint16
 }
 
+type CertRevocationCrlInfo struct {
+	// Not implemented
+}
+
 type CertRevocationInfo struct {
 	Size             uint32
 	RevocationResult uint32
 	RevocationOid    *byte
-	OidSpecificInfo  uintptr
+	OidSpecificInfo  Pointer
 	HasFreshnessTime uint32
 	FreshnessTime    uint32
-	CrlInfo          uintptr // *CertRevocationCrlInfo
+	CrlInfo          *CertRevocationCrlInfo
 }
 
 type CertTrustStatus struct {
@@ -923,7 +942,7 @@ type CertChainPara struct {
 type CertChainPolicyPara struct {
 	Size            uint32
 	Flags           uint32
-	ExtraPolicyPara uintptr
+	ExtraPolicyPara Pointer
 }
 
 type SSLExtraCertChainPolicyPara struct {
@@ -938,7 +957,7 @@ type CertChainPolicyStatus struct {
 	Error             uint32
 	ChainIndex        uint32
 	ElementIndex      uint32
-	ExtraPolicyStatus uintptr
+	ExtraPolicyStatus Pointer
 }
 
 const (

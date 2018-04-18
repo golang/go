@@ -10,6 +10,16 @@ package codegen
 // simplifications and optimizations on integer types.
 // For codegen tests on float types, see floats.go.
 
+// ----------------- //
+//    Subtraction    //
+// ----------------- //
+
+func SubMem(arr []int) int {
+	// 386:"SUBL\t4"
+	// amd64:"SUBQ\t8"
+	return arr[0] - arr[1]
+}
+
 // -------------------- //
 //    Multiplication    //
 // -------------------- //
@@ -28,6 +38,11 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	b := -64 * n2
 
 	return a, b
+}
+
+func Mul_96(n int) int {
+	// amd64:`SHLQ\t[$]5`,`LEAQ\t\(.*\)\(.*\*2\),`
+	return n * 96
 }
 
 // Multiplications merging tests

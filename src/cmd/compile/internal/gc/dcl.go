@@ -26,33 +26,28 @@ func testdclstack() {
 	}
 }
 
-// redeclare emits a diagnostic about symbol s being redeclared somewhere.
-func redeclare(s *types.Sym, where string) {
+// redeclare emits a diagnostic about symbol s being redeclared at pos.
+func redeclare(pos src.XPos, s *types.Sym, where string) {
 	if !s.Lastlineno.IsKnown() {
-		var tmp string
-		if s.Origpkg != nil {
-			tmp = s.Origpkg.Path
-		} else {
-			tmp = s.Pkg.Path
+		pkg := s.Origpkg
+		if pkg == nil {
+			pkg = s.Pkg
 		}
-		pkgstr := tmp
-		yyerror("%v redeclared %s\n"+
-			"\tprevious declaration during import %q", s, where, pkgstr)
+		yyerrorl(pos, "%v redeclared %s\n"+
+			"\tprevious declaration during import %q", s, where, pkg.Path)
 	} else {
-		line1 := lineno
-		line2 := s.Lastlineno
+		prevPos := s.Lastlineno
 
 		// When an import and a declaration collide in separate files,
 		// present the import as the "redeclared", because the declaration
 		// is visible where the import is, but not vice versa.
 		// See issue 4510.
 		if s.Def == nil {
-			line2 = line1
-			line1 = s.Lastlineno
+			pos, prevPos = prevPos, pos
 		}
 
-		yyerrorl(line1, "%v redeclared %s\n"+
-			"\tprevious declaration at %v", s, where, linestr(line2))
+		yyerrorl(pos, "%v redeclared %s\n"+
+			"\tprevious declaration at %v", s, where, linestr(prevPos))
 	}
 }
 
@@ -69,7 +64,7 @@ func declare(n *Node, ctxt Class) {
 		return
 	}
 
-	if isblank(n) {
+	if n.isBlank() {
 		return
 	}
 
@@ -77,25 +72,26 @@ func declare(n *Node, ctxt Class) {
 		// named OLITERAL needs Name; most OLITERALs don't.
 		n.Name = new(Name)
 	}
-	n.Pos = lineno
+
 	s := n.Sym
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
 	if !inimport && !typecheckok && s.Pkg != localpkg {
-		yyerror("cannot declare name %v", s)
+		yyerrorl(n.Pos, "cannot declare name %v", s)
 	}
 
 	gen := 0
 	if ctxt == PEXTERN {
 		if s.Name == "init" {
-			yyerror("cannot declare init - must be func")
+			yyerrorl(n.Pos, "cannot declare init - must be func")
 		}
-		if s.Name == "main" && localpkg.Name == "main" {
-			yyerror("cannot declare main - must be func")
+		if s.Name == "main" && s.Pkg.Name == "main" {
+			yyerrorl(n.Pos, "cannot declare main - must be func")
 		}
 		externdcl = append(externdcl, n)
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
+			lineno = n.Pos
 			Fatalf("automatic outside function")
 		}
 		if Curfn != nil {
@@ -120,7 +116,7 @@ func declare(n *Node, ctxt Class) {
 		// functype will print errors about duplicate function arguments.
 		// Don't repeat the error here.
 		if ctxt != PPARAM && ctxt != PPARAMOUT {
-			redeclare(s, "in this block")
+			redeclare(n.Pos, s, "in this block")
 		}
 	}
 
@@ -182,7 +178,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		declare(v, dclcontext)
 		v.Name.Param.Ntype = t
 
-		if e != nil || Curfn != nil || isblank(v) {
+		if e != nil || Curfn != nil || v.isBlank() {
 			if Curfn != nil {
 				init = append(init, nod(ODCL, v, nil))
 			}
@@ -330,7 +326,7 @@ func colasdefn(left []*Node, defn *Node) {
 
 	var nnew, nerr int
 	for i, n := range left {
-		if isblank(n) {
+		if n.isBlank() {
 			continue
 		}
 		if !colasname(n) {
@@ -371,7 +367,7 @@ func ifacedcl(n *Node) {
 		Fatalf("ifacedcl")
 	}
 
-	if isblank(n.Left) {
+	if n.Left.isBlank() {
 		yyerror("methods must have a unique non-blank name")
 	}
 }
@@ -461,7 +457,7 @@ func funcargs(nt *Node) {
 		// TODO: n->left->missing = 1;
 		n.Left.Op = ONAME
 
-		if isblank(n.Left) {
+		if n.Left.isBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)
@@ -470,11 +466,11 @@ func funcargs(nt *Node) {
 			// So the two cases must be distinguished.
 			// We do not record a pointer to the original node (n->orig).
 			// Having multiple names causes too much confusion in later passes.
-			nn := *n.Left
-			nn.Orig = &nn
+			nn := n.Left.copy()
+			nn.Orig = nn
 			nn.Sym = lookupN("~b", gen)
 			gen++
-			n.Left = &nn
+			n.Left = nn
 		}
 
 		n.Left.Name.Param.Ntype = n.Right
@@ -831,87 +827,63 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
 	}
 }
 
-var methodsym_toppkg *types.Pkg
-
-func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
-	if t0 == nil {
-		Fatalf("methodsym: nil receiver type")
-	}
-
-	t := t0
-	s := t.Sym
-	if s == nil && t.IsPtr() {
-		t = t.Elem()
-		if t == nil {
-			Fatalf("methodsym: ptrto nil")
-		}
-		s = t.Sym
-	}
-
-	// if t0 == *t and t0 has a sym,
-	// we want to see *t, not t0, in the method name.
-	if t != t0 && t0.Sym != nil {
-		t0 = types.NewPtr(t)
-	}
-
-	suffix := ""
-	if iface {
-		dowidth(t0)
-		if t0.Width < int64(Widthptr) {
-			suffix = "·i"
-		}
-	}
-
-	var spkg *types.Pkg
-	if s != nil {
-		spkg = s.Pkg
-	}
-	pkgprefix := ""
-	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) && nsym.Pkg.Prefix != `""` {
-		pkgprefix = "." + nsym.Pkg.Prefix
-	}
-	var p string
-	if t0.Sym == nil && t0.IsPtr() {
-		p = fmt.Sprintf("(%-S)%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
-	} else {
-		p = fmt.Sprintf("%-S%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
-	}
-
-	if spkg == nil {
-		if methodsym_toppkg == nil {
-			methodsym_toppkg = types.NewPkg("go", "")
-		}
-		spkg = methodsym_toppkg
-	}
-
-	return spkg.Lookup(p)
+// methodSym returns the method symbol representing a method name
+// associated with a specific receiver type.
+//
+// Method symbols can be used to distinguish the same method appearing
+// in different method sets. For example, T.M and (*T).M have distinct
+// method symbols.
+func methodSym(recv *types.Type, msym *types.Sym) *types.Sym {
+	return methodSymSuffix(recv, msym, "")
 }
 
-// methodname is a misnomer because this now returns a Sym, rather
-// than an ONAME.
-// TODO(mdempsky): Reconcile with methodsym.
-func methodname(s *types.Sym, recv *types.Type) *types.Sym {
-	star := false
+// methodSymSuffix is like methodsym, but allows attaching a
+// distinguisher suffix. To avoid collisions, the suffix must not
+// start with a letter, number, or period.
+func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sym {
+	if msym.IsBlank() {
+		Fatalf("blank method name")
+	}
+
+	rsym := recv.Sym
 	if recv.IsPtr() {
-		star = true
-		recv = recv.Elem()
+		if rsym != nil {
+			Fatalf("declared pointer receiver type: %v", recv)
+		}
+		rsym = recv.Elem().Sym
 	}
 
-	tsym := recv.Sym
-	if tsym == nil || s.IsBlank() {
-		return s
+	// Find the package the receiver type appeared in. For
+	// anonymous receiver types (i.e., anonymous structs with
+	// embedded fields), use the "go" pseudo-package instead.
+	rpkg := gopkg
+	if rsym != nil {
+		rpkg = rsym.Pkg
 	}
 
-	var p string
-	if star {
-		p = fmt.Sprintf("(*%v).%v", tsym.Name, s)
+	var b bytes.Buffer
+	if recv.IsPtr() {
+		// The parentheses aren't really necessary, but
+		// they're pretty traditional at this point.
+		fmt.Fprintf(&b, "(%-S)", recv)
 	} else {
-		p = fmt.Sprintf("%v.%v", tsym, s)
+		fmt.Fprintf(&b, "%-S", recv)
 	}
 
-	s = tsym.Pkg.Lookup(p)
+	// A particular receiver type may have multiple non-exported
+	// methods with the same name. To disambiguate them, include a
+	// package qualifier for names that came from a different
+	// package than the receiver type.
+	if !types.IsExported(msym.Name) && msym.Pkg != rpkg {
+		b.WriteString(".")
+		b.WriteString(msym.Pkg.Prefix)
+	}
 
-	return s
+	b.WriteString(".")
+	b.WriteString(msym.Name)
+	b.WriteString(suffix)
+
+	return rpkg.LookupBytes(b.Bytes())
 }
 
 // Add a method, declared as a function.
@@ -1060,7 +1032,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	}
 
 	fn := nod(ODCLFUNC, nil, nil)
-	fn.Func.Nname = newname(sym)
+	fn.Func.Nname = newfuncname(sym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
 	declare(fn.Func.Nname, PFUNC)

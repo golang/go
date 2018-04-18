@@ -569,11 +569,10 @@ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 // set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$32
 	/*
-	* Same as in sys_darwin_386.s:/ugliness, different constant.
-	* See cgo/gcc_darwin_amd64.c for the derivation
-	* of the constant.
-	*/
-	SUBQ $0x8a0, DI
+	 * Same as in sys_darwin_386.s, but a different constant.
+	 * Constant must match the one in cmd/link/internal/ld/sym.go.
+	 */
+	SUBQ $0x30, DI
 
 	MOVL	$(0x3000000+3), AX	// thread_fast_set_cthread_self - machdep call #3
 	SYSCALL

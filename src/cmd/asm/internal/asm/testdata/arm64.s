@@ -78,6 +78,62 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VFMLS	V1.D2, V12.D2, V1.D2            // 81cde14e
 	VFMLS	V1.S2, V12.S2, V1.S2            // 81cda10e
 	VFMLS	V1.S4, V12.S4, V1.S4            // 81cda14e
+	VPMULL	V2.D1, V1.D1, V3.Q1             // 23e0e20e
+	VPMULL2	V2.D2, V1.D2, V4.Q1             // 24e0e24e
+	VPMULL	V2.B8, V1.B8, V3.H8             // 23e0220e
+	VPMULL2	V2.B16, V1.B16, V4.H8           // 24e0224e
+	VEXT	$4, V2.B8, V1.B8, V3.B8         // 2320022e
+	VEXT	$8, V2.B16, V1.B16, V3.B16      // 2340026e
+	VRBIT	V24.B16, V24.B16                // 185b606e
+	VRBIT	V24.B8, V24.B8                  // 185b602e
+	VUSHR	$56, V1.D2, V2.D2               // 2204486f
+	VUSHR	$24, V1.S4, V2.S4               // 2204286f
+	VUSHR	$24, V1.S2, V2.S2               // 2204282f
+	VUSHR	$8, V1.H4, V2.H4                // 2204182f
+	VUSHR	$8, V1.H8, V2.H8                // 2204186f
+	VUSHR	$2, V1.B8, V2.B8                // 22040e2f
+	VUSHR	$2, V1.B16, V2.B16              // 22040e6f
+	VSHL	$56, V1.D2, V2.D2               // 2254784f
+	VSHL	$24, V1.S4, V2.S4               // 2254384f
+	VSHL	$24, V1.S2, V2.S2               // 2254380f
+	VSHL	$8, V1.H4, V2.H4                // 2254180f
+	VSHL	$8, V1.H8, V2.H8                // 2254184f
+	VSHL	$2, V1.B8, V2.B8                // 22540a0f
+	VSHL	$2, V1.B16, V2.B16              // 22540a4f
+	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
+	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
+	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
+	MOVWU	(R19)(R18<<2), R18              // 727a72b8
+	MOVD	(R2)(R6<<3), R4                 // 447866f8
+	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
+	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
+	MOVBU	(R3)(R9.UXTW), R8               // 68486938
+	MOVBU	(R5)(R8), R10                   // MOVBU	(R5)(R8*1), R10         // aa686838
+	MOVHU	(R2)(R7.SXTW<<1), R11           // 4bd86778
+	MOVHU	(R1)(R2<<1), R5                 // 25786278
+	MOVB	(R9)(R3.UXTW), R6               // 2649a338
+	MOVB	(R10)(R6), R15                  // MOVB	(R10)(R6*1), R15                // 4f69a638
+	MOVH	(R5)(R7.SXTX<<1), R18           // b2f8a778
+	MOVH	(R8)(R4<<1), R10                // 0a79a478
+	MOVW	(R9)(R8.SXTW<<2), R19           // 33d9a8b8
+	MOVW	(R1)(R4.SXTX), R11              // 2be8a4b8
+	MOVW	(R1)(R4.SXTX), ZR               // 3fe8a4b8
+	MOVW	(R2)(R5), R12                   // MOVW	(R2)(R5*1), R12                  // 4c68a5b8
+	MOVD	R5, (R2)(R6<<3)                 // 457826f8
+	MOVD	R9, (R6)(R7.SXTX<<3)            // c9f827f8
+	MOVD	ZR, (R6)(R7.SXTX<<3)            // dff827f8
+	MOVW	R8, (R2)(R3.UXTW<<2)            // 485823b8
+	MOVW	R7, (R3)(R4.SXTW)               // 67c824b8
+	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
+	MOVB	R8, (R3)(R9.UXTW)               // 68482938
+	MOVB	R10, (R5)(R8)                   // MOVB	R10, (R5)(R8*1)                  // aa682838
+	MOVH	R11, (R2)(R7.SXTW<<1)           // 4bd82778
+	MOVH	R5, (R1)(R2<<1)                 // 25782278
+	MOVH	R7, (R2)(R5.SXTX<<1)            // 47f82578
+	MOVH	R8, (R3)(R6.UXTW)               // 68482678
+	MOVB	(R29)(R30<<0), R14              // ae7bbe38
+	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
+	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
 
 //	LTYPE1 imsr ',' spreg ','
 //	{
@@ -144,6 +200,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VLD1.P	(R3), [V31.H8, V0.H8]                           // 7fa4df4c
 	VLD1.P	(R8)(R20), [V21.B16, V22.B16]                   // VLD1.P	(R8)(R20*1), [V21.B16,V22.B16] // 15a1d44c
 	VLD1.P	64(R1), [V5.B16, V6.B16, V7.B16, V8.B16]        // 2520df4c
+	VLD1.P	1(R0), V4.B[15]                                 // 041cdf4d
+	VLD1.P	2(R0), V4.H[7]                                  // 0458df4d
+	VLD1.P	4(R0), V4.S[3]                                  // 0490df4d
+	VLD1.P	8(R0), V4.D[1]                                  // 0484df4d
+	VLD1.P	(R0)(R1), V4.D[1]                               // VLD1.P	(R0)(R1*1), V4.D[1] // 0484c14d
+	VLD1	(R0), V4.D[1]                                   // 0484404d
 	VST1.P	[V4.S4, V5.S4], 32(R1)                          // 24a89f4c
 	VST1	[V0.S4, V1.S4], (R0)                            // 00a8004c
 	VLD1	(R30), [V15.S2, V16.S2]                         // cfab400c
@@ -151,6 +213,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VST1.P	[V24.S2], 8(R2)                                 // 58789f0c
 	VST1	[V29.S2, V30.S2], (R29)                         // bdab000c
 	VST1	[V14.H4, V15.H4, V16.H4], (R27)                 // 6e67000c
+	VST1.P	V4.B[15], 1(R0)                                 // 041c9f4d
+	VST1.P	V4.H[7], 2(R0)                                  // 04589f4d
+	VST1.P	V4.S[3], 4(R0)                                  // 04909f4d
+	VST1.P	V4.D[1], 8(R0)                                  // 04849f4d
+	VST1.P	V4.D[1], (R0)(R1)                               // VST1.P	V4.D[1], (R0)(R1*1) // 0484814d
+	VST1	V4.D[1], (R0)                                   // 0484004d
 	VMOVS	V20, (R0)                                       // 140000bd
 	VMOVS.P	V20, 4(R0)                                      // 144400bc
 	VMOVS.W	V20, 4(R0)                                      // 144c00bc
@@ -233,7 +301,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VMOV	R20, V1.S[1]          // 811e0c4e
 	VMOV	R1, V9.H4             // 290c020e
 	VMOV	R22, V11.D2           // cb0e084e
-	VMOV 	V2.B16, V4.B16        // 441ca24e
+	VMOV	V2.B16, V4.B16        // 441ca24e
 	VMOV	V20.S[0], V20         // 9406045e
 	VMOV	V12.D[0], V12.D[1]    // 8c05186e
 	VMOV	V10.S[0], V12.S[1]    // 4c050c6e
@@ -472,8 +540,12 @@ again:
 	LDP	1024(RSP), (R1, R2) // fb031091610b40a9
 	LDP.W	8(RSP), (R1, R2)    // e18bc0a9
 	LDP.P	8(RSP), (R1, R2)    // e18bc0a8
+	LDP	-31(R0), (R1, R2)   // 1b7c00d1610b40a9
+	LDP	-4(R0), (R1, R2)    // 1b1000d1610b40a9
+	LDP	-8(R0), (R1, R2)    // 01887fa9
 	LDP	x(SB), (R1, R2)
 	LDP	x+8(SB), (R1, R2)
+	LDPW	-5(R0), (R1, R2)    // 1b1400d1610b4029
 	LDPW	(R0), (R1, R2)      // 01084029
 	LDPW	4(R0), (R1, R2)     // 01884029
 	LDPW	-4(R0), (R1, R2)    // 01887f29
@@ -511,6 +583,7 @@ again:
 	STP.W	(R3, R4), 8(R5)     // a39080a9
 	STP.P	(R3, R4), 8(R5)     // a39080a8
 	STP	(R3, R4), -8(R5)    // a3903fa9
+	STP	(R3, R4), -4(R5)    // bb1000d1631300a9
 	STP	(R3, R4), 11(R0)    // 1b2c0091631300a9
 	STP	(R3, R4), 1024(R0)  // 1b001091631300a9
 	STP	(R3, R4), (RSP)     // e31300a9
@@ -527,6 +600,7 @@ again:
 	STPW.W	(R3, R4), 4(R5)     // a3908029
 	STPW.P	(R3, R4), 4(R5)     // a3908028
 	STPW	(R3, R4), -4(R5)    // a3903f29
+	STPW	(R3, R4), -5(R5)    // bb1400d163130029
 	STPW	(R3, R4), 11(R0)    // 1b2c009163130029
 	STPW	(R3, R4), 1024(R0)  // 1b00109163130029
 	STPW	(R3, R4), (RSP)     // e3130029
@@ -538,6 +612,16 @@ again:
 	STPW	(R3, R4), 1024(RSP) // fb03109163130029
 	STPW	(R3, R4), x(SB)
 	STPW	(R3, R4), x+8(SB)
+
+// SWPD/SWPW/SWPH/SWPB
+	SWPD	R5, (R6), R7    // SWPD (R6), R5, R7   // c78025f8
+	SWPD	R5, (RSP), R7   // SWPD (RSP), R5, R7  // e78325f8
+	SWPW	R5, (R6), R7    // SWPW (R6), R5, R7   // c78025b8
+	SWPW	R5, (RSP), R7   // SWPW (RSP), R5, R7  // e78325b8
+	SWPH	R5, (R6), R7    // SWPH (R6), R5, R7   // c7802578
+	SWPH	R5, (RSP), R7   // SWPH (RSP), R5, R7  // e7832578
+	SWPB	R5, (R6), R7    // SWPB (R6), R5, R7   // c7802538
+	SWPB	R5, (RSP), R7   // SWPB (RSP), R5, R7  // e7832538
 
 // END
 //

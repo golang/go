@@ -325,8 +325,8 @@ func TestQueryContext(t *testing.T) {
 			}
 			t.Fatalf("Scan: %v", err)
 		}
-		if index == 2 && err == nil {
-			t.Fatal("expected an error on last scan")
+		if index == 2 && err != context.Canceled {
+			t.Fatalf("Scan: %v; want context.Canceled", err)
 		}
 		got = append(got, r)
 		index++

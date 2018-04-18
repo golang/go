@@ -306,7 +306,7 @@ var armOperandTests = []operandTest{
 	{"g", "g"},
 	{"gosave<>(SB)", "gosave<>(SB)"},
 	{"retlo+12(FP)", "retlo+12(FP)"},
-	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
+	{"runtime·gogo(SB)", "runtime.gogo(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"(R1, R3)", "(R1, R3)"},
 	{"[R0,R1,g,R15", ""}, // Issue 11764 - asm hung parsing ']' missing register lists.

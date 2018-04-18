@@ -49,6 +49,9 @@ casfail:
 	MOVB	R0, ret+12(FP)
 	RET
 
+TEXT runtime∕internal∕atomic·Loadp(SB),NOSPLIT|NOFRAME,$0-8
+	B runtime∕internal∕atomic·Load(SB)
+
 TEXT runtime∕internal∕atomic·Casuintptr(SB),NOSPLIT,$0-13
 	B	runtime∕internal∕atomic·Cas(SB)
 

@@ -2622,6 +2622,17 @@ func TestCoverageFunc(t *testing.T) {
 	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
 }
 
+// Issue 24588.
+func TestCoverageDashC(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "-c", "-o", tg.path("coverdep"), "-coverprofile="+tg.path("no/such/dir/cover.out"), "coverdep")
+	tg.wantExecutable(tg.path("coverdep"), "go -test -c -coverprofile did not create executable")
+}
+
 func TestPluginNonMain(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -3165,6 +3176,22 @@ func TestGoGenerateEnv(t *testing.T) {
 	tg.run("generate", tg.path("env.go"))
 	for _, v := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR"} {
 		tg.grepStdout("^"+v+"=", "go generate environment missing "+v)
+	}
+}
+
+func TestGoGenerateXTestPkgName(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping because windows has no echo command")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("env_test.go", "package main_test\n\n//go:generate echo $GOPACKAGE")
+	tg.run("generate", tg.path("env_test.go"))
+	want := "main_test"
+	if got := strings.TrimSpace(tg.getStdout()); got != want {
+		t.Errorf("go generate in XTest file got package name %q; want %q", got, want)
 	}
 }
 
@@ -5470,7 +5497,7 @@ func TestTestVet(t *testing.T) {
 	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
 }
 
-func TestTestRebuild(t *testing.T) {
+func TestTestVetRebuild(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -5506,6 +5533,7 @@ func TestTestRebuild(t *testing.T) {
 
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("test", "b")
+	tg.run("vet", "b")
 }
 
 func TestInstallDeps(t *testing.T) {
@@ -5672,6 +5700,9 @@ func TestFailFast(t *testing.T) {
 		// non-parallel subtests:
 		{"TestFailingSubtestsA", true, 1},
 		{"TestFailingSubtestsA", false, 2},
+		// fatal test
+		{"TestFatal[CD]", true, 1},
+		{"TestFatal[CD]", false, 2},
 	}
 
 	for _, tt := range tests {
@@ -5989,5 +6020,28 @@ func TestDontReportRemoveOfEmptyDir(t *testing.T) {
 	// nothing else.
 	if bytes.Count(tg.stdout.Bytes(), []byte{'\n'})+bytes.Count(tg.stderr.Bytes(), []byte{'\n'}) > 1 {
 		t.Error("unnecessary output when installing installed package")
+	}
+}
+
+// Issue 23264.
+func TestNoRelativeTmpdir(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("src/a/a.go", `package a`)
+	tg.cd(tg.path("."))
+	tg.must(os.Mkdir("tmp", 0777))
+
+	tg.setenv("GOCACHE", "off")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GOTMPDIR", "tmp")
+	tg.runFail("build", "a")
+	tg.grepStderr("relative tmpdir", "wrong error")
+
+	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
+		tg.unsetenv("GOTMPDIR")
+		tg.setenv("TMPDIR", "tmp")
+		tg.runFail("build", "a")
+		tg.grepStderr("relative tmpdir", "wrong error")
 	}
 }

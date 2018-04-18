@@ -12,6 +12,7 @@
  * $FreeBSD: src/sys/powerpc/include/elf.h,v 1.7 2004/11/02 09:47:01 ssouhlal Exp $
  * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
  * "ELF for the ARM® 64-bit Architecture (AArch64)" (ARM IHI 0056B)
+ * "RISC-V ELF psABI specification" (https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md)
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
  * Copyright (c) 2001 David E. O'Brien
@@ -237,6 +238,7 @@ const (
 	EM_TINYJ       Machine = 61  /* Advanced Logic Corp. TinyJ processor. */
 	EM_X86_64      Machine = 62  /* Advanced Micro Devices x86-64 */
 	EM_AARCH64     Machine = 183 /* ARM 64-bit Architecture (AArch64) */
+	EM_RISCV       Machine = 243 /* RISC-V */
 
 	/* Non-standard or deprecated. */
 	EM_486         Machine = 6      /* Intel i486. */
@@ -289,6 +291,8 @@ var machineStrings = []intName{
 	{60, "EM_ST100"},
 	{61, "EM_TINYJ"},
 	{62, "EM_X86_64"},
+	{183, "EM_AARCH64"},
+	{243, "EM_RISCV"},
 
 	/* Non-standard or deprecated. */
 	{6, "EM_486"},
@@ -2080,6 +2084,124 @@ var rppc64Strings = []intName{
 
 func (i R_PPC64) String() string   { return stringName(uint32(i), rppc64Strings, false) }
 func (i R_PPC64) GoString() string { return stringName(uint32(i), rppc64Strings, true) }
+
+// Relocation types for RISC-V processors.
+type R_RISCV int
+
+const (
+	R_RISCV_NONE          R_RISCV = 0  /* No relocation. */
+	R_RISCV_32            R_RISCV = 1  /* Add 32 bit zero extended symbol value */
+	R_RISCV_64            R_RISCV = 2  /* Add 64 bit symbol value. */
+	R_RISCV_RELATIVE      R_RISCV = 3  /* Add load address of shared object. */
+	R_RISCV_COPY          R_RISCV = 4  /* Copy data from shared object. */
+	R_RISCV_JUMP_SLOT     R_RISCV = 5  /* Set GOT entry to code address. */
+	R_RISCV_TLS_DTPMOD32  R_RISCV = 6  /* 32 bit ID of module containing symbol */
+	R_RISCV_TLS_DTPMOD64  R_RISCV = 7  /* ID of module containing symbol */
+	R_RISCV_TLS_DTPREL32  R_RISCV = 8  /* 32 bit relative offset in TLS block */
+	R_RISCV_TLS_DTPREL64  R_RISCV = 9  /* Relative offset in TLS block */
+	R_RISCV_TLS_TPREL32   R_RISCV = 10 /* 32 bit relative offset in static TLS block */
+	R_RISCV_TLS_TPREL64   R_RISCV = 11 /* Relative offset in static TLS block */
+	R_RISCV_BRANCH        R_RISCV = 16 /* PC-relative branch */
+	R_RISCV_JAL           R_RISCV = 17 /* PC-relative jump */
+	R_RISCV_CALL          R_RISCV = 18 /* PC-relative call */
+	R_RISCV_CALL_PLT      R_RISCV = 19 /* PC-relative call (PLT) */
+	R_RISCV_GOT_HI20      R_RISCV = 20 /* PC-relative GOT reference */
+	R_RISCV_TLS_GOT_HI20  R_RISCV = 21 /* PC-relative TLS IE GOT offset */
+	R_RISCV_TLS_GD_HI20   R_RISCV = 22 /* PC-relative TLS GD reference */
+	R_RISCV_PCREL_HI20    R_RISCV = 23 /* PC-relative reference */
+	R_RISCV_PCREL_LO12_I  R_RISCV = 24 /* PC-relative reference */
+	R_RISCV_PCREL_LO12_S  R_RISCV = 25 /* PC-relative reference */
+	R_RISCV_HI20          R_RISCV = 26 /* Absolute address */
+	R_RISCV_LO12_I        R_RISCV = 27 /* Absolute address */
+	R_RISCV_LO12_S        R_RISCV = 28 /* Absolute address */
+	R_RISCV_TPREL_HI20    R_RISCV = 29 /* TLS LE thread offset */
+	R_RISCV_TPREL_LO12_I  R_RISCV = 30 /* TLS LE thread offset */
+	R_RISCV_TPREL_LO12_S  R_RISCV = 31 /* TLS LE thread offset */
+	R_RISCV_TPREL_ADD     R_RISCV = 32 /* TLS LE thread usage */
+	R_RISCV_ADD8          R_RISCV = 33 /* 8-bit label addition */
+	R_RISCV_ADD16         R_RISCV = 34 /* 16-bit label addition */
+	R_RISCV_ADD32         R_RISCV = 35 /* 32-bit label addition */
+	R_RISCV_ADD64         R_RISCV = 36 /* 64-bit label addition */
+	R_RISCV_SUB8          R_RISCV = 37 /* 8-bit label subtraction */
+	R_RISCV_SUB16         R_RISCV = 38 /* 16-bit label subtraction */
+	R_RISCV_SUB32         R_RISCV = 39 /* 32-bit label subtraction */
+	R_RISCV_SUB64         R_RISCV = 40 /* 64-bit label subtraction */
+	R_RISCV_GNU_VTINHERIT R_RISCV = 41 /* GNU C++ vtable hierarchy */
+	R_RISCV_GNU_VTENTRY   R_RISCV = 42 /* GNU C++ vtable member usage */
+	R_RISCV_ALIGN         R_RISCV = 43 /* Alignment statement */
+	R_RISCV_RVC_BRANCH    R_RISCV = 44 /* PC-relative branch offset */
+	R_RISCV_RVC_JUMP      R_RISCV = 45 /* PC-relative jump offset */
+	R_RISCV_RVC_LUI       R_RISCV = 46 /* Absolute address */
+	R_RISCV_GPREL_I       R_RISCV = 47 /* GP-relative reference */
+	R_RISCV_GPREL_S       R_RISCV = 48 /* GP-relative reference */
+	R_RISCV_TPREL_I       R_RISCV = 49 /* TP-relative TLS LE load */
+	R_RISCV_TPREL_S       R_RISCV = 50 /* TP-relative TLS LE store */
+	R_RISCV_RELAX         R_RISCV = 51 /* Instruction pair can be relaxed */
+	R_RISCV_SUB6          R_RISCV = 52 /* Local label subtraction */
+	R_RISCV_SET6          R_RISCV = 53 /* Local label subtraction */
+	R_RISCV_SET8          R_RISCV = 54 /* Local label subtraction */
+	R_RISCV_SET16         R_RISCV = 55 /* Local label subtraction */
+	R_RISCV_SET32         R_RISCV = 56 /* Local label subtraction */
+)
+
+var rriscvStrings = []intName{
+	{0, "R_RISCV_NONE"},
+	{1, "R_RISCV_32"},
+	{2, "R_RISCV_64"},
+	{3, "R_RISCV_RELATIVE"},
+	{4, "R_RISCV_COPY"},
+	{5, "R_RISCV_JUMP_SLOT"},
+	{6, "R_RISCV_TLS_DTPMOD32"},
+	{7, "R_RISCV_TLS_DTPMOD64"},
+	{8, "R_RISCV_TLS_DTPREL32"},
+	{9, "R_RISCV_TLS_DTPREL64"},
+	{10, "R_RISCV_TLS_TPREL32"},
+	{11, "R_RISCV_TLS_TPREL64"},
+	{16, "R_RISCV_BRANCH"},
+	{17, "R_RISCV_JAL"},
+	{18, "R_RISCV_CALL"},
+	{19, "R_RISCV_CALL_PLT"},
+	{20, "R_RISCV_GOT_HI20"},
+	{21, "R_RISCV_TLS_GOT_HI20"},
+	{22, "R_RISCV_TLS_GD_HI20"},
+	{23, "R_RISCV_PCREL_HI20"},
+	{24, "R_RISCV_PCREL_LO12_I"},
+	{25, "R_RISCV_PCREL_LO12_S"},
+	{26, "R_RISCV_HI20"},
+	{27, "R_RISCV_LO12_I"},
+	{28, "R_RISCV_LO12_S"},
+	{29, "R_RISCV_TPREL_HI20"},
+	{30, "R_RISCV_TPREL_LO12_I"},
+	{31, "R_RISCV_TPREL_LO12_S"},
+	{32, "R_RISCV_TPREL_ADD"},
+	{33, "R_RISCV_ADD8"},
+	{34, "R_RISCV_ADD16"},
+	{35, "R_RISCV_ADD32"},
+	{36, "R_RISCV_ADD64"},
+	{37, "R_RISCV_SUB8"},
+	{38, "R_RISCV_SUB16"},
+	{39, "R_RISCV_SUB32"},
+	{40, "R_RISCV_SUB64"},
+	{41, "R_RISCV_GNU_VTINHERIT"},
+	{42, "R_RISCV_GNU_VTENTRY"},
+	{43, "R_RISCV_ALIGN"},
+	{44, "R_RISCV_RVC_BRANCH"},
+	{45, "R_RISCV_RVC_JUMP"},
+	{46, "R_RISCV_RVC_LUI"},
+	{47, "R_RISCV_GPREL_I"},
+	{48, "R_RISCV_GPREL_S"},
+	{49, "R_RISCV_TPREL_I"},
+	{50, "R_RISCV_TPREL_S"},
+	{51, "R_RISCV_RELAX"},
+	{52, "R_RISCV_SUB6"},
+	{53, "R_RISCV_SET6"},
+	{54, "R_RISCV_SET8"},
+	{55, "R_RISCV_SET16"},
+	{56, "R_RISCV_SET32"},
+}
+
+func (i R_RISCV) String() string   { return stringName(uint32(i), rriscvStrings, false) }
+func (i R_RISCV) GoString() string { return stringName(uint32(i), rriscvStrings, true) }
 
 // Relocation types for s390x processors.
 type R_390 int

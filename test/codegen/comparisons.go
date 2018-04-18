@@ -19,16 +19,25 @@ import "unsafe"
 
 func CompareString1(s string) bool {
 	// amd64:`CMPW\t\(.*\), [$]`
+	// arm64:`MOVHU\t\(.*\), [R]`,`CMPW\t[$]`
+	// ppc64le:`MOVHZ\t\(.*\), [R]`,`CMPW\t.*, [$]`
+	// s390x:`MOVHBR\t\(.*\), [R]`,`CMPW\t.*, [$]`
 	return s == "xx"
 }
 
 func CompareString2(s string) bool {
 	// amd64:`CMPL\t\(.*\), [$]`
+	// arm64:`MOVWU\t\(.*\), [R]`,`CMPW\t.*, [R]`
+	// ppc64le:`MOVWZ\t\(.*\), [R]`,`CMPW\t.*, [R]`
+	// s390x:`MOVWBR\t\(.*\), [R]`,`CMPW\t.*, [$]`
 	return s == "xxxx"
 }
 
 func CompareString3(s string) bool {
 	// amd64:`CMPQ\t\(.*\), [A-Z]`
+	// arm64:-`CMPW\t`
+	// ppc64le:-`CMPW\t`
+	// s390x:-`CMPW\t`
 	return s == "xxxxxxxx"
 }
 
@@ -36,6 +45,9 @@ func CompareString3(s string) bool {
 
 func CompareArray1(a, b [2]byte) bool {
 	// amd64:`CMPW\t""[.+_a-z0-9]+\(SP\), [A-Z]`
+	// arm64:-`MOVBU\t`
+	// ppc64le:-`MOVBZ\t`
+	// s390x:-`MOVBZ\t`
 	return a == b
 }
 
@@ -65,6 +77,9 @@ func CompareArray5(a, b [15]byte) bool {
 // This was a TODO in mapaccess1_faststr
 func CompareArray6(a, b unsafe.Pointer) bool {
 	// amd64:`CMPL\t\(.*\), [A-Z]`
+	// arm64:`MOVWU\t\(.*\), [R]`,`CMPW\t.*, [R]`
+	// ppc64le:`MOVWZ\t\(.*\), [R]`,`CMPW\t.*, [R]`
+	// s390x:`MOVWBR\t\(.*\), [R]`,`CMPW\t.*, [R]`
 	return *((*[4]byte)(a)) != *((*[4]byte)(b))
 }
 

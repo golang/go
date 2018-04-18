@@ -407,6 +407,18 @@ func (t *tester) registerTests() {
 		}
 	}
 
+	// Test the os/user package in the pure-Go mode too.
+	if !t.compileOnly {
+		t.tests = append(t.tests, distTest{
+			name:    "osusergo",
+			heading: "os/user with tag osusergo",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=osusergo", "os/user")
+				return nil
+			},
+		})
+	}
+
 	if t.race {
 		return
 	}

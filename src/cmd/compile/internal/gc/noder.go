@@ -65,6 +65,8 @@ func parseFiles(filenames []string) uint {
 		testdclstack()
 	}
 
+	localpkg.Height = myheight
+
 	return lines
 }
 
@@ -125,7 +127,7 @@ type noder struct {
 
 	file       *syntax.File
 	linknames  []linkname
-	pragcgobuf string
+	pragcgobuf [][]string
 	err        chan syntax.Error
 	scope      ScopeID
 
@@ -244,7 +246,7 @@ func (p *noder) node() {
 		}
 	}
 
-	pragcgobuf += p.pragcgobuf
+	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
 	lineno = src.NoXPos
 	clearImports()
 }
@@ -313,8 +315,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		return
 	}
 	if my.Def != nil {
-		lineno = pack.Pos
-		redeclare(my, "as imported package name")
+		redeclare(pack.Pos, my, "as imported package name")
 	}
 	my.Def = asTypesNode(pack)
 	my.Lastlineno = pack.Pos
@@ -425,8 +426,7 @@ func (p *noder) declNames(names []*syntax.Name) []*Node {
 }
 
 func (p *noder) declName(name *syntax.Name) *Node {
-	// TODO(mdempsky): Set lineno?
-	return dclname(p.name(name))
+	return p.setlineno(name, dclname(p.name(name)))
 }
 
 func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
@@ -452,7 +452,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		name = nblank.Sym // filled in by typecheckfunc
 	}
 
-	f.Func.Nname = newfuncname(name)
+	f.Func.Nname = p.setlineno(fun.Name, newfuncname(name))
 	f.Func.Nname.Name.Defn = f
 	f.Func.Nname.Name.Param.Ntype = t
 
@@ -598,13 +598,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		n.SetSliceBounds(index[0], index[1], index[2])
 		return n
 	case *syntax.AssertExpr:
-		if expr.Type == nil {
-			panic("unexpected AssertExpr")
-		}
-		// TODO(mdempsky): parser.pexpr uses p.expr(), but
-		// seems like the type field should be parsed with
-		// ntype? Shrug, doesn't matter here.
-		return p.nod(expr, ODOTTYPE, p.expr(expr.X), p.expr(expr.Type))
+		return p.nod(expr, ODOTTYPE, p.expr(expr.X), p.typeExpr(expr.Type))
 	case *syntax.Operation:
 		if expr.Op == syntax.Add && expr.Y != nil {
 			return p.sum(expr)
@@ -660,7 +654,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		n := p.nod(expr, OTYPESW, nil, p.expr(expr.X))
 		if expr.Lhs != nil {
 			n.Left = p.declName(expr.Lhs)
-			if isblank(n.Left) {
+			if n.Left.isBlank() {
 				yyerror("invalid variable name %v in type switch", n.Left)
 			}
 		}
@@ -1423,7 +1417,7 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 			if lib != "" && !safeArg(lib) && !isCgoGeneratedFile(pos) {
 				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
 			}
-			p.pragcgobuf += p.pragcgo(pos, text)
+			p.pragcgo(pos, text)
 			return pragmaValue("go:cgo_import_dynamic")
 		}
 		fallthrough
@@ -1434,7 +1428,7 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 		if !isCgoGeneratedFile(pos) && !compiling_std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in cgo-generated code", text)})
 		}
-		p.pragcgobuf += p.pragcgo(pos, text)
+		p.pragcgo(pos, text)
 		fallthrough // because of //go:cgo_unsafe_args
 	default:
 		verb := text

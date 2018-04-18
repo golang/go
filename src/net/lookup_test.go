@@ -63,6 +63,7 @@ var lookupGoogleSRVTests = []struct {
 var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 30 * time.Second}
 
 func TestLookupGoogleSRV(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -109,6 +110,7 @@ var lookupGmailMXTests = []struct {
 }
 
 func TestLookupGmailMX(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -116,8 +118,6 @@ func TestLookupGmailMX(t *testing.T) {
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
-
-	defer dnsWaitGroup.Wait()
 
 	attempts := 0
 	for i := 0; i < len(lookupGmailMXTests); i++ {
@@ -154,6 +154,7 @@ var lookupGmailNSTests = []struct {
 }
 
 func TestLookupGmailNS(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -162,12 +163,20 @@ func TestLookupGmailNS(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
-	defer dnsWaitGroup.Wait()
-
-	for _, tt := range lookupGmailNSTests {
+	attempts := 0
+	for i := 0; i < len(lookupGmailNSTests); i++ {
+		tt := lookupGmailNSTests[i]
 		nss, err := LookupNS(tt.name)
 		if err != nil {
 			testenv.SkipFlakyNet(t)
+			if attempts < len(backoffDuration) {
+				dur := backoffDuration[attempts]
+				t.Logf("backoff %v after failure %v\n", dur, err)
+				time.Sleep(dur)
+				attempts++
+				i--
+				continue
+			}
 			t.Fatal(err)
 		}
 		if len(nss) == 0 {
@@ -189,6 +198,7 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
+	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -196,8 +206,6 @@ func TestLookupGmailTXT(t *testing.T) {
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
-
-	defer dnsWaitGroup.Wait()
 
 	attempts := 0
 	for i := 0; i < len(lookupGmailTXTTests); i++ {
@@ -308,9 +316,20 @@ func TestLookupCNAME(t *testing.T) {
 
 	defer dnsWaitGroup.Wait()
 
-	for _, tt := range lookupCNAMETests {
+	attempts := 0
+	for i := 0; i < len(lookupCNAMETests); i++ {
+		tt := lookupCNAMETests[i]
 		cname, err := LookupCNAME(tt.name)
 		if err != nil {
+			testenv.SkipFlakyNet(t)
+			if attempts < len(backoffDuration) {
+				dur := backoffDuration[attempts]
+				t.Logf("backoff %v after failure %v\n", dur, err)
+				time.Sleep(dur)
+				attempts++
+				i--
+				continue
+			}
 			t.Fatal(err)
 		}
 		if !strings.HasSuffix(cname, tt.cname) {

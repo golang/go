@@ -124,7 +124,7 @@ type Arch struct {
 }
 
 var (
-	Thearch Arch
+	thearch Arch
 	Lcsize  int32
 	rpath   Rpath
 	Spsize  int32
@@ -212,7 +212,7 @@ func mayberemoveoutfile() {
 }
 
 func libinit(ctxt *Link) {
-	Funcalign = Thearch.Funcalign
+	Funcalign = thearch.Funcalign
 
 	// add goroot to the end of the libdir list.
 	suffix := ""
@@ -454,14 +454,14 @@ func (ctxt *Link) loadlib() {
 		// recording the value of GOARM.
 		if ctxt.Arch.Family == sys.ARM {
 			s := ctxt.Syms.Lookup("runtime.goarm", 0)
-			s.Type = sym.SRODATA
+			s.Type = sym.SDATA
 			s.Size = 0
 			s.AddUint8(uint8(objabi.GOARM))
 		}
 
 		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
 			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
-			s.Type = sym.SRODATA
+			s.Type = sym.SDATA
 			s.Size = 0
 			s.AddUint8(1)
 		}
@@ -1266,7 +1266,7 @@ func (ctxt *Link) hostlink() {
 	// does not work, the resulting programs will not run. See
 	// issue #17847. To avoid this problem pass -no-pie to the
 	// toolchain if it is supported.
-	if ctxt.BuildMode == BuildModeExe {
+	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
 		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
 			Errorf(nil, "WriteFile trivial.c failed: %v", err)

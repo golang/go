@@ -261,3 +261,32 @@ func bitcompl32(a, b uint32) (n uint32) {
 
 	return n
 }
+
+// Check AND masking on arm64 (Issue #19857)
+
+func and_mask_1(a uint64) uint64 {
+	// arm64:`AND\t`
+	return a & ((1 << 63) - 1)
+}
+
+func and_mask_2(a uint64) uint64 {
+	// arm64:`AND\t`
+	return a & (1 << 63)
+}
+
+// Check generation of arm64 BIC/EON/ORN instructions
+
+func op_bic(x, y uint32) uint32 {
+	// arm64:`BIC\t`,-`AND`
+	return x &^ y
+}
+
+func op_eon(x, y uint32) uint32 {
+	// arm64:`EON\t`,-`XOR`
+	return x ^ ^y
+}
+
+func op_orn(x, y uint32) uint32 {
+	// arm64:`ORN\t`,-`ORR`
+	return x | ^y
+}

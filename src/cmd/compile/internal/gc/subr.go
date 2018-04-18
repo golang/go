@@ -248,7 +248,7 @@ func autolabel(prefix string) *Node {
 }
 
 func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
-	if !exportname(name) && pkg != localpkg {
+	if !types.IsExported(name) && pkg != localpkg {
 		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
 	}
 	return pkg.Lookup(name)
@@ -262,13 +262,13 @@ func importdot(opkg *types.Pkg, pack *Node) {
 		if s.Def == nil {
 			continue
 		}
-		if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
+		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
 			continue
 		}
 		s1 := lookup(s.Name)
 		if s1.Def != nil {
 			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
-			redeclare(s1, pkgerror)
+			redeclare(lineno, s1, pkgerror)
 			continue
 		}
 
@@ -364,97 +364,36 @@ func nodSym(op Op, left *Node, sym *types.Sym) *Node {
 	return n
 }
 
-func saveorignode(n *Node) {
-	if n.Orig != nil {
-		return
-	}
-	norig := nod(n.Op, nil, nil)
-	*norig = *n
-	n.Orig = norig
+func (n *Node) copy() *Node {
+	n2 := *n
+	return &n2
 }
 
-// methcmp sorts methods by name with exported methods first,
-// and then non-exported methods by their package path.
+// methcmp sorts methods by symbol.
 type methcmp []*types.Field
 
-func (x methcmp) Len() int      { return len(x) }
-func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x methcmp) Less(i, j int) bool {
-	a := x[i]
-	b := x[j]
-	if a.Sym == b.Sym {
-		return false
-	}
-
-	// Blank methods to the end.
-	if a.Sym == nil {
-		return false
-	}
-	if b.Sym == nil {
-		return true
-	}
-
-	// Exported methods to the front.
-	ea := exportname(a.Sym.Name)
-	eb := exportname(b.Sym.Name)
-	if ea != eb {
-		return ea
-	}
-
-	// Sort by name and then package.
-	if a.Sym.Name != b.Sym.Name {
-		return a.Sym.Name < b.Sym.Name
-	}
-	if !ea && a.Sym.Pkg.Path != b.Sym.Pkg.Path {
-		return a.Sym.Pkg.Path < b.Sym.Pkg.Path
-	}
-
-	return false
-}
+func (x methcmp) Len() int           { return len(x) }
+func (x methcmp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x methcmp) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
 
 func nodintconst(v int64) *Node {
-	c := nod(OLITERAL, nil, nil)
-	c.SetAddable(true)
-	c.SetVal(Val{new(Mpint)})
-	c.Val().U.(*Mpint).SetInt64(v)
-	c.Type = types.Types[TIDEAL]
-	return c
+	u := new(Mpint)
+	u.SetInt64(v)
+	return nodlit(Val{u})
 }
 
 func nodfltconst(v *Mpflt) *Node {
-	c := nod(OLITERAL, nil, nil)
-	c.SetAddable(true)
-	c.SetVal(Val{newMpflt()})
-	c.Val().U.(*Mpflt).Set(v)
-	c.Type = types.Types[TIDEAL]
-	return c
-}
-
-func nodconst(n *Node, t *types.Type, v int64) {
-	*n = Node{}
-	n.Op = OLITERAL
-	n.SetAddable(true)
-	n.SetVal(Val{new(Mpint)})
-	n.Val().U.(*Mpint).SetInt64(v)
-	n.Type = t
-
-	if t.IsFloat() {
-		Fatalf("nodconst: bad type %v", t)
-	}
+	u := newMpflt()
+	u.Set(v)
+	return nodlit(Val{u})
 }
 
 func nodnil() *Node {
-	c := nodintconst(0)
-	c.SetVal(Val{new(NilVal)})
-	c.Type = types.Types[TNIL]
-	return c
+	return nodlit(Val{new(NilVal)})
 }
 
 func nodbool(b bool) *Node {
-	c := nodintconst(0)
-	c.SetVal(Val{b})
-	c.Type = types.Idealbool
-	return c
+	return nodlit(Val{b})
 }
 
 func nodstr(s string) *Node {
@@ -473,8 +412,8 @@ func treecopy(n *Node, pos src.XPos) *Node {
 
 	switch n.Op {
 	default:
-		m := *n
-		m.Orig = &m
+		m := n.copy()
+		m.Orig = m
 		m.Left = treecopy(n.Left, pos)
 		m.Right = treecopy(n.Right, pos)
 		m.List.Set(listtreecopy(n.List.Slice(), pos))
@@ -485,7 +424,7 @@ func treecopy(n *Node, pos src.XPos) *Node {
 			Dump("treecopy", n)
 			Fatalf("treecopy Name")
 		}
-		return &m
+		return m
 
 	case OPACK:
 		// OPACK nodes are never valid in const value declarations,
@@ -499,8 +438,8 @@ func treecopy(n *Node, pos src.XPos) *Node {
 	}
 }
 
-// isnil reports whether n represents the universal untyped zero value "nil".
-func isnil(n *Node) bool {
+// isNil reports whether n represents the universal untyped zero value "nil".
+func (n *Node) isNil() bool {
 	// Check n.Orig because constant propagation may produce typed nil constants,
 	// which don't exist in the Go spec.
 	return Isconst(n.Orig, CTNIL)
@@ -523,7 +462,7 @@ func isptrto(t *types.Type, et types.EType) bool {
 	return true
 }
 
-func isblank(n *Node) bool {
+func (n *Node) isBlank() bool {
 	if n == nil {
 		return false
 	}
@@ -1286,8 +1225,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		if l == n.Left {
 			return n
 		}
-		r := nod(OXXX, nil, nil)
-		*r = *n
+		r := n.copy()
 		r.Left = l
 		r = typecheck(r, Erv)
 		r = walkexpr(r, init)
@@ -1298,8 +1236,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := nod(OXXX, nil, nil)
-		*a = *n
+		a := n.copy()
 		a.Left = l
 		a = walkexpr(a, init)
 		return a
@@ -1310,8 +1247,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		if l == n.Left && r == n.Right {
 			return n
 		}
-		a := nod(OXXX, nil, nil)
-		*a = *n
+		a := n.copy()
 		a.Left = l
 		a.Right = r
 		a = walkexpr(a, init)
@@ -1686,7 +1622,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
 //	newnam - the eventual mangled name of this function
-func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface bool) {
+func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if false && Debug['r'] != 0 {
 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
 	}
@@ -1694,6 +1630,11 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 	// Only generate (*T).M wrappers for T.M in T's own package.
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
 		rcvr.Elem().Sym != nil && rcvr.Elem().Sym.Pkg != localpkg {
+		return
+	}
+
+	// Only generate I.M wrappers for I in I's own package.
+	if rcvr.IsInterface() && rcvr.Sym != nil && rcvr.Sym.Pkg != localpkg {
 		return
 	}
 
@@ -1708,24 +1649,12 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 	out := structargs(method.Type.Results(), false)
 
 	t := nod(OTFUNC, nil, nil)
-	l := []*Node{this}
-	if iface && rcvr.Width < int64(Widthptr) {
-		// Building method for interface table and receiver
-		// is smaller than the single pointer-sized word
-		// that the interface call will pass in.
-		// Add a dummy padding argument after the
-		// receiver to make up the difference.
-		tpad := types.NewArray(types.Types[TUINT8], int64(Widthptr)-rcvr.Width)
-		pad := namedfield(".pad", tpad)
-		l = append(l, pad)
-	}
-
-	t.List.Set(append(l, in...))
+	t.List.Set(append([]*Node{this}, in...))
 	t.Rlist.Set(out)
 
+	newnam.SetOnExportList(true) // prevent export; see closure.go
 	fn := dclfunc(newnam, t)
 	fn.Func.SetDupok(true)
-	fn.Func.Nname.Sym.SetExported(true) // prevent export; see closure.go
 
 	// arg list
 	var args []*Node
@@ -1767,7 +1696,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
 		as.Right.Type = rcvr
 		fn.Nbody.Append(as)
-		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr, false)))
+		fn.Nbody.Append(nodSym(ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
 	} else {
 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
 		call := nod(OCALL, dot, nil)

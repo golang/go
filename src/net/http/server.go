@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang_org/x/net/http/httpguts"
 	"golang_org/x/net/lex/httplex"
 )
 
@@ -227,8 +228,8 @@ var (
 	ServerContextKey = &contextKey{"http-server"}
 
 	// LocalAddrContextKey is a context key. It can be used in
-	// HTTP handlers with context.WithValue to access the address
-	// the local address the connection arrived on.
+	// HTTP handlers with context.WithValue to access the local
+	// address the connection arrived on.
 	// The associated value will be of type net.Addr.
 	LocalAddrContextKey = &contextKey{"local-addr"}
 )
@@ -510,10 +511,8 @@ func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
 // written in the trailers at the end of the response.
 func (w *response) declareTrailer(k string) {
 	k = CanonicalHeaderKey(k)
-	switch k {
-	case "Transfer-Encoding", "Content-Length", "Trailer":
-		// Forbidden by RFC 2616 14.40.
-		// TODO: inconsistent with RFC 7230, section 4.1.2
+	if !httpguts.ValidTrailerHeader(k) {
+		// Forbidden by RFC 7230, section 4.1.2
 		return
 	}
 	w.trailers = append(w.trailers, k)
@@ -1339,7 +1338,15 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		// If no content type, apply sniffing algorithm to body.
 		_, haveType := header["Content-Type"]
 		if !haveType && !hasTE && len(p) > 0 {
-			setHeader.contentType = DetectContentType(p)
+			if cto := header.get("X-Content-Type-Options"); strings.EqualFold("nosniff", cto) {
+				// nosniff is an explicit directive not to guess a content-type.
+				// Content-sniffing is no less susceptible to polyglot attacks via
+				// hosted content when done on the server.
+				setHeader.contentType = "application/octet-stream"
+				w.conn.server.logf("http: WriteHeader called with X-Content-Type-Options:nosniff but no Content-Type")
+			} else {
+				setHeader.contentType = DetectContentType(p)
+			}
 		}
 	} else {
 		for _, k := range suppressedHeaders(code) {
@@ -2152,7 +2159,7 @@ func pathMatch(pattern, path string) bool {
 	return len(path) >= n && path[0:n] == pattern
 }
 
-// Return the canonical path for p, eliminating . and .. elements.
+// cleanPath returns the canonical path for p, eliminating . and .. elements.
 func cleanPath(p string) string {
 	if p == "" {
 		return "/"
@@ -2477,7 +2484,7 @@ type Server struct {
 	nextProtoErr      error     // result of http2.ConfigureServer if used
 
 	mu         sync.Mutex
-	listeners  map[net.Listener]struct{}
+	listeners  map[*net.Listener]struct{}
 	activeConn map[*conn]struct{}
 	doneChan   chan struct{}
 	onShutdown []func()
@@ -2613,7 +2620,7 @@ func (s *Server) closeIdleConns() bool {
 func (s *Server) closeListenersLocked() error {
 	var err error
 	for ln := range s.listeners {
-		if cerr := ln.Close(); cerr != nil && err == nil {
+		if cerr := (*ln).Close(); cerr != nil && err == nil {
 			err = cerr
 		}
 		delete(s.listeners, ln)
@@ -2757,8 +2764,8 @@ func (srv *Server) Serve(l net.Listener) error {
 		return err
 	}
 
-	srv.trackListener(l, true)
-	defer srv.trackListener(l, false)
+	srv.trackListener(&l, true)
+	defer srv.trackListener(&l, false)
 
 	baseCtx := context.Background() // base is always background, per Issue 16220
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
@@ -2835,11 +2842,19 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	return srv.Serve(tlsListener)
 }
 
-func (s *Server) trackListener(ln net.Listener, add bool) {
+// trackListener adds or removes a net.Listener to the set of tracked
+// listeners.
+//
+// We store a pointer to interface in the map set, in case the
+// net.Listener is not comparable. This is safe because we only call
+// trackListener via Serve and can track+defer untrack the same
+// pointer to local variable there. We never need to compare a
+// Listener from another caller.
+func (s *Server) trackListener(ln *net.Listener, add bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.listeners == nil {
-		s.listeners = make(map[net.Listener]struct{})
+		s.listeners = make(map[*net.Listener]struct{})
 	}
 	if add {
 		// If the *Server is being reused after a previous

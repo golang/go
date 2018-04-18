@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -111,21 +112,41 @@ func httpUserSpan(w http.ResponseWriter, r *http.Request) {
 
 	var data []spanDesc
 
+	var maxTotal int64
 	for id, spans := range allSpans {
 		for _, s := range spans {
 			if !filter.match(id, s) {
 				continue
 			}
 			data = append(data, s)
+			if maxTotal < s.TotalTime {
+				maxTotal = s.TotalTime
+			}
 		}
 	}
 
+	sortby := r.FormValue("sortby")
+	_, ok := reflect.TypeOf(spanDesc{}).FieldByNameFunc(func(s string) bool {
+		return s == sortby
+	})
+	if !ok {
+		sortby = "TotalTime"
+	}
+	sort.Slice(data, func(i, j int) bool {
+		ival := reflect.ValueOf(data[i]).FieldByName(sortby).Int()
+		jval := reflect.ValueOf(data[j]).FieldByName(sortby).Int()
+		return ival > jval
+	})
+
 	err = templUserSpanType.Execute(w, struct {
-		Data  []spanDesc
-		Title string
+		MaxTotal int64
+		Data     []spanDesc
+		Name     string
 	}{
-		Data:  data,
-		Title: filter.name})
+		MaxTotal: maxTotal,
+		Data:     data,
+		Name:     filter.name,
+	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
 		return
@@ -285,13 +306,15 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 	// combine span info.
 	analyzeGoroutines(events)
 	for goid, stats := range gs {
+		// gs is a global var defined in goroutines.go as a result
+		// of analyzeGoroutines. TODO(hyangah): fix this not to depend
+		// on a 'global' var.
 		for _, s := range stats.Spans {
-			if s.TaskID == 0 {
-				continue
+			if s.TaskID != 0 {
+				task := tasks.task(s.TaskID)
+				task.goroutines[goid] = struct{}{}
+				task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
 			}
-			task := tasks.task(s.TaskID)
-			task.goroutines[goid] = struct{}{}
-			task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
 			var frame trace.Frame
 			if s.Start != nil {
 				frame = *s.Start.Stk[0]
@@ -301,7 +324,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 		}
 	}
 
-	// sort spans based on the timestamps.
+	// sort spans in tasks based on the timestamps.
 	for _, task := range tasks {
 		sort.SliceStable(task.spans, func(i, j int) bool {
 			si, sj := task.spans[i].firstTimestamp(), task.spans[j].firstTimestamp()
@@ -387,7 +410,6 @@ func (tasks allTasks) task(taskID uint64) *taskDesc {
 
 func (task *taskDesc) addEvent(ev *trace.Event) {
 	if task == nil {
-		// TODO(hyangah): handle spans with no task.
 		return
 	}
 
@@ -1113,40 +1135,121 @@ func isUserAnnotationEvent(ev *trace.Event) bool {
 	return false
 }
 
-var templUserSpanType = template.Must(template.New("").Parse(`
-<html>
-<body>
-<h2>{{.Title}}</h2>
-<table border="1" sortable="1">
+var templUserSpanType = template.Must(template.New("").Funcs(template.FuncMap{
+	"prettyDuration": func(nsec int64) template.HTML {
+		d := time.Duration(nsec) * time.Nanosecond
+		return template.HTML(niceDuration(d))
+	},
+	"percent": func(dividened, divisor int64) template.HTML {
+		if divisor == 0 {
+			return ""
+		}
+		return template.HTML(fmt.Sprintf("(%.1f%%)", float64(dividened)/float64(divisor)*100))
+	},
+	"barLen": func(dividened, divisor int64) template.HTML {
+		if divisor == 0 {
+			return "0"
+		}
+		return template.HTML(fmt.Sprintf("%.2f%%", float64(dividened)/float64(divisor)*100))
+	},
+	"unknownTime": func(desc spanDesc) int64 {
+		sum := desc.ExecTime + desc.IOTime + desc.BlockTime + desc.SyscallTime + desc.SchedWaitTime
+		if sum < desc.TotalTime {
+			return desc.TotalTime - sum
+		}
+		return 0
+	},
+}).Parse(`
+<!DOCTYPE html>
+<title>Goroutine {{.Name}}</title>
+<style>
+th {
+  background-color: #050505;
+  color: #fff;
+}
+table {
+  border-collapse: collapse;
+}
+.details tr:hover {
+  background-color: #f2f2f2;
+}
+.details td {
+  text-align: right;
+  border: 1px solid #000;
+}
+.details td.id {
+  text-align: left;
+}
+.stacked-bar-graph {
+  width: 300px;
+  height: 10px;
+  color: #414042;
+  white-space: nowrap;
+  font-size: 5px;
+}
+.stacked-bar-graph span {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  float: left;
+  padding: 0;
+}
+.unknown-time { background-color: #636363; }
+.exec-time { background-color: #d7191c; }
+.io-time { background-color: #fdae61; }
+.block-time { background-color: #d01c8b; }
+.syscall-time { background-color: #7b3294; }
+.sched-time { background-color: #2c7bb6; }
+</style>
+
+<script>
+function reloadTable(key, value) {
+  let params = new URLSearchParams(window.location.search);
+  params.set(key, value);
+  window.location.search = params.toString();
+}
+</script>
+
+<h2>{{.Name}}</h2>
+
+<table class="details">
 <tr>
 <th> Goroutine </th>
 <th> Task </th>
-<th> Total time, ns </th>
-<th> Execution time, ns </th>
-<th> Network wait time, ns </th>
-<th> Sync block time, ns </th>
-<th> Blocking syscall time, ns </th>
-<th> Scheduler wait time, ns </th>
-<th> GC sweeping time, ns </th>
-<th> GC pause time, ns </th>
-<th> Logs </th>
+<th onclick="reloadTable('sortby', 'TotalTime')"> Total</th>
+<th></th>
+<th onclick="reloadTable('sortby', 'ExecTime')" class="exec-time"> Execution</th>
+<th onclick="reloadTable('sortby', 'IOTime')" class="io-time"> Network wait</th>
+<th onclick="reloadTable('sortby', 'BlockTime')" class="block-time"> Sync block </th>
+<th onclick="reloadTable('sortby', 'SyscallTime')" class="syscall-time"> Blocking syscall</th>
+<th onclick="reloadTable('sortby', 'SchedWaitTime')" class="sched-time"> Scheduler wait</th>
+<th onclick="reloadTable('sortby', 'SweepTime')"> GC sweeping</th>
+<th onclick="reloadTable('sortby', 'GCTime')"> GC pause</th>
 </tr>
 {{range .Data}}
   <tr>
     <td> <a href="/trace?goid={{.G}}">{{.G}}</a> </td>
-    <td> <a href="/trace?taskid={{.TaskID}}">{{.TaskID}}</a> </td>
-    <td> {{.TotalTime}} </td>
-    <td> {{.ExecTime}} </td>
-    <td> {{.IOTime}} </td>
-    <td> {{.BlockTime}} </td>
-    <td> {{.SyscallTime}} </td>
-    <td> {{.SchedWaitTime}} </td>
-    <td> {{.SweepTime}} </td>
-    <td> {{.GCTime}} </td>
-    <td> /* TODO */ </td>
+    <td> {{if .TaskID}}<a href="/trace?taskid={{.TaskID}}">{{.TaskID}}</a>{{end}} </td>
+    <td> {{prettyDuration .TotalTime}} </td>
+    <td>
+        <div class="stacked-bar-graph">
+          {{if unknownTime .}}<span style="width:{{barLen (unknownTime .) $.MaxTotal}}" class="unknown-time">&nbsp;</span>{{end}}
+          {{if .ExecTime}}<span style="width:{{barLen .ExecTime $.MaxTotal}}" class="exec-time">&nbsp;</span>{{end}}
+          {{if .IOTime}}<span style="width:{{barLen .IOTime $.MaxTotal}}" class="io-time">&nbsp;</span>{{end}}
+          {{if .BlockTime}}<span style="width:{{barLen .BlockTime $.MaxTotal}}" class="block-time">&nbsp;</span>{{end}}
+          {{if .SyscallTime}}<span style="width:{{barLen .SyscallTime $.MaxTotal}}" class="syscall-time">&nbsp;</span>{{end}}
+          {{if .SchedWaitTime}}<span style="width:{{barLen .SchedWaitTime $.MaxTotal}}" class="sched-time">&nbsp;</span>{{end}}
+        </div>
+    </td>
+    <td> {{prettyDuration .ExecTime}}</td>
+    <td> {{prettyDuration .IOTime}}</td>
+    <td> {{prettyDuration .BlockTime}}</td>
+    <td> {{prettyDuration .SyscallTime}}</td>
+    <td> {{prettyDuration .SchedWaitTime}}</td>
+    <td> {{prettyDuration .SweepTime}} {{percent .SweepTime .TotalTime}}</td>
+    <td> {{prettyDuration .GCTime}} {{percent .GCTime .TotalTime}}</td>
   </tr>
 {{end}}
 </table>
-</body>
-</html>
 `))

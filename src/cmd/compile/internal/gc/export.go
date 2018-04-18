@@ -11,8 +11,6 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/src"
 	"fmt"
-	"unicode"
-	"unicode/utf8"
 )
 
 var (
@@ -28,56 +26,26 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
 
 var asmlist []*Node
 
-// Mark n's symbol as exported
+// exportsym marks n for export (or reexport).
 func exportsym(n *Node) {
-	if n == nil || n.Sym == nil {
+	if n.Sym.OnExportList() {
 		return
 	}
-	if n.Sym.Export() || n.Sym.Package() {
-		if n.Sym.Package() {
-			Fatalf("export/package mismatch: %v", n.Sym)
-		}
-		return
-	}
+	n.Sym.SetOnExportList(true)
 
-	n.Sym.SetExport(true)
 	if Debug['E'] != 0 {
 		fmt.Printf("export symbol %v\n", n.Sym)
 	}
 
-	// Ensure original types are on exportlist before type aliases.
-	if IsAlias(n.Sym) {
-		exportlist = append(exportlist, asNode(n.Sym.Def))
-	}
-
 	exportlist = append(exportlist, n)
-}
-
-func exportname(s string) bool {
-	if r := s[0]; r < utf8.RuneSelf {
-		return 'A' <= r && r <= 'Z'
-	}
-	r, _ := utf8.DecodeRuneInString(s)
-	return unicode.IsUpper(r)
 }
 
 func initname(s string) bool {
 	return s == "init"
 }
 
-// exportedsym reports whether a symbol will be visible
-// to files that import our package.
-func exportedsym(sym *types.Sym) bool {
-	// Builtins are visible everywhere.
-	if sym.Pkg == builtinpkg || sym.Origpkg == builtinpkg {
-		return true
-	}
-
-	return sym.Pkg == localpkg && exportname(sym.Name)
-}
-
 func autoexport(n *Node, ctxt Class) {
-	if n == nil || n.Sym == nil {
+	if n.Sym.Pkg != localpkg {
 		return
 	}
 	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
@@ -87,132 +55,13 @@ func autoexport(n *Node, ctxt Class) {
 		return
 	}
 
-	if exportname(n.Sym.Name) || initname(n.Sym.Name) {
+	if types.IsExported(n.Sym.Name) || initname(n.Sym.Name) {
 		exportsym(n)
 	}
-	if asmhdr != "" && n.Sym.Pkg == localpkg && !n.Sym.Asm() {
+	if asmhdr != "" && !n.Sym.Asm() {
 		n.Sym.SetAsm(true)
 		asmlist = append(asmlist, n)
 	}
-}
-
-// Look for anything we need for the inline body
-func reexportdeplist(ll Nodes) {
-	for _, n := range ll.Slice() {
-		reexportdep(n)
-	}
-}
-
-func reexportdep(n *Node) {
-	if n == nil {
-		return
-	}
-
-	//print("reexportdep %+hN\n", n);
-	switch n.Op {
-	case ONAME:
-		switch n.Class() {
-		case PFUNC:
-			// methods will be printed along with their type
-			// nodes for T.Method expressions
-			if n.isMethodExpression() {
-				break
-			}
-
-			// nodes for method calls.
-			if n.Type == nil || n.IsMethod() {
-				break
-			}
-			fallthrough
-
-		case PEXTERN:
-			if n.Sym != nil && !exportedsym(n.Sym) {
-				if Debug['E'] != 0 {
-					fmt.Printf("reexport name %v\n", n.Sym)
-				}
-				exportlist = append(exportlist, n)
-			}
-		}
-
-	// Local variables in the bodies need their type.
-	case ODCL:
-		t := n.Left.Type
-
-		if t != types.Types[t.Etype] && t != types.Idealbool && t != types.Idealstring {
-			if t.IsPtr() {
-				t = t.Elem()
-			}
-			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
-				if Debug['E'] != 0 {
-					fmt.Printf("reexport type %v from declaration\n", t.Sym)
-				}
-				exportlist = append(exportlist, asNode(t.Sym.Def))
-			}
-		}
-
-	case OLITERAL:
-		t := n.Type
-		if t != types.Types[n.Type.Etype] && t != types.Idealbool && t != types.Idealstring {
-			if t.IsPtr() {
-				t = t.Elem()
-			}
-			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
-				if Debug['E'] != 0 {
-					fmt.Printf("reexport literal type %v\n", t.Sym)
-				}
-				exportlist = append(exportlist, asNode(t.Sym.Def))
-			}
-		}
-		fallthrough
-
-	case OTYPE:
-		if n.Sym != nil && n.Sym.Def != nil && !exportedsym(n.Sym) {
-			if Debug['E'] != 0 {
-				fmt.Printf("reexport literal/type %v\n", n.Sym)
-			}
-			exportlist = append(exportlist, n)
-		}
-
-	// for operations that need a type when rendered, put the type on the export list.
-	case OCONV,
-		OCONVIFACE,
-		OCONVNOP,
-		ORUNESTR,
-		OARRAYBYTESTR,
-		OARRAYRUNESTR,
-		OSTRARRAYBYTE,
-		OSTRARRAYRUNE,
-		ODOTTYPE,
-		ODOTTYPE2,
-		OSTRUCTLIT,
-		OARRAYLIT,
-		OSLICELIT,
-		OPTRLIT,
-		OMAKEMAP,
-		OMAKESLICE,
-		OMAKECHAN:
-		t := n.Type
-
-		switch t.Etype {
-		case TARRAY, TCHAN, TPTR32, TPTR64, TSLICE:
-			if t.Sym == nil {
-				t = t.Elem()
-			}
-		}
-		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
-			if Debug['E'] != 0 {
-				fmt.Printf("reexport type for expression %v\n", t.Sym)
-			}
-			exportlist = append(exportlist, asNode(t.Sym.Def))
-		}
-	}
-
-	reexportdep(n.Left)
-	reexportdep(n.Right)
-	reexportdeplist(n.List)
-	reexportdeplist(n.Rlist)
-	reexportdeplist(n.Ninit)
-	reexportdeplist(n.Nbody)
 }
 
 // methodbyname sorts types by symbol name.
@@ -223,10 +72,6 @@ func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
 
 func dumpexport(bout *bio.Writer) {
-	if buildid != "" {
-		exportf(bout, "build id %q\n", buildid)
-	}
-
 	size := 0 // size of export section without enclosing markers
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
@@ -265,16 +110,7 @@ func dumpexport(bout *bio.Writer) {
 func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
 	if asNode(s.Def) != nil && asNode(s.Def).Op != op {
 		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
-		redeclare(s, pkgstr)
-	}
-
-	// mark the symbol so it is not reexported
-	if asNode(s.Def) == nil {
-		if exportname(s.Name) || initname(s.Name) {
-			s.SetExport(true)
-		} else {
-			s.SetPackage(true) // package scope
-		}
+		redeclare(lineno, s, pkgstr)
 	}
 }
 
@@ -296,27 +132,16 @@ func pkgtype(pos src.XPos, pkg *types.Pkg, s *types.Sym) *types.Type {
 	return asNode(s.Def).Type
 }
 
-// importconst declares symbol s as an imported constant with type t and value n.
+// importconst declares symbol s as an imported constant with type t and value val.
 // pkg is the package being imported
-func importconst(pkg *types.Pkg, s *types.Sym, t *types.Type, n *Node) {
+func importconst(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type, val Val) {
 	importsym(pkg, s, OLITERAL)
-	n = convlit(n, t)
-
 	if asNode(s.Def) != nil { // TODO: check if already the same.
 		return
 	}
 
-	if n.Op != OLITERAL {
-		yyerror("expression must be a constant")
-		return
-	}
-
-	if n.Sym != nil {
-		n1 := *n
-		n = &n1
-	}
-
-	n.Orig = newname(s)
+	n := npos(pos, nodlit(val))
+	n.Type = t
 	n.Sym = s
 	declare(n, PEXTERN)
 

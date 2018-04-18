@@ -9,9 +9,6 @@ import (
 	"syscall"
 )
 
-// BUG(mikio): On Windows, the Read and Write methods of
-// syscall.RawConn are not implemented.
-
 // BUG(mikio): On NaCl and Plan 9, the Control, Read and Write methods
 // of syscall.RawConn are not implemented.
 

@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"encoding/binary"
 	"fmt"
 	"strings"
 )
@@ -548,7 +549,7 @@ opswitch:
 		}
 		if t.IsArray() {
 			safeexpr(n.Left, init)
-			nodconst(n, n.Type, t.NumElem())
+			setintconst(n, t.NumElem())
 			n.SetTypecheck(1)
 		}
 
@@ -702,7 +703,7 @@ opswitch:
 			break
 		}
 
-		if !instrumenting && iszero(n.Right) {
+		if !instrumenting && isZero(n.Right) {
 			break
 		}
 
@@ -782,7 +783,7 @@ opswitch:
 		walkexprlistsafe(n.List.Slice(), init)
 		r.Left = walkexpr(r.Left, init)
 		var n1 *Node
-		if isblank(n.List.First()) {
+		if n.List.First().isBlank() {
 			n1 = nodnil()
 		} else {
 			n1 = nod(OADDR, n.List.First(), nil)
@@ -833,14 +834,14 @@ opswitch:
 		// mapaccess2* returns a typed bool, but due to spec changes,
 		// the boolean result of i.(T) is now untyped so we make it the
 		// same type as the variable on the lhs.
-		if ok := n.List.Second(); !isblank(ok) && ok.Type.IsBoolean() {
+		if ok := n.List.Second(); !ok.isBlank() && ok.Type.IsBoolean() {
 			r.Type.Field(1).Type = ok.Type
 		}
 		n.Rlist.Set1(r)
 		n.Op = OAS2FUNC
 
 		// don't generate a = *var if a is _
-		if !isblank(a) {
+		if !a.isBlank() {
 			var_ := temp(types.NewPtr(t.Val()))
 			var_.SetTypecheck(1)
 			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
@@ -1215,7 +1216,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		low, high, max := n.SliceBounds()
 		low = walkexpr(low, init)
-		if low != nil && iszero(low) {
+		if low != nil && isZero(low) {
 			// Reduce x[0:j] to x[:j] and x[0:j:k] to x[:j:k].
 			low = nil
 		}
@@ -1274,6 +1275,13 @@ opswitch:
 		}
 		if cs != nil {
 			cmp := n.SubOp()
+			// Our comparison below assumes that the non-constant string
+			// is on the left hand side, so rewrite "" cmp x to x cmp "".
+			// See issue 24817.
+			if Isconst(n.Left, CTSTR) {
+				cmp = brrev(cmp)
+			}
+
 			// maxRewriteLen was chosen empirically.
 			// It is the value that minimizes cmd/go file size
 			// across most architectures.
@@ -1281,21 +1289,14 @@ opswitch:
 			maxRewriteLen := 6
 			// Some architectures can load unaligned byte sequence as 1 word.
 			// So we can cover longer strings with the same amount of code.
-			canCombineLoads := false
+			canCombineLoads := canMergeLoads()
 			combine64bit := false
-			// TODO: does this improve performance on any other architectures?
-			switch thearch.LinkArch.Family {
-			case sys.AMD64:
-				// Larger compare require longer instructions, so keep this reasonably low.
-				// Data from CL 26758 shows that longer strings are rare.
-				// If we really want we can do 16 byte SSE comparisons in the future.
-				maxRewriteLen = 16
-				canCombineLoads = true
-				combine64bit = true
-			case sys.I386:
-				maxRewriteLen = 8
-				canCombineLoads = true
+			if canCombineLoads {
+				// Keep this low enough to generate less code than a function call.
+				maxRewriteLen = 2 * thearch.LinkArch.RegSize
+				combine64bit = thearch.LinkArch.RegSize >= 8
 			}
+
 			var and Op
 			switch cmp {
 			case OEQ:
@@ -1847,7 +1848,7 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 
 	var nn, mm Nodes
 	for i, l := range nl.Slice() {
-		if isblank(l) {
+		if l.isBlank() {
 			continue
 		}
 		r := nr.Field(i)
@@ -1966,7 +1967,7 @@ func nodarg(t interface{}, fp int) *Node {
 	// Rewrite argument named _ to __,
 	// or else the assignment to _ will be
 	// discarded during code generation.
-	if isblank(n) {
+	if n.isBlank() {
 		n.Sym = lookup("__")
 	}
 
@@ -2267,7 +2268,7 @@ func convas(n *Node, init *Nodes) *Node {
 		return n
 	}
 
-	if isblank(n.Left) {
+	if n.Left.isBlank() {
 		n.Right = defaultlit(n.Right, nil)
 		return n
 	}
@@ -2288,19 +2289,25 @@ func convas(n *Node, init *Nodes) *Node {
 // then it is done first. otherwise must
 // make temp variables
 func reorder1(all []*Node) []*Node {
-	if len(all) == 1 {
-		return all
-	}
+	// When instrumenting, force all arguments into temporary
+	// variables to prevent instrumentation calls from clobbering
+	// arguments already on the stack.
 
 	funcCalls := 0
-	for _, n := range all {
-		updateHasCall(n)
-		if n.HasCall() {
-			funcCalls++
+	if !instrumenting {
+		if len(all) == 1 {
+			return all
 		}
-	}
-	if funcCalls == 0 {
-		return all
+
+		for _, n := range all {
+			updateHasCall(n)
+			if n.HasCall() {
+				funcCalls++
+			}
+		}
+		if funcCalls == 0 {
+			return all
+		}
 	}
 
 	var g []*Node // fncalls assigned to tempnames
@@ -2308,15 +2315,17 @@ func reorder1(all []*Node) []*Node {
 	var r []*Node // non fncalls and tempnames assigned to stack
 	d := 0
 	for _, n := range all {
-		if !n.HasCall() {
-			r = append(r, n)
-			continue
-		}
+		if !instrumenting {
+			if !n.HasCall() {
+				r = append(r, n)
+				continue
+			}
 
-		d++
-		if d == funcCalls {
-			f = n
-			continue
+			d++
+			if d == funcCalls {
+				f = n
+				continue
+			}
 		}
 
 		// make assignment of fncall to tempname
@@ -3280,15 +3289,10 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	var inline bool
 
 	maxcmpsize := int64(4)
-	unalignedLoad := false
-	switch thearch.LinkArch.Family {
-	case sys.AMD64, sys.ARM64, sys.S390X:
-		// Keep this low enough, to generate less code than function call.
-		maxcmpsize = 16
-		unalignedLoad = true
-	case sys.I386:
-		maxcmpsize = 8
-		unalignedLoad = true
+	unalignedLoad := canMergeLoads()
+	if unalignedLoad {
+		// Keep this low enough to generate less code than a function call.
+		maxcmpsize = 2 * int64(thearch.LinkArch.RegSize)
 	}
 
 	switch t.Etype {
@@ -3298,7 +3302,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		// We can compare several elements at once with 2/4/8 byte integer compares
 		inline = t.NumElem() <= 1 || (issimple[t.Elem().Etype] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
 	case TSTRUCT:
-		inline = t.NumFields() <= 4
+		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
 	}
 
 	cmpl := n.Left
@@ -3723,7 +3727,7 @@ func usefield(n *Node) {
 	if outer.Sym == nil {
 		yyerror("tracked field must be in named struct type")
 	}
-	if !exportname(field.Sym.Name) {
+	if !types.IsExported(field.Sym.Name) {
 		yyerror("tracked field must be exported (upper case)")
 	}
 
@@ -3894,7 +3898,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
 // The result of substArgTypes MUST be assigned back to old, e.g.
 // 	n.Left = substArgTypes(n.Left, t1, t2)
 func substArgTypes(old *Node, types_ ...*types.Type) *Node {
-	n := *old // make shallow copy
+	n := old.copy() // make shallow copy
 
 	for _, t := range types_ {
 		dowidth(t)
@@ -3903,5 +3907,20 @@ func substArgTypes(old *Node, types_ ...*types.Type) *Node {
 	if len(types_) > 0 {
 		Fatalf("substArgTypes: too many argument types")
 	}
-	return &n
+	return n
+}
+
+// canMergeLoads reports whether the backend optimization passes for
+// the current architecture can combine adjacent loads into a single
+// larger, possibly unaligned, load. Note that currently the
+// optimizations must be able to handle little endian byte order.
+func canMergeLoads() bool {
+	switch thearch.LinkArch.Family {
+	case sys.ARM64, sys.AMD64, sys.I386, sys.S390X:
+		return true
+	case sys.PPC64:
+		// Load combining only supported on ppc64le.
+		return thearch.LinkArch.ByteOrder == binary.LittleEndian
+	}
+	return false
 }

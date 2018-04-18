@@ -438,6 +438,10 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 		msect.flag |= S_ATTR_SOME_INSTRUCTIONS
 	}
 
+	if sect.Name == ".text" {
+		msect.flag |= S_ATTR_PURE_INSTRUCTIONS
+	}
+
 	if sect.Name == ".plt" {
 		msect.name = "__symbol_stub1"
 		msect.flag = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS | S_SYMBOL_STUBS
@@ -927,7 +931,7 @@ func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 			if !r.Xsym.Attr.Reachable() {
 				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+			if !thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
 				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}

@@ -42,6 +42,12 @@ type PublicKey struct {
 	E int      // public exponent
 }
 
+// Size returns the modulus size in bytes. Raw signatures and ciphertexts
+// for or by this public key will have the same size.
+func (pub *PublicKey) Size() int {
+	return (pub.N.BitLen() + 7) / 8
+}
+
 // OAEPOptions is an interface for passing options to OAEP decryption using the
 // crypto.Decrypter interface.
 type OAEPOptions struct {
@@ -373,7 +379,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 		return nil, err
 	}
 	hash.Reset()
-	k := (pub.N.BitLen() + 7) / 8
+	k := pub.Size()
 	if len(msg) > k-2*hash.Size()-2 {
 		return nil, ErrMessageTooLong
 	}
@@ -587,7 +593,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return nil, err
 	}
-	k := (priv.N.BitLen() + 7) / 8
+	k := priv.Size()
 	if len(ciphertext) > k ||
 		k < hash.Size()*2+2 {
 		return nil, ErrDecryption

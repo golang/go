@@ -16,7 +16,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 
 	xfunc := p.nod(expr, ODCLFUNC, nil, nil)
 	xfunc.Func.SetIsHiddenClosure(Curfn != nil)
-	xfunc.Func.Nname = newfuncname(nblank.Sym) // filled in by typecheckclosure
+	xfunc.Func.Nname = p.setlineno(expr, newfuncname(nblank.Sym)) // filled in by typecheckclosure
 	xfunc.Func.Nname.Name.Param.Ntype = xtype
 	xfunc.Func.Nname.Name.Defn = xfunc
 
@@ -91,7 +91,7 @@ func typecheckclosure(clo *Node, top int) {
 	}
 
 	xfunc.Func.Nname.Sym = closurename(Curfn)
-	xfunc.Func.Nname.Sym.SetExported(true) // disable export
+	xfunc.Func.Nname.Sym.SetOnExportList(true) // disable export
 	declare(xfunc.Func.Nname, PFUNC)
 	xfunc = typecheck(xfunc, Etop)
 
@@ -136,7 +136,7 @@ func closurename(outerfunc *Node) *types.Sym {
 		// There may be multiple functions named "_". In those
 		// cases, we can't use their individual Closgens as it
 		// would lead to name clashes.
-		if !isblank(outerfunc.Func.Nname) {
+		if !outerfunc.Func.Nname.isBlank() {
 			gen = &outerfunc.Func.Closgen
 		}
 	}
@@ -421,37 +421,9 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	fn.Type = xfunc.Type
 }
 
-var makepartialcall_gopkg *types.Pkg
-
 func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
-	var p string
-
 	rcvrtype := fn.Left.Type
-	if exportname(meth.Name) {
-		p = fmt.Sprintf("(%-S).%s-fm", rcvrtype, meth.Name)
-	} else {
-		p = fmt.Sprintf("(%-S).(%-v)-fm", rcvrtype, meth)
-	}
-	basetype := rcvrtype
-	if rcvrtype.IsPtr() {
-		basetype = basetype.Elem()
-	}
-	if !basetype.IsInterface() && basetype.Sym == nil {
-		Fatalf("missing base type for %v", rcvrtype)
-	}
-
-	var spkg *types.Pkg
-	if basetype.Sym != nil {
-		spkg = basetype.Sym.Pkg
-	}
-	if spkg == nil {
-		if makepartialcall_gopkg == nil {
-			makepartialcall_gopkg = types.NewPkg("go", "")
-		}
-		spkg = makepartialcall_gopkg
-	}
-
-	sym := spkg.Lookup(p)
+	sym := methodSymSuffix(rcvrtype, meth, "-fm")
 
 	if sym.Uniq() {
 		return asNode(sym.Def)
@@ -496,7 +468,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 
 	xfunc.Func.SetDupok(true)
 	xfunc.Func.Nname = newfuncname(sym)
-	xfunc.Func.Nname.Sym.SetExported(true) // disable export
+	xfunc.Func.Nname.Sym.SetOnExportList(true) // disable export
 	xfunc.Func.Nname.Name.Param.Ntype = xtype
 	xfunc.Func.Nname.Name.Defn = xfunc
 	declare(xfunc.Func.Nname, PFUNC)

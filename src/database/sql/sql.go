@@ -738,7 +738,9 @@ func (db *DB) Ping() error {
 	return db.PingContext(context.Background())
 }
 
-// Close closes the database, releasing any open resources.
+// Close closes the database and prevents new queries from starting.
+// Close then waits for all queries that have started processing on the server
+// to finish.
 //
 // It is rare to Close a DB, as the DB handle is meant to be
 // long-lived and shared between many goroutines.
@@ -2453,17 +2455,11 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, args ...interface{}) (driver.Rows, error) {
 	ds.Lock()
 	defer ds.Unlock()
-
 	dargs, err := driverArgsConnLocked(ci, ds, args)
 	if err != nil {
 		return nil, err
 	}
-
-	rowsi, err := ctxDriverStmtQuery(ctx, ds.si, dargs)
-	if err != nil {
-		return nil, err
-	}
-	return rowsi, nil
+	return ctxDriverStmtQuery(ctx, ds.si, dargs)
 }
 
 // QueryRowContext executes a prepared query statement with the given arguments.
@@ -2868,6 +2864,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 // string inputs parseable by strconv.ParseBool.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	rs.closemu.RLock()
+
+	if rs.lasterr != nil && rs.lasterr != io.EOF {
+		rs.closemu.RUnlock()
+		return rs.lasterr
+	}
 	if rs.closed {
 		rs.closemu.RUnlock()
 		return errors.New("sql: Rows are closed")
@@ -2979,11 +2980,7 @@ func (r *Row) Scan(dest ...interface{}) error {
 		return err
 	}
 	// Make sure the query can be processed to completion with no errors.
-	if err := r.rows.Close(); err != nil {
-		return err
-	}
-
-	return nil
+	return r.rows.Close()
 }
 
 // A Result summarizes an executed SQL command.

@@ -296,9 +296,7 @@ type Name struct {
 	Param     *Param     // additional fields for ONAME, OTYPE
 	Decldepth int32      // declaration loop depth, increased for every loop or label
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-
-	used  bool // for variable declared and not used error
-	flags bitset8
+	flags     bitset8
 }
 
 const (
@@ -308,6 +306,7 @@ const (
 	nameNeedzero  // if it contains pointers, needs to be zeroed on function entry
 	nameKeepalive // mark value live across unknown assembly call
 	nameAutoTemp  // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+	nameUsed      // for variable declared and not used error
 )
 
 func (n *Name) Captured() bool  { return n.flags&nameCaptured != 0 }
@@ -316,7 +315,7 @@ func (n *Name) Byval() bool     { return n.flags&nameByval != 0 }
 func (n *Name) Needzero() bool  { return n.flags&nameNeedzero != 0 }
 func (n *Name) Keepalive() bool { return n.flags&nameKeepalive != 0 }
 func (n *Name) AutoTemp() bool  { return n.flags&nameAutoTemp != 0 }
-func (n *Name) Used() bool      { return n.used }
+func (n *Name) Used() bool      { return n.flags&nameUsed != 0 }
 
 func (n *Name) SetCaptured(b bool)  { n.flags.set(nameCaptured, b) }
 func (n *Name) SetReadonly(b bool)  { n.flags.set(nameReadonly, b) }
@@ -324,7 +323,7 @@ func (n *Name) SetByval(b bool)     { n.flags.set(nameByval, b) }
 func (n *Name) SetNeedzero(b bool)  { n.flags.set(nameNeedzero, b) }
 func (n *Name) SetKeepalive(b bool) { n.flags.set(nameKeepalive, b) }
 func (n *Name) SetAutoTemp(b bool)  { n.flags.set(nameAutoTemp, b) }
-func (n *Name) SetUsed(b bool)      { n.used = b }
+func (n *Name) SetUsed(b bool)      { n.flags.set(nameUsed, b) }
 
 type Param struct {
 	Ntype    *Node
@@ -461,7 +460,6 @@ type Func struct {
 	Exit      Nodes
 	Cvars     Nodes   // closure params
 	Dcl       []*Node // autodcl for this func/closure
-	Inldcl    Nodes   // copy of dcl for use in inlining
 
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
@@ -484,8 +482,7 @@ type Func struct {
 	Nname      *Node
 	lsym       *obj.LSym
 
-	Inl     Nodes // copy of the body for use in inlining
-	InlCost int32
+	Inl *Inline
 
 	Label int32 // largest auto-generated label in this function
 
@@ -500,6 +497,15 @@ type Func struct {
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	nwbrCalls *[]nowritebarrierrecCallSym
+}
+
+// An Inline holds fields used for function bodies that can be inlined.
+type Inline struct {
+	Cost int32 // heuristic cost of inlining this function
+
+	// Copies of Func.Dcl and Nbody for use during inlining.
+	Dcl  []*Node
+	Body []*Node
 }
 
 // A Mark represents a scope boundary.
@@ -525,6 +531,7 @@ const (
 	funcNilCheckDisabled    // disable nil checks when compiling this function
 	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
 	funcExportInline        // include inline body in export data
+	funcInstrumentBody      // add race/msan instrumentation during SSA construction
 )
 
 func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
@@ -536,6 +543,7 @@ func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
 func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
+func (f *Func) InstrumentBody() bool      { return f.flags&funcInstrumentBody != 0 }
 
 func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
@@ -546,6 +554,7 @@ func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
 func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
+func (f *Func) SetInstrumentBody(b bool)      { f.flags.set(funcInstrumentBody, b) }
 
 func (f *Func) setWBPos(pos src.XPos) {
 	if Debug_wb != 0 {
@@ -736,6 +745,11 @@ const (
 // For fields that are not used in most nodes, this is used instead of
 // a slice to save space.
 type Nodes struct{ slice *[]*Node }
+
+// asNodes returns a slice of *Node as a Nodes value.
+func asNodes(s []*Node) Nodes {
+	return Nodes{&s}
+}
 
 // Slice returns the entries in Nodes as a slice.
 // Changes to the slice entries (as in s[i] = n) will be reflected in

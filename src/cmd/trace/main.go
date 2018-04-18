@@ -83,19 +83,19 @@ func main() {
 		flag.Usage()
 	}
 
-	var pprofFunc func(io.Writer, string) error
+	var pprofFunc func(io.Writer, *http.Request) error
 	switch *pprofFlag {
 	case "net":
-		pprofFunc = pprofIO
+		pprofFunc = pprofByGoroutine(computePprofIO)
 	case "sync":
-		pprofFunc = pprofBlock
+		pprofFunc = pprofByGoroutine(computePprofBlock)
 	case "syscall":
-		pprofFunc = pprofSyscall
+		pprofFunc = pprofByGoroutine(computePprofSyscall)
 	case "sched":
-		pprofFunc = pprofSched
+		pprofFunc = pprofByGoroutine(computePprofSched)
 	}
 	if pprofFunc != nil {
-		if err := pprofFunc(os.Stdout, ""); err != nil {
+		if err := pprofFunc(os.Stdout, &http.Request{}); err != nil {
 			dief("failed to generate pprof: %v\n", err)
 		}
 		os.Exit(0)

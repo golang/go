@@ -476,9 +476,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			break
 
 		case obj.ANOP:
-			q1 = p.Link
-			q.Link = q1 /* q is non-nop */
-			q1.Mark |= p.Mark
+			if p.Link != nil {
+				q1 = p.Link
+				q.Link = q1 /* q is non-nop */
+				q1.Mark |= p.Mark
+			}
 			continue
 
 		case ABL,

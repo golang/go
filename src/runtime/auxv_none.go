@@ -4,8 +4,10 @@
 
 // +build !linux
 // +build !darwin
+// +build !dragonfly
 // +build !freebsd
 // +build !netbsd
+// +build !solaris
 
 package runtime
 

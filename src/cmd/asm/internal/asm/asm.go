@@ -99,7 +99,7 @@ func (p *Parser) validImmediate(pseudo string, addr *obj.Addr) bool {
 
 // asmText assembles a TEXT pseudo-op.
 // TEXT runtime·sigtramp(SB),4,$0-0
-func (p *Parser) asmText(word string, operands [][]lex.Token) {
+func (p *Parser) asmText(operands [][]lex.Token) {
 	if len(operands) != 2 && len(operands) != 3 {
 		p.errorf("expect two or three operands for TEXT")
 		return
@@ -180,7 +180,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 
 // asmData assembles a DATA pseudo-op.
 // DATA masks<>+0x00(SB)/4, $0x00000000
-func (p *Parser) asmData(word string, operands [][]lex.Token) {
+func (p *Parser) asmData(operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for DATA")
 		return
@@ -240,7 +240,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 // asmGlobl assembles a GLOBL pseudo-op.
 // GLOBL shifts<>(SB),8,$256
 // GLOBL shifts<>(SB),$256
-func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+func (p *Parser) asmGlobl(operands [][]lex.Token) {
 	if len(operands) != 2 && len(operands) != 3 {
 		p.errorf("expect two or three operands for GLOBL")
 		return
@@ -272,7 +272,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 
 // asmPCData assembles a PCDATA pseudo-op.
 // PCDATA $2, $705
-func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
+func (p *Parser) asmPCData(operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for PCDATA")
 		return
@@ -303,7 +303,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 
 // asmFuncData assembles a FUNCDATA pseudo-op.
 // FUNCDATA $1, funcdata<>+4(SB)
-func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+func (p *Parser) asmFuncData(operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for FUNCDATA")
 		return
@@ -568,6 +568,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 					return
 				}
 				prog.RegTo2 = a[2].Reg
+				break
+			}
+			if arch.IsARM64SWP(op) {
+				prog.From = a[1]
+				prog.Reg = p.getRegister(prog, op, &a[0])
+				prog.To = a[2]
 				break
 			}
 			prog.From = a[0]

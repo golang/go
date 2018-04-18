@@ -74,7 +74,9 @@ func schedule(f *Func) {
 	score := make([]int8, f.NumValues())
 
 	// scheduling order. We queue values in this list in reverse order.
-	var order []*Value
+	// A constant bound allows this to be stack-allocated. 64 is
+	// enough to cover almost every schedule call.
+	order := make([]*Value, 0, 64)
 
 	// maps mem values to the next live memory value
 	nextMem := make([]*Value, f.NumValues())
@@ -301,7 +303,11 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	f := values[0].Block.Func
 
 	// find all stores
-	var stores []*Value // members of values that are store values
+
+	// Members of values that are store values.
+	// A constant bound allows this to be stack-allocated. 64 is
+	// enough to cover almost every storeOrder call.
+	stores := make([]*Value, 0, 64)
 	hasNilCheck := false
 	sset.clear() // sset is the set of stores that are used in other values
 	for _, v := range values {

@@ -8,6 +8,7 @@ package os
 
 import (
 	"internal/poll"
+	"internal/syscall/unix"
 	"runtime"
 	"syscall"
 )
@@ -74,9 +75,15 @@ func (f *File) Fd() uintptr {
 
 // NewFile returns a new File with the given file descriptor and
 // name. The returned value will be nil if fd is not a valid file
-// descriptor.
+// descriptor. On Unix systems, if the file descriptor is in
+// non-blocking mode, NewFile will attempt to return a pollable File
+// (one for which the SetDeadline methods work).
 func NewFile(fd uintptr, name string) *File {
-	return newFile(fd, name, kindNewFile)
+	kind := kindNewFile
+	if nb, err := unix.IsNonblock(int(fd)); err == nil && nb {
+		kind = kindNonBlock
+	}
+	return newFile(fd, name, kind)
 }
 
 // newFileKind describes the kind of file to newFile.
@@ -86,6 +93,7 @@ const (
 	kindNewFile newFileKind = iota
 	kindOpenFile
 	kindPipe
+	kindNonBlock
 )
 
 // newFile is like NewFile, but if called from OpenFile or Pipe
@@ -109,11 +117,14 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// Don't try to use kqueue with regular files on FreeBSD.
 	// It crashes the system unpredictably while running all.bash.
 	// Issue 19093.
+	// If the caller passed a non-blocking filedes (kindNonBlock),
+	// we assume they know what they are doing so we allow it to be
+	// used with kqueue.
 	if runtime.GOOS == "freebsd" && kind == kindOpenFile {
 		kind = kindNewFile
 	}
 
-	pollable := kind == kindOpenFile || kind == kindPipe
+	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
 	if err := f.pfd.Init("file", pollable); err != nil {
 		// An error here indicates a failure to register
 		// with the netpoll system. That can happen for

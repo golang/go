@@ -25,8 +25,6 @@ type declInfo struct {
 	alias bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
-	// As a special (overloaded) case, it also tracks dependencies of
-	// interface types on embedded interfaces (see ordering.go).
 	deps objSet // lazily initialized
 }
 

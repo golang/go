@@ -323,12 +323,12 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			exp := pkg.scope.Lookup(sel)
 			if exp == nil {
 				if !pkg.fake {
-					check.errorf(e.Pos(), "%s not declared by package %s", sel, pkg.name)
+					check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
 				}
 				goto Error
 			}
 			if !exp.Exported() {
-				check.errorf(e.Pos(), "%s not exported by package %s", sel, pkg.name)
+				check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
 				// ok to continue
 			}
 			check.recordUse(e.Sel, exp)
@@ -373,11 +373,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.invalidOp(e.Pos(), "ambiguous selector %s", sel)
+			check.invalidOp(e.Sel.Pos(), "ambiguous selector %s", sel)
 		case indirect:
-			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
+			check.invalidOp(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
 		default:
-			check.invalidOp(e.Pos(), "%s has no field or method %s", x, sel)
+			check.invalidOp(e.Sel.Pos(), "%s has no field or method %s", x, sel)
 		}
 		goto Error
 	}
@@ -386,7 +386,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
+			check.invalidOp(e.Sel.Pos(), "%s has no method %s", x, sel)
 			goto Error
 		}
 

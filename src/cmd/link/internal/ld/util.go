@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -21,50 +20,6 @@ func Cputime() float64 {
 		startTime = time.Now()
 	}
 	return time.Since(startTime).Seconds()
-}
-
-func tokenize(s string) []string {
-	var f []string
-	for {
-		s = strings.TrimLeft(s, " \t\r\n")
-		if s == "" {
-			break
-		}
-		quote := false
-		i := 0
-		for ; i < len(s); i++ {
-			if s[i] == '\'' {
-				if quote && i+1 < len(s) && s[i+1] == '\'' {
-					i++
-					continue
-				}
-				quote = !quote
-			}
-			if !quote && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n') {
-				break
-			}
-		}
-		next := s[:i]
-		s = s[i:]
-		if strings.Contains(next, "'") {
-			var buf []byte
-			quote := false
-			for i := 0; i < len(next); i++ {
-				if next[i] == '\'' {
-					if quote && i+1 < len(next) && next[i+1] == '\'' {
-						i++
-						buf = append(buf, '\'')
-					}
-					quote = !quote
-					continue
-				}
-				buf = append(buf, next[i])
-			}
-			next = string(buf)
-		}
-		f = append(f, next)
-	}
-	return f
 }
 
 var atExitFuncs []func()

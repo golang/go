@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -128,19 +129,36 @@ func growslice(et *_type, old slice, cap int) slice {
 	var overflow bool
 	var lenmem, newlenmem, capmem uintptr
 	const ptrSize = unsafe.Sizeof((*byte)(nil))
-	switch et.size {
-	case 1:
+	// Specialize for common values of et.size.
+	// For 1 we don't need any division/multiplication.
+	// For ptrSize, compiler will optimize division/multiplication into a shift by a constant.
+	// For powers of 2, use a variable shift.
+	switch {
+	case et.size == 1:
 		lenmem = uintptr(old.len)
 		newlenmem = uintptr(cap)
 		capmem = roundupsize(uintptr(newcap))
 		overflow = uintptr(newcap) > maxAlloc
 		newcap = int(capmem)
-	case ptrSize:
+	case et.size == ptrSize:
 		lenmem = uintptr(old.len) * ptrSize
 		newlenmem = uintptr(cap) * ptrSize
 		capmem = roundupsize(uintptr(newcap) * ptrSize)
 		overflow = uintptr(newcap) > maxAlloc/ptrSize
 		newcap = int(capmem / ptrSize)
+	case isPowerOfTwo(et.size):
+		var shift uintptr
+		if ptrSize == 8 {
+			// Mask shift for better code generation.
+			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
+		} else {
+			shift = uintptr(sys.Ctz32(uint32(et.size))) & 31
+		}
+		lenmem = uintptr(old.len) << shift
+		newlenmem = uintptr(cap) << shift
+		capmem = roundupsize(uintptr(newcap) << shift)
+		overflow = uintptr(newcap) > (maxAlloc >> shift)
+		newcap = int(capmem >> shift)
 	default:
 		lenmem = uintptr(old.len) * et.size
 		newlenmem = uintptr(cap) * et.size
@@ -187,6 +205,10 @@ func growslice(et *_type, old slice, cap int) slice {
 	}
 
 	return slice{p, old.len, newcap}
+}
+
+func isPowerOfTwo(x uintptr) bool {
+	return x&(x-1) == 0
 }
 
 func slicecopy(to, fm slice, width uintptr) int {

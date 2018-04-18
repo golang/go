@@ -70,7 +70,7 @@ func checkGdbPython(t *testing.T) {
 	if err != nil {
 		t.Skipf("skipping due to issue running gdb: %v", err)
 	}
-	if string(out) != "go gdb python support\n" {
+	if strings.TrimSpace(string(out)) != "go gdb python support" {
 		t.Skipf("skipping due to lack of python gdb support: %s", out)
 	}
 }
@@ -154,8 +154,8 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("building source %v\n%s", err, out)
 	}
 
-	args := []string{"-nx", "-q", "--batch", "-iex",
-		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
+	args := []string{"-nx", "-q", "--batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "info auto-load python-scripts",
 		"-ex", "set python print-stack full",
@@ -320,6 +320,7 @@ func TestGdbBacktrace(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "break main.eee",
 		"-ex", "run",
@@ -390,6 +391,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "break main.main",
 		"-ex", "run",
@@ -455,6 +457,7 @@ func TestGdbConst(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "break main.main",
 		"-ex", "run",

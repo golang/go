@@ -106,6 +106,14 @@ variable. You can do this by adding this line to your <code>/etc/profile</code>
 export PATH=$PATH:/usr/local/go/bin
 </pre>
 
+<p>
+<b>Note</b>: changes made to a <code>profile</code> file may not apply until the
+next time you log into your computer.
+To apply the changes immediately, just run the shell commands directly
+or execute them from the profile using a command such as
+<code>source $HOME/.profile</code>.
+</p>
+
 <h4 id="tarball_non_standard">Installing to a custom location</h4>
 
 <p>
@@ -236,7 +244,7 @@ package main
 import "fmt"
 
 func main() {
-    fmt.Printf("hello, world\n")
+	fmt.Printf("hello, world\n")
 }
 </pre>
 
@@ -278,7 +286,7 @@ If you see the "hello, world" message then your Go installation is working.
 <p>
 You can run <code>go</code> <code>install</code> to install the binary into
 your workspace's <code>bin</code> directory
-or <code>go</code> <code>clean</code> to remove it.
+or <code>go</code> <code>clean</code> <code>-i</code> to remove it.
 </p>
 
 <p>

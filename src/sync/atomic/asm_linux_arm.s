@@ -163,16 +163,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
 TEXT ·LoadInt32(SB),NOSPLIT,$0
 	B	·LoadUint32(SB)
 
-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
-	MOVW	addr+0(FP), R2
-loadloop1:
-	MOVW	0(R2), R0
-	MOVW	R0, R1
-	BL	cas<>(SB)
-	BCC	loadloop1
-	MOVW	R1, val+4(FP)
-	RET
-
 TEXT ·LoadInt64(SB),NOSPLIT,$0
 	B	·loadUint64(SB)
 

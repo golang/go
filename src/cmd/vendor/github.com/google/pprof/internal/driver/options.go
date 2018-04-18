@@ -128,6 +128,10 @@ func (ui *stdUI) IsTerminal() bool {
 	return false
 }
 
+func (ui *stdUI) WantBrowser() bool {
+	return true
+}
+
 func (ui *stdUI) SetAutoComplete(func(string) string) {
 }
 

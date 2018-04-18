@@ -466,6 +466,9 @@ const (
 	_GoidCacheBatch = 16
 )
 
+//go:linkname internal_cpu_initialize internal/cpu.initialize
+func internal_cpu_initialize()
+
 // The bootstrap sequence is:
 //
 //	call osinit
@@ -489,10 +492,11 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
-	alginit()       // maps must not be used before this call
-	modulesinit()   // provides activeModules
-	typelinksinit() // uses maps, activeModules
-	itabsinit()     // uses activeModules
+	internal_cpu_initialize() // must run before alginit
+	alginit()                 // maps must not be used before this call
+	modulesinit()             // provides activeModules
+	typelinksinit()           // uses maps, activeModules
+	itabsinit()               // uses activeModules
 
 	msigsave(_g_.m)
 	initSigmask = _g_.m.sigmask
@@ -3224,16 +3228,17 @@ func malg(stacksize int32) *g {
 //go:nosplit
 func newproc(siz int32, fn *funcval) {
 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+	gp := getg()
 	pc := getcallerpc()
 	systemstack(func() {
-		newproc1(fn, (*uint8)(argp), siz, pc)
+		newproc1(fn, (*uint8)(argp), siz, gp, pc)
 	})
 }
 
 // Create a new g running fn with narg bytes of arguments starting
 // at argp. callerpc is the address of the go statement that created
 // this. The new g is put on the queue of g's waiting to run.
-func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
+func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintptr) {
 	_g_ := getg()
 
 	if fn == nil {
@@ -3301,6 +3306,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
 	newg.sched.g = guintptr(unsafe.Pointer(newg))
 	gostartcallfn(&newg.sched, fn)
 	newg.gopc = callerpc
+	newg.ancestors = saveAncestors(callergp)
 	newg.startpc = fn.fn
 	if _g_.m.curg != nil {
 		newg.labels = _g_.m.curg.labels
@@ -3336,6 +3342,40 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
 		_g_.stackguard0 = stackPreempt
 	}
+}
+
+// saveAncestors copies previous ancestors of the given caller g and
+// includes infor for the current caller into a new set of tracebacks for
+// a g being created.
+func saveAncestors(callergp *g) *[]ancestorInfo {
+	// Copy all prior info, except for the root goroutine (goid 0).
+	if debug.tracebackancestors <= 0 || callergp.goid == 0 {
+		return nil
+	}
+	var callerAncestors []ancestorInfo
+	if callergp.ancestors != nil {
+		callerAncestors = *callergp.ancestors
+	}
+	n := int32(len(callerAncestors)) + 1
+	if n > debug.tracebackancestors {
+		n = debug.tracebackancestors
+	}
+	ancestors := make([]ancestorInfo, n)
+	copy(ancestors[1:], callerAncestors)
+
+	var pcs [_TracebackMaxFrames]uintptr
+	npcs := gcallers(callergp, 0, pcs[:])
+	ipcs := make([]uintptr, npcs)
+	copy(ipcs, pcs[:])
+	ancestors[0] = ancestorInfo{
+		pcs:  ipcs,
+		goid: callergp.goid,
+		gopc: callergp.gopc,
+	}
+
+	ancestorsp := new([]ancestorInfo)
+	*ancestorsp = ancestors
+	return ancestorsp
 }
 
 // Put on gfree list.
@@ -3467,6 +3507,10 @@ func dolockOSThread() {
 // UnlockOSThread as to LockOSThread.
 // If the calling goroutine exits without unlocking the thread,
 // the thread will be terminated.
+//
+// All init functions are run on the startup thread. Calling LockOSThread
+// from an init function will cause the main function to be invoked on
+// that thread.
 //
 // A goroutine should call LockOSThread before calling OS services or
 // non-Go library functions that depend on per-thread state.
@@ -3672,7 +3716,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// transition. We simply require that g and SP match and that the PC is not
 	// in gogo.
 	traceback := true
-	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) {
+	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) || (mp != nil && mp.vdsoSP != 0) {
 		traceback = false
 	}
 	var stk [maxCPUProfStack]uintptr

@@ -10,14 +10,6 @@ Go Assembly for ARM64 Reference Manual
 
 1. Alphabetical list of basic instructions
     // TODO
-    PRFM: Prefetch Memory (immediate)
-     PRFM	imm(Rn), <prfop>
-      prfop is the prefetch operation and can have the following values:
-      PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
-      PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
-      PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM.
-     PRFM	imm(Rn), $imm
-      $imm prefetch operation is encoded as an immediate.
 
     LDARB: Load-Acquire Register Byte
       LDARB	(<Rn>), <Rd>
@@ -42,6 +34,27 @@ Go Assembly for ARM64 Reference Manual
     LDXPW: 32-bit Load Exclusive Pair of Registers
       LDXPW	(<Rn>), (<Rt1>, <Rt2>)
         Loads two 32-bit words from memory, and writes them to Rt1 and Rt2.
+
+    MOVD|MOVW|MOVH|MOVHU|MOVB|MOVBU: Load Register (register offset)
+      MOVD	(Rn)(Rm.UXTW<<3), Rt
+      MOVD	(Rn)(Rm.SXTX), Rt
+      MOVD	(Rn)(Rm<<3), Rt
+      MOVD	(Rn)(Rm), Rt
+      MOVB|MOVBU	(Rn)(Rm.UXTW), Rt
+
+    MOVD|MOVW|MOVH|MOVB: Stote Register (register offset)
+      MOVD	Rt, (Rn)(Rm.UXTW<<3)
+      MOVD	Rt, (Rn)(Rm.SXTX)
+      MOVD	Rt, (Rn)(Rm)
+
+    PRFM: Prefetch Memory (immediate)
+      PRFM	imm(Rn), <prfop>
+        prfop is the prefetch operation and can have the following values:
+        PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
+        PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
+        PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM.
+      PRFM	imm(Rn), $imm
+        $imm prefetch operation is encoded as an immediate.
 
     STLRB: Store-Release Register Byte
       STLRB	<Rd>, (<Rn>)
@@ -170,12 +183,24 @@ Go Assembly for ARM64 Reference Manual
         <T> Is an arrangement specifier and can have the following values:
         S2, S4, D2
 
+    VEXT:  Extracts vector elements from src SIMD registers to dst SIMD register
+      VEXT	$index, <Vm>.<T>, <Vn>.<T>, <Vd>.<T>
+        <T> is an arrangment specifier and can be B8, B16
+        $index is the lowest numbered byte element to be exracted.
+
     VLD1: Load multiple single-element structures
       VLD1	(Rn), [<Vt>.<T>, <Vt2>.<T> ...]     // no offset
       VLD1.P	imm(Rn), [<Vt>.<T>, <Vt2>.<T> ...]  // immediate offset variant
       VLD1.P	(Rn)(Rm), [<Vt>.<T>, <Vt2>.<T> ...] // register offset variant
         <T> Is an arrangement specifier and can have the following values:
         B8, B16, H4, H8, S2, S4, D1, D2
+
+    VLD1: Load one single-element structure
+      VLD1	(Rn), <Vt>.<T>[index]     // no offset
+      VLD1.P	imm(Rn), <Vt>.<T>[index]  // immediate offset variant
+      VLD1.P	(Rn)(Rm), <Vt>.<T>[index] // register offset variant
+        <T> is an arrangement specifier and can have the following values:
+        B, H, S D
 
     VMOV: move
       VMOV	<Vn>.<T>[index], Rd // Move vector element to general-purpose register.
@@ -224,10 +249,20 @@ Go Assembly for ARM64 Reference Manual
         <T> Is an arrangement specifier and can have the following values:
         B8, B16
 
+    VRBIT: Reverse bit order (vector)
+      VRBIT	<Vn>.<T>, <Vd>.<T>
+        <T> is an arrangment specifier and can be B8, B16
+
     VREV32: Reverse elements in 32-bit words (vector).
       REV32 <Vn>.<T>, <Vd>.<T>
         <T> Is an arrangement specifier and can have the following values:
         B8, B16, H4, H8
+
+    VSHL: Shift Left(immediate)
+      VSHL 	$shift, <Vn>.<T>, <Vd>.<T>
+        <T> is an arrangement specifier and can have the following values:
+        B8, B16, H4, H8, S2, S4, D1, D2
+        $shift Is the left shift amount
 
     VST1: Store multiple single-element structures
       VST1	[<Vt>.<T>, <Vt2>.<T> ...], (Rn)         // no offset
@@ -246,7 +281,28 @@ Go Assembly for ARM64 Reference Manual
         <T> Is an arrangement specifier and can have the following values:
         8B, 16B, H4, H8, S4
 
+    VST1: Store one single-element structure
+      VST1	<Vt>.<T>.<Index>, (Rn)         // no offset
+      VST1.P	<Vt>.<T>.<Index>, imm(Rn)      // immediate offset variant
+      VST1.P	<Vt>.<T>.<Index>, (Rn)(Rm)     // register offset variant
+        <T> Is an arrangement specifier and can have the following values:
+        B, H, S, D
+
+    VUSHR: Unsigned shift right(immediate)
+      VUSHR	$shift, <Vn>.<T>, <Vm>.<T>
+        <T> is an arrangement specifier and can have the following values:
+        B8, B16, H4, H8, S2, S4, D1, D2
+        $shift is the right shift amount
+
+
 4. Alphabetical list of cryptographic extension instructions
+
+    VPMULL{2}: Polynomial multiply long.
+      VPMULL{2}	<Vm>.<Tb>, <Vn>.<Tb>, <Vd>.<Ta>
+        VPMULL multiplies corresponding elements in the lower half of the
+        vectors of two source SIMD registers and VPMULL{2} operates in the upper half.
+        <Ta> is an arrangement specifier, it can be H8, Q1
+        <Tb> is an arrangement specifier, it can be B8, B16, D1, D2
 
     SHA1C, SHA1M, SHA1P: SHA1 hash update.
       SHA1C	<Vm>.S4, Vn, Vd
@@ -269,6 +325,5 @@ Go Assembly for ARM64 Reference Manual
     SHA256H, SHA256H2: SHA256 hash update.
       SHA256H	<Vm>.S4, Vn, Vd
       SHA256H2	<Vm>.S4, Vn, Vd
-
 
 */

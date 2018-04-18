@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+Copyright 2018 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+-->
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>Go wasm</title>
+</head>
+
+<body>
+	<script src="wasm_exec.js"></script>
+	<script>
+		async function loadAndCompile() {
+			let resp = await fetch("test.wasm");
+			let bytes = await resp.arrayBuffer();
+			await compile(bytes);
+			document.getElementById("runButton").disabled = false;
+		}
+
+		loadAndCompile();
+	</script>
+
+	<button onClick="console.clear(); run();" id="runButton" disabled>Run</button>
+</body>
+
+</html>

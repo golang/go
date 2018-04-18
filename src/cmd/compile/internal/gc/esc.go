@@ -665,18 +665,29 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		}
 	}
 
-	// Big stuff escapes unconditionally
-	// "Big" conditions that were scattered around in walk have been gathered here
+	// Big stuff and non-constant-sized stuff escapes unconditionally.
+	// "Big" conditions that were scattered around in walk have been
+	// gathered here.
 	if n.Esc != EscHeap && n.Type != nil &&
 		(n.Type.Width > maxStackVarSize ||
 			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+
+		// isSmallMakeSlice returns false for non-constant len/cap.
+		// If that's the case, print a more accurate escape reason.
+		var msgVerb, escapeMsg string
+		if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || !Isconst(n.Right, CTINT)) {
+			msgVerb, escapeMsg = "has ", "non-constant size"
+		} else {
+			msgVerb, escapeMsg = "is ", "too large for stack"
+		}
+
 		if Debug['m'] > 2 {
-			Warnl(n.Pos, "%v is too large for stack", n)
+			Warnl(n.Pos, "%v "+msgVerb+escapeMsg, n)
 		}
 		n.Esc = EscHeap
 		addrescapes(n)
-		e.escassignSinkWhy(n, n, "too large for stack") // TODO category: tooLarge
+		e.escassignSinkWhy(n, n, escapeMsg) // TODO category: tooLarge
 	}
 
 	e.esc(n.Left, n)
@@ -704,6 +715,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		fmt.Printf("%v:[%d] %v esc: %v\n", linestr(lineno), e.loopdepth, funcSym(Curfn), n)
 	}
 
+opSwitch:
 	switch n.Op {
 	// Record loop depth at declaration.
 	case ODCL:
@@ -989,13 +1001,6 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		// and keep the current loop depth.
 		if n.Left.Op == ONAME {
 			switch n.Left.Class() {
-			case PAUTO:
-				nE := e.nodeEscState(n)
-				leftE := e.nodeEscState(n.Left)
-				if leftE.Loopdepth != 0 {
-					nE.Loopdepth = leftE.Loopdepth
-				}
-
 			// PPARAM is loop depth 1 always.
 			// PPARAMOUT is loop depth 0 for writes
 			// but considered loop depth 1 for address-of,
@@ -1005,7 +1010,21 @@ func (e *EscState) esc(n *Node, parent *Node) {
 			case PPARAM, PPARAMOUT:
 				nE := e.nodeEscState(n)
 				nE.Loopdepth = 1
+				break opSwitch
 			}
+		}
+		nE := e.nodeEscState(n)
+		leftE := e.nodeEscState(n.Left)
+		if leftE.Loopdepth != 0 {
+			nE.Loopdepth = leftE.Loopdepth
+		}
+
+	case ODOT,
+		ODOTPTR,
+		OINDEX:
+		// Propagate the loopdepth of t to t.field.
+		if n.Left.Op != OLITERAL { // OLITERAL node doesn't have esc state
+			e.nodeEscState(n).Loopdepth = e.nodeEscState(n.Left).Loopdepth
 		}
 	}
 
@@ -1047,7 +1066,7 @@ func (e *EscState) escassignSinkWhyWhere(dst, src *Node, reason string, call *No
 // evaluated in curfn.	For expr==nil, dst must still be examined for
 // evaluations inside it (e.g *f(x) = y)
 func (e *EscState) escassign(dst, src *Node, step *EscStep) {
-	if isblank(dst) || dst == nil || src == nil || src.Op == ONONAME || src.Op == OXXX {
+	if dst.isBlank() || dst == nil || src == nil || src.Op == ONONAME || src.Op == OXXX {
 		return
 	}
 
@@ -1386,11 +1405,13 @@ func (e *EscState) addDereference(n *Node) *Node {
 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
 	ind.Pos = n.Pos
 	t := n.Type
-	if t.IsKind(types.Tptr) {
+	if t.IsKind(types.Tptr) || t.IsSlice() {
 		// This should model our own sloppy use of OIND to encode
-		// decreasing levels of indirection; i.e., "indirecting" an array
-		// might yield the type of an element. To be enhanced...
+		// decreasing levels of indirection; i.e., "indirecting" a slice
+		// yields the type of an element.
 		t = t.Elem()
+	} else if t.IsString() {
+		t = types.Types[TUINT8]
 	}
 	ind.Type = t
 	return ind

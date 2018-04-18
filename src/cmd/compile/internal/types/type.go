@@ -1325,7 +1325,20 @@ func (t *Type) SetNumElem(n int64) {
 	at.Bound = n
 }
 
-func (t *Type) NumComponents() int64 {
+type componentsIncludeBlankFields bool
+
+const (
+	IgnoreBlankFields componentsIncludeBlankFields = false
+	CountBlankFields  componentsIncludeBlankFields = true
+)
+
+// NumComponents returns the number of primitive elements that compose t.
+// Struct and array types are flattened for the purpose of counting.
+// All other types (including string, slice, and interface types) count as one element.
+// If countBlank is IgnoreBlankFields, then blank struct fields
+// (and their comprised elements) are excluded from the count.
+// struct { x, y [3]int } has six components; [10]struct{ x, y string } has twenty.
+func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
 	switch t.Etype {
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
@@ -1333,11 +1346,14 @@ func (t *Type) NumComponents() int64 {
 		}
 		var n int64
 		for _, f := range t.FieldSlice() {
-			n += f.Type.NumComponents()
+			if countBlank == IgnoreBlankFields && f.Sym.IsBlank() {
+				continue
+			}
+			n += f.Type.NumComponents(countBlank)
 		}
 		return n
 	case TARRAY:
-		return t.NumElem() * t.Elem().NumComponents()
+		return t.NumElem() * t.Elem().NumComponents(countBlank)
 	}
 	return 1
 }

@@ -389,10 +389,12 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 		return
 	}
 
-	// associate factory functions with the first visible result type, if any
+	// Associate factory functions with the first visible result type, if that
+	// is the only type returned.
 	if fun.Type.Results.NumFields() >= 1 {
-		res := fun.Type.Results.List[0]
-		if len(res.Names) <= 1 {
+		var typ *namedType // type to associate the function with
+		numResultTypes := 0
+		for _, res := range fun.Type.Results.List {
 			// exactly one (named or anonymous) result associated
 			// with the first type in result signature (there may
 			// be more than one result)
@@ -403,12 +405,16 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 				factoryType = t.Elt
 			}
 			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) {
-				if typ := r.lookupType(n); typ != nil {
-					// associate function with typ
-					typ.funcs.set(fun)
-					return
+				if t := r.lookupType(n); t != nil {
+					typ = t
+					numResultTypes++
 				}
 			}
+		}
+		// If there is exactly one result type, associate the function with that type.
+		if numResultTypes == 1 {
+			typ.funcs.set(fun)
+			return
 		}
 	}
 

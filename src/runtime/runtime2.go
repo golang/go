@@ -378,8 +378,9 @@ type g struct {
 	sigcode0       uintptr
 	sigcode1       uintptr
 	sigpc          uintptr
-	gopc           uintptr // pc of go statement that created this goroutine
-	startpc        uintptr // pc of goroutine function
+	gopc           uintptr         // pc of go statement that created this goroutine
+	ancestors      *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
+	startpc        uintptr         // pc of goroutine function
 	racectx        uintptr
 	waiting        *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
 	cgoCtxt        []uintptr      // cgo traceback context
@@ -420,7 +421,6 @@ type m struct {
 	throwing      int32
 	preemptoff    string // if != "", keep curg running on this m
 	locks         int32
-	softfloat     int32
 	dying         int32
 	profilehz     int32
 	helpgc        int32
@@ -444,9 +444,6 @@ type m struct {
 	mcache        *mcache
 	lockedg       guintptr
 	createstack   [32]uintptr    // stack that created this thread.
-	freglo        [16]uint32     // d[i] lsb and f[i]
-	freghi        [16]uint32     // d[i] msb and f[i+16]
-	fflag         uint32         // floating point compare flags
 	lockedExt     uint32         // tracking for external LockOSThread
 	lockedInt     uint32         // tracking for internal lockOSThread
 	nextwaitm     muintptr       // next m waiting for lock
@@ -743,6 +740,13 @@ type stkframe struct {
 	argmap   *bitvector // force use of this argmap
 }
 
+// ancestorInfo records details of where a goroutine was started.
+type ancestorInfo struct {
+	pcs  []uintptr // pcs from the stack of this goroutine
+	goid int64     // goroutine id of this goroutine; original goroutine possibly dead
+	gopc uintptr   // pc of go statement that created this goroutine
+}
+
 const (
 	_TraceRuntimeFrames = 1 << iota // include frames for internal runtime functions.
 	_TraceTrap                      // the initial PC, SP are from a trap, not a return PC from a call
@@ -771,18 +775,11 @@ var (
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
-	support_aes          bool
-	support_avx          bool
-	support_avx2         bool
-	support_bmi1         bool
-	support_bmi2         bool
 	support_erms         bool
 	support_osxsave      bool
 	support_popcnt       bool
 	support_sse2         bool
 	support_sse41        bool
-	support_sse42        bool
-	support_ssse3        bool
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link

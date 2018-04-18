@@ -34,7 +34,7 @@
 // its -bench flag is provided. Benchmarks are run sequentially.
 //
 // For a description of the testing flags, see
-// https://golang.org/cmd/go/#hdr-Description_of_testing_flags.
+// https://golang.org/cmd/go/#hdr-Testing_flags
 //
 // A sample benchmark function looks like this:
 //     func BenchmarkHello(b *testing.B) {
@@ -177,6 +177,9 @@
 //             })
 //         }
 //     }
+//
+// The race detector kills the program if it exceeds 8192 concurrent goroutines,
+// so use care when running parallel tests with the -race flag set.
 //
 // Run does not return until parallel subtests have completed, providing a way
 // to clean up after a group of parallel tests:
@@ -728,6 +731,10 @@ func tRunner(t *T, fn func(t *T)) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
+		if t.failed {
+			atomic.AddUint32(&numFailed, 1)
+		}
+
 		if t.raceErrors+race.Errors() > 0 {
 			t.Errorf("race detected during execution of test")
 		}
@@ -787,9 +794,7 @@ func tRunner(t *T, fn func(t *T)) {
 	t.raceErrors = -race.Errors()
 	fn(t)
 
-	if t.failed {
-		atomic.AddUint32(&numFailed, 1)
-	}
+	// code beyond here will not be executed when FailNow is invoked
 	t.finished = true
 }
 

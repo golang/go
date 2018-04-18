@@ -1932,10 +1932,8 @@ func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
 		}
 		last = i
 	}
-	if _, err := w.Write(s[last:]); err != nil {
-		return err
-	}
-	return nil
+	_, err := w.Write(s[last:])
+	return err
 }
 
 // EscapeString writes to p the properly escaped XML equivalent
@@ -2018,10 +2016,8 @@ func emitCDATA(w io.Writer, s []byte) error {
 		}
 		s = s[i:]
 	}
-	if _, err := w.Write(cdataEnd); err != nil {
-		return err
-	}
-	return nil
+	_, err := w.Write(cdataEnd)
+	return err
 }
 
 // procInst parses the `param="..."` or `param='...'`

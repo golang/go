@@ -91,7 +91,6 @@ NextCipherSuite:
 	return hello, nil
 }
 
-// c.out.Mutex <= L; c.handshakeMutex <= L.
 func (c *Conn) clientHandshake() error {
 	if c.config == nil {
 		c.config = defaultConfig()

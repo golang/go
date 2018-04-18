@@ -122,6 +122,7 @@ const (
 
 	WSAEMSGSIZE syscall.Errno = 10040
 
+	MSG_PEEK   = 0x2
 	MSG_TRUNC  = 0x0100
 	MSG_CTRUNC = 0x0200
 

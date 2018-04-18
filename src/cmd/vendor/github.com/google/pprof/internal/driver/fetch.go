@@ -407,6 +407,7 @@ mapping:
 				if matches, err := filepath.Glob(filepath.Join(path, m.BuildID, "*")); err == nil {
 					fileNames = append(fileNames, matches...)
 				}
+				fileNames = append(fileNames, filepath.Join(path, m.File, m.BuildID)) // perf path format
 			}
 			if m.File != "" {
 				// Try both the basename and the full path, to support the same directory
@@ -534,7 +535,8 @@ func convertPerfData(perfPath string, ui plugin.UI) (*os.File, error) {
 		return nil, err
 	}
 	deferDeleteTempFile(profile.Name())
-	cmd := exec.Command("perf_to_profile", perfPath, profile.Name())
+	cmd := exec.Command("perf_to_profile", "-i", perfPath, "-o", profile.Name(), "-f")
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		profile.Close()
 		return nil, fmt.Errorf("failed to convert perf.data file. Try github.com/google/perf_data_converter: %v", err)
@@ -598,8 +600,8 @@ var httpGet = func(source string, timeout time.Duration) (*http.Response, error)
 	client := &http.Client{
 		Transport: &http.Transport{
 			ResponseHeaderTimeout: timeout + 5*time.Second,
-			Proxy:           http.ProxyFromEnvironment,
-			TLSClientConfig: tlsConfig,
+			Proxy:                 http.ProxyFromEnvironment,
+			TLSClientConfig:       tlsConfig,
 		},
 	}
 	return client.Get(source)

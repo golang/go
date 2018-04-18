@@ -32,7 +32,7 @@ import (
 // Then control flow passes to ld.Main, which parses flags, makes
 // some configuration decisions, and then gives the architecture
 // packages a second chance to modify the linker's configuration
-// via the ld.Thearch.Archinit function.
+// via the ld.Arch.Archinit function.
 
 func main() {
 	var arch *sys.Arch

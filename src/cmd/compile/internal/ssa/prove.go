@@ -491,11 +491,11 @@ var (
 		OpGreater64:  {signed, gt},
 		OpGreater64U: {unsigned, gt},
 
-		// TODO: OpIsInBounds actually test 0 <= a < b. This means
-		// that the positive branch learns signed/LT and unsigned/LT
-		// but the negative branch only learns unsigned/GE.
-		OpIsInBounds:      {unsigned, lt},      // 0 <= arg0 < arg1
-		OpIsSliceInBounds: {unsigned, lt | eq}, // 0 <= arg0 <= arg1
+		// For these ops, the negative branch is different: we can only
+		// prove signed/GE (signed/GT) if we can prove that arg0 is non-negative.
+		// See the special case in addBranchRestrictions.
+		OpIsInBounds:      {signed | unsigned, lt},      // 0 <= arg0 < arg1
+		OpIsSliceInBounds: {signed | unsigned, lt | eq}, // 0 <= arg0 <= arg1
 	}
 )
 
@@ -594,12 +594,15 @@ func prove(f *Func) {
 
 		switch node.state {
 		case descend:
+			ft.checkpoint()
 			if branch != unknown {
-				if !tryPushBranch(ft, parent, branch) {
+				addBranchRestrictions(ft, parent, branch)
+				if ft.unsat {
 					// node.block is unreachable.
 					// Remove it and don't visit
 					// its children.
 					removeBranch(parent, branch)
+					ft.restore()
 					break
 				}
 				// Otherwise, we can now commit to
@@ -620,10 +623,7 @@ func prove(f *Func) {
 
 		case simplify:
 			simplifyBlock(sdom, ft, node.block)
-
-			if branch != unknown {
-				popBranch(ft)
-			}
+			ft.restore()
 		}
 	}
 }
@@ -649,80 +649,63 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 	return unknown
 }
 
-// tryPushBranch tests whether it is possible to branch from Block b
-// in direction br and, if so, pushes the branch conditions in the
-// factsTable and returns true. A successful tryPushBranch must be
-// paired with a popBranch.
-func tryPushBranch(ft *factsTable, b *Block, br branch) bool {
-	ft.checkpoint()
+// addBranchRestrictions updates the factsTables ft with the facts learned when
+// branching from Block b in direction br.
+func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 	c := b.Control
-	updateRestrictions(b, ft, boolean, nil, c, lt|gt, br)
+	switch br {
+	case negative:
+		addRestrictions(b, ft, boolean, nil, c, eq)
+	case positive:
+		addRestrictions(b, ft, boolean, nil, c, lt|gt)
+	default:
+		panic("unknown branch")
+	}
 	if tr, has := domainRelationTable[b.Control.Op]; has {
 		// When we branched from parent we learned a new set of
 		// restrictions. Update the factsTable accordingly.
-		updateRestrictions(b, ft, tr.d, c.Args[0], c.Args[1], tr.r, br)
+		d := tr.d
+		switch br {
+		case negative:
+			switch b.Control.Op { // Special cases
+			case OpIsInBounds, OpIsSliceInBounds:
+				// 0 <= a0 < a1 (or 0 <= a0 <= a1)
+				//
+				// On the positive branch, we learn a0 < a1,
+				// both signed and unsigned.
+				//
+				// On the negative branch, we learn (0 > a0 ||
+				// a0 >= a1). In the unsigned domain, this is
+				// simply a0 >= a1 (which is the reverse of the
+				// positive branch, so nothing surprising).
+				// But in the signed domain, we can't express the ||
+				// condition, so check if a0 is non-negative instead,
+				// to be able to learn something.
+				d = unsigned
+				if ft.isNonNegative(c.Args[0]) {
+					d |= signed
+				}
+			}
+			addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
+		case positive:
+			addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
+		}
 	}
-	if ft.unsat {
-		// This branch's conditions contradict some known
-		// fact, so it cannot be taken. Unwind the facts.
-		//
-		// (Since we never checkpoint an unsat factsTable, we
-		// don't really need factsTable.unsatDepth, but
-		// there's no cost to keeping checkpoint/restore more
-		// general.)
-		ft.restore()
-		return false
-	}
-	return true
 }
 
-// popBranch undoes the effects of a successful tryPushBranch.
-func popBranch(ft *factsTable) {
-	ft.restore()
-}
-
-// updateRestrictions updates restrictions from the immediate
-// dominating block (p) using r. r is adjusted according to the branch taken.
-func updateRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
-	if t == 0 || branch == unknown {
-		// Trivial case: nothing to do, or branch unknown.
+// addRestrictions updates restrictions from the immediate
+// dominating block (p) using r.
+func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation) {
+	if t == 0 {
+		// Trivial case: nothing to do.
 		// Shoult not happen, but just in case.
 		return
-	}
-	if branch == negative {
-		// Negative branch taken, complement the relations.
-		r = (lt | eq | gt) ^ r
 	}
 	for i := domain(1); i <= t; i <<= 1 {
 		if t&i == 0 {
 			continue
 		}
 		ft.update(parent, v, w, i, r)
-
-		if i == boolean && v == nil && w != nil && (w.Op == OpIsInBounds || w.Op == OpIsSliceInBounds) {
-			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
-			//
-			// domainRelationTable handles the a0 / a1
-			// relation, but not the 0 / a0 relation.
-			//
-			// On the positive branch we learn 0 <= a0,
-			// but this turns out never to be useful.
-			//
-			// On the negative branch we learn (0 > a0 ||
-			// a0 >= a1) (or (0 > a0 || a0 > a1)). We
-			// can't express an || condition, but we learn
-			// something if we can disprove the LHS.
-			if r == eq && ft.isNonNegative(w.Args[0]) {
-				// false == w, so we're on the
-				// negative branch. a0 >= 0, so the
-				// LHS is false. Thus, the RHS holds.
-				opr := eq | gt
-				if w.Op == OpIsSliceInBounds {
-					opr = gt
-				}
-				ft.update(parent, w.Args[0], w.Args[1], signed, opr)
-			}
-		}
 
 		// Additional facts we know given the relationship between len and cap.
 		if i != signed && i != unsigned {
@@ -797,7 +780,11 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		}
 		// For edges to other blocks, this can trim a branch
 		// even if we couldn't get rid of the child itself.
-		if !tryPushBranch(ft, parent, branch) {
+		ft.checkpoint()
+		addBranchRestrictions(ft, parent, branch)
+		unsat := ft.unsat
+		ft.restore()
+		if unsat {
 			// This branch is impossible, so remove it
 			// from the block.
 			removeBranch(parent, branch)
@@ -808,7 +795,6 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// BlockExit, but it doesn't seem worth it.)
 			break
 		}
-		popBranch(ft)
 	}
 }
 
