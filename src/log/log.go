@@ -53,15 +53,14 @@ type Logger struct {
 	flag      int        // properties
 	out       io.Writer  // destination for output
 	buf       []byte     // for accumulating text to write
-	calldepth int        // the argument skip is the number of stack frames
 }
 
 // New creates a new Logger. The out variable sets the
 // destination to which log data will be written.
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
-func New(out io.Writer, prefix string, flag int, calldepth int) *Logger {
-	return &Logger{out: out, prefix: prefix, flag: flag, calldepth: calldepth}
+func New(out io.Writer, prefix string, flag int) *Logger {
+	return &Logger{out: out, prefix: prefix, flag: flag}
 }
 
 // SetOutput sets the output destination for the logger.
@@ -186,7 +185,7 @@ func (l *Logger) Print(v ...interface{}) { l.Output(2, fmt.Sprint(v...)) }
 
 // Println calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Println.
-func (l *Logger) Println(v ...interface{}) { l.Output(l.calldepth, fmt.Sprintln(v...)) }
+func (l *Logger) Println(v ...interface{}) { l.Output(2 + l.flag/100, fmt.Sprintln(v...)) }
 
 // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
 func (l *Logger) Fatal(v ...interface{}) {
