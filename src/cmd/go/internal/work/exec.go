@@ -1093,7 +1093,7 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 		// We want to hide that awful detail as much as possible, so don't
 		// advertise it by touching the mtimes (usually the libraries are up
 		// to date).
-		if !a.buggyInstall {
+		if !a.buggyInstall && !b.ComputeStaleOnly {
 			now := time.Now()
 			os.Chtimes(a.Target, now, now)
 		}
