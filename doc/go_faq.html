@@ -1097,24 +1097,27 @@ The <code>go get</code> command therefore uses HTTPS for safety.
 </p>
 
 <p>
-If you use <code>git</code> and prefer to push changes through SSH using your existing key 
-it's easy to work around this. For GitHub, try one of these solutions:
+<code>Git</code> can be configured to authenticate over HTTPS or to use SSH in place of HTTPS.
+To authenticate over HTTPS, you can add a line
+to the <code>$HOME/.netrc</code> file that git consults:
 </p>
-<ul>
-<li>Manually clone the repository in the expected package directory:
 <pre>
-$ cd src/github.com/username
-$ git clone git@github.com:username/package.git
+machine github.com login <i>USERNAME</i> password <i>APIKEY</i>
 </pre>
-</li>
-<li>Force <code>git push</code> to use the <code>SSH</code> protocol by appending
-these two lines to <code>~/.gitconfig</code>:
+<p>
+For GitHub accounts, the password can be a
+<a href="https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/">personal access token</a>.
+</p>
+
+<p>
+<code>Git</code> can also be configured to use SSH in place of HTTPS for URLs matching a given prefix.
+For example, to use SSH for all GitHub access,
+add these lines to your <code>~/.gitconfig</code>:
+</p>
 <pre>
-[url "git@github.com:"]
-	pushInsteadOf = https://github.com/
+[url "ssh://git@github.com/"]
+	insteadOf = https://github.com/
 </pre>
-</li>
-</ul>
 
 <h3 id="get_version">
 How should I manage package versions using "go get"?</h3>
