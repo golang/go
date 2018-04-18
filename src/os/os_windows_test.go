@@ -1011,3 +1011,47 @@ func TestWindowsDevNullFile(t *testing.T) {
 		t.Errorf(`"NUL" and "nul" are not the same file`)
 	}
 }
+
+// TestSymlinkCreation verifies that creating a symbolic link
+// works on Windows when developer mode is active.
+// This is supported starting Windows 10 (1703, v10.0.14972).
+func TestSymlinkCreation(t *testing.T) {
+	if !isWindowsDeveloperModeActive() {
+		t.Skip("Windows developer mode is not active")
+	}
+
+	temp, err := ioutil.TempDir("", "TestSymlinkCreation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(temp)
+
+	dummyFile := filepath.Join(temp, "file")
+	err = ioutil.WriteFile(dummyFile, []byte(""), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	linkFile := filepath.Join(temp, "link")
+	err = os.Symlink(dummyFile, linkFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
+// Returns false for prior Windows versions.
+// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
+func isWindowsDeveloperModeActive() bool {
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
+	if err != nil {
+		return false
+	}
+
+	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
+	if err != nil {
+		return false
+	}
+
+	return val != 0
+}
