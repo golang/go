@@ -11,6 +11,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 	"math"
+	"strings"
 )
 
 // iselOp encodes mapping of comparison operations onto ISEL operands
@@ -680,7 +681,42 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 		p.To.Type = obj.TYPE_REG
 
-	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
+	case ssa.OpPPC64MOVDload:
+
+		// MOVDload uses a DS instruction which requires the offset value of the data to be a multiple of 4.
+		// For offsets known at compile time, a MOVDload won't be selected, but in the case of a go.string,
+		// the offset is not known until link time. If the load of a go.string uses relocation for the
+		// offset field of the instruction, and if the offset is not aligned to 4, then a link error will occur.
+		// To avoid this problem, the full address of the go.string is computed and loaded into the base register,
+		// and that base register is used for the MOVDload using a 0 offset. This problem can only occur with
+		// go.string types because other types will have proper alignment.
+
+		gostring := false
+		switch n := v.Aux.(type) {
+		case *obj.LSym:
+			gostring = strings.HasPrefix(n.Name, "go.string.")
+		}
+		if gostring {
+			// Generate full addr of the go.string const
+			// including AuxInt
+			p := s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_ADDR
+			p.From.Reg = v.Args[0].Reg()
+			gc.AddAux(&p.From, v)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+			// Load go.string using 0 offset
+			p = s.Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = v.Reg()
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+			break
+		}
+		// Not a go.string, generate a normal load
+		fallthrough
+
+	case ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
