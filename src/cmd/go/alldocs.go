@@ -579,7 +579,7 @@
 //
 // Usage:
 //
-// 	go list [-e] [-f format] [-json] [build flags] [packages]
+// 	go list [-deps] [-e] [-f format] [-json] [build flags] [packages]
 //
 // List lists the packages named by the import paths, one per line.
 //
@@ -682,6 +682,10 @@
 //
 // The -json flag causes the package data to be printed in JSON format
 // instead of using the template format.
+//
+// The -deps flag causes list to iterate over not just the named packages
+// but also all their dependencies. It visits them in a depth-first post-order
+// traversal, so that a package is listed only after all its dependencies.
 //
 // The -e flag changes the handling of erroneous packages, those that
 // cannot be found or are malformed. By default, the list command
@@ -1688,14 +1692,13 @@
 // 	    Writes test binary as -c would.
 //
 // 	-memprofile mem.out
-// 	    Write a memory profile to the file after all tests have passed.
+// 	    Write an allocation profile to the file after all tests have passed.
 // 	    Writes test binary as -c would.
 //
 // 	-memprofilerate n
-// 	    Enable more precise (and expensive) memory profiles by setting
-// 	    runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
-// 	    To profile all memory allocations, use -test.memprofilerate=1
-// 	    and pass --alloc_space flag to the pprof tool.
+// 	    Enable more precise (and expensive) memory allocation profiles by
+// 	    setting runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
+// 	    To profile all memory allocations, use -test.memprofilerate=1.
 //
 // 	-mutexprofile mutex.out
 // 	    Write a mutex contention profile to the specified file
