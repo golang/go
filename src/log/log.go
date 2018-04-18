@@ -53,7 +53,7 @@ type Logger struct {
 	flag      int        // properties
 	out       io.Writer  // destination for output
 	buf       []byte     // for accumulating text to write
-        calldepth int        // the argument skip is the number of stack frames
+	calldepth int        // the argument skip is the number of stack frames
 }
 
 // New creates a new Logger. The out variable sets the
