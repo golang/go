@@ -423,6 +423,7 @@ var optab = []Optab{
 	{AVSUBE, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0},  /* vector subtract extended, va-form */
 
 	/* Vector multiply */
+	{AVMULESB, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 9},  /* vector multiply, vx-form */
 	{AVPMSUM, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0},   /* vector polynomial multiply & sum, vx-form */
 	{AVMSUMUDM, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector multiply-sum, va-form */
 
@@ -1344,6 +1345,19 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSUBEUQM, r0)
 			opset(AVSUBECUQ, r0)
 
+		case AVMULESB: /* vmulesb, vmulosb, vmuleub, vmuloub, vmulosh, vmulouh, vmulesw, vmulosw, vmuleuw, vmulouw, vmuluwm */
+			opset(AVMULOSB, r0)
+			opset(AVMULEUB, r0)
+			opset(AVMULOUB, r0)
+			opset(AVMULESH, r0)
+			opset(AVMULOSH, r0)
+			opset(AVMULEUH, r0)
+			opset(AVMULOUH, r0)
+			opset(AVMULESW, r0)
+			opset(AVMULOSW, r0)
+			opset(AVMULEUW, r0)
+			opset(AVMULOUW, r0)
+			opset(AVMULUWM, r0)
 		case AVPMSUM: /* vpmsumb, vpmsumh, vpmsumw, vpmsumd */
 			opset(AVPMSUMB, r0)
 			opset(AVPMSUMH, r0)
@@ -4181,6 +4195,33 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVX(4, 60, 0, 0) /* vaddeuqm - v2.07 */
 	case AVADDECUQ:
 		return OPVX(4, 61, 0, 0) /* vaddecuq - v2.07 */
+
+	case AVMULESB:
+		return OPVX(4, 776, 0, 0) /* vmulesb - v2.03 */
+	case AVMULOSB:
+		return OPVX(4, 264, 0, 0) /* vmulosb - v2.03 */
+	case AVMULEUB:
+		return OPVX(4, 520, 0, 0) /* vmuleub - v2.03 */
+	case AVMULOUB:
+		return OPVX(4, 8, 0, 0) /* vmuloub - v2.03 */
+	case AVMULESH:
+		return OPVX(4, 840, 0, 0) /* vmulesh - v2.03 */
+	case AVMULOSH:
+		return OPVX(4, 328, 0, 0) /* vmulosh - v2.03 */
+	case AVMULEUH:
+		return OPVX(4, 584, 0, 0) /* vmuleuh - v2.03 */
+	case AVMULOUH:
+		return OPVX(4, 72, 0, 0) /* vmulouh - v2.03 */
+	case AVMULESW:
+		return OPVX(4, 904, 0, 0) /* vmulesw - v2.07 */
+	case AVMULOSW:
+		return OPVX(4, 392, 0, 0) /* vmulosw - v2.07 */
+	case AVMULEUW:
+		return OPVX(4, 648, 0, 0) /* vmuleuw - v2.07 */
+	case AVMULOUW:
+		return OPVX(4, 136, 0, 0) /* vmulouw - v2.07 */
+	case AVMULUWM:
+		return OPVX(4, 137, 0, 0) /* vmuluwm - v2.07 */
 
 	case AVPMSUMB:
 		return OPVX(4, 1032, 0, 0) /* vpmsumb - v2.07 */
