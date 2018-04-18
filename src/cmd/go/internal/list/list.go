@@ -20,7 +20,7 @@ import (
 )
 
 var CmdList = &base.Command{
-	UsageLine: "list [-e] [-f format] [-json] [build flags] [packages]",
+	UsageLine: "list [-deps] [-e] [-f format] [-json] [build flags] [packages]",
 	Short:     "list packages",
 	Long: `
 List lists the packages named by the import paths, one per line.
@@ -125,6 +125,10 @@ for the go/build package's Context type.
 The -json flag causes the package data to be printed in JSON format
 instead of using the template format.
 
+The -deps flag causes list to iterate over not just the named packages
+but also all their dependencies. It visits them in a depth-first post-order
+traversal, so that a package is listed only after all its dependencies.
+
 The -e flag changes the handling of erroneous packages, those that
 cannot be found or are malformed. By default, the list command
 prints an error to standard error for each erroneous package and
@@ -146,6 +150,7 @@ func init() {
 	work.AddBuildFlags(CmdList)
 }
 
+var listDeps = CmdList.Flag.Bool("deps", false, "")
 var listE = CmdList.Flag.Bool("e", false, "")
 var listFmt = CmdList.Flag.String("f", "{{.ImportPath}}", "")
 var listJson = CmdList.Flag.Bool("json", false, "")
@@ -199,6 +204,15 @@ func runList(cmd *base.Command, args []string) {
 		pkgs = load.PackagesAndErrors(args)
 	} else {
 		pkgs = load.Packages(args)
+	}
+
+	if *listDeps {
+		// Note: This changes the order of the listed packages
+		// from "as written on the command line" to
+		// "a depth-first post-order traversal".
+		// (The dependency exploration order for a given node
+		// is alphabetical, same as listed in .Deps.)
+		pkgs = load.PackageList(pkgs)
 	}
 
 	// Estimate whether staleness information is needed,
