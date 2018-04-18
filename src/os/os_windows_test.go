@@ -1020,7 +1020,6 @@ func TestSymlinkCreation(t *testing.T) {
 		t.Skip("Windows developer mode is not active")
 	}
 
-	// create dummy file to symlink
 	temp, err := ioutil.TempDir("", "TestSymlinkCreation")
 	if err != nil {
 		t.Fatal(err)
@@ -1030,13 +1029,13 @@ func TestSymlinkCreation(t *testing.T) {
 	dummyFile := filepath.Join(temp, "file")
 	err = ioutil.WriteFile(dummyFile, []byte(""), 0644)
 	if err != nil {
-		t.Fatalf("Failed to create dummy file: %v", err)
+		t.Fatal(err)
 	}
 
 	linkFile := filepath.Join(temp, "link")
 	err = os.Symlink(dummyFile, linkFile)
 	if err != nil {
-		t.Fatalf("Failed to create symlink: %v", err)
+		t.Fatal(err)
 	}
 }
 
