@@ -48,11 +48,11 @@ const (
 // the Writer's Write method. A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
-	mu        sync.Mutex // ensures atomic writes; protects the following fields
-	prefix    string     // prefix to write at beginning of each line
-	flag      int        // properties
-	out       io.Writer  // destination for output
-	buf       []byte     // for accumulating text to write
+	mu     sync.Mutex // ensures atomic writes; protects the following fields
+	prefix string     // prefix to write at beginning of each line
+	flag   int        // properties
+	out    io.Writer  // destination for output
+	buf    []byte     // for accumulating text to write
 }
 
 // New creates a new Logger. The out variable sets the
