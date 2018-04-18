@@ -45,4 +45,8 @@ TEXT errors(SB),$0
 	ADDQ 433954697820(AX), AX       // ERROR "offset too large"
 	ADDL 433954697820(AX), AX       // ERROR "offset too large"
 	ADDW 433954697820(AX), AX       // ERROR "offset too large"
+	// Pseudo-registers should not be used as scaled index.
+	CALL (AX)(PC*1)                 // ERROR "invalid instruction"
+	CALL (AX)(SB*1)                 // ERROR "invalid instruction"
+	CALL (AX)(FP*1)                 // ERROR "invalid instruction"
 	RET
