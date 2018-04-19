@@ -3861,12 +3861,9 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	}
 
 	t := nod(OTFUNC, nil, nil)
-	var args []*Node
 	for i, arg := range n.List.Slice() {
-		buf := fmt.Sprintf("a%d", i)
-		a := namedfield(buf, arg.Type)
-		t.List.Append(a)
-		args = append(args, a.Left)
+		s := lookupN("a", i)
+		t.List.Append(symfield(s, arg.Type))
 	}
 
 	wrapCall_prgen++
@@ -3874,7 +3871,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	fn := dclfunc(sym, t)
 
 	a := nod(n.Op, nil, nil)
-	a.List.Set(args)
+	a.List.Set(paramNnames(t.Type))
 	a = typecheck(a, Etop)
 	fn.Nbody.Set1(a)
 

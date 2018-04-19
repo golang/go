@@ -1026,6 +1026,12 @@ func makefuncsym(s *types.Sym) {
 	}
 }
 
+// disableExport prevents sym from being included in package export
+// data. To be effectual, it must be called before declare.
+func disableExport(sym *types.Sym) {
+	sym.SetOnExportList(true)
+}
+
 func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	if tfn.Op != OTFUNC {
 		Fatalf("expected OTFUNC node, got %v", tfn)
