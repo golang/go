@@ -23,7 +23,7 @@ import (
 )
 
 var CmdList = &base.Command{
-	UsageLine: "list [-cgo] [-deps] [-e] [-f format] [-json] [-list] [-test] [build flags] [packages]",
+	UsageLine: "list [-cgo] [-deps] [-e] [-export] [-f format] [-json] [-list] [-test] [build flags] [packages]",
 	Short:     "list packages",
 	Long: `
 List lists the packages named by the import paths, one per line.
@@ -151,9 +151,8 @@ printing. Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
 
-The -export flag causes list to set the package's Export field to
-the name of a file containing up-to-date export information for
-the given package.
+The -export flag causes list to set the Export field to the name of a
+file containing up-to-date export information for the given package.
 
 The -test flag causes list to report not only the named packages
 but also their test binaries (for packages with tests), to convey to
