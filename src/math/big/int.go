@@ -663,8 +663,12 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 // inverse in the ring ℤ/nℤ.  In this case, z is unchanged and the return value
 // is nil.
 func (z *Int) ModInverse(g, n *Int) *Int {
+	// GCD expects parameters a and b to be > 0.
+	if n.neg {
+		var n2 Int
+		n = n2.Neg(n)
+	}
 	if g.neg {
-		// GCD expects parameters a and b to be > 0.
 		var g2 Int
 		g = g2.Mod(g, n)
 	}
