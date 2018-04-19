@@ -414,7 +414,7 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// already up-to-date, then to avoid a rebuild, report the package
 	// as up-to-date as well. See "Build IDs" comment above.
 	// TODO(rsc): Rewrite this code to use a TryCache func on the link action.
-	if target != "" && !cfg.BuildA && a.Mode == "build" && len(a.triggers) == 1 && a.triggers[0].Mode == "link" {
+	if target != "" && !cfg.BuildA && !b.NeedExport && a.Mode == "build" && len(a.triggers) == 1 && a.triggers[0].Mode == "link" {
 		buildID, err := buildid.ReadFile(target)
 		if err == nil {
 			id := strings.Split(buildID, buildIDSeparator)
@@ -455,8 +455,8 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 		return true
 	}
 
-	if b.ComputeStaleOnly {
-		// Invoked during go list only to compute and record staleness.
+	if b.IsCmdList {
+		// Invoked during go list to compute and record staleness.
 		if p := a.Package; p != nil && !p.Stale {
 			p.Stale = true
 			if cfg.BuildA {
@@ -519,10 +519,6 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 
 		// Begin saving output for later writing to cache.
 		a.output = []byte{}
-	}
-
-	if b.ComputeStaleOnly {
-		return true
 	}
 
 	return false
@@ -609,11 +605,17 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 				panic("internal error: a.output not set")
 			}
 			outputID, _, err := c.Put(a.actionID, r)
+			r.Close()
 			if err == nil && cfg.BuildX {
 				b.Showcmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))
 			}
+			if b.NeedExport {
+				if err != nil {
+					return err
+				}
+				a.Package.Export = c.OutputFile(outputID)
+			}
 			c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
-			r.Close()
 		}
 	}
 

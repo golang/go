@@ -51,6 +51,7 @@ type PackagePublic struct {
 	BinaryOnly    bool   `json:",omitempty"` // package cannot be recompiled
 	ForTest       string `json:",omitempty"` // package is only for use in named test
 	DepOnly       bool   `json:",omitempty"` // package is only as a dependency, not explicitly listed
+	Export        string `json:",omitempty"` // file containing export data (set by go list -export)
 
 	// Stale and StaleReason remain here *only* for the list command.
 	// They are only initialized in preparation for list execution.
