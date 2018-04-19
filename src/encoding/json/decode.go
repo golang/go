@@ -868,11 +868,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	isNull := item[0] == 'n' // null
 	u, ut, pv := indirect(v, isNull)
 	if u != nil {
-		err := u.UnmarshalJSON(item)
-		if err != nil {
-			return err
-		}
-		return nil
+		return u.UnmarshalJSON(item)
 	}
 	if ut != nil {
 		if item[0] != '"' {
@@ -899,11 +895,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			}
 			return errPhase
 		}
-		err := ut.UnmarshalText(s)
-		if err != nil {
-			return err
-		}
-		return nil
+		return ut.UnmarshalText(s)
 	}
 
 	v = pv
