@@ -1333,25 +1333,22 @@ func (ctxt *Link) hostlink() {
 	}
 
 	if !*FlagS && !*FlagW && !debug_s && ctxt.HeadType == objabi.Hdarwin {
-		// Skip combining dwarf on arm.
-		if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
-			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
-			if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
-				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
-			}
-			// Skip combining if `dsymutil` didn't generate a file. See #11994.
-			if _, err := os.Stat(dsym); os.IsNotExist(err) {
-				return
-			}
-			// For os.Rename to work reliably, must be in same directory as outfile.
-			combinedOutput := *flagOutfile + "~"
-			if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode); err != nil {
-				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
-			}
-			os.Remove(*flagOutfile)
-			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
-				Exitf("%s: %v", os.Args[0], err)
-			}
+		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
+		if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+		}
+		// Skip combining if `dsymutil` didn't generate a file. See #11994.
+		if _, err := os.Stat(dsym); os.IsNotExist(err) {
+			return
+		}
+		// For os.Rename to work reliably, must be in same directory as outfile.
+		combinedOutput := *flagOutfile + "~"
+		if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode); err != nil {
+			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+		}
+		os.Remove(*flagOutfile)
+		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+			Exitf("%s: %v", os.Args[0], err)
 		}
 	}
 }

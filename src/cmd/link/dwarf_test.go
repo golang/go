@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestDWARF(t *testing.T) {
+func testDWARF(t *testing.T, env ...string) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
@@ -48,7 +48,11 @@ func TestDWARF(t *testing.T) {
 		t.Run(prog, func(t *testing.T) {
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
-			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, dir).CombinedOutput()
+			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, dir)
+			if env != nil {
+				cmd.Env = append(os.Environ(), env...)
+			}
+			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
 			}
@@ -121,4 +125,26 @@ func TestDWARF(t *testing.T) {
 			t.Fatalf("did not find file:line for %#x (main.main)", addr)
 		})
 	}
+}
+
+func TestDWARF(t *testing.T) {
+	testDWARF(t)
+}
+
+func TestDWARFiOS(t *testing.T) {
+	// Normally we run TestDWARF on native platform. But on iOS we don't have
+	// go build, so we do this test with a cross build.
+	// Only run this on darwin/amd64, where we can cross build for iOS.
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
+		t.Skip("skipping on non-darwin/amd64 platform")
+	}
+	if err := exec.Command("xcrun", "--help").Run(); err != nil {
+		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
+	}
+	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
+	testDWARF(t, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
+	testDWARF(t, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
 }

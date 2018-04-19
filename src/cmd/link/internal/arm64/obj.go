@@ -101,7 +101,6 @@ func archinit(ctxt *ld.Link) {
 		}
 
 	case objabi.Hdarwin: /* apple MACH */
-		*ld.FlagW = true // disable DWARF generation
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
