@@ -1292,25 +1292,6 @@ func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
 	}
 }
 
-// FNV-1 hash function constants.
-const (
-	H0 = 2166136261
-	Hp = 16777619
-)
-
-func hashbitmap(h uint32, bv bvec) uint32 {
-	n := int((bv.n + 31) / 32)
-	for i := 0; i < n; i++ {
-		w := bv.b[i]
-		h = (h * Hp) ^ (w & 0xff)
-		h = (h * Hp) ^ ((w >> 8) & 0xff)
-		h = (h * Hp) ^ ((w >> 16) & 0xff)
-		h = (h * Hp) ^ ((w >> 24) & 0xff)
-	}
-
-	return h
-}
-
 // Compact liveness information by coalescing identical per-call-site bitmaps.
 // The merging only happens for a single function, not across the entire binary.
 //
@@ -1326,53 +1307,14 @@ func hashbitmap(h uint32, bv bvec) uint32 {
 // PCDATA tables cost about 100k. So for now we keep using a single index for
 // both bitmap lists.
 func (lv *Liveness) compact() {
-	// Linear probing hash table of bitmaps seen so far.
-	// The hash table has 4n entries to keep the linear
-	// scan short. An entry of -1 indicates an empty slot.
-	n := len(lv.livevars)
-
-	tablesize := 4 * n
-	table := make([]int, tablesize)
-	for i := range table {
-		table[i] = -1
-	}
-
-	// remap[i] = the new index of the old bit vector #i.
-	remap := make([]int, n)
-	for i := range remap {
-		remap[i] = -1
-	}
-
-	// Consider bit vectors in turn.
-	// If new, assign next number using uniq,
-	// record in remap, record in lv.livevars
-	// under the new index, and add entry to hash table.
-	// If already seen, record earlier index in remap.
-Outer:
+	// Compact livevars.
+	// remap[i] = the index in lv.stackMaps of for bitmap lv.livevars[i].
+	remap := make([]int, len(lv.livevars))
+	set := newBvecSet(len(lv.livevars))
 	for i, live := range lv.livevars {
-		h := hashbitmap(H0, live.vars) % uint32(tablesize)
-
-		for {
-			j := table[h]
-			if j < 0 {
-				break
-			}
-			jlive := lv.stackMaps[j]
-			if live.vars.Eq(jlive) {
-				remap[i] = j
-				continue Outer
-			}
-
-			h++
-			if h == uint32(tablesize) {
-				h = 0
-			}
-		}
-
-		table[h] = len(lv.stackMaps)
-		remap[i] = len(lv.stackMaps)
-		lv.stackMaps = append(lv.stackMaps, live.vars)
+		remap[i] = set.add(live.vars)
 	}
+	lv.stackMaps = set.uniq
 
 	// Compact register maps.
 	remapRegs := make([]int, len(lv.livevars))

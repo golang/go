@@ -201,3 +201,98 @@ func (bv bvec) Clear() {
 		bv.b[i] = 0
 	}
 }
+
+// FNV-1 hash function constants.
+const (
+	H0 = 2166136261
+	Hp = 16777619
+)
+
+func hashbitmap(h uint32, bv bvec) uint32 {
+	n := int((bv.n + 31) / 32)
+	for i := 0; i < n; i++ {
+		w := bv.b[i]
+		h = (h * Hp) ^ (w & 0xff)
+		h = (h * Hp) ^ ((w >> 8) & 0xff)
+		h = (h * Hp) ^ ((w >> 16) & 0xff)
+		h = (h * Hp) ^ ((w >> 24) & 0xff)
+	}
+
+	return h
+}
+
+// bvecSet is a set of bvecs, in initial insertion order.
+type bvecSet struct {
+	index []int  // hash -> uniq index. -1 indicates empty slot.
+	uniq  []bvec // unique bvecs, in insertion order
+}
+
+func newBvecSet(size int) bvecSet {
+	// bvecSet is a linear probing hash table.
+	// The hash table has 4n entries to keep the linear
+	// scan short.
+	index := make([]int, size*4)
+	for i := range index {
+		index[i] = -1
+	}
+	return bvecSet{index, nil}
+}
+
+func (m *bvecSet) grow() {
+	// Allocate new index.
+	n := len(m.index) * 2
+	if n == 0 {
+		n = 32
+	}
+	newIndex := make([]int, n)
+	for i := range newIndex {
+		newIndex[i] = -1
+	}
+
+	// Rehash into newIndex.
+	for i, bv := range m.uniq {
+		h := hashbitmap(H0, bv) % uint32(len(newIndex))
+		for {
+			j := newIndex[h]
+			if j < 0 {
+				newIndex[h] = i
+				break
+			}
+			h++
+			if h == uint32(len(newIndex)) {
+				h = 0
+			}
+		}
+	}
+	m.index = newIndex
+}
+
+// add adds bv to the set and returns its index in m.uniq.
+// The caller must not modify bv after this.
+func (m *bvecSet) add(bv bvec) int {
+	if len(m.uniq)*4 >= len(m.index) {
+		m.grow()
+	}
+
+	index := m.index
+	h := hashbitmap(H0, bv) % uint32(len(index))
+	for {
+		j := index[h]
+		if j < 0 {
+			// New bvec.
+			index[h] = len(m.uniq)
+			m.uniq = append(m.uniq, bv)
+			return len(m.uniq) - 1
+		}
+		jlive := m.uniq[j]
+		if bv.Eq(jlive) {
+			// Existing bvec.
+			return j
+		}
+
+		h++
+		if h == uint32(len(index)) {
+			h = 0
+		}
+	}
+}
