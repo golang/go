@@ -6042,3 +6042,28 @@ func TestNoRelativeTmpdir(t *testing.T) {
 		tg.grepStderr("relative tmpdir", "wrong error")
 	}
 }
+
+// Issue 24854
+func TestGoListOntestdata(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("src/testdata/f1.go", `package testdata
+		import "p"
+		
+		func foo() {
+			p.bar()
+		}
+	`)
+
+	tg.tempFile("src/vendor/p/f2.go", `package p
+		import "fmt"
+		
+		func bar() {
+			fmt.Println("Hello World!")
+		}
+	`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.cd(tg.path("src/testdata"))
+	tg.run("list")
+}
