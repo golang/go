@@ -115,6 +115,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
 	"math/big"
@@ -531,7 +532,7 @@ func (p *exporter) obj(sym *types.Sym) {
 		}
 
 		p.tag(constTag)
-		p.pos(n)
+		p.pos(n.Pos)
 		// TODO(gri) In inlined functions, constants are used directly
 		// so they should never occur as re-exported objects. We may
 		// not need the qualified name here. See also comment above.
@@ -549,7 +550,7 @@ func (p *exporter) obj(sym *types.Sym) {
 
 		if IsAlias(sym) {
 			p.tag(aliasTag)
-			p.pos(n)
+			p.pos(n.Pos)
 			p.qualifiedName(sym)
 		} else {
 			p.tag(typeTag)
@@ -566,7 +567,7 @@ func (p *exporter) obj(sym *types.Sym) {
 		if n.Type.Etype == TFUNC && n.Class() == PFUNC {
 			// function
 			p.tag(funcTag)
-			p.pos(n)
+			p.pos(n.Pos)
 			p.qualifiedName(sym)
 
 			sig := asNode(sym.Def).Type
@@ -589,7 +590,7 @@ func (p *exporter) obj(sym *types.Sym) {
 		} else {
 			// variable
 			p.tag(varTag)
-			p.pos(n)
+			p.pos(n.Pos)
 			p.qualifiedName(sym)
 			p.typ(asNode(sym.Def).Type)
 		}
@@ -604,12 +605,12 @@ func (p *exporter) obj(sym *types.Sym) {
 // -64 is the smallest int that fits in a single byte as a varint.
 const deltaNewFile = -64
 
-func (p *exporter) pos(n *Node) {
+func (p *exporter) pos(pos src.XPos) {
 	if !p.posInfoFormat {
 		return
 	}
 
-	file, line := fileLine(n)
+	file, line := fileLine(pos)
 	if file == p.prevFile {
 		// common case: write line delta
 		// delta == deltaNewFile means different file
@@ -650,12 +651,10 @@ func (p *exporter) path(s string) {
 	}
 }
 
-func fileLine(n *Node) (file string, line int) {
-	if n != nil {
-		pos := Ctxt.PosTable.Pos(n.Pos)
-		file = pos.Base().AbsFilename()
-		line = int(pos.RelLine())
-	}
+func fileLine(pos0 src.XPos) (file string, line int) {
+	pos := Ctxt.PosTable.Pos(pos0)
+	file = pos.Base().AbsFilename()
+	line = int(pos.RelLine())
 	return
 }
 
@@ -706,7 +705,7 @@ func (p *exporter) typ(t *types.Type) {
 		}
 
 		p.tag(namedTag)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.qualifiedName(tsym)
 
 		// write underlying type
@@ -737,7 +736,7 @@ func (p *exporter) typ(t *types.Type) {
 				Fatalf("invalid symbol name: %s (%v)", m.Sym.Name, m.Sym)
 			}
 
-			p.pos(asNode(m.Nname))
+			p.pos(asNode(m.Nname).Pos)
 			p.fieldSym(m.Sym, false)
 
 			sig := m.Type
@@ -832,7 +831,7 @@ func (p *exporter) fieldList(t *types.Type) {
 }
 
 func (p *exporter) field(f *types.Field) {
-	p.pos(asNode(f.Nname))
+	p.pos(asNode(f.Nname).Pos)
 	p.fieldName(f)
 	p.typ(f.Type)
 	p.string(f.Note)
@@ -857,7 +856,7 @@ func (p *exporter) methodList(t *types.Type) {
 		if p.trace {
 			p.tracef("\n")
 		}
-		p.pos(asNode(m.Nname))
+		p.pos(asNode(m.Nname).Pos)
 		p.typ(m.Type)
 	}
 	if p.trace && len(embeddeds) > 0 {
@@ -880,7 +879,11 @@ func (p *exporter) methodList(t *types.Type) {
 }
 
 func (p *exporter) method(m *types.Field) {
-	p.pos(asNode(m.Nname))
+	if m.Nname != nil {
+		p.pos(asNode(m.Nname).Pos)
+	} else {
+		p.pos(src.NoXPos)
+	}
 	p.methodName(m.Sym)
 	p.paramList(m.Type.Params(), false)
 	p.paramList(m.Type.Results(), false)
@@ -1236,7 +1239,7 @@ func (p *exporter) expr(n *Node) {
 			break
 		}
 		p.op(OLITERAL)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.typ(unidealType(n.Type, n.Val()))
 		p.value(n.Val())
 
@@ -1246,14 +1249,14 @@ func (p *exporter) expr(n *Node) {
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
 		if n.isMethodExpression() {
 			p.op(OXDOT)
-			p.pos(n)
+			p.pos(n.Pos)
 			p.expr(n.Left) // n.Left.Op == OTYPE
 			p.fieldSym(n.Right.Sym, true)
 			break
 		}
 
 		p.op(ONAME)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.sym(n)
 
 	// case OPACK, ONONAME:
@@ -1261,7 +1264,7 @@ func (p *exporter) expr(n *Node) {
 
 	case OTYPE:
 		p.op(OTYPE)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.typ(n.Type)
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
@@ -1275,25 +1278,25 @@ func (p *exporter) expr(n *Node) {
 
 	case OPTRLIT:
 		p.op(OPTRLIT)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.bool(n.Implicit())
 
 	case OSTRUCTLIT:
 		p.op(OSTRUCTLIT)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.typ(n.Type)
 		p.elemList(n.List) // special handling of field names
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT:
 		p.op(OCOMPLIT)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.typ(n.Type)
 		p.exprList(n.List)
 
 	case OKEY:
 		p.op(OKEY)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.exprsOrNil(n.Left, n.Right)
 
 	// case OSTRUCTKEY:
@@ -1304,32 +1307,32 @@ func (p *exporter) expr(n *Node) {
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		p.op(OXDOT)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.fieldSym(n.Sym, true)
 
 	case ODOTTYPE, ODOTTYPE2:
 		p.op(ODOTTYPE)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.typ(n.Type)
 
 	case OINDEX, OINDEXMAP:
 		p.op(OINDEX)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.expr(n.Right)
 
 	case OSLICE, OSLICESTR, OSLICEARR:
 		p.op(OSLICE)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		low, high, _ := n.SliceBounds()
 		p.exprsOrNil(low, high)
 
 	case OSLICE3, OSLICE3ARR:
 		p.op(OSLICE3)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		low, high, max := n.SliceBounds()
 		p.exprsOrNil(low, high)
@@ -1338,20 +1341,20 @@ func (p *exporter) expr(n *Node) {
 	case OCOPY, OCOMPLEX:
 		// treated like other builtin calls (see e.g., OREAL)
 		p.op(op)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.expr(n.Right)
 		p.op(OEND)
 
 	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 		p.op(OCONV)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.typ(n.Type)
 
 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		p.op(op)
-		p.pos(n)
+		p.pos(n.Pos)
 		if n.Left != nil {
 			p.expr(n.Left)
 			p.op(OEND)
@@ -1367,14 +1370,14 @@ func (p *exporter) expr(n *Node) {
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
 		p.op(OCALL)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.exprList(n.List)
 		p.bool(n.Isddd())
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		p.op(op) // must keep separate from OMAKE for importer
-		p.pos(n)
+		p.pos(n.Pos)
 		p.typ(n.Type)
 		switch {
 		default:
@@ -1394,25 +1397,25 @@ func (p *exporter) expr(n *Node) {
 	// unary expressions
 	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
 		p.op(op)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 
 	// binary expressions
 	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
 		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
 		p.op(op)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.expr(n.Right)
 
 	case OADDSTR:
 		p.op(OADDSTR)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.exprList(n.List)
 
 	case OCMPSTR, OCMPIFACE:
 		p.op(n.SubOp())
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 		p.expr(n.Right)
 
@@ -1422,7 +1425,7 @@ func (p *exporter) expr(n *Node) {
 		// TODO(gri) these should not be exported in the first place
 		// TODO(gri) why is this considered an expression in fmt.go?
 		p.op(ODCLCONST)
-		p.pos(n)
+		p.pos(n.Pos)
 
 	default:
 		Fatalf("cannot export %v (%d) node\n"+
@@ -1456,7 +1459,7 @@ func (p *exporter) stmt(n *Node) {
 	switch op := n.Op; op {
 	case ODCL:
 		p.op(ODCL)
-		p.pos(n.Left) // use declared variable's pos
+		p.pos(n.Left.Pos) // use declared variable's pos
 		p.sym(n.Left)
 		p.typ(n.Left.Type)
 
@@ -1469,14 +1472,14 @@ func (p *exporter) stmt(n *Node) {
 		// the "v = <N>" again.
 		if n.Right != nil {
 			p.op(OAS)
-			p.pos(n)
+			p.pos(n.Pos)
 			p.expr(n.Left)
 			p.expr(n.Right)
 		}
 
 	case OASOP:
 		p.op(OASOP)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.op(n.SubOp())
 		p.expr(n.Left)
 		if p.bool(!n.Implicit()) {
@@ -1485,13 +1488,13 @@ func (p *exporter) stmt(n *Node) {
 
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		p.op(OAS2)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.exprList(n.List)
 		p.exprList(n.Rlist)
 
 	case ORETURN:
 		p.op(ORETURN)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.exprList(n.List)
 
 	// case ORETJMP:
@@ -1499,12 +1502,12 @@ func (p *exporter) stmt(n *Node) {
 
 	case OPROC, ODEFER:
 		p.op(op)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 
 	case OIF:
 		p.op(OIF)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.stmtList(n.Ninit)
 		p.expr(n.Left)
 		p.stmtList(n.Nbody)
@@ -1512,38 +1515,38 @@ func (p *exporter) stmt(n *Node) {
 
 	case OFOR:
 		p.op(OFOR)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.stmtList(n.Ninit)
 		p.exprsOrNil(n.Left, n.Right)
 		p.stmtList(n.Nbody)
 
 	case ORANGE:
 		p.op(ORANGE)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.stmtList(n.List)
 		p.expr(n.Right)
 		p.stmtList(n.Nbody)
 
 	case OSELECT, OSWITCH:
 		p.op(op)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.stmtList(n.Ninit)
 		p.exprsOrNil(n.Left, nil)
 		p.stmtList(n.List)
 
 	case OCASE, OXCASE:
 		p.op(OXCASE)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.stmtList(n.List)
 		p.stmtList(n.Nbody)
 
 	case OFALL:
 		p.op(OFALL)
-		p.pos(n)
+		p.pos(n.Pos)
 
 	case OBREAK, OCONTINUE:
 		p.op(op)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.exprsOrNil(n.Left, nil)
 
 	case OEMPTY:
@@ -1551,7 +1554,7 @@ func (p *exporter) stmt(n *Node) {
 
 	case OGOTO, OLABEL:
 		p.op(op)
-		p.pos(n)
+		p.pos(n.Pos)
 		p.expr(n.Left)
 
 	default:
