@@ -281,15 +281,13 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	return nil
 }
 
-// File sets the underlying os.File to blocking mode and returns a copy.
+// File returns a copy of the underlying os.File
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
 //
 // The returned os.File's file descriptor is different from the connection's.
 // Attempting to change properties of the original using this duplicate
 // may or may not have the desired effect.
-//
-// On Unix systems this will cause the SetDeadline methods to stop working.
 func (c *conn) File() (f *os.File, err error) {
 	f, err = c.fd.dup()
 	if err != nil {
