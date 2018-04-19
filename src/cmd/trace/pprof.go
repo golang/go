@@ -42,10 +42,10 @@ func init() {
 	http.HandleFunc("/syscall", serveSVGProfile(pprofByGoroutine(computePprofSyscall)))
 	http.HandleFunc("/sched", serveSVGProfile(pprofByGoroutine(computePprofSched)))
 
-	http.HandleFunc("/spanio", serveSVGProfile(pprofBySpan(computePprofIO)))
-	http.HandleFunc("/spanblock", serveSVGProfile(pprofBySpan(computePprofBlock)))
-	http.HandleFunc("/spansyscall", serveSVGProfile(pprofBySpan(computePprofSyscall)))
-	http.HandleFunc("/spansched", serveSVGProfile(pprofBySpan(computePprofSched)))
+	http.HandleFunc("/regionio", serveSVGProfile(pprofByRegion(computePprofIO)))
+	http.HandleFunc("/regionblock", serveSVGProfile(pprofByRegion(computePprofBlock)))
+	http.HandleFunc("/regionsyscall", serveSVGProfile(pprofByRegion(computePprofSyscall)))
+	http.HandleFunc("/regionsched", serveSVGProfile(pprofByRegion(computePprofSched)))
 }
 
 // Record represents one entry in pprof-like profiles.
@@ -75,13 +75,13 @@ func pprofByGoroutine(compute func(io.Writer, map[uint64][]interval, []*trace.Ev
 	}
 }
 
-func pprofBySpan(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
+func pprofByRegion(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
 	return func(w io.Writer, r *http.Request) error {
-		filter, err := newSpanFilter(r)
+		filter, err := newRegionFilter(r)
 		if err != nil {
 			return err
 		}
-		gToIntervals, err := pprofMatchingSpans(filter)
+		gToIntervals, err := pprofMatchingRegions(filter)
 		if err != nil {
 			return err
 		}
@@ -123,9 +123,9 @@ func pprofMatchingGoroutines(id string, events []*trace.Event) (map[uint64][]int
 	return res, nil
 }
 
-// pprofMatchingSpans returns the time intervals of matching spans
+// pprofMatchingRegions returns the time intervals of matching regions
 // grouped by the goroutine id. If the filter is nil, returns nil without an error.
-func pprofMatchingSpans(filter *spanFilter) (map[uint64][]interval, error) {
+func pprofMatchingRegions(filter *regionFilter) (map[uint64][]interval, error) {
 	res, err := analyzeAnnotations()
 	if err != nil {
 		return nil, err
@@ -135,8 +135,8 @@ func pprofMatchingSpans(filter *spanFilter) (map[uint64][]interval, error) {
 	}
 
 	gToIntervals := make(map[uint64][]interval)
-	for id, spans := range res.spans {
-		for _, s := range spans {
+	for id, regions := range res.regions {
+		for _, s := range regions {
 			if filter.match(id, s) {
 				gToIntervals[s.G] = append(gToIntervals[s.G], interval{begin: s.firstTimestamp(), end: s.lastTimestamp()})
 			}
@@ -144,10 +144,10 @@ func pprofMatchingSpans(filter *spanFilter) (map[uint64][]interval, error) {
 	}
 
 	for g, intervals := range gToIntervals {
-		// in order to remove nested spans and
-		// consider only the outermost spans,
+		// in order to remove nested regions and
+		// consider only the outermost regions,
 		// first, we sort based on the start time
-		// and then scan through to select only the outermost spans.
+		// and then scan through to select only the outermost regions.
 		sort.Slice(intervals, func(i, j int) bool {
 			x := intervals[i].begin
 			y := intervals[j].begin
@@ -158,13 +158,13 @@ func pprofMatchingSpans(filter *spanFilter) (map[uint64][]interval, error) {
 		})
 		var lastTimestamp int64
 		var n int
-		// select only the outermost spans.
+		// select only the outermost regions.
 		for _, i := range intervals {
 			if lastTimestamp <= i.begin {
-				intervals[n] = i // new non-overlapping span starts.
+				intervals[n] = i // new non-overlapping region starts.
 				lastTimestamp = i.end
 				n++
-			} // otherwise, skip because this span overlaps with a previous span.
+			} // otherwise, skip because this region overlaps with a previous region.
 		}
 		gToIntervals[g] = intervals[:n]
 	}

@@ -200,7 +200,7 @@ var templMain = template.Must(template.New("").Parse(`
 <a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
 <a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
 <a href="/usertasks">User-defined tasks</a><br>
-<a href="/userspans">User-defined spans</a><br>
+<a href="/userregions">User-defined regions</a><br>
 </body>
 </html>
 `))

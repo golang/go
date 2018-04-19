@@ -39,7 +39,7 @@
 // Package trace provides user annotation APIs that can be used to
 // log interesting events during execution.
 //
-// There are three types of user annotations: log messages, spans,
+// There are three types of user annotations: log messages, regions,
 // and tasks.
 //
 // Log emits a timestamped message to the execution trace along with
@@ -48,22 +48,22 @@
 // and group goroutines using the log category and the message supplied
 // in Log.
 //
-// A span is for logging a time interval during a goroutine's execution.
-// By definition, a span starts and ends in the same goroutine.
-// Spans can be nested to represent subintervals.
-// For example, the following code records four spans in the execution
+// A region is for logging a time interval during a goroutine's execution.
+// By definition, a region starts and ends in the same goroutine.
+// Regions can be nested to represent subintervals.
+// For example, the following code records four regions in the execution
 // trace to trace the durations of sequential steps in a cappuccino making
 // operation.
 //
-//   trace.WithSpan(ctx, "makeCappuccino", func(ctx context.Context) {
+//   trace.WithRegion(ctx, "makeCappuccino", func() {
 //
 //      // orderID allows to identify a specific order
-//      // among many cappuccino order span records.
+//      // among many cappuccino order region records.
 //      trace.Log(ctx, "orderID", orderID)
 //
-//      trace.WithSpan(ctx, "steamMilk", steamMilk)
-//      trace.WithSpan(ctx, "extractCoffee", extractCoffee)
-//      trace.WithSpan(ctx, "mixMilkCoffee", mixMilkCoffee)
+//      trace.WithRegion(ctx, "steamMilk", steamMilk)
+//      trace.WithRegion(ctx, "extractCoffee", extractCoffee)
+//      trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
 //   })
 //
 // A task is a higher-level component that aids tracing of logical
@@ -72,8 +72,8 @@
 // working together. Since tasks can involve multiple goroutines,
 // they are tracked via a context.Context object. NewContext creates
 // a new task and embeds it in the returned context.Context object.
-// Log messages and spans are attached to the task, if any, in the
-// Context passed to Log and WithSpan.
+// Log messages and regions are attached to the task, if any, in the
+// Context passed to Log and WithRegion.
 //
 // For example, assume that we decided to froth milk, extract coffee,
 // and mix milk and coffee in separate goroutines. With a task,
@@ -87,18 +87,18 @@
 //     espresso := make(chan bool)
 //
 //     go func() {
-//        trace.WithSpan(ctx, "steamMilk", steamMilk)
+//        trace.WithRegion(ctx, "steamMilk", steamMilk)
 //        milk<-true
 //     })()
 //     go func() {
-//        trace.WithSpan(ctx, "extractCoffee", extractCoffee)
+//        trace.WithRegion(ctx, "extractCoffee", extractCoffee)
 //        espresso<-true
 //     })()
 //     go func() {
 //        defer taskEnd()  // When assemble is done, the order is complete.
 //        <-espresso
 //        <-milk
-//        trace.WithSpan(ctx, "mixMilkCoffee", mixMilkCoffee)
+//        trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
 //     })()
 //
 // The trace tool computes the latency of a task by measuring the
