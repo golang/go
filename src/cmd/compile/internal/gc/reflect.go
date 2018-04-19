@@ -321,22 +321,19 @@ func hiter(t *types.Type) *types.Type {
 func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 	var in []*Node
 	if receiver != nil {
-		d := nod(ODCLFIELD, nil, nil)
-		d.Type = receiver
+		d := anonfield(receiver)
 		in = append(in, d)
 	}
 
 	for _, t := range f.Params().Fields().Slice() {
-		d := nod(ODCLFIELD, nil, nil)
-		d.Type = t.Type
+		d := anonfield(t.Type)
 		d.SetIsddd(t.Isddd())
 		in = append(in, d)
 	}
 
 	var out []*Node
 	for _, t := range f.Results().Fields().Slice() {
-		d := nod(ODCLFIELD, nil, nil)
-		d.Type = t.Type
+		d := anonfield(t.Type)
 		out = append(out, d)
 	}
 

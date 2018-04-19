@@ -908,10 +908,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		mode.Fprintf(s, "var %v %v", n.Left.Sym, n.Left.Type)
 
 	case ODCLFIELD:
-		if n.Left != nil {
-			mode.Fprintf(s, "%v %v", n.Left, n.Right)
+		if n.Sym != nil {
+			mode.Fprintf(s, "%v %v", n.Sym, n.Left)
 		} else {
-			mode.Fprintf(s, "%v", n.Right)
+			mode.Fprintf(s, "%v", n.Left)
 		}
 
 	// Don't export "v = <N>" initializing statements, hope they're always
@@ -1683,21 +1683,9 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
 	if flag&FmtShort == 0 {
 		s := f.Sym
 
-		// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
-		// ~r%d is a (formerly) unnamed result.
-		if mode == FErr && asNode(f.Nname) != nil {
-			if asNode(f.Nname).Orig != nil {
-				s = asNode(f.Nname).Orig.Sym
-				if s != nil && s.Name[0] == '~' {
-					if s.Name[1] == 'r' { // originally an unnamed result
-						s = nil
-					} else if s.Name[1] == 'b' { // originally the blank identifier _
-						s = lookup("_")
-					}
-				}
-			} else {
-				s = nil
-			}
+		// Take the name from the original.
+		if mode == FErr {
+			s = origSym(s)
 		}
 
 		if s != nil && f.Embedded == 0 {

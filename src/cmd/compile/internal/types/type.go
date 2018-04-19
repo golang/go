@@ -322,16 +322,18 @@ type Field struct {
 	Embedded uint8 // embedded field
 	Funarg   Funarg
 
-	Sym   *Sym
-	Nname *Node
+	Pos  src.XPos
+	Sym  *Sym
+	Type *Type  // field type
+	Note string // literal string annotation
 
-	Type *Type // field type
+	// For fields that represent function parameters, Nname points
+	// to the associated ONAME Node.
+	Nname *Node
 
 	// Offset in bytes of this field or method within its enclosing struct
 	// or interface Type.
 	Offset int64
-
-	Note string // literal string annotation
 }
 
 const (

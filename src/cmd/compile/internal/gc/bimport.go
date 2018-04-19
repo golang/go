@@ -642,8 +642,8 @@ func (p *importer) field() *types.Field {
 		f.Embedded = 1
 	}
 
+	f.Pos = pos
 	f.Sym = sym
-	f.Nname = asTypesNode(newnamel(pos, sym))
 	f.Type = typ
 	f.Note = note
 
@@ -653,8 +653,7 @@ func (p *importer) field() *types.Field {
 func (p *importer) methodList() (methods []*types.Field) {
 	for n := p.int(); n > 0; n-- {
 		f := types.NewField()
-		f.Nname = asTypesNode(newname(nblank.Sym))
-		asNode(f.Nname).Pos = p.pos()
+		f.Pos = p.pos()
 		f.Type = p.typ()
 		methods = append(methods, f)
 	}
@@ -673,8 +672,8 @@ func (p *importer) method() *types.Field {
 	result := p.paramList()
 
 	f := types.NewField()
+	f.Pos = pos
 	f.Sym = sym
-	f.Nname = asTypesNode(newnamel(pos, sym))
 	f.Type = functypefield(fakeRecvField(), params, result)
 	return f
 }
@@ -743,6 +742,8 @@ func (p *importer) paramList() []*types.Field {
 
 func (p *importer) param(named bool) *types.Field {
 	f := types.NewField()
+	// TODO(mdempsky): Need param position.
+	f.Pos = lineno
 	f.Type = p.typ()
 	if f.Type.Etype == TDDDFIELD {
 		// TDDDFIELD indicates wrapped ... slice type
@@ -762,8 +763,6 @@ func (p *importer) param(named bool) *types.Field {
 			pkg = p.pkg()
 		}
 		f.Sym = pkg.Lookup(name)
-		// TODO(mdempsky): Need param position.
-		f.Nname = asTypesNode(newname(f.Sym))
 	}
 
 	// TODO(gri) This is compiler-specific (escape info).
