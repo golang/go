@@ -122,6 +122,14 @@ func (p *Package) AllFiles() []string {
 	)
 }
 
+// Desc returns the package "description", for use in b.showOutput.
+func (p *Package) Desc() string {
+	if p.ForTest != "" {
+		return p.ImportPath + " [" + p.ForTest + ".test]"
+	}
+	return p.ImportPath
+}
+
 type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build        *build.Package

@@ -295,7 +295,7 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 		return nil
 	}
 	if err := packInternal(absAfile, absOfiles); err != nil {
-		b.showOutput(a, p.Dir, p.ImportPath, err.Error()+"\n")
+		b.showOutput(a, p.Dir, p.Desc(), err.Error()+"\n")
 		return errPrintedOutput
 	}
 	return nil

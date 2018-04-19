@@ -573,7 +573,7 @@ func (b *Builder) build(a *Action) (err error) {
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), len(sfiles) > 0, gofiles)
 	if len(out) > 0 {
-		b.showOutput(a, a.Package.Dir, a.Package.ImportPath, b.processOutput(out))
+		b.showOutput(a, a.Package.Dir, a.Package.Desc(), b.processOutput(out))
 		if err != nil {
 			return errPrintedOutput
 		}
@@ -2411,13 +2411,13 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 			if bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo")) {
 				return "", "", errors.New("must have SWIG version >= 3.0.6")
 			}
-			b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(out)) // swig error
+			b.showOutput(a, p.Dir, p.Desc(), b.processOutput(out)) // swig error
 			return "", "", errPrintedOutput
 		}
 		return "", "", err
 	}
 	if len(out) > 0 {
-		b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(out)) // swig warning
+		b.showOutput(a, p.Dir, p.Desc(), b.processOutput(out)) // swig warning
 	}
 
 	// If the input was x.swig, the output is x.go in the objdir.
