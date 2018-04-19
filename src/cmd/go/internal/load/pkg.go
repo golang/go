@@ -1081,7 +1081,14 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		if path == "C" {
 			continue
 		}
-		p1 := LoadImport(path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], UseVendor)
+		var mode int
+		if p.ImportPath == "" {
+			// may be in testdata
+			mode = 0
+		} else {
+			mode = UseVendor
+		}
+		p1 := LoadImport(path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], mode)
 		if p.Standard && p.Error == nil && !p1.Standard && p1.Error == nil {
 			p.Error = &PackageError{
 				ImportStack: stk.Copy(),
