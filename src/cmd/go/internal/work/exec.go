@@ -296,37 +296,37 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	return h.Sum()
 }
 
+// needCgoHeader reports whether the actions triggered by this one
+// expect to be able to access the cgo-generated header file.
+func needCgoHeader(a *Action) bool {
+	// If this build triggers a header install, run cgo to get the header.
+	if (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
+		for _, t1 := range a.triggers {
+			if t1.Mode == "install header" {
+				return true
+			}
+		}
+		for _, t1 := range a.triggers {
+			for _, t2 := range t1.triggers {
+				if t2.Mode == "install header" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // build is the action for building a single package.
 // Note that any new influence on this logic must be reported in b.buildActionID above as well.
 func (b *Builder) build(a *Action) (err error) {
 	p := a.Package
 	cached := false
+	needCgo := needCgoHeader(a)
+
 	if !p.BinaryOnly {
 		if b.useCache(a, p, b.buildActionID(a), p.Target) {
-			// If this build triggers a header install, run cgo to get the header.
-			// TODO(rsc): Once we can cache multiple file outputs from an action,
-			// the header should be cached, and then this awful test can be deleted.
-			// Need to look for install header actions depending on this action,
-			// or depending on a link that depends on this action.
-			needHeader := false
-			if (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
-				for _, t1 := range a.triggers {
-					if t1.Mode == "install header" {
-						needHeader = true
-						goto CheckedHeader
-					}
-				}
-				for _, t1 := range a.triggers {
-					for _, t2 := range t1.triggers {
-						if t2.Mode == "install header" {
-							needHeader = true
-							goto CheckedHeader
-						}
-					}
-				}
-			}
-		CheckedHeader:
-			if b.ComputeStaleOnly || !a.needVet && !needHeader {
+			if b.ComputeStaleOnly || !needCgo && !a.needVet {
 				return nil
 			}
 			cached = true
@@ -375,6 +375,10 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 	objdir := a.Objdir
 
+	if cached && (!needCgo || b.loadCachedCgo(a)) && (!a.needVet || b.loadCachedVet(a)) {
+		return nil
+	}
+
 	// make target directory
 	dir, _ := filepath.Split(a.Target)
 	if dir != "" {
@@ -384,7 +388,6 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	var gofiles, cgofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
-
 	gofiles = append(gofiles, a.Package.GoFiles...)
 	cgofiles = append(cgofiles, a.Package.CgoFiles...)
 	cfiles = append(cfiles, a.Package.CFiles...)
@@ -489,10 +492,13 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 		cgoObjects = append(cgoObjects, outObj...)
 		gofiles = append(gofiles, outGo...)
+
+		switch cfg.BuildBuildmode {
+		case "c-archive", "c-shared":
+			b.cacheCgoHdr(a)
+		}
 	}
-	if cached && !a.needVet {
-		return nil
-	}
+	b.cacheGofiles(a, gofiles)
 
 	// Sanity check only, since Package.load already checked as well.
 	if len(gofiles) == 0 {
@@ -500,25 +506,14 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	// Prepare Go vet config if needed.
-	var vcfg *vetConfig
 	if a.needVet {
-		// Pass list of absolute paths to vet,
-		// so that vet's error messages will use absolute paths,
-		// so that we can reformat them relative to the directory
-		// in which the go command is invoked.
-		vcfg = &vetConfig{
-			Compiler:    cfg.BuildToolchainName,
-			Dir:         a.Package.Dir,
-			GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
-			ImportPath:  a.Package.ImportPath,
-			ImportMap:   make(map[string]string),
-			PackageFile: make(map[string]string),
-		}
-		a.vetCfg = vcfg
-		for i, raw := range a.Package.Internal.RawImports {
-			final := a.Package.Imports[i]
-			vcfg.ImportMap[raw] = final
-		}
+		buildVetConfig(a, gofiles)
+	}
+	if cached {
+		// The cached package file is OK, so we don't need to run the compile.
+		// We've only gone this far in order to prepare the vet configuration
+		// or cgo header, and now we have.
+		return nil
 	}
 
 	// Prepare Go import config.
@@ -529,45 +524,18 @@ func (b *Builder) build(a *Action) (err error) {
 	// except when it doesn't.
 	var icfg bytes.Buffer
 	fmt.Fprintf(&icfg, "# import config\n")
-
 	for i, raw := range a.Package.Internal.RawImports {
 		final := a.Package.Imports[i]
 		if final != raw {
 			fmt.Fprintf(&icfg, "importmap %s=%s\n", raw, final)
 		}
 	}
-
-	// Compute the list of mapped imports in the vet config
-	// so that we can add any missing mappings below.
-	var vcfgMapped map[string]bool
-	if vcfg != nil {
-		vcfgMapped = make(map[string]bool)
-		for _, p := range vcfg.ImportMap {
-			vcfgMapped[p] = true
-		}
-	}
-
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
 		if p1 == nil || p1.ImportPath == "" || a1.built == "" {
 			continue
 		}
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
-		if vcfg != nil {
-			// Add import mapping if needed
-			// (for imports like "runtime/cgo" that appear only in generated code).
-			if !vcfgMapped[p1.ImportPath] {
-				vcfg.ImportMap[p1.ImportPath] = p1.ImportPath
-			}
-			vcfg.PackageFile[p1.ImportPath] = a1.built
-		}
-	}
-
-	if cached {
-		// The cached package file is OK, so we don't need to run the compile.
-		// We've only going through the motions to prepare the vet configuration,
-		// which is now complete.
-		return nil
 	}
 
 	// Compile Go.
@@ -678,6 +646,97 @@ func (b *Builder) build(a *Action) (err error) {
 	return nil
 }
 
+func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error {
+	f, err := os.Open(a.Objdir + name)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, _, err = c.Put(cache.Subkey(a.actionID, name), f)
+	return err
+}
+
+func (b *Builder) loadCachedObjdirFile(a *Action, c *cache.Cache, name string) error {
+	entry, err := c.Get(cache.Subkey(a.actionID, name))
+	if err != nil {
+		return err
+	}
+	out := c.OutputFile(entry.OutputID)
+	info, err := os.Stat(out)
+	if err != nil || info.Size() != entry.Size {
+		return fmt.Errorf("not in cache")
+	}
+	return b.copyFile(a.Objdir+name, out, 0666, true)
+}
+
+func (b *Builder) cacheCgoHdr(a *Action) {
+	c := cache.Default()
+	if c == nil {
+		return
+	}
+	b.cacheObjdirFile(a, c, "_cgo_install.h")
+}
+
+func (b *Builder) loadCachedCgo(a *Action) bool {
+	c := cache.Default()
+	if c == nil {
+		return false
+	}
+	err := b.loadCachedObjdirFile(a, c, "_cgo_install.h")
+	return err == nil
+}
+
+func (b *Builder) cacheGofiles(a *Action, gofiles []string) {
+	c := cache.Default()
+	if c == nil {
+		return
+	}
+	var buf bytes.Buffer
+	for _, file := range gofiles {
+		if !strings.HasPrefix(file, a.Objdir) {
+			// not generated
+			buf.WriteString("./")
+			buf.WriteString(file)
+			buf.WriteString("\n")
+			continue
+		}
+		name := file[len(a.Objdir):]
+		buf.WriteString(name)
+		buf.WriteString("\n")
+		if err := b.cacheObjdirFile(a, c, name); err != nil {
+			return
+		}
+	}
+	c.PutBytes(cache.Subkey(a.actionID, "gofiles"), buf.Bytes())
+}
+
+func (b *Builder) loadCachedVet(a *Action) bool {
+	c := cache.Default()
+	if c == nil {
+		return false
+	}
+	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "gofiles"))
+	if err != nil {
+		return false
+	}
+	var gofiles []string
+	for _, name := range strings.Split(string(list), "\n") {
+		if name == "" { // end of list
+			continue
+		}
+		if strings.HasPrefix(name, "./") {
+			gofiles = append(gofiles, name[2:])
+			continue
+		}
+		if err := b.loadCachedObjdirFile(a, c, name); err != nil {
+			return false
+		}
+		gofiles = append(gofiles, a.Objdir+name)
+	}
+	buildVetConfig(a, gofiles)
+	return true
+}
+
 type vetConfig struct {
 	Compiler    string
 	Dir         string
@@ -687,6 +746,46 @@ type vetConfig struct {
 	ImportPath  string
 
 	SucceedOnTypecheckFailure bool
+}
+
+func buildVetConfig(a *Action, gofiles []string) {
+	// Pass list of absolute paths to vet,
+	// so that vet's error messages will use absolute paths,
+	// so that we can reformat them relative to the directory
+	// in which the go command is invoked.
+	vcfg := &vetConfig{
+		Compiler:    cfg.BuildToolchainName,
+		Dir:         a.Package.Dir,
+		GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
+		ImportPath:  a.Package.ImportPath,
+		ImportMap:   make(map[string]string),
+		PackageFile: make(map[string]string),
+	}
+	a.vetCfg = vcfg
+	for i, raw := range a.Package.Internal.RawImports {
+		final := a.Package.Imports[i]
+		vcfg.ImportMap[raw] = final
+	}
+
+	// Compute the list of mapped imports in the vet config
+	// so that we can add any missing mappings below.
+	vcfgMapped := make(map[string]bool)
+	for _, p := range vcfg.ImportMap {
+		vcfgMapped[p] = true
+	}
+
+	for _, a1 := range a.Deps {
+		p1 := a1.Package
+		if p1 == nil || p1.ImportPath == "" || a1.built == "" {
+			continue
+		}
+		// Add import mapping if needed
+		// (for imports like "runtime/cgo" that appear only in generated code).
+		if !vcfgMapped[p1.ImportPath] {
+			vcfg.ImportMap[p1.ImportPath] = p1.ImportPath
+		}
+		vcfg.PackageFile[p1.ImportPath] = a1.built
+	}
 }
 
 // VetTool is the path to an alternate vet tool binary.
