@@ -1977,6 +1977,55 @@ func TestGoListTest(t *testing.T) {
 	tg.grepStdout(`^runtime/cgo$`, "missing runtime/cgo")
 }
 
+func TestGoListCgo(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", tg.tempdir)
+
+	tg.run("list", "-f", `{{join .CgoFiles "\n"}}`, "net")
+	if tg.stdout.String() == "" {
+		t.Skip("net does not use cgo")
+	}
+	if strings.Contains(tg.stdout.String(), tg.tempdir) {
+		t.Fatalf(".CgoFiles without -cgo unexpectedly mentioned cache %s", tg.tempdir)
+	}
+	tg.run("list", "-cgo", "-f", `{{join .CgoFiles "\n"}}`, "net")
+	if !strings.Contains(tg.stdout.String(), tg.tempdir) {
+		t.Fatalf(".CgoFiles with -cgo did not mention cache %s", tg.tempdir)
+	}
+	for _, file := range strings.Split(tg.stdout.String(), "\n") {
+		if file == "" {
+			continue
+		}
+		if _, err := os.Stat(file); err != nil {
+			t.Fatalf("cannot find .CgoFiles result %s: %v", file, err)
+		}
+	}
+}
+
+func TestGoListExport(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", tg.tempdir)
+
+	tg.run("list", "-f", "{{.Export}}", "strings")
+	if tg.stdout.String() != "" {
+		t.Fatalf(".Export without -export unexpectedly set")
+	}
+	tg.run("list", "-export", "-f", "{{.Export}}", "strings")
+	file := strings.TrimSpace(tg.stdout.String())
+	if file == "" {
+		t.Fatalf(".Export with -export was empty")
+	}
+	if _, err := os.Stat(file); err != nil {
+		t.Fatalf("cannot find .Export result %s: %v", file, err)
+	}
+}
+
 // Issue 4096. Validate the output of unsuccessful go install foo/quxx.
 func TestUnsuccessfulGoInstallShouldMentionMissingPackage(t *testing.T) {
 	tg := testgo(t)
