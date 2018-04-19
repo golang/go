@@ -502,13 +502,13 @@ func (p *noder) params(params []*syntax.Field, dddOk bool) []*Node {
 }
 
 func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
-	var name *Node
+	var name *types.Sym
 	if param.Name != nil {
-		name = p.newname(param.Name)
+		name = p.name(param.Name)
 	}
 
 	typ := p.typeExpr(param.Type)
-	n := p.nod(param, ODCLFIELD, name, typ)
+	n := p.nodSym(param, ODCLFIELD, typ, name)
 
 	// rewrite ...T parameter
 	if typ.Op == ODDD {
@@ -771,7 +771,7 @@ func (p *noder) structType(expr *syntax.StructType) *Node {
 		if field.Name == nil {
 			n = p.embedded(field.Type)
 		} else {
-			n = p.nod(field, ODCLFIELD, p.newname(field.Name), p.typeExpr(field.Type))
+			n = p.nodSym(field, ODCLFIELD, p.typeExpr(field.Type), p.name(field.Name))
 		}
 		if i < len(expr.TagList) && expr.TagList[i] != nil {
 			n.SetVal(p.basicLit(expr.TagList[i]))
@@ -791,12 +791,12 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
 		p.lineno(method)
 		var n *Node
 		if method.Name == nil {
-			n = p.nod(method, ODCLFIELD, nil, oldname(p.packname(method.Type)))
+			n = p.nodSym(method, ODCLFIELD, oldname(p.packname(method.Type)), nil)
 		} else {
-			mname := p.newname(method.Name)
+			mname := p.name(method.Name)
 			sig := p.typeExpr(method.Type)
 			sig.Left = fakeRecv()
-			n = p.nod(method, ODCLFIELD, mname, sig)
+			n = p.nodSym(method, ODCLFIELD, sig, mname)
 			ifacedcl(n)
 		}
 		l = append(l, n)
@@ -840,11 +840,11 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 	}
 
 	sym := p.packname(typ)
-	n := nod(ODCLFIELD, newname(lookup(sym.Name)), oldname(sym))
+	n := p.nodSym(typ, ODCLFIELD, oldname(sym), lookup(sym.Name))
 	n.SetEmbedded(true)
 
 	if isStar {
-		n.Right = p.nod(op, OIND, n.Right, nil)
+		n.Left = p.nod(op, OIND, n.Left, nil)
 	}
 	return n
 }
@@ -1352,6 +1352,10 @@ func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
 
 func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
 	return p.setlineno(orig, nod(op, left, right))
+}
+
+func (p *noder) nodSym(orig syntax.Node, op Op, left *Node, sym *types.Sym) *Node {
+	return p.setlineno(orig, nodSym(op, left, sym))
 }
 
 func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {

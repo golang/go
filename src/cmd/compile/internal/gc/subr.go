@@ -1581,20 +1581,14 @@ func structargs(tl *types.Type, mustname bool) []*Node {
 	var args []*Node
 	gen := 0
 	for _, t := range tl.Fields().Slice() {
-		var n *Node
-		if mustname && (t.Sym == nil || t.Sym.Name == "_") {
+		s := t.Sym
+		if mustname && (s == nil || s.Name == "_") {
 			// invent a name so that we can refer to it in the trampoline
-			buf := fmt.Sprintf(".anon%d", gen)
+			s = lookupN(".anon", gen)
 			gen++
-			n = newname(lookup(buf))
-		} else if t.Sym != nil {
-			n = newname(t.Sym)
 		}
-		a := nod(ODCLFIELD, n, typenod(t.Type))
+		a := symfield(s, t.Type)
 		a.SetIsddd(t.Isddd())
-		if n != nil {
-			n.SetIsddd(t.Isddd())
-		}
 		args = append(args, a)
 	}
 

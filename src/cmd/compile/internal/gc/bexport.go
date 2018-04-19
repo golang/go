@@ -736,7 +736,7 @@ func (p *exporter) typ(t *types.Type) {
 				Fatalf("invalid symbol name: %s (%v)", m.Sym.Name, m.Sym)
 			}
 
-			p.pos(asNode(m.Nname).Pos)
+			p.pos(m.Pos)
 			p.fieldSym(m.Sym, false)
 
 			sig := m.Type
@@ -831,7 +831,7 @@ func (p *exporter) fieldList(t *types.Type) {
 }
 
 func (p *exporter) field(f *types.Field) {
-	p.pos(asNode(f.Nname).Pos)
+	p.pos(f.Pos)
 	p.fieldName(f)
 	p.typ(f.Type)
 	p.string(f.Note)
@@ -856,7 +856,7 @@ func (p *exporter) methodList(t *types.Type) {
 		if p.trace {
 			p.tracef("\n")
 		}
-		p.pos(asNode(m.Nname).Pos)
+		p.pos(m.Pos)
 		p.typ(m.Type)
 	}
 	if p.trace && len(embeddeds) > 0 {
@@ -879,11 +879,7 @@ func (p *exporter) methodList(t *types.Type) {
 }
 
 func (p *exporter) method(m *types.Field) {
-	if m.Nname != nil {
-		p.pos(asNode(m.Nname).Pos)
-	} else {
-		p.pos(src.NoXPos)
-	}
+	p.pos(m.Pos)
 	p.methodName(m.Sym)
 	p.paramList(m.Type.Params(), false)
 	p.paramList(m.Type.Results(), false)
@@ -1001,29 +997,19 @@ func (p *exporter) param(q *types.Field, n int, numbered bool) {
 }
 
 func parName(f *types.Field, numbered bool) string {
-	s := f.Sym
+	s := origSym(f.Sym)
 	if s == nil {
 		return ""
 	}
 
-	// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
-	// ~r%d is a (formerly) unnamed result.
-	if asNode(f.Nname) != nil {
-		if asNode(f.Nname).Orig == nil {
-			return "" // s = nil
-		}
-		s = asNode(f.Nname).Orig.Sym
-		if s != nil && s.Name[0] == '~' {
-			if s.Name[1] == 'r' { // originally an unnamed result
-				return "" // s = nil
-			} else if s.Name[1] == 'b' { // originally the blank identifier _
-				return "_" // belongs to localpkg
-			}
-		}
-	}
-
-	if s == nil {
-		return ""
+	// The "s != f.Sym" check here is unnecessary and causes blank
+	// input/receiver parameters to receive vargen numbers
+	// below. However, this is consistent with the logic it
+	// replaces, so we keep it for now to appease toolstash-check.
+	//
+	// TODO(mdempsky): Simplify to just "if s.Name == "_"".
+	if s != f.Sym && s.Name == "_" {
+		return "_"
 	}
 
 	// print symbol with Vargen number or not as desired
@@ -1036,8 +1022,8 @@ func parName(f *types.Field, numbered bool) string {
 	// from other names in their context after inlining (i.e., the parameter numbering
 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
 	if numbered {
-		if !strings.Contains(name, "·") && asNode(f.Nname) != nil && asNode(f.Nname).Name != nil && asNode(f.Nname).Name.Vargen > 0 {
-			name = fmt.Sprintf("%s·%d", name, asNode(f.Nname).Name.Vargen) // append Vargen
+		if n := asNode(f.Nname); !strings.Contains(name, "·") && n != nil && n.Name.Vargen > 0 {
+			name = fmt.Sprintf("%s·%d", name, n.Name.Vargen) // append Vargen
 		}
 	} else {
 		if i := strings.Index(name, "·"); i > 0 {

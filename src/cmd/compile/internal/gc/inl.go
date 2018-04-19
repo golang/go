@@ -753,10 +753,10 @@ func mkinlcall(n *Node, fn *Node) *Node {
 }
 
 func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
-	if asNode(t.Nname) != nil && !asNode(t.Nname).isBlank() {
-		inlvar := inlvars[asNode(t.Nname)]
+	if n := asNode(t.Nname); n != nil && !n.isBlank() {
+		inlvar := inlvars[n]
 		if inlvar == nil {
-			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
+			Fatalf("missing inlvar for %v\n", n)
 		}
 		return inlvar
 	}
@@ -884,12 +884,11 @@ func mkinlcall1(n, fn *Node) *Node {
 	var retvars []*Node
 	for i, t := range fn.Type.Results().Fields().Slice() {
 		var m *Node
-		var mpos src.XPos
-		if t != nil && asNode(t.Nname) != nil && !asNode(t.Nname).isBlank() {
-			mpos = asNode(t.Nname).Pos
-			m = inlvar(asNode(t.Nname))
+		mpos := t.Pos
+		if n := asNode(t.Nname); n != nil && !n.isBlank() {
+			m = inlvar(n)
 			m = typecheck(m, Erv)
-			inlvars[asNode(t.Nname)] = m
+			inlvars[n] = m
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
