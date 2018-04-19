@@ -254,6 +254,34 @@ func (s *exprSwitch) walk(sw *Node) {
 		}
 	}
 
+	// Given "switch string(byteslice)",
+	// with all cases being constants (or the default case),
+	// use a zero-cost alias of the byte slice.
+	// In theory, we could be more aggressive,
+	// allowing any side-effect-free expressions in cases,
+	// but it's a bit tricky because some of that information
+	// is unavailable due to the introduction of temporaries during order.
+	// Restricting to constants is simple and probably powerful enough.
+	// Do this before calling walkexpr on cond,
+	// because walkexpr will lower the string
+	// conversion into a runtime call.
+	// See issue 24937 for more discussion.
+	if cond.Op == OARRAYBYTESTR {
+		ok := true
+		for _, cas := range sw.List.Slice() {
+			if cas.Op != OCASE {
+				Fatalf("switch string(byteslice) bad op: %v", cas.Op)
+			}
+			if cas.Left != nil && !Isconst(cas.Left, CTSTR) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			cond.Op = OARRAYBYTESTRTMP
+		}
+	}
+
 	cond = walkexpr(cond, &sw.Ninit)
 	t := sw.Type
 	if t == nil {
