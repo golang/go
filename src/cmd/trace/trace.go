@@ -405,7 +405,7 @@ type traceContext struct {
 	threadStats, prevThreadStats threadStats
 	gstates, prevGstates         [gStateCount]int64
 
-	spanID int // last emitted span id. incremented in each emitSpan call.
+	regionID int // last emitted region id. incremented in each emitRegion call.
 }
 
 type heapStats struct {
@@ -738,7 +738,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 		}
 	}
 
-	// Display task and its spans if we are in task-oriented presentation mode.
+	// Display task and its regions if we are in task-oriented presentation mode.
 	if ctx.mode&modeTaskOriented != 0 {
 		taskRow := uint64(trace.GCP + 1)
 		for _, task := range ctx.tasks {
@@ -757,11 +757,11 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			}
 			ctx.emit(tEnd)
 
-			// If we are in goroutine-oriented mode, we draw spans.
+			// If we are in goroutine-oriented mode, we draw regions.
 			// TODO(hyangah): add this for task/P-oriented mode (i.e., focustask view) too.
 			if ctx.mode&modeGoroutineOriented != 0 {
-				for _, s := range task.spans {
-					ctx.emitSpan(s)
+				for _, s := range task.regions {
+					ctx.emitRegion(s)
 				}
 			}
 		}
@@ -859,23 +859,23 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 	return sl
 }
 
-func (ctx *traceContext) emitSpan(s spanDesc) {
+func (ctx *traceContext) emitRegion(s regionDesc) {
 	if s.Name == "" {
 		return
 	}
-	ctx.spanID++
-	spanID := ctx.spanID
+	ctx.regionID++
+	regionID := ctx.regionID
 
 	id := s.TaskID
 	scopeID := fmt.Sprintf("%x", id)
 
 	sl0 := &ViewerEvent{
-		Category: "Span",
+		Category: "Region",
 		Name:     s.Name,
 		Phase:    "b",
 		Time:     float64(s.firstTimestamp()) / 1e3,
 		Tid:      s.G,
-		ID:       uint64(spanID),
+		ID:       uint64(regionID),
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
 	}
@@ -885,12 +885,12 @@ func (ctx *traceContext) emitSpan(s spanDesc) {
 	ctx.emit(sl0)
 
 	sl1 := &ViewerEvent{
-		Category: "Span",
+		Category: "Region",
 		Name:     s.Name,
 		Phase:    "e",
 		Time:     float64(s.lastTimestamp()) / 1e3,
 		Tid:      s.G,
-		ID:       uint64(spanID),
+		ID:       uint64(regionID),
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
 	}
