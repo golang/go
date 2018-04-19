@@ -339,8 +339,10 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			Objdir:  b.NewObjdir(),
 		}
 
-		for _, p1 := range p.Internal.Imports {
-			a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+		if p.Error == nil || !p.Error.IsImportCycle {
+			for _, p1 := range p.Internal.Imports {
+				a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+			}
 		}
 
 		if p.Standard {
