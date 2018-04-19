@@ -16,37 +16,41 @@ const _VDSO_TH_NUM = 4 // defined in <sys/vdso.h> #ifdef _KERNEL
 var timekeepSharedPage *vdsoTimekeep
 
 //go:nosplit
-func (bt bintime) Add(bt2 bintime) bintime {
+func (bt *bintime) Add(bt2 *bintime) {
 	u := bt.frac
 	bt.frac += bt2.frac
 	if u > bt.frac {
 		bt.sec++
 	}
 	bt.sec += bt2.sec
-	return bt
 }
 
 //go:nosplit
-func (bt bintime) AddX(x uint64) bintime {
+func (bt *bintime) AddX(x uint64) {
 	u := bt.frac
 	bt.frac += x
 	if u > bt.frac {
 		bt.sec++
 	}
-	return bt
 }
 
-var binuptimeDummy uint32
+var (
+	// binuptimeDummy is used in binuptime as the address of an atomic.Load, to simulate
+	// an atomic_thread_fence_acq() call which behaves as an instruction reordering and
+	// memory barrier.
+	binuptimeDummy uint32
+
+	zeroBintime bintime
+)
 
 // based on /usr/src/lib/libc/sys/__vdso_gettimeofday.c
 //
 //go:nosplit
-func binuptime(abs bool) (bintime, bool) {
-	var bt bintime
+func binuptime(abs bool) (bt bintime) {
 	timehands := (*[_VDSO_TH_NUM]vdsoTimehands)(add(unsafe.Pointer(timekeepSharedPage), vdsoTimekeepSize))
 	for {
 		if timekeepSharedPage.enabled == 0 {
-			return bt, false
+			return zeroBintime
 		}
 
 		curr := atomic.Load(&timekeepSharedPage.current) // atomic_load_acq_32
@@ -55,13 +59,13 @@ func binuptime(abs bool) (bintime, bool) {
 		bt = th.offset
 
 		if tc, ok := th.getTimecounter(); !ok {
-			return bt, false
+			return zeroBintime
 		} else {
 			delta := (tc - th.offset_count) & th.counter_mask
-			bt = bt.AddX(th.scale * uint64(delta))
+			bt.AddX(th.scale * uint64(delta))
 		}
 		if abs {
-			bt = bt.Add(th.boottime)
+			bt.Add(&th.boottime)
 		}
 
 		atomic.Load(&binuptimeDummy) // atomic_thread_fence_acq()
@@ -69,13 +73,13 @@ func binuptime(abs bool) (bintime, bool) {
 			break
 		}
 	}
-	return bt, true
+	return bt
 }
 
 //go:nosplit
-func vdsoClockGettime(clockID int32) (bintime, bool) {
+func vdsoClockGettime(clockID int32) bintime {
 	if timekeepSharedPage == nil || timekeepSharedPage.ver != _VDSO_TK_VER_CURR {
-		return bintime{}, false
+		return zeroBintime
 	}
 	abs := false
 	switch clockID {
@@ -84,9 +88,8 @@ func vdsoClockGettime(clockID int32) (bintime, bool) {
 	case _CLOCK_REALTIME:
 		abs = true
 	default:
-		return bintime{}, false
+		return zeroBintime
 	}
-
 	return binuptime(abs)
 }
 
@@ -95,16 +98,16 @@ func fallback_walltime() (sec int64, nsec int32)
 
 //go:nosplit
 func nanotime() int64 {
-	bt, ok := vdsoClockGettime(_CLOCK_MONOTONIC)
-	if !ok {
+	bt := vdsoClockGettime(_CLOCK_MONOTONIC)
+	if bt == zeroBintime {
 		return fallback_nanotime()
 	}
 	return int64((1e9 * uint64(bt.sec)) + ((1e9 * uint64(bt.frac>>32)) >> 32))
 }
 
 func walltime() (sec int64, nsec int32) {
-	bt, ok := vdsoClockGettime(_CLOCK_REALTIME)
-	if !ok {
+	bt := vdsoClockGettime(_CLOCK_REALTIME)
+	if bt == zeroBintime {
 		return fallback_walltime()
 	}
 	return int64(bt.sec), int32((1e9 * uint64(bt.frac>>32)) >> 32)
