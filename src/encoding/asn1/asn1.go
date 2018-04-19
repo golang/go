@@ -365,7 +365,7 @@ func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
 func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
-	const formatStr = "20060102150405Z0700"
+	const formatStr = "20060102150405.999999999Z0700"
 	s := string(bytes)
 
 	if ret, err = time.Parse(formatStr, s); err != nil {
