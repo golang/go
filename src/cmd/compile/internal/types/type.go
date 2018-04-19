@@ -710,6 +710,12 @@ func (t *Type) NumRecvs() int   { return t.FuncType().Receiver.NumFields() }
 func (t *Type) NumParams() int  { return t.FuncType().Params.NumFields() }
 func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
 
+// IsVariadic reports whether function type t is variadic.
+func (t *Type) IsVariadic() bool {
+	n := t.NumParams()
+	return n > 0 && t.Params().Field(n-1).Isddd()
+}
+
 // Recv returns the receiver of function type t, if any.
 func (t *Type) Recv() *Field {
 	s := t.Recvs()
