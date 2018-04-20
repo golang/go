@@ -103,6 +103,8 @@ func initsig(preinit bool) {
 			// set SA_ONSTACK if necessary.
 			if fwdSig[i] != _SIG_DFL && fwdSig[i] != _SIG_IGN {
 				setsigstack(i)
+			} else if fwdSig[i] == _SIG_IGN {
+				sigInitIgnored(i)
 			}
 			continue
 		}
