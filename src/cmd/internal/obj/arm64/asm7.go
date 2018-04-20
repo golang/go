@@ -207,6 +207,26 @@ var optab = []Optab{
 	{ACMP, C_EXTREG, C_RSP, C_NONE, 27, 4, 0, 0, 0},
 	{AADD, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
 	{AADD, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+	{AMUL, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
+	{AMUL, C_REG, C_NONE, C_REG, 15, 4, 0, 0, 0},
+	{AMADD, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
+	{AREM, C_REG, C_REG, C_REG, 16, 8, 0, 0, 0},
+	{AREM, C_REG, C_NONE, C_REG, 16, 8, 0, 0, 0},
+	{ASDIV, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+	{ASDIV, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
+
+	{AFADDS, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AFADDS, C_FREG, C_FREG, C_FREG, 54, 4, 0, 0, 0},
+	{AFADDS, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AFADDS, C_FCON, C_FREG, C_FREG, 54, 4, 0, 0, 0},
+	{AFMSUBD, C_FREG, C_FREG, C_FREG, 15, 4, 0, 0, 0},
+	{AFCMPS, C_FREG, C_FREG, C_NONE, 56, 4, 0, 0, 0},
+	{AFCMPS, C_FCON, C_FREG, C_NONE, 56, 4, 0, 0, 0},
+	{AVADDP, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
+	{AVADD, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
+	{AVADD, C_VREG, C_VREG, C_VREG, 89, 4, 0, 0, 0},
+	{AVADD, C_VREG, C_NONE, C_VREG, 89, 4, 0, 0, 0},
+	{AVADDV, C_ARNG, C_NONE, C_VREG, 85, 4, 0, 0, 0},
 
 	/* logical operations */
 	{AAND, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
@@ -259,8 +279,7 @@ var optab = []Optab{
 
 	{AMOVK, C_VCON, C_NONE, C_REG, 33, 4, 0, 0, 0},
 	{AMOVD, C_AACON, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
-	{ASDIV, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
-	{ASDIV, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
+
 	{AB, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
 	{ABL, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
 	{AB, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
@@ -271,6 +290,12 @@ var optab = []Optab{
 	{obj.ARET, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
 	{AADRP, C_SBRA, C_NONE, C_REG, 60, 4, 0, 0, 0},
 	{AADR, C_SBRA, C_NONE, C_REG, 61, 4, 0, 0, 0},
+	{ACBZ, C_REG, C_NONE, C_SBRA, 39, 4, 0, 0, 0},
+	{ATBZ, C_VCON, C_REG, C_SBRA, 40, 4, 0, 0, 0},
+
+	{AERET, C_NONE, C_NONE, C_NONE, 41, 4, 0, 0, 0},
+	{ACLREX, C_NONE, C_NONE, C_VCON, 38, 4, 0, 0, 0},
+	{ACLREX, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0, 0},
 	{ABFM, C_VCON, C_REG, C_REG, 42, 4, 0, 0, 0},
 	{ABFI, C_VCON, C_REG, C_REG, 43, 4, 0, 0, 0},
 	{AEXTR, C_VCON, C_REG, C_REG, 44, 4, 0, 0, 0},
@@ -307,86 +332,113 @@ var optab = []Optab{
 	{AMOVD, C_GOTADDR, C_NONE, C_REG, 71, 8, 0, 0, 0},
 	{AMOVD, C_TLS_LE, C_NONE, C_REG, 69, 4, 0, 0, 0},
 	{AMOVD, C_TLS_IE, C_NONE, C_REG, 70, 8, 0, 0, 0},
-	{AMUL, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
-	{AMUL, C_REG, C_NONE, C_REG, 15, 4, 0, 0, 0},
-	{AMADD, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
-	{AREM, C_REG, C_REG, C_REG, 16, 8, 0, 0, 0},
-	{AREM, C_REG, C_NONE, C_REG, 16, 8, 0, 0, 0},
+
+	{AFMOVS, C_FREG, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
+	{AFMOVS, C_ADDR, C_NONE, C_FREG, 65, 12, 0, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
+	{AFMOVD, C_ADDR, C_NONE, C_FREG, 65, 12, 0, 0, 0},
+	{AFMOVS, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AFMOVD, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AFMOVS, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
+	{AFMOVD, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
+	{AFCVTZSD, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
+	{ASCVTFD, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
+	{AFCVTSD, C_FREG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
+	{AVCNT, C_ARNG, C_NONE, C_ARNG, 29, 4, 0, 0, 0},
+	{AVMOV, C_ELEM, C_NONE, C_REG, 73, 4, 0, 0, 0},
+	{AVMOV, C_ELEM, C_NONE, C_ELEM, 92, 4, 0, 0, 0},
+	{AVMOV, C_ELEM, C_NONE, C_VREG, 80, 4, 0, 0, 0},
+	{AVMOV, C_REG, C_NONE, C_ARNG, 82, 4, 0, 0, 0},
+	{AVMOV, C_REG, C_NONE, C_ELEM, 78, 4, 0, 0, 0},
+	{AVMOV, C_ARNG, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
+	{AVDUP, C_ELEM, C_NONE, C_ARNG, 79, 4, 0, 0, 0},
+	{AVMOVI, C_ADDCON, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
+	{AVFMLA, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
+	{AVEXT, C_VCON, C_ARNG, C_ARNG, 94, 4, 0, 0, 0},
+	{AVUSHR, C_VCON, C_ARNG, C_ARNG, 95, 4, 0, 0, 0},
+
+	/* conditional operations */
 	{ACSEL, C_COND, C_REG, C_REG, 18, 4, 0, 0, 0}, /* from3 optional */
 	{ACSET, C_COND, C_NONE, C_REG, 18, 4, 0, 0, 0},
+	{AFCSELD, C_COND, C_FREG, C_FREG, 18, 4, 0, 0, 0},
 	{ACCMN, C_COND, C_REG, C_VCON, 19, 4, 0, 0, 0}, /* from3 either C_REG or C_VCON */
-	{APRFM, C_UOREG32K, C_NONE, C_SPR, 91, 4, 0, 0, 0},
-	{APRFM, C_UOREG32K, C_NONE, C_LCON, 91, 4, 0, 0, 0},
+	{AFCCMPS, C_COND, C_FREG, C_VCON, 57, 4, 0, 0, 0},
+
+	/* SWPD/SWPW/SWPH/SWPB */
+	{ASWPD, C_ZAUTO, C_REG, C_REG, 47, 4, REGSP, 0, 0},
+	{ASWPD, C_ZOREG, C_REG, C_REG, 47, 4, 0, 0, 0},
 
 	/* scaled 12-bit unsigned displacement store */
 	{AMOVB, C_REG, C_NONE, C_UAUTO4K, 20, 4, REGSP, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_UOREG4K, 20, 4, 0, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_UAUTO4K, 20, 4, REGSP, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_UOREG4K, 20, 4, 0, 0, 0},
-
 	{AMOVH, C_REG, C_NONE, C_UAUTO8K, 20, 4, REGSP, 0, 0},
-	{AMOVH, C_REG, C_NONE, C_ZOREG, 20, 4, 0, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_UOREG8K, 20, 4, 0, 0, 0},
-
 	{AMOVW, C_REG, C_NONE, C_UAUTO16K, 20, 4, REGSP, 0, 0},
-	{AMOVW, C_REG, C_NONE, C_ZOREG, 20, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_UOREG16K, 20, 4, 0, 0, 0},
+	{AMOVD, C_REG, C_NONE, C_UAUTO32K, 20, 4, REGSP, 0, 0},
+	{AMOVD, C_REG, C_NONE, C_UOREG32K, 20, 4, 0, 0, 0},
 
-	{AVMOVS, C_VREG, C_NONE, C_UAUTO16K, 20, 4, REGSP, 0, 0},
-	{AVMOVS, C_VREG, C_NONE, C_ZOREG, 20, 4, 0, 0, 0},
-	{AVMOVS, C_VREG, C_NONE, C_UOREG16K, 20, 4, 0, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_UAUTO16K, 20, 4, REGSP, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_UOREG16K, 20, 4, 0, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_UAUTO32K, 20, 4, REGSP, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_UOREG32K, 20, 4, 0, 0, 0},
 
 	/* unscaled 9-bit signed displacement store */
 	{AMOVB, C_REG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
-
 	{AMOVH, C_REG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
-
-	{AMOVD, C_REG, C_NONE, C_UAUTO32K, 20, 4, REGSP, 0, 0},
-	{AMOVD, C_REG, C_NONE, C_ZOREG, 20, 4, 0, 0, 0},
-	{AMOVD, C_REG, C_NONE, C_UOREG32K, 20, 4, 0, 0, 0},
 	{AMOVD, C_REG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
 	{AMOVD, C_REG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 
-	/* short displacement load */
+	{AFMOVS, C_FREG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
+
+	/* scaled 12-bit unsigned displacement load */
 	{AMOVB, C_UAUTO4K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVB, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVB, C_ZOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVB, C_UOREG4K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVB, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-
 	{AMOVBU, C_UAUTO4K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVBU, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVBU, C_ZOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVBU, C_UOREG4K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVBU, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-
 	{AMOVH, C_UAUTO8K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVH, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVH, C_ZOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVH, C_UOREG8K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVH, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-
 	{AMOVW, C_UAUTO16K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVW, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVW, C_ZOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVW, C_UOREG16K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVW, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-
 	{AMOVD, C_UAUTO32K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVD, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVD, C_ZOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVD, C_UOREG32K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+
+	{AFMOVS, C_UAUTO16K, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
+	{AFMOVS, C_UOREG16K, C_NONE, C_FREG, 21, 4, 0, 0, 0},
+	{AFMOVD, C_UAUTO32K, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
+	{AFMOVD, C_UOREG32K, C_NONE, C_FREG, 21, 4, 0, 0, 0},
+
+	/* unscaled 9-bit signed displacement load */
+	{AMOVB, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVB, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVBU, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVBU, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVH, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVH, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVW, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVW, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVD, C_NSAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
 	{AMOVD, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
 
-	{AVMOVS, C_UAUTO16K, C_NONE, C_VREG, 21, 4, REGSP, 0, 0},
-	{AVMOVS, C_ZOREG, C_NONE, C_VREG, 21, 4, 0, 0, 0},
-	{AVMOVS, C_UOREG16K, C_NONE, C_VREG, 21, 4, 0, 0, 0},
+	{AFMOVS, C_NSAUTO, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
+	{AFMOVS, C_NSOREG, C_NONE, C_FREG, 21, 4, 0, 0, 0},
+	{AFMOVD, C_NSAUTO, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
+	{AFMOVD, C_NSOREG, C_NONE, C_FREG, 21, 4, 0, 0, 0},
 
 	/* long displacement store */
 	{AMOVB, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
@@ -400,6 +452,11 @@ var optab = []Optab{
 	{AMOVD, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
 	{AMOVD, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
 
+	{AFMOVS, C_FREG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+	{AFMOVS, C_FREG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+	{AFMOVD, C_FREG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+	{AFMOVD, C_FREG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+
 	/* long displacement load */
 	{AMOVB, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
 	{AMOVB, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
@@ -412,6 +469,11 @@ var optab = []Optab{
 	{AMOVD, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
 	{AMOVD, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
 
+	{AFMOVS, C_LAUTO, C_NONE, C_FREG, 31, 8, REGSP, LFROM, 0},
+	{AFMOVS, C_LOREG, C_NONE, C_FREG, 31, 8, 0, LFROM, 0},
+	{AFMOVD, C_LAUTO, C_NONE, C_FREG, 31, 8, REGSP, LFROM, 0},
+	{AFMOVD, C_LOREG, C_NONE, C_FREG, 31, 8, 0, LFROM, 0},
+
 	/* load long effective stack address (load int32 offset and add) */
 	{AMOVD, C_LACON, C_NONE, C_REG, 34, 8, REGSP, LFROM, 0},
 
@@ -423,7 +485,7 @@ var optab = []Optab{
 	{AMOVBU, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPOST},
 	{AFMOVS, C_LOREG, C_NONE, C_FREG, 22, 4, 0, 0, C_XPOST},
 	{AFMOVD, C_LOREG, C_NONE, C_FREG, 22, 4, 0, 0, C_XPOST},
-	{AVMOVS, C_LOREG, C_NONE, C_VREG, 22, 4, 0, 0, C_XPOST},
+
 	{AMOVD, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPRE},
 	{AMOVW, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPRE},
 	{AMOVH, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPRE},
@@ -431,7 +493,6 @@ var optab = []Optab{
 	{AMOVBU, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPRE},
 	{AFMOVS, C_LOREG, C_NONE, C_FREG, 22, 4, 0, 0, C_XPRE},
 	{AFMOVD, C_LOREG, C_NONE, C_FREG, 22, 4, 0, 0, C_XPRE},
-	{AVMOVS, C_LOREG, C_NONE, C_VREG, 22, 4, 0, 0, C_XPRE},
 
 	/* pre/post-indexed store (unscaled, signed 9-bit offset) */
 	{AMOVD, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
@@ -441,7 +502,7 @@ var optab = []Optab{
 	{AMOVBU, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
 	{AFMOVS, C_FREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
 	{AFMOVD, C_FREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
-	{AVMOVS, C_VREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
+
 	{AMOVD, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AMOVW, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AMOVH, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
@@ -449,7 +510,6 @@ var optab = []Optab{
 	{AMOVBU, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AFMOVS, C_FREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AFMOVD, C_FREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
-	{AVMOVS, C_VREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 
 	/* load with shifted or extended register offset */
 	{AMOVD, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
@@ -463,10 +523,6 @@ var optab = []Optab{
 	{AMOVW, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
-
-	/* SWPD/SWPW/SWPH/SWPB */
-	{ASWPD, C_ZAUTO, C_REG, C_REG, 47, 4, REGSP, 0, 0},
-	{ASWPD, C_ZOREG, C_REG, C_REG, 47, 4, 0, 0, 0},
 
 	/* pre/post-indexed/signed-offset load/store register pair
 	   (unscaled, signed 10-bit quad-aligned and long offset) */
@@ -599,75 +655,6 @@ var optab = []Optab{
 	{ASTPW, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
 	{ASTPW, C_PAIR, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
 
-	/* special */
-	{AMOVD, C_SPR, C_NONE, C_REG, 35, 4, 0, 0, 0},
-	{AMRS, C_SPR, C_NONE, C_REG, 35, 4, 0, 0, 0},
-	{AMOVD, C_REG, C_NONE, C_SPR, 36, 4, 0, 0, 0},
-	{AMSR, C_REG, C_NONE, C_SPR, 36, 4, 0, 0, 0},
-	{AMOVD, C_VCON, C_NONE, C_SPR, 37, 4, 0, 0, 0},
-	{AMSR, C_VCON, C_NONE, C_SPR, 37, 4, 0, 0, 0},
-	{AERET, C_NONE, C_NONE, C_NONE, 41, 4, 0, 0, 0},
-	{AFMOVS, C_FREG, C_NONE, C_UAUTO16K, 20, 4, REGSP, 0, 0},
-	{AFMOVS, C_FREG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
-	{AFMOVS, C_FREG, C_NONE, C_ZOREG, 20, 4, 0, 0, 0},
-	{AFMOVS, C_FREG, C_NONE, C_UOREG16K, 20, 4, 0, 0, 0},
-	{AFMOVS, C_FREG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
-	{AFMOVD, C_FREG, C_NONE, C_UAUTO32K, 20, 4, REGSP, 0, 0},
-	{AFMOVD, C_FREG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
-	{AFMOVD, C_FREG, C_NONE, C_ZOREG, 20, 4, 0, 0, 0},
-	{AFMOVD, C_FREG, C_NONE, C_UOREG32K, 20, 4, 0, 0, 0},
-	{AFMOVD, C_FREG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
-	{AFMOVS, C_UAUTO16K, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
-	{AFMOVS, C_NSAUTO, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
-	{AFMOVS, C_ZOREG, C_NONE, C_FREG, 21, 4, 0, 0, 0},
-	{AFMOVS, C_UOREG16K, C_NONE, C_FREG, 21, 4, 0, 0, 0},
-	{AFMOVS, C_NSOREG, C_NONE, C_FREG, 21, 4, 0, 0, 0},
-	{AFMOVD, C_UAUTO32K, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
-	{AFMOVD, C_NSAUTO, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
-	{AFMOVD, C_ZOREG, C_NONE, C_FREG, 21, 4, 0, 0, 0},
-	{AFMOVD, C_UOREG32K, C_NONE, C_FREG, 21, 4, 0, 0, 0},
-	{AFMOVD, C_NSOREG, C_NONE, C_FREG, 21, 4, 0, 0, 0},
-	{AFMOVS, C_FREG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
-	{AFMOVS, C_FREG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
-	{AFMOVD, C_FREG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
-	{AFMOVD, C_FREG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
-	{AFMOVS, C_LAUTO, C_NONE, C_FREG, 31, 8, REGSP, LFROM, 0},
-	{AFMOVS, C_LOREG, C_NONE, C_FREG, 31, 8, 0, LFROM, 0},
-	{AFMOVD, C_LAUTO, C_NONE, C_FREG, 31, 8, REGSP, LFROM, 0},
-	{AFMOVD, C_LOREG, C_NONE, C_FREG, 31, 8, 0, LFROM, 0},
-	{AFMOVS, C_FREG, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
-	{AFMOVS, C_ADDR, C_NONE, C_FREG, 65, 12, 0, 0, 0},
-	{AFMOVD, C_FREG, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
-	{AFMOVD, C_ADDR, C_NONE, C_FREG, 65, 12, 0, 0, 0},
-	{AFADDS, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFADDS, C_FREG, C_FREG, C_FREG, 54, 4, 0, 0, 0},
-	{AFADDS, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFADDS, C_FCON, C_FREG, C_FREG, 54, 4, 0, 0, 0},
-	{AFMSUBD, C_FREG, C_FREG, C_FREG, 15, 4, 0, 0, 0},
-	{AFMOVS, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFMOVS, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFMOVD, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFMOVD, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFCVTZSD, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
-	{ASCVTFD, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
-	{AFMOVS, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
-	{AFMOVS, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
-	{AFMOVD, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
-	{AFMOVD, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
-	{AFCMPS, C_FREG, C_FREG, C_NONE, 56, 4, 0, 0, 0},
-	{AFCMPS, C_FCON, C_FREG, C_NONE, 56, 4, 0, 0, 0},
-	{AFCCMPS, C_COND, C_FREG, C_VCON, 57, 4, 0, 0, 0},
-	{AFCSELD, C_COND, C_FREG, C_FREG, 18, 4, 0, 0, 0},
-	{AFCVTSD, C_FREG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
-	{ACLREX, C_NONE, C_NONE, C_VCON, 38, 4, 0, 0, 0},
-	{ACLREX, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0, 0},
-	{ACBZ, C_REG, C_NONE, C_SBRA, 39, 4, 0, 0, 0},
-	{ATBZ, C_VCON, C_REG, C_SBRA, 40, 4, 0, 0, 0},
-	{ASYS, C_VCON, C_NONE, C_NONE, 50, 4, 0, 0, 0},
-	{ASYS, C_VCON, C_REG, C_NONE, 50, 4, 0, 0, 0},
-	{ASYSL, C_VCON, C_NONE, C_REG, 50, 4, 0, 0, 0},
-	{ADMB, C_VCON, C_NONE, C_NONE, 51, 4, 0, 0, 0},
-	{AHINT, C_VCON, C_NONE, C_NONE, 52, 4, 0, 0, 0},
 	{ALDAR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDXR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDAXR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
@@ -676,6 +663,37 @@ var optab = []Optab{
 	{ASTXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},  // to3=C_REG
 	{ASTLXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0}, // to3=C_REG
 	{ASTXP, C_PAIR, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},
+
+	/* VLD1/VST1 */
+	{AVLD1, C_ZOREG, C_NONE, C_LIST, 81, 4, 0, 0, 0},
+	{AVLD1, C_LOREG, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD1, C_ROFF, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD1, C_LOREG, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
+	{AVLD1, C_ROFF, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
+	{AVLD1, C_LOREG, C_NONE, C_ELEM, 97, 4, 0, 0, 0},
+	{AVST1, C_LIST, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
+	{AVST1, C_LIST, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
+	{AVST1, C_LIST, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
+	{AVST1, C_ELEM, C_NONE, C_LOREG, 96, 4, 0, 0, C_XPOST},
+	{AVST1, C_ELEM, C_NONE, C_ROFF, 96, 4, 0, 0, C_XPOST},
+	{AVST1, C_ELEM, C_NONE, C_LOREG, 96, 4, 0, 0, 0},
+
+	/* special */
+	{AMOVD, C_SPR, C_NONE, C_REG, 35, 4, 0, 0, 0},
+	{AMRS, C_SPR, C_NONE, C_REG, 35, 4, 0, 0, 0},
+	{AMOVD, C_REG, C_NONE, C_SPR, 36, 4, 0, 0, 0},
+	{AMSR, C_REG, C_NONE, C_SPR, 36, 4, 0, 0, 0},
+	{AMOVD, C_VCON, C_NONE, C_SPR, 37, 4, 0, 0, 0},
+	{AMSR, C_VCON, C_NONE, C_SPR, 37, 4, 0, 0, 0},
+	{APRFM, C_UOREG32K, C_NONE, C_SPR, 91, 4, 0, 0, 0},
+	{APRFM, C_UOREG32K, C_NONE, C_LCON, 91, 4, 0, 0, 0},
+	{ADMB, C_VCON, C_NONE, C_NONE, 51, 4, 0, 0, 0},
+	{AHINT, C_VCON, C_NONE, C_NONE, 52, 4, 0, 0, 0},
+	{ASYS, C_VCON, C_NONE, C_NONE, 50, 4, 0, 0, 0},
+	{ASYS, C_VCON, C_REG, C_NONE, 50, 4, 0, 0, 0},
+	{ASYSL, C_VCON, C_NONE, C_REG, 50, 4, 0, 0, 0},
+
+	/* encryption instructions */
 	{AAESD, C_VREG, C_NONE, C_VREG, 29, 4, 0, 0, 0}, // for compatibility with old code
 	{AAESD, C_ARNG, C_NONE, C_ARNG, 29, 4, 0, 0, 0}, // recommend using the new one for better readability
 	{ASHA1C, C_VREG, C_REG, C_VREG, 1, 4, 0, 0, 0},
@@ -683,37 +701,8 @@ var optab = []Optab{
 	{ASHA1H, C_VREG, C_NONE, C_VREG, 29, 4, 0, 0, 0},
 	{ASHA1SU0, C_ARNG, C_ARNG, C_ARNG, 1, 4, 0, 0, 0},
 	{ASHA256H, C_ARNG, C_VREG, C_VREG, 1, 4, 0, 0, 0},
-	{AVADDP, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
-	{AVADD, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
-	{AVADD, C_VREG, C_VREG, C_VREG, 89, 4, 0, 0, 0},
-	{AVADD, C_VREG, C_NONE, C_VREG, 89, 4, 0, 0, 0},
-	{AVLD1, C_ZOREG, C_NONE, C_LIST, 81, 4, 0, 0, 0},
-	{AVLD1, C_LOREG, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
-	{AVLD1, C_ROFF, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
-	{AVLD1, C_LOREG, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
-	{AVLD1, C_ROFF, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
-	{AVLD1, C_LOREG, C_NONE, C_ELEM, 97, 4, 0, 0, 0},
-	{AVMOV, C_ELEM, C_NONE, C_REG, 73, 4, 0, 0, 0},
-	{AVMOV, C_REG, C_NONE, C_ARNG, 82, 4, 0, 0, 0},
-	{AVMOV, C_ELEM, C_NONE, C_ELEM, 92, 4, 0, 0, 0},
-	{AVMOV, C_ARNG, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
-	{AVMOV, C_REG, C_NONE, C_ELEM, 78, 4, 0, 0, 0},
-	{AVMOV, C_ELEM, C_NONE, C_VREG, 80, 4, 0, 0, 0},
 	{AVREV32, C_ARNG, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
-	{AVST1, C_LIST, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
-	{AVST1, C_LIST, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
-	{AVST1, C_LIST, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
-	{AVST1, C_ELEM, C_NONE, C_LOREG, 96, 4, 0, 0, C_XPOST},
-	{AVST1, C_ELEM, C_NONE, C_ROFF, 96, 4, 0, 0, C_XPOST},
-	{AVST1, C_ELEM, C_NONE, C_LOREG, 96, 4, 0, 0, 0},
-	{AVDUP, C_ELEM, C_NONE, C_ARNG, 79, 4, 0, 0, 0},
-	{AVADDV, C_ARNG, C_NONE, C_VREG, 85, 4, 0, 0, 0},
-	{AVCNT, C_ARNG, C_NONE, C_ARNG, 29, 4, 0, 0, 0},
-	{AVMOVI, C_ADDCON, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
-	{AVFMLA, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
 	{AVPMULL, C_ARNG, C_ARNG, C_ARNG, 93, 4, 0, 0, 0},
-	{AVEXT, C_VCON, C_ARNG, C_ARNG, 94, 4, 0, 0, 0},
-	{AVUSHR, C_VCON, C_ARNG, C_ARNG, 95, 4, 0, 0, 0},
 
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0},
 	{obj.APCDATA, C_VCON, C_NONE, C_VCON, 0, 0, 0, 0, 0},
@@ -2398,7 +2387,6 @@ func buildop(ctxt *obj.Link) {
 			AVLD1,
 			AVST1,
 			AVDUP,
-			AVMOVS,
 			AVMOVI,
 			APRFM,
 			AVEXT:
@@ -5744,9 +5732,6 @@ func (c *ctxt7) opldr12(p *obj.Prog, a obj.As) uint32 {
 
 	case AFMOVD:
 		return LDSTR12U(3, 1, 1)
-
-	case AVMOVS:
-		return LDSTR12U(2, 1, 1)
 	}
 
 	c.ctxt.Diag("bad opldr12 %v\n%v", a, p)
@@ -5831,8 +5816,11 @@ func (c *ctxt7) opldrpp(p *obj.Prog, a obj.As) uint32 {
 	case AMOVBU:
 		return 0<<30 | 7<<27 | 0<<26 | 0<<24 | 1<<22
 
-	case AVMOVS:
+	case AFMOVS:
 		return 2<<30 | 7<<27 | 1<<26 | 0<<24 | 1<<22
+
+	case AFMOVD:
+		return 3<<30 | 7<<27 | 1<<26 | 0<<24 | 1<<22
 
 	case APRFM:
 		return 0xf9<<24 | 2<<22
@@ -6112,7 +6100,7 @@ func movesize(a obj.As) int {
 	case AMOVD:
 		return 3
 
-	case AMOVW, AMOVWU, AVMOVS:
+	case AMOVW, AMOVWU:
 		return 2
 
 	case AMOVH, AMOVHU:

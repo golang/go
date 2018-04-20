@@ -226,12 +226,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VST1.P	V4.D[1], 8(R0)                                  // 04849f4d
 	VST1.P	V4.D[1], (R0)(R1)                               // VST1.P	V4.D[1], (R0)(R1*1) // 0484814d
 	VST1	V4.D[1], (R0)                                   // 0484004d
-	VMOVS	V20, (R0)                                       // 140000bd
-	VMOVS.P	V20, 4(R0)                                      // 144400bc
-	VMOVS.W	V20, 4(R0)                                      // 144c00bc
-	VMOVS	(R0), V20                                       // 140040bd
-	VMOVS.P	8(R0), V20                                      // 148440bc
-	VMOVS.W	8(R0), V20                                      // 148c40bc
+	FMOVS	F20, (R0)                                       // 140000bd
+	FMOVS.P	F20, 4(R0)                                      // 144400bc
+	FMOVS.W	F20, 4(R0)                                      // 144c00bc
+	FMOVS	(R0), F20                                       // 140040bd
+	FMOVS.P	8(R0), F20                                      // 148440bc
+	FMOVS.W	8(R0), F20                                      // 148c40bc
+	FMOVD	F20, (R2)                                       // 540000fd
+	FMOVD.P	F20, 8(R1)                                      // 348400fc
+	FMOVD.W	8(R1), F20                                      // 348c40fc
 	PRFM	(R2), PLDL1KEEP                                 // 400080f9
 	PRFM	16(R2), PLDL1KEEP                               // 400880f9
 	PRFM	48(R6), PSTL2STRM                               // d31880f9

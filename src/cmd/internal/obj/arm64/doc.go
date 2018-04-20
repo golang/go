@@ -97,6 +97,8 @@ such as str, stur, strb, sturb, strh, sturh stlr, stlrb. stlrh, st1.
     MADD R2, R30, R22, R6       <=>    madd x6, x22, x2, x30
     SMSUBL R10, R3, R17, R27    <=>    smsubl x27, w17, w10, x3
 
+(3) FMADDD, FMADDS, FMSUBD, FMSUBS, FNMADDD, FNMADDS, FNMSUBD, FNMSUBS <Fm>, <Fa>, <Fn>, <Fd>
+
   Examples:
     FMADDD F30, F20, F3, F29    <=>    fmadd d29, d3, d30, d20
     FNMSUBS F7, F25, F7, F22    <=>    fnmsub s22, s7, s7, s25
