@@ -191,7 +191,7 @@ func (rd *reparseData) addUTF16s(s []uint16) (offset uint16) {
 
 func (rd *reparseData) addString(s string) (offset, length uint16) {
 	p := syscall.StringToUTF16(s)
-	return rd.addUTF16s(p), uint16(len(p)-1) * 2 // do not include terminating NUL in the legth (as per PrintNameLength and SubstituteNameLength documentation)
+	return rd.addUTF16s(p), uint16(len(p)-1) * 2 // do not include terminating NUL in the length (as per PrintNameLength and SubstituteNameLength documentation)
 }
 
 func (rd *reparseData) addSubstituteName(name string) {
