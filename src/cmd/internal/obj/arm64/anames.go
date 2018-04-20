@@ -386,7 +386,6 @@ var Anames = []string{
 	"VREV64",
 	"VST1",
 	"VDUP",
-	"VMOVS",
 	"VADDV",
 	"VMOVI",
 	"VUADDLV",
