@@ -267,7 +267,7 @@ func (m *bvecSet) grow() {
 	m.index = newIndex
 }
 
-// add adds bv to the set and returns its index in m.uniq.
+// add adds bv to the set and returns its index in m.extractUniqe.
 // The caller must not modify bv after this.
 func (m *bvecSet) add(bv bvec) int {
 	if len(m.uniq)*4 >= len(m.index) {
@@ -295,4 +295,10 @@ func (m *bvecSet) add(bv bvec) int {
 			h = 0
 		}
 	}
+}
+
+// extractUniqe returns this slice of unique bit vectors in m, as
+// indexed by the result of bvecSet.add.
+func (m *bvecSet) extractUniqe() []bvec {
+	return m.uniq
 }
