@@ -185,6 +185,7 @@ func (l *Logger) Print(v ...interface{}) { l.Output(2, fmt.Sprint(v...)) }
 
 // Println calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Println.
+//Controlling stack frames by a multiple of 100  (l.flag/100)
 func (l *Logger) Println(v ...interface{}) { l.Output(2 + l.flag/100, fmt.Sprintln(v...)) }
 
 // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
