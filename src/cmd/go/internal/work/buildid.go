@@ -174,20 +174,29 @@ func (b *Builder) toolID(name string) string {
 		return id
 	}
 
-	cmdline := str.StringList(cfg.BuildToolexec, base.Tool(name), "-V=full")
+	path := base.Tool(name)
+	desc := "go tool " + name
+
+	// Special case: undocumented -vettool overrides usual vet, for testing vet.
+	if name == "vet" && VetTool != "" {
+		path = VetTool
+		desc = VetTool
+	}
+
+	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		base.Fatalf("go tool %s: %v\n%s%s", name, err, stdout.Bytes(), stderr.Bytes())
+		base.Fatalf("%s: %v\n%s%s", desc, err, stdout.Bytes(), stderr.Bytes())
 	}
 
 	line := stdout.String()
 	f := strings.Fields(line)
-	if len(f) < 3 || f[0] != name || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
-		base.Fatalf("go tool %s -V=full: unexpected output:\n\t%s", name, line)
+	if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
+		base.Fatalf("%s -V=full: unexpected output:\n\t%s", desc, line)
 	}
 	if f[2] == "devel" {
 		// On the development branch, use the content ID part of the build ID.
@@ -509,14 +518,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// but we're still happy to use results from the build artifact cache.
 	if c := cache.Default(); c != nil {
 		if !cfg.BuildA {
-			entry, err := c.Get(actionHash)
-			if err == nil {
-				file := c.OutputFile(entry.OutputID)
-				info, err1 := os.Stat(file)
-				buildID, err2 := buildid.ReadFile(file)
-				if err1 == nil && err2 == nil && info.Size() == entry.Size {
-					stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(a.actionID, "stdout"))
-					if err == nil {
+			if file, _, err := c.GetFile(actionHash); err == nil {
+				if buildID, err := buildid.ReadFile(file); err == nil {
+					if stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(a.actionID, "stdout")); err == nil {
 						if len(stdout) > 0 {
 							if cfg.BuildX || cfg.BuildN {
 								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
