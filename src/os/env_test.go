@@ -62,19 +62,24 @@ func TestExpand(t *testing.T) {
 	}
 }
 
+var global interface{}
+
 func BenchmarkExpand(b *testing.B) {
-	var s string
 	b.Run("noop", func(b *testing.B) {
+		var s string
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			s = Expand("tick tick tick tick", func(string) string { return "" })
 		}
+		global = s
 	})
 	b.Run("multiple", func(b *testing.B) {
+		var s string
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			s = Expand("$a $a $a $a", func(string) string { return "boom" })
 		}
+		global = s
 	})
 }
 
