@@ -104,6 +104,8 @@ func init() {
 		arch.ptrSize = int(arch.sizes.Sizeof(types.Typ[types.UnsafePointer]))
 		arch.maxAlign = int(arch.sizes.Alignof(types.Typ[types.Int64]))
 	}
+
+	registerPkgCheck("asmdecl", asmCheck)
 }
 
 var (
@@ -119,7 +121,7 @@ var (
 )
 
 func asmCheck(pkg *Package) {
-	if !vet("asmdecl") {
+	if vcfg.VetxOnly {
 		return
 	}
 
