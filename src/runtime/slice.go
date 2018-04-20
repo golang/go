@@ -128,10 +128,9 @@ func growslice(et *_type, old slice, cap int) slice {
 
 	var overflow bool
 	var lenmem, newlenmem, capmem uintptr
-	const ptrSize = unsafe.Sizeof((*byte)(nil))
 	// Specialize for common values of et.size.
 	// For 1 we don't need any division/multiplication.
-	// For ptrSize, compiler will optimize division/multiplication into a shift by a constant.
+	// For sys.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
 	// For powers of 2, use a variable shift.
 	switch {
 	case et.size == 1:
@@ -140,15 +139,15 @@ func growslice(et *_type, old slice, cap int) slice {
 		capmem = roundupsize(uintptr(newcap))
 		overflow = uintptr(newcap) > maxAlloc
 		newcap = int(capmem)
-	case et.size == ptrSize:
-		lenmem = uintptr(old.len) * ptrSize
-		newlenmem = uintptr(cap) * ptrSize
-		capmem = roundupsize(uintptr(newcap) * ptrSize)
-		overflow = uintptr(newcap) > maxAlloc/ptrSize
-		newcap = int(capmem / ptrSize)
+	case et.size == sys.PtrSize:
+		lenmem = uintptr(old.len) * sys.PtrSize
+		newlenmem = uintptr(cap) * sys.PtrSize
+		capmem = roundupsize(uintptr(newcap) * sys.PtrSize)
+		overflow = uintptr(newcap) > maxAlloc/sys.PtrSize
+		newcap = int(capmem / sys.PtrSize)
 	case isPowerOfTwo(et.size):
 		var shift uintptr
-		if ptrSize == 8 {
+		if sys.PtrSize == 8 {
 			// Mask shift for better code generation.
 			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
 		} else {
