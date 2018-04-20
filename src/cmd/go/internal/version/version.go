@@ -14,7 +14,7 @@ import (
 
 var CmdVersion = &base.Command{
 	Run:       runVersion,
-	UsageLine: "version",
+	UsageLine: "-v",
 	Short:     "print Go version",
 	Long:      `Version prints the Go version, as reported by runtime.Version.`,
 }
