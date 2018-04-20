@@ -720,7 +720,9 @@ func (b *Builder) vet(a *Action) error {
 	// so at least for now assume the bug is in vet.
 	// We know of at least #18395.
 	// TODO(rsc,gri): Try to remove this for Go 1.11.
-	vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
+	//
+	// Disabled 2018-04-20. Let's see if we can do without it.
+	// vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
 
 	js, err := json.MarshalIndent(vcfg, "", "\t")
 	if err != nil {
