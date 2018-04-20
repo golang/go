@@ -3,88 +3,46 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add64  x y) -> (ADDQ  x y)
+(Add(64|32|16|8)  x y) -> (ADD(Q|L|L|L)  x y)
 (AddPtr x y) && config.PtrSize == 8 -> (ADDQ x y)
 (AddPtr x y) && config.PtrSize == 4 -> (ADDL x y)
-(Add32  x y) -> (ADDL  x y)
-(Add16  x y) -> (ADDL  x y)
-(Add8   x y) -> (ADDL  x y)
-(Add32F x y) -> (ADDSS x y)
-(Add64F x y) -> (ADDSD x y)
+(Add(32|64)F x y) -> (ADDS(S|D) x y)
 
-(Sub64  x y) -> (SUBQ  x y)
+(Sub(64|32|16|8)  x y) -> (SUB(Q|L|L|L)  x y)
 (SubPtr x y) && config.PtrSize == 8 -> (SUBQ x y)
 (SubPtr x y) && config.PtrSize == 4 -> (SUBL x y)
-(Sub32  x y) -> (SUBL  x y)
-(Sub16  x y) -> (SUBL  x y)
-(Sub8   x y) -> (SUBL  x y)
-(Sub32F x y) -> (SUBSS x y)
-(Sub64F x y) -> (SUBSD x y)
+(Sub(32|64)F x y) -> (SUBS(S|D) x y)
 
-(Mul64  x y) -> (MULQ  x y)
-(Mul32  x y) -> (MULL  x y)
-(Mul16  x y) -> (MULL  x y)
-(Mul8   x y) -> (MULL  x y)
-(Mul32F x y) -> (MULSS x y)
-(Mul64F x y) -> (MULSD x y)
+(Mul(64|32|16|8)  x y) -> (MUL(Q|L|L|L)  x y)
+(Mul(32|64)F x y) -> (MULS(S|D) x y)
 
-(Div32F x y) -> (DIVSS x y)
-(Div64F x y) -> (DIVSD x y)
+(Hmul(64|32)  x y) -> (HMUL(Q|L)  x y)
+(Hmul(64|32)u x y) -> (HMUL(Q|L)U x y)
 
-(Div64  x y) -> (Select0 (DIVQ  x y))
-(Div64u x y) -> (Select0 (DIVQU x y))
-(Div32  x y) -> (Select0 (DIVL  x y))
-(Div32u x y) -> (Select0 (DIVLU x y))
-(Div16  x y) -> (Select0 (DIVW  x y))
-(Div16u x y) -> (Select0 (DIVWU x y))
-(Div8   x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
-(Div8u  x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
-
-(Hmul64  x y) -> (HMULQ  x y)
-(Hmul64u x y) -> (HMULQU x y)
-(Hmul32  x y) -> (HMULL  x y)
-(Hmul32u x y) -> (HMULLU x y)
+(Div(64|32|16)  x y) -> (Select0 (DIV(Q|L|W)  x y))
+(Div8  x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+(Div(64|32|16)u x y) -> (Select0 (DIV(Q|L|W)U x y))
+(Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+(Div(32|64)F x y) -> (DIVS(S|D) x y)
 
 (Mul64uhilo x y) -> (MULQU2 x y)
 (Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
 
 (Avg64u x y) -> (AVGQU x y)
 
-(Mod64  x y) -> (Select1 (DIVQ  x y))
-(Mod64u x y) -> (Select1 (DIVQU x y))
-(Mod32  x y) -> (Select1 (DIVL  x y))
-(Mod32u x y) -> (Select1 (DIVLU x y))
-(Mod16  x y) -> (Select1 (DIVW  x y))
-(Mod16u x y) -> (Select1 (DIVWU x y))
-(Mod8   x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
-(Mod8u  x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+(Mod(64|32|16)  x y) -> (Select1 (DIV(Q|L|W)  x y))
+(Mod8  x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+(Mod(64|32|16)u x y) -> (Select1 (DIV(Q|L|W)U x y))
+(Mod8u x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
 
-(And64 x y) -> (ANDQ x y)
-(And32 x y) -> (ANDL x y)
-(And16 x y) -> (ANDL x y)
-(And8  x y) -> (ANDL x y)
+(And(64|32|16|8) x y) -> (AND(Q|L|L|L) x y)
+(Or(64|32|16|8) x y) -> (OR(Q|L|L|L) x y)
+(Xor(64|32|16|8) x y) -> (XOR(Q|L|L|L) x y)
+(Com(64|32|16|8) x) -> (NOT(Q|L|L|L) x)
 
-(Or64 x y) -> (ORQ x y)
-(Or32 x y) -> (ORL x y)
-(Or16 x y) -> (ORL x y)
-(Or8  x y) -> (ORL x y)
-
-(Xor64 x y) -> (XORQ x y)
-(Xor32 x y) -> (XORL x y)
-(Xor16 x y) -> (XORL x y)
-(Xor8  x y) -> (XORL x y)
-
-(Neg64  x) -> (NEGQ x)
-(Neg32  x) -> (NEGL x)
-(Neg16  x) -> (NEGL x)
-(Neg8   x) -> (NEGL x)
+(Neg(64|32|16|8)  x) -> (NEG(Q|L|L|L) x)
 (Neg32F x) -> (PXOR x (MOVSSconst <typ.Float32> [f2i(math.Copysign(0, -1))]))
 (Neg64F x) -> (PXOR x (MOVSDconst <typ.Float64> [f2i(math.Copysign(0, -1))]))
-
-(Com64 x) -> (NOTQ x)
-(Com32 x) -> (NOTL x)
-(Com16 x) -> (NOTL x)
-(Com8  x) -> (NOTL x)
 
 // Lowering boolean ops
 (AndB x y) -> (ANDL x y)
@@ -103,8 +61,7 @@
 (BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
 (BitLen32 x) -> (BitLen64 (MOVLQZX <typ.UInt64> x))
 
-(Bswap64 x) -> (BSWAPQ x)
-(Bswap32 x) -> (BSWAPL x)
+(Bswap(64|32) x) -> (BSWAP(Q|L) x)
 
 (PopCount64 x) -> (POPCNTQ x)
 (PopCount32 x) -> (POPCNTL x)
@@ -159,8 +116,7 @@
 (Cvt32Fto64F x) -> (CVTSS2SD x)
 (Cvt64Fto32F x) -> (CVTSD2SS x)
 
-(Round32F x) -> x
-(Round64F x) -> x
+(Round(32|64)F x) -> x
 
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
@@ -228,75 +184,37 @@
 (Rsh8x8  <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
 
 // Lowering comparisons
-(Less64  x y) -> (SETL (CMPQ x y))
-(Less32  x y) -> (SETL (CMPL x y))
-(Less16  x y) -> (SETL (CMPW x y))
-(Less8   x y) -> (SETL (CMPB x y))
-(Less64U x y) -> (SETB (CMPQ x y))
-(Less32U x y) -> (SETB (CMPL x y))
-(Less16U x y) -> (SETB (CMPW x y))
-(Less8U  x y) -> (SETB (CMPB x y))
+(Less(64|32|16|8)  x y) -> (SETL (CMP(Q|L|W|B) x y))
+(Less(64|32|16|8)U x y) -> (SETB (CMP(Q|L|W|B) x y))
 // Use SETGF with reversed operands to dodge NaN case
-(Less64F x y) -> (SETGF (UCOMISD y x))
-(Less32F x y) -> (SETGF (UCOMISS y x))
+(Less(32|64)F x y) -> (SETGF (UCOMIS(S|D) y x))
 
-(Leq64  x y) -> (SETLE (CMPQ x y))
-(Leq32  x y) -> (SETLE (CMPL x y))
-(Leq16  x y) -> (SETLE (CMPW x y))
-(Leq8   x y) -> (SETLE (CMPB x y))
-(Leq64U x y) -> (SETBE (CMPQ x y))
-(Leq32U x y) -> (SETBE (CMPL x y))
-(Leq16U x y) -> (SETBE (CMPW x y))
-(Leq8U  x y) -> (SETBE (CMPB x y))
+(Leq(64|32|16|8)  x y) -> (SETLE (CMP(Q|L|W|B) x y))
+(Leq(64|32|16|8)U x y) -> (SETBE (CMP(Q|L|W|B) x y))
 // Use SETGEF with reversed operands to dodge NaN case
-(Leq64F x y) -> (SETGEF (UCOMISD y x))
-(Leq32F x y) -> (SETGEF (UCOMISS y x))
+(Leq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) y x))
 
-(Greater64  x y) -> (SETG (CMPQ x y))
-(Greater32  x y) -> (SETG (CMPL x y))
-(Greater16  x y) -> (SETG (CMPW x y))
-(Greater8   x y) -> (SETG (CMPB x y))
-(Greater64U x y) -> (SETA (CMPQ x y))
-(Greater32U x y) -> (SETA (CMPL x y))
-(Greater16U x y) -> (SETA (CMPW x y))
-(Greater8U  x y) -> (SETA (CMPB x y))
+(Greater(64|32|16|8)  x y) -> (SETG (CMP(Q|L|W|B) x y))
+(Greater(64|32|16|8)U x y) -> (SETA (CMP(Q|L|W|B) x y))
 // Note Go assembler gets UCOMISx operand order wrong, but it is right here
 // Bug is accommodated at generation of assembly language.
-(Greater64F x y) -> (SETGF (UCOMISD x y))
-(Greater32F x y) -> (SETGF (UCOMISS x y))
+(Greater(32|64)F x y) -> (SETGF (UCOMIS(S|D) x y))
 
-(Geq64  x y) -> (SETGE (CMPQ x y))
-(Geq32  x y) -> (SETGE (CMPL x y))
-(Geq16  x y) -> (SETGE (CMPW x y))
-(Geq8   x y) -> (SETGE (CMPB x y))
-(Geq64U x y) -> (SETAE (CMPQ x y))
-(Geq32U x y) -> (SETAE (CMPL x y))
-(Geq16U x y) -> (SETAE (CMPW x y))
-(Geq8U  x y) -> (SETAE (CMPB x y))
+(Geq(64|32|16|8)  x y) -> (SETGE (CMP(Q|L|W|B) x y))
+(Geq(64|32|16|8)U x y) -> (SETAE (CMP(Q|L|W|B) x y))
 // Note Go assembler gets UCOMISx operand order wrong, but it is right here
 // Bug is accommodated at generation of assembly language.
-(Geq64F x y) -> (SETGEF (UCOMISD x y))
-(Geq32F x y) -> (SETGEF (UCOMISS x y))
+(Geq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) x y))
 
-(Eq64  x y) -> (SETEQ (CMPQ x y))
-(Eq32  x y) -> (SETEQ (CMPL x y))
-(Eq16  x y) -> (SETEQ (CMPW x y))
-(Eq8   x y) -> (SETEQ (CMPB x y))
-(EqB   x y) -> (SETEQ (CMPB x y))
+(Eq(64|32|16|8|B)  x y) -> (SETEQ (CMP(Q|L|W|B|B) x y))
 (EqPtr x y) && config.PtrSize == 8 -> (SETEQ (CMPQ x y))
 (EqPtr x y) && config.PtrSize == 4 -> (SETEQ (CMPL x y))
-(Eq64F x y) -> (SETEQF (UCOMISD x y))
-(Eq32F x y) -> (SETEQF (UCOMISS x y))
+(Eq(32|64)F x y) -> (SETEQF (UCOMIS(S|D) x y))
 
-(Neq64  x y) -> (SETNE (CMPQ x y))
-(Neq32  x y) -> (SETNE (CMPL x y))
-(Neq16  x y) -> (SETNE (CMPW x y))
-(Neq8   x y) -> (SETNE (CMPB x y))
-(NeqB   x y) -> (SETNE (CMPB x y))
+(Neq(64|32|16|8|B)  x y) -> (SETNE (CMP(Q|L|W|B|B) x y))
 (NeqPtr x y) && config.PtrSize == 8 -> (SETNE (CMPQ x y))
 (NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
-(Neq64F x y) -> (SETNEF (UCOMISD x y))
-(Neq32F x y) -> (SETNEF (UCOMISS x y))
+(Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
 
 (Int64Hi x) -> (SHRQconst [32] x) // needed for amd64p32
 
