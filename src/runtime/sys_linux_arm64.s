@@ -21,7 +21,7 @@
 #define SYS_openat		56
 #define SYS_close		57
 #define SYS_fcntl		25
-#define SYS_pselect6		72
+#define SYS_nanosleep		101
 #define SYS_mmap		222
 #define SYS_munmap		215
 #define SYS_setitimer		103
@@ -129,14 +129,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	MUL	R4, R5
 	MOVD	R5, 16(RSP)
 
-	// pselect6(0, 0, 0, 0, &ts, 0)
-	MOVD	$0, R0
-	MOVD	R0, R1
-	MOVD	R0, R2
-	MOVD	R0, R3
-	ADD	$8, RSP, R4
-	MOVD	R0, R5
-	MOVD	$SYS_pselect6, R8
+	// nanosleep(&ts, 0)
+	ADD	$8, RSP, R0
+	MOVD	$0, R1
+	MOVD	$SYS_nanosleep, R8
 	SVC
 	RET
 

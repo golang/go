@@ -24,6 +24,7 @@
 #define SYS_sched_yield 	24
 #define SYS_mincore		27
 #define SYS_madvise		28
+#define SYS_nanosleep		35
 #define SYS_setittimer		38
 #define SYS_getpid		39
 #define SYS_socket		41
@@ -43,7 +44,6 @@
 #define SYS_epoll_ctl		233
 #define SYS_openat		257
 #define SYS_faccessat		269
-#define SYS_pselect6		270
 #define SYS_epoll_pwait		281
 #define SYS_epoll_create1	291
 
@@ -123,14 +123,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	MULL	DX
 	MOVQ	AX, 8(SP)
 
-	// pselect6(0, 0, 0, 0, &ts, 0)
-	MOVL	$0, DI
+	// nanosleep(&ts, 0)
+	MOVQ	SP, DI
 	MOVL	$0, SI
-	MOVL	$0, DX
-	MOVL	$0, R10
-	MOVQ	SP, R8
-	MOVL	$0, R9
-	MOVL	$SYS_pselect6, AX
+	MOVL	$SYS_nanosleep, AX
 	SYSCALL
 	RET
 

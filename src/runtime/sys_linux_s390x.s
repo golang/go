@@ -22,8 +22,8 @@
 #define SYS_munmap               91
 #define SYS_setitimer           104
 #define SYS_clone               120
-#define SYS_select              142
 #define SYS_sched_yield         158
+#define SYS_nanosleep           162
 #define SYS_rt_sigreturn        173
 #define SYS_rt_sigaction        174
 #define SYS_rt_sigprocmask      175
@@ -110,17 +110,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	$1000000, R3
 	DIVD	R3, R2
 	MOVD	R2, 8(R15)
+	MOVW	$1000, R3
 	MULLD	R2, R3
 	SUB	R3, R4
 	MOVD	R4, 16(R15)
 
-	// select(0, 0, 0, 0, &tv)
-	MOVW	$0, R2
+	// nanosleep(&ts, 0)
+	ADD	$8, R15, R2
 	MOVW	$0, R3
-	MOVW	$0, R4
-	MOVW	$0, R5
-	ADD	$8, R15, R6
-	MOVW	$SYS_select, R1
+	MOVW	$SYS_nanosleep, R1
 	SYSCALL
 	RET
 
