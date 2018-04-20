@@ -189,6 +189,21 @@ func (c *Cache) get(id ActionID) (Entry, error) {
 	return Entry{buf, size, time.Unix(0, tm)}, nil
 }
 
+// GetFile looks up the action ID in the cache and returns
+// the name of the corresponding data file.
+func (c *Cache) GetFile(id ActionID) (file string, entry Entry, err error) {
+	entry, err = c.Get(id)
+	if err != nil {
+		return "", Entry{}, err
+	}
+	file = c.OutputFile(entry.OutputID)
+	info, err := os.Stat(file)
+	if err != nil || info.Size() != entry.Size {
+		return "", Entry{}, errMissing
+	}
+	return file, entry, nil
+}
+
 // GetBytes looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetBytes should only be used for data that can be expected to fit in memory.
