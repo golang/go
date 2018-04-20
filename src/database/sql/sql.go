@@ -301,6 +301,10 @@ type Scanner interface {
 	//
 	// An error should be returned if the value cannot be stored
 	// without loss of information.
+	//
+	// Reference types such as []byte are only valid until the next call to Scan
+	// and should not be retained. Their underlying memory is owned by the driver.
+	// If retention is necessary, copy their values before the next call to Scan.
 	Scan(src interface{}) error
 }
 
