@@ -117,8 +117,11 @@ type Liveness struct {
 	// unsafePoints bit i is set if Value ID i is not a safe point.
 	unsafePoints bvec
 
-	// An array with a bit vector for each safe point tracking live variables.
-	// Indexed sequentially by safe points in Block and Value order.
+	// An array with a bit vector for each safe point in the
+	// current Block during Liveness.epilogue. Indexed in Value
+	// order for that block. Additionally, for the entry block
+	// livevars[0] is the entry bitmap. Liveness.compact moves
+	// these to stackMaps and regMaps.
 	livevars []varRegVec
 
 	// livenessMap maps from safe points (i.e., CALLs) to their
@@ -127,7 +130,9 @@ type Liveness struct {
 	// TODO(austin): Now that we have liveness at almost every PC,
 	// should this be a dense structure?
 	livenessMap LivenessMap
+	stackMapSet bvecSet
 	stackMaps   []bvec
+	regMapSet   map[liveRegMask]int
 	regMaps     []liveRegMask
 
 	cache progeffectscache
@@ -491,6 +496,9 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		idx:        idx,
 		stkptrsize: stkptrsize,
 		be:         make([]BlockEffects, f.NumBlocks()),
+
+		livenessMap: LivenessMap{make(map[*ssa.Value]LivenessIndex)},
+		regMapSet:   make(map[liveRegMask]int),
 	}
 
 	nblocks := int32(len(f.Blocks))
@@ -975,6 +983,13 @@ func (lv *Liveness) epilogue() {
 		}
 	}
 
+	// We must analyze the entry block first. The runtime assumes
+	// the function entry map is index 0. Conveniently, layout
+	// already ensured that the entry block is first.
+	if lv.f.Entry != lv.f.Blocks[0] {
+		lv.f.Fatalf("entry block must be first")
+	}
+
 	{
 		// Reserve an entry for function entry.
 		live := bvalloc(nvars)
@@ -1040,11 +1055,6 @@ func (lv *Liveness) epilogue() {
 
 		// walk backward, construct maps at each safe point
 		index := int32(len(lv.livevars) - 1)
-		if index < 0 {
-			// the first block we encounter should have the ATEXT so
-			// at no point should pos ever be less than zero.
-			Fatalf("livenessepilogue")
-		}
 
 		liveout.Copy(be.liveout)
 		for i := len(b.Values) - 1; i >= 0; i-- {
@@ -1097,13 +1107,20 @@ func (lv *Liveness) epilogue() {
 				index++
 			}
 		}
+
+		// The liveness maps for this block are now complete. Compact them.
+		lv.compact(b)
 	}
+
+	// Done compacting. Throw out the stack map set.
+	lv.stackMaps = lv.stackMapSet.extractUniqe()
+	lv.stackMapSet = bvecSet{}
 
 	// Useful sanity check: on entry to the function,
 	// the only things that can possibly be live are the
 	// input parameters.
 	for j, n := range lv.vars {
-		if n.Class() != PPARAM && lv.livevars[0].vars.Get(int32(j)) {
+		if n.Class() != PPARAM && lv.stackMaps[0].Get(int32(j)) {
 			Fatalf("internal error: %v %L recorded as live on entry", lv.fn.Func.Nname, n)
 		}
 	}
@@ -1111,7 +1128,7 @@ func (lv *Liveness) epilogue() {
 	// The context register, if any, comes from a
 	// LoweredGetClosurePtr operation first thing in the function,
 	// so it doesn't appear live at entry.
-	if regs := lv.livevars[0].regs; regs != 0 {
+	if regs := lv.regMaps[0]; regs != 0 {
 		lv.printDebug()
 		lv.f.Fatalf("internal error: %v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
 	}
@@ -1292,8 +1309,10 @@ func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
 	}
 }
 
-// Compact liveness information by coalescing identical per-call-site bitmaps.
-// The merging only happens for a single function, not across the entire binary.
+// Compact coalesces identical bitmaps from lv.livevars into the sets
+// lv.stackMapSet and lv.regMaps.
+//
+// Compact clears lv.livevars.
 //
 // There are actually two lists of bitmaps, one list for the local variables and one
 // list for the function arguments. Both lists are indexed by the same PCDATA
@@ -1306,47 +1325,34 @@ func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
 // is actually a net loss: we save about 50k of argument bitmaps but the new
 // PCDATA tables cost about 100k. So for now we keep using a single index for
 // both bitmap lists.
-func (lv *Liveness) compact() {
-	// Compact livevars.
-	// remap[i] = the index in lv.stackMaps of for bitmap lv.livevars[i].
-	remap := make([]int, len(lv.livevars))
-	set := newBvecSet(len(lv.livevars))
-	for i, live := range lv.livevars {
-		remap[i] = set.add(live.vars)
-	}
-	lv.stackMaps = set.uniq
-
-	// Compact register maps.
-	remapRegs := make([]int, len(lv.livevars))
-	regMaps := make(map[liveRegMask]int)
-	for i, live := range lv.livevars {
-		idx, ok := regMaps[live.regs]
+func (lv *Liveness) compact(b *ssa.Block) {
+	add := func(live varRegVec) LivenessIndex {
+		// Deduplicate the stack map.
+		stackIndex := lv.stackMapSet.add(live.vars)
+		// Deduplicate the register map.
+		regIndex, ok := lv.regMapSet[live.regs]
 		if !ok {
-			idx = len(regMaps)
-			regMaps[live.regs] = idx
+			regIndex = len(lv.regMapSet)
+			lv.regMapSet[live.regs] = regIndex
 			lv.regMaps = append(lv.regMaps, live.regs)
 		}
-		remapRegs[i] = idx
+		return LivenessIndex{stackIndex, regIndex}
 	}
-
-	// Clear lv.livevars to allow GC of duplicate maps and to
-	// prevent accidental use.
-	lv.livevars = nil
-
-	// Record compacted stack map indexes for each value.
-	// These will later become PCDATA instructions.
-	lv.showlive(nil, lv.stackMaps[0])
-	pos := 1
-	lv.livenessMap = LivenessMap{make(map[*ssa.Value]LivenessIndex)}
-	for _, b := range lv.f.Blocks {
-		for _, v := range b.Values {
-			if lv.issafepoint(v) {
-				lv.showlive(v, lv.stackMaps[remap[pos]])
-				lv.livenessMap.m[v] = LivenessIndex{remap[pos], remapRegs[pos]}
-				pos++
-			}
+	pos := 0
+	if b == lv.f.Entry {
+		// Handle entry stack map.
+		add(lv.livevars[0])
+		pos++
+	}
+	for _, v := range b.Values {
+		if lv.issafepoint(v) {
+			lv.livenessMap.m[v] = add(lv.livevars[pos])
+			pos++
 		}
 	}
+
+	// Reset livevars.
+	lv.livevars = lv.livevars[:0]
 }
 
 func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
@@ -1647,8 +1653,13 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
 	lv.prologue()
 	lv.solve()
 	lv.epilogue()
-	lv.compact()
 	lv.clobber()
+	if debuglive > 0 {
+		lv.showlive(nil, lv.stackMaps[0])
+		for val, idx := range lv.livenessMap.m {
+			lv.showlive(val, lv.stackMaps[idx.stackMapIndex])
+		}
+	}
 	if debuglive >= 2 {
 		lv.printDebug()
 	}
