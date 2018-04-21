@@ -43,9 +43,9 @@ There are no significant changes to the language specification.
 </p>
 
 <p><!-- CL 60230 -->
-A corner case involving shifts by untyped constants has been clarified,
+A corner case involving shifts of untyped constants has been clarified,
 and as a result the compilers have been updated to allow the index expression
-<code>x[1.0</code>&nbsp;<code>&lt;&lt;</code>&nbsp;<code>s]</code> where <code>s</code> is an untyped constant;
+<code>x[1.0</code>&nbsp;<code>&lt;&lt;</code>&nbsp;<code>s]</code> where <code>s</code> is an unsigned integer;
 the <a href="/pkg/go/types/">go/types</a> package already did.
 </p>
 
