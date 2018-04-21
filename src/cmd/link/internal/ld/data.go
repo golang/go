@@ -285,18 +285,8 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 						o = 0
 					}
 				} else if ctxt.HeadType == objabi.Hdarwin {
-					// ld64 for arm64 has a bug where if the address pointed to by o exists in the
-					// symbol table (dynid >= 0), or is inside a symbol that exists in the symbol
-					// table, then it will add o twice into the relocated value.
-					// The workaround is that on arm64 don't ever add symaddr to o and always use
-					// extern relocation by requiring rs->dynid >= 0.
 					if rs.Type != sym.SHOSTOBJ {
-						if ctxt.Arch.Family == sys.ARM64 && rs.Dynid < 0 {
-							Errorf(s, "R_ADDR reloc to %s+%d is not supported on darwin/arm64", rs.Name, o)
-						}
-						if ctxt.Arch.Family != sys.ARM64 {
-							o += Symaddr(rs)
-						}
+						o += Symaddr(rs)
 					}
 				} else if ctxt.HeadType == objabi.Hwindows {
 					// nothing to do
