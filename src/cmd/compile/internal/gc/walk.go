@@ -388,51 +388,51 @@ func walkexprlistcheap(s []*Node, init *Nodes) {
 	}
 }
 
-// Build name of function for interface conversion.
-// Not all names are possible
-// (e.g., we'll never generate convE2E or convE2I or convI2E).
-func convFuncName(from, to *types.Type) string {
+// convFuncName builds the runtime function name for interface conversion.
+// It also reports whether the function expects the data by address.
+// Not all names are possible. For example, we never generate convE2E or convE2I.
+func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 	tkind := to.Tie()
 	switch from.Tie() {
 	case 'I':
 		switch tkind {
 		case 'I':
-			return "convI2I"
+			return "convI2I", false
 		}
 	case 'T':
 		switch tkind {
 		case 'E':
 			switch {
 			case from.Size() == 2 && from.Align == 2:
-				return "convT2E16"
+				return "convT2E16", false
 			case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
-				return "convT2E32"
+				return "convT2E32", false
 			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
-				return "convT2E64"
+				return "convT2E64", false
 			case from.IsString():
-				return "convT2Estring"
+				return "convT2Estring", true
 			case from.IsSlice():
-				return "convT2Eslice"
+				return "convT2Eslice", true
 			case !types.Haspointers(from):
-				return "convT2Enoptr"
+				return "convT2Enoptr", true
 			}
-			return "convT2E"
+			return "convT2E", true
 		case 'I':
 			switch {
 			case from.Size() == 2 && from.Align == 2:
-				return "convT2I16"
+				return "convT2I16", false
 			case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
-				return "convT2I32"
+				return "convT2I32", false
 			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
-				return "convT2I64"
+				return "convT2I64", false
 			case from.IsString():
-				return "convT2Istring"
+				return "convT2Istring", true
 			case from.IsSlice():
-				return "convT2Islice"
+				return "convT2Islice", true
 			case !types.Haspointers(from):
-				return "convT2Inoptr"
+				return "convT2Inoptr", true
 			}
-			return "convT2I"
+			return "convT2I", true
 		}
 	}
 	Fatalf("unknown conv func %c2%c", from.Tie(), to.Tie())
@@ -980,24 +980,24 @@ opswitch:
 			}
 		}
 
-		if n.Left.Type.IsInterface() {
-			ll = append(ll, n.Left)
-		} else {
-			// regular types are passed by reference to avoid C vararg calls
-			// orderexpr arranged for n.Left to be a temporary for all
-			// the conversions it could see. comparison of an interface
+		fnname, needsaddr := convFuncName(n.Left.Type, n.Type)
+		v := n.Left
+		if needsaddr {
+			// Types of large or unknown size are passed by reference.
+			// Orderexpr arranged for n.Left to be a temporary for all
+			// the conversions it could see. Comparison of an interface
 			// with a non-interface, especially in a switch on interface value
 			// with non-interface cases, is not visible to orderstmt, so we
 			// have to fall back on allocating a temp here.
-			if islvalue(n.Left) {
-				ll = append(ll, nod(OADDR, n.Left, nil))
-			} else {
-				ll = append(ll, nod(OADDR, copyexpr(n.Left, n.Left.Type, init), nil))
+			if !islvalue(v) {
+				v = copyexpr(v, v.Type, init)
 			}
-			dowidth(n.Left.Type)
+			v = nod(OADDR, v, nil)
 		}
+		ll = append(ll, v)
 
-		fn := syslook(convFuncName(n.Left.Type, n.Type))
+		dowidth(n.Left.Type)
+		fn := syslook(fnname)
 		fn = substArgTypes(fn, n.Left.Type, n.Type)
 		dowidth(fn.Type)
 		n = nod(OCALL, fn, nil)
