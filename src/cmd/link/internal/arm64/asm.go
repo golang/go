@@ -150,10 +150,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 
 	rs := r.Xsym
 
-	// ld64 has a bug handling MACHO_ARM64_RELOC_UNSIGNED with !extern relocation.
-	// see cmd/internal/ld/data.go for details. The workaround is that don't use !extern
-	// UNSIGNED relocation at all.
-	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 || r.Type == objabi.R_ADDR {
+	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 			return false
