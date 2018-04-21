@@ -718,7 +718,7 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 //
 // See the Client.Do method documentation for details on how redirects
 // are handled.
-func Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
+func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 	return DefaultClient.Post(url, contentType, body)
 }
 
@@ -733,7 +733,7 @@ func Post(url string, contentType string, body io.Reader) (resp *Response, err e
 //
 // See the Client.Do method documentation for details on how redirects
 // are handled.
-func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
+func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
