@@ -500,6 +500,11 @@ func (m liveRegMask) niceString(config *ssa.Config) string {
 	return str
 }
 
+type livenessFuncCache struct {
+	be          []BlockEffects
+	livenessMap LivenessMap
+}
+
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
@@ -510,9 +515,24 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		vars:       vars,
 		idx:        idx,
 		stkptrsize: stkptrsize,
-		be:         make([]BlockEffects, f.NumBlocks()),
 
 		regMapSet: make(map[liveRegMask]int),
+	}
+
+	// Significant sources of allocation are kept in the ssa.Cache
+	// and reused. Surprisingly, the bit vectors themselves aren't
+	// a major source of allocation, but the slices are.
+	if lc, _ := f.Cache.Liveness.(*livenessFuncCache); lc == nil {
+		// Prep the cache so liveness can fill it later.
+		f.Cache.Liveness = new(livenessFuncCache)
+	} else {
+		if cap(lc.be) >= f.NumBlocks() {
+			lv.be = lc.be[:f.NumBlocks()]
+		}
+		lv.livenessMap = LivenessMap{lc.livenessMap.m[:0]}
+	}
+	if lv.be == nil {
+		lv.be = make([]BlockEffects, f.NumBlocks())
 	}
 
 	nblocks := int32(len(f.Blocks))
@@ -1681,6 +1701,20 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
 	}
 	if debuglive >= 2 {
 		lv.printDebug()
+	}
+
+	// Update the function cache.
+	{
+		cache := f.Cache.Liveness.(*livenessFuncCache)
+		if cap(lv.be) < 2000 { // Threshold from ssa.Cache slices.
+			for i := range lv.be {
+				lv.be[i] = BlockEffects{}
+			}
+			cache.be = lv.be
+		}
+		if cap(lv.livenessMap.m) < 2000 {
+			cache.livenessMap = lv.livenessMap
+		}
 	}
 
 	// Emit the live pointer map data structures
