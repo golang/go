@@ -126,9 +126,6 @@ type Liveness struct {
 
 	// livenessMap maps from safe points (i.e., CALLs) to their
 	// liveness map indexes.
-	//
-	// TODO(austin): Now that we have liveness at almost every PC,
-	// should this be a dense structure?
 	livenessMap LivenessMap
 	stackMapSet bvecSet
 	stackMaps   []bvec
@@ -140,12 +137,30 @@ type Liveness struct {
 
 // LivenessMap maps from *ssa.Value to LivenessIndex.
 type LivenessMap struct {
-	m map[*ssa.Value]LivenessIndex
+	m []LivenessIndex
+}
+
+func (m *LivenessMap) reset(ids int) {
+	m2 := m.m
+	if ids > cap(m2) {
+		m2 = make([]LivenessIndex, ids)
+	} else {
+		m2 = m2[:ids]
+	}
+	none := LivenessInvalid
+	for i := range m2 {
+		m2[i] = none
+	}
+	m.m = m2
+}
+
+func (m *LivenessMap) set(v *ssa.Value, i LivenessIndex) {
+	m.m[v.ID] = i
 }
 
 func (m LivenessMap) Get(v *ssa.Value) LivenessIndex {
-	if i, ok := m.m[v]; ok {
-		return i
+	if int(v.ID) < len(m.m) {
+		return m.m[int(v.ID)]
 	}
 	// Not a safe point.
 	return LivenessInvalid
@@ -497,8 +512,7 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		stkptrsize: stkptrsize,
 		be:         make([]BlockEffects, f.NumBlocks()),
 
-		livenessMap: LivenessMap{make(map[*ssa.Value]LivenessIndex)},
-		regMapSet:   make(map[liveRegMask]int),
+		regMapSet: make(map[liveRegMask]int),
 	}
 
 	nblocks := int32(len(f.Blocks))
@@ -515,6 +529,7 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		be.avarinitany = bulk.next()
 		be.avarinitall = bulk.next()
 	}
+	lv.livenessMap.reset(lv.f.NumValues())
 
 	lv.markUnsafePoints()
 	return lv
@@ -1346,7 +1361,7 @@ func (lv *Liveness) compact(b *ssa.Block) {
 	}
 	for _, v := range b.Values {
 		if lv.issafepoint(v) {
-			lv.livenessMap.m[v] = add(lv.livevars[pos])
+			lv.livenessMap.set(v, add(lv.livevars[pos]))
 			pos++
 		}
 	}
@@ -1656,8 +1671,12 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
 	lv.clobber()
 	if debuglive > 0 {
 		lv.showlive(nil, lv.stackMaps[0])
-		for val, idx := range lv.livenessMap.m {
-			lv.showlive(val, lv.stackMaps[idx.stackMapIndex])
+		for _, b := range f.Blocks {
+			for _, val := range b.Values {
+				if idx := lv.livenessMap.Get(val); idx.Valid() {
+					lv.showlive(val, lv.stackMaps[idx.stackMapIndex])
+				}
+			}
 		}
 	}
 	if debuglive >= 2 {
