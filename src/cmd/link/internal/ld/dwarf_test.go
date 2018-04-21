@@ -813,6 +813,10 @@ func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
 func TestRuntimeTypeAttr(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	if runtime.GOOS == "solaris" || runtime.GOARCH == "ppc64" {
+		t.Skip("TODO(heschi): fix or make skip permanent (golang.org/issue/24983)")
+	}
+
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
