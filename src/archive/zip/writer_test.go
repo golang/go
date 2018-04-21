@@ -299,6 +299,17 @@ func TestWriterFlush(t *testing.T) {
 	}
 }
 
+func TestWriterDir(t *testing.T) {
+	w := NewWriter(ioutil.Discard)
+	dw, err := w.Create("dir/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dw.Write([]byte("hello")); err == nil {
+		t.Error("Write to directory: got nil error, want non-nil")
+	}
+}
+
 func testCreate(t *testing.T, w *Writer, wt *WriteTest) {
 	header := &FileHeader{
 		Name:   wt.Name,
