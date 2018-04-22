@@ -133,9 +133,11 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
 	return ret
 }
 
-func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
+func (t *Transport) IdleConnCountForTesting(scheme, addr string) int {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
+	key := connectMethodKey{"", scheme, addr}
+	cacheKey := key.String()
 	for k, conns := range t.idleConn {
 		if k.String() == cacheKey {
 			return len(conns)
@@ -160,13 +162,19 @@ func (t *Transport) RequestIdleConnChForTesting() {
 	t.getIdleConnCh(connectMethod{nil, "http", "example.com"})
 }
 
-func (t *Transport) PutIdleTestConn() bool {
+func (t *Transport) PutIdleTestConn(scheme, addr string) bool {
 	c, _ := net.Pipe()
+	key := connectMethodKey{"", scheme, addr}
+	select {
+	case <-t.incHostConnCount(key):
+	default:
+		return false
+	}
 	return t.tryPutIdleConn(&persistConn{
 		t:        t,
 		conn:     c,                   // dummy
 		closech:  make(chan struct{}), // so it can be closed
-		cacheKey: connectMethodKey{"", "http", "example.com"},
+		cacheKey: key,
 	}) == nil
 }
 

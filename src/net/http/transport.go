@@ -55,6 +55,15 @@ var DefaultTransport RoundTripper = &Transport{
 // MaxIdleConnsPerHost.
 const DefaultMaxIdleConnsPerHost = 2
 
+// connsPerHostClosedCh is a closed channel used by MaxConnsPerHost
+// for the property that receives from a closed channel return the
+// zero value.
+var connsPerHostClosedCh = make(chan struct{})
+
+func init() {
+	close(connsPerHostClosedCh)
+}
+
 // Transport is an implementation of RoundTripper that supports HTTP,
 // HTTPS, and HTTP proxies (for either HTTP or HTTPS with CONNECT).
 //
@@ -102,6 +111,10 @@ type Transport struct {
 
 	altMu    sync.Mutex   // guards changing altProto only
 	altProto atomic.Value // of nil or map[string]RoundTripper, key is URI scheme
+
+	connCountMu          sync.Mutex
+	connPerHostCount     map[connectMethodKey]int
+	connPerHostAvailable map[connectMethodKey]chan struct{}
 
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
@@ -183,6 +196,18 @@ type Transport struct {
 	// DefaultMaxIdleConnsPerHost is used.
 	MaxIdleConnsPerHost int
 
+	// MaxConnsPerHost optionally limits the total number of
+	// connections per host, including connections in the dialing,
+	// active, and idle states. On limit violation, dials will block.
+	//
+	// Zero means no limit.
+	//
+	// For HTTP/2, this currently only controls the number of new
+	// connections being created at a time, instead of the total
+	// number. In practice, hosts using HTTP/2 only have about one
+	// idle connection, though.
+	MaxConnsPerHost int
+
 	// IdleConnTimeout is the maximum amount of time an idle
 	// (keep-alive) connection will remain idle before closing
 	// itself.
@@ -231,8 +256,6 @@ type Transport struct {
 	// h2transport (via onceSetNextProtoDefaults)
 	nextProtoOnce sync.Once
 	h2transport   *http2Transport // non-nil if http2 wired up
-
-	// TODO: tunable on max per-host TCP dials in flight (Issue 13957)
 }
 
 // onceSetNextProtoDefaults initializes TLSNextProto.
@@ -409,7 +432,8 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		var resp *Response
 		if pconn.alt != nil {
 			// HTTP/2 path.
-			t.setReqCanceler(req, nil) // not cancelable with CancelRequest
+			t.decHostConnCount(cm.key()) // don't count cached http2 conns toward conns per host
+			t.setReqCanceler(req, nil)   // not cancelable with CancelRequest
 			resp, err = pconn.alt.RoundTrip(req)
 		} else {
 			resp, err = pconn.roundTrip(treq)
@@ -908,6 +932,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		err error
 	}
 	dialc := make(chan dialRes)
+	cmKey := cm.key()
 
 	// Copy these hooks so we don't race on the postPendingDial in
 	// the goroutine we launch. Issue 11136.
@@ -919,6 +944,8 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		go func() {
 			if v := <-dialc; v.err == nil {
 				t.putOrCloseIdleConn(v.pc)
+			} else {
+				t.decHostConnCount(cmKey)
 			}
 			testHookPostPendingDial()
 		}()
@@ -926,6 +953,27 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 
 	cancelc := make(chan error, 1)
 	t.setReqCanceler(req, func(err error) { cancelc <- err })
+
+	if t.MaxConnsPerHost > 0 {
+		select {
+		case <-t.incHostConnCount(cmKey):
+			// count below conn per host limit; proceed
+		case pc := <-t.getIdleConnCh(cm):
+			if trace != nil && trace.GotConn != nil {
+				trace.GotConn(httptrace.GotConnInfo{Conn: pc.conn, Reused: pc.isReused()})
+			}
+			return pc, nil
+		case <-req.Cancel:
+			return nil, errRequestCanceledConn
+		case <-req.Context().Done():
+			return nil, req.Context().Err()
+		case err := <-cancelc:
+			if err == errRequestCanceled {
+				err = errRequestCanceledConn
+			}
+			return nil, err
+		}
+	}
 
 	go func() {
 		pc, err := t.dialConn(ctx, cm)
@@ -944,6 +992,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		}
 		// Our dial failed. See why to return a nicer error
 		// value.
+		t.decHostConnCount(cmKey)
 		select {
 		case <-req.Cancel:
 			// It was an error due to cancelation, so prioritize that
@@ -985,6 +1034,83 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		}
 		return nil, err
 	}
+}
+
+// incHostConnCount increments the count of connections for a
+// given host. It returns an already-closed channel if the count
+// is not at its limit; otherwise it returns a channel which is
+// notified when the count is below the limit.
+func (t *Transport) incHostConnCount(cmKey connectMethodKey) <-chan struct{} {
+	if t.MaxConnsPerHost <= 0 {
+		return connsPerHostClosedCh
+	}
+	t.connCountMu.Lock()
+	defer t.connCountMu.Unlock()
+	if t.connPerHostCount[cmKey] == t.MaxConnsPerHost {
+		if t.connPerHostAvailable == nil {
+			t.connPerHostAvailable = make(map[connectMethodKey]chan struct{})
+		}
+		ch, ok := t.connPerHostAvailable[cmKey]
+		if !ok {
+			ch = make(chan struct{})
+			t.connPerHostAvailable[cmKey] = ch
+		}
+		return ch
+	}
+	if t.connPerHostCount == nil {
+		t.connPerHostCount = make(map[connectMethodKey]int)
+	}
+	t.connPerHostCount[cmKey]++
+	// return a closed channel to avoid race: if decHostConnCount is called
+	// after incHostConnCount and during the nil check, decHostConnCount
+	// will delete the channel since it's not being listened on yet.
+	return connsPerHostClosedCh
+}
+
+// decHostConnCount decrements the count of connections
+// for a given host.
+// See Transport.MaxConnsPerHost.
+func (t *Transport) decHostConnCount(cmKey connectMethodKey) {
+	if t.MaxConnsPerHost <= 0 {
+		return
+	}
+	t.connCountMu.Lock()
+	defer t.connCountMu.Unlock()
+	t.connPerHostCount[cmKey]--
+	select {
+	case t.connPerHostAvailable[cmKey] <- struct{}{}:
+	default:
+		// close channel before deleting avoids getConn waiting forever in
+		// case getConn has reference to channel but hasn't started waiting.
+		// This could lead to more than MaxConnsPerHost in the unlikely case
+		// that > 1 go routine has fetched the channel but none started waiting.
+		if t.connPerHostAvailable[cmKey] != nil {
+			close(t.connPerHostAvailable[cmKey])
+		}
+		delete(t.connPerHostAvailable, cmKey)
+	}
+	if t.connPerHostCount[cmKey] == 0 {
+		delete(t.connPerHostCount, cmKey)
+	}
+}
+
+// connCloseListener wraps a connection, the transport that dialed it
+// and the connected-to host key so the host connection count can be
+// transparently decremented by whatever closes the embedded connection.
+type connCloseListener struct {
+	net.Conn
+	t        *Transport
+	cmKey    connectMethodKey
+	didClose int32
+}
+
+func (c *connCloseListener) Close() error {
+	if atomic.AddInt32(&c.didClose, 1) != 1 {
+		return nil
+	}
+	err := c.Conn.Close()
+	c.t.decHostConnCount(c.cmKey)
+	return err
 }
 
 // The connect method and the transport can both specify a TLS
@@ -1184,6 +1310,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		}
 	}
 
+	if t.MaxConnsPerHost > 0 {
+		pconn.conn = &connCloseListener{Conn: pconn.conn, t: t, cmKey: pconn.cacheKey}
+	}
 	pconn.br = bufio.NewReader(pconn)
 	pconn.bw = bufio.NewWriter(persistConnWriter{pconn})
 	go pconn.readLoop()

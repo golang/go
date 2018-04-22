@@ -446,25 +446,93 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	if e, g := 1, len(keys); e != g {
 		t.Fatalf("after first response, expected %d idle conn cache keys; got %d", e, g)
 	}
-	cacheKey := "|http|" + ts.Listener.Addr().String()
+	addr := ts.Listener.Addr().String()
+	cacheKey := "|http|" + addr
 	if keys[0] != cacheKey {
 		t.Fatalf("Expected idle cache key %q; got %q", cacheKey, keys[0])
 	}
-	if e, g := 1, tr.IdleConnCountForTesting(cacheKey); e != g {
+	if e, g := 1, tr.IdleConnCountForTesting("http", addr); e != g {
 		t.Errorf("after first response, expected %d idle conns; got %d", e, g)
 	}
 
 	resch <- "res2"
 	<-donech
-	if g, w := tr.IdleConnCountForTesting(cacheKey), 2; g != w {
+	if g, w := tr.IdleConnCountForTesting("http", addr), 2; g != w {
 		t.Errorf("after second response, idle conns = %d; want %d", g, w)
 	}
 
 	resch <- "res3"
 	<-donech
-	if g, w := tr.IdleConnCountForTesting(cacheKey), maxIdleConnsPerHost; g != w {
+	if g, w := tr.IdleConnCountForTesting("http", addr), maxIdleConnsPerHost; g != w {
 		t.Errorf("after third response, idle conns = %d; want %d", g, w)
 	}
+}
+
+func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		_, err := w.Write([]byte("foo"))
+		if err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+	}))
+	defer ts.Close()
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	dialStarted := make(chan struct{})
+	stallDial := make(chan struct{})
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		dialStarted <- struct{}{}
+		<-stallDial
+		return net.Dial(network, addr)
+	}
+
+	tr.DisableKeepAlives = true
+	tr.MaxConnsPerHost = 1
+
+	preDial := make(chan struct{})
+	reqComplete := make(chan struct{})
+	doReq := func(reqId string) {
+		req, _ := NewRequest("GET", ts.URL, nil)
+		trace := &httptrace.ClientTrace{
+			GetConn: func(hostPort string) {
+				preDial <- struct{}{}
+			},
+		}
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+		resp, err := tr.RoundTrip(req)
+		if err != nil {
+			t.Errorf("unexpected error for request %s: %v", reqId, err)
+		}
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Errorf("unexpected error for request %s: %v", reqId, err)
+		}
+		reqComplete <- struct{}{}
+	}
+	// get req1 to dial-in-progress
+	go doReq("req1")
+	<-preDial
+	<-dialStarted
+
+	// get req2 to waiting on conns per host to go down below max
+	go doReq("req2")
+	<-preDial
+	select {
+	case <-dialStarted:
+		t.Error("req2 dial started while req1 dial in progress")
+		return
+	default:
+	}
+
+	// let req1 complete
+	stallDial <- struct{}{}
+	<-reqComplete
+
+	// let req2 complete
+	<-dialStarted
+	stallDial <- struct{}{}
+	<-reqComplete
 }
 
 func TestTransportRemovesDeadIdleConnections(t *testing.T) {
@@ -3118,7 +3186,7 @@ func TestRoundTripReturnsProxyError(t *testing.T) {
 func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	tr := &Transport{}
 	wantIdle := func(when string, n int) bool {
-		got := tr.IdleConnCountForTesting("|http|example.com") // key used by PutIdleTestConn
+		got := tr.IdleConnCountForTesting("http", "example.com") // key used by PutIdleTestConn
 		if got == n {
 			return true
 		}
@@ -3126,10 +3194,10 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 		return false
 	}
 	wantIdle("start", 0)
-	if !tr.PutIdleTestConn() {
+	if !tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("put failed")
 	}
-	if !tr.PutIdleTestConn() {
+	if !tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("second put failed")
 	}
 	wantIdle("after put", 2)
@@ -3138,7 +3206,7 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 		t.Error("should be idle after CloseIdleConnections")
 	}
 	wantIdle("after close idle", 0)
-	if tr.PutIdleTestConn() {
+	if tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("put didn't fail")
 	}
 	wantIdle("after second put", 0)
@@ -3147,7 +3215,7 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	if tr.IsIdleForTesting() {
 		t.Error("shouldn't be idle after RequestIdleConnChForTesting")
 	}
-	if !tr.PutIdleTestConn() {
+	if !tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("after re-activation")
 	}
 	wantIdle("after final put", 1)
