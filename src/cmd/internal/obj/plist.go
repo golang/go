@@ -190,3 +190,18 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 		s.Type = objabi.STLSBSS
 	}
 }
+
+// EmitEntryLiveness generates PCDATA Progs after p to switch to the
+// liveness map active at the entry of function s. It returns the last
+// Prog generated.
+func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+	pcdata := Appendp(p, newprog)
+	pcdata.Pos = s.Func.Text.Pos
+	pcdata.As = APCDATA
+	pcdata.From.Type = TYPE_CONST
+	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.To.Type = TYPE_CONST
+	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+
+	return pcdata
+}

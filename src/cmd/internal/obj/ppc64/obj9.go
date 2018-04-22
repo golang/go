@@ -966,6 +966,8 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		q.Pcond = p
 	}
 
+	p = c.ctxt.EmitEntryLiveness(c.cursym, p, c.newprog)
+
 	var morestacksym *obj.LSym
 	if c.cursym.CFunc() {
 		morestacksym = c.ctxt.Lookup("runtime.morestackc")
