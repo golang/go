@@ -1168,6 +1168,11 @@ const (
 	OpARM64MOVHUloadidx
 	OpARM64MOVBloadidx
 	OpARM64MOVBUloadidx
+	OpARM64MOVHloadidx2
+	OpARM64MOVHUloadidx2
+	OpARM64MOVWloadidx4
+	OpARM64MOVWUloadidx4
+	OpARM64MOVDloadidx8
 	OpARM64MOVBstore
 	OpARM64MOVHstore
 	OpARM64MOVWstore
@@ -1179,6 +1184,9 @@ const (
 	OpARM64MOVHstoreidx
 	OpARM64MOVWstoreidx
 	OpARM64MOVDstoreidx
+	OpARM64MOVHstoreidx2
+	OpARM64MOVWstoreidx4
+	OpARM64MOVDstoreidx8
 	OpARM64MOVBstorezero
 	OpARM64MOVHstorezero
 	OpARM64MOVWstorezero
@@ -1188,6 +1196,9 @@ const (
 	OpARM64MOVHstorezeroidx
 	OpARM64MOVWstorezeroidx
 	OpARM64MOVDstorezeroidx
+	OpARM64MOVHstorezeroidx2
+	OpARM64MOVWstorezeroidx4
+	OpARM64MOVDstorezeroidx8
 	OpARM64FMOVDgpfp
 	OpARM64FMOVDfpgp
 	OpARM64MOVBreg
@@ -15233,10 +15244,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVDloadidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVD,
+		name:   "MOVDloadidx",
+		argLen: 3,
+		asm:    arm64.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15248,10 +15258,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVWloadidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVW,
+		name:   "MOVWloadidx",
+		argLen: 3,
+		asm:    arm64.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15263,10 +15272,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVWUloadidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVWU,
+		name:   "MOVWUloadidx",
+		argLen: 3,
+		asm:    arm64.AMOVWU,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15278,10 +15286,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVHloadidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVH,
+		name:   "MOVHloadidx",
+		argLen: 3,
+		asm:    arm64.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15293,10 +15300,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVHUloadidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVHU,
+		name:   "MOVHUloadidx",
+		argLen: 3,
+		asm:    arm64.AMOVHU,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15308,10 +15314,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVBloadidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVB,
+		name:   "MOVBloadidx",
+		argLen: 3,
+		asm:    arm64.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15323,10 +15328,79 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVBUloadidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVBU,
+		name:   "MOVBUloadidx",
+		argLen: 3,
+		asm:    arm64.AMOVBU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "MOVHloadidx2",
+		argLen: 3,
+		asm:    arm64.AMOVH,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "MOVHUloadidx2",
+		argLen: 3,
+		asm:    arm64.AMOVHU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "MOVWloadidx4",
+		argLen: 3,
+		asm:    arm64.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "MOVWUloadidx4",
+		argLen: 3,
+		asm:    arm64.AMOVWU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "MOVDloadidx8",
+		argLen: 3,
+		asm:    arm64.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15437,10 +15511,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVBstoreidx",
-		argLen:         4,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVB,
+		name:   "MOVBstoreidx",
+		argLen: 4,
+		asm:    arm64.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15450,10 +15523,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVHstoreidx",
-		argLen:         4,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVH,
+		name:   "MOVHstoreidx",
+		argLen: 4,
+		asm:    arm64.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15463,10 +15535,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVWstoreidx",
-		argLen:         4,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVW,
+		name:   "MOVWstoreidx",
+		argLen: 4,
+		asm:    arm64.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15476,10 +15547,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVDstoreidx",
-		argLen:         4,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVD,
+		name:   "MOVDstoreidx",
+		argLen: 4,
+		asm:    arm64.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{2, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+		},
+	},
+	{
+		name:   "MOVHstoreidx2",
+		argLen: 4,
+		asm:    arm64.AMOVH,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{2, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+		},
+	},
+	{
+		name:   "MOVWstoreidx4",
+		argLen: 4,
+		asm:    arm64.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{2, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+		},
+	},
+	{
+		name:   "MOVDstoreidx8",
+		argLen: 4,
+		asm:    arm64.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15554,10 +15660,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVBstorezeroidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVB,
+		name:   "MOVBstorezeroidx",
+		argLen: 3,
+		asm:    arm64.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15566,10 +15671,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVHstorezeroidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVH,
+		name:   "MOVHstorezeroidx",
+		argLen: 3,
+		asm:    arm64.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15578,10 +15682,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVWstorezeroidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVW,
+		name:   "MOVWstorezeroidx",
+		argLen: 3,
+		asm:    arm64.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -15590,10 +15693,42 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVDstorezeroidx",
-		argLen:         3,
-		faultOnNilArg0: true,
-		asm:            arm64.AMOVD,
+		name:   "MOVDstorezeroidx",
+		argLen: 3,
+		asm:    arm64.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+		},
+	},
+	{
+		name:   "MOVHstorezeroidx2",
+		argLen: 3,
+		asm:    arm64.AMOVH,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+		},
+	},
+	{
+		name:   "MOVWstorezeroidx4",
+		argLen: 3,
+		asm:    arm64.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+		},
+	},
+	{
+		name:   "MOVDstorezeroidx8",
+		argLen: 3,
+		asm:    arm64.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
