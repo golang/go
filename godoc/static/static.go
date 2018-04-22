@@ -3479,6 +3479,22 @@ div#blog .read {
 	text-align: right;
 }
 
+@supports (--c: 0) {
+	[style*="--aspect-ratio-padding:"] {
+		position: relative;
+		overflow: hidden;
+		padding-top: var(--aspect-ratio-padding);
+	}
+
+	[style*="--aspect-ratio-padding:"]>* {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+	}
+}
+
 .toggleButton { cursor: pointer; }
 .toggle > .collapsed { display: block; }
 .toggle > .expanded { display: none; }
