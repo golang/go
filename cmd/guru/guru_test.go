@@ -6,7 +6,7 @@ package main_test
 
 // This file defines a test framework for guru queries.
 //
-// The files beneath testdata/src/main contain Go programs containing
+// The files beneath testdata/src contain Go programs containing
 // query annotations of the form:
 //
 //   @verb id "select"
@@ -246,65 +246,69 @@ func TestGuru(t *testing.T) {
 		"testdata/src/referrers-json/main.go",
 		"testdata/src/what-json/main.go",
 	} {
-		if filename == "testdata/src/referrers/main.go" && runtime.GOOS == "plan9" {
-			// Disable this test on plan9 since it expects a particular
-			// wording for a "no such file or directory" error.
-			continue
-		}
-		if filename == "testdata/src/alias/alias.go" && !guru.HasAlias {
-			continue
-		}
-		if strings.HasSuffix(filename, "19.go") && !contains(build.Default.ReleaseTags, "go1.9") {
-			// TODO(adonovan): recombine the 'describe' and 'definition'
-			// tests once we drop support for go1.8.
-			continue
-		}
-		if filename == "testdata/src/referrers/main.go" && !contains(build.Default.ReleaseTags, "go1.11") {
-			// Disabling broken test on Go 1.9 and Go 1.10. https://golang.org/issue/24421
-			// TODO(gri,adonovan): fix this test.
-			continue
-		}
+		filename := filename
+		name := strings.Split(filename, "/")[2]
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if filename == "testdata/src/referrers/main.go" && runtime.GOOS == "plan9" {
+				// Disable this test on plan9 since it expects a particular
+				// wording for a "no such file or directory" error.
+				t.Skip()
+			}
+			if filename == "testdata/src/alias/alias.go" && !guru.HasAlias {
+				t.Skip()
+			}
+			if strings.HasSuffix(filename, "19.go") && !contains(build.Default.ReleaseTags, "go1.9") {
+				// TODO(adonovan): recombine the 'describe' and 'definition'
+				// tests once we drop support for go1.8.
+				t.Skip()
+			}
+			if filename == "testdata/src/referrers/main.go" && !contains(build.Default.ReleaseTags, "go1.11") {
+				// Disabling broken test on Go 1.9 and Go 1.10. https://golang.org/issue/24421
+				// TODO(gri,adonovan): fix this test.
+				t.Skip()
+			}
 
-		json := strings.Contains(filename, "-json/")
-		queries := parseQueries(t, filename)
-		golden := filename + "lden"
-		got := filename + "t"
-		gotfh, err := os.Create(got)
-		if err != nil {
-			t.Errorf("Create(%s) failed: %s", got, err)
-			continue
-		}
-		defer os.Remove(got)
-		defer gotfh.Close()
+			json := strings.Contains(filename, "-json/")
+			queries := parseQueries(t, filename)
+			golden := filename + "lden"
+			got := filename + "t"
+			gotfh, err := os.Create(got)
+			if err != nil {
+				t.Fatalf("Create(%s) failed: %s", got, err)
+			}
+			defer os.Remove(got)
+			defer gotfh.Close()
 
-		// Run the guru on each query, redirecting its output
-		// and error (if any) to the foo.got file.
-		for _, q := range queries {
-			doQuery(gotfh, q, json)
-		}
+			// Run the guru on each query, redirecting its output
+			// and error (if any) to the foo.got file.
+			for _, q := range queries {
+				doQuery(gotfh, q, json)
+			}
 
-		// Compare foo.got with foo.golden.
-		var cmd *exec.Cmd
-		switch runtime.GOOS {
-		case "plan9":
-			cmd = exec.Command("/bin/diff", "-c", golden, got)
-		default:
-			cmd = exec.Command("/usr/bin/diff", "-u", golden, got)
-		}
-		buf := new(bytes.Buffer)
-		cmd.Stdout = buf
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			t.Errorf("Guru tests for %s failed: %s.\n%s\n",
-				filename, err, buf)
+			// Compare foo.got with foo.golden.
+			var cmd *exec.Cmd
+			switch runtime.GOOS {
+			case "plan9":
+				cmd = exec.Command("/bin/diff", "-c", golden, got)
+			default:
+				cmd = exec.Command("/usr/bin/diff", "-u", golden, got)
+			}
+			buf := new(bytes.Buffer)
+			cmd.Stdout = buf
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				t.Errorf("Guru tests for %s failed: %s.\n%s\n",
+					filename, err, buf)
 
-			if *updateFlag {
-				t.Logf("Updating %s...", golden)
-				if err := exec.Command("/bin/cp", got, golden).Run(); err != nil {
-					t.Errorf("Update failed: %s", err)
+				if *updateFlag {
+					t.Logf("Updating %s...", golden)
+					if err := exec.Command("/bin/cp", got, golden).Run(); err != nil {
+						t.Errorf("Update failed: %s", err)
+					}
 				}
 			}
-		}
+		})
 	}
 }
 
