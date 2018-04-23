@@ -75,7 +75,7 @@ type Query struct {
 	PTALog     io.Writer // (optional) pointer-analysis log file
 	Reflection bool      // model reflection soundly (currently slow).
 
-	// result-printing function
+	// result-printing function, safe for concurrent use
 	Output func(*token.FileSet, QueryResult)
 }
 

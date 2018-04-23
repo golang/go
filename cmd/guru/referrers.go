@@ -394,196 +394,207 @@ func globalReferrersPkgLevel(q *Query, obj types.Object, fset *token.FileSet) er
 	namebytes := []byte(name)          // byte slice version of query object name, for early filtering
 	objpos := fset.Position(obj.Pos()) // position of query object, used to prevent re-emitting original decl
 
-	var files []string    // reusable list of files
-	var pkgnames []string // reusable list of names the package is imported under
+	sema := make(chan struct{}, 20) // counting semaphore to limit I/O concurrency
+	var wg sync.WaitGroup
 
 	for u := range users {
-		uIsXTest := strings.HasSuffix(u, "!test") // indicates whether this package is the special defpkg xtest package
-		u = strings.TrimSuffix(u, "!test")
+		u := u
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		// Resolve package.
-		pkg, err := q.Build.Import(u, cwd, build.IgnoreVendor)
-		if err != nil {
-			continue
-		}
+			uIsXTest := strings.HasSuffix(u, "!test") // indicates whether this package is the special defpkg xtest package
+			u = strings.TrimSuffix(u, "!test")
 
-		files = files[:0]
-
-		// If we're not in the query package,
-		// the object is in another package regardless,
-		// so we want to process all files.
-		// If we are in the query package,
-		// we want to only process the files that are
-		// part of that query package;
-		// that set depends on whether the query package itself is an xtest.
-		inQueryPkg := u == defpkg && isxtest == uIsXTest
-		if !inQueryPkg || !isxtest {
-			files = append(files, pkg.GoFiles...)
-			files = append(files, pkg.TestGoFiles...)
-			files = append(files, pkg.CgoFiles...) // use raw cgo files, as we're only parsing
-		}
-		if !inQueryPkg || isxtest {
-			files = append(files, pkg.XTestGoFiles...)
-		}
-
-		if len(files) == 0 {
-			continue
-		}
-
-		var deffiles map[string]*ast.File // set of files that are part of this package, for inQueryPkg only
-		if inQueryPkg {
-			deffiles = make(map[string]*ast.File)
-		}
-
-		for _, file := range files {
-			if !buildutil.IsAbsPath(q.Build, file) {
-				file = buildutil.JoinPath(q.Build, pkg.Dir, file)
-			}
-			src, err := readFile(q.Build, file)
+			// Resolve package.
+			sema <- struct{}{} // acquire token
+			pkg, err := q.Build.Import(u, cwd, build.IgnoreVendor)
+			<-sema // release token
 			if err != nil {
-				continue
+				return
 			}
 
-			// Fast path: If the object's name isn't present anywhere in the source, ignore the file.
-			if !bytes.Contains(src, namebytes) {
-				continue
+			// If we're not in the query package,
+			// the object is in another package regardless,
+			// so we want to process all files.
+			// If we are in the query package,
+			// we want to only process the files that are
+			// part of that query package;
+			// that set depends on whether the query package itself is an xtest.
+			inQueryPkg := u == defpkg && isxtest == uIsXTest
+			var files []string
+			if !inQueryPkg || !isxtest {
+				files = append(files, pkg.GoFiles...)
+				files = append(files, pkg.TestGoFiles...)
+				files = append(files, pkg.CgoFiles...) // use raw cgo files, as we're only parsing
+			}
+			if !inQueryPkg || isxtest {
+				files = append(files, pkg.XTestGoFiles...)
 			}
 
+			if len(files) == 0 {
+				return
+			}
+
+			var deffiles map[string]*ast.File
 			if inQueryPkg {
-				// If we're in the query package, we defer final processing until we have
-				// parsed all of the candidate files in the package.
-				// Best effort; allow errors and use what we can from what remains.
-				f, _ := parser.ParseFile(fset, file, src, parser.AllErrors)
-				if f != nil {
-					deffiles[file] = f
+				deffiles = make(map[string]*ast.File)
+			}
+
+			for _, file := range files {
+				if !buildutil.IsAbsPath(q.Build, file) {
+					file = buildutil.JoinPath(q.Build, pkg.Dir, file)
 				}
-				continue
-			}
-
-			// We aren't in the query package. Go file by file.
-
-			// Parse out only the imports, to check whether the defining package
-			// was imported, and if so, under what names.
-			// Best effort; allow errors and use what we can from what remains.
-			f, _ := parser.ParseFile(fset, file, src, parser.ImportsOnly|parser.AllErrors)
-			if f == nil {
-				continue
-			}
-
-			// pkgnames is the set of names by which defpkg is imported in this file.
-			// (Multiple imports in the same file are legal but vanishingly rare.)
-			pkgnames = pkgnames[:0]
-			var isdotimport bool
-			for _, imp := range f.Imports {
-				path, err := strconv.Unquote(imp.Path.Value)
-				if err != nil || path != defpkg {
+				sema <- struct{}{} // acquire token
+				src, err := readFile(q.Build, file)
+				<-sema // release token
+				if err != nil {
 					continue
 				}
-				switch {
-				case imp.Name == nil:
-					pkgnames = append(pkgnames, defname)
-				case imp.Name.Name == ".":
-					isdotimport = true
-				default:
-					pkgnames = append(pkgnames, imp.Name.Name)
+
+				// Fast path: If the object's name isn't present anywhere in the source, ignore the file.
+				if !bytes.Contains(src, namebytes) {
+					continue
 				}
-			}
-			if len(pkgnames) == 0 && !isdotimport {
-				// Defining package not imported, bail.
-				continue
-			}
 
-			// Re-parse the entire file.
-			// Parse errors are ok; we'll do the best we can with a partial AST, if we have one.
-			f, _ = parser.ParseFile(fset, file, src, parser.AllErrors)
-			if f == nil {
-				continue
-			}
+				if inQueryPkg {
+					// If we're in the query package, we defer final processing until we have
+					// parsed all of the candidate files in the package.
+					// Best effort; allow errors and use what we can from what remains.
+					f, _ := parser.ParseFile(fset, file, src, parser.AllErrors)
+					if f != nil {
+						deffiles[file] = f
+					}
+					continue
+				}
 
-			// Walk the AST looking for references.
-			var refs []*ast.Ident
-			ast.Inspect(f, func(n ast.Node) bool {
-				// Check selector expressions.
-				// If the selector matches the target name,
-				// and the expression is one of the names
-				// that the defining package was imported under,
-				// then we have a match.
-				if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == name {
-					if id, ok := sel.X.(*ast.Ident); ok {
-						for _, n := range pkgnames {
-							if n == id.Name {
-								refs = append(refs, sel.Sel)
-								// Don't recurse further, to avoid duplicate entries
-								// from the dot import check below.
-								return false
+				// We aren't in the query package. Go file by file.
+
+				// Parse out only the imports, to check whether the defining package
+				// was imported, and if so, under what names.
+				// Best effort; allow errors and use what we can from what remains.
+				f, _ := parser.ParseFile(fset, file, src, parser.ImportsOnly|parser.AllErrors)
+				if f == nil {
+					continue
+				}
+
+				// pkgnames is the set of names by which defpkg is imported in this file.
+				// (Multiple imports in the same file are legal but vanishingly rare.)
+				pkgnames := make([]string, 0, 1)
+				var isdotimport bool
+				for _, imp := range f.Imports {
+					path, err := strconv.Unquote(imp.Path.Value)
+					if err != nil || path != defpkg {
+						continue
+					}
+					switch {
+					case imp.Name == nil:
+						pkgnames = append(pkgnames, defname)
+					case imp.Name.Name == ".":
+						isdotimport = true
+					default:
+						pkgnames = append(pkgnames, imp.Name.Name)
+					}
+				}
+				if len(pkgnames) == 0 && !isdotimport {
+					// Defining package not imported, bail.
+					continue
+				}
+
+				// Re-parse the entire file.
+				// Parse errors are ok; we'll do the best we can with a partial AST, if we have one.
+				f, _ = parser.ParseFile(fset, file, src, parser.AllErrors)
+				if f == nil {
+					continue
+				}
+
+				// Walk the AST looking for references.
+				var refs []*ast.Ident
+				ast.Inspect(f, func(n ast.Node) bool {
+					// Check selector expressions.
+					// If the selector matches the target name,
+					// and the expression is one of the names
+					// that the defining package was imported under,
+					// then we have a match.
+					if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == name {
+						if id, ok := sel.X.(*ast.Ident); ok {
+							for _, n := range pkgnames {
+								if n == id.Name {
+									refs = append(refs, sel.Sel)
+									// Don't recurse further, to avoid duplicate entries
+									// from the dot import check below.
+									return false
+								}
 							}
 						}
 					}
-				}
-				// Dot imports are special.
-				// Objects imported from the defining package are placed in the package scope.
-				// go/ast does not resolve them to an object.
-				// At all other scopes (file, local), go/ast can do the resolution.
-				// So we're looking for object-free idents with the right name.
-				// The only other way to get something with the right name at the package scope
-				// is to *be* the defining package. We handle that case separately (inQueryPkg).
-				if isdotimport {
-					if id, ok := n.(*ast.Ident); ok && id.Obj == nil && id.Name == name {
-						refs = append(refs, id)
-						return false
+					// Dot imports are special.
+					// Objects imported from the defining package are placed in the package scope.
+					// go/ast does not resolve them to an object.
+					// At all other scopes (file, local), go/ast can do the resolution.
+					// So we're looking for object-free idents with the right name.
+					// The only other way to get something with the right name at the package scope
+					// is to *be* the defining package. We handle that case separately (inQueryPkg).
+					if isdotimport {
+						if id, ok := n.(*ast.Ident); ok && id.Obj == nil && id.Name == name {
+							refs = append(refs, id)
+							return false
+						}
 					}
-				}
-				return true
-			})
-
-			// Emit any references we found.
-			if len(refs) > 0 {
-				q.Output(fset, &referrersPackageResult{
-					pkg:   types.NewPackage(pkg.ImportPath, pkg.Name),
-					build: q.Build,
-					fset:  fset,
-					refs:  refs,
+					return true
 				})
-			}
-		}
 
-		// If we're in the query package, we've now collected all the files in the package.
-		// (Or at least the ones that might contain references to the object.)
-		// Find and emit refs.
-		if inQueryPkg {
-			// Bundle the files together into a package.
-			// This does package-level object resolution.
-			qpkg, _ := ast.NewPackage(fset, deffiles, nil, nil)
-			// Look up the query object; we know that it is defined in the package scope.
-			pkgobj := qpkg.Scope.Objects[name]
-			if pkgobj == nil {
-				panic("missing defpkg object for " + defpkg + "." + name)
+				// Emit any references we found.
+				if len(refs) > 0 {
+					q.Output(fset, &referrersPackageResult{
+						pkg:   types.NewPackage(pkg.ImportPath, pkg.Name),
+						build: q.Build,
+						fset:  fset,
+						refs:  refs,
+					})
+				}
 			}
-			// Find all references to the query object.
-			var refs []*ast.Ident
-			ast.Inspect(qpkg, func(n ast.Node) bool {
-				if id, ok := n.(*ast.Ident); ok {
-					// Check both that this is a reference to the query object
-					// and that it is not the query object itself;
-					// the query object itself was already emitted.
-					if id.Obj == pkgobj && objpos != fset.Position(id.Pos()) {
-						refs = append(refs, id)
-						return false
+
+			// If we're in the query package, we've now collected all the files in the package.
+			// (Or at least the ones that might contain references to the object.)
+			// Find and emit refs.
+			if inQueryPkg {
+				// Bundle the files together into a package.
+				// This does package-level object resolution.
+				qpkg, _ := ast.NewPackage(fset, deffiles, nil, nil)
+				// Look up the query object; we know that it is defined in the package scope.
+				pkgobj := qpkg.Scope.Objects[name]
+				if pkgobj == nil {
+					panic("missing defpkg object for " + defpkg + "." + name)
+				}
+				// Find all references to the query object.
+				var refs []*ast.Ident
+				ast.Inspect(qpkg, func(n ast.Node) bool {
+					if id, ok := n.(*ast.Ident); ok {
+						// Check both that this is a reference to the query object
+						// and that it is not the query object itself;
+						// the query object itself was already emitted.
+						if id.Obj == pkgobj && objpos != fset.Position(id.Pos()) {
+							refs = append(refs, id)
+							return false
+						}
 					}
-				}
-				return true
-			})
-			if len(refs) > 0 {
-				q.Output(fset, &referrersPackageResult{
-					pkg:   types.NewPackage(pkg.ImportPath, pkg.Name),
-					build: q.Build,
-					fset:  fset,
-					refs:  refs,
+					return true
 				})
+				if len(refs) > 0 {
+					q.Output(fset, &referrersPackageResult{
+						pkg:   types.NewPackage(pkg.ImportPath, pkg.Name),
+						build: q.Build,
+						fset:  fset,
+						refs:  refs,
+					})
+				}
+				deffiles = nil // allow GC
 			}
-			deffiles = nil // allow GC
-		}
+		}()
 	}
+
+	wg.Wait()
 
 	return nil
 }
