@@ -56,7 +56,9 @@
 
 // Lowering other arithmetic
 (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
-(Ctz32 x) -> (Select0 (BSFQ (ORQ <typ.UInt64> (MOVQconst [1<<32]) x)))
+(Ctz32 x) -> (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+(Ctz16 x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
+(Ctz8  x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
 
 (BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
 (BitLen32 x) -> (BitLen64 (MOVLQZX <typ.UInt64> x))

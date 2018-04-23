@@ -205,13 +205,13 @@ func TrailingZeros32(n uint32) int {
 }
 
 func TrailingZeros16(n uint16) int {
-	// amd64:"BSFQ","BTSQ\\t\\$16"
+	// amd64:"BSFL","BTSL\\t\\$16"
 	// s390x:"FLOGR","OR\t\\$65536"
 	return bits.TrailingZeros16(n)
 }
 
 func TrailingZeros8(n uint8) int {
-	// amd64:"BSFQ","BTSQ\\t\\$8"
+	// amd64:"BSFL","BTSL\\t\\$8"
 	// s390x:"FLOGR","OR\t\\$256"
 	return bits.TrailingZeros8(n)
 }

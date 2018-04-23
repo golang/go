@@ -587,10 +587,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueAMD64_OpConstNil_0(v)
+	case OpCtz16:
+		return rewriteValueAMD64_OpCtz16_0(v)
 	case OpCtz32:
 		return rewriteValueAMD64_OpCtz32_0(v)
 	case OpCtz64:
 		return rewriteValueAMD64_OpCtz64_0(v)
+	case OpCtz8:
+		return rewriteValueAMD64_OpCtz8_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueAMD64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64:
@@ -53220,6 +53224,26 @@ func rewriteValueAMD64_OpConstNil_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpCtz16_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz16 x)
+	// cond:
+	// result: (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
+	for {
+		x := v.Args[0]
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v1 := b.NewValue0(v.Pos, OpAMD64BTSLconst, typ.UInt32)
+		v1.AuxInt = 16
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -53227,15 +53251,13 @@ func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
 	_ = typ
 	// match: (Ctz32 x)
 	// cond:
-	// result: (Select0 (BSFQ (ORQ <typ.UInt64> (MOVQconst [1<<32]) x)))
+	// result: (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
 	for {
 		x := v.Args[0]
 		v.reset(OpSelect0)
 		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, types.NewTuple(typ.UInt64, types.TypeFlags))
-		v1 := b.NewValue0(v.Pos, OpAMD64ORQ, typ.UInt64)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
-		v2.AuxInt = 1 << 32
-		v1.AddArg(v2)
+		v1 := b.NewValue0(v.Pos, OpAMD64BTSQconst, typ.UInt64)
+		v1.AuxInt = 32
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -53267,6 +53289,26 @@ func rewriteValueAMD64_OpCtz64_0(v *Value) bool {
 		v4.AddArg(x)
 		v3.AddArg(v4)
 		v.AddArg(v3)
+		return true
+	}
+}
+func rewriteValueAMD64_OpCtz8_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz8 x)
+	// cond:
+	// result: (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
+	for {
+		x := v.Args[0]
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v1 := b.NewValue0(v.Pos, OpAMD64BTSLconst, typ.UInt32)
+		v1.AuxInt = 8
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }
