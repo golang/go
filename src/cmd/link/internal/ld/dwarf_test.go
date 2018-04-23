@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -813,10 +814,6 @@ func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
 func TestRuntimeTypeAttr(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "solaris" || runtime.GOARCH == "ppc64" {
-		t.Skip("TODO(heschi): fix or make skip permanent (golang.org/issue/24983)")
-	}
-
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
@@ -824,6 +821,10 @@ func TestRuntimeTypeAttr(t *testing.T) {
 	// Explicitly test external linking, for dsymutil compatility on Darwin.
 	for _, flags := range []string{"-ldflags=linkmode=internal", "-ldflags=-linkmode=external"} {
 		t.Run("flags="+flags, func(t *testing.T) {
+			if runtime.GOARCH == "ppc64" && strings.Contains(flags, "external") {
+				t.Skip("-linkmode=external not supported on ppc64")
+			}
+
 			testRuntimeTypeAttr(t, flags)
 		})
 	}
@@ -863,15 +864,15 @@ func main() {
 	if err != nil {
 		t.Fatalf("error reading symbols: %v", err)
 	}
-	var typeStar *objfilepkg.Sym
+	var types *objfilepkg.Sym
 	for _, sym := range symbols {
-		if sym.Name == "type.*" {
-			typeStar = &sym
+		if sym.Name == "runtime.types" {
+			types = &sym
 			break
 		}
 	}
-	if typeStar == nil {
-		t.Fatal("couldn't find types.* in symbols")
+	if types == nil {
+		t.Fatal("couldn't find runtime.types in symbols")
 	}
 
 	d, err := f.DWARF()
@@ -893,7 +894,7 @@ func main() {
 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
 	}
 
-	if rtAttr.(uint64)+typeStar.Addr != addr {
-		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), typeStar.Addr, addr)
+	if rtAttr.(uint64)+types.Addr != addr {
+		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
 	}
 }
