@@ -683,8 +683,8 @@ func scanGoDirs(goRoot bool) {
 	}
 }
 
-// VendorlessPath returns the devendorized version of the provided import path.
-// e.g. "foo/bar/vendor/a/b" => "a/b"
+// VendorlessPath returns the devendorized version of the import path ipath.
+// For example, VendorlessPath("foo/bar/vendor/a/b") returns "a/b".
 func VendorlessPath(ipath string) string {
 	// Devendorize for use in import statement.
 	if i := strings.LastIndex(ipath, "/vendor/"); i >= 0 {
