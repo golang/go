@@ -436,12 +436,15 @@ func globalReferrersPkgLevel(q *Query, obj types.Object, fset *token.FileSet) er
 				deffiles = make(map[string]*ast.File)
 			}
 
+			buf := new(bytes.Buffer) // reusable buffer for reading files
+
 			for _, file := range files {
 				if !buildutil.IsAbsPath(q.Build, file) {
 					file = buildutil.JoinPath(q.Build, pkg.Dir, file)
 				}
+				buf.Reset()
 				sema <- struct{}{} // acquire token
-				src, err := readFile(q.Build, file)
+				src, err := readFile(q.Build, file, buf)
 				<-sema // release token
 				if err != nil {
 					continue
@@ -731,7 +734,7 @@ func (r *referrersPackageResult) foreachRef(f func(id *ast.Ident, text string)) 
 			// start asynchronous read.
 			go func() {
 				sema <- struct{}{} // acquire token
-				content, err := readFile(r.build, posn.Filename)
+				content, err := readFile(r.build, posn.Filename, nil)
 				<-sema // release token
 				if err != nil {
 					fi.data <- err
@@ -769,14 +772,17 @@ func (r *referrersPackageResult) foreachRef(f func(id *ast.Ident, text string)) 
 
 // readFile is like ioutil.ReadFile, but
 // it goes through the virtualized build.Context.
-func readFile(ctxt *build.Context, filename string) ([]byte, error) {
+// If non-nil, buf must have been reset.
+func readFile(ctxt *build.Context, filename string, buf *bytes.Buffer) ([]byte, error) {
 	rc, err := buildutil.OpenFile(ctxt, filename)
 	if err != nil {
 		return nil, err
 	}
 	defer rc.Close()
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, rc); err != nil {
+	if buf == nil {
+		buf = new(bytes.Buffer)
+	}
+	if _, err := io.Copy(buf, rc); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
