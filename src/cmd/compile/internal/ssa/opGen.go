@@ -2019,6 +2019,8 @@ const (
 	OpCom16
 	OpCom32
 	OpCom64
+	OpCtz8
+	OpCtz16
 	OpCtz32
 	OpCtz64
 	OpBitLen32
@@ -25442,6 +25444,16 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Com64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Ctz8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Ctz16",
 		argLen:  1,
 		generic: true,
 	},
