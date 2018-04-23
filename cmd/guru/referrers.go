@@ -80,26 +80,25 @@ func referrers(q *Query) error {
 		return fmt.Errorf("references to predeclared %q are everywhere!", obj.Name())
 	}
 
-	// For a globally accessible object defined in package P, we
-	// must load packages that depend on P.  Specifically, for a
-	// package-level object, we need load only direct importers
-	// of P, but for a field or method, we must load
-	// any package that transitively imports P.
-	global, pkglevel := classify(obj)
-	if global && !pkglevel {
-		// We'll use the the object's position to identify it in the larger program.
-		objposn := fset.Position(obj.Pos())
-		defpkg := obj.Pkg().Path() // defining package
-		return globalReferrers(q, qpos.info.Pkg.Path(), defpkg, objposn)
-	}
-
 	q.Output(fset, &referrersInitialResult{
 		qinfo: qpos.info,
 		obj:   obj,
 	})
 
-	if global {
-		return globalReferrersPkgLevel(q, obj, fset)
+	// For a globally accessible object defined in package P, we
+	// must load packages that depend on P.  Specifically, for a
+	// package-level object, we need load only direct importers
+	// of P, but for a field or method, we must load
+	// any package that transitively imports P.
+
+	if global, pkglevel := classify(obj); global {
+		if pkglevel {
+			return globalReferrersPkgLevel(q, obj, fset)
+		}
+		// We'll use the the object's position to identify it in the larger program.
+		objposn := fset.Position(obj.Pos())
+		defpkg := obj.Pkg().Path() // defining package
+		return globalReferrers(q, qpos.info.Pkg.Path(), defpkg, objposn)
 	}
 
 	outputUses(q, fset, usesOf(obj, qpos.info), obj.Pkg())
@@ -295,10 +294,6 @@ func globalReferrers(q *Query, qpkg, defpkg string, objposn token.Position) erro
 
 				// Object found.
 				qinfo = info
-				q.Output(fset, &referrersInitialResult{
-					qinfo: qinfo,
-					obj:   qobj,
-				})
 			}
 			obj := qobj
 			mu.Unlock()
