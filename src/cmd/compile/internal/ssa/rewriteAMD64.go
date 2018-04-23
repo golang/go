@@ -26,7 +26,7 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAMD64ADDQ:
 		return rewriteValueAMD64_OpAMD64ADDQ_0(v) || rewriteValueAMD64_OpAMD64ADDQ_10(v) || rewriteValueAMD64_OpAMD64ADDQ_20(v)
 	case OpAMD64ADDQconst:
-		return rewriteValueAMD64_OpAMD64ADDQconst_0(v)
+		return rewriteValueAMD64_OpAMD64ADDQconst_0(v) || rewriteValueAMD64_OpAMD64ADDQconst_10(v)
 	case OpAMD64ADDQconstmem:
 		return rewriteValueAMD64_OpAMD64ADDQconstmem_0(v)
 	case OpAMD64ADDQmem:
@@ -1313,6 +1313,25 @@ func rewriteValueAMD64_OpAMD64ADDL_10(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ADDLconst_0(v *Value) bool {
+	// match: (ADDLconst [c] (SHLLconst [1] x))
+	// cond:
+	// result: (LEAL1 [c] x x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SHLLconst {
+			break
+		}
+		if v_0.AuxInt != 1 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64LEAL1)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(x)
+		return true
+	}
 	// match: (ADDLconst [c] x)
 	// cond: int32(c)==0
 	// result: x
@@ -2077,6 +2096,25 @@ func rewriteValueAMD64_OpAMD64ADDQconst_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (ADDQconst [c] (SHLQconst [1] x))
+	// cond:
+	// result: (LEAQ1 [c] x x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SHLQconst {
+			break
+		}
+		if v_0.AuxInt != 1 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64LEAQ1)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(x)
+		return true
+	}
 	// match: (ADDQconst [c] (LEAQ [d] {s} x))
 	// cond: is32Bit(c+d)
 	// result: (LEAQ [c+d] {s} x)
@@ -2240,6 +2278,9 @@ func rewriteValueAMD64_OpAMD64ADDQconst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64ADDQconst_10(v *Value) bool {
 	// match: (ADDQconst [off] x:(SP))
 	// cond:
 	// result: (LEAQ [off] x)

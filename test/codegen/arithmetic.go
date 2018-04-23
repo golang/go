@@ -173,3 +173,8 @@ func CapMod(a []int) int {
 	// amd64:"ANDQ\t[$]4095"
 	return cap(a) % ((1 << 11) + 2048)
 }
+
+func AddMul(x int) int {
+	// amd64:"LEAQ\t1"
+	return 2*x + 1
+}
