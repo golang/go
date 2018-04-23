@@ -23,6 +23,7 @@ package runtime
 #include <signal.h>
 #include <sys/event.h>
 #include <sys/mman.h>
+#include <pthread.h>
 */
 import "C"
 
@@ -142,6 +143,8 @@ const (
 	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
+
+	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
 )
 
 type MachBody C.mach_msg_body_t
@@ -178,3 +181,6 @@ type Mcontext32 C.struct_mcontext32
 type Ucontext C.struct_ucontext
 
 type Kevent C.struct_kevent
+
+type Pthread C.pthread_t
+type PthreadAttr C.pthread_attr_t

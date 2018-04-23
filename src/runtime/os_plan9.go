@@ -408,7 +408,7 @@ func exit(e int32) {
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
 	if false {
 		print("newosproc mp=", mp, " ostk=", &mp, "\n")
 	}

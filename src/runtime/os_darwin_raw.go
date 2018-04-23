@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build 386 amd64
+// +build darwin,arm darwin,arm64
+
+// TODO(khr): move darwin/arm and darwin/arm64 over to calling libc instead of using raw system calls.
 
 package runtime
 
@@ -14,6 +16,9 @@ type mOS struct {
 }
 
 var darwinVersion int
+
+func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
+func bsdthread_register() int32
 
 //go:noescape
 func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
@@ -47,7 +52,7 @@ func semacreate(mp *m) {
 
 // BSD interface for threading.
 func osinit() {
-	// pthread_create delayed until end of goenvs so that we
+	// bsdthread_register delayed until end of goenvs so that we
 	// can look at the environment first.
 
 	ncpu = getncpu()
@@ -116,56 +121,43 @@ func getRandomData(r []byte) {
 
 func goenvs() {
 	goenvs_unix()
+
+	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
+	// but only if we're not using cgo. If we are using cgo we need
+	// to let the C pthread library install its own thread-creation callback.
+	if !iscgo {
+		if bsdthread_register() != 0 {
+			if gogetenv("DYLD_INSERT_LIBRARIES") != "" {
+				throw("runtime: bsdthread_register error (unset DYLD_INSERT_LIBRARIES)")
+			}
+			throw("runtime: bsdthread_register error")
+		}
+	}
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
-//go:nowritebarrierrec
-func newosproc(mp *m) {
-	stk := unsafe.Pointer(mp.g0.stack.hi)
+//go:nowritebarrier
+func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
-	// Initialize an attribute object.
-	var attr pthreadattr
-	var err int32
-	err = pthread_attr_init(&attr)
-	if err != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
-		exit(1)
-	}
-
-	// Set the stack we want to use.
-	if pthread_attr_setstack(&attr, unsafe.Pointer(mp.g0.stack.lo), mp.g0.stack.hi-mp.g0.stack.lo) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
-		exit(1)
-	}
-
-	// Tell the pthread library we won't join with this thread.
-	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
-		exit(1)
-	}
-
-	// Finally, create the thread. It starts at mstart_stub, which does some low-level
-	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	_, err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
+	errno := bsdthread_create(stk, unsafe.Pointer(mp), funcPC(mstart))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-	if err != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
-		exit(1)
+
+	if errno < 0 {
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -errno, ")\n")
+		throw("runtime.newosproc")
 	}
 }
-
-// glue code to call mstart from pthread_create.
-func mstart_stub()
 
 // newosproc0 is a version of newosproc that can be called before the runtime
 // is initialized.
 //
-// This function is not safe to use after initialization as it does not pass an M as fnarg.
+// As Go uses bsdthread_register when running without cgo, this function is
+// not safe to use after initialization as it does not pass an M as fnarg.
 //
 //go:nosplit
 func newosproc0(stacksize uintptr, fn uintptr) {
@@ -174,36 +166,14 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
 		exit(1)
 	}
+	stk := unsafe.Pointer(uintptr(stack) + stacksize)
 
-	// Initialize an attribute object.
-	var attr pthreadattr
-	var err int32
-	err = pthread_attr_init_trampoline(&attr)
-	if err != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
-		exit(1)
-	}
-
-	// Set the stack we want to use.
-	if pthread_attr_setstack_trampoline(&attr, stack, stacksize) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
-		exit(1)
-	}
-
-	// Tell the pthread library we won't join with this thread.
-	if pthread_attr_setdetachstate_trampoline(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
-		exit(1)
-	}
-
-	// Finally, create the thread. It starts at mstart_stub, which does some low-level
-	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	var t pthread
-	err = pthread_create_trampoline(&t, &attr, fn, nil)
+	errno := bsdthread_create(stk, nil, fn)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-	if err != 0 {
+
+	if errno < 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
