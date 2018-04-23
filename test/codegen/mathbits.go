@@ -45,7 +45,7 @@ func LeadingZeros16(n uint16) int {
 }
 
 func LeadingZeros8(n uint8) int {
-	// amd64 LeadingZeros8 not intrinsified (see ssa.go)
+	// amd64:"BSRL","LEAL",-"CMOVQEQ"
 	// s390x:"FLOGR"
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
@@ -89,7 +89,7 @@ func Len16(n uint16) int {
 }
 
 func Len8(n uint8) int {
-	// amd64 Len8 not intrisified (see ssa.go)
+	// amd64:"BSRL","LEAL",-"CMOVQEQ"
 	// s390x:"FLOGR"
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
