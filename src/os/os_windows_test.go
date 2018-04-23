@@ -1055,3 +1055,11 @@ func isWindowsDeveloperModeActive() bool {
 
 	return val != 0
 }
+
+// TestStatOfInvalidName is regression test for issue #24999.
+func TestStatOfInvalidName(t *testing.T) {
+	_, err := os.Stat("*.go")
+	if err == nil {
+		t.Fatal(`os.Stat("*.go") unexpectedly succeeded`)
+	}
+}
