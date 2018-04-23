@@ -64,7 +64,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
 	b = appendUint32(b, d.s[2])
 	b = appendUint32(b, d.s[3])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = b[:len(b)+len(d.x)-d.nx] // already zero
 	b = appendUint64(b, d.len)
 	return b, nil
 }
