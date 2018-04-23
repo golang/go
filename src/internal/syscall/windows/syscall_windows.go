@@ -12,6 +12,7 @@ import (
 
 const (
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
+	ERROR_INVALID_NAME           syscall.Errno = 123
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
 )
 
