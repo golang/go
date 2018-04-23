@@ -49732,13 +49732,16 @@ func rewriteValueAMD64_OpAMD64TESTB_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64TESTBconst_0(v *Value) bool {
 	// match: (TESTBconst [-1] x)
-	// cond:
+	// cond: x.Op != OpAMD64MOVLconst
 	// result: (TESTB x x)
 	for {
 		if v.AuxInt != -1 {
 			break
 		}
 		x := v.Args[0]
+		if !(x.Op != OpAMD64MOVLconst) {
+			break
+		}
 		v.reset(OpAMD64TESTB)
 		v.AddArg(x)
 		v.AddArg(x)
@@ -49841,13 +49844,16 @@ func rewriteValueAMD64_OpAMD64TESTL_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64TESTLconst_0(v *Value) bool {
 	// match: (TESTLconst [-1] x)
-	// cond:
+	// cond: x.Op != OpAMD64MOVLconst
 	// result: (TESTL x x)
 	for {
 		if v.AuxInt != -1 {
 			break
 		}
 		x := v.Args[0]
+		if !(x.Op != OpAMD64MOVLconst) {
+			break
+		}
 		v.reset(OpAMD64TESTL)
 		v.AddArg(x)
 		v.AddArg(x)
@@ -49956,13 +49962,16 @@ func rewriteValueAMD64_OpAMD64TESTQ_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64TESTQconst_0(v *Value) bool {
 	// match: (TESTQconst [-1] x)
-	// cond:
+	// cond: x.Op != OpAMD64MOVQconst
 	// result: (TESTQ x x)
 	for {
 		if v.AuxInt != -1 {
 			break
 		}
 		x := v.Args[0]
+		if !(x.Op != OpAMD64MOVQconst) {
+			break
+		}
 		v.reset(OpAMD64TESTQ)
 		v.AddArg(x)
 		v.AddArg(x)
@@ -50065,13 +50074,16 @@ func rewriteValueAMD64_OpAMD64TESTW_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64TESTWconst_0(v *Value) bool {
 	// match: (TESTWconst [-1] x)
-	// cond:
+	// cond: x.Op != OpAMD64MOVLconst
 	// result: (TESTW x x)
 	for {
 		if v.AuxInt != -1 {
 			break
 		}
 		x := v.Args[0]
+		if !(x.Op != OpAMD64MOVLconst) {
+			break
+		}
 		v.reset(OpAMD64TESTW)
 		v.AddArg(x)
 		v.AddArg(x)
