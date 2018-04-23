@@ -1443,10 +1443,10 @@
 (CMPLconst x [0]) -> (TESTL x x)
 (CMPWconst x [0]) -> (TESTW x x)
 (CMPBconst x [0]) -> (TESTB x x)
-(TESTQconst [-1] x) -> (TESTQ x x)
-(TESTLconst [-1] x) -> (TESTL x x)
-(TESTWconst [-1] x) -> (TESTW x x)
-(TESTBconst [-1] x) -> (TESTB x x)
+(TESTQconst [-1] x) && x.Op != OpAMD64MOVQconst -> (TESTQ x x)
+(TESTLconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTL x x)
+(TESTWconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTW x x)
+(TESTBconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTB x x)
 
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
