@@ -1002,13 +1002,7 @@ func parName(f *types.Field, numbered bool) string {
 		return ""
 	}
 
-	// The "s != f.Sym" check here is unnecessary and causes blank
-	// input/receiver parameters to receive vargen numbers
-	// below. However, this is consistent with the logic it
-	// replaces, so we keep it for now to appease toolstash-check.
-	//
-	// TODO(mdempsky): Simplify to just "if s.Name == "_"".
-	if s != f.Sym && s.Name == "_" {
+	if s.Name == "_" {
 		return "_"
 	}
 
