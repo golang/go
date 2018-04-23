@@ -34,6 +34,12 @@ func referrers(q *Query) error {
 		return err
 	}
 
+	// Load tests of the query package
+	// even if the query location is not in the tests.
+	for path := range lconf.ImportPkgs {
+		lconf.ImportPkgs[path] = true
+	}
+
 	// Load/parse/type-check the query package.
 	lprog, err := lconf.Load()
 	if err != nil {

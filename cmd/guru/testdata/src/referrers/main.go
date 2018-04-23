@@ -25,6 +25,8 @@ func main() {
 	s2.f = 1
 }
 
+var notexported int // @referrers unexported-from-test "notexported"
+
 // Test //line directives:
 
 type U int // @referrers ref-type-U "U"
