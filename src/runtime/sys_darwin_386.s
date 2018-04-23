@@ -370,86 +370,6 @@ TEXT runtime·usleep(SB),NOSPLIT,$32
 	INT	$0x80
 	RET
 
-// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
-// System call args are: func arg stack pthread flags.
-TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
-	MOVL	$360, AX
-	// 0(SP) is where the caller PC would be; kernel skips it
-	MOVL	fn+8(FP), BX
-	MOVL	BX, 4(SP)	// func
-	MOVL	arg+4(FP), BX
-	MOVL	BX, 8(SP)	// arg
-	MOVL	stk+0(FP), BX
-	MOVL	BX, 12(SP)	// stack
-	MOVL    $0, 16(SP)      // pthread
-	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
-	INT	$0x80
-	JAE	4(PC)
-	NEGL	AX
-	MOVL	AX, ret+12(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+12(FP)
-	RET
-
-// The thread that bsdthread_create creates starts executing here,
-// because we registered this function using bsdthread_register
-// at startup.
-//	AX = "pthread" (= 0x0)
-//	BX = mach thread port
-//	CX = "func" (= fn)
-//	DX = "arg" (= m)
-//	DI = stack top
-//	SI = flags (= 0x1000000)
-//	SP = stack - C_32_STK_ALIGN
-TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
-	// set up ldt 7+id to point at m->tls.
-	LEAL	m_tls(DX), BP
-	MOVL	m_id(DX), DI
-	ADDL	$7, DI	// m0 is LDT#7. count up.
-	// setldt(tls#, &tls, sizeof tls)
-	PUSHAL	// save registers
-	PUSHL	$32	// sizeof tls
-	PUSHL	BP	// &tls
-	PUSHL	DI	// tls #
-	CALL	runtime·setldt(SB)
-	POPL	AX
-	POPL	AX
-	POPL	AX
-	POPAL
-
-	// Now segment is established. Initialize m, g.
-	get_tls(BP)
-	MOVL    m_g0(DX), AX
-	MOVL	AX, g(BP)
-	MOVL	DX, g_m(AX)
-	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
-	CALL	runtime·stackcheck(SB)		// smashes AX
-	CALL	CX	// fn()
-	CALL	exit1<>(SB)
-	RET
-
-// func bsdthread_register() int32
-// registers callbacks for threadstart (see bsdthread_create above
-// and wqthread and pthsize (not used).  returns 0 on success.
-TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
-	MOVL	$366, AX
-	// 0(SP) is where kernel expects caller PC; ignored
-	MOVL	$runtime·bsdthread_start(SB), 4(SP)	// threadstart
-	MOVL	$0, 8(SP)	// wqthread, not used by us
-	MOVL	$0, 12(SP)	// pthsize, not used by us
-	MOVL	$0, 16(SP)	// dummy_value [sic]
-	MOVL	$0, 20(SP)	// targetconc_ptr
-	MOVL	$0, 24(SP)	// dispatchqueue_offset
-	INT	$0x80
-	JAE	4(PC)
-	NEGL	AX
-	MOVL	AX, ret+0(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+0(FP)
-	RET
-
 // Invoke Mach system call.
 // Assumes system call number in AX,
 // caller PC on stack, caller's caller PC next,
@@ -591,4 +511,122 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	RET
+
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+	// The value at SP+4 points to the m.
+	// We are already on m's g0 stack.
+
+	MOVL	SP, AX       // hide argument read from vet (vet thinks this function is using the Go calling convention)
+	MOVL	4(AX), DI    // m
+	MOVL	m_g0(DI), DX // g
+
+	// Initialize TLS entry.
+	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
+	MOVL	DX, 0x18(GS)
+
+	// Someday the convention will be D is always cleared.
+	CLD
+
+	CALL	runtime·stackcheck(SB) // just in case
+	CALL	runtime·mstart(SB)
+
+	// mstart shouldn't ever return, and if it does, we shouldn't ever join to this thread
+	// to get its return status. But tell pthread everything is ok, just in case.
+	XORL	AX, AX
+	RET
+
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-8
+	// move args into registers
+	MOVL	attr+0(FP), AX
+
+	// save SP, BP
+	PUSHL	BP
+	MOVL	SP, BP
+
+	// allocate space for args
+	SUBL	$4, SP
+
+	// align stack to 16 bytes
+	ANDL	$~15, SP
+
+	// call libc function
+	MOVL	AX, 0(SP)
+	CALL	libc_pthread_attr_init(SB)
+
+	// restore BP, SP
+	MOVL	BP, SP
+	POPL	BP
+
+	// save result.
+	MOVL	AX, ret+4(FP)
+	RET
+
+TEXT runtime·pthread_attr_setstack_trampoline(SB),NOSPLIT,$0-16
+	MOVL	attr+0(FP), AX
+	MOVL	addr+4(FP), CX
+	MOVL	size+8(FP), DX
+
+	PUSHL	BP
+	MOVL	SP, BP
+
+	SUBL	$12, SP
+	ANDL	$~15, SP
+
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	CALL	libc_pthread_attr_setstack(SB)
+
+	MOVL	BP, SP
+	POPL	BP
+
+	MOVL	AX, ret+12(FP)
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-12
+	MOVL	attr+0(FP), AX
+	MOVL	state+4(FP), CX
+
+	PUSHL	BP
+	MOVL	SP, BP
+
+	SUBL	$8, SP
+	ANDL	$~15, SP
+
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	CALL	libc_pthread_attr_setdetachstate(SB)
+
+	MOVL	BP, SP
+	POPL	BP
+
+	MOVL	AX, ret+8(FP)
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-20
+	MOVL	t+0(FP), AX
+	MOVL	attr+4(FP), CX
+	MOVL	start+8(FP), DX
+	MOVL	arg+12(FP), BX
+
+	PUSHL	BP
+	MOVL	SP, BP
+
+	SUBL	$16, SP
+	ANDL	$~15, SP
+
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	MOVL	BX, 12(SP)
+	CALL	libc_pthread_create(SB)
+
+	MOVL	BP, SP
+	POPL	BP
+
+	MOVL	AX, ret+16(FP)
 	RET

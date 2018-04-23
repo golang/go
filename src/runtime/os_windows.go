@@ -618,7 +618,7 @@ func semacreate(mp *m) {
 // operate without stack guards.
 //go:nowritebarrierrec
 //go:nosplit
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
 	// stackSize must match SizeOfStackReserve in cmd/link/internal/ld/pe.go.
 	const stackSize = 0x00200000*_64bit + 0x00100000*(1-_64bit)
@@ -649,7 +649,10 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 //go:nowritebarrierrec
 //go:nosplit
 func newosproc0(mp *m, stk unsafe.Pointer) {
-	newosproc(mp, stk)
+	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
+	// are stacksize and function, not *m and stack.
+	// Check os_linux.go for an implemention that might actually work.
+	throw("bad newosproc0")
 }
 
 func exitThread(wait *uint32) {

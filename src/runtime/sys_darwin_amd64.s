@@ -417,82 +417,6 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
-// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
-TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
-	// Set up arguments to bsdthread_create system call.
-	// The ones in quotes pass through to the thread callback
-	// uninterpreted, so we can put whatever we want there.
-	MOVQ	fn+16(FP),   DI
-	MOVQ	arg+8(FP),  SI
-	MOVQ	stk+0(FP),   DX
-	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
-	MOVQ	$0,          R9  // paranoia
-	MOVQ	$0,          R10 // paranoia, "pthread"
-	MOVQ	$(0x2000000+360), AX	// bsdthread_create
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+24(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+24(FP)
-	RET
-
-// The thread that bsdthread_create creates starts executing here,
-// because we registered this function using bsdthread_register
-// at startup.
-//	DI = "pthread"
-//	SI = mach thread port
-//	DX = "func" (= fn)
-//	CX = "arg" (= m)
-//	R8 = stack
-//	R9 = flags (= 0)
-//	SP = stack - C_64_REDZONE_LEN (= stack - 128)
-TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
-	MOVQ	R8, SP		// empirically, SP is very wrong but R8 is right
-
-	PUSHQ	DX
-	PUSHQ	CX
-	PUSHQ	SI
-
-	// set up thread local storage pointing at m->tls.
-	LEAQ	m_tls(CX), DI
-	CALL	runtime·settls(SB)
-
-	POPQ	SI
-	POPQ	CX
-	POPQ	DX
-
-	get_tls(BX)
-	MOVQ	SI, m_procid(CX)	// thread port is m->procid
-	MOVQ	m_g0(CX), AX
-	MOVQ	AX, g(BX)
-	MOVQ	CX, g_m(AX)
-	CALL	runtime·stackcheck(SB)	// smashes AX, CX
-	CALL	DX	// fn
-	CALL	exit1<>(SB)
-	RET
-
-// func bsdthread_register() int32
-// registers callbacks for threadstart (see bsdthread_create above
-// and wqthread and pthsize (not used).  returns 0 on success.
-TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
-	MOVQ	$runtime·bsdthread_start(SB), DI	// threadstart
-	MOVQ	$0, SI	// wqthread, not used by us
-	MOVQ	$0, DX	// pthsize, not used by us
-	MOVQ	$0, R10	// dummy_value [sic]
-	MOVQ	$0, R8	// targetconc_ptr
-	MOVQ	$0, R9	// dispatchqueue_offset
-	MOVQ	$(0x2000000+366), AX	// bsdthread_register
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+0(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+0(FP)
-	RET
-
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
 
 // func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
@@ -629,4 +553,79 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ    $1, DX  // FD_CLOEXEC
 	MOVL	$(0x2000000+92), AX  // fcntl
 	SYSCALL
+	RET
+
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+	// DI points to the m.
+	// We are already on m's g0 stack.
+
+	MOVQ	m_g0(DI), DX // g
+
+	// Initialize TLS entry.
+	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
+	MOVQ	DX, 0x30(GS)
+
+	// Someday the convention will be D is always cleared.
+	CLD
+
+	CALL	runtime·stackcheck(SB) // just in case
+	CALL	runtime·mstart(SB)
+
+	// mstart shouldn't ever return, and if it does, we shouldn't ever join to this thread
+	// to get its return status. But tell pthread everything is ok, just in case.
+	XORL	AX, AX
+	RET
+
+// These trampolines convert from Go calling convention to C calling convention.
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-12
+	MOVQ	attr+0(FP), DI
+	PUSHQ	BP     // save BP
+	MOVQ	SP, BP // save SP
+	ANDQ	$~15, SP // align stack to 16 bytes
+	CALL	libc_pthread_attr_init(SB)
+	MOVQ	BP, SP // restore SP
+	POPQ	BP     // restore BP
+	MOVL	AX, ret+8(FP)
+	RET
+
+TEXT runtime·pthread_attr_setstack_trampoline(SB),NOSPLIT,$0-28
+	MOVQ	attr+0(FP), DI
+	MOVQ	addr+8(FP), SI
+	MOVQ	size+16(FP), DX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_attr_setstack(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVL	AX, ret+24(FP)
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-20
+	MOVQ	attr+0(FP), DI
+	MOVQ	state+8(FP), SI
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_attr_setdetachstate(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVL	AX, ret+16(FP)
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-36
+	MOVQ	t+0(FP), DI
+	MOVQ	attr+8(FP), SI
+	MOVQ	start+16(FP), DX
+	MOVQ	arg+24(FP), CX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_create(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVL	AX, ret+32(FP)
 	RET
