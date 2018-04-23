@@ -2168,7 +2168,9 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	var c int32
 	errors := ctxt.Errors
 	for {
-		loop := int32(0)
+		// This loop continues while there are reasons to re-assemble
+		// whole block, like the presence of long forward jumps.
+		reAssemble := false
 		for i := range s.R {
 			s.R[i] = obj.Reloc{}
 		}
@@ -2228,7 +2230,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				v := int32(p.Pc - (q.Pc + int64(q.Isize)))
 				if q.Back&branchShort != 0 {
 					if v > 127 {
-						loop++
+						reAssemble = true
 						q.Back ^= branchShort
 					}
 
@@ -2249,7 +2251,11 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			m := ab.Len()
 			if int(p.Isize) != m {
 				p.Isize = uint8(m)
-				loop++
+				// When building for NaCl, we currently need
+				// at least 2 rounds to ensure proper 32-byte alignment.
+				if ctxt.Headtype == objabi.Hnacl {
+					reAssemble = true
+				}
 			}
 
 			s.Grow(p.Pc + int64(m))
@@ -2262,7 +2268,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			ctxt.Diag("span must be looping")
 			log.Fatalf("loop")
 		}
-		if loop == 0 {
+		if !reAssemble {
 			break
 		}
 		if ctxt.Errors > errors {
