@@ -925,6 +925,7 @@
 // combine ADDQ/ADDQconst into LEAQ1
 (ADDQconst [c] (ADDQ x y)) -> (LEAQ1 [c] x y)
 (ADDQ (ADDQconst [c] x) y) -> (LEAQ1 [c] x y)
+(ADD(Q|L)const [c] (SHL(Q|L)const [1] x)) -> (LEA(Q|L)1 [c] x x)
 
 // fold ADDQ into LEAQ
 (ADDQconst [c] (LEAQ [d] {s} x)) && is32Bit(c+d) -> (LEAQ [c+d] {s} x)
