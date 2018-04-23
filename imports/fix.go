@@ -638,7 +638,7 @@ func scanGoDirs(goRoot bool) {
 					importpath := filepath.ToSlash(dir[len(srcDir)+len("/"):])
 					dirScan[dir] = &pkg{
 						importPath:      importpath,
-						importPathShort: vendorlessImportPath(importpath),
+						importPathShort: VendorlessPath(importpath),
 						dir:             dir,
 					}
 				}
@@ -683,9 +683,9 @@ func scanGoDirs(goRoot bool) {
 	}
 }
 
-// vendorlessImportPath returns the devendorized version of the provided import path.
+// VendorlessPath returns the devendorized version of the provided import path.
 // e.g. "foo/bar/vendor/a/b" => "a/b"
-func vendorlessImportPath(ipath string) string {
+func VendorlessPath(ipath string) string {
 	// Devendorize for use in import statement.
 	if i := strings.LastIndex(ipath, "/vendor/"); i >= 0 {
 		return ipath[i+len("/vendor/"):]
