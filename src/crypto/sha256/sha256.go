@@ -223,11 +223,11 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d0 *digest) Sum(in []byte) []byte {
-	// Make a copy of d0 so that caller can keep writing and summing.
-	d := *d0
-	hash := d.checkSum()
-	if d.is224 {
+func (d *digest) Sum(in []byte) []byte {
+	// Make a copy of d so that caller can keep writing and summing.
+	d0 := *d
+	hash := d0.checkSum()
+	if d0.is224 {
 		return append(in, hash[:Size224]...)
 	}
 	return append(in, hash[:]...)
