@@ -3126,13 +3126,18 @@ func init() {
 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
 	addF("math/bits", "Len32",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
+		},
+		sys.AMD64)
+	addF("math/bits", "Len32",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
 			}
 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[TUINT64], args[0])
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
 	addF("math/bits", "Len16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
@@ -3142,8 +3147,12 @@ func init() {
 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
-	// Note: disabled on AMD64 because the Go code is faster!
+		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+	addF("math/bits", "Len16",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpBitLen16, types.Types[TINT], args[0])
+		},
+		sys.AMD64)
 	addF("math/bits", "Len8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
@@ -3154,7 +3163,12 @@ func init() {
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
 		},
 		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
-
+	// Note: disabled on AMD64 because the Go code is faster!
+	// addF("math/bits", "Len8",
+	// 	func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+	// 		return s.newValue1(ssa.OpBitLen8, types.Types[TINT], args[0])
+	// 	},
+	// 	sys.AMD64)
 	addF("math/bits", "Len",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {

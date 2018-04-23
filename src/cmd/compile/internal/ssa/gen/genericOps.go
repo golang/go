@@ -244,6 +244,8 @@ var genericOps = []opData{
 	{name: "Ctz16", argLength: 1},    // Count trailing (low order) zeroes (returns 0-16)
 	{name: "Ctz32", argLength: 1},    // Count trailing (low order) zeroes (returns 0-32)
 	{name: "Ctz64", argLength: 1},    // Count trailing (low order) zeroes (returns 0-64)
+	{name: "BitLen8", argLength: 1},  // Number of bits in arg[0] (returns 0-8)
+	{name: "BitLen16", argLength: 1}, // Number of bits in arg[0] (returns 0-16)
 	{name: "BitLen32", argLength: 1}, // Number of bits in arg[0] (returns 0-32)
 	{name: "BitLen64", argLength: 1}, // Number of bits in arg[0] (returns 0-64)
 

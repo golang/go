@@ -2023,6 +2023,8 @@ const (
 	OpCtz16
 	OpCtz32
 	OpCtz64
+	OpBitLen8
+	OpBitLen16
 	OpBitLen32
 	OpBitLen64
 	OpBswap32
@@ -25464,6 +25466,16 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Ctz64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "BitLen8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "BitLen16",
 		argLen:  1,
 		generic: true,
 	},
