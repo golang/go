@@ -255,6 +255,10 @@ func init() {
 		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int64", typ: "Flags"},   // arg0 compare to -auxInt
 		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags"},                    // arg0 compare to -arg1, 32 bit
 		{name: "CMNWconst", argLength: 1, reg: gp1flags, asm: "CMNW", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt, 32 bit
+		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags"},                      // arg0 & arg1 compare to 0
+		{name: "TSTconst", argLength: 1, reg: gp1flags, asm: "TST", aux: "Int64", typ: "Flags"},   // arg0 & auxInt compare to 0
+		{name: "TSTW", argLength: 2, reg: gp2flags, asm: "TSTW", typ: "Flags"},                    // arg0 & arg1 compare to 0, 32 bit
+		{name: "TSTWconst", argLength: 1, reg: gp1flags, asm: "TSTW", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0, 32 bit
 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "FCMPS", typ: "Flags"},                  // arg0 compare to arg1, float32
 		{name: "FCMPD", argLength: 2, reg: fp2flags, asm: "FCMPD", typ: "Flags"},                  // arg0 compare to arg1, float64
 

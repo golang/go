@@ -33,7 +33,12 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    AND $34903429696192636, R12, R19           // 93910e92
    ANDW R9@>7, R19, R26                       // 7a1ec90a
    AND R9@>7, R19, R26                        // 7a1ec98a
-   //TODO TST $2863311530, R24                // 1ff32972
+   TSTW $2863311530, R24                      // 1ff30172
+   TST R2, R0                                 // 1f0002ea
+   TST $7, R2                                 // 5f0840f2
+   ANDS R2, R0, ZR                            // 1f0002ea
+   ANDS $7, R2, ZR                            // 5f0840f2
+   ANDSW $2863311530, R24, ZR                 // 1ff30172
    ANDSW $2863311530, R24, R23                // 17f30172
    ANDS $-140737488289793, R2, R5             // 458051f2
    ANDSW R26->24, R21, R15                    // af629a6a
@@ -374,10 +379,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    SXTW R0, R27                               // 1b7c4093
    SYSL $285440, R12                          // 0c5b2cd5
    //TODO TLBI
-   //TODO TST $0x80000007, R9                 // 3f0d0172
-   //TODO TST $0xfffffff0, LR                 // df6f7cf2
-   //TODO TSTW R10@>21, R2                    // 1f2f11ea
-   //TODO TST R17<<11, R24                    // 1f2f11ea
+   TSTW $0x80000007, R9                       // TSTW $2147483655, R9          // 3f0d0172
+   TST $0xfffffff0, LR                        // TST $4294967280, R30          // df6f7cf2
+   TSTW R10@>21, R2                           // 5f54ca6a
+   TST R17<<11, R24                           // 1f2f11ea
+   ANDSW $0x80000007, R9, ZR                  // ANDSW   $2147483655, R9, ZR   // 3f0d0172
+   ANDS $0xfffffff0, LR, ZR                   // ANDS    $4294967280, R30, ZR  // df6f7cf2
+   ANDSW R10@>21, R2, ZR                      // 5f54ca6a
+   ANDS R17<<11, R24, ZR                      // 1f2f11ea
    UBFIZW $3, R19, $14, R14                   // 6e361d53
    UBFIZ $3, R22, $14, R4                     // c4367dd3
    UBFXW $3, R7, $20, R15                     // ef580353
