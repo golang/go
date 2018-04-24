@@ -230,7 +230,7 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
 			Complete:   task.complete(),
 			Events:     events,
 			Start:      time.Duration(task.firstTimestamp()) * time.Nanosecond,
-			End:        time.Duration(task.lastTimestamp()) * time.Nanosecond,
+			End:        time.Duration(task.endTimestamp()) * time.Nanosecond,
 			GCTime:     task.overlappingGCDuration(res.gcEvents),
 		})
 	}
@@ -365,7 +365,7 @@ func (task *taskDesc) String() string {
 	}
 	wb := new(bytes.Buffer)
 	fmt.Fprintf(wb, "task %d:\t%s\n", task.id, task.name)
-	fmt.Fprintf(wb, "\tstart: %v end: %v complete: %t\n", task.firstTimestamp(), task.lastTimestamp(), task.complete())
+	fmt.Fprintf(wb, "\tstart: %v end: %v complete: %t\n", task.firstTimestamp(), task.endTimestamp(), task.complete())
 	fmt.Fprintf(wb, "\t%d goroutines\n", len(task.goroutines))
 	fmt.Fprintf(wb, "\t%d regions:\n", len(task.regions))
 	for _, s := range task.regions {
@@ -463,6 +463,17 @@ func (task *taskDesc) firstTimestamp() int64 {
 // trace. If the trace does not contain the task end event, the last
 // timestamp of the trace will be returned.
 func (task *taskDesc) lastTimestamp() int64 {
+	endTs := task.endTimestamp()
+	if last := task.lastEvent(); last != nil && last.Ts > endTs {
+		return last.Ts
+	}
+	return endTs
+}
+
+// endTimestamp returns the timestamp of this task's end event.
+// If the trace does not contain the task end event, the last
+// timestamp of the trace will be returned.
+func (task *taskDesc) endTimestamp() int64 {
 	if task != nil && task.end != nil {
 		return task.end.Ts
 	}
@@ -470,7 +481,7 @@ func (task *taskDesc) lastTimestamp() int64 {
 }
 
 func (task *taskDesc) duration() time.Duration {
-	return time.Duration(task.lastTimestamp()-task.firstTimestamp()) * time.Nanosecond
+	return time.Duration(task.endTimestamp()-task.firstTimestamp()) * time.Nanosecond
 }
 
 func (region *regionDesc) duration() time.Duration {
@@ -496,13 +507,13 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
 // any of the task's region if ev is a goroutine-local event, or overlaps with the
 // task's lifetime if ev is a global event.
 func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
-	if isUserAnnotationEvent(ev) && task.id != ev.Args[0] {
+	if _, ok := isUserAnnotationEvent(ev); ok && task.id != ev.Args[0] {
 		return false // not this task's user event.
 	}
 
 	ts := ev.Ts
 	taskStart := task.firstTimestamp()
-	taskEnd := task.lastTimestamp()
+	taskEnd := task.endTimestamp()
 	if ts < taskStart || taskEnd < ts {
 		return false
 	}
@@ -547,7 +558,7 @@ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool)
 	// This event is a global GC event
 	if ev.P == trace.GCP {
 		taskStart := task.firstTimestamp()
-		taskEnd := task.lastTimestamp()
+		taskEnd := task.endTimestamp()
 		o := overlappingDuration(taskStart, taskEnd, start, end)
 		return o, o > 0
 	}
@@ -627,7 +638,7 @@ func (region *regionDesc) lastTimestamp() int64 {
 // If non-zero depth is provided, this searches all events with BFS and includes
 // goroutines unblocked any of related goroutines to the result.
 func (task *taskDesc) RelatedGoroutines(events []*trace.Event, depth int) map[uint64]bool {
-	start, end := task.firstTimestamp(), task.lastTimestamp()
+	start, end := task.firstTimestamp(), task.endTimestamp()
 
 	gmap := map[uint64]bool{}
 	for k := range task.goroutines {
@@ -1127,12 +1138,12 @@ func describeEvent(ev *trace.Event) string {
 	return ""
 }
 
-func isUserAnnotationEvent(ev *trace.Event) bool {
+func isUserAnnotationEvent(ev *trace.Event) (taskID uint64, ok bool) {
 	switch ev.Type {
 	case trace.EvUserLog, trace.EvUserRegion, trace.EvUserTaskCreate, trace.EvUserTaskEnd:
-		return true
+		return ev.Args[0], true
 	}
-	return false
+	return 0, false
 }
 
 var templUserRegionType = template.Must(template.New("").Funcs(template.FuncMap{

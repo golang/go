@@ -751,7 +751,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			}
 			ctx.emit(tBegin)
 
-			tEnd := &ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.lastTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: colorBlue}
+			tEnd := &ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.endTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: colorBlue}
 			if task.end != nil {
 				tEnd.Stack = ctx.stack(task.end.Stk)
 			}
@@ -955,17 +955,19 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
 	cname := ""
 	if ctx.mode&modeTaskOriented != 0 {
-		overlapping := false
+		taskID, isUserAnnotation := isUserAnnotationEvent(ev)
+
+		show := false
 		for _, task := range ctx.tasks {
-			if task.overlappingInstant(ev) {
-				overlapping = true
+			if isUserAnnotation && task.id == taskID || task.overlappingInstant(ev) {
+				show = true
 				break
 			}
 		}
 		// grey out or skip if non-overlapping instant.
-		if !overlapping {
-			if isUserAnnotationEvent(ev) {
-				return // don't display unrelated task events.
+		if !show {
+			if isUserAnnotation {
+				return // don't display unrelated user annotation events.
 			}
 			cname = colorLightGrey
 		}
