@@ -6916,7 +6916,7 @@ func rewriteValuegeneric_OpArg_0(v *Value) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: v.Type.IsSlice()
-	// result: (SliceMake (Arg <v.Type.ElemType().PtrTo()> {n} [off]) (Arg <typ.Int> {n} [off+config.PtrSize]) (Arg <typ.Int> {n} [off+2*config.PtrSize]))
+	// result: (SliceMake (Arg <v.Type.Elem().PtrTo()> {n} [off]) (Arg <typ.Int> {n} [off+config.PtrSize]) (Arg <typ.Int> {n} [off+2*config.PtrSize]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -6924,7 +6924,7 @@ func rewriteValuegeneric_OpArg_0(v *Value) bool {
 			break
 		}
 		v.reset(OpSliceMake)
-		v0 := b.NewValue0(v.Pos, OpArg, v.Type.ElemType().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpArg, v.Type.Elem().PtrTo())
 		v0.AuxInt = off
 		v0.Aux = n
 		v.AddArg(v0)
@@ -7121,7 +7121,7 @@ func rewriteValuegeneric_OpArg_10(v *Value) bool {
 	}
 	// match: (Arg <t> {n} [off])
 	// cond: t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)
-	// result: (ArrayMake1 (Arg <t.ElemType()> {n} [off]))
+	// result: (ArrayMake1 (Arg <t.Elem()> {n} [off]))
 	for {
 		t := v.Type
 		off := v.AuxInt
@@ -7130,7 +7130,7 @@ func rewriteValuegeneric_OpArg_10(v *Value) bool {
 			break
 		}
 		v.reset(OpArrayMake1)
-		v0 := b.NewValue0(v.Pos, OpArg, t.ElemType())
+		v0 := b.NewValue0(v.Pos, OpArg, t.Elem())
 		v0.AuxInt = off
 		v0.Aux = n
 		v.AddArg(v0)
@@ -7317,13 +7317,13 @@ func rewriteValuegeneric_OpConstSlice_0(v *Value) bool {
 	_ = typ
 	// match: (ConstSlice)
 	// cond: config.PtrSize == 4
-	// result: (SliceMake (ConstNil <v.Type.ElemType().PtrTo()>) (Const32 <typ.Int> [0]) (Const32 <typ.Int> [0]))
+	// result: (SliceMake (ConstNil <v.Type.Elem().PtrTo()>) (Const32 <typ.Int> [0]) (Const32 <typ.Int> [0]))
 	for {
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.reset(OpSliceMake)
-		v0 := b.NewValue0(v.Pos, OpConstNil, v.Type.ElemType().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpConstNil, v.Type.Elem().PtrTo())
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpConst32, typ.Int)
 		v1.AuxInt = 0
@@ -7335,13 +7335,13 @@ func rewriteValuegeneric_OpConstSlice_0(v *Value) bool {
 	}
 	// match: (ConstSlice)
 	// cond: config.PtrSize == 8
-	// result: (SliceMake (ConstNil <v.Type.ElemType().PtrTo()>) (Const64 <typ.Int> [0]) (Const64 <typ.Int> [0]))
+	// result: (SliceMake (ConstNil <v.Type.Elem().PtrTo()>) (Const64 <typ.Int> [0]) (Const64 <typ.Int> [0]))
 	for {
 		if !(config.PtrSize == 8) {
 			break
 		}
 		v.reset(OpSliceMake)
-		v0 := b.NewValue0(v.Pos, OpConstNil, v.Type.ElemType().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpConstNil, v.Type.Elem().PtrTo())
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int)
 		v1.AuxInt = 0
@@ -13203,7 +13203,7 @@ func rewriteValuegeneric_OpLoad_10(v *Value) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)
-	// result: (ArrayMake1 (Load <t.ElemType()> ptr mem))
+	// result: (ArrayMake1 (Load <t.Elem()> ptr mem))
 	for {
 		t := v.Type
 		_ = v.Args[1]
@@ -13213,7 +13213,7 @@ func rewriteValuegeneric_OpLoad_10(v *Value) bool {
 			break
 		}
 		v.reset(OpArrayMake1)
-		v0 := b.NewValue0(v.Pos, OpLoad, t.ElemType())
+		v0 := b.NewValue0(v.Pos, OpLoad, t.Elem())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
@@ -21969,7 +21969,7 @@ func rewriteValuegeneric_OpPtrIndex_0(v *Value) bool {
 	_ = typ
 	// match: (PtrIndex <t> ptr idx)
 	// cond: config.PtrSize == 4
-	// result: (AddPtr ptr (Mul32 <typ.Int> idx (Const32 <typ.Int> [t.ElemType().Size()])))
+	// result: (AddPtr ptr (Mul32 <typ.Int> idx (Const32 <typ.Int> [t.Elem().Size()])))
 	for {
 		t := v.Type
 		_ = v.Args[1]
@@ -21983,14 +21983,14 @@ func rewriteValuegeneric_OpPtrIndex_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpMul32, typ.Int)
 		v0.AddArg(idx)
 		v1 := b.NewValue0(v.Pos, OpConst32, typ.Int)
-		v1.AuxInt = t.ElemType().Size()
+		v1.AuxInt = t.Elem().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (PtrIndex <t> ptr idx)
 	// cond: config.PtrSize == 8
-	// result: (AddPtr ptr (Mul64 <typ.Int> idx (Const64 <typ.Int> [t.ElemType().Size()])))
+	// result: (AddPtr ptr (Mul64 <typ.Int> idx (Const64 <typ.Int> [t.Elem().Size()])))
 	for {
 		t := v.Type
 		_ = v.Args[1]
@@ -22004,7 +22004,7 @@ func rewriteValuegeneric_OpPtrIndex_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpMul64, typ.Int)
 		v0.AddArg(idx)
 		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int)
-		v1.AuxInt = t.ElemType().Size()
+		v1.AuxInt = t.Elem().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true

@@ -285,7 +285,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 		// Copy to temp location if the source is volatile (will be clobbered by
 		// a function call). Marshaling the args to typedmemmove might clobber the
 		// value we're trying to move.
-		t := val.Type.ElemType()
+		t := val.Type.Elem()
 		tmp = b.Func.fe.Auto(val.Pos, t)
 		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), tmp, sp)
