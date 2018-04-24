@@ -654,7 +654,6 @@ func (ctxt *Link) mangleTypeSym() {
 		return
 	}
 
-	*FlagW = true // disable DWARF generation
 	for _, s := range ctxt.Syms.Allsym {
 		newName := typeSymbolMangle(s.Name)
 		if newName != s.Name {
