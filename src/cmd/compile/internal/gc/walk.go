@@ -538,6 +538,12 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 
 	case OLEN, OCAP:
+		if isRuneCount(n) {
+			// Replace len([]rune(string)) with runtime.countrunes(string).
+			n = mkcall("countrunes", n.Type, init, conv(n.Left.Left, types.Types[TSTRING]))
+			break
+		}
+
 		n.Left = walkexpr(n.Left, init)
 
 		// replace len(*[10]int) with 10.
@@ -4084,4 +4090,10 @@ func canMergeLoads() bool {
 		return thearch.LinkArch.ByteOrder == binary.LittleEndian
 	}
 	return false
+}
+
+// isRuneCount reports whether n is of the form len([]rune(string)).
+// These are optimized into a call to runtime.runecount.
+func isRuneCount(n *Node) bool {
+	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTRARRAYRUNE
 }
