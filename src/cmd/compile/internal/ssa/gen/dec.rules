@@ -59,7 +59,7 @@
 
 (Load <t> ptr mem) && t.IsSlice() ->
   (SliceMake
-    (Load <t.ElemType().PtrTo()> ptr mem)
+    (Load <t.Elem().PtrTo()> ptr mem)
     (Load <typ.Int>
       (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
       mem)

@@ -578,8 +578,8 @@
 
 // indexing operations
 // Note: bounds check has already been done
-(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <typ.Int> idx (Const32 <typ.Int> [t.ElemType().Size()])))
-(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <typ.Int> idx (Const64 <typ.Int> [t.ElemType().Size()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <typ.Int> idx (Const32 <typ.Int> [t.Elem().Size()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <typ.Int> idx (Const64 <typ.Int> [t.Elem().Size()])))
 
 // struct operations
 (StructSelect (StructMake1 x)) -> x
@@ -668,7 +668,7 @@
   (ArrayMake0)
 
 (Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) ->
-  (ArrayMake1 (Load <t.ElemType()> ptr mem))
+  (ArrayMake1 (Load <t.Elem()> ptr mem))
 
 (Store _ (ArrayMake0) mem) -> mem
 (Store dst (ArrayMake1 e) mem) -> (Store {e.Type} dst e mem)
@@ -711,12 +711,12 @@
 (SliceCap (SliceMake _ _ (SliceLen x))) -> (SliceLen x)
 (ConstSlice) && config.PtrSize == 4 ->
   (SliceMake
-    (ConstNil <v.Type.ElemType().PtrTo()>)
+    (ConstNil <v.Type.Elem().PtrTo()>)
     (Const32 <typ.Int> [0])
     (Const32 <typ.Int> [0]))
 (ConstSlice) && config.PtrSize == 8 ->
   (SliceMake
-    (ConstNil <v.Type.ElemType().PtrTo()>)
+    (ConstNil <v.Type.Elem().PtrTo()>)
     (Const64 <typ.Int> [0])
     (Const64 <typ.Int> [0]))
 
@@ -744,7 +744,7 @@
 
 (Arg {n} [off]) && v.Type.IsSlice() ->
   (SliceMake
-    (Arg <v.Type.ElemType().PtrTo()> {n} [off])
+    (Arg <v.Type.Elem().PtrTo()> {n} [off])
     (Arg <typ.Int> {n} [off+config.PtrSize])
     (Arg <typ.Int> {n} [off+2*config.PtrSize]))
 
@@ -787,7 +787,7 @@
 (Arg <t>) && t.IsArray() && t.NumElem() == 0 ->
   (ArrayMake0)
 (Arg <t> {n} [off]) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) ->
-  (ArrayMake1 (Arg <t.ElemType()> {n} [off]))
+  (ArrayMake1 (Arg <t.Elem()> {n} [off]))
 
 // strength reduction of divide by a constant.
 // See ../magic.go for a detailed description of these algorithms.

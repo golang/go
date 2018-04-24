@@ -1317,11 +1317,6 @@ func (t *Type) IsEmptyInterface() bool {
 	return t.IsInterface() && t.NumFields() == 0
 }
 
-func (t *Type) ElemType() *Type {
-	// TODO(josharian): If Type ever moves to a shared
-	// internal package, remove this silly wrapper.
-	return t.Elem()
-}
 func (t *Type) PtrTo() *Type {
 	return NewPtr(t)
 }

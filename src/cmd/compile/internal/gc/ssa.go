@@ -5339,7 +5339,7 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 
 func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
-	ptrType := types.NewPtr(name.Type.ElemType())
+	ptrType := types.NewPtr(name.Type.Elem())
 	lenType := types.Types[TINT]
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		// Split this slice up into three separate variables.
@@ -5418,7 +5418,7 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 	if at.NumElem() != 1 {
 		Fatalf("bad array size")
 	}
-	et := at.ElemType()
+	et := at.Elem()
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		return e.splitSlot(&name, "[0]", 0, et)
 	}
