@@ -276,6 +276,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64CMPW,
 		ssa.OpARM64CMN,
 		ssa.OpARM64CMNW,
+		ssa.OpARM64TST,
+		ssa.OpARM64TSTW,
 		ssa.OpARM64FCMPS,
 		ssa.OpARM64FCMPD:
 		p := s.Prog(v.Op.Asm())
@@ -285,7 +287,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARM64CMPconst,
 		ssa.OpARM64CMPWconst,
 		ssa.OpARM64CMNconst,
-		ssa.OpARM64CMNWconst:
+		ssa.OpARM64CMNWconst,
+		ssa.OpARM64TSTconst,
+		ssa.OpARM64TSTWconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt

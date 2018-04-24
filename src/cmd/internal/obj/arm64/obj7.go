@@ -311,7 +311,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// will zero the high 32-bit of the destination
 	// register anyway.
 	switch p.As {
-	case AANDW, AORRW, AEORW, AANDSW:
+	case AANDW, AORRW, AEORW, AANDSW, ATSTW:
 		if p.From.Type == obj.TYPE_CONST {
 			v := p.From.Offset & 0xffffffff
 			p.From.Offset = v | v<<32
