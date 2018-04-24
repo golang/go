@@ -12,7 +12,35 @@ import (
 	"testing"
 )
 
+func BenchmarkStartRegion(b *testing.B) {
+	b.ReportAllocs()
+	ctx, task := NewTask(context.Background(), "benchmark")
+	defer task.End()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			StartRegion(ctx, "region").End()
+		}
+	})
+}
+
+func BenchmarkNewTask(b *testing.B) {
+	b.ReportAllocs()
+	pctx, task := NewTask(context.Background(), "benchmark")
+	defer task.End()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, task := NewTask(pctx, "task")
+			task.End()
+		}
+	})
+}
+
 func TestUserTaskRegion(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	bgctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -107,7 +135,8 @@ func TestUserTaskRegion(t *testing.T) {
 		{trace.EvUserRegion, []string{"task0", "region1"}, []uint64{1}, false},
 		{trace.EvUserRegion, []string{"task0", "region0"}, []uint64{1}, false},
 		{trace.EvUserTaskEnd, []string{"task0"}, nil, false},
-		{trace.EvUserRegion, []string{"", "pre-existing region"}, []uint64{1}, false},
+		//  Currently, pre-existing region is not recorded to avoid allocations.
+		//  {trace.EvUserRegion, []string{"", "pre-existing region"}, []uint64{1}, false},
 		{trace.EvUserRegion, []string{"", "post-existing region"}, []uint64{0}, false},
 	}
 	if !reflect.DeepEqual(got, want) {
