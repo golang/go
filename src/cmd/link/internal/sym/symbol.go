@@ -478,6 +478,7 @@ type FuncInfo struct {
 	Pcline      Pcdata
 	Pcinline    Pcdata
 	Pcdata      []Pcdata
+	IsStmtSym   *Symbol
 	Funcdata    []*Symbol
 	Funcdataoff []int64
 	File        []*Symbol
