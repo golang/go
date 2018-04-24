@@ -90,6 +90,7 @@ var tests = [][]string{
 	{"testdata/labels.src"},
 	{"testdata/issues.src"},
 	{"testdata/blank.src"},
+	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
 }
 
 var fset = token.NewFileSet()
