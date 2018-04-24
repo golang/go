@@ -609,9 +609,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 				x = unparen(x) // TODO(mdempsky): Needed?
 				if x.Op == OCOMPLIT {
 					// Special case for &T{...}: turn into (*T){...}.
-					// TODO(mdempsky): Switch back to p.nod after we
-					// get rid of gcCompat.
-					x.Right = nod(OIND, x.Right, nil)
+					x.Right = p.nod(expr, OIND, x.Right, nil)
 					x.Right.SetImplicit(true)
 					return x
 				}
