@@ -6292,3 +6292,36 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
 		t.Fatalf("Stat(%q) returns unexpected error: %v", tmpdir, err)
 	}
 }
+
+func testCDAndGOPATHAreDifferent(tg *testgoData, cd, gopath string) {
+	tg.setenv("GOPATH", gopath)
+
+	tg.tempDir("dir")
+	exe := tg.path("dir/a.exe")
+
+	tg.cd(cd)
+
+	tg.run("build", "-o", exe, "-ldflags", "-X=my.pkg.Text=linkXworked")
+	out, err := exec.Command(exe).CombinedOutput()
+	if err != nil {
+		tg.t.Fatal(err)
+	}
+	if string(out) != "linkXworked\n" {
+		tg.t.Errorf(`incorrect output with GOPATH=%q and CD=%q: expected "linkXworked\n", but have %q`, gopath, cd, string(out))
+	}
+}
+
+func TestCDAndGOPATHAreDifferent(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	gopath := filepath.Join(tg.pwd(), "testdata")
+	cd := filepath.Join(gopath, "src/my.pkg/main")
+
+	testCDAndGOPATHAreDifferent(tg, cd, gopath)
+	if runtime.GOOS == "windows" {
+		testCDAndGOPATHAreDifferent(tg, cd, strings.Replace(gopath, `\`, `/`, -1))
+		testCDAndGOPATHAreDifferent(tg, cd, strings.ToUpper(gopath))
+		testCDAndGOPATHAreDifferent(tg, cd, strings.ToLower(gopath))
+	}
+}
