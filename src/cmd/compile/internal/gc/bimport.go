@@ -587,7 +587,7 @@ func (p *importer) typ() *types.Type {
 		t = p.newtyp(TMAP)
 		mt := t.MapType()
 		mt.Key = p.typ()
-		mt.Val = p.typ()
+		mt.Elem = p.typ()
 
 	case chanTag:
 		t = p.newtyp(TCHAN)

@@ -85,7 +85,7 @@ func bmap(t *types.Type) *types.Type {
 
 	bucket := types.New(TSTRUCT)
 	keytype := t.Key()
-	valtype := t.Val()
+	valtype := t.Elem()
 	dowidth(keytype)
 	dowidth(valtype)
 	if keytype.Width > MAXKEYSIZE {
@@ -172,7 +172,7 @@ func bmap(t *types.Type) *types.Type {
 	if t.Key().Width > MAXKEYSIZE && !keytype.IsPtr() {
 		Fatalf("key indirect incorrect for %v", t)
 	}
-	if t.Val().Width > MAXVALSIZE && !valtype.IsPtr() {
+	if t.Elem().Width > MAXVALSIZE && !valtype.IsPtr() {
 		Fatalf("value indirect incorrect for %v", t)
 	}
 	if keytype.Width%int64(keytype.Align) != 0 {
@@ -286,8 +286,8 @@ func hiter(t *types.Type) *types.Type {
 	// }
 	// must match ../../../../runtime/map.go:hiter.
 	fields := []*types.Field{
-		makefield("key", types.NewPtr(t.Key())), // Used in range.go for TMAP.
-		makefield("val", types.NewPtr(t.Val())), // Used in range.go for TMAP.
+		makefield("key", types.NewPtr(t.Key())),  // Used in range.go for TMAP.
+		makefield("val", types.NewPtr(t.Elem())), // Used in range.go for TMAP.
 		makefield("t", types.Types[TUNSAFEPTR]),
 		makefield("h", types.NewPtr(hmap)),
 		makefield("buckets", types.NewPtr(bmap)),
@@ -1245,7 +1245,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 	// ../../../../runtime/type.go:/mapType
 	case TMAP:
 		s1 := dtypesym(t.Key())
-		s2 := dtypesym(t.Val())
+		s2 := dtypesym(t.Elem())
 		s3 := dtypesym(bmap(t))
 		s4 := dtypesym(hmap(t))
 		ot = dcommontype(lsym, t)
@@ -1261,11 +1261,11 @@ func dtypesym(t *types.Type) *obj.LSym {
 			ot = duint8(lsym, ot, 0) // not indirect
 		}
 
-		if t.Val().Width > MAXVALSIZE {
+		if t.Elem().Width > MAXVALSIZE {
 			ot = duint8(lsym, ot, uint8(Widthptr))
 			ot = duint8(lsym, ot, 1) // indirect
 		} else {
-			ot = duint8(lsym, ot, uint8(t.Val().Width))
+			ot = duint8(lsym, ot, uint8(t.Elem().Width))
 			ot = duint8(lsym, ot, 0) // not indirect
 		}
 

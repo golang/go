@@ -612,7 +612,6 @@ func eqtype1(t1, t2 *types.Type, cmpTags bool, assumedEqual map[typePair]struct{
 		if !eqtype1(t1.Key(), t2.Key(), cmpTags, assumedEqual) {
 			return false
 		}
-		return eqtype1(t1.Val(), t2.Val(), cmpTags, assumedEqual)
 	}
 
 	return eqtype1(t1.Elem(), t2.Elem(), cmpTags, assumedEqual)

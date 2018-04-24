@@ -71,7 +71,7 @@ func typecheckrangeExpr(n *Node) {
 
 	case TMAP:
 		t1 = t.Key()
-		t2 = t.Val()
+		t2 = t.Elem()
 
 	case TCHAN:
 		if !t.ChanDir().CanRecv() {
@@ -297,7 +297,7 @@ func walkrange(n *Node) *Node {
 
 		fn := syslook("mapiterinit")
 
-		fn = substArgTypes(fn, t.Key(), t.Val(), th)
+		fn = substArgTypes(fn, t.Key(), t.Elem(), th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, nod(OADDR, hit, nil)))
 		n.Left = nod(ONE, nodSym(ODOT, hit, keysym), nodnil())
 

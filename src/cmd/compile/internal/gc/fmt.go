@@ -739,7 +739,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		return "chan " + tmodeString(t.Elem(), mode, depth)
 
 	case TMAP:
-		return "map[" + tmodeString(t.Key(), mode, depth) + "]" + tmodeString(t.Val(), mode, depth)
+		return "map[" + tmodeString(t.Key(), mode, depth) + "]" + tmodeString(t.Elem(), mode, depth)
 
 	case TINTER:
 		if t.IsEmptyInterface() {
@@ -803,19 +803,18 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 			mt := m.MapType()
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
-			if mt.Bucket == t {
-				return "map.bucket[" + tmodeString(m.Key(), mode, depth) + "]" + tmodeString(m.Val(), mode, depth)
+			var subtype string
+			switch t {
+			case mt.Bucket:
+				subtype = "bucket"
+			case mt.Hmap:
+				subtype = "hdr"
+			case mt.Hiter:
+				subtype = "iter"
+			default:
+				Fatalf("unknown internal map type")
 			}
-
-			if mt.Hmap == t {
-				return "map.hdr[" + tmodeString(m.Key(), mode, depth) + "]" + tmodeString(m.Val(), mode, depth)
-			}
-
-			if mt.Hiter == t {
-				return "map.iter[" + tmodeString(m.Key(), mode, depth) + "]" + tmodeString(m.Val(), mode, depth)
-			}
-
-			Fatalf("unknown internal map type")
+			return fmt.Sprintf("map.%s[%s]%s", subtype, tmodeString(m.Key(), mode, depth), tmodeString(m.Elem(), mode, depth))
 		}
 
 		buf := make([]byte, 0, 64)

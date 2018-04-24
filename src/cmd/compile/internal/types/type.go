@@ -219,8 +219,8 @@ func (t *Type) SetPkg(pkg *Pkg) {
 
 // Map contains Type fields specific to maps.
 type Map struct {
-	Key *Type // Key type
-	Val *Type // Val (elem) type
+	Key  *Type // Key type
+	Elem *Type // Val (elem) type
 
 	Bucket *Type // internal struct type representing a hash bucket
 	Hmap   *Type // internal struct type representing the Hmap (map header object)
@@ -539,7 +539,7 @@ func NewMap(k, v *Type) *Type {
 	t := New(TMAP)
 	mt := t.MapType()
 	mt.Key = k
-	mt.Val = v
+	mt.Elem = v
 	return t
 }
 
@@ -650,11 +650,11 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 
 	case TMAP:
 		key := SubstAny(t.Key(), types)
-		val := SubstAny(t.Val(), types)
-		if key != t.Key() || val != t.Val() {
+		elem := SubstAny(t.Elem(), types)
+		if key != t.Key() || elem != t.Elem() {
 			t = t.copy()
 			t.Extra.(*Map).Key = key
-			t.Extra.(*Map).Val = val
+			t.Extra.(*Map).Elem = elem
 		}
 
 	case TFUNC:
@@ -787,14 +787,8 @@ func (t *Type) Key() *Type {
 	return t.Extra.(*Map).Key
 }
 
-// Val returns the value type of map type t.
-func (t *Type) Val() *Type {
-	t.wantEtype(TMAP)
-	return t.Extra.(*Map).Val
-}
-
 // Elem returns the type of elements of t.
-// Usable with pointers, channels, arrays, and slices.
+// Usable with pointers, channels, arrays, slices, and maps.
 func (t *Type) Elem() *Type {
 	switch t.Etype {
 	case TPTR32, TPTR64:
@@ -805,6 +799,8 @@ func (t *Type) Elem() *Type {
 		return t.Extra.(Slice).Elem
 	case TCHAN:
 		return t.Extra.(*Chan).Elem
+	case TMAP:
+		return t.Extra.(*Map).Elem
 	}
 	Fatalf("Type.Elem %s", t.Etype)
 	return nil
@@ -1104,7 +1100,7 @@ func (t *Type) cmp(x *Type) Cmp {
 		if c := t.Key().cmp(x.Key()); c != CMPeq {
 			return c
 		}
-		return t.Val().cmp(x.Val())
+		return t.Elem().cmp(x.Elem())
 
 	case TPTR32, TPTR64, TSLICE:
 		// No special cases for these, they are handled

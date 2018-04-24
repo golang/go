@@ -947,7 +947,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 
 		// build types [count]Tindex and [count]Tvalue
 		tk := types.NewArray(n.Type.Key(), int64(len(stat)))
-		tv := types.NewArray(n.Type.Val(), int64(len(stat)))
+		tv := types.NewArray(n.Type.Elem(), int64(len(stat)))
 
 		// TODO(josharian): suppress alg generation for these types?
 		dowidth(tk)
@@ -1012,7 +1012,7 @@ func addMapEntries(m *Node, dyn []*Node, init *Nodes) {
 	// Use temporaries so that mapassign1 can have addressable key, val.
 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
 	key := temp(m.Type.Key())
-	val := temp(m.Type.Val())
+	val := temp(m.Type.Elem())
 
 	for _, r := range dyn {
 		index, value := r.Left, r.Right
