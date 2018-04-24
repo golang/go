@@ -2208,6 +2208,7 @@ func (mux *ServeMux) match(path string) (h Handler, pattern string) {
 			n = len(k)
 			h = v.h
 			pattern = v.pattern
+			break
 		}
 	}
 	return
