@@ -294,13 +294,32 @@ func (b *Builder) gccgoToolID(name, language string) (string, error) {
 	return id, nil
 }
 
+// Check if assembler used by gccgo is GNU as.
+func assemblerIsGas() bool {
+	cmd := exec.Command(BuildToolchain.compiler(), "-print-prog-name=as")
+	assembler, err := cmd.Output()
+	if err == nil {
+		cmd := exec.Command(strings.TrimSpace(string(assembler)), "--version")
+		out, err := cmd.Output()
+		return err == nil && strings.Contains(string(out), "GNU")
+	} else {
+		return false
+	}
+}
+
 // gccgoBuildIDELFFile creates an assembler file that records the
 // action's build ID in an SHF_EXCLUDE section.
 func (b *Builder) gccgoBuildIDELFFile(a *Action) (string, error) {
 	sfile := a.Objdir + "_buildid.s"
 
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "\t"+`.section .go.buildid,"e"`+"\n")
+	if cfg.Goos != "solaris" || assemblerIsGas() {
+		fmt.Fprintf(&buf, "\t"+`.section .go.buildid,"e"`+"\n")
+	} else if cfg.Goarch == "sparc" || cfg.Goarch == "sparc64" {
+		fmt.Fprintf(&buf, "\t"+`.section ".go.buildid",#exclude`+"\n")
+	} else { // cfg.Goarch == "386" || cfg.Goarch == "amd64"
+		fmt.Fprintf(&buf, "\t"+`.section .go.buildid,#exclude`+"\n")
+	}
 	fmt.Fprintf(&buf, "\t.byte ")
 	for i := 0; i < len(a.buildID); i++ {
 		if i > 0 {
@@ -313,8 +332,10 @@ func (b *Builder) gccgoBuildIDELFFile(a *Action) (string, error) {
 		fmt.Fprintf(&buf, "%#02x", a.buildID[i])
 	}
 	fmt.Fprintf(&buf, "\n")
-	fmt.Fprintf(&buf, "\t"+`.section .note.GNU-stack,"",@progbits`+"\n")
-	fmt.Fprintf(&buf, "\t"+`.section .note.GNU-split-stack,"",@progbits`+"\n")
+	if cfg.Goos != "solaris" {
+		fmt.Fprintf(&buf, "\t"+`.section .note.GNU-stack,"",@progbits`+"\n")
+		fmt.Fprintf(&buf, "\t"+`.section .note.GNU-split-stack,"",@progbits`+"\n")
+	}
 
 	if cfg.BuildN || cfg.BuildX {
 		for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
