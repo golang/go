@@ -638,7 +638,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	case TMAP:
 		w.startType(mapType)
 		w.typ(t.Key())
-		w.typ(t.Val())
+		w.typ(t.Elem())
 
 	case TFUNC:
 		w.startType(signatureType)

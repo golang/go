@@ -286,7 +286,7 @@ func dowidth(t *types.Type) {
 
 	case TMAP: // implemented as pointer
 		w = int64(Widthptr)
-		checkwidth(t.Val())
+		checkwidth(t.Elem())
 		checkwidth(t.Key())
 
 	case TFORW: // should have been filled in

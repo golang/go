@@ -476,11 +476,8 @@ func (p *exporter) markType(t *types.Type) {
 	// perfect. Worst case, we might miss opportunities to inline
 	// some function calls in downstream packages.
 	switch t.Etype {
-	case TPTR32, TPTR64, TARRAY, TSLICE, TCHAN:
+	case TPTR32, TPTR64, TARRAY, TSLICE, TCHAN, TMAP:
 		p.markType(t.Elem())
-
-	case TMAP:
-		p.markType(t.Val())
 
 	case TSTRUCT:
 		for _, f := range t.FieldSlice() {
@@ -798,7 +795,7 @@ func (p *exporter) typ(t *types.Type) {
 	case TMAP:
 		p.tag(mapTag)
 		p.typ(t.Key())
-		p.typ(t.Val())
+		p.typ(t.Elem())
 
 	case TCHAN:
 		p.tag(chanTag)

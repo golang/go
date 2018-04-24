@@ -822,7 +822,7 @@ opswitch:
 		//   a = *var
 		a := n.List.First()
 
-		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/map.go:maxZero
+		if w := t.Elem().Width; w <= 1024 { // 1024 must match ../../../../runtime/map.go:maxZero
 			fn := mapfn(mapaccess2[fast], t)
 			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
 		} else {
@@ -842,7 +842,7 @@ opswitch:
 
 		// don't generate a = *var if a is _
 		if !a.isBlank() {
-			var_ := temp(types.NewPtr(t.Val()))
+			var_ := temp(types.NewPtr(t.Elem()))
 			var_.SetTypecheck(1)
 			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
 			n.List.SetFirst(var_)
@@ -1196,17 +1196,17 @@ opswitch:
 				key = nod(OADDR, key, nil)
 			}
 
-			if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/map.go:maxZero
-				n = mkcall1(mapfn(mapaccess1[fast], t), types.NewPtr(t.Val()), init, typename(t), map_, key)
+			if w := t.Elem().Width; w <= 1024 { // 1024 must match ../../../../runtime/map.go:maxZero
+				n = mkcall1(mapfn(mapaccess1[fast], t), types.NewPtr(t.Elem()), init, typename(t), map_, key)
 			} else {
 				z := zeroaddr(w)
-				n = mkcall1(mapfn("mapaccess1_fat", t), types.NewPtr(t.Val()), init, typename(t), map_, key, z)
+				n = mkcall1(mapfn("mapaccess1_fat", t), types.NewPtr(t.Elem()), init, typename(t), map_, key, z)
 			}
 		}
-		n.Type = types.NewPtr(t.Val())
+		n.Type = types.NewPtr(t.Elem())
 		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
 		n = nod(OIND, n, nil)
-		n.Type = t.Val()
+		n.Type = t.Elem()
 		n.SetTypecheck(1)
 
 	case ORECV:
@@ -1498,7 +1498,7 @@ opswitch:
 				// Call runtime.makehmap to allocate an
 				// hmap on the heap and initialize hmap's hash0 field.
 				fn := syslook("makemap_small")
-				fn = substArgTypes(fn, t.Key(), t.Val())
+				fn = substArgTypes(fn, t.Key(), t.Elem())
 				n = mkcall1(fn, n.Type, init)
 			}
 		} else {
@@ -1525,7 +1525,7 @@ opswitch:
 			}
 
 			fn := syslook(fnname)
-			fn = substArgTypes(fn, hmapType, t.Key(), t.Val())
+			fn = substArgTypes(fn, hmapType, t.Key(), t.Elem())
 			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(hint, argtype), h)
 		}
 
@@ -2792,7 +2792,7 @@ func mapfn(name string, t *types.Type) *Node {
 		Fatalf("mapfn %v", t)
 	}
 	fn := syslook(name)
-	fn = substArgTypes(fn, t.Key(), t.Val(), t.Key(), t.Val())
+	fn = substArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
 	return fn
 }
 
@@ -2801,7 +2801,7 @@ func mapfndel(name string, t *types.Type) *Node {
 		Fatalf("mapfn %v", t)
 	}
 	fn := syslook(name)
-	fn = substArgTypes(fn, t.Key(), t.Val(), t.Key())
+	fn = substArgTypes(fn, t.Key(), t.Elem(), t.Key())
 	return fn
 }
 
@@ -2828,7 +2828,7 @@ var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
 	// Check ../../runtime/map.go:maxValueSize before changing.
-	if t.Val().Width > 128 {
+	if t.Elem().Width > 128 {
 		return mapslow
 	}
 	switch algtype(t.Key()) {
