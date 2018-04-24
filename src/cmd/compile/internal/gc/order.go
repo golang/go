@@ -1098,7 +1098,14 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		OSTRARRAYBYTE,
 		OSTRARRAYBYTETMP,
 		OSTRARRAYRUNE:
-		o.call(n)
+
+		if isRuneCount(n) {
+			// len([]rune(s)) is rewritten to runtime.countrunes(s) later.
+			n.Left.Left = o.expr(n.Left.Left, nil)
+		} else {
+			o.call(n)
+		}
+
 		if lhs == nil || lhs.Op != ONAME || instrumenting {
 			n = o.copyExpr(n, n.Type, false)
 		}
