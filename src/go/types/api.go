@@ -309,7 +309,7 @@ func (tv TypeAndValue) Assignable() bool {
 }
 
 // HasOk reports whether the corresponding expression may be
-// used on the lhs of a comma-ok assignment.
+// used on the rhs of a comma-ok assignment.
 func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
