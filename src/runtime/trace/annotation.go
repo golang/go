@@ -158,6 +158,9 @@ func WithSpan(ctx context.Context, spanType string, fn func(ctx context.Context)
 //     defer trace.StartRegion(ctx, "myTracedRegion").End()
 //
 func StartRegion(ctx context.Context, regionType string) *Region {
+	if !IsEnabled() {
+		return noopRegion
+	}
 	id := fromContext(ctx).id
 	userRegion(id, regionStartCode, regionType)
 	return &Region{id, regionType}
@@ -175,8 +178,13 @@ type Region struct {
 	regionType string
 }
 
+var noopRegion = &Region{}
+
 // End marks the end of the traced code region.
 func (r *Region) End() {
+	if r == noopRegion {
+		return
+	}
 	userRegion(r.id, regionEndCode, r.regionType)
 }
 
