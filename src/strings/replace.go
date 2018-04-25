@@ -18,8 +18,9 @@ type replacer interface {
 	WriteString(w io.Writer, s string) (n int, err error)
 }
 
-// NewReplacer returns a new Replacer from a list of old, new string pairs.
-// Replacements are performed in order, without overlapping matches.
+// NewReplacer returns a new Replacer from a list of old, new string
+// pairs. Replacements are performed in the order they appear in the
+// target string, without overlapping matches.
 func NewReplacer(oldnew ...string) *Replacer {
 	if len(oldnew)%2 == 1 {
 		panic("strings.NewReplacer: odd argument count")
