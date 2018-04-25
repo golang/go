@@ -408,6 +408,7 @@ again:
 //		outcode($1, &$2, NREG, &$4);
 //	}
 	CSET	GT, R1	// e1d79f9a
+	CSETW	HI, R2	// e2979f1a
 //
 // CSEL/CSINC/CSNEG/CSINV
 //
@@ -416,17 +417,22 @@ again:
 //		outgcode($1, &$2, $6.reg, &$4, &$8);
 //	}
 	CSEL	LT, R1, R2, ZR	// 3fb0829a
+	CSELW	LT, R2, R3, R4	// 44b0831a
 	CSINC	GT, R1, ZR, R3	// 23c49f9a
 	CSNEG	MI, R1, R2, R3	// 234482da
 	CSINV	CS, R1, R2, R3	// CSINV HS, R1, R2, R3 // 232082da
+	CSINVW	MI, R2, ZR, R2	// 42409f5a
 
 //		LTYPES cond ',' reg ',' reg
 //	{
 //		outcode($1, &$2, $4.reg, &$6);
 //	}
 	CINC	EQ, R4, R9	// 8914849a
+	CINCW	PL, R2, ZR	// 5f44821a
 	CINV	PL, R11, R22	// 76418bda
+	CINVW	LS, R7, R13	// ed80875a
 	CNEG	LS, R13, R7	// a7858dda
+	CNEGW	EQ, R8, R13	// 0d15885a
 //
 // CCMN
 //
