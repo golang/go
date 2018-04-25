@@ -67,7 +67,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 
 	d := check.objMap[obj]
 	if d == nil {
-		check.dump("%s: %s should have been declared", obj.Pos(), obj)
+		check.dump("%v: %s should have been declared", obj.Pos(), obj)
 		unreachable()
 	}
 
