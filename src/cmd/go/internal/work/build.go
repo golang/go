@@ -2262,11 +2262,10 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
 		gcargs = append(gcargs, "-dwarf=false")
 	}
 
-	for _, path := range p.Imports {
-		if i := strings.LastIndex(path, "/vendor/"); i >= 0 {
-			gcargs = append(gcargs, "-importmap", path[i+len("/vendor/"):]+"="+path)
-		} else if strings.HasPrefix(path, "vendor/") {
-			gcargs = append(gcargs, "-importmap", path[len("vendor/"):]+"="+path)
+	for i, raw := range p.Internal.RawImports {
+		final := p.Imports[i]
+		if final != raw {
+			gcargs = append(gcargs, "-importmap", raw+"="+final)
 		}
 	}
 

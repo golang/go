@@ -48,6 +48,20 @@ var parseMetaGoImportsTests = []struct {
 		},
 	},
 	{
+		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">
+		<meta name="go-import" content="foo/bar mod http://github.com/rsc/baz/quux">`,
+		[]metaImport{
+			{"foo/bar", "git", "https://github.com/rsc/foo/bar"},
+		},
+	},
+	{
+		`<meta name="go-import" content="foo/bar mod http://github.com/rsc/baz/quux">
+		<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">`,
+		[]metaImport{
+			{"foo/bar", "git", "https://github.com/rsc/foo/bar"},
+		},
+	},
+	{
 		`<head>
 		<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">
 		</head>`,

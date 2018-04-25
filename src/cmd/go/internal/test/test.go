@@ -429,7 +429,7 @@ var testMainDeps = map[string]bool{
 	// Dependencies for testmain.
 	"testing":                   true,
 	"testing/internal/testdeps": true,
-	"os": true,
+	"os":                        true,
 }
 
 func runTest(cmd *base.Command, args []string) {
@@ -499,10 +499,10 @@ func runTest(cmd *base.Command, args []string) {
 			for _, path := range p.Imports {
 				deps[path] = true
 			}
-			for _, path := range p.Vendored(p.TestImports) {
+			for _, path := range p.Resolve(p.TestImports) {
 				deps[path] = true
 			}
-			for _, path := range p.Vendored(p.XTestImports) {
+			for _, path := range p.Resolve(p.XTestImports) {
 				deps[path] = true
 			}
 		}
@@ -715,8 +715,9 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	var imports, ximports []*load.Package
 	var stk load.ImportStack
 	stk.Push(p.ImportPath + " (test)")
+	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
-		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], load.UseVendor)
+		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], load.ResolveImport)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -742,8 +743,9 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	stk.Pop()
 	stk.Push(p.ImportPath + "_test")
 	pxtestNeedsPtest := false
+	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
-		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], load.UseVendor)
+		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], load.ResolveImport)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -810,8 +812,20 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
 		ptest.Internal.Target = ""
-		ptest.Imports = str.StringList(p.Imports, p.TestImports)
-		ptest.Internal.Imports = append(append([]*load.Package{}, p.Internal.Imports...), imports...)
+		// Note: The preparation of the compiler import map requires that common
+		// indexes in ptest.Imports, ptest.Internal.Imports, and ptest.Internal.RawImports
+		// all line up (but RawImports can be shorter than the others).
+		// That is, for 0 ≤ i < len(RawImports),
+		// RawImports[i] is the import string in the program text,
+		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away),
+		// and Internal.Imports[i] is the corresponding *Package.
+		// Any implicitly added imports appear in Imports and Internal.Imports
+		// but not RawImports (because they were not in the source code).
+		// We insert TestImports, imports, and rawTestImports at the start of
+		// these lists to preserve the alignment.
+		ptest.Imports = str.StringList(p.TestImports, p.Imports)
+		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
+		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
 		ptest.Internal.Pkgdir = testDir
 		ptest.Internal.Fake = true
 		ptest.Internal.ForceLibrary = true
@@ -856,10 +870,11 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				Build: &build.Package{
 					ImportPos: p.Internal.Build.XTestImportPos,
 				},
-				Imports:  ximports,
-				Pkgdir:   testDir,
-				Fake:     true,
-				External: true,
+				Imports:    ximports,
+				RawImports: rawXTestImports,
+				Pkgdir:     testDir,
+				Fake:       true,
+				External:   true,
 			},
 		}
 		if pxtestNeedsPtest {
