@@ -2108,11 +2108,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.load(n.Type, p)
 
 	case ODOT:
-		t := n.Left.Type
-		if canSSAType(t) {
-			v := s.expr(n.Left)
-			return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
-		}
 		if n.Left.Op == OSTRUCTLIT {
 			// All literals with nonzero fields have already been
 			// rewritten during walk. Any that remain are just T{}
@@ -2122,8 +2117,16 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.zeroVal(n.Type)
 		}
-		p := s.addr(n, false)
-		return s.load(n.Type, p)
+		// If n is addressable and can't be represented in
+		// SSA, then load just the selected field. This
+		// prevents false memory dependencies in race/msan
+		// instrumentation.
+		if islvalue(n) && !s.canSSA(n) {
+			p := s.addr(n, false)
+			return s.load(n.Type, p)
+		}
+		v := s.expr(n.Left)
+		return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
 
 	case ODOTPTR:
 		p := s.exprPtr(n.Left, false, n.Pos)
@@ -3735,14 +3738,6 @@ func canSSAType(t *types.Type) bool {
 		}
 		return false
 	case TSTRUCT:
-		// When instrumenting, don't SSA structs with more
-		// than one field. Otherwise, an access like "x.f" may
-		// be compiled into a full load of x, which can
-		// introduce false dependencies on other "x.g" fields.
-		if instrumenting && t.NumFields() > 1 {
-			return false
-		}
-
 		if t.NumFields() > ssa.MaxStruct {
 			return false
 		}
