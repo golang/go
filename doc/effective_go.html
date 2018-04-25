@@ -2812,7 +2812,7 @@ of <code>Job</code> would dominate it.
 <p>
 Second, if the same name appears at the same nesting level, it is usually an error;
 it would be erroneous to embed <code>log.Logger</code> if the <code>Job</code> struct
-contained another field or method called <code>Logger</code>.
+embedded another struct that also contains a field or method called <code>Command</code>.
 However, if the duplicate name is never mentioned in the program outside the type definition, it is OK.
 This qualification provides some protection against changes made to types embedded from outside; there
 is no problem if a field is added that conflicts with another field in another subtype if neither field
