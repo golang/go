@@ -631,7 +631,6 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
 	fields := make([]*types.Field, len(l))
 	for i, n := range l {
 		f := structfield(n)
-		f.Funarg = funarg
 		f.SetIsddd(n.Isddd())
 		if n.Right != nil {
 			n.Right.Type = f.Type
@@ -649,10 +648,6 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
 func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
 	t := types.New(TSTRUCT)
 	t.StructType().Funarg = funarg
-
-	for _, f := range fields {
-		f.Funarg = funarg
-	}
 	t.SetFields(fields)
 	return t
 }
