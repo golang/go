@@ -328,3 +328,34 @@ func TestVendor12156(t *testing.T) {
 	tg.grepStderrNot("panic", "panicked")
 	tg.grepStderr(`cannot find package "x"`, "wrong error")
 }
+
+// Module legacy support does path rewriting very similar to vendoring.
+
+func TestModLegacy(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/modlegacy"))
+	tg.run("list", "-f", "{{.Imports}}", "old/p1")
+	tg.grepStdout("new/p1", "old/p1 should import new/p1")
+	tg.run("list", "-f", "{{.Imports}}", "new/p1")
+	tg.grepStdout("new/p2", "new/p1 should import new/p2 (not new/v2/p2)")
+	tg.grepStdoutNot("new/v2", "new/p1 should NOT import new/v2*")
+	tg.grepStdout("new/sub/x/v1/y", "new/p1 should import new/sub/x/v1/y (not new/sub/v2/x/v1/y)")
+	tg.grepStdoutNot("new/sub/v2", "new/p1 should NOT import new/sub/v2*")
+	tg.grepStdout("new/sub/inner/x", "new/p1 should import new/sub/inner/x (no rewrites)")
+	tg.run("build", "old/p1", "new/p1")
+}
+
+func TestModLegacyGet(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("get", "vcs-test.golang.org/git/modlegacy1-old.git/p1")
+	tg.run("list", "-f", "{{.Deps}}", "vcs-test.golang.org/git/modlegacy1-old.git/p1")
+	tg.grepStdout("new.git/p2", "old/p1 should depend on new/p2")
+	tg.grepStdoutNot("new.git/v2/p2", "old/p1 should NOT depend on new/v2/p2")
+	tg.run("build", "vcs-test.golang.org/git/modlegacy1-old.git/p1", "vcs-test.golang.org/git/modlegacy1-new.git/p1")
+}
