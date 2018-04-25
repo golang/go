@@ -393,8 +393,12 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpConstNil_0(v)
 	case OpCtz32:
 		return rewriteValueARM64_OpCtz32_0(v)
+	case OpCtz32NonZero:
+		return rewriteValueARM64_OpCtz32NonZero_0(v)
 	case OpCtz64:
 		return rewriteValueARM64_OpCtz64_0(v)
+	case OpCtz64NonZero:
+		return rewriteValueARM64_OpCtz64NonZero_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueARM64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto32U:
@@ -21487,6 +21491,17 @@ func rewriteValueARM64_OpCtz32_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueARM64_OpCtz32NonZero_0(v *Value) bool {
+	// match: (Ctz32NonZero x)
+	// cond:
+	// result: (Ctz32 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz32)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValueARM64_OpCtz64_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -21500,6 +21515,17 @@ func rewriteValueARM64_OpCtz64_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARM64RBIT, t)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpCtz64NonZero_0(v *Value) bool {
+	// match: (Ctz64NonZero x)
+	// cond:
+	// result: (Ctz64 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz64)
+		v.AddArg(x)
 		return true
 	}
 }

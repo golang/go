@@ -483,6 +483,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpConstNil_0(v)
 	case OpCtz32:
 		return rewriteValueARM_OpCtz32_0(v)
+	case OpCtz32NonZero:
+		return rewriteValueARM_OpCtz32NonZero_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueARM_OpCvt32Fto32_0(v)
 	case OpCvt32Fto32U:
@@ -17958,6 +17960,17 @@ func rewriteValueARM_OpCtz32_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueARM_OpCtz32NonZero_0(v *Value) bool {
+	// match: (Ctz32NonZero x)
+	// cond:
+	// result: (Ctz32 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz32)
+		v.AddArg(x)
+		return true
+	}
 }
 func rewriteValueARM_OpCvt32Fto32_0(v *Value) bool {
 	// match: (Cvt32Fto32 x)

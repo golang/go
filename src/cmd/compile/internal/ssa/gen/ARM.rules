@@ -57,6 +57,9 @@
 
 (Sqrt x) -> (SQRTD x)
 
+// TODO: optimize this for ARMv5 and ARMv6
+(Ctz32NonZero x) -> (Ctz32 x)
+
 // count trailing zero for ARMv5 and ARMv6
 // 32 - CLZ(x&-x - 1)
 (Ctz32 <t> x) && objabi.GOARM<=6 -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))

@@ -593,12 +593,20 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpConstNil_0(v)
 	case OpCtz16:
 		return rewriteValueAMD64_OpCtz16_0(v)
+	case OpCtz16NonZero:
+		return rewriteValueAMD64_OpCtz16NonZero_0(v)
 	case OpCtz32:
 		return rewriteValueAMD64_OpCtz32_0(v)
+	case OpCtz32NonZero:
+		return rewriteValueAMD64_OpCtz32NonZero_0(v)
 	case OpCtz64:
 		return rewriteValueAMD64_OpCtz64_0(v)
+	case OpCtz64NonZero:
+		return rewriteValueAMD64_OpCtz64NonZero_0(v)
 	case OpCtz8:
 		return rewriteValueAMD64_OpCtz8_0(v)
+	case OpCtz8NonZero:
+		return rewriteValueAMD64_OpCtz8NonZero_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueAMD64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64:
@@ -53306,6 +53314,23 @@ func rewriteValueAMD64_OpCtz16_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpCtz16NonZero_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz16NonZero x)
+	// cond:
+	// result: (Select0 (BSFL x))
+	for {
+		x := v.Args[0]
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -53322,6 +53347,23 @@ func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
 		v1.AuxInt = 32
 		v1.AddArg(x)
 		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpCtz32NonZero_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz32NonZero x)
+	// cond:
+	// result: (Select0 (BSFL x))
+	for {
+		x := v.Args[0]
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -53354,6 +53396,23 @@ func rewriteValueAMD64_OpCtz64_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpCtz64NonZero_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz64NonZero x)
+	// cond:
+	// result: (Select0 (BSFQ x))
+	for {
+		x := v.Args[0]
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueAMD64_OpCtz8_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -53370,6 +53429,23 @@ func rewriteValueAMD64_OpCtz8_0(v *Value) bool {
 		v1.AuxInt = 8
 		v1.AddArg(x)
 		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpCtz8NonZero_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz8NonZero x)
+	// cond:
+	// result: (Select0 (BSFL x))
+	for {
+		x := v.Args[0]
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
