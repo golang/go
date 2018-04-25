@@ -209,7 +209,7 @@ var downloadRootCache = map[string]bool{}
 // download runs the download half of the get command
 // for the package named by the argument.
 func download(arg string, parent *load.Package, stk *load.ImportStack, mode int) {
-	if mode&load.UseVendor != 0 {
+	if mode&load.ResolveImport != 0 {
 		// Caller is responsible for expanding vendor paths.
 		panic("internal error: download mode has useVendor set")
 	}
