@@ -215,3 +215,55 @@ func TrailingZeros8(n uint8) int {
 	// s390x:"FLOGR","OR\t\\$256"
 	return bits.TrailingZeros8(n)
 }
+
+// IterateBitsNN checks special handling of TrailingZerosNN when the input is known to be non-zero.
+
+func IterateBits(n uint) int {
+	i := 0
+	for n != 0 {
+		// amd64:"BSFQ",-"CMOVEQ"
+		i += bits.TrailingZeros(n)
+		n &= n - 1
+	}
+	return i
+}
+
+func IterateBits64(n uint64) int {
+	i := 0
+	for n != 0 {
+		// amd64:"BSFQ",-"CMOVEQ"
+		i += bits.TrailingZeros64(n)
+		n &= n - 1
+	}
+	return i
+}
+
+func IterateBits32(n uint32) int {
+	i := 0
+	for n != 0 {
+		// amd64:"BSFL",-"BTSQ"
+		i += bits.TrailingZeros32(n)
+		n &= n - 1
+	}
+	return i
+}
+
+func IterateBits16(n uint16) int {
+	i := 0
+	for n != 0 {
+		// amd64:"BSFL",-"BTSL"
+		i += bits.TrailingZeros16(n)
+		n &= n - 1
+	}
+	return i
+}
+
+func IterateBits8(n uint8) int {
+	i := 0
+	for n != 0 {
+		// amd64:"BSFL",-"BTSL"
+		i += bits.TrailingZeros8(n)
+		n &= n - 1
+	}
+	return i
+}

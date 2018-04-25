@@ -365,7 +365,7 @@ var opMax = map[Op]int64{
 	OpAdd32: math.MaxInt32, OpSub32: math.MaxInt32,
 }
 
-// isNonNegative returns true if v is known to be non-negative.
+// isNonNegative reports whether v is known to be non-negative.
 func (ft *factsTable) isNonNegative(v *Value) bool {
 	if isNonNegative(v) {
 		return true
@@ -734,34 +734,48 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 	}
 }
 
+var ctzNonZeroOp = map[Op]Op{OpCtz8: OpCtz8NonZero, OpCtz16: OpCtz16NonZero, OpCtz32: OpCtz32NonZero, OpCtz64: OpCtz64NonZero}
+
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
 func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
-	// Replace OpSlicemask operations in b with constants where possible.
 	for _, v := range b.Values {
-		if v.Op != OpSlicemask {
-			continue
-		}
-		x, delta := isConstDelta(v.Args[0])
-		if x == nil {
-			continue
-		}
-		// slicemask(x + y)
-		// if x is larger than -y (y is negative), then slicemask is -1.
-		lim, ok := ft.limits[x.ID]
-		if !ok {
-			continue
-		}
-		if lim.umin > uint64(-delta) {
-			if v.Args[0].Op == OpAdd64 {
-				v.reset(OpConst64)
-			} else {
-				v.reset(OpConst32)
+		switch v.Op {
+		case OpSlicemask:
+			// Replace OpSlicemask operations in b with constants where possible.
+			x, delta := isConstDelta(v.Args[0])
+			if x == nil {
+				continue
 			}
-			if b.Func.pass.debug > 0 {
-				b.Func.Warnl(v.Pos, "Proved slicemask not needed")
+			// slicemask(x + y)
+			// if x is larger than -y (y is negative), then slicemask is -1.
+			lim, ok := ft.limits[x.ID]
+			if !ok {
+				continue
 			}
-			v.AuxInt = -1
+			if lim.umin > uint64(-delta) {
+				if v.Args[0].Op == OpAdd64 {
+					v.reset(OpConst64)
+				} else {
+					v.reset(OpConst32)
+				}
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved slicemask not needed")
+				}
+				v.AuxInt = -1
+			}
+		case OpCtz8, OpCtz16, OpCtz32, OpCtz64:
+			// On some architectures, notably amd64, we can generate much better
+			// code for CtzNN if we know that the argument is non-zero.
+			// Capture that information here for use in arch-specific optimizations.
+			x := v.Args[0]
+			lim, ok := ft.limits[x.ID]
+			if !ok {
+				continue
+			}
+			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
+				v.Op = ctzNonZeroOp[v.Op]
+			}
 		}
 	}
 
@@ -818,7 +832,7 @@ func removeBranch(b *Block, branch branch) {
 	}
 }
 
-// isNonNegative returns true is v is known to be greater or equal to zero.
+// isNonNegative reports whether v is known to be greater or equal to zero.
 func isNonNegative(v *Value) bool {
 	switch v.Op {
 	case OpConst64:

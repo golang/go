@@ -275,6 +275,10 @@
 (Addr {sym} base) -> (MOVDaddr {sym} base)
 (OffPtr [off] ptr) -> (ADD (MOVDconst <typ.Int64> [off]) ptr)
 
+// TODO: optimize these cases?
+(Ctz32NonZero x) -> (Ctz32 x)
+(Ctz64NonZero x) -> (Ctz64 x)
+
 (Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
 (Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
 

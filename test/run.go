@@ -618,6 +618,7 @@ func (t *test) run() {
 			var buf bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &buf, &buf
 			if err := cmd.Run(); err != nil {
+				fmt.Println(env, "\n", cmd.Stderr)
 				t.err = err
 				return
 			}

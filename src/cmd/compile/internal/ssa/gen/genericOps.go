@@ -240,14 +240,18 @@ var genericOps = []opData{
 	{name: "Com32", argLength: 1},
 	{name: "Com64", argLength: 1},
 
-	{name: "Ctz8", argLength: 1},     // Count trailing (low order) zeroes (returns 0-8)
-	{name: "Ctz16", argLength: 1},    // Count trailing (low order) zeroes (returns 0-16)
-	{name: "Ctz32", argLength: 1},    // Count trailing (low order) zeroes (returns 0-32)
-	{name: "Ctz64", argLength: 1},    // Count trailing (low order) zeroes (returns 0-64)
-	{name: "BitLen8", argLength: 1},  // Number of bits in arg[0] (returns 0-8)
-	{name: "BitLen16", argLength: 1}, // Number of bits in arg[0] (returns 0-16)
-	{name: "BitLen32", argLength: 1}, // Number of bits in arg[0] (returns 0-32)
-	{name: "BitLen64", argLength: 1}, // Number of bits in arg[0] (returns 0-64)
+	{name: "Ctz8", argLength: 1},         // Count trailing (low order) zeroes (returns 0-8)
+	{name: "Ctz16", argLength: 1},        // Count trailing (low order) zeroes (returns 0-16)
+	{name: "Ctz32", argLength: 1},        // Count trailing (low order) zeroes (returns 0-32)
+	{name: "Ctz64", argLength: 1},        // Count trailing (low order) zeroes (returns 0-64)
+	{name: "Ctz8NonZero", argLength: 1},  // same as above, but arg[0] known to be non-zero, returns 0-7
+	{name: "Ctz16NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-15
+	{name: "Ctz32NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-31
+	{name: "Ctz64NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-63
+	{name: "BitLen8", argLength: 1},      // Number of bits in arg[0] (returns 0-8)
+	{name: "BitLen16", argLength: 1},     // Number of bits in arg[0] (returns 0-16)
+	{name: "BitLen32", argLength: 1},     // Number of bits in arg[0] (returns 0-32)
+	{name: "BitLen64", argLength: 1},     // Number of bits in arg[0] (returns 0-64)
 
 	{name: "Bswap32", argLength: 1}, // Swap bytes
 	{name: "Bswap64", argLength: 1}, // Swap bytes

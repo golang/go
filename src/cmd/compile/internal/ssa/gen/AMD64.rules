@@ -60,6 +60,11 @@
 (Ctz16 x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
 (Ctz8  x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
 
+(Ctz64NonZero x) -> (Select0 (BSFQ x))
+(Ctz32NonZero x) -> (Select0 (BSFL x))
+(Ctz16NonZero x) -> (Select0 (BSFL x))
+(Ctz8NonZero  x) -> (Select0 (BSFL x))
+
 // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
 // However, for zero-extended values, we can cheat a bit, and calculate
 // BSR(x<<1 + 1), which is guaranteed to be non-zero, and which conveniently

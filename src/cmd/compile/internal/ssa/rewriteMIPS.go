@@ -85,6 +85,8 @@ func rewriteValueMIPS(v *Value) bool {
 		return rewriteValueMIPS_OpConstNil_0(v)
 	case OpCtz32:
 		return rewriteValueMIPS_OpCtz32_0(v)
+	case OpCtz32NonZero:
+		return rewriteValueMIPS_OpCtz32NonZero_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueMIPS_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64F:
@@ -1187,6 +1189,17 @@ func rewriteValueMIPS_OpCtz32_0(v *Value) bool {
 		v2.AddArg(v3)
 		v1.AddArg(v2)
 		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueMIPS_OpCtz32NonZero_0(v *Value) bool {
+	// match: (Ctz32NonZero x)
+	// cond:
+	// result: (Ctz32 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz32)
+		v.AddArg(x)
 		return true
 	}
 }

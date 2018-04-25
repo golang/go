@@ -89,6 +89,9 @@
 (Round x) -> (FRINTAD x)
 (Trunc x) -> (FRINTZD x)
 
+(Ctz64NonZero x) -> (Ctz64 x)
+(Ctz32NonZero x) -> (Ctz32 x)
+
 (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
 (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
 
