@@ -801,10 +801,15 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 	if _DebugGC > 1 {
 		print("scanframe ", funcname(f), "\n")
 	}
+	pcdata := int32(-1)
 	if targetpc != f.entry {
+		// Back up to the CALL. If we're at the function entry
+		// point, we want to use the entry map (-1), even if
+		// the first instruction of the function changes the
+		// stack map.
 		targetpc--
+		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
 	}
-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
 		// stackmap for this function. It is likely that we are looking

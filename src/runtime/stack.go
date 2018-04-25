@@ -625,10 +625,11 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		// have full GC info for it (because it is written in asm).
 		return true
 	}
+	pcdata := int32(-1) // Use the entry map at function entry
 	if targetpc != f.entry {
 		targetpc--
+		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, &adjinfo.cache)
 	}
-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, &adjinfo.cache)
 	if pcdata == -1 {
 		pcdata = 0 // in prologue
 	}
