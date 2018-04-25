@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -478,6 +479,16 @@ type NameArg struct {
 	Name string `json:"name"`
 }
 
+type TaskArg struct {
+	ID     uint64 `json:"id"`
+	StartG uint64 `json:"start_g,omitempty"`
+	EndG   uint64 `json:"end_g,omitempty"`
+}
+
+type RegionArg struct {
+	TaskID uint64 `json:"taskid,omitempty"`
+}
+
 type SortIndexArg struct {
 	Index int `json:"sort_index"`
 }
@@ -488,6 +499,12 @@ type traceConsumer struct {
 	consumeViewerFrame func(key string, f ViewerFrame)
 	flush              func()
 }
+
+const (
+	procsSection = 0 // where Goroutines or per-P timelines are presented.
+	statsSection = 1 // where counters are presented.
+	tasksSection = 2 // where Task hierarchy & timeline is presented.
+)
 
 // generateTrace generates json trace for trace-viewer:
 // https://github.com/google/trace-viewer
@@ -712,50 +729,55 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 		ctx.emitGoroutineCounters(ev)
 	}
 
-	ctx.emitFooter(&ViewerEvent{Name: "process_name", Phase: "M", Pid: 0, Arg: &NameArg{"PROCS"}})
-	ctx.emitFooter(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: 0, Arg: &SortIndexArg{1}})
+	ctx.emitSectionFooter(statsSection, "STATS", 0)
 
-	ctx.emitFooter(&ViewerEvent{Name: "process_name", Phase: "M", Pid: 1, Arg: &NameArg{"STATS"}})
-	ctx.emitFooter(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: 1, Arg: &SortIndexArg{0}})
+	if ctx.mode&modeTaskOriented != 0 {
+		ctx.emitSectionFooter(tasksSection, "TASKS", 1)
+	}
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.GCP, Arg: &NameArg{"GC"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.GCP, Arg: &SortIndexArg{-6}})
+	if ctx.mode&modeGoroutineOriented != 0 {
+		ctx.emitSectionFooter(procsSection, "G", 2)
+	} else {
+		ctx.emitSectionFooter(procsSection, "PROCS", 2)
+	}
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.NetpollP, Arg: &NameArg{"Network"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.NetpollP, Arg: &SortIndexArg{-5}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &NameArg{"GC"}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &SortIndexArg{-6}})
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.TimerP, Arg: &NameArg{"Timers"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.TimerP, Arg: &SortIndexArg{-4}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &NameArg{"Network"}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &SortIndexArg{-5}})
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.SyscallP, Arg: &NameArg{"Syscalls"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.SyscallP, Arg: &SortIndexArg{-3}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &NameArg{"Timers"}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &SortIndexArg{-4}})
+
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &NameArg{"Syscalls"}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &SortIndexArg{-3}})
 
 	// Display rows for Ps if we are in the default trace view mode (not goroutine-oriented presentation)
-	if ctx.mode&modeGoroutineOriented != 0 {
+	if ctx.mode&modeGoroutineOriented == 0 {
 		for i := 0; i <= maxProc; i++ {
-			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
-			ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &SortIndexArg{i}})
+			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
+			ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &SortIndexArg{i}})
 		}
 	}
 
 	// Display task and its regions if we are in task-oriented presentation mode.
 	if ctx.mode&modeTaskOriented != 0 {
-		taskRow := uint64(trace.GCP + 1)
+		// sort tasks based on the task start time.
+		sortedTask := make([]*taskDesc, 0, len(ctx.tasks))
 		for _, task := range ctx.tasks {
-			taskName := fmt.Sprintf("Task %s(%d)", task.name, task.id)
-			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: taskRow, Arg: &NameArg{"Tasks"}})
-			ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: taskRow, Arg: &SortIndexArg{-3}})
-			tBegin := &ViewerEvent{Category: "task", Name: taskName, Phase: "b", Time: float64(task.firstTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: colorBlue}
-			if task.create != nil {
-				tBegin.Stack = ctx.stack(task.create.Stk)
+			sortedTask = append(sortedTask, task)
+		}
+		sort.SliceStable(sortedTask, func(i, j int) bool {
+			ti, tj := sortedTask[i], sortedTask[j]
+			if ti.firstTimestamp() == tj.firstTimestamp() {
+				return ti.lastTimestamp() < tj.lastTimestamp()
 			}
-			ctx.emit(tBegin)
+			return ti.firstTimestamp() < tj.firstTimestamp()
+		})
 
-			tEnd := &ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.endTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: colorBlue}
-			if task.end != nil {
-				tEnd.Stack = ctx.stack(task.end.Stk)
-			}
-			ctx.emit(tEnd)
+		for i, task := range sortedTask {
+			ctx.emitTask(task, i)
 
 			// If we are in goroutine-oriented mode, we draw regions.
 			// TODO(hyangah): add this for task/P-oriented mode (i.e., focustask view) too.
@@ -773,12 +795,12 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			if !ctx.gs[k] {
 				continue
 			}
-			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: k, Arg: &NameArg{v.name}})
+			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: k, Arg: &NameArg{v.name}})
 		}
 		// Row for the main goroutine (maing)
-		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: ctx.maing, Arg: &SortIndexArg{-2}})
+		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: ctx.maing, Arg: &SortIndexArg{-2}})
 		// Row for GC or global state (specified with G=0)
-		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: 0, Arg: &SortIndexArg{-1}})
+		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: 0, Arg: &SortIndexArg{-1}})
 	}
 
 	return nil
@@ -790,6 +812,10 @@ func (ctx *traceContext) emit(e *ViewerEvent) {
 
 func (ctx *traceContext) emitFooter(e *ViewerEvent) {
 	ctx.consumer.consumeViewerEvent(e, true)
+}
+func (ctx *traceContext) emitSectionFooter(sectionID uint64, name string, priority int) {
+	ctx.emitFooter(&ViewerEvent{Name: "process_name", Phase: "M", Pid: sectionID, Arg: &NameArg{name}})
+	ctx.emitFooter(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: sectionID, Arg: &SortIndexArg{priority}})
 }
 
 func (ctx *traceContext) time(ev *trace.Event) float64 {
@@ -859,22 +885,65 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 	return sl
 }
 
+func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
+	taskRow := uint64(task.id)
+	taskName := task.name
+	durationUsec := float64(task.lastTimestamp()-task.firstTimestamp()) / 1e3
+
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &NameArg{fmt.Sprintf("T%d %s", task.id, taskName)}})
+	ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &SortIndexArg{sortIndex}})
+	ts := float64(task.firstTimestamp()) / 1e3
+	sl := &ViewerEvent{
+		Name:  taskName,
+		Phase: "X",
+		Time:  ts,
+		Dur:   durationUsec,
+		Pid:   tasksSection,
+		Tid:   taskRow,
+		Cname: colorSeafoamGreen,
+	}
+	targ := TaskArg{ID: task.id}
+	if task.create != nil {
+		sl.Stack = ctx.stack(task.create.Stk)
+		targ.StartG = task.create.G
+	}
+	if task.end != nil {
+		sl.EndStack = ctx.stack(task.end.Stk)
+		targ.EndG = task.end.G
+	}
+	sl.Arg = targ
+	ctx.emit(sl)
+
+	if task.create != nil && task.create.Type == trace.EvUserTaskCreate && task.create.Args[1] != 0 {
+		ctx.arrowSeq++
+		ctx.emit(&ViewerEvent{Name: "newTask", Phase: "s", Tid: task.create.Args[1], ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
+		ctx.emit(&ViewerEvent{Name: "newTask", Phase: "t", Tid: taskRow, ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
+	}
+}
+
 func (ctx *traceContext) emitRegion(s regionDesc) {
 	if s.Name == "" {
 		return
 	}
+
+	if !tsWithinRange(s.firstTimestamp(), ctx.startTime, ctx.endTime) &&
+		!tsWithinRange(s.lastTimestamp(), ctx.startTime, ctx.endTime) {
+		return
+	}
+
 	ctx.regionID++
 	regionID := ctx.regionID
 
 	id := s.TaskID
 	scopeID := fmt.Sprintf("%x", id)
+	name := s.Name
 
 	sl0 := &ViewerEvent{
 		Category: "Region",
-		Name:     s.Name,
+		Name:     name,
 		Phase:    "b",
 		Time:     float64(s.firstTimestamp()) / 1e3,
-		Tid:      s.G,
+		Tid:      s.G, // only in goroutine-oriented view
 		ID:       uint64(regionID),
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
@@ -886,13 +955,14 @@ func (ctx *traceContext) emitRegion(s regionDesc) {
 
 	sl1 := &ViewerEvent{
 		Category: "Region",
-		Name:     s.Name,
+		Name:     name,
 		Phase:    "e",
 		Time:     float64(s.lastTimestamp()) / 1e3,
 		Tid:      s.G,
 		ID:       uint64(regionID),
 		Scope:    scopeID,
 		Cname:    colorDeepMagenta,
+		Arg:      RegionArg{TaskID: s.TaskID},
 	}
 	if s.End != nil {
 		sl1.Stack = ctx.stack(s.End.Stk)
@@ -953,6 +1023,10 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 }
 
 func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
+	if !tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
+		return
+	}
+
 	cname := ""
 	if ctx.mode&modeTaskOriented != 0 {
 		taskID, isUserAnnotation := isUserAnnotationEvent(ev)
