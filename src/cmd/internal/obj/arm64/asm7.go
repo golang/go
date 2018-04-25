@@ -2386,6 +2386,7 @@ func buildop(ctxt *obj.Link) {
 
 		case AVUSHR:
 			oprangeset(AVSHL, t)
+			oprangeset(AVSRI, t)
 
 		case AVREV32:
 			oprangeset(AVRBIT, t)
@@ -4319,18 +4320,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		imm := 0
 
-		if p.As == AVUSHR {
+		switch p.As {
+		case AVUSHR, AVSRI:
 			imm = esize*2 - shift
 			if imm < esize || imm > imax {
 				c.ctxt.Diag("shift out of range: %v", p)
 			}
-		}
-
-		if p.As == AVSHL {
+		case AVSHL:
 			imm = esize + shift
 			if imm > imax {
 				c.ctxt.Diag("shift out of range: %v", p)
 			}
+		default:
+			c.ctxt.Diag("invalid instruction %v\n", p)
 		}
 
 		o1 = c.opirr(p, p.As)
@@ -5310,6 +5312,9 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVSHL:
 		return 0x1E<<23 | 21<<10
+
+	case AVSRI:
+		return 0x5E<<23 | 17<<10
 	}
 
 	c.ctxt.Diag("%v: bad irr %v", p, a)

@@ -100,6 +100,13 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VSHL	$8, V1.H8, V2.H8                // 2254184f
 	VSHL	$2, V1.B8, V2.B8                // 22540a0f
 	VSHL	$2, V1.B16, V2.B16              // 22540a4f
+	VSRI	$56, V1.D2, V2.D2               // 2244486f
+	VSRI	$24, V1.S4, V2.S4               // 2244286f
+	VSRI	$24, V1.S2, V2.S2               // 2244282f
+	VSRI	$8, V1.H4, V2.H4                // 2244182f
+	VSRI	$8, V1.H8, V2.H8                // 2244186f
+	VSRI	$2, V1.B8, V2.B8                // 22440e2f
+	VSRI	$2, V1.B16, V2.B16              // 22440e6f
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
 	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
