@@ -218,8 +218,8 @@ func runList(cmd *base.Command, args []string) {
 
 	for _, pkg := range pkgs {
 		// Show vendor-expanded paths in listing
-		pkg.TestImports = pkg.Vendored(pkg.TestImports)
-		pkg.XTestImports = pkg.Vendored(pkg.XTestImports)
+		pkg.TestImports = pkg.Resolve(pkg.TestImports)
+		pkg.XTestImports = pkg.Resolve(pkg.XTestImports)
 
 		do(&pkg.PackagePublic)
 	}

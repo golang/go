@@ -606,10 +606,10 @@ func runTest(cmd *base.Command, args []string) {
 			for _, path := range p.Imports {
 				deps[path] = true
 			}
-			for _, path := range p.Vendored(p.TestImports) {
+			for _, path := range p.Resolve(p.TestImports) {
 				deps[path] = true
 			}
-			for _, path := range p.Vendored(p.XTestImports) {
+			for _, path := range p.Resolve(p.XTestImports) {
 				deps[path] = true
 			}
 		}
