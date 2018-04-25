@@ -819,7 +819,7 @@ func TestRuntimeTypeAttr(t *testing.T) {
 	}
 
 	// Explicitly test external linking, for dsymutil compatility on Darwin.
-	for _, flags := range []string{"-ldflags=linkmode=internal", "-ldflags=-linkmode=external"} {
+	for _, flags := range []string{"-ldflags=-linkmode=internal", "-ldflags=-linkmode=external"} {
 		t.Run("flags="+flags, func(t *testing.T) {
 			if runtime.GOARCH == "ppc64" && strings.Contains(flags, "external") {
 				t.Skip("-linkmode=external not supported on ppc64")
