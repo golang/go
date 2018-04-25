@@ -493,6 +493,7 @@ var Anames = []string{
 	"NOP",
 	"PCDATA",
 	"RET",
+	"GETCALLERPC",
 	"TEXT",
 	"UNDEF",
 }
