@@ -1068,6 +1068,10 @@ func isNonNegative(v *Value) bool {
 		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64:
 		return true
 
+	case OpRsh64Ux64:
+		by := v.Args[1]
+		return by.Op == OpConst64 && by.AuxInt > 0
+
 	case OpRsh64x64:
 		return isNonNegative(v.Args[0])
 	}
