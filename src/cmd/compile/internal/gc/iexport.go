@@ -1380,7 +1380,7 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 	}
 
 	if i := strings.LastIndex(name, "."); i >= 0 {
-		Fatalf("unexpected dot in identifier:", name)
+		Fatalf("unexpected dot in identifier: %v", name)
 	}
 
 	if v > 0 {
