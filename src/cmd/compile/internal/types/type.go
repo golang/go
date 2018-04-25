@@ -357,7 +357,6 @@ type Field struct {
 	flags bitset8
 
 	Embedded uint8 // embedded field
-	Funarg   Funarg
 
 	Pos  src.XPos
 	Sym  *Sym

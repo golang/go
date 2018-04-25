@@ -252,7 +252,6 @@ func transformclosure(xfunc *Node) {
 			decls = append(decls, v)
 
 			fld := types.NewField()
-			fld.Funarg = types.FunargParams
 			fld.Nname = asTypesNode(v)
 			fld.Type = v.Type
 			fld.Sym = v.Sym

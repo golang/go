@@ -1895,7 +1895,6 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 func nodarg(t interface{}, fp int) *Node {
 	var n *Node
 
-	var funarg types.Funarg
 	switch t := t.(type) {
 	default:
 		Fatalf("bad nodarg %T(%v)", t, t)
@@ -1905,7 +1904,6 @@ func nodarg(t interface{}, fp int) *Node {
 		if !t.IsFuncArgStruct() {
 			Fatalf("nodarg: bad type %v", t)
 		}
-		funarg = t.StructType().Funarg
 
 		// Build fake variable name for whole arg struct.
 		n = newname(lookup(".args"))
@@ -1920,7 +1918,6 @@ func nodarg(t interface{}, fp int) *Node {
 		n.Xoffset = first.Offset
 
 	case *types.Field:
-		funarg = t.Funarg
 		if fp == 1 {
 			// NOTE(rsc): This should be using t.Nname directly,
 			// except in the case where t.Nname.Sym is the blank symbol and
@@ -1971,21 +1968,13 @@ func nodarg(t interface{}, fp int) *Node {
 		n.Sym = lookup("__")
 	}
 
-	switch fp {
-	default:
-		Fatalf("bad fp")
-
-	case 0: // preparing arguments for call
-		n.Op = OINDREGSP
-		n.Xoffset += Ctxt.FixedFrameSize()
-
-	case 1: // reading arguments inside call
-		n.SetClass(PPARAM)
-		if funarg == types.FunargResults {
-			n.SetClass(PPARAMOUT)
-		}
+	if fp != 0 {
+		Fatalf("bad fp: %v", fp)
 	}
 
+	// preparing arguments for call
+	n.Op = OINDREGSP
+	n.Xoffset += Ctxt.FixedFrameSize()
 	n.SetTypecheck(1)
 	n.SetAddrtaken(true) // keep optimizers at bay
 	return n

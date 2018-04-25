@@ -818,7 +818,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		}
 
 		buf := make([]byte, 0, 64)
-		if t.IsFuncArgStruct() {
+		if funarg := t.StructType().Funarg; funarg != types.FunargNone {
 			buf = append(buf, '(')
 			var flag1 FmtFlag
 			switch mode {
@@ -830,7 +830,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 				if i != 0 {
 					buf = append(buf, ", "...)
 				}
-				buf = append(buf, fldconv(f, flag1, mode, depth)...)
+				buf = append(buf, fldconv(f, flag1, mode, depth, funarg)...)
 			}
 			buf = append(buf, ')')
 		} else {
@@ -840,7 +840,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 					buf = append(buf, ';')
 				}
 				buf = append(buf, ' ')
-				buf = append(buf, fldconv(f, FmtLong, mode, depth)...)
+				buf = append(buf, fldconv(f, FmtLong, mode, depth, funarg)...)
 			}
 			if t.NumFields() != 0 {
 				buf = append(buf, ' ')
@@ -1668,7 +1668,7 @@ func tmodeString(t *types.Type, mode fmtMode, depth int) string {
 	return tconv(t, 0, mode, depth)
 }
 
-func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
+func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int, funarg types.Funarg) string {
 	if f == nil {
 		return "<T>"
 	}
@@ -1688,7 +1688,7 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
 		}
 
 		if s != nil && f.Embedded == 0 {
-			if f.Funarg != types.FunargNone {
+			if funarg != types.FunargNone {
 				name = asNode(f.Nname).modeString(mode)
 			} else if flag&FmtLong != 0 {
 				name = mode.Sprintf("%0S", s)
@@ -1717,7 +1717,7 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
 		str = name + " " + typ
 	}
 
-	if flag&FmtShort == 0 && f.Funarg == types.FunargNone && f.Note != "" {
+	if flag&FmtShort == 0 && funarg == types.FunargNone && f.Note != "" {
 		str += " " + strconv.Quote(f.Note)
 	}
 
