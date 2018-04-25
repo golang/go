@@ -57,13 +57,13 @@
 // Lowering other arithmetic
 (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
 (Ctz32 x) -> (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
-(Ctz16 x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
-(Ctz8  x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
+(Ctz16 x) -> (BSFL (BTSLconst <typ.UInt32> [16] x))
+(Ctz8  x) -> (BSFL (BTSLconst <typ.UInt32> [ 8] x))
 
 (Ctz64NonZero x) -> (Select0 (BSFQ x))
-(Ctz32NonZero x) -> (Select0 (BSFL x))
-(Ctz16NonZero x) -> (Select0 (BSFL x))
-(Ctz8NonZero  x) -> (Select0 (BSFL x))
+(Ctz32NonZero x) -> (BSFL x)
+(Ctz16NonZero x) -> (BSFL x)
+(Ctz8NonZero  x) -> (BSFL x)
 
 // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
 // However, for zero-extended values, we can cheat a bit, and calculate
@@ -71,8 +71,8 @@
 // places the index of the highest set bit where we want it.
 (BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
 (BitLen32 x) -> (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
-(BitLen16 x) -> (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x))))
-(BitLen8  x) -> (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x))))
+(BitLen16 x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
+(BitLen8  x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
 
 (Bswap(64|32) x) -> (BSWAP(Q|L) x)
 
