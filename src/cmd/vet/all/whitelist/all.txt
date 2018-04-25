@@ -27,7 +27,6 @@ encoding/json/decode_test.go: struct field m2 has json tag but is not exported
 encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible with reflect.StructTag.Get: bad syntax for struct tag key
 runtime/testdata/testprog/deadlock.go: unreachable code
 runtime/testdata/testprog/deadlock.go: unreachable code
-sync/cond_test.go: assignment copies lock value to c2: sync.Cond contains sync.noCopy
 
 // Non-standard method signatures.
 // These cases are basically ok.
