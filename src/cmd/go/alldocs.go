@@ -718,10 +718,12 @@
 //
 // Usage:
 //
-// 	go run [build flags] [-exec xprog] gofiles... [arguments...]
+// 	go run [build flags] [-exec xprog] package [arguments...]
 //
-// Run compiles and runs the main package comprising the named Go source files.
-// A Go source file is defined to be a file ending in a literal ".go" suffix.
+// Run compiles and runs the named main Go package.
+// Typically the package is specified as a list of .go source files,
+// but it may also be an import path, file system path, or pattern
+// matching a single known package, as in 'go run .' or 'go run my/cmd'.
 //
 // By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
 // If the -exec flag is given, 'go run' invokes the binary using xprog:
@@ -736,6 +738,7 @@
 // The exit status of Run is not the exit status of the compiled binary.
 //
 // For more about build flags, see 'go help build'.
+// For more about specifying packages, see 'go help packages'.
 //
 // See also: go build.
 //
