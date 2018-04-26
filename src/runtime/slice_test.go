@@ -72,6 +72,36 @@ func BenchmarkGrowSlice(b *testing.B) {
 	})
 }
 
+var (
+	SinkIntSlice        []int
+	SinkIntPointerSlice []*int
+)
+
+func BenchmarkExtendSlice(b *testing.B) {
+	var length = 4 // Use a variable to prevent stack allocation of slices.
+	b.Run("IntSlice", func(b *testing.B) {
+		s := make([]int, 0, length)
+		for i := 0; i < b.N; i++ {
+			s = append(s[:0:length/2], make([]int, length)...)
+		}
+		SinkIntSlice = s
+	})
+	b.Run("PointerSlice", func(b *testing.B) {
+		s := make([]*int, 0, length)
+		for i := 0; i < b.N; i++ {
+			s = append(s[:0:length/2], make([]*int, length)...)
+		}
+		SinkIntPointerSlice = s
+	})
+	b.Run("NoGrow", func(b *testing.B) {
+		s := make([]int, 0, length)
+		for i := 0; i < b.N; i++ {
+			s = append(s[:0:length], make([]int, length)...)
+		}
+		SinkIntSlice = s
+	})
+}
+
 func BenchmarkAppend(b *testing.B) {
 	b.StopTimer()
 	x := make([]int, 0, N)
