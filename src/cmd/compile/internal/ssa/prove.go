@@ -774,6 +774,9 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				continue
 			}
 			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v non-zero", v.Op)
+				}
 				v.Op = ctzNonZeroOp[v.Op]
 			}
 		}
