@@ -213,10 +213,7 @@ func publicationBarrier()
 // the call to f (where f will return).
 //
 // The call to getcallerpc and getcallersp must be done in the
-// frame being asked about. It would not be correct for f to pass &arg1
-// to another function g and let g call getcallerpc/getcallersp.
-// The call inside g might return information about g's caller or
-// information about f's caller or complete garbage.
+// frame being asked about.
 //
 // The result of getcallersp is correct at the time of the return,
 // but it may be invalidated by any subsequent call to a function
