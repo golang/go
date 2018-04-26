@@ -13472,10 +13472,12 @@ func rewriteValuePPC64_OpRound_0(v *Value) bool {
 	// match: (Round x)
 	// cond:
 	// result: (FROUND x)
-	x := v.Args[0]
-	v.reset(OpPPC64FROUND)
-	v.AddArg(x)
-	return true
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64FROUND)
+		v.AddArg(x)
+		return true
+	}
 }
 func rewriteValuePPC64_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)
