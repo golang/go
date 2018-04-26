@@ -650,6 +650,20 @@ func TestDisallowedCharacters(t *testing.T) {
 	}
 }
 
+func TestIsInCharacterRange(t *testing.T) {
+	invalid := []rune{
+		utf8.MaxRune + 1,
+		0xD800, // surrogate min
+		0xDFFF, // surrogate max
+		-1,
+	}
+	for _, r := range invalid {
+		if isInCharacterRange(r) {
+			t.Errorf("rune %U considered valid", r)
+		}
+	}
+}
+
 var procInstTests = []struct {
 	input  string
 	expect [2]string
