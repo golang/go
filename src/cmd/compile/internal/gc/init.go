@@ -115,12 +115,18 @@ func fninit(n []*Node) {
 
 	// (6)
 	for _, s := range types.InitSyms {
-		if s.Def != nil && s != initsym {
-			n := asNode(s.Def)
-			n.checkInitFuncSignature()
-			a = nod(OCALL, n, nil)
-			r = append(r, a)
+		if s == initsym {
+			continue
 		}
+		n := resolve(oldname(s))
+		if n.Op == ONONAME {
+			// No package-scope init function; just a
+			// local variable, field name, or something.
+			continue
+		}
+		n.checkInitFuncSignature()
+		a = nod(OCALL, n, nil)
+		r = append(r, a)
 	}
 
 	// (7)
