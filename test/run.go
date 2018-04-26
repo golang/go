@@ -1301,7 +1301,7 @@ var (
 		"arm":     {"GOARM", "5", "6", "7"},
 		"arm64":   {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
-		"mips64":  {},
+		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
 		"ppc64":   {},
 		"ppc64le": {},
 		"s390x":   {},

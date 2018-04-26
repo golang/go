@@ -527,6 +527,9 @@ Architecture-specific environment variables:
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
+	GOMIPS64
+		For GOARCH=mips64{,le}, whether to use floating point instructions.
+		Valid values are hardfloat (default), softfloat.
 
 Special-purpose environment variables:
 

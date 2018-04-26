@@ -233,6 +233,11 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
 	}
 
+	if cfg.Goarch == "mips64" || cfg.Goarch == "mips64le" {
+		// Define GOMIPS64_value from cfg.GOMIPS64.
+		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
+	}
+
 	var ofiles []string
 	for _, sfile := range sfiles {
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
