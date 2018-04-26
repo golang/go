@@ -67,17 +67,6 @@ func parseFiles(filenames []string) uint {
 
 	localpkg.Height = myheight
 
-	if flagiexport {
-		// init.go requires all imported init functions to be
-		// fully resolved.
-		// TODO(mdempsky): Can this be done elsewhere more cleanly?
-		for _, s := range types.InitSyms {
-			if n := asNode(s.Def); n != nil && s.Pkg != localpkg {
-				resolve(n)
-			}
-		}
-	}
-
 	return lines
 }
 
