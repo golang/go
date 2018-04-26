@@ -740,7 +740,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 		r := p
 
 		// Save current goroutine.
-		sp := getcallersp(unsafe.Pointer(&p))
+		sp := getcallersp()
 		pc := getcallerpc()
 		systemstack(func() {
 			saveg(pc, sp, gp, &r[0])
@@ -785,7 +785,7 @@ func Stack(buf []byte, all bool) int {
 	n := 0
 	if len(buf) > 0 {
 		gp := getg()
-		sp := getcallersp(unsafe.Pointer(&buf))
+		sp := getcallersp()
 		pc := getcallerpc()
 		systemstack(func() {
 			g0 := getg()
@@ -827,7 +827,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
 	if gp.m.curg == nil || gp == gp.m.curg {
 		goroutineheader(gp)
 		pc := getcallerpc()
-		sp := getcallersp(unsafe.Pointer(&p))
+		sp := getcallersp()
 		systemstack(func() {
 			traceback(pc, sp, 0, gp)
 		})
@@ -847,7 +847,7 @@ func tracefree(p unsafe.Pointer, size uintptr) {
 	print("tracefree(", p, ", ", hex(size), ")\n")
 	goroutineheader(gp)
 	pc := getcallerpc()
-	sp := getcallersp(unsafe.Pointer(&p))
+	sp := getcallersp()
 	systemstack(func() {
 		traceback(pc, sp, 0, gp)
 	})

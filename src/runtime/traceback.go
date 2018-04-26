@@ -761,7 +761,7 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) bool {
 }
 
 func callers(skip int, pcbuf []uintptr) int {
-	sp := getcallersp(unsafe.Pointer(&skip))
+	sp := getcallersp()
 	pc := getcallerpc()
 	gp := getg()
 	var n int

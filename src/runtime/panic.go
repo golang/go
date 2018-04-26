@@ -81,7 +81,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	// collection or stack copying trigger until we've copied them out
 	// to somewhere safe. The memmove below does that.
 	// Until the copy completes, we can only call nosplit routines.
-	sp := getcallersp(unsafe.Pointer(&siz))
+	sp := getcallersp()
 	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
 	callerpc := getcallerpc()
 
@@ -320,7 +320,7 @@ func deferreturn(arg0 uintptr) {
 	if d == nil {
 		return
 	}
-	sp := getcallersp(unsafe.Pointer(&arg0))
+	sp := getcallersp()
 	if d.sp != sp {
 		return
 	}
@@ -637,7 +637,7 @@ func recovery(gp *g) {
 //go:nosplit
 func fatalpanic(msgs *_panic) {
 	pc := getcallerpc()
-	sp := getcallersp(unsafe.Pointer(&msgs))
+	sp := getcallersp()
 	gp := getg()
 	// Switch to the system stack to avoid any stack growth, which
 	// may make things worse if the runtime is in a bad state.

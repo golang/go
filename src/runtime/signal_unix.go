@@ -316,7 +316,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			st := stackt{ss_size: g.m.g0.stack.hi - g.m.g0.stack.lo}
 			setSignalstackSP(&st, g.m.g0.stack.lo)
 			setGsignalStack(&st, &gsignalStack)
-			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+			g.m.gsignal.stktopsp = getcallersp()
 			setStack = true
 		} else {
 			var st stackt
@@ -335,7 +335,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 				dropm()
 			}
 			setGsignalStack(&st, &gsignalStack)
-			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+			g.m.gsignal.stktopsp = getcallersp()
 			setStack = true
 		}
 	}

@@ -1192,7 +1192,7 @@ func mstart() {
 	// both Go and C functions with stack growth prologues.
 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
 	_g_.stackguard1 = _g_.stackguard0
-	mstart1(0)
+	mstart1()
 
 	// Exit this thread.
 	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" {
@@ -1204,7 +1204,7 @@ func mstart() {
 	mexit(osStack)
 }
 
-func mstart1(dummy int32) {
+func mstart1() {
 	_g_ := getg()
 
 	if _g_ != _g_.m.g0 {
@@ -1215,7 +1215,7 @@ func mstart1(dummy int32) {
 	// for terminating the thread.
 	// We're never coming back to mstart1 after we call schedule,
 	// so other calls can reuse the current frame.
-	save(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
+	save(getcallerpc(), getcallersp())
 	asminit()
 	minit()
 
@@ -2836,8 +2836,8 @@ func reentersyscall(pc, sp uintptr) {
 
 // Standard syscall entry used by the go syscall library and normal cgo calls.
 //go:nosplit
-func entersyscall(dummy int32) {
-	reentersyscall(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
+func entersyscall() {
+	reentersyscall(getcallerpc(), getcallersp())
 }
 
 func entersyscall_sysmon() {
@@ -2869,7 +2869,7 @@ func entersyscall_gcwait() {
 
 // The same as entersyscall(), but with a hint that the syscall is blocking.
 //go:nosplit
-func entersyscallblock(dummy int32) {
+func entersyscallblock() {
 	_g_ := getg()
 
 	_g_.m.locks++ // see comment in entersyscall
@@ -2881,7 +2881,7 @@ func entersyscallblock(dummy int32) {
 
 	// Leave SP around for GC and traceback.
 	pc := getcallerpc()
-	sp := getcallersp(unsafe.Pointer(&dummy))
+	sp := getcallersp()
 	save(pc, sp)
 	_g_.syscallsp = _g_.sched.sp
 	_g_.syscallpc = _g_.sched.pc
@@ -2905,7 +2905,7 @@ func entersyscallblock(dummy int32) {
 	systemstack(entersyscallblock_handoff)
 
 	// Resave for traceback during blocked call.
-	save(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
+	save(getcallerpc(), getcallersp())
 
 	_g_.m.locks--
 }
@@ -2927,11 +2927,11 @@ func entersyscallblock_handoff() {
 //
 //go:nosplit
 //go:nowritebarrierrec
-func exitsyscall(dummy int32) {
+func exitsyscall() {
 	_g_ := getg()
 
 	_g_.m.locks++ // see comment in entersyscall
-	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
+	if getcallersp() > _g_.syscallsp {
 		throw("exitsyscall: syscall frame is no longer valid")
 	}
 

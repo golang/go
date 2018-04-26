@@ -711,7 +711,7 @@ func stdcall(fn stdFunction) uintptr {
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
+		mp.libcallsp = getcallersp()
 	}
 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
 	mp.libcallsp = 0
