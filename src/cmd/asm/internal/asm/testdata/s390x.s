@@ -367,6 +367,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VSTEF	$3, V2, (R9)            // e7209000300b
 	VSTEH	$7, V31, (R2)           // e7f020007809
 	VSTEB	$15, V29, 4094(R12)     // e7d0cffef808
+	VMSLG	V21, V22, V23, V24      // e78563007fb8
 
 	RET
 	RET	foo(SB)
