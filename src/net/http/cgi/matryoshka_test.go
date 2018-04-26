@@ -104,7 +104,7 @@ func TestKillChildAfterCopyError(t *testing.T) {
 		Root: "/test.go",
 		Args: []string{"-test.run=TestBeChildCGIProcess"},
 	}
-	req, _ := http.NewRequest("GET", "http://example.com/test.cgi?write-forever=1", nil)
+	req, _ := http.NewRequest(http.MethodGet, "http://example.com/test.cgi?write-forever=1", nil)
 	rec := httptest.NewRecorder()
 	var out bytes.Buffer
 	const writeLen = 50 << 10

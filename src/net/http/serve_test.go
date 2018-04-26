@@ -760,7 +760,7 @@ func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
 	}
 
 	for i := 1; i <= 3; i++ {
-		req, err := NewRequest("GET", ts.URL, nil)
+		req, err := NewRequest(MethodGet, ts.URL, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -831,7 +831,7 @@ func testHTTP2WriteDeadlineEnforcedPerStream(timeout time.Duration) error {
 		return fmt.Errorf("ExportHttp2ConfigureTransport: %v", err)
 	}
 
-	req, err := NewRequest("GET", ts.URL, nil)
+	req, err := NewRequest(MethodGet, ts.URL, nil)
 	if err != nil {
 		return fmt.Errorf("NewRequest: %v", err)
 	}
@@ -844,7 +844,7 @@ func testHTTP2WriteDeadlineEnforcedPerStream(timeout time.Duration) error {
 		return fmt.Errorf("http2 Get expected HTTP/2.0, got %q", r.Proto)
 	}
 
-	req, err = NewRequest("GET", ts.URL, nil)
+	req, err = NewRequest(MethodGet, ts.URL, nil)
 	if err != nil {
 		return fmt.Errorf("NewRequest: %v", err)
 	}
@@ -892,7 +892,7 @@ func testHTTP2NoWriteDeadline(timeout time.Duration) error {
 	}
 
 	for i := 0; i < 2; i++ {
-		req, err := NewRequest("GET", ts.URL, nil)
+		req, err := NewRequest(MethodGet, ts.URL, nil)
 		if err != nil {
 			return fmt.Errorf("NewRequest: %v", err)
 		}
@@ -2546,7 +2546,7 @@ func TestRedirectBadPath(t *testing.T) {
 
 // Test different URL formats and schemes
 func TestRedirect(t *testing.T) {
-	req, _ := NewRequest("GET", "http://example.com/qux/", nil)
+	req, _ := NewRequest(MethodGet, "http://example.com/qux/", nil)
 
 	var tests = []struct {
 		in   string
@@ -2646,7 +2646,7 @@ func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
 	}))
 	defer cst.close()
 
-	req, err := NewRequest("POST", cst.ts.URL, strings.NewReader(""))
+	req, err := NewRequest(MethodPost, cst.ts.URL, strings.NewReader(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2855,7 +2855,7 @@ func TestStripPrefix(t *testing.T) {
 // https://golang.org/issue/18952.
 func TestStripPrefix_notModifyRequest(t *testing.T) {
 	h := StripPrefix("/foo", NotFoundHandler())
-	req := httptest.NewRequest("GET", "/foo/bar", nil)
+	req := httptest.NewRequest(MethodGet, "/foo/bar", nil)
 	h.ServeHTTP(httptest.NewRecorder(), req)
 	if req.URL.Path != "/foo/bar" {
 		t.Errorf("StripPrefix should not modify the provided Request, but it did")
@@ -2871,7 +2871,7 @@ func testRequestLimit(t *testing.T, h2 bool) {
 		t.Fatalf("didn't expect to get request in Handler")
 	}), optQuietLog)
 	defer cst.close()
-	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	req, _ := NewRequest(MethodGet, cst.ts.URL, nil)
 	var bytesPerHeader = len("header12345: val12345\r\n")
 	for i := 0; i < ((DefaultMaxHeaderBytes+4096)/bytesPerHeader)+1; i++ {
 		req.Header.Set(fmt.Sprintf("header%05d", i), fmt.Sprintf("val%05d", i))
@@ -2941,7 +2941,7 @@ func testRequestBodyLimit(t *testing.T, h2 bool) {
 	defer cst.close()
 
 	nWritten := new(int64)
-	req, _ := NewRequest("POST", cst.ts.URL, io.LimitReader(countReader{neverEnding('a'), nWritten}, limit*200))
+	req, _ := NewRequest(MethodPost, cst.ts.URL, io.LimitReader(countReader{neverEnding('a'), nWritten}, limit*200))
 
 	// Send the POST, but don't care it succeeds or not. The
 	// remote side is going to reply and then close the TCP
@@ -3101,7 +3101,7 @@ func TestContentLengthZero(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error writing: %v", err)
 		}
-		req, _ := NewRequest("GET", "/", nil)
+		req, _ := NewRequest(MethodGet, "/", nil)
 		res, err := ReadResponse(bufio.NewReader(conn), req)
 		if err != nil {
 			t.Fatalf("error reading response: %v", err)
@@ -3788,7 +3788,7 @@ func testServerReaderFromOrder(t *testing.T, h2 bool) {
 	}))
 	defer cst.close()
 
-	req, err := NewRequest("POST", cst.ts.URL, io.LimitReader(neverEnding('a'), size))
+	req, err := NewRequest(MethodPost, cst.ts.URL, io.LimitReader(neverEnding('a'), size))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3911,7 +3911,7 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 	backendRespc := make(chan *Response, 1)
 	var proxy *clientServerTest
 	proxy = newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, req *Request) {
-		req2, _ := NewRequest("POST", backend.ts.URL, req.Body)
+		req2, _ := NewRequest(MethodPost, backend.ts.URL, req.Body)
 		req2.ContentLength = bodySize
 		cancel := make(chan struct{})
 		req2.Cancel = cancel
@@ -3954,7 +3954,7 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 	}()
 
 	defer close(unblockBackend)
-	req, _ := NewRequest("POST", proxy.ts.URL, io.LimitReader(neverEnding('a'), bodySize))
+	req, _ := NewRequest(MethodPost, proxy.ts.URL, io.LimitReader(neverEnding('a'), bodySize))
 	res, err := proxy.c.Do(req)
 	if err != nil {
 		t.Fatalf("Original request: %v", err)
@@ -4107,7 +4107,7 @@ func TestServerConnState(t *testing.T) {
 	c := ts.Client()
 
 	mustGet := func(url string, headers ...string) {
-		req, err := NewRequest("GET", url, nil)
+		req, err := NewRequest(MethodGet, url, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

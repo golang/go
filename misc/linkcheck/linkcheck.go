@@ -120,7 +120,7 @@ func crawlLoop() {
 func doCrawl(url string) error {
 	defer wg.Done()
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}

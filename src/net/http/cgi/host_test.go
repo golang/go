@@ -382,7 +382,7 @@ func TestCopyError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req, _ := http.NewRequest("GET", "http://example.com/test.cgi?bigresponse=1", nil)
+	req, _ := http.NewRequest(http.MethodGet, "http://example.com/test.cgi?bigresponse=1", nil)
 	err = req.Write(conn)
 	if err != nil {
 		t.Fatalf("Write: %v", err)
@@ -524,7 +524,7 @@ func TestEnvOverride(t *testing.T) {
 			"PATH=/wibble"},
 	}
 	expectedMap := map[string]string{
-		"cwd":                 cwd,
+		"cwd": cwd,
 		"env-SCRIPT_FILENAME": cgifile,
 		"env-REQUEST_URI":     "/foo/bar",
 		"env-PATH":            "/wibble",

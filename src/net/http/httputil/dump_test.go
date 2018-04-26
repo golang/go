@@ -67,7 +67,7 @@ var dumpTests = []dumpTest{
 	},
 
 	{
-		Req: *mustNewRequest("GET", "http://example.com/foo", nil),
+		Req: *mustNewRequest(http.MethodGet, "http://example.com/foo", nil),
 
 		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
@@ -79,7 +79,7 @@ var dumpTests = []dumpTest{
 	// with a bytes.Buffer and hang with all goroutines not
 	// runnable.
 	{
-		Req: *mustNewRequest("GET", "https://example.com/foo", nil),
+		Req: *mustNewRequest(http.MethodGet, "https://example.com/foo", nil),
 
 		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
@@ -187,7 +187,7 @@ var dumpTests = []dumpTest{
 	// Issue 18506: make drainBody recognize NoBody. Otherwise
 	// this was turning into a chunked request.
 	{
-		Req: *mustNewRequest("POST", "http://example.com/foo", http.NoBody),
+		Req: *mustNewRequest(http.MethodPost, "http://example.com/foo", http.NoBody),
 
 		WantDumpOut: "POST /foo HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +

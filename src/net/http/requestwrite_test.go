@@ -716,7 +716,7 @@ func (rc *closeChecker) Close() error {
 // inside a NopCloser, and that it serializes it correctly.
 func TestRequestWriteClosesBody(t *testing.T) {
 	rc := &closeChecker{Reader: strings.NewReader("my body")}
-	req, err := NewRequest("POST", "http://foo.com/", rc)
+	req, err := NewRequest(MethodPost, "http://foo.com/", rc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -778,7 +778,7 @@ func TestRequestWriteError(t *testing.T) {
 		}),
 	}
 
-	req, _ := NewRequest("GET", "http://example.com/", nil)
+	req, _ := NewRequest(MethodGet, "http://example.com/", nil)
 	const writeCalls = 4 // number of Write calls in current implementation
 	sawGood := false
 	for n := 0; n <= writeCalls+2; n++ {

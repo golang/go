@@ -82,7 +82,7 @@ func TestReverseProxy(t *testing.T) {
 	defer frontend.Close()
 	frontendClient := frontend.Client()
 
-	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq, _ := http.NewRequest(http.MethodGet, frontend.URL, nil)
 	getReq.Host = "some-name"
 	getReq.Header.Set("Connection", "close")
 	getReq.Header.Set("Proxy-Connection", "should be deleted")
@@ -129,7 +129,7 @@ func TestReverseProxy(t *testing.T) {
 
 	// Test that a backend failing to be reached or one which doesn't return
 	// a response results in a StatusBadGateway.
-	getReq, _ = http.NewRequest("GET", frontend.URL+"/?mode=hangup", nil)
+	getReq, _ = http.NewRequest(http.MethodGet, frontend.URL+"/?mode=hangup", nil)
 	getReq.Close = true
 	res, err = frontendClient.Do(getReq)
 	if err != nil {
@@ -173,7 +173,7 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	}))
 	defer frontend.Close()
 
-	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq, _ := http.NewRequest(http.MethodGet, frontend.URL, nil)
 	getReq.Header.Set("Connection", "Upgrade, "+fakeConnectionToken)
 	getReq.Header.Set("Upgrade", "original value")
 	getReq.Header.Set(fakeConnectionToken, "should be deleted")
@@ -220,7 +220,7 @@ func TestXForwardedFor(t *testing.T) {
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
-	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq, _ := http.NewRequest(http.MethodGet, frontend.URL, nil)
 	getReq.Host = "some-name"
 	getReq.Header.Set("Connection", "close")
 	getReq.Header.Set("X-Forwarded-For", prevForwardedFor)
@@ -262,7 +262,7 @@ func TestReverseProxyQuery(t *testing.T) {
 			t.Fatal(err)
 		}
 		frontend := httptest.NewServer(NewSingleHostReverseProxy(backendURL))
-		req, _ := http.NewRequest("GET", frontend.URL+tt.reqSuffix, nil)
+		req, _ := http.NewRequest(http.MethodGet, frontend.URL+tt.reqSuffix, nil)
 		req.Close = true
 		res, err := frontend.Client().Do(req)
 		if err != nil {
@@ -298,7 +298,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
-	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req, _ := http.NewRequest(http.MethodGet, frontend.URL, nil)
 	req.Close = true
 	res, err := frontend.Client().Do(req)
 	if err != nil {
@@ -356,7 +356,7 @@ func TestReverseProxyCancelation(t *testing.T) {
 	defer frontend.Close()
 	frontendClient := frontend.Client()
 
-	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq, _ := http.NewRequest(http.MethodGet, frontend.URL, nil)
 	go func() {
 		<-reqInFlight
 		frontendClient.Transport.(*http.Transport).CancelRequest(getReq)
@@ -436,7 +436,7 @@ func TestUserAgentHeader(t *testing.T) {
 	defer frontend.Close()
 	frontendClient := frontend.Client()
 
-	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq, _ := http.NewRequest(http.MethodGet, frontend.URL, nil)
 	getReq.Header.Set("User-Agent", explicitUA)
 	getReq.Close = true
 	res, err := frontendClient.Do(getReq)
@@ -445,7 +445,7 @@ func TestUserAgentHeader(t *testing.T) {
 	}
 	res.Body.Close()
 
-	getReq, _ = http.NewRequest("GET", frontend.URL+"/noua", nil)
+	getReq, _ = http.NewRequest(http.MethodGet, frontend.URL+"/noua", nil)
 	getReq.Header.Set("User-Agent", "")
 	getReq.Close = true
 	res, err = frontendClient.Do(getReq)
@@ -498,7 +498,7 @@ func TestReverseProxyGetPutBuffer(t *testing.T) {
 	frontend := httptest.NewServer(rp)
 	defer frontend.Close()
 
-	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req, _ := http.NewRequest(http.MethodGet, frontend.URL, nil)
 	req.Close = true
 	res, err := frontend.Client().Do(req)
 	if err != nil {
@@ -546,7 +546,7 @@ func TestReverseProxy_Post(t *testing.T) {
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
-	postReq, _ := http.NewRequest("POST", frontend.URL, bytes.NewReader(requestBody))
+	postReq, _ := http.NewRequest(http.MethodPost, frontend.URL, bytes.NewReader(requestBody))
 	res, err := frontend.Client().Do(postReq)
 	if err != nil {
 		t.Fatalf("Do: %v", err)
@@ -695,7 +695,7 @@ func BenchmarkServeHTTP(b *testing.B) {
 	}
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/", nil)
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -744,7 +744,7 @@ func TestServeHTTPDeepCopy(t *testing.T) {
 // Issue 18327: verify we always do a deep copy of the Request.Header map
 // before any mutations.
 func TestClonesRequestHeaders(t *testing.T) {
-	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	req, _ := http.NewRequest(http.MethodGet, "http://foo.tld/", nil)
 	req.RemoteAddr = "1.2.3.4:56789"
 	rp := &ReverseProxy{
 		Director: func(req *http.Request) {
@@ -775,7 +775,7 @@ func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func TestModifyResponseClosesBody(t *testing.T) {
-	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	req, _ := http.NewRequest(http.MethodGet, "http://foo.tld/", nil)
 	req.RemoteAddr = "1.2.3.4:56789"
 	closeCheck := new(checkCloser)
 	logBuf := new(bytes.Buffer)
@@ -846,6 +846,6 @@ func TestReverseProxy_PanicBodyError(t *testing.T) {
 			t.Fatal("expected ErrAbortHandler, got", err)
 		}
 	}()
-	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	req, _ := http.NewRequest(http.MethodGet, "http://foo.tld/", nil)
 	rproxy.ServeHTTP(httptest.NewRecorder(), req)
 }

@@ -28,7 +28,7 @@ func ExampleDumpRequest() {
 	defer ts.Close()
 
 	const body = "Go is a general-purpose language designed with systems programming in mind."
-	req, err := http.NewRequest("POST", ts.URL, strings.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, ts.URL, strings.NewReader(body))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func ExampleDumpRequest() {
 
 func ExampleDumpRequestOut() {
 	const body = "Go is a general-purpose language designed with systems programming in mind."
-	req, err := http.NewRequest("PUT", "http://www.example.org", strings.NewReader(body))
+	req, err := http.NewRequest(http.MethodPut, "http://www.example.org", strings.NewReader(body))
 	if err != nil {
 		log.Fatal(err)
 	}
