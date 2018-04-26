@@ -84,9 +84,10 @@ var (
 	GOROOT_FINAL = findGOROOT_FINAL()
 
 	// Used in envcmd.MkEnv and build ID computations.
-	GOARM  = fmt.Sprint(objabi.GOARM)
-	GO386  = objabi.GO386
-	GOMIPS = objabi.GOMIPS
+	GOARM    = fmt.Sprint(objabi.GOARM)
+	GO386    = objabi.GO386
+	GOMIPS   = objabi.GOMIPS
+	GOMIPS64 = objabi.GOMIPS64
 )
 
 // Update build context to use our computed GOROOT.

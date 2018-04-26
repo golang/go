@@ -14,7 +14,11 @@
 .globl crosscall1
 .set noat
 crosscall1:
+#ifndef __mips_soft_float
 	daddiu	$29, $29, -160
+#else
+	daddiu	$29, $29, -96 // For soft-float, no need to make room for FP registers
+#endif
 	sd	$31, 0($29)
 	sd	$16, 8($29)
 	sd	$17, 16($29)
@@ -26,6 +30,7 @@ crosscall1:
 	sd	$23, 64($29)
 	sd	$28, 72($29)
 	sd	$30, 80($29)
+#ifndef __mips_soft_float
 	sdc1	$f24, 88($29)
 	sdc1	$f25, 96($29)
 	sdc1	$f26, 104($29)
@@ -34,6 +39,7 @@ crosscall1:
 	sdc1	$f29, 128($29)
 	sdc1	$f30, 136($29)
 	sdc1	$f31, 144($29)
+#endif
 
 	// prepare SB register = pc & 0xffffffff00000000
 	bal	1f
@@ -56,6 +62,7 @@ crosscall1:
 	ld	$23, 64($29)
 	ld	$28, 72($29)
 	ld	$30, 80($29)
+#ifndef __mips_soft_float
 	ldc1	$f24, 88($29)
 	ldc1	$f25, 96($29)
 	ldc1	$f26, 104($29)
@@ -64,9 +71,13 @@ crosscall1:
 	ldc1	$f29, 128($29)
 	ldc1	$f30, 136($29)
 	ldc1	$f31, 144($29)
+#endif
 	ld	$31, 0($29)
-
+#ifndef __mips_soft_float
 	daddiu	$29, $29, 160
+#else
+	daddiu	$29, $29, 96
+#endif
 	jr	$31
 
 .set at

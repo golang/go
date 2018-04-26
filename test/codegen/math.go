@@ -40,7 +40,8 @@ func sqrt(x float64) float64 {
 	// 386/387:"FSQRT" 386/sse2:"SQRTSD"
 	// arm64:"FSQRTD"
 	// arm/7:"SQRTD"
-	// mips/hardfloat:"SQRTD" mips64:"SQRTD"
+	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
+	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
 	return math.Sqrt(x)
 }
 
