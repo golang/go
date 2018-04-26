@@ -18,7 +18,7 @@ func ExampleResponseRecorder() {
 		io.WriteString(w, "<html><body>Hello World!</body></html>")
 	}
 
-	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/foo", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
 

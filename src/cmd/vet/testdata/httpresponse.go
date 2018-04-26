@@ -58,7 +58,7 @@ func badClientGet() {
 
 func badClientPtrDo() {
 	client := http.DefaultClient
-	req, err := http.NewRequest("GET", "http://foo.com", nil)
+	req, err := http.NewRequest(http.MethodGet, "http://foo.com", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func badClientPtrDo() {
 
 func badClientDo() {
 	var client http.Client
-	req, err := http.NewRequest("GET", "http://foo.com", nil)
+	req, err := http.NewRequest(http.MethodGet, "http://foo.com", nil)
 	if err != nil {
 		log.Fatal(err)
 	}

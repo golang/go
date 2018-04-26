@@ -12,7 +12,7 @@ import (
 )
 
 func Example() {
-	req, _ := http.NewRequest("GET", "http://example.com", nil)
+	req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
 	trace := &httptrace.ClientTrace{
 		GotConn: func(connInfo httptrace.GotConnInfo) {
 			fmt.Printf("Got Conn: %+v\n", connInfo)

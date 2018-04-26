@@ -31,7 +31,7 @@ func TestHandlers(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.path, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "http://example.com"+tc.path, nil)
+			req := httptest.NewRequest(http.MethodGet, "http://example.com"+tc.path, nil)
 			w := httptest.NewRecorder()
 			tc.handler(w, req)
 

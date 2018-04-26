@@ -187,7 +187,7 @@ var addCookieTests = []struct {
 
 func TestAddCookie(t *testing.T) {
 	for i, tt := range addCookieTests {
-		req, _ := NewRequest("GET", "http://example.com/", nil)
+		req, _ := NewRequest(MethodGet, "http://example.com/", nil)
 		for _, c := range tt.Cookies {
 			req.AddCookie(c)
 		}

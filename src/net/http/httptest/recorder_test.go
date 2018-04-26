@@ -274,7 +274,7 @@ func TestRecorder(t *testing.T) {
 			check(hasStatus(200), hasContents("Some body"), hasContentLength(9)),
 		},
 	}
-	r, _ := http.NewRequest("GET", "http://foo.com/", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://foo.com/", nil)
 	for _, tt := range tests {
 		h := http.HandlerFunc(tt.h)
 		rec := NewRecorder()

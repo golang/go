@@ -389,7 +389,7 @@ func Get(url string) (resp *Response, err error) {
 //
 // To make a request with custom headers, use NewRequest and Client.Do.
 func (c *Client) Get(url string) (resp *Response, err error) {
-	req, err := NewRequest("GET", url, nil)
+	req, err := NewRequest(MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -734,7 +734,7 @@ func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 // See the Client.Do method documentation for details on how redirects
 // are handled.
 func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, err error) {
-	req, err := NewRequest("POST", url, body)
+	req, err := NewRequest(MethodPost, url, body)
 	if err != nil {
 		return nil, err
 	}
@@ -799,7 +799,7 @@ func Head(url string) (resp *Response, err error) {
 //    307 (Temporary Redirect)
 //    308 (Permanent Redirect)
 func (c *Client) Head(url string) (resp *Response, err error) {
-	req, err := NewRequest("HEAD", url, nil)
+	req, err := NewRequest(MethodPost, url, nil)
 	if err != nil {
 		return nil, err
 	}

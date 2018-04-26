@@ -530,7 +530,7 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
 	defer cst.close()
 	defer close(unblock)
 
-	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	req, _ := NewRequest(MethodGet, cst.ts.URL, nil)
 	cancel := make(chan struct{})
 	req.Cancel = cancel
 
@@ -594,7 +594,7 @@ func testTrailersClientToServer(t *testing.T, h2 bool) {
 	defer cst.close()
 
 	var req *Request
-	req, _ = NewRequest("POST", cst.ts.URL, io.MultiReader(
+	req, _ = NewRequest(MethodPost, cst.ts.URL, io.MultiReader(
 		eofReaderFunc(func() {
 			req.Trailer["Client-Trailer-A"] = []string{"valuea"}
 		}),
@@ -752,7 +752,7 @@ func testConcurrentReadWriteReqBody(t *testing.T, h2 bool) {
 		wg.Wait()
 	}))
 	defer cst.close()
-	req, _ := NewRequest("POST", cst.ts.URL, strings.NewReader(reqBody))
+	req, _ := NewRequest(MethodPost, cst.ts.URL, strings.NewReader(reqBody))
 	req.Header.Add("Expect", "100-continue") // just to complicate things
 	res, err := cst.c.Do(req)
 	if err != nil {
@@ -868,7 +868,7 @@ func testTransportUserAgent(t *testing.T, h2 bool) {
 		},
 	}
 	for i, tt := range tests {
-		req, _ := NewRequest("GET", cst.ts.URL, nil)
+		req, _ := NewRequest(MethodGet, cst.ts.URL, nil)
 		tt.setup(req)
 		res, err := cst.c.Do(req)
 		if err != nil {
@@ -1056,7 +1056,7 @@ func testTransportGCRequest(t *testing.T, h2, body bool) {
 	didGC := make(chan struct{})
 	(func() {
 		body := strings.NewReader("some body")
-		req, _ := NewRequest("POST", cst.ts.URL, body)
+		req, _ := NewRequest(MethodPost, cst.ts.URL, body)
 		runtime.SetFinalizer(req, func(*Request) { close(didGC) })
 		res, err := cst.c.Do(req)
 		if err != nil {
@@ -1118,7 +1118,7 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
 			dialedc <- true
 			return net.Dial(netw, addr)
 		}
-		req, _ := NewRequest("GET", cst.ts.URL, nil)
+		req, _ := NewRequest(MethodGet, cst.ts.URL, nil)
 		req.Header[tt.key] = []string{tt.val}
 		res, err := cst.c.Do(req)
 		var body []byte
@@ -1314,7 +1314,7 @@ func testNoSniffExpectRequestBody(t *testing.T, h2 bool) {
 	// Set ExpectContinueTimeout non-zero so RoundTrip won't try to write it.
 	cst.tr.ExpectContinueTimeout = 10 * time.Second
 
-	req, err := NewRequest("POST", cst.ts.URL, testErrorReader{t})
+	req, err := NewRequest(MethodPost, cst.ts.URL, testErrorReader{t})
 	if err != nil {
 		t.Fatal(err)
 	}
