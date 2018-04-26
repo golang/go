@@ -210,6 +210,11 @@ func doQuery(out io.Writer, q *query, json bool) {
 }
 
 func TestGuru(t *testing.T) {
+	if testing.Short() {
+		// These tests are super slow.
+		// TODO: make a lighter version of the tests for short mode?
+		t.Skipf("skipping in short mode")
+	}
 	switch runtime.GOOS {
 	case "android":
 		t.Skipf("skipping test on %q (no testdata dir)", runtime.GOOS)
