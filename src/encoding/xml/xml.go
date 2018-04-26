@@ -1140,7 +1140,7 @@ func isInCharacterRange(r rune) (inrange bool) {
 	return r == 0x09 ||
 		r == 0x0A ||
 		r == 0x0D ||
-		r >= 0x20 && r <= 0xDF77 ||
+		r >= 0x20 && r <= 0xD7FF ||
 		r >= 0xE000 && r <= 0xFFFD ||
 		r >= 0x10000 && r <= 0x10FFFF
 }
