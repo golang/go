@@ -44,6 +44,14 @@ func maxSliceCap(elemsize uintptr) uintptr {
 	return maxAlloc / elemsize
 }
 
+func panicmakeslicelen() {
+	panic(errorString("makeslice: len out of range"))
+}
+
+func panicmakeslicecap() {
+	panic(errorString("makeslice: cap out of range"))
+}
+
 func makeslice(et *_type, len, cap int) slice {
 	// NOTE: The len > maxElements check here is not strictly necessary,
 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
@@ -52,11 +60,11 @@ func makeslice(et *_type, len, cap int) slice {
 	// See issue 4085.
 	maxElements := maxSliceCap(et.size)
 	if len < 0 || uintptr(len) > maxElements {
-		panic(errorString("makeslice: len out of range"))
+		panicmakeslicelen()
 	}
 
 	if cap < len || uintptr(cap) > maxElements {
-		panic(errorString("makeslice: cap out of range"))
+		panicmakeslicecap()
 	}
 
 	p := mallocgc(et.size*uintptr(cap), et, true)
@@ -66,12 +74,12 @@ func makeslice(et *_type, len, cap int) slice {
 func makeslice64(et *_type, len64, cap64 int64) slice {
 	len := int(len64)
 	if int64(len) != len64 {
-		panic(errorString("makeslice: len out of range"))
+		panicmakeslicelen()
 	}
 
 	cap := int(cap64)
 	if int64(cap) != cap64 {
-		panic(errorString("makeslice: cap out of range"))
+		panicmakeslicecap()
 	}
 
 	return makeslice(et, len, cap)

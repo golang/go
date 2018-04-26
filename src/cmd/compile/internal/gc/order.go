@@ -1104,7 +1104,14 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case OAPPEND:
-		o.callArgs(&n.List)
+		// Check for append(x, make([]T, y)...) .
+		if isAppendOfMake(n) {
+			n.List.SetFirst(o.expr(n.List.First(), nil))             // order x
+			n.List.Second().Left = o.expr(n.List.Second().Left, nil) // order y
+		} else {
+			o.callArgs(&n.List)
+		}
+
 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.First()) {
 			n = o.copyExpr(n, n.Type, false)
 		}

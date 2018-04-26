@@ -728,9 +728,13 @@ opswitch:
 			if r.Type.Elem().NotInHeap() {
 				yyerror("%v is go:notinheap; heap allocation disallowed", r.Type.Elem())
 			}
-			if r.Isddd() {
+			switch {
+			case isAppendOfMake(r):
+				// x = append(y, make([]T, y)...)
+				r = extendslice(r, init)
+			case r.Isddd():
 				r = appendslice(r, init) // also works for append(slice, string).
-			} else {
+			default:
 				r = walkappend(r, init, n)
 			}
 			n.Right = r
@@ -2910,6 +2914,18 @@ func addstr(n *Node, init *Nodes) *Node {
 	return r
 }
 
+func walkAppendArgs(n *Node, init *Nodes) {
+	walkexprlistsafe(n.List.Slice(), init)
+
+	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+	// and n are name or literal, but those may index the slice we're
+	// modifying here. Fix explicitly.
+	ls := n.List.Slice()
+	for i1, n1 := range ls {
+		ls[i1] = cheapexpr(n1, init)
+	}
+}
+
 // expand append(l1, l2...) to
 //   init {
 //     s := l1
@@ -2925,15 +2941,7 @@ func addstr(n *Node, init *Nodes) *Node {
 //
 // l2 is allowed to be a string.
 func appendslice(n *Node, init *Nodes) *Node {
-	walkexprlistsafe(n.List.Slice(), init)
-
-	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
-	// and n are name or literal, but those may index the slice we're
-	// modifying here. Fix explicitly.
-	ls := n.List.Slice()
-	for i1, n1 := range ls {
-		ls[i1] = cheapexpr(n1, init)
-	}
+	walkAppendArgs(n, init)
 
 	l1 := n.List.First()
 	l2 := n.List.Second()
@@ -3024,6 +3032,174 @@ func appendslice(n *Node, init *Nodes) *Node {
 	typecheckslice(l, Etop)
 	walkstmtlist(l)
 	init.Append(l...)
+	return s
+}
+
+// isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
+// isAppendOfMake assumes n has already been typechecked.
+func isAppendOfMake(n *Node) bool {
+	if Debug['N'] != 0 || instrumenting {
+		return false
+	}
+
+	if n.Typecheck() == 0 {
+		Fatalf("missing typecheck: %+v", n)
+	}
+
+	if n.Op != OAPPEND || !n.Isddd() || n.List.Len() != 2 {
+		return false
+	}
+
+	second := n.List.Second()
+	if second.Op != OMAKESLICE {
+		return false
+	}
+
+	if n.List.Second().Right != nil {
+		return false
+	}
+
+	// y must be either an integer constant or a variable of type int.
+	// typecheck checks that constant arguments to make are not negative and
+	// fit into an int.
+	// runtime.growslice uses int as type for the newcap argument.
+	// Constraining variables to be type int avoids the need for runtime checks
+	// that e.g. check if an int64 value fits into an int.
+	// TODO(moehrmann): support other integer types that always fit in an int
+	y := second.Left
+	if !Isconst(y, CTINT) && y.Type.Etype != TINT {
+		return false
+	}
+
+	return true
+}
+
+// extendslice rewrites append(l1, make([]T, l2)...) to
+//   init {
+//     if l2 < 0 {
+//       panicmakeslicelen()
+//     }
+//     s := l1
+//     n := len(s) + l2
+//     // Compare n and s as uint so growslice can panic on overflow of len(s) + l2.
+//     // cap is a positive int and n can become negative when len(s) + l2
+//     // overflows int. Interpreting n when negative as uint makes it larger
+//     // than cap(s). growslice will check the int n arg and panic if n is
+//     // negative. This prevents the overflow from being undetected.
+//     if uint(n) > uint(cap(s)) {
+//       s = growslice(T, s, n)
+//     }
+//     s = s[:n]
+//     lptr := &l1[0]
+//     sptr := &s[0]
+//     if lptr == sptr || !hasPointers(T) {
+//       // growslice did not clear the whole underlying array (or did not get called)
+//       hp := &s[len(l1)]
+//       hn := l2 * sizeof(T)
+//       memclr(hp, hn)
+//     }
+//   }
+//   s
+func extendslice(n *Node, init *Nodes) *Node {
+	// isAppendOfMake made sure l2 fits in an int.
+	l2 := conv(n.List.Second().Left, types.Types[TINT])
+	l2 = typecheck(l2, Erv)
+	n.List.SetSecond(l2) // walkAppendArgs expects l2 in n.List.Second().
+
+	walkAppendArgs(n, init)
+
+	l1 := n.List.First()
+	l2 = n.List.Second() // re-read l2, as it may have been updated by walkAppendArgs
+
+	var nodes []*Node
+
+	// if l2 < 0
+	nifneg := nod(OIF, nod(OLT, l2, nodintconst(0)), nil)
+	nifneg.SetLikely(false)
+
+	// panicmakeslicelen()
+	nifneg.Nbody.Set1(mkcall("panicmakeslicelen", nil, init))
+	nodes = append(nodes, nifneg)
+
+	// s := l1
+	s := temp(l1.Type)
+	nodes = append(nodes, nod(OAS, s, l1))
+
+	elemtype := s.Type.Elem()
+
+	// n := len(s) + l2
+	nn := temp(types.Types[TINT])
+	nodes = append(nodes, nod(OAS, nn, nod(OADD, nod(OLEN, s, nil), l2)))
+
+	// if uint(n) > uint(cap(s))
+	nuint := nod(OCONV, nn, nil)
+	nuint.Type = types.Types[TUINT]
+	capuint := nod(OCONV, nod(OCAP, s, nil), nil)
+	capuint.Type = types.Types[TUINT]
+	nif := nod(OIF, nod(OGT, nuint, capuint), nil)
+
+	// instantiate growslice(typ *type, old []any, newcap int) []any
+	fn := syslook("growslice")
+	fn = substArgTypes(fn, elemtype, elemtype)
+
+	// s = growslice(T, s, n)
+	nif.Nbody.Set1(nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(elemtype), s, nn)))
+	nodes = append(nodes, nif)
+
+	// s = s[:n]
+	nt := nod(OSLICE, s, nil)
+	nt.SetSliceBounds(nil, nn, nil)
+	nodes = append(nodes, nod(OAS, s, nt))
+
+	// lptr := &l1[0]
+	l1ptr := temp(l1.Type.Elem().PtrTo())
+	tmp := nod(OSPTR, l1, nil)
+	nodes = append(nodes, nod(OAS, l1ptr, tmp))
+
+	// sptr := &s[0]
+	sptr := temp(elemtype.PtrTo())
+	tmp = nod(OSPTR, s, nil)
+	nodes = append(nodes, nod(OAS, sptr, tmp))
+
+	var clr []*Node
+
+	// hp := &s[len(l1)]
+	hp := temp(types.Types[TUNSAFEPTR])
+
+	tmp = nod(OINDEX, s, nod(OLEN, l1, nil))
+	tmp.SetBounded(true)
+	tmp = nod(OADDR, tmp, nil)
+	tmp = nod(OCONVNOP, tmp, nil)
+	tmp.Type = types.Types[TUNSAFEPTR]
+	clr = append(clr, nod(OAS, hp, tmp))
+
+	// hn := l2 * sizeof(elem(s))
+	hn := temp(types.Types[TUINTPTR])
+
+	tmp = nod(OMUL, l2, nodintconst(elemtype.Width))
+	tmp = conv(tmp, types.Types[TUINTPTR])
+	clr = append(clr, nod(OAS, hn, tmp))
+
+	clrname := "memclrNoHeapPointers"
+	hasPointers := types.Haspointers(elemtype)
+	if hasPointers {
+		clrname = "memclrHasPointers"
+	}
+	clrfn := mkcall(clrname, nil, init, hp, hn)
+	clr = append(clr, clrfn)
+
+	if hasPointers {
+		// if l1ptr == sptr
+		nifclr := nod(OIF, nod(OEQ, l1ptr, sptr), nil)
+		nifclr.Nbody.Set(clr)
+		nodes = append(nodes, nifclr)
+	} else {
+		nodes = append(nodes, clr...)
+	}
+
+	typecheckslice(nodes, Etop)
+	walkstmtlist(nodes)
+	init.Append(nodes...)
 	return s
 }
 
