@@ -1169,21 +1169,43 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 		minsize = sys.MinFrameSize
 	}
 	if size > minsize {
-		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
-		if stackmap == nil || stackmap.n <= 0 {
+		var stkmap *stackmap
+		stackid := pcdata
+		if f.funcID != funcID_debugCallV1 {
+			stkmap = (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+		} else {
+			// debugCallV1's stack map is the register map
+			// at its call site.
+			callerPC := frame.lr
+			caller := findfunc(callerPC)
+			if !caller.valid() {
+				println("runtime: debugCallV1 called by unknown caller", hex(callerPC))
+				throw("bad debugCallV1")
+			}
+			stackid = int32(-1)
+			if callerPC != caller.entry {
+				callerPC--
+				stackid = pcdatavalue(caller, _PCDATA_RegMapIndex, callerPC, cache)
+			}
+			if stackid == -1 {
+				stackid = 0 // in prologue
+			}
+			stkmap = (*stackmap)(funcdata(caller, _FUNCDATA_RegPointerMaps))
+		}
+		if stkmap == nil || stkmap.n <= 0 {
 			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
 			throw("missing stackmap")
 		}
 		// If nbit == 0, there's no work to do.
-		if stackmap.nbit > 0 {
-			if pcdata < 0 || pcdata >= stackmap.n {
+		if stkmap.nbit > 0 {
+			if stackid < 0 || stackid >= stkmap.n {
 				// don't know where we are
-				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
+				print("runtime: pcdata is ", stackid, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
 				throw("bad symbol table")
 			}
-			locals = stackmapdata(stackmap, pcdata)
+			locals = stackmapdata(stkmap, stackid)
 			if stackDebug >= 3 && debug {
-				print("      locals ", pcdata, "/", stackmap.n, " ", locals.n, " words ", locals.bytedata, "\n")
+				print("      locals ", stackid, "/", stkmap.n, " ", locals.n, " words ", locals.bytedata, "\n")
 			}
 		} else if stackDebug >= 3 && debug {
 			print("      no locals to adjust\n")

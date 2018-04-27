@@ -376,6 +376,7 @@ const (
 	funcID_cgocallback_gofunc
 	funcID_gogo
 	funcID_externalthreadhandler
+	funcID_debugCallV1
 )
 
 // moduledata records information about the layout of the executable
