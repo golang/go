@@ -1999,30 +1999,16 @@ func getgcmask(ep interface{}) (mask []byte) {
 		_g_ := getg()
 		gentraceback(_g_.m.curg.sched.pc, _g_.m.curg.sched.sp, 0, _g_.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
 		if frame.fn.valid() {
-			f := frame.fn
-			targetpc := frame.continpc
-			if targetpc == 0 {
+			locals, _ := getStackMap(&frame, nil, false)
+			if locals.n == 0 {
 				return
 			}
-			pcdata := int32(-1) // Use the entry map at function entry
-			if targetpc != f.entry {
-				targetpc--
-				pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, nil)
-			}
-			if pcdata == -1 {
-				return
-			}
-			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
-			if stkmap == nil || stkmap.n <= 0 {
-				return
-			}
-			bv := stackmapdata(stkmap, pcdata)
-			size := uintptr(bv.n) * sys.PtrSize
+			size := uintptr(locals.n) * sys.PtrSize
 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
 			mask = make([]byte, n/sys.PtrSize)
 			for i := uintptr(0); i < n; i += sys.PtrSize {
 				off := (uintptr(p) + i - frame.varp + size) / sys.PtrSize
-				mask[i/sys.PtrSize] = bv.ptrbit(off)
+				mask[i/sys.PtrSize] = locals.ptrbit(off)
 			}
 		}
 		return
