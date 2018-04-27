@@ -3785,7 +3785,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		ab.Put1(byte(pre))
 	}
 
-	// Сhecks to warn about instruction/arguments combinations that
+	// Checks to warn about instruction/arguments combinations that
 	// will unconditionally trigger illegal instruction trap (#UD).
 	switch p.As {
 	case AVGATHERDPD,
