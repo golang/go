@@ -132,6 +132,13 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
 	return 0, false
 }
 
+// IsARM64TBL reports whether the op (as defined by an arm64.A*
+// constant) is one of the table lookup instructions that require special
+// handling.
+func IsARM64TBL(op obj.As) bool {
+	return op == arm64.AVTBL
+}
+
 // ARM64RegisterExtension parses an ARM64 register with extension or arrangement.
 func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
 	Rnum := (reg & 31) + int16(num<<5)

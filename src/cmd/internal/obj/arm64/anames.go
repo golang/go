@@ -399,5 +399,8 @@ var Anames = []string{
 	"VUSHR",
 	"VSHL",
 	"VSRI",
+	"VTBL",
+	"VZIP1",
+	"VZIP2",
 	"LAST",
 }

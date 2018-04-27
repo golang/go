@@ -576,6 +576,15 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.To = a[2]
 				break
 			}
+			if arch.IsARM64TBL(op) {
+				prog.From = a[0]
+				if a[1].Type != obj.TYPE_REGLIST {
+					p.errorf("%s: expected list; found %s", op, obj.Dconv(prog, &a[1]))
+				}
+				prog.SetFrom3(a[1])
+				prog.To = a[2]
+				break
+			}
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
