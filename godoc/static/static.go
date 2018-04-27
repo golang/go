@@ -3078,9 +3078,6 @@ ol {
 pre {
 	background: #EFEFEF;
 	padding: 0.625rem;
-
-	-webkit-border-radius: 0.3125rem;
-	-moz-border-radius: 0.3125rem;
 	border-radius: 0.3125rem;
 }
 
@@ -3215,9 +3212,6 @@ div#blog .read a,
 
 	text-decoration: none;
 	font-size: 1rem;
-
-	-webkit-border-radius: 0.3125rem;
-	-moz-border-radius: 0.3125rem;
 	border-radius: 0.3125rem;
 }
 div#playground .buttons a,
@@ -3366,9 +3360,6 @@ a#start {
 
 	text-align: center;
 	text-decoration: none;
-
-	-webkit-border-radius: 0.3125rem;
-	-moz-border-radius: 0.3125rem;
 	border-radius: 0.3125rem;
 }
 a#start .big {
@@ -3404,10 +3395,6 @@ div#learn .input {
 	margin-top: 0.625rem;
 	height: 9.375rem;
 
-	-webkit-border-top-left-radius: 0.3125rem;
-	-webkit-border-top-right-radius: 0.3125rem;
-	-moz-border-radius-topleft: 0.3125rem;
-	-moz-border-radius-topright: 0.3125rem;
 	border-top-left-radius: 0.3125rem;
 	border-top-right-radius: 0.3125rem;
 }
@@ -3425,18 +3412,11 @@ div#learn .output {
 	height: 3.688rem;
 	overflow: auto;
 
-	-webkit-border-bottom-right-radius: 0.3125rem;
-	-webkit-border-bottom-left-radius: 0.3125rem;
-	-moz-border-radius-bottomright: 0.3125rem;
-	-moz-border-radius-bottomleft: 0.3125rem;
 	border-bottom-right-radius: 0.3125rem;
 	border-bottom-left-radius: 0.3125rem;
 }
 div#learn .output pre {
 	padding: 0;
-
-	-webkit-border-radius: 0;
-	-moz-border-radius: 0;
 	border-radius: 0;
 }
 div#learn .input,
@@ -3533,10 +3513,6 @@ div.play .input {
 	padding: 0.625rem;
 	margin-top: 0.625rem;
 
-	-webkit-border-top-left-radius: 0.3125rem;
-	-webkit-border-top-right-radius: 0.3125rem;
-	-moz-border-radius-topleft: 0.3125rem;
-	-moz-border-radius-topright: 0.3125rem;
 	border-top-left-radius: 0.3125rem;
 	border-top-right-radius: 0.3125rem;
 
@@ -3562,18 +3538,11 @@ div.play .output {
 	max-height: 12.5rem;
 	overflow: auto;
 
-	-webkit-border-bottom-right-radius: 0.3125rem;
-	-webkit-border-bottom-left-radius: 0.3125rem;
-	-moz-border-radius-bottomright: 0.3125rem;
-	-moz-border-radius-bottomleft: 0.3125rem;
 	border-bottom-right-radius: 0.3125rem;
 	border-bottom-left-radius: 0.3125rem;
 }
 div.play .output pre {
 	padding: 0;
-
-	-webkit-border-radius: 0;
-	-moz-border-radius: 0;
 	border-radius: 0;
 }
 div.play .input,
@@ -3622,10 +3591,6 @@ div#playground {
 	border: 0.0625rem solid #B0BBC5;
 	border-top: none;
 
-	-webkit-border-bottom-left-radius: 0.3125rem;
-	-webkit-border-bottom-right-radius: 0.3125rem;
-	-moz-border-radius-bottomleft: 0.3125rem;
-	-moz-border-radius-bottomright: 0.3125rem;
 	border-bottom-left-radius: 0.3125rem;
 	border-bottom-right-radius: 0.3125rem;
 }
@@ -3653,8 +3618,6 @@ div#playground .output {
 	width: auto;
         margin: 1.25rem;
         padding: 0.625rem;
-        -webkit-border-radius: 0.3125rem;
-        -moz-border-radius: 0.3125rem;
         border-radius: 0.3125rem;
 }
 #content .code, #content .playground {
