@@ -606,8 +606,7 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 // Note: the argument/return area is adjusted by the callee.
 func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	adjinfo := (*adjustinfo)(arg)
-	targetpc := frame.continpc
-	if targetpc == 0 {
+	if frame.continpc == 0 {
 		// Frame is dead.
 		return true
 	}
@@ -621,47 +620,13 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		// have full GC info for it (because it is written in asm).
 		return true
 	}
-	pcdata := int32(-1) // Use the entry map at function entry
-	if targetpc != f.entry {
-		targetpc--
-		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, &adjinfo.cache)
-	}
-	if pcdata == -1 {
-		pcdata = 0 // in prologue
-	}
+
+	locals, args := getStackMap(frame, &adjinfo.cache, true)
 
 	// Adjust local variables if stack frame has been allocated.
-	size := frame.varp - frame.sp
-	var minsize uintptr
-	switch sys.ArchFamily {
-	case sys.ARM64:
-		minsize = sys.SpAlign
-	default:
-		minsize = sys.MinFrameSize
-	}
-	if size > minsize {
-		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
-		if stackmap == nil || stackmap.n <= 0 {
-			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
-			throw("missing stackmap")
-		}
-		// If nbit == 0, there's no work to do.
-		if stackmap.nbit > 0 {
-			// Locals bitmap information, scan just the pointers in locals.
-			if pcdata < 0 || pcdata >= stackmap.n {
-				// don't know where we are
-				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
-				throw("bad symbol table")
-			}
-			bv := stackmapdata(stackmap, pcdata)
-			size = uintptr(bv.n) * sys.PtrSize
-			if stackDebug >= 3 {
-				print("      locals ", pcdata, "/", stackmap.n, " ", size/sys.PtrSize, " words ", bv.bytedata, "\n")
-			}
-			adjustpointers(unsafe.Pointer(frame.varp-size), &bv, adjinfo, f)
-		} else if stackDebug >= 3 {
-			print("      no locals to adjust\n")
-		}
+	if locals.n > 0 {
+		size := uintptr(locals.n) * sys.PtrSize
+		adjustpointers(unsafe.Pointer(frame.varp-size), &locals, adjinfo, f)
 	}
 
 	// Adjust saved base pointer if there is one.
@@ -688,29 +653,11 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	}
 
 	// Adjust arguments.
-	if frame.arglen > 0 {
-		var bv bitvector
-		if frame.argmap != nil {
-			bv = *frame.argmap
-		} else {
-			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
-			if stackmap == nil || stackmap.n <= 0 {
-				print("runtime: frame ", funcname(f), " untyped args ", frame.argp, "+", frame.arglen, "\n")
-				throw("missing stackmap")
-			}
-			if pcdata < 0 || pcdata >= stackmap.n {
-				// don't know where we are
-				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
-				throw("bad symbol table")
-			}
-			bv = stackmapdata(stackmap, pcdata)
-		}
+	if args.n > 0 {
 		if stackDebug >= 3 {
 			print("      args\n")
 		}
-		if bv.n > 0 {
-			adjustpointers(unsafe.Pointer(frame.argp), &bv, adjinfo, funcInfo{})
-		}
+		adjustpointers(unsafe.Pointer(frame.argp), &args, adjinfo, funcInfo{})
 	}
 	return true
 }
@@ -1184,6 +1131,86 @@ func freeStackSpans() {
 		}
 	}
 	unlock(&stackLarge.lock)
+}
+
+// getStackMap returns the locals and arguments live pointer maps for
+// frame.
+func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args bitvector) {
+	targetpc := frame.continpc
+	if targetpc == 0 {
+		// Frame is dead. Return empty bitvectors.
+		return
+	}
+
+	f := frame.fn
+	pcdata := int32(-1)
+	if targetpc != f.entry {
+		// Back up to the CALL. If we're at the function entry
+		// point, we want to use the entry map (-1), even if
+		// the first instruction of the function changes the
+		// stack map.
+		targetpc--
+		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
+	}
+	if pcdata == -1 {
+		// We do not have a valid pcdata value but there might be a
+		// stackmap for this function. It is likely that we are looking
+		// at the function prologue, assume so and hope for the best.
+		pcdata = 0
+	}
+
+	// Local variables.
+	size := frame.varp - frame.sp
+	var minsize uintptr
+	switch sys.ArchFamily {
+	case sys.ARM64:
+		minsize = sys.SpAlign
+	default:
+		minsize = sys.MinFrameSize
+	}
+	if size > minsize {
+		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+		if stackmap == nil || stackmap.n <= 0 {
+			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
+			throw("missing stackmap")
+		}
+		// If nbit == 0, there's no work to do.
+		if stackmap.nbit > 0 {
+			if pcdata < 0 || pcdata >= stackmap.n {
+				// don't know where we are
+				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
+				throw("bad symbol table")
+			}
+			locals = stackmapdata(stackmap, pcdata)
+			if stackDebug >= 3 && debug {
+				print("      locals ", pcdata, "/", stackmap.n, " ", locals.n, " words ", locals.bytedata, "\n")
+			}
+		} else if stackDebug >= 3 && debug {
+			print("      no locals to adjust\n")
+		}
+	}
+
+	// Arguments.
+	if frame.arglen > 0 {
+		if frame.argmap != nil {
+			args = *frame.argmap
+		} else {
+			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+			if stackmap == nil || stackmap.n <= 0 {
+				print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
+				throw("missing stackmap")
+			}
+			if pcdata < 0 || pcdata >= stackmap.n {
+				// don't know where we are
+				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
+				throw("bad symbol table")
+			}
+			if stackmap.nbit > 0 {
+				args = stackmapdata(stackmap, pcdata)
+			}
+		}
+	}
+	return
 }
 
 //go:nosplit
