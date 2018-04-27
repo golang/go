@@ -344,6 +344,8 @@ func (ctxt *Link) pclntab() {
 			funcID = objabi.FuncID_gogo
 		case "runtime.externalthreadhandler":
 			funcID = objabi.FuncID_externalthreadhandler
+		case "runtime.debugCallV1":
+			funcID = objabi.FuncID_debugCallV1
 		}
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(funcID)))
 
