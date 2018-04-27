@@ -695,6 +695,8 @@ func (o *Order) stmt(n *Node) {
 
 		t := o.markTemp()
 		n.Right = o.expr(n.Right, nil)
+
+		orderBody := true
 		switch n.Type.Etype {
 		default:
 			Fatalf("orderstmt range %v", n.Type)
@@ -721,6 +723,14 @@ func (o *Order) stmt(n *Node) {
 			n.Right = o.copyExpr(r, r.Type, false)
 
 		case TMAP:
+			if isMapClear(n) {
+				// Preserve the body of the map clear pattern so it can
+				// be detected during walk. The loop body will not be used
+				// when optimizing away the range loop to a runtime call.
+				orderBody = false
+				break
+			}
+
 			// copy the map value in case it is a map literal.
 			// TODO(rsc): Make tmp = literal expressions reuse tmp.
 			// For maps tmp is just one word so it hardly matters.
@@ -732,7 +742,9 @@ func (o *Order) stmt(n *Node) {
 			prealloc[n] = o.newTemp(hiter(n.Type), true)
 		}
 		o.exprListInPlace(n.List)
-		orderBlock(&n.Nbody)
+		if orderBody {
+			orderBlock(&n.Nbody)
+		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
