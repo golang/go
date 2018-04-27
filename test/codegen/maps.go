@@ -36,3 +36,60 @@ func AccessString2(m map[string]int) bool {
 	_, ok := m["abc"]
 	return ok
 }
+
+// ------------------- //
+//     Map Clear       //
+// ------------------- //
+
+// Optimization of map clear idiom (Issue #20138).
+
+func MapClearReflexive(m map[int]int) {
+	// amd64:`.*runtime\.mapclear`
+	// amd64:-`.*runtime\.mapiterinit`
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func MapClearIndirect(m map[int]int) {
+	s := struct{ m map[int]int }{m: m}
+	// amd64:`.*runtime\.mapclear`
+	// amd64:-`.*runtime\.mapiterinit`
+	for k := range s.m {
+		delete(s.m, k)
+	}
+}
+
+func MapClearPointer(m map[*byte]int) {
+	// amd64:`.*runtime\.mapclear`
+	// amd64:-`.*runtime\.mapiterinit`
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func MapClearNotReflexive(m map[float64]int) {
+	// amd64:`.*runtime\.mapiterinit`
+	// amd64:-`.*runtime\.mapclear`
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func MapClearInterface(m map[interface{}]int) {
+	// amd64:`.*runtime\.mapiterinit`
+	// amd64:-`.*runtime\.mapclear`
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func MapClearSideEffect(m map[int]int) int {
+	k := 0
+	// amd64:`.*runtime\.mapiterinit`
+	// amd64:-`.*runtime\.mapclear`
+	for k = range m {
+		delete(m, k)
+	}
+	return k
+}

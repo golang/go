@@ -154,6 +154,14 @@ func cheapComputableIndex(width int64) bool {
 // Node n may also be modified in place, and may also be
 // the returned node.
 func walkrange(n *Node) *Node {
+	if isMapClear(n) {
+		m := n.Right
+		lno := setlineno(m)
+		n = mapClear(m)
+		lineno = lno
+		return n
+	}
+
 	// variable name conventions:
 	//	ohv1, hv1, hv2: hidden (old) val 1, 2
 	//	ha, hit: hidden aggregate, iterator
@@ -446,6 +454,69 @@ func walkrange(n *Node) *Node {
 	n = walkstmt(n)
 
 	lineno = lno
+	return n
+}
+
+// isMapClear checks if n is of the form:
+//
+// for k := range m {
+//   delete(m, k)
+// }
+//
+// where == for keys of map m is reflexive.
+func isMapClear(n *Node) bool {
+	if Debug['N'] != 0 || instrumenting {
+		return false
+	}
+
+	if n.Op != ORANGE || n.Type.Etype != TMAP || n.List.Len() != 1 {
+		return false
+	}
+
+	k := n.List.First()
+	if k == nil || k.isBlank() {
+		return false
+	}
+
+	// Require k to be a new variable name.
+	if k.Name == nil || k.Name.Defn != n {
+		return false
+	}
+
+	if n.Nbody.Len() != 1 {
+		return false
+	}
+
+	stmt := n.Nbody.First() // only stmt in body
+	if stmt == nil || stmt.Op != ODELETE {
+		return false
+	}
+
+	m := n.Right
+	if !samesafeexpr(stmt.List.First(), m) || !samesafeexpr(stmt.List.Second(), k) {
+		return false
+	}
+
+	// Keys where equality is not reflexive can not be deleted from maps.
+	if !isreflexive(m.Type.Key()) {
+		return false
+	}
+
+	return true
+}
+
+// mapClear constructs a call to runtime.mapclear for the map m.
+func mapClear(m *Node) *Node {
+	t := m.Type
+
+	// instantiate mapclear(typ *type, hmap map[any]any)
+	fn := syslook("mapclear")
+	fn = substArgTypes(fn, t.Key(), t.Elem())
+	n := mkcall1(fn, nil, nil, typename(t), m)
+
+	n = typecheck(n, Etop)
+	n = walkstmt(n)
+
 	return n
 }
 
