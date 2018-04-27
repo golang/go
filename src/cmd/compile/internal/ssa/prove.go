@@ -972,6 +972,33 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				}
 				v.Op = ctzNonZeroOp[v.Op]
 			}
+
+		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
+			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
+			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
+			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,
+			OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
+			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
+			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
+			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64,
+			OpRsh8Ux8, OpRsh8Ux16, OpRsh8Ux32, OpRsh8Ux64,
+			OpRsh16Ux8, OpRsh16Ux16, OpRsh16Ux32, OpRsh16Ux64,
+			OpRsh32Ux8, OpRsh32Ux16, OpRsh32Ux32, OpRsh32Ux64,
+			OpRsh64Ux8, OpRsh64Ux16, OpRsh64Ux32, OpRsh64Ux64:
+			// Check whether, for a << b, we know that b
+			// is strictly less than the number of bits in a.
+			by := v.Args[1]
+			lim, ok := ft.limits[by.ID]
+			if !ok {
+				continue
+			}
+			bits := 8 * v.Args[0].Type.Size()
+			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
+				v.Aux = true
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
+				}
+			}
 		}
 	}
 
