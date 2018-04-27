@@ -207,7 +207,7 @@ type Decoder struct {
 	toClose        Name
 	nextToken      Token
 	nextByte       int
-	ns             map[string]string
+	ns             map[string]string // url for a prefix ns[.Space]=.Value
 	err            error
 	line           int
 	linestart      int64
@@ -304,13 +304,22 @@ func (d *Decoder) Token() (Token, error) {
 		// to the other attribute names, so process
 		// the translations first.
 		for _, a := range t1.Attr {
-			if a.Name.Space == xmlnsPrefix {
-				v, ok := d.ns[a.Name.Local]
-				d.pushNs(a.Name.Local, v, ok)
+			if a.Name.Space == xmlnsPrefix { // name space attribute {.Space}xmlns:{.Local}={.Value}
+				if a.Value == "" {
+					d.err = d.syntaxError("empty namespace without prefix")
+					return nil, d.err
+				}
+				if a.Name.Local == "" {
+					d.err = d.syntaxError("empty prefix")
+					return nil, d.err
+				}
+				v, ok := d.ns[a.Name.Local] // Checking existence
+				// Recording the level of the name space by recording tag name
+				d.pushNs(a.Name.Local, v, ok) // Pushing tag, eventual value, and existence of namespace
 				d.ns[a.Name.Local] = a.Value
 			}
-			if a.Name.Space == "" && a.Name.Local == xmlnsPrefix {
-				// Default space for untagged names
+			if a.Name.Space == "" && a.Name.Local == xmlnsPrefix { // xmlns=".Value"
+				// Default space for non-prefixed names
 				v, ok := d.ns[""]
 				d.pushNs("", v, ok)
 				d.ns[""] = a.Value
@@ -335,8 +344,9 @@ func (d *Decoder) Token() (Token, error) {
 
 const (
 	xmlURL      = "http://www.w3.org/XML/1998/namespace"
-	xmlnsPrefix = "xmlns"
 	xmlPrefix   = "xml"
+	xmlnsURL    = "http://www.w3.org/2000/xmlns/"
+	xmlnsPrefix = "xmlns"
 )
 
 // Apply name space translation to name n.
@@ -345,6 +355,7 @@ const (
 func (d *Decoder) translate(n *Name, isElementName bool) {
 	switch {
 	case n.Space == xmlnsPrefix:
+		n.Space = xmlnsURL
 		return
 	case n.Space == "" && !isElementName:
 		return
@@ -797,6 +808,9 @@ func (d *Decoder) rawToken() (Token, error) {
 	for {
 		d.space()
 		if b, ok = d.mustgetc(); !ok {
+			if len(attr) > 0 && !d.Strict {
+				break // When not strict, an attribute might end with EOF
+			}
 			return nil, d.err
 		}
 		if b == '/' {
@@ -831,7 +845,6 @@ func (d *Decoder) rawToken() (Token, error) {
 				d.err = d.syntaxError("attribute name without = in element")
 				return nil, d.err
 			}
-			d.ungetc(b)
 			a.Value = a.Name.Local
 		} else {
 			d.space()
@@ -1024,6 +1037,11 @@ Input:
 			d.ungetc('<')
 			break Input
 		}
+		// This occurs only for an unquoted attr name.
+		if b == '>' && !cdata && quote < 0 { // Possible end of tag reached
+			d.ungetc('>') // Leaving end of tag available
+			break         // returning text
+		}
 		if quote >= 0 && b == byte(quote) {
 			break Input
 		}
@@ -1120,6 +1138,7 @@ Input:
 		}
 
 		// We must rewrite unescaped \r and \r\n into \n.
+		// End of line handling https://www.w3.org/TR/xml/#sec-line-ends
 		if b == '\r' {
 			d.buf.WriteByte('\n')
 		} else if b1 == '\r' && b == '\n' {
@@ -1170,13 +1189,18 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	if !ok {
 		return
 	}
-	if strings.Count(s, ":") > 1 {
-		return name, false
-	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
+	n := strings.Count(s, ":")
+	if n == 0 { // No colons, no namespace. OK.
 		name.Local = s
+	} else if n > 1 { // More than one colon, not OK.
+		name.Local = s
+		return name, false
+	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 { // Leading or trailing colon, not OK.
+		name.Local = s
+		return name, false
 	} else {
-		name.Space = space
-		name.Local = local
+		name.Space = s[0:i]
+		name.Local = s[i+1:]
 	}
 	return name, true
 }

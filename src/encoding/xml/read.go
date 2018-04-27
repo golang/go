@@ -452,9 +452,23 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) e
 				}
 				return UnmarshalError(e)
 			}
-			fv := finfo.value(sv, initNilPointers)
-			if _, ok := fv.Interface().(Name); ok {
-				fv.Set(reflect.ValueOf(start.Name))
+			// Anonymous struct with no field or anonymous fields cannot get a value using the reflection
+			// package and must be discarded.
+			noValue := true
+			if sv.Type().Name() == "" && sv.Type().Kind() == reflect.Struct {
+				i := 0
+				for i < sv.Type().NumField() && noValue {
+					noValue = noValue && sv.Type().Field(i).Anonymous
+					i++
+				}
+			} else {
+				noValue = false
+			}
+			if !noValue {
+				fv := finfo.value(sv, initNilPointers)
+				if _, ok := fv.Interface().(Name); ok {
+					fv.Set(reflect.ValueOf(start.Name))
+				}
 			}
 		}
 

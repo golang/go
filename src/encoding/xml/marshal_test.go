@@ -528,6 +528,38 @@ type Generic[T any] struct {
 	X T
 }
 
+type EPP struct {
+	XMLName struct{} `xml:"urn:ietf:params:xml:ns:epp-1.0 epp"`
+	Command *Command `xml:"command,omitempty"`
+}
+
+type Command struct {
+	Check *Check `xml:"urn:ietf:params:xml:ns:epp-1.0 check,omitempty"`
+}
+
+type Check struct {
+	DomainCheck *DomainCheck `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:check,omitempty"`
+}
+
+type DomainCheck struct {
+	DomainNames []string `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:name,omitempty"`
+}
+
+type SecureEnvelope struct {
+	XMLName struct{}       `xml:"urn:test:secure-1.0 sec:envelope"`
+	Message *SecureMessage `xml:"urn:test:message-1.0 msg,omitempty"`
+}
+
+type SecureMessage struct {
+	Body   string `xml:"urn:test:message-1.0 body,omitempty"`
+	Signer string `xml:"urn:test:secure-1.0 sec:signer,attr,omitempty"`
+}
+
+type NamespacedNested struct {
+	XMLName struct{} `xml:"urn:test:nested-1.0 nested"`
+	Value   string   `xml:"urn:test:nested-1.0 nested:wrapper>nested:value"`
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
@@ -633,6 +665,11 @@ var marshalTests = []struct {
 	{Value: &Port{Type: "ssl", Number: "443"}, ExpectXML: `<port type="ssl">443</port>`},
 	{Value: &Port{Number: "443"}, ExpectXML: `<port>443</port>`},
 	{Value: &Port{Type: "<unix>"}, ExpectXML: `<port type="&lt;unix&gt;"></port>`},
+	// Marshal is not symmetric to Unmarshal for these oddities because &apos is written as &#39
+	{Value: &Port{Type: "<un'ix>"}, ExpectXML: `<port type="&lt;un&apos;ix&gt;"></port>`, UnmarshalOnly: true},
+	{Value: &Port{Type: "<un\"ix>"}, ExpectXML: `<port type="&lt;un&quot;ix&gt;"></port>`, UnmarshalOnly: true},
+	{Value: &Port{Type: "<un&ix>"}, ExpectXML: `<port type="&lt;un&amp;ix&gt;"></port>`},
+	{Value: &Port{Type: "<unix>"}, ExpectXML: `<port type="&lt;unix&gt;"></port>`, UnmarshalOnly: true},
 	{Value: &Port{Number: "443", Comment: "https"}, ExpectXML: `<port><!--https-->443</port>`},
 	{Value: &Port{Number: "443", Comment: "add space-"}, ExpectXML: `<port><!--add space- -->443</port>`, MarshalOnly: true},
 	{Value: &Domain{Name: []byte("google.com&friends")}, ExpectXML: `<domain>google.com&amp;friends</domain>`},
@@ -812,7 +849,7 @@ var marshalTests = []struct {
 			D1: "d1",
 		},
 		ExpectXML: `<top xmlns="space">` +
-			`<x><a>a</a><b>b</b><c xmlns="space">c</c>` +
+			`<x><a>a</a><b>b</b><c>c</c>` +
 			`<c xmlns="space1">c1</c>` +
 			`<d xmlns="space1">d1</d>` +
 			`</x>` +
@@ -1052,6 +1089,10 @@ var marshalTests = []struct {
 		Value:     &OmitAttrTest{},
 		ExpectXML: `<OmitAttrTest></OmitAttrTest>`,
 	},
+	{
+		Value:     &OmitAttrTest{Str: "gopher@golang.org"},
+		ExpectXML: `<OmitAttrTest Str="gopher@golang.org"></OmitAttrTest>`,
+	},
 
 	// pointer fields
 	{
@@ -1112,10 +1153,10 @@ var marshalTests = []struct {
 		Value: &AnyTest{Nested: "known",
 			AnyField: AnyHolder{
 				XML:     "<unknown/>",
-				XMLName: Name{Local: "AnyField"},
+				XMLName: Name{Local: "other"}, // Overriding the field name is the purpose of the test
 			},
 		},
-		ExpectXML: `<a><nested><value>known</value></nested><AnyField><unknown/></AnyField></a>`,
+		ExpectXML: `<a><nested><value>known</value></nested><other><unknown/></other></a>`,
 	},
 	{
 		ExpectXML: `<a><nested><value>b</value></nested></a>`,
@@ -1656,6 +1697,59 @@ var marshalTests = []struct {
 		Value:         &DirectAny{Any: string("")},
 		UnmarshalOnly: true,
 	},
+
+	// Test namespace prefixes
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"></epp>`,
+		Value:     &EPP{},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command></command></epp>`,
+		Value:     &EPP{Command: &Command{}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{}}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org"}}}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name><domain:name>go.dev</domain:name></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org", "go.dev"}}}}},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"></sec:envelope>`,
+		Value:     &SecureEnvelope{},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0"></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{}},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0"><body>Hello, world.</body></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{Body: "Hello, world."}},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0" sec:signer="gopher@golang.org"><body>Thanks</body></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{Body: "Thanks", Signer: "gopher@golang.org"}},
+	},
+	{
+		ExpectXML: `<nested xmlns="urn:test:nested-1.0"><wrapper><nested:value xmlns:nested="urn:test:nested-1.0">You’re welcome!</nested:value></wrapper></nested>`,
+		Value:     &NamespacedNested{Value: "You’re welcome!"},
+	},
+	{
+		ExpectXML: `<space:name><space:value>value</space:value></space:name>`,
+		Value: &struct {
+			XMLName struct{} `xml:"space:name"`
+			Value   string   `xml:"space:value"`
+		}{Value: "value"},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -1806,16 +1900,16 @@ func TestUnmarshal(t *testing.T) {
 
 			if err != nil {
 				if test.UnmarshalError == "" {
-					t.Errorf("unmarshal(%#v): %s", test.ExpectXML, err)
+					t.Errorf("unmarshal(%s): %s", test.ExpectXML, err)
 					return
 				}
 				if !strings.Contains(err.Error(), test.UnmarshalError) {
-					t.Errorf("unmarshal(%#v): %s, want %q", test.ExpectXML, err, test.UnmarshalError)
+					t.Errorf("unmarshal(%s): %s, want %q", test.ExpectXML, err, test.UnmarshalError)
 				}
 				return
 			}
 			if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
-				t.Errorf("unmarshal(%q):\nhave %#v\nwant %#v", test.ExpectXML, got, want)
+				t.Errorf("unmarshal(%s):\nhave %#v\nwant %#v", test.ExpectXML, got, want)
 			}
 		})
 	}
@@ -1966,7 +2060,7 @@ var encodeTokenTests = []struct {
 	want string
 	err  string
 }{{
-	desc: "start element with name space",
+	desc: "start element with namespace",
 	toks: []Token{
 		StartElement{Name{"space", "local"}, nil},
 	},
@@ -2063,7 +2157,7 @@ var encodeTokenTests = []struct {
 		StartElement{Name{"space", "foo"}, nil},
 		EndElement{Name{"another", "foo"}},
 	},
-	err:  "xml: end tag </foo> in namespace another does not match start tag <foo> in namespace space",
+	err:  `xml: end namespace "another" does not match start namespace "space"`,
 	want: `<foo xmlns="space">`,
 }, {
 	desc: "start element with explicit namespace",
@@ -2075,6 +2169,23 @@ var encodeTokenTests = []struct {
 	},
 	want: `<local xmlns="space" xmlns:_xmlns="xmlns" _xmlns:x="space" xmlns:space="space" space:foo="value">`,
 }, {
+	desc: "start element with explicit namespace prefix",
+	toks: []Token{
+		StartElement{Name{"space", "local"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "x"}, "space"},
+			{Name{"space", "foo"}, "value"},
+		}},
+	},
+	want: `<x:local xmlns:x="space" x:foo="value">`,
+}, {
+	desc: "start element with prefixed local name",
+	toks: []Token{
+		StartElement{Name{"space", "x:local"}, []Attr{
+			{Name{"space", "foo"}, "value"},
+		}},
+	},
+	want: `<x:local xmlns:x="space" x:foo="value">`,
+}, {
 	desc: "start element with explicit namespace and colliding prefix",
 	toks: []Token{
 		StartElement{Name{"space", "local"}, []Attr{
@@ -2084,6 +2195,25 @@ var encodeTokenTests = []struct {
 		}},
 	},
 	want: `<local xmlns="space" xmlns:_xmlns="xmlns" _xmlns:x="space" xmlns:space="space" space:foo="value" xmlns:x="x" x:bar="other">`,
+}, {
+	desc: "start element with explicit namespace prefix and colliding prefix",
+	toks: []Token{
+		StartElement{Name{"space", "local"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "x"}, "space"},
+			{Name{"space", "foo"}, "value"},
+			{Name{"x", "bar"}, "other"},
+		}},
+	},
+	want: `<x:local xmlns:x="space" x:foo="value" xmlns:x_1="x" x_1:bar="other">`,
+}, {
+	desc: "start element with prefixed local name and colliding prefix",
+	toks: []Token{
+		StartElement{Name{"space", "x:local"}, []Attr{
+			{Name{"space", "foo"}, "value"},
+			{Name{"x", "bar"}, "other"},
+		}},
+	},
+	want: `<x:local xmlns:x="space" x:foo="value" xmlns:x_1="x" x_1:bar="other">`,
 }, {
 	desc: "start element using previously defined namespace",
 	toks: []Token{
@@ -2096,7 +2226,27 @@ var encodeTokenTests = []struct {
 	},
 	want: `<local xmlns:_xmlns="xmlns" _xmlns:x="space"><foo xmlns="space" xmlns:space="space" space:x="y">`,
 }, {
-	desc: "nested name space with same prefix",
+	desc: "start element using previously defined namespace prefix",
+	toks: []Token{
+		StartElement{Name{"", "local"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "x"}, "space"},
+		}},
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"space", "x"}, "y"},
+		}},
+	},
+	want: `<local xmlns:x="space"><x:foo x:x="y">`,
+}, {
+	desc: "start element using prefixed local name",
+	toks: []Token{
+		StartElement{Name: Name{"space", "x:local"}},
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"space", "x"}, "y"},
+		}},
+	},
+	want: `<x:local xmlns:x="space"><x:foo x:x="y">`,
+}, {
+	desc: "nested namespace with same prefix",
 	toks: []Token{
 		StartElement{Name{"", "foo"}, []Attr{
 			{Name{"xmlns", "x"}, "space1"},
@@ -2117,7 +2267,28 @@ var encodeTokenTests = []struct {
 	},
 	want: `<foo xmlns:_xmlns="xmlns" _xmlns:x="space1"><foo _xmlns:x="space2"><foo xmlns:space1="space1" space1:a="space1 value" xmlns:space2="space2" space2:b="space2 value"></foo></foo><foo xmlns:space1="space1" space1:a="space1 value" xmlns:space2="space2" space2:b="space2 value">`,
 }, {
-	desc: "start element defining several prefixes for the same name space",
+	desc: "nested namespace with same prefix",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "x"}, "space1"},
+		}},
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "x"}, "space2"},
+		}},
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"space1", "a"}, "space1 value"},
+			{Name{"space2", "b"}, "space2 value"},
+		}},
+		EndElement{Name{"", "foo"}},
+		EndElement{Name{"", "foo"}},
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"space1", "a"}, "space1 value"},
+			{Name{"space2", "b"}, "space2 value"},
+		}},
+	},
+	want: `<foo xmlns:x="space1"><foo xmlns:x="space2"><foo xmlns:space1="space1" space1:a="space1 value" x:b="space2 value"></foo></foo><foo x:a="space1 value" xmlns:space2="space2" space2:b="space2 value">`,
+}, {
+	desc: "start element defining several prefixes for the same namespace",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"xmlns", "a"}, "space"},
@@ -2127,7 +2298,17 @@ var encodeTokenTests = []struct {
 	},
 	want: `<foo xmlns="space" xmlns:_xmlns="xmlns" _xmlns:a="space" _xmlns:b="space" xmlns:space="space" space:x="value">`,
 }, {
-	desc: "nested element redefines name space",
+	desc: "start element explicitly defining several prefixes for the same namespace",
+	toks: []Token{
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "a"}, "space"},
+			{Name{"http://www.w3.org/2000/xmlns/", "b"}, "space"},
+			{Name{"space", "x"}, "value"},
+		}},
+	},
+	want: `<a:foo xmlns:a="space" xmlns:b="space" a:x="value">`,
+}, {
+	desc: "nested element redefines namespace",
 	toks: []Token{
 		StartElement{Name{"", "foo"}, []Attr{
 			{Name{"xmlns", "x"}, "space"},
@@ -2139,7 +2320,30 @@ var encodeTokenTests = []struct {
 	},
 	want: `<foo xmlns:_xmlns="xmlns" _xmlns:x="space"><foo xmlns="space" _xmlns:y="space" xmlns:space="space" space:a="value">`,
 }, {
-	desc: "nested element creates alias for default name space",
+	desc: "nested element redefines namespace prefix",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "x"}, "space"},
+		}},
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "y"}, "space"},
+			{Name{"space", "a"}, "value"},
+		}},
+	},
+	want: `<foo xmlns:x="space"><y:foo xmlns:y="space" y:a="value">`,
+}, {
+	desc: "nested element explicitly redefines namespace prefix",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "x"}, "space"},
+		}},
+		StartElement{Name{"space", "y:foo"}, []Attr{
+			{Name{"space", "a"}, "value"},
+		}},
+	},
+	want: `<foo xmlns:x="space"><y:foo xmlns:y="space" y:a="value">`,
+}, {
+	desc: "nested element creates alias for default namespace",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"", "xmlns"}, "space"},
@@ -2149,9 +2353,32 @@ var encodeTokenTests = []struct {
 			{Name{"space", "a"}, "value"},
 		}},
 	},
-	want: `<foo xmlns="space" xmlns="space"><foo xmlns="space" xmlns:_xmlns="xmlns" _xmlns:y="space" xmlns:space="space" space:a="value">`,
+	want: `<foo xmlns="space"><foo xmlns:_xmlns="xmlns" _xmlns:y="space" xmlns:space="space" space:a="value">`,
 }, {
-	desc: "nested element defines default name space with existing prefix",
+	desc: "nested element creates alias prefix for default namespace",
+	toks: []Token{
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"", "xmlns"}, "space"},
+		}},
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "y"}, "space"},
+			{Name{"space", "a"}, "value"},
+		}},
+	},
+	want: `<foo xmlns="space"><foo xmlns:y="space" y:a="value">`,
+}, {
+	desc: "nested element explicitly creates alias prefix for default namespace",
+	toks: []Token{
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"", "xmlns"}, "space"},
+		}},
+		StartElement{Name{"space", "y:foo"}, []Attr{
+			{Name{"space", "a"}, "value"},
+		}},
+	},
+	want: `<foo xmlns="space"><y:foo xmlns:y="space" y:a="value">`,
+}, {
+	desc: "nested element defines default namespace with existing prefix",
 	toks: []Token{
 		StartElement{Name{"", "foo"}, []Attr{
 			{Name{"xmlns", "x"}, "space"},
@@ -2161,9 +2388,31 @@ var encodeTokenTests = []struct {
 			{Name{"space", "a"}, "value"},
 		}},
 	},
-	want: `<foo xmlns:_xmlns="xmlns" _xmlns:x="space"><foo xmlns="space" xmlns="space" xmlns:space="space" space:a="value">`,
+	want: `<foo xmlns:_xmlns="xmlns" _xmlns:x="space"><foo xmlns="space" xmlns:space="space" space:a="value">`,
 }, {
-	desc: "nested element uses empty attribute name space when default ns defined",
+	desc: "nested element defines default namespace prefix with existing prefix",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "x"}, "space"},
+		}},
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"", "xmlns"}, "space"},
+			{Name{"space", "a"}, "value"},
+		}},
+	},
+	want: `<foo xmlns:x="space"><foo xmlns="space" x:a="value">`,
+}, {
+	desc: "nested element defines explicit attribute namespace prefix with existing prefix",
+	toks: []Token{
+		StartElement{Name: Name{"", "foo"}},
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"", "xmlns"}, "space"},
+			{Name{"space", "x:a"}, "value"},
+		}},
+	},
+	want: `<foo><foo xmlns="space" xmlns:x="space" x:a="value">`,
+}, {
+	desc: "nested element uses empty attribute namespace when default ns defined",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"", "xmlns"}, "space"},
@@ -2172,7 +2421,7 @@ var encodeTokenTests = []struct {
 			{Name{"", "attr"}, "value"},
 		}},
 	},
-	want: `<foo xmlns="space" xmlns="space"><foo xmlns="space" attr="value">`,
+	want: `<foo xmlns="space"><foo attr="value">`,
 }, {
 	desc: "redefine xmlns",
 	toks: []Token{
@@ -2182,7 +2431,7 @@ var encodeTokenTests = []struct {
 	},
 	want: `<foo xmlns:foo="foo" foo:xmlns="space">`,
 }, {
-	desc: "xmlns with explicit name space #1",
+	desc: "xmlns with explicit namespace #1",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"xml", "xmlns"}, "space"},
@@ -2190,7 +2439,7 @@ var encodeTokenTests = []struct {
 	},
 	want: `<foo xmlns="space" xmlns:_xml="xml" _xml:xmlns="space">`,
 }, {
-	desc: "xmlns with explicit name space #2",
+	desc: "xmlns with explicit namespace #2",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{xmlURL, "xmlns"}, "space"},
@@ -2198,13 +2447,21 @@ var encodeTokenTests = []struct {
 	},
 	want: `<foo xmlns="space" xml:xmlns="space">`,
 }, {
-	desc: "empty name space declaration is ignored",
+	desc: "empty namespace declaration is ignored",
 	toks: []Token{
 		StartElement{Name{"", "foo"}, []Attr{
 			{Name{"xmlns", "foo"}, ""},
 		}},
 	},
 	want: `<foo xmlns:_xmlns="xmlns" _xmlns:foo="">`,
+}, {
+	desc: "empty namespace prefix declaration is ignored",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2000/xmlns/", "foo"}, ""},
+		}},
+	},
+	want: `<foo xmlns:foo="">`,
 }, {
 	desc: "attribute with no name is ignored",
 	toks: []Token{
@@ -2233,18 +2490,18 @@ var encodeTokenTests = []struct {
 			{Name{"space", "x"}, "value"},
 		}},
 	},
-	want: `<foo xmlns="space" xmlns="space"><foo xmlns="" x="value" xmlns:space="space" space:x="value">`,
+	want: `<foo xmlns="space"><foo xmlns="" x="value" xmlns:space="space" space:x="value">`,
 }, {
-	desc: "nested element requires empty default name space",
+	desc: "nested element requires empty default namespace",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"", "xmlns"}, "space"},
 		}},
 		StartElement{Name{"", "foo"}, nil},
 	},
-	want: `<foo xmlns="space" xmlns="space"><foo>`,
+	want: `<foo xmlns="space"><foo>`,
 }, {
-	desc: "attribute uses name space from xmlns",
+	desc: "attribute uses namespace from xmlns",
 	toks: []Token{
 		StartElement{Name{"some/space", "foo"}, []Attr{
 			{Name{"", "attr"}, "value"},
@@ -2253,7 +2510,7 @@ var encodeTokenTests = []struct {
 	},
 	want: `<foo xmlns="some/space" attr="value" xmlns:space="some/space" space:other="other value">`,
 }, {
-	desc: "default name space should not be used by attributes",
+	desc: "default namespace should not be used by attributes",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"", "xmlns"}, "space"},
@@ -2264,9 +2521,22 @@ var encodeTokenTests = []struct {
 		EndElement{Name{"space", "baz"}},
 		EndElement{Name{"space", "foo"}},
 	},
-	want: `<foo xmlns="space" xmlns="space" xmlns:_xmlns="xmlns" _xmlns:bar="space" xmlns:space="space" space:baz="foo"><baz xmlns="space"></baz></foo>`,
+	want: `<foo xmlns="space" xmlns:_xmlns="xmlns" _xmlns:bar="space" xmlns:space="space" space:baz="foo"><baz></baz></foo>`,
 }, {
-	desc: "default name space not used by attributes, not explicitly defined",
+	desc: "default namespace prefix should not be used by attributes",
+	toks: []Token{
+		StartElement{Name{"space", "foo"}, []Attr{
+			{Name{"", "xmlns"}, "space"},
+			{Name{"http://www.w3.org/2000/xmlns/", "bar"}, "space"},
+			{Name{"space", "baz"}, "foo"},
+		}},
+		StartElement{Name{"space", "baz"}, nil},
+		EndElement{Name{"space", "baz"}},
+		EndElement{Name{"space", "foo"}},
+	},
+	want: `<foo xmlns="space" xmlns:bar="space" bar:baz="foo"><baz></baz></foo>`,
+}, {
+	desc: "default namespace not used by attributes, not explicitly defined",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"", "xmlns"}, "space"},
@@ -2276,7 +2546,7 @@ var encodeTokenTests = []struct {
 		EndElement{Name{"space", "baz"}},
 		EndElement{Name{"space", "foo"}},
 	},
-	want: `<foo xmlns="space" xmlns="space" xmlns:space="space" space:baz="foo"><baz xmlns="space"></baz></foo>`,
+	want: `<foo xmlns="space" xmlns:space="space" space:baz="foo"><baz></baz></foo>`,
 }, {
 	desc: "impossible xmlns declaration",
 	toks: []Token{
@@ -2323,7 +2593,7 @@ loop:
 		for j, tok := range tt.toks {
 			err = enc.EncodeToken(tok)
 			if err != nil && j < len(tt.toks)-1 {
-				t.Errorf("#%d %s token #%d: %v", i, tt.desc, j, err)
+				t.Errorf("#%d %s; token #%d: %v", i, tt.desc, j, err)
 				continue loop
 			}
 		}
