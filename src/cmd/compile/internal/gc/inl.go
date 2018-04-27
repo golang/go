@@ -11,7 +11,7 @@
 // making 1 the default and -l disable. Additional levels (beyond -l) may be buggy and
 // are not supported.
 //      0: disabled
-//      1: 80-nodes leaf functions, oneliners, lazy typechecking (default)
+//      1: 80-nodes leaf functions, oneliners, panic, lazy typechecking (default)
 //      2: (unassigned)
 //      3: (unassigned)
 //      4: allow non-leaf functions
@@ -32,6 +32,15 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"strings"
+)
+
+// Inlining budget parameters, gathered in one place
+const (
+	inlineMaxBudget       = 80
+	inlineExtraAppendCost = 0
+	inlineExtraCallCost   = inlineMaxBudget // default is do not inline, -l=4 enables by using 1 instead.
+	inlineExtraPanicCost  = 1               // do not penalize inlining panics.
+	inlineExtraThrowCost  = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
 )
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
@@ -155,19 +164,23 @@ func caninl(fn *Node) {
 	}
 	defer n.Func.SetInlinabilityChecked(true)
 
-	const maxBudget = 80
-	visitor := hairyVisitor{budget: maxBudget}
+	cc := int32(inlineExtraCallCost)
+	if Debug['l'] == 4 {
+		cc = 1 // this appears to yield better performance than 0.
+	}
+
+	visitor := hairyVisitor{budget: inlineMaxBudget, extraCallCost: cc}
 	if visitor.visitList(fn.Nbody) {
 		reason = visitor.reason
 		return
 	}
 	if visitor.budget < 0 {
-		reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", maxBudget-visitor.budget, maxBudget)
+		reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", inlineMaxBudget-visitor.budget, inlineMaxBudget)
 		return
 	}
 
 	n.Func.Inl = &Inline{
-		Cost: maxBudget - visitor.budget,
+		Cost: inlineMaxBudget - visitor.budget,
 		Dcl:  inlcopylist(n.Name.Defn.Func.Dcl),
 		Body: inlcopylist(fn.Nbody.Slice()),
 	}
@@ -229,8 +242,9 @@ func inlFlood(n *Node) {
 // hairyVisitor visits a function body to determine its inlining
 // hairiness and whether or not it can be inlined.
 type hairyVisitor struct {
-	budget int32
-	reason string
+	budget        int32
+	reason        string
+	extraCallCost int32
 }
 
 // Look for anything we want to punt on.
@@ -257,11 +271,17 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		}
 		// Functions that call runtime.getcaller{pc,sp} can not be inlined
 		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
+		//
+		// runtime.throw is a "cheap call" like panic in normal code.
 		if n.Left.Op == ONAME && n.Left.Class() == PFUNC && isRuntimePkg(n.Left.Sym.Pkg) {
 			fn := n.Left.Sym.Name
 			if fn == "getcallerpc" || fn == "getcallersp" {
 				v.reason = "call to " + fn
 				return true
+			}
+			if fn == "throw" {
+				v.budget -= inlineExtraThrowCost
+				break
 			}
 		}
 
@@ -277,10 +297,9 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		}
 		// TODO(mdempsky): Budget for OCLOSURE calls if we
 		// ever allow that. See #15561 and #23093.
-		if Debug['l'] < 4 {
-			v.reason = "non-leaf function"
-			return true
-		}
+
+		// Call cost for non-leaf inlining.
+		v.budget -= v.extraCallCost
 
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLMETH:
@@ -310,17 +329,16 @@ func (v *hairyVisitor) visit(n *Node) bool {
 			v.budget -= inlfn.Inl.Cost
 			break
 		}
-		if Debug['l'] < 4 {
-			v.reason = "non-leaf method"
-			return true
-		}
+		// Call cost for non-leaf inlining.
+		v.budget -= v.extraCallCost
 
 	// Things that are too hairy, irrespective of the budget
-	case OCALL, OCALLINTER, OPANIC:
-		if Debug['l'] < 4 {
-			v.reason = "non-leaf op " + n.Op.String()
-			return true
-		}
+	case OCALL, OCALLINTER:
+		// Call cost for non-leaf inlining.
+		v.budget -= v.extraCallCost
+
+	case OPANIC:
+		v.budget -= v.extraCallCost
 
 	case ORECOVER:
 		// recover matches the argument frame pointer to find
@@ -342,6 +360,9 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		ORETJMP:
 		v.reason = "unhandled op " + n.Op.String()
 		return true
+
+	case OAPPEND:
+		v.budget -= inlineExtraAppendCost
 
 	case ODCLCONST, OEMPTY, OFALL, OLABEL:
 		// These nodes don't produce code; omit from inlining budget.
