@@ -359,7 +359,9 @@ var optab = []Optab{
 	{AVMOVI, C_ADDCON, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
 	{AVFMLA, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
 	{AVEXT, C_VCON, C_ARNG, C_ARNG, 94, 4, 0, 0, 0},
+	{AVTBL, C_ARNG, C_NONE, C_ARNG, 100, 4, 0, 0, 0},
 	{AVUSHR, C_VCON, C_ARNG, C_ARNG, 95, 4, 0, 0, 0},
+	{AVZIP1, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
 
 	/* conditional operations */
 	{ACSEL, C_COND, C_REG, C_REG, 18, 4, 0, 0, 0}, /* from3 optional */
@@ -2381,11 +2383,15 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVRBIT, t)
 			oprangeset(AVREV64, t)
 
+		case AVZIP1:
+			oprangeset(AVZIP2, t)
+
 		case ASHA1H,
 			AVCNT,
 			AVMOV,
 			AVLD1,
 			AVST1,
+			AVTBL,
 			AVDUP,
 			AVMOVI,
 			APRFM,
@@ -4507,6 +4513,40 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int(p.From.Reg)
 		o1 |= uint32(rf & 31)
 
+	case 100: /* VTBL Vn.<T>, [Vt1.<T>, Vt2.<T>, ...], Vd.<T> */
+		af := int((p.From.Reg >> 5) & 15)
+		at := int((p.To.Reg >> 5) & 15)
+		if af != at {
+			c.ctxt.Diag("invalid arrangement: %v\n", p)
+		}
+		var q, len uint32
+		switch af {
+		case ARNG_8B:
+			q = 0
+		case ARNG_16B:
+			q = 1
+		default:
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+		rf := int(p.From.Reg)
+		rt := int(p.To.Reg)
+		offset := int(p.GetFrom3().Offset)
+		opcode := (offset >> 12) & 15
+		switch opcode {
+		case 0x7:
+			len = 0 // one register
+		case 0xa:
+			len = 1 // two register
+		case 0x6:
+			len = 2 // three registers
+		case 0x2:
+			len = 3 // four registers
+		default:
+			c.ctxt.Diag("invalid register numbers in ARM64 register list: %v", p)
+		}
+		o1 = q<<30 | 0xe<<24 | len<<13
+		o1 |= (uint32(rf&31) << 16) | uint32(offset&31)<<5 | uint32(rt&31)
+
 	}
 	out[0] = o1
 	out[1] = o2
@@ -5071,7 +5111,13 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 		return 1<<29 | 0x71<<21 | 0x23<<10
 
 	case AVCNT:
-		return 0<<31 | 0<<29 | 0xE<<24 | 0x10<<17 | 5<<12 | 2<<10
+		return 0xE<<24 | 0x10<<17 | 5<<12 | 2<<10
+
+	case AVZIP1:
+		return 0xE<<24 | 3<<12 | 2<<10
+
+	case AVZIP2:
+		return 0xE<<24 | 1<<14 | 3<<12 | 2<<10
 
 	case AVEOR:
 		return 1<<29 | 0x71<<21 | 7<<10
