@@ -1086,9 +1086,6 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 	case cm.proxyURL.Scheme == "socks5":
 		conn := pconn.conn
 		d := socksNewDialer("tcp", conn.RemoteAddr().String())
-		d.ProxyDial = func(_ context.Context, _, _ string) (net.Conn, error) {
-			return conn, nil
-		}
 		if u := cm.proxyURL.User; u != nil {
 			auth := &socksUsernamePassword{
 				Username: u.Username(),
@@ -1100,7 +1097,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 			}
 			d.Authenticate = auth.Authenticate
 		}
-		if _, err := d.DialContext(ctx, "tcp", cm.targetAddr); err != nil {
+		if _, err := d.DialWithConn(ctx, conn, "tcp", cm.targetAddr); err != nil {
 			conn.Close()
 			return nil, err
 		}
