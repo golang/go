@@ -873,15 +873,22 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	return false
 }
 
-// inlineablememmovesize reports whether the given arch performs OpMove of the given size
-// faster than memmove and in a safe way when src and dst overlap.
-// This is used as a check for replacing memmove with OpMove.
-func isInlinableMemmoveSize(sz int64, c *Config) bool {
+// isInlinableMemmove reports whether the given arch performs a Move of the given size
+// faster than memmove. It will only return true if replacing the memmove with a Move is
+// safe, either because Move is small or because the arguments are disjoint.
+// This is used as a check for replacing memmove with Move ops.
+func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+	// It is always safe to convert memmove into Move when its arguments are disjoint.
+	// Move ops may or may not be faster for large sizes depending on how the platform
+	// lowers them, so we only perform this optimization on platforms that we know to
+	// have fast Move ops.
 	switch c.arch {
 	case "amd64", "amd64p32":
 		return sz <= 16
-	case "386", "ppc64", "s390x", "ppc64le", "arm64":
+	case "386", "ppc64", "ppc64le", "arm64":
 		return sz <= 8
+	case "s390x":
+		return sz <= 8 || disjoint(dst, sz, src, sz)
 	case "arm", "mips", "mips64", "mipsle", "mips64le":
 		return sz <= 4
 	}
