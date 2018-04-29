@@ -521,7 +521,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Reg() != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore:
+	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore,
+		ssa.Op386ADDLmodify, ssa.Op386SUBLmodify, ssa.Op386ANDLmodify, ssa.Op386ORLmodify, ssa.Op386XORLmodify:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
