@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"testing"
+	"time"
 	"unicode"
 )
 
@@ -994,4 +995,71 @@ func TestMarshalPanic(t *testing.T) {
 	}()
 	Marshal(&marshalPanic{})
 	t.Error("Marshal should have panicked")
+}
+
+func TestMarshalErrorMessage(t *testing.T) {
+	// values that cannot be encoded in JSON
+	// ch := make(chan int)
+	badTime := time.Date(-1, 0, 0, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		in   interface{}
+		want string
+	}{
+		// checking map properties
+		{
+			in: map[string]interface{}{
+				"a": "A",
+				"t": badTime,
+				"z": "Z",
+			},
+			want: "json: error calling MarshalJSON for t (type time.Time): Time.MarshalJSON: year outside of range [0,9999]",
+		},
+		// checking struct properties
+		{
+			in: struct {
+				A string    `json:"a"`
+				T time.Time `json:"t"`
+				Z string    `json:"z"`
+			}{
+				T: badTime,
+			},
+			want: "json: error calling MarshalJSON for t (type time.Time): Time.MarshalJSON: year outside of range [0,9999]",
+		},
+		// checking slice indexes
+		{
+			in:   []time.Time{badTime},
+			want: "json: error calling MarshalJSON for [0] (type time.Time): Time.MarshalJSON: year outside of range [0,9999]",
+		},
+		// checking complex values (mixing slice, struct and map)
+		{
+			in: []struct {
+				A string                 `json:"a"`
+				M map[string]interface{} `json:"m"`
+				Z string                 `json:"z"`
+			}{
+				{
+					M: map[string]interface{}{
+						"a": "A",
+						"t": badTime,
+						"z": "Z",
+					},
+				},
+			},
+			want: "json: error calling MarshalJSON for [0].m.t (type time.Time): Time.MarshalJSON: year outside of range [0,9999]",
+		},
+	}
+
+	for i, tt := range tests {
+		_, err := Marshal(tt.in)
+		if err != nil {
+			expected := tt.want
+			actual := err.Error()
+			if actual != expected {
+				t.Errorf("test %d:\n got error: %s\nwant error: %s", i+1, actual, expected)
+			}
+		} else {
+			t.Errorf("test %d, unexpected success", i+1)
+		}
+	}
 }
