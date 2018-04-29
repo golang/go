@@ -641,6 +641,8 @@
 	((ADD|SUB|MUL)SSmem [off1+off2] {sym} val base mem)
 ((ADD|SUB|MUL)SDmem [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(off1+off2) ->
 	((ADD|SUB|MUL)SDmem [off1+off2] {sym} val base mem)
+((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym} (ADDLconst [off2] base) val mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {sym} base val mem)
 
 // Fold constants into stores.
 (MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
@@ -763,6 +765,9 @@
 ((ADD|SUB|MUL)SDmem [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
 	((ADD|SUB|MUL)SDmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
+	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 
 (MOVBload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVBloadidx1 [off] {sym} ptr idx mem)
 (MOVWload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVWloadidx1 [off] {sym} ptr idx mem)
@@ -839,10 +844,13 @@
 (MOVSDstoreidx1 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx1 [int64(int32(c+d))]   {sym} ptr idx val mem)
 (MOVSDstoreidx8 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx8 [int64(int32(c+8*d))] {sym} ptr idx val mem)
 
-// Merge load to op
+// Merge load/store to op
 ((ADD|AND|OR|XOR|SUB)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR|SUB)Lmem x [off] {sym} ptr mem)
 ((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SDmem x [off] {sym} ptr mem)
 ((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SSmem x [off] {sym} ptr mem)
+(MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lmem x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+(MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
+	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 
 (MOVBstoreconstidx1 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
 	(MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
