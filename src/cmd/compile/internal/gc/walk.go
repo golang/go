@@ -1008,7 +1008,8 @@ opswitch:
 	case OCONV, OCONVNOP:
 		if thearch.SoftFloat {
 			// For the soft-float case, ssa.go handles these conversions.
-			goto oconv_walkexpr
+			n.Left = walkexpr(n.Left, init)
+			break
 		}
 		switch thearch.LinkArch.Family {
 		case sys.ARM, sys.MIPS:
@@ -1062,8 +1063,6 @@ opswitch:
 				}
 			}
 		}
-
-	oconv_walkexpr:
 		n.Left = walkexpr(n.Left, init)
 
 	case OANDNOT:

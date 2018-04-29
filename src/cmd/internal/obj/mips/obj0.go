@@ -878,21 +878,20 @@ func (c *ctxt0) sched(p0, pe *obj.Prog) {
 			t = sch[j:]
 			if t[0].comp {
 				if s[0].p.Mark&BRANCH != 0 {
-					goto no2
+					continue
 				}
 			}
 			if t[0].p.Mark&DELAY != 0 {
 				if -cap(s) >= -cap(se) || conflict(&t[0], &s[1]) {
-					goto no2
+					continue
 				}
 			}
 			for u := t[1:]; -cap(u) <= -cap(s); u = u[1:] {
 				if c.depend(&u[0], &t[0]) {
-					goto no2
+					continue
 				}
 			}
 			goto out2
-		no2:
 		}
 
 		if s[0].p.Mark&BRANCH != 0 {

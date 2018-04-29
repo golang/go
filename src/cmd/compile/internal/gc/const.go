@@ -1344,6 +1344,8 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 		default:
 			yyerror("defaultlit: unknown literal: %v", n)
 		}
+		lineno = lno
+		return n
 
 	case CTxxx:
 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)
@@ -1354,28 +1356,19 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 			t1 = t
 		}
 		n = convlit1(n, t1, false, reuse)
+		lineno = lno
+		return n
 
 	case CTINT:
 		t1 = types.Types[TINT]
-		goto num
-
 	case CTRUNE:
 		t1 = types.Runetype
-		goto num
-
 	case CTFLT:
 		t1 = types.Types[TFLOAT64]
-		goto num
-
 	case CTCPLX:
 		t1 = types.Types[TCOMPLEX128]
-		goto num
 	}
 
-	lineno = lno
-	return n
-
-num:
 	// Note: n.Val().Ctype() can be CTxxx (not a constant) here
 	// in the case of an untyped non-constant value, like 1<<i.
 	v1 := n.Val()
