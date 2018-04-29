@@ -1470,7 +1470,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 		case obj.NAME_NONE:
 			c.instoffset = a.Offset
 			if a.Reg != 0 && a.Reg != REGZERO {
-				goto aconsize
+				break
 			}
 			v := c.instoffset
 			if v == 0 {
@@ -1516,7 +1516,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			if a.Sym == nil {
-				break
+				return C_GOK
 			}
 			if a.Sym.Type == objabi.STLSBSS {
 				c.ctxt.Diag("taking address of TLS variable is not supported")
@@ -1531,7 +1531,6 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				a.Reg = obj.REG_NONE
 			}
 			c.instoffset = int64(c.autosize) + a.Offset
-			goto aconsize
 
 		case obj.NAME_PARAM:
 			if a.Reg == REGSP {
@@ -1540,11 +1539,10 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				a.Reg = obj.REG_NONE
 			}
 			c.instoffset = int64(c.autosize) + a.Offset + 8
-			goto aconsize
+		default:
+			return C_GOK
 		}
-		return C_GOK
 
-	aconsize:
 		if isaddcon(c.instoffset) {
 			return C_AACON
 		}
