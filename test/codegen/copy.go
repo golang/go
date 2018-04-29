@@ -6,6 +6,8 @@
 
 package codegen
 
+import "runtime"
+
 // Check small copies are replaced with moves.
 
 func movesmall4() {
@@ -31,9 +33,30 @@ func movesmall16() {
 	copy(x[1:], x[:])
 }
 
-// Check that no branches are generated when the pointers are [not] equal.
-
 var x [256]byte
+
+// Check that large disjoint copies are replaced with moves.
+
+func moveDisjointStack() {
+	var s [256]byte
+	// s390x:-".*memmove"
+	copy(s[:], x[:])
+	runtime.KeepAlive(&s)
+}
+
+func moveDisjointArg(b *[256]byte)  {
+	var s [256]byte
+	// s390x:-".*memmove"
+	copy(s[:], b[:])
+	runtime.KeepAlive(&s)
+}
+
+func moveDisjointNoOverlap(a *[256]byte) {
+	// s390x:-".*memmove"
+	copy(a[:], a[128:])
+}
+
+// Check that no branches are generated when the pointers are [not] equal.
 
 func ptrEqual() {
 	// amd64:-"JEQ",-"JNE"

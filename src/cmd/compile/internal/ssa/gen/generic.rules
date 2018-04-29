@@ -1390,13 +1390,13 @@
 (IsNonNil (Const(32|64) [c])) -> (ConstBool [b2i(c != 0)])
 (IsNonNil (Addr _)) -> (ConstBool [1])
 
-// Inline small runtime.memmove calls with constant length.
-(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
-     && isSameSym(sym,"runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmoveSize(sz,config)
-     -> (Move {t.(*types.Type).Elem()} [sz] dst src mem)
-(StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
-     && isSameSym(sym,"runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmoveSize(sz,config)
-     -> (Move {t.(*types.Type).Elem()} [sz] dst src mem)
+// Inline small or disjoint runtime.memmove calls with constant length.
+(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+	&& isSameSym(sym,"runtime.memmove")
+	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+	&& isInlinableMemmove(dst,src,sz,config)
+	&& clobber(s1) && clobber(s2) && clobber(s3)
+	-> (Move {t.(*types.Type).Elem()} [sz] dst src mem)
 
 // De-virtualize interface calls into static calls.
 // Note that (ITab (IMake)) doesn't get
