@@ -478,3 +478,69 @@ func TestGdbConst(t *testing.T) {
 		t.Fatalf("output mismatch")
 	}
 }
+
+const panicSource = `
+package main
+
+import "runtime/debug"
+
+func main() {
+	debug.SetTraceback("crash")
+	crash()
+}
+
+func crash() {
+	panic("panic!")
+}
+`
+
+// TestGdbPanic tests that gdb can unwind the stack correctly
+// from SIGABRTs from Go panics.
+func TestGdbPanic(t *testing.T) {
+	checkGdbEnvironment(t)
+	t.Parallel()
+	checkGdbVersion(t)
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Build the source code.
+	src := filepath.Join(dir, "main.go")
+	err = ioutil.WriteFile(src, []byte(panicSource), 0644)
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd.Dir = dir
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("building source %v\n%s", err, out)
+	}
+
+	// Execute gdb commands.
+	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-ex", "set startup-with-shell off",
+		"-ex", "run",
+		"-ex", "backtrace",
+		filepath.Join(dir, "a.exe"),
+	}
+	got, _ := exec.Command("gdb", args...).CombinedOutput()
+
+	// Check that the backtrace matches the source code.
+	bt := []string{
+		`crash`,
+		`main`,
+	}
+	for _, name := range bt {
+		s := fmt.Sprintf("#.* .* in main\\.%v", name)
+		re := regexp.MustCompile(s)
+		if found := re.Find(got) != nil; !found {
+			t.Errorf("could not find '%v' in backtrace", s)
+			t.Fatalf("gdb output:\n%v", string(got))
+		}
+	}
+}

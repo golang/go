@@ -296,6 +296,7 @@ func osinit() {
 	notify(unsafe.Pointer(funcPC(sigtramp)))
 }
 
+//go:nosplit
 func crash() {
 	notify(nil)
 	*(*int)(nil) = 0

@@ -131,6 +131,7 @@ func signame(sig uint32) string {
 	return sigtable[sig].name
 }
 
+//go:nosplit
 func crash() {
 	*(*int32)(nil) = 0
 }
