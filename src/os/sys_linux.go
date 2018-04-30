@@ -22,6 +22,7 @@ func hostname() (name string, err error) {
 		buf[i] = uint8(b)
 		if b == 0 {
 			name = string(buf[:i])
+			break
 		}
 	}
 	// If we got a name and it's not potentially truncated
