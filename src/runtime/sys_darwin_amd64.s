@@ -74,11 +74,6 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$0
-	// Ideally we'd send the signal to the current thread,
-	// not the whole process, but that's too hard on OS X.
-	JMP	runtime·raiseproc(SB)
-
 TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVL	$(0x2000000+20), AX // getpid
 	SYSCALL
@@ -606,4 +601,26 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-36
 	MOVQ	BP, SP
 	POPQ	BP
 	MOVL	AX, ret+32(FP)
+	RET
+
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0-8
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_self(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVQ	AX, ret+0(FP)
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0-20
+	MOVQ	thread+0(FP), DI
+	MOVQ	sig+8(FP), SI
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_kill(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVL	AX, ret+16(FP)
 	RET

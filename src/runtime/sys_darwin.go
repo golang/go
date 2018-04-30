@@ -53,6 +53,28 @@ func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) (t pth
 //go:noescape
 func pthread_create_trampoline(t *pthread, attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32
 
+//go:nowritebarrier
+func pthread_kill(thread pthread, sig int) (errno int32) {
+	systemstack(func() {
+		errno = pthread_kill_trampoline(thread, sig)
+	})
+	return
+}
+
+//go:noescape
+func pthread_kill_trampoline(thread pthread, sig int) int32
+
+//go:nowritebarrier
+func pthread_self() (t pthread) {
+	systemstack(func() {
+		t = pthread_self_trampoline()
+	})
+	return
+}
+
+//go:noescape
+func pthread_self_trampoline() pthread
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -61,6 +83,8 @@ func pthread_create_trampoline(t *pthread, attr *pthreadattr, start uintptr, arg
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
