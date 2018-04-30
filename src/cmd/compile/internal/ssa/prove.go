@@ -994,7 +994,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			}
 			bits := 8 * v.Args[0].Type.Size()
 			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
-				v.Aux = true
+				v.AuxInt = 1 // see shiftIsBounded
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
 				}
