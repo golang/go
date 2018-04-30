@@ -1760,8 +1760,6 @@ const (
 	OpS390XNOT
 	OpS390XNOTW
 	OpS390XFSQRT
-	OpS390XSUBEcarrymask
-	OpS390XSUBEWcarrymask
 	OpS390XMOVDEQ
 	OpS390XMOVDNE
 	OpS390XMOVDLT
@@ -23406,26 +23404,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-			},
-		},
-	},
-	{
-		name:   "SUBEcarrymask",
-		argLen: 1,
-		asm:    s390x.ASUBE,
-		reg: regInfo{
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
-		name:   "SUBEWcarrymask",
-		argLen: 1,
-		asm:    s390x.ASUBE,
-		reg: regInfo{
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},

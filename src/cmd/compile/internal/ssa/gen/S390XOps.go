@@ -152,7 +152,6 @@ func init() {
 
 		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}}
 		gp1flags  = regInfo{inputs: []regMask{gpsp}}
-		flagsgp   = regInfo{outputs: gponly}
 		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
 
 		gpload       = regInfo{inputs: []regMask{ptrspsb, 0}, outputs: gponly}
@@ -333,10 +332,6 @@ func init() {
 		{name: "NOTW", argLength: 1, reg: gp11, resultInArg0: true, clobberFlags: true}, // ^arg0
 
 		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"}, // sqrt(arg0)
-
-		{name: "SUBEcarrymask", argLength: 1, reg: flagsgp, asm: "SUBE"},  // (int64)(-1) if carry is set, 0 if carry is clear.
-		{name: "SUBEWcarrymask", argLength: 1, reg: flagsgp, asm: "SUBE"}, // (int32)(-1) if carry is set, 0 if carry is clear.
-		// Note: 32-bits subtraction is not implemented in S390X. Temporarily use SUBE (64-bits).
 
 		{name: "MOVDEQ", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDEQ"}, // extract == condition from arg0
 		{name: "MOVDNE", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDNE"}, // extract != condition from arg0
