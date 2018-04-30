@@ -440,14 +440,6 @@ func dieFromSignal(sig uint32) {
 	osyield()
 	osyield()
 
-	// On Darwin we may still fail to die, because raise sends the
-	// signal to the whole process rather than just the current thread,
-	// and osyield just sleeps briefly rather than letting all other
-	// threads run. See issue 20315. Sleep longer.
-	if GOOS == "darwin" {
-		usleep(100)
-	}
-
 	// If we are still somehow running, just exit with the wrong status.
 	exit(2)
 }
