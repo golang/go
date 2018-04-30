@@ -11,46 +11,23 @@
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$0
-	MOVL	$1, AX
-	INT	$0x80
+TEXT runtime·exit(SB),NOSPLIT,$0-4
+	MOVL	code+0(FP), AX
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$4, SP   // allocate space for callee args
+	ANDL	$~15, SP // align stack
+	MOVL	AX, 0(SP)
+	CALL	libc_exit(SB)
 	MOVL	$0xf1, 0xf1  // crash
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-// Exit this OS thread (like pthread_exit, which eventually
-// calls __bsdthread_terminate).
-TEXT exit1<>(SB),NOSPLIT,$16-0
-	// __bsdthread_terminate takes 4 word-size arguments.
-	// Set them all to 0. (None are an exit status.)
-	MOVL	$0, 0(SP)
-	MOVL	$0, 4(SP)
-	MOVL	$0, 8(SP)
-	MOVL	$0, 12(SP)
-	MOVL	$361, AX
-	INT	$0x80
-	JAE 2(PC)
-	MOVL	$0xf1, 0xf1  // crash
-	RET
-
-GLOBL exitStack<>(SB),RODATA,$(4*4)
-DATA exitStack<>+0x00(SB)/4, $0
-DATA exitStack<>+0x04(SB)/4, $0
-DATA exitStack<>+0x08(SB)/4, $0
-DATA exitStack<>+0x0c(SB)/4, $0
-
-// func exitThread(wait *uint32)
+// Not used on Darwin.
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
-	MOVL	wait+0(FP), AX
-	// We're done using the stack.
-	MOVL	$0, (AX)
-	// __bsdthread_terminate takes 4 arguments, which it expects
-	// on the stack. They should all be 0, so switch over to a
-	// fake stack of 0s. It won't write to the stack.
-	MOVL	$exitStack<>(SB), SP
-	MOVL	$361, AX	// __bsdthread_terminate
-	INT	$0x80
 	MOVL	$0xf1, 0xf1  // crash
-	JMP	0(PC)
+	RET
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	$5, AX
@@ -437,38 +414,8 @@ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	RET
 
 // func setldt(entry int, address int, limit int)
-// entry and limit are ignored.
 TEXT runtime·setldt(SB),NOSPLIT,$32
-	MOVL	address+4(FP), BX	// aka base
-
-	/*
-	 * When linking against the system libraries,
-	 * we use its pthread_create and let it set up %gs
-	 * for us.  When we do that, the private storage
-	 * we get is not at 0(GS) but at 0x18(GS).
-	 * The linker rewrites 0(TLS) into 0x18(GS) for us.
-	 * To accommodate that rewrite, we translate the
-	 * address here so that 0x18(GS) maps to 0(address).
-	 *
-	 * Constant must match the one in cmd/link/internal/ld/sym.go.
-	 */
-	SUBL	$0x18, BX
-
-	/*
-	 * Must set up as USER_CTHREAD segment because
-	 * Darwin forces that value into %gs for signal handlers,
-	 * and if we don't set one up, we'll get a recursive
-	 * fault trying to get into the signal handler.
-	 * Since we have to set one up anyway, it might as
-	 * well be the value we want.  So don't bother with
-	 * i386_set_ldt.
-	 */
-	MOVL	BX, 4(SP)
-	MOVL	$3, AX	// thread_fast_set_cthread_self - machdep call #3
-	INT	$0x82	// sic: 0x82, not 0x80, for machdep call
-
-	XORL	AX, AX
-	MOVW	GS, AX
+	// Nothing to do on Darwin, pthread already set thread-local storage up.
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
@@ -531,11 +478,11 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 	// Someday the convention will be D is always cleared.
 	CLD
 
-	CALL	runtime·stackcheck(SB) // just in case
 	CALL	runtime·mstart(SB)
 
-	// mstart shouldn't ever return, and if it does, we shouldn't ever join to this thread
-	// to get its return status. But tell pthread everything is ok, just in case.
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
 	XORL	AX, AX
 	RET
 
@@ -565,26 +512,24 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-8
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·pthread_attr_setstack_trampoline(SB),NOSPLIT,$0-16
+TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-12
 	MOVL	attr+0(FP), AX
-	MOVL	addr+4(FP), CX
-	MOVL	size+8(FP), DX
+	MOVL	size+4(FP), CX
 
 	PUSHL	BP
 	MOVL	SP, BP
 
-	SUBL	$12, SP
+	SUBL	$8, SP
 	ANDL	$~15, SP
 
 	MOVL	AX, 0(SP)
 	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
-	CALL	libc_pthread_attr_setstack(SB)
+	CALL	libc_pthread_attr_setstacksize(SB)
 
 	MOVL	BP, SP
 	POPL	BP
 
-	MOVL	AX, ret+12(FP)
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-12

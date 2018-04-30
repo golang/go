@@ -1195,8 +1195,8 @@ func mstart() {
 	mstart1()
 
 	// Exit this thread.
-	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" {
-		// Window, Solaris and Plan 9 always system-allocate
+	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || (GOOS == "darwin" && (GOARCH == "amd64" || GOARCH == "386")) {
+		// Window, Solaris, Darwin and Plan 9 always system-allocate
 		// the stack, but put it in _g_.stack before mstart,
 		// so the logic above hasn't set osStack yet.
 		osStack = true
@@ -1517,9 +1517,9 @@ func allocm(_p_ *p, fn func()) *m {
 	mp.mstartfn = fn
 	mcommoninit(mp)
 
-	// In case of cgo or Solaris, pthread_create will make us a stack.
+	// In case of cgo or Solaris or Darwin, pthread_create will make us a stack.
 	// Windows and Plan 9 will layout sched stack on OS stack.
-	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" {
+	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" || (GOOS == "darwin" && (GOARCH == "386" || GOARCH == "amd64")) {
 		mp.g0 = malg(-1)
 	} else {
 		mp.g0 = malg(8192 * sys.StackGuardMultiplier)

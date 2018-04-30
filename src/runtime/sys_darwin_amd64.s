@@ -16,34 +16,21 @@
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$0
+TEXT runtime·exit(SB),NOSPLIT,$0-4
 	MOVL	code+0(FP), DI		// arg 1 exit status
-	MOVL	$(0x2000000+1), AX	// syscall entry
-	SYSCALL
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_exit(SB)
 	MOVL	$0xf1, 0xf1  // crash
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
-// Exit this OS thread (like pthread_exit, which eventually
-// calls __bsdthread_terminate).
-TEXT exit1<>(SB),NOSPLIT,$0
-	// Because of exitThread below, this must not use the stack.
-	// __bsdthread_terminate takes 4 word-size arguments.
-	// Set them all to 0. (None are an exit status.)
-	MOVL	$0, DI
-	MOVL	$0, SI
-	MOVL	$0, DX
-	MOVL	$0, R10
-	MOVL	$(0x2000000+361), AX	// syscall entry
-	SYSCALL
-	MOVL	$0xf1, 0xf1  // crash
-	RET
-
-// func exitThread(wait *uint32)
+// Not used on Darwin.
 TEXT runtime·exitThread(SB),NOSPLIT,$0-8
-	MOVQ	wait+0(FP), AX
-	// We're done using the stack.
-	MOVL	$0, (AX)
-	JMP	exit1<>(SB)
+	MOVL	$0xf1, 0xf1  // crash
+	RET
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	name+0(FP), DI		// arg 1 pathname
@@ -490,16 +477,8 @@ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$32
-	/*
-	 * Same as in sys_darwin_386.s, but a different constant.
-	 * Constant must match the one in cmd/link/internal/ld/sym.go.
-	 */
-	SUBQ $0x30, DI
-
-	MOVL	$(0x3000000+3), AX	// thread_fast_set_cthread_self - machdep call #3
-	SYSCALL
+	// Nothing to do on Darwin, pthread already set thread-local storage up.
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
@@ -571,11 +550,11 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 	// Someday the convention will be D is always cleared.
 	CLD
 
-	CALL	runtime·stackcheck(SB) // just in case
 	CALL	runtime·mstart(SB)
 
-	// mstart shouldn't ever return, and if it does, we shouldn't ever join to this thread
-	// to get its return status. But tell pthread everything is ok, just in case.
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
 	XORL	AX, AX
 	RET
 
@@ -591,17 +570,16 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-12
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·pthread_attr_setstack_trampoline(SB),NOSPLIT,$0-28
+TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-20
 	MOVQ	attr+0(FP), DI
-	MOVQ	addr+8(FP), SI
-	MOVQ	size+16(FP), DX
+	MOVQ	size+8(FP), SI
 	PUSHQ	BP
 	MOVQ	SP, BP
 	ANDQ	$~15, SP
-	CALL	libc_pthread_attr_setstack(SB)
+	CALL	libc_pthread_attr_setstacksize(SB)
 	MOVQ	BP, SP
 	POPQ	BP
-	MOVL	AX, ret+24(FP)
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-20
