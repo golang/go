@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1552,6 +1553,8 @@ func (b *Builder) runOut(dir string, env []string, cmdargs ...interface{}) ([]by
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
+	cleanup := passLongArgsInResponseFiles(cmd)
+	defer cleanup()
 	cmd.Dir = dir
 	cmd.Env = base.MergeEnvLists(env, base.EnvForDir(cmd.Dir, os.Environ()))
 	err := cmd.Run()
@@ -2468,4 +2471,79 @@ func mkAbsFiles(dir string, files []string) []string {
 		abs[i] = f
 	}
 	return abs
+}
+
+// passLongArgsInResponseFiles modifies cmd on Windows such that, for
+// certain programs, long arguments are passed in "response files", a
+// file on disk with the arguments, with one arg per line. An actual
+// argument starting with '@' means that the rest of the argument is
+// a filename of arguments to expand.
+//
+// See Issue 18468.
+func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
+	cleanup = func() {} // no cleanup by default
+
+	var argLen int
+	for _, arg := range cmd.Args {
+		argLen += len(arg)
+	}
+
+	// If we're not approaching 32KB of args, just pass args normally.
+	// (use 30KB instead to be conservative; not sure how accounting is done)
+	if !useResponseFile(cmd.Path, argLen) {
+		return
+	}
+
+	tf, err := ioutil.TempFile("", "args")
+	if err != nil {
+		log.Fatalf("error writing long arguments to response file: %v", err)
+	}
+	cleanup = func() { os.Remove(tf.Name()) }
+	var buf bytes.Buffer
+	for _, arg := range cmd.Args[1:] {
+		fmt.Fprintf(&buf, "%s\n", arg)
+	}
+	if _, err := tf.Write(buf.Bytes()); err != nil {
+		tf.Close()
+		cleanup()
+		log.Fatalf("error writing long arguments to response file: %v", err)
+	}
+	if err := tf.Close(); err != nil {
+		cleanup()
+		log.Fatalf("error writing long arguments to response file: %v", err)
+	}
+	cmd.Args = []string{cmd.Args[0], "@" + tf.Name()}
+	return cleanup
+}
+
+func useResponseFile(path string, argLen int) bool {
+	// Unless we're on Windows, don't use response files.
+	if runtime.GOOS != "windows" {
+		return false
+	}
+
+	// Unless the program uses objabi.Flagparse, which understands
+	// response files, don't use response files.
+	// TODO: do we need more commands? asm? cgo? For now, no.
+	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
+	switch prog {
+	case "compile", "link":
+	default:
+		return false
+	}
+
+	// Windows has a limit of 32 KB arguments. To be conservative and not
+	// worry about whether that includes spaces or not, just use 30 KB.
+	if argLen > (30 << 10) {
+		return true
+	}
+
+	// On the Go build system, use response files about 10% of the
+	// time, just to excercise this codepath.
+	isBuilder := os.Getenv("GO_BUILDER_NAME") != ""
+	if isBuilder && rand.Intn(10) == 0 {
+		return true
+	}
+
+	return false
 }
