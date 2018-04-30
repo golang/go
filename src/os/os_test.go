@@ -1544,7 +1544,16 @@ func TestHostname(t *testing.T) {
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
 	case "android", "plan9":
-		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
+		// No /bin/hostname to verify against, but at least
+		// verify we get something back from Hostname.
+		hostname, err := Hostname()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hostname == "" {
+			t.Fatal("Hostname returned empty string and no error")
+		}
+		return
 	case "windows":
 		testWindowsHostname(t)
 		return
