@@ -540,7 +540,12 @@ func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Point
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
-func raise(sig uint32)
+//go:nosplit
+func raise(sig uint32) {
+	tid := pthread_self()
+	pthread_kill(tid, int(sig))
+}
+
 func raiseproc(sig uint32)
 
 //extern SigTabTT runtime·sigtab[];
