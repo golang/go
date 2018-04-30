@@ -260,9 +260,10 @@ func (e *InvalidUTF8Error) Error() string {
 }
 
 type MarshalerError struct {
-	Type reflect.Type
-	Path []string
-	Err  error
+	Type  reflect.Type
+	Value reflect.Value
+	Path  []string
+	Err   error
 }
 
 func (e *MarshalerError) Error() string {
@@ -471,7 +472,7 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		err = compact(&e.Buffer, b, opts.escapeHTML)
 	}
 	if err != nil {
-		e.error(&MarshalerError{v.Type(), opts.path, err})
+		e.error(&MarshalerError{v.Type(), v, opts.path, err})
 	}
 }
 
@@ -488,7 +489,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		err = compact(&e.Buffer, b, true)
 	}
 	if err != nil {
-		e.error(&MarshalerError{v.Type(), opts.path, err})
+		e.error(&MarshalerError{v.Type(), v, opts.path, err})
 	}
 }
 
@@ -500,7 +501,7 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	m := v.Interface().(encoding.TextMarshaler)
 	b, err := m.MarshalText()
 	if err != nil {
-		e.error(&MarshalerError{v.Type(), opts.path, err})
+		e.error(&MarshalerError{v.Type(), v, opts.path, err})
 	}
 	e.stringBytes(b, opts.escapeHTML)
 }
@@ -514,7 +515,7 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	m := va.Interface().(encoding.TextMarshaler)
 	b, err := m.MarshalText()
 	if err != nil {
-		e.error(&MarshalerError{v.Type(), opts.path, err})
+		e.error(&MarshalerError{v.Type(), v, opts.path, err})
 	}
 	e.stringBytes(b, opts.escapeHTML)
 }
@@ -694,7 +695,7 @@ func (me *mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	for i, v := range keys {
 		sv[i].v = v
 		if err := sv[i].resolve(); err != nil {
-			e.error(&MarshalerError{v.Type(), opts.nest(v.String()).path, err})
+			e.error(&MarshalerError{v.Type(), v, opts.nest(v.String()).path, err})
 		}
 	}
 	sort.Slice(sv, func(i, j int) bool { return sv[i].s < sv[j].s })
