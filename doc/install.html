@@ -114,31 +114,6 @@ or execute them from the profile using a command such as
 <code>source $HOME/.profile</code>.
 </p>
 
-<h4 id="tarball_non_standard">Installing to a custom location</h4>
-
-<p>
-The Go binary distributions assume they will be installed in
-<code>/usr/local/go</code> (or <code>c:\Go</code> under Windows),
-but it is possible to install the Go tools to a different location.
-In this case you must set the <code>GOROOT</code> environment variable
-to point to the directory in which it was installed.
-</p>
-
-<p>
-For example, if you installed Go to your home directory you should add
-commands like the following to <code>$HOME/.profile</code>:
-</p>
-
-<pre>
-export GOROOT=$HOME/go1.X
-export PATH=$PATH:$GOROOT/bin
-</pre>
-
-<p>
-<b>Note</b>: <code>GOROOT</code> must be set only when installing to a custom
-location.
-</p>
-
 </div><!-- tarballInstructions -->
 
 <div id="darwinPackageInstructions">
