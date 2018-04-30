@@ -64,7 +64,8 @@ func testPosetOps(t *testing.T, unsigned bool, ops []posetTestOp) {
 		}
 	}
 
-	po := newPoset(unsigned)
+	po := newPoset()
+	po.SetUnsigned(unsigned)
 	for idx, op := range ops {
 		t.Logf("op%d%v", idx, op)
 		switch op.typ {

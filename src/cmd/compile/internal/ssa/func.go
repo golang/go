@@ -130,6 +130,21 @@ func (f *Func) retSparseMap(ss *sparseMap) {
 	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
 }
 
+// newPoset returns a new poset from the internal cache
+func (f *Func) newPoset() *poset {
+	if len(f.Cache.scrPoset) > 0 {
+		po := f.Cache.scrPoset[len(f.Cache.scrPoset)-1]
+		f.Cache.scrPoset = f.Cache.scrPoset[:len(f.Cache.scrPoset)-1]
+		return po
+	}
+	return newPoset()
+}
+
+// retPoset returns a poset to the internal cache
+func (f *Func) retPoset(po *poset) {
+	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
+}
+
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
 func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	var v *Value
