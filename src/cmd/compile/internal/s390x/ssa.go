@@ -305,13 +305,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpS390XSUBEcarrymask, ssa.OpS390XSUBEWcarrymask:
-		r := v.Reg()
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
 	case ssa.OpS390XMOVDaddridx:
 		r := v.Args[0].Reg()
 		i := v.Args[1].Reg()
