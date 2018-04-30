@@ -1412,8 +1412,7 @@ loop:
 					if nnc == '/' {
 						fcode.WriteRune('*')
 						fcode.WriteRune('/')
-						c = getrune(finput)
-						break swt
+						continue loop
 					}
 					ungetrune(finput, nnc)
 				}
