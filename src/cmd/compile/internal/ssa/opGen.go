@@ -21824,7 +21824,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AFMOVS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -21840,7 +21840,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AFMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -21879,8 +21879,8 @@ var opcodeTable = [...]opInfo{
 		asm:       s390x.AFMOVS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -21895,8 +21895,8 @@ var opcodeTable = [...]opInfo{
 		asm:       s390x.AFMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -21912,7 +21912,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AFMOVS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
@@ -21926,7 +21926,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AFMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
@@ -21939,8 +21939,8 @@ var opcodeTable = [...]opInfo{
 		asm:       s390x.AFMOVS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 				{2, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
@@ -21953,8 +21953,8 @@ var opcodeTable = [...]opInfo{
 		asm:       s390x.AFMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 				{2, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
@@ -21967,11 +21967,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AADD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -21983,11 +21983,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AADDW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -21999,10 +21999,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AADD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22014,10 +22014,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AADDW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22032,11 +22032,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AADD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22051,11 +22051,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AADDW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22066,11 +22066,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASUB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22081,11 +22081,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22098,10 +22098,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASUB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22114,10 +22114,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22132,11 +22132,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.ASUB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22151,11 +22151,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.ASUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22168,11 +22168,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMULLD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22185,11 +22185,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMULLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22202,10 +22202,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMULLD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22218,10 +22218,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMULLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22236,11 +22236,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMULLD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22255,11 +22255,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMULLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22275,6 +22275,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22292,6 +22293,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22308,6 +22310,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22324,6 +22327,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22340,6 +22344,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22356,6 +22361,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22372,6 +22378,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22388,6 +22395,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22404,6 +22412,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22420,6 +22429,7 @@ var opcodeTable = [...]opInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2048, // R11
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -22433,11 +22443,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AAND,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22449,11 +22459,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AANDW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22466,10 +22476,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AAND,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22482,10 +22492,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AANDW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22500,11 +22510,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AAND,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22519,11 +22529,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AANDW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22535,11 +22545,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22551,11 +22561,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AORW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22568,10 +22578,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22584,10 +22594,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AORW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22602,11 +22612,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22621,11 +22631,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AORW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22637,11 +22647,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AXOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22653,11 +22663,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AXORW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22670,10 +22680,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AXOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22686,10 +22696,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AXORW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22704,11 +22714,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AXOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22723,11 +22733,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AXORW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22737,8 +22747,8 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ACMP,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -22748,8 +22758,8 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ACMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -22759,8 +22769,8 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ACMPU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -22770,8 +22780,8 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ACMPWU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -22782,7 +22792,7 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ACMP,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -22793,7 +22803,7 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ACMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -22804,7 +22814,7 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ACMPU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -22815,7 +22825,7 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ACMPWU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -22847,11 +22857,11 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ASLD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 21502}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22861,11 +22871,11 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ASLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 21502}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22876,10 +22886,10 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ASLD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22890,10 +22900,10 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ASLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22903,11 +22913,11 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ASRD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 21502}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22917,11 +22927,11 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ASRW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 21502}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22932,10 +22942,10 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ASRD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22946,10 +22956,10 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ASRW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22960,11 +22970,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASRAD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 21502}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22975,11 +22985,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASRAW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 21502}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -22991,10 +23001,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASRAD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23006,10 +23016,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASRAW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23020,10 +23030,10 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ARLLG,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23034,10 +23044,10 @@ var opcodeTable = [...]opInfo{
 		asm:     s390x.ARLL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23048,10 +23058,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ANEG,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23062,10 +23072,10 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ANEGW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23076,10 +23086,10 @@ var opcodeTable = [...]opInfo{
 		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23090,10 +23100,10 @@ var opcodeTable = [...]opInfo{
 		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23116,7 +23126,7 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ASUBE,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23126,7 +23136,7 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ASUBE,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23137,11 +23147,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23152,11 +23162,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23167,11 +23177,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDLT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23182,11 +23192,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDLE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23197,11 +23207,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDGT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23212,11 +23222,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDGE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23227,11 +23237,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDGT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23242,11 +23252,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDGE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
-				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23256,10 +23266,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23269,10 +23279,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVBZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23282,10 +23292,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23295,10 +23305,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVHZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23308,10 +23318,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23321,10 +23331,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVWZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23334,10 +23344,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23347,10 +23357,10 @@ var opcodeTable = [...]opInfo{
 		resultInArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23362,7 +23372,7 @@ var opcodeTable = [...]opInfo{
 		asm:               s390x.AMOVD,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23372,7 +23382,7 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ALDGR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -23388,7 +23398,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23401,7 +23411,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23414,7 +23424,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23427,7 +23437,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23440,7 +23450,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23450,7 +23460,7 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ACEFBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -23463,7 +23473,7 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ACDFBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -23476,7 +23486,7 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ACEGBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -23489,7 +23499,7 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.ACDGBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -23533,7 +23543,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4295000064}, // SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23545,10 +23555,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295000064}, // SP SB
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23562,10 +23572,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVBZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23579,10 +23589,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23596,10 +23606,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVHZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23613,10 +23623,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23630,10 +23640,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVWZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23647,10 +23657,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23664,10 +23674,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23677,10 +23687,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23690,10 +23700,10 @@ var opcodeTable = [...]opInfo{
 		asm:    s390x.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23707,10 +23717,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVHBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23724,10 +23734,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23741,10 +23751,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23758,8 +23768,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
-				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -23773,8 +23783,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
-				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -23788,8 +23798,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
-				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -23803,8 +23813,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
-				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -23818,8 +23828,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVHBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -23833,8 +23843,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -23848,8 +23858,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -23864,8 +23874,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMVC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -23879,11 +23889,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVBZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23897,11 +23907,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23915,11 +23925,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVHZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23933,11 +23943,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23951,11 +23961,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVWZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23969,11 +23979,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -23987,11 +23997,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24005,11 +24015,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVHBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24023,11 +24033,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24041,11 +24051,11 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24059,9 +24069,9 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24075,9 +24085,9 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24091,9 +24101,9 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24107,9 +24117,9 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24123,9 +24133,9 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVHBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24139,9 +24149,9 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24155,9 +24165,9 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24170,7 +24180,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 		},
 	},
@@ -24183,7 +24193,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 		},
 	},
@@ -24196,7 +24206,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 		},
 	},
@@ -24209,7 +24219,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 		},
 	},
@@ -24223,7 +24233,7 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.ACLEAR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21502}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24235,7 +24245,7 @@ var opcodeTable = [...]opInfo{
 		call:         true,
 		symEffect:    SymNone,
 		reg: regInfo{
-			clobbers: 4294931455, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 g R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			clobbers: 4294933503, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 g R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{
@@ -24247,9 +24257,9 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 4096},  // R12
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
-			clobbers: 4294931455, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 g R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			clobbers: 4294933503, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 g R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{
@@ -24260,9 +24270,9 @@ var opcodeTable = [...]opInfo{
 		call:         true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21502}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
-			clobbers: 4294931455, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 g R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			clobbers: 4294933503, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 g R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{
@@ -24275,7 +24285,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24295,7 +24305,7 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24307,7 +24317,7 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24377,10 +24387,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVWZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24393,10 +24403,10 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24411,8 +24421,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
-				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24427,8 +24437,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
-				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24443,11 +24453,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.ALAA,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
-				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24462,11 +24472,11 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.ALAAG,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
-				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24492,13 +24502,13 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1},     // R0
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			clobbers: 1, // R0
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24514,13 +24524,13 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1},     // R0
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			clobbers: 1, // R0
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 		},
 	},
@@ -24535,8 +24545,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.ACS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
 				{1, 0},
@@ -24555,8 +24565,8 @@ var opcodeTable = [...]opInfo{
 		asm:            s390x.ACSG,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
-				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+				{1, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			outputs: []outputInfo{
 				{1, 0},
@@ -24571,7 +24581,7 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.AFLOGR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			clobbers: 2, // R1
 			outputs: []outputInfo{
@@ -24590,7 +24600,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 2},     // R1
 				{2, 4},     // R2
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24606,7 +24616,7 @@ var opcodeTable = [...]opInfo{
 				{1, 2},     // R1
 				{2, 4},     // R2
 				{3, 8},     // R3
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24623,7 +24633,7 @@ var opcodeTable = [...]opInfo{
 				{2, 4},     // R2
 				{3, 8},     // R3
 				{4, 16},    // R4
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24638,7 +24648,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 2},     // R1
 				{2, 4},     // R2
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24654,7 +24664,7 @@ var opcodeTable = [...]opInfo{
 				{1, 2},     // R1
 				{2, 4},     // R2
 				{3, 8},     // R3
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24671,7 +24681,7 @@ var opcodeTable = [...]opInfo{
 				{2, 4},     // R2
 				{3, 8},     // R3
 				{4, 16},    // R4
-				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 		},
 	},
@@ -24686,7 +24696,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
 				{1, 4},     // R2
-				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{2, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			clobbers: 6, // R1 R2
 		},
@@ -24700,7 +24710,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
-				{1, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
 			},
 			clobbers: 2, // R1
 		},
@@ -27012,7 +27022,7 @@ var registersS390X = [...]Register{
 	{31, s390x.REG_F15, "F15"},
 	{32, 0, "SB"},
 }
-var gpRegMaskS390X = regMask(21503)
+var gpRegMaskS390X = regMask(23551)
 var fpRegMaskS390X = regMask(4294901760)
 var specialRegMaskS390X = regMask(0)
 var framepointerRegS390X = int8(-1)
