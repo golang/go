@@ -110,12 +110,13 @@ func init() {
 
 	// Common individual register masks
 	var (
-		sp = buildReg("SP")
-		sb = buildReg("SB")
-		r0 = buildReg("R0")
+		sp  = buildReg("SP")
+		sb  = buildReg("SB")
+		r0  = buildReg("R0")
+		tmp = buildReg("R11") // R11 is used as a temporary in a small number of instructions.
 
-		// R10 and R11 are reserved by the assembler.
-		gp   = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14")
+		// R10 is reserved by the assembler.
+		gp   = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14")
 		gpg  = gp | buildReg("g")
 		gpsp = gp | sp
 
@@ -135,11 +136,12 @@ func init() {
 
 	// Common regInfo
 	var (
-		gp01   = regInfo{inputs: []regMask{}, outputs: gponly}
-		gp11   = regInfo{inputs: []regMask{gp}, outputs: gponly}
-		gp11sp = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
-		gp21   = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
-		gp21sp = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
+		gp01    = regInfo{inputs: []regMask{}, outputs: gponly}
+		gp11    = regInfo{inputs: []regMask{gp}, outputs: gponly}
+		gp11sp  = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
+		gp21    = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
+		gp21sp  = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
+		gp21tmp = regInfo{inputs: []regMask{gp &^ tmp, gp &^ tmp}, outputs: []regMask{gp &^ tmp}, clobbers: tmp}
 
 		// R0 evaluates to 0 when used as the number of bits to shift
 		// so we need to exclude it from that operand.
@@ -255,19 +257,19 @@ func init() {
 		{name: "MULLDload", argLength: 3, reg: gpopload, asm: "MULLD", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 * *arg1. arg2=mem
 		{name: "MULLWload", argLength: 3, reg: gpopload, asm: "MULLW", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 * *arg1. arg2=mem
 
-		{name: "MULHD", argLength: 2, reg: gp21, asm: "MULHD", typ: "Int64", commutative: true, resultInArg0: true, clobberFlags: true},   // (arg0 * arg1) >> width
-		{name: "MULHDU", argLength: 2, reg: gp21, asm: "MULHDU", typ: "Int64", commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 * arg1) >> width
+		{name: "MULHD", argLength: 2, reg: gp21tmp, asm: "MULHD", typ: "Int64", commutative: true, resultInArg0: true, clobberFlags: true},   // (arg0 * arg1) >> width
+		{name: "MULHDU", argLength: 2, reg: gp21tmp, asm: "MULHDU", typ: "Int64", commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 * arg1) >> width
 
-		{name: "DIVD", argLength: 2, reg: gp21, asm: "DIVD", resultInArg0: true, clobberFlags: true},   // arg0 / arg1
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", resultInArg0: true, clobberFlags: true},   // arg0 / arg1
-		{name: "DIVDU", argLength: 2, reg: gp21, asm: "DIVDU", resultInArg0: true, clobberFlags: true}, // arg0 / arg1
-		{name: "DIVWU", argLength: 2, reg: gp21, asm: "DIVWU", resultInArg0: true, clobberFlags: true}, // arg0 / arg1
+		{name: "DIVD", argLength: 2, reg: gp21tmp, asm: "DIVD", resultInArg0: true, clobberFlags: true},   // arg0 / arg1
+		{name: "DIVW", argLength: 2, reg: gp21tmp, asm: "DIVW", resultInArg0: true, clobberFlags: true},   // arg0 / arg1
+		{name: "DIVDU", argLength: 2, reg: gp21tmp, asm: "DIVDU", resultInArg0: true, clobberFlags: true}, // arg0 / arg1
+		{name: "DIVWU", argLength: 2, reg: gp21tmp, asm: "DIVWU", resultInArg0: true, clobberFlags: true}, // arg0 / arg1
 
-		{name: "MODD", argLength: 2, reg: gp21, asm: "MODD", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
-		{name: "MODW", argLength: 2, reg: gp21, asm: "MODW", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
+		{name: "MODD", argLength: 2, reg: gp21tmp, asm: "MODD", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
+		{name: "MODW", argLength: 2, reg: gp21tmp, asm: "MODW", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
 
-		{name: "MODDU", argLength: 2, reg: gp21, asm: "MODDU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
-		{name: "MODWU", argLength: 2, reg: gp21, asm: "MODWU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
+		{name: "MODDU", argLength: 2, reg: gp21tmp, asm: "MODDU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
+		{name: "MODWU", argLength: 2, reg: gp21tmp, asm: "MODWU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
 
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true, clobberFlags: true},                                                                    // arg0 & arg1
 		{name: "ANDW", argLength: 2, reg: gp21, asm: "ANDW", commutative: true, clobberFlags: true},                                                                  // arg0 & arg1

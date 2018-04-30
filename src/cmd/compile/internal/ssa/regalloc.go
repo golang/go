@@ -589,7 +589,7 @@ func (s *regAllocState) init(f *Func) {
 			// in the rewrite rules so we always have a free register
 			// available for global load/stores. See gen/386.rules (search for Flag_shared).
 		case "s390x":
-			// nothing to do, R10 & R11 already reserved
+			s.allocatable &^= 1 << 11 // R11
 		default:
 			s.f.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
 		}
