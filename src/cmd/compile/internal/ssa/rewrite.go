@@ -393,7 +393,7 @@ func b2i(b bool) int64 {
 // shiftIsBounded reports whether (left/right) shift Value v is known to be bounded.
 // A shift is bounded if it is shifting by less than the width of the shifted value.
 func shiftIsBounded(v *Value) bool {
-	return v.Aux != nil && v.Aux.(bool)
+	return v.AuxInt != 0
 }
 
 // i2f is used in rules for converting from an AuxInt to a float.
