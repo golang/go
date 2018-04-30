@@ -25,7 +25,7 @@ type Value struct {
 	Op Op
 
 	// The type of this value. Normally this will be a Go type, but there
-	// are a few other pseudo-types, see type.go.
+	// are a few other pseudo-types, see ../types/type.go.
 	Type *types.Type
 
 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
