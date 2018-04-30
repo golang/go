@@ -2003,6 +2003,9 @@ func StripPrefix(prefix string, h Handler) Handler {
 //
 // The provided code should be in the 3xx range and is usually
 // StatusMovedPermanently, StatusFound or StatusSeeOther.
+// If Content-Type has not been set Redirect sets the header to
+// "text/html; charset=utf-8" and writes a small HTML body.
+// Setting the Content-Type header to nil also prevents writing the body.
 func Redirect(w ResponseWriter, r *Request, url string, code int) {
 	// parseURL is just url.Parse (url is shadowed for godoc).
 	if u, err := parseURL(url); err == nil {
@@ -2039,9 +2042,14 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		}
 	}
 
-	w.Header().Set("Location", hexEscapeNonASCII(url))
+	h := w.Header()
+	h.Set("Location", hexEscapeNonASCII(url))
+
+	if _, ok := h["Content-Type"]; ok {
+		return
+	}
 	if r.Method == "GET" || r.Method == "HEAD" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		h.Set("Content-Type", "text/html; charset=utf-8")
 	}
 	w.WriteHeader(code)
 

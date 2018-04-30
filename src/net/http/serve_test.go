@@ -2589,20 +2589,29 @@ func TestRedirect(t *testing.T) {
 
 // Test that Content-Type header is set for GET and HEAD requests.
 func TestRedirectContentTypeAndBody(t *testing.T) {
+	var unsetCT = []string{"sentinalValNoCT"}
+
 	var tests = []struct {
+		initCT   []string
 		method   string
 		wantCT   string
 		wantBody string
 	}{
-		{MethodGet, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
-		{MethodHead, "text/html; charset=utf-8", ""},
-		{MethodPost, "", ""},
-		{MethodDelete, "", ""},
-		{"foo", "", ""},
+		{unsetCT, MethodGet, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
+		{unsetCT, MethodHead, "text/html; charset=utf-8", ""},
+		{unsetCT, MethodPost, "", ""},
+		{unsetCT, MethodDelete, "", ""},
+		{unsetCT, "foo", "", ""},
+		{[]string{"application/test"}, MethodGet, "application/test", ""},
+		{[]string{}, MethodGet, "", ""},
+		{nil, MethodGet, "", ""},
 	}
 	for _, tt := range tests {
 		req := httptest.NewRequest(tt.method, "http://example.com/qux/", nil)
 		rec := httptest.NewRecorder()
+		if len(tt.initCT) != 1 || &tt.initCT[0] != &unsetCT[0] {
+			rec.Header()["Content-Type"] = tt.initCT
+		}
 		Redirect(rec, req, "/foo", 302)
 		if got, want := rec.Header().Get("Content-Type"), tt.wantCT; got != want {
 			t.Errorf("Redirect(%q) generated Content-Type header %q; want %q", tt.method, got, want)
