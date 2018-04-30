@@ -135,11 +135,14 @@ func newosproc(mp *m) {
 		exit(1)
 	}
 
-	// Set the stack we want to use.
-	if pthread_attr_setstack(&attr, unsafe.Pointer(mp.g0.stack.lo), mp.g0.stack.hi-mp.g0.stack.lo) != 0 {
+	// Set the stack size we want to use.  64KB for now.
+	// TODO: just use OS default size?
+	const stackSize = 1 << 16
+	if pthread_attr_setstacksize(&attr, stackSize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
+	//mSysStatInc(&memstats.stacks_sys, stackSize) //TODO: do this?
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -169,12 +172,6 @@ func mstart_stub()
 //
 //go:nosplit
 func newosproc0(stacksize uintptr, fn uintptr) {
-	stack := sysAlloc(stacksize, &memstats.stacks_sys)
-	if stack == nil {
-		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
-		exit(1)
-	}
-
 	// Initialize an attribute object.
 	var attr pthreadattr
 	var err int32
@@ -185,10 +182,11 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	}
 
 	// Set the stack we want to use.
-	if pthread_attr_setstack_trampoline(&attr, stack, stacksize) != 0 {
+	if pthread_attr_setstacksize_trampoline(&attr, stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
+	mSysStatInc(&memstats.stacks_sys, stacksize)
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate_trampoline(&attr, _PTHREAD_CREATE_DETACHED) != 0 {

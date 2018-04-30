@@ -21,15 +21,15 @@ func pthread_attr_init(attr *pthreadattr) (errno int32) {
 func pthread_attr_init_trampoline(attr *pthreadattr) int32
 
 //go:nowritebarrier
-func pthread_attr_setstack(attr *pthreadattr, addr unsafe.Pointer, size uintptr) (errno int32) {
+func pthread_attr_setstacksize(attr *pthreadattr, size uintptr) (errno int32) {
 	systemstack(func() {
-		errno = pthread_attr_setstack_trampoline(attr, addr, size)
+		errno = pthread_attr_setstacksize_trampoline(attr, size)
 	})
 	return
 }
 
 //go:noescape
-func pthread_attr_setstack_trampoline(attr *pthreadattr, addr unsafe.Pointer, size uintptr) int32
+func pthread_attr_setstacksize_trampoline(attr *pthreadattr, size uintptr) int32
 
 //go:nowritebarrier
 func pthread_attr_setdetachstate(attr *pthreadattr, state int) (errno int32) {
@@ -57,9 +57,10 @@ func pthread_create_trampoline(t *pthread, attr *pthreadattr, start uintptr, arg
 // in a system library, with the libc_ prefix missing.
 
 //go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_attr_setstack pthread_attr_setstack "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_attr_setstacksize pthread_attr_setstacksize "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
