@@ -152,19 +152,22 @@ type poset struct {
 	undo      []posetUndo   // undo chain
 }
 
-func newPoset(unsigned bool) *poset {
-	var flags uint8
-	if unsigned {
-		flags |= posetFlagUnsigned
-	}
+func newPoset() *poset {
 	return &poset{
-		flags:     flags,
 		values:    make(map[ID]uint32),
 		constants: make([]*Value, 0, 8),
 		nodes:     make([]posetNode, 1, 16),
 		roots:     make([]uint32, 0, 4),
 		noneq:     make(map[ID]bitset),
 		undo:      make([]posetUndo, 0, 4),
+	}
+}
+
+func (po *poset) SetUnsigned(uns bool) {
+	if uns {
+		po.flags |= posetFlagUnsigned
+	} else {
+		po.flags &^= posetFlagUnsigned
 	}
 }
 

@@ -181,10 +181,12 @@ type factsTable struct {
 var checkpointFact = fact{}
 var checkpointBound = limitFact{}
 
-func newFactsTable() *factsTable {
+func newFactsTable(f *Func) *factsTable {
 	ft := &factsTable{}
-	ft.order[0] = newPoset(false) // signed
-	ft.order[1] = newPoset(true)  // unsigned
+	ft.order[0] = f.newPoset() // signed
+	ft.order[1] = f.newPoset() // unsigned
+	ft.order[0].SetUnsigned(false)
+	ft.order[1].SetUnsigned(true)
 	ft.facts = make(map[pair]relation)
 	ft.stack = make([]fact, 4)
 	ft.limits = make(map[ID]limit)
@@ -666,7 +668,8 @@ var (
 // its negation. If either leads to a contradiction, it can trim that
 // successor.
 func prove(f *Func) {
-	ft := newFactsTable()
+	ft := newFactsTable(f)
+	ft.checkpoint()
 
 	// Find length and capacity ops.
 	var zero *Value
@@ -793,6 +796,20 @@ func prove(f *Func) {
 			simplifyBlock(sdom, ft, node.block)
 			ft.restore()
 		}
+	}
+
+	ft.restore()
+
+	// Return the posets to the free list
+	for _, po := range ft.order {
+		// Make sure it's empty as it should be. A non-empty poset
+		// might cause errors and miscompilations if reused.
+		if checkEnabled {
+			if err := po.CheckEmpty(); err != nil {
+				f.Fatalf("prove poset not empty after function %s: %v", f.Name, err)
+			}
+		}
+		f.retPoset(po)
 	}
 }
 
