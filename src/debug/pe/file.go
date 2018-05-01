@@ -261,6 +261,21 @@ type ImportDirectory struct {
 func (f *File) ImportedSymbols() ([]string, error) {
 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
 
+	// grab the number of data directory entries
+	var ddcount uint32
+	if pe64 {
+		ddcount = f.OptionalHeader.(*OptionalHeader64).NumberOfRvaAndSizes
+	} else {
+		ddcount = f.OptionalHeader.(*OptionalHeader32).NumberOfRvaAndSizes
+	}
+
+	// if the import data directory doesn't actually exist then we can
+	// assume that there's no symbols
+	if ddcount < 2 {
+		return nil, nil
+	}
+
+	// grab the import data directory entry
 	var idd DataDirectory
 	if pe64 {
 		idd = f.OptionalHeader.(*OptionalHeader64).DataDirectory[1]
