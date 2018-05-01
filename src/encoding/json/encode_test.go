@@ -999,13 +999,17 @@ func TestMarshalPanic(t *testing.T) {
 
 func TestMarshalErrorMessage(t *testing.T) {
 	// values that cannot be encoded in JSON
-	// ch := make(chan int)
 	badTime := time.Date(-1, 0, 0, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
 		in   interface{}
 		want string
 	}{
+		// check simple value
+		{
+			in:   badTime,
+			want: "json: error calling MarshalJSON for type time.Time: Time.MarshalJSON: year outside of range [0,9999]",
+		},
 		// checking map properties
 		{
 			in: map[string]interface{}{
