@@ -537,6 +537,46 @@ again:
 	STXP	(R1, R2), (RSP), R10                 // e10b2ac8
 	STXPW	(R1, R2), (R3), R10                  // 61082a88
 	STXPW	(R1, R2), (RSP), R10                 // e10b2a88
+	SWPD	R5, (R6), R7                         // c78025f8
+	SWPD	R5, (RSP), R7                        // e78325f8
+	SWPW	R5, (R6), R7                         // c78025b8
+	SWPW	R5, (RSP), R7                        // e78325b8
+	SWPH	R5, (R6), R7                         // c7802578
+	SWPH	R5, (RSP), R7                        // e7832578
+	SWPB	R5, (R6), R7                         // c7802538
+	SWPB	R5, (RSP), R7                        // e7832538
+	LDADDD	R5, (R6), R7                         // c70025f8
+	LDADDD	R5, (RSP), R7                        // e70325f8
+	LDADDW	R5, (R6), R7                         // c70025b8
+	LDADDW	R5, (RSP), R7                        // e70325b8
+	LDADDH	R5, (R6), R7                         // c7002578
+	LDADDH	R5, (RSP), R7                        // e7032578
+	LDADDB	R5, (R6), R7                         // c7002538
+	LDADDB	R5, (RSP), R7                        // e7032538
+	LDANDD	R5, (R6), R7                         // c71025f8
+	LDANDD	R5, (RSP), R7                        // e71325f8
+	LDANDW	R5, (R6), R7                         // c71025b8
+	LDANDW	R5, (RSP), R7                        // e71325b8
+	LDANDH	R5, (R6), R7                         // c7102578
+	LDANDH	R5, (RSP), R7                        // e7132578
+	LDANDB	R5, (R6), R7                         // c7102538
+	LDANDB	R5, (RSP), R7                        // e7132538
+	LDEORD	R5, (R6), R7                         // c72025f8
+	LDEORD	R5, (RSP), R7                        // e72325f8
+	LDEORW	R5, (R6), R7                         // c72025b8
+	LDEORW	R5, (RSP), R7                        // e72325b8
+	LDEORH	R5, (R6), R7                         // c7202578
+	LDEORH	R5, (RSP), R7                        // e7232578
+	LDEORB	R5, (R6), R7                         // c7202538
+	LDEORB	R5, (RSP), R7                        // e7232538
+	LDORD	R5, (R6), R7                         // c73025f8
+	LDORD	R5, (RSP), R7                        // e73325f8
+	LDORW	R5, (R6), R7                         // c73025b8
+	LDORW	R5, (RSP), R7                        // e73325b8
+	LDORH	R5, (R6), R7                         // c7302578
+	LDORH	R5, (RSP), R7                        // e7332578
+	LDORB	R5, (R6), R7                         // c7302538
+	LDORB	R5, (RSP), R7                        // e7332538
 
 // RET
 //
@@ -646,16 +686,6 @@ again:
 	STPW	(R3, R4), 1024(RSP) // fb03109163130029
 	STPW	(R3, R4), x(SB)
 	STPW	(R3, R4), x+8(SB)
-
-// SWPD/SWPW/SWPH/SWPB
-	SWPD	R5, (R6), R7    // SWPD (R6), R5, R7   // c78025f8
-	SWPD	R5, (RSP), R7   // SWPD (RSP), R5, R7  // e78325f8
-	SWPW	R5, (R6), R7    // SWPW (R6), R5, R7   // c78025b8
-	SWPW	R5, (RSP), R7   // SWPW (RSP), R5, R7  // e78325b8
-	SWPH	R5, (R6), R7    // SWPH (R6), R5, R7   // c7802578
-	SWPH	R5, (RSP), R7   // SWPH (RSP), R5, R7  // e7832578
-	SWPB	R5, (R6), R7    // SWPB (R6), R5, R7   // c7802538
-	SWPB	R5, (RSP), R7   // SWPB (RSP), R5, R7  // e7832538
 
 // END
 //

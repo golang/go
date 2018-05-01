@@ -570,12 +570,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.RegTo2 = a[2].Reg
 				break
 			}
-			if arch.IsARM64SWP(op) {
-				prog.From = a[1]
-				prog.Reg = p.getRegister(prog, op, &a[0])
-				prog.To = a[2]
-				break
-			}
 			if arch.IsARM64TBL(op) {
 				prog.From = a[0]
 				if a[1].Type != obj.TYPE_REGLIST {

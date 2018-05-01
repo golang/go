@@ -370,10 +370,6 @@ var optab = []Optab{
 	{ACCMN, C_COND, C_REG, C_VCON, 19, 4, 0, 0, 0}, /* from3 either C_REG or C_VCON */
 	{AFCCMPS, C_COND, C_FREG, C_VCON, 57, 4, 0, 0, 0},
 
-	/* SWPD/SWPW/SWPH/SWPB */
-	{ASWPD, C_ZAUTO, C_REG, C_REG, 47, 4, REGSP, 0, 0},
-	{ASWPD, C_ZOREG, C_REG, C_REG, 47, 4, 0, 0, 0},
-
 	/* scaled 12-bit unsigned displacement store */
 	{AMOVB, C_REG, C_NONE, C_UAUTO4K, 20, 4, REGSP, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_UOREG4K, 20, 4, 0, 0, 0},
@@ -657,13 +653,15 @@ var optab = []Optab{
 	{ASTPW, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
 	{ASTPW, C_PAIR, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
 
+	{ASWPD, C_REG, C_NONE, C_ZOREG, 47, 4, 0, 0, 0},     // RegTo2=C_REG
+	{ASWPD, C_REG, C_NONE, C_ZAUTO, 47, 4, REGSP, 0, 0}, // RegTo2=C_REG
 	{ALDAR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDXR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDAXR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDXP, C_ZOREG, C_NONE, C_PAIR, 58, 4, 0, 0, 0},
-	{ASTLR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},  // to3=C_NONE
-	{ASTXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},  // to3=C_REG
-	{ASTLXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0}, // to3=C_REG
+	{ASTLR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},     // RegTo2=C_NONE
+	{ASTXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},     // RegTo2=C_REG
+	{ASTLXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},    // RegTo2=C_REG
 	{ASTXP, C_PAIR, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},
 
 	/* VLD1/VST1 */
@@ -1995,6 +1993,22 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASWPB, t)
 			oprangeset(ASWPH, t)
 			oprangeset(ASWPW, t)
+			oprangeset(ALDADDB, t)
+			oprangeset(ALDADDH, t)
+			oprangeset(ALDADDW, t)
+			oprangeset(ALDADDD, t)
+			oprangeset(ALDANDB, t)
+			oprangeset(ALDANDH, t)
+			oprangeset(ALDANDW, t)
+			oprangeset(ALDANDD, t)
+			oprangeset(ALDEORB, t)
+			oprangeset(ALDEORH, t)
+			oprangeset(ALDEORW, t)
+			oprangeset(ALDEORD, t)
+			oprangeset(ALDORB, t)
+			oprangeset(ALDORH, t)
+			oprangeset(ALDORW, t)
+			oprangeset(ALDORD, t)
 
 		case ABEQ:
 			oprangeset(ABNE, t)
@@ -3333,26 +3347,34 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.To.Reg & 31)
 
 	case 47: /* SWPx Rs, (Rb), Rt: Rs -> (Rb) -> Rt */
-		v := int32(c.regoff(&p.From))
-		rb := int(p.From.Reg)
-		if v != 0 {
-			c.ctxt.Diag("invalid offset: %v\n", p)
-		}
-		rs := p.Reg
-		rt := p.To.Reg
+		rs := p.From.Reg
+		rt := p.RegTo2
+		rb := p.To.Reg
 		switch p.As {
-		case ASWPD:
+		case ASWPD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
 			o1 = 3 << 30
-		case ASWPW:
+		case ASWPW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
 			o1 = 2 << 30
-		case ASWPH:
+		case ASWPH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
 			o1 = 1 << 30
-		case ASWPB:
+		case ASWPB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
 			o1 = 0 << 30
 		default:
 			c.ctxt.Diag("illegal instruction: %v\n", p)
 		}
-		o1 |= 0x1c1<<21 | 0x20<<10 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+		switch p.As {
+		case ASWPD, ASWPW, ASWPH, ASWPB:
+			o1 |= 0x20 << 10
+		case ALDADDD, ALDADDW, ALDADDH, ALDADDB:
+			o1 |= 0x00 << 10
+		case ALDANDD, ALDANDW, ALDANDH, ALDANDB:
+			o1 |= 0x04 << 10
+		case ALDEORD, ALDEORW, ALDEORH, ALDEORB:
+			o1 |= 0x08 << 10
+		case ALDORD, ALDORW, ALDORH, ALDORB:
+			o1 |= 0x0c << 10
+		}
+		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 
 	case 50: /* sys/sysl */
 		o1 = c.opirr(p, p.As)
