@@ -9,6 +9,11 @@ import (
 	"log"
 )
 
+const (
+	PrologueEnd   = 2 + iota // overload "is_stmt" to include prologue_end
+	EpilogueBegin            // overload "is_stmt" to include epilogue_end
+)
+
 func addvarint(d *Pcdata, v uint32) {
 	for ; v >= 0x80; v >>= 7 {
 		d.P = append(d.P, uint8(v|0x80))
@@ -235,6 +240,7 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 
 // pctostmt returns either,
 // if phase==0, then whether the current instruction is a step-target (Dwarf is_stmt)
+//     bit-or'd with whether the current statement is a prologue end or epilogue begin
 // else (phase == 1), zero.
 //
 func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
@@ -242,14 +248,22 @@ func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg int
 		return 0 // Ignored; also different from initial value of -1, if that ever matters.
 	}
 	s := p.Pos.IsStmt()
-	if s == src.PosIsStmt {
-		return 1
+	l := p.Pos.Xlogue()
+
+	var is_stmt int32
+
+	// PrologueEnd, at least, is passed to the next instruction
+	switch l {
+	case src.PosPrologueEnd:
+		is_stmt = PrologueEnd
+	case src.PosEpilogueBegin:
+		is_stmt = EpilogueBegin
 	}
-	if s == src.PosNotStmt { // includes NoSrcPos case
-		return 0
+
+	if s != src.PosNotStmt {
+		is_stmt |= 1 // either PosDefaultStmt from asm, or PosIsStmt from go
 	}
-	// Line numbers in .s files will have no special setting, therefore default to is_stmt=1.
-	return 1
+	return is_stmt
 }
 
 // pctopcdata computes the pcdata value in effect at p.

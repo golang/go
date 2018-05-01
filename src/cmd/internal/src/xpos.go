@@ -60,6 +60,12 @@ func (p XPos) WithIsStmt() XPos {
 	return p
 }
 
+// WithXlogue returns the same location but marked with DWARF function prologue/epilogue
+func (p XPos) WithXlogue(x PosXlogue) XPos {
+	p.lico = p.lico.withXlogue(x)
+	return p
+}
+
 func (p XPos) LineNumber() string {
 	if !p.IsKnown() {
 		return "?"
