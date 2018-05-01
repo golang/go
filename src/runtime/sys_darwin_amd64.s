@@ -32,45 +32,53 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·open(SB),NOSPLIT,$0
+TEXT runtime·open(SB),NOSPLIT,$0-20
 	MOVQ	name+0(FP), DI		// arg 1 pathname
 	MOVL	mode+8(FP), SI		// arg 2 flags
 	MOVL	perm+12(FP), DX		// arg 3 mode
-	MOVL	$(0x2000000+5), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_open(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0-12
 	MOVL	fd+0(FP), DI		// arg 1 fd
-	MOVL	$(0x2000000+6), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_close(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$0
+TEXT runtime·read(SB),NOSPLIT,$0-28
 	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
-	MOVL	$(0x2000000+3), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_read(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
+TEXT runtime·write(SB),NOSPLIT,$0-28
 	MOVQ	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
-	MOVL	$(0x2000000+4), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_write(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVL	AX, ret+24(FP)
 	RET
 
