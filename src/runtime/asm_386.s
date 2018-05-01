@@ -704,6 +704,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	MOVL	g(CX), DI
 	CMPL	SI, DI
 	JEQ	noswitch
+	CMPL	DI, m_gsignal(BP)
+	JEQ	noswitch
 	CALL	gosave<>(SB)
 	get_tls(CX)
 	MOVL	SI, g(CX)

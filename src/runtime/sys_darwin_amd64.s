@@ -110,33 +110,35 @@ TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
 #define	v17_gtod_scale		0xe8
 #define	v17_gtod_tkspersec	0xf0
 
-TEXT runtime·nanotime(SB),NOSPLIT,$0-8
-	MOVQ	$0x7fffffe00000, BP	/* comm page base */
-	// Loop trying to take a consistent snapshot
-	// of the time parameters.
-timeloop:
-	MOVL	nt_generation(BP), R9
-	TESTL	R9, R9
-	JZ	timeloop
-	RDTSC
-	MOVQ	nt_tsc_base(BP), R10
-	MOVL	nt_scale(BP), R11
-	MOVQ	nt_ns_base(BP), R12
-	CMPL	nt_generation(BP), R9
-	JNE	timeloop
+GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
 
-	// Gathered all the data we need. Compute monotonic time:
-	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
-	// The multiply and shift extracts the top 64 bits of the 96-bit product.
-	SHLQ	$32, DX
-	ADDQ	DX, AX
-	SUBQ	R10, AX
-	MULQ	R11
-	SHRQ	$32, AX:DX
-	ADDQ	R12, AX
-	MOVQ	runtime·startNano(SB), CX
-	SUBQ	CX, AX
-	MOVQ	AX, ret+0(FP)
+TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	DI, BX
+	CALL	libc_mach_absolute_time(SB)
+	MOVQ	AX, 0(BX)
+	MOVL	timebase<>+machTimebaseInfo_numer(SB), SI
+	MOVL	timebase<>+machTimebaseInfo_denom(SB), DI // atomic read
+	TESTL	DI, DI
+	JNE	initialized
+
+	SUBQ	$(machTimebaseInfo__size+15)/16*16, SP
+	MOVQ	SP, DI
+	CALL	libc_mach_timebase_info(SB)
+	MOVL	machTimebaseInfo_numer(SP), SI
+	MOVL	machTimebaseInfo_denom(SP), DI
+	ADDQ	$(machTimebaseInfo__size+15)/16*16, SP
+
+	MOVL	SI, timebase<>+machTimebaseInfo_numer(SB)
+	MOVL	DI, AX
+	XCHGL	AX, timebase<>+machTimebaseInfo_denom(SB) // atomic write
+
+initialized:
+	MOVL	SI, 8(BX)
+	MOVL	DI, 12(BX)
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 TEXT time·now(SB), NOSPLIT, $32-24

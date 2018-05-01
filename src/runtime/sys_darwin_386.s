@@ -311,13 +311,37 @@ TEXT time·now(SB),NOSPLIT,$0-20
 	MOVL	DX, nsec+8(FP)
 	RET
 
-// func nanotime() int64
-TEXT runtime·nanotime(SB),NOSPLIT,$0
-	CALL	runtime·now(SB)
-	SUBL	runtime·startNano(SB), AX
-	SBBL	runtime·startNano+4(SB), DX
-	MOVL	AX, ret_lo+0(FP)
-	MOVL	DX, ret_hi+4(FP)
+GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
+
+TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8+(machTimebaseInfo__size+15)/16*16, SP
+	CALL	libc_mach_absolute_time(SB)
+	MOVL	16+(machTimebaseInfo__size+15)/16*16(SP), CX
+	MOVL	AX, 0(CX)
+	MOVL	DX, 4(CX)
+	MOVL	timebase<>+machTimebaseInfo_denom(SB), DI // atomic read
+	MOVL	timebase<>+machTimebaseInfo_numer(SB), SI
+	TESTL	DI, DI
+	JNE	initialized
+
+	LEAL	4(SP), AX
+	MOVL	AX, 0(SP)
+	CALL	libc_mach_timebase_info(SB)
+	MOVL	4+machTimebaseInfo_numer(SP), SI
+	MOVL	4+machTimebaseInfo_denom(SP), DI
+
+	MOVL	SI, timebase<>+machTimebaseInfo_numer(SB)
+	MOVL	DI, AX
+	XCHGL	AX, timebase<>+machTimebaseInfo_denom(SB) // atomic write
+	MOVL	16+(machTimebaseInfo__size+15)/16*16(SP), CX
+
+initialized:
+	MOVL	SI, 8(CX)
+	MOVL	DI, 12(CX)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
