@@ -783,7 +783,7 @@ func (ae *arrayEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		if i > 0 {
 			e.WriteByte(',')
 		}
-		ae.elemEnc(e, v.Index(i), opts.nest("["+strconv.Itoa(i)+"]"))
+		ae.elemEnc(e, v.Index(i), opts.nest(strconv.Itoa(i)))
 	}
 	e.WriteByte(']')
 }

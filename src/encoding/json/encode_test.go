@@ -1029,7 +1029,7 @@ func TestMarshalErrorMessage(t *testing.T) {
 		// checking slice indexes
 		{
 			in:   []time.Time{badTime},
-			want: "json: error calling MarshalJSON for [0] (type time.Time): Time.MarshalJSON: year outside of range [0,9999]",
+			want: "json: error calling MarshalJSON for 0 (type time.Time): Time.MarshalJSON: year outside of range [0,9999]",
 		},
 		// checking complex values (mixing slice, struct and map)
 		{
@@ -1046,7 +1046,7 @@ func TestMarshalErrorMessage(t *testing.T) {
 					},
 				},
 			},
-			want: "json: error calling MarshalJSON for [0].m.t (type time.Time): Time.MarshalJSON: year outside of range [0,9999]",
+			want: "json: error calling MarshalJSON for 0.m.t (type time.Time): Time.MarshalJSON: year outside of range [0,9999]",
 		},
 	}
 
