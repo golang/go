@@ -92,13 +92,17 @@ TEXT runtime·setitimer(SB), NOSPLIT, $0
 	SYSCALL
 	RET
 
-TEXT runtime·madvise(SB), NOSPLIT, $0
+TEXT runtime·madvise(SB), NOSPLIT, $0-20
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	flags+16(FP), DX		// arg 3 advice
-	MOVL	$(0x2000000+75), AX	// syscall entry madvise
-	SYSCALL
+	MOVL	flags+16(FP), DX	// arg 3 advice
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_madvise(SB)
 	// ignore failure - maybe pages are locked
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 // OS X comm page time offsets
@@ -345,31 +349,42 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	SYSCALL
 	INT $3 // not reached
 
-TEXT runtime·mmap(SB),NOSPLIT,$0
+TEXT runtime·mmap(SB),NOSPLIT,$0-48
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
 	MOVL	prot+16(FP), DX		// arg 3 prot
-	MOVL	flags+20(FP), R10		// arg 4 flags
+	MOVL	flags+20(FP), CX	// arg 4 flags
 	MOVL	fd+24(FP), R8		// arg 5 fid
 	MOVL	off+28(FP), R9		// arg 6 offset
-	MOVL	$(0x2000000+197), AX	// syscall entry
-	SYSCALL
-	JCC	ok
-	MOVQ	$0, p+32(FP)
-	MOVQ	AX, err+40(FP)
-	RET
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_mmap(SB)
+	XORL	DX, DX
+	CMPQ	AX, $-1
+	JNE	ok
+	CALL	libc_error(SB)
+	MOVQ	(AX), DX		// errno
+	XORL	AX, AX
 ok:
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVQ	AX, p+32(FP)
-	MOVQ	$0, err+40(FP)
+	MOVQ	DX, err+40(FP)
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$0
+TEXT runtime·munmap(SB),NOSPLIT,$0-16
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	$(0x2000000+73), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_munmap(SB)
+	TESTQ	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
@@ -381,22 +396,14 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$16
-	MOVL	$0, DX
-	MOVL	usec+0(FP), AX
-	MOVL	$1000000, CX
-	DIVL	CX
-	MOVQ	AX, 0(SP)  // sec
-	MOVL	DX, 8(SP)  // usec
-
-	// select(0, 0, 0, 0, &tv)
-	MOVL	$0, DI
-	MOVL	$0, SI
-	MOVL	$0, DX
-	MOVL	$0, R10
-	MOVQ	SP, R8
-	MOVL	$(0x2000000+93), AX
-	SYSCALL
+TEXT runtime·usleep(SB),NOSPLIT,$0-4
+	MOVL	usec+0(FP), DI
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_usleep(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.

@@ -72,29 +72,69 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
 	INT	$0x80
 	RET
 
-TEXT runtime·mmap(SB),NOSPLIT,$0
-	MOVL	$197, AX
-	INT	$0x80
-	JAE	ok
-	MOVL	$0, p+24(FP)
-	MOVL	AX, err+28(FP)
-	RET
+TEXT runtime·mmap(SB),NOSPLIT,$0-32
+	MOVL	addr+0(FP), AX		// arg 1 addr
+	MOVL	n+4(FP), CX		// arg 2 len
+	MOVL	prot+8(FP), DX		// arg 3 prot
+	MOVL	flags+12(FP), BX	// arg 4 flags
+	MOVL	fd+16(FP), DI		// arg 5 fid
+	MOVL	off+20(FP), SI		// arg 6 offset
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	ANDL	$~15, SP
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	MOVL	BX, 12(SP)
+	MOVL	DI, 16(SP)
+	MOVL	SI, 20(SP)
+	CALL	libc_mmap(SB)
+	XORL	DX, DX
+	CMPL	AX, $-1
+	JNE	ok
+	CALL	libc_error(SB)
+	MOVL	(AX), DX		// errno
+	XORL	AX, AX
 ok:
+	MOVL	BP, SP
+	POPL	BP
 	MOVL	AX, p+24(FP)
-	MOVL	$0, err+28(FP)
+	MOVL	DX, err+28(FP)
 	RET
 
-TEXT runtime·madvise(SB),NOSPLIT,$0
-	MOVL	$75, AX
-	INT	$0x80
+TEXT runtime·madvise(SB),NOSPLIT,$0-12
+	MOVL	addr+0(FP), AX		// arg 1 addr
+	MOVL	n+4(FP), CX		// arg 2 len
+	MOVL	flags+8(FP), DX		// arg 3 advice
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	ANDL	$~15, SP
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	CALL	libc_madvise(SB)
 	// ignore failure - maybe pages are locked
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$0
-	MOVL	$73, AX
-	INT	$0x80
-	JAE	2(PC)
+TEXT runtime·munmap(SB),NOSPLIT,$0-8
+	MOVL	addr+0(FP), AX		// arg 1 addr
+	MOVL	n+4(FP), CX		// arg 2 len
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	ANDL	$~15, SP
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	CALL	libc_munmap(SB)
+	TESTL	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
@@ -322,24 +362,16 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$32
-	MOVL	$0, DX
+TEXT runtime·usleep(SB),NOSPLIT,$0-4
 	MOVL	usec+0(FP), AX
-	MOVL	$1000000, CX
-	DIVL	CX
-	MOVL	AX, 24(SP)  // sec
-	MOVL	DX, 28(SP)  // usec
-
-	// select(0, 0, 0, 0, &tv)
-	MOVL	$0, 0(SP)  // "return PC" - ignored
-	MOVL	$0, 4(SP)
-	MOVL	$0, 8(SP)
-	MOVL	$0, 12(SP)
-	MOVL	$0, 16(SP)
-	LEAL	24(SP), AX
-	MOVL	AX, 20(SP)
-	MOVL	$93, AX
-	INT	$0x80
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$4, SP
+	ANDL	$~15, SP
+	MOVL	AX, 0(SP)
+	CALL	libc_usleep(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
 // Invoke Mach system call.
