@@ -258,3 +258,8 @@ type pthreadattr struct {
 	X__sig    int32
 	X__opaque [36]int8
 }
+
+type machTimebaseInfo struct {
+	numer uint32
+	denom uint32
+}

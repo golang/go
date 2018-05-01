@@ -7,8 +7,7 @@
 // +build !windows
 // +build !nacl
 // +build !js
-// +build !darwin !amd64
-// +build !darwin !386
+// +build !darwin
 
 package runtime
 
