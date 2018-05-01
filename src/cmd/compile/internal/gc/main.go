@@ -1115,10 +1115,21 @@ func importfile(f *Val) *types.Pkg {
 			errorexit()
 		}
 
+		// New indexed format is distinguished by an 'i' byte,
+		// whereas old export format always starts with 'c', 'd', or 'v'.
 		if c == 'i' {
+			if !flagiexport {
+				yyerror("import %s: cannot import package compiled with -iexport=true", file)
+				errorexit()
+			}
+
 			iimport(importpkg, imp)
 		} else {
-			// Old export format always starts with 'c', 'd', or 'v'.
+			if flagiexport {
+				yyerror("import %s: cannot import package compiled with -iexport=false", file)
+				errorexit()
+			}
+
 			imp.UnreadByte()
 			Import(importpkg, imp.Reader)
 		}
