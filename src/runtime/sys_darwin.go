@@ -124,6 +124,28 @@ func open(name *byte, mode, perm int32) (ret int32) {
 }
 func open_trampoline()
 
+//go:nosplit
+//go:cgo_unsafe_args
+func nanotime() int64 {
+	var r struct {
+		t            int64  // raw timer
+		numer, denom uint32 // conversion factors. nanoseconds = t * numer / denom.
+	}
+	asmcgocall(unsafe.Pointer(funcPC(nanotime_trampoline)), unsafe.Pointer(&r))
+	// Note: Apple seems unconcerned about overflow here. See
+	// https://developer.apple.com/library/content/qa/qa1398/_index.html
+	// Note also, numer == denom == 1 is common.
+	t := r.t
+	if r.numer != 1 {
+		t *= int64(r.numer)
+	}
+	if r.denom != 1 {
+		t /= int64(r.denom)
+	}
+	return t
+}
+func nanotime_trampoline()
+
 // Not used on Darwin, but must be defined.
 func exitThread(wait *uint32) {
 }
@@ -149,6 +171,9 @@ func exitThread(wait *uint32) {
 //go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
