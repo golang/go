@@ -695,7 +695,7 @@ func (me *mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	for i, v := range keys {
 		sv[i].v = v
 		if err := sv[i].resolve(); err != nil {
-			e.error(&MarshalerError{v.Type(), v, opts.nest(v.String()).path, err})
+			e.error(&MarshalerError{v.Type(), v, append(opts.path, v.String()), err})
 		}
 	}
 	sort.Slice(sv, func(i, j int) bool { return sv[i].s < sv[j].s })
