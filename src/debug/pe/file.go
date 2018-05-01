@@ -260,19 +260,45 @@ type ImportDirectory struct {
 // It does not return weak symbols.
 func (f *File) ImportedSymbols() ([]string, error) {
 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
-	ds := f.Section(".idata")
+
+	var idd DataDirectory
+	if pe64 {
+		idd = f.OptionalHeader.(*OptionalHeader64).DataDirectory[1]
+	} else {
+		idd = f.OptionalHeader.(*OptionalHeader32).DataDirectory[1]
+	}
+
+	// figure out which section contains the import directory table
+	var ds *Section
+	ds = nil
+	for _, s := range f.Sections {
+		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress + s.VirtualSize {
+			ds = s
+			break
+		}
+	}
+
+	// didn't find a section, so no import libraries were found
 	if ds == nil {
-		// not dynamic, so no libraries
 		return nil, nil
 	}
+
+	// no data in the section, so nothing here either
 	d, err := ds.Data()
 	if err != nil {
 		return nil, err
 	}
+
+	// seek to the virtual address specified in the import data directory
+	d = d[idd.VirtualAddress - ds.VirtualAddress:]
+
+	// start decoding the import directory
 	var ida []ImportDirectory
 	for len(d) > 0 {
 		var dt ImportDirectory
 		dt.OriginalFirstThunk = binary.LittleEndian.Uint32(d[0:4])
+		dt.TimeDateStamp = binary.LittleEndian.Uint32(d[4:8])
+		dt.ForwarderChain = binary.LittleEndian.Uint32(d[8:12])
 		dt.Name = binary.LittleEndian.Uint32(d[12:16])
 		dt.FirstThunk = binary.LittleEndian.Uint32(d[16:20])
 		d = d[20:]
