@@ -86,6 +86,12 @@ func pthread_self_trampoline() pthread
 //go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
 
+//go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
+
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
 //go:cgo_import_dynamic _ _ "/usr/lib/libSystem.B.dylib"
