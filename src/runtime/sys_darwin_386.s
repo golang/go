@@ -29,35 +29,67 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·open(SB),NOSPLIT,$0
-	MOVL	$5, AX
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$-1, AX
+TEXT runtime·open(SB),NOSPLIT,$0-16
+	MOVL	name+0(FP), AX		// arg 1 name
+	MOVL	mode+4(FP), CX		// arg 2 mode
+	MOVL	perm+8(FP), DX		// arg 3 perm
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	ANDL	$~15, SP
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	CALL	libc_open(SB)
+	MOVL	BP, SP
+	POPL	BP
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$0
-	MOVL	$6, AX
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$-1, AX
+TEXT runtime·closefd(SB),NOSPLIT,$0-8
+	MOVL	fd+0(FP), AX		// arg 1 fd
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$4, SP
+	ANDL	$~15, SP
+	MOVL	AX, 0(SP)
+	CALL	libc_close(SB)
+	MOVL	BP, SP
+	POPL	BP
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$0
-	MOVL	$3, AX
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$-1, AX
+TEXT runtime·read(SB),NOSPLIT,$0-16
+	MOVL	fd+0(FP), AX		// arg 1 fd
+	MOVL	p+4(FP), CX		// arg 2 buf
+	MOVL	n+8(FP), DX		// arg 3 count
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	ANDL	$~15, SP
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	CALL	libc_read(SB)
+	MOVL	BP, SP
+	POPL	BP
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
-	MOVL	$4, AX
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$-1, AX
+TEXT runtime·write(SB),NOSPLIT,$0-16
+	MOVL	fd+0(FP), AX		// arg 1 fd
+	MOVL	p+4(FP), CX		// arg 2 buf
+	MOVL	n+8(FP), DX		// arg 3 count
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$12, SP
+	ANDL	$~15, SP
+	MOVL	AX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	CALL	libc_write(SB)
+	MOVL	BP, SP
+	POPL	BP
 	MOVL	AX, ret+12(FP)
 	RET
 

@@ -86,6 +86,11 @@ func pthread_self_trampoline() pthread
 //go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
 
+//go:cgo_import_dynamic libc_open open "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_close close "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_read read "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
+
 //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
