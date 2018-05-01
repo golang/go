@@ -72,18 +72,12 @@ func IsARM64STLXR(op obj.As) bool {
 	switch op {
 	case arm64.ASTLXRB, arm64.ASTLXRH, arm64.ASTLXRW, arm64.ASTLXR,
 		arm64.ASTXRB, arm64.ASTXRH, arm64.ASTXRW, arm64.ASTXR,
-		arm64.ASTXP, arm64.ASTXPW, arm64.ASTLXP, arm64.ASTLXPW:
-		return true
-	}
-	return false
-}
-
-// IsARM64SWP reports whether the op (as defined by an arm64.A*
-// constant) is one of the SWP-like instructions that require special
-// handling.
-func IsARM64SWP(op obj.As) bool {
-	switch op {
-	case arm64.ASWPD, arm64.ASWPW, arm64.ASWPH, arm64.ASWPB:
+		arm64.ASTXP, arm64.ASTXPW, arm64.ASTLXP, arm64.ASTLXPW,
+		arm64.ASWPB, arm64.ASWPH, arm64.ASWPW, arm64.ASWPD,
+		arm64.ALDADDB, arm64.ALDADDH, arm64.ALDADDW, arm64.ALDADDD,
+		arm64.ALDANDB, arm64.ALDANDH, arm64.ALDANDW, arm64.ALDANDD,
+		arm64.ALDEORB, arm64.ALDEORH, arm64.ALDEORW, arm64.ALDEORD,
+		arm64.ALDORB, arm64.ALDORH, arm64.ALDORW, arm64.ALDORD:
 		return true
 	}
 	return false
