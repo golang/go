@@ -377,15 +377,25 @@ func findDeviceAppPath(bundleID string) (string, error) {
 }
 
 func install(appdir string) error {
-	cmd := idevCmd(exec.Command(
-		"ideviceinstaller",
-		"-i", appdir,
-	))
-	if out, err := cmd.CombinedOutput(); err != nil {
-		os.Stderr.Write(out)
-		return fmt.Errorf("ideviceinstaller -i %q: %v", appdir, err)
+	attempt := 0
+	for {
+		cmd := idevCmd(exec.Command(
+			"ideviceinstaller",
+			"-i", appdir,
+		))
+		if out, err := cmd.CombinedOutput(); err != nil {
+			// Sometimes, installing the app fails for some reason.
+			// Give the device a few seconds and try again.
+			if attempt < 5 {
+				time.Sleep(5 * time.Second)
+				attempt++
+				continue
+			}
+			os.Stderr.Write(out)
+			return fmt.Errorf("ideviceinstaller -i %q: %v (%d attempts)", appdir, err, attempt)
+		}
+		return nil
 	}
-	return nil
 }
 
 func idevCmd(cmd *exec.Cmd) *exec.Cmd {
