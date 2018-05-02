@@ -975,7 +975,11 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		if InstallTargetDir(p) == ToTool {
 			// This is for 'go tool'.
 			// Override all the usual logic and force it into the tool directory.
-			p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
+			if cfg.BuildToolchainName == "gccgo" {
+				p.Target = filepath.Join(base.ToolDir, elem)
+			} else {
+				p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
+			}
 		}
 		if p.Target != "" && cfg.BuildContext.GOOS == "windows" {
 			p.Target += ".exe"
