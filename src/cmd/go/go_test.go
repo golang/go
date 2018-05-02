@@ -5037,7 +5037,8 @@ func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
 }
 
 func TestUpxCompression(t *testing.T) {
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+	if runtime.GOOS != "linux" ||
+		(runtime.GOARCH != "amd64" && runtime.GOARCH != "386") {
 		t.Skipf("skipping upx test on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
