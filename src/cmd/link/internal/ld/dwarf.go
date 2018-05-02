@@ -1249,9 +1249,15 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 		pciterinit(ctxt, &pcline, &s.FuncInfo.Pcline)
 		pciterinit(ctxt, &pcstmt, &pctostmtData)
 
+		if pcstmt.done != 0 {
+			// Assembly files lack a pcstmt section, we assume that every instruction
+			// is a valid statement.
+			pcstmt.value = 1
+		}
+
 		var thispc uint32
 		// TODO this loop looks like it could exit with work remaining.
-		for pcfile.done == 0 && pcline.done == 0 && pcstmt.done == 0 {
+		for pcfile.done == 0 && pcline.done == 0 {
 			// Only changed if it advanced
 			if int32(file) != pcfile.value {
 				ls.AddUint8(dwarf.DW_LNS_set_file)
@@ -1280,14 +1286,14 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 			if pcline.nextpc < thispc {
 				thispc = pcline.nextpc
 			}
-			if pcstmt.nextpc < thispc {
+			if pcstmt.done == 0 && pcstmt.nextpc < thispc {
 				thispc = pcstmt.nextpc
 			}
 
 			if pcfile.nextpc == thispc {
 				pciternext(&pcfile)
 			}
-			if pcstmt.nextpc == thispc {
+			if pcstmt.done == 0 && pcstmt.nextpc == thispc {
 				pciternext(&pcstmt)
 			}
 			if pcline.nextpc == thispc {
