@@ -86,14 +86,18 @@ func main() {
 		bundleID = parts[1]
 	}
 
-	os.Exit(runMain())
+	exitCode, err := runMain()
+	if err != nil {
+		log.Fatalf("%v\n", err)
+	}
+	os.Exit(exitCode)
 }
 
-func runMain() int {
+func runMain() (int, error) {
 	var err error
 	tmpdir, err = ioutil.TempDir("", "go_darwin_arm_exec_")
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 	if !debug {
 		defer os.RemoveAll(tmpdir)
@@ -103,7 +107,7 @@ func runMain() int {
 	os.RemoveAll(appdir)
 
 	if err := assembleApp(appdir, os.Args[1]); err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	// This wrapper uses complicated machinery to run iOS binaries. It
@@ -115,28 +119,28 @@ func runMain() int {
 	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec-"+deviceID+".lock")
 	lock, err = os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	if err := install(appdir); err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	deviceApp, err := findDeviceAppPath(bundleID)
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	if err := mountDevImage(); err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	closer, err := startDebugBridge()
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 	defer closer()
 
@@ -144,13 +148,12 @@ func runMain() int {
 		// If the lldb driver completed with an exit code, use that.
 		if err, ok := err.(*exec.ExitError); ok {
 			if ws, ok := err.Sys().(interface{ ExitStatus() int }); ok {
-				return ws.ExitStatus()
+				return ws.ExitStatus(), nil
 			}
 		}
-		fmt.Fprintf(os.Stderr, "go_darwin_arm_exec: %v\n", err)
-		return 1
+		return 1, err
 	}
-	return 0
+	return 0, nil
 }
 
 func getenv(envvar string) string {
