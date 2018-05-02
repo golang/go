@@ -403,6 +403,15 @@ func run(appdir, deviceapp string, args []string) error {
 		deviceapp,
 	)
 	lldb.Args = append(lldb.Args, args...)
+	var env []string
+	for _, e := range os.Environ() {
+		// Don't override TMPDIR on the device.
+		if strings.HasPrefix(e, "TMPDIR=") {
+			continue
+		}
+		env = append(env, e)
+	}
+	lldb.Env = env
 	lldb.Stdin = strings.NewReader(lldbDriver)
 	lldb.Stdout = os.Stdout
 	lldb.Stderr = os.Stderr
