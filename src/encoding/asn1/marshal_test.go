@@ -83,6 +83,8 @@ type applicationTest struct {
 type privateTest struct {
 	A int `asn1:"private,tag:0"`
 	B int `asn1:"private,tag:1,explicit"`
+	C int `asn1:"private,tag:31"`  // tag size should be 2 octet
+	D int `asn1:"private,tag:128"` // tag size should be 3 octet
 }
 
 type numericStringTest struct {
@@ -174,7 +176,7 @@ var marshalTests = []marshalTest{
 	{defaultTest{1}, "3000"},
 	{defaultTest{2}, "3003020102"},
 	{applicationTest{1, 2}, "30084001016103020102"},
-	{privateTest{1, 2}, "3008c00101e103020102"},
+	{privateTest{1, 2, 3, 4}, "3011c00101e103020102df1f0103df81000104"},
 	{numericStringTest{"1 9"}, "30051203312039"},
 }
 
