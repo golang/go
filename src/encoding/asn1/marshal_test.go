@@ -80,6 +80,11 @@ type applicationTest struct {
 	B int `asn1:"application,tag:1,explicit"`
 }
 
+type privateTest struct {
+	A int `asn1:"private,tag:0"`
+	B int `asn1:"private,tag:1,explicit"`
+}
+
 type numericStringTest struct {
 	A string `asn1:"numeric"`
 }
@@ -169,6 +174,7 @@ var marshalTests = []marshalTest{
 	{defaultTest{1}, "3000"},
 	{defaultTest{2}, "3003020102"},
 	{applicationTest{1, 2}, "30084001016103020102"},
+	{privateTest{1, 2}, "3008c00101e103020102"},
 	{numericStringTest{"1 9"}, "30051203312039"},
 }
 
@@ -195,6 +201,7 @@ type marshalWithParamsTest struct {
 var marshalWithParamsTests = []marshalWithParamsTest{
 	{intStruct{10}, "set", "310302010a"},
 	{intStruct{10}, "application", "600302010a"},
+	{intStruct{10}, "private", "e00302010a"},
 }
 
 func TestMarshalWithParams(t *testing.T) {
