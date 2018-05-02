@@ -2830,10 +2830,11 @@ func init() {
 		},
 		all...)
 
-	addF("runtime", "getcallerpc",
+	add("runtime", "getcallerpc",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
-		}, sys.AMD64, sys.I386, sys.ARM64)
+		},
+		all...)
 
 	add("runtime", "getcallersp",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {

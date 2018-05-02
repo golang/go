@@ -760,11 +760,6 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	g, R0
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	0(R13), R0		// LR saved by caller
-	MOVW	R0, ret+0(FP)
-	RET
-
 TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 

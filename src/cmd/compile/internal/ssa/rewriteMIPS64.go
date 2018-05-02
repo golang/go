@@ -169,6 +169,8 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpGeq8_0(v)
 	case OpGeq8U:
 		return rewriteValueMIPS64_OpGeq8U_0(v)
+	case OpGetCallerPC:
+		return rewriteValueMIPS64_OpGetCallerPC_0(v)
 	case OpGetCallerSP:
 		return rewriteValueMIPS64_OpGetCallerSP_0(v)
 	case OpGetClosurePtr:
@@ -1928,6 +1930,15 @@ func rewriteValueMIPS64_OpGeq8U_0(v *Value) bool {
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpGetCallerPC_0(v *Value) bool {
+	// match: (GetCallerPC)
+	// cond:
+	// result: (LoweredGetCallerPC)
+	for {
+		v.reset(OpMIPS64LoweredGetCallerPC)
 		return true
 	}
 }

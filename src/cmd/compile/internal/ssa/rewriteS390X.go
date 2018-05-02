@@ -187,6 +187,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpGeq8_0(v)
 	case OpGeq8U:
 		return rewriteValueS390X_OpGeq8U_0(v)
+	case OpGetCallerPC:
+		return rewriteValueS390X_OpGetCallerPC_0(v)
 	case OpGetCallerSP:
 		return rewriteValueS390X_OpGetCallerSP_0(v)
 	case OpGetClosurePtr:
@@ -2274,6 +2276,15 @@ func rewriteValueS390X_OpGeq8U_0(v *Value) bool {
 		v4.AddArg(y)
 		v2.AddArg(v4)
 		v.AddArg(v2)
+		return true
+	}
+}
+func rewriteValueS390X_OpGetCallerPC_0(v *Value) bool {
+	// match: (GetCallerPC)
+	// cond:
+	// result: (LoweredGetCallerPC)
+	for {
+		v.reset(OpS390XLoweredGetCallerPC)
 		return true
 	}
 }

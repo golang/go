@@ -431,6 +431,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
+	case ssa.OpPPC64LoweredGetCallerPC:
+		p := s.Prog(obj.AGETCALLERPC)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpPPC64LoweredRound32F, ssa.OpPPC64LoweredRound64F:
 		// input is already rounded
 

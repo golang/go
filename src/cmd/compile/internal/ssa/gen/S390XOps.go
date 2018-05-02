@@ -451,6 +451,11 @@ func init() {
 		// arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		// LoweredGetCallerSP returns the SP of the caller of the current function.
 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+		// I.e., if f calls g "calls" getcallerpc,
+		// the result should be the PC within f that g will return to.
+		// See runtime/stubs.go for a more detailed discussion.
+		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{ptrsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
 		// Round ops to block fused-multiply-add extraction.
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},

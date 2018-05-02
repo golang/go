@@ -191,6 +191,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpGeq8_0(v)
 	case OpGeq8U:
 		return rewriteValuePPC64_OpGeq8U_0(v)
+	case OpGetCallerPC:
+		return rewriteValuePPC64_OpGetCallerPC_0(v)
 	case OpGetCallerSP:
 		return rewriteValuePPC64_OpGetCallerSP_0(v)
 	case OpGetClosurePtr:
@@ -2107,6 +2109,15 @@ func rewriteValuePPC64_OpGeq8U_0(v *Value) bool {
 		v2.AddArg(y)
 		v0.AddArg(v2)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpGetCallerPC_0(v *Value) bool {
+	// match: (GetCallerPC)
+	// cond:
+	// result: (LoweredGetCallerPC)
+	for {
+		v.reset(OpPPC64LoweredGetCallerPC)
 		return true
 	}
 }

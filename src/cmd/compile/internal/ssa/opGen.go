@@ -1019,6 +1019,7 @@ const (
 	OpARMLoweredMove
 	OpARMLoweredGetClosurePtr
 	OpARMLoweredGetCallerSP
+	OpARMLoweredGetCallerPC
 	OpARMFlagEQ
 	OpARMFlagLT_ULT
 	OpARMFlagLT_UGT
@@ -1374,6 +1375,7 @@ const (
 	OpMIPSFPFlagFalse
 	OpMIPSLoweredGetClosurePtr
 	OpMIPSLoweredGetCallerSP
+	OpMIPSLoweredGetCallerPC
 	OpMIPSLoweredWB
 
 	OpMIPS64ADDV
@@ -1486,6 +1488,7 @@ const (
 	OpMIPS64FPFlagFalse
 	OpMIPS64LoweredGetClosurePtr
 	OpMIPS64LoweredGetCallerSP
+	OpMIPS64LoweredGetCallerPC
 	OpMIPS64LoweredWB
 
 	OpPPC64ADD
@@ -1614,6 +1617,7 @@ const (
 	OpPPC64FGreaterEqual
 	OpPPC64LoweredGetClosurePtr
 	OpPPC64LoweredGetCallerSP
+	OpPPC64LoweredGetCallerPC
 	OpPPC64LoweredNilCheck
 	OpPPC64LoweredRound32F
 	OpPPC64LoweredRound64F
@@ -1826,6 +1830,7 @@ const (
 	OpS390XLoweredGetG
 	OpS390XLoweredGetClosurePtr
 	OpS390XLoweredGetCallerSP
+	OpS390XLoweredGetCallerPC
 	OpS390XLoweredNilCheck
 	OpS390XLoweredRound32F
 	OpS390XLoweredRound64F
@@ -13315,6 +13320,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:              "LoweredGetCallerPC",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
 		name:   "FlagEQ",
 		argLen: 0,
 		reg:    regInfo{},
@@ -17996,6 +18011,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:              "LoweredGetCallerPC",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+			},
+		},
+	},
+	{
 		name:         "LoweredWB",
 		auxType:      auxSym,
 		argLen:       3,
@@ -19507,6 +19532,16 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 167772158}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+			},
+		},
+	},
+	{
+		name:              "LoweredGetCallerPC",
 		argLen:            0,
 		rematerializeable: true,
 		reg: regInfo{
@@ -21195,6 +21230,16 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:              "LoweredGetCallerPC",
 		argLen:            0,
 		rematerializeable: true,
 		reg: regInfo{
@@ -24306,6 +24351,16 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:              "LoweredGetCallerPC",
+		argLen:            0,
+		rematerializeable: true,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
 		},
 	},
