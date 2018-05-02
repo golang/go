@@ -183,7 +183,7 @@ func TestMain(m *testing.M) {
 		case "linux", "darwin", "freebsd", "windows":
 			// The race detector doesn't work on Alpine Linux:
 			// golang.org/issue/14481
-			canRace = canCgo && runtime.GOARCH == "amd64" && !isAlpineLinux()
+			canRace = canCgo && runtime.GOARCH == "amd64" && !isAlpineLinux() && runtime.Compiler != "gccgo"
 		}
 	}
 	// Don't let these environment variables confuse the test.
@@ -234,6 +234,13 @@ type testgoData struct {
 	ran            bool
 	inParallel     bool
 	stdout, stderr bytes.Buffer
+}
+
+// skipIfGccgo skips the test if using gccgo.
+func skipIfGccgo(t *testing.T, msg string) {
+	if runtime.Compiler == "gccgo" {
+		t.Skipf("skipping test not supported on gccgo: %s", msg)
+	}
 }
 
 // testgo sets up for a test that runs testgo.
@@ -804,6 +811,7 @@ func TestFileLineInErrorMessages(t *testing.T) {
 }
 
 func TestProgramNameInCrashMessages(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not use cmd/link")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -925,6 +933,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 }
 
 func TestGoListStandard(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not have GOROOT")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1238,6 +1247,7 @@ func TestBadImportsGoInstallShouldFail(t *testing.T) {
 }
 
 func TestInternalPackagesInGOROOTAreRespected(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not have GOROOT")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.runFail("build", "-v", "./testdata/testinternal")
@@ -1640,8 +1650,8 @@ func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg.tempFile("src/p1/p1.go", "package main\n")
 	tg.tempFile("src/p1/p1_test.go", "package main\nimport \"testing\"\nfunc Test(t *testing.T){}\n")
 	tg.run("test", "-c", "-n", "p1")
-	tg.grepBothNot(`[\\/]compile.* -p main.*p1\.go`, "should not have run compile -p main p1.go")
-	tg.grepStderr(`[\\/]compile.* -p p1.*p1\.go`, "should have run compile -p p1 p1.go")
+	tg.grepBothNot(`([\\/]compile|gccgo).* (-p main|-fgo-pkgpath=main).*p1\.go`, "should not have run compile -p main p1.go")
+	tg.grepStderr(`([\\/]compile|gccgo).* (-p p1|-fgo-pkgpath=p1).*p1\.go`, "should have run compile -p p1 p1.go")
 }
 
 // The runtime version string takes one of two forms:
@@ -1652,6 +1662,7 @@ var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 
 // Issue 12690
 func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not have GOROOT")
 	tg := testgo(t)
 	defer tg.cleanup()
 
@@ -1863,6 +1874,7 @@ func TestGoListStdDoesNotIncludeCommands(t *testing.T) {
 }
 
 func TestGoListCmdOnlyShowsCommands(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not have GOROOT")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2129,6 +2141,7 @@ func TestGoGetIntoGOROOT(t *testing.T) {
 }
 
 func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not support -ldflags -X")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2143,6 +2156,7 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 }
 
 func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2165,6 +2179,7 @@ func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
 }
 
 func TestGoTestMutexprofileLeavesBinaryBehind(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2176,6 +2191,7 @@ func TestGoTestMutexprofileLeavesBinaryBehind(t *testing.T) {
 }
 
 func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2197,6 +2213,7 @@ func TestGoBuildNonMain(t *testing.T) {
 }
 
 func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2217,6 +2234,7 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
 }
 
 func TestGoTestDashIDashOWritesBinary(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2440,6 +2458,7 @@ func TestIssue11307(t *testing.T) {
 }
 
 func TestShadowingLogic(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tg := testgo(t)
 	defer tg.cleanup()
 	pwd := tg.pwd()
@@ -2926,6 +2945,7 @@ func main() {
 // "go test -c" should also appear to write a new binary every time,
 // even if it's really just updating the mtime on an existing up-to-date binary.
 func TestIssue6480(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -3680,6 +3700,7 @@ func TestGoRunDirs(t *testing.T) {
 }
 
 func TestGoInstallPkgdir(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 
 	tg := testgo(t)
@@ -3927,6 +3948,7 @@ func TestIssue12096(t *testing.T) {
 }
 
 func TestGoBuildOutput(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -4434,6 +4456,7 @@ func TestSleep(t *testing.T) { time.Sleep(time.Second) }`)
 
 func TestLinkXImportPathEscape(t *testing.T) {
 	// golang.org/issue/16710
+	skipIfGccgo(t, "gccgo does not support -ldflags -X")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -4463,6 +4486,7 @@ func TestLdBindNow(t *testing.T) {
 // Issue 18225.
 // This is really a cmd/asm issue but this is a convenient place to test it.
 func TestConcurrentAsm(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not use cmd/asm")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -4528,6 +4552,7 @@ func TestFFLAGS(t *testing.T) {
 // Issue 19198.
 // This is really a cmd/link issue but this is a convenient place to test it.
 func TestDuplicateGlobalAsmSymbols(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not use cmd/asm")
 	tooSlow(t)
 	if runtime.GOARCH != "386" && runtime.GOARCH != "amd64" {
 		t.Skipf("skipping test on %s", runtime.GOARCH)
@@ -4571,6 +4596,7 @@ func main() {
 }
 
 func TestBuildTagsNoComma(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
@@ -4601,6 +4627,7 @@ func copyFile(src, dst string, perm os.FileMode) error {
 }
 
 func TestExecutableGOROOT(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no GOROOT")
 	if runtime.GOOS == "openbsd" {
 		t.Skipf("test case does not work on %s, missing os.Executable", runtime.GOOS)
 	}
@@ -4707,6 +4734,7 @@ func TestExecutableGOROOT(t *testing.T) {
 }
 
 func TestNeedVersion(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not use cmd/compile")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -4719,6 +4747,7 @@ func TestNeedVersion(t *testing.T) {
 
 // Test that user can override default code generation flags.
 func TestUserOverrideFlags(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not use -gcflags")
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -4907,9 +4936,6 @@ func TestBuildmodePIE(t *testing.T) {
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skipf("skipping in -short mode on non-builder")
 	}
-	if runtime.Compiler == "gccgo" {
-		t.Skipf("skipping test because buildmode=pie is not supported on gccgo")
-	}
 
 	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 	switch platform {
@@ -5031,6 +5057,7 @@ func TestParallelNumber(t *testing.T) {
 }
 
 func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
+	skipIfGccgo(t, "gccgo assumes cross-compilation is always possible")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
@@ -5295,27 +5322,29 @@ func TestTestCache(t *testing.T) {
 	tg.setenv("GOPATH", tg.tempdir)
 	tg.setenv("GOCACHE", tg.path("cache"))
 
-	// timeout here should not affect result being cached
-	// or being retrieved later.
-	tg.run("test", "-x", "-timeout=10s", "errors")
-	tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler")
-	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
-	tg.grepStderr(`errors\.test`, "did not run test")
+	if runtime.Compiler != "gccgo" {
+		// timeout here should not affect result being cached
+		// or being retrieved later.
+		tg.run("test", "-x", "-timeout=10s", "errors")
+		tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler")
+		tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
+		tg.grepStderr(`errors\.test`, "did not run test")
 
-	tg.run("test", "-x", "errors")
-	tg.grepStdout(`ok  \terrors\t\(cached\)`, "did not report cached result")
-	tg.grepStderrNot(`[\\/]compile|gccgo`, "incorrectly ran compiler")
-	tg.grepStderrNot(`[\\/]link|gccgo`, "incorrectly ran linker")
-	tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
-	tg.grepStderrNot("DO NOT USE", "poisoned action status leaked")
+		tg.run("test", "-x", "errors")
+		tg.grepStdout(`ok  \terrors\t\(cached\)`, "did not report cached result")
+		tg.grepStderrNot(`[\\/]compile|gccgo`, "incorrectly ran compiler")
+		tg.grepStderrNot(`[\\/]link|gccgo`, "incorrectly ran linker")
+		tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
+		tg.grepStderrNot("DO NOT USE", "poisoned action status leaked")
 
-	// Even very low timeouts do not disqualify cached entries.
-	tg.run("test", "-timeout=1ns", "-x", "errors")
-	tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
+		// Even very low timeouts do not disqualify cached entries.
+		tg.run("test", "-timeout=1ns", "-x", "errors")
+		tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
 
-	tg.run("clean", "-testcache")
-	tg.run("test", "-x", "errors")
-	tg.grepStderr(`errors\.test`, "did not run test")
+		tg.run("clean", "-testcache")
+		tg.run("test", "-x", "errors")
+		tg.grepStderr(`errors\.test`, "did not run test")
+	}
 
 	// The -p=1 in the commands below just makes the -x output easier to read.
 
@@ -5336,8 +5365,8 @@ func TestTestCache(t *testing.T) {
 	tg.grepStdout(`ok  \tt/t2\t\(cached\)`, "did not cache t2")
 	tg.grepStdout(`ok  \tt/t3\t\(cached\)`, "did not cache t3")
 	tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t4")
-	tg.grepStderrNot(`[\\/]compile|gccgo`, "incorrectly ran compiler")
-	tg.grepStderrNot(`[\\/]link|gccgo`, "incorrectly ran linker")
+	tg.grepStderrNot(`[\\/](compile|gccgo) `, "incorrectly ran compiler")
+	tg.grepStderrNot(`[\\/](link|gccgo) `, "incorrectly ran linker")
 	tg.grepStderrNot(`p[0-9]\.test`, "incorrectly ran test")
 
 	t.Log("\n\nCOMMENT\n\n")
@@ -5350,8 +5379,8 @@ func TestTestCache(t *testing.T) {
 	tg.grepStdout(`ok  \tt/t2\t\(cached\)`, "did not cache t2")
 	tg.grepStdout(`ok  \tt/t3\t\(cached\)`, "did not cache t3")
 	tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t4")
-	tg.grepStderrNot(`([\\/]compile|gccgo).*t[0-9]_test\.go`, "incorrectly ran compiler")
-	tg.grepStderrNot(`[\\/]link|gccgo`, "incorrectly ran linker")
+	tg.grepStderrNot(`([\\/](compile|gccgo) ).*t[0-9]_test\.go`, "incorrectly ran compiler")
+	tg.grepStderrNot(`[\\/](link|gccgo) `, "incorrectly ran linker")
 	tg.grepStderrNot(`t[0-9]\.test.*test\.short`, "incorrectly ran test")
 
 	t.Log("\n\nCHANGE\n\n")
@@ -5373,7 +5402,11 @@ func TestTestCache(t *testing.T) {
 	// so the test should not have been rerun.
 	tg.grepStderr(`([\\/]compile|gccgo).*t2_test.go`, "did not recompile t2")
 	tg.grepStderr(`([\\/]link|gccgo).*t2\.test`, "did not relink t2_test")
-	tg.grepStdout(`ok  \tt/t2\t\(cached\)`, "did not cache t/t2")
+	// This check does not currently work with gccgo, as garbage
+	// collection of unused variables is not turned on by default.
+	if runtime.Compiler != "gccgo" {
+		tg.grepStdout(`ok  \tt/t2\t\(cached\)`, "did not cache t/t2")
+	}
 
 	// t3 imports p1, and changing X changes t3's test binary.
 	tg.grepStderr(`([\\/]compile|gccgo).*t3_test.go`, "did not recompile t3")
@@ -5385,7 +5418,11 @@ func TestTestCache(t *testing.T) {
 	// and not rerun.
 	tg.grepStderrNot(`([\\/]compile|gccgo).*t4_test.go`, "incorrectly recompiled t4")
 	tg.grepStderr(`([\\/]link|gccgo).*t4\.test`, "did not relink t4_test")
-	tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t/t4")
+	// This check does not currently work with gccgo, as garbage
+	// collection of unused variables is not turned on by default.
+	if runtime.Compiler != "gccgo" {
+		tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t/t4")
+	}
 }
 
 func TestTestCacheInputs(t *testing.T) {
@@ -5669,6 +5706,7 @@ func TestRelativePkgdir(t *testing.T) {
 }
 
 func TestGcflagsPatterns(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", "")
@@ -5707,6 +5745,7 @@ func TestGoTestMinusN(t *testing.T) {
 }
 
 func TestGoTestJSON(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not have standard packages")
 	tooSlow(t)
 
 	tg := testgo(t)
@@ -5909,7 +5948,11 @@ func TestBadCommandLines(t *testing.T) {
 	tg.grepStderr("invalid input file name \"-y.go\"", "did not reject -y.go")
 	tg.must(os.Remove(tg.path("src/x/-y.go")))
 
-	tg.runFail("build", "-gcflags=all=@x", "x")
+	if runtime.Compiler == "gccgo" {
+		tg.runFail("build", "-gccgoflags=all=@x", "x")
+	} else {
+		tg.runFail("build", "-gcflags=all=@x", "x")
+	}
 	tg.grepStderr("invalid command-line argument @x in command", "did not reject @x during exec")
 
 	tg.tempFile("src/@x/x.go", "package x\n")
@@ -5943,14 +5986,16 @@ func TestBadCgoDirectives(t *testing.T) {
 	tg.tempFile("src/x/x.go", "package x\n")
 	tg.setenv("GOPATH", tg.path("."))
 
-	tg.tempFile("src/x/x.go", `package x
+	if runtime.Compiler == "gc" {
+		tg.tempFile("src/x/x.go", `package x
 
-		//go:cgo_ldflag "-fplugin=foo.so"
+			//go:cgo_ldflag "-fplugin=foo.so"
 
-		import "C"
-	`)
-	tg.runFail("build", "x")
-	tg.grepStderr("//go:cgo_ldflag .* only allowed in cgo-generated code", "did not reject //go:cgo_ldflag directive")
+			import "C"
+		`)
+		tg.runFail("build", "x")
+		tg.grepStderr("//go:cgo_ldflag .* only allowed in cgo-generated code", "did not reject //go:cgo_ldflag directive")
+	}
 
 	tg.must(os.Remove(tg.path("src/x/x.go")))
 	tg.runFail("build", "x")
@@ -5964,11 +6009,14 @@ func TestBadCgoDirectives(t *testing.T) {
 	tg.runFail("build", "x")
 	tg.grepStderr("no Go files", "did not report missing source code") // _* files are ignored...
 
-	tg.runFail("build", tg.path("src/x/_cgo_yy.go")) // ... but if forced, the comment is rejected
-	// Actually, today there is a separate issue that _ files named
-	// on the command-line are ignored. Once that is fixed,
-	// we want to see the cgo_ldflag error.
-	tg.grepStderr("//go:cgo_ldflag only allowed in cgo-generated code|no Go files", "did not reject //go:cgo_ldflag directive")
+	if runtime.Compiler == "gc" {
+		tg.runFail("build", tg.path("src/x/_cgo_yy.go")) // ... but if forced, the comment is rejected
+		// Actually, today there is a separate issue that _ files named
+		// on the command-line are ignored. Once that is fixed,
+		// we want to see the cgo_ldflag error.
+		tg.grepStderr("//go:cgo_ldflag only allowed in cgo-generated code|no Go files", "did not reject //go:cgo_ldflag directive")
+	}
+
 	tg.must(os.Remove(tg.path("src/x/_cgo_yy.go")))
 
 	tg.tempFile("src/x/x.go", "package x\n")
