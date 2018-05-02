@@ -263,8 +263,6 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 		return nil, errors.New("archive/zip: invalid duplicate FileHeader")
 	}
 
-	fh.Flags |= 0x8 // we will write a data descriptor
-
 	// The ZIP format has a sad state of affairs regarding character encoding.
 	// Officially, the name and comment fields are supposed to be encoded
 	// in CP-437 (which is mostly compatible with ASCII), unless the UTF-8
@@ -331,8 +329,17 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	}
 
 	if strings.HasSuffix(fh.Name, "/") {
+		// Set the compression method to Store to ensure data length is truly zero,
+		// which the writeHeader method always encodes for the size fields.
+		// This is necessary as most compression formats have non-zero lengths
+		// even when compressing an empty string.
+		fh.Method = Store
+		fh.Flags &^= 0x8 // we will not write a data descriptor
+
 		ow = dirWriter{}
 	} else {
+		fh.Flags |= 0x8 // we will write a data descriptor
+
 		fw = &fileWriter{
 			zipw:      w.cw,
 			compCount: &countWriter{w: w.cw},
