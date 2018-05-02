@@ -265,9 +265,8 @@ func globalReferrers(q *Query, qpkg, defpkg string, objposn token.Position) erro
 	// to completion.
 
 	var (
-		mu    sync.Mutex
-		qobj  types.Object
-		qinfo *loader.PackageInfo // info for qpkg
+		mu   sync.Mutex
+		qobj types.Object
 	)
 
 	// For efficiency, we scan each package for references
@@ -291,9 +290,6 @@ func globalReferrers(q *Query, qpkg, defpkg string, objposn token.Position) erro
 					log.Fatalf("object at %s not found in package %s",
 						objposn, defpkg)
 				}
-
-				// Object found.
-				qinfo = info
 			}
 			obj := qobj
 			mu.Unlock()
