@@ -613,6 +613,7 @@
 // Miscellaneous
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
+(GetCallerPC) -> (LoweredGetCallerPC)
 (IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
 (IsInBounds idx len) -> (LessThan (CMPU idx len))
 (IsSliceInBounds idx len) -> (LessEqual (CMPU idx len))
