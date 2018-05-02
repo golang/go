@@ -185,11 +185,15 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		// If goid argument is present, we are rendering a trace for this particular goroutine.
 		goid, err := strconv.ParseUint(goids, 10, 64)
 		if err != nil {
-			log.Printf("failed to parse goid parameter '%v': %v", goids, err)
+			log.Printf("failed to parse goid parameter %q: %v", goids, err)
 			return
 		}
 		analyzeGoroutines(res.Events)
-		g := gs[goid]
+		g, ok := gs[goid]
+		if !ok {
+			log.Printf("failed to find goroutine %d", goid)
+			return
+		}
 		params.mode = modeGoroutineOriented
 		params.startTime = g.StartTime
 		if g.EndTime != 0 {
@@ -249,12 +253,12 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		// If start/end arguments are present, we are rendering a range of the trace.
 		start, err = strconv.ParseInt(startStr, 10, 64)
 		if err != nil {
-			log.Printf("failed to parse start parameter '%v': %v", startStr, err)
+			log.Printf("failed to parse start parameter %q: %v", startStr, err)
 			return
 		}
 		end, err = strconv.ParseInt(endStr, 10, 64)
 		if err != nil {
-			log.Printf("failed to parse end parameter '%v': %v", endStr, err)
+			log.Printf("failed to parse end parameter %q: %v", endStr, err)
 			return
 		}
 	}
