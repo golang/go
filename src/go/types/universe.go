@@ -12,9 +12,15 @@ import (
 	"strings"
 )
 
+// The Universe scope contains all predeclared objects of Go.
+// It is the outermost scope of any chain of nested scopes.
+var Universe *Scope
+
+// The Unsafe package is the package returned by an importer
+// for the import path "unsafe".
+var Unsafe *Package
+
 var (
-	Universe     *Scope
-	Unsafe       *Package
 	universeIota *Const
 	universeByte *Basic // uint8 alias, but has name "byte"
 	universeRune *Basic // int32 alias, but has name "rune"
