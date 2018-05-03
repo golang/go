@@ -415,10 +415,14 @@ func (c *sigctxt) fixsigcode(sig uint32) {
 //go:nosplit
 func sysSigaction(sig uint32, new, old *sigactiont) {
 	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
-		// Use system stack to avoid split stack overflow on ppc64/ppc64le.
-		systemstack(func() {
-			throw("sigaction failed")
-		})
+		// Workaround for bug in Qemu user mode emulation. (qemu
+		// rejects rt_sigaction of signal 64, SIGRTMAX).
+		if sig != 64 {
+			// Use system stack to avoid split stack overflow on ppc64/ppc64le.
+			systemstack(func() {
+				throw("sigaction failed")
+			})
+		}
 	}
 }
 
