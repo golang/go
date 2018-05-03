@@ -129,11 +129,6 @@ func runMain() (int, error) {
 		return 1, err
 	}
 
-	deviceApp, err := findDeviceAppPath(bundleID)
-	if err != nil {
-		return 1, err
-	}
-
 	if err := mountDevImage(); err != nil {
 		return 1, err
 	}
@@ -144,7 +139,7 @@ func runMain() (int, error) {
 	}
 	defer closer()
 
-	if err := run(appdir, deviceApp, os.Args[2:]); err != nil {
+	if err := run(appdir, bundleID, os.Args[2:]); err != nil {
 		// If the lldb driver completed with an exit code, use that.
 		if err, ok := err.(*exec.ExitError); ok {
 			if ws, ok := err.Sys().(interface{ ExitStatus() int }); ok {
@@ -408,14 +403,7 @@ func idevCmd(cmd *exec.Cmd) *exec.Cmd {
 	return cmd
 }
 
-func run(appdir, deviceapp string, args []string) error {
-	lldb := exec.Command(
-		"python",
-		"-", // Read script from stdin.
-		appdir,
-		deviceapp,
-	)
-	lldb.Args = append(lldb.Args, args...)
+func run(appdir, bundleID string, args []string) error {
 	var env []string
 	for _, e := range os.Environ() {
 		// Don't override TMPDIR on the device.
@@ -424,11 +412,39 @@ func run(appdir, deviceapp string, args []string) error {
 		}
 		env = append(env, e)
 	}
-	lldb.Env = env
-	lldb.Stdin = strings.NewReader(lldbDriver)
-	lldb.Stdout = os.Stdout
-	lldb.Stderr = os.Stderr
-	return lldb.Run()
+	attempt := 0
+	for {
+		// The device app path is constant for a given installed app,
+		// but the device might not return a stale device path for
+		// a newly overwritten app, so retry the lookup as well.
+		deviceapp, err := findDeviceAppPath(bundleID)
+		if err != nil {
+			return err
+		}
+		lldb := exec.Command(
+			"python",
+			"-", // Read script from stdin.
+			appdir,
+			deviceapp,
+		)
+		lldb.Args = append(lldb.Args, args...)
+		lldb.Env = env
+		lldb.Stdin = strings.NewReader(lldbDriver)
+		lldb.Stdout = os.Stdout
+		var out bytes.Buffer
+		lldb.Stderr = io.MultiWriter(&out, os.Stderr)
+		err = lldb.Run()
+		// If the program was not started it can be retried without papering over
+		// real test failures.
+		started := bytes.HasPrefix(out.Bytes(), []byte("lldb: running program"))
+		if started || err == nil || attempt == 5 {
+			return err
+		}
+		// Sometimes, the app was not yet ready to launch or the device path was
+		// stale. Retry.
+		attempt++
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func copyLocalDir(dst, src string) error {
@@ -665,22 +681,24 @@ for i in range(0, sigs.GetNumSignals()):
 	sigs.SetShouldNotify(sig, False)
 
 event = lldb.SBEvent()
+running = False
 while True:
 	if not listener.WaitForEvent(1, event):
 		continue
 	if not lldb.SBProcess.EventIsProcessEvent(event):
 		continue
-	# Pass through stdout and stderr.
-	while True:
-		out = process.GetSTDOUT(8192)
-		if not out:
-			break
-		sys.stdout.write(out)
-	while True:
-		out = process.GetSTDERR(8192)
-		if not out:
-			break
-		sys.stderr.write(out)
+	if running:
+		# Pass through stdout and stderr.
+		while True:
+			out = process.GetSTDOUT(8192)
+			if not out:
+				break
+			sys.stdout.write(out)
+		while True:
+			out = process.GetSTDERR(8192)
+			if not out:
+				break
+			sys.stderr.write(out)
 	state = process.GetStateFromEvent(event)
 	if state in [lldb.eStateCrashed, lldb.eStateDetached, lldb.eStateUnloaded, lldb.eStateExited]:
 		break
@@ -691,6 +709,9 @@ while True:
 			process.Kill()
 			debugger.Terminate()
 			sys.exit(1)
+		# Tell the Go driver that the program is running and should not be retried.
+		sys.stderr.write("lldb: running program\n")
+		running = True
 		# Process stops once at the beginning. Continue.
 		process.Continue()
 
