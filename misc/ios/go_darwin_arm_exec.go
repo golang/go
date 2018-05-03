@@ -682,12 +682,14 @@ while True:
 			break
 		sys.stderr.write(out)
 	state = process.GetStateFromEvent(event)
-	if state == lldb.eStateCrashed or state == lldb.eStateDetached or state == lldb.eStateUnloaded or state == lldb.eStateExited:
+	if state in [lldb.eStateCrashed, lldb.eStateDetached, lldb.eStateUnloaded, lldb.eStateExited]:
 		break
 	elif state == lldb.eStateConnected:
 		process.RemoteLaunch(args, env, None, None, None, None, 0, False, err)
 		if not err.Success():
 			sys.stderr.write("lldb: failed to launch remote process: %s\n" % (err))
+			process.Kill()
+			debugger.Terminate()
 			sys.exit(1)
 		# Process stops once at the beginning. Continue.
 		process.Continue()
