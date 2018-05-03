@@ -57,11 +57,10 @@ func AppendUint(dst []byte, i uint64, base int) []byte {
 
 // small returns the string for an i with 0 <= i < nSmalls.
 func small(i int) string {
-	off := 0
 	if i < 10 {
-		off = 1
+		return digits[i : i+1]
 	}
-	return smallsString[i*2+off : i*2+2]
+	return smallsString[i*2 : i*2+2]
 }
 
 const nSmalls = 100
