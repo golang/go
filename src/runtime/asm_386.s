@@ -697,6 +697,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	// come in on the m->g0 stack already.
 	get_tls(CX)
 	MOVL	g(CX), BP
+	CMPL	BP, $0
+	JEQ	nosave	// Don't even have a G yet.
 	MOVL	g_m(BP), BP
 	MOVL	m_g0(BP), SI
 	MOVL	g(CX), DI
@@ -726,6 +728,18 @@ noswitch:
 	MOVL	DI, g(CX)
 	MOVL	SI, SP
 
+	MOVL	AX, ret+8(FP)
+	RET
+nosave:
+	// Now on a scheduling stack (a pthread-created stack).
+	SUBL	$32, SP
+	ANDL	$~15, SP	// alignment, perhaps unnecessary
+	MOVL	DX, 4(SP)	// save original stack pointer
+	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
+	CALL	AX
+
+	MOVL	4(SP), CX	// restore original stack pointer
+	MOVL	CX, SP
 	MOVL	AX, ret+8(FP)
 	RET
 
