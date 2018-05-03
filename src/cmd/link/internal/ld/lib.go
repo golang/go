@@ -1343,12 +1343,15 @@ func (ctxt *Link) hostlink() {
 		}
 		// For os.Rename to work reliably, must be in same directory as outfile.
 		combinedOutput := *flagOutfile + "~"
-		if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode); err != nil {
+		isIOS, err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode)
+		if err != nil {
 			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 		}
-		os.Remove(*flagOutfile)
-		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
-			Exitf("%s: %v", os.Args[0], err)
+		if !isIOS {
+			os.Remove(*flagOutfile)
+			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+				Exitf("%s: %v", os.Args[0], err)
+			}
 		}
 	}
 }
