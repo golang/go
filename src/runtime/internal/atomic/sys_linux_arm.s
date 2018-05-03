@@ -55,9 +55,6 @@ check:
 	MOVB	R0, ret+12(FP)
 	RET
 
-TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
-	B	runtime∕internal∕atomic·Cas(SB)
-
 // As for cas, memory barriers are complicated on ARM, but the kernel
 // provides a user helper. ARMv5 does not support SMP and has no
 // memory barrier instruction at all. ARMv6 added SMP support and has
@@ -70,7 +67,7 @@ TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
 TEXT memory_barrier<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0xffff0fa0, R15 // R15 is hardware PC.
 
-TEXT runtime∕internal∕atomic·Load(SB),NOSPLIT,$0-8
+TEXT	·Load(SB),NOSPLIT,$0-8
 	MOVW	addr+0(FP), R0
 	MOVW	(R0), R1
 
@@ -78,10 +75,32 @@ TEXT runtime∕internal∕atomic·Load(SB),NOSPLIT,$0-8
 	CMP	$7, R11
 	BGE	native_barrier
 	BL	memory_barrier<>(SB)
-	B	prolog
+	B	end
+native_barrier:
+	DMB	MB_ISH
+end:
+	MOVW	R1, ret+4(FP)
+	RET
+
+TEXT	·Store(SB),NOSPLIT,$0-8
+	MOVW	addr+0(FP), R1
+	MOVW	v+4(FP), R2
+
+	MOVB	runtime·goarm(SB), R8
+	CMP	$7, R8
+	BGE	native_barrier
+	BL	memory_barrier<>(SB)
+	B	store
 native_barrier:
 	DMB	MB_ISH
 
-prolog:
-	MOVW	R1, ret+4(FP)
+store:
+	MOVW	R2, (R1)
+
+	CMP	$7, R8
+	BGE	native_barrier2
+	BL	memory_barrier<>(SB)
+	RET
+native_barrier2:
+	DMB	MB_ISH
 	RET
