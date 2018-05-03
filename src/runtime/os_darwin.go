@@ -154,7 +154,7 @@ func newosproc(mp *m) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	_, err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
+	err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
@@ -175,21 +175,21 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	// Initialize an attribute object.
 	var attr pthreadattr
 	var err int32
-	err = pthread_attr_init_trampoline(&attr)
+	err = pthread_attr_init(&attr)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
 
 	// Set the stack we want to use.
-	if pthread_attr_setstacksize_trampoline(&attr, stacksize) != 0 {
+	if pthread_attr_setstacksize(&attr, stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
 	mSysStatInc(&memstats.stacks_sys, stacksize)
 
 	// Tell the pthread library we won't join with this thread.
-	if pthread_attr_setdetachstate_trampoline(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
@@ -198,8 +198,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	var t pthread
-	err = pthread_create_trampoline(&t, &attr, fn, nil)
+	err = pthread_create(&attr, fn, nil)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))

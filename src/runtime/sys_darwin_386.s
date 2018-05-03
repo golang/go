@@ -11,12 +11,12 @@
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$0-4
-	MOVL	code+0(FP), AX
+TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-	SUBL	$4, SP   // allocate space for callee args
-	ANDL	$~15, SP // align stack
+	SUBL	$8, SP   	// allocate space for callee args (must be 8 mod 16)
+	MOVL	16(SP), CX	// arg ptr
+	MOVL	0(CX), AX	// arg 1 exit status
 	MOVL	AX, 0(SP)
 	CALL	libc_exit(SB)
 	MOVL	$0xf1, 0xf1  // crash
@@ -24,73 +24,64 @@ TEXT runtime·exit(SB),NOSPLIT,$0-4
 	POPL	BP
 	RET
 
-// Not used on Darwin.
-TEXT runtime·exitThread(SB),NOSPLIT,$0-4
-	MOVL	$0xf1, 0xf1  // crash
-	RET
-
-TEXT runtime·open(SB),NOSPLIT,$0-16
-	MOVL	name+0(FP), AX		// arg 1 name
-	MOVL	mode+4(FP), CX		// arg 2 mode
-	MOVL	perm+8(FP), DX		// arg 3 perm
+TEXT runtime·open_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-	SUBL	$12, SP
-	ANDL	$~15, SP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	0(CX), AX		// arg 1 name
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
+	MOVL	4(CX), AX		// arg 2 mode
+	MOVL	AX, 4(SP)
+	MOVL	8(CX), AX		// arg 3 perm
+	MOVL	AX, 8(SP)
 	CALL	libc_open(SB)
 	MOVL	BP, SP
 	POPL	BP
-	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$0-8
-	MOVL	fd+0(FP), AX		// arg 1 fd
+TEXT runtime·close_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-	SUBL	$4, SP
-	ANDL	$~15, SP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX		// arg 1 fd
 	MOVL	AX, 0(SP)
 	CALL	libc_close(SB)
 	MOVL	BP, SP
 	POPL	BP
-	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$0-16
-	MOVL	fd+0(FP), AX		// arg 1 fd
-	MOVL	p+4(FP), CX		// arg 2 buf
-	MOVL	n+8(FP), DX		// arg 3 count
+TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-	SUBL	$12, SP
-	ANDL	$~15, SP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	0(CX), AX		// arg 1 fd
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
+	MOVL	4(CX), AX		// arg 2 buf
+	MOVL	AX, 4(SP)
+	MOVL	8(CX), AX		// arg 3 count
+	MOVL	AX, 8(SP)
 	CALL	libc_read(SB)
 	MOVL	BP, SP
 	POPL	BP
-	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0-16
-	MOVL	fd+0(FP), AX		// arg 1 fd
-	MOVL	p+4(FP), CX		// arg 2 buf
-	MOVL	n+8(FP), DX		// arg 3 count
+TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-	SUBL	$12, SP
-	ANDL	$~15, SP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	0(CX), AX		// arg 1 fd
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
+	MOVL	4(CX), AX		// arg 2 buf
+	MOVL	AX, 4(SP)
+	MOVL	8(CX), AX		// arg 3 count
+	MOVL	AX, 8(SP)
 	CALL	libc_write(SB)
 	MOVL	BP, SP
 	POPL	BP
-	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$16
@@ -104,23 +95,23 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
 	INT	$0x80
 	RET
 
-TEXT runtime·mmap(SB),NOSPLIT,$0-32
-	MOVL	addr+0(FP), AX		// arg 1 addr
-	MOVL	n+4(FP), CX		// arg 2 len
-	MOVL	prot+8(FP), DX		// arg 3 prot
-	MOVL	flags+12(FP), BX	// arg 4 flags
-	MOVL	fd+16(FP), DI		// arg 5 fid
-	MOVL	off+20(FP), SI		// arg 6 offset
+TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$24, SP
-	ANDL	$~15, SP
+	MOVL	32(SP), CX
+	MOVL	0(CX), AX		// arg 1 addr
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
-	MOVL	BX, 12(SP)
-	MOVL	DI, 16(SP)
-	MOVL	SI, 20(SP)
+	MOVL	4(CX), AX		// arg 2 len
+	MOVL	AX, 4(SP)
+	MOVL	8(CX), AX		// arg 3 prot
+	MOVL	AX, 8(SP)
+	MOVL	12(CX), AX		// arg 4 flags
+	MOVL	AX, 12(SP)
+	MOVL	16(CX), AX		// arg 5 fid
+	MOVL	AX, 16(SP)
+	MOVL	20(CX), AX		// arg 6 offset
+	MOVL	AX, 20(SP)
 	CALL	libc_mmap(SB)
 	XORL	DX, DX
 	CMPL	AX, $-1
@@ -129,38 +120,39 @@ TEXT runtime·mmap(SB),NOSPLIT,$0-32
 	MOVL	(AX), DX		// errno
 	XORL	AX, AX
 ok:
+	MOVL	32(SP), CX
+	MOVL	AX, 24(CX)		// result pointer
+	MOVL	DX, 28(CX)		// errno
 	MOVL	BP, SP
 	POPL	BP
-	MOVL	AX, p+24(FP)
-	MOVL	DX, err+28(FP)
 	RET
 
-TEXT runtime·madvise(SB),NOSPLIT,$0-12
-	MOVL	addr+0(FP), AX		// arg 1 addr
-	MOVL	n+4(FP), CX		// arg 2 len
-	MOVL	flags+8(FP), DX		// arg 3 advice
+TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-	SUBL	$12, SP
-	ANDL	$~15, SP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	0(CX), AX		// arg 1 addr
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
+	MOVL	4(CX), AX		// arg 2 len
+	MOVL	AX, 4(SP)
+	MOVL	8(CX), AX		// arg 3 advice
+	MOVL	AX, 8(SP)
 	CALL	libc_madvise(SB)
 	// ignore failure - maybe pages are locked
 	MOVL	BP, SP
 	POPL	BP
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$0-8
-	MOVL	addr+0(FP), AX		// arg 1 addr
-	MOVL	n+4(FP), CX		// arg 2 len
+TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$8, SP
-	ANDL	$~15, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX		// arg 1 addr
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
+	MOVL	4(CX), AX		// arg 2 len
+	MOVL	AX, 4(SP)
 	CALL	libc_munmap(SB)
 	TESTL	AX, AX
 	JEQ	2(PC)
@@ -394,12 +386,12 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$0-4
-	MOVL	usec+0(FP), AX
+TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-	SUBL	$4, SP
-	ANDL	$~15, SP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 usec
 	MOVL	AX, 0(SP)
 	CALL	libc_usleep(SB)
 	MOVL	BP, SP
@@ -545,125 +537,85 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 	XORL	AX, AX
 	RET
 
-TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-8
-	// move args into registers
-	MOVL	attr+0(FP), AX
-
-	// save SP, BP
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-
-	// allocate space for args
-	SUBL	$4, SP
-
-	// align stack to 16 bytes
-	ANDL	$~15, SP
-
-	// call libc function
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 attr
 	MOVL	AX, 0(SP)
 	CALL	libc_pthread_attr_init(SB)
-
-	// restore BP, SP
 	MOVL	BP, SP
 	POPL	BP
-
-	// save result.
-	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-12
-	MOVL	attr+0(FP), AX
-	MOVL	size+4(FP), CX
-
+TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-
 	SUBL	$8, SP
-	ANDL	$~15, SP
-
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 attr
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
+	MOVL	4(CX), AX	// arg 2 size
+	MOVL	AX, 4(SP)
 	CALL	libc_pthread_attr_setstacksize(SB)
-
 	MOVL	BP, SP
 	POPL	BP
-
-	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-12
-	MOVL	attr+0(FP), AX
-	MOVL	state+4(FP), CX
-
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-
 	SUBL	$8, SP
-	ANDL	$~15, SP
-
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 attr
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
+	MOVL	4(CX), AX	// arg 2 state
+	MOVL	AX, 4(SP)
 	CALL	libc_pthread_attr_setdetachstate(SB)
-
 	MOVL	BP, SP
 	POPL	BP
-
-	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-20
-	MOVL	t+0(FP), AX
-	MOVL	attr+4(FP), CX
-	MOVL	start+8(FP), DX
-	MOVL	arg+12(FP), BX
-
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
-
-	SUBL	$16, SP
-	ANDL	$~15, SP
-
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	LEAL	16(SP), AX	// arg "0" &threadid (which we throw away)
 	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
-	MOVL	BX, 12(SP)
+	MOVL	0(CX), AX	// arg 1 attr
+	MOVL	AX, 4(SP)
+	MOVL	4(CX), AX	// arg 2 start
+	MOVL	AX, 8(SP)
+	MOVL	8(CX), AX	// arg 3 arg
+	MOVL	AX, 12(SP)
 	CALL	libc_pthread_create(SB)
-
 	MOVL	BP, SP
 	POPL	BP
-
-	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0-4
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
 	PUSHL   BP
 	MOVL    SP, BP
-
-	ANDL	$~15, SP
-
-	CALL    libc_pthread_self(SB)
-
-	MOVL    BP, SP
-	POPL    BP
-
-	MOVL    AX, ret+0(FP)
-	RET
-
-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0-12
-	MOVL    thread+0(FP), AX
-	MOVL    sig+4(FP), CX
-	PUSHL   BP
-	MOVL    SP, BP
-
 	SUBL	$8, SP
-	ANDL	$~15, SP
-
-	MOVL	AX, 0(SP)
-	MOVL	CX, 4(SP)
-	CALL    libc_pthread_kill(SB)
-
+	CALL    libc_pthread_self(SB)
+	MOVL	16(SP), CX
+	MOVL	AX, (CX)	// Save result.
 	MOVL    BP, SP
 	POPL    BP
+	RET
 
-	MOVL    AX, ret+8(FP)
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	PUSHL   BP
+	MOVL    SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL    0(CX), AX	// arg 1 thread ID
+	MOVL	AX, 0(SP)
+	MOVL    4(CX), AX	// arg 2 sig
+	MOVL	AX, 4(SP)
+	CALL    libc_pthread_kill(SB)
+	MOVL    BP, SP
+	POPL    BP
 	RET
