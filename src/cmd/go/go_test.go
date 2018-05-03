@@ -1946,6 +1946,9 @@ func TestGoListTest(t *testing.T) {
 	tg.grepStdout(`^cmd/doc\.test$`, "missing cmd/doc test")
 	tg.grepStdoutNot(`^cmd/dist\.test$`, "unexpected cmd/dist test")
 	tg.grepStdoutNot(`^testing`, "unexpected testing")
+
+	tg.run("list", "-test", "runtime/cgo")
+	tg.grepStdout(`^runtime/cgo$`, "missing runtime/cgo")
 }
 
 // Issue 4096. Validate the output of unsuccessful go install foo/quxx.
