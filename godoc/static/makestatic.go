@@ -80,11 +80,6 @@ func main() {
 }
 
 func makestatic() error {
-	f, err := os.Create("static.go")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "%v\n\n%v\n\npackage static\n\n", license, warning)
 	fmt.Fprintf(buf, "var Files = map[string]string{\n")
