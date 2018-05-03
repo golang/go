@@ -207,14 +207,29 @@ func assembleApp(appdir, bin string) error {
 // to connect to.
 func mountDevImage() error {
 	// Check for existing mount.
-	cmd := idevCmd(exec.Command("ideviceimagemounter", "-l"))
+	cmd := idevCmd(exec.Command("ideviceimagemounter", "-l", "-x"))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		os.Stderr.Write(out)
 		return fmt.Errorf("ideviceimagemounter: %v", err)
 	}
-	if len(out) > 0 {
-		// Assume there is an image mounted
+	var info struct {
+		Dict struct {
+			Data []byte `xml:",innerxml"`
+		} `xml:"dict"`
+	}
+	if err := xml.Unmarshal(out, &info); err != nil {
+		return fmt.Errorf("mountDevImage: failed to decode mount information: %v", err)
+	}
+	dict, err := parsePlistDict(info.Dict.Data)
+	if err != nil {
+		return fmt.Errorf("mountDevImage: failed to parse mount information: %v", err)
+	}
+	if dict["ImagePresent"] == "true" && dict["Status"] == "Complete" {
+		return nil
+	}
+	// Some devices only give us an ImageSignature key.
+	if _, exists := dict["ImageSignature"]; exists {
 		return nil
 	}
 	// No image is mounted. Find a suitable image.
@@ -256,6 +271,12 @@ func findDevImage() (string, error) {
 	}
 	if iosVer == "" || buildVer == "" {
 		return "", errors.New("failed to parse ideviceinfo output")
+	}
+	verSplit := strings.Split(iosVer, ".")
+	if len(verSplit) > 2 {
+		// Developer images are specific to major.minor ios version.
+		// Cut off the patch version.
+		iosVer = strings.Join(verSplit[:2], ".")
 	}
 	sdkBase := "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport"
 	patterns := []string{fmt.Sprintf("%s (%s)", iosVer, buildVer), fmt.Sprintf("%s (*)", iosVer), fmt.Sprintf("%s*", iosVer)}
@@ -330,40 +351,12 @@ func findDeviceAppPath(bundleID string) (string, error) {
 		} `xml:"array>dict"`
 	}
 	if err := xml.Unmarshal(out, &list); err != nil {
-		return "", fmt.Errorf("failed to parse ideviceinstaller outout: %v", err)
+		return "", fmt.Errorf("failed to parse ideviceinstaller output: %v", err)
 	}
 	for _, app := range list.Apps {
-		d := xml.NewDecoder(bytes.NewReader(app.Data))
-		values := make(map[string]string)
-		var key string
-		var hasKey bool
-		for {
-			tok, err := d.Token()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return "", fmt.Errorf("failed to device app data: %v", err)
-			}
-			if tok, ok := tok.(xml.StartElement); ok {
-				if tok.Name.Local == "key" {
-					if err := d.DecodeElement(&key, &tok); err != nil {
-						return "", fmt.Errorf("failed to device app data: %v", err)
-					}
-					hasKey = true
-				} else if hasKey {
-					var val string
-					if err := d.DecodeElement(&val, &tok); err != nil {
-						return "", fmt.Errorf("failed to device app data: %v", err)
-					}
-					values[key] = val
-					hasKey = false
-				} else {
-					if err := d.Skip(); err != nil {
-						return "", fmt.Errorf("failed to device app data: %v", err)
-					}
-				}
-			}
+		values, err := parsePlistDict(app.Data)
+		if err != nil {
+			return "", fmt.Errorf("findDeviceAppPath: failed to parse app dict: %v", err)
 		}
 		if values["CFBundleIdentifier"] == bundleID {
 			if path, ok := values["Path"]; ok {
@@ -372,6 +365,52 @@ func findDeviceAppPath(bundleID string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("failed to find device path for bundle: %s", bundleID)
+}
+
+// Parse an xml encoded plist. Plist values are mapped to string.
+func parsePlistDict(dict []byte) (map[string]string, error) {
+	d := xml.NewDecoder(bytes.NewReader(dict))
+	values := make(map[string]string)
+	var key string
+	var hasKey bool
+	for {
+		tok, err := d.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if tok, ok := tok.(xml.StartElement); ok {
+			if tok.Name.Local == "key" {
+				if err := d.DecodeElement(&key, &tok); err != nil {
+					return nil, err
+				}
+				hasKey = true
+			} else if hasKey {
+				var val string
+				var err error
+				switch n := tok.Name.Local; n {
+				case "true", "false":
+					// Bools are represented as <true/> and <false/>.
+					val = n
+					err = d.Skip()
+				default:
+					err = d.DecodeElement(&val, &tok)
+				}
+				if err != nil {
+					return nil, err
+				}
+				values[key] = val
+				hasKey = false
+			} else {
+				if err := d.Skip(); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return values, nil
 }
 
 func install(appdir string) error {
