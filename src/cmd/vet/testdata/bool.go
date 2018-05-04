@@ -24,8 +24,7 @@ func RatherStupidConditions() {
 	_ = i == T(2) || i == T(2)       // ERROR "redundant or: i == T(2) || i == T(2)"
 	_ = FT(f) == nil || FT(f) == nil // ERROR "redundant or: FT(f) == nil || FT(f) == nil"
 
-	// TODO: distinguish from an actual func call
-	_ = (func() int)(f) == nil || (func() int)(f) == nil
+	_ = (func() int)(f) == nil || (func() int)(f) == nil // ERROR "redundant or: (func() int)(f) == nil || (func() int)(f) == nil"
 
 	var namedFuncVar FT
 	_ = namedFuncVar() == namedFuncVar() // OK; still func calls
