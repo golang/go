@@ -18,7 +18,7 @@ case $(uname) in
 	# why Apple? why?
 	if sysctl machdep.cpu.extfeatures | grep -qv EM64T; then
 		usage
-	fi 
+	fi
 	;;
 "Linux")
 	if [ $(uname -m) != "x86_64" ]; then
