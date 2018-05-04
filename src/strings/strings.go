@@ -474,7 +474,7 @@ func Map(mapping func(rune) rune, s string) string {
 		b = make([]byte, len(s)+utf8.UTFMax)
 		nbytes = copy(b, s[:i])
 		if r >= 0 {
-			if r <= utf8.RuneSelf {
+			if r < utf8.RuneSelf {
 				b[nbytes] = byte(r)
 				nbytes++
 			} else {
@@ -504,7 +504,7 @@ func Map(mapping func(rune) rune, s string) string {
 		r := mapping(c)
 
 		// common case
-		if (0 <= r && r <= utf8.RuneSelf) && nbytes < len(b) {
+		if (0 <= r && r < utf8.RuneSelf) && nbytes < len(b) {
 			b[nbytes] = byte(r)
 			nbytes++
 			continue
