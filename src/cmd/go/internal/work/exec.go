@@ -1580,7 +1580,9 @@ func joinUnambiguously(a []string) string {
 			buf.WriteByte(' ')
 		}
 		q := strconv.Quote(s)
-		if s == "" || strings.Contains(s, " ") || len(q) > len(s)+2 {
+		// A gccgo command line can contain -( and -).
+		// Make sure we quote them since they are special to the shell.
+		if s == "" || strings.ContainsAny(s, " ()") || len(q) > len(s)+2 {
 			buf.WriteString(q)
 		} else {
 			buf.WriteString(s)
