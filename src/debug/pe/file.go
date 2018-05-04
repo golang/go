@@ -278,9 +278,9 @@ func (f *File) ImportedSymbols() ([]string, error) {
 	// grab the import data directory entry
 	var idd DataDirectory
 	if pe64 {
-		idd = f.OptionalHeader.(*OptionalHeader64).DataDirectory[1]
+		idd = f.OptionalHeader.(*OptionalHeader64).DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
 	} else {
-		idd = f.OptionalHeader.(*OptionalHeader32).DataDirectory[1]
+		idd = f.OptionalHeader.(*OptionalHeader32).DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
 	}
 
 	// figure out which section contains the import directory table
@@ -323,7 +323,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		ida = append(ida, dt)
 	}
 	// TODO(brainman): this needs to be rewritten
-	//  ds.Data() return contets of .idata section. Why store in variable called "names"?
+	//  ds.Data() returns contents of section containing import table. Why store in variable called "names"?
 	//  Why we are retrieving it second time? We already have it in "d", and it is not modified anywhere.
 	//  getString does not extracts a string from symbol string table (as getString doco says).
 	//  Why ds.Data() called again and again in the loop?
