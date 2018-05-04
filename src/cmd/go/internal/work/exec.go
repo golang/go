@@ -1622,6 +1622,11 @@ func (b *Builder) Mkdir(dir string) error {
 
 // symlink creates a symlink newname -> oldname.
 func (b *Builder) Symlink(oldname, newname string) error {
+	// It's not an error to try to recreate an existing symlink.
+	if link, err := os.Readlink(newname); err == nil && link == oldname {
+		return nil
+	}
+
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "ln -s %s %s", oldname, newname)
 		if cfg.BuildN {
