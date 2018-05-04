@@ -235,6 +235,8 @@ func (b *Builder) gccgoToolID(name, language string) (string, error) {
 	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	// Force untranslated output so that we see the string "version".
+	cmd.Env = append(cmd.Env, "LC_ALL=C")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%s: %v; output: %q", name, err, out)
