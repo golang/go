@@ -5131,6 +5131,49 @@ func TestUpxCompression(t *testing.T) {
 	}
 }
 
+// Test that Go binaries can be run under QEMU in user-emulation mode
+// (See issue #13024).
+func TestQEMUUserMode(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skipf("skipping in -short mode on non-builder")
+	}
+
+	testArchs := []struct {
+		g, qemu string
+	}{
+		{"arm", "arm"},
+		{"arm64", "aarch64"},
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("main.go", `package main; import "fmt"; func main() { fmt.Print("hello qemu-user") }`)
+	tg.parallel()
+	src, obj := tg.path("main.go"), tg.path("main")
+
+	for _, arch := range testArchs {
+		out, err := exec.Command("qemu-"+arch.qemu, "--version").CombinedOutput()
+		if err != nil {
+			t.Logf("Skipping %s test (qemu-%s not available)", arch.g, arch.qemu)
+			continue
+		}
+
+		tg.setenv("GOARCH", arch.g)
+		tg.run("build", "-o", obj, src)
+
+		out, err = exec.Command("qemu-"+arch.qemu, obj).CombinedOutput()
+		if err != nil {
+			t.Logf("qemu-%s output:\n%s\n", arch.qemu, out)
+			t.Errorf("qemu-%s failed with %v", arch.qemu, err)
+			continue
+		}
+		if want := "hello qemu-user"; string(out) != want {
+			t.Errorf("bad output from qemu-%s:\ngot %s; want %s", arch.qemu, out, want)
+		}
+	}
+
+}
+
 func TestGOTMPDIR(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
