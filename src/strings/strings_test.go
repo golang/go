@@ -522,6 +522,7 @@ var upperTests = []StringTest{
 	{"AbC123", "ABC123"},
 	{"azAZ09_", "AZAZ09_"},
 	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
+	{"a\u0080\U0010FFFF", "A\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
 }
 
 var lowerTests = []StringTest{
@@ -530,6 +531,7 @@ var lowerTests = []StringTest{
 	{"AbC123", "abc123"},
 	{"azAZ09_", "azaz09_"},
 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
+	{"A\u0080\U0010FFFF", "a\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
 }
 
 const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
@@ -641,6 +643,27 @@ func TestMap(t *testing.T) {
 	expect = "Hello?World"
 	if m != expect {
 		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
+	}
+
+	// 8. Check utf8.RuneSelf and utf8.MaxRune encoding
+	encode := func(r rune) rune {
+		switch r {
+		case utf8.RuneSelf:
+			return unicode.MaxRune
+		case unicode.MaxRune:
+			return utf8.RuneSelf
+		}
+		return r
+	}
+	s := string(utf8.RuneSelf) + string(utf8.MaxRune)
+	r := string(utf8.MaxRune) + string(utf8.RuneSelf) // reverse of s
+	m = Map(encode, s)
+	if m != r {
+		t.Errorf("encoding not handled correctly: expected %q got %q", r, m)
+	}
+	m = Map(encode, r)
+	if m != s {
+		t.Errorf("encoding not handled correctly: expected %q got %q", s, m)
 	}
 }
 
