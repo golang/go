@@ -588,7 +588,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
 	p := a.Package
 	if p.UsesCgo() && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
 		hdrTarget := a.Target[:len(a.Target)-len(filepath.Ext(a.Target))] + ".h"
-		if cfg.BuildContext.Compiler == "gccgo" {
+		if cfg.BuildContext.Compiler == "gccgo" && cfg.BuildO == "" {
 			// For the header file, remove the "lib"
 			// added by go/build, so we generate pkg.h
 			// rather than libpkg.h.
