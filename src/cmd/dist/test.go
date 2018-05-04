@@ -273,10 +273,6 @@ func (t *tester) registerStdTest(pkg string) {
 	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
 		stdMatches = append(stdMatches, pkg)
 	}
-	timeoutSec := 180
-	if pkg == "cmd/go" {
-		timeoutSec *= 2
-	}
 	t.tests = append(t.tests, distTest{
 		name:    testName,
 		heading: "Testing packages.",
@@ -288,6 +284,15 @@ func (t *tester) registerStdTest(pkg string) {
 			timelog("start", dt.name)
 			defer timelog("end", dt.name)
 			ranGoTest = true
+
+			timeoutSec := 180
+			for _, pkg := range stdMatches {
+				if pkg == "cmd/go" {
+					timeoutSec *= 2
+					break
+				}
+			}
+
 			args := []string{
 				"test",
 				"-short",
