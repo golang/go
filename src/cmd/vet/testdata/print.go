@@ -148,6 +148,7 @@ func PrintfTests() {
 	fmt.Println()                               // not an error
 	fmt.Println("%s", "hi")                     // ERROR "Println call has possible formatting directive %s"
 	fmt.Println("%v", "hi")                     // ERROR "Println call has possible formatting directive %v"
+	fmt.Println("%T", "hi")                     // ERROR "Println call has possible formatting directive %T"
 	fmt.Println("0.0%")                         // correct (trailing % couldn't be a formatting directive)
 	fmt.Printf("%s", "hi", 3)                   // ERROR "Printf call needs 1 arg but has 2 args"
 	_ = fmt.Sprintf("%"+("s"), "hi", 3)         // ERROR "Sprintf call needs 1 arg but has 2 args"
