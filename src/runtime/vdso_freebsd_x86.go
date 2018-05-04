@@ -20,23 +20,11 @@ const (
 const (
 	_HPET_DEV_MAP_MAX  = 10
 	_HPET_MAIN_COUNTER = 0xf0 /* Main counter register */
+
+	hpetDevPath = "/dev/hpetX\x00"
 )
 
-var (
-	hpetDevMap  [_HPET_DEV_MAP_MAX]uintptr
-	hpetDevPath = [_HPET_DEV_MAP_MAX][11]byte{
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '0', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '1', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '2', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '3', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '4', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '5', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '6', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '7', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '8', 0},
-		{'/', 'd', 'e', 'v', '/', 'h', 'p', 'e', 't', '9', 0},
-	}
-)
+var hpetDevMap [_HPET_DEV_MAP_MAX]uintptr
 
 //go:nosplit
 func (th *vdsoTimehands) getTSCTimecounter() uint32 {
@@ -47,8 +35,10 @@ func (th *vdsoTimehands) getTSCTimecounter() uint32 {
 	return uint32(tsc)
 }
 
-//go:nosplit
+//go:systemstack
 func (th *vdsoTimehands) getHPETTimecounter() (uint32, bool) {
+	const digits = "0123456789"
+
 	idx := int(th.x86_hpet_idx)
 	if idx >= len(hpetDevMap) {
 		return 0, false
@@ -56,7 +46,11 @@ func (th *vdsoTimehands) getHPETTimecounter() (uint32, bool) {
 
 	p := atomic.Loaduintptr(&hpetDevMap[idx])
 	if p == 0 {
-		fd := open(&hpetDevPath[idx][0], 0 /* O_RDONLY */, 0)
+		var devPath [len(hpetDevPath)]byte
+		copy(devPath[:], hpetDevPath)
+		devPath[9] = digits[idx]
+
+		fd := open(&devPath[0], 0 /* O_RDONLY */, 0)
 		if fd < 0 {
 			atomic.Casuintptr(&hpetDevMap[idx], 0, ^uintptr(0))
 			return 0, false
@@ -85,7 +79,14 @@ func (th *vdsoTimehands) getTimecounter() (uint32, bool) {
 	case _VDSO_TH_ALGO_X86_TSC:
 		return th.getTSCTimecounter(), true
 	case _VDSO_TH_ALGO_X86_HPET:
-		return th.getHPETTimecounter()
+		var (
+			tc uint32
+			ok bool
+		)
+		systemstack(func() {
+			tc, ok = th.getHPETTimecounter()
+		})
+		return tc, ok
 	default:
 		return 0, false
 	}
