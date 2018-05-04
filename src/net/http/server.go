@@ -2003,9 +2003,11 @@ func StripPrefix(prefix string, h Handler) Handler {
 //
 // The provided code should be in the 3xx range and is usually
 // StatusMovedPermanently, StatusFound or StatusSeeOther.
-// If Content-Type has not been set Redirect sets the header to
-// "text/html; charset=utf-8" and writes a small HTML body.
-// Setting the Content-Type header to nil also prevents writing the body.
+//
+// If the Content-Type header has not been set, Redirect sets it
+// to "text/html; charset=utf-8" and writes a small HTML body.
+// Setting the Content-Type header to any value, including nil,
+// disables that behavior.
 func Redirect(w ResponseWriter, r *Request, url string, code int) {
 	// parseURL is just url.Parse (url is shadowed for godoc).
 	if u, err := parseURL(url); err == nil {
@@ -2043,22 +2045,22 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 	}
 
 	h := w.Header()
-	h.Set("Location", hexEscapeNonASCII(url))
 
-	if _, ok := h["Content-Type"]; ok {
-		return
-	}
-	if r.Method == "GET" || r.Method == "HEAD" {
+	// RFC 7231 notes that a short HTML body is usually included in
+	// the response because older user agents may not understand 301/307.
+	// Do it only if the request didn't already have a Content-Type header.
+	_, hadCT := h["Content-Type"]
+
+	h.Set("Location", hexEscapeNonASCII(url))
+	if !hadCT && (r.Method == "GET" || r.Method == "HEAD") {
 		h.Set("Content-Type", "text/html; charset=utf-8")
 	}
 	w.WriteHeader(code)
 
-	// RFC 7231 notes that a short hypertext note is usually included in
-	// the response because older user agents may not understand 301/307.
-	// Shouldn't send the response for POST or HEAD; that leaves GET.
-	if r.Method == "GET" {
-		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
-		fmt.Fprintln(w, note)
+	// Shouldn't send the body for POST or HEAD; that leaves GET.
+	if !hadCT && r.Method == "GET" {
+		body := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
+		fmt.Fprintln(w, body)
 	}
 }
 
