@@ -12,3 +12,7 @@ package testdata
 // +build toolate // ERROR "build comment must appear before package clause and be followed by a blank line"
 
 var _ = 3
+
+var _ = `
+// +build notacomment
+`
