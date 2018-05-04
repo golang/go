@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strings"
 	"strconv"
 	"testing"
 	"text/template"
@@ -530,5 +531,52 @@ func TestBuildingWindowsGUI(t *testing.T) {
 		}
 	default:
 		t.Fatalf("unexpected OptionalHeader type: have %T, but want *pe.OptionalHeader32 or *pe.OptionalHeader64", oh)
+	}
+}
+
+// go through each directory in dirs looking for the file identified by name.
+// returns the index or -1 on error.
+func filenameInDirectories(name string, dirs []string) string {
+	for i, path := range dirs {
+		rp := filepath.Join(path, name)
+		if _, err := os.Stat(rp); !os.IsNotExist(err) {
+			return rp
+		}
+	}
+	return ""
+}
+
+// split an environment variable into its individual paths
+// more likely to be used with "PATH" and nothing else
+func listOfEnvironment(key string) []string {
+	if path, ok := os.LookupEnv(key); ok {
+		return strings.Split(path, string(filepath.ListSeparator))
+	}
+	return []string{"."}
+}
+
+func TestImportTableInUnknownSection(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows only test")
+	}
+
+	// first we need to find this font driver
+	const filename = "atmfd.dll"
+	path := filenameInDirectories(filename, listOfEnvironment("PATH"))
+	if path == "" {
+		t.Fatalf("unable to locate required file (%s) in search path.", filename)
+	}
+
+	// now we can open it with debug/pe like so
+	f, err := Open(path)
+	if err != nil {
+		t.Error(err)
+	}
+	defer f.Close()
+
+	// so let's ask for symbols and if it burns, then complain
+	symbols, err := f.ImportedSymbols()
+	if err != nil {
+		t.Error(err)
 	}
 }
