@@ -951,7 +951,26 @@ func (p *Paletted) Set(x, y int, c color.Color) {
 		return
 	}
 	i := p.PixOffset(x, y)
-	p.Pix[i] = uint8(p.Palette.Index(c))
+	
+	// By Wayne
+	// if the color is out of palette list, try find the closest palette color
+	// with minimal sum-squared-difference.
+	cindex := p.Palette.Index(c) 
+	if cindex == -1 {
+		bestIndex, bestSum := 0, uint32(1<<32-1)
+		for index, p := range palette {
+			sum := sqDiff(er, p[0]) + sqDiff(eg, p[1]) + sqDiff(eb, p[2]) + sqDiff(ea, p[3])
+			if sum < bestSum {
+				bestIndex, bestSum = index, sum
+				if sum == 0 {
+					break
+				}
+			}
+		}
+		cindex = bestIndex
+	}
+	
+	p.Pix[i] = uint8(cindex)
 }
 
 func (p *Paletted) ColorIndexAt(x, y int) uint8 {
