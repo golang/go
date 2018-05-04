@@ -68,6 +68,10 @@ func TestLookupGoogleSRV(t *testing.T) {
 		testenv.MustHaveExternalNetwork(t)
 	}
 
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("no resolv.conf on iOS")
+	}
+
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -115,6 +119,10 @@ func TestLookupGmailMX(t *testing.T) {
 		testenv.MustHaveExternalNetwork(t)
 	}
 
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("no resolv.conf on iOS")
+	}
+
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -159,6 +167,10 @@ func TestLookupGmailNS(t *testing.T) {
 		testenv.MustHaveExternalNetwork(t)
 	}
 
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("no resolv.conf on iOS")
+	}
+
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -201,6 +213,10 @@ func TestLookupGmailTXT(t *testing.T) {
 	t.Parallel()
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
+	}
+
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("no resolv.conf on iOS")
 	}
 
 	if !supportsIPv4() || !*testIPv4 {
@@ -599,6 +615,10 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
+	}
+
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("no resolv.conf on iOS")
 	}
 
 	defer dnsWaitGroup.Wait()
