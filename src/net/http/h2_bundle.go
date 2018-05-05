@@ -44,13 +44,14 @@ import (
 	"sync"
 	"time"
 
+	"golang_org/x/net/http/httpguts"
 	"golang_org/x/net/http2/hpack"
 	"golang_org/x/net/idna"
 	"golang_org/x/net/lex/httplex"
 )
 
 // A list of the possible cipher suite ids. Taken from
-// http://www.iana.org/assignments/tls-parameters/tls-parameters.txt
+// https://www.iana.org/assignments/tls-parameters/tls-parameters.txt
 
 const (
 	http2cipher_TLS_NULL_WITH_NULL_NULL               uint16 = 0x0000
@@ -3505,7 +3506,7 @@ func http2mustUint31(v int32) uint32 {
 }
 
 // bodyAllowedForStatus reports whether a given response status code
-// permits a body. See RFC 2616, section 4.4.
+// permits a body. See RFC 7230, section 3.3.
 func http2bodyAllowedForStatus(status int) bool {
 	switch {
 	case status >= 100 && status <= 199:
@@ -4096,7 +4097,7 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 			// addresses during development.
 			//
 			// TODO: optionally enforce? Or enforce at the time we receive
-			// a new request, and verify the the ServerName matches the :authority?
+			// a new request, and verify the ServerName matches the :authority?
 			// But that precludes proxy situations, perhaps.
 			//
 			// So for now, do nothing here again.
@@ -5512,7 +5513,7 @@ func (st *http2stream) processTrailerHeaders(f *http2MetaHeadersFrame) error {
 	if st.trailer != nil {
 		for _, hf := range f.RegularFields() {
 			key := sc.canonicalHeader(hf.Name)
-			if !http2ValidTrailerHeader(key) {
+			if !httpguts.ValidTrailerHeader(key) {
 				// TODO: send more details to the peer somehow. But http2 has
 				// no way to send debug data at a stream level. Discuss with
 				// HTTP folk.
@@ -5979,8 +5980,8 @@ func (rws *http2responseWriterState) hasTrailers() bool { return len(rws.trailer
 // written in the trailers at the end of the response.
 func (rws *http2responseWriterState) declareTrailer(k string) {
 	k = CanonicalHeaderKey(k)
-	if !http2ValidTrailerHeader(k) {
-		// Forbidden by RFC 2616 14.40.
+	if !httpguts.ValidTrailerHeader(k) {
+		// Forbidden by RFC 7230, section 4.1.2.
 		rws.conn.logf("ignoring invalid trailer %q", k)
 		return
 	}
@@ -6018,7 +6019,15 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		}
 		_, hasContentType := rws.snapHeader["Content-Type"]
 		if !hasContentType && http2bodyAllowedForStatus(rws.status) && len(p) > 0 {
-			ctype = DetectContentType(p)
+			if cto := rws.snapHeader.Get("X-Content-Type-Options"); strings.EqualFold("nosniff", cto) {
+				// nosniff is an explicit directive not to guess a content-type.
+				// Content-sniffing is no less susceptible to polyglot attacks via
+				// hosted content when done on the server.
+				ctype = "application/octet-stream"
+				rws.conn.logf("http2: WriteHeader called with X-Content-Type-Options:nosniff but no Content-Type")
+			} else {
+				ctype = DetectContentType(p)
+			}
 		}
 		var date string
 		if _, ok := rws.snapHeader["Date"]; !ok {
@@ -6101,7 +6110,7 @@ const http2TrailerPrefix = "Trailer:"
 // after the header has already been flushed. Because the Go
 // ResponseWriter interface has no way to set Trailers (only the
 // Header), and because we didn't want to expand the ResponseWriter
-// interface, and because nobody used trailers, and because RFC 2616
+// interface, and because nobody used trailers, and because RFC 7230
 // says you SHOULD (but not must) predeclare any trailers in the
 // header, the official ResponseWriter rules said trailers in Go must
 // be predeclared, and then we reuse the same ResponseWriter.Header()
@@ -6485,7 +6494,7 @@ func (sc *http2serverConn) startPush(msg *http2startPushRequest) {
 }
 
 // foreachHeaderElement splits v according to the "#rule" construction
-// in RFC 2616 section 2.1 and calls fn for each non-empty element.
+// in RFC 7230 section 7 and calls fn for each non-empty element.
 func http2foreachHeaderElement(v string, fn func(string)) {
 	v = textproto.TrimString(v)
 	if v == "" {
@@ -6531,41 +6540,6 @@ func http2new400Handler(err error) HandlerFunc {
 	return func(w ResponseWriter, r *Request) {
 		Error(w, err.Error(), StatusBadRequest)
 	}
-}
-
-// ValidTrailerHeader reports whether name is a valid header field name to appear
-// in trailers.
-// See: http://tools.ietf.org/html/rfc7230#section-4.1.2
-func http2ValidTrailerHeader(name string) bool {
-	name = CanonicalHeaderKey(name)
-	if strings.HasPrefix(name, "If-") || http2badTrailer[name] {
-		return false
-	}
-	return true
-}
-
-var http2badTrailer = map[string]bool{
-	"Authorization":       true,
-	"Cache-Control":       true,
-	"Connection":          true,
-	"Content-Encoding":    true,
-	"Content-Length":      true,
-	"Content-Range":       true,
-	"Content-Type":        true,
-	"Expect":              true,
-	"Host":                true,
-	"Keep-Alive":          true,
-	"Max-Forwards":        true,
-	"Pragma":              true,
-	"Proxy-Authenticate":  true,
-	"Proxy-Authorization": true,
-	"Proxy-Connection":    true,
-	"Range":               true,
-	"Realm":               true,
-	"Te":                  true,
-	"Trailer":             true,
-	"Transfer-Encoding":   true,
-	"Www-Authenticate":    true,
 }
 
 // h1ServerKeepAlivesDisabled reports whether hs has its keep-alives
@@ -6856,10 +6830,12 @@ func (sew http2stickyErrWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-// noCachedConnError is the concrete type of ErrNoCachedConn, needs to be detected
-// by net/http regardless of whether it's its bundled version (in h2_bundle.go with a rewritten type name)
-// or from a user's x/net/http2. As such, as it has a unique method name (IsHTTP2NoCachedConnError) that
-// net/http sniffs for via func isNoCachedConnError.
+// noCachedConnError is the concrete type of ErrNoCachedConn, which
+// needs to be detected by net/http regardless of whether it's its
+// bundled version (in h2_bundle.go with a rewritten type name) or
+// from a user's x/net/http2. As such, as it has a unique method name
+// (IsHTTP2NoCachedConnError) that net/http sniffs for via func
+// isNoCachedConnError.
 type http2noCachedConnError struct{}
 
 func (http2noCachedConnError) IsHTTP2NoCachedConnError() {}
@@ -6870,9 +6846,7 @@ func (http2noCachedConnError) Error() string { return "http2: no cached connecti
 // or its equivalent renamed type in net/http2's h2_bundle.go. Both types
 // may coexist in the same running program.
 func http2isNoCachedConnError(err error) bool {
-	_, ok := err.(interface {
-		IsHTTP2NoCachedConnError()
-	})
+	_, ok := err.(interface{ IsHTTP2NoCachedConnError() })
 	return ok
 }
 
