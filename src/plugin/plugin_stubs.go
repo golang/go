@@ -8,7 +8,7 @@ package plugin
 
 import "errors"
 
-func lookup(p *Plugin, symName string) (interface{}, error) {
+func lookup(p *Plugin, symName string) (Symbol, error) {
 	return nil, errors.New("plugin: not implemented")
 }
 
