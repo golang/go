@@ -32,10 +32,13 @@
 package ld
 
 import (
+	"bytes"
 	"cmd/internal/gcprog"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"compress/zlib"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"os"
@@ -679,6 +682,10 @@ func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
 		}
 	}
 
+	// This doesn't distinguish the memory size from the file
+	// size, and it lays out the file based on Symbol.Value, which
+	// is the virtual address. DWARF compression changes file sizes,
+	// so dwarfcompress will fix this up later if necessary.
 	eaddr := addr + size
 	for _, s := range syms {
 		if s.Attr.SubSymbol() {
@@ -2153,4 +2160,45 @@ func (ctxt *Link) AddTramp(s *sym.Symbol) {
 	if *FlagDebugTramp > 0 && ctxt.Debugvlog > 0 {
 		ctxt.Logf("trampoline %s inserted\n", s)
 	}
+}
+
+// compressSyms compresses syms and returns the contents of the
+// compressed section. If the section would get larger, it returns nil.
+func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
+	var total int64
+	for _, sym := range syms {
+		total += sym.Size
+	}
+
+	var buf bytes.Buffer
+	buf.Write([]byte("ZLIB"))
+	var sizeBytes [8]byte
+	binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
+	buf.Write(sizeBytes[:])
+
+	z := zlib.NewWriter(&buf)
+	for _, sym := range syms {
+		if _, err := z.Write(sym.P); err != nil {
+			log.Fatalf("compression failed: %s", err)
+		}
+		for i := sym.Size - int64(len(sym.P)); i > 0; {
+			b := zeros[:]
+			if i < int64(len(b)) {
+				b = b[:i]
+			}
+			n, err := z.Write(b)
+			if err != nil {
+				log.Fatalf("compression failed: %s", err)
+			}
+			i -= int64(n)
+		}
+	}
+	if err := z.Close(); err != nil {
+		log.Fatalf("compression failed: %s", err)
+	}
+	if int64(buf.Len()) >= total {
+		// Compression didn't save any space.
+		return nil
+	}
+	return buf.Bytes()
 }

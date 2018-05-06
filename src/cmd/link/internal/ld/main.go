@@ -226,6 +226,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.dodata()
 	order := ctxt.address()
 	ctxt.reloc()
+	dwarfcompress(ctxt)
 	ctxt.layout(order)
 	thearch.Asmb(ctxt)
 	ctxt.undef()
