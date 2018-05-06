@@ -83,6 +83,7 @@ var getT = CmdGet.Flag.Bool("t", false, "")
 var getU = CmdGet.Flag.Bool("u", false, "")
 var getFix = CmdGet.Flag.Bool("fix", false, "")
 var getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+var getB = CmdGet.Flag.String("b", "", "")
 
 func init() {
 	work.AddBuildFlags(CmdGet)
@@ -415,6 +416,10 @@ func downloadPackage(p *load.Package) error {
 	}
 	if !vcs.isSecure(repo) && !*getInsecure {
 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
+	}
+	
+	if getB != "" {
+		repo = *getB
 	}
 
 	if p.Internal.Build.SrcRoot == "" {
