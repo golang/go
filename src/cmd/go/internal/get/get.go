@@ -49,6 +49,9 @@ The -u flag instructs get to use the network to update the named packages
 and their dependencies.  By default, get uses the network to check out
 missing packages but does not use it to look for updates to existing packages.
 
+The -b flag instructs get to use other repo url and gopath local build the
+base repo path.
+
 The -v flag enables verbose progress and debug output.
 
 Get also accepts build flags to control the installation. See 'go help build'.
