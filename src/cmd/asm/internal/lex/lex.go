@@ -107,9 +107,16 @@ func Make(token ScanToken, text string) Token {
 	if token == scanner.Ident && strings.HasPrefix(text, "\u00B7") {
 		text = `""` + text
 	}
-	// Substitute the substitutes for . and /.
+	// If the symbol starts with type··x, rewrite it as type·""·x
+	if token == scanner.Ident && strings.HasPrefix(text, "type\u00B7\u00B7") {
+		text = "type\u00B7" + `""` + text[len("type\u00B7"):]
+	}
+	// Substitute the substitutes for '.', '/', '*', '(' and ')'.
 	text = strings.Replace(text, "\u00B7", ".", -1)
 	text = strings.Replace(text, "\u2215", "/", -1)
+	text = strings.Replace(text, "\u2217", "*", -1)
+	text = strings.Replace(text, "\uFF08", "(", -1)
+	text = strings.Replace(text, "\uFF09", ")", -1)
 	return Token{ScanToken: token, text: text}
 }
 

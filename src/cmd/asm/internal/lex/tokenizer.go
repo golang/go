@@ -61,6 +61,12 @@ func isIdentRune(ch rune, i int) bool {
 		return true
 	case '\u2215': // Represents the slash in runtime/debug.setGCPercent. U+2215 '∕' division slash
 		return true
+	case '\u2217': // Represents the asterisk in main.(*SomeType).method. U+2217 '∗' asterisk
+		return true
+	case '\uFF08': // Represents the left parentheses in main.(*SomeType).method. U+FF08 '（' left parentheses
+		return true
+	case '\uFF09': // Represents the right parentheses in main.(*SomeType).method. U+FF09 '）' right parentheses
+		return true
 	}
 	// Digits are OK only after the first character.
 	return i > 0 && unicode.IsDigit(ch)
