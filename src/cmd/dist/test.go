@@ -273,10 +273,6 @@ func (t *tester) registerStdTest(pkg string) {
 	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
 		stdMatches = append(stdMatches, pkg)
 	}
-	timeoutSec := 180
-	if pkg == "cmd/go" {
-		timeoutSec *= 2
-	}
 	t.tests = append(t.tests, distTest{
 		name:    testName,
 		heading: "Testing packages.",
@@ -288,6 +284,15 @@ func (t *tester) registerStdTest(pkg string) {
 			timelog("start", dt.name)
 			defer timelog("end", dt.name)
 			ranGoTest = true
+
+			timeoutSec := 180
+			for _, pkg := range stdMatches {
+				if pkg == "cmd/go" {
+					timeoutSec *= 2
+					break
+				}
+			}
+
 			args := []string{
 				"test",
 				"-short",
@@ -405,6 +410,18 @@ func (t *tester) registerTests() {
 				}
 			}
 		}
+	}
+
+	// Test the os/user package in the pure-Go mode too.
+	if !t.compileOnly {
+		t.tests = append(t.tests, distTest{
+			name:    "osusergo",
+			heading: "os/user with tag osusergo",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=osusergo", "os/user")
+				return nil
+			},
+		})
 	}
 
 	if t.race {
@@ -664,7 +681,7 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if goos == "linux" && goarch == "amd64" {
+		if goos == "linux" && (goarch == "amd64" || goarch == "arm64") {
 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {

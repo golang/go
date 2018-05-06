@@ -528,11 +528,6 @@
 (Phi (Const32 [c]) (Const32 [c])) -> (Const32 [c])
 (Phi (Const64 [c]) (Const64 [c])) -> (Const64 [c])
 
-// user nil checks
-(NeqPtr p (ConstNil)) -> (IsNonNil p)
-(EqPtr p (ConstNil)) -> (Not (IsNonNil p))
-(IsNonNil (ConstNil)) -> (ConstBool [0])
-
 // slice and interface comparisons
 // The frontend ensures that we can only compare against nil,
 // so we need only compare the first word (interface type or slice ptr).
@@ -583,8 +578,8 @@
 
 // indexing operations
 // Note: bounds check has already been done
-(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <typ.Int> idx (Const32 <typ.Int> [t.ElemType().Size()])))
-(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <typ.Int> idx (Const64 <typ.Int> [t.ElemType().Size()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <typ.Int> idx (Const32 <typ.Int> [t.Elem().Size()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <typ.Int> idx (Const64 <typ.Int> [t.Elem().Size()])))
 
 // struct operations
 (StructSelect (StructMake1 x)) -> x
@@ -673,7 +668,7 @@
   (ArrayMake0)
 
 (Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) ->
-  (ArrayMake1 (Load <t.ElemType()> ptr mem))
+  (ArrayMake1 (Load <t.Elem()> ptr mem))
 
 (Store _ (ArrayMake0) mem) -> mem
 (Store dst (ArrayMake1 e) mem) -> (Store {e.Type} dst e mem)
@@ -716,12 +711,12 @@
 (SliceCap (SliceMake _ _ (SliceLen x))) -> (SliceLen x)
 (ConstSlice) && config.PtrSize == 4 ->
   (SliceMake
-    (ConstNil <v.Type.ElemType().PtrTo()>)
+    (ConstNil <v.Type.Elem().PtrTo()>)
     (Const32 <typ.Int> [0])
     (Const32 <typ.Int> [0]))
 (ConstSlice) && config.PtrSize == 8 ->
   (SliceMake
-    (ConstNil <v.Type.ElemType().PtrTo()>)
+    (ConstNil <v.Type.Elem().PtrTo()>)
     (Const64 <typ.Int> [0])
     (Const64 <typ.Int> [0]))
 
@@ -749,7 +744,7 @@
 
 (Arg {n} [off]) && v.Type.IsSlice() ->
   (SliceMake
-    (Arg <v.Type.ElemType().PtrTo()> {n} [off])
+    (Arg <v.Type.Elem().PtrTo()> {n} [off])
     (Arg <typ.Int> {n} [off+config.PtrSize])
     (Arg <typ.Int> {n} [off+2*config.PtrSize]))
 
@@ -792,7 +787,7 @@
 (Arg <t>) && t.IsArray() && t.NumElem() == 0 ->
   (ArrayMake0)
 (Arg <t> {n} [off]) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) ->
-  (ArrayMake1 (Arg <t.ElemType()> {n} [off]))
+  (ArrayMake1 (Arg <t.Elem()> {n} [off]))
 
 // strength reduction of divide by a constant.
 // See ../magic.go for a detailed description of these algorithms.
@@ -845,7 +840,7 @@
         (Const32 <typ.UInt32> [int64(1<<15+(umagic(16,c).m+1)/2)])
         (Rsh32Ux64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [1])))
       (Const64 <typ.UInt64> [16+umagic(16,c).s-2])))
-(Div16u x (Const16 [c])) && umagicOK(16, c) && config.RegSize == 4 ->
+(Div16u x (Const16 [c])) && umagicOK(16, c) && config.RegSize == 4 && config.useAvg ->
   (Trunc32to16
     (Rsh32Ux64 <typ.UInt32>
       (Avg32u
@@ -856,19 +851,19 @@
       (Const64 <typ.UInt64> [16+umagic(16,c).s-1])))
 
 // For 32-bit divides on 32-bit machines
-(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && umagic(32,c).m&1 == 0 ->
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && umagic(32,c).m&1 == 0 && config.useHmul ->
   (Rsh32Ux64 <typ.UInt32>
     (Hmul32u <typ.UInt32>
       (Const32 <typ.UInt32> [int64(int32(1<<31+umagic(32,c).m/2))])
       x)
     (Const64 <typ.UInt64> [umagic(32,c).s-1]))
-(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && c&1 == 0 ->
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && c&1 == 0 && config.useHmul ->
   (Rsh32Ux64 <typ.UInt32>
     (Hmul32u <typ.UInt32>
       (Const32 <typ.UInt32> [int64(int32(1<<31+(umagic(32,c).m+1)/2))])
       (Rsh32Ux64 <typ.UInt32> x (Const64 <typ.UInt64> [1])))
     (Const64 <typ.UInt64> [umagic(32,c).s-2]))
-(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 ->
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && config.useAvg && config.useHmul ->
   (Rsh32Ux64 <typ.UInt32>
     (Avg32u
       x
@@ -893,7 +888,7 @@
         (Const64 <typ.UInt64> [int64(1<<31+(umagic(32,c).m+1)/2)])
         (Rsh64Ux64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [1])))
       (Const64 <typ.UInt64> [32+umagic(32,c).s-2])))
-(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 8 ->
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 8 && config.useAvg ->
   (Trunc64to32
     (Rsh64Ux64 <typ.UInt64>
       (Avg64u
@@ -905,19 +900,19 @@
 
 // For 64-bit divides on 64-bit machines
 // (64-bit divides on 32-bit machines are lowered to a runtime call by the walk pass.)
-(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0 ->
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0 && config.useHmul ->
   (Rsh64Ux64 <typ.UInt64>
     (Hmul64u <typ.UInt64>
       (Const64 <typ.UInt64> [int64(1<<63+umagic(64,c).m/2)])
       x)
     (Const64 <typ.UInt64> [umagic(64,c).s-1]))
-(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && c&1 == 0 ->
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && c&1 == 0 && config.useHmul ->
   (Rsh64Ux64 <typ.UInt64>
     (Hmul64u <typ.UInt64>
       (Const64 <typ.UInt64> [int64(1<<63+(umagic(64,c).m+1)/2)])
       (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [1])))
     (Const64 <typ.UInt64> [umagic(64,c).s-2]))
-(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 ->
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && config.useAvg && config.useHmul ->
   (Rsh64Ux64 <typ.UInt64>
     (Avg64u
       x
@@ -992,7 +987,7 @@
     (Rsh64x64 <t>
       (SignExt32to64 x)
       (Const64 <typ.UInt64> [63])))
-(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 == 0 ->
+(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 == 0 && config.useHmul ->
   (Sub32 <t>
     (Rsh32x64 <t>
       (Hmul32 <t>
@@ -1002,7 +997,7 @@
     (Rsh32x64 <t>
       x
       (Const64 <typ.UInt64> [31])))
-(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 != 0 ->
+(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 != 0 && config.useHmul ->
   (Sub32 <t>
     (Rsh32x64 <t>
       (Add32 <t>
@@ -1014,7 +1009,7 @@
     (Rsh32x64 <t>
       x
       (Const64 <typ.UInt64> [31])))
-(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 == 0 ->
+(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 == 0 && config.useHmul ->
   (Sub64 <t>
     (Rsh64x64 <t>
       (Hmul64 <t>
@@ -1024,7 +1019,7 @@
     (Rsh64x64 <t>
       x
       (Const64 <typ.UInt64> [63])))
-(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 != 0 ->
+(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 != 0 && config.useHmul ->
   (Sub64 <t>
     (Rsh64x64 <t>
       (Add64 <t>
@@ -1076,6 +1071,9 @@
   -> (Sub32 x (Mul32 <t> (Div32u <t> x (Const32 <t> [c])) (Const32 <t> [c])))
 (Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && c > 0 && umagicOK(64,c)
   -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+
+(Eq(8|16|32|64)  s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Eq(8|16|32|64)  x y)
+(Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Neq(8|16|32|64) x y)
 
 // Reassociate expressions involving
 // constants such that constants come first,
@@ -1241,9 +1239,30 @@
 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
 	-> (Invalid)
 
-// Address comparison shows up in type assertions.
-(EqPtr x x) -> (ConstBool [1])
-(EqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a == b)])
+// Evaluate constant address comparisons.
+(EqPtr  x x) -> (ConstBool [1])
+(NeqPtr x x) -> (ConstBool [0])
+(EqPtr  (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a == b)])
+(NeqPtr (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a != b)])
+(EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == 0)])
+(NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != 0)])
+(EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == o2)])
+(NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != o2)])
+(EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c == d)])
+(NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c != d)])
+
+// Simplify address comparisons.
+(EqPtr  (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (Not (IsNonNil o1))
+(NeqPtr (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (IsNonNil o1)
+(EqPtr  (Const(32|64) [0]) p) -> (Not (IsNonNil p))
+(NeqPtr (Const(32|64) [0]) p) -> (IsNonNil p)
+(EqPtr  (ConstNil) p) -> (Not (IsNonNil p))
+(NeqPtr (ConstNil) p) -> (IsNonNil p)
+
+// Evaluate constant user nil checks.
+(IsNonNil (ConstNil)) -> (ConstBool [0])
+(IsNonNil (Const(32|64) [c])) -> (ConstBool [b2i(c != 0)])
+(IsNonNil (Addr _)) -> (ConstBool [1])
 
 // Inline small runtime.memmove calls with constant length.
 (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))

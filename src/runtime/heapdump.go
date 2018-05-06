@@ -233,9 +233,8 @@ type childInfo struct {
 
 // dump kinds & offsets of interesting fields in bv
 func dumpbv(cbv *bitvector, offset uintptr) {
-	bv := gobv(*cbv)
-	for i := uintptr(0); i < bv.n; i++ {
-		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
+	for i := uintptr(0); i < uintptr(cbv.n); i++ {
+		if cbv.ptrbit(i) == 1 {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(offset + i*sys.PtrSize))
 		}
@@ -248,10 +247,11 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 
 	// Figure out what we can about our stack map
 	pc := s.pc
+	pcdata := int32(-1) // Use the entry map at function entry
 	if pc != f.entry {
 		pc--
+		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	}
-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
 		// stackmap for this function. It is likely that we are looking
@@ -349,7 +349,7 @@ func dumpgoroutine(gp *g) {
 	dumpbool(isSystemGoroutine(gp))
 	dumpbool(false) // isbackground
 	dumpint(uint64(gp.waitsince))
-	dumpstr(gp.waitreason)
+	dumpstr(gp.waitreason.String())
 	dumpint(uint64(uintptr(gp.sched.ctxt)))
 	dumpint(uint64(uintptr(unsafe.Pointer(gp.m))))
 	dumpint(uint64(uintptr(unsafe.Pointer(gp._defer))))
@@ -658,7 +658,7 @@ func mdump() {
 func writeheapdump_m(fd uintptr) {
 	_g_ := getg()
 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
-	_g_.waitreason = "dumping heap"
+	_g_.waitreason = waitReasonDumpingHeap
 
 	// Update stats so we can dump them.
 	// As a side effect, flushes all the MCaches so the MSpan.freelist

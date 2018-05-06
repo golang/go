@@ -107,6 +107,11 @@
 		(Com32 <typ.UInt32> (Int64Hi x))
 		(Com32 <typ.UInt32> (Int64Lo x)))
 
+// Sadly, just because we know that x is non-zero,
+// we don't know whether either component is,
+// so just treat Ctz64NonZero the same as Ctz64.
+(Ctz64NonZero x) -> (Ctz64 x)
+
 (Ctz64 x) ->
 	(Add32 <typ.UInt32>
 		(Ctz32 <typ.UInt32> (Int64Lo x))

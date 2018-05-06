@@ -656,6 +656,11 @@ func TestEscape(t *testing.T) {
 			// The second URL is also filtered.
 			`<img srcset="/not-an-image#,#ZgotmplZ">`,
 		},
+		{
+			"srcset buffer growth",
+			`<img srcset={{",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"}}>`,
+			`<img srcset=,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,>`,
+		},
 	}
 
 	for _, test := range tests {

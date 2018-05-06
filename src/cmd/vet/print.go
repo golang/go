@@ -534,7 +534,7 @@ var printVerbs = []printVerb{
 	{'%', noFlag, 0},
 	{'b', numFlag, argInt | argFloat | argComplex},
 	{'c', "-", argRune | argInt},
-	{'d', numFlag, argInt},
+	{'d', numFlag, argInt | argPointer},
 	{'e', sharpNumFlag, argFloat | argComplex},
 	{'E', sharpNumFlag, argFloat | argComplex},
 	{'f', sharpNumFlag, argFloat | argComplex},
@@ -549,8 +549,8 @@ var printVerbs = []printVerb{
 	{'T', "-", anyType},
 	{'U', "-#", argRune | argInt},
 	{'v', allFlags, anyType},
-	{'x', sharpNumFlag, argRune | argInt | argString},
-	{'X', sharpNumFlag, argRune | argInt | argString},
+	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
+	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
 }
 
 // okPrintfArg compares the formatState to the arguments actually present,
@@ -708,7 +708,7 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, state *formatS
 	// There are bad indexes in the format or there are fewer arguments than the format needs.
 	// This is the argument number relative to the format: Printf("%s", "hi") will give 1 for the "hi".
 	arg := argNum - state.firstArg + 1 // People think of arguments as 1-indexed.
-	f.Badf(call.Pos(), "%s format %s reads arg #%d, but call has only %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
+	f.Badf(call.Pos(), "%s format %s reads arg #%d, but call has %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
 	return false
 }
 
@@ -721,7 +721,7 @@ const (
 	flagsRE    = `[+\-#]*`
 	indexOptRE = `(\[[0-9]+\])?`
 	numOptRE   = `([0-9]+|` + indexOptRE + `\*)?`
-	verbRE     = `[bcdefgopqstvxEFGUX]`
+	verbRE     = `[bcdefgopqstvxEFGTUX]`
 )
 
 // checkPrint checks a call to an unformatted print routine such as Println.

@@ -314,20 +314,21 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	allocfreetrace   int32
-	cgocheck         int32
-	efence           int32
-	gccheckmark      int32
-	gcpacertrace     int32
-	gcshrinkstackoff int32
-	gcrescanstacks   int32
-	gcstoptheworld   int32
-	gctrace          int32
-	invalidptr       int32
-	sbrk             int32
-	scavenge         int32
-	scheddetail      int32
-	schedtrace       int32
+	allocfreetrace     int32
+	cgocheck           int32
+	efence             int32
+	gccheckmark        int32
+	gcpacertrace       int32
+	gcshrinkstackoff   int32
+	gcrescanstacks     int32
+	gcstoptheworld     int32
+	gctrace            int32
+	invalidptr         int32
+	sbrk               int32
+	scavenge           int32
+	scheddetail        int32
+	schedtrace         int32
+	tracebackancestors int32
 }
 
 var dbgvars = []dbgVar{
@@ -345,6 +346,7 @@ var dbgvars = []dbgVar{
 	{"scavenge", &debug.scavenge},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
+	{"tracebackancestors", &debug.tracebackancestors},
 }
 
 func parsedebugvars() {

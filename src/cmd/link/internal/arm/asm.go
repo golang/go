@@ -649,7 +649,7 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 	return t
 }
 
-func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) *sym.Reloc {
+func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) {
 	r := plt.AddRel()
 	r.Sym = got
 	r.Off = int32(plt.Size)
@@ -660,8 +660,6 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
 	plt.Attr |= sym.AttrReachable
 	plt.Size += 4
 	plt.Grow(plt.Size)
-
-	return r
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {

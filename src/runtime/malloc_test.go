@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"flag"
 	"fmt"
+	"internal/race"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -170,7 +171,17 @@ func TestArenaCollision(t *testing.T) {
 	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
 		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestArenaCollision", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_ARENA_COLLISION=1")
-		if out, err := cmd.CombinedOutput(); !strings.Contains(string(out), "PASS\n") || err != nil {
+		out, err := cmd.CombinedOutput()
+		if race.Enabled {
+			// This test runs the runtime out of hint
+			// addresses, so it will start mapping the
+			// heap wherever it can. The race detector
+			// doesn't support this, so look for the
+			// expected failure.
+			if want := "too many address space collisions"; !strings.Contains(string(out), want) {
+				t.Fatalf("want %q, got:\n%s", want, string(out))
+			}
+		} else if !strings.Contains(string(out), "PASS\n") || err != nil {
 			t.Fatalf("%s\n(exit status %v)", string(out), err)
 		}
 		return

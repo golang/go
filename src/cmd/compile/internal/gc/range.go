@@ -71,7 +71,7 @@ func typecheckrangeExpr(n *Node) {
 
 	case TMAP:
 		t1 = t.Key()
-		t2 = t.Val()
+		t2 = t.Elem()
 
 	case TCHAN:
 		if !t.ChanDir().CanRecv() {
@@ -106,7 +106,7 @@ func typecheckrangeExpr(n *Node) {
 	// "if the second iteration variable is the blank identifier, the range
 	// clause is equivalent to the same clause with only the first variable
 	// present."
-	if isblank(v2) {
+	if v2.isBlank() {
 		if v1 != nil {
 			n.List.Set1(v1)
 		}
@@ -177,11 +177,11 @@ func walkrange(n *Node) *Node {
 		v2 = n.List.Second()
 	}
 
-	if isblank(v2) {
+	if v2.isBlank() {
 		v2 = nil
 	}
 
-	if isblank(v1) && v2 == nil {
+	if v1.isBlank() && v2 == nil {
 		v1 = nil
 	}
 
@@ -204,7 +204,7 @@ func walkrange(n *Node) *Node {
 		Fatalf("walkrange")
 
 	case TARRAY, TSLICE:
-		if memclrrange(n, v1, v2, a) {
+		if arrayClear(n, v1, v2, a) {
 			lineno = lno
 			return n
 		}
@@ -297,7 +297,7 @@ func walkrange(n *Node) *Node {
 
 		fn := syslook("mapiterinit")
 
-		fn = substArgTypes(fn, t.Key(), t.Val(), th)
+		fn = substArgTypes(fn, t.Key(), t.Elem(), th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, nod(OADDR, hit, nil)))
 		n.Left = nod(ONE, nodSym(ODOT, hit, keysym), nodnil())
 
@@ -460,25 +460,30 @@ func walkrange(n *Node) *Node {
 // in which the evaluation of a is side-effect-free.
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
-func memclrrange(n, v1, v2, a *Node) bool {
+func arrayClear(n, v1, v2, a *Node) bool {
 	if Debug['N'] != 0 || instrumenting {
 		return false
 	}
+
 	if v1 == nil || v2 != nil {
 		return false
 	}
-	if n.Nbody.Len() == 0 || n.Nbody.First() == nil || n.Nbody.Len() > 1 {
+
+	if n.Nbody.Len() != 1 || n.Nbody.First() == nil {
 		return false
 	}
+
 	stmt := n.Nbody.First() // only stmt in body
 	if stmt.Op != OAS || stmt.Left.Op != OINDEX {
 		return false
 	}
+
 	if !samesafeexpr(stmt.Left.Left, a) || !samesafeexpr(stmt.Left.Right, v1) {
 		return false
 	}
+
 	elemsize := n.Type.Elem().Width
-	if elemsize <= 0 || !iszero(stmt.Right) {
+	if elemsize <= 0 || !isZero(stmt.Right) {
 		return false
 	}
 

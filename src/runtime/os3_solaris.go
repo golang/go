@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 //go:cgo_export_dynamic runtime.end _end
 //go:cgo_export_dynamic runtime.etext _etext
@@ -128,14 +131,16 @@ func getPageSize() uintptr {
 
 func osinit() {
 	ncpu = getncpu()
-	physPageSize = getPageSize()
+	if physPageSize == 0 {
+		physPageSize = getPageSize()
+	}
 }
 
 func tstart_sysvicall(newm *m) uint32
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, _ unsafe.Pointer) {
+func newosproc(mp *m) {
 	var (
 		attr pthreadattr
 		oset sigset
@@ -147,9 +152,11 @@ func newosproc(mp *m, _ unsafe.Pointer) {
 	if pthread_attr_init(&attr) != 0 {
 		throw("pthread_attr_init")
 	}
+	// Allocate a new 2MB stack.
 	if pthread_attr_setstack(&attr, 0, 0x200000) != 0 {
 		throw("pthread_attr_setstack")
 	}
+	// Read back the allocated stack.
 	if pthread_attr_getstack(&attr, unsafe.Pointer(&mp.g0.stack.hi), &size) != 0 {
 		throw("pthread_attr_getstack")
 	}
@@ -508,4 +515,41 @@ func osyield() {
 		return
 	}
 	osyield1()
+}
+
+//go:linkname executablePath os.executablePath
+var executablePath string
+
+func sysargs(argc int32, argv **byte) {
+	n := argc + 1
+
+	// skip over argv, envp to get to auxv
+	for argv_index(argv, n) != nil {
+		n++
+	}
+
+	// skip NULL separator
+	n++
+
+	// now argv+n is auxv
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	sysauxv(auxv[:])
+}
+
+const (
+	_AT_NULL         = 0    // Terminates the vector
+	_AT_PAGESZ       = 6    // Page size in bytes
+	_AT_SUN_EXECNAME = 2014 // exec() path name
+)
+
+func sysauxv(auxv []uintptr) {
+	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+		tag, val := auxv[i], auxv[i+1]
+		switch tag {
+		case _AT_PAGESZ:
+			physPageSize = val
+		case _AT_SUN_EXECNAME:
+			executablePath = gostringnocopy((*byte)(unsafe.Pointer(val)))
+		}
+	}
 }

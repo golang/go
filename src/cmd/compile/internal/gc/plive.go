@@ -27,22 +27,16 @@ import (
 	"strings"
 )
 
-// TODO(mdempsky): Update to reference OpVar{Def,Kill,Live} instead.
-
-// VARDEF is an annotation for the liveness analysis, marking a place
+// OpVarDef is an annotation for the liveness analysis, marking a place
 // where a complete initialization (definition) of a variable begins.
 // Since the liveness analysis can see initialization of single-word
-// variables quite easy, gvardef is usually only called for multi-word
-// or 'fat' variables, those satisfying isfat(n->type).
-// However, gvardef is also called when a non-fat variable is initialized
-// via a block move; the only time this happens is when you have
-//	return f()
-// for a function with multiple return values exactly matching the return
-// types of the current function.
+// variables quite easy, OpVarDef is only needed for multi-word
+// variables satisfying isfat(n.Type). For simplicity though, buildssa
+// emits OpVarDef regardless of variable width.
 //
-// A 'VARDEF x' annotation in the instruction stream tells the liveness
+// An 'OpVarDef x' annotation in the instruction stream tells the liveness
 // analysis to behave as though the variable x is being initialized at that
-// point in the instruction stream. The VARDEF must appear before the
+// point in the instruction stream. The OpVarDef must appear before the
 // actual (multi-instruction) initialization, and it must also appear after
 // any uses of the previous value, if any. For example, if compiling:
 //
@@ -51,12 +45,12 @@ import (
 // it is important to generate code like:
 //
 //	base, len, cap = pieces of x[1:]
-//	VARDEF x
+//	OpVarDef x
 //	x = {base, len, cap}
 //
 // If instead the generated code looked like:
 //
-//	VARDEF x
+//	OpVarDef x
 //	base, len, cap = pieces of x[1:]
 //	x = {base, len, cap}
 //
@@ -66,12 +60,12 @@ import (
 //
 //	base, len, cap = pieces of x[1:]
 //	x = {base, len, cap}
-//	VARDEF x
+//	OpVarDef x
 //
 // then the liveness analysis will not preserve the new value of x, because
-// the VARDEF appears to have "overwritten" it.
+// the OpVarDef appears to have "overwritten" it.
 //
-// VARDEF is a bit of a kludge to work around the fact that the instruction
+// OpVarDef is a bit of a kludge to work around the fact that the instruction
 // stream is working on single-word values but the liveness analysis
 // wants to work on individual variables, which might be multi-word
 // aggregates. It might make sense at some point to look into letting
@@ -79,16 +73,16 @@ import (
 // there are complications around interface values, slices, and strings,
 // all of which cannot be treated as individual words.
 //
-// VARKILL is the opposite of VARDEF: it marks a value as no longer needed,
-// even if its address has been taken. That is, a VARKILL annotation asserts
+// OpVarKill is the opposite of OpVarDef: it marks a value as no longer needed,
+// even if its address has been taken. That is, an OpVarKill annotation asserts
 // that its argument is certainly dead, for use when the liveness analysis
 // would not otherwise be able to deduce that fact.
 
 // BlockEffects summarizes the liveness effects on an SSA block.
 type BlockEffects struct {
-	lastbitmapindex int // for livenessepilogue
+	lastbitmapindex int // for Liveness.epilogue
 
-	// Computed during livenessprologue using only the content of
+	// Computed during Liveness.prologue using only the content of
 	// individual blocks:
 	//
 	//	uevar: upward exposed variables (used before set in block)
@@ -98,7 +92,7 @@ type BlockEffects struct {
 	varkill  bvec
 	avarinit bvec
 
-	// Computed during livenesssolve using control flow information:
+	// Computed during Liveness.solve using control flow information:
 	//
 	//	livein: variables live at block entry
 	//	liveout: variables live at block exit
@@ -122,12 +116,14 @@ type Liveness struct {
 
 	be []BlockEffects
 
-	// stackMapIndex maps from safe points (i.e., CALLs) to their
-	// index within the stack maps.
-	stackMapIndex map[*ssa.Value]int
-
 	// An array with a bit vector for each safe point tracking live variables.
+	// Indexed sequentially by safe points in Block and Value order.
 	livevars []bvec
+
+	// stackMapIndex maps from safe points (i.e., CALLs) to their
+	// index within stackMaps.
+	stackMapIndex map[*ssa.Value]int
+	stackMaps     []bvec
 
 	cache progeffectscache
 }
@@ -355,7 +351,7 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 // on future calls with the same type t.
 func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
-		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
+		Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
 	}
 
 	switch t.Etype {
@@ -424,16 +420,6 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	default:
 		Fatalf("onebitwalktype1: unexpected type, %v", t)
 	}
-}
-
-// localWords returns the number of words of local variables.
-func (lv *Liveness) localWords() int32 {
-	return int32(lv.stkptrsize / int64(Widthptr))
-}
-
-// argWords returns the number of words of in and out arguments.
-func (lv *Liveness) argWords() int32 {
-	return int32(lv.fn.Type.ArgWidth() / int64(Widthptr))
 }
 
 // Generates live pointer value maps for arguments and local variables. The
@@ -648,7 +634,7 @@ func (lv *Liveness) epilogue() {
 		be := lv.blockEffects(b)
 
 		// Compute avarinitany and avarinitall for entry to block.
-		// This duplicates information known during livenesssolve
+		// This duplicates information known during Liveness.solve
 		// but avoids storing two more vectors for each block.
 		lv.avarinitanyall(b, any, all)
 
@@ -766,7 +752,7 @@ func (lv *Liveness) clobber() {
 	for _, n := range lv.vars {
 		varSize += n.Type.Size()
 	}
-	if len(lv.livevars) > 1000 || varSize > 10000 {
+	if len(lv.stackMaps) > 1000 || varSize > 10000 {
 		// Be careful to avoid doing too much work.
 		// Bail if >1000 safepoints or >10000 bytes of variables.
 		// Otherwise, giant functions make this experiment generate too much code.
@@ -810,7 +796,7 @@ func (lv *Liveness) clobber() {
 				b.Values = append(b.Values, oldSched[0])
 				oldSched = oldSched[1:]
 			}
-			clobber(lv, b, lv.livevars[0])
+			clobber(lv, b, lv.stackMaps[0])
 		}
 
 		// Copy values into schedule, adding clobbering around safepoints.
@@ -831,10 +817,10 @@ func (lv *Liveness) clobber() {
 				before = false
 			}
 			if before {
-				clobber(lv, b, lv.livevars[lv.stackMapIndex[v]])
+				clobber(lv, b, lv.stackMaps[lv.stackMapIndex[v]])
 			}
 			b.Values = append(b.Values, v)
-			clobber(lv, b, lv.livevars[lv.stackMapIndex[v]])
+			clobber(lv, b, lv.stackMaps[lv.stackMapIndex[v]])
 		}
 	}
 }
@@ -980,7 +966,6 @@ func (lv *Liveness) compact() {
 	for i := range remap {
 		remap[i] = -1
 	}
-	uniq := 0 // unique tables found so far
 
 	// Consider bit vectors in turn.
 	// If new, assign next number using uniq,
@@ -996,7 +981,7 @@ Outer:
 			if j < 0 {
 				break
 			}
-			jlive := lv.livevars[j]
+			jlive := lv.stackMaps[j]
 			if live.Eq(jlive) {
 				remap[i] = j
 				continue Outer
@@ -1008,29 +993,24 @@ Outer:
 			}
 		}
 
-		table[h] = uniq
-		remap[i] = uniq
-		lv.livevars[uniq] = live
-		uniq++
+		table[h] = len(lv.stackMaps)
+		remap[i] = len(lv.stackMaps)
+		lv.stackMaps = append(lv.stackMaps, live)
 	}
 
-	// We've already reordered lv.livevars[0:uniq]. Clear the
-	// pointers later in the array so they can be GC'd.
-	tail := lv.livevars[uniq:]
-	for i := range tail { // memclr loop pattern
-		tail[i] = bvec{}
-	}
-	lv.livevars = lv.livevars[:uniq]
+	// Clear lv.livevars to allow GC of duplicate maps and to
+	// prevent accidental use.
+	lv.livevars = nil
 
 	// Record compacted stack map indexes for each value.
 	// These will later become PCDATA instructions.
-	lv.showlive(nil, lv.livevars[0])
+	lv.showlive(nil, lv.stackMaps[0])
 	pos := 1
 	lv.stackMapIndex = make(map[*ssa.Value]int)
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
 			if issafepoint(v) {
-				lv.showlive(v, lv.livevars[remap[pos]])
+				lv.showlive(v, lv.stackMaps[remap[pos]])
 				lv.stackMapIndex[v] = remap[pos]
 				pos++
 			}
@@ -1153,7 +1133,7 @@ func (lv *Liveness) printDebug() {
 		// program listing, with individual effects listed
 
 		if b == lv.f.Entry {
-			live := lv.livevars[pcdata]
+			live := lv.stackMaps[pcdata]
 			fmt.Printf("(%s) function entry\n", linestr(lv.fn.Func.Nname.Pos))
 			fmt.Printf("\tlive=")
 			printed = false
@@ -1190,7 +1170,7 @@ func (lv *Liveness) printDebug() {
 				continue
 			}
 
-			live := lv.livevars[pcdata]
+			live := lv.stackMaps[pcdata]
 			fmt.Printf("\tlive=")
 			printed = false
 			for j, n := range lv.vars {
@@ -1227,15 +1207,42 @@ func (lv *Liveness) printDebug() {
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
 func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
-	args := bvalloc(lv.argWords())
-	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
-	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
+	// Size args bitmaps to be just large enough to hold the largest pointer.
+	// First, find the largest Xoffset node we care about.
+	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
+	var maxArgNode *Node
+	for _, n := range lv.vars {
+		switch n.Class() {
+		case PPARAM, PPARAMOUT:
+			if maxArgNode == nil || n.Xoffset > maxArgNode.Xoffset {
+				maxArgNode = n
+			}
+		}
+	}
+	// Next, find the offset of the largest pointer in the largest node.
+	var maxArgs int64
+	if maxArgNode != nil {
+		maxArgs = maxArgNode.Xoffset + typeptrdata(maxArgNode.Type)
+	}
 
-	locals := bvalloc(lv.localWords())
-	loff := duint32(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
-	loff = duint32(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
+	// Size locals bitmaps to be stkptrsize sized.
+	// We cannot shrink them to only hold the largest pointer,
+	// because their size is used to calculate the beginning
+	// of the local variables frame.
+	// Further discussion in https://golang.org/cl/104175.
+	// TODO: consider trimming leading zeros.
+	// This would require shifting all bitmaps.
+	maxLocals := lv.stkptrsize
 
-	for _, live := range lv.livevars {
+	args := bvalloc(int32(maxArgs / int64(Widthptr)))
+	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
+
+	locals := bvalloc(int32(maxLocals / int64(Widthptr)))
+	loff := duint32(livesym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	loff = duint32(livesym, loff, uint32(locals.n))        // number of bits in each bitmap
+
+	for _, live := range lv.stackMaps {
 		args.Clear()
 		locals.Clear()
 

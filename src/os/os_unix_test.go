@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func init() {
@@ -223,4 +224,57 @@ func TestMkdirStickyUmask(t *testing.T) {
 	if mode := fi.Mode(); (mode&umask) != 0 || (mode&^ModePerm) != (ModeDir|ModeSticky) {
 		t.Errorf("unexpected mode %s", mode)
 	}
+}
+
+// See also issues: 22939, 24331
+func newFileTest(t *testing.T, blocking bool) {
+	p := make([]int, 2)
+	if err := syscall.Pipe(p); err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	defer syscall.Close(p[1])
+
+	// Set the the read-side to non-blocking.
+	if !blocking {
+		if err := syscall.SetNonblock(p[0], true); err != nil {
+			syscall.Close(p[0])
+			t.Fatalf("SetNonblock: %v", err)
+		}
+	}
+	// Convert it to a file.
+	file := NewFile(uintptr(p[0]), "notapipe")
+	if file == nil {
+		syscall.Close(p[0])
+		t.Fatalf("failed to convert fd to file!")
+	}
+	defer file.Close()
+
+	// Try to read with deadline (but don't block forever).
+	b := make([]byte, 1)
+	// Send something after 100ms.
+	timer := time.AfterFunc(100*time.Millisecond, func() { syscall.Write(p[1], []byte("a")) })
+	defer timer.Stop()
+	file.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	_, err := file.Read(b)
+	if !blocking {
+		// We want it to fail with a timeout.
+		if !IsTimeout(err) {
+			t.Fatalf("No timeout reading from file: %v", err)
+		}
+	} else {
+		// We want it to succeed after 100ms
+		if err != nil {
+			t.Fatalf("Error reading from file: %v", err)
+		}
+	}
+}
+
+func TestNewFileBlock(t *testing.T) {
+	t.Parallel()
+	newFileTest(t, true)
+}
+
+func TestNewFileNonBlock(t *testing.T) {
+	t.Parallel()
+	newFileTest(t, false)
 }

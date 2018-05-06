@@ -487,7 +487,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	interfaceContext := check.context // capture for use in closure below
 	check.later(func() {
 		if trace {
-			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %s", iface)
+			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %v", iface)
 			check.indent++
 			defer func() {
 				check.indent--
@@ -524,7 +524,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 				// don't just assert, but report error since this
 				// used to be the underlying cause for issue #18395.
 				if embed.allMethods == nil {
-					check.dump("%s: incomplete embedded interface %s", f.Type.Pos(), typ)
+					check.dump("%v: incomplete embedded interface %s", f.Type.Pos(), typ)
 					unreachable()
 				}
 				// collect interface

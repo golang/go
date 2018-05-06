@@ -25,8 +25,6 @@ type declInfo struct {
 	alias bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
-	// As a special (overloaded) case, it also tracks dependencies of
-	// interface types on embedded interfaces (see ordering.go).
 	deps objSet // lazily initialized
 }
 
@@ -481,8 +479,8 @@ func (check *Checker) collectObjects() {
 func (check *Checker) resolveBaseTypeName(name *ast.Ident) *TypeName {
 	var path []*TypeName
 	for {
-		// name must denote an object found in the current package
-		// (it could be explicitly declared or dot-imported)
+		// name must denote an object found in the current package scope
+		// (note that dot-imported objects are not in the package scope!)
 		obj := check.pkg.scope.Lookup(name.Name)
 		if obj == nil {
 			return nil
@@ -498,15 +496,9 @@ func (check *Checker) resolveBaseTypeName(name *ast.Ident) *TypeName {
 			return nil
 		}
 
-		// tname must have been explicitly declared
-		// (dot-imported objects are not in objMap)
-		tdecl := check.objMap[tname]
-		if tdecl == nil {
-			return nil
-		}
-
 		// we're done if tdecl defined tname as a new type
 		// (rather than an alias)
+		tdecl := check.objMap[tname] // must exist for objects in package scope
 		if !tdecl.alias {
 			return tname
 		}

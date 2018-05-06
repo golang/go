@@ -66,7 +66,7 @@ const (
 	traceEvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
 	traceEvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent task id, stack, name string]
 	traceEvUserTaskEnd       = 46 // end of a task [timestamp, internal task id, stack]
-	traceEvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+	traceEvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
 	traceEvUserLog           = 48 // trace.Log [timestamp, internal task id, key string id, stack, value string]
 	traceEvCount             = 49
 	// Byte is used but only 6 bits are available for event type.
@@ -129,7 +129,7 @@ var trace struct {
 	// Dictionary for traceEvString.
 	//
 	// TODO: central lock to access the map is not ideal.
-	//   option: pre-assign ids to all user annotation span names and tags
+	//   option: pre-assign ids to all user annotation region names and tags
 	//   option: per-P cache
 	//   option: sync.Map like data structure
 	stringsLock mutex
@@ -392,7 +392,7 @@ func ReadTrace() []byte {
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
 		trace.reader.set(getg())
-		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
+		goparkunlock(&trace.lock, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
 		lock(&trace.lock)
 	}
 	// Write a buffer.
@@ -1171,8 +1171,8 @@ func trace_userTaskEnd(id uint64) {
 	traceEvent(traceEvUserTaskEnd, 2, id)
 }
 
-//go:linkname trace_userSpan runtime/trace.userSpan
-func trace_userSpan(id, mode uint64, name string) {
+//go:linkname trace_userRegion runtime/trace.userRegion
+func trace_userRegion(id, mode uint64, name string) {
 	if !trace.enabled {
 		return
 	}
@@ -1184,7 +1184,7 @@ func trace_userSpan(id, mode uint64, name string) {
 	}
 
 	nameStringID, bufp := traceString(bufp, pid, name)
-	traceEventLocked(0, mp, pid, bufp, traceEvUserSpan, 3, id, mode, nameStringID)
+	traceEventLocked(0, mp, pid, bufp, traceEvUserRegion, 3, id, mode, nameStringID)
 	traceReleaseBuffer(pid)
 }
 

@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
+	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -141,6 +142,11 @@ func Main(archInit func(*Arch)) {
 	localpkg = types.NewPkg("", "")
 	localpkg.Prefix = "\"\""
 
+	// We won't know localpkg's height until after import
+	// processing. In the mean time, set to MaxPkgHeight to ensure
+	// height comparisons at least work until then.
+	localpkg.Height = types.MaxPkgHeight
+
 	// pseudo-package, for scoping
 	builtinpkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
 	builtinpkg.Prefix = "go.builtin"            // not go%2ebuiltin
@@ -170,7 +176,11 @@ func Main(archInit func(*Arch)) {
 	mappkg = types.NewPkg("go.map", "go.map")
 	mappkg.Prefix = "go.map"
 
+	// pseudo-package used for methods with anonymous receivers
+	gopkg = types.NewPkg("go", "")
+
 	Nacl = objabi.GOOS == "nacl"
+	Wasm := objabi.GOARCH == "wasm"
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
@@ -191,7 +201,7 @@ func Main(archInit func(*Arch)) {
 	flag.IntVar(&nBackendWorkers, "c", 1, "concurrency during compilation, 1 means no concurrency")
 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
-	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
+	flag.BoolVar(&flagDWARF, "dwarf", !Wasm, "generate DWARF symbols")
 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
@@ -235,6 +245,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+	flag.BoolVar(&flagiexport, "iexport", true, "export indexed package data")
 	objabi.Flagparse(usage)
 
 	// Record flags that affect the build result. (And don't
@@ -255,6 +266,7 @@ func Main(archInit func(*Arch)) {
 	} else {
 		// turn off inline generation if no dwarf at all
 		genDwarfInline = 0
+		Ctxt.Flag_locationlists = false
 	}
 
 	if flag.NArg() < 1 && debugstr != "help" && debugstr != "ssa/help" {
@@ -290,17 +302,23 @@ func Main(archInit func(*Arch)) {
 
 	startProfile()
 
-	if flag_race {
-		racepkg = types.NewPkg("runtime/race", "race")
-	}
-	if flag_msan {
-		msanpkg = types.NewPkg("runtime/msan", "msan")
-	}
 	if flag_race && flag_msan {
 		log.Fatal("cannot use both -race and -msan")
-	} else if flag_race || flag_msan {
+	}
+	if ispkgin(omit_pkgs) {
+		flag_race = false
+		flag_msan = false
+	}
+	if flag_race {
+		racepkg = types.NewPkg("runtime/race", "")
+	}
+	if flag_msan {
+		msanpkg = types.NewPkg("runtime/msan", "")
+	}
+	if flag_race || flag_msan {
 		instrumenting = true
 	}
+
 	if compiling_runtime && Debug['N'] != 0 {
 		log.Fatal("cannot disable optimizations while compiling runtime")
 	}
@@ -538,7 +556,7 @@ func Main(archInit func(*Arch)) {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
-			if n.Func.Inl.Len() != 0 {
+			if n.Func.Inl != nil {
 				saveerrors()
 				typecheckinl(n)
 			}
@@ -625,13 +643,6 @@ func Main(archInit func(*Arch)) {
 		}
 
 		compileFunctions()
-
-		// We autogenerate and compile some small functions
-		// such as method wrappers and equality/hash routines
-		// while exporting code.
-		// Disable concurrent compilation from here on,
-		// at least until this convoluted structure has been unwound.
-		nBackendWorkers = 1
 
 		if nowritebarrierrecCheck != nil {
 			// Write barriers are now known. Check the
@@ -907,12 +918,9 @@ func loadsys() {
 		typ := typs[d.typ]
 		switch d.tag {
 		case funcTag:
-			importsym(Runtimepkg, sym, ONAME)
-			n := newfuncname(sym)
-			n.Type = typ
-			declare(n, PFUNC)
+			importfunc(Runtimepkg, src.NoXPos, sym, typ)
 		case varTag:
-			importvar(lineno, Runtimepkg, sym, typ)
+			importvar(Runtimepkg, src.NoXPos, sym, typ)
 		default:
 			Fatalf("unhandled declaration tag %v", d.tag)
 		}
@@ -922,6 +930,10 @@ func loadsys() {
 	resumecheckwidth()
 	inimport = false
 }
+
+// myheight tracks the local package's height based on packages
+// imported so far.
+var myheight int
 
 func importfile(f *Val) *types.Pkg {
 	path_, ok := f.U.(string)
@@ -997,13 +1009,12 @@ func importfile(f *Val) *types.Pkg {
 
 	importpkg.Imported = true
 
-	impf, err := os.Open(file)
+	imp, err := bio.Open(file)
 	if err != nil {
 		yyerror("can't open import: %q: %v", path_, err)
 		errorexit()
 	}
-	defer impf.Close()
-	imp := bufio.NewReader(impf)
+	defer imp.Close()
 
 	// check object header
 	p, err := imp.ReadString('\n')
@@ -1011,13 +1022,10 @@ func importfile(f *Val) *types.Pkg {
 		yyerror("import %s: reading input: %v", file, err)
 		errorexit()
 	}
-	if len(p) > 0 {
-		p = p[:len(p)-1]
-	}
 
-	if p == "!<arch>" { // package archive
+	if p == "!<arch>\n" { // package archive
 		// package export block should be first
-		sz := arsize(imp, "__.PKGDEF")
+		sz := arsize(imp.Reader, "__.PKGDEF")
 		if sz <= 0 {
 			yyerror("import %s: not a package file", file)
 			errorexit()
@@ -1027,22 +1035,16 @@ func importfile(f *Val) *types.Pkg {
 			yyerror("import %s: reading input: %v", file, err)
 			errorexit()
 		}
-		if len(p) > 0 {
-			p = p[:len(p)-1]
-		}
 	}
 
-	if p != "empty archive" {
-		if !strings.HasPrefix(p, "go object ") {
-			yyerror("import %s: not a go object file: %s", file, p)
-			errorexit()
-		}
-
-		q := fmt.Sprintf("%s %s %s %s", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-		if p[10:] != q {
-			yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
-			errorexit()
-		}
+	if !strings.HasPrefix(p, "go object ") {
+		yyerror("import %s: not a go object file: %s", file, p)
+		errorexit()
+	}
+	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
+	if p[10:] != q {
+		yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
+		errorexit()
 	}
 
 	// process header lines
@@ -1108,11 +1110,39 @@ func importfile(f *Val) *types.Pkg {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}
 		imp.ReadByte() // skip \n after $$B
-		Import(importpkg, imp)
+
+		c, err = imp.ReadByte()
+		if err != nil {
+			yyerror("import %s: reading input: %v", file, err)
+			errorexit()
+		}
+
+		// New indexed format is distinguished by an 'i' byte,
+		// whereas old export format always starts with 'c', 'd', or 'v'.
+		if c == 'i' {
+			if !flagiexport {
+				yyerror("import %s: cannot import package compiled with -iexport=true", file)
+				errorexit()
+			}
+
+			iimport(importpkg, imp)
+		} else {
+			if flagiexport {
+				yyerror("import %s: cannot import package compiled with -iexport=false", file)
+				errorexit()
+			}
+
+			imp.UnreadByte()
+			Import(importpkg, imp.Reader)
+		}
 
 	default:
 		yyerror("no import in %q", path_)
 		errorexit()
+	}
+
+	if importpkg.Height >= myheight {
+		myheight = importpkg.Height + 1
 	}
 
 	return importpkg

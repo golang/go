@@ -318,6 +318,10 @@ const (
 	AFIEBR
 	AFIDBR
 	ACPSDR
+	ALTEBR
+	ALTDBR
+	ATCEB
+	ATCDB
 
 	// move from GPR to FPR and vice versa
 	ALDGR
@@ -937,6 +941,7 @@ const (
 	AVUPLB
 	AVUPLHW
 	AVUPLF
+	AVMSLG
 
 	// binary
 	ABYTE

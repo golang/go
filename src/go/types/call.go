@@ -274,7 +274,7 @@ func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, 
 		typ = sig.params.vars[n-1].typ
 		if debug {
 			if _, ok := typ.(*Slice); !ok {
-				check.dump("%s: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
+				check.dump("%v: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
 			}
 		}
 	default:
@@ -323,12 +323,12 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			exp := pkg.scope.Lookup(sel)
 			if exp == nil {
 				if !pkg.fake {
-					check.errorf(e.Pos(), "%s not declared by package %s", sel, pkg.name)
+					check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
 				}
 				goto Error
 			}
 			if !exp.Exported() {
-				check.errorf(e.Pos(), "%s not exported by package %s", sel, pkg.name)
+				check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
 				// ok to continue
 			}
 			check.recordUse(e.Sel, exp)
@@ -373,11 +373,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.invalidOp(e.Pos(), "ambiguous selector %s", sel)
+			check.invalidOp(e.Sel.Pos(), "ambiguous selector %s", sel)
 		case indirect:
-			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
+			check.invalidOp(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
 		default:
-			check.invalidOp(e.Pos(), "%s has no field or method %s", x, sel)
+			check.invalidOp(e.Sel.Pos(), "%s has no field or method %s", x, sel)
 		}
 		goto Error
 	}
@@ -386,7 +386,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
+			check.invalidOp(e.Sel.Pos(), "%s has no method %s", x, sel)
 			goto Error
 		}
 
@@ -448,7 +448,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				// lookup.
 				mset := NewMethodSet(typ)
 				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
-					check.dump("%s: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
+					check.dump("%v: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
 					check.dump("%s\n", mset)
 					panic("method sets and lookup don't agree")
 				}

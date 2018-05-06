@@ -233,7 +233,7 @@ table tr td {
 {{define "header"}}
 <div class="header">
   <div class="title">
-    <h1><a href="/">pprof</a></h1>
+    <h1><a href="./">pprof</a></h1>
   </div>
 
   <div id="view" class="menu-item">
@@ -242,12 +242,12 @@ table tr td {
       <i class="downArrow"></i>
     </div>
     <div class="submenu">
-      <a title="{{.Help.top}}"  href="/top" id="topbtn">Top</a>
-      <a title="{{.Help.graph}}" href="/" id="graphbtn">Graph</a>
-      <a title="{{.Help.flamegraph}}" href="/flamegraph" id="flamegraph">Flame Graph</a>
-      <a title="{{.Help.peek}}" href="/peek" id="peek">Peek</a>
-      <a title="{{.Help.list}}" href="/source" id="list">Source</a>
-      <a title="{{.Help.disasm}}" href="/disasm" id="disasm">Disassemble</a>
+      <a title="{{.Help.top}}"  href="./top" id="topbtn">Top</a>
+      <a title="{{.Help.graph}}" href="./" id="graphbtn">Graph</a>
+      <a title="{{.Help.flamegraph}}" href="./flamegraph" id="flamegraph">Flame Graph</a>
+      <a title="{{.Help.peek}}" href="./peek" id="peek">Peek</a>
+      <a title="{{.Help.list}}" href="./source" id="list">Source</a>
+      <a title="{{.Help.disasm}}" href="./disasm" id="disasm">Disassemble</a>
     </div>
   </div>
 
@@ -257,12 +257,12 @@ table tr td {
       <i class="downArrow"></i>
     </div>
     <div class="submenu">
-      <a title="{{.Help.focus}}" href="{{.BaseURL}}" id="focus">Focus</a>
-      <a title="{{.Help.ignore}}" href="{{.BaseURL}}" id="ignore">Ignore</a>
-      <a title="{{.Help.hide}}" href="{{.BaseURL}}" id="hide">Hide</a>
-      <a title="{{.Help.show}}" href="{{.BaseURL}}" id="show">Show</a>
+      <a title="{{.Help.focus}}" href="?" id="focus">Focus</a>
+      <a title="{{.Help.ignore}}" href="?" id="ignore">Ignore</a>
+      <a title="{{.Help.hide}}" href="?" id="hide">Hide</a>
+      <a title="{{.Help.show}}" href="?" id="show">Show</a>
       <hr>
-      <a title="{{.Help.reset}}" href="{{.BaseURL}}">Reset</a>
+      <a title="{{.Help.reset}}" href="?">Reset</a>
     </div>
   </div>
 
@@ -295,7 +295,7 @@ table tr td {
     {{.HTMLBody}}
   </div>
   {{template "script" .}}
-  <script>viewer({{.BaseURL}}, {{.Nodes}});</script>
+  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
 </body>
 </html>
 {{end}}
@@ -597,7 +597,7 @@ function viewer(baseUrl, nodes) {
   function handleKey(e) {
     if (e.keyCode != 13) return;
     window.location.href =
-        updateUrl(new URL({{.BaseURL}}, window.location.href), 'f');
+        updateUrl(new URL(window.location.href), 'f');
     e.preventDefault();
   }
 
@@ -963,7 +963,7 @@ function viewer(baseUrl, nodes) {
       bindSort('namehdr', 'Name');
     }
 
-    viewer({{.BaseURL}}, {{.Nodes}});
+    viewer(new URL(window.location.href), {{.Nodes}});
     makeTopTable({{.Total}}, {{.Top}});
   </script>
 </body>
@@ -986,7 +986,7 @@ function viewer(baseUrl, nodes) {
     {{.HTMLBody}}
   </div>
   {{template "script" .}}
-  <script>viewer({{.BaseURL}}, null);</script>
+  <script>viewer(new URL(window.location.href), null);</script>
 </body>
 </html>
 {{end}}
@@ -1007,7 +1007,7 @@ function viewer(baseUrl, nodes) {
     </pre>
   </div>
   {{template "script" .}}
-  <script>viewer({{.BaseURL}}, null);</script>
+  <script>viewer(new URL(window.location.href), null);</script>
 </body>
 </html>
 {{end}}
@@ -1044,7 +1044,7 @@ function viewer(baseUrl, nodes) {
     <div id="flamegraphdetails" class="flamegraph-details"></div>
   </div>
   {{template "script" .}}
-  <script>viewer({{.BaseURL}}, {{.Nodes}});</script>
+  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
   <script>{{template "d3script" .}}</script>
   <script>{{template "d3tipscript" .}}</script>
   <script>{{template "d3flamegraphscript" .}}</script>

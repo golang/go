@@ -952,7 +952,7 @@ func (u *URL) Parse(ref string) (*URL, error) {
 }
 
 // ResolveReference resolves a URI reference to an absolute URI from
-// an absolute base URI, per RFC 3986 Section 5.2.  The URI reference
+// an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
 // may be relative or absolute. ResolveReference always returns a new
 // URL instance, even if the returned URL is identical to either the
 // base or reference. If ref is an absolute URL, then ResolveReference

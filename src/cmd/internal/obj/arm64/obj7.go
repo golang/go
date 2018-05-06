@@ -311,7 +311,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// will zero the high 32-bit of the destination
 	// register anyway.
 	switch p.As {
-	case AANDW, AORRW, AEORW, AANDSW:
+	case AANDW, AORRW, AEORW, AANDSW, ATSTW:
 		if p.From.Type == obj.TYPE_CONST {
 			v := p.From.Offset & 0xffffffff
 			p.From.Offset = v | v<<32
@@ -476,9 +476,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			break
 
 		case obj.ANOP:
-			q1 = p.Link
-			q.Link = q1 /* q is non-nop */
-			q1.Mark |= p.Mark
+			if p.Link != nil {
+				q1 = p.Link
+				q.Link = q1 /* q is non-nop */
+				q1.Mark |= p.Mark
+			}
 			continue
 
 		case ABL,
@@ -819,6 +821,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 			break
+
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOVD LR, Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGLINK
+			} else {
+				/* MOVD (RSP), Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+			}
 		}
 	}
 }

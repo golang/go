@@ -16,24 +16,25 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 )
 
 const (
 	NoOpt        = "-gcflags=-l -N"
-	Opt          = ""
 	OptInl4      = "-gcflags=all=-l=4"
 	OptInl4DwLoc = "-gcflags=all=-l=4 -dwarflocationlists"
 )
 
-func TestRuntimeTypeDIEs(t *testing.T) {
+func TestRuntimeTypesPresent(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestRuntimeTypeDIEs")
+	dir, err := ioutil.TempDir("", "TestRuntimeTypesPresent")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -84,9 +85,14 @@ func findTypes(t *testing.T, dw *dwarf.Data, want map[string]bool) (found map[st
 	return
 }
 
-func gobuild(t *testing.T, dir string, testfile string, gcflags string) *objfilepkg.File {
+type builtFile struct {
+	*objfilepkg.File
+	path string
+}
+
+func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFile {
 	src := filepath.Join(dir, "test.go")
-	dst := filepath.Join(dir, "out")
+	dst := filepath.Join(dir, "out.exe")
 
 	if err := ioutil.WriteFile(src, []byte(testfile), 0666); err != nil {
 		t.Fatal(err)
@@ -102,7 +108,7 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *objfile
 	if err != nil {
 		t.Fatal(err)
 	}
-	return f
+	return &builtFile{f, dst}
 }
 
 func TestEmbeddedStructMarker(t *testing.T) {
@@ -803,4 +809,92 @@ func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
 	}
 
 	abstractOriginSanity(t, OptInl4DwLoc)
+}
+
+func TestRuntimeTypeAttr(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	// Explicitly test external linking, for dsymutil compatility on Darwin.
+	for _, flags := range []string{"-ldflags=-linkmode=internal", "-ldflags=-linkmode=external"} {
+		t.Run("flags="+flags, func(t *testing.T) {
+			if runtime.GOARCH == "ppc64" && strings.Contains(flags, "external") {
+				t.Skip("-linkmode=external not supported on ppc64")
+			}
+
+			testRuntimeTypeAttr(t, flags)
+		})
+	}
+}
+
+func testRuntimeTypeAttr(t *testing.T, flags string) {
+	const prog = `
+package main
+
+import "unsafe"
+
+type X struct{ _ int }
+
+func main() {
+	var x interface{} = &X{}
+	p := *(*uintptr)(unsafe.Pointer(&x))
+	print(p)
+}
+`
+	dir, err := ioutil.TempDir("", "TestRuntimeType")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	f := gobuild(t, dir, prog, flags)
+	out, err := exec.Command(f.path).CombinedOutput()
+	if err != nil {
+		t.Fatalf("could not run test program: %v", err)
+	}
+	addr, err := strconv.ParseUint(string(out), 10, 64)
+	if err != nil {
+		t.Fatalf("could not parse type address from program output %q: %v", out, err)
+	}
+
+	symbols, err := f.Symbols()
+	if err != nil {
+		t.Fatalf("error reading symbols: %v", err)
+	}
+	var types *objfilepkg.Sym
+	for _, sym := range symbols {
+		if sym.Name == "runtime.types" {
+			types = &sym
+			break
+		}
+	}
+	if types == nil {
+		t.Fatal("couldn't find runtime.types in symbols")
+	}
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+	dies := ex.Named("*main.X")
+	if len(dies) != 1 {
+		t.Fatalf("wanted 1 DIE named *main.X, found %v", len(dies))
+	}
+	rtAttr := dies[0].Val(0x2904)
+	if rtAttr == nil {
+		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
+	}
+
+	if rtAttr.(uint64)+types.Addr != addr {
+		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
+	}
 }

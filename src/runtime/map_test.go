@@ -9,12 +9,24 @@ import (
 	"math"
 	"reflect"
 	"runtime"
+	"runtime/internal/sys"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 )
+
+func TestHmapSize(t *testing.T) {
+	// The structure of hmap is defined in runtime/map.go
+	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
+	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
+	var hmapSize = uintptr(8 + 5*sys.PtrSize)
+	if runtime.RuntimeHmapSize != hmapSize {
+		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
+	}
+
+}
 
 // negative zero is a good test because:
 //  1) 0 and -0 are equal, yet have distinct representations.
@@ -423,11 +435,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
 // ("quick keys") as well as long keys.
 func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
 	testMapLookups(t, map[string]string{
-		"x":    "x1val",
-		"xx":   "x2val",
-		"foo":  "fooval",
-		"bar":  "barval", // same key length as "foo"
-		"xxxx": "x4val",
+		"x":                      "x1val",
+		"xx":                     "x2val",
+		"foo":                    "fooval",
+		"bar":                    "barval", // same key length as "foo"
+		"xxxx":                   "x4val",
 		strings.Repeat("x", 128): "longval1",
 		strings.Repeat("y", 128): "longval2",
 	})

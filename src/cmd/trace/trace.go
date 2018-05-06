@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -189,9 +190,13 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		}
 		analyzeGoroutines(res.Events)
 		g := gs[goid]
-		params.mode = goroutineTraceview
+		params.mode = modeGoroutineOriented
 		params.startTime = g.StartTime
-		params.endTime = g.EndTime
+		if g.EndTime != 0 {
+			params.endTime = g.EndTime
+		} else { // The goroutine didn't end.
+			params.endTime = lastTimestamp()
+		}
 		params.maing = goid
 		params.gs = trace.RelatedGoroutines(res.Events, goid)
 	} else if taskids := r.FormValue("taskid"); taskids != "" {
@@ -207,7 +212,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		goid := task.events[0].G
-		params.mode = taskTraceview
+		params.mode = modeGoroutineOriented | modeTaskOriented
 		params.startTime = task.firstTimestamp() - 1
 		params.endTime = task.lastTimestamp() + 1
 		params.maing = goid
@@ -220,6 +225,22 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		params.gs = gs
+	} else if taskids := r.FormValue("focustask"); taskids != "" {
+		taskid, err := strconv.ParseUint(taskids, 10, 64)
+		if err != nil {
+			log.Printf("failed to parse focustask parameter %q: %v", taskids, err)
+			return
+		}
+		annotRes, _ := analyzeAnnotations()
+		task, ok := annotRes.tasks[taskid]
+		if !ok || len(task.events) == 0 {
+			log.Printf("failed to find task with id %d", taskid)
+			return
+		}
+		params.mode = modeTaskOriented
+		params.startTime = task.firstTimestamp() - 1
+		params.endTime = task.lastTimestamp() + 1
+		params.tasks = task.decendents()
 	}
 
 	start := int64(0)
@@ -366,12 +387,11 @@ type traceParams struct {
 	tasks     []*taskDesc     // Tasks to be displayed. tasks[0] is the top-most task
 }
 
-type traceviewMode int
+type traceviewMode uint
 
 const (
-	defaultTraceview traceviewMode = iota
-	goroutineTraceview
-	taskTraceview
+	modeGoroutineOriented traceviewMode = 1 << iota
+	modeTaskOriented
 )
 
 type traceContext struct {
@@ -385,6 +405,8 @@ type traceContext struct {
 	heapStats, prevHeapStats     heapStats
 	threadStats, prevThreadStats threadStats
 	gstates, prevGstates         [gStateCount]int64
+
+	regionID int // last emitted region id. incremented in each emitRegion call.
 }
 
 type heapStats struct {
@@ -457,6 +479,16 @@ type NameArg struct {
 	Name string `json:"name"`
 }
 
+type TaskArg struct {
+	ID     uint64 `json:"id"`
+	StartG uint64 `json:"start_g,omitempty"`
+	EndG   uint64 `json:"end_g,omitempty"`
+}
+
+type RegionArg struct {
+	TaskID uint64 `json:"taskid,omitempty"`
+}
+
 type SortIndexArg struct {
 	Index int `json:"sort_index"`
 }
@@ -467,6 +499,12 @@ type traceConsumer struct {
 	consumeViewerFrame func(key string, f ViewerFrame)
 	flush              func()
 }
+
+const (
+	procsSection = 0 // where Goroutines or per-P timelines are presented.
+	statsSection = 1 // where counters are presented.
+	tasksSection = 2 // where Task hierarchy & timeline is presented.
+)
 
 // generateTrace generates json trace for trace-viewer:
 // https://github.com/google/trace-viewer
@@ -600,7 +638,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 		if ctx.gs != nil && ev.P < trace.FakeP && !ctx.gs[ev.G] {
 			continue
 		}
-		if !withinTimerange(ev, ctx.startTime, ctx.endTime) {
+		if !withinTimeRange(ev, ctx.startTime, ctx.endTime) {
 			continue
 		}
 
@@ -611,12 +649,12 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 		// Emit trace objects.
 		switch ev.Type {
 		case trace.EvProcStart:
-			if ctx.mode != defaultTraceview {
+			if ctx.mode&modeGoroutineOriented != 0 {
 				continue
 			}
 			ctx.emitInstant(ev, "proc start", "")
 		case trace.EvProcStop:
-			if ctx.mode != defaultTraceview {
+			if ctx.mode&modeGoroutineOriented != 0 {
 				continue
 			}
 			ctx.emitInstant(ev, "proc stop", "")
@@ -624,7 +662,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			ctx.emitSlice(ev, "GC")
 		case trace.EvGCDone:
 		case trace.EvGCSTWStart:
-			if ctx.mode != defaultTraceview {
+			if ctx.mode&modeGoroutineOriented != 0 {
 				continue
 			}
 			ctx.emitSlice(ev, fmt.Sprintf("STW (%s)", ev.SArgs[0]))
@@ -691,70 +729,78 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 		ctx.emitGoroutineCounters(ev)
 	}
 
-	ctx.emitFooter(&ViewerEvent{Name: "process_name", Phase: "M", Pid: 0, Arg: &NameArg{"PROCS"}})
-	ctx.emitFooter(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: 0, Arg: &SortIndexArg{1}})
+	ctx.emitSectionFooter(statsSection, "STATS", 0)
 
-	ctx.emitFooter(&ViewerEvent{Name: "process_name", Phase: "M", Pid: 1, Arg: &NameArg{"STATS"}})
-	ctx.emitFooter(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: 1, Arg: &SortIndexArg{0}})
+	if ctx.mode&modeTaskOriented != 0 {
+		ctx.emitSectionFooter(tasksSection, "TASKS", 1)
+	}
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.GCP, Arg: &NameArg{"GC"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.GCP, Arg: &SortIndexArg{-6}})
+	if ctx.mode&modeGoroutineOriented != 0 {
+		ctx.emitSectionFooter(procsSection, "G", 2)
+	} else {
+		ctx.emitSectionFooter(procsSection, "PROCS", 2)
+	}
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.NetpollP, Arg: &NameArg{"Network"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.NetpollP, Arg: &SortIndexArg{-5}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &NameArg{"GC"}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &SortIndexArg{-6}})
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.TimerP, Arg: &NameArg{"Timers"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.TimerP, Arg: &SortIndexArg{-4}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &NameArg{"Network"}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &SortIndexArg{-5}})
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.SyscallP, Arg: &NameArg{"Syscalls"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.SyscallP, Arg: &SortIndexArg{-3}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &NameArg{"Timers"}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &SortIndexArg{-4}})
 
-	// Display rows for Ps if we are in the default trace view mode.
-	if ctx.mode == defaultTraceview {
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &NameArg{"Syscalls"}})
+	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &SortIndexArg{-3}})
+
+	// Display rows for Ps if we are in the default trace view mode (not goroutine-oriented presentation)
+	if ctx.mode&modeGoroutineOriented == 0 {
 		for i := 0; i <= maxProc; i++ {
-			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
-			ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &SortIndexArg{i}})
+			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
+			ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &SortIndexArg{i}})
 		}
 	}
 
-	// Display task and its spans if we are in the taskTrace view mode.
-	if ctx.mode == taskTraceview {
-		taskRow := uint64(trace.GCP + 1)
+	// Display task and its regions if we are in task-oriented presentation mode.
+	if ctx.mode&modeTaskOriented != 0 {
+		// sort tasks based on the task start time.
+		sortedTask := make([]*taskDesc, 0, len(ctx.tasks))
 		for _, task := range ctx.tasks {
-			taskName := fmt.Sprintf("Task %s(%d)", task.name, task.id)
-			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: taskRow, Arg: &NameArg{"Tasks"}})
-			ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: taskRow, Arg: &SortIndexArg{-3}})
-			tBegin := &ViewerEvent{Category: "task", Name: taskName, Phase: "b", Time: float64(task.firstTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: colorBlue}
-			if task.create != nil {
-				tBegin.Stack = ctx.stack(task.create.Stk)
+			sortedTask = append(sortedTask, task)
+		}
+		sort.SliceStable(sortedTask, func(i, j int) bool {
+			ti, tj := sortedTask[i], sortedTask[j]
+			if ti.firstTimestamp() == tj.firstTimestamp() {
+				return ti.lastTimestamp() < tj.lastTimestamp()
 			}
-			ctx.emit(tBegin)
+			return ti.firstTimestamp() < tj.firstTimestamp()
+		})
 
-			tEnd := &ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.lastTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: colorBlue}
-			if task.end != nil {
-				tEnd.Stack = ctx.stack(task.end.Stk)
-			}
-			ctx.emit(tEnd)
+		for i, task := range sortedTask {
+			ctx.emitTask(task, i)
 
-			// Spans
-			for i, s := range task.spans {
-				ctx.emitSpan(s, i)
+			// If we are in goroutine-oriented mode, we draw regions.
+			// TODO(hyangah): add this for task/P-oriented mode (i.e., focustask view) too.
+			if ctx.mode&modeGoroutineOriented != 0 {
+				for _, s := range task.regions {
+					ctx.emitRegion(s)
+				}
 			}
 		}
 	}
 
-	// Display goroutine rows if we are either in gtrace or taskTrace view mode.
-	if ctx.mode != defaultTraceview && ctx.gs != nil {
+	// Display goroutine rows if we are either in goroutine-oriented mode.
+	if ctx.mode&modeGoroutineOriented != 0 {
 		for k, v := range ginfos {
 			if !ctx.gs[k] {
 				continue
 			}
-			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: k, Arg: &NameArg{v.name}})
+			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: k, Arg: &NameArg{v.name}})
 		}
 		// Row for the main goroutine (maing)
-		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: ctx.maing, Arg: &SortIndexArg{-2}})
+		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: ctx.maing, Arg: &SortIndexArg{-2}})
 		// Row for GC or global state (specified with G=0)
-		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: 0, Arg: &SortIndexArg{-1}})
+		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: 0, Arg: &SortIndexArg{-1}})
 	}
 
 	return nil
@@ -767,21 +813,29 @@ func (ctx *traceContext) emit(e *ViewerEvent) {
 func (ctx *traceContext) emitFooter(e *ViewerEvent) {
 	ctx.consumer.consumeViewerEvent(e, true)
 }
+func (ctx *traceContext) emitSectionFooter(sectionID uint64, name string, priority int) {
+	ctx.emitFooter(&ViewerEvent{Name: "process_name", Phase: "M", Pid: sectionID, Arg: &NameArg{name}})
+	ctx.emitFooter(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: sectionID, Arg: &SortIndexArg{priority}})
+}
 
 func (ctx *traceContext) time(ev *trace.Event) float64 {
 	// Trace viewer wants timestamps in microseconds.
 	return float64(ev.Ts) / 1000
 }
 
-func withinTimerange(ev *trace.Event, s, e int64) bool {
+func withinTimeRange(ev *trace.Event, s, e int64) bool {
 	if evEnd := ev.Link; evEnd != nil {
 		return ev.Ts <= e && evEnd.Ts >= s
 	}
 	return ev.Ts >= s && ev.Ts <= e
 }
 
+func tsWithinRange(ts, s, e int64) bool {
+	return s <= ts && ts <= e
+}
+
 func (ctx *traceContext) proc(ev *trace.Event) uint64 {
-	if ctx.mode != defaultTraceview && ev.P < trace.FakeP {
+	if ctx.mode&modeGoroutineOriented != 0 && ev.P < trace.FakeP {
 		return ev.G
 	} else {
 		return uint64(ev.P)
@@ -789,18 +843,25 @@ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
 }
 
 func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
+	// If ViewerEvent.Dur is not a positive value,
+	// trace viewer handles it as a non-terminating time interval.
+	// Avoid it by setting the field with a small value.
+	durationUsec := ctx.time(ev.Link) - ctx.time(ev)
+	if ev.Link.Ts-ev.Ts <= 0 {
+		durationUsec = 0.0001 // 0.1 nanoseconds
+	}
 	sl := &ViewerEvent{
 		Name:     name,
 		Phase:    "X",
 		Time:     ctx.time(ev),
-		Dur:      ctx.time(ev.Link) - ctx.time(ev),
+		Dur:      durationUsec,
 		Tid:      ctx.proc(ev),
 		Stack:    ctx.stack(ev.Stk),
 		EndStack: ctx.stack(ev.Link.Stk),
 	}
 
 	// grey out non-overlapping events if the event is not a global event (ev.G == 0)
-	if ctx.mode == taskTraceview && ev.G != 0 {
+	if ctx.mode&modeTaskOriented != 0 && ev.G != 0 {
 		// include P information.
 		if t := ev.Type; t == trace.EvGoStart || t == trace.EvGoStartLabel {
 			type Arg struct {
@@ -824,22 +885,68 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
 	return sl
 }
 
-func (ctx *traceContext) emitSpan(s spanDesc, spanID int) {
+func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
+	taskRow := uint64(task.id)
+	taskName := task.name
+	durationUsec := float64(task.lastTimestamp()-task.firstTimestamp()) / 1e3
+
+	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &NameArg{fmt.Sprintf("T%d %s", task.id, taskName)}})
+	ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &SortIndexArg{sortIndex}})
+	ts := float64(task.firstTimestamp()) / 1e3
+	sl := &ViewerEvent{
+		Name:  taskName,
+		Phase: "X",
+		Time:  ts,
+		Dur:   durationUsec,
+		Pid:   tasksSection,
+		Tid:   taskRow,
+		Cname: pickTaskColor(task.id),
+	}
+	targ := TaskArg{ID: task.id}
+	if task.create != nil {
+		sl.Stack = ctx.stack(task.create.Stk)
+		targ.StartG = task.create.G
+	}
+	if task.end != nil {
+		sl.EndStack = ctx.stack(task.end.Stk)
+		targ.EndG = task.end.G
+	}
+	sl.Arg = targ
+	ctx.emit(sl)
+
+	if task.create != nil && task.create.Type == trace.EvUserTaskCreate && task.create.Args[1] != 0 {
+		ctx.arrowSeq++
+		ctx.emit(&ViewerEvent{Name: "newTask", Phase: "s", Tid: task.create.Args[1], ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
+		ctx.emit(&ViewerEvent{Name: "newTask", Phase: "t", Tid: taskRow, ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
+	}
+}
+
+func (ctx *traceContext) emitRegion(s regionDesc) {
 	if s.Name == "" {
 		return
 	}
+
+	if !tsWithinRange(s.firstTimestamp(), ctx.startTime, ctx.endTime) &&
+		!tsWithinRange(s.lastTimestamp(), ctx.startTime, ctx.endTime) {
+		return
+	}
+
+	ctx.regionID++
+	regionID := ctx.regionID
+
 	id := s.TaskID
 	scopeID := fmt.Sprintf("%x", id)
+	name := s.Name
 
 	sl0 := &ViewerEvent{
-		Category: "Span",
-		Name:     s.Name,
+		Category: "Region",
+		Name:     name,
 		Phase:    "b",
 		Time:     float64(s.firstTimestamp()) / 1e3,
-		Tid:      s.G,
-		ID:       uint64(spanID),
+		Tid:      s.G, // only in goroutine-oriented view
+		ID:       uint64(regionID),
 		Scope:    scopeID,
-		Cname:    colorDeepMagenta,
+		Cname:    pickTaskColor(s.TaskID),
 	}
 	if s.Start != nil {
 		sl0.Stack = ctx.stack(s.Start.Stk)
@@ -847,14 +954,15 @@ func (ctx *traceContext) emitSpan(s spanDesc, spanID int) {
 	ctx.emit(sl0)
 
 	sl1 := &ViewerEvent{
-		Category: "Span",
-		Name:     s.Name,
+		Category: "Region",
+		Name:     name,
 		Phase:    "e",
 		Time:     float64(s.lastTimestamp()) / 1e3,
 		Tid:      s.G,
-		ID:       uint64(spanID),
+		ID:       uint64(regionID),
 		Scope:    scopeID,
-		Cname:    colorDeepMagenta,
+		Cname:    pickTaskColor(s.TaskID),
+		Arg:      RegionArg{TaskID: s.TaskID},
 	}
 	if s.End != nil {
 		sl1.Stack = ctx.stack(s.End.Stk)
@@ -868,9 +976,6 @@ type heapCountersArg struct {
 }
 
 func (ctx *traceContext) emitHeapCounters(ev *trace.Event) {
-	if ctx.mode == goroutineTraceview {
-		return
-	}
 	if ctx.prevHeapStats == ctx.heapStats {
 		return
 	}
@@ -878,7 +983,9 @@ func (ctx *traceContext) emitHeapCounters(ev *trace.Event) {
 	if ctx.heapStats.nextGC > ctx.heapStats.heapAlloc {
 		diff = ctx.heapStats.nextGC - ctx.heapStats.heapAlloc
 	}
-	ctx.emit(&ViewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapStats.heapAlloc, diff}})
+	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
+		ctx.emit(&ViewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapStats.heapAlloc, diff}})
+	}
 	ctx.prevHeapStats = ctx.heapStats
 }
 
@@ -889,13 +996,12 @@ type goroutineCountersArg struct {
 }
 
 func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
-	if ctx.mode == goroutineTraceview {
-		return
-	}
 	if ctx.prevGstates == ctx.gstates {
 		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
+	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
+		ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
+	}
 	ctx.prevGstates = ctx.gstates
 }
 
@@ -905,32 +1011,37 @@ type threadCountersArg struct {
 }
 
 func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
-	if ctx.mode == goroutineTraceview {
-		return
-	}
 	if ctx.prevThreadStats == ctx.threadStats {
 		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{
-		Running:   ctx.threadStats.prunning,
-		InSyscall: ctx.threadStats.insyscall}})
+	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
+		ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{
+			Running:   ctx.threadStats.prunning,
+			InSyscall: ctx.threadStats.insyscall}})
+	}
 	ctx.prevThreadStats = ctx.threadStats
 }
 
 func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
+	if !tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
+		return
+	}
+
 	cname := ""
-	if ctx.mode == taskTraceview && ev.G != 0 {
-		overlapping := false
+	if ctx.mode&modeTaskOriented != 0 {
+		taskID, isUserAnnotation := isUserAnnotationEvent(ev)
+
+		show := false
 		for _, task := range ctx.tasks {
-			if task.overlappingInstant(ev) {
-				overlapping = true
+			if isUserAnnotation && task.id == taskID || task.overlappingInstant(ev) {
+				show = true
 				break
 			}
 		}
 		// grey out or skip if non-overlapping instant.
-		if !overlapping {
-			if isUserAnnotationEvent(ev) {
-				return // don't display unrelated task events.
+		if !show {
+			if isUserAnnotation {
+				return // don't display unrelated user annotation events.
 			}
 			cname = colorLightGrey
 		}
@@ -960,7 +1071,7 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
 		// For example, a goroutine was unblocked but was not scheduled before trace stop.
 		return
 	}
-	if ctx.mode != defaultTraceview && (!ctx.gs[ev.Link.G] || ev.Link.Ts < ctx.startTime || ev.Link.Ts > ctx.endTime) {
+	if ctx.mode&modeGoroutineOriented != 0 && (!ctx.gs[ev.Link.G] || ev.Link.Ts < ctx.startTime || ev.Link.Ts > ctx.endTime) {
 		return
 	}
 
@@ -970,7 +1081,8 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
 		ctx.emitInstant(&trace.Event{P: ev.P, Ts: ev.Ts}, "unblock", "")
 	}
 
-	if ctx.mode == taskTraceview {
+	color := ""
+	if ctx.mode&modeTaskOriented != 0 {
 		overlapping := false
 		// skip non-overlapping arrows.
 		for _, task := range ctx.tasks {
@@ -985,8 +1097,8 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
 	}
 
 	ctx.arrowSeq++
-	ctx.emit(&ViewerEvent{Name: name, Phase: "s", Tid: ctx.proc(ev), ID: ctx.arrowSeq, Time: ctx.time(ev), Stack: ctx.stack(ev.Stk)})
-	ctx.emit(&ViewerEvent{Name: name, Phase: "t", Tid: ctx.proc(ev.Link), ID: ctx.arrowSeq, Time: ctx.time(ev.Link)})
+	ctx.emit(&ViewerEvent{Name: name, Phase: "s", Tid: ctx.proc(ev), ID: ctx.arrowSeq, Time: ctx.time(ev), Stack: ctx.stack(ev.Stk), Cname: color})
+	ctx.emit(&ViewerEvent{Name: name, Phase: "t", Tid: ctx.proc(ev.Link), ID: ctx.arrowSeq, Time: ctx.time(ev.Link), Cname: color})
 }
 
 func (ctx *traceContext) stack(stk []*trace.Frame) int {
@@ -1081,36 +1193,67 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
 // https://github.com/catapult-project/catapult/blob/master/tracing/tracing/base/color_scheme.html#L50
 // The chrome trace viewer allows only those as cname values.
 const (
-	colorLightMauve      string = "thread_state_uninterruptible" // 182, 125, 143
-	colorOrange                 = "thread_state_iowait"          // 255, 140, 0
-	colorSeafoamGreen           = "thread_state_running"         // 126, 200, 148
-	colorVistaBlue              = "thread_state_runnable"        // 133, 160, 210
-	colorTan                    = "thread_state_unknown"         // 199, 155, 125
-	colorIrisBlue               = "background_memory_dump"       // 0, 180, 180
-	colorMidnightBlue           = "light_memory_dump"            // 0, 0, 180
-	colorDeepMagenta            = "detailed_memory_dump"         // 180, 0, 180
-	colorBlue                   = "vsync_highlight_color"        // 0, 0, 255
-	colorGrey                   = "generic_work"                 // 125, 125, 125
-	colorGreen                  = "good"                         // 0, 125, 0
-	colorDarkGoldenrod          = "bad"                          // 180, 125, 0
-	colorPeach                  = "terrible"                     // 180, 0, 0
-	colorBlack                  = "black"                        // 0, 0, 0
-	colorLightGrey              = "grey"                         // 221, 221, 221
-	colorWhite                  = "white"                        // 255, 255, 255
-	colorYellow                 = "yellow"                       // 255, 255, 0
-	colorOlive                  = "olive"                        // 100, 100, 0
-	colorCornflowerBlue         = "rail_response"                // 67, 135, 253
-	colorSunsetOrange           = "rail_animation"               // 244, 74, 63
-	colorTangerine              = "rail_idle"                    // 238, 142, 0
-	colorShamrockGreen          = "rail_load"                    // 13, 168, 97
-	colorGreenishYellow         = "startup"                      // 230, 230, 0
-	colorDarkGrey               = "heap_dump_stack_frame"        // 128, 128, 128
-	colorTawny                  = "heap_dump_child_node_arrow"   // 204, 102, 0
-	colorLemon                  = "cq_build_running"             // 255, 255, 119
-	colorLime                   = "cq_build_passed"              // 153, 238, 102
-	colorPink                   = "cq_build_failed"              // 238, 136, 136
-	colorSilver                 = "cq_build_abandoned"           // 187, 187, 187
-	colorManzGreen              = "cq_build_attempt_running"     // 222, 222, 75
-	colorKellyGreen             = "cq_build_attempt_passed"      // 108, 218, 35
-	colorFuzzyWuzzyBrown        = "cq_build_attempt_failed"      // 187, 187, 187
+	colorLightMauve     string = "thread_state_uninterruptible" // 182, 125, 143
+	colorOrange                = "thread_state_iowait"          // 255, 140, 0
+	colorSeafoamGreen          = "thread_state_running"         // 126, 200, 148
+	colorVistaBlue             = "thread_state_runnable"        // 133, 160, 210
+	colorTan                   = "thread_state_unknown"         // 199, 155, 125
+	colorIrisBlue              = "background_memory_dump"       // 0, 180, 180
+	colorMidnightBlue          = "light_memory_dump"            // 0, 0, 180
+	colorDeepMagenta           = "detailed_memory_dump"         // 180, 0, 180
+	colorBlue                  = "vsync_highlight_color"        // 0, 0, 255
+	colorGrey                  = "generic_work"                 // 125, 125, 125
+	colorGreen                 = "good"                         // 0, 125, 0
+	colorDarkGoldenrod         = "bad"                          // 180, 125, 0
+	colorPeach                 = "terrible"                     // 180, 0, 0
+	colorBlack                 = "black"                        // 0, 0, 0
+	colorLightGrey             = "grey"                         // 221, 221, 221
+	colorWhite                 = "white"                        // 255, 255, 255
+	colorYellow                = "yellow"                       // 255, 255, 0
+	colorOlive                 = "olive"                        // 100, 100, 0
+	colorCornflowerBlue        = "rail_response"                // 67, 135, 253
+	colorSunsetOrange          = "rail_animation"               // 244, 74, 63
+	colorTangerine             = "rail_idle"                    // 238, 142, 0
+	colorShamrockGreen         = "rail_load"                    // 13, 168, 97
+	colorGreenishYellow        = "startup"                      // 230, 230, 0
+	colorDarkGrey              = "heap_dump_stack_frame"        // 128, 128, 128
+	colorTawny                 = "heap_dump_child_node_arrow"   // 204, 102, 0
+	colorLemon                 = "cq_build_running"             // 255, 255, 119
+	colorLime                  = "cq_build_passed"              // 153, 238, 102
+	colorPink                  = "cq_build_failed"              // 238, 136, 136
+	colorSilver                = "cq_build_abandoned"           // 187, 187, 187
+	colorManzGreen             = "cq_build_attempt_runnig"      // 222, 222, 75
+	colorKellyGreen            = "cq_build_attempt_passed"      // 108, 218, 35
+	colorAnotherGrey           = "cq_build_attempt_failed"      // 187, 187, 187
 )
+
+var colorForTask = []string{
+	colorLightMauve,
+	colorOrange,
+	colorSeafoamGreen,
+	colorVistaBlue,
+	colorTan,
+	colorMidnightBlue,
+	colorIrisBlue,
+	colorDeepMagenta,
+	colorGreen,
+	colorDarkGoldenrod,
+	colorPeach,
+	colorOlive,
+	colorCornflowerBlue,
+	colorSunsetOrange,
+	colorTangerine,
+	colorShamrockGreen,
+	colorTawny,
+	colorLemon,
+	colorLime,
+	colorPink,
+	colorSilver,
+	colorManzGreen,
+	colorKellyGreen,
+}
+
+func pickTaskColor(id uint64) string {
+	idx := id % uint64(len(colorForTask))
+	return colorForTask[idx]
+}

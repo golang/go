@@ -249,6 +249,7 @@ func init() {
 		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                              // floor(arg0), float64
 		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                               // ceil(arg0), float64
 		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                              // trunc(arg0), float64
+		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                              // round(arg0), float64
 		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                // abs(arg0), float64
 		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                              // -abs(arg0), float64
 		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                            // copysign arg0 -> arg1, float64
@@ -321,14 +322,17 @@ func init() {
 		// LoweredGetCallerSP returns the SP of the caller of the current function.
 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
 
+		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+		// I.e., if f calls g "calls" getcallerpc,
+		// the result should be the PC within f that g will return to.
+		// See runtime/stubs.go for a more detailed discussion.
+		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
 		// Round ops to block fused-multiply-add extraction.
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
-
-		// Convert pointer to integer, takes a memory operand for ordering.
-		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
 
 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                   // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem

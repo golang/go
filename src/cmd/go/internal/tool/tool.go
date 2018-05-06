@@ -33,6 +33,17 @@ For more about each tool command, see 'go doc cmd/<command>'.
 
 var toolN bool
 
+// Return whether tool can be expected in the gccgo tool directory.
+// Other binaries could be in the same directory so don't
+// show those with the 'go tool' command.
+func isGccgoTool(tool string) bool {
+	switch tool {
+	case "cgo", "fix", "cover", "godoc", "vet":
+		return true
+	}
+	return false
+}
+
 func init() {
 	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
 }
@@ -113,6 +124,11 @@ func listTools() {
 		// If it's windows, don't show the .exe suffix.
 		if base.ToolIsWindows && strings.HasSuffix(name, base.ToolWindowsExtension) {
 			name = name[:len(name)-len(base.ToolWindowsExtension)]
+		}
+		// The tool directory used by gccgo will have other binaries
+		// in addition to go tools. Only display go tools here.
+		if cfg.BuildToolchainName == "gccgo" && !isGccgoTool(name) {
+			continue
 		}
 		fmt.Println(name)
 	}

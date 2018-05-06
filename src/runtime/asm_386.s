@@ -167,28 +167,14 @@ notintel:
 	TESTL	$(1<<26), DX // SSE2
 	SETNE	runtime·support_sse2(SB)
 
-	TESTL	$(1<<9), DI // SSSE3
-	SETNE	runtime·support_ssse3(SB)
-
 	TESTL	$(1<<19), DI // SSE4.1
 	SETNE	runtime·support_sse41(SB)
-
-	TESTL	$(1<<20), DI // SSE4.2
-	SETNE	runtime·support_sse42(SB)
 
 	TESTL	$(1<<23), DI // POPCNT
 	SETNE	runtime·support_popcnt(SB)
 
-	TESTL	$(1<<25), DI // AES
-	SETNE	runtime·support_aes(SB)
-
 	TESTL	$(1<<27), DI // OSXSAVE
 	SETNE	runtime·support_osxsave(SB)
-
-	// If OS support for XMM and YMM is not present
-	// support_avx will be set back to false later.
-	TESTL	$(1<<28), DI // AVX
-	SETNE	runtime·support_avx(SB)
 
 eax7:
 	// Load EAX=7/ECX=0 cpuid flags
@@ -198,17 +184,6 @@ eax7:
 	MOVL	$0, CX
 	CPUID
 
-	TESTL	$(1<<3), BX // BMI1
-	SETNE	runtime·support_bmi1(SB)
-
-	// If OS support for XMM and YMM is not present
-	// support_avx2 will be set back to false later.
-	TESTL	$(1<<5), BX
-	SETNE	runtime·support_avx2(SB)
-
-	TESTL	$(1<<8), BX // BMI2
-	SETNE	runtime·support_bmi2(SB)
-
 	TESTL	$(1<<9), BX // ERMS
 	SETNE	runtime·support_erms(SB)
 
@@ -217,17 +192,13 @@ osavx:
 	// for XMM and YMM OS support.
 #ifndef GOOS_nacl
 	CMPB	runtime·support_osxsave(SB), $1
-	JNE	noavx
+	JNE	nocpuinfo
 	MOVL	$0, CX
 	// For XGETBV, OSXSAVE bit is required and sufficient
 	XGETBV
 	ANDL	$6, AX
 	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
-	JE nocpuinfo
 #endif
-noavx:
-	MOVB $0, runtime·support_avx(SB)
-	MOVB $0, runtime·support_avx2(SB)
 
 nocpuinfo:
 	// if there is an _cgo_init, call it to let it
@@ -255,6 +226,10 @@ nocpuinfo:
 needtls:
 #ifdef GOOS_plan9
 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
+	JMP	ok
+#endif
+#ifdef GOOS_darwin
+	// skip runtime·ldt0setup(SB) on Darwin
 	JMP	ok
 #endif
 

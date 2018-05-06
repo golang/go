@@ -297,6 +297,10 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	switch r.Type {
 	case objabi.R_CALL,
 		objabi.R_PCREL:
+		if ctxt.LinkMode == ld.LinkExternal {
+			// External linker will do this relocation.
+			return true
+		}
 		addpltsym(ctxt, targ)
 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
 		r.Add = int64(targ.Plt)
@@ -409,7 +413,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 
 	rs := r.Xsym
 
-	if rs.Type == sym.SHOSTOBJ {
+	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_CALL {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 			return false

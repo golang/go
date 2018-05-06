@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"math/big"
 	"strings"
 )
@@ -224,8 +223,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 	if n.Op == OLITERAL && !reuse {
 		// Can't always set n.Type directly on OLITERAL nodes.
 		// See discussion on CL 20813.
-		nn := *n
-		n = &nn
+		n = n.copy()
 		reuse = true
 	}
 
@@ -333,26 +331,11 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 		case TARRAY:
 			goto bad
 
-		case TPTR32,
-			TPTR64,
-			TINTER,
-			TMAP,
-			TCHAN,
-			TFUNC,
-			TSLICE,
-			TUNSAFEPTR:
-			break
+		case TPTR32, TPTR64, TUNSAFEPTR:
+			n.SetVal(Val{new(Mpint)})
 
-		// A nil literal may be converted to uintptr
-		// if it is an unsafe.Pointer
-		case TUINTPTR:
-			if n.Type.Etype == TUNSAFEPTR {
-				i := new(Mpint)
-				i.SetInt64(0)
-				n.SetVal(Val{i})
-			} else {
-				goto bad
-			}
+		case TCHAN, TFUNC, TINTER, TMAP, TSLICE:
+			break
 		}
 
 	case CTSTR, CTBOOL:
@@ -564,8 +547,8 @@ func overflow(v Val, t *types.Type) bool {
 		return false
 	}
 
-	// Only uintptrs may be converted to unsafe.Pointer, which cannot overflow.
-	if t.Etype == TUNSAFEPTR {
+	// Only uintptrs may be converted to pointers, which cannot overflow.
+	if t.IsPtr() || t.IsUnsafePtr() {
 		return false
 	}
 
@@ -608,18 +591,6 @@ func Isconst(n *Node, ct Ctype) bool {
 	// If the caller is asking for CTINT, allow CTRUNE too.
 	// Makes life easier for back ends.
 	return t == ct || (ct == CTINT && t == CTRUNE)
-}
-
-func saveorig(n *Node) *Node {
-	if n == n.Orig {
-		// duplicate node for n->orig.
-		n1 := nod(OLITERAL, nil, nil)
-
-		n.Orig = n1
-		*n1 = *n
-	}
-
-	return n.Orig
 }
 
 // if n is constant, rewrite as OLITERAL node.
@@ -745,20 +716,13 @@ func evconst(n *Node) {
 
 	nr := n.Right
 	var rv Val
-	var lno src.XPos
 	var wr types.EType
 	var ctype uint32
 	var v Val
-	var norig *Node
-	var nn *Node
 	if nr == nil {
 		// copy numeric value to avoid modifying
 		// nl, in case someone still refers to it (e.g. iota).
-		v = nl.Val()
-
-		if wl == TIDEAL {
-			v = copyval(v)
-		}
+		v = copyval(nl.Val())
 
 		// rune values are int values for the purpose of constant folding.
 		ctype = uint32(v.Ctype())
@@ -900,12 +864,7 @@ func evconst(n *Node) {
 
 	// copy numeric value to avoid modifying
 	// n->left, in case someone still refers to it (e.g. iota).
-	v = nl.Val()
-
-	if wl == TIDEAL {
-		v = copyval(v)
-	}
-
+	v = copyval(nl.Val())
 	rv = nr.Val()
 
 	// convert to common ideal
@@ -1040,10 +999,10 @@ func evconst(n *Node) {
 		v.U.(*Mpcplx).Imag.Sub(&rv.U.(*Mpcplx).Imag)
 
 	case OMUL_ | CTCPLX_:
-		cmplxmpy(v.U.(*Mpcplx), rv.U.(*Mpcplx))
+		v.U.(*Mpcplx).Mul(rv.U.(*Mpcplx))
 
 	case ODIV_ | CTCPLX_:
-		if !cmplxdiv(v.U.(*Mpcplx), rv.U.(*Mpcplx)) {
+		if !v.U.(*Mpcplx).Div(rv.U.(*Mpcplx)) {
 			yyerror("complex division by zero")
 			rv.U.(*Mpcplx).Real.SetFloat64(1.0)
 			rv.U.(*Mpcplx).Imag.SetFloat64(0.0)
@@ -1202,41 +1161,15 @@ func evconst(n *Node) {
 	}
 
 ret:
-	norig = saveorig(n)
-	*n = *nl
-
-	// restore value of n->orig.
-	n.Orig = norig
-
-	n.SetVal(v)
-
-	// check range.
-	lno = setlineno(n)
-	overflow(v, n.Type)
-	lineno = lno
-
-	// truncate precision for non-ideal float.
-	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
-		n.SetVal(Val{truncfltlit(v.U.(*Mpflt), n.Type)})
-	}
+	setconst(n, v)
 	return
 
 settrue:
-	nn = nodbool(true)
-	nn.Orig = saveorig(n)
-	if !iscmp[n.Op] {
-		nn.Type = nl.Type
-	}
-	*n = *nn
+	setconst(n, Val{true})
 	return
 
 setfalse:
-	nn = nodbool(false)
-	nn.Orig = saveorig(n)
-	if !iscmp[n.Op] {
-		nn.Type = nl.Type
-	}
-	*n = *nn
+	setconst(n, Val{false})
 	return
 
 illegal:
@@ -1246,6 +1179,42 @@ illegal:
 	}
 }
 
+// setconst rewrites n as an OLITERAL with value v.
+func setconst(n *Node, v Val) {
+	// Ensure n.Orig still points to a semantically-equivalent
+	// expression after we rewrite n into a constant.
+	if n.Orig == n {
+		n.Orig = n.copy()
+		n.Orig.Orig = n.Orig
+	}
+
+	*n = Node{
+		Op:      OLITERAL,
+		Pos:     n.Pos,
+		Orig:    n.Orig,
+		Type:    n.Type,
+		Xoffset: BADWIDTH,
+	}
+	n.SetVal(v)
+
+	// Check range.
+	lno := setlineno(n)
+	overflow(v, n.Type)
+	lineno = lno
+
+	// Truncate precision for non-ideal float.
+	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
+		n.SetVal(Val{truncfltlit(v.U.(*Mpflt), n.Type)})
+	}
+}
+
+func setintconst(n *Node, v int64) {
+	u := new(Mpint)
+	u.SetInt64(v)
+	setconst(n, Val{u})
+}
+
+// nodlit returns a new untyped constant with value v.
 func nodlit(v Val) *Node {
 	n := nod(OLITERAL, nil, nil)
 	n.SetVal(v)
@@ -1266,24 +1235,6 @@ func nodlit(v Val) *Node {
 		n.Type = types.Types[TNIL]
 	}
 
-	return n
-}
-
-func nodcplxlit(r Val, i Val) *Node {
-	r = toflt(r)
-	i = toflt(i)
-
-	c := new(Mpcplx)
-	n := nod(OLITERAL, nil, nil)
-	n.Type = types.Types[TIDEAL]
-	n.SetVal(Val{c})
-
-	if r.Ctype() != CTFLT || i.Ctype() != CTFLT {
-		Fatalf("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
-	}
-
-	c.Real.Set(r.U.(*Mpflt))
-	c.Imag.Set(i.U.(*Mpflt))
 	return n
 }
 
@@ -1365,8 +1316,7 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 	}
 
 	if n.Op == OLITERAL && !reuse {
-		nn := *n
-		n = &nn
+		n = n.copy()
 		reuse = true
 	}
 
@@ -1394,6 +1344,8 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 		default:
 			yyerror("defaultlit: unknown literal: %v", n)
 		}
+		lineno = lno
+		return n
 
 	case CTxxx:
 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)
@@ -1404,28 +1356,19 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 			t1 = t
 		}
 		n = convlit1(n, t1, false, reuse)
+		lineno = lno
+		return n
 
 	case CTINT:
 		t1 = types.Types[TINT]
-		goto num
-
 	case CTRUNE:
 		t1 = types.Runetype
-		goto num
-
 	case CTFLT:
 		t1 = types.Types[TFLOAT64]
-		goto num
-
 	case CTCPLX:
 		t1 = types.Types[TCOMPLEX128]
-		goto num
 	}
 
-	lineno = lno
-	return n
-
-num:
 	// Note: n.Val().Ctype() can be CTxxx (not a constant) here
 	// in the case of an untyped non-constant value, like 1<<i.
 	v1 := n.Val()
@@ -1556,104 +1499,14 @@ func nonnegintconst(n *Node) int64 {
 	return vi.Int64()
 }
 
-// complex multiply v *= rv
-//	(a, b) * (c, d) = (a*c - b*d, b*c + a*d)
-func cmplxmpy(v *Mpcplx, rv *Mpcplx) {
-	var ac Mpflt
-	var bd Mpflt
-	var bc Mpflt
-	var ad Mpflt
-
-	ac.Set(&v.Real)
-	ac.Mul(&rv.Real) // ac
-
-	bd.Set(&v.Imag)
-
-	bd.Mul(&rv.Imag) // bd
-
-	bc.Set(&v.Imag)
-
-	bc.Mul(&rv.Real) // bc
-
-	ad.Set(&v.Real)
-
-	ad.Mul(&rv.Imag) // ad
-
-	v.Real.Set(&ac)
-
-	v.Real.Sub(&bd) // ac-bd
-
-	v.Imag.Set(&bc)
-
-	v.Imag.Add(&ad) // bc+ad
-}
-
-// complex divide v /= rv
-//	(a, b) / (c, d) = ((a*c + b*d), (b*c - a*d))/(c*c + d*d)
-func cmplxdiv(v *Mpcplx, rv *Mpcplx) bool {
-	if rv.Real.CmpFloat64(0) == 0 && rv.Imag.CmpFloat64(0) == 0 {
-		return false
-	}
-
-	var ac Mpflt
-	var bd Mpflt
-	var bc Mpflt
-	var ad Mpflt
-	var cc_plus_dd Mpflt
-
-	cc_plus_dd.Set(&rv.Real)
-
-	cc_plus_dd.Mul(&rv.Real) // cc
-
-	ac.Set(&rv.Imag)
-
-	ac.Mul(&rv.Imag) // dd
-
-	cc_plus_dd.Add(&ac) // cc+dd
-
-	// We already checked that c and d are not both zero, but we can't
-	// assume that c²+d² != 0 follows, because for tiny values of c
-	// and/or d c²+d² can underflow to zero.  Check that c²+d² is
-	// nonzero,return if it's not.
-	if cc_plus_dd.CmpFloat64(0) == 0 {
-		return false
-	}
-
-	ac.Set(&v.Real)
-
-	ac.Mul(&rv.Real) // ac
-
-	bd.Set(&v.Imag)
-
-	bd.Mul(&rv.Imag) // bd
-
-	bc.Set(&v.Imag)
-
-	bc.Mul(&rv.Real) // bc
-
-	ad.Set(&v.Real)
-
-	ad.Mul(&rv.Imag) // ad
-
-	v.Real.Set(&ac)
-
-	v.Real.Add(&bd)         // ac+bd
-	v.Real.Quo(&cc_plus_dd) // (ac+bd)/(cc+dd)
-
-	v.Imag.Set(&bc)
-
-	v.Imag.Sub(&ad)         // bc-ad
-	v.Imag.Quo(&cc_plus_dd) // (bc+ad)/(cc+dd)
-
-	return true
-}
-
-// Is n a Go language constant (as opposed to a compile-time constant)?
+// isGoConst reports whether n is a Go language constant (as opposed to a
+// compile-time constant).
+//
 // Expressions derived from nil, like string([]byte(nil)), while they
 // may be known at compile time, are not Go language constants.
 // Only called for expressions known to evaluated to compile-time
 // constants.
-func isgoconst(n *Node) bool {
+func (n *Node) isGoConst() bool {
 	if n.Orig != nil {
 		n = n.Orig
 	}
@@ -1687,18 +1540,18 @@ func isgoconst(n *Node) bool {
 		OCOMPLEX,
 		OREAL,
 		OIMAG:
-		if isgoconst(n.Left) && (n.Right == nil || isgoconst(n.Right)) {
+		if n.Left.isGoConst() && (n.Right == nil || n.Right.isGoConst()) {
 			return true
 		}
 
 	case OCONV:
-		if okforconst[n.Type.Etype] && isgoconst(n.Left) {
+		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
 			return true
 		}
 
 	case OLEN, OCAP:
 		l := n.Left
-		if isgoconst(l) {
+		if l.isGoConst() {
 			return true
 		}
 

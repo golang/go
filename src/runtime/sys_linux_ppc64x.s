@@ -27,8 +27,8 @@
 #define SYS_munmap		 91
 #define SYS_setitimer		104
 #define SYS_clone		120
-#define SYS_newselect		142
 #define SYS_sched_yield		158
+#define SYS_nanosleep		162
 #define SYS_rt_sigreturn	172
 #define SYS_rt_sigaction	173
 #define SYS_rt_sigprocmask	174
@@ -106,17 +106,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	$1000000, R4
 	DIVD	R4, R3
 	MOVD	R3, 8(R1)
+	MOVW	$1000, R4
 	MULLD	R3, R4
 	SUB	R4, R5
 	MOVD	R5, 16(R1)
 
-	// select(0, 0, 0, 0, &tv)
-	MOVW	$0, R3
+	// nanosleep(&ts, 0)
+	ADD	$8, R1, R3
 	MOVW	$0, R4
-	MOVW	$0, R5
-	MOVW	$0, R6
-	ADD	$8, R1, R7
-	SYSCALL	$SYS_newselect
+	SYSCALL	$SYS_nanosleep
 	RET
 
 TEXT runtime·gettid(SB),NOSPLIT,$0-4
@@ -498,6 +496,7 @@ TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+8(FP), R5
 	MOVD	ev+16(FP), R6
 	SYSCALL	$SYS_epoll_ctl
+	NEG	R3	// caller expects negative errno
 	MOVW	R3, ret+24(FP)
 	RET
 

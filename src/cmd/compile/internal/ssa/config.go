@@ -34,6 +34,8 @@ type Config struct {
 	optimize        bool          // Do optimization
 	noDuffDevice    bool          // Don't use Duff's device
 	useSSE          bool          // Use SSE for non-float operations
+	useAvg          bool          // Use optimizations that need Avg* operations
+	useHmul         bool          // Use optimizations that need Hmul* operations
 	nacl            bool          // GOOS=nacl
 	use387          bool          // GO386=387
 	SoftFloat       bool          //
@@ -190,6 +192,8 @@ const (
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
 	c := &Config{arch: arch, Types: types}
+	c.useAvg = true
+	c.useHmul = true
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8
@@ -307,6 +311,20 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "wasm":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockWasm
+		c.lowerValue = rewriteValueWasm
+		c.registers = registersWasm[:]
+		c.gpRegMask = gpRegMaskWasm
+		c.fpRegMask = fpRegMaskWasm
+		c.FPReg = framepointerRegWasm
+		c.LinkReg = linkRegWasm
+		c.hasGReg = true
+		c.noDuffDevice = true
+		c.useAvg = false
+		c.useHmul = false
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}

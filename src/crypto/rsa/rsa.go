@@ -42,6 +42,12 @@ type PublicKey struct {
 	E int      // public exponent
 }
 
+// Size returns the modulus size in bytes. Raw signatures and ciphertexts
+// for or by this public key will have the same size.
+func (pub *PublicKey) Size() int {
+	return (pub.N.BitLen() + 7) / 8
+}
+
 // OAEPOptions is an interface for passing options to OAEP decryption using the
 // crypto.Decrypter interface.
 type OAEPOptions struct {
@@ -286,18 +292,13 @@ NextSetOfPrimes:
 			continue NextSetOfPrimes
 		}
 
-		g := new(big.Int)
 		priv.D = new(big.Int)
 		e := big.NewInt(int64(priv.E))
-		g.GCD(priv.D, nil, e, totient)
+		ok := priv.D.ModInverse(e, totient)
 
-		if g.Cmp(bigOne) == 0 {
-			if priv.D.Sign() < 0 {
-				priv.D.Add(priv.D, totient)
-			}
+		if ok != nil {
 			priv.Primes = primes
 			priv.N = n
-
 			break
 		}
 	}
@@ -373,7 +374,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 		return nil, err
 	}
 	hash.Reset()
-	k := (pub.N.BitLen() + 7) / 8
+	k := pub.Size()
 	if len(msg) > k-2*hash.Size()-2 {
 		return nil, ErrMessageTooLong
 	}
@@ -420,29 +421,6 @@ var ErrDecryption = errors.New("crypto/rsa: decryption error")
 // ErrVerification represents a failure to verify a signature.
 // It is deliberately vague to avoid adaptive attacks.
 var ErrVerification = errors.New("crypto/rsa: verification error")
-
-// modInverse returns ia, the inverse of a in the multiplicative group of prime
-// order n. It requires that a be a member of the group (i.e. less than n).
-func modInverse(a, n *big.Int) (ia *big.Int, ok bool) {
-	g := new(big.Int)
-	x := new(big.Int)
-	g.GCD(x, nil, a, n)
-	if g.Cmp(bigOne) != 0 {
-		// In this case, a and n aren't coprime and we cannot calculate
-		// the inverse. This happens because the values of n are nearly
-		// prime (being the product of two primes) rather than truly
-		// prime.
-		return
-	}
-
-	if x.Cmp(bigOne) < 0 {
-		// 0 is not the multiplicative inverse of any element so, if x
-		// < 1, then x is negative.
-		x.Add(x, n)
-	}
-
-	return x, true
-}
 
 // Precompute performs some calculations that speed up private key operations
 // in the future.
@@ -495,7 +473,7 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 		// by multiplying by the multiplicative inverse of r.
 
 		var r *big.Int
-
+		ir = new(big.Int)
 		for {
 			r, err = rand.Int(random, priv.N)
 			if err != nil {
@@ -504,9 +482,8 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 			if r.Cmp(bigZero) == 0 {
 				r = bigOne
 			}
-			var ok bool
-			ir, ok = modInverse(r, priv.N)
-			if ok {
+			ok := ir.ModInverse(r, priv.N)
+			if ok != nil {
 				break
 			}
 		}
@@ -587,7 +564,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return nil, err
 	}
-	k := (priv.N.BitLen() + 7) / 8
+	k := priv.Size()
 	if len(ciphertext) > k ||
 		k < hash.Size()*2+2 {
 		return nil, ErrDecryption

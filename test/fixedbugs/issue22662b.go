@@ -36,8 +36,8 @@ var tests = []struct {
 }
 
 func main() {
-	if runtime.GOOS == "nacl" {
-		return // no file system available on builders
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+		return // can not exec go tool
 	}
 
 	f, err := ioutil.TempFile("", "issue22662b.go")

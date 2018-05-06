@@ -21,7 +21,7 @@
 #define SYS_openat		56
 #define SYS_close		57
 #define SYS_fcntl		25
-#define SYS_pselect6		72
+#define SYS_nanosleep		101
 #define SYS_mmap		222
 #define SYS_munmap		215
 #define SYS_setitimer		103
@@ -129,14 +129,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	MUL	R4, R5
 	MOVD	R5, 16(RSP)
 
-	// pselect6(0, 0, 0, 0, &ts, 0)
-	MOVD	$0, R0
-	MOVD	R0, R1
-	MOVD	R0, R2
-	MOVD	R0, R3
-	ADD	$8, RSP, R4
-	MOVD	R0, R5
-	MOVD	$SYS_pselect6, R8
+	// nanosleep(&ts, 0)
+	ADD	$8, RSP, R0
+	MOVD	$0, R1
+	MOVD	$SYS_nanosleep, R8
 	SVC
 	RET
 
@@ -296,6 +292,16 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
 	MOVW	R0, ret+32(FP)
 	RET
 
+// Call the function stored in _cgo_sigaction using the GCC calling convention.
+TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
+	MOVD	sig+0(FP), R0
+	MOVD	new+8(FP), R1
+	MOVD	old+16(FP), R2
+	MOVD	 _cgo_sigaction(SB), R3
+	BL	R3
+	MOVW	R0, ret+24(FP)
+	RET
+
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVW	sig+8(FP), R0
 	MOVD	info+16(FP), R1
@@ -324,7 +330,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	MOVD	$runtime·sigtramp(SB), R3
 	B	(R3)
 
-TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·sysMmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
 	MOVW	prot+16(FP), R2
@@ -345,7 +351,21 @@ ok:
 	MOVD	$0, err+40(FP)
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
+// Call the function stored in _cgo_mmap using the GCC calling convention.
+// This must be called on the system stack.
+TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
+	MOVD	addr+0(FP), R0
+	MOVD	n+8(FP), R1
+	MOVW	prot+16(FP), R2
+	MOVW	flags+20(FP), R3
+	MOVW	fd+24(FP), R4
+	MOVW	off+28(FP), R5
+	MOVD	_cgo_mmap(SB), R9
+	BL	R9
+	MOVD	R0, ret+32(FP)
+	RET
+
+TEXT runtime·sysMunmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
 	MOVD	$SYS_munmap, R8
@@ -354,6 +374,15 @@ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
 	BCC	cool
 	MOVD	R0, 0xf0(R0)
 cool:
+	RET
+
+// Call the function stored in _cgo_munmap using the GCC calling convention.
+// This must be called on the system stack.
+TEXT runtime·callCgoMunmap(SB),NOSPLIT,$0
+	MOVD	addr+0(FP), R0
+	MOVD	n+8(FP), R1
+	MOVD	_cgo_munmap(SB), R9
+	BL	R9
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0

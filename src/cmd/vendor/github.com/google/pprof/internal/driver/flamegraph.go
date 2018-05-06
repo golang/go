@@ -92,7 +92,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	ui.render(w, "/flamegraph", "flamegraph", rpt, errList, config.Labels, webArgs{
+	ui.render(w, "flamegraph", rpt, errList, config.Labels, webArgs{
 		FlameGraph: template.JS(b),
 		Nodes:      nodeArr,
 	})

@@ -9,10 +9,15 @@ import (
 	"testing"
 )
 
-func TestObjdumpARM64Testdata(t *testing.T) { testObjdumpARM64(t, testdataCases(t)) }
-func TestObjdumpARM64Manual(t *testing.T)   { testObjdumpARM64(t, hexCases(t, objdumpManualTests)) }
-func TestObjdumpARM64Cond(t *testing.T)     { testObjdumpARM64(t, condCases(t)) }
-func TestObjdumpARM64(t *testing.T)         { testObjdumpARM64(t, JSONCases(t)) }
+func TestObjdumpARM64TestDecodeGNUSyntaxdata(t *testing.T) {
+	testObjdumpARM64(t, testdataCases(t, "gnu"))
+}
+func TestObjdumpARM64TestDecodeGoSyntaxdata(t *testing.T) {
+	testObjdumpARM64(t, testdataCases(t, "plan9"))
+}
+func TestObjdumpARM64Manual(t *testing.T) { testObjdumpARM64(t, hexCases(t, objdumpManualTests)) }
+func TestObjdumpARM64Cond(t *testing.T)   { testObjdumpARM64(t, condCases(t)) }
+func TestObjdumpARM64(t *testing.T)       { testObjdumpARM64(t, JSONCases(t)) }
 
 // objdumpManualTests holds test cases that will be run by TestObjdumpARMManual.
 // If you are debugging a few cases that turned up in a longer run, it can be useful

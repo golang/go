@@ -1523,11 +1523,7 @@ func runBinHostname(t *testing.T) string {
 	return output
 }
 
-func testWindowsHostname(t *testing.T) {
-	hostname, err := Hostname()
-	if err != nil {
-		t.Fatal(err)
-	}
+func testWindowsHostname(t *testing.T, hostname string) {
 	cmd := osexec.Command("hostname")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1535,18 +1531,30 @@ func testWindowsHostname(t *testing.T) {
 	}
 	want := strings.Trim(string(out), "\r\n")
 	if hostname != want {
-		t.Fatalf("Hostname() = %q, want %q", hostname, want)
+		t.Fatalf("Hostname() = %q != system hostname of %q", hostname, want)
 	}
 }
 
 func TestHostname(t *testing.T) {
+	hostname, err := Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hostname == "" {
+		t.Fatal("Hostname returned empty string and no error")
+	}
+	if strings.Contains(hostname, "\x00") {
+		t.Fatalf("unexpected zero byte in hostname: %q", hostname)
+	}
+
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
 	case "android", "plan9":
-		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
+		// No /bin/hostname to verify against.
+		return
 	case "windows":
-		testWindowsHostname(t)
+		testWindowsHostname(t, hostname)
 		return
 	}
 
@@ -1555,10 +1563,6 @@ func TestHostname(t *testing.T) {
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
 	// and the /bin/hostname only returns the first component
-	hostname, err := Hostname()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 	want := runBinHostname(t)
 	if hostname != want {
 		i := strings.Index(hostname, ".")

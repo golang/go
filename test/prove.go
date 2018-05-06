@@ -42,8 +42,8 @@ func f1b(a []int, i int, j uint) int {
 	if i >= 10 && i < len(a) {
 		return a[i] // ERROR "Proved IsInBounds$"
 	}
-	if i >= 10 && i < len(a) { // todo: handle this case
-		return a[i-10]
+	if i >= 10 && i < len(a) {
+		return a[i-10] // ERROR "Proved IsInBounds$"
 	}
 	if j < uint(len(a)) {
 		return a[j] // ERROR "Proved IsInBounds$"
@@ -62,7 +62,7 @@ func f1c(a []int, i int64) int {
 }
 
 func f2(a []int) int {
-	for i := range a {
+	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1"
 		a[i+1] = i
 		a[i+1] = i // ERROR "Proved IsInBounds$"
 	}
@@ -397,8 +397,7 @@ func f13e(a int) int {
 
 func f13f(a int64) int64 {
 	if a > math.MaxInt64 {
-		// Unreachable, but prove doesn't know that.
-		if a == 0 {
+		if a == 0 { // ERROR "Disproved Eq64$"
 			return 1
 		}
 	}
@@ -465,13 +464,27 @@ func f16(s []int) []int {
 }
 
 func f17(b []int) {
-	for i := 0; i < len(b); i++ {
-		useSlice(b[i:]) // Learns i <= len
+	for i := 0; i < len(b); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1"
 		// This tests for i <= cap, which we can only prove
 		// using the derived relation between len and cap.
 		// This depends on finding the contradiction, since we
 		// don't query this condition directly.
 		useSlice(b[:i]) // ERROR "Proved IsSliceInBounds$"
+	}
+}
+
+func f18(b []int, x int, y uint) {
+	_ = b[x]
+	_ = b[y]
+
+	if x > len(b) { // ERROR "Disproved Greater64$"
+		return
+	}
+	if y > uint(len(b)) { // ERROR "Disproved Greater64U$"
+		return
+	}
+	if int(y) > len(b) { // ERROR "Disproved Greater64$"
+		return
 	}
 }
 
@@ -558,6 +571,81 @@ func fence4(x, y int64) {
 			return
 		}
 	}
+}
+
+// Check transitive relations
+func trans1(x, y int64) {
+	if x > 5 {
+		if y > x {
+			if y > 2 { // ERROR "Proved Greater64"
+				return
+			}
+		} else if y == x {
+			if y > 5 { // ERROR "Proved Greater64"
+				return
+			}
+		}
+	}
+	if x >= 10 {
+		if y > x {
+			if y > 10 { // ERROR "Proved Greater64"
+				return
+			}
+		}
+	}
+}
+
+func trans2(a, b []int, i int) {
+	if len(a) != len(b) {
+		return
+	}
+
+	_ = a[i]
+	_ = b[i] // ERROR "Proved IsInBounds$"
+}
+
+func trans3(a, b []int, i int) {
+	if len(a) > len(b) {
+		return
+	}
+
+	_ = a[i]
+	_ = b[i] // ERROR "Proved IsInBounds$"
+}
+
+// Derived from nat.cmp
+func natcmp(x, y []uint) (r int) {
+	m := len(x)
+	n := len(y)
+	if m != n || m == 0 {
+		return
+	}
+
+	i := m - 1
+	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment -1"
+		x[i] == // ERROR "Proved IsInBounds$"
+			y[i] { // ERROR "Proved IsInBounds$"
+		i--
+	}
+
+	switch {
+	case x[i] < // todo, cannot prove this because it's dominated by i<=0 || x[i]==y[i]
+		y[i]: // ERROR "Proved IsInBounds$"
+		r = -1
+	case x[i] > // ERROR "Proved IsInBounds$"
+		y[i]: // ERROR "Proved IsInBounds$"
+		r = 1
+	}
+	return
+}
+
+func suffix(s, suffix string) bool {
+	// todo, we're still not able to drop the bound check here in the general case
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+func constsuffix(s string) bool {
+	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$"
 }
 
 //go:noinline

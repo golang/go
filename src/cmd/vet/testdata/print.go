@@ -79,7 +79,7 @@ func PrintfTests() {
 	fmt.Printf("%G %G %G %G", 3e9, x, fslice, c)
 	fmt.Printf("%b %b %b %b", 3e9, x, fslice, c)
 	fmt.Printf("%o %o", 3, i)
-	fmt.Printf("%p %p", p, nil)
+	fmt.Printf("%p", p)
 	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
 	fmt.Printf("%s %s %s", "hi", s, []byte{65})
 	fmt.Printf("%t %t", true, b)
@@ -122,6 +122,7 @@ func PrintfTests() {
 	fmt.Printf("%g", imap)                      // ERROR "Printf format %g has arg imap of wrong type map\[int\]int"
 	fmt.Printf("%G", i)                         // ERROR "Printf format %G has arg i of wrong type int"
 	fmt.Printf("%o", x)                         // ERROR "Printf format %o has arg x of wrong type float64"
+	fmt.Printf("%p", nil)                       // ERROR "Printf format %p has arg nil of wrong type untyped nil"
 	fmt.Printf("%p", 23)                        // ERROR "Printf format %p has arg 23 of wrong type int"
 	fmt.Printf("%q", x)                         // ERROR "Printf format %q has arg x of wrong type float64"
 	fmt.Printf("%s", b)                         // ERROR "Printf format %s has arg b of wrong type bool"
@@ -147,6 +148,7 @@ func PrintfTests() {
 	fmt.Println()                               // not an error
 	fmt.Println("%s", "hi")                     // ERROR "Println call has possible formatting directive %s"
 	fmt.Println("%v", "hi")                     // ERROR "Println call has possible formatting directive %v"
+	fmt.Println("%T", "hi")                     // ERROR "Println call has possible formatting directive %T"
 	fmt.Println("0.0%")                         // correct (trailing % couldn't be a formatting directive)
 	fmt.Printf("%s", "hi", 3)                   // ERROR "Printf call needs 1 arg but has 2 args"
 	_ = fmt.Sprintf("%"+("s"), "hi", 3)         // ERROR "Sprintf call needs 1 arg but has 2 args"
@@ -166,8 +168,8 @@ func PrintfTests() {
 	Printf("hi")                       // ok
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
-	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has only 1 arg$"
-	Printf("%s %d %.3v %q", "str", 4) // ERROR "Printf format %.3v reads arg #3, but call has only 2 args"
+	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has 1 arg$"
+	Printf("%s %d %.3v %q", "str", 4) // ERROR "Printf format %.3v reads arg #3, but call has 2 args"
 	f := new(ptrStringer)
 	f.Warn(0, "%s", "hello", 3)           // ERROR "Warn call has possible formatting directive %s"
 	f.Warnf(0, "%s", "hello", 3)          // ERROR "Warnf call needs 1 arg but has 2 args"
@@ -180,6 +182,7 @@ func PrintfTests() {
 	Printf("%d", notPercentDV)  // ERROR "Printf format %d has arg notPercentDV of wrong type testdata.notPercentDStruct"
 	Printf("%d", &notPercentDV) // ERROR "Printf format %d has arg &notPercentDV of wrong type \*testdata.notPercentDStruct"
 	Printf("%p", &notPercentDV) // Works regardless: we print it as a pointer.
+	Printf("%q", &percentDV)    // ERROR "Printf format %q has arg &percentDV of wrong type \*testdata.percentDStruct"
 	Printf("%s", percentSV)
 	Printf("%s", &percentSV)
 	// Good argument reorderings.
@@ -240,7 +243,7 @@ func PrintfTests() {
 	// Multiple string arguments before variadic args
 	// errorf("WARNING", "foobar")            // OK
 	// errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
-	// errorf("ERROR", "%d")                  // no error "errorf format %d reads arg #1, but call has only 0 args"
+	// errorf("ERROR", "%d")                  // no error "errorf format %d reads arg #1, but call has 0 args"
 
 	// Printf from external package
 	// externalprintf.Printf("%d", 42) // OK
@@ -248,7 +251,7 @@ func PrintfTests() {
 	// level := 123
 	// externalprintf.Logf(level, "%d", 42)                        // OK
 	// externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
-	// externalprintf.Logf(level, "%d")                            // no error "Logf format %d reads arg #1, but call has only 0 args"
+	// externalprintf.Logf(level, "%d")                            // no error "Logf format %d reads arg #1, but call has 0 args"
 	// var formatStr = "%s %s"
 	// externalprintf.Sprintf(formatStr, "a", "b")     // OK
 	// externalprintf.Logf(level, formatStr, "a", "b") // OK
@@ -269,7 +272,7 @@ func PrintfTests() {
 	Printf("%d %[0]d %d %[2]d x", 1, 2, 3, 4)             // ERROR "Printf format has invalid argument index \[0\]"
 	Printf("%d %[3]d %d %[-2]d x", 1, 2, 3, 4)            // ERROR "Printf format has invalid argument index \[-2\]"
 	Printf("%d %[3]d %d %[2234234234234]d x", 1, 2, 3, 4) // ERROR "Printf format has invalid argument index \[2234234234234\]"
-	Printf("%d %[3]d %-10d %[2]d x", 1, 2, 3)             // ERROR "Printf format %-10d reads arg #4, but call has only 3 args"
+	Printf("%d %[3]d %-10d %[2]d x", 1, 2, 3)             // ERROR "Printf format %-10d reads arg #4, but call has 3 args"
 	Printf("%[1][3]d x", 1, 2)                            // ERROR "Printf format %\[1\]\[ has unknown verb \["
 	Printf("%[1]d x", 1, 2)                               // OK
 	Printf("%d %[3]d %d %[2]d x", 1, 2, 3, 4, 5)          // OK

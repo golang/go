@@ -521,21 +521,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = r
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8:
+	case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8,
+		ssa.OpAMD64LEAL1, ssa.OpAMD64LEAL2, ssa.OpAMD64LEAL4, ssa.OpAMD64LEAL8,
+		ssa.OpAMD64LEAW1, ssa.OpAMD64LEAW2, ssa.OpAMD64LEAW4, ssa.OpAMD64LEAW8:
 		r := v.Args[0].Reg()
 		i := v.Args[1].Reg()
-		p := s.Prog(x86.ALEAQ)
+		p := s.Prog(v.Op.Asm())
 		switch v.Op {
-		case ssa.OpAMD64LEAQ1:
+		case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAL1, ssa.OpAMD64LEAW1:
 			p.From.Scale = 1
 			if i == x86.REG_SP {
 				r, i = i, r
 			}
-		case ssa.OpAMD64LEAQ2:
+		case ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAL2, ssa.OpAMD64LEAW2:
 			p.From.Scale = 2
-		case ssa.OpAMD64LEAQ4:
+		case ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAL4, ssa.OpAMD64LEAW4:
 			p.From.Scale = 4
-		case ssa.OpAMD64LEAQ8:
+		case ssa.OpAMD64LEAQ8, ssa.OpAMD64LEAL8, ssa.OpAMD64LEAW8:
 			p.From.Scale = 8
 		}
 		p.From.Type = obj.TYPE_MEM
@@ -544,7 +546,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpAMD64LEAQ, ssa.OpAMD64LEAL:
+	case ssa.OpAMD64LEAQ, ssa.OpAMD64LEAL, ssa.OpAMD64LEAW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -846,10 +848,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Sym = gc.Duffcopy
 		p.To.Offset = v.AuxInt
 
-	case ssa.OpAMD64MOVQconvert, ssa.OpAMD64MOVLconvert:
-		if v.Args[0].Reg() != v.Reg() {
-			v.Fatalf("MOVXconvert should be a no-op")
-		}
 	case ssa.OpCopy: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
 		if v.Type.IsMemory() {
 			return
@@ -948,12 +946,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRQ, ssa.OpAMD64BSRL:
+	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
+	case ssa.OpAMD64BSFL, ssa.OpAMD64BSRL:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpAMD64SQRTSD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -1201,23 +1205,19 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
 		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
 		jmp := blockJump[b.Kind]
-		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			s.Br(jmp.invasm, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				s.Br(jmp.asm, b.Succs[0].Block())
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				s.Br(jmp.invasm, b.Succs[1].Block())
+				s.Br(obj.AJMP, b.Succs[0].Block())
+			}
 		}
 
 	default:

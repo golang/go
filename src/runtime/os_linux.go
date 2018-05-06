@@ -142,7 +142,8 @@ func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
@@ -414,10 +415,14 @@ func (c *sigctxt) fixsigcode(sig uint32) {
 //go:nosplit
 func sysSigaction(sig uint32, new, old *sigactiont) {
 	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
-		// Use system stack to avoid split stack overflow on ppc64/ppc64le.
-		systemstack(func() {
-			throw("sigaction failed")
-		})
+		// Workaround for bug in Qemu user mode emulation. (qemu
+		// rejects rt_sigaction of signal 64, SIGRTMAX).
+		if sig != 64 {
+			// Use system stack to avoid split stack overflow on ppc64/ppc64le.
+			systemstack(func() {
+				throw("sigaction failed")
+			})
+		}
 	}
 }
 

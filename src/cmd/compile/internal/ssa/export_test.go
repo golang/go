@@ -98,7 +98,7 @@ func (d DummyFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
 	return LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off + 8}
 }
 func (d DummyFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
-	return LocalSlot{N: s.N, Type: s.Type.ElemType().PtrTo(), Off: s.Off},
+	return LocalSlot{N: s.N, Type: s.Type.Elem().PtrTo(), Off: s.Off},
 		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 8},
 		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 16}
 }
@@ -118,7 +118,7 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 	return LocalSlot{N: s.N, Type: s.Type.FieldType(i), Off: s.Off + s.Type.FieldOff(i)}
 }
 func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
-	return LocalSlot{N: s.N, Type: s.Type.ElemType(), Off: s.Off}
+	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
 }
 func (DummyFrontend) Line(_ src.XPos) string {
 	return "unknown.go:0"

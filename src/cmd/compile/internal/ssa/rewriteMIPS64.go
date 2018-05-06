@@ -93,8 +93,6 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueMIPS64_OpConstNil_0(v)
-	case OpConvert:
-		return rewriteValueMIPS64_OpConvert_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueMIPS64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64:
@@ -171,6 +169,8 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpGeq8_0(v)
 	case OpGeq8U:
 		return rewriteValueMIPS64_OpGeq8U_0(v)
+	case OpGetCallerPC:
+		return rewriteValueMIPS64_OpGetCallerPC_0(v)
 	case OpGetCallerSP:
 		return rewriteValueMIPS64_OpGetCallerSP_0(v)
 	case OpGetClosurePtr:
@@ -1181,20 +1181,6 @@ func rewriteValueMIPS64_OpConstNil_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConvert_0(v *Value) bool {
-	// match: (Convert x mem)
-	// cond:
-	// result: (MOVVconvert x mem)
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpMIPS64MOVVconvert)
-		v.AddArg(x)
-		v.AddArg(mem)
-		return true
-	}
-}
 func rewriteValueMIPS64_OpCvt32Fto32_0(v *Value) bool {
 	// match: (Cvt32Fto32 x)
 	// cond:
@@ -1944,6 +1930,15 @@ func rewriteValueMIPS64_OpGeq8U_0(v *Value) bool {
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpGetCallerPC_0(v *Value) bool {
+	// match: (GetCallerPC)
+	// cond:
+	// result: (LoweredGetCallerPC)
+	for {
+		v.reset(OpMIPS64LoweredGetCallerPC)
 		return true
 	}
 }

@@ -178,6 +178,8 @@ const (
 // constants to indicate extended register conversion. When checking,
 // you should subtract obj.RBaseARM64 first. From this difference, bit 11
 // indicates extended register, bits 8-10 select the conversion mode.
+// REG_LSL is the index shift specifier, bit 9 indicates shifted offset register.
+const REG_LSL = obj.RBaseARM64 + 1<<9
 const REG_EXT = obj.RBaseARM64 + 1<<11
 
 const (
@@ -422,8 +424,12 @@ const (
 	C_SBRA // for TYPE_BRANCH
 	C_LBRA
 
-	C_NPAUTO     // -512 <= x < 0, 0 mod 8
+	C_ZAUTO      // 0(RSP)
+	C_NSAUTO_8   // -256 <= x < 0, 0 mod 8
+	C_NSAUTO_4   // -256 <= x < 0, 0 mod 4
 	C_NSAUTO     // -256 <= x < 0
+	C_NPAUTO     // -512 <= x < 0, 0 mod 8
+	C_NAUTO4K    // -4095 <= x < 0
 	C_PSAUTO_8   // 0 to 255, 0 mod 8
 	C_PSAUTO_4   // 0 to 255, 0 mod 4
 	C_PSAUTO     // 0 to 255
@@ -447,9 +453,12 @@ const (
 	C_SEXT16 // 0 to 65520
 	C_LEXT
 
-	C_ZOREG  // 0(R)
-	C_NPOREG // must mirror NPAUTO, etc
+	C_ZOREG    // 0(R)
+	C_NSOREG_8 // must mirror C_NSAUTO_8, etc
+	C_NSOREG_4
 	C_NSOREG
+	C_NPOREG
+	C_NOREG4K
 	C_PSOREG_8
 	C_PSOREG_4
 	C_PSOREG
@@ -585,6 +594,14 @@ const (
 	AHVC
 	AIC
 	AISB
+	ALDADDB
+	ALDADDH
+	ALDADDW
+	ALDADDD
+	ALDANDB
+	ALDANDH
+	ALDANDW
+	ALDANDD
 	ALDAR
 	ALDARB
 	ALDARH
@@ -595,6 +612,14 @@ const (
 	ALDAXRB
 	ALDAXRH
 	ALDAXRW
+	ALDEORB
+	ALDEORH
+	ALDEORW
+	ALDEORD
+	ALDORB
+	ALDORH
+	ALDORW
+	ALDORD
 	ALDP
 	ALDPW
 	ALDPSW
@@ -746,6 +771,10 @@ const (
 	AMOVPS
 	AMOVPSW
 	AMOVPW
+	ASWPD
+	ASWPW
+	ASWPH
+	ASWPB
 	ABEQ
 	ABNE
 	ABCS
@@ -868,15 +897,25 @@ const (
 	AVLD1
 	AVORR
 	AVREV32
+	AVREV64
 	AVST1
 	AVDUP
-	AVMOVS
 	AVADDV
 	AVMOVI
 	AVUADDLV
 	AVSUB
 	AVFMLA
 	AVFMLS
+	AVPMULL
+	AVPMULL2
+	AVEXT
+	AVRBIT
+	AVUSHR
+	AVSHL
+	AVSRI
+	AVTBL
+	AVZIP1
+	AVZIP2
 	ALAST
 	AB  = obj.AJMP
 	ABL = obj.ACALL
@@ -900,6 +939,7 @@ const (
 	ARNG_2S
 	ARNG_4S
 	ARNG_2D
+	ARNG_1Q
 	ARNG_B
 	ARNG_H
 	ARNG_S

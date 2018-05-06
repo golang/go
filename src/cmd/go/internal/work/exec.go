@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -573,7 +574,7 @@ func (b *Builder) build(a *Action) (err error) {
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), len(sfiles) > 0, gofiles)
 	if len(out) > 0 {
-		b.showOutput(a, a.Package.Dir, a.Package.ImportPath, b.processOutput(out))
+		b.showOutput(a, a.Package.Dir, a.Package.Desc(), b.processOutput(out))
 		if err != nil {
 			return errPrintedOutput
 		}
@@ -720,7 +721,9 @@ func (b *Builder) vet(a *Action) error {
 	// so at least for now assume the bug is in vet.
 	// We know of at least #18395.
 	// TODO(rsc,gri): Try to remove this for Go 1.11.
-	vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
+	//
+	// Disabled 2018-04-20. Let's see if we can do without it.
+	// vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
 
 	js, err := json.MarshalIndent(vcfg, "", "\t")
 	if err != nil {
@@ -900,36 +903,64 @@ func (b *Builder) PkgconfigCmd() string {
 }
 
 // splitPkgConfigOutput parses the pkg-config output into a slice of
-// flags. pkg-config always uses \ to escape special characters.
-func splitPkgConfigOutput(out []byte) []string {
+// flags. This implements the algorithm from pkgconf/libpkgconf/argvsplit.c.
+func splitPkgConfigOutput(out []byte) ([]string, error) {
 	if len(out) == 0 {
-		return nil
+		return nil, nil
 	}
 	var flags []string
-	flag := make([]byte, len(out))
-	r, w := 0, 0
-	for r < len(out) {
-		switch out[r] {
-		case ' ', '\t', '\r', '\n':
-			if w > 0 {
-				flags = append(flags, string(flag[:w]))
+	flag := make([]byte, 0, len(out))
+	escaped := false
+	quote := byte(0)
+
+	for _, c := range out {
+		if escaped {
+			if quote != 0 {
+				switch c {
+				case '$', '`', '"', '\\':
+				default:
+					flag = append(flag, '\\')
+				}
+				flag = append(flag, c)
+			} else {
+				flag = append(flag, c)
 			}
-			w = 0
-		case '\\':
-			r++
-			fallthrough
-		default:
-			if r < len(out) {
-				flag[w] = out[r]
-				w++
+			escaped = false
+		} else if quote != 0 {
+			if c == quote {
+				quote = 0
+			} else {
+				switch c {
+				case '\\':
+					escaped = true
+				default:
+					flag = append(flag, c)
+				}
 			}
+		} else if strings.IndexByte(" \t\n\v\f\r", c) < 0 {
+			switch c {
+			case '\\':
+				escaped = true
+			case '\'', '"':
+				quote = c
+			default:
+				flag = append(flag, c)
+			}
+		} else if len(flag) != 0 {
+			flags = append(flags, string(flag))
+			flag = flag[:0]
 		}
-		r++
 	}
-	if w > 0 {
-		flags = append(flags, string(flag[:w]))
+	if escaped {
+		return nil, errors.New("broken character escaping in pkgconf output ")
 	}
-	return flags
+	if quote != 0 {
+		return nil, errors.New("unterminated quoted string in pkgconf output ")
+	} else if len(flag) != 0 {
+		flags = append(flags, string(flag))
+	}
+
+	return flags, nil
 }
 
 // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
@@ -961,7 +992,10 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
-			cflags = splitPkgConfigOutput(out)
+			cflags, err = splitPkgConfigOutput(out)
+			if err != nil {
+				return nil, nil, err
+			}
 			if err := checkCompilerFlags("CFLAGS", "pkg-config --cflags", cflags); err != nil {
 				return nil, nil, err
 			}
@@ -1093,7 +1127,7 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 		// We want to hide that awful detail as much as possible, so don't
 		// advertise it by touching the mtimes (usually the libraries are up
 		// to date).
-		if !a.buggyInstall {
+		if !a.buggyInstall && !b.ComputeStaleOnly {
 			now := time.Now()
 			os.Chtimes(a.Target, now, now)
 		}
@@ -1519,6 +1553,8 @@ func (b *Builder) runOut(dir string, env []string, cmdargs ...interface{}) ([]by
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
+	cleanup := passLongArgsInResponseFiles(cmd)
+	defer cleanup()
 	cmd.Dir = dir
 	cmd.Env = base.MergeEnvLists(env, base.EnvForDir(cmd.Dir, os.Environ()))
 	err := cmd.Run()
@@ -1544,7 +1580,9 @@ func joinUnambiguously(a []string) string {
 			buf.WriteByte(' ')
 		}
 		q := strconv.Quote(s)
-		if s == "" || strings.Contains(s, " ") || len(q) > len(s)+2 {
+		// A gccgo command line can contain -( and -).
+		// Make sure we quote them since they are special to the shell.
+		if s == "" || strings.ContainsAny(s, " ()") || len(q) > len(s)+2 {
 			buf.WriteString(q)
 		} else {
 			buf.WriteString(s)
@@ -1584,6 +1622,11 @@ func (b *Builder) Mkdir(dir string) error {
 
 // symlink creates a symlink newname -> oldname.
 func (b *Builder) Symlink(oldname, newname string) error {
+	// It's not an error to try to recreate an existing symlink.
+	if link, err := os.Readlink(newname); err == nil && link == oldname {
+		return nil
+	}
+
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "ln -s %s %s", oldname, newname)
 		if cfg.BuildN {
@@ -2380,13 +2423,13 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 			if bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo")) {
 				return "", "", errors.New("must have SWIG version >= 3.0.6")
 			}
-			b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(out)) // swig error
+			b.showOutput(a, p.Dir, p.Desc(), b.processOutput(out)) // swig error
 			return "", "", errPrintedOutput
 		}
 		return "", "", err
 	}
 	if len(out) > 0 {
-		b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(out)) // swig warning
+		b.showOutput(a, p.Dir, p.Desc(), b.processOutput(out)) // swig warning
 	}
 
 	// If the input was x.swig, the output is x.go in the objdir.
@@ -2435,4 +2478,79 @@ func mkAbsFiles(dir string, files []string) []string {
 		abs[i] = f
 	}
 	return abs
+}
+
+// passLongArgsInResponseFiles modifies cmd on Windows such that, for
+// certain programs, long arguments are passed in "response files", a
+// file on disk with the arguments, with one arg per line. An actual
+// argument starting with '@' means that the rest of the argument is
+// a filename of arguments to expand.
+//
+// See Issue 18468.
+func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
+	cleanup = func() {} // no cleanup by default
+
+	var argLen int
+	for _, arg := range cmd.Args {
+		argLen += len(arg)
+	}
+
+	// If we're not approaching 32KB of args, just pass args normally.
+	// (use 30KB instead to be conservative; not sure how accounting is done)
+	if !useResponseFile(cmd.Path, argLen) {
+		return
+	}
+
+	tf, err := ioutil.TempFile("", "args")
+	if err != nil {
+		log.Fatalf("error writing long arguments to response file: %v", err)
+	}
+	cleanup = func() { os.Remove(tf.Name()) }
+	var buf bytes.Buffer
+	for _, arg := range cmd.Args[1:] {
+		fmt.Fprintf(&buf, "%s\n", arg)
+	}
+	if _, err := tf.Write(buf.Bytes()); err != nil {
+		tf.Close()
+		cleanup()
+		log.Fatalf("error writing long arguments to response file: %v", err)
+	}
+	if err := tf.Close(); err != nil {
+		cleanup()
+		log.Fatalf("error writing long arguments to response file: %v", err)
+	}
+	cmd.Args = []string{cmd.Args[0], "@" + tf.Name()}
+	return cleanup
+}
+
+func useResponseFile(path string, argLen int) bool {
+	// Unless we're on Windows, don't use response files.
+	if runtime.GOOS != "windows" {
+		return false
+	}
+
+	// Unless the program uses objabi.Flagparse, which understands
+	// response files, don't use response files.
+	// TODO: do we need more commands? asm? cgo? For now, no.
+	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
+	switch prog {
+	case "compile", "link":
+	default:
+		return false
+	}
+
+	// Windows has a limit of 32 KB arguments. To be conservative and not
+	// worry about whether that includes spaces or not, just use 30 KB.
+	if argLen > (30 << 10) {
+		return true
+	}
+
+	// On the Go build system, use response files about 10% of the
+	// time, just to excercise this codepath.
+	isBuilder := os.Getenv("GO_BUILDER_NAME") != ""
+	if isBuilder && rand.Intn(10) == 0 {
+		return true
+	}
+
+	return false
 }

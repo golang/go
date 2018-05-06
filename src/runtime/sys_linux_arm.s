@@ -38,7 +38,7 @@
 #define SYS_gettid (SYS_BASE + 224)
 #define SYS_tkill (SYS_BASE + 238)
 #define SYS_sched_yield (SYS_BASE + 158)
-#define SYS_pselect6 (SYS_BASE + 335)
+#define SYS_nanosleep (SYS_BASE + 162)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
 #define SYS_clock_gettime (SYS_BASE + 263)
 #define SYS_epoll_create (SYS_BASE + 250)
@@ -475,13 +475,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 	MOVW	$1000, R0	// usec to nsec
 	MUL	R0, R1
 	MOVW	R1, 8(R13)
-	MOVW	$0, R0
+	MOVW	$4(R13), R0
 	MOVW	$0, R1
-	MOVW	$0, R2
-	MOVW	$0, R3
-	MOVW	$4(R13), R4
-	MOVW	$0, R5
-	MOVW	$SYS_pselect6, R7
+	MOVW	$SYS_nanosleep, R7
 	SWI	$0
 	RET
 
@@ -493,13 +489,18 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 // even on single-core devices. The kernel helper takes care of all of
 // this for us.
 
-TEXT publicationBarrier<>(SB),NOSPLIT,$0
+TEXT kernelPublicationBarrier<>(SB),NOSPLIT,$0
 	// void __kuser_memory_barrier(void);
-	MOVW	$0xffff0fa0, R15 // R15 is hardware PC.
+	MOVW	$0xffff0fa0, R11
+	CALL	(R11)
+	RET
 
 TEXT ·publicationBarrier(SB),NOSPLIT,$0
-	BL	publicationBarrier<>(SB)
-	RET
+	MOVB	·goarm(SB), R11
+	CMP	$7, R11
+	BLT	2(PC)
+	JMP	·armPublicationBarrier(SB)
+	JMP	kernelPublicationBarrier<>(SB) // extra layer so this function is leaf and no SP adjustment on GOARM=7
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVW	$SYS_sched_yield, R7

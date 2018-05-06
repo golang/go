@@ -16,81 +16,71 @@
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$0
+TEXT runtime·exit(SB),NOSPLIT,$0-4
 	MOVL	code+0(FP), DI		// arg 1 exit status
-	MOVL	$(0x2000000+1), AX	// syscall entry
-	SYSCALL
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_exit(SB)
 	MOVL	$0xf1, 0xf1  // crash
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
-// Exit this OS thread (like pthread_exit, which eventually
-// calls __bsdthread_terminate).
-TEXT exit1<>(SB),NOSPLIT,$0
-	// Because of exitThread below, this must not use the stack.
-	// __bsdthread_terminate takes 4 word-size arguments.
-	// Set them all to 0. (None are an exit status.)
-	MOVL	$0, DI
-	MOVL	$0, SI
-	MOVL	$0, DX
-	MOVL	$0, R10
-	MOVL	$(0x2000000+361), AX	// syscall entry
-	SYSCALL
-	MOVL	$0xf1, 0xf1  // crash
-	RET
-
-// func exitThread(wait *uint32)
+// Not used on Darwin.
 TEXT runtime·exitThread(SB),NOSPLIT,$0-8
-	MOVQ	wait+0(FP), AX
-	// We're done using the stack.
-	MOVL	$0, (AX)
-	JMP	exit1<>(SB)
+	MOVL	$0xf1, 0xf1  // crash
+	RET
 
-TEXT runtime·open(SB),NOSPLIT,$0
+TEXT runtime·open(SB),NOSPLIT,$0-20
 	MOVQ	name+0(FP), DI		// arg 1 pathname
 	MOVL	mode+8(FP), SI		// arg 2 flags
 	MOVL	perm+12(FP), DX		// arg 3 mode
-	MOVL	$(0x2000000+5), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_open(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0-12
 	MOVL	fd+0(FP), DI		// arg 1 fd
-	MOVL	$(0x2000000+6), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_close(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$0
+TEXT runtime·read(SB),NOSPLIT,$0-28
 	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
-	MOVL	$(0x2000000+3), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_read(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
+TEXT runtime·write(SB),NOSPLIT,$0-28
 	MOVQ	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
-	MOVL	$(0x2000000+4), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP // align stack
+	CALL	libc_write(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVL	AX, ret+24(FP)
 	RET
-
-TEXT runtime·raise(SB),NOSPLIT,$0
-	// Ideally we'd send the signal to the current thread,
-	// not the whole process, but that's too hard on OS X.
-	JMP	runtime·raiseproc(SB)
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVL	$(0x2000000+20), AX // getpid
@@ -110,13 +100,17 @@ TEXT runtime·setitimer(SB), NOSPLIT, $0
 	SYSCALL
 	RET
 
-TEXT runtime·madvise(SB), NOSPLIT, $0
+TEXT runtime·madvise(SB), NOSPLIT, $0-20
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	flags+16(FP), DX		// arg 3 advice
-	MOVL	$(0x2000000+75), AX	// syscall entry madvise
-	SYSCALL
+	MOVL	flags+16(FP), DX	// arg 3 advice
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_madvise(SB)
 	// ignore failure - maybe pages are locked
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 // OS X comm page time offsets
@@ -363,31 +357,42 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	SYSCALL
 	INT $3 // not reached
 
-TEXT runtime·mmap(SB),NOSPLIT,$0
+TEXT runtime·mmap(SB),NOSPLIT,$0-48
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
 	MOVL	prot+16(FP), DX		// arg 3 prot
-	MOVL	flags+20(FP), R10		// arg 4 flags
+	MOVL	flags+20(FP), CX	// arg 4 flags
 	MOVL	fd+24(FP), R8		// arg 5 fid
 	MOVL	off+28(FP), R9		// arg 6 offset
-	MOVL	$(0x2000000+197), AX	// syscall entry
-	SYSCALL
-	JCC	ok
-	MOVQ	$0, p+32(FP)
-	MOVQ	AX, err+40(FP)
-	RET
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_mmap(SB)
+	XORL	DX, DX
+	CMPQ	AX, $-1
+	JNE	ok
+	CALL	libc_error(SB)
+	MOVQ	(AX), DX		// errno
+	XORL	AX, AX
 ok:
+	MOVQ	BP, SP
+	POPQ	BP
 	MOVQ	AX, p+32(FP)
-	MOVQ	$0, err+40(FP)
+	MOVQ	DX, err+40(FP)
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$0
+TEXT runtime·munmap(SB),NOSPLIT,$0-16
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	$(0x2000000+73), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_munmap(SB)
+	TESTQ	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
@@ -399,98 +404,14 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$16
-	MOVL	$0, DX
-	MOVL	usec+0(FP), AX
-	MOVL	$1000000, CX
-	DIVL	CX
-	MOVQ	AX, 0(SP)  // sec
-	MOVL	DX, 8(SP)  // usec
-
-	// select(0, 0, 0, 0, &tv)
-	MOVL	$0, DI
-	MOVL	$0, SI
-	MOVL	$0, DX
-	MOVL	$0, R10
-	MOVQ	SP, R8
-	MOVL	$(0x2000000+93), AX
-	SYSCALL
-	RET
-
-// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
-TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
-	// Set up arguments to bsdthread_create system call.
-	// The ones in quotes pass through to the thread callback
-	// uninterpreted, so we can put whatever we want there.
-	MOVQ	fn+16(FP),   DI
-	MOVQ	arg+8(FP),  SI
-	MOVQ	stk+0(FP),   DX
-	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
-	MOVQ	$0,          R9  // paranoia
-	MOVQ	$0,          R10 // paranoia, "pthread"
-	MOVQ	$(0x2000000+360), AX	// bsdthread_create
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+24(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+24(FP)
-	RET
-
-// The thread that bsdthread_create creates starts executing here,
-// because we registered this function using bsdthread_register
-// at startup.
-//	DI = "pthread"
-//	SI = mach thread port
-//	DX = "func" (= fn)
-//	CX = "arg" (= m)
-//	R8 = stack
-//	R9 = flags (= 0)
-//	SP = stack - C_64_REDZONE_LEN (= stack - 128)
-TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
-	MOVQ	R8, SP		// empirically, SP is very wrong but R8 is right
-
-	PUSHQ	DX
-	PUSHQ	CX
-	PUSHQ	SI
-
-	// set up thread local storage pointing at m->tls.
-	LEAQ	m_tls(CX), DI
-	CALL	runtime·settls(SB)
-
-	POPQ	SI
-	POPQ	CX
-	POPQ	DX
-
-	get_tls(BX)
-	MOVQ	SI, m_procid(CX)	// thread port is m->procid
-	MOVQ	m_g0(CX), AX
-	MOVQ	AX, g(BX)
-	MOVQ	CX, g_m(AX)
-	CALL	runtime·stackcheck(SB)	// smashes AX, CX
-	CALL	DX	// fn
-	CALL	exit1<>(SB)
-	RET
-
-// func bsdthread_register() int32
-// registers callbacks for threadstart (see bsdthread_create above
-// and wqthread and pthsize (not used).  returns 0 on success.
-TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
-	MOVQ	$runtime·bsdthread_start(SB), DI	// threadstart
-	MOVQ	$0, SI	// wqthread, not used by us
-	MOVQ	$0, DX	// pthsize, not used by us
-	MOVQ	$0, R10	// dummy_value [sic]
-	MOVQ	$0, R8	// targetconc_ptr
-	MOVQ	$0, R9	// dispatchqueue_offset
-	MOVQ	$(0x2000000+366), AX	// bsdthread_register
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+0(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+0(FP)
+TEXT runtime·usleep(SB),NOSPLIT,$0-4
+	MOVL	usec+0(FP), DI
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_usleep(SB)
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
@@ -566,17 +487,8 @@ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$32
-	/*
-	* Same as in sys_darwin_386.s:/ugliness, different constant.
-	* See cgo/gcc_darwin_amd64.c for the derivation
-	* of the constant.
-	*/
-	SUBQ $0x8a0, DI
-
-	MOVL	$(0x3000000+3), AX	// thread_fast_set_cthread_self - machdep call #3
-	SYSCALL
+	// Nothing to do on Darwin, pthread already set thread-local storage up.
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
@@ -630,4 +542,100 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ    $1, DX  // FD_CLOEXEC
 	MOVL	$(0x2000000+92), AX  // fcntl
 	SYSCALL
+	RET
+
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+	// DI points to the m.
+	// We are already on m's g0 stack.
+
+	MOVQ	m_g0(DI), DX // g
+
+	// Initialize TLS entry.
+	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
+	MOVQ	DX, 0x30(GS)
+
+	// Someday the convention will be D is always cleared.
+	CLD
+
+	CALL	runtime·mstart(SB)
+
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
+	XORL	AX, AX
+	RET
+
+// These trampolines convert from Go calling convention to C calling convention.
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-12
+	MOVQ	attr+0(FP), DI
+	PUSHQ	BP     // save BP
+	MOVQ	SP, BP // save SP
+	ANDQ	$~15, SP // align stack to 16 bytes
+	CALL	libc_pthread_attr_init(SB)
+	MOVQ	BP, SP // restore SP
+	POPQ	BP     // restore BP
+	MOVL	AX, ret+8(FP)
+	RET
+
+TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-20
+	MOVQ	attr+0(FP), DI
+	MOVQ	size+8(FP), SI
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_attr_setstacksize(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVL	AX, ret+16(FP)
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-20
+	MOVQ	attr+0(FP), DI
+	MOVQ	state+8(FP), SI
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_attr_setdetachstate(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVL	AX, ret+16(FP)
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-36
+	MOVQ	t+0(FP), DI
+	MOVQ	attr+8(FP), SI
+	MOVQ	start+16(FP), DX
+	MOVQ	arg+24(FP), CX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_create(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVL	AX, ret+32(FP)
+	RET
+
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0-8
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_self(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVQ	AX, ret+0(FP)
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0-20
+	MOVQ	thread+0(FP), DI
+	MOVQ	sig+8(FP), SI
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP
+	CALL	libc_pthread_kill(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	MOVL	AX, ret+16(FP)
 	RET

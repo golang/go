@@ -296,5 +296,18 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	// Test VPERMQ with both uint8 and int8 immediate args
 	VPERMQ $-40, Y8, Y8 // c4407800c0d8
 	VPERMQ $216, Y8, Y8 // c443fd00c0d8
+	// Check that LEAL is permitted to use overflowing offset.
+	LEAL 2400959708(BP)(R10*1), BP // 428dac15dcbc1b8f
+	LEAL 3395469782(AX)(R10*1), AX // 428d8410d6c162ca
+	// Make sure MOV CR/DR continues to work after changing it's movtabs.
+	MOVQ CR0, AX // 0f20c0
+	MOVQ CR0, DX // 0f20c2
+	MOVQ CR4, DI // 0f20e7
+	MOVQ AX, CR0 // 0f22c0
+	MOVQ DX, CR0 // 0f22c2
+	MOVQ DI, CR4 // 0f22e7
+	MOVQ DR0, AX // 0f21c0
+	MOVQ DR6, DX // 0f21f2
+	MOVQ DR7, SI // 0f21fe
 	// End of tests.
 	RET

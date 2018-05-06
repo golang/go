@@ -31,6 +31,7 @@ package runtime
 #include <sys/sysctl.h>
 #include <sys/cpuset.h>
 #include <sys/param.h>
+#include <sys/vdso.h>
 */
 import "C"
 
@@ -52,6 +53,7 @@ const (
 	PROT_EXEC  = C.PROT_EXEC
 
 	MAP_ANON    = C.MAP_ANON
+	MAP_SHARED  = C.MAP_SHARED
 	MAP_PRIVATE = C.MAP_PRIVATE
 	MAP_FIXED   = C.MAP_FIXED
 
@@ -62,6 +64,7 @@ const (
 	SA_ONSTACK = C.SA_ONSTACK
 
 	CLOCK_MONOTONIC = C.CLOCK_MONOTONIC
+	CLOCK_REALTIME  = C.CLOCK_REALTIME
 
 	UMTX_OP_WAIT_UINT         = C.UMTX_OP_WAIT_UINT
 	UMTX_OP_WAIT_UINT_PRIVATE = C.UMTX_OP_WAIT_UINT_PRIVATE
@@ -147,3 +150,14 @@ type Itimerval C.struct_itimerval
 type Umtx_time C.struct__umtx_time
 
 type Kevent C.struct_kevent
+
+type bintime C.struct_bintime
+type vdsoTimehands C.struct_vdso_timehands
+type vdsoTimekeep C.struct_vdso_timekeep
+
+const (
+	_VDSO_TK_VER_CURR = C.VDSO_TK_VER_CURR
+
+	vdsoTimehandsSize = C.sizeof_struct_vdso_timehands
+	vdsoTimekeepSize  = C.sizeof_struct_vdso_timekeep
+)

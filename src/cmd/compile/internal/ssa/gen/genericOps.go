@@ -99,56 +99,59 @@ var genericOps = []opData{
 
 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
 	// Shift amounts are considered unsigned.
-	{name: "Lsh8x8", argLength: 2}, // arg0 << arg1
-	{name: "Lsh8x16", argLength: 2},
-	{name: "Lsh8x32", argLength: 2},
-	{name: "Lsh8x64", argLength: 2},
-	{name: "Lsh16x8", argLength: 2},
-	{name: "Lsh16x16", argLength: 2},
-	{name: "Lsh16x32", argLength: 2},
-	{name: "Lsh16x64", argLength: 2},
-	{name: "Lsh32x8", argLength: 2},
-	{name: "Lsh32x16", argLength: 2},
-	{name: "Lsh32x32", argLength: 2},
-	{name: "Lsh32x64", argLength: 2},
-	{name: "Lsh64x8", argLength: 2},
-	{name: "Lsh64x16", argLength: 2},
-	{name: "Lsh64x32", argLength: 2},
-	{name: "Lsh64x64", argLength: 2},
+	// If arg1 is known to be less than the number of bits in arg0,
+	// then aux may be set to true.
+	// This enables better code generation on some platforms.
+	{name: "Lsh8x8", argLength: 2, aux: "Bool"}, // arg0 << arg1
+	{name: "Lsh8x16", argLength: 2, aux: "Bool"},
+	{name: "Lsh8x32", argLength: 2, aux: "Bool"},
+	{name: "Lsh8x64", argLength: 2, aux: "Bool"},
+	{name: "Lsh16x8", argLength: 2, aux: "Bool"},
+	{name: "Lsh16x16", argLength: 2, aux: "Bool"},
+	{name: "Lsh16x32", argLength: 2, aux: "Bool"},
+	{name: "Lsh16x64", argLength: 2, aux: "Bool"},
+	{name: "Lsh32x8", argLength: 2, aux: "Bool"},
+	{name: "Lsh32x16", argLength: 2, aux: "Bool"},
+	{name: "Lsh32x32", argLength: 2, aux: "Bool"},
+	{name: "Lsh32x64", argLength: 2, aux: "Bool"},
+	{name: "Lsh64x8", argLength: 2, aux: "Bool"},
+	{name: "Lsh64x16", argLength: 2, aux: "Bool"},
+	{name: "Lsh64x32", argLength: 2, aux: "Bool"},
+	{name: "Lsh64x64", argLength: 2, aux: "Bool"},
 
-	{name: "Rsh8x8", argLength: 2}, // arg0 >> arg1, signed
-	{name: "Rsh8x16", argLength: 2},
-	{name: "Rsh8x32", argLength: 2},
-	{name: "Rsh8x64", argLength: 2},
-	{name: "Rsh16x8", argLength: 2},
-	{name: "Rsh16x16", argLength: 2},
-	{name: "Rsh16x32", argLength: 2},
-	{name: "Rsh16x64", argLength: 2},
-	{name: "Rsh32x8", argLength: 2},
-	{name: "Rsh32x16", argLength: 2},
-	{name: "Rsh32x32", argLength: 2},
-	{name: "Rsh32x64", argLength: 2},
-	{name: "Rsh64x8", argLength: 2},
-	{name: "Rsh64x16", argLength: 2},
-	{name: "Rsh64x32", argLength: 2},
-	{name: "Rsh64x64", argLength: 2},
+	{name: "Rsh8x8", argLength: 2, aux: "Bool"}, // arg0 >> arg1, signed
+	{name: "Rsh8x16", argLength: 2, aux: "Bool"},
+	{name: "Rsh8x32", argLength: 2, aux: "Bool"},
+	{name: "Rsh8x64", argLength: 2, aux: "Bool"},
+	{name: "Rsh16x8", argLength: 2, aux: "Bool"},
+	{name: "Rsh16x16", argLength: 2, aux: "Bool"},
+	{name: "Rsh16x32", argLength: 2, aux: "Bool"},
+	{name: "Rsh16x64", argLength: 2, aux: "Bool"},
+	{name: "Rsh32x8", argLength: 2, aux: "Bool"},
+	{name: "Rsh32x16", argLength: 2, aux: "Bool"},
+	{name: "Rsh32x32", argLength: 2, aux: "Bool"},
+	{name: "Rsh32x64", argLength: 2, aux: "Bool"},
+	{name: "Rsh64x8", argLength: 2, aux: "Bool"},
+	{name: "Rsh64x16", argLength: 2, aux: "Bool"},
+	{name: "Rsh64x32", argLength: 2, aux: "Bool"},
+	{name: "Rsh64x64", argLength: 2, aux: "Bool"},
 
-	{name: "Rsh8Ux8", argLength: 2}, // arg0 >> arg1, unsigned
-	{name: "Rsh8Ux16", argLength: 2},
-	{name: "Rsh8Ux32", argLength: 2},
-	{name: "Rsh8Ux64", argLength: 2},
-	{name: "Rsh16Ux8", argLength: 2},
-	{name: "Rsh16Ux16", argLength: 2},
-	{name: "Rsh16Ux32", argLength: 2},
-	{name: "Rsh16Ux64", argLength: 2},
-	{name: "Rsh32Ux8", argLength: 2},
-	{name: "Rsh32Ux16", argLength: 2},
-	{name: "Rsh32Ux32", argLength: 2},
-	{name: "Rsh32Ux64", argLength: 2},
-	{name: "Rsh64Ux8", argLength: 2},
-	{name: "Rsh64Ux16", argLength: 2},
-	{name: "Rsh64Ux32", argLength: 2},
-	{name: "Rsh64Ux64", argLength: 2},
+	{name: "Rsh8Ux8", argLength: 2, aux: "Bool"}, // arg0 >> arg1, unsigned
+	{name: "Rsh8Ux16", argLength: 2, aux: "Bool"},
+	{name: "Rsh8Ux32", argLength: 2, aux: "Bool"},
+	{name: "Rsh8Ux64", argLength: 2, aux: "Bool"},
+	{name: "Rsh16Ux8", argLength: 2, aux: "Bool"},
+	{name: "Rsh16Ux16", argLength: 2, aux: "Bool"},
+	{name: "Rsh16Ux32", argLength: 2, aux: "Bool"},
+	{name: "Rsh16Ux64", argLength: 2, aux: "Bool"},
+	{name: "Rsh32Ux8", argLength: 2, aux: "Bool"},
+	{name: "Rsh32Ux16", argLength: 2, aux: "Bool"},
+	{name: "Rsh32Ux32", argLength: 2, aux: "Bool"},
+	{name: "Rsh32Ux64", argLength: 2, aux: "Bool"},
+	{name: "Rsh64Ux8", argLength: 2, aux: "Bool"},
+	{name: "Rsh64Ux16", argLength: 2, aux: "Bool"},
+	{name: "Rsh64Ux32", argLength: 2, aux: "Bool"},
+	{name: "Rsh64Ux64", argLength: 2, aux: "Bool"},
 
 	// 2-input comparisons
 	{name: "Eq8", argLength: 2, commutative: true, typ: "Bool"}, // arg0 == arg1
@@ -240,10 +243,18 @@ var genericOps = []opData{
 	{name: "Com32", argLength: 1},
 	{name: "Com64", argLength: 1},
 
-	{name: "Ctz32", argLength: 1},    // Count trailing (low order) zeroes (returns 0-32)
-	{name: "Ctz64", argLength: 1},    // Count trailing zeroes (returns 0-64)
-	{name: "BitLen32", argLength: 1}, // Number of bits in arg[0] (returns 0-32)
-	{name: "BitLen64", argLength: 1}, // Number of bits in arg[0] (returns 0-64)
+	{name: "Ctz8", argLength: 1},         // Count trailing (low order) zeroes (returns 0-8)
+	{name: "Ctz16", argLength: 1},        // Count trailing (low order) zeroes (returns 0-16)
+	{name: "Ctz32", argLength: 1},        // Count trailing (low order) zeroes (returns 0-32)
+	{name: "Ctz64", argLength: 1},        // Count trailing (low order) zeroes (returns 0-64)
+	{name: "Ctz8NonZero", argLength: 1},  // same as above, but arg[0] known to be non-zero, returns 0-7
+	{name: "Ctz16NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-15
+	{name: "Ctz32NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-31
+	{name: "Ctz64NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-63
+	{name: "BitLen8", argLength: 1},      // Number of bits in arg[0] (returns 0-8)
+	{name: "BitLen16", argLength: 1},     // Number of bits in arg[0] (returns 0-16)
+	{name: "BitLen32", argLength: 1},     // Number of bits in arg[0] (returns 0-32)
+	{name: "BitLen64", argLength: 1},     // Number of bits in arg[0] (returns 0-64)
 
 	{name: "Bswap32", argLength: 1}, // Swap bytes
 	{name: "Bswap64", argLength: 1}, // Swap bytes
@@ -289,8 +300,11 @@ var genericOps = []opData{
 	// We have a special op for this so as to not confuse GC
 	// (particularly stack maps).  It takes a memory arg so it
 	// gets correctly ordered with respect to GC safepoints.
+	// It gets compiled to nothing, so its result must in the same
+	// register as its argument. regalloc knows it can use any
+	// allocatable integer register for OpConvert.
 	// arg0=ptr/int arg1=mem, output=int/ptr
-	{name: "Convert", argLength: 2},
+	{name: "Convert", argLength: 2, zeroWidth: true, resultInArg0: true},
 
 	// constants. Constant values are stored in the aux or
 	// auxint fields.

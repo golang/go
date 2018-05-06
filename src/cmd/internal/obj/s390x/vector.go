@@ -45,6 +45,8 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VAC, 0, 0
 	case AVACQ:
 		return op_VAC, 4, 0
+	case AVMSLG:
+		return op_VMSL, 3, 0
 	case AVACCC:
 		return op_VACCC, 0, 0
 	case AVACCCQ:

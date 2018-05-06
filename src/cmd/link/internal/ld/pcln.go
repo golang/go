@@ -122,11 +122,8 @@ func numberfile(ctxt *Link, file *sym.Symbol) {
 }
 
 func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
-	var f *sym.Symbol
-
 	// Give files numbers.
-	for i := 0; i < len(files); i++ {
-		f = files[i]
+	for _, f := range files {
 		numberfile(ctxt, f)
 	}
 
@@ -399,7 +396,7 @@ func (ctxt *Link) pclntab() {
 		off = addpctab(ctxt, ftab, off, &pcln.Pcline)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Funcdata))))
-		for i := 0; i < len(pcln.Pcdata); i++ {
+		for i := range pcln.Pcdata {
 			off = addpctab(ctxt, ftab, off, &pcln.Pcdata[i])
 		}
 
@@ -409,7 +406,7 @@ func (ctxt *Link) pclntab() {
 			if off&int32(ctxt.Arch.PtrSize-1) != 0 {
 				off += 4
 			}
-			for i := 0; i < len(pcln.Funcdata); i++ {
+			for i := range pcln.Funcdata {
 				if pcln.Funcdata[i] == nil {
 					ftab.SetUint(ctxt.Arch, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
 				} else {

@@ -738,7 +738,9 @@ func (db *DB) Ping() error {
 	return db.PingContext(context.Background())
 }
 
-// Close closes the database, releasing any open resources.
+// Close closes the database and prevents new queries from starting.
+// Close then waits for all queries that have started processing on the server
+// to finish.
 //
 // It is rare to Close a DB, as the DB handle is meant to be
 // long-lived and shared between many goroutines.
@@ -790,8 +792,8 @@ func (db *DB) maxIdleConnsLocked() int {
 // SetMaxIdleConns sets the maximum number of connections in the idle
 // connection pool.
 //
-// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns
-// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit
+// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
+// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
 //
 // If n <= 0, no idle connections are retained.
 func (db *DB) SetMaxIdleConns(n int) {
@@ -823,7 +825,7 @@ func (db *DB) SetMaxIdleConns(n int) {
 //
 // If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
 // MaxIdleConns, then MaxIdleConns will be reduced to match the new
-// MaxOpenConns limit
+// MaxOpenConns limit.
 //
 // If n <= 0, then there is no limit on the number of open connections.
 // The default is 0 (unlimited).
@@ -1629,7 +1631,7 @@ func (db *DB) Driver() driver.Driver {
 
 // ErrConnDone is returned by any operation that is performed on a connection
 // that has already been returned to the connection pool.
-var ErrConnDone = errors.New("database/sql: connection is already closed")
+var ErrConnDone = errors.New("sql: connection is already closed")
 
 // Conn returns a single connection by either opening a new connection
 // or returning an existing connection from the connection pool. Conn will
@@ -1877,7 +1879,7 @@ func (tx *Tx) isDone() bool {
 
 // ErrTxDone is returned by any operation that is performed on a transaction
 // that has already been committed or rolled back.
-var ErrTxDone = errors.New("sql: Transaction has already been committed or rolled back")
+var ErrTxDone = errors.New("sql: transaction has already been committed or rolled back")
 
 // close returns the connection to the pool and
 // must only be called by Tx.rollback or Tx.Commit.
@@ -2453,17 +2455,11 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, args ...interface{}) (driver.Rows, error) {
 	ds.Lock()
 	defer ds.Unlock()
-
 	dargs, err := driverArgsConnLocked(ci, ds, args)
 	if err != nil {
 		return nil, err
 	}
-
-	rowsi, err := ctxDriverStmtQuery(ctx, ds.si, dargs)
-	if err != nil {
-		return nil, err
-	}
-	return rowsi, nil
+	return ctxDriverStmtQuery(ctx, ds.si, dargs)
 }
 
 // QueryRowContext executes a prepared query statement with the given arguments.
@@ -2868,6 +2864,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 // string inputs parseable by strconv.ParseBool.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	rs.closemu.RLock()
+
+	if rs.lasterr != nil && rs.lasterr != io.EOF {
+		rs.closemu.RUnlock()
+		return rs.lasterr
+	}
 	if rs.closed {
 		rs.closemu.RUnlock()
 		return errors.New("sql: Rows are closed")
@@ -2979,11 +2980,7 @@ func (r *Row) Scan(dest ...interface{}) error {
 		return err
 	}
 	// Make sure the query can be processed to completion with no errors.
-	if err := r.rows.Close(); err != nil {
-		return err
-	}
-
-	return nil
+	return r.rows.Close()
 }
 
 // A Result summarizes an executed SQL command.

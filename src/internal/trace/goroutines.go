@@ -15,8 +15,8 @@ type GDesc struct {
 	StartTime    int64
 	EndTime      int64
 
-	// List of spans in the goroutine, sorted based on the start time.
-	Spans []*UserSpanDesc
+	// List of regions in the goroutine, sorted based on the start time.
+	Regions []*UserRegionDesc
 
 	// Statistics of execution time during the goroutine execution.
 	GExecutionStat
@@ -24,20 +24,20 @@ type GDesc struct {
 	*gdesc // private part.
 }
 
-// UserSpanDesc represents a span and goroutine execution stats
-// while the span was active.
-type UserSpanDesc struct {
+// UserRegionDesc represents a region and goroutine execution stats
+// while the region was active.
+type UserRegionDesc struct {
 	TaskID uint64
 	Name   string
 
-	// Span start event. Normally EvUserSpan start event or nil,
-	// but can be EvGoCreate event if the span is a synthetic
-	// span representing task inheritance from the parent goroutine.
+	// Region start event. Normally EvUserRegion start event or nil,
+	// but can be EvGoCreate event if the region is a synthetic
+	// region representing task inheritance from the parent goroutine.
 	Start *Event
 
-	// Span end event. Normally EvUserSpan end event or nil,
+	// Region end event. Normally EvUserRegion end event or nil,
 	// but can be EvGoStop or EvGoEnd event if the goroutine
-	// terminated without explicitely ending the span.
+	// terminated without explicitely ending the region.
 	End *Event
 
 	GExecutionStat
@@ -81,8 +81,14 @@ func (g *GDesc) snapshotStat(lastTs, activeGCStartTime int64) (ret GExecutionSta
 		return ret // finalized GDesc. No pending state.
 	}
 
-	if activeGCStartTime != 0 {
-		ret.GCTime += lastTs - activeGCStartTime
+	if activeGCStartTime != 0 { // terminating while GC is active
+		if g.CreationTime < activeGCStartTime {
+			ret.GCTime += lastTs - activeGCStartTime
+		} else {
+			// The goroutine's lifetime completely overlaps
+			// with a GC.
+			ret.GCTime += lastTs - g.CreationTime
+		}
 	}
 
 	if g.TotalTime == 0 {
@@ -110,15 +116,22 @@ func (g *GDesc) snapshotStat(lastTs, activeGCStartTime int64) (ret GExecutionSta
 	return ret
 }
 
-// finalizeActiveSpans is called when processing a goroutine end event
-// to finalize any active spans in the goroutine.
-func (g *GDesc) finalizeActiveSpans(lastTs, activeGCStartTime int64, trigger *Event) {
-	for _, s := range g.activeSpans {
-		s.End = trigger
-		s.GExecutionStat = g.snapshotStat(lastTs, activeGCStartTime).sub(s.GExecutionStat)
-		g.Spans = append(g.Spans, s)
+// finalize is called when processing a goroutine end event or at
+// the end of trace processing. This finalizes the execution stat
+// and any active regions in the goroutine, in which case trigger is nil.
+func (g *GDesc) finalize(lastTs, activeGCStartTime int64, trigger *Event) {
+	if trigger != nil {
+		g.EndTime = trigger.Ts
 	}
-	g.activeSpans = nil
+	finalStat := g.snapshotStat(lastTs, activeGCStartTime)
+
+	g.GExecutionStat = finalStat
+	for _, s := range g.activeRegions {
+		s.End = trigger
+		s.GExecutionStat = finalStat.sub(s.GExecutionStat)
+		g.Regions = append(g.Regions, s)
+	}
+	*(g.gdesc) = gdesc{}
 }
 
 // gdesc is a private part of GDesc that is required only during analysis.
@@ -131,7 +144,7 @@ type gdesc struct {
 	blockGCTime      int64
 	blockSchedTime   int64
 
-	activeSpans []*UserSpanDesc // stack of active spans
+	activeRegions []*UserRegionDesc // stack of active regions
 }
 
 // GoroutineStats generates statistics for all goroutines in the trace.
@@ -146,14 +159,14 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			g := &GDesc{ID: ev.Args[0], CreationTime: ev.Ts, gdesc: new(gdesc)}
 			g.blockSchedTime = ev.Ts
 			// When a goroutine is newly created, inherit the
-			// task of the active span. For ease handling of
-			// this case, we create a fake span description with
+			// task of the active region. For ease handling of
+			// this case, we create a fake region description with
 			// the task id.
-			if creatorG := gs[ev.G]; creatorG != nil && len(creatorG.gdesc.activeSpans) > 0 {
-				spans := creatorG.gdesc.activeSpans
-				s := spans[len(spans)-1]
+			if creatorG := gs[ev.G]; creatorG != nil && len(creatorG.gdesc.activeRegions) > 0 {
+				regions := creatorG.gdesc.activeRegions
+				s := regions[len(regions)-1]
 				if s.TaskID != 0 {
-					g.gdesc.activeSpans = []*UserSpanDesc{
+					g.gdesc.activeRegions = []*UserRegionDesc{
 						{TaskID: s.TaskID, Start: ev},
 					}
 				}
@@ -175,20 +188,7 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			}
 		case EvGoEnd, EvGoStop:
 			g := gs[ev.G]
-			g.ExecTime += ev.Ts - g.lastStartTime
-			g.lastStartTime = 0
-			g.TotalTime = ev.Ts - g.CreationTime
-			g.EndTime = ev.Ts
-			if gcStartTime != 0 { // terminating while GC is active
-				if g.CreationTime < gcStartTime {
-					g.GCTime += ev.Ts - gcStartTime
-				} else {
-					// The goroutine's lifetime overlaps
-					// with a GC completely.
-					g.GCTime += ev.Ts - g.CreationTime
-				}
-			}
-			g.finalizeActiveSpans(lastTs, gcStartTime, ev)
+			g.finalize(ev.Ts, gcStartTime, ev)
 		case EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
 			EvGoBlockSync, EvGoBlockCond:
 			g := gs[ev.G]
@@ -263,43 +263,43 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 				}
 			}
 			gcStartTime = 0 // indicates gc is inactive.
-		case EvUserSpan:
+		case EvUserRegion:
 			g := gs[ev.G]
 			switch mode := ev.Args[1]; mode {
-			case 0: // span start
-				g.activeSpans = append(g.activeSpans, &UserSpanDesc{
+			case 0: // region start
+				g.activeRegions = append(g.activeRegions, &UserRegionDesc{
 					Name:           ev.SArgs[0],
 					TaskID:         ev.Args[0],
 					Start:          ev,
 					GExecutionStat: g.snapshotStat(lastTs, gcStartTime),
 				})
-			case 1: // span end
-				var sd *UserSpanDesc
-				if spanStk := g.activeSpans; len(spanStk) > 0 {
-					n := len(spanStk)
-					sd = spanStk[n-1]
-					spanStk = spanStk[:n-1] // pop
-					g.activeSpans = spanStk
+			case 1: // region end
+				var sd *UserRegionDesc
+				if regionStk := g.activeRegions; len(regionStk) > 0 {
+					n := len(regionStk)
+					sd = regionStk[n-1]
+					regionStk = regionStk[:n-1] // pop
+					g.activeRegions = regionStk
 				} else {
-					sd = &UserSpanDesc{
+					sd = &UserRegionDesc{
 						Name:   ev.SArgs[0],
 						TaskID: ev.Args[0],
 					}
 				}
 				sd.GExecutionStat = g.snapshotStat(lastTs, gcStartTime).sub(sd.GExecutionStat)
 				sd.End = ev
-				g.Spans = append(g.Spans, sd)
+				g.Regions = append(g.Regions, sd)
 			}
 		}
 	}
 
 	for _, g := range gs {
-		g.GExecutionStat = g.snapshotStat(lastTs, gcStartTime)
-		g.finalizeActiveSpans(lastTs, gcStartTime, nil)
-		// sort based on span start time
-		sort.Slice(g.Spans, func(i, j int) bool {
-			x := g.Spans[i].Start
-			y := g.Spans[j].Start
+		g.finalize(lastTs, gcStartTime, nil)
+
+		// sort based on region start time
+		sort.Slice(g.Regions, func(i, j int) bool {
+			x := g.Regions[i].Start
+			y := g.Regions[j].Start
 			if x == nil {
 				return true
 			}
@@ -308,6 +308,7 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			}
 			return x.Ts < y.Ts
 		})
+
 		g.gdesc = nil
 	}
 

@@ -6,7 +6,10 @@
 
 package src
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // A Pos encodes a source position consisting of a (line, column) number pair
 // and a position base. A zero Pos is a ready to use "unknown" position (nil
@@ -54,6 +57,20 @@ func (p Pos) Before(q Pos) bool {
 func (p Pos) After(q Pos) bool {
 	n, m := p.Filename(), q.Filename()
 	return n > m || n == m && p.lico > q.lico
+}
+
+func (p Pos) LineNumber() string {
+	if !p.IsKnown() {
+		return "?"
+	}
+	return p.lico.lineNumber()
+}
+
+func (p Pos) LineNumberHTML() string {
+	if !p.IsKnown() {
+		return "?"
+	}
+	return p.lico.lineNumberHTML()
 }
 
 // Filename returns the name of the actual file containing this position.
@@ -276,14 +293,53 @@ func (b *PosBase) InliningIndex() int {
 // A lico is a compact encoding of a LIne and COlumn number.
 type lico uint32
 
-// Layout constants: 24 bits for line, 8 bits for column.
+// Layout constants: 22 bits for line, 8 bits for column, 2 for isStmt
 // (If this is too tight, we can either make lico 64b wide,
 // or we can introduce a tiered encoding where we remove column
 // information as line numbers grow bigger; similar to what gcc
 // does.)
+// The bitfield order is chosen to make IsStmt be the least significant
+// part of a position; its use is to communicate statement edges through
+// instruction scrambling in code generation, not to impose an order.
 const (
-	lineBits, lineMax = 24, 1<<lineBits - 1
-	colBits, colMax   = 32 - lineBits, 1<<colBits - 1
+	lineBits, lineMax     = 22, 1<<lineBits - 1
+	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
+	colBits, colMax       = 32 - lineBits - isStmtBits, 1<<colBits - 1
+	isStmtShift           = 0
+	colShift              = isStmtBits + isStmtShift
+	lineShift             = colBits + colShift
+)
+const (
+	// It is expected that the front end or a phase in SSA will usually generate positions tagged with
+	// PosDefaultStmt, but note statement boundaries with PosIsStmt.  Simple statements will have a single
+	// boundary; for loops with initialization may have one for their entry and one for their back edge
+	// (this depends on exactly how the loop is compiled; the intent is to provide a good experience to a
+	// user debugging a program; the goal is that a breakpoint set on the loop line fires both on entry
+	// and on iteration).  Proper treatment of non-gofmt input with multiple simple statements on a single
+	// line is TBD.
+	//
+	// Optimizing compilation will move instructions around, and some of these will become known-bad as
+	// step targets for debugging purposes (examples: register spills and reloads; code generated into
+	// the entry block; invariant code hoisted out of loops) but those instructions will still have interesting
+	// positions for profiling purposes. To reflect this these positions will be changed to PosNotStmt.
+	//
+	// When the optimizer removes an instruction marked PosIsStmt; it should attempt to find a nearby
+	// instruction with the same line marked PosDefaultStmt to be the new statement boundary.  I.e., the
+	// optimizer should make a best-effort to conserve statement boundary positions, and might be enhanced
+	// to note when a statement boundary is not conserved.
+	//
+	// Code cloning, e.g. loop unrolling or loop unswitching, is an exception to the conservation rule
+	// because a user running a debugger would expect to see breakpoints active in the copies of the code.
+	//
+	// In non-optimizing compilation there is still a role for PosNotStmt because of code generation
+	// into the entry block.  PosIsStmt statement positions should be conserved.
+	//
+	// When code generation occurs any remaining default-marked positions are replaced with not-statement
+	// positions.
+	//
+	PosDefaultStmt uint = iota // Default; position is not a statement boundary, but might be if optimization removes the designated statement boundary
+	PosIsStmt                  // Position is a statement bounday; if optimization removes the corresponding instruction, it should attempt to find a new instruction to be the boundary.
+	PosNotStmt                 // Position should not be a statement boundary, but line should be preserved for profiling and low-level debugging purposes.
 )
 
 func makeLico(line, col uint) lico {
@@ -295,8 +351,53 @@ func makeLico(line, col uint) lico {
 		// cannot represent column, use max. column so we have some information
 		col = colMax
 	}
-	return lico(line<<colBits | col)
+	// default is not-sure-if-statement
+	return lico(line<<lineShift | col<<colShift)
 }
 
-func (x lico) Line() uint { return uint(x) >> colBits }
-func (x lico) Col() uint  { return uint(x) & colMax }
+func (x lico) Line() uint { return uint(x) >> lineShift }
+func (x lico) Col() uint  { return uint(x) >> colShift & colMax }
+func (x lico) IsStmt() uint {
+	if x == 0 {
+		return PosNotStmt
+	}
+	return uint(x) >> isStmtShift & isStmtMax
+}
+
+// withNotStmt returns a lico for the same location, but not a statement
+func (x lico) withNotStmt() lico {
+	return x.withStmt(PosNotStmt)
+}
+
+// withDefaultStmt returns a lico for the same location, with default isStmt
+func (x lico) withDefaultStmt() lico {
+	return x.withStmt(PosDefaultStmt)
+}
+
+// withIsStmt returns a lico for the same location, tagged as definitely a statement
+func (x lico) withIsStmt() lico {
+	return x.withStmt(PosIsStmt)
+}
+
+// withStmt returns a lico for the same location with specified is_stmt attribute
+func (x lico) withStmt(stmt uint) lico {
+	if x == 0 {
+		return lico(0)
+	}
+	return lico(uint(x) & ^uint(isStmtMax<<isStmtShift) | (stmt << isStmtShift))
+}
+
+func (x lico) lineNumber() string {
+	return fmt.Sprintf("%d", x.Line())
+}
+
+func (x lico) lineNumberHTML() string {
+	if x.IsStmt() == PosDefaultStmt {
+		return fmt.Sprintf("%d", x.Line())
+	}
+	style := "b"
+	if x.IsStmt() == PosNotStmt {
+		style = "s" // /strike not supported in HTML5
+	}
+	return fmt.Sprintf("<%s>%d</%s>", style, x.Line(), style)
+}

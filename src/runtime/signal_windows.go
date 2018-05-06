@@ -224,6 +224,7 @@ func signame(sig uint32) string {
 	return ""
 }
 
+//go:nosplit
 func crash() {
 	// TODO: This routine should do whatever is needed
 	// to make the Windows program abort/crash as it

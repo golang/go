@@ -5,17 +5,12 @@
 package user
 
 import (
-	"errors"
 	"fmt"
 	"internal/syscall/windows"
 	"internal/syscall/windows/registry"
 	"syscall"
 	"unsafe"
 )
-
-func init() {
-	groupImplemented = false
-}
 
 func isDomainJoined() (bool, error) {
 	var domain *uint16
@@ -119,6 +114,73 @@ func findHomeDirInRegistry(uid string) (dir string, e error) {
 	return dir, nil
 }
 
+// lookupGroupName accepts the name of a group and retrieves the group SID.
+func lookupGroupName(groupname string) (string, error) {
+	sid, _, t, e := syscall.LookupSID("", groupname)
+	if e != nil {
+		return "", e
+	}
+	// https://msdn.microsoft.com/en-us/library/cc245478.aspx#gt_0387e636-5654-4910-9519-1f8326cf5ec0
+	// SidTypeAlias should also be treated as a group type next to SidTypeGroup
+	// and SidTypeWellKnownGroup:
+	// "alias object -> resource group: A group object..."
+	//
+	// Tests show that "Administrators" can be considered of type SidTypeAlias.
+	if t != syscall.SidTypeGroup && t != syscall.SidTypeWellKnownGroup && t != syscall.SidTypeAlias {
+		return "", fmt.Errorf("lookupGroupName: should be group account type, not %d", t)
+	}
+	return sid.String()
+}
+
+// listGroupsForUsernameAndDomain accepts username and domain and retrieves
+// a SID list of the local groups where this user is a member.
+func listGroupsForUsernameAndDomain(username, domain string) ([]string, error) {
+	// Check if both the domain name and user should be used.
+	var query string
+	joined, err := isDomainJoined()
+	if err == nil && joined && len(domain) != 0 {
+		query = domain + `\` + username
+	} else {
+		query = username
+	}
+	q, err := syscall.UTF16PtrFromString(query)
+	if err != nil {
+		return nil, err
+	}
+	var p0 *byte
+	var entriesRead, totalEntries uint32
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa370655(v=vs.85).aspx
+	// NetUserGetLocalGroups() would return a list of LocalGroupUserInfo0
+	// elements which hold the names of local groups where the user participates.
+	// The list does not follow any sorting order.
+	//
+	// If no groups can be found for this user, NetUserGetLocalGroups() should
+	// always return the SID of a single group called "None", which
+	// also happens to be the primary group for the local user.
+	err = windows.NetUserGetLocalGroups(nil, q, 0, windows.LG_INCLUDE_INDIRECT, &p0, windows.MAX_PREFERRED_LENGTH, &entriesRead, &totalEntries)
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.NetApiBufferFree(p0)
+	if entriesRead == 0 {
+		return nil, fmt.Errorf("listGroupsForUsernameAndDomain: NetUserGetLocalGroups() returned an empty list for domain: %s, username: %s", domain, username)
+	}
+	entries := (*[1024]windows.LocalGroupUserInfo0)(unsafe.Pointer(p0))[:entriesRead]
+	var sids []string
+	for _, entry := range entries {
+		if entry.Name == nil {
+			continue
+		}
+		name := syscall.UTF16ToString((*[1024]uint16)(unsafe.Pointer(entry.Name))[:])
+		sid, err := lookupGroupName(name)
+		if err != nil {
+			return nil, err
+		}
+		sids = append(sids, sid)
+	}
+	return sids, nil
+}
+
 func newUser(uid, gid, dir, username, domain string) (*User, error) {
 	domainAndUser := domain + `\` + username
 	name, e := lookupFullName(domain, username, domainAndUser)
@@ -168,11 +230,69 @@ func current() (*User, error) {
 	return newUser(uid, gid, dir, username, domain)
 }
 
-// TODO: The Gid field in the User struct is not set on Windows.
+// lookupUserPrimaryGroup obtains the primary group SID for a user using this method:
+// https://support.microsoft.com/en-us/help/297951/how-to-use-the-primarygroupid-attribute-to-find-the-primary-group-for
+// The method follows this formula: domainRID + "-" + primaryGroupRID
+func lookupUserPrimaryGroup(username, domain string) (string, error) {
+	// get the domain RID
+	sid, _, t, e := syscall.LookupSID("", domain)
+	if e != nil {
+		return "", e
+	}
+	if t != syscall.SidTypeDomain {
+		return "", fmt.Errorf("lookupUserPrimaryGroup: should be domain account type, not %d", t)
+	}
+	domainRID, e := sid.String()
+	if e != nil {
+		return "", e
+	}
+	// If the user has joined a domain use the RID of the default primary group
+	// called "Domain Users":
+	// https://support.microsoft.com/en-us/help/243330/well-known-security-identifiers-in-windows-operating-systems
+	// SID: S-1-5-21domain-513
+	//
+	// The correct way to obtain the primary group of a domain user is
+	// probing the user primaryGroupID attribute in the server Active Directory:
+	// https://msdn.microsoft.com/en-us/library/ms679375(v=vs.85).aspx
+	//
+	// Note that the primary group of domain users should not be modified
+	// on Windows for performance reasons, even if it's possible to do that.
+	// The .NET Developer's Guide to Directory Services Programming - Page 409
+	// https://books.google.bg/books?id=kGApqjobEfsC&lpg=PA410&ots=p7oo-eOQL7&dq=primary%20group%20RID&hl=bg&pg=PA409#v=onepage&q&f=false
+	joined, err := isDomainJoined()
+	if err == nil && joined {
+		return domainRID + "-513", nil
+	}
+	// For non-domain users call NetUserGetInfo() with level 4, which
+	// in this case would not have any network overhead.
+	// The primary group should not change from RID 513 here either
+	// but the group will be called "None" instead:
+	// https://www.adampalmer.me/iodigitalsec/2013/08/10/windows-null-session-enumeration/
+	// "Group 'None' (RID: 513)"
+	u, e := syscall.UTF16PtrFromString(username)
+	if e != nil {
+		return "", e
+	}
+	d, e := syscall.UTF16PtrFromString(domain)
+	if e != nil {
+		return "", e
+	}
+	var p *byte
+	e = syscall.NetUserGetInfo(d, u, 4, &p)
+	if e != nil {
+		return "", e
+	}
+	defer syscall.NetApiBufferFree(p)
+	i := (*windows.UserInfo4)(unsafe.Pointer(p))
+	return fmt.Sprintf("%s-%d", domainRID, i.PrimaryGroupID), nil
+}
 
 func newUserFromSid(usid *syscall.SID) (*User, error) {
-	gid := "unknown"
 	username, domain, e := lookupUsernameAndDomain(usid)
+	if e != nil {
+		return nil, e
+	}
+	gid, e := lookupUserPrimaryGroup(username, domain)
 	if e != nil {
 		return nil, e
 	}
@@ -224,13 +344,47 @@ func lookupUserId(uid string) (*User, error) {
 }
 
 func lookupGroup(groupname string) (*Group, error) {
-	return nil, errors.New("user: LookupGroup not implemented on windows")
+	sid, err := lookupGroupName(groupname)
+	if err != nil {
+		return nil, err
+	}
+	return &Group{Name: groupname, Gid: sid}, nil
 }
 
-func lookupGroupId(string) (*Group, error) {
-	return nil, errors.New("user: LookupGroupId not implemented on windows")
+func lookupGroupId(gid string) (*Group, error) {
+	sid, err := syscall.StringToSid(gid)
+	if err != nil {
+		return nil, err
+	}
+	groupname, _, t, err := sid.LookupAccount("")
+	if err != nil {
+		return nil, err
+	}
+	if t != syscall.SidTypeGroup && t != syscall.SidTypeWellKnownGroup && t != syscall.SidTypeAlias {
+		return nil, fmt.Errorf("lookupGroupId: should be group account type, not %d", t)
+	}
+	return &Group{Name: groupname, Gid: gid}, nil
 }
 
-func listGroups(*User) ([]string, error) {
-	return nil, errors.New("user: GroupIds not implemented on windows")
+func listGroups(user *User) ([]string, error) {
+	sid, err := syscall.StringToSid(user.Uid)
+	if err != nil {
+		return nil, err
+	}
+	username, domain, err := lookupUsernameAndDomain(sid)
+	if err != nil {
+		return nil, err
+	}
+	sids, err := listGroupsForUsernameAndDomain(username, domain)
+	if err != nil {
+		return nil, err
+	}
+	// Add the primary group of the user to the list if it is not already there.
+	// This is done only to comply with the POSIX concept of a primary group.
+	for _, sid := range sids {
+		if sid == user.Gid {
+			return sids, nil
+		}
+	}
+	return append(sids, user.Gid), nil
 }

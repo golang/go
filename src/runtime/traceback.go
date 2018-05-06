@@ -67,7 +67,11 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 			}
 			frame.fn = f
 			frame.argp = uintptr(deferArgs(d))
-			frame.arglen, frame.argmap = getArgInfo(&frame, f, true, fn)
+			var ok bool
+			frame.arglen, frame.argmap, ok = getArgInfoFast(f, true)
+			if !ok {
+				frame.arglen, frame.argmap = getArgInfo(&frame, f, true, fn)
+			}
 		}
 		frame.continpc = frame.pc
 		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
@@ -279,7 +283,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// metadata recorded by f's caller.
 		if callback != nil || printing {
 			frame.argp = frame.fp + sys.MinFrameSize
-			frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil, nil)
+			var ok bool
+			frame.arglen, frame.argmap, ok = getArgInfoFast(f, callback != nil)
+			if !ok {
+				frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil, nil)
+			}
 		}
 
 		// Determine frame's 'continuation PC', where it can continue.
@@ -546,6 +554,15 @@ type reflectMethodValue struct {
 	stack *bitvector // args bitmap
 }
 
+// getArgInfoFast returns the argument frame information for a call to f.
+// It is short and inlineable. However, it does not handle all functions.
+// If ok reports false, you must call getArgInfo instead.
+// TODO(josharian): once we do mid-stack inlining,
+// call getArgInfo directly from getArgInfoFast and stop returning an ok bool.
+func getArgInfoFast(f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvector, ok bool) {
+	return uintptr(f.args), nil, !(needArgMap && f.args == _ArgsSizeUnknown)
+}
+
 // getArgInfo returns the argument frame information for a call to f
 // with call frame frame.
 //
@@ -627,18 +644,22 @@ func printcreatedby(gp *g) {
 	pc := gp.gopc
 	f := findfunc(pc)
 	if f.valid() && showframe(f, gp, false, false) && gp.goid != 1 {
-		print("created by ", funcname(f), "\n")
-		tracepc := pc // back up to CALL instruction for funcline.
-		if pc > f.entry {
-			tracepc -= sys.PCQuantum
-		}
-		file, line := funcline(f, tracepc)
-		print("\t", file, ":", line)
-		if pc > f.entry {
-			print(" +", hex(pc-f.entry))
-		}
-		print("\n")
+		printcreatedby1(f, pc)
 	}
+}
+
+func printcreatedby1(f funcInfo, pc uintptr) {
+	print("created by ", funcname(f), "\n")
+	tracepc := pc // back up to CALL instruction for funcline.
+	if pc > f.entry {
+		tracepc -= sys.PCQuantum
+	}
+	file, line := funcline(f, tracepc)
+	print("\t", file, ":", line)
+	if pc > f.entry {
+		print(" +", hex(pc-f.entry))
+	}
+	print("\n")
 }
 
 func traceback(pc, sp, lr uintptr, gp *g) {
@@ -689,10 +710,75 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
 		print("...additional frames elided...\n")
 	}
 	printcreatedby(gp)
+
+	if gp.ancestors == nil {
+		return
+	}
+	for _, ancestor := range *gp.ancestors {
+		printAncestorTraceback(ancestor)
+	}
+}
+
+// printAncestorTraceback prints the traceback of the given ancestor.
+// TODO: Unify this with gentraceback and CallersFrames.
+func printAncestorTraceback(ancestor ancestorInfo) {
+	print("[originating from goroutine ", ancestor.goid, "]:\n")
+	elideWrapper := false
+	for fidx, pc := range ancestor.pcs {
+		f := findfunc(pc) // f previously validated
+		if showfuncinfo(f, fidx == 0, elideWrapper && fidx != 0) {
+			elideWrapper = printAncestorTracebackFuncInfo(f, pc)
+		}
+	}
+	if len(ancestor.pcs) == _TracebackMaxFrames {
+		print("...additional frames elided...\n")
+	}
+	// Show what created goroutine, except main goroutine (goid 1).
+	f := findfunc(ancestor.gopc)
+	if f.valid() && showfuncinfo(f, false, false) && ancestor.goid != 1 {
+		printcreatedby1(f, ancestor.gopc)
+	}
+}
+
+// printAncestorTraceback prints the given function info at a given pc
+// within an ancestor traceback. The precision of this info is reduced
+// due to only have access to the pcs at the time of the caller
+// goroutine being created.
+func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) bool {
+	tracepc := pc // back up to CALL instruction for funcline.
+	if pc > f.entry {
+		tracepc -= sys.PCQuantum
+	}
+	file, line := funcline(f, tracepc)
+	inldata := funcdata(f, _FUNCDATA_InlTree)
+	if inldata != nil {
+		inltree := (*[1 << 20]inlinedCall)(inldata)
+		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
+		for ix != -1 {
+			name := funcnameFromNameoff(f, inltree[ix].func_)
+			print(name, "(...)\n")
+			print("\t", file, ":", line, "\n")
+
+			file = funcfile(f, inltree[ix].file)
+			line = inltree[ix].line
+			ix = inltree[ix].parent
+		}
+	}
+	name := funcname(f)
+	if name == "runtime.gopanic" {
+		name = "panic"
+	}
+	print(name, "(...)\n")
+	print("\t", file, ":", line)
+	if pc > f.entry {
+		print(" +", hex(pc-f.entry))
+	}
+	print("\n")
+	return elideWrapperCalling(name)
 }
 
 func callers(skip int, pcbuf []uintptr) int {
-	sp := getcallersp(unsafe.Pointer(&skip))
+	sp := getcallersp()
 	pc := getcallerpc()
 	gp := getg()
 	var n int
@@ -711,6 +797,10 @@ func showframe(f funcInfo, gp *g, firstFrame, elideWrapper bool) bool {
 	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
 	}
+	return showfuncinfo(f, firstFrame, elideWrapper)
+}
+
+func showfuncinfo(f funcInfo, firstFrame, elideWrapper bool) bool {
 	level, _, _ := gotraceback()
 	if level > 1 {
 		// Show all frames.
@@ -782,8 +872,8 @@ func goroutineheader(gp *g) {
 	}
 
 	// Override.
-	if gpstatus == _Gwaiting && gp.waitreason != "" {
-		status = gp.waitreason
+	if gpstatus == _Gwaiting && gp.waitreason != waitReasonZero {
+		status = gp.waitreason.String()
 	}
 
 	// approx time the G is blocked, in minutes

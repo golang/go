@@ -398,8 +398,30 @@ func Test386Encoder(t *testing.T) {
 }
 
 func TestAMD64Encoder(t *testing.T) {
-	testEndToEnd(t, "amd64", "amd64enc")
-	testEndToEnd(t, "amd64", "amd64enc_extra")
+	filenames := [...]string{
+		"amd64enc",
+		"amd64enc_extra",
+		"avx512enc/aes_avx512f",
+		"avx512enc/gfni_avx512f",
+		"avx512enc/vpclmulqdq_avx512f",
+		"avx512enc/avx512bw",
+		"avx512enc/avx512cd",
+		"avx512enc/avx512dq",
+		"avx512enc/avx512er",
+		"avx512enc/avx512f",
+		"avx512enc/avx512pf",
+		"avx512enc/avx512_4fmaps",
+		"avx512enc/avx512_4vnniw",
+		"avx512enc/avx512_bitalg",
+		"avx512enc/avx512_ifma",
+		"avx512enc/avx512_vbmi",
+		"avx512enc/avx512_vbmi2",
+		"avx512enc/avx512_vnni",
+		"avx512enc/avx512_vpopcntdq",
+	}
+	for _, name := range filenames {
+		testEndToEnd(t, "amd64", name)
+	}
 }
 
 func TestAMD64Errors(t *testing.T) {

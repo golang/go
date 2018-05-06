@@ -1014,6 +1014,8 @@ var vfexpSC = []float64{
 	1,
 	// near zero
 	3.725290298461915e-09,
+	// denormal
+	-740,
 }
 var expSC = []float64{
 	0,
@@ -1026,6 +1028,7 @@ var expSC = []float64{
 	Inf(1),
 	2.718281828459045,
 	1.0000000037252903,
+	4.2e-322,
 }
 
 var vfexp2SC = []float64{
@@ -1964,6 +1967,8 @@ var vfldexpBC = []fi{
 	{-1, -1075},
 	{1, 1024},
 	{-1, 1024},
+	{1.0000000000000002, -1075},
+	{1, -1075},
 }
 var ldexpBC = []float64{
 	SmallestNonzeroFloat64,
@@ -1974,6 +1979,8 @@ var ldexpBC = []float64{
 	Copysign(0, -1),
 	Inf(1),
 	Inf(-1),
+	SmallestNonzeroFloat64,
+	0,
 }
 
 var logbBC = []float64{
@@ -2428,6 +2435,10 @@ func TestMod(t *testing.T) {
 			t.Errorf("Mod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
 	}
+	// verify precision of result for extreme inputs
+	if f := Mod(5.9790119248836734e+200, 1.1258465975523544); 0.6447968302508578 != f {
+		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want 0.6447968302508578", f)
+	}
 }
 
 func TestFrexp(t *testing.T) {
@@ -2768,6 +2779,10 @@ func TestRemainder(t *testing.T) {
 		if f := Remainder(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
 			t.Errorf("Remainder(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
+	}
+	// verify precision of result for extreme inputs
+	if f := Remainder(5.9790119248836734e+200, 1.1258465975523544); -0.4810497673014966 != f {
+		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want -0.4810497673014966", f)
 	}
 }
 

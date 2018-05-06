@@ -964,7 +964,7 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 	return false
 }
 
-func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+func indir_cx(ctxt *obj.Link, a *obj.Addr) {
 	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 		a.Type = obj.TYPE_MEM
 		a.Reg = REG_R15
@@ -1032,7 +1032,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SP
-		indir_cx(ctxt, p, &p.To)
+		indir_cx(ctxt, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1054,7 +1054,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_AX
-		indir_cx(ctxt, p, &p.To)
+		indir_cx(ctxt, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1078,7 +1078,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p = obj.Appendp(p, newprog)
 
 		p.As = mov
-		indir_cx(ctxt, p, &p.From)
+		indir_cx(ctxt, &p.From)
 		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1

@@ -251,7 +251,7 @@ func markroot(gcw *gcWork, i uint32) {
 			selfScan := gp == userG && readgstatus(userG) == _Grunning
 			if selfScan {
 				casgstatus(userG, _Grunning, _Gwaiting)
-				userG.waitreason = "garbage collection scan"
+				userG.waitreason = waitReasonGarbageCollectionScan
 			}
 
 			// TODO: scang blocks until gp's stack has
@@ -549,7 +549,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 
 	// gcDrainN requires the caller to be preemptible.
 	casgstatus(gp, _Grunning, _Gwaiting)
-	gp.waitreason = "GC assist marking"
+	gp.waitreason = waitReasonGCAssistMarking
 
 	// drain own cached work first in the hopes that it
 	// will be more cache friendly.
@@ -648,7 +648,7 @@ func gcParkAssist() bool {
 		return false
 	}
 	// Park.
-	goparkunlock(&work.assistQueue.lock, "GC assist wait", traceEvGoBlockGC, 2)
+	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceEvGoBlockGC, 2)
 	return true
 }
 
@@ -801,10 +801,15 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 	if _DebugGC > 1 {
 		print("scanframe ", funcname(f), "\n")
 	}
+	pcdata := int32(-1)
 	if targetpc != f.entry {
+		// Back up to the CALL. If we're at the function entry
+		// point, we want to use the entry map (-1), even if
+		// the first instruction of the function changes the
+		// stack map.
 		targetpc--
+		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
 	}
-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
 		// stackmap for this function. It is likely that we are looking
@@ -834,9 +839,11 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
 			throw("scanframe: bad symbol table")
 		}
-		bv := stackmapdata(stkmap, pcdata)
-		size = uintptr(bv.n) * sys.PtrSize
-		scanblock(frame.varp-size, size, bv.bytedata, gcw)
+		if stkmap.nbit > 0 {
+			bv := stackmapdata(stkmap, pcdata)
+			size = uintptr(bv.n) * sys.PtrSize
+			scanblock(frame.varp-size, size, bv.bytedata, gcw)
+		}
 	}
 
 	// Scan arguments.
@@ -857,7 +864,9 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 			}
 			bv = stackmapdata(stkmap, pcdata)
 		}
-		scanblock(frame.argp, uintptr(bv.n)*sys.PtrSize, bv.bytedata, gcw)
+		if bv.n > 0 {
+			scanblock(frame.argp, uintptr(bv.n)*sys.PtrSize, bv.bytedata, gcw)
+		}
 	}
 }
 

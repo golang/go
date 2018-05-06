@@ -1,4 +1,4 @@
-// +build !nacl,!plan9,!windows
+// +build !nacl,!js,!plan9,!windows
 // run
 
 // Copyright 2009 The Go Authors. All rights reserved.
@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 )
 
 func main() {
@@ -19,13 +20,11 @@ func main() {
 	errchk, err := filepath.Abs("errchk")
 	check(err)
 
-	err = os.Chdir(filepath.Join("fixedbugs", "bug248.dir"))
-	check(err)
-
-	run("go", "tool", "compile", "bug0.go")
-	run("go", "tool", "compile", "bug1.go")
-	run("go", "tool", "compile", "bug2.go")
-	run(errchk, "go", "tool", "compile", "-e", "bug3.go")
+	bugDir := filepath.Join(".", "fixedbugs", "bug248.dir")
+	run("go", "tool", "compile", filepath.Join(bugDir, "bug0.go"))
+	run("go", "tool", "compile", filepath.Join(bugDir, "bug1.go"))
+	run("go", "tool", "compile", filepath.Join(bugDir, "bug2.go"))
+	run(errchk, "go", "tool", "compile", "-e", filepath.Join(bugDir, "bug3.go"))
 	run("go", "tool", "link", "bug2.o")
 	run(fmt.Sprintf(".%ca.out", filepath.Separator))
 
@@ -35,10 +34,12 @@ func main() {
 	os.Remove("a.out")
 }
 
+var bugRE = regexp.MustCompile(`(?m)^BUG`)
+
 func run(name string, args ...string) {
 	cmd := exec.Command(name, args...)
 	out, err := cmd.CombinedOutput()
-	if err != nil {
+	if bugRE.Match(out) || err != nil {
 		fmt.Println(string(out))
 		fmt.Println(err)
 		os.Exit(1)

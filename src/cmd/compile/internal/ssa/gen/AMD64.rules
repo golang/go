@@ -3,88 +3,46 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add64  x y) -> (ADDQ  x y)
+(Add(64|32|16|8)  x y) -> (ADD(Q|L|L|L)  x y)
 (AddPtr x y) && config.PtrSize == 8 -> (ADDQ x y)
 (AddPtr x y) && config.PtrSize == 4 -> (ADDL x y)
-(Add32  x y) -> (ADDL  x y)
-(Add16  x y) -> (ADDL  x y)
-(Add8   x y) -> (ADDL  x y)
-(Add32F x y) -> (ADDSS x y)
-(Add64F x y) -> (ADDSD x y)
+(Add(32|64)F x y) -> (ADDS(S|D) x y)
 
-(Sub64  x y) -> (SUBQ  x y)
+(Sub(64|32|16|8)  x y) -> (SUB(Q|L|L|L)  x y)
 (SubPtr x y) && config.PtrSize == 8 -> (SUBQ x y)
 (SubPtr x y) && config.PtrSize == 4 -> (SUBL x y)
-(Sub32  x y) -> (SUBL  x y)
-(Sub16  x y) -> (SUBL  x y)
-(Sub8   x y) -> (SUBL  x y)
-(Sub32F x y) -> (SUBSS x y)
-(Sub64F x y) -> (SUBSD x y)
+(Sub(32|64)F x y) -> (SUBS(S|D) x y)
 
-(Mul64  x y) -> (MULQ  x y)
-(Mul32  x y) -> (MULL  x y)
-(Mul16  x y) -> (MULL  x y)
-(Mul8   x y) -> (MULL  x y)
-(Mul32F x y) -> (MULSS x y)
-(Mul64F x y) -> (MULSD x y)
+(Mul(64|32|16|8)  x y) -> (MUL(Q|L|L|L)  x y)
+(Mul(32|64)F x y) -> (MULS(S|D) x y)
 
-(Div32F x y) -> (DIVSS x y)
-(Div64F x y) -> (DIVSD x y)
+(Hmul(64|32)  x y) -> (HMUL(Q|L)  x y)
+(Hmul(64|32)u x y) -> (HMUL(Q|L)U x y)
 
-(Div64  x y) -> (Select0 (DIVQ  x y))
-(Div64u x y) -> (Select0 (DIVQU x y))
-(Div32  x y) -> (Select0 (DIVL  x y))
-(Div32u x y) -> (Select0 (DIVLU x y))
-(Div16  x y) -> (Select0 (DIVW  x y))
-(Div16u x y) -> (Select0 (DIVWU x y))
-(Div8   x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
-(Div8u  x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
-
-(Hmul64  x y) -> (HMULQ  x y)
-(Hmul64u x y) -> (HMULQU x y)
-(Hmul32  x y) -> (HMULL  x y)
-(Hmul32u x y) -> (HMULLU x y)
+(Div(64|32|16)  x y) -> (Select0 (DIV(Q|L|W)  x y))
+(Div8  x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+(Div(64|32|16)u x y) -> (Select0 (DIV(Q|L|W)U x y))
+(Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+(Div(32|64)F x y) -> (DIVS(S|D) x y)
 
 (Mul64uhilo x y) -> (MULQU2 x y)
 (Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
 
 (Avg64u x y) -> (AVGQU x y)
 
-(Mod64  x y) -> (Select1 (DIVQ  x y))
-(Mod64u x y) -> (Select1 (DIVQU x y))
-(Mod32  x y) -> (Select1 (DIVL  x y))
-(Mod32u x y) -> (Select1 (DIVLU x y))
-(Mod16  x y) -> (Select1 (DIVW  x y))
-(Mod16u x y) -> (Select1 (DIVWU x y))
-(Mod8   x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
-(Mod8u  x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+(Mod(64|32|16)  x y) -> (Select1 (DIV(Q|L|W)  x y))
+(Mod8  x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+(Mod(64|32|16)u x y) -> (Select1 (DIV(Q|L|W)U x y))
+(Mod8u x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
 
-(And64 x y) -> (ANDQ x y)
-(And32 x y) -> (ANDL x y)
-(And16 x y) -> (ANDL x y)
-(And8  x y) -> (ANDL x y)
+(And(64|32|16|8) x y) -> (AND(Q|L|L|L) x y)
+(Or(64|32|16|8) x y) -> (OR(Q|L|L|L) x y)
+(Xor(64|32|16|8) x y) -> (XOR(Q|L|L|L) x y)
+(Com(64|32|16|8) x) -> (NOT(Q|L|L|L) x)
 
-(Or64 x y) -> (ORQ x y)
-(Or32 x y) -> (ORL x y)
-(Or16 x y) -> (ORL x y)
-(Or8  x y) -> (ORL x y)
-
-(Xor64 x y) -> (XORQ x y)
-(Xor32 x y) -> (XORL x y)
-(Xor16 x y) -> (XORL x y)
-(Xor8  x y) -> (XORL x y)
-
-(Neg64  x) -> (NEGQ x)
-(Neg32  x) -> (NEGL x)
-(Neg16  x) -> (NEGL x)
-(Neg8   x) -> (NEGL x)
+(Neg(64|32|16|8)  x) -> (NEG(Q|L|L|L) x)
 (Neg32F x) -> (PXOR x (MOVSSconst <typ.Float32> [f2i(math.Copysign(0, -1))]))
 (Neg64F x) -> (PXOR x (MOVSDconst <typ.Float64> [f2i(math.Copysign(0, -1))]))
-
-(Com64 x) -> (NOTQ x)
-(Com32 x) -> (NOTL x)
-(Com16 x) -> (NOTL x)
-(Com8  x) -> (NOTL x)
 
 // Lowering boolean ops
 (AndB x y) -> (ANDL x y)
@@ -98,13 +56,25 @@
 
 // Lowering other arithmetic
 (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
-(Ctz32 x) -> (Select0 (BSFQ (ORQ <typ.UInt64> (MOVQconst [1<<32]) x)))
+(Ctz32 x) -> (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+(Ctz16 x) -> (BSFL (BTSLconst <typ.UInt32> [16] x))
+(Ctz8  x) -> (BSFL (BTSLconst <typ.UInt32> [ 8] x))
 
+(Ctz64NonZero x) -> (Select0 (BSFQ x))
+(Ctz32NonZero x) -> (BSFL x)
+(Ctz16NonZero x) -> (BSFL x)
+(Ctz8NonZero  x) -> (BSFL x)
+
+// BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
+// However, for zero-extended values, we can cheat a bit, and calculate
+// BSR(x<<1 + 1), which is guaranteed to be non-zero, and which conveniently
+// places the index of the highest set bit where we want it.
 (BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
-(BitLen32 x) -> (BitLen64 (MOVLQZX <typ.UInt64> x))
+(BitLen32 x) -> (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
+(BitLen16 x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
+(BitLen8  x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
 
-(Bswap64 x) -> (BSWAPQ x)
-(Bswap32 x) -> (BSWAPL x)
+(Bswap(64|32) x) -> (BSWAP(Q|L) x)
 
 (PopCount64 x) -> (POPCNTQ x)
 (PopCount32 x) -> (POPCNTL x)
@@ -159,144 +129,75 @@
 (Cvt32Fto64F x) -> (CVTSS2SD x)
 (Cvt64Fto32F x) -> (CVTSD2SS x)
 
-(Round32F x) -> x
-(Round64F x) -> x
+(Round(32|64)F x) -> x
 
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
-(Lsh64x64 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst y [64])))
-(Lsh64x32 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst y [64])))
-(Lsh64x16 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst y [64])))
-(Lsh64x8  <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
+(Lsh64x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMP(Q|L|W|B)const y [64])))
+(Lsh32x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [32])))
+(Lsh16x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [32])))
+(Lsh8x(64|32|16|8)  <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [32])))
 
-(Lsh32x64 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
-(Lsh32x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-(Lsh32x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh32x8  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+(Lsh64x(64|32|16|8) x y) && shiftIsBounded(v) -> (SHLQ x y)
+(Lsh32x(64|32|16|8) x y) && shiftIsBounded(v) -> (SHLL x y)
+(Lsh16x(64|32|16|8) x y) && shiftIsBounded(v) -> (SHLL x y)
+(Lsh8x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SHLL x y)
 
-(Lsh16x64 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
-(Lsh16x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-(Lsh16x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh16x8  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+(Rsh64Ux(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMP(Q|L|W|B)const y [64])))
+(Rsh32Ux(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [32])))
+(Rsh16Ux(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [16])))
+(Rsh8Ux(64|32|16|8)  <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [8])))
 
-(Lsh8x64 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
-(Lsh8x32 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-(Lsh8x16 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh8x8  <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-
-(Rsh64Ux64 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst y [64])))
-(Rsh64Ux32 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst y [64])))
-(Rsh64Ux16 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst y [64])))
-(Rsh64Ux8  <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
-
-(Rsh32Ux64 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
-(Rsh32Ux32 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-(Rsh32Ux16 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Rsh32Ux8  <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-
-(Rsh16Ux64 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPQconst y [16])))
-(Rsh16Ux32 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst y [16])))
-(Rsh16Ux16 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst y [16])))
-(Rsh16Ux8  <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst y [16])))
-
-(Rsh8Ux64 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPQconst y [8])))
-(Rsh8Ux32 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst y [8])))
-(Rsh8Ux16 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst y [8])))
-(Rsh8Ux8  <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst y [8])))
+(Rsh64Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SHRQ x y)
+(Rsh32Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SHRL x y)
+(Rsh16Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SHRW x y)
+(Rsh8Ux(64|32|16|8)  x y) && shiftIsBounded(v) -> (SHRB x y)
 
 // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
 // We implement this by setting the shift value to -1 (all ones) if the shift value is >= width.
-(Rsh64x64 <t> x y) -> (SARQ <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [64])))))
-(Rsh64x32 <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [64])))))
-(Rsh64x16 <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [64])))))
-(Rsh64x8  <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [64])))))
+(Rsh64x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (SARQ <t> x (OR(Q|L|L|L) <y.Type> y (NOT(Q|L|L|L) <y.Type> (SBB(Q|L|L|L)carrymask <y.Type> (CMP(Q|L|W|B)const y [64])))))
+(Rsh32x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (SARL <t> x (OR(Q|L|L|L) <y.Type> y (NOT(Q|L|L|L) <y.Type> (SBB(Q|L|L|L)carrymask <y.Type> (CMP(Q|L|W|B)const y [32])))))
+(Rsh16x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (SARW <t> x (OR(Q|L|L|L) <y.Type> y (NOT(Q|L|L|L) <y.Type> (SBB(Q|L|L|L)carrymask <y.Type> (CMP(Q|L|W|B)const y [16])))))
+(Rsh8x(64|32|16|8)  <t> x y) && !shiftIsBounded(v) -> (SARB <t> x (OR(Q|L|L|L) <y.Type> y (NOT(Q|L|L|L) <y.Type> (SBB(Q|L|L|L)carrymask <y.Type> (CMP(Q|L|W|B)const y [8])))))
 
-(Rsh32x64 <t> x y) -> (SARL <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [32])))))
-(Rsh32x32 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [32])))))
-(Rsh32x16 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [32])))))
-(Rsh32x8  <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [32])))))
-
-(Rsh16x64 <t> x y) -> (SARW <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [16])))))
-(Rsh16x32 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [16])))))
-(Rsh16x16 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [16])))))
-(Rsh16x8  <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [16])))))
-
-(Rsh8x64 <t> x y)  -> (SARB <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [8])))))
-(Rsh8x32 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [8])))))
-(Rsh8x16 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [8])))))
-(Rsh8x8  <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
+(Rsh64x(64|32|16|8) x y) && shiftIsBounded(v) -> (SARQ x y)
+(Rsh32x(64|32|16|8) x y) && shiftIsBounded(v) -> (SARL x y)
+(Rsh16x(64|32|16|8) x y) && shiftIsBounded(v) -> (SARW x y)
+(Rsh8x(64|32|16|8) x y)  && shiftIsBounded(v) -> (SARB x y)
 
 // Lowering comparisons
-(Less64  x y) -> (SETL (CMPQ x y))
-(Less32  x y) -> (SETL (CMPL x y))
-(Less16  x y) -> (SETL (CMPW x y))
-(Less8   x y) -> (SETL (CMPB x y))
-(Less64U x y) -> (SETB (CMPQ x y))
-(Less32U x y) -> (SETB (CMPL x y))
-(Less16U x y) -> (SETB (CMPW x y))
-(Less8U  x y) -> (SETB (CMPB x y))
+(Less(64|32|16|8)  x y) -> (SETL (CMP(Q|L|W|B) x y))
+(Less(64|32|16|8)U x y) -> (SETB (CMP(Q|L|W|B) x y))
 // Use SETGF with reversed operands to dodge NaN case
-(Less64F x y) -> (SETGF (UCOMISD y x))
-(Less32F x y) -> (SETGF (UCOMISS y x))
+(Less(32|64)F x y) -> (SETGF (UCOMIS(S|D) y x))
 
-(Leq64  x y) -> (SETLE (CMPQ x y))
-(Leq32  x y) -> (SETLE (CMPL x y))
-(Leq16  x y) -> (SETLE (CMPW x y))
-(Leq8   x y) -> (SETLE (CMPB x y))
-(Leq64U x y) -> (SETBE (CMPQ x y))
-(Leq32U x y) -> (SETBE (CMPL x y))
-(Leq16U x y) -> (SETBE (CMPW x y))
-(Leq8U  x y) -> (SETBE (CMPB x y))
+(Leq(64|32|16|8)  x y) -> (SETLE (CMP(Q|L|W|B) x y))
+(Leq(64|32|16|8)U x y) -> (SETBE (CMP(Q|L|W|B) x y))
 // Use SETGEF with reversed operands to dodge NaN case
-(Leq64F x y) -> (SETGEF (UCOMISD y x))
-(Leq32F x y) -> (SETGEF (UCOMISS y x))
+(Leq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) y x))
 
-(Greater64  x y) -> (SETG (CMPQ x y))
-(Greater32  x y) -> (SETG (CMPL x y))
-(Greater16  x y) -> (SETG (CMPW x y))
-(Greater8   x y) -> (SETG (CMPB x y))
-(Greater64U x y) -> (SETA (CMPQ x y))
-(Greater32U x y) -> (SETA (CMPL x y))
-(Greater16U x y) -> (SETA (CMPW x y))
-(Greater8U  x y) -> (SETA (CMPB x y))
+(Greater(64|32|16|8)  x y) -> (SETG (CMP(Q|L|W|B) x y))
+(Greater(64|32|16|8)U x y) -> (SETA (CMP(Q|L|W|B) x y))
 // Note Go assembler gets UCOMISx operand order wrong, but it is right here
 // Bug is accommodated at generation of assembly language.
-(Greater64F x y) -> (SETGF (UCOMISD x y))
-(Greater32F x y) -> (SETGF (UCOMISS x y))
+(Greater(32|64)F x y) -> (SETGF (UCOMIS(S|D) x y))
 
-(Geq64  x y) -> (SETGE (CMPQ x y))
-(Geq32  x y) -> (SETGE (CMPL x y))
-(Geq16  x y) -> (SETGE (CMPW x y))
-(Geq8   x y) -> (SETGE (CMPB x y))
-(Geq64U x y) -> (SETAE (CMPQ x y))
-(Geq32U x y) -> (SETAE (CMPL x y))
-(Geq16U x y) -> (SETAE (CMPW x y))
-(Geq8U  x y) -> (SETAE (CMPB x y))
+(Geq(64|32|16|8)  x y) -> (SETGE (CMP(Q|L|W|B) x y))
+(Geq(64|32|16|8)U x y) -> (SETAE (CMP(Q|L|W|B) x y))
 // Note Go assembler gets UCOMISx operand order wrong, but it is right here
 // Bug is accommodated at generation of assembly language.
-(Geq64F x y) -> (SETGEF (UCOMISD x y))
-(Geq32F x y) -> (SETGEF (UCOMISS x y))
+(Geq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) x y))
 
-(Eq64  x y) -> (SETEQ (CMPQ x y))
-(Eq32  x y) -> (SETEQ (CMPL x y))
-(Eq16  x y) -> (SETEQ (CMPW x y))
-(Eq8   x y) -> (SETEQ (CMPB x y))
-(EqB   x y) -> (SETEQ (CMPB x y))
+(Eq(64|32|16|8|B)  x y) -> (SETEQ (CMP(Q|L|W|B|B) x y))
 (EqPtr x y) && config.PtrSize == 8 -> (SETEQ (CMPQ x y))
 (EqPtr x y) && config.PtrSize == 4 -> (SETEQ (CMPL x y))
-(Eq64F x y) -> (SETEQF (UCOMISD x y))
-(Eq32F x y) -> (SETEQF (UCOMISS x y))
+(Eq(32|64)F x y) -> (SETEQF (UCOMIS(S|D) x y))
 
-(Neq64  x y) -> (SETNE (CMPQ x y))
-(Neq32  x y) -> (SETNE (CMPL x y))
-(Neq16  x y) -> (SETNE (CMPW x y))
-(Neq8   x y) -> (SETNE (CMPB x y))
-(NeqB   x y) -> (SETNE (CMPB x y))
+(Neq(64|32|16|8|B)  x y) -> (SETNE (CMP(Q|L|W|B|B) x y))
 (NeqPtr x y) && config.PtrSize == 8 -> (SETNE (CMPQ x y))
 (NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
-(Neq64F x y) -> (SETNEF (UCOMISD x y))
-(Neq32F x y) -> (SETNEF (UCOMISS x y))
+(Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
 
 (Int64Hi x) -> (SHRQconst [32] x) // needed for amd64p32
 
@@ -541,8 +442,6 @@
 (CMOV(QEQ|QGT|QGE|QCS|QLS|LEQ|LGT|LGE|LCS|LLS|WEQ|WGT|WGE|WCS|WLS) y _ (FlagLT_UGT)) -> y
 
 // Miscellaneous
-(Convert <t> x mem) && config.PtrSize == 8 -> (MOVQconvert <t> x mem)
-(Convert <t> x mem) && config.PtrSize == 4 -> (MOVLconvert <t> x mem)
 (IsNonNil p) && config.PtrSize == 8 -> (SETNE (TESTQ p p))
 (IsNonNil p) && config.PtrSize == 4 -> (SETNE (TESTL p p))
 (IsInBounds idx len) && config.PtrSize == 8 -> (SETB (CMPQ idx len))
@@ -683,6 +582,13 @@
 (BTLconst [c] (SHRLconst [d] x)) && (c+d)<32 -> (BTLconst [c+d] x)
 (BTLconst [c] (SHLLconst [d] x)) && c>d      -> (BTLconst [c-d] x)
 (BTLconst [0] s:(SHRL x y)) -> (BTL y x)
+
+// Rewrite a & 1 != 1 into a & 1 == 0.
+// Among other things, this lets us turn (a>>b)&1 != 1 into a bit test.
+(SET(NE|EQ) (CMPLconst [1] s:(ANDLconst [1] _))) -> (SET(EQ|NE) (CMPLconst [0] s))
+(SET(NE|EQ)mem [off] {sym} ptr (CMPLconst [1] s:(ANDLconst [1] _)) mem) -> (SET(EQ|NE)mem [off] {sym} ptr (CMPLconst [0] s) mem)
+(SET(NE|EQ) (CMPQconst [1] s:(ANDQconst [1] _))) -> (SET(EQ|NE) (CMPQconst [0] s))
+(SET(NE|EQ)mem [off] {sym} ptr (CMPQconst [1] s:(ANDQconst [1] _)) mem) -> (SET(EQ|NE)mem [off] {sym} ptr (CMPQconst [0] s) mem)
 
 // Recognize bit setting (a |= 1<<b) and toggling (a ^= 1<<b)
 (OR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) && !config.nacl -> (BTS(Q|L) x y)
@@ -954,24 +860,34 @@
 
 // strength reduction
 // Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
-//    1 - addq, shlq, leaq, negq
+//    1 - addq, shlq, leaq, negq, subq
 //    3 - imulq
 // This limits the rewrites to two instructions.
-// TODO: 27, 81
+// Note that negq always operates in-place,
+// which can require a register-register move
+// to preserve the original value,
+// so it must be used with care.
+(MULQconst [-9] x) -> (NEGQ (LEAQ8 <v.Type> x x))
+(MULQconst [-5] x) -> (NEGQ (LEAQ4 <v.Type> x x))
+(MULQconst [-3] x) -> (NEGQ (LEAQ2 <v.Type> x x))
 (MULQconst [-1] x) -> (NEGQ x)
 (MULQconst [0] _) -> (MOVQconst [0])
 (MULQconst [1] x) -> x
 (MULQconst [3] x) -> (LEAQ2 x x)
 (MULQconst [5] x) -> (LEAQ4 x x)
-(MULQconst [7] x) -> (LEAQ8 (NEGQ <v.Type> x) x)
+(MULQconst [7] x) -> (LEAQ2 x (LEAQ2 <v.Type> x x))
 (MULQconst [9] x) -> (LEAQ8 x x)
 (MULQconst [11] x) -> (LEAQ2 x (LEAQ4 <v.Type> x x))
 (MULQconst [13] x) -> (LEAQ4 x (LEAQ2 <v.Type> x x))
+(MULQconst [19] x) -> (LEAQ2 x (LEAQ8 <v.Type> x x))
 (MULQconst [21] x) -> (LEAQ4 x (LEAQ4 <v.Type> x x))
 (MULQconst [25] x) -> (LEAQ8 x (LEAQ2 <v.Type> x x))
+(MULQconst [27] x) -> (LEAQ8 (LEAQ2 <v.Type> x x) (LEAQ2 <v.Type> x x))
 (MULQconst [37] x) -> (LEAQ4 x (LEAQ8 <v.Type> x x))
 (MULQconst [41] x) -> (LEAQ8 x (LEAQ4 <v.Type> x x))
+(MULQconst [45] x) -> (LEAQ8 (LEAQ4 <v.Type> x x) (LEAQ4 <v.Type> x x))
 (MULQconst [73] x) -> (LEAQ8 x (LEAQ8 <v.Type> x x))
+(MULQconst [81] x) -> (LEAQ8 (LEAQ8 <v.Type> x x) (LEAQ8 <v.Type> x x))
 
 (MULQconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBQ (SHLQconst <v.Type> [log2(c+1)] x) x)
 (MULQconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (LEAQ1 (SHLQconst <v.Type> [log2(c-1)] x) x)
@@ -992,6 +908,7 @@
 // combine ADDQ/ADDQconst into LEAQ1
 (ADDQconst [c] (ADDQ x y)) -> (LEAQ1 [c] x y)
 (ADDQ (ADDQconst [c] x) y) -> (LEAQ1 [c] x y)
+(ADD(Q|L)const [c] (SHL(Q|L)const [1] x)) -> (LEA(Q|L)1 [c] x x)
 
 // fold ADDQ into LEAQ
 (ADDQconst [c] (LEAQ [d] {s} x)) && is32Bit(c+d) -> (LEAQ [c+d] {s} x)
@@ -1509,10 +1426,10 @@
 (CMPLconst x [0]) -> (TESTL x x)
 (CMPWconst x [0]) -> (TESTW x x)
 (CMPBconst x [0]) -> (TESTB x x)
-(TESTQconst [-1] x) -> (TESTQ x x)
-(TESTLconst [-1] x) -> (TESTL x x)
-(TESTWconst [-1] x) -> (TESTW x x)
-(TESTBconst [-1] x) -> (TESTB x x)
+(TESTQconst [-1] x) && x.Op != OpAMD64MOVQconst -> (TESTQ x x)
+(TESTLconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTL x x)
+(TESTWconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTW x x)
+(TESTBconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTB x x)
 
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
@@ -2398,6 +2315,32 @@
 // Extension is unnecessary for trailing zeros.
 (BSFQ (ORQconst <t> [1<<8] (MOVBQZX x))) -> (BSFQ (ORQconst <t> [1<<8] x))
 (BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) -> (BSFQ (ORQconst <t> [1<<16] x))
+
+// Simplify indexed loads/stores
+(MOVBstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVBstore [i+c] {s} p w mem)
+(MOVWstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVWstore [i+c] {s} p w mem)
+(MOVLstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVLstore [i+c] {s} p w mem)
+(MOVQstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVQstore [i+c] {s} p w mem)
+(MOVWstoreidx2 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+2*c) -> (MOVWstore [i+2*c] {s} p w mem)
+(MOVLstoreidx4 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+4*c) -> (MOVLstore [i+4*c] {s} p w mem)
+(MOVLstoreidx8 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+8*c) -> (MOVLstore [i+8*c] {s} p w mem)
+(MOVQstoreidx8 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+8*c) -> (MOVQstore [i+8*c] {s} p w mem)
+(MOVSSstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVSSstore [i+c] {s} p w mem)
+(MOVSSstoreidx4 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+4*c) -> (MOVSSstore [i+4*c] {s} p w mem)
+(MOVSDstoreidx1 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+c) -> (MOVSDstore [i+c] {s} p w mem)
+(MOVSDstoreidx8 [i] {s} p (MOVQconst [c]) w mem) && is32Bit(i+8*c) -> (MOVSDstore [i+8*c] {s} p w mem)
+(MOVBloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVBload [i+c] {s} p mem)
+(MOVWloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVWload [i+c] {s} p mem)
+(MOVLloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVLload [i+c] {s} p mem)
+(MOVQloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVQload [i+c] {s} p mem)
+(MOVWloadidx2 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+2*c) -> (MOVWload [i+2*c] {s} p mem)
+(MOVLloadidx4 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+4*c) -> (MOVLload [i+4*c] {s} p mem)
+(MOVLloadidx8 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+8*c) -> (MOVLload [i+8*c] {s} p mem)
+(MOVQloadidx8 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+8*c) -> (MOVQload [i+8*c] {s} p mem)
+(MOVSSloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVSSload [i+c] {s} p mem)
+(MOVSSloadidx4 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+4*c) -> (MOVSSload [i+4*c] {s} p mem)
+(MOVSDloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVSDload [i+c] {s} p mem)
+(MOVSDloadidx8 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+8*c) -> (MOVSDload [i+8*c] {s} p mem)
 
 // Redundant sign/zero extensions
 // Note: see issue 21963. We have to make sure we use the right type on

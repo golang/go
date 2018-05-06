@@ -139,9 +139,9 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
 	SYSCALL
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
-	MOVL	$232, AX // clock_gettime
+// func fallback_walltime() (sec int64, nsec int32)
+TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
+	MOVL	$232, AX	// clock_gettime
 	MOVQ	$0, DI		// CLOCK_REALTIME
 	LEAQ	8(SP), SI
 	SYSCALL
@@ -153,10 +153,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB), NOSPLIT, $32
+TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32-8
 	MOVL	$232, AX
-	// We can use CLOCK_MONOTONIC_FAST here when we drop
-	// support for FreeBSD 8-STABLE.
 	MOVQ	$4, DI		// CLOCK_MONOTONIC
 	LEAQ	8(SP), SI
 	SYSCALL

@@ -21,7 +21,6 @@ var F32to64 = f32to64
 var Fcmp64 = fcmp64
 var Fintto64 = fintto64
 var F64toint = f64toint
-var Sqrt = sqrt
 
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
@@ -377,6 +376,8 @@ func (rw *RWMutex) Unlock() {
 	rw.rw.unlock()
 }
 
+const RuntimeHmapSize = unsafe.Sizeof(hmap{})
+
 func MapBucketsCount(m map[int]int) int {
 	h := *(**hmap)(unsafe.Pointer(&m))
 	return 1 << h.B
@@ -404,7 +405,7 @@ func LockOSCounts() (external, internal uint32) {
 //go:noinline
 func TracebackSystemstack(stk []uintptr, i int) int {
 	if i == 0 {
-		pc, sp := getcallerpc(), getcallersp(unsafe.Pointer(&stk))
+		pc, sp := getcallerpc(), getcallersp()
 		return gentraceback(pc, sp, 0, getg(), 0, &stk[0], len(stk), nil, nil, _TraceJumpStack)
 	}
 	n := 0

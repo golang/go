@@ -19,7 +19,14 @@ import (
 // templates. This limit is only practically reached by accidentally
 // recursive template invocations. This limit allows us to return
 // an error instead of triggering a stack overflow.
-const maxExecDepth = 100000
+var maxExecDepth = initMaxExecDepth()
+
+func initMaxExecDepth() int {
+	if runtime.GOARCH == "wasm" {
+		return 1000
+	}
+	return 100000
+}
 
 // state represents the state of an execution. It's not part of the
 // template so that multiple executions of the same template
@@ -53,8 +60,20 @@ func (s *state) pop(mark int) {
 	s.vars = s.vars[0:mark]
 }
 
-// setVar overwrites the top-nth variable on the stack. Used by range iterations.
-func (s *state) setVar(n int, value reflect.Value) {
+// setVar overwrites the last declared variable with the given name.
+// Used by variable assignments.
+func (s *state) setVar(name string, value reflect.Value) {
+	for i := s.mark() - 1; i >= 0; i-- {
+		if s.vars[i].name == name {
+			s.vars[i].value = value
+			return
+		}
+	}
+	s.errorf("undefined variable: %s", name)
+}
+
+// setTopVar overwrites the top-nth variable on the stack. Used by range iterations.
+func (s *state) setTopVar(n int, value reflect.Value) {
 	s.vars[len(s.vars)-n].value = value
 }
 
@@ -233,7 +252,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		// Do not pop variables so they persist until next end.
 		// Also, if the action declares variables, don't print the result.
 		val := s.evalPipeline(dot, node.Pipe)
-		if len(node.Pipe.Decl) == 0 {
+		if len(node.Pipe.Vars) == 0 {
 			s.printValue(node, val)
 		}
 	case *parse.IfNode:
@@ -320,12 +339,12 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	mark := s.mark()
 	oneIteration := func(index, elem reflect.Value) {
 		// Set top var (lexically the second if there are two) to the element.
-		if len(r.Pipe.Decl) > 0 {
-			s.setVar(1, elem)
+		if len(r.Pipe.Vars) > 0 {
+			s.setTopVar(1, elem)
 		}
 		// Set next var (lexically the first if there are two) to the index.
-		if len(r.Pipe.Decl) > 1 {
-			s.setVar(2, index)
+		if len(r.Pipe.Vars) > 1 {
+			s.setTopVar(2, index)
 		}
 		s.walk(elem, r.List)
 		s.pop(mark)
@@ -413,8 +432,12 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
 			value = reflect.ValueOf(value.Interface()) // lovely!
 		}
 	}
-	for _, variable := range pipe.Decl {
-		s.push(variable.Ident[0], value)
+	for _, variable := range pipe.Vars {
+		if pipe.Decl {
+			s.push(variable.Ident[0], value)
+		} else {
+			s.setVar(variable.Ident[0], value)
+		}
 	}
 	return value
 }
@@ -438,7 +461,7 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 	case *parse.PipeNode:
 		// Parenthesized pipeline. The arguments are all inside the pipeline; final is ignored.
 		return s.evalPipeline(dot, n)
-	case *parse.VariableNode:
+	case *parse.AssignNode:
 		return s.evalVariableNode(dot, n, cmd.Args, final)
 	}
 	s.at(firstWord)
@@ -507,7 +530,7 @@ func (s *state) evalChainNode(dot reflect.Value, chain *parse.ChainNode, args []
 	return s.evalFieldChain(dot, pipe, chain, chain.Field, args, final)
 }
 
-func (s *state) evalVariableNode(dot reflect.Value, variable *parse.VariableNode, args []parse.Node, final reflect.Value) reflect.Value {
+func (s *state) evalVariableNode(dot reflect.Value, variable *parse.AssignNode, args []parse.Node, final reflect.Value) reflect.Value {
 	// $x.Field has $x as the first ident, Field as the second. Eval the var, then the fields.
 	s.at(variable)
 	value := s.varValue(variable.Ident[0])
@@ -748,7 +771,7 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 		s.errorf("cannot assign nil to %s", typ)
 	case *parse.FieldNode:
 		return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, missingVal), typ)
-	case *parse.VariableNode:
+	case *parse.AssignNode:
 		return s.validateType(s.evalVariableNode(dot, arg, nil, missingVal), typ)
 	case *parse.PipeNode:
 		return s.validateType(s.evalPipeline(dot, arg), typ)
@@ -866,7 +889,7 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 		return s.idealConstant(n)
 	case *parse.StringNode:
 		return reflect.ValueOf(n.Text)
-	case *parse.VariableNode:
+	case *parse.AssignNode:
 		return s.evalVariableNode(dot, n, nil, missingVal)
 	case *parse.PipeNode:
 		return s.evalPipeline(dot, n)
