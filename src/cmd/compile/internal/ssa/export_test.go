@@ -86,6 +86,10 @@ func (d *DummyAuto) IsSynthetic() bool {
 	return false
 }
 
+func (d *DummyAuto) IsAutoTmp() bool {
+	return true
+}
+
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }

@@ -178,6 +178,7 @@ type GCNode interface {
 	Typ() *types.Type
 	String() string
 	IsSynthetic() bool
+	IsAutoTmp() bool
 	StorageClass() StorageClass
 }
 

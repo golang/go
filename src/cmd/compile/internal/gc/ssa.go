@@ -3558,59 +3558,34 @@ func (s *state) intrinsicCall(n *Node) *ssa.Value {
 	return v
 }
 
-type callArg struct {
-	offset int64
-	v      *ssa.Value
-}
-type byOffset []callArg
-
-func (x byOffset) Len() int      { return len(x) }
-func (x byOffset) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x byOffset) Less(i, j int) bool {
-	return x[i].offset < x[j].offset
-}
-
 // intrinsicArgs extracts args from n, evaluates them to SSA values, and returns them.
 func (s *state) intrinsicArgs(n *Node) []*ssa.Value {
-	// This code is complicated because of how walk transforms calls. For a call node,
-	// each entry in n.List is either an assignment to OINDREGSP which actually
-	// stores an arg, or an assignment to a temporary which computes an arg
-	// which is later assigned.
-	// The args can also be out of order.
-	// TODO: when walk goes away someday, this code can go away also.
-	var args []callArg
+	// Construct map of temps; see comments in s.call about the structure of n.
 	temps := map[*Node]*ssa.Value{}
 	for _, a := range n.List.Slice() {
 		if a.Op != OAS {
-			s.Fatalf("non-assignment as a function argument %v", a.Op)
+			s.Fatalf("non-assignment as a temp function argument %v", a.Op)
 		}
 		l, r := a.Left, a.Right
-		switch l.Op {
-		case ONAME:
-			// Evaluate and store to "temporary".
-			// Walk ensures these temporaries are dead outside of n.
-			temps[l] = s.expr(r)
-		case OINDREGSP:
-			// Store a value to an argument slot.
-			var v *ssa.Value
-			if x, ok := temps[r]; ok {
-				// This is a previously computed temporary.
-				v = x
-			} else {
-				// This is an explicit value; evaluate it.
-				v = s.expr(r)
-			}
-			args = append(args, callArg{l.Xoffset, v})
-		default:
-			s.Fatalf("function argument assignment target not allowed: %v", l.Op)
+		if l.Op != ONAME {
+			s.Fatalf("non-ONAME temp function argument %v", a.Op)
 		}
+		// Evaluate and store to "temporary".
+		// Walk ensures these temporaries are dead outside of n.
+		temps[l] = s.expr(r)
 	}
-	sort.Sort(byOffset(args))
-	res := make([]*ssa.Value, len(args))
-	for i, a := range args {
-		res[i] = a.v
+	args := make([]*ssa.Value, n.Rlist.Len())
+	for i, n := range n.Rlist.Slice() {
+		// Store a value to an argument slot.
+		if x, ok := temps[n]; ok {
+			// This is a previously computed temporary.
+			args[i] = x
+			continue
+		}
+		// This is an explicit value; evaluate it.
+		args[i] = s.expr(n)
 	}
-	return res
+	return args
 }
 
 // Calls the function n using the specified call type.
@@ -3651,7 +3626,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		n2.Pos = fn.Pos
 		n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
 		closure = s.expr(n2)
-		// Note: receiver is already assigned in n.List, so we don't
+		// Note: receiver is already present in n.Rlist, so we don't
 		// want to set it here.
 	case OCALLINTER:
 		if fn.Op != ODOTINTER {
@@ -3672,32 +3647,43 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	dowidth(fn.Type)
 	stksize := fn.Type.ArgWidth() // includes receiver
 
-	// Run all argument assignments. The arg slots have already
-	// been offset by the appropriate amount (+2*widthptr for go/defer,
-	// +widthptr for interface calls).
-	// For OCALLMETH, the receiver is set in these statements.
+	// Run all assignments of temps.
+	// The temps are introduced to avoid overwriting argument
+	// slots when arguments themselves require function calls.
 	s.stmtList(n.List)
 
-	// Set receiver (for interface calls)
-	if rcvr != nil {
-		argStart := Ctxt.FixedFrameSize()
-		if k != callNormal {
-			argStart += int64(2 * Widthptr)
-		}
-		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
-		s.store(types.Types[TUINTPTR], addr, rcvr)
-	}
-
-	// Defer/go args
+	// Store arguments to stack, including defer/go arguments and receiver for method calls.
+	// These are written in SP-offset order.
+	argStart := Ctxt.FixedFrameSize()
+	// Defer/go args.
 	if k != callNormal {
 		// Write argsize and closure (args to newproc/deferproc).
-		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
 		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
 		s.store(types.Types[TUINT32], addr, argsize)
 		addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
 		s.store(types.Types[TUINTPTR], addr, closure)
 		stksize += 2 * int64(Widthptr)
+		argStart += 2 * int64(Widthptr)
+	}
+
+	// Set receiver (for interface calls).
+	if rcvr != nil {
+		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+		s.store(types.Types[TUINTPTR], addr, rcvr)
+	}
+
+	// Write args.
+	t := n.Left.Type
+	args := n.Rlist.Slice()
+	if n.Op == OCALLMETH {
+		f := t.Recv()
+		s.storeArg(args[0], f.Type, argStart+f.Offset)
+		args = args[1:]
+	}
+	for i, n := range args {
+		f := t.Params().Field(i)
+		s.storeArg(n, f.Type, argStart+f.Offset)
 	}
 
 	// call target
@@ -4180,6 +4166,20 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	default:
 		s.Fatalf("bad write barrier type %v", t)
 	}
+}
+
+func (s *state) storeArg(n *Node, t *types.Type, off int64) {
+	pt := types.NewPtr(t)
+	sp := s.constOffPtrSP(pt, off)
+
+	if !canSSAType(t) {
+		a := s.addr(n, false)
+		s.move(t, sp, a)
+		return
+	}
+
+	a := s.expr(n)
+	s.storeType(t, sp, a, 0, false)
 }
 
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
