@@ -106,7 +106,10 @@ type Writer struct {
 	widths  []int    // list of column widths in runes - re-used during formatting
 }
 
-func (b *Writer) addLine() {
+// addLine adds a new line.
+// flushed is a hint indicating whether the underlying writer was just flushed.
+// If so, the previous line is not likely to be a good indicator of the new line's cells.
+func (b *Writer) addLine(flushed bool) {
 	// Grow slice instead of appending,
 	// as that gives us an opportunity
 	// to re-use an existing []cell.
@@ -117,13 +120,15 @@ func (b *Writer) addLine() {
 		b.lines = append(b.lines, nil)
 	}
 
-	// The previous line is probably a good indicator
-	// of how many cells the current line will have.
-	// If the current line's capacity is smaller than that,
-	// abandon it and make a new one.
-	if n := len(b.lines); n >= 2 {
-		if prev := len(b.lines[n-2]); prev > cap(b.lines[n-1]) {
-			b.lines[n-1] = make([]cell, 0, prev)
+	if !flushed {
+		// The previous line is probably a good indicator
+		// of how many cells the current line will have.
+		// If the current line's capacity is smaller than that,
+		// abandon it and make a new one.
+		if n := len(b.lines); n >= 2 {
+			if prev := len(b.lines[n-2]); prev > cap(b.lines[n-1]) {
+				b.lines[n-1] = make([]cell, 0, prev)
+			}
 		}
 	}
 }
@@ -136,7 +141,7 @@ func (b *Writer) reset() {
 	b.endChar = 0
 	b.lines = b.lines[0:0]
 	b.widths = b.widths[0:0]
-	b.addLine()
+	b.addLine(true)
 }
 
 // Internal representation (current state):
@@ -527,7 +532,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 				ncells := b.terminateCell(ch == '\t')
 				if ch == '\n' || ch == '\f' {
 					// terminate line
-					b.addLine()
+					b.addLine(ch == '\f')
 					if ch == '\f' || ncells == 1 {
 						// A '\f' always forces a flush. Otherwise, if the previous
 						// line has only one cell which does not have an impact on
