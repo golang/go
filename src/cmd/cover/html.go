@@ -47,10 +47,13 @@ func htmlOutput(profile, outfile string) error {
 		if err != nil {
 			return err
 		}
+
+		percent := percentCovered(profile)
 		d.Files = append(d.Files, &templateFile{
-			Name:     fn,
-			Body:     template.HTML(buf.String()),
-			Coverage: percentCovered(profile),
+			Name:          fn,
+			Body:          template.HTML(buf.String()),
+			Coverage:      percent,
+			CoverageClass: fmt.Sprintf("cov%d", int(percent/10)),
 		})
 	}
 
@@ -168,9 +171,10 @@ type templateData struct {
 }
 
 type templateFile struct {
-	Name     string
-	Body     template.HTML
-	Coverage float64
+	Name          string
+	Body          template.HTML
+	Coverage      float64
+	CoverageClass string
 }
 
 const tmplHTML = `
@@ -182,6 +186,7 @@ const tmplHTML = `
 			body {
 				background: black;
 				color: rgb(80, 80, 80);
+				margin: 0;
 			}
 			body, pre, #legend span {
 				font-family: Menlo, monospace;
@@ -210,18 +215,36 @@ const tmplHTML = `
 			#legend span {
 				margin: 0 5px;
 			}
+			.breadcrumb {
+				height: 24px;
+				padding: 0 8px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			.file-content {
+				padding: 8px 12px;
+			}
+			.index {
+				padding: 8px 12px;
+			}
+			.index table tr td {
+				padding-right: 8px;
+			}
+			.meter-wrapper {
+				height: 12px;
+				width: 100px;
+				position: relative;
+				background-color: rgb(192, 0, 0);
+			}
+			.meter-green {
+				height: 12px;
+				background-color: rgb(20, 236, 155);
+				position: absolute;
+			}
 			{{colors}}
 		</style>
 	</head>
 	<body>
 		<div id="topbar">
-			<div id="nav">
-				<select id="files">
-				{{range $i, $f := .Files}}
-				<option value="file{{$i}}">{{$f.Name}} ({{printf "%.1f" $f.Coverage}}%)</option>
-				{{end}}
-				</select>
-			</div>
 			<div id="legend">
 				<span>not tracked</span>
 			{{if .Set}}
@@ -243,36 +266,52 @@ const tmplHTML = `
 			</div>
 		</div>
 		<div id="content">
+		<div class="index" id="index" style="display: none;">
+			<table>
+				{{range $i, $f := .Files}}
+					<tr>
+						<td>
+							<a href="#file{{$i}}">{{$f.Name}}</a>
+						</td>
+						<td>
+							<span class="{{$f.CoverageClass}}">{{printf "%.1f" $f.Coverage}}%</span>
+						</td>
+						<td>
+							<div class="meter-wrapper">
+							<span class="meter-green" style="width: {{printf "%f" $f.Coverage}}%"></span>
+							</div>
+						</td>
+					</tr>
+				{{end}}
+			</table>
+		</div>
 		{{range $i, $f := .Files}}
-		<pre class="file" id="file{{$i}}" style="display: none">{{$f.Body}}</pre>
+		<div id="file{{$i}}" style="display: none;">
+			<p class="breadcrumb">
+				<a href="#index">Index</a> &gt; {{$f.Name}} ({{printf "%.1f" $f.Coverage}}%)
+			</p>
+			<pre class="file-content">{{$f.Body}}</pre>
+		</div>
 		{{end}}
 		</div>
 	</body>
 	<script>
 	(function() {
-		var files = document.getElementById('files');
 		var visible;
-		files.addEventListener('change', onChange, false);
+		window.addEventListener('hashchange', onHashChange, false);
 		function select(part) {
 			if (visible)
 				visible.style.display = 'none';
 			visible = document.getElementById(part);
 			if (!visible)
-				return;
-			files.value = part;
+				visible = document.getElementById("index");
 			visible.style.display = 'block';
-			location.hash = part;
-		}
-		function onChange() {
-			select(files.value);
 			window.scrollTo(0, 0);
 		}
-		if (location.hash != "") {
+		function onHashChange() {
 			select(location.hash.substr(1));
 		}
-		if (!visible) {
-			select("file0");
-		}
+		select(location.hash.substr(1));
 	})();
 	</script>
 </html>
