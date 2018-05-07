@@ -10,7 +10,7 @@ package flate
 import (
 	"bufio"
 	"io"
-	mathbits "math/bits"
+	"math/bits"
 	"strconv"
 	"sync"
 )
@@ -113,7 +113,7 @@ type huffmanDecoder struct {
 // tree (i.e., neither over-subscribed nor under-subscribed). The exception is a
 // degenerate case where the tree has only a single symbol with length 1. Empty
 // trees are permitted.
-func (h *huffmanDecoder) init(bits []int) bool {
+func (h *huffmanDecoder) init(lengths []int) bool {
 	// Sanity enables additional runtime tests during Huffman
 	// table construction. It's intended to be used during
 	// development to supplement the currently ad-hoc unit tests.
@@ -127,7 +127,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 	// compute min and max length.
 	var count [maxCodeLen]int
 	var min, max int
-	for _, n := range bits {
+	for _, n := range lengths {
 		if n == 0 {
 			continue
 		}
@@ -177,7 +177,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		link := nextcode[huffmanChunkBits+1] >> 1
 		h.links = make([][]uint32, huffmanNumChunks-link)
 		for j := uint(link); j < huffmanNumChunks; j++ {
-			reverse := int(mathbits.Reverse16(uint16(j)))
+			reverse := int(bits.Reverse16(uint16(j)))
 			reverse >>= uint(16 - huffmanChunkBits)
 			off := j - uint(link)
 			if sanity && h.chunks[reverse] != 0 {
@@ -188,14 +188,14 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		}
 	}
 
-	for i, n := range bits {
+	for i, n := range lengths {
 		if n == 0 {
 			continue
 		}
 		code := nextcode[n]
 		nextcode[n]++
 		chunk := uint32(i<<huffmanValueShift | n)
-		reverse := int(mathbits.Reverse16(uint16(code)))
+		reverse := int(bits.Reverse16(uint16(code)))
 		reverse >>= uint(16 - n)
 		if n <= huffmanChunkBits {
 			for off := reverse; off < len(h.chunks); off += 1 << uint(n) {
@@ -557,7 +557,7 @@ readLiteral:
 					return
 				}
 			}
-			dist = int(mathbits.Reverse8(uint8(f.b & 0x1F << 3)))
+			dist = int(bits.Reverse8(uint8(f.b & 0x1F << 3)))
 			f.b >>= 5
 			f.nb -= 5
 		} else {
