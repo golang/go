@@ -1221,6 +1221,11 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Qunused-arguments")
 	}
 
+	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
+	if linkerFlagSupported(argv[0], compressDWARF) {
+		argv = append(argv, compressDWARF)
+	}
+
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
 
@@ -1267,21 +1272,9 @@ func (ctxt *Link) hostlink() {
 	// issue #17847. To avoid this problem pass -no-pie to the
 	// toolchain if it is supported.
 	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
-		src := filepath.Join(*flagTmpdir, "trivial.c")
-		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
-			Errorf(nil, "WriteFile trivial.c failed: %v", err)
-		}
-
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			cmd := exec.Command(argv[0], nopie, "trivial.c")
-			cmd.Dir = *flagTmpdir
-			cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
-			out, err := cmd.CombinedOutput()
-			// GCC says "unrecognized command line option ‘-no-pie’"
-			// clang says "unknown argument: '-no-pie'"
-			supported := err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
-			if supported {
+			if linkerFlagSupported(argv[0], nopie) {
 				argv = append(argv, nopie)
 				break
 			}
@@ -1354,6 +1347,25 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	}
+}
+
+var createTrivialCOnce sync.Once
+
+func linkerFlagSupported(linker, flag string) bool {
+	createTrivialCOnce.Do(func() {
+		src := filepath.Join(*flagTmpdir, "trivial.c")
+		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
+			Errorf(nil, "WriteFile trivial.c failed: %v", err)
+		}
+	})
+
+	cmd := exec.Command(linker, flag, "trivial.c")
+	cmd.Dir = *flagTmpdir
+	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+	out, err := cmd.CombinedOutput()
+	// GCC says "unrecognized command line option ‘-no-pie’"
+	// clang says "unknown argument: '-no-pie'"
+	return err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
 }
 
 // hostlinkArchArgs returns arguments to pass to the external linker
