@@ -129,7 +129,7 @@ func TestMarshalEmptyIP(t *testing.T) {
 	}
 }
 
-var ipStringTests = []struct {
+var ipStringTests = []*struct {
 	in  IP     // see RFC 791 and RFC 4291
 	str string // see RFC 791, RFC 4291 and RFC 5952
 	byt []byte
