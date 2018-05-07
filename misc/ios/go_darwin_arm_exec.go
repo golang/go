@@ -125,6 +125,10 @@ func runMain() (int, error) {
 		return 1, err
 	}
 
+	if err := uninstall(bundleID); err != nil {
+		return 1, err
+	}
+
 	if err := install(appdir); err != nil {
 		return 1, err
 	}
@@ -411,6 +415,18 @@ func parsePlistDict(dict []byte) (map[string]string, error) {
 		}
 	}
 	return values, nil
+}
+
+func uninstall(bundleID string) error {
+	cmd := idevCmd(exec.Command(
+		"ideviceinstaller",
+		"-U", bundleID,
+	))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		os.Stderr.Write(out)
+		return fmt.Errorf("ideviceinstaller -U %q: %s", bundleID, err)
+	}
+	return nil
 }
 
 func install(appdir string) error {
