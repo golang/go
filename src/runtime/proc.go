@@ -4972,7 +4972,7 @@ func sync_runtime_canSpin(i int) bool {
 	// Spin only few times and only if running on a multicore machine and
 	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
 	// As opposed to runtime mutex we don't do passive spinning here,
-	// because there can be work on global runq on on other Ps.
+	// because there can be work on global runq or on other Ps.
 	if i >= active_spin || ncpu <= 1 || gomaxprocs <= int32(sched.npidle+sched.nmspinning)+1 {
 		return false
 	}
