@@ -377,15 +377,10 @@
 (I64Add x (I64Const [y])) -> (I64AddConst [y] x)
 (I64Eqz (I64Eqz (I64Eqz x))) -> (I64Eqz x)
 
-(I64Store8 [off] (I64AddConst [off2] ptr) val mem) && off+off2 >= 0 -> (I64Store8 [off+off2] ptr val mem)
-(I64Store16 [off] (I64AddConst [off2] ptr) val mem) && off+off2 >= 0 -> (I64Store16 [off+off2] ptr val mem)
-(I64Store32 [off] (I64AddConst [off2] ptr) val mem) && off+off2 >= 0 -> (I64Store32 [off+off2] ptr val mem)
-(I64Store [off] (I64AddConst [off2] ptr) val mem) && off+off2 >= 0 -> (I64Store [off+off2] ptr val mem)
+((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off] (I64AddConst [off2] ptr) mem)
+	&& isU32Bit(off+off2) ->
+	((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off+off2] ptr mem)
 
-(I64Load8U [off] (I64AddConst [off2] ptr) mem) && off+off2 >= 0 -> (I64Load8U [off+off2] ptr mem)
-(I64Load8S [off] (I64AddConst [off2] ptr) mem) && off+off2 >= 0 -> (I64Load8S [off+off2] ptr mem)
-(I64Load16U [off] (I64AddConst [off2] ptr) mem) && off+off2 >= 0 -> (I64Load16U [off+off2] ptr mem)
-(I64Load16S [off] (I64AddConst [off2] ptr) mem) && off+off2 >= 0 -> (I64Load16S [off+off2] ptr mem)
-(I64Load32U [off] (I64AddConst [off2] ptr) mem) && off+off2 >= 0 -> (I64Load32U [off+off2] ptr mem)
-(I64Load32S [off] (I64AddConst [off2] ptr) mem) && off+off2 >= 0 -> (I64Load32S [off+off2] ptr mem)
-(I64Load [off] (I64AddConst [off2] ptr) mem) && off+off2 >= 0 -> (I64Load [off+off2] ptr mem)
+((I64Store|I64Store32|I64Store16|I64Store8) [off] (I64AddConst [off2] ptr) val mem)
+	&& isU32Bit(off+off2) ->
+	((I64Store|I64Store32|I64Store16|I64Store8) [off+off2] ptr val mem)
