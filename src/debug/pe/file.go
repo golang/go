@@ -262,16 +262,16 @@ func (f *File) ImportedSymbols() ([]string, error) {
 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
 
 	// grab the number of data directory entries
-	var ddcount uint32
+	var dd_length uint32
 	if pe64 {
-		ddcount = f.OptionalHeader.(*OptionalHeader64).NumberOfRvaAndSizes
+		dd_length = f.OptionalHeader.(*OptionalHeader64).NumberOfRvaAndSizes
 	} else {
-		ddcount = f.OptionalHeader.(*OptionalHeader32).NumberOfRvaAndSizes
+		dd_length = f.OptionalHeader.(*OptionalHeader32).NumberOfRvaAndSizes
 	}
 
-	// if the import data directory doesn't actually exist then we can
-	// assume that there's no symbols
-	if ddcount < 2 {
+	// check that the length of data directory entries is large 
+	// enough to include the imports directory.
+	if dd_length < IMAGE_DIRECTORY_ENTRY_IMPORT + 1 {
 		return nil, nil
 	}
 
@@ -298,7 +298,6 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		return nil, nil
 	}
 
-	// no data in the section, so nothing here either
 	d, err := ds.Data()
 	if err != nil {
 		return nil, err
