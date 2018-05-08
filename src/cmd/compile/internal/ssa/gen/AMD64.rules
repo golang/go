@@ -456,16 +456,16 @@
 (Addr {sym} base) && config.PtrSize == 8 -> (LEAQ {sym} base)
 (Addr {sym} base) && config.PtrSize == 4 -> (LEAL {sym} base)
 
-(MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 -> (SETLmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETLE x) mem) && y.Uses == 1 -> (SETLEmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETG x) mem) && y.Uses == 1 -> (SETGmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETGE x) mem) && y.Uses == 1 -> (SETGEmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETEQ x) mem) && y.Uses == 1 -> (SETEQmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETNE x) mem) && y.Uses == 1 -> (SETNEmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETB x) mem) && y.Uses == 1 -> (SETBmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETBE x) mem) && y.Uses == 1 -> (SETBEmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETA x) mem) && y.Uses == 1 -> (SETAmem [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr y:(SETAE x) mem) && y.Uses == 1 -> (SETAEmem [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 -> (SETLstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETLE x) mem) && y.Uses == 1 -> (SETLEstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETG x) mem) && y.Uses == 1 -> (SETGstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETGE x) mem) && y.Uses == 1 -> (SETGEstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETEQ x) mem) && y.Uses == 1 -> (SETEQstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETNE x) mem) && y.Uses == 1 -> (SETNEstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETB x) mem) && y.Uses == 1 -> (SETBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETBE x) mem) && y.Uses == 1 -> (SETBEstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETA x) mem) && y.Uses == 1 -> (SETAstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr y:(SETAE x) mem) && y.Uses == 1 -> (SETAEstore [off] {sym} ptr x mem)
 
 // block rewrites
 (If (SETL  cmp) yes no) -> (LT  cmp yes no)
@@ -562,17 +562,17 @@
     -> (SET(B|AE)  (BTQconst [log2(c)] x))
 (SET(NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUint64PowerOfTwo(c) && !config.nacl
     -> (SET(B|AE)  (BTQconst [log2(c)] x))
-// SET..mem variant
-(SET(NE|EQ)mem [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem) && !config.nacl
-    -> (SET(B|AE)mem  [off] {sym} ptr (BTL x y) mem)
-(SET(NE|EQ)mem [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem) && !config.nacl
-    -> (SET(B|AE)mem  [off] {sym} ptr (BTQ x y) mem)
-(SET(NE|EQ)mem [off] {sym} ptr (TESTLconst [c] x) mem) && isUint32PowerOfTwo(c) && !config.nacl
-    -> (SET(B|AE)mem  [off] {sym} ptr (BTLconst [log2uint32(c)] x) mem)
-(SET(NE|EQ)mem [off] {sym} ptr (TESTQconst [c] x) mem) && isUint64PowerOfTwo(c) && !config.nacl
-    -> (SET(B|AE)mem  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
-(SET(NE|EQ)mem [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isUint64PowerOfTwo(c) && !config.nacl
-    -> (SET(B|AE)mem  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
+// SET..store variant
+(SET(NE|EQ)store [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem) && !config.nacl
+    -> (SET(B|AE)store  [off] {sym} ptr (BTL x y) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem) && !config.nacl
+    -> (SET(B|AE)store  [off] {sym} ptr (BTQ x y) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTLconst [c] x) mem) && isUint32PowerOfTwo(c) && !config.nacl
+    -> (SET(B|AE)store  [off] {sym} ptr (BTLconst [log2uint32(c)] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTQconst [c] x) mem) && isUint64PowerOfTwo(c) && !config.nacl
+    -> (SET(B|AE)store  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isUint64PowerOfTwo(c) && !config.nacl
+    -> (SET(B|AE)store  [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 
 // Handle bit-testing in the form (a>>b)&1 != 0 by building the above rules
 // and further combining shifts.
@@ -586,9 +586,9 @@
 // Rewrite a & 1 != 1 into a & 1 == 0.
 // Among other things, this lets us turn (a>>b)&1 != 1 into a bit test.
 (SET(NE|EQ) (CMPLconst [1] s:(ANDLconst [1] _))) -> (SET(EQ|NE) (CMPLconst [0] s))
-(SET(NE|EQ)mem [off] {sym} ptr (CMPLconst [1] s:(ANDLconst [1] _)) mem) -> (SET(EQ|NE)mem [off] {sym} ptr (CMPLconst [0] s) mem)
+(SET(NE|EQ)store [off] {sym} ptr (CMPLconst [1] s:(ANDLconst [1] _)) mem) -> (SET(EQ|NE)store [off] {sym} ptr (CMPLconst [0] s) mem)
 (SET(NE|EQ) (CMPQconst [1] s:(ANDQconst [1] _))) -> (SET(EQ|NE) (CMPQconst [0] s))
-(SET(NE|EQ)mem [off] {sym} ptr (CMPQconst [1] s:(ANDQconst [1] _)) mem) -> (SET(EQ|NE)mem [off] {sym} ptr (CMPQconst [0] s) mem)
+(SET(NE|EQ)store [off] {sym} ptr (CMPQconst [1] s:(ANDQconst [1] _)) mem) -> (SET(EQ|NE)store [off] {sym} ptr (CMPQconst [0] s) mem)
 
 // Recognize bit setting (a |= 1<<b) and toggling (a ^= 1<<b)
 (OR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) && !config.nacl -> (BTS(Q|L) x y)
@@ -639,29 +639,29 @@
     -> ((SETB|SETAE|ULT|UGE) (BTQconst [63] x))
 ((SETNE|SETEQ|NE|EQ) (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2)) && z1==z2 && !config.nacl
     -> ((SETB|SETAE|ULT|UGE) (BTQconst [31] x))
-(SET(NE|EQ)mem [off] {sym} ptr (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2) mem) && z1==z2 && !config.nacl
-    -> (SET(B|AE)mem [off] {sym} ptr (BTQconst [63] x) mem)
-(SET(NE|EQ)mem [off] {sym} ptr (TESTL z1:(SHLLconst [31] (SHRLconst [31] x)) z2) mem) && z1==z2 && !config.nacl
-    -> (SET(B|AE)mem [off] {sym} ptr (BTLconst [31] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2) mem) && z1==z2 && !config.nacl
+    -> (SET(B|AE)store [off] {sym} ptr (BTQconst [63] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTL z1:(SHLLconst [31] (SHRLconst [31] x)) z2) mem) && z1==z2 && !config.nacl
+    -> (SET(B|AE)store [off] {sym} ptr (BTLconst [31] x) mem)
 
 ((SETNE|SETEQ|NE|EQ) (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2)) && z1==z2 && !config.nacl
     -> ((SETB|SETAE|ULT|UGE)  (BTQconst [0] x))
 ((SETNE|SETEQ|NE|EQ) (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2)) && z1==z2 && !config.nacl
     -> ((SETB|SETAE|ULT|UGE)  (BTLconst [0] x))
-(SET(NE|EQ)mem [off] {sym} ptr (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2) mem) && z1==z2 && !config.nacl
-    -> (SET(B|AE)mem [off] {sym} ptr (BTQconst [0] x) mem)
-(SET(NE|EQ)mem [off] {sym} ptr (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2) mem) && z1==z2 && !config.nacl
-    -> (SET(B|AE)mem [off] {sym} ptr (BTLconst [0] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2) mem) && z1==z2 && !config.nacl
+    -> (SET(B|AE)store [off] {sym} ptr (BTQconst [0] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2) mem) && z1==z2 && !config.nacl
+    -> (SET(B|AE)store [off] {sym} ptr (BTLconst [0] x) mem)
 
 // Special-case manually testing last bit with "a>>63 != 0" (without "&1")
 ((SETNE|SETEQ|NE|EQ) (TESTQ z1:(SHRQconst [63] x) z2)) && z1==z2 && !config.nacl
     -> ((SETB|SETAE|ULT|UGE) (BTQconst [63] x))
 ((SETNE|SETEQ|NE|EQ) (TESTL z1:(SHRLconst [31] x) z2)) && z1==z2 && !config.nacl
     -> ((SETB|SETAE|ULT|UGE) (BTLconst [31] x))
-(SET(NE|EQ)mem [off] {sym} ptr (TESTQ z1:(SHRQconst [63] x) z2) mem) && z1==z2 && !config.nacl
-    -> (SET(B|AE)mem [off] {sym} ptr (BTQconst [63] x) mem)
-(SET(NE|EQ)mem [off] {sym} ptr (TESTL z1:(SHRLconst [31] x) z2) mem) && z1==z2 && !config.nacl
-    -> (SET(B|AE)mem [off] {sym} ptr (BTLconst [31] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTQ z1:(SHRQconst [63] x) z2) mem) && z1==z2 && !config.nacl
+    -> (SET(B|AE)store [off] {sym} ptr (BTQconst [63] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTL z1:(SHRLconst [31] x) z2) mem) && z1==z2 && !config.nacl
+    -> (SET(B|AE)store [off] {sym} ptr (BTLconst [31] x) mem)
 
 // Fold combinations of bit ops on same bit. An example is math.Copysign(c,-1)
 (BTS(Q|L)const [c] (BTR(Q|L)const [c] x)) -> (BTS(Q|L)const [c] x)
@@ -947,16 +947,16 @@
 (SETEQ (InvertFlags x)) -> (SETEQ x)
 (SETNE (InvertFlags x)) -> (SETNE x)
 
-(SETLmem [off] {sym} ptr (InvertFlags x) mem) -> (SETGmem [off] {sym} ptr x mem)
-(SETGmem [off] {sym} ptr (InvertFlags x) mem) -> (SETLmem [off] {sym} ptr x mem)
-(SETBmem [off] {sym} ptr (InvertFlags x) mem) -> (SETAmem [off] {sym} ptr x mem)
-(SETAmem [off] {sym} ptr (InvertFlags x) mem) -> (SETBmem [off] {sym} ptr x mem)
-(SETLEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETGEmem [off] {sym} ptr x mem)
-(SETGEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETLEmem [off] {sym} ptr x mem)
-(SETBEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETAEmem [off] {sym} ptr x mem)
-(SETAEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETBEmem [off] {sym} ptr x mem)
-(SETEQmem [off] {sym} ptr (InvertFlags x) mem) -> (SETEQmem [off] {sym} ptr x mem)
-(SETNEmem [off] {sym} ptr (InvertFlags x) mem) -> (SETNEmem [off] {sym} ptr x mem)
+(SETLstore [off] {sym} ptr (InvertFlags x) mem) -> (SETGstore [off] {sym} ptr x mem)
+(SETGstore [off] {sym} ptr (InvertFlags x) mem) -> (SETLstore [off] {sym} ptr x mem)
+(SETBstore [off] {sym} ptr (InvertFlags x) mem) -> (SETAstore [off] {sym} ptr x mem)
+(SETAstore [off] {sym} ptr (InvertFlags x) mem) -> (SETBstore [off] {sym} ptr x mem)
+(SETLEstore [off] {sym} ptr (InvertFlags x) mem) -> (SETGEstore [off] {sym} ptr x mem)
+(SETGEstore [off] {sym} ptr (InvertFlags x) mem) -> (SETLEstore [off] {sym} ptr x mem)
+(SETBEstore [off] {sym} ptr (InvertFlags x) mem) -> (SETAEstore [off] {sym} ptr x mem)
+(SETAEstore [off] {sym} ptr (InvertFlags x) mem) -> (SETBEstore [off] {sym} ptr x mem)
+(SETEQstore [off] {sym} ptr (InvertFlags x) mem) -> (SETEQstore [off] {sym} ptr x mem)
+(SETNEstore [off] {sym} ptr (InvertFlags x) mem) -> (SETNEstore [off] {sym} ptr x mem)
 
 // sign extended loads
 // Note: The combined instruction must end up in the same block
@@ -1027,18 +1027,18 @@
     (MOV(Q|L|W|B|SS|SD|O)load  [off1+off2] {sym} ptr mem)
 (MOV(Q|L|W|B|SS|SD|O)store  [off1] {sym} (ADDQconst [off2] ptr) val mem) && is32Bit(off1+off2) ->
 	(MOV(Q|L|W|B|SS|SD|O)store  [off1+off2] {sym} ptr val mem)
-(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)mem [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(off1+off2) ->
-	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)mem [off1+off2] {sym} base val mem)
-((ADD|SUB|AND|OR|XOR)Qmem [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|AND|OR|XOR)Qmem [off1+off2] {sym} val base mem)
-((ADD|SUB|AND|OR|XOR)Lmem [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|AND|OR|XOR)Lmem [off1+off2] {sym} val base mem)
-((ADD|SUB|MUL)SSmem [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|MUL)SSmem [off1+off2] {sym} val base mem)
-((ADD|SUB|MUL)SDmem [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|MUL)SDmem [off1+off2] {sym} val base mem)
-(ADD(L|Q)constmem [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
-	(ADD(L|Q)constmem [ValAndOff(valoff1).add(off2)] {sym} base mem)
+(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(off1+off2) ->
+	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1+off2] {sym} base val mem)
+((ADD|SUB|AND|OR|XOR)Qload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|AND|OR|XOR)Qload [off1+off2] {sym} val base mem)
+((ADD|SUB|AND|OR|XOR)Lload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL)SSload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL)SSload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL)SDload [off1+off2] {sym} val base mem)
+(ADD(L|Q)constmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	(ADD(L|Q)constmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
 
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
@@ -1064,24 +1064,24 @@
 	(MOV(Q|L|W|B|SS|SD|O)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (MOV(Q|L|W|B)storeconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
 	(MOV(Q|L|W|B)storeconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)mem [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)mem [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-((ADD|SUB|AND|OR|XOR)Qmem [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+((ADD|SUB|AND|OR|XOR)Qload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|AND|OR|XOR)Qmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|AND|OR|XOR)Lmem [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	((ADD|SUB|AND|OR|XOR)Qload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|AND|OR|XOR)Lload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|AND|OR|XOR)Lmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|MUL)SSmem [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|MUL)SSmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|MUL)SDmem [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	((ADD|SUB|MUL)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|MUL)SDmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-(ADD(L|Q)constmem [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	((ADD|SUB|MUL)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+(ADD(L|Q)constmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
-	(ADD(L|Q)constmem [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+	(ADD(L|Q)constmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 
 // generating indexed loads and stores
 (MOV(B|W|L|Q|SS|SD)load [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
@@ -1275,65 +1275,65 @@
 ((SETNE|SETG|SETGE|SETA|SETAE)   (FlagGT_UGT)) -> (MOVLconst [1])
 ((SETEQ|SETL|SETLE|SETB|SETBE)   (FlagGT_UGT)) -> (MOVLconst [0])
 
-(SETEQmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETEQmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETEQmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETEQmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETEQmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETEQstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETEQstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETEQstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETEQstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETEQstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
 
-(SETNEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETNEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETNEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETNEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETNEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETNEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETNEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETNEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETNEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETNEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
 
-(SETLmem  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETLmem  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLmem  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLmem  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETLmem  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLstore  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLstore  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLstore  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLstore  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLstore  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
 
-(SETLEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETLEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETLEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETLEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETLEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
 
-(SETGmem  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGmem  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGmem  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGmem  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETGmem  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGstore  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGstore  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGstore  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGstore  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGstore  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
 
-(SETGEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETGEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETGEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETGEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETGEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETGEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
 
-(SETBmem  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETBmem  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBmem  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETBmem  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBmem  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBstore  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBstore  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBstore  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBstore  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBstore  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
 
-(SETBEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETBEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETBEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETBEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETBEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
 
-(SETAmem  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAmem  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAmem  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETAmem  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAmem  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAstore  [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAstore  [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAstore  [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAstore  [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAstore  [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
 
-(SETAEmem [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETAEmem [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAEmem [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
-(SETAEmem [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
-(SETAEmem [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAEstore [off] {sym} ptr x:(FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAEstore [off] {sym} ptr x:(FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAEstore [off] {sym} ptr x:(FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
+(SETAEstore [off] {sym} ptr x:(FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [0]) mem)
+(SETAEstore [off] {sym} ptr x:(FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <x.Type> [1]) mem)
 
 // Remove redundant *const ops
 (ADDQconst [0] x) -> x
@@ -2263,10 +2263,10 @@
 
 // Merge load and op
 // TODO: add indexed variants?
-((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Qmem x [off] {sym} ptr mem)
-((ADD|SUB|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Lmem x [off] {sym} ptr mem)
-((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SDmem x [off] {sym} ptr mem)
-((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SSmem x [off] {sym} ptr mem)
+((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)
+((ADD|SUB|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Lload x [off] {sym} ptr mem)
+((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SDload x [off] {sym} ptr mem)
+((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SSload x [off] {sym} ptr mem)
 
 // Merge ADDQconst and LEAQ into atomic loads.
 (MOVQatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
@@ -2352,10 +2352,10 @@
 
 (MOVQstore [off] {sym} ptr a:(ADDQconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
-	(ADDQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
+	(ADDQconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
 (MOVLstore [off] {sym} ptr a:(ADDLconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
-	(ADDLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
+	(ADDLconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
 
 // float <-> int register moves, with no conversion.
 // These come up when compiling math.{Float{32,64}bits,Float{32,64}frombits}.
@@ -2365,28 +2365,28 @@
 (MOVSSload [off] {sym} ptr (MOVLstore  [off] {sym} ptr val _)) -> (MOVLi2f val)
 
 // Other load-like ops.
-(ADDQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (ADDQ x (MOVQf2i y))
-(ADDLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (ADDL x (MOVLf2i y))
-(SUBQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (SUBQ x (MOVQf2i y))
-(SUBLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (SUBL x (MOVLf2i y))
-(ANDQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (ANDQ x (MOVQf2i y))
-(ANDLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (ANDL x (MOVLf2i y))
-( ORQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> ( ORQ x (MOVQf2i y))
-( ORLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> ( ORL x (MOVLf2i y))
-(XORQmem x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (XORQ x (MOVQf2i y))
-(XORLmem x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (XORL x (MOVLf2i y))
+(ADDQload x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (ADDQ x (MOVQf2i y))
+(ADDLload x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (ADDL x (MOVLf2i y))
+(SUBQload x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (SUBQ x (MOVQf2i y))
+(SUBLload x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (SUBL x (MOVLf2i y))
+(ANDQload x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (ANDQ x (MOVQf2i y))
+(ANDLload x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (ANDL x (MOVLf2i y))
+( ORQload x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> ( ORQ x (MOVQf2i y))
+( ORLload x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> ( ORL x (MOVLf2i y))
+(XORQload x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (XORQ x (MOVQf2i y))
+(XORLload x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (XORL x (MOVLf2i y))
 
-(ADDQconstmem [valOff] {sym} ptr (MOVSDstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
+(ADDQconstmodify [valOff] {sym} ptr (MOVSDstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
   (ADDQconst [ValAndOff(valOff).Val()] (MOVQf2i x))
-(ADDLconstmem [valOff] {sym} ptr (MOVSSstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
+(ADDLconstmodify [valOff] {sym} ptr (MOVSSstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
   (ADDLconst [ValAndOff(valOff).Val()] (MOVLf2i x))
 
-(ADDSDmem x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (ADDSD x (MOVQi2f y))
-(ADDSSmem x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (ADDSS x (MOVLi2f y))
-(SUBSDmem x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (SUBSD x (MOVQi2f y))
-(SUBSSmem x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (SUBSS x (MOVLi2f y))
-(MULSDmem x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (MULSD x (MOVQi2f y))
-(MULSSmem x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (MULSS x (MOVLi2f y))
+(ADDSDload x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (ADDSD x (MOVQi2f y))
+(ADDSSload x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (ADDSS x (MOVLi2f y))
+(SUBSDload x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (SUBSD x (MOVQi2f y))
+(SUBSSload x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (SUBSS x (MOVLi2f y))
+(MULSDload x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (MULSD x (MOVQi2f y))
+(MULSSload x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (MULSS x (MOVLi2f y))
 
 // Redirect stores to use the other register set.
 (MOVQstore  [off] {sym} ptr (MOVQf2i val) mem) -> (MOVSDstore [off] {sym} ptr val mem)
@@ -2407,23 +2407,23 @@
 
 // Fold loads into compares
 // Note: these may be undone by the flagalloc pass.
-(CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(Q|L|W|B)mem {sym} [off] ptr x mem)
-(CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)mem {sym} [off] ptr x mem))
+(CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
+(CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)load {sym} [off] ptr x mem))
 
 (CMP(Q|L|W|B)const l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) [c])
 	&& l.Uses == 1
 	&& validValAndOff(c, off)
 	&& clobber(l) ->
-  @l.Block (CMP(Q|L|W|B)constmem {sym} [makeValAndOff(c,off)] ptr mem)
+  @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(c,off)] ptr mem)
 
-(CMPQmem {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,off) -> (CMPQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
-(CMPLmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(c,off) -> (CMPLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
-(CMPWmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstmem {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
-(CMPBmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstmem {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
+(CMPQload {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,off) -> (CMPQconstload {sym} [makeValAndOff(c,off)] ptr mem)
+(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(c,off) -> (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
+(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstload {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
+(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
 
 (TEST(Q|L|W|B)  l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) l2)
         && l == l2
 	&& l.Uses == 2
 	&& validValAndOff(0,off)
 	&& clobber(l) ->
-  @l.Block (CMP(Q|L|W|B)constmem {sym} [makeValAndOff(0,off)] ptr mem)
+  @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(0,off)] ptr mem)

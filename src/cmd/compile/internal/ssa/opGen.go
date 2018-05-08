@@ -256,12 +256,12 @@ const (
 	Op386MOVSSstoreidx4
 	Op386MOVSDstoreidx1
 	Op386MOVSDstoreidx8
-	Op386ADDSSmem
-	Op386ADDSDmem
-	Op386SUBSSmem
-	Op386SUBSDmem
-	Op386MULSSmem
-	Op386MULSDmem
+	Op386ADDSSload
+	Op386ADDSDload
+	Op386SUBSSload
+	Op386SUBSDload
+	Op386MULSSload
+	Op386MULSDload
 	Op386ADDL
 	Op386ADDLconst
 	Op386ADDLcarry
@@ -325,11 +325,11 @@ const (
 	Op386ROLLconst
 	Op386ROLWconst
 	Op386ROLBconst
-	Op386ADDLmem
-	Op386SUBLmem
-	Op386ANDLmem
-	Op386ORLmem
-	Op386XORLmem
+	Op386ADDLload
+	Op386SUBLload
+	Op386ANDLload
+	Op386ORLload
+	Op386XORLload
 	Op386NEGL
 	Op386NOTL
 	Op386BSFL
@@ -450,18 +450,18 @@ const (
 	OpAMD64MOVSSstoreidx4
 	OpAMD64MOVSDstoreidx1
 	OpAMD64MOVSDstoreidx8
-	OpAMD64ADDSSmem
-	OpAMD64ADDSDmem
-	OpAMD64SUBSSmem
-	OpAMD64SUBSDmem
-	OpAMD64MULSSmem
-	OpAMD64MULSDmem
+	OpAMD64ADDSSload
+	OpAMD64ADDSDload
+	OpAMD64SUBSSload
+	OpAMD64SUBSDload
+	OpAMD64MULSSload
+	OpAMD64MULSDload
 	OpAMD64ADDQ
 	OpAMD64ADDL
 	OpAMD64ADDQconst
 	OpAMD64ADDLconst
-	OpAMD64ADDQconstmem
-	OpAMD64ADDLconstmem
+	OpAMD64ADDQconstmodify
+	OpAMD64ADDLconstmodify
 	OpAMD64SUBQ
 	OpAMD64SUBL
 	OpAMD64SUBQconst
@@ -503,14 +503,14 @@ const (
 	OpAMD64CMPLconst
 	OpAMD64CMPWconst
 	OpAMD64CMPBconst
-	OpAMD64CMPQmem
-	OpAMD64CMPLmem
-	OpAMD64CMPWmem
-	OpAMD64CMPBmem
-	OpAMD64CMPQconstmem
-	OpAMD64CMPLconstmem
-	OpAMD64CMPWconstmem
-	OpAMD64CMPBconstmem
+	OpAMD64CMPQload
+	OpAMD64CMPLload
+	OpAMD64CMPWload
+	OpAMD64CMPBload
+	OpAMD64CMPQconstload
+	OpAMD64CMPLconstload
+	OpAMD64CMPWconstload
+	OpAMD64CMPBconstload
 	OpAMD64UCOMISS
 	OpAMD64UCOMISD
 	OpAMD64BTL
@@ -569,16 +569,16 @@ const (
 	OpAMD64ROLLconst
 	OpAMD64ROLWconst
 	OpAMD64ROLBconst
-	OpAMD64ADDLmem
-	OpAMD64ADDQmem
-	OpAMD64SUBQmem
-	OpAMD64SUBLmem
-	OpAMD64ANDLmem
-	OpAMD64ANDQmem
-	OpAMD64ORQmem
-	OpAMD64ORLmem
-	OpAMD64XORQmem
-	OpAMD64XORLmem
+	OpAMD64ADDLload
+	OpAMD64ADDQload
+	OpAMD64SUBQload
+	OpAMD64SUBLload
+	OpAMD64ANDLload
+	OpAMD64ANDQload
+	OpAMD64ORQload
+	OpAMD64ORLload
+	OpAMD64XORQload
+	OpAMD64XORLload
 	OpAMD64NEGQ
 	OpAMD64NEGL
 	OpAMD64NOTQ
@@ -647,16 +647,16 @@ const (
 	OpAMD64SETBE
 	OpAMD64SETA
 	OpAMD64SETAE
-	OpAMD64SETEQmem
-	OpAMD64SETNEmem
-	OpAMD64SETLmem
-	OpAMD64SETLEmem
-	OpAMD64SETGmem
-	OpAMD64SETGEmem
-	OpAMD64SETBmem
-	OpAMD64SETBEmem
-	OpAMD64SETAmem
-	OpAMD64SETAEmem
+	OpAMD64SETEQstore
+	OpAMD64SETNEstore
+	OpAMD64SETLstore
+	OpAMD64SETLEstore
+	OpAMD64SETGstore
+	OpAMD64SETGEstore
+	OpAMD64SETBstore
+	OpAMD64SETBEstore
+	OpAMD64SETAstore
+	OpAMD64SETAEstore
 	OpAMD64SETEQF
 	OpAMD64SETNEF
 	OpAMD64SETORD
@@ -2626,7 +2626,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDSSmem",
+		name:           "ADDSSload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -2644,7 +2644,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDSDmem",
+		name:           "ADDSDload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -2662,7 +2662,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SUBSSmem",
+		name:           "SUBSSload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -2680,7 +2680,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SUBSDmem",
+		name:           "SUBSDload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -2698,7 +2698,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MULSSmem",
+		name:           "MULSSload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -2716,7 +2716,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MULSDmem",
+		name:           "MULSDload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -3684,7 +3684,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDLmem",
+		name:           "ADDLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -3703,7 +3703,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SUBLmem",
+		name:           "SUBLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -3722,7 +3722,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ANDLmem",
+		name:           "ANDLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -3741,7 +3741,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ORLmem",
+		name:           "ORLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -3760,7 +3760,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "XORLmem",
+		name:           "XORLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -5333,7 +5333,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDSSmem",
+		name:           "ADDSSload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -5351,7 +5351,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDSDmem",
+		name:           "ADDSDload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -5369,7 +5369,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SUBSSmem",
+		name:           "SUBSSload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -5387,7 +5387,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SUBSDmem",
+		name:           "SUBSDload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -5405,7 +5405,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MULSSmem",
+		name:           "MULSSload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -5423,7 +5423,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MULSDmem",
+		name:           "MULSDload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -5503,12 +5503,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDQconstmem",
+		name:           "ADDQconstmodify",
 		auxType:        auxSymValAndOff,
 		argLen:         2,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
+		symEffect:      SymRead | SymWrite,
 		asm:            x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -5517,12 +5517,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDLconstmem",
+		name:           "ADDLconstmodify",
 		auxType:        auxSymValAndOff,
 		argLen:         2,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
+		symEffect:      SymRead | SymWrite,
 		asm:            x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -6159,7 +6159,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "CMPQmem",
+		name:           "CMPQload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -6173,7 +6173,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "CMPLmem",
+		name:           "CMPLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -6187,7 +6187,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "CMPWmem",
+		name:           "CMPWload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -6201,7 +6201,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "CMPBmem",
+		name:           "CMPBload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -6215,7 +6215,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "CMPQconstmem",
+		name:           "CMPQconstload",
 		auxType:        auxSymValAndOff,
 		argLen:         2,
 		faultOnNilArg0: true,
@@ -6228,7 +6228,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "CMPLconstmem",
+		name:           "CMPLconstload",
 		auxType:        auxSymValAndOff,
 		argLen:         2,
 		faultOnNilArg0: true,
@@ -6241,7 +6241,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "CMPWconstmem",
+		name:           "CMPWconstload",
 		auxType:        auxSymValAndOff,
 		argLen:         2,
 		faultOnNilArg0: true,
@@ -6254,7 +6254,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "CMPBconstmem",
+		name:           "CMPBconstload",
 		auxType:        auxSymValAndOff,
 		argLen:         2,
 		faultOnNilArg0: true,
@@ -7129,7 +7129,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDLmem",
+		name:           "ADDLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7148,7 +7148,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ADDQmem",
+		name:           "ADDQload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7167,7 +7167,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SUBQmem",
+		name:           "SUBQload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7186,7 +7186,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SUBLmem",
+		name:           "SUBLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7205,7 +7205,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ANDLmem",
+		name:           "ANDLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7224,7 +7224,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ANDQmem",
+		name:           "ANDQload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7243,7 +7243,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ORQmem",
+		name:           "ORQload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7262,7 +7262,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "ORLmem",
+		name:           "ORLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7281,7 +7281,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "XORQmem",
+		name:           "XORQload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -7300,7 +7300,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "XORLmem",
+		name:           "XORLload",
 		auxType:        auxSymOff,
 		argLen:         3,
 		resultInArg0:   true,
@@ -8269,7 +8269,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETEQmem",
+		name:           "SETEQstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8282,7 +8282,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETNEmem",
+		name:           "SETNEstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8295,7 +8295,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETLmem",
+		name:           "SETLstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8308,7 +8308,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETLEmem",
+		name:           "SETLEstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8321,7 +8321,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETGmem",
+		name:           "SETGstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8334,7 +8334,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETGEmem",
+		name:           "SETGEstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8347,7 +8347,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETBmem",
+		name:           "SETBstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8360,7 +8360,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETBEmem",
+		name:           "SETBEstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8373,7 +8373,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETAmem",
+		name:           "SETAstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
@@ -8386,7 +8386,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "SETAEmem",
+		name:           "SETAEstore",
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
