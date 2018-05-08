@@ -665,6 +665,8 @@ func intDataSize(data interface{}) int {
 	switch data := data.(type) {
 	case bool, int8, uint8, *bool, *int8, *uint8:
 		return 1
+	case []bool:
+		return len(data)
 	case []int8:
 		return len(data)
 	case []uint8:
