@@ -987,7 +987,7 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 		var out []byte
 		out, err = b.runOut(p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {
-			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pcflags, " ")+" "+strings.Join(pkgs, " "), string(out))
+			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
 			return nil, nil, errPrintedOutput
 		}
@@ -1002,7 +1002,7 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 		}
 		out, err = b.runOut(p.Dir, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
 		if err != nil {
-			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pcflags, " ")+" "+strings.Join(pkgs, " "), string(out))
+			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
 			return nil, nil, errPrintedOutput
 		}
