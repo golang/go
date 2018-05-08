@@ -4432,7 +4432,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
+		symEffect:      SymRead | SymWrite,
 		asm:            x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -4446,7 +4446,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
+		symEffect:      SymRead | SymWrite,
 		asm:            x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -4460,7 +4460,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
+		symEffect:      SymRead | SymWrite,
 		asm:            x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -4474,7 +4474,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
+		symEffect:      SymRead | SymWrite,
 		asm:            x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -4488,7 +4488,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
+		symEffect:      SymRead | SymWrite,
 		asm:            x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
