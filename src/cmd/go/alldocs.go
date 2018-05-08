@@ -579,7 +579,7 @@
 //
 // Usage:
 //
-// 	go list [-deps] [-e] [-f format] [-json] [build flags] [packages]
+// 	go list [-deps] [-e] [-f format] [-json] [-test] [build flags] [packages]
 //
 // List lists the packages named by the import paths, one per line.
 //
