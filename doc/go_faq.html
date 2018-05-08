@@ -1855,7 +1855,8 @@ Why is my trivial program such a large binary?</h3>
 
 <p>
 The linker in the <code>gc</code> toolchain
-creates statically-linked binaries by default.  All Go binaries therefore include the Go
+creates statically-linked binaries by default.
+All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
 </p>
@@ -1863,9 +1864,10 @@ type checks, reflection, and even panic-time stack traces.
 <p>
 A simple C "hello, world" program compiled and linked statically using
 gcc on Linux is around 750 kB, including an implementation of
-<code>printf</code>. An equivalent Go program using
-<code>fmt.Printf</code> weighs a couple megabytes, but that includes
-more powerful run-time support, and type and debugging information.
+<code>printf</code>.
+An equivalent Go program using
+<code>fmt.Printf</code> weighs a couple of megabytes, but that includes
+more powerful run-time support and type and debugging information.
 </p>
 
 <h3 id="unused_variables_and_imports">
