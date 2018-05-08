@@ -469,12 +469,17 @@ func run(appdir, bundleID string, args []string) error {
 	}
 	attempt := 0
 	for {
-		// The device app path is constant for a given installed app,
-		// but the device might not return a stale device path for
-		// a newly overwritten app, so retry the lookup as well.
+		// The device app path reported by the device might be stale, so retry
+		// the lookup of the device path along with the lldb launching below.
 		deviceapp, err := findDeviceAppPath(bundleID)
 		if err != nil {
-			return err
+			// The device app path might not yet exist for a newly installed app.
+			if attempt == 5 {
+				return err
+			}
+			attempt++
+			time.Sleep(5 * time.Second)
+			continue
 		}
 		lldb := exec.Command(
 			"python",
