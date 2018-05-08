@@ -23,7 +23,7 @@ import (
 )
 
 var CmdList = &base.Command{
-	UsageLine: "list [-deps] [-e] [-f format] [-json] [build flags] [packages]",
+	UsageLine: "list [-deps] [-e] [-f format] [-json] [-test] [build flags] [packages]",
 	Short:     "list packages",
 	Long: `
 List lists the packages named by the import paths, one per line.
