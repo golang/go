@@ -137,6 +137,9 @@ func runMain() (int, error) {
 		return 1, err
 	}
 
+	// Kill any hanging debug bridges that might take up port 3222.
+	exec.Command("killall", "idevicedebugserverproxy").Run()
+
 	closer, err := startDebugBridge()
 	if err != nil {
 		return 1, err
@@ -453,7 +456,9 @@ func install(appdir string) error {
 
 func idevCmd(cmd *exec.Cmd) *exec.Cmd {
 	if deviceID != "" {
-		cmd.Args = append(cmd.Args, "-u", deviceID)
+		// Inject -u device_id after the executable, but before the arguments.
+		args := []string{cmd.Args[0], "-u", deviceID}
+		cmd.Args = append(args, cmd.Args[1:]...)
 	}
 	return cmd
 }
