@@ -292,12 +292,13 @@ func xinit() {
 // $CC_FOR_goos_goarch, if set, applies only to goos/goarch.
 func compilerEnv(envName, def string) map[string]string {
 	m := map[string]string{"": def}
+	crosscompiling := os.Getenv("GO_ASSUME_CROSSCOMPILING")
 
 	if env := os.Getenv(envName); env != "" {
 		m[""] = env
 	}
 	if env := os.Getenv(envName + "_FOR_TARGET"); env != "" {
-		if gohostos != goos || gohostarch != goarch {
+		if gohostos != goos || gohostarch != goarch || crosscompiling == "1" {
 			m[gohostos+"/"+gohostarch] = m[""]
 		}
 		m[""] = env
