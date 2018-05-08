@@ -7489,6 +7489,58 @@ func rewriteValuegeneric_OpConvert_0(v *Value) bool {
 		v.AddArg(off)
 		return true
 	}
+	// match: (Convert (Add32 (Convert ptr mem) off) mem)
+	// cond:
+	// result: (Add32 ptr off)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAdd32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConvert {
+			break
+		}
+		_ = v_0_0.Args[1]
+		ptr := v_0_0.Args[0]
+		mem := v_0_0.Args[1]
+		off := v_0.Args[1]
+		if mem != v.Args[1] {
+			break
+		}
+		v.reset(OpAdd32)
+		v.AddArg(ptr)
+		v.AddArg(off)
+		return true
+	}
+	// match: (Convert (Add32 off (Convert ptr mem)) mem)
+	// cond:
+	// result: (Add32 ptr off)
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAdd32 {
+			break
+		}
+		_ = v_0.Args[1]
+		off := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConvert {
+			break
+		}
+		_ = v_0_1.Args[1]
+		ptr := v_0_1.Args[0]
+		mem := v_0_1.Args[1]
+		if mem != v.Args[1] {
+			break
+		}
+		v.reset(OpAdd32)
+		v.AddArg(ptr)
+		v.AddArg(off)
+		return true
+	}
 	// match: (Convert (Convert ptr mem) mem)
 	// cond:
 	// result: ptr
