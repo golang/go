@@ -13133,6 +13133,8 @@ func rewriteValuegeneric_OpLess8U_0(v *Value) bool {
 func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 	b := v.Block
 	_ = b
+	fe := b.Func.fe
+	_ = fe
 	// match: (Load <t1> p1 (Store {t2} p2 x _))
 	// cond: isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == sizeof(t2)
 	// result: x
@@ -13372,8 +13374,8 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ mem:(Zero [n] p3 _)))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && disjoint(op, t1.Size(), p2, sizeof(t2))
-	// result: @mem.Block (Load <t1> op mem)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, sizeof(t2))
+	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
 	for {
 		t1 := v.Type
 		_ = v.Args[1]
@@ -13397,20 +13399,23 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 		n := mem.AuxInt
 		_ = mem.Args[1]
 		p3 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && disjoint(op, t1.Size(), p2, sizeof(t2))) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, sizeof(t2))) {
 			break
 		}
 		b = mem.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v0.AddArg(op)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1.AuxInt = o1
+		v1.AddArg(p3)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		return true
 	}
 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ mem:(Zero [n] p4 _))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3))
-	// result: @mem.Block (Load <t1> op mem)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3))
+	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
 	for {
 		t1 := v.Type
 		_ = v.Args[1]
@@ -13441,14 +13446,17 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 		n := mem.AuxInt
 		_ = mem.Args[1]
 		p4 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3))) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3))) {
 			break
 		}
 		b = mem.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v0.AddArg(op)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1.AuxInt = o1
+		v1.AddArg(p4)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		return true
 	}
@@ -13460,8 +13468,8 @@ func rewriteValuegeneric_OpLoad_10(v *Value) bool {
 	fe := b.Func.fe
 	_ = fe
 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ mem:(Zero [n] p5 _)))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3)) && disjoint(op, t1.Size(), p4, sizeof(t4))
-	// result: @mem.Block (Load <t1> op mem)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3)) && disjoint(op, t1.Size(), p4, sizeof(t4))
+	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p5) mem)
 	for {
 		t1 := v.Type
 		_ = v.Args[1]
@@ -13499,20 +13507,23 @@ func rewriteValuegeneric_OpLoad_10(v *Value) bool {
 		n := mem.AuxInt
 		_ = mem.Args[1]
 		p5 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3)) && disjoint(op, t1.Size(), p4, sizeof(t4))) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3)) && disjoint(op, t1.Size(), p4, sizeof(t4))) {
 			break
 		}
 		b = mem.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v0.AddArg(op)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1.AuxInt = o1
+		v1.AddArg(p5)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		return true
 	}
 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 _ mem:(Zero [n] p6 _))))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3)) && disjoint(op, t1.Size(), p4, sizeof(t4)) && disjoint(op, t1.Size(), p5, sizeof(t5))
-	// result: @mem.Block (Load <t1> op mem)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3)) && disjoint(op, t1.Size(), p4, sizeof(t4)) && disjoint(op, t1.Size(), p5, sizeof(t5))
+	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p6) mem)
 	for {
 		t1 := v.Type
 		_ = v.Args[1]
@@ -13557,14 +13568,17 @@ func rewriteValuegeneric_OpLoad_10(v *Value) bool {
 		n := mem.AuxInt
 		_ = mem.Args[1]
 		p6 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3)) && disjoint(op, t1.Size(), p4, sizeof(t4)) && disjoint(op, t1.Size(), p5, sizeof(t5))) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, sizeof(t2)) && disjoint(op, t1.Size(), p3, sizeof(t3)) && disjoint(op, t1.Size(), p4, sizeof(t4)) && disjoint(op, t1.Size(), p5, sizeof(t5))) {
 			break
 		}
 		b = mem.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v0.AddArg(op)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1.AuxInt = o1
+		v1.AddArg(p6)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		return true
 	}
