@@ -575,26 +575,29 @@
 	(Store {t2} p2 _
 		mem:(Zero [n] p3 _)))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3)
+	&& fe.CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, sizeof(t2))
-	-> @mem.Block (Load <t1> op mem)
+	-> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
 (Load <t1> op:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		(Store {t3} p3 _
 			mem:(Zero [n] p4 _))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4)
+	&& fe.CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, sizeof(t2))
 	&& disjoint(op, t1.Size(), p3, sizeof(t3))
-	-> @mem.Block (Load <t1> op mem)
+	-> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
 (Load <t1> op:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		(Store {t3} p3 _
 			(Store {t4} p4 _
 				mem:(Zero [n] p5 _)))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5)
+	&& fe.CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, sizeof(t2))
 	&& disjoint(op, t1.Size(), p3, sizeof(t3))
 	&& disjoint(op, t1.Size(), p4, sizeof(t4))
-	-> @mem.Block (Load <t1> op mem)
+	-> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p5) mem)
 (Load <t1> op:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		(Store {t3} p3 _
@@ -602,11 +605,12 @@
 				(Store {t5} p5 _
 					mem:(Zero [n] p6 _))))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6)
+	&& fe.CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, sizeof(t2))
 	&& disjoint(op, t1.Size(), p3, sizeof(t3))
 	&& disjoint(op, t1.Size(), p4, sizeof(t4))
 	&& disjoint(op, t1.Size(), p5, sizeof(t5))
-	-> @mem.Block (Load <t1> op mem)
+	-> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p6) mem)
 
 // Zero to Load forwarding.
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
