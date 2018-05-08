@@ -682,6 +682,9 @@ Additional information available from 'go env' but not read from the environment
 		The directory where the go tools (compile, cover, doc, etc...) are installed.
 	GOVERSION
 		The version of the installed Go tree, as reported by runtime.Version.
+	GO_ASSUME_CROSSCOMPILING
+		Force the go build system to honor the different CC_FOR_TARGET even
+		if the architecture is the same, useful when cross compiling.
 	`,
 }
 
