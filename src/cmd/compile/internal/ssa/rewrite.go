@@ -905,7 +905,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	// have fast Move ops.
 	switch c.arch {
 	case "amd64", "amd64p32":
-		return sz <= 16
+		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
 	case "386", "ppc64", "ppc64le", "arm64":
 		return sz <= 8
 	case "s390x":
