@@ -409,7 +409,12 @@ func readEncodedData(r io.Reader, buf []byte, min int) (n int, err error) {
 		nn, err = r.Read(buf[n:])
 		n += nn
 	}
+	// data was read, less than min bytes could be read
 	if n < min && n > 0 && err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+	// no data was read, the buffer already contains some data
+	if min < 8 && n == 0 && err == io.EOF {
 		err = io.ErrUnexpectedEOF
 	}
 	return
