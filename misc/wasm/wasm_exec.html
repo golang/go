@@ -17,14 +17,14 @@ license that can be found in the LICENSE file.
 		async function loadAndCompile() {
 			let resp = await fetch("test.wasm");
 			let bytes = await resp.arrayBuffer();
-			await compile(bytes);
+			await go.compile(bytes);
 			document.getElementById("runButton").disabled = false;
 		}
 
 		loadAndCompile();
 	</script>
 
-	<button onClick="console.clear(); run();" id="runButton" disabled>Run</button>
+	<button onClick="console.clear(); go.run();" id="runButton" disabled>Run</button>
 </body>
 
 </html>
