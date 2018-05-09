@@ -101,6 +101,7 @@ func rot64nc(x uint64, z uint) uint64 {
 	z &= 63
 
 	// amd64:"ROLQ"
+	// ppc64le:"ROTL"
 	a += x<<z | x>>(64-z)
 
 	// amd64:"RORQ"
@@ -115,6 +116,7 @@ func rot32nc(x uint32, z uint) uint32 {
 	z &= 31
 
 	// amd64:"ROLL"
+	// ppc64le:"ROTLW"
 	a += x<<z | x>>(32-z)
 
 	// amd64:"RORL"
