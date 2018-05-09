@@ -578,3 +578,31 @@ func TestEncodedDecodedLen(t *testing.T) {
 		})
 	}
 }
+
+func TestWithoutPaddingClose(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
+
+	for _, encoding := range encodings {
+		for _, testpair := range pairs {
+
+			var buf bytes.Buffer
+			encoder := NewEncoder(encoding, &buf)
+			encoder.Write([]byte(testpair.decoded))
+			encoder.Close()
+
+			expected := testpair.encoded
+			if encoding.padChar == NoPadding {
+				expected = strings.Replace(expected, "=", "", -1)
+			}
+
+			res := buf.String()
+
+			if res != expected {
+				t.Errorf("Expected %s got %s; padChar=%d", expected, res, encoding.padChar)
+			}
+		}
+	}
+}
