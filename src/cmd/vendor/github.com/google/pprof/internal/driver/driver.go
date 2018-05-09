@@ -150,11 +150,11 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
 }
 
 func applyCommandOverrides(cmd []string, v variables) variables {
-	trim, focus, tagfocus, hide := v["trim"].boolValue(), true, true, true
+	trim, tagfilter, filter := v["trim"].boolValue(), true, true
 
 	switch cmd[0] {
 	case "proto", "raw":
-		trim, focus, tagfocus, hide = false, false, false, false
+		trim, tagfilter, filter = false, false, false
 		v.set("addresses", "t")
 	case "callgrind", "kcachegrind":
 		trim = false
@@ -163,7 +163,7 @@ func applyCommandOverrides(cmd []string, v variables) variables {
 		trim = false
 		v.set("addressnoinlines", "t")
 	case "peek":
-		trim, focus, hide = false, false, false
+		trim, filter = false, false
 	case "list":
 		v.set("nodecount", "0")
 		v.set("lines", "t")
@@ -181,17 +181,16 @@ func applyCommandOverrides(cmd []string, v variables) variables {
 		v.set("nodefraction", "0")
 		v.set("edgefraction", "0")
 	}
-	if !focus {
-		v.set("focus", "")
-		v.set("ignore", "")
-	}
-	if !tagfocus {
+	if !tagfilter {
 		v.set("tagfocus", "")
 		v.set("tagignore", "")
 	}
-	if !hide {
+	if !filter {
+		v.set("focus", "")
+		v.set("ignore", "")
 		v.set("hide", "")
 		v.set("show", "")
+		v.set("show_from", "")
 	}
 	return v
 }
@@ -242,7 +241,7 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars var
 	}
 
 	var filters []string
-	for _, k := range []string{"focus", "ignore", "hide", "show", "tagfocus", "tagignore", "tagshow", "taghide"} {
+	for _, k := range []string{"focus", "ignore", "hide", "show", "show_from", "tagfocus", "tagignore", "tagshow", "taghide"} {
 		v := vars[k].value
 		if v != "" {
 			filters = append(filters, k+"="+v)
@@ -250,10 +249,9 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars var
 	}
 
 	ropt := &report.Options{
-		CumSort:             vars["cum"].boolValue(),
-		CallTree:            vars["call_tree"].boolValue(),
-		DropNegative:        vars["drop_negative"].boolValue(),
-		PositivePercentages: vars["positive_percentages"].boolValue(),
+		CumSort:      vars["cum"].boolValue(),
+		CallTree:     vars["call_tree"].boolValue(),
+		DropNegative: vars["drop_negative"].boolValue(),
 
 		CompactLabels: vars["compact_labels"].boolValue(),
 		Ratio:         1 / vars["divide_by"].floatValue(),
@@ -273,6 +271,7 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars var
 		OutputUnit: vars["unit"].value,
 
 		SourcePath: vars["source_path"].stringValue(),
+		TrimPath:   vars["trim_path"].stringValue(),
 	}
 
 	if len(p.Mapping) > 0 && p.Mapping[0].File != "" {

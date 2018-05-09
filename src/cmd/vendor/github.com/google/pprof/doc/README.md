@@ -94,6 +94,8 @@ Some common pprof options are:
   *regex*.
 * **-ignore= _regex_:** Do not include samples that include a report entry matching
   *regex*.
+* **-show\_from= _regex_:** Do not show entries above the first one that 
+  matches *regex*.
 * **-show= _regex_:** Only show entries that match *regex*.
 * **-hide= _regex_:** Do not show entries that match *regex*.
 
