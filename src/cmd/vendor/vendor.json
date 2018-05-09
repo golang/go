@@ -9,8 +9,8 @@
 		{
 			"canonical": "github.com/google/pprof",
 			"local": "github.com/google/pprof",
-			"revision": "9e20b5b106e946f4cd1df94c1f6fe3f88456628d",
-			"revisionTime": "2017-11-08T17:47:23Z"
+			"revision": "520140b6bf47519c766e8380e5f094576347b016",
+			"revisionTime": "2018-05-08T15:00:43Z"
 		},
 		{
 			"canonical": "golang.org/x/arch/x86/x86asm",

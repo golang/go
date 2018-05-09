@@ -34,15 +34,20 @@ var (
 	symbolzRE = regexp.MustCompile(`(0x[[:xdigit:]]+)\s+(.*)`)
 )
 
-// Symbolize symbolizes profile p by parsing data returned by a
-// symbolz handler. syms receives the symbolz query (hex addresses
-// separated by '+') and returns the symbolz output in a string. If
-// force is false, it will only symbolize locations from mappings
-// not already marked as HasFunctions.
+// Symbolize symbolizes profile p by parsing data returned by a symbolz
+// handler. syms receives the symbolz query (hex addresses separated by '+')
+// and returns the symbolz output in a string. If force is false, it will only
+// symbolize locations from mappings not already marked as HasFunctions. Never
+// attempts symbolization of addresses from unsymbolizable system
+// mappings as those may look negative - e.g. "[vsyscall]".
 func Symbolize(p *profile.Profile, force bool, sources plugin.MappingSources, syms func(string, string) ([]byte, error), ui plugin.UI) error {
 	for _, m := range p.Mapping {
 		if !force && m.HasFunctions {
 			// Only check for HasFunctions as symbolz only populates function names.
+			continue
+		}
+		// Skip well-known system mappings.
+		if m.Unsymbolizable() {
 			continue
 		}
 		mappingSources := sources[m.File]

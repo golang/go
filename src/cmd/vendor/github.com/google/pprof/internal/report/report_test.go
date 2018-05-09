@@ -46,6 +46,7 @@ func TestSource(t *testing.T) {
 				&Options{
 					OutputFormat: List,
 					Symbol:       regexp.MustCompile(`.`),
+					TrimPath:     "/some/path",
 
 					SampleValue: sampleValue1,
 					SampleUnit:  testProfile.SampleType[1].Unit,
@@ -60,6 +61,7 @@ func TestSource(t *testing.T) {
 					OutputFormat: Dot,
 					CallTree:     true,
 					Symbol:       regexp.MustCompile(`.`),
+					TrimPath:     "/some/path",
 
 					SampleValue: sampleValue1,
 					SampleUnit:  testProfile.SampleType[1].Unit,
@@ -119,7 +121,7 @@ var testF = []*profile.Function{
 	{
 		ID:       4,
 		Name:     "tee",
-		Filename: "testdata/source2",
+		Filename: "/some/path/testdata/source2",
 	},
 }
 
