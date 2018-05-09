@@ -244,8 +244,9 @@ func (e *encoder) Close() error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
 		e.enc.Encode(e.out[0:], e.buf[0:e.nbuf])
+		encodedLen := e.enc.EncodedLen(e.nbuf)
 		e.nbuf = 0
-		_, e.err = e.w.Write(e.out[0:8])
+		_, e.err = e.w.Write(e.out[0:encodedLen])
 	}
 	return e.err
 }
