@@ -1064,7 +1064,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					break
 				}
 			}
-			typ = check.typ(e.Type)
+			typ = check.typExpr(e.Type, nil, nil)
 			base = typ
 
 		case hint != nil:

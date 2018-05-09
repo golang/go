@@ -161,6 +161,11 @@ func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
 	return
 }
 
+// typ is like typExpr (with a nil argument for the def parameter),
+// but typ breaks type cycles. It should be called for components of
+// types that break cycles, such as pointer base types, slice or map
+// element types, etc. See the comment in typExpr for details.
+//
 func (check *Checker) typ(e ast.Expr) Type {
 	// typExpr is called with a nil path indicating an indirection:
 	// push indir sentinel on object path
