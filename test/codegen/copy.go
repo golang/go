@@ -40,19 +40,22 @@ var x [256]byte
 func moveDisjointStack() {
 	var s [256]byte
 	// s390x:-".*memmove"
+	// amd64:-".*memmove"
 	copy(s[:], x[:])
 	runtime.KeepAlive(&s)
 }
 
-func moveDisjointArg(b *[256]byte)  {
+func moveDisjointArg(b *[256]byte) {
 	var s [256]byte
 	// s390x:-".*memmove"
+	// amd64:-".*memmove"
 	copy(s[:], b[:])
 	runtime.KeepAlive(&s)
 }
 
 func moveDisjointNoOverlap(a *[256]byte) {
 	// s390x:-".*memmove"
+	// amd64:-".*memmove"
 	copy(a[:], a[128:])
 }
 
