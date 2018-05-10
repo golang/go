@@ -319,7 +319,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
 <br>
 Types of profiles available:
 <table>
-<thread><td>Count</td><td>Profile</td></thead>
+<thead><td>Count</td><td>Profile</td></thead>
 {{range .}}
 	<tr>
 	<td>{{.Count}}</td><td><a href={{.Href}}>{{.Name}}</a></td>
