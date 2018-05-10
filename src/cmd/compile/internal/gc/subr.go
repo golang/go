@@ -1674,8 +1674,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		if !dotlist[0].field.Type.IsPtr() {
 			dot = nod(OADDR, dot, nil)
 		}
-		as := nod(OAS, nthis, nod(OCONVNOP, dot, nil))
-		as.Right.Type = rcvr
+		as := nod(OAS, nthis, convnop(dot, rcvr))
 		fn.Nbody.Append(as)
 		fn.Nbody.Append(nodSym(ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
 	} else {

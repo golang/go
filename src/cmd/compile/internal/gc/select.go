@@ -316,13 +316,11 @@ func walkselectcases(cases *Nodes) []*Node {
 
 		setField("kind", nodintconst(kind))
 		if c != nil {
-			c = nod(OCONVNOP, c, nil)
-			c.Type = types.Types[TUNSAFEPTR]
+			c = convnop(c, types.Types[TUNSAFEPTR])
 			setField("c", c)
 		}
 		if elem != nil {
-			elem = nod(OCONVNOP, elem, nil)
-			elem.Type = types.Types[TUNSAFEPTR]
+			elem = convnop(elem, types.Types[TUNSAFEPTR])
 			setField("elem", elem)
 		}
 
@@ -375,10 +373,9 @@ func walkselectcases(cases *Nodes) []*Node {
 
 // bytePtrToIndex returns a Node representing "(*byte)(&n[i])".
 func bytePtrToIndex(n *Node, i int64) *Node {
-	s := nod(OCONVNOP, nod(OADDR, nod(OINDEX, n, nodintconst(i)), nil), nil)
-	s.Type = types.NewPtr(types.Types[TUINT8])
-	s = typecheck(s, Erv)
-	return s
+	s := nod(OADDR, nod(OINDEX, n, nodintconst(i)), nil)
+	t := types.NewPtr(types.Types[TUINT8])
+	return convnop(s, t)
 }
 
 var scase *types.Type
