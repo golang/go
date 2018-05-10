@@ -881,7 +881,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 		case t == nil || t.Broke():
 			// rely on typecheck having complained before
 		case t.Sym == nil:
-			yyerror("invalid receiver type %v (%v is an unnamed type)", pa, t)
+			yyerror("invalid receiver type %v (%v is not a defined type)", pa, t)
 		case t.IsPtr():
 			yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 		case t.IsInterface():
