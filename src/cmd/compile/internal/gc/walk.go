@@ -3158,40 +3158,34 @@ func extendslice(n *Node, init *Nodes) *Node {
 	tmp = nod(OSPTR, s, nil)
 	nodes = append(nodes, nod(OAS, sptr, tmp))
 
-	var clr []*Node
-
 	// hp := &s[len(l1)]
-	hp := temp(types.Types[TUNSAFEPTR])
-
-	tmp = nod(OINDEX, s, nod(OLEN, l1, nil))
-	tmp.SetBounded(true)
-	tmp = nod(OADDR, tmp, nil)
-	tmp = nod(OCONVNOP, tmp, nil)
-	tmp.Type = types.Types[TUNSAFEPTR]
-	clr = append(clr, nod(OAS, hp, tmp))
+	hp := nod(OINDEX, s, nod(OLEN, l1, nil))
+	hp.SetBounded(true)
+	hp = nod(OADDR, hp, nil)
+	hp = nod(OCONVNOP, hp, nil)
+	hp.Type = types.Types[TUNSAFEPTR]
 
 	// hn := l2 * sizeof(elem(s))
-	hn := temp(types.Types[TUINTPTR])
-
-	tmp = nod(OMUL, l2, nodintconst(elemtype.Width))
-	tmp = conv(tmp, types.Types[TUINTPTR])
-	clr = append(clr, nod(OAS, hn, tmp))
+	hn := nod(OMUL, l2, nodintconst(elemtype.Width))
+	hn = conv(hn, types.Types[TUINTPTR])
 
 	clrname := "memclrNoHeapPointers"
 	hasPointers := types.Haspointers(elemtype)
 	if hasPointers {
 		clrname = "memclrHasPointers"
 	}
-	clrfn := mkcall(clrname, nil, init, hp, hn)
-	clr = append(clr, clrfn)
+
+	var clr Nodes
+	clrfn := mkcall(clrname, nil, &clr, hp, hn)
+	clr.Append(clrfn)
 
 	if hasPointers {
 		// if l1ptr == sptr
 		nifclr := nod(OIF, nod(OEQ, l1ptr, sptr), nil)
-		nifclr.Nbody.Set(clr)
+		nifclr.Nbody = clr
 		nodes = append(nodes, nifclr)
 	} else {
-		nodes = append(nodes, clr...)
+		nodes = append(nodes, clr.Slice()...)
 	}
 
 	typecheckslice(nodes, Etop)
