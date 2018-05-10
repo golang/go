@@ -658,7 +658,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	// current field typ and tag
 	var typ Type
 	var tag string
-	add := func(ident *ast.Ident, anonymous bool, pos token.Pos) {
+	add := func(ident *ast.Ident, embedded bool, pos token.Pos) {
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
@@ -667,7 +667,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 		}
 
 		name := ident.Name
-		fld := NewField(pos, check.pkg, name, typ, anonymous)
+		fld := NewField(pos, check.pkg, name, typ, embedded)
 		// spec: "Within a struct, non-blank field names must be unique."
 		if name == "_" || check.declareInSet(&fset, pos, fld) {
 			fields = append(fields, fld)
@@ -684,13 +684,13 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 				add(name, false, name.Pos())
 			}
 		} else {
-			// anonymous field
+			// embedded field
 			// spec: "An embedded type must be specified as a type name T or as a pointer
 			// to a non-interface type name *T, and T itself may not be a pointer type."
 			pos := f.Type.Pos()
-			name := anonymousFieldIdent(f.Type)
+			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.invalidAST(pos, "anonymous field type %s has no name", f.Type)
+				check.invalidAST(pos, "embedded field type %s has no name", f.Type)
 				continue
 			}
 			t, isPtr := deref(typ)
@@ -705,17 +705,17 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 
 				// unsafe.Pointer is treated like a regular pointer
 				if t.kind == UnsafePointer {
-					check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
+					check.errorf(pos, "embedded field type cannot be unsafe.Pointer")
 					continue
 				}
 
 			case *Pointer:
-				check.errorf(pos, "anonymous field type cannot be a pointer")
+				check.errorf(pos, "embedded field type cannot be a pointer")
 				continue
 
 			case *Interface:
 				if isPtr {
-					check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
+					check.errorf(pos, "embedded field type cannot be a pointer to an interface")
 					continue
 				}
 			}
@@ -727,17 +727,17 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	styp.tags = tags
 }
 
-func anonymousFieldIdent(e ast.Expr) *ast.Ident {
+func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 	switch e := e.(type) {
 	case *ast.Ident:
 		return e
 	case *ast.StarExpr:
 		// *T is valid, but **T is not
 		if _, ok := e.X.(*ast.StarExpr); !ok {
-			return anonymousFieldIdent(e.X)
+			return embeddedFieldIdent(e.X)
 		}
 	case *ast.SelectorExpr:
 		return e.Sel
 	}
-	return nil // invalid anonymous field
+	return nil // invalid embedded field
 }

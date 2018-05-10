@@ -121,7 +121,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
-			if !f.anonymous {
+			if !f.embedded {
 				buf.WriteString(f.name)
 				buf.WriteByte(' ')
 			}
@@ -146,7 +146,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	case *Interface:
 		// We write the source-level methods and embedded types rather
 		// than the actual method set since resolved method signatures
-		// may have non-printable cycles if parameters have anonymous
+		// may have non-printable cycles if parameters have embedded
 		// interface types that (directly or indirectly) embed the
 		// current interface. For instance, consider the result type
 		// of m:
