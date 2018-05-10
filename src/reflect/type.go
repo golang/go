@@ -69,14 +69,15 @@ type Type interface {
 	// NumMethod returns the number of exported methods in the type's method set.
 	NumMethod() int
 
-	// Name returns the type's name within its package.
-	// It returns an empty string for unnamed types.
+	// Name returns the type's name within its package for a defined type.
+	// For other (non-defined) types it returns the empty string.
 	Name() string
 
-	// PkgPath returns a named type's package path, that is, the import path
+	// PkgPath returns a defined type's package path, that is, the import path
 	// that uniquely identifies the package, such as "encoding/base64".
-	// If the type was predeclared (string, error) or unnamed (*T, struct{}, []int),
-	// the package path will be the empty string.
+	// If the type was predeclared (string, error) or not defined (*T, struct{},
+	// []int, or A where A is an alias for a non-defined type), the package path
+	// will be the empty string.
 	PkgPath() string
 
 	// Size returns the number of bytes needed to store
@@ -164,13 +165,13 @@ type Type interface {
 	// the field was found.
 	//
 	// FieldByNameFunc considers the fields in the struct itself
-	// and then the fields in any anonymous structs, in breadth first order,
+	// and then the fields in any embedded structs, in breadth first order,
 	// stopping at the shallowest nesting depth containing one or more
 	// fields satisfying the match function. If multiple fields at that depth
 	// satisfy the match function, they cancel each other
 	// and FieldByNameFunc returns no match.
 	// This behavior mirrors Go's handling of name lookup in
-	// structs containing anonymous fields.
+	// structs containing embedded fields.
 	FieldByNameFunc(match func(string) bool) (StructField, bool)
 
 	// In returns the type of a function type's i'th input parameter.
@@ -326,10 +327,10 @@ type method struct {
 	tfn  textOff // fn used for normal method call
 }
 
-// uncommonType is present only for types with names or methods
-// (if T is a named type, the uncommonTypes for T and *T have methods).
+// uncommonType is present only for defined types or types with methods
+// (if T is a defined type, the uncommonTypes for T and *T have methods).
 // Using a pointer to this struct reduces the overall size required
-// to describe an unnamed type with no methods.
+// to describe a non-defined type with no methods.
 type uncommonType struct {
 	pkgPath nameOff // import path; empty for built-in types like int, string
 	mcount  uint16  // number of methods
@@ -421,17 +422,17 @@ type sliceType struct {
 
 // Struct field
 type structField struct {
-	name       name    // name is always non-empty
-	typ        *rtype  // type of field
-	offsetAnon uintptr // byte offset of field<<1 | isAnonymous
+	name        name    // name is always non-empty
+	typ         *rtype  // type of field
+	offsetEmbed uintptr // byte offset of field<<1 | isEmbedded
 }
 
 func (f *structField) offset() uintptr {
-	return f.offsetAnon >> 1
+	return f.offsetEmbed >> 1
 }
 
-func (f *structField) anon() bool {
-	return f.offsetAnon&1 != 0
+func (f *structField) embedded() bool {
+	return f.offsetEmbed&1 != 0
 }
 
 // structType represents a struct type.
@@ -1199,7 +1200,7 @@ func (t *structType) Field(i int) (f StructField) {
 	p := &t.fields[i]
 	f.Type = toType(p.typ)
 	f.Name = p.name.name()
-	f.Anonymous = p.anon()
+	f.Anonymous = p.embedded()
 	if !p.name.isExported() {
 		f.PkgPath = t.pkgPath.name()
 	}
@@ -1293,11 +1294,11 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (result StructFiel
 			visited[t] = true
 			for i := range t.fields {
 				f := &t.fields[i]
-				// Find name and (for anonymous field) type for field f.
+				// Find name and (for embedded field) type for field f.
 				fname := f.name.name()
 				var ntyp *rtype
-				if f.anon() {
-					// Anonymous field of type T or *T.
+				if f.embedded() {
+					// Embedded field of type T or *T.
 					ntyp = f.typ
 					if ntyp.Kind() == Ptr {
 						ntyp = ntyp.Elem().common()
@@ -1353,20 +1354,20 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (result StructFiel
 // FieldByName returns the struct field with the given name
 // and a boolean to indicate if the field was found.
 func (t *structType) FieldByName(name string) (f StructField, present bool) {
-	// Quick check for top-level name, or struct without anonymous fields.
-	hasAnon := false
+	// Quick check for top-level name, or struct without embedded fields.
+	hasEmbeds := false
 	if name != "" {
 		for i := range t.fields {
 			tf := &t.fields[i]
 			if tf.name.name() == name {
 				return t.Field(i), true
 			}
-			if tf.anon() {
-				hasAnon = true
+			if tf.embedded() {
+				hasEmbeds = true
 			}
 		}
 	}
-	if !hasAnon {
+	if !hasEmbeds {
 		return
 	}
 	return t.FieldByNameFunc(func(s string) bool { return s == name })
@@ -1565,7 +1566,7 @@ func directlyAssignable(T, V *rtype) bool {
 		return true
 	}
 
-	// Otherwise at least one of T and V must be unnamed
+	// Otherwise at least one of T and V must not be defined
 	// and they must have the same kind.
 	if T.Name() != "" && V.Name() != "" || T.Kind() != V.Kind() {
 		return false
@@ -1674,7 +1675,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 			if cmpTags && tf.name.tag() != vf.name.tag() {
 				return false
 			}
-			if tf.offsetAnon != vf.offsetAnon {
+			if tf.offsetEmbed != vf.offsetEmbed {
 				return false
 			}
 		}
@@ -2388,13 +2389,13 @@ func StructOf(fields []StructField) Type {
 		name := f.name.name()
 		hash = fnv1(hash, []byte(name)...)
 		repr = append(repr, (" " + name)...)
-		if f.anon() {
+		if f.embedded() {
 			// Embedded field
 			if f.typ.Kind() == Ptr {
 				// Embedded ** and *interface{} are illegal
 				elem := ft.Elem()
 				if k := elem.Kind(); k == Ptr || k == Interface {
-					panic("reflect.StructOf: illegal anonymous field type " + ft.String())
+					panic("reflect.StructOf: illegal embedded field type " + ft.String())
 				}
 			}
 
@@ -2544,7 +2545,7 @@ func StructOf(fields []StructField) Type {
 			typalign = ft.align
 		}
 		size = offset + ft.size
-		f.offsetAnon |= offset << 1
+		f.offsetEmbed |= offset << 1
 
 		if ft.size == 0 {
 			lastzero = size
@@ -2780,16 +2781,16 @@ func runtimeStructField(field StructField) structField {
 		panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
 	}
 
-	offsetAnon := uintptr(0)
+	offsetEmbed := uintptr(0)
 	if field.Anonymous {
-		offsetAnon |= 1
+		offsetEmbed |= 1
 	}
 
 	resolveReflectType(field.Type.common()) // install in runtime
 	return structField{
-		name:       newName(field.Name, string(field.Tag), true),
-		typ:        field.Type.common(),
-		offsetAnon: offsetAnon,
+		name:        newName(field.Name, string(field.Tag), true),
+		typ:         field.Type.common(),
+		offsetEmbed: offsetEmbed,
 	}
 }
 
