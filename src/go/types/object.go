@@ -215,10 +215,10 @@ func (obj *TypeName) IsAlias() bool {
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
-	anonymous bool // if set, the variable is an anonymous struct field, and name is the type name
-	visited   bool // for initialization cycle detection
-	isField   bool // var is struct field
-	used      bool // set if the variable was used
+	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+	visited  bool // for initialization cycle detection
+	isField  bool // var is struct field
+	used     bool // set if the variable was used
 }
 
 // NewVar returns a new variable.
@@ -233,14 +233,18 @@ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
 }
 
 // NewField returns a new variable representing a struct field.
-// For anonymous (embedded) fields, the name is the unqualified
-// type name under which the field is accessible.
-func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, anonymous: anonymous, isField: true}
+// For embedded fields, the name is the unqualified type name
+/// under which the field is accessible.
+func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, embedded: embedded, isField: true}
 }
 
-// Anonymous reports whether the variable is an anonymous field.
-func (obj *Var) Anonymous() bool { return obj.anonymous }
+// Anonymous reports whether the variable is an embedded field.
+// Same as Embedded; only present for backward-compatibility.
+func (obj *Var) Anonymous() bool { return obj.embedded }
+
+// Embedded reports whether the variable is an embedded field.
+func (obj *Var) Embedded() bool { return obj.embedded }
 
 // IsField reports whether the variable is a struct field.
 func (obj *Var) IsField() bool { return obj.isField }

@@ -132,7 +132,7 @@ func NewMethodSet(T Type) *MethodSet {
 					// T is a type name. If typ appeared multiple times at
 					// this depth, f.Type appears multiple times at the next
 					// depth.
-					if f.anonymous {
+					if f.embedded {
 						typ, isPtr := deref(f.typ)
 						// TODO(gri) optimization: ignore types that can't
 						// have fields or methods (only Named, Struct, and
