@@ -2658,7 +2658,7 @@
 
 // Load args directly into the register class where it will be used.
 // We do this by just modifying the type of the Arg.
-(MOVQf2i <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
-(MOVLf2i <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
-(MOVQi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
-(MOVLi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+(MOVQf2i <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() -> @b.Func.Entry (Arg <t> [off] {sym})
+(MOVLf2i <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() -> @b.Func.Entry (Arg <t> [off] {sym})
+(MOVQi2f <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() -> @b.Func.Entry (Arg <t> [off] {sym})
+(MOVLi2f <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() -> @b.Func.Entry (Arg <t> [off] {sym})
