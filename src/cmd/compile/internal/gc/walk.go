@@ -1506,9 +1506,7 @@ opswitch:
 				a = typecheck(a, Etop)
 				a = walkexpr(a, init)
 				init.Append(a)
-				n = nod(OCONVNOP, h, nil)
-				n.Type = t
-				n = typecheck(n, Erv)
+				n = convnop(h, t)
 			} else {
 				// Call runtime.makehmap to allocate an
 				// hmap on the heap and initialize hmap's hash0 field.
@@ -2029,8 +2027,7 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
 		// optimization - can do block copy
 		if eqtypenoname(rhs[0].Type, lhs) {
 			nl := nodarg(lhs, fp)
-			nr := nod(OCONVNOP, rhs[0], nil)
-			nr.Type = nl.Type
+			nr := convnop(rhs[0], nl.Type)
 			n := convas(nod(OAS, nl, nr), init)
 			n.SetTypecheck(1)
 			return []*Node{n}
@@ -2748,6 +2745,15 @@ func conv(n *Node, t *types.Type) *Node {
 	return n
 }
 
+// convnop converts node n to type t using the OCONVNOP op
+// and typechecks the result with Erv.
+func convnop(n *Node, t *types.Type) *Node {
+	n = nod(OCONVNOP, n, nil)
+	n.Type = t
+	n = typecheck(n, Erv)
+	return n
+}
+
 // byteindex converts n, which is byte-sized, to a uint8.
 // We cannot use conv, because we allow converting bool to uint8 here,
 // which is forbidden in user code.
@@ -3157,8 +3163,7 @@ func extendslice(n *Node, init *Nodes) *Node {
 	hp := nod(OINDEX, s, nod(OLEN, l1, nil))
 	hp.SetBounded(true)
 	hp = nod(OADDR, hp, nil)
-	hp = nod(OCONVNOP, hp, nil)
-	hp.Type = types.Types[TUNSAFEPTR]
+	hp = convnop(hp, types.Types[TUNSAFEPTR])
 
 	// hn := l2 * sizeof(elem(s))
 	hn := nod(OMUL, l2, nodintconst(elemtype.Width))
