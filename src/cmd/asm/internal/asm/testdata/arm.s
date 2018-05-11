@@ -951,13 +951,17 @@ jmp_label_3:
 
 // MUL
 	MUL	R2, R3, R4           // 930204e0
-	MUL	R2, R4               // 920404e0
+	MUL	R2, R4               // 940204e0
+	MUL	R2, R4, R4           // 940204e0
 	MUL.S	R2, R3, R4           // 930214e0
-	MUL.S	R2, R4               // 920414e0
+	MUL.S	R2, R4               // 940214e0
+	MUL.S	R2, R4, R4           // 940214e0
 	MULU	R5, R6, R7           // 960507e0
-	MULU	R5, R7               // 950707e0
+	MULU	R5, R7               // 970507e0
+	MULU	R5, R7, R7           // 970507e0
 	MULU.S	R5, R6, R7           // 960517e0
-	MULU.S	R5, R7               // 950717e0
+	MULU.S	R5, R7               // 970517e0
+	MULU.S	R5, R7, R7           // 970517e0
 	MULLU	R1, R2, (R4, R3)     // 923184e0
 	MULLU.S	R1, R2, (R4, R3)     // 923194e0
 	MULL	R1, R2, (R4, R3)     // 9231c4e0
