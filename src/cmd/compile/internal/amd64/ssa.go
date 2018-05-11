@@ -524,6 +524,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8,
 		ssa.OpAMD64LEAL1, ssa.OpAMD64LEAL2, ssa.OpAMD64LEAL4, ssa.OpAMD64LEAL8,
 		ssa.OpAMD64LEAW1, ssa.OpAMD64LEAW2, ssa.OpAMD64LEAW4, ssa.OpAMD64LEAW8:
+		o := v.Reg()
 		r := v.Args[0].Reg()
 		i := v.Args[1].Reg()
 		p := s.Prog(v.Op.Asm())
@@ -543,9 +544,24 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r
 		p.From.Index = i
-		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
+		p.To.Reg = o
+		if v.AuxInt != 0 && v.Aux == nil {
+			// Emit an additional LEA to add the displacement instead of creating a slow 3 operand LEA.
+			switch v.Op {
+			case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8:
+				p = s.Prog(x86.ALEAQ)
+			case ssa.OpAMD64LEAL1, ssa.OpAMD64LEAL2, ssa.OpAMD64LEAL4, ssa.OpAMD64LEAL8:
+				p = s.Prog(x86.ALEAL)
+			case ssa.OpAMD64LEAW1, ssa.OpAMD64LEAW2, ssa.OpAMD64LEAW4, ssa.OpAMD64LEAW8:
+				p = s.Prog(x86.ALEAW)
+			}
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = o
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = o
+		}
+		gc.AddAux(&p.From, v)
 	case ssa.OpAMD64LEAQ, ssa.OpAMD64LEAL, ssa.OpAMD64LEAW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
