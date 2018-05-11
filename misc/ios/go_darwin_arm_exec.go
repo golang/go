@@ -31,6 +31,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -498,7 +499,22 @@ func run(appdir, bundleID string, args []string) error {
 		lldb.Stdout = os.Stdout
 		var out bytes.Buffer
 		lldb.Stderr = io.MultiWriter(&out, os.Stderr)
-		err = lldb.Run()
+		err = lldb.Start()
+		if err == nil {
+			// Forward SIGQUIT to the lldb driver which in turn will forward
+			// to the running program.
+			sigs := make(chan os.Signal, 1)
+			signal.Notify(sigs, syscall.SIGQUIT)
+			proc := lldb.Process
+			go func() {
+				for sig := range sigs {
+					proc.Signal(sig)
+				}
+			}()
+			err = lldb.Wait()
+			signal.Stop(sigs)
+			close(sigs)
+		}
 		// If the program was not started it can be retried without papering over
 		// real test failures.
 		started := bytes.HasPrefix(out.Bytes(), []byte("lldb: running program"))
@@ -709,6 +725,7 @@ const resourceRules = `<?xml version="1.0" encoding="UTF-8"?>
 const lldbDriver = `
 import sys
 import os
+import signal
 
 exe, device_exe, args = sys.argv[1], sys.argv[2], sys.argv[3:]
 
@@ -747,6 +764,7 @@ for i in range(0, sigs.GetNumSignals()):
 
 event = lldb.SBEvent()
 running = False
+prev_handler = None
 while True:
 	if not listener.WaitForEvent(1, event):
 		continue
@@ -766,6 +784,8 @@ while True:
 			sys.stderr.write(out)
 	state = process.GetStateFromEvent(event)
 	if state in [lldb.eStateCrashed, lldb.eStateDetached, lldb.eStateUnloaded, lldb.eStateExited]:
+		if running:
+			signal.signal(signal.SIGQUIT, prev_handler)
 		break
 	elif state == lldb.eStateConnected:
 		process.RemoteLaunch(args, env, None, None, None, None, 0, False, err)
@@ -774,6 +794,10 @@ while True:
 			process.Kill()
 			debugger.Terminate()
 			sys.exit(1)
+		# Forward SIGQUIT to the program.
+		def signal_handler(signal, frame):
+			process.Signal(signal)
+		prev_handler = signal.signal(signal.SIGQUIT, signal_handler)
 		# Tell the Go driver that the program is running and should not be retried.
 		sys.stderr.write("lldb: running program\n")
 		running = True
