@@ -335,6 +335,7 @@ func runList(cmd *base.Command, args []string) {
 		// Show vendor-expanded paths in listing
 		p.TestImports = p.Resolve(p.TestImports)
 		p.XTestImports = p.Resolve(p.XTestImports)
+		p.DepOnly = !cmdline[p]
 	}
 
 	if *listTest {
