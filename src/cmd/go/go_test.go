@@ -1975,6 +1975,10 @@ func TestGoListTest(t *testing.T) {
 
 	tg.run("list", "-test", "runtime/cgo")
 	tg.grepStdout(`^runtime/cgo$`, "missing runtime/cgo")
+
+	tg.run("list", "-deps", "-f", "{{if .DepOnly}}{{.ImportPath}}{{end}}", "sort")
+	tg.grepStdout(`^reflect$`, "missing reflect")
+	tg.grepStdoutNot(`^sort`, "unexpected sort")
 }
 
 func TestGoListCgo(t *testing.T) {
