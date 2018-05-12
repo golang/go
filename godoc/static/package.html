@@ -10,7 +10,7 @@
 	correspond to Go identifiers).
 -->
 {{with .PDoc}}
-	<script type='text/javascript'>
+	<script>
 	document.ANALYSIS_DATA = {{$.AnalysisData}};
 	document.CALLGRAPH = {{$.CallGraph}};
 	</script>
@@ -112,6 +112,7 @@
 		</div><!-- .expanded -->
 		</div><!-- #pkg-index -->
 
+		{{if ne $.CallGraph "null"}}
 		<div id="pkg-callgraph" class="toggle" style="display: none">
 		<div class="collapsed">
 			<h2 class="toggleButton" title="Click to show Internal Call Graph section">Internal call graph ▹</h2>
@@ -148,6 +149,7 @@
 			<ul style="margin-left: 0.5in" id="callgraph-0" class="treeview"></ul>
 		</div>
 		</div> <!-- #pkg-callgraph -->
+		{{end}}
 
 		{{with .Consts}}
 			<h2 id="pkg-constants">Constants</h2>
