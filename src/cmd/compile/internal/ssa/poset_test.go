@@ -626,7 +626,6 @@ func TestPosetConst(t *testing.T) {
 
 func TestPosetNonEqual(t *testing.T) {
 	testPosetOps(t, false, []posetTestOp{
-		{Checkpoint, 0, 0},
 		{Equal_Fail, 10, 20},
 		{NonEqual_Fail, 10, 20},
 
