@@ -4851,7 +4851,7 @@ func main() {}`)
 			before()
 			tg.run("install", "mycmd")
 			after()
-			tg.wantStale("mycmd", "stale dependency: runtime/internal/sys", "should be stale after environment variable change")
+			tg.wantStale("mycmd", "stale dependency", "should be stale after environment variable change")
 		}
 	}
 
