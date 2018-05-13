@@ -1302,6 +1302,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 		}
 		if is_stmt == 0 && i < len(textp)-1 {
 			// If there is more than one function, ensure default value is established.
+			is_stmt = 1
 			ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
 		}
 	}
