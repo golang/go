@@ -58,6 +58,24 @@ func TestInt(t *testing.T) {
 	}
 }
 
+func TestIntConversion(t *testing.T) {
+	testIntConversion(t, 0)
+	testIntConversion(t, 1)
+	testIntConversion(t, -1)
+	testIntConversion(t, 1<<20)
+	testIntConversion(t, -1<<20)
+	testIntConversion(t, 1<<40)
+	testIntConversion(t, -1<<40)
+	testIntConversion(t, 1<<60)
+	testIntConversion(t, -1<<60)
+}
+
+func testIntConversion(t *testing.T, want int) {
+	if got := js.ValueOf(want).Int(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+}
+
 func TestFloat(t *testing.T) {
 	want := 42.123
 	o := dummys.Get("someFloat")
