@@ -87,6 +87,11 @@ func TestTCPSpuriousConnSetupCompletionWithCancel(t *testing.T) {
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
+
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("the iOS limit of 250 open file descriptors is too low")
+	}
+
 	defer dnsWaitGroup.Wait()
 	t.Parallel()
 	const tries = 10000
