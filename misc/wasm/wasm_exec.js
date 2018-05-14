@@ -77,11 +77,7 @@
 
 	const setInt64 = (addr, v) => {
 		mem().setUint32(addr + 0, v, true);
-		if (v >= 0) {
-			mem().setUint32(addr + 4, v / 4294967296, true);
-		} else {
-			mem().setUint32(addr + 4, -1, true); // FIXME
-		}
+		mem().setUint32(addr + 4, Math.floor(v / 4294967296), true);
 	}
 
 	const getInt64 = (addr) => {
