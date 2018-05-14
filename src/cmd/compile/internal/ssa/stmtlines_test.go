@@ -56,6 +56,10 @@ func (f *File) Get(lineno int) (string, bool) {
 }
 
 func TestStmtLines(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
 	lines := map[Line]bool{}
 	dw, err := open(testenv.GoToolPath(t))
 	must(err)
