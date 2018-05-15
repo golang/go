@@ -538,11 +538,14 @@ func TestImportTableInUnknownSection(t *testing.T) {
 		t.Skip("skipping windows only test")
 	}
 
+	// driver and symbol to look for
+	const Filename = "atmfd.dll"
+	const Symbol = "EngMulDiv"
+
 	// first we need to find this font driver
-	const filename = "atmfd.dll"
-	path, err := exec.LookPath(filename)
+	path, err := exec.LookPath(Filename)
 	if err != nil {
-		t.Fatalf("unable to locate required file (%s) in search path: %s", filename, err)
+		t.Fatalf("unable to locate required file (%s) in search path: %s", Filename, err)
 	}
 
 	f, err := Open(path)
@@ -557,6 +560,17 @@ func TestImportTableInUnknownSection(t *testing.T) {
 	}
 
 	if len(symbols) == 0 {
-		t.Fatalf("unable to locate any imported symbols within file %s", filename)
+		t.Fatalf("unable to locate any imported symbols within file %s", Filename)
+	}
+
+	found := false
+	for _, s := range symbols {
+		if s == "EngMulDiv" {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Fatalf("unable to locate expected symbol (%s) within file %s", Symbol, Filename)
 	}
 }
