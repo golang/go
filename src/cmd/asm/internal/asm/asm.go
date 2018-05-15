@@ -13,6 +13,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
@@ -35,6 +36,12 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 		case sys.ARM64:
 			if !arch.ARM64Suffix(prog, cond) {
 				p.errorf("unrecognized suffix .%q", cond)
+				return
+			}
+
+		case sys.AMD64, sys.I386:
+			if err := x86.ParseSuffix(prog, cond); err != nil {
+				p.errorf("%v", err)
 				return
 			}
 
@@ -737,6 +744,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				Type:   obj.TYPE_CONST,
 				Offset: int64(mask),
 			})
+			prog.To = a[4]
+			break
+		}
+		if p.arch.Family == sys.AMD64 {
+			prog.From = a[0]
+			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
 			prog.To = a[4]
 			break
 		}
