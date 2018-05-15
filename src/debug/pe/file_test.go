@@ -560,7 +560,7 @@ func TestImportTableInUnknownSection(t *testing.T) {
 	}
 
 	if len(symbols) == 0 {
-		t.Fatalf("unable to locate any imported symbols within file %s", Filename)
+		t.Fatalf("unable to locate any imported symbols within file %s", path)
 	}
 
 	found := false
@@ -571,6 +571,6 @@ func TestImportTableInUnknownSection(t *testing.T) {
 	}
 
 	if !found {
-		t.Fatalf("unable to locate expected symbol (%s) within file %s", Symbol, Filename)
+		t.Fatalf("unable to locate expected symbol (%s) within file %s", Symbol, path)
 	}
 }
