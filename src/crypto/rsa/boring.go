@@ -147,6 +147,7 @@ func boringFakeRandomBlind(random io.Reader, priv *PrivateKey) {
 	boring.UnreachableExceptTests()
 
 	// Copied from func decrypt.
+	ir := new(big.Int)
 	for {
 		r, err := rand.Int(random, priv.N)
 		if err != nil {
@@ -155,8 +156,8 @@ func boringFakeRandomBlind(random io.Reader, priv *PrivateKey) {
 		if r.Cmp(bigZero) == 0 {
 			r = bigOne
 		}
-		_, ok := modInverse(r, priv.N)
-		if ok {
+		ok := ir.ModInverse(r, priv.N)
+		if ok != nil {
 			break
 		}
 	}
