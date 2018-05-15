@@ -58,6 +58,7 @@ func init() {
 	obj.RegisterRegister(obj.RBaseARM64, REG_SPECIAL+1024, rconv)
 	obj.RegisterOpcode(obj.ABaseARM64, Anames)
 	obj.RegisterRegisterList(obj.RegListARM64Lo, obj.RegListARM64Hi, rlconv)
+	obj.RegisterOpSuffix("arm64", obj.CConvARM)
 }
 
 func arrange(a int) string {
