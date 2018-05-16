@@ -369,6 +369,7 @@ func downloadPackage(p *load.Package) error {
 		vcs            *vcsCmd
 		repo, rootPath string
 		err            error
+		blindRepo      bool // set if the repo has unusual configuration
 	)
 
 	security := web.Secure
@@ -389,10 +390,12 @@ func downloadPackage(p *load.Package) error {
 			dir := filepath.Join(p.Internal.Build.SrcRoot, filepath.FromSlash(rootPath))
 			remote, err := vcs.remoteRepo(vcs, dir)
 			if err != nil {
-				return err
+				// Proceed anyway. The package is present; we likely just don't understand
+				// the repo configuration (e.g. unusual remote protocol).
+				blindRepo = true
 			}
 			repo = remote
-			if !*getF {
+			if !*getF && err == nil {
 				if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
 					repo := rr.repo
 					if rr.vcs.resolveRepo != nil {
@@ -416,7 +419,7 @@ func downloadPackage(p *load.Package) error {
 		}
 		vcs, repo, rootPath = rr.vcs, rr.repo, rr.root
 	}
-	if !vcs.isSecure(repo) && !*getInsecure {
+	if !blindRepo && !vcs.isSecure(repo) && !*getInsecure {
 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
 	}
 
