@@ -686,3 +686,66 @@ func TestWithoutPaddingClose(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeReadAll(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
+
+	for _, pair := range pairs {
+		for encIndex, encoding := range encodings {
+			encoded := pair.encoded
+			if encoding.padChar == NoPadding {
+				encoded = strings.Replace(encoded, "=", "", -1)
+			}
+
+			decReader, err := ioutil.ReadAll(NewDecoder(encoding, strings.NewReader(encoded)))
+			if err != nil {
+				t.Errorf("NewDecoder error: %v", err)
+			}
+
+			if pair.decoded != string(decReader) {
+				t.Errorf("Expected %s got %s; Encoding %d", pair.decoded, decReader, encIndex)
+			}
+		}
+	}
+}
+
+func TestDecodeSmallBuffer(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
+
+	for bufferSize := 1; bufferSize < 200; bufferSize++ {
+		for _, pair := range pairs {
+			for encIndex, encoding := range encodings {
+				encoded := pair.encoded
+				if encoding.padChar == NoPadding {
+					encoded = strings.Replace(encoded, "=", "", -1)
+				}
+
+				decoder := NewDecoder(encoding, strings.NewReader(encoded))
+
+				var allRead []byte
+
+				for {
+					buf := make([]byte, bufferSize)
+					n, err := decoder.Read(buf)
+					allRead = append(allRead, buf[0:n]...)
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						t.Error(err)
+					}
+				}
+
+				if pair.decoded != string(allRead) {
+					t.Errorf("Expected %s got %s; Encoding %d; bufferSize %d", pair.decoded, allRead, encIndex, bufferSize)
+				}
+			}
+		}
+	}
+}
