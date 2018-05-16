@@ -234,12 +234,32 @@ func (t *tester) shouldRunTest(name string) bool {
 	return false
 }
 
+// short returns a -short flag to pass to 'go test'.
+// It returns "-short", unless the environment variable
+// GO_TEST_SHORT is set to a non-empty, false-ish string.
+//
+// This environment variable is meant to be an internal
+// detail between the Go build system and cmd/dist
+// and is not intended for use by users.
+func short() string {
+	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
+		short, err := strconv.ParseBool(v)
+		if err != nil {
+			log.Fatalf("invalid GO_TEST_SHORT %q: %v", v, err)
+		}
+		if !short {
+			return "-short=false"
+		}
+	}
+	return "-short"
+}
+
 // goTest returns the beginning of the go test command line.
 // Callers should use goTest and then pass flags overriding these
 // defaults as later arguments in the command line.
 func (t *tester) goTest() []string {
 	return []string{
-		"go", "test", "-short", "-count=1", t.tags(), t.runFlag(""),
+		"go", "test", short(), "-count=1", t.tags(), t.runFlag(""),
 	}
 }
 
@@ -295,7 +315,7 @@ func (t *tester) registerStdTest(pkg string) {
 
 			args := []string{
 				"test",
-				"-short",
+				short(),
 				t.tags(),
 				t.timeout(timeoutSec),
 				"-gcflags=all=" + gogcflags,
@@ -333,7 +353,7 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 			ranGoBench = true
 			args := []string{
 				"test",
-				"-short",
+				short(),
 				"-race",
 				"-run=^$", // nothing. only benchmarks.
 				"-benchtime=.1s",
