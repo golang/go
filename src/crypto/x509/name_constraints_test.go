@@ -1222,8 +1222,9 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #63: A specified key usage in an intermediate forbids other usages
-	// in the leaf.
+	// #63: An intermediate with enumerated EKUs causes a failure if we
+	// test for an EKU not in that set. (ServerAuth is required by
+	// default.)
 	nameConstraintsTest{
 		roots: []constraintsSpec{
 			constraintsSpec{},
@@ -1239,11 +1240,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:example.com"},
 			ekus: []string{"serverAuth"},
 		},
-		expectedError: "EKU not permitted",
+		expectedError: "incompatible key usage",
 	},
 
-	// #64: A specified key usage in an intermediate forbids other usages
-	// in the leaf, even if we don't recognise them.
+	// #64: an unknown EKU in the leaf doesn't break anything, even if it's not
+	// correctly nested.
 	nameConstraintsTest{
 		roots: []constraintsSpec{
 			constraintsSpec{},
@@ -1259,7 +1260,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:example.com"},
 			ekus: []string{"other"},
 		},
-		expectedError: "EKU not permitted",
+		requestedEKUs: []ExtKeyUsage{ExtKeyUsageAny},
 	},
 
 	// #65: trying to add extra permitted key usages in an intermediate
@@ -1284,24 +1285,25 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #66: EKUs in roots are ignored.
+	// #66: EKUs in roots are not ignored.
 	nameConstraintsTest{
 		roots: []constraintsSpec{
 			constraintsSpec{
-				ekus: []string{"serverAuth"},
+				ekus: []string{"email"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
 			[]constraintsSpec{
 				constraintsSpec{
-					ekus: []string{"serverAuth", "email"},
+					ekus: []string{"serverAuth"},
 				},
 			},
 		},
 		leaf: leafSpec{
 			sans: []string{"dns:example.com"},
-			ekus: []string{"serverAuth", "email"},
+			ekus: []string{"serverAuth"},
 		},
+		expectedError: "incompatible key usage",
 	},
 
 	// #67: in order to support COMODO chains, SGC key usages permit
@@ -1447,8 +1449,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 		expectedError: "\"https://example.com/test\" is excluded",
 	},
 
-	// #75: While serverAuth in a CA certificate permits clientAuth in a leaf,
-	// serverAuth in a leaf shouldn't permit clientAuth when requested in
+	// #75: serverAuth in a leaf shouldn't permit clientAuth when requested in
 	// VerifyOptions.
 	nameConstraintsTest{
 		roots: []constraintsSpec{
@@ -1557,6 +1558,27 @@ var nameConstraintsTests = []nameConstraintsTest{
 			ekus: []string{"email"},
 		},
 		requestedEKUs: []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageEmailProtection},
+	},
+
+	// #81: EKUs that are not asserted in VerifyOpts are not required to be
+	// nested.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{
+					ekus: []string{"serverAuth"},
+				},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:example.com"},
+			// There's no email EKU in the intermediate. This would be rejected if
+			// full nesting was required.
+			ekus: []string{"email", "serverAuth"},
+		},
 	},
 }
 
