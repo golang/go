@@ -8,6 +8,7 @@ import (
 	"cmd/internal/obj"
 	"encoding/hex"
 	"fmt"
+	"math/bits"
 	"sort"
 	"strings"
 )
@@ -92,7 +93,7 @@ func (state *stateAtPC) reset(live []liveSlot) {
 			if mask == 0 {
 				break
 			}
-			reg := uint8(TrailingZeros64(mask))
+			reg := uint8(bits.TrailingZeros64(mask))
 			mask &^= 1 << reg
 
 			registers[reg] = append(registers[reg], live.slot)
@@ -116,7 +117,7 @@ func (s *debugState) LocString(loc VarLoc) string {
 		if mask == 0 {
 			break
 		}
-		reg := uint8(TrailingZeros64(mask))
+		reg := uint8(bits.TrailingZeros64(mask))
 		mask &^= 1 << reg
 
 		storage = append(storage, s.registers[reg].String())
@@ -613,7 +614,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 			if mask == 0 {
 				break
 			}
-			reg := uint8(TrailingZeros64(mask))
+			reg := uint8(bits.TrailingZeros64(mask))
 			mask &^= 1 << reg
 
 			state.currentState.registers[reg] = append(state.currentState.registers[reg], predSlot.slot)
@@ -643,7 +644,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		if clobbers == 0 {
 			break
 		}
-		reg := uint8(TrailingZeros64(clobbers))
+		reg := uint8(bits.TrailingZeros64(clobbers))
 		clobbers &^= 1 << reg
 
 		for _, slot := range locs.registers[reg] {
@@ -812,7 +813,7 @@ func firstReg(set RegisterSet) uint8 {
 		// produce locations with no storage.
 		return 0
 	}
-	return uint8(TrailingZeros64(uint64(set)))
+	return uint8(bits.TrailingZeros64(uint64(set)))
 }
 
 // buildLocationLists builds location lists for all the user variables in
