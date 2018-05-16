@@ -363,16 +363,51 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVD	x+24(FP), R2
 	MOVD	y+48(FP), R3
 	MOVD	r+56(FP), R4
+	// c, z = x * y + r
+	TBZ	$0, R0, two
+	MOVD.P	8(R2), R5
+	MUL	R3, R5, R7
+	UMULH	R3, R5, R8
+	ADDS	R4, R7
+	ADC	$0, R8, R4	// c, z[i] = x[i] * y +  r
+	MOVD.P	R7, 8(R1)
+	SUB	$1, R0
+two:
+	TBZ	$1, R0, loop
+	LDP.P	16(R2), (R5, R6)
+	MUL	R3, R5, R10
+	UMULH	R3, R5, R11
+	ADDS	R4, R10
+	MUL	R3, R6, R12
+	UMULH	R3, R6, R13
+	ADCS	R12, R11
+	ADC	$0, R13, R4
+
+	STP.P	(R10, R11), 16(R1)
+	SUB	$2, R0
 loop:
 	CBZ	R0, done
-	MOVD.P	8(R2), R5
-	UMULH	R5, R3, R7
-	MUL	R5, R3, R6
-	ADDS	R4, R6
-	ADC	$0, R7
-	MOVD.P	R6, 8(R1)
-	MOVD	R7, R4
-	SUB	$1, R0
+	LDP.P	32(R2), (R5, R6)
+	LDP	-16(R2), (R7, R8)
+
+	MUL	R3, R5, R10
+	UMULH	R3, R5, R11
+	ADDS	R4, R10
+	MUL	R3, R6, R12
+	UMULH	R3, R6, R13
+	ADCS	R11, R12
+
+	MUL	R3, R7, R14
+	UMULH	R3, R7, R15
+	ADCS	R13, R14
+	MUL	R3, R8, R16
+	UMULH	R3, R8, R17
+	ADCS	R15, R16
+	ADC	$0, R17, R4
+
+	STP.P	(R10, R12), 32(R1)
+	STP	(R14, R16), -16(R1)
+	SUB	$4, R0
 	B	loop
 done:
 	MOVD	R4, c+64(FP)
