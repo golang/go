@@ -42,7 +42,8 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	// Reserve an additional 10 MB for non-file parts.
 	maxValueBytes := maxMemory + int64(10<<20)
 	for {
-		p, err := r.NextPart()
+		var p *Part
+		p, err = r.NextPart()
 		if err == io.EOF {
 			break
 		}
@@ -60,7 +61,8 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 
 		if !p.hasFileName() {
 			// value, store as string in memory
-			n, err := io.CopyN(&b, p, maxValueBytes+1)
+			var n int64
+			n, err = io.CopyN(&b, p, maxValueBytes+1)
 			if err != nil && err != io.EOF {
 				return nil, err
 			}
@@ -77,17 +79,20 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 			Filename: filename,
 			Header:   p.Header,
 		}
-		n, err := io.CopyN(&b, p, maxMemory+1)
+		var n int64
+		n, err = io.CopyN(&b, p, maxMemory+1)
 		if err != nil && err != io.EOF {
 			return nil, err
 		}
 		if n > maxMemory {
 			// too big, write to disk and flush buffer
-			file, err := ioutil.TempFile("", "multipart-")
+			var file *os.File
+			file, err = ioutil.TempFile("", "multipart-")
 			if err != nil {
 				return nil, err
 			}
-			size, err := io.Copy(file, io.MultiReader(&b, p))
+			var size int64
+			size, err = io.Copy(file, io.MultiReader(&b, p))
 			if cerr := file.Close(); err == nil {
 				err = cerr
 			}
