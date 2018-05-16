@@ -371,6 +371,24 @@ func TestMulAddWWW(t *testing.T) {
 	}
 }
 
+func BenchmarkMulAddVWW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		z := make([]Word, n+1)
+		x := rndV(n)
+		y := rndW()
+		r := rndW()
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				mulAddVWW(z, x, y, r)
+			}
+		})
+	}
+}
+
 func BenchmarkAddMulVVW(b *testing.B) {
 	for _, n := range benchSizes {
 		if isRaceBuilder && n > 1e3 {
