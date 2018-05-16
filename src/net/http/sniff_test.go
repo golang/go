@@ -65,6 +65,7 @@ var sniffTests = []struct {
 
 	{"woff sample  I", []byte("\x77\x4f\x46\x46\x00\x01\x00\x00\x00\x00\x30\x54\x00\x0d\x00\x00"), "font/woff"},
 	{"woff2 sample", []byte("\x77\x4f\x46\x32\x00\x01\x00\x00\x00"), "font/woff2"},
+	{"wasm sample", []byte("\x00\x61\x73\x6d\x01\x00"), "application/wasm"},
 }
 
 func TestDetectContentType(t *testing.T) {
