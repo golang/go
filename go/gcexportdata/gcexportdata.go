@@ -92,6 +92,10 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 // Write writes encoded type information for the specified package to out.
 // The FileSet provides file position information for named objects.
 func Write(out io.Writer, fset *token.FileSet, pkg *types.Package) error {
-	_, err := out.Write(gcimporter.BExportData(fset, pkg))
+	b, err := gcimporter.BExportData(fset, pkg)
+	if err != nil {
+		return err
+	}
+	_, err = out.Write(b)
 	return err
 }
