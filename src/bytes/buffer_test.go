@@ -269,6 +269,32 @@ func TestReadFrom(t *testing.T) {
 	}
 }
 
+type slowReader struct{ ch chan struct{} }
+
+func (r slowReader) Read(p []byte) (int, error) {
+	r.ch <- struct{}{}
+	<-r.ch
+	p = p[:0]
+	r.ch <- struct{}{}
+	return 0, io.EOF
+}
+
+// Make sure that an empty Buffer remains empty when
+// it is "grown" before a Read
+func TestSlowReadFrom(t *testing.T) {
+	var buf Buffer
+	r := slowReader{make(chan struct{}, 0)}
+
+	go buf.ReadFrom(r)
+
+	<-r.ch
+	check(t, "TestSlowReadFrom (1)", &buf, "")
+	r.ch <- struct{}{}
+
+	<-r.ch
+	check(t, "TestSlowReadFrom (2)", &buf, "")
+}
+
 func TestReadFromNegativeReader(t *testing.T) {
 	var b Buffer
 	defer func() {
