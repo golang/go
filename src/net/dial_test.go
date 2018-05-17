@@ -749,9 +749,8 @@ func TestDialCancel(t *testing.T) {
 	switch testenv.Builder() {
 	case "linux-arm64-buildlet":
 		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
-	case "":
-		testenv.MustHaveExternalNetwork(t)
 	}
+	mustHaveExternalNetwork(t)
 
 	if runtime.GOOS == "nacl" {
 		// nacl doesn't have external network access.
@@ -897,9 +896,7 @@ func TestCancelAfterDial(t *testing.T) {
 // if the machine has halfway configured IPv6 such that it can bind on
 // "::" not connect back to that same address.
 func TestDialListenerAddr(t *testing.T) {
-	if testenv.Builder() == "" {
-		testenv.MustHaveExternalNetwork(t)
-	}
+	mustHaveExternalNetwork(t)
 	ln, err := Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
@@ -911,4 +908,14 @@ func TestDialListenerAddr(t *testing.T) {
 		t.Fatalf("for addr %q, dial error: %v", addr, err)
 	}
 	c.Close()
+}
+
+// mustHaveExternalNetwork is like testenv.MustHaveExternalNetwork
+// except that it won't skip testing on non-iOS builders.
+func mustHaveExternalNetwork(t *testing.T) {
+	t.Helper()
+	ios := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	if testenv.Builder() == "" || ios {
+		testenv.MustHaveExternalNetwork(t)
+	}
 }
