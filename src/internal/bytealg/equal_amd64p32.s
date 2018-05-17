@@ -80,7 +80,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
 
 	CMPQ	BX, $8
 	JB	small
-	
+
 	// 64 bytes at a time using xmm registers
 hugeloop:
 	CMPQ	BX, $64

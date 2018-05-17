@@ -79,7 +79,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
 	JB	bigloop
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JE	hugeloop_avx2
-	
+
 	// 64 bytes at a time using xmm registers
 hugeloop:
 	CMPQ	BX, $64
