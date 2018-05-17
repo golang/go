@@ -474,14 +474,14 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
 	return toc.Value
 }
 
-func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 	var o1, o2 uint32
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
-		o1 = uint32(*val >> 32)
-		o2 = uint32(*val)
+		o1 = uint32(val >> 32)
+		o2 = uint32(val)
 	} else {
-		o1 = uint32(*val)
-		o2 = uint32(*val >> 32)
+		o1 = uint32(val)
+		o2 = uint32(val >> 32)
 	}
 
 	// We are spreading a 31-bit address across two instructions, putting the
@@ -510,15 +510,13 @@ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool 
 		}
 		o2 |= uint32(t) & 0xfffc
 	default:
-		return false
+		return -1
 	}
 
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
-		*val = int64(o1)<<32 | int64(o2)
-	} else {
-		*val = int64(o2)<<32 | int64(o1)
+		return int64(o1)<<32 | int64(o2)
 	}
-	return true
+	return int64(o2)<<32 | int64(o1)
 }
 
 // resolve direct jump relocation r in s, and add trampoline if necessary
@@ -623,17 +621,17 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, o
 	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		default:
-			return false
+			return val, false
 		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
 			r.Done = false
 			// check Outer is nil, Type is TLSBSS?
 			r.Xadd = r.Add
 			r.Xsym = r.Sym
-			return true
+			return val, true
 		case objabi.R_ADDRPOWER,
 			objabi.R_ADDRPOWER_DS,
 			objabi.R_ADDRPOWER_TOCREL,
@@ -655,24 +653,22 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 			}
 			r.Xsym = rs
 
-			return true
+			return val, true
 		case objabi.R_CALLPOWER:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return true
+			return val, true
 		}
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
-		*val = r.Add
-		return true
+		return r.Add, true
 	case objabi.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
-		return archrelocaddr(ctxt, r, s, val)
+		return archrelocaddr(ctxt, r, s, val), true
 	case objabi.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
 
@@ -686,12 +682,10 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 		if int64(int32(t<<6)>>6) != t {
 			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
 		}
-		*val |= int64(uint32(t) &^ 0xfc000003)
-		return true
+		return val | int64(uint32(t)&^0xfc000003), true
 	case objabi.R_POWER_TOC: // S + A - .TOC.
-		*val = ld.Symaddr(r.Sym) + r.Add - symtoc(ctxt, s)
+		return ld.Symaddr(r.Sym) + r.Add - symtoc(ctxt, s), true
 
-		return true
 	case objabi.R_POWER_TLS_LE:
 		// The thread pointer points 0x7000 bytes after the start of the
 		// thread local storage area as documented in section "3.7.2 TLS
@@ -701,11 +695,10 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 		if int64(int16(v)) != v {
 			ld.Errorf(s, "TLS offset out of range %d", v)
 		}
-		*val = (*val &^ 0xffff) | (v & 0xffff)
-		return true
+		return (val &^ 0xffff) | (v & 0xffff), true
 	}
 
-	return false
+	return val, false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {

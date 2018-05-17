@@ -104,7 +104,7 @@ type Arch struct {
 	Solarisdynld     string
 	Adddynrel        func(*Link, *sym.Symbol, *sym.Reloc) bool
 	Archinit         func(*Link)
-	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, *int64) bool
+	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, int64) (int64, bool)
 	Archrelocvariant func(*Link, *sym.Reloc, *sym.Symbol, int64) int64
 	Trampoline       func(*Link, *sym.Reloc, *sym.Symbol)
 	Asmb             func(*Link)

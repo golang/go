@@ -99,11 +99,11 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		default:
-			return false
+			return val, false
 		case objabi.R_ADDRMIPS,
 			objabi.R_ADDRMIPSU:
 			r.Done = false
@@ -121,34 +121,30 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 			}
 			r.Xsym = rs
 
-			return true
+			return val, true
 		case objabi.R_ADDRMIPSTLS,
 			objabi.R_CALLMIPS,
 			objabi.R_JMPMIPS:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return true
+			return val, true
 		}
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
-		*val = r.Add
-		return true
+		return r.Add, true
 	case objabi.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
 		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
 		if r.Type == objabi.R_ADDRMIPS {
-			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
-		} else {
-			*val = int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff)
+			return int64(o1&0xffff0000 | uint32(t)&0xffff), true
 		}
-		return true
+		return int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff), true
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
@@ -156,18 +152,16 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 			ld.Errorf(s, "TLS offset out of range %d", t)
 		}
 		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
-		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
-		return true
+		return int64(o1&0xffff0000 | uint32(t)&0xffff), true
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		// Low 26 bits = (S + A) >> 2
 		t := ld.Symaddr(r.Sym) + r.Add
 		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
-		*val = int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000)
-		return true
+		return int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000), true
 	}
 
-	return false
+	return val, false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
