@@ -202,7 +202,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	ctxt.dostrdata()
 	deadcode(ctxt)
-	fieldtrack(ctxt)
+	if objabi.Fieldtrack_enabled != 0 {
+		fieldtrack(ctxt)
+	}
 	ctxt.callgraph()
 
 	ctxt.doelf()
