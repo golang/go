@@ -8,7 +8,6 @@ package net
 
 import (
 	"context"
-	"internal/testenv"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -84,9 +83,8 @@ func TestTCPSpuriousConnSetupCompletion(t *testing.T) {
 // Issue 19289.
 // Test that a canceled Dial does not cause a subsequent Dial to succeed.
 func TestTCPSpuriousConnSetupCompletionWithCancel(t *testing.T) {
-	if testenv.Builder() == "" {
-		testenv.MustHaveExternalNetwork(t)
-	}
+	mustHaveExternalNetwork(t)
+
 	defer dnsWaitGroup.Wait()
 	t.Parallel()
 	const tries = 10000
