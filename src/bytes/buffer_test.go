@@ -275,7 +275,6 @@ func (r slowReader) Read(p []byte) (int, error) {
 	r.ch <- struct{}{}
 	<-r.ch
 	p = p[:0]
-	r.ch <- struct{}{}
 	return 0, io.EOF
 }
 
@@ -285,7 +284,10 @@ func TestSlowReadFrom(t *testing.T) {
 	var buf Buffer
 	r := slowReader{make(chan struct{}, 0)}
 
-	go buf.ReadFrom(r)
+	go func() {
+		buf.ReadFrom(r)
+		r.ch <- struct{}{}
+	}()
 
 	<-r.ch
 	check(t, "TestSlowReadFrom (1)", &buf, "")
