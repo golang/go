@@ -245,8 +245,8 @@ func (d *deadcodepass) init() {
 				// but we do keep the symbols it refers to.
 				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
 				if exports != nil {
-					for _, r := range exports.R {
-						d.mark(r.Sym, nil)
+					for i := range exports.R {
+						d.mark(exports.R[i].Sym, nil)
 					}
 				}
 			}
