@@ -931,7 +931,7 @@ var yvex_xi3 = []ytab{
 }
 
 var yvex_vpermpd = []ytab{
-	{Zvex_i_rm_r, 2, argList{Yu8, Yym, Yyr}},
+	{Zvex_i_rm_r, 0, argList{Yu8, Yym, Yyr}},
 	// Allow int8 for backwards compatibility with negative values
 	// like $-1.
 	{Zvex_i_rm_r, 2, argList{Yi8, Yym, Yyr}},
