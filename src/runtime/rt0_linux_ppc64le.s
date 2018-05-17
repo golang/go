@@ -12,7 +12,7 @@ TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
 	MOVW	CR, R0     // Save CR in caller's frame
 	MOVD	R0, 8(R1)
 	MOVDU	R1, -320(R1) // Allocate frame.
-	
+
 	// Preserve callee-save registers.
 	MOVD	R14, 24(R1)
 	MOVD	R15, 32(R1)

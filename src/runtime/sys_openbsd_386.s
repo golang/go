@@ -295,7 +295,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	CALL	runtime·settls(SB)
 	POPL	AX
 	POPAL
-	
+
 	// Now segment is established. Initialize m, g.
 	get_tls(AX)
 	MOVL	DX, g(AX)

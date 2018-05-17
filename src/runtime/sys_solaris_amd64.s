@@ -63,9 +63,9 @@ TEXT runtime·pipe1(SB),NOSPLIT,$0
 
 // Call a library function with SysV calling conventions.
 // The called function can take a maximum of 6 INTEGER class arguments,
-// see 
+// see
 //   Michael Matz, Jan Hubicka, Andreas Jaeger, and Mark Mitchell
-//   System V Application Binary Interface 
+//   System V Application Binary Interface
 //   AMD64 Architecture Processor Supplement
 // section 3.2.3.
 //
@@ -119,7 +119,7 @@ skipargs:
 	MOVL	0(AX), AX
 	MOVQ	AX, libcall_err(DI)
 
-skiperrno2:	
+skiperrno2:
 	RET
 
 // uint32 tstart_sysvicall(M *newm);
@@ -186,7 +186,7 @@ allgood:
 	// Save m->libcall and m->scratch. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
 
-	// save m->libcall 
+	// save m->libcall
 	MOVQ	g_m(R10), BP
 	LEAQ	m_libcall(BP), R11
 	MOVQ	libcall_fn(R11), R10

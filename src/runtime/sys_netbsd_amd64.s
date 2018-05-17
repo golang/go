@@ -23,7 +23,7 @@ TEXT runtime·lwp_create(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
-	
+
 	// Set FS to point at m->tls.
 	LEAQ	m_tls(R8), DI
 	CALL	runtime·settls(SB)

@@ -126,7 +126,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	INT	$64
 	MOVL	AX, ret+4(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVL	$38, AX
 	INT	$64

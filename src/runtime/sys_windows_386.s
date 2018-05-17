@@ -494,13 +494,13 @@ wall:
 	MOVL	(_SYSTEM_TIME+time_hi2), DX
 	CMPL	CX, DX
 	JNE	wall
-	
+
 	// w = DX:AX
 	// convert to Unix epoch (but still 100ns units)
 	#define delta 116444736000000000
 	SUBL	$(delta & 0xFFFFFFFF), AX
 	SBBL $(delta >> 32), DX
-	
+
 	// nano/100 = DX:AX
 	// split into two decimal halves by div 1e9.
 	// (decimal point is two spots over from correct place,
@@ -509,7 +509,7 @@ wall:
 	DIVL	CX
 	MOVL	AX, DI
 	MOVL	DX, SI
-	
+
 	// DI = nano/100/1e9 = nano/1e11 = sec/100, DX = SI = nano/100%1e9
 	// split DX into seconds and nanoseconds by div 1e7 magic multiply.
 	MOVL	DX, AX
@@ -520,7 +520,7 @@ wall:
 	IMULL	$10000000, DX
 	MOVL	SI, CX
 	SUBL	DX, CX
-	
+
 	// DI = sec/100 (still)
 	// BX = (nano/100%1e9)/1e7 = (nano/1e9)%100 = sec%100
 	// CX = (nano/100%1e9)%1e7 = (nano%1e9)/100 = nsec/100

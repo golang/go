@@ -89,7 +89,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
 	MOVQ	$0, 32(SP)	// overlapped
 	MOVQ	runtime·_WriteFile(SB), AX
 	CALL	AX
-	
+
 	RET
 
 // faster get/set last error

@@ -63,10 +63,10 @@
 	ORR	Rt1<<24, Rt0, Rt0	    ; \
 	MOVW.P	Rt0, 4(Rw)		    ; \
 	ADD	Rt0, Re, Re
-	
+
 	// tmp := w[(i-3)&0xf] ^ w[(i-8)&0xf] ^ w[(i-14)&0xf] ^ w[(i)&0xf]
 	// w[i&0xf] = tmp<<1 | tmp>>(32-1)
-	// e += w[i&0xf] 
+	// e += w[i&0xf]
 #define SHUFFLE(Re) \
 	MOVW	(-16*4)(Rw), Rt0 ; \
 	MOVW	(-14*4)(Rw), Rt1 ; \
@@ -167,7 +167,7 @@ loop1:	ROUND1(Ra, Rb, Rc, Rd, Re)
 	ROUND1x(Rd, Re, Ra, Rb, Rc)
 	ROUND1x(Rc, Rd, Re, Ra, Rb)
 	ROUND1x(Rb, Rc, Rd, Re, Ra)
-	
+
 	MOVW	$0x6ED9EBA1, Rconst
 	MOVW	$4, Rctr
 loop2:	ROUND2(Ra, Rb, Rc, Rd, Re)
@@ -177,7 +177,7 @@ loop2:	ROUND2(Ra, Rb, Rc, Rd, Re)
 	ROUND2(Rb, Rc, Rd, Re, Ra)
 	SUB.S	$1, Rctr
 	BNE	loop2
-	
+
 	MOVW	$0x8F1BBCDC, Rconst
 	MOVW	$4, Rctr
 loop3:	ROUND3(Ra, Rb, Rc, Rd, Re)
@@ -187,7 +187,7 @@ loop3:	ROUND3(Ra, Rb, Rc, Rd, Re)
 	ROUND3(Rb, Rc, Rd, Re, Ra)
 	SUB.S	$1, Rctr
 	BNE	loop3
-	
+
 	MOVW	$0xCA62C1D6, Rconst
 	MOVW	$4, Rctr
 loop4:	ROUND4(Ra, Rb, Rc, Rd, Re)
