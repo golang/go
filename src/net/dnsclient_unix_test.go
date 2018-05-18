@@ -746,6 +746,7 @@ func TestIgnoreLameReferrals(t *testing.T) {
 func BenchmarkGoLookupIP(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 	ctx := context.Background()
+	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
 		goResolver.LookupIPAddr(ctx, "www.example.com")
@@ -755,6 +756,7 @@ func BenchmarkGoLookupIP(b *testing.B) {
 func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 	ctx := context.Background()
+	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
 		goResolver.LookupIPAddr(ctx, "some.nonexistent")
@@ -778,6 +780,7 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 		b.Fatal(err)
 	}
 	ctx := context.Background()
+	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
 		goResolver.LookupIPAddr(ctx, "www.example.com")
@@ -1437,7 +1440,7 @@ func TestIssue8434(t *testing.T) {
 		t.Fatal("SkipAllQuestions failed:", err)
 	}
 
-	err = checkHeaders(&p, h, "golang.org", "foo:53")
+	err = checkHeader(&p, h, "golang.org", "foo:53")
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -1455,28 +1458,39 @@ func TestIssue8434(t *testing.T) {
 
 // Issue 12778: verify that NXDOMAIN without RA bit errors as
 // "no such host" and not "server misbehaving"
+//
+// Issue 25336: verify that NXDOMAIN errors fail fast.
 func TestIssue12778(t *testing.T) {
-	msg := dnsmessage.Message{
-		Header: dnsmessage.Header{
-			RCode:              dnsmessage.RCodeNameError,
-			RecursionAvailable: false,
+	lookups := 0
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			lookups++
+			return dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:                 q.ID,
+					Response:           true,
+					RCode:              dnsmessage.RCodeNameError,
+					RecursionAvailable: false,
+				},
+				Questions: q.Questions,
+			}, nil
 		},
 	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 
-	b, err := msg.Pack()
-	if err != nil {
-		t.Fatal("Pack failed:", err)
-	}
-	var p dnsmessage.Parser
-	h, err := p.Start(b)
-	if err != nil {
-		t.Fatal("Start failed:", err)
-	}
-	if err := p.SkipAllQuestions(); err != nil {
-		t.Fatal("SkipAllQuestions failed:", err)
+	resolvConf.mu.RLock()
+	conf := resolvConf.dnsConfig
+	resolvConf.mu.RUnlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, _, err := r.tryOneName(ctx, conf, ".", dnsmessage.TypeALL)
+
+	if lookups != 1 {
+		t.Errorf("got %d lookups, wanted 1", lookups)
 	}
 
-	err = checkHeaders(&p, h, "golang.org", "foo:53")
 	if err == nil {
 		t.Fatal("expected an error")
 	}
