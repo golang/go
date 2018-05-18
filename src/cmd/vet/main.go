@@ -294,6 +294,7 @@ type vetConfig struct {
 	GoFiles     []string
 	ImportMap   map[string]string
 	PackageFile map[string]string
+	Standard    map[string]bool
 
 	SucceedOnTypecheckFailure bool
 
@@ -312,6 +313,11 @@ func (v *vetConfig) Import(path string) (*types.Package, error) {
 		return nil, fmt.Errorf("unknown import path %q", path)
 	}
 	if v.PackageFile[p] == "" {
+		if v.Compiler == "gccgo" && v.Standard[path] {
+			// gccgo doesn't have sources for standard library packages,
+			// but the importer will do the right thing.
+			return v.imp.Import(path)
+		}
 		return nil, fmt.Errorf("unknown package file for import %q", path)
 	}
 	return v.imp.Import(p)
@@ -320,6 +326,10 @@ func (v *vetConfig) Import(path string) (*types.Package, error) {
 func (v *vetConfig) openPackageFile(path string) (io.ReadCloser, error) {
 	file := v.PackageFile[path]
 	if file == "" {
+		if v.Compiler == "gccgo" && v.Standard[path] {
+			// The importer knows how to handle this.
+			return nil, nil
+		}
 		// Note that path here has been translated via v.ImportMap,
 		// unlike in the error in Import above. We prefer the error in
 		// Import, but it's worth diagnosing this one too, just in case.
