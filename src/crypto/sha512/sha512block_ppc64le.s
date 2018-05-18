@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is a derived work from OpenSSL of SHA-2 using assembly optimizations. The
-// original code was written by Andy Polyakov <appro@openssl.org> and it's dual
-// licensed under OpenSSL and CRYPTOGAMS licenses depending on where you obtain
-// it. For further details see http://www.openssl.org/~appro/cryptogams/.
+// Based on CRYPTOGAMS code with the following comment:
+// # ====================================================================
+// # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+// # project. The module is, however, dual licensed under OpenSSL and
+// # CRYPTOGAMS licenses depending on where you obtain it. For further
+// # details see http://www.openssl.org/~appro/cryptogams/.
+// # ====================================================================
 
 #include "textflag.h"
 

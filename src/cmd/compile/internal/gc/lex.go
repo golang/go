@@ -28,18 +28,6 @@ func isQuoted(s string) bool {
 	return len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"'
 }
 
-func plan9quote(s string) string {
-	if s == "" {
-		return "''"
-	}
-	for _, c := range s {
-		if c <= ' ' || c == '\'' {
-			return "'" + strings.Replace(s, "'", "''", -1) + "'"
-		}
-	}
-	return s
-}
-
 const (
 	// Func pragmas.
 	Nointerface    syntax.Pragma = 1 << iota
@@ -105,74 +93,58 @@ func pragmaValue(verb string) syntax.Pragma {
 }
 
 // pragcgo is called concurrently if files are parsed concurrently.
-func (p *noder) pragcgo(pos src.Pos, text string) string {
+func (p *noder) pragcgo(pos syntax.Pos, text string) {
 	f := pragmaFields(text)
 
-	verb := f[0][3:] // skip "go:"
+	verb := strings.TrimPrefix(f[0], "go:")
+	f[0] = verb
+
 	switch verb {
 	case "cgo_export_static", "cgo_export_dynamic":
 		switch {
 		case len(f) == 2 && !isQuoted(f[1]):
-			local := plan9quote(f[1])
-			return fmt.Sprintln(verb, local)
-
 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
-			local := plan9quote(f[1])
-			remote := plan9quote(f[2])
-			return fmt.Sprintln(verb, local, remote)
-
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf(`usage: //go:%s local [remote]`, verb)})
+			return
 		}
 	case "cgo_import_dynamic":
 		switch {
 		case len(f) == 2 && !isQuoted(f[1]):
-			local := plan9quote(f[1])
-			return fmt.Sprintln(verb, local)
-
 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
-			local := plan9quote(f[1])
-			remote := plan9quote(f[2])
-			return fmt.Sprintln(verb, local, remote)
-
 		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
-			local := plan9quote(f[1])
-			remote := plan9quote(f[2])
-			library := plan9quote(strings.Trim(f[3], `"`))
-			return fmt.Sprintln(verb, local, remote, library)
-
+			f[3] = strings.Trim(f[3], `"`)
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["library"]]`})
+			return
 		}
 	case "cgo_import_static":
 		switch {
 		case len(f) == 2 && !isQuoted(f[1]):
-			local := plan9quote(f[1])
-			return fmt.Sprintln(verb, local)
-
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_static local`})
+			return
 		}
 	case "cgo_dynamic_linker":
 		switch {
 		case len(f) == 2 && isQuoted(f[1]):
-			path := plan9quote(strings.Trim(f[1], `"`))
-			return fmt.Sprintln(verb, path)
-
+			f[1] = strings.Trim(f[1], `"`)
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_dynamic_linker "path"`})
+			return
 		}
 	case "cgo_ldflag":
 		switch {
 		case len(f) == 2 && isQuoted(f[1]):
-			arg := plan9quote(strings.Trim(f[1], `"`))
-			return fmt.Sprintln(verb, arg)
-
+			f[1] = strings.Trim(f[1], `"`)
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_ldflag "arg"`})
+			return
 		}
+	default:
+		return
 	}
-	return ""
+	p.pragcgobuf = append(p.pragcgobuf, f)
 }
 
 // pragmaFields is similar to strings.FieldsFunc(s, isSpace)

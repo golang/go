@@ -349,6 +349,14 @@ var ptrTests = []ptrTest{
 		body:    `var wg sync.WaitGroup; wg.Add(100); for i := 0; i < 100; i++ { go func(i int) { for j := 0; j < 100; j++ { C.f(); runtime.GOMAXPROCS(i) }; wg.Done() }(i) }; wg.Wait()`,
 		fail:    false,
 	},
+	{
+		// Test poller deadline with cgocheck=2.  Issue #23435.
+		name:    "deadline",
+		c:       `#define US 10`,
+		imports: []string{"os", "time"},
+		body:    `r, _, _ := os.Pipe(); r.SetDeadline(time.Now().Add(C.US * time.Microsecond))`,
+		fail:    false,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {

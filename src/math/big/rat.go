@@ -422,7 +422,7 @@ func (z *Rat) norm() *Rat {
 		neg := z.a.neg
 		z.a.neg = false
 		z.b.neg = false
-		if f := NewInt(0).lehmerGCD(&z.a, &z.b); f.Cmp(intOne) != 0 {
+		if f := NewInt(0).lehmerGCD(nil, nil, &z.a, &z.b); f.Cmp(intOne) != 0 {
 			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f.abs)
 			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f.abs)
 			if z.b.abs.cmp(natOne) == 0 {

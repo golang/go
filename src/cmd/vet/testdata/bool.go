@@ -8,15 +8,33 @@ package testdata
 
 import "io"
 
+type T int
+
+func (t T) Foo() int { return int(t) }
+
+type FT func() int
+
+var S []int
+
 func RatherStupidConditions() {
 	var f, g func() int
 	if f() == 0 || f() == 0 { // OK f might have side effects
 	}
+	var t T
+	_ = t.Foo() == 2 || t.Foo() == 2        // OK Foo might have side effects
 	if v, w := f(), g(); v == w || v == w { // ERROR "redundant or: v == w || v == w"
 	}
 	_ = f == nil || f == nil // ERROR "redundant or: f == nil || f == nil"
 
-	_ = i == byte(1) || i == byte(1) // TODO conversions are treated as if they may have side effects
+	_ = i == byte(1) || i == byte(1) // ERROR "redundant or: i == byte(1) || i == byte(1)"
+	_ = i == T(2) || i == T(2)       // ERROR "redundant or: i == T(2) || i == T(2)"
+	_ = FT(f) == nil || FT(f) == nil // ERROR "redundant or: FT(f) == nil || FT(f) == nil"
+
+	_ = (func() int)(f) == nil || (func() int)(f) == nil // ERROR "redundant or: (func() int)(f) == nil || (func() int)(f) == nil"
+	_ = append(S, 3) == nil || append(S, 3) == nil       // OK append has side effects
+
+	var namedFuncVar FT
+	_ = namedFuncVar() == namedFuncVar() // OK still func calls
 
 	var c chan int
 	_ = 0 == <-c || 0 == <-c                                  // OK subsequent receives may yield different values

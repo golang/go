@@ -65,10 +65,11 @@ func (f *File) chmod(mode FileMode) error {
 
 // Chown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
+// A uid or gid of -1 means to not change that value.
 // If there is an error, it will be of type *PathError.
 //
-// On Windows, it always returns the syscall.EWINDOWS error, wrapped
-// in *PathError.
+// On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
+// EPLAN9 error, wrapped in *PathError.
 func Chown(name string, uid, gid int) error {
 	if e := syscall.Chown(name, uid, gid); e != nil {
 		return &PathError{"chown", name, e}

@@ -128,7 +128,7 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-12
 	RET
 
 //func nsec(*int64) int64
-TEXT runtime·nsec(SB),NOSPLIT,$-4-12
+TEXT runtime·nsec(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	$SYS_NSEC, R0
 	SWI	$0
 	MOVW	arg+0(FP), R1
@@ -310,11 +310,11 @@ TEXT runtime·errstr(SB),NOSPLIT,$0-8
 	MOVW	R2, ret_len+4(FP)
 	RET
 
-TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
 // never called (cgo not supported)
-TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, R0
 	MOVW	R0, (R0)
 	RET

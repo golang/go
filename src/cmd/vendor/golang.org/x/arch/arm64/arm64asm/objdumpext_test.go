@@ -35,7 +35,7 @@ func testObjdumpArch(t *testing.T, generate func(func([]byte)), arch Mode) {
 func checkObjdumpAarch64(t *testing.T) {
 	out, err := exec.Command(objdumpPath, "-i").Output()
 	if err != nil {
-		t.Skip("cannot run objdump: %v\n%s", err, out)
+		t.Skipf("cannot run objdump: %v\n%s", err, out)
 	}
 	if !strings.Contains(string(out), "aarch64") {
 		t.Skip("objdump does not have aarch64 support")
@@ -172,6 +172,7 @@ func objdump(ext *ExtDis) error {
 var (
 	undefined     = []byte("undefined")
 	unpredictable = []byte("unpredictable")
+	slashslash    = []byte("//")
 )
 
 func parseLine(line []byte, encstart []byte) (addr uint64, enc []byte, text string) {
@@ -204,7 +205,14 @@ func parseLine(line []byte, encstart []byte) (addr uint64, enc []byte, text stri
 		text = "unpredictable"
 		return
 	}
+	// Strip trailing comment starting with ';'
+	//   e.g: "csinv x23, x2, x19, cc ; xxx"
 	if i := bytes.IndexByte(line, ';'); i >= 0 {
+		line = bytes.TrimSpace(line[:i])
+	}
+	// Strip trailing comment starting with "//"
+	//   e.g:  "fccmpe s2, s9, #0x7, ne // xxx"
+	if i := bytes.Index(line, slashslash); i >= 0 {
 		line = bytes.TrimSpace(line[:i])
 	}
 	text = string(fixSpace(line))
@@ -224,7 +232,7 @@ func parseContinuation(line []byte, enc []byte) []byte {
 // writeELF64 writes an ELF64 header to the file, describing a text
 // segment that starts at start (0x8000) and extends for size bytes.
 func writeELF64(f *os.File, size int) error {
-	f.Seek(0, 0)
+	f.Seek(0, io.SeekStart)
 	var hdr elf.Header64
 	var prog elf.Prog64
 	var sect elf.Section64

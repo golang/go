@@ -370,7 +370,7 @@ func (v *Value) LongHTML() string {
 
 	linenumber := "<span class=\"line-number\">(?)</span>"
 	if v.Pos.IsKnown() {
-		linenumber = fmt.Sprintf("<span class=\"line-number\">(%d)</span>", v.Pos.Line())
+		linenumber = fmt.Sprintf("<span class=\"line-number\">(%s)</span>", v.Pos.LineNumberHTML())
 	}
 
 	s += fmt.Sprintf("%s %s = %s", v.HTML(), linenumber, v.Op.String())
@@ -434,7 +434,7 @@ func (b *Block) LongHTML() string {
 	if b.Pos.IsKnown() {
 		// TODO does not begin to deal with the full complexity of line numbers.
 		// Maybe we want a string/slice instead, of outer-inner when inlining.
-		s += fmt.Sprintf(" (line %d)", b.Pos.Line())
+		s += fmt.Sprintf(" (line %s)", b.Pos.LineNumberHTML())
 	}
 	return s
 }

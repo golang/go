@@ -63,7 +63,7 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
 		{Type: "cpu", Unit: "nanoseconds"},
 	}
 
-	checkProfile(t, p, 2000*1000, periodType, sampleType, nil)
+	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
 }
 
 func f1() { f1() }
@@ -130,18 +130,23 @@ func TestConvertCPUProfile(t *testing.T) {
 			{ID: 4, Mapping: map2, Address: addr2 + 1},
 		}},
 	}
-	checkProfile(t, p, period, periodType, sampleType, samples)
+	checkProfile(t, p, period, periodType, sampleType, samples, "")
 }
 
-func checkProfile(t *testing.T, p *profile.Profile, period int64, periodType *profile.ValueType, sampleType []*profile.ValueType, samples []*profile.Sample) {
+func checkProfile(t *testing.T, p *profile.Profile, period int64, periodType *profile.ValueType, sampleType []*profile.ValueType, samples []*profile.Sample, defaultSampleType string) {
+	t.Helper()
+
 	if p.Period != period {
-		t.Fatalf("p.Period = %d, want %d", p.Period, period)
+		t.Errorf("p.Period = %d, want %d", p.Period, period)
 	}
 	if !reflect.DeepEqual(p.PeriodType, periodType) {
-		t.Fatalf("p.PeriodType = %v\nwant = %v", fmtJSON(p.PeriodType), fmtJSON(periodType))
+		t.Errorf("p.PeriodType = %v\nwant = %v", fmtJSON(p.PeriodType), fmtJSON(periodType))
 	}
 	if !reflect.DeepEqual(p.SampleType, sampleType) {
-		t.Fatalf("p.SampleType = %v\nwant = %v", fmtJSON(p.SampleType), fmtJSON(sampleType))
+		t.Errorf("p.SampleType = %v\nwant = %v", fmtJSON(p.SampleType), fmtJSON(sampleType))
+	}
+	if defaultSampleType != p.DefaultSampleType {
+		t.Errorf("p.DefaultSampleType = %v\nwant = %v", p.DefaultSampleType, defaultSampleType)
 	}
 	// Clear line info since it is not in the expected samples.
 	// If we used f1 and f2 above, then the samples will have line info.

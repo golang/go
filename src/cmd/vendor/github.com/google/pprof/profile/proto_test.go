@@ -52,6 +52,8 @@ var testF = []*Function{
 	{ID: 1, Name: "func1", SystemName: "func1", Filename: "file1"},
 	{ID: 2, Name: "func2", SystemName: "func2", Filename: "file1"},
 	{ID: 3, Name: "func3", SystemName: "func3", Filename: "file2"},
+	{ID: 4, Name: "func4", SystemName: "func4", Filename: "file3"},
+	{ID: 5, Name: "func5", SystemName: "func5", Filename: "file4"},
 }
 
 var testL = []*Location{
@@ -85,6 +87,22 @@ var testL = []*Location{
 		ID:      3,
 		Mapping: testM[1],
 		Address: 12,
+	},
+	{
+		ID:      4,
+		Mapping: testM[1],
+		Address: 12,
+		Line: []Line{
+			{
+				Function: testF[4],
+				Line:     6,
+			},
+			{
+				Function: testF[4],
+				Line:     6,
+			},
+		},
+		IsFolded: true,
 	},
 }
 
@@ -133,9 +151,9 @@ var all = &Profile{
 
 func TestMarshalUnmarshal(t *testing.T) {
 	// Write the profile, parse it, and ensure they're equal.
-	buf := bytes.NewBuffer(nil)
-	all.Write(buf)
-	all2, err := Parse(buf)
+	var buf bytes.Buffer
+	all.Write(&buf)
+	all2, err := Parse(&buf)
 	if err != nil {
 		t.Fatal(err)
 	}

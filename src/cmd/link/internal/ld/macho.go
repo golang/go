@@ -234,7 +234,7 @@ func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
 	o1 := out.Offset()
 
 	loadsize := 4 * 4 * ndebug
-	for i := 0; i < len(load); i++ {
+	for i := range load {
 		loadsize += 4 * (len(load[i].data) + 2)
 	}
 	if arch.PtrSize == 8 {
@@ -327,7 +327,7 @@ func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
 		}
 	}
 
-	for i := 0; i < len(load); i++ {
+	for i := range load {
 		l := &load[i]
 		out.Write32(l.type_)
 		out.Write32(4 * (uint32(len(l.data)) + 2))
@@ -436,6 +436,10 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 
 	if sect.Rwx&1 != 0 {
 		msect.flag |= S_ATTR_SOME_INSTRUCTIONS
+	}
+
+	if sect.Name == ".text" {
+		msect.flag |= S_ATTR_PURE_INSTRUCTIONS
 	}
 
 	if sect.Name == ".plt" {
@@ -617,13 +621,13 @@ func Asmbmacho(ctxt *Link) {
 			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
 
-			for i := 0; i < len(dylib); i++ {
-				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(dylib[i]))+1+7)/8*2)
+			for _, lib := range dylib {
+				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(lib))+1+7)/8*2)
 				ml.data[0] = 24 /* offset of string from beginning of load */
 				ml.data[1] = 0  /* time stamp */
 				ml.data[2] = 0  /* version */
 				ml.data[3] = 0  /* compatibility version */
-				stringtouint32(ml.data[4:], dylib[i])
+				stringtouint32(ml.data[4:], lib)
 			}
 		}
 	}
@@ -717,7 +721,7 @@ func machosymorder(ctxt *Link) {
 	// On Mac OS X Mountain Lion, we must sort exported symbols
 	// So we sort them here and pre-allocate dynid for them
 	// See https://golang.org/issue/4029
-	for i := 0; i < len(dynexp); i++ {
+	for i := range dynexp {
 		dynexp[i].Attr |= sym.AttrReachable
 	}
 	machogenasmsym(ctxt)
@@ -915,7 +919,7 @@ func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 		if s.Value >= int64(eaddr) {
 			break
 		}
-		for ri := 0; ri < len(s.R); ri++ {
+		for ri := range s.R {
 			r := &s.R[ri]
 			if r.Done {
 				continue
@@ -927,7 +931,7 @@ func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 			if !r.Xsym.Attr.Reachable() {
 				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+			if !thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
 				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}

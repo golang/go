@@ -72,6 +72,10 @@ func TestTerminalSignal(t *testing.T) {
 
 	master, sname, err := pty.Open()
 	if err != nil {
+		ptyErr := err.(*pty.PtyError)
+		if ptyErr.FuncName == "posix_openpt" && ptyErr.Errno == syscall.EACCES {
+			t.Skip("posix_openpt failed with EACCES, assuming chroot and skipping")
+		}
 		t.Fatal(err)
 	}
 	defer master.Close()
@@ -85,6 +89,8 @@ func TestTerminalSignal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "-i")
+	// Clear HISTFILE so that we don't read or clobber the user's bash history.
+	cmd.Env = append(os.Environ(), "HISTFILE=")
 	cmd.Stdin = slave
 	cmd.Stdout = slave
 	cmd.Stderr = slave

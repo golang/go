@@ -406,9 +406,7 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
 		name = sectsyms[f.Sections[pesym.SectionNumber-1]].Name
 	} else {
 		name = symname
-		if strings.HasPrefix(name, "__imp_") {
-			name = name[6:] // __imp_Name => Name
-		}
+		name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
 		if arch.Family == sys.I386 && name[0] == '_' {
 			name = name[1:] // _Name => Name
 		}

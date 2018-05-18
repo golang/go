@@ -65,6 +65,9 @@ $out = join('', <CMD>);
 
 close CMD;
 
+# Remove lines beginning with #, printed by go command to indicate package.
+@out = grep {!/^#/} @out;
+
 if($exitcode != 0 && $? == 0) {
 	print STDERR "BUG: errchk: command succeeded unexpectedly\n";
 	print STDERR @out;

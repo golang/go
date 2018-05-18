@@ -9,20 +9,21 @@ import (
 	"unsafe"
 )
 
-// Map is a concurrent map with amortized-constant-time loads, stores, and deletes.
-// It is safe for multiple goroutines to call a Map's methods concurrently.
+// Map is like a Go map[interface{}]interface{} but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination.
+// Loads, stores, and deletes run in amortized constant time.
 //
-// It is optimized for use in concurrent loops with keys that are
-// stable over time, and either few steady-state stores, or stores
-// localized to one goroutine per key.
+// The Map type is specialized. Most code should use a plain Go map instead,
+// with separate locking or coordination, for better type safety and to make it
+// easier to maintain other invariants along with the map content.
 //
-// For use cases that do not share these attributes, it will likely have
-// comparable or worse performance and worse type safety than an ordinary
-// map paired with a read-write mutex.
+// The Map type is optimized for two common use cases: (1) when the entry for a given
+// key is only ever written once but read many times, as in caches that only grow,
+// or (2) when multiple goroutines read, write, and overwrite entries for disjoint
+// sets of keys. In these two cases, use of a Map may significantly reduce lock
+// contention compared to a Go map paired with a separate Mutex or RWMutex.
 //
-// The zero Map is valid and empty.
-//
-// A Map must not be copied after first use.
+// The zero Map is empty and ready for use. A Map must not be copied after first use.
 type Map struct {
 	mu Mutex
 

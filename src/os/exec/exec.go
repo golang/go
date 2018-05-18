@@ -34,11 +34,13 @@ import (
 	"syscall"
 )
 
-// Error records the name of a binary that failed to be executed
-// and the reason it failed.
+// Error is returned by LookPath when it fails to classify a file as an
+// executable.
 type Error struct {
+	// Name is the file name for which the error occurred.
 	Name string
-	Err  error
+	// Err is the underlying error.
+	Err error
 }
 
 func (e *Error) Error() string {
@@ -293,6 +295,11 @@ func (c *Cmd) closeDescriptors(closers []io.Closer) {
 //
 // If the command starts but does not complete successfully, the error is of
 // type *ExitError. Other error types may be returned for other situations.
+//
+// If the calling goroutine has locked the operating system thread
+// with runtime.LockOSThread and modified any inheritable OS-level
+// thread state (for example, Linux or Plan 9 name spaces), the new
+// process will inherit the caller's thread state.
 func (c *Cmd) Run() error {
 	if err := c.Start(); err != nil {
 		return err

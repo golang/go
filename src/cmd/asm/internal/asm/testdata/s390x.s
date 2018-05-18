@@ -304,6 +304,10 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	LPDFR	F1, F2                 // b3700021
 	LNDFR	F3, F4                 // b3710043
 	CPSDR	F5, F6, F7             // b3725076
+	LTEBR	F1, F2                 // b3020021
+	LTDBR	F3, F4                 // b3120043
+	TCEB	F5, $8                 // ed5000080010
+	TCDB	F15, $4095             // edf00fff0011
 
 	VL	(R15), V1               // e710f0000006
 	VST	V1, (R15)               // e710f000000e
@@ -363,8 +367,10 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VSTEF	$3, V2, (R9)            // e7209000300b
 	VSTEH	$7, V31, (R2)           // e7f020007809
 	VSTEB	$15, V29, 4094(R12)     // e7d0cffef808
+	VMSLG	V21, V22, V23, V24      // e78563007fb8
 
 	RET
+	RET	foo(SB)
 
 TEXT main·init(SB),DUPOK|NOSPLIT,$0 // TEXT main.init(SB), DUPOK|NOSPLIT, $0
 	RET

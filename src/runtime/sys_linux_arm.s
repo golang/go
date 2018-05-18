@@ -10,6 +10,9 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define CLOCK_REALTIME	0
+#define CLOCK_MONOTONIC	1
+
 // for EABI, as we don't support OABI
 #define SYS_BASE 0x0
 
@@ -20,7 +23,6 @@
 #define SYS_close (SYS_BASE + 6)
 #define SYS_getpid (SYS_BASE + 20)
 #define SYS_kill (SYS_BASE + 37)
-#define SYS_gettimeofday (SYS_BASE + 78)
 #define SYS_clone (SYS_BASE + 120)
 #define SYS_rt_sigreturn (SYS_BASE + 173)
 #define SYS_rt_sigaction (SYS_BASE + 174)
@@ -36,8 +38,7 @@
 #define SYS_gettid (SYS_BASE + 224)
 #define SYS_tkill (SYS_BASE + 238)
 #define SYS_sched_yield (SYS_BASE + 158)
-#define SYS_pselect6 (SYS_BASE + 335)
-#define SYS_ugetrlimit (SYS_BASE + 191)
+#define SYS_nanosleep (SYS_BASE + 162)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
 #define SYS_clock_gettime (SYS_BASE + 263)
 #define SYS_epoll_create (SYS_BASE + 250)
@@ -98,15 +99,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$0
-	MOVW	kind+0(FP), R0
-	MOVW	limit+4(FP), R1
-	MOVW	$SYS_ugetrlimit, R7
-	SWI	$0
-	MOVW	R0, ret+8(FP)
-	RET
-
-TEXT runtime·exit(SB),NOSPLIT,$-4
+TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit_group, R7
 	SWI	$0
@@ -114,7 +107,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVW	$1002, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT exit1<>(SB),NOSPLIT,$-4
+TEXT exit1<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit, R7
 	SWI	$0
@@ -123,7 +116,7 @@ TEXT exit1<>(SB),NOSPLIT,$-4
 	MOVW	R0, (R1)	// fail hard
 
 // func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$-4-4
+TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	wait+0(FP), R0
 	// We're done using the stack.
 	// Alas, there's no reliable way to make this write atomic
@@ -144,7 +137,7 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	MOVW	R0, ret+0(FP)
 	RET
 
-TEXT	runtime·raise(SB),NOSPLIT,$-4
+TEXT	runtime·raise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$SYS_gettid, R7
 	SWI	$0
 	// arg 1 tid already in R0 from gettid
@@ -153,7 +146,7 @@ TEXT	runtime·raise(SB),NOSPLIT,$-4
 	SWI	$0
 	RET
 
-TEXT	runtime·raiseproc(SB),NOSPLIT,$-4
+TEXT	runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$SYS_getpid, R7
 	SWI	$0
 	// arg 1 tid already in R0 from getpid
@@ -218,34 +211,105 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·walltime(SB), NOSPLIT, $32
-	MOVW	$0, R0  // CLOCK_REALTIME
-	MOVW	$8(R13), R1  // timespec
+TEXT runtime·walltime(SB),NOSPLIT,$0-12
+	// We don't know how much stack space the VDSO code will need,
+	// so switch to g0.
+
+	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
+	MOVW	R13, R4	// R4 is unchanged by C code.
+
+	MOVW	g_m(g), R5 // R5 is unchanged by C code.
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVW	LR, m_vdsoPC(R5)
+	MOVW	R13, m_vdsoSP(R5)
+
+	MOVW	m_curg(R5), R0
+
+	CMP	g, R0		// Only switch if on curg.
+	B.NE	noswitch
+
+	MOVW	m_g0(R5), R0
+	MOVW	(g_sched+gobuf_sp)(R0), R13	 // Set SP to g0 stack
+
+noswitch:
+	SUB	$24, R13	// Space for results
+	BIC	$0x7, R13	// Align for C code
+
+	MOVW	$CLOCK_REALTIME, R0
+	MOVW	$8(R13), R1	// timespec
+	MOVW	runtime·vdsoClockgettimeSym(SB), R11
+	CMP	$0, R11
+	B.EQ	fallback
+
+	BL	(R11)
+	JMP	finish
+
+fallback:
 	MOVW	$SYS_clock_gettime, R7
 	SWI	$0
-	
+
+finish:
 	MOVW	8(R13), R0  // sec
 	MOVW	12(R13), R2  // nsec
-	
-	MOVW	R0, sec_lo+0(FP)
+
+	MOVW	R4, R13		// Restore real SP
 	MOVW	$0, R1
+	MOVW	R1, m_vdsoSP(R5)
+
+	MOVW	R0, sec_lo+0(FP)
 	MOVW	R1, sec_hi+4(FP)
 	MOVW	R2, nsec+8(FP)
-	RET	
+	RET
 
 // int64 nanotime(void)
-TEXT runtime·nanotime(SB),NOSPLIT,$32
-	MOVW	$1, R0  // CLOCK_MONOTONIC
-	MOVW	$8(R13), R1  // timespec
+TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+	// Switch to g0 stack. See comment above in runtime·walltime.
+
+	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
+	MOVW	R13, R4	// R4 is unchanged by C code.
+
+	MOVW	g_m(g), R5 // R5 is unchanged by C code.
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVW	LR, m_vdsoPC(R5)
+	MOVW	R13, m_vdsoSP(R5)
+
+	MOVW	m_curg(R5), R0
+
+	CMP	g, R0		// Only switch if on curg.
+	B.NE	noswitch
+
+	MOVW	m_g0(R5), R0
+	MOVW	(g_sched+gobuf_sp)(R0), R13	// Set SP to g0 stack
+
+noswitch:
+	SUB	$24, R13	// Space for results
+	BIC	$0x7, R13	// Align for C code
+
+	MOVW	$CLOCK_MONOTONIC, R0
+	MOVW	$8(R13), R1	// timespec
+	MOVW	runtime·vdsoClockgettimeSym(SB), R11
+	CMP	$0, R11
+	B.EQ	fallback
+
+	BL	(R11)
+	JMP	finish
+
+fallback:
 	MOVW	$SYS_clock_gettime, R7
 	SWI	$0
-	
-	MOVW	8(R13), R0  // sec
-	MOVW	12(R13), R2  // nsec
-	
+
+finish:
+	MOVW	8(R13), R0	// sec
+	MOVW	12(R13), R2	// nsec
+
+	MOVW	R4, R13		// Restore real SP
+	MOVW	$0, R4
+	MOVW	R4, m_vdsoSP(R5)
+
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
-	MOVW	$0, R4
 	ADD.S	R2, R0
 	ADC	R4, R1
 
@@ -411,13 +475,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 	MOVW	$1000, R0	// usec to nsec
 	MUL	R0, R1
 	MOVW	R1, 8(R13)
-	MOVW	$0, R0
+	MOVW	$4(R13), R0
 	MOVW	$0, R1
-	MOVW	$0, R2
-	MOVW	$0, R3
-	MOVW	$4(R13), R4
-	MOVW	$0, R5
-	MOVW	$SYS_pselect6, R7
+	MOVW	$SYS_nanosleep, R7
 	SWI	$0
 	RET
 
@@ -429,13 +489,18 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 // even on single-core devices. The kernel helper takes care of all of
 // this for us.
 
-TEXT publicationBarrier<>(SB),NOSPLIT,$0
+TEXT kernelPublicationBarrier<>(SB),NOSPLIT,$0
 	// void __kuser_memory_barrier(void);
-	MOVW	$0xffff0fa0, R15 // R15 is hardware PC.
+	MOVW	$0xffff0fa0, R11
+	CALL	(R11)
+	RET
 
 TEXT ·publicationBarrier(SB),NOSPLIT,$0
-	BL	publicationBarrier<>(SB)
-	RET
+	MOVB	·goarm(SB), R11
+	CMP	$7, R11
+	BLT	2(PC)
+	JMP	·armPublicationBarrier(SB)
+	JMP	kernelPublicationBarrier<>(SB) // extra layer so this function is leaf and no SP adjustment on GOARM=7
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVW	$SYS_sched_yield, R7
@@ -499,7 +564,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	RET
 
 // b __kuser_get_tls @ 0xffff0fe0
-TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0xffff0fe0, R0
 	B	(R0)
 

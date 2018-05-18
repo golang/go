@@ -84,7 +84,7 @@ func issue10979() {
 		nosuchtype /* ERROR undeclared name: nosuchtype */
 	}
 	type _ interface {
-		fmt /* ERROR Nosuchtype not declared by package fmt */ .Nosuchtype
+		fmt.Nosuchtype /* ERROR Nosuchtype not declared by package fmt */
 	}
 	type _ interface {
 		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
@@ -206,4 +206,37 @@ func issue20358() {
 	_ = S[s1:s2:s3]
 	_ = T{t}
 	_ = P{f: p}
+}
+
+// Test that we don't declare lhs variables in short variable
+// declarations before we type-check function literals on the
+// rhs.
+func issue24026() {
+	f := func() int { f(0) /* must refer to outer f */; return 0 }
+	_ = f
+
+	_ = func() {
+		f := func() { _ = f() /* must refer to outer f */ }
+		_ = f
+	}
+
+	// b and c must not be visible inside function literal
+	a := 0
+	a, b, c := func() (int, int, int) {
+		return a, b /* ERROR undeclared */ , c /* ERROR undeclared */
+	}()
+	_, _ = b, c
+}
+
+func f(int) {} // for issue24026
+
+// Test that we don't report a "missing return statement" error
+// (due to incorrect context when type-checking interfaces).
+func issue24140(x interface{}) int {
+        switch x.(type) {
+        case interface{}:
+                return 0
+        default:
+                panic(0)
+        }
 }

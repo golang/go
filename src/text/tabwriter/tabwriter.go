@@ -12,7 +12,6 @@
 package tabwriter
 
 import (
-	"bytes"
 	"io"
 	"unicode/utf8"
 )
@@ -99,25 +98,50 @@ type Writer struct {
 	flags    uint
 
 	// current state
-	buf     bytes.Buffer // collected text excluding tabs or line breaks
-	pos     int          // buffer position up to which cell.width of incomplete cell has been computed
-	cell    cell         // current incomplete cell; cell.width is up to buf[pos] excluding ignored sections
-	endChar byte         // terminating char of escaped sequence (Escape for escapes, '>', ';' for HTML tags/entities, or 0)
-	lines   [][]cell     // list of lines; each line is a list of cells
-	widths  []int        // list of column widths in runes - re-used during formatting
+	buf     []byte   // collected text excluding tabs or line breaks
+	pos     int      // buffer position up to which cell.width of incomplete cell has been computed
+	cell    cell     // current incomplete cell; cell.width is up to buf[pos] excluding ignored sections
+	endChar byte     // terminating char of escaped sequence (Escape for escapes, '>', ';' for HTML tags/entities, or 0)
+	lines   [][]cell // list of lines; each line is a list of cells
+	widths  []int    // list of column widths in runes - re-used during formatting
 }
 
-func (b *Writer) addLine() { b.lines = append(b.lines, []cell{}) }
+// addLine adds a new line.
+// flushed is a hint indicating whether the underlying writer was just flushed.
+// If so, the previous line is not likely to be a good indicator of the new line's cells.
+func (b *Writer) addLine(flushed bool) {
+	// Grow slice instead of appending,
+	// as that gives us an opportunity
+	// to re-use an existing []cell.
+	if n := len(b.lines) + 1; n <= cap(b.lines) {
+		b.lines = b.lines[:n]
+		b.lines[n-1] = b.lines[n-1][:0]
+	} else {
+		b.lines = append(b.lines, nil)
+	}
+
+	if !flushed {
+		// The previous line is probably a good indicator
+		// of how many cells the current line will have.
+		// If the current line's capacity is smaller than that,
+		// abandon it and make a new one.
+		if n := len(b.lines); n >= 2 {
+			if prev := len(b.lines[n-2]); prev > cap(b.lines[n-1]) {
+				b.lines[n-1] = make([]cell, 0, prev)
+			}
+		}
+	}
+}
 
 // Reset the current state.
 func (b *Writer) reset() {
-	b.buf.Reset()
+	b.buf = b.buf[:0]
 	b.pos = 0
 	b.cell = cell{}
 	b.endChar = 0
 	b.lines = b.lines[0:0]
 	b.widths = b.widths[0:0]
-	b.addLine()
+	b.addLine(true)
 }
 
 // Internal representation (current state):
@@ -212,7 +236,7 @@ func (b *Writer) dump() {
 	for i, line := range b.lines {
 		print("(", i, ") ")
 		for _, c := range line {
-			print("[", string(b.buf.Bytes()[pos:pos+c.size]), "]")
+			print("[", string(b.buf[pos:pos+c.size]), "]")
 			pos += c.size
 		}
 		print("\n")
@@ -294,7 +318,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 				// non-empty cell
 				useTabs = false
 				if b.flags&AlignRight == 0 { // align left
-					b.write0(b.buf.Bytes()[pos : pos+c.size])
+					b.write0(b.buf[pos : pos+c.size])
 					pos += c.size
 					if j < len(b.widths) {
 						b.writePadding(c.width, b.widths[j], false)
@@ -303,7 +327,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 					if j < len(b.widths) {
 						b.writePadding(c.width, b.widths[j], false)
 					}
-					b.write0(b.buf.Bytes()[pos : pos+c.size])
+					b.write0(b.buf[pos : pos+c.size])
 					pos += c.size
 				}
 			}
@@ -312,7 +336,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 		if i+1 == len(b.lines) {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			b.write0(b.buf.Bytes()[pos : pos+b.cell.size])
+			b.write0(b.buf[pos : pos+b.cell.size])
 			pos += b.cell.size
 		} else {
 			// not the last line - write newline
@@ -387,14 +411,14 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
 
 // Append text to current cell.
 func (b *Writer) append(text []byte) {
-	b.buf.Write(text)
+	b.buf = append(b.buf, text...)
 	b.cell.size += len(text)
 }
 
 // Update the cell width.
 func (b *Writer) updateWidth() {
-	b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos:b.buf.Len()])
-	b.pos = b.buf.Len()
+	b.cell.width += utf8.RuneCount(b.buf[b.pos:])
+	b.pos = len(b.buf)
 }
 
 // To escape a text segment, bracket it with Escape characters.
@@ -434,7 +458,7 @@ func (b *Writer) endEscape() {
 	case ';':
 		b.cell.width++ // entity, count as one rune
 	}
-	b.pos = b.buf.Len()
+	b.pos = len(b.buf)
 	b.endChar = 0
 }
 
@@ -508,7 +532,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 				ncells := b.terminateCell(ch == '\t')
 				if ch == '\n' || ch == '\f' {
 					// terminate line
-					b.addLine()
+					b.addLine(ch == '\f')
 					if ch == '\f' || ncells == 1 {
 						// A '\f' always forces a flush. Otherwise, if the previous
 						// line has only one cell which does not have an impact on

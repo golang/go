@@ -151,7 +151,7 @@ func (r T) _(a, b, c int) (u, v, w int) {
 	return
 }
 
-// Unused variables in closures must lead to only one error (issue #22524).
+// Unused variables in function literals must lead to only one error (issue #22524).
 func _() {
 	_ = func() {
 		var x /* ERROR declared but not used */ int
@@ -188,6 +188,19 @@ func _() {
 
 	_ = a
 	_ = b
+}
+
+// Test case for variables depending on function literals (see also #22992).
+var A /* ERROR initialization cycle */ = func() int { return A }()
+
+func _() {
+	// The function literal below must not see a.
+	var a = func() int { return a /* ERROR "undeclared name" */ }()
+	var _ = func() int { return a }()
+
+	// The function literal below must not see x, y, or z.
+	var x, y, z = 0, 1, func() int { return x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ }()
+	_, _, _ = x, y, z
 }
 
 // TODO(gri) consolidate other var decl checks in this file

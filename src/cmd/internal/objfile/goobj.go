@@ -64,7 +64,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 	var syms []Sym
 	for _, s := range f.goobj.Syms {
 		seen[s.SymID] = true
-		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: int64(s.Size), Type: s.Type.Name, Code: '?'}
+		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: s.Size, Type: s.Type.Name, Code: '?'}
 		switch s.Kind {
 		case objabi.STEXT:
 			sym.Code = 'T'

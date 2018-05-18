@@ -14,7 +14,12 @@ func tighten(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpPhi, OpGetClosurePtr, OpArg, OpSelect0, OpSelect1:
+			case OpPhi, OpArg, OpSelect0, OpSelect1,
+				OpAMD64LoweredGetClosurePtr, Op386LoweredGetClosurePtr,
+				OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
+				OpMIPSLoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr,
+				OpS390XLoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr,
+				OpWasmLoweredGetClosurePtr:
 				// Phis need to stay in their block.
 				// GetClosurePtr & Arg must stay in the entry block.
 				// Tuple selectors must stay with the tuple generator.
@@ -28,19 +33,14 @@ func tighten(f *Func) {
 			// Count arguments which will need a register.
 			narg := 0
 			for _, a := range v.Args {
-				switch a.Op {
-				case OpConst8, OpConst16, OpConst32, OpConst64, OpAddr:
-					// Probably foldable into v, don't count as an argument needing a register.
-					// TODO: move tighten to a machine-dependent phase and use v.rematerializeable()?
-				default:
+				if !a.rematerializeable() {
 					narg++
 				}
 			}
-			if narg >= 2 && !v.Type.IsBoolean() {
+			if narg >= 2 && !v.Type.IsFlags() {
 				// Don't move values with more than one input, as that may
 				// increase register pressure.
-				// We make an exception for boolean-typed values, as they will
-				// likely be converted to flags, and we want flag generators
+				// We make an exception for flags, as we want flag generators
 				// moved next to uses (because we only have 1 flag register).
 				continue
 			}

@@ -87,6 +87,8 @@ type dirInfo struct {
 func epipecheck(file *File, e error) {
 }
 
+// DevNull is the name of the operating system's ``null device.''
+// On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "NUL"
 
 func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
@@ -148,12 +150,8 @@ func openDir(name string) (file *File, err error) {
 	return f, nil
 }
 
-// OpenFile is the generalized open call; most users will use Open
-// or Create instead. It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
-// methods on the returned File can be used for I/O.
-// If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+// openFileNolog is the Windows implementation of OpenFile.
+func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if name == "" {
 		return nil, &PathError{"open", name, syscall.ENOENT}
 	}
@@ -354,11 +352,6 @@ func Link(oldname, newname string) error {
 // Symlink creates newname as a symbolic link to oldname.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
-	// CreateSymbolicLink is not supported before Windows Vista
-	if syscall.LoadCreateSymbolicLink() != nil {
-		return &LinkError{"symlink", oldname, newname, syscall.EWINDOWS}
-	}
-
 	// '/' does not work in link's content
 	oldname = fromSlash(oldname)
 
@@ -380,11 +373,20 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
 
-	var flags uint32
+	var flags uint32 = windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 	if isdir {
 		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
 	}
 	err = syscall.CreateSymbolicLink(n, o, flags)
+
+	if err != nil {
+		// the unprivileged create flag is unsupported
+		// below Windows 10 (1703, v10.0.14972). retry without it.
+		flags &^= windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+
+		err = syscall.CreateSymbolicLink(n, o, flags)
+	}
+
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}

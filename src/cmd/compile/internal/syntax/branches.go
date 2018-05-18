@@ -4,10 +4,7 @@
 
 package syntax
 
-import (
-	"cmd/internal/src"
-	"fmt"
-)
+import "fmt"
 
 // TODO(gri) consider making this part of the parser code
 
@@ -62,11 +59,11 @@ type label struct {
 
 type block struct {
 	parent *block       // immediately enclosing block, or nil
-	start  src.Pos      // start of block
+	start  Pos          // start of block
 	lstmt  *LabeledStmt // labeled statement associated with this block, or nil
 }
 
-func (ls *labelScope) err(pos src.Pos, format string, args ...interface{}) {
+func (ls *labelScope) err(pos Pos, format string, args ...interface{}) {
 	ls.errh(Error{pos, fmt.Sprintf(format, args...)})
 }
 
@@ -132,14 +129,14 @@ type targets struct {
 // list of unresolved (forward) gotos. parent is the immediately enclosing
 // block (or nil), ctxt provides information about the enclosing statements,
 // and lstmt is the labeled statement associated with this block, or nil.
-func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledStmt, start src.Pos, body []Stmt) []*BranchStmt {
+func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledStmt, start Pos, body []Stmt) []*BranchStmt {
 	b := &block{parent: parent, start: start, lstmt: lstmt}
 
-	var varPos src.Pos
+	var varPos Pos
 	var varName Expr
 	var fwdGotos, badGotos []*BranchStmt
 
-	recordVarDecl := func(pos src.Pos, name Expr) {
+	recordVarDecl := func(pos Pos, name Expr) {
 		varPos = pos
 		varName = name
 		// Any existing forward goto jumping over the variable
@@ -160,7 +157,7 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 		return false
 	}
 
-	innerBlock := func(ctxt targets, start src.Pos, body []Stmt) {
+	innerBlock := func(ctxt targets, start Pos, body []Stmt) {
 		// Unresolved forward gotos from the inner block
 		// become forward gotos for the current block.
 		fwdGotos = append(fwdGotos, ls.blockBranches(b, ctxt, lstmt, start, body)...)

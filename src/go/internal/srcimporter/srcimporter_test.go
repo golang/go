@@ -10,6 +10,7 @@ import (
 	"go/types"
 	"internal/testenv"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -130,6 +131,44 @@ func TestImportedTypes(t *testing.T) {
 		if got != test.want {
 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
 		}
+
+		if named, _ := obj.Type().(*types.Named); named != nil {
+			verifyInterfaceMethodRecvs(t, named, 0)
+		}
+	}
+}
+
+// verifyInterfaceMethodRecvs verifies that method receiver types
+// are named if the methods belong to a named interface type.
+func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+	// avoid endless recursion in case of an embedding bug that lead to a cycle
+	if level > 10 {
+		t.Errorf("%s: embeds itself", named)
+		return
+	}
+
+	iface, _ := named.Underlying().(*types.Interface)
+	if iface == nil {
+		return // not an interface
+	}
+
+	// check explicitly declared methods
+	for i := 0; i < iface.NumExplicitMethods(); i++ {
+		m := iface.ExplicitMethod(i)
+		recv := m.Type().(*types.Signature).Recv()
+		if recv == nil {
+			t.Errorf("%s: missing receiver type", m)
+			continue
+		}
+		if recv.Type() != named {
+			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
+		}
+	}
+
+	// check embedded interfaces (they are named, too)
+	for i := 0; i < iface.NumEmbeddeds(); i++ {
+		// embedding of interfaces cannot have cycles; recursion will terminate
+		verifyInterfaceMethodRecvs(t, iface.Embedded(i), level+1)
 	}
 }
 
@@ -161,4 +200,35 @@ func TestIssue20855(t *testing.T) {
 	if pkg == nil {
 		t.Error("got no package despite no hard errors")
 	}
+}
+
+func testImportPath(t *testing.T, pkgPath string) {
+	if !testenv.HasSrc() {
+		t.Skip("no source code available")
+	}
+
+	pkgName := path.Base(pkgPath)
+
+	pkg, err := importer.Import(pkgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pkg.Name() != pkgName {
+		t.Errorf("got %q; want %q", pkg.Name(), pkgName)
+	}
+
+	if pkg.Path() != pkgPath {
+		t.Errorf("got %q; want %q", pkg.Path(), pkgPath)
+	}
+}
+
+// TestIssue23092 tests relative imports.
+func TestIssue23092(t *testing.T) {
+	testImportPath(t, "./testdata/issue23092")
+}
+
+// TestIssue24392 tests imports against a path containing 'testdata'.
+func TestIssue24392(t *testing.T) {
+	testImportPath(t, "go/internal/srcimporter/testdata/issue24392")
 }

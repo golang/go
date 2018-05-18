@@ -13,39 +13,37 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-#define SYS_exit		        4001
-#define SYS_read		        4003
-#define SYS_write		        4004
-#define SYS_open		        4005
-#define SYS_close		        4006
-#define SYS_getpid		        4020
-#define SYS_kill		        4037
-#define SYS_fcntl		        4055
-#define SYS_gettimeofday	    4078
-#define SYS_mmap		        4090
-#define SYS_munmap		        4091
-#define SYS_setitimer		    4104
-#define SYS_clone		        4120
-#define SYS_newselect		    4142
-#define SYS_sched_yield		    4162
-#define SYS_rt_sigreturn	    4193
-#define SYS_rt_sigaction	    4194
-#define SYS_rt_sigprocmask		4195
-#define SYS_sigaltstack		    4206
-#define SYS_getrlimit		    4076
-#define SYS_madvise		        4218
-#define SYS_mincore		        4217
-#define SYS_gettid		        4222
-#define SYS_tkill		        4236
-#define SYS_futex		        4238
+#define SYS_exit		4001
+#define SYS_read		4003
+#define SYS_write		4004
+#define SYS_open		4005
+#define SYS_close		4006
+#define SYS_getpid		4020
+#define SYS_kill		4037
+#define SYS_brk			4045
+#define SYS_fcntl		4055
+#define SYS_mmap		4090
+#define SYS_munmap		4091
+#define SYS_setitimer		4104
+#define SYS_clone		4120
+#define SYS_sched_yield		4162
+#define SYS_nanosleep		4166
+#define SYS_rt_sigreturn	4193
+#define SYS_rt_sigaction	4194
+#define SYS_rt_sigprocmask	4195
+#define SYS_sigaltstack		4206
+#define SYS_madvise		4218
+#define SYS_mincore		4217
+#define SYS_gettid		4222
+#define SYS_tkill		4236
+#define SYS_futex		4238
 #define SYS_sched_getaffinity	4240
-#define SYS_exit_group		    4246
-#define SYS_epoll_create	    4248
-#define SYS_epoll_ctl		    4249
-#define SYS_epoll_wait		    4250
-#define SYS_clock_gettime	    4263
-#define SYS_epoll_create1	    4326
-#define SYS_brk			    4045
+#define SYS_exit_group		4246
+#define SYS_epoll_create	4248
+#define SYS_epoll_ctl		4249
+#define SYS_epoll_wait		4250
+#define SYS_clock_gettime	4263
+#define SYS_epoll_create1	4326
 
 TEXT runtime·exit(SB),NOSPLIT,$0-4
 	MOVW	code+0(FP), R4
@@ -110,14 +108,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-16
 	MOVW	R2, ret+12(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$0-12
-	MOVW	kind+0(FP), R4
-	MOVW	limit+4(FP), R5
-	MOVW	$SYS_getrlimit, R2
-	SYSCALL
-	MOVW	R2, ret+8(FP)
-	RET
-
 TEXT runtime·usleep(SB),NOSPLIT,$28-4
 	MOVW	usec+0(FP), R3
 	MOVW	R3, R5
@@ -125,19 +115,16 @@ TEXT runtime·usleep(SB),NOSPLIT,$28-4
 	DIVU	R4, R3
 	MOVW	LO, R3
 	MOVW	R3, 24(R29)
+	MOVW	$1000, R4
 	MULU	R3, R4
 	MOVW	LO, R4
 	SUBU	R4, R5
 	MOVW	R5, 28(R29)
 
-	// select(0, 0, 0, 0, &tv)
-	MOVW	$0, R4
+	// nanosleep(&ts, 0)
+	ADDU	$24, R29, R4
 	MOVW	$0, R5
-	MOVW	$0, R6
-	MOVW	$0, R7
-	ADDU	$24, R29, R8
-	MOVW	R8, 16(R29)
-	MOVW	$SYS_newselect, R2
+	MOVW	$SYS_nanosleep, R2
 	SYSCALL
 	RET
 
@@ -338,7 +325,7 @@ TEXT runtime·futex(SB),NOSPLIT,$20-28
 
 
 // int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·clone(SB),NOSPLIT,$-4-24
+TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0-24
 	MOVW	flags+0(FP), R4
 	MOVW	stk+4(FP), R5
 	MOVW	R0, R6	// ptid
@@ -457,6 +444,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0-20
 	MOVW	ev+12(FP), R7
 	MOVW	$SYS_epoll_ctl, R2
 	SYSCALL
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+16(FP)
 	RET
 

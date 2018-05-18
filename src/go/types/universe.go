@@ -12,14 +12,26 @@ import (
 	"strings"
 )
 
+// The Universe scope contains all predeclared objects of Go.
+// It is the outermost scope of any chain of nested scopes.
+var Universe *Scope
+
+// The Unsafe package is the package returned by an importer
+// for the import path "unsafe".
+var Unsafe *Package
+
 var (
-	Universe     *Scope
-	Unsafe       *Package
 	universeIota *Const
 	universeByte *Basic // uint8 alias, but has name "byte"
 	universeRune *Basic // int32 alias, but has name "rune"
 )
 
+// Typ contains the predeclared *Basic types indexed by their
+// corresponding BasicKind.
+//
+// The *Basic type for Typ[Byte] will have the name "uint8".
+// Use Universe.Lookup("byte").Type() to obtain the specific
+// alias basic type named "byte" (and analogous for "rune").
 var Typ = []*Basic{
 	Invalid: {Invalid, 0, "invalid type"},
 

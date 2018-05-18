@@ -21,6 +21,9 @@ import (
 )
 
 func run(args ...string) string {
+	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
+		args = append(strings.Split(flags, " "), args...)
+	}
 	buf := new(bytes.Buffer)
 	cmd := exec.Command("adb", args...)
 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)

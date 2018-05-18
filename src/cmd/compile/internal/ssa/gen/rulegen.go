@@ -60,18 +60,22 @@ func (r Rule) String() string {
 	return fmt.Sprintf("rule %q at %s", r.rule, r.loc)
 }
 
+func normalizeSpaces(s string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+}
+
 // parse returns the matching part of the rule, additional conditions, and the result.
 func (r Rule) parse() (match, cond, result string) {
 	s := strings.Split(r.rule, "->")
 	if len(s) != 2 {
 		log.Fatalf("no arrow in %s", r)
 	}
-	match = strings.TrimSpace(s[0])
-	result = strings.TrimSpace(s[1])
+	match = normalizeSpaces(s[0])
+	result = normalizeSpaces(s[1])
 	cond = ""
 	if i := strings.Index(match, "&&"); i >= 0 {
-		cond = strings.TrimSpace(match[i+2:])
-		match = strings.TrimSpace(match[:i])
+		cond = normalizeSpaces(match[i+2:])
+		match = normalizeSpaces(match[:i])
 	}
 	return match, cond, result
 }
@@ -119,16 +123,18 @@ func genRules(arch arch) {
 		}
 
 		loc := fmt.Sprintf("%s.rules:%d", arch.name, ruleLineno)
-		for _, crule := range commute(rule, arch) {
-			r := Rule{rule: crule, loc: loc}
-			if rawop := strings.Split(crule, " ")[0][1:]; isBlock(rawop, arch) {
-				blockrules[rawop] = append(blockrules[rawop], r)
-			} else {
-				// Do fancier value op matching.
-				match, _, _ := r.parse()
-				op, oparch, _, _, _, _ := parseValue(match, arch, loc)
-				opname := fmt.Sprintf("Op%s%s", oparch, op.name)
-				oprules[opname] = append(oprules[opname], r)
+		for _, rule2 := range expandOr(rule) {
+			for _, rule3 := range commute(rule2, arch) {
+				r := Rule{rule: rule3, loc: loc}
+				if rawop := strings.Split(rule3, " ")[0][1:]; isBlock(rawop, arch) {
+					blockrules[rawop] = append(blockrules[rawop], r)
+				} else {
+					// Do fancier value op matching.
+					match, _, _ := r.parse()
+					op, oparch, _, _, _, _ := parseValue(match, arch, loc)
+					opname := fmt.Sprintf("Op%s%s", oparch, op.name)
+					oprules[opname] = append(oprules[opname], r)
+				}
 			}
 		}
 		rule = ""
@@ -659,7 +665,6 @@ func extract(val string) (op string, typ string, auxint string, aux string, args
 // It returns the op and unparsed strings for typ, auxint, and aux restrictions and for all args.
 // oparch is the architecture that op is located in, or "" for generic.
 func parseValue(val string, arch arch, loc string) (op opData, oparch string, typ string, auxint string, aux string, args []string) {
-
 	// Resolve the op.
 	var s string
 	s, typ, auxint, aux, args = extract(val)
@@ -726,7 +731,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
 	}
 	if aux != "" {
 		switch op.aux {
-		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize":
+		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize", "CCop":
 		default:
 			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
 		}
@@ -782,6 +787,48 @@ func isVariable(s string) bool {
 		panic("bad variable regexp")
 	}
 	return b
+}
+
+// opRegexp is a regular expression to find the opcode portion of s-expressions.
+var opRegexp = regexp.MustCompile(`[(]\w*[(](\w+[|])+\w+[)]\w* `)
+
+// expandOr converts a rule into multiple rules by expanding | ops.
+func expandOr(r string) []string {
+	// Find every occurrence of |-separated things at the opcode position.
+	// They look like (MOV(B|W|L|Q|SS|SD)load
+	// Note: there might be false positives in parts of rules that are Go code
+	// (e.g. && conditions, AuxInt expressions, etc.).  There are currently no
+	// such false positives, so I'm not too worried about it.
+	// Generate rules selecting one case from each |-form.
+
+	// Count width of |-forms.  They must match.
+	n := 1
+	for _, s := range opRegexp.FindAllString(r, -1) {
+		c := strings.Count(s, "|") + 1
+		if c == 1 {
+			continue
+		}
+		if n > 1 && n != c {
+			log.Fatalf("'|' count doesn't match in %s: both %d and %d\n", r, n, c)
+		}
+		n = c
+	}
+	if n == 1 {
+		// No |-form in this rule.
+		return []string{r}
+	}
+	res := make([]string, n)
+	for i := 0; i < n; i++ {
+		res[i] = opRegexp.ReplaceAllStringFunc(r, func(s string) string {
+			if strings.Count(s, "|") == 0 {
+				return s
+			}
+			s = s[1 : len(s)-1] // remove leading "(" and trailing " "
+			x, y := strings.Index(s, "("), strings.Index(s, ")")
+			return "(" + s[:x] + strings.Split(s[x+1:y], "|")[i] + s[y+1:] + " "
+		})
+	}
+	return res
 }
 
 // commute returns all equivalent rules to r after applying all possible
@@ -868,7 +915,7 @@ func commute1(m string, cnt map[string]int, arch arch) []string {
 			panic("couldn't find first two args of commutative op " + s[0])
 		}
 		if cnt[s[idx0]] == 1 && cnt[s[idx1]] == 1 || s[idx0] == s[idx1] && cnt[s[idx0]] == 2 {
-			// When we have (Add x y) with no ther uses of x and y in the matching rule,
+			// When we have (Add x y) with no other uses of x and y in the matching rule,
 			// then we can skip the commutative match (Add y x).
 			commutative = false
 		}

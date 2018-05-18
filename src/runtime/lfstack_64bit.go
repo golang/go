@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64 arm64 mips64 mips64le ppc64 ppc64le s390x
+// +build amd64 arm64 mips64 mips64le ppc64 ppc64le s390x wasm
 
 package runtime
 
@@ -11,21 +11,17 @@ import "unsafe"
 const (
 	// addrBits is the number of bits needed to represent a virtual address.
 	//
-	// In Linux the user address space for each architecture is limited as
-	// follows (taken from the processor.h file for the architecture):
+	// See heapAddrBits for a table of address space sizes on
+	// various architectures. 48 bits is enough for all
+	// architectures except s390x.
 	//
-	// Architecture  Name              Maximum Value (exclusive)
-	// ---------------------------------------------------------------------
-	// arm64         TASK_SIZE_64      Depends on configuration.
-	// ppc64{,le}    TASK_SIZE_USER64  0x400000000000UL (46 bit addresses)
-	// mips64{,le}   TASK_SIZE64       0x010000000000UL (40 bit addresses)
-	// s390x         TASK_SIZE         0x020000000000UL (41 bit addresses)
-	//
-	// These values may increase over time.
-	//
-	// On AMD64, virtual addresses are 48-bit numbers sign extended to 64.
+	// On AMD64, virtual addresses are 48-bit (or 57-bit) numbers sign extended to 64.
 	// We shift the address left 16 to eliminate the sign extended part and make
 	// room in the bottom for the count.
+	//
+	// On s390x, virtual addresses are 64-bit. There's not much we
+	// can do about this, so we just hope that the kernel doesn't
+	// get to really high addresses and panic if it does.
 	addrBits = 48
 
 	// In addition to the 16 bits taken from the top, we can take 3 from the

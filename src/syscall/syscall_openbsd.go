@@ -62,15 +62,38 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
-//sysnb pipe(p *[2]_C_int) (err error)
-func Pipe(p []int) (err error) {
+func Pipe(p []int) error {
+	return Pipe2(p, 0)
+}
+
+//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
-	err = pipe(&pp)
+	err := pipe2(&pp, flags)
 	p[0] = int(pp[0])
 	p[1] = int(pp[1])
+	return err
+}
+
+//sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
+	nfd, err = accept4(fd, &rsa, &len, flags)
+	if err != nil {
+		return
+	}
+	if len > SizeofSockaddrAny {
+		panic("RawSockaddrAny too small")
+	}
+	sa, err = anyToSockaddr(&rsa)
+	if err != nil {
+		Close(nfd)
+		nfd = 0
+	}
 	return
 }
 
@@ -79,7 +102,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return getdents(fd, buf)
 }
 
-// TODO
+// TODO, see golang.org/issue/5847
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	return -1, ENOSYS
 }
@@ -188,100 +211,4 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
 //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
-
-/*
- * Unimplemented
- */
-// __getcwd
-// __semctl
-// __syscall
-// __sysctl
-// adjfreq
-// break
-// clock_getres
-// clock_gettime
-// clock_settime
-// closefrom
-// execve
-// faccessat
-// fchmodat
-// fchownat
-// fcntl
-// fhopen
-// fhstat
-// fhstatfs
-// fork
-// fstatat
-// futimens
-// getfh
-// getgid
-// getitimer
-// getlogin
-// getresgid
-// getresuid
-// getrtable
-// getthrid
-// ioctl
-// ktrace
-// lfs_bmapv
-// lfs_markv
-// lfs_segclean
-// lfs_segwait
-// linkat
-// mincore
-// minherit
-// mkdirat
-// mkfifoat
-// mknodat
-// mlock
-// mlockall
-// mount
-// mquery
-// msgctl
-// msgget
-// msgrcv
-// msgsnd
-// munlock
-// munlockall
-// nfssvc
-// nnpfspioctl
-// openat
-// poll
-// preadv
-// profil
-// pwritev
-// quotactl
-// readlinkat
-// readv
-// reboot
-// renameat
-// rfork
-// sched_yield
-// semget
-// semop
-// setgroups
-// setitimer
-// setresgid
-// setresuid
-// setrtable
-// setsockopt
-// shmat
-// shmctl
-// shmdt
-// shmget
-// sigaction
-// sigaltstack
-// sigpending
-// sigprocmask
-// sigreturn
-// sigsuspend
-// symlinkat
-// sysarch
-// syscall
-// threxit
-// thrsigdivert
-// thrsleep
-// thrwakeup
-// unlinkat
-// vfork
-// writev
+//sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD

@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
@@ -22,6 +23,7 @@ var Copyelim = copyelim
 var testCtxts = map[string]*obj.Link{
 	"amd64": obj.Linknew(&x86.Linkamd64),
 	"s390x": obj.Linknew(&s390x.Links390x),
+	"arm64": obj.Linknew(&arm64.Linkarm64),
 }
 
 func testConfig(tb testing.TB) *Conf      { return testConfigArch(tb, "amd64") }
@@ -79,6 +81,10 @@ func (d *DummyAuto) StorageClass() StorageClass {
 	return ClassAuto
 }
 
+func (d *DummyAuto) IsSynthetic() bool {
+	return false
+}
+
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
@@ -92,7 +98,7 @@ func (d DummyFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
 	return LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off + 8}
 }
 func (d DummyFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
-	return LocalSlot{N: s.N, Type: s.Type.ElemType().PtrTo(), Off: s.Off},
+	return LocalSlot{N: s.N, Type: s.Type.Elem().PtrTo(), Off: s.Off},
 		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 8},
 		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 16}
 }
@@ -112,7 +118,7 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 	return LocalSlot{N: s.N, Type: s.Type.FieldType(i), Off: s.Off + s.Type.FieldOff(i)}
 }
 func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
-	return LocalSlot{N: s.N, Type: s.Type.ElemType(), Off: s.Off}
+	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
 }
 func (DummyFrontend) Line(_ src.XPos) string {
 	return "unknown.go:0"
@@ -134,7 +140,6 @@ func (d DummyFrontend) Log() bool                            { return true }
 func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
 func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Debug_checknil() bool                               { return false }
-func (d DummyFrontend) Debug_eagerwb() bool                                { return false }
 
 var dummyTypes Types
 
@@ -181,31 +186,7 @@ func init() {
 		t.Align = uint8(typ.width)
 		types.Types[typ.et] = t
 	}
-
-	dummyTypes = Types{
-		Bool:       types.Types[types.TBOOL],
-		Int8:       types.Types[types.TINT8],
-		Int16:      types.Types[types.TINT16],
-		Int32:      types.Types[types.TINT32],
-		Int64:      types.Types[types.TINT64],
-		UInt8:      types.Types[types.TUINT8],
-		UInt16:     types.Types[types.TUINT16],
-		UInt32:     types.Types[types.TUINT32],
-		UInt64:     types.Types[types.TUINT64],
-		Float32:    types.Types[types.TFLOAT32],
-		Float64:    types.Types[types.TFLOAT64],
-		Int:        types.Types[types.TINT],
-		Uintptr:    types.Types[types.TUINTPTR],
-		String:     types.Types[types.TSTRING],
-		BytePtr:    types.NewPtr(types.Types[types.TUINT8]),
-		Int32Ptr:   types.NewPtr(types.Types[types.TINT32]),
-		UInt32Ptr:  types.NewPtr(types.Types[types.TUINT32]),
-		IntPtr:     types.NewPtr(types.Types[types.TINT]),
-		UintptrPtr: types.NewPtr(types.Types[types.TUINTPTR]),
-		Float32Ptr: types.NewPtr(types.Types[types.TFLOAT32]),
-		Float64Ptr: types.NewPtr(types.Types[types.TFLOAT64]),
-		BytePtrPtr: types.NewPtr(types.NewPtr(types.Types[types.TUINT8])),
-	}
+	dummyTypes.SetTypPtrs()
 }
 
 func (d DummyFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }

@@ -11,7 +11,6 @@ package url
 // contain references to issue numbers with details.
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -174,9 +173,8 @@ func QueryUnescape(s string) (string, error) {
 
 // PathUnescape does the inverse transformation of PathEscape,
 // converting each 3-byte encoded substring of the form "%AB" into the
-// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
-// It returns an error if any % is not followed by two hexadecimal
-// digits.
+// hex-decoded byte 0xAB. It returns an error if any % is not followed
+// by two hexadecimal digits.
 //
 // PathUnescape is identical to QueryUnescape except that it does not
 // unescape '+' to ' ' (space).
@@ -563,6 +561,9 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		return nil, host, nil
 	}
 	userinfo := authority[:i]
+	if !validUserinfo(userinfo) {
+		return nil, "", errors.New("net/url: invalid userinfo")
+	}
 	if !strings.Contains(userinfo, ":") {
 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
 			return nil, "", err
@@ -735,7 +736,7 @@ func validOptionalPort(port string) bool {
 //	- if u.RawQuery is empty, ?query is omitted.
 //	- if u.Fragment is empty, #fragment is omitted.
 func (u *URL) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if u.Scheme != "" {
 		buf.WriteString(u.Scheme)
 		buf.WriteByte(':')
@@ -876,7 +877,7 @@ func (v Values) Encode() string {
 	if v == nil {
 		return ""
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	keys := make([]string, 0, len(v))
 	for k := range v {
 		keys = append(keys, k)
@@ -884,12 +885,13 @@ func (v Values) Encode() string {
 	sort.Strings(keys)
 	for _, k := range keys {
 		vs := v[k]
-		prefix := QueryEscape(k) + "="
+		keyEscaped := QueryEscape(k)
 		for _, v := range vs {
 			if buf.Len() > 0 {
 				buf.WriteByte('&')
 			}
-			buf.WriteString(prefix)
+			buf.WriteString(keyEscaped)
+			buf.WriteByte('=')
 			buf.WriteString(QueryEscape(v))
 		}
 	}
@@ -950,7 +952,7 @@ func (u *URL) Parse(ref string) (*URL, error) {
 }
 
 // ResolveReference resolves a URI reference to an absolute URI from
-// an absolute base URI, per RFC 3986 Section 5.2.  The URI reference
+// an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
 // may be relative or absolute. ResolveReference always returns a new
 // URL instance, even if the returned URL is identical to either the
 // base or reference. If ref is an absolute URL, then ResolveReference
@@ -1068,4 +1070,34 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 	}
 	*u = *u1
 	return nil
+}
+
+// validUserinfo reports whether s is a valid userinfo string per RFC 3986
+// Section 3.2.1:
+//     userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+//     unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+//     sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
+//                   / "*" / "+" / "," / ";" / "="
+//
+// It doesn't validate pct-encoded. The caller does that via func unescape.
+func validUserinfo(s string) bool {
+	for _, r := range s {
+		if 'A' <= r && r <= 'Z' {
+			continue
+		}
+		if 'a' <= r && r <= 'z' {
+			continue
+		}
+		if '0' <= r && r <= '9' {
+			continue
+		}
+		switch r {
+		case '-', '.', '_', ':', '~', '!', '$', '&', '\'',
+			'(', ')', '*', '+', ',', ';', '=', '%', '@':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }

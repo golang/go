@@ -5,9 +5,6 @@
 // license that can be found in the LICENSE file.
 
 // Run runs tests in the test directory.
-//
-// TODO(bradfitz): docs of some sort, once we figure out how we're changing
-// headers of files
 package main
 
 import (
@@ -52,7 +49,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -167,6 +164,22 @@ func toolPath(name string) string {
 	return p
 }
 
+// goTool reports the path of the go tool to use to run the tests.
+// If possible, use the same Go used to run run.go, otherwise
+// fallback to the go version found in the PATH.
+func goTool() string {
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	// Just run "go" from PATH
+	return "go"
+}
+
 func shardMatch(name string) bool {
 	if *shards == 0 {
 		return true
@@ -194,7 +207,7 @@ func goFiles(dir string) []string {
 type runCmd func(...string) ([]byte, error)
 
 func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, err error) {
-	cmd := []string{"go", "tool", "compile", "-e"}
+	cmd := []string{goTool(), "tool", "compile", "-e"}
 	cmd = append(cmd, flags...)
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
@@ -204,7 +217,7 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 }
 
 func compileInDir(runcmd runCmd, dir string, flags []string, names ...string) (out []byte, err error) {
-	cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", "."}
+	cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", "."}
 	cmd = append(cmd, flags...)
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
@@ -217,7 +230,7 @@ func compileInDir(runcmd runCmd, dir string, flags []string, names ...string) (o
 
 func linkFile(runcmd runCmd, goname string) (err error) {
 	pfile := strings.Replace(goname, ".go", ".o", -1)
-	cmd := []string{"go", "tool", "link", "-w", "-o", "a.exe", "-L", "."}
+	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-L", "."}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
 	}
@@ -488,7 +501,7 @@ func (t *test) run() {
 		action = "rundir"
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
-	case "compile", "compiledir", "build", "builddir", "run", "buildrun", "runoutput", "rundir":
+	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
 		// nothing to do
 	case "errorcheckandrundir":
 		wantError = false // should be no error if also will run
@@ -593,9 +606,33 @@ func (t *test) run() {
 	default:
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
+	case "asmcheck":
+		ops := t.wantedAsmOpcodes(long)
+		for _, env := range ops.Envs() {
+			cmdline := []string{"build", "-gcflags", "-S"}
+			cmdline = append(cmdline, flags...)
+			cmdline = append(cmdline, long)
+			cmd := exec.Command(goTool(), cmdline...)
+			cmd.Env = append(os.Environ(), env.Environ()...)
+
+			var buf bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &buf, &buf
+			if err := cmd.Run(); err != nil {
+				fmt.Println(env, "\n", cmd.Stderr)
+				t.err = err
+				return
+			}
+
+			t.err = t.asmCheck(buf.String(), long, env, ops[env])
+			if t.err != nil {
+				return
+			}
+		}
+		return
+
 	case "errorcheck":
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
-		cmdline := []string{"go", "tool", "compile", "-C", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-C", "-e", "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
@@ -709,12 +746,12 @@ func (t *test) run() {
 		}
 
 	case "build":
-		_, err := runcmd("go", "build", goGcflags(), "-o", "a.exe", long)
+		_, err := runcmd(goTool(), "build", goGcflags(), "-o", "a.exe", long)
 		if err != nil {
 			t.err = err
 		}
 
-	case "builddir":
+	case "builddir", "buildrundir":
 		// Build an executable from all the .go and .s files in a subdirectory.
 		useTmp = true
 		longdir := filepath.Join(cwd, t.goDirName())
@@ -735,7 +772,7 @@ func (t *test) run() {
 
 		}
 		var objs []string
-		cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+		cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
 		if len(asms) > 0 {
 			cmd = append(cmd, "-asmhdr", "go_asm.h")
 		}
@@ -749,7 +786,7 @@ func (t *test) run() {
 		}
 		objs = append(objs, "go.o")
 		if len(asms) > 0 {
-			cmd = []string{"go", "tool", "asm", "-e", "-I", ".", "-o", "asm.o"}
+			cmd = []string{goTool(), "tool", "asm", "-e", "-I", ".", "-o", "asm.o"}
 			for _, file := range asms {
 				cmd = append(cmd, filepath.Join(longdir, file.Name()))
 			}
@@ -760,24 +797,35 @@ func (t *test) run() {
 			}
 			objs = append(objs, "asm.o")
 		}
-		cmd = []string{"go", "tool", "pack", "c", "all.a"}
+		cmd = []string{goTool(), "tool", "pack", "c", "all.a"}
 		cmd = append(cmd, objs...)
 		_, err = runcmd(cmd...)
 		if err != nil {
 			t.err = err
 			break
 		}
-		cmd = []string{"go", "tool", "link", "all.a"}
+		cmd = []string{goTool(), "tool", "link", "-o", "a.exe", "all.a"}
 		_, err = runcmd(cmd...)
 		if err != nil {
 			t.err = err
 			break
 		}
+		if action == "buildrundir" {
+			cmd = append(findExecCmd(), filepath.Join(t.tempDir, "a.exe"))
+			out, err := runcmd(cmd...)
+			if err != nil {
+				t.err = err
+				break
+			}
+			if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+				t.err = fmt.Errorf("incorrect output\n%s", out)
+			}
+		}
 
 	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
 		// TODO: not supported on NaCl
 		useTmp = true
-		cmd := []string{"go", "build", goGcflags(), "-o", "a.exe"}
+		cmd := []string{goTool(), "build", goGcflags(), "-o", "a.exe"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -813,12 +861,12 @@ func (t *test) run() {
 			// Because we run lots of trivial test programs,
 			// the time adds up.
 			pkg := filepath.Join(t.tempDir, "pkg.a")
-			if _, err := runcmd("go", "tool", "compile", "-o", pkg, t.goFileName()); err != nil {
+			if _, err := runcmd(goTool(), "tool", "compile", "-o", pkg, t.goFileName()); err != nil {
 				t.err = err
 				return
 			}
 			exe := filepath.Join(t.tempDir, "test.exe")
-			cmd := []string{"go", "tool", "link", "-s", "-w"}
+			cmd := []string{goTool(), "tool", "link", "-s", "-w"}
 			cmd = append(cmd, "-o", exe, pkg)
 			if _, err := runcmd(cmd...); err != nil {
 				t.err = err
@@ -826,7 +874,7 @@ func (t *test) run() {
 			}
 			out, err = runcmd(append([]string{exe}, args...)...)
 		} else {
-			cmd := []string{"go", "run", goGcflags()}
+			cmd := []string{goTool(), "run", goGcflags()}
 			if *linkshared {
 				cmd = append(cmd, "-linkshared")
 			}
@@ -848,7 +896,7 @@ func (t *test) run() {
 			<-rungatec
 		}()
 		useTmp = false
-		cmd := []string{"go", "run", goGcflags()}
+		cmd := []string{goTool(), "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -863,7 +911,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmd = []string{"go", "run", goGcflags()}
+		cmd = []string{goTool(), "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -879,7 +927,7 @@ func (t *test) run() {
 
 	case "errorcheckoutput":
 		useTmp = false
-		cmd := []string{"go", "run", goGcflags()}
+		cmd := []string{goTool(), "run", goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -895,7 +943,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)
@@ -1115,7 +1163,7 @@ func (t *test) updateErrors(out, file string) {
 		return
 	}
 	// Polish.
-	exec.Command("go", "fmt", file).CombinedOutput()
+	exec.Command(goTool(), "fmt", file).CombinedOutput()
 }
 
 // matchPrefix reports whether s is of the form ^(.*/)?prefix(:|[),
@@ -1223,6 +1271,264 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 		}
 	}
 
+	return
+}
+
+const (
+	// Regexp to match a single opcode check: optionally begin with "-" (to indicate
+	// a negative check), followed by a string literal enclosed in "" or ``. For "",
+	// backslashes must be handled.
+	reMatchCheck = `-?(?:\x60[^\x60]*\x60|"(?:[^"\\]|\\.)*")`
+)
+
+var (
+	// Regexp to split a line in code and comment, trimming spaces
+	rxAsmComment = regexp.MustCompile(`^\s*(.*?)\s*(?:\/\/\s*(.+)\s*)?$`)
+
+	// Regexp to extract an architecture check: architecture name, followed by semi-colon,
+	// followed by a comma-separated list of opcode checks.
+	rxAsmPlatform = regexp.MustCompile(`(\w+)(/\w+)?(/\w*)?:(` + reMatchCheck + `(?:,` + reMatchCheck + `)*)`)
+
+	// Regexp to extract a single opcoded check
+	rxAsmCheck = regexp.MustCompile(reMatchCheck)
+
+	// List of all architecture variants. Key is the GOARCH architecture,
+	// value[0] is the variant-changing environment variable, and values[1:]
+	// are the supported variants.
+	archVariants = map[string][]string{
+		"386":     {"GO386", "387", "sse2"},
+		"amd64":   {},
+		"arm":     {"GOARM", "5", "6", "7"},
+		"arm64":   {},
+		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
+		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
+		"ppc64":   {},
+		"ppc64le": {},
+		"s390x":   {},
+	}
+)
+
+// wantedAsmOpcode is a single asmcheck check
+type wantedAsmOpcode struct {
+	fileline string         // original source file/line (eg: "/path/foo.go:45")
+	line     int            // original source line
+	opcode   *regexp.Regexp // opcode check to be performed on assembly output
+	negative bool           // true if the check is supposed to fail rather than pass
+	found    bool           // true if the opcode check matched at least one in the output
+}
+
+// A build environment triplet separated by slashes (eg: linux/386/sse2).
+// The third field can be empty if the arch does not support variants (eg: "plan9/amd64/")
+type buildEnv string
+
+// Environ returns the environment it represents in cmd.Environ() "key=val" format
+// For instance, "linux/386/sse2".Environ() returns {"GOOS=linux", "GOARCH=386", "GO386=sse2"}
+func (b buildEnv) Environ() []string {
+	fields := strings.Split(string(b), "/")
+	if len(fields) != 3 {
+		panic("invalid buildEnv string: " + string(b))
+	}
+	env := []string{"GOOS=" + fields[0], "GOARCH=" + fields[1]}
+	if fields[2] != "" {
+		env = append(env, archVariants[fields[1]][0]+"="+fields[2])
+	}
+	return env
+}
+
+// asmChecks represents all the asmcheck checks present in a test file
+// The outer map key is the build triplet in which the checks must be performed.
+// The inner map key represent the source file line ("filename.go:1234") at which the
+// checks must be performed.
+type asmChecks map[buildEnv]map[string][]wantedAsmOpcode
+
+// Envs returns all the buildEnv in which at least one check is present
+func (a asmChecks) Envs() []buildEnv {
+	var envs []buildEnv
+	for e := range a {
+		envs = append(envs, e)
+	}
+	sort.Slice(envs, func(i, j int) bool {
+		return string(envs[i]) < string(envs[j])
+	})
+	return envs
+}
+
+func (t *test) wantedAsmOpcodes(fn string) asmChecks {
+	ops := make(asmChecks)
+
+	comment := ""
+	src, _ := ioutil.ReadFile(fn)
+	for i, line := range strings.Split(string(src), "\n") {
+		matches := rxAsmComment.FindStringSubmatch(line)
+		code, cmt := matches[1], matches[2]
+
+		// Keep comments pending in the comment variable until
+		// we find a line that contains some code.
+		comment += " " + cmt
+		if code == "" {
+			continue
+		}
+
+		// Parse and extract any architecture check from comments,
+		// made by one architecture name and multiple checks.
+		lnum := fn + ":" + strconv.Itoa(i+1)
+		for _, ac := range rxAsmPlatform.FindAllStringSubmatch(comment, -1) {
+			archspec, allchecks := ac[1:4], ac[4]
+
+			var arch, subarch, os string
+			switch {
+			case archspec[2] != "": // 3 components: "linux/386/sse2"
+				os, arch, subarch = archspec[0], archspec[1][1:], archspec[2][1:]
+			case archspec[1] != "": // 2 components: "386/sse2"
+				os, arch, subarch = "linux", archspec[0], archspec[1][1:]
+			default: // 1 component: "386"
+				os, arch, subarch = "linux", archspec[0], ""
+			}
+
+			if _, ok := archVariants[arch]; !ok {
+				log.Fatalf("%s:%d: unsupported architecture: %v", t.goFileName(), i+1, arch)
+			}
+
+			// Create the build environments corresponding the above specifiers
+			envs := make([]buildEnv, 0, 4)
+			if subarch != "" {
+				envs = append(envs, buildEnv(os+"/"+arch+"/"+subarch))
+			} else {
+				subarchs := archVariants[arch]
+				if len(subarchs) == 0 {
+					envs = append(envs, buildEnv(os+"/"+arch+"/"))
+				} else {
+					for _, sa := range archVariants[arch][1:] {
+						envs = append(envs, buildEnv(os+"/"+arch+"/"+sa))
+					}
+				}
+			}
+
+			for _, m := range rxAsmCheck.FindAllString(allchecks, -1) {
+				negative := false
+				if m[0] == '-' {
+					negative = true
+					m = m[1:]
+				}
+
+				rxsrc, err := strconv.Unquote(m)
+				if err != nil {
+					log.Fatalf("%s:%d: error unquoting string: %v", t.goFileName(), i+1, err)
+				}
+
+				// Compile the checks as regular expressions. Notice that we
+				// consider checks as matching from the beginning of the actual
+				// assembler source (that is, what is left on each line of the
+				// compile -S output after we strip file/line info) to avoid
+				// trivial bugs such as "ADD" matching "FADD". This
+				// doesn't remove genericity: it's still possible to write
+				// something like "F?ADD", but we make common cases simpler
+				// to get right.
+				oprx, err := regexp.Compile("^" + rxsrc)
+				if err != nil {
+					log.Fatalf("%s:%d: %v", t.goFileName(), i+1, err)
+				}
+
+				for _, env := range envs {
+					if ops[env] == nil {
+						ops[env] = make(map[string][]wantedAsmOpcode)
+					}
+					ops[env][lnum] = append(ops[env][lnum], wantedAsmOpcode{
+						negative: negative,
+						fileline: lnum,
+						line:     i + 1,
+						opcode:   oprx,
+					})
+				}
+			}
+		}
+		comment = ""
+	}
+
+	return ops
+}
+
+func (t *test) asmCheck(outStr string, fn string, env buildEnv, fullops map[string][]wantedAsmOpcode) (err error) {
+	// The assembly output contains the concatenated dump of multiple functions.
+	// the first line of each function begins at column 0, while the rest is
+	// indented by a tabulation. These data structures help us index the
+	// output by function.
+	functionMarkers := make([]int, 1)
+	lineFuncMap := make(map[string]int)
+
+	lines := strings.Split(outStr, "\n")
+	rxLine := regexp.MustCompile(fmt.Sprintf(`\((%s:\d+)\)\s+(.*)`, regexp.QuoteMeta(fn)))
+
+	for nl, line := range lines {
+		// Check if this line begins a function
+		if len(line) > 0 && line[0] != '\t' {
+			functionMarkers = append(functionMarkers, nl)
+		}
+
+		// Search if this line contains a assembly opcode (which is prefixed by the
+		// original source file/line in parenthesis)
+		matches := rxLine.FindStringSubmatch(line)
+		if len(matches) == 0 {
+			continue
+		}
+		srcFileLine, asm := matches[1], matches[2]
+
+		// Associate the original file/line information to the current
+		// function in the output; it will be useful to dump it in case
+		// of error.
+		lineFuncMap[srcFileLine] = len(functionMarkers) - 1
+
+		// If there are opcode checks associated to this source file/line,
+		// run the checks.
+		if ops, found := fullops[srcFileLine]; found {
+			for i := range ops {
+				if !ops[i].found && ops[i].opcode.FindString(asm) != "" {
+					ops[i].found = true
+				}
+			}
+		}
+	}
+	functionMarkers = append(functionMarkers, len(lines))
+
+	var failed []wantedAsmOpcode
+	for _, ops := range fullops {
+		for _, o := range ops {
+			// There's a failure if a negative match was found,
+			// or a positive match was not found.
+			if o.negative == o.found {
+				failed = append(failed, o)
+			}
+		}
+	}
+	if len(failed) == 0 {
+		return
+	}
+
+	// At least one asmcheck failed; report them
+	sort.Slice(failed, func(i, j int) bool {
+		return failed[i].line < failed[j].line
+	})
+
+	lastFunction := -1
+	var errbuf bytes.Buffer
+	fmt.Fprintln(&errbuf)
+	for _, o := range failed {
+		// Dump the function in which this opcode check was supposed to
+		// pass but failed.
+		funcIdx := lineFuncMap[o.fileline]
+		if funcIdx != 0 && funcIdx != lastFunction {
+			funcLines := lines[functionMarkers[funcIdx]:functionMarkers[funcIdx+1]]
+			log.Println(strings.Join(funcLines, "\n"))
+			lastFunction = funcIdx // avoid printing same function twice
+		}
+
+		if o.negative {
+			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+		} else {
+			fmt.Fprintf(&errbuf, "%s:%d: %s: opcode not found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+		}
+	}
+	err = errors.New(errbuf.String())
 	return
 }
 

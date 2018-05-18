@@ -5,6 +5,7 @@
 package constant
 
 import (
+	"fmt"
 	"go/token"
 	"strings"
 	"testing"
@@ -447,5 +448,25 @@ func TestUnknown(t *testing.T) {
 				t.Errorf("%s == %s: got true; want false", x, y)
 			}
 		}
+	}
+}
+
+func BenchmarkStringAdd(b *testing.B) {
+	for size := 1; size <= 65536; size *= 4 {
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			b.ReportAllocs()
+			n := int64(0)
+			for i := 0; i < b.N; i++ {
+				x := MakeString(strings.Repeat("x", 100))
+				y := x
+				for j := 0; j < size-1; j++ {
+					y = BinaryOp(y, token.ADD, x)
+				}
+				n += int64(len(StringVal(y)))
+			}
+			if n != int64(b.N)*int64(size)*100 {
+				b.Fatalf("bad string %d != %d", n, int64(b.N)*int64(size)*100)
+			}
+		})
 	}
 }

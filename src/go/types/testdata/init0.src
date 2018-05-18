@@ -75,7 +75,7 @@ var x8 = x7
 func f2() (int, int) { return f3() + f3(), 0 }
 func f3() int { return x8 }
 
-// cycles via closures
+// cycles via function literals
 
 var x9 /* ERROR initialization cycle */ = func() int { return x9 }()
 

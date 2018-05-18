@@ -13,7 +13,7 @@ import (
 // MkdirAll creates a directory named path,
 // along with any necessary parents, and returns nil,
 // or else returns an error.
-// The permission bits perm are used for all
+// The permission bits perm (before umask) are used for all
 // directories that MkdirAll creates.
 // If path is already a directory, MkdirAll does nothing
 // and returns nil.
@@ -39,8 +39,8 @@ func MkdirAll(path string, perm FileMode) error {
 	}
 
 	if j > 1 {
-		// Create parent
-		err = MkdirAll(path[0:j-1], perm)
+		// Create parent.
+		err = MkdirAll(fixRootDirectory(path[:j-1]), perm)
 		if err != nil {
 			return err
 		}

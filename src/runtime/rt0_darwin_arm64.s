@@ -6,7 +6,7 @@
 
 // No need for _rt0_arm64_darwin as darwin/arm64 only
 // supports external linking.
-TEXT _rt0_arm64_darwin(SB),NOSPLIT,$-8
+TEXT _rt0_arm64_darwin(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$42, R0
 	MOVD	$1, R16	// SYS_exit
 	SVC	$0x80
@@ -80,7 +80,7 @@ GLOBL _rt0_arm64_darwin_lib_argc<>(SB),NOPTR, $8
 DATA  _rt0_arm64_darwin_lib_argv<>(SB)/8, $0
 GLOBL _rt0_arm64_darwin_lib_argv<>(SB),NOPTR, $8
 
-TEXT main(SB),NOSPLIT,$-8
+TEXT main(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·rt0_go(SB), R2
 	BL	(R2)
 exit:

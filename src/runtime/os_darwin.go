@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build 386 amd64
+
 package runtime
 
 import "unsafe"
@@ -11,8 +13,7 @@ type mOS struct {
 	waitsema uint32 // semaphore for parking on locks
 }
 
-func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
-func bsdthread_register() int32
+var darwinVersion int
 
 //go:noescape
 func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
@@ -46,19 +47,38 @@ func semacreate(mp *m) {
 
 // BSD interface for threading.
 func osinit() {
-	// bsdthread_register delayed until end of goenvs so that we
+	// pthread_create delayed until end of goenvs so that we
 	// can look at the environment first.
 
 	ncpu = getncpu()
-
 	physPageSize = getPageSize()
+	darwinVersion = getDarwinVersion()
 }
 
 const (
-	_CTL_HW      = 6
-	_HW_NCPU     = 3
-	_HW_PAGESIZE = 7
+	_CTL_KERN       = 1
+	_CTL_HW         = 6
+	_KERN_OSRELEASE = 2
+	_HW_NCPU        = 3
+	_HW_PAGESIZE    = 7
 )
+
+func getDarwinVersion() int {
+	// Use sysctl to fetch kern.osrelease
+	mib := [2]uint32{_CTL_KERN, _KERN_OSRELEASE}
+	var out [32]byte
+	nout := unsafe.Sizeof(out)
+	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	if ret >= 0 {
+		ver := 0
+		for i := 0; i < int(nout) && out[i] >= '0' && out[i] <= '9'; i++ {
+			ver *= 10
+			ver += int(out[i] - '0')
+		}
+		return ver
+	}
+	return 17 // should not happen: default to a newish version
+}
 
 func getncpu() int32 {
 	// Use sysctl to fetch hw.ncpu.
@@ -96,59 +116,92 @@ func getRandomData(r []byte) {
 
 func goenvs() {
 	goenvs_unix()
-
-	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
-	// but only if we're not using cgo. If we are using cgo we need
-	// to let the C pthread library install its own thread-creation callback.
-	if !iscgo {
-		if bsdthread_register() != 0 {
-			if gogetenv("DYLD_INSERT_LIBRARIES") != "" {
-				throw("runtime: bsdthread_register error (unset DYLD_INSERT_LIBRARIES)")
-			}
-			throw("runtime: bsdthread_register error")
-		}
-	}
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
-//go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+//go:nowritebarrierrec
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
+	// Initialize an attribute object.
+	var attr pthreadattr
+	var err int32
+	err = pthread_attr_init(&attr)
+	if err != 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+
+	// Set the stack size we want to use.  64KB for now.
+	// TODO: just use OS default size?
+	const stackSize = 1 << 16
+	if pthread_attr_setstacksize(&attr, stackSize) != 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+	//mSysStatInc(&memstats.stacks_sys, stackSize) //TODO: do this?
+
+	// Tell the pthread library we won't join with this thread.
+	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+
+	// Finally, create the thread. It starts at mstart_stub, which does some low-level
+	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	errno := bsdthread_create(stk, unsafe.Pointer(mp), funcPC(mstart))
+	_, err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-
-	if errno < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -errno, ")\n")
-		throw("runtime.newosproc")
+	if err != 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
 	}
 }
+
+// glue code to call mstart from pthread_create.
+func mstart_stub()
 
 // newosproc0 is a version of newosproc that can be called before the runtime
 // is initialized.
 //
-// As Go uses bsdthread_register when running without cgo, this function is
-// not safe to use after initialization as it does not pass an M as fnarg.
+// This function is not safe to use after initialization as it does not pass an M as fnarg.
 //
 //go:nosplit
 func newosproc0(stacksize uintptr, fn uintptr) {
-	stack := sysAlloc(stacksize, &memstats.stacks_sys)
-	if stack == nil {
-		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+	// Initialize an attribute object.
+	var attr pthreadattr
+	var err int32
+	err = pthread_attr_init_trampoline(&attr)
+	if err != 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
-	stk := unsafe.Pointer(uintptr(stack) + stacksize)
 
+	// Set the stack we want to use.
+	if pthread_attr_setstacksize_trampoline(&attr, stacksize) != 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+	mSysStatInc(&memstats.stacks_sys, stacksize)
+
+	// Tell the pthread library we won't join with this thread.
+	if pthread_attr_setdetachstate_trampoline(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+
+	// Finally, create the thread. It starts at mstart_stub, which does some low-level
+	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	errno := bsdthread_create(stk, nil, fn)
+	var t pthread
+	err = pthread_create_trampoline(&t, &attr, fn, nil)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-
-	if errno < 0 {
+	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
@@ -462,14 +515,6 @@ func osyield() {
 	usleep(1)
 }
 
-func memlimit() uintptr {
-	// NOTE(rsc): Could use getrlimit here,
-	// like on FreeBSD or Linux, but Darwin doesn't enforce
-	// ulimit -v, so it's unclear why we'd try to stay within
-	// the limit.
-	return 0
-}
-
 const (
 	_NSIG        = 32
 	_SI_USER     = 0 /* empirically true, but not what headers say */
@@ -495,7 +540,12 @@ func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Point
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
-func raise(sig uint32)
+//go:nosplit
+func raise(sig uint32) {
+	tid := pthread_self()
+	pthread_kill(tid, int(sig))
+}
+
 func raiseproc(sig uint32)
 
 //extern SigTabTT runtime·sigtab[];

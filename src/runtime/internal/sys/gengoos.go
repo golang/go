@@ -37,7 +37,7 @@ func main() {
 		if strings.HasPrefix(line, goarchPrefix) {
 			text, err := strconv.Unquote(strings.TrimPrefix(line, goarchPrefix))
 			if err != nil {
-				log.Fatal("parsing goarchList: %v", err)
+				log.Fatalf("parsing goarchList: %v", err)
 			}
 			goarches = strings.Fields(text)
 		}

@@ -119,14 +119,6 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-8
-	MOVL	kind+0(FP), DI
-	MOVQ	limit+8(FP), SI
-	MOVL	$194, AX
-	SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
 TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$496, AX	// lwp_gettid
 	SYSCALL

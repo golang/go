@@ -53,6 +53,8 @@ Flags controlling additional output:
 		print parse trace (forces -seq)
 	-comments
 		parse comments (ignored unless -ast or -trace is provided)
+	-panic
+		panic on first error
 
 Examples:
 
@@ -105,6 +107,7 @@ var (
 	printAST      = flag.Bool("ast", false, "print AST (forces -seq)")
 	printTrace    = flag.Bool("trace", false, "print parse trace (forces -seq)")
 	parseComments = flag.Bool("comments", false, "parse comments (ignored unless -ast or -trace is provided)")
+	panicOnError  = flag.Bool("panic", false, "panic on first error")
 )
 
 var (
@@ -164,6 +167,9 @@ func usage() {
 }
 
 func report(err error) {
+	if *panicOnError {
+		panic(err)
+	}
 	scanner.PrintError(os.Stderr, err)
 	if list, ok := err.(scanner.ErrorList); ok {
 		errorCount += len(list)
@@ -209,14 +215,30 @@ func parseFiles(dir string, filenames []string) ([]*ast.File, error) {
 	}
 	wg.Wait()
 
-	// if there are errors, return the first one for deterministic results
+	// If there are errors, return the first one for deterministic results.
+	var first error
 	for _, err := range errors {
 		if err != nil {
-			return nil, err
+			first = err
+			// If we have an error, some files may be nil.
+			// Remove them. (The go/parser always returns
+			// a possibly partial AST even in the presence
+			// of errors, except if the file doesn't exist
+			// in the first place, in which case it cannot
+			// matter.)
+			i := 0
+			for _, f := range files {
+				if f != nil {
+					files[i] = f
+					i++
+				}
+			}
+			files = files[:i]
+			break
 		}
 	}
 
-	return files, nil
+	return files, first
 }
 
 func parseDir(dir string) ([]*ast.File, error) {
@@ -318,7 +340,7 @@ func main() {
 	files, err := getPkgFiles(flag.Args())
 	if err != nil {
 		report(err)
-		os.Exit(2)
+		// ok to continue (files may be empty, but not nil)
 	}
 
 	checkPkgFiles(files)

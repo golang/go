@@ -304,6 +304,13 @@ var execTests = []execTest{
 	{"$.I", "{{$.I}}", "17", tVal, true},
 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
 	{"declare in action", "{{$x := $.U.V}}{{$x}}", "v", tVal, true},
+	{"simple assignment", "{{$x := 2}}{{$x = 3}}{{$x}}", "3", tVal, true},
+	{"nested assignment",
+		"{{$x := 2}}{{if true}}{{$x = 3}}{{end}}{{$x}}",
+		"3", tVal, true},
+	{"nested assignment changes the last declaration",
+		"{{$x := 1}}{{if true}}{{$x := 2}}{{if true}}{{$x = 3}}{{end}}{{end}}{{$x}}",
+		"1", tVal, true},
 
 	// Type with String method.
 	{"V{6666}.String()", "-{{.V0}}-", "-<6666>-", tVal, true},
@@ -329,6 +336,10 @@ var execTests = []execTest{
 	{"empty with slice", "{{.Empty3}}", "[7 8]", tVal, true},
 	{"empty with struct", "{{.Empty4}}", "{UinEmpty}", tVal, true},
 	{"empty with struct, field", "{{.Empty4.V}}", "UinEmpty", tVal, true},
+
+	// Edge cases with <no value> with an interface value
+	{"field on interface", "{{.foo}}", "<no value>", nil, true},
+	{"field on parenthesized interface", "{{(.).foo}}", "<no value>", nil, true},
 
 	// Method calls.
 	{".Method0", "-{{.Method0}}-", "-M0-", tVal, true},
@@ -377,6 +388,11 @@ var execTests = []execTest{
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
 	{"pipeline func", "-{{call .VariadicFunc `llo` | call .VariadicFunc `he` }}-", "-<he+<llo>>-", tVal, true},
+
+	// Nil values aren't missing arguments.
+	{"nil pipeline", "{{ .Empty0 | call .NilOKFunc }}", "true", tVal, true},
+	{"nil call arg", "{{ call .NilOKFunc .Empty0 }}", "true", tVal, true},
+	{"bad nil pipeline", "{{ .Empty0 | .VariadicFunc }}", "", tVal, false},
 
 	// Parenthesized expressions
 	{"parens in pipeline", "{{printf `%d %d %d` (1) (2 | add 3) (add 4 (add 5 6))}}", "1 5 15", tVal, true},
@@ -513,10 +529,6 @@ var execTests = []execTest{
 	{"declare in range", "{{range $x := .PSI}}<{{$foo:=$x}}{{$x}}>{{end}}", "<21><22><23>", tVal, true},
 	{"range count", `{{range $i, $x := count 5}}[{{$i}}]{{$x}}{{end}}`, "[0]a[1]b[2]c[3]d[4]e", tVal, true},
 	{"range nil count", `{{range $i, $x := count 0}}{{else}}empty{{end}}`, "empty", tVal, true},
-	{"range quick break", `{{range .SI}}{{break}}{{.}}{{end}}`, "", tVal, true},
-	{"range break after two", `{{range $i, $x := .SI}}{{if ge $i 2}}{{break}}{{end}}{{.}}{{end}}`, "34", tVal, true},
-	{"range continue", `{{range .SI}}{{continue}}{{.}}{{end}}`, "", tVal, true},
-	{"range continue condition", `{{range .SI}}{{if eq . 3 }}{{continue}}{{end}}{{.}}{{end}}`, "45", tVal, true},
 
 	// Cute examples.
 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},

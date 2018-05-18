@@ -27,6 +27,7 @@ func testBuildID(t *testing.T) {
 	defer f.Close()
 
 	c := 0
+sections:
 	for i, s := range f.Sections {
 		if s.Type != elf.SHT_NOTE {
 			continue
@@ -47,7 +48,7 @@ func testBuildID(t *testing.T) {
 
 			if len(d) < 12 {
 				t.Logf("note section %d too short (%d < 12)", i, len(d))
-				continue
+				continue sections
 			}
 
 			namesz := f.ByteOrder.Uint32(d)
@@ -59,7 +60,7 @@ func testBuildID(t *testing.T) {
 
 			if int(12+an+ad) > len(d) {
 				t.Logf("note section %d too short for header (%d < 12 + align(%d,4) + align(%d,4))", i, len(d), namesz, descsz)
-				continue
+				continue sections
 			}
 
 			// 3 == NT_GNU_BUILD_ID

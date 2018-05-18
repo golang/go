@@ -2,7 +2,7 @@
 
 package x86
 
-var vexOptab = []Optab{
+var vexOptab = [...]Optab{
 	{AANDNL, yvex_r3, Pvex, [23]uint8{vexNDS | vexLZ | vex0F38 | vexW0, 0xF2}},
 	{AANDNQ, yvex_r3, Pvex, [23]uint8{vexNDS | vexLZ | vex0F38 | vexW1, 0xF2}},
 	{ABEXTRL, yvex_vmr3, Pvex, [23]uint8{vexNDS | vexLZ | vex0F38 | vexW0, 0xF7}},

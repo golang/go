@@ -61,7 +61,7 @@ function pprof_toggle_asm(e) {
 
 <div class="legend">File: testbinary<br>
 Type: cpu<br>
-Duration: 10s, Total samples = 1.12s (11.20%)<br>Total: 1.12s</div><h1>line1000</h1>testdata/file1000.src
+Duration: 10s, Total samples = 1.12s (11.20%)<br>Total: 1.12s</div><h2>line1000</h2><p class="filename">testdata/file1000.src</p>
 <pre onClick="pprof_toggle_asm(event)">
   Total:       1.10s      1.10s (flat, cum) 98.21%
 <span class=line>      1</span> <span class=deadsrc>       1.10s      1.10s           line1 </span><span class=asm>               1.10s      1.10s     1000:     instruction one                                                              <span class=unimportant>file1000.src:1</span>
@@ -77,7 +77,7 @@ Duration: 10s, Total samples = 1.12s (11.20%)<br>Total: 1.12s</div><h1>line1000<
 <span class=line>      6</span> <span class=nop>           .          .           line6 </span>
 <span class=line>      7</span> <span class=nop>           .          .           line7 </span>
 </pre>
-<h1>line3000</h1>testdata/file3000.src
+<h2>line3000</h2><p class="filename">testdata/file3000.src</p>
 <pre onClick="pprof_toggle_asm(event)">
   Total:        10ms      1.12s (flat, cum)   100%
 <span class=line>      1</span> <span class=nop>           .          .           line1 </span>

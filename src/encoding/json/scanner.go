@@ -8,7 +8,7 @@ package json
 // Just about at the limit of what is reasonable to write by hand.
 // Some parts are a bit tedious, but overall it nicely factors out the
 // otherwise common code from the multiple scanning functions
-// in this package (Compact, Indent, checkValid, nextValue, etc).
+// in this package (Compact, Indent, checkValid, etc).
 //
 // This file starts with two simple examples using the scanner
 // before diving into the scanner itself.
@@ -34,35 +34,6 @@ func checkValid(data []byte, scan *scanner) error {
 		return scan.err
 	}
 	return nil
-}
-
-// nextValue splits data after the next whole JSON value,
-// returning that value and the bytes that follow it as separate slices.
-// scan is passed in for use by nextValue to avoid an allocation.
-func nextValue(data []byte, scan *scanner) (value, rest []byte, err error) {
-	scan.reset()
-	for i, c := range data {
-		v := scan.step(scan, c)
-		if v >= scanEndObject {
-			switch v {
-			// probe the scanner with a space to determine whether we will
-			// get scanEnd on the next character. Otherwise, if the next character
-			// is not a space, scanEndTop allocates a needless error.
-			case scanEndObject, scanEndArray:
-				if scan.step(scan, ' ') == scanEnd {
-					return data[:i+1], data[i+1:], nil
-				}
-			case scanError:
-				return nil, nil, scan.err
-			case scanEnd:
-				return data[:i], data[i:], nil
-			}
-		}
-	}
-	if scan.eof() == scanError {
-		return nil, nil, scan.err
-	}
-	return data, nil, nil
 }
 
 // A SyntaxError is a description of a JSON syntax error.
@@ -100,11 +71,6 @@ type scanner struct {
 
 	// Error that happened, if any.
 	err error
-
-	// 1-byte redo (see undo method)
-	redo      bool
-	redoCode  int
-	redoState func(*scanner, byte) int
 
 	// total bytes consumed, updated by decoder.Decode
 	bytes int64
@@ -151,7 +117,6 @@ func (s *scanner) reset() {
 	s.step = stateBeginValue
 	s.parseState = s.parseState[0:0]
 	s.err = nil
-	s.redo = false
 	s.endTop = false
 }
 
@@ -184,7 +149,6 @@ func (s *scanner) pushParseState(p int) {
 func (s *scanner) popParseState() {
 	n := len(s.parseState) - 1
 	s.parseState = s.parseState[0:n]
-	s.redo = false
 	if n == 0 {
 		s.step = stateEndTop
 		s.endTop = true
@@ -606,23 +570,4 @@ func quoteChar(c byte) string {
 	// use quoted string with different quotation marks
 	s := strconv.Quote(string(c))
 	return "'" + s[1:len(s)-1] + "'"
-}
-
-// undo causes the scanner to return scanCode from the next state transition.
-// This gives callers a simple 1-byte undo mechanism.
-func (s *scanner) undo(scanCode int) {
-	if s.redo {
-		panic("json: invalid use of scanner")
-	}
-	s.redoCode = scanCode
-	s.redoState = s.step
-	s.step = stateRedo
-	s.redo = true
-}
-
-// stateRedo helps implement the scanner's 1-byte undo.
-func stateRedo(s *scanner, c byte) int {
-	s.redo = false
-	s.step = s.redoState
-	return s.redoCode
 }

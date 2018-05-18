@@ -33,6 +33,7 @@ package x86
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"math"
 	"strings"
@@ -64,7 +65,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 	switch ctxt.Headtype {
 	case objabi.Hplan9, objabi.Hwindows:
 		return false
-	case objabi.Hlinux:
+	case objabi.Hlinux, objabi.Hfreebsd:
 		return !ctxt.Flag_shared
 	}
 
@@ -676,6 +677,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
 	}
 
+	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
+	// TODO: are there other cases (e.g., wrapper functions) that need marking?
+	markedPrologue := false
+
 	if autoffset != 0 {
 		if autoffset%int32(ctxt.Arch.RegSize) != 0 {
 			ctxt.Diag("unaligned stack size %d", autoffset)
@@ -685,6 +690,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(autoffset)
 		p.Spadj = autoffset
+		p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
+		markedPrologue = true
 	}
 
 	deltasp := autoffset
@@ -700,6 +707,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Reg = REG_SP
 		p.To.Scale = 1
 		p.To.Offset = int64(autoffset) - int64(bpsize)
+		if !markedPrologue {
+			p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
+		}
 
 		// Move current frame to BP
 		p = obj.Appendp(p, newprog)
@@ -917,6 +927,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		if autoffset != 0 {
+			to := p.To // Keep To attached to RET for retjmp below
+			p.To = obj.Addr{}
 			if bpsize > 0 {
 				// Restore caller's BP
 				p.As = AMOVQ
@@ -936,6 +948,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.Spadj = -autoffset
 			p = obj.Appendp(p, newprog)
 			p.As = obj.ARET
+			p.To = to
 
 			// If there are instructions following
 			// this ARET, they come from a branch
@@ -961,7 +974,7 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 	return false
 }
 
-func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+func indir_cx(ctxt *obj.Link, a *obj.Addr) {
 	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 		a.Type = obj.TYPE_MEM
 		a.Reg = REG_R15
@@ -1029,7 +1042,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SP
-		indir_cx(ctxt, p, &p.To)
+		indir_cx(ctxt, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1051,7 +1064,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_AX
-		indir_cx(ctxt, p, &p.To)
+		indir_cx(ctxt, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1075,7 +1088,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p = obj.Appendp(p, newprog)
 
 		p.As = mov
-		indir_cx(ctxt, p, &p.From)
+		indir_cx(ctxt, &p.From)
 		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1183,54 +1196,87 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 }
 
 var unaryDst = map[obj.As]bool{
-	ABSWAPL:    true,
-	ABSWAPQ:    true,
-	ACLFLUSH:   true,
-	ACMPXCHG8B: true,
-	ADECB:      true,
-	ADECL:      true,
-	ADECQ:      true,
-	ADECW:      true,
-	AINCB:      true,
-	AINCL:      true,
-	AINCQ:      true,
-	AINCW:      true,
-	ANEGB:      true,
-	ANEGL:      true,
-	ANEGQ:      true,
-	ANEGW:      true,
-	ANOTB:      true,
-	ANOTL:      true,
-	ANOTQ:      true,
-	ANOTW:      true,
-	APOPL:      true,
-	APOPQ:      true,
-	APOPW:      true,
-	ASETCC:     true,
-	ASETCS:     true,
-	ASETEQ:     true,
-	ASETGE:     true,
-	ASETGT:     true,
-	ASETHI:     true,
-	ASETLE:     true,
-	ASETLS:     true,
-	ASETLT:     true,
-	ASETMI:     true,
-	ASETNE:     true,
-	ASETOC:     true,
-	ASETOS:     true,
-	ASETPC:     true,
-	ASETPL:     true,
-	ASETPS:     true,
-	AFFREE:     true,
-	AFLDENV:    true,
-	AFSAVE:     true,
-	AFSTCW:     true,
-	AFSTENV:    true,
-	AFSTSW:     true,
-	AFXSAVE:    true,
-	AFXSAVE64:  true,
-	ASTMXCSR:   true,
+	ABSWAPL:     true,
+	ABSWAPQ:     true,
+	ABSWAPW:     true,
+	ACLFLUSH:    true,
+	ACLFLUSHOPT: true,
+	ACMPXCHG16B: true,
+	ACMPXCHG8B:  true,
+	ADECB:       true,
+	ADECL:       true,
+	ADECQ:       true,
+	ADECW:       true,
+	AFBSTP:      true,
+	AFFREE:      true,
+	AFLDENV:     true,
+	AFSAVE:      true,
+	AFSTCW:      true,
+	AFSTENV:     true,
+	AFSTSW:      true,
+	AFXSAVE64:   true,
+	AFXSAVE:     true,
+	AINCB:       true,
+	AINCL:       true,
+	AINCQ:       true,
+	AINCW:       true,
+	ANEGB:       true,
+	ANEGL:       true,
+	ANEGQ:       true,
+	ANEGW:       true,
+	ANOTB:       true,
+	ANOTL:       true,
+	ANOTQ:       true,
+	ANOTW:       true,
+	APOPL:       true,
+	APOPQ:       true,
+	APOPW:       true,
+	ARDFSBASEL:  true,
+	ARDFSBASEQ:  true,
+	ARDGSBASEL:  true,
+	ARDGSBASEQ:  true,
+	ARDRANDL:    true,
+	ARDRANDQ:    true,
+	ARDRANDW:    true,
+	ARDSEEDL:    true,
+	ARDSEEDQ:    true,
+	ARDSEEDW:    true,
+	ASETCC:      true,
+	ASETCS:      true,
+	ASETEQ:      true,
+	ASETGE:      true,
+	ASETGT:      true,
+	ASETHI:      true,
+	ASETLE:      true,
+	ASETLS:      true,
+	ASETLT:      true,
+	ASETMI:      true,
+	ASETNE:      true,
+	ASETOC:      true,
+	ASETOS:      true,
+	ASETPC:      true,
+	ASETPL:      true,
+	ASETPS:      true,
+	ASGDT:       true,
+	ASIDT:       true,
+	ASLDTL:      true,
+	ASLDTQ:      true,
+	ASLDTW:      true,
+	ASMSWL:      true,
+	ASMSWQ:      true,
+	ASMSWW:      true,
+	ASTMXCSR:    true,
+	ASTRL:       true,
+	ASTRQ:       true,
+	ASTRW:       true,
+	AXSAVE64:    true,
+	AXSAVE:      true,
+	AXSAVEC64:   true,
+	AXSAVEC:     true,
+	AXSAVEOPT64: true,
+	AXSAVEOPT:   true,
+	AXSAVES64:   true,
+	AXSAVES:     true,
 }
 
 var Linkamd64 = obj.LinkArch{

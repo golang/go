@@ -222,6 +222,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	MOVD	$runtime·badsystemstack(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
+	BL	runtime·abort(SB)
 
 switch:
 	// save our state in g->sched. Pretend to
@@ -704,11 +705,6 @@ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R4, LR
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
-	MOVD	0(R1), R3		// LR saved by caller
-	MOVD	R3, ret+0(FP)
-	RET
-
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R0
 	UNDEF
@@ -737,699 +733,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
 TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
-
-TEXT runtime·memequal(SB),NOSPLIT,$0-25
-	MOVD    a+0(FP), R3
-	MOVD    b+8(FP), R4
-	MOVD    size+16(FP), R5
-
-	BL	runtime·memeqbody(SB)
-	MOVB    R9, ret+24(FP)
-	RET
-
-// memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
-	MOVD	a+0(FP), R3
-	MOVD	b+8(FP), R4
-	CMP	R3, R4
-	BEQ	eq
-	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
-	BL	runtime·memeqbody(SB)
-	MOVB	R9, ret+16(FP)
-	RET
-eq:
-	MOVD	$1, R3
-	MOVB	R3, ret+16(FP)
-	RET
-
-// Do an efficient memcmp for ppc64le
-// R3 = s1 len
-// R4 = s2 len
-// R5 = s1 addr
-// R6 = s2 addr
-// R7 = addr of return value
-TEXT cmpbodyLE<>(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD	R3,R8		// set up length
-	CMP	R3,R4,CR2	// unequal?
-	BC	12,8,setuplen	// BLT CR2
-	MOVD	R4,R8		// use R4 for comparison len
-setuplen:
-	MOVD	R8,CTR		// set up loop counter
-	CMP	R8,$8		// only optimize >=8
-	BLT	simplecheck
-	DCBT	(R5)		// cache hint
-	DCBT	(R6)
-	CMP	R8,$32		// optimize >= 32
-	MOVD	R8,R9
-	BLT	setup8a		// 8 byte moves only
-setup32a:
-	SRADCC	$5,R8,R9	// number of 32 byte chunks
-	MOVD	R9,CTR
-
-        // Special processing for 32 bytes or longer.
-        // Loading this way is faster and correct as long as the
-	// doublewords being compared are equal. Once they
-	// are found unequal, reload them in proper byte order
-	// to determine greater or less than.
-loop32a:
-	MOVD	0(R5),R9	// doublewords to compare
-	MOVD	0(R6),R10	// get 4 doublewords
-	MOVD	8(R5),R14
-	MOVD	8(R6),R15
-	CMPU	R9,R10		// bytes equal?
-	MOVD	$0,R16		// set up for cmpne
-	BNE	cmpne		// further compare for LT or GT
-	MOVD	16(R5),R9	// get next pair of doublewords
-	MOVD	16(R6),R10
-	CMPU	R14,R15		// bytes match?
-	MOVD	$8,R16		// set up for cmpne
-	BNE	cmpne		// further compare for LT or GT
-	MOVD	24(R5),R14	// get next pair of doublewords
-	MOVD    24(R6),R15
-	CMPU	R9,R10		// bytes match?
-	MOVD	$16,R16		// set up for cmpne
-	BNE	cmpne		// further compare for LT or GT
-	MOVD	$-8,R16		// for cmpne, R5,R6 already inc by 32
-	ADD	$32,R5		// bump up to next 32
-	ADD	$32,R6
-	CMPU    R14,R15		// bytes match?
-	BC	8,2,loop32a	// br ctr and cr
-	BNE	cmpne
-	ANDCC	$24,R8,R9	// Any 8 byte chunks?
-	BEQ	leftover	// and result is 0
-setup8a:
-	SRADCC	$3,R9,R9	// get the 8 byte count
-	BEQ	leftover	// shifted value is 0
-	MOVD	R9,CTR		// loop count for doublewords
-loop8:
-	MOVDBR	(R5+R0),R9	// doublewords to compare
-	MOVDBR	(R6+R0),R10	// LE compare order
-	ADD	$8,R5
-	ADD	$8,R6
-	CMPU	R9,R10		// match?
-	BC	8,2,loop8	// bt ctr <> 0 && cr
-	BGT	greater
-	BLT	less
-leftover:
-	ANDCC	$7,R8,R9	// check for leftover bytes
-	MOVD	R9,CTR		// save the ctr
-	BNE	simple		// leftover bytes
-	BC	12,10,equal	// test CR2 for length comparison
-	BC	12,8,less
-	BR	greater
-simplecheck:
-	CMP	R8,$0		// remaining compare length 0
-	BNE	simple		// do simple compare
-	BC	12,10,equal	// test CR2 for length comparison
-	BC	12,8,less	// 1st len < 2nd len, result less
-	BR	greater		// 1st len > 2nd len must be greater
-simple:
-	MOVBZ	0(R5), R9	// get byte from 1st operand
-	ADD	$1,R5
-	MOVBZ	0(R6), R10	// get byte from 2nd operand
-	ADD	$1,R6
-	CMPU	R9, R10
-	BC	8,2,simple	// bc ctr <> 0 && cr
-	BGT	greater		// 1st > 2nd
-	BLT	less		// 1st < 2nd
-	BC	12,10,equal	// test CR2 for length comparison
-	BC	12,9,greater	// 2nd len > 1st len
-	BR	less		// must be less
-cmpne:				// only here is not equal
-	MOVDBR	(R5+R16),R8	// reload in reverse order
-	MOVDBR	(R6+R16),R9
-	CMPU	R8,R9		// compare correct endianness
-	BGT	greater		// here only if NE
-less:
-	MOVD	$-1,R3
-	MOVD	R3,(R7)		// return value if A < B
-	RET
-equal:
-	MOVD	$0,(R7)		// return value if A == B
-	RET
-greater:
-	MOVD	$1,R3
-	MOVD	R3,(R7)		// return value if A > B
-	RET
-
-// Do an efficient memcmp for ppc64 (BE)
-// R3 = s1 len
-// R4 = s2 len
-// R5 = s1 addr
-// R6 = s2 addr
-// R7 = addr of return value
-TEXT cmpbodyBE<>(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD	R3,R8		// set up length
-	CMP	R3,R4,CR2	// unequal?
-	BC	12,8,setuplen	// BLT CR2
-	MOVD	R4,R8		// use R4 for comparison len
-setuplen:
-	MOVD	R8,CTR		// set up loop counter
-	CMP	R8,$8		// only optimize >=8
-	BLT	simplecheck
-	DCBT	(R5)		// cache hint
-	DCBT	(R6)
-	CMP	R8,$32		// optimize >= 32
-	MOVD	R8,R9
-	BLT	setup8a		// 8 byte moves only
-
-setup32a:
-	SRADCC	$5,R8,R9	// number of 32 byte chunks
-	MOVD	R9,CTR
-loop32a:
-	MOVD	0(R5),R9	// doublewords to compare
-	MOVD	0(R6),R10	// get 4 doublewords
-	MOVD	8(R5),R14
-	MOVD	8(R6),R15
-	CMPU	R9,R10		// bytes equal?
-	BLT	less		// found to be less
-	BGT	greater		// found to be greater
-	MOVD	16(R5),R9	// get next pair of doublewords
-	MOVD	16(R6),R10
-	CMPU	R14,R15		// bytes match?
-	BLT	less		// found less
-	BGT	greater		// found greater
-	MOVD	24(R5),R14	// get next pair of doublewords
-	MOVD	24(R6),R15
-	CMPU	R9,R10		// bytes match?
-	BLT	less		// found to be less
-	BGT	greater		// found to be greater
-	ADD	$32,R5		// bump up to next 32
-	ADD	$32,R6
-	CMPU	R14,R15		// bytes match?
-	BC	8,2,loop32a	// br ctr and cr
-	BLT	less		// with BE, byte ordering is
-	BGT	greater		// good for compare
-	ANDCC	$24,R8,R9	// Any 8 byte chunks?
-	BEQ	leftover	// and result is 0
-setup8a:
-	SRADCC	$3,R9,R9	// get the 8 byte count
-	BEQ	leftover	// shifted value is 0
-	MOVD	R9,CTR		// loop count for doublewords
-loop8:
-	MOVD	(R5),R9
-	MOVD	(R6),R10
-	ADD	$8,R5
-	ADD	$8,R6
-	CMPU	R9,R10		// match?
-	BC	8,2,loop8	// bt ctr <> 0 && cr
-	BGT	greater
-	BLT	less
-leftover:
-	ANDCC	$7,R8,R9	// check for leftover bytes
-	MOVD	R9,CTR		// save the ctr
-	BNE	simple		// leftover bytes
-	BC	12,10,equal	// test CR2 for length comparison
-	BC	12,8,less
-	BR	greater
-simplecheck:
-	CMP	R8,$0		// remaining compare length 0
-	BNE	simple		// do simple compare
-	BC	12,10,equal	// test CR2 for length comparison
-	BC 	12,8,less	// 1st len < 2nd len, result less
-	BR	greater		// same len, must be equal
-simple:
-	MOVBZ	0(R5),R9	// get byte from 1st operand
-	ADD	$1,R5
-	MOVBZ	0(R6),R10	// get byte from 2nd operand
-	ADD	$1,R6
-	CMPU	R9,R10
-	BC	8,2,simple	// bc ctr <> 0 && cr
-	BGT	greater		// 1st > 2nd
-	BLT	less		// 1st < 2nd
-	BC	12,10,equal	// test CR2 for length comparison
-	BC	12,9,greater	// 2nd len > 1st len
-less:
-	MOVD	$-1,R3
-	MOVD    R3,(R7)		// return value if A < B
-	RET
-equal:
-	MOVD    $0,(R7)		// return value if A == B
-	RET
-greater:
-	MOVD	$1,R3
-	MOVD	R3,(R7)		// return value if A > B
-	RET
-
-// Do an efficient memequal for ppc64
-// R3 = s1
-// R4 = s2
-// R5 = len
-// R9 = return value
-TEXT runtime·memeqbody(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD    R5,CTR
-	CMP     R5,$8		// only optimize >=8
-	BLT     simplecheck
-	DCBT	(R3)		// cache hint
-	DCBT	(R4)
-	CMP	R5,$32		// optimize >= 32
-	MOVD	R5,R6		// needed if setup8a branch
-	BLT	setup8a		// 8 byte moves only
-setup32a:                       // 8 byte aligned, >= 32 bytes
-	SRADCC  $5,R5,R6        // number of 32 byte chunks to compare
-	MOVD	R6,CTR
-loop32a:
-	MOVD    0(R3),R6        // doublewords to compare
-	MOVD    0(R4),R7
-	MOVD	8(R3),R8	//
-	MOVD	8(R4),R9
-	CMP     R6,R7           // bytes batch?
-	BNE     noteq
-	MOVD	16(R3),R6
-	MOVD	16(R4),R7
-	CMP     R8,R9		// bytes match?
-	MOVD	24(R3),R8
-	MOVD	24(R4),R9
-	BNE     noteq
-	CMP     R6,R7           // bytes match?
-	BNE	noteq
-	ADD     $32,R3		// bump up to next 32
-	ADD     $32,R4
-	CMP     R8,R9           // bytes match?
-	BC      8,2,loop32a	// br ctr and cr
-	BNE	noteq
-	ANDCC	$24,R5,R6       // Any 8 byte chunks?
-	BEQ	leftover	// and result is 0
-setup8a:
-	SRADCC  $3,R6,R6        // get the 8 byte count
-	BEQ	leftover	// shifted value is 0
-	MOVD    R6,CTR
-loop8:
-	MOVD    0(R3),R6        // doublewords to compare
-	ADD	$8,R3
-	MOVD    0(R4),R7
-	ADD     $8,R4
-	CMP     R6,R7           // match?
-	BC	8,2,loop8	// bt ctr <> 0 && cr
-	BNE     noteq
-leftover:
-	ANDCC   $7,R5,R6        // check for leftover bytes
-	BEQ     equal
-	MOVD    R6,CTR
-	BR	simple
-simplecheck:
-	CMP	R5,$0
-	BEQ	equal
-simple:
-	MOVBZ   0(R3), R6
-	ADD	$1,R3
-	MOVBZ   0(R4), R7
-	ADD     $1,R4
-	CMP     R6, R7
-	BNE     noteq
-	BC      8,2,simple
-	BNE	noteq
-	BR	equal
-noteq:
-	MOVD    $0, R9
-	RET
-equal:
-	MOVD    $1, R9
-	RET
-
-TEXT bytes·Equal(SB),NOSPLIT,$0-49
-	MOVD	a_len+8(FP), R4
-	MOVD	b_len+32(FP), R5
-	CMP	R5, R4		// unequal lengths are not equal
-	BNE	noteq
-	MOVD	a+0(FP), R3
-	MOVD	b+24(FP), R4
-	BL	runtime·memeqbody(SB)
-
-	MOVBZ	R9,ret+48(FP)
-	RET
-
-noteq:
-	MOVBZ	$0,ret+48(FP)
-	RET
-
-equal:
-	MOVD	$1,R3
-	MOVBZ	R3,ret+48(FP)
-	RET
-
-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
-	MOVD	s+0(FP), R3		// R3 = byte array pointer
-	MOVD	s_len+8(FP), R4		// R4 = length
-	MOVBZ	c+24(FP), R5		// R5 = byte
-	MOVD	$ret+32(FP), R14	// R14 = &ret
-	BR	runtime·indexbytebody<>(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
-	MOVD	s+0(FP), R3	  // R3 = string
-	MOVD	s_len+8(FP), R4	  // R4 = length
-	MOVBZ	c+16(FP), R5	  // R5 = byte
-	MOVD	$ret+24(FP), R14  // R14 = &ret
-	BR	runtime·indexbytebody<>(SB)
-
-TEXT runtime·indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
-	DCBT	(R3)		// Prepare cache line.
-	MOVD	R3,R17		// Save base address for calculating the index later.
-	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
-	RLDIMI	$8,R5,$48,R5	// Replicating the byte across the register.
-	ADD	R4,R3,R7	// Last acceptable address in R7.
-
-	RLDIMI	$16,R5,$32,R5
-	CMPU	R4,$32		// Check if it's a small string (<32 bytes). Those will be processed differently.
-	MOVD	$-1,R9
-	WORD	$0x54661EB8	// Calculate padding in R6 (rlwinm r6,r3,3,26,28).
-	RLDIMI	$32,R5,$0,R5
-	MOVD	R7,R10		// Save last acceptable address in R10 for later.
-	ADD	$-1,R7,R7
-#ifdef GOARCH_ppc64le
-	SLD	R6,R9,R9	// Prepare mask for Little Endian
-#else
-	SRD	R6,R9,R9	// Same for Big Endian
-#endif
-	BLE	small_string	// Jump to the small string case if it's <32 bytes.
-
-	// If we are 64-byte aligned, branch to qw_align just to get the auxiliary values
-	// in V0, V1 and V10, then branch to the preloop.
-	ANDCC	$63,R3,R11
-	BEQ	CR0,qw_align
-	RLDICL	$0,R3,$61,R11
-
-	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
-	CMPB	R12,R5,R3	// Check for a match.
-	AND	R9,R3,R3	// Mask bytes below s_base
-	RLDICL	$0,R7,$61,R6	// length-1
-	RLDICR	$0,R7,$60,R7	// Last doubleword in R7
-	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation
-	BNE	CR7,done
-	ADD	$8,R8,R8
-	ADD	$-8,R4,R4
-	ADD	R4,R11,R4
-
-	// Check for quadword alignment
-	ANDCC	$15,R8,R11
-	BEQ	CR0,qw_align
-
-	// Not aligned, so handle the next doubleword
-	MOVD	0(R8),R12
-	CMPB	R12,R5,R3
-	CMPU	R3,$0,CR7
-	BNE	CR7,done
-	ADD	$8,R8,R8
-	ADD	$-8,R4,R4
-
-	// Either quadword aligned or 64-byte at this point. We can use LVX.
-qw_align:
-
-	// Set up auxiliary data for the vectorized algorithm.
-	VSPLTISB  $0,V0		// Replicate 0 across V0
-	VSPLTISB  $3,V10	// Use V10 as control for VBPERMQ
-	MTVRD	  R5,V1
-	LVSL	  (R0+R0),V11
-	VSLB	  V11,V10,V10
-	VSPLTB	  $7,V1,V1	// Replicate byte across V1
-	CMPU	  R4, $64	// If len <= 64, don't use the vectorized loop
-	BLE	  tail
-
-	// We will load 4 quardwords per iteration in the loop, so check for
-	// 64-byte alignment. If 64-byte aligned, then branch to the preloop.
-	ANDCC	  $63,R8,R11
-	BEQ	  CR0,preloop
-
-	// Not 64-byte aligned. Load one quadword at a time until aligned.
-	LVX	    (R8+R0),V4
-	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
-	BNE	    CR6,found_qw_align
-	ADD	    $16,R8,R8
-	ADD	    $-16,R4,R4
-
-	ANDCC	    $63,R8,R11
-	BEQ	    CR0,preloop
-	LVX	    (R8+R0),V4
-	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
-	BNE	    CR6,found_qw_align
-	ADD	    $16,R8,R8
-	ADD	    $-16,R4,R4
-
-	ANDCC	    $63,R8,R11
-	BEQ	    CR0,preloop
-	LVX	    (R8+R0),V4
-	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
-	BNE	    CR6,found_qw_align
-	ADD	    $-16,R4,R4
-	ADD	    $16,R8,R8
-
-	// 64-byte aligned. Prepare for the main loop.
-preloop:
-	CMPU	R4,$64
-	BLE	tail	      // If len <= 64, don't use the vectorized loop
-
-	// We are now aligned to a 64-byte boundary. We will load 4 quadwords
-	// per loop iteration. The last doubleword is in R10, so our loop counter
-	// starts at (R10-R8)/64.
-	SUB	R8,R10,R6
-	SRD	$6,R6,R9      // Loop counter in R9
-	MOVD	R9,CTR
-
-	MOVD	$16,R11      // Load offsets for the vector loads
-	MOVD	$32,R9
-	MOVD	$48,R7
-
-	// Main loop we will load 64 bytes per iteration
-loop:
-	LVX	    (R8+R0),V2	      // Load 4 16-byte vectors
-	LVX	    (R11+R8),V3
-	LVX	    (R9+R8),V4
-	LVX	    (R7+R8),V5
-	VCMPEQUB    V1,V2,V6	      // Look for byte in each vector
-	VCMPEQUB    V1,V3,V7
-	VCMPEQUB    V1,V4,V8
-	VCMPEQUB    V1,V5,V9
-	VOR	    V6,V7,V11	      // Compress the result in a single vector
-	VOR	    V8,V9,V12
-	VOR	    V11,V12,V11
-	VCMPEQUBCC  V0,V11,V11	      // Check for byte
-	BGE	    CR6,found
-	ADD	    $64,R8,R8
-	BC	    16,0,loop	      // bdnz loop
-
-	// Handle the tailing bytes or R4 <= 64
-	RLDICL	$0,R6,$58,R4
-tail:
-	CMPU	    R4,$0
-	BEQ	    notfound
-	LVX	    (R8+R0),V4
-	VCMPEQUBCC  V1,V4,V6
-	BNE	    CR6,found_qw_align
-	ADD	    $16,R8,R8
-	CMPU	    R4,$16,CR6
-	BLE	    CR6,notfound
-	ADD	    $-16,R4,R4
-
-	LVX	    (R8+R0),V4
-	VCMPEQUBCC  V1,V4,V6
-	BNE	    CR6,found_qw_align
-	ADD	    $16,R8,R8
-	CMPU	    R4,$16,CR6
-	BLE	    CR6,notfound
-	ADD	    $-16,R4,R4
-
-	LVX	    (R8+R0),V4
-	VCMPEQUBCC  V1,V4,V6
-	BNE	    CR6,found_qw_align
-	ADD	    $16,R8,R8
-	CMPU	    R4,$16,CR6
-	BLE	    CR6,notfound
-	ADD	    $-16,R4,R4
-
-	LVX	    (R8+R0),V4
-	VCMPEQUBCC  V1,V4,V6
-	BNE	    CR6,found_qw_align
-
-notfound:
-	MOVD	$-1,R3
-	MOVD	R3,(R14)
-	RET
-
-found:
-	// We will now compress the results into a single doubleword,
-	// so it can be moved to a GPR for the final index calculation.
-
-	// The bytes in V6-V9 are either 0x00 or 0xFF. So, permute the
-	// first bit of each byte into bits 48-63.
-	VBPERMQ	  V6,V10,V6
-	VBPERMQ	  V7,V10,V7
-	VBPERMQ	  V8,V10,V8
-	VBPERMQ	  V9,V10,V9
-
-	// Shift each 16-bit component into its correct position for
-	// merging into a single doubleword.
-#ifdef GOARCH_ppc64le
-	VSLDOI	  $2,V7,V7,V7
-	VSLDOI	  $4,V8,V8,V8
-	VSLDOI	  $6,V9,V9,V9
-#else
-	VSLDOI	  $6,V6,V6,V6
-	VSLDOI	  $4,V7,V7,V7
-	VSLDOI	  $2,V8,V8,V8
-#endif
-
-	// Merge V6-V9 into a single doubleword and move to a GPR.
-	VOR	V6,V7,V11
-	VOR	V8,V9,V4
-	VOR	V4,V11,V4
-	MFVRD	V4,R3
-
-#ifdef GOARCH_ppc64le
-	ADD	  $-1,R3,R11
-	ANDN	  R3,R11,R11
-	POPCNTD	  R11,R11	// Count trailing zeros (Little Endian).
-#else
-	CNTLZD	R3,R11		// Count leading zeros (Big Endian).
-#endif
-	ADD	R8,R11,R3	// Calculate byte address
-
-return:
-	SUB	R17,R3
-	MOVD	R3,(R14)
-	RET
-
-found_qw_align:
-	// Use the same algorithm as above. Compress the result into
-	// a single doubleword and move it to a GPR for the final
-	// calculation.
-	VBPERMQ	  V6,V10,V6
-
-#ifdef GOARCH_ppc64le
-	MFVRD	  V6,R3
-	ADD	  $-1,R3,R11
-	ANDN	  R3,R11,R11
-	POPCNTD	  R11,R11
-#else
-	VSLDOI	  $6,V6,V6,V6
-	MFVRD	  V6,R3
-	CNTLZD	  R3,R11
-#endif
-	ADD	  R8,R11,R3
-	CMPU	  R11,R4
-	BLT	  return
-	BR	  notfound
-
-done:
-	// At this point, R3 has 0xFF in the same position as the byte we are
-	// looking for in the doubleword. Use that to calculate the exact index
-	// of the byte.
-#ifdef GOARCH_ppc64le
-	ADD	$-1,R3,R11
-	ANDN	R3,R11,R11
-	POPCNTD	R11,R11		// Count trailing zeros (Little Endian).
-#else
-	CNTLZD	R3,R11		// Count leading zeros (Big Endian).
-#endif
-	CMPU	R8,R7		// Check if we are at the last doubleword.
-	SRD	$3,R11		// Convert trailing zeros to bytes.
-	ADD	R11,R8,R3
-	CMPU	R11,R6,CR7	// If at the last doubleword, check the byte offset.
-	BNE	return
-	BLE	CR7,return
-	BR	notfound
-
-small_string:
-	// We unroll this loop for better performance.
-	CMPU	R4,$0		// Check for length=0
-	BEQ	notfound
-
-	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
-	CMPB	R12,R5,R3	// Check for a match.
-	AND	R9,R3,R3	// Mask bytes below s_base.
-	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation.
-	RLDICL	$0,R7,$61,R6	// length-1
-	RLDICR	$0,R7,$60,R7	// Last doubleword in R7.
-	CMPU	R8,R7
-	BNE	CR7,done
-	BEQ	notfound	// Hit length.
-
-	MOVDU	8(R8),R12
-	CMPB	R12,R5,R3
-	CMPU	R3,$0,CR6
-	CMPU	R8,R7
-	BNE	CR6,done
-	BEQ	notfound
-
-	MOVDU	8(R8),R12
-	CMPB	R12,R5,R3
-	CMPU	R3,$0,CR6
-	CMPU	R8,R7
-	BNE	CR6,done
-	BEQ	notfound
-
-	MOVDU	8(R8),R12
-	CMPB	R12,R5,R3
-	CMPU	R3,$0,CR6
-	CMPU	R8,R7
-	BNE	CR6,done
-	BEQ	notfound
-
-	MOVDU	8(R8),R12
-	CMPB	R12,R5,R3
-	CMPU	R3,$0,CR6
-	BNE	CR6,done
-	BR	notfound
-
-TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
-	MOVD	s1_base+0(FP), R5
-	MOVD	s2_base+16(FP), R6
-	MOVD	s1_len+8(FP), R3
-	CMP	R5,R6,CR7
-	MOVD	s2_len+24(FP), R4
-	MOVD	$ret+32(FP), R7
-	CMP	R3,R4,CR6
-	BEQ	CR7,equal
-
-notequal:
-#ifdef	GOARCH_ppc64le
-	BR	cmpbodyLE<>(SB)
-#else
-	BR      cmpbodyBE<>(SB)
-#endif
-
-equal:
-	BEQ	CR6,done
-	MOVD	$1, R8
-	BGT	CR6,greater
-	NEG	R8
-
-greater:
-	MOVD	R8, (R7)
-	RET
-
-done:
-	MOVD	$0, (R7)
-	RET
-
-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
-	MOVD	s1+0(FP), R5
-	MOVD	s2+24(FP), R6
-	MOVD	s1+8(FP), R3
-	CMP	R5,R6,CR7
-	MOVD	s2+32(FP), R4
-	MOVD	$ret+48(FP), R7
-	CMP	R3,R4,CR6
-	BEQ	CR7,equal
-
-#ifdef	GOARCH_ppc64le
-	BR	cmpbodyLE<>(SB)
-#else
-	BR      cmpbodyBE<>(SB)
-#endif
-
-equal:
-	BEQ	CR6,done
-	MOVD	$1, R8
-	BGT	CR6,greater
-	NEG	R8
-
-greater:
-	MOVD	R8, (R7)
-	RET
-
-done:
-	MOVD	$0, (R7)
-	RET
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R3
@@ -1495,3 +798,74 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R3
 	MOVB	R3, ret+0(FP)
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - R20 is the destination of the write
+// - R21 is the value being written at R20.
+// It clobbers condition codes.
+// It does not clobber R0 through R15,
+// but may clobber any other register, *including* R31.
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$112
+	// The standard prologue clobbers R31.
+	// We use R16 and R17 as scratch registers.
+	MOVD	g_m(g), R16
+	MOVD	m_p(R16), R16
+	MOVD	(p_wbBuf+wbBuf_next)(R16), R17
+	// Increment wbBuf.next position.
+	ADD	$16, R17
+	MOVD	R17, (p_wbBuf+wbBuf_next)(R16)
+	MOVD	(p_wbBuf+wbBuf_end)(R16), R16
+	CMP	R16, R17
+	// Record the write.
+	MOVD	R21, -16(R17)	// Record value
+	MOVD	(R20), R16	// TODO: This turns bad writes into bad reads.
+	MOVD	R16, -8(R17)	// Record *slot
+	// Is the buffer full? (flags set in CMP above)
+	BEQ	flush
+ret:
+	// Do the write.
+	MOVD	R21, (R20)
+	RET
+
+flush:
+	// Save registers R0 through R15 since these were not saved by the caller.
+	// We don't save all registers on ppc64 because it takes too much space.
+	MOVD	R20, (FIXED_FRAME+0)(R1)	// Also first argument to wbBufFlush
+	MOVD	R21, (FIXED_FRAME+8)(R1)	// Also second argument to wbBufFlush
+	// R0 is always 0, so no need to spill.
+	// R1 is SP.
+	// R2 is SB.
+	MOVD	R3, (FIXED_FRAME+16)(R1)
+	MOVD	R4, (FIXED_FRAME+24)(R1)
+	MOVD	R5, (FIXED_FRAME+32)(R1)
+	MOVD	R6, (FIXED_FRAME+40)(R1)
+	MOVD	R7, (FIXED_FRAME+48)(R1)
+	MOVD	R8, (FIXED_FRAME+56)(R1)
+	MOVD	R9, (FIXED_FRAME+64)(R1)
+	MOVD	R10, (FIXED_FRAME+72)(R1)
+	MOVD	R11, (FIXED_FRAME+80)(R1)
+	MOVD	R12, (FIXED_FRAME+88)(R1)
+	// R13 is REGTLS
+	MOVD	R14, (FIXED_FRAME+96)(R1)
+	MOVD	R15, (FIXED_FRAME+104)(R1)
+
+	// This takes arguments R20 and R21.
+	CALL	runtime·wbBufFlush(SB)
+
+	MOVD	(FIXED_FRAME+0)(R1), R20
+	MOVD	(FIXED_FRAME+8)(R1), R21
+	MOVD	(FIXED_FRAME+16)(R1), R3
+	MOVD	(FIXED_FRAME+24)(R1), R4
+	MOVD	(FIXED_FRAME+32)(R1), R5
+	MOVD	(FIXED_FRAME+40)(R1), R6
+	MOVD	(FIXED_FRAME+48)(R1), R7
+	MOVD	(FIXED_FRAME+56)(R1), R8
+	MOVD	(FIXED_FRAME+64)(R1), R9
+	MOVD	(FIXED_FRAME+72)(R1), R10
+	MOVD	(FIXED_FRAME+80)(R1), R11
+	MOVD	(FIXED_FRAME+88)(R1), R12
+	MOVD	(FIXED_FRAME+96)(R1), R14
+	MOVD	(FIXED_FRAME+104)(R1), R15
+	JMP	ret

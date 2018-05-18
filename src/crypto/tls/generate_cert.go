@@ -146,16 +146,24 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open cert.pem for writing: %s", err)
 	}
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	certOut.Close()
-	log.Print("written cert.pem\n")
+	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
+		log.Fatalf("failed to write data to cert.pem: %s", err)
+	}
+	if err := certOut.Close(); err != nil {
+		log.Fatalf("error closing cert.pem: %s", err)
+	}
+	log.Print("wrote cert.pem\n")
 
 	keyOut, err := os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Print("failed to open key.pem for writing:", err)
 		return
 	}
-	pem.Encode(keyOut, pemBlockForKey(priv))
-	keyOut.Close()
-	log.Print("written key.pem\n")
+	if err := pem.Encode(keyOut, pemBlockForKey(priv)); err != nil {
+		log.Fatalf("failed to write data to key.pem: %s", err)
+	}
+	if err := keyOut.Close(); err != nil {
+		log.Fatalf("error closing key.pem: %s", err)
+	}
+	log.Print("wrote key.pem\n")
 }

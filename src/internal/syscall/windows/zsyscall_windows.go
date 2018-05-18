@@ -41,6 +41,7 @@ var (
 	modws2_32   = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
 	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
+	moduserenv  = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
 
 	procGetAdaptersAddresses      = modiphlpapi.NewProc("GetAdaptersAddresses")
@@ -62,6 +63,8 @@ var (
 	procAdjustTokenPrivileges     = modadvapi32.NewProc("AdjustTokenPrivileges")
 	procDuplicateTokenEx          = modadvapi32.NewProc("DuplicateTokenEx")
 	procSetTokenInformation       = modadvapi32.NewProc("SetTokenInformation")
+	procGetProfilesDirectoryW     = moduserenv.NewProc("GetProfilesDirectoryW")
+	procNetUserGetLocalGroups     = modnetapi32.NewProc("NetUserGetLocalGroups")
 	procGetProcessMemoryInfo      = modpsapi.NewProc("GetProcessMemoryInfo")
 )
 
@@ -283,6 +286,26 @@ func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32
 		} else {
 			err = syscall.EINVAL
 		}
+	}
+	return
+}
+
+func GetProfilesDirectory(dir *uint16, dirLen *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetProfilesDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(unsafe.Pointer(dirLen)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, flags uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32) (neterr error) {
+	r0, _, _ := syscall.Syscall9(procNetUserGetLocalGroups.Addr(), 8, uintptr(unsafe.Pointer(serverName)), uintptr(unsafe.Pointer(userName)), uintptr(level), uintptr(flags), uintptr(unsafe.Pointer(buf)), uintptr(prefMaxLen), uintptr(unsafe.Pointer(entriesRead)), uintptr(unsafe.Pointer(totalEntries)), 0)
+	if r0 != 0 {
+		neterr = syscall.Errno(r0)
 	}
 	return
 }

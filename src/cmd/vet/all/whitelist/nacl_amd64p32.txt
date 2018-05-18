@@ -1,5 +1,8 @@
 // nacl/amd64p32-specific vet whitelist. See readme.txt for details.
 
+internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
+internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: cmpstring is in package runtime
+
 // reflect trampolines intentionally omit arg size. Same for morestack.
 runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
 runtime/asm_amd64p32.s: [amd64p32] morestack: use of 16(SP) points beyond argument frame
@@ -20,10 +23,6 @@ runtime/sys_nacl_amd64p32.s: [amd64p32] settls: function settls missing Go decla
 runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
 runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
 
-runtime/asm_amd64p32.s: [amd64p32] memeqbody: function memeqbody missing Go declaration
-runtime/asm_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
-runtime/asm_amd64p32.s: [amd64p32] cmpbody: function cmpbody missing Go declaration
-runtime/asm_amd64p32.s: [amd64p32] indexbytebody: function indexbytebody missing Go declaration
 runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
 
 runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration

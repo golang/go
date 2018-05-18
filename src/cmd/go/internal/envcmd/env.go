@@ -78,6 +78,8 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: "GO386", Value: cfg.GO386})
 	case "mips", "mipsle":
 		env = append(env, cfg.EnvVar{Name: "GOMIPS", Value: cfg.GOMIPS})
+	case "mips64", "mips64le":
+		env = append(env, cfg.EnvVar{Name: "GOMIPS64", Value: cfg.GOMIPS64})
 	}
 
 	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
@@ -113,7 +115,12 @@ func findEnv(env []cfg.EnvVar, name string) string {
 func ExtraEnvVars() []cfg.EnvVar {
 	var b work.Builder
 	b.Init()
-	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
+	cppflags, cflags, cxxflags, fflags, ldflags, err := b.CFlags(&load.Package{})
+	if err != nil {
+		// Should not happen - b.CFlags was given an empty package.
+		fmt.Fprintf(os.Stderr, "go: invalid cflags: %v\n", err)
+		return nil
+	}
 	cmd := b.GccCmd(".", "")
 	return []cfg.EnvVar{
 		// Note: Update the switch in runEnv below when adding to this list.

@@ -134,14 +134,15 @@ func reqBytes(req string) []byte {
 }
 
 type handlerTest struct {
+	logbuf  bytes.Buffer
 	handler Handler
 }
 
 func newHandlerTest(h Handler) handlerTest {
-	return handlerTest{h}
+	return handlerTest{handler: h}
 }
 
-func (ht handlerTest) rawResponse(req string) string {
+func (ht *handlerTest) rawResponse(req string) string {
 	reqb := reqBytes(req)
 	var output bytes.Buffer
 	conn := &rwTestConn{
@@ -150,7 +151,11 @@ func (ht handlerTest) rawResponse(req string) string {
 		closec: make(chan bool, 1),
 	}
 	ln := &oneConnListener{conn: conn}
-	go Serve(ln, ht.handler)
+	srv := &Server{
+		ErrorLog: log.New(&ht.logbuf, "", 0),
+		Handler:  ht.handler,
+	}
+	go srv.Serve(ln)
 	<-conn.closec
 	return output.String()
 }
@@ -379,6 +384,18 @@ func TestServeMuxHandler(t *testing.T) {
 	}
 }
 
+// Issue 24297
+func TestServeMuxHandleFuncWithNilHandler(t *testing.T) {
+	setParallel(t)
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("expected call to mux.HandleFunc to panic")
+		}
+	}()
+	mux := NewServeMux()
+	mux.HandleFunc("/", nil)
+}
+
 var serveMuxTests2 = []struct {
 	method  string
 	host    string
@@ -521,6 +538,74 @@ func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
 			t.Errorf("#%d: Body = %q; want = %q", i, got, want)
 		}
 	}
+}
+
+func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	mux := NewServeMux()
+	mux.Handle("example.com/pkg/foo/", stringHandler("example.com/pkg/foo/"))
+	mux.Handle("example.com/pkg/bar", stringHandler("example.com/pkg/bar"))
+	mux.Handle("example.com/pkg/bar/", stringHandler("example.com/pkg/bar/"))
+	mux.Handle("example.com:3000/pkg/connect/", stringHandler("example.com:3000/pkg/connect/"))
+	mux.Handle("example.com:9000/", stringHandler("example.com:9000/"))
+	mux.Handle("/pkg/baz/", stringHandler("/pkg/baz/"))
+
+	tests := []struct {
+		method string
+		url    string
+		code   int
+		loc    string
+		want   string
+	}{
+		{"GET", "http://example.com/", 404, "", ""},
+		{"GET", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
+		{"GET", "http://example.com/pkg/bar", 200, "", "example.com/pkg/bar"},
+		{"GET", "http://example.com/pkg/bar/", 200, "", "example.com/pkg/bar/"},
+		{"GET", "http://example.com/pkg/baz", 301, "/pkg/baz/", ""},
+		{"GET", "http://example.com:3000/pkg/foo", 301, "/pkg/foo/", ""},
+		{"CONNECT", "http://example.com/", 404, "", ""},
+		{"CONNECT", "http://example.com:3000/", 404, "", ""},
+		{"CONNECT", "http://example.com:9000/", 200, "", "example.com:9000/"},
+		{"CONNECT", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
+		{"CONNECT", "http://example.com:3000/pkg/foo", 404, "", ""},
+		{"CONNECT", "http://example.com:3000/pkg/baz", 301, "/pkg/baz/", ""},
+		{"CONNECT", "http://example.com:3000/pkg/connect", 301, "/pkg/connect/", ""},
+	}
+
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	for i, tt := range tests {
+		req, _ := NewRequest(tt.method, tt.url, nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		if got, want := w.Code, tt.code; got != want {
+			t.Errorf("#%d: Status = %d; want = %d", i, got, want)
+		}
+
+		if tt.code == 301 {
+			if got, want := w.HeaderMap.Get("Location"), tt.loc; got != want {
+				t.Errorf("#%d: Location = %q; want = %q", i, got, want)
+			}
+		} else {
+			if got, want := w.HeaderMap.Get("Result"), tt.want; got != want {
+				t.Errorf("#%d: Result = %q; want = %q", i, got, want)
+			}
+		}
+	}
+}
+
+func TestShouldRedirectConcurrency(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	mux := NewServeMux()
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+	mux.HandleFunc("/", func(w ResponseWriter, r *Request) {})
 }
 
 func BenchmarkServeMux(b *testing.B) {
@@ -873,7 +958,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
 		if err == nil {
 			t.Errorf("expected an error from Get request")
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for Get error")
 	}
 	if err := <-afterTimeoutErrc; err == nil {
@@ -2496,31 +2581,49 @@ func TestRedirect(t *testing.T) {
 	for _, tt := range tests {
 		rec := httptest.NewRecorder()
 		Redirect(rec, req, tt.in, 302)
+		if got, want := rec.Code, 302; got != want {
+			t.Errorf("Redirect(%q) generated status code %v; want %v", tt.in, got, want)
+		}
 		if got := rec.Header().Get("Location"); got != tt.want {
 			t.Errorf("Redirect(%q) generated Location header %q; want %q", tt.in, got, tt.want)
 		}
 	}
 }
 
-// Test that Content-Type header is set for GET and HEAD requests.
-func TestRedirectContentTypeAndBody(t *testing.T) {
+// Test that Redirect sets Content-Type header for GET and HEAD requests
+// and writes a short HTML body, unless the request already has a Content-Type header.
+func TestRedirect_contentTypeAndBody(t *testing.T) {
+	type ctHeader struct {
+		Values []string
+	}
+
 	var tests = []struct {
 		method   string
+		ct       *ctHeader // Optional Content-Type header to set.
 		wantCT   string
 		wantBody string
 	}{
-		{MethodGet, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
-		{MethodHead, "text/html; charset=utf-8", ""},
-		{MethodPost, "", ""},
-		{MethodDelete, "", ""},
-		{"foo", "", ""},
+		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
+		{MethodHead, nil, "text/html; charset=utf-8", ""},
+		{MethodPost, nil, "", ""},
+		{MethodDelete, nil, "", ""},
+		{"foo", nil, "", ""},
+		{MethodGet, &ctHeader{[]string{"application/test"}}, "application/test", ""},
+		{MethodGet, &ctHeader{[]string{}}, "", ""},
+		{MethodGet, &ctHeader{nil}, "", ""},
 	}
 	for _, tt := range tests {
 		req := httptest.NewRequest(tt.method, "http://example.com/qux/", nil)
 		rec := httptest.NewRecorder()
+		if tt.ct != nil {
+			rec.Header()["Content-Type"] = tt.ct.Values
+		}
 		Redirect(rec, req, "/foo", 302)
+		if got, want := rec.Code, 302; got != want {
+			t.Errorf("Redirect(%q, %#v) generated status code %v; want %v", tt.method, tt.ct, got, want)
+		}
 		if got, want := rec.Header().Get("Content-Type"), tt.wantCT; got != want {
-			t.Errorf("Redirect(%q) generated Content-Type header %q; want %q", tt.method, got, want)
+			t.Errorf("Redirect(%q, %#v) generated Content-Type header %q; want %q", tt.method, tt.ct, got, want)
 		}
 		resp := rec.Result()
 		body, err := ioutil.ReadAll(resp.Body)
@@ -2528,7 +2631,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got, want := string(body), tt.wantBody; got != want {
-			t.Errorf("Redirect(%q) generated Body %q; want %q", tt.method, got, want)
+			t.Errorf("Redirect(%q, %#v) generated Body %q; want %q", tt.method, tt.ct, got, want)
 		}
 	}
 }
@@ -3319,14 +3422,14 @@ func TestHeaderToWire(t *testing.T) {
 	tests := []struct {
 		name    string
 		handler func(ResponseWriter, *Request)
-		check   func(output string) error
+		check   func(got, logs string) error
 	}{
 		{
 			name: "write without Header",
 			handler: func(rw ResponseWriter, r *Request) {
 				rw.Write([]byte("hello world"))
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "Content-Length:") {
 					return errors.New("no content-length")
 				}
@@ -3344,7 +3447,7 @@ func TestHeaderToWire(t *testing.T) {
 				rw.Write([]byte("hello world"))
 				h.Set("Too-Late", "bogus")
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "Content-Length:") {
 					return errors.New("no content-length")
 				}
@@ -3363,7 +3466,7 @@ func TestHeaderToWire(t *testing.T) {
 				rw.Write([]byte("hello world"))
 				rw.Header().Set("Too-Late", "Write already wrote headers")
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if strings.Contains(got, "Too-Late") {
 					return errors.New("header appeared from after WriteHeader")
 				}
@@ -3377,7 +3480,7 @@ func TestHeaderToWire(t *testing.T) {
 				rw.Write([]byte("post-flush"))
 				rw.Header().Set("Too-Late", "Write already wrote headers")
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "Transfer-Encoding: chunked") {
 					return errors.New("not chunked")
 				}
@@ -3395,7 +3498,7 @@ func TestHeaderToWire(t *testing.T) {
 				rw.Write([]byte("post-flush"))
 				rw.Header().Set("Too-Late", "Write already wrote headers")
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "Transfer-Encoding: chunked") {
 					return errors.New("not chunked")
 				}
@@ -3414,7 +3517,7 @@ func TestHeaderToWire(t *testing.T) {
 				rw.Write([]byte("<html><head></head><body>some html</body></html>"))
 				rw.Header().Set("Content-Type", "x/wrong")
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "Content-Type: text/html") {
 					return errors.New("wrong content-type; want html")
 				}
@@ -3427,7 +3530,7 @@ func TestHeaderToWire(t *testing.T) {
 				rw.Header().Set("Content-Type", "some/type")
 				rw.Write([]byte("<html><head></head><body>some html</body></html>"))
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "Content-Type: some/type") {
 					return errors.New("wrong content-type; want html")
 				}
@@ -3438,7 +3541,7 @@ func TestHeaderToWire(t *testing.T) {
 			name: "empty handler",
 			handler: func(rw ResponseWriter, r *Request) {
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "Content-Length: 0") {
 					return errors.New("want 0 content-length")
 				}
@@ -3450,7 +3553,7 @@ func TestHeaderToWire(t *testing.T) {
 			handler: func(rw ResponseWriter, r *Request) {
 				rw.Header().Set("Some-Header", "some-value")
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "Some-Header") {
 					return errors.New("didn't get header")
 				}
@@ -3463,7 +3566,7 @@ func TestHeaderToWire(t *testing.T) {
 				rw.WriteHeader(404)
 				rw.Header().Set("Too-Late", "some-value")
 			},
-			check: func(got string) error {
+			check: func(got, logs string) error {
 				if !strings.Contains(got, "404") {
 					return errors.New("wrong status")
 				}
@@ -3473,12 +3576,33 @@ func TestHeaderToWire(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "Nosniff without Content-type",
+			handler: func(rw ResponseWriter, r *Request) {
+				rw.Header().Set("X-Content-Type-Options", "nosniff")
+				rw.WriteHeader(200)
+				rw.Write([]byte("<!doctype html>\n<html><head></head><body>some html</body></html>"))
+			},
+			check: func(got, logs string) error {
+				if !strings.Contains(got, "Content-Type: application/octet-stream\r\n") {
+					return errors.New("Output should have an innocuous content-type")
+				}
+				if strings.Contains(got, "text/html") {
+					return errors.New("Output should not have a guess")
+				}
+				if !strings.Contains(logs, "X-Content-Type-Options:nosniff but no Content-Type") {
+					return errors.New("Expected log message")
+				}
+				return nil
+			},
+		},
 	}
 	for _, tc := range tests {
 		ht := newHandlerTest(HandlerFunc(tc.handler))
 		got := ht.rawResponse("GET / HTTP/1.1\nHost: golang.org")
-		if err := tc.check(got); err != nil {
-			t.Errorf("%s: %v\nGot response:\n%s", tc.name, err, got)
+		logs := ht.logbuf.String()
+		if err := tc.check(got, logs); err != nil {
+			t.Errorf("%s: %v\nGot response:\n%s\n\n%s", tc.name, err, got, logs)
 		}
 	}
 }
@@ -5478,38 +5602,64 @@ func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
 func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
-	const timeout = 250 * time.Millisecond
-	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		select {
-		case <-time.After(2 * timeout):
-			fmt.Fprint(w, "ok")
-		case <-r.Context().Done():
-			fmt.Fprint(w, r.Context().Err())
+	runTimeSensitiveTest(t, []time.Duration{
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		250 * time.Millisecond,
+		time.Second,
+		2 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+			select {
+			case <-time.After(2 * timeout):
+				fmt.Fprint(w, "ok")
+			case <-r.Context().Done():
+				fmt.Fprint(w, r.Context().Err())
+			}
+		}))
+		ts.Config.ReadTimeout = timeout
+		ts.Start()
+		defer ts.Close()
+
+		c := ts.Client()
+
+		res, err := c.Get(ts.URL)
+		if err != nil {
+			return fmt.Errorf("Get: %v", err)
 		}
-	}))
-	ts.Config.ReadTimeout = timeout
-	ts.Start()
-	defer ts.Close()
+		slurp, err := ioutil.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			return fmt.Errorf("Body ReadAll: %v", err)
+		}
+		if string(slurp) != "ok" {
+			return fmt.Errorf("got: %q, want ok", slurp)
+		}
+		return nil
+	})
+}
 
-	c := ts.Client()
-
-	res, err := c.Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	slurp, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(slurp) != "ok" {
-		t.Fatalf("Got: %q, want ok", slurp)
+// runTimeSensitiveTest runs test with the provided durations until one passes.
+// If they all fail, t.Fatal is called with the last one's duration and error value.
+func runTimeSensitiveTest(t *testing.T, durations []time.Duration, test func(t *testing.T, d time.Duration) error) {
+	for i, d := range durations {
+		err := test(t, d)
+		if err == nil {
+			return
+		}
+		if i == len(durations)-1 {
+			t.Fatalf("failed with duration %v: %v", d, err)
+		}
 	}
 }
 
 // Issue 18535: test that the Server doesn't try to do a background
 // read if it's already done one.
 func TestServerDuplicateBackgroundRead(t *testing.T) {
+	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm" {
+		testenv.SkipFlaky(t, 24826)
+	}
+
 	setParallel(t)
 	defer afterTest(t)
 
@@ -5718,6 +5868,19 @@ func TestServerValidatesMethod(t *testing.T) {
 			t.Errorf("For %s, Status = %d; want %d", tt.method, res.StatusCode, tt.want)
 		}
 	}
+}
+
+// Listener for TestServerListenNotComparableListener.
+type eofListenerNotComparable []int
+
+func (eofListenerNotComparable) Accept() (net.Conn, error) { return nil, io.EOF }
+func (eofListenerNotComparable) Addr() net.Addr            { return nil }
+func (eofListenerNotComparable) Close() error              { return nil }
+
+// Issue 24812: don't crash on non-comparable Listener
+func TestServerListenNotComparableListener(t *testing.T) {
+	var s Server
+	s.Serve(make(eofListenerNotComparable, 1)) // used to panic
 }
 
 func BenchmarkResponseStatusLine(b *testing.B) {

@@ -31,6 +31,8 @@ func rewriteValuedec64(v *Value) bool {
 		return rewriteValuedec64_OpConst64_0(v)
 	case OpCtz64:
 		return rewriteValuedec64_OpCtz64_0(v)
+	case OpCtz64NonZero:
+		return rewriteValuedec64_OpCtz64NonZero_0(v)
 	case OpEq64:
 		return rewriteValuedec64_OpEq64_0(v)
 	case OpGeq64:
@@ -139,7 +141,7 @@ func rewriteValuedec64_OpAdd64_0(v *Value) bool {
 	_ = typ
 	// match: (Add64 x y)
 	// cond:
-	// result: (Int64Make 		(Add32withcarry <typ.Int32> 			(Int64Hi x) 			(Int64Hi y) 			(Select1 <types.TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y)))) 		(Select0 <typ.UInt32> (Add32carry (Int64Lo x) (Int64Lo y))))
+	// result: (Int64Make (Add32withcarry <typ.Int32> (Int64Hi x) (Int64Hi y) (Select1 <types.TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y)))) (Select0 <typ.UInt32> (Add32carry (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -183,7 +185,7 @@ func rewriteValuedec64_OpAnd64_0(v *Value) bool {
 	_ = typ
 	// match: (And64 x y)
 	// cond:
-	// result: (Int64Make 		(And32 <typ.UInt32> (Int64Hi x) (Int64Hi y)) 		(And32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
+	// result: (Int64Make (And32 <typ.UInt32> (Int64Hi x) (Int64Hi y)) (And32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -217,7 +219,7 @@ func rewriteValuedec64_OpArg_0(v *Value) bool {
 	_ = typ
 	// match: (Arg {n} [off])
 	// cond: is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned()
-	// result: (Int64Make     (Arg <typ.Int32> {n} [off+4])     (Arg <typ.UInt32> {n} [off]))
+	// result: (Int64Make (Arg <typ.Int32> {n} [off+4]) (Arg <typ.UInt32> {n} [off]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -237,7 +239,7 @@ func rewriteValuedec64_OpArg_0(v *Value) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned()
-	// result: (Int64Make     (Arg <typ.UInt32> {n} [off+4])     (Arg <typ.UInt32> {n} [off]))
+	// result: (Int64Make (Arg <typ.UInt32> {n} [off+4]) (Arg <typ.UInt32> {n} [off]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -257,7 +259,7 @@ func rewriteValuedec64_OpArg_0(v *Value) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned()
-	// result: (Int64Make     (Arg <typ.Int32> {n} [off])     (Arg <typ.UInt32> {n} [off+4]))
+	// result: (Int64Make (Arg <typ.Int32> {n} [off]) (Arg <typ.UInt32> {n} [off+4]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -277,7 +279,7 @@ func rewriteValuedec64_OpArg_0(v *Value) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned()
-	// result: (Int64Make     (Arg <typ.UInt32> {n} [off])     (Arg <typ.UInt32> {n} [off+4]))
+	// result: (Int64Make (Arg <typ.UInt32> {n} [off]) (Arg <typ.UInt32> {n} [off+4]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -304,7 +306,7 @@ func rewriteValuedec64_OpBitLen64_0(v *Value) bool {
 	_ = typ
 	// match: (BitLen64 x)
 	// cond:
-	// result: (Add32 <typ.Int> 		(BitLen32 <typ.Int> (Int64Hi x)) 		(BitLen32 <typ.Int> 			(Or32 <typ.UInt32> 				(Int64Lo x) 				(Zeromask (Int64Hi x)))))
+	// result: (Add32 <typ.Int> (BitLen32 <typ.Int> (Int64Hi x)) (BitLen32 <typ.Int> (Or32 <typ.UInt32> (Int64Lo x) (Zeromask (Int64Hi x)))))
 	for {
 		x := v.Args[0]
 		v.reset(OpAdd32)
@@ -336,7 +338,7 @@ func rewriteValuedec64_OpBswap64_0(v *Value) bool {
 	_ = typ
 	// match: (Bswap64 x)
 	// cond:
-	// result: (Int64Make 		(Bswap32 <typ.UInt32> (Int64Lo x)) 		(Bswap32 <typ.UInt32> (Int64Hi x)))
+	// result: (Int64Make (Bswap32 <typ.UInt32> (Int64Lo x)) (Bswap32 <typ.UInt32> (Int64Hi x)))
 	for {
 		x := v.Args[0]
 		v.reset(OpInt64Make)
@@ -360,7 +362,7 @@ func rewriteValuedec64_OpCom64_0(v *Value) bool {
 	_ = typ
 	// match: (Com64 x)
 	// cond:
-	// result: (Int64Make 		(Com32 <typ.UInt32> (Int64Hi x)) 		(Com32 <typ.UInt32> (Int64Lo x)))
+	// result: (Int64Make (Com32 <typ.UInt32> (Int64Hi x)) (Com32 <typ.UInt32> (Int64Lo x)))
 	for {
 		x := v.Args[0]
 		v.reset(OpInt64Make)
@@ -427,7 +429,7 @@ func rewriteValuedec64_OpCtz64_0(v *Value) bool {
 	_ = typ
 	// match: (Ctz64 x)
 	// cond:
-	// result: (Add32 <typ.UInt32> 		(Ctz32 <typ.UInt32> (Int64Lo x)) 		(And32 <typ.UInt32> 			(Com32 <typ.UInt32> (Zeromask (Int64Lo x))) 			(Ctz32 <typ.UInt32> (Int64Hi x))))
+	// result: (Add32 <typ.UInt32> (Ctz32 <typ.UInt32> (Int64Lo x)) (And32 <typ.UInt32> (Com32 <typ.UInt32> (Zeromask (Int64Lo x))) (Ctz32 <typ.UInt32> (Int64Hi x))))
 	for {
 		x := v.Args[0]
 		v.reset(OpAdd32)
@@ -454,6 +456,17 @@ func rewriteValuedec64_OpCtz64_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValuedec64_OpCtz64NonZero_0(v *Value) bool {
+	// match: (Ctz64NonZero x)
+	// cond:
+	// result: (Ctz64 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz64)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValuedec64_OpEq64_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -461,7 +474,7 @@ func rewriteValuedec64_OpEq64_0(v *Value) bool {
 	_ = typ
 	// match: (Eq64 x y)
 	// cond:
-	// result: (AndB 		(Eq32 (Int64Hi x) (Int64Hi y)) 		(Eq32 (Int64Lo x) (Int64Lo y)))
+	// result: (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Eq32 (Int64Lo x) (Int64Lo y)))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -493,7 +506,7 @@ func rewriteValuedec64_OpGeq64_0(v *Value) bool {
 	_ = typ
 	// match: (Geq64 x y)
 	// cond:
-	// result: (OrB 		(Greater32 (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Geq32U (Int64Lo x) (Int64Lo y))))
+	// result: (OrB (Greater32 (Int64Hi x) (Int64Hi y)) (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Geq32U (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -535,7 +548,7 @@ func rewriteValuedec64_OpGeq64U_0(v *Value) bool {
 	_ = typ
 	// match: (Geq64U x y)
 	// cond:
-	// result: (OrB 		(Greater32U (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Geq32U (Int64Lo x) (Int64Lo y))))
+	// result: (OrB (Greater32U (Int64Hi x) (Int64Hi y)) (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Geq32U (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -577,7 +590,7 @@ func rewriteValuedec64_OpGreater64_0(v *Value) bool {
 	_ = typ
 	// match: (Greater64 x y)
 	// cond:
-	// result: (OrB 		(Greater32 (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Greater32U (Int64Lo x) (Int64Lo y))))
+	// result: (OrB (Greater32 (Int64Hi x) (Int64Hi y)) (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Greater32U (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -619,7 +632,7 @@ func rewriteValuedec64_OpGreater64U_0(v *Value) bool {
 	_ = typ
 	// match: (Greater64U x y)
 	// cond:
-	// result: (OrB 		(Greater32U (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Greater32U (Int64Lo x) (Int64Lo y))))
+	// result: (OrB (Greater32U (Int64Hi x) (Int64Hi y)) (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Greater32U (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -697,7 +710,7 @@ func rewriteValuedec64_OpLeq64_0(v *Value) bool {
 	_ = typ
 	// match: (Leq64 x y)
 	// cond:
-	// result: (OrB 		(Less32 (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Leq32U (Int64Lo x) (Int64Lo y))))
+	// result: (OrB (Less32 (Int64Hi x) (Int64Hi y)) (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Leq32U (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -739,7 +752,7 @@ func rewriteValuedec64_OpLeq64U_0(v *Value) bool {
 	_ = typ
 	// match: (Leq64U x y)
 	// cond:
-	// result: (OrB 		(Less32U (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Leq32U (Int64Lo x) (Int64Lo y))))
+	// result: (OrB (Less32U (Int64Hi x) (Int64Hi y)) (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Leq32U (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -781,7 +794,7 @@ func rewriteValuedec64_OpLess64_0(v *Value) bool {
 	_ = typ
 	// match: (Less64 x y)
 	// cond:
-	// result: (OrB 		(Less32 (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Less32U (Int64Lo x) (Int64Lo y))))
+	// result: (OrB (Less32 (Int64Hi x) (Int64Hi y)) (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Less32U (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -823,7 +836,7 @@ func rewriteValuedec64_OpLess64U_0(v *Value) bool {
 	_ = typ
 	// match: (Less64U x y)
 	// cond:
-	// result: (OrB 		(Less32U (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Less32U (Int64Lo x) (Int64Lo y))))
+	// result: (OrB (Less32U (Int64Hi x) (Int64Hi y)) (AndB (Eq32 (Int64Hi x) (Int64Hi y)) (Less32U (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -867,7 +880,7 @@ func rewriteValuedec64_OpLoad_0(v *Value) bool {
 	_ = typ
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && !config.BigEndian && t.IsSigned()
-	// result: (Int64Make 		(Load <typ.Int32> (OffPtr <typ.Int32Ptr> [4] ptr) mem) 		(Load <typ.UInt32> ptr mem))
+	// result: (Int64Make (Load <typ.Int32> (OffPtr <typ.Int32Ptr> [4] ptr) mem) (Load <typ.UInt32> ptr mem))
 	for {
 		t := v.Type
 		_ = v.Args[1]
@@ -892,7 +905,7 @@ func rewriteValuedec64_OpLoad_0(v *Value) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && !config.BigEndian && !t.IsSigned()
-	// result: (Int64Make 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem) 		(Load <typ.UInt32> ptr mem))
+	// result: (Int64Make (Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem) (Load <typ.UInt32> ptr mem))
 	for {
 		t := v.Type
 		_ = v.Args[1]
@@ -917,7 +930,7 @@ func rewriteValuedec64_OpLoad_0(v *Value) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && config.BigEndian && t.IsSigned()
-	// result: (Int64Make 		(Load <typ.Int32> ptr mem) 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
+	// result: (Int64Make (Load <typ.Int32> ptr mem) (Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
 	for {
 		t := v.Type
 		_ = v.Args[1]
@@ -942,7 +955,7 @@ func rewriteValuedec64_OpLoad_0(v *Value) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && config.BigEndian && !t.IsSigned()
-	// result: (Int64Make 		(Load <typ.UInt32> ptr mem) 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
+	// result: (Int64Make (Load <typ.UInt32> ptr mem) (Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
 	for {
 		t := v.Type
 		_ = v.Args[1]
@@ -1132,7 +1145,7 @@ func rewriteValuedec64_OpLsh64x16_0(v *Value) bool {
 	_ = typ
 	// match: (Lsh64x16 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Lsh32x16 <typ.UInt32> hi s) 				(Rsh32Ux16 <typ.UInt32> 					lo 					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s))) 			(Lsh32x16 <typ.UInt32> 				lo 				(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32])))) 		(Lsh32x16 <typ.UInt32> lo s))
+	// result: (Int64Make (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Lsh32x16 <typ.UInt32> hi s) (Rsh32Ux16 <typ.UInt32> lo (Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s))) (Lsh32x16 <typ.UInt32> lo (Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32])))) (Lsh32x16 <typ.UInt32> lo s))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -1185,7 +1198,7 @@ func rewriteValuedec64_OpLsh64x32_0(v *Value) bool {
 	_ = typ
 	// match: (Lsh64x32 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Lsh32x32 <typ.UInt32> hi s) 				(Rsh32Ux32 <typ.UInt32> 					lo 					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s))) 			(Lsh32x32 <typ.UInt32> 				lo 				(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32])))) 		(Lsh32x32 <typ.UInt32> lo s))
+	// result: (Int64Make (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> hi s) (Rsh32Ux32 <typ.UInt32> lo (Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s))) (Lsh32x32 <typ.UInt32> lo (Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32])))) (Lsh32x32 <typ.UInt32> lo s))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -1317,7 +1330,7 @@ func rewriteValuedec64_OpLsh64x8_0(v *Value) bool {
 	_ = typ
 	// match: (Lsh64x8 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Lsh32x8 <typ.UInt32> hi s) 				(Rsh32Ux8 <typ.UInt32> 					lo 					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s))) 			(Lsh32x8 <typ.UInt32> 				lo 				(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32])))) 		(Lsh32x8 <typ.UInt32> lo s))
+	// result: (Int64Make (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Lsh32x8 <typ.UInt32> hi s) (Rsh32Ux8 <typ.UInt32> lo (Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s))) (Lsh32x8 <typ.UInt32> lo (Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32])))) (Lsh32x8 <typ.UInt32> lo s))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -1449,7 +1462,7 @@ func rewriteValuedec64_OpMul64_0(v *Value) bool {
 	_ = typ
 	// match: (Mul64 x y)
 	// cond:
-	// result: (Int64Make 		(Add32 <typ.UInt32> 			(Mul32 <typ.UInt32> (Int64Lo x) (Int64Hi y)) 			(Add32 <typ.UInt32> 				(Mul32 <typ.UInt32> (Int64Hi x) (Int64Lo y)) 				(Select0 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y))))) 		(Select1 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y))))
+	// result: (Int64Make (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Int64Lo x) (Int64Hi y)) (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Int64Hi x) (Int64Lo y)) (Select0 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y))))) (Select1 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -1522,7 +1535,7 @@ func rewriteValuedec64_OpNeq64_0(v *Value) bool {
 	_ = typ
 	// match: (Neq64 x y)
 	// cond:
-	// result: (OrB 		(Neq32 (Int64Hi x) (Int64Hi y)) 		(Neq32 (Int64Lo x) (Int64Lo y)))
+	// result: (OrB (Neq32 (Int64Hi x) (Int64Hi y)) (Neq32 (Int64Lo x) (Int64Lo y)))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -1554,7 +1567,7 @@ func rewriteValuedec64_OpOr64_0(v *Value) bool {
 	_ = typ
 	// match: (Or64 x y)
 	// cond:
-	// result: (Int64Make 		(Or32 <typ.UInt32> (Int64Hi x) (Int64Hi y)) 		(Or32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
+	// result: (Int64Make (Or32 <typ.UInt32> (Int64Hi x) (Int64Hi y)) (Or32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -1906,7 +1919,7 @@ func rewriteValuedec64_OpRsh64Ux16_0(v *Value) bool {
 	_ = typ
 	// match: (Rsh64Ux16 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32Ux16 <typ.UInt32> hi s) 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Rsh32Ux16 <typ.UInt32> lo s) 				(Lsh32x16 <typ.UInt32> 					hi 					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s))) 			(Rsh32Ux16 <typ.UInt32> 				hi 				(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32])))))
+	// result: (Int64Make (Rsh32Ux16 <typ.UInt32> hi s) (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Rsh32Ux16 <typ.UInt32> lo s) (Lsh32x16 <typ.UInt32> hi (Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s))) (Rsh32Ux16 <typ.UInt32> hi (Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32])))))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -1959,7 +1972,7 @@ func rewriteValuedec64_OpRsh64Ux32_0(v *Value) bool {
 	_ = typ
 	// match: (Rsh64Ux32 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32Ux32 <typ.UInt32> hi s) 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Rsh32Ux32 <typ.UInt32> lo s) 				(Lsh32x32 <typ.UInt32> 					hi 					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s))) 			(Rsh32Ux32 <typ.UInt32> 				hi 				(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32])))))
+	// result: (Int64Make (Rsh32Ux32 <typ.UInt32> hi s) (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Rsh32Ux32 <typ.UInt32> lo s) (Lsh32x32 <typ.UInt32> hi (Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s))) (Rsh32Ux32 <typ.UInt32> hi (Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32])))))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -2091,7 +2104,7 @@ func rewriteValuedec64_OpRsh64Ux8_0(v *Value) bool {
 	_ = typ
 	// match: (Rsh64Ux8 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32Ux8 <typ.UInt32> hi s) 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Rsh32Ux8 <typ.UInt32> lo s) 				(Lsh32x8 <typ.UInt32> 					hi 					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s))) 			(Rsh32Ux8 <typ.UInt32> 				hi 				(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32])))))
+	// result: (Int64Make (Rsh32Ux8 <typ.UInt32> hi s) (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Rsh32Ux8 <typ.UInt32> lo s) (Lsh32x8 <typ.UInt32> hi (Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s))) (Rsh32Ux8 <typ.UInt32> hi (Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32])))))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -2144,7 +2157,7 @@ func rewriteValuedec64_OpRsh64x16_0(v *Value) bool {
 	_ = typ
 	// match: (Rsh64x16 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32x16 <typ.UInt32> hi s) 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Rsh32Ux16 <typ.UInt32> lo s) 				(Lsh32x16 <typ.UInt32> 					hi 					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s))) 			(And32 <typ.UInt32> 				(Rsh32x16 <typ.UInt32> 					hi 					(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32]))) 				(Zeromask 					(ZeroExt16to32 						(Rsh16Ux32 <typ.UInt16> s (Const32 <typ.UInt32> [5])))))))
+	// result: (Int64Make (Rsh32x16 <typ.UInt32> hi s) (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Rsh32Ux16 <typ.UInt32> lo s) (Lsh32x16 <typ.UInt32> hi (Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s))) (And32 <typ.UInt32> (Rsh32x16 <typ.UInt32> hi (Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32]))) (Zeromask (ZeroExt16to32 (Rsh16Ux32 <typ.UInt16> s (Const32 <typ.UInt32> [5])))))))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -2209,7 +2222,7 @@ func rewriteValuedec64_OpRsh64x32_0(v *Value) bool {
 	_ = typ
 	// match: (Rsh64x32 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32x32 <typ.UInt32> hi s) 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Rsh32Ux32 <typ.UInt32> lo s) 				(Lsh32x32 <typ.UInt32> 					hi 					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s))) 			(And32 <typ.UInt32> 				(Rsh32x32 <typ.UInt32> 					hi 					(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32]))) 				(Zeromask 					(Rsh32Ux32 <typ.UInt32> s (Const32 <typ.UInt32> [5]))))))
+	// result: (Int64Make (Rsh32x32 <typ.UInt32> hi s) (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Rsh32Ux32 <typ.UInt32> lo s) (Lsh32x32 <typ.UInt32> hi (Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s))) (And32 <typ.UInt32> (Rsh32x32 <typ.UInt32> hi (Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32]))) (Zeromask (Rsh32Ux32 <typ.UInt32> s (Const32 <typ.UInt32> [5]))))))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -2361,7 +2374,7 @@ func rewriteValuedec64_OpRsh64x8_0(v *Value) bool {
 	_ = typ
 	// match: (Rsh64x8 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32x8 <typ.UInt32> hi s) 		(Or32 <typ.UInt32> 			(Or32 <typ.UInt32> 				(Rsh32Ux8 <typ.UInt32> lo s) 				(Lsh32x8 <typ.UInt32> 					hi 					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s))) 			(And32 <typ.UInt32> 				(Rsh32x8 <typ.UInt32> 					hi 					(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32]))) 				(Zeromask 					(ZeroExt8to32 						(Rsh8Ux32 <typ.UInt8> s (Const32 <typ.UInt32> [5])))))))
+	// result: (Int64Make (Rsh32x8 <typ.UInt32> hi s) (Or32 <typ.UInt32> (Or32 <typ.UInt32> (Rsh32Ux8 <typ.UInt32> lo s) (Lsh32x8 <typ.UInt32> hi (Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s))) (And32 <typ.UInt32> (Rsh32x8 <typ.UInt32> hi (Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32]))) (Zeromask (ZeroExt8to32 (Rsh8Ux32 <typ.UInt8> s (Const32 <typ.UInt32> [5])))))))
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -2639,7 +2652,7 @@ func rewriteValuedec64_OpStore_0(v *Value) bool {
 	_ = config
 	// match: (Store {t} dst (Int64Make hi lo) mem)
 	// cond: t.(*types.Type).Size() == 8 && !config.BigEndian
-	// result: (Store {hi.Type} 		(OffPtr <hi.Type.PtrTo()> [4] dst) 		hi 		(Store {lo.Type} dst lo mem))
+	// result: (Store {hi.Type} (OffPtr <hi.Type.PtrTo()> [4] dst) hi (Store {lo.Type} dst lo mem))
 	for {
 		t := v.Aux
 		_ = v.Args[2]
@@ -2672,7 +2685,7 @@ func rewriteValuedec64_OpStore_0(v *Value) bool {
 	}
 	// match: (Store {t} dst (Int64Make hi lo) mem)
 	// cond: t.(*types.Type).Size() == 8 && config.BigEndian
-	// result: (Store {lo.Type} 		(OffPtr <lo.Type.PtrTo()> [4] dst) 		lo 		(Store {hi.Type} dst hi mem))
+	// result: (Store {lo.Type} (OffPtr <lo.Type.PtrTo()> [4] dst) lo (Store {hi.Type} dst hi mem))
 	for {
 		t := v.Aux
 		_ = v.Args[2]
@@ -2712,7 +2725,7 @@ func rewriteValuedec64_OpSub64_0(v *Value) bool {
 	_ = typ
 	// match: (Sub64 x y)
 	// cond:
-	// result: (Int64Make 		(Sub32withcarry <typ.Int32> 			(Int64Hi x) 			(Int64Hi y) 			(Select1 <types.TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y)))) 		(Select0 <typ.UInt32> (Sub32carry (Int64Lo x) (Int64Lo y))))
+	// result: (Int64Make (Sub32withcarry <typ.Int32> (Int64Hi x) (Int64Hi y) (Select1 <types.TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y)))) (Select0 <typ.UInt32> (Sub32carry (Int64Lo x) (Int64Lo y))))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]
@@ -2808,7 +2821,7 @@ func rewriteValuedec64_OpXor64_0(v *Value) bool {
 	_ = typ
 	// match: (Xor64 x y)
 	// cond:
-	// result: (Int64Make 		(Xor32 <typ.UInt32> (Int64Hi x) (Int64Hi y)) 		(Xor32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
+	// result: (Int64Make (Xor32 <typ.UInt32> (Int64Hi x) (Int64Hi y)) (Xor32 <typ.UInt32> (Int64Lo x) (Int64Lo y)))
 	for {
 		_ = v.Args[1]
 		x := v.Args[0]

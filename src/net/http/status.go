@@ -5,7 +5,7 @@
 package http
 
 // HTTP status codes as registered with IANA.
-// See: http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
+// See: https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
 const (
 	StatusContinue           = 100 // RFC 7231, 6.2.1
 	StatusSwitchingProtocols = 101 // RFC 7231, 6.2.2
@@ -51,6 +51,7 @@ const (
 	StatusRequestedRangeNotSatisfiable = 416 // RFC 7233, 4.4
 	StatusExpectationFailed            = 417 // RFC 7231, 6.5.14
 	StatusTeapot                       = 418 // RFC 7168, 2.3.3
+	StatusMisdirectedRequest           = 421 // RFC 7540, 9.1.2
 	StatusUnprocessableEntity          = 422 // RFC 4918, 11.2
 	StatusLocked                       = 423 // RFC 4918, 11.3
 	StatusFailedDependency             = 424 // RFC 4918, 11.4
@@ -117,6 +118,7 @@ var statusText = map[int]string{
 	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
 	StatusExpectationFailed:            "Expectation Failed",
 	StatusTeapot:                       "I'm a teapot",
+	StatusMisdirectedRequest:           "Misdirected Request",
 	StatusUnprocessableEntity:          "Unprocessable Entity",
 	StatusLocked:                       "Locked",
 	StatusFailedDependency:             "Failed Dependency",

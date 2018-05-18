@@ -172,7 +172,7 @@ func runfinq() {
 			gp := getg()
 			fing = gp
 			fingwait = true
-			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock, 1)
+			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
 			continue
 		}
 		unlock(&finlock)
@@ -326,9 +326,9 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	}
 
 	// find the containing object
-	_, base, _ := findObject(e.data)
+	base, _, _ := findObject(uintptr(e.data), 0, 0)
 
-	if base == nil {
+	if base == 0 {
 		// 0-length objects are okay.
 		if e.data == unsafe.Pointer(&zerobase) {
 			return
@@ -353,7 +353,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		throw("runtime.SetFinalizer: pointer not in allocated block")
 	}
 
-	if e.data != base {
+	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
 		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
@@ -419,46 +419,6 @@ okarg:
 			throw("runtime.SetFinalizer: finalizer already set")
 		}
 	})
-}
-
-// Look up pointer v in heap. Return the span containing the object,
-// the start of the object, and the size of the object. If the object
-// does not exist, return nil, nil, 0.
-func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
-	c := gomcache()
-	c.local_nlookup++
-	if sys.PtrSize == 4 && c.local_nlookup >= 1<<30 {
-		// purge cache stats to prevent overflow
-		lock(&mheap_.lock)
-		purgecachedstats(c)
-		unlock(&mheap_.lock)
-	}
-
-	// find span
-	arena_start := mheap_.arena_start
-	arena_used := mheap_.arena_used
-	if uintptr(v) < arena_start || uintptr(v) >= arena_used {
-		return
-	}
-	p := uintptr(v) >> pageShift
-	q := p - arena_start>>pageShift
-	s = mheap_.spans[q]
-	if s == nil {
-		return
-	}
-	x = unsafe.Pointer(s.base())
-
-	if uintptr(v) < uintptr(x) || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != mSpanInUse {
-		s = nil
-		x = nil
-		return
-	}
-
-	n = s.elemsize
-	if s.spanclass.sizeclass() != 0 {
-		x = add(x, (uintptr(v)-uintptr(x))/n*n)
-	}
-	return
 }
 
 // Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.

@@ -67,21 +67,8 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	pc := uintptr(c.rip())
 	sp := uintptr(c.rsp())
 
-	// If we don't recognize the PC as code
-	// but we do recognize the top pointer on the stack as code,
-	// then assume this was a call to non-code and treat like
-	// pc == 0, to make unwinding show the context.
-	if pc != 0 && !findfunc(pc).valid() && findfunc(*(*uintptr)(unsafe.Pointer(sp))).valid() {
-		pc = 0
-	}
-
-	// Only push runtime.sigpanic if pc != 0.
-	// If pc == 0, probably panicked because of a
-	// call to a nil func. Not pushing that onto sp will
-	// make the trace look like a call to runtime.sigpanic instead.
-	// (Otherwise the trace will end at runtime.sigpanic and we
-	// won't get to see who faulted.)
-	if pc != 0 {
+	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
+		// Make it look the like faulting PC called sigpanic.
 		if sys.RegSize > sys.PtrSize {
 			sp -= sys.PtrSize
 			*(*uintptr)(unsafe.Pointer(sp)) = 0

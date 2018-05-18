@@ -8,6 +8,7 @@
 package strings
 
 import (
+	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
 )
@@ -72,11 +73,15 @@ func hashStrRev(sep string) (uint32, uint32) {
 	return hash, pow
 }
 
-// countGeneric implements Count.
-func countGeneric(s, substr string) int {
+// Count counts the number of non-overlapping instances of substr in s.
+// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+func Count(s, substr string) int {
 	// special case
 	if len(substr) == 0 {
 		return utf8.RuneCountInString(s) + 1
+	}
+	if len(substr) == 1 {
+		return bytealg.CountString(s, substr[0])
 	}
 	n := 0
 	for {
@@ -474,7 +479,7 @@ func Map(mapping func(rune) rune, s string) string {
 		b = make([]byte, len(s)+utf8.UTFMax)
 		nbytes = copy(b, s[:i])
 		if r >= 0 {
-			if r <= utf8.RuneSelf {
+			if r < utf8.RuneSelf {
 				b[nbytes] = byte(r)
 				nbytes++
 			} else {
@@ -504,7 +509,7 @@ func Map(mapping func(rune) rune, s string) string {
 		r := mapping(c)
 
 		// common case
-		if (0 <= r && r <= utf8.RuneSelf) && nbytes < len(b) {
+		if (0 <= r && r < utf8.RuneSelf) && nbytes < len(b) {
 			b[nbytes] = byte(r)
 			nbytes++
 			continue
@@ -903,9 +908,9 @@ func EqualFold(s, t string) bool {
 			tr, sr = sr, tr
 		}
 		// Fast check for ASCII.
-		if tr < utf8.RuneSelf && 'A' <= sr && sr <= 'Z' {
-			// ASCII, and sr is upper case.  tr must be lower case.
-			if tr == sr+'a'-'A' {
+		if tr < utf8.RuneSelf {
+			// ASCII only, sr/tr must be upper/lower case
+			if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
 				continue
 			}
 			return false
@@ -925,6 +930,85 @@ func EqualFold(s, t string) bool {
 
 	// One string is empty. Are both?
 	return s == t
+}
+
+// Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
+func Index(s, substr string) int {
+	n := len(substr)
+	switch {
+	case n == 0:
+		return 0
+	case n == 1:
+		return IndexByte(s, substr[0])
+	case n == len(s):
+		if substr == s {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
+	case n <= bytealg.MaxLen:
+		// Use brute force when s and substr both are small
+		if len(s) <= bytealg.MaxBruteForce {
+			return bytealg.IndexString(s, substr)
+		}
+		c := substr[0]
+		i := 0
+		t := s[:len(s)-n+1]
+		fails := 0
+		for i < len(t) {
+			if t[i] != c {
+				// IndexByte is faster than bytealg.IndexString, so use it as long as
+				// we're not getting lots of false positives.
+				o := IndexByte(t[i:], c)
+				if o < 0 {
+					return -1
+				}
+				i += o
+			}
+			if s[i:i+n] == substr {
+				return i
+			}
+			fails++
+			i++
+			// Switch to bytealg.IndexString when IndexByte produces too many false positives.
+			if fails > bytealg.Cutover(i) {
+				r := bytealg.IndexString(s[i:], substr)
+				if r >= 0 {
+					return r + i
+				}
+				return -1
+			}
+		}
+		return -1
+	}
+	c := substr[0]
+	i := 0
+	t := s[:len(s)-n+1]
+	fails := 0
+	for i < len(t) {
+		if t[i] != c {
+			o := IndexByte(t[i:], c)
+			if o < 0 {
+				return -1
+			}
+			i += o
+		}
+		if s[i:i+n] == substr {
+			return i
+		}
+		i++
+		fails++
+		if fails >= 4+i>>4 && i < len(t) {
+			// See comment in ../bytes/bytes_generic.go.
+			j := indexRabinKarp(s[i:], substr)
+			if j < 0 {
+				return -1
+			}
+			return i + j
+		}
+	}
+	return -1
 }
 
 func indexRabinKarp(s, substr string) int {

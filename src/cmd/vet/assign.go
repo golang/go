@@ -37,7 +37,7 @@ func checkAssignStmt(f *File, node ast.Node) {
 	}
 	for i, lhs := range stmt.Lhs {
 		rhs := stmt.Rhs[i]
-		if hasSideEffects(lhs) || hasSideEffects(rhs) {
+		if hasSideEffects(f, lhs) || hasSideEffects(f, rhs) {
 			continue // expressions may not be equal
 		}
 		if reflect.TypeOf(lhs) != reflect.TypeOf(rhs) {

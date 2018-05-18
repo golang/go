@@ -10,11 +10,11 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "libcgo.h"
-#include "libcgo_unix.h"
-
 #include <CoreFoundation/CFBundle.h>
 #include <CoreFoundation/CFString.h>
+
+#include "libcgo.h"
+#include "libcgo_unix.h"
 
 #define magic (0xc476c475c47957UL)
 
@@ -142,8 +142,6 @@ init_working_dir()
 		if (chdir(buf) != 0) {
 			fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", buf);
 		}
-		// Notify the test harness that we're correctly set up
-		raise(SIGINT);
 	}
 }
 

@@ -42,7 +42,7 @@ import (
 )
 
 var (
-	listErrors = flag.Bool("list", false, "list errors")
+	listErrors = flag.Bool("errlist", false, "list errors")
 	testFiles  = flag.String("files", "", "space-separated list of test files")
 )
 
@@ -61,6 +61,7 @@ var tests = [][]string{
 	{"testdata/cycles2.src"},
 	{"testdata/cycles3.src"},
 	{"testdata/cycles4.src"},
+	{"testdata/cycles5.src"},
 	{"testdata/init0.src"},
 	{"testdata/init1.src"},
 	{"testdata/init2.src"},
@@ -89,6 +90,7 @@ var tests = [][]string{
 	{"testdata/labels.src"},
 	{"testdata/issues.src"},
 	{"testdata/blank.src"},
+	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
 }
 
 var fset = token.NewFileSet()

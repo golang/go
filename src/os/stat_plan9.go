@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const _BIT16SZ = 2
+const bitSize16 = 2
 
 func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	fs := &fileStat{
@@ -35,6 +35,10 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	if d.Type != 'M' {
 		fs.mode |= ModeDevice
 	}
+	// Consider all files served by #c as character device files.
+	if d.Type == 'c' {
+		fs.mode |= ModeCharDevice
+	}
 	return fs
 }
 
@@ -46,7 +50,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 	size := syscall.STATFIXLEN + 16*4
 
 	for i := 0; i < 2; i++ {
-		buf := make([]byte, _BIT16SZ+size)
+		buf := make([]byte, bitSize16+size)
 
 		var n int
 		switch a := arg.(type) {
@@ -60,7 +64,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 			panic("phase error in dirstat")
 		}
 
-		if n < _BIT16SZ {
+		if n < bitSize16 {
 			return nil, &PathError{"stat", name, err}
 		}
 
@@ -86,9 +90,8 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 	return nil, &PathError{"stat", name, err}
 }
 
-// Stat returns a FileInfo describing the named file.
-// If there is an error, it will be of type *PathError.
-func Stat(name string) (FileInfo, error) {
+// statNolog implements Stat for Plan 9.
+func statNolog(name string) (FileInfo, error) {
 	d, err := dirstat(name)
 	if err != nil {
 		return nil, err
@@ -96,12 +99,9 @@ func Stat(name string) (FileInfo, error) {
 	return fileInfoFromStat(d), nil
 }
 
-// Lstat returns a FileInfo describing the named file.
-// If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link. Lstat makes no attempt to follow the link.
-// If there is an error, it will be of type *PathError.
-func Lstat(name string) (FileInfo, error) {
-	return Stat(name)
+// lstatNolog implements Lstat for Plan 9.
+func lstatNolog(name string) (FileInfo, error) {
+	return statNolog(name)
 }
 
 // For testing.

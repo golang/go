@@ -237,7 +237,16 @@ func signal_ignore(s uint32) {
 	atomic.Store(&sig.ignored[s/32], i)
 }
 
+// sigInitIgnored marks the signal as already ignored.  This is called at
+// program start by siginit.
+func sigInitIgnored(s uint32) {
+	i := sig.ignored[s/32]
+	i |= 1 << (s & 31)
+	atomic.Store(&sig.ignored[s/32], i)
+}
+
 // Checked by signal handlers.
+//go:linkname signal_ignored os/signal.signal_ignored
 func signal_ignored(s uint32) bool {
 	i := atomic.Load(&sig.ignored[s/32])
 	return i&(1<<(s&31)) != 0

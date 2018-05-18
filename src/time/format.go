@@ -1059,7 +1059,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _, _ := local.lookup(t.unixSec())
+		name, offset, _, _ := local.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
 			t.setLoc(local)
 			return t, nil
@@ -1117,6 +1117,11 @@ func parseTimeZone(value string) (length int, ok bool) {
 		length = parseGMT(value)
 		return length, true
 	}
+	// Special Case 3: Some time zones are not named, but have +/-00 format
+	if value[0] == '+' || value[0] == '-' {
+		length = parseSignedOffset(value)
+		return length, true
+	}
 	// How many upper-case letters are there? Need at least three, at most five.
 	var nUpper int
 	for nUpper = 0; nUpper < 6; nUpper++ {
@@ -1153,21 +1158,29 @@ func parseGMT(value string) int {
 	if len(value) == 0 {
 		return 3
 	}
+
+	return 3 + parseSignedOffset(value)
+}
+
+// parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-04").
+// The function checks for a signed number in the range -14 through +12 excluding zero.
+// Returns length of the found offset string or 0 otherwise
+func parseSignedOffset(value string) int {
 	sign := value[0]
 	if sign != '-' && sign != '+' {
-		return 3
+		return 0
 	}
 	x, rem, err := leadingInt(value[1:])
 	if err != nil {
-		return 3
+		return 0
 	}
 	if sign == '-' {
 		x = -x
 	}
 	if x == 0 || x < -14 || 12 < x {
-		return 3
+		return 0
 	}
-	return 3 + len(value) - len(rem)
+	return len(value) - len(rem)
 }
 
 func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {

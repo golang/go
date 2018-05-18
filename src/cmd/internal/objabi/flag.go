@@ -7,6 +7,9 @@ package objabi
 import (
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -20,16 +23,51 @@ func Flagfn1(name, usage string, f func(string)) {
 	flag.Var(fn1(f), name, usage)
 }
 
-func Flagprint(fd int) {
-	if fd == 1 {
-		flag.CommandLine.SetOutput(os.Stdout)
-	}
+func Flagprint(w io.Writer) {
+	flag.CommandLine.SetOutput(w)
 	flag.PrintDefaults()
 }
 
 func Flagparse(usage func()) {
 	flag.Usage = usage
+	os.Args = expandArgs(os.Args)
 	flag.Parse()
+}
+
+// expandArgs expands "response files" arguments in the provided slice.
+//
+// A "response file" argument starts with '@' and the rest of that
+// argument is a filename with CR-or-CRLF-separated arguments. Each
+// argument in the named files can also contain response file
+// arguments. See Issue 18468.
+//
+// The returned slice 'out' aliases 'in' iff the input did not contain
+// any response file arguments.
+//
+// TODO: handle relative paths of recursive expansions in different directories?
+// Is there a spec for this? Are relative paths allowed?
+func expandArgs(in []string) (out []string) {
+	// out is nil until we see a "@" argument.
+	for i, s := range in {
+		if strings.HasPrefix(s, "@") {
+			if out == nil {
+				out = make([]string, 0, len(in)*2)
+				out = append(out, in[:i]...)
+			}
+			slurp, err := ioutil.ReadFile(s[1:])
+			if err != nil {
+				log.Fatal(err)
+			}
+			args := strings.Split(strings.TrimSpace(strings.Replace(string(slurp), "\r", "", -1)), "\n")
+			out = append(out, expandArgs(args)...)
+		} else if out != nil {
+			out = append(out, s)
+		}
+	}
+	if out == nil {
+		return in
+	}
+	return
 }
 
 func AddVersionFlag() {
@@ -104,21 +142,6 @@ func (c *count) IsBoolFlag() bool {
 }
 
 func (c *count) IsCountFlag() bool {
-	return true
-}
-
-type fn0 func()
-
-func (f fn0) Set(s string) error {
-	f()
-	return nil
-}
-
-func (f fn0) Get() interface{} { return nil }
-
-func (f fn0) String() string { return "" }
-
-func (f fn0) IsBoolFlag() bool {
 	return true
 }
 

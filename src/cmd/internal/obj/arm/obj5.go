@@ -255,13 +255,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	c := ctxt5{ctxt: ctxt, cursym: cursym, newprog: newprog}
 
-	c.softfloat()
-
 	p := c.cursym.Func.Text
 	autoffset := int32(p.To.Offset)
-	if autoffset < 0 {
+	if autoffset == -4 {
+		// Historical way to mark NOFRAME.
+		p.From.Sym.Set(obj.AttrNoFrame, true)
 		autoffset = 0
 	}
+	if autoffset < 0 || autoffset%4 != 0 {
+		c.ctxt.Diag("frame size %d not 0 or a positive multiple of 4", autoffset)
+	}
+	if p.From.Sym.NoFrame() {
+		if autoffset != 0 {
+			c.ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", autoffset)
+		}
+	}
+
 	cursym.Func.Locals = autoffset
 	cursym.Func.Args = p.To.Val.(int32)
 
@@ -335,15 +344,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
-			autosize = int32(p.To.Offset + 4)
-			if autosize <= 4 {
-				if cursym.Func.Text.Mark&LEAF != 0 {
-					p.To.Offset = -4
-					autosize = 0
-				}
+			autosize = autoffset
+
+			if p.Mark&LEAF != 0 && autosize == 0 {
+				// A leaf function with no locals has no frame.
+				p.From.Sym.Set(obj.AttrNoFrame, true)
+			}
+
+			if !p.From.Sym.NoFrame() {
+				// If there is a stack frame at all, it includes
+				// space to save the LR.
+				autosize += 4
 			}
 
 			if autosize == 0 && cursym.Func.Text.Mark&LEAF == 0 {
+				// A very few functions that do not return to their caller
+				// are not identified as leaves but still have no frame.
 				if ctxt.Debugvlog {
 					ctxt.Logf("save suppressed in: %s\n", cursym.Name)
 				}
@@ -351,9 +367,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				cursym.Func.Text.Mark |= LEAF
 			}
 
+			// FP offsets need an updated p.To.Offset.
+			p.To.Offset = int64(autosize) - 4
+
 			if cursym.Func.Text.Mark&LEAF != 0 {
 				cursym.Set(obj.AttrLeaf, true)
-				if autosize == 0 {
+				if p.From.Sym.NoFrame() {
 					break
 				}
 			}
@@ -624,88 +643,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if p.From.Type == obj.TYPE_ADDR && p.From.Reg == REGSP && p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP {
 				p.Spadj = int32(-p.From.Offset)
 			}
-		}
-	}
-}
 
-func isfloatreg(a *obj.Addr) bool {
-	return a.Type == obj.TYPE_REG && REG_F0 <= a.Reg && a.Reg <= REG_F15
-}
-
-func (c *ctxt5) softfloat() {
-	if objabi.GOARM > 5 {
-		return
-	}
-
-	symsfloat := c.ctxt.Lookup("runtime._sfloat")
-
-	wasfloat := 0
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
-		if p.Pcond != nil {
-			p.Pcond.Mark |= LABEL
-		}
-	}
-	var next *obj.Prog
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
-		switch p.As {
-		case AMOVW:
-			if isfloatreg(&p.To) || isfloatreg(&p.From) {
-				goto soft
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOVW LR, Rd */
+				p.As = AMOVW
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGLINK
+			} else {
+				/* MOVW (RSP), Rd */
+				p.As = AMOVW
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
 			}
-			goto notsoft
-
-		case AMOVWD,
-			AMOVWF,
-			AMOVDW,
-			AMOVFW,
-			AMOVFD,
-			AMOVDF,
-			AMOVF,
-			AMOVD,
-			ACMPF,
-			ACMPD,
-			AADDF,
-			AADDD,
-			ASUBF,
-			ASUBD,
-			AMULF,
-			AMULD,
-			ADIVF,
-			ADIVD,
-			ASQRTF,
-			ASQRTD,
-			AABSF,
-			AABSD,
-			ANEGF,
-			ANEGD:
-			goto soft
-
-		default:
-			goto notsoft
 		}
-
-	soft:
-		if wasfloat == 0 || (p.Mark&LABEL != 0) {
-			next = c.newprog()
-			*next = *p
-
-			// BL runtime·_sfloat(SB)
-			*p = obj.Prog{}
-			p.Ctxt = c.ctxt
-			p.Link = next
-			p.As = ABL
-			p.To.Type = obj.TYPE_BRANCH
-			p.To.Sym = symsfloat
-			p.Pos = next.Pos
-
-			p = next
-			wasfloat = 1
-		}
-
-		continue
-
-	notsoft:
-		wasfloat = 0
 	}
 }
 
@@ -864,10 +815,11 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Linkarm = obj.LinkArch{
-	Arch:       sys.ArchARM,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span5,
-	Progedit:   progedit,
-	UnaryDst:   unaryDst,
+	Arch:           sys.ArchARM,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span5,
+	Progedit:       progedit,
+	UnaryDst:       unaryDst,
+	DWARFRegisters: ARMDWARFRegisters,
 }

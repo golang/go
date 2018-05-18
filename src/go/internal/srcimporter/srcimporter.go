@@ -13,6 +13,8 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io"
+	"os"
 	"path/filepath"
 	"sync"
 )
@@ -44,9 +46,9 @@ func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Pa
 // for a package that is in the process of being imported.
 var importing types.Package
 
-// Import(path) is a shortcut for ImportFrom(path, "", 0).
+// Import(path) is a shortcut for ImportFrom(path, ".", 0).
 func (p *Importer) Import(path string) (*types.Package, error) {
-	return p.ImportFrom(path, "", 0)
+	return p.ImportFrom(path, ".", 0) // use "." rather than "" (see issue #24441)
 }
 
 // ImportFrom imports the package with the given import path resolved from the given srcDir,
@@ -60,23 +62,10 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		panic("non-zero import mode")
 	}
 
-	// determine package path (do vendor resolution)
-	var bp *build.Package
-	var err error
-	switch {
-	default:
-		if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
-			srcDir = abs
-		}
-		bp, err = p.ctxt.Import(path, srcDir, build.FindOnly)
-
-	case build.IsLocalImport(path):
-		// "./x" -> "srcDir/x"
-		bp, err = p.ctxt.ImportDir(filepath.Join(srcDir, path), build.FindOnly)
-
-	case p.isAbsPath(path):
-		return nil, fmt.Errorf("invalid absolute import path %q", path)
+	if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
+		srcDir = abs
 	}
+	bp, err := p.ctxt.Import(path, srcDir, 0)
 	if err != nil {
 		return nil, err // err may be *build.NoGoError - return as is
 	}
@@ -113,11 +102,6 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		}
 	}()
 
-	// collect package files
-	bp, err = p.ctxt.ImportDir(bp.Dir, 0)
-	if err != nil {
-		return nil, err // err may be *build.NoGoError - return as is
-	}
 	var filenames []string
 	filenames = append(filenames, bp.GoFiles...)
 	filenames = append(filenames, bp.CgoFiles...)
@@ -162,7 +146,11 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 }
 
 func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, error) {
-	open := p.ctxt.OpenFile // possibly nil
+	// use build.Context's OpenFile if there is one
+	open := p.ctxt.OpenFile
+	if open == nil {
+		open = func(name string) (io.ReadCloser, error) { return os.Open(name) }
+	}
 
 	files := make([]*ast.File, len(filenames))
 	errors := make([]error, len(filenames))
@@ -172,22 +160,13 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
 	for i, filename := range filenames {
 		go func(i int, filepath string) {
 			defer wg.Done()
-			if open != nil {
-				src, err := open(filepath)
-				if err != nil {
-					errors[i] = fmt.Errorf("opening package file %s failed (%v)", filepath, err)
-					return
-				}
-				files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
-				src.Close() // ignore Close error - parsing may have succeeded which is all we need
-			} else {
-				// Special-case when ctxt doesn't provide a custom OpenFile and use the
-				// parser's file reading mechanism directly. This appears to be quite a
-				// bit faster than opening the file and providing an io.ReaderCloser in
-				// both cases.
-				// TODO(gri) investigate performance difference (issue #19281)
-				files[i], errors[i] = parser.ParseFile(p.fset, filepath, nil, 0)
+			src, err := open(filepath)
+			if err != nil {
+				errors[i] = err // open provides operation and filename in error
+				return
 			}
+			files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
+			src.Close() // ignore Close error - parsing may have succeeded which is all we need
 		}(i, p.joinPath(dir, filename))
 	}
 	wg.Wait()

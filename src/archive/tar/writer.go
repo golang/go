@@ -5,7 +5,6 @@
 package tar
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"path"
@@ -70,6 +69,16 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 		return err
 	}
 	tw.hdr = *hdr // Shallow copy of Header
+
+	// Avoid usage of the legacy TypeRegA flag, and automatically promote
+	// it to use TypeReg or TypeDir.
+	if tw.hdr.Typeflag == TypeRegA {
+		if strings.HasSuffix(tw.hdr.Name, "/") {
+			tw.hdr.Typeflag = TypeDir
+		} else {
+			tw.hdr.Typeflag = TypeReg
+		}
+	}
 
 	// Round ModTime and ignore AccessTime and ChangeTime unless
 	// the format is explicitly chosen.
@@ -166,7 +175,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		sort.Strings(keys)
 
 		// Write each record to a buffer.
-		var buf bytes.Buffer
+		var buf strings.Builder
 		for _, k := range keys {
 			rec, err := formatPAXRecord(k, paxHdrs[k])
 			if err != nil {

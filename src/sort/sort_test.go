@@ -194,7 +194,7 @@ func BenchmarkSortString1K_Slice(b *testing.B) {
 func BenchmarkStableString1K(b *testing.B) {
 	b.StopTimer()
 	unsorted := make([]string, 1<<10)
-	for i := 0; i < len(data); i++ {
+	for i := range unsorted {
 		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
 	}
 	data := make([]string, len(unsorted))

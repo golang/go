@@ -809,8 +809,8 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 		}
 	}
 
-	if !strings.Contains(mmi.RepoRoot, "://") {
-		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, mmi.RepoRoot)
+	if err := validateRepoRoot(mmi.RepoRoot); err != nil {
+		return nil, fmt.Errorf("%s: invalid repo root %q: %v", urlStr, mmi.RepoRoot, err)
 	}
 	rr := &repoRoot{
 		vcs:      vcsByCmd(mmi.VCS),
@@ -822,6 +822,19 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, mmi.VCS)
 	}
 	return rr, nil
+}
+
+// validateRepoRoot returns an error if repoRoot does not seem to be
+// a valid URL with scheme.
+func validateRepoRoot(repoRoot string) error {
+	url, err := url.Parse(repoRoot)
+	if err != nil {
+		return err
+	}
+	if url.Scheme == "" {
+		return errors.New("no scheme")
+	}
+	return nil
 }
 
 var fetchGroup singleflight.Group
@@ -971,7 +984,7 @@ var vcsPaths = []*vcsPath{
 	// IBM DevOps Services (JazzHub)
 	{
 		prefix: "hub.jazz.net/git/",
-		re:     `^(?P<root>hub.jazz.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
+		re:     `^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
 		check:  noVCSSuffix,
@@ -980,7 +993,7 @@ var vcsPaths = []*vcsPath{
 	// Git at Apache
 	{
 		prefix: "git.apache.org/",
-		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
+		re:     `^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
 	},

@@ -5,6 +5,7 @@
 package syntax
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -23,7 +24,7 @@ func TestScanner(t *testing.T) {
 	defer src.Close()
 
 	var s scanner
-	s.init(src, nil, nil)
+	s.init(src, nil, 0)
 	for {
 		s.next()
 		if s.tok == _EOF {
@@ -42,17 +43,17 @@ func TestScanner(t *testing.T) {
 
 func TestTokens(t *testing.T) {
 	// make source
-	var buf []byte
+	var buf bytes.Buffer
 	for i, s := range sampleTokens {
-		buf = append(buf, "\t\t\t\t"[:i&3]...)     // leading indentation
-		buf = append(buf, s.src...)                // token
-		buf = append(buf, "        "[:i&7]...)     // trailing spaces
-		buf = append(buf, "/* foo */ // bar\n"...) // comments
+		buf.WriteString("\t\t\t\t"[:i&3])           // leading indentation
+		buf.WriteString(s.src)                      // token
+		buf.WriteString("        "[:i&7])           // trailing spaces
+		buf.WriteString("/*line foo:1 */ // bar\n") // comments (don't crash w/o directive handler)
 	}
 
 	// scan source
 	var got scanner
-	got.init(&bytesReader{buf}, nil, nil)
+	got.init(&buf, nil, 0)
 	got.next()
 	for i, want := range sampleTokens {
 		nlsemi := false
@@ -262,6 +263,66 @@ var sampleTokens = [...]struct {
 	{_Var, "var", 0, 0},
 }
 
+func TestComments(t *testing.T) {
+	type comment struct {
+		line, col uint // 0-based
+		text      string
+	}
+
+	for _, test := range []struct {
+		src  string
+		want comment
+	}{
+		// no comments
+		{"no comment here", comment{0, 0, ""}},
+		{" /", comment{0, 0, ""}},
+		{"\n /*/", comment{0, 0, ""}},
+
+		//-style comments
+		{"// line comment\n", comment{0, 0, "// line comment"}},
+		{"package p // line comment\n", comment{0, 10, "// line comment"}},
+		{"//\n//\n\t// want this one\r\n", comment{2, 1, "// want this one\r"}},
+		{"\n\n//\n", comment{2, 0, "//"}},
+		{"//", comment{0, 0, "//"}},
+
+		/*-style comments */
+		{"/* regular comment */", comment{0, 0, "/* regular comment */"}},
+		{"package p /* regular comment", comment{0, 0, ""}},
+		{"\n\n\n/*\n*//* want this one */", comment{4, 2, "/* want this one */"}},
+		{"\n\n/**/", comment{2, 0, "/**/"}},
+		{"/*", comment{0, 0, ""}},
+	} {
+		var s scanner
+		var got comment
+		s.init(strings.NewReader(test.src),
+			func(line, col uint, msg string) {
+				if msg[0] != '/' {
+					// error
+					if msg != "comment not terminated" {
+						t.Errorf("%q: %s", test.src, msg)
+					}
+					return
+				}
+				got = comment{line - linebase, col - colbase, msg} // keep last one
+			}, comments)
+
+		for {
+			s.next()
+			if s.tok == _EOF {
+				break
+			}
+		}
+
+		want := test.want
+		if got.line != want.line || got.col != want.col {
+			t.Errorf("%q: got position %d:%d; want %d:%d", test.src, got.line, got.col, want.line, want.col)
+		}
+		if got.text != want.text {
+			t.Errorf("%q: got %q; want %q", test.src, got.text, want.text)
+		}
+	}
+}
+
 func TestScanErrors(t *testing.T) {
 	for _, test := range []struct {
 		src, msg  string
@@ -282,7 +343,7 @@ func TestScanErrors(t *testing.T) {
 		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
 		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 0, 8 /* byte offset */},
 
-		{"x + ~y", "bitwise complement operator is ^", 0, 4},
+		{"x + ~y", "invalid character U+007E '~'", 0, 4},
 		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
 		{"const x = 0xyz", "malformed hex constant", 0, 12},
 		{"0123456789", "malformed octal constant", 0, 10},
@@ -313,7 +374,6 @@ func TestScanErrors(t *testing.T) {
 		{"`foo", "string not terminated", 0, 0},
 		{"/*/", "comment not terminated", 0, 0},
 		{"/*\n\nfoo", "comment not terminated", 0, 0},
-		{"/*\n\nfoo", "comment not terminated", 0, 0},
 		{`"\`, "string not terminated", 0, 0},
 		{`"\"`, "string not terminated", 0, 0},
 		{`"\x`, "string not terminated", 0, 0},
@@ -337,7 +397,7 @@ func TestScanErrors(t *testing.T) {
 	} {
 		var s scanner
 		nerrors := 0
-		s.init(&bytesReader{[]byte(test.src)}, func(line, col uint, msg string) {
+		s.init(strings.NewReader(test.src), func(line, col uint, msg string) {
 			nerrors++
 			// only check the first error
 			if nerrors == 1 {
@@ -354,7 +414,7 @@ func TestScanErrors(t *testing.T) {
 				// TODO(gri) make this use position info
 				t.Errorf("%q: got unexpected %q at line = %d", test.src, msg, line)
 			}
-		}, nil)
+		}, 0)
 
 		for {
 			s.next()
@@ -373,7 +433,7 @@ func TestIssue21938(t *testing.T) {
 	s := "/*" + strings.Repeat(" ", 4089) + "*/ .5"
 
 	var got scanner
-	got.init(strings.NewReader(s), nil, nil)
+	got.init(strings.NewReader(s), nil, 0)
 	got.next()
 
 	if got.tok != _Literal || got.lit != ".5" {

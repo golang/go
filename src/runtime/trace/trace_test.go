@@ -31,6 +31,9 @@ func TestEventBatch(t *testing.T) {
 	if race.Enabled {
 		t.Skip("skipping in race mode")
 	}
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -81,6 +84,9 @@ func TestEventBatch(t *testing.T) {
 }
 
 func TestTraceStartStop(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -98,6 +104,9 @@ func TestTraceStartStop(t *testing.T) {
 }
 
 func TestTraceDoubleStart(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	Stop()
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
@@ -111,6 +120,9 @@ func TestTraceDoubleStart(t *testing.T) {
 }
 
 func TestTrace(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -127,20 +139,20 @@ func TestTrace(t *testing.T) {
 }
 
 func parseTrace(t *testing.T, r io.Reader) ([]*trace.Event, map[uint64]*trace.GDesc) {
-	events, err := trace.Parse(r, "")
+	res, err := trace.Parse(r, "")
 	if err == trace.ErrTimeOrder {
 		t.Skipf("skipping trace: %v", err)
 	}
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
-	gs := trace.GoroutineStats(events)
+	gs := trace.GoroutineStats(res.Events)
 	for goid := range gs {
 		// We don't do any particular checks on the result at the moment.
 		// But still check that RelatedGoroutines does not crash, hang, etc.
-		_ = trace.RelatedGoroutines(events, goid)
+		_ = trace.RelatedGoroutines(res.Events, goid)
 	}
-	return events, gs
+	return res.Events, gs
 }
 
 func testBrokenTimestamps(t *testing.T, data []byte) {
@@ -168,6 +180,9 @@ func testBrokenTimestamps(t *testing.T, data []byte) {
 }
 
 func TestTraceStress(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	var wg sync.WaitGroup
 	done := make(chan bool)
 
@@ -307,6 +322,9 @@ func TestTraceStress(t *testing.T) {
 // Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
 // And concurrently with all that start/stop trace 3 times.
 func TestTraceStressStartStop(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 	outerDone := make(chan bool)
 
@@ -454,6 +472,9 @@ func TestTraceStressStartStop(t *testing.T) {
 }
 
 func TestTraceFutileWakeup(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)

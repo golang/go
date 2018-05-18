@@ -295,7 +295,7 @@ func (d *deadcodepass) flood() {
 
 		mpos := 0 // 0-3, the R_METHODOFF relocs of runtime.uncommontype
 		var methods []methodref
-		for i := 0; i < len(s.R); i++ {
+		for i := range s.R {
 			r := &s.R[i]
 			if r.Sym == nil {
 				continue

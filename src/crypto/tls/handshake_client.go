@@ -94,7 +94,6 @@ NextCipherSuite:
 	return hello, nil
 }
 
-// c.out.Mutex <= L; c.handshakeMutex <= L.
 func (c *Conn) clientHandshake() error {
 	if c.config == nil {
 		c.config = defaultConfig()
@@ -268,6 +267,7 @@ func (hs *clientHandshakeState) handshake() error {
 		}
 	}
 
+	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random)
 	c.didResume = isResume
 	c.handshakeComplete = true
 
@@ -377,26 +377,34 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 	}
 
-	if hs.serverHello.ocspStapling {
-		msg, err = c.readHandshake()
-		if err != nil {
-			return err
-		}
-		cs, ok := msg.(*certificateStatusMsg)
-		if !ok {
+	msg, err = c.readHandshake()
+	if err != nil {
+		return err
+	}
+
+	cs, ok := msg.(*certificateStatusMsg)
+	if ok {
+		// RFC4366 on Certificate Status Request:
+		// The server MAY return a "certificate_status" message.
+
+		if !hs.serverHello.ocspStapling {
+			// If a server returns a "CertificateStatus" message, then the
+			// server MUST have included an extension of type "status_request"
+			// with empty "extension_data" in the extended server hello.
+
 			c.sendAlert(alertUnexpectedMessage)
-			return unexpectedMessageError(cs, msg)
+			return errors.New("tls: received unexpected CertificateStatus message")
 		}
 		hs.finishedHash.Write(cs.marshal())
 
 		if cs.statusType == statusTypeOCSP {
 			c.ocspResponse = cs.response
 		}
-	}
 
-	msg, err = c.readHandshake()
-	if err != nil {
-		return err
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
 	}
 
 	keyAgreement := hs.suite.ka(c.vers)

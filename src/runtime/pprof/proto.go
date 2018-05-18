@@ -54,18 +54,20 @@ type memMap struct {
 
 const (
 	// message Profile
-	tagProfile_SampleType    = 1  // repeated ValueType
-	tagProfile_Sample        = 2  // repeated Sample
-	tagProfile_Mapping       = 3  // repeated Mapping
-	tagProfile_Location      = 4  // repeated Location
-	tagProfile_Function      = 5  // repeated Function
-	tagProfile_StringTable   = 6  // repeated string
-	tagProfile_DropFrames    = 7  // int64 (string table index)
-	tagProfile_KeepFrames    = 8  // int64 (string table index)
-	tagProfile_TimeNanos     = 9  // int64
-	tagProfile_DurationNanos = 10 // int64
-	tagProfile_PeriodType    = 11 // ValueType (really optional string???)
-	tagProfile_Period        = 12 // int64
+	tagProfile_SampleType        = 1  // repeated ValueType
+	tagProfile_Sample            = 2  // repeated Sample
+	tagProfile_Mapping           = 3  // repeated Mapping
+	tagProfile_Location          = 4  // repeated Location
+	tagProfile_Function          = 5  // repeated Function
+	tagProfile_StringTable       = 6  // repeated string
+	tagProfile_DropFrames        = 7  // int64 (string table index)
+	tagProfile_KeepFrames        = 8  // int64 (string table index)
+	tagProfile_TimeNanos         = 9  // int64
+	tagProfile_DurationNanos     = 10 // int64
+	tagProfile_PeriodType        = 11 // ValueType (really optional string???)
+	tagProfile_Period            = 12 // int64
+	tagProfile_Comment           = 13 // repeated int64
+	tagProfile_DefaultSampleType = 14 // int64
 
 	// message ValueType
 	tagValueType_Type = 1 // int64 (string table index)
@@ -343,7 +345,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 }
 
 // build completes and returns the constructed profile.
-func (b *profileBuilder) build() error {
+func (b *profileBuilder) build() {
 	b.end = time.Now()
 
 	b.pb.int64Opt(tagProfile_TimeNanos, b.start.UnixNano())
@@ -396,7 +398,6 @@ func (b *profileBuilder) build() error {
 	b.pb.strings(tagProfile_StringTable, b.strings)
 	b.zw.Write(b.pb.data)
 	b.zw.Close()
-	return nil
 }
 
 // readMapping reads /proc/self/maps and writes mappings to b.pb.

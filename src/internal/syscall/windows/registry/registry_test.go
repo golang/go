@@ -28,7 +28,7 @@ func randKeyName(prefix string) string {
 }
 
 func TestReadSubKeyNames(t *testing.T) {
-	k, err := registry.OpenKey(registry.CLASSES_ROOT, "TypeLib", registry.ENUMERATE_SUB_KEYS|registry.QUERY_VALUE)
+	k, err := registry.OpenKey(registry.CLASSES_ROOT, "TypeLib", registry.ENUMERATE_SUB_KEYS)
 	if err != nil {
 		t.Fatal(err)
 	}

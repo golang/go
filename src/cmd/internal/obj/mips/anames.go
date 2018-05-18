@@ -70,6 +70,7 @@ var Anames = []string{
 	"NEGD",
 	"NEGF",
 	"NEGW",
+	"NEGV",
 	"NOOP",
 	"NOR",
 	"OR",

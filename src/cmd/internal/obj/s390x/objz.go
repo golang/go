@@ -524,6 +524,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
 			}
+
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOVD LR, Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REG_LR
+			} else {
+				/* MOVD (RSP), Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+			}
 		}
 	}
 	if wasSplit {
@@ -720,10 +733,11 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Links390x = obj.LinkArch{
-	Arch:       sys.ArchS390X,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   spanz,
-	Progedit:   progedit,
-	UnaryDst:   unaryDst,
+	Arch:           sys.ArchS390X,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       spanz,
+	Progedit:       progedit,
+	UnaryDst:       unaryDst,
+	DWARFRegisters: S390XDWARFRegisters,
 }

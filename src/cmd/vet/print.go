@@ -44,41 +44,73 @@ func initPrintFlags() {
 			name = name[:colon]
 		}
 
-		name = strings.ToLower(name)
-		if name[len(name)-1] == 'f' {
-			isFormattedPrint[name] = true
-		} else {
-			isPrint[name] = true
-		}
+		isPrint[strings.ToLower(name)] = true
 	}
 }
 
-// isFormattedPrint records the formatted-print functions. Names are
-// lower-cased so the lookup is case insensitive.
-var isFormattedPrint = map[string]bool{
-	"errorf":  true,
-	"fatalf":  true,
-	"fprintf": true,
-	"logf":    true,
-	"panicf":  true,
-	"printf":  true,
-	"sprintf": true,
-}
+// TODO(rsc): Incorporate user-defined printf wrappers again.
+// The general plan is to allow vet of one package P to output
+// additional information to supply to later vets of packages
+// importing P. Then vet of P can record a list of printf wrappers
+// and the later vet using P.Printf will find it in the list and check it.
+// That's not ready for Go 1.10.
+// When that does happen, uncomment the user-defined printf
+// wrapper tests in testdata/print.go.
 
-// isPrint records the unformatted-print functions. Names are lower-cased
-// so the lookup is case insensitive.
+// isPrint records the print functions.
+// If a key ends in 'f' then it is assumed to be a formatted print.
 var isPrint = map[string]bool{
-	"error":    true,
-	"fatal":    true,
-	"fprint":   true,
-	"fprintln": true,
-	"log":      true,
-	"panic":    true,
-	"panicln":  true,
-	"print":    true,
-	"println":  true,
-	"sprint":   true,
-	"sprintln": true,
+	"fmt.Errorf":         true,
+	"fmt.Fprint":         true,
+	"fmt.Fprintf":        true,
+	"fmt.Fprintln":       true,
+	"fmt.Print":          true,
+	"fmt.Printf":         true,
+	"fmt.Println":        true,
+	"fmt.Sprint":         true,
+	"fmt.Sprintf":        true,
+	"fmt.Sprintln":       true,
+	"log.Fatal":          true,
+	"log.Fatalf":         true,
+	"log.Fatalln":        true,
+	"log.Logger.Fatal":   true,
+	"log.Logger.Fatalf":  true,
+	"log.Logger.Fatalln": true,
+	"log.Logger.Panic":   true,
+	"log.Logger.Panicf":  true,
+	"log.Logger.Panicln": true,
+	"log.Logger.Printf":  true,
+	"log.Logger.Println": true,
+	"log.Panic":          true,
+	"log.Panicf":         true,
+	"log.Panicln":        true,
+	"log.Print":          true,
+	"log.Printf":         true,
+	"log.Println":        true,
+	"testing.B.Error":    true,
+	"testing.B.Errorf":   true,
+	"testing.B.Fatal":    true,
+	"testing.B.Fatalf":   true,
+	"testing.B.Log":      true,
+	"testing.B.Logf":     true,
+	"testing.B.Skip":     true,
+	"testing.B.Skipf":    true,
+	"testing.T.Error":    true,
+	"testing.T.Errorf":   true,
+	"testing.T.Fatal":    true,
+	"testing.T.Fatalf":   true,
+	"testing.T.Log":      true,
+	"testing.T.Logf":     true,
+	"testing.T.Skip":     true,
+	"testing.T.Skipf":    true,
+	"testing.TB.Error":   true,
+	"testing.TB.Errorf":  true,
+	"testing.TB.Fatal":   true,
+	"testing.TB.Fatalf":  true,
+	"testing.TB.Log":     true,
+	"testing.TB.Logf":    true,
+	"testing.TB.Skip":    true,
+	"testing.TB.Skipf":   true,
 }
 
 // formatString returns the format string argument and its index within
@@ -148,14 +180,21 @@ func stringConstantArg(f *File, call *ast.CallExpr, idx int) (string, bool) {
 
 // checkCall triggers the print-specific checks if the call invokes a print function.
 func checkFmtPrintfCall(f *File, node ast.Node) {
+	if f.pkg.typesPkg == nil {
+		// This check now requires type information.
+		return
+	}
+
 	if d, ok := node.(*ast.FuncDecl); ok && isStringer(f, d) {
 		// Remember we saw this.
-		if f.stringers == nil {
-			f.stringers = make(map[*ast.Object]bool)
+		if f.stringerPtrs == nil {
+			f.stringerPtrs = make(map[*ast.Object]bool)
 		}
 		if l := d.Recv.List; len(l) == 1 {
 			if n := l[0].Names; len(n) == 1 {
-				f.stringers[n[0].Obj] = true
+				typ := f.pkg.types[l[0].Type]
+				_, ptrRecv := typ.Type.(*types.Pointer)
+				f.stringerPtrs[n[0].Obj] = ptrRecv
 			}
 		}
 		return
@@ -165,24 +204,67 @@ func checkFmtPrintfCall(f *File, node ast.Node) {
 	if !ok {
 		return
 	}
-	var Name string
+
+	// Construct name like pkg.Printf or pkg.Type.Printf for lookup.
+	var name string
 	switch x := call.Fun.(type) {
 	case *ast.Ident:
-		Name = x.Name
+		if fn, ok := f.pkg.uses[x].(*types.Func); ok {
+			var pkg string
+			if fn.Pkg() == nil || fn.Pkg() == f.pkg.typesPkg {
+				pkg = vcfg.ImportPath
+			} else {
+				pkg = fn.Pkg().Path()
+			}
+			name = pkg + "." + x.Name
+			break
+		}
+
 	case *ast.SelectorExpr:
-		Name = x.Sel.Name
-	default:
+		// Check for "fmt.Printf".
+		if id, ok := x.X.(*ast.Ident); ok {
+			if pkgName, ok := f.pkg.uses[id].(*types.PkgName); ok {
+				name = pkgName.Imported().Path() + "." + x.Sel.Name
+				break
+			}
+		}
+
+		// Check for t.Logf where t is a *testing.T.
+		if sel := f.pkg.selectors[x]; sel != nil {
+			recv := sel.Recv()
+			if p, ok := recv.(*types.Pointer); ok {
+				recv = p.Elem()
+			}
+			if named, ok := recv.(*types.Named); ok {
+				obj := named.Obj()
+				var pkg string
+				if obj.Pkg() == nil || obj.Pkg() == f.pkg.typesPkg {
+					pkg = vcfg.ImportPath
+				} else {
+					pkg = obj.Pkg().Path()
+				}
+				name = pkg + "." + obj.Name() + "." + x.Sel.Name
+				break
+			}
+		}
+	}
+	if name == "" {
 		return
 	}
 
-	name := strings.ToLower(Name)
-	if _, ok := isFormattedPrint[name]; ok {
-		f.checkPrintf(call, Name)
-		return
+	shortName := name[strings.LastIndex(name, ".")+1:]
+
+	_, ok = isPrint[name]
+	if !ok {
+		// Next look up just "printf", for use with -printfuncs.
+		_, ok = isPrint[strings.ToLower(shortName)]
 	}
-	if _, ok := isPrint[name]; ok {
-		f.checkPrint(call, Name)
-		return
+	if ok {
+		if strings.HasSuffix(name, "f") {
+			f.checkPrintf(call, shortName)
+		} else {
+			f.checkPrint(call, shortName)
+		}
 	}
 }
 
@@ -213,6 +295,7 @@ type formatState struct {
 	file         *File
 	call         *ast.CallExpr
 	argNum       int  // Which argument we're expecting to format now.
+	hasIndex     bool // Whether the argument is indexed.
 	indexPending bool // Whether we have an indexed argument that has not resolved.
 	nbytes       int  // number of bytes of the format string consumed.
 }
@@ -237,6 +320,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 	// Hard part: check formats against args.
 	argNum := firstArg
 	maxArgNum := firstArg
+	anyIndex := false
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
 		if format[i] != '%' {
@@ -250,6 +334,9 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 		if !f.okPrintfArg(call, state) { // One error per format is enough.
 			return
 		}
+		if state.hasIndex {
+			anyIndex = true
+		}
 		if len(state.argNums) > 0 {
 			// Continue with the next sequential argument.
 			argNum = state.argNums[len(state.argNums)-1] + 1
@@ -262,6 +349,10 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 	}
 	// Dotdotdot is hard.
 	if call.Ellipsis.IsValid() && maxArgNum >= len(call.Args)-1 {
+		return
+	}
+	// If any formats are indexed, extra arguments are ignored.
+	if anyIndex {
 		return
 	}
 	// There should be no leftover arguments.
@@ -322,6 +413,7 @@ func (s *formatState) parseIndex() bool {
 	arg := int(arg32)
 	arg += s.firstArg - 1 // We want to zero-index the actual arguments.
 	s.argNum = arg
+	s.hasIndex = true
 	s.indexPending = true
 	return true
 }
@@ -442,7 +534,7 @@ var printVerbs = []printVerb{
 	{'%', noFlag, 0},
 	{'b', numFlag, argInt | argFloat | argComplex},
 	{'c', "-", argRune | argInt},
-	{'d', numFlag, argInt},
+	{'d', numFlag, argInt | argPointer},
 	{'e', sharpNumFlag, argFloat | argComplex},
 	{'E', sharpNumFlag, argFloat | argComplex},
 	{'f', sharpNumFlag, argFloat | argComplex},
@@ -457,8 +549,8 @@ var printVerbs = []printVerb{
 	{'T', "-", anyType},
 	{'U', "-#", argRune | argInt},
 	{'v', allFlags, anyType},
-	{'x', sharpNumFlag, argRune | argInt | argString},
-	{'X', sharpNumFlag, argRune | argInt | argString},
+	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
+	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
 }
 
 // okPrintfArg compares the formatState to the arguments actually present,
@@ -489,6 +581,11 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 			return false
 		}
 		for _, flag := range state.flags {
+			// TODO: Disable complaint about '0' for Go 1.10. To be fixed properly in 1.11.
+			// See issues 23598 and 23605.
+			if flag == '0' {
+				continue
+			}
 			if !strings.ContainsRune(v.flags, rune(flag)) {
 				f.Badf(call.Pos(), "%s format %s has unrecognized flag %c", state.name, state.format, flag)
 				return false
@@ -543,9 +640,10 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 // recursiveStringer reports whether the provided argument is r or &r for the
 // fmt.Stringer receiver identifier r.
 func (f *File) recursiveStringer(e ast.Expr) bool {
-	if len(f.stringers) == 0 {
+	if len(f.stringerPtrs) == 0 {
 		return false
 	}
+	ptr := false
 	var obj *ast.Object
 	switch e := e.(type) {
 	case *ast.Ident:
@@ -553,13 +651,13 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
 	case *ast.UnaryExpr:
 		if id, ok := e.X.(*ast.Ident); ok && e.Op == token.AND {
 			obj = id.Obj
+			ptr = true
 		}
 	}
 
 	// It's unlikely to be a recursive stringer if it has a Format method.
 	if typ := f.pkg.types[e].Type; typ != nil {
-		// Not a perfect match; see issue 6259.
-		if f.hasMethod(typ, "Format") {
+		if f.isFormatter(typ) {
 			return false
 		}
 	}
@@ -567,7 +665,16 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
 	// We compare the underlying Object, which checks that the identifier
 	// is the one we declared as the receiver for the String method in
 	// which this printf appears.
-	return f.stringers[obj]
+	ptrRecv, exist := f.stringerPtrs[obj]
+	if !exist {
+		return false
+	}
+	// We also need to check that using &t when we declared String
+	// on (t *T) is ok; in such a case, the address is printed.
+	if ptr && ptrRecv {
+		return false
+	}
+	return true
 }
 
 // isFunctionValue reports whether the expression is a function as opposed to a function call.
@@ -601,7 +708,7 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, state *formatS
 	// There are bad indexes in the format or there are fewer arguments than the format needs.
 	// This is the argument number relative to the format: Printf("%s", "hi") will give 1 for the "hi".
 	arg := argNum - state.firstArg + 1 // People think of arguments as 1-indexed.
-	f.Badf(call.Pos(), "%s format %s reads arg #%d, but call has only %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
+	f.Badf(call.Pos(), "%s format %s reads arg #%d, but call has %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
 	return false
 }
 
@@ -614,7 +721,7 @@ const (
 	flagsRE    = `[+\-#]*`
 	indexOptRE = `(\[[0-9]+\])?`
 	numOptRE   = `([0-9]+|` + indexOptRE + `\*)?`
-	verbRE     = `[bcdefgopqstvxEFGUX]`
+	verbRE     = `[bcdefgopqstvxEFGTUX]`
 )
 
 // checkPrint checks a call to an unformatted print routine such as Println.

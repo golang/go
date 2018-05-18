@@ -60,6 +60,7 @@ const (
 	Cpu386   Cpu = 7
 	CpuAmd64 Cpu = Cpu386 | cpuArch64
 	CpuArm   Cpu = 12
+	CpuArm64 Cpu = CpuArm | cpuArch64
 	CpuPpc   Cpu = 18
 	CpuPpc64 Cpu = CpuPpc | cpuArch64
 )
@@ -68,6 +69,7 @@ var cpuStrings = []intName{
 	{uint32(Cpu386), "Cpu386"},
 	{uint32(CpuAmd64), "CpuAmd64"},
 	{uint32(CpuArm), "CpuArm"},
+	{uint32(CpuArm64), "CpuArm64"},
 	{uint32(CpuPpc), "CpuPpc"},
 	{uint32(CpuPpc64), "CpuPpc64"},
 }

@@ -148,6 +148,7 @@ func splitLines(s string) []string {
 }
 
 func TestVendorGet(t *testing.T) {
+	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.tempFile("src/v/m.go", `
@@ -173,8 +174,8 @@ func TestVendorGet(t *testing.T) {
 	tg.grepStdout("v/vendor/vendor.org/p", "import not in vendor directory")
 	tg.run("list", "-f", "{{.TestImports}}")
 	tg.grepStdout("v/vendor/vendor.org/p", "test import not in vendor directory")
-	tg.run("get")
-	tg.run("get", "-t")
+	tg.run("get", "-d")
+	tg.run("get", "-t", "-d")
 }
 
 func TestVendorGetUpdate(t *testing.T) {

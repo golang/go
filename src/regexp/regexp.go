@@ -30,8 +30,8 @@
 // matches of the entire expression. Empty matches abutting a preceding
 // match are ignored. The return value is a slice containing the successive
 // return values of the corresponding non-'All' routine. These routines take
-// an extra integer argument, n; if n >= 0, the function returns at most n
-// matches/submatches.
+// an extra integer argument, n. If n >= 0, the function returns at most n
+// matches/submatches; otherwise, it returns all of them.
 //
 // If 'String' is present, the argument is a string; otherwise it is a slice
 // of bytes; return values are adjusted as appropriate.
@@ -79,15 +79,13 @@ import (
 // A Regexp is safe for concurrent use by multiple goroutines,
 // except for configuration methods, such as Longest.
 type Regexp struct {
-	// read-only after Compile
-	regexpRO
+	// cache of machines for running regexp. This is a shared pointer across
+	// all copies of the original Regexp object to decrease the overall
+	// memory footprint of the regexps (since there will be one machine
+	// cached per thread instead of one per thread per copy).
+	machines *sync.Pool
 
-	// cache of machines for running regexp
-	mu      sync.Mutex
-	machine []*machine
-}
-
-type regexpRO struct {
+	// everything below is read-only after Compile
 	expr           string         // as passed to Compile
 	prog           *syntax.Prog   // compiled program
 	onepass        *onePassProg   // onepass program or nil
@@ -109,14 +107,10 @@ func (re *Regexp) String() string {
 
 // Copy returns a new Regexp object copied from re.
 //
-// When using a Regexp in multiple goroutines, giving each goroutine
-// its own copy helps to avoid lock contention.
+// Deprecated: This exists for historical reasons.
 func (re *Regexp) Copy() *Regexp {
-	// It is not safe to copy Regexp by value
-	// since it contains a sync.Mutex.
-	return &Regexp{
-		regexpRO: re.regexpRO,
-	}
+	re2 := *re
+	return &re2
 }
 
 // Compile parses a regular expression and returns, if successful,
@@ -179,15 +173,21 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 	if err != nil {
 		return nil, err
 	}
+	onepass := compileOnePass(prog)
 	regexp := &Regexp{
-		regexpRO: regexpRO{
-			expr:        expr,
-			prog:        prog,
-			onepass:     compileOnePass(prog),
-			numSubexp:   maxCap,
-			subexpNames: capNames,
-			cond:        prog.StartCond(),
-			longest:     longest,
+		expr:        expr,
+		prog:        prog,
+		onepass:     onepass,
+		numSubexp:   maxCap,
+		subexpNames: capNames,
+		cond:        prog.StartCond(),
+		longest:     longest,
+	}
+	regexp.machines = &sync.Pool{
+		New: func() interface{} {
+			z := progMachine(prog, onepass)
+			z.re = regexp
+			return z
 		},
 	}
 	if regexp.onepass == notOnePass {
@@ -208,17 +208,7 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 // It uses the re's machine cache if possible, to avoid
 // unnecessary allocation.
 func (re *Regexp) get() *machine {
-	re.mu.Lock()
-	if n := len(re.machine); n > 0 {
-		z := re.machine[n-1]
-		re.machine = re.machine[:n-1]
-		re.mu.Unlock()
-		return z
-	}
-	re.mu.Unlock()
-	z := progMachine(re.prog, re.onepass)
-	z.re = re
-	return z
+	return re.machines.Get().(*machine)
 }
 
 // put returns a machine to the re's machine cache.
@@ -226,18 +216,21 @@ func (re *Regexp) get() *machine {
 // grow to the maximum number of simultaneous matches
 // run using re.  (The cache empties when re gets garbage collected.)
 func (re *Regexp) put(z *machine) {
-	re.mu.Lock()
-	re.machine = append(re.machine, z)
-	re.mu.Unlock()
+	// Remove references to input data that we no longer need.
+	z.inputBytes.str = nil
+	z.inputString.str = ""
+	z.inputReader.r = nil
+
+	re.machines.Put(z)
 }
 
 // MustCompile is like Compile but panics if the expression cannot be parsed.
 // It simplifies safe initialization of global variables holding compiled regular
 // expressions.
 func MustCompile(str string) *Regexp {
-	regexp, error := Compile(str)
-	if error != nil {
-		panic(`regexp: Compile(` + quote(str) + `): ` + error.Error())
+	regexp, err := Compile(str)
+	if err != nil {
+		panic(`regexp: Compile(` + quote(str) + `): ` + err.Error())
 	}
 	return regexp
 }
@@ -246,9 +239,9 @@ func MustCompile(str string) *Regexp {
 // It simplifies safe initialization of global variables holding compiled regular
 // expressions.
 func MustCompilePOSIX(str string) *Regexp {
-	regexp, error := CompilePOSIX(str)
-	if error != nil {
-		panic(`regexp: CompilePOSIX(` + quote(str) + `): ` + error.Error())
+	regexp, err := CompilePOSIX(str)
+	if err != nil {
+		panic(`regexp: CompilePOSIX(` + quote(str) + `): ` + err.Error())
 	}
 	return regexp
 }
@@ -984,13 +977,13 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
 	if n < 0 {
 		n = len(b) + 1
 	}
-	result := make([][]byte, 0, startSize)
+	var result [][]byte
 	re.allMatches("", b, n, func(match []int) {
+		if result == nil {
+			result = make([][]byte, 0, startSize)
+		}
 		result = append(result, b[match[0]:match[1]])
 	})
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 
@@ -1002,13 +995,13 @@ func (re *Regexp) FindAllIndex(b []byte, n int) [][]int {
 	if n < 0 {
 		n = len(b) + 1
 	}
-	result := make([][]int, 0, startSize)
+	var result [][]int
 	re.allMatches("", b, n, func(match []int) {
+		if result == nil {
+			result = make([][]int, 0, startSize)
+		}
 		result = append(result, match[0:2])
 	})
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 
@@ -1020,13 +1013,13 @@ func (re *Regexp) FindAllString(s string, n int) []string {
 	if n < 0 {
 		n = len(s) + 1
 	}
-	result := make([]string, 0, startSize)
+	var result []string
 	re.allMatches(s, nil, n, func(match []int) {
+		if result == nil {
+			result = make([]string, 0, startSize)
+		}
 		result = append(result, s[match[0]:match[1]])
 	})
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 
@@ -1038,13 +1031,13 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 	if n < 0 {
 		n = len(s) + 1
 	}
-	result := make([][]int, 0, startSize)
+	var result [][]int
 	re.allMatches(s, nil, n, func(match []int) {
+		if result == nil {
+			result = make([][]int, 0, startSize)
+		}
 		result = append(result, match[0:2])
 	})
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 
@@ -1056,8 +1049,11 @@ func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
 	if n < 0 {
 		n = len(b) + 1
 	}
-	result := make([][][]byte, 0, startSize)
+	var result [][][]byte
 	re.allMatches("", b, n, func(match []int) {
+		if result == nil {
+			result = make([][][]byte, 0, startSize)
+		}
 		slice := make([][]byte, len(match)/2)
 		for j := range slice {
 			if match[2*j] >= 0 {
@@ -1066,9 +1062,6 @@ func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
 		}
 		result = append(result, slice)
 	})
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 
@@ -1080,13 +1073,13 @@ func (re *Regexp) FindAllSubmatchIndex(b []byte, n int) [][]int {
 	if n < 0 {
 		n = len(b) + 1
 	}
-	result := make([][]int, 0, startSize)
+	var result [][]int
 	re.allMatches("", b, n, func(match []int) {
+		if result == nil {
+			result = make([][]int, 0, startSize)
+		}
 		result = append(result, match)
 	})
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 
@@ -1098,8 +1091,11 @@ func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
 	if n < 0 {
 		n = len(s) + 1
 	}
-	result := make([][]string, 0, startSize)
+	var result [][]string
 	re.allMatches(s, nil, n, func(match []int) {
+		if result == nil {
+			result = make([][]string, 0, startSize)
+		}
 		slice := make([]string, len(match)/2)
 		for j := range slice {
 			if match[2*j] >= 0 {
@@ -1108,9 +1104,6 @@ func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
 		}
 		result = append(result, slice)
 	})
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 
@@ -1123,13 +1116,13 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 	if n < 0 {
 		n = len(s) + 1
 	}
-	result := make([][]int, 0, startSize)
+	var result [][]int
 	re.allMatches(s, nil, n, func(match []int) {
+		if result == nil {
+			result = make([][]int, 0, startSize)
+		}
 		result = append(result, match)
 	})
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 

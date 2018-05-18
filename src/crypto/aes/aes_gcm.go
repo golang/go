@@ -36,6 +36,7 @@ func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint
 const (
 	gcmBlockSize         = 16
 	gcmTagSize           = 16
+	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
 	gcmStandardNonceSize = 12
 )
 
@@ -53,8 +54,8 @@ var _ gcmAble = (*aesCipherGCM)(nil)
 
 // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
 // called by crypto/cipher.NewGCM via the gcmAble interface.
-func (c *aesCipherGCM) NewGCM(nonceSize int) (cipher.AEAD, error) {
-	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize}
+func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
 	gcmAesInit(&g.productTable, g.ks)
 	return g, nil
 }
@@ -68,14 +69,16 @@ type gcmAsm struct {
 	productTable [256]byte
 	// nonceSize contains the expected size of the nonce, in bytes.
 	nonceSize int
+	// tagSize contains the size of the tag, in bytes.
+	tagSize int
 }
 
 func (g *gcmAsm) NonceSize() int {
 	return g.nonceSize
 }
 
-func (*gcmAsm) Overhead() int {
-	return gcmTagSize
+func (g *gcmAsm) Overhead() int {
+	return g.tagSize
 }
 
 // sliceForAppend takes a slice and a requested number of bytes. It returns a
@@ -120,7 +123,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	var tagOut [gcmTagSize]byte
 	gcmAesData(&g.productTable, data, &tagOut)
 
-	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
+	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
 	if len(plaintext) > 0 {
 		gcmAesEnc(&g.productTable, out, plaintext, &counter, &tagOut, g.ks)
 	}
@@ -136,16 +139,21 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(nonce) != g.nonceSize {
 		panic("cipher: incorrect nonce length given to GCM")
 	}
-
-	if len(ciphertext) < gcmTagSize {
-		return nil, errOpen
-	}
-	if uint64(len(ciphertext)) > ((1<<32)-2)*BlockSize+gcmTagSize {
-		return nil, errOpen
+	// Sanity check to prevent the authentication from always succeeding if an implementation
+	// leaves tagSize uninitialized, for example.
+	if g.tagSize < gcmMinimumTagSize {
+		panic("cipher: incorrect GCM tag size")
 	}
 
-	tag := ciphertext[len(ciphertext)-gcmTagSize:]
-	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
+	if len(ciphertext) < g.tagSize {
+		return nil, errOpen
+	}
+	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
+		return nil, errOpen
+	}
+
+	tag := ciphertext[len(ciphertext)-g.tagSize:]
+	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 
 	// See GCM spec, section 7.1.
 	var counter, tagMask [gcmBlockSize]byte
@@ -171,7 +179,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	}
 	gcmAesFinish(&g.productTable, &tagMask, &expectedTag, uint64(len(ciphertext)), uint64(len(data)))
 
-	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
+	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
 		for i := range out {
 			out[i] = 0
 		}

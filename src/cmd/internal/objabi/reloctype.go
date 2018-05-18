@@ -167,7 +167,7 @@ const (
 
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
 	// inserts the displacement from the place being relocated to the address of the
-	// the relocated symbol instead of just its address.
+	// relocated symbol instead of just its address.
 	R_ADDRPOWER_PCREL
 
 	// R_ADDRPOWER_TOCREL relocates two D-form instructions like R_ADDRPOWER, but
@@ -176,7 +176,7 @@ const (
 	R_ADDRPOWER_TOCREL
 
 	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
-	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the the
+	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the
 	// relocated symbol rather than the symbol's address.
 	R_ADDRPOWER_TOCREL_DS
 
@@ -193,6 +193,9 @@ const (
 	// R_ADDRCUOFF resolves to a pointer-sized offset from the start of the
 	// symbol's DWARF compile unit.
 	R_ADDRCUOFF
+
+	// R_WASMIMPORT resolves to the index of the WebAssembly function import.
+	R_WASMIMPORT
 )
 
 // IsDirectJump returns whether r is a relocation for a direct jump.

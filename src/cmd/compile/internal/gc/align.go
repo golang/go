@@ -36,7 +36,7 @@ func expandiface(t *types.Type) {
 		}
 
 		if !m.Type.IsInterface() {
-			yyerrorl(asNode(m.Nname).Pos, "interface contains embedded non-interface %v", m.Type)
+			yyerrorl(m.Pos, "interface contains embedded non-interface %v", m.Type)
 			m.SetBroke(true)
 			t.SetBroke(true)
 			// Add to fields so that error messages
@@ -52,10 +52,10 @@ func expandiface(t *types.Type) {
 		// method set.
 		for _, t1 := range m.Type.Fields().Slice() {
 			f := types.NewField()
+			f.Pos = m.Pos // preserve embedding position
+			f.Sym = t1.Sym
 			f.Type = t1.Type
 			f.SetBroke(t1.Broke())
-			f.Sym = t1.Sym
-			f.Nname = m.Nname // preserve embedding position
 			fields = append(fields, f)
 		}
 	}
@@ -100,7 +100,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
 		f.Offset = o
-		if asNode(f.Nname) != nil {
+		if n := asNode(f.Nname); n != nil {
 			// addrescapes has similar code to update these offsets.
 			// Usually addrescapes runs after widstruct,
 			// in which case we could drop this,
@@ -108,11 +108,11 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			// NOTE(rsc): This comment may be stale.
 			// It's possible the ordering has changed and this is
 			// now the common case. I'm not sure.
-			if asNode(f.Nname).Name.Param.Stackcopy != nil {
-				asNode(f.Nname).Name.Param.Stackcopy.Xoffset = o
-				asNode(f.Nname).Xoffset = 0
+			if n.Name.Param.Stackcopy != nil {
+				n.Name.Param.Stackcopy.Xoffset = o
+				n.Xoffset = 0
 			} else {
-				asNode(f.Nname).Xoffset = o
+				n.Xoffset = o
 			}
 		}
 
@@ -286,7 +286,7 @@ func dowidth(t *types.Type) {
 
 	case TMAP: // implemented as pointer
 		w = int64(Widthptr)
-		checkwidth(t.Val())
+		checkwidth(t.Elem())
 		checkwidth(t.Key())
 
 	case TFORW: // should have been filled in

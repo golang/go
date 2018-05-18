@@ -18,18 +18,16 @@
 #define SYS_kill                 37
 #define SYS_brk			 45
 #define SYS_fcntl                55
-#define SYS_gettimeofday         78
 #define SYS_mmap                 90
 #define SYS_munmap               91
 #define SYS_setitimer           104
 #define SYS_clone               120
-#define SYS_select              142
 #define SYS_sched_yield         158
+#define SYS_nanosleep           162
 #define SYS_rt_sigreturn        173
 #define SYS_rt_sigaction        174
 #define SYS_rt_sigprocmask      175
 #define SYS_sigaltstack         186
-#define SYS_ugetrlimit          191
 #define SYS_madvise             219
 #define SYS_mincore             218
 #define SYS_gettid              236
@@ -106,31 +104,21 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R2, ret+24(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
-	MOVW	kind+0(FP), R2
-	MOVD	limit+8(FP), R3
-	MOVW	$SYS_ugetrlimit, R1
-	SYSCALL
-	MOVW	R2, ret+16(FP)
-	RET
-
 TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	usec+0(FP), R2
 	MOVD	R2, R4
 	MOVW	$1000000, R3
 	DIVD	R3, R2
 	MOVD	R2, 8(R15)
+	MOVW	$1000, R3
 	MULLD	R2, R3
 	SUB	R3, R4
 	MOVD	R4, 16(R15)
 
-	// select(0, 0, 0, 0, &tv)
-	MOVW	$0, R2
+	// nanosleep(&ts, 0)
+	ADD	$8, R15, R2
 	MOVW	$0, R3
-	MOVW	$0, R4
-	MOVW	$0, R5
-	ADD	$8, R15, R6
-	MOVW	$SYS_select, R1
+	MOVW	$SYS_nanosleep, R1
 	SYSCALL
 	RET
 

@@ -25,6 +25,9 @@ GLOBL runtime·memstats(SB), NOPTR, $0
 #ifdef GOARCH_amd64p32
 #define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
 #endif
+#ifdef GOARCH_wasm
+#define SKIP4 UNDEF; UNDEF; UNDEF; UNDEF
+#endif
 #ifndef SKIP4
 #define SKIP4 WORD $0
 #endif

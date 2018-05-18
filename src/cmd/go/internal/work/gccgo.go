@@ -85,7 +85,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg 
 		args = append(args, mkAbs(p.Dir, f))
 	}
 
-	output, err = b.runOut(p.Dir, p.ImportPath, nil, args)
+	output, err = b.runOut(p.Dir, nil, args)
 	return ofile, output, err
 }
 
@@ -154,7 +154,8 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
 	p := a.Package
 	var ofiles []string
 	for _, sfile := range sfiles {
-		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
+		base := filepath.Base(sfile)
+		ofile := a.Objdir + base[:len(base)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
 		sfile = mkAbs(p.Dir, sfile)
 		defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
@@ -191,7 +192,6 @@ func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string)
 func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
 	// gccgo needs explicit linking with all package dependencies,
 	// and all LDFLAGS from cgo dependencies.
-	apackagePathsSeen := make(map[string]bool)
 	afiles := []string{}
 	shlibs := []string{}
 	ldflags := b.gccArchArgs()
@@ -232,7 +232,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	readAndRemoveCgoFlags := func(archive string) (string, error) {
 		newID++
 		newArchive := root.Objdir + fmt.Sprintf("_pkg%d_.a", newID)
-		if err := b.copyFile(root, newArchive, archive, 0666, false); err != nil {
+		if err := b.copyFile(newArchive, archive, 0666, false); err != nil {
 			return "", err
 		}
 		if cfg.BuildN || cfg.BuildX {
@@ -260,56 +260,57 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		return newArchive, nil
 	}
 
-	actionsSeen := make(map[*Action]bool)
-	// Make a pre-order depth-first traversal of the action graph, taking note of
-	// whether a shared library action has been seen on the way to an action (the
-	// construction of the graph means that if any path to a node passes through
-	// a shared library action, they all do).
-	var walk func(a *Action, seenShlib bool)
-	var err error
-	walk = func(a *Action, seenShlib bool) {
-		if actionsSeen[a] {
-			return
-		}
-		actionsSeen[a] = true
-		if a.Package != nil && !seenShlib {
-			if a.Package.Standard {
-				return
+	// If using -linkshared, find the shared library deps.
+	haveShlib := make(map[string]bool)
+	targetBase := filepath.Base(root.Target)
+	if cfg.BuildLinkshared {
+		for _, a := range root.Deps {
+			p := a.Package
+			if p == nil || p.Shlib == "" {
+				continue
 			}
-			// We record the target of the first time we see a .a file
-			// for a package to make sure that we prefer the 'install'
-			// rather than the 'build' location (which may not exist any
-			// more). We still need to traverse the dependencies of the
-			// build action though so saying
-			// if apackagePathsSeen[a.Package.ImportPath] { return }
-			// doesn't work.
-			if !apackagePathsSeen[a.Package.ImportPath] {
-				apackagePathsSeen[a.Package.ImportPath] = true
-				target := a.Target
-				if len(a.Package.CgoFiles) > 0 || a.Package.UsesSwig() {
-					target, err = readAndRemoveCgoFlags(target)
-					if err != nil {
-						return
-					}
-				}
-				afiles = append(afiles, target)
-			}
-		}
-		if strings.HasSuffix(a.Target, ".so") {
-			shlibs = append(shlibs, a.Target)
-			seenShlib = true
-		}
-		for _, a1 := range a.Deps {
-			walk(a1, seenShlib)
-			if err != nil {
-				return
+
+			// The .a we are linking into this .so
+			// will have its Shlib set to this .so.
+			// Don't start thinking we want to link
+			// this .so into itself.
+			base := filepath.Base(p.Shlib)
+			if base != targetBase {
+				haveShlib[base] = true
 			}
 		}
 	}
-	for _, a1 := range root.Deps {
-		walk(a1, false)
-		if err != nil {
-			return err
+
+	// Arrange the deps into afiles and shlibs.
+	addedShlib := make(map[string]bool)
+	for _, a := range root.Deps {
+		p := a.Package
+		if p != nil && p.Shlib != "" && haveShlib[filepath.Base(p.Shlib)] {
+			// This is a package linked into a shared
+			// library that we will put into shlibs.
+			continue
+		}
+
+		if haveShlib[filepath.Base(a.Target)] {
+			// This is a shared library we want to link againt.
+			if !addedShlib[a.Target] {
+				shlibs = append(shlibs, a.Target)
+				addedShlib[a.Target] = true
+			}
+			continue
+		}
+
+		if p != nil {
+			target := a.built
+			if p.UsesCgo() || p.UsesSwig() {
+				var err error
+				target, err = readAndRemoveCgoFlags(target)
+				if err != nil {
+					continue
+				}
+			}
+
+			afiles = append(afiles, target)
 		}
 	}
 
@@ -353,6 +354,15 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 
 	ldflags = str.StringList("-Wl,-(", ldflags, "-Wl,-)")
 
+	if root.buildID != "" {
+		// On systems that normally use gold or the GNU linker,
+		// use the --build-id option to write a GNU build ID note.
+		switch cfg.Goos {
+		case "android", "dragonfly", "linux", "netbsd":
+			ldflags = append(ldflags, fmt.Sprintf("-Wl,--build-id=0x%x", root.buildID))
+		}
+	}
+
 	for _, shlib := range shlibs {
 		ldflags = append(
 			ldflags,
@@ -392,7 +402,9 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		}
 
 		// We are creating an object file, so we don't want a build ID.
-		ldflags = b.disableBuildID(ldflags)
+		if root.buildID == "" {
+			ldflags = b.disableBuildID(ldflags)
+		}
 
 		realOut = out
 		out = out + ".o"
@@ -445,9 +457,7 @@ func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg
 }
 
 func (tools gccgoToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
-	fakeRoot := *root
-	fakeRoot.Deps = toplevelactions
-	return tools.link(b, &fakeRoot, out, importcfg, allactions, "shared", out)
+	return tools.link(b, root, out, importcfg, allactions, "shared", out)
 }
 
 func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {

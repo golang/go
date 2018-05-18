@@ -45,8 +45,8 @@ For example:
 	// #include <png.h>
 	import "C"
 
-Alternatively, CPPFLAGS and LDFLAGS may be obtained via the pkg-config
-tool using a '#cgo pkg-config:' directive followed by the package names.
+Alternatively, CPPFLAGS and LDFLAGS may be obtained via the pkg-config tool
+using a '#cgo pkg-config:' directive followed by the package names.
 For example:
 
 	// #cgo pkg-config: png cairo
@@ -55,11 +55,21 @@ For example:
 
 The default pkg-config tool may be changed by setting the PKG_CONFIG environment variable.
 
+For security reasons, only a limited set of flags are allowed, notably -D, -I, and -l.
+To allow additional flags, set CGO_CFLAGS_ALLOW to a regular expression
+matching the new flags. To disallow flags that would otherwise be allowed,
+set CGO_CFLAGS_DISALLOW to a regular expression matching arguments
+that must be disallowed. In both cases the regular expression must match
+a full argument: to allow -mfoo=bar, use CGO_CFLAGS_ALLOW='-mfoo.*',
+not just CGO_CFLAGS_ALLOW='-mfoo'. Similarly named variables control
+the allowed CPPFLAGS, CXXFLAGS, FFLAGS, and LDFLAGS.
+
 When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
 CGO_LDFLAGS environment variables are added to the flags derived from
 these directives. Package-specific flags should be set using the
 directives, not the environment variables, so that builds work in
-unmodified environments.
+unmodified environments. Flags obtained from environment variables
+are not subject to the security limitations described above.
 
 All the cgo CPPFLAGS and CFLAGS directives in a package are concatenated and
 used to compile C files in that package. All the CPPFLAGS and CXXFLAGS
@@ -99,7 +109,11 @@ it is expected to work. It is disabled by default when
 cross-compiling. You can control this by setting the CGO_ENABLED
 environment variable when running the go tool: set it to 1 to enable
 the use of cgo, and to 0 to disable it. The go tool will set the
-build constraint "cgo" if cgo is enabled.
+build constraint "cgo" if cgo is enabled. The special import "C"
+implies the "cgo" build constraint, as though the file also said
+"// +build cgo".  Therefore, if cgo is disabled, files that import
+"C" will not be built by the go tool. (For more about build constraints
+see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
 
 When cross-compiling, you must specify a C cross-compiler for cgo to
 use. You can do this by setting the generic CC_FOR_TARGET or the
@@ -341,67 +355,27 @@ in unexpected and unpredictable ways.
 Special cases
 
 A few special C types which would normally be represented by a pointer
-type in Go are instead represented by a uintptr. Those types are
-the CF*Ref types from the CoreFoundation library on Darwin, including:
+type in Go are instead represented by a uintptr. Those include:
 
-	CFAllocatorRef
-	CFArrayRef
-	CFAttributedStringRef
-	CFBagRef
-	CFBinaryHeapRef
-	CFBitVectorRef
-	CFBooleanRef
-	CFBundleRef
-	CFCalendarRef
-	CFCharacterSetRef
-	CFDataRef
-	CFDateFormatterRef
-	CFDateRef
-	CFDictionaryRef
-	CFErrorRef
-	CFFileDescriptorRef
-	CFFileSecurityRef
-	CFLocaleRef
-	CFMachPortRef
-	CFMessagePortRef
-	CFMutableArrayRef
-	CFMutableAttributedStringRef
-	CFMutableBagRef
-	CFMutableBitVectorRef
-	CFMutableCharacterSetRef
-	CFMutableDataRef
-	CFMutableDictionaryRef
-	CFMutableSetRef
-	CFMutableStringRef
-	CFNotificationCenterRef
-	CFNullRef
-	CFNumberFormatterRef
-	CFNumberRef
-	CFPlugInInstanceRef
-	CFPlugInRef
-	CFPropertyListRef
-	CFReadStreamRef
-	CFRunLoopObserverRef
-	CFRunLoopRef
-	CFRunLoopSourceRef
-	CFRunLoopTimerRef
-	CFSetRef
-	CFSocketRef
-	CFStringRef
-	CFStringTokenizerRef
-	CFTimeZoneRef
-	CFTreeRef
-	CFTypeRef
-	CFURLCreateFromFSRef
-	CFURLEnumeratorRef
-	CFURLGetFSRef
-	CFURLRef
-	CFUUIDRef
-	CFUserNotificationRef
-	CFWriteStreamRef
-	CFXMLNodeRef
-	CFXMLParserRef
-	CFXMLTreeRef
+1. The *Ref types on Darwin, rooted at CoreFoundation's CFTypeRef type.
+
+2. The object types from Java's JNI interface:
+
+	jobject
+	jclass
+	jthrowable
+	jstring
+	jarray
+	jbooleanArray
+	jbyteArray
+	jcharArray
+	jshortArray
+	jintArray
+	jlongArray
+	jfloatArray
+	jdoubleArray
+	jobjectArray
+	jweak
 
 These types are uintptr on the Go side because they would otherwise
 confuse the Go garbage collector; they are sometimes not really
@@ -409,10 +383,11 @@ pointers but data structures encoded in a pointer type. All operations
 on these types must happen in C. The proper constant to initialize an
 empty such reference is 0, not nil.
 
-This special case was introduced in Go 1.10. For auto-updating code
-from Go 1.9 and earlier, use the cftype rewrite in the Go fix tool:
+These special cases were introduced in Go 1.10. For auto-updating code
+from Go 1.9 and earlier, use the cftype or jni rewrites in the Go fix tool:
 
 	go tool fix -r cftype <pkg>
+	go tool fix -r jni <pkg>
 
 It will replace nil with 0 in the appropriate places.
 

@@ -39,7 +39,9 @@ package os
 import (
 	"errors"
 	"internal/poll"
+	"internal/testlog"
 	"io"
+	"runtime"
 	"syscall"
 	"time"
 )
@@ -207,7 +209,8 @@ func (f *File) WriteString(s string) (n int, err error) {
 	return f.Write([]byte(s))
 }
 
-// Mkdir creates a new directory with the specified name and permission bits.
+// Mkdir creates a new directory with the specified name and permission
+// bits (before umask).
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
 	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
@@ -218,17 +221,33 @@ func Mkdir(name string, perm FileMode) error {
 
 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
-		Chmod(name, perm)
+		setStickyBit(name)
 	}
 
 	return nil
+}
+
+// setStickyBit adds ModeSticky to the permision bits of path, non atomic.
+func setStickyBit(name string) error {
+	fi, err := Stat(name)
+	if err != nil {
+		return err
+	}
+	return Chmod(name, fi.Mode()|ModeSticky)
 }
 
 // Chdir changes the current working directory to the named directory.
 // If there is an error, it will be of type *PathError.
 func Chdir(dir string) error {
 	if e := syscall.Chdir(dir); e != nil {
+		testlog.Open(dir) // observe likely non-existent directory
 		return &PathError{"chdir", dir, e}
+	}
+	if log := testlog.Logger(); log != nil {
+		wd, err := Getwd()
+		if err == nil {
+			log.Chdir(wd)
+		}
 	}
 	return nil
 }
@@ -248,6 +267,16 @@ func Open(name string) (*File, error) {
 // If there is an error, it will be of type *PathError.
 func Create(name string) (*File, error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+}
+
+// OpenFile is the generalized open call; most users will use Open
+// or Create instead. It opens the named file with specified flag
+// (O_RDONLY etc.) and perm (before umask), if applicable. If successful,
+// methods on the returned File can be used for I/O.
+// If there is an error, it will be of type *PathError.
+func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+	testlog.Open(name)
+	return openFileNolog(name, flag, perm)
 }
 
 // lstat is overridden in tests.
@@ -294,6 +323,54 @@ func (f *File) wrapErr(op string, err error) error {
 // permissions.
 func TempDir() string {
 	return tempDir()
+}
+
+// UserCacheDir returns the default root directory to use for user-specific
+// cached data. Users should create their own application-specific subdirectory
+// within this one and use that.
+//
+// On Unix systems, it returns $XDG_CACHE_HOME as specified by
+// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+// non-empty, else $HOME/.cache.
+// On Darwin, it returns $HOME/Library/Caches.
+// On Windows, it returns %LocalAppData%.
+// On Plan 9, it returns $home/lib/cache.
+//
+// If the location cannot be determined (for example, $HOME is not defined),
+// then it will return an empty string.
+func UserCacheDir() string {
+	var dir string
+
+	switch runtime.GOOS {
+	case "windows":
+		dir = Getenv("LocalAppData")
+
+	case "darwin":
+		dir = Getenv("HOME")
+		if dir == "" {
+			return ""
+		}
+		dir += "/Library/Caches"
+
+	case "plan9":
+		dir = Getenv("home")
+		if dir == "" {
+			return ""
+		}
+		dir += "/lib/cache"
+
+	default: // Unix
+		dir = Getenv("XDG_CACHE_HOME")
+		if dir == "" {
+			dir = Getenv("HOME")
+			if dir == "" {
+				return ""
+			}
+			dir += "/.cache"
+		}
+	}
+
+	return dir
 }
 
 // Chmod changes the mode of the named file to mode.

@@ -125,7 +125,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// "system call", run the Go code (which may grow the stack),
 	// and then re-enter the "system call" reusing the PC and SP
 	// saved by entersyscall here.
-	entersyscall(0)
+	entersyscall()
 
 	mp.incgo = true
 	errno := asmcgocall(fn, arg)
@@ -134,7 +134,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// reschedule us on to a different M.
 	endcgo(mp)
 
-	exitsyscall(0)
+	exitsyscall()
 
 	// From the garbage collector's perspective, time can move
 	// backwards in the sequence above. If there's a callback into
@@ -188,7 +188,7 @@ func cgocallbackg(ctxt uintptr) {
 	// save syscall* and let reentersyscall restore them.
 	savedsp := unsafe.Pointer(gp.syscallsp)
 	savedpc := gp.syscallpc
-	exitsyscall(0) // coming out of cgo call
+	exitsyscall() // coming out of cgo call
 	gp.m.incgo = false
 
 	cgocallbackg1(ctxt)
@@ -572,22 +572,13 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 // pointer into Go memory. If it does, we panic.
 // The return values are unused but useful to see in panic tracebacks.
 func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
-	if cgoInRange(p, mheap_.arena_start, mheap_.arena_used) {
-		if !inheap(uintptr(p)) {
-			// On 32-bit systems it is possible for C's allocated memory
-			// to have addresses between arena_start and arena_used.
-			// Either this pointer is a stack or an unused span or it's
-			// a C allocation. Escape analysis should prevent the first,
-			// garbage collection should prevent the second,
-			// and the third is completely OK.
-			return
-		}
-
-		b, hbits, span, _ := heapBitsForObject(uintptr(p), 0, 0)
+	if inheap(uintptr(p)) {
+		b, span, _ := findObject(uintptr(p), 0, 0)
 		base = b
 		if base == 0 {
 			return
 		}
+		hbits := heapBitsForAddr(base)
 		n := span.elemsize
 		for i = uintptr(0); i < n; i += sys.PtrSize {
 			if i != 1*sys.PtrSize && !hbits.morePointers() {

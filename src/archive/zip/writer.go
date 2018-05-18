@@ -11,6 +11,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -209,7 +210,8 @@ func (w *Writer) Close() error {
 // The file contents will be compressed using the Deflate method.
 // The name must be a relative path: it must not start with a drive
 // letter (e.g. C:) or leading slash, and only forward slashes are
-// allowed.
+// allowed. To create a directory instead of a file, add a trailing
+// slash to the name.
 // The file's contents must be written to the io.Writer before the next
 // call to Create, CreateHeader, or Close.
 func (w *Writer) Create(name string) (io.Writer, error) {
@@ -260,8 +262,6 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 		// See https://golang.org/issue/11144 confusion.
 		return nil, errors.New("archive/zip: invalid duplicate FileHeader")
 	}
-
-	fh.Flags |= 0x8 // we will write a data descriptor
 
 	// The ZIP format has a sad state of affairs regarding character encoding.
 	// Officially, the name and comment fields are supposed to be encoded
@@ -319,35 +319,52 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 		fh.Extra = append(fh.Extra, mbuf[:]...)
 	}
 
-	fw := &fileWriter{
-		zipw:      w.cw,
-		compCount: &countWriter{w: w.cw},
-		crc32:     crc32.NewIEEE(),
-	}
-	comp := w.compressor(fh.Method)
-	if comp == nil {
-		return nil, ErrAlgorithm
-	}
-	var err error
-	fw.comp, err = comp(fw.compCount)
-	if err != nil {
-		return nil, err
-	}
-	fw.rawCount = &countWriter{w: fw.comp}
-
+	var (
+		ow io.Writer
+		fw *fileWriter
+	)
 	h := &header{
 		FileHeader: fh,
 		offset:     uint64(w.cw.count),
 	}
-	w.dir = append(w.dir, h)
-	fw.header = h
 
+	if strings.HasSuffix(fh.Name, "/") {
+		// Set the compression method to Store to ensure data length is truly zero,
+		// which the writeHeader method always encodes for the size fields.
+		// This is necessary as most compression formats have non-zero lengths
+		// even when compressing an empty string.
+		fh.Method = Store
+		fh.Flags &^= 0x8 // we will not write a data descriptor
+
+		ow = dirWriter{}
+	} else {
+		fh.Flags |= 0x8 // we will write a data descriptor
+
+		fw = &fileWriter{
+			zipw:      w.cw,
+			compCount: &countWriter{w: w.cw},
+			crc32:     crc32.NewIEEE(),
+		}
+		comp := w.compressor(fh.Method)
+		if comp == nil {
+			return nil, ErrAlgorithm
+		}
+		var err error
+		fw.comp, err = comp(fw.compCount)
+		if err != nil {
+			return nil, err
+		}
+		fw.rawCount = &countWriter{w: fw.comp}
+		fw.header = h
+		ow = fw
+	}
+	w.dir = append(w.dir, h)
 	if err := writeHeader(w.cw, fh); err != nil {
 		return nil, err
 	}
-
+	// If we're creating a directory, fw is nil.
 	w.last = fw
-	return fw, nil
+	return ow, nil
 }
 
 func writeHeader(w io.Writer, h *FileHeader) error {
@@ -398,6 +415,12 @@ func (w *Writer) compressor(method uint16) Compressor {
 		comp = compressor(method)
 	}
 	return comp
+}
+
+type dirWriter struct{}
+
+func (dirWriter) Write([]byte) (int, error) {
+	return 0, errors.New("zip: write to directory")
 }
 
 type fileWriter struct {

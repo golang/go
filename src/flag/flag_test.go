@@ -386,6 +386,8 @@ const defaultOutput = `  -A	for bootstrapping, allow 'any' type
   -C	a boolean defaulting to true (default true)
   -D path
     	set relative path for local imports
+  -E string
+    	issue 23543 (default "0")
   -F number
     	a non-zero number (default 2.7)
   -G float
@@ -412,6 +414,7 @@ func TestPrintDefaults(t *testing.T) {
 	fs.Bool("Alongflagname", false, "disable bounds checking")
 	fs.Bool("C", true, "a boolean defaulting to true")
 	fs.String("D", "", "set relative `path` for local imports")
+	fs.String("E", "0", "issue 23543")
 	fs.Float64("F", 2.7, "a non-zero `number`")
 	fs.Float64("G", 0, "a float that defaults to zero")
 	fs.String("M", "", "a multiline\nhelp\nstring")

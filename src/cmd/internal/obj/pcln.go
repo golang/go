@@ -4,7 +4,15 @@
 
 package obj
 
-import "log"
+import (
+	"cmd/internal/src"
+	"log"
+)
+
+const (
+	PrologueEnd   = 2 + iota // overload "is_stmt" to include prologue_end
+	EpilogueBegin            // overload "is_stmt" to include epilogue_end
+)
 
 func addvarint(d *Pcdata, v uint32) {
 	for ; v >= 0x80; v >>= 7 {
@@ -115,8 +123,8 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	if dbg {
 		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
-		for i := 0; i < len(dst.P); i++ {
-			ctxt.Logf(" %02x", dst.P[i])
+		for _, p := range dst.P {
+			ctxt.Logf(" %02x", p)
 		}
 		ctxt.Logf("\n")
 	}
@@ -230,6 +238,34 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 	return oldval + p.Spadj
 }
 
+// pctostmt returns either,
+// if phase==0, then whether the current instruction is a step-target (Dwarf is_stmt)
+//     bit-or'd with whether the current statement is a prologue end or epilogue begin
+// else (phase == 1), zero.
+//
+func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+	if phase == 1 {
+		return 0 // Ignored; also different from initial value of -1, if that ever matters.
+	}
+	s := p.Pos.IsStmt()
+	l := p.Pos.Xlogue()
+
+	var is_stmt int32
+
+	// PrologueEnd, at least, is passed to the next instruction
+	switch l {
+	case src.PosPrologueEnd:
+		is_stmt = PrologueEnd
+	case src.PosEpilogueBegin:
+		is_stmt = EpilogueBegin
+	}
+
+	if s != src.PosNotStmt {
+		is_stmt |= 1 // either PosDefaultStmt from asm, or PosIsStmt from go
+	}
+	return is_stmt
+}
+
 // pctopcdata computes the pcdata value in effect at p.
 // A PCDATA instruction sets the value in effect at future
 // non-PCDATA instructions.
@@ -246,6 +282,13 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 	}
 
 	return int32(p.To.Offset)
+}
+
+// stmtData writes out pc-linked is_stmt data for eventual use in the DWARF line numbering table.
+func stmtData(ctxt *Link, cursym *LSym) {
+	var pctostmtData Pcdata
+	funcpctab(ctxt, &pctostmtData, cursym, "pctostmt", pctostmt, nil)
+	cursym.Func.dwarfIsStmtSym.P = pctostmtData.P
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
@@ -313,16 +356,16 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	// funcdata
 	if nfuncdata > 0 {
-		var i int
 		for p := cursym.Func.Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA {
-				i = int(p.From.Offset)
-				pcln.Funcdataoff[i] = p.To.Offset
-				if p.To.Type != TYPE_CONST {
-					// TODO: Dedup.
-					//funcdata_bytes += p->to.sym->size;
-					pcln.Funcdata[i] = p.To.Sym
-				}
+			if p.As != AFUNCDATA {
+				continue
+			}
+			i := int(p.From.Offset)
+			pcln.Funcdataoff[i] = p.To.Offset
+			if p.To.Type != TYPE_CONST {
+				// TODO: Dedup.
+				//funcdata_bytes += p->to.sym->size;
+				pcln.Funcdata[i] = p.To.Sym
 			}
 		}
 	}

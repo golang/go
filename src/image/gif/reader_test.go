@@ -318,23 +318,62 @@ func TestTransparentPixelOutsidePaletteRange(t *testing.T) {
 }
 
 func TestLoopCount(t *testing.T) {
-	data := []byte("GIF89a000\x00000,0\x00\x00\x00\n\x00" +
-		"\n\x00\x80000000\x02\b\xf01u\xb9\xfdal\x05\x00;")
-	img, err := DecodeAll(bytes.NewReader(data))
-	if err != nil {
-		t.Fatal("DecodeAll:", err)
+	testCases := []struct {
+		name      string
+		data      []byte
+		loopCount int
+	}{
+		{
+			"loopcount-missing",
+			[]byte("GIF89a000\x00000" +
+				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 0 descriptor & color table
+				"\x02\b\xf01u\xb9\xfdal\x05\x00;"), // image 0 image data & trailer
+			-1,
+		},
+		{
+			"loopcount-0",
+			[]byte("GIF89a000\x00000" +
+				"!\xff\vNETSCAPE2.0\x03\x01\x00\x00\x00" + // loop count = 0
+				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 0 descriptor & color table
+				"\x02\b\xf01u\xb9\xfdal\x05\x00" + // image 0 image data
+				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 1 descriptor & color table
+				"\x02\b\xf01u\xb9\xfdal\x05\x00;"), // image 1 image data & trailer
+			0,
+		},
+		{
+			"loopcount-1",
+			[]byte("GIF89a000\x00000" +
+				"!\xff\vNETSCAPE2.0\x03\x01\x01\x00\x00" + // loop count = 1
+				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 0 descriptor & color table
+				"\x02\b\xf01u\xb9\xfdal\x05\x00" + // image 0 image data
+				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 1 descriptor & color table
+				"\x02\b\xf01u\xb9\xfdal\x05\x00;"), // image 1 image data & trailer
+			1,
+		},
 	}
-	w := new(bytes.Buffer)
-	err = EncodeAll(w, img)
-	if err != nil {
-		t.Fatal("EncodeAll:", err)
-	}
-	img1, err := DecodeAll(w)
-	if err != nil {
-		t.Fatal("DecodeAll:", err)
-	}
-	if img.LoopCount != img1.LoopCount {
-		t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, img1.LoopCount)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			img, err := DecodeAll(bytes.NewReader(tc.data))
+			if err != nil {
+				t.Fatal("DecodeAll:", err)
+			}
+			w := new(bytes.Buffer)
+			err = EncodeAll(w, img)
+			if err != nil {
+				t.Fatal("EncodeAll:", err)
+			}
+			img1, err := DecodeAll(w)
+			if err != nil {
+				t.Fatal("DecodeAll:", err)
+			}
+			if img.LoopCount != tc.loopCount {
+				t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, tc.loopCount)
+			}
+			if img.LoopCount != img1.LoopCount {
+				t.Errorf("loop count failed round-trip: %d vs %d", img.LoopCount, img1.LoopCount)
+			}
+		})
 	}
 }
 

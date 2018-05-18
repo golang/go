@@ -58,10 +58,10 @@ func TestValid(t *testing.T) {
 
 var invalids = []string{
 	`foo /* ERROR "expected 'package'" */ !`,
-	`package p; func f() { if { /* ERROR "expected operand" */ } };`,
-	`package p; func f() { if ; { /* ERROR "expected operand" */ } };`,
-	`package p; func f() { if f(); { /* ERROR "expected operand" */ } };`,
-	`package p; func f() { if _ /* ERROR "expected boolean expression" */ = range x; true {} };`,
+	`package p; func f() { if { /* ERROR "missing condition" */ } };`,
+	`package p; func f() { if ; /* ERROR "missing condition" */ {} };`,
+	`package p; func f() { if f(); /* ERROR "missing condition" */ {} };`,
+	`package p; func f() { if _ = range /* ERROR "expected operand" */ x; true {} };`,
 	`package p; func f() { switch _ /* ERROR "expected switch expression" */ = range x; true {} };`,
 	`package p; func f() { for _ = range x ; /* ERROR "expected '{'" */ ; {} };`,
 	`package p; func f() { for ; ; _ = range /* ERROR "expected operand" */ x {} };`,
@@ -85,7 +85,7 @@ var invalids = []string{
 	`package p; func f() { _ = (<-<- /* ERROR "expected 'chan'" */ chan int)(nil) };`,
 	`package p; func f() { _ = (<-chan<-chan<-chan<-chan<-chan<- /* ERROR "expected channel type" */ int)(nil) };`,
 	`package p; func f() { var t []int; t /* ERROR "expected identifier on left side of :=" */ [0] := 0 };`,
-	`package p; func f() { if x := g(); x = /* ERROR "expected '=='" */ 0 {}};`,
+	`package p; func f() { if x := g(); x /* ERROR "expected boolean expression" */ = 0 {}};`,
 	`package p; func f() { _ = x = /* ERROR "expected '=='" */ 0 {}};`,
 	`package p; func f() { _ = 1 == func()int { var x bool; x = x = /* ERROR "expected '=='" */ true; return x }() };`,
 	`package p; func f() { var s []int; _ = s[] /* ERROR "expected operand" */ };`,

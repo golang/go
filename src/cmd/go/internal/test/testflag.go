@@ -137,7 +137,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			case "c", "i", "v", "cover", "json":
 				cmdflag.SetBool(cmd, f.BoolVar, value)
 				if f.Name == "json" && testJSON {
-					passToTest = append(passToTest, "-test.v")
+					passToTest = append(passToTest, "-test.v=true")
 				}
 			case "o":
 				testO = value

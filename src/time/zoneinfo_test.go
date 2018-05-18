@@ -32,7 +32,7 @@ func TestEnvVarUsage(t *testing.T) {
 	defer time.ResetZoneinfoForTesting()
 
 	if zoneinfo := time.ZoneinfoForTesting(); testZoneinfo != *zoneinfo {
-		t.Errorf("zoneinfo does not match env variable: got %q want %q", zoneinfo, testZoneinfo)
+		t.Errorf("zoneinfo does not match env variable: got %q want %q", *zoneinfo, testZoneinfo)
 	}
 }
 

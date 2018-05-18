@@ -18,6 +18,8 @@ import (
 	"math"
 	"math/big"
 	"strconv"
+	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -67,7 +69,12 @@ const prec = 512
 type (
 	unknownVal struct{}
 	boolVal    bool
-	stringVal  string
+	stringVal  struct {
+		// Lazy value: either a string (l,r==nil) or an addition (l,r!=nil).
+		mu   sync.Mutex
+		s    string
+		l, r *stringVal
+	}
 	int64Val   int64                    // Int values representable as an int64
 	intVal     struct{ val *big.Int }   // Int values not representable as an int64
 	ratVal     struct{ val *big.Rat }   // Float values representable as a fraction
@@ -77,7 +84,7 @@ type (
 
 func (unknownVal) Kind() Kind { return Unknown }
 func (boolVal) Kind() Kind    { return Bool }
-func (stringVal) Kind() Kind  { return String }
+func (*stringVal) Kind() Kind { return String }
 func (int64Val) Kind() Kind   { return Int }
 func (intVal) Kind() Kind     { return Int }
 func (ratVal) Kind() Kind     { return Float }
@@ -88,9 +95,9 @@ func (unknownVal) String() string { return "unknown" }
 func (x boolVal) String() string  { return strconv.FormatBool(bool(x)) }
 
 // String returns a possibly shortened quoted form of the String value.
-func (x stringVal) String() string {
+func (x *stringVal) String() string {
 	const maxLen = 72 // a reasonable length
-	s := strconv.Quote(string(x))
+	s := strconv.Quote(x.string())
 	if utf8.RuneCountInString(s) > maxLen {
 		// The string without the enclosing quotes is greater than maxLen-2 runes
 		// long. Remove the last 3 runes (including the closing '"') by keeping
@@ -103,6 +110,60 @@ func (x stringVal) String() string {
 		s = s[:i] + "..."
 	}
 	return s
+}
+
+// string constructs and returns the actual string literal value.
+// If x represents an addition, then it rewrites x to be a single
+// string, to speed future calls. This lazy construction avoids
+// building different string values for all subpieces of a large
+// concatenation. See golang.org/issue/23348.
+func (x *stringVal) string() string {
+	x.mu.Lock()
+	if x.l != nil {
+		x.s = strings.Join(reverse(x.appendReverse(nil)), "")
+		x.l = nil
+		x.r = nil
+	}
+	s := x.s
+	x.mu.Unlock()
+
+	return s
+}
+
+// reverse reverses x in place and returns it.
+func reverse(x []string) []string {
+	n := len(x)
+	for i := 0; i+i < n; i++ {
+		x[i], x[n-1-i] = x[n-1-i], x[i]
+	}
+	return x
+}
+
+// appendReverse appends to list all of x's subpieces, but in reverse,
+// and returns the result. Appending the reversal allows processing
+// the right side in a recursive call and the left side in a loop.
+// Because a chain like a + b + c + d + e is actually represented
+// as ((((a + b) + c) + d) + e), the left-side loop avoids deep recursion.
+// x must be locked.
+func (x *stringVal) appendReverse(list []string) []string {
+	y := x
+	for y.r != nil {
+		y.r.mu.Lock()
+		list = y.r.appendReverse(list)
+		y.r.mu.Unlock()
+
+		l := y.l
+		if y != x {
+			y.mu.Unlock()
+		}
+		l.mu.Lock()
+		y = l
+	}
+	s := y.s
+	if y != x {
+		y.mu.Unlock()
+	}
+	return append(list, s)
 }
 
 func (x int64Val) String() string { return strconv.FormatInt(int64(x), 10) }
@@ -160,7 +221,7 @@ func (x complexVal) String() string { return fmt.Sprintf("(%s + %si)", x.re, x.i
 
 func (x unknownVal) ExactString() string { return x.String() }
 func (x boolVal) ExactString() string    { return x.String() }
-func (x stringVal) ExactString() string  { return strconv.Quote(string(x)) }
+func (x *stringVal) ExactString() string { return strconv.Quote(x.string()) }
 func (x int64Val) ExactString() string   { return x.String() }
 func (x intVal) ExactString() string     { return x.String() }
 
@@ -180,7 +241,7 @@ func (x complexVal) ExactString() string {
 
 func (unknownVal) implementsValue() {}
 func (boolVal) implementsValue()    {}
-func (stringVal) implementsValue()  {}
+func (*stringVal) implementsValue() {}
 func (int64Val) implementsValue()   {}
 func (ratVal) implementsValue()     {}
 func (intVal) implementsValue()     {}
@@ -283,7 +344,7 @@ func MakeUnknown() Value { return unknownVal{} }
 func MakeBool(b bool) Value { return boolVal(b) }
 
 // MakeString returns the String value for s.
-func MakeString(s string) Value { return stringVal(s) }
+func MakeString(s string) Value { return &stringVal{s: s} }
 
 // MakeInt64 returns the Int value for x.
 func MakeInt64(x int64) Value { return int64Val(x) }
@@ -382,8 +443,8 @@ func BoolVal(x Value) bool {
 // If x is Unknown, the result is "".
 func StringVal(x Value) string {
 	switch x := x.(type) {
-	case stringVal:
-		return string(x)
+	case *stringVal:
+		return x.string()
 	case unknownVal:
 		return ""
 	default:
@@ -856,7 +917,7 @@ func ord(x Value) int {
 		return -1
 	case unknownVal:
 		return 0
-	case boolVal, stringVal:
+	case boolVal, *stringVal:
 		return 1
 	case int64Val:
 		return 2
@@ -884,7 +945,7 @@ func match(x, y Value) (_, _ Value) {
 	// ord(x) <= ord(y)
 
 	switch x := x.(type) {
-	case boolVal, stringVal, complexVal:
+	case boolVal, *stringVal, complexVal:
 		return x, y
 
 	case int64Val:
@@ -1108,9 +1169,9 @@ func BinaryOp(x_ Value, op token.Token, y_ Value) Value {
 		}
 		return makeComplex(re, im)
 
-	case stringVal:
+	case *stringVal:
 		if op == token.ADD {
-			return x + y.(stringVal)
+			return &stringVal{l: x, r: y.(*stringVal)}
 		}
 	}
 
@@ -1236,21 +1297,22 @@ func Compare(x_ Value, op token.Token, y_ Value) bool {
 			return !re || !im
 		}
 
-	case stringVal:
-		y := y.(stringVal)
+	case *stringVal:
+		xs := x.string()
+		ys := y.(*stringVal).string()
 		switch op {
 		case token.EQL:
-			return x == y
+			return xs == ys
 		case token.NEQ:
-			return x != y
+			return xs != ys
 		case token.LSS:
-			return x < y
+			return xs < ys
 		case token.LEQ:
-			return x <= y
+			return xs <= ys
 		case token.GTR:
-			return x > y
+			return xs > ys
 		case token.GEQ:
-			return x >= y
+			return xs >= ys
 		}
 	}
 

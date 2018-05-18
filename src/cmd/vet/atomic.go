@@ -7,6 +7,7 @@ package main
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 )
 
 func init() {
@@ -36,8 +37,9 @@ func checkAtomicAssignment(f *File, node ast.Node) {
 		if !ok {
 			continue
 		}
-		pkg, ok := sel.X.(*ast.Ident)
-		if !ok || pkg.Name != "atomic" {
+		pkgIdent, _ := sel.X.(*ast.Ident)
+		pkgName, ok := f.pkg.uses[pkgIdent].(*types.PkgName)
+		if !ok || pkgName.Imported().Path() != "sync/atomic" {
 			continue
 		}
 

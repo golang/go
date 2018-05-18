@@ -147,7 +147,7 @@ func infoBigStruct() []byte {
 			typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
 			typePointer, typeScalar, // i string
 		}
-	case "arm64", "amd64", "mips64", "mips64le", "ppc64", "ppc64le", "s390x":
+	case "arm64", "amd64", "mips64", "mips64le", "ppc64", "ppc64le", "s390x", "wasm":
 		return []byte{
 			typePointer,                        // q *int
 			typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
@@ -200,6 +200,6 @@ var (
 
 	infoString = []byte{typePointer, typeScalar}
 	infoSlice  = []byte{typePointer, typeScalar, typeScalar}
-	infoEface  = []byte{typePointer, typePointer}
-	infoIface  = []byte{typePointer, typePointer}
+	infoEface  = []byte{typeScalar, typePointer}
+	infoIface  = []byte{typeScalar, typePointer}
 )

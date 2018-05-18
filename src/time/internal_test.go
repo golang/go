@@ -76,3 +76,8 @@ func CheckRuntimeTimerOverflow() {
 	// So we fall back to hope: We hope we don't hang here.
 	<-t.C
 }
+
+var (
+	MinMonoTime = Time{wall: 1 << 63, ext: -1 << 63, loc: UTC}
+	MaxMonoTime = Time{wall: 1 << 63, ext: 1<<63 - 1, loc: UTC}
+)

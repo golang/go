@@ -286,8 +286,8 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
 	return nil
 }
 
-// File returns a copy of the underlying os.File, set to blocking
-// mode. It is the caller's responsibility to close f when finished.
+// File returns a copy of the underlying os.File.
+// It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
 // The returned os.File's file descriptor is different from the

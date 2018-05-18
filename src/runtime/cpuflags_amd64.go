@@ -4,6 +4,16 @@
 
 package runtime
 
+import (
+	"internal/cpu"
+	"unsafe"
+)
+
+// Offsets into internal/cpu records for use in assembly.
+const (
+	offsetX86HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
+)
+
 var useAVXmemmove bool
 
 func init() {
@@ -16,5 +26,5 @@ func init() {
 		processor == 0x306A0 ||
 		processor == 0x306E0
 
-	useAVXmemmove = support_avx && !isIntelBridgeFamily
+	useAVXmemmove = cpu.X86.HasAVX && !isIntelBridgeFamily
 }

@@ -283,8 +283,10 @@ func TestFetchWithBase(t *testing.T) {
 			}
 			f.args = tc.sources
 
-			o := setDefaults(nil)
-			o.Flagset = f
+			o := setDefaults(&plugin.Options{
+				UI:      &proftest.TestUI{T: t, AllowRx: "Local symbolization failed|Some binary filenames not available"},
+				Flagset: f,
+			})
 			src, _, err := parseFlags(o)
 
 			if err != nil {
@@ -359,9 +361,21 @@ func closedError() string {
 }
 
 func TestHttpsInsecure(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		t.Skip("test assumes tcp available")
 	}
+	saveHome := os.Getenv(homeEnv())
+	tempdir, err := ioutil.TempDir("", "home")
+	if err != nil {
+		t.Fatal("creating temp dir: ", err)
+	}
+	defer os.RemoveAll(tempdir)
+
+	// pprof writes to $HOME/pprof by default which is not necessarily
+	// writeable (e.g. on a Debian buildd) so set $HOME to something we
+	// know we can write to for the duration of the test.
+	os.Setenv(homeEnv(), tempdir)
+	defer os.Setenv(homeEnv(), saveHome)
 
 	baseVars := pprofVariables
 	pprofVariables = baseVars.makeCopy()
@@ -385,18 +399,6 @@ func TestHttpsInsecure(t *testing.T) {
 	}()
 	defer l.Close()
 
-	go func() {
-		deadline := time.Now().Add(5 * time.Second)
-		for time.Now().Before(deadline) {
-			// Simulate a hotspot function. Spin in the inner loop for 100M iterations
-			// to ensure we get most of the samples landed here rather than in the
-			// library calls. We assume Go compiler won't elide the empty loop.
-			for i := 0; i < 1e8; i++ {
-			}
-			runtime.Gosched()
-		}
-	}()
-
 	outputTempFile, err := ioutil.TempFile("", "profile_output")
 	if err != nil {
 		t.Fatalf("Failed to create tempfile: %v", err)
@@ -404,21 +406,16 @@ func TestHttpsInsecure(t *testing.T) {
 	defer os.Remove(outputTempFile.Name())
 	defer outputTempFile.Close()
 
-	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/profile"
+	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/goroutine"
 	s := &source{
 		Sources:   []string{address},
 		Seconds:   10,
 		Timeout:   10,
 		Symbolize: "remote",
 	}
-	rx := "Saved profile in"
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		// On iOS, $HOME points to the app root directory and is not writable.
-		rx += "|Could not use temp dir"
-	}
 	o := &plugin.Options{
 		Obj: &binutils.Binutils{},
-		UI:  &proftest.TestUI{T: t, AllowRx: rx},
+		UI:  &proftest.TestUI{T: t, AllowRx: "Saved profile in"},
 	}
 	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI}
 	p, err := fetchProfiles(s, o)
@@ -428,29 +425,12 @@ func TestHttpsInsecure(t *testing.T) {
 	if len(p.SampleType) == 0 {
 		t.Fatalf("fetchProfiles(%s) got empty profile: len(p.SampleType)==0", address)
 	}
-	switch runtime.GOOS {
-	case "plan9":
-		// CPU profiling is not supported on Plan9; see golang.org/issues/22564.
-		return
-	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			// CPU profiling on iOS os not symbolized; see golang.org/issues/22612.
-			return
-		}
-	}
 	if len(p.Function) == 0 {
 		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
 	}
-	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); !badSigprofOS[runtime.GOOS] && err != nil {
+	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); err != nil {
 		t.Fatalf("fetchProfiles(%s) %v", address, err)
 	}
-}
-
-// Some operating systems don't trigger the profiling signal right.
-// See https://github.com/golang/go/issues/13841.
-var badSigprofOS = map[string]bool{
-	"darwin": true,
-	"netbsd": true,
 }
 
 func checkProfileHasFunction(p *profile.Profile, fname string) error {

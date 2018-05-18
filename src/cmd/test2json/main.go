@@ -45,15 +45,17 @@
 //	pause  - the test has been paused
 //	cont   - the test has continued running
 //	pass   - the test passed
-//	fail   - the test failed
+//	bench  - the benchmark printed log output but did not fail
+//	fail   - the test or benchmark failed
 //	output - the test printed output
+//	skip   - the test was skipped or the package contained no tests
 //
 // The Package field, if present, specifies the package being tested.
 // When the go command runs parallel tests in -json mode, events from
 // different tests are interlaced; the Package field allows readers to
 // separate them.
 //
-// The Test field, if present, specifies the test or example, or benchmark
+// The Test field, if present, specifies the test, example, or benchmark
 // function that caused the event. Events for the overall package test
 // do not set Test.
 //
@@ -66,6 +68,14 @@
 // into valid UTF-8 by use of replacement characters. With that one exception,
 // the concatenation of the Output fields of all output events is the exact
 // output of the test execution.
+//
+// When a benchmark runs, it typically produces a single line of output
+// giving timing results. That line is reported in an event with Action == "output"
+// and no Test field. If a benchmark logs output or reports a failure
+// (for example, by using b.Log or b.Error), that extra output is reported
+// as a sequence of events with Test set to the benchmark name, terminated
+// by a final event with Action == "bench" or "fail".
+// Benchmarks have no events with Action == "run", "pause", or "cont".
 //
 package main
 

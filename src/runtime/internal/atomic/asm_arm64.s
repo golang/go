@@ -29,10 +29,10 @@ ok:
 TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-25
 	B	runtime∕internal∕atomic·Cas64(SB)
 
-TEXT runtime∕internal∕atomic·Loaduintptr(SB), NOSPLIT, $-8-16
+TEXT runtime∕internal∕atomic·Loaduintptr(SB), NOSPLIT, $0-16
 	B	runtime∕internal∕atomic·Load64(SB)
 
-TEXT runtime∕internal∕atomic·Loaduint(SB), NOSPLIT, $-8-16
+TEXT runtime∕internal∕atomic·Loaduint(SB), NOSPLIT, $0-16
 	B	runtime∕internal∕atomic·Load64(SB)
 
 TEXT runtime∕internal∕atomic·Storeuintptr(SB), NOSPLIT, $0-16

@@ -168,6 +168,7 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
 		}
 
 		l.Line = make([]profile.Line, len(stack))
+		l.IsFolded = false
 		for i, frame := range stack {
 			if frame.Func != "" {
 				m.HasFunctions = true

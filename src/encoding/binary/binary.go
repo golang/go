@@ -419,70 +419,71 @@ func sizeof(t reflect.Type) int {
 }
 
 type coder struct {
-	order ByteOrder
-	buf   []byte
+	order  ByteOrder
+	buf    []byte
+	offset int
 }
 
 type decoder coder
 type encoder coder
 
 func (d *decoder) bool() bool {
-	x := d.buf[0]
-	d.buf = d.buf[1:]
+	x := d.buf[d.offset]
+	d.offset++
 	return x != 0
 }
 
 func (e *encoder) bool(x bool) {
 	if x {
-		e.buf[0] = 1
+		e.buf[e.offset] = 1
 	} else {
-		e.buf[0] = 0
+		e.buf[e.offset] = 0
 	}
-	e.buf = e.buf[1:]
+	e.offset++
 }
 
 func (d *decoder) uint8() uint8 {
-	x := d.buf[0]
-	d.buf = d.buf[1:]
+	x := d.buf[d.offset]
+	d.offset++
 	return x
 }
 
 func (e *encoder) uint8(x uint8) {
-	e.buf[0] = x
-	e.buf = e.buf[1:]
+	e.buf[e.offset] = x
+	e.offset++
 }
 
 func (d *decoder) uint16() uint16 {
-	x := d.order.Uint16(d.buf[0:2])
-	d.buf = d.buf[2:]
+	x := d.order.Uint16(d.buf[d.offset : d.offset+2])
+	d.offset += 2
 	return x
 }
 
 func (e *encoder) uint16(x uint16) {
-	e.order.PutUint16(e.buf[0:2], x)
-	e.buf = e.buf[2:]
+	e.order.PutUint16(e.buf[e.offset:e.offset+2], x)
+	e.offset += 2
 }
 
 func (d *decoder) uint32() uint32 {
-	x := d.order.Uint32(d.buf[0:4])
-	d.buf = d.buf[4:]
+	x := d.order.Uint32(d.buf[d.offset : d.offset+4])
+	d.offset += 4
 	return x
 }
 
 func (e *encoder) uint32(x uint32) {
-	e.order.PutUint32(e.buf[0:4], x)
-	e.buf = e.buf[4:]
+	e.order.PutUint32(e.buf[e.offset:e.offset+4], x)
+	e.offset += 4
 }
 
 func (d *decoder) uint64() uint64 {
-	x := d.order.Uint64(d.buf[0:8])
-	d.buf = d.buf[8:]
+	x := d.order.Uint64(d.buf[d.offset : d.offset+8])
+	d.offset += 8
 	return x
 }
 
 func (e *encoder) uint64(x uint64) {
-	e.order.PutUint64(e.buf[0:8], x)
-	e.buf = e.buf[8:]
+	e.order.PutUint64(e.buf[e.offset:e.offset+8], x)
+	e.offset += 8
 }
 
 func (d *decoder) int8() int8 { return int8(d.uint8()) }
@@ -646,15 +647,16 @@ func (e *encoder) value(v reflect.Value) {
 }
 
 func (d *decoder) skip(v reflect.Value) {
-	d.buf = d.buf[dataSize(v):]
+	d.offset += dataSize(v)
 }
 
 func (e *encoder) skip(v reflect.Value) {
 	n := dataSize(v)
-	for i := range e.buf[0:n] {
-		e.buf[i] = 0
+	zero := e.buf[e.offset : e.offset+n]
+	for i := range zero {
+		zero[i] = 0
 	}
-	e.buf = e.buf[n:]
+	e.offset += n
 }
 
 // intDataSize returns the size of the data required to represent the data when encoded.
@@ -663,6 +665,8 @@ func intDataSize(data interface{}) int {
 	switch data := data.(type) {
 	case bool, int8, uint8, *bool, *int8, *uint8:
 		return 1
+	case []bool:
+		return len(data)
 	case []int8:
 		return len(data)
 	case []uint8:

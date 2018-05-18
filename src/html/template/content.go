@@ -83,6 +83,14 @@ type (
 	// the encapsulated content should come from a trusted source,
 	// as it will be included verbatim in the template output.
 	URL string
+
+	// Srcset encapsulates a known safe srcset attribute
+	// (see http://w3c.github.io/html/semantics-embedded-content.html#element-attrdef-img-srcset).
+	//
+	// Use of this type presents a security risk:
+	// the encapsulated content should come from a trusted source,
+	// as it will be included verbatim in the template output.
+	Srcset string
 )
 
 type contentType uint8
@@ -95,6 +103,7 @@ const (
 	contentTypeJS
 	contentTypeJSStr
 	contentTypeURL
+	contentTypeSrcset
 	// contentTypeUnsafe is used in attr.go for values that affect how
 	// embedded content and network messages are formed, vetted,
 	// or interpreted; or which credentials network messages carry.
@@ -156,6 +165,8 @@ func stringify(args ...interface{}) (string, contentType) {
 			return string(s), contentTypeJSStr
 		case URL:
 			return string(s), contentTypeURL
+		case Srcset:
+			return string(s), contentTypeSrcset
 		}
 	}
 	for i, arg := range args {

@@ -108,13 +108,12 @@ func FixedZone(name string, offset int) *Location {
 // the start and end times bracketing sec when that zone is in effect,
 // the offset in seconds east of UTC (such as -5*60*60), and whether
 // the daylight savings is being observed at that time.
-func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start, end int64) {
+func (l *Location) lookup(sec int64) (name string, offset int, start, end int64) {
 	l = l.get()
 
 	if len(l.zone) == 0 {
 		name = "UTC"
 		offset = 0
-		isDST = false
 		start = alpha
 		end = omega
 		return
@@ -123,7 +122,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 	if zone := l.cacheZone; zone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
 		name = zone.name
 		offset = zone.offset
-		isDST = zone.isDST
 		start = l.cacheStart
 		end = l.cacheEnd
 		return
@@ -133,7 +131,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 		zone := &l.zone[l.lookupFirstZone()]
 		name = zone.name
 		offset = zone.offset
-		isDST = zone.isDST
 		start = alpha
 		if len(l.tx) > 0 {
 			end = l.tx[0].when
@@ -162,7 +159,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 	zone := &l.zone[tx[lo].index]
 	name = zone.name
 	offset = zone.offset
-	isDST = zone.isDST
 	start = tx[lo].when
 	// end = maintained during the search
 	return
@@ -173,7 +169,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 // times.
 //
 // The reference implementation in localtime.c from
-// http://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
+// https://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
 // implements the following algorithm for these cases:
 // 1) If the first zone is unused by the transitions, use it.
 // 2) Otherwise, if there are transition times, and the first
@@ -235,7 +231,7 @@ func (l *Location) lookupName(name string, unix int64) (offset int, ok bool) {
 	for i := range l.zone {
 		zone := &l.zone[i]
 		if zone.name == name {
-			nam, offset, _, _, _ := l.lookup(unix - int64(zone.offset))
+			nam, offset, _, _ := l.lookup(unix - int64(zone.offset))
 			if nam == zone.name {
 				return offset, true
 			}

@@ -149,6 +149,39 @@ func TestReadASN1IntegerSigned(t *testing.T) {
 			}
 		}
 	})
+
+	// Repeat with the implicit-tagging functions
+	t.Run("WithTag", func(t *testing.T) {
+		for i, test := range testData64 {
+			tag := asn1.Tag((i * 3) % 32).ContextSpecific()
+
+			testData := make([]byte, len(test.in))
+			copy(testData, test.in)
+
+			// Alter the tag of the test case.
+			testData[0] = uint8(tag)
+
+			in := String(testData)
+			var out int64
+			ok := in.ReadASN1Int64WithTag(&out, tag)
+			if !ok || out != test.out {
+				t.Errorf("#%d: in.ReadASN1Int64WithTag() = %v, want true; out = %d, want %d", i, ok, out, test.out)
+			}
+
+			var b Builder
+			b.AddASN1Int64WithTag(test.out, tag)
+			result, err := b.Bytes()
+
+			if err != nil {
+				t.Errorf("#%d: AddASN1Int64WithTag failed: %s", i, err)
+				continue
+			}
+
+			if !bytes.Equal(result, testData) {
+				t.Errorf("#%d: AddASN1Int64WithTag: got %x, want %x", i, result, testData)
+			}
+		}
+	})
 }
 
 func TestReadASN1IntegerUnsigned(t *testing.T) {

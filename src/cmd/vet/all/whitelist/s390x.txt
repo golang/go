@@ -1,15 +1,5 @@
-runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
-runtime/asm_s390x.s: [s390x] memeqbody: function memeqbody missing Go declaration
-runtime/asm_s390x.s: [s390x] memeqbodyclc: function memeqbodyclc missing Go declaration
-runtime/asm_s390x.s: [s390x] indexbytebody: function indexbytebody missing Go declaration
-runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
-runtime/asm_s390x.s: [s390x] cmpbody: function cmpbody missing Go declaration
-runtime/asm_s390x.s: [s390x] cmpbodyclc: function cmpbodyclc missing Go declaration
-runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: supportsVX is in package strings
-runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: supportsVX is in package bytes
-runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: indexShortStr is in package strings
-runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: indexShortStr is in package bytes
-runtime/asm_s390x.s: [s390x] indexShortStr: function indexShortStr missing Go declaration
+internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
+internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: cmpstring is in package runtime
 runtime/asm_s390x.s: [s390x] addmoduledata: function addmoduledata missing Go declaration
 runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl_xc missing Go declaration
 runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration

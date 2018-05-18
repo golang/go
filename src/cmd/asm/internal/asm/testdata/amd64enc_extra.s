@@ -235,5 +235,87 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VPGATHERQQ Y0, 512(R13)(Y1*1), Y2       // c4c2fd91940d00020000
 	// Test low-8 register for /is4 "hr" operand.
 	VPBLENDVB X0, (BX), X1, X2              // c4e3714c1300
+	// <XMM0>/Yxr0 tests.
+	SHA256RNDS2 X0, (BX), X2   // 0f38cb13
+	SHA256RNDS2 X0, (R11), X2  // 410f38cb13
+	SHA256RNDS2 X0, X2, X2     // 0f38cbd2
+	SHA256RNDS2 X0, X11, X2    // 410f38cbd3
+	SHA256RNDS2 X0, (BX), X11  // 440f38cb1b
+	SHA256RNDS2 X0, (R11), X11 // 450f38cb1b
+	SHA256RNDS2 X0, X2, X11    // 440f38cbda
+	SHA256RNDS2 X0, X11, X11   // 450f38cbdb
+	// Rest SHA instructions tests.
+	SHA1MSG1 (BX), X2        // 0f38c913
+	SHA1MSG1 (R11), X2       // 410f38c913
+	SHA1MSG1 X2, X2          // 0f38c9d2
+	SHA1MSG1 X11, X2         // 410f38c9d3
+	SHA1MSG1 (BX), X11       // 440f38c91b
+	SHA1MSG1 (R11), X11      // 450f38c91b
+	SHA1MSG1 X2, X11         // 440f38c9da
+	SHA1MSG1 X11, X11        // 450f38c9db
+	SHA1MSG2 (BX), X2        // 0f38ca13
+	SHA1MSG2 (R11), X2       // 410f38ca13
+	SHA1MSG2 X2, X2          // 0f38cad2
+	SHA1MSG2 X11, X2         // 410f38cad3
+	SHA1MSG2 (BX), X11       // 440f38ca1b
+	SHA1MSG2 (R11), X11      // 450f38ca1b
+	SHA1MSG2 X2, X11         // 440f38cada
+	SHA1MSG2 X11, X11        // 450f38cadb
+	SHA1NEXTE (BX), X2       // 0f38c813
+	SHA1NEXTE (R11), X2      // 410f38c813
+	SHA1NEXTE X2, X2         // 0f38c8d2
+	SHA1NEXTE X11, X2        // 410f38c8d3
+	SHA1NEXTE (BX), X11      // 440f38c81b
+	SHA1NEXTE (R11), X11     // 450f38c81b
+	SHA1NEXTE X2, X11        // 440f38c8da
+	SHA1NEXTE X11, X11       // 450f38c8db
+	SHA1RNDS4 $0, (BX), X2   // 0f3acc1300
+	SHA1RNDS4 $0, (R11), X2  // 410f3acc1300
+	SHA1RNDS4 $1, X2, X2     // 0f3accd201
+	SHA1RNDS4 $1, X11, X2    // 410f3accd301
+	SHA1RNDS4 $2, (BX), X11  // 440f3acc1b02
+	SHA1RNDS4 $2, (R11), X11 // 450f3acc1b02
+	SHA1RNDS4 $3, X2, X11    // 440f3accda03
+	SHA1RNDS4 $3, X11, X11   // 450f3accdb03
+	SHA256MSG1 (BX), X2      // 0f38cc13
+	SHA256MSG1 (R11), X2     // 410f38cc13
+	SHA256MSG1 X2, X2        // 0f38ccd2
+	SHA256MSG1 X11, X2       // 410f38ccd3
+	SHA256MSG1 (BX), X11     // 440f38cc1b
+	SHA256MSG1 (R11), X11    // 450f38cc1b
+	SHA256MSG1 X2, X11       // 440f38ccda
+	SHA256MSG1 X11, X11      // 450f38ccdb
+	SHA256MSG2 (BX), X2      // 0f38cd13
+	SHA256MSG2 (R11), X2     // 410f38cd13
+	SHA256MSG2 X2, X2        // 0f38cdd2
+	SHA256MSG2 X11, X2       // 410f38cdd3
+	SHA256MSG2 (BX), X11     // 440f38cd1b
+	SHA256MSG2 (R11), X11    // 450f38cd1b
+	SHA256MSG2 X2, X11       // 440f38cdda
+	SHA256MSG2 X11, X11      // 450f38cddb
+	// Test VPERMQ with both uint8 and int8 immediate args
+	VPERMQ $-40, Y8, Y8 // c443fd00c0d8
+	VPERMQ $216, Y8, Y8 // c443fd00c0d8
+	// Test that VPERMPD that shares ytab list with VPERMQ continues to work too.
+	VPERMPD $-40, Y7, Y7 // c4e3fd01ffd8
+	VPERMPD $216, Y7, Y7 // c4e3fd01ffd8
+	// Check that LEAL is permitted to use overflowing offset.
+	LEAL 2400959708(BP)(R10*1), BP // 428dac15dcbc1b8f
+	LEAL 3395469782(AX)(R10*1), AX // 428d8410d6c162ca
+	// Make sure MOV CR/DR continues to work after changing it's movtabs.
+	MOVQ CR0, AX // 0f20c0
+	MOVQ CR0, DX // 0f20c2
+	MOVQ CR4, DI // 0f20e7
+	MOVQ AX, CR0 // 0f22c0
+	MOVQ DX, CR0 // 0f22c2
+	MOVQ DI, CR4 // 0f22e7
+	MOVQ DR0, AX // 0f21c0
+	MOVQ DR6, DX // 0f21f2
+	MOVQ DR7, SI // 0f21fe
+	// Test other movtab entries.
+	PUSHQ GS // 0fa8
+	PUSHQ FS // 0fa0
+	POPQ FS  // 0fa1
+	POPQ GS  // 0fa9
 	// End of tests.
 	RET

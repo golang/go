@@ -462,6 +462,8 @@ func (b *Reader) ReadString(delim byte) (string, error) {
 
 // WriteTo implements io.WriterTo.
 // This may make multiple calls to the Read method of the underlying Reader.
+// If the underlying reader supports the WriteTo method,
+// this calls the underlying WriteTo without buffering.
 func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	n, err = b.writeBuf(w)
 	if err != nil {
@@ -684,7 +686,9 @@ func (b *Writer) WriteString(s string) (int, error) {
 	return nn, nil
 }
 
-// ReadFrom implements io.ReaderFrom.
+// ReadFrom implements io.ReaderFrom. If the underlying writer
+// supports the ReadFrom method, and b has no buffered data yet,
+// this calls the underlying ReadFrom without buffering.
 func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 	if b.Buffered() == 0 {
 		if w, ok := b.wr.(io.ReaderFrom); ok {

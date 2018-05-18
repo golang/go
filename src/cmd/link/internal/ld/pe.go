@@ -526,7 +526,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 			if sym.Value >= int64(eaddr) {
 				break
 			}
-			for ri := 0; ri < len(sym.R); ri++ {
+			for ri := range sym.R {
 				r := &sym.R[ri]
 				if r.Done {
 					continue
@@ -538,7 +538,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 				if r.Xsym.Dynid < 0 {
 					Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 				}
-				if !Thearch.PEreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
+				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
 					Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 				}
 				relocs++
@@ -857,14 +857,10 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 		oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
 	}
 
-	// 32-bit is trickier since there much less address space to
-	// work with. Here we use large stacks only in cgo binaries as
-	// a compromise.
+	oh.SizeOfStackReserve = 0x00100000
 	if !iscgo {
-		oh.SizeOfStackReserve = 0x00020000
 		oh.SizeOfStackCommit = 0x00001000
 	} else {
-		oh.SizeOfStackReserve = 0x00100000
 		oh.SizeOfStackCommit = 0x00100000 - 0x2000 // account for 2 guard pages
 	}
 
@@ -1086,9 +1082,8 @@ func addimports(ctxt *Link, datsect *peSection) {
 	}
 
 	// write function names
-	var m *Imp
 	for d := dr; d != nil; d = d.next {
-		for m = d.ms; m != nil; m = m.next {
+		for m := d.ms; m != nil; m = m.next {
 			m.off = uint64(pefile.nextSectOffset) + uint64(ctxt.Out.Offset()) - uint64(startoff)
 			ctxt.Out.Write16(0) // hint
 			strput(ctxt.Out, m.s.Extname)
@@ -1101,7 +1096,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	n = uint64(ctxt.Out.Offset())
 	for d := dr; d != nil; d = d.next {
 		d.thunkoff = uint64(ctxt.Out.Offset()) - n
-		for m = d.ms; m != nil; m = m.next {
+		for m := d.ms; m != nil; m = m.next {
 			if pe64 != 0 {
 				ctxt.Out.Write64(m.off)
 			} else {
@@ -1130,7 +1125,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 
 	ctxt.Out.SeekSet(int64(uint64(datsect.pointerToRawData) + ftbase))
 	for d := dr; d != nil; d = d.next {
-		for m = d.ms; m != nil; m = m.next {
+		for m := d.ms; m != nil; m = m.next {
 			if pe64 != 0 {
 				ctxt.Out.Write64(m.off)
 			} else {
@@ -1291,13 +1286,10 @@ func addpersrc(ctxt *Link) {
 	h.checkOffset(ctxt.Out.Offset())
 
 	// relocation
-	var p []byte
-	var r *sym.Reloc
-	var val uint32
-	for ri := 0; ri < len(rsrcsym.R); ri++ {
-		r = &rsrcsym.R[ri]
-		p = rsrcsym.P[r.Off:]
-		val = uint32(int64(h.virtualAddress) + r.Add)
+	for ri := range rsrcsym.R {
+		r := &rsrcsym.R[ri]
+		p := rsrcsym.P[r.Off:]
+		val := uint32(int64(h.virtualAddress) + r.Add)
 
 		// 32-bit little-endian
 		p[0] = byte(val)

@@ -208,17 +208,17 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 		if loadSegment.Vaddr == start-offset {
 			return offset, nil
 		}
-		if start >= loadSegment.Vaddr && limit > start && (offset == 0 || offset == pageOffsetPpc64) {
+		if start >= loadSegment.Vaddr && limit > start && (offset == 0 || offset == pageOffsetPpc64 || offset == start) {
 			// Some kernels look like:
 			//       VADDR=0xffffffff80200000
 			// stextOffset=0xffffffff80200198
 			//       Start=0xffffffff83200000
 			//       Limit=0xffffffff84200000
-			//      Offset=0 (0xc000000000000000 for PowerPC64)
+			//      Offset=0 (0xc000000000000000 for PowerPC64) (== Start for ASLR kernel)
 			// So the base should be:
 			if stextOffset != nil && (start%pageSize) == (*stextOffset%pageSize) {
 				// perf uses the address of _stext as start. Some tools may
-				// adjust for this before calling GetBase, in which case the the page
+				// adjust for this before calling GetBase, in which case the page
 				// alignment should be different from that of stextOffset.
 				return start - *stextOffset, nil
 			}
@@ -258,4 +258,20 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 		return start - offset + loadSegment.Off - loadSegment.Vaddr, nil
 	}
 	return 0, fmt.Errorf("Don't know how to handle FileHeader.Type %v", fh.Type)
+}
+
+// FindTextProgHeader finds the program segment header containing the .text
+// section or nil if the segment cannot be found.
+func FindTextProgHeader(f *elf.File) *elf.ProgHeader {
+	for _, s := range f.Sections {
+		if s.Name == ".text" {
+			// Find the LOAD segment containing the .text section.
+			for _, p := range f.Progs {
+				if p.Type == elf.PT_LOAD && p.Flags&elf.PF_X != 0 && s.Addr >= p.Vaddr && s.Addr < p.Vaddr+p.Memsz {
+					return &p.ProgHeader
+				}
+			}
+		}
+	}
+	return nil
 }

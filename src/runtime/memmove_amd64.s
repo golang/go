@@ -48,7 +48,8 @@ tail:
 	CMPQ	BX, $2
 	JBE	move_1or2
 	CMPQ	BX, $4
-	JBE	move_3or4
+	JB	move_3
+	JBE	move_4
 	CMPQ	BX, $8
 	JB	move_5through7
 	JE	move_8
@@ -145,9 +146,7 @@ move_1or2:
 	RET
 move_0:
 	RET
-move_3or4:
-	CMPQ	BX, $4
-	JB	move_3
+move_4:
 	MOVL	(SI), AX
 	MOVL	AX, (DI)
 	RET
@@ -284,7 +283,7 @@ move_256through2048:
 
 avxUnaligned:
 	// There are two implementations of move algorithm.
-	// The first one for non-ovelapped memory regions. It uses forward copying.
+	// The first one for non-overlapped memory regions. It uses forward copying.
 	// The second one for overlapped regions. It uses backward copying
 	MOVQ	DI, CX
 	SUBQ	SI, CX
@@ -346,7 +345,7 @@ avxUnaligned:
 	// Continue tail saving.
 	MOVOU	-0x20(CX), X11
 	MOVOU	-0x10(CX), X12
-	// The tail will be put on it's place after main body copying.
+	// The tail will be put on its place after main body copying.
 	// It's time for the unaligned heading part.
 	VMOVDQU	(SI), Y4
 	// Adjust source address to point past head.

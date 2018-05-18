@@ -5,7 +5,7 @@
 package cache
 
 import (
-	"cmd/go/internal/base"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -40,7 +40,8 @@ func initDefaultCache() {
 		return
 	}
 	if err := os.MkdirAll(dir, 0777); err != nil {
-		base.Fatalf("initializing cache in $GOCACHE: %s", err)
+		fmt.Fprintf(os.Stderr, "go: disabling cache (%s) due to initialization failure: %s\n", dir, err)
+		return
 	}
 	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {
 		// Best effort.
@@ -49,7 +50,8 @@ func initDefaultCache() {
 
 	c, err := Open(dir)
 	if err != nil {
-		base.Fatalf("initializing cache in $GOCACHE: %s", err)
+		fmt.Fprintf(os.Stderr, "go: disabling cache (%s) due to initialization failure: %s\n", dir, err)
+		return
 	}
 	defaultCache = c
 }
@@ -68,6 +70,14 @@ func DefaultDir() string {
 	switch runtime.GOOS {
 	case "windows":
 		dir = os.Getenv("LocalAppData")
+		if dir == "" {
+			// Fall back to %AppData%, the old name of
+			// %LocalAppData% on Windows XP.
+			dir = os.Getenv("AppData")
+		}
+		if dir == "" {
+			return "off"
+		}
 
 	case "darwin":
 		dir = os.Getenv("HOME")
