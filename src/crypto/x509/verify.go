@@ -6,12 +6,14 @@ package x509
 
 import (
 	"bytes"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -47,7 +49,7 @@ const (
 	// name constraints, but leaf certificate contains a name of an
 	// unsupported or unconstrained type.
 	UnconstrainedName
-	// TooManyConstraints results when the number of comparision operations
+	// TooManyConstraints results when the number of comparison operations
 	// needed to check a certificate exceeds the limit set by
 	// VerifyOptions.MaxConstraintComparisions. This limit exists to
 	// prevent pathological certificates can consuming excessive amounts of
@@ -183,14 +185,18 @@ type VerifyOptions struct {
 	Intermediates *CertPool
 	Roots         *CertPool // if nil, the system roots are used
 	CurrentTime   time.Time // if zero, the current time is used
-	// KeyUsage specifies which Extended Key Usage values are acceptable.
-	// An empty list means ExtKeyUsageServerAuth. Key usage is considered a
-	// constraint down the chain which mirrors Windows CryptoAPI behavior,
-	// but not the spec. To accept any key usage, include ExtKeyUsageAny.
+	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
+	// certificate is accepted if it contains any of the listed values. An empty
+	// list means ExtKeyUsageServerAuth. To accept any key usage, include
+	// ExtKeyUsageAny.
+	//
+	// Certificate chains are required to nest extended key usage values,
+	// irrespective of this value. This matches the Windows CryptoAPI behavior,
+	// but not the spec.
 	KeyUsages []ExtKeyUsage
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
-	// zero, a sensible default is used. This limit prevents pathalogical
+	// zero, a sensible default is used. This limit prevents pathological
 	// certificates from consuming excessive amounts of CPU time when
 	// validating.
 	MaxConstraintComparisions int
@@ -548,11 +554,16 @@ func (c *Certificate) checkNameConstraints(count *int,
 	return nil
 }
 
+const (
+	checkingAgainstIssuerCert = iota
+	checkingAgainstLeafCert
+)
+
 // ekuPermittedBy returns true iff the given extended key usage is permitted by
 // the given EKU from a certificate. Normally, this would be a simple
 // comparison plus a special case for the “any” EKU. But, in order to support
 // existing certificates, some exceptions are made.
-func ekuPermittedBy(eku, certEKU ExtKeyUsage) bool {
+func ekuPermittedBy(eku, certEKU ExtKeyUsage, context int) bool {
 	if certEKU == ExtKeyUsageAny || eku == certEKU {
 		return true
 	}
@@ -569,18 +580,23 @@ func ekuPermittedBy(eku, certEKU ExtKeyUsage) bool {
 	eku = mapServerAuthEKUs(eku)
 	certEKU = mapServerAuthEKUs(certEKU)
 
-	if eku == certEKU ||
-		// ServerAuth in a CA permits ClientAuth in the leaf.
-		(eku == ExtKeyUsageClientAuth && certEKU == ExtKeyUsageServerAuth) ||
+	if eku == certEKU {
+		return true
+	}
+
+	// If checking a requested EKU against the list in a leaf certificate there
+	// are fewer exceptions.
+	if context == checkingAgainstLeafCert {
+		return false
+	}
+
+	// ServerAuth in a CA permits ClientAuth in the leaf.
+	return (eku == ExtKeyUsageClientAuth && certEKU == ExtKeyUsageServerAuth) ||
 		// Any CA may issue an OCSP responder certificate.
 		eku == ExtKeyUsageOCSPSigning ||
 		// Code-signing CAs can use Microsoft's commercial and
 		// kernel-mode EKUs.
-		((eku == ExtKeyUsageMicrosoftCommercialCodeSigning || eku == ExtKeyUsageMicrosoftKernelCodeSigning) && certEKU == ExtKeyUsageCodeSigning) {
-		return true
-	}
-
-	return false
+		(eku == ExtKeyUsageMicrosoftCommercialCodeSigning || eku == ExtKeyUsageMicrosoftKernelCodeSigning) && certEKU == ExtKeyUsageCodeSigning
 }
 
 // isValid performs validity checks on c given that it is a candidate to append
@@ -635,8 +651,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				name := string(data)
 				mailbox, ok := parseRFC2821Mailbox(name)
 				if !ok {
-					// This certificate should not have parsed.
-					return errors.New("x509: internal error: rfc822Name SAN failed to parse")
+					return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
@@ -648,6 +663,10 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 
 			case nameTypeDNS:
 				name := string(data)
+				if _, ok := domainToReverseLabels(name); !ok {
+					return fmt.Errorf("x509: cannot parse dnsName %q", name)
+				}
+
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
 					func(parsedName, constraint interface{}) (bool, error) {
 						return matchDomainConstraint(parsedName.(string), constraint.(string))
@@ -721,7 +740,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 
 			for _, caEKU := range c.ExtKeyUsage {
 				comparisonCount++
-				if ekuPermittedBy(eku, caEKU) {
+				if ekuPermittedBy(eku, caEKU, checkingAgainstIssuerCert) {
 					continue NextEKU
 				}
 			}
@@ -785,6 +804,18 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	return nil
 }
 
+// formatOID formats an ASN.1 OBJECT IDENTIFER in the common, dotted style.
+func formatOID(oid asn1.ObjectIdentifier) string {
+	ret := ""
+	for i, v := range oid {
+		if i > 0 {
+			ret += "."
+		}
+		ret += strconv.Itoa(v)
+	}
+	return ret
+}
+
 // Verify attempts to verify c by building one or more chains from c to a
 // certificate in opts.Roots, using certificates in opts.Intermediates if
 // needed. If successful, it returns one or more chains where the first
@@ -793,7 +824,17 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // If opts.Roots is nil and system roots are unavailable the returned error
 // will be of type SystemRootsError.
 //
-// WARNING: this doesn't do any revocation checking.
+// Name constraints in the intermediates will be applied to all names claimed
+// in the chain, not just opts.DNSName. Thus it is invalid for a leaf to claim
+// example.com if an intermediate doesn't permit it, even if example.com is not
+// the name being validated. Note that DirectoryName constraints are not
+// supported.
+//
+// Extended Key Usage values are enforced down a chain, so an intermediate or
+// root that enumerates EKUs prevents a leaf from asserting an EKU not in that
+// list.
+//
+// WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
 	// Platform-specific verification needs the ASN.1 contents so
 	// this makes the behavior consistent across platforms.
@@ -849,16 +890,33 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	}
 
 	if checkEKU {
+		foundMatch := false
 	NextUsage:
 		for _, eku := range requestedKeyUsages {
 			for _, leafEKU := range c.ExtKeyUsage {
-				if ekuPermittedBy(eku, leafEKU) {
-					continue NextUsage
+				if ekuPermittedBy(eku, leafEKU, checkingAgainstLeafCert) {
+					foundMatch = true
+					break NextUsage
 				}
 			}
+		}
 
-			oid, _ := oidFromExtKeyUsage(eku)
-			return nil, CertificateInvalidError{c, IncompatibleUsage, fmt.Sprintf("%#v", oid)}
+		if !foundMatch {
+			msg := "leaf contains the following, recognized EKUs: "
+
+			for i, leafEKU := range c.ExtKeyUsage {
+				oid, ok := oidFromExtKeyUsage(leafEKU)
+				if !ok {
+					continue
+				}
+
+				if i > 0 {
+					msg += ", "
+				}
+				msg += formatOID(oid)
+			}
+
+			return nil, CertificateInvalidError{c, IncompatibleUsage, msg}
 		}
 	}
 

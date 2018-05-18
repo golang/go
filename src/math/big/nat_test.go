@@ -267,6 +267,34 @@ func TestShiftRight(t *testing.T) {
 	}
 }
 
+func BenchmarkZeroShifts(b *testing.B) {
+	x := rndNat(800)
+
+	b.Run("Shl", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var z nat
+			z.shl(x, 0)
+		}
+	})
+	b.Run("ShlSame", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			x.shl(x, 0)
+		}
+	})
+
+	b.Run("Shr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var z nat
+			z.shr(x, 0)
+		}
+	})
+	b.Run("ShrSame", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			x.shr(x, 0)
+		}
+	})
+}
+
 type modWTest struct {
 	in       string
 	dividend string
@@ -662,6 +690,25 @@ func BenchmarkNatSqr(b *testing.B) {
 		}
 		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
 			benchmarkNatSqr(b, n)
+		})
+	}
+}
+
+func BenchmarkNatSetBytes(b *testing.B) {
+	const maxLength = 128
+	lengths := []int{
+		// No remainder:
+		8, 24, maxLength,
+		// With remainder:
+		7, 23, maxLength - 1,
+	}
+	n := make(nat, maxLength/_W) // ensure n doesn't need to grow during the test
+	buf := make([]byte, maxLength)
+	for _, l := range lengths {
+		b.Run(fmt.Sprint(l), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				n.setBytes(buf[:l])
+			}
 		})
 	}
 }

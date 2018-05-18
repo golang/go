@@ -25,7 +25,7 @@ type testBlock struct{}
 func (*testBlock) BlockSize() int      { return 0 }
 func (*testBlock) Encrypt(a, b []byte) {}
 func (*testBlock) Decrypt(a, b []byte) {}
-func (*testBlock) NewGCM(int) (cipher.AEAD, error) {
+func (*testBlock) NewGCM(int, int) (cipher.AEAD, error) {
 	return &testAEAD{}, nil
 }
 func (*testBlock) NewCBCEncrypter([]byte) cipher.BlockMode {

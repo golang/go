@@ -50,3 +50,13 @@ func AtomicTests() {
 		_ = w
 	}
 }
+
+type T struct{}
+
+func (T) AddUint64(addr *uint64, delta uint64) uint64 { return 0 }
+
+func NonAtomic() {
+	x := uint64(1)
+	var atomic T
+	x = atomic.AddUint64(&x, 1) // ok; not the imported pkg
+}

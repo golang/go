@@ -19,9 +19,17 @@ import (
 	"unicode/utf8"
 )
 
+// The mode flags below control which comments are reported
+// by calling the error handler. If no flag is set, comments
+// are ignored.
+const (
+	comments   uint = 1 << iota // call handler for all comments
+	directives                  // call handler for directives only
+)
+
 type scanner struct {
 	source
-	pragh  func(line, col uint, msg string)
+	mode   uint
 	nlsemi bool // if set '\n' and EOF translate to ';'
 
 	// current token, valid after calling next()
@@ -33,25 +41,32 @@ type scanner struct {
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
 }
 
-func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg string)) {
+func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mode uint) {
 	s.source.init(src, errh)
-	s.pragh = pragh
+	s.mode = mode
 	s.nlsemi = false
 }
 
 // next advances the scanner by reading the next token.
 //
-// If a read, source encoding, or lexical error occurs, next
-// calls the error handler installed with init. The handler
-// must exist.
+// If a read, source encoding, or lexical error occurs, next calls
+// the installed error handler with the respective error position
+// and message. The error message is guaranteed to be non-empty and
+// never starts with a '/'. The error handler must exist.
 //
-// If a //line or //go: directive is encountered at the start
-// of a line, next calls the directive handler pragh installed
-// with init, if not nil.
+// If the scanner mode includes the comments flag and a comment
+// (including comments containing directives) is encountered, the
+// error handler is also called with each comment position and text
+// (including opening /* or // and closing */, but without a newline
+// at the end of line comments). Comment text always starts with a /
+// which can be used to distinguish these handler calls from errors.
 //
-// The (line, col) position passed to the error and directive
-// handler is always at or after the current source reading
-// position.
+// If the scanner mode includes the directives (but not the comments)
+// flag, only comments containing a //line, /*line, or //go: directive
+// are reported, in the same way as regular comments. Directives in
+// //-style comments are only recognized if they are at the beginning
+// of a line.
+//
 func (s *scanner) next() {
 	nlsemi := s.nlsemi
 	s.nlsemi = false
@@ -227,10 +242,6 @@ redo:
 		s.op, s.prec = Or, precAdd
 		goto assignop
 
-	case '~':
-		s.error("bitwise complement operator is ^")
-		fallthrough
-
 	case '^':
 		s.op, s.prec = Xor, precAdd
 		c = s.getr()
@@ -337,7 +348,7 @@ func (s *scanner) ident() {
 
 	// possibly a keyword
 	if len(lit) >= 2 {
-		if tok := keywordMap[hash(lit)]; tok != 0 && tokstrings[tok] == string(lit) {
+		if tok := keywordMap[hash(lit)]; tok != 0 && tokStrFast(tok) == string(lit) {
 			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
 			s.tok = tok
 			return
@@ -347,6 +358,12 @@ func (s *scanner) ident() {
 	s.nlsemi = true
 	s.lit = string(lit)
 	s.tok = _Name
+}
+
+// tokStrFast is a faster version of token.String, which assumes that tok
+// is one of the valid tokens - and can thus skip bounds checks.
+func tokStrFast(tok token) string {
+	return _token_name[_token_index[tok-1]:_token_index[tok]]
 }
 
 func (s *scanner) isIdentRune(c rune, first bool) bool {
@@ -376,7 +393,7 @@ var keywordMap [1 << 6]token // size must be power of two
 func init() {
 	// populate keywordMap
 	for tok := _Break; tok <= _Var; tok++ {
-		h := hash([]byte(tokstrings[tok]))
+		h := hash([]byte(tok.String()))
 		if keywordMap[h] != 0 {
 			panic("imperfect hash")
 		}
@@ -565,6 +582,10 @@ func (s *scanner) rawString() {
 	s.tok = _Literal
 }
 
+func (s *scanner) comment(text string) {
+	s.errh(s.line, s.col, text)
+}
+
 func (s *scanner) skipLine(r rune) {
 	for r >= 0 {
 		if r == '\n' {
@@ -577,14 +598,21 @@ func (s *scanner) skipLine(r rune) {
 
 func (s *scanner) lineComment() {
 	r := s.getr()
+
+	if s.mode&comments != 0 {
+		s.startLit()
+		s.skipLine(r)
+		s.comment("//" + string(s.stopLit()))
+		return
+	}
+
 	// directives must start at the beginning of the line (s.col == colbase)
-	if s.col != colbase || s.pragh == nil || (r != 'g' && r != 'l') {
+	if s.mode&directives == 0 || s.col != colbase || (r != 'g' && r != 'l') {
 		s.skipLine(r)
 		return
 	}
-	// s.col == colbase && s.pragh != nil && (r == 'g' || r == 'l')
 
-	// recognize directives
+	// recognize go: or line directives
 	prefix := "go:"
 	if r == 'l' {
 		prefix = "line "
@@ -597,30 +625,60 @@ func (s *scanner) lineComment() {
 		r = s.getr()
 	}
 
-	// directive text without line ending (which may be "\r\n" if Windows),
+	// directive text
 	s.startLit()
 	s.skipLine(r)
-	text := s.stopLit()
-	if i := len(text) - 1; i >= 0 && text[i] == '\r' {
-		text = text[:i]
-	}
-
-	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since directive text starts after //
+	s.comment("//" + prefix + string(s.stopLit()))
 }
 
-func (s *scanner) fullComment() {
-	for {
-		r := s.getr()
+func (s *scanner) skipComment(r rune) bool {
+	for r >= 0 {
 		for r == '*' {
 			r = s.getr()
 			if r == '/' {
-				return
+				return true
 			}
 		}
-		if r < 0 {
-			s.errh(s.line, s.col, "comment not terminated")
+		r = s.getr()
+	}
+	s.errh(s.line, s.col, "comment not terminated")
+	return false
+}
+
+func (s *scanner) fullComment() {
+	r := s.getr()
+
+	if s.mode&comments != 0 {
+		s.startLit()
+		if s.skipComment(r) {
+			s.comment("/*" + string(s.stopLit()))
+		} else {
+			s.killLit() // not a complete comment - ignore
+		}
+		return
+	}
+
+	if s.mode&directives == 0 || r != 'l' {
+		s.skipComment(r)
+		return
+	}
+
+	// recognize line directive
+	const prefix = "line "
+	for _, m := range prefix {
+		if r != m {
+			s.skipComment(r)
 			return
 		}
+		r = s.getr()
+	}
+
+	// directive text
+	s.startLit()
+	if s.skipComment(r) {
+		s.comment("/*" + prefix + string(s.stopLit()))
+	} else {
+		s.killLit() // not a complete comment - ignore
 	}
 }
 

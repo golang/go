@@ -196,17 +196,21 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+func putUint64(x []byte, s uint64) {
+	_ = x[7]
+	x[0] = byte(s >> 56)
+	x[1] = byte(s >> 48)
+	x[2] = byte(s >> 40)
+	x[3] = byte(s >> 32)
+	x[4] = byte(s >> 24)
+	x[5] = byte(s >> 16)
+	x[6] = byte(s >> 8)
+	x[7] = byte(s)
+}
+
 func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
+	var a [8]byte
+	putUint64(a[:], x)
 	return append(b, a[:]...)
 }
 
@@ -292,15 +296,15 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d0 *digest) Sum(in []byte) []byte {
-	if d0.function != crypto.SHA512_224 && d0.function != crypto.SHA512_256 {
+func (d *digest) Sum(in []byte) []byte {
+	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
 		boring.Unreachable()
 	}
-	// Make a copy of d0 so that caller can keep writing and summing.
-	d := new(digest)
-	*d = *d0
-	hash := d.checkSum()
-	switch d.function {
+	// Make a copy of d so that caller can keep writing and summing.
+	d0 := new(digest)
+	*d0 = *d
+	hash := d0.checkSum()
+	switch d0.function {
 	case crypto.SHA384:
 		return append(in, hash[:Size384]...)
 	case crypto.SHA512_224:
@@ -325,30 +329,24 @@ func (d *digest) checkSum() [Size]byte {
 
 	// Length in bits.
 	len <<= 3
-	for i := uint(0); i < 16; i++ {
-		tmp[i] = byte(len >> (120 - 8*i))
-	}
+	putUint64(tmp[0:], 0) // upper 64 bits are always zero, because len variable has type uint64
+	putUint64(tmp[8:], len)
 	d.Write(tmp[0:16])
 
 	if d.nx != 0 {
 		panic("d.nx != 0")
 	}
 
-	h := d.h[:]
-	if d.function == crypto.SHA384 {
-		h = d.h[:6]
-	}
-
 	var digest [Size]byte
-	for i, s := range h {
-		digest[i*8] = byte(s >> 56)
-		digest[i*8+1] = byte(s >> 48)
-		digest[i*8+2] = byte(s >> 40)
-		digest[i*8+3] = byte(s >> 32)
-		digest[i*8+4] = byte(s >> 24)
-		digest[i*8+5] = byte(s >> 16)
-		digest[i*8+6] = byte(s >> 8)
-		digest[i*8+7] = byte(s)
+	putUint64(digest[0:], d.h[0])
+	putUint64(digest[8:], d.h[1])
+	putUint64(digest[16:], d.h[2])
+	putUint64(digest[24:], d.h[3])
+	putUint64(digest[32:], d.h[4])
+	putUint64(digest[40:], d.h[5])
+	if d.function != crypto.SHA384 {
+		putUint64(digest[48:], d.h[6])
+		putUint64(digest[56:], d.h[7])
 	}
 
 	return digest

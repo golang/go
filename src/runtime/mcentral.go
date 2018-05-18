@@ -237,6 +237,6 @@ func (c *mcentral) grow() *mspan {
 	p := s.base()
 	s.limit = p + size*n
 
-	heapBitsForSpan(s.base()).initSpan(s)
+	heapBitsForAddr(s.base()).initSpan(s)
 	return s
 }

@@ -585,7 +585,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 				f.FuncData[i].Sym = r.readSymID()
 			}
 			for i := range f.FuncData {
-				f.FuncData[i].Offset = int64(r.readInt()) // TODO
+				f.FuncData[i].Offset = r.readInt() // TODO
 			}
 			f.File = make([]string, r.readInt())
 			for i := range f.File {

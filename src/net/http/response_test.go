@@ -295,7 +295,7 @@ var respTests = []respTest{
 	},
 
 	// Status line without a Reason-Phrase, but trailing space.
-	// (permitted by RFC 2616)
+	// (permitted by RFC 7230, section 3.1.2)
 	{
 		"HTTP/1.0 303 \r\n\r\n",
 		Response{
@@ -314,7 +314,7 @@ var respTests = []respTest{
 	},
 
 	// Status line without a Reason-Phrase, and no trailing space.
-	// (not permitted by RFC 2616, but we'll accept it anyway)
+	// (not permitted by RFC 7230, but we'll accept it anyway)
 	{
 		"HTTP/1.0 303\r\n\r\n",
 		Response{

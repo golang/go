@@ -120,6 +120,7 @@ var attrTypeMap = map[string]contentType{
 	"src":         contentTypeURL,
 	"srcdoc":      contentTypeHTML,
 	"srclang":     contentTypePlain,
+	"srcset":      contentTypeSrcset,
 	"start":       contentTypePlain,
 	"step":        contentTypePlain,
 	"style":       contentTypeCSS,

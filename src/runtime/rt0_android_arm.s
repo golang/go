@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-TEXT _rt0_arm_android(SB),NOSPLIT,$-4
+TEXT _rt0_arm_android(SB),NOSPLIT|NOFRAME,$0
 	MOVW		(R13), R0      // argc
 	MOVW		$4(R13), R1    // argv
 	MOVW		$_rt0_arm_linux1(SB), R4

@@ -402,6 +402,10 @@ label4:
 	BEQ	R1, 2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
+	RET	foo(SB)
+
+	NEGW	R1, R2 // 00011023
+	NEGV	R1, R2 // 0001102f
 
 // END
 //

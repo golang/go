@@ -39,12 +39,12 @@ func instrumentInit() {
 		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
 		os.Exit(2)
 	}
-	if cfg.BuildMSan && (cfg.Goos != "linux" || cfg.Goarch != "amd64") {
+	if cfg.BuildMSan && (cfg.Goos != "linux" || cfg.Goarch != "amd64" && cfg.Goarch != "arm64") {
 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
 		os.Exit(2)
 	}
-	if cfg.Goarch != "amd64" || cfg.Goos != "linux" && cfg.Goos != "freebsd" && cfg.Goos != "darwin" && cfg.Goos != "windows" {
-		fmt.Fprintf(os.Stderr, "go %s: -race and -msan are only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+	if cfg.BuildRace && (cfg.Goarch != "amd64" || cfg.Goos != "linux" && cfg.Goos != "freebsd" && cfg.Goos != "darwin" && cfg.Goos != "windows") {
+		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
 	}
 
@@ -83,6 +83,9 @@ func buildModeInit() {
 		default:
 			switch cfg.Goos {
 			case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+				if platform == "linux/ppc64" {
+					base.Fatalf("-buildmode=c-archive not supported on %s\n", platform)
+				}
 				// Use -shared so that the result is
 				// suitable for inclusion in a PIE or
 				// shared library.
@@ -98,7 +101,8 @@ func buildModeInit() {
 		} else {
 			switch platform {
 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
-				"android/amd64", "android/arm", "android/arm64", "android/386":
+				"android/amd64", "android/arm", "android/arm64", "android/386",
+				"freebsd/amd64":
 				codegenArg = "-shared"
 			case "darwin/amd64", "darwin/386":
 			case "windows/amd64", "windows/386":
@@ -138,7 +142,8 @@ func buildModeInit() {
 		} else {
 			switch platform {
 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
-				"android/amd64", "android/arm", "android/arm64", "android/386":
+				"android/amd64", "android/arm", "android/arm64", "android/386",
+				"freebsd/amd64":
 				codegenArg = "-shared"
 			case "darwin/amd64":
 				codegenArg = "-shared"

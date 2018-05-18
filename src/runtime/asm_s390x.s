@@ -266,6 +266,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	// Hide call from linker nosplit analysis.
 	MOVD	$runtime·badsystemstack(SB), R3
 	BL	(R3)
+	BL	runtime·abort(SB)
 
 switch:
 	// save our state in g->sched.  Pretend to
@@ -724,11 +725,6 @@ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R1, LR
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
-	MOVD	0(R15), R3		// LR saved by caller
-	MOVD	R3, ret+0(FP)
-	RET
-
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R0
 	UNDEF
@@ -755,206 +751,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R15
 TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R15
-
-// memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
-	MOVD	a+0(FP), R3
-	MOVD	b+8(FP), R5
-	MOVD	size+16(FP), R6
-	LA	ret+24(FP), R7
-	BR	runtime·memeqbody(SB)
-
-// memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
-	MOVD	a+0(FP), R3
-	MOVD	b+8(FP), R5
-	MOVD	8(R12), R6    // compiler stores size at offset 8 in the closure
-	LA	ret+16(FP), R7
-	BR	runtime·memeqbody(SB)
-
-TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
-	MOVD	a_len+8(FP), R2
-	MOVD	b_len+32(FP), R6
-	MOVD	a+0(FP), R3
-	MOVD	b+24(FP), R5
-	LA	ret+48(FP), R7
-	CMPBNE	R2, R6, notequal
-	BR	runtime·memeqbody(SB)
-notequal:
-	MOVB	$0, ret+48(FP)
-	RET
-
-// input:
-//   R3 = a
-//   R5 = b
-//   R6 = len
-//   R7 = address of output byte (stores 0 or 1 here)
-//   a and b have the same length
-TEXT runtime·memeqbody(SB),NOSPLIT|NOFRAME,$0-0
-	CMPBEQ	R3, R5, equal
-loop:
-	CMPBEQ	R6, $0, equal
-	CMPBLT	R6, $32, tiny
-	CMP	R6, $256
-	BLT	tail
-	CLC	$256, 0(R3), 0(R5)
-	BNE	notequal
-	SUB	$256, R6
-	LA	256(R3), R3
-	LA	256(R5), R5
-	BR	loop
-tail:
-	SUB	$1, R6, R8
-	EXRL	$runtime·memeqbodyclc(SB), R8
-	BEQ	equal
-notequal:
-	MOVB	$0, 0(R7)
-	RET
-equal:
-	MOVB	$1, 0(R7)
-	RET
-tiny:
-	MOVD	$0, R2
-	CMPBLT	R6, $16, lt16
-	MOVD	0(R3), R8
-	MOVD	0(R5), R9
-	CMPBNE	R8, R9, notequal
-	MOVD	8(R3), R8
-	MOVD	8(R5), R9
-	CMPBNE	R8, R9, notequal
-	LA	16(R2), R2
-	SUB	$16, R6
-lt16:
-	CMPBLT	R6, $8, lt8
-	MOVD	0(R3)(R2*1), R8
-	MOVD	0(R5)(R2*1), R9
-	CMPBNE	R8, R9, notequal
-	LA	8(R2), R2
-	SUB	$8, R6
-lt8:
-	CMPBLT	R6, $4, lt4
-	MOVWZ	0(R3)(R2*1), R8
-	MOVWZ	0(R5)(R2*1), R9
-	CMPBNE	R8, R9, notequal
-	LA	4(R2), R2
-	SUB	$4, R6
-lt4:
-#define CHECK(n) \
-	CMPBEQ	R6, $n, equal \
-	MOVB	n(R3)(R2*1), R8 \
-	MOVB	n(R5)(R2*1), R9 \
-	CMPBNE	R8, R9, notequal
-	CHECK(0)
-	CHECK(1)
-	CHECK(2)
-	CHECK(3)
-	BR	equal
-
-TEXT runtime·memeqbodyclc(SB),NOSPLIT|NOFRAME,$0-0
-	CLC	$1, 0(R3), 0(R5)
-	RET
-
-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
-	MOVD	s+0(FP), R3     // s => R3
-	MOVD	s_len+8(FP), R4 // s_len => R4
-	MOVBZ	c+24(FP), R5    // c => R5
-	MOVD	$ret+32(FP), R2 // &ret => R9
-	BR	runtime·indexbytebody(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
-	MOVD	s+0(FP), R3     // s => R3
-	MOVD	s_len+8(FP), R4 // s_len => R4
-	MOVBZ	c+16(FP), R5    // c => R5
-	MOVD	$ret+24(FP), R2 // &ret => R9
-	BR	runtime·indexbytebody(SB)
-
-// input:
-// R3: s
-// R4: s_len
-// R5: c -- byte sought
-// R2: &ret -- address to put index into
-TEXT runtime·indexbytebody(SB),NOSPLIT|NOFRAME,$0
-	CMPBEQ	R4, $0, notfound
-	MOVD	R3, R6          // store base for later
-	ADD	R3, R4, R8      // the address after the end of the string
-	//if the length is small, use loop; otherwise, use vector or srst search
-	CMPBGE	R4, $16, large
-
-residual:
-	CMPBEQ	R3, R8, notfound
-	MOVBZ	0(R3), R7
-	LA	1(R3), R3
-	CMPBNE	R7, R5, residual
-
-found:
-	SUB	R6, R3
-	SUB	$1, R3
-	MOVD	R3, 0(R2)
-	RET
-
-notfound:
-	MOVD	$-1, 0(R2)
-	RET
-
-large:
-	MOVBZ	·cpu+facilities_hasVX(SB), R1
-	CMPBNE	R1, $0, vectorimpl
-
-srstimpl:                       // no vector facility
-	MOVBZ	R5, R0          // c needs to be in R0, leave until last minute as currently R0 is expected to be 0
-srstloop:
-	WORD	$0xB25E0083     // srst %r8, %r3 (search the range [R3, R8))
-	BVS	srstloop        // interrupted - continue
-	BGT	notfoundr0
-foundr0:
-	XOR	R0, R0          // reset R0
-	SUB	R6, R8          // remove base
-	MOVD	R8, 0(R2)
-	RET
-notfoundr0:
-	XOR	R0, R0          // reset R0
-	MOVD	$-1, 0(R2)
-	RET
-
-vectorimpl:
-	//if the address is not 16byte aligned, use loop for the header
-	MOVD	R3, R8
-	AND	$15, R8
-	CMPBGT	R8, $0, notaligned
-
-aligned:
-	ADD	R6, R4, R8
-	MOVD	R8, R7
-	AND	$-16, R7
-	// replicate c across V17
-	VLVGB	$0, R5, V19
-	VREPB	$0, V19, V17
-
-vectorloop:
-	CMPBGE	R3, R7, residual
-	VL	0(R3), V16    // load string to be searched into V16
-	ADD	$16, R3
-	VFEEBS	V16, V17, V18 // search V17 in V16 and set conditional code accordingly
-	BVS	vectorloop
-
-	// when vector search found c in the string
-	VLGVB	$7, V18, R7   // load 7th element of V18 containing index into R7
-	SUB	$16, R3
-	SUB	R6, R3
-	ADD	R3, R7
-	MOVD	R7, 0(R2)
-	RET
-
-notaligned:
-	MOVD	R3, R8
-	AND	$-16, R8
-	ADD     $16, R8
-notalignedloop:
-	CMPBEQ	R3, R8, aligned
-	MOVBZ	0(R3), R7
-	LA	1(R3), R3
-	CMPBNE	R7, R5, notalignedloop
-	BR	found
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R3
@@ -996,291 +792,6 @@ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
         // compile barrier.
 	RET
 
-TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
-	MOVD	s1_base+0(FP), R3
-	MOVD	s1_len+8(FP), R4
-	MOVD	s2_base+16(FP), R5
-	MOVD	s2_len+24(FP), R6
-	LA	ret+32(FP), R7
-	BR	runtime·cmpbody(SB)
-
-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
-	MOVD	s1+0(FP), R3
-	MOVD	s1+8(FP), R4
-	MOVD	s2+24(FP), R5
-	MOVD	s2+32(FP), R6
-	LA	res+48(FP), R7
-	BR	runtime·cmpbody(SB)
-
-// input:
-//   R3 = a
-//   R4 = alen
-//   R5 = b
-//   R6 = blen
-//   R7 = address of output word (stores -1/0/1 here)
-TEXT runtime·cmpbody(SB),NOSPLIT|NOFRAME,$0-0
-	CMPBEQ	R3, R5, cmplengths
-	MOVD	R4, R8
-	CMPBLE	R4, R6, amin
-	MOVD	R6, R8
-amin:
-	CMPBEQ	R8, $0, cmplengths
-	CMP	R8, $256
-	BLE	tail
-loop:
-	CLC	$256, 0(R3), 0(R5)
-	BGT	gt
-	BLT	lt
-	SUB	$256, R8
-	CMP	R8, $256
-	BGT	loop
-tail:
-	SUB	$1, R8
-	EXRL	$runtime·cmpbodyclc(SB), R8
-	BGT	gt
-	BLT	lt
-cmplengths:
-	CMP	R4, R6
-	BEQ	eq
-	BLT	lt
-gt:
-	MOVD	$1, 0(R7)
-	RET
-lt:
-	MOVD	$-1, 0(R7)
-	RET
-eq:
-	MOVD	$0, 0(R7)
-	RET
-
-TEXT runtime·cmpbodyclc(SB),NOSPLIT|NOFRAME,$0-0
-	CLC	$1, 0(R3), 0(R5)
-	RET
-
-// func supportsVX() bool
-TEXT strings·supportsVX(SB),NOSPLIT,$0-1
-	MOVBZ	runtime·cpu+facilities_hasVX(SB), R0
-	MOVB	R0, ret+0(FP)
-	RET
-
-// func supportsVX() bool
-TEXT bytes·supportsVX(SB),NOSPLIT,$0-1
-	MOVBZ	runtime·cpu+facilities_hasVX(SB), R0
-	MOVB	R0, ret+0(FP)
-	RET
-
-// func indexShortStr(s, sep string) int
-// Caller must confirm availability of vx facility before calling.
-TEXT strings·indexShortStr(SB),NOSPLIT|NOFRAME,$0-40
-	LMG	s+0(FP), R1, R2   // R1=&s[0],   R2=len(s)
-	LMG	sep+16(FP), R3, R4 // R3=&sep[0], R4=len(sep)
-	MOVD	$ret+32(FP), R5
-	BR	runtime·indexShortStr(SB)
-
-// func indexShortStr(s, sep []byte) int
-// Caller must confirm availability of vx facility before calling.
-TEXT bytes·indexShortStr(SB),NOSPLIT|NOFRAME,$0-56
-	LMG	s+0(FP), R1, R2    // R1=&s[0],   R2=len(s)
-	LMG	sep+24(FP), R3, R4 // R3=&sep[0], R4=len(sep)
-	MOVD	$ret+48(FP), R5
-	BR	runtime·indexShortStr(SB)
-
-// s: string we are searching
-// sep: string to search for
-// R1=&s[0], R2=len(s)
-// R3=&sep[0], R4=len(sep)
-// R5=&ret (int)
-// Caller must confirm availability of vx facility before calling.
-TEXT runtime·indexShortStr(SB),NOSPLIT|NOFRAME,$0
-	CMPBGT	R4, R2, notfound
-	ADD	R1, R2
-	SUB	R4, R2 // R2=&s[len(s)-len(sep)] (last valid index)
-	CMPBEQ	R4, $0, notfound
-	SUB	$1, R4 // R4=len(sep)-1 for use as VLL index
-	VLL	R4, (R3), V0 // contains first 16 bytes of sep
-	MOVD	R1, R7
-index2plus:
-	CMPBNE	R4, $1, index3plus
-	MOVD	$15(R7), R9
-	CMPBGE	R9, R2, index2to16
-	VGBM	$0xaaaa, V31       // 0xff00ff00ff00ff00...
-	VONE	V16
-	VREPH	$0, V0, V1
-	CMPBGE	R9, R2, index2to16
-index2loop:
-	VL	0(R7), V2          // 16 bytes, even indices
-	VL	1(R7), V4          // 16 bytes, odd indices
-	VCEQH	V1, V2, V5         // compare even indices
-	VCEQH	V1, V4, V6         // compare odd indices
-	VSEL	V5, V6, V31, V7    // merge even and odd indices
-	VFEEBS	V16, V7, V17       // find leftmost index, set condition to 1 if found
-	BLT	foundV17
-	MOVD	$16(R7), R7        // R7+=16
-	ADD	$15, R7, R9
-	CMPBLE	R9, R2, index2loop // continue if (R7+15) <= R2 (last index to search)
-	CMPBLE	R7, R2, index2to16
-	BR	notfound
-
-index3plus:
-	CMPBNE	R4, $2, index4plus
-	ADD	$15, R7, R9
-	CMPBGE	R9, R2, index2to16
-	MOVD	$1, R0
-	VGBM	$0xaaaa, V31       // 0xff00ff00ff00ff00...
-	VONE	V16
-	VREPH	$0, V0, V1
-	VREPB	$2, V0, V8
-index3loop:
-	VL	(R7), V2           // load 16-bytes into V2
-	VLL	R0, 16(R7), V3     // load 2-bytes into V3
-	VSLDB	$1, V2, V3, V4     // V4=(V2:V3)<<1
-	VSLDB	$2, V2, V3, V9     // V9=(V2:V3)<<2
-	VCEQH	V1, V2, V5         // compare 2-byte even indices
-	VCEQH	V1, V4, V6         // compare 2-byte odd indices
-	VCEQB	V8, V9, V10        // compare last bytes
-	VSEL	V5, V6, V31, V7    // merge even and odd indices
-	VN	V7, V10, V7        // AND indices with last byte
-	VFEEBS	V16, V7, V17       // find leftmost index, set condition to 1 if found
-	BLT	foundV17
-	MOVD	$16(R7), R7        // R7+=16
-	ADD	$15, R7, R9
-	CMPBLE	R9, R2, index3loop // continue if (R7+15) <= R2 (last index to search)
-	CMPBLE	R7, R2, index2to16
-	BR	notfound
-
-index4plus:
-	CMPBNE	R4, $3, index5plus
-	ADD	$15, R7, R9
-	CMPBGE	R9, R2, index2to16
-	MOVD	$2, R0
-	VGBM	$0x8888, V29       // 0xff000000ff000000...
-	VGBM	$0x2222, V30       // 0x0000ff000000ff00...
-	VGBM	$0xcccc, V31       // 0xffff0000ffff0000...
-	VONE	V16
-	VREPF	$0, V0, V1
-index4loop:
-	VL	(R7), V2           // load 16-bytes into V2
-	VLL	R0, 16(R7), V3     // load 3-bytes into V3
-	VSLDB	$1, V2, V3, V4     // V4=(V2:V3)<<1
-	VSLDB	$2, V2, V3, V9     // V9=(V2:V3)<<1
-	VSLDB	$3, V2, V3, V10    // V10=(V2:V3)<<1
-	VCEQF	V1, V2, V5         // compare index 0, 4, ...
-	VCEQF	V1, V4, V6         // compare index 1, 5, ...
-	VCEQF	V1, V9, V11        // compare index 2, 6, ...
-	VCEQF	V1, V10, V12       // compare index 3, 7, ...
-	VSEL	V5, V6, V29, V13   // merge index 0, 1, 4, 5, ...
-	VSEL	V11, V12, V30, V14 // merge index 2, 3, 6, 7, ...
-	VSEL	V13, V14, V31, V7  // final merge
-	VFEEBS	V16, V7, V17       // find leftmost index, set condition to 1 if found
-	BLT	foundV17
-	MOVD	$16(R7), R7        // R7+=16
-	ADD	$15, R7, R9
-	CMPBLE	R9, R2, index4loop // continue if (R7+15) <= R2 (last index to search)
-	CMPBLE	R7, R2, index2to16
-	BR	notfound
-
-index5plus:
-	CMPBGT	R4, $15, index17plus
-index2to16:
-	CMPBGT	R7, R2, notfound
-	MOVD	$1(R7), R8
-	CMPBGT	R8, R2, index2to16tail
-index2to16loop:
-	// unrolled 2x
-	VLL	R4, (R7), V1
-	VLL	R4, 1(R7), V2
-	VCEQGS	V0, V1, V3
-	BEQ	found
-	MOVD	$1(R7), R7
-	VCEQGS	V0, V2, V4
-	BEQ	found
-	MOVD	$1(R7), R7
-	CMPBLT	R7, R2, index2to16loop
-	CMPBGT	R7, R2, notfound
-index2to16tail:
-	VLL	R4, (R7), V1
-	VCEQGS	V0, V1, V2
-	BEQ	found
-	BR	notfound
-
-index17plus:
-	CMPBGT	R4, $31, index33plus
-	SUB	$16, R4, R0
-	VLL	R0, 16(R3), V1
-	VONE	V7
-index17to32loop:
-	VL	(R7), V2
-	VLL	R0, 16(R7), V3
-	VCEQG	V0, V2, V4
-	VCEQG	V1, V3, V5
-	VN	V4, V5, V6
-	VCEQGS	V6, V7, V8
-	BEQ	found
-	MOVD	$1(R7), R7
-	CMPBLE  R7, R2, index17to32loop
-	BR	notfound
-
-index33plus:
-	CMPBGT	R4, $47, index49plus
-	SUB	$32, R4, R0
-	VL	16(R3), V1
-	VLL	R0, 32(R3), V2
-	VONE	V11
-index33to48loop:
-	VL	(R7), V3
-	VL	16(R7), V4
-	VLL	R0, 32(R7), V5
-	VCEQG	V0, V3, V6
-	VCEQG	V1, V4, V7
-	VCEQG	V2, V5, V8
-	VN	V6, V7, V9
-	VN	V8, V9, V10
-	VCEQGS	V10, V11, V12
-	BEQ	found
-	MOVD	$1(R7), R7
-	CMPBLE  R7, R2, index33to48loop
-	BR	notfound
-
-index49plus:
-	CMPBGT	R4, $63, index65plus
-	SUB	$48, R4, R0
-	VL	16(R3), V1
-	VL	32(R3), V2
-	VLL	R0, 48(R3), V3
-	VONE	V15
-index49to64loop:
-	VL	(R7), V4
-	VL	16(R7), V5
-	VL	32(R7), V6
-	VLL	R0, 48(R7), V7
-	VCEQG	V0, V4, V8
-	VCEQG	V1, V5, V9
-	VCEQG	V2, V6, V10
-	VCEQG	V3, V7, V11
-	VN	V8, V9, V12
-	VN	V10, V11, V13
-	VN	V12, V13, V14
-	VCEQGS	V14, V15, V16
-	BEQ	found
-	MOVD	$1(R7), R7
-	CMPBLE  R7, R2, index49to64loop
-notfound:
-	MOVD	$-1, (R5)
-	RET
-
-index65plus:
-	// not implemented
-	MOVD	$0, (R0)
-	RET
-
-foundV17: // index is in doubleword V17[0]
-	VLGVG	$0, V17, R8
-	ADD	R8, R7
-found:
-	SUB	R1, R7
-	MOVD	R7, (R5)
-	RET
-
 // This is called from .init_array and follows the platform, not Go, ABI.
 // We are overly conservative. We could only save the registers we use.
 // However, since this function is only called once per loaded module
@@ -1303,3 +814,55 @@ TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
 TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	$1, ret+0(FP)
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - R2 is the destination of the write
+// - R3 is the value being written at R2.
+// It clobbers R10 (the temp register).
+// It does not clobber any other general-purpose registers,
+// but may clobber others (e.g., floating point registers).
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
+	// Save the registers clobbered by the fast path.
+	MOVD	R1, 96(R15)
+	MOVD	R4, 104(R15)
+	MOVD	g_m(g), R1
+	MOVD	m_p(R1), R1
+	// Increment wbBuf.next position.
+	MOVD	$16, R4
+	ADD	(p_wbBuf+wbBuf_next)(R1), R4
+	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
+	MOVD	(p_wbBuf+wbBuf_end)(R1), R1
+	// Record the write.
+	MOVD	R3, -16(R4) // Record value
+	MOVD	(R2), R10   // TODO: This turns bad writes into bad reads.
+	MOVD	R10, -8(R4) // Record *slot
+	// Is the buffer full?
+	CMPBEQ	R4, R1, flush
+ret:
+	MOVD	96(R15), R1
+	MOVD	104(R15), R4
+	// Do the write.
+	MOVD	R3, (R2)
+	RET
+
+flush:
+	// Save all general purpose registers since these could be
+	// clobbered by wbBufFlush and were not saved by the caller.
+	STMG	R2, R3, 8(R15)   // set R2 and R3 as arguments for wbBufFlush
+	MOVD	R0, 24(R15)
+	// R1 already saved.
+	// R4 already saved.
+	STMG	R5, R12, 32(R15) // save R5 - R12
+	// R13 is g.
+	// R14 is LR.
+	// R15 is SP.
+
+	// This takes arguments R2 and R3.
+	CALL	runtime·wbBufFlush(SB)
+
+	LMG	8(R15), R2, R3   // restore R2 - R3
+	MOVD	24(R15), R0      // restore R0
+	LMG	32(R15), R5, R12 // restore R5 - R12
+	JMP	ret

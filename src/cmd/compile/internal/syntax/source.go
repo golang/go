@@ -124,7 +124,8 @@ redo:
 	// EOF
 	if s.r == s.w {
 		if s.ioerr != io.EOF {
-			s.error(s.ioerr.Error())
+			// ensure we never start with a '/' (e.g., rooted path) in the error message
+			s.error("I/O error: " + s.ioerr.Error())
 		}
 		return -1
 	}
@@ -201,6 +202,10 @@ func (s *source) stopLit() []byte {
 	if len(s.lit) > 0 {
 		lit = append(s.lit, lit...)
 	}
-	s.suf = -1 // no pending literal
+	s.killLit()
 	return lit
+}
+
+func (s *source) killLit() {
+	s.suf = -1 // no pending literal
 }

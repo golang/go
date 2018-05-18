@@ -420,10 +420,10 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
 	// https://tools.ietf.org/html/rfc3447#section-8.1), that the
 	// salt length matches the hash length, and that the trailer
 	// field has the default value.
-	if !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes) ||
+	if (len(params.Hash.Parameters.FullBytes) != 0 && !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes)) ||
 		!params.MGF.Algorithm.Equal(oidMGF1) ||
 		!mgf1HashFunc.Algorithm.Equal(params.Hash.Algorithm) ||
-		!bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1.NullBytes) ||
+		(len(mgf1HashFunc.Parameters.FullBytes) != 0 && !bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1.NullBytes)) ||
 		params.TrailerField != 1 {
 		return UnknownSignatureAlgorithm
 	}
@@ -706,7 +706,9 @@ type Certificate struct {
 	OCSPServer            []string
 	IssuingCertificateURL []string
 
-	// Subject Alternate Name values
+	// Subject Alternate Name values. (Note that these values may not be valid
+	// if invalid values were contained within a parsed certificate. For
+	// example, an element of DNSNames may not be a valid DNS domain name.)
 	DNSNames       []string
 	EmailAddresses []string
 	IPAddresses    []net.IP
@@ -984,7 +986,7 @@ type distributionPoint struct {
 }
 
 type distributionPointName struct {
-	FullName     asn1.RawValue    `asn1:"optional,tag:0"`
+	FullName     []asn1.RawValue  `asn1:"optional,tag:0"`
 	RelativeName pkix.RDNSequence `asn1:"optional,tag:1"`
 }
 
@@ -1054,7 +1056,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 		namedCurveOID := new(asn1.ObjectIdentifier)
 		rest, err := asn1.Unmarshal(paramsData, namedCurveOID)
 		if err != nil {
-			return nil, err
+			return nil, errors.New("x509: failed to parse ECDSA parameters as named curve")
 		}
 		if len(rest) != 0 {
 			return nil, errors.New("x509: trailing data after ECDSA parameters")
@@ -1126,17 +1128,9 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
 	err = forEachSAN(value, func(tag int, data []byte) error {
 		switch tag {
 		case nameTypeEmail:
-			mailbox := string(data)
-			if _, ok := parseRFC2821Mailbox(mailbox); !ok {
-				return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
-			}
-			emailAddresses = append(emailAddresses, mailbox)
+			emailAddresses = append(emailAddresses, string(data))
 		case nameTypeDNS:
-			domain := string(data)
-			if _, ok := domainToReverseLabels(domain); !ok {
-				return fmt.Errorf("x509: cannot parse dnsName %q", string(data))
-			}
-			dnsNames = append(dnsNames, domain)
+			dnsNames = append(dnsNames, string(data))
 		case nameTypeURI:
 			uri, err := url.Parse(string(data))
 			if err != nil {
@@ -1153,7 +1147,7 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
 			case net.IPv4len, net.IPv6len:
 				ipAddresses = append(ipAddresses, data)
 			default:
-				return errors.New("x509: certificate contained IP address of length " + strconv.Itoa(len(data)))
+				return errors.New("x509: cannot parse IP address of length " + strconv.Itoa(len(data)))
 			}
 		}
 
@@ -1466,20 +1460,14 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 
 				for _, dp := range cdp {
 					// Per RFC 5280, 4.2.1.13, one of distributionPoint or cRLIssuer may be empty.
-					if len(dp.DistributionPoint.FullName.Bytes) == 0 {
+					if len(dp.DistributionPoint.FullName) == 0 {
 						continue
 					}
 
-					var n asn1.RawValue
-					if _, err := asn1.Unmarshal(dp.DistributionPoint.FullName.Bytes, &n); err != nil {
-						return nil, err
-					}
-					// Trailing data after the fullName is
-					// allowed because other elements of
-					// the SEQUENCE can appear.
-
-					if n.Tag == 6 {
-						out.CRLDistributionPoints = append(out.CRLDistributionPoints, string(n.Bytes))
+					for _, fullName := range dp.DistributionPoint.FullName {
+						if fullName.Tag == 6 {
+							out.CRLDistributionPoints = append(out.CRLDistributionPoints, string(fullName.Bytes))
+						}
 					}
 				}
 
@@ -1946,11 +1934,11 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 
 		var crlDp []distributionPoint
 		for _, name := range template.CRLDistributionPoints {
-			rawFullName, _ := asn1.Marshal(asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)})
-
 			dp := distributionPoint{
 				DistributionPoint: distributionPointName{
-					FullName: asn1.RawValue{Tag: 0, Class: 2, IsCompound: true, Bytes: rawFullName},
+					FullName: []asn1.RawValue{
+						asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)},
+					},
 				},
 			}
 			crlDp = append(crlDp, dp)
@@ -2329,7 +2317,7 @@ func newRawAttributes(attributes []pkix.AttributeTypeAndValueSET) ([]asn1.RawVal
 	return rawAttributes, nil
 }
 
-// parseRawAttributes Unmarshals RawAttributes intos AttributeTypeAndValueSETs.
+// parseRawAttributes Unmarshals RawAttributes into AttributeTypeAndValueSETs.
 func parseRawAttributes(rawAttributes []asn1.RawValue) []pkix.AttributeTypeAndValueSET {
 	var attributes []pkix.AttributeTypeAndValueSET
 	for _, rawAttr := range rawAttributes {
@@ -2422,75 +2410,94 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 
 	extensions = append(extensions, template.ExtraExtensions...)
 
-	var attributes []pkix.AttributeTypeAndValueSET
-	attributes = append(attributes, template.Attributes...)
+	// Make a copy of template.Attributes because we may alter it below.
+	attributes := make([]pkix.AttributeTypeAndValueSET, 0, len(template.Attributes))
+	for _, attr := range template.Attributes {
+		values := make([][]pkix.AttributeTypeAndValue, len(attr.Value))
+		copy(values, attr.Value)
+		attributes = append(attributes, pkix.AttributeTypeAndValueSET{
+			Type:  attr.Type,
+			Value: values,
+		})
+	}
 
+	extensionsAppended := false
 	if len(extensions) > 0 {
-		// specifiedExtensions contains all the extensions that we
-		// found specified via template.Attributes.
-		specifiedExtensions := make(map[string]bool)
-
-		for _, atvSet := range template.Attributes {
-			if !atvSet.Type.Equal(oidExtensionRequest) {
+		// Append the extensions to an existing attribute if possible.
+		for _, atvSet := range attributes {
+			if !atvSet.Type.Equal(oidExtensionRequest) || len(atvSet.Value) == 0 {
 				continue
 			}
+
+			// specifiedExtensions contains all the extensions that we
+			// found specified via template.Attributes.
+			specifiedExtensions := make(map[string]bool)
 
 			for _, atvs := range atvSet.Value {
 				for _, atv := range atvs {
 					specifiedExtensions[atv.Type.String()] = true
 				}
 			}
-		}
 
-		atvs := make([]pkix.AttributeTypeAndValue, 0, len(extensions))
-		for _, e := range extensions {
-			if specifiedExtensions[e.Id.String()] {
-				// Attributes already contained a value for
-				// this extension and it takes priority.
-				continue
+			newValue := make([]pkix.AttributeTypeAndValue, 0, len(atvSet.Value[0])+len(extensions))
+			newValue = append(newValue, atvSet.Value[0]...)
+
+			for _, e := range extensions {
+				if specifiedExtensions[e.Id.String()] {
+					// Attributes already contained a value for
+					// this extension and it takes priority.
+					continue
+				}
+
+				newValue = append(newValue, pkix.AttributeTypeAndValue{
+					// There is no place for the critical
+					// flag in an AttributeTypeAndValue.
+					Type:  e.Id,
+					Value: e.Value,
+				})
 			}
 
-			atvs = append(atvs, pkix.AttributeTypeAndValue{
-				// There is no place for the critical flag in a CSR.
-				Type:  e.Id,
-				Value: e.Value,
-			})
-		}
-
-		// Append the extensions to an existing attribute if possible.
-		appended := false
-		for _, atvSet := range attributes {
-			if !atvSet.Type.Equal(oidExtensionRequest) || len(atvSet.Value) == 0 {
-				continue
-			}
-
-			atvSet.Value[0] = append(atvSet.Value[0], atvs...)
-			appended = true
+			atvSet.Value[0] = newValue
+			extensionsAppended = true
 			break
-		}
-
-		// Otherwise, add a new attribute for the extensions.
-		if !appended {
-			attributes = append(attributes, pkix.AttributeTypeAndValueSET{
-				Type: oidExtensionRequest,
-				Value: [][]pkix.AttributeTypeAndValue{
-					atvs,
-				},
-			})
-		}
-	}
-
-	asn1Subject := template.RawSubject
-	if len(asn1Subject) == 0 {
-		asn1Subject, err = asn1.Marshal(template.Subject.ToRDNSequence())
-		if err != nil {
-			return
 		}
 	}
 
 	rawAttributes, err := newRawAttributes(attributes)
 	if err != nil {
 		return
+	}
+
+	// If not included in attributes, add a new attribute for the
+	// extensions.
+	if len(extensions) > 0 && !extensionsAppended {
+		attr := struct {
+			Type  asn1.ObjectIdentifier
+			Value [][]pkix.Extension `asn1:"set"`
+		}{
+			Type:  oidExtensionRequest,
+			Value: [][]pkix.Extension{extensions},
+		}
+
+		b, err := asn1.Marshal(attr)
+		if err != nil {
+			return nil, errors.New("x509: failed to serialise extensions attribute: " + err.Error())
+		}
+
+		var rawValue asn1.RawValue
+		if _, err := asn1.Unmarshal(b, &rawValue); err != nil {
+			return nil, err
+		}
+
+		rawAttributes = append(rawAttributes, rawValue)
+	}
+
+	asn1Subject := template.RawSubject
+	if len(asn1Subject) == 0 {
+		asn1Subject, err = asn1.Marshal(template.Subject.ToRDNSequence())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	tbsCSR := tbsCertificateRequest{
@@ -2549,7 +2556,7 @@ func ParseCertificateRequest(asn1Data []byte) (*CertificateRequest, error) {
 
 func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error) {
 	out := &CertificateRequest{
-		Raw: in.Raw,
+		Raw:                      in.Raw,
 		RawTBSCertificateRequest: in.TBSCSR.Raw,
 		RawSubjectPublicKeyInfo:  in.TBSCSR.PublicKey.Raw,
 		RawSubject:               in.TBSCSR.Subject.FullBytes,

@@ -5,7 +5,7 @@
 // This file implements sysSocket and accept for platforms that
 // provide a fast path for setting SetNonblock and CloseOnExec.
 
-// +build dragonfly freebsd linux
+// +build dragonfly freebsd linux netbsd openbsd
 
 package poll
 

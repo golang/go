@@ -1,4 +1,4 @@
-// +build !nacl,!plan9,!windows
+// +build !nacl,!js,!plan9,!windows
 // run
 
 // Copyright 2011 The Go Authors. All rights reserved.
@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 )
 
 func main() {
@@ -19,18 +20,19 @@ func main() {
 	errchk, err := filepath.Abs("errchk")
 	check(err)
 
-	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug345.dir"))
-	check(err)
+	bugDir := filepath.Join(".", "fixedbugs", "bug345.dir")
+	run("go", "tool", "compile", filepath.Join(bugDir, "io.go"))
+	run(errchk, "go", "tool", "compile", "-e", filepath.Join(bugDir, "main.go"))
 
-	run("go", "tool", "compile", "io.go")
-	run(errchk, "go", "tool", "compile", "-e", "main.go")
 	os.Remove("io.o")
 }
+
+var bugRE = regexp.MustCompile(`(?m)^BUG`)
 
 func run(name string, args ...string) {
 	cmd := exec.Command(name, args...)
 	out, err := cmd.CombinedOutput()
-	if err != nil {
+	if bugRE.Match(out) || err != nil {
 		fmt.Println(string(out))
 		fmt.Println(err)
 		os.Exit(1)

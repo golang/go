@@ -13,6 +13,9 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -23,6 +26,8 @@ func TestMain(m *testing.M) {
 		deathSignalParent()
 	} else if os.Getenv("GO_DEATHSIG_CHILD") == "1" {
 		deathSignalChild()
+	} else if os.Getenv("GO_SYSCALL_NOERROR") == "1" {
+		syscallNoError()
 	}
 
 	os.Exit(m.Run())
@@ -165,4 +170,83 @@ func TestParseNetlinkMessage(t *testing.T) {
 			t.Errorf("#%d: got %v; want nil", i, m)
 		}
 	}
+}
+
+func TestSyscallNoError(t *testing.T) {
+	// On Linux there are currently no syscalls which don't fail and return
+	// a value larger than 0xfffffffffffff001 so we could test RawSyscall
+	// vs. RawSyscallNoError on 64bit architectures.
+	if runtime.GOARCH != "386" && runtime.GOARCH != "arm" {
+		t.Skip("skipping on non-32bit architecture")
+	}
+
+	if os.Getuid() != 0 {
+		t.Skip("skipping root only test")
+	}
+
+	// Copy the test binary to a location that a non-root user can read/execute
+	// after we drop privileges
+	tempDir, err := ioutil.TempDir("", "TestSyscallNoError")
+	if err != nil {
+		t.Fatalf("cannot create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+	os.Chmod(tempDir, 0755)
+
+	tmpBinary := filepath.Join(tempDir, filepath.Base(os.Args[0]))
+
+	src, err := os.Open(os.Args[0])
+	if err != nil {
+		t.Fatalf("cannot open binary %q, %v", os.Args[0], err)
+	}
+	defer src.Close()
+
+	dst, err := os.OpenFile(tmpBinary, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		t.Fatalf("cannot create temporary binary %q, %v", tmpBinary, err)
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		t.Fatalf("failed to copy test binary to %q, %v", tmpBinary, err)
+	}
+	err = dst.Close()
+	if err != nil {
+		t.Fatalf("failed to close test binary %q, %v", tmpBinary, err)
+	}
+
+	uid := uint32(0xfffffffe)
+	err = os.Chown(tmpBinary, int(uid), -1)
+	if err != nil {
+		t.Fatalf("failed to chown test binary %q, %v", tmpBinary, err)
+	}
+
+	err = os.Chmod(tmpBinary, 0755|os.ModeSetuid)
+	if err != nil {
+		t.Fatalf("failed to set setuid bit on test binary %q, %v", tmpBinary, err)
+	}
+
+	cmd := exec.Command(tmpBinary)
+	cmd.Env = []string{"GO_SYSCALL_NOERROR=1"}
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to start first child process: %v", err)
+	}
+
+	got := strings.TrimSpace(string(out))
+	want := strconv.FormatUint(uint64(uid)+1, 10) + " / " +
+		strconv.FormatUint(uint64(-uid), 10) + " / " +
+		strconv.FormatUint(uint64(uid), 10)
+	if got != want {
+		t.Errorf("expected %s, got %s", want, got)
+	}
+}
+
+func syscallNoError() {
+	// Test that the return value from SYS_GETEUID32 (which cannot fail)
+	// doesn't get treated as an error (see https://golang.org/issue/22924)
+	euid1, _, e := syscall.RawSyscall(syscall.Sys_GETEUID, 0, 0, 0)
+	euid2, _ := syscall.RawSyscallNoError(syscall.Sys_GETEUID, 0, 0, 0)
+
+	fmt.Println(uintptr(euid1), "/", int(e), "/", uintptr(euid2))
+	os.Exit(0)
 }

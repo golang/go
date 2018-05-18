@@ -202,7 +202,7 @@ func validateInterfaceUnicastAddrs(ifat []Addr) (*routeStats, error) {
 				if 0 >= prefixLen || prefixLen > 8*IPv4len || maxPrefixLen != 8*IPv4len {
 					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
 				}
-				if ifa.IP.IsLoopback() && (prefixLen != 8 && prefixLen != 8*IPv4len) { // see RFC 1122
+				if ifa.IP.IsLoopback() && prefixLen < 8 { // see RFC 1122
 					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
 				}
 				stats.ipv4++

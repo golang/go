@@ -4,7 +4,7 @@
 
 package runtime
 
-import _ "unsafe" // for go:linkname
+import "internal/bytealg"
 
 // The Error interface identifies a run time error.
 type Error interface {
@@ -72,16 +72,13 @@ func typestring(x interface{}) string {
 	return e._type.string()
 }
 
-// For calling from C.
-// Prints an argument passed to panic.
+// printany prints an argument passed to panic.
+// If panic is called with a value that has a String or Error method,
+// it has already been converted into a string by preprintpanics.
 func printany(i interface{}) {
 	switch v := i.(type) {
 	case nil:
 		print("nil")
-	case stringer:
-		print(v.String())
-	case error:
-		print(v.Error())
 	case bool:
 		print(v)
 	case int:
@@ -121,11 +118,6 @@ func printany(i interface{}) {
 	}
 }
 
-// strings.IndexByte is implemented in runtime/asm_$goarch.s
-// but amusingly we need go:linkname to get access to it here in the runtime.
-//go:linkname stringsIndexByte strings.IndexByte
-func stringsIndexByte(s string, c byte) int
-
 // panicwrap generates a panic for a call to a wrapped value method
 // with a nil pointer receiver.
 //
@@ -136,7 +128,7 @@ func panicwrap() {
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
 	// Do it by finding the parens.
-	i := stringsIndexByte(name, '(')
+	i := bytealg.IndexByteString(name, '(')
 	if i < 0 {
 		throw("panicwrap: no ( in " + name)
 	}
@@ -145,7 +137,7 @@ func panicwrap() {
 		throw("panicwrap: unexpected string after package name: " + name)
 	}
 	name = name[i+2:]
-	i = stringsIndexByte(name, ')')
+	i = bytealg.IndexByteString(name, ')')
 	if i < 0 {
 		throw("panicwrap: no ) in " + name)
 	}

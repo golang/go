@@ -118,7 +118,7 @@ func (m *Mutex) Lock() {
 			// The goroutine has been woken from sleep,
 			// so we need to reset the flag in either case.
 			if new&mutexWoken == 0 {
-				panic("sync: inconsistent mutex state")
+				throw("sync: inconsistent mutex state")
 			}
 			new &^= mutexWoken
 		}
@@ -140,7 +140,7 @@ func (m *Mutex) Lock() {
 				// inconsistent state: mutexLocked is not set and we are still
 				// accounted as waiter. Fix that.
 				if old&(mutexLocked|mutexWoken) != 0 || old>>mutexWaiterShift == 0 {
-					panic("sync: inconsistent mutex state")
+					throw("sync: inconsistent mutex state")
 				}
 				delta := int32(mutexLocked - 1<<mutexWaiterShift)
 				if !starving || old>>mutexWaiterShift == 1 {
@@ -181,7 +181,7 @@ func (m *Mutex) Unlock() {
 	// Fast path: drop lock bit.
 	new := atomic.AddInt32(&m.state, -mutexLocked)
 	if (new+mutexLocked)&mutexLocked == 0 {
-		panic("sync: unlock of unlocked mutex")
+		throw("sync: unlock of unlocked mutex")
 	}
 	if new&mutexStarving == 0 {
 		old := new

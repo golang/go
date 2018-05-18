@@ -10,7 +10,7 @@
 //
 //	R1 - LR at moment of fault
 //	R2 - PC at moment of fault
-TEXT xx_cgo_panicmem(SB),NOSPLIT,$-8
+TEXT xx_cgo_panicmem(SB),NOSPLIT|NOFRAME,$0
 	// If in external C code, we need to load the g register.
 	BL  runtime·load_g(SB)
 	CMP $0, g

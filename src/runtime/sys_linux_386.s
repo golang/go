@@ -39,11 +39,11 @@
 #define SYS_setittimer		104
 #define SYS_clone		120
 #define SYS_sched_yield 	158
+#define SYS_nanosleep		162
 #define SYS_rt_sigreturn	173
 #define SYS_rt_sigaction	174
 #define SYS_rt_sigprocmask	175
 #define SYS_sigaltstack 	186
-#define SYS_ugetrlimit		191
 #define SYS_mmap2		192
 #define SYS_mincore		218
 #define SYS_madvise		219
@@ -57,7 +57,6 @@
 #define SYS_epoll_ctl		255
 #define SYS_epoll_wait		256
 #define SYS_clock_gettime	265
-#define SYS_pselect6		308
 #define SYS_epoll_create1	329
 
 TEXT runtime·exit(SB),NOSPLIT,$0
@@ -132,14 +131,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$0
-	MOVL	$SYS_ugetrlimit, AX
-	MOVL	kind+0(FP), BX
-	MOVL	limit+4(FP), CX
-	INVOKE_SYSCALL
-	MOVL	AX, ret+8(FP)
-	RET
-
 TEXT runtime·usleep(SB),NOSPLIT,$8
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
@@ -150,14 +141,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
 	MULL	DX
 	MOVL	AX, 4(SP)
 
-	// pselect6(0, 0, 0, 0, &ts, 0)
-	MOVL	$SYS_pselect6, AX
-	MOVL	$0, BX
+	// nanosleep(&ts, 0)
+	MOVL	$SYS_nanosleep, AX
+	LEAL	0(SP), BX
 	MOVL	$0, CX
-	MOVL	$0, DX
-	MOVL	$0, SI
-	LEAL	0(SP), DI
-	MOVL	$0, BP
 	INVOKE_SYSCALL
 	RET
 
@@ -211,13 +198,18 @@ TEXT runtime·walltime(SB), NOSPLIT, $0-12
 
 	get_tls(CX)
 	MOVL	g(CX), AX
-	MOVL	g_m(AX), CX
-	MOVL	m_curg(CX), DX
+	MOVL	g_m(AX), SI // SI unchanged by C code.
 
-	CMPL	AX, DX		// Only switch if on curg.
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVL	0(SP), DX
+	MOVL	DX, m_vdsoPC(SI)
+	LEAL	sec+0(SP), DX
+	MOVL	DX, m_vdsoSP(SI)
+
+	CMPL	AX, m_curg(SI)	// Only switch if on curg.
 	JNE	noswitch
 
-	MOVL	m_g0(CX), DX
+	MOVL	m_g0(SI), DX
 	MOVL	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
@@ -231,7 +223,7 @@ noswitch:
 	//     4    &ts             -
 	//     0    CLOCK_<id>      -
 
-	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
+	MOVL	runtime·vdsoClockgettimeSym(SB), AX
 	CMPL	AX, $0
 	JEQ	fallback
 
@@ -252,6 +244,7 @@ finish:
 	MOVL	12(SP), BX	// nsec
 
 	MOVL	BP, SP		// Restore real SP
+	MOVL	$0, m_vdsoSP(SI)
 
 	// sec is in AX, nsec in BX
 	MOVL	AX, sec_lo+0(FP)
@@ -268,20 +261,25 @@ TEXT runtime·nanotime(SB), NOSPLIT, $0-8
 
 	get_tls(CX)
 	MOVL	g(CX), AX
-	MOVL	g_m(AX), CX
-	MOVL	m_curg(CX), DX
+	MOVL	g_m(AX), SI // SI unchanged by C code.
 
-	CMPL	AX, DX		// Only switch if on curg.
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVL	0(SP), DX
+	MOVL	DX, m_vdsoPC(SI)
+	LEAL	ret+0(SP), DX
+	MOVL	DX, m_vdsoSP(SI)
+
+	CMPL	AX, m_curg(SI)	// Only switch if on curg.
 	JNE	noswitch
 
-	MOVL	m_g0(CX), DX
+	MOVL	m_g0(SI), DX
 	MOVL	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
 	SUBL	$16, SP		// Space for results
 	ANDL	$~15, SP	// Align for C code
 
-	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
+	MOVL	runtime·vdsoClockgettimeSym(SB), AX
 	CMPL	AX, $0
 	JEQ	fallback
 
@@ -302,6 +300,7 @@ finish:
 	MOVL	12(SP), BX	// nsec
 
 	MOVL	BP, SP		// Restore real SP
+	MOVL	$0, m_vdsoSP(SI)
 
 	// sec is in AX, nsec in BX
 	// convert to DX:AX nsec

@@ -64,7 +64,6 @@ func (tr *Reader) next() (*Header, error) {
 	// normally be visible to the outside. As such, this loop iterates through
 	// one or more "header files" until it finds a "normal file".
 	format := FormatUSTAR | FormatPAX | FormatGNU
-loop:
 	for {
 		// Discard the remainder of the file and any padding.
 		if err := discard(tr.r, tr.curr.PhysicalRemaining()); err != nil {
@@ -102,7 +101,7 @@ loop:
 					Format:     format,
 				}, nil
 			}
-			continue loop // This is a meta header affecting the next header
+			continue // This is a meta header affecting the next header
 		case TypeGNULongName, TypeGNULongLink:
 			format.mayOnlyBe(FormatGNU)
 			realname, err := ioutil.ReadAll(tr)
@@ -117,7 +116,7 @@ loop:
 			case TypeGNULongLink:
 				gnuLongLink = p.parseString(realname)
 			}
-			continue loop // This is a meta header affecting the next header
+			continue // This is a meta header affecting the next header
 		default:
 			// The old GNU sparse format is handled here since it is technically
 			// just a regular file with additional attributes.
@@ -131,8 +130,12 @@ loop:
 			if gnuLongLink != "" {
 				hdr.Linkname = gnuLongLink
 			}
-			if hdr.Typeflag == TypeRegA && strings.HasSuffix(hdr.Name, "/") {
-				hdr.Typeflag = TypeDir // Legacy archives use trailing slash for directories
+			if hdr.Typeflag == TypeRegA {
+				if strings.HasSuffix(hdr.Name, "/") {
+					hdr.Typeflag = TypeDir // Legacy archives use trailing slash for directories
+				} else {
+					hdr.Typeflag = TypeReg
+				}
 			}
 
 			// The extended headers may have updated the size.
@@ -200,7 +203,7 @@ func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block) error {
 // readGNUSparsePAXHeaders checks the PAX headers for GNU sparse headers.
 // If they are found, then this function reads the sparse map and returns it.
 // This assumes that 0.0 headers have already been converted to 0.1 headers
-// by the the PAX header parsing logic.
+// by the PAX header parsing logic.
 func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header) (sparseDatas, error) {
 	// Identify the version of GNU headers.
 	var is1x0 bool

@@ -39,7 +39,7 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
 	if err := checkPub(pub); err != nil {
 		return nil, err
 	}
-	k := (pub.N.BitLen() + 7) / 8
+	k := pub.Size()
 	if len(msg) > k-11 {
 		return nil, ErrMessageTooLong
 	}
@@ -138,7 +138,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return err
 	}
-	k := (priv.N.BitLen() + 7) / 8
+	k := priv.Size()
 	if k-(len(key)+3+8) < 0 {
 		return ErrDecryption
 	}
@@ -166,7 +166,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 // in order to maintain constant memory access patterns. If the plaintext was
 // valid then index contains the index of the original message in em.
 func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
-	k := (priv.N.BitLen() + 7) / 8
+	k := priv.Size()
 	if k < 11 {
 		err = ErrDecryption
 		return
@@ -278,7 +278,7 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 	}
 
 	tLen := len(prefix) + hashLen
-	k := (priv.N.BitLen() + 7) / 8
+	k := priv.Size()
 	if k < tLen+11 {
 		return nil, ErrMessageTooLong
 	}
@@ -334,7 +334,7 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 	}
 
 	tLen := len(prefix) + hashLen
-	k := (pub.N.BitLen() + 7) / 8
+	k := pub.Size()
 	if k < tLen+11 {
 		return ErrVerification
 	}

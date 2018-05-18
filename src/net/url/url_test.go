@@ -1433,8 +1433,8 @@ func TestParseErrors(t *testing.T) {
 		{"mysql://x@y(1.2.3.4:123)/foo", false},
 
 		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
-		{"http://a b.com/", true},                                                                       // no space in host name please
-		{"cache_object://foo", true},                                                                    // scheme cannot have _, relative path cannot have : in first segment
+		{"http://a b.com/", true},    // no space in host name please
+		{"cache_object://foo", true}, // scheme cannot have _, relative path cannot have : in first segment
 		{"cache_object:foo", true},
 		{"cache_object:foo/bar", true},
 		{"cache_object/:foo/bar", false},
@@ -1733,5 +1733,12 @@ func TestNilUser(t *testing.T) {
 
 	if v := u.User.String(); v != "" {
 		t.Fatalf("expected empty string, got %s", v)
+	}
+}
+
+func TestInvalidUserPassword(t *testing.T) {
+	_, err := Parse("http://us\ner:pass\nword@foo.com/")
+	if got, wantsub := fmt.Sprint(err), "net/url: invalid userinfo"; !strings.Contains(got, wantsub) {
+		t.Errorf("error = %q; want substring %q", got, wantsub)
 	}
 }

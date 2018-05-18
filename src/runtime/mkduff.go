@@ -153,7 +153,7 @@ func zeroARM64(w io.Writer) {
 	// ZR: always zero
 	// R16 (aka REGRT1): ptr to memory to be zeroed
 	// On return, R16 points to the last zeroed dword.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 63; i++ {
 		fmt.Fprintln(w, "\tSTP.P\t(ZR, ZR), 16(R16)")
 	}
@@ -164,12 +164,13 @@ func zeroARM64(w io.Writer) {
 func copyARM64(w io.Writer) {
 	// R16 (aka REGRT1): ptr to source memory
 	// R17 (aka REGRT2): ptr to destination memory
-	// R27 (aka REGTMP): scratch space
+	// R26, R27 (aka REGTMP): scratch space
 	// R16 and R17 are updated as a side effect
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
-	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVD.P\t8(R16), R27")
-		fmt.Fprintln(w, "\tMOVD.P\tR27, 8(R17)")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+
+	for i := 0; i < 64; i++ {
+		fmt.Fprintln(w, "\tLDP.P\t16(R16), (R26, R27)")
+		fmt.Fprintln(w, "\tSTP.P\t(R26, R27), 16(R17)")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")
@@ -206,7 +207,7 @@ func zeroMIPS64x(w io.Writer) {
 	// R0: always zero
 	// R1 (aka REGRT1): ptr to memory to be zeroed - 8
 	// On return, R1 points to the last zeroed dword.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
 		fmt.Fprintln(w, "\tMOVV\tR0, 8(R1)")
 		fmt.Fprintln(w, "\tADDV\t$8, R1")

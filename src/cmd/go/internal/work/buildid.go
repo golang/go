@@ -7,6 +7,7 @@ package work
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -203,6 +204,134 @@ func (b *Builder) toolID(name string) string {
 	return id
 }
 
+// gccToolID returns the unique ID to use for a tool that is invoked
+// by the GCC driver. This is in particular gccgo, but this can also
+// be used for gcc, g++, gfortran, etc.; those tools all use the GCC
+// driver under different names. The approach used here should also
+// work for sufficiently new versions of clang. Unlike toolID, the
+// name argument is the program to run. The language argument is the
+// type of input file as passed to the GCC driver's -x option.
+//
+// For these tools we have no -V=full option to dump the build ID,
+// but we can run the tool with -v -### to reliably get the compiler proper
+// and hash that. That will work in the presence of -toolexec.
+//
+// In order to get reproducible builds for released compilers, we
+// detect a released compiler by the absence of "experimental" in the
+// --version output, and in that case we just use the version string.
+func (b *Builder) gccgoToolID(name, language string) (string, error) {
+	key := name + "." + language
+	b.id.Lock()
+	id := b.toolIDCache[key]
+	b.id.Unlock()
+
+	if id != "" {
+		return id, nil
+	}
+
+	// Invoke the driver with -### to see the subcommands and the
+	// version strings. Use -x to set the language. Pretend to
+	// compile an empty file on standard input.
+	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
+	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	// Force untranslated output so that we see the string "version".
+	cmd.Env = append(cmd.Env, "LC_ALL=C")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("%s: %v; output: %q", name, err, out)
+	}
+
+	version := ""
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if fields := strings.Fields(line); len(fields) > 1 && fields[1] == "version" {
+			version = line
+			break
+		}
+	}
+	if version == "" {
+		return "", fmt.Errorf("%s: can not find version number in %q", name, out)
+	}
+
+	if !strings.Contains(version, "experimental") {
+		// This is a release. Use this line as the tool ID.
+		id = version
+	} else {
+		// This is a development version. The first line with
+		// a leading space is the compiler proper.
+		compiler := ""
+		for _, line := range lines {
+			if len(line) > 1 && line[0] == ' ' {
+				compiler = line
+				break
+			}
+		}
+		if compiler == "" {
+			return "", fmt.Errorf("%s: can not find compilation command in %q", name, out)
+		}
+
+		fields := strings.Fields(compiler)
+		if len(fields) == 0 {
+			return "", fmt.Errorf("%s: compilation command confusion %q", name, out)
+		}
+		exe := fields[0]
+		if !strings.ContainsAny(exe, `/\`) {
+			if lp, err := exec.LookPath(exe); err == nil {
+				exe = lp
+			}
+		}
+		if _, err := os.Stat(exe); err != nil {
+			return "", fmt.Errorf("%s: can not find compiler %q: %v; output %q", name, exe, err, out)
+		}
+		id = b.fileHash(exe)
+	}
+
+	b.id.Lock()
+	b.toolIDCache[name] = id
+	b.id.Unlock()
+
+	return id, nil
+}
+
+// gccgoBuildIDELFFile creates an assembler file that records the
+// action's build ID in an SHF_EXCLUDE section.
+func (b *Builder) gccgoBuildIDELFFile(a *Action) (string, error) {
+	sfile := a.Objdir + "_buildid.s"
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "\t"+`.section .go.buildid,"e"`+"\n")
+	fmt.Fprintf(&buf, "\t.byte ")
+	for i := 0; i < len(a.buildID); i++ {
+		if i > 0 {
+			if i%8 == 0 {
+				fmt.Fprintf(&buf, "\n\t.byte ")
+			} else {
+				fmt.Fprintf(&buf, ",")
+			}
+		}
+		fmt.Fprintf(&buf, "%#02x", a.buildID[i])
+	}
+	fmt.Fprintf(&buf, "\n")
+	fmt.Fprintf(&buf, "\t"+`.section .note.GNU-stack,"",@progbits`+"\n")
+	fmt.Fprintf(&buf, "\t"+`.section .note.GNU-split-stack,"",@progbits`+"\n")
+
+	if cfg.BuildN || cfg.BuildX {
+		for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
+			b.Showcmd("", "echo '%s' >> %s", line, sfile)
+		}
+		if cfg.BuildN {
+			return sfile, nil
+		}
+	}
+
+	if err := ioutil.WriteFile(sfile, buf.Bytes(), 0666); err != nil {
+		return "", err
+	}
+
+	return sfile, nil
+}
+
 // buildID returns the build ID found in the given file.
 // If no build ID is found, buildID returns the content hash of the file.
 func (b *Builder) buildID(file string) string {
@@ -270,15 +399,7 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// If so, it's up to date and we can reuse it instead of rebuilding it.
 	var buildID string
 	if target != "" && !cfg.BuildA {
-		var err error
-		buildID, err = buildid.ReadFile(target)
-		if err != nil && b.ComputeStaleOnly {
-			if p != nil && !p.Stale {
-				p.Stale = true
-				p.StaleReason = "target missing"
-			}
-			return true
-		}
+		buildID, _ = buildid.ReadFile(target)
 		if strings.HasPrefix(buildID, actionID+buildIDSeparator) {
 			a.buildID = buildID
 			a.built = target
@@ -355,7 +476,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 				}
 			}
 		}
-		return true
+
+		// Fall through to update a.buildID from the build artifact cache,
+		// which will affect the computation of buildIDs for targets
+		// higher up in the dependency graph.
 	}
 
 	// Check the build artifact cache.
@@ -383,6 +507,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 						a.built = file
 						a.Target = "DO NOT USE - using cache"
 						a.buildID = buildID
+						if p := a.Package; p != nil {
+							// Clearer than explaining that something else is stale.
+							p.StaleReason = "not installed but available in build cache"
+						}
 						return true
 					}
 				}
@@ -391,6 +519,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 
 		// Begin saving output for later writing to cache.
 		a.output = []byte{}
+	}
+
+	if b.ComputeStaleOnly {
+		return true
 	}
 
 	return false
@@ -408,6 +540,8 @@ func (b *Builder) flushOutput(a *Action) {
 // a.buildID to record as the build ID in the resulting package or binary.
 // updateBuildID computes the final content ID and updates the build IDs
 // in the binary.
+//
+// Keep in sync with src/cmd/buildid/buildid.go
 func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	if cfg.BuildX || cfg.BuildN {
 		if rewrite {

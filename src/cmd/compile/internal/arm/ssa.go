@@ -121,7 +121,7 @@ func genregshift(s *gc.SSAGenState, as obj.As, r0, r1, r2, r int16, typ int64) *
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpARMMOVWconvert, ssa.OpARMMOVWreg:
+	case ssa.OpCopy, ssa.OpARMMOVWreg:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -660,6 +660,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.Udiv
+	case ssa.OpARMLoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
 	case ssa.OpARMDUFFZERO:
 		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
@@ -792,6 +797,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARMLoweredGetCallerPC:
+		p := s.Prog(obj.AGETCALLERPC)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpARMFlagEQ,
 		ssa.OpARMFlagLT_ULT,
 		ssa.OpARMFlagLT_UGT,
@@ -879,23 +888,19 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockARMULT, ssa.BlockARMUGT,
 		ssa.BlockARMULE, ssa.BlockARMUGE:
 		jmp := blockJump[b.Kind]
-		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			s.Br(jmp.invasm, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				s.Br(jmp.asm, b.Succs[0].Block())
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				s.Br(jmp.invasm, b.Succs[1].Block())
+				s.Br(obj.AJMP, b.Succs[0].Block())
+			}
 		}
 
 	default:

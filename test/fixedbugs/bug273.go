@@ -8,13 +8,15 @@
 
 package main
 
+import "unsafe"
+
 var bug = false
 
 var minus1 = -1
 var five = 5
-var big int64 = 10 | 1<<32
+var big int64 = 10 | 1<<40
 
-type block [1<<19]byte
+type block [1 << 19]byte
 
 var g1 []block
 
@@ -48,9 +50,10 @@ func bigcap() {
 	g1 = make([]block, 10, big)
 }
 
-type cblock [1<<16-1]byte
+type cblock [1<<16 - 1]byte
 
 var g4 chan cblock
+
 func badchancap() {
 	g4 = make(chan cblock, minus1)
 }
@@ -60,7 +63,8 @@ func bigchancap() {
 }
 
 func overflowchan() {
-	g4 = make(chan cblock, 1<<30)
+	const ptrSize = unsafe.Sizeof(uintptr(0))
+	g4 = make(chan cblock, 1<<(30*(ptrSize/4)))
 }
 
 func main() {

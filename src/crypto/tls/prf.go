@@ -360,3 +360,43 @@ func (h finishedHash) hashForClientCertificate(sigType uint8, signatureAlgorithm
 func (h *finishedHash) discardHandshakeBuffer() {
 	h.buffer = nil
 }
+
+// noExportedKeyingMaterial is used as a value of
+// ConnectionState.ExportKeyingMaterial when renegotation is enabled and thus
+// we wish to fail all key-material export requests.
+func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte, bool) {
+	return nil, false
+}
+
+// ekmFromMasterSecret generates exported keying material as defined in
+// https://tools.ietf.org/html/rfc5705.
+func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte) func(string, []byte, int) ([]byte, bool) {
+	return func(label string, context []byte, length int) ([]byte, bool) {
+		switch label {
+		case "client finished", "server finished", "master secret", "key expansion":
+			// These values are reserved and may not be used.
+			return nil, false
+		}
+
+		seedLen := len(serverRandom) + len(clientRandom)
+		if context != nil {
+			seedLen += 2 + len(context)
+		}
+		seed := make([]byte, 0, seedLen)
+
+		seed = append(seed, clientRandom...)
+		seed = append(seed, serverRandom...)
+
+		if context != nil {
+			if len(context) >= 1<<16 {
+				return nil, false
+			}
+			seed = append(seed, byte(len(context)>>8), byte(len(context)))
+			seed = append(seed, context...)
+		}
+
+		keyMaterial := make([]byte, length)
+		prfForVersion(version, suite)(keyMaterial, masterSecret, []byte(label), seed)
+		return keyMaterial, true
+	}
+}

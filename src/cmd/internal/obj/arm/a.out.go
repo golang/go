@@ -86,7 +86,6 @@ const (
 	REG_CPSR // must be 2-aligned
 	REG_SPSR
 
-	MAXREG
 	REGRET = REG_R0
 	/* compiler allocates R1 up as temps */
 	/* compiler allocates register variables R3 up */
@@ -110,6 +109,36 @@ const (
 	FREGTMP = REG_F15
 )
 
+// http://infocenter.arm.com/help/topic/com.arm.doc.ihi0040b/IHI0040B_aadwarf.pdf
+var ARMDWARFRegisters = map[int16]int16{}
+
+func init() {
+	// f assigns dwarfregisters[from:to] = (base):(step*(to-from)+base)
+	f := func(from, to, base, step int16) {
+		for r := int16(from); r <= to; r++ {
+			ARMDWARFRegisters[r] = step*(r-from) + base
+		}
+	}
+	f(REG_R0, REG_R15, 0, 1)
+	f(REG_F0, REG_F15, 64, 2) // Use d0 through D15, aka S0, S2, ..., S30
+}
+
+// Special registers, after subtracting obj.RBaseARM, bit 9 indicates
+// a special register and the low bits select the register.
+const (
+	REG_SPECIAL = obj.RBaseARM + 1<<9 + iota
+	REG_MB_SY
+	REG_MB_ST
+	REG_MB_ISH
+	REG_MB_ISHST
+	REG_MB_NSH
+	REG_MB_NSHST
+	REG_MB_OSH
+	REG_MB_OSHST
+
+	MAXREG
+)
+
 const (
 	C_NONE = iota
 	C_REG
@@ -121,6 +150,7 @@ const (
 	C_FREG
 	C_PSR
 	C_FCR
+	C_SPR /* REG_MB_SY */
 
 	C_RCON   /* 0xff rotated */
 	C_NCON   /* ~RCON */
@@ -304,6 +334,8 @@ const (
 	ASTREX
 	ALDREXD
 	ASTREXD
+
+	ADMB
 
 	APLD
 

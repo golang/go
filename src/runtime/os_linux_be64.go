@@ -4,6 +4,7 @@
 
 // The standard GNU/Linux sigset type on big-endian 64-bit machines.
 
+// +build linux
 // +build ppc64 s390x
 
 package runtime
@@ -15,15 +16,9 @@ const (
 	_SIG_BLOCK   = 0
 	_SIG_UNBLOCK = 1
 	_SIG_SETMASK = 2
-	_RLIMIT_AS   = 9
 )
 
 type sigset uint64
-
-type rlimit struct {
-	rlim_cur uintptr
-	rlim_max uintptr
-}
 
 var sigset_all = sigset(^uint64(0))
 

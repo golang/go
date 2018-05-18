@@ -13,7 +13,7 @@
 //      0: disabled
 //      1: 80-nodes leaf functions, oneliners, lazy typechecking (default)
 //      2: (unassigned)
-//      3: allow variadic functions
+//      3: (unassigned)
 //      4: allow non-leaf functions
 //
 // At some point this may get another default and become switch-offable with -N.
@@ -23,9 +23,6 @@
 //
 // The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
 // which calls get inlined or not, more is for debugging, and may go away at any point.
-//
-// TODO:
-//   - inline functions with ... args
 
 package gc
 
@@ -34,7 +31,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -63,6 +59,10 @@ func fnpkg(fn *Node) *types.Pkg {
 func typecheckinl(fn *Node) {
 	lno := setlineno(fn)
 
+	if flagiexport {
+		expandInline(fn)
+	}
+
 	// typecheckinl is only for imported functions;
 	// their bodies may refer to unsafe as long as the package
 	// was marked safe during import (which was checked then).
@@ -74,7 +74,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	if Debug['m'] > 2 || Debug_export != 0 {
-		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, fn.Func.Inl)
+		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, asNodes(fn.Func.Inl.Body))
 	}
 
 	save_safemode := safemode
@@ -82,8 +82,15 @@ func typecheckinl(fn *Node) {
 
 	savefn := Curfn
 	Curfn = fn
-	typecheckslice(fn.Func.Inl.Slice(), Etop)
+	typecheckslice(fn.Func.Inl.Body, Etop)
 	Curfn = savefn
+
+	// During typechecking, declarations are added to
+	// Curfn.Func.Dcl. Move them to Inl.Dcl for consistency with
+	// how local functions behave. (Append because typecheckinl
+	// may be called multiple times.)
+	fn.Func.Inl.Dcl = append(fn.Func.Inl.Dcl, fn.Func.Dcl...)
+	fn.Func.Dcl = nil
 
 	safemode = save_safemode
 
@@ -142,28 +149,6 @@ func caninl(fn *Node) {
 		Fatalf("caninl on non-typechecked function %v", fn)
 	}
 
-	// can't handle ... args yet
-	if Debug['l'] < 3 {
-		f := fn.Type.Params().Fields()
-		if len := f.Len(); len > 0 {
-			if t := f.Index(len - 1); t.Isddd() {
-				reason = "has ... args"
-				return
-			}
-		}
-	}
-
-	// Runtime package must not be instrumented.
-	// Instrument skips runtime package. However, some runtime code can be
-	// inlined into other packages and instrumented there. To avoid this,
-	// we disable inlining of runtime functions when instrumenting.
-	// The example that we observed is inlining of LockOSThread,
-	// which lead to false race reports on m contents.
-	if instrumenting && myimportpath == "runtime" {
-		reason = "instrumenting and is runtime function"
-		return
-	}
-
 	n := fn.Func.Nname
 	if n.Func.InlinabilityChecked() {
 		return
@@ -181,26 +166,21 @@ func caninl(fn *Node) {
 		return
 	}
 
-	savefn := Curfn
-	Curfn = fn
-
-	n.Func.Inl.Set(fn.Nbody.Slice())
-	fn.Nbody.Set(inlcopylist(n.Func.Inl.Slice()))
-	inldcl := inlcopylist(n.Name.Defn.Func.Dcl)
-	n.Func.Inldcl.Set(inldcl)
-	n.Func.InlCost = maxBudget - visitor.budget
+	n.Func.Inl = &Inline{
+		Cost: maxBudget - visitor.budget,
+		Dcl:  inlcopylist(n.Name.Defn.Func.Dcl),
+		Body: inlcopylist(fn.Nbody.Slice()),
+	}
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
 	fn.Type.FuncType().Nname = asTypesNode(n)
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %#v as: %#v { %#v }\n", fn.Line(), n, fn.Type, n.Func.Inl)
+		fmt.Printf("%v: can inline %#v as: %#v { %#v }\n", fn.Line(), n, fn.Type, asNodes(n.Func.Inl.Body))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
 	}
-
-	Curfn = savefn
 }
 
 // inlFlood marks n's inline body for export and recursively ensures
@@ -213,13 +193,9 @@ func inlFlood(n *Node) {
 		Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op, n.Class())
 	}
 	if n.Func == nil {
-		// TODO(mdempsky): Should init have a Func too?
-		if n.Sym.Name == "init" {
-			return
-		}
 		Fatalf("inlFlood: missing Func on %v", n)
 	}
-	if n.Func.Inl.Len() == 0 {
+	if n.Func.Inl == nil {
 		return
 	}
 
@@ -230,10 +206,20 @@ func inlFlood(n *Node) {
 
 	typecheckinl(n)
 
-	// Recursively flood any functions called by this one.
-	inspectList(n.Func.Inl, func(n *Node) bool {
+	inspectList(asNodes(n.Func.Inl.Body), func(n *Node) bool {
 		switch n.Op {
+		case ONAME:
+			// Mark any referenced global variables or
+			// functions for reexport. Skip methods,
+			// because they're reexported alongside their
+			// receiver type.
+			if n.Class() == PEXTERN || n.Class() == PFUNC && !n.isMethodExpression() {
+				exportsym(n)
+			}
+
 		case OCALLFUNC, OCALLMETH:
+			// Recursively flood any functions called by
+			// this one.
 			inlFlood(asNode(n.Left.Type.Nname()))
 		}
 		return true
@@ -279,37 +265,18 @@ func (v *hairyVisitor) visit(n *Node) bool {
 			}
 		}
 
-		if fn := n.Left.Func; fn != nil && fn.Inl.Len() != 0 {
-			v.budget -= fn.InlCost
+		if fn := n.Left.Func; fn != nil && fn.Inl != nil {
+			v.budget -= fn.Inl.Cost
 			break
 		}
-		if n.Left.Op == OCLOSURE {
-			if fn := inlinableClosure(n.Left); fn != nil {
-				v.budget -= fn.Func.InlCost
-				break
-			}
-		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
-			// NB: this case currently cannot trigger since closure definition
-			// prevents inlining
-			// NB: ideally we would also handle captured variables defined as
-			// closures in the outer scope this brings us back to the idea of
-			// function value propagation, which if available would both avoid
-			// the "reassigned" check and neatly handle multiple use cases in a
-			// single code path
-			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
-				if fn := inlinableClosure(d.Right); fn != nil {
-					v.budget -= fn.Func.InlCost
-					break
-				}
-			}
-		}
-
 		if n.Left.isMethodExpression() {
-			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl.Len() != 0 {
-				v.budget -= d.Func.InlCost
+			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl != nil {
+				v.budget -= d.Func.Inl.Cost
 				break
 			}
 		}
+		// TODO(mdempsky): Budget for OCLOSURE calls if we
+		// ever allow that. See #15561 and #23093.
 		if Debug['l'] < 4 {
 			v.reason = "non-leaf function"
 			return true
@@ -324,8 +291,23 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		if t.Nname() == nil {
 			Fatalf("no function definition for [%p] %+v\n", t, t)
 		}
-		if inlfn := asNode(t.FuncType().Nname).Func; inlfn.Inl.Len() != 0 {
-			v.budget -= inlfn.InlCost
+		if isRuntimePkg(n.Left.Sym.Pkg) {
+			fn := n.Left.Sym.Name
+			if fn == "heapBits.nextArena" {
+				// Special case: explicitly allow
+				// mid-stack inlining of
+				// runtime.heapBits.next even though
+				// it calls slow-path
+				// runtime.heapBits.nextArena.
+				//
+				// TODO(austin): Once mid-stack
+				// inlining is the default, remove
+				// this special case.
+				break
+			}
+		}
+		if inlfn := asNode(t.FuncType().Nname).Func; inlfn.Inl != nil {
+			v.budget -= inlfn.Inl.Cost
 			break
 		}
 		if Debug['l'] < 4 {
@@ -334,11 +316,17 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		}
 
 	// Things that are too hairy, irrespective of the budget
-	case OCALL, OCALLINTER, OPANIC, ORECOVER:
+	case OCALL, OCALLINTER, OPANIC:
 		if Debug['l'] < 4 {
 			v.reason = "non-leaf op " + n.Op.String()
 			return true
 		}
+
+	case ORECOVER:
+		// recover matches the argument frame pointer to find
+		// the right panic value, so it needs an argument frame.
+		v.reason = "call to recover"
+		return true
 
 	case OCLOSURE,
 		OCALLPART,
@@ -358,6 +346,13 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	case ODCLCONST, OEMPTY, OFALL, OLABEL:
 		// These nodes don't produce code; omit from inlining budget.
 		return false
+
+	case OIF:
+		if Isconst(n.Left, CTBOOL) {
+			// This if and the condition cost nothing.
+			return v.visitList(n.Ninit) || v.visitList(n.Nbody) ||
+				v.visitList(n.Rlist)
+		}
 	}
 
 	v.budget--
@@ -403,9 +398,9 @@ func inlcopy(n *Node) *Node {
 		return n
 	}
 
-	m := *n
+	m := n.copy()
 	if m.Func != nil {
-		m.Func.Inl.Set(nil)
+		Fatalf("unexpected Func: %v", m)
 	}
 	m.Left = inlcopy(n.Left)
 	m.Right = inlcopy(n.Right)
@@ -414,7 +409,7 @@ func inlcopy(n *Node) *Node {
 	m.Ninit.Set(inlcopylist(n.Ninit.Slice()))
 	m.Nbody.Set(inlcopylist(n.Nbody.Slice()))
 
-	return &m
+	return m
 }
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
@@ -594,13 +589,13 @@ func inlnode(n *Node) *Node {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
 		}
-		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall(n) { // normal case
-			n = mkinlcall(n, n.Left, n.Isddd())
+		if n.Left.Func != nil && n.Left.Func.Inl != nil && !isIntrinsicCall(n) { // normal case
+			n = mkinlcall(n, n.Left)
 		} else if n.Left.isMethodExpression() && asNode(n.Left.Sym.Def) != nil {
-			n = mkinlcall(n, asNode(n.Left.Sym.Def), n.Isddd())
+			n = mkinlcall(n, asNode(n.Left.Sym.Def))
 		} else if n.Left.Op == OCLOSURE {
 			if f := inlinableClosure(n.Left); f != nil {
-				n = mkinlcall(n, f, n.Isddd())
+				n = mkinlcall(n, f)
 			}
 		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
 			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
@@ -626,7 +621,7 @@ func inlnode(n *Node) *Node {
 						}
 						break
 					}
-					n = mkinlcall(n, f, n.Isddd())
+					n = mkinlcall(n, f)
 				}
 			}
 		}
@@ -645,7 +640,7 @@ func inlnode(n *Node) *Node {
 			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
 		}
 
-		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname), n.Isddd())
+		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname))
 	}
 
 	lineno = lno
@@ -658,7 +653,7 @@ func inlinableClosure(n *Node) *Node {
 	c := n.Func.Closure
 	caninl(c)
 	f := c.Func.Nname
-	if f == nil || f.Func.Inl.Len() == 0 {
+	if f == nil || f.Func.Inl == nil {
 		return nil
 	}
 	return f
@@ -746,7 +741,7 @@ func (v *reassignVisitor) visitList(l Nodes) *Node {
 
 // The result of mkinlcall MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
+func mkinlcall(n *Node, fn *Node) *Node {
 	save_safemode := safemode
 
 	// imported functions may refer to unsafe as long as the
@@ -756,16 +751,16 @@ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
 	if pkg != localpkg && pkg != nil {
 		safemode = false
 	}
-	n = mkinlcall1(n, fn, isddd)
+	n = mkinlcall1(n, fn)
 	safemode = save_safemode
 	return n
 }
 
 func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
-	if asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
-		inlvar := inlvars[asNode(t.Nname)]
+	if n := asNode(t.Nname); n != nil && !n.isBlank() {
+		inlvar := inlvars[n]
 		if inlvar == nil {
-			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
+			Fatalf("missing inlvar for %v\n", n)
 		}
 		return inlvar
 	}
@@ -782,8 +777,8 @@ var inlgen int
 // parameters.
 // The result of mkinlcall1 MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall1(n.Left, fn, isddd)
-func mkinlcall1(n, fn *Node, isddd bool) *Node {
-	if fn.Func.Inl.Len() == 0 {
+func mkinlcall1(n, fn *Node) *Node {
+	if fn.Func.Inl == nil {
 		// No inlinable body.
 		return n
 	}
@@ -793,13 +788,23 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 		return n
 	}
 
+	if instrumenting && isRuntimePkg(fn.Sym.Pkg) {
+		// Runtime package must not be instrumented.
+		// Instrument skips runtime package. However, some runtime code can be
+		// inlined into other packages and instrumented there. To avoid this,
+		// we disable inlining of runtime functions when instrumenting.
+		// The example that we observed is inlining of LockOSThread,
+		// which lead to false race reports on m contents.
+		return n
+	}
+
 	if Debug_typecheckinl == 0 {
 		typecheckinl(fn)
 	}
 
 	// We have a function node, and it has an inlineable body.
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", n.Line(), fn.Sym, fn.Type, fn.Func.Inl)
+		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", n.Line(), fn.Sym, fn.Type, asNodes(fn.Func.Inl.Body))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
 	}
@@ -815,14 +820,10 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	// record formals/locals for later post-processing
 	var inlfvars []*Node
 
-	// Find declarations corresponding to inlineable body.
-	var dcl []*Node
+	// Handle captured variables when inlining closures.
 	if fn.Name.Defn != nil {
-		dcl = fn.Func.Inldcl.Slice() // local function
-
-		// handle captured variables when inlining closures
 		if c := fn.Name.Defn.Func.Closure; c != nil {
-			for _, v := range c.Func.Cvars.Slice() {
+			for _, v := range c.Func.Closure.Func.Cvars.Slice() {
 				if v.Op == OXXX {
 					continue
 				}
@@ -855,11 +856,9 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 				}
 			}
 		}
-	} else {
-		dcl = fn.Func.Dcl // imported function
 	}
 
-	for _, ln := range dcl {
+	for _, ln := range fn.Func.Inl.Dcl {
 		if ln.Op != ONAME {
 			continue
 		}
@@ -889,12 +888,11 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	var retvars []*Node
 	for i, t := range fn.Type.Results().Fields().Slice() {
 		var m *Node
-		var mpos src.XPos
-		if t != nil && asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
-			mpos = asNode(t.Nname).Pos
-			m = inlvar(asNode(t.Nname))
+		mpos := t.Pos
+		if n := asNode(t.Nname); n != nil && !n.isBlank() {
+			m = inlvar(n)
 			m = typecheck(m, Erv)
-			inlvars[asNode(t.Nname)] = m
+			inlvars[n] = m
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
@@ -902,9 +900,9 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 
 		if genDwarfInline > 0 {
 			// Don't update the src.Pos on a return variable if it
-			// was manufactured by the inliner (e.g. "~r2"); such vars
+			// was manufactured by the inliner (e.g. "~R2"); such vars
 			// were not part of the original callee.
-			if !strings.HasPrefix(m.Sym.Name, "~r") {
+			if !strings.HasPrefix(m.Sym.Name, "~R") {
 				m.SetInlFormal(true)
 				m.Pos = mpos
 				inlfvars = append(inlfvars, m)
@@ -950,7 +948,7 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 		// For ordinary parameters or variadic parameters in
 		// dotted calls, just add the variable to the
 		// assignment list, and we're done.
-		if !param.Isddd() || isddd {
+		if !param.Isddd() || n.Isddd() {
 			as.List.Append(tinlvar(param, inlvars))
 			continue
 		}
@@ -997,7 +995,6 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	}
 
 	retlabel := autolabel(".i")
-	retlabel.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
 
 	inlgen++
 
@@ -1005,7 +1002,6 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 	if b := Ctxt.PosTable.Pos(n.Pos).Base(); b != nil {
 		parent = b.InliningIndex()
 	}
-	sort.Sort(byNodeName(dcl))
 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
 
 	if genDwarfInline > 0 {
@@ -1023,7 +1019,7 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
 		newInlIndex: newIndex,
 	}
 
-	body := subst.list(fn.Func.Inl)
+	body := subst.list(asNodes(fn.Func.Inl.Body))
 
 	lab := nod(OLABEL, retlabel, nil)
 	body = append(body, lab)
@@ -1086,7 +1082,7 @@ func inlvar(var_ *Node) *Node {
 
 // Synthesize a variable to store the inlined function's results in.
 func retvar(t *types.Field, i int) *Node {
-	n := newname(lookupN("~r", i))
+	n := newname(lookupN("~R", i))
 	n.Type = t.Type
 	n.SetClass(PAUTO)
 	n.Name.SetUsed(true)
@@ -1195,8 +1191,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 		return m
 
 	case OGOTO, OLABEL:
-		m := nod(OXXX, nil, nil)
-		*m = *n
+		m := n.copy()
 		m.Pos = subst.updatedPos(m.Pos)
 		m.Ninit.Set(nil)
 		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
@@ -1205,8 +1200,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 		return m
 	}
 
-	m := nod(OXXX, nil, nil)
-	*m = *n
+	m := n.copy()
 	m.Pos = subst.updatedPos(m.Pos)
 	m.Ninit.Set(nil)
 
@@ -1235,28 +1229,3 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
 	pos.SetBase(newbase)
 	return Ctxt.PosTable.XPos(pos)
 }
-
-func cmpNodeName(a, b *Node) bool {
-	// named before artificial
-	aart := 0
-	if strings.HasPrefix(a.Sym.Name, "~r") {
-		aart = 1
-	}
-	bart := 0
-	if strings.HasPrefix(b.Sym.Name, "~r") {
-		bart = 1
-	}
-	if aart != bart {
-		return aart < bart
-	}
-
-	// otherwise sort by name
-	return a.Sym.Name < b.Sym.Name
-}
-
-// byNodeName implements sort.Interface for []*Node using cmpNodeName.
-type byNodeName []*Node
-
-func (s byNodeName) Len() int           { return len(s) }
-func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
-func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

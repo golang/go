@@ -581,6 +581,19 @@ func BenchmarkFind(b *testing.B) {
 	}
 }
 
+func BenchmarkFindAllNoMatches(b *testing.B) {
+	re := MustCompile("a+b+")
+	s := []byte("acddee")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		all := re.FindAll(s, -1)
+		if all != nil {
+			b.Fatalf("FindAll(%q) = %q; want nil", s, all)
+		}
+	}
+}
+
 func BenchmarkFindString(b *testing.B) {
 	b.StopTimer()
 	re := MustCompile("a+b+")

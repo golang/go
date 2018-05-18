@@ -582,8 +582,12 @@ func Chown(path string, uid, gid int) error {
 	if err != nil {
 		return err
 	}
-	ip.Uid = uint32(uid)
-	ip.Gid = uint32(gid)
+	if uid != -1 {
+		ip.Uid = uint32(uid)
+	}
+	if gid != -1 {
+		ip.Gid = uint32(gid)
+	}
 	return nil
 }
 

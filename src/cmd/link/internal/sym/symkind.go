@@ -101,10 +101,13 @@ const (
 	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
+
+	// Sections for debugging information
 	SDWARFSECT
 	SDWARFINFO
 	SDWARFRANGE
 	SDWARFLOC
+	SDWARFMISC // Not really a section; informs/affects other DWARF section generation
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
@@ -121,6 +124,7 @@ var AbiSymKindToSymKind = [...]SymKind{
 	SDWARFINFO,
 	SDWARFRANGE,
 	SDWARFLOC,
+	SDWARFMISC,
 }
 
 // ReadOnly are the symbol kinds that form read-only sections. In some

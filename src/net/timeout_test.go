@@ -482,7 +482,7 @@ func TestReadFromTimeout(t *testing.T) {
 					time.Sleep(tt.timeout / 3)
 					continue
 				}
-				if n != 0 {
+				if nerr, ok := err.(Error); ok && nerr.Timeout() && n != 0 {
 					t.Fatalf("#%d/%d: read %d; want 0", i, j, n)
 				}
 				break

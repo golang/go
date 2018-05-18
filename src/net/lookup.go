@@ -8,13 +8,14 @@ import (
 	"context"
 	"internal/nettrace"
 	"internal/singleflight"
+	"sync"
 )
 
 // protocols contains minimal mappings between internet protocol
 // names and numbers for platforms that don't have a complete list of
 // protocol numbers.
 //
-// See http://www.iana.org/assignments/protocol-numbers
+// See https://www.iana.org/assignments/protocol-numbers
 //
 // On Unix, this map is augmented by readProtocols via lookupProtocol.
 var protocols = map[string]int{
@@ -52,6 +53,10 @@ var services = map[string]map[string]int{
 		"telnet": 23,
 	},
 }
+
+// dnsWaitGroup can be used by tests to wait for all DNS goroutines to
+// complete. This avoids races on the test hooks.
+var dnsWaitGroup sync.WaitGroup
 
 const maxProtoLength = len("RSVP-E2E-IGNORE") + 10 // with room to grow
 
@@ -132,6 +137,9 @@ type Resolver struct {
 	// TODO(bradfitz): Timeout time.Duration?
 }
 
+func (r *Resolver) preferGo() bool     { return r != nil && r.PreferGo }
+func (r *Resolver) strictErrors() bool { return r != nil && r.StrictErrors }
+
 // LookupHost looks up the given host using the local resolver.
 // It returns a slice of that host's addresses.
 func LookupHost(host string) (addrs []string, err error) {
@@ -189,26 +197,45 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 		resolverFunc = alt
 	}
 
-	ch := lookupGroup.DoChan(host, func() (interface{}, error) {
-		return testHookLookupIP(ctx, resolverFunc, host)
+	// We don't want a cancelation of ctx to affect the
+	// lookupGroup operation. Otherwise if our context gets
+	// canceled it might cause an error to be returned to a lookup
+	// using a completely different context.
+	lookupGroupCtx, lookupGroupCancel := context.WithCancel(context.Background())
+
+	dnsWaitGroup.Add(1)
+	ch, called := lookupGroup.DoChan(host, func() (interface{}, error) {
+		defer dnsWaitGroup.Done()
+		return testHookLookupIP(lookupGroupCtx, resolverFunc, host)
 	})
+	if !called {
+		dnsWaitGroup.Done()
+	}
 
 	select {
 	case <-ctx.Done():
-		// If the DNS lookup timed out for some reason, force
-		// future requests to start the DNS lookup again
-		// rather than waiting for the current lookup to
-		// complete. See issue 8602.
-		ctxErr := ctx.Err()
-		if ctxErr == context.DeadlineExceeded {
-			lookupGroup.Forget(host)
+		// Our context was canceled. If we are the only
+		// goroutine looking up this key, then drop the key
+		// from the lookupGroup and cancel the lookup.
+		// If there are other goroutines looking up this key,
+		// let the lookup continue uncanceled, and let later
+		// lookups with the same key share the result.
+		// See issues 8602, 20703, 22724.
+		if lookupGroup.ForgetUnshared(host) {
+			lookupGroupCancel()
+		} else {
+			go func() {
+				<-ch
+				lookupGroupCancel()
+			}()
 		}
-		err := mapErr(ctxErr)
+		err := mapErr(ctx.Err())
 		if trace != nil && trace.DNSDone != nil {
 			trace.DNSDone(nil, false, err)
 		}
 		return nil, err
 	case r := <-ch:
+		lookupGroupCancel()
 		if trace != nil && trace.DNSDone != nil {
 			addrs, _ := r.Val.([]IPAddr)
 			trace.DNSDone(ipAddrsEface(addrs), r.Shared, r.Err)

@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -57,15 +56,6 @@ func TestAbsolutePath(t *testing.T) {
 	}
 }
 
-func isWindowsXP(t *testing.T) bool {
-	v, err := syscall.GetVersion()
-	if err != nil {
-		t.Fatalf("GetVersion failed: %v", err)
-	}
-	major := byte(v)
-	return major < 6
-}
-
 func runIcacls(t *testing.T, args ...string) string {
 	t.Helper()
 	out, err := exec.Command("icacls", args...).CombinedOutput()
@@ -89,10 +79,6 @@ func runGetACL(t *testing.T, path string) string {
 // has discretionary access control list (DACL) set as if the file
 // was created in the destination directory.
 func TestACL(t *testing.T) {
-	if isWindowsXP(t) {
-		t.Skip("Windows XP does not have powershell command")
-	}
-
 	tmpdir, err := ioutil.TempDir("", "TestACL")
 	if err != nil {
 		t.Fatal(err)

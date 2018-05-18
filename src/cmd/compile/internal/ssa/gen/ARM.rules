@@ -2,35 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-(AddPtr x y) -> (ADD x y)
-(Add32 x y) -> (ADD x y)
-(Add16 x y) -> (ADD x y)
-(Add8 x y) -> (ADD x y)
-(Add32F x y) -> (ADDF x y)
-(Add64F x y) -> (ADDD x y)
-
+(Add(Ptr|32|16|8) x y) -> (ADD x y)
+(Add(32|64)F x y) -> (ADD(F|D) x y)
 (Add32carry x y) -> (ADDS x y)
 (Add32withcarry x y c) -> (ADC x y c)
 
-(SubPtr x y) -> (SUB x y)
-(Sub32 x y) -> (SUB x y)
-(Sub16 x y) -> (SUB x y)
-(Sub8 x y) -> (SUB x y)
-(Sub32F x y) -> (SUBF x y)
-(Sub64F x y) -> (SUBD x y)
-
+(Sub(Ptr|32|16|8) x y) -> (SUB x y)
+(Sub(32|64)F x y) -> (SUB(F|D) x y)
 (Sub32carry x y) -> (SUBS x y)
 (Sub32withcarry x y c) -> (SBC x y c)
 
-(Mul32 x y) -> (MUL x y)
-(Mul16 x y) -> (MUL x y)
-(Mul8 x y) -> (MUL x y)
-(Mul32F x y) -> (MULF x y)
-(Mul64F x y) -> (MULD x y)
-
-(Hmul32 x y) -> (HMUL x y)
-(Hmul32u x y) -> (HMULU x y)
-
+(Mul(32|16|8) x y) -> (MUL x y)
+(Mul(32|64)F x y) -> (MUL(F|D) x y)
+(Hmul(32|32u) x y) -> (HMU(L|LU) x y)
 (Mul32uhilo x y) -> (MULLU x y)
 
 (Div32 x y) ->
@@ -44,8 +28,7 @@
 (Div16u x y) -> (Div32u (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Div8 x y) -> (Div32 (SignExt8to32 x) (SignExt8to32 y))
 (Div8u x y) -> (Div32u (ZeroExt8to32 x) (ZeroExt8to32 y))
-(Div32F x y) -> (DIVF x y)
-(Div64F x y) -> (DIVD x y)
+(Div(32|64)F x y) -> (DIV(F|D) x y)
 
 (Mod32 x y) ->
 	(SUB (XOR <typ.UInt32>                                                        // negate the result if x is negative
@@ -62,30 +45,20 @@
 // (x + y) / 2 with x>=y -> (x - y) / 2 + y
 (Avg32u <t> x y) -> (ADD (SRLconst <t> (SUB <t> x y) [1]) y)
 
-(And32 x y) -> (AND x y)
-(And16 x y) -> (AND x y)
-(And8 x y) -> (AND x y)
-
-(Or32 x y) -> (OR x y)
-(Or16 x y) -> (OR x y)
-(Or8 x y) -> (OR x y)
-
-(Xor32 x y) -> (XOR x y)
-(Xor16 x y) -> (XOR x y)
-(Xor8 x y) -> (XOR x y)
+(And(32|16|8) x y) -> (AND x y)
+(Or(32|16|8) x y) -> (OR x y)
+(Xor(32|16|8) x y) -> (XOR x y)
 
 // unary ops
-(Neg32 x) -> (RSBconst [0] x)
-(Neg16 x) -> (RSBconst [0] x)
-(Neg8 x) -> (RSBconst [0] x)
-(Neg32F x) -> (NEGF x)
-(Neg64F x) -> (NEGD x)
+(Neg(32|16|8) x) -> (RSBconst [0] x)
+(Neg(32|64)F x) -> (NEG(F|D) x)
 
-(Com32 x) -> (MVN x)
-(Com16 x) -> (MVN x)
-(Com8 x) -> (MVN x)
+(Com(32|16|8) x) -> (MVN x)
 
 (Sqrt x) -> (SQRTD x)
+
+// TODO: optimize this for ARMv5 and ARMv6
+(Ctz32NonZero x) -> (Ctz32 x)
 
 // count trailing zero for ARMv5 and ARMv6
 // 32 - CLZ(x&-x - 1)
@@ -225,29 +198,25 @@
 (Cvt32Fto64F x) -> (MOVFD x)
 (Cvt64Fto32F x) -> (MOVDF x)
 
-(Round32F x) -> x
-(Round64F x) -> x
+(Round(32|64)F x) -> x
 
 // comparisons
 (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (Equal (CMP x y))
 (EqPtr x y) -> (Equal (CMP x y))
-(Eq32F x y) -> (Equal (CMPF x y))
-(Eq64F x y) -> (Equal (CMPD x y))
+(Eq(32|64)F x y) -> (Equal (CMP(F|D) x y))
 
 (Neq8 x y)  -> (NotEqual (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Neq16 x y) -> (NotEqual (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Neq32 x y) -> (NotEqual (CMP x y))
 (NeqPtr x y) -> (NotEqual (CMP x y))
-(Neq32F x y) -> (NotEqual (CMPF x y))
-(Neq64F x y) -> (NotEqual (CMPD x y))
+(Neq(32|64)F x y) -> (NotEqual (CMP(F|D) x y))
 
 (Less8 x y)  -> (LessThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Less16 x y) -> (LessThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Less32 x y) -> (LessThan (CMP x y))
-(Less32F x y) -> (GreaterThan (CMPF y x)) // reverse operands to work around NaN
-(Less64F x y) -> (GreaterThan (CMPD y x)) // reverse operands to work around NaN
+(Less(32|64)F x y) -> (GreaterThan (CMP(F|D) y x)) // reverse operands to work around NaN
 
 (Less8U x y)  -> (LessThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Less16U x y) -> (LessThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -256,8 +225,7 @@
 (Leq8 x y)  -> (LessEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Leq16 x y) -> (LessEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Leq32 x y) -> (LessEqual (CMP x y))
-(Leq32F x y) -> (GreaterEqual (CMPF y x)) // reverse operands to work around NaN
-(Leq64F x y) -> (GreaterEqual (CMPD y x)) // reverse operands to work around NaN
+(Leq(32|64)F x y) -> (GreaterEqual (CMP(F|D) y x)) // reverse operands to work around NaN
 
 (Leq8U x y)  -> (LessEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Leq16U x y) -> (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -266,8 +234,7 @@
 (Greater8 x y)  -> (GreaterThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Greater16 x y) -> (GreaterThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Greater32 x y) -> (GreaterThan (CMP x y))
-(Greater32F x y) -> (GreaterThan (CMPF x y))
-(Greater64F x y) -> (GreaterThan (CMPD x y))
+(Greater(32|64)F x y) -> (GreaterThan (CMP(F|D) x y))
 
 (Greater8U x y)  -> (GreaterThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Greater16U x y) -> (GreaterThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -276,8 +243,7 @@
 (Geq8 x y)  -> (GreaterEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Geq16 x y) -> (GreaterEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Geq32 x y) -> (GreaterEqual (CMP x y))
-(Geq32F x y) -> (GreaterEqual (CMPF x y))
-(Geq64F x y) -> (GreaterEqual (CMPD x y))
+(Geq(32|64)F x y) -> (GreaterEqual (CMP(F|D) x y))
 
 (Geq8U x y)  -> (GreaterEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Geq16U x y) -> (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -334,7 +300,7 @@
 (Zero [s] {t} ptr mem)
 	&& s%4 == 0 && s > 4 && s <= 512
 	&& t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice ->
-	(DUFFZERO [4 * (128 - int64(s/4))] ptr (MOVWconst [0]) mem)
+	(DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
 
 // Large zeroing uses a loop
 (Zero [s] {t} ptr mem)
@@ -374,7 +340,7 @@
 (Move [s] {t} dst src mem)
 	&& s%4 == 0 && s > 4 && s <= 512
 	&& t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice ->
-	(DUFFCOPY [8 * (128 - int64(s/4))] dst src mem)
+	(DUFFCOPY [8 * (128 - s/4)] dst src mem)
 
 // Large move uses a loop
 (Move [s] {t} dst src mem)
@@ -399,7 +365,7 @@
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
-(Convert x mem) -> (MOVWconvert x mem)
+(GetCallerPC) -> (LoweredGetCallerPC)
 
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)
@@ -426,6 +392,9 @@
 (NE (CMPconst [0] (GreaterThanU cc)) yes no) -> (UGT cc yes no)
 (NE (CMPconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
 (NE (CMPconst [0] (GreaterEqualU cc)) yes no) -> (UGE cc yes no)
+
+// Write barrier.
+(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
 
 // Optimizations
 

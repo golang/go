@@ -188,6 +188,35 @@ func TestDumper(t *testing.T) {
 	}
 }
 
+func TestDumper_doubleclose(t *testing.T) {
+	var out bytes.Buffer
+	dumper := Dumper(&out)
+
+	dumper.Write([]byte(`gopher`))
+	dumper.Close()
+	dumper.Close()
+	dumper.Write([]byte(`gopher`))
+	dumper.Close()
+
+	expected := "00000000  67 6f 70 68 65 72                                 |gopher|\n"
+	if out.String() != expected {
+		t.Fatalf("got:\n%#v\nwant:\n%#v", out.String(), expected)
+	}
+}
+
+func TestDumper_earlyclose(t *testing.T) {
+	var out bytes.Buffer
+	dumper := Dumper(&out)
+
+	dumper.Close()
+	dumper.Write([]byte(`gopher`))
+
+	expected := ""
+	if out.String() != expected {
+		t.Fatalf("got:\n%#v\nwant:\n%#v", out.String(), expected)
+	}
+}
+
 func TestDump(t *testing.T) {
 	var in [40]byte
 	for i := range in {

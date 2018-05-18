@@ -792,7 +792,7 @@ func (v Value) Field(i int) Value {
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
 	if !field.name.isExported() {
-		if field.anon() {
+		if field.embedded() {
 			fl |= flagEmbedRO
 		} else {
 			fl |= flagStickyRO
@@ -1228,7 +1228,7 @@ func overflowFloat32(x float64) bool {
 }
 
 // OverflowInt reports whether the int64 x cannot be represented by v's type.
-// It panics if v's Kind is not Int, Int8, int16, Int32, or Int64.
+// It panics if v's Kind is not Int, Int8, Int16, Int32, or Int64.
 func (v Value) OverflowInt(x int64) bool {
 	k := v.kind()
 	switch k {
@@ -2102,7 +2102,7 @@ func MakeSlice(typ Type, len, cap int) Value {
 	}
 
 	s := sliceHeader{unsafe_NewArray(typ.Elem().(*rtype), cap), len, cap}
-	return Value{typ.common(), unsafe.Pointer(&s), flagIndir | flag(Slice)}
+	return Value{typ.(*rtype), unsafe.Pointer(&s), flagIndir | flag(Slice)}
 }
 
 // MakeChan creates a new channel with the specified type and buffer size.
@@ -2116,8 +2116,9 @@ func MakeChan(typ Type, buffer int) Value {
 	if typ.ChanDir() != BothDir {
 		panic("reflect.MakeChan: unidirectional channel type")
 	}
-	ch := makechan(typ.(*rtype), buffer)
-	return Value{typ.common(), ch, flag(Chan)}
+	t := typ.(*rtype)
+	ch := makechan(t, buffer)
+	return Value{t, ch, flag(Chan)}
 }
 
 // MakeMap creates a new map with the specified type.
@@ -2131,8 +2132,9 @@ func MakeMapWithSize(typ Type, n int) Value {
 	if typ.Kind() != Map {
 		panic("reflect.MakeMapWithSize of non-map type")
 	}
-	m := makemap(typ.(*rtype), n)
-	return Value{typ.common(), m, flag(Map)}
+	t := typ.(*rtype)
+	m := makemap(t, n)
+	return Value{t, m, flag(Map)}
 }
 
 // Indirect returns the value that v points to.
@@ -2170,10 +2172,10 @@ func Zero(typ Type) Value {
 	if typ == nil {
 		panic("reflect: Zero(nil)")
 	}
-	t := typ.common()
+	t := typ.(*rtype)
 	fl := flag(t.Kind())
 	if ifaceIndir(t) {
-		return Value{t, unsafe_New(typ.(*rtype)), fl | flagIndir}
+		return Value{t, unsafe_New(t), fl | flagIndir}
 	}
 	return Value{t, nil, fl}
 }
@@ -2184,16 +2186,18 @@ func New(typ Type) Value {
 	if typ == nil {
 		panic("reflect: New(nil)")
 	}
-	ptr := unsafe_New(typ.(*rtype))
+	t := typ.(*rtype)
+	ptr := unsafe_New(t)
 	fl := flag(Ptr)
-	return Value{typ.common().ptrTo(), ptr, fl}
+	return Value{t.ptrTo(), ptr, fl}
 }
 
 // NewAt returns a Value representing a pointer to a value of the
 // specified type, using p as that pointer.
 func NewAt(typ Type, p unsafe.Pointer) Value {
 	fl := flag(Ptr)
-	return Value{typ.common().ptrTo(), p, fl}
+	t := typ.(*rtype)
+	return Value{t.ptrTo(), p, fl}
 }
 
 // assignTo returns a value v that can be assigned directly to typ.
@@ -2315,7 +2319,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 		return cvtDirect
 	}
 
-	// dst and src are unnamed pointer types with same underlying base type.
+	// dst and src are non-defined pointer types with same underlying base type.
 	if dst.Kind() == Ptr && dst.Name() == "" &&
 		src.Kind() == Ptr && src.Name() == "" &&
 		haveIdenticalUnderlyingType(dst.Elem().common(), src.Elem().common(), false) {

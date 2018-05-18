@@ -37,6 +37,18 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token
 	}
 }
 
+// pathString returns a string of the form a->b-> ... ->g for a path [a, b, ... g].
+func pathString(path []*TypeName) string {
+	var s string
+	for i, p := range path {
+		if i > 0 {
+			s += "->"
+		}
+		s += p.Name()
+	}
+	return s
+}
+
 // objDecl type-checks the declaration of obj in its respective (file) context.
 // See check.typ for the details on def and path.
 func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
@@ -45,7 +57,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	}
 
 	if trace {
-		check.trace(obj.Pos(), "-- declaring %s", obj.Name())
+		check.trace(obj.Pos(), "-- checking %s (path = %s)", obj, pathString(path))
 		check.indent++
 		defer func() {
 			check.indent--
@@ -55,7 +67,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 
 	d := check.objMap[obj]
 	if d == nil {
-		check.dump("%s: %s should have been declared", obj.Pos(), obj.Name())
+		check.dump("%v: %s should have been declared", obj.Pos(), obj)
 		unreachable()
 	}
 
@@ -100,7 +112,6 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	obj.visited = true
 
 	// use the correct value of iota
-	assert(check.iota == nil)
 	check.iota = obj.val
 	defer func() { check.iota = nil }()
 
@@ -111,7 +122,11 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	if typ != nil {
 		t := check.typ(typ)
 		if !isConstType(t) {
-			check.errorf(typ.Pos(), "invalid constant type %s", t)
+			// don't report an error if the type is an invalid C (defined) type
+			// (issue #22090)
+			if t.Underlying() != Typ[Invalid] {
+				check.errorf(typ.Pos(), "invalid constant type %s", t)
+			}
 			obj.typ = Typ[Invalid]
 			return
 		}
@@ -134,9 +149,6 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 		return
 	}
 	obj.visited = true
-
-	// var declarations cannot use iota
-	assert(check.iota == nil)
 
 	// determine type, if any
 	if typ != nil {
@@ -218,9 +230,6 @@ func (n *Named) setUnderlying(typ Type) {
 func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName, alias bool) {
 	assert(obj.typ == nil)
 
-	// type declarations cannot use iota
-	assert(check.iota == nil)
-
 	if alias {
 
 		obj.typ = Typ[Invalid]
@@ -262,18 +271,22 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 
 func (check *Checker) addMethodDecls(obj *TypeName) {
 	// get associated methods
-	methods := check.methods[obj.name]
-	if len(methods) == 0 {
-		return // no methods
+	// (Checker.collectObjects only collects methods with non-blank names;
+	// Checker.resolveBaseTypeName ensures that obj is not an alias name
+	// if it has attached methods.)
+	methods := check.methods[obj]
+	if methods == nil {
+		return
 	}
-	delete(check.methods, obj.name)
+	delete(check.methods, obj)
+	assert(!obj.IsAlias())
 
 	// use an objset to check for name conflicts
 	var mset objset
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	base, _ := obj.typ.(*Named) // nil if receiver base type is type alias
+	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
 	if base != nil {
 		if t, _ := base.underlying.(*Struct); t != nil {
 			for _, fld := range t.fields {
@@ -296,26 +309,24 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 	for _, m := range methods {
 		// spec: "For a base type, the non-blank names of methods bound
 		// to it must be unique."
-		if m.name != "_" {
-			if alt := mset.insert(m); alt != nil {
-				switch alt.(type) {
-				case *Var:
-					check.errorf(m.pos, "field and method with the same name %s", m.name)
-				case *Func:
-					check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
-				default:
-					unreachable()
-				}
-				check.reportAltDecl(alt)
-				continue
+		assert(m.name != "_")
+		if alt := mset.insert(m); alt != nil {
+			switch alt.(type) {
+			case *Var:
+				check.errorf(m.pos, "field and method with the same name %s", m.name)
+			case *Func:
+				check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
+			default:
+				unreachable()
 			}
+			check.reportAltDecl(alt)
+			continue
 		}
 
 		// type-check
 		check.objDecl(m, nil, nil)
 
-		// methods with blank _ names cannot be found - don't keep them
-		if base != nil && m.name != "_" {
+		if base != nil {
 			base.methods = append(base.methods, m)
 		}
 	}
@@ -339,7 +350,9 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)
 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
-		check.later(obj.name, decl, sig, fdecl.Body)
+		check.later(func() {
+			check.funcBody(decl, obj.name, sig, fdecl.Body, nil)
+		})
 	}
 }
 
@@ -357,6 +370,8 @@ func (check *Checker) declStmt(decl ast.Decl) {
 			case *ast.ValueSpec:
 				switch d.Tok {
 				case token.CONST:
+					top := len(check.delayed)
+
 					// determine which init exprs to use
 					switch {
 					case s.Type != nil || len(s.Values) > 0:
@@ -381,6 +396,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
 
 					check.arityMatch(s, last)
 
+					// process function literals in init expressions before scope changes
+					check.processDelayed(top)
+
 					// spec: "The scope of a constant or variable identifier declared
 					// inside a function begins at the end of the ConstSpec or VarSpec
 					// (ShortVarDecl for short variable declarations) and ends at the
@@ -391,6 +409,8 @@ func (check *Checker) declStmt(decl ast.Decl) {
 					}
 
 				case token.VAR:
+					top := len(check.delayed)
+
 					lhs0 := make([]*Var, len(s.Names))
 					for i, name := range s.Names {
 						lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
@@ -430,6 +450,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
 					}
 
 					check.arityMatch(s, nil)
+
+					// process function literals in init expressions before scope changes
+					check.processDelayed(top)
 
 					// declare all variables
 					// (only at this point are the variable scopes (parents) set)

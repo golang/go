@@ -176,3 +176,17 @@ TEXT ·leaf(SB),0,$-4-12
 	MOVW	y+4(FP), AX
 	MOVW	AX, ret+8(FP)
 	RET
+
+TEXT ·noframe1(SB),0,$0-4
+	MOVW	0(R13), AX // Okay; our saved LR
+	MOVW	4(R13), AX // Okay; caller's saved LR
+	MOVW	x+8(R13), AX // Okay; x argument
+	MOVW	12(R13), AX // ERROR "use of 12\(R13\) points beyond argument frame"
+	RET
+
+TEXT ·noframe2(SB),NOFRAME,$0-4
+	MOVW	0(R13), AX // Okay; caller's saved LR
+	MOVW	x+4(R13), AX // Okay; x argument
+	MOVW	8(R13), AX // ERROR "use of 8\(R13\) points beyond argument frame"
+	MOVW	12(R13), AX // ERROR "use of 12\(R13\) points beyond argument frame"
+	RET

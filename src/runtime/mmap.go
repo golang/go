@@ -7,6 +7,8 @@
 // +build !windows
 // +build !nacl
 // +build !linux !amd64
+// +build !linux !arm64
+// +build !js
 
 package runtime
 

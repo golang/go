@@ -11,9 +11,14 @@ go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have 
 
 // Nothing much to do about cross-package assembly. Unfortunate.
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
+internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal is in package runtime
+internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal_varlen is in package runtime
+internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
+internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
+
+// The write barrier is called directly by the compiler, so no Go def
+runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
 
 // Legitimate vet complaints in which we are testing for correct runtime behavior
 // in bad situations that vet can also detect statically.
@@ -22,7 +27,6 @@ encoding/json/decode_test.go: struct field m2 has json tag but is not exported
 encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible with reflect.StructTag.Get: bad syntax for struct tag key
 runtime/testdata/testprog/deadlock.go: unreachable code
 runtime/testdata/testprog/deadlock.go: unreachable code
-sync/cond_test.go: assignment copies lock value to c2: sync.Cond contains sync.noCopy
 
 // Non-standard method signatures.
 // These cases are basically ok.

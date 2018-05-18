@@ -311,7 +311,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// will zero the high 32-bit of the destination
 	// register anyway.
 	switch p.As {
-	case AANDW, AORRW, AEORW, AANDSW:
+	case AANDW, AORRW, AEORW, AANDSW, ATSTW:
 		if p.From.Type == obj.TYPE_CONST {
 			v := p.From.Offset & 0xffffffff
 			p.From.Offset = v | v<<32
@@ -443,7 +443,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	p := c.cursym.Func.Text
 	textstksiz := p.To.Offset
-	aoffset := int32(textstksiz)
+	if textstksiz == -8 {
+		// Historical way to mark NOFRAME.
+		p.From.Sym.Set(obj.AttrNoFrame, true)
+		textstksiz = 0
+	}
+	if textstksiz < 0 {
+		c.ctxt.Diag("negative frame size %d - did you mean NOFRAME?", textstksiz)
+	}
+	if p.From.Sym.NoFrame() {
+		if textstksiz != 0 {
+			c.ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", textstksiz)
+		}
+	}
 
 	c.cursym.Func.Args = p.To.Val.(int32)
 	c.cursym.Func.Locals = int32(textstksiz)
@@ -464,9 +476,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			break
 
 		case obj.ANOP:
-			q1 = p.Link
-			q.Link = q1 /* q is non-nop */
-			q1.Mark |= p.Mark
+			if p.Link != nil {
+				q1 = p.Link
+				q.Link = q1 /* q is non-nop */
+				q1.Mark |= p.Mark
+			}
 			continue
 
 		case ABL,
@@ -521,14 +535,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		switch o {
 		case obj.ATEXT:
 			c.cursym.Func.Text = p
-			if textstksiz < 0 {
-				c.autosize = 0
-			} else {
-				c.autosize = int32(textstksiz + 8)
+			c.autosize = int32(textstksiz)
+
+			if p.Mark&LEAF != 0 && c.autosize == 0 {
+				// A leaf function with no locals has no frame.
+				p.From.Sym.Set(obj.AttrNoFrame, true)
 			}
-			if (c.cursym.Func.Text.Mark&LEAF != 0) && c.autosize <= 8 {
-				c.autosize = 0
-			} else if c.autosize&(16-1) != 0 {
+
+			if !p.From.Sym.NoFrame() {
+				// If there is a stack frame at all, it includes
+				// space to save the LR.
+				c.autosize += 8
+			}
+
+			if c.autosize != 0 && c.autosize&(16-1) != 0 {
 				// The frame includes an LR.
 				// If the frame size is 8, it's only an LR,
 				// so there's no potential for breaking references to
@@ -544,27 +564,30 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					c.ctxt.Diag("%v: unaligned frame size %d - must be 8 mod 16 (or 0)", p, c.autosize-8)
 				}
 			}
-			p.To.Offset = int64(c.autosize) - 8
-			if c.autosize == 0 && !(c.cursym.Func.Text.Mark&LEAF != 0) {
+			if c.autosize == 0 && c.cursym.Func.Text.Mark&LEAF == 0 {
 				if c.ctxt.Debugvlog {
 					c.ctxt.Logf("save suppressed in: %s\n", c.cursym.Func.Text.From.Sym.Name)
 				}
 				c.cursym.Func.Text.Mark |= LEAF
 			}
 
+			// FP offsets need an updated p.To.Offset.
+			p.To.Offset = int64(c.autosize) - 8
+
+			if cursym.Func.Text.Mark&LEAF != 0 {
+				cursym.Set(obj.AttrLeaf, true)
+				if p.From.Sym.NoFrame() {
+					break
+				}
+			}
+
 			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
 
-			aoffset = c.autosize
+			aoffset := c.autosize
 			if aoffset > 0xF0 {
 				aoffset = 0xF0
-			}
-			if c.cursym.Func.Text.Mark&LEAF != 0 {
-				c.cursym.Set(obj.AttrLeaf, true)
-				if c.autosize == 0 {
-					break
-				}
 			}
 
 			// Frame is non-empty. Make sure to save link register, even if
@@ -739,7 +762,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			} else {
 				/* want write-back pre-indexed SP+autosize -> SP, loading REGLINK*/
-				aoffset = c.autosize
+				aoffset := c.autosize
 
 				if aoffset > 0xF0 {
 					aoffset = 0xF0
@@ -798,6 +821,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 			break
+
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOVD LR, Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGLINK
+			} else {
+				/* MOVD (RSP), Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+			}
 		}
 	}
 }
@@ -817,10 +853,11 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Linkarm64 = obj.LinkArch{
-	Arch:       sys.ArchARM64,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span7,
-	Progedit:   progedit,
-	UnaryDst:   unaryDst,
+	Arch:           sys.ArchARM64,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span7,
+	Progedit:       progedit,
+	UnaryDst:       unaryDst,
+	DWARFRegisters: ARM64DWARFRegisters,
 }

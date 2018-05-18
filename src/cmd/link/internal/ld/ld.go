@@ -87,8 +87,14 @@ func (ctxt *Link) readImportCfg(file string) {
 	}
 }
 
-func pkgname(lib string) string {
+func pkgname(ctxt *Link, lib string) string {
 	name := path.Clean(lib)
+
+	// When using importcfg, we have the final package name.
+	if ctxt.PackageFile != nil {
+		return name
+	}
+
 	// runtime.a -> runtime, runtime.6 -> runtime
 	pkg := name
 	if len(pkg) >= 2 && pkg[len(pkg)-2] == '.' {
@@ -116,7 +122,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 		if filepath.IsAbs(name) {
 			pname = name
 		} else {
-			pkg := pkgname(lib)
+			pkg := pkgname(ctxt, lib)
 			// Add .a if needed; the new -importcfg modes
 			// do not put .a into the package name anymore.
 			// This only matters when people try to mix
@@ -149,7 +155,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 }
 
 func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
-	pkg := pkgname(lib)
+	pkg := pkgname(ctxt, lib)
 
 	// already loaded?
 	if l := ctxt.LibraryByPkg[pkg]; l != nil {

@@ -87,21 +87,12 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
 		pcs = append(pcs, scopedPCs{start: p0.Pc, end: fnsym.Size, pos: p0.Pos})
 	}
 
-	// Sort PCs by source position, and walk in parallel with
-	// scope marks to assign a lexical scope to each PC interval.
-	sort.Sort(pcsByPos(pcs))
-	var marki int
-	var scope ScopeID
+	// Assign scopes to each chunk of instructions.
 	for i := range pcs {
-		for marki < len(marks) && !xposBefore(pcs[i].pos, marks[marki].Pos) {
-			scope = marks[marki].Scope
-			marki++
-		}
-		pcs[i].scope = scope
+		pcs[i].scope = findScope(marks, pcs[i].pos)
 	}
 
-	// Re-sort to create sorted PC ranges for each DWARF scope.
-	sort.Sort(pcsByPC(pcs))
+	// Create sorted PC ranges for each DWARF scope.
 	for _, pc := range pcs {
 		r := &dwarfScopes[pc.scope].Ranges
 		if i := len(*r); i > 0 && (*r)[i-1].End == pc.start {
@@ -113,23 +104,6 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
 }
 
 func compactScopes(dwarfScopes []dwarf.Scope) []dwarf.Scope {
-	// Forward pass to collapse empty scopes into parents.
-	remap := make([]int32, len(dwarfScopes))
-	j := int32(1)
-	for i := 1; i < len(dwarfScopes); i++ {
-		s := &dwarfScopes[i]
-		s.Parent = remap[s.Parent]
-		if len(s.Vars) == 0 {
-			dwarfScopes[s.Parent].UnifyRanges(s)
-			remap[i] = s.Parent
-			continue
-		}
-		remap[i] = j
-		dwarfScopes[j] = *s
-		j++
-	}
-	dwarfScopes = dwarfScopes[:j]
-
 	// Reverse pass to propagate PC ranges to parent scopes.
 	for i := len(dwarfScopes) - 1; i > 0; i-- {
 		s := &dwarfScopes[i]
@@ -137,22 +111,6 @@ func compactScopes(dwarfScopes []dwarf.Scope) []dwarf.Scope {
 	}
 
 	return dwarfScopes
-}
-
-type pcsByPC []scopedPCs
-
-func (s pcsByPC) Len() int      { return len(s) }
-func (s pcsByPC) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s pcsByPC) Less(i, j int) bool {
-	return s[i].start < s[j].start
-}
-
-type pcsByPos []scopedPCs
-
-func (s pcsByPos) Len() int      { return len(s) }
-func (s pcsByPos) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s pcsByPos) Less(i, j int) bool {
-	return xposBefore(s[i].pos, s[j].pos)
 }
 
 type varsByScopeAndOffset struct {

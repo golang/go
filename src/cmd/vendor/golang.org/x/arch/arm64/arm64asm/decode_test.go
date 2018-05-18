@@ -7,12 +7,14 @@ package arm64asm
 import (
 	"encoding/hex"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestDecode(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/cases.txt")
+func testDecode(t *testing.T, syntax string) {
+	input := filepath.Join("testdata", syntax+"cases.txt")
+	data, err := ioutil.ReadFile(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +27,7 @@ func TestDecode(t *testing.T) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		f := strings.SplitN(line, "\t", 3)
+		f := strings.SplitN(line, "\t", 2)
 		i := strings.Index(f[0], "|")
 		if i < 0 {
 			t.Errorf("parsing %q: missing | separator", f[0])
@@ -39,7 +41,7 @@ func TestDecode(t *testing.T) {
 			t.Errorf("parsing %q: %v", f[0], err)
 			continue
 		}
-		syntax, asm := f[1], f[2]
+		asm := f[1]
 		inst, decodeErr := Decode(code)
 		if decodeErr != nil && decodeErr != errUnknown {
 			// Some rarely used system instructions are not supported
@@ -71,8 +73,16 @@ func TestDecode(t *testing.T) {
 		if strings.Replace(out, " ", "", -1) != strings.Replace(asm, " ", "", -1) && !hasPrefix(asm, Todo...) {
 			// Exclude MSR since GNU objdump result is incorrect. eg. 0xd504431f msr s0_4_c4_c3_0, xzr
 			if !strings.HasSuffix(asm, " nv") && !strings.HasPrefix(asm, "msr") {
-				t.Errorf("Decode(%s) [%s] = %s, want %s", f[0], syntax, out, asm)
+				t.Errorf("Decode(%s) [%s] = %s, want %s", strings.Trim(f[0], "|"), syntax, out, asm)
 			}
 		}
 	}
+}
+
+func TestDecodeGNUSyntax(t *testing.T) {
+	testDecode(t, "gnu")
+}
+
+func TestDecodeGoSyntax(t *testing.T) {
+	testDecode(t, "plan9")
 }

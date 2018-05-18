@@ -8,14 +8,7 @@
 package syscall
 
 const (
-	_SYS_dup = SYS_DUP2
-
-	// Linux introduced getdents64 syscall for N64 ABI only in 3.10
-	// (May 21 2013, rev dec33abaafc89bcbd78f85fad0513170415a26d5),
-	// to support older kernels, we have to use getdents for mips64.
-	// Also note that struct dirent is different for these two.
-	// Lookup linux_dirent{,64} in kernel source code for details.
-	_SYS_getdents  = SYS_GETDENTS
+	_SYS_dup       = SYS_DUP2
 	_SYS_setgroups = SYS_SETGROUPS
 )
 
@@ -72,8 +65,11 @@ type sigset_t struct {
 //sys	pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *sigset_t) (n int, err error) = SYS_PSELECT6
 
 func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
-	ts := Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
-	return pselect(nfd, r, w, e, &ts, nil)
+	var ts *Timespec
+	if timeout != nil {
+		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+	}
+	return pselect(nfd, r, w, e, ts, nil)
 }
 
 //sysnb	Gettimeofday(tv *Timeval) (err error)

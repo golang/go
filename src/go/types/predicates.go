@@ -150,7 +150,9 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// Two array types are identical if they have identical element types
 		// and the same array length.
 		if y, ok := y.(*Array); ok {
-			return x.len == y.len && identical(x.elem, y.elem, cmpTags, p)
+			// If one or both array lengths are unknown (< 0) due to some error,
+			// assume they are the same to avoid spurious follow-on errors.
+			return (x.len < 0 || y.len < 0 || x.len == y.len) && identical(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Slice:
@@ -162,13 +164,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *Struct:
 		// Two struct types are identical if they have the same sequence of fields,
 		// and if corresponding fields have the same names, and identical types,
-		// and identical tags. Two anonymous fields are considered to have the same
+		// and identical tags. Two embedded fields are considered to have the same
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
 			if x.NumFields() == y.NumFields() {
 				for i, f := range x.fields {
 					g := y.fields[i]
-					if f.anonymous != g.anonymous ||
+					if f.embedded != g.embedded ||
 						cmpTags && x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
 						!identical(f.typ, g.typ, cmpTags, p) {

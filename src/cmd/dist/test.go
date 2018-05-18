@@ -133,7 +133,11 @@ func (t *tester) run() {
 	// to break if we don't automatically refresh things here.
 	// Rebuilding is a shortened bootstrap.
 	// See cmdbootstrap for a description of the overall process.
-	if !t.listMode {
+	//
+	// But don't do this if we're running in the Go build system,
+	// where cmd/dist is invoked many times. This just slows that
+	// down (Issue 24300).
+	if !t.listMode && os.Getenv("GO_BUILDER_NAME") == "" {
 		goInstall("go", append([]string{"-i"}, toolchain...)...)
 		goInstall("go", append([]string{"-i"}, toolchain...)...)
 		goInstall("go", "std", "cmd")
@@ -172,9 +176,13 @@ func (t *tester) run() {
 		return
 	}
 
-	// we must unset GOROOT_FINAL before tests, because runtime/debug requires
+	// We must unset GOROOT_FINAL before tests, because runtime/debug requires
 	// correct access to source code, so if we have GOROOT_FINAL in effect,
 	// at least runtime/debug test will fail.
+	// If GOROOT_FINAL was set before, then now all the commands will appear stale.
+	// Nothing we can do about that other than not checking them below.
+	// (We call checkNotStale but only with "std" not "cmd".)
+	os.Setenv("GOROOT_FINAL_OLD", os.Getenv("GOROOT_FINAL")) // for cmd/link test
 	os.Unsetenv("GOROOT_FINAL")
 
 	for _, name := range t.runNames {
@@ -226,12 +234,32 @@ func (t *tester) shouldRunTest(name string) bool {
 	return false
 }
 
+// short returns a -short flag to pass to 'go test'.
+// It returns "-short", unless the environment variable
+// GO_TEST_SHORT is set to a non-empty, false-ish string.
+//
+// This environment variable is meant to be an internal
+// detail between the Go build system and cmd/dist
+// and is not intended for use by users.
+func short() string {
+	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
+		short, err := strconv.ParseBool(v)
+		if err != nil {
+			log.Fatalf("invalid GO_TEST_SHORT %q: %v", v, err)
+		}
+		if !short {
+			return "-short=false"
+		}
+	}
+	return "-short"
+}
+
 // goTest returns the beginning of the go test command line.
 // Callers should use goTest and then pass flags overriding these
 // defaults as later arguments in the command line.
 func (t *tester) goTest() []string {
 	return []string{
-		"go", "test", "-short", "-count=1", t.tags(), t.runFlag(""),
+		"go", "test", short(), "-count=1", t.tags(), t.runFlag(""),
 	}
 }
 
@@ -276,11 +304,20 @@ func (t *tester) registerStdTest(pkg string) {
 			timelog("start", dt.name)
 			defer timelog("end", dt.name)
 			ranGoTest = true
+
+			timeoutSec := 180
+			for _, pkg := range stdMatches {
+				if pkg == "cmd/go" {
+					timeoutSec *= 2
+					break
+				}
+			}
+
 			args := []string{
 				"test",
-				"-short",
+				short(),
 				t.tags(),
-				t.timeout(180),
+				t.timeout(timeoutSec),
 				"-gcflags=all=" + gogcflags,
 			}
 			if t.race {
@@ -316,7 +353,7 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 			ranGoBench = true
 			args := []string{
 				"test",
-				"-short",
+				short(),
 				"-race",
 				"-run=^$", // nothing. only benchmarks.
 				"-benchtime=.1s",
@@ -393,6 +430,18 @@ func (t *tester) registerTests() {
 				}
 			}
 		}
+	}
+
+	// Test the os/user package in the pure-Go mode too.
+	if !t.compileOnly {
+		t.tests = append(t.tests, distTest{
+			name:    "osusergo",
+			heading: "os/user with tag osusergo",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=osusergo", "os/user")
+				return nil
+			},
+		})
 	}
 
 	if t.race {
@@ -644,7 +693,7 @@ func (t *tester) registerTests() {
 			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", "cshared_test.go")
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest())
+			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600))
 		}
 		if t.supportedBuildmode("plugin") {
 			t.registerTest("testplugin", "../misc/cgo/testplugin", "./test.bash")
@@ -652,7 +701,7 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if goos == "linux" && goarch == "amd64" {
+		if goos == "linux" && (goarch == "amd64" || goarch == "arm64") {
 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
@@ -900,6 +949,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
+			"freebsd-amd64",
 			"windows-amd64", "windows-386":
 			return true
 		}
@@ -908,6 +958,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
 			"darwin-amd64", "darwin-386",
+			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
 			"windows-amd64", "windows-386":
 			return true
@@ -1040,7 +1091,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 // running in parallel with earlier tests, or if it has some other reason
 // for needing the earlier tests to be done.
 func (t *tester) runPending(nextTest *distTest) {
-	checkNotStale("go", "std", "cmd")
+	checkNotStale("go", "std")
 	worklist := t.worklist
 	t.worklist = nil
 	for _, w := range worklist {
@@ -1093,7 +1144,7 @@ func (t *tester) runPending(nextTest *distTest) {
 			log.Printf("Failed: %v", w.err)
 			t.failed = true
 		}
-		checkNotStale("go", "std", "cmd")
+		checkNotStale("go", "std")
 	}
 	if t.failed && !t.keepGoing {
 		log.Fatal("FAILED")
@@ -1202,6 +1253,23 @@ func (t *tester) hasSwig() bool {
 	if err != nil {
 		return false
 	}
+
+	// Check that swig was installed with Go support by checking
+	// that a go directory exists inside the swiglib directory.
+	// See https://golang.org/issue/23469.
+	output, err := exec.Command(swig, "-go", "-swiglib").Output()
+	if err != nil {
+		return false
+	}
+	swigDir := strings.TrimSpace(string(output))
+
+	_, err = os.Stat(filepath.Join(swigDir, "go"))
+	if err != nil {
+		return false
+	}
+
+	// Check that swig has a new enough version.
+	// See https://golang.org/issue/22858.
 	out, err := exec.Command(swig, "-version").CombinedOutput()
 	if err != nil {
 		return false
@@ -1282,7 +1350,7 @@ func (t *tester) runFlag(rx string) string {
 func (t *tester) raceTest(dt *distTest) error {
 	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace"), "flag", "os", "os/exec")
+	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace"), "flag", "os", "os/exec", "encoding/gob")
 	// We don't want the following line, because it
 	// slows down all.bash (by 10 seconds on my laptop).
 	// The race builder should catch any error here, but doesn't.

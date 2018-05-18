@@ -163,3 +163,68 @@ func f13() {
 	f12(&x)               // ERROR "&x does not escape"
 	runtime.KeepAlive(&x) // ERROR "&x does not escape"
 }
+
+// Test for issue 24305 (passing to unnamed receivers does not escape).
+type U int
+
+func (*U) M()   {}
+func (_ *U) N() {}
+
+func _() {
+	var u U
+	u.M() // ERROR "u does not escape"
+	u.N() // ERROR "u does not escape"
+}
+
+// Issue 24730: taking address in a loop causes unnecessary escape
+type T24730 struct {
+	x [64]byte
+}
+
+func (t *T24730) g() { // ERROR "t does not escape"
+	y := t.x[:]             // ERROR "t\.x does not escape"
+	for i := range t.x[:] { // ERROR "t\.x does not escape"
+		y = t.x[:] // ERROR "t\.x does not escape"
+		y[i] = 1
+	}
+
+	var z *byte
+	for i := range t.x[:] { // ERROR "t\.x does not escape"
+		z = &t.x[i] // ERROR "t\.x\[i\] does not escape"
+		*z = 2
+	}
+}
+
+// Issue 15730: copy causes unnecessary escape
+
+var sink []byte
+var sink2 []int
+var sink3 []*int
+
+func f15730a(args ...interface{}) { // ERROR "args does not escape"
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case string:
+			copy(sink, a)
+		}
+	}
+}
+
+func f15730b(args ...interface{}) { // ERROR "args does not escape"
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case []int:
+			copy(sink2, a)
+		}
+	}
+}
+
+func f15730c(args ...interface{}) { // ERROR "leaking param content: args"
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case []*int:
+			// copy pointerful data should cause escape
+			copy(sink3, a)
+		}
+	}
+}

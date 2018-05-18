@@ -102,7 +102,8 @@ func TestDialContextCancelRace(t *testing.T) {
 	if !ok || oe.Op != "dial" {
 		t.Fatalf("Dial error = %#v; want dial *OpError", err)
 	}
-	if oe.Err != ctx.Err() {
-		t.Errorf("DialContext = (%v, %v); want OpError with error %v", c, err, ctx.Err())
+
+	if oe.Err != errCanceled {
+		t.Errorf("DialContext = (%v, %v); want OpError with error %v", c, err, errCanceled)
 	}
 }

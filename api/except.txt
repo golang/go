@@ -2,6 +2,7 @@ pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
 pkg math/big, const MaxBase = 36
 pkg math/big, type Word uintptr
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
+pkg os, const ModeType = 2399141888
 pkg os (linux-arm), const O_SYNC = 4096
 pkg os (linux-arm-cgo), const O_SYNC = 4096
 pkg syscall (darwin-386), const ImplementsGetwd = false
@@ -15,25 +16,30 @@ pkg syscall (darwin-amd64-cgo), func Fchflags(string, int) error
 pkg syscall (freebsd-386), const AF_MAX = 38
 pkg syscall (freebsd-386), const DLT_MATCHING_MAX = 242
 pkg syscall (freebsd-386), const ELAST = 94
+pkg syscall (freebsd-386), const ImplementsGetwd = false
 pkg syscall (freebsd-386), const O_CLOEXEC = 0
 pkg syscall (freebsd-386), func Fchflags(string, int) error
 pkg syscall (freebsd-386-cgo), const AF_MAX = 38
 pkg syscall (freebsd-386-cgo), const DLT_MATCHING_MAX = 242
 pkg syscall (freebsd-386-cgo), const ELAST = 94
+pkg syscall (freebsd-386-cgo), const ImplementsGetwd = false
 pkg syscall (freebsd-386-cgo), const O_CLOEXEC = 0
 pkg syscall (freebsd-amd64), const AF_MAX = 38
 pkg syscall (freebsd-amd64), const DLT_MATCHING_MAX = 242
 pkg syscall (freebsd-amd64), const ELAST = 94
+pkg syscall (freebsd-amd64), const ImplementsGetwd = false
 pkg syscall (freebsd-amd64), const O_CLOEXEC = 0
 pkg syscall (freebsd-amd64), func Fchflags(string, int) error
 pkg syscall (freebsd-amd64-cgo), const AF_MAX = 38
 pkg syscall (freebsd-amd64-cgo), const DLT_MATCHING_MAX = 242
 pkg syscall (freebsd-amd64-cgo), const ELAST = 94
+pkg syscall (freebsd-amd64-cgo), const ImplementsGetwd = false
 pkg syscall (freebsd-amd64-cgo), const O_CLOEXEC = 0
 pkg syscall (freebsd-arm), const AF_MAX = 38
 pkg syscall (freebsd-arm), const BIOCGRTIMEOUT = 1074545262
 pkg syscall (freebsd-arm), const BIOCSRTIMEOUT = 2148287085
 pkg syscall (freebsd-arm), const ELAST = 94
+pkg syscall (freebsd-arm), const ImplementsGetwd = false
 pkg syscall (freebsd-arm), const O_CLOEXEC = 0
 pkg syscall (freebsd-arm), const SIOCAIFADDR = 2151967019
 pkg syscall (freebsd-arm), const SIOCGIFSTATUS = 3274991931
@@ -65,6 +71,7 @@ pkg syscall (freebsd-arm-cgo), const AF_MAX = 38
 pkg syscall (freebsd-arm-cgo), const BIOCGRTIMEOUT = 1074545262
 pkg syscall (freebsd-arm-cgo), const BIOCSRTIMEOUT = 2148287085
 pkg syscall (freebsd-arm-cgo), const ELAST = 94
+pkg syscall (freebsd-arm-cgo), const ImplementsGetwd = false
 pkg syscall (freebsd-arm-cgo), const O_CLOEXEC = 0
 pkg syscall (freebsd-arm-cgo), const SIOCAIFADDR = 2151967019
 pkg syscall (freebsd-arm-cgo), const SIOCGIFSTATUS = 3274991931
@@ -98,6 +105,12 @@ pkg syscall (linux-amd64), type Cmsghdr struct, X__cmsg_data [0]uint8
 pkg syscall (linux-amd64-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
 pkg syscall (linux-arm), type Cmsghdr struct, X__cmsg_data [0]uint8
 pkg syscall (linux-arm-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
+pkg syscall (netbsd-386), const ImplementsGetwd = false
+pkg syscall (netbsd-386-cgo), const ImplementsGetwd = false
+pkg syscall (netbsd-amd64), const ImplementsGetwd = false
+pkg syscall (netbsd-amd64-cgo), const ImplementsGetwd = false
+pkg syscall (netbsd-arm), const ImplementsGetwd = false
+pkg syscall (netbsd-arm-cgo), const ImplementsGetwd = false
 pkg syscall (netbsd-arm), const SizeofIfData = 132
 pkg syscall (netbsd-arm), func Fchflags(string, int) error
 pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
@@ -106,6 +119,7 @@ pkg syscall (netbsd-arm-cgo), func Fchflags(string, int) error
 pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
 pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074283118
 pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148024941
+pkg syscall (openbsd-386), const ImplementsGetwd = false
 pkg syscall (openbsd-386), const RTF_FMASK = 63496
 pkg syscall (openbsd-386), const RTM_VERSION = 4
 pkg syscall (openbsd-386), const SIOCBRDGDADDR = 2150132039
@@ -158,6 +172,7 @@ pkg syscall (openbsd-386), type Timespec struct, Sec int32
 pkg syscall (openbsd-386), type Timeval struct, Sec int32
 pkg syscall (openbsd-386-cgo), const BIOCGRTIMEOUT = 1074283118
 pkg syscall (openbsd-386-cgo), const BIOCSRTIMEOUT = 2148024941
+pkg syscall (openbsd-386-cgo), const ImplementsGetwd = false
 pkg syscall (openbsd-386-cgo), const RTF_FMASK = 63496
 pkg syscall (openbsd-386-cgo), const RTM_VERSION = 4
 pkg syscall (openbsd-386-cgo), const SIOCBRDGDADDR = 2150132039
@@ -220,6 +235,7 @@ pkg syscall (openbsd-amd64), const EFER_NXE = 2048
 pkg syscall (openbsd-amd64), const EFER_NXE ideal-int
 pkg syscall (openbsd-amd64), const EFER_SCE = 1
 pkg syscall (openbsd-amd64), const EFER_SCE ideal-int
+pkg syscall (openbsd-amd64), const ImplementsGetwd = false
 pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH = 21
 pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH ideal-int
 pkg syscall (openbsd-amd64), const RTF_FMASK = 63496
@@ -282,6 +298,7 @@ pkg syscall (openbsd-amd64-cgo), const EFER_NXE = 2048
 pkg syscall (openbsd-amd64-cgo), const EFER_NXE ideal-int
 pkg syscall (openbsd-amd64-cgo), const EFER_SCE = 1
 pkg syscall (openbsd-amd64-cgo), const EFER_SCE ideal-int
+pkg syscall (openbsd-amd64-cgo), const ImplementsGetwd = false
 pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH = 21
 pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH ideal-int
 pkg syscall (openbsd-amd64-cgo), const RTF_FMASK = 63496
@@ -345,3 +362,24 @@ pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
 pkg syscall (openbsd-amd64), const SYS_KILL = 37
 pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37
 pkg unicode, const Version = "9.0.0"
+pkg text/template/parse, method (*VariableNode) Copy() Node
+pkg text/template/parse, method (*VariableNode) String() string
+pkg text/template/parse, method (VariableNode) Position() Pos
+pkg text/template/parse, method (VariableNode) Type() NodeType
+pkg text/template/parse, type PipeNode struct, Decl []*VariableNode
+pkg text/template/parse, type VariableNode struct
+pkg text/template/parse, type VariableNode struct, Ident []string
+pkg text/template/parse, type VariableNode struct, embedded NodeType
+pkg text/template/parse, type VariableNode struct, embedded Pos
+pkg syscall (windows-386), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
+pkg syscall (windows-386), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
+pkg syscall (windows-386), type CertContext struct, CertInfo uintptr
+pkg syscall (windows-386), type CertRevocationInfo struct, CrlInfo uintptr
+pkg syscall (windows-386), type CertRevocationInfo struct, OidSpecificInfo uintptr
+pkg syscall (windows-386), type CertSimpleChain struct, TrustListInfo uintptr
+pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
+pkg syscall (windows-amd64), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
+pkg syscall (windows-amd64), type CertContext struct, CertInfo uintptr
+pkg syscall (windows-amd64), type CertRevocationInfo struct, CrlInfo uintptr
+pkg syscall (windows-amd64), type CertRevocationInfo struct, OidSpecificInfo uintptr
+pkg syscall (windows-amd64), type CertSimpleChain struct, TrustListInfo uintptr

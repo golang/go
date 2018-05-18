@@ -34,6 +34,8 @@ type Config struct {
 	optimize        bool          // Do optimization
 	noDuffDevice    bool          // Don't use Duff's device
 	useSSE          bool          // Use SSE for non-float operations
+	useAvg          bool          // Use optimizations that need Avg* operations
+	useHmul         bool          // Use optimizations that need Hmul* operations
 	nacl            bool          // GOOS=nacl
 	use387          bool          // GO386=387
 	SoftFloat       bool          //
@@ -73,6 +75,40 @@ type Types struct {
 	BytePtrPtr *types.Type
 }
 
+// NewTypes creates and populates a Types.
+func NewTypes() *Types {
+	t := new(Types)
+	t.SetTypPtrs()
+	return t
+}
+
+// SetTypPtrs populates t.
+func (t *Types) SetTypPtrs() {
+	t.Bool = types.Types[types.TBOOL]
+	t.Int8 = types.Types[types.TINT8]
+	t.Int16 = types.Types[types.TINT16]
+	t.Int32 = types.Types[types.TINT32]
+	t.Int64 = types.Types[types.TINT64]
+	t.UInt8 = types.Types[types.TUINT8]
+	t.UInt16 = types.Types[types.TUINT16]
+	t.UInt32 = types.Types[types.TUINT32]
+	t.UInt64 = types.Types[types.TUINT64]
+	t.Int = types.Types[types.TINT]
+	t.Float32 = types.Types[types.TFLOAT32]
+	t.Float64 = types.Types[types.TFLOAT64]
+	t.UInt = types.Types[types.TUINT]
+	t.Uintptr = types.Types[types.TUINTPTR]
+	t.String = types.Types[types.TSTRING]
+	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
+	t.Int32Ptr = types.NewPtr(types.Types[types.TINT32])
+	t.UInt32Ptr = types.NewPtr(types.Types[types.TUINT32])
+	t.IntPtr = types.NewPtr(types.Types[types.TINT])
+	t.UintptrPtr = types.NewPtr(types.Types[types.TUINTPTR])
+	t.Float32Ptr = types.NewPtr(types.Types[types.TFLOAT32])
+	t.Float64Ptr = types.NewPtr(types.Types[types.TFLOAT64])
+	t.BytePtrPtr = types.NewPtr(types.NewPtr(types.Types[types.TUINT8]))
+}
+
 type Logger interface {
 	// Logf logs a message from the compiler.
 	Logf(string, ...interface{})
@@ -89,7 +125,6 @@ type Logger interface {
 
 	// Forwards the Debug flags from gc
 	Debug_checknil() bool
-	Debug_eagerwb() bool
 }
 
 type Frontend interface {
@@ -143,6 +178,7 @@ type Frontend interface {
 type GCNode interface {
 	Typ() *types.Type
 	String() string
+	IsSynthetic() bool
 	StorageClass() StorageClass
 }
 
@@ -157,6 +193,8 @@ const (
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
 	c := &Config{arch: arch, Types: types}
+	c.useAvg = true
+	c.useHmul = true
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8
@@ -274,6 +312,20 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "wasm":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockWasm
+		c.lowerValue = rewriteValueWasm
+		c.registers = registersWasm[:]
+		c.gpRegMask = gpRegMaskWasm
+		c.fpRegMask = fpRegMaskWasm
+		c.FPReg = framepointerRegWasm
+		c.LinkReg = linkRegWasm
+		c.hasGReg = true
+		c.noDuffDevice = true
+		c.useAvg = false
+		c.useHmul = false
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}
@@ -292,8 +344,19 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	if c.nacl {
 		c.noDuffDevice = true // Don't use Duff's device on NaCl
 
-		// runtime call clobber R12 on nacl
-		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
+		// Returns clobber BP on nacl/386, so the write
+		// barrier does.
+		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 5 // BP
+
+		// ... and SI on nacl/amd64.
+		opcodeTable[OpAMD64LoweredWB].reg.clobbers |= 1 << 6 // SI
+	}
+
+	if ctxt.Flag_shared {
+		// LoweredWB is secretly a CALL and CALLs on 386 in
+		// shared mode get rewritten by obj6.go to go through
+		// the GOT, which clobbers BX.
+		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
 	}
 
 	// cutoff is compared with product of numblocks and numvalues,

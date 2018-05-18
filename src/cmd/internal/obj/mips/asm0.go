@@ -92,6 +92,8 @@ var optab = []Optab{
 	{AADDV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.MIPS64},
 	{AAND, C_REG, C_NONE, C_REG, 2, 4, 0, 0},
 	{ACMOVN, C_REG, C_REG, C_REG, 2, 4, 0, 0},
+	{ANEGW, C_REG, C_NONE, C_REG, 2, 4, 0, 0},
+	{ANEGV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.MIPS64},
 
 	{ASLL, C_REG, C_NONE, C_REG, 9, 4, 0, 0},
 	{ASLL, C_REG, C_REG, C_REG, 9, 4, 0, 0},
@@ -610,13 +612,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 				return C_DACON
 			}
 
-			goto consize
-
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
 			s := a.Sym
 			if s == nil {
-				break
+				return C_GOK
 			}
 
 			c.instoffset = a.Offset
@@ -648,11 +648,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 				return C_SACON
 			}
 			return C_LACON
+
+		default:
+			return C_GOK
 		}
 
-		return C_GOK
-
-	consize:
 		if c.instoffset >= 0 {
 			if c.instoffset == 0 {
 				return C_ZCON
@@ -737,10 +737,8 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
 
 	c.ctxt.Diag("illegal combination %v %v %v %v", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
 	prasm(p)
-	if ops == nil {
-		ops = optab
-	}
-	return &ops[0]
+	// Turn illegal instruction into an UNDEF, avoid crashing in asmout.
+	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0}
 }
 
 func cmp(a int, b int) bool {
@@ -1021,6 +1019,8 @@ func buildop(ctxt *obj.Link) {
 			ALLV,
 			ASC,
 			ASCV,
+			ANEGW,
+			ANEGV,
 			AWORD,
 			obj.ANOP,
 			obj.ATEXT,
@@ -1126,7 +1126,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 2: /* add/sub r1,[r2],r3 */
 		r := int(p.Reg)
-
+		if p.As == ANEGW || p.As == ANEGV {
+			r = REGZERO
+		}
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
@@ -1595,7 +1597,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[1] = o2
 	out[2] = o3
 	out[3] = o4
-	return
 }
 
 func (c *ctxt0) vregoff(a *obj.Addr) int64 {
@@ -1626,7 +1627,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(4, 6)
 	case ASUB:
 		return OP(4, 2)
-	case ASUBU:
+	case ASUBU, ANEGW:
 		return OP(4, 3)
 	case ANOR:
 		return OP(4, 7)
@@ -1648,7 +1649,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(5, 5)
 	case ASUBV:
 		return OP(5, 6)
-	case ASUBVU:
+	case ASUBVU, ANEGV:
 		return OP(5, 7)
 	case AREM,
 		ADIV:

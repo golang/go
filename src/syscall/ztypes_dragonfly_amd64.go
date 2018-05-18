@@ -143,6 +143,10 @@ type Fsid struct {
 	Val [2]int32
 }
 
+const (
+	pathMax = 0x400
+)
+
 type RawSockaddrInet4 struct {
 	Len    uint8
 	Family uint8

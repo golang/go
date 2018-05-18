@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -695,14 +696,18 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 			fmt.Fprintf(fgcc, "(void*)")
 		}
 	}
-	fmt.Fprintf(fgcc, "%s(", n.C)
-	for i := range n.FuncType.Params {
-		if i > 0 {
-			fmt.Fprintf(fgcc, ", ")
+	if n.Kind == "macro" {
+		fmt.Fprintf(fgcc, "%s;\n", n.C)
+	} else {
+		fmt.Fprintf(fgcc, "%s(", n.C)
+		for i := range n.FuncType.Params {
+			if i > 0 {
+				fmt.Fprintf(fgcc, ", ")
+			}
+			fmt.Fprintf(fgcc, "p%d", i)
 		}
-		fmt.Fprintf(fgcc, "p%d", i)
+		fmt.Fprintf(fgcc, ");\n")
 	}
-	fmt.Fprintf(fgcc, ");\n")
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
 	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "\treturn ")
@@ -1150,8 +1155,15 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
 	fmt.Fprintf(fgcch, "/* package %s */\n\n", pkg)
 	fmt.Fprintf(fgcch, "%s\n", builtinExportProlog)
 
+	// Remove absolute paths from #line comments in the preamble.
+	// They aren't useful for people using the header file,
+	// and they mean that the header files change based on the
+	// exact location of GOPATH.
+	re := regexp.MustCompile(`(?m)^(#line\s+[0-9]+\s+")[^"]*[/\\]([^"]*")`)
+	preamble := re.ReplaceAllString(p.Preamble, "$1$2")
+
 	fmt.Fprintf(fgcch, "/* Start of preamble from import \"C\" comments.  */\n\n")
-	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+	fmt.Fprintf(fgcch, "%s\n", preamble)
 	fmt.Fprintf(fgcch, "\n/* End of preamble from import \"C\" comments.  */\n\n")
 
 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
@@ -1652,9 +1664,7 @@ const builtinExportProlog = `
 #ifndef GO_CGO_EXPORT_PROLOGUE_H
 #define GO_CGO_EXPORT_PROLOGUE_H
 
-typedef ptrdiff_t intgo;
-
-typedef struct { const char *p; intgo n; } _GoString_;
+typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 
 #endif
 `

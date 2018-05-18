@@ -1372,7 +1372,7 @@ func TestFloatMul(t *testing.T) {
 					got.Mul(x, y)
 					want := zbits.round(prec, mode)
 					if got.Cmp(want) != 0 {
-						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t*    %s %v\n\t=    %s\n\twant %s",
+						t.Errorf("i = %d, prec = %d, %s:\n\t     %v %v\n\t*    %v %v\n\t=    %v\n\twant %v",
 							i, prec, mode, x, xbits, y, ybits, got, want)
 					}
 
@@ -1382,7 +1382,7 @@ func TestFloatMul(t *testing.T) {
 					got.Quo(z, x)
 					want = ybits.round(prec, mode)
 					if got.Cmp(want) != 0 {
-						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t/    %s %v\n\t=    %s\n\twant %s",
+						t.Errorf("i = %d, prec = %d, %s:\n\t     %v %v\n\t/    %v %v\n\t=    %v\n\twant %v",
 							i, prec, mode, z, zbits, x, xbits, got, want)
 					}
 				}
@@ -1465,13 +1465,13 @@ func TestIssue6866(t *testing.T) {
 		z2.Sub(two, p)
 
 		if z1.Cmp(z2) != 0 {
-			t.Fatalf("prec %d: got z1 = %s != z2 = %s; want z1 == z2\n", prec, z1, z2)
+			t.Fatalf("prec %d: got z1 = %v != z2 = %v; want z1 == z2\n", prec, z1, z2)
 		}
 		if z1.Sign() != 0 {
-			t.Errorf("prec %d: got z1 = %s; want 0", prec, z1)
+			t.Errorf("prec %d: got z1 = %v; want 0", prec, z1)
 		}
 		if z2.Sign() != 0 {
-			t.Errorf("prec %d: got z2 = %s; want 0", prec, z2)
+			t.Errorf("prec %d: got z2 = %v; want 0", prec, z2)
 		}
 	}
 }

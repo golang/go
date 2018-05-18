@@ -103,6 +103,8 @@ func initsig(preinit bool) {
 			// set SA_ONSTACK if necessary.
 			if fwdSig[i] != _SIG_DFL && fwdSig[i] != _SIG_IGN {
 				setsigstack(i)
+			} else if fwdSig[i] == _SIG_IGN {
+				sigInitIgnored(i)
 			}
 			continue
 		}
@@ -314,7 +316,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			st := stackt{ss_size: g.m.g0.stack.hi - g.m.g0.stack.lo}
 			setSignalstackSP(&st, g.m.g0.stack.lo)
 			setGsignalStack(&st, &gsignalStack)
-			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+			g.m.gsignal.stktopsp = getcallersp()
 			setStack = true
 		} else {
 			var st stackt
@@ -333,7 +335,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 				dropm()
 			}
 			setGsignalStack(&st, &gsignalStack)
-			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+			g.m.gsignal.stktopsp = getcallersp()
 			setStack = true
 		}
 	}
@@ -360,6 +362,12 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 // the signal handler. The effect is that the program will act as
 // though the function that got the signal simply called sigpanic
 // instead.
+//
+// This must NOT be nosplit because the linker doesn't know where
+// sigpanic calls can be injected.
+//
+// The signal handler must not inject a call to sigpanic if
+// getg().throwsplit, since sigpanic may need to grow the stack.
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {
@@ -478,7 +486,10 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	// re-installing sighandler. At this point we can just
 	// return and the signal will be re-raised and caught by
 	// the default handler with the correct context.
-	if (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
+	//
+	// On FreeBSD, the libthr sigaction code prevents
+	// this from working so we fall through to raise.
+	if GOOS != "freebsd" && (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
 		return
 	}
 
@@ -498,6 +509,7 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	setsig(sig, funcPC(sighandler))
 }
 
+//go:nosplit
 func crash() {
 	if GOOS == "darwin" {
 		// OS X core dumps are linear dumps of the mapped memory,

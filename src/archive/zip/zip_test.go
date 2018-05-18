@@ -15,6 +15,7 @@ import (
 	"internal/testenv"
 	"io"
 	"io/ioutil"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -140,14 +141,7 @@ func (r *rleBuffer) Write(p []byte) (n int, err error) {
 		rp = &r.buf[len(r.buf)-1]
 		// Fast path, if p is entirely the same byte repeated.
 		if lastByte := rp.b; len(p) > 0 && p[0] == lastByte {
-			all := true
-			for _, b := range p {
-				if b != lastByte {
-					all = false
-					break
-				}
-			}
-			if all {
+			if bytes.Count(p, []byte{lastByte}) == len(p) {
 				rp.n += int64(len(p))
 				return len(p), nil
 			}
@@ -165,6 +159,25 @@ func (r *rleBuffer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+func memset(a []byte, b byte) {
+	if len(a) == 0 {
+		return
+	}
+	// Double, until we reach power of 2 >= len(a), same as bytes.Repeat,
+	// but without allocation.
+	a[0] = b
+	for i, l := 1, len(a); i < l; i *= 2 {
+		copy(a[i:], a[:i])
+	}
+}
+
 func (r *rleBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	if len(p) == 0 {
 		return
@@ -176,16 +189,13 @@ func (r *rleBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	parts := r.buf[skipParts:]
 	if len(parts) > 0 {
 		skipBytes := off - parts[0].off
-		for len(parts) > 0 {
-			part := parts[0]
-			for i := skipBytes; i < part.n; i++ {
-				if n == len(p) {
-					return
-				}
-				p[n] = part.b
-				n++
+		for _, part := range parts {
+			repeat := min(int(part.n-skipBytes), len(p)-n)
+			memset(p[n:n+repeat], part.b)
+			n += repeat
+			if n == len(p) {
+				return
 			}
-			parts = parts[1:]
 			skipBytes = 0
 		}
 	}
@@ -452,6 +462,9 @@ func suffixIsZip64(t *testing.T, zip sizedReaderAt) bool {
 
 // Zip64 is required if the total size of the records is uint32max.
 func TestZip64LargeDirectory(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("too slow on wasm")
+	}
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}

@@ -37,7 +37,9 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	var order []*Block
 
 	// stack of blocks and next child to visit
-	var s []blockAndIndex
+	// A constant bound allows this to be stack-allocated. 32 is
+	// enough to cover almost every postorderWithNumbering call.
+	s := make([]blockAndIndex, 0, 32)
 	s = append(s, blockAndIndex{b: f.Entry})
 	mark[f.Entry.ID] = explored
 	for len(s) > 0 {

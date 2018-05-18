@@ -79,12 +79,8 @@ func syscallMode(i FileMode) (o uint32) {
 	return
 }
 
-// OpenFile is the generalized open call; most users will use Open
-// or Create instead. It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
-// methods on the returned File can be used for I/O.
-// If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+// openFileNolog is the Plan 9 implementation of OpenFile.
+func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	var (
 		fd     int
 		e      error
@@ -455,7 +451,11 @@ func Readlink(name string) (string, error) {
 
 // Chown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
+// A uid or gid of -1 means to not change that value.
 // If there is an error, it will be of type *PathError.
+//
+// On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
+// EPLAN9 error, wrapped in *PathError.
 func Chown(name string, uid, gid int) error {
 	return &PathError{"chown", name, syscall.EPLAN9}
 }

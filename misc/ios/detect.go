@@ -14,6 +14,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -22,12 +23,14 @@ import (
 )
 
 func main() {
-	devID := detectDevID()
+	udids := getLines(exec.Command("idevice_id", "-l"))
+	if len(udids) == 0 {
+		fail("no udid found; is a device connected?")
+	}
 
-	udid := detectUDID()
-	mps := detectMobileProvisionFiles(udid)
+	mps := detectMobileProvisionFiles(udids)
 	if len(mps) == 0 {
-		fail("did not find mobile provision matching device udid %s", udid)
+		fail("did not find mobile provision matching device udids %q", udids)
 	}
 
 	fmt.Println("Available provisioning profiles below.")
@@ -35,7 +38,6 @@ func main() {
 	fmt.Println("will be overwritten when running Go programs.")
 	for _, mp := range mps {
 		fmt.Println()
-		fmt.Printf("export GOIOS_DEV_ID=%s\n", devID)
 		f, err := ioutil.TempFile("", "go_ios_detect_")
 		check(err)
 		fname := f.Name()
@@ -45,6 +47,12 @@ func main() {
 		_, err = f.Write(out)
 		check(err)
 		check(f.Close())
+
+		cert, err := plistExtract(fname, "DeveloperCertificates:0")
+		check(err)
+		pcert, err := x509.ParseCertificate(cert)
+		check(err)
+		fmt.Printf("export GOIOS_DEV_ID=\"%s\"\n", pcert.Subject.CommonName)
 
 		appID, err := plistExtract(fname, "Entitlements:application-identifier")
 		check(err)
@@ -56,39 +64,7 @@ func main() {
 	}
 }
 
-func detectDevID() string {
-	cmd := exec.Command("security", "find-identity", "-p", "codesigning", "-v")
-	lines := getLines(cmd)
-
-	for _, line := range lines {
-		if !bytes.Contains(line, []byte("iPhone Developer")) {
-			continue
-		}
-		if bytes.Contains(line, []byte("REVOKED")) {
-			continue
-		}
-		fields := bytes.Fields(line)
-		return string(fields[1])
-	}
-	fail("no code signing identity found")
-	panic("unreachable")
-}
-
-var udidPrefix = []byte("UniqueDeviceID: ")
-
-func detectUDID() []byte {
-	cmd := exec.Command("ideviceinfo")
-	lines := getLines(cmd)
-	for _, line := range lines {
-		if bytes.HasPrefix(line, udidPrefix) {
-			return bytes.TrimPrefix(line, udidPrefix)
-		}
-	}
-	fail("udid not found; is the device connected?")
-	panic("unreachable")
-}
-
-func detectMobileProvisionFiles(udid []byte) []string {
+func detectMobileProvisionFiles(udids [][]byte) []string {
 	cmd := exec.Command("mdfind", "-name", ".mobileprovision")
 	lines := getLines(cmd)
 
@@ -98,10 +74,16 @@ func detectMobileProvisionFiles(udid []byte) []string {
 			continue
 		}
 		xmlLines := getLines(parseMobileProvision(string(line)))
-		for _, xmlLine := range xmlLines {
-			if bytes.Contains(xmlLine, udid) {
-				files = append(files, string(line))
+		matches := 0
+		for _, udid := range udids {
+			for _, xmlLine := range xmlLines {
+				if bytes.Contains(xmlLine, udid) {
+					matches++
+				}
 			}
+		}
+		if matches == len(udids) {
+			files = append(files, string(line))
 		}
 	}
 	return files
@@ -121,7 +103,12 @@ func plistExtract(fname string, path string) ([]byte, error) {
 
 func getLines(cmd *exec.Cmd) [][]byte {
 	out := output(cmd)
-	return bytes.Split(out, []byte("\n"))
+	lines := bytes.Split(out, []byte("\n"))
+	// Skip the empty line at the end.
+	if len(lines[len(lines)-1]) == 0 {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
 }
 
 func output(cmd *exec.Cmd) []byte {

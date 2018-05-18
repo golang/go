@@ -325,8 +325,8 @@ func TestQueryContext(t *testing.T) {
 			}
 			t.Fatalf("Scan: %v", err)
 		}
-		if index == 2 && err == nil {
-			t.Fatal("expected an error on last scan")
+		if index == 2 && err != context.Canceled {
+			t.Fatalf("Scan: %v; want context.Canceled", err)
 		}
 		got = append(got, r)
 		index++
@@ -660,43 +660,6 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	err := db.PingContext(ctx)
 	if err != nil {
 		t.Fatalf("PingContext (Normal): %v", err)
-	}
-}
-
-func TestByteOwnership(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	rows, err := db.Query("SELECT|people|name,photo|")
-	if err != nil {
-		t.Fatalf("Query: %v", err)
-	}
-	type row struct {
-		name  []byte
-		photo RawBytes
-	}
-	got := []row{}
-	for rows.Next() {
-		var r row
-		err = rows.Scan(&r.name, &r.photo)
-		if err != nil {
-			t.Fatalf("Scan: %v", err)
-		}
-		got = append(got, r)
-	}
-	corruptMemory := []byte("\xffPHOTO")
-	want := []row{
-		{name: []byte("Alice"), photo: corruptMemory},
-		{name: []byte("Bob"), photo: corruptMemory},
-		{name: []byte("Chris"), photo: corruptMemory},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
-	}
-
-	var photo RawBytes
-	err = db.QueryRow("SELECT|people|photo|name=?", "Alice").Scan(&photo)
-	if err == nil {
-		t.Error("want error scanning into RawBytes from QueryRow")
 	}
 }
 
@@ -1375,6 +1338,57 @@ func TestConnQuery(t *testing.T) {
 	}
 }
 
+func TestInvalidNilValues(t *testing.T) {
+	var date1 time.Time
+	var date2 int
+
+	tests := []struct {
+		name          string
+		input         interface{}
+		expectedError string
+	}{
+		{
+			name:          "time.Time",
+			input:         &date1,
+			expectedError: `sql: Scan error on column index 0, name "bdate": unsupported Scan, storing driver.Value type <nil> into type *time.Time`,
+		},
+		{
+			name:          "int",
+			input:         &date2,
+			expectedError: `sql: Scan error on column index 0, name "bdate": converting driver.Value type <nil> ("<nil>") to a int: invalid syntax`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := newTestDB(t, "people")
+			defer closeDB(t, db)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			conn, err := db.Conn(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn.dc.ci.(*fakeConn).skipDirtySession = true
+			defer conn.Close()
+
+			err = conn.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 1).Scan(tt.input)
+			if err == nil {
+				t.Fatal("expected error when querying nil column, but succeeded")
+			}
+			if err.Error() != tt.expectedError {
+				t.Fatalf("Expected error: %s\nReceived: %s", tt.expectedError, err.Error())
+			}
+
+			err = conn.PingContext(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestConnTx(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -1696,7 +1710,7 @@ func TestQueryRowNilScanDest(t *testing.T) {
 	defer closeDB(t, db)
 	var name *string // nil pointer
 	err := db.QueryRow("SELECT|people|name|").Scan(name)
-	want := "sql: Scan error on column index 0: destination pointer is nil"
+	want := `sql: Scan error on column index 0, name "name": destination pointer is nil`
 	if err == nil || err.Error() != want {
 		t.Errorf("error = %q; want %q", err.Error(), want)
 	}
@@ -3192,8 +3206,11 @@ func TestIssue18429(t *testing.T) {
 			// reported.
 			rows, _ := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
 			if rows != nil {
+				var name string
 				// Call Next to test Issue 21117 and check for races.
 				for rows.Next() {
+					// Scan the buffer so it is read and checked for races.
+					rows.Scan(&name)
 				}
 				rows.Close()
 			}

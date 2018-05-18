@@ -81,6 +81,26 @@ func (bu *Binutils) update(fn func(r *binrep)) {
 	bu.rep = r
 }
 
+// String returns string representation of the binutils state for debug logging.
+func (bu *Binutils) String() string {
+	r := bu.get()
+	var llvmSymbolizer, addr2line, nm, objdump string
+	if r.llvmSymbolizerFound {
+		llvmSymbolizer = r.llvmSymbolizer
+	}
+	if r.addr2lineFound {
+		addr2line = r.addr2line
+	}
+	if r.nmFound {
+		nm = r.nm
+	}
+	if r.objdumpFound {
+		objdump = r.objdump
+	}
+	return fmt.Sprintf("llvm-symbolizer=%q addr2line=%q nm=%q objdump=%q fast=%t",
+		llvmSymbolizer, addr2line, nm, objdump, r.fast)
+}
+
 // SetFastSymbolization sets a toggle that makes binutils use fast
 // symbolization (using nm), which is much faster than addr2line but
 // provides only symbol name information (no file/line).
@@ -111,6 +131,11 @@ func initTools(b *binrep, config string) {
 	defaultPath := paths[""]
 	b.llvmSymbolizer, b.llvmSymbolizerFound = findExe("llvm-symbolizer", append(paths["llvm-symbolizer"], defaultPath...))
 	b.addr2line, b.addr2lineFound = findExe("addr2line", append(paths["addr2line"], defaultPath...))
+	if !b.addr2lineFound {
+		// On MacOS, brew installs addr2line under gaddr2line name, so search for
+		// that if the tool is not found by its default name.
+		b.addr2line, b.addr2lineFound = findExe("gaddr2line", append(paths["addr2line"], defaultPath...))
+	}
 	b.nm, b.nmFound = findExe("nm", append(paths["nm"], defaultPath...))
 	b.objdump, b.objdumpFound = findExe("objdump", append(paths["objdump"], defaultPath...))
 }
@@ -175,20 +200,35 @@ func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFi
 func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
 	of, err := macho.Open(name)
 	if err != nil {
-		return nil, fmt.Errorf("Parsing %s: %v", name, err)
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
 	}
 	defer of.Close()
 
-	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
-		return &fileNM{file: file{b: b, name: name}}, nil
+	// Subtract the load address of the __TEXT section. Usually 0 for shared
+	// libraries or 0x100000000 for executables. You can check this value by
+	// running `objdump -private-headers <file>`.
+
+	textSegment := of.Segment("__TEXT")
+	if textSegment == nil {
+		return nil, fmt.Errorf("could not identify base for %s: no __TEXT segment", name)
 	}
-	return &fileAddr2Line{file: file{b: b, name: name}}, nil
+	if textSegment.Addr > start {
+		return nil, fmt.Errorf("could not identify base for %s: __TEXT segment address (0x%x) > mapping start address (0x%x)",
+			name, textSegment.Addr, start)
+	}
+
+	base := start - textSegment.Addr
+
+	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
+		return &fileNM{file: file{b: b, name: name, base: base}}, nil
+	}
+	return &fileAddr2Line{file: file{b: b, name: name, base: base}}, nil
 }
 
 func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
 	ef, err := elf.Open(name)
 	if err != nil {
-		return nil, fmt.Errorf("Parsing %s: %v", name, err)
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
 	}
 	defer ef.Close()
 
@@ -215,9 +255,9 @@ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFi
 		}
 	}
 
-	base, err := elfexec.GetBase(&ef.FileHeader, nil, stextOffset, start, limit, offset)
+	base, err := elfexec.GetBase(&ef.FileHeader, elfexec.FindTextProgHeader(ef), stextOffset, start, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("Could not identify base for %s: %v", name, err)
+		return nil, fmt.Errorf("could not identify base for %s: %v", name, err)
 	}
 
 	buildID := ""
@@ -291,9 +331,9 @@ func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
 }
 
 // fileAddr2Line implements the binutils.ObjFile interface, using
-// 'addr2line' to map addresses to symbols (with file/line number
-// information). It can be slow for large binaries with debug
-// information.
+// llvm-symbolizer, if that's available, or addr2line to map addresses to
+// symbols (with file/line number information). It can be slow for large
+// binaries with debug information.
 type fileAddr2Line struct {
 	once sync.Once
 	file

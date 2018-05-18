@@ -31,6 +31,16 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
+// clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
+func clen(n []byte) int {
+	for i := 0; i < len(n); i++ {
+		if n[i] == 0 {
+			return i
+		}
+	}
+	return len(n)
+}
+
 // Mmap manager, for use by operating system-specific implementations.
 
 type mmapper struct {
@@ -111,7 +121,7 @@ func (e Errno) Error() string {
 }
 
 func (e Errno) Temporary() bool {
-	return e == EINTR || e == EMFILE || e == ECONNRESET || e == ECONNABORTED || e.Timeout()
+	return e == EINTR || e == EMFILE || e.Timeout()
 }
 
 func (e Errno) Timeout() bool {

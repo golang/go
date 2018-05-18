@@ -118,6 +118,13 @@ func transmit(b []byte) []byte { // ERROR "from ~r1 \(return\) at escape_because
 	return b
 }
 
+func f14() {
+	n := 32
+	s1 := make([]int, n)    // ERROR "make\(\[\]int, n\) escapes to heap" "from make\(\[\]int, n\) \(non-constant size\)"
+	s2 := make([]int, 0, n) // ERROR "make\(\[\]int, 0, n\) escapes to heap" "from make\(\[\]int, 0, n\) \(non-constant size\)"
+	_, _ = s1, s2
+}
+
 // The list below is all of the why-escapes messages seen building the escape analysis tests.
 /*
    for i in escape*go ; do echo compile $i; go build -gcflags '-l -m -m' $i >& `basename $i .go`.log ; done
@@ -134,51 +141,40 @@ appended to slice
 appendee slice
 arg to ...
 arg to recursive call
-array literal element
 array-element-equals
-assign-pair
-assign-pair-dot-type
-assign-pair-func-call
+array literal element
 assigned
 assigned to top level variable
-call part
+assign-pair-dot-type
+assign-pair-func-call
 captured by a closure
-closure-var
-converted
-copied slice
-defer func
-defer func ...
-defer func arg
+captured by called closure
 dot
-dot of pointer
 dot-equals
+dot of pointer
 fixed-array-index-of
-go func
-go func ...
 go func arg
 indirection
 interface-converted
 key of map put
 map literal key
 map literal value
+non-constant size
+panic
 parameter to indirect call
+passed-to-and-returned-from-call
 passed to call[argument content escapes]
 passed to call[argument escapes]
-passed-to-and-returned-from-call
 pointer literal
-range
 range-deref
 receiver in indirect call
 return
 returned from recursive function
-send
-slice
 slice-element-equals
 slice-literal-element
 star-dot-equals
 star-equals
 struct literal element
-switch case
 too large for stack
 value of map put
 */
@@ -191,7 +187,6 @@ assign-pair-mapr
 assign-pair-receive
 call receiver
 map index
-panic
 pointer literal [assign]
 slice literal element
 */

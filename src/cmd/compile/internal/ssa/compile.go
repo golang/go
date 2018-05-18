@@ -123,7 +123,7 @@ var dumpFileSeq int
 // output.
 func (f *Func) dumpFile(phaseName string) {
 	dumpFileSeq++
-	fname := fmt.Sprintf("%s__%s_%d.dump", phaseName, f.Name, dumpFileSeq)
+	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, dumpFileSeq, phaseName)
 	fname = strings.Replace(fname, " ", "_", -1)
 	fname = strings.Replace(fname, "/", "_", -1)
 	fname = strings.Replace(fname, ":", "_", -1)
@@ -192,29 +192,55 @@ var BuildDump string // name of function to dump after initial build of ssa
 func PhaseOption(phase, flag string, val int, valString string) string {
 	if phase == "help" {
 		lastcr := 0
-		phasenames := "check, all, build, intrinsics"
+		phasenames := "    check, all, build, intrinsics"
 		for _, p := range passes {
 			pn := strings.Replace(p.name, " ", "_", -1)
 			if len(pn)+len(phasenames)-lastcr > 70 {
-				phasenames += "\n"
+				phasenames += "\n    "
 				lastcr = len(phasenames)
 				phasenames += pn
 			} else {
 				phasenames += ", " + pn
 			}
 		}
-		return "" +
-			`GcFlag -d=ssa/<phase>/<flag>[=<value>|<function_name>]
-<phase> is one of:
+		return `PhaseOptions usage:
+
+    go tool compile -d=ssa/<phase>/<flag>[=<value>|<function_name>]
+
+where:
+
+- <phase> is one of:
 ` + phasenames + `
-<flag> is one of on, off, debug, mem, time, test, stats, dump
-<value> defaults to 1
-<function_name> is required for "dump", specifies name of function to dump after <phase>
-Except for dump, output is directed to standard out; dump appears in a file.
+
+- <flag> is one of:
+    on, off, debug, mem, time, test, stats, dump
+
+- <value> defaults to 1
+
+- <function_name> is required for the "dump" flag, and specifies the
+  name of function to dump after <phase>
+
 Phase "all" supports flags "time", "mem", and "dump".
-Phases "intrinsics" supports flags "on", "off", and "debug".
-Interpretation of the "debug" value depends on the phase.
-Dump files are named <phase>__<function_name>_<seq>.dump.
+Phase "intrinsics" supports flags "on", "off", and "debug".
+
+If the "dump" flag is specified, the output is written on a file named
+<phase>__<function_name>_<seq>.dump; otherwise it is directed to stdout.
+
+Examples:
+
+    -d=ssa/check/on
+enables checking after each phase
+
+    -d=ssa/all/time
+enables time reporting for all phases
+
+    -d=ssa/prove/debug=2
+sets debugging level to 2 in the prove pass
+
+Multiple flags can be passed at once, by separating them with
+commas. For example:
+
+    -d=ssa/check/on,ssa/all/time
 `
 	}
 
@@ -330,6 +356,7 @@ Dump files are named <phase>__<function_name>_<seq>.dump.
 // list of passes for the compiler
 var passes = [...]pass{
 	// TODO: combine phielim and copyelim into a single pass?
+	{name: "number lines", fn: numberLines, required: true},
 	{name: "early phielim", fn: phielim},
 	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
@@ -342,18 +369,18 @@ var passes = [...]pass{
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
-	{name: "loopbce", fn: loopbce},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
+	{name: "dead auto elim", fn: elimDeadAutosGeneric},
 	{name: "generic deadcode", fn: deadcode},
 	{name: "check bce", fn: checkbce},
+	{name: "branchelim", fn: branchelim},
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
-	{name: "tighten", fn: tighten}, // move values closer to their uses
 	{name: "lower", fn: lower, required: true},
 	{name: "lowered cse", fn: cse},
 	{name: "elim unread autos", fn: elimUnreadAutos},
@@ -361,6 +388,7 @@ var passes = [...]pass{
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
+	{name: "tighten", fn: tighten}, // move values closer to their uses
 	{name: "phi tighten", fn: phiTighten},
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
@@ -405,8 +433,6 @@ var passOrder = [...]constraint{
 	{"nilcheckelim", "fuse"},
 	// nilcheckelim relies on opt to rewrite user nil checks
 	{"opt", "nilcheckelim"},
-	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
-	{"tighten", "lower"},
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},

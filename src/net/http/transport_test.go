@@ -16,6 +16,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -958,7 +959,7 @@ func TestTransportExpect100Continue(t *testing.T) {
 	}
 }
 
-func TestSocks5Proxy(t *testing.T) {
+func TestSOCKS5Proxy(t *testing.T) {
 	defer afterTest(t)
 	ch := make(chan string, 1)
 	l := newLocalListener(t)
@@ -995,9 +996,9 @@ func TestSocks5Proxy(t *testing.T) {
 		var ipLen int
 		switch buf[3] {
 		case 1:
-			ipLen = 4
+			ipLen = net.IPv4len
 		case 4:
-			ipLen = 16
+			ipLen = net.IPv6len
 		default:
 			t.Errorf("socks5 proxy second read: unexpected address type %v", buf[4])
 			return
@@ -3716,6 +3717,68 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	}
 }
 
+func TestTransportEventTraceTLSVerify(t *testing.T) {
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	logf := func(format string, args ...interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(&buf, format, args...)
+		buf.WriteByte('\n')
+	}
+
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Error("Unexpected request")
+	}))
+	defer ts.Close()
+	ts.Config.ErrorLog = log.New(funcWriter(func(p []byte) (int, error) {
+		logf("%s", p)
+		return len(p), nil
+	}), "", 0)
+
+	certpool := x509.NewCertPool()
+	certpool.AddCert(ts.Certificate())
+
+	c := &Client{Transport: &Transport{
+		TLSClientConfig: &tls.Config{
+			ServerName: "dns-is-faked.golang",
+			RootCAs:    certpool,
+		},
+	}}
+
+	trace := &httptrace.ClientTrace{
+		TLSHandshakeStart: func() { logf("TLSHandshakeStart") },
+		TLSHandshakeDone: func(s tls.ConnectionState, err error) {
+			logf("TLSHandshakeDone: ConnectionState = %v \n err = %v", s, err)
+		},
+	}
+
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), trace))
+	_, err := c.Do(req)
+	if err == nil {
+		t.Error("Expected request to fail TLS verification")
+	}
+
+	mu.Lock()
+	got := buf.String()
+	mu.Unlock()
+
+	wantOnce := func(sub string) {
+		if strings.Count(got, sub) != 1 {
+			t.Errorf("expected substring %q exactly once in output.", sub)
+		}
+	}
+
+	wantOnce("TLSHandshakeStart")
+	wantOnce("TLSHandshakeDone")
+	wantOnce("err = x509: certificate is valid for example.com")
+
+	if t.Failed() {
+		t.Errorf("Output:\n%s", got)
+	}
+}
+
 var (
 	isDNSHijackedOnce sync.Once
 	isDNSHijacked     bool
@@ -4365,3 +4428,7 @@ func TestNoBodyOnChunked304Response(t *testing.T) {
 		t.Errorf("Unexpected body on 304 response")
 	}
 }
+
+type funcWriter func([]byte) (int, error)
+
+func (f funcWriter) Write(p []byte) (int, error) { return f(p) }

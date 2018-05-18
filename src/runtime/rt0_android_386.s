@@ -10,7 +10,10 @@ TEXT _rt0_386_android(SB),NOSPLIT,$0
 TEXT _rt0_386_android_lib(SB),NOSPLIT,$0
 	PUSHL	$_rt0_386_android_argv(SB)  // argv
 	PUSHL	$1  // argc
-	JMP	_rt0_386_lib(SB)
+	CALL	_rt0_386_lib(SB)
+	POPL	AX
+	POPL	AX
+	RET
 
 DATA _rt0_386_android_argv+0x00(SB)/4,$_rt0_386_android_argv0(SB)
 DATA _rt0_386_android_argv+0x04(SB)/4,$0  // argv terminate

@@ -5,7 +5,6 @@
 package mime
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -19,7 +18,7 @@ import (
 // When any of the arguments result in a standard violation then
 // FormatMediaType returns the empty string.
 func FormatMediaType(t string, param map[string]string) string {
-	var b bytes.Buffer
+	var b strings.Builder
 	if slash := strings.Index(t, "/"); slash == -1 {
 		if !isToken(t) {
 			return ""
@@ -167,7 +166,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 
 	// Stitch together any continuations or things with stars
 	// (i.e. RFC 2231 things with stars: "foo*0" or "foo*")
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for key, pieceMap := range continuation {
 		singlePartKey := key + "*"
 		if v, ok := pieceMap[singlePartKey]; ok {
@@ -265,7 +264,7 @@ func consumeValue(v string) (value, rest string) {
 	}
 
 	// parse a quoted-string
-	buffer := new(bytes.Buffer)
+	buffer := new(strings.Builder)
 	for i := 1; i < len(v); i++ {
 		r := v[i]
 		if r == '"' {

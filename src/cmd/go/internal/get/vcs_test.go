@@ -60,6 +60,10 @@ func TestRepoRootForImportPath(t *testing.T) {
 			nil,
 		},
 		{
+			"hubajazz.net",
+			nil,
+		},
+		{
 			"hub2.jazz.net",
 			nil,
 		},
@@ -138,6 +142,10 @@ func TestRepoRootForImportPath(t *testing.T) {
 		// Should have ".git" suffix
 		{
 			"git.apache.org/package-name/path/to/lib",
+			nil,
+		},
+		{
+			"gitbapache.org",
 			nil,
 		},
 		{
@@ -405,6 +413,50 @@ func TestMatchGoImport(t *testing.T) {
 		want := test.err
 		if (got == nil) != (want == nil) {
 			t.Errorf("unexpected error; got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestValidateRepoRoot(t *testing.T) {
+	tests := []struct {
+		root string
+		ok   bool
+	}{
+		{
+			root: "",
+			ok:   false,
+		},
+		{
+			root: "http://",
+			ok:   true,
+		},
+		{
+			root: "git+ssh://",
+			ok:   true,
+		},
+		{
+			root: "http#://",
+			ok:   false,
+		},
+		{
+			root: "-config",
+			ok:   false,
+		},
+		{
+			root: "-config://",
+			ok:   false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validateRepoRoot(test.root)
+		ok := err == nil
+		if ok != test.ok {
+			want := "error"
+			if test.ok {
+				want = "nil"
+			}
+			t.Errorf("validateRepoRoot(%q) = %q, want %s", test.root, err, want)
 		}
 	}
 }

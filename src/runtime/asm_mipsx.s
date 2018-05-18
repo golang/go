@@ -92,7 +92,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+TEXT runtime·gosave(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	buf+0(FP), R1
 	MOVW	R29, gobuf_sp(R1)
 	MOVW	R31, gobuf_pc(R1)
@@ -128,7 +128,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$8-4
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	// Save caller state in g->sched
 	MOVW	R29, (g_sched+gobuf_sp)(g)
 	MOVW	R31, (g_sched+gobuf_pc)(g)
@@ -180,6 +180,7 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
 	// Hide call from linker nosplit analysis.
 	MOVW	$runtime·badsystemstack(SB), R4
 	JAL	(R4)
+	JAL	runtime·abort(SB)
 
 switch:
 	// save our state in g->sched.  Pretend to
@@ -234,7 +235,7 @@ noswitch:
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	g_m(g), R7
 	MOVW	m_g0(R7), R8
@@ -293,7 +294,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 TEXT reflect·call(SB),NOSPLIT,$0-20
 	JMP	·reflectcall(SB)
 
-TEXT ·reflectcall(SB),NOSPLIT,$-4-20
+TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	argsize+12(FP), R1
 
 	DISPATCH(runtime·call16, 16)
@@ -418,7 +419,7 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	JMP	(R4)
 
 // Save state of caller into g->sched. Smashes R1.
-TEXT gosave<>(SB),NOSPLIT,$-4
+TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R31, (g_sched+gobuf_pc)(g)
 	MOVW	R29, (g_sched+gobuf_sp)(g)
 	MOVW	R0, (g_sched+gobuf_lr)(g)
@@ -610,11 +611,6 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
 	JAL	runtime·save_g(SB)
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
-	MOVW	0(R29), R1	// LR saved by caller
-	MOVW	R1, ret+0(FP)
-	RET
-
 TEXT runtime·abort(SB),NOSPLIT,$0-0
 	UNDEF
 
@@ -634,199 +630,13 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0
 TEXT runtime·aeshashstr(SB),NOSPLIT,$0
 	UNDEF
 
-// memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT,$0-13
-	MOVW	a+0(FP), R1
-	MOVW	b+4(FP), R2
-	BEQ	R1, R2, eq
-	MOVW	size+8(FP), R3
-	ADDU	R1, R3, R4
-loop:
-	BNE	R1, R4, test
-	MOVW	$1, R1
-	MOVB	R1, ret+12(FP)
-	RET
-test:
-	MOVBU	(R1), R6
-	ADDU	$1, R1
-	MOVBU	(R2), R7
-	ADDU	$1, R2
-	BEQ	R6, R7, loop
-
-	MOVB	R0, ret+12(FP)
-	RET
-eq:
-	MOVW	$1, R1
-	MOVB	R1, ret+12(FP)
-	RET
-
-// memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
-	MOVW	a+0(FP), R1
-	MOVW	b+4(FP), R2
-	BEQ	R1, R2, eq
-	MOVW	4(REGCTXT), R3	// compiler stores size at offset 4 in the closure
-	ADDU	R1, R3, R4
-loop:
-	BNE	R1, R4, test
-	MOVW	$1, R1
-	MOVB	R1, ret+8(FP)
-	RET
-test:
-	MOVBU	(R1), R6
-	ADDU	$1, R1
-	MOVBU	(R2), R7
-	ADDU	$1, R2
-	BEQ	R6, R7, loop
-
-	MOVB	R0, ret+8(FP)
-	RET
-eq:
-	MOVW	$1, R1
-	MOVB	R1, ret+8(FP)
-	RET
-
-TEXT bytes·Equal(SB),NOSPLIT,$0-25
-	MOVW	a_len+4(FP), R3
-	MOVW	b_len+16(FP), R4
-	BNE	R3, R4, noteq	// unequal lengths are not equal
-
-	MOVW	a+0(FP), R1
-	MOVW	b+12(FP), R2
-	ADDU	R1, R3	// end
-
-loop:
-	BEQ	R1, R3, equal	// reached the end
-	MOVBU	(R1), R6
-	ADDU	$1, R1
-	MOVBU	(R2), R7
-	ADDU	$1, R2
-	BEQ	R6, R7, loop
-
-noteq:
-	MOVB	R0, ret+24(FP)
-	RET
-
-equal:
-	MOVW	$1, R1
-	MOVB	R1, ret+24(FP)
-	RET
-
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
-	MOVW	s+0(FP), R1
-	MOVW	s_len+4(FP), R2
-	MOVBU	c+12(FP), R3	// byte to find
-	ADDU	$1, R1, R4	// store base+1 for later
-	ADDU	R1, R2	// end
-
-loop:
-	BEQ	R1, R2, notfound
-	MOVBU	(R1), R5
-	ADDU	$1, R1
-	BNE	R3, R5, loop
-
-	SUBU	R4, R1	// R1 will be one beyond the position we want so remove (base+1)
-	MOVW	R1, ret+16(FP)
-	RET
-
-notfound:
-	MOVW	$-1, R1
-	MOVW	R1, ret+16(FP)
-	RET
-
-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
-	MOVW	s_base+0(FP), R1
-	MOVW	s_len+4(FP), R2
-	MOVBU	c+8(FP), R3	// byte to find
-	ADDU	$1, R1, R4	// store base+1 for later
-	ADDU	R1, R2	// end
-
-loop:
-	BEQ	R1, R2, notfound
-	MOVBU	(R1), R5
-	ADDU	$1, R1
-	BNE	R3, R5, loop
-
-	SUBU	R4, R1	// remove (base+1)
-	MOVW	R1, ret+12(FP)
-	RET
-
-notfound:
-	MOVW	$-1, R1
-	MOVW	R1, ret+12(FP)
-	RET
-
-TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
-	MOVW	s1_base+0(FP), R3
-	MOVW	s1_len+4(FP), R1
-	MOVW	s2_base+8(FP), R4
-	MOVW	s2_len+12(FP), R2
-	BEQ	R3, R4, samebytes
-	SGTU	R1, R2, R7
-	MOVW	R1, R8
-	CMOVN	R7, R2, R8	// R8 is min(R1, R2)
-
-	ADDU	R3, R8	// R3 is current byte in s1, R8 is last byte in s1 to compare
-loop:
-	BEQ	R3, R8, samebytes	// all compared bytes were the same; compare lengths
-
-	MOVBU	(R3), R6
-	ADDU	$1, R3
-	MOVBU	(R4), R7
-	ADDU	$1, R4
-	BEQ	R6, R7 , loop
-	// bytes differed
-	SGTU	R6, R7, R8
-	MOVW	$-1, R6
-	CMOVZ	R8, R6, R8
-	JMP	cmp_ret
-samebytes:
-	SGTU	R1, R2, R6
-	SGTU	R2, R1, R7
-	SUBU	R7, R6, R8
-cmp_ret:
-	MOVW	R8, ret+16(FP)
-	RET
-
-TEXT bytes·Compare(SB),NOSPLIT,$0-28
-	MOVW	s1_base+0(FP), R3
-	MOVW	s2_base+12(FP), R4
-	MOVW	s1_len+4(FP), R1
-	MOVW	s2_len+16(FP), R2
-	BEQ	R3, R4, samebytes
-	SGTU	R1, R2, R7
-	MOVW	R1, R8
-	CMOVN	R7, R2, R8	// R8 is min(R1, R2)
-
-	ADDU	R3, R8	// R3 is current byte in s1, R8 is last byte in s1 to compare
-loop:
-	BEQ	R3, R8, samebytes
-
-	MOVBU	(R3), R6
-	ADDU	$1, R3
-	MOVBU	(R4), R7
-	ADDU	$1, R4
-	BEQ	R6, R7 , loop
-
-	SGTU	R6, R7, R8
-	MOVW	$-1, R6
-	CMOVZ	R8, R6, R8
-	JMP	cmp_ret
-samebytes:
-	SGTU	R1, R2, R6
-	SGTU	R2, R1, R7
-	SUBU	R7, R6, R8
-cmp_ret:
-	MOVW	R8, ret+24(FP)
-	RET
-
 TEXT runtime·return0(SB),NOSPLIT,$0
 	MOVW	$0, R1
 	RET
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT _cgo_topofstack(SB),NOSPLIT,$-4
+TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
 	// g (R30), R3 and REGTMP (R23) might be clobbered by load_g. R30 and R23
 	// are callee-save in the gcc calling convention, so save them.
 	MOVW	R23, R8
@@ -846,7 +656,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$-4
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	NOR	R0, R0	// NOP
 	JAL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
@@ -856,3 +666,104 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R1
 	MOVB	R1, ret+0(FP)
 	RET
+
+// gcWriteBarrier performs a heap pointer write and informs the GC.
+//
+// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+// - R20 is the destination of the write
+// - R21 is the value being written at R20.
+// It clobbers R23 (the linker temp register).
+// The act of CALLing gcWriteBarrier will clobber R31 (LR).
+// It does not clobber any other general-purpose registers,
+// but may clobber others (e.g., floating point registers).
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
+	// Save the registers clobbered by the fast path.
+	MOVW	R1, 100(R29)
+	MOVW	R2, 104(R29)
+	MOVW	g_m(g), R1
+	MOVW	m_p(R1), R1
+	MOVW	(p_wbBuf+wbBuf_next)(R1), R2
+	// Increment wbBuf.next position.
+	ADD	$8, R2
+	MOVW	R2, (p_wbBuf+wbBuf_next)(R1)
+	MOVW	(p_wbBuf+wbBuf_end)(R1), R1
+	MOVW	R1, R23		// R23 is linker temp register
+	// Record the write.
+	MOVW	R21, -8(R2)	// Record value
+	MOVW	(R20), R1	// TODO: This turns bad writes into bad reads.
+	MOVW	R1, -4(R2)	// Record *slot
+	// Is the buffer full?
+	BEQ	R2, R23, flush
+ret:
+	MOVW	100(R29), R1
+	MOVW	104(R29), R2
+	// Do the write.
+	MOVW	R21, (R20)
+	RET
+
+flush:
+	// Save all general purpose registers since these could be
+	// clobbered by wbBufFlush and were not saved by the caller.
+	MOVW	R20, 4(R29)	// Also first argument to wbBufFlush
+	MOVW	R21, 8(R29)	// Also second argument to wbBufFlush
+	// R1 already saved
+	// R2 already saved
+	MOVW	R3, 12(R29)
+	MOVW	R4, 16(R29)
+	MOVW	R5, 20(R29)
+	MOVW	R6, 24(R29)
+	MOVW	R7, 28(R29)
+	MOVW	R8, 32(R29)
+	MOVW	R9, 36(R29)
+	MOVW	R10, 40(R29)
+	MOVW	R11, 44(R29)
+	MOVW	R12, 48(R29)
+	MOVW	R13, 52(R29)
+	MOVW	R14, 56(R29)
+	MOVW	R15, 60(R29)
+	MOVW	R16, 64(R29)
+	MOVW	R17, 68(R29)
+	MOVW	R18, 72(R29)
+	MOVW	R19, 76(R29)
+	MOVW	R20, 80(R29)
+	// R21 already saved
+	// R22 already saved.
+	MOVW	R22, 84(R29)
+	// R23 is tmp register.
+	MOVW	R24, 88(R29)
+	MOVW	R25, 92(R29)
+	// R26 is reserved by kernel.
+	// R27 is reserved by kernel.
+	MOVW	R28, 96(R29)
+	// R29 is SP.
+	// R30 is g.
+	// R31 is LR, which was saved by the prologue.
+
+	// This takes arguments R20 and R21.
+	CALL	runtime·wbBufFlush(SB)
+
+	MOVW	4(R29), R20
+	MOVW	8(R29), R21
+	MOVW	12(R29), R3
+	MOVW	16(R29), R4
+	MOVW	20(R29), R5
+	MOVW	24(R29), R6
+	MOVW	28(R29), R7
+	MOVW	32(R29), R8
+	MOVW	36(R29), R9
+	MOVW	40(R29), R10
+	MOVW	44(R29), R11
+	MOVW	48(R29), R12
+	MOVW	52(R29), R13
+	MOVW	56(R29), R14
+	MOVW	60(R29), R15
+	MOVW	64(R29), R16
+	MOVW	68(R29), R17
+	MOVW	72(R29), R18
+	MOVW	76(R29), R19
+	MOVW	80(R29), R20
+	MOVW	84(R29), R22
+	MOVW	88(R29), R24
+	MOVW	92(R29), R25
+	MOVW	96(R29), R28
+	JMP	ret

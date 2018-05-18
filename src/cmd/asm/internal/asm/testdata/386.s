@@ -91,3 +91,4 @@ loop:
 
 // LTYPE0 nonnon	{ outcode(int($1), &$2); }
 	RET
+	RET	foo(SB)

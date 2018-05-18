@@ -450,6 +450,13 @@ func BenchmarkCopyFat512(b *testing.B) {
 		_ = y
 	}
 }
+func BenchmarkCopyFat520(b *testing.B) {
+	var x [520 / 4]uint32
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
 func BenchmarkCopyFat1024(b *testing.B) {
 	var x [1024 / 4]uint32
 	for i := 0; i < b.N; i++ {

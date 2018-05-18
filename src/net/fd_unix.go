@@ -121,7 +121,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 				// == nil). Because we've now poisoned the connection
 				// by making it unwritable, don't return a successful
 				// dial. This was issue 16523.
-				ret = ctxErr
+				ret = mapErr(ctxErr)
 				fd.Close() // prevent a leak
 			}
 		}()
@@ -173,7 +173,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 				return rsa, nil
 			}
 		default:
-			return nil, os.NewSyscallError("getsockopt", err)
+			return nil, os.NewSyscallError("connect", err)
 		}
 		runtime.KeepAlive(fd)
 	}
@@ -307,14 +307,6 @@ func (fd *netFD) dup() (f *os.File, err error) {
 	ns, err := dupCloseOnExec(fd.pfd.Sysfd)
 	if err != nil {
 		return nil, err
-	}
-
-	// We want blocking mode for the new fd, hence the double negative.
-	// This also puts the old fd into blocking mode, meaning that
-	// I/O will block the thread instead of letting us use the epoll server.
-	// Everything will still work, just with more threads.
-	if err = syscall.SetNonblock(ns, false); err != nil {
-		return nil, os.NewSyscallError("setnonblock", err)
 	}
 
 	return os.NewFile(uintptr(ns), fd.name()), nil

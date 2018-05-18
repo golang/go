@@ -192,6 +192,9 @@ type UI interface {
 	// interactive terminal (as opposed to being redirected to a file).
 	IsTerminal() bool
 
+	// WantBrowser indicates whether a browser should be opened with the -http option.
+	WantBrowser() bool
+
 	// SetAutoComplete instructs the UI to call complete(cmd) to obtain
 	// the auto-completion of cmd, if the UI supports auto-completion at all.
 	SetAutoComplete(complete func(string) string)

@@ -198,7 +198,7 @@ type Decoder struct {
 	// charset-conversion readers, converting from the provided
 	// non-UTF-8 charset into UTF-8. If CharsetReader is nil or
 	// returns an error, parsing stops with an error. One of the
-	// the CharsetReader's result values must be non-nil.
+	// CharsetReader's result values must be non-nil.
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 
 	// DefaultSpace sets the default name space used for unadorned tags,
@@ -806,18 +806,7 @@ func (d *Decoder) rawToken() (Token, error) {
 		}
 		d.ungetc(b)
 
-		n := len(attr)
-		if n >= cap(attr) {
-			nCap := 2 * cap(attr)
-			if nCap == 0 {
-				nCap = 4
-			}
-			nattr := make([]Attr, n, nCap)
-			copy(nattr, attr)
-			attr = nattr
-		}
-		attr = attr[0 : n+1]
-		a := &attr[n]
+		a := Attr{}
 		if a.Name, ok = d.nsname(); !ok {
 			if d.err == nil {
 				d.err = d.syntaxError("expected attribute name in element")
@@ -843,6 +832,7 @@ func (d *Decoder) rawToken() (Token, error) {
 			}
 			a.Value = string(data)
 		}
+		attr = append(attr, a)
 	}
 	if empty {
 		d.needClose = true
@@ -1150,7 +1140,7 @@ func isInCharacterRange(r rune) (inrange bool) {
 	return r == 0x09 ||
 		r == 0x0A ||
 		r == 0x0D ||
-		r >= 0x20 && r <= 0xDF77 ||
+		r >= 0x20 && r <= 0xD7FF ||
 		r >= 0xE000 && r <= 0xFFFD ||
 		r >= 0x10000 && r <= 0x10FFFF
 }
@@ -1942,10 +1932,8 @@ func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
 		}
 		last = i
 	}
-	if _, err := w.Write(s[last:]); err != nil {
-		return err
-	}
-	return nil
+	_, err := w.Write(s[last:])
+	return err
 }
 
 // EscapeString writes to p the properly escaped XML equivalent
@@ -2028,10 +2016,8 @@ func emitCDATA(w io.Writer, s []byte) error {
 		}
 		s = s[i:]
 	}
-	if _, err := w.Write(cdataEnd); err != nil {
-		return err
-	}
-	return nil
+	_, err := w.Write(cdataEnd)
+	return err
 }
 
 // procInst parses the `param="..."` or `param='...'`

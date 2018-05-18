@@ -152,3 +152,8 @@ func signal_disable(s uint32) {
 //go:linkname signal_ignore os/signal.signal_ignore
 func signal_ignore(s uint32) {
 }
+
+//go:linkname signal_ignored os/signal.signal_ignored
+func signal_ignored(s uint32) bool {
+	return false
+}

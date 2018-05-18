@@ -40,7 +40,7 @@ func TestEscape(t *testing.T) {
 	}{
 		F: false,
 		T: true,
-		C: "<Cincinatti>",
+		C: "<Cincinnati>",
 		G: "<Goodbye>",
 		H: "<Hello>",
 		A: []string{"<a>", "<b>"},
@@ -61,7 +61,7 @@ func TestEscape(t *testing.T) {
 		{
 			"if",
 			"{{if .T}}Hello{{end}}, {{.C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"else",
@@ -71,17 +71,17 @@ func TestEscape(t *testing.T) {
 		{
 			"overescaping1",
 			"Hello, {{.C | html}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"overescaping2",
 			"Hello, {{html .C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"overescaping3",
 			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"assignment",
@@ -181,7 +181,7 @@ func TestEscape(t *testing.T) {
 		{
 			"urlBranchConflictMoot",
 			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
-			`<a href="/foo?a=%3cCincinatti%3e">`,
+			`<a href="/foo?a=%3cCincinnati%3e">`,
 		},
 		{
 			"jsStrValue",
@@ -237,7 +237,7 @@ func TestEscape(t *testing.T) {
 			"jsStrNotUnderEscaped",
 			"<button onclick='alert({{.C | urlquery}})'>",
 			// URL escaped, then quoted for JS.
-			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
+			`<button onclick='alert(&#34;%3CCincinnati%3E&#34;)'>`,
 		},
 		{
 			"jsRe",
@@ -405,7 +405,7 @@ func TestEscape(t *testing.T) {
 		{
 			"HTML comment",
 			"<b>Hello, <!-- name of world -->{{.C}}</b>",
-			"<b>Hello, &lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinnati&gt;</b>",
 		},
 		{
 			"HTML comment not first < in text node.",
@@ -445,7 +445,7 @@ func TestEscape(t *testing.T) {
 		{
 			"Split HTML comment",
 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
-			"<b>Hello, &lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinnati&gt;</b>",
 		},
 		{
 			"JS line comment",
@@ -649,6 +649,17 @@ func TestEscape(t *testing.T) {
 			// and regular HTML content for others.
 			`<{{"script"}}>{{"doEvil()"}}</{{"script"}}>`,
 			`&lt;script>doEvil()&lt;/script>`,
+		},
+		{
+			"srcset bad URL in second position",
+			`<img srcset="{{"/not-an-image#,javascript:alert(1)"}}">`,
+			// The second URL is also filtered.
+			`<img srcset="/not-an-image#,#ZgotmplZ">`,
+		},
+		{
+			"srcset buffer growth",
+			`<img srcset={{",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"}}>`,
+			`<img srcset=,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,>`,
 		},
 	}
 
@@ -1840,7 +1851,7 @@ func TestErrorOnUndefined(t *testing.T) {
 
 	err := tmpl.Execute(nil, nil)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Error("expected error")
 	}
 	if !strings.Contains(err.Error(), "incomplete") {
 		t.Errorf("expected error about incomplete template; got %s", err)
@@ -1860,10 +1871,10 @@ func TestIdempotentExecute(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		err = tmpl.ExecuteTemplate(got, "hello", nil)
 		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Errorf("unexpected error: %s", err)
 		}
 		if got.String() != want {
-			t.Fatalf("after executing template \"hello\", got:\n\t%q\nwant:\n\t%q\n", got.String(), want)
+			t.Errorf("after executing template \"hello\", got:\n\t%q\nwant:\n\t%q\n", got.String(), want)
 		}
 		got.Reset()
 	}
@@ -1871,26 +1882,13 @@ func TestIdempotentExecute(t *testing.T) {
 	// "main" does not cause the output of "hello" to change.
 	err = tmpl.ExecuteTemplate(got, "main", nil)
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Errorf("unexpected error: %s", err)
 	}
 	// If the HTML escaper is added again to the action {{"Ladies & Gentlemen!"}},
 	// we would expected to see the ampersand overescaped to "&amp;amp;".
 	want = "<body>Hello, Ladies &amp; Gentlemen!</body>"
 	if got.String() != want {
 		t.Errorf("after executing template \"main\", got:\n\t%q\nwant:\n\t%q\n", got.String(), want)
-	}
-}
-
-// This covers issue #21844.
-func TestAddExistingTreeError(t *testing.T) {
-	tmpl := Must(New("foo").Parse(`<p>{{.}}</p>`))
-	tmpl, err := tmpl.AddParseTree("bar", tmpl.Tree)
-	if err == nil {
-		t.Fatalf("expected error after AddParseTree")
-	}
-	const want = `html/template: cannot add parse tree that template "foo" already references`
-	if got := err.Error(); got != want {
-		t.Errorf("got error:\n\t%q\nwant:\n\t%q\n", got, want)
 	}
 }
 
@@ -1901,5 +1899,55 @@ func BenchmarkEscapedExecute(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		tmpl.Execute(&buf, "foo & 'bar' & baz")
 		buf.Reset()
+	}
+}
+
+// Covers issue 22780.
+func TestOrphanedTemplate(t *testing.T) {
+	t1 := Must(New("foo").Parse(`<a href="{{.}}">link1</a>`))
+	t2 := Must(t1.New("foo").Parse(`bar`))
+
+	var b bytes.Buffer
+	const wantError = `template: "foo" is an incomplete or empty template`
+	if err := t1.Execute(&b, "javascript:alert(1)"); err == nil {
+		t.Fatal("expected error executing t1")
+	} else if gotError := err.Error(); gotError != wantError {
+		t.Fatalf("got t1 execution error:\n\t%s\nwant:\n\t%s", gotError, wantError)
+	}
+	b.Reset()
+	if err := t2.Execute(&b, nil); err != nil {
+		t.Fatalf("error executing t2: %s", err)
+	}
+	const want = "bar"
+	if got := b.String(); got != want {
+		t.Fatalf("t2 rendered %q, want %q", got, want)
+	}
+}
+
+// Covers issue 21844.
+func TestAliasedParseTreeDoesNotOverescape(t *testing.T) {
+	const (
+		tmplText = `{{.}}`
+		data     = `<baz>`
+		want     = `&lt;baz&gt;`
+	)
+	// Templates "foo" and "bar" both alias the same underlying parse tree.
+	tpl := Must(New("foo").Parse(tmplText))
+	if _, err := tpl.AddParseTree("bar", tpl.Tree); err != nil {
+		t.Fatalf("AddParseTree error: %v", err)
+	}
+	var b1, b2 bytes.Buffer
+	if err := tpl.ExecuteTemplate(&b1, "foo", data); err != nil {
+		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
+	}
+	if err := tpl.ExecuteTemplate(&b2, "bar", data); err != nil {
+		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
+	}
+	got1, got2 := b1.String(), b2.String()
+	if got1 != want {
+		t.Fatalf(`Template "foo" rendered %q, want %q`, got1, want)
+	}
+	if got1 != got2 {
+		t.Fatalf(`Template "foo" and "bar" rendered %q and %q respectively, expected equal values`, got1, got2)
 	}
 }

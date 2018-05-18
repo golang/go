@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -24,8 +25,6 @@ type declInfo struct {
 	alias bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
-	// As a special (overloaded) case, it also tracks dependencies of
-	// interface types on embedded interfaces (see ordering.go).
 	deps objSet // lazily initialized
 }
 
@@ -216,6 +215,7 @@ func (check *Checker) collectObjects() {
 		pkgImports[imp] = true
 	}
 
+	var methods []*Func // list of methods with non-blank _ names
 	for fileNo, file := range check.files {
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
@@ -411,20 +411,13 @@ func (check *Checker) collectObjects() {
 					}
 				} else {
 					// method
-					check.recordDef(d.Name, obj)
-					// Associate method with receiver base type name, if possible.
-					// Ignore methods that have an invalid receiver, or a blank _
-					// receiver name. They will be type-checked later, with regular
-					// functions.
-					if list := d.Recv.List; len(list) > 0 {
-						typ := list[0].Type
-						if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
-							typ = ptr.X
-						}
-						if base, _ := typ.(*ast.Ident); base != nil && base.Name != "_" {
-							check.assocMethod(base.Name, obj)
-						}
+					// (Methods with blank _ names are never found; no need to collect
+					// them for later type association. They will still be type-checked
+					// with all the other functions.)
+					if name != "_" {
+						methods = append(methods, obj)
 					}
+					check.recordDef(d.Name, obj)
 				}
 				info := &declInfo{file: fileScope, fdecl: d}
 				check.objMap[obj] = info
@@ -451,10 +444,90 @@ func (check *Checker) collectObjects() {
 			}
 		}
 	}
+
+	// Now that we have all package scope objects and all methods,
+	// associate methods with receiver base type name where possible.
+	// Ignore methods that have an invalid receiver. They will be
+	// type-checked later, with regular functions.
+	if methods == nil {
+		return // nothing to do
+	}
+	check.methods = make(map[*TypeName][]*Func)
+	for _, f := range methods {
+		fdecl := check.objMap[f].fdecl
+		if list := fdecl.Recv.List; len(list) > 0 {
+			// f is a method
+			// receiver may be of the form T or *T, possibly with parentheses
+			typ := unparen(list[0].Type)
+			if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
+				typ = unparen(ptr.X)
+			}
+			if base, _ := typ.(*ast.Ident); base != nil {
+				// base is a potential base type name; determine
+				// "underlying" defined type and associate f with it
+				if tname := check.resolveBaseTypeName(base); tname != nil {
+					check.methods[tname] = append(check.methods[tname], f)
+				}
+			}
+		}
+	}
 }
 
-// packageObjects typechecks all package objects in objList, but not function bodies.
-func (check *Checker) packageObjects(objList []Object) {
+// resolveBaseTypeName returns the non-alias receiver base type name,
+// explicitly declared in the package scope, for the given receiver
+// type name; or nil.
+func (check *Checker) resolveBaseTypeName(name *ast.Ident) *TypeName {
+	var path []*TypeName
+	for {
+		// name must denote an object found in the current package scope
+		// (note that dot-imported objects are not in the package scope!)
+		obj := check.pkg.scope.Lookup(name.Name)
+		if obj == nil {
+			return nil
+		}
+		// the object must be a type name...
+		tname, _ := obj.(*TypeName)
+		if tname == nil {
+			return nil
+		}
+
+		// ... which we have not seen before
+		if check.cycle(tname, path, false) {
+			return nil
+		}
+
+		// we're done if tdecl defined tname as a new type
+		// (rather than an alias)
+		tdecl := check.objMap[tname] // must exist for objects in package scope
+		if !tdecl.alias {
+			return tname
+		}
+
+		// Otherwise, if tdecl defined an alias for a (possibly parenthesized)
+		// type which is not an (unqualified) named type, we're done because
+		// receiver base types must be named types declared in this package.
+		typ := unparen(tdecl.typ) // a type may be parenthesized
+		name, _ = typ.(*ast.Ident)
+		if name == nil {
+			return nil
+		}
+
+		// continue resolving name
+		path = append(path, tname)
+	}
+}
+
+// packageObjects typechecks all package objects, but not function bodies.
+func (check *Checker) packageObjects() {
+	// process package objects in source order for reproducible results
+	objList := make([]Object, len(check.objMap))
+	i := 0
+	for obj := range check.objMap {
+		objList[i] = obj
+		i++
+	}
+	sort.Sort(inSourceOrder(objList))
+
 	// add new methods to already type-checked types (from a prior Checker.Files call)
 	for _, obj := range objList {
 		if obj, _ := obj.(*TypeName); obj != nil && obj.typ != nil {
@@ -476,10 +549,20 @@ func (check *Checker) packageObjects(objList []Object) {
 	check.methods = nil
 }
 
-// functionBodies typechecks all function bodies.
-func (check *Checker) functionBodies() {
-	for _, f := range check.funcs {
-		check.funcBody(f.decl, f.name, f.sig, f.body)
+// inSourceOrder implements the sort.Sort interface.
+type inSourceOrder []Object
+
+func (a inSourceOrder) Len() int           { return len(a) }
+func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
+func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+// processDelayed processes all delayed actions pushed after top.
+func (check *Checker) processDelayed(top int) {
+	for len(check.delayed) > top {
+		i := len(check.delayed) - 1
+		f := check.delayed[i]
+		check.delayed = check.delayed[:i]
+		f() // may append to check.delayed
 	}
 }
 

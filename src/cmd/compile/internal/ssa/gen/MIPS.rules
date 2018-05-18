@@ -2,37 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-(AddPtr x y) -> (ADD x y)
-(Add32 x y) -> (ADD x y)
-(Add16 x y) -> (ADD x y)
-(Add8 x y) -> (ADD x y)
-(Add32F x y) -> (ADDF x y)
-(Add64F x y) -> (ADDD x y)
+(Add(Ptr|32|16|8) x y) -> (ADD x y)
+(Add(32|64)F x y) -> (ADD(F|D) x y)
 
 (Select0 (Add32carry <t> x y)) -> (ADD <t.FieldType(0)> x y)
 (Select1 (Add32carry <t> x y)) -> (SGTU <typ.Bool> x (ADD <t.FieldType(0)> x y))
 (Add32withcarry <t> x y c) -> (ADD c (ADD <t> x y))
 
-(SubPtr x y) -> (SUB x y)
-(Sub32 x y) -> (SUB x y)
-(Sub16 x y) -> (SUB x y)
-(Sub8 x y) -> (SUB x y)
-(Sub32F x y) -> (SUBF x y)
-(Sub64F x y) -> (SUBD x y)
+(Sub(Ptr|32|16|8) x y) -> (SUB x y)
+(Sub(32|64)F x y) -> (SUB(F|D) x y)
 
 (Select0 (Sub32carry <t> x y)) -> (SUB <t.FieldType(0)> x y)
 (Select1 (Sub32carry <t> x y)) -> (SGTU <typ.Bool> (SUB <t.FieldType(0)> x y) x)
 (Sub32withcarry <t> x y c) -> (SUB (SUB <t> x y) c)
 
-(Mul32 x y) -> (MUL x y)
-(Mul16 x y) -> (MUL x y)
-(Mul8 x y) -> (MUL x y)
-(Mul32F x y) -> (MULF x y)
-(Mul64F x y) -> (MULD x y)
+(Mul(32|16|8) x y) -> (MUL x y)
+(Mul(32|64)F x y) -> (MUL(F|D) x y)
 
-(Hmul32 x y) -> (Select0 (MULT x y))
-(Hmul32u x y) -> (Select0 (MULTU x y))
-
+(Hmul(32|32u) x y) -> (Select0 (MUL(T|TU) x y))
 (Mul32uhilo x y) -> (MULTU x y)
 
 (Div32 x y) -> (Select1 (DIV x y))
@@ -41,8 +28,7 @@
 (Div16u x y) -> (Select1 (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Div8 x y) -> (Select1 (DIV (SignExt8to32 x) (SignExt8to32 y)))
 (Div8u x y) -> (Select1 (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y)))
-(Div32F x y) -> (DIVF x y)
-(Div64F x y) -> (DIVD x y)
+(Div(32|64)F x y) -> (DIV(F|D) x y)
 
 (Mod32 x y) -> (Select0 (DIV x y))
 (Mod32u x y) -> (Select0 (DIVU x y))
@@ -54,17 +40,9 @@
 // (x + y) / 2 with x>=y -> (x - y) / 2 + y
 (Avg32u <t> x y) -> (ADD (SRLconst <t> (SUB <t> x y) [1]) y)
 
-(And32 x y) -> (AND x y)
-(And16 x y) -> (AND x y)
-(And8 x y) -> (AND x y)
-
-(Or32 x y) -> (OR x y)
-(Or16 x y) -> (OR x y)
-(Or8 x y) -> (OR x y)
-
-(Xor32 x y) -> (XOR x y)
-(Xor16 x y) -> (XOR x y)
-(Xor8 x y) -> (XOR x y)
+(And(32|16|8) x y) -> (AND x y)
+(Or(32|16|8) x y) -> (OR x y)
+(Xor(32|16|8) x y) -> (XOR x y)
 
 // constant shifts
 // generic opt rewrites all constant shifts to shift by Const64
@@ -131,17 +109,15 @@
 (Rsh8x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
 // unary ops
-(Neg32 x) -> (NEG x)
-(Neg16 x) -> (NEG x)
-(Neg8 x) -> (NEG x)
-(Neg32F x) -> (NEGF x)
-(Neg64F x) -> (NEGD x)
+(Neg(32|16|8) x) -> (NEG x)
+(Neg(32|64)F x) -> (NEG(F|D) x)
 
-(Com32 x) -> (NORconst [0] x)
-(Com16 x) -> (NORconst [0] x)
-(Com8 x) -> (NORconst [0] x)
+(Com(32|16|8) x) -> (NORconst [0] x)
 
 (Sqrt x) -> (SQRTD x)
+
+// TODO: optimize this case?
+(Ctz32NonZero x) -> (Ctz32 x)
 
 // count trailing zero
 // 32 - CLZ(x&-x - 1)
@@ -158,11 +134,8 @@
 (Not x) -> (XORconst [1] x)
 
 // constants
-(Const32 [val]) -> (MOVWconst [val])
-(Const16 [val]) -> (MOVWconst [val])
-(Const8 [val]) -> (MOVWconst [val])
-(Const32F [val]) -> (MOVFconst [val])
-(Const64F [val]) -> (MOVDconst [val])
+(Const(32|16|8) [val]) -> (MOVWconst [val])
+(Const(32|64)F [val]) -> (MOV(F|D)const [val])
 (ConstNil) -> (MOVWconst [0])
 (ConstBool [b]) -> (MOVWconst [b])
 
@@ -186,36 +159,30 @@
 (Slicemask <t> x) -> (SRAconst (NEG <t> x) [31])
 
 // float <-> int conversion
-(Cvt32to32F x) -> (MOVWF x)
-(Cvt32to64F x) -> (MOVWD x)
-(Cvt32Fto32 x) -> (TRUNCFW x)
-(Cvt64Fto32 x) -> (TRUNCDW x)
+(Cvt32to(32|64)F x) -> (MOVW(F|D) x)
+(Cvt(32|64)Fto32 x) -> (TRUNC(F|D)W x)
 (Cvt32Fto64F x) -> (MOVFD x)
 (Cvt64Fto32F x) -> (MOVDF x)
 
-(Round32F x) -> x
-(Round64F x) -> x
+(Round(32|64)F x) -> x
 
 // comparisons
 (Eq8 x y)  -> (SGTUconst [1] (XOR (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (SGTUconst [1] (XOR (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (SGTUconst [1] (XOR x y))
 (EqPtr x y) -> (SGTUconst [1] (XOR x y))
-(Eq32F x y) -> (FPFlagTrue (CMPEQF x y))
-(Eq64F x y) -> (FPFlagTrue (CMPEQD x y))
+(Eq(32|64)F x y) -> (FPFlagTrue (CMPEQ(F|D) x y))
 
 (Neq8 x y)  -> (SGTU (XOR (ZeroExt8to32 x) (ZeroExt8to32 y)) (MOVWconst [0]))
 (Neq16 x y) -> (SGTU (XOR (ZeroExt16to32 x) (ZeroExt16to32 y)) (MOVWconst [0]))
 (Neq32 x y) -> (SGTU (XOR x y) (MOVWconst [0]))
 (NeqPtr x y) -> (SGTU (XOR x y) (MOVWconst [0]))
-(Neq32F x y) -> (FPFlagFalse (CMPEQF x y))
-(Neq64F x y) -> (FPFlagFalse (CMPEQD x y))
+(Neq(32|64)F x y) -> (FPFlagFalse (CMPEQ(F|D) x y))
 
 (Less8 x y)  -> (SGT (SignExt8to32 y) (SignExt8to32 x))
 (Less16 x y) -> (SGT (SignExt16to32 y) (SignExt16to32 x))
 (Less32 x y) -> (SGT y x)
-(Less32F x y) -> (FPFlagTrue (CMPGTF y x)) // reverse operands to work around NaN
-(Less64F x y) -> (FPFlagTrue (CMPGTD y x)) // reverse operands to work around NaN
+(Less(32|64)F x y) -> (FPFlagTrue (CMPGT(F|D) y x)) // reverse operands to work around NaN
 
 (Less8U x y)  -> (SGTU (ZeroExt8to32 y) (ZeroExt8to32 x))
 (Less16U x y) -> (SGTU (ZeroExt16to32 y) (ZeroExt16to32 x))
@@ -224,8 +191,7 @@
 (Leq8 x y)  -> (XORconst [1] (SGT (SignExt8to32 x) (SignExt8to32 y)))
 (Leq16 x y) -> (XORconst [1] (SGT (SignExt16to32 x) (SignExt16to32 y)))
 (Leq32 x y) -> (XORconst [1] (SGT x y))
-(Leq32F x y) -> (FPFlagTrue (CMPGEF y x)) // reverse operands to work around NaN
-(Leq64F x y) -> (FPFlagTrue (CMPGED y x)) // reverse operands to work around NaN
+(Leq(32|64)F x y) -> (FPFlagTrue (CMPGE(F|D) y x)) // reverse operands to work around NaN
 
 (Leq8U x y)  -> (XORconst [1] (SGTU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Leq16U x y) -> (XORconst [1] (SGTU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -234,8 +200,7 @@
 (Greater8 x y)  -> (SGT (SignExt8to32 x) (SignExt8to32 y))
 (Greater16 x y) -> (SGT (SignExt16to32 x) (SignExt16to32 y))
 (Greater32 x y) -> (SGT x y)
-(Greater32F x y) -> (FPFlagTrue (CMPGTF x y))
-(Greater64F x y) -> (FPFlagTrue (CMPGTD x y))
+(Greater(32|64)F x y) -> (FPFlagTrue (CMPGT(F|D) x y))
 
 (Greater8U x y)  -> (SGTU (ZeroExt8to32 x) (ZeroExt8to32 y))
 (Greater16U x y) -> (SGTU (ZeroExt16to32 x) (ZeroExt16to32 y))
@@ -244,8 +209,7 @@
 (Geq8 x y)  -> (XORconst [1] (SGT (SignExt8to32 y) (SignExt8to32 x)))
 (Geq16 x y) -> (XORconst [1] (SGT (SignExt16to32 y) (SignExt16to32 x)))
 (Geq32 x y) -> (XORconst [1] (SGT y x))
-(Geq32F x y) -> (FPFlagTrue (CMPGEF x y))
-(Geq64F x y) -> (FPFlagTrue (CMPGED x y))
+(Geq(32|64)F x y) -> (FPFlagTrue (CMPGE(F|D) x y))
 
 (Geq8U x y)  -> (XORconst [1] (SGTU (ZeroExt8to32 y) (ZeroExt8to32 x)))
 (Geq16U x y) -> (XORconst [1] (SGTU (ZeroExt16to32 y) (ZeroExt16to32 x)))
@@ -438,9 +402,12 @@
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
-(Convert x mem) -> (MOVWconvert x mem)
+(GetCallerPC) -> (LoweredGetCallerPC)
 
 (If cond yes no) -> (NE cond yes no)
+
+// Write barrier.
+(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
 
 
 // Optimizations

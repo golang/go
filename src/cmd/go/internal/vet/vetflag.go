@@ -55,10 +55,13 @@ var vetFlagDefn = []*cmdflag.Defn{
 	{Name: "unusedstringmethods"},
 }
 
+var vetTool string
+
 // add build flags to vetFlagDefn.
 func init() {
 	var cmd base.Command
 	work.AddBuildFlags(&cmd)
+	cmd.Flag.StringVar(&vetTool, "vettool", "", "path to vet tool binary") // for cmd/vet tests; undocumented for now
 	cmd.Flag.VisitAll(func(f *flag.Flag) {
 		vetFlagDefn = append(vetFlagDefn, &cmdflag.Defn{
 			Name:  f.Name,
@@ -87,8 +90,13 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 			}
 			switch f.Name {
 			// Flags known to the build but not to vet, so must be dropped.
-			case "x", "n":
-				args = append(args[:i], args[i+1:]...)
+			case "x", "n", "vettool":
+				if extraWord {
+					args = append(args[:i], args[i+2:]...)
+					extraWord = false
+				} else {
+					args = append(args[:i], args[i+1:]...)
+				}
 				i--
 			}
 		}

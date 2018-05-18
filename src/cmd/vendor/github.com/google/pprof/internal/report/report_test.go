@@ -46,6 +46,7 @@ func TestSource(t *testing.T) {
 				&Options{
 					OutputFormat: List,
 					Symbol:       regexp.MustCompile(`.`),
+					TrimPath:     "/some/path",
 
 					SampleValue: sampleValue1,
 					SampleUnit:  testProfile.SampleType[1].Unit,
@@ -60,6 +61,7 @@ func TestSource(t *testing.T) {
 					OutputFormat: Dot,
 					CallTree:     true,
 					Symbol:       regexp.MustCompile(`.`),
+					TrimPath:     "/some/path",
 
 					SampleValue: sampleValue1,
 					SampleUnit:  testProfile.SampleType[1].Unit,
@@ -68,8 +70,8 @@ func TestSource(t *testing.T) {
 			want: path + "source.dot",
 		},
 	} {
-		b := bytes.NewBuffer(nil)
-		if err := Generate(b, tc.rpt, &binutils.Binutils{}); err != nil {
+		var b bytes.Buffer
+		if err := Generate(&b, tc.rpt, &binutils.Binutils{}); err != nil {
 			t.Fatalf("%s: %v", tc.want, err)
 		}
 
@@ -119,7 +121,7 @@ var testF = []*profile.Function{
 	{
 		ID:       4,
 		Name:     "tee",
-		Filename: "testdata/source2",
+		Filename: "/some/path/testdata/source2",
 	},
 }
 

@@ -993,7 +993,7 @@ func TestServeContent(t *testing.T) {
 		for _, method := range []string{"GET", "HEAD"} {
 			//restore content in case it is consumed by previous method
 			if content, ok := content.(*strings.Reader); ok {
-				content.Seek(io.SeekStart, 0)
+				content.Seek(0, io.SeekStart)
 			}
 
 			servec <- serveParam{
@@ -1140,7 +1140,7 @@ func TestLinuxSendfile(t *testing.T) {
 	Post(fmt.Sprintf("http://%s/quit", ln.Addr()), "", nil)
 	child.Wait()
 
-	rx := regexp.MustCompile(`sendfile(64)?\(\d+,\s*\d+,\s*NULL,\s*\d+`)
+	rx := regexp.MustCompile(`sendfile(64)?\(`)
 	out := buf.String()
 	if !rx.MatchString(out) {
 		t.Errorf("no sendfile system call found in:\n%s", out)

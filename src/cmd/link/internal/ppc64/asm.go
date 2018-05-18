@@ -575,7 +575,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
 				} else {
 					ctxt.AddTramp(tramp)
-					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, int64(r.Add))
+					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, r.Add)
 				}
 			}
 			r.Sym = tramp
@@ -693,7 +693,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 
 		return true
 	case objabi.R_POWER_TLS_LE:
-		// The thread pointer points 0x7000 bytes after the start of the the
+		// The thread pointer points 0x7000 bytes after the start of the
 		// thread local storage area as documented in section "3.7.2 TLS
 		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
 		// Specification".

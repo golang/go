@@ -69,8 +69,6 @@ const (
 	NodeTemplate                   // A template invocation action.
 	NodeVariable                   // A $ variable.
 	NodeWith                       // A with action.
-	NodeBreak                      // A break action.
-	NodeContinue                   // A continue action.
 )
 
 // Nodes.
@@ -147,13 +145,14 @@ type PipeNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Line int             // The line number in the input. Deprecated: Kept for compatibility.
-	Decl []*VariableNode // Variable declarations in lexical order.
-	Cmds []*CommandNode  // The commands in lexical order.
+	Line int            // The line number in the input. Deprecated: Kept for compatibility.
+	Decl bool           // The variables are being declared, not assigned
+	Vars []*AssignNode  // Variables in lexical order.
+	Cmds []*CommandNode // The commands in lexical order.
 }
 
-func (t *Tree) newPipeline(pos Pos, line int, decl []*VariableNode) *PipeNode {
-	return &PipeNode{tr: t, NodeType: NodePipe, Pos: pos, Line: line, Decl: decl}
+func (t *Tree) newPipeline(pos Pos, line int, vars []*AssignNode) *PipeNode {
+	return &PipeNode{tr: t, NodeType: NodePipe, Pos: pos, Line: line, Vars: vars}
 }
 
 func (p *PipeNode) append(command *CommandNode) {
@@ -162,8 +161,8 @@ func (p *PipeNode) append(command *CommandNode) {
 
 func (p *PipeNode) String() string {
 	s := ""
-	if len(p.Decl) > 0 {
-		for i, v := range p.Decl {
+	if len(p.Vars) > 0 {
+		for i, v := range p.Vars {
 			if i > 0 {
 				s += ", "
 			}
@@ -188,11 +187,12 @@ func (p *PipeNode) CopyPipe() *PipeNode {
 	if p == nil {
 		return p
 	}
-	var decl []*VariableNode
-	for _, d := range p.Decl {
-		decl = append(decl, d.Copy().(*VariableNode))
+	var vars []*AssignNode
+	for _, d := range p.Vars {
+		vars = append(vars, d.Copy().(*AssignNode))
 	}
-	n := p.tr.newPipeline(p.Pos, p.Line, decl)
+	n := p.tr.newPipeline(p.Pos, p.Line, vars)
+	n.Decl = p.Decl
 	for _, c := range p.Cmds {
 		n.append(c.Copy().(*CommandNode))
 	}
@@ -319,20 +319,20 @@ func (i *IdentifierNode) Copy() Node {
 	return NewIdentifier(i.Ident).SetTree(i.tr).SetPos(i.Pos)
 }
 
-// VariableNode holds a list of variable names, possibly with chained field
+// AssignNode holds a list of variable names, possibly with chained field
 // accesses. The dollar sign is part of the (first) name.
-type VariableNode struct {
+type AssignNode struct {
 	NodeType
 	Pos
 	tr    *Tree
 	Ident []string // Variable name and fields in lexical order.
 }
 
-func (t *Tree) newVariable(pos Pos, ident string) *VariableNode {
-	return &VariableNode{tr: t, NodeType: NodeVariable, Pos: pos, Ident: strings.Split(ident, ".")}
+func (t *Tree) newVariable(pos Pos, ident string) *AssignNode {
+	return &AssignNode{tr: t, NodeType: NodeVariable, Pos: pos, Ident: strings.Split(ident, ".")}
 }
 
-func (v *VariableNode) String() string {
+func (v *AssignNode) String() string {
 	s := ""
 	for i, id := range v.Ident {
 		if i > 0 {
@@ -343,12 +343,12 @@ func (v *VariableNode) String() string {
 	return s
 }
 
-func (v *VariableNode) tree() *Tree {
+func (v *AssignNode) tree() *Tree {
 	return v.tr
 }
 
-func (v *VariableNode) Copy() Node {
-	return &VariableNode{tr: v.tr, NodeType: NodeVariable, Pos: v.Pos, Ident: append([]string{}, v.Ident...)}
+func (v *AssignNode) Copy() Node {
+	return &AssignNode{tr: v.tr, NodeType: NodeVariable, Pos: v.Pos, Ident: append([]string{}, v.Ident...)}
 }
 
 // DotNode holds the special identifier '.'.
@@ -796,68 +796,6 @@ func (t *Tree) newRange(pos Pos, line int, pipe *PipeNode, list, elseList *ListN
 
 func (r *RangeNode) Copy() Node {
 	return r.tr.newRange(r.Pos, r.Line, r.Pipe.CopyPipe(), r.List.CopyList(), r.ElseList.CopyList())
-}
-
-// BreakNode represents a {{break}} action.
-type BreakNode struct {
-	NodeType
-	Pos
-	tr *Tree
-}
-
-func (t *Tree) newBreak(pos Pos) *BreakNode {
-	return &BreakNode{NodeType: NodeBreak, Pos: pos, tr: t}
-}
-
-func (b *BreakNode) Type() NodeType {
-	return b.NodeType
-}
-
-func (b *BreakNode) String() string {
-	return "{{break}}"
-}
-
-func (b *BreakNode) Copy() Node {
-	return b.tr.newBreak(b.Pos)
-}
-
-func (b *BreakNode) Position() Pos {
-	return b.Pos
-}
-
-func (b *BreakNode) tree() *Tree {
-	return b.tr
-}
-
-// ContinueNode represents a {{continue}} action.
-type ContinueNode struct {
-	NodeType
-	Pos
-	tr *Tree
-}
-
-func (t *Tree) newContinue(pos Pos) *ContinueNode {
-	return &ContinueNode{NodeType: NodeContinue, Pos: pos, tr: t}
-}
-
-func (c *ContinueNode) Type() NodeType {
-	return c.NodeType
-}
-
-func (c *ContinueNode) String() string {
-	return "{{continue}}"
-}
-
-func (c *ContinueNode) Copy() Node {
-	return c.tr.newContinue(c.Pos)
-}
-
-func (c *ContinueNode) Position() Pos {
-	return c.Pos
-}
-
-func (c *ContinueNode) tree() *Tree {
-	return c.tr
 }
 
 // WithNode represents a {{with}} action and its commands.

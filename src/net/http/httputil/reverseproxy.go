@@ -125,7 +125,10 @@ func cloneHeader(h http.Header) http.Header {
 }
 
 // Hop-by-hop headers. These are removed when sent to the backend.
-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+// As of RFC 7230, hop-by-hop headers are required to appear in the
+// Connection header field. These are the headers defined by the
+// obsoleted RFC 2616 (section 13.5.1) and are used for backward
+// compatibility.
 var hopHeaders = []string{
 	"Connection",
 	"Proxy-Connection", // non-standard but still sent by libcurl and rejected by e.g. google
@@ -191,11 +194,10 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	res, err := transport.RoundTrip(outreq)
-	if res == nil {
-		res = &http.Response{
-			StatusCode: http.StatusBadGateway,
-			Body:       http.NoBody,
-		}
+	if err != nil {
+		p.logf("http: proxy error: %v", err)
+		rw.WriteHeader(http.StatusBadGateway)
+		return
 	}
 
 	removeConnectionHeaders(res.Header)
@@ -205,16 +207,12 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if p.ModifyResponse != nil {
-		if err != nil {
+		if err := p.ModifyResponse(res); err != nil {
 			p.logf("http: proxy error: %v", err)
+			rw.WriteHeader(http.StatusBadGateway)
+			res.Body.Close()
+			return
 		}
-		err = p.ModifyResponse(res)
-	}
-	if err != nil {
-		p.logf("http: proxy error: %v", err)
-		rw.WriteHeader(http.StatusBadGateway)
-		res.Body.Close()
-		return
 	}
 
 	copyHeader(rw.Header(), res.Header)
@@ -239,7 +237,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			fl.Flush()
 		}
 	}
-	p.copyResponse(rw, res.Body)
+	err = p.copyResponse(rw, res.Body)
+	if err != nil {
+		defer res.Body.Close()
+		// Since we're streaming the response, if we run into an error all we can do
+		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
+		// on read error while copying body
+		panic(http.ErrAbortHandler)
+	}
 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
 
 	if len(res.Trailer) == announcedTrailers {
@@ -256,7 +261,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 // removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.
-// See RFC 2616, section 14.10.
+// See RFC 7230, section 6.1
 func removeConnectionHeaders(h http.Header) {
 	if c := h.Get("Connection"); c != "" {
 		for _, f := range strings.Split(c, ",") {
@@ -267,7 +272,7 @@ func removeConnectionHeaders(h http.Header) {
 	}
 }
 
-func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
+func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) error {
 	if p.FlushInterval != 0 {
 		if wf, ok := dst.(writeFlusher); ok {
 			mlw := &maxLatencyWriter{
@@ -284,13 +289,14 @@ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
 	var buf []byte
 	if p.BufferPool != nil {
 		buf = p.BufferPool.Get()
+		defer p.BufferPool.Put(buf)
 	}
-	p.copyBuffer(dst, src, buf)
-	if p.BufferPool != nil {
-		p.BufferPool.Put(buf)
-	}
+	_, err := p.copyBuffer(dst, src, buf)
+	return err
 }
 
+// copyBuffer returns any write errors or non-EOF read errors, and the amount
+// of bytes written.
 func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
 	if len(buf) == 0 {
 		buf = make([]byte, 32*1024)
@@ -314,6 +320,9 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 			}
 		}
 		if rerr != nil {
+			if rerr == io.EOF {
+				rerr = nil
+			}
 			return written, rerr
 		}
 	}

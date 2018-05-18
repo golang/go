@@ -97,6 +97,9 @@ const (
 // GODEBUG=gocacheverify=1.
 var verify = false
 
+// DebugTest is set when GODEBUG=gocachetest=1 is in the environment.
+var DebugTest = false
+
 func init() { initEnv() }
 
 func initEnv() {
@@ -109,6 +112,9 @@ func initEnv() {
 		}
 		if f == "gocachehash=1" {
 			debugHash = true
+		}
+		if f == "gocachetest=1" {
+			DebugTest = true
 		}
 	}
 }

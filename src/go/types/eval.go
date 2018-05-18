@@ -16,9 +16,6 @@ import (
 // complete position information relative to the provided file
 // set.
 //
-// If the expression contains function literals, their bodies
-// are ignored (i.e., the bodies are not type-checked).
-//
 // If pkg == nil, the Universe scope is used and the provided
 // position pos is ignored. If pkg != nil, and pos is invalid,
 // the package scope is used. Otherwise, pos must belong to the
@@ -34,7 +31,7 @@ import (
 // level untyped constants will return an untyped type rather then the
 // respective context-specific type.
 //
-func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (TypeAndValue, error) {
+func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ TypeAndValue, err error) {
 	// determine scope
 	var scope *Scope
 	if pkg == nil {
@@ -79,5 +76,7 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (TypeAn
 	// evaluate node
 	var x operand
 	check.rawExpr(&x, node, nil)
-	return TypeAndValue{x.mode, x.typ, x.val}, err
+	check.processDelayed(0) // incl. all functions
+
+	return TypeAndValue{x.mode, x.typ, x.val}, nil
 }

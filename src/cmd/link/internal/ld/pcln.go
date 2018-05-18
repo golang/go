@@ -122,11 +122,8 @@ func numberfile(ctxt *Link, file *sym.Symbol) {
 }
 
 func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
-	var f *sym.Symbol
-
 	// Give files numbers.
-	for i := 0; i < len(files); i++ {
-		f = files[i]
+	for _, f := range files {
 		numberfile(ctxt, f)
 	}
 
@@ -312,12 +309,43 @@ func (ctxt *Link) pclntab() {
 		}
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), args))
 
-		// frame int32
-		// This has been removed (it was never set quite correctly anyway).
-		// Nothing should use it.
-		// Leave an obviously incorrect value.
-		// TODO: Remove entirely.
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), 0x1234567))
+		// funcID uint32
+		funcID := objabi.FuncID_normal
+		switch s.Name {
+		case "runtime.main":
+			funcID = objabi.FuncID_runtime_main
+		case "runtime.goexit":
+			funcID = objabi.FuncID_goexit
+		case "runtime.jmpdefer":
+			funcID = objabi.FuncID_jmpdefer
+		case "runtime.mcall":
+			funcID = objabi.FuncID_mcall
+		case "runtime.morestack":
+			funcID = objabi.FuncID_morestack
+		case "runtime.mstart":
+			funcID = objabi.FuncID_mstart
+		case "runtime.rt0_go":
+			funcID = objabi.FuncID_rt0_go
+		case "runtime.asmcgocall":
+			funcID = objabi.FuncID_asmcgocall
+		case "runtime.sigpanic":
+			funcID = objabi.FuncID_sigpanic
+		case "runtime.runfinq":
+			funcID = objabi.FuncID_runfinq
+		case "runtime.gcBgMarkWorker":
+			funcID = objabi.FuncID_gcBgMarkWorker
+		case "runtime.systemstack_switch":
+			funcID = objabi.FuncID_systemstack_switch
+		case "runtime.systemstack":
+			funcID = objabi.FuncID_systemstack
+		case "runtime.cgocallback_gofunc":
+			funcID = objabi.FuncID_cgocallback_gofunc
+		case "runtime.gogo":
+			funcID = objabi.FuncID_gogo
+		case "runtime.externalthreadhandler":
+			funcID = objabi.FuncID_externalthreadhandler
+		}
+		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(funcID)))
 
 		if pcln != &pclntabZpcln {
 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
@@ -364,7 +392,7 @@ func (ctxt *Link) pclntab() {
 		off = addpctab(ctxt, ftab, off, &pcln.Pcline)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Funcdata))))
-		for i := 0; i < len(pcln.Pcdata); i++ {
+		for i := range pcln.Pcdata {
 			off = addpctab(ctxt, ftab, off, &pcln.Pcdata[i])
 		}
 
@@ -374,7 +402,7 @@ func (ctxt *Link) pclntab() {
 			if off&int32(ctxt.Arch.PtrSize-1) != 0 {
 				off += 4
 			}
-			for i := 0; i < len(pcln.Funcdata); i++ {
+			for i := range pcln.Funcdata {
 				if pcln.Funcdata[i] == nil {
 					ftab.SetUint(ctxt.Arch, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
 				} else {
@@ -421,14 +449,18 @@ func (ctxt *Link) pclntab() {
 	}
 }
 
+func gorootFinal() string {
+	root := objabi.GOROOT
+	if final := os.Getenv("GOROOT_FINAL"); final != "" {
+		root = final
+	}
+	return root
+}
+
 func expandGoroot(s string) string {
 	const n = len("$GOROOT")
 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
-		root := objabi.GOROOT
-		if final := os.Getenv("GOROOT_FINAL"); final != "" {
-			root = final
-		}
-		return filepath.ToSlash(filepath.Join(root, s[n:]))
+		return filepath.ToSlash(filepath.Join(gorootFinal(), s[n:]))
 	}
 	return s
 }

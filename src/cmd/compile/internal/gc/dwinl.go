@@ -23,7 +23,7 @@ type varPos struct {
 // This is the main entry point for collection of raw material to
 // drive generation of DWARF "inlined subroutine" DIEs. See proposal
 // 22080 for more details and background info.
-func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCalls {
+func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 	var inlcalls dwarf.InlCalls
 
 	if Debug_gendwarfinl != 0 {
@@ -76,55 +76,79 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 			append(inlcalls.Calls[idx].InlVars, dwv)
 	}
 
-	// Post process the map above to assign child indices to vars. For
-	// variables that weren't produced by an inline, sort them
-	// according to class and name and assign indices that way. For
-	// vars produced by an inline, assign child index by looking up
-	// the var name in the origin pre-optimization dcl list for the
-	// inlined function.
+	// Post process the map above to assign child indices to vars.
+	//
+	// A given variable is treated differently depending on whether it
+	// is part of the top-level function (ii == 0) or if it was
+	// produced as a result of an inline (ii != 0).
+	//
+	// If a variable was not produced by an inline and its containing
+	// function was not inlined, then we just assign an ordering of
+	// based on variable name.
+	//
+	// If a variable was not produced by an inline and its containing
+	// function was inlined, then we need to assign a child index
+	// based on the order of vars in the abstract function (in
+	// addition, those vars that don't appear in the abstract
+	// function, such as "~r1", are flagged as such).
+	//
+	// If a variable was produced by an inline, then we locate it in
+	// the pre-inlining decls for the target function and assign child
+	// index accordingly.
 	for ii, sl := range vmap {
+		sort.Sort(byClassThenName(sl))
+		var m map[varPos]int
 		if ii == 0 {
-			sort.Sort(byClassThenName(sl))
-			for j := 0; j < len(sl); j++ {
-				sl[j].ChildIndex = int32(j)
+			if !fnsym.WasInlined() {
+				for j, v := range sl {
+					v.ChildIndex = int32(j)
+				}
+				continue
 			}
+			m = makePreinlineDclMap(fnsym)
 		} else {
-			// Assign child index based on pre-inlined decls
 			ifnlsym := Ctxt.InlTree.InlinedFunction(int(ii - 1))
-			dcl, _ := preInliningDcls(ifnlsym)
-			m := make(map[varPos]int)
-			for i := 0; i < len(dcl); i++ {
-				n := dcl[i]
-				pos := Ctxt.InnermostPos(n.Pos)
-				vp := varPos{
-					DeclName: n.Sym.Name,
-					DeclFile: pos.Base().SymFilename(),
-					DeclLine: pos.Line(),
-					DeclCol:  pos.Col(),
-				}
-				if _, found := m[vp]; found {
-					Fatalf("child dcl collision on symbol %s within %v\n", n.Sym.Name, fnsym.Name)
-				}
-				m[vp] = i
+			m = makePreinlineDclMap(ifnlsym)
+		}
+
+		// Here we assign child indices to variables based on
+		// pre-inlined decls, and set the "IsInAbstract" flag
+		// appropriately. In addition: parameter and local variable
+		// names are given "middle dot" version numbers as part of the
+		// writing them out to export data (see issue 4326). If DWARF
+		// inlined routine generation is turned on, we want to undo
+		// this versioning, since DWARF variables in question will be
+		// parented by the inlined routine and not the top-level
+		// caller.
+		synthCount := len(m)
+		for _, v := range sl {
+			canonName := unversion(v.Name)
+			vp := varPos{
+				DeclName: canonName,
+				DeclFile: v.DeclFile,
+				DeclLine: v.DeclLine,
+				DeclCol:  v.DeclCol,
 			}
-			for j := 0; j < len(sl); j++ {
-				vp := varPos{
-					DeclName: sl[j].Name,
-					DeclFile: sl[j].DeclFile,
-					DeclLine: sl[j].DeclLine,
-					DeclCol:  sl[j].DeclCol,
-				}
-				if idx, found := m[vp]; found {
-					sl[j].ChildIndex = int32(idx)
-				} else {
-					Fatalf("unexpected: can't find var %s in preInliningDcls for %v\n", sl[j].Name, Ctxt.InlTree.InlinedFunction(int(ii-1)))
-				}
+			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_"
+			if idx, found := m[vp]; found {
+				v.ChildIndex = int32(idx)
+				v.IsInAbstract = !synthesized
+				v.Name = canonName
+			} else {
+				// Variable can't be found in the pre-inline dcl list.
+				// In the top-level case (ii=0) this can happen
+				// because a composite variable was split into pieces,
+				// and we're looking at a piece. We can also see
+				// return temps (~r%d) that were created during
+				// lowering, or unnamed params ("_").
+				v.ChildIndex = int32(synthCount)
+				synthCount += 1
 			}
 		}
 	}
 
-	// Make a second pass through the progs to compute PC ranges
-	// for the various inlined calls.
+	// Make a second pass through the progs to compute PC ranges for
+	// the various inlined calls.
 	curii := -1
 	var crange *dwarf.Range
 	var prevp *obj.Prog
@@ -137,15 +161,15 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 			continue
 		} else {
 			// Close out the current range
-			endRange(crange, prevp)
+			endRange(crange, p)
 
 			// Begin new range
 			crange = beginRange(inlcalls.Calls, p, ii, imap)
 			curii = ii
 		}
 	}
-	if prevp != nil {
-		endRange(crange, prevp)
+	if crange != nil {
+		crange.End = fnsym.Size
 	}
 
 	// Debugging
@@ -173,6 +197,40 @@ func genAbstractFunc(fn *obj.LSym) {
 	Ctxt.DwarfAbstractFunc(ifn, fn, myimportpath)
 }
 
+// Undo any versioning performed when a name was written
+// out as part of export data.
+func unversion(name string) string {
+	if i := strings.Index(name, "·"); i > 0 {
+		name = name[:i]
+	}
+	return name
+}
+
+// Given a function that was inlined as part of the compilation, dig
+// up the pre-inlining DCL list for the function and create a map that
+// supports lookup of pre-inline dcl index, based on variable
+// position/name. NB: the recipe for computing variable pos/file/line
+// needs to be kept in sync with the similar code in gc.createSimpleVars
+// and related functions.
+func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
+	dcl := preInliningDcls(fnsym)
+	m := make(map[varPos]int)
+	for i, n := range dcl {
+		pos := Ctxt.InnermostPos(n.Pos)
+		vp := varPos{
+			DeclName: unversion(n.Sym.Name),
+			DeclFile: pos.RelFilename(),
+			DeclLine: pos.RelLine(),
+			DeclCol:  pos.Col(),
+		}
+		if _, found := m[vp]; found {
+			Fatalf("child dcl collision on symbol %s within %v\n", n.Sym.Name, fnsym.Name)
+		}
+		m[vp] = i
+	}
+	return m
+}
+
 func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
 	callIdx, found := imap[inlIdx]
 	if found {
@@ -189,8 +247,8 @@ func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
 	}
 
 	// Create new entry for this inline
-	inlinedFn := Ctxt.InlTree.InlinedFunction(int(inlIdx))
-	callXPos := Ctxt.InlTree.CallPos(int(inlIdx))
+	inlinedFn := Ctxt.InlTree.InlinedFunction(inlIdx)
+	callXPos := Ctxt.InlTree.CallPos(inlIdx)
 	absFnSym := Ctxt.DwFixups.AbsFuncDwarfSym(inlinedFn)
 	pb := Ctxt.PosTable.Pos(callXPos).Base()
 	callFileSym := Ctxt.Lookup(pb.SymFilename())
@@ -279,7 +337,7 @@ func (s byClassThenName) Less(i, j int) bool { return cmpDwarfVar(s[i], s[j]) }
 func (s byClassThenName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
-	for i := 0; i < ilevel; i += 1 {
+	for i := 0; i < ilevel; i++ {
 		Ctxt.Logf("  ")
 	}
 	ic := inlcalls.Calls[idx]
@@ -304,9 +362,8 @@ func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
 }
 
 func dumpInlCalls(inlcalls dwarf.InlCalls) {
-	n := len(inlcalls.Calls)
-	for k := 0; k < n; k += 1 {
-		if inlcalls.Calls[k].Root {
+	for k, c := range inlcalls.Calls {
+		if c.Root {
 			dumpInlCall(inlcalls, k, 0)
 		}
 	}
@@ -318,6 +375,10 @@ func dumpInlVars(dwvars []*dwarf.Var) {
 		if dwv.Abbrev == dwarf.DW_ABRV_PARAM_LOCLIST || dwv.Abbrev == dwarf.DW_ABRV_PARAM {
 			typ = "param"
 		}
-		Ctxt.Logf("V%d: %s CI:%d II:%d %s\n", i, dwv.Name, dwv.ChildIndex, dwv.InlIndex-1, typ)
+		ia := 0
+		if dwv.IsInAbstract {
+			ia = 1
+		}
+		Ctxt.Logf("V%d: %s CI:%d II:%d IA:%d %s\n", i, dwv.Name, dwv.ChildIndex, dwv.InlIndex-1, ia, typ)
 	}
 }

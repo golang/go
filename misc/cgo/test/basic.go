@@ -31,6 +31,8 @@ struct S {
 	int x;
 };
 
+const char *cstr = "abcefghijklmnopqrstuvwxyzABCEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+
 extern enum E myConstFunc(struct S* const ctx, int const id, struct S **const filter);
 
 enum E myConstFunc(struct S *const ctx, int const id, struct S **const filter) { return 0; }
@@ -146,6 +148,18 @@ func benchCgoCall(b *testing.B) {
 	const y = C.int(3)
 	for i := 0; i < b.N; i++ {
 		C.add(x, y)
+	}
+}
+
+var sinkString string
+
+func benchGoString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkString = C.GoString(C.cstr)
+	}
+	const want = "abcefghijklmnopqrstuvwxyzABCEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+	if sinkString != want {
+		b.Fatalf("%q != %q", sinkString, want)
 	}
 }
 

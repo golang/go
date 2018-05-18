@@ -19,7 +19,7 @@ package types
 //	2) the list of all methods (method set) of an interface type; or
 //	3) the list of fields of a struct type.
 //
-// The earlier index entries are the indices of the anonymous struct fields
+// The earlier index entries are the indices of the embedded struct fields
 // traversed to get to the found entry, starting at depth 0.
 //
 // If no entry is found, a nil object is returned. In this case, the returned
@@ -149,7 +149,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 					// T is a type name. If e.typ appeared multiple times at
 					// this depth, f.typ appears multiple times at the next
 					// depth.
-					if obj == nil && f.anonymous {
+					if obj == nil && f.embedded {
 						typ, isPtr := deref(f.typ)
 						// TODO(gri) optimization: ignore types that can't
 						// have fields or methods (only Named, Struct, and

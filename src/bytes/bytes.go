@@ -7,6 +7,7 @@
 package bytes
 
 import (
+	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
 )
@@ -46,11 +47,15 @@ func explode(s []byte, n int) [][]byte {
 	return a[0:na]
 }
 
-// countGeneric actually implements Count
-func countGeneric(s, sep []byte) int {
+// Count counts the number of non-overlapping instances of sep in s.
+// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
+func Count(s, sep []byte) int {
 	// special case
 	if len(sep) == 0 {
 		return utf8.RuneCount(s) + 1
+	}
+	if len(sep) == 1 {
+		return bytealg.Count(s, sep[0])
 	}
 	n := 0
 	for {
@@ -800,9 +805,9 @@ func EqualFold(s, t []byte) bool {
 			tr, sr = sr, tr
 		}
 		// Fast check for ASCII.
-		if tr < utf8.RuneSelf && 'A' <= sr && sr <= 'Z' {
-			// ASCII, and sr is upper case.  tr must be lower case.
-			if tr == sr+'a'-'A' {
+		if tr < utf8.RuneSelf {
+			// ASCII only, sr/tr must be upper/lower case
+			if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
 				continue
 			}
 			return false
@@ -822,6 +827,92 @@ func EqualFold(s, t []byte) bool {
 
 	// One string is empty. Are both?
 	return len(s) == len(t)
+}
+
+// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+func Index(s, sep []byte) int {
+	n := len(sep)
+	switch {
+	case n == 0:
+		return 0
+	case n == 1:
+		return IndexByte(s, sep[0])
+	case n == len(s):
+		if Equal(sep, s) {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
+	case n <= bytealg.MaxLen:
+		// Use brute force when s and sep both are small
+		if len(s) <= bytealg.MaxBruteForce {
+			return bytealg.Index(s, sep)
+		}
+		c := sep[0]
+		i := 0
+		t := s[:len(s)-n+1]
+		fails := 0
+		for i < len(t) {
+			if t[i] != c {
+				// IndexByte is faster than bytealg.Index, so use it as long as
+				// we're not getting lots of false positives.
+				o := IndexByte(t[i:], c)
+				if o < 0 {
+					return -1
+				}
+				i += o
+			}
+			if Equal(s[i:i+n], sep) {
+				return i
+			}
+			fails++
+			i++
+			// Switch to bytealg.Index when IndexByte produces too many false positives.
+			if fails > bytealg.Cutover(i) {
+				r := bytealg.Index(s[i:], sep)
+				if r >= 0 {
+					return r + i
+				}
+				return -1
+			}
+		}
+		return -1
+	}
+	c := sep[0]
+	i := 0
+	fails := 0
+	t := s[:len(s)-n+1]
+	for i < len(t) {
+		if t[i] != c {
+			o := IndexByte(t[i:], c)
+			if o < 0 {
+				break
+			}
+			i += o
+		}
+		if Equal(s[i:i+n], sep) {
+			return i
+		}
+		i++
+		fails++
+		if fails >= 4+i>>4 && i < len(t) {
+			// Give up on IndexByte, it isn't skipping ahead
+			// far enough to be better than Rabin-Karp.
+			// Experiments (using IndexPeriodic) suggest
+			// the cutover is about 16 byte skips.
+			// TODO: if large prefixes of sep are matching
+			// we should cutover at even larger average skips,
+			// because Equal becomes that much more expensive.
+			// This code does not take that effect into account.
+			j := indexRabinKarp(s[i:], sep)
+			if j < 0 {
+				return -1
+			}
+			return i + j
+		}
+	}
+	return -1
 }
 
 func indexRabinKarp(s, sep []byte) int {

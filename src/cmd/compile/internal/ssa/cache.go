@@ -4,7 +4,10 @@
 
 package ssa
 
-import "sort"
+import (
+	"cmd/internal/obj"
+	"sort"
+)
 
 // A Cache holds reusable compiler state.
 // It is intended to be re-used for multiple Func compilations.
@@ -14,17 +17,17 @@ type Cache struct {
 	blocks [200]Block
 	locs   [2000]Location
 
-	// Storage for DWARF variable locations. Lazily allocated
-	// since location lists are off by default.
-	varLocs   []VarLoc
-	curVarLoc int
-
 	// Reusable stackAllocState.
 	// See stackalloc.go's {new,put}StackAllocState.
 	stackAllocState *stackAllocState
 
 	domblockstore []ID         // scratch space for computing dominators
-	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
+	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
+	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
+	scrPoset      []*poset     // scratch poset to be reused
+
+	ValueToProgAfter []*obj.Prog
+	debugState       debugState
 }
 
 func (c *Cache) Reset() {
@@ -43,21 +46,5 @@ func (c *Cache) Reset() {
 	for i := range xl {
 		xl[i] = nil
 	}
-	xvl := c.varLocs[:c.curVarLoc]
-	for i := range xvl {
-		xvl[i] = VarLoc{}
-	}
-	c.curVarLoc = 0
-}
 
-func (c *Cache) NewVarLoc() *VarLoc {
-	if c.varLocs == nil {
-		c.varLocs = make([]VarLoc, 4000)
-	}
-	if c.curVarLoc == len(c.varLocs) {
-		return &VarLoc{}
-	}
-	vl := &c.varLocs[c.curVarLoc]
-	c.curVarLoc++
-	return vl
 }

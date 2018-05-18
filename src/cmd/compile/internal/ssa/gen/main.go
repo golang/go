@@ -54,6 +54,7 @@ type opData struct {
 	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
 	usesScratch       bool   // this op requires scratch memory space
 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	symEffect         string // effect this op has on symbol in aux
 }
 
@@ -179,10 +180,12 @@ func genOp() {
 			}
 			if v.resultInArg0 {
 				fmt.Fprintln(w, "resultInArg0: true,")
-				if v.reg.inputs[0] != v.reg.outputs[0] {
+				// OpConvert's register mask is selected dynamically,
+				// so don't try to check it in the static table.
+				if v.name != "Convert" && v.reg.inputs[0] != v.reg.outputs[0] {
 					log.Fatalf("%s: input[0] and output[0] must use the same registers for %s", a.name, v.name)
 				}
-				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
+				if v.name != "Convert" && v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
 					log.Fatalf("%s: input[1] and output[0] must use the same registers for %s", a.name, v.name)
 				}
 			}
@@ -216,12 +219,15 @@ func genOp() {
 			if v.hasSideEffects {
 				fmt.Fprintln(w, "hasSideEffects: true,")
 			}
+			if v.zeroWidth {
+				fmt.Fprintln(w, "zeroWidth: true,")
+			}
 			needEffect := strings.HasPrefix(v.aux, "Sym")
 			if v.symEffect != "" {
 				if !needEffect {
 					log.Fatalf("symEffect with aux %s not allowed", v.aux)
 				}
-				fmt.Fprintf(w, "symEffect: Sym%s,\n", v.symEffect)
+				fmt.Fprintf(w, "symEffect: Sym%s,\n", strings.Replace(v.symEffect, ",", "|Sym", -1))
 			} else if needEffect {
 				log.Fatalf("symEffect needed for aux %s", v.aux)
 			}

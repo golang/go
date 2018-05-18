@@ -211,6 +211,7 @@ type dumper struct {
 	buf        [14]byte
 	used       int  // number of bytes in the current line
 	n          uint // number of bytes, total
+	closed     bool
 }
 
 func toChar(b byte) byte {
@@ -221,6 +222,10 @@ func toChar(b byte) byte {
 }
 
 func (h *dumper) Write(data []byte) (n int, err error) {
+	if h.closed {
+		return 0, errors.New("encoding/hex: dumper closed")
+	}
+
 	// Output lines look like:
 	// 00000010  2e 2f 30 31 32 33 34 35  36 37 38 39 3a 3b 3c 3d  |./0123456789:;<=|
 	// ^ offset                          ^ extra space              ^ ASCII of line.
@@ -277,6 +282,10 @@ func (h *dumper) Write(data []byte) (n int, err error) {
 
 func (h *dumper) Close() (err error) {
 	// See the comments in Write() for the details of this format.
+	if h.closed {
+		return
+	}
+	h.closed = true
 	if h.used == 0 {
 		return
 	}

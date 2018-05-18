@@ -16,7 +16,7 @@ const (
 
 var randomNumber uint32
 var armArch uint8 = 6 // we default to ARMv6
-var hwcap uint32      // set by setup_auxv
+var hwcap uint32      // set by archauxv
 var hardDiv bool      // set if a hardware divider is available
 
 func checkgoarm() {
@@ -33,7 +33,7 @@ func checkgoarm() {
 	}
 	if goarm > 6 && hwcap&_HWCAP_VFPv3 == 0 {
 		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
-		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
+		print("this GOARM=", goarm, " binary. Recompile using GOARM=5 or GOARM=6.\n")
 		exit(1)
 	}
 }

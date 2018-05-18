@@ -96,3 +96,21 @@ func buildContextTree(root Context, depth int) {
 		root, _ = WithCancel(root)
 	}
 }
+
+func BenchmarkCheckCanceled(b *testing.B) {
+	ctx, cancel := WithCancel(Background())
+	cancel()
+	b.Run("Err", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ctx.Err()
+		}
+	})
+	b.Run("Done", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			select {
+			case <-ctx.Done():
+			default:
+			}
+		}
+	})
+}

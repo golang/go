@@ -814,6 +814,23 @@ label1:
 	VADDEUQM V4, V3, V2, V1
 	VADDECUQ V4, V3, V2, V1
 
+//	Vector multiply, VX-form
+//	<MNEMONIC>  VRA,VRB,VRT produces
+//	<mnemonic>  VRT,VRA,VRB
+	VMULESB V2, V3, V1
+	VMULOSB V2, V3, V1
+	VMULEUB V2, V3, V1
+	VMULOUB V2, V3, V1
+	VMULESH V2, V3, V1
+	VMULOSH V2, V3, V1
+	VMULEUH V2, V3, V1
+	VMULOUH V2, V3, V1
+	VMULESW V2, V3, V1
+	VMULOSW V2, V3, V1
+	VMULEUW V2, V3, V1
+	VMULOUW V2, V3, V1
+	VMULUWM V2, V3, V1
+
 //	Vector polynomial multiply-sum, VX-form
 //	<MNEMONIC>  VRA,VRB,VRT produces
 //	<mnemonic>  VRT,VRA,VRB
@@ -1123,6 +1140,24 @@ label1:
 //	addex RT, RA, RB, CY
 	ADDEX R1, R2, $0, R3
 
+// Immediate-shifted operations
+//	ADDIS SI, RA, RT produces
+//	addis RT, RA, SI
+	ADDIS $8, R3, R4
+	ADDIS $-1, R3, R4
+
+//	ANDISCC UI, RS, RA produces
+//	andis. RA, RS, UI
+	ANDISCC $7, R4, R5
+
+//	ORIS UI, RS, RA produces
+//	oris RA, RS, UI
+	ORIS $4, R2, R3
+
+//	XORIS UI, RS, RA produces
+//	xoris RA, RS, UI
+	XORIS $1, R1, R2
+
 //
 // NOP
 //
@@ -1179,6 +1214,27 @@ label1:
 	BEQ	2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
+	RET	foo(SB)
+
+// load-and-reserve
+//	L*AR (RB)(RA*1),EH,RT produces
+//	l*arx RT,RA,RB,EH
+//
+//	Extended forms also accepted. Assumes RA=0, EH=0:
+//	L*AR (RB),RT
+//	L*AR (RB),EH,RT
+	LBAR (R4)(R3*1), $1, R5
+	LBAR (R4), $0, R5
+	LBAR (R3), R5
+	LHAR (R4)(R3*1), $1, R5
+	LHAR (R4), $0, R5
+	LHAR (R3), R5
+	LWAR (R4)(R3*1), $1, R5
+	LWAR (R4), $0, R5
+	LWAR (R3), R5
+	LDAR (R4)(R3*1), $1, R5
+	LDAR (R4), $0, R5
+	LDAR (R3), R5
 
 // END
 //

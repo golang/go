@@ -23,25 +23,17 @@ import (
 	"net/url"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"sync"
 	"testing"
-	"time"
-
-	"runtime"
 
 	"github.com/google/pprof/internal/plugin"
+	"github.com/google/pprof/internal/proftest"
 	"github.com/google/pprof/profile"
 )
 
 func TestWebInterface(t *testing.T) {
-	// This test starts a web browser in a background goroutine
-	// after a 500ms delay. Sometimes the test exits before it
-	// can run the browser, but sometimes the browser does open.
-	// That's obviously unacceptable.
-	defer time.Sleep(2 * time.Second) // to see the browser open
-	t.Skip("golang.org/issue/22651")
-
-	if runtime.GOOS == "nacl" {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		t.Skip("test assumes tcp available")
 	}
 
@@ -64,7 +56,7 @@ func TestWebInterface(t *testing.T) {
 	// Start server and wait for it to be initialized
 	go serveWebInterface("unused:1234", prof, &plugin.Options{
 		Obj:        fakeObjTool{},
-		UI:         &stdUI{},
+		UI:         &proftest.TestUI{},
 		HTTPServer: creator,
 	})
 	<-serverCreated
@@ -89,6 +81,7 @@ func TestWebInterface(t *testing.T) {
 			[]string{"300ms.*F1", "200ms.*300ms.*F2"}, false},
 		{"/disasm?f=" + url.QueryEscape("F[12]"),
 			[]string{"f1:asm", "f2:asm"}, false},
+		{"/flamegraph", []string{"File: testbin", "\"n\":\"root\"", "\"n\":\"F1\"", "var flamegraph = function", "function hierarchy"}, false},
 	}
 	for _, c := range testcases {
 		if c.needDot && !haveDot {
@@ -127,14 +120,19 @@ func TestWebInterface(t *testing.T) {
 		for count := 0; count < 2; count++ {
 			wg.Add(1)
 			go func() {
-				http.Get(path)
-				wg.Done()
+				defer wg.Done()
+				res, err := http.Get(path)
+				if err != nil {
+					t.Error("could not fetch", c.path, err)
+					return
+				}
+				if _, err = ioutil.ReadAll(res.Body); err != nil {
+					t.Error("could not read response", c.path, err)
+				}
 			}()
 		}
 	}
 	wg.Wait()
-
-	time.Sleep(5 * time.Second)
 }
 
 // Implement fake object file support.
@@ -153,9 +151,18 @@ func (f fakeObj) SourceLine(addr uint64) ([]plugin.Frame, error) {
 }
 func (f fakeObj) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym, error) {
 	return []*plugin.Sym{
-		{[]string{"F1"}, fakeSource, addrBase, addrBase + 10},
-		{[]string{"F2"}, fakeSource, addrBase + 10, addrBase + 20},
-		{[]string{"F3"}, fakeSource, addrBase + 20, addrBase + 30},
+		{
+			Name: []string{"F1"}, File: fakeSource,
+			Start: addrBase, End: addrBase + 10,
+		},
+		{
+			Name: []string{"F2"}, File: fakeSource,
+			Start: addrBase + 10, End: addrBase + 20,
+		},
+		{
+			Name: []string{"F3"}, File: fakeSource,
+			Start: addrBase + 20, End: addrBase + 30,
+		},
 	}, nil
 }
 
@@ -226,6 +233,41 @@ func makeFakeProfile() *profile.Profile {
 		Location: locs,
 		Function: funcs,
 		Mapping:  mapping,
+	}
+}
+
+func TestGetHostAndPort(t *testing.T) {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+		t.Skip("test assumes tcp available")
+	}
+
+	type testCase struct {
+		hostport       string
+		wantHost       string
+		wantPort       int
+		wantRandomPort bool
+	}
+
+	testCases := []testCase{
+		{":", "localhost", 0, true},
+		{":4681", "localhost", 4681, false},
+		{"localhost:4681", "localhost", 4681, false},
+	}
+	for _, tc := range testCases {
+		host, port, err := getHostAndPort(tc.hostport)
+		if err != nil {
+			t.Errorf("could not get host and port for %q: %v", tc.hostport, err)
+		}
+		if got, want := host, tc.wantHost; got != want {
+			t.Errorf("for %s, got host %s, want %s", tc.hostport, got, want)
+			continue
+		}
+		if !tc.wantRandomPort {
+			if got, want := port, tc.wantPort; got != want {
+				t.Errorf("for %s, got port %d, want %d", tc.hostport, got, want)
+				continue
+			}
+		}
 	}
 }
 

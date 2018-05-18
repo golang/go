@@ -14,6 +14,7 @@ package syscall
 import "unsafe"
 
 const ImplementsGetwd = true
+const bitSize16 = 2
 
 // ErrorString implements Error's String method by returning itself.
 type ErrorString string
@@ -164,6 +165,20 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 }
 
 func Mkdir(path string, mode uint32) (err error) {
+	// If path exists and is not a directory, Create will fail silently.
+	// Work around this by rejecting Mkdir if path exists.
+	statbuf := make([]byte, bitSize16)
+	// Remove any trailing slashes from path, otherwise the Stat will
+	// fail with ENOTDIR.
+	n := len(path)
+	for n > 1 && path[n-1] == '/' {
+		n--
+	}
+	_, err = Stat(path[0:n], statbuf)
+	if err == nil {
+		return EEXIST
+	}
+
 	fd, err := Create(path, O_RDONLY, DMDIR|mode)
 
 	if fd != -1 {
@@ -229,7 +244,7 @@ func Await(w *Waitmsg) (err error) {
 }
 
 func Unmount(name, old string) (err error) {
-	Fixwd()
+	fixwd(name, old)
 	oldp, err := BytePtrFromString(old)
 	if err != nil {
 		return err
@@ -311,43 +326,43 @@ func Getgroups() (gids []int, err error) {
 
 //sys	open(path string, mode int) (fd int, err error)
 func Open(path string, mode int) (fd int, err error) {
-	Fixwd()
+	fixwd(path)
 	return open(path, mode)
 }
 
 //sys	create(path string, mode int, perm uint32) (fd int, err error)
 func Create(path string, mode int, perm uint32) (fd int, err error) {
-	Fixwd()
+	fixwd(path)
 	return create(path, mode, perm)
 }
 
 //sys	remove(path string) (err error)
 func Remove(path string) error {
-	Fixwd()
+	fixwd(path)
 	return remove(path)
 }
 
 //sys	stat(path string, edir []byte) (n int, err error)
 func Stat(path string, edir []byte) (n int, err error) {
-	Fixwd()
+	fixwd(path)
 	return stat(path, edir)
 }
 
 //sys	bind(name string, old string, flag int) (err error)
 func Bind(name string, old string, flag int) (err error) {
-	Fixwd()
+	fixwd(name, old)
 	return bind(name, old, flag)
 }
 
 //sys	mount(fd int, afd int, old string, flag int, aname string) (err error)
 func Mount(fd int, afd int, old string, flag int, aname string) (err error) {
-	Fixwd()
+	fixwd(old)
 	return mount(fd, afd, old, flag, aname)
 }
 
 //sys	wstat(path string, edir []byte) (err error)
 func Wstat(path string, edir []byte) (err error) {
-	Fixwd()
+	fixwd(path)
 	return wstat(path, edir)
 }
 

@@ -7,6 +7,7 @@ package cshared_test
 import (
 	"debug/elf"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -55,7 +56,8 @@ func TestMain(m *testing.M) {
 
 	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
 	if GOOS == "android" {
-		cmd := exec.Command("adb", "shell", "mkdir", "-p", androiddir)
+		args := append(adbCmd(), "shell", "mkdir", "-p", androiddir)
+		cmd := exec.Command(args[0], args[1:]...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Fatalf("setupAndroid failed: %v\n%s\n", err, out)
@@ -154,11 +156,19 @@ func cmdToRun(name string) string {
 	return "./" + name + exeSuffix
 }
 
+func adbCmd() []string {
+	cmd := []string{"adb"}
+	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
+		cmd = append(cmd, strings.Split(flags, " ")...)
+	}
+	return cmd
+}
+
 func adbPush(t *testing.T, filename string) {
 	if GOOS != "android" {
 		return
 	}
-	args := []string{"adb", "push", filename, fmt.Sprintf("%s/%s", androiddir, filename)}
+	args := append(adbCmd(), "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
 	cmd := exec.Command(args[0], args[1:]...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("adb command failed: %v\n%s\n", err, out)
@@ -169,7 +179,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	if GOOS != "android" {
 		t.Fatalf("trying to run adb command when operating system is not android.")
 	}
-	args := []string{"adb", "shell"}
+	args := append(adbCmd(), "shell")
 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
 	for _, e := range env {
 		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
@@ -237,7 +247,7 @@ func createHeaders() error {
 	}
 
 	if GOOS == "android" {
-		args = []string{"adb", "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname)}
+		args = append(adbCmd(), "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname))
 		cmd = exec.Command(args[0], args[1:]...)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
@@ -270,7 +280,8 @@ func cleanupAndroid() {
 	if GOOS != "android" {
 		return
 	}
-	cmd := exec.Command("adb", "shell", "rm", "-rf", androiddir)
+	args := append(adbCmd(), "shell", "rm", "-rf", androiddir)
+	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("cleanupAndroid failed: %v\n%s\n", err, out)
@@ -311,7 +322,11 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 
 	createHeadersOnce(t)
 
-	runCC(t, "-o", cmd, "main1.c", "-ldl")
+	if GOOS != "freebsd" {
+		runCC(t, "-o", cmd, "main1.c", "-ldl")
+	} else {
+		runCC(t, "-o", cmd, "main1.c")
+	}
 	adbPush(t, cmd)
 
 	defer os.Remove(bin)
@@ -400,7 +415,11 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 		"-o", libname, pkgname,
 	)
 	adbPush(t, libname)
-	runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
+	if GOOS != "freebsd" {
+		runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
+	} else {
+		runCC(t, "-pthread", "-o", cmd, cfile)
+	}
 	adbPush(t, cmd)
 
 	bin := cmdToRun(cmd)
@@ -475,5 +494,101 @@ func TestPIE(t *testing.T) {
 		if tag == elf.DT_TEXTREL {
 			t.Fatalf("%s has DT_TEXTREL flag", libgoname)
 		}
+	}
+}
+
+// Test that installing a second time recreates the header files.
+func TestCachedInstall(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "cshared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// defer os.RemoveAll(tmpdir)
+
+	copyFile(t, filepath.Join(tmpdir, "src", "libgo", "libgo.go"), filepath.Join("src", "libgo", "libgo.go"))
+	copyFile(t, filepath.Join(tmpdir, "src", "p", "p.go"), filepath.Join("src", "p", "p.go"))
+
+	env := append(os.Environ(), "GOPATH="+tmpdir)
+
+	buildcmd := []string{"go", "install", "-x", "-i", "-buildmode=c-shared", "-installsuffix", "testcshared", "libgo"}
+
+	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = env
+	t.Log(buildcmd)
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var libgoh, ph string
+
+	walker := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			t.Fatal(err)
+		}
+		var ps *string
+		switch filepath.Base(path) {
+		case "libgo.h":
+			ps = &libgoh
+		case "p.h":
+			ps = &ph
+		}
+		if ps != nil {
+			if *ps != "" {
+				t.Fatalf("%s found again", *ps)
+			}
+			*ps = path
+		}
+		return nil
+	}
+
+	if err := filepath.Walk(tmpdir, walker); err != nil {
+		t.Fatal(err)
+	}
+
+	if libgoh == "" {
+		t.Fatal("libgo.h not installed")
+	}
+	if ph == "" {
+		t.Fatal("p.h not installed")
+	}
+
+	if err := os.Remove(libgoh); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(ph); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = env
+	t.Log(buildcmd)
+	out, err = cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(libgoh); err != nil {
+		t.Errorf("libgo.h not installed in second run: %v", err)
+	}
+	if _, err := os.Stat(ph); err != nil {
+		t.Errorf("p.h not installed in second run: %v", err)
+	}
+}
+
+// copyFile copies src to dst.
+func copyFile(t *testing.T, dst, src string) {
+	t.Helper()
+	data, err := ioutil.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(dst, data, 0666); err != nil {
+		t.Fatal(err)
 	}
 }

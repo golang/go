@@ -26,7 +26,7 @@ type mstats struct {
 	alloc       uint64 // bytes allocated and not yet freed
 	total_alloc uint64 // bytes allocated (even if freed)
 	sys         uint64 // bytes obtained from system (should be sum of xxx_sys below, no locking, approximate)
-	nlookup     uint64 // number of pointer lookups
+	nlookup     uint64 // number of pointer lookups (unused)
 	nmalloc     uint64 // number of mallocs
 	nfree       uint64 // number of frees
 
@@ -262,7 +262,7 @@ type MemStats struct {
 	// can only be used for other objects of roughly the same
 	// size.
 	//
-	// HeapInuse minus HeapAlloc esimates the amount of memory
+	// HeapInuse minus HeapAlloc estimates the amount of memory
 	// that has been dedicated to particular size classes, but is
 	// not currently being used. This is an upper bound on
 	// fragmentation, but in general this memory can be reused
@@ -638,8 +638,6 @@ func purgecachedstats(c *mcache) {
 	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0
-	memstats.nlookup += uint64(c.local_nlookup)
-	c.local_nlookup = 0
 	h.largefree += uint64(c.local_largefree)
 	c.local_largefree = 0
 	h.nlargefree += uint64(c.local_nlargefree)
@@ -664,6 +662,9 @@ func purgecachedstats(c *mcache) {
 // overflow errors.
 //go:nosplit
 func mSysStatInc(sysStat *uint64, n uintptr) {
+	if sysStat == nil {
+		return
+	}
 	if sys.BigEndian {
 		atomic.Xadd64(sysStat, int64(n))
 		return
@@ -678,6 +679,9 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
 // mSysStatInc apply.
 //go:nosplit
 func mSysStatDec(sysStat *uint64, n uintptr) {
+	if sysStat == nil {
+		return
+	}
 	if sys.BigEndian {
 		atomic.Xadd64(sysStat, -int64(n))
 		return

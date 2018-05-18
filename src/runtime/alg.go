@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -272,25 +273,24 @@ func ifaceHash(i interface {
 
 const hashRandomBytes = sys.PtrSize / 4 * 64
 
-// used in asm_{386,amd64}.s to seed the hash function
+// used in asm_{386,amd64,arm64}.s to seed the hash function
 var aeskeysched [hashRandomBytes]byte
 
 // used in hash{32,64}.go to seed the hash function
 var hashkey [4]uintptr
 
 func alginit() {
-	// Install aes hash algorithm if we have the instructions we need
+	// Install AES hash algorithms if the instructions needed are present.
 	if (GOARCH == "386" || GOARCH == "amd64") &&
 		GOOS != "nacl" &&
-		support_aes && // AESENC
-		support_ssse3 && // PSHUFB
-		support_sse41 { // PINSR{D,Q}
-		useAeshash = true
-		algarray[alg_MEM32].hash = aeshash32
-		algarray[alg_MEM64].hash = aeshash64
-		algarray[alg_STRING].hash = aeshashstr
-		// Initialize with random data so hash collisions will be hard to engineer.
-		getRandomData(aeskeysched[:])
+		cpu.X86.HasAES && // AESENC
+		cpu.X86.HasSSSE3 && // PSHUFB
+		cpu.X86.HasSSE41 { // PINSR{D,Q}
+		initAlgAES()
+		return
+	}
+	if GOARCH == "arm64" && cpu.ARM64.HasAES {
+		initAlgAES()
 		return
 	}
 	getRandomData((*[len(hashkey) * sys.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
@@ -298,4 +298,13 @@ func alginit() {
 	hashkey[1] |= 1
 	hashkey[2] |= 1
 	hashkey[3] |= 1
+}
+
+func initAlgAES() {
+	useAeshash = true
+	algarray[alg_MEM32].hash = aeshash32
+	algarray[alg_MEM64].hash = aeshash64
+	algarray[alg_STRING].hash = aeshashstr
+	// Initialize with random data so hash collisions will be hard to engineer.
+	getRandomData(aeskeysched[:])
 }

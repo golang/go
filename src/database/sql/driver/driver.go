@@ -15,7 +15,8 @@ import (
 )
 
 // Value is a value that drivers must be able to handle.
-// It is either nil or an instance of one of these types:
+// It is either nil, a type handled by a database driver's NamedValueChecker
+// interface, or an instance of one of these types:
 //
 //   int64
 //   float64
@@ -378,6 +379,10 @@ type Rows interface {
 	// size as the Columns() are wide.
 	//
 	// Next should return io.EOF when there are no more rows.
+	//
+	// The dest should not be written to outside of Next. Care
+	// should be taken when closing Rows not to modify
+	// a buffer held in dest.
 	Next(dest []Value) error
 }
 

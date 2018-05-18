@@ -34,6 +34,17 @@ func TestSymbolzURL(t *testing.T) {
 		"http://host:8000/debug/pprof/profile?seconds=10":                         "http://host:8000/debug/pprof/symbol",
 		"http://host:8000/debug/pprof/heap":                                       "http://host:8000/debug/pprof/symbol",
 		"http://some.host:8080/some/deeper/path/debug/pprof/endpoint?param=value": "http://some.host:8080/some/deeper/path/debug/pprof/symbol",
+		"http://host:8000/pprof/profile":                                          "http://host:8000/pprof/symbol",
+		"http://host:8000/pprof/profile?seconds=15":                               "http://host:8000/pprof/symbol",
+		"http://host:8000/pprof/heap":                                             "http://host:8000/pprof/symbol",
+		"http://host:8000/debug/pprof/block":                                      "http://host:8000/debug/pprof/symbol",
+		"http://host:8000/debug/pprof/trace?seconds=5":                            "http://host:8000/debug/pprof/symbol",
+		"http://host:8000/debug/pprof/mutex":                                      "http://host:8000/debug/pprof/symbol",
+		"http://host/whatever/pprof/heap":                                         "http://host/whatever/pprof/symbol",
+		"http://host/whatever/pprof/growth":                                       "http://host/whatever/pprof/symbol",
+		"http://host/whatever/pprof/profile":                                      "http://host/whatever/pprof/symbol",
+		"http://host/whatever/pprof/pmuprofile":                                   "http://host/whatever/pprof/symbol",
+		"http://host/whatever/pprof/contention":                                   "http://host/whatever/pprof/symbol",
 	} {
 		if got := symbolz(try); got != want {
 			t.Errorf(`symbolz(%s)=%s, want "%s"`, try, got, want)

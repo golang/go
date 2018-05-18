@@ -49,6 +49,8 @@ var expandTests = []struct {
 	{"${HOME}", "/usr/gopher"},
 	{"${H}OME", "(Value of H)OME"},
 	{"A$$$#$1$H$home_1*B", "APIDNARGSARGUMENT1(Value of H)/usr/foo*B"},
+	{"start$+middle$^end$", "start$+middle$^end$"},
+	{"mixed$|bag$$$", "mixed$|bagPID$"},
 }
 
 func TestExpand(t *testing.T) {
@@ -58,6 +60,27 @@ func TestExpand(t *testing.T) {
 			t.Errorf("Expand(%q)=%q; expected %q", test.in, result, test.out)
 		}
 	}
+}
+
+var global interface{}
+
+func BenchmarkExpand(b *testing.B) {
+	b.Run("noop", func(b *testing.B) {
+		var s string
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			s = Expand("tick tick tick tick", func(string) string { return "" })
+		}
+		global = s
+	})
+	b.Run("multiple", func(b *testing.B) {
+		var s string
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			s = Expand("$a $a $a $a", func(string) string { return "boom" })
+		}
+		global = s
+	})
 }
 
 func TestConsistentEnviron(t *testing.T) {

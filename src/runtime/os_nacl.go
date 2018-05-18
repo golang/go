@@ -131,6 +131,7 @@ func signame(sig uint32) string {
 	return sigtable[sig].name
 }
 
+//go:nosplit
 func crash() {
 	*(*int32)(nil) = 0
 }
@@ -158,7 +159,8 @@ func mstart_nacl()
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	mp.tls[0] = uintptr(unsafe.Pointer(mp.g0))
 	mp.tls[1] = uintptr(unsafe.Pointer(mp))
 	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&mp.tls[2]), nil)
@@ -246,10 +248,6 @@ func semawakeup(mp *m) {
 	})
 }
 
-func memlimit() uintptr {
-	return 0
-}
-
 // This runs on a foreign stack, without an m or a g. No stack split.
 //go:nosplit
 //go:norace
@@ -292,6 +290,15 @@ func closeonexec(int32)                                   {}
 type gsignalStack struct{}
 
 var writelock uint32 // test-and-set spin lock for write
+
+// lastfaketime stores the last faketime value written to fd 1 or 2.
+var lastfaketime int64
+
+// lastfaketimefd stores the fd to which lastfaketime was written.
+//
+// Subsequent writes to the same fd may use the same timestamp,
+// but the timestamp must increase if the fd changes.
+var lastfaketimefd int32
 
 /*
 An attempt at IRT. Doesn't work. See end of sys_nacl_amd64.s.

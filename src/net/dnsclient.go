@@ -7,6 +7,8 @@ package net
 import (
 	"math/rand"
 	"sort"
+
+	"golang_org/x/net/dns/dnsmessage"
 )
 
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
@@ -35,71 +37,13 @@ func reverseaddr(addr string) (arpa string, err error) {
 	return string(buf), nil
 }
 
-// Find answer for name in dns message.
-// On return, if err == nil, addrs != nil.
-func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err error) {
-	addrs = make([]dnsRR, 0, len(dns.answer))
-
-	if dns.rcode == dnsRcodeNameError {
-		return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
-	}
-	if dns.rcode != dnsRcodeSuccess {
-		// None of the error codes make sense
-		// for the query we sent. If we didn't get
-		// a name error and we didn't get success,
-		// the server is behaving incorrectly or
-		// having temporary trouble.
-		err := &DNSError{Err: "server misbehaving", Name: name, Server: server}
-		if dns.rcode == dnsRcodeServerFailure {
-			err.IsTemporary = true
-		}
-		return "", nil, err
-	}
-
-	// Look for the name.
-	// Presotto says it's okay to assume that servers listed in
-	// /etc/resolv.conf are recursive resolvers.
-	// We asked for recursion, so it should have included
-	// all the answers we need in this one packet.
-Cname:
-	for cnameloop := 0; cnameloop < 10; cnameloop++ {
-		addrs = addrs[0:0]
-		for _, rr := range dns.answer {
-			if _, justHeader := rr.(*dnsRR_Header); justHeader {
-				// Corrupt record: we only have a
-				// header. That header might say it's
-				// of type qtype, but we don't
-				// actually have it. Skip.
-				continue
-			}
-			h := rr.Header()
-			if h.Class == dnsClassINET && equalASCIILabel(h.Name, name) {
-				switch h.Rrtype {
-				case qtype:
-					addrs = append(addrs, rr)
-				case dnsTypeCNAME:
-					// redirect to cname
-					name = rr.(*dnsRR_CNAME).Cname
-					continue Cname
-				}
-			}
-		}
-		if len(addrs) == 0 {
-			return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
-		}
-		return name, addrs, nil
-	}
-
-	return "", nil, &DNSError{Err: "too many redirects", Name: name, Server: server}
-}
-
-func equalASCIILabel(x, y string) bool {
-	if len(x) != len(y) {
+func equalASCIIName(x, y dnsmessage.Name) bool {
+	if x.Length != y.Length {
 		return false
 	}
-	for i := 0; i < len(x); i++ {
-		a := x[i]
-		b := y[i]
+	for i := 0; i < int(x.Length); i++ {
+		a := x.Data[i]
+		b := y.Data[i]
 		if 'A' <= a && a <= 'Z' {
 			a += 0x20
 		}

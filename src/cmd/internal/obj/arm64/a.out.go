@@ -178,6 +178,8 @@ const (
 // constants to indicate extended register conversion. When checking,
 // you should subtract obj.RBaseARM64 first. From this difference, bit 11
 // indicates extended register, bits 8-10 select the conversion mode.
+// REG_LSL is the index shift specifier, bit 9 indicates shifted offset register.
+const REG_LSL = obj.RBaseARM64 + 1<<9
 const REG_EXT = obj.RBaseARM64 + 1<<11
 
 const (
@@ -208,6 +210,25 @@ const (
 	REG_SPSel
 	REG_DAIFSet
 	REG_DAIFClr
+	REG_DCZID_EL0
+	REG_PLDL1KEEP
+	REG_PLDL1STRM
+	REG_PLDL2KEEP
+	REG_PLDL2STRM
+	REG_PLDL3KEEP
+	REG_PLDL3STRM
+	REG_PLIL1KEEP
+	REG_PLIL1STRM
+	REG_PLIL2KEEP
+	REG_PLIL2STRM
+	REG_PLIL3KEEP
+	REG_PLIL3STRM
+	REG_PSTL1KEEP
+	REG_PSTL1STRM
+	REG_PSTL2KEEP
+	REG_PSTL2STRM
+	REG_PSTL3KEEP
+	REG_PSTL3STRM
 )
 
 // Register assignments:
@@ -242,6 +263,109 @@ const (
 	FREGMAX = REG_F26 // last register variable for 7g only
 	FREGEXT = REG_F26 // first external register
 )
+
+// http://infocenter.arm.com/help/topic/com.arm.doc.ecm0665627/abi_sve_aadwarf_100985_0000_00_en.pdf
+var ARM64DWARFRegisters = map[int16]int16{
+	REG_R0:  0,
+	REG_R1:  1,
+	REG_R2:  2,
+	REG_R3:  3,
+	REG_R4:  4,
+	REG_R5:  5,
+	REG_R6:  6,
+	REG_R7:  7,
+	REG_R8:  8,
+	REG_R9:  9,
+	REG_R10: 10,
+	REG_R11: 11,
+	REG_R12: 12,
+	REG_R13: 13,
+	REG_R14: 14,
+	REG_R15: 15,
+	REG_R16: 16,
+	REG_R17: 17,
+	REG_R18: 18,
+	REG_R19: 19,
+	REG_R20: 20,
+	REG_R21: 21,
+	REG_R22: 22,
+	REG_R23: 23,
+	REG_R24: 24,
+	REG_R25: 25,
+	REG_R26: 26,
+	REG_R27: 27,
+	REG_R28: 28,
+	REG_R29: 29,
+	REG_R30: 30,
+
+	// floating point
+	REG_F0:  64,
+	REG_F1:  65,
+	REG_F2:  66,
+	REG_F3:  67,
+	REG_F4:  68,
+	REG_F5:  69,
+	REG_F6:  70,
+	REG_F7:  71,
+	REG_F8:  72,
+	REG_F9:  73,
+	REG_F10: 74,
+	REG_F11: 75,
+	REG_F12: 76,
+	REG_F13: 77,
+	REG_F14: 78,
+	REG_F15: 79,
+	REG_F16: 80,
+	REG_F17: 81,
+	REG_F18: 82,
+	REG_F19: 83,
+	REG_F20: 84,
+	REG_F21: 85,
+	REG_F22: 86,
+	REG_F23: 87,
+	REG_F24: 88,
+	REG_F25: 89,
+	REG_F26: 90,
+	REG_F27: 91,
+	REG_F28: 92,
+	REG_F29: 93,
+	REG_F30: 94,
+	REG_F31: 95,
+
+	// SIMD
+	REG_V0:  64,
+	REG_V1:  65,
+	REG_V2:  66,
+	REG_V3:  67,
+	REG_V4:  68,
+	REG_V5:  69,
+	REG_V6:  70,
+	REG_V7:  71,
+	REG_V8:  72,
+	REG_V9:  73,
+	REG_V10: 74,
+	REG_V11: 75,
+	REG_V12: 76,
+	REG_V13: 77,
+	REG_V14: 78,
+	REG_V15: 79,
+	REG_V16: 80,
+	REG_V17: 81,
+	REG_V18: 82,
+	REG_V19: 83,
+	REG_V20: 84,
+	REG_V21: 85,
+	REG_V22: 86,
+	REG_V23: 87,
+	REG_V24: 88,
+	REG_V25: 89,
+	REG_V26: 90,
+	REG_V27: 91,
+	REG_V28: 92,
+	REG_V29: 93,
+	REG_V30: 94,
+	REG_V31: 95,
+}
 
 const (
 	BIG = 2048 - 8
@@ -300,9 +424,14 @@ const (
 	C_SBRA // for TYPE_BRANCH
 	C_LBRA
 
-	C_NPAUTO     // -512 <= x < 0, 0 mod 8
+	C_ZAUTO      // 0(RSP)
+	C_NSAUTO_8   // -256 <= x < 0, 0 mod 8
+	C_NSAUTO_4   // -256 <= x < 0, 0 mod 4
 	C_NSAUTO     // -256 <= x < 0
+	C_NPAUTO     // -512 <= x < 0, 0 mod 8
+	C_NAUTO4K    // -4095 <= x < 0
 	C_PSAUTO_8   // 0 to 255, 0 mod 8
+	C_PSAUTO_4   // 0 to 255, 0 mod 4
 	C_PSAUTO     // 0 to 255
 	C_PPAUTO     // 0 to 504, 0 mod 8
 	C_UAUTO4K_8  // 0 to 4095, 0 mod 8
@@ -324,10 +453,14 @@ const (
 	C_SEXT16 // 0 to 65520
 	C_LEXT
 
-	C_ZOREG  // 0(R)
-	C_NPOREG // must mirror NPAUTO, etc
+	C_ZOREG    // 0(R)
+	C_NSOREG_8 // must mirror C_NSAUTO_8, etc
+	C_NSOREG_4
 	C_NSOREG
+	C_NPOREG
+	C_NOREG4K
 	C_PSOREG_8
+	C_PSOREG_4
 	C_PSOREG
 	C_PPOREG
 	C_UOREG4K_8
@@ -461,6 +594,14 @@ const (
 	AHVC
 	AIC
 	AISB
+	ALDADDB
+	ALDADDH
+	ALDADDW
+	ALDADDD
+	ALDANDB
+	ALDANDH
+	ALDANDW
+	ALDANDD
 	ALDAR
 	ALDARB
 	ALDARH
@@ -471,7 +612,17 @@ const (
 	ALDAXRB
 	ALDAXRH
 	ALDAXRW
+	ALDEORB
+	ALDEORH
+	ALDEORW
+	ALDEORD
+	ALDORB
+	ALDORH
+	ALDORW
+	ALDORD
 	ALDP
+	ALDPW
+	ALDPSW
 	ALDXR
 	ALDXRB
 	ALDXRH
@@ -564,6 +715,7 @@ const (
 	ASTLXRH
 	ASTLXRW
 	ASTP
+	ASTPW
 	ASUB
 	ASUBS
 	ASUBSW
@@ -619,6 +771,10 @@ const (
 	AMOVPS
 	AMOVPSW
 	AMOVPW
+	ASWPD
+	ASWPW
+	ASWPH
+	ASWPB
 	ABEQ
 	ABNE
 	ABCS
@@ -735,18 +891,31 @@ const (
 	AVADDP
 	AVAND
 	AVCMEQ
+	AVCNT
 	AVEOR
 	AVMOV
 	AVLD1
 	AVORR
 	AVREV32
+	AVREV64
 	AVST1
 	AVDUP
-	AVMOVS
 	AVADDV
 	AVMOVI
 	AVUADDLV
 	AVSUB
+	AVFMLA
+	AVFMLS
+	AVPMULL
+	AVPMULL2
+	AVEXT
+	AVRBIT
+	AVUSHR
+	AVSHL
+	AVSRI
+	AVTBL
+	AVZIP1
+	AVZIP2
 	ALAST
 	AB  = obj.AJMP
 	ABL = obj.ACALL
@@ -770,6 +939,7 @@ const (
 	ARNG_2S
 	ARNG_4S
 	ARNG_2D
+	ARNG_1Q
 	ARNG_B
 	ARNG_H
 	ARNG_S

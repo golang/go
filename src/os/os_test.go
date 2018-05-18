@@ -1362,14 +1362,26 @@ func TestSeek(t *testing.T) {
 		{-1, io.SeekEnd, int64(len(data)) - 1},
 		{1 << 33, io.SeekStart, 1 << 33},
 		{1 << 33, io.SeekEnd, 1<<33 + int64(len(data))},
+
+		// Issue 21681, Windows 4G-1, etc:
+		{1<<32 - 1, io.SeekStart, 1<<32 - 1},
+		{0, io.SeekCurrent, 1<<32 - 1},
+		{2<<32 - 1, io.SeekStart, 2<<32 - 1},
+		{0, io.SeekCurrent, 2<<32 - 1},
 	}
 	for i, tt := range tests {
+		if runtime.GOOS == "nacl" && tt.out > 1<<30 {
+			t.Logf("skipping test case #%d on nacl; https://golang.org/issue/21728", i)
+			continue
+		}
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
-			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
-				// Reiserfs rejects the big seeks.
-				// https://golang.org/issue/91
-				break
+			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
+				mounts, _ := ioutil.ReadFile("/proc/mounts")
+				if strings.Contains(string(mounts), "reiserfs") {
+					// Reiserfs rejects the big seeks.
+					t.Skipf("skipping test known to fail on reiserfs; https://golang.org/issue/91")
+				}
 			}
 			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
 		}
@@ -1511,11 +1523,7 @@ func runBinHostname(t *testing.T) string {
 	return output
 }
 
-func testWindowsHostname(t *testing.T) {
-	hostname, err := Hostname()
-	if err != nil {
-		t.Fatal(err)
-	}
+func testWindowsHostname(t *testing.T, hostname string) {
 	cmd := osexec.Command("hostname")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1523,18 +1531,30 @@ func testWindowsHostname(t *testing.T) {
 	}
 	want := strings.Trim(string(out), "\r\n")
 	if hostname != want {
-		t.Fatalf("Hostname() = %q, want %q", hostname, want)
+		t.Fatalf("Hostname() = %q != system hostname of %q", hostname, want)
 	}
 }
 
 func TestHostname(t *testing.T) {
+	hostname, err := Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hostname == "" {
+		t.Fatal("Hostname returned empty string and no error")
+	}
+	if strings.Contains(hostname, "\x00") {
+		t.Fatalf("unexpected zero byte in hostname: %q", hostname)
+	}
+
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
 	case "android", "plan9":
-		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
+		// No /bin/hostname to verify against.
+		return
 	case "windows":
-		testWindowsHostname(t)
+		testWindowsHostname(t, hostname)
 		return
 	}
 
@@ -1543,10 +1563,6 @@ func TestHostname(t *testing.T) {
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
 	// and the /bin/hostname only returns the first component
-	hostname, err := Hostname()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 	want := runBinHostname(t)
 	if hostname != want {
 		i := strings.Index(hostname, ".")
@@ -1779,23 +1795,54 @@ func TestSameFile(t *testing.T) {
 	}
 }
 
-func TestDevNullFile(t *testing.T) {
-	f, err := Open(DevNull)
-	if err != nil {
-		t.Fatalf("Open(%s): %v", DevNull, err)
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil {
-		t.Fatalf("Stat(%s): %v", DevNull, err)
-	}
-	name := filepath.Base(DevNull)
-	if fi.Name() != name {
-		t.Fatalf("wrong file name have %v want %v", fi.Name(), name)
+func testDevNullFileInfo(t *testing.T, statname, devNullName string, fi FileInfo, ignoreCase bool) {
+	pre := fmt.Sprintf("%s(%q): ", statname, devNullName)
+	name := filepath.Base(devNullName)
+	if ignoreCase {
+		if strings.ToUpper(fi.Name()) != strings.ToUpper(name) {
+			t.Errorf(pre+"wrong file name have %v want %v", fi.Name(), name)
+		}
+	} else {
+		if fi.Name() != name {
+			t.Errorf(pre+"wrong file name have %v want %v", fi.Name(), name)
+		}
 	}
 	if fi.Size() != 0 {
-		t.Fatalf("wrong file size have %d want 0", fi.Size())
+		t.Errorf(pre+"wrong file size have %d want 0", fi.Size())
 	}
+	if fi.Mode()&ModeDevice == 0 {
+		t.Errorf(pre+"wrong file mode %q: ModeDevice is not set", fi.Mode())
+	}
+	if fi.Mode()&ModeCharDevice == 0 {
+		t.Errorf(pre+"wrong file mode %q: ModeCharDevice is not set", fi.Mode())
+	}
+	if fi.Mode().IsRegular() {
+		t.Errorf(pre+"wrong file mode %q: IsRegular returns true", fi.Mode())
+	}
+}
+
+func testDevNullFile(t *testing.T, devNullName string, ignoreCase bool) {
+	f, err := Open(devNullName)
+	if err != nil {
+		t.Fatalf("Open(%s): %v", devNullName, err)
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", devNullName, err)
+	}
+	testDevNullFileInfo(t, "f.Stat", devNullName, fi, ignoreCase)
+
+	fi, err = Stat(devNullName)
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", devNullName, err)
+	}
+	testDevNullFileInfo(t, "Stat", devNullName, fi, ignoreCase)
+}
+
+func TestDevNullFile(t *testing.T) {
+	testDevNullFile(t, DevNull, false)
 }
 
 var testLargeWrite = flag.Bool("large_write", false, "run TestLargeWriteToConsole test that floods console with output")
@@ -1869,7 +1916,7 @@ func TestStatStdin(t *testing.T) {
 		t.Fatal(err)
 	}
 	switch mode := fi.Mode(); {
-	case mode&ModeCharDevice != 0:
+	case mode&ModeCharDevice != 0 && mode&ModeDevice != 0:
 	case mode&ModeNamedPipe != 0:
 	default:
 		t.Fatalf("unexpected Stdin mode (%v), want ModeCharDevice or ModeNamedPipe", mode)

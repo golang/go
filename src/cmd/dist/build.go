@@ -31,6 +31,7 @@ var (
 	goarm            string
 	go386            string
 	gomips           string
+	gomips64         string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
@@ -67,12 +68,14 @@ var okgoarch = []string{
 	"ppc64",
 	"ppc64le",
 	"s390x",
+	"wasm",
 }
 
 // The known operating systems.
 var okgoos = []string{
 	"darwin",
 	"dragonfly",
+	"js",
 	"linux",
 	"android",
 	"solaris",
@@ -145,6 +148,12 @@ func xinit() {
 	}
 	gomips = b
 
+	b = os.Getenv("GOMIPS64")
+	if b == "" {
+		b = "hardfloat"
+	}
+	gomips64 = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -202,6 +211,7 @@ func xinit() {
 	os.Setenv("GOHOSTOS", gohostos)
 	os.Setenv("GOOS", goos)
 	os.Setenv("GOMIPS", gomips)
+	os.Setenv("GOMIPS64", gomips64)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
@@ -784,12 +794,17 @@ func runInstall(dir string, ch chan struct{}) {
 	} else {
 		archive = b
 	}
-	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
+	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkg}
 	if gogcflags != "" {
 		compile = append(compile, strings.Fields(gogcflags)...)
 	}
 	if dir == "runtime" {
 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+	}
+	if dir == "internal/bytealg" {
+		// TODO: why don't we generate go_asm.h for all packages
+		// that have any assembly?
+		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
 	}
 	compile = append(compile, gofiles...)
 	run(path, CheckExit|ShowOutput, compile...)
@@ -815,6 +830,11 @@ func runInstall(dir string, ch chan struct{}) {
 		if goarch == "mips" || goarch == "mipsle" {
 			// Define GOMIPS_value from gomips.
 			compile = append(compile, "-D", "GOMIPS_"+gomips)
+		}
+
+		if goarch == "mips64" || goarch == "mipsle64" {
+			// Define GOMIPS64_value from gomips64.
+			compile = append(compile, "-D", "GOMIPS64_"+gomips64)
 		}
 
 		doclean := true
@@ -1057,6 +1077,9 @@ func cmdenv() {
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		xprintf(format, "GOMIPS", gomips)
+	}
+	if goarch == "mips64" || goarch == "mips64le" {
+		xprintf(format, "GOMIPS64", gomips64)
 	}
 
 	if *path {
@@ -1375,6 +1398,7 @@ var cgoEnabled = map[string]bool{
 	"android/amd64":   true,
 	"android/arm":     true,
 	"android/arm64":   true,
+	"js/wasm":         false,
 	"nacl/386":        false,
 	"nacl/amd64p32":   false,
 	"nacl/arm":        false,

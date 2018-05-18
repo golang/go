@@ -5,8 +5,7 @@
 #include "textflag.h"
 
 // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
-
-TEXT	·Syscall(SB),NOSPLIT,$0-56
+TEXT ·Syscall(SB),NOSPLIT,$0-56
 	BL	runtime·entersyscall(SB)
 	MOVD	a1+8(FP), R0
 	MOVD	a2+16(FP), R1
@@ -102,4 +101,18 @@ ok:
 	MOVD	R0, r1+56(FP)	// r1
 	MOVD	R1, r2+64(FP)	// r2
 	MOVD	ZR, err+72(FP)	// errno
+	RET
+
+// func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);
+TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+	MOVD	a1+8(FP), R0
+	MOVD	a2+16(FP), R1
+	MOVD	a3+24(FP), R2
+	MOVD	$0, R3
+	MOVD	$0, R4
+	MOVD	$0, R5
+	MOVD	trap+0(FP), R8	// syscall entry
+	SVC
+	MOVD	R0, r1+32(FP)
+	MOVD	R1, r2+40(FP)
 	RET

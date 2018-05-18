@@ -81,7 +81,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	// collection or stack copying trigger until we've copied them out
 	// to somewhere safe. The memmove below does that.
 	// Until the copy completes, we can only call nosplit routines.
-	sp := getcallersp(unsafe.Pointer(&siz))
+	sp := getcallersp()
 	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
 	callerpc := getcallerpc()
 
@@ -280,8 +280,9 @@ func freedefer(d *_defer) {
 	d.started = false
 	d.sp = 0
 	d.pc = 0
-	d.fn = nil
-	d._panic = nil
+	// d._panic and d.fn must be nil already.
+	// If not, we would have called freedeferpanic or freedeferfn above,
+	// both of which throw.
 	d.link = nil
 
 	pp.deferpool[sc] = append(pp.deferpool[sc], d)
@@ -319,7 +320,7 @@ func deferreturn(arg0 uintptr) {
 	if d == nil {
 		return
 	}
-	sp := getcallersp(unsafe.Pointer(&arg0))
+	sp := getcallersp()
 	if d.sp != sp {
 		return
 	}
@@ -389,7 +390,6 @@ func Goexit() {
 
 // Call all Error and String methods before freezing the world.
 // Used when crashing with panicking.
-// This must match types handled by printany.
 func preprintpanics(p *_panic) {
 	defer func() {
 		if recover() != nil {
@@ -408,6 +408,7 @@ func preprintpanics(p *_panic) {
 }
 
 // Print all currently active panics. Used when crashing.
+// Should only be called after preprintpanics.
 func printpanics(p *_panic) {
 	if p.link != nil {
 		printpanics(p.link)
@@ -431,15 +432,6 @@ func gopanic(e interface{}) {
 		throw("panic on system stack")
 	}
 
-	// m.softfloat is set during software floating point.
-	// It increments m.locks to avoid preemption.
-	// We moved the memory loads out, so there shouldn't be
-	// any reason for it to panic anymore.
-	if gp.m.softfloat != 0 {
-		gp.m.locks--
-		gp.m.softfloat = 0
-		throw("panic during softfloat")
-	}
 	if gp.m.mallocing != 0 {
 		print("panic: ")
 		printany(e)
@@ -541,15 +533,9 @@ func gopanic(e interface{}) {
 	// the world, we call preprintpanics to invoke all necessary Error
 	// and String methods to prepare the panic strings before startpanic.
 	preprintpanics(gp._panic)
-	startpanic()
 
-	// startpanic set panicking, which will block main from exiting,
-	// so now OK to decrement runningPanicDefers.
-	atomic.Xadd(&runningPanicDefers, -1)
-
-	printpanics(gp._panic)
-	dopanic(0)       // should not return
-	*(*int)(nil) = 0 // not reached
+	fatalpanic(gp._panic) // should not return
+	*(*int)(nil) = 0      // not reached
 }
 
 // getargp returns the location where the caller
@@ -584,22 +570,6 @@ func gorecover(argp uintptr) interface{} {
 	return nil
 }
 
-//go:nosplit
-func startpanic() {
-	systemstack(startpanic_m)
-}
-
-//go:nosplit
-func dopanic(unused int) {
-	pc := getcallerpc()
-	sp := getcallersp(unsafe.Pointer(&unused))
-	gp := getg()
-	systemstack(func() {
-		dopanic_m(gp, pc, sp) // should never return
-	})
-	*(*int)(nil) = 0
-}
-
 //go:linkname sync_throw sync.throw
 func sync_throw(s string) {
 	throw(s)
@@ -607,13 +577,16 @@ func sync_throw(s string) {
 
 //go:nosplit
 func throw(s string) {
-	print("fatal error: ", s, "\n")
+	// Everything throw does should be recursively nosplit so it
+	// can be called even when it's unsafe to grow the stack.
+	systemstack(func() {
+		print("fatal error: ", s, "\n")
+	})
 	gp := getg()
 	if gp.m.throwing == 0 {
 		gp.m.throwing = 1
 	}
-	startpanic()
-	dopanic(0)
+	fatalthrow()
 	*(*int)(nil) = 0 // not reached
 }
 
@@ -654,20 +627,94 @@ func recovery(gp *g) {
 	gogo(&gp.sched)
 }
 
-// startpanic_m implements unrecoverable panic.
+// fatalthrow implements an unrecoverable runtime throw. It freezes the
+// system, prints stack traces starting from its caller, and terminates the
+// process.
+//
+//go:nosplit
+func fatalthrow() {
+	pc := getcallerpc()
+	sp := getcallersp()
+	gp := getg()
+	// Switch to the system stack to avoid any stack growth, which
+	// may make things worse if the runtime is in a bad state.
+	systemstack(func() {
+		startpanic_m()
+
+		if dopanic_m(gp, pc, sp) {
+			// crash uses a decent amount of nosplit stack and we're already
+			// low on stack in throw, so crash on the system stack (unlike
+			// fatalpanic).
+			crash()
+		}
+
+		exit(2)
+	})
+
+	*(*int)(nil) = 0 // not reached
+}
+
+// fatalpanic implements an unrecoverable panic. It is like fatalthrow, except
+// that if msgs != nil, fatalpanic also prints panic messages and decrements
+// runningPanicDefers once main is blocked from exiting.
+//
+//go:nosplit
+func fatalpanic(msgs *_panic) {
+	pc := getcallerpc()
+	sp := getcallersp()
+	gp := getg()
+	var docrash bool
+	// Switch to the system stack to avoid any stack growth, which
+	// may make things worse if the runtime is in a bad state.
+	systemstack(func() {
+		if startpanic_m() && msgs != nil {
+			// There were panic messages and startpanic_m
+			// says it's okay to try to print them.
+
+			// startpanic_m set panicking, which will
+			// block main from exiting, so now OK to
+			// decrement runningPanicDefers.
+			atomic.Xadd(&runningPanicDefers, -1)
+
+			printpanics(msgs)
+		}
+
+		docrash = dopanic_m(gp, pc, sp)
+	})
+
+	if docrash {
+		// By crashing outside the above systemstack call, debuggers
+		// will not be confused when generating a backtrace.
+		// Function crash is marked nosplit to avoid stack growth.
+		crash()
+	}
+
+	systemstack(func() {
+		exit(2)
+	})
+
+	*(*int)(nil) = 0 // not reached
+}
+
+// startpanic_m prepares for an unrecoverable panic.
+//
+// It returns true if panic messages should be printed, or false if
+// the runtime is in bad shape and should just print stacks.
 //
 // It can have write barriers because the write barrier explicitly
 // ignores writes once dying > 0.
 //
 //go:yeswritebarrierrec
-func startpanic_m() {
+func startpanic_m() bool {
 	_g_ := getg()
 	if mheap_.cachealloc.size == 0 { // very early
 		print("runtime: panic before malloc heap initialized\n")
-		_g_.m.mallocing = 1 // tell rest of panic not to try to malloc
-	} else if _g_.m.mcache == nil { // can happen if called from signal handler or throw
-		_g_.m.mcache = allocmcache()
 	}
+	// Disallow malloc during an unrecoverable panic. A panic
+	// could happen in a signal handler, or in a throw, or inside
+	// malloc itself. We want to catch if an allocation ever does
+	// happen (even if we're not in one of these situations).
+	_g_.m.mallocing++
 
 	switch _g_.m.dying {
 	case 0:
@@ -679,15 +726,13 @@ func startpanic_m() {
 			schedtrace(true)
 		}
 		freezetheworld()
-		return
+		return true
 	case 1:
-		// Something failed while panicking, probably the print of the
-		// argument to panic().  Just print a stack trace and exit.
+		// Something failed while panicking.
+		// Just print a stack trace and exit.
 		_g_.m.dying = 2
 		print("panic during panic\n")
-		dopanic(0)
-		exit(3)
-		fallthrough
+		return false
 	case 2:
 		// This is a genuine bug in the runtime, we couldn't even
 		// print the stack trace successfully.
@@ -698,13 +743,14 @@ func startpanic_m() {
 	default:
 		// Can't even print! Just exit.
 		exit(5)
+		return false // Need to return something.
 	}
 }
 
 var didothers bool
 var deadlock mutex
 
-func dopanic_m(gp *g, pc, sp uintptr) {
+func dopanic_m(gp *g, pc, sp uintptr) bool {
 	if gp.sig != 0 {
 		signame := signame(gp.sig)
 		if signame != "" {
@@ -745,13 +791,12 @@ func dopanic_m(gp *g, pc, sp uintptr) {
 		lock(&deadlock)
 	}
 
-	if docrash {
-		crash()
-	}
-
-	exit(2)
+	return docrash
 }
 
+// canpanic returns false if a signal should throw instead of
+// panicking.
+//
 //go:nosplit
 func canpanic(gp *g) bool {
 	// Note that g is m->gsignal, different from gp.
@@ -766,7 +811,7 @@ func canpanic(gp *g) bool {
 	if gp == nil || gp != _m_.curg {
 		return false
 	}
-	if _m_.locks-_m_.softfloat != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.preemptoff != "" || _m_.dying != 0 {
+	if _m_.locks != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.preemptoff != "" || _m_.dying != 0 {
 		return false
 	}
 	status := readgstatus(gp)
@@ -777,4 +822,48 @@ func canpanic(gp *g) bool {
 		return false
 	}
 	return true
+}
+
+// shouldPushSigpanic returns true if pc should be used as sigpanic's
+// return PC (pushing a frame for the call). Otherwise, it should be
+// left alone so that LR is used as sigpanic's return PC, effectively
+// replacing the top-most frame with sigpanic. This is used by
+// preparePanic.
+func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
+	if pc == 0 {
+		// Probably a call to a nil func. The old LR is more
+		// useful in the stack trace. Not pushing the frame
+		// will make the trace look like a call to sigpanic
+		// instead. (Otherwise the trace will end at sigpanic
+		// and we won't get to see who faulted.)
+		return false
+	}
+	// If we don't recognize the PC as code, but we do recognize
+	// the link register as code, then this assumes the panic was
+	// caused by a call to non-code. In this case, we want to
+	// ignore this call to make unwinding show the context.
+	//
+	// If we running C code, we're not going to recognize pc as a
+	// Go function, so just assume it's good. Otherwise, traceback
+	// may try to read a stale LR that looks like a Go code
+	// pointer and wander into the woods.
+	if gp.m.incgo || findfunc(pc).valid() {
+		// This wasn't a bad call, so use PC as sigpanic's
+		// return PC.
+		return true
+	}
+	if findfunc(lr).valid() {
+		// This was a bad call, but the LR is good, so use the
+		// LR as sigpanic's return PC.
+		return false
+	}
+	// Neither the PC or LR is good. Hopefully pushing a frame
+	// will work.
+	return true
+}
+
+// isAbortPC returns true if pc is the program counter at which
+// runtime.abort raises a signal.
+func isAbortPC(pc uintptr) bool {
+	return pc == funcPC(abort) || ((GOARCH == "arm" || GOARCH == "arm64") && pc == funcPC(abort)+sys.PCQuantum)
 }

@@ -153,8 +153,18 @@ func runGenerate(cmd *base.Command, args []string) {
 	}
 	// Even if the arguments are .go files, this loop suffices.
 	for _, pkg := range load.Packages(args) {
+		pkgName := pkg.Name
+
 		for _, file := range pkg.InternalGoFiles() {
-			if !generate(pkg.Name, file) {
+			if !generate(pkgName, file) {
+				break
+			}
+		}
+
+		pkgName += "_test"
+
+		for _, file := range pkg.InternalXGoFiles() {
+			if !generate(pkgName, file) {
 				break
 			}
 		}

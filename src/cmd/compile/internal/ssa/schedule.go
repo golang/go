@@ -74,7 +74,9 @@ func schedule(f *Func) {
 	score := make([]int8, f.NumValues())
 
 	// scheduling order. We queue values in this list in reverse order.
-	var order []*Value
+	// A constant bound allows this to be stack-allocated. 64 is
+	// enough to cover almost every schedule call.
+	order := make([]*Value, 0, 64)
 
 	// maps mem values to the next live memory value
 	nextMem := make([]*Value, f.NumValues())
@@ -88,7 +90,8 @@ func schedule(f *Func) {
 			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpPPC64LoweredGetClosurePtr ||
 				v.Op == OpARMLoweredGetClosurePtr || v.Op == OpARM64LoweredGetClosurePtr ||
 				v.Op == Op386LoweredGetClosurePtr || v.Op == OpMIPS64LoweredGetClosurePtr ||
-				v.Op == OpS390XLoweredGetClosurePtr || v.Op == OpMIPSLoweredGetClosurePtr:
+				v.Op == OpS390XLoweredGetClosurePtr || v.Op == OpMIPSLoweredGetClosurePtr ||
+				v.Op == OpWasmLoweredGetClosurePtr:
 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
 				// context register is not stomped. GetLoweredClosurePtr should only appear
 				// in the entry block where there are no phi functions, so there is no
@@ -100,7 +103,8 @@ func schedule(f *Func) {
 			case v.Op == OpAMD64LoweredNilCheck || v.Op == OpPPC64LoweredNilCheck ||
 				v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck ||
 				v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck ||
-				v.Op == OpS390XLoweredNilCheck || v.Op == OpMIPSLoweredNilCheck:
+				v.Op == OpS390XLoweredNilCheck || v.Op == OpMIPSLoweredNilCheck ||
+				v.Op == OpWasmLoweredNilCheck:
 				// Nil checks must come before loads from the same address.
 				score[v.ID] = ScoreNilCheck
 			case v.Op == OpPhi:
@@ -264,7 +268,7 @@ func schedule(f *Func) {
 			}
 		}
 		if len(order) != len(b.Values) {
-			f.Fatalf("schedule does not include all values")
+			f.Fatalf("schedule does not include all values in block %s", b)
 		}
 		for i := 0; i < len(b.Values); i++ {
 			b.Values[i] = order[len(b.Values)-1-i]
@@ -301,7 +305,11 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	f := values[0].Block.Func
 
 	// find all stores
-	var stores []*Value // members of values that are store values
+
+	// Members of values that are store values.
+	// A constant bound allows this to be stack-allocated. 64 is
+	// enough to cover almost every storeOrder call.
+	stores := make([]*Value, 0, 64)
 	hasNilCheck := false
 	sset.clear() // sset is the set of stores that are used in other values
 	for _, v := range values {

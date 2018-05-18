@@ -64,7 +64,7 @@ func Merge(srcs []*Profile) (*Profile, error) {
 			// represents the main binary. Take the first Mapping we see,
 			// otherwise the operations below will add mappings in an
 			// arbitrary order.
-			pm.mapMapping(srcs[0].Mapping[0])
+			pm.mapMapping(src.Mapping[0])
 		}
 
 		for _, s := range src.Sample {
@@ -234,10 +234,11 @@ func (pm *profileMerger) mapLocation(src *Location) *Location {
 
 	mi := pm.mapMapping(src.Mapping)
 	l := &Location{
-		ID:      uint64(len(pm.p.Location) + 1),
-		Mapping: mi.m,
-		Address: uint64(int64(src.Address) + mi.offset),
-		Line:    make([]Line, len(src.Line)),
+		ID:       uint64(len(pm.p.Location) + 1),
+		Mapping:  mi.m,
+		Address:  uint64(int64(src.Address) + mi.offset),
+		Line:     make([]Line, len(src.Line)),
+		IsFolded: src.IsFolded,
 	}
 	for i, ln := range src.Line {
 		l.Line[i] = pm.mapLine(ln)
@@ -258,7 +259,8 @@ func (pm *profileMerger) mapLocation(src *Location) *Location {
 // key generates locationKey to be used as a key for maps.
 func (l *Location) key() locationKey {
 	key := locationKey{
-		addr: l.Address,
+		addr:     l.Address,
+		isFolded: l.IsFolded,
 	}
 	if l.Mapping != nil {
 		// Normalizes address to handle address space randomization.
@@ -279,6 +281,7 @@ func (l *Location) key() locationKey {
 type locationKey struct {
 	addr, mappingID uint64
 	lines           string
+	isFolded        bool
 }
 
 func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
@@ -291,20 +294,11 @@ func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
 	}
 
 	// Check memoization tables.
-	bk, pk := src.key()
-	if src.BuildID != "" {
-		if m, ok := pm.mappings[bk]; ok {
-			mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
-			pm.mappingsByID[src.ID] = mi
-			return mi
-		}
-	}
-	if src.File != "" {
-		if m, ok := pm.mappings[pk]; ok {
-			mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
-			pm.mappingsByID[src.ID] = mi
-			return mi
-		}
+	mk := src.key()
+	if m, ok := pm.mappings[mk]; ok {
+		mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
+		pm.mappingsByID[src.ID] = mi
+		return mi
 	}
 	m := &Mapping{
 		ID:              uint64(len(pm.p.Mapping) + 1),
@@ -321,21 +315,15 @@ func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
 	pm.p.Mapping = append(pm.p.Mapping, m)
 
 	// Update memoization tables.
-	if m.BuildID != "" {
-		pm.mappings[bk] = m
-	}
-	if m.File != "" {
-		pm.mappings[pk] = m
-	}
+	pm.mappings[mk] = m
 	mi := mapInfo{m, 0}
 	pm.mappingsByID[src.ID] = mi
 	return mi
 }
 
 // key generates encoded strings of Mapping to be used as a key for
-// maps. The first key represents only the build id, while the second
-// represents only the file path.
-func (m *Mapping) key() (buildIDKey, pathKey mappingKey) {
+// maps.
+func (m *Mapping) key() mappingKey {
 	// Normalize addresses to handle address space randomization.
 	// Round up to next 4K boundary to avoid minor discrepancies.
 	const mapsizeRounding = 0x1000
@@ -343,24 +331,27 @@ func (m *Mapping) key() (buildIDKey, pathKey mappingKey) {
 	size := m.Limit - m.Start
 	size = size + mapsizeRounding - 1
 	size = size - (size % mapsizeRounding)
-
-	buildIDKey = mappingKey{
-		size,
-		m.Offset,
-		m.BuildID,
+	key := mappingKey{
+		size:   size,
+		offset: m.Offset,
 	}
 
-	pathKey = mappingKey{
-		size,
-		m.Offset,
-		m.File,
+	switch {
+	case m.BuildID != "":
+		key.buildIDOrFile = m.BuildID
+	case m.File != "":
+		key.buildIDOrFile = m.File
+	default:
+		// A mapping containing neither build ID nor file name is a fake mapping. A
+		// key with empty buildIDOrFile is used for fake mappings so that they are
+		// treated as the same mapping during merging.
 	}
-	return
+	return key
 }
 
 type mappingKey struct {
-	size, offset    uint64
-	buildidIDOrFile string
+	size, offset  uint64
+	buildIDOrFile string
 }
 
 func (pm *profileMerger) mapLine(src Line) Line {
@@ -422,6 +413,7 @@ func combineHeaders(srcs []*Profile) (*Profile, error) {
 
 	var timeNanos, durationNanos, period int64
 	var comments []string
+	seenComments := map[string]bool{}
 	var defaultSampleType string
 	for _, s := range srcs {
 		if timeNanos == 0 || s.TimeNanos < timeNanos {
@@ -431,7 +423,12 @@ func combineHeaders(srcs []*Profile) (*Profile, error) {
 		if period == 0 || period < s.Period {
 			period = s.Period
 		}
-		comments = append(comments, s.Comments...)
+		for _, c := range s.Comments {
+			if seen := seenComments[c]; !seen {
+				comments = append(comments, c)
+				seenComments[c] = true
+			}
+		}
 		if defaultSampleType == "" {
 			defaultSampleType = s.DefaultSampleType
 		}

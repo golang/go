@@ -177,14 +177,20 @@ func TestSetFastSymbolization(t *testing.T) {
 
 func skipUnlessLinuxAmd64(t *testing.T) {
 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
-		t.Skip("Disasm only tested on x86-64 linux")
+		t.Skip("This test only works on x86-64 Linux")
+	}
+}
+
+func skipUnlessDarwinAmd64(t *testing.T) {
+	if runtime.GOOS != "darwin" || runtime.GOARCH != "amd64" {
+		t.Skip("This test only works on x86-64 Mac")
 	}
 }
 
 func TestDisasm(t *testing.T) {
 	skipUnlessLinuxAmd64(t)
 	bu := &Binutils{}
-	insts, err := bu.Disasm(filepath.Join("testdata", "hello"), 0, math.MaxUint64)
+	insts, err := bu.Disasm(filepath.Join("testdata", "exe_linux_64"), 0, math.MaxUint64)
 	if err != nil {
 		t.Fatalf("Disasm: unexpected error %v", err)
 	}
@@ -199,42 +205,124 @@ func TestDisasm(t *testing.T) {
 	}
 }
 
-func TestObjFile(t *testing.T) {
-	skipUnlessLinuxAmd64(t)
-	bu := &Binutils{}
-	f, err := bu.Open(filepath.Join("testdata", "hello"), 0, math.MaxUint64, 0)
-	if err != nil {
-		t.Fatalf("Open: unexpected error %v", err)
-	}
-	defer f.Close()
-	syms, err := f.Symbols(regexp.MustCompile("main"), 0)
-	if err != nil {
-		t.Fatalf("Symbols: unexpected error %v", err)
-	}
-
-	find := func(name string) *plugin.Sym {
-		for _, s := range syms {
-			for _, n := range s.Name {
-				if n == name {
-					return s
-				}
+func findSymbol(syms []*plugin.Sym, name string) *plugin.Sym {
+	for _, s := range syms {
+		for _, n := range s.Name {
+			if n == name {
+				return s
 			}
 		}
-		return nil
 	}
-	m := find("main")
-	if m == nil {
-		t.Fatalf("Symbols: did not find main")
+	return nil
+}
+
+func TestObjFile(t *testing.T) {
+	skipUnlessLinuxAmd64(t)
+	for _, tc := range []struct {
+		desc                 string
+		start, limit, offset uint64
+		addr                 uint64
+	}{
+		{"fake mapping", 0, math.MaxUint64, 0, 0x40052d},
+		{"fixed load address", 0x400000, 0x4006fc, 0, 0x40052d},
+		// True user-mode ASLR binaries are ET_DYN rather than ET_EXEC so this case
+		// is a bit artificial except that it approximates the
+		// vmlinux-with-kernel-ASLR case where the binary *is* ET_EXEC.
+		{"simulated ASLR address", 0x500000, 0x5006fc, 0, 0x50052d},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			bu := &Binutils{}
+			f, err := bu.Open(filepath.Join("testdata", "exe_linux_64"), tc.start, tc.limit, tc.offset)
+			if err != nil {
+				t.Fatalf("Open: unexpected error %v", err)
+			}
+			defer f.Close()
+			syms, err := f.Symbols(regexp.MustCompile("main"), 0)
+			if err != nil {
+				t.Fatalf("Symbols: unexpected error %v", err)
+			}
+
+			m := findSymbol(syms, "main")
+			if m == nil {
+				t.Fatalf("Symbols: did not find main")
+			}
+			for _, addr := range []uint64{m.Start + f.Base(), tc.addr} {
+				gotFrames, err := f.SourceLine(addr)
+				if err != nil {
+					t.Fatalf("SourceLine: unexpected error %v", err)
+				}
+				wantFrames := []plugin.Frame{
+					{Func: "main", File: "/tmp/hello.c", Line: 3},
+				}
+				if !reflect.DeepEqual(gotFrames, wantFrames) {
+					t.Fatalf("SourceLine for main: got %v; want %v\n", gotFrames, wantFrames)
+				}
+			}
+		})
 	}
-	frames, err := f.SourceLine(m.Start)
-	if err != nil {
-		t.Fatalf("SourceLine: unexpected error %v", err)
-	}
-	expect := []plugin.Frame{
-		{Func: "main", File: "/tmp/hello.c", Line: 3},
-	}
-	if !reflect.DeepEqual(frames, expect) {
-		t.Fatalf("SourceLine for main: expect %v; got %v\n", expect, frames)
+}
+
+func TestMachoFiles(t *testing.T) {
+	skipUnlessDarwinAmd64(t)
+
+	// Load `file`, pretending it was mapped at `start`. Then get the symbol
+	// table. Check that it contains the symbol `sym` and that the address
+	// `addr` gives the `expected` stack trace.
+	for _, tc := range []struct {
+		desc                 string
+		file                 string
+		start, limit, offset uint64
+		addr                 uint64
+		sym                  string
+		expected             []plugin.Frame
+	}{
+		{"normal mapping", "exe_mac_64", 0x100000000, math.MaxUint64, 0,
+			0x100000f50, "_main",
+			[]plugin.Frame{
+				{Func: "main", File: "/tmp/hello.c", Line: 3},
+			}},
+		{"other mapping", "exe_mac_64", 0x200000000, math.MaxUint64, 0,
+			0x200000f50, "_main",
+			[]plugin.Frame{
+				{Func: "main", File: "/tmp/hello.c", Line: 3},
+			}},
+		{"lib normal mapping", "lib_mac_64", 0, math.MaxUint64, 0,
+			0xfa0, "_bar",
+			[]plugin.Frame{
+				{Func: "bar", File: "/tmp/lib.c", Line: 5},
+			}},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			bu := &Binutils{}
+			f, err := bu.Open(filepath.Join("testdata", tc.file), tc.start, tc.limit, tc.offset)
+			if err != nil {
+				t.Fatalf("Open: unexpected error %v", err)
+			}
+			t.Logf("binutils: %v", bu)
+			if runtime.GOOS == "darwin" && !bu.rep.addr2lineFound && !bu.rep.llvmSymbolizerFound {
+				// On OSX user needs to install gaddr2line or llvm-symbolizer with
+				// Homebrew, skip the test when the environment doesn't have it
+				// installed.
+				t.Skip("couldn't find addr2line or gaddr2line")
+			}
+			defer f.Close()
+			syms, err := f.Symbols(nil, 0)
+			if err != nil {
+				t.Fatalf("Symbols: unexpected error %v", err)
+			}
+
+			m := findSymbol(syms, tc.sym)
+			if m == nil {
+				t.Fatalf("Symbols: could not find symbol %v", tc.sym)
+			}
+			gotFrames, err := f.SourceLine(tc.addr)
+			if err != nil {
+				t.Fatalf("SourceLine: unexpected error %v", err)
+			}
+			if !reflect.DeepEqual(gotFrames, tc.expected) {
+				t.Fatalf("SourceLine for main: got %v; want %v\n", gotFrames, tc.expected)
+			}
+		})
 	}
 }
 

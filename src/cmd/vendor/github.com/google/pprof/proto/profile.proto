@@ -1,3 +1,8 @@
+// Copyright (c) 2016, Google Inc.
+// All rights reserved.
+//
+////////////////////////////////////////////////////////////////////////////////
+
 // Profile is a common stacktrace profile format.
 //
 // Measurements represented with this format should follow the
@@ -151,7 +156,7 @@ message Location {
   // instruction addresses or any integer sequence as ids.
   uint64 id = 1;
   // The id of the corresponding profile.Mapping for this location.
-  // If can be unset if the mapping is unknown or not applicable for
+  // It can be unset if the mapping is unknown or not applicable for
   // this profile type.
   uint64 mapping_id = 2;
   // The instruction address for this location, if available.  It
@@ -168,6 +173,12 @@ message Location {
   //    line[0].function_name == "memcpy"
   //    line[1].function_name == "printf"
   repeated Line line = 4;
+  // Provides an indication that multiple symbols map to this location's
+  // address, for example due to identical code folding by the linker. In that
+  // case the line information above represents one of the multiple
+  // symbols. This field must be recomputed when the symbolization state of the
+  // profile changes.
+  bool is_folded = 5;
 }
 
 message Line {

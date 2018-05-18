@@ -1,0 +1,14 @@
+{"Action":"output","Output":"goos: darwin\n"}
+{"Action":"output","Output":"goarch: 386\n"}
+{"Action":"output","Output":"BenchmarkFoo-8   \t2000000000\t         0.00 ns/op\n"}
+{"Action":"output","Test":"BenchmarkFoo-8","Output":"--- BENCH: BenchmarkFoo-8\n"}
+{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
+{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
+{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
+{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
+{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
+{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
+{"Action":"bench","Test":"BenchmarkFoo-8"}
+{"Action":"output","Output":"PASS\n"}
+{"Action":"output","Output":"ok  \tcommand-line-arguments\t0.009s\n"}
+{"Action":"pass"}

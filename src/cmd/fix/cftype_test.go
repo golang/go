@@ -182,4 +182,38 @@ import "C"
 var x = map[int]C.CFTypeRef{0: 0}
 `,
 	},
+	{
+		Name: "cftype.Conversion1",
+		In: `package main
+
+import "C"
+
+var x C.CFTypeRef
+var y = (*unsafe.Pointer)(&x)
+`,
+		Out: `package main
+
+import "C"
+
+var x C.CFTypeRef
+var y = (*unsafe.Pointer)(unsafe.Pointer(&x))
+`,
+	},
+	{
+		Name: "cftype.Conversion2",
+		In: `package main
+
+import "C"
+
+var x unsafe.Pointer
+var y = (*C.CFTypeRef)(&x)
+`,
+		Out: `package main
+
+import "C"
+
+var x unsafe.Pointer
+var y = (*C.CFTypeRef)(unsafe.Pointer(&x))
+`,
+	},
 }

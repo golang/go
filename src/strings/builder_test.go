@@ -6,12 +6,8 @@ package strings_test
 
 import (
 	"bytes"
-	"errors"
-	"io"
-	"runtime"
 	. "strings"
 	"testing"
-	"testing/iotest"
 )
 
 func check(t *testing.T, b *Builder, want string) {
@@ -89,15 +85,21 @@ func TestBuilderReset(t *testing.T) {
 
 func TestBuilderGrow(t *testing.T) {
 	for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
-		var b Builder
-		b.Grow(growLen)
 		p := bytes.Repeat([]byte{'a'}, growLen)
-		allocs := numAllocs(func() { b.Write(p) })
-		if allocs > 0 {
-			t.Errorf("growLen=%d: allocation occurred during write", growLen)
+		allocs := testing.AllocsPerRun(100, func() {
+			var b Builder
+			b.Grow(growLen) // should be only alloc, when growLen > 0
+			b.Write(p)
+			if b.String() != string(p) {
+				t.Fatalf("growLen=%d: bad data written after Grow", growLen)
+			}
+		})
+		wantAllocs := 1
+		if growLen == 0 {
+			wantAllocs = 0
 		}
-		if b.String() != string(p) {
-			t.Errorf("growLen=%d: bad data written after Grow", growLen)
+		if g, w := int(allocs), wantAllocs; g != w {
+			t.Errorf("growLen=%d: got %d allocs during Write; want %v", growLen, g, w)
 		}
 	}
 }
@@ -169,114 +171,180 @@ func TestBuilderWriteByte(t *testing.T) {
 	check(t, &b, "a\x00")
 }
 
-func TestBuilderReadFrom(t *testing.T) {
-	for _, tt := range []struct {
-		name string
-		fn   func(io.Reader) io.Reader
-	}{
-		{"Reader", func(r io.Reader) io.Reader { return r }},
-		{"DataErrReader", iotest.DataErrReader},
-		{"OneByteReader", iotest.OneByteReader},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			var b Builder
-
-			r := tt.fn(NewReader("hello"))
-			n, err := b.ReadFrom(r)
-			if err != nil {
-				t.Fatalf("first call: got %s", err)
-			}
-			if n != 5 {
-				t.Errorf("first call: got n=%d; want 5", n)
-			}
-			check(t, &b, "hello")
-
-			r = tt.fn(NewReader(" world"))
-			n, err = b.ReadFrom(r)
-			if err != nil {
-				t.Fatalf("first call: got %s", err)
-			}
-			if n != 6 {
-				t.Errorf("first call: got n=%d; want 6", n)
-			}
-			check(t, &b, "hello world")
-		})
-	}
-}
-
-var errRead = errors.New("boom")
-
-// errorReader sends reads to the underlying reader
-// but returns errRead instead of io.EOF.
-type errorReader struct {
-	r io.Reader
-}
-
-func (r errorReader) Read(b []byte) (int, error) {
-	n, err := r.r.Read(b)
-	if err == io.EOF {
-		err = errRead
-	}
-	return n, err
-}
-
-func TestBuilderReadFromError(t *testing.T) {
-	var b Builder
-	r := errorReader{NewReader("hello")}
-	n, err := b.ReadFrom(r)
-	if n != 5 {
-		t.Errorf("got n=%d; want 5", n)
-	}
-	if err != errRead {
-		t.Errorf("got err=%q; want %q", err, errRead)
-	}
-	check(t, &b, "hello")
-}
-
-type negativeReader struct{}
-
-func (r negativeReader) Read([]byte) (int, error) { return -1, nil }
-
-func TestBuilderReadFromNegativeReader(t *testing.T) {
-	var b Builder
-	defer func() {
-		switch err := recover().(type) {
-		case nil:
-			t.Fatal("ReadFrom didn't panic")
-		case error:
-			wantErr := "strings.Builder: reader returned negative count from Read"
-			if err.Error() != wantErr {
-				t.Fatalf("recovered panic: got %v; want %v", err.Error(), wantErr)
-			}
-		default:
-			t.Fatalf("unexpected panic value: %#v", err)
-		}
-	}()
-
-	b.ReadFrom(negativeReader{})
-}
-
 func TestBuilderAllocs(t *testing.T) {
 	var b Builder
-	b.Grow(5)
+	const msg = "hello"
+	b.Grow(len(msg) * 2) // because AllocsPerRun does an extra "warm-up" iteration
 	var s string
-	allocs := numAllocs(func() {
+	allocs := int(testing.AllocsPerRun(1, func() {
 		b.WriteString("hello")
 		s = b.String()
-	})
-	if want := "hello"; s != want {
+	}))
+	if want := msg + msg; s != want {
 		t.Errorf("String: got %#q; want %#q", s, want)
 	}
 	if allocs > 0 {
 		t.Fatalf("got %d alloc(s); want 0", allocs)
 	}
+
+	// Issue 23382; verify that copyCheck doesn't force the
+	// Builder to escape and be heap allocated.
+	n := testing.AllocsPerRun(10000, func() {
+		var b Builder
+		b.Grow(5)
+		b.WriteString("abcde")
+		_ = b.String()
+	})
+	if n != 1 {
+		t.Errorf("Builder allocs = %v; want 1", n)
+	}
 }
 
-func numAllocs(fn func()) uint64 {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
-	var m1, m2 runtime.MemStats
-	runtime.ReadMemStats(&m1)
-	fn()
-	runtime.ReadMemStats(&m2)
-	return m2.Mallocs - m1.Mallocs
+func TestBuilderCopyPanic(t *testing.T) {
+	tests := []struct {
+		name      string
+		fn        func()
+		wantPanic bool
+	}{
+		{
+			name:      "String",
+			wantPanic: false,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				_ = b.String() // appease vet
+			},
+		},
+		{
+			name:      "Len",
+			wantPanic: false,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				b.Len()
+			},
+		},
+		{
+			name:      "Reset",
+			wantPanic: false,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				b.Reset()
+				b.WriteByte('y')
+			},
+		},
+		{
+			name:      "Write",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.Write([]byte("x"))
+				b := a
+				b.Write([]byte("y"))
+			},
+		},
+		{
+			name:      "WriteByte",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				b.WriteByte('y')
+			},
+		},
+		{
+			name:      "WriteString",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.WriteString("x")
+				b := a
+				b.WriteString("y")
+			},
+		},
+		{
+			name:      "WriteRune",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.WriteRune('x')
+				b := a
+				b.WriteRune('y')
+			},
+		},
+		{
+			name:      "Grow",
+			wantPanic: true,
+			fn: func() {
+				var a Builder
+				a.Grow(1)
+				b := a
+				b.Grow(2)
+			},
+		},
+	}
+	for _, tt := range tests {
+		didPanic := make(chan bool)
+		go func() {
+			defer func() { didPanic <- recover() != nil }()
+			tt.fn()
+		}()
+		if got := <-didPanic; got != tt.wantPanic {
+			t.Errorf("%s: panicked = %v; want %v", tt.name, got, tt.wantPanic)
+		}
+	}
+}
+
+var someBytes = []byte("some bytes sdljlk jsklj3lkjlk djlkjw")
+
+var sinkS string
+
+func benchmarkBuilder(b *testing.B, f func(b *testing.B, numWrite int, grow bool)) {
+	b.Run("1Write_NoGrow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 1, false)
+	})
+	b.Run("3Write_NoGrow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 3, false)
+	})
+	b.Run("3Write_Grow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 3, true)
+	})
+}
+
+func BenchmarkBuildString_Builder(b *testing.B) {
+	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+		for i := 0; i < b.N; i++ {
+			var buf Builder
+			if grow {
+				buf.Grow(len(someBytes) * numWrite)
+			}
+			for i := 0; i < numWrite; i++ {
+				buf.Write(someBytes)
+			}
+			sinkS = buf.String()
+		}
+	})
+}
+
+func BenchmarkBuildString_ByteBuffer(b *testing.B) {
+	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+		for i := 0; i < b.N; i++ {
+			var buf bytes.Buffer
+			if grow {
+				buf.Grow(len(someBytes) * numWrite)
+			}
+			for i := 0; i < numWrite; i++ {
+				buf.Write(someBytes)
+			}
+			sinkS = buf.String()
+		}
+	})
 }

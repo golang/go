@@ -159,7 +159,7 @@ func TestDecode(t *testing.T) {
 
 			dbuf, err = tt.enc.DecodeString(encoded)
 			testEqual(t, "DecodeString(%q) = error %v, want %v", encoded, err, error(nil))
-			testEqual(t, "DecodeString(%q) = %q, want %q", string(dbuf), p.decoded)
+			testEqual(t, "DecodeString(%q) = %q, want %q", encoded, string(dbuf), p.decoded)
 		}
 	}
 }

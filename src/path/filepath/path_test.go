@@ -433,6 +433,22 @@ func TestWalk(t *testing.T) {
 			defer restore()
 		}
 	}
+
+	tmpDir, err := ioutil.TempDir("", "TestWalk")
+	if err != nil {
+		t.Fatal("creating temp dir:", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal("finding working dir:", err)
+	}
+	if err = os.Chdir(tmpDir); err != nil {
+		t.Fatal("entering temp dir:", err)
+	}
+	defer os.Chdir(origDir)
+
 	makeTree(t)
 	errors := make([]error, 0, 10)
 	clear := true
@@ -440,7 +456,7 @@ func TestWalk(t *testing.T) {
 		return mark(info, err, &errors, clear)
 	}
 	// Expect no errors.
-	err := filepath.Walk(tree.name, markFn)
+	err = filepath.Walk(tree.name, markFn)
 	if err != nil {
 		t.Fatalf("no error expected, found: %s", err)
 	}
@@ -498,11 +514,6 @@ func TestWalk(t *testing.T) {
 		// restore permissions
 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0770)
 		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0770)
-	}
-
-	// cleanup
-	if err := os.RemoveAll(tree.name); err != nil {
-		t.Errorf("removeTree: %v", err)
 	}
 }
 
@@ -1055,6 +1066,47 @@ func TestAbs(t *testing.T) {
 		if filepath.IsAbs(abspath) && abspath != filepath.Clean(abspath) {
 			t.Errorf("Abs(%q)=%q, isn't clean", path, abspath)
 		}
+	}
+}
+
+// Empty path needs to be special-cased on Windows. See golang.org/issue/24441.
+// We test it separately from all other absTests because the empty string is not
+// a valid path, so it can't be used with os.Stat.
+func TestAbsEmptyString(t *testing.T) {
+	root, err := ioutil.TempDir("", "TestAbsEmptyString")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(root)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal("getwd failed: ", err)
+	}
+	err = os.Chdir(root)
+	if err != nil {
+		t.Fatal("chdir failed: ", err)
+	}
+	defer os.Chdir(wd)
+
+	info, err := os.Stat(root)
+	if err != nil {
+		t.Fatalf("%s: %s", root, err)
+	}
+
+	abspath, err := filepath.Abs("")
+	if err != nil {
+		t.Fatalf(`Abs("") error: %v`, err)
+	}
+	absinfo, err := os.Stat(abspath)
+	if err != nil || !os.SameFile(absinfo, info) {
+		t.Errorf(`Abs("")=%q, not the same file`, abspath)
+	}
+	if !filepath.IsAbs(abspath) {
+		t.Errorf(`Abs("")=%q, not an absolute path`, abspath)
+	}
+	if filepath.IsAbs(abspath) && abspath != filepath.Clean(abspath) {
+		t.Errorf(`Abs("")=%q, isn't clean`, abspath)
 	}
 }
 

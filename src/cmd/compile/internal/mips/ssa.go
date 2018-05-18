@@ -76,7 +76,7 @@ func storeByType(t *types.Type, r int16) obj.As {
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpMIPSMOVWconvert, ssa.OpMIPSMOVWreg:
+	case ssa.OpCopy, ssa.OpMIPSMOVWreg:
 		t := v.Type
 		if t.IsMemory() {
 			return
@@ -480,6 +480,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.Patch(p6, p2)
 	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
 		s.Call(v)
+	case ssa.OpMIPSLoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
 	case ssa.OpMIPSLoweredAtomicLoad:
 		s.Prog(mips.ASYNC)
 
@@ -763,6 +768,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpMIPSLoweredGetCallerPC:
+		p := s.Prog(obj.AGETCALLERPC)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpClobber:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
@@ -823,20 +832,17 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			p = s.Br(jmp.invasm, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			p = s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				p = s.Br(jmp.asm, b.Succs[0].Block())
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				p = s.Br(jmp.invasm, b.Succs[1].Block())
+				s.Br(obj.AJMP, b.Succs[0].Block())
+			}
 		}
 		if !b.Control.Type.IsFlags() {
 			p.From.Type = obj.TYPE_REG

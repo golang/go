@@ -24,7 +24,7 @@ import (
 // general. Unfortunately, we need to run on kernels built without
 // IPv6 support too. So probe the kernel to figure it out.
 func (p *ipStackCapabilities) probe() {
-	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	switch err {
 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
 	case nil:
@@ -48,7 +48,7 @@ func (p *ipStackCapabilities) probe() {
 		probes = probes[:1]
 	}
 	for i := range probes {
-		s, err := socketFunc(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+		s, err := sysSocket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 		if err != nil {
 			continue
 		}

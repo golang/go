@@ -583,16 +583,6 @@ var marshalTests = []struct {
 		ExpectXML: `<PresenceTest></PresenceTest>`,
 	},
 
-	// A pointer to struct{} may be used to test for an element's presence.
-	{
-		Value:     &PresenceTest{new(struct{})},
-		ExpectXML: `<PresenceTest><Exists></Exists></PresenceTest>`,
-	},
-	{
-		Value:     &PresenceTest{},
-		ExpectXML: `<PresenceTest></PresenceTest>`,
-	},
-
 	// A []byte field is only nil if the element was not found.
 	{
 		Value:         &Data{},

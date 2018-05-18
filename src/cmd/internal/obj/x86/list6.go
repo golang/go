@@ -36,7 +36,7 @@ import (
 )
 
 var Register = []string{
-	"AL", /* [D_AL] */
+	"AL", // [D_AL]
 	"CL",
 	"DL",
 	"BL",
@@ -52,7 +52,7 @@ var Register = []string{
 	"R13B",
 	"R14B",
 	"R15B",
-	"AX", /* [D_AX] */
+	"AX", // [D_AX]
 	"CX",
 	"DX",
 	"BX",
@@ -72,7 +72,7 @@ var Register = []string{
 	"CH",
 	"DH",
 	"BH",
-	"F0", /* [D_F0] */
+	"F0", // [D_F0]
 	"F1",
 	"F2",
 	"F3",
@@ -120,18 +120,18 @@ var Register = []string{
 	"Y13",
 	"Y14",
 	"Y15",
-	"CS", /* [D_CS] */
+	"CS", // [D_CS]
 	"SS",
 	"DS",
 	"ES",
 	"FS",
 	"GS",
-	"GDTR", /* [D_GDTR] */
-	"IDTR", /* [D_IDTR] */
-	"LDTR", /* [D_LDTR] */
-	"MSW",  /* [D_MSW] */
-	"TASK", /* [D_TASK] */
-	"CR0",  /* [D_CR] */
+	"GDTR", // [D_GDTR]
+	"IDTR", // [D_IDTR]
+	"LDTR", // [D_LDTR]
+	"MSW",  // [D_MSW]
+	"TASK", // [D_TASK]
+	"CR0",  // [D_CR]
 	"CR1",
 	"CR2",
 	"CR3",
@@ -147,7 +147,7 @@ var Register = []string{
 	"CR13",
 	"CR14",
 	"CR15",
-	"DR0", /* [D_DR] */
+	"DR0", // [D_DR]
 	"DR1",
 	"DR2",
 	"DR3",
@@ -155,7 +155,7 @@ var Register = []string{
 	"DR5",
 	"DR6",
 	"DR7",
-	"TR0", /* [D_TR] */
+	"TR0", // [D_TR]
 	"TR1",
 	"TR2",
 	"TR3",
@@ -163,8 +163,8 @@ var Register = []string{
 	"TR5",
 	"TR6",
 	"TR7",
-	"TLS",    /* [D_TLS] */
-	"MAXREG", /* [MAXREG] */
+	"TLS",    // [D_TLS]
+	"MAXREG", // [MAXREG]
 }
 
 func init() {

@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -73,11 +72,11 @@ func TestParse(t *testing.T) {
 		}
 
 		// Reencode and decode.
-		bw := bytes.NewBuffer(nil)
-		if err := p.Write(bw); err != nil {
+		var bw bytes.Buffer
+		if err := p.Write(&bw); err != nil {
 			t.Fatalf("%s: %v", source, err)
 		}
-		if p, err = Parse(bw); err != nil {
+		if p, err = Parse(&bw); err != nil {
 			t.Fatalf("%s: %v", source, err)
 		}
 		js2 := p.String()
@@ -105,6 +104,21 @@ func TestParseError(t *testing.T) {
 		if err == nil {
 			t.Errorf("got nil, want error for input #%d", i)
 		}
+	}
+}
+
+func TestParseConcatentated(t *testing.T) {
+	prof := testProfile1.Copy()
+	// Write the profile twice to buffer to create concatented profile.
+	var buf bytes.Buffer
+	prof.Write(&buf)
+	prof.Write(&buf)
+	_, err := Parse(&buf)
+	if err == nil {
+		t.Fatalf("got nil, want error")
+	}
+	if got, want := err.Error(), "parsing profile: concatenated profiles detected"; want != got {
+		t.Fatalf("got error %q, want error %q", got, want)
 	}
 }
 
@@ -276,6 +290,7 @@ var cpuL = []*Location{
 }
 
 var testProfile1 = &Profile{
+	TimeNanos:     10000,
 	PeriodType:    &ValueType{Type: "cpu", Unit: "milliseconds"},
 	Period:        1,
 	DurationNanos: 10e9,
@@ -328,6 +343,60 @@ var testProfile1 = &Profile{
 	Location: cpuL,
 	Function: cpuF,
 	Mapping:  cpuM,
+}
+
+var testProfile1NoMapping = &Profile{
+	PeriodType:    &ValueType{Type: "cpu", Unit: "milliseconds"},
+	Period:        1,
+	DurationNanos: 10e9,
+	SampleType: []*ValueType{
+		{Type: "samples", Unit: "count"},
+		{Type: "cpu", Unit: "milliseconds"},
+	},
+	Sample: []*Sample{
+		{
+			Location: []*Location{cpuL[0]},
+			Value:    []int64{1000, 1000},
+			Label: map[string][]string{
+				"key1": {"tag1"},
+				"key2": {"tag1"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[1], cpuL[0]},
+			Value:    []int64{100, 100},
+			Label: map[string][]string{
+				"key1": {"tag2"},
+				"key3": {"tag2"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[2], cpuL[0]},
+			Value:    []int64{10, 10},
+			Label: map[string][]string{
+				"key1": {"tag3"},
+				"key2": {"tag2"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[3], cpuL[0]},
+			Value:    []int64{10000, 10000},
+			Label: map[string][]string{
+				"key1": {"tag4"},
+				"key2": {"tag1"},
+			},
+		},
+		{
+			Location: []*Location{cpuL[4], cpuL[0]},
+			Value:    []int64{1, 1},
+			Label: map[string][]string{
+				"key1": {"tag4"},
+				"key2": {"tag1"},
+			},
+		},
+	},
+	Location: cpuL,
+	Function: cpuF,
 }
 
 var testProfile2 = &Profile{
@@ -577,6 +646,7 @@ func TestMerge(t *testing.T) {
 	// location should add up to 0).
 
 	prof := testProfile1.Copy()
+	prof.Comments = []string{"comment1"}
 	p1, err := Merge([]*Profile{prof, prof})
 	if err != nil {
 		t.Errorf("merge error: %v", err)
@@ -585,6 +655,9 @@ func TestMerge(t *testing.T) {
 	prof, err = Merge([]*Profile{p1, prof})
 	if err != nil {
 		t.Errorf("merge error: %v", err)
+	}
+	if got, want := len(prof.Comments), 1; got != want {
+		t.Errorf("len(prof.Comments) = %d, want %d", got, want)
 	}
 
 	// Use aggregation to merge locations at function granularity.
@@ -624,6 +697,39 @@ func TestMergeAll(t *testing.T) {
 		if samples[tb] != s.Value[0]*10 {
 			t.Errorf("merge got wrong value at %s : %d instead of %d", tb, samples[tb], s.Value[0]*10)
 		}
+	}
+}
+
+func TestIsFoldedMerge(t *testing.T) {
+	testProfile1Folded := testProfile1.Copy()
+	testProfile1Folded.Location[0].IsFolded = true
+	testProfile1Folded.Location[1].IsFolded = true
+
+	for _, tc := range []struct {
+		name            string
+		profs           []*Profile
+		wantLocationLen int
+	}{
+		{
+			name:            "folded and non-folded locations not merged",
+			profs:           []*Profile{testProfile1.Copy(), testProfile1Folded.Copy()},
+			wantLocationLen: 7,
+		},
+		{
+			name:            "identical folded locations are merged",
+			profs:           []*Profile{testProfile1Folded.Copy(), testProfile1Folded.Copy()},
+			wantLocationLen: 5,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prof, err := Merge(tc.profs)
+			if err != nil {
+				t.Fatalf("merge error: %v", err)
+			}
+			if got, want := len(prof.Location), tc.wantLocationLen; got != want {
+				t.Fatalf("got %d locations, want %d locations", got, want)
+			}
+		})
 	}
 }
 
@@ -681,6 +787,40 @@ func TestNumLabelMerge(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestEmptyMappingMerge(t *testing.T) {
+	// Aggregate a profile with itself and once again with a factor of
+	// -2. Should end up with an empty profile (all samples for a
+	// location should add up to 0).
+
+	prof1 := testProfile1.Copy()
+	prof2 := testProfile1NoMapping.Copy()
+	p1, err := Merge([]*Profile{prof2, prof1})
+	if err != nil {
+		t.Errorf("merge error: %v", err)
+	}
+	prof2.Scale(-2)
+	prof, err := Merge([]*Profile{p1, prof2})
+	if err != nil {
+		t.Errorf("merge error: %v", err)
+	}
+
+	// Use aggregation to merge locations at function granularity.
+	if err := prof.Aggregate(false, true, false, false, false); err != nil {
+		t.Errorf("aggregating after merge: %v", err)
+	}
+
+	samples := make(map[string]int64)
+	for _, s := range prof.Sample {
+		tb := locationHash(s)
+		samples[tb] = samples[tb] + s.Value[0]
+	}
+	for s, v := range samples {
+		if v != 0 {
+			t.Errorf("nonzero value for sample %s: %d", s, v)
+		}
 	}
 }
 
@@ -758,101 +898,6 @@ func TestNormalizeIncompatibleProfiles(t *testing.T) {
 
 	if err := p.Normalize(pb); err == nil {
 		t.Errorf("Expected an error")
-	}
-}
-
-func TestFilter(t *testing.T) {
-	// Perform several forms of filtering on the test profile.
-
-	type filterTestcase struct {
-		focus, ignore, hide, show *regexp.Regexp
-		fm, im, hm, hnm           bool
-	}
-
-	for tx, tc := range []filterTestcase{
-		{
-			fm: true, // nil focus matches every sample
-		},
-		{
-			focus: regexp.MustCompile("notfound"),
-		},
-		{
-			ignore: regexp.MustCompile("foo.c"),
-			fm:     true,
-			im:     true,
-		},
-		{
-			hide: regexp.MustCompile("lib.so"),
-			fm:   true,
-			hm:   true,
-		},
-		{
-			show: regexp.MustCompile("foo.c"),
-			fm:   true,
-			hnm:  true,
-		},
-		{
-			show: regexp.MustCompile("notfound"),
-			fm:   true,
-		},
-	} {
-		prof := *testProfile1.Copy()
-		gf, gi, gh, gnh := prof.FilterSamplesByName(tc.focus, tc.ignore, tc.hide, tc.show)
-		if gf != tc.fm {
-			t.Errorf("Filter #%d, got fm=%v, want %v", tx, gf, tc.fm)
-		}
-		if gi != tc.im {
-			t.Errorf("Filter #%d, got im=%v, want %v", tx, gi, tc.im)
-		}
-		if gh != tc.hm {
-			t.Errorf("Filter #%d, got hm=%v, want %v", tx, gh, tc.hm)
-		}
-		if gnh != tc.hnm {
-			t.Errorf("Filter #%d, got hnm=%v, want %v", tx, gnh, tc.hnm)
-		}
-	}
-}
-
-func TestTagFilter(t *testing.T) {
-	// Perform several forms of tag filtering on the test profile.
-
-	type filterTestcase struct {
-		include, exclude *regexp.Regexp
-		im, em           bool
-		count            int
-	}
-
-	countTags := func(p *Profile) map[string]bool {
-		tags := make(map[string]bool)
-
-		for _, s := range p.Sample {
-			for l := range s.Label {
-				tags[l] = true
-			}
-			for l := range s.NumLabel {
-				tags[l] = true
-			}
-		}
-		return tags
-	}
-
-	for tx, tc := range []filterTestcase{
-		{nil, nil, true, false, 3},
-		{regexp.MustCompile("notfound"), nil, false, false, 0},
-		{regexp.MustCompile("key1"), nil, true, false, 1},
-		{nil, regexp.MustCompile("key[12]"), true, true, 1},
-	} {
-		prof := testProfile1.Copy()
-		gim, gem := prof.FilterTagsByName(tc.include, tc.exclude)
-		if gim != tc.im {
-			t.Errorf("Filter #%d, got include match=%v, want %v", tx, gim, tc.im)
-		}
-		if gem != tc.em {
-			t.Errorf("Filter #%d, got exclude match=%v, want %v", tx, gem, tc.em)
-		}
-		if tags := countTags(prof); len(tags) != tc.count {
-			t.Errorf("Filter #%d, got %d tags[%v], want %d", tx, len(tags), tags, tc.count)
-		}
 	}
 }
 

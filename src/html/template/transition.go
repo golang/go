@@ -23,6 +23,7 @@ var transitionFunc = [...]func(context, []byte) (context, int){
 	stateRCDATA:      tSpecialTagEnd,
 	stateAttr:        tAttr,
 	stateURL:         tURL,
+	stateSrcset:      tURL,
 	stateJS:          tJS,
 	stateJSDqStr:     tJSDelimited,
 	stateJSSqStr:     tJSDelimited,
@@ -117,6 +118,8 @@ func tTag(c context, s []byte) (context, int) {
 			attr = attrStyle
 		case contentTypeJS:
 			attr = attrScript
+		case contentTypeSrcset:
+			attr = attrSrcset
 		}
 	}
 
@@ -161,6 +164,7 @@ var attrStartStates = [...]state{
 	attrScriptType: stateAttr,
 	attrStyle:      stateCSS,
 	attrURL:        stateURL,
+	attrSrcset:     stateSrcset,
 }
 
 // tBeforeValue is the context transition function for stateBeforeValue.

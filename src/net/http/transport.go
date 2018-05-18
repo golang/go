@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// HTTP client implementation. See RFC 2616.
+// HTTP client implementation. See RFC 7230 through 7235.
 //
 // This is the low-level Transport implementation of RoundTripper.
 // The high-level interface is in client.go.
@@ -28,8 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang_org/x/net/lex/httplex"
-	"golang_org/x/net/proxy"
+	"golang_org/x/net/http/httpguts"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -73,6 +72,15 @@ const DefaultMaxIdleConnsPerHost = 2
 // and how the Transport is configured. The DefaultTransport supports HTTP/2.
 // To explicitly enable HTTP/2 on a transport, use golang.org/x/net/http2
 // and call ConfigureTransport. See the package docs for more about HTTP/2.
+//
+// The Transport will send CONNECT requests to a proxy for its own use
+// when processing HTTPS requests, but Transport should generally not
+// be used to send a CONNECT request. That is, the Request passed to
+// the RoundTrip method should not have a Method of "CONNECT", as Go's
+// HTTP/1.x implementation does not support full-duplex request bodies
+// being written while the response body is streamed. Go's HTTP/2
+// implementation does support full duplex, but many CONNECT proxies speak
+// HTTP/1.x.
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool                                // user has requested to close all idle conns
@@ -355,11 +363,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	isHTTP := scheme == "http" || scheme == "https"
 	if isHTTP {
 		for k, vv := range req.Header {
-			if !httplex.ValidHeaderFieldName(k) {
+			if !httpguts.ValidHeaderFieldName(k) {
 				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
 			}
 			for _, v := range vv {
-				if !httplex.ValidHeaderFieldValue(v) {
+				if !httpguts.ValidHeaderFieldValue(v) {
 					return nil, fmt.Errorf("net/http: invalid header field value %q for key %v", v, k)
 				}
 			}
@@ -443,7 +451,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 // HTTP request on a new connection. The non-nil input error is the
 // error from roundTrip.
 func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
-	if err == http2ErrNoCachedConn {
+	if http2isNoCachedConnError(err) {
 		// Issue 16582: if the user started a bunch of
 		// requests at once, they can all pick the same conn
 		// and violate the server's max concurrent streams.
@@ -646,9 +654,14 @@ var (
 	errTooManyIdleHost    = errors.New("http: putIdleConn: too many idle connections for host")
 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
-	errServerClosedIdle   = errors.New("http: server closed idle connection")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
 	errNotCachingH2Conn   = errors.New("http: not caching alternate protocol's connections")
+
+	// errServerClosedIdle is not seen by users for idempotent requests, but may be
+	// seen by a user if the server shuts down an idle connection and sends its FIN
+	// in flight with already-written POST body bytes from the client.
+	// See https://github.com/golang/go/issues/19943#issuecomment-355607646
+	errServerClosedIdle = errors.New("http: server closed idle connection")
 )
 
 // transportReadFromServerError is used by Transport.readLoop when the
@@ -999,23 +1012,6 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 	}
 }
 
-type oneConnDialer <-chan net.Conn
-
-func newOneConnDialer(c net.Conn) proxy.Dialer {
-	ch := make(chan net.Conn, 1)
-	ch <- c
-	return oneConnDialer(ch)
-}
-
-func (d oneConnDialer) Dial(network, addr string) (net.Conn, error) {
-	select {
-	case c := <-d:
-		return c, nil
-	default:
-		return nil, io.EOF
-	}
-}
-
 // The connect method and the transport can both specify a TLS
 // Host name.  The transport's name takes precedence if present.
 func chooseTLSHost(cm connectMethod, t *Transport) string {
@@ -1063,12 +1059,6 @@ func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) erro
 			trace.TLSHandshakeDone(tls.ConnectionState{}, err)
 		}
 		return err
-	}
-	if !cfg.InsecureSkipVerify {
-		if err := tlsConn.VerifyHostname(cfg.ServerName); err != nil {
-			plainConn.Close()
-			return err
-		}
 	}
 	cs := tlsConn.ConnectionState()
 	if trace != nil && trace.TLSHandshakeDone != nil {
@@ -1148,18 +1138,22 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		// Do nothing. Not using a proxy.
 	case cm.proxyURL.Scheme == "socks5":
 		conn := pconn.conn
-		var auth *proxy.Auth
+		d := socksNewDialer("tcp", conn.RemoteAddr().String())
+		d.ProxyDial = func(_ context.Context, _, _ string) (net.Conn, error) {
+			return conn, nil
+		}
 		if u := cm.proxyURL.User; u != nil {
-			auth = &proxy.Auth{}
-			auth.User = u.Username()
+			auth := &socksUsernamePassword{
+				Username: u.Username(),
+			}
 			auth.Password, _ = u.Password()
+			d.AuthMethods = []socksAuthMethod{
+				socksAuthMethodNotRequired,
+				socksAuthMethodUsernamePassword,
+			}
+			d.Authenticate = auth.Authenticate
 		}
-		p, err := proxy.SOCKS5("", cm.addr(), auth, newOneConnDialer(conn))
-		if err != nil {
-			conn.Close()
-			return nil, err
-		}
-		if _, err := p.Dial("tcp", cm.targetAddr); err != nil {
+		if _, err := d.DialContext(ctx, "tcp", cm.targetAddr); err != nil {
 			conn.Close()
 			return nil, err
 		}
