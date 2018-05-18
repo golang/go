@@ -4706,9 +4706,7 @@ type SSAGenState struct {
 // Prog appends a new Prog.
 func (s *SSAGenState) Prog(as obj.As) *obj.Prog {
 	p := s.pp.Prog(as)
-	switch as {
-	case obj.APCDATA, obj.AFUNCDATA:
-		// is_stmt does not work for these; it DOES for ANOP
+	if ssa.LosesStmtMark(as) {
 		return p
 	}
 	// Float a statement start to the beginning of any same-line run.
