@@ -240,3 +240,11 @@ func issue24140(x interface{}) int {
                 panic(0)
         }
 }
+
+// Test that we don't crash when the 'if' condition is missing.
+func issue25438() {
+	if { /* ERROR missing condition */ }
+	if x := 0; /* ERROR missing condition */ { _ = x }
+	if
+	{ /* ERROR missing condition */ }
+}
