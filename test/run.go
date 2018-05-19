@@ -1329,11 +1329,12 @@ const (
 
 var (
 	// Regexp to split a line in code and comment, trimming spaces
-	rxAsmComment = regexp.MustCompile(`^\s*(.*?)\s*(?:\/\/\s*(.+)\s*)?$`)
+	rxAsmComment = regexp.MustCompile(`^\s*(.*?)\s*(?://\s*(.+)\s*)?$`)
 
-	// Regexp to extract an architecture check: architecture name, followed by semi-colon,
-	// followed by a comma-separated list of opcode checks.
-	rxAsmPlatform = regexp.MustCompile(`(\w+)(/\w+)?(/\w*)?:(` + reMatchCheck + `(?:,` + reMatchCheck + `)*)`)
+	// Regexp to extract an architecture check: architecture name (or triplet),
+	// followed by semi-colon, followed by a comma-separated list of opcode checks.
+	// Extraneous spaces are ignored.
+	rxAsmPlatform = regexp.MustCompile(`(\w+)(/\w+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:\s*,\s*` + reMatchCheck + `)*)`)
 
 	// Regexp to extract a single opcoded check
 	rxAsmCheck = regexp.MustCompile(reMatchCheck)
