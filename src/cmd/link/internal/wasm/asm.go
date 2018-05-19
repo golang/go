@@ -304,6 +304,7 @@ func writeGlobalSec(ctxt *ld.Link) {
 		I64, // 6: RET1
 		I64, // 7: RET2
 		I64, // 8: RET3
+		I32, // 9: RUN
 	}
 
 	writeUleb128(ctxt.Out, uint64(len(globalRegs))) // number of globals

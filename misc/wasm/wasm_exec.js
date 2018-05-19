@@ -56,6 +56,8 @@
 					console.warn("exit code:", code);
 				}
 			};
+			this._callbackTimeouts = new Map();
+			this._nextCallbackTimeoutID = 1;
 
 			const mem = () => {
 				// The buffer may change when requesting more memory.
@@ -119,6 +121,7 @@
 				go: {
 					// func wasmExit(code int32)
 					"runtime.wasmExit": (sp) => {
+						this.exited = true;
 						this.exit(mem().getInt32(sp + 8, true));
 					},
 
@@ -140,6 +143,24 @@
 						const msec = (new Date).getTime();
 						setInt64(sp + 8, msec / 1000);
 						mem().setInt32(sp + 16, (msec % 1000) * 1000000, true);
+					},
+
+					// func scheduleCallback(delay int64) int32
+					"runtime.scheduleCallback": (sp) => {
+						const id = this._nextCallbackTimeoutID;
+						this._nextCallbackTimeoutID++;
+						this._callbackTimeouts.set(id, setTimeout(
+							() => { this._resolveCallbackPromise(); },
+							getInt64(sp + 8) + 1, // setTimeout has been seen to fire up to 1 millisecond early
+						));
+						mem().setInt32(sp + 16, id, true);
+					},
+
+					// func clearScheduledCallback(id int32)
+					"runtime.clearScheduledCallback": (sp) => {
+						const id = mem().getInt32(sp + 8, true);
+						clearTimeout(this._callbackTimeouts.get(id));
+						this._callbackTimeouts.delete(id);
 					},
 
 					// func getRandomData(r []byte)
@@ -269,7 +290,19 @@
 
 		async run(instance) {
 			this._inst = instance;
-			this._values = [undefined, null, global, this._inst.exports.mem]; // TODO: garbage collection
+			this._values = [ // TODO: garbage collection
+				undefined,
+				null,
+				global,
+				this._inst.exports.mem,
+				() => { // resolveCallbackPromise
+					if (this.exited) {
+						throw new Error("bad callback: Go program has already exited");
+					}
+					setTimeout(this._resolveCallbackPromise, 0); // make sure it is asynchronous
+				},
+			];
+			this.exited = false;
 
 			const mem = new DataView(this._inst.exports.mem.buffer)
 
@@ -303,7 +336,16 @@
 				offset += 8;
 			});
 
-			this._inst.exports.run(argc, argv);
+			while (true) {
+				const callbackPromise = new Promise((resolve) => {
+					this._resolveCallbackPromise = resolve;
+				});
+				this._inst.exports.run(argc, argv);
+				if (this.exited) {
+					break;
+				}
+				await callbackPromise;
+			}
 		}
 	}
 
@@ -318,9 +360,16 @@
 		go.env = process.env;
 		go.exit = process.exit;
 		WebAssembly.instantiate(fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
+			process.on("exit", () => { // Node.js exits if no callback is pending
+				if (!go.exited) {
+					console.error("error: all goroutines asleep and no JavaScript callback pending - deadlock!");
+					process.exit(1);
+				}
+			});
 			return go.run(result.instance);
 		}).catch((err) => {
 			console.error(err);
+			go.exited = true;
 			process.exit(1);
 		});
 	}

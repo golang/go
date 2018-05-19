@@ -139,7 +139,7 @@ var pkgDeps = map[string][]string{
 
 	// Operating system access.
 	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "syscall/js", "unicode/utf16"},
-	"syscall/js":                        {"unsafe"},
+	"syscall/js":                        {"L0"},
 	"internal/syscall/unix":             {"L0", "syscall"},
 	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
