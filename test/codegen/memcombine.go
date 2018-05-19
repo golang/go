@@ -503,7 +503,7 @@ func zero_byte_16(b []byte) {
 
 /* TODO: enable them when corresponding optimization are implemented
 func zero_byte_4_idx(b []byte, idx int) {
-	// arm64: `MOVW\sZR,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOV[BH]`
+	// arm64(DISABLED): `MOVW\sZR,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOV[BH]`
 	b[(idx<<2)+0] = 0
 	b[(idx<<2)+1] = 0
 	b[(idx<<2)+2] = 0
@@ -511,7 +511,7 @@ func zero_byte_4_idx(b []byte, idx int) {
 }
 
 func zero_byte_8_idx(b []byte, idx int) {
-	// arm64: `MOVD\sZR,\s\(R[0-9]+\)\(R[0-9]+<<3\)`,-`MOV[BHW]`
+	// arm64(DISABLED): `MOVD\sZR,\s\(R[0-9]+\)\(R[0-9]+<<3\)`,-`MOV[BHW]`
 	b[(idx<<3)+0] = 0
 	b[(idx<<3)+1] = 0
 	b[(idx<<3)+2] = 0
