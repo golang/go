@@ -269,32 +269,37 @@ func TestReadFrom(t *testing.T) {
 	}
 }
 
-type slowReader struct{ ch chan struct{} }
+type panicReader struct{ panic bool }
 
-func (r slowReader) Read(p []byte) (int, error) {
-	r.ch <- struct{}{}
-	<-r.ch
-	p = p[:0]
+func (r panicReader) Read(p []byte) (int, error) {
+	if r.panic {
+		panic(nil)
+	}
 	return 0, io.EOF
 }
 
 // Make sure that an empty Buffer remains empty when
-// it is "grown" before a Read
-func TestSlowReadFrom(t *testing.T) {
+// it is "grown" before a Read that panics
+func TestReadFromPanicReader(t *testing.T) {
+
+	// First verify non-panic behaviour
 	var buf Buffer
-	r := slowReader{make(chan struct{}, 0)}
+	i, err := buf.ReadFrom(panicReader{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 0 {
+		t.Fatalf("unexpected return from bytes.ReadFrom (1): got: %d, want %d", i, 0)
+	}
+	check(t, "TestReadFromPanicReader (1)", &buf, "")
 
-	go func() {
-		buf.ReadFrom(r)
-		r.ch <- struct{}{}
+	// Confirm that when Reader panics, the emtpy buffer remains empty
+	var buf2 Buffer
+	defer func() {
+		recover()
+		check(t, "TestReadFromPanicReader (2)", &buf2, "")
 	}()
-
-	<-r.ch
-	check(t, "TestSlowReadFrom (1)", &buf, "")
-	r.ch <- struct{}{}
-
-	<-r.ch
-	check(t, "TestSlowReadFrom (2)", &buf, "")
+	i, err = buf2.ReadFrom(panicReader{panic: true})
 }
 
 func TestReadFromNegativeReader(t *testing.T) {
