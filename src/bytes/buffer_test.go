@@ -299,7 +299,7 @@ func TestReadFromPanicReader(t *testing.T) {
 		recover()
 		check(t, "TestReadFromPanicReader (2)", &buf2, "")
 	}()
-	i, err = buf2.ReadFrom(panicReader{panic: true})
+	buf2.ReadFrom(panicReader{panic: true})
 }
 
 func TestReadFromNegativeReader(t *testing.T) {
