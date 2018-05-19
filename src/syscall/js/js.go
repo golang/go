@@ -39,7 +39,11 @@ var (
 	// Global is the JavaScript global object, usually "window" or "global".
 	Global = Value{2}
 
+	// memory is the WebAssembly linear memory.
 	memory = Value{3}
+
+	// resolveCallbackPromise is a function that the callback helper uses to resume the execution of Go's WebAssembly code.
+	resolveCallbackPromise = Value{4}
 )
 
 var uint8Array = Global.Get("Uint8Array")
@@ -49,6 +53,8 @@ func ValueOf(x interface{}) Value {
 	switch x := x.(type) {
 	case Value:
 		return x
+	case Callback:
+		return x.enqueueFn
 	case nil:
 		return Null
 	case bool:
