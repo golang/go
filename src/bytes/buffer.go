@@ -202,6 +202,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	b.lastRead = opInvalid
 	for {
 		i := b.grow(MinRead)
+		b.buf = b.buf[:i]
 		m, e := r.Read(b.buf[i:cap(b.buf)])
 		if m < 0 {
 			panic(errNegativeRead)
