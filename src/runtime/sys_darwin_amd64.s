@@ -63,16 +63,6 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·raiseproc(SB),NOSPLIT,$24
-	MOVL	$(0x2000000+20), AX // getpid
-	SYSCALL
-	MOVQ	AX, DI	// arg 1 - pid
-	MOVL	sig+0(FP), SI	// arg 2 - signal
-	MOVL	$1, DX	// arg 3 - posix
-	MOVL	$(0x2000000+37), AX // kill
-	SYSCALL
-	RET
-
 TEXT runtime·setitimer(SB), NOSPLIT, $0
 	MOVL	mode+0(FP), DI
 	MOVQ	new+8(FP), SI
@@ -132,26 +122,53 @@ TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	how+0(FP), DI
-	MOVQ	new+8(FP), SI
-	MOVQ	old+16(FP), DX
-	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
-	SYSCALL
-	JCC	2(PC)
+TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 new
+	MOVQ	16(DI), DX		// arg 3 old
+	MOVL	0(DI), DI		// arg 1 sig
+	CALL	libc_sigaction(SB)
+	TESTL	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	POPQ	BP
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$0-24
-	MOVL	mode+0(FP), DI		// arg 1 sig
-	MOVQ	new+8(FP), SI		// arg 2 act
-	MOVQ	old+16(FP), DX		// arg 3 oact
-	MOVQ	old+16(FP), CX		// arg 3 oact
-	MOVQ	old+16(FP), R10		// arg 3 oact
-	MOVL	$(0x2000000+46), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
+TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 new
+	MOVQ	16(DI), DX	// arg 3 old
+	MOVL	0(DI), DI	// arg 1 how
+	CALL	libc_pthread_sigmask(SB)
+	TESTL	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	POPQ	BP
+	RET
+
+TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 old
+	MOVQ	0(DI), DI		// arg 1 new
+	CALL	libc_sigaltstack(SB)
+	TESTQ	AX, AX
+	JEQ	2(PC)
+	MOVL	$0xf1, 0xf1  // crash
+	POPQ	BP
+	RET
+
+TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	0(DI), BX	// signal
+	CALL	libc_getpid(SB)
+	MOVL	AX, DI		// arg 1 pid
+	MOVL	BX, SI		// arg 2 signal
+	CALL	libc_kill(SB)
+	POPQ	BP
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
@@ -167,21 +184,39 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$40
-	MOVL SI, 24(SP) // save infostyle for sigreturn below
-	MOVQ R8, 32(SP) // save ctx
-	MOVL DX, 0(SP)  // sig
-	MOVQ CX, 8(SP)  // info
-	MOVQ R8, 16(SP) // ctx
-	MOVQ $runtime·sigtrampgo(SB), AX
-	CALL AX
-	MOVQ 32(SP), DI // ctx
-	MOVL 24(SP), SI // infostyle
-	MOVL $(0x2000000+184), AX
-	SYSCALL
-	INT $3 // not reached
+// This is the function registered during sigaction and is invoked when
+// a signal is received. It just redirects to the Go function sigtrampgo.
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// This runs on the signal stack, so we have lots of stack available.
+	// We allocate our own stack space, because if we tell the linker
+	// how much we're using, the NOSPLIT check fails.
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$64, SP
 
+	// Save callee-save registers.
+	MOVQ	BX, 24(SP)
+	MOVQ	R12, 32(SP)
+	MOVQ	R13, 40(SP)
+	MOVQ	R14, 48(SP)
+	MOVQ	R15, 56(SP)
 
+	// Call into the Go signal handler
+	MOVL	DI, 0(SP)  // sig
+	MOVQ	SI, 8(SP)  // info
+	MOVQ	DX, 16(SP) // ctx
+	CALL runtime·sigtrampgo(SB)
+
+	// Restore callee-save registers.
+	MOVQ	24(SP), BX
+	MOVQ	32(SP), R12
+	MOVQ	40(SP), R13
+	MOVQ	48(SP), R14
+	MOVQ	56(SP), R15
+
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
 
 TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP			// make a frame; keep stack aligned
@@ -216,15 +251,6 @@ TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
 	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	POPQ	BP
-	RET
-
-TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVQ	new+0(FP), DI
-	MOVQ	old+8(FP), SI
-	MOVQ	$(0x2000000+53), AX
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
@@ -372,6 +398,14 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 	// DI points to the m.
 	// We are already on m's g0 stack.
 
+	// Save callee-save registers.
+	SUBQ	$40, SP
+	MOVQ	BX, 0(SP)
+	MOVQ	R12, 8(SP)
+	MOVQ	R13, 16(SP)
+	MOVQ	R14, 24(SP)
+	MOVQ	R15, 32(SP)
+
 	MOVQ	m_g0(DI), DX // g
 
 	// Initialize TLS entry.
@@ -383,10 +417,19 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 
 	CALL	runtime·mstart(SB)
 
+	// Restore callee-save registers.
+	MOVQ	0(SP), BX
+	MOVQ	8(SP), R12
+	MOVQ	16(SP), R13
+	MOVQ	24(SP), R14
+	MOVQ	32(SP), R15
+
 	// Go is all done with this OS thread.
 	// Tell pthread everything is ok (we never join with this thread, so
 	// the value here doesn't really matter).
 	XORL	AX, AX
+
+	ADDQ	$40, SP
 	RET
 
 // These trampolines help convert from Go calling convention to C calling convention.

@@ -158,6 +158,7 @@ type Sighandler C.union___sigaction_u
 
 type Sigaction C.struct___sigaction // used in syscalls
 type Usigaction C.struct_sigaction  // used by sigaction second argument
+type Sigset C.sigset_t
 type Sigval C.union_sigval
 type Siginfo C.siginfo_t
 type Timeval C.struct_timeval

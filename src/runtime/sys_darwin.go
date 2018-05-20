@@ -179,6 +179,41 @@ func walltime() (int64, int32) {
 }
 func walltime_trampoline()
 
+//go:nosplit
+//go:cgo_unsafe_args
+func sigaction(sig uint32, new *usigactiont, old *usigactiont) {
+	asmcgocall(unsafe.Pointer(funcPC(sigaction_trampoline)), unsafe.Pointer(&sig))
+}
+func sigaction_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sigprocmask(how uint32, new *sigset, old *sigset) {
+	asmcgocall(unsafe.Pointer(funcPC(sigprocmask_trampoline)), unsafe.Pointer(&how))
+}
+func sigprocmask_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sigaltstack(new *stackt, old *stackt) {
+	if new != nil && new.ss_flags&_SS_DISABLE != 0 && new.ss_size == 0 {
+		// Despite the fact that Darwin's sigaltstack man page says it ignores the size
+		// when SS_DISABLE is set, it doesn't. sigaltstack returns ENOMEM
+		// if we don't give it a reasonable size.
+		// ref: http://lists.llvm.org/pipermail/llvm-commits/Week-of-Mon-20140421/214296.html
+		new.ss_size = 32768
+	}
+	asmcgocall(unsafe.Pointer(funcPC(sigaltstack_trampoline)), unsafe.Pointer(&new))
+}
+func sigaltstack_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func raiseproc(sig uint32) {
+	asmcgocall(unsafe.Pointer(funcPC(raiseproc_trampoline)), unsafe.Pointer(&sig))
+}
+func raiseproc_trampoline()
+
 // Not used on Darwin, but must be defined.
 func exitThread(wait *uint32) {
 }
@@ -207,6 +242,11 @@ func exitThread(wait *uint32) {
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_gettimeofday gettimeofday "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sigaction sigaction "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sigaltstack sigaltstack "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_getpid getpid "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_kill kill "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
