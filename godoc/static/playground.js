@@ -109,7 +109,10 @@ function HTTPTransport(enableVet) {
 						dataType: "json",
 						success: function(dataVet) {
 							if (dataVet.Errors) {
-								// inject errors from the vet as the first event in the output
+								if (!data.Events) {
+									data.Events = [];
+								}
+								// inject errors from the vet as the first events in the output
 								data.Events.unshift({Message: 'Go vet exited.\n\n', Kind: 'system', Delay: 0});
 								data.Events.unshift({Message: dataVet.Errors, Kind: 'stderr', Delay: 0});
 							}
