@@ -1952,7 +1952,8 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 	}
 
 	// Adding another extension here? Remember to update the maximum number
-	// of elements in the make() at the top of the function.
+	// of elements in the make() at the top of the function and the list of
+	// template fields used in CreateCertificate documentation.
 
 	return append(ret[:n], template.ExtraExtensions...), nil
 }
@@ -2043,21 +2044,34 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 //  - AuthorityKeyId
 //  - BasicConstraintsValid
+//  - CRLDistributionPoints
 //  - DNSNames
+//  - EmailAddresses
 //  - ExcludedDNSDomains
+//  - ExcludedEmailAddresses
+//  - ExcludedIPRanges
+//  - ExcludedURIDomains
 //  - ExtKeyUsage
+//  - ExtraExtensions
 //  - IsCA
+//  - IssuingCertificateURL
 //  - KeyUsage
 //  - MaxPathLen
 //  - MaxPathLenZero
 //  - NotAfter
 //  - NotBefore
+//  - OCSPServer
 //  - PermittedDNSDomains
 //  - PermittedDNSDomainsCritical
+//  - PermittedEmailAddresses
+//  - PermittedIPRanges
+//  - PermittedURIDomains
+//  - PolicyIdentifiers
 //  - SerialNumber
 //  - SignatureAlgorithm
 //  - Subject
 //  - SubjectKeyId
+//  - URIs
 //  - UnknownExtKeyUsage
 //
 // The certificate is signed by parent. If parent is equal to template then the
