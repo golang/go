@@ -84,17 +84,6 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
-TEXT runtime·raiseproc(SB),NOSPLIT,$16
-	MOVL	$20, AX // getpid
-	INT	$0x80
-	MOVL	AX, 4(SP)	// pid
-	MOVL	sig+0(FP), AX
-	MOVL	AX, 8(SP)	// signal
-	MOVL	$1, 12(SP)	// posix
-	MOVL	$37, AX // kill
-	INT	$0x80
-	RET
-
 TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
@@ -211,18 +200,73 @@ initialized:
 	POPL	BP
 	RET
 
-TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	$329, AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
-	INT	$0x80
-	JAE	2(PC)
+TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	0(CX), AX		// arg 1 sig
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX		// arg 2 new
+	MOVL	AX, 4(SP)
+	MOVL	8(CX), AX		// arg 3 old
+	MOVL	AX, 8(SP)
+	CALL	libc_sigaction(SB)
+	TESTL	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$0
-	MOVL	$46, AX
-	INT	$0x80
-	JAE	2(PC)
+TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	0(CX), AX		// arg 1 how
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX		// arg 2 new
+	MOVL	AX, 4(SP)
+	MOVL	8(CX), AX		// arg 3 old
+	MOVL	AX, 8(SP)
+	CALL	libc_pthread_sigmask(SB)
+	TESTL	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX		// arg 1 new
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX		// arg 2 old
+	MOVL	AX, 4(SP)
+	CALL	libc_sigaltstack(SB)
+	TESTL	AX, AX
+	JEQ	2(PC)
+	MOVL	$0xf1, 0xf1  // crash
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	CALL	libc_getpid(SB)
+	MOVL	AX, 0(SP)	// arg 1 pid
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX
+	MOVL	AX, 4(SP)	// arg 2 signal
+	CALL	libc_kill(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
@@ -243,38 +287,32 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	RET
 
 // Sigtramp's job is to call the actual signal handler.
-// It is called with the following arguments on the stack:
-//	0(SP)	"return address" - ignored
-//	4(SP)	actual handler
-//	8(SP)	siginfo style
-//	12(SP)	signal number
-//	16(SP)	siginfo
-//	20(SP)	context
-TEXT runtime·sigtramp(SB),NOSPLIT,$20
-	MOVL	sig+8(FP), BX
-	MOVL	BX, 0(SP)
-	MOVL	info+12(FP), BX
-	MOVL	BX, 4(SP)
-	MOVL	ctx+16(FP), BX
-	MOVL	BX, 8(SP)
+// It is called with the C calling convention, and calls out
+// to sigtrampgo with the Go calling convention.
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	SUBL	$28, SP
+
+	// Save callee-save registers.
+	MOVL	BP, 12(SP)
+	MOVL	BX, 16(SP)
+	MOVL	SI, 20(SP)
+	MOVL	DI, 24(SP)
+
+	MOVL	32(SP), AX
+	MOVL	AX, 0(SP)	// arg 1 signal number
+	MOVL	36(SP), AX
+	MOVL	AX, 4(SP)	// arg 2 siginfo
+	MOVL	40(SP), AX
+	MOVL	AX, 8(SP)	// arg 3 ctxt
 	CALL	runtime·sigtrampgo(SB)
 
-	// call sigreturn
-	MOVL	ctx+16(FP), CX
-	MOVL	infostyle+4(FP), BX
-	MOVL	$0, 0(SP)	// "caller PC" - ignored
-	MOVL	CX, 4(SP)
-	MOVL	BX, 8(SP)
-	MOVL	$184, AX	// sigreturn(ucontext, infostyle)
-	INT	$0x80
-	MOVL	$0xf1, 0xf1  // crash
-	RET
+	// Restore callee-save registers.
+	MOVL	12(SP), BP
+	MOVL	16(SP), BX
+	MOVL	20(SP), SI
+	MOVL	24(SP), DI
 
-TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVL	$53, AX
-	INT	$0x80
-	JAE	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	ADDL	$28, SP
 	RET
 
 TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
@@ -409,8 +447,15 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 	// The value at SP+4 points to the m.
 	// We are already on m's g0 stack.
 
+	// Save callee-save registers.
+	SUBL	$16, SP
+	MOVL	BP, 0(SP)
+	MOVL	BX, 4(SP)
+	MOVL	SI, 8(SP)
+	MOVL	DI, 12(SP)
+
 	MOVL	SP, AX       // hide argument read from vet (vet thinks this function is using the Go calling convention)
-	MOVL	4(AX), DI    // m
+	MOVL	20(AX), DI   // m
 	MOVL	m_g0(DI), DX // g
 
 	// Initialize TLS entry.
@@ -422,10 +467,18 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 
 	CALL	runtime·mstart(SB)
 
+	// Restore callee-save registers.
+	MOVL	0(SP), BP
+	MOVL	4(SP), BX
+	MOVL	8(SP), SI
+	MOVL	12(SP), DI
+
 	// Go is all done with this OS thread.
 	// Tell pthread everything is ok (we never join with this thread, so
 	// the value here doesn't really matter).
 	XORL	AX, AX
+
+	ADDL	$16, SP
 	RET
 
 TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0

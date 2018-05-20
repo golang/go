@@ -206,7 +206,6 @@ func mpreinit(mp *m) {
 func minit() {
 	// The alternate signal stack is buggy on arm and arm64.
 	// The signal handler handles it directly.
-	// The sigaltstack assembly function does nothing.
 	if GOARCH != "arm" && GOARCH != "arm64" {
 		minitSignalStack()
 	}
@@ -500,22 +499,7 @@ const (
 )
 
 //go:noescape
-func sigprocmask(how int32, new, old *sigset)
-
-//go:noescape
-func sigaction(mode uint32, new *sigactiont, old *usigactiont)
-
-//go:noescape
-func sigaltstack(new, old *stackt)
-
-// darwin/arm64 uses registers instead of stack-based arguments.
-// TODO: does this matter?
-func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Pointer)
-
-//go:noescape
 func setitimer(mode int32, new, old *itimerval)
-
-func raiseproc(sig uint32)
 
 //extern SigTabTT runtime·sigtab[];
 
@@ -526,13 +510,19 @@ var sigset_all = ^sigset(0)
 //go:nosplit
 //go:nowritebarrierrec
 func setsig(i uint32, fn uintptr) {
-	var sa sigactiont
+	var sa usigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
-	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp)) // runtime·sigtramp's job is to call into real handler
+	if fn == funcPC(sighandler) {
+		fn = funcPC(sigtramp)
+	}
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
 	sigaction(i, &sa, nil)
 }
+
+// sigtramp is the callback from libc when a signal is received.
+// It is called with the C calling convention.
+func sigtramp()
 
 //go:nosplit
 //go:nowritebarrierrec
@@ -543,9 +533,8 @@ func setsigstack(i uint32) {
 	if osa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
-	var sa sigactiont
+	var sa usigactiont
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = handler
-	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp))
 	sa.sa_mask = osa.sa_mask
 	sa.sa_flags = osa.sa_flags | _SA_ONSTACK
 	sigaction(i, &sa, nil)
