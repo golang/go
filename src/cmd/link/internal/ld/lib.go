@@ -921,12 +921,6 @@ func hostobjs(ctxt *Link) {
 	}
 }
 
-// provided by lib9
-
-func rmtemp() {
-	os.RemoveAll(*flagTmpdir)
-}
-
 func hostlinksetup(ctxt *Link) {
 	if ctxt.LinkMode != LinkExternal {
 		return
@@ -945,7 +939,10 @@ func hostlinksetup(ctxt *Link) {
 			log.Fatal(err)
 		}
 		*flagTmpdir = dir
-		AtExit(rmtemp)
+		AtExit(func() {
+			ctxt.Out.f.Close()
+			os.RemoveAll(*flagTmpdir)
+		})
 	}
 
 	// change our output to temporary object file
