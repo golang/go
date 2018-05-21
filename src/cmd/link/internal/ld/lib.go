@@ -2199,6 +2199,18 @@ func undefsym(ctxt *Link, s *sym.Symbol) {
 }
 
 func (ctxt *Link) undef() {
+	// undefsym performs checks (almost) identical to checks
+	// that report undefined relocations in relocsym.
+	// Both undefsym and relocsym can report same symbol as undefined,
+	// which results in error message duplication (see #10978).
+	//
+	// The undef is run after Arch.Asmb and could detect some
+	// programming errors there, but if object being linked is already
+	// failed with errors, it is better to avoid duplicated errors.
+	if nerrors > 0 {
+		return
+	}
+
 	for _, s := range ctxt.Textp {
 		undefsym(ctxt, s)
 	}
