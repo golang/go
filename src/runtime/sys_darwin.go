@@ -41,10 +41,10 @@ func pthread_create_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func pthread_kill(thread pthread, sig int) (errno int32) {
-	return asmcgocall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&thread))
+func raise(sig uint32) {
+	asmcgocall(unsafe.Pointer(funcPC(raise_trampoline)), unsafe.Pointer(&sig))
 }
-func pthread_kill_trampoline()
+func raise_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
@@ -158,8 +158,7 @@ func exitThread(wait *uint32) {
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_raise raise "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_open open "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_close close "/usr/lib/libSystem.B.dylib"

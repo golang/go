@@ -619,27 +619,14 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
-	PUSHL   BP
-	MOVL    SP, BP
-	SUBL	$8, SP
-	CALL    libc_pthread_self(SB)
-	MOVL	16(SP), CX
-	MOVL	AX, (CX)	// Save result.
-	MOVL    BP, SP
-	POPL    BP
-	RET
-
-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	PUSHL   BP
 	MOVL    SP, BP
 	SUBL	$8, SP
 	MOVL	16(SP), CX
-	MOVL    0(CX), AX	// arg 1 thread ID
+	MOVL    0(CX), AX	// arg 1 sig
 	MOVL	AX, 0(SP)
-	MOVL    4(CX), AX	// arg 2 sig
-	MOVL	AX, 4(SP)
-	CALL    libc_pthread_kill(SB)
+	CALL    libc_raise(SB)
 	MOVL    BP, SP
 	POPL    BP
 	RET
