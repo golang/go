@@ -110,6 +110,10 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 
 // resolve relocations in s.
 func relocsym(ctxt *Link, s *sym.Symbol) {
+	// undefinedSyms contains all undefined symbol names.
+	// For successfull builds, it remains nil and does not cause any overhead.
+	var undefinedSyms []string
+
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r := &s.R[ri]
 		if r.Done {
@@ -128,7 +132,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			continue
 		}
 
-		if r.Sym != nil && ((r.Sym.Type == 0 && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type == sym.SXREF) {
+		if r.Sym != nil && ((r.Sym.Type == sym.Sxxx && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type == sym.SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
 			if ctxt.BuildMode == BuildModeShared {
@@ -140,7 +144,22 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 					continue
 				}
 			} else {
-				Errorf(s, "relocation target %s not defined", r.Sym.Name)
+				reported := false
+				for _, name := range undefinedSyms {
+					if name == r.Sym.Name {
+						reported = true
+						break
+					}
+				}
+				if !reported {
+					// Give a special error message for main symbol (see #24809).
+					if r.Sym.Name == "main.main" {
+						Errorf(s, "function main is undeclared in the main package")
+					} else {
+						Errorf(s, "relocation target %s not defined", r.Sym.Name)
+					}
+					undefinedSyms = append(undefinedSyms, r.Sym.Name)
+				}
 				continue
 			}
 		}
