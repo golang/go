@@ -2236,7 +2236,10 @@ func (mux *ServeMux) match(path string) (h Handler, pattern string) {
 // not for path itself. If the path needs appending to, it creates a new
 // URL, setting the path to u.Path + "/" and returning true to indicate so.
 func (mux *ServeMux) redirectToPathSlash(host, path string, u *url.URL) (*url.URL, bool) {
-	if !mux.shouldRedirect(host, path) {
+	mux.mu.RLock()
+	shouldRedirect := mux.shouldRedirectRLocked(host, path)
+	mux.mu.RUnlock()
+	if !shouldRedirect {
 		return u, false
 	}
 	path = path + "/"
@@ -2244,13 +2247,10 @@ func (mux *ServeMux) redirectToPathSlash(host, path string, u *url.URL) (*url.UR
 	return u, true
 }
 
-// shouldRedirect reports whether the given path and host should be redirected to
+// shouldRedirectRLocked reports whether the given path and host should be redirected to
 // path+"/". This should happen if a handler is registered for path+"/" but
 // not path -- see comments at ServeMux.
-func (mux *ServeMux) shouldRedirect(host, path string) bool {
-	mux.mu.RLock()
-	defer mux.mu.RUnlock()
-
+func (mux *ServeMux) shouldRedirectRLocked(host, path string) bool {
 	p := []string{path, host + path}
 
 	for _, c := range p {
