@@ -68,7 +68,7 @@
 // all pprof commands.
 //
 // For more information about pprof, see
-// https://github.com/google/pprof/blob/master/doc/pprof.md.
+// https://github.com/google/pprof/blob/master/doc/README.md.
 package pprof
 
 import (
