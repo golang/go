@@ -15,6 +15,7 @@ package ld
 
 import (
 	"cmd/internal/dwarf"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
@@ -953,7 +954,7 @@ const (
 	LINE_BASE   = -4
 	LINE_RANGE  = 10
 	PC_RANGE    = (255 - OPCODE_BASE) / LINE_RANGE
-	OPCODE_BASE = 10
+	OPCODE_BASE = 11
 )
 
 func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *sym.Symbol, deltaPC uint64, deltaLC int64) {
@@ -1157,7 +1158,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 	unitLengthOffset := ls.Size
 	ls.AddUint32(ctxt.Arch, 0) // unit_length (*), filled in at end.
 	unitstart = ls.Size
-	ls.AddUint16(ctxt.Arch, 2) // dwarf version (appendix F)
+	ls.AddUint16(ctxt.Arch, 3) // dwarf version (appendix F)
 	headerLengthOffset := ls.Size
 	ls.AddUint32(ctxt.Arch, 0) // header_length (*), filled in at end.
 	headerstart = ls.Size
@@ -1177,6 +1178,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 	ls.AddUint8(0)                // standard_opcode_lengths[7]
 	ls.AddUint8(0)                // standard_opcode_lengths[8]
 	ls.AddUint8(1)                // standard_opcode_lengths[9]
+	ls.AddUint8(0)                // standard_opcode_lengths[10]
 	ls.AddUint8(0)                // include_directories  (empty)
 
 	// Create the file table. fileNums maps from global file
@@ -1249,9 +1251,15 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 		pciterinit(ctxt, &pcline, &s.FuncInfo.Pcline)
 		pciterinit(ctxt, &pcstmt, &pctostmtData)
 
+		if pcstmt.done != 0 {
+			// Assembly files lack a pcstmt section, we assume that every instruction
+			// is a valid statement.
+			pcstmt.value = 1
+		}
+
 		var thispc uint32
 		// TODO this loop looks like it could exit with work remaining.
-		for pcfile.done == 0 && pcline.done == 0 && pcstmt.done == 0 {
+		for pcfile.done == 0 && pcline.done == 0 {
 			// Only changed if it advanced
 			if int32(file) != pcfile.value {
 				ls.AddUint8(dwarf.DW_LNS_set_file)
@@ -1265,8 +1273,19 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 
 			// Only changed if it advanced
 			if is_stmt != uint8(pcstmt.value) {
-				is_stmt = uint8(pcstmt.value)
-				ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
+				new_stmt := uint8(pcstmt.value)
+				switch new_stmt &^ 1 {
+				case obj.PrologueEnd:
+					ls.AddUint8(uint8(dwarf.DW_LNS_set_prologue_end))
+				case obj.EpilogueBegin:
+					// TODO if there is a use for this, add it.
+					// Don't forget to increase OPCODE_BASE by 1 and add entry for standard_opcode_lengths[11]
+				}
+				new_stmt &= 1
+				if is_stmt != new_stmt {
+					is_stmt = new_stmt
+					ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
+				}
 			}
 
 			// putpcldelta makes a row in the DWARF matrix, always, even if line is unchanged.
@@ -1280,14 +1299,14 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 			if pcline.nextpc < thispc {
 				thispc = pcline.nextpc
 			}
-			if pcstmt.nextpc < thispc {
+			if pcstmt.done == 0 && pcstmt.nextpc < thispc {
 				thispc = pcstmt.nextpc
 			}
 
 			if pcfile.nextpc == thispc {
 				pciternext(&pcfile)
 			}
-			if pcstmt.nextpc == thispc {
+			if pcstmt.done == 0 && pcstmt.nextpc == thispc {
 				pciternext(&pcstmt)
 			}
 			if pcline.nextpc == thispc {
@@ -1296,6 +1315,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 		}
 		if is_stmt == 0 && i < len(textp)-1 {
 			// If there is more than one function, ensure default value is established.
+			is_stmt = 1
 			ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
 		}
 	}
@@ -1669,7 +1689,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	if *FlagS && ctxt.HeadType != objabi.Hdarwin {
 		return
 	}
-	if ctxt.HeadType == objabi.Hplan9 {
+	if ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hjs {
 		return
 	}
 

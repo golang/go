@@ -24,6 +24,7 @@ type Cache struct {
 	domblockstore []ID         // scratch space for computing dominators
 	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
 	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
+	scrPoset      []*poset     // scratch poset to be reused
 
 	ValueToProgAfter []*obj.Prog
 	debugState       debugState

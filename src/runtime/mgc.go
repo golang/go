@@ -1149,7 +1149,7 @@ func gcWaitOnMark(n uint32) {
 		gp := getg()
 		gp.schedlink = work.sweepWaiters.head
 		work.sweepWaiters.head.set(gp)
-		goparkunlock(&work.sweepWaiters.lock, "wait for GC cycle", traceEvGoBlock, 1)
+		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
 	}
 }
 
@@ -1527,7 +1527,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	_g_.m.traceback = 2
 	gp := _g_.m.curg
 	casgstatus(gp, _Grunning, _Gwaiting)
-	gp.waitreason = "garbage collection"
+	gp.waitreason = waitReasonGarbageCollection
 
 	// Run gc on the g0 stack. We do this so that the g stack
 	// we're currently running on will no longer change. Cuts
@@ -1796,7 +1796,7 @@ func gcBgMarkWorker(_p_ *p) {
 				}
 			}
 			return true
-		}, unsafe.Pointer(park), "GC worker (idle)", traceEvGoBlock, 0)
+		}, unsafe.Pointer(park), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
 
 		// Loop until the P dies and disassociates this
 		// worker (the P may later be reused, in which case

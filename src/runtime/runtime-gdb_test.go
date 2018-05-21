@@ -27,6 +27,8 @@ func checkGdbEnvironment(t *testing.T) {
 		t.Skip("gdb does not work on darwin")
 	case "netbsd":
 		t.Skip("gdb does not work with threads on NetBSD; see golang.org/issue/22893 and gnats.netbsd.org/52548")
+	case "windows":
+		t.Skip("gdb tests fail on Windows: https://golang.org/issue/22687")
 	case "linux":
 		if runtime.GOARCH == "ppc64" {
 			t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
@@ -476,5 +478,71 @@ func TestGdbConst(t *testing.T) {
 
 	if !strings.Contains(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'\n$5 = 8192") {
 		t.Fatalf("output mismatch")
+	}
+}
+
+const panicSource = `
+package main
+
+import "runtime/debug"
+
+func main() {
+	debug.SetTraceback("crash")
+	crash()
+}
+
+func crash() {
+	panic("panic!")
+}
+`
+
+// TestGdbPanic tests that gdb can unwind the stack correctly
+// from SIGABRTs from Go panics.
+func TestGdbPanic(t *testing.T) {
+	checkGdbEnvironment(t)
+	t.Parallel()
+	checkGdbVersion(t)
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Build the source code.
+	src := filepath.Join(dir, "main.go")
+	err = ioutil.WriteFile(src, []byte(panicSource), 0644)
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd.Dir = dir
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("building source %v\n%s", err, out)
+	}
+
+	// Execute gdb commands.
+	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-ex", "set startup-with-shell off",
+		"-ex", "run",
+		"-ex", "backtrace",
+		filepath.Join(dir, "a.exe"),
+	}
+	got, _ := exec.Command("gdb", args...).CombinedOutput()
+
+	// Check that the backtrace matches the source code.
+	bt := []string{
+		`crash`,
+		`main`,
+	}
+	for _, name := range bt {
+		s := fmt.Sprintf("#.* .* in main\\.%v", name)
+		re := regexp.MustCompile(s)
+		if found := re.Find(got) != nil; !found {
+			t.Errorf("could not find '%v' in backtrace", s)
+			t.Fatalf("gdb output:\n%v", string(got))
+		}
 	}
 }

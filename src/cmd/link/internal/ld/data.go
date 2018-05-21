@@ -159,8 +159,8 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		}
 
 		// We need to be able to reference dynimport symbols when linking against
-		// shared libraries, and Solaris needs it always
-		if ctxt.HeadType != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() && !r.Sym.Attr.SubSymbol() {
+		// shared libraries, and Solaris and Darwin need it always
+		if ctxt.HeadType != objabi.Hsolaris && ctxt.HeadType != objabi.Hdarwin && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() && !r.Sym.Attr.SubSymbol() {
 			if !(ctxt.Arch.Family == sys.PPC64 && ctxt.LinkMode == LinkExternal && r.Sym.Name == ".TOC.") {
 				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			}
@@ -402,10 +402,22 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 					}
 				} else if ctxt.HeadType == objabi.Hdarwin {
 					if r.Type == objabi.R_CALL {
-						if rs.Type != sym.SHOSTOBJ {
-							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
+						if ctxt.LinkMode == LinkExternal && rs.Type == sym.SDYNIMPORT {
+							switch ctxt.Arch.Family {
+							case sys.AMD64:
+								// AMD64 dynamic relocations are relative to the end of the relocation.
+								o += int64(r.Siz)
+							case sys.I386:
+								// I386 dynamic relocations are relative to the start of the section.
+								o -= int64(r.Off)                         // offset in symbol
+								o -= int64(s.Value - int64(s.Sect.Vaddr)) // offset of symbol in section
+							}
+						} else {
+							if rs.Type != sym.SHOSTOBJ {
+								o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
+							}
+							o -= int64(r.Off) // relative to section offset, not symbol
 						}
-						o -= int64(r.Off) // relative to section offset, not symbol
 					} else if ctxt.Arch.Family == sys.ARM {
 						// see ../arm/asm.go:/machoreloc1
 						o += Symaddr(rs) - s.Value - int64(r.Off)
@@ -1840,6 +1852,10 @@ func (ctxt *Link) textaddress() {
 // Note: once we have trampoline insertion support for external linking, this function
 // will not need to create new text sections, and so no need to return sect and n.
 func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64) {
+	if thearch.AssignAddress != nil {
+		return thearch.AssignAddress(ctxt, sect, n, s, va, isTramp)
+	}
+
 	s.Sect = sect
 	if s.Attr.SubSymbol() {
 		return sect, n, va

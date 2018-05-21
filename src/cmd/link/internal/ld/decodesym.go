@@ -359,7 +359,7 @@ func decodetypeMethods(arch *sys.Arch, s *sym.Symbol) []methodsig {
 	case kindChan: // reflect.chanType
 		off += 2 * arch.PtrSize
 	case kindMap: // reflect.mapType
-		off += 4*arch.PtrSize + 8
+		off += 3*arch.PtrSize + 8
 	case kindInterface: // reflect.interfaceType
 		off += 3 * arch.PtrSize
 	default:

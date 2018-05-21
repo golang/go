@@ -23,7 +23,7 @@ import (
 )
 
 var CmdList = &base.Command{
-	UsageLine: "list [-deps] [-e] [-f format] [-json] [build flags] [packages]",
+	UsageLine: "list [-deps] [-e] [-f format] [-json] [-test] [build flags] [packages]",
 	Short:     "list packages",
 	Long: `
 List lists the packages named by the import paths, one per line.
@@ -318,8 +318,14 @@ func runList(cmd *base.Command, args []string) {
 		}
 		// Update import path lists to use new strings.
 		for _, p := range all {
+			j := 0
 			for i := range p.Imports {
-				p.Imports[i] = p.Internal.Imports[i].ImportPath
+				// Internal skips "C"
+				if p.Imports[i] == "C" {
+					continue
+				}
+				p.Imports[i] = p.Internal.Imports[j].ImportPath
+				j++
 			}
 		}
 		// Recompute deps lists using new strings, from the leaves up.

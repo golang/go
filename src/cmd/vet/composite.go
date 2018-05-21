@@ -18,7 +18,7 @@ var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite wh
 
 func init() {
 	register("composites",
-		"check that composite literals used field-keyed elements",
+		"check that composite literals of types from imported packages use field-keyed elements",
 		checkUnkeyedLiteral,
 		compositeLit)
 }

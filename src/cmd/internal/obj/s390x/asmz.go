@@ -570,13 +570,12 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
 				}
 				return C_DACON
 			}
-			goto consize
 
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
 			s := a.Sym
 			if s == nil {
-				break
+				return C_GOK
 			}
 			c.instoffset = a.Offset
 
@@ -605,11 +604,11 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
 				return C_SACON
 			}
 			return C_LACON
+
+		default:
+			return C_GOK
 		}
 
-		return C_GOK
-
-	consize:
 		if c.instoffset == 0 {
 			return C_ZCON
 		}
@@ -1376,6 +1375,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSTRCZFS, r)
 			opset(AVSBCBIQ, r)
 			opset(AVSBIQ, r)
+			opset(AVMSLG, r)
 		case AVSEL:
 			opset(AVFMADB, r)
 			opset(AWFMADB, r)
@@ -2529,6 +2529,7 @@ const (
 	op_VUPLH  uint32 = 0xE7D5 // 	VRR-a	VECTOR UNPACK LOGICAL HIGH
 	op_VUPLL  uint32 = 0xE7D4 // 	VRR-a	VECTOR UNPACK LOGICAL LOW
 	op_VUPL   uint32 = 0xE7D6 // 	VRR-a	VECTOR UNPACK LOW
+	op_VMSL   uint32 = 0xE7B8 // 	VRR-d	VECTOR MULTIPLY SUM LOGICAL
 )
 
 func oclass(a *obj.Addr) int {

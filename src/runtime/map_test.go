@@ -9,12 +9,24 @@ import (
 	"math"
 	"reflect"
 	"runtime"
+	"runtime/internal/sys"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 )
+
+func TestHmapSize(t *testing.T) {
+	// The structure of hmap is defined in runtime/map.go
+	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
+	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
+	var hmapSize = uintptr(8 + 5*sys.PtrSize)
+	if runtime.RuntimeHmapSize != hmapSize {
+		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
+	}
+
+}
 
 // negative zero is a good test because:
 //  1) 0 and -0 are equal, yet have distinct representations.

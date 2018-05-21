@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// We have a implementation in amd64 assembly so this code is only run on
+// We have an implementation in amd64 assembly so this code is only run on
 // non-amd64 platforms. The amd64 assembly does not support gccgo.
 // +build !amd64 gccgo appengine
 

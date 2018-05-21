@@ -527,9 +527,15 @@ Architecture-specific environment variables:
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
+	GOMIPS64
+		For GOARCH=mips64{,le}, whether to use floating point instructions.
+		Valid values are hardfloat (default), softfloat.
 
 Special-purpose environment variables:
 
+	GCCGOTOOLDIR
+		If set, where to find gccgo tools, such as cgo.
+		The default is based on how gccgo was configured.
 	GOROOT_FINAL
 		The root of the installed Go tree, when it is
 		installed in a location other than where it is built.

@@ -18,11 +18,13 @@ import (
 )
 
 var CmdRun = &base.Command{
-	UsageLine: "run [build flags] [-exec xprog] gofiles... [arguments...]",
+	UsageLine: "run [build flags] [-exec xprog] package [arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
-Run compiles and runs the main package comprising the named Go source files.
-A Go source file is defined to be a file ending in a literal ".go" suffix.
+Run compiles and runs the named main Go package.
+Typically the package is specified as a list of .go source files,
+but it may also be an import path, file system path, or pattern
+matching a single known package, as in 'go run .' or 'go run my/cmd'.
 
 By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
 If the -exec flag is given, 'go run' invokes the binary using xprog:
@@ -37,6 +39,7 @@ available.
 The exit status of Run is not the exit status of the compiled binary.
 
 For more about build flags, see 'go help build'.
+For more about specifying packages, see 'go help packages'.
 
 See also: go build.
 	`,
@@ -62,18 +65,33 @@ func runRun(cmd *base.Command, args []string) {
 	for i < len(args) && strings.HasSuffix(args[i], ".go") {
 		i++
 	}
-	files, cmdArgs := args[:i], args[i:]
-	if len(files) == 0 {
+	var p *load.Package
+	if i > 0 {
+		files := args[:i]
+		for _, file := range files {
+			if strings.HasSuffix(file, "_test.go") {
+				// GoFilesPackage is going to assign this to TestGoFiles.
+				// Reject since it won't be part of the build.
+				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
+			}
+		}
+		p = load.GoFilesPackage(files)
+	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		pkgs := load.PackagesAndErrors(args[:1])
+		if len(pkgs) > 1 {
+			var names []string
+			for _, p := range pkgs {
+				names = append(names, p.ImportPath)
+			}
+			base.Fatalf("go run: pattern %s matches multiple packages:\n\t%s", args[0], strings.Join(names, "\n\t"))
+		}
+		p = pkgs[0]
+		i++
+	} else {
 		base.Fatalf("go run: no go files listed")
 	}
-	for _, file := range files {
-		if strings.HasSuffix(file, "_test.go") {
-			// GoFilesPackage is going to assign this to TestGoFiles.
-			// Reject since it won't be part of the build.
-			base.Fatalf("go run: cannot run *_test.go files (%s)", file)
-		}
-	}
-	p := load.GoFilesPackage(files)
+	cmdArgs := args[i:]
+
 	if p.Error != nil {
 		base.Fatalf("%s", p.Error)
 	}

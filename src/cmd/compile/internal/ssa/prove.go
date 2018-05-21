@@ -160,6 +160,11 @@ type factsTable struct {
 	facts map[pair]relation // current known set of relation
 	stack []fact            // previous sets of relations
 
+	// order is a couple of partial order sets that record information
+	// about relations between SSA values in the signed and unsigned
+	// domain.
+	order [2]*poset
+
 	// known lower and upper bounds on individual values.
 	limits     map[ID]limit
 	limitStack []limitFact // previous entries
@@ -176,8 +181,12 @@ type factsTable struct {
 var checkpointFact = fact{}
 var checkpointBound = limitFact{}
 
-func newFactsTable() *factsTable {
+func newFactsTable(f *Func) *factsTable {
 	ft := &factsTable{}
+	ft.order[0] = f.newPoset() // signed
+	ft.order[1] = f.newPoset() // unsigned
+	ft.order[0].SetUnsigned(false)
+	ft.order[1].SetUnsigned(true)
 	ft.facts = make(map[pair]relation)
 	ft.stack = make([]fact, 4)
 	ft.limits = make(map[ID]limit)
@@ -202,30 +211,58 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		return
 	}
 
-	if lessByID(w, v) {
-		v, w = w, v
-		r = reverseBits[r]
-	}
-
-	p := pair{v, w, d}
-	oldR, ok := ft.facts[p]
-	if !ok {
-		if v == w {
-			oldR = eq
-		} else {
-			oldR = lt | eq | gt
+	if d == signed || d == unsigned {
+		var ok bool
+		idx := 0
+		if d == unsigned {
+			idx = 1
 		}
-	}
-	// No changes compared to information already in facts table.
-	if oldR == r {
-		return
-	}
-	ft.stack = append(ft.stack, fact{p, oldR})
-	ft.facts[p] = oldR & r
-	// If this relation is not satisfiable, mark it and exit right away
-	if oldR&r == 0 {
-		ft.unsat = true
-		return
+		switch r {
+		case lt:
+			ok = ft.order[idx].SetOrder(v, w)
+		case gt:
+			ok = ft.order[idx].SetOrder(w, v)
+		case lt | eq:
+			ok = ft.order[idx].SetOrderOrEqual(v, w)
+		case gt | eq:
+			ok = ft.order[idx].SetOrderOrEqual(w, v)
+		case eq:
+			ok = ft.order[idx].SetEqual(v, w)
+		case lt | gt:
+			ok = ft.order[idx].SetNonEqual(v, w)
+		default:
+			panic("unknown relation")
+		}
+		if !ok {
+			ft.unsat = true
+			return
+		}
+	} else {
+		if lessByID(w, v) {
+			v, w = w, v
+			r = reverseBits[r]
+		}
+
+		p := pair{v, w, d}
+		oldR, ok := ft.facts[p]
+		if !ok {
+			if v == w {
+				oldR = eq
+			} else {
+				oldR = lt | eq | gt
+			}
+		}
+		// No changes compared to information already in facts table.
+		if oldR == r {
+			return
+		}
+		ft.stack = append(ft.stack, fact{p, oldR})
+		ft.facts[p] = oldR & r
+		// If this relation is not satisfiable, mark it and exit right away
+		if oldR&r == 0 {
+			ft.unsat = true
+			return
+		}
 	}
 
 	// Extract bounds when comparing against constants
@@ -353,6 +390,85 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			}
 		}
 	}
+
+	// Process: x+delta > w (with delta constant)
+	// Only signed domain for now (useful for accesses to slices in loops).
+	if r == gt || r == gt|eq {
+		if x, delta := isConstDelta(v); x != nil && d == signed {
+			if parent.Func.pass.debug > 1 {
+				parent.Func.Warnl(parent.Pos, "x+d >= w; x:%v %v delta:%v w:%v d:%v", x, parent.String(), delta, w.AuxInt, d)
+			}
+			if !w.isGenericIntConst() {
+				// If we know that x+delta > w but w is not constant, we can derive:
+				//    if delta < 0 and x > MinInt - delta, then x > w (because x+delta cannot underflow)
+				// This is useful for loops with bounds "len(slice)-K" (delta = -K)
+				if l, has := ft.limits[x.ID]; has && delta < 0 {
+					if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
+						(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
+						ft.update(parent, x, w, signed, r)
+					}
+				}
+			} else {
+				// With w,delta constants, we want to derive: x+delta > w  ⇒  x > w-delta
+				//
+				// We compute (using integers of the correct size):
+				//    min = w - delta
+				//    max = MaxInt - delta
+				//
+				// And we prove that:
+				//    if min<max: min < x AND x <= max
+				//    if min>max: min < x OR  x <= max
+				//
+				// This is always correct, even in case of overflow.
+				//
+				// If the initial fact is x+delta >= w instead, the derived conditions are:
+				//    if min<max: min <= x AND x <= max
+				//    if min>max: min <= x OR  x <= max
+				//
+				// Notice the conditions for max are still <=, as they handle overflows.
+				var min, max int64
+				var vmin, vmax *Value
+				switch x.Type.Size() {
+				case 8:
+					min = w.AuxInt - delta
+					max = int64(^uint64(0)>>1) - delta
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, max)
+
+				case 4:
+					min = int64(int32(w.AuxInt) - int32(delta))
+					max = int64(int32(^uint32(0)>>1) - int32(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
+
+				default:
+					panic("unimplemented")
+				}
+
+				if min < max {
+					// Record that x > min and max >= x
+					ft.update(parent, x, vmin, d, r)
+					ft.update(parent, vmax, x, d, r|eq)
+				} else {
+					// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
+					// so let's see if we can already prove that one of them is false, in which case
+					// the other must be true
+					if l, has := ft.limits[x.ID]; has {
+						if l.max <= min {
+							// x>min is impossible, so it must be x<=max
+							ft.update(parent, vmax, x, d, r|eq)
+						} else if l.min > max {
+							// x<=max is impossible, so it must be x>min
+							ft.update(parent, x, vmin, d, r)
+						}
+					}
+				}
+			}
+		}
+	}
+
 }
 
 var opMin = map[Op]int64{
@@ -370,8 +486,25 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 	if isNonNegative(v) {
 		return true
 	}
-	l, has := ft.limits[v.ID]
-	return has && (l.min >= 0 || l.umax <= math.MaxInt64)
+
+	// Check if the recorded limits can prove that the value is positive
+	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= math.MaxInt64) {
+		return true
+	}
+
+	// Check if v = x+delta, and we can use x's limits to prove that it's positive
+	if x, delta := isConstDelta(v); x != nil {
+		if l, has := ft.limits[x.ID]; has {
+			if delta > 0 && l.min >= -delta && l.max <= math.MaxInt64-delta {
+				return true
+			}
+			if delta < 0 && l.min >= -delta {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // checkpoint saves the current state of known relations.
@@ -382,6 +515,8 @@ func (ft *factsTable) checkpoint() {
 	}
 	ft.stack = append(ft.stack, checkpointFact)
 	ft.limitStack = append(ft.limitStack, checkpointBound)
+	ft.order[0].Checkpoint()
+	ft.order[1].Checkpoint()
 }
 
 // restore restores known relation to the state just
@@ -417,6 +552,8 @@ func (ft *factsTable) restore() {
 			ft.limits[old.vid] = old.limit
 		}
 	}
+	ft.order[0].Undo()
+	ft.order[1].Undo()
 }
 
 func lessByID(v, w *Value) bool {
@@ -531,29 +668,59 @@ var (
 // its negation. If either leads to a contradiction, it can trim that
 // successor.
 func prove(f *Func) {
-	ft := newFactsTable()
+	ft := newFactsTable(f)
+	ft.checkpoint()
 
 	// Find length and capacity ops.
+	var zero *Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
+			// If we found a zero constant, save it (so we don't have
+			// to build one later).
+			if zero == nil && v.Op == OpConst64 && v.AuxInt == 0 {
+				zero = v
+			}
 			if v.Uses == 0 {
 				// We don't care about dead values.
 				// (There can be some that are CSEd but not removed yet.)
 				continue
 			}
 			switch v.Op {
+			case OpStringLen:
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			case OpSliceLen:
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
 				}
 				ft.lens[v.Args[0].ID] = v
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			case OpSliceCap:
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
 				ft.caps[v.Args[0].ID] = v
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			}
 		}
+	}
+
+	// Find induction variables. Currently, findIndVars
+	// is limited to one induction variable per block.
+	var indVars map[*Block]indVar
+	for _, v := range findIndVar(f) {
+		if indVars == nil {
+			indVars = make(map[*Block]indVar)
+		}
+		indVars[v.entry] = v
 	}
 
 	// current node state
@@ -595,6 +762,10 @@ func prove(f *Func) {
 		switch node.state {
 		case descend:
 			ft.checkpoint()
+			if iv, ok := indVars[node.block]; ok {
+				addIndVarRestrictions(ft, parent, iv)
+			}
+
 			if branch != unknown {
 				addBranchRestrictions(ft, parent, branch)
 				if ft.unsat {
@@ -626,6 +797,20 @@ func prove(f *Func) {
 			ft.restore()
 		}
 	}
+
+	ft.restore()
+
+	// Return the posets to the free list
+	for _, po := range ft.order {
+		// Make sure it's empty as it should be. A non-empty poset
+		// might cause errors and miscompilations if reused.
+		if checkEnabled {
+			if err := po.CheckEmpty(); err != nil {
+				f.Fatalf("prove poset not empty after function %s: %v", f.Name, err)
+			}
+		}
+		f.retPoset(po)
+	}
 }
 
 // getBranch returns the range restrictions added by p
@@ -649,6 +834,28 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 	return unknown
 }
 
+// addIndVarRestrictions updates the factsTables ft with the facts
+// learned from the induction variable indVar which drives the loop
+// starting in Block b.
+func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
+	d := signed
+	if isNonNegative(iv.min) && isNonNegative(iv.max) {
+		d |= unsigned
+	}
+
+	if iv.flags&indVarMinExc == 0 {
+		addRestrictions(b, ft, d, iv.min, iv.ind, lt|eq)
+	} else {
+		addRestrictions(b, ft, d, iv.min, iv.ind, lt)
+	}
+
+	if iv.flags&indVarMaxInc == 0 {
+		addRestrictions(b, ft, d, iv.ind, iv.max, lt)
+	} else {
+		addRestrictions(b, ft, d, iv.ind, iv.max, lt|eq)
+	}
+}
+
 // addBranchRestrictions updates the factsTables ft with the facts learned when
 // branching from Block b in direction br.
 func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
@@ -665,6 +872,9 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 		// When we branched from parent we learned a new set of
 		// restrictions. Update the factsTable accordingly.
 		d := tr.d
+		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
+			d |= unsigned
+		}
 		switch br {
 		case negative:
 			switch b.Control.Op { // Special cases
@@ -779,6 +989,33 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				}
 				v.Op = ctzNonZeroOp[v.Op]
 			}
+
+		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
+			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
+			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
+			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,
+			OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
+			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
+			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
+			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64,
+			OpRsh8Ux8, OpRsh8Ux16, OpRsh8Ux32, OpRsh8Ux64,
+			OpRsh16Ux8, OpRsh16Ux16, OpRsh16Ux32, OpRsh16Ux64,
+			OpRsh32Ux8, OpRsh32Ux16, OpRsh32Ux32, OpRsh32Ux64,
+			OpRsh64Ux8, OpRsh64Ux16, OpRsh64Ux32, OpRsh64Ux64:
+			// Check whether, for a << b, we know that b
+			// is strictly less than the number of bits in a.
+			by := v.Args[1]
+			lim, ok := ft.limits[by.ID]
+			if !ok {
+				continue
+			}
+			bits := 8 * v.Args[0].Type.Size()
+			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
+				v.AuxInt = 1 // see shiftIsBounded
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
+				}
+			}
 		}
 	}
 
@@ -847,6 +1084,10 @@ func isNonNegative(v *Value) bool {
 	case OpStringLen, OpSliceLen, OpSliceCap,
 		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64:
 		return true
+
+	case OpRsh64Ux64:
+		by := v.Args[1]
+		return by.Op == OpConst64 && by.AuxInt > 0
 
 	case OpRsh64x64:
 		return isNonNegative(v.Args[0])

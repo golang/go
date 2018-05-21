@@ -599,9 +599,9 @@ var httpGet = func(source string, timeout time.Duration) (*http.Response, error)
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			ResponseHeaderTimeout: timeout + 5*time.Second,
 			Proxy:                 http.ProxyFromEnvironment,
 			TLSClientConfig:       tlsConfig,
+			ResponseHeaderTimeout: timeout + 5*time.Second,
 		},
 	}
 	return client.Get(source)

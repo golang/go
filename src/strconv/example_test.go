@@ -281,27 +281,23 @@ func ExampleQuoteToASCII() {
 }
 
 func ExampleUnquote() {
-	test := func(s string) {
-		t, err := strconv.Unquote(s)
-		if err != nil {
-			fmt.Printf("Unquote(%#v): %v\n", s, err)
-		} else {
-			fmt.Printf("Unquote(%#v) = %v\n", s, t)
-		}
-	}
-
-	s := `\"Fran & Freddie's Diner\t\u263a\"\"`
-	// If the string doesn't have quotes, it can't be unquoted.
-	test(s) // invalid syntax
-	test("`" + s + "`")
-	test(`"` + s + `"`)
-	test(`'\u263a'`)
+	s, err := strconv.Unquote("You can't unquote a string without quotes")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.Unquote("\"The string must be either double-quoted\"")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.Unquote("`or backquoted.`")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.Unquote("'\u263a'") // single character only allowed in single quotes
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.Unquote("'\u2639\u2639'")
+	fmt.Printf("%q, %v\n", s, err)
 
 	// Output:
-	// Unquote("\\\"Fran & Freddie's Diner\\t\\u263a\\\"\\\""): invalid syntax
-	// Unquote("`\\\"Fran & Freddie's Diner\\t\\u263a\\\"\\\"`") = \"Fran & Freddie's Diner\t\u263a\"\"
-	// Unquote("\"\\\"Fran & Freddie's Diner\\t\\u263a\\\"\\\"\"") = "Fran & Freddie's Diner	☺""
-	// Unquote("'\\u263a'") = ☺
+	// "", invalid syntax
+	// "The string must be either double-quoted", <nil>
+	// "or backquoted.", <nil>
+	// "☺", <nil>
+	// "", invalid syntax
 }
 
 func ExampleUnquoteChar() {

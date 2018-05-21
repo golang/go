@@ -157,7 +157,7 @@ type RegisterSet uint64
 // changing this to a Fprintf(os.Stderr) and running make.bash generates
 // thousands of warnings.
 func (s *debugState) unexpected(v *Value, msg string, args ...interface{}) {
-	s.f.Logf("unexpected at "+fmt.Sprint(v.ID)+":"+msg, args...)
+	s.f.Logf("debug info generation: "+fmt.Sprint(v)+": "+msg, args...)
 }
 
 func (s *debugState) logf(msg string, args ...interface{}) {
@@ -477,7 +477,7 @@ func (state *debugState) liveness() []*BlockDebug {
 				case OpStoreReg:
 					source = a.Args[0]
 				default:
-					state.unexpected(v, "load with unexpected source op %v", a)
+					state.unexpected(v, "load with unexpected source op: %v (%v)\n", a.Op, a)
 				}
 			}
 			// Update valueNames with the source so that later steps

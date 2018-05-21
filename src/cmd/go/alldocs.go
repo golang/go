@@ -105,7 +105,7 @@
 // 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
 // 	-msan
 // 		enable interoperation with memory sanitizer.
-// 		Supported only on linux/amd64,
+// 		Supported only on linux/amd64, linux/arm64
 // 		and only with Clang/LLVM as the host C compiler.
 // 	-v
 // 		print the names of packages as they are compiled.
@@ -579,7 +579,7 @@
 //
 // Usage:
 //
-// 	go list [-deps] [-e] [-f format] [-json] [build flags] [packages]
+// 	go list [-deps] [-e] [-f format] [-json] [-test] [build flags] [packages]
 //
 // List lists the packages named by the import paths, one per line.
 //
@@ -697,9 +697,9 @@
 // a non-nil Error field; other information may or may not be missing
 // (zeroed).
 //
-// The -test flag causes list to add to its output test binaries for the
-// named packages that have tests, to make information about test
-// binary construction available to source code analysis tools.
+// The -test flag causes list to report not only the named packages
+// but also their test binaries (for packages with tests), to convey to
+// source code analysis tools exactly how test binaries are constructed.
 // The reported import path for a test binary is the import path of
 // the package followed by a ".test" suffix, as in "math/rand.test".
 // When building a test, it is sometimes necessary to rebuild certain
@@ -718,10 +718,12 @@
 //
 // Usage:
 //
-// 	go run [build flags] [-exec xprog] gofiles... [arguments...]
+// 	go run [build flags] [-exec xprog] package [arguments...]
 //
-// Run compiles and runs the main package comprising the named Go source files.
-// A Go source file is defined to be a file ending in a literal ".go" suffix.
+// Run compiles and runs the named main Go package.
+// Typically the package is specified as a list of .go source files,
+// but it may also be an import path, file system path, or pattern
+// matching a single known package, as in 'go run .' or 'go run my/cmd'.
 //
 // By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
 // If the -exec flag is given, 'go run' invokes the binary using xprog:
@@ -736,6 +738,7 @@
 // The exit status of Run is not the exit status of the compiled binary.
 //
 // For more about build flags, see 'go help build'.
+// For more about specifying packages, see 'go help packages'.
 //
 // See also: go build.
 //
@@ -1094,9 +1097,15 @@
 // 	GOMIPS
 // 		For GOARCH=mips{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
+// 	GOMIPS64
+// 		For GOARCH=mips64{,le}, whether to use floating point instructions.
+// 		Valid values are hardfloat (default), softfloat.
 //
 // Special-purpose environment variables:
 //
+// 	GCCGOTOOLDIR
+// 		If set, where to find gccgo tools, such as cgo.
+// 		The default is based on how gccgo was configured.
 // 	GOROOT_FINAL
 // 		The root of the installed Go tree, when it is
 // 		installed in a location other than where it is built.

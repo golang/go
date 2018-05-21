@@ -121,6 +121,9 @@ type Arch struct {
 	// symbol in an executable, which is typical when internally
 	// linking PIE binaries.
 	TLSIEtoLE func(s *sym.Symbol, off, size int)
+
+	// optional override for assignAddress
+	AssignAddress func(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64)
 }
 
 var (
@@ -387,7 +390,7 @@ func (ctxt *Link) loadlib() {
 		toc.Type = sym.SDYNIMPORT
 	}
 
-	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil {
+	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
 		// whether to initialize the TLS.  So give it one. This could
@@ -1343,12 +1346,15 @@ func (ctxt *Link) hostlink() {
 		}
 		// For os.Rename to work reliably, must be in same directory as outfile.
 		combinedOutput := *flagOutfile + "~"
-		if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode); err != nil {
+		isIOS, err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode)
+		if err != nil {
 			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 		}
-		os.Remove(*flagOutfile)
-		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
-			Exitf("%s: %v", os.Args[0], err)
+		if !isIOS {
+			os.Remove(*flagOutfile)
+			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+				Exitf("%s: %v", os.Args[0], err)
+			}
 		}
 	}
 }
@@ -1824,10 +1830,11 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		// should never be called directly.
 		// onlyctxt.Diagnose the direct caller.
 		// TODO(mwhudson): actually think about this.
+		// TODO(khr): disabled for now. Calls to external functions can only happen on the g0 stack.
+		// See the trampolines in src/runtime/sys_darwin_$ARCH.go.
 		if depth == 1 && s.Type != sym.SXREF && !ctxt.DynlinkingGo() &&
 			ctxt.BuildMode != BuildModeCArchive && ctxt.BuildMode != BuildModePIE && ctxt.BuildMode != BuildModeCShared && ctxt.BuildMode != BuildModePlugin {
-
-			Errorf(s, "call to external function")
+			//Errorf(s, "call to external function")
 		}
 		return -1
 	}

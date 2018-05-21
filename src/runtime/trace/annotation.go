@@ -24,7 +24,7 @@ type traceContextKey struct{}
 // If the end function is called multiple times, only the first
 // call is used in the latency measurement.
 //
-//   ctx, task := trace.NewContext(ctx, "awesome task")
+//   ctx, task := trace.NewTask(ctx, "awesome task")
 //   trace.WithRegion(ctx, prepWork)
 //   // preparation of the task
 //   go func() {  // continue processing the task in a separate goroutine.
@@ -56,12 +56,6 @@ func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *
 	// tracing is disabled. Maybe the id can embed a tracing
 	// round number and ignore ids generated from previous
 	// tracing round.
-}
-
-// NewContext is obsolete by NewTask. Do not use.
-func NewContext(pctx context.Context, taskType string) (ctx context.Context, endTask func()) {
-	ctx, t := NewTask(pctx, taskType)
-	return ctx, t.End
 }
 
 func fromContext(ctx context.Context) *Task {
@@ -143,11 +137,6 @@ func WithRegion(ctx context.Context, regionType string, fn func()) {
 	fn()
 }
 
-// WithSpan is obsolete by WithRegion. Do not use.
-func WithSpan(ctx context.Context, spanType string, fn func(ctx context.Context)) {
-	WithRegion(ctx, spanType, func() { fn(ctx) })
-}
-
 // StartRegion starts a region and returns a function for marking the
 // end of the region. The returned Region's End function must be called
 // from the same goroutine where the region was started.
@@ -164,12 +153,6 @@ func StartRegion(ctx context.Context, regionType string) *Region {
 	id := fromContext(ctx).id
 	userRegion(id, regionStartCode, regionType)
 	return &Region{id, regionType}
-}
-
-// StartSpan is obsolete by StartRegion. Do not use.
-func StartSpan(ctx context.Context, spanType string) func() {
-	r := StartRegion(ctx, spanType)
-	return r.End
 }
 
 // Region is a region of code whose execution time interval is traced.

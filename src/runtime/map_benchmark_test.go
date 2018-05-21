@@ -341,3 +341,32 @@ func BenchmarkComplexAlgMap(b *testing.B) {
 		_ = m[k]
 	}
 }
+
+func BenchmarkGoMapClear(b *testing.B) {
+	b.Run("Reflexive", func(b *testing.B) {
+		for size := 1; size < 100000; size *= 10 {
+			b.Run(strconv.Itoa(size), func(b *testing.B) {
+				m := make(map[int]int, size)
+				for i := 0; i < b.N; i++ {
+					m[0] = size // Add one element so len(m) != 0 avoiding fast paths.
+					for k := range m {
+						delete(m, k)
+					}
+				}
+			})
+		}
+	})
+	b.Run("NonReflexive", func(b *testing.B) {
+		for size := 1; size < 100000; size *= 10 {
+			b.Run(strconv.Itoa(size), func(b *testing.B) {
+				m := make(map[float64]int, size)
+				for i := 0; i < b.N; i++ {
+					m[1.0] = size // Add one element so len(m) != 0 avoiding fast paths.
+					for k := range m {
+						delete(m, k)
+					}
+				}
+			})
+		}
+	})
+}

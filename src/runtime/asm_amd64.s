@@ -188,6 +188,10 @@ needtls:
 	// skip TLS setup on Solaris
 	JMP ok
 #endif
+#ifdef GOOS_darwin
+	// skip TLS setup on Darwin
+	JMP ok
+#endif
 
 	LEAQ	runtime·m0+m_tls(SB), DI
 	CALL	runtime·settls(SB)

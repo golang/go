@@ -27,22 +27,16 @@ import (
 	"strings"
 )
 
-// TODO(mdempsky): Update to reference OpVar{Def,Kill,Live} instead.
-
-// VARDEF is an annotation for the liveness analysis, marking a place
+// OpVarDef is an annotation for the liveness analysis, marking a place
 // where a complete initialization (definition) of a variable begins.
 // Since the liveness analysis can see initialization of single-word
-// variables quite easy, gvardef is usually only called for multi-word
-// or 'fat' variables, those satisfying isfat(n->type).
-// However, gvardef is also called when a non-fat variable is initialized
-// via a block move; the only time this happens is when you have
-//	return f()
-// for a function with multiple return values exactly matching the return
-// types of the current function.
+// variables quite easy, OpVarDef is only needed for multi-word
+// variables satisfying isfat(n.Type). For simplicity though, buildssa
+// emits OpVarDef regardless of variable width.
 //
-// A 'VARDEF x' annotation in the instruction stream tells the liveness
+// An 'OpVarDef x' annotation in the instruction stream tells the liveness
 // analysis to behave as though the variable x is being initialized at that
-// point in the instruction stream. The VARDEF must appear before the
+// point in the instruction stream. The OpVarDef must appear before the
 // actual (multi-instruction) initialization, and it must also appear after
 // any uses of the previous value, if any. For example, if compiling:
 //
@@ -51,12 +45,12 @@ import (
 // it is important to generate code like:
 //
 //	base, len, cap = pieces of x[1:]
-//	VARDEF x
+//	OpVarDef x
 //	x = {base, len, cap}
 //
 // If instead the generated code looked like:
 //
-//	VARDEF x
+//	OpVarDef x
 //	base, len, cap = pieces of x[1:]
 //	x = {base, len, cap}
 //
@@ -66,12 +60,12 @@ import (
 //
 //	base, len, cap = pieces of x[1:]
 //	x = {base, len, cap}
-//	VARDEF x
+//	OpVarDef x
 //
 // then the liveness analysis will not preserve the new value of x, because
-// the VARDEF appears to have "overwritten" it.
+// the OpVarDef appears to have "overwritten" it.
 //
-// VARDEF is a bit of a kludge to work around the fact that the instruction
+// OpVarDef is a bit of a kludge to work around the fact that the instruction
 // stream is working on single-word values but the liveness analysis
 // wants to work on individual variables, which might be multi-word
 // aggregates. It might make sense at some point to look into letting
@@ -79,8 +73,8 @@ import (
 // there are complications around interface values, slices, and strings,
 // all of which cannot be treated as individual words.
 //
-// VARKILL is the opposite of VARDEF: it marks a value as no longer needed,
-// even if its address has been taken. That is, a VARKILL annotation asserts
+// OpVarKill is the opposite of OpVarDef: it marks a value as no longer needed,
+// even if its address has been taken. That is, an OpVarKill annotation asserts
 // that its argument is certainly dead, for use when the liveness analysis
 // would not otherwise be able to deduce that fact.
 
@@ -357,7 +351,7 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 // on future calls with the same type t.
 func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
-		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
+		Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
 	}
 
 	switch t.Etype {
@@ -426,16 +420,6 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	default:
 		Fatalf("onebitwalktype1: unexpected type, %v", t)
 	}
-}
-
-// localWords returns the number of words of local variables.
-func (lv *Liveness) localWords() int32 {
-	return int32(lv.stkptrsize / int64(Widthptr))
-}
-
-// argWords returns the number of words of in and out arguments.
-func (lv *Liveness) argWords() int32 {
-	return int32(lv.fn.Type.ArgWidth() / int64(Widthptr))
 }
 
 // Generates live pointer value maps for arguments and local variables. The
@@ -1223,11 +1207,38 @@ func (lv *Liveness) printDebug() {
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
 func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
-	args := bvalloc(lv.argWords())
+	// Size args bitmaps to be just large enough to hold the largest pointer.
+	// First, find the largest Xoffset node we care about.
+	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
+	var maxArgNode *Node
+	for _, n := range lv.vars {
+		switch n.Class() {
+		case PPARAM, PPARAMOUT:
+			if maxArgNode == nil || n.Xoffset > maxArgNode.Xoffset {
+				maxArgNode = n
+			}
+		}
+	}
+	// Next, find the offset of the largest pointer in the largest node.
+	var maxArgs int64
+	if maxArgNode != nil {
+		maxArgs = maxArgNode.Xoffset + typeptrdata(maxArgNode.Type)
+	}
+
+	// Size locals bitmaps to be stkptrsize sized.
+	// We cannot shrink them to only hold the largest pointer,
+	// because their size is used to calculate the beginning
+	// of the local variables frame.
+	// Further discussion in https://golang.org/cl/104175.
+	// TODO: consider trimming leading zeros.
+	// This would require shifting all bitmaps.
+	maxLocals := lv.stkptrsize
+
+	args := bvalloc(int32(maxArgs / int64(Widthptr)))
 	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
 	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
 
-	locals := bvalloc(lv.localWords())
+	locals := bvalloc(int32(maxLocals / int64(Widthptr)))
 	loff := duint32(livesym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
 	loff = duint32(livesym, loff, uint32(locals.n))        // number of bits in each bitmap
 

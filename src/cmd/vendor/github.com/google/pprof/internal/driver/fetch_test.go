@@ -361,7 +361,7 @@ func closedError() string {
 }
 
 func TestHttpsInsecure(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		t.Skip("test assumes tcp available")
 	}
 	saveHome := os.Getenv(homeEnv())

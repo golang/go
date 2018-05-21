@@ -108,6 +108,9 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-12
 TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
 	MOVL	ptr+0(FP), BX
 	MOVQ	new+8(FP), AX
+	TESTL	$7, BX
+	JZ	2(PC)
+	MOVL	0, BX // crash when unaligned
 	XCHGQ	AX, 0(BX)
 	MOVQ	AX, ret+16(FP)
 	RET

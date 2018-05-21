@@ -56,13 +56,13 @@ type Func struct {
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
-	cachedPostorder []*Block   // cached postorder traversal
-	cachedIdom      []*Block   // cached immediate dominators
-	cachedSdom      SparseTree // cached dominator tree
-	cachedLoopnest  *loopnest  // cached loop nest information
+	cachedPostorder  []*Block         // cached postorder traversal
+	cachedIdom       []*Block         // cached immediate dominators
+	cachedSdom       SparseTree       // cached dominator tree
+	cachedLoopnest   *loopnest        // cached loop nest information
+	cachedLineStarts *biasedSparseMap // cached map/set of line numbers to integers
 
-	auxmap auxmap // map from aux values to opaque ids used by CSE
-
+	auxmap    auxmap             // map from aux values to opaque ids used by CSE
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
 
@@ -130,6 +130,21 @@ func (f *Func) retSparseMap(ss *sparseMap) {
 	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
 }
 
+// newPoset returns a new poset from the internal cache
+func (f *Func) newPoset() *poset {
+	if len(f.Cache.scrPoset) > 0 {
+		po := f.Cache.scrPoset[len(f.Cache.scrPoset)-1]
+		f.Cache.scrPoset = f.Cache.scrPoset[:len(f.Cache.scrPoset)-1]
+		return po
+	}
+	return newPoset()
+}
+
+// retPoset returns a poset to the internal cache
+func (f *Func) retPoset(po *poset) {
+	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
+}
+
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
 func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	var v *Value
@@ -149,6 +164,9 @@ func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = b
+	if notStmtBoundary(op) {
+		pos = pos.WithNotStmt()
+	}
 	v.Pos = pos
 	b.Values = append(b.Values, v)
 	return v
@@ -176,6 +194,9 @@ func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = nil // caller must fix this.
+	if notStmtBoundary(op) {
+		pos = pos.WithNotStmt()
+	}
 	v.Pos = pos
 	return v
 }

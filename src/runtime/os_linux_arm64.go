@@ -14,10 +14,10 @@ var randomNumber uint32
 // arm64 doesn't have a 'cpuid' instruction equivalent and relies on
 // HWCAP/HWCAP2 bits for hardware capabilities.
 
-//go:linkname cpu_hwcap internal/cpu.arm64_hwcap
+//go:linkname cpu_hwcap internal/cpu.hwcap
 var cpu_hwcap uint
 
-//go:linkname cpu_hwcap2 internal/cpu.arm64_hwcap2
+//go:linkname cpu_hwcap2 internal/cpu.hwcap2
 var cpu_hwcap2 uint
 
 func archauxv(tag, val uintptr) {

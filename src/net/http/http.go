@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang_org/x/net/lex/httplex"
+	"golang_org/x/net/http/httpguts"
 )
 
 // maxInt64 is the effective "infinite" value for the Server and
@@ -47,7 +47,7 @@ func removeEmptyPort(host string) string {
 }
 
 func isNotToken(r rune) bool {
-	return !httplex.IsTokenRune(r)
+	return !httpguts.IsTokenRune(r)
 }
 
 func isASCII(s string) bool {

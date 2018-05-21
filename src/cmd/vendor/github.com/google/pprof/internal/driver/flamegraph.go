@@ -27,6 +27,7 @@ import (
 
 type treeNode struct {
 	Name      string      `json:"n"`
+	FullName  string      `json:"f"`
 	Cum       int64       `json:"v"`
 	CumFormat string      `json:"l"`
 	Percent   string      `json:"p"`
@@ -52,8 +53,10 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 	// Make all nodes and the map, collect the roots.
 	for _, n := range g.Nodes {
 		v := n.CumValue()
+		fullName := n.Info.PrintableName()
 		node := &treeNode{
-			Name:      n.Info.PrintableName(),
+			Name:      getNodeShortName(fullName),
+			FullName:  fullName,
 			Cum:       v,
 			CumFormat: config.FormatValue(v),
 			Percent:   strings.TrimSpace(measurement.Percentage(v, config.Total)),
@@ -78,6 +81,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 
 	rootNode := &treeNode{
 		Name:      "root",
+		FullName:  "root",
 		Cum:       rootValue,
 		CumFormat: config.FormatValue(rootValue),
 		Percent:   strings.TrimSpace(measurement.Percentage(rootValue, config.Total)),
@@ -96,4 +100,20 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 		FlameGraph: template.JS(b),
 		Nodes:      nodeArr,
 	})
+}
+
+// getNodeShortName builds a short node name from fullName.
+func getNodeShortName(name string) string {
+	chunks := strings.SplitN(name, "(", 2)
+	head := chunks[0]
+	pathSep := strings.LastIndexByte(head, '/')
+	if pathSep == -1 || pathSep+1 >= len(head) {
+		return name
+	}
+	// Check if name is a stdlib package, i.e. doesn't have "." before "/"
+	if dot := strings.IndexByte(head, '.'); dot == -1 || dot > pathSep {
+		return name
+	}
+	// Trim package path prefix from node name
+	return name[pathSep+1:]
 }

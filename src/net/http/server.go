@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"golang_org/x/net/http/httpguts"
-	"golang_org/x/net/lex/httplex"
 )
 
 // Errors used by the HTTP server.
@@ -964,15 +963,15 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	if len(hosts) > 1 {
 		return nil, badRequestError("too many Host headers")
 	}
-	if len(hosts) == 1 && !httplex.ValidHostHeader(hosts[0]) {
+	if len(hosts) == 1 && !httpguts.ValidHostHeader(hosts[0]) {
 		return nil, badRequestError("malformed Host header")
 	}
 	for k, vv := range req.Header {
-		if !httplex.ValidHeaderFieldName(k) {
+		if !httpguts.ValidHeaderFieldName(k) {
 			return nil, badRequestError("invalid header name")
 		}
 		for _, v := range vv {
-			if !httplex.ValidHeaderFieldValue(v) {
+			if !httpguts.ValidHeaderFieldValue(v) {
 				return nil, badRequestError("invalid header value")
 			}
 		}
@@ -2003,6 +2002,11 @@ func StripPrefix(prefix string, h Handler) Handler {
 //
 // The provided code should be in the 3xx range and is usually
 // StatusMovedPermanently, StatusFound or StatusSeeOther.
+//
+// If the Content-Type header has not been set, Redirect sets it
+// to "text/html; charset=utf-8" and writes a small HTML body.
+// Setting the Content-Type header to any value, including nil,
+// disables that behavior.
 func Redirect(w ResponseWriter, r *Request, url string, code int) {
 	// parseURL is just url.Parse (url is shadowed for godoc).
 	if u, err := parseURL(url); err == nil {
@@ -2039,18 +2043,23 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		}
 	}
 
-	w.Header().Set("Location", hexEscapeNonASCII(url))
-	if r.Method == "GET" || r.Method == "HEAD" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h := w.Header()
+
+	// RFC 7231 notes that a short HTML body is usually included in
+	// the response because older user agents may not understand 301/307.
+	// Do it only if the request didn't already have a Content-Type header.
+	_, hadCT := h["Content-Type"]
+
+	h.Set("Location", hexEscapeNonASCII(url))
+	if !hadCT && (r.Method == "GET" || r.Method == "HEAD") {
+		h.Set("Content-Type", "text/html; charset=utf-8")
 	}
 	w.WriteHeader(code)
 
-	// RFC 7231 notes that a short hypertext note is usually included in
-	// the response because older user agents may not understand 301/307.
-	// Shouldn't send the response for POST or HEAD; that leaves GET.
-	if r.Method == "GET" {
-		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
-		fmt.Fprintln(w, note)
+	// Shouldn't send the body for POST or HEAD; that leaves GET.
+	if !hadCT && r.Method == "GET" {
+		body := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
+		fmt.Fprintln(w, body)
 	}
 }
 

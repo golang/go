@@ -90,7 +90,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 			}
 			switch f.Name {
 			// Flags known to the build but not to vet, so must be dropped.
-			case "x", "n", "vettool":
+			case "x", "n", "vettool", "compiler":
 				if extraWord {
 					args = append(args[:i], args[i+2:]...)
 					extraWord = false

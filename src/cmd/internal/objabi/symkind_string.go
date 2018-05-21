@@ -4,9 +4,9 @@ package objabi
 
 import "strconv"
 
-const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFOSDWARFRANGESDWARFLOC"
+const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISC"
 
-var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61, 72, 81}
+var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61, 72, 81, 91}
 
 func (i SymKind) String() string {
 	if i >= SymKind(len(_SymKind_index)-1) {

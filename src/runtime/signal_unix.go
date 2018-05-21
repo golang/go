@@ -509,6 +509,7 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	setsig(sig, funcPC(sighandler))
 }
 
+//go:nosplit
 func crash() {
 	if GOOS == "darwin" {
 		// OS X core dumps are linear dumps of the mapped memory,

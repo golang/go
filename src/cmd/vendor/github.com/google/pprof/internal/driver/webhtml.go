@@ -17,13 +17,11 @@ package driver
 import "html/template"
 
 import "github.com/google/pprof/third_party/d3"
-import "github.com/google/pprof/third_party/d3tip"
 import "github.com/google/pprof/third_party/d3flamegraph"
 
 // addTemplates adds a set of template definitions to templates.
 func addTemplates(templates *template.Template) {
 	template.Must(templates.Parse(`{{define "d3script"}}` + d3.JSSource + `{{end}}`))
-	template.Must(templates.Parse(`{{define "d3tipscript"}}` + d3tip.JSSource + `{{end}}`))
 	template.Must(templates.Parse(`{{define "d3flamegraphscript"}}` + d3flamegraph.JSSource + `{{end}}`))
 	template.Must(templates.Parse(`{{define "d3flamegraphcss"}}` + d3flamegraph.CSSSource + `{{end}}`))
 	template.Must(templates.Parse(`
@@ -224,7 +222,7 @@ table tr td {
   cursor: ns-resize;
 }
 .hilite {
-  background-color: #ebf5fb; 
+  background-color: #ebf5fb;
   font-weight: bold;
 }
 </style>
@@ -1031,49 +1029,51 @@ function viewer(baseUrl, nodes) {
       width: 90%;
       min-width: 90%;
       margin-left: 5%;
-      padding-bottom: 41px;
+      padding: 15px 0 35px;
     }
   </style>
 </head>
 <body>
   {{template "header" .}}
   <div id="bodycontainer">
+    <div id="flamegraphdetails" class="flamegraph-details"></div>
     <div class="flamegraph-content">
       <div id="chart"></div>
     </div>
-    <div id="flamegraphdetails" class="flamegraph-details"></div>
   </div>
   {{template "script" .}}
   <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
   <script>{{template "d3script" .}}</script>
-  <script>{{template "d3tipscript" .}}</script>
   <script>{{template "d3flamegraphscript" .}}</script>
-  <script type="text/javascript">
+  <script>
     var data = {{.FlameGraph}};
-    var label = function(d) {
-      return d.data.n + ' (' + d.data.p + ', ' + d.data.l + ')';
-    };
 
     var width = document.getElementById('chart').clientWidth;
 
-    var flameGraph = d3.flameGraph()
+    var flameGraph = d3.flamegraph()
       .width(width)
       .cellHeight(18)
       .minFrameSize(1)
       .transitionDuration(750)
       .transitionEase(d3.easeCubic)
-      .sort(true)
+      .inverted(true)
       .title('')
-      .label(label)
+      .tooltip(false)
       .details(document.getElementById('flamegraphdetails'));
 
-    var tip = d3.tip()
-      .direction('s')
-      .offset([8, 0])
-      .attr('class', 'd3-flame-graph-tip')
-      .html(function(d) { return 'name: ' + d.data.n + ', value: ' + d.data.l; });
+    // <full name> (percentage, value)
+    flameGraph.label((d) => d.data.f + ' (' + d.data.p + ', ' + d.data.l + ')');
 
-    flameGraph.tooltip(tip);
+    (function(flameGraph) {
+      var oldColorMapper = flameGraph.color();
+      function colorMapper(d) {
+        // Hack to force default color mapper to use 'warm' color scheme by not passing libtype
+        const { data, highlight } = d;
+        return oldColorMapper({ data: { n: data.n }, highlight });
+      }
+
+      flameGraph.color(colorMapper);
+    }(flameGraph));
 
     d3.select('#chart')
       .datum(data)

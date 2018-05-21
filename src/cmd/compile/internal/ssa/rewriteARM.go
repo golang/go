@@ -551,6 +551,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpGeq8_0(v)
 	case OpGeq8U:
 		return rewriteValueARM_OpGeq8U_0(v)
+	case OpGetCallerPC:
+		return rewriteValueARM_OpGetCallerPC_0(v)
 	case OpGetCallerSP:
 		return rewriteValueARM_OpGetCallerSP_0(v)
 	case OpGetClosurePtr:
@@ -18581,6 +18583,15 @@ func rewriteValueARM_OpGeq8U_0(v *Value) bool {
 		v2.AddArg(y)
 		v0.AddArg(v2)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGetCallerPC_0(v *Value) bool {
+	// match: (GetCallerPC)
+	// cond:
+	// result: (LoweredGetCallerPC)
+	for {
+		v.reset(OpARMLoweredGetCallerPC)
 		return true
 	}
 }

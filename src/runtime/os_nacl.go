@@ -131,6 +131,7 @@ func signame(sig uint32) string {
 	return sigtable[sig].name
 }
 
+//go:nosplit
 func crash() {
 	*(*int32)(nil) = 0
 }
@@ -158,7 +159,8 @@ func mstart_nacl()
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	mp.tls[0] = uintptr(unsafe.Pointer(mp.g0))
 	mp.tls[1] = uintptr(unsafe.Pointer(mp))
 	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&mp.tls[2]), nil)

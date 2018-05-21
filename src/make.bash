@@ -41,7 +41,7 @@
 # This is used by cgo.  Default is CC.
 #
 # CXX_FOR_TARGET: Command line to run to compile C++ code for GOARCH.
-# This is used by cgo. Default is CXX, or, if that is not set, 
+# This is used by cgo. Default is CXX, or, if that is not set,
 # "g++" or "clang++".
 #
 # FC: Command line to run to compile Fortran code for GOARCH.

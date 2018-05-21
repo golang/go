@@ -93,9 +93,10 @@ func (t *Types) SetTypPtrs() {
 	t.UInt16 = types.Types[types.TUINT16]
 	t.UInt32 = types.Types[types.TUINT32]
 	t.UInt64 = types.Types[types.TUINT64]
+	t.Int = types.Types[types.TINT]
 	t.Float32 = types.Types[types.TFLOAT32]
 	t.Float64 = types.Types[types.TFLOAT64]
-	t.Int = types.Types[types.TINT]
+	t.UInt = types.Types[types.TUINT]
 	t.Uintptr = types.Types[types.TUINTPTR]
 	t.String = types.Types[types.TSTRING]
 	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
@@ -311,6 +312,20 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "wasm":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockWasm
+		c.lowerValue = rewriteValueWasm
+		c.registers = registersWasm[:]
+		c.gpRegMask = gpRegMaskWasm
+		c.fpRegMask = fpRegMaskWasm
+		c.FPReg = framepointerRegWasm
+		c.LinkReg = linkRegWasm
+		c.hasGReg = true
+		c.noDuffDevice = true
+		c.useAvg = false
+		c.useHmul = false
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}

@@ -81,13 +81,31 @@ type object struct {
 	scopePos_ token.Pos
 }
 
-func (obj *object) Parent() *Scope      { return obj.parent }
-func (obj *object) Pos() token.Pos      { return obj.pos }
-func (obj *object) Pkg() *Package       { return obj.pkg }
-func (obj *object) Name() string        { return obj.name }
-func (obj *object) Type() Type          { return obj.typ }
-func (obj *object) Exported() bool      { return ast.IsExported(obj.name) }
-func (obj *object) Id() string          { return Id(obj.pkg, obj.name) }
+// Parent returns the scope in which the object is declared.
+// The result is nil for methods and struct fields.
+func (obj *object) Parent() *Scope { return obj.parent }
+
+// Pos returns the declaration position of the object's identifier.
+func (obj *object) Pos() token.Pos { return obj.pos }
+
+// Pkg returns the package to which the object belongs.
+// The result is nil for labels and objects in the Universe scope.
+func (obj *object) Pkg() *Package { return obj.pkg }
+
+// Name returns the object's (package-local, unqualified) name.
+func (obj *object) Name() string { return obj.name }
+
+// Type returns the object's type.
+func (obj *object) Type() Type { return obj.typ }
+
+// Exported reports whether the object is exported (starts with a capital letter).
+// It doesn't take into account whether the object is in a local (function) scope
+// or not.
+func (obj *object) Exported() bool { return ast.IsExported(obj.name) }
+
+// Id is a wrapper for Id(obj.Pkg(), obj.Name()).
+func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
+
 func (obj *object) String() string      { panic("abstract") }
 func (obj *object) order() uint32       { return obj.order_ }
 func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
@@ -149,10 +167,12 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.V
 	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
 }
 
+// Val returns the constant's value.
 func (obj *Const) Val() constant.Value { return obj.val }
-func (*Const) isDependency()           {} // a constant may be a dependency of an initialization expression
 
-// A TypeName represents a name for a (named or alias) type.
+func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
+
+// A TypeName represents a name for a (defined or alias) type.
 type TypeName struct {
 	object
 }
@@ -195,10 +215,10 @@ func (obj *TypeName) IsAlias() bool {
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
-	anonymous bool // if set, the variable is an anonymous struct field, and name is the type name
-	visited   bool // for initialization cycle detection
-	isField   bool // var is struct field
-	used      bool // set if the variable was used
+	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+	visited  bool // for initialization cycle detection
+	isField  bool // var is struct field
+	used     bool // set if the variable was used
 }
 
 // NewVar returns a new variable.
@@ -213,14 +233,18 @@ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
 }
 
 // NewField returns a new variable representing a struct field.
-// For anonymous (embedded) fields, the name is the unqualified
-// type name under which the field is accessible.
-func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, anonymous: anonymous, isField: true}
+// For embedded fields, the name is the unqualified type name
+/// under which the field is accessible.
+func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, embedded: embedded, isField: true}
 }
 
-// Anonymous reports whether the variable is an anonymous field.
-func (obj *Var) Anonymous() bool { return obj.anonymous }
+// Anonymous reports whether the variable is an embedded field.
+// Same as Embedded; only present for backward-compatibility.
+func (obj *Var) Anonymous() bool { return obj.embedded }
+
+// Embedded reports whether the variable is an embedded field.
+func (obj *Var) Embedded() bool { return obj.embedded }
 
 // IsField reports whether the variable is a struct field.
 func (obj *Var) IsField() bool { return obj.isField }

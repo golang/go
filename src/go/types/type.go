@@ -141,7 +141,7 @@ func NewStruct(fields []*Var, tags []string) *Struct {
 	return &Struct{fields: fields, tags: tags}
 }
 
-// NumFields returns the number of fields in the struct (including blank and anonymous fields).
+// NumFields returns the number of fields in the struct (including blank and embedded fields).
 func (s *Struct) NumFields() int { return len(s.fields) }
 
 // Field returns the i'th field for 0 <= i < NumFields().

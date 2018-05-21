@@ -89,7 +89,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		gcargs = append(gcargs, "-buildid", a.buildID)
 	}
 	platform := cfg.Goos + "/" + cfg.Goarch
-	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || cfg.Goos == "plan9" {
+	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
 		gcargs = append(gcargs, "-dwarf=false")
 	}
 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
@@ -231,6 +231,11 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
 		// Define GOMIPS_value from cfg.GOMIPS.
 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
+	}
+
+	if cfg.Goarch == "mips64" || cfg.Goarch == "mips64le" {
+		// Define GOMIPS64_value from cfg.GOMIPS64.
+		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
 	}
 
 	var ofiles []string

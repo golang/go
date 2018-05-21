@@ -65,6 +65,7 @@ func TestParse(t *testing.T) {
 		{"topproto,lines,cum,hide=mangled[X3]0", "cpu"},
 		{"tree,lines,cum,focus=[24]00", "heap"},
 		{"tree,relative_percentages,cum,focus=[24]00", "heap"},
+		{"tree,lines,cum,show_from=line2", "cpu"},
 		{"callgrind", "cpu"},
 		{"callgrind,call_tree", "cpu"},
 		{"callgrind", "heap"},
@@ -260,6 +261,9 @@ func solutionFilename(source string, f *testFlags) string {
 	}
 	if f.strings["ignore"] != "" || f.strings["tagignore"] != "" {
 		name = append(name, "ignore")
+	}
+	if f.strings["show_from"] != "" {
+		name = append(name, "show_from")
 	}
 	name = addString(name, f, []string{"hide", "show"})
 	if f.strings["unit"] != "minimum" {

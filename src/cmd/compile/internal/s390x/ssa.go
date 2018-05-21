@@ -305,13 +305,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpS390XSUBEcarrymask, ssa.OpS390XSUBEWcarrymask:
-		r := v.Reg()
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
 	case ssa.OpS390XMOVDaddridx:
 		r := v.Args[0].Reg()
 		i := v.Args[1].Reg()
@@ -507,6 +500,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Offset = -gc.Ctxt.FixedFrameSize()
 		p.From.Name = obj.NAME_PARAM
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpS390XLoweredGetCallerPC:
+		p := s.Prog(obj.AGETCALLERPC)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XCALLstatic, ssa.OpS390XCALLclosure, ssa.OpS390XCALLinter:

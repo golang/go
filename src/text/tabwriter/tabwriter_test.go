@@ -701,6 +701,7 @@ func BenchmarkPyramid(b *testing.B) {
 				// Write increasing prefixes of that line.
 				for j := 0; j < x; j++ {
 					w.Write(line[:j*2])
+					w.Write([]byte{'\n'})
 				}
 				w.Flush()
 			}
@@ -723,6 +724,7 @@ func BenchmarkRagged(b *testing.B) {
 				// Write the lines in turn h times.
 				for j := 0; j < h; j++ {
 					w.Write(lines[j%len(lines)])
+					w.Write([]byte{'\n'})
 				}
 				w.Flush()
 			}

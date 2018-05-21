@@ -63,7 +63,7 @@ func printSource(w io.Writer, rpt *Report) error {
 		}
 		sourcePath = wd
 	}
-	reader := newSourceReader(sourcePath)
+	reader := newSourceReader(sourcePath, o.TrimPath)
 
 	fmt.Fprintf(w, "Total: %s\n", rpt.formatValue(rpt.total))
 	for _, fn := range functions {
@@ -146,7 +146,7 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
 		}
 		sourcePath = wd
 	}
-	reader := newSourceReader(sourcePath)
+	reader := newSourceReader(sourcePath, o.TrimPath)
 
 	type fileFunction struct {
 		fileName, functionName string
@@ -263,7 +263,7 @@ func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj
 		//
 		// E.g., suppose we are printing source code for F and this
 		// instruction is from H where F called G called H and both
-		// of those calls were inlined.  We want to use the line
+		// of those calls were inlined. We want to use the line
 		// number from F, not from H (which is what Disasm gives us).
 		//
 		// So find the outer-most linenumber in the source file.
@@ -391,8 +391,7 @@ func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyIns
 				continue
 			}
 			curCalls = nil
-			fname := trimPath(c.file)
-			fline, ok := reader.line(fname, c.line)
+			fline, ok := reader.line(c.file, c.line)
 			if !ok {
 				fline = ""
 			}
@@ -400,7 +399,7 @@ func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyIns
 			fmt.Fprintf(w, " %8s %10s %10s %8s  <span class=inlinesrc>%s</span> <span class=unimportant>%s:%d</span>\n",
 				"", "", "", "",
 				template.HTMLEscapeString(fmt.Sprintf("%-80s", text)),
-				template.HTMLEscapeString(filepath.Base(fname)), c.line)
+				template.HTMLEscapeString(filepath.Base(c.file)), c.line)
 		}
 		curCalls = an.inlineCalls
 		text := strings.Repeat(" ", srcIndent+4+4*len(curCalls)) + an.instruction
@@ -426,7 +425,6 @@ func printPageClosing(w io.Writer) {
 // file and annotates it with the samples in fns. Returns the sources
 // as nodes, using the info.name field to hold the source code.
 func getSourceFromFile(file string, reader *sourceReader, fns graph.Nodes, start, end int) (graph.Nodes, string, error) {
-	file = trimPath(file)
 	lineNodes := make(map[int]graph.Nodes)
 
 	// Collect source coordinates from profile.
@@ -516,20 +514,26 @@ func getMissingFunctionSource(filename string, asm map[int][]assemblyInstruction
 
 // sourceReader provides access to source code with caching of file contents.
 type sourceReader struct {
+	// searchPath is a filepath.ListSeparator-separated list of directories where
+	// source files should be searched.
 	searchPath string
+
+	// trimPath is a filepath.ListSeparator-separated list of paths to trim.
+	trimPath string
 
 	// files maps from path name to a list of lines.
 	// files[*][0] is unused since line numbering starts at 1.
 	files map[string][]string
 
-	// errors collects errors encountered per file.  These errors are
+	// errors collects errors encountered per file. These errors are
 	// consulted before returning out of these module.
 	errors map[string]error
 }
 
-func newSourceReader(searchPath string) *sourceReader {
+func newSourceReader(searchPath, trimPath string) *sourceReader {
 	return &sourceReader{
 		searchPath,
+		trimPath,
 		make(map[string][]string),
 		make(map[string]error),
 	}
@@ -544,7 +548,7 @@ func (reader *sourceReader) line(path string, lineno int) (string, bool) {
 	if !ok {
 		// Read and cache file contents.
 		lines = []string{""} // Skip 0th line
-		f, err := openSourceFile(path, reader.searchPath)
+		f, err := openSourceFile(path, reader.searchPath, reader.trimPath)
 		if err != nil {
 			reader.errors[path] = err
 		} else {
@@ -565,17 +569,20 @@ func (reader *sourceReader) line(path string, lineno int) (string, bool) {
 	return lines[lineno], true
 }
 
-// openSourceFile opens a source file from a name encoded in a
-// profile. File names in a profile after often relative paths, so
-// search them in each of the paths in searchPath (or CWD by default),
-// and their parents.
-func openSourceFile(path, searchPath string) (*os.File, error) {
+// openSourceFile opens a source file from a name encoded in a profile. File
+// names in a profile after can be relative paths, so search them in each of
+// the paths in searchPath and their parents. In case the profile contains
+// absolute paths, additional paths may be configured to trim from the source
+// paths in the profile. This effectively turns the path into a relative path
+// searching it using searchPath as usual).
+func openSourceFile(path, searchPath, trim string) (*os.File, error) {
+	path = trimPath(path, trim, searchPath)
+	// If file is still absolute, require file to exist.
 	if filepath.IsAbs(path) {
 		f, err := os.Open(path)
 		return f, err
 	}
-
-	// Scan each component of the path
+	// Scan each component of the path.
 	for _, dir := range filepath.SplitList(searchPath) {
 		// Search up for every parent of each possible path.
 		for {
@@ -595,18 +602,34 @@ func openSourceFile(path, searchPath string) (*os.File, error) {
 }
 
 // trimPath cleans up a path by removing prefixes that are commonly
-// found on profiles.
-func trimPath(path string) string {
-	basePaths := []string{
-		"/proc/self/cwd/./",
-		"/proc/self/cwd/",
+// found on profiles plus configured prefixes.
+// TODO(aalexand): Consider optimizing out the redundant work done in this
+// function if it proves to matter.
+func trimPath(path, trimPath, searchPath string) string {
+	// Keep path variable intact as it's used below to form the return value.
+	sPath, searchPath := filepath.ToSlash(path), filepath.ToSlash(searchPath)
+	if trimPath == "" {
+		// If the trim path is not configured, try to guess it heuristically:
+		// search for basename of each search path in the original path and, if
+		// found, strip everything up to and including the basename. So, for
+		// example, given original path "/some/remote/path/my-project/foo/bar.c"
+		// and search path "/my/local/path/my-project" the heuristic will return
+		// "/my/local/path/my-project/foo/bar.c".
+		for _, dir := range filepath.SplitList(searchPath) {
+			want := "/" + filepath.Base(dir) + "/"
+			if found := strings.Index(sPath, want); found != -1 {
+				return path[found+len(want):]
+			}
+		}
 	}
-
-	sPath := filepath.ToSlash(path)
-
-	for _, base := range basePaths {
-		if strings.HasPrefix(sPath, base) {
-			return filepath.FromSlash(sPath[len(base):])
+	// Trim configured trim prefixes.
+	trimPaths := append(filepath.SplitList(filepath.ToSlash(trimPath)), "/proc/self/cwd/./", "/proc/self/cwd/")
+	for _, trimPath := range trimPaths {
+		if !strings.HasSuffix(trimPath, "/") {
+			trimPath += "/"
+		}
+		if strings.HasPrefix(sPath, trimPath) {
+			return path[len(trimPath):]
 		}
 	}
 	return path

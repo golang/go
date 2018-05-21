@@ -343,6 +343,13 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		As:   op,
 	}
 	switch len(a) {
+	case 0:
+		if p.arch.Family == sys.Wasm {
+			target = &obj.Addr{Type: obj.TYPE_NONE}
+			break
+		}
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
 	case 1:
 		target = &a[0]
 	case 2:
@@ -445,6 +452,8 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 	case target.Type == obj.TYPE_CONST:
 		// JMP $4
 		prog.To = a[0]
+	case target.Type == obj.TYPE_NONE:
+		// JMP
 	default:
 		p.errorf("cannot assemble jump %+v", target)
 		return
@@ -486,7 +495,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 	case 0:
 		// Nothing to do.
 	case 1:
-		if p.arch.UnaryDst[op] || op == obj.ARET {
+		if p.arch.UnaryDst[op] || op == obj.ARET || op == obj.AGETCALLERPC {
 			// prog.From is no address.
 			prog.To = a[0]
 		} else {
@@ -570,9 +579,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.RegTo2 = a[2].Reg
 				break
 			}
-			if arch.IsARM64SWP(op) {
-				prog.From = a[1]
-				prog.Reg = p.getRegister(prog, op, &a[0])
+			if arch.IsARM64TBL(op) {
+				prog.From = a[0]
+				if a[1].Type != obj.TYPE_REGLIST {
+					p.errorf("%s: expected list; found %s", op, obj.Dconv(prog, &a[1]))
+				}
+				prog.SetFrom3(a[1])
 				prog.To = a[2]
 				break
 			}

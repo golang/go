@@ -48,40 +48,56 @@ func TestOpenSourceFile(t *testing.T) {
 	for _, tc := range []struct {
 		desc       string
 		searchPath string
+		trimPath   string
 		fs         []string
 		path       string
 		wantPath   string // If empty, error is wanted.
 	}{
 		{
 			desc:     "exact absolute path is found",
-			fs:       []string{"foo/bar.txt"},
-			path:     "$dir/foo/bar.txt",
-			wantPath: "$dir/foo/bar.txt",
+			fs:       []string{"foo/bar.cc"},
+			path:     "$dir/foo/bar.cc",
+			wantPath: "$dir/foo/bar.cc",
 		},
 		{
 			desc:       "exact relative path is found",
 			searchPath: "$dir",
-			fs:         []string{"foo/bar.txt"},
-			path:       "foo/bar.txt",
-			wantPath:   "$dir/foo/bar.txt",
+			fs:         []string{"foo/bar.cc"},
+			path:       "foo/bar.cc",
+			wantPath:   "$dir/foo/bar.cc",
 		},
 		{
 			desc:       "multiple search path",
 			searchPath: "some/path" + lsep + "$dir",
-			fs:         []string{"foo/bar.txt"},
-			path:       "foo/bar.txt",
-			wantPath:   "$dir/foo/bar.txt",
+			fs:         []string{"foo/bar.cc"},
+			path:       "foo/bar.cc",
+			wantPath:   "$dir/foo/bar.cc",
 		},
 		{
 			desc:       "relative path is found in parent dir",
 			searchPath: "$dir/foo/bar",
-			fs:         []string{"bar.txt", "foo/bar/baz.txt"},
-			path:       "bar.txt",
-			wantPath:   "$dir/bar.txt",
+			fs:         []string{"bar.cc", "foo/bar/baz.cc"},
+			path:       "bar.cc",
+			wantPath:   "$dir/bar.cc",
+		},
+		{
+			desc:       "trims configured prefix",
+			searchPath: "$dir",
+			trimPath:   "some-path" + lsep + "/some/remote/path",
+			fs:         []string{"my-project/foo/bar.cc"},
+			path:       "/some/remote/path/my-project/foo/bar.cc",
+			wantPath:   "$dir/my-project/foo/bar.cc",
+		},
+		{
+			desc:       "trims heuristically",
+			searchPath: "$dir/my-project",
+			fs:         []string{"my-project/foo/bar.cc"},
+			path:       "/some/remote/path/my-project/foo/bar.cc",
+			wantPath:   "$dir/my-project/foo/bar.cc",
 		},
 		{
 			desc: "error when not found",
-			path: "foo.txt",
+			path: "foo.cc",
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -103,15 +119,15 @@ func TestOpenSourceFile(t *testing.T) {
 			tc.searchPath = filepath.FromSlash(strings.Replace(tc.searchPath, "$dir", tempdir, -1))
 			tc.path = filepath.FromSlash(strings.Replace(tc.path, "$dir", tempdir, 1))
 			tc.wantPath = filepath.FromSlash(strings.Replace(tc.wantPath, "$dir", tempdir, 1))
-			if file, err := openSourceFile(tc.path, tc.searchPath); err != nil && tc.wantPath != "" {
-				t.Errorf("openSourceFile(%q, %q) = err %v, want path %q", tc.path, tc.searchPath, err, tc.wantPath)
+			if file, err := openSourceFile(tc.path, tc.searchPath, tc.trimPath); err != nil && tc.wantPath != "" {
+				t.Errorf("openSourceFile(%q, %q, %q) = err %v, want path %q", tc.path, tc.searchPath, tc.trimPath, err, tc.wantPath)
 			} else if err == nil {
 				defer file.Close()
 				gotPath := file.Name()
 				if tc.wantPath == "" {
-					t.Errorf("openSourceFile(%q, %q) = %q, want error", tc.path, tc.searchPath, gotPath)
+					t.Errorf("openSourceFile(%q, %q, %q) = %q, want error", tc.path, tc.searchPath, tc.trimPath, gotPath)
 				} else if gotPath != tc.wantPath {
-					t.Errorf("openSourceFile(%q, %q) = %q, want path %q", tc.path, tc.searchPath, gotPath, tc.wantPath)
+					t.Errorf("openSourceFile(%q, %q, %q) = %q, want path %q", tc.path, tc.searchPath, tc.trimPath, gotPath, tc.wantPath)
 				}
 			}
 		})

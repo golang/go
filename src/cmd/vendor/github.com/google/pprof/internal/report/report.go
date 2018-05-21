@@ -55,16 +55,15 @@ const (
 type Options struct {
 	OutputFormat int
 
-	CumSort             bool
-	CallTree            bool
-	DropNegative        bool
-	PositivePercentages bool
-	CompactLabels       bool
-	Ratio               float64
-	Title               string
-	ProfileLabels       []string
-	ActiveFilters       []string
-	NumLabelUnits       map[string]string
+	CumSort       bool
+	CallTree      bool
+	DropNegative  bool
+	CompactLabels bool
+	Ratio         float64
+	Title         string
+	ProfileLabels []string
+	ActiveFilters []string
+	NumLabelUnits map[string]string
 
 	NodeCount    int
 	NodeFraction float64
@@ -79,6 +78,7 @@ type Options struct {
 
 	Symbol     *regexp.Regexp // Symbols to include on disassembly report.
 	SourcePath string         // Search path for source files.
+	TrimPath   string         // Paths to trim from source file paths.
 }
 
 // Generate generates a report as directed by the Report.
@@ -239,7 +239,7 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	// Clean up file paths using heuristics.
 	prof := rpt.prof
 	for _, f := range prof.Function {
-		f.Filename = trimPath(f.Filename)
+		f.Filename = trimPath(f.Filename, o.TrimPath, o.SourcePath)
 	}
 	// Removes all numeric tags except for the bytes tag prior
 	// to making graph.
@@ -1192,7 +1192,7 @@ func New(prof *profile.Profile, o *Options) *Report {
 		}
 		return measurement.ScaledLabel(v, o.SampleUnit, o.OutputUnit)
 	}
-	return &Report{prof, computeTotal(prof, o.SampleValue, o.SampleMeanDivisor, !o.PositivePercentages),
+	return &Report{prof, computeTotal(prof, o.SampleValue, o.SampleMeanDivisor),
 		o, format}
 }
 
@@ -1213,11 +1213,8 @@ func NewDefault(prof *profile.Profile, options Options) *Report {
 }
 
 // computeTotal computes the sum of all sample values. This will be
-// used to compute percentages. If includeNegative is set, use use
-// absolute values to provide a meaningful percentage for both
-// negative and positive values. Otherwise only use positive values,
-// which is useful when comparing profiles from different jobs.
-func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64, includeNegative bool) int64 {
+// used to compute percentages.
+func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64) int64 {
 	var div, ret int64
 	for _, sample := range prof.Sample {
 		var d, v int64
@@ -1225,13 +1222,11 @@ func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64, i
 		if meanDiv != nil {
 			d = meanDiv(sample.Value)
 		}
-		if v >= 0 {
-			ret += v
-			div += d
-		} else if includeNegative {
-			ret -= v
-			div += d
+		if v < 0 {
+			v = -v
 		}
+		ret += v
+		div += d
 	}
 	if div != 0 {
 		return ret / div

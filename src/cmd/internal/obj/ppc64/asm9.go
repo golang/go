@@ -844,13 +844,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 				return C_DACON
 			}
 
-			goto consize
-
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
 			s := a.Sym
 			if s == nil {
-				break
+				return C_GOK
 			}
 
 			c.instoffset = a.Offset
@@ -871,11 +869,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 				return C_SACON
 			}
 			return C_LACON
+
+		default:
+			return C_GOK
 		}
 
-		return C_GOK
-
-	consize:
 		if c.instoffset >= 0 {
 			if c.instoffset == 0 {
 				return C_ZCON
@@ -4975,6 +4973,8 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		return OPVCC(31, 661, 0, 0) /* stswx */
 	case AMOVWBR:
 		return OPVCC(31, 662, 0, 0) /* stwbrx */
+	case AMOVDBR:
+		return OPVCC(31, 660, 0, 0) /* stdbrx */
 	case ASTBCCC:
 		return OPVCC(31, 694, 0, 1) /* stbcx. */
 	case ASTWCCC:

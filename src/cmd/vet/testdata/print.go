@@ -79,7 +79,7 @@ func PrintfTests() {
 	fmt.Printf("%G %G %G %G", 3e9, x, fslice, c)
 	fmt.Printf("%b %b %b %b", 3e9, x, fslice, c)
 	fmt.Printf("%o %o", 3, i)
-	fmt.Printf("%p %p", p, nil)
+	fmt.Printf("%p", p)
 	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
 	fmt.Printf("%s %s %s", "hi", s, []byte{65})
 	fmt.Printf("%t %t", true, b)
@@ -122,6 +122,7 @@ func PrintfTests() {
 	fmt.Printf("%g", imap)                      // ERROR "Printf format %g has arg imap of wrong type map\[int\]int"
 	fmt.Printf("%G", i)                         // ERROR "Printf format %G has arg i of wrong type int"
 	fmt.Printf("%o", x)                         // ERROR "Printf format %o has arg x of wrong type float64"
+	fmt.Printf("%p", nil)                       // ERROR "Printf format %p has arg nil of wrong type untyped nil"
 	fmt.Printf("%p", 23)                        // ERROR "Printf format %p has arg 23 of wrong type int"
 	fmt.Printf("%q", x)                         // ERROR "Printf format %q has arg x of wrong type float64"
 	fmt.Printf("%s", b)                         // ERROR "Printf format %s has arg b of wrong type bool"
@@ -147,6 +148,7 @@ func PrintfTests() {
 	fmt.Println()                               // not an error
 	fmt.Println("%s", "hi")                     // ERROR "Println call has possible formatting directive %s"
 	fmt.Println("%v", "hi")                     // ERROR "Println call has possible formatting directive %v"
+	fmt.Println("%T", "hi")                     // ERROR "Println call has possible formatting directive %T"
 	fmt.Println("0.0%")                         // correct (trailing % couldn't be a formatting directive)
 	fmt.Printf("%s", "hi", 3)                   // ERROR "Printf call needs 1 arg but has 2 args"
 	_ = fmt.Sprintf("%"+("s"), "hi", 3)         // ERROR "Sprintf call needs 1 arg but has 2 args"
@@ -180,6 +182,7 @@ func PrintfTests() {
 	Printf("%d", notPercentDV)  // ERROR "Printf format %d has arg notPercentDV of wrong type testdata.notPercentDStruct"
 	Printf("%d", &notPercentDV) // ERROR "Printf format %d has arg &notPercentDV of wrong type \*testdata.notPercentDStruct"
 	Printf("%p", &notPercentDV) // Works regardless: we print it as a pointer.
+	Printf("%q", &percentDV)    // ERROR "Printf format %q has arg &percentDV of wrong type \*testdata.percentDStruct"
 	Printf("%s", percentSV)
 	Printf("%s", &percentSV)
 	// Good argument reorderings.
