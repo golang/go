@@ -590,20 +590,10 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	DI, BX		// Note: asmcgocall doesn't save anything in BX, so it is ok to clobber it here.
-	CALL	libc_pthread_self(SB)
-	MOVQ	AX, 0(BX)	// Save result.
-	POPQ	BP
-	RET
-
-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
-	PUSHQ	BP
-	MOVQ	SP, BP
-	MOVQ	8(DI), SI	// arg 2 signal
-	MOVQ	0(DI), DI	// arg 1 thread
-	CALL	libc_pthread_kill(SB)
+	MOVL	0(DI), DI	// arg 1 signal
+	CALL	libc_raise(SB)
 	POPQ	BP
 	RET
