@@ -83,10 +83,12 @@
 (Com8 x) -> (MVN x)
 
 // math package intrinsics
+(Abs x) -> (FABSD x)
 (Sqrt x) -> (FSQRTD x)
 (Ceil  x) -> (FRINTPD x)
 (Floor x) -> (FRINTMD x)
 (Round x) -> (FRINTAD x)
+(RoundToEven x) -> (FRINTND x)
 (Trunc x) -> (FRINTZD x)
 
 // lowering rotates
