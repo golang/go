@@ -212,6 +212,7 @@ func init() {
 		// unary ops
 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
+		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},     // abs(arg0), float64
 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},     // -arg0, float32
 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},     // -arg0, float64
 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},   // sqrt(arg0), float64
@@ -424,6 +425,7 @@ func init() {
 		// floating-point round to integral
 		{name: "FRINTAD", argLength: 1, reg: fp11, asm: "FRINTAD"},
 		{name: "FRINTMD", argLength: 1, reg: fp11, asm: "FRINTMD"},
+		{name: "FRINTND", argLength: 1, reg: fp11, asm: "FRINTND"},
 		{name: "FRINTPD", argLength: 1, reg: fp11, asm: "FRINTPD"},
 		{name: "FRINTZD", argLength: 1, reg: fp11, asm: "FRINTZD"},
 

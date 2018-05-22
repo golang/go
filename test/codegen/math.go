@@ -32,6 +32,7 @@ func approx(x float64) {
 	sink64[3] = math.Trunc(x)
 
 	// s390x:"FIDBR\t[$]4"
+	// arm64:"FRINTND"
 	sink64[4] = math.RoundToEven(x)
 }
 
@@ -48,6 +49,7 @@ func sqrt(x float64) float64 {
 // Check that it's using integer registers
 func abs(x, y float64) {
 	// amd64:"BTRQ\t[$]63"
+	// arm64:"FABSD\t"
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FABS\t"
 	sink64[0] = math.Abs(x)
