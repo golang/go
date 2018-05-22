@@ -19,7 +19,7 @@ import (
 var (
 	fromFlag     = flag.String("from", "", "Import path of package to be moved")
 	toFlag       = flag.String("to", "", "Destination import path for package")
-	vcsMvCmdFlag = flag.String("vcs_mv_cmd", "", `A template for the version control system's "move directory" command, e.g. "git mv {{.Src}} {{.Dst}}`)
+	vcsMvCmdFlag = flag.String("vcs_mv_cmd", "", `A template for the version control system's "move directory" command, e.g. "git mv {{.Src}} {{.Dst}}"`)
 	helpFlag     = flag.Bool("help", false, "show usage message")
 )
 
