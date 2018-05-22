@@ -8,7 +8,6 @@ package cpu_test
 
 import (
 	. "internal/cpu"
-	"runtime"
 	"testing"
 )
 
