@@ -530,10 +530,11 @@ func (lv *Liveness) markUnsafePoints() {
 					v = v.Args[0]
 					continue
 				}
-			case ssa.OpPPC64MOVWZload, ssa.Op386MOVLload:
+			case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload:
 				// Args[0] is the address of the write
 				// barrier control. Ignore Args[1],
 				// which is the mem operand.
+				// TODO: Just ignore mem operands?
 				v = v.Args[0]
 				continue
 			}
