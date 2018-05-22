@@ -493,6 +493,12 @@ func (lv *Liveness) markUnsafePoints() {
 
 	// Mark write barrier unsafe points.
 	for _, wbBlock := range lv.f.WBLoads {
+		if wbBlock.Kind == ssa.BlockPlain && len(wbBlock.Values) == 0 {
+			// The write barrier block was optimized away
+			// but we haven't done dead block elimination.
+			// (This can happen in -N mode.)
+			continue
+		}
 		// Check that we have the expected diamond shape.
 		if len(wbBlock.Succs) != 2 {
 			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)
