@@ -4,7 +4,11 @@
 
 package poll
 
-import "syscall"
+import (
+	"sync/atomic"
+	"syscall"
+	"unsafe"
+)
 
 const (
 	// spliceNonblock makes calls to splice(2) non-blocking.
@@ -134,43 +138,38 @@ func splice(out int, in int, max int, flags int) (int, error) {
 	return int(n), err
 }
 
+var disableSplice unsafe.Pointer
+
 // newTempPipe sets up a temporary pipe for a splice operation.
 func newTempPipe() (prfd, pwfd int, sc string, err error) {
+	p := (*bool)(atomic.LoadPointer(&disableSplice))
+	if p != nil && *p {
+		return -1, -1, "splice", syscall.EINVAL
+	}
+
 	var fds [2]int
+	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
+	// might not be implemented. Falling back to pipe is possible, but prior to
+	// 2.6.29 splice returns -EAGAIN instead of 0 when the connection is
+	// closed.
 	const flags = syscall.O_CLOEXEC | syscall.O_NONBLOCK
 	if err := syscall.Pipe2(fds[:], flags); err != nil {
-		// pipe2 was added in 2.6.27 and our minimum requirement
-		// is 2.6.23, so it might not be implemented.
-		if err == syscall.ENOSYS {
-			return newTempPipeFallback(fds[:])
-		}
 		return -1, -1, "pipe2", err
 	}
-	return fds[0], fds[1], "", nil
-}
 
-// newTempPipeFallback is a fallback for newTempPipe, for systems
-// which do not support pipe2.
-func newTempPipeFallback(fds []int) (prfd, pwfd int, sc string, err error) {
-	syscall.ForkLock.RLock()
-	defer syscall.ForkLock.RUnlock()
-	if err := syscall.Pipe(fds); err != nil {
-		return -1, -1, "pipe", err
+	if p == nil {
+		p = new(bool)
+		defer atomic.StorePointer(&disableSplice, unsafe.Pointer(p))
+
+		// F_GETPIPE_SZ was added in 2.6.35, which does not have the -EAGAIN bug.
+		if _, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fds[0]), syscall.F_GETPIPE_SZ, 0); errno != 0 {
+			*p = true
+			destroyTempPipe(fds[0], fds[1])
+			return -1, -1, "fcntl", errno
+		}
 	}
-	prfd, pwfd = fds[0], fds[1]
-	syscall.CloseOnExec(prfd)
-	syscall.CloseOnExec(pwfd)
-	if err := syscall.SetNonblock(prfd, true); err != nil {
-		CloseFunc(prfd)
-		CloseFunc(pwfd)
-		return -1, -1, "setnonblock", err
-	}
-	if err := syscall.SetNonblock(pwfd, true); err != nil {
-		CloseFunc(prfd)
-		CloseFunc(pwfd)
-		return -1, -1, "setnonblock", err
-	}
-	return prfd, pwfd, "", nil
+
+	return fds[0], fds[1], "", nil
 }
 
 // destroyTempPipe destroys a temporary pipe.
