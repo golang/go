@@ -469,7 +469,7 @@ func (state *debugState) liveness() []*BlockDebug {
 				source = v.Args[0]
 			case OpLoadReg:
 				switch a := v.Args[0]; a.Op {
-				case OpArg:
+				case OpArg, OpPhi:
 					source = a
 				case OpStoreReg:
 					source = a.Args[0]
