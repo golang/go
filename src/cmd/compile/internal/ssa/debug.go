@@ -153,14 +153,6 @@ var BlockEnd = &Value{
 // RegisterSet is a bitmap of registers, indexed by Register.num.
 type RegisterSet uint64
 
-// unexpected is used to indicate an inconsistency or bug in the debug info
-// generation process. These are not fixable by users. At time of writing,
-// changing this to a Fprintf(os.Stderr) and running make.bash generates
-// thousands of warnings.
-func (s *debugState) unexpected(v *Value, msg string, args ...interface{}) {
-	s.f.Logf("debug info generation: "+fmt.Sprint(v)+": "+msg, args...)
-}
-
 func (s *debugState) logf(msg string, args ...interface{}) {
 	s.f.Logf(msg, args...)
 }
@@ -344,6 +336,10 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	state.stackOffset = stackOffset
 	state.ctxt = ctxt
 
+	if state.loggingEnabled {
+		state.logf("Generating location lists for function %q\n", f.Name)
+	}
+
 	if state.varParts == nil {
 		state.varParts = make(map[GCNode][]SlotID)
 	} else {
@@ -478,7 +474,9 @@ func (state *debugState) liveness() []*BlockDebug {
 				case OpStoreReg:
 					source = a.Args[0]
 				default:
-					state.unexpected(v, "load with unexpected source op: %v (%v)\n", a.Op, a)
+					if state.loggingEnabled {
+						state.logf("at %v: load with unexpected source op: %v (%v)\n", v, a.Op, a)
+					}
 				}
 			}
 			// Update valueNames with the source so that later steps
@@ -649,7 +647,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 
 		for _, slot := range locs.registers[reg] {
 			if state.loggingEnabled {
-				state.logf("at %v: %v clobbered out of %v\n", v.ID, state.slots[slot], &state.registers[reg])
+				state.logf("at %v: %v clobbered out of %v\n", v, state.slots[slot], &state.registers[reg])
 			}
 
 			last := locs.slots[slot]
@@ -679,9 +677,9 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		setSlot(slotID, VarLoc{0, stackOffset})
 		if state.loggingEnabled {
 			if v.Op == OpVarDef {
-				state.logf("at %v: stack-only var %v now live\n", v.ID, state.slots[slotID])
+				state.logf("at %v: stack-only var %v now live\n", v, state.slots[slotID])
 			} else {
-				state.logf("at %v: stack-only var %v now dead\n", v.ID, state.slots[slotID])
+				state.logf("at %v: stack-only var %v now dead\n", v, state.slots[slotID])
 			}
 		}
 
@@ -690,9 +688,9 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		stackOffset := state.stackOffset(home)<<1 | 1
 		for _, slot := range vSlots {
 			if state.loggingEnabled {
-				state.logf("at %v: arg %v now on stack in location %v\n", v.ID, state.slots[slot], home)
+				state.logf("at %v: arg %v now on stack in location %v\n", v, state.slots[slot], home)
 				if last := locs.slots[slot]; !last.absent() {
-					state.unexpected(v, "Arg op on already-live slot %v", state.slots[slot])
+					state.logf("at %v: unexpected arg op on already-live slot %v\n", v, state.slots[slot])
 				}
 			}
 
@@ -705,13 +703,15 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		for _, slot := range vSlots {
 			last := locs.slots[slot]
 			if last.absent() {
-				state.unexpected(v, "spill of unnamed register %s\n", vReg)
+				if state.loggingEnabled {
+					state.logf("at %v: unexpected spill of unnamed register %s\n", v, vReg)
+				}
 				break
 			}
 
 			setSlot(slot, VarLoc{last.Registers, StackOffset(stackOffset)})
 			if state.loggingEnabled {
-				state.logf("at %v: %v spilled to stack location %v\n", v.ID, state.slots[slot], home)
+				state.logf("at %v: %v spilled to stack location %v\n", v, state.slots[slot], home)
 			}
 		}
 
@@ -737,7 +737,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		locs.registers[vReg.num] = append(locs.registers[vReg.num], vSlots...)
 		for _, slot := range vSlots {
 			if state.loggingEnabled {
-				state.logf("at %v: %v now in %s\n", v.ID, state.slots[slot], vReg)
+				state.logf("at %v: %v now in %s\n", v, state.slots[slot], vReg)
 			}
 
 			last := locs.slots[slot]
@@ -865,12 +865,12 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 	for varID := range state.lists {
 		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, BlockEnd.ID)
 		list := state.lists[varID]
-		if len(list) == 0 {
-			state.logf("\t%v : empty list\n", state.vars[varID])
-		}
-
 		if state.loggingEnabled {
-			state.logf("\t%v : %q\n", state.vars[varID], hex.EncodeToString(state.lists[varID]))
+			if len(list) == 0 {
+				state.logf("\t%v : empty list\n", state.vars[varID])
+			} else {
+				state.logf("\t%v : %q\n", state.vars[varID], hex.EncodeToString(state.lists[varID]))
+			}
 		}
 	}
 }
