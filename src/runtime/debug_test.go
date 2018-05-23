@@ -18,14 +18,17 @@ package runtime_test
 import (
 	"fmt"
 	"runtime"
+	"runtime/debug"
 	"sync/atomic"
 	"syscall"
 	"testing"
 )
 
 func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
-	// This can deadlock if there aren't enough threads.
+	// This can deadlock if there aren't enough threads or if a GC
+	// tries to interrupt an atomic loop (see issue #10958).
 	ogomaxprocs := runtime.GOMAXPROCS(2)
+	ogcpercent := debug.SetGCPercent(-1)
 
 	ready := make(chan *runtime.G)
 	var stop uint32
@@ -39,6 +42,7 @@ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
 			t.Fatal(err)
 		}
 		runtime.GOMAXPROCS(ogomaxprocs)
+		debug.SetGCPercent(ogcpercent)
 	}
 }
 
@@ -156,8 +160,10 @@ func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *uint32) {
 }
 
 func TestDebugCallUnsafePoint(t *testing.T) {
-	// This can deadlock if there aren't enough threads.
+	// This can deadlock if there aren't enough threads or if a GC
+	// tries to interrupt an atomic loop (see issue #10958).
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 
 	// Test that the runtime refuses call injection at unsafe points.
 	var g *runtime.G
