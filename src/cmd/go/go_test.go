@@ -6247,6 +6247,10 @@ func TestNoRelativeTmpdir(t *testing.T) {
 
 // Issue 24704.
 func TestLinkerTmpDirIsDeleted(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
