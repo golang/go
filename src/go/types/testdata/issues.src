@@ -248,3 +248,25 @@ func issue25438() {
 	if
 	{ /* ERROR missing condition */ }
 }
+
+// Test that we can embed alias type names in interfaces.
+type issue25301 interface {
+	E
+}
+
+type E = interface {
+	m()
+}
+
+// Test case from issue. Eventually we may disallow this due
+// to the cycle via the alias type name. But for now we make
+// sure this is accepted.
+type issue25301b = interface {
+	m() interface{ issue25301b }
+}
+
+type issue25301c interface {
+	notE // ERROR struct\{\} is not an interface
+}
+
+type notE = struct{}
