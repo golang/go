@@ -31,7 +31,7 @@ type aesCipherAsm struct {
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
 func newCipher(key []byte) (cipher.Block, error) {
-	if !(cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR && cpu.S390X.HasKIMD) {
+	if !(cpu.S390X.HasKM) {
 		return newCipherGeneric(key)
 	}
 
