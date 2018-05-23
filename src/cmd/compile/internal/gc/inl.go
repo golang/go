@@ -169,7 +169,20 @@ func caninl(fn *Node) {
 		cc = 1 // this appears to yield better performance than 0.
 	}
 
-	visitor := hairyVisitor{budget: inlineMaxBudget, extraCallCost: cc}
+	// At this point in the game the function we're looking at may
+	// have "stale" autos, vars that still appear in the Dcl list, but
+	// which no longer have any uses in the function body (due to
+	// elimination by deadcode). We'd like to exclude these dead vars
+	// when creating the "Inline.Dcl" field below; to accomplish this,
+	// the hairyVisitor below builds up a map of used/referenced
+	// locals, and we use this map to produce a pruned Inline.Dcl
+	// list. See issue 25249 for more context.
+
+	visitor := hairyVisitor{
+		budget:        inlineMaxBudget,
+		extraCallCost: cc,
+		usedLocals:    make(map[*Node]bool),
+	}
 	if visitor.visitList(fn.Nbody) {
 		reason = visitor.reason
 		return
@@ -181,7 +194,7 @@ func caninl(fn *Node) {
 
 	n.Func.Inl = &Inline{
 		Cost: inlineMaxBudget - visitor.budget,
-		Dcl:  inlcopylist(n.Name.Defn.Func.Dcl),
+		Dcl:  inlcopylist(pruneUnusedAutos(n.Name.Defn.Func.Dcl, &visitor)),
 		Body: inlcopylist(fn.Nbody.Slice()),
 	}
 
@@ -245,6 +258,7 @@ type hairyVisitor struct {
 	budget        int32
 	reason        string
 	extraCallCost int32
+	usedLocals    map[*Node]bool
 }
 
 // Look for anything we want to punt on.
@@ -374,6 +388,12 @@ func (v *hairyVisitor) visit(n *Node) bool {
 			return v.visitList(n.Ninit) || v.visitList(n.Nbody) ||
 				v.visitList(n.Rlist)
 		}
+
+	case ONAME:
+		if n.Class() == PAUTO {
+			v.usedLocals[n] = true
+		}
+
 	}
 
 	v.budget--
@@ -1249,4 +1269,17 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
 	}
 	pos.SetBase(newbase)
 	return Ctxt.PosTable.XPos(pos)
+}
+
+func pruneUnusedAutos(ll []*Node, vis *hairyVisitor) []*Node {
+	s := make([]*Node, 0, len(ll))
+	for _, n := range ll {
+		if n.Class() == PAUTO {
+			if _, found := vis.usedLocals[n]; !found {
+				continue
+			}
+		}
+		s = append(s, n)
+	}
+	return s
 }
