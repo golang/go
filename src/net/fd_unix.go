@@ -309,13 +309,5 @@ func (fd *netFD) dup() (f *os.File, err error) {
 		return nil, err
 	}
 
-	// We want blocking mode for the new fd, hence the double negative.
-	// This also puts the old fd into blocking mode, meaning that
-	// I/O will block the thread instead of letting us use the epoll server.
-	// Everything will still work, just with more threads.
-	if err = fd.pfd.SetBlocking(); err != nil {
-		return nil, os.NewSyscallError("setnonblock", err)
-	}
-
 	return os.NewFile(uintptr(ns), fd.name()), nil
 }

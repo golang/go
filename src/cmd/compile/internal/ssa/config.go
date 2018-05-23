@@ -27,6 +27,7 @@ type Config struct {
 	gpRegMask       regMask       // general purpose integer register mask
 	fpRegMask       regMask       // floating point register mask
 	specialRegMask  regMask       // special register mask
+	GCRegMap        []*Register   // garbage collector register map, by GC register index
 	FPReg           int8          // register number of frame pointer, -1 if not used
 	LinkReg         int8          // register number of link register if it is a general purpose register, -1 if not used
 	hasGReg         bool          // has hardware g register
@@ -93,9 +94,10 @@ func (t *Types) SetTypPtrs() {
 	t.UInt16 = types.Types[types.TUINT16]
 	t.UInt32 = types.Types[types.TUINT32]
 	t.UInt64 = types.Types[types.TUINT64]
+	t.Int = types.Types[types.TINT]
 	t.Float32 = types.Types[types.TFLOAT32]
 	t.Float64 = types.Types[types.TFLOAT64]
-	t.Int = types.Types[types.TINT]
+	t.UInt = types.Types[types.TUINT]
 	t.Uintptr = types.Types[types.TUINTPTR]
 	t.String = types.Types[types.TSTRING]
 	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
@@ -311,6 +313,20 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "wasm":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockWasm
+		c.lowerValue = rewriteValueWasm
+		c.registers = registersWasm[:]
+		c.gpRegMask = gpRegMaskWasm
+		c.fpRegMask = fpRegMaskWasm
+		c.FPReg = framepointerRegWasm
+		c.LinkReg = linkRegWasm
+		c.hasGReg = true
+		c.noDuffDevice = true
+		c.useAvg = false
+		c.useHmul = false
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}
@@ -358,6 +374,21 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 			ctxt.Diag("Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
 		}
 		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
+	}
+
+	// Create the GC register map index.
+	// TODO: This is only used for debug printing. Maybe export config.registers?
+	gcRegMapSize := int16(0)
+	for _, r := range c.registers {
+		if r.gcNum+1 > gcRegMapSize {
+			gcRegMapSize = r.gcNum + 1
+		}
+	}
+	c.GCRegMap = make([]*Register, gcRegMapSize)
+	for i, r := range c.registers {
+		if r.gcNum != -1 {
+			c.GCRegMap[r.gcNum] = &c.registers[i]
+		}
 	}
 
 	return c

@@ -16,81 +16,52 @@
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$0
-	MOVL	code+0(FP), DI		// arg 1 exit status
-	MOVL	$(0x2000000+1), AX	// syscall entry
-	SYSCALL
+TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	0(DI), DI		// arg 1 exit status
+	CALL	libc_exit(SB)
 	MOVL	$0xf1, 0xf1  // crash
+	POPQ	BP
 	RET
 
-// Exit this OS thread (like pthread_exit, which eventually
-// calls __bsdthread_terminate).
-TEXT exit1<>(SB),NOSPLIT,$0
-	// Because of exitThread below, this must not use the stack.
-	// __bsdthread_terminate takes 4 word-size arguments.
-	// Set them all to 0. (None are an exit status.)
-	MOVL	$0, DI
-	MOVL	$0, SI
-	MOVL	$0, DX
-	MOVL	$0, R10
-	MOVL	$(0x2000000+361), AX	// syscall entry
-	SYSCALL
-	MOVL	$0xf1, 0xf1  // crash
+TEXT runtime·open_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	8(DI), SI		// arg 2 flags
+	MOVL	12(DI), DX		// arg 3 mode
+	MOVQ	0(DI), DI		// arg 1 pathname
+	CALL	libc_open(SB)
+	POPQ	BP
 	RET
 
-// func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$0-8
-	MOVQ	wait+0(FP), AX
-	// We're done using the stack.
-	MOVL	$0, (AX)
-	JMP	exit1<>(SB)
-
-TEXT runtime·open(SB),NOSPLIT,$0
-	MOVQ	name+0(FP), DI		// arg 1 pathname
-	MOVL	mode+8(FP), SI		// arg 2 flags
-	MOVL	perm+12(FP), DX		// arg 3 mode
-	MOVL	$(0x2000000+5), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
-	MOVL	AX, ret+16(FP)
+TEXT runtime·close_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	0(DI), DI		// arg 1 fd
+	CALL	libc_close(SB)
+	POPQ	BP
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$0
-	MOVL	fd+0(FP), DI		// arg 1 fd
-	MOVL	$(0x2000000+6), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
-	MOVL	AX, ret+8(FP)
+TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 buf
+	MOVL	16(DI), DX		// arg 3 count
+	MOVL	0(DI), DI		// arg 1 fd
+	CALL	libc_read(SB)
+	POPQ	BP
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$0
-	MOVL	fd+0(FP), DI		// arg 1 fd
-	MOVQ	p+8(FP), SI		// arg 2 buf
-	MOVL	n+16(FP), DX		// arg 3 count
-	MOVL	$(0x2000000+3), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
-	MOVL	AX, ret+24(FP)
+TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 buf
+	MOVL	16(DI), DX		// arg 3 count
+	MOVQ	0(DI), DI		// arg 1 fd
+	CALL	libc_write(SB)
+	POPQ	BP
 	RET
-
-TEXT runtime·write(SB),NOSPLIT,$0
-	MOVQ	fd+0(FP), DI		// arg 1 fd
-	MOVQ	p+8(FP), SI		// arg 2 buf
-	MOVL	n+16(FP), DX		// arg 3 count
-	MOVL	$(0x2000000+4), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$-1, AX
-	MOVL	AX, ret+24(FP)
-	RET
-
-TEXT runtime·raise(SB),NOSPLIT,$0
-	// Ideally we'd send the signal to the current thread,
-	// not the whole process, but that's too hard on OS X.
-	JMP	runtime·raiseproc(SB)
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVL	$(0x2000000+20), AX // getpid
@@ -110,13 +81,15 @@ TEXT runtime·setitimer(SB), NOSPLIT, $0
 	SYSCALL
 	RET
 
-TEXT runtime·madvise(SB), NOSPLIT, $0
-	MOVQ	addr+0(FP), DI		// arg 1 addr
-	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	flags+16(FP), DX		// arg 3 advice
-	MOVL	$(0x2000000+75), AX	// syscall entry madvise
-	SYSCALL
+TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 len
+	MOVL	16(DI), DX	// arg 3 advice
+	MOVQ	0(DI), DI	// arg 1 addr
+	CALL	libc_madvise(SB)
 	// ignore failure - maybe pages are locked
+	POPQ	BP
 	RET
 
 // OS X comm page time offsets
@@ -137,33 +110,35 @@ TEXT runtime·madvise(SB), NOSPLIT, $0
 #define	v17_gtod_scale		0xe8
 #define	v17_gtod_tkspersec	0xf0
 
-TEXT runtime·nanotime(SB),NOSPLIT,$0-8
-	MOVQ	$0x7fffffe00000, BP	/* comm page base */
-	// Loop trying to take a consistent snapshot
-	// of the time parameters.
-timeloop:
-	MOVL	nt_generation(BP), R9
-	TESTL	R9, R9
-	JZ	timeloop
-	RDTSC
-	MOVQ	nt_tsc_base(BP), R10
-	MOVL	nt_scale(BP), R11
-	MOVQ	nt_ns_base(BP), R12
-	CMPL	nt_generation(BP), R9
-	JNE	timeloop
+GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
 
-	// Gathered all the data we need. Compute monotonic time:
-	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
-	// The multiply and shift extracts the top 64 bits of the 96-bit product.
-	SHLQ	$32, DX
-	ADDQ	DX, AX
-	SUBQ	R10, AX
-	MULQ	R11
-	SHRQ	$32, AX:DX
-	ADDQ	R12, AX
-	MOVQ	runtime·startNano(SB), CX
-	SUBQ	CX, AX
-	MOVQ	AX, ret+0(FP)
+TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	DI, BX
+	CALL	libc_mach_absolute_time(SB)
+	MOVQ	AX, 0(BX)
+	MOVL	timebase<>+machTimebaseInfo_numer(SB), SI
+	MOVL	timebase<>+machTimebaseInfo_denom(SB), DI // atomic read
+	TESTL	DI, DI
+	JNE	initialized
+
+	SUBQ	$(machTimebaseInfo__size+15)/16*16, SP
+	MOVQ	SP, DI
+	CALL	libc_mach_timebase_info(SB)
+	MOVL	machTimebaseInfo_numer(SP), SI
+	MOVL	machTimebaseInfo_denom(SP), DI
+	ADDQ	$(machTimebaseInfo__size+15)/16*16, SP
+
+	MOVL	SI, timebase<>+machTimebaseInfo_numer(SB)
+	MOVL	DI, AX
+	XCHGL	AX, timebase<>+machTimebaseInfo_denom(SB) // atomic write
+
+initialized:
+	MOVL	SI, 8(BX)
+	MOVL	DI, 12(BX)
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 TEXT time·now(SB), NOSPLIT, $32-24
@@ -363,31 +338,41 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	SYSCALL
 	INT $3 // not reached
 
-TEXT runtime·mmap(SB),NOSPLIT,$0
-	MOVQ	addr+0(FP), DI		// arg 1 addr
-	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	prot+16(FP), DX		// arg 3 prot
-	MOVL	flags+20(FP), R10		// arg 4 flags
-	MOVL	fd+24(FP), R8		// arg 5 fid
-	MOVL	off+28(FP), R9		// arg 6 offset
-	MOVL	$(0x2000000+197), AX	// syscall entry
-	SYSCALL
-	JCC	ok
-	MOVQ	$0, p+32(FP)
-	MOVQ	AX, err+40(FP)
-	RET
+
+
+TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP			// make a frame; keep stack aligned
+	MOVQ	SP, BP
+	MOVQ	DI, BX
+	MOVQ	0(BX), DI		// arg 1 addr
+	MOVQ	8(BX), SI		// arg 2 len
+	MOVL	16(BX), DX		// arg 3 prot
+	MOVL	20(BX), CX		// arg 4 flags
+	MOVL	24(BX), R8		// arg 5 fid
+	MOVL	28(BX), R9		// arg 6 offset
+	CALL	libc_mmap(SB)
+	XORL	DX, DX
+	CMPQ	AX, $-1
+	JNE	ok
+	CALL	libc_error(SB)
+	MOVQ	(AX), DX		// errno
+	XORL	AX, AX
 ok:
-	MOVQ	AX, p+32(FP)
-	MOVQ	$0, err+40(FP)
+	MOVQ	AX, 32(BX)
+	MOVQ	DX, 40(BX)
+	POPQ	BP
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$0
-	MOVQ	addr+0(FP), DI		// arg 1 addr
-	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	$(0x2000000+73), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
+TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 len
+	MOVQ	0(DI), DI		// arg 1 addr
+	CALL	libc_munmap(SB)
+	TESTQ	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	POPQ	BP
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
@@ -399,98 +384,12 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$16
-	MOVL	$0, DX
-	MOVL	usec+0(FP), AX
-	MOVL	$1000000, CX
-	DIVL	CX
-	MOVQ	AX, 0(SP)  // sec
-	MOVL	DX, 8(SP)  // usec
-
-	// select(0, 0, 0, 0, &tv)
-	MOVL	$0, DI
-	MOVL	$0, SI
-	MOVL	$0, DX
-	MOVL	$0, R10
-	MOVQ	SP, R8
-	MOVL	$(0x2000000+93), AX
-	SYSCALL
-	RET
-
-// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
-TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
-	// Set up arguments to bsdthread_create system call.
-	// The ones in quotes pass through to the thread callback
-	// uninterpreted, so we can put whatever we want there.
-	MOVQ	fn+16(FP),   DI
-	MOVQ	arg+8(FP),  SI
-	MOVQ	stk+0(FP),   DX
-	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
-	MOVQ	$0,          R9  // paranoia
-	MOVQ	$0,          R10 // paranoia, "pthread"
-	MOVQ	$(0x2000000+360), AX	// bsdthread_create
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+24(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+24(FP)
-	RET
-
-// The thread that bsdthread_create creates starts executing here,
-// because we registered this function using bsdthread_register
-// at startup.
-//	DI = "pthread"
-//	SI = mach thread port
-//	DX = "func" (= fn)
-//	CX = "arg" (= m)
-//	R8 = stack
-//	R9 = flags (= 0)
-//	SP = stack - C_64_REDZONE_LEN (= stack - 128)
-TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
-	MOVQ	R8, SP		// empirically, SP is very wrong but R8 is right
-
-	PUSHQ	DX
-	PUSHQ	CX
-	PUSHQ	SI
-
-	// set up thread local storage pointing at m->tls.
-	LEAQ	m_tls(CX), DI
-	CALL	runtime·settls(SB)
-
-	POPQ	SI
-	POPQ	CX
-	POPQ	DX
-
-	get_tls(BX)
-	MOVQ	SI, m_procid(CX)	// thread port is m->procid
-	MOVQ	m_g0(CX), AX
-	MOVQ	AX, g(BX)
-	MOVQ	CX, g_m(AX)
-	CALL	runtime·stackcheck(SB)	// smashes AX, CX
-	CALL	DX	// fn
-	CALL	exit1<>(SB)
-	RET
-
-// func bsdthread_register() int32
-// registers callbacks for threadstart (see bsdthread_create above
-// and wqthread and pthsize (not used).  returns 0 on success.
-TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
-	MOVQ	$runtime·bsdthread_start(SB), DI	// threadstart
-	MOVQ	$0, SI	// wqthread, not used by us
-	MOVQ	$0, DX	// pthsize, not used by us
-	MOVQ	$0, R10	// dummy_value [sic]
-	MOVQ	$0, R8	// targetconc_ptr
-	MOVQ	$0, R9	// dispatchqueue_offset
-	MOVQ	$(0x2000000+366), AX	// bsdthread_register
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+0(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+0(FP)
+TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	0(DI), DI	// arg 1 usec
+	CALL	libc_usleep(SB)
+	POPQ	BP
 	RET
 
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
@@ -566,17 +465,8 @@ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$32
-	/*
-	* Same as in sys_darwin_386.s:/ugliness, different constant.
-	* See cgo/gcc_darwin_amd64.c for the derivation
-	* of the constant.
-	*/
-	SUBQ $0x8a0, DI
-
-	MOVL	$(0x3000000+3), AX	// thread_fast_set_cthread_self - machdep call #3
-	SYSCALL
+	// Nothing to do on Darwin, pthread already set thread-local storage up.
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
@@ -630,4 +520,80 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ    $1, DX  // FD_CLOEXEC
 	MOVL	$(0x2000000+92), AX  // fcntl
 	SYSCALL
+	RET
+
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+	// DI points to the m.
+	// We are already on m's g0 stack.
+
+	MOVQ	m_g0(DI), DX // g
+
+	// Initialize TLS entry.
+	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
+	MOVQ	DX, 0x30(GS)
+
+	// Someday the convention will be D is always cleared.
+	CLD
+
+	CALL	runtime·mstart(SB)
+
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
+	XORL	AX, AX
+	RET
+
+// These trampolines help convert from Go calling convention to C calling convention.
+// They should be called with asmcgocall.
+// A pointer to the arguments is passed in DI.
+// A single int32 result is returned in AX.
+// (For more results, make an args/results structure.)
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP	// make frame, keep stack 16-byte aligned.
+	MOVQ	SP, BP
+	MOVQ	0(DI), DI // arg 1 attr
+	CALL	libc_pthread_attr_init(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 size
+	MOVQ	0(DI), DI	// arg 1 attr
+	CALL	libc_pthread_attr_setstacksize(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 state
+	MOVQ	0(DI), DI	// arg 1 attr
+	CALL	libc_pthread_attr_setdetachstate(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$16, SP
+	MOVQ	0(DI), SI	// arg 2 attr
+	MOVQ	8(DI), DX	// arg 3 start
+	MOVQ	16(DI), CX	// arg 4 arg
+	MOVQ	SP, DI		// arg 1 &threadid (which we throw away)
+	CALL	libc_pthread_create(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
+
+TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	0(DI), DI	// arg 1 signal
+	CALL	libc_raise(SB)
+	POPQ	BP
 	RET

@@ -20,31 +20,17 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
 	return *(*unsafe.Pointer)(ptr)
 }
 
-//go:nosplit
-func Xadd64(ptr *uint64, delta int64) uint64 {
-	for {
-		old := *ptr
-		if Cas64(ptr, old, old+uint64(delta)) {
-			return old + uint64(delta)
-		}
-	}
-}
+//go:noescape
+func Xadd64(ptr *uint64, delta int64) uint64
 
 //go:noescape
 func Xadduintptr(ptr *uintptr, delta uintptr) uintptr
 
-//go:nosplit
-func Xchg64(ptr *uint64, new uint64) uint64 {
-	for {
-		old := *ptr
-		if Cas64(ptr, old, new) {
-			return old
-		}
-	}
-}
-
 //go:noescape
 func Xadd(ptr *uint32, delta int32) uint32
+
+//go:noescape
+func Xchg64(ptr *uint64, new uint64) uint64
 
 //go:noescape
 func Xchg(ptr *uint32, new uint32) uint32

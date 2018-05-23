@@ -229,8 +229,13 @@ func stringStructOf(sp *string) *stringStruct {
 	return (*stringStruct)(unsafe.Pointer(sp))
 }
 
-func intstring(buf *[4]byte, v int64) string {
-	var s string
+func intstring(buf *[4]byte, v int64) (s string) {
+	if v >= 0 && v < runeSelf {
+		stringStructOf(&s).str = unsafe.Pointer(&staticbytes[v])
+		stringStructOf(&s).len = 1
+		return
+	}
+
 	var b []byte
 	if buf != nil {
 		b = buf[:]

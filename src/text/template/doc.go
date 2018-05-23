@@ -69,6 +69,7 @@ data, defined in detail in the corresponding sections that follow.
 
 */
 //	{{/* a comment */}}
+//	{{- /* a comment with white space trimmed from preceding and following text */ -}}
 //		A comment; discarded. May contain newlines.
 //		Comments do not nest and must start and end at the
 //		delimiters, as shown here.

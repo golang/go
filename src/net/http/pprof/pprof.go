@@ -26,7 +26,7 @@
 //
 // Or to look at a 30-second CPU profile:
 //
-//	go tool pprof http://localhost:6060/debug/pprof/profile
+//	go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
 //
 // Or to look at the goroutine blocking profile, after calling
 // runtime.SetBlockProfileRate in your program:
@@ -63,6 +63,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -110,11 +111,12 @@ func serveError(w http.ResponseWriter, status int, txt string) {
 }
 
 // Profile responds with the pprof-formatted cpu profile.
+// Profiling lasts for duration specified in seconds GET parameter, or for 30 seconds if not specified.
 // The package initialization registers it as /debug/pprof/profile.
 func Profile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
-	if sec == 0 {
+	sec, err := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
+	if sec <= 0 || err != nil {
 		sec = 30
 	}
 
@@ -243,6 +245,18 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.WriteTo(w, debug)
 }
 
+var profileDescriptions = map[string]string{
+	"allocs":       "A sampling of all past memory allocations",
+	"block":        "Stack traces that led to blocking on synchronization primitives",
+	"cmdline":      "The command line invocation of the current program",
+	"goroutine":    "Stack traces of all current goroutines",
+	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
+	"mutex":        "Stack traces of holders of contended mutexes",
+	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
+	"threadcreate": "Stack traces that led to the creation of new OS threads",
+	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+}
+
 // Index responds with the pprof-formatted profile named by the request.
 // For example, "/debug/pprof/heap" serves the "heap" profile.
 // Index responds to a request for "/debug/pprof/" with an HTML page
@@ -256,7 +270,35 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	profiles := pprof.Profiles()
+	type profile struct {
+		Name  string
+		Href  string
+		Desc  string
+		Count int
+	}
+	var profiles []profile
+	for _, p := range pprof.Profiles() {
+		profiles = append(profiles, profile{
+			Name:  p.Name(),
+			Href:  p.Name() + "?debug=1",
+			Desc:  profileDescriptions[p.Name()],
+			Count: p.Count(),
+		})
+	}
+
+	// Adding other profiles exposed from within this package
+	for _, p := range []string{"cmdline", "profile", "trace"} {
+		profiles = append(profiles, profile{
+			Name: p,
+			Href: p,
+			Desc: profileDescriptions[p],
+		})
+	}
+
+	sort.Slice(profiles, func(i, j int) bool {
+		return profiles[i].Name < profiles[j].Name
+	})
+
 	if err := indexTmpl.Execute(w, profiles); err != nil {
 		log.Print(err)
 	}
@@ -265,18 +307,35 @@ func Index(w http.ResponseWriter, r *http.Request) {
 var indexTmpl = template.Must(template.New("index").Parse(`<html>
 <head>
 <title>/debug/pprof/</title>
+<style>
+.profile-name{
+	display:inline-block;
+	width:6rem;
+}
+</style>
 </head>
 <body>
 /debug/pprof/<br>
 <br>
-profiles:<br>
+Types of profiles available:
 <table>
+<thead><td>Count</td><td>Profile</td></thead>
 {{range .}}
-<tr><td align=right>{{.Count}}<td><a href="{{.Name}}?debug=1">{{.Name}}</a>
+	<tr>
+	<td>{{.Count}}</td><td><a href={{.Href}}>{{.Name}}</a></td>
+	</tr>
 {{end}}
 </table>
-<br>
-<a href="goroutine?debug=2">full goroutine stack dump</a><br>
+<a href="goroutine?debug=2">full goroutine stack dump</a>
+<br/>
+<p>
+Profile Descriptions:
+<ul>
+{{range .}}
+<li><div class=profile-name>{{.Name}}:</div> {{.Desc}}</li>
+{{end}}
+</ul>
+</p>
 </body>
 </html>
 `))

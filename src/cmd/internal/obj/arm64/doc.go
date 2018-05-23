@@ -1,316 +1,203 @@
-// Copyright 2017 The Go Authors. All rights reserved.
+// Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package arm64
-
 /*
+Package arm64 implements an ARM64 assembler. Go assembly syntax is different from GNU ARM64
+syntax, but we can still follow the general rules to map between them.
 
-Go Assembly for ARM64 Reference Manual
+Instructions mnemonics mapping rules
 
-1. Alphabetical list of basic instructions
-    // TODO
-    PRFM: Prefetch Memory (immediate)
-     PRFM	imm(Rn), <prfop>
-      prfop is the prefetch operation and can have the following values:
-      PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
-      PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
-      PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM.
-     PRFM	imm(Rn), $imm
-      $imm prefetch operation is encoded as an immediate.
+1. Most instructions use width suffixes of instruction names to indicate operand width rather than
+using different register names.
 
-    LDARB: Load-Acquire Register Byte
-      LDARB	(<Rn>), <Rd>
-        Loads a byte from memory, zero-extends it and writes it to Rd.
+  Examples:
+    ADC R24, R14, R12          <=>     adc x12, x24
+    ADDW R26->24, R21, R15     <=>     add w15, w21, w26, asr #24
+    FCMPS F2, F3               <=>     fcmp s3, s2
+    FCMPD F2, F3               <=>     fcmp d3, d2
+    FCVTDH F2, F3              <=>     fcvt h3, d2
 
-    LDARH: Load-Acquire Register Halfword
-      LDARH	(<Rn>), <Rd>
-        Loads a halfword from memory, zero-extends it and writes it to Rd.
+2. Go uses .P and .W suffixes to indicate post-increment and pre-increment.
 
-    LDAXP: Load-Acquire Exclusive Pair of Registers
-      LDAXP	(<Rn>), (<Rt1>, <Rt2>)
-        Loads two 64-bit doublewords from memory, and writes them to Rt1 and Rt2.
+  Examples:
+    MOVD.P -8(R10), R8         <=>      ldr x8, [x10],#-8
+    MOVB.W 16(R16), R10        <=>      ldr x10, [x16,#16]!
 
-    LDAXPW: Load-Acquire Exclusive Pair of Registers
-      LDAXPW	(<Rn>), (<Rt1>, <Rt2>)
-        Loads two 32-bit words from memory, and writes them to Rt1 and Rt2.
+3. Go uses a series of MOV instructions as load and store.
 
-    LDXP: 64-bit Load Exclusive Pair of Registers
-      LDXP	(<Rn>), (<Rt1>, <Rt2>)
-        Loads two 64-bit doublewords from memory, and writes them to Rt1 and Rt2.
+64-bit variant ldr, str, stur => MOVD;
+32-bit variant str, stur, ldrsw => MOVW;
+32-bit variant ldr => MOVWU;
+ldrb => MOVBU; ldrh => MOVHU;
+ldrsb, sturb, strb => MOVB;
+ldrsh, sturh, strh =>  MOVH.
 
-    LDXPW: 32-bit Load Exclusive Pair of Registers
-      LDXPW	(<Rn>), (<Rt1>, <Rt2>)
-        Loads two 32-bit words from memory, and writes them to Rt1 and Rt2.
+4. Go moves conditions into opcode suffix, like BLT.
 
-    STLRB: Store-Release Register Byte
-      STLRB	<Rd>, (<Rn>)
-        Stores a byte from Rd to a memory location from Rn.
+5. Go adds a V prefix for most floating-point and SIMD instrutions except cryptographic extension
+instructions and floating-point(scalar) instructions.
 
-    STLRH: Store-Release Register Halfword
-      STLRH	<Rd>, (<Rn>)
-        Stores a halfword from Rd to a memory location from Rn.
+  Examples:
+    VADD V5.H8, V18.H8, V9.H8         <=>      add v9.8h, v18.8h, v5.8h
+    VLD1.P (R6)(R11), [V31.D1]        <=>      ld1 {v31.1d}, [x6], x11
+    VFMLA V29.S2, V20.S2, V14.S2      <=>      fmla v14.2s, v20.2s, v29.2s
+    AESD V22.B16, V19.B16             <=>      aesd v19.16b, v22.16b
+    SCVTFWS R3, F16                   <=>      scvtf s17, w6
 
-    STLXP: 64-bit Store-Release Exclusive Pair of registers
-      STLXP	(<Rt1>, <Rt2>), (<Rn>), <Rs>
-        Stores two 64-bit doublewords from Rt1 and Rt2 to a memory location from Rn,
-        and returns in Rs a status value of 0 if the store was successful, or of 1 if
-        no store was performed.
+Special Cases.
 
-    STLXPW: 32-bit Store-Release Exclusive Pair of registers
-      STLXPW	(<Rt1>, <Rt2>), (<Rn>), <Rs>
-        Stores two 32-bit words from Rt1 and Rt2 to a memory location from Rn, and
-        returns in Rs a status value of 0 if the store was successful, or of 1 if no
-        store was performed.
+(1) umov is written as VMOV.
 
-    STXP: 64-bit Store Exclusive Pair of registers
-      STXP	(<Rt1>, <Rt2>), (<Rn>), <Rs>
-        Stores two 64-bit doublewords from Rt1 and Rt2 to a memory location from Rn,
-        and returns in Rs a status value of 0 if the store was successful, or of 1 if
-        no store was performed.
+(2) br is renamed JMP, blr is renamed CALL.
 
-    STXPW: 32-bit Store Exclusive Pair of registers
-      STXPW	(<Rt1>, <Rt2>), (<Rn>), <Rs>
-        Stores two 32-bit words from Rt1 and Rt2 to a memory location from Rn, and returns in
-        a Rs a status value of 0 if the store was successful, or of 1 if no store was performed.
+(3) No need to add "W" suffix: LDARB, LDARH, LDAXRB, LDAXRH, LDTRH, LDXRB, LDXRH.
 
-2. Alphabetical list of float-point instructions
-    // TODO
-
-    FMADDD: 64-bit floating-point fused Multiply-Add
-      FMADDD	<Fm>, <Fa>, <Fn>, <Fd>
-        Multiplies the values of <Fm> and <Fn>,
-        adds the product to <Fa>, and writes the result to <Fd>.
-
-    FMADDS: 32-bit floating-point fused Multiply-Add
-      FMADDS	<Fm>, <Fa>, <Fn>, <Fd>
-        Multiplies the values of <Fm> and <Fn>,
-        adds the product to <Fa>, and writes the result to <Fd>.
-
-    FMSUBD: 64-bit floating-point fused Multiply-Subtract
-      FMSUBD	<Fm>, <Fa>, <Fn>, <Fd>
-        Multiplies the values of <Fm> and <Fn>, negates the product,
-        adds the product to <Fa>, and writes the result to <Fd>.
-
-    FMSUBS: 32-bit floating-point fused Multiply-Subtract
-      FMSUBS	<Fm>, <Fa>, <Fn>, <Fd>
-        Multiplies the values of <Fm> and <Fn>, negates the product,
-        adds the product to <Fa>, and writes the result to <Fd>.
-
-    FNMADDD: 64-bit floating-point negated fused Multiply-Add
-      FNMADDD	<Fm>, <Fa>, <Fn>, <Fd>
-        Multiplies the values of <Fm> and <Fn>, negates the product,
-        subtracts the value of <Fa>, and writes the result to <Fd>.
-
-    FNMADDS: 32-bit floating-point negated fused Multiply-Add
-      FNMADDS	<Fm>, <Fa>, <Fn>, <Fd>
-        Multiplies the values of <Fm> and <Fn>, negates the product,
-        subtracts the value of <Fa>, and writes the result to <Fd>.
-
-    FNMSUBD: 64-bit floating-point negated fused Multiply-Subtract
-      FNMSUBD	<Fm>, <Fa>, <Fn>, <Fd>
-        Multiplies the values of <Fm> and <Fn>,
-        subtracts the value of <Fa>, and writes the result to <Fd>.
-
-    FNMSUBS: 32-bit floating-point negated fused Multiply-Subtract
-      FNMSUBS	<Fm>, <Fa>, <Fn>, <Fd>
-        Multiplies the values of <Fm> and <Fn>,
-        subtracts the value of <Fa>, and writes the result to <Fd>.
-
-3. Alphabetical list of SIMD instructions
-    VADD: Add (scalar)
-      VADD	<Vm>, <Vn>, <Vd>
-        Add corresponding low 64-bit elements in <Vm> and <Vn>,
-        place the result into low 64-bit element of <Vd>.
-
-    VADD: Add (vector).
-      VADD	<Vm>.T, <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8, S2, S4, D2
-
-    VADDP: Add Pairwise (vector)
-      VADDP	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8, S2, S4, D2
-
-    VADDV: Add across Vector.
-      VADDV	<Vn>.<T>, Vd
-        <T> Is an arrangement specifier and can have the following values:
-        8B, 16B, H4, H8, S4
-
-    VAND: Bitwise AND (vector)
-      VAND	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16
-
-    VCMEQ: Compare bitwise Equal (vector)
-      VCMEQ	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8, S2, S4, D2
-
-    VDUP: Duplicate vector element to vector or scalar.
-      VDUP	<Vn>.<Ts>[index], <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        8B, 16B, H4, H8, S2, S4, D2
-        <Ts> Is an element size specifier and can have the following values:
-        B, H, S, D
-
-    VEOR: Bitwise exclusive OR (vector, register)
-      VEOR	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16
-
-    VFMLA: Floating-point fused Multiply-Add to accumulator (vector)
-      VFMLA	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        S2, S4, D2
-
-    VFMLS: Floating-point fused Multiply-Subtract from accumulator (vector)
-      VFMLS	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        S2, S4, D2
-
-    VEXT:  Extracts vector elements from src SIMD registers to dst SIMD register
-      VEXT	$index, <Vm>.<T>, <Vn>.<T>, <Vd>.<T>
-        <T> is an arrangment specifier and can be B8, B16
-        $index is the lowest numbered byte element to be exracted.
-
-    VLD1: Load multiple single-element structures
-      VLD1	(Rn), [<Vt>.<T>, <Vt2>.<T> ...]     // no offset
-      VLD1.P	imm(Rn), [<Vt>.<T>, <Vt2>.<T> ...]  // immediate offset variant
-      VLD1.P	(Rn)(Rm), [<Vt>.<T>, <Vt2>.<T> ...] // register offset variant
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8, S2, S4, D1, D2
-
-    VLD1: Load one single-element structure
-      VLD1	(Rn), <Vt>.<T>[index]     // no offset
-      VLD1.P	imm(Rn), <Vt>.<T>[index]  // immediate offset variant
-      VLD1.P	(Rn)(Rm), <Vt>.<T>[index] // register offset variant
-        <T> is an arrangement specifier and can have the following values:
-        B, H, S D
-
-    VMOV: move
-      VMOV	<Vn>.<T>[index], Rd // Move vector element to general-purpose register.
-        <T> Is a source width specifier and can have the following values:
-        B, H, S (Wd)
-        D (Xd)
-
-      VMOV	Rn, <Vd>.<T> // Duplicate general-purpose register to vector.
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8, S2, S4 (Wn)
-        D2 (Xn)
-
-      VMOV	<Vn>.<T>, <Vd>.<T> // Move vector.
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16
-
-      VMOV	Rn, <Vd>.<T>[index] // Move general-purpose register to a vector element.
-        <T> Is a source width specifier and can have the following values:
-        B, H, S (Wd)
-        D (Xd)
-
-      VMOV	<Vn>.<T>[index], Vn  // Move vector element to scalar.
-        <T> Is an element size specifier and can have the following values:
-        B, H, S, D
-
-      VMOV	<Vn>.<T>[index], <Vd>.<T>[index] // Move vector element to another vector element.
-        <T> Is an element size specifier and can have the following values:
-        B, H, S, D
-
-    VMOVI: Move Immediate (vector).
-      VMOVI	$imm8, <Vd>.<T>
-        <T> is an arrangement specifier and can have the following values:
-        8B, 16B
-
-    VMOVS: Load SIMD&FP Register (immediate offset). ARMv8: LDR (immediate, SIMD&FP)
-      Store SIMD&FP register (immediate offset). ARMv8: STR (immediate, SIMD&FP)
-      VMOVS	(Rn), Vn
-      VMOVS.W	imm(Rn), Vn
-      VMOVS.P	imm(Rn), Vn
-      VMOVS	Vn, (Rn)
-      VMOVS.W	Vn, imm(Rn)
-      VMOVS.P	Vn, imm(Rn)
-
-    VORR: Bitwise inclusive OR (vector, register)
-      VORR	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16
-
-    VRBIT: Reverse bit order (vector)
-      VRBIT	<Vn>.<T>, <Vd>.<T>
-        <T> is an arrangment specifier and can be B8, B16
-
-    VREV32: Reverse elements in 32-bit words (vector).
-      REV32 <Vn>.<T>, <Vd>.<T>
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8
-
-    VSHL: Shift Left(immediate)
-      VSHL 	$shift, <Vn>.<T>, <Vd>.<T>
-        <T> is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8, S2, S4, D1, D2
-        $shift Is the left shift amount
-
-    VST1: Store multiple single-element structures
-      VST1	[<Vt>.<T>, <Vt2>.<T> ...], (Rn)         // no offset
-      VST1.P	[<Vt>.<T>, <Vt2>.<T> ...], imm(Rn)      // immediate offset variant
-      VST1.P	[<Vt>.<T>, <Vt2>.<T> ...], (Rn)(Rm)     // register offset variant
-        <T> Is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8, S2, S4, D1, D2
-
-    VSUB: Sub (scalar)
-      VSUB	<Vm>, <Vn>, <Vd>
-        Subtract low 64-bit element in <Vm> from the corresponding element in <Vn>,
-        place the result into low 64-bit element of <Vd>.
-
-    VUADDLV: Unsigned sum Long across Vector.
-      VUADDLV	<Vn>.<T>, Vd
-        <T> Is an arrangement specifier and can have the following values:
-        8B, 16B, H4, H8, S4
-
-    VST1: Store one single-element structure
-      VST1	<Vt>.<T>.<Index>, (Rn)         // no offset
-      VST1.P	<Vt>.<T>.<Index>, imm(Rn)      // immediate offset variant
-      VST1.P	<Vt>.<T>.<Index>, (Rn)(Rm)     // register offset variant
-        <T> Is an arrangement specifier and can have the following values:
-        B, H, S, D
-
-    VUSHR: Unsigned shift right(immediate)
-      VUSHR	$shift, <Vn>.<T>, <Vm>.<T>
-        <T> is an arrangement specifier and can have the following values:
-        B8, B16, H4, H8, S2, S4, D1, D2
-        $shift is the right shift amount
+  Examples:
+    VMOV V13.B[1], R20      <=>      mov x20, v13.b[1]
+    VMOV V13.H[1], R20      <=>      mov w20, v13.h[1]
+    JMP (R3)                <=>      br x3
+    CALL (R17)              <=>      blr x17
+    LDAXRB (R19), R16       <=>      ldaxrb w16, [x19]
 
 
-4. Alphabetical list of cryptographic extension instructions
+Register mapping rules
 
-    VPMULL{2}: Polynomial multiply long.
-      VPMULL{2}	<Vm>.<Tb>, <Vn>.<Tb>, <Vd>.<Ta>
-        VPMULL multiplies corresponding elements in the lower half of the
-        vectors of two source SIMD registers and VPMULL{2} operates in the upper half.
-        <Ta> is an arrangement specifier, it can be H8, Q1
-        <Tb> is an arrangement specifier, it can be B8, B16, D1, D2
+1. All basic register names are written as Rn.
 
-    SHA1C, SHA1M, SHA1P: SHA1 hash update.
-      SHA1C	<Vm>.S4, Vn, Vd
-      SHA1M	<Vm>.S4, Vn, Vd
-      SHA1P	<Vm>.S4, Vn, Vd
+2. Go uses ZR as the zero register and RSP as the stack pointer.
 
-    SHA1H: SHA1 fixed rotate.
-      SHA1H	Vn, Vd
+3. Bn, Hn, Dn, Sn and Qn instructions are written as Fn in floating-point instructions and as Vn
+in SIMD instructions.
 
-    SHA1SU0:   SHA1 schedule update 0.
-    SHA256SU1: SHA256 schedule update 1.
-      SHA1SU0	<Vm>.S4, <Vn>.S4, <Vd>.S4
-      SHA256SU1	<Vm>.S4, <Vn>.S4, <Vd>.S4
 
-    SHA1SU1:   SHA1 schedule update 1.
-    SHA256SU0: SHA256 schedule update 0.
-      SHA1SU1	<Vn>.S4, <Vd>.S4
-      SHA256SU0	<Vn>.S4, <Vd>.S4
+Argument mapping rules
 
-    SHA256H, SHA256H2: SHA256 hash update.
-      SHA256H	<Vm>.S4, Vn, Vd
-      SHA256H2	<Vm>.S4, Vn, Vd
+1. The operands appear in left-to-right assignment order.
 
+Go reverses the arguments of most instructions.
+
+    Examples:
+      ADD R11.SXTB<<1, RSP, R25      <=>      add x25, sp, w11, sxtb #1
+      VADD V16, V19, V14             <=>      add d14, d19, d16
+
+Special Cases.
+
+(1) Argument order is the same as in the GNU ARM64 syntax: cbz, cbnz and some store instructions,
+such as str, stur, strb, sturb, strh, sturh stlr, stlrb. stlrh, st1.
+
+  Examples:
+    MOVD R29, 384(R19)    <=>    str x29, [x19,#384]
+    MOVB.P R30, 30(R4)    <=>    strb w30, [x4],#30
+    STLRH R21, (R18)      <=>    stlrh w21, [x18]
+
+(2) MADD, MADDW, MSUB, MSUBW, SMADDL, SMSUBL, UMADDL, UMSUBL <Rm>, <Ra>, <Rn>, <Rd>
+
+  Examples:
+    MADD R2, R30, R22, R6       <=>    madd x6, x22, x2, x30
+    SMSUBL R10, R3, R17, R27    <=>    smsubl x27, w17, w10, x3
+
+(3) FMADDD, FMADDS, FMSUBD, FMSUBS, FNMADDD, FNMADDS, FNMSUBD, FNMSUBS <Fm>, <Fa>, <Fn>, <Fd>
+
+  Examples:
+    FMADDD F30, F20, F3, F29    <=>    fmadd d29, d3, d30, d20
+    FNMSUBS F7, F25, F7, F22    <=>    fnmsub s22, s7, s7, s25
+
+(4) BFI, BFXIL, SBFIZ, SBFX, UBFIZ, UBFX $<lsb>, <Rn>, $<width>, <Rd>
+
+  Examples:
+    BFIW $16, R20, $6, R0      <=>    bfi w0, w20, #16, #6
+    UBFIZ $34, R26, $5, R20    <=>    ubfiz x20, x26, #34, #5
+
+(5) FCCMPD, FCCMPS, FCCMPED, FCCMPES <cond>, Fm. Fn, $<nzcv>
+
+  Examples:
+    FCCMPD AL, F8, F26, $0     <=>    fccmp d26, d8, #0x0, al
+    FCCMPS VS, F29, F4, $4     <=>    fccmp s4, s29, #0x4, vs
+    FCCMPED LE, F20, F5, $13   <=>    fccmpe d5, d20, #0xd, le
+    FCCMPES NE, F26, F10, $0   <=>    fccmpe s10, s26, #0x0, ne
+
+(6) CCMN, CCMNW, CCMP, CCMPW <cond>, <Rn>, $<imm>, $<nzcv>
+
+  Examples:
+    CCMP MI, R22, $12, $13     <=>    ccmp x22, #0xc, #0xd, mi
+    CCMNW AL, R1, $11, $8      <=>    ccmn w1, #0xb, #0x8, al
+
+(7) CCMN, CCMNW, CCMP, CCMPW <cond>, <Rn>, <Rm>, $<nzcv>
+
+  Examples:
+    CCMN VS, R13, R22, $10     <=>    ccmn x13, x22, #0xa, vs
+    CCMPW HS, R18, R14, $11    <=>    ccmp w18, w14, #0xb, cs
+
+(9) CSEL, CSELW, CSNEG, CSNEGW, CSINC, CSINCW <cond>, <Rn>, <Rm>, <Rd> ;
+FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
+
+  Examples:
+    CSEL GT, R0, R19, R1        <=>    csel x1, x0, x19, gt
+    CSNEGW GT, R7, R17, R8      <=>    csneg w8, w7, w17, gt
+    FCSELD EQ, F15, F18, F16    <=>    fcsel d16, d15, d18, eq
+
+(10) TBNZ, TBZ $<imm>, <Rt>, <label>
+
+
+(11) STLXR, STLXRW, STXR, STXRW, STLXRB, STLXRH, STXRB, STXRH  <Rf>, (<Rn|RSP>), <Rs>
+
+  Examples:
+    STLXR ZR, (R15), R16    <=>    stlxr w16, xzr, [x15]
+    STXRB R9, (R21), R18    <=>    stxrb w18, w9, [x21]
+
+(12) STLXP, STLXPW, STXP, STXPW (<Rf1>, <Rf2>), (<Rn|RSP>), <Rs>
+
+  Examples:
+    STLXP (R17, R18), (R4), R5      <=>    stlxp w5, x17, x18, [x4]
+    STXPW (R30, R25), (R22), R13    <=>    stxp w13, w30, w25, [x22]
+
+2. Expressions for special arguments.
+
+#<immediate> is written as $<immediate>.
+
+Optionally-shifted immedate.
+
+  Examples:
+    ADD $(3151<<12), R14, R20     <=>    add x20, x14, #0xc4f, lsl #12
+    ADDW $1864, R25, R6           <=>    add w6, w25, #0x748
+
+Optionally-shifted registers are written as <Rm>{<shift><amount>}.
+The <shift> can be <<(lsl), >>(lsr), ->(asr), @>(ror).
+
+  Examples:
+    ADD R19>>30, R10, R24     <=>    add x24, x10, x19, lsr #30
+    ADDW R26->24, R21, R15    <=>    add w15, w21, w26, asr #24
+
+Extended registers are written as <Rm>{.<extend>{<<<amount>}}.
+<extend> can be UXTB, UXTH, UXTW, UXTX, SXTB, SXTH, SXTW or SXTX.
+
+  Examples:
+    ADDS R18.UXTB<<4, R9, R26     <=>    adds x26, x9, w18, uxtb #4
+    ADDSW R14.SXTX, R14, R6       <=>    adds w6, w14, w14, sxtx
+
+Memory references: [<Xn|SP>{,#0}] is written as (Rn|RSP), a base register and an immediate
+offset is written as imm(Rn|RSP), a base register and an offset register is written as (Rn|RSP)(Rm).
+
+  Examples:
+    LDAR (R22), R9                  <=>    ldar x9, [x22]
+    LDP 28(R17), (R15, R23)         <=>    ldp x15, x23, [x17,#28]
+    MOVWU (R4)(R12<<2), R8          <=>    ldr w8, [x4, x12, lsl #2]
+    MOVD (R7)(R11.UXTW<<3), R25     <=>    ldr x25, [x7,w11,uxtw #3]
+    MOVBU (R27)(R23), R14           <=>    ldrb w14, [x27,x23]
+
+Register pairs are written as (Rt1, Rt2).
+
+  Examples:
+    LDP.P -240(R11), (R12, R26)    <=>    ldp x12, x26, [x11],#-240
+
+Register with arrangement and register with arrangement and index.
+
+  Examples:
+    VADD V5.H8, V18.H8, V9.H8                     <=>    add v9.8h, v18.8h, v5.8h
+    VLD1 (R2), [V21.B16]                          <=>    ld1 {v21.16b}, [x2]
+    VST1.P V9.S[1], (R16)(R21)                    <=>    st1 {v9.s}[1], [x16], x28
+    VST1.P [V13.H8, V14.H8, V15.H8], (R3)(R14)    <=>    st1 {v13.8h-v15.8h}, [x3], x14
+    VST1.P [V14.D1, V15.D1], (R7)(R23)            <=>    st1 {v14.1d, v15.1d}, [x7], x23
 */
+package arm64

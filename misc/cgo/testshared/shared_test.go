@@ -790,6 +790,7 @@ func TestRebuilding(t *testing.T) {
 	// If the .a file is newer than the .so, the .so is rebuilt (but not the .a)
 	t.Run("newarchive", func(t *testing.T) {
 		resetFileStamps()
+		AssertNotRebuilt(t, "new .a file before build", filepath.Join(gopathInstallDir, "depBase.a"))
 		goCmd(t, "list", "-linkshared", "-f={{.ImportPath}} {{.Stale}} {{.StaleReason}} {{.Target}}", "depBase")
 		AssertNotRebuilt(t, "new .a file before build", filepath.Join(gopathInstallDir, "depBase.a"))
 		cleanup := touch(t, filepath.Join(gopathInstallDir, "depBase.a"))

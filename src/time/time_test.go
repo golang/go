@@ -978,6 +978,8 @@ var subTests = []struct {
 	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), Duration(maxDuration)},
 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2290, 1, 1, 0, 0, 0, 0, UTC), -290*365*24*Hour - 71*24*Hour},
 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), Duration(minDuration)},
+	{MinMonoTime, MaxMonoTime, minDuration},
+	{MaxMonoTime, MinMonoTime, maxDuration},
 }
 
 func TestSub(t *testing.T) {
@@ -1316,6 +1318,16 @@ func TestMarshalBinaryZeroTime(t *testing.T) {
 func TestZeroMonthString(t *testing.T) {
 	if got, want := Month(0).String(), "%!Month(0)"; got != want {
 		t.Errorf("zero month = %q; want %q", got, want)
+	}
+}
+
+// Issue 24692: Out of range weekday panics
+func TestWeekdayString(t *testing.T) {
+	if got, want := Weekday(Tuesday).String(), "Tuesday"; got != want {
+		t.Errorf("Tuesday weekday = %q; want %q", got, want)
+	}
+	if got, want := Weekday(14).String(), "%!Weekday(14)"; got != want {
+		t.Errorf("14th weekday = %q; want %q", got, want)
 	}
 }
 

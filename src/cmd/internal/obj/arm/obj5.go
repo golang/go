@@ -255,8 +255,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	c := ctxt5{ctxt: ctxt, cursym: cursym, newprog: newprog}
 
-	c.softfloat()
-
 	p := c.cursym.Func.Text
 	autoffset := int32(p.To.Offset)
 	if autoffset == -4 {
@@ -645,88 +643,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if p.From.Type == obj.TYPE_ADDR && p.From.Reg == REGSP && p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP {
 				p.Spadj = int32(-p.From.Offset)
 			}
-		}
-	}
-}
 
-func isfloatreg(a *obj.Addr) bool {
-	return a.Type == obj.TYPE_REG && REG_F0 <= a.Reg && a.Reg <= REG_F15
-}
-
-func (c *ctxt5) softfloat() {
-	if objabi.GOARM > 5 {
-		return
-	}
-
-	symsfloat := c.ctxt.Lookup("runtime._sfloat")
-
-	wasfloat := 0
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
-		if p.Pcond != nil {
-			p.Pcond.Mark |= LABEL
-		}
-	}
-	var next *obj.Prog
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
-		switch p.As {
-		case AMOVW:
-			if isfloatreg(&p.To) || isfloatreg(&p.From) {
-				goto soft
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOVW LR, Rd */
+				p.As = AMOVW
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGLINK
+			} else {
+				/* MOVW (RSP), Rd */
+				p.As = AMOVW
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
 			}
-			goto notsoft
-
-		case AMOVWD,
-			AMOVWF,
-			AMOVDW,
-			AMOVFW,
-			AMOVFD,
-			AMOVDF,
-			AMOVF,
-			AMOVD,
-			ACMPF,
-			ACMPD,
-			AADDF,
-			AADDD,
-			ASUBF,
-			ASUBD,
-			AMULF,
-			AMULD,
-			ADIVF,
-			ADIVD,
-			ASQRTF,
-			ASQRTD,
-			AABSF,
-			AABSD,
-			ANEGF,
-			ANEGD:
-			goto soft
-
-		default:
-			goto notsoft
 		}
-
-	soft:
-		if wasfloat == 0 || (p.Mark&LABEL != 0) {
-			next = c.newprog()
-			*next = *p
-
-			// BL runtime·_sfloat(SB)
-			*p = obj.Prog{}
-			p.Ctxt = c.ctxt
-			p.Link = next
-			p.As = ABL
-			p.To.Type = obj.TYPE_BRANCH
-			p.To.Sym = symsfloat
-			p.Pos = next.Pos
-
-			p = next
-			wasfloat = 1
-		}
-
-		continue
-
-	notsoft:
-		wasfloat = 0
 	}
 }
 
@@ -838,13 +768,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := obj.Appendp(spfix, c.newprog)
-	pcdata.Pos = c.cursym.Func.Text.Pos
-	pcdata.As = obj.APCDATA
-	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
-	pcdata.To.Type = obj.TYPE_CONST
-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
 
 	// MOVW	LR, R3
 	movw := obj.Appendp(pcdata, c.newprog)

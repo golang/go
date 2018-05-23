@@ -3731,6 +3731,10 @@ func TestTransportEventTraceTLSVerify(t *testing.T) {
 		t.Error("Unexpected request")
 	}))
 	defer ts.Close()
+	ts.Config.ErrorLog = log.New(funcWriter(func(p []byte) (int, error) {
+		logf("%s", p)
+		return len(p), nil
+	}), "", 0)
 
 	certpool := x509.NewCertPool()
 	certpool.AddCert(ts.Certificate())
@@ -4424,3 +4428,7 @@ func TestNoBodyOnChunked304Response(t *testing.T) {
 		t.Errorf("Unexpected body on 304 response")
 	}
 }
+
+type funcWriter func([]byte) (int, error)
+
+func (f funcWriter) Write(p []byte) (int, error) { return f(p) }

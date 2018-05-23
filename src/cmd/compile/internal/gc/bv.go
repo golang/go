@@ -117,9 +117,24 @@ func (bv bvec) Next(i int32) int32 {
 	return i
 }
 
+// Len returns the minimum number of bits required to represent bv.
+// The result is 0 if no bits are set in bv.
+func (bv bvec) Len() int32 {
+	for wi := len(bv.b) - 1; wi >= 0; wi-- {
+		if w := bv.b[wi]; w != 0 {
+			for i := wordBits - 1; i >= 0; i-- {
+				if w>>uint(i) != 0 {
+					return int32(wi)*wordBits + int32(i) + 1
+				}
+			}
+		}
+	}
+	return 0
+}
+
 func (bv bvec) IsEmpty() bool {
-	for i := int32(0); i < bv.n; i += wordBits {
-		if bv.b[i>>wordShift] != 0 {
+	for _, x := range bv.b {
+		if x != 0 {
 			return false
 		}
 	}
@@ -127,15 +142,18 @@ func (bv bvec) IsEmpty() bool {
 }
 
 func (bv bvec) Not() {
-	i := int32(0)
-	w := int32(0)
-	for ; i < bv.n; i, w = i+wordBits, w+1 {
-		bv.b[w] = ^bv.b[w]
+	for i, x := range bv.b {
+		bv.b[i] = ^x
 	}
 }
 
 // union
 func (dst bvec) Or(src1, src2 bvec) {
+	if len(src1.b) == 0 {
+		return
+	}
+	_, _ = dst.b[len(src1.b)-1], src2.b[len(src1.b)-1] // hoist bounds checks out of the loop
+
 	for i, x := range src1.b {
 		dst.b[i] = x | src2.b[i]
 	}
@@ -143,6 +161,11 @@ func (dst bvec) Or(src1, src2 bvec) {
 
 // intersection
 func (dst bvec) And(src1, src2 bvec) {
+	if len(src1.b) == 0 {
+		return
+	}
+	_, _ = dst.b[len(src1.b)-1], src2.b[len(src1.b)-1] // hoist bounds checks out of the loop
+
 	for i, x := range src1.b {
 		dst.b[i] = x & src2.b[i]
 	}
@@ -150,6 +173,11 @@ func (dst bvec) And(src1, src2 bvec) {
 
 // difference
 func (dst bvec) AndNot(src1, src2 bvec) {
+	if len(src1.b) == 0 {
+		return
+	}
+	_, _ = dst.b[len(src1.b)-1], src2.b[len(src1.b)-1] // hoist bounds checks out of the loop
+
 	for i, x := range src1.b {
 		dst.b[i] = x &^ src2.b[i]
 	}
@@ -172,4 +200,105 @@ func (bv bvec) Clear() {
 	for i := range bv.b {
 		bv.b[i] = 0
 	}
+}
+
+// FNV-1 hash function constants.
+const (
+	H0 = 2166136261
+	Hp = 16777619
+)
+
+func hashbitmap(h uint32, bv bvec) uint32 {
+	n := int((bv.n + 31) / 32)
+	for i := 0; i < n; i++ {
+		w := bv.b[i]
+		h = (h * Hp) ^ (w & 0xff)
+		h = (h * Hp) ^ ((w >> 8) & 0xff)
+		h = (h * Hp) ^ ((w >> 16) & 0xff)
+		h = (h * Hp) ^ ((w >> 24) & 0xff)
+	}
+
+	return h
+}
+
+// bvecSet is a set of bvecs, in initial insertion order.
+type bvecSet struct {
+	index []int  // hash -> uniq index. -1 indicates empty slot.
+	uniq  []bvec // unique bvecs, in insertion order
+}
+
+func newBvecSet(size int) bvecSet {
+	// bvecSet is a linear probing hash table.
+	// The hash table has 4n entries to keep the linear
+	// scan short.
+	index := make([]int, size*4)
+	for i := range index {
+		index[i] = -1
+	}
+	return bvecSet{index, nil}
+}
+
+func (m *bvecSet) grow() {
+	// Allocate new index.
+	n := len(m.index) * 2
+	if n == 0 {
+		n = 32
+	}
+	newIndex := make([]int, n)
+	for i := range newIndex {
+		newIndex[i] = -1
+	}
+
+	// Rehash into newIndex.
+	for i, bv := range m.uniq {
+		h := hashbitmap(H0, bv) % uint32(len(newIndex))
+		for {
+			j := newIndex[h]
+			if j < 0 {
+				newIndex[h] = i
+				break
+			}
+			h++
+			if h == uint32(len(newIndex)) {
+				h = 0
+			}
+		}
+	}
+	m.index = newIndex
+}
+
+// add adds bv to the set and returns its index in m.extractUniqe.
+// The caller must not modify bv after this.
+func (m *bvecSet) add(bv bvec) int {
+	if len(m.uniq)*4 >= len(m.index) {
+		m.grow()
+	}
+
+	index := m.index
+	h := hashbitmap(H0, bv) % uint32(len(index))
+	for {
+		j := index[h]
+		if j < 0 {
+			// New bvec.
+			index[h] = len(m.uniq)
+			m.uniq = append(m.uniq, bv)
+			return len(m.uniq) - 1
+		}
+		jlive := m.uniq[j]
+		if bv.Eq(jlive) {
+			// Existing bvec.
+			return j
+		}
+
+		h++
+		if h == uint32(len(index)) {
+			h = 0
+		}
+	}
+}
+
+// extractUniqe returns this slice of unique bit vectors in m, as
+// indexed by the result of bvecSet.add.
+func (m *bvecSet) extractUniqe() []bvec {
+	return m.uniq
 }

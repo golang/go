@@ -524,6 +524,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
 			}
+
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOVD LR, Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REG_LR
+			} else {
+				/* MOVD (RSP), Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+			}
 		}
 	}
 	if wasSplit {
@@ -666,13 +679,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := obj.Appendp(spfix, c.newprog)
-	pcdata.Pos = c.cursym.Func.Text.Pos
-	pcdata.As = obj.APCDATA
-	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
-	pcdata.To.Type = obj.TYPE_CONST
-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
 
 	// MOVD	LR, R5
 	p = obj.Appendp(pcdata, c.newprog)

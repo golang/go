@@ -481,10 +481,10 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueARM_OpConstNil_0(v)
-	case OpConvert:
-		return rewriteValueARM_OpConvert_0(v)
 	case OpCtz32:
 		return rewriteValueARM_OpCtz32_0(v)
+	case OpCtz32NonZero:
+		return rewriteValueARM_OpCtz32NonZero_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueARM_OpCvt32Fto32_0(v)
 	case OpCvt32Fto32U:
@@ -551,6 +551,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpGeq8_0(v)
 	case OpGeq8U:
 		return rewriteValueARM_OpGeq8U_0(v)
+	case OpGetCallerPC:
+		return rewriteValueARM_OpGetCallerPC_0(v)
 	case OpGetCallerSP:
 		return rewriteValueARM_OpGetCallerSP_0(v)
 	case OpGetClosurePtr:
@@ -17915,20 +17917,6 @@ func rewriteValueARM_OpConstNil_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueARM_OpConvert_0(v *Value) bool {
-	// match: (Convert x mem)
-	// cond:
-	// result: (MOVWconvert x mem)
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpARMMOVWconvert)
-		v.AddArg(x)
-		v.AddArg(mem)
-		return true
-	}
-}
 func rewriteValueARM_OpCtz32_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -17974,6 +17962,17 @@ func rewriteValueARM_OpCtz32_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueARM_OpCtz32NonZero_0(v *Value) bool {
+	// match: (Ctz32NonZero x)
+	// cond:
+	// result: (Ctz32 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz32)
+		v.AddArg(x)
+		return true
+	}
 }
 func rewriteValueARM_OpCvt32Fto32_0(v *Value) bool {
 	// match: (Cvt32Fto32 x)
@@ -18584,6 +18583,15 @@ func rewriteValueARM_OpGeq8U_0(v *Value) bool {
 		v2.AddArg(y)
 		v0.AddArg(v2)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGetCallerPC_0(v *Value) bool {
+	// match: (GetCallerPC)
+	// cond:
+	// result: (LoweredGetCallerPC)
+	for {
+		v.reset(OpARMLoweredGetCallerPC)
 		return true
 	}
 }

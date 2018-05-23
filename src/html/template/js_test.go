@@ -149,6 +149,7 @@ func TestJSValEscaper(t *testing.T) {
 		{"]]>", `"]]\u003e"`},
 		{"</script", `"\u003c/script"`},
 		{"\U0001D11E", "\"\U0001D11E\""}, // or "\uD834\uDD1E"
+		{nil, " null "},
 	}
 
 	for _, test := range tests {

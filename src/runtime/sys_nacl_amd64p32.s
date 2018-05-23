@@ -89,6 +89,22 @@ playback:
 	CMPL BX, $0
 	JNE playback
 
+	MOVQ runtime·lastfaketime(SB), CX
+	MOVL runtime·lastfaketimefd(SB), BX
+	CMPL DI, BX
+	JE samefd
+
+	// If the current fd doesn't match the fd of the previous write,
+	// ensure that the timestamp is strictly greater. That way, we can
+	// recover the original order even if we read the fds separately.
+	INCQ CX
+	MOVL DI, runtime·lastfaketimefd(SB)
+
+samefd:
+	CMPQ AX, CX
+	CMOVQLT CX, AX
+	MOVQ AX, runtime·lastfaketime(SB)
+
 	// Playback header: 0 0 P B <8-byte time> <4-byte data length>
 	MOVL $(('B'<<24) | ('P'<<16)), 0(SP)
 	BSWAPQ AX

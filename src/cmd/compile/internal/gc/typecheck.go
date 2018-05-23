@@ -32,21 +32,30 @@ var typecheckdefstack []*Node
 
 // resolve ONONAME to definition, if any.
 func resolve(n *Node) *Node {
-	if n != nil && n.Op == ONONAME && n.Sym != nil {
-		r := asNode(n.Sym.Def)
-		if r != nil {
-			if r.Op != OIOTA {
-				n = r
-			} else if len(typecheckdefstack) > 0 {
-				x := typecheckdefstack[len(typecheckdefstack)-1]
-				if x.Op == OLITERAL {
-					n = nodintconst(x.Iota())
-				}
-			}
-		}
+	if n == nil || n.Op != ONONAME {
+		return n
 	}
 
-	return n
+	if n.Sym.Pkg != localpkg {
+		expandDecl(n)
+		return n
+	}
+
+	r := asNode(n.Sym.Def)
+	if r == nil {
+		return n
+	}
+
+	if r.Op == OIOTA {
+		if i := len(typecheckdefstack); i > 0 {
+			if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
+				return nodintconst(x.Iota())
+			}
+		}
+		return n
+	}
+
+	return r
 }
 
 func typecheckslice(l []*Node, top int) {
@@ -307,7 +316,7 @@ func typecheck1(n *Node, top int) *Node {
 
 		if top&Easgn == 0 {
 			// not a write to the variable
-			if isblank(n) {
+			if n.isBlank() {
 				yyerror("cannot use _ as value")
 				n.Type = nil
 				return n
@@ -673,19 +682,19 @@ func typecheck1(n *Node, top int) *Node {
 			return n
 		}
 
-		if l.Type.IsSlice() && !isnil(l) && !isnil(r) {
+		if l.Type.IsSlice() && !l.isNil() && !r.isNil() {
 			yyerror("invalid operation: %v (slice can only be compared to nil)", n)
 			n.Type = nil
 			return n
 		}
 
-		if l.Type.IsMap() && !isnil(l) && !isnil(r) {
+		if l.Type.IsMap() && !l.isNil() && !r.isNil() {
 			yyerror("invalid operation: %v (map can only be compared to nil)", n)
 			n.Type = nil
 			return n
 		}
 
-		if l.Type.Etype == TFUNC && !isnil(l) && !isnil(r) {
+		if l.Type.Etype == TFUNC && !l.isNil() && !r.isNil() {
 			yyerror("invalid operation: %v (func can only be compared to nil)", n)
 			n.Type = nil
 			return n
@@ -1010,7 +1019,7 @@ func typecheck1(n *Node, top int) *Node {
 			if n.Right.Type != nil {
 				n.Right = assignconv(n.Right, t.Key(), "map index")
 			}
-			n.Type = t.Val()
+			n.Type = t.Elem()
 			n.Op = OINDEXMAP
 			n.ResetAux()
 		}
@@ -2001,6 +2010,9 @@ func typecheck1(n *Node, top int) *Node {
 			}
 		}
 		n.Right = typecheck(n.Right, Etop)
+		if n.Op == OFORUNTIL {
+			typecheckslice(n.List.Slice(), Etop)
+		}
 		typecheckslice(n.Nbody.Slice(), Etop)
 		decldepth--
 
@@ -2359,6 +2371,8 @@ func typecheckMethodExpr(n *Node) *Node {
 	if m == nil {
 		if lookdot1(n, s, t, ms, 1) != nil {
 			yyerror("%v undefined (cannot refer to unexported method %v)", n, s)
+		} else if _, ambig := dotpath(s, t, nil, false); ambig {
+			yyerror("%v undefined (ambiguous selector)", n) // method or field
 		} else {
 			yyerror("%v undefined (type %v has no method %v)", n, t, s)
 		}
@@ -3001,10 +3015,10 @@ func typecheckcomplit(n *Node) *Node {
 			}
 
 			r = l.Right
-			pushtype(r, t.Val())
+			pushtype(r, t.Elem())
 			r = typecheck(r, Erv)
-			r = defaultlit(r, t.Val())
-			l.Right = assignconv(r, t.Val(), "map value")
+			r = defaultlit(r, t.Elem())
+			l.Right = assignconv(r, t.Elem(), "map value")
 		}
 
 		n.Op = OMAPLIT
@@ -3032,7 +3046,7 @@ func typecheckcomplit(n *Node) *Node {
 
 				f := t.Field(i)
 				s := f.Sym
-				if s != nil && !exportname(s.Name) && s.Pkg != localpkg {
+				if s != nil && !types.IsExported(s.Name) && s.Pkg != localpkg {
 					yyerror("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
 				}
 				// No pushtype allowed here. Must name fields for that.
@@ -3073,7 +3087,7 @@ func typecheckcomplit(n *Node) *Node {
 					// package, because of import dot. Redirect to correct sym
 					// before we do the lookup.
 					s := key.Sym
-					if s.Pkg != localpkg && exportname(s.Name) {
+					if s.Pkg != localpkg && types.IsExported(s.Name) {
 						s1 := lookup(s.Name)
 						if s1.Origpkg == s.Pkg {
 							s = s1
@@ -3302,7 +3316,7 @@ func typecheckas(n *Node) {
 	if n.Left.Typecheck() == 0 {
 		n.Left = typecheck(n.Left, Erv|Easgn)
 	}
-	if !isblank(n.Left) {
+	if !n.Left.isBlank() {
 		checkwidth(n.Left.Type) // ensure width is calculated for backend
 	}
 }
@@ -3662,7 +3676,7 @@ func typecheckdef(n *Node) {
 			goto ret
 		}
 
-		if e.Type != nil && e.Op != OLITERAL || !isgoconst(e) {
+		if e.Type != nil && e.Op != OLITERAL || !e.isGoConst() {
 			if !e.Diag() {
 				yyerror("const initializer %v is not a constant", e)
 				e.SetDiag(true)

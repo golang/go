@@ -2533,9 +2533,9 @@ func TestFieldPkgPath(t *testing.T) {
 	}{})
 
 	type pkgpathTest struct {
-		index     []int
-		pkgPath   string
-		anonymous bool
+		index    []int
+		pkgPath  string
+		embedded bool
 	}
 
 	checkPkgPath := func(name string, s []pkgpathTest) {
@@ -2544,7 +2544,7 @@ func TestFieldPkgPath(t *testing.T) {
 			if got, want := f.PkgPath, test.pkgPath; got != want {
 				t.Errorf("%s: Field(%d).PkgPath = %q, want %q", name, test.index, got, want)
 			}
-			if got, want := f.Anonymous, test.anonymous; got != want {
+			if got, want := f.Anonymous, test.embedded; got != want {
 				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
 			}
 		}
@@ -4874,7 +4874,7 @@ func TestStructOfWithInterface(t *testing.T) {
 			})
 
 			// We currently do not correctly implement methods
-			// for anonymous fields other than the first.
+			// for embedded fields other than the first.
 			// Therefore, for now, we expect those methods
 			// to not exist.  See issues 15924 and 20824.
 			// When those issues are fixed, this test of panic

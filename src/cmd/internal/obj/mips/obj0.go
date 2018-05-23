@@ -536,6 +536,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
 			}
+
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOV LR, Rd */
+				p.As = mov
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGLINK
+			} else {
+				/* MOV (RSP), Rd */
+				p.As = mov
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+			}
 		}
 	}
 
@@ -777,6 +790,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.Mark |= LABEL
 	}
 
+	p = c.ctxt.EmitEntryLiveness(c.cursym, p, c.newprog)
+
 	// JAL	runtime.morestack(SB)
 	p = obj.Appendp(p, c.newprog)
 
@@ -878,21 +893,20 @@ func (c *ctxt0) sched(p0, pe *obj.Prog) {
 			t = sch[j:]
 			if t[0].comp {
 				if s[0].p.Mark&BRANCH != 0 {
-					goto no2
+					continue
 				}
 			}
 			if t[0].p.Mark&DELAY != 0 {
 				if -cap(s) >= -cap(se) || conflict(&t[0], &s[1]) {
-					goto no2
+					continue
 				}
 			}
 			for u := t[1:]; -cap(u) <= -cap(s); u = u[1:] {
 				if c.depend(&u[0], &t[0]) {
-					goto no2
+					continue
 				}
 			}
 			goto out2
-		no2:
 		}
 
 		if s[0].p.Mark&BRANCH != 0 {

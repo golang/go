@@ -66,7 +66,7 @@ func (ctxt *Link) computeTLSOffset() {
 	default:
 		log.Fatalf("unknown thread-local storage offset for %v", ctxt.HeadType)
 
-	case objabi.Hplan9, objabi.Hwindows:
+	case objabi.Hplan9, objabi.Hwindows, objabi.Hjs:
 		break
 
 		/*
@@ -113,24 +113,30 @@ func (ctxt *Link) computeTLSOffset() {
 
 		/*
 		 * OS X system constants - offset from 0(GS) to our TLS.
-		 * Explained in src/runtime/cgo/gcc_darwin_*.c.
 		 */
 	case objabi.Hdarwin:
 		switch ctxt.Arch.Family {
 		default:
 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
 
+			/*
+			 * For x86, Apple has reserved a slot in the TLS for Go. See issue 23617.
+			 * That slot is at offset 0x30 on amd64, and 0x18 on 386.
+			 * The slot will hold the G pointer.
+			 * These constants should match those in runtime/sys_darwin_{386,amd64}.s
+			 * and runtime/cgo/gcc_darwin_{386,amd64}.c.
+			 */
+		case sys.I386:
+			ctxt.Tlsoffset = 0x18
+
+		case sys.AMD64:
+			ctxt.Tlsoffset = 0x30
+
 		case sys.ARM:
 			ctxt.Tlsoffset = 0 // dummy value, not needed
 
-		case sys.AMD64:
-			ctxt.Tlsoffset = 0x8a0
-
 		case sys.ARM64:
 			ctxt.Tlsoffset = 0 // dummy value, not needed
-
-		case sys.I386:
-			ctxt.Tlsoffset = 0x468
 		}
 	}
 

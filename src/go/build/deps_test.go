@@ -64,7 +64,7 @@ var pkgDeps = map[string][]string{
 	"math/bits":     {},
 	"math/cmplx":    {"math"},
 	"math/rand":     {"L0", "math"},
-	"strconv":       {"L0", "unicode/utf8", "math"},
+	"strconv":       {"L0", "unicode/utf8", "math", "math/bits"},
 	"unicode/utf16": {},
 	"unicode/utf8":  {},
 
@@ -138,7 +138,8 @@ var pkgDeps = map[string][]string{
 	// End of linear dependency definitions.
 
 	// Operating system access.
-	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "unicode/utf16"},
+	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "syscall/js", "unicode/utf16"},
+	"syscall/js":                        {"unsafe"},
 	"internal/syscall/unix":             {"L0", "syscall"},
 	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
@@ -157,7 +158,7 @@ var pkgDeps = map[string][]string{
 
 	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
 	"internal/testlog": {"L0"},
-	"os":               {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows", "internal/testlog"},
+	"os":               {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
 	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
 	"io/ioutil":        {"L2", "os", "path/filepath", "time"},
 	"os/exec":          {"L2", "os", "context", "path/filepath", "syscall"},
@@ -355,7 +356,7 @@ var pkgDeps = map[string][]string{
 	// Random byte, number generation.
 	// This would be part of core crypto except that it imports
 	// math/big, which imports fmt.
-	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "internal/syscall/unix"},
+	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "syscall/js", "internal/syscall/unix"},
 
 	// Mathematical crypto: dependencies on fmt (L4) and math/big.
 	// We could avoid some of the fmt, but math/big imports fmt anyway.
@@ -399,9 +400,9 @@ var pkgDeps = map[string][]string{
 		"context",
 		"crypto/rand",
 		"crypto/tls",
+		"golang_org/x/net/http/httpguts",
 		"golang_org/x/net/http2/hpack",
 		"golang_org/x/net/idna",
-		"golang_org/x/net/lex/httplex",
 		"golang_org/x/text/unicode/norm",
 		"golang_org/x/text/width",
 		"internal/nettrace",
@@ -418,11 +419,14 @@ var pkgDeps = map[string][]string{
 	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
 	"net/http/cookiejar": {"L4", "NET", "net/http"},
 	"net/http/fcgi":      {"L4", "NET", "OS", "context", "net/http", "net/http/cgi"},
-	"net/http/httptest":  {"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal", "crypto/x509"},
-	"net/http/httputil":  {"L4", "NET", "OS", "context", "net/http", "net/http/internal"},
-	"net/http/pprof":     {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
-	"net/rpc":            {"L4", "NET", "encoding/gob", "html/template", "net/http"},
-	"net/rpc/jsonrpc":    {"L4", "NET", "encoding/json", "net/rpc"},
+	"net/http/httptest": {
+		"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal", "crypto/x509",
+		"golang_org/x/net/http/httpguts",
+	},
+	"net/http/httputil": {"L4", "NET", "OS", "context", "net/http", "net/http/internal"},
+	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
+	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
+	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
 }
 
 // isMacro reports whether p is a package dependency macro

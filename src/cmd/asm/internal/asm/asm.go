@@ -13,6 +13,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
@@ -35,6 +36,12 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 		case sys.ARM64:
 			if !arch.ARM64Suffix(prog, cond) {
 				p.errorf("unrecognized suffix .%q", cond)
+				return
+			}
+
+		case sys.AMD64, sys.I386:
+			if err := x86.ParseSuffix(prog, cond); err != nil {
+				p.errorf("%v", err)
 				return
 			}
 
@@ -343,6 +350,13 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		As:   op,
 	}
 	switch len(a) {
+	case 0:
+		if p.arch.Family == sys.Wasm {
+			target = &obj.Addr{Type: obj.TYPE_NONE}
+			break
+		}
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
 	case 1:
 		target = &a[0]
 	case 2:
@@ -445,6 +459,8 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 	case target.Type == obj.TYPE_CONST:
 		// JMP $4
 		prog.To = a[0]
+	case target.Type == obj.TYPE_NONE:
+		// JMP
 	default:
 		p.errorf("cannot assemble jump %+v", target)
 		return
@@ -486,7 +502,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 	case 0:
 		// Nothing to do.
 	case 1:
-		if p.arch.UnaryDst[op] || op == obj.ARET {
+		if p.arch.UnaryDst[op] || op == obj.ARET || op == obj.AGETCALLERPC {
 			// prog.From is no address.
 			prog.To = a[0]
 		} else {
@@ -568,6 +584,15 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 					return
 				}
 				prog.RegTo2 = a[2].Reg
+				break
+			}
+			if arch.IsARM64TBL(op) {
+				prog.From = a[0]
+				if a[1].Type != obj.TYPE_REGLIST {
+					p.errorf("%s: expected list; found %s", op, obj.Dconv(prog, &a[1]))
+				}
+				prog.SetFrom3(a[1])
+				prog.To = a[2]
 				break
 			}
 			prog.From = a[0]
@@ -719,6 +744,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				Type:   obj.TYPE_CONST,
 				Offset: int64(mask),
 			})
+			prog.To = a[4]
+			break
+		}
+		if p.arch.Family == sys.AMD64 {
+			prog.From = a[0]
+			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
 			prog.To = a[4]
 			break
 		}

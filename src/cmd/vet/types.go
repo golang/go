@@ -201,8 +201,8 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 		if str, ok := typ.Elem().Underlying().(*types.Struct); ok {
 			return f.matchStructArgType(t, str, arg, inProgress)
 		}
-		// The rest can print with %p as pointers, or as integers with %x etc.
-		return t&(argInt|argPointer) != 0
+		// Check whether the rest can print pointers.
+		return t&argPointer != 0
 
 	case *types.Struct:
 		return f.matchStructArgType(t, typ, arg, inProgress)
@@ -254,7 +254,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 			return t&(argInt|argRune) != 0
 
 		case types.UntypedNil:
-			return t&argPointer != 0 // TODO?
+			return false
 
 		case types.Invalid:
 			if *verbose {

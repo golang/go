@@ -58,6 +58,7 @@ func init() {
 	obj.RegisterRegister(obj.RBaseARM64, REG_SPECIAL+1024, rconv)
 	obj.RegisterOpcode(obj.ABaseARM64, Anames)
 	obj.RegisterRegisterList(obj.RegListARM64Lo, obj.RegListARM64Hi, rlconv)
+	obj.RegisterOpSuffix("arm64", obj.CConvARM)
 }
 
 func arrange(a int) string {
@@ -223,6 +224,9 @@ func rconv(r int) string {
 		} else {
 			return fmt.Sprintf("%s.SXTX", regname(r))
 		}
+	// bits 0-4 indicate register, bits 5-7 indicate shift amount, bit 8 equals to 0.
+	case REG_LSL <= r && r < (REG_LSL+1<<8):
+		return fmt.Sprintf("R%d<<%d", r&31, (r>>5)&7)
 	case REG_ARNG <= r && r < REG_ELEM:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
 	case REG_ELEM <= r && r < REG_ELEM_END:

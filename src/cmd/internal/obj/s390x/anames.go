@@ -677,6 +677,7 @@ var Anames = []string{
 	"VUPLB",
 	"VUPLHW",
 	"VUPLF",
+	"VMSLG",
 	"BYTE",
 	"WORD",
 	"DWORD",

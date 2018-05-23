@@ -11,6 +11,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/link/internal/sym"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -104,28 +105,18 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 }
 
 func loadcgo(ctxt *Link, file string, pkg string, p string) {
-	var next string
-	var q string
-	var lib string
-	var s *sym.Symbol
+	var directives [][]string
+	if err := json.NewDecoder(strings.NewReader(p)).Decode(&directives); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s: failed decoding cgo directives: %v\n", os.Args[0], file, err)
+		nerrors++
+		return
+	}
 
-	p0 := ""
-	for ; p != ""; p = next {
-		if i := strings.Index(p, "\n"); i >= 0 {
-			p, next = p[:i], p[i+1:]
-		} else {
-			next = ""
-		}
-
-		p0 = p // save for error message
-		f := tokenize(p)
-		if len(f) == 0 {
-			continue
-		}
-
-		if f[0] == "cgo_import_dynamic" {
+	for _, f := range directives {
+		switch f[0] {
+		case "cgo_import_dynamic":
 			if len(f) < 2 || len(f) > 4 {
-				goto err
+				break
 			}
 
 			local := f[1]
@@ -133,7 +124,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			if len(f) > 2 {
 				remote = f[2]
 			}
-			lib = ""
+			lib := ""
 			if len(f) > 3 {
 				lib = f[3]
 			}
@@ -158,11 +149,11 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 
 			local = expandpkg(local, pkg)
-			q = ""
+			q := ""
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s = ctxt.Syms.Lookup(local, 0)
+			s := ctxt.Syms.Lookup(local, 0)
 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
 				s.Dynimplib = lib
 				s.Extname = remote
@@ -172,34 +163,31 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				}
 				havedynamic = 1
 			}
-
 			continue
-		}
 
-		if f[0] == "cgo_import_static" {
+		case "cgo_import_static":
 			if len(f) != 2 {
-				goto err
+				break
 			}
 			local := f[1]
-			s = ctxt.Syms.Lookup(local, 0)
+
+			s := ctxt.Syms.Lookup(local, 0)
 			s.Type = sym.SHOSTOBJ
 			s.Size = 0
 			continue
-		}
 
-		if f[0] == "cgo_export_static" || f[0] == "cgo_export_dynamic" {
+		case "cgo_export_static", "cgo_export_dynamic":
 			if len(f) < 2 || len(f) > 3 {
-				goto err
+				break
 			}
 			local := f[1]
-			var remote string
+			remote := local
 			if len(f) > 2 {
 				remote = f[2]
-			} else {
-				remote = local
 			}
 			local = expandpkg(local, pkg)
-			s = ctxt.Syms.Lookup(local, 0)
+
+			s := ctxt.Syms.Lookup(local, 0)
 
 			switch ctxt.BuildMode {
 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
@@ -232,11 +220,10 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				s.Attr |= sym.AttrCgoExportDynamic
 			}
 			continue
-		}
 
-		if f[0] == "cgo_dynamic_linker" {
+		case "cgo_dynamic_linker":
 			if len(f) != 2 {
-				goto err
+				break
 			}
 
 			if *flagInterpreter == "" {
@@ -248,24 +235,19 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 
 				interpreter = f[1]
 			}
-
 			continue
-		}
 
-		if f[0] == "cgo_ldflag" {
+		case "cgo_ldflag":
 			if len(f) != 2 {
-				goto err
+				break
 			}
 			ldflag = append(ldflag, f[1])
 			continue
 		}
+
+		fmt.Fprintf(os.Stderr, "%s: %s: invalid cgo directive: %q\n", os.Args[0], file, f)
+		nerrors++
 	}
-
-	return
-
-err:
-	fmt.Fprintf(os.Stderr, "%s: %s: invalid dynimport line: %s\n", os.Args[0], file, p0)
-	nerrors++
 }
 
 var seenlib = make(map[string]bool)

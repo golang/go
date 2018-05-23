@@ -356,6 +356,7 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.Ellipsis:
+		f.walk(&n.Elt, ctxType, visit)
 	case *ast.BasicLit:
 	case *ast.FuncLit:
 		f.walk(n.Type, ctxType, visit)

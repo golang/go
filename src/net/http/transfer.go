@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"golang_org/x/net/lex/httplex"
+	"golang_org/x/net/http/httpguts"
 )
 
 // ErrLineTooLong is returned when reading request or response bodies
@@ -690,9 +690,9 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 	}
 
 	conv := header["Connection"]
-	hasClose := httplex.HeaderValuesContainsToken(conv, "close")
+	hasClose := httpguts.HeaderValuesContainsToken(conv, "close")
 	if major == 1 && minor == 0 {
-		return hasClose || !httplex.HeaderValuesContainsToken(conv, "keep-alive")
+		return hasClose || !httpguts.HeaderValuesContainsToken(conv, "keep-alive")
 	}
 
 	if hasClose && removeCloseHeader {

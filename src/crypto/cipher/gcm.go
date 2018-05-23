@@ -413,6 +413,7 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
 }
 
 func getUint64(data []byte) uint64 {
+	_ = data[7] // bounds check hint to compiler; see golang.org/issue/14808
 	r := uint64(data[0])<<56 |
 		uint64(data[1])<<48 |
 		uint64(data[2])<<40 |
@@ -425,6 +426,7 @@ func getUint64(data []byte) uint64 {
 }
 
 func putUint64(out []byte, v uint64) {
+	_ = out[7] // bounds check hint to compiler; see golang.org/issue/14808
 	out[0] = byte(v >> 56)
 	out[1] = byte(v >> 48)
 	out[2] = byte(v >> 40)

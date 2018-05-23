@@ -519,12 +519,11 @@ func init() {
 		// LoweredGetCallerSP returns the SP of the caller of the current function.
 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
 
-		// MOVWconvert converts between pointers and integers.
-		// We have a special op for this so as to not confuse GC
-		// (particularly stack maps).  It takes a memory arg so it
-		// gets correctly ordered with respect to GC safepoints.
-		// arg0=ptr/int arg1=mem, output=int/ptr
-		{name: "MOVWconvert", argLength: 2, reg: gp11, asm: "MOVW"},
+		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+		// I.e., if f calls g "calls" getcallerpc,
+		// the result should be the PC within f that g will return to.
+		// See runtime/stubs.go for a more detailed discussion.
+		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 
 		// Constant flag values. For any comparison, there are 5 possible
 		// outcomes: the three from the signed total order (<,==,>) and the

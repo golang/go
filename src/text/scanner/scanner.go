@@ -621,7 +621,7 @@ redo:
 		case '`':
 			if s.Mode&ScanRawStrings != 0 {
 				s.scanRawString()
-				tok = String
+				tok = RawString
 			}
 			ch = s.next()
 		default:

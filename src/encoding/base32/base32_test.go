@@ -530,6 +530,86 @@ func TestDecodeWithWrongPadding(t *testing.T) {
 	}
 }
 
+func TestBufferedDecodingSameError(t *testing.T) {
+	testcases := []struct {
+		prefix            string
+		chunkCombinations [][]string
+		expected          error
+	}{
+		// NBSWY3DPO5XXE3DE == helloworld
+		// Test with "ZZ" as extra input
+		{"helloworld", [][]string{
+			[]string{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZ"},
+			[]string{"NBSWY3DPO5XXE3DE", "ZZ"},
+			[]string{"NBSWY3DPO5XXE3DEZZ"},
+			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZ"},
+			[]string{"NBSWY3DPO5XXE3", "DEZZ"},
+		}, io.ErrUnexpectedEOF},
+
+		// Test with "ZZY" as extra input
+		{"helloworld", [][]string{
+			[]string{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZY"},
+			[]string{"NBSWY3DPO5XXE3DE", "ZZY"},
+			[]string{"NBSWY3DPO5XXE3DEZZY"},
+			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZY"},
+			[]string{"NBSWY3DPO5XXE3", "DEZZY"},
+		}, io.ErrUnexpectedEOF},
+
+		// Normal case, this is valid input
+		{"helloworld", [][]string{
+			[]string{"NBSW", "Y3DP", "O5XX", "E3DE"},
+			[]string{"NBSWY3DPO5XXE3DE"},
+			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "E"},
+			[]string{"NBSWY3DPO5XXE3", "DE"},
+		}, nil},
+
+		// MZXW6YTB = fooba
+		{"fooba", [][]string{
+			[]string{"MZXW6YTBZZ"},
+			[]string{"MZXW6YTBZ", "Z"},
+			[]string{"MZXW6YTB", "ZZ"},
+			[]string{"MZXW6YT", "BZZ"},
+			[]string{"MZXW6Y", "TBZZ"},
+			[]string{"MZXW6Y", "TB", "ZZ"},
+			[]string{"MZXW6", "YTBZZ"},
+			[]string{"MZXW6", "YTB", "ZZ"},
+			[]string{"MZXW6", "YT", "BZZ"},
+		}, io.ErrUnexpectedEOF},
+
+		// Normal case, this is valid input
+		{"fooba", [][]string{
+			[]string{"MZXW6YTB"},
+			[]string{"MZXW6YT", "B"},
+			[]string{"MZXW6Y", "TB"},
+			[]string{"MZXW6", "YTB"},
+			[]string{"MZXW6", "YT", "B"},
+			[]string{"MZXW", "6YTB"},
+			[]string{"MZXW", "6Y", "TB"},
+		}, nil},
+	}
+
+	for _, testcase := range testcases {
+		for _, chunks := range testcase.chunkCombinations {
+			pr, pw := io.Pipe()
+
+			// Write the encoded chunks into the pipe
+			go func() {
+				for _, chunk := range chunks {
+					pw.Write([]byte(chunk))
+				}
+				pw.Close()
+			}()
+
+			decoder := NewDecoder(StdEncoding, pr)
+			_, err := ioutil.ReadAll(decoder)
+
+			if err != testcase.expected {
+				t.Errorf("Expected %v, got %v; case %s %+v", testcase.expected, err, testcase.prefix, chunks)
+			}
+		}
+	}
+}
+
 func TestEncodedDecodedLen(t *testing.T) {
 	type test struct {
 		in      int
@@ -576,5 +656,96 @@ func TestEncodedDecodedLen(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestWithoutPaddingClose(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
+
+	for _, encoding := range encodings {
+		for _, testpair := range pairs {
+
+			var buf bytes.Buffer
+			encoder := NewEncoder(encoding, &buf)
+			encoder.Write([]byte(testpair.decoded))
+			encoder.Close()
+
+			expected := testpair.encoded
+			if encoding.padChar == NoPadding {
+				expected = strings.Replace(expected, "=", "", -1)
+			}
+
+			res := buf.String()
+
+			if res != expected {
+				t.Errorf("Expected %s got %s; padChar=%d", expected, res, encoding.padChar)
+			}
+		}
+	}
+}
+
+func TestDecodeReadAll(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
+
+	for _, pair := range pairs {
+		for encIndex, encoding := range encodings {
+			encoded := pair.encoded
+			if encoding.padChar == NoPadding {
+				encoded = strings.Replace(encoded, "=", "", -1)
+			}
+
+			decReader, err := ioutil.ReadAll(NewDecoder(encoding, strings.NewReader(encoded)))
+			if err != nil {
+				t.Errorf("NewDecoder error: %v", err)
+			}
+
+			if pair.decoded != string(decReader) {
+				t.Errorf("Expected %s got %s; Encoding %d", pair.decoded, decReader, encIndex)
+			}
+		}
+	}
+}
+
+func TestDecodeSmallBuffer(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
+
+	for bufferSize := 1; bufferSize < 200; bufferSize++ {
+		for _, pair := range pairs {
+			for encIndex, encoding := range encodings {
+				encoded := pair.encoded
+				if encoding.padChar == NoPadding {
+					encoded = strings.Replace(encoded, "=", "", -1)
+				}
+
+				decoder := NewDecoder(encoding, strings.NewReader(encoded))
+
+				var allRead []byte
+
+				for {
+					buf := make([]byte, bufferSize)
+					n, err := decoder.Read(buf)
+					allRead = append(allRead, buf[0:n]...)
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						t.Error(err)
+					}
+				}
+
+				if pair.decoded != string(allRead) {
+					t.Errorf("Expected %s got %s; Encoding %d; bufferSize %d", pair.decoded, allRead, encIndex, bufferSize)
+				}
+			}
+		}
 	}
 }

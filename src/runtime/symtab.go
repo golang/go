@@ -343,9 +343,11 @@ func (f *Func) funcInfo() funcInfo {
 const (
 	_PCDATA_StackMapIndex       = 0
 	_PCDATA_InlTreeIndex        = 1
+	_PCDATA_RegMapIndex         = 2
 	_FUNCDATA_ArgsPointerMaps   = 0
 	_FUNCDATA_LocalsPointerMaps = 1
 	_FUNCDATA_InlTree           = 2
+	_FUNCDATA_RegPointerMaps    = 3
 	_ArgsSizeUnknown            = -0x80000000
 )
 
@@ -358,6 +360,7 @@ type funcID uint32
 
 const (
 	funcID_normal funcID = iota // not a special function
+	funcID_runtime_main
 	funcID_goexit
 	funcID_jmpdefer
 	funcID_mcall
@@ -367,15 +370,13 @@ const (
 	funcID_asmcgocall
 	funcID_sigpanic
 	funcID_runfinq
-	funcID_bgsweep
-	funcID_forcegchelper
-	funcID_timerproc
 	funcID_gcBgMarkWorker
 	funcID_systemstack_switch
 	funcID_systemstack
 	funcID_cgocallback_gofunc
 	funcID_gogo
 	funcID_externalthreadhandler
+	funcID_debugCallV1
 )
 
 // moduledata records information about the layout of the executable
@@ -916,10 +917,13 @@ type stackmap struct {
 
 //go:nowritebarrier
 func stackmapdata(stkmap *stackmap, n int32) bitvector {
-	if n < 0 || n >= stkmap.n {
+	// Check this invariant only when stackDebug is on at all.
+	// The invariant is already checked by many of stackmapdata's callers,
+	// and disabling it by default allows stackmapdata to be inlined.
+	if stackDebug > 0 && (n < 0 || n >= stkmap.n) {
 		throw("stackmapdata: index out of range")
 	}
-	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+7)>>3))))}
+	return bitvector{stkmap.nbit, addb(&stkmap.bytedata[0], uintptr(n*((stkmap.nbit+7)>>3)))}
 }
 
 // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.

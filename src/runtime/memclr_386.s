@@ -8,7 +8,7 @@
 
 // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
 
-// void runtime·memclrNoHeapPointers(void*, uintptr)
+// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), DI
 	MOVL	n+4(FP), BX

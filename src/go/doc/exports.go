@@ -27,6 +27,34 @@ func filterIdentList(list []*ast.Ident) []*ast.Ident {
 
 var underscore = ast.NewIdent("_")
 
+func filterCompositeLit(lit *ast.CompositeLit, filter Filter, export bool) {
+	n := len(lit.Elts)
+	lit.Elts = filterExprList(lit.Elts, filter, export)
+	if len(lit.Elts) < n {
+		lit.Incomplete = true
+	}
+}
+
+func filterExprList(list []ast.Expr, filter Filter, export bool) []ast.Expr {
+	j := 0
+	for _, exp := range list {
+		switch x := exp.(type) {
+		case *ast.CompositeLit:
+			filterCompositeLit(x, filter, export)
+		case *ast.KeyValueExpr:
+			if x, ok := x.Key.(*ast.Ident); ok && !filter(x.Name) {
+				continue
+			}
+			if x, ok := x.Value.(*ast.CompositeLit); ok {
+				filterCompositeLit(x, filter, export)
+			}
+		}
+		list[j] = exp
+		j++
+	}
+	return list[0:j]
+}
+
 // updateIdentList replaces all unexported identifiers with underscore
 // and reports whether at least one exported name exists.
 func updateIdentList(list []*ast.Ident) (hasExported bool) {
@@ -171,6 +199,7 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
 		// always keep imports so we can collect them
 		return true
 	case *ast.ValueSpec:
+		s.Values = filterExprList(s.Values, ast.IsExported, true)
 		if len(s.Values) > 0 || s.Type == nil && len(s.Values) == 0 {
 			// If there are values declared on RHS, just replace the unexported
 			// identifiers on the LHS with underscore, so that it matches

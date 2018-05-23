@@ -9,8 +9,20 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"runtime/pprof"
 	"testing"
 )
+
+// TestDescriptions checks that the profile names under runtime/pprof package
+// have a key in the description map.
+func TestDescriptions(t *testing.T) {
+	for _, p := range pprof.Profiles() {
+		_, ok := profileDescriptions[p.Name()]
+		if ok != true {
+			t.Errorf("%s does not exist in profileDescriptions map\n", p.Name())
+		}
+	}
+}
 
 func TestHandlers(t *testing.T) {
 	testCases := []struct {

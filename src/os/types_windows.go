@@ -99,6 +99,14 @@ func newFileStatFromGetFileAttributesExOrFindFirstFile(path string, pathp *uint1
 			FileSizeLow:    fa.FileSizeLow,
 		}, nil
 	}
+	// GetFileAttributesEx returns ERROR_INVALID_NAME if called
+	// for invalid file name like "*.txt". Do not attempt to call
+	// FindFirstFile with "*.txt", because FindFirstFile will
+	// succeed. So just return ERROR_INVALID_NAME instead.
+	// see https://golang.org/issue/24999 for details.
+	if errno, _ := err.(syscall.Errno); errno == windows.ERROR_INVALID_NAME {
+		return nil, &PathError{"GetFileAttributesEx", path, err}
+	}
 	// We might have symlink here. But some directories also have
 	// FileAttributes FILE_ATTRIBUTE_REPARSE_POINT bit set.
 	// For example, OneDrive directory is like that

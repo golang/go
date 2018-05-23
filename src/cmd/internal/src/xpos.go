@@ -30,6 +30,11 @@ func (p XPos) Before(q XPos) bool {
 	return n < m || n == m && p.lico < q.lico
 }
 
+// SameFile reports whether p and q are positions in the same file.
+func (p XPos) SameFile(q XPos) bool {
+	return p.index == q.index
+}
+
 // After reports whether the position p comes after q in the source.
 // For positions with different bases, ordering is by base index.
 func (p XPos) After(q XPos) bool {
@@ -52,6 +57,12 @@ func (p XPos) WithDefaultStmt() XPos {
 // WithIsStmt returns the same location to be marked with DWARF is_stmt=1
 func (p XPos) WithIsStmt() XPos {
 	p.lico = p.lico.withIsStmt()
+	return p
+}
+
+// WithXlogue returns the same location but marked with DWARF function prologue/epilogue
+func (p XPos) WithXlogue(x PosXlogue) XPos {
+	p.lico = p.lico.withXlogue(x)
 	return p
 }
 

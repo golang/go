@@ -96,10 +96,6 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 // so Encode is not appropriate for use on individual blocks
 // of a large data stream. Use NewEncoder() instead.
 func (enc *Encoding) Encode(dst, src []byte) {
-	if len(src) == 0 {
-		return
-	}
-
 	for len(src) > 0 {
 		var b [8]byte
 
@@ -244,8 +240,9 @@ func (e *encoder) Close() error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
 		e.enc.Encode(e.out[0:], e.buf[0:e.nbuf])
+		encodedLen := e.enc.EncodedLen(e.nbuf)
 		e.nbuf = 0
-		_, e.err = e.w.Write(e.out[0:8])
+		_, e.err = e.w.Write(e.out[0:encodedLen])
 	}
 	return e.err
 }
@@ -403,13 +400,20 @@ type decoder struct {
 	outbuf [1024 / 8 * 5]byte
 }
 
-func readEncodedData(r io.Reader, buf []byte, min int) (n int, err error) {
+func readEncodedData(r io.Reader, buf []byte, min int, expectsPadding bool) (n int, err error) {
 	for n < min && err == nil {
 		var nn int
 		nn, err = r.Read(buf[n:])
 		n += nn
 	}
+	// data was read, less than min bytes could be read
 	if n < min && n > 0 && err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+	// no data was read, the buffer already contains some data
+	// when padding is disabled this is not an error, as the message can be of
+	// any length
+	if expectsPadding && min < 8 && n == 0 && err == io.EOF {
 		err = io.ErrUnexpectedEOF
 	}
 	return
@@ -439,15 +443,32 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		nn = len(d.buf)
 	}
 
-	nn, d.err = readEncodedData(d.r, d.buf[d.nbuf:nn], 8-d.nbuf)
+	// Minimum amount of bytes that needs to be read each cycle
+	var min int
+	var expectsPadding bool
+	if d.enc.padChar == NoPadding {
+		min = 1
+		expectsPadding = false
+	} else {
+		min = 8 - d.nbuf
+		expectsPadding = true
+	}
+
+	nn, d.err = readEncodedData(d.r, d.buf[d.nbuf:nn], min, expectsPadding)
 	d.nbuf += nn
-	if d.nbuf < 8 {
+	if d.nbuf < min {
 		return 0, d.err
 	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.
-	nr := d.nbuf / 8 * 8
-	nw := d.nbuf / 8 * 5
+	var nr int
+	if d.enc.padChar == NoPadding {
+		nr = d.nbuf
+	} else {
+		nr = d.nbuf / 8 * 8
+	}
+	nw := d.enc.DecodedLen(d.nbuf)
+
 	if nw > len(p) {
 		nw, d.end, err = d.enc.decode(d.outbuf[0:], d.buf[0:nr])
 		d.out = d.outbuf[0:nw]

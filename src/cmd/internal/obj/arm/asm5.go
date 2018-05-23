@@ -668,12 +668,11 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	op = p
 	p = p.Link
-	var i int
 	var m int
 	var o *Optab
 	for ; p != nil || c.blitrl != nil; op, p = p, p.Link {
 		if p == nil {
-			if c.checkpool(op, 0) {
+			if c.checkpool(op, pc) {
 				p = op
 				continue
 			}
@@ -700,8 +699,12 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		// must check literal pool here in case p generates many instructions
 		if c.blitrl != nil {
-			i = m
-			if c.checkpool(op, i) {
+			// Emit the constant pool just before p if p
+			// would push us over the immediate size limit.
+			if c.checkpool(op, pc+int32(m)) {
+				// Back up to the instruction just
+				// before the pool and continue with
+				// the first instruction of the pool.
 				p = op
 				continue
 			}
@@ -872,7 +875,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			pc += 4
 		}
 
-		for i = 0; i < m/4; i++ {
+		for i := 0; i < m/4; i++ {
 			v = int(out[i])
 			bp[0] = byte(v)
 			bp = bp[1:]
@@ -888,14 +891,26 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 }
 
-/*
- * when the first reference to the literal pool threatens
- * to go out of range of a 12-bit PC-relative offset,
- * drop the pool now, and branch round it.
- * this happens only in extended basic blocks that exceed 4k.
- */
-func (c *ctxt5) checkpool(p *obj.Prog, sz int) bool {
-	if c.pool.size >= 0xff0 || immaddr(int32((p.Pc+int64(sz)+4)+4+int64(12+c.pool.size)-int64(c.pool.start+8))) == 0 {
+// checkpool flushes the literal pool when the first reference to
+// it threatens to go out of range of a 12-bit PC-relative offset.
+//
+// nextpc is the tentative next PC at which the pool could be emitted.
+// checkpool should be called *before* emitting the instruction that
+// would cause the PC to reach nextpc.
+// If nextpc is too far from the first pool reference, checkpool will
+// flush the pool immediately after p.
+// The caller should resume processing a p.Link.
+func (c *ctxt5) checkpool(p *obj.Prog, nextpc int32) bool {
+	poolLast := nextpc
+	poolLast += 4                      // the AB instruction to jump around the pool
+	poolLast += 12                     // the maximum nacl alignment padding for ADATABUNDLE
+	poolLast += int32(c.pool.size) - 4 // the offset of the last pool entry
+
+	refPC := int32(c.pool.start) // PC of the first pool reference
+
+	v := poolLast - refPC - 8 // 12-bit PC-relative offset (see omvl)
+
+	if c.pool.size >= 0xff0 || immaddr(v) == 0 {
 		return c.flushpool(p, 1, 0)
 	} else if p.Link == nil {
 		return c.flushpool(p, 2, 0)
@@ -1016,6 +1031,7 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
 	c.elitrl = q
 	c.pool.size += 4
 
+	// Store the link to the pool entry in Pcond.
 	p.Pcond = q
 }
 
@@ -2029,16 +2045,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		if r == 0 {
 			r = rt
-		}
-		if rt == r {
-			r = rf
-			rf = rt
-		}
-
-		if false {
-			if rt == r || rf == REGPC&15 || r == REGPC&15 || rt == REGPC&15 {
-				c.ctxt.Diag("%v: bad registers in MUL", p)
-			}
 		}
 
 		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16

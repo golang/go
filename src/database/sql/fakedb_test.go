@@ -296,10 +296,10 @@ func (db *fakeDB) createTable(name string, columnNames, columnTypes []string) er
 		db.tables = make(map[string]*table)
 	}
 	if _, exist := db.tables[name]; exist {
-		return fmt.Errorf("table %q already exists", name)
+		return fmt.Errorf("fakedb: table %q already exists", name)
 	}
 	if len(columnNames) != len(columnTypes) {
-		return fmt.Errorf("create table of %q len(names) != len(types): %d vs %d",
+		return fmt.Errorf("fakedb: create table of %q len(names) != len(types): %d vs %d",
 			name, len(columnNames), len(columnTypes))
 	}
 	db.tables[name] = &table{colname: columnNames, coltype: columnTypes}
@@ -365,7 +365,7 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
 		return nil, driver.ErrBadConn
 	}
 	if c.currTx != nil {
-		return nil, errors.New("already in a transaction")
+		return nil, errors.New("fakedb: already in a transaction")
 	}
 	c.touchMem()
 	c.currTx = &fakeTx{c: c}
@@ -419,13 +419,13 @@ func (c *fakeConn) Close() (err error) {
 	}()
 	c.touchMem()
 	if c.currTx != nil {
-		return errors.New("can't close fakeConn; in a Transaction")
+		return errors.New("fakedb: can't close fakeConn; in a Transaction")
 	}
 	if c.db == nil {
-		return errors.New("can't close fakeConn; already closed")
+		return errors.New("fakedb: can't close fakeConn; already closed")
 	}
 	if c.stmtsMade > c.stmtsClosed {
-		return errors.New("can't close; dangling statement(s)")
+		return errors.New("fakedb: can't close; dangling statement(s)")
 	}
 	c.db = nil
 	return nil
@@ -437,7 +437,7 @@ func checkSubsetTypes(allowAny bool, args []driver.NamedValue) error {
 		case int64, float64, bool, nil, []byte, string, time.Time:
 		default:
 			if !allowAny {
-				return fmt.Errorf("fakedb_test: invalid argument ordinal %[1]d: %[2]v, type %[2]T", arg.Ordinal, arg.Value)
+				return fmt.Errorf("fakedb: invalid argument ordinal %[1]d: %[2]v, type %[2]T", arg.Ordinal, arg.Value)
 			}
 		}
 	}
@@ -729,7 +729,7 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 		return nil, driver.ErrBadConn
 	}
 	if s.c.isDirtyAndMark() {
-		return nil, errors.New("session is dirty")
+		return nil, errors.New("fakedb: session is dirty")
 	}
 
 	err := checkSubsetTypes(s.c.db.allowAny, args)
@@ -765,8 +765,7 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 		// Used for some of the concurrent tests.
 		return s.execInsert(args, false)
 	}
-	fmt.Printf("EXEC statement, cmd=%q: %#v\n", s.cmd, s)
-	return nil, fmt.Errorf("unimplemented statement Exec command type of %q", s.cmd)
+	return nil, fmt.Errorf("fakedb: unimplemented statement Exec command type of %q", s.cmd)
 }
 
 // When doInsert is true, add the row to the table.
@@ -844,7 +843,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 		return nil, driver.ErrBadConn
 	}
 	if s.c.isDirtyAndMark() {
-		return nil, errors.New("session is dirty")
+		return nil, errors.New("fakedb: session is dirty")
 	}
 
 	err := checkSubsetTypes(s.c.db.allowAny, args)
@@ -900,7 +899,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				idx := t.columnIndex(wcol.Column)
 				if idx == -1 {
 					t.mu.Unlock()
-					return nil, fmt.Errorf("db: invalid where clause column %q", wcol)
+					return nil, fmt.Errorf("fakedb: invalid where clause column %q", wcol)
 				}
 				tcol := trow.cols[idx]
 				if bs, ok := tcol.([]byte); ok {

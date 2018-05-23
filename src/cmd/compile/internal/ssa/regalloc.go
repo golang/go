@@ -165,6 +165,21 @@ func (m regMask) String() string {
 	return s
 }
 
+func (s *regAllocState) RegMaskString(m regMask) string {
+	str := ""
+	for r := register(0); m != 0; r++ {
+		if m>>r&1 == 0 {
+			continue
+		}
+		m &^= regMask(1) << r
+		if str != "" {
+			str += " "
+		}
+		str += s.registers[r].String()
+	}
+	return str
+}
+
 // countRegs returns the number of set bits in the register mask.
 func countRegs(r regMask) int {
 	n := 0
@@ -360,7 +375,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	mask &= s.allocatable
 	mask &^= s.nospill
 	if mask == 0 {
-		s.f.Fatalf("no register available for %s", v)
+		s.f.Fatalf("no register available for %s", v.LongString())
 	}
 
 	// Pick an unused register if one is available.
@@ -574,7 +589,7 @@ func (s *regAllocState) init(f *Func) {
 			// in the rewrite rules so we always have a free register
 			// available for global load/stores. See gen/386.rules (search for Flag_shared).
 		case "s390x":
-			// nothing to do, R10 & R11 already reserved
+			s.allocatable &^= 1 << 11 // R11
 		default:
 			s.f.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
 		}
@@ -714,6 +729,18 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	return m & s.allocatable
 }
 
+// regspec returns the regInfo for operation op.
+func (s *regAllocState) regspec(op Op) regInfo {
+	if op == OpConvert {
+		// OpConvert is a generic op, so it doesn't have a
+		// register set in the static table. It can use any
+		// allocatable integer register.
+		m := s.allocatable & s.f.Config.gpRegMask
+		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
+	}
+	return opcodeTable[op].reg
+}
+
 func (s *regAllocState) regalloc(f *Func) {
 	regValLiveSet := f.newSparseSet(f.NumValues()) // set of values that may be live in register
 	defer f.retSparseSet(regValLiveSet)
@@ -781,7 +808,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 		}
 		if s.f.pass.debug > regDebug {
-			fmt.Printf("uses for %s:%s\n", s.f.Name, b)
+			fmt.Printf("use distances for %s\n", b)
 			for i := range s.values {
 				vi := &s.values[i]
 				u := vi.uses
@@ -1035,8 +1062,9 @@ func (s *regAllocState) regalloc(f *Func) {
 		for i := len(oldSched) - 1; i >= 0; i-- {
 			v := oldSched[i]
 			prefs := desired.remove(v.ID)
-			desired.clobber(opcodeTable[v.Op].reg.clobbers)
-			for _, j := range opcodeTable[v.Op].reg.inputs {
+			regspec := s.regspec(v.Op)
+			desired.clobber(regspec.clobbers)
+			for _, j := range regspec.inputs {
 				if countRegs(j.regs) != 1 {
 					continue
 				}
@@ -1064,7 +1092,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("  processing %s\n", v.LongString())
 			}
-			regspec := opcodeTable[v.Op].reg
+			regspec := s.regspec(v.Op)
 			if v.Op == OpPhi {
 				f.Fatalf("phi %s not at start of block", v)
 			}
@@ -1978,7 +2006,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
 		}
 		if dstReg {
-			x = v.copyIntoNoXPos(e.p)
+			x = v.copyInto(e.p)
 		} else {
 			// Rematerialize into stack slot. Need a free
 			// register to accomplish this.
@@ -2274,10 +2302,11 @@ func (s *regAllocState) computeLive() {
 					// desired registers back though phi nodes.
 					continue
 				}
+				regspec := s.regspec(v.Op)
 				// Cancel desired registers if they get clobbered.
-				desired.clobber(opcodeTable[v.Op].reg.clobbers)
+				desired.clobber(regspec.clobbers)
 				// Update desired registers if there are any fixed register inputs.
-				for _, j := range opcodeTable[v.Op].reg.inputs {
+				for _, j := range regspec.inputs {
 					if countRegs(j.regs) != 1 {
 						continue
 					}
@@ -2386,7 +2415,9 @@ func (s *regAllocState) computeLive() {
 					fmt.Printf("]")
 				}
 			}
-			fmt.Printf(" avoid=%x", int64(s.desired[b.ID].avoid))
+			if avoid := s.desired[b.ID].avoid; avoid != 0 {
+				fmt.Printf(" avoid=%v", s.RegMaskString(avoid))
+			}
 			fmt.Println()
 		}
 	}

@@ -116,6 +116,9 @@
 
 (Sqrt x) -> (SQRTD x)
 
+// TODO: optimize this case?
+(Ctz32NonZero x) -> (Ctz32 x)
+
 // count trailing zero
 // 32 - CLZ(x&-x - 1)
 (Ctz32 <t> x) -> (SUB (MOVWconst [32]) (CLZ <t> (SUBconst <t> [1] (AND <t> x (NEG <t> x)))))
@@ -399,7 +402,7 @@
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
-(Convert x mem) -> (MOVWconvert x mem)
+(GetCallerPC) -> (LoweredGetCallerPC)
 
 (If cond yes no) -> (NE cond yes no)
 

@@ -588,9 +588,12 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	MOVW	g_m(g), R8
+	MOVW	m_gsignal(R8), R3
+	CMP	R3, g
+	BEQ	noswitch
 	MOVW	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	g0
+	BEQ	noswitch
 	BL	gosave<>(SB)
 	MOVW	R0, R5
 	MOVW	R3, R0
@@ -599,7 +602,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	MOVW	(g_sched+gobuf_sp)(g), R13
 
 	// Now on a scheduling stack (a pthread-created stack).
-g0:
+noswitch:
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
 	MOVW	R4, 20(R13) // save old g
@@ -758,11 +761,6 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·save_g(SB)
 
 	MOVW	g, R0
-	RET
-
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	0(R13), R0		// LR saved by caller
-	MOVW	R0, ret+0(FP)
 	RET
 
 TEXT runtime·emptyfunc(SB),0,$0-0

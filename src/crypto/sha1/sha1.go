@@ -150,10 +150,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d0 *digest) Sum(in []byte) []byte {
-	// Make a copy of d0 so that caller can keep writing and summing.
-	d := *d0
-	hash := d.checkSum()
+func (d *digest) Sum(in []byte) []byte {
+	// Make a copy of d so that caller can keep writing and summing.
+	d0 := *d
+	hash := d0.checkSum()
 	return append(in, hash[:]...)
 }
 
@@ -189,9 +189,9 @@ func (d *digest) checkSum() [Size]byte {
 }
 
 // ConstantTimeSum computes the same result of Sum() but in constant time
-func (d0 *digest) ConstantTimeSum(in []byte) []byte {
-	d := *d0
-	hash := d.constSum()
+func (d *digest) ConstantTimeSum(in []byte) []byte {
+	d0 := *d
+	hash := d0.constSum()
 	return append(in, hash[:]...)
 }
 

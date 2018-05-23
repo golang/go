@@ -94,6 +94,42 @@ TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-12
 	MOVL	AX, ret+8(FP)
 	RET
 
+TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-20
+	// no XADDQ so use CMPXCHG8B loop
+	MOVL	ptr+0(FP), BP
+	TESTL	$7, BP
+	JZ	2(PC)
+	MOVL	0, AX // crash when unaligned
+	// DI:SI = delta
+	MOVL	delta_lo+4(FP), SI
+	MOVL	delta_hi+8(FP), DI
+	// DX:AX = *addr
+	MOVL	0(BP), AX
+	MOVL	4(BP), DX
+addloop:
+	// CX:BX = DX:AX (*addr) + DI:SI (delta)
+	MOVL	AX, BX
+	MOVL	DX, CX
+	ADDL	SI, BX
+	ADCL	DI, CX
+
+	// if *addr == DX:AX {
+	//	*addr = CX:BX
+	// } else {
+	//	DX:AX = *addr
+	// }
+	// all in one instruction
+	LOCK
+	CMPXCHG8B	0(BP)
+
+	JNZ	addloop
+
+	// success
+	// return CX:BX
+	MOVL	BX, ret_lo+12(FP)
+	MOVL	CX, ret_hi+16(FP)
+	RET
+
 TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	new+4(FP), AX
@@ -104,6 +140,33 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-12
 TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-12
 	JMP	runtime∕internal∕atomic·Xchg(SB)
 
+TEXT  runtime∕internal∕atomic·Xchg64(SB),NOSPLIT,$0-20
+	// no XCHGQ so use CMPXCHG8B loop
+	MOVL	ptr+0(FP), BP
+	TESTL	$7, BP
+	JZ	2(PC)
+	MOVL	0, AX // crash when unaligned
+	// CX:BX = new
+	MOVL	new_lo+4(FP), BX
+	MOVL	new_hi+8(FP), CX
+	// DX:AX = *addr
+	MOVL	0(BP), AX
+	MOVL	4(BP), DX
+swaploop:
+	// if *addr == DX:AX
+	//	*addr = CX:BX
+	// else
+	//	DX:AX = *addr
+	// all in one instruction
+	LOCK
+	CMPXCHG8B	0(BP)
+	JNZ	swaploop
+
+	// success
+	// return DX:AX
+	MOVL	AX, ret_lo+12(FP)
+	MOVL	DX, ret_hi+16(FP)
+	RET
 
 TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), BX
@@ -123,9 +186,8 @@ TEXT runtime∕internal∕atomic·Load64(SB), NOSPLIT, $0-12
 	TESTL	$7, AX
 	JZ	2(PC)
 	MOVL	0, AX // crash with nil ptr deref
-	LEAL	ret_lo+4(FP), BX
 	MOVQ	(AX), M0
-	MOVQ	M0, (BX)
+	MOVQ	M0, ret+4(FP)
 	EMMS
 	RET
 
@@ -141,7 +203,7 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-12
 	EMMS
 	// This is essentially a no-op, but it provides required memory fencing.
 	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
-	MOVL	$0, AX
+	XORL	AX, AX
 	LOCK
 	XADDL	AX, (SP)
 	RET

@@ -93,8 +93,10 @@ func TestUnaligned64(t *testing.T) {
 	}
 
 	x := make([]uint32, 4)
-	up64 := (*uint64)(unsafe.Pointer(&x[1])) // misaligned
-	p64 := (*int64)(unsafe.Pointer(&x[1]))   // misaligned
+	u := unsafe.Pointer(uintptr(unsafe.Pointer(&x[0])) | 4) // force alignment to 4
+
+	up64 := (*uint64)(u) // misaligned
+	p64 := (*int64)(u)   // misaligned
 
 	shouldPanic(t, "Load64", func() { atomic.Load64(up64) })
 	shouldPanic(t, "Loadint64", func() { atomic.Loadint64(p64) })

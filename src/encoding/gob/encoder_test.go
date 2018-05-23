@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -1130,6 +1131,9 @@ func TestBadData(t *testing.T) {
 
 // TestHugeWriteFails tests that enormous messages trigger an error.
 func TestHugeWriteFails(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("out of memory on wasm")
+	}
 	if testing.Short() {
 		// Requires allocating a monster, so don't do this from all.bash.
 		t.Skip("skipping huge allocation in short mode")

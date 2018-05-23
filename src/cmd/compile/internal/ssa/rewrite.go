@@ -7,15 +7,19 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"fmt"
 	"io"
 	"math"
+	"math/bits"
 	"os"
 	"path/filepath"
 )
 
 func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	// repeat rewrites until we find no more rewrites
+	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+	pendingLines.clear()
 	for {
 		change := false
 		for _, b := range f.Blocks {
@@ -27,7 +31,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 			if rb(b) {
 				change = true
 			}
-			for _, v := range b.Values {
+			for j, v := range b.Values {
 				change = phielimValue(v) || change
 
 				// Eliminate copy inputs.
@@ -41,7 +45,27 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 					if a.Op != OpCopy {
 						continue
 					}
-					v.SetArg(i, copySource(a))
+					aa := copySource(a)
+					v.SetArg(i, aa)
+					// If a, a copy, has a line boundary indicator, attempt to find a new value
+					// to hold it.  The first candidate is the value that will replace a (aa),
+					// if it shares the same block and line and is eligible.
+					// The second option is v, which has a as an input.  Because aa is earlier in
+					// the data flow, it is the better choice.
+					if a.Pos.IsStmt() == src.PosIsStmt {
+						if aa.Block == a.Block && aa.Pos.Line() == a.Pos.Line() && aa.Pos.IsStmt() != src.PosNotStmt {
+							aa.Pos = aa.Pos.WithIsStmt()
+						} else if v.Block == a.Block && v.Pos.Line() == a.Pos.Line() && v.Pos.IsStmt() != src.PosNotStmt {
+							v.Pos = v.Pos.WithIsStmt()
+						} else {
+							// Record the lost line and look for a new home after all rewrites are complete.
+							// TODO: it's possible (in FOR loops, in particular) for statement boundaries for the same
+							// line to appear in more than one block, but only one block is stored, so if both end
+							// up here, then one will be lost.
+							pendingLines.set(a.Pos.Line(), int32(a.Block.ID))
+						}
+						a.Pos = a.Pos.WithNotStmt()
+					}
 					change = true
 					for a.Uses == 0 {
 						b := a.Args[0]
@@ -53,6 +77,13 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 				// apply rewrite function
 				if rv(v) {
 					change = true
+					// If value changed to a poor choice for a statement boundary, move the boundary
+					if v.Pos.IsStmt() == src.PosIsStmt {
+						if k := nextGoodStatementIndex(v, j, b); k != j {
+							v.Pos = v.Pos.WithNotStmt()
+							b.Values[k].Pos = b.Values[k].Pos.WithIsStmt()
+						}
+					}
 				}
 			}
 		}
@@ -64,14 +95,26 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	for _, b := range f.Blocks {
 		j := 0
 		for i, v := range b.Values {
+			vl := v.Pos.Line()
 			if v.Op == OpInvalid {
+				if v.Pos.IsStmt() == src.PosIsStmt {
+					pendingLines.set(vl, int32(b.ID))
+				}
 				f.freeValue(v)
 				continue
+			}
+			if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.get(vl) == int32(b.ID) {
+				pendingLines.remove(vl)
+				v.Pos = v.Pos.WithIsStmt()
 			}
 			if i != j {
 				b.Values[j] = v
 			}
 			j++
+		}
+		if pendingLines.get(b.Pos.Line()) == int32(b.ID) {
+			b.Pos = b.Pos.WithIsStmt()
+			pendingLines.remove(b.Pos.Line())
 		}
 		if j != len(b.Values) {
 			tail := b.Values[j:]
@@ -280,17 +323,16 @@ func isSameSym(sym interface{}, name string) bool {
 
 // nlz returns the number of leading zeros.
 func nlz(x int64) int64 {
-	// log2(0) == 1, so nlz(0) == 64
-	return 63 - log2(x)
+	return int64(bits.LeadingZeros64(uint64(x)))
 }
 
 // ntz returns the number of trailing zeros.
 func ntz(x int64) int64 {
-	return 64 - nlz(^x&(x-1))
+	return int64(bits.TrailingZeros64(uint64(x)))
 }
 
 func oneBit(x int64) bool {
-	return nlz(x)+ntz(x) == 63
+	return bits.OnesCount64(uint64(x)) == 1
 }
 
 // nlo returns the number of leading ones.
@@ -305,34 +347,14 @@ func nto(x int64) int64 {
 
 // log2 returns logarithm in base 2 of uint64(n), with log2(0) = -1.
 // Rounds down.
-func log2(n int64) (l int64) {
-	l = -1
-	x := uint64(n)
-	for ; x >= 0x8000; x >>= 16 {
-		l += 16
-	}
-	if x >= 0x80 {
-		x >>= 8
-		l += 8
-	}
-	if x >= 0x8 {
-		x >>= 4
-		l += 4
-	}
-	if x >= 0x2 {
-		x >>= 2
-		l += 2
-	}
-	if x >= 0x1 {
-		l++
-	}
-	return
+func log2(n int64) int64 {
+	return int64(bits.Len64(uint64(n))) - 1
 }
 
 // log2uint32 returns logarithm in base 2 of uint32(n), with log2(0) = -1.
 // Rounds down.
-func log2uint32(n int64) (l int64) {
-	return log2(int64(uint32(n)))
+func log2uint32(n int64) int64 {
+	return int64(bits.Len32(uint32(n))) - 1
 }
 
 // isPowerOfTwo reports whether n is a power of 2.
@@ -388,6 +410,12 @@ func b2i(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+// shiftIsBounded reports whether (left/right) shift Value v is known to be bounded.
+// A shift is bounded if it is shifting by less than the width of the shifted value.
+func shiftIsBounded(v *Value) bool {
+	return v.AuxInt != 0
 }
 
 // i2f is used in rules for converting from an AuxInt to a float.
@@ -446,6 +474,50 @@ func isSamePtr(p1, p2 *Value) bool {
 		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
 	case OpAddPtr:
 		return p1.Args[1] == p2.Args[1] && isSamePtr(p1.Args[0], p2.Args[0])
+	}
+	return false
+}
+
+// disjoint reports whether the memory region specified by [p1:p1+n1)
+// does not overlap with [p2:p2+n2).
+// A return value of false does not imply the regions overlap.
+func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
+	if n1 == 0 || n2 == 0 {
+		return true
+	}
+	if p1 == p2 {
+		return false
+	}
+	baseAndOffset := func(ptr *Value) (base *Value, offset int64) {
+		base, offset = ptr, 0
+		if base.Op == OpOffPtr {
+			offset += base.AuxInt
+			base = base.Args[0]
+		}
+		return base, offset
+	}
+	p1, off1 := baseAndOffset(p1)
+	p2, off2 := baseAndOffset(p2)
+	if isSamePtr(p1, p2) {
+		return !overlap(off1, n1, off2, n2)
+	}
+	// p1 and p2 are not the same, so if they are both OpAddrs then
+	// they point to different variables.
+	// If one pointer is on the stack and the other is an argument
+	// then they can't overlap.
+	switch p1.Op {
+	case OpAddr:
+		if p2.Op == OpAddr || p2.Op == OpSP {
+			return true
+		}
+		return p2.Op == OpArg && p1.Args[0].Op == OpSP
+	case OpArg:
+		if p2.Op == OpSP {
+			return true
+		}
+		return p2.Op == OpAddr && p2.Args[0].Op == OpSP
+	case OpSP:
+		return p2.Op == OpAddr || p2.Op == OpArg || p2.Op == OpSP
 	}
 	return false
 }
@@ -798,8 +870,8 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	switch x.Op {
 	case OpAMD64MOVLconst, OpAMD64MOVLload, OpAMD64MOVLQZX, OpAMD64MOVLloadidx1,
 		OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVBload, OpAMD64MOVBloadidx1,
-		OpAMD64MOVLloadidx4, OpAMD64ADDLmem, OpAMD64SUBLmem, OpAMD64ANDLmem,
-		OpAMD64ORLmem, OpAMD64XORLmem, OpAMD64CVTTSD2SL,
+		OpAMD64MOVLloadidx4, OpAMD64ADDLload, OpAMD64SUBLload, OpAMD64ANDLload,
+		OpAMD64ORLload, OpAMD64XORLload, OpAMD64CVTTSD2SL,
 		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
 		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
@@ -823,15 +895,22 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	return false
 }
 
-// inlineablememmovesize reports whether the given arch performs OpMove of the given size
-// faster than memmove and in a safe way when src and dst overlap.
-// This is used as a check for replacing memmove with OpMove.
-func isInlinableMemmoveSize(sz int64, c *Config) bool {
+// isInlinableMemmove reports whether the given arch performs a Move of the given size
+// faster than memmove. It will only return true if replacing the memmove with a Move is
+// safe, either because Move is small or because the arguments are disjoint.
+// This is used as a check for replacing memmove with Move ops.
+func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+	// It is always safe to convert memmove into Move when its arguments are disjoint.
+	// Move ops may or may not be faster for large sizes depending on how the platform
+	// lowers them, so we only perform this optimization on platforms that we know to
+	// have fast Move ops.
 	switch c.arch {
 	case "amd64", "amd64p32":
 		return sz <= 16
-	case "386", "ppc64", "s390x", "ppc64le", "arm64":
+	case "386", "ppc64", "ppc64le", "arm64":
 		return sz <= 8
+	case "s390x":
+		return sz <= 8 || disjoint(dst, sz, src, sz)
 	case "arm", "mips", "mips64", "mipsle", "mips64le":
 		return sz <= 4
 	}
@@ -872,4 +951,31 @@ func arm64BFWidth(mask, rshift int64) int64 {
 		panic("ARM64 BF mask is zero")
 	}
 	return nto(shiftedMask)
+}
+
+// sizeof returns the size of t in bytes.
+// It will panic if t is not a *types.Type.
+func sizeof(t interface{}) int64 {
+	return t.(*types.Type).Size()
+}
+
+// alignof returns the alignment of t in bytes.
+// It will panic if t is not a *types.Type.
+func alignof(t interface{}) int64 {
+	return t.(*types.Type).Alignment()
+}
+
+// registerizable reports whether t is a primitive type that fits in
+// a register. It assumes float64 values will always fit into registers
+// even if that isn't strictly true.
+// It will panic if t is not a *types.Type.
+func registerizable(b *Block, t interface{}) bool {
+	typ := t.(*types.Type)
+	if typ.IsPtrShaped() || typ.IsFloat() {
+		return true
+	}
+	if typ.IsInteger() {
+		return typ.Size() <= b.Func.Config.RegSize
+	}
+	return false
 }

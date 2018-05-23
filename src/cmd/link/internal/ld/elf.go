@@ -791,13 +791,11 @@ func elfwriteinterp(out *OutBuf) int {
 	return int(sh.size)
 }
 
-func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int, alloc bool) int {
+func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int) int {
 	n := 3*4 + uint64(sz) + resoff%4
 
 	sh.type_ = SHT_NOTE
-	if alloc {
-		sh.flags = SHF_ALLOC
-	}
+	sh.flags = SHF_ALLOC
 	sh.addralign = 4
 	sh.addr = startva + resoff - n
 	sh.off = resoff - n
@@ -831,7 +829,7 @@ var ELF_NOTE_NETBSD_NAME = []byte("NetBSD\x00")
 
 func elfnetbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := int(Rnd(ELF_NOTE_NETBSD_NAMESZ, 4) + Rnd(ELF_NOTE_NETBSD_DESCSZ, 4))
-	return elfnote(sh, startva, resoff, n, true)
+	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwritenetbsdsig(out *OutBuf) int {
@@ -862,7 +860,7 @@ var ELF_NOTE_OPENBSD_NAME = []byte("OpenBSD\x00")
 
 func elfopenbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := ELF_NOTE_OPENBSD_NAMESZ + ELF_NOTE_OPENBSD_DESCSZ
-	return elfnote(sh, startva, resoff, n, true)
+	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwriteopenbsdsig(out *OutBuf) int {
@@ -918,12 +916,12 @@ var ELF_NOTE_BUILDINFO_NAME = []byte("GNU\x00")
 
 func elfbuildinfo(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := int(ELF_NOTE_BUILDINFO_NAMESZ + Rnd(int64(len(buildinfo)), 4))
-	return elfnote(sh, startva, resoff, n, true)
+	return elfnote(sh, startva, resoff, n)
 }
 
 func elfgobuildid(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(*flagBuildid)), 4))
-	return elfnote(sh, startva, resoff, n, true)
+	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwritebuildinfo(out *OutBuf) int {
@@ -1351,7 +1349,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 		if s.Value >= int64(eaddr) {
 			break
 		}
-		for ri := 0; ri < len(s.R); ri++ {
+		for ri := range s.R {
 			r := &s.R[ri]
 			if r.Done {
 				continue

@@ -140,7 +140,7 @@ func tstart_sysvicall(newm *m) uint32
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, _ unsafe.Pointer) {
+func newosproc(mp *m) {
 	var (
 		attr pthreadattr
 		oset sigset
@@ -152,9 +152,11 @@ func newosproc(mp *m, _ unsafe.Pointer) {
 	if pthread_attr_init(&attr) != 0 {
 		throw("pthread_attr_init")
 	}
+	// Allocate a new 2MB stack.
 	if pthread_attr_setstack(&attr, 0, 0x200000) != 0 {
 		throw("pthread_attr_setstack")
 	}
+	// Read back the allocated stack.
 	if pthread_attr_getstack(&attr, unsafe.Pointer(&mp.g0.stack.hi), &size) != 0 {
 		throw("pthread_attr_getstack")
 	}

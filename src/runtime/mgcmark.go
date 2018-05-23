@@ -251,7 +251,7 @@ func markroot(gcw *gcWork, i uint32) {
 			selfScan := gp == userG && readgstatus(userG) == _Grunning
 			if selfScan {
 				casgstatus(userG, _Grunning, _Gwaiting)
-				userG.waitreason = "garbage collection scan"
+				userG.waitreason = waitReasonGarbageCollectionScan
 			}
 
 			// TODO: scang blocks until gp's stack has
@@ -549,7 +549,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 
 	// gcDrainN requires the caller to be preemptible.
 	casgstatus(gp, _Grunning, _Gwaiting)
-	gp.waitreason = "GC assist marking"
+	gp.waitreason = waitReasonGCAssistMarking
 
 	// drain own cached work first in the hopes that it
 	// will be more cache friendly.
@@ -648,7 +648,7 @@ func gcParkAssist() bool {
 		return false
 	}
 	// Park.
-	goparkunlock(&work.assistQueue.lock, "GC assist wait", traceEvGoBlockGC, 2)
+	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceEvGoBlockGC, 2)
 	return true
 }
 
@@ -791,73 +791,21 @@ func scanstack(gp *g, gcw *gcWork) {
 // Scan a stack frame: local variables and function arguments/results.
 //go:nowritebarrier
 func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
+	if _DebugGC > 1 && frame.continpc != 0 {
+		print("scanframe ", funcname(frame.fn), "\n")
+	}
 
-	f := frame.fn
-	targetpc := frame.continpc
-	if targetpc == 0 {
-		// Frame is dead.
-		return
-	}
-	if _DebugGC > 1 {
-		print("scanframe ", funcname(f), "\n")
-	}
-	if targetpc != f.entry {
-		targetpc--
-	}
-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
-	if pcdata == -1 {
-		// We do not have a valid pcdata value but there might be a
-		// stackmap for this function. It is likely that we are looking
-		// at the function prologue, assume so and hope for the best.
-		pcdata = 0
-	}
+	locals, args := getStackMap(frame, cache, false)
 
 	// Scan local variables if stack frame has been allocated.
-	size := frame.varp - frame.sp
-	var minsize uintptr
-	switch sys.ArchFamily {
-	case sys.ARM64:
-		minsize = sys.SpAlign
-	default:
-		minsize = sys.MinFrameSize
-	}
-	if size > minsize {
-		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
-		if stkmap == nil || stkmap.n <= 0 {
-			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
-			throw("missing stackmap")
-		}
-
-		// Locals bitmap information, scan just the pointers in locals.
-		if pcdata < 0 || pcdata >= stkmap.n {
-			// don't know where we are
-			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
-			throw("scanframe: bad symbol table")
-		}
-		bv := stackmapdata(stkmap, pcdata)
-		size = uintptr(bv.n) * sys.PtrSize
-		scanblock(frame.varp-size, size, bv.bytedata, gcw)
+	if locals.n > 0 {
+		size := uintptr(locals.n) * sys.PtrSize
+		scanblock(frame.varp-size, size, locals.bytedata, gcw)
 	}
 
 	// Scan arguments.
-	if frame.arglen > 0 {
-		var bv bitvector
-		if frame.argmap != nil {
-			bv = *frame.argmap
-		} else {
-			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
-			if stkmap == nil || stkmap.n <= 0 {
-				print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
-				throw("missing stackmap")
-			}
-			if pcdata < 0 || pcdata >= stkmap.n {
-				// don't know where we are
-				print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " args stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
-				throw("scanframe: bad symbol table")
-			}
-			bv = stackmapdata(stkmap, pcdata)
-		}
-		scanblock(frame.argp, uintptr(bv.n)*sys.PtrSize, bv.bytedata, gcw)
+	if args.n > 0 {
+		scanblock(frame.argp, uintptr(args.n)*sys.PtrSize, args.bytedata, gcw)
 	}
 }
 

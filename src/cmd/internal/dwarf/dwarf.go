@@ -178,6 +178,7 @@ type Context interface {
 	AddBytes(s Sym, b []byte)
 	AddAddress(s Sym, t interface{}, ofs int64)
 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
+	AddDWARFSectionOffset(s Sym, size int, t interface{}, ofs int64)
 	CurrentOffset(s Sym) int64
 	RecordDclReference(from Sym, to Sym, dclIdx int, inlIndex int)
 	RecordChildDieOffsets(s Sym, vars []*Var, offsets []int32)
@@ -291,6 +292,7 @@ const (
 	// Attribute for DW_TAG_member of a struct type.
 	// Nonzero value indicates the struct field is an embedded field.
 	DW_AT_go_embedded_field = 0x2903
+	DW_AT_go_runtime_type   = 0x2904
 
 	DW_AT_internal_location = 253 // params and locals; not emitted
 )
@@ -642,6 +644,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_encoding, DW_FORM_data1},
 			{DW_AT_byte_size, DW_FORM_data1},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 
@@ -655,6 +658,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_byte_size, DW_FORM_udata},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 
@@ -666,6 +670,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
 	},
@@ -677,8 +682,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_byte_size, DW_FORM_udata},
-			// {DW_AT_type,	DW_FORM_ref_addr},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 
@@ -690,6 +695,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 
@@ -701,6 +707,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 			{DW_AT_go_key, DW_FORM_ref_addr},
 			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
@@ -714,6 +721,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 
@@ -734,6 +742,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_byte_size, DW_FORM_udata},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
 	},
@@ -746,6 +755,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_byte_size, DW_FORM_udata},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 
@@ -757,6 +767,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_byte_size, DW_FORM_udata},
 			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 
@@ -818,6 +829,15 @@ type DWDie struct {
 func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, data interface{}) error {
 	switch form {
 	case DW_FORM_addr: // address
+		// Allow nil addresses for DW_AT_go_runtime_type.
+		if data == nil && value == 0 {
+			ctxt.AddInt(s, ctxt.PtrSize(), 0)
+			break
+		}
+		if cls == DW_CLS_GO_TYPEREF {
+			ctxt.AddSectionOffset(s, ctxt.PtrSize(), data, value)
+			break
+		}
 		ctxt.AddAddress(s, data, value)
 
 	case DW_FORM_block1: // block
@@ -861,7 +881,7 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
 
 	case DW_FORM_data4: // constant, {line,loclist,mac,rangelist}ptr
 		if cls == DW_CLS_PTR { // DW_AT_stmt_list and DW_AT_ranges
-			ctxt.AddSectionOffset(s, 4, data, value)
+			ctxt.AddDWARFSectionOffset(s, 4, data, value)
 			break
 		}
 		ctxt.AddInt(s, 4, value)
@@ -898,7 +918,7 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
 		if data == nil {
 			return fmt.Errorf("dwarf: null reference in %d", abbrev)
 		}
-		ctxt.AddSectionOffset(s, 4, data, value)
+		ctxt.AddDWARFSectionOffset(s, 4, data, value)
 
 	case DW_FORM_ref1, // reference within the compilation unit
 		DW_FORM_ref2,      // reference

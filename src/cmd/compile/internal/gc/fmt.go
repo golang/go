@@ -739,7 +739,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		return "chan " + tmodeString(t.Elem(), mode, depth)
 
 	case TMAP:
-		return "map[" + tmodeString(t.Key(), mode, depth) + "]" + tmodeString(t.Val(), mode, depth)
+		return "map[" + tmodeString(t.Key(), mode, depth) + "]" + tmodeString(t.Elem(), mode, depth)
 
 	case TINTER:
 		if t.IsEmptyInterface() {
@@ -757,7 +757,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 				// Check first that a symbol is defined for this type.
 				// Wrong interface definitions may have types lacking a symbol.
 				break
-			case exportname(f.Sym.Name):
+			case types.IsExported(f.Sym.Name):
 				buf = append(buf, sconv(f.Sym, FmtShort, mode)...)
 			default:
 				buf = append(buf, sconv(f.Sym, FmtUnsigned, mode)...)
@@ -803,23 +803,22 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 			mt := m.MapType()
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
-			if mt.Bucket == t {
-				return "map.bucket[" + tmodeString(m.Key(), mode, depth) + "]" + tmodeString(m.Val(), mode, depth)
+			var subtype string
+			switch t {
+			case mt.Bucket:
+				subtype = "bucket"
+			case mt.Hmap:
+				subtype = "hdr"
+			case mt.Hiter:
+				subtype = "iter"
+			default:
+				Fatalf("unknown internal map type")
 			}
-
-			if mt.Hmap == t {
-				return "map.hdr[" + tmodeString(m.Key(), mode, depth) + "]" + tmodeString(m.Val(), mode, depth)
-			}
-
-			if mt.Hiter == t {
-				return "map.iter[" + tmodeString(m.Key(), mode, depth) + "]" + tmodeString(m.Val(), mode, depth)
-			}
-
-			Fatalf("unknown internal map type")
+			return fmt.Sprintf("map.%s[%s]%s", subtype, tmodeString(m.Key(), mode, depth), tmodeString(m.Elem(), mode, depth))
 		}
 
 		buf := make([]byte, 0, 64)
-		if t.IsFuncArgStruct() {
+		if funarg := t.StructType().Funarg; funarg != types.FunargNone {
 			buf = append(buf, '(')
 			var flag1 FmtFlag
 			switch mode {
@@ -831,7 +830,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 				if i != 0 {
 					buf = append(buf, ", "...)
 				}
-				buf = append(buf, fldconv(f, flag1, mode, depth)...)
+				buf = append(buf, fldconv(f, flag1, mode, depth, funarg)...)
 			}
 			buf = append(buf, ')')
 		} else {
@@ -841,7 +840,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 					buf = append(buf, ';')
 				}
 				buf = append(buf, ' ')
-				buf = append(buf, fldconv(f, FmtLong, mode, depth)...)
+				buf = append(buf, fldconv(f, FmtLong, mode, depth, funarg)...)
 			}
 			if t.NumFields() != 0 {
 				buf = append(buf, ' ')
@@ -908,10 +907,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		mode.Fprintf(s, "var %v %v", n.Left.Sym, n.Left.Type)
 
 	case ODCLFIELD:
-		if n.Left != nil {
-			mode.Fprintf(s, "%v %v", n.Left, n.Right)
+		if n.Sym != nil {
+			mode.Fprintf(s, "%v %v", n.Sym, n.Left)
 		} else {
-			mode.Fprintf(s, "%v", n.Right)
+			mode.Fprintf(s, "%v", n.Left)
 		}
 
 	// Don't export "v = <N>" initializing statements, hope they're always
@@ -993,6 +992,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 			mode.Fprintf(s, "; %v", n.Right)
 		} else if simpleinit {
 			fmt.Fprint(s, ";")
+		}
+
+		if n.Op == OFORUNTIL && n.List.Len() != 0 {
+			mode.Fprintf(s, "; %v", n.List)
 		}
 
 		mode.Fprintf(s, " { %v }", n.Nbody)
@@ -1669,7 +1672,7 @@ func tmodeString(t *types.Type, mode fmtMode, depth int) string {
 	return tconv(t, 0, mode, depth)
 }
 
-func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
+func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int, funarg types.Funarg) string {
 	if f == nil {
 		return "<T>"
 	}
@@ -1683,29 +1686,17 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
 	if flag&FmtShort == 0 {
 		s := f.Sym
 
-		// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
-		// ~r%d is a (formerly) unnamed result.
-		if mode == FErr && asNode(f.Nname) != nil {
-			if asNode(f.Nname).Orig != nil {
-				s = asNode(f.Nname).Orig.Sym
-				if s != nil && s.Name[0] == '~' {
-					if s.Name[1] == 'r' { // originally an unnamed result
-						s = nil
-					} else if s.Name[1] == 'b' { // originally the blank identifier _
-						s = lookup("_")
-					}
-				}
-			} else {
-				s = nil
-			}
+		// Take the name from the original.
+		if mode == FErr {
+			s = origSym(s)
 		}
 
 		if s != nil && f.Embedded == 0 {
-			if f.Funarg != types.FunargNone {
+			if funarg != types.FunargNone {
 				name = asNode(f.Nname).modeString(mode)
 			} else if flag&FmtLong != 0 {
 				name = mode.Sprintf("%0S", s)
-				if !exportname(name) && flag&FmtUnsigned == 0 {
+				if !types.IsExported(name) && flag&FmtUnsigned == 0 {
 					name = smodeString(s, mode) // qualify non-exported names (used on structs, not on funarg)
 				}
 			} else {
@@ -1730,7 +1721,7 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
 		str = name + " " + typ
 	}
 
-	if flag&FmtShort == 0 && f.Funarg == types.FunargNone && f.Note != "" {
+	if flag&FmtShort == 0 && funarg == types.FunargNone && f.Note != "" {
 		str += " " + strconv.Quote(f.Note)
 	}
 

@@ -296,9 +296,7 @@ type Name struct {
 	Param     *Param     // additional fields for ONAME, OTYPE
 	Decldepth int32      // declaration loop depth, increased for every loop or label
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-
-	used  bool // for variable declared and not used error
-	flags bitset8
+	flags     bitset8
 }
 
 const (
@@ -308,6 +306,7 @@ const (
 	nameNeedzero  // if it contains pointers, needs to be zeroed on function entry
 	nameKeepalive // mark value live across unknown assembly call
 	nameAutoTemp  // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+	nameUsed      // for variable declared and not used error
 )
 
 func (n *Name) Captured() bool  { return n.flags&nameCaptured != 0 }
@@ -316,7 +315,7 @@ func (n *Name) Byval() bool     { return n.flags&nameByval != 0 }
 func (n *Name) Needzero() bool  { return n.flags&nameNeedzero != 0 }
 func (n *Name) Keepalive() bool { return n.flags&nameKeepalive != 0 }
 func (n *Name) AutoTemp() bool  { return n.flags&nameAutoTemp != 0 }
-func (n *Name) Used() bool      { return n.used }
+func (n *Name) Used() bool      { return n.flags&nameUsed != 0 }
 
 func (n *Name) SetCaptured(b bool)  { n.flags.set(nameCaptured, b) }
 func (n *Name) SetReadonly(b bool)  { n.flags.set(nameReadonly, b) }
@@ -324,7 +323,7 @@ func (n *Name) SetByval(b bool)     { n.flags.set(nameByval, b) }
 func (n *Name) SetNeedzero(b bool)  { n.flags.set(nameNeedzero, b) }
 func (n *Name) SetKeepalive(b bool) { n.flags.set(nameKeepalive, b) }
 func (n *Name) SetAutoTemp(b bool)  { n.flags.set(nameAutoTemp, b) }
-func (n *Name) SetUsed(b bool)      { n.used = b }
+func (n *Name) SetUsed(b bool)      { n.flags.set(nameUsed, b) }
 
 type Param struct {
 	Ntype    *Node
@@ -532,6 +531,7 @@ const (
 	funcNilCheckDisabled    // disable nil checks when compiling this function
 	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
 	funcExportInline        // include inline body in export data
+	funcInstrumentBody      // add race/msan instrumentation during SSA construction
 )
 
 func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
@@ -543,6 +543,7 @@ func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
 func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
+func (f *Func) InstrumentBody() bool      { return f.flags&funcInstrumentBody != 0 }
 
 func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
@@ -553,6 +554,7 @@ func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
 func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
+func (f *Func) SetInstrumentBody(b bool)      { f.flags.set(funcInstrumentBody, b) }
 
 func (f *Func) setWBPos(pos src.XPos) {
 	if Debug_wb != 0 {
@@ -698,16 +700,25 @@ const (
 	OEMPTY    // no-op (empty statement)
 	OFALL     // fallthrough
 	OFOR      // for Ninit; Left; Right { Nbody }
-	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
-	OGOTO     // goto Left
-	OIF       // if Ninit; Left { Nbody } else { Rlist }
-	OLABEL    // Left:
-	OPROC     // go Left (Left must be call)
-	ORANGE    // for List = range Right { Nbody }
-	ORETURN   // return List
-	OSELECT   // select { List } (List is list of OXCASE or OCASE)
-	OSWITCH   // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
-	OTYPESW   // Left = Right.(type) (appears as .Left of OSWITCH)
+	// OFORUNTIL is like OFOR, but the test (Left) is applied after the body:
+	// 	Ninit
+	// 	top: { Nbody }   // Execute the body at least once
+	// 	cont: Right
+	// 	if Left {        // And then test the loop condition
+	// 		List     // Before looping to top, execute List
+	// 		goto top
+	// 	}
+	// OFORUNTIL is created by walk. There's no way to write this in Go code.
+	OFORUNTIL
+	OGOTO   // goto Left
+	OIF     // if Ninit; Left { Nbody } else { Rlist }
+	OLABEL  // Left:
+	OPROC   // go Left (Left must be call)
+	ORANGE  // for List = range Right { Nbody }
+	ORETURN // return List
+	OSELECT // select { List } (List is list of OXCASE or OCASE)
+	OSWITCH // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
+	OTYPESW // Left = Right.(type) (appears as .Left of OSWITCH)
 
 	// types
 	OTCHAN   // chan int

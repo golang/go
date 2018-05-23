@@ -192,6 +192,65 @@ func TestIgnore(t *testing.T) {
 	testCancel(t, true)
 }
 
+// Test that Ignored correctly detects changes to the ignored status of a signal.
+func TestIgnored(t *testing.T) {
+	// Ask to be notified on SIGWINCH.
+	c := make(chan os.Signal, 1)
+	Notify(c, syscall.SIGWINCH)
+
+	// If we're being notified, then the signal should not be ignored.
+	if Ignored(syscall.SIGWINCH) {
+		t.Errorf("expected SIGWINCH to not be ignored.")
+	}
+	Stop(c)
+	Ignore(syscall.SIGWINCH)
+
+	// We're no longer paying attention to this signal.
+	if !Ignored(syscall.SIGWINCH) {
+		t.Errorf("expected SIGWINCH to be ignored when explicitly ignoring it.")
+	}
+
+	Reset()
+}
+
+var checkSighupIgnored = flag.Bool("check_sighup_ignored", false, "if true, TestDetectNohup will fail if SIGHUP is not ignored.")
+
+// Test that Ignored(SIGHUP) correctly detects whether it is being run under nohup.
+func TestDetectNohup(t *testing.T) {
+	if *checkSighupIgnored {
+		if !Ignored(syscall.SIGHUP) {
+			t.Fatal("SIGHUP is not ignored.")
+		} else {
+			t.Log("SIGHUP is ignored.")
+		}
+	} else {
+		defer Reset()
+		// Ugly: ask for SIGHUP so that child will not have no-hup set
+		// even if test is running under nohup environment.
+		// We have no intention of reading from c.
+		c := make(chan os.Signal, 1)
+		Notify(c, syscall.SIGHUP)
+		if out, err := exec.Command(os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput(); err == nil {
+			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
+		}
+		Stop(c)
+		// Again, this time with nohup, assuming we can find it.
+		_, err := os.Stat("/usr/bin/nohup")
+		if err != nil {
+			t.Skip("cannot find nohup; skipping second half of test")
+		}
+		Ignore(syscall.SIGHUP)
+		os.Remove("nohup.out")
+		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
+
+		data, _ := ioutil.ReadFile("nohup.out")
+		os.Remove("nohup.out")
+		if err != nil {
+			t.Errorf("ran test with -check_sighup_ignored under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", err, out, data)
+		}
+	}
+}
+
 var sendUncaughtSighup = flag.Int("send_uncaught_sighup", 0, "send uncaught SIGHUP during TestStop")
 
 // Test that Stop cancels the channel's registrations.

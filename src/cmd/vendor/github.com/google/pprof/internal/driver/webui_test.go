@@ -33,7 +33,7 @@ import (
 )
 
 func TestWebInterface(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		t.Skip("test assumes tcp available")
 	}
 
@@ -81,7 +81,7 @@ func TestWebInterface(t *testing.T) {
 			[]string{"300ms.*F1", "200ms.*300ms.*F2"}, false},
 		{"/disasm?f=" + url.QueryEscape("F[12]"),
 			[]string{"f1:asm", "f2:asm"}, false},
-		{"/flamegraph", []string{"File: testbin", "\"n\":\"root\"", "\"n\":\"F1\"", "function tip", "function flameGraph", "function hierarchy"}, false},
+		{"/flamegraph", []string{"File: testbin", "\"n\":\"root\"", "\"n\":\"F1\"", "var flamegraph = function", "function hierarchy"}, false},
 	}
 	for _, c := range testcases {
 		if c.needDot && !haveDot {
@@ -237,7 +237,7 @@ func makeFakeProfile() *profile.Profile {
 }
 
 func TestGetHostAndPort(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		t.Skip("test assumes tcp available")
 	}
 

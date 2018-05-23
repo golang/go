@@ -100,6 +100,69 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VSHL	$8, V1.H8, V2.H8                // 2254184f
 	VSHL	$2, V1.B8, V2.B8                // 22540a0f
 	VSHL	$2, V1.B16, V2.B16              // 22540a4f
+	VSRI	$56, V1.D2, V2.D2               // 2244486f
+	VSRI	$24, V1.S4, V2.S4               // 2244286f
+	VSRI	$24, V1.S2, V2.S2               // 2244282f
+	VSRI	$8, V1.H4, V2.H4                // 2244182f
+	VSRI	$8, V1.H8, V2.H8                // 2244186f
+	VSRI	$2, V1.B8, V2.B8                // 22440e2f
+	VSRI	$2, V1.B16, V2.B16              // 22440e6f
+	VTBL	V22.B16, [V28.B16, V29.B16], V11.B16                                    // 8b23164e
+	VTBL	V18.B8, [V17.B16, V18.B16, V19.B16], V22.B8                             // 3642120e
+	VTBL	V31.B8, [V14.B16, V15.B16, V16.B16, V17.B16], V15.B8                    // cf611f0e
+	VTBL	V14.B16, [V16.B16], V11.B16                                             // 0b020e4e
+	VTBL	V28.B16, [V25.B16, V26.B16], V5.B16                                     // 25231c4e
+	VTBL	V16.B8, [V4.B16, V5.B16, V6.B16], V12.B8                                // 8c40100e
+	VTBL	V4.B8, [V16.B16, V17.B16, V18.B16, V19.B16], V4.B8                      // 0462040e
+	VTBL	V15.B8, [V1.B16], V20.B8                                                // 34000f0e
+	VTBL	V26.B16, [V2.B16, V3.B16], V26.B16                                      // 5a201a4e
+	VTBL	V15.B8, [V6.B16, V7.B16, V8.B16], V2.B8                                 // c2400f0e
+	VTBL	V2.B16, [V27.B16, V28.B16, V29.B16, V30.B16], V18.B16                   // 7263024e
+	VTBL	V11.B16, [V13.B16], V27.B16                                             // bb010b4e
+	VTBL	V3.B8, [V7.B16, V8.B16], V25.B8                                         // f920030e
+	VTBL	V14.B16, [V3.B16, V4.B16, V5.B16], V17.B16                              // 71400e4e
+	VTBL	V13.B16, [V29.B16, V30.B16, V31.B16, V0.B16], V28.B16                   // bc630d4e
+	VTBL	V3.B8, [V27.B16], V8.B8                                                 // 6803030e
+	VZIP1	V16.H8, V3.H8, V19.H8           // 7338504e
+	VZIP2	V22.D2, V25.D2, V21.D2          // 357bd64e
+	VZIP1	V6.D2, V9.D2, V11.D2            // 2b39c64e
+	VZIP2	V10.D2, V13.D2, V3.D2           // a379ca4e
+	VZIP1	V17.S2, V4.S2, V26.S2           // 9a38910e
+	VZIP2	V25.S2, V14.S2, V25.S2          // d979990e
+	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
+	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
+	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
+	MOVWU	(R19)(R18<<2), R18              // 727a72b8
+	MOVD	(R2)(R6<<3), R4                 // 447866f8
+	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
+	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
+	MOVBU	(R3)(R9.UXTW), R8               // 68486938
+	MOVBU	(R5)(R8), R10                   // MOVBU	(R5)(R8*1), R10         // aa686838
+	MOVHU	(R2)(R7.SXTW<<1), R11           // 4bd86778
+	MOVHU	(R1)(R2<<1), R5                 // 25786278
+	MOVB	(R9)(R3.UXTW), R6               // 2649a338
+	MOVB	(R10)(R6), R15                  // MOVB	(R10)(R6*1), R15                // 4f69a638
+	MOVH	(R5)(R7.SXTX<<1), R18           // b2f8a778
+	MOVH	(R8)(R4<<1), R10                // 0a79a478
+	MOVW	(R9)(R8.SXTW<<2), R19           // 33d9a8b8
+	MOVW	(R1)(R4.SXTX), R11              // 2be8a4b8
+	MOVW	(R1)(R4.SXTX), ZR               // 3fe8a4b8
+	MOVW	(R2)(R5), R12                   // MOVW	(R2)(R5*1), R12                  // 4c68a5b8
+	MOVD	R5, (R2)(R6<<3)                 // 457826f8
+	MOVD	R9, (R6)(R7.SXTX<<3)            // c9f827f8
+	MOVD	ZR, (R6)(R7.SXTX<<3)            // dff827f8
+	MOVW	R8, (R2)(R3.UXTW<<2)            // 485823b8
+	MOVW	R7, (R3)(R4.SXTW)               // 67c824b8
+	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
+	MOVB	R8, (R3)(R9.UXTW)               // 68482938
+	MOVB	R10, (R5)(R8)                   // MOVB	R10, (R5)(R8*1)                  // aa682838
+	MOVH	R11, (R2)(R7.SXTW<<1)           // 4bd82778
+	MOVH	R5, (R1)(R2<<1)                 // 25782278
+	MOVH	R7, (R2)(R5.SXTX<<1)            // 47f82578
+	MOVH	R8, (R3)(R6.UXTW)               // 68482678
+	MOVB	(R29)(R30<<0), R14              // ae7bbe38
+	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
+	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
 
 //	LTYPE1 imsr ',' spreg ','
 //	{
@@ -185,12 +248,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VST1.P	V4.D[1], 8(R0)                                  // 04849f4d
 	VST1.P	V4.D[1], (R0)(R1)                               // VST1.P	V4.D[1], (R0)(R1*1) // 0484814d
 	VST1	V4.D[1], (R0)                                   // 0484004d
-	VMOVS	V20, (R0)                                       // 140000bd
-	VMOVS.P	V20, 4(R0)                                      // 144400bc
-	VMOVS.W	V20, 4(R0)                                      // 144c00bc
-	VMOVS	(R0), V20                                       // 140040bd
-	VMOVS.P	8(R0), V20                                      // 148440bc
-	VMOVS.W	8(R0), V20                                      // 148c40bc
+	FMOVS	F20, (R0)                                       // 140000bd
+	FMOVS.P	F20, 4(R0)                                      // 144400bc
+	FMOVS.W	F20, 4(R0)                                      // 144c00bc
+	FMOVS	(R0), F20                                       // 140040bd
+	FMOVS.P	8(R0), F20                                      // 148440bc
+	FMOVS.W	8(R0), F20                                      // 148c40bc
+	FMOVD	F20, (R2)                                       // 540000fd
+	FMOVD.P	F20, 8(R1)                                      // 348400fc
+	FMOVD.W	8(R1), F20                                      // 348c40fc
 	PRFM	(R2), PLDL1KEEP                                 // 400080f9
 	PRFM	16(R2), PLDL1KEEP                               // 400880f9
 	PRFM	48(R6), PSTL2STRM                               // d31880f9
@@ -275,6 +341,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VMOV	V8.B[0], V12.B[1]     // 0c05036e
 	VMOV	V8.B[7], V4.B[8]      // 043d116e
 	VREV32	V5.B16, V5.B16        // a508206e
+	VREV64	V2.S2, V3.S2          // 4308a00e
+	VREV64	V2.S4, V3.S4          // 4308a04e
 	VDUP	V19.S[0], V17.S4      // 7106044e
 //
 // B/BL
@@ -340,6 +408,7 @@ again:
 //		outcode($1, &$2, NREG, &$4);
 //	}
 	CSET	GT, R1	// e1d79f9a
+	CSETW	HI, R2	// e2979f1a
 //
 // CSEL/CSINC/CSNEG/CSINV
 //
@@ -348,17 +417,22 @@ again:
 //		outgcode($1, &$2, $6.reg, &$4, &$8);
 //	}
 	CSEL	LT, R1, R2, ZR	// 3fb0829a
+	CSELW	LT, R2, R3, R4	// 44b0831a
 	CSINC	GT, R1, ZR, R3	// 23c49f9a
 	CSNEG	MI, R1, R2, R3	// 234482da
 	CSINV	CS, R1, R2, R3	// CSINV HS, R1, R2, R3 // 232082da
+	CSINVW	MI, R2, ZR, R2	// 42409f5a
 
 //		LTYPES cond ',' reg ',' reg
 //	{
 //		outcode($1, &$2, $4.reg, &$6);
 //	}
 	CINC	EQ, R4, R9	// 8914849a
+	CINCW	PL, R2, ZR	// 5f44821a
 	CINV	PL, R11, R22	// 76418bda
+	CINVW	LS, R7, R13	// ed80875a
 	CNEG	LS, R13, R7	// a7858dda
+	CNEGW	EQ, R8, R13	// 0d15885a
 //
 // CCMN
 //
@@ -469,6 +543,46 @@ again:
 	STXP	(R1, R2), (RSP), R10                 // e10b2ac8
 	STXPW	(R1, R2), (R3), R10                  // 61082a88
 	STXPW	(R1, R2), (RSP), R10                 // e10b2a88
+	SWPD	R5, (R6), R7                         // c78025f8
+	SWPD	R5, (RSP), R7                        // e78325f8
+	SWPW	R5, (R6), R7                         // c78025b8
+	SWPW	R5, (RSP), R7                        // e78325b8
+	SWPH	R5, (R6), R7                         // c7802578
+	SWPH	R5, (RSP), R7                        // e7832578
+	SWPB	R5, (R6), R7                         // c7802538
+	SWPB	R5, (RSP), R7                        // e7832538
+	LDADDD	R5, (R6), R7                         // c70025f8
+	LDADDD	R5, (RSP), R7                        // e70325f8
+	LDADDW	R5, (R6), R7                         // c70025b8
+	LDADDW	R5, (RSP), R7                        // e70325b8
+	LDADDH	R5, (R6), R7                         // c7002578
+	LDADDH	R5, (RSP), R7                        // e7032578
+	LDADDB	R5, (R6), R7                         // c7002538
+	LDADDB	R5, (RSP), R7                        // e7032538
+	LDANDD	R5, (R6), R7                         // c71025f8
+	LDANDD	R5, (RSP), R7                        // e71325f8
+	LDANDW	R5, (R6), R7                         // c71025b8
+	LDANDW	R5, (RSP), R7                        // e71325b8
+	LDANDH	R5, (R6), R7                         // c7102578
+	LDANDH	R5, (RSP), R7                        // e7132578
+	LDANDB	R5, (R6), R7                         // c7102538
+	LDANDB	R5, (RSP), R7                        // e7132538
+	LDEORD	R5, (R6), R7                         // c72025f8
+	LDEORD	R5, (RSP), R7                        // e72325f8
+	LDEORW	R5, (R6), R7                         // c72025b8
+	LDEORW	R5, (RSP), R7                        // e72325b8
+	LDEORH	R5, (R6), R7                         // c7202578
+	LDEORH	R5, (RSP), R7                        // e7232578
+	LDEORB	R5, (R6), R7                         // c7202538
+	LDEORB	R5, (RSP), R7                        // e7232538
+	LDORD	R5, (R6), R7                         // c73025f8
+	LDORD	R5, (RSP), R7                        // e73325f8
+	LDORW	R5, (R6), R7                         // c73025b8
+	LDORW	R5, (RSP), R7                        // e73325b8
+	LDORH	R5, (R6), R7                         // c7302578
+	LDORH	R5, (RSP), R7                        // e7332578
+	LDORB	R5, (R6), R7                         // c7302538
+	LDORB	R5, (RSP), R7                        // e7332538
 
 // RET
 //
@@ -506,8 +620,12 @@ again:
 	LDP	1024(RSP), (R1, R2) // fb031091610b40a9
 	LDP.W	8(RSP), (R1, R2)    // e18bc0a9
 	LDP.P	8(RSP), (R1, R2)    // e18bc0a8
+	LDP	-31(R0), (R1, R2)   // 1b7c00d1610b40a9
+	LDP	-4(R0), (R1, R2)    // 1b1000d1610b40a9
+	LDP	-8(R0), (R1, R2)    // 01887fa9
 	LDP	x(SB), (R1, R2)
 	LDP	x+8(SB), (R1, R2)
+	LDPW	-5(R0), (R1, R2)    // 1b1400d1610b4029
 	LDPW	(R0), (R1, R2)      // 01084029
 	LDPW	4(R0), (R1, R2)     // 01884029
 	LDPW	-4(R0), (R1, R2)    // 01887f29
@@ -545,6 +663,7 @@ again:
 	STP.W	(R3, R4), 8(R5)     // a39080a9
 	STP.P	(R3, R4), 8(R5)     // a39080a8
 	STP	(R3, R4), -8(R5)    // a3903fa9
+	STP	(R3, R4), -4(R5)    // bb1000d1631300a9
 	STP	(R3, R4), 11(R0)    // 1b2c0091631300a9
 	STP	(R3, R4), 1024(R0)  // 1b001091631300a9
 	STP	(R3, R4), (RSP)     // e31300a9
@@ -561,6 +680,7 @@ again:
 	STPW.W	(R3, R4), 4(R5)     // a3908029
 	STPW.P	(R3, R4), 4(R5)     // a3908028
 	STPW	(R3, R4), -4(R5)    // a3903f29
+	STPW	(R3, R4), -5(R5)    // bb1400d163130029
 	STPW	(R3, R4), 11(R0)    // 1b2c009163130029
 	STPW	(R3, R4), 1024(R0)  // 1b00109163130029
 	STPW	(R3, R4), (RSP)     // e3130029

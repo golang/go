@@ -160,6 +160,11 @@ type factsTable struct {
 	facts map[pair]relation // current known set of relation
 	stack []fact            // previous sets of relations
 
+	// order is a couple of partial order sets that record information
+	// about relations between SSA values in the signed and unsigned
+	// domain.
+	order [2]*poset
+
 	// known lower and upper bounds on individual values.
 	limits     map[ID]limit
 	limitStack []limitFact // previous entries
@@ -176,8 +181,12 @@ type factsTable struct {
 var checkpointFact = fact{}
 var checkpointBound = limitFact{}
 
-func newFactsTable() *factsTable {
+func newFactsTable(f *Func) *factsTable {
 	ft := &factsTable{}
+	ft.order[0] = f.newPoset() // signed
+	ft.order[1] = f.newPoset() // unsigned
+	ft.order[0].SetUnsigned(false)
+	ft.order[1].SetUnsigned(true)
 	ft.facts = make(map[pair]relation)
 	ft.stack = make([]fact, 4)
 	ft.limits = make(map[ID]limit)
@@ -202,30 +211,58 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		return
 	}
 
-	if lessByID(w, v) {
-		v, w = w, v
-		r = reverseBits[r]
-	}
-
-	p := pair{v, w, d}
-	oldR, ok := ft.facts[p]
-	if !ok {
-		if v == w {
-			oldR = eq
-		} else {
-			oldR = lt | eq | gt
+	if d == signed || d == unsigned {
+		var ok bool
+		idx := 0
+		if d == unsigned {
+			idx = 1
 		}
-	}
-	// No changes compared to information already in facts table.
-	if oldR == r {
-		return
-	}
-	ft.stack = append(ft.stack, fact{p, oldR})
-	ft.facts[p] = oldR & r
-	// If this relation is not satisfiable, mark it and exit right away
-	if oldR&r == 0 {
-		ft.unsat = true
-		return
+		switch r {
+		case lt:
+			ok = ft.order[idx].SetOrder(v, w)
+		case gt:
+			ok = ft.order[idx].SetOrder(w, v)
+		case lt | eq:
+			ok = ft.order[idx].SetOrderOrEqual(v, w)
+		case gt | eq:
+			ok = ft.order[idx].SetOrderOrEqual(w, v)
+		case eq:
+			ok = ft.order[idx].SetEqual(v, w)
+		case lt | gt:
+			ok = ft.order[idx].SetNonEqual(v, w)
+		default:
+			panic("unknown relation")
+		}
+		if !ok {
+			ft.unsat = true
+			return
+		}
+	} else {
+		if lessByID(w, v) {
+			v, w = w, v
+			r = reverseBits[r]
+		}
+
+		p := pair{v, w, d}
+		oldR, ok := ft.facts[p]
+		if !ok {
+			if v == w {
+				oldR = eq
+			} else {
+				oldR = lt | eq | gt
+			}
+		}
+		// No changes compared to information already in facts table.
+		if oldR == r {
+			return
+		}
+		ft.stack = append(ft.stack, fact{p, oldR})
+		ft.facts[p] = oldR & r
+		// If this relation is not satisfiable, mark it and exit right away
+		if oldR&r == 0 {
+			ft.unsat = true
+			return
+		}
 	}
 
 	// Extract bounds when comparing against constants
@@ -242,6 +279,21 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		old, ok := ft.limits[v.ID]
 		if !ok {
 			old = noLimit
+			if v.isGenericIntConst() {
+				switch d {
+				case signed:
+					old.min, old.max = v.AuxInt, v.AuxInt
+					if v.AuxInt >= 0 {
+						old.umin, old.umax = uint64(v.AuxInt), uint64(v.AuxInt)
+					}
+				case unsigned:
+					old.umin = v.AuxUnsigned()
+					old.umax = old.umin
+					if int64(old.umin) >= 0 {
+						old.min, old.max = int64(old.umin), int64(old.umin)
+					}
+				}
+			}
 		}
 		lim := noLimit
 		switch d {
@@ -317,6 +369,37 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		}
 	}
 
+	// Derived facts below here are only about numbers.
+	if d != signed && d != unsigned {
+		return
+	}
+
+	// Additional facts we know given the relationship between len and cap.
+	//
+	// TODO: Since prove now derives transitive relations, it
+	// should be sufficient to learn that len(w) <= cap(w) at the
+	// beginning of prove where we look for all len/cap ops.
+	if v.Op == OpSliceLen && r&lt == 0 && ft.caps[v.Args[0].ID] != nil {
+		// len(s) > w implies cap(s) > w
+		// len(s) >= w implies cap(s) >= w
+		// len(s) == w implies cap(s) >= w
+		ft.update(parent, ft.caps[v.Args[0].ID], w, d, r|gt)
+	}
+	if w.Op == OpSliceLen && r&gt == 0 && ft.caps[w.Args[0].ID] != nil {
+		// same, length on the RHS.
+		ft.update(parent, v, ft.caps[w.Args[0].ID], d, r|lt)
+	}
+	if v.Op == OpSliceCap && r&gt == 0 && ft.lens[v.Args[0].ID] != nil {
+		// cap(s) < w implies len(s) < w
+		// cap(s) <= w implies len(s) <= w
+		// cap(s) == w implies len(s) <= w
+		ft.update(parent, ft.lens[v.Args[0].ID], w, d, r|lt)
+	}
+	if w.Op == OpSliceCap && r&lt == 0 && ft.lens[w.Args[0].ID] != nil {
+		// same, capacity on the RHS.
+		ft.update(parent, v, ft.lens[w.Args[0].ID], d, r|gt)
+	}
+
 	// Process fence-post implications.
 	//
 	// First, make the condition > or >=.
@@ -353,6 +436,85 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			}
 		}
 	}
+
+	// Process: x+delta > w (with delta constant)
+	// Only signed domain for now (useful for accesses to slices in loops).
+	if r == gt || r == gt|eq {
+		if x, delta := isConstDelta(v); x != nil && d == signed {
+			if parent.Func.pass.debug > 1 {
+				parent.Func.Warnl(parent.Pos, "x+d >= w; x:%v %v delta:%v w:%v d:%v", x, parent.String(), delta, w.AuxInt, d)
+			}
+			if !w.isGenericIntConst() {
+				// If we know that x+delta > w but w is not constant, we can derive:
+				//    if delta < 0 and x > MinInt - delta, then x > w (because x+delta cannot underflow)
+				// This is useful for loops with bounds "len(slice)-K" (delta = -K)
+				if l, has := ft.limits[x.ID]; has && delta < 0 {
+					if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
+						(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
+						ft.update(parent, x, w, signed, r)
+					}
+				}
+			} else {
+				// With w,delta constants, we want to derive: x+delta > w  ⇒  x > w-delta
+				//
+				// We compute (using integers of the correct size):
+				//    min = w - delta
+				//    max = MaxInt - delta
+				//
+				// And we prove that:
+				//    if min<max: min < x AND x <= max
+				//    if min>max: min < x OR  x <= max
+				//
+				// This is always correct, even in case of overflow.
+				//
+				// If the initial fact is x+delta >= w instead, the derived conditions are:
+				//    if min<max: min <= x AND x <= max
+				//    if min>max: min <= x OR  x <= max
+				//
+				// Notice the conditions for max are still <=, as they handle overflows.
+				var min, max int64
+				var vmin, vmax *Value
+				switch x.Type.Size() {
+				case 8:
+					min = w.AuxInt - delta
+					max = int64(^uint64(0)>>1) - delta
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, max)
+
+				case 4:
+					min = int64(int32(w.AuxInt) - int32(delta))
+					max = int64(int32(^uint32(0)>>1) - int32(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
+
+				default:
+					panic("unimplemented")
+				}
+
+				if min < max {
+					// Record that x > min and max >= x
+					ft.update(parent, x, vmin, d, r)
+					ft.update(parent, vmax, x, d, r|eq)
+				} else {
+					// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
+					// so let's see if we can already prove that one of them is false, in which case
+					// the other must be true
+					if l, has := ft.limits[x.ID]; has {
+						if l.max <= min {
+							// x>min is impossible, so it must be x<=max
+							ft.update(parent, vmax, x, d, r|eq)
+						} else if l.min > max {
+							// x<=max is impossible, so it must be x>min
+							ft.update(parent, x, vmin, d, r)
+						}
+					}
+				}
+			}
+		}
+	}
+
 }
 
 var opMin = map[Op]int64{
@@ -365,13 +527,30 @@ var opMax = map[Op]int64{
 	OpAdd32: math.MaxInt32, OpSub32: math.MaxInt32,
 }
 
-// isNonNegative returns true if v is known to be non-negative.
+// isNonNegative reports whether v is known to be non-negative.
 func (ft *factsTable) isNonNegative(v *Value) bool {
 	if isNonNegative(v) {
 		return true
 	}
-	l, has := ft.limits[v.ID]
-	return has && (l.min >= 0 || l.umax <= math.MaxInt64)
+
+	// Check if the recorded limits can prove that the value is positive
+	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= math.MaxInt64) {
+		return true
+	}
+
+	// Check if v = x+delta, and we can use x's limits to prove that it's positive
+	if x, delta := isConstDelta(v); x != nil {
+		if l, has := ft.limits[x.ID]; has {
+			if delta > 0 && l.min >= -delta && l.max <= math.MaxInt64-delta {
+				return true
+			}
+			if delta < 0 && l.min >= -delta {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // checkpoint saves the current state of known relations.
@@ -382,6 +561,8 @@ func (ft *factsTable) checkpoint() {
 	}
 	ft.stack = append(ft.stack, checkpointFact)
 	ft.limitStack = append(ft.limitStack, checkpointBound)
+	ft.order[0].Checkpoint()
+	ft.order[1].Checkpoint()
 }
 
 // restore restores known relation to the state just
@@ -417,6 +598,8 @@ func (ft *factsTable) restore() {
 			ft.limits[old.vid] = old.limit
 		}
 	}
+	ft.order[0].Undo()
+	ft.order[1].Undo()
 }
 
 func lessByID(v, w *Value) bool {
@@ -531,29 +714,59 @@ var (
 // its negation. If either leads to a contradiction, it can trim that
 // successor.
 func prove(f *Func) {
-	ft := newFactsTable()
+	ft := newFactsTable(f)
+	ft.checkpoint()
 
 	// Find length and capacity ops.
+	var zero *Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
+			// If we found a zero constant, save it (so we don't have
+			// to build one later).
+			if zero == nil && v.Op == OpConst64 && v.AuxInt == 0 {
+				zero = v
+			}
 			if v.Uses == 0 {
 				// We don't care about dead values.
 				// (There can be some that are CSEd but not removed yet.)
 				continue
 			}
 			switch v.Op {
+			case OpStringLen:
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			case OpSliceLen:
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
 				}
 				ft.lens[v.Args[0].ID] = v
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			case OpSliceCap:
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
 				ft.caps[v.Args[0].ID] = v
+				if zero == nil {
+					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				}
+				ft.update(b, v, zero, signed, gt|eq)
 			}
 		}
+	}
+
+	// Find induction variables. Currently, findIndVars
+	// is limited to one induction variable per block.
+	var indVars map[*Block]indVar
+	for _, v := range findIndVar(f) {
+		if indVars == nil {
+			indVars = make(map[*Block]indVar)
+		}
+		indVars[v.entry] = v
 	}
 
 	// current node state
@@ -595,6 +808,10 @@ func prove(f *Func) {
 		switch node.state {
 		case descend:
 			ft.checkpoint()
+			if iv, ok := indVars[node.block]; ok {
+				addIndVarRestrictions(ft, parent, iv)
+			}
+
 			if branch != unknown {
 				addBranchRestrictions(ft, parent, branch)
 				if ft.unsat {
@@ -609,6 +826,9 @@ func prove(f *Func) {
 				// taking this branch. We'll restore
 				// ft when we unwind.
 			}
+
+			// Add inductive facts for phis in this block.
+			addLocalInductiveFacts(ft, node.block)
 
 			work = append(work, bp{
 				block: node.block,
@@ -625,6 +845,20 @@ func prove(f *Func) {
 			simplifyBlock(sdom, ft, node.block)
 			ft.restore()
 		}
+	}
+
+	ft.restore()
+
+	// Return the posets to the free list
+	for _, po := range ft.order {
+		// Make sure it's empty as it should be. A non-empty poset
+		// might cause errors and miscompilations if reused.
+		if checkEnabled {
+			if err := po.CheckEmpty(); err != nil {
+				f.Fatalf("prove poset not empty after function %s: %v", f.Name, err)
+			}
+		}
+		f.retPoset(po)
 	}
 }
 
@@ -649,6 +883,28 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 	return unknown
 }
 
+// addIndVarRestrictions updates the factsTables ft with the facts
+// learned from the induction variable indVar which drives the loop
+// starting in Block b.
+func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
+	d := signed
+	if isNonNegative(iv.min) && isNonNegative(iv.max) {
+		d |= unsigned
+	}
+
+	if iv.flags&indVarMinExc == 0 {
+		addRestrictions(b, ft, d, iv.min, iv.ind, lt|eq)
+	} else {
+		addRestrictions(b, ft, d, iv.min, iv.ind, lt)
+	}
+
+	if iv.flags&indVarMaxInc == 0 {
+		addRestrictions(b, ft, d, iv.ind, iv.max, lt)
+	} else {
+		addRestrictions(b, ft, d, iv.ind, iv.max, lt|eq)
+	}
+}
+
 // addBranchRestrictions updates the factsTables ft with the facts learned when
 // branching from Block b in direction br.
 func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
@@ -665,6 +921,9 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 		// When we branched from parent we learned a new set of
 		// restrictions. Update the factsTable accordingly.
 		d := tr.d
+		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
+			d |= unsigned
+		}
 		switch br {
 		case negative:
 			switch b.Control.Op { // Special cases
@@ -706,62 +965,183 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 			continue
 		}
 		ft.update(parent, v, w, i, r)
+	}
+}
 
-		// Additional facts we know given the relationship between len and cap.
-		if i != signed && i != unsigned {
+// addLocalInductiveFacts adds inductive facts when visiting b, where
+// b is a join point in a loop. In contrast with findIndVar, this
+// depends on facts established for b, which is why it happens when
+// visiting b. addLocalInductiveFacts specifically targets the pattern
+// created by OFORUNTIL, which isn't detected by findIndVar.
+//
+// TODO: It would be nice to combine this with findIndVar.
+func addLocalInductiveFacts(ft *factsTable, b *Block) {
+	// This looks for a specific pattern of induction:
+	//
+	// 1. i1 = OpPhi(min, i2) in b
+	// 2. i2 = i1 + 1
+	// 3. i2 < max at exit from b.Preds[1]
+	// 4. min < max
+	//
+	// If all of these conditions are true, then i1 < max and i1 >= min.
+
+	for _, i1 := range b.Values {
+		if i1.Op != OpPhi {
 			continue
 		}
-		if v.Op == OpSliceLen && r&lt == 0 && ft.caps[v.Args[0].ID] != nil {
-			// len(s) > w implies cap(s) > w
-			// len(s) >= w implies cap(s) >= w
-			// len(s) == w implies cap(s) >= w
-			ft.update(parent, ft.caps[v.Args[0].ID], w, i, r|gt)
+
+		// Check for conditions 1 and 2. This is easy to do
+		// and will throw out most phis.
+		min, i2 := i1.Args[0], i1.Args[1]
+		if i1q, delta := isConstDelta(i2); i1q != i1 || delta != 1 {
+			continue
 		}
-		if w.Op == OpSliceLen && r&gt == 0 && ft.caps[w.Args[0].ID] != nil {
-			// same, length on the RHS.
-			ft.update(parent, v, ft.caps[w.Args[0].ID], i, r|lt)
+
+		// Try to prove condition 3. We can't just query the
+		// fact table for this because we don't know what the
+		// facts of b.Preds[1] are (in general, b.Preds[1] is
+		// a loop-back edge, so we haven't even been there
+		// yet). As a conservative approximation, we look for
+		// this condition in the predecessor chain until we
+		// hit a join point.
+		uniquePred := func(b *Block) *Block {
+			if len(b.Preds) == 1 {
+				return b.Preds[0].b
+			}
+			return nil
 		}
-		if v.Op == OpSliceCap && r&gt == 0 && ft.lens[v.Args[0].ID] != nil {
-			// cap(s) < w implies len(s) < w
-			// cap(s) <= w implies len(s) <= w
-			// cap(s) == w implies len(s) <= w
-			ft.update(parent, ft.lens[v.Args[0].ID], w, i, r|lt)
-		}
-		if w.Op == OpSliceCap && r&lt == 0 && ft.lens[w.Args[0].ID] != nil {
-			// same, capacity on the RHS.
-			ft.update(parent, v, ft.lens[w.Args[0].ID], i, r|gt)
+		pred, child := b.Preds[1].b, b
+		for ; pred != nil; pred = uniquePred(pred) {
+			if pred.Kind != BlockIf {
+				continue
+			}
+
+			br := unknown
+			if pred.Succs[0].b == child {
+				br = positive
+			}
+			if pred.Succs[1].b == child {
+				if br != unknown {
+					continue
+				}
+				br = negative
+			}
+
+			tr, has := domainRelationTable[pred.Control.Op]
+			if !has {
+				continue
+			}
+			r := tr.r
+			if br == negative {
+				// Negative branch taken to reach b.
+				// Complement the relations.
+				r = (lt | eq | gt) ^ r
+			}
+
+			// Check for i2 < max or max > i2.
+			var max *Value
+			if r == lt && pred.Control.Args[0] == i2 {
+				max = pred.Control.Args[1]
+			} else if r == gt && pred.Control.Args[1] == i2 {
+				max = pred.Control.Args[0]
+			} else {
+				continue
+			}
+
+			// Check condition 4 now that we have a
+			// candidate max. For this we can query the
+			// fact table. We "prove" min < max by showing
+			// that min >= max is unsat. (This may simply
+			// compare two constants; that's fine.)
+			ft.checkpoint()
+			ft.update(b, min, max, tr.d, gt|eq)
+			proved := ft.unsat
+			ft.restore()
+
+			if proved {
+				// We know that min <= i1 < max.
+				if b.Func.pass.debug > 0 {
+					printIndVar(b, i1, min, max, 1, 0)
+				}
+				ft.update(b, min, i1, tr.d, lt|eq)
+				ft.update(b, i1, max, tr.d, lt)
+			}
 		}
 	}
 }
 
+var ctzNonZeroOp = map[Op]Op{OpCtz8: OpCtz8NonZero, OpCtz16: OpCtz16NonZero, OpCtz32: OpCtz32NonZero, OpCtz64: OpCtz64NonZero}
+
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
 func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
-	// Replace OpSlicemask operations in b with constants where possible.
 	for _, v := range b.Values {
-		if v.Op != OpSlicemask {
-			continue
-		}
-		x, delta := isConstDelta(v.Args[0])
-		if x == nil {
-			continue
-		}
-		// slicemask(x + y)
-		// if x is larger than -y (y is negative), then slicemask is -1.
-		lim, ok := ft.limits[x.ID]
-		if !ok {
-			continue
-		}
-		if lim.umin > uint64(-delta) {
-			if v.Args[0].Op == OpAdd64 {
-				v.reset(OpConst64)
-			} else {
-				v.reset(OpConst32)
+		switch v.Op {
+		case OpSlicemask:
+			// Replace OpSlicemask operations in b with constants where possible.
+			x, delta := isConstDelta(v.Args[0])
+			if x == nil {
+				continue
 			}
-			if b.Func.pass.debug > 0 {
-				b.Func.Warnl(v.Pos, "Proved slicemask not needed")
+			// slicemask(x + y)
+			// if x is larger than -y (y is negative), then slicemask is -1.
+			lim, ok := ft.limits[x.ID]
+			if !ok {
+				continue
 			}
-			v.AuxInt = -1
+			if lim.umin > uint64(-delta) {
+				if v.Args[0].Op == OpAdd64 {
+					v.reset(OpConst64)
+				} else {
+					v.reset(OpConst32)
+				}
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved slicemask not needed")
+				}
+				v.AuxInt = -1
+			}
+		case OpCtz8, OpCtz16, OpCtz32, OpCtz64:
+			// On some architectures, notably amd64, we can generate much better
+			// code for CtzNN if we know that the argument is non-zero.
+			// Capture that information here for use in arch-specific optimizations.
+			x := v.Args[0]
+			lim, ok := ft.limits[x.ID]
+			if !ok {
+				continue
+			}
+			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v non-zero", v.Op)
+				}
+				v.Op = ctzNonZeroOp[v.Op]
+			}
+
+		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
+			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
+			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
+			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,
+			OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
+			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
+			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
+			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64,
+			OpRsh8Ux8, OpRsh8Ux16, OpRsh8Ux32, OpRsh8Ux64,
+			OpRsh16Ux8, OpRsh16Ux16, OpRsh16Ux32, OpRsh16Ux64,
+			OpRsh32Ux8, OpRsh32Ux16, OpRsh32Ux32, OpRsh32Ux64,
+			OpRsh64Ux8, OpRsh64Ux16, OpRsh64Ux32, OpRsh64Ux64:
+			// Check whether, for a << b, we know that b
+			// is strictly less than the number of bits in a.
+			by := v.Args[1]
+			lim, ok := ft.limits[by.ID]
+			if !ok {
+				continue
+			}
+			bits := 8 * v.Args[0].Type.Size()
+			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
+				v.AuxInt = 1 // see shiftIsBounded
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
+				}
+			}
 		}
 	}
 
@@ -818,7 +1198,7 @@ func removeBranch(b *Block, branch branch) {
 	}
 }
 
-// isNonNegative returns true is v is known to be greater or equal to zero.
+// isNonNegative reports whether v is known to be greater or equal to zero.
 func isNonNegative(v *Value) bool {
 	switch v.Op {
 	case OpConst64:
@@ -830,6 +1210,10 @@ func isNonNegative(v *Value) bool {
 	case OpStringLen, OpSliceLen, OpSliceCap,
 		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64:
 		return true
+
+	case OpRsh64Ux64:
+		by := v.Args[1]
+		return by.Op == OpConst64 && by.AuxInt > 0
 
 	case OpRsh64x64:
 		return isNonNegative(v.Args[0])

@@ -274,7 +274,7 @@ func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, 
 		typ = sig.params.vars[n-1].typ
 		if debug {
 			if _, ok := typ.(*Slice); !ok {
-				check.dump("%s: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
+				check.dump("%v: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
 			}
 		}
 	default:
@@ -448,7 +448,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				// lookup.
 				mset := NewMethodSet(typ)
 				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
-					check.dump("%s: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
+					check.dump("%v: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
 					check.dump("%s\n", mset)
 					panic("method sets and lookup don't agree")
 				}

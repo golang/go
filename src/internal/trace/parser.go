@@ -56,7 +56,7 @@ type Event struct {
 	// for GoSysExit: the next GoStart
 	// for GCMarkAssistStart: the associated GCMarkAssistDone
 	// for UserTaskCreate: the UserTaskEnd
-	// for UserSpan: if the start span, the corresponding UserSpan end event
+	// for UserRegion: if the start region, the corresponding UserRegion end event
 	Link *Event
 }
 
@@ -442,7 +442,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 			case EvUserTaskCreate:
 				// e.Args 0: taskID, 1:parentID, 2:nameID
 				e.SArgs = []string{strings[e.Args[2]]}
-			case EvUserSpan:
+			case EvUserRegion:
 				// e.Args 0: taskID, 1: mode, 2:nameID
 				e.SArgs = []string{strings[e.Args[2]]}
 			case EvUserLog:
@@ -583,8 +583,8 @@ func postProcessTrace(ver int, events []*Event) error {
 
 	gs := make(map[uint64]gdesc)
 	ps := make(map[int]pdesc)
-	tasks := make(map[uint64]*Event)         // task id to task creation events
-	activeSpans := make(map[uint64][]*Event) // goroutine id to stack of spans
+	tasks := make(map[uint64]*Event)           // task id to task creation events
+	activeRegions := make(map[uint64][]*Event) // goroutine id to stack of regions
 	gs[0] = gdesc{state: gRunning}
 	var evGC, evSTW *Event
 
@@ -730,12 +730,12 @@ func postProcessTrace(ver int, events []*Event) error {
 			g.state = gDead
 			p.g = 0
 
-			if ev.Type == EvGoEnd { // flush all active spans
-				spans := activeSpans[ev.G]
-				for _, s := range spans {
+			if ev.Type == EvGoEnd { // flush all active regions
+				regions := activeRegions[ev.G]
+				for _, s := range regions {
 					s.Link = ev
 				}
-				delete(activeSpans, ev.G)
+				delete(activeRegions, ev.G)
 			}
 
 		case EvGoSched, EvGoPreempt:
@@ -811,29 +811,29 @@ func postProcessTrace(ver int, events []*Event) error {
 				taskCreateEv.Link = ev
 				delete(tasks, taskid)
 			}
-		case EvUserSpan:
+		case EvUserRegion:
 			mode := ev.Args[1]
-			spans := activeSpans[ev.G]
-			if mode == 0 { // span start
-				activeSpans[ev.G] = append(spans, ev) // push
-			} else if mode == 1 { // span end
-				n := len(spans)
-				if n > 0 { // matching span start event is in the trace.
-					s := spans[n-1]
-					if s.Args[0] != ev.Args[0] || s.SArgs[0] != ev.SArgs[0] { // task id, span name mismatch
-						return fmt.Errorf("misuse of span in goroutine %d: span end %q when the inner-most active span start event is %q", ev.G, ev, s)
+			regions := activeRegions[ev.G]
+			if mode == 0 { // region start
+				activeRegions[ev.G] = append(regions, ev) // push
+			} else if mode == 1 { // region end
+				n := len(regions)
+				if n > 0 { // matching region start event is in the trace.
+					s := regions[n-1]
+					if s.Args[0] != ev.Args[0] || s.SArgs[0] != ev.SArgs[0] { // task id, region name mismatch
+						return fmt.Errorf("misuse of region in goroutine %d: span end %q when the inner-most active span start event is %q", ev.G, ev, s)
 					}
-					// Link span start event with span end event
+					// Link region start event with span end event
 					s.Link = ev
 
 					if n > 1 {
-						activeSpans[ev.G] = spans[:n-1]
+						activeRegions[ev.G] = regions[:n-1]
 					} else {
-						delete(activeSpans, ev.G)
+						delete(activeRegions, ev.G)
 					}
 				}
 			} else {
-				return fmt.Errorf("invalid user span mode: %q", ev)
+				return fmt.Errorf("invalid user region mode: %q", ev)
 			}
 		}
 
@@ -1056,7 +1056,7 @@ const (
 	EvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
 	EvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent id, stack, name string]
 	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
-	EvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
 	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
 	EvCount             = 49
 )
@@ -1115,6 +1115,6 @@ var EventDescriptions = [EvCount]struct {
 	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}, nil},
 	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "typeid"}, []string{"name"}},
 	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}, nil},
-	EvUserSpan:          {"UserSpan", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
+	EvUserRegion:        {"UserRegion", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
 	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
 }

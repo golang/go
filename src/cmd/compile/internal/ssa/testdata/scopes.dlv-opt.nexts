@@ -1,27 +1,63 @@
   ./testdata/scopes.go
-18:	func test() {
-19:		x := id(0)
-20:		y := id(0)
-21:		fmt.Println(x)
-18:	func test() {
-22:		for i := x; i < 3; i++ {
-23:			x := i * i
-24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
-22:		for i := x; i < 3; i++ {
-24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
-22:		for i := x; i < 3; i++ {
-23:			x := i * i
-24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
-22:		for i := x; i < 3; i++ {
-24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
-22:		for i := x; i < 3; i++ {
-23:			x := i * i
-24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
-22:		for i := x; i < 3; i++ {
-24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
-22:		for i := x; i < 3; i++ {
-27:		fmt.Println(x, y)
-26:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
-27:		fmt.Println(x, y)
-28:	}
-11:	}
+21:	func test() {
+22:		x := id(0)
+23:		y := id(0)
+24:		fmt.Println(x)
+25:		for i := x; i < 3; i++ {
+29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+25:		for i := x; i < 3; i++ {
+29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+25:		for i := x; i < 3; i++ {
+26:			x := i * i
+27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+25:		for i := x; i < 3; i++ {
+27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+25:		for i := x; i < 3; i++ {
+26:			x := i * i
+27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+25:		for i := x; i < 3; i++ {
+27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+25:		for i := x; i < 3; i++ {
+26:			x := i * i
+27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+25:		for i := x; i < 3; i++ {
+27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+25:		for i := x; i < 3; i++ {
+30:		fmt.Println(x, y)
+29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+30:		fmt.Println(x, y)
+21:	func test() {
+32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+34:			f1(a)
+37:				f2(b)
+38:				if gretbool() {
+40:					f3(c)
+45:				f5(b)
+47:			f6(a)
+32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+34:			f1(a)
+37:				f2(b)
+38:				if gretbool() {
+43:					f4(int(c))
+45:				f5(b)
+47:			f6(a)
+32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+52:				j = id(1)
+53:				f = id(2)
+55:			for i := 0; i <= 5; i++ {
+57:				if i == f {
+55:			for i := 0; i <= 5; i++ {
+61:				sleepytime()
+55:			for i := 0; i <= 5; i++ {
+57:				if i == f {
+55:			for i := 0; i <= 5; i++ {
+61:				sleepytime()
+55:			for i := 0; i <= 5; i++ {
+57:				if i == f {
+58:					fmt.Println("foo")
+63:			helloworld()
+65:	}
+14:	}

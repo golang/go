@@ -1,4 +1,4 @@
-// +build !nacl,!plan9,!windows
+// +build !nacl,!js,!plan9,!windows
 // run
 
 // Copyright 2009 The Go Authors. All rights reserved.

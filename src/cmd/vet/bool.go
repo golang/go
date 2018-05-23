@@ -145,13 +145,20 @@ func hasSideEffects(f *File, e ast.Expr) bool {
 			// Don't call Type.Underlying(), since its lack
 			// lets us see the NamedFuncType(x) type
 			// conversion as a *types.Named.
-			_, ok := f.pkg.types[n.Fun].Type.(*types.Signature)
-			if ok {
-				// Conservatively assume that all function and
-				// method calls have side effects for
-				// now. This will include func type
-				// conversions, but it's ok given that
-				// this is the conservative side.
+			typVal := f.pkg.types[n.Fun]
+			_, isSig := typVal.Type.(*types.Signature)
+			switch {
+			case typVal.IsValue() && isSig:
+				// If we have a value of unnamed signature type,
+				// this CallExpr is a non-builtin func call and
+				// not a type conversion. Conservatively assume
+				// that all function and method calls have side
+				// effects for now.
+				safe = false
+				return false
+			case typVal.IsBuiltin():
+				// For now, conservatively assume that all
+				// built-in functions have side effects.
 				safe = false
 				return false
 			}

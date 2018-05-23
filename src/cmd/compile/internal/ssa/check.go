@@ -212,8 +212,17 @@ func checkFunc(f *Func) {
 				f.Fatalf("unexpected floating-point type %v", v.LongString())
 			}
 
+			// Check types.
+			// TODO: more type checks?
+			switch c := f.Config; v.Op {
+			case OpSP, OpSB:
+				if v.Type != c.Types.Uintptr {
+					f.Fatalf("bad %s type: want uintptr, have %s",
+						v.Op, v.Type.String())
+				}
+			}
+
 			// TODO: check for cycles in values
-			// TODO: check type
 		}
 	}
 

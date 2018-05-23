@@ -47,6 +47,8 @@ type PackagePublic struct {
 	Root          string `json:",omitempty"` // Go root or Go path dir containing this package
 	ConflictDir   string `json:",omitempty"` // Dir is hidden by this other directory
 	BinaryOnly    bool   `json:",omitempty"` // package cannot be recompiled
+	ForTest       string `json:",omitempty"` // package is only for use in named test
+	DepOnly       bool   `json:",omitempty"` // package is only as a dependency, not explicitly listed
 
 	// Stale and StaleReason remain here *only* for the list command.
 	// They are only initialized in preparation for list execution.
@@ -120,6 +122,14 @@ func (p *Package) AllFiles() []string {
 	)
 }
 
+// Desc returns the package "description", for use in b.showOutput.
+func (p *Package) Desc() string {
+	if p.ForTest != "" {
+		return p.ImportPath + " [" + p.ForTest + ".test]"
+	}
+	return p.ImportPath
+}
+
 type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build        *build.Package
@@ -135,6 +145,7 @@ type PackageInternal struct {
 	CoverVars    map[string]*CoverVar // variables created by coverage analysis
 	OmitDebug    bool                 // tell linker not to write debug information
 	GobinSubdir  bool                 // install target would be subdir of GOBIN
+	TestmainGo   *[]byte              // content for _testmain.go
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -412,14 +423,8 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 	importPath := path
 	origPath := path
 	isLocal := build.IsLocalImport(path)
-	var debugDeprecatedImportcfgDir string
 	if isLocal {
 		importPath = dirToImportPath(filepath.Join(srcDir, path))
-	} else if DebugDeprecatedImportcfg.enabled {
-		if d, i := DebugDeprecatedImportcfg.lookup(parent, path); d != "" {
-			debugDeprecatedImportcfgDir = d
-			importPath = i
-		}
 	} else if mode&UseVendor != 0 {
 		// We do our own vendor resolution, because we want to
 		// find out the key to use in packageCache without the
@@ -441,26 +446,17 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		// Load package.
 		// Import always returns bp != nil, even if an error occurs,
 		// in order to return partial information.
-		var bp *build.Package
-		var err error
-		if debugDeprecatedImportcfgDir != "" {
-			bp, err = cfg.BuildContext.ImportDir(debugDeprecatedImportcfgDir, 0)
-		} else if DebugDeprecatedImportcfg.enabled {
-			bp = new(build.Package)
-			err = fmt.Errorf("unknown import path %q: not in import cfg", importPath)
-		} else {
-			buildMode := build.ImportComment
-			if mode&UseVendor == 0 || path != origPath {
-				// Not vendoring, or we already found the vendored path.
-				buildMode |= build.IgnoreVendor
-			}
-			bp, err = cfg.BuildContext.Import(path, srcDir, buildMode)
+		buildMode := build.ImportComment
+		if mode&UseVendor == 0 || path != origPath {
+			// Not vendoring, or we already found the vendored path.
+			buildMode |= build.IgnoreVendor
 		}
+		bp, err := cfg.BuildContext.Import(path, srcDir, buildMode)
 		bp.ImportPath = importPath
 		if cfg.GOBIN != "" {
 			bp.BinDir = cfg.GOBIN
 		}
-		if debugDeprecatedImportcfgDir == "" && err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
+		if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
 			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
 			err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
 		}
@@ -469,7 +465,7 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 			p = setErrorPos(p, importPos)
 		}
 
-		if debugDeprecatedImportcfgDir == "" && origPath != cleanImport(origPath) {
+		if origPath != cleanImport(origPath) {
 			p.Error = &PackageError{
 				ImportStack: stk.Copy(),
 				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
@@ -546,13 +542,6 @@ func isDir(path string) bool {
 // x/vendor/path, vendor/path, or else stay path if none of those exist.
 // VendoredImportPath returns the expanded path or, if no expansion is found, the original.
 func VendoredImportPath(parent *Package, path string) (found string) {
-	if DebugDeprecatedImportcfg.enabled {
-		if d, i := DebugDeprecatedImportcfg.lookup(parent, path); d != "" {
-			return i
-		}
-		return path
-	}
-
 	if parent == nil || parent.Root == "" {
 		return path
 	}
@@ -964,7 +953,11 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		if InstallTargetDir(p) == ToTool {
 			// This is for 'go tool'.
 			// Override all the usual logic and force it into the tool directory.
-			p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
+			if cfg.BuildToolchainName == "gccgo" {
+				p.Target = filepath.Join(base.ToolDir, elem)
+			} else {
+				p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
+			}
 		}
 		if p.Target != "" && cfg.BuildContext.GOOS == "windows" {
 			p.Target += ".exe"
@@ -1587,201 +1580,4 @@ func GoFilesPackage(gofiles []string) *Package {
 	}
 
 	return pkg
-}
-
-// TestPackagesFor returns package structs ptest, the package p plus
-// its test files, and pxtest, the external tests of package p.
-// pxtest may be nil. If there are no test files, forceTest decides
-// whether this returns a new package struct or just returns p.
-func TestPackagesFor(p *Package, forceTest bool) (ptest, pxtest *Package, err error) {
-	var imports, ximports []*Package
-	var stk ImportStack
-	stk.Push(p.ImportPath + " (test)")
-	rawTestImports := str.StringList(p.TestImports)
-	for i, path := range p.TestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], UseVendor)
-		if p1.Error != nil {
-			return nil, nil, p1.Error
-		}
-		if len(p1.DepsErrors) > 0 {
-			err := p1.DepsErrors[0]
-			err.Pos = "" // show full import stack
-			return nil, nil, err
-		}
-		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
-			// Same error that loadPackage returns (via reusePackage) in pkg.go.
-			// Can't change that code, because that code is only for loading the
-			// non-test copy of a package.
-			err := &PackageError{
-				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
-				Err:           "import cycle not allowed in test",
-				IsImportCycle: true,
-			}
-			return nil, nil, err
-		}
-		p.TestImports[i] = p1.ImportPath
-		imports = append(imports, p1)
-	}
-	stk.Pop()
-	stk.Push(p.ImportPath + "_test")
-	pxtestNeedsPtest := false
-	rawXTestImports := str.StringList(p.XTestImports)
-	for i, path := range p.XTestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], UseVendor)
-		if p1.Error != nil {
-			return nil, nil, p1.Error
-		}
-		if len(p1.DepsErrors) > 0 {
-			err := p1.DepsErrors[0]
-			err.Pos = "" // show full import stack
-			return nil, nil, err
-		}
-		if p1.ImportPath == p.ImportPath {
-			pxtestNeedsPtest = true
-		} else {
-			ximports = append(ximports, p1)
-		}
-		p.XTestImports[i] = p1.ImportPath
-	}
-	stk.Pop()
-
-	// Test package.
-	if len(p.TestGoFiles) > 0 || forceTest {
-		ptest = new(Package)
-		*ptest = *p
-		ptest.GoFiles = nil
-		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
-		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
-		ptest.Target = ""
-		// Note: The preparation of the vet config requires that common
-		// indexes in ptest.Imports, ptest.Internal.Imports, and ptest.Internal.RawImports
-		// all line up (but RawImports can be shorter than the others).
-		// That is, for 0 ≤ i < len(RawImports),
-		// RawImports[i] is the import string in the program text,
-		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away),
-		// and Internal.Imports[i] is the corresponding *Package.
-		// Any implicitly added imports appear in Imports and Internal.Imports
-		// but not RawImports (because they were not in the source code).
-		// We insert TestImports, imports, and rawTestImports at the start of
-		// these lists to preserve the alignment.
-		ptest.Imports = str.StringList(p.TestImports, p.Imports)
-		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
-		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
-		ptest.Internal.ForceLibrary = true
-		ptest.Internal.Build = new(build.Package)
-		*ptest.Internal.Build = *p.Internal.Build
-		m := map[string][]token.Position{}
-		for k, v := range p.Internal.Build.ImportPos {
-			m[k] = append(m[k], v...)
-		}
-		for k, v := range p.Internal.Build.TestImportPos {
-			m[k] = append(m[k], v...)
-		}
-		ptest.Internal.Build.ImportPos = m
-	} else {
-		ptest = p
-	}
-
-	// External test package.
-	if len(p.XTestGoFiles) > 0 {
-		pxtest = &Package{
-			PackagePublic: PackagePublic{
-				Name:       p.Name + "_test",
-				ImportPath: p.ImportPath + "_test",
-				Root:       p.Root,
-				Dir:        p.Dir,
-				GoFiles:    p.XTestGoFiles,
-				Imports:    p.XTestImports,
-			},
-			Internal: PackageInternal{
-				LocalPrefix: p.Internal.LocalPrefix,
-				Build: &build.Package{
-					ImportPos: p.Internal.Build.XTestImportPos,
-				},
-				Imports:    ximports,
-				RawImports: rawXTestImports,
-
-				Asmflags:   p.Internal.Asmflags,
-				Gcflags:    p.Internal.Gcflags,
-				Ldflags:    p.Internal.Ldflags,
-				Gccgoflags: p.Internal.Gccgoflags,
-			},
-		}
-		if pxtestNeedsPtest {
-			pxtest.Internal.Imports = append(pxtest.Internal.Imports, ptest)
-		}
-	}
-
-	if p != ptest && pxtest != nil {
-		// We have made modifications to the package p being tested
-		// and are rebuilding p (as ptest).
-		// Arrange to rebuild all packages q such that
-		// pxtest depends on q and q depends on p.
-		// This makes sure that q sees the modifications to p.
-		// Strictly speaking, the rebuild is only necessary if the
-		// modifications to p change its export metadata, but
-		// determining that is a bit tricky, so we rebuild always.
-		recompileForTest(p, ptest, pxtest)
-	}
-
-	return ptest, pxtest, nil
-}
-
-func testImportStack(top string, p *Package, target string) []string {
-	stk := []string{top, p.ImportPath}
-Search:
-	for p.ImportPath != target {
-		for _, p1 := range p.Internal.Imports {
-			if p1.ImportPath == target || str.Contains(p1.Deps, target) {
-				stk = append(stk, p1.ImportPath)
-				p = p1
-				continue Search
-			}
-		}
-		// Can't happen, but in case it does...
-		stk = append(stk, "<lost path to cycle>")
-		break
-	}
-	return stk
-}
-
-func recompileForTest(preal, ptest, pxtest *Package) {
-	// The "test copy" of preal is ptest.
-	// For each package that depends on preal, make a "test copy"
-	// that depends on ptest. And so on, up the dependency tree.
-	testCopy := map[*Package]*Package{preal: ptest}
-	// Only pxtest and its dependencies can legally depend on p.
-	// If ptest or its dependencies depended on p, the dependency
-	// would be circular.
-	for _, p := range PackageList([]*Package{pxtest}) {
-		if p == preal {
-			continue
-		}
-		// Copy on write.
-		didSplit := p == pxtest
-		split := func() {
-			if didSplit {
-				return
-			}
-			didSplit = true
-			if testCopy[p] != nil {
-				panic("recompileForTest loop")
-			}
-			p1 := new(Package)
-			testCopy[p] = p1
-			*p1 = *p
-			p1.Internal.Imports = make([]*Package, len(p.Internal.Imports))
-			copy(p1.Internal.Imports, p.Internal.Imports)
-			p = p1
-			p.Target = ""
-		}
-
-		// Update p.Internal.Imports to use test copies.
-		for i, imp := range p.Internal.Imports {
-			if p1 := testCopy[imp]; p1 != nil && p1 != imp {
-				split()
-				p.Internal.Imports[i] = p1
-			}
-		}
-	}
 }

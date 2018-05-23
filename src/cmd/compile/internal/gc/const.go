@@ -331,26 +331,11 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 		case TARRAY:
 			goto bad
 
-		case TPTR32,
-			TPTR64,
-			TINTER,
-			TMAP,
-			TCHAN,
-			TFUNC,
-			TSLICE,
-			TUNSAFEPTR:
-			break
+		case TPTR32, TPTR64, TUNSAFEPTR:
+			n.SetVal(Val{new(Mpint)})
 
-		// A nil literal may be converted to uintptr
-		// if it is an unsafe.Pointer
-		case TUINTPTR:
-			if n.Type.Etype == TUNSAFEPTR {
-				i := new(Mpint)
-				i.SetInt64(0)
-				n.SetVal(Val{i})
-			} else {
-				goto bad
-			}
+		case TCHAN, TFUNC, TINTER, TMAP, TSLICE:
+			break
 		}
 
 	case CTSTR, CTBOOL:
@@ -1199,9 +1184,8 @@ func setconst(n *Node, v Val) {
 	// Ensure n.Orig still points to a semantically-equivalent
 	// expression after we rewrite n into a constant.
 	if n.Orig == n {
-		var ncopy Node
-		n.Orig = &ncopy
-		ncopy = *n
+		n.Orig = n.copy()
+		n.Orig.Orig = n.Orig
 	}
 
 	*n = Node{
@@ -1360,6 +1344,8 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 		default:
 			yyerror("defaultlit: unknown literal: %v", n)
 		}
+		lineno = lno
+		return n
 
 	case CTxxx:
 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)
@@ -1370,28 +1356,19 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 			t1 = t
 		}
 		n = convlit1(n, t1, false, reuse)
+		lineno = lno
+		return n
 
 	case CTINT:
 		t1 = types.Types[TINT]
-		goto num
-
 	case CTRUNE:
 		t1 = types.Runetype
-		goto num
-
 	case CTFLT:
 		t1 = types.Types[TFLOAT64]
-		goto num
-
 	case CTCPLX:
 		t1 = types.Types[TCOMPLEX128]
-		goto num
 	}
 
-	lineno = lno
-	return n
-
-num:
 	// Note: n.Val().Ctype() can be CTxxx (not a constant) here
 	// in the case of an untyped non-constant value, like 1<<i.
 	v1 := n.Val()
@@ -1522,12 +1499,14 @@ func nonnegintconst(n *Node) int64 {
 	return vi.Int64()
 }
 
-// Is n a Go language constant (as opposed to a compile-time constant)?
+// isGoConst reports whether n is a Go language constant (as opposed to a
+// compile-time constant).
+//
 // Expressions derived from nil, like string([]byte(nil)), while they
 // may be known at compile time, are not Go language constants.
 // Only called for expressions known to evaluated to compile-time
 // constants.
-func isgoconst(n *Node) bool {
+func (n *Node) isGoConst() bool {
 	if n.Orig != nil {
 		n = n.Orig
 	}
@@ -1561,18 +1540,18 @@ func isgoconst(n *Node) bool {
 		OCOMPLEX,
 		OREAL,
 		OIMAG:
-		if isgoconst(n.Left) && (n.Right == nil || isgoconst(n.Right)) {
+		if n.Left.isGoConst() && (n.Right == nil || n.Right.isGoConst()) {
 			return true
 		}
 
 	case OCONV:
-		if okforconst[n.Type.Etype] && isgoconst(n.Left) {
+		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
 			return true
 		}
 
 	case OLEN, OCAP:
 		l := n.Left
-		if isgoconst(l) {
+		if l.isGoConst() {
 			return true
 		}
 

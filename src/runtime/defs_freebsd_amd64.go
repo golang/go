@@ -22,6 +22,7 @@ const (
 	_PROT_EXEC  = 0x4
 
 	_MAP_ANON    = 0x1000
+	_MAP_SHARED  = 0x1
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
@@ -32,6 +33,7 @@ const (
 	_SA_ONSTACK = 0x1
 
 	_CLOCK_MONOTONIC = 0x4
+	_CLOCK_REALTIME  = 0x0
 
 	_UMTX_OP_WAIT_UINT         = 0xb
 	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
@@ -231,3 +233,35 @@ type keventt struct {
 	data   int64
 	udata  *byte
 }
+
+type bintime struct {
+	sec  int64
+	frac uint64
+}
+
+type vdsoTimehands struct {
+	algo         uint32
+	gen          uint32
+	scale        uint64
+	offset_count uint32
+	counter_mask uint32
+	offset       bintime
+	boottime     bintime
+	x86_shift    uint32
+	x86_hpet_idx uint32
+	res          [6]uint32
+}
+
+type vdsoTimekeep struct {
+	ver       uint32
+	enabled   uint32
+	current   uint32
+	pad_cgo_0 [4]byte
+}
+
+const (
+	_VDSO_TK_VER_CURR = 0x1
+
+	vdsoTimehandsSize = 0x58
+	vdsoTimekeepSize  = 0x10
+)

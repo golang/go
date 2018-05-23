@@ -18,7 +18,8 @@ func tighten(f *Func) {
 				OpAMD64LoweredGetClosurePtr, Op386LoweredGetClosurePtr,
 				OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
 				OpMIPSLoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr,
-				OpS390XLoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr:
+				OpS390XLoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr,
+				OpWasmLoweredGetClosurePtr:
 				// Phis need to stay in their block.
 				// GetClosurePtr & Arg must stay in the entry block.
 				// Tuple selectors must stay with the tuple generator.

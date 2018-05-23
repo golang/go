@@ -109,6 +109,34 @@ func filterFieldList(fields *FieldList, filter Filter, export bool) (removedFiel
 	return
 }
 
+func filterCompositeLit(lit *CompositeLit, filter Filter, export bool) {
+	n := len(lit.Elts)
+	lit.Elts = filterExprList(lit.Elts, filter, export)
+	if len(lit.Elts) < n {
+		lit.Incomplete = true
+	}
+}
+
+func filterExprList(list []Expr, filter Filter, export bool) []Expr {
+	j := 0
+	for _, exp := range list {
+		switch x := exp.(type) {
+		case *CompositeLit:
+			filterCompositeLit(x, filter, export)
+		case *KeyValueExpr:
+			if x, ok := x.Key.(*Ident); ok && !filter(x.Name) {
+				continue
+			}
+			if x, ok := x.Value.(*CompositeLit); ok {
+				filterCompositeLit(x, filter, export)
+			}
+		}
+		list[j] = exp
+		j++
+	}
+	return list[0:j]
+}
+
 func filterParamList(fields *FieldList, filter Filter, export bool) bool {
 	if fields == nil {
 		return false
@@ -158,6 +186,7 @@ func filterSpec(spec Spec, f Filter, export bool) bool {
 	switch s := spec.(type) {
 	case *ValueSpec:
 		s.Names = filterIdentList(s.Names, f)
+		s.Values = filterExprList(s.Values, f, export)
 		if len(s.Names) > 0 {
 			if export {
 				filterType(s.Type, f, export)

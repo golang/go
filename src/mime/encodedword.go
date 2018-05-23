@@ -51,6 +51,10 @@ func needsEncoding(s string) bool {
 // encodeWord encodes a string into an encoded-word.
 func (e WordEncoder) encodeWord(charset, s string) string {
 	var buf strings.Builder
+	// Could use a hint like len(s)*3, but that's not enough for cases
+	// with word splits and too much for simpler inputs.
+	// 48 is close to maxEncodedWordLen/2, but adjusted to allocator size class.
+	buf.Grow(48)
 
 	e.openWord(&buf, charset)
 	if e == BEncoding {

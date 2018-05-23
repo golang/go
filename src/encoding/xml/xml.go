@@ -1140,7 +1140,7 @@ func isInCharacterRange(r rune) (inrange bool) {
 	return r == 0x09 ||
 		r == 0x0A ||
 		r == 0x0D ||
-		r >= 0x20 && r <= 0xDF77 ||
+		r >= 0x20 && r <= 0xD7FF ||
 		r >= 0xE000 && r <= 0xFFFD ||
 		r >= 0x10000 && r <= 0x10FFFF
 }
@@ -1932,10 +1932,8 @@ func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
 		}
 		last = i
 	}
-	if _, err := w.Write(s[last:]); err != nil {
-		return err
-	}
-	return nil
+	_, err := w.Write(s[last:])
+	return err
 }
 
 // EscapeString writes to p the properly escaped XML equivalent
@@ -2018,10 +2016,8 @@ func emitCDATA(w io.Writer, s []byte) error {
 		}
 		s = s[i:]
 	}
-	if _, err := w.Write(cdataEnd); err != nil {
-		return err
-	}
-	return nil
+	_, err := w.Write(cdataEnd)
+	return err
 }
 
 // procInst parses the `param="..."` or `param='...'`

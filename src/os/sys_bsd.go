@@ -4,9 +4,6 @@
 
 // +build darwin dragonfly freebsd nacl netbsd openbsd
 
-// os code shared between *BSD systems including OS X (Darwin)
-// and FreeBSD.
-
 package os
 
 import "syscall"

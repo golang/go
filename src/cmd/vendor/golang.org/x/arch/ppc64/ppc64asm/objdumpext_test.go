@@ -188,7 +188,7 @@ func parseContinuation(line []byte, enc []byte) []byte {
 // describing a text segment that starts at start
 // and extends for size bytes.
 func writeELF64(f *os.File, size int) error {
-	f.Seek(0, 0)
+	f.Seek(0, io.SeekStart)
 	var hdr elf.Header64
 	var prog elf.Prog64
 	var sect elf.Section64

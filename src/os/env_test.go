@@ -62,6 +62,27 @@ func TestExpand(t *testing.T) {
 	}
 }
 
+var global interface{}
+
+func BenchmarkExpand(b *testing.B) {
+	b.Run("noop", func(b *testing.B) {
+		var s string
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			s = Expand("tick tick tick tick", func(string) string { return "" })
+		}
+		global = s
+	})
+	b.Run("multiple", func(b *testing.B) {
+		var s string
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			s = Expand("$a $a $a $a", func(string) string { return "boom" })
+		}
+		global = s
+	})
+}
+
 func TestConsistentEnviron(t *testing.T) {
 	e0 := Environ()
 	for i := 0; i < 10; i++ {

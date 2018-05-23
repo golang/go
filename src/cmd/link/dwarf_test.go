@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestDWARF(t *testing.T) {
+func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
@@ -48,11 +48,28 @@ func TestDWARF(t *testing.T) {
 		t.Run(prog, func(t *testing.T) {
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
-			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, dir).CombinedOutput()
+			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+			if buildmode != "" {
+				cmd.Args = append(cmd.Args, "-buildmode", buildmode)
+			}
+			cmd.Args = append(cmd.Args, dir)
+			if env != nil {
+				cmd.Env = append(os.Environ(), env...)
+			}
+			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
 			}
 
+			if buildmode == "c-archive" {
+				// Extract the archive and use the go.o object within.
+				cmd := exec.Command("ar", "-x", exe)
+				cmd.Dir = tmpDir
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("ar -x %s: %v\n%s", exe, err, out)
+				}
+				exe = filepath.Join(tmpDir, "go.o")
+			}
 			f, err := objfile.Open(exe)
 			if err != nil {
 				t.Fatal(err)
@@ -77,7 +94,14 @@ func TestDWARF(t *testing.T) {
 
 			d, err := f.DWARF()
 			if err != nil {
-				t.Fatal(err)
+				if expectDWARF {
+					t.Fatal(err)
+				}
+				return
+			} else {
+				if !expectDWARF {
+					t.Fatal("unexpected DWARF section")
+				}
 			}
 
 			// TODO: We'd like to use filepath.Join here.
@@ -121,4 +145,30 @@ func TestDWARF(t *testing.T) {
 			t.Fatalf("did not find file:line for %#x (main.main)", addr)
 		})
 	}
+}
+
+func TestDWARF(t *testing.T) {
+	testDWARF(t, "", true)
+}
+
+func TestDWARFiOS(t *testing.T) {
+	// Normally we run TestDWARF on native platform. But on iOS we don't have
+	// go build, so we do this test with a cross build.
+	// Only run this on darwin/amd64, where we can cross build for iOS.
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
+		t.Skip("skipping on non-darwin/amd64 platform")
+	}
+	if err := exec.Command("xcrun", "--help").Run(); err != nil {
+		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
+	}
+	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
+	// iOS doesn't allow unmapped segments, so iOS executables don't have DWARF.
+	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
+	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+	// However, c-archive iOS objects have embedded DWARF.
+	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
+	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
 }

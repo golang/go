@@ -97,7 +97,7 @@ type (
 		u, v, a /* ERROR "redeclared" */ float32
 	}
 	S2 struct {
-		S0 // anonymous field
+		S0 // embedded field
 		S0 /* ERROR "redeclared" */ int
 	}
 	S3 struct {

@@ -18,8 +18,8 @@ import (
 func init() {
 	http.HandleFunc("/usertasks", httpUserTasks)
 	http.HandleFunc("/usertask", httpUserTask)
-	http.HandleFunc("/userspans", httpUserSpans)
-	http.HandleFunc("/userspan", httpUserSpan)
+	http.HandleFunc("/userregions", httpUserRegions)
+	http.HandleFunc("/userregion", httpUserRegion)
 }
 
 // httpUserTasks reports all tasks found in the trace.
@@ -59,46 +59,46 @@ func httpUserTasks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func httpUserSpans(w http.ResponseWriter, r *http.Request) {
+func httpUserRegions(w http.ResponseWriter, r *http.Request) {
 	res, err := analyzeAnnotations()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	allSpans := res.spans
+	allRegions := res.regions
 
-	summary := make(map[spanTypeID]spanStats)
-	for id, spans := range allSpans {
+	summary := make(map[regionTypeID]regionStats)
+	for id, regions := range allRegions {
 		stats, ok := summary[id]
 		if !ok {
-			stats.spanTypeID = id
+			stats.regionTypeID = id
 		}
-		for _, s := range spans {
+		for _, s := range regions {
 			stats.add(s)
 		}
 		summary[id] = stats
 	}
-	// Sort spans by pc and name
-	userSpans := make([]spanStats, 0, len(summary))
+	// Sort regions by pc and name
+	userRegions := make([]regionStats, 0, len(summary))
 	for _, stats := range summary {
-		userSpans = append(userSpans, stats)
+		userRegions = append(userRegions, stats)
 	}
-	sort.Slice(userSpans, func(i, j int) bool {
-		if userSpans[i].Type != userSpans[j].Type {
-			return userSpans[i].Type < userSpans[j].Type
+	sort.Slice(userRegions, func(i, j int) bool {
+		if userRegions[i].Type != userRegions[j].Type {
+			return userRegions[i].Type < userRegions[j].Type
 		}
-		return userSpans[i].Frame.PC < userSpans[j].Frame.PC
+		return userRegions[i].Frame.PC < userRegions[j].Frame.PC
 	})
 	// Emit table.
-	err = templUserSpanTypes.Execute(w, userSpans)
+	err = templUserRegionTypes.Execute(w, userRegions)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
 
-func httpUserSpan(w http.ResponseWriter, r *http.Request) {
-	filter, err := newSpanFilter(r)
+func httpUserRegion(w http.ResponseWriter, r *http.Request) {
+	filter, err := newRegionFilter(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -108,13 +108,13 @@ func httpUserSpan(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	allSpans := res.spans
+	allRegions := res.regions
 
-	var data []spanDesc
+	var data []regionDesc
 
 	var maxTotal int64
-	for id, spans := range allSpans {
-		for _, s := range spans {
+	for id, regions := range allRegions {
+		for _, s := range regions {
 			if !filter.match(id, s) {
 				continue
 			}
@@ -126,7 +126,7 @@ func httpUserSpan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sortby := r.FormValue("sortby")
-	_, ok := reflect.TypeOf(spanDesc{}).FieldByNameFunc(func(s string) bool {
+	_, ok := reflect.TypeOf(regionDesc{}).FieldByNameFunc(func(s string) bool {
 		return s == sortby
 	})
 	if !ok {
@@ -138,9 +138,9 @@ func httpUserSpan(w http.ResponseWriter, r *http.Request) {
 		return ival > jval
 	})
 
-	err = templUserSpanType.Execute(w, struct {
+	err = templUserRegionType.Execute(w, struct {
 		MaxTotal int64
-		Data     []spanDesc
+		Data     []regionDesc
 		Name     string
 	}{
 		MaxTotal: maxTotal,
@@ -193,9 +193,9 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
 		if !filter.match(task) {
 			continue
 		}
-		// merge events in the task.events and task.spans.Start
+		// merge events in the task.events and task.regions.Start
 		rawEvents := append([]*trace.Event{}, task.events...)
-		for _, s := range task.spans {
+		for _, s := range task.regions {
 			if s.Start != nil {
 				rawEvents = append(rawEvents, s.Start)
 			}
@@ -230,7 +230,7 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
 			Complete:   task.complete(),
 			Events:     events,
 			Start:      time.Duration(task.firstTimestamp()) * time.Nanosecond,
-			End:        time.Duration(task.lastTimestamp()) * time.Nanosecond,
+			End:        time.Duration(task.endTimestamp()) * time.Nanosecond,
 			GCTime:     task.overlappingGCDuration(res.gcEvents),
 		})
 	}
@@ -254,12 +254,12 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
 }
 
 type annotationAnalysisResult struct {
-	tasks    map[uint64]*taskDesc      // tasks
-	spans    map[spanTypeID][]spanDesc // spans
-	gcEvents []*trace.Event            // GCStartevents, sorted
+	tasks    map[uint64]*taskDesc          // tasks
+	regions  map[regionTypeID][]regionDesc // regions
+	gcEvents []*trace.Event                // GCStartevents, sorted
 }
 
-type spanTypeID struct {
+type regionTypeID struct {
 	Frame trace.Frame // top frame
 	Type  string
 }
@@ -278,7 +278,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 	}
 
 	tasks := allTasks{}
-	spans := map[spanTypeID][]spanDesc{}
+	regions := map[regionTypeID][]regionDesc{}
 	var gcEvents []*trace.Event
 
 	for _, ev := range events {
@@ -303,38 +303,38 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 			gcEvents = append(gcEvents, ev)
 		}
 	}
-	// combine span info.
+	// combine region info.
 	analyzeGoroutines(events)
 	for goid, stats := range gs {
 		// gs is a global var defined in goroutines.go as a result
 		// of analyzeGoroutines. TODO(hyangah): fix this not to depend
 		// on a 'global' var.
-		for _, s := range stats.Spans {
+		for _, s := range stats.Regions {
 			if s.TaskID != 0 {
 				task := tasks.task(s.TaskID)
 				task.goroutines[goid] = struct{}{}
-				task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
+				task.regions = append(task.regions, regionDesc{UserRegionDesc: s, G: goid})
 			}
 			var frame trace.Frame
 			if s.Start != nil {
 				frame = *s.Start.Stk[0]
 			}
-			id := spanTypeID{Frame: frame, Type: s.Name}
-			spans[id] = append(spans[id], spanDesc{UserSpanDesc: s, G: goid})
+			id := regionTypeID{Frame: frame, Type: s.Name}
+			regions[id] = append(regions[id], regionDesc{UserRegionDesc: s, G: goid})
 		}
 	}
 
-	// sort spans in tasks based on the timestamps.
+	// sort regions in tasks based on the timestamps.
 	for _, task := range tasks {
-		sort.SliceStable(task.spans, func(i, j int) bool {
-			si, sj := task.spans[i].firstTimestamp(), task.spans[j].firstTimestamp()
+		sort.SliceStable(task.regions, func(i, j int) bool {
+			si, sj := task.regions[i].firstTimestamp(), task.regions[j].firstTimestamp()
 			if si != sj {
 				return si < sj
 			}
-			return task.spans[i].lastTimestamp() < task.spans[i].lastTimestamp()
+			return task.regions[i].lastTimestamp() < task.regions[j].lastTimestamp()
 		})
 	}
-	return annotationAnalysisResult{tasks: tasks, spans: spans, gcEvents: gcEvents}, nil
+	return annotationAnalysisResult{tasks: tasks, regions: regions, gcEvents: gcEvents}, nil
 }
 
 // taskDesc represents a task.
@@ -342,7 +342,7 @@ type taskDesc struct {
 	name       string              // user-provided task name
 	id         uint64              // internal task id
 	events     []*trace.Event      // sorted based on timestamp.
-	spans      []spanDesc          // associated spans, sorted based on the start timestamp and then the last timestamp.
+	regions    []regionDesc        // associated regions, sorted based on the start timestamp and then the last timestamp.
 	goroutines map[uint64]struct{} // involved goroutines
 
 	create *trace.Event // Task create event
@@ -365,10 +365,10 @@ func (task *taskDesc) String() string {
 	}
 	wb := new(bytes.Buffer)
 	fmt.Fprintf(wb, "task %d:\t%s\n", task.id, task.name)
-	fmt.Fprintf(wb, "\tstart: %v end: %v complete: %t\n", task.firstTimestamp(), task.lastTimestamp(), task.complete())
+	fmt.Fprintf(wb, "\tstart: %v end: %v complete: %t\n", task.firstTimestamp(), task.endTimestamp(), task.complete())
 	fmt.Fprintf(wb, "\t%d goroutines\n", len(task.goroutines))
-	fmt.Fprintf(wb, "\t%d spans:\n", len(task.spans))
-	for _, s := range task.spans {
+	fmt.Fprintf(wb, "\t%d regions:\n", len(task.regions))
+	for _, s := range task.regions {
 		fmt.Fprintf(wb, "\t\t%s(goid=%d)\n", s.Name, s.G)
 	}
 	if task.parent != nil {
@@ -382,10 +382,10 @@ func (task *taskDesc) String() string {
 	return wb.String()
 }
 
-// spanDesc represents a span.
-type spanDesc struct {
-	*trace.UserSpanDesc
-	G uint64 // id of goroutine where the span was defined
+// regionDesc represents a region.
+type regionDesc struct {
+	*trace.UserRegionDesc
+	G uint64 // id of goroutine where the region was defined
 }
 
 type allTasks map[uint64]*taskDesc
@@ -463,6 +463,17 @@ func (task *taskDesc) firstTimestamp() int64 {
 // trace. If the trace does not contain the task end event, the last
 // timestamp of the trace will be returned.
 func (task *taskDesc) lastTimestamp() int64 {
+	endTs := task.endTimestamp()
+	if last := task.lastEvent(); last != nil && last.Ts > endTs {
+		return last.Ts
+	}
+	return endTs
+}
+
+// endTimestamp returns the timestamp of this task's end event.
+// If the trace does not contain the task end event, the last
+// timestamp of the trace will be returned.
+func (task *taskDesc) endTimestamp() int64 {
 	if task != nil && task.end != nil {
 		return task.end.Ts
 	}
@@ -470,11 +481,11 @@ func (task *taskDesc) lastTimestamp() int64 {
 }
 
 func (task *taskDesc) duration() time.Duration {
-	return time.Duration(task.lastTimestamp()-task.firstTimestamp()) * time.Nanosecond
+	return time.Duration(task.endTimestamp()-task.firstTimestamp()) * time.Nanosecond
 }
 
-func (span *spanDesc) duration() time.Duration {
-	return time.Duration(span.lastTimestamp()-span.firstTimestamp()) * time.Nanosecond
+func (region *regionDesc) duration() time.Duration {
+	return time.Duration(region.lastTimestamp()-region.firstTimestamp()) * time.Nanosecond
 }
 
 // overlappingGCDuration returns the sum of GC period overlapping with the task's lifetime.
@@ -493,16 +504,16 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
 }
 
 // overlappingInstant returns true if the instantaneous event, ev, occurred during
-// any of the task's span if ev is a goroutine-local event, or overlaps with the
+// any of the task's region if ev is a goroutine-local event, or overlaps with the
 // task's lifetime if ev is a global event.
 func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
-	if isUserAnnotationEvent(ev) && task.id != ev.Args[0] {
+	if _, ok := isUserAnnotationEvent(ev); ok && task.id != ev.Args[0] {
 		return false // not this task's user event.
 	}
 
 	ts := ev.Ts
 	taskStart := task.firstTimestamp()
-	taskEnd := task.lastTimestamp()
+	taskEnd := task.endTimestamp()
 	if ts < taskStart || taskEnd < ts {
 		return false
 	}
@@ -510,13 +521,13 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
 		return true
 	}
 
-	// Goroutine local event. Check whether there are spans overlapping with the event.
+	// Goroutine local event. Check whether there are regions overlapping with the event.
 	goid := ev.G
-	for _, span := range task.spans {
-		if span.G != goid {
+	for _, region := range task.regions {
+		if region.G != goid {
 			continue
 		}
-		if span.firstTimestamp() <= ts && ts <= span.lastTimestamp() {
+		if region.firstTimestamp() <= ts && ts <= region.lastTimestamp() {
 			return true
 		}
 	}
@@ -524,7 +535,7 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
 }
 
 // overlappingDuration returns whether the durational event, ev, overlaps with
-// any of the task's span if ev is a goroutine-local event, or overlaps with
+// any of the task's region if ev is a goroutine-local event, or overlaps with
 // the task's lifetime if ev is a global event. It returns the overlapping time
 // as well.
 func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool) {
@@ -547,26 +558,26 @@ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool)
 	// This event is a global GC event
 	if ev.P == trace.GCP {
 		taskStart := task.firstTimestamp()
-		taskEnd := task.lastTimestamp()
+		taskEnd := task.endTimestamp()
 		o := overlappingDuration(taskStart, taskEnd, start, end)
 		return o, o > 0
 	}
 
-	// Goroutine local event. Check whether there are spans overlapping with the event.
+	// Goroutine local event. Check whether there are regions overlapping with the event.
 	var overlapping time.Duration
-	var lastSpanEnd int64 // the end of previous overlapping span
-	for _, span := range task.spans {
-		if span.G != goid && span.G != goid2 {
+	var lastRegionEnd int64 // the end of previous overlapping region
+	for _, region := range task.regions {
+		if region.G != goid && region.G != goid2 {
 			continue
 		}
-		spanStart, spanEnd := span.firstTimestamp(), span.lastTimestamp()
-		if spanStart < lastSpanEnd { // skip nested spans
+		regionStart, regionEnd := region.firstTimestamp(), region.lastTimestamp()
+		if regionStart < lastRegionEnd { // skip nested regions
 			continue
 		}
 
-		if o := overlappingDuration(spanStart, spanEnd, start, end); o > 0 {
+		if o := overlappingDuration(regionStart, regionEnd, start, end); o > 0 {
 			// overlapping.
-			lastSpanEnd = spanEnd
+			lastRegionEnd = regionEnd
 			overlapping += o
 		}
 	}
@@ -602,22 +613,22 @@ func (task *taskDesc) lastEvent() *trace.Event {
 	return nil
 }
 
-// firstTimestamp returns the timestamp of span start event.
-// If the span's start event is not present in the trace,
+// firstTimestamp returns the timestamp of region start event.
+// If the region's start event is not present in the trace,
 // the first timestamp of the trace will be returned.
-func (span *spanDesc) firstTimestamp() int64 {
-	if span.Start != nil {
-		return span.Start.Ts
+func (region *regionDesc) firstTimestamp() int64 {
+	if region.Start != nil {
+		return region.Start.Ts
 	}
 	return firstTimestamp()
 }
 
-// lastTimestamp returns the timestamp of span end event.
-// If the span's end event is not present in the trace,
+// lastTimestamp returns the timestamp of region end event.
+// If the region's end event is not present in the trace,
 // the last timestamp of the trace will be returned.
-func (span *spanDesc) lastTimestamp() int64 {
-	if span.End != nil {
-		return span.End.Ts
+func (region *regionDesc) lastTimestamp() int64 {
+	if region.End != nil {
+		return region.End.Ts
 	}
 	return lastTimestamp()
 }
@@ -627,7 +638,7 @@ func (span *spanDesc) lastTimestamp() int64 {
 // If non-zero depth is provided, this searches all events with BFS and includes
 // goroutines unblocked any of related goroutines to the result.
 func (task *taskDesc) RelatedGoroutines(events []*trace.Event, depth int) map[uint64]bool {
-	start, end := task.firstTimestamp(), task.lastTimestamp()
+	start, end := task.firstTimestamp(), task.endTimestamp()
 
 	gmap := map[uint64]bool{}
 	for k := range task.goroutines {
@@ -721,7 +732,7 @@ func newTaskFilter(r *http.Request) (*taskFilter, error) {
 func taskMatches(t *taskDesc, text string) bool {
 	for _, ev := range t.events {
 		switch ev.Type {
-		case trace.EvUserTaskCreate, trace.EvUserSpan, trace.EvUserLog:
+		case trace.EvUserTaskCreate, trace.EvUserRegion, trace.EvUserLog:
 			for _, s := range ev.SArgs {
 				if strings.Contains(s, text) {
 					return true
@@ -732,12 +743,12 @@ func taskMatches(t *taskDesc, text string) bool {
 	return false
 }
 
-type spanFilter struct {
+type regionFilter struct {
 	name string
-	cond []func(spanTypeID, spanDesc) bool
+	cond []func(regionTypeID, regionDesc) bool
 }
 
-func (f *spanFilter) match(id spanTypeID, s spanDesc) bool {
+func (f *regionFilter) match(id regionTypeID, s regionDesc) bool {
 	for _, c := range f.cond {
 		if !c(id, s) {
 			return false
@@ -746,42 +757,42 @@ func (f *spanFilter) match(id spanTypeID, s spanDesc) bool {
 	return true
 }
 
-func newSpanFilter(r *http.Request) (*spanFilter, error) {
+func newRegionFilter(r *http.Request) (*regionFilter, error) {
 	if err := r.ParseForm(); err != nil {
 		return nil, err
 	}
 
 	var name []string
-	var conditions []func(spanTypeID, spanDesc) bool
+	var conditions []func(regionTypeID, regionDesc) bool
 
 	param := r.Form
 	if typ, ok := param["type"]; ok && len(typ) > 0 {
 		name = append(name, "type="+typ[0])
-		conditions = append(conditions, func(id spanTypeID, s spanDesc) bool {
+		conditions = append(conditions, func(id regionTypeID, s regionDesc) bool {
 			return id.Type == typ[0]
 		})
 	}
 	if pc, err := strconv.ParseUint(r.FormValue("pc"), 16, 64); err == nil {
 		name = append(name, fmt.Sprintf("pc=%x", pc))
-		conditions = append(conditions, func(id spanTypeID, s spanDesc) bool {
+		conditions = append(conditions, func(id regionTypeID, s regionDesc) bool {
 			return id.Frame.PC == pc
 		})
 	}
 
 	if lat, err := time.ParseDuration(r.FormValue("latmin")); err == nil {
 		name = append(name, fmt.Sprintf("latency >= %s", lat))
-		conditions = append(conditions, func(_ spanTypeID, s spanDesc) bool {
+		conditions = append(conditions, func(_ regionTypeID, s regionDesc) bool {
 			return s.duration() >= lat
 		})
 	}
 	if lat, err := time.ParseDuration(r.FormValue("latmax")); err == nil {
 		name = append(name, fmt.Sprintf("latency <= %s", lat))
-		conditions = append(conditions, func(_ spanTypeID, s spanDesc) bool {
+		conditions = append(conditions, func(_ regionTypeID, s regionDesc) bool {
 			return s.duration() <= lat
 		})
 	}
 
-	return &spanFilter{name: strings.Join(name, ","), cond: conditions}, nil
+	return &regionFilter{name: strings.Join(name, ","), cond: conditions}, nil
 }
 
 type durationHistogram struct {
@@ -850,12 +861,16 @@ func (h *durationHistogram) ToHTML(urlmaker func(min, max time.Duration) string)
 	fmt.Fprintf(w, `<table>`)
 	for i := h.MinBucket; i <= h.MaxBucket; i++ {
 		// Tick label.
-		fmt.Fprintf(w, `<tr><td class="histoTime" align="right"><a href=%s>%s</a></td>`, urlmaker(h.BucketMin(i), h.BucketMin(i+1)), niceDuration(h.BucketMin(i)))
+		if h.Buckets[i] > 0 {
+			fmt.Fprintf(w, `<tr><td class="histoTime" align="right"><a href=%s>%s</a></td>`, urlmaker(h.BucketMin(i), h.BucketMin(i+1)), niceDuration(h.BucketMin(i)))
+		} else {
+			fmt.Fprintf(w, `<tr><td class="histoTime" align="right">%s</td>`, niceDuration(h.BucketMin(i)))
+		}
 		// Bucket bar.
 		width := h.Buckets[i] * barWidth / maxCount
-		fmt.Fprintf(w, `<td><div style="width:%dpx;background:blue;top:.6em;position:relative">&nbsp;</div></td>`, width)
+		fmt.Fprintf(w, `<td><div style="width:%dpx;background:blue;position:relative">&nbsp;</div></td>`, width)
 		// Bucket count.
-		fmt.Fprintf(w, `<td align="right"><div style="top:.6em;position:relative">%d</div></td>`, h.Buckets[i])
+		fmt.Fprintf(w, `<td align="right"><div style="position:relative">%d</div></td>`, h.Buckets[i])
 		fmt.Fprintf(w, "</tr>\n")
 
 	}
@@ -893,22 +908,22 @@ func (h *durationHistogram) String() string {
 	return w.String()
 }
 
-type spanStats struct {
-	spanTypeID
+type regionStats struct {
+	regionTypeID
 	Histogram durationHistogram
 }
 
-func (s *spanStats) UserSpanURL() func(min, max time.Duration) string {
+func (s *regionStats) UserRegionURL() func(min, max time.Duration) string {
 	return func(min, max time.Duration) string {
-		return fmt.Sprintf("/userspan?type=%s&pc=%x&latmin=%v&latmax=%v", template.URLQueryEscaper(s.Type), s.Frame.PC, template.URLQueryEscaper(min), template.URLQueryEscaper(max))
+		return fmt.Sprintf("/userregion?type=%s&pc=%x&latmin=%v&latmax=%v", template.URLQueryEscaper(s.Type), s.Frame.PC, template.URLQueryEscaper(min), template.URLQueryEscaper(max))
 	}
 }
 
-func (s *spanStats) add(span spanDesc) {
-	s.Histogram.add(span.duration())
+func (s *regionStats) add(region regionDesc) {
+	s.Histogram.add(region.duration())
 }
 
-var templUserSpanTypes = template.Must(template.New("").Parse(`
+var templUserRegionTypes = template.Must(template.New("").Parse(`
 <html>
 <style type="text/css">
 .histoTime {
@@ -920,15 +935,15 @@ var templUserSpanTypes = template.Must(template.New("").Parse(`
 <body>
 <table border="1" sortable="1">
 <tr>
-<th>Span type</th>
+<th>Region type</th>
 <th>Count</th>
 <th>Duration distribution (complete tasks)</th>
 </tr>
 {{range $}}
   <tr>
     <td>{{.Type}}<br>{{.Frame.Fn}}<br>{{.Frame.File}}:{{.Frame.Line}}</td>
-    <td><a href="/userspan?type={{.Type}}&pc={{.Frame.PC}}">{{.Histogram.Count}}</a></td>
-    <td>{{.Histogram.ToHTML (.UserSpanURL)}}</td>
+    <td><a href="/userregion?type={{.Type}}&pc={{.Frame.PC}}">{{.Histogram.Count}}</a></td>
+    <td>{{.Histogram.ToHTML (.UserRegionURL)}}</td>
   </tr>
 {{end}}
 </table>
@@ -1109,15 +1124,15 @@ func describeEvent(ev *trace.Event) string {
 		return "goroutine stopped"
 	case trace.EvUserLog:
 		return formatUserLog(ev)
-	case trace.EvUserSpan:
+	case trace.EvUserRegion:
 		if ev.Args[1] == 0 {
 			duration := "unknown"
 			if ev.Link != nil {
 				duration = (time.Duration(ev.Link.Ts-ev.Ts) * time.Nanosecond).String()
 			}
-			return fmt.Sprintf("span %s started (duration: %v)", ev.SArgs[0], duration)
+			return fmt.Sprintf("region %s started (duration: %v)", ev.SArgs[0], duration)
 		}
-		return fmt.Sprintf("span %s ended", ev.SArgs[0])
+		return fmt.Sprintf("region %s ended", ev.SArgs[0])
 	case trace.EvUserTaskCreate:
 		return fmt.Sprintf("task %v (id %d, parent %d) created", ev.SArgs[0], ev.Args[0], ev.Args[1])
 		// TODO: add child task creation events into the parent task events
@@ -1127,15 +1142,15 @@ func describeEvent(ev *trace.Event) string {
 	return ""
 }
 
-func isUserAnnotationEvent(ev *trace.Event) bool {
+func isUserAnnotationEvent(ev *trace.Event) (taskID uint64, ok bool) {
 	switch ev.Type {
-	case trace.EvUserLog, trace.EvUserSpan, trace.EvUserTaskCreate, trace.EvUserTaskEnd:
-		return true
+	case trace.EvUserLog, trace.EvUserRegion, trace.EvUserTaskCreate, trace.EvUserTaskEnd:
+		return ev.Args[0], true
 	}
-	return false
+	return 0, false
 }
 
-var templUserSpanType = template.Must(template.New("").Funcs(template.FuncMap{
+var templUserRegionType = template.Must(template.New("").Funcs(template.FuncMap{
 	"prettyDuration": func(nsec int64) template.HTML {
 		d := time.Duration(nsec) * time.Nanosecond
 		return template.HTML(niceDuration(d))
@@ -1152,7 +1167,7 @@ var templUserSpanType = template.Must(template.New("").Funcs(template.FuncMap{
 		}
 		return template.HTML(fmt.Sprintf("%.2f%%", float64(dividened)/float64(divisor)*100))
 	},
-	"unknownTime": func(desc spanDesc) int64 {
+	"unknownTime": func(desc regionDesc) int64 {
 		sum := desc.ExecTime + desc.IOTime + desc.BlockTime + desc.SyscallTime + desc.SchedWaitTime
 		if sum < desc.TotalTime {
 			return desc.TotalTime - sum
