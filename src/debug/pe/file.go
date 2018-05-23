@@ -269,9 +269,9 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		dd_length = f.OptionalHeader.(*OptionalHeader32).NumberOfRvaAndSizes
 	}
 
-	// check that the length of data directory entries is large 
+	// check that the length of data directory entries is large
 	// enough to include the imports directory.
-	if dd_length < IMAGE_DIRECTORY_ENTRY_IMPORT + 1 {
+	if dd_length < IMAGE_DIRECTORY_ENTRY_IMPORT+1 {
 		return nil, nil
 	}
 
@@ -287,7 +287,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 	var ds *Section
 	ds = nil
 	for _, s := range f.Sections {
-		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress + s.VirtualSize {
+		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress+s.VirtualSize {
 			ds = s
 			break
 		}
@@ -304,7 +304,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 	}
 
 	// seek to the virtual address specified in the import data directory
-	d = d[idd.VirtualAddress - ds.VirtualAddress:]
+	d = d[idd.VirtualAddress-ds.VirtualAddress:]
 
 	// start decoding the import directory
 	var ida []ImportDirectory
