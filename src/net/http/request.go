@@ -1254,8 +1254,8 @@ func (r *Request) FormValue(key string) string {
 	return ""
 }
 
-// PostFormValue returns the first value for the named component of the POST
-// or PUT request body. URL query parameters are ignored.
+// PostFormValue returns the first value for the named component of the POST,
+// PATCH, or PUT request body. URL query parameters are ignored.
 // PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, PostFormValue returns the empty string.
