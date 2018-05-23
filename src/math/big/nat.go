@@ -512,8 +512,7 @@ func karatsubaSqr(z, x nat) {
 	n := len(x)
 
 	if n&1 != 0 || n < karatsubaSqrThreshold || n < 2 {
-		z = z[:2*n]
-		basicSqr(z, x)
+		basicSqr(z[:2*n], x)
 		return
 	}
 
@@ -562,13 +561,14 @@ func (z nat) sqr(x nat) nat {
 	if alias(z, x) {
 		z = nil // z is an alias for x - cannot reuse
 	}
-	z = z.make(2 * n)
 
 	if n < basicSqrThreshold {
+		z = z.make(2 * n)
 		basicMul(z, x, x)
 		return z.norm()
 	}
 	if n < karatsubaSqrThreshold {
+		z = z.make(2 * n)
 		basicSqr(z, x)
 		return z.norm()
 	}
