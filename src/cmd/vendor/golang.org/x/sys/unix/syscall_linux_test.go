@@ -285,7 +285,7 @@ func TestSchedSetaffinity(t *testing.T) {
 func TestStatx(t *testing.T) {
 	var stx unix.Statx_t
 	err := unix.Statx(unix.AT_FDCWD, ".", 0, 0, &stx)
-	if err == unix.ENOSYS {
+	if err == unix.ENOSYS || err == unix.EPERM {
 		t.Skip("statx syscall is not available, skipping test")
 	} else if err != nil {
 		t.Fatalf("Statx: %v", err)
@@ -370,4 +370,18 @@ func TestStatx(t *testing.T) {
 	if stx.Mtime != mtime {
 		t.Errorf("Statx: returned stat mtime does not match Lstat")
 	}
+}
+
+// stringsFromByteSlice converts a sequence of attributes to a []string.
+// On Linux, each entry is a NULL-terminated string.
+func stringsFromByteSlice(buf []byte) []string {
+	var result []string
+	off := 0
+	for i, b := range buf {
+		if b == 0 {
+			result = append(result, string(buf[off:i]))
+			off = i + 1
+		}
+	}
+	return result
 }
