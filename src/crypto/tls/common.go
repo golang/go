@@ -918,12 +918,11 @@ func defaultCipherSuites() []uint16 {
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
 
-	// check the cpu flags for each platform that has optimized GCM implementations
-	// doing it once here is slightly cleaner than introducing build constrained files
-	// these variables, at worst case, will just all be false
+	// Check the cpu flags for each platform that has optimized GCM implementations.
+	// Worst case, these variables will just all be false
 	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
 	hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
-	hasGCMAsmS390X := cpu.S390X.HasKM && (cpu.S390X.HasKMA || (cpu.S390X.HasKMC && cpu.S390X.HasKMCTR && cpu.S390X.HasKIMD))
+	hasGCMAsmS390X := cpu.S390X.HasKM && (cpu.S390X.HasKMA || (cpu.S390X.HasKMCTR && cpu.S390X.HasKIMD))
 
 	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
 
