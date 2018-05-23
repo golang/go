@@ -13,7 +13,6 @@ import (
 )
 
 // The following functions are defined in gcm_amd64.s.
-func hasGCMAsm() bool
 
 //go:noescape
 func aesEncBlock(dst, src *[16]byte, ks []uint32)
