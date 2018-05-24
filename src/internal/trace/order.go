@@ -133,7 +133,7 @@ func order1007(m map[int][]*Event) (events []*Event, err error) {
 			ev.Ts = ts
 		}
 	}
-	sort.Sort(eventList(events))
+	sort.Stable(eventList(events))
 
 	return
 }
@@ -243,20 +243,7 @@ func (l orderEventList) Len() int {
 }
 
 func (l orderEventList) Less(i, j int) bool {
-	a, b := l[i].ev, l[j].ev
-	if a.Ts != b.Ts {
-		return a.Ts < b.Ts
-	}
-	if a.Type != b.Type {
-		return a.Type < b.Type
-	}
-	if a.P != b.P {
-		return a.P < b.P
-	}
-	if a.G != b.G {
-		return a.G < b.G
-	}
-	return a.Args[0] < b.Args[0]
+	return l[i].ev.Ts < l[j].ev.Ts
 }
 
 func (l orderEventList) Swap(i, j int) {
