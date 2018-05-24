@@ -119,22 +119,22 @@
 			"revisionTime": "2018-04-06T10:28:20Z"
 		},
 		{
-			"checksumSHA1": "E18+MSOY6MlYvt0118eUPj9NsyQ=",
+			"checksumSHA1": "4nPV7YdyHiVRSWaxpy6jHt/MTq4=",
 			"path": "golang.org/x/crypto/ssh/terminal",
-			"revision": "1a580b3eff7814fc9b40602fd35256c63b50f491",
-			"revisionTime": "2018-05-14T23:55:10Z"
+			"revision": "159ae71589f303f9fbfd7528413e0fe944b9c1cb",
+			"revisionTime": "2018-05-24T11:38:20Z"
 		},
 		{
-			"checksumSHA1": "6dKfNPNpUf9n8ya24buuzpMFfjs=",
+			"checksumSHA1": "dFWZRPHQmh24everjam0u30KoIM=",
 			"path": "golang.org/x/sys/unix",
-			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
-			"revisionTime": "2018-05-23T20:41:33Z"
+			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
+			"revisionTime": "2018-05-24T06:57:10Z"
 		},
 		{
-			"checksumSHA1": "oOO80EfXGcEl+tZoYAZVs6VRpE8=",
+			"checksumSHA1": "y0x0I9zDxnxn9nCxwP/MdPyq1E8=",
 			"path": "golang.org/x/sys/windows",
-			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
-			"revisionTime": "2018-05-23T20:41:33Z"
+			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
+			"revisionTime": "2018-05-24T06:57:10Z"
 		},
 		{
 			"checksumSHA1": "BnZkq/3Ejb7961bDhybRraW6jzI=",
@@ -145,14 +145,14 @@
 		{
 			"checksumSHA1": "dQbFeoiAxfB3WFFVcAdeSwSgeDk=",
 			"path": "golang.org/x/sys/windows/svc",
-			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
-			"revisionTime": "2018-05-23T20:41:33Z"
+			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
+			"revisionTime": "2018-05-24T06:57:10Z"
 		},
 		{
 			"checksumSHA1": "e9KJPWrdqg5PMkbE2w60Io8rY4M=",
 			"path": "golang.org/x/sys/windows/svc/debug",
-			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
-			"revisionTime": "2018-05-23T20:41:33Z"
+			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
+			"revisionTime": "2018-05-24T06:57:10Z"
 		},
 		{
 			"checksumSHA1": "dz53pQfqAnXG8HdJj+nazXN9YRw=",
@@ -163,8 +163,8 @@
 		{
 			"checksumSHA1": "wz+0tf0Z7cVBaz/35P1m1cAiI7k=",
 			"path": "golang.org/x/sys/windows/svc/mgr",
-			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
-			"revisionTime": "2018-05-23T20:41:33Z"
+			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
+			"revisionTime": "2018-05-24T06:57:10Z"
 		}
 	],
 	"rootPath": "/cmd"
