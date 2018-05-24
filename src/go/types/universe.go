@@ -102,7 +102,7 @@ func defPredeclaredConsts() {
 }
 
 func defPredeclaredNil() {
-	def(&Nil{object{name: "nil", typ: Typ[UntypedNil]}})
+	def(&Nil{object{name: "nil", typ: Typ[UntypedNil], color_: black}})
 }
 
 // A builtinId is the id of a builtin function.
@@ -207,6 +207,7 @@ func init() {
 // scope; other objects are inserted in the universe scope.
 //
 func def(obj Object) {
+	assert(obj.color() == black)
 	name := obj.Name()
 	if strings.Contains(name, " ") {
 		return // nothing to do

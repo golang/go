@@ -52,8 +52,82 @@ func pathString(path []*TypeName) string {
 // objDecl type-checks the declaration of obj in its respective (file) context.
 // See check.typ for the details on def and path.
 func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
-	if obj.Type() != nil {
-		return // already checked - nothing to do
+	// Checking the declaration of obj means inferring its type
+	// (and possibly its value, for constants).
+	// An object's type (and thus the object) may be in one of
+	// three states which are expressed by colors:
+	//
+	// - an object whose type is not yet known is painted white (initial color)
+	// - an object whose type is in the process of being inferred is painted grey
+	// - an object whose type is fully inferred is painted black
+	//
+	// During type inference, an object's color changes from white to grey
+	// to black (pre-declared objects are painted black from the start).
+	// A black object (i.e., its type) can only depend on (refer to) other black
+	// ones. White and grey objects may depend on white and black objects.
+	// A dependency on a grey object indicates a cycle which may or may not be
+	// valid.
+	//
+	// When objects turn grey, they are pushed on the object path (a stack);
+	// they are popped again when they turn black. Thus, if a grey object (a
+	// cycle) is encountered, it is on the object path, and all the objects
+	// it depends on are the remaining objects on that path. Color encoding
+	// is such that the color value of a grey object indicates the index of
+	// that object in the object path.
+
+	// During type-checking, white objects may be assigned a type without
+	// traversing through objDecl; e.g., when initializing constants and
+	// variables. Update the colors of those objects here (rather than
+	// everywhere where we set the type) to satisfy the color invariants.
+	if obj.color() == white && obj.Type() != nil {
+		obj.setColor(black)
+		return
+	}
+
+	switch obj.color() {
+	case white:
+		assert(obj.Type() == nil)
+		// All color values other than white and black are considered grey.
+		// Because black and white are < grey, all values >= grey are grey.
+		// Use those values to encode the object's index into the object path.
+		obj.setColor(grey + color(check.push(obj)))
+		defer func() {
+			check.pop().setColor(black)
+		}()
+
+	case black:
+		assert(obj.Type() != nil)
+		return
+
+	default:
+		// Color values other than white or black are considered grey.
+		fallthrough
+
+	case grey:
+		// We have a cycle.
+		// In the existing code, this is marked by a non-nil type
+		// for the object except for constants and variables, which
+		// have their own "visited" flag (the new marking approach
+		// will allow us to remove that flag eventually). Their type
+		// may be nil because they haven't determined their init
+		// values yet (from which to deduce the type). But in that
+		// case, they must have been marked as visited.
+		// For now, handle constants and variables specially.
+		visited := false
+		switch obj := obj.(type) {
+		case *Const:
+			visited = obj.visited
+		case *Var:
+			visited = obj.visited
+		default:
+			assert(obj.Type() != nil)
+			return
+		}
+		if obj.Type() != nil {
+			return
+		}
+		assert(visited)
+
 	}
 
 	if trace {
