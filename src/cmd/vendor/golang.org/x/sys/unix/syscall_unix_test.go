@@ -125,6 +125,10 @@ func TestFcntlFlock(t *testing.T) {
 // "-test.run=^TestPassFD$" and an environment variable used to signal
 // that the test should become the child process instead.
 func TestPassFD(t *testing.T) {
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("cannot exec subprocess on iOS, skipping test")
+	}
+
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		passFDChild()
 		return
@@ -390,6 +394,11 @@ func TestDup(t *testing.T) {
 }
 
 func TestPoll(t *testing.T) {
+	if runtime.GOOS == "android" ||
+		(runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")) {
+		t.Skip("mkfifo syscall is not available on android and iOS, skipping test")
+	}
+
 	f, cleanup := mktmpfifo(t)
 	defer cleanup()
 
@@ -426,7 +435,10 @@ func TestGetwd(t *testing.T) {
 	// These are chosen carefully not to be symlinks on a Mac
 	// (unlike, say, /var, /etc)
 	dirs := []string{"/", "/usr/bin"}
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "android":
+		dirs = []string{"/", "/system/bin"}
+	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
 			d1, err := ioutil.TempDir("", "d1")
@@ -534,7 +546,7 @@ func TestFchmodat(t *testing.T) {
 	didChmodSymlink := true
 	err = unix.Fchmodat(unix.AT_FDCWD, "symlink1", uint32(mode), unix.AT_SYMLINK_NOFOLLOW)
 	if err != nil {
-		if (runtime.GOOS == "linux" || runtime.GOOS == "solaris") && err == unix.EOPNOTSUPP {
+		if (runtime.GOOS == "android" || runtime.GOOS == "linux" || runtime.GOOS == "solaris") && err == unix.EOPNOTSUPP {
 			// Linux and Illumos don't support flags != 0
 			didChmodSymlink = false
 		} else {
@@ -557,6 +569,19 @@ func TestFchmodat(t *testing.T) {
 	got := os.FileMode(st.Mode & 0777)
 	if got != mode {
 		t.Errorf("Fchmodat: failed to change symlink mode: expected %v, got %v", mode, got)
+	}
+}
+
+func TestMkdev(t *testing.T) {
+	major := uint32(42)
+	minor := uint32(7)
+	dev := unix.Mkdev(major, minor)
+
+	if unix.Major(dev) != major {
+		t.Errorf("Major(%#x) == %d, want %d", dev, unix.Major(dev), major)
+	}
+	if unix.Minor(dev) != minor {
+		t.Errorf("Minor(%#x) == %d, want %d", dev, unix.Minor(dev), minor)
 	}
 }
 

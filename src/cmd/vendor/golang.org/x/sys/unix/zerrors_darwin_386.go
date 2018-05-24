@@ -1473,6 +1473,12 @@ const (
 	WORDSIZE                          = 0x20
 	WSTOPPED                          = 0x8
 	WUNTRACED                         = 0x2
+	XATTR_CREATE                      = 0x2
+	XATTR_NODEFAULT                   = 0x10
+	XATTR_NOFOLLOW                    = 0x1
+	XATTR_NOSECURITY                  = 0x8
+	XATTR_REPLACE                     = 0x4
+	XATTR_SHOWCOMPRESSION             = 0x20
 )
 
 // Errors

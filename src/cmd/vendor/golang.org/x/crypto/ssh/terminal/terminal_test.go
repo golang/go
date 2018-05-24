@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -326,6 +327,11 @@ func TestMakeRawState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get terminal state from GetState: %s", err)
 	}
+
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("MakeRaw not allowed on iOS; skipping test")
+	}
+
 	defer Restore(fd, st)
 	raw, err := MakeRaw(fd)
 	if err != nil {

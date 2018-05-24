@@ -32,6 +32,10 @@ func TestIoctlGetInt(t *testing.T) {
 }
 
 func TestPpoll(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("mkfifo syscall is not available on android, skipping test")
+	}
+
 	f, cleanup := mktmpfifo(t)
 	defer cleanup()
 
@@ -258,6 +262,9 @@ func TestSchedSetaffinity(t *testing.T) {
 
 	if runtime.NumCPU() < 2 {
 		t.Skip("skipping setaffinity tests on single CPU system")
+	}
+	if runtime.GOOS == "android" {
+		t.Skip("skipping setaffinity tests on android")
 	}
 
 	err = unix.SchedSetaffinity(0, &newMask)
