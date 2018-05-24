@@ -31,12 +31,11 @@ type aesCipherAsm struct {
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
 func newCipher(key []byte) (cipher.Block, error) {
-	// Strictly speaking, this check should be for HasKM.
-	// The check for HasKMC and HasKMCTR provides compatibility
-	// with the existing optimized s390x CBC and CTR implementations
-	// in this package, which already assert that they meet the
-	// cbcEncAble, cbcDecAble, and ctrAble interfaces
-	if !(cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR) {
+	// The aesCipherAsm type implements the cbcEncAble, cbcDecAble,
+	// ctrAble and gcmAble interfaces. We therefore need to check
+	// for all the features required to implement these modes.
+	// Keep in sync with crypto/tls/common.go.
+	if !(cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)) {
 		return newCipherGeneric(key)
 	}
 

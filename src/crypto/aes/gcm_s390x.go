@@ -85,7 +85,7 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 		nonceSize: nonceSize,
 		tagSize:   tagSize,
 	}
-	if cpu.S390X.HasKMA {
+	if cpu.S390X.HasAESGCM {
 		g := gcmKMA{g}
 		return &g, nil
 	}
