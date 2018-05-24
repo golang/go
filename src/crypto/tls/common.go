@@ -930,7 +930,8 @@ func initDefaultCipherSuites() {
 	hasGCMAsmARM64 := false
 	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
 
-	hasGCMAsmS390X := cpu.S390X.HasKM && (cpu.S390X.HasKMA || (cpu.S390X.HasKMCTR && cpu.S390X.HasKIMD))
+	// Keep in sync with crypto/aes/cipher_s390x.go.
+	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
 
 	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
 

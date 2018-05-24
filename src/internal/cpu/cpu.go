@@ -98,14 +98,24 @@ type arm64 struct {
 var S390X s390x
 
 type s390x struct {
-	_        [CacheLineSize]byte
-	HasVX    bool // vector facility. Note: the runtime sets this when it processes auxv records.
-	HasKM    bool // cipher message (KM)
-	HasKMA   bool // cipher message assist (KMA)
-	HasKMC   bool // cipher message with chaining (KMC)
-	HasKMCTR bool // cipher message with counter (KMCTR)
-	HasKIMD  bool // compute intermediate message digest (KIMD)
-	_        [CacheLineSize]byte
+	_               [CacheLineSize]byte
+	HasZArch        bool // z architecture mode is active [mandatory]
+	HasSTFLE        bool // store facility list extended [mandatory]
+	HasLDisp        bool // long (20-bit) displacements [mandatory]
+	HasEImm         bool // 32-bit immediates [mandatory]
+	HasDFP          bool // decimal floating point
+	HasETF3Enhanced bool // ETF-3 enhanced
+	HasMSA          bool // message security assist (CPACF)
+	HasAES          bool // KM-AES{128,192,256} functions
+	HasAESCBC       bool // KMC-AES{128,192,256} functions
+	HasAESCTR       bool // KMCTR-AES{128,192,256} functions
+	HasAESGCM       bool // KMA-GCM-AES{128,192,256} functions
+	HasGHASH        bool // KIMD-GHASH function
+	HasSHA1         bool // K{I,L}MD-SHA-1 functions
+	HasSHA256       bool // K{I,L}MD-SHA-256 functions
+	HasSHA512       bool // K{I,L}MD-SHA-512 functions
+	HasVX           bool // vector facility. Note: the runtime sets this when it processes auxv records.
+	_               [CacheLineSize]byte
 }
 
 // initialize examines the processor and sets the relevant variables above.
