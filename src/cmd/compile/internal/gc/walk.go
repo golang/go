@@ -20,7 +20,7 @@ func walk(fn *Node) {
 	Curfn = fn
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("\nbefore %v", Curfn.Func.Nname.Sym)
+		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
@@ -473,7 +473,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 	lno := setlineno(n)
 
 	if Debug['w'] > 1 {
-		Dump("walk-before", n)
+		Dump("before walk expr", n)
 	}
 
 	if n.Typecheck() != 1 {
@@ -1763,7 +1763,7 @@ opswitch:
 	updateHasCall(n)
 
 	if Debug['w'] != 0 && n != nil {
-		Dump("walk", n)
+		Dump("after walk expr", n)
 	}
 
 	lineno = lno
