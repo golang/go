@@ -45,7 +45,7 @@ analysis easy and avoids much of the overhead of C-style include files and
 libraries.
 <li>
 Go's type system has no hierarchy, so no time is spent defining the
-relationships between types. Also, although Go has static types the language
+relationships between types. Also, although Go has static types, the language
 attempts to make types feel lighter weight than in typical OO languages.
 <li>
 Go is fully garbage-collected and provides fundamental support for
@@ -1097,24 +1097,27 @@ The <code>go get</code> command therefore uses HTTPS for safety.
 </p>
 
 <p>
-If you use <code>git</code> and prefer to push changes through SSH using your existing key 
-it's easy to work around this. For GitHub, try one of these solutions:
+<code>Git</code> can be configured to authenticate over HTTPS or to use SSH in place of HTTPS.
+To authenticate over HTTPS, you can add a line
+to the <code>$HOME/.netrc</code> file that git consults:
 </p>
-<ul>
-<li>Manually clone the repository in the expected package directory:
 <pre>
-$ cd src/github.com/username
-$ git clone git@github.com:username/package.git
+machine github.com login <i>USERNAME</i> password <i>APIKEY</i>
 </pre>
-</li>
-<li>Force <code>git push</code> to use the <code>SSH</code> protocol by appending
-these two lines to <code>~/.gitconfig</code>:
+<p>
+For GitHub accounts, the password can be a
+<a href="https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/">personal access token</a>.
+</p>
+
+<p>
+<code>Git</code> can also be configured to use SSH in place of HTTPS for URLs matching a given prefix.
+For example, to use SSH for all GitHub access,
+add these lines to your <code>~/.gitconfig</code>:
+</p>
 <pre>
-[url "git@github.com:"]
-	pushInsteadOf = https://github.com/
+[url "ssh://git@github.com/"]
+	insteadOf = https://github.com/
 </pre>
-</li>
-</ul>
 
 <h3 id="get_version">
 How should I manage package versions using "go get"?</h3>
@@ -1852,18 +1855,19 @@ Why is my trivial program such a large binary?</h3>
 
 <p>
 The linker in the <code>gc</code> toolchain
-creates statically-linked binaries by default.  All Go binaries therefore include the Go
+creates statically-linked binaries by default.
+All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
 </p>
 
 <p>
-A simple C "hello, world" program compiled and linked statically using gcc
-on Linux is around 750 kB,
-including an implementation of <code>printf</code>.
-An equivalent Go program using <code>fmt.Printf</code>
-is around 1.5 MB, but
-that includes more powerful run-time support and type information.
+A simple C "hello, world" program compiled and linked statically using
+gcc on Linux is around 750 kB, including an implementation of
+<code>printf</code>.
+An equivalent Go program using
+<code>fmt.Printf</code> weighs a couple of megabytes, but that includes
+more powerful run-time support and type and debugging information.
 </p>
 
 <h3 id="unused_variables_and_imports">
@@ -1929,6 +1933,26 @@ Nowadays, most Go programmers use a tool,
 which automatically rewrites a Go source file to have the correct imports,
 eliminating the unused imports issue in practice.
 This program is easily connected to most editors to run automatically when a Go source file is written.
+</p>
+
+<h3 id="virus">
+Why does my virus-scanning software think my Go distribution or compiled binary is infected?</h3>
+
+<p>
+This is a common occurrence, especially on Windows machines, and is almost always a false positive.
+Commercial virus scanning programs are often confused by the structure of Go binaries, which
+they don't see as often as those compiled from other languages.
+</p>
+
+<p>
+If you've just installed the Go distribution and the system reports it is infected, that's certainly a mistake.
+To be really thorough, you can verify the download by comparing the checksum with those on the
+<a href="https://golang.org/dl/">downloads page</a>.
+</p>
+
+<p>
+In any case, if you believe the report is in error, please report a bug to the supplier of your virus scanner.
+Maybe in time virus scanners can learn to understand Go programs.
 </p>
 
 <h2 id="Performance">Performance</h2>

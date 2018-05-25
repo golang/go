@@ -739,6 +739,13 @@ The ARM64 port is in an experimental state.
 </p>
 
 <p>
+<code>R18</code> is the "platform register", reserved on the Apple platform.
+<code>R27</code> and <code>R28</code> are reserved by the compiler and linker.
+<code>R29</code> is the frame pointer.
+<code>R30</code> is the link register.
+</p>
+
+<p>
 Instruction modifiers are appended to the instruction following a period.
 The only modifiers are <code>P</code> (postincrement) and <code>W</code>
 (preincrement):
@@ -752,10 +759,60 @@ Addressing modes:
 <ul>
 
 <li>
-<code>(R5, R6)</code>: Register pair for <code>LDP</code>/<code>STP</code>.
+<code>R0-&gt;16</code>
+<br>
+<code>R0&gt;&gt;16</code>
+<br>
+<code>R0&lt;&lt;16</code>
+<br>
+<code>R0@&gt;16</code>:
+These are the same as on the 32-bit ARM.
+</li>
+
+<li>
+<code>$(8&lt;&lt;12)</code>:
+Left shift the immediate value <code>8</code> by <code>12</code> bits.
+</li>
+
+<li>
+<code>8(R0)</code>:
+Add the value of <code>R0</code> and <code>8</code>.
+</li>
+
+<li>
+<code>(R2)(R0)</code>:
+The location at <code>R0</code> plus <code>R2</code>.
+</li>
+
+<li>
+<code>R0.UXTB</code>
+<br>
+<code>R0.UXTB&lt;&lt;imm</code>:
+<code>UXTB</code>: extract an 8-bit value from the low-order bits of <code>R0</code> and zero-extend it to the size of <code>R0</code>.
+<code>R0.UXTB&lt;&lt;imm</code>: left shift the result of <code>R0.UXTB</code> by <code>imm</code> bits.
+The <code>imm</code> value can be 0, 1, 2, 3, or 4.
+The other extensions include <code>UXTH</code> (16-bit), <code>UXTW</code> (32-bit), and <code>UXTX</code> (64-bit).
+</li>
+
+<li>
+<code>R0.SXTB</code>
+<br>
+<code>R0.SXTB&lt;&lt;imm</code>:
+<code>SXTB</code>: extract an 8-bit value from the low-order bits of <code>R0</code> and sign-extend it to the size of <code>R0</code>.
+<code>R0.SXTB&lt;&lt;imm</code>: left shift the result of <code>R0.SXTB</code> by <code>imm</code> bits.
+The <code>imm</code> value can be 0, 1, 2, 3, or 4.
+The other extensions include <code>SXTH</code> (16-bit), <code>SXTW</code> (32-bit), and <code>SXTX</code> (64-bit).
+</li>
+
+<li>
+<code>(R5, R6)</code>: Register pair for <code>LDAXP</code>/<code>LDP</code>/<code>LDXP</code>/<code>STLXP</code>/<code>STP</code>/<code>STP</code>.
 </li>
 
 </ul>
+
+<p>
+Reference: <a href="/pkg/cmd/internal/obj/arm64">Go ARM64 Assembly Instructions Reference Manual</a>
+</p>
 
 <h3 id="ppc64">64-bit PowerPC, a.k.a. ppc64</h3>
 
@@ -880,6 +937,12 @@ Addressing modes:
 The value of <code>GOMIPS</code> environment variable (<code>hardfloat</code> or
 <code>softfloat</code>) is made available to assembly code by predefining either
 <code>GOMIPS_hardfloat</code> or <code>GOMIPS_softfloat</code>.
+</p>
+
+<p>
+The value of <code>GOMIPS64</code> environment variable (<code>hardfloat</code> or
+<code>softfloat</code>) is made available to assembly code by predefining either
+<code>GOMIPS64_hardfloat</code> or <code>GOMIPS64_softfloat</code>.
 </p>
 
 <h3 id="unsupported_opcodes">Unsupported opcodes</h3>
