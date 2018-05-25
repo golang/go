@@ -13,6 +13,8 @@ import (
 	"syscall"
 )
 
+const supportsMkdirWithSetuidSetgid = false
+
 // fixLongPath is a noop on non-Windows platforms.
 func fixLongPath(path string) string {
 	return path

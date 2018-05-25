@@ -219,9 +219,20 @@ func Mkdir(name string, perm FileMode) error {
 		return &PathError{"mkdir", name, e}
 	}
 
+	var bits FileMode
+
 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
-		addPermBits(name, ModeSticky)
+		bits |= ModeSticky
+	}
+
+	// mkdir(2) itself won't handle the setuid or setgid bit on *nix
+	if !supportsMkdirWithSetuidSetgid {
+		bits |= perm&(ModeSetuid|ModeSetgid)
+	}
+
+	if bits != 0 {
+		addPermBits(name, bits)
 	}
 
 	return nil

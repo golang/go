@@ -226,6 +226,26 @@ func TestMkdirStickyUmask(t *testing.T) {
 	}
 }
 
+// Issue 25539: respect setuid and setgid bit in Mkdir()
+func TestMkdirSetuidSetgid(t *testing.T) {
+	dir := newDir("TestMkdirSetuidSetgid", t)
+	defer RemoveAll(dir)
+
+	p := filepath.Join(dir, "dir1")
+	if err := Mkdir(p, ModeSetuid|ModeSetgid|0755); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mode := fi.Mode(); mode&ModeSetuid == 0 || mode&ModeSetgid == 0 {
+		t.Errorf("unexpected mode %s", mode)
+	}
+}
+
 // See also issues: 22939, 24331
 func newFileTest(t *testing.T, blocking bool) {
 	p := make([]int, 2)
