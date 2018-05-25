@@ -6325,3 +6325,14 @@ func TestCDAndGOPATHAreDifferent(t *testing.T) {
 		testCDAndGOPATHAreDifferent(tg, cd, strings.ToLower(gopath))
 	}
 }
+
+// Issue 25579.
+func TestGoBuildDashODevNull(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("build", "-o", os.DevNull, filepath.Join(tg.pwd(), "testdata", "src", "hello", "hello.go"))
+	tg.mustNotExist("hello")
+	tg.mustNotExist("hello.exe")
+}
