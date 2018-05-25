@@ -5,6 +5,7 @@
 package asm
 
 import (
+	"strings"
 	"testing"
 
 	"cmd/asm/internal/arch"
@@ -30,6 +31,45 @@ func newParser(goarch string) *Parser {
 	return NewParser(ctxt, architecture, nil)
 }
 
+// tryParse executes parse func in panicOnError=true context.
+// parse is expected to call any parsing methods that may panic.
+// Returns error gathered from recover; nil if no parse errors occured.
+//
+// For unexpected panics, calls t.Fatal.
+func tryParse(t *testing.T, parse func()) (err error) {
+	panicOnError = true
+	defer func() {
+		panicOnError = false
+
+		e := recover()
+		var ok bool
+		if err, ok = e.(error); e != nil && !ok {
+			t.Fatal(e)
+		}
+	}()
+
+	parse()
+
+	return nil
+}
+
+func testBadOperandParser(t *testing.T, parser *Parser, tests []badOperandTest) {
+	for _, test := range tests {
+		err := tryParse(t, func() {
+			parser.start(lex.Tokenize(test.input))
+			addr := obj.Addr{}
+			parser.operand(&addr)
+		})
+
+		switch {
+		case err == nil:
+			t.Errorf("fail at %s: got no errors; expected %s\n", test.input, test.error)
+		case !strings.Contains(err.Error(), test.error):
+			t.Errorf("fail at %s: got %s; expected %s", test.input, err, test.error)
+		}
+	}
+}
+
 func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 	for _, test := range tests {
 		parser.start(lex.Tokenize(test.input))
@@ -45,6 +85,7 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 func TestAMD64OperandParser(t *testing.T) {
 	parser := newParser("amd64")
 	testOperandParser(t, parser, amd64OperandTests)
+	testBadOperandParser(t, parser, amd64BadOperandTests)
 }
 
 func Test386OperandParser(t *testing.T) {
@@ -83,6 +124,10 @@ func TestS390XOperandParser(t *testing.T) {
 
 type operandTest struct {
 	input, output string
+}
+
+type badOperandTest struct {
+	input, error string
 }
 
 // Examples collected by scanning all the assembly in the standard repo.
@@ -202,7 +247,26 @@ var amd64OperandTests = []operandTest{
 	{"y+56(FP)", "y+56(FP)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·callReflect(SB)", "\"\".callReflect(SB)"},
+	{"[X0-X0]", "[X0-X0]"},
+	{"[ Z9 - Z12 ]", "[Z9-Z12]"},
+	{"[X0-AX]", "[X0-AX]"},
+	{"[AX-X0]", "[AX-X0]"},
 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+}
+
+var amd64BadOperandTests = []badOperandTest{
+	{"[", "register list: expected ']', found EOF"},
+	{"[4", "register list: bad low register in `[4`"},
+	{"[]", "register list: bad low register in `[]`"},
+	{"[f-x]", "register list: bad low register in `[f`"},
+	{"[r10-r13]", "register list: bad low register in `[r10`"},
+	{"[k3-k6]", "register list: bad low register in `[k3`"},
+	{"[X0]", "register list: expected '-' after `[X0`, found ']'"},
+	{"[X0-]", "register list: bad high register in `[X0-]`"},
+	{"[X0-x]", "register list: bad high register in `[X0-x`"},
+	{"[X0-X1-X2]", "register list: expected ']' after `[X0-X1`, found '-'"},
+	{"[X0,X3]", "register list: expected '-' after `[X0`, found ','"},
+	{"[X0,X1,X2,X3]", "register list: expected '-' after `[X0`, found ','"},
 }
 
 var x86OperandTests = []operandTest{

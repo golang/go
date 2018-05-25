@@ -50,10 +50,16 @@
 (OffPtr [off] ptr) && off > 0 -> (I64AddConst [off] ptr)
 
 // Lowering extension
+// It is unnecessary to extend loads
+(SignExt32to64        x:(I64Load32S _ _)) -> x
+(SignExt16to(64|32)   x:(I64Load16S _ _)) -> x
+(SignExt8to(64|32|16) x:(I64Load8S  _ _)) -> x
+(ZeroExt32to64        x:(I64Load32U _ _)) -> x
+(ZeroExt16to(64|32)   x:(I64Load16U _ _)) -> x
+(ZeroExt8to(64|32|16) x:(I64Load8U  _ _)) -> x
 (SignExt32to64        x) -> (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
 (SignExt16to(64|32)   x) -> (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
 (SignExt8to(64|32|16) x) -> (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
-
 (ZeroExt32to64        x) -> (I64ShrU (I64Shl x (I64Const [32])) (I64Const [32]))
 (ZeroExt16to(64|32)   x) -> (I64ShrU (I64Shl x (I64Const [48])) (I64Const [48]))
 (ZeroExt8to(64|32|16) x) -> (I64ShrU (I64Shl x (I64Const [56])) (I64Const [56]))
@@ -364,6 +370,10 @@
 (I64Ne  (I64Const [x]) (I64Const [y])) && x == y -> (I64Const [0])
 (I64Ne  (I64Const [x]) (I64Const [y])) && x != y -> (I64Const [1])
 
+(I64Shl (I64Const [x]) (I64Const [y])) -> (I64Const [x << uint64(y)])
+(I64ShrU (I64Const [x]) (I64Const [y])) -> (I64Const [int64(uint64(x) >> uint64(y))])
+(I64ShrS (I64Const [x]) (I64Const [y])) -> (I64Const [x >> uint64(y)])
+
 (I64Add (I64Const [x]) y) -> (I64Add y (I64Const [x]))
 (I64Mul (I64Const [x]) y) -> (I64Mul y (I64Const [x]))
 (I64And (I64Const [x]) y) -> (I64And y (I64Const [x]))
@@ -373,6 +383,9 @@
 (F64Mul (F64Const [x]) y) -> (F64Mul y (F64Const [x]))
 (I64Eq  (I64Const [x]) y) -> (I64Eq y  (I64Const [x]))
 (I64Ne  (I64Const [x]) y) -> (I64Ne y  (I64Const [x]))
+
+(I64Eq x (I64Const [0])) -> (I64Eqz x)
+(I64Ne x (I64Const [0])) -> (I64Eqz (I64Eqz x))
 
 (I64Add x (I64Const [y])) -> (I64AddConst [y] x)
 (I64Eqz (I64Eqz (I64Eqz x))) -> (I64Eqz x)

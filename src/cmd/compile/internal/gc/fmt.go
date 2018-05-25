@@ -994,6 +994,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 			fmt.Fprint(s, ";")
 		}
 
+		if n.Op == OFORUNTIL && n.List.Len() != 0 {
+			mode.Fprintf(s, "; %v", n.List)
+		}
+
 		mode.Fprintf(s, " { %v }", n.Nbody)
 
 	case ORANGE:

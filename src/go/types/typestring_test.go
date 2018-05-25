@@ -146,10 +146,10 @@ func TestIncompleteInterfaces(t *testing.T) {
 	}{
 		{new(Interface), "interface{/* incomplete */}"},
 		{new(Interface).Complete(), "interface{}"},
-		{NewInterface(nil, nil), "interface{/* incomplete */}"},
-		{NewInterface(nil, nil).Complete(), "interface{}"},
-		{NewInterface([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil), "interface{m() /* incomplete */}"},
-		{NewInterface([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil).Complete(), "interface{m()}"},
+		{NewInterface2(nil, nil), "interface{/* incomplete */}"},
+		{NewInterface2(nil, nil).Complete(), "interface{}"},
+		{NewInterface2([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil), "interface{m() /* incomplete */}"},
+		{NewInterface2([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil).Complete(), "interface{m()}"},
 	} {
 		got := test.typ.String()
 		if got != test.want {

@@ -16,70 +16,51 @@
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT,$0-4
-	MOVL	code+0(FP), DI		// arg 1 exit status
+TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP // align stack
+	MOVL	0(DI), DI		// arg 1 exit status
 	CALL	libc_exit(SB)
 	MOVL	$0xf1, 0xf1  // crash
-	MOVQ	BP, SP
 	POPQ	BP
 	RET
 
-// Not used on Darwin.
-TEXT runtime·exitThread(SB),NOSPLIT,$0-8
-	MOVL	$0xf1, 0xf1  // crash
-	RET
-
-TEXT runtime·open(SB),NOSPLIT,$0-20
-	MOVQ	name+0(FP), DI		// arg 1 pathname
-	MOVL	mode+8(FP), SI		// arg 2 flags
-	MOVL	perm+12(FP), DX		// arg 3 mode
+TEXT runtime·open_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP // align stack
+	MOVL	8(DI), SI		// arg 2 flags
+	MOVL	12(DI), DX		// arg 3 mode
+	MOVQ	0(DI), DI		// arg 1 pathname
 	CALL	libc_open(SB)
-	MOVQ	BP, SP
 	POPQ	BP
-	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$0-12
-	MOVL	fd+0(FP), DI		// arg 1 fd
+TEXT runtime·close_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP // align stack
+	MOVL	0(DI), DI		// arg 1 fd
 	CALL	libc_close(SB)
-	MOVQ	BP, SP
 	POPQ	BP
-	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$0-28
-	MOVL	fd+0(FP), DI		// arg 1 fd
-	MOVQ	p+8(FP), SI		// arg 2 buf
-	MOVL	n+16(FP), DX		// arg 3 count
+TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP // align stack
+	MOVQ	8(DI), SI		// arg 2 buf
+	MOVL	16(DI), DX		// arg 3 count
+	MOVL	0(DI), DI		// arg 1 fd
 	CALL	libc_read(SB)
-	MOVQ	BP, SP
 	POPQ	BP
-	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0-28
-	MOVQ	fd+0(FP), DI		// arg 1 fd
-	MOVQ	p+8(FP), SI		// arg 2 buf
-	MOVL	n+16(FP), DX		// arg 3 count
+TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP // align stack
+	MOVQ	8(DI), SI		// arg 2 buf
+	MOVL	16(DI), DX		// arg 3 count
+	MOVQ	0(DI), DI		// arg 1 fd
 	CALL	libc_write(SB)
-	MOVQ	BP, SP
 	POPQ	BP
-	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$24
@@ -100,16 +81,14 @@ TEXT runtime·setitimer(SB), NOSPLIT, $0
 	SYSCALL
 	RET
 
-TEXT runtime·madvise(SB), NOSPLIT, $0-20
-	MOVQ	addr+0(FP), DI		// arg 1 addr
-	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	flags+16(FP), DX	// arg 3 advice
+TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP
+	MOVQ	8(DI), SI	// arg 2 len
+	MOVL	16(DI), DX	// arg 3 advice
+	MOVQ	0(DI), DI	// arg 1 addr
 	CALL	libc_madvise(SB)
 	// ignore failure - maybe pages are locked
-	MOVQ	BP, SP
 	POPQ	BP
 	RET
 
@@ -131,33 +110,35 @@ TEXT runtime·madvise(SB), NOSPLIT, $0-20
 #define	v17_gtod_scale		0xe8
 #define	v17_gtod_tkspersec	0xf0
 
-TEXT runtime·nanotime(SB),NOSPLIT,$0-8
-	MOVQ	$0x7fffffe00000, BP	/* comm page base */
-	// Loop trying to take a consistent snapshot
-	// of the time parameters.
-timeloop:
-	MOVL	nt_generation(BP), R9
-	TESTL	R9, R9
-	JZ	timeloop
-	RDTSC
-	MOVQ	nt_tsc_base(BP), R10
-	MOVL	nt_scale(BP), R11
-	MOVQ	nt_ns_base(BP), R12
-	CMPL	nt_generation(BP), R9
-	JNE	timeloop
+GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
 
-	// Gathered all the data we need. Compute monotonic time:
-	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
-	// The multiply and shift extracts the top 64 bits of the 96-bit product.
-	SHLQ	$32, DX
-	ADDQ	DX, AX
-	SUBQ	R10, AX
-	MULQ	R11
-	SHRQ	$32, AX:DX
-	ADDQ	R12, AX
-	MOVQ	runtime·startNano(SB), CX
-	SUBQ	CX, AX
-	MOVQ	AX, ret+0(FP)
+TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	DI, BX
+	CALL	libc_mach_absolute_time(SB)
+	MOVQ	AX, 0(BX)
+	MOVL	timebase<>+machTimebaseInfo_numer(SB), SI
+	MOVL	timebase<>+machTimebaseInfo_denom(SB), DI // atomic read
+	TESTL	DI, DI
+	JNE	initialized
+
+	SUBQ	$(machTimebaseInfo__size+15)/16*16, SP
+	MOVQ	SP, DI
+	CALL	libc_mach_timebase_info(SB)
+	MOVL	machTimebaseInfo_numer(SP), SI
+	MOVL	machTimebaseInfo_denom(SP), DI
+	ADDQ	$(machTimebaseInfo__size+15)/16*16, SP
+
+	MOVL	SI, timebase<>+machTimebaseInfo_numer(SB)
+	MOVL	DI, AX
+	XCHGL	AX, timebase<>+machTimebaseInfo_denom(SB) // atomic write
+
+initialized:
+	MOVL	SI, 8(BX)
+	MOVL	DI, 12(BX)
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 TEXT time·now(SB), NOSPLIT, $32-24
@@ -357,16 +338,18 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	SYSCALL
 	INT $3 // not reached
 
-TEXT runtime·mmap(SB),NOSPLIT,$0-48
-	MOVQ	addr+0(FP), DI		// arg 1 addr
-	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	prot+16(FP), DX		// arg 3 prot
-	MOVL	flags+20(FP), CX	// arg 4 flags
-	MOVL	fd+24(FP), R8		// arg 5 fid
-	MOVL	off+28(FP), R9		// arg 6 offset
-	PUSHQ	BP
+
+
+TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP			// make a frame; keep stack aligned
 	MOVQ	SP, BP
-	ANDQ	$~15, SP
+	MOVQ	DI, BX
+	MOVQ	0(BX), DI		// arg 1 addr
+	MOVQ	8(BX), SI		// arg 2 len
+	MOVL	16(BX), DX		// arg 3 prot
+	MOVL	20(BX), CX		// arg 4 flags
+	MOVL	24(BX), R8		// arg 5 fid
+	MOVL	28(BX), R9		// arg 6 offset
 	CALL	libc_mmap(SB)
 	XORL	DX, DX
 	CMPQ	AX, $-1
@@ -375,23 +358,20 @@ TEXT runtime·mmap(SB),NOSPLIT,$0-48
 	MOVQ	(AX), DX		// errno
 	XORL	AX, AX
 ok:
-	MOVQ	BP, SP
+	MOVQ	AX, 32(BX)
+	MOVQ	DX, 40(BX)
 	POPQ	BP
-	MOVQ	AX, p+32(FP)
-	MOVQ	DX, err+40(FP)
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$0-16
-	MOVQ	addr+0(FP), DI		// arg 1 addr
-	MOVQ	n+8(FP), SI		// arg 2 len
+TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP
+	MOVQ	8(DI), SI		// arg 2 len
+	MOVQ	0(DI), DI		// arg 1 addr
 	CALL	libc_munmap(SB)
 	TESTQ	AX, AX
 	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
-	MOVQ	BP, SP
 	POPQ	BP
 	RET
 
@@ -404,13 +384,11 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$0-4
-	MOVL	usec+0(FP), DI
+TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP
+	MOVL	0(DI), DI	// arg 1 usec
 	CALL	libc_usleep(SB)
-	MOVQ	BP, SP
 	POPQ	BP
 	RET
 
@@ -568,74 +546,54 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 	XORL	AX, AX
 	RET
 
-// These trampolines convert from Go calling convention to C calling convention.
-TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-12
-	MOVQ	attr+0(FP), DI
-	PUSHQ	BP     // save BP
-	MOVQ	SP, BP // save SP
-	ANDQ	$~15, SP // align stack to 16 bytes
+// These trampolines help convert from Go calling convention to C calling convention.
+// They should be called with asmcgocall.
+// A pointer to the arguments is passed in DI.
+// A single int32 result is returned in AX.
+// (For more results, make an args/results structure.)
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP	// make frame, keep stack 16-byte aligned.
+	MOVQ	SP, BP
+	MOVQ	0(DI), DI // arg 1 attr
 	CALL	libc_pthread_attr_init(SB)
-	MOVQ	BP, SP // restore SP
-	POPQ	BP     // restore BP
-	MOVL	AX, ret+8(FP)
+	POPQ	BP
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-20
-	MOVQ	attr+0(FP), DI
-	MOVQ	size+8(FP), SI
+TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP
+	MOVQ	8(DI), SI	// arg 2 size
+	MOVQ	0(DI), DI	// arg 1 attr
 	CALL	libc_pthread_attr_setstacksize(SB)
-	MOVQ	BP, SP
 	POPQ	BP
-	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-20
-	MOVQ	attr+0(FP), DI
-	MOVQ	state+8(FP), SI
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP
+	MOVQ	8(DI), SI	// arg 2 state
+	MOVQ	0(DI), DI	// arg 1 attr
 	CALL	libc_pthread_attr_setdetachstate(SB)
-	MOVQ	BP, SP
 	POPQ	BP
-	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-36
-	MOVQ	t+0(FP), DI
-	MOVQ	attr+8(FP), SI
-	MOVQ	start+16(FP), DX
-	MOVQ	arg+24(FP), CX
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP
+	SUBQ	$16, SP
+	MOVQ	0(DI), SI	// arg 2 attr
+	MOVQ	8(DI), DX	// arg 3 start
+	MOVQ	16(DI), CX	// arg 4 arg
+	MOVQ	SP, DI		// arg 1 &threadid (which we throw away)
 	CALL	libc_pthread_create(SB)
 	MOVQ	BP, SP
 	POPQ	BP
-	MOVL	AX, ret+32(FP)
 	RET
 
-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0-8
+TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	ANDQ	$~15, SP
-	CALL	libc_pthread_self(SB)
-	MOVQ	BP, SP
+	MOVL	0(DI), DI	// arg 1 signal
+	CALL	libc_raise(SB)
 	POPQ	BP
-	MOVQ	AX, ret+0(FP)
-	RET
-
-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0-20
-	MOVQ	thread+0(FP), DI
-	MOVQ	sig+8(FP), SI
-	PUSHQ	BP
-	MOVQ	SP, BP
-	ANDQ	$~15, SP
-	CALL	libc_pthread_kill(SB)
-	MOVQ	BP, SP
-	POPQ	BP
-	MOVL	AX, ret+16(FP)
 	RET

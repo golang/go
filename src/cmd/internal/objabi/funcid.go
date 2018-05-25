@@ -29,4 +29,5 @@ const (
 	FuncID_cgocallback_gofunc
 	FuncID_gogo
 	FuncID_externalthreadhandler
+	FuncID_debugCallV1
 )

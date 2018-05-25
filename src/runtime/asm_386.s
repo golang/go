@@ -164,42 +164,6 @@ notintel:
 	TESTL	$(1<<23), DX // MMX
 	JZ	bad_proc
 
-	TESTL	$(1<<26), DX // SSE2
-	SETNE	runtime·support_sse2(SB)
-
-	TESTL	$(1<<19), DI // SSE4.1
-	SETNE	runtime·support_sse41(SB)
-
-	TESTL	$(1<<23), DI // POPCNT
-	SETNE	runtime·support_popcnt(SB)
-
-	TESTL	$(1<<27), DI // OSXSAVE
-	SETNE	runtime·support_osxsave(SB)
-
-eax7:
-	// Load EAX=7/ECX=0 cpuid flags
-	CMPL	SI, $7
-	JLT	osavx
-	MOVL	$7, AX
-	MOVL	$0, CX
-	CPUID
-
-	TESTL	$(1<<9), BX // ERMS
-	SETNE	runtime·support_erms(SB)
-
-osavx:
-	// nacl does not support XGETBV to test
-	// for XMM and YMM OS support.
-#ifndef GOOS_nacl
-	CMPB	runtime·support_osxsave(SB), $1
-	JNE	nocpuinfo
-	MOVL	$0, CX
-	// For XGETBV, OSXSAVE bit is required and sufficient
-	XGETBV
-	ANDL	$6, AX
-	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
-#endif
-
 nocpuinfo:
 	// if there is an _cgo_init, call it to let it
 	// initialize and to set up GS.  if not,
@@ -697,10 +661,14 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	// come in on the m->g0 stack already.
 	get_tls(CX)
 	MOVL	g(CX), BP
+	CMPL	BP, $0
+	JEQ	nosave	// Don't even have a G yet.
 	MOVL	g_m(BP), BP
 	MOVL	m_g0(BP), SI
 	MOVL	g(CX), DI
 	CMPL	SI, DI
+	JEQ	noswitch
+	CMPL	DI, m_gsignal(BP)
 	JEQ	noswitch
 	CALL	gosave<>(SB)
 	get_tls(CX)
@@ -726,6 +694,18 @@ noswitch:
 	MOVL	DI, g(CX)
 	MOVL	SI, SP
 
+	MOVL	AX, ret+8(FP)
+	RET
+nosave:
+	// Now on a scheduling stack (a pthread-created stack).
+	SUBL	$32, SP
+	ANDL	$~15, SP	// alignment, perhaps unnecessary
+	MOVL	DX, 4(SP)	// save original stack pointer
+	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
+	CALL	AX
+
+	MOVL	4(SP), CX	// restore original stack pointer
+	MOVL	CX, SP
 	MOVL	AX, ret+8(FP)
 	RET
 

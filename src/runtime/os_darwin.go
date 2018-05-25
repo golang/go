@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build 386 amd64
-
 package runtime
 
 import "unsafe"
@@ -154,7 +152,7 @@ func newosproc(mp *m) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	_, err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
+	err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
@@ -175,21 +173,21 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	// Initialize an attribute object.
 	var attr pthreadattr
 	var err int32
-	err = pthread_attr_init_trampoline(&attr)
+	err = pthread_attr_init(&attr)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
 
 	// Set the stack we want to use.
-	if pthread_attr_setstacksize_trampoline(&attr, stacksize) != 0 {
+	if pthread_attr_setstacksize(&attr, stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
 	mSysStatInc(&memstats.stacks_sys, stacksize)
 
 	// Tell the pthread library we won't join with this thread.
-	if pthread_attr_setdetachstate_trampoline(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
@@ -198,8 +196,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	var t pthread
-	err = pthread_create_trampoline(&t, &attr, fn, nil)
+	err = pthread_create(&attr, fn, nil)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
@@ -539,12 +536,6 @@ func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Point
 
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
-
-//go:nosplit
-func raise(sig uint32) {
-	tid := pthread_self()
-	pthread_kill(tid, int(sig))
-}
 
 func raiseproc(sig uint32)
 

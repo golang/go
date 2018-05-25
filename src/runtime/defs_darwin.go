@@ -17,6 +17,7 @@ package runtime
 #define __DARWIN_UNIX03 0
 #include <mach/mach.h>
 #include <mach/message.h>
+#include <mach/mach_time.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <errno.h>
@@ -184,3 +185,5 @@ type Kevent C.struct_kevent
 
 type Pthread C.pthread_t
 type PthreadAttr C.pthread_attr_t
+
+type MachTimebaseInfo C.mach_timebase_info_data_t

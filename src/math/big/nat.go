@@ -388,12 +388,12 @@ func max(x, y int) int {
 }
 
 // karatsubaLen computes an approximation to the maximum k <= n such that
-// k = p<<i for a number p <= karatsubaThreshold and an i >= 0. Thus, the
+// k = p<<i for a number p <= threshold and an i >= 0. Thus, the
 // result is the largest number that can be divided repeatedly by 2 before
-// becoming about the value of karatsubaThreshold.
-func karatsubaLen(n int) int {
+// becoming about the value of threshold.
+func karatsubaLen(n, threshold int) int {
 	i := uint(0)
-	for n > karatsubaThreshold {
+	for n > threshold {
 		n >>= 1
 		i++
 	}
@@ -433,7 +433,7 @@ func (z nat) mul(x, y nat) nat {
 	//   y = yh*b + y0  (0 <= y0 < b)
 	//   b = 1<<(_W*k)  ("base" of digits xi, yi)
 	//
-	k := karatsubaLen(n)
+	k := karatsubaLen(n, karatsubaThreshold)
 	// k <= n
 
 	// multiply x0 and y0 via Karatsuba
@@ -486,8 +486,8 @@ func (z nat) mul(x, y nat) nat {
 
 // basicSqr sets z = x*x and is asymptotically faster than basicMul
 // by about a factor of 2, but slower for small arguments due to overhead.
-// Requirements: len(x) > 0, len(z) >= 2*len(x)
-// The (non-normalized) result is placed in z[0 : 2 * len(x)].
+// Requirements: len(x) > 0, len(z) == 2*len(x)
+// The (non-normalized) result is placed in z.
 func basicSqr(z, x nat) {
 	n := len(x)
 	t := make(nat, 2*n)            // temporary variable to hold the products
@@ -503,11 +503,47 @@ func basicSqr(z, x nat) {
 	addVV(z, z, t)                              // combine the result
 }
 
+// karatsubaSqr squares x and leaves the result in z.
+// len(x) must be a power of 2 and len(z) >= 6*len(x).
+// The (non-normalized) result is placed in z[0 : 2*len(x)].
+//
+// The algorithm and the layout of z are the same as for karatsuba.
+func karatsubaSqr(z, x nat) {
+	n := len(x)
+
+	if n&1 != 0 || n < karatsubaSqrThreshold || n < 2 {
+		basicSqr(z[:2*n], x)
+		return
+	}
+
+	n2 := n >> 1
+	x1, x0 := x[n2:], x[0:n2]
+
+	karatsubaSqr(z, x0)
+	karatsubaSqr(z[n:], x1)
+
+	// s = sign(xd*yd) == -1 for xd != 0; s == 1 for xd == 0
+	xd := z[2*n : 2*n+n2]
+	if subVV(xd, x1, x0) != 0 {
+		subVV(xd, x0, x1)
+	}
+
+	p := z[n*3:]
+	karatsubaSqr(p, xd)
+
+	r := z[n*4:]
+	copy(r, z[:n*2])
+
+	karatsubaAdd(z[n2:], r, n)
+	karatsubaAdd(z[n2:], r[n:], n)
+	karatsubaSub(z[n2:], p, n) // s == -1 for p != 0; s == 1 for p == 0
+}
+
 // Operands that are shorter than basicSqrThreshold are squared using
 // "grade school" multiplication; for operands longer than karatsubaSqrThreshold
-// the Karatsuba algorithm is used.
+// we use the Karatsuba algorithm optimized for x == y.
 var basicSqrThreshold = 20      // computed by calibrate_test.go
-var karatsubaSqrThreshold = 400 // computed by calibrate_test.go
+var karatsubaSqrThreshold = 260 // computed by calibrate_test.go
 
 // z = x*x
 func (z nat) sqr(x nat) nat {
@@ -525,18 +561,43 @@ func (z nat) sqr(x nat) nat {
 	if alias(z, x) {
 		z = nil // z is an alias for x - cannot reuse
 	}
-	z = z.make(2 * n)
 
 	if n < basicSqrThreshold {
+		z = z.make(2 * n)
 		basicMul(z, x, x)
 		return z.norm()
 	}
 	if n < karatsubaSqrThreshold {
+		z = z.make(2 * n)
 		basicSqr(z, x)
 		return z.norm()
 	}
 
-	return z.mul(x, x)
+	// Use Karatsuba multiplication optimized for x == y.
+	// The algorithm and layout of z are the same as for mul.
+
+	// z = (x1*b + x0)^2 = x1^2*b^2 + 2*x1*x0*b + x0^2
+
+	k := karatsubaLen(n, karatsubaSqrThreshold)
+
+	x0 := x[0:k]
+	z = z.make(max(6*k, 2*n))
+	karatsubaSqr(z, x0) // z = x0^2
+	z = z[0 : 2*n]
+	z[2*k:].clear()
+
+	if k < n {
+		var t nat
+		x0 := x0.norm()
+		x1 := x[k:]
+		t = t.mul(x0, x1)
+		addAt(z, t, k)
+		addAt(z, t, k) // z = 2*x1*x0*b + x0^2
+		t = t.sqr(x1)
+		addAt(z, t, 2*k) // z = x1^2*b^2 + 2*x1*x0*b + x0^2
+	}
+
+	return z.norm()
 }
 
 // mulRange computes the product of all the unsigned integers in the

@@ -96,10 +96,6 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 // so Encode is not appropriate for use on individual blocks
 // of a large data stream. Use NewEncoder() instead.
 func (enc *Encoding) Encode(dst, src []byte) {
-	if len(src) == 0 {
-		return
-	}
-
 	for len(src) > 0 {
 		var b [8]byte
 

@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+	growstack() // Use stack early to prevent growth during test, which confuses gdb
 	test()
 }
 
@@ -96,4 +97,11 @@ func gretbool() bool {
 	x := boolvar
 	boolvar = !boolvar
 	return x
+}
+
+var sink string
+
+//go:noinline
+func growstack() {
+	sink = fmt.Sprintf("%#v,%#v,%#v", 1, true, "cat")
 }

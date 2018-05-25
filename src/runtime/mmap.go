@@ -9,6 +9,7 @@
 // +build !linux !amd64
 // +build !linux !arm64
 // +build !js
+// +build !darwin
 
 package runtime
 

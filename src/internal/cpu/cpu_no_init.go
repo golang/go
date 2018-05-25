@@ -6,6 +6,8 @@
 // +build !amd64
 // +build !amd64p32
 // +build !arm64
+// +build !ppc64
+// +build !ppc64le
 
 package cpu
 

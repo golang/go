@@ -869,9 +869,12 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	MOVD	g_m(g), R8
+	MOVD	m_gsignal(R8), R3
+	CMP	R3, g
+	BEQ	noswitch
 	MOVD	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	g0
+	BEQ	noswitch
 	MOVD	R0, R9	// gosave<> and save_g might clobber R0
 	BL	gosave<>(SB)
 	MOVD	R3, g
@@ -881,11 +884,12 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	R9, R0
 
 	// Now on a scheduling stack (a pthread-created stack).
-g0:
+noswitch:
 	// Save room for two of our pointers /*, plus 32 bytes of callee
 	// save area that lives on the caller stack. */
 	MOVD	RSP, R13
 	SUB	$16, R13
+	BIC	$0xf, R13	// alignment for gcc ABI
 	MOVD	R13, RSP
 	MOVD	R4, 0(RSP)	// save old g on stack
 	MOVD	(g_stack+stack_hi)(R4), R4

@@ -648,6 +648,48 @@ func constsuffix(s string) bool {
 	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$"
 }
 
+// oforuntil tests the pattern created by OFORUNTIL blocks. These are
+// handled by addLocalInductiveFacts rather than findIndVar.
+func oforuntil(b []int) {
+	i := 0
+	if len(b) > i {
+	top:
+		println(b[i]) // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		i++
+		if i < len(b) {
+			goto top
+		}
+	}
+}
+
+// The range tests below test the index variable of range loops.
+
+// range1 compiles to the "efficiently indexable" form of a range loop.
+func range1(b []int) {
+	for i, v := range b { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+		b[i] = v + 1    // ERROR "Proved IsInBounds$"
+		if i < len(b) { // ERROR "Proved Less64$"
+			println("x")
+		}
+		if i >= 0 { // ERROR "Proved Geq64$"
+			println("x")
+		}
+	}
+}
+
+// range2 elements are larger, so they use the general form of a range loop.
+func range2(b [][32]int) {
+	for i, v := range b {
+		b[i][0] = v[0] + 1 // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		if i < len(b) {    // ERROR "Proved Less64$"
+			println("x")
+		}
+		if i >= 0 { // ERROR "Proved Geq64"
+			println("x")
+		}
+	}
+}
+
 //go:noinline
 func useInt(a int) {
 }

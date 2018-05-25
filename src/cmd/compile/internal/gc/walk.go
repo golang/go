@@ -20,7 +20,7 @@ func walk(fn *Node) {
 	Curfn = fn
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("\nbefore %v", Curfn.Func.Nname.Sym)
+		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
@@ -276,6 +276,9 @@ func walkstmt(n *Node) *Node {
 		}
 
 		n.Right = walkstmt(n.Right)
+		if n.Op == OFORUNTIL {
+			walkstmtlist(n.List.Slice())
+		}
 		walkstmtlist(n.Nbody.Slice())
 
 	case OIF:
@@ -470,7 +473,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 	lno := setlineno(n)
 
 	if Debug['w'] > 1 {
-		Dump("walk-before", n)
+		Dump("before walk expr", n)
 	}
 
 	if n.Typecheck() != 1 {
@@ -1760,7 +1763,7 @@ opswitch:
 	updateHasCall(n)
 
 	if Debug['w'] != 0 && n != nil {
-		Dump("walk", n)
+		Dump("after walk expr", n)
 	}
 
 	lineno = lno
@@ -1833,10 +1836,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 	return nn
 }
 
-// l is an lv and rt is the type of an rv
-// return 1 if this implies a function call
-// evaluating the lv or a function call
-// in the conversion of the types
+// fncall reports whether assigning an rvalue of type rt to an lvalue l might involve a function call.
 func fncall(l *Node, rt *types.Type) bool {
 	if l.HasCall() || l.Op == OINDEXMAP {
 		return true
@@ -1844,6 +1844,7 @@ func fncall(l *Node, rt *types.Type) bool {
 	if eqtype(l.Type, rt) {
 		return false
 	}
+	// There might be a conversion required, which might involve a runtime call.
 	return true
 }
 
@@ -1862,9 +1863,8 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 		}
 		r := nr.Field(i)
 
-		// any lv that causes a fn call must be
-		// deferred until all the return arguments
-		// have been pulled from the output arguments
+		// Any assignment to an lvalue that might cause a function call must be
+		// deferred until all the returned values have been read.
 		if fncall(l, r.Type) {
 			tmp := temp(r.Type)
 			tmp = typecheck(tmp, Erv)

@@ -167,13 +167,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := obj.Appendp(spfix, c.newprog)
-	pcdata.Pos = c.cursym.Func.Text.Pos
-	pcdata.As = obj.APCDATA
-	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
-	pcdata.To.Type = obj.TYPE_CONST
-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
 
 	// MOV	LR, R3
 	movlr := obj.Appendp(pcdata, c.newprog)
