@@ -108,11 +108,12 @@ func TestXattr(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Linux doesn't support xattrs on symlink according to xattr(7), so
-	// just test that we get the proper errors.
-
 	err = unix.Lsetxattr(s, xattrName, []byte(xattrDataSet), 0)
-	if err != nil && (runtime.GOOS != "linux" || err != unix.EPERM) {
-		t.Fatalf("Lsetxattr: %v", err)
+	if err != nil {
+		// Linux and Android doen't support xattrs on symlinks according
+		// to xattr(7), so just test that we get the proper error.
+		if (runtime.GOOS != "linux" && runtime.GOOS != "android") || err != unix.EPERM {
+			t.Fatalf("Lsetxattr: %v", err)
+		}
 	}
 }

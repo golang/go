@@ -317,13 +317,9 @@ func TestStatx(t *testing.T) {
 		t.Errorf("Statx: returned stat mode does not match Stat")
 	}
 
-	atime := unix.StatxTimestamp{Sec: int64(st.Atim.Sec), Nsec: uint32(st.Atim.Nsec)}
 	ctime := unix.StatxTimestamp{Sec: int64(st.Ctim.Sec), Nsec: uint32(st.Ctim.Nsec)}
 	mtime := unix.StatxTimestamp{Sec: int64(st.Mtim.Sec), Nsec: uint32(st.Mtim.Nsec)}
 
-	if stx.Atime != atime {
-		t.Errorf("Statx: returned stat atime does not match Stat")
-	}
 	if stx.Ctime != ctime {
 		t.Errorf("Statx: returned stat ctime does not match Stat")
 	}
@@ -364,13 +360,9 @@ func TestStatx(t *testing.T) {
 		t.Errorf("Statx: returned stat mode does not match Lstat")
 	}
 
-	atime = unix.StatxTimestamp{Sec: int64(st.Atim.Sec), Nsec: uint32(st.Atim.Nsec)}
 	ctime = unix.StatxTimestamp{Sec: int64(st.Ctim.Sec), Nsec: uint32(st.Ctim.Nsec)}
 	mtime = unix.StatxTimestamp{Sec: int64(st.Mtim.Sec), Nsec: uint32(st.Mtim.Nsec)}
 
-	if stx.Atime != atime {
-		t.Errorf("Statx: returned stat atime does not match Lstat")
-	}
 	if stx.Ctime != ctime {
 		t.Errorf("Statx: returned stat ctime does not match Lstat")
 	}
