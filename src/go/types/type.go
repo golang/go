@@ -264,12 +264,9 @@ var markComplete = make([]*Func, 0)
 // to be embedded. This is necessary for interfaces that embed alias type names referring to
 // non-defined (literal) interface types.
 func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
-	var tnames []Type
-	if len(embeddeds) > 0 {
-		tnames := make([]Type, len(embeddeds))
-		for i, t := range embeddeds {
-			tnames[i] = t
-		}
+	tnames := make([]Type, len(embeddeds))
+	for i, t := range embeddeds {
+		tnames[i] = t
 	}
 	return NewInterface2(methods, tnames)
 }
@@ -356,27 +353,24 @@ func (t *Interface) Complete() *Interface {
 	}
 
 	var allMethods []*Func
-	if t.embeddeds == nil {
-		if t.methods == nil {
-			allMethods = make([]*Func, 0, 1)
-		} else {
-			allMethods = t.methods
+	allMethods = append(allMethods, t.methods...)
+	for _, et := range t.embeddeds {
+		it := et.Underlying().(*Interface)
+		it.Complete()
+		for _, tm := range it.allMethods {
+			// Make a copy of the method and adjust its receiver type.
+			newm := *tm
+			newmtyp := *tm.typ.(*Signature)
+			newm.typ = &newmtyp
+			newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
+			allMethods = append(allMethods, &newm)
 		}
-	} else {
-		allMethods = append(allMethods, t.methods...)
-		for _, et := range t.embeddeds {
-			it := et.Underlying().(*Interface)
-			it.Complete()
-			for _, tm := range it.allMethods {
-				// Make a copy of the method and adjust its receiver type.
-				newm := *tm
-				newmtyp := *tm.typ.(*Signature)
-				newm.typ = &newmtyp
-				newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
-				allMethods = append(allMethods, &newm)
-			}
-		}
-		sort.Sort(byUniqueMethodName(allMethods))
+	}
+	sort.Sort(byUniqueMethodName(allMethods))
+
+	// t.methods and/or t.embeddeds may have been empty
+	if allMethods == nil {
+		allMethods = markComplete
 	}
 	t.allMethods = allMethods
 
