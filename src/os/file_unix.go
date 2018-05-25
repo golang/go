@@ -193,7 +193,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
 	if setSticky {
-		setStickyBit(name)
+		addPermBits(name, ModeSticky)
 	}
 
 	// There's a race here with fork/exec, which we are
