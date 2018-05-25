@@ -125,46 +125,46 @@
 			"revisionTime": "2018-05-24T11:38:20Z"
 		},
 		{
-			"checksumSHA1": "dFWZRPHQmh24everjam0u30KoIM=",
+			"checksumSHA1": "JChADiqeCEidXnI2Sg91xNMWCU0=",
 			"path": "golang.org/x/sys/unix",
-			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
-			"revisionTime": "2018-05-24T06:57:10Z"
+			"revision": "c11f84a56e43e20a78cee75a7c034031ecf57d1f",
+			"revisionTime": "2018-05-25T13:55:20Z"
 		},
 		{
 			"checksumSHA1": "y0x0I9zDxnxn9nCxwP/MdPyq1E8=",
 			"path": "golang.org/x/sys/windows",
-			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
-			"revisionTime": "2018-05-24T06:57:10Z"
+			"revision": "c11f84a56e43e20a78cee75a7c034031ecf57d1f",
+			"revisionTime": "2018-05-25T13:55:20Z"
 		},
 		{
 			"checksumSHA1": "BnZkq/3Ejb7961bDhybRraW6jzI=",
 			"path": "golang.org/x/sys/windows/registry",
-			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
-			"revisionTime": "2018-05-23T20:41:33Z"
+			"revision": "c11f84a56e43e20a78cee75a7c034031ecf57d1f",
+			"revisionTime": "2018-05-25T13:55:20Z"
 		},
 		{
 			"checksumSHA1": "dQbFeoiAxfB3WFFVcAdeSwSgeDk=",
 			"path": "golang.org/x/sys/windows/svc",
-			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
-			"revisionTime": "2018-05-24T06:57:10Z"
+			"revision": "c11f84a56e43e20a78cee75a7c034031ecf57d1f",
+			"revisionTime": "2018-05-25T13:55:20Z"
 		},
 		{
 			"checksumSHA1": "e9KJPWrdqg5PMkbE2w60Io8rY4M=",
 			"path": "golang.org/x/sys/windows/svc/debug",
-			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
-			"revisionTime": "2018-05-24T06:57:10Z"
+			"revision": "c11f84a56e43e20a78cee75a7c034031ecf57d1f",
+			"revisionTime": "2018-05-25T13:55:20Z"
 		},
 		{
 			"checksumSHA1": "dz53pQfqAnXG8HdJj+nazXN9YRw=",
 			"path": "golang.org/x/sys/windows/svc/eventlog",
-			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
-			"revisionTime": "2018-05-23T20:41:33Z"
+			"revision": "c11f84a56e43e20a78cee75a7c034031ecf57d1f",
+			"revisionTime": "2018-05-25T13:55:20Z"
 		},
 		{
 			"checksumSHA1": "wz+0tf0Z7cVBaz/35P1m1cAiI7k=",
 			"path": "golang.org/x/sys/windows/svc/mgr",
-			"revision": "04b83988a018ef3ebffe1485df79d6499b76a4b4",
-			"revisionTime": "2018-05-24T06:57:10Z"
+			"revision": "c11f84a56e43e20a78cee75a7c034031ecf57d1f",
+			"revisionTime": "2018-05-25T13:55:20Z"
 		}
 	],
 	"rootPath": "/cmd"

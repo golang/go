@@ -173,6 +173,7 @@ struct ltchars {
 #include <linux/fs.h>
 #include <linux/keyctl.h>
 #include <linux/magic.h>
+#include <linux/netfilter/nfnetlink.h>
 #include <linux/netlink.h>
 #include <linux/perf_event.h>
 #include <linux/random.h>
@@ -442,6 +443,7 @@ ccflags="$@"
 		$2 ~ /^ATTR_(BIT_MAP_COUNT|(CMN|VOL|FILE)_)/ ||
 		$2 ~ /^FSOPT_/ ||
 		$2 ~ /^WDIOC_/ ||
+		$2 ~ /^NFN/ ||
 		$2 ~ /^(HDIO|WIN|SMART)_/ ||
 		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ ||
