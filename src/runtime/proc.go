@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -507,6 +508,11 @@ func cpuinit() {
 	}
 
 	internal_cpu_initialize(env)
+
+	support_erms = cpu.X86.HasERMS
+	support_popcnt = cpu.X86.HasPOPCNT
+	support_sse2 = cpu.X86.HasSSE2
+	support_sse41 = cpu.X86.HasSSE41
 }
 
 // The bootstrap sequence is:
