@@ -47,45 +47,7 @@ notintel:
 	CPUID
 	MOVL	AX, runtime·processorVersionInfo(SB)
 
-	TESTL	$(1<<26), DX // SSE2
-	SETNE	runtime·support_sse2(SB)
-
-	TESTL	$(1<<19), CX // SSE4.1
-	SETNE	runtime·support_sse41(SB)
-
-	TESTL	$(1<<23), CX // POPCNT
-	SETNE	runtime·support_popcnt(SB)
-
-	TESTL	$(1<<27), CX // OSXSAVE
-	SETNE	runtime·support_osxsave(SB)
-
-eax7:
-	// Load EAX=7/ECX=0 cpuid flags
-	CMPL	SI, $7
-	JLT	osavx
-	MOVL	$7, AX
-	MOVL	$0, CX
-	CPUID
-
-	TESTL	$(1<<9), BX // ERMS
-	SETNE	runtime·support_erms(SB)
-
-osavx:
-	// nacl does not support XGETBV to test
-	// for XMM and YMM OS support.
-#ifndef GOOS_nacl
-	CMPB	runtime·support_osxsave(SB), $1
-	JNE	nocpuinfo
-	MOVL	$0, CX
-	// For XGETBV, OSXSAVE bit is required and sufficient
-	XGETBV
-	ANDL	$6, AX
-	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
-#endif
-
 nocpuinfo:
-
-needtls:
 	LEAL	runtime·m0+m_tls(SB), DI
 	CALL	runtime·settls(SB)
 
