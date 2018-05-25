@@ -6,7 +6,7 @@
 
 // func hasKM() bool
 TEXT ·hasKM(SB),NOSPLIT,$16-1
- 	XOR	R0, R0          // set function code to 0 (query)
+	XOR	R0, R0          // set function code to 0 (query)
 	LA	mask-16(SP), R1 // 16-byte stack variable for mask
 	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
 
@@ -24,7 +24,7 @@ notfound:
 
 // func hasKMC() bool
 TEXT ·hasKMC(SB),NOSPLIT,$16-1
- 	XOR	R0, R0          // set function code to 0 (query)
+	XOR	R0, R0          // set function code to 0 (query)
 	LA	mask-16(SP), R1 // 16-byte stack variable for mask
 	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
 
