@@ -251,7 +251,39 @@ func TestBlockingCallback(t *testing.T) {
 }
 
 func TestCallbackInAnotherThread(t *testing.T) {
-	// TODO: test a function which calls back in another thread: QueueUserAPC() or CreateThread()
+	t.Skip("Skipping failing test (see golang.org/issue/6751 for details)")
+
+	d := GetDLL(t, "kernel32.dll")
+
+	f := func(p uintptr) uintptr {
+		return p
+	}
+	r, _, err := d.Proc("CreateThread").Call(0, 0, syscall.NewCallback(f), 123, 0, 0)
+	if r == 0 {
+		t.Fatalf("CreateThread failed: %v", err)
+	}
+	h := syscall.Handle(r)
+	defer syscall.CloseHandle(h)
+
+	switch s, err := syscall.WaitForSingleObject(h, 100); s {
+	case syscall.WAIT_OBJECT_0:
+		break
+	case syscall.WAIT_TIMEOUT:
+		t.Fatal("timeout waiting for thread to exit")
+	case syscall.WAIT_FAILED:
+		t.Fatalf("WaitForSingleObject failed: %v", err)
+	default:
+		t.Fatalf("WaitForSingleObject returns unexpected value %v", s)
+	}
+
+	var ec uint32
+	r, _, err = d.Proc("GetExitCodeThread").Call(uintptr(h), uintptr(unsafe.Pointer(&ec)))
+	if r == 0 {
+		t.Fatalf("GetExitCodeThread failed: %v", err)
+	}
+	if ec != 123 {
+		t.Fatalf("expected 123, but got %d", ec)
+	}
 }
 
 type cbDLLFunc int // int determines number of callback parameters
