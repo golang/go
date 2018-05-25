@@ -50,6 +50,10 @@ type Value struct {
 	// Use count. Each appearance in Value.Args and Block.Control counts once.
 	Uses int32
 
+	// wasm: Value stays on the WebAssembly stack. This value will not get a "register" (WebAssembly variable)
+	// nor a slot on Go stack, and the generation of this value is delayed to its use time.
+	OnWasmStack bool
+
 	// Storage for the first three args
 	argstorage [3]*Value
 }
@@ -200,6 +204,9 @@ func (v *Value) auxString() string {
 	return ""
 }
 
+// If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
+// Not-inlining this method is a help (*Value.reset and *Block.NewValue0 are similar).
+//go:noinline
 func (v *Value) AddArg(w *Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage

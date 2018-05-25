@@ -7,12 +7,12 @@ package tls
 import (
 	"container/list"
 	"crypto"
-	"crypto/internal/cipherhw"
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"internal/cpu"
 	"io"
 	"math/big"
 	"net"
@@ -929,7 +929,23 @@ func defaultCipherSuites() []uint16 {
 
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
-	if cipherhw.AESGCMSupport() {
+
+	// Check the cpu flags for each platform that has optimized GCM implementations.
+	// Worst case, these variables will just all be false
+	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+
+	// TODO: enable the arm64 HasAES && HasPMULL feature check after the
+	// optimized AES-GCM implementation for arm64 is merged (CL 107298).
+	// This is explicitly set to false for now to prevent misprioritization
+	// of AES-GCM based cipher suites, which will be slower than chacha20-poly1305
+	hasGCMAsmARM64 := false
+	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+
+	hasGCMAsmS390X := cpu.S390X.HasKM && (cpu.S390X.HasKMA || (cpu.S390X.HasKMCTR && cpu.S390X.HasKIMD))
+
+	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
+
+	if hasGCMAsm {
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
 		topCipherSuites = []uint16{

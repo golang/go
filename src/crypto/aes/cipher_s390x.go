@@ -6,7 +6,7 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/cipherhw"
+	"internal/cpu"
 )
 
 type code int
@@ -19,9 +19,9 @@ const (
 )
 
 type aesCipherAsm struct {
-	function code      // code for cipher message instruction
-	key      []byte    // key (128, 192 or 256 bytes)
-	storage  [256]byte // array backing key slice
+	function code     // code for cipher message instruction
+	key      []byte   // key (128, 192 or 256 bits)
+	storage  [32]byte // array backing key slice
 }
 
 // cryptBlocks invokes the cipher message (KM) instruction with
@@ -30,10 +30,13 @@ type aesCipherAsm struct {
 //go:noescape
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
-var useAsm = cipherhw.AESGCMSupport()
-
 func newCipher(key []byte) (cipher.Block, error) {
-	if !useAsm {
+	// Strictly speaking, this check should be for HasKM.
+	// The check for HasKMC and HasKMCTR provides compatibility
+	// with the existing optimized s390x CBC and CTR implementations
+	// in this package, which already assert that they meet the
+	// cbcEncAble, cbcDecAble, and ctrAble interfaces
+	if !(cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR) {
 		return newCipherGeneric(key)
 	}
 

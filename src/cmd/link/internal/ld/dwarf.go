@@ -1158,7 +1158,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
 	unitLengthOffset := ls.Size
 	ls.AddUint32(ctxt.Arch, 0) // unit_length (*), filled in at end.
 	unitstart = ls.Size
-	ls.AddUint16(ctxt.Arch, 3) // dwarf version (appendix F)
+	ls.AddUint16(ctxt.Arch, 2) // dwarf version (appendix F) -- version 3 is incompatible w/ XCode 9.0's dsymutil, latest supported on OSX 10.12 as of 2018-05
 	headerLengthOffset := ls.Size
 	ls.AddUint32(ctxt.Arch, 0) // header_length (*), filled in at end.
 	headerstart = ls.Size

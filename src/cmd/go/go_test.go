@@ -5139,6 +5139,49 @@ func TestUpxCompression(t *testing.T) {
 	}
 }
 
+// Test that Go binaries can be run under QEMU in user-emulation mode
+// (See issue #13024).
+func TestQEMUUserMode(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skipf("skipping in -short mode on non-builder")
+	}
+
+	testArchs := []struct {
+		g, qemu string
+	}{
+		{"arm", "arm"},
+		{"arm64", "aarch64"},
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("main.go", `package main; import "fmt"; func main() { fmt.Print("hello qemu-user") }`)
+	tg.parallel()
+	src, obj := tg.path("main.go"), tg.path("main")
+
+	for _, arch := range testArchs {
+		out, err := exec.Command("qemu-"+arch.qemu, "--version").CombinedOutput()
+		if err != nil {
+			t.Logf("Skipping %s test (qemu-%s not available)", arch.g, arch.qemu)
+			continue
+		}
+
+		tg.setenv("GOARCH", arch.g)
+		tg.run("build", "-o", obj, src)
+
+		out, err = exec.Command("qemu-"+arch.qemu, obj).CombinedOutput()
+		if err != nil {
+			t.Logf("qemu-%s output:\n%s\n", arch.qemu, out)
+			t.Errorf("qemu-%s failed with %v", arch.qemu, err)
+			continue
+		}
+		if want := "hello qemu-user"; string(out) != want {
+			t.Errorf("bad output from qemu-%s:\ngot %s; want %s", arch.qemu, out, want)
+		}
+	}
+
+}
+
 func TestGOTMPDIR(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -6207,5 +6250,53 @@ func TestNoRelativeTmpdir(t *testing.T) {
 		tg.setenv("TMPDIR", "tmp")
 		tg.runFail("build", "a")
 		tg.grepStderr("relative tmpdir", "wrong error")
+	}
+}
+
+// Issue 24704.
+func TestLinkerTmpDirIsDeleted(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("a.go", `package main; import "C"; func main() {}`)
+	tg.run("build", "-ldflags", "-v", "-o", os.DevNull, tg.path("a.go"))
+	// Find line that has "host link:" in linker output.
+	stderr := tg.getStderr()
+	var hostLinkLine string
+	for _, line := range strings.Split(stderr, "\n") {
+		if !strings.Contains(line, "host link:") {
+			continue
+		}
+		hostLinkLine = line
+		break
+	}
+	if hostLinkLine == "" {
+		t.Fatal(`fail to find with "host link:" string in linker output`)
+	}
+	// Find parameter, like "/tmp/go-link-408556474/go.o" inside of
+	// "host link:" line, and extract temp directory /tmp/go-link-408556474
+	// out of it.
+	tmpdir := hostLinkLine
+	i := strings.Index(tmpdir, `go.o"`)
+	if i == -1 {
+		t.Fatalf(`fail to find "go.o" in "host link:" line %q`, hostLinkLine)
+	}
+	tmpdir = tmpdir[:i-1]
+	i = strings.LastIndex(tmpdir, `"`)
+	if i == -1 {
+		t.Fatalf(`fail to find " in "host link:" line %q`, hostLinkLine)
+	}
+	tmpdir = tmpdir[i+1:]
+	// Verify that temp directory has been removed.
+	_, err := os.Stat(tmpdir)
+	if err == nil {
+		t.Fatalf("temp directory %q has not been removed", tmpdir)
+	}
+	if !os.IsNotExist(err) {
+		t.Fatalf("Stat(%q) returns unexpected error: %v", tmpdir, err)
 	}
 }

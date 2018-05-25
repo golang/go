@@ -511,10 +511,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 				if typ == Typ[Invalid] {
 					continue // error reported before
 				}
-				if !isNamed(typ) {
-					check.invalidAST(f.Type.Pos(), "%s is not a named type", f.Type)
-					continue
-				}
 				embed, _ := typ.Underlying().(*Interface)
 				if embed == nil {
 					check.errorf(f.Type.Pos(), "%s is not an interface", typ)
@@ -528,13 +524,12 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 					unreachable()
 				}
 				// collect interface
-				// (at this point we know that typ must be a named, non-basic type)
-				ityp.embeddeds = append(ityp.embeddeds, typ.(*Named))
+				ityp.embeddeds = append(ityp.embeddeds, typ)
 			}
 		}
-		// sort to match NewInterface
+		// sort to match NewInterface/NewInterface2
 		// TODO(gri) we may be able to switch to source order
-		sort.Sort(byUniqueTypeName(ityp.embeddeds))
+		sort.Stable(byUniqueTypeName(ityp.embeddeds))
 	})
 
 	// compute method set
@@ -605,7 +600,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 	check.context = savedContext
 
-	// sort to match NewInterface
+	// sort to match NewInterface/NewInterface2
 	// TODO(gri) we may be able to switch to source order
 	sort.Sort(byUniqueMethodName(ityp.methods))
 
@@ -617,11 +612,18 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 }
 
 // byUniqueTypeName named type lists can be sorted by their unique type names.
-type byUniqueTypeName []*Named
+type byUniqueTypeName []Type
 
 func (a byUniqueTypeName) Len() int           { return len(a) }
-func (a byUniqueTypeName) Less(i, j int) bool { return a[i].obj.Id() < a[j].obj.Id() }
+func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName(a[j]) }
 func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+func sortName(t Type) string {
+	if named, _ := t.(*Named); named != nil {
+		return named.obj.Id()
+	}
+	return ""
+}
 
 // byUniqueMethodName method lists can be sorted by their unique method names.
 type byUniqueMethodName []*Func

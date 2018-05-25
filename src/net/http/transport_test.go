@@ -3264,8 +3264,8 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 	defer res.Body.Close()
 
 	want := []string{
-		"POST / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: x\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n" +
-			"5\r\nnum0\n\r\n",
+		"POST / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: x\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n",
+		"5\r\nnum0\n\r\n",
 		"5\r\nnum1\n\r\n",
 		"5\r\nnum2\n\r\n",
 		"0\r\n\r\n",
@@ -3273,6 +3273,40 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 	if !reflect.DeepEqual(lw.writes, want) {
 		t.Errorf("Writes differed.\n Got: %q\nWant: %q\n", lw.writes, want)
 	}
+}
+
+// Issue 22088: flush Transport request headers if we're not sure the body won't block on read.
+func TestTransportFlushesRequestHeader(t *testing.T) {
+	defer afterTest(t)
+	gotReq := make(chan struct{})
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		close(gotReq)
+	}))
+	defer cst.close()
+
+	pr, pw := io.Pipe()
+	req, err := NewRequest("POST", cst.ts.URL, pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotRes := make(chan struct{})
+	go func() {
+		defer close(gotRes)
+		res, err := cst.tr.RoundTrip(req)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		res.Body.Close()
+	}()
+
+	select {
+	case <-gotReq:
+		pw.Close()
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for handler to get request")
+	}
+	<-gotRes
 }
 
 // Issue 11745.

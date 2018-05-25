@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"unicode/utf8"
 )
@@ -254,13 +253,21 @@ func walkrange(n *Node) *Node {
 			break
 		}
 
-		if objabi.Preemptibleloops_enabled != 0 {
-			// Doing this transformation makes a bounds check removal less trivial; see #20711
-			// TODO enhance the preemption check insertion so that this transformation is not necessary.
-			ifGuard = nod(OIF, nil, nil)
-			ifGuard.Left = nod(OLT, hv1, hn)
-			translatedLoopOp = OFORUNTIL
-		}
+		// TODO(austin): OFORUNTIL is a strange beast, but is
+		// necessary for expressing the control flow we need
+		// while also making "break" and "continue" work. It
+		// would be nice to just lower ORANGE during SSA, but
+		// racewalk needs to see many of the operations
+		// involved in ORANGE's implementation. If racewalk
+		// moves into SSA, consider moving ORANGE into SSA and
+		// eliminating OFORUNTIL.
+
+		// TODO(austin): OFORUNTIL inhibits bounds-check
+		// elimination on the index variable (see #20711).
+		// Enhance the prove pass to understand this.
+		ifGuard = nod(OIF, nil, nil)
+		ifGuard.Left = nod(OLT, hv1, hn)
+		translatedLoopOp = OFORUNTIL
 
 		hp := temp(types.NewPtr(n.Type.Elem()))
 		tmp := nod(OINDEX, ha, nodintconst(0))
@@ -274,14 +281,11 @@ func walkrange(n *Node) *Node {
 		a.Rlist.Set2(hv1, nod(OIND, hp, nil))
 		body = append(body, a)
 
-		// Advance pointer as part of increment.
-		// We used to advance the pointer before executing the loop body,
-		// but doing so would make the pointer point past the end of the
-		// array during the final iteration, possibly causing another unrelated
-		// piece of memory not to be garbage collected until the loop finished.
-		// Advancing during the increment ensures that the pointer p only points
-		// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
-		// after which p is dead, so it cannot confuse the collector.
+		// Advance pointer as part of the late increment.
+		//
+		// This runs *after* the condition check, so we know
+		// advancing the pointer is safe and won't go past the
+		// end of the allocation.
 		tmp = nod(OADD, hp, nodintconst(t.Elem().Width))
 
 		tmp.Type = hp.Type
@@ -290,7 +294,7 @@ func walkrange(n *Node) *Node {
 		tmp.Right.SetTypecheck(1)
 		a = nod(OAS, hp, tmp)
 		a = typecheck(a, Etop)
-		n.Right.Ninit.Set1(a)
+		n.List.Set1(a)
 
 	case TMAP:
 		// orderstmt allocated the iterator for us.

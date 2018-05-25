@@ -331,7 +331,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 			if si != sj {
 				return si < sj
 			}
-			return task.regions[i].lastTimestamp() < task.regions[i].lastTimestamp()
+			return task.regions[i].lastTimestamp() < task.regions[j].lastTimestamp()
 		})
 	}
 	return annotationAnalysisResult{tasks: tasks, regions: regions, gcEvents: gcEvents}, nil

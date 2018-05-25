@@ -8,5 +8,4 @@ runtime/sys_darwin_arm.s: [arm] sigfwd: use of unnamed argument 0(FP); offset 0 
 
 // Ok.
 
-runtime/sys_darwin_arm.s: [arm] bsdthread_start: function bsdthread_start missing Go declaration
 runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration

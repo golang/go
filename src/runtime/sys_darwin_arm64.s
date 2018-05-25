@@ -11,27 +11,14 @@
 #include "textflag.h"
 
 // Copied from /usr/include/sys/syscall.h
-#define	SYS_exit           1
-#define	SYS_read           3
-#define	SYS_write          4
-#define	SYS_open           5
-#define	SYS_close          6
-#define	SYS_mmap           197
-#define	SYS_munmap         73
-#define	SYS_madvise        75
 #define	SYS_gettimeofday   116
 #define	SYS_kill           37
 #define	SYS_getpid         20
-#define	SYS___pthread_kill 328
 #define	SYS_pthread_sigmask 329
 #define	SYS_setitimer      83
 #define	SYS___sysctl       202
 #define	SYS_sigaction      46
 #define	SYS_sigreturn      184
-#define	SYS_select         93
-#define	SYS_bsdthread_register 366
-#define	SYS_bsdthread_create 360
-#define	SYS_bsdthread_terminate 361
 #define	SYS_kqueue         362
 #define	SYS_kevent         363
 #define	SYS_fcntl          92
@@ -41,80 +28,38 @@ TEXT notok<>(SB),NOSPLIT,$0
 	MOVD	R8, (R8)
 	B	0(PC)
 
-TEXT runtime·open(SB),NOSPLIT,$0
-	MOVD	name+0(FP), R0
-	MOVW	mode+8(FP), R1
-	MOVW	perm+12(FP), R2
-	MOVD	$SYS_open, R16
-	SVC	$0x80
-	CSINV	LO, R0, ZR, R0
-	MOVW	R0, ret+16(FP)
+TEXT runtime·open_trampoline(SB),NOSPLIT,$0
+	MOVW	8(R0), R1	// arg 2 flags
+	MOVW	12(R0), R2	// arg 3 mode
+	MOVD	0(R0), R0	// arg 1 pathname
+	BL libc_open(SB)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0
-	MOVW	$SYS_close, R16
-	SVC	$0x80
-	CSINV	LO, R0, ZR, R0
-	MOVW	R0, ret+8(FP)
+TEXT runtime·close_trampoline(SB),NOSPLIT,$0
+	MOVW	0(R0), R0	// arg 1 fd
+	BL	libc_close(SB)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0
-	MOVD	p+8(FP), R1
-	MOVW	n+16(FP), R2
-	MOVW	$SYS_write, R16
-	SVC	$0x80
-	CSINV	LO, R0, ZR, R0
-	MOVW	R0, ret+24(FP)
+TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 buf
+	MOVW	16(R0), R2	// arg 3 count
+	MOVW	0(R0), R0	// arg 1 fd
+	BL	libc_write(SB)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0
-	MOVD	p+8(FP), R1
-	MOVW	n+16(FP), R2
-	MOVW	$SYS_read, R16
-	SVC	$0x80
-	CSINV	LO, R0, ZR, R0
-	MOVW	R0, ret+24(FP)
+TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 buf
+	MOVW	16(R0), R2	// arg 3 count
+	MOVW	0(R0), R0	// arg 1 fd
+	BL libc_read(SB)
 	RET
 
-TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
-	MOVW	code+0(FP), R0
-	MOVW	$SYS_exit, R16
-	SVC	$0x80
+TEXT runtime·exit_trampoline(SB),NOSPLIT|NOFRAME,$0
+	MOVW	0(R0), R0
+	BL	libc_exit(SB)
 	MOVD	$1234, R0
 	MOVD	$1002, R1
 	MOVD	R0, (R1)	// fail hard
-
-// Exit this OS thread (like pthread_exit, which eventually
-// calls __bsdthread_terminate).
-TEXT exit1<>(SB),NOSPLIT,$0
-	// Because of exitThread below, this must not use the stack.
-	// __bsdthread_terminate takes 4 word-size arguments.
-	// Set them all to 0. (None are an exit status.)
-	MOVW	$0, R0
-	MOVW	$0, R1
-	MOVW	$0, R2
-	MOVW	$0, R3
-	MOVW	$SYS_bsdthread_terminate, R16
-	SVC	$0x80
-	MOVD	$1234, R0
-	MOVD	$1003, R1
-	MOVD	R0, (R1)	// fail hard
-
-// func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$0-8
-	MOVD	wait+0(FP), R0
-	// We're done using the stack.
-	MOVW	$0, R1
-	STLRW	R1, (R0)
-	JMP	exit1<>(SB)
-
-TEXT runtime·raise(SB),NOSPLIT,$0
-	// Ideally we'd send the signal to the current thread,
-	// not the whole process, but that's too hard on OS X.
-	JMP	runtime·raiseproc(SB)
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$0
 	MOVW	$SYS_getpid, R16
@@ -126,41 +71,41 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$0
 	SVC	$0x80
 	RET
 
-TEXT runtime·mmap(SB),NOSPLIT,$0
-	MOVD	addr+0(FP), R0
-	MOVD	n+8(FP), R1
-	MOVW	prot+16(FP), R2
-	MOVW	flags+20(FP), R3
-	MOVW	fd+24(FP), R4
-	MOVW	off+28(FP), R5
-	MOVW	$SYS_mmap, R16
-	SVC	$0x80
-	BCC	ok
-	MOVD	$0, p+32(FP)
-	MOVD	R0, err+40(FP)
-	RET
+TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+	MOVD	R0, R19
+	MOVD	0(R19), R0	// arg 1 addr
+	MOVD	8(R19), R1	// arg 2 len
+	MOVW	16(R19), R2	// arg 3 prot
+	MOVW	20(R19), R3	// arg 4 flags
+	MOVW	24(R19), R4	// arg 5 fd
+	MOVW	28(R19), R5	// arg 6 off
+	BL	libc_mmap(SB)
+	MOVD	$0, R1
+	MOVD	$-1, R2
+	CMP	R0, R2
+	BNE	ok
+	BL libc_error(SB)
+	MOVD	(R0), R1
+	MOVD	$0, R0
 ok:
-	MOVD	R0, p+32(FP)
-	MOVD	$0, err+40(FP)
+	MOVD	R0, 32(R19) // ret 1 p
+	MOVD	R1, 40(R19)	// ret 2 err
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$0
-	MOVD	addr+0(FP), R0
-	MOVD	n+8(FP), R1
-	MOVW	$SYS_munmap, R16
-	SVC	$0x80
-	BCC	2(PC)
+TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 len
+	MOVD	0(R0), R0	// arg 1 addr
+	BL	libc_munmap(SB)
+	CMP $0, R0
+	BEQ 2(PC)
 	BL	notok<>(SB)
 	RET
 
-TEXT runtime·madvise(SB),NOSPLIT,$0
-	MOVD	addr+0(FP), R0
-	MOVD	n+8(FP), R1
-	MOVW	flags+16(FP), R2
-	MOVW	$SYS_madvise, R16
-	SVC	$0x80
-	BCC	2(PC)
-	BL	notok<>(SB)
+TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 len
+	MOVW	16(R0), R2	// arg 3 advice
+	MOVD	0(R0), R0	// arg 1 addr
+	BL	libc_madvise(SB)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
@@ -189,25 +134,32 @@ inreg:
 	MOVW	R1, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$40
-	MOVD	RSP, R0	// timeval
-	MOVD	R0, R9	// this is how dyld calls gettimeofday
-	MOVW	$0, R1	// zone
-	MOVD	$0, R2	// see issue 16570
-	MOVW	$SYS_gettimeofday, R16
-	SVC	$0x80	// Note: x0 is tv_sec, w1 is tv_usec
-	CMP	$0, R0
-	BNE	inreg
-	MOVD	0(RSP), R0
-	MOVW	8(RSP), R1
-inreg:
-	MOVW	$1000000000, R3
-	MUL	R3, R0
-	MOVW	$1000, R3
-	MUL	R3, R1
-	ADD	R1, R0
+GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
 
-	MOVD	R0, ret+0(FP)
+TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$40
+	MOVD	R0, R19
+	BL	libc_mach_absolute_time(SB)
+	MOVD	R0, 0(R19)
+	MOVW	timebase<>+machTimebaseInfo_numer(SB), R20
+	MOVD	$timebase<>+machTimebaseInfo_denom(SB), R21
+	LDARW	(R21), R21	// atomic read
+	CMP	$0, R21
+	BNE	initialized
+
+	SUB	$(machTimebaseInfo__size+15)/16*16, RSP
+	MOVD	RSP, R0
+	BL	libc_mach_timebase_info(SB)
+	MOVW	machTimebaseInfo_numer(RSP), R20
+	MOVW	machTimebaseInfo_denom(RSP), R21
+	ADD	$(machTimebaseInfo__size+15)/16*16, RSP
+
+	MOVW	R20, timebase<>+machTimebaseInfo_numer(SB)
+	MOVD	$timebase<>+machTimebaseInfo_denom(SB), R22
+	STLRW	R21, (R22)	// atomic write
+
+initialized:
+	MOVW	R20, 8(R19)
+	MOVW	R21, 12(R19)
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
@@ -310,24 +262,9 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	BL	notok<>(SB)
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$24
-	MOVW	usec+0(FP), R0
-	MOVW	R0, R1
-	MOVW	$1000000, R2
-	UDIV	R2, R0
-	MUL	R0, R2
-	SUB	R2, R1
-	MOVD	R0, 0(RSP)
-	MOVW	R1, 8(RSP)
-
-	// select(0, 0, 0, 0, &tv)
-	MOVW	$0, R0
-	MOVW	$0, R1
-	MOVW	$0, R2
-	MOVW	$0, R3
-	MOVD	RSP, R4
-	MOVW	$SYS_select, R16
-	SVC	$0x80
+TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
+	MOVW	0(R0), R0	// arg 1 usec
+	BL	libc_usleep(SB)
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
@@ -346,42 +283,6 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 ok:
 	MOVW	$0, R0
 	MOVW	R0, ret+48(FP)
-	RET
-
-// Thread related functions
-// Note: On darwin/arm64, it is no longer possible to use bsdthread_register
-// as the libc is always linked in. The runtime must use runtime/cgo to
-// create threads, so all thread related functions will just exit with a
-// unique status.
-// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
-TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
-	MOVD	$44, R0
-	MOVW	$SYS_exit, R16
-	SVC	$0x80
-	RET
-
-// The thread that bsdthread_create creates starts executing here,
-// because we registered this function using bsdthread_register
-// at startup.
-//	R0 = "pthread"
-//	R1 = mach thread port
-//	R2 = "func" (= fn)
-//	R3 = "arg" (= m)
-//	R4 = stack
-//	R5 = flags (= 0)
-TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
-	MOVD	$45, R0
-	MOVW	$SYS_exit, R16
-	SVC	$0x80
-	RET
-
-// int32 bsdthread_register(void)
-// registers callbacks for threadstart (see bsdthread_create above
-// and wqthread and pthsize (not used).  returns 0 on success.
-TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
-	MOVD	$46, R0
-	MOVW	$SYS_exit, R16
-	SVC	$0x80
 	RET
 
 // uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
@@ -490,4 +391,39 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 // run the signal handler on the main stack, so our sigtramp has
 // to do the stack switch ourselves.
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+	RET
+
+// Thread related functions
+// Note: On darwin/arm64, the runtime always use runtime/cgo to
+// create threads, so all thread related functions will just exit with a
+// unique status.
+
+TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+	MOVW	$44, R0
+	BL	libc_exit(SB)
+	RET
+
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+	MOVW	$45, R0
+	BL	libc_exit(SB)
+	RET
+
+TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+	MOVW	$46, R0
+	BL	libc_exit(SB)
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+	MOVW	$47, R0
+	BL	libc_exit(SB)
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+	MOVW	$48, R0
+	BL	libc_exit(SB)
+	RET
+
+TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+	MOVW	0(R0), R0	// arg 1 sig
+	BL	libc_raise(SB)
 	RET

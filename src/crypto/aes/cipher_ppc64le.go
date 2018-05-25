@@ -11,23 +11,18 @@ import (
 // defined in asm_ppc64le.s
 
 //go:noescape
-
 func setEncryptKeyAsm(key *byte, keylen int, enc *uint32) int
 
 //go:noescape
-
 func setDecryptKeyAsm(key *byte, keylen int, dec *uint32) int
 
 //go:noescape
-
 func doEncryptKeyAsm(key *byte, keylen int, dec *uint32) int
 
 //go:noescape
-
 func encryptBlockAsm(dst, src *byte, enc *uint32)
 
 //go:noescape
-
 func decryptBlockAsm(dst, src *byte, dec *uint32)
 
 type aesCipherAsm struct {

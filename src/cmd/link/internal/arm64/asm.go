@@ -92,8 +92,25 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
+// adddynrel implements just enough to support external linking to
+// the system libc functions used by the runtime.
 func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
-	log.Fatalf("adddynrel not implemented")
+	targ := r.Sym
+
+	switch r.Type {
+	case objabi.R_CALL,
+		objabi.R_PCREL,
+		objabi.R_CALLARM64:
+		if targ.Type != sym.SDYNIMPORT {
+			// nothing to do, the relocation will be laid out in reloc
+			return true
+		}
+		if ctxt.LinkMode == ld.LinkExternal {
+			// External linker will do this relocation.
+			return true
+		}
+	}
+	log.Fatalf("adddynrel not implemented for relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
 	return false
 }
 

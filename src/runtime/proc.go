@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -473,7 +474,46 @@ const (
 )
 
 //go:linkname internal_cpu_initialize internal/cpu.initialize
-func internal_cpu_initialize()
+func internal_cpu_initialize(env string)
+
+//go:linkname internal_cpu_debugOptions internal/cpu.debugOptions
+var internal_cpu_debugOptions bool
+
+// cpuinit extracts the environment variable GODEBUGCPU from the enviroment on
+// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.initialize.
+func cpuinit() {
+	const prefix = "GODEBUGCPU="
+	var env string
+
+	if haveexperiment("debugcpu") && (GOOS == "linux" || GOOS == "darwin") {
+		internal_cpu_debugOptions = true
+
+		// Similar to goenv_unix but extracts the environment value for
+		// GODEBUGCPU directly.
+		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
+		n := int32(0)
+		for argv_index(argv, argc+1+n) != nil {
+			n++
+		}
+
+		for i := int32(0); i < n; i++ {
+			p := argv_index(argv, argc+1+i)
+			s := *(*string)(unsafe.Pointer(&stringStruct{unsafe.Pointer(p), findnull(p)}))
+
+			if hasprefix(s, prefix) {
+				env = gostring(p)[len(prefix):]
+				break
+			}
+		}
+	}
+
+	internal_cpu_initialize(env)
+
+	support_erms = cpu.X86.HasERMS
+	support_popcnt = cpu.X86.HasPOPCNT
+	support_sse2 = cpu.X86.HasSSE2
+	support_sse41 = cpu.X86.HasSSE41
+}
 
 // The bootstrap sequence is:
 //
@@ -498,11 +538,11 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
-	internal_cpu_initialize() // must run before alginit
-	alginit()                 // maps must not be used before this call
-	modulesinit()             // provides activeModules
-	typelinksinit()           // uses maps, activeModules
-	itabsinit()               // uses activeModules
+	cpuinit()       // must run before alginit
+	alginit()       // maps must not be used before this call
+	modulesinit()   // provides activeModules
+	typelinksinit() // uses maps, activeModules
+	itabsinit()     // uses activeModules
 
 	msigsave(_g_.m)
 	initSigmask = _g_.m.sigmask
@@ -1201,7 +1241,7 @@ func mstart() {
 	mstart1()
 
 	// Exit this thread.
-	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || (GOOS == "darwin" && (GOARCH == "amd64" || GOARCH == "386")) {
+	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || GOOS == "darwin" {
 		// Window, Solaris, Darwin and Plan 9 always system-allocate
 		// the stack, but put it in _g_.stack before mstart,
 		// so the logic above hasn't set osStack yet.
@@ -1525,7 +1565,7 @@ func allocm(_p_ *p, fn func()) *m {
 
 	// In case of cgo or Solaris or Darwin, pthread_create will make us a stack.
 	// Windows and Plan 9 will layout sched stack on OS stack.
-	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" || (GOOS == "darwin" && (GOARCH == "386" || GOARCH == "amd64")) {
+	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" || GOOS == "darwin" {
 		mp.g0 = malg(-1)
 	} else {
 		mp.g0 = malg(8192 * sys.StackGuardMultiplier)

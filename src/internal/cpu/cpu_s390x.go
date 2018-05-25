@@ -5,3 +5,18 @@
 package cpu
 
 const CacheLineSize = 256
+
+// the following cpu feature detection functions are defined in cpu_s390x.s
+func hasKM() bool
+func hasKMC() bool
+func hasKMCTR() bool
+func hasKMA() bool
+func hasKIMD() bool
+
+func init() {
+	S390X.HasKM = hasKM()
+	S390X.HasKMC = hasKMC()
+	S390X.HasKMCTR = hasKMCTR()
+	S390X.HasKMA = hasKMA()
+	S390X.HasKIMD = hasKIMD()
+}

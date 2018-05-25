@@ -39,6 +39,31 @@ const (
 )
 
 func doinit() {
+	options = []option{
+		{"adx", &X86.HasADX},
+		{"aes", &X86.HasAES},
+		{"avx", &X86.HasAVX},
+		{"avx2", &X86.HasAVX2},
+		{"bmi1", &X86.HasBMI1},
+		{"bmi2", &X86.HasBMI2},
+		{"erms", &X86.HasERMS},
+		{"fma", &X86.HasFMA},
+		{"pclmulqdq", &X86.HasPCLMULQDQ},
+		{"popcnt", &X86.HasPOPCNT},
+		{"sse3", &X86.HasSSE3},
+		{"sse41", &X86.HasSSE41},
+		{"sse42", &X86.HasSSE42},
+		{"ssse3", &X86.HasSSSE3},
+
+		// sse2 set as last element so it can easily be removed again. See code below.
+		{"sse2", &X86.HasSSE2},
+	}
+
+	// Remove sse2 from options on amd64(p32) because SSE2 is a mandatory feature for these GOARCHs.
+	if GOARCH == "amd64" || GOARCH == "amd64p32" {
+		options = options[:len(options)-1]
+	}
+
 	maxID, _, _, _ := cpuid(0, 0)
 
 	if maxID < 1 {

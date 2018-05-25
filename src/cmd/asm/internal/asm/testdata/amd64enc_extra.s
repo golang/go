@@ -317,5 +317,59 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PUSHQ FS // 0fa0
 	POPQ FS  // 0fa1
 	POPQ GS  // 0fa9
+	// All instructions below semantically have unsigned operands,
+	// but previous assembler permitted negative arguments.
+	// This behavior is preserved for compatibility reasons.
+	VPSHUFD $-79, X7, X7         // c5f970ffb1
+	RORXL $-1, (AX), DX          // c4e37bf010ff
+	RORXQ $-1, (AX), DX          // c4e3fbf010ff
+	VPSHUFD $-1, X1, X2          // c5f970d1ff
+	VPSHUFD $-1, Y1, Y2          // c5fd70d1ff
+	VPSHUFHW $-1, X1, X2         // c5fa70d1ff
+	VPSHUFHW $-1, Y1, Y2         // c5fe70d1ff
+	VPSHUFLW $-1, X1, X2         // c5fb70d1ff
+	VPSHUFLW $-1, Y1, Y2         // c5ff70d1ff
+	VROUNDPD $-1, X1, X2         // c4e37909d1ff
+	VROUNDPS $-1, Y1, Y2         // c4e37d08d1ff
+	VPSLLD $-1, X1, X2           // c5e972f1ff
+	VPSLLD $-1, Y1, Y2           // c5ed72f1ff
+	VPSLLDQ $-1, X1, X2          // c5e973f9ff
+	VPSLLDQ $-1, Y1, Y2          // c5ed73f9ff
+	VPSLLQ $-1, X1, X2           // c5e973f1ff
+	VPSLLQ $-1, Y1, Y2           // c5ed73f1ff
+	VPSRLD $-1, X1, X2           // c5e972d1ff
+	VPSRLD $-1, Y1, Y2           // c5ed72d1ff
+	VPSRLDQ $-1, X1, X2          // c5e973d9ff
+	VPSRLDQ $-1, Y1, Y2          // c5ed73d9ff
+	VPSRLQ $-1, X1, X2           // c5e973d1ff
+	VPSRLQ $-1, Y1, Y2           // c5ed73d1ff
+	VPEXTRW $-1, X1, (AX)        // c4e3791508ff
+	VPEXTRW $-1, X1, AX          // c4e37915c8ff
+	VEXTRACTF128 $-1, Y1, X2     // c4e37d19caff
+	VEXTRACTI128 $-1, Y1, X2     // c4e37d39caff
+	VAESKEYGENASSIST $-1, X1, X2 // c4e379dfd1ff
+	VPCMPESTRI $-1, X1, X2       // c4e37961d1ff
+	VPCMPESTRM $-1, X1, X2       // c4e37960d1ff
+	VPCMPISTRI $-1, X1, X2       // c4e37963d1ff
+	VPCMPISTRM $-1, X1, X2       // c4e37962d1ff
+	VPERMPD $-1, Y1, Y2          // c4e3fd01d1ff
+	VPERMILPD $-1, X1, X2        // c4e37905d1ff
+	VPERMILPD $-1, Y1, Y2        // c4e37d05d1ff
+	VPERMILPS $-1, X1, X2        // c4e37904d1ff
+	VPERMILPS $-1, Y1, Y2        // c4e37d04d1ff
+	VCVTPS2PH $-1, X1, X2        // c4e3791dcaff
+	VCVTPS2PH $-1, Y1, X2        // c4e37d1dcaff
+	VPSLLW $-1, X1, X2           // c5e971f1ff
+	VPSLLW $-1, Y1, Y2           // c5ed71f1ff
+	VPSRAD $-1, X1, X2           // c5e972e1ff
+	VPSRAD $-1, Y1, Y2           // c5ed72e1ff
+	VPSRAW $-1, X1, X2           // c5e971e1ff
+	VPSRAW $-1, Y1, Y2           // c5ed71e1ff
+	VPSRLW $-1, X1, X1           // c5f171d1ff
+	VPSRLW $-1, Y1, Y2           // c5ed71d1ff
+	VEXTRACTPS $-1, X1, AX       // c4e37917c8ff
+	VPEXTRB $-1, X1, AX          // c4e37914c8ff
+	VPEXTRD $-1, X1, AX          // c4e37916c8ff
+	VPEXTRQ $-1, X1, AX          // c4e3f916c8ff
 	// End of tests.
 	RET

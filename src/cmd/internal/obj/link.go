@@ -138,13 +138,16 @@ import (
 //			offset = second register
 //
 //	[reg, reg, reg-reg]
-//		Register list for ARM and ARM64.
+//		Register list for ARM, ARM64, 386/AMD64.
 //		Encoding:
 //			type = TYPE_REGLIST
 //		On ARM:
 //			offset = bit mask of registers in list; R0 is low bit.
 //		On ARM64:
 //			offset = register count (Q:size) | arrangement (opcode) | first register
+//		On 386/AMD64:
+//			reg = range low register
+//			offset = 2 packed registers + kind tag (see x86.EncodeRegisterRange)
 //
 //	reg, reg
 //		Register pair for ARM.
@@ -282,7 +285,7 @@ type Prog struct {
 	RegTo2   int16    // 2nd destination operand
 	Mark     uint16   // bitmask of arch-specific items
 	Optab    uint16   // arch-specific opcode index
-	Scond    uint8    // condition bits for conditional instruction (e.g., on ARM)
+	Scond    uint8    // bits that describe instruction suffixes (e.g. ARM conditions)
 	Back     uint8    // for x86 back end: backwards branch state
 	Ft       uint8    // for x86 back end: type index of Prog.From
 	Tt       uint8    // for x86 back end: type index of Prog.To
@@ -401,6 +404,7 @@ type FuncInfo struct {
 
 	GCArgs   LSym
 	GCLocals LSym
+	GCRegs   LSym
 }
 
 // Attribute is a set of symbol attributes.

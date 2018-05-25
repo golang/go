@@ -2010,6 +2010,9 @@ func typecheck1(n *Node, top int) *Node {
 			}
 		}
 		n.Right = typecheck(n.Right, Etop)
+		if n.Op == OFORUNTIL {
+			typecheckslice(n.List.Slice(), Etop)
+		}
 		typecheckslice(n.Nbody.Slice(), Etop)
 		decldepth--
 

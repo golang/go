@@ -7,6 +7,7 @@
 // +build !windows
 // +build !nacl
 // +build !freebsd
+// +build !darwin
 
 package runtime
 

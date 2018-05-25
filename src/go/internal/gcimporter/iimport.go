@@ -500,10 +500,10 @@ func (r *importReader) doType(base *types.Named) types.Type {
 	case interfaceType:
 		r.currPkg = r.pkg()
 
-		embeddeds := make([]*types.Named, r.uint64())
+		embeddeds := make([]types.Type, r.uint64())
 		for i := range embeddeds {
 			_ = r.pos()
-			embeddeds[i] = r.typ().(*types.Named)
+			embeddeds[i] = r.typ()
 		}
 
 		methods := make([]*types.Func, r.uint64())
@@ -522,7 +522,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
 			methods[i] = types.NewFunc(mpos, r.currPkg, mname, msig)
 		}
 
-		typ := types.NewInterface(methods, embeddeds)
+		typ := types.NewInterface2(methods, embeddeds)
 		r.p.interfaceList = append(r.p.interfaceList, typ)
 		return typ
 	}

@@ -27,6 +27,7 @@ type Config struct {
 	gpRegMask       regMask       // general purpose integer register mask
 	fpRegMask       regMask       // floating point register mask
 	specialRegMask  regMask       // special register mask
+	GCRegMap        []*Register   // garbage collector register map, by GC register index
 	FPReg           int8          // register number of frame pointer, -1 if not used
 	LinkReg         int8          // register number of link register if it is a general purpose register, -1 if not used
 	hasGReg         bool          // has hardware g register
@@ -373,6 +374,21 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 			ctxt.Diag("Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
 		}
 		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
+	}
+
+	// Create the GC register map index.
+	// TODO: This is only used for debug printing. Maybe export config.registers?
+	gcRegMapSize := int16(0)
+	for _, r := range c.registers {
+		if r.gcNum+1 > gcRegMapSize {
+			gcRegMapSize = r.gcNum + 1
+		}
+	}
+	c.GCRegMap = make([]*Register, gcRegMapSize)
+	for i, r := range c.registers {
+		if r.gcNum != -1 {
+			c.GCRegMap[r.gcNum] = &c.registers[i]
+		}
 	}
 
 	return c

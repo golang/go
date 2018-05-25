@@ -302,7 +302,14 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// returns; everything live at earlier deferprocs is still live at that one.
 		frame.continpc = frame.pc
 		if waspanic {
-			if _defer != nil && _defer.sp == frame.sp {
+			// We match up defers with frames using the SP.
+			// However, if the function has an empty stack
+			// frame, then it's possible (on LR machines)
+			// for multiple call frames to have the same
+			// SP. But, since a function with no frame
+			// can't push a defer, the defer can't belong
+			// to that frame.
+			if _defer != nil && _defer.sp == frame.sp && frame.sp != frame.fp {
 				frame.continpc = _defer.pc
 			} else {
 				frame.continpc = 0
@@ -310,7 +317,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 
 		// Unwind our local defer stack past this frame.
-		for _defer != nil && (_defer.sp == frame.sp || _defer.sp == _NoArgs) {
+		for _defer != nil && ((_defer.sp == frame.sp && frame.sp != frame.fp) || _defer.sp == _NoArgs) {
 			_defer = _defer.link
 		}
 
