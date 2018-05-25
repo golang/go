@@ -88,6 +88,34 @@
 
 (BitLen64 x) -> (SUB (MOVDconst [64]) (FLOGR x))
 
+// POPCNT treats the input register as a vector of 8 bytes, producing
+// a population count for each individual byte. For inputs larger than
+// a single byte we therefore need to sum the individual bytes produced
+// by the POPCNT instruction. For example, the following instruction
+// sequence could be used to calculate the population count of a 4-byte
+// value:
+//
+//     MOVD   $0x12345678, R1 // R1=0x12345678 <-- input
+//     POPCNT R1, R2          // R2=0x02030404
+//     SRW    $16, R2, R3     // R3=0x00000203
+//     ADDW   R2, R3, R4      // R4=0x02030607
+//     SRW    $8, R4, R5      // R5=0x00020306
+//     ADDW   R4, R5, R6      // R6=0x0205090d
+//     MOVBZ  R6, R7          // R7=0x0000000d <-- result is 13
+//
+(PopCount8  x) -> (POPCNT (MOVBZreg x))
+(PopCount16 x) -> (MOVBZreg (SumBytes2 (POPCNT <typ.UInt16> x)))
+(PopCount32 x) -> (MOVBZreg (SumBytes4 (POPCNT <typ.UInt32> x)))
+(PopCount64 x) -> (MOVBZreg (SumBytes8 (POPCNT <typ.UInt64> x)))
+
+// SumBytes{2,4,8} pseudo operations sum the values of the rightmost
+// 2, 4 or 8 bytes respectively. The result is a single byte however
+// other bytes might contain junk so a zero extension is required if
+// the desired output type is larger than 1 byte.
+(SumBytes2 x) -> (ADDW (SRWconst <typ.UInt8> x [8]) x)
+(SumBytes4 x) -> (SumBytes2 (ADDW <typ.UInt16> (SRWconst <typ.UInt16> x [16]) x))
+(SumBytes8 x) -> (SumBytes4 (ADDW <typ.UInt32> (SRDconst <typ.UInt32> x [32]) x))
+
 (Bswap64 x) -> (MOVDBR x)
 (Bswap32 x) -> (MOVWBR x)
 

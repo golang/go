@@ -530,6 +530,25 @@ func init() {
 			clobberFlags: true,
 		},
 
+		// population count
+		//
+		// Counts the number of ones in each byte of arg0
+		// and places the result into the corresponding byte
+		// of the result.
+		{
+			name:         "POPCNT",
+			argLength:    1,
+			reg:          gp11,
+			asm:          "POPCNT",
+			typ:          "UInt64",
+			clobberFlags: true,
+		},
+
+		// pseudo operations to sum the output of the POPCNT instruction
+		{name: "SumBytes2", argLength: 1, typ: "UInt8"}, // sum the rightmost 2 bytes in arg0 ignoring overflow
+		{name: "SumBytes4", argLength: 1, typ: "UInt8"}, // sum the rightmost 4 bytes in arg0 ignoring overflow
+		{name: "SumBytes8", argLength: 1, typ: "UInt8"}, // sum all the bytes in arg0 ignoring overflow
+
 		// store multiple
 		{
 			name:           "STMG2",
