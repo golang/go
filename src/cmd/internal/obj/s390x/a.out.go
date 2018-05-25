@@ -271,6 +271,9 @@ const (
 	// find leftmost one
 	AFLOGR
 
+	// population count
+	APOPCNT
+
 	// integer bitwise
 	AAND
 	AANDW
