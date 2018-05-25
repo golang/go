@@ -7,6 +7,7 @@ package tls
 import (
 	"container/list"
 	"crypto"
+	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/x509"
@@ -945,7 +946,8 @@ func initDefaultCipherSuites() {
 
 	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
 
-	if hasGCMAsm {
+	if hasGCMAsm || boring.Enabled {
+		// If BoringCrypto is enabled, always prioritize AES-GCM.
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
 		topCipherSuites = []uint16{
