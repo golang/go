@@ -1293,7 +1293,7 @@ func mstart1() {
 //go:yeswritebarrierrec
 func mstartm0() {
 	// Create an extra M for callbacks on threads not created by Go.
-	if iscgo && !cgoHasExtraM {
+	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		cgoHasExtraM = true
 		newextram()
 	}
@@ -1618,7 +1618,7 @@ func allocm(_p_ *p, fn func()) *m {
 // put the m back on the list.
 //go:nosplit
 func needm(x byte) {
-	if iscgo && !cgoHasExtraM {
+	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		// Can happen if C/C++ code calls Go from a global ctor.
 		// Can not throw, because scheduler is not initialized yet.
 		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
@@ -4215,8 +4215,13 @@ func checkdead() {
 		return
 	}
 
+	var run0 int32
+	if !iscgo && cgoHasExtraM {
+		run0 = 1
+	}
+
 	run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys
-	if run > 0 {
+	if run > run0 {
 		return
 	}
 	if run < 0 {
