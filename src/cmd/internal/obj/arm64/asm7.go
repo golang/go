@@ -245,12 +245,12 @@ var optab = []Optab{
 	{AANDS, C_BITCON, C_REG, C_NONE, C_REG, 53, 4, 0, 0, 0},
 	{AANDS, C_BITCON, C_NONE, C_NONE, C_REG, 53, 4, 0, 0, 0},
 	{ATST, C_BITCON, C_REG, C_NONE, C_NONE, 53, 4, 0, 0, 0},
-	{AAND, C_MOVCON, C_REG, C_NONE, C_RSP, 62, 8, 0, 0, 0},
+	{AAND, C_MOVCON, C_REG, C_NONE, C_REG, 62, 8, 0, 0, 0},
 	{AAND, C_MOVCON, C_NONE, C_NONE, C_REG, 62, 8, 0, 0, 0},
 	{AANDS, C_MOVCON, C_REG, C_NONE, C_REG, 62, 8, 0, 0, 0},
 	{AANDS, C_MOVCON, C_NONE, C_NONE, C_REG, 62, 8, 0, 0, 0},
 	{ATST, C_MOVCON, C_REG, C_NONE, C_NONE, 62, 8, 0, 0, 0},
-	{AAND, C_VCON, C_REG, C_NONE, C_RSP, 28, 8, 0, LFROM, 0},
+	{AAND, C_VCON, C_REG, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
 	{AAND, C_VCON, C_NONE, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
 	{AANDS, C_VCON, C_REG, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
 	{AANDS, C_VCON, C_NONE, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
@@ -3548,7 +3548,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = rt
 		}
-		if p.To.Type != obj.TYPE_NONE && (p.To.Reg == REGSP || r == REGSP) {
+		if p.To.Reg == REGSP || r == REGSP {
 			o2 = c.opxrrr(p, p.As, false)
 			o2 |= REGTMP & 31 << 16
 			o2 |= LSL0_64
