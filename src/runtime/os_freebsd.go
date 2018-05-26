@@ -382,7 +382,7 @@ const (
 	_AT_NULL     = 0  // Terminates the vector
 	_AT_PAGESZ   = 6  // Page size in bytes
 	_AT_TIMEKEEP = 22 // Pointer to timehands.
-	_AT_HWCAP    = 26 // CPU feature flags
+	_AT_HWCAP    = 25 // CPU feature flags
 )
 
 func sysauxv(auxv []uintptr) {
