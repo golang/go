@@ -87,4 +87,6 @@ TEXT errors(SB),$0
 	MADD	R1, R2, R3                                       // ERROR "illegal combination"
 	CINC	CS, R2, R3, R4                                   // ERROR "illegal combination"
 	CSEL	LT, R1, R2                                       // ERROR "illegal combination"
+	AND	$0x22220000, R2, RSP                             // ERROR "illegal combination"
+	ANDS	$0x22220000, R2, RSP                             // ERROR "illegal combination"
 	RET
