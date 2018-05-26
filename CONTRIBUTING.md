@@ -30,9 +30,8 @@ For change proposals, see [Proposing Changes To Go](https://github.com/golang/pr
 
 Please read the [Contribution Guidelines](https://golang.org/doc/contribute.html) before sending patches.
 
-**We do not accept GitHub pull requests**
-(we use [an instance](https://go-review.googlesource.com/) of the
-[Gerrit](https://www.gerritcodereview.com/) code review system instead).
+We use [an instance](https://go-review.googlesource.com/) of the
+[Gerrit](https://www.gerritcodereview.com/) code review system.
 Also, please do not post patches on the issue tracker.
 
 Unless otherwise noted, the Go source files are distributed under
