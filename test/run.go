@@ -524,6 +524,8 @@ func (t *test) run() {
 	// collect flags
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
+		case "-1":
+			wantError = true
 		case "-0":
 			wantError = false
 		case "-s":
@@ -681,9 +683,15 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
+		errPkg := len(pkgs) - 1
+		if wantError && action == "errorcheckandrundir" {
+			// The last pkg should compiled successfully and will be run in next case.
+			// Preceding pkg must return an error from compileInDir.
+			errPkg--
+		}
 		for i, gofiles := range pkgs {
 			out, err := compileInDir(runcmd, longdir, flags, gofiles...)
-			if i == len(pkgs)-1 {
+			if i == errPkg {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
 					return
@@ -720,7 +728,9 @@ func (t *test) run() {
 		}
 		for i, gofiles := range pkgs {
 			_, err := compileInDir(runcmd, longdir, flags, gofiles...)
-			if err != nil {
+			// Allow this package compilation fail based on conditions below;
+			// its errors were checked in previous case.
+			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
 				t.err = err
 				return
 			}
