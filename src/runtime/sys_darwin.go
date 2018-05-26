@@ -170,6 +170,15 @@ func nanotime() int64 {
 }
 func nanotime_trampoline()
 
+//go:nosplit
+//go:cgo_unsafe_args
+func walltime() (int64, int32) {
+	var t timeval
+	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
+	return int64(t.tv_sec), 1000 * t.tv_usec
+}
+func walltime_trampoline()
+
 // Not used on Darwin, but must be defined.
 func exitThread(wait *uint32) {
 }
@@ -197,6 +206,7 @@ func exitThread(wait *uint32) {
 
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_gettimeofday gettimeofday "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210

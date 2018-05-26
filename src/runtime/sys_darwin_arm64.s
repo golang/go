@@ -116,22 +116,10 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SVC	$0x80
 	RET
 
-TEXT runtime·walltime(SB),NOSPLIT,$40-12
-	MOVD	RSP, R0	// timeval
-	MOVD	R0, R9	// this is how dyld calls gettimeofday
-	MOVW	$0, R1	// zone
-	MOVD	$0, R2	// see issue 16570
-	MOVW	$SYS_gettimeofday, R16
-	SVC	$0x80	// Note: x0 is tv_sec, w1 is tv_usec
-	CMP	$0, R0
-	BNE	inreg
-	MOVD	0(RSP), R0
-	MOVW	8(RSP), R1
-inreg:
-	MOVD	R0, sec+0(FP)
-	MOVW	$1000, R3
-	MUL	R3, R1
-	MOVW	R1, nsec+8(FP)
+TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
+	// R0 already has *timeval
+	MOVD	$0, R1 // no timezone needed
+	BL	libc_gettimeofday(SB)
 	RET
 
 GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
