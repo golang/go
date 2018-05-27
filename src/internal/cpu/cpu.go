@@ -66,6 +66,16 @@ type ppc64 struct {
 	_          CacheLinePad
 }
 
+var ARM arm
+
+// The booleans in arm contain the correspondingly named cpu feature bit.
+// The struct is padded to avoid false sharing.
+type arm struct {
+	_        CacheLinePad
+	HasIDIVA bool
+	_        CacheLinePad
+}
+
 var ARM64 arm64
 
 // The booleans in arm64 contain the correspondingly named cpu feature bit.
