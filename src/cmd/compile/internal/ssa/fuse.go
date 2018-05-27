@@ -8,15 +8,33 @@ import (
 	"cmd/internal/src"
 )
 
+// fusePlain runs fuse(f, fuseTypePlain).
+func fusePlain(f *Func) { fuse(f, fuseTypePlain) }
+
+// fuseAll runs fuse(f, fuseTypeAll).
+func fuseAll(f *Func) { fuse(f, fuseTypeAll) }
+
+type fuseType uint8
+
+const (
+	fuseTypePlain fuseType = 1 << iota
+	fuseTypeIf
+	fuseTypeAll = fuseTypePlain | fuseTypeIf
+)
+
 // fuse simplifies control flow by joining basic blocks.
-func fuse(f *Func) {
+func fuse(f *Func, typ fuseType) {
 	for changed := true; changed; {
 		changed = false
 		// Fuse from end to beginning, to avoid quadratic behavior in fuseBlockPlain. See issue 13554.
 		for i := len(f.Blocks) - 1; i >= 0; i-- {
 			b := f.Blocks[i]
-			changed = fuseBlockIf(b) || changed
-			changed = fuseBlockPlain(b) || changed
+			if typ&fuseTypeIf != 0 {
+				changed = fuseBlockIf(b) || changed
+			}
+			if typ&fuseTypePlain != 0 {
+				changed = fuseBlockPlain(b) || changed
+			}
 		}
 	}
 }
