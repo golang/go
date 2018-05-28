@@ -3608,21 +3608,14 @@ func copytype(n *Node, t *types.Type) {
 	}
 
 	// Double-check use of type as embedded type.
-	lno := lineno
-
 	if embedlineno.IsKnown() {
-		lineno = embedlineno
 		if t.IsPtr() || t.IsUnsafePtr() {
-			yyerror("embedded type cannot be a pointer")
+			yyerrorl(embedlineno, "embedded type cannot be a pointer")
 		}
 	}
-
-	lineno = lno
 }
 
 func typecheckdeftype(n *Node) {
-	lno := lineno
-	setlineno(n)
 	n.Type.Sym = n.Sym
 	n.SetTypecheck(1)
 	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
@@ -3637,8 +3630,6 @@ func typecheckdeftype(n *Node) {
 		// that don't come along.
 		copytype(n, t)
 	}
-
-	lineno = lno
 }
 
 func typecheckdef(n *Node) {
