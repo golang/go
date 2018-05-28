@@ -755,7 +755,7 @@ avx2_loop1: // for w0 - w47
 	JB   avx2_loop1
 
 avx2_loop2:
-	// w48 - w63 processed with no scheduliung (last 16 rounds)
+	// w48 - w63 processed with no scheduling (last 16 rounds)
 	VPADDD  0*32(TBL)(SRND*1), XDWORD0, XFER
 	VMOVDQU XFER, (_XFER + 0*32)(SP)(SRND*1)
 	DO_ROUND_N_0(_XFER + 0*32, a, b, c, d, e, f, g, h, h)
