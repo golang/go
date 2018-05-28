@@ -1363,12 +1363,12 @@
 (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
 	&& isSameSym(sym, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	-> (Invalid)
 (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
 	&& isSameSym(sym, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	-> (Invalid)
 
 // Evaluate constant address comparisons.
