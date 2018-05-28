@@ -912,6 +912,57 @@ func TestDialListenerAddr(t *testing.T) {
 	c.Close()
 }
 
+func TestDialerControl(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	t.Run("StreamDial", func(t *testing.T) {
+		for _, network := range []string{"tcp", "tcp4", "tcp6", "unix", "unixpacket"} {
+			if !testableNetwork(network) {
+				continue
+			}
+			ln, err := newLocalListener(network)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			defer ln.Close()
+			d := Dialer{Control: controlOnConnSetup}
+			c, err := d.Dial(network, ln.Addr().String())
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			c.Close()
+		}
+	})
+	t.Run("PacketDial", func(t *testing.T) {
+		for _, network := range []string{"udp", "udp4", "udp6", "unixgram"} {
+			if !testableNetwork(network) {
+				continue
+			}
+			c1, err := newLocalPacketListener(network)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			if network == "unixgram" {
+				defer os.Remove(c1.LocalAddr().String())
+			}
+			defer c1.Close()
+			d := Dialer{Control: controlOnConnSetup}
+			c2, err := d.Dial(network, c1.LocalAddr().String())
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			c2.Close()
+		}
+	})
+}
+
 // mustHaveExternalNetwork is like testenv.MustHaveExternalNetwork
 // except that it won't skip testing on non-iOS builders.
 func mustHaveExternalNetwork(t *testing.T) {

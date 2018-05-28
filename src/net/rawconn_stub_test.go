@@ -22,3 +22,7 @@ func writeRawConn(c syscall.RawConn, b []byte) error {
 func controlRawConn(c syscall.RawConn, addr Addr) error {
 	return errors.New("not supported")
 }
+
+func controlOnConnSetup(network string, address string, c syscall.RawConn) error {
+	return nil
+}

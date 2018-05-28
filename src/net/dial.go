@@ -8,6 +8,7 @@ import (
 	"context"
 	"internal/nettrace"
 	"internal/poll"
+	"syscall"
 	"time"
 )
 
@@ -70,6 +71,14 @@ type Dialer struct {
 	//
 	// Deprecated: Use DialContext instead.
 	Cancel <-chan struct{}
+
+	// If Control is not nil, it is called after creating the network
+	// connection but before actually dialing.
+	//
+	// Network and address parameters passed to Control method are not
+	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
+	// will cause the Control function to be called with "tcp4" or "tcp6".
+	Control func(network, address string, c syscall.RawConn) error
 }
 
 func minNonzeroTime(a, b time.Time) time.Time {
@@ -563,8 +572,82 @@ func (sd *sysDialer) dialSingle(ctx context.Context, ra Addr) (c Conn, err error
 	return c, nil
 }
 
+// ListenConfig contains options for listening to an address.
+type ListenConfig struct {
+	// If Control is not nil, it is called after creating the network
+	// connection but before binding it to the operating system.
+	//
+	// Network and address parameters passed to Control method are not
+	// necessarily the ones passed to Listen. For example, passing "tcp" to
+	// Listen will cause the Control function to be called with "tcp4" or "tcp6".
+	Control func(network, address string, c syscall.RawConn) error
+}
+
+// Listen announces on the local network address.
+//
+// See func Listen for a description of the network and address
+// parameters.
+func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Listener, error) {
+	addrs, err := DefaultResolver.resolveAddrList(ctx, "listen", network, address, nil)
+	if err != nil {
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: err}
+	}
+	sl := &sysListener{
+		ListenConfig: *lc,
+		network:      network,
+		address:      address,
+	}
+	var l Listener
+	la := addrs.first(isIPv4)
+	switch la := la.(type) {
+	case *TCPAddr:
+		l, err = sl.listenTCP(ctx, la)
+	case *UnixAddr:
+		l, err = sl.listenUnix(ctx, la)
+	default:
+		return nil, &OpError{Op: "listen", Net: sl.network, Source: nil, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: address}}
+	}
+	if err != nil {
+		return nil, &OpError{Op: "listen", Net: sl.network, Source: nil, Addr: la, Err: err} // l is non-nil interface containing nil pointer
+	}
+	return l, nil
+}
+
+// ListenPacket announces on the local network address.
+//
+// See func ListenPacket for a description of the network and address
+// parameters.
+func (lc *ListenConfig) ListenPacket(ctx context.Context, network, address string) (PacketConn, error) {
+	addrs, err := DefaultResolver.resolveAddrList(ctx, "listen", network, address, nil)
+	if err != nil {
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: err}
+	}
+	sl := &sysListener{
+		ListenConfig: *lc,
+		network:      network,
+		address:      address,
+	}
+	var c PacketConn
+	la := addrs.first(isIPv4)
+	switch la := la.(type) {
+	case *UDPAddr:
+		c, err = sl.listenUDP(ctx, la)
+	case *IPAddr:
+		c, err = sl.listenIP(ctx, la)
+	case *UnixAddr:
+		c, err = sl.listenUnixgram(ctx, la)
+	default:
+		return nil, &OpError{Op: "listen", Net: sl.network, Source: nil, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: address}}
+	}
+	if err != nil {
+		return nil, &OpError{Op: "listen", Net: sl.network, Source: nil, Addr: la, Err: err} // c is non-nil interface containing nil pointer
+	}
+	return c, nil
+}
+
 // sysListener contains a Listen's parameters and configuration.
 type sysListener struct {
+	ListenConfig
 	network, address string
 }
 
@@ -587,23 +670,8 @@ type sysListener struct {
 // See func Dial for a description of the network and address
 // parameters.
 func Listen(network, address string) (Listener, error) {
-	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", network, address, nil)
-	if err != nil {
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: err}
-	}
-	var l Listener
-	switch la := addrs.first(isIPv4).(type) {
-	case *TCPAddr:
-		l, err = ListenTCP(network, la)
-	case *UnixAddr:
-		l, err = ListenUnix(network, la)
-	default:
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: address}}
-	}
-	if err != nil {
-		return nil, err // l is non-nil interface containing nil pointer
-	}
-	return l, nil
+	var lc ListenConfig
+	return lc.Listen(context.Background(), network, address)
 }
 
 // ListenPacket announces on the local network address.
@@ -629,23 +697,6 @@ func Listen(network, address string) (Listener, error) {
 // See func Dial for a description of the network and address
 // parameters.
 func ListenPacket(network, address string) (PacketConn, error) {
-	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", network, address, nil)
-	if err != nil {
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: err}
-	}
-	var l PacketConn
-	switch la := addrs.first(isIPv4).(type) {
-	case *UDPAddr:
-		l, err = ListenUDP(network, la)
-	case *IPAddr:
-		l, err = ListenIP(network, la)
-	case *UnixAddr:
-		l, err = ListenUnixgram(network, la)
-	default:
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: address}}
-	}
-	if err != nil {
-		return nil, err // l is non-nil interface containing nil pointer
-	}
-	return l, nil
+	var lc ListenConfig
+	return lc.ListenPacket(context.Background(), network, address)
 }
