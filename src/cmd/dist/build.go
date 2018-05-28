@@ -1438,7 +1438,7 @@ func checkCC() {
 		fatalf("cannot invoke C compiler %q: %v\n\n"+
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, set CC=the-compiler.\n"+
-			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
+			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
 }
 
