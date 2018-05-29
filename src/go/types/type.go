@@ -275,7 +275,9 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 }
 
 // NewInterface2 returns a new (incomplete) interface for the given methods and embedded types.
-// Each embedded type must have an underlying type of interface type.
+// Each embedded type must have an underlying type of interface type (this property is not
+// verified for defined types, which may be in the process of being set up and which don't
+// have a valid underlying type yet).
 // NewInterface2 takes ownership of the provided methods and may modify their types by setting
 // missing receivers. To compute the method set of the interface, Complete must be called.
 func NewInterface2(methods []*Func, embeddeds []Type) *Interface {
@@ -298,8 +300,12 @@ func NewInterface2(methods []*Func, embeddeds []Type) *Interface {
 	sort.Sort(byUniqueMethodName(methods))
 
 	if len(embeddeds) > 0 {
+		// All embedded types should be interfaces; however, defined types
+		// may not yet be fully resolved. Only verify that non-defined types
+		// are interfaces. This matches the behavior of the code before the
+		// fix for #25301 (issue #25596).
 		for _, t := range embeddeds {
-			if !IsInterface(t) {
+			if _, ok := t.(*Named); !ok && !IsInterface(t) {
 				panic("embedded type is not an interface")
 			}
 		}
