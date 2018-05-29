@@ -265,11 +265,24 @@ func compileSSA(fn *Node, worker int) {
 		return
 	}
 	pp := newProgs(fn, worker)
+	defer pp.Free()
 	genssa(f, pp)
+	// Check frame size again.
+	// The check above included only the space needed for local variables.
+	// After genssa, the space needed includes local variables and the callee arg region.
+	// We must do this check prior to calling pp.Flush.
+	// If there are any oversized stack frames,
+	// the assembler may emit inscrutable complaints about invalid instructions.
+	if pp.Text.To.Offset >= maxStackSize {
+		largeStackFramesMu.Lock()
+		largeStackFrames = append(largeStackFrames, fn.Pos)
+		largeStackFramesMu.Unlock()
+		return
+	}
+
 	pp.Flush() // assemble, fill in boilerplate, etc.
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
-	pp.Free()
 }
 
 func init() {
