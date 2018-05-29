@@ -257,7 +257,8 @@ const maxStackSize = 1 << 30
 // worker indicates which of the backend workers is doing the processing.
 func compileSSA(fn *Node, worker int) {
 	f := buildssa(fn, worker)
-	if f.Frontend().(*ssafn).stksize >= maxStackSize {
+	// Note: check arg size to fix issue 25507.
+	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
 		largeStackFrames = append(largeStackFrames, fn.Pos)
 		largeStackFramesMu.Unlock()
