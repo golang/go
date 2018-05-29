@@ -94,6 +94,7 @@ var validCompilerFlags = []*regexp.Regexp{
 	re(`-?-stdlib=([^@\-].*)`),
 	re(`-w`),
 	re(`-x([^@\-].*)`),
+	re(`-v`),
 }
 
 var validCompilerFlagsWithNextArg = []string{
@@ -127,6 +128,7 @@ var validLinkerFlags = []*regexp.Regexp{
 	re(`-shared`),
 	re(`-?-static([-a-z0-9+]*)`),
 	re(`-?-stdlib=([^@\-].*)`),
+	re(`-v`),
 
 	// Note that any wildcards in -Wl need to exclude comma,
 	// since -Wl splits its argument at commas and passes
