@@ -457,7 +457,19 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-TEXT runtime·procyield(SB),NOSPLIT,$0-0
+TEXT runtime·procyield(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	cycles+0(FP), R7
+	// POWER does not have a pause/yield instruction equivalent.
+	// Instead, we can lower the program priority by setting the
+	// Program Priority Register prior to the wait loop and set it
+	// back to default afterwards. On Linux, the default priority is
+	// medium-low. For details, see page 837 of the ISA 3.0.
+	OR	R1, R1, R1	// Set PPR priority to low
+again:
+	SUB	$1, R7
+	CMP	$0, R7
+	BNE	again
+	OR	R6, R6, R6	// Set PPR priority back to medium-low
 	RET
 
 // void jmpdefer(fv, sp);
