@@ -49,9 +49,6 @@ type TestCover struct {
 // (for example, if there are no "package p" test files and
 // package p need not be instrumented for coverage or any other reason),
 // then the returned ptest == p.
-//
-// The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
-// or else there's no point in any of this.
 func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
 	var imports, ximports []*Package
 	var stk ImportStack
