@@ -89,19 +89,6 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
-	case "darwin":
-		if runtime.GOARCH != "arm" && runtime.GOARCH != "arm64" {
-			// static constructor needs external linking, but we don't support
-			// external linking on OS X 10.6.
-			out, err := exec.Command("uname", "-r").Output()
-			if err != nil {
-				t.Fatalf("uname -r failed: %v", err)
-			}
-			// OS X 10.6 == Darwin 10.x
-			if strings.HasPrefix(string(out), "10.") {
-				t.Skipf("no external linking on OS X 10.6")
-			}
-		}
 	}
 	if runtime.GOARCH == "ppc64" {
 		// TODO(austin) External linking not implemented on
