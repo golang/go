@@ -187,8 +187,8 @@ type Hijacker interface {
 	// The returned bufio.Reader may contain unprocessed buffered
 	// data from the client.
 	//
-	// After a call to Hijack, the original Request.Body must
-	// not be used.
+	// After a call to Hijack, the original Request.Body must not
+	// be used, and the Request.Context will be canceled.
 	Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
