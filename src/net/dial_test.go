@@ -142,8 +142,9 @@ const (
 // In some environments, the slow IPs may be explicitly unreachable, and fail
 // more quickly than expected. This test hook prevents dialTCP from returning
 // before the deadline.
-func slowDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-	c, err := doDialTCP(ctx, net, laddr, raddr)
+func slowDialTCP(ctx context.Context, network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+	sd := &sysDialer{network: network, address: raddr.String()}
+	c, err := sd.doDialTCP(ctx, laddr, raddr)
 	if ParseIP(slowDst4).Equal(raddr.IP) || ParseIP(slowDst6).Equal(raddr.IP) {
 		// Wait for the deadline, or indefinitely if none exists.
 		<-ctx.Done()
@@ -295,12 +296,12 @@ func TestDialParallel(t *testing.T) {
 			FallbackDelay: fallbackDelay,
 		}
 		startTime := time.Now()
-		dp := &dialParam{
+		sd := &sysDialer{
 			Dialer:  d,
 			network: "tcp",
 			address: "?",
 		}
-		c, err := dialParallel(context.Background(), dp, primaries, fallbacks)
+		c, err := sd.dialParallel(context.Background(), primaries, fallbacks)
 		elapsed := time.Since(startTime)
 
 		if c != nil {
@@ -331,7 +332,7 @@ func TestDialParallel(t *testing.T) {
 			wg.Done()
 		}()
 		startTime = time.Now()
-		c, err = dialParallel(ctx, dp, primaries, fallbacks)
+		c, err = sd.dialParallel(ctx, primaries, fallbacks)
 		if c != nil {
 			c.Close()
 		}
@@ -467,13 +468,14 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 		// Now ignore the provided context (which will be canceled) and use a
 		// different one to make sure this completes with a valid connection,
 		// which we hope to be closed below:
-		return doDialTCP(context.Background(), net, laddr, raddr)
+		sd := &sysDialer{network: net, address: raddr.String()}
+		return sd.doDialTCP(context.Background(), laddr, raddr)
 	}
 
 	d := Dialer{
 		FallbackDelay: fallbackDelay,
 	}
-	dp := &dialParam{
+	sd := &sysDialer{
 		Dialer:  d,
 		network: "tcp",
 		address: "?",
@@ -488,7 +490,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 	}
 
 	// dialParallel returns one connection (and closes the other.)
-	c, err := dialParallel(context.Background(), dp, makeAddr("127.0.0.1"), makeAddr("::1"))
+	c, err := sd.dialParallel(context.Background(), makeAddr("127.0.0.1"), makeAddr("::1"))
 	if err != nil {
 		t.Fatal(err)
 	}
