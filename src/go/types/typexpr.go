@@ -677,6 +677,16 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 		}
 	}
 
+	// addInvalid adds an embedded field of invalid type to the struct for
+	// fields with errors; this keeps the number of struct fields in sync
+	// with the source as long as the fields are _ or have different names
+	// (issue #25627).
+	addInvalid := func(ident *ast.Ident, pos token.Pos) {
+		typ = Typ[Invalid]
+		tag = ""
+		add(ident, true, pos)
+	}
+
 	for _, f := range list.List {
 		typ = check.typExpr(f.Type, nil, path)
 		tag = check.tag(f.Tag)
@@ -693,6 +703,9 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
 				check.invalidAST(pos, "embedded field type %s has no name", f.Type)
+				name = ast.NewIdent("_")
+				name.NamePos = pos
+				addInvalid(name, pos)
 				continue
 			}
 			t, isPtr := deref(typ)
@@ -702,22 +715,26 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 			case *Basic:
 				if t == Typ[Invalid] {
 					// error was reported before
+					addInvalid(name, pos)
 					continue
 				}
 
 				// unsafe.Pointer is treated like a regular pointer
 				if t.kind == UnsafePointer {
 					check.errorf(pos, "embedded field type cannot be unsafe.Pointer")
+					addInvalid(name, pos)
 					continue
 				}
 
 			case *Pointer:
 				check.errorf(pos, "embedded field type cannot be a pointer")
+				addInvalid(name, pos)
 				continue
 
 			case *Interface:
 				if isPtr {
 					check.errorf(pos, "embedded field type cannot be a pointer to an interface")
+					addInvalid(name, pos)
 					continue
 				}
 			}
