@@ -5,98 +5,98 @@
 		{
 			"checksumSHA1": "G9UsR+iruMWxwUefhy+ID+VIFNs=",
 			"path": "github.com/google/pprof/driver",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "LzGfApA19baVJIbQEqziWpRS3zE=",
 			"path": "github.com/google/pprof/internal/binutils",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
-			"checksumSHA1": "f7aprpcWR7iZX1PJgKBZrpt++XY=",
+			"checksumSHA1": "uoKLYk9VTOx2kYV3hU3vOGm4BX8=",
 			"path": "github.com/google/pprof/internal/driver",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "IhuyU2pFSHhQxzadDBw1nHbcsrY=",
 			"path": "github.com/google/pprof/internal/elfexec",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "8vah+aXLGpbtn55JR8MkCAEOMrk=",
 			"path": "github.com/google/pprof/internal/graph",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "QPWfnT5pEU2jOOb8l8hpiFzQJ7Q=",
 			"path": "github.com/google/pprof/internal/measurement",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "PWZdFtGfGz/zbQTfvel9737NZdY=",
 			"path": "github.com/google/pprof/internal/plugin",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "LmDglu/S6vFmgqkxubKDZemFHaY=",
 			"path": "github.com/google/pprof/internal/proftest",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
-			"checksumSHA1": "gdyWnzbjgwmqJ2EN/WAp+QPu7d0=",
+			"checksumSHA1": "qgsLCrPLve6es8A3bA3qv2LPoYk=",
 			"path": "github.com/google/pprof/internal/report",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "rWdirHgJi1+TdRwv5v3zjgFKcJA=",
 			"path": "github.com/google/pprof/internal/symbolizer",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "5lS2AF207MVYyjF+82qHkWK2V64=",
 			"path": "github.com/google/pprof/internal/symbolz",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
-			"checksumSHA1": "RvwtpZ+NVtPRCo4EiFvLFFHpoBo=",
+			"checksumSHA1": "JMf63Fn5hz7JFgz6A2aT9DP/bL0=",
 			"path": "github.com/google/pprof/profile",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "xmqfYca88U2c/I4642r3ps9uIRg=",
 			"path": "github.com/google/pprof/third_party/d3",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "LzWzD56Trzpq+0hLR00Yw5Gpepw=",
 			"path": "github.com/google/pprof/third_party/d3flamegraph",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
 			"checksumSHA1": "738v1E0v0qRW6oAKdCpBEtyVNnY=",
 			"path": "github.com/google/pprof/third_party/svgpan",
-			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
-			"revisionTime": "2018-05-09T15:07:09Z"
+			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+			"revisionTime": "2018-05-30T14:24:47Z"
 		},
 		{
-			"checksumSHA1": "UDJQBwUTuQYEHHJ/D7nPBv1qNqI=",
+			"checksumSHA1": "J5yI4NzHbondzccJmummyJR/kQQ=",
 			"path": "github.com/ianlancetaylor/demangle",
-			"revision": "4883227f66371e02c4948937d3e2be1664d9be38",
-			"revisionTime": "2016-09-27T19:13:59Z"
+			"revision": "fc6590592b44fedfff586c5d94647c090fbd6bac",
+			"revisionTime": "2018-05-24T22:59:00Z"
 		},
 		{
 			"path": "golang.org/x/arch/arm/armasm",
