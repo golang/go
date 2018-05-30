@@ -231,7 +231,7 @@ const (
 
 	socksAuthMethodNotRequired         socksAuthMethod = 0x00 // no authentication required
 	socksAuthMethodUsernamePassword    socksAuthMethod = 0x02 // use username/password
-	socksAuthMethodNoAcceptableMethods socksAuthMethod = 0xff // no acceptable authetication methods
+	socksAuthMethodNoAcceptableMethods socksAuthMethod = 0xff // no acceptable authentication methods
 
 	socksStatusSucceeded socksReply = 0x00
 )
