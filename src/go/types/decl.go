@@ -49,6 +49,13 @@ func pathString(path []*TypeName) string {
 	return s
 }
 
+// useCycleMarking enables the new coloring-based cycle marking scheme
+// for package-level objects. Set this flag to false to disable this
+// code quickly and revert to the existing mechanism (and comment out
+// some of the new tests in cycles5.src that will fail again).
+// TODO(gri) remove this for Go 1.12
+const useCycleMarking = true
+
 // objDecl type-checks the declaration of obj in its respective (file) context.
 // See check.typ for the details on def and path.
 func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
@@ -117,12 +124,32 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 		switch obj := obj.(type) {
 		case *Const:
 			visited = obj.visited
+
 		case *Var:
 			visited = obj.visited
-		default:
+
+		case *TypeName:
+			assert(obj.Type() != nil)
+			if useCycleMarking {
+				check.typeCycle(obj)
+			}
+			return
+
+		case *Func:
+			// Cycles involving functions require variables in
+			// the cycle; they are pretty esoteric. For now we
+			// handle this as before (for grey functions, the
+			// function type is set to an empty signature which
+			// makes it impossible to initialize a variable with
+			// the function).
 			assert(obj.Type() != nil)
 			return
+
+		default:
+			unreachable()
 		}
+
+		// we have a *Const or *Var
 		if obj.Type() != nil {
 			return
 		}
@@ -174,6 +201,60 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	default:
 		unreachable()
 	}
+}
+
+// indir is a sentinel type name that is pushed onto the object path
+// to indicate an "indirection" in the dependency from one type name
+// to the next. For instance, for "type p *p" the object path contains
+// p followed by indir, indicating that there's an indirection *p.
+// Indirections are used to break type cycles.
+var indir = new(TypeName)
+
+// typeCycle checks if the cycle starting with obj is valid and
+// reports an error if it is not.
+func (check *Checker) typeCycle(obj *TypeName) {
+	d := check.objMap[obj]
+	if d == nil {
+		check.dump("%v: %s should have been declared", obj.Pos(), obj)
+		unreachable()
+	}
+
+	// A cycle must have at least one indirection and one defined
+	// type to be permitted: If there is no indirection, the size
+	// of the type cannot be computed (it's either infinite or 0);
+	// if there is no defined type, we have a sequence of alias
+	// type names which will expand ad infinitum.
+	var hasIndir, hasDefType bool
+	assert(obj.color() >= grey)
+	start := obj.color() - grey // index of obj in objPath
+	cycle := check.objPath[start:]
+	for _, obj := range cycle {
+		// Cycles may contain various objects; for now only look at type names.
+		if tname, _ := obj.(*TypeName); tname != nil {
+			if tname == indir {
+				hasIndir = true
+			} else if !check.objMap[tname].alias {
+				hasDefType = true
+			}
+			if hasIndir && hasDefType {
+				return // cycle is permitted
+			}
+		}
+	}
+
+	// break cycle
+	// (without this, calling underlying() below may lead to an endless loop)
+	obj.typ = Typ[Invalid]
+
+	// report cycle
+	check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
+	for _, obj := range cycle {
+		if obj == indir {
+			continue // don't print indir sentinels
+		}
+		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+	}
+	check.errorf(obj.Pos(), "\t%s", obj.Name())
 }
 
 func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
@@ -353,7 +434,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		return
 	}
 	delete(check.methods, obj)
-	assert(!obj.IsAlias())
+	assert(!check.objMap[obj].alias) // don't use TypeName.IsAlias (requires fully set up object)
 
 	// use an objset to check for name conflicts
 	var mset objset
