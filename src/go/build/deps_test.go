@@ -411,6 +411,7 @@ var pkgDeps = map[string][]string{
 		"net/http/httptrace",
 		"net/http/internal",
 		"runtime/debug",
+		"syscall/js",
 	},
 	"net/http/internal":  {"L4"},
 	"net/http/httptrace": {"context", "crypto/tls", "internal/nettrace", "net", "reflect", "time"},
