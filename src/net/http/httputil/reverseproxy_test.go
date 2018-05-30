@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -748,6 +749,8 @@ func TestServeHTTPDeepCopy(t *testing.T) {
 // Issue 18327: verify we always do a deep copy of the Request.Header map
 // before any mutations.
 func TestClonesRequestHeaders(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	defer log.SetOutput(os.Stderr)
 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
 	req.RemoteAddr = "1.2.3.4:56789"
 	rp := &ReverseProxy{
@@ -824,6 +827,8 @@ func (cc *checkCloser) Read(b []byte) (int, error) {
 
 // Issue 23643: panic on body copy error
 func TestReverseProxy_PanicBodyError(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	defer log.SetOutput(os.Stderr)
 	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		out := "this call was relayed by the reverse proxy"
 		// Coerce a wrong content length to induce io.ErrUnexpectedEOF
