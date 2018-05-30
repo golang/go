@@ -317,8 +317,8 @@ func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
 	if laddr == nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
 	}
-	sa := &sysListener{network: network, address: laddr.String()}
-	ln, err := sa.listenUnix(context.Background(), laddr)
+	sl := &sysListener{network: network, address: laddr.String()}
+	ln, err := sl.listenUnix(context.Background(), laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
@@ -337,8 +337,8 @@ func ListenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
 	if laddr == nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: errMissingAddress}
 	}
-	sa := &sysListener{network: network, address: laddr.String()}
-	c, err := sa.listenUnixgram(context.Background(), laddr)
+	sl := &sysListener{network: network, address: laddr.String()}
+	c, err := sl.listenUnixgram(context.Background(), laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
