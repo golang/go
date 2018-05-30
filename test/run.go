@@ -216,8 +216,12 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 	return runcmd(cmd...)
 }
 
-func compileInDir(runcmd runCmd, dir string, flags []string, names ...string) (out []byte, err error) {
-	cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", "."}
+func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, names ...string) (out []byte, err error) {
+	cmd := []string{goTool(), "tool", "compile", "-e"}
+	if localImports {
+		// Set relative path for local imports and import search path to current dir.
+		cmd = append(cmd, "-D", ".", "-I", ".")
+	}
 	cmd = append(cmd, flags...)
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
@@ -489,6 +493,7 @@ func (t *test) run() {
 	wantError := false
 	wantAuto := false
 	singlefilepkgs := false
+	localImports := true
 	f := strings.Fields(action)
 	if len(f) > 0 {
 		action = f[0]
@@ -530,6 +535,12 @@ func (t *test) run() {
 			wantError = false
 		case "-s":
 			singlefilepkgs = true
+		case "-n":
+			// Do not set relative path for local imports to current dir,
+			// e.g. do not pass -D . -I . to the compiler.
+			// Used in fixedbugs/bug345.go to allow compilation and import of local pkg.
+			// See golang.org/issue/25635
+			localImports = false
 		case "-t": // timeout in seconds
 			args = args[1:]
 			var err error
@@ -668,7 +679,7 @@ func (t *test) run() {
 			return
 		}
 		for _, gofiles := range pkgs {
-			_, t.err = compileInDir(runcmd, longdir, flags, gofiles...)
+			_, t.err = compileInDir(runcmd, longdir, flags, localImports, gofiles...)
 			if t.err != nil {
 				return
 			}
@@ -690,7 +701,7 @@ func (t *test) run() {
 			errPkg--
 		}
 		for i, gofiles := range pkgs {
-			out, err := compileInDir(runcmd, longdir, flags, gofiles...)
+			out, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
 			if i == errPkg {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
@@ -727,7 +738,7 @@ func (t *test) run() {
 			return
 		}
 		for i, gofiles := range pkgs {
-			_, err := compileInDir(runcmd, longdir, flags, gofiles...)
+			_, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
 			// Allow this package compilation fail based on conditions below;
 			// its errors were checked in previous case.
 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
