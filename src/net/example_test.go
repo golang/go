@@ -128,7 +128,7 @@ func ExampleUDPConn_WriteTo() {
 	}
 	defer conn.Close()
 
-	dst, err := net.ResolveIPAddr("udp", "192.0.2.1:2000")
+	dst, err := net.ResolveUDPAddr("udp", "192.0.2.1:2000")
 	if err != nil {
 		log.Fatal(err)
 	}
