@@ -100,7 +100,7 @@ var pkgDeps = map[string][]string{
 	// and interface definitions, but nothing that makes
 	// system calls.
 	"crypto":                 {"L2", "hash"}, // interfaces
-	"crypto/cipher":          {"L2", "crypto/subtle", "crypto/internal/subtle"},
+	"crypto/cipher":          {"L2", "crypto/subtle", "crypto/internal/subtle", "encoding/binary"},
 	"crypto/internal/subtle": {"unsafe", "reflect"}, // reflect behind a appengine tag
 	"crypto/subtle":          {},
 	"encoding/base32":        {"L2"},
