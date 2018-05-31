@@ -197,14 +197,13 @@ func (obj *PkgName) Imported() *Package { return obj.imported }
 // A Const represents a declared constant.
 type Const struct {
 	object
-	val     constant.Value
-	visited bool // for initialization cycle detection
+	val constant.Value
 }
 
 // NewConst returns a new constant with value val.
 // The remaining arguments set the attributes found with all Objects.
 func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
-	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, val, false}
+	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, val}
 }
 
 // Val returns the constant's value.
@@ -256,7 +255,6 @@ func (obj *TypeName) IsAlias() bool {
 type Var struct {
 	object
 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
-	visited  bool // for initialization cycle detection
 	isField  bool // var is struct field
 	used     bool // set if the variable was used
 }

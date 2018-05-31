@@ -113,27 +113,29 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	case grey:
 		// We have a cycle.
 		// In the existing code, this is marked by a non-nil type
-		// for the object except for constants and variables, which
-		// have their own "visited" flag (the new marking approach
-		// will allow us to remove that flag eventually). Their type
-		// may be nil because they haven't determined their init
-		// values yet (from which to deduce the type). But in that
-		// case, they must have been marked as visited.
-		// For now, handle constants and variables specially.
-		visited := false
+		// for the object except for constants and variables whose
+		// type may be non-nil (known), or nil if it depends on the
+		// not-yet known initialization value.
+		// In the former case, set the type to Typ[Invalid] because
+		// we have an initialization cycle. The cycle error will be
+		// reported later, when determining initialization order.
+		// TODO(gri) Report cycle here and simplify initialization
+		// order code.
 		switch obj := obj.(type) {
 		case *Const:
-			visited = obj.visited
+			if obj.typ == nil {
+				obj.typ = Typ[Invalid]
+			}
 
 		case *Var:
-			visited = obj.visited
+			if obj.typ == nil {
+				obj.typ = Typ[Invalid]
+			}
 
 		case *TypeName:
-			assert(obj.Type() != nil)
 			if useCycleMarking {
 				check.typeCycle(obj)
 			}
-			return
 
 		case *Func:
 			// Cycles involving functions require variables in
@@ -142,19 +144,12 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 			// function type is set to an empty signature which
 			// makes it impossible to initialize a variable with
 			// the function).
-			assert(obj.Type() != nil)
-			return
 
 		default:
 			unreachable()
 		}
-
-		// we have a *Const or *Var
-		if obj.Type() != nil {
-			return
-		}
-		assert(visited)
-
+		assert(obj.Type() != nil)
+		return
 	}
 
 	if trace {
@@ -260,12 +255,6 @@ func (check *Checker) typeCycle(obj *TypeName) {
 func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	assert(obj.typ == nil)
 
-	if obj.visited {
-		obj.typ = Typ[Invalid]
-		return
-	}
-	obj.visited = true
-
 	// use the correct value of iota
 	check.iota = obj.val
 	defer func() { check.iota = nil }()
@@ -298,12 +287,6 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 
 func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	assert(obj.typ == nil)
-
-	if obj.visited {
-		obj.typ = Typ[Invalid]
-		return
-	}
-	obj.visited = true
 
 	// determine type, if any
 	if typ != nil {
