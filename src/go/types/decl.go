@@ -158,7 +158,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	}
 
 	if trace {
-		check.trace(obj.Pos(), "-- checking %s (path = %s)", obj, pathString(path))
+		check.trace(obj.Pos(), "-- checking %s (path = %s, objPath = %s)", obj, pathString(path), check.pathString())
 		check.indent++
 		defer func() {
 			check.indent--
@@ -208,7 +208,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 // to the next. For instance, for "type p *p" the object path contains
 // p followed by indir, indicating that there's an indirection *p.
 // Indirections are used to break type cycles.
-var indir = new(TypeName)
+var indir = NewTypeName(token.NoPos, nil, "*", nil)
 
 // typeCycle checks if the cycle starting with obj is valid and
 // reports an error if it is not.
