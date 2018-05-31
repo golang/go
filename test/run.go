@@ -502,10 +502,6 @@ func (t *test) run() {
 
 	// TODO: Clean up/simplify this switch statement.
 	switch action {
-	case "rundircmpout":
-		action = "rundir"
-	case "cmpout":
-		action = "run" // the run case already looks for <dir>/<test>.out files
 	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
 		// nothing to do
 	case "errorcheckandrundir":
