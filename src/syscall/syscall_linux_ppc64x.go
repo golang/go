@@ -66,6 +66,7 @@ const (
 
 //sysnb	Gettimeofday(tv *Timeval) (err error)
 //sysnb	Time(t *Time_t) (tt Time_t, err error)
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: sec, Nsec: nsec}

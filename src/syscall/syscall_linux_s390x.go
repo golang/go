@@ -45,6 +45,7 @@ const (
 //sysnb	setgroups(n int, list *_Gid_t) (err error)
 
 //sysnb	Gettimeofday(tv *Timeval) (err error)
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 
 func Time(t *Time_t) (tt Time_t, err error) {
 	var tv Timeval
