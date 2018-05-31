@@ -894,6 +894,54 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	return false
 }
 
+// zeroUpper48Bits is similar to zeroUpper32Bits, but for upper 48 bits
+func zeroUpper48Bits(x *Value, depth int) bool {
+	switch x.Op {
+	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
+		return true
+	case OpArg:
+		return x.Type.Width == 2
+	case OpPhi, OpSelect0, OpSelect1:
+		// Phis can use each-other as an arguments, instead of tracking visited values,
+		// just limit recursion depth.
+		if depth <= 0 {
+			return false
+		}
+		for i := range x.Args {
+			if !zeroUpper48Bits(x.Args[i], depth-1) {
+				return false
+			}
+		}
+		return true
+
+	}
+	return false
+}
+
+// zeroUpper56Bits is similar to zeroUpper32Bits, but for upper 56 bits
+func zeroUpper56Bits(x *Value, depth int) bool {
+	switch x.Op {
+	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
+		return true
+	case OpArg:
+		return x.Type.Width == 1
+	case OpPhi, OpSelect0, OpSelect1:
+		// Phis can use each-other as an arguments, instead of tracking visited values,
+		// just limit recursion depth.
+		if depth <= 0 {
+			return false
+		}
+		for i := range x.Args {
+			if !zeroUpper56Bits(x.Args[i], depth-1) {
+				return false
+			}
+		}
+		return true
+
+	}
+	return false
+}
+
 // isInlinableMemmove reports whether the given arch performs a Move of the given size
 // faster than memmove. It will only return true if replacing the memmove with a Move is
 // safe, either because Move is small or because the arguments are disjoint.
