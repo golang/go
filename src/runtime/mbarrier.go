@@ -226,8 +226,6 @@ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
 
 //go:nosplit
 func typedslicecopy(typ *_type, dst, src slice) int {
-	// TODO(rsc): If typedslicecopy becomes faster than calling
-	// typedmemmove repeatedly, consider using during func growslice.
 	n := dst.len
 	if n > src.len {
 		n = src.len
