@@ -498,7 +498,7 @@ func cpuinit() {
 			p := argv_index(argv, argc+1+i)
 			s := *(*string)(unsafe.Pointer(&stringStruct{unsafe.Pointer(p), findnull(p)}))
 
-			if hasprefix(s, prefix) {
+			if hasPrefix(s, prefix) {
 				env = gostring(p)[len(prefix):]
 				break
 			}
@@ -3702,7 +3702,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
 	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
 		if f := findfunc(pc); f.valid() {
-			if hasprefix(funcname(f), "runtime/internal/atomic") {
+			if hasPrefix(funcname(f), "runtime/internal/atomic") {
 				lostAtomic64Count++
 				return
 			}
