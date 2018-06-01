@@ -393,6 +393,10 @@ const (
 	// disallowVendor will reject direct use of paths containing /vendor/.
 	ResolveImport = 1 << iota
 
+	// ResolveModule is for download (part of "go get") and indicates
+	// that the module adjustment should be done, but not vendor adjustment.
+	ResolveModule
+
 	// GetTestDeps is for download (part of "go get") and indicates
 	// that test dependencies should be fetched too.
 	GetTestDeps
@@ -422,6 +426,9 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		// overhead of repeated calls to buildContext.Import.
 		// The code is also needed in a few other places anyway.
 		path = ResolveImportPath(parent, path)
+		importPath = path
+	} else if mode&ResolveModule != 0 {
+		path = ModuleImportPath(parent, path)
 		importPath = path
 	}
 
