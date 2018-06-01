@@ -1962,7 +1962,7 @@ func usage() {
 type SymbolType int8
 
 const (
-	// see also http://9p.io/magic/man2html/1/nm
+	// see also https://9p.io/magic/man2html/1/nm
 	TextSym      SymbolType = 'T'
 	DataSym      SymbolType = 'D'
 	BSSSym       SymbolType = 'B'

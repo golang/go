@@ -80,7 +80,7 @@ func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCP
 	// close the fd and try again. If it happens twice more, we relent and
 	// use the result. See also:
 	//	https://golang.org/issue/2690
-	//	http://stackoverflow.com/questions/4949858/
+	//	https://stackoverflow.com/questions/4949858/
 	//
 	// The opposite can also happen: if we ask the kernel to pick an appropriate
 	// originating local address, sometimes it picks one that is already in use.

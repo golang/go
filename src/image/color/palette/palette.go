@@ -282,7 +282,7 @@ var Plan9 = []color.Color{
 // WebSafe is a 216-color palette that was popularized by early versions
 // of Netscape Navigator. It is also known as the Netscape Color Cube.
 //
-// See http://en.wikipedia.org/wiki/Web_colors#Web-safe_colors for details.
+// See https://en.wikipedia.org/wiki/Web_colors#Web-safe_colors for details.
 var WebSafe = []color.Color{
 	color.RGBA{0x00, 0x00, 0x00, 0xff},
 	color.RGBA{0x00, 0x00, 0x33, 0xff},

@@ -63,7 +63,7 @@ type gcmFieldElement struct {
 }
 
 // gcm represents a Galois Counter Mode with a specific key. See
-// http://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-revised-spec.pdf
+// https://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-revised-spec.pdf
 type gcm struct {
 	cipher    Block
 	nonceSize int

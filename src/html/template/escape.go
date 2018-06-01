@@ -668,7 +668,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 		} else if isComment(c.state) && c.delim == delimNone {
 			switch c.state {
 			case stateJSBlockCmt:
-				// http://es5.github.com/#x7.4:
+				// https://es5.github.com/#x7.4:
 				// "Comments behave like white space and are
 				// discarded except that, if a MultiLineComment
 				// contains a line terminator character, then
@@ -731,7 +731,7 @@ func contextAfterText(c context, s []byte) (context, int) {
 		i = len(s)
 	}
 	if c.delim == delimSpaceOrTagEnd {
-		// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+		// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
 		// lists the runes below as error characters.
 		// Error out because HTML parsers may differ on whether
 		// "<a id= onclick=f("     ends inside id's or onclick's value,

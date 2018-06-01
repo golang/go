@@ -68,7 +68,7 @@ var (
 // We require pub.E to fit into a 32-bit integer so that we
 // do not have different behavior depending on whether
 // int is 32 or 64 bits. See also
-// http://www.imperialviolet.org/2012/03/16/rsae.html.
+// https://www.imperialviolet.org/2012/03/16/rsae.html.
 func checkPub(pub *PublicKey) error {
 	if pub.N == nil {
 		return errPublicModulus

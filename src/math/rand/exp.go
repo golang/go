@@ -13,7 +13,7 @@ import (
  *
  * See "The Ziggurat Method for Generating Random Variables"
  * (Marsaglia & Tsang, 2000)
- * http://www.jstatsoft.org/v05/i08/paper [pdf]
+ * https://www.jstatsoft.org/v05/i08/paper [pdf]
  */
 
 const (

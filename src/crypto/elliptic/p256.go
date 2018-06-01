@@ -817,7 +817,7 @@ func p256Scalar8(out *[p256Limbs]uint32) {
 
 // p256PointDouble sets {xOut,yOut,zOut} = 2*{x,y,z}.
 //
-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#doubling-dbl-2009-l
+// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#doubling-dbl-2009-l
 func p256PointDouble(xOut, yOut, zOut, x, y, z *[p256Limbs]uint32) {
 	var delta, gamma, alpha, beta, tmp, tmp2 [p256Limbs]uint32
 
@@ -850,7 +850,7 @@ func p256PointDouble(xOut, yOut, zOut, x, y, z *[p256Limbs]uint32) {
 // p256PointAddMixed sets {xOut,yOut,zOut} = {x1,y1,z1} + {x2,y2,1}.
 // (i.e. the second point is affine.)
 //
-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
+// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
 //
 // Note that this function does not handle P+P, infinity+P nor P+infinity
 // correctly.
@@ -886,7 +886,7 @@ func p256PointAddMixed(xOut, yOut, zOut, x1, y1, z1, x2, y2 *[p256Limbs]uint32) 
 
 // p256PointAdd sets {xOut,yOut,zOut} = {x1,y1,z1} + {x2,y2,z2}.
 //
-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
+// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
 //
 // Note that this function does not handle P+P, infinity+P nor P+infinity
 // correctly.

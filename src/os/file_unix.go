@@ -183,7 +183,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 
 		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
 		// open(2) to be restarted for regular files. This is easy to reproduce on
-		// fuse file systems (see http://golang.org/issue/11180).
+		// fuse file systems (see https://golang.org/issue/11180).
 		if runtime.GOOS == "darwin" && e == syscall.EINTR {
 			continue
 		}

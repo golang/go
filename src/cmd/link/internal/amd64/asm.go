@@ -617,7 +617,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		// so for now we'll just use non-lazy pointers,
 		// which don't need to be told which library to use.
 		//
-		// http://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
+		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
 		// has details about what we're avoiding.
 
 		addgotsym(ctxt, s)

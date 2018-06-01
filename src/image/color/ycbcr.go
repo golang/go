@@ -10,7 +10,7 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 	//	Y' =  0.2990*R + 0.5870*G + 0.1140*B
 	//	Cb = -0.1687*R - 0.3313*G + 0.5000*B + 128
 	//	Cr =  0.5000*R - 0.4187*G - 0.0813*B + 128
-	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
+	// https://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
 
 	r1 := int32(r)
 	g1 := int32(g)
@@ -60,7 +60,7 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
 	//	R = Y' + 1.40200*(Cr-128)
 	//	G = Y' - 0.34414*(Cb-128) - 0.71414*(Cr-128)
 	//	B = Y' + 1.77200*(Cb-128)
-	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
+	// https://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
 	//
 	// Those formulae use non-integer multiplication factors. When computing,
 	// integer math is generally faster than floating point math. We multiply
@@ -163,7 +163,7 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
 //
 // Conversion between RGB and Y'CbCr is lossy and there are multiple, slightly
 // different formulae for converting between the two. This package follows
-// the JFIF specification at http://www.w3.org/Graphics/JPEG/jfif3.pdf.
+// the JFIF specification at https://www.w3.org/Graphics/JPEG/jfif3.pdf.
 type YCbCr struct {
 	Y, Cb, Cr uint8
 }

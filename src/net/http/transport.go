@@ -1846,7 +1846,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		//
 		// Note that we don't request this for HEAD requests,
 		// due to a bug in nginx:
-		//   http://trac.nginx.org/nginx/ticket/358
+		//   https://trac.nginx.org/nginx/ticket/358
 		//   https://golang.org/issue/5522
 		//
 		// We don't request gzip if the request is for a range, since

@@ -16,7 +16,7 @@ type rc4Test struct {
 
 var golden = []rc4Test{
 	// Test vectors from the original cypherpunk posting of ARC4:
-	//   http://groups.google.com/group/sci.crypt/msg/10a300c9d21afca0?pli=1
+	//   https://groups.google.com/group/sci.crypt/msg/10a300c9d21afca0?pli=1
 	{
 		[]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
 		[]byte{0x74, 0x94, 0xc2, 0xe7, 0x10, 0x4b, 0x08, 0x79},
@@ -30,7 +30,7 @@ var golden = []rc4Test{
 		[]byte{0xd6, 0xa1, 0x41, 0xa7, 0xec, 0x3c, 0x38, 0xdf, 0xbd, 0x61},
 	},
 
-	// Test vectors from the Wikipedia page: http://en.wikipedia.org/wiki/RC4
+	// Test vectors from the Wikipedia page: https://en.wikipedia.org/wiki/RC4
 	{
 		[]byte{0x4b, 0x65, 0x79},
 		[]byte{0xeb, 0x9f, 0x77, 0x81, 0xb7, 0x34, 0xca, 0x72, 0xa7, 0x19},
