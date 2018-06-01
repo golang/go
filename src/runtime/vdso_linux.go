@@ -18,7 +18,7 @@ import "unsafe"
 // http://sco.com/developers/gabi/latest/ch5.dynamic.html
 
 // The version section is documented at
-// http://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
+// https://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
 
 const (
 	_AT_SYSINFO_EHDR = 33

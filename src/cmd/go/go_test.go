@@ -2925,7 +2925,7 @@ func TestCgoPkgConfig(t *testing.T) {
 	// OpenBSD's pkg-config is strict about whitespace and only
 	// supports backslash-escaped whitespace. It does not support
 	// quotes, which the normal freedesktop.org pkg-config does
-	// support. See http://man.openbsd.org/pkg-config.1
+	// support. See https://man.openbsd.org/pkg-config.1
 	tg.tempFile("foo.pc", `
 Name: foo
 Description: The foo library

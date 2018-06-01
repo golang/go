@@ -141,7 +141,7 @@ func pickTLS12HashForSignature(sigType uint8, clientList []SignatureScheme) (Sig
 	if len(clientList) == 0 {
 		// If the client didn't specify any signature_algorithms
 		// extension then we can assume that it supports SHA1. See
-		// http://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
 		switch sigType {
 		case signatureRSA:
 			return PKCS1WithSHA1, nil
@@ -239,7 +239,7 @@ NextCandidate:
 		ecdhePublic = elliptic.Marshal(curve, x, y)
 	}
 
-	// http://tools.ietf.org/html/rfc4492#section-5.4
+	// https://tools.ietf.org/html/rfc4492#section-5.4
 	serverECDHParams := make([]byte, 1+2+1+len(ecdhePublic))
 	serverECDHParams[0] = 3 // named curve
 	serverECDHParams[1] = byte(ka.curveid >> 8)

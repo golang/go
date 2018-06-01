@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This file implements multi-precision floating-point numbers.
-// Like in the GNU MPFR library (http://www.mpfr.org/), operands
+// Like in the GNU MPFR library (https://www.mpfr.org/), operands
 // can be of mixed precision. Unlike MPFR, the rounding mode is
 // not specified with each operation, but with each operand. The
 // rounding mode of the result operand determines the rounding

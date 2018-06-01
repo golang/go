@@ -191,7 +191,7 @@ func TestJSStrEscaper(t *testing.T) {
 		{"</script>", `\x3c\/script\x3e`},
 		{"<![CDATA[", `\x3c![CDATA[`},
 		{"]]>", `]]\x3e`},
-		// http://dev.w3.org/html5/markup/aria/syntax.html#escaping-text-span
+		// https://dev.w3.org/html5/markup/aria/syntax.html#escaping-text-span
 		//   "The text in style, script, title, and textarea elements
 		//   must not have an escaping text span start that is not
 		//   followed by an escaping text span end."
@@ -203,7 +203,7 @@ func TestJSStrEscaper(t *testing.T) {
 		// injection followed by an HTML text injection.
 		{"<!--", `\x3c!--`},
 		{"-->", `--\x3e`},
-		// From http://code.google.com/p/doctype/wiki/ArticleUtf7
+		// From https://code.google.com/p/doctype/wiki/ArticleUtf7
 		{"+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
 			`\x2bADw-script\x2bAD4-alert(1)\x2bADw-\/script\x2bAD4-`,
 		},

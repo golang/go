@@ -143,7 +143,7 @@ const (
 )
 
 // Mach-O file writing
-// http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
+// https://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
 
 var machohdr MachoHdr
 

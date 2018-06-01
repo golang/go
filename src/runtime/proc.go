@@ -843,7 +843,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		})
 	}
 
-	// See http://golang.org/cl/21503 for justification of the yield delay.
+	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 5 * 1000
 	var nextYield int64
 
@@ -907,7 +907,7 @@ func scang(gp *g, gcw *gcWork) {
 
 	gp.gcscandone = false
 
-	// See http://golang.org/cl/21503 for justification of the yield delay.
+	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 10 * 1000
 	var nextYield int64
 

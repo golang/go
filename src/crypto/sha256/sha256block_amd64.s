@@ -8,7 +8,7 @@
 //
 // The algorithm is detailed in FIPS 180-4:
 //
-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
 
 // The avx2-version is described in an Intel White-Paper:
 // "Fast SHA-256 Implementations on Intel Architecture Processors"

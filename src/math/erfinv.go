@@ -10,7 +10,7 @@ package math
 
 // This implementation is based on the rational approximation
 // of percentage points of normal distribution available from
-// http://www.jstor.org/stable/2347330.
+// https://www.jstor.org/stable/2347330.
 
 const (
 	// Coefficients for approximation to erf in |x| <= 0.85

@@ -57,7 +57,7 @@ func TestFinderCreation(t *testing.T) {
 			[256]int{'i': 3, 'm': 7, 's': 1},
 			[]int{15, 14, 13, 7, 11, 10, 7, 1},
 		},
-		// From http://www.cs.utexas.edu/~moore/publications/fstrpos.pdf
+		// From https://www.cs.utexas.edu/~moore/publications/fstrpos.pdf
 		{
 			"abcxxxabc",
 			[256]int{'a': 2, 'b': 1, 'c': 6, 'x': 3},

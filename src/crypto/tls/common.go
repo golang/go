@@ -246,19 +246,19 @@ type ClientHelloInfo struct {
 	// ServerName indicates the name of the server requested by the client
 	// in order to support virtual hosting. ServerName is only set if the
 	// client is using SNI (see
-	// http://tools.ietf.org/html/rfc4366#section-3.1).
+	// https://tools.ietf.org/html/rfc4366#section-3.1).
 	ServerName string
 
 	// SupportedCurves lists the elliptic curves supported by the client.
 	// SupportedCurves is set only if the Supported Elliptic Curves
 	// Extension is being used (see
-	// http://tools.ietf.org/html/rfc4492#section-5.1.1).
+	// https://tools.ietf.org/html/rfc4492#section-5.1.1).
 	SupportedCurves []CurveID
 
 	// SupportedPoints lists the point formats supported by the client.
 	// SupportedPoints is set only if the Supported Point Formats Extension
 	// is being used (see
-	// http://tools.ietf.org/html/rfc4492#section-5.1.2).
+	// https://tools.ietf.org/html/rfc4492#section-5.1.2).
 	SupportedPoints []uint8
 
 	// SignatureSchemes lists the signature and hash schemes that the client

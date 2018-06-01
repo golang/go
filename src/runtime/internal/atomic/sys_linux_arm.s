@@ -19,7 +19,7 @@
 // report a conflict, so we have to double-check the compare ourselves
 // and retry if necessary.
 //
-// http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
+// https://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
 //
 TEXT cas<>(SB),NOSPLIT,$0
 	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
