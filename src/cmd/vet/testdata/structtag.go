@@ -9,7 +9,7 @@ package testdata
 import "encoding/xml"
 
 type StructTagTest struct {
-	A   int "hello"            // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag pair"
+	A   int "hello"            // ERROR "`hello` not compatible with reflect.StructTag.Get: bad syntax for struct tag pair"
 	B   int "\tx:\"y\""        // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag key"
 	C   int "x:\"y\"\tx:\"y\"" // ERROR "not compatible with reflect.StructTag.Get"
 	D   int "x:`y`"            // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag value"
@@ -66,7 +66,7 @@ type DuplicateJSONFields struct {
 	DuplicateOmitXML int `xml:"a,omitempty"` // ERROR "struct field DuplicateOmitXML repeats xml tag .a. also at structtag.go:60"
 	NonXML           int `foo:"a"`
 	DuplicateNonXML  int `foo:"a"`
-	Embedded         struct {
+	Embedded2        struct {
 		DuplicateXML int `xml:"a"` // OK because its not in the same struct type
 	}
 	AnonymousXML `xml:"a"` // ERROR "struct field AnonymousXML repeats xml tag .a. also at structtag.go:60"
