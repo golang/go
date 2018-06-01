@@ -843,7 +843,7 @@ func showfuncinfo(f funcInfo, firstFrame, elideWrapper bool) bool {
 		return true
 	}
 
-	return contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
+	return contains(name, ".") && (!hasPrefix(name, "runtime.") || isExportedRuntime(name))
 }
 
 // isExportedRuntime reports whether name is an exported runtime function.
@@ -1022,7 +1022,7 @@ func isSystemGoroutine(gp *g) bool {
 		// back into user code.
 		return !fingRunning
 	}
-	return hasprefix(funcname(f), "runtime.")
+	return hasPrefix(funcname(f), "runtime.")
 }
 
 // SetCgoTraceback records three C functions to use to gather

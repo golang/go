@@ -333,7 +333,7 @@ func index(s, t string) int {
 		return 0
 	}
 	for i := 0; i < len(s); i++ {
-		if s[i] == t[0] && hasprefix(s[i:], t) {
+		if s[i] == t[0] && hasPrefix(s[i:], t) {
 			return i
 		}
 	}
@@ -344,8 +344,8 @@ func contains(s, t string) bool {
 	return index(s, t) >= 0
 }
 
-func hasprefix(s, t string) bool {
-	return len(s) >= len(t) && s[:len(t)] == t
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 const (
