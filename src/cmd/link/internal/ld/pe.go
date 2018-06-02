@@ -395,6 +395,7 @@ type peFile struct {
 	sections       []*peSection
 	stringTable    peStringTable
 	textSect       *peSection
+	rdataSect      *peSection
 	dataSect       *peSection
 	bssSect        *peSection
 	ctorsSect      *peSection
@@ -548,21 +549,24 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		return relocs
 	}
 
-	f.textSect.emitRelocations(ctxt.Out, func() int {
-		n := relocsect(Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
-		for _, sect := range Segtext.Sections[1:] {
-			n += relocsect(sect, datap, Segtext.Vaddr)
-		}
-		return n
-	})
-
-	f.dataSect.emitRelocations(ctxt.Out, func() int {
-		var n int
-		for _, sect := range Segdata.Sections {
-			n += relocsect(sect, datap, Segdata.Vaddr)
-		}
-		return n
-	})
+	sects := []struct {
+		peSect *peSection
+		seg    *sym.Segment
+		syms   []*sym.Symbol
+	}{
+		{f.textSect, &Segtext, ctxt.Textp},
+		{f.rdataSect, &Segrodata, datap},
+		{f.dataSect, &Segdata, datap},
+	}
+	for _, s := range sects {
+		s.peSect.emitRelocations(ctxt.Out, func() int {
+			var n int
+			for _, sect := range s.seg.Sections {
+				n += relocsect(sect, s.syms, s.seg.Vaddr)
+			}
+			return n
+		})
+	}
 
 dwarfLoop:
 	for _, sect := range Segdwarf.Sections {
@@ -622,8 +626,11 @@ func (f *peFile) mapToPESection(s *sym.Symbol, linkmode LinkMode) (pesectidx int
 	if s.Sect.Seg == &Segtext {
 		return f.textSect.index, int64(uint64(s.Value) - Segtext.Vaddr), nil
 	}
+	if s.Sect.Seg == &Segrodata {
+		return f.rdataSect.index, int64(uint64(s.Value) - Segrodata.Vaddr), nil
+	}
 	if s.Sect.Seg != &Segdata {
-		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .data section", s.Name)
+		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .rdata or .data section", s.Name)
 	}
 	v := uint64(s.Value) - Segdata.Vaddr
 	if linkmode != LinkExternal {
@@ -904,7 +911,11 @@ func Peinit(ctxt *Link) {
 	}
 
 	if ctxt.LinkMode == LinkExternal {
-		PESECTALIGN = 0
+		// .rdata section will contain "masks" and "shifts" symbols, and they
+		// need to be aligned to 16-bytes. So make all sections aligned
+		// to 32-byte and mark them all IMAGE_SCN_ALIGN_32BYTES so external
+		// linker will honour that requirement.
+		PESECTALIGN = 32
 		PEFILEALIGN = 0
 	}
 
@@ -1324,6 +1335,19 @@ func Asmbpe(ctxt *Link) {
 	}
 	t.checkSegment(&Segtext)
 	pefile.textSect = t
+
+	ro := pefile.addSection(".rdata", int(Segrodata.Length), int(Segrodata.Length))
+	ro.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	if ctxt.LinkMode == LinkExternal {
+		// some data symbols (e.g. masks) end up in the .rdata section, and they normally
+		// expect larger alignment requirement than the default text section alignment.
+		ro.characteristics |= IMAGE_SCN_ALIGN_32BYTES
+	} else {
+		// TODO(brainman): should not need IMAGE_SCN_MEM_EXECUTE, but I do not know why it carshes without it
+		ro.characteristics |= IMAGE_SCN_MEM_EXECUTE
+	}
+	ro.checkSegment(&Segrodata)
+	pefile.rdataSect = ro
 
 	var d *peSection
 	if ctxt.LinkMode != LinkExternal {
