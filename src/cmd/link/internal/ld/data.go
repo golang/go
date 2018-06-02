@@ -1352,15 +1352,16 @@ func (ctxt *Link) dodata() {
 	/*
 	 * We finished data, begin read-only data.
 	 * Not all systems support a separate read-only non-executable data section.
-	 * ELF systems do.
+	 * ELF and Windows PE systems do.
 	 * OS X and Plan 9 do not.
-	 * Windows PE may, but if so we have not implemented it.
 	 * And if we're using external linking mode, the point is moot,
 	 * since it's not our decision; that code expects the sections in
 	 * segtext.
 	 */
 	var segro *sym.Segment
 	if ctxt.IsELF && ctxt.LinkMode == LinkInternal {
+		segro = &Segrodata
+	} else if ctxt.HeadType == objabi.Hwindows {
 		segro = &Segrodata
 	} else {
 		segro = &Segtext
@@ -1940,6 +1941,9 @@ func (ctxt *Link) address() {
 		Segrodata.Vaddr = va
 		Segrodata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
 		Segrodata.Filelen = 0
+		if ctxt.HeadType == objabi.Hwindows {
+			Segrodata.Fileoff = Segtext.Fileoff + uint64(Rnd(int64(Segtext.Length), PEFILEALIGN))
+		}
 		for _, s := range Segrodata.Sections {
 			va = uint64(Rnd(int64(va), int64(s.Align)))
 			s.Vaddr = va
@@ -1974,7 +1978,7 @@ func (ctxt *Link) address() {
 	Segdata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
 	Segdata.Filelen = 0
 	if ctxt.HeadType == objabi.Hwindows {
-		Segdata.Fileoff = Segtext.Fileoff + uint64(Rnd(int64(Segtext.Length), PEFILEALIGN))
+		Segdata.Fileoff = Segrodata.Fileoff + uint64(Rnd(int64(Segrodata.Length), PEFILEALIGN))
 	}
 	if ctxt.HeadType == objabi.Hplan9 {
 		Segdata.Fileoff = Segtext.Fileoff + Segtext.Filelen
