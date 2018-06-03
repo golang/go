@@ -1294,7 +1294,7 @@ func mstart1() {
 func mstartm0() {
 	// Create an extra M for callbacks on threads not created by Go.
 	// An extra M is also needed on Windows for callbacks created by
-	// syscall.NewCallback.
+	// syscall.NewCallback. See issue #6751 for details.
 	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		cgoHasExtraM = true
 		newextram()
@@ -1623,7 +1623,8 @@ func needm(x byte) {
 	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		// Can happen if C/C++ code calls Go from a global ctor.
 		// Can also happen on Windows if a global ctor uses a
-		// callback created using syscall.NewCallback.
+		// callback created by syscall.NewCallback. See issue #6751
+		// for details.
 		//
 		// Can not throw, because scheduler is not initialized yet.
 		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
@@ -4222,7 +4223,8 @@ func checkdead() {
 
 	// If we are not running under cgo, but we have an extra M then account
 	// for it. (It is possible to have an extra M on Windows without cgo to
-	// accommodate callbacks created by syscall.NewCallback.)
+	// accommodate callbacks created by syscall.NewCallback. See issue #6751
+	// for details.)
 	var run0 int32
 	if !iscgo && cgoHasExtraM {
 		run0 = 1
