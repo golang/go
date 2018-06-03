@@ -202,7 +202,9 @@ func growslice(et *_type, old slice, cap int) slice {
 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
 		p = mallocgc(capmem, et, true)
 		if writeBarrier.enabled {
-			bulkBarrierPreWrite(uintptr(p), uintptr(old.array), lenmem)
+			// Only shade the pointers in old.array since we know the destination slice p
+			// only contains nil pointers because it has been cleared during alloc.
+			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem)
 		}
 	}
 	memmove(p, old.array, lenmem)
