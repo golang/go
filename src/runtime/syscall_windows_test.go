@@ -251,8 +251,6 @@ func TestBlockingCallback(t *testing.T) {
 }
 
 func TestCallbackInAnotherThread(t *testing.T) {
-	t.Skip("Skipping failing test (see golang.org/issue/6751 for details)")
-
 	d := GetDLL(t, "kernel32.dll")
 
 	f := func(p uintptr) uintptr {
