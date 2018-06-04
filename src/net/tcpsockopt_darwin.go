@@ -16,9 +16,7 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
 	// The kernel expects seconds so round to next highest second.
 	d += (time.Second - time.Nanosecond)
 	secs := int(d.Seconds())
-	switch err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs); err {
-	case nil, syscall.ENOPROTOOPT: // OS X 10.7 and earlier don't support this option
-	default:
+	if err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs); err != nil {
 		return wrapSyscallError("setsockopt", err)
 	}
 	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs)
