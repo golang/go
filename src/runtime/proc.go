@@ -1942,7 +1942,7 @@ func startTemplateThread() {
 	newm(templateThread, nil)
 }
 
-// tmeplateThread is a thread in a known-good state that exists solely
+// templateThread is a thread in a known-good state that exists solely
 // to start new threads in known-good states when the calling thread
 // may not be a a good state.
 //
