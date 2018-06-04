@@ -36,8 +36,13 @@ func (e *TypeAssertionError) Error() string {
 		return "interface conversion: " + inter + " is nil, not " + e.assertedString
 	}
 	if e.missingMethod == "" {
-		return "interface conversion: " + inter + " is " + e.concreteString +
+		msg := "interface conversion: " + inter + " is " + e.concreteString +
 			", not " + e.assertedString
+		if e.concreteString == e.assertedString {
+			// provide slightly clearer error message
+			msg += " (types from different packages)"
+		}
+		return msg
 	}
 	return "interface conversion: " + e.concreteString + " is not " + e.assertedString +
 		": missing method " + e.missingMethod
