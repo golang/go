@@ -59,6 +59,15 @@ const useCycleMarking = true
 // objDecl type-checks the declaration of obj in its respective (file) context.
 // See check.typ for the details on def and path.
 func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+	if trace {
+		check.trace(obj.Pos(), "-- checking %s %s (path = %s, objPath = %s)", obj.color(), obj, pathString(path), check.pathString())
+		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(obj.Pos(), "=> %s", obj)
+		}()
+	}
+
 	// Checking the declaration of obj means inferring its type
 	// (and possibly its value, for constants).
 	// An object's type (and thus the object) may be in one of
@@ -123,42 +132,48 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 		// order code.
 		switch obj := obj.(type) {
 		case *Const:
+			if useCycleMarking && check.typeCycle(obj) {
+				obj.typ = Typ[Invalid]
+				break
+			}
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
 		case *Var:
+			if useCycleMarking && check.typeCycle(obj) {
+				obj.typ = Typ[Invalid]
+				break
+			}
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
 		case *TypeName:
-			if useCycleMarking {
-				check.typeCycle(obj)
+			if useCycleMarking && check.typeCycle(obj) {
+				// break cycle
+				// (without this, calling underlying()
+				// below may lead to an endless loop
+				// if we have a cycle for a defined
+				// (*Named) type)
+				obj.typ = Typ[Invalid]
 			}
 
 		case *Func:
-			// Cycles involving functions require variables in
-			// the cycle; they are pretty esoteric. For now we
-			// handle this as before (for grey functions, the
-			// function type is set to an empty signature which
-			// makes it impossible to initialize a variable with
-			// the function).
+			if useCycleMarking && check.typeCycle(obj) {
+				// Don't set obj.typ to Typ[Invalid] here
+				// because plenty of code type-asserts that
+				// functions have a *Signature type. Grey
+				// functions have their type set to an empty
+				// signature which makes it impossible to
+				// initialize a variable with the function.
+			}
 
 		default:
 			unreachable()
 		}
 		assert(obj.Type() != nil)
 		return
-	}
-
-	if trace {
-		check.trace(obj.Pos(), "-- checking %s (path = %s, objPath = %s)", obj, pathString(path), check.pathString())
-		check.indent++
-		defer func() {
-			check.indent--
-			check.trace(obj.Pos(), "=> %s", obj)
-		}()
 	}
 
 	d := check.objMap[obj]
@@ -207,39 +222,63 @@ var indir = NewTypeName(token.NoPos, nil, "*", nil)
 
 // typeCycle checks if the cycle starting with obj is valid and
 // reports an error if it is not.
-func (check *Checker) typeCycle(obj *TypeName) {
+// TODO(gri) rename s/typeCycle/cycle/ once we don't need the other
+// cycle method anymore.
+func (check *Checker) typeCycle(obj Object) bool {
 	d := check.objMap[obj]
 	if d == nil {
 		check.dump("%v: %s should have been declared", obj.Pos(), obj)
 		unreachable()
 	}
 
-	// A cycle must have at least one indirection and one defined
-	// type to be permitted: If there is no indirection, the size
-	// of the type cannot be computed (it's either infinite or 0);
-	// if there is no defined type, we have a sequence of alias
-	// type names which will expand ad infinitum.
-	var hasIndir, hasDefType bool
+	// We distinguish between cycles involving only constants and variables
+	// (nval = len(cycle)), cycles involving types (and functions) only
+	// (nval == 0), and mixed cycles (nval != 0 && nval != len(cycle)).
+	// We ignore functions at the moment (taking them into account correctly
+	// is complicated and it doesn't improve error reporting significantly).
+	//
+	// A cycle must have at least one indirection and one type definition
+	// to be permitted: If there is no indirection, the size of the type
+	// cannot be computed (it's either infinite or 0); if there is no type
+	// definition, we have a sequence of alias type names which will expand
+	// ad infinitum.
+	var nval int
+	var hasIndir, hasTDef bool
 	assert(obj.color() >= grey)
 	start := obj.color() - grey // index of obj in objPath
 	cycle := check.objPath[start:]
 	for _, obj := range cycle {
-		// Cycles may contain various objects; for now only look at type names.
-		if tname, _ := obj.(*TypeName); tname != nil {
-			if tname == indir {
+		switch obj := obj.(type) {
+		case *Const, *Var:
+			nval++
+		case *TypeName:
+			if obj == indir {
 				hasIndir = true
-			} else if !check.objMap[tname].alias {
-				hasDefType = true
+			} else if !check.objMap[obj].alias {
+				hasTDef = true
 			}
-			if hasIndir && hasDefType {
-				return // cycle is permitted
-			}
+		case *Func:
+			// ignored for now
+		default:
+			unreachable()
 		}
 	}
 
-	// break cycle
-	// (without this, calling underlying() below may lead to an endless loop)
-	obj.typ = Typ[Invalid]
+	// A cycle involving only constants and variables is invalid but we
+	// ignore them here because they are reported via the initialization
+	// cycle check.
+	if nval == len(cycle) {
+		return false
+	}
+
+	// A cycle involving only types (and possibly functions) must have at
+	// least one indirection and one type definition to be permitted: If
+	// there is no indirection, the size of the type cannot be computed
+	// (it's either infinite or 0); if there is no type definition, we
+	// have a sequence of alias type names which will expand ad infinitum.
+	if nval == 0 && hasIndir && hasTDef {
+		return false // cycle is permitted
+	}
 
 	// report cycle
 	check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
@@ -250,6 +289,8 @@ func (check *Checker) typeCycle(obj *TypeName) {
 		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
 	}
 	check.errorf(obj.Pos(), "\t%s", obj.Name())
+
+	return true
 }
 
 func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
