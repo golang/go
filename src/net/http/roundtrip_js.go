@@ -12,13 +12,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"strconv"
+	"strings"
 	"syscall/js"
 )
 
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
-func (*Transport) RoundTrip(req *Request) (*Response, error) {
+func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	if useFakeNetwork() {
 		return t.roundTrip(req)
 	}
@@ -134,10 +134,12 @@ func (*Transport) RoundTrip(req *Request) (*Response, error) {
 	}
 }
 
+var errClosed = errors.New("net/http: reader is closed")
+
 // useFakeNetwork is used to determine whether the request is made
 // by a test and should be made to use the fake in-memory network.
 func useFakeNetwork() bool {
-	return len(os.Args) > 0 && path.Base(os.Args[0]) == "node"
+	return len(os.Args) > 0 && strings.HasSuffix(os.Args[0], ".test")
 }
 
 // streamReader implements an io.ReadCloser wrapper for ReadableStream.
