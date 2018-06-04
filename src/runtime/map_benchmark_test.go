@@ -370,3 +370,37 @@ func BenchmarkGoMapClear(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkMapStringConversion(b *testing.B) {
+	for _, length := range []int{32, 64} {
+		b.Run(strconv.Itoa(length), func(b *testing.B) {
+			bytes := make([]byte, length)
+			b.Run("simple", func(b *testing.B) {
+				b.ReportAllocs()
+				m := make(map[string]int)
+				m[string(bytes)] = 0
+				for i := 0; i < b.N; i++ {
+					_ = m[string(bytes)]
+				}
+			})
+			b.Run("struct", func(b *testing.B) {
+				b.ReportAllocs()
+				type stringstruct struct{ s string }
+				m := make(map[stringstruct]int)
+				m[stringstruct{string(bytes)}] = 0
+				for i := 0; i < b.N; i++ {
+					_ = m[stringstruct{string(bytes)}]
+				}
+			})
+			b.Run("array", func(b *testing.B) {
+				b.ReportAllocs()
+				type stringarray [1]string
+				m := make(map[stringarray]int)
+				m[stringarray{string(bytes)}] = 0
+				for i := 0; i < b.N; i++ {
+					_ = m[stringarray{string(bytes)}]
+				}
+			})
+		})
+	}
+}
