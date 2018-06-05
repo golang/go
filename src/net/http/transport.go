@@ -109,9 +109,19 @@ type Transport struct {
 	// DialContext specifies the dial function for creating unencrypted TCP connections.
 	// If DialContext is nil (and the deprecated Dial below is also nil),
 	// then the transport dials using package net.
+	//
+	// DialContext runs concurrently with calls to RoundTrip.
+	// A RoundTrip call that initiates a dial may end up using
+	// an connection dialed previously when the earlier connection
+	// becomes idle before the later DialContext completes.
 	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
 	// Dial specifies the dial function for creating unencrypted TCP connections.
+	//
+	// Dial runs concurrently with calls to RoundTrip.
+	// A RoundTrip call that initiates a dial may end up using
+	// an connection dialed previously when the earlier connection
+	// becomes idle before the later Dial completes.
 	//
 	// Deprecated: Use DialContext instead, which allows the transport
 	// to cancel dials as soon as they are no longer needed.
