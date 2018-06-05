@@ -608,8 +608,9 @@ func TestShouldRedirectConcurrency(t *testing.T) {
 	mux.HandleFunc("/", func(w ResponseWriter, r *Request) {})
 }
 
-func BenchmarkServeMux(b *testing.B) {
-
+func BenchmarkServeMux(b *testing.B)           { benchmarkServeMux(b, true) }
+func BenchmarkServeMux_SkipServe(b *testing.B) { benchmarkServeMux(b, false) }
+func benchmarkServeMux(b *testing.B, runHandler bool) {
 	type test struct {
 		path string
 		code int
@@ -641,9 +642,11 @@ func BenchmarkServeMux(b *testing.B) {
 		for _, tt := range tests {
 			*rw = httptest.ResponseRecorder{}
 			h, pattern := mux.Handler(tt.req)
-			h.ServeHTTP(rw, tt.req)
-			if pattern != tt.path || rw.Code != tt.code {
-				b.Fatalf("got %d, %q, want %d, %q", rw.Code, pattern, tt.code, tt.path)
+			if runHandler {
+				h.ServeHTTP(rw, tt.req)
+				if pattern != tt.path || rw.Code != tt.code {
+					b.Fatalf("got %d, %q, want %d, %q", rw.Code, pattern, tt.code, tt.path)
+				}
 			}
 		}
 	}
