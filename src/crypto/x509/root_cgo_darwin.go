@@ -7,7 +7,7 @@
 package x509
 
 /*
-#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1080
+#cgo CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101300
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
 
 #include <errno.h>
@@ -136,10 +136,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 				}
 			}
 
-			// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
-			// Once we support weak imports via cgo we should prefer that, and fall back to this
-			// for older systems.
-			err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
+			err = SecItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
 			if (err != noErr) {
 				continue;
 			}
