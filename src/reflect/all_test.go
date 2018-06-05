@@ -4399,6 +4399,17 @@ func TestStructOf(t *testing.T) {
 	})
 	// check that type already in binary is found
 	checkSameType(t, StructOf(fields[2:3]), struct{ Y uint64 }{})
+
+	// gccgo used to fail this test.
+	type structFieldType interface{}
+	checkSameType(t,
+		StructOf([]StructField{
+			StructField{
+				Name: "F",
+				Type: TypeOf((*structFieldType)(nil)).Elem(),
+			},
+		}),
+		struct{ F structFieldType }{})
 }
 
 func TestStructOfExportRules(t *testing.T) {
