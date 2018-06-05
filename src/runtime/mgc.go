@@ -137,8 +137,8 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -414,7 +414,7 @@ type gcControllerState struct {
 	// If this is zero, no fractional workers are needed.
 	fractionalUtilizationGoal float64
 
-	_ [sys.CacheLineSize]byte
+	_ cpu.CacheLinePad
 }
 
 // startCycle resets the GC controller's state and computes estimates
@@ -919,9 +919,9 @@ const gcAssistTimeSlack = 5000
 const gcOverAssistWork = 64 << 10
 
 var work struct {
-	full  lfstack                  // lock-free list of full blocks workbuf
-	empty lfstack                  // lock-free list of empty blocks workbuf
-	pad0  [sys.CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+	full  lfstack          // lock-free list of full blocks workbuf
+	empty lfstack          // lock-free list of empty blocks workbuf
+	pad0  cpu.CacheLinePad // prevents false-sharing between full/empty and nproc/nwait
 
 	wbufSpans struct {
 		lock mutex

@@ -17,7 +17,7 @@ type CacheLinePad struct{ _ [CacheLinePadSize]byte }
 // CacheLineSize is the CPU's assumed cache line size.
 // There is currently no runtime detection of the real cache line size
 // so we use the constant per GOARCH CacheLinePadSize as an approximation.
-var CacheLineSize = CacheLinePadSize
+var CacheLineSize uintptr = CacheLinePadSize
 
 var X86 x86
 
