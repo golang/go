@@ -532,6 +532,10 @@ func Main(archInit func(*Arch)) {
 	checkMapKeys()
 	timings.AddEvent(fcount, "funcs")
 
+	if nsavederrors+nerrors != 0 {
+		errorexit()
+	}
+
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
