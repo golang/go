@@ -7,7 +7,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/cpu"
 	"unsafe"
 )
 
@@ -50,7 +50,7 @@ var timers [timersLen]struct {
 
 	// The padding should eliminate false sharing
 	// between timersBucket values.
-	pad [sys.CacheLineSize - unsafe.Sizeof(timersBucket{})%sys.CacheLineSize]byte
+	pad [cpu.CacheLinePadSize - unsafe.Sizeof(timersBucket{})%cpu.CacheLinePadSize]byte
 }
 
 func (t *timer) assignBucket() *timersBucket {

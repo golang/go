@@ -9,6 +9,7 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -137,12 +138,12 @@ type mheap struct {
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are
-	// spaced CacheLineSize bytes apart, so that each MCentral.lock
+	// spaced CacheLinePadSize bytes apart, so that each MCentral.lock
 	// gets its own cache line.
 	// central is indexed by spanClass.
 	central [numSpanClasses]struct {
 		mcentral mcentral
-		pad      [sys.CacheLineSize - unsafe.Sizeof(mcentral{})%sys.CacheLineSize]byte
+		pad      [cpu.CacheLinePadSize - unsafe.Sizeof(mcentral{})%cpu.CacheLinePadSize]byte
 	}
 
 	spanalloc             fixalloc // allocator for span*
