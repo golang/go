@@ -10,6 +10,9 @@ package cpu
 // and GOOS is Linux or Darwin. This variable is linknamed in runtime/proc.go.
 var debugOptions bool
 
+// CacheLinePad is used to pad structs to avoid false sharing.
+type CacheLinePad struct{ _ [CacheLineSize]byte }
+
 var X86 x86
 
 // The booleans in x86 contain the correspondingly named cpuid feature bit.
@@ -17,7 +20,7 @@ var X86 x86
 // in addition to the cpuid feature bit being set.
 // The struct is padded to avoid false sharing.
 type x86 struct {
-	_            [CacheLineSize]byte
+	_            CacheLinePad
 	HasAES       bool
 	HasADX       bool
 	HasAVX       bool
@@ -34,7 +37,7 @@ type x86 struct {
 	HasSSSE3     bool
 	HasSSE41     bool
 	HasSSE42     bool
-	_            [CacheLineSize]byte
+	_            CacheLinePad
 }
 
 var PPC64 ppc64
@@ -47,7 +50,7 @@ var PPC64 ppc64
 // safety.
 // The struct is padded to avoid false sharing.
 type ppc64 struct {
-	_          [CacheLineSize]byte
+	_          CacheLinePad
 	HasVMX     bool // Vector unit (Altivec)
 	HasDFP     bool // Decimal Floating Point unit
 	HasVSX     bool // Vector-scalar unit
@@ -59,7 +62,7 @@ type ppc64 struct {
 	HasSCV     bool // Syscall vectored (requires kernel enablement)
 	IsPOWER8   bool // ISA v2.07 (POWER8)
 	IsPOWER9   bool // ISA v3.00 (POWER9)
-	_          [CacheLineSize]byte
+	_          CacheLinePad
 }
 
 var ARM64 arm64
@@ -67,7 +70,7 @@ var ARM64 arm64
 // The booleans in arm64 contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
 type arm64 struct {
-	_           [CacheLineSize]byte
+	_           CacheLinePad
 	HasFP       bool
 	HasASIMD    bool
 	HasEVTSTRM  bool
@@ -92,13 +95,13 @@ type arm64 struct {
 	HasSHA512   bool
 	HasSVE      bool
 	HasASIMDFHM bool
-	_           [CacheLineSize]byte
+	_           CacheLinePad
 }
 
 var S390X s390x
 
 type s390x struct {
-	_               [CacheLineSize]byte
+	_               CacheLinePad
 	HasZArch        bool // z architecture mode is active [mandatory]
 	HasSTFLE        bool // store facility list extended [mandatory]
 	HasLDisp        bool // long (20-bit) displacements [mandatory]
@@ -115,7 +118,7 @@ type s390x struct {
 	HasSHA256       bool // K{I,L}MD-SHA-256 functions
 	HasSHA512       bool // K{I,L}MD-SHA-512 functions
 	HasVX           bool // vector facility. Note: the runtime sets this when it processes auxv records.
-	_               [CacheLineSize]byte
+	_               CacheLinePad
 }
 
 // initialize examines the processor and sets the relevant variables above.
