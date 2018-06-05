@@ -778,15 +778,26 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
 
 // origSym returns the original symbol written by the user.
 func origSym(s *types.Sym) *types.Sym {
-	if s != nil && s.Name[0] == '~' {
+	if s == nil {
+		return nil
+	}
+
+	if len(s.Name) > 1 && s.Name[0] == '~' {
 		switch s.Name[1] {
 		case 'r': // originally an unnamed result
-			s = nil
+			return nil
 		case 'b': // originally the blank identifier _
 			// TODO(mdempsky): Does s.Pkg matter here?
-			s = nblank.Sym
+			return nblank.Sym
 		}
+		return s
 	}
+
+	if strings.HasPrefix(s.Name, ".anon") {
+		// originally an unnamed or _ name (see subr.go: structargs)
+		return nil
+	}
+
 	return s
 }
 
