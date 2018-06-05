@@ -1268,7 +1268,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OTARRAY:
 		if n.Left != nil {
-			mode.Fprintf(s, "[]%v", n.Left)
+			mode.Fprintf(s, "[%v]%v", n.Left, n.Right)
 			return
 		}
 		mode.Fprintf(s, "[]%v", n.Right) // happens before typecheck
