@@ -168,6 +168,11 @@ func (c *conn) ok() bool { return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface.
 
+//Return sysfd for further use,like: syscall.SetsockoptTimeval
+func (c *conn) GetSysfd() int {
+	return c.fd.pfd.Sysfd
+}
+
 // Read implements the Conn Read method.
 func (c *conn) Read(b []byte) (int, error) {
 	if !c.ok() {
