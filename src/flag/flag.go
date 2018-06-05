@@ -5,8 +5,6 @@
 /*
 	Package flag implements command-line flag parsing.
 
-	Usage:
-
 	Define flags using flag.String(), Bool(), Int(), etc.
 
 	This declares an integer flag, -flagname, stored in the pointer ip, with type *int.
