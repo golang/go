@@ -110,19 +110,35 @@ func typekind(t *types.Type) string {
 	return fmt.Sprintf("etype=%d", et)
 }
 
-// sprint_depchain prints a dependency chain of nodes into trace.
-// It is used by typecheck in the case of OLITERAL nodes
-// to print constant definition loops.
-func sprint_depchain(trace *string, stack []*Node, cur *Node, first *Node) {
-	for i := len(stack) - 1; i >= 0; i-- {
-		if n := stack[i]; n.Op == cur.Op {
-			if n != first {
-				sprint_depchain(trace, stack[:i], n, first)
-			}
-			*trace += fmt.Sprintf("\n\t%v: %v uses %v", n.Line(), n, cur)
-			return
+func cycleFor(start *Node) []*Node {
+	// Find the start node in typecheck_tcstack.
+	// We know that it must exist because each time we mark
+	// a node with n.SetTypecheck(2) we push it on the stack,
+	// and each time we mark a node with n.SetTypecheck(2) we
+	// pop it from the stack. We hit a cycle when we encounter
+	// a node marked 2 in which case is must be on the stack.
+	i := len(typecheck_tcstack) - 1
+	for i > 0 && typecheck_tcstack[i] != start {
+		i--
+	}
+
+	// collect all nodes with same Op
+	var cycle []*Node
+	for _, n := range typecheck_tcstack[i:] {
+		if n.Op == start.Op {
+			cycle = append(cycle, n)
 		}
 	}
+
+	return cycle
+}
+
+func cycleTrace(cycle []*Node) string {
+	var s string
+	for i, n := range cycle {
+		s += fmt.Sprintf("\n\t%v: %v uses %v", n.Line(), n, cycle[(i+1)%len(cycle)])
+	}
+	return s
 }
 
 var typecheck_tcstack []*Node
@@ -174,10 +190,20 @@ func typecheck(n *Node, top int) *Node {
 			}
 
 		case OTYPE:
+			// Only report a type cycle if we are expecting a type.
+			// Otherwise let other code report an error.
 			if top&Etype == Etype {
-				var trace string
-				sprint_depchain(&trace, typecheck_tcstack, n, n)
-				yyerrorl(n.Pos, "invalid recursive type alias %v%s", n, trace)
+				// A cycle containing only alias types is an error
+				// since it would expand indefinitely when aliases
+				// are substituted.
+				cycle := cycleFor(n)
+				for _, n := range cycle {
+					if n.Name != nil && !n.Name.Param.Alias {
+						lineno = lno
+						return n
+					}
+				}
+				yyerrorl(n.Pos, "invalid recursive type alias %v%s", n, cycleTrace(cycle))
 			}
 
 		case OLITERAL:
@@ -185,9 +211,7 @@ func typecheck(n *Node, top int) *Node {
 				yyerror("%v is not a type", n)
 				break
 			}
-			var trace string
-			sprint_depchain(&trace, typecheck_tcstack, n, n)
-			yyerrorl(n.Pos, "constant definition loop%s", trace)
+			yyerrorl(n.Pos, "constant definition loop%s", cycleTrace(cycleFor(n)))
 		}
 
 		if nsavederrors+nerrors == 0 {
