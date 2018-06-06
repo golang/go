@@ -463,6 +463,8 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpWasmF64Mul_0(v)
 	case OpWasmI64Add:
 		return rewriteValueWasm_OpWasmI64Add_0(v)
+	case OpWasmI64AddConst:
+		return rewriteValueWasm_OpWasmI64AddConst_0(v)
 	case OpWasmI64And:
 		return rewriteValueWasm_OpWasmI64And_0(v)
 	case OpWasmI64Eq:
@@ -3688,34 +3690,17 @@ func rewriteValueWasm_OpNot_0(v *Value) bool {
 	}
 }
 func rewriteValueWasm_OpOffPtr_0(v *Value) bool {
-	// match: (OffPtr [0] ptr)
-	// cond:
-	// result: ptr
-	for {
-		if v.AuxInt != 0 {
-			break
-		}
-		ptr := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = ptr.Type
-		v.AddArg(ptr)
-		return true
-	}
 	// match: (OffPtr [off] ptr)
-	// cond: off > 0
+	// cond:
 	// result: (I64AddConst [off] ptr)
 	for {
 		off := v.AuxInt
 		ptr := v.Args[0]
-		if !(off > 0) {
-			break
-		}
 		v.reset(OpWasmI64AddConst)
 		v.AuxInt = off
 		v.AddArg(ptr)
 		return true
 	}
-	return false
 }
 func rewriteValueWasm_OpOr16_0(v *Value) bool {
 	// match: (Or16 x y)
@@ -5206,6 +5191,22 @@ func rewriteValueWasm_OpWasmI64Add_0(v *Value) bool {
 		y := v_1.AuxInt
 		v.reset(OpWasmI64AddConst)
 		v.AuxInt = y
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64AddConst_0(v *Value) bool {
+	// match: (I64AddConst [0] x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
 		v.AddArg(x)
 		return true
 	}
