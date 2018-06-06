@@ -253,7 +253,6 @@ import (
 )
 `,
 	},
-
 	// Don't remove dot imports.
 	{
 		name: "dont_remove_dot_imports",
@@ -481,6 +480,7 @@ func main() {
 	},
 
 	// golang.org/issue/7132
+	// Updated by 20818: repair import grouping
 	{
 		name: "issue 7132",
 		in: `package main
@@ -502,7 +502,6 @@ c = fmt.Printf
 
 import (
 	"fmt"
-
 	"gu"
 
 	"github.com/foo/bar"
@@ -586,6 +585,7 @@ func main() {
 
 	// Blank line can be added before all types of import declarations.
 	// golang.org/issue/7866
+	// Updated by 20818: repair import grouping
 	{
 		name: "issue 7866",
 		in: `package main
@@ -609,15 +609,11 @@ func main() {
 
 import (
 	"fmt"
-
-	renamed_bar "github.com/foo/bar"
-
 	"io"
-
-	. "github.com/foo/baz"
-
 	"strings"
 
+	renamed_bar "github.com/foo/bar"
+	. "github.com/foo/baz"
 	_ "github.com/foo/qux"
 )
 
@@ -1054,6 +1050,157 @@ import "fmt"
 var _ = fmt.Printf
 `,
 	},
+
+	// Support repairing import grouping/ordering
+	// golang.org/issue/20818
+	{
+		name: "issue 20818",
+		in: `import (
+	"testing"
+
+	"github.com/Sirupsen/logrus"
+	"context"
+)
+
+func main() {
+	_, _, _ = testing.T, logrus.Entry, context.Context
+}
+`,
+		out: `package main
+
+import (
+	"context"
+	"testing"
+
+	"github.com/Sirupsen/logrus"
+)
+
+func main() {
+	_, _, _ = testing.T, logrus.Entry, context.Context
+}
+`,
+	},
+	{
+		name: "issue 20818 more groups",
+		in: `import (
+	"testing"
+	"k8s.io/apimachinery/pkg/api/meta"
+
+	"fmt"
+	"github.com/pkg/errors"
+
+	"golang.org/x/tools/cover"
+
+	"github.com/sirupsen/logrus"
+	"context"
+)
+
+func main() {
+	_, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
+}
+`,
+		out: `package main
+
+import (
+	"context"
+	"fmt"
+	"testing"
+
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/meta"
+)
+
+func main() {
+	_, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
+}
+`,
+	},
+	{
+		name: "issue 20818 blank lines and single-line comments",
+		in: `import (
+
+
+	"testing"
+	"k8s.io/apimachinery/pkg/api/meta"
+
+	// a comment for the "fmt" package (#26921: they are broken, should be fixed)
+	"fmt"
+	"github.com/pkg/errors" // some comment
+
+
+	"golang.org/x/tools/cover"
+
+	"github.com/sirupsen/logrus"
+	"context"
+
+
+)
+
+func main() {
+	_, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
+}
+`,
+		out: `package main
+
+import (
+	"context"
+	"fmt"
+	"testing"
+
+	"github.com/pkg/errors" // some comment
+	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/meta" // a comment for the "fmt" package (#26921: they are broken, should be fixed)
+)
+
+func main() {
+	_, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
+}
+`,
+	},
+	{
+		name: "issue 20818 local packages",
+		in: `import (
+	"local/foo"
+	"testing"
+	"k8s.io/apimachinery/pkg/api/meta"
+
+	"fmt"
+	"github.com/pkg/errors"
+
+	"github.com/local/bar"
+	"golang.org/x/tools/cover"
+
+	"github.com/sirupsen/logrus"
+	"context"
+)
+
+func main() {
+	_, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
+	_, _ = foo.Foo, bar.Bar
+}
+`,
+		out: `package main
+
+import (
+	"context"
+	"fmt"
+	"testing"
+
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/meta"
+
+	"github.com/local/bar"
+	"local/foo"
+)
+
+func main() {
+	_, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
+	_, _ = foo.Foo, bar.Bar
+}
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
@@ -1073,9 +1220,11 @@ func TestFixImports(t *testing.T) {
 	}
 	oldFindImport := findImport
 	oldDirPackageInfo := dirPackageInfo
+	oldLocalPrefix := LocalPrefix
 	defer func() {
 		findImport = oldFindImport
 		dirPackageInfo = oldDirPackageInfo
+		LocalPrefix = oldLocalPrefix
 	}()
 	findImport = func(_ context.Context, pkgName string, symbols map[string]bool, filename string) (string, bool, error) {
 		return simplePkgs[pkgName], pkgName == "str", nil
@@ -1083,6 +1232,7 @@ func TestFixImports(t *testing.T) {
 	dirPackageInfo = func(_, _, _ string) (*packageInfo, error) {
 		return nil, fmt.Errorf("no directory package info in tests")
 	}
+	LocalPrefix = "local,github.com/local"
 
 	options := &Options{
 		TabWidth:  8,
@@ -1092,18 +1242,19 @@ func TestFixImports(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		options.FormatOnly = tt.formatOnly
-		if *only != "" && tt.name != *only {
-			continue
-		}
-		buf, err := Process(tt.name+".go", []byte(tt.in), options)
-		if err != nil {
-			t.Errorf("error on %q: %v", tt.name, err)
-			continue
-		}
-		if got := string(buf); got != tt.out {
-			t.Errorf("results diff on %q\nGOT:\n%s\nWANT:\n%s\n", tt.name, got, tt.out)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			options.FormatOnly = tt.formatOnly
+			if *only != "" && tt.name != *only {
+				return
+			}
+			buf, err := Process(tt.name+".go", []byte(tt.in), options)
+			if err != nil {
+				t.Fatalf("error on %q: %v", tt.name, err)
+			}
+			if got := string(buf); got != tt.out {
+				t.Fatalf("results diff on %q\nGOT:\n%s\nWANT:\n%s\n", tt.name, got, tt.out)
+			}
+		})
 	}
 }
 
@@ -1291,7 +1442,7 @@ func TestFixModuleVersion(t *testing.T) {
 import (
 	"fmt"
 
-	"foo/v2"
+	"github.com/foo/v2"
 )
 
 var (
