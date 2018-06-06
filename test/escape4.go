@@ -34,8 +34,8 @@ func f1() {
 
 func f2() {} // ERROR "can inline f2"
 
-// No inline for panic, recover.
-func f3() { panic(1) }
+// No inline for recover; panic now allowed to inline.
+func f3() { panic(1) } // ERROR "can inline f3"
 func f4() { recover() }
 
 func f5() *byte {

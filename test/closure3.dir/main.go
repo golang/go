@@ -15,12 +15,12 @@ func main() {
 		if x := func() int { // ERROR "can inline main.func1"
 			return 1
 		}(); x != 1 { // ERROR "inlining call to main.func1"
-			panic("x != 1")
+			ppanic("x != 1")
 		}
 		if x := func() int { // ERROR "can inline main.func2" "func literal does not escape"
 			return 1
 		}; x() != 1 { // ERROR "inlining call to main.func2"
-			panic("x() != 1")
+			ppanic("x() != 1")
 		}
 	}
 
@@ -28,12 +28,12 @@ func main() {
 		if y := func(x int) int { // ERROR "can inline main.func3"
 			return x + 2
 		}(40); y != 42 { // ERROR "inlining call to main.func3"
-			panic("y != 42")
+			ppanic("y != 42")
 		}
 		if y := func(x int) int { // ERROR "can inline main.func4" "func literal does not escape"
 			return x + 2
 		}; y(40) != 42 { // ERROR "inlining call to main.func4"
-			panic("y(40) != 42")
+			ppanic("y(40) != 42")
 		}
 	}
 
@@ -45,7 +45,7 @@ func main() {
 			return x + 1
 		}
 		if y(40) != 41 {
-			panic("y(40) != 41")
+			ppanic("y(40) != 41")
 		}
 	}
 
@@ -58,7 +58,7 @@ func main() {
 				return x + 1
 			}
 			if y(40) != 41 {
-				panic("y(40) != 41")
+				ppanic("y(40) != 41")
 			}
 		}()
 	}
@@ -71,7 +71,7 @@ func main() {
 			return x + 1
 		}, 42
 		if y(40) != 41 {
-			panic("y(40) != 41")
+			ppanic("y(40) != 41")
 		}
 	}
 
@@ -84,7 +84,7 @@ func main() {
 				return x + 1
 			}, 42
 			if y(40) != 41 {
-				panic("y(40) != 41")
+				ppanic("y(40) != 41")
 			}
 		}()
 	}
@@ -93,13 +93,13 @@ func main() {
 		y := func(x int) int { // ERROR "can inline main.func11" "func literal does not escape"
 			return x + 2
 		}
-		y, sink = func() (func(int)int, int) { // ERROR "func literal does not escape"
+		y, sink = func() (func(int) int, int) { // ERROR "func literal does not escape"
 			return func(x int) int { // ERROR "can inline main.func12" "func literal escapes"
 				return x + 1
 			}, 42
 		}()
 		if y(40) != 41 {
-			panic("y(40) != 41")
+			ppanic("y(40) != 41")
 		}
 	}
 
@@ -114,7 +114,7 @@ func main() {
 				}, 42
 			}()
 			if y(40) != 41 {
-				panic("y(40) != 41")
+				ppanic("y(40) != 41")
 			}
 		}()
 	}
@@ -123,11 +123,11 @@ func main() {
 		y := func(x int) int { // ERROR "can inline main.func14" "func literal does not escape"
 			return x + 2
 		}
-		y, ok = map[int]func(int)int { // ERROR "does not escape"
-			0: func (x int) int { return x + 1 }, // ERROR "can inline main.func15" "func literal escapes"
+		y, ok = map[int]func(int) int{ // ERROR "does not escape"
+			0: func(x int) int { return x + 1 }, // ERROR "can inline main.func15" "func literal escapes"
 		}[0]
 		if y(40) != 41 {
-			panic("y(40) != 41")
+			ppanic("y(40) != 41")
 		}
 	}
 
@@ -136,11 +136,11 @@ func main() {
 			y := func(x int) int { // ERROR "can inline main.func16.1" "func literal does not escape"
 				return x + 2
 			}
-			y, ok = map[int]func(int) int{// ERROR "does not escape"
+			y, ok = map[int]func(int) int{ // ERROR "does not escape"
 				0: func(x int) int { return x + 1 }, // ERROR "can inline main.func16.2" "func literal escapes"
 			}[0]
 			if y(40) != 41 {
-				panic("y(40) != 41")
+				ppanic("y(40) != 41")
 			}
 		}()
 	}
@@ -149,11 +149,11 @@ func main() {
 		y := func(x int) int { // ERROR "can inline main.func17" "func literal does not escape"
 			return x + 2
 		}
-		y, ok = interface{}(func (x int) int { // ERROR "can inline main.func18" "does not escape"
+		y, ok = interface{}(func(x int) int { // ERROR "can inline main.func18" "does not escape"
 			return x + 1
-		}).(func(int)int)
+		}).(func(int) int)
 		if y(40) != 41 {
-			panic("y(40) != 41")
+			ppanic("y(40) != 41")
 		}
 	}
 
@@ -166,7 +166,7 @@ func main() {
 				return x + 1
 			}).(func(int) int)
 			if y(40) != 41 {
-				panic("y(40) != 41")
+				ppanic("y(40) != 41")
 			}
 		}()
 	}
@@ -176,12 +176,12 @@ func main() {
 		if y := func() int { // ERROR "can inline main.func20"
 			return x
 		}(); y != 42 { // ERROR "inlining call to main.func20"
-			panic("y != 42")
+			ppanic("y != 42")
 		}
 		if y := func() int { // ERROR "can inline main.func21" "func literal does not escape"
 			return x
 		}; y() != 42 { // ERROR "inlining call to main.func21"
-			panic("y() != 42")
+			ppanic("y() != 42")
 		}
 	}
 
@@ -192,14 +192,14 @@ func main() {
 				return x + y
 			}() // ERROR "inlining call to main.func22.1"
 		}(1); z != 43 {
-			panic("z != 43")
+			ppanic("z != 43")
 		}
 		if z := func(y int) int { // ERROR "func literal does not escape"
 			return func() int { // ERROR "can inline main.func23.1"
 				return x + y
 			}() // ERROR "inlining call to main.func23.1"
 		}; z(1) != 43 {
-			panic("z(1) != 43")
+			ppanic("z(1) != 43")
 		}
 	}
 
@@ -211,7 +211,7 @@ func main() {
 			}() // ERROR "inlining call to main.func24" "&a does not escape"
 		}()
 		if a != 2 {
-			panic("a != 2")
+			ppanic("a != 2")
 		}
 	}
 
@@ -222,11 +222,11 @@ func main() {
 				b = 3
 			}() // ERROR "inlining call to main.func25.1" "&b does not escape"
 			if b != 3 {
-				panic("b != 3")
+				ppanic("b != 3")
 			}
 		}(b)
 		if b != 2 {
-			panic("b != 2")
+			ppanic("b != 2")
 		}
 	}
 
@@ -236,12 +236,12 @@ func main() {
 			c = 4
 			func() { // ERROR "func literal does not escape"
 				if c != 4 {
-					panic("c != 4")
+					ppanic("c != 4")
 				}
 			}()
 		}()
 		if c != 4 {
-			panic("c != 4")
+			ppanic("c != 4")
 		}
 	}
 
@@ -256,7 +256,7 @@ func main() {
 				}(10) // ERROR "inlining call to main.func27.1.1"
 			}(100)
 		}(1000); r != 2350 {
-			panic("r != 2350")
+			ppanic("r != 2350")
 		}
 	}
 
@@ -274,10 +274,15 @@ func main() {
 				return a + c
 			}(100) + b
 		}(1000); r != 2350 {
-			panic("r != 2350")
+			ppanic("r != 2350")
 		}
 		if a != 2000 {
-			panic("a != 2000")
+			ppanic("a != 2000")
 		}
 	}
+}
+
+//go:noinline
+func ppanic(s string) { // ERROR "leaking param: s"
+	panic(s)
 }
