@@ -6,10 +6,10 @@
 package hex
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 const hextable = "0123456789abcdef"
@@ -116,7 +116,16 @@ func DecodeString(s string) ([]byte, error) {
 // Dump returns a string that contains a hex dump of the given data. The format
 // of the hex dump matches the output of `hexdump -C` on the command line.
 func Dump(data []byte) string {
-	var buf bytes.Buffer
+	if len(data) == 0 {
+		return ""
+	}
+
+	var buf strings.Builder
+	// Dumper will write 79 bytes per complete 16 byte chunk, and at least
+	// 64 bytes for whatever remains. Round the allocation up, since only a
+	// maximum of 15 bytes will be wasted.
+	buf.Grow((1 + ((len(data) - 1) / 16)) * 79)
+
 	dumper := Dumper(&buf)
 	dumper.Write(data)
 	dumper.Close()
