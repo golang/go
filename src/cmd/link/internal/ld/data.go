@@ -95,7 +95,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 		if Symaddr(r.Sym) == 0 && r.Sym.Type != sym.SDYNIMPORT {
 			if r.Sym.File != s.File {
 				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
-					Errorf(s, "unresolved inter-package jump to %s(%s)", r.Sym, r.Sym.File)
+					ctxt.ErrorUnresolved(s, r)
 				}
 				// runtime and its dependent packages may call to each other.
 				// they are fine, as they will be laid down together.
@@ -110,10 +110,6 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 
 // resolve relocations in s.
 func relocsym(ctxt *Link, s *sym.Symbol) {
-	// undefinedSyms contains all undefined symbol names.
-	// For successfull builds, it remains nil and does not cause any overhead.
-	var undefinedSyms []string
-
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r := &s.R[ri]
 		if r.Done {
@@ -144,22 +140,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 					continue
 				}
 			} else {
-				reported := false
-				for _, name := range undefinedSyms {
-					if name == r.Sym.Name {
-						reported = true
-						break
-					}
-				}
-				if !reported {
-					// Give a special error message for main symbol (see #24809).
-					if r.Sym.Name == "main.main" {
-						Errorf(s, "function main is undeclared in the main package")
-					} else {
-						Errorf(s, "relocation target %s not defined", r.Sym.Name)
-					}
-					undefinedSyms = append(undefinedSyms, r.Sym.Name)
-				}
+				ctxt.ErrorUnresolved(s, r)
 				continue
 			}
 		}
