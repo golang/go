@@ -6,7 +6,10 @@
 
 package strconv
 
-import "unicode/utf8"
+import (
+	"internal/bytealg"
+	"unicode/utf8"
+)
 
 const lowerhex = "0123456789abcdef"
 
@@ -424,12 +427,7 @@ func Unquote(s string) (string, error) {
 
 // contains reports whether the string contains the byte c.
 func contains(s string, c byte) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return true
-		}
-	}
-	return false
+	return bytealg.IndexByteString(s, c) != -1
 }
 
 // bsearch16 returns the smallest i such that a[i] >= x.
