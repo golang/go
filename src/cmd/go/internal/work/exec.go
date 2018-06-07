@@ -1565,6 +1565,7 @@ var objectMagic = [][]byte{
 	{0x00, 0x00, 0x01, 0xEB},                  // Plan 9 i386
 	{0x00, 0x00, 0x8a, 0x97},                  // Plan 9 amd64
 	{0x00, 0x00, 0x06, 0x47},                  // Plan 9 arm
+	{0x00, 0x61, 0x73, 0x6D},                  // WASM
 }
 
 func isObject(s string) bool {
