@@ -1,5 +1,7 @@
 package html
 
+import "fmt"
+
 // This file is tested by html_test.go.
 // The comments below are markers for extracting the annotated source
 // from the HTML output.
@@ -16,3 +18,13 @@ func f() {
 }
 
 // END f
+
+// https://golang.org/issue/25767
+// START g
+func g() {
+	if false {
+		fmt.Printf("Hello")
+	}
+}
+
+// END g
