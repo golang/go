@@ -153,6 +153,7 @@ type Boundary struct {
 	Start  bool    // Is this the start of a block?
 	Count  int     // Event count from the cover profile.
 	Norm   float64 // Count normalized to [0..1].
+	Index  int     // Order in input file.
 }
 
 // Boundaries returns a Profile as a set of Boundary objects within the provided src.
@@ -168,8 +169,10 @@ func (p *Profile) Boundaries(src []byte) (boundaries []Boundary) {
 	divisor := math.Log(float64(max))
 
 	// boundary returns a Boundary, populating the Norm field with a normalized Count.
+	index := 0
 	boundary := func(offset int, start bool, count int) Boundary {
-		b := Boundary{Offset: offset, Start: start, Count: count}
+		b := Boundary{Offset: offset, Start: start, Count: count, Index: index}
+		index++
 		if !start || count == 0 {
 			return b
 		}
@@ -209,10 +212,9 @@ func (b boundariesByPos) Len() int      { return len(b) }
 func (b boundariesByPos) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 func (b boundariesByPos) Less(i, j int) bool {
 	if b[i].Offset == b[j].Offset {
-		// Boundaries at the same offset should be ordered Start < !Start.
-		// They represent empty sections of code (e.g. a switch/select clause
-		// without a body).
-		return b[i].Start && !b[j].Start
+		// Boundaries at the same offset should be ordered according to
+		// their original position.
+		return b[i].Index < b[j].Index
 	}
 	return b[i].Offset < b[j].Offset
 }
