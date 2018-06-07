@@ -38,6 +38,11 @@ func (w *HTMLWriter) start(name string) {
 <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
 <style>
 
+body {
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+}
+
 #helplink {
     margin-bottom: 15px;
     display: block;
@@ -64,6 +69,32 @@ th, td {
     width: 400px;
     vertical-align: top;
     padding: 5px;
+}
+
+td > h2 {
+    cursor: pointer;
+    font-size: 120%;
+}
+
+td.collapsed {
+    font-size: 12px;
+    width: 12px;
+    border: 0px;
+    padding: 0;
+    cursor: pointer;
+    background: #fafafa;
+}
+
+td.collapsed  div {
+     -moz-transform: rotate(-90.0deg);  /* FF3.5+ */
+       -o-transform: rotate(-90.0deg);  /* Opera 10.5 */
+  -webkit-transform: rotate(-90.0deg);  /* Saf3.1+, Chrome */
+             filter:  progid:DXImageTransform.Microsoft.BasicImage(rotation=0.083);  /* IE6,IE7 */
+         -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=0.083)"; /* IE8 */
+         margin-top: 10.3em;
+         margin-left: -10em;
+         margin-right: -10em;
+         text-align: right;
 }
 
 td.ssa-prog {
@@ -263,6 +294,56 @@ window.onload = function() {
     for (var i = 0; i < ssablocks.length; i++) {
         ssablocks[i].addEventListener('click', ssaBlockClicked);
     }
+   var expandedDefault = [
+        "start",
+        "deadcode",
+        "opt",
+        "lower",
+        "late deadcode",
+        "regalloc",
+        "genssa",
+    ]
+    function isExpDefault(id) {
+        for (var i = 0; i < expandedDefault.length; i++) {
+            if (id.startsWith(expandedDefault[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+    function toggler(phase) {
+        return function() {
+            toggle_cell(phase+'-col');
+            toggle_cell(phase+'-exp');
+        };
+    }
+    function toggle_cell(id) {
+       var e = document.getElementById(id);
+       if(e.style.display == 'table-cell')
+          e.style.display = 'none';
+       else
+          e.style.display = 'table-cell';
+    }
+
+    var td = document.getElementsByTagName("td");
+    for (var i = 0; i < td.length; i++) {
+        var id = td[i].id;
+        var def = isExpDefault(id);
+        var phase = id.substr(0, id.length-4);
+        if (id.endsWith("-exp")) {
+            var h2 = td[i].getElementsByTagName("h2");
+            if (h2 && h2[0]) {
+                h2[0].addEventListener('click', toggler(phase));
+            }
+        } else {
+	        td[i].addEventListener('click', toggler(phase));
+        }
+        if (id.endsWith("-col") && def || id.endsWith("-exp") && !def) {
+               td[i].style.display = 'none';
+               continue
+        }
+        td[i].style.display = 'table-cell';
+    }
 };
 
 function toggle_visibility(id) {
@@ -316,24 +397,28 @@ func (w *HTMLWriter) Close() {
 }
 
 // WriteFunc writes f in a column headed by title.
-func (w *HTMLWriter) WriteFunc(title string, f *Func) {
+func (w *HTMLWriter) WriteFunc(phase, title string, f *Func) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	w.WriteColumn(title, "", f.HTML())
+	w.WriteColumn(phase, title, "", f.HTML())
 	// TODO: Add visual representation of f's CFG.
 }
 
 // WriteColumn writes raw HTML in a column headed by title.
 // It is intended for pre- and post-compilation log output.
-func (w *HTMLWriter) WriteColumn(title, class, html string) {
+func (w *HTMLWriter) WriteColumn(phase, title, class, html string) {
 	if w == nil {
 		return
 	}
+	id := strings.Replace(phase, " ", "-", -1)
+	// collapsed column
+	w.Printf("<td id=\"%v-col\" class=\"collapsed\"><div>%v</div></td>", id, phase)
+
 	if class == "" {
-		w.WriteString("<td>")
+		w.Printf("<td id=\"%v-exp\">", id)
 	} else {
-		w.WriteString("<td class=\"" + class + "\">")
+		w.Printf("<td id=\"%v-exp\" class=\"%v\">", id, class)
 	}
 	w.WriteString("<h2>" + title + "</h2>")
 	w.WriteString(html)

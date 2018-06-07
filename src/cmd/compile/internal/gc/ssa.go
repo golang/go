@@ -4985,7 +4985,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 			}
 			buf.WriteString("</dl>")
 			buf.WriteString("</code>")
-			f.HTMLWriter.WriteColumn("genssa", "ssa-prog", buf.String())
+			f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
 			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = saved
 		}
 	}
