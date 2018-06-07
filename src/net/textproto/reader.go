@@ -561,29 +561,17 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
 	return
 }
 
-// CanonicalMIMEHeaderKey returns the canonical format of the
-// MIME header key s. The canonicalization converts the first
-// letter and any letter following a hyphen to upper case;
-// the rest are converted to lowercase. For example, the
-// canonical key for "accept-encoding" is "Accept-Encoding".
-// MIME header keys are assumed to be ASCII only.
-// If s contains a space or invalid header field bytes, it is
-// returned without modifications.
+// CanonicalMIMEHeaderKey returns MIME header key s.
+//Each header field consists of a case-insensitive field name
+//followed by a colon (":"), optional leading whitespace,
+//the field value, and optional trailing whitespace. RFC 7230
 func CanonicalMIMEHeaderKey(s string) string {
 	// Quick check for canonical encoding.
-	upper := true
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if !validHeaderFieldByte(c) {
 			return s
 		}
-		if upper && 'a' <= c && c <= 'z' {
-			return canonicalMIMEHeaderKey([]byte(s))
-		}
-		if !upper && 'A' <= c && c <= 'Z' {
-			return canonicalMIMEHeaderKey([]byte(s))
-		}
-		upper = c == '-'
 	}
 	return s
 }
@@ -609,34 +597,6 @@ func validHeaderFieldByte(b byte) bool {
 // is unchanged and a string copy is returned.
 func canonicalMIMEHeaderKey(a []byte) string {
 	// See if a looks like a header key. If not, return it unchanged.
-	for _, c := range a {
-		if validHeaderFieldByte(c) {
-			continue
-		}
-		// Don't canonicalize.
-		return string(a)
-	}
-
-	upper := true
-	for i, c := range a {
-		// Canonicalize: first letter upper case
-		// and upper case after each dash.
-		// (Host, User-Agent, If-Modified-Since).
-		// MIME headers are ASCII only, so no Unicode issues.
-		if upper && 'a' <= c && c <= 'z' {
-			c -= toLower
-		} else if !upper && 'A' <= c && c <= 'Z' {
-			c += toLower
-		}
-		a[i] = c
-		upper = c == '-' // for next time
-	}
-	// The compiler recognizes m[string(byteSlice)] as a special
-	// case, so a copy of a's bytes into a new string does not
-	// happen in this map lookup:
-	if v := commonHeader[string(a)]; v != "" {
-		return v
-	}
 	return string(a)
 }
 
