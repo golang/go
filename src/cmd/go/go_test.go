@@ -4217,6 +4217,7 @@ func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
 }
 
 func TestBinaryOnlyPackages(t *testing.T) {
+	t.Skip("known failing test; see golang.org/issue/25784")
 	tooSlow(t)
 
 	tg := testgo(t)
