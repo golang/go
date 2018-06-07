@@ -8,10 +8,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"math/big"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
-	"reflect"
 )
 
 type intStruct struct {
@@ -258,9 +258,9 @@ func TestMarshalOID(t *testing.T) {
 	var marshalTestsOID = []marshalTest{
 		{[]byte("\x06\x01\x30"), "0403060130"}, // bytes format returns a byte sequence \x04
 		// {ObjectIdentifier([]int{0}), "060100"}, // returns an error as OID 0.0 has the same encoding
-		{[]byte("\x06\x010"), "0403060130"}, // same as above "\x06\x010" = "\x06\x01" + "0"
-		{ObjectIdentifier([]int{2,999,3}), "0603883703"}, // Example of ITU-T X.690
-		{ObjectIdentifier([]int{0,0}), "060100"}, // zero OID
+		{[]byte("\x06\x010"), "0403060130"},                // same as above "\x06\x010" = "\x06\x01" + "0"
+		{ObjectIdentifier([]int{2, 999, 3}), "0603883703"}, // Example of ITU-T X.690
+		{ObjectIdentifier([]int{0, 0}), "060100"},          // zero OID
 	}
 	for i, test := range marshalTestsOID {
 		data, err := Marshal(test.in)
@@ -294,7 +294,7 @@ func TestIssue11130(t *testing.T) {
 		return
 	}
 
-	if !bytes.Equal(data,data1) {
+	if !bytes.Equal(data, data1) {
 		t.Errorf("got: %q, want: %q \n", data1, data)
 		return
 	}
