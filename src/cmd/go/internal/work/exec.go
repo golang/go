@@ -405,6 +405,9 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 		a.Package.Stale = true
 		a.Package.StaleReason = "missing or invalid binary-only package"
+		if b.IsCmdList {
+			return nil
+		}
 		return fmt.Errorf("missing or invalid binary-only package")
 	}
 
