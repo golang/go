@@ -5,7 +5,7 @@
 /*
 	Package flag implements command-line flag parsing.
 
-	Usage:
+	Usage
 
 	Define flags using flag.String(), Bool(), Int(), etc.
 
@@ -35,7 +35,7 @@
 	slice flag.Args() or individually as flag.Arg(i).
 	The arguments are indexed from 0 through flag.NArg()-1.
 
-	Command line flag syntax:
+	Command line flag syntax
 		-flag
 		-flag=x
 		-flag x  // non-boolean flags only
