@@ -61,14 +61,12 @@ TEXT runtime·exit_trampoline(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$1002, R1
 	MOVD	R0, (R1)	// fail hard
 
-TEXT runtime·raiseproc(SB),NOSPLIT,$0
-	MOVW	$SYS_getpid, R16
-	SVC	$0x80
+TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R19	// signal
+	BL	libc_getpid(SB)
 	// arg 1 pid already in R0 from getpid
-	MOVW	sig+0(FP), R1	// arg 2 - signal
-	MOVW	$1, R2	// arg 3 - posix
-	MOVW	$SYS_kill, R16
-	SVC	$0x80
+	MOVD	R19, R1	// arg 2 signal
+	BL	libc_kill(SB)
 	RET
 
 TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
@@ -158,95 +156,104 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	(R11)
 	RET
 
-// Sigtramp's job is to call the actual signal handler.
-// It is called with the following arguments on the stack:
-//	LR	"return address" - ignored
-//	R0	actual handler
-//	R1	siginfo style - ignored
-//	R2	signal number
-//	R3	siginfo
-//	R4	context
 TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Reserve space for callee-save registers and arguments.
+	SUB	$(8*16), RSP
+
+	// Save callee-save registers.
+	MOVD	R19, (8*4)(RSP)
+	MOVD	R20, (8*5)(RSP)
+	MOVD	R21, (8*6)(RSP)
+	MOVD	R22, (8*7)(RSP)
+	MOVD	R23, (8*8)(RSP)
+	MOVD	R24, (8*9)(RSP)
+	MOVD	R25, (8*10)(RSP)
+	MOVD	R26, (8*11)(RSP)
+	MOVD	R27, (8*12)(RSP)
+	MOVD	g, (8*13)(RSP)
+	MOVD	R29, (8*14)(RSP)
+
+	// Save arguments.
+	MOVW	R0, (8*1)(RSP)	// sig
+	MOVD	R1, (8*2)(RSP)	// info
+	MOVD	R2, (8*3)(RSP)	// ctx
+
 	// this might be called in external code context,
 	// where g is not set.
-	// first save R0, because runtime·load_g will clobber it
-	MOVD.W	R0, -16(RSP)	// note: stack must be 16-byte aligned
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-	CMP	$0, g
-	BNE	cont
-	// fake function call stack frame for badsignal
-	// we only need to pass R2 (signal number), but
-	// badsignal will expect R2 at 8(RSP), so we also
-	// push R1 onto stack. turns out we do need R1
-	// to do sigreturn.
-	MOVD.W	R1, -16(RSP)
-	MOVD	R2, 8(RSP)
-	MOVD	R4, 24(RSP)	// save ucontext, badsignal might clobber R4
-	MOVD	$runtime·badsignal(SB), R26
-	BL	(R26)
-	MOVD	0(RSP), R1	// saved infostype
-	MOVD	24(RSP), R0	// the ucontext
-	ADD	$(16+16), RSP
-	B	ret
-
-cont:
-	// Restore R0
-	MOVD.P	16(RSP), R0
-
-	// NOTE: some Darwin/ARM kernels always use the main stack to run the
-	// signal handler. We need to switch to gsignal ourselves.
+	MOVD RSP, R6
+	CMP	 $0, g
+	BEQ	 nog
+	// iOS always use the main stack to run the signal handler.
+	// We need to switch to gsignal ourselves.
 	MOVD	g_m(g), R11
 	MOVD	m_gsignal(R11), R5
 	MOVD	(g_stack+stack_hi)(R5), R6
-	SUB	$64, R6
 
-	// copy arguments for call to sighandler
-	MOVD	R2, 8(R6)	// signal num
-	MOVD	R3, 16(R6)	// signal info
-	MOVD	R4, 24(R6)	// context
-	MOVD	g, 32(R6)	// old_g
+nog:
+	// Restore arguments.
+	MOVW	(8*1)(RSP), R0
+	MOVD	(8*2)(RSP), R1
+	MOVD	(8*3)(RSP), R2
 
-	// Backup ucontext and infostyle
-	MOVD	R4, 40(R6)
-	MOVD	R1, 48(R6)
+	// Reserve space for args and the stack pointer on the
+	// gsignal stack.
+	SUB	$48, R6
+	// Save stack pointer.
+	MOVD	RSP, R4
+	MOVD	R4, (8*4)(R6)
+	// Switch to gsignal stack.
+	MOVD	R6, RSP
 
-	// switch stack and g
-	MOVD	R6, RSP	// sigtramp is not re-entrant, so no need to back up RSP.
-	MOVD	R5, g
+	// Call sigtrampgo.
+	MOVW	R0, (8*1)(RSP)
+	MOVD	R1, (8*2)(RSP)
+	MOVD	R2, (8*3)(RSP)
+	MOVD	$runtime·sigtrampgo(SB), R11
+	BL	(R11)
 
-	BL	(R0)
+	// Switch to old stack.
+	MOVD	(8*4)(RSP), R5
+	MOVD	R5, RSP
 
-	// call sigreturn
-	MOVD	40(RSP), R0	// saved ucontext
-	MOVD	48(RSP), R1	// saved infostyle
-ret:
-	MOVW	$SYS_sigreturn, R16 // sigreturn(ucontext, infostyle)
-	SVC	$0x80
+	// Restore callee-save registers.
+	MOVD	(8*4)(RSP), R19
+	MOVD	(8*5)(RSP), R20
+	MOVD	(8*6)(RSP), R21
+	MOVD	(8*7)(RSP), R22
+	MOVD	(8*8)(RSP), R23
+	MOVD	(8*9)(RSP), R24
+	MOVD	(8*10)(RSP), R25
+	MOVD	(8*11)(RSP), R26
+	MOVD	(8*12)(RSP), R27
+	MOVD	(8*13)(RSP), g
+	MOVD	(8*14)(RSP), R29
 
-	// if sigreturn fails, we can do nothing but exit
-	B	runtime·exit(SB)
+	ADD $(8*16), RSP
 
-TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW	how+0(FP), R0
-	MOVD	new+8(FP), R1
-	MOVD	old+16(FP), R2
-	MOVW	$SYS_pthread_sigmask, R16
-	SVC	$0x80
-	BCC	2(PC)
+	RET
+
+TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 new
+	MOVD	16(R0), R2	// arg 3 old
+	MOVW	0(R0), R0	// arg 1 how
+	BL	libc_pthread_sigmask(SB)
+	CMP $0, R0
+	BEQ	2(PC)
 	BL	notok<>(SB)
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$0
-	MOVW	mode+0(FP), R0
-	MOVD	new+8(FP), R1
-	MOVD	old+16(FP), R2
-	MOVW	$SYS_sigaction, R16
-	SVC	$0x80
-	BCC	2(PC)
+TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 new
+	MOVD	16(R0), R2	// arg 3 old
+	MOVW	0(R0), R0	// arg 1 how
+	BL	libc_sigaction(SB)
+	CMP	$0, R0
+	BEQ	2(PC)
 	BL	notok<>(SB)
 	RET
 
@@ -375,10 +382,12 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	SVC	$0x80
 	RET
 
-// sigaltstack on some darwin/arm version is buggy and will always
+// sigaltstack on iOS is not supported and will always
 // run the signal handler on the main stack, so our sigtramp has
 // to do the stack switch ourselves.
-TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+	MOVW	$43, R0
+	BL	libc_exit(SB)
 	RET
 
 // Thread related functions
