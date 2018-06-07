@@ -459,7 +459,8 @@ type Config struct {
 	PreferServerCipherSuites bool
 
 	// SessionTicketsDisabled may be set to true to disable session ticket
-	// (resumption) support.
+	// (resumption) support. Note that on clients, session ticket support is
+	// also disabled if ClientSessionCache is nil.
 	SessionTicketsDisabled bool
 
 	// SessionTicketKey is used by TLS servers to provide session
@@ -473,7 +474,7 @@ type Config struct {
 	SessionTicketKey [32]byte
 
 	// ClientSessionCache is a cache of ClientSessionState entries for TLS
-	// session resumption.
+	// session resumption. It is only used by clients.
 	ClientSessionCache ClientSessionCache
 
 	// MinVersion contains the minimum SSL/TLS version that is acceptable.
