@@ -1,0 +1,10 @@
+// START f
+func f() <span class="cov8" title="1">{
+	ch := make(chan int)
+	select </span>{
+	case &lt;-ch:<span class="cov0" title="0"></span>
+	default:<span class="cov8" title="1"></span>
+	}
+}
+
+// END f
