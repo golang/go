@@ -1261,14 +1261,14 @@ func TestInternalPackagesInGOROOTAreRespected(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.runFail("build", "-v", "./testdata/testinternal")
-	tg.grepBoth(`testinternal(\/|\\)p\.go\:3\:8\: use of internal package not allowed`, "wrong error message for testdata/testinternal")
+	tg.grepBoth(`testinternal(\/|\\)p\.go\:3\:8\: use of internal package net/http/internal not allowed`, "wrong error message for testdata/testinternal")
 }
 
 func TestInternalPackagesOutsideGOROOTAreRespected(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.runFail("build", "-v", "./testdata/testinternal2")
-	tg.grepBoth(`testinternal2(\/|\\)p\.go\:3\:8\: use of internal package not allowed`, "wrote error message for testdata/testinternal2")
+	tg.grepBoth(`testinternal2(\/|\\)p\.go\:3\:8\: use of internal package .*internal/w not allowed`, "wrote error message for testdata/testinternal2")
 }
 
 func TestRunInternal(t *testing.T) {
@@ -1278,7 +1278,7 @@ func TestRunInternal(t *testing.T) {
 	tg.setenv("GOPATH", dir)
 	tg.run("run", filepath.Join(dir, "src/run/good.go"))
 	tg.runFail("run", filepath.Join(dir, "src/run/bad.go"))
-	tg.grepStderr(`testdata(\/|\\)src(\/|\\)run(\/|\\)bad\.go\:3\:8\: use of internal package not allowed`, "unexpected error for run/bad.go")
+	tg.grepStderr(`testdata(\/|\\)src(\/|\\)run(\/|\\)bad\.go\:3\:8\: use of internal package run/subdir/internal/private not allowed`, "unexpected error for run/bad.go")
 }
 
 func TestRunPkg(t *testing.T) {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package load
+package search
 
 import (
 	"strings"
@@ -65,8 +65,8 @@ var matchPatternTests = `
 `
 
 func TestMatchPattern(t *testing.T) {
-	testPatterns(t, "matchPattern", matchPatternTests, func(pattern, name string) bool {
-		return matchPattern(pattern)(name)
+	testPatterns(t, "MatchPattern", matchPatternTests, func(pattern, name string) bool {
+		return MatchPattern(pattern)(name)
 	})
 }
 
@@ -106,8 +106,8 @@ var treeCanMatchPatternTests = `
 `
 
 func TestTreeCanMatchPattern(t *testing.T) {
-	testPatterns(t, "treeCanMatchPattern", treeCanMatchPatternTests, func(pattern, name string) bool {
-		return treeCanMatchPattern(pattern)(name)
+	testPatterns(t, "TreeCanMatchPattern", treeCanMatchPatternTests, func(pattern, name string) bool {
+		return TreeCanMatchPattern(pattern)(name)
 	})
 }
 

@@ -64,6 +64,10 @@ func Help(args []string) {
 
 var usageTemplate = `Go is a tool for managing Go source code.
 
+This is vgo, an experimental go command with support for package versioning.
+Even though you are invoking it as vgo, most of the messages printed will
+still say "go", not "vgo". Sorry.
+
 Usage:
 
 	go command [arguments]
