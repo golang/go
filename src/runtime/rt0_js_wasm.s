@@ -74,7 +74,7 @@ TEXT runtime·pause(SB), NOSPLIT, $0
 	Set RUN
 	RETUNWIND
 
-TEXT runtime·exit(SB), NOSPLIT, $0-8
+TEXT runtime·exit(SB), NOSPLIT, $0-4
 	Call runtime·wasmExit(SB)
 	Drop
 	I32Const $RUN_EXITED
