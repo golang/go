@@ -310,8 +310,12 @@ func TestCoverHTML(t *testing.T) {
 	if err := ioutil.WriteFile(htmlHTML, out.Bytes(), 0644); err != nil {
 		t.Fatal(err)
 	}
+	diff := "diff"
+	if runtime.GOOS == "plan9" {
+		diff = "/bin/ape/diff"
+	}
 	// diff -uw testdata/html/html.html testdata/html/html.golden
-	cmd = exec.Command("diff", "-u", "-w", htmlHTML, htmlGolden)
+	cmd = exec.Command(diff, "-u", "-w", htmlHTML, htmlGolden)
 	run(cmd, t)
 }
 
