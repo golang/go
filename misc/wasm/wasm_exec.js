@@ -51,7 +51,7 @@
 
 	global.Go = class {
 		constructor() {
-			this.argv = [];
+			this.argv = ["js"];
 			this.env = {};
 			this.exit = (code) => {
 				if (code !== 0) {
