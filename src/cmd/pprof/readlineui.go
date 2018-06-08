@@ -86,7 +86,7 @@ func (r *readlineUI) print(withColor bool, args ...interface{}) {
 	if withColor {
 		text = colorize(text)
 	}
-	fmt.Fprintf(r.term, text)
+	fmt.Fprint(r.term, text)
 }
 
 // colorize prints the msg in red using ANSI color escapes.

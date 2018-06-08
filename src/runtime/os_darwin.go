@@ -11,8 +11,6 @@ type mOS struct {
 	waitsema uint32 // semaphore for parking on locks
 }
 
-var darwinVersion int
-
 //go:noescape
 func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
 
@@ -50,33 +48,13 @@ func osinit() {
 
 	ncpu = getncpu()
 	physPageSize = getPageSize()
-	darwinVersion = getDarwinVersion()
 }
 
 const (
-	_CTL_KERN       = 1
-	_CTL_HW         = 6
-	_KERN_OSRELEASE = 2
-	_HW_NCPU        = 3
-	_HW_PAGESIZE    = 7
+	_CTL_HW      = 6
+	_HW_NCPU     = 3
+	_HW_PAGESIZE = 7
 )
-
-func getDarwinVersion() int {
-	// Use sysctl to fetch kern.osrelease
-	mib := [2]uint32{_CTL_KERN, _KERN_OSRELEASE}
-	var out [32]byte
-	nout := unsafe.Sizeof(out)
-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		ver := 0
-		for i := 0; i < int(nout) && out[i] >= '0' && out[i] <= '9'; i++ {
-			ver *= 10
-			ver += int(out[i] - '0')
-		}
-		return ver
-	}
-	return 17 // should not happen: default to a newish version
-}
 
 func getncpu() int32 {
 	// Use sysctl to fetch hw.ncpu.

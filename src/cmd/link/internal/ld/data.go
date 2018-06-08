@@ -95,7 +95,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 		if Symaddr(r.Sym) == 0 && r.Sym.Type != sym.SDYNIMPORT {
 			if r.Sym.File != s.File {
 				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
-					Errorf(s, "unresolved inter-package jump to %s(%s)", r.Sym, r.Sym.File)
+					ctxt.ErrorUnresolved(s, r)
 				}
 				// runtime and its dependent packages may call to each other.
 				// they are fine, as they will be laid down together.
@@ -128,7 +128,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			continue
 		}
 
-		if r.Sym != nil && ((r.Sym.Type == 0 && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type == sym.SXREF) {
+		if r.Sym != nil && ((r.Sym.Type == sym.Sxxx && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type == sym.SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
 			if ctxt.BuildMode == BuildModeShared {
@@ -140,7 +140,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 					continue
 				}
 			} else {
-				Errorf(s, "relocation target %s not defined", r.Sym.Name)
+				ctxt.ErrorUnresolved(s, r)
 				continue
 			}
 		}

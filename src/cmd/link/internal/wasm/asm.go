@@ -88,7 +88,7 @@ func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va ui
 }
 
 // asmb writes the final WebAssembly module binary.
-// Spec: http://webassembly.github.io/spec/core/binary/modules.html
+// Spec: https://webassembly.github.io/spec/core/binary/modules.html
 func asmb(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f asmb\n", ld.Cputime())

@@ -140,7 +140,7 @@ func prfForVersion(version uint16, suite *cipherSuite) func(result, secret, labe
 }
 
 // masterFromPreMasterSecret generates the master secret from the pre-master
-// secret. See http://tools.ietf.org/html/rfc5246#section-8.1
+// secret. See https://tools.ietf.org/html/rfc5246#section-8.1
 func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecret, clientRandom, serverRandom []byte) []byte {
 	seed := make([]byte, 0, len(clientRandom)+len(serverRandom))
 	seed = append(seed, clientRandom...)

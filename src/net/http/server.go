@@ -107,7 +107,7 @@ type ResponseWriter interface {
 	// is to prefix the Header map keys with the TrailerPrefix
 	// constant value. See TrailerPrefix.
 	//
-	// To suppress implicit response headers (such as "Date"), set
+	// To suppress automatic response headers (such as "Date"), set
 	// their value to nil.
 	Header() Header
 
@@ -117,7 +117,9 @@ type ResponseWriter interface {
 	// WriteHeader(http.StatusOK) before writing the data. If the Header
 	// does not contain a Content-Type line, Write adds a Content-Type set
 	// to the result of passing the initial 512 bytes of written data to
-	// DetectContentType.
+	// DetectContentType. Additionally, if the total size of all written
+	// data is under a few KB and there are no Flush calls, the
+	// Content-Length header is added automatically.
 	//
 	// Depending on the HTTP protocol version and the client, calling
 	// Write or WriteHeader may prevent future reads on the
@@ -187,8 +189,8 @@ type Hijacker interface {
 	// The returned bufio.Reader may contain unprocessed buffered
 	// data from the client.
 	//
-	// After a call to Hijack, the original Request.Body must
-	// not be used.
+	// After a call to Hijack, the original Request.Body must not
+	// be used, and the Request.Context will be canceled.
 	Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
@@ -1057,7 +1059,7 @@ func checkWriteHeaderCode(code int) {
 	// Issue 22880: require valid WriteHeader status codes.
 	// For now we only enforce that it's three digits.
 	// In the future we might block things over 599 (600 and above aren't defined
-	// at http://httpwg.org/specs/rfc7231.html#status.codes)
+	// at https://httpwg.org/specs/rfc7231.html#status.codes)
 	// and we might block under 200 (once we have more mature 1xx support).
 	// But for now any three digits.
 	//
@@ -2180,7 +2182,12 @@ func cleanPath(p string) string {
 	// path.Clean removes trailing slash except for root;
 	// put the trailing slash back if necessary.
 	if p[len(p)-1] == '/' && np != "/" {
-		np += "/"
+		// Fast path for common case of p being the string we want:
+		if len(p) == len(np)+1 && strings.HasPrefix(p, np) {
+			np = p
+		} else {
+			np += "/"
+		}
 	}
 	return np
 }

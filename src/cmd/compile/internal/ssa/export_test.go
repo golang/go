@@ -28,6 +28,7 @@ var testCtxts = map[string]*obj.Link{
 
 func testConfig(tb testing.TB) *Conf      { return testConfigArch(tb, "amd64") }
 func testConfigS390X(tb testing.TB) *Conf { return testConfigArch(tb, "s390x") }
+func testConfigARM64(tb testing.TB) *Conf { return testConfigArch(tb, "arm64") }
 
 func testConfigArch(tb testing.TB, arch string) *Conf {
 	ctxt, ok := testCtxts[arch]

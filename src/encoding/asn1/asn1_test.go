@@ -227,7 +227,7 @@ func TestBitStringRightAlign(t *testing.T) {
 type objectIdentifierTest struct {
 	in  []byte
 	ok  bool
-	out []int
+	out ObjectIdentifier // has base type[]int
 }
 
 var objectIdentifierTestData = []objectIdentifierTest{

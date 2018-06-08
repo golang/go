@@ -4,7 +4,7 @@
 
 // Package png implements a PNG image decoder and encoder.
 //
-// The PNG specification is at http://www.w3.org/TR/PNG/.
+// The PNG specification is at https://www.w3.org/TR/PNG/.
 package png
 
 import (
@@ -73,7 +73,7 @@ type interlaceScan struct {
 }
 
 // interlacing defines Adam7 interlacing, with 7 passes of reduced images.
-// See http://www.w3.org/TR/PNG/#8Interlace
+// See https://www.w3.org/TR/PNG/#8Interlace
 var interlacing = []interlaceScan{
 	{8, 8, 0, 0},
 	{8, 8, 4, 0},
@@ -89,7 +89,7 @@ var interlacing = []interlaceScan{
 // present), IDAT and IEND chunks must appear in that order. There may be
 // multiple IDAT chunks, and IDAT chunks must be sequential (i.e. they may not
 // have any other chunks between them).
-// http://www.w3.org/TR/PNG/#5ChunkOrdering
+// https://www.w3.org/TR/PNG/#5ChunkOrdering
 const (
 	dsStart = iota
 	dsSeenIHDR

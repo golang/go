@@ -247,19 +247,19 @@ type ClientHelloInfo struct {
 	// ServerName indicates the name of the server requested by the client
 	// in order to support virtual hosting. ServerName is only set if the
 	// client is using SNI (see
-	// http://tools.ietf.org/html/rfc4366#section-3.1).
+	// https://tools.ietf.org/html/rfc4366#section-3.1).
 	ServerName string
 
 	// SupportedCurves lists the elliptic curves supported by the client.
 	// SupportedCurves is set only if the Supported Elliptic Curves
 	// Extension is being used (see
-	// http://tools.ietf.org/html/rfc4492#section-5.1.1).
+	// https://tools.ietf.org/html/rfc4492#section-5.1.1).
 	SupportedCurves []CurveID
 
 	// SupportedPoints lists the point formats supported by the client.
 	// SupportedPoints is set only if the Supported Point Formats Extension
 	// is being used (see
-	// http://tools.ietf.org/html/rfc4492#section-5.1.2).
+	// https://tools.ietf.org/html/rfc4492#section-5.1.2).
 	SupportedPoints []uint8
 
 	// SignatureSchemes lists the signature and hash schemes that the client
@@ -460,7 +460,8 @@ type Config struct {
 	PreferServerCipherSuites bool
 
 	// SessionTicketsDisabled may be set to true to disable session ticket
-	// (resumption) support.
+	// (resumption) support. Note that on clients, session ticket support is
+	// also disabled if ClientSessionCache is nil.
 	SessionTicketsDisabled bool
 
 	// SessionTicketKey is used by TLS servers to provide session
@@ -474,7 +475,7 @@ type Config struct {
 	SessionTicketKey [32]byte
 
 	// ClientSessionCache is a cache of ClientSessionState entries for TLS
-	// session resumption.
+	// session resumption. It is only used by clients.
 	ClientSessionCache ClientSessionCache
 
 	// MinVersion contains the minimum SSL/TLS version that is acceptable.

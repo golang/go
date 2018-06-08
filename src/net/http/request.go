@@ -316,7 +316,8 @@ type Request struct {
 //
 // For incoming server requests, the context is canceled when the
 // client's connection closes, the request is canceled (with HTTP/2),
-// or when the ServeHTTP method returns.
+// the ServeHTTP method returns, or if the Hijack method is
+// called on the ResponseWriter.
 func (r *Request) Context() context.Context {
 	if r.ctx != nil {
 		return r.ctx

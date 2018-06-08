@@ -352,7 +352,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		v.budget -= v.extraCallCost
 
 	case OPANIC:
-		v.budget -= v.extraCallCost
+		v.budget -= inlineExtraPanicCost
 
 	case ORECOVER:
 		// recover matches the argument frame pointer to find

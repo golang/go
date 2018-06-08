@@ -204,7 +204,7 @@ func (n Number) Int64() (int64, error) {
 func isValidNumber(s string) bool {
 	// This function implements the JSON numbers grammar.
 	// See https://tools.ietf.org/html/rfc7159#section-6
-	// and http://json.org/number.gif
+	// and https://json.org/number.gif
 
 	if s == "" {
 		return false

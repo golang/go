@@ -88,11 +88,8 @@ func Ignore(sig ...os.Signal) {
 
 // Ignored reports whether sig is currently ignored.
 func Ignored(sig os.Signal) bool {
-	if sn := signum(sig); sn < 0 {
-		return false
-	} else {
-		return signalIgnored(sn)
-	}
+	sn := signum(sig)
+	return sn >= 0 && signalIgnored(sn)
 }
 
 // Notify causes package signal to relay incoming signals to c.

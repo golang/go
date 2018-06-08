@@ -98,8 +98,8 @@ type arm64 struct {
 var S390X s390x
 
 type s390x struct {
-	_     [CacheLineSize]byte
-	HasVX bool // vector facility. Note: the runtime sets this when it processes auxv records.
+	_        [CacheLineSize]byte
+	HasVX    bool // vector facility. Note: the runtime sets this when it processes auxv records.
 	HasKM    bool // cipher message (KM)
 	HasKMA   bool // cipher message assist (KMA)
 	HasKMC   bool // cipher message with chaining (KMC)

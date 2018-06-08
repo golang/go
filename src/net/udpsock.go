@@ -208,7 +208,8 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
-	c, err := dialUDP(context.Background(), network, laddr, raddr)
+	sd := &sysDialer{network: network, address: raddr.String()}
+	c, err := sd.dialUDP(context.Background(), laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
@@ -233,7 +234,8 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 	if laddr == nil {
 		laddr = &UDPAddr{}
 	}
-	c, err := listenUDP(context.Background(), network, laddr)
+	sl := &sysListener{network: network, address: laddr.String()}
+	c, err := sl.listenUDP(context.Background(), laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
@@ -266,7 +268,8 @@ func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPCon
 	if gaddr == nil || gaddr.IP == nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: errMissingAddress}
 	}
-	c, err := listenMulticastUDP(context.Background(), network, ifi, gaddr)
+	sl := &sysListener{network: network, address: gaddr.String()}
+	c, err := sl.listenMulticastUDP(context.Background(), ifi, gaddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: err}
 	}

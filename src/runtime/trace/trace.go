@@ -70,7 +70,7 @@
 // operations such as an RPC request, an HTTP request, or an
 // interesting local operation which may require multiple goroutines
 // working together. Since tasks can involve multiple goroutines,
-// they are tracked via a context.Context object. NewContext creates
+// they are tracked via a context.Context object. NewTask creates
 // a new task and embeds it in the returned context.Context object.
 // Log messages and regions are attached to the task, if any, in the
 // Context passed to Log and WithRegion.
@@ -80,26 +80,27 @@
 // the trace tool can identify the goroutines involved in a specific
 // cappuccino order.
 //
-//     ctx, taskEnd:= trace.NewContext(ctx, "makeCappuccino")
-//     trace.Log(ctx, "orderID", orderID)
+//      ctx, task := trace.NewTask(ctx, "makeCappuccino")
+//      trace.Log(ctx, "orderID", orderID)
+
+//      milk := make(chan bool)
+//      espresso := make(chan bool)
+
+//      go func() {
+//              trace.WithRegion(ctx, "steamMilk", steamMilk)
+//              milk <- true
+//      }()
+//      go func() {
+//              trace.WithRegion(ctx, "extractCoffee", extractCoffee)
+//              espresso <- true
+//      }()
+//      go func() {
+//              defer task.End() // When assemble is done, the order is complete.
+//              <-espresso
+//              <-milk
+//              trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
+//      }()
 //
-//     milk := make(chan bool)
-//     espresso := make(chan bool)
-//
-//     go func() {
-//        trace.WithRegion(ctx, "steamMilk", steamMilk)
-//        milk<-true
-//     })()
-//     go func() {
-//        trace.WithRegion(ctx, "extractCoffee", extractCoffee)
-//        espresso<-true
-//     })()
-//     go func() {
-//        defer taskEnd()  // When assemble is done, the order is complete.
-//        <-espresso
-//        <-milk
-//        trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
-//     })()
 //
 // The trace tool computes the latency of a task by measuring the
 // time between the task creation and the task end and provides

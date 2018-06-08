@@ -1007,9 +1007,9 @@ func TestFloatFloat64(t *testing.T) {
 		{"0x.fffffffffffffp-1022", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
 		{"4503599627370495p-1074", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
 
-		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+		// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
 		{"2.2250738585072011e-308", 2.225073858507201e-308, Below},
-		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+		// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
 		{"2.2250738585072012e-308", 2.2250738585072014e-308, Above},
 	} {
 		for i := 0; i < 2; i++ {

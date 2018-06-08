@@ -15,7 +15,7 @@ import (
 // A Cookie represents an HTTP cookie as sent in the Set-Cookie header of an
 // HTTP response or the Cookie header of an HTTP request.
 //
-// See http://tools.ietf.org/html/rfc6265 for details.
+// See https://tools.ietf.org/html/rfc6265 for details.
 type Cookie struct {
 	Name  string
 	Value string
@@ -307,7 +307,7 @@ func sanitizeCookieName(n string) string {
 	return cookieNameSanitizer.Replace(n)
 }
 
-// http://tools.ietf.org/html/rfc6265#section-4.1.1
+// https://tools.ietf.org/html/rfc6265#section-4.1.1
 // cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
 // cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
 //           ; US-ASCII characters excluding CTLs,

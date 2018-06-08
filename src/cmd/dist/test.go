@@ -889,7 +889,7 @@ func (t *tester) extLink() bool {
 	pair := gohostos + "-" + goarch
 	switch pair {
 	case "android-arm",
-		"darwin-arm", "darwin-arm64",
+		"darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
@@ -897,15 +897,6 @@ func (t *tester) extLink() bool {
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
 		return true
-	case "darwin-386", "darwin-amd64":
-		// linkmode=external fails on OS X 10.6 and earlier == Darwin
-		// 10.8 and earlier.
-		unameR, err := exec.Command("uname", "-r").Output()
-		if err != nil {
-			log.Fatalf("uname -r: %v", err)
-		}
-		major, _ := strconv.Atoi(string(unameR[:bytes.IndexByte(unameR, '.')]))
-		return major > 10
 	}
 	return false
 }

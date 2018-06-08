@@ -49,16 +49,13 @@ type TestCover struct {
 // (for example, if there are no "package p" test files and
 // package p need not be instrumented for coverage or any other reason),
 // then the returned ptest == p.
-//
-// The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
-// or else there's no point in any of this.
 func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
 	var imports, ximports []*Package
 	var stk ImportStack
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], UseVendor)
+		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -86,7 +83,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	pxtestNeedsPtest := false
 	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], UseVendor)
+		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}

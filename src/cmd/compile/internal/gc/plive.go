@@ -461,17 +461,6 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 		for _, reg := range regs[:nreg] {
 			if reg.GCNum() == -1 {
 				if ptrOnly {
-					if reg.String() == "g" {
-						// Issue #25504: Sometimes we
-						// spill and reload the g
-						// register, which this sees
-						// as a pointer load into the
-						// g register. The g register
-						// isn't a GP register and
-						// can't appear in register
-						// maps. Ignore it.
-						continue
-					}
 					v.Fatalf("pointer in non-pointer register %v", reg)
 				} else {
 					continue

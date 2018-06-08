@@ -4078,7 +4078,7 @@ func canMergeLoads() bool {
 }
 
 // isRuneCount reports whether n is of the form len([]rune(string)).
-// These are optimized into a call to runtime.runecount.
+// These are optimized into a call to runtime.countrunes.
 func isRuneCount(n *Node) bool {
 	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTRARRAYRUNE
 }

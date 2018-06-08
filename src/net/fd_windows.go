@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -240,4 +241,16 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 func (fd *netFD) dup() (*os.File, error) {
 	// TODO: Implement this
 	return nil, syscall.EWINDOWS
+}
+
+func (fd *netFD) SetDeadline(t time.Time) error {
+	return fd.pfd.SetDeadline(t)
+}
+
+func (fd *netFD) SetReadDeadline(t time.Time) error {
+	return fd.pfd.SetReadDeadline(t)
+}
+
+func (fd *netFD) SetWriteDeadline(t time.Time) error {
+	return fd.pfd.SetWriteDeadline(t)
 }

@@ -28,6 +28,8 @@ import (
 	"io"
 	"math/big"
 	"unsafe"
+
+	"crypto/internal/randutil"
 )
 
 // A invertible implements fast inverse mod Curve.Params().N
@@ -176,6 +178,8 @@ var errZeroParam = errors.New("zero parameter")
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+	randutil.MaybeReadByte(rand)
+
 	if boring.Enabled && rand == boring.RandReader {
 		b, err := boringPrivateKey(priv)
 		if err != nil {

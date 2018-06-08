@@ -479,7 +479,7 @@ func internal_cpu_initialize(env string)
 //go:linkname internal_cpu_debugOptions internal/cpu.debugOptions
 var internal_cpu_debugOptions bool
 
-// cpuinit extracts the environment variable GODEBUGCPU from the enviroment on
+// cpuinit extracts the environment variable GODEBUGCPU from the environment on
 // Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.initialize.
 func cpuinit() {
 	const prefix = "GODEBUGCPU="
@@ -843,7 +843,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		})
 	}
 
-	// See http://golang.org/cl/21503 for justification of the yield delay.
+	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 5 * 1000
 	var nextYield int64
 
@@ -907,7 +907,7 @@ func scang(gp *g, gcw *gcWork) {
 
 	gp.gcscandone = false
 
-	// See http://golang.org/cl/21503 for justification of the yield delay.
+	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 10 * 1000
 	var nextYield int64
 
@@ -1293,7 +1293,9 @@ func mstart1() {
 //go:yeswritebarrierrec
 func mstartm0() {
 	// Create an extra M for callbacks on threads not created by Go.
-	if iscgo && !cgoHasExtraM {
+	// An extra M is also needed on Windows for callbacks created by
+	// syscall.NewCallback. See issue #6751 for details.
+	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		cgoHasExtraM = true
 		newextram()
 	}
@@ -1618,8 +1620,12 @@ func allocm(_p_ *p, fn func()) *m {
 // put the m back on the list.
 //go:nosplit
 func needm(x byte) {
-	if iscgo && !cgoHasExtraM {
+	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		// Can happen if C/C++ code calls Go from a global ctor.
+		// Can also happen on Windows if a global ctor uses a
+		// callback created by syscall.NewCallback. See issue #6751
+		// for details.
+		//
 		// Can not throw, because scheduler is not initialized yet.
 		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
 		exit(1)
@@ -1942,7 +1948,7 @@ func startTemplateThread() {
 	newm(templateThread, nil)
 }
 
-// tmeplateThread is a thread in a known-good state that exists solely
+// templateThread is a thread in a known-good state that exists solely
 // to start new threads in known-good states when the calling thread
 // may not be a a good state.
 //
@@ -3693,7 +3699,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// As a workaround, create a counter of SIGPROFs while in critical section
 	// to store the count, and pass it to sigprof.add() later when SIGPROF is
 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
-	if GOARCH == "mips" || GOARCH == "mipsle" {
+	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
 		if f := findfunc(pc); f.valid() {
 			if hasprefix(funcname(f), "runtime/internal/atomic") {
 				lostAtomic64Count++
@@ -3833,7 +3839,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 
 	if prof.hz != 0 {
-		if (GOARCH == "mips" || GOARCH == "mipsle") && lostAtomic64Count > 0 {
+		if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm") && lostAtomic64Count > 0 {
 			cpuprof.addLostAtomic64(lostAtomic64Count)
 			lostAtomic64Count = 0
 		}
@@ -4215,8 +4221,17 @@ func checkdead() {
 		return
 	}
 
+	// If we are not running under cgo, but we have an extra M then account
+	// for it. (It is possible to have an extra M on Windows without cgo to
+	// accommodate callbacks created by syscall.NewCallback. See issue #6751
+	// for details.)
+	var run0 int32
+	if !iscgo && cgoHasExtraM {
+		run0 = 1
+	}
+
 	run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys
-	if run > 0 {
+	if run > run0 {
 		return
 	}
 	if run < 0 {
@@ -4762,7 +4777,7 @@ func runqempty(_p_ *p) bool {
 const randomizeScheduler = raceenabled
 
 // runqput tries to put g on the local runnable queue.
-// If next if false, runqput adds g to the tail of the runnable queue.
+// If next is false, runqput adds g to the tail of the runnable queue.
 // If next is true, runqput puts g in the _p_.runnext slot.
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.

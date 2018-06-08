@@ -819,6 +819,30 @@ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
 	return z
 }
 
+// modSqrt5Mod8 uses Atkin's observation that 2 is not a square mod p
+//   alpha ==  (2*a)^((p-5)/8)    mod p
+//   beta  ==  2*a*alpha^2        mod p  is a square root of -1
+//   b     ==  a*alpha*(beta-1)   mod p  is a square root of a
+// to calculate the square root of any quadratic residue mod p quickly for 5
+// mod 8 primes.
+func (z *Int) modSqrt5Mod8Prime(x, p *Int) *Int {
+	// p == 5 mod 8 implies p = e*8 + 5
+	// e is the quotient and 5 the remainder on division by 8
+	e := new(Int).Rsh(p, 3)  // e = (p - 5) / 8
+	tx := new(Int).Lsh(x, 1) // tx = 2*x
+	alpha := new(Int).Exp(tx, e, p)
+	beta := new(Int).Mul(alpha, alpha)
+	beta.Mod(beta, p)
+	beta.Mul(beta, tx)
+	beta.Mod(beta, p)
+	beta.Sub(beta, intOne)
+	beta.Mul(beta, x)
+	beta.Mod(beta, p)
+	beta.Mul(beta, alpha)
+	z.Mod(beta, p)
+	return z
+}
+
 // modSqrtTonelliShanks uses the Tonelli-Shanks algorithm to find the square
 // root of a quadratic residue modulo any prime.
 func (z *Int) modSqrtTonelliShanks(x, p *Int) *Int {
@@ -885,12 +909,17 @@ func (z *Int) ModSqrt(x, p *Int) *Int {
 		x = new(Int).Mod(x, p)
 	}
 
-	// Check whether p is 3 mod 4, and if so, use the faster algorithm.
-	if len(p.abs) > 0 && p.abs[0]%4 == 3 {
+	switch {
+	case p.abs[0]%4 == 3:
+		// Check whether p is 3 mod 4, and if so, use the faster algorithm.
 		return z.modSqrt3Mod4Prime(x, p)
+	case p.abs[0]%8 == 5:
+		// Check whether p is 5 mod 8, use Atkin's algorithm.
+		return z.modSqrt5Mod8Prime(x, p)
+	default:
+		// Otherwise, use Tonelli-Shanks.
+		return z.modSqrtTonelliShanks(x, p)
 	}
-	// Otherwise, use Tonelli-Shanks.
-	return z.modSqrtTonelliShanks(x, p)
 }
 
 // Lsh sets z = x << n and returns z.

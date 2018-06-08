@@ -50,8 +50,8 @@ func DecodedLen(x int) int { return x / 2 }
 // Decode decodes src into DecodedLen(len(src)) bytes,
 // returning the actual number of bytes written to dst.
 //
-// Decode expects that src contain only hexadecimal
-// characters and that src should have an even length.
+// Decode expects that src contains only hexadecimal
+// characters and that src has even length.
 // If the input is malformed, Decode returns the number
 // of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
@@ -101,10 +101,10 @@ func EncodeToString(src []byte) string {
 
 // DecodeString returns the bytes represented by the hexadecimal string s.
 //
-// DecodeString expects that src contain only hexadecimal
-// characters and that src should have an even length.
-// If the input is malformed, DecodeString returns a string
-// containing the bytes decoded before the error.
+// DecodeString expects that src contains only hexadecimal
+// characters and that src has even length.
+// If the input is malformed, DecodeString returns
+// the bytes decoded before the error.
 func DecodeString(s string) ([]byte, error) {
 	src := []byte(s)
 	// We can use the source slice itself as the destination
