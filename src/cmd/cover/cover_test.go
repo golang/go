@@ -310,8 +310,8 @@ func TestCoverHTML(t *testing.T) {
 	if err := ioutil.WriteFile(htmlHTML, out.Bytes(), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// diff -ud testdata/html/html.html testdata/html/html.golden
-	cmd = exec.Command("diff", "-udw", htmlHTML, htmlGolden)
+	// diff -uw testdata/html/html.html testdata/html/html.golden
+	cmd = exec.Command("diff", "-u", "-w", htmlHTML, htmlGolden)
 	run(cmd, t)
 }
 
