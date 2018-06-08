@@ -190,6 +190,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	EOR	$(1<<63), R1   // EOR	$-9223372036854775808, R1 // 210041d2
 	EOR	$(1<<63-1), R1 // EOR	$9223372036854775807, R1  // 21f840d2
 
+	AND	$0x22220000, R3, R4   // AND $572653568, R3, R4   // 5b44a4d264001b8a
+	ORR	$0x22220000, R3, R4   // ORR $572653568, R3, R4   // 5b44a4d264001baa
+	EOR	$0x22220000, R3, R4   // EOR $572653568, R3, R4   // 5b44a4d264001bca
+	BIC	$0x22220000, R3, R4   // BIC $572653568, R3, R4   // 5b44a4d264003b8a
+	ORN	$0x22220000, R3, R4   // ORN $572653568, R3, R4   // 5b44a4d264003baa
+	EON	$0x22220000, R3, R4   // EON $572653568, R3, R4   // 5b44a4d264003bca
+	ANDS	$0x22220000, R3, R4   // ANDS $572653568, R3, R4  // 5b44a4d264001bea
+	BICS	$0x22220000, R3, R4   // BICS $572653568, R3, R4  // 5b44a4d264003bea
+
 	AND	$8, R0, RSP // 1f007d92
 	ORR	$8, R0, RSP // 1f007db2
 	EOR	$8, R0, RSP // 1f007dd2
@@ -390,6 +399,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	CMP	R1>>22, R2
 	CMP	R1<<33, R2
 	CMP	R22.SXTX, RSP // ffe336eb
+
+	CMP	$0x22220000, RSP  // CMP $572653568, RSP   // 5b44a4d2ff633beb
+	CMPW	$0x22220000, RSP  // CMPW $572653568, RSP  // 5b44a4d2ff633b6b
+
+// TST
+	TST	$15, R2                               // 5f0c40f2
+	TST	R1, R2                                // 5f0001ea
+	TST	R1->11, R2                            // 5f2c81ea
+	TST	R1>>22, R2                            // 5f5841ea
+	TST	R1<<33, R2                            // 5f8401ea
+	TST	$0x22220000, R3 // TST $572653568, R3 // 5b44a4d27f001bea
+
 //
 // CBZ
 //

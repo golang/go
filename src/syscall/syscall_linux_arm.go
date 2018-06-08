@@ -107,6 +107,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
 
 //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 
 func Fstatfs(fd int, buf *Statfs_t) (err error) {
 	_, _, e := Syscall(SYS_FSTATFS64, uintptr(fd), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))

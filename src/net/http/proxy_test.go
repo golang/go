@@ -13,37 +13,6 @@ import (
 // TODO(mattn):
 //	test ProxyAuth
 
-var UseProxyTests = []struct {
-	host  string
-	match bool
-}{
-	// Never proxy localhost:
-	{"localhost", false},
-	{"127.0.0.1", false},
-	{"127.0.0.2", false},
-	{"[::1]", false},
-	{"[::2]", true}, // not a loopback address
-
-	{"barbaz.net", false},     // match as .barbaz.net
-	{"foobar.com", false},     // have a port but match
-	{"foofoobar.com", true},   // not match as a part of foobar.com
-	{"baz.com", true},         // not match as a part of barbaz.com
-	{"localhost.net", true},   // not match as suffix of address
-	{"local.localhost", true}, // not match as prefix as address
-	{"barbarbaz.net", true},   // not match because NO_PROXY have a '.'
-	{"www.foobar.com", false}, // match because NO_PROXY includes "foobar.com"
-}
-
-func TestUseProxy(t *testing.T) {
-	ResetProxyEnv()
-	os.Setenv("NO_PROXY", "foobar.com, .barbaz.net")
-	for _, test := range UseProxyTests {
-		if useProxy(test.host+":80") != test.match {
-			t.Errorf("useProxy(%v) = %v, want %v", test.host, !test.match, test.match)
-		}
-	}
-}
-
 var cacheKeysTests = []struct {
 	proxy  string
 	scheme string
@@ -74,14 +43,8 @@ func TestCacheKeys(t *testing.T) {
 }
 
 func ResetProxyEnv() {
-	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy"} {
+	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy", "REQUEST_METHOD"} {
 		os.Unsetenv(v)
 	}
 	ResetCachedEnvironment()
-}
-
-func TestInvalidNoProxy(t *testing.T) {
-	ResetProxyEnv()
-	os.Setenv("NO_PROXY", ":1")
-	useProxy("example.com:80") // should not panic
 }

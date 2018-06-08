@@ -290,7 +290,7 @@ var readResponseTests = []readResponseTest{
 	},
 }
 
-// See http://www.ietf.org/rfc/rfc959.txt page 36.
+// See https://www.ietf.org/rfc/rfc959.txt page 36.
 func TestRFC959Lines(t *testing.T) {
 	for i, tt := range readResponseTests {
 		r := reader(tt.in + "\nFOLLOWING DATA")

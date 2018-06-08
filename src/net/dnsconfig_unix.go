@@ -121,7 +121,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 
 		case "lookup":
 			// OpenBSD option:
-			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
 			// "the legal space-separated values are: bind, file, yp"
 			conf.lookup = f[1:]
 

@@ -7,7 +7,7 @@
 // detail in:
 // S.Gueron and V.Krasnov, "Fast prime field elliptic-curve cryptography with
 //                          256-bit primes"
-// http://link.springer.com/article/10.1007%2Fs13389-014-0090-x
+// https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
 // https://eprint.iacr.org/2013/816.pdf
 
 // +build amd64

@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -282,7 +283,12 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
 		}
 		dir = filepath.Join(cwd, dir)
 		if pattern == "" {
-			return func(p *Package) bool { return p.Dir == dir }
+			return func(p *Package) bool {
+				if runtime.GOOS != "windows" {
+					return p.Dir == dir
+				}
+				return strings.EqualFold(p.Dir, dir)
+			}
 		}
 		matchPath := matchPattern(pattern)
 		return func(p *Package) bool {

@@ -1390,7 +1390,7 @@ func TestSeek(t *testing.T) {
 
 func TestSeekError(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "nacl":
+	case "js", "nacl", "plan9":
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
 
@@ -2252,6 +2252,8 @@ func TestPipeThreads(t *testing.T) {
 		t.Skip("skipping on Windows; issue 19098")
 	case "plan9":
 		t.Skip("skipping on Plan 9; does not support runtime poller")
+	case "js":
+		t.Skip("skipping on js; no support for os.Pipe")
 	}
 
 	threads := 100

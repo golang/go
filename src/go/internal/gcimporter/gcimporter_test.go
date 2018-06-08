@@ -530,6 +530,27 @@ func TestIssue25301(t *testing.T) {
 	importPkg(t, "./testdata/issue25301")
 }
 
+func TestIssue25596(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	if f := compile(t, "testdata", "issue25596.go"); f != "" {
+		defer os.Remove(f)
+	}
+
+	importPkg(t, "./testdata/issue25596")
+}
+
 func importPkg(t *testing.T, path string) *types.Package {
 	pkg, err := Import(make(map[string]*types.Package), path, ".", nil)
 	if err != nil {

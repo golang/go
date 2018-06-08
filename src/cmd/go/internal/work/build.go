@@ -284,11 +284,6 @@ func runBuild(cmd *base.Command, args []string) {
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
-	// Special case -o /dev/null by not writing at all.
-	if cfg.BuildO == os.DevNull {
-		cfg.BuildO = ""
-	}
-
 	// sanity check some often mis-used options
 	switch cfg.BuildContext.Compiler {
 	case "gccgo":
@@ -310,6 +305,11 @@ func runBuild(cmd *base.Command, args []string) {
 	}
 
 	pkgs = pkgsFilter(load.Packages(args))
+
+	// Special case -o /dev/null by not writing at all.
+	if cfg.BuildO == os.DevNull {
+		cfg.BuildO = ""
+	}
 
 	if cfg.BuildO != "" {
 		if len(pkgs) > 1 {

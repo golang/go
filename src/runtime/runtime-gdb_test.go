@@ -538,7 +538,7 @@ func TestGdbPanic(t *testing.T) {
 		`main`,
 	}
 	for _, name := range bt {
-		s := fmt.Sprintf("#.* .* in main\\.%v", name)
+		s := fmt.Sprintf("(#.* .* in )?main\\.%v", name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
 			t.Errorf("could not find '%v' in backtrace", s)

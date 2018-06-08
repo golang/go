@@ -124,24 +124,10 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SWI	$0x80
 	RET
 
-TEXT runtime·walltime(SB), 7, $32
-	MOVW	$8(R13), R0  // timeval
-	MOVW	$0, R1  // zone
-	MOVW	$0, R2	// see issue 16570
-	MOVW	$SYS_gettimeofday, R12
-	SWI	$0x80 // Note: R0 is tv_sec, R1 is tv_usec
-	CMP	$0, R0
-	BNE	inreg
-	MOVW	8(R13), R0
-	MOVW	12(R13), R1
-inreg:
-	MOVW    R1, R2  // usec
-	MOVW	R0, sec_lo+0(FP)
-	MOVW	$0, R1
-	MOVW	R1, sec_hi+4(FP)
-	MOVW	$1000, R3
-	MUL	R3, R2
-	MOVW	R2, nsec+8(FP)
+TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
+	// R0 already has *timeval
+	MOVW	$0, R1 // no timezone needed
+	BL	libc_gettimeofday(SB)
 	RET
 
 GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)

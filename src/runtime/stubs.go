@@ -113,7 +113,7 @@ func fastrand() uint32 {
 //go:nosplit
 func fastrandn(n uint32) uint32 {
 	// This is similar to fastrand() % n, but faster.
-	// See http://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
 	return uint32(uint64(fastrand()) * uint64(n) >> 32)
 }
 

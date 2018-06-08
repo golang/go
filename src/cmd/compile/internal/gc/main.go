@@ -532,6 +532,10 @@ func Main(archInit func(*Arch)) {
 	checkMapKeys()
 	timings.AddEvent(fcount, "funcs")
 
+	if nsavederrors+nerrors != 0 {
+		errorexit()
+	}
+
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
@@ -659,14 +663,6 @@ func Main(archInit func(*Arch)) {
 			Ctxt.DwFixups = nil
 			genDwarfInline = 0
 		}
-
-		// Check whether any of the functions we have compiled have gigantic stack frames.
-		obj.SortSlice(largeStackFrames, func(i, j int) bool {
-			return largeStackFrames[i].Before(largeStackFrames[j])
-		})
-		for _, largePos := range largeStackFrames {
-			yyerrorl(largePos, "stack frame too large (>1GB)")
-		}
 	}
 
 	// Phase 9: Check external declarations.
@@ -686,6 +682,14 @@ func Main(archInit func(*Arch)) {
 	dumpobj()
 	if asmhdr != "" {
 		dumpasmhdr()
+	}
+
+	// Check whether any of the functions we have compiled have gigantic stack frames.
+	obj.SortSlice(largeStackFrames, func(i, j int) bool {
+		return largeStackFrames[i].Before(largeStackFrames[j])
+	})
+	for _, largePos := range largeStackFrames {
+		yyerrorl(largePos, "stack frame too large (>1GB)")
 	}
 
 	if len(compilequeue) != 0 {

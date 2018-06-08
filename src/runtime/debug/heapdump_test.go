@@ -13,8 +13,8 @@ import (
 )
 
 func TestWriteHeapDumpNonempty(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("WriteHeapDump is not available on NaCl.")
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
 	}
 	f, err := ioutil.TempFile("", "heapdumptest")
 	if err != nil {
@@ -42,8 +42,8 @@ func objfin(x *Obj) {
 }
 
 func TestWriteHeapDumpFinalizers(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("WriteHeapDump is not available on NaCl.")
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
 	}
 	f, err := ioutil.TempFile("", "heapdumptest")
 	if err != nil {

@@ -33,6 +33,8 @@ import (
 	"math"
 	"math/big"
 	"unsafe"
+
+	"crypto/internal/randutil"
 )
 
 var bigZero = big.NewInt(0)
@@ -72,7 +74,7 @@ var (
 // We require pub.E to fit into a 32-bit integer so that we
 // do not have different behavior depending on whether
 // int is 32 or 64 bits. See also
-// http://www.imperialviolet.org/2012/03/16/rsae.html.
+// https://www.imperialviolet.org/2012/03/16/rsae.html.
 func checkPub(pub *PublicKey) error {
 	if pub.N == nil {
 		return errPublicModulus
@@ -224,6 +226,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 // [1] US patent 4405829 (1972, expired)
 // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+	randutil.MaybeReadByte(random)
+
 	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
 		N, E, D, P, Q, Dp, Dq, Qinv, err := boring.GenerateKeyRSA(bits)
 		if err != nil {
@@ -526,6 +530,8 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 
 	var ir *big.Int
 	if random != nil {
+		randutil.MaybeReadByte(random)
+
 		// Blinding enabled. Blinding involves multiplying c by r^e.
 		// Then the decryption operation performs (m^e * r^e)^d mod n
 		// which equals mr mod n. The factor of r can then be removed

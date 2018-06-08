@@ -177,7 +177,7 @@ func TestShouldBuild(t *testing.T) {
 }
 
 func TestGoodOSArchFile(t *testing.T) {
-	ctx := &Context{BuildTags: []string{"linux"}, GOOS:"darwin"}
+	ctx := &Context{BuildTags: []string{"linux"}, GOOS: "darwin"}
 	m := map[string]bool{}
 	want := map[string]bool{"linux": true}
 	if !ctx.goodOSArchFile("hello_linux.go", m) {

@@ -51,7 +51,7 @@
 
 	global.Go = class {
 		constructor() {
-			this.argv = [];
+			this.argv = ["js"];
 			this.env = {};
 			this.exit = (code) => {
 				if (code !== 0) {
@@ -141,6 +141,11 @@
 						const msec = (new Date).getTime();
 						setInt64(sp + 8, msec / 1000);
 						mem().setInt32(sp + 16, (msec % 1000) * 1000000, true);
+					},
+
+					// func getRandomData(r []byte)
+					"runtime.getRandomData": (sp) => {
+						crypto.getRandomValues(loadSlice(sp + 8));
 					},
 
 					// func boolVal(value bool) Value

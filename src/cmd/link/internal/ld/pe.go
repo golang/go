@@ -116,7 +116,7 @@ const (
 // license that can be found in the LICENSE file.
 
 // PE (Portable Executable) file writing
-// http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+// https://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."

@@ -532,6 +532,9 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	}
 
 	s.assignReg(r, v, c)
+	if c.Op == OpLoadReg && s.isGReg(r) {
+		s.f.Fatalf("allocValToReg.OpLoadReg targeting g: " + c.LongString())
+	}
 	if nospill {
 		s.nospill |= regMask(1) << r
 	}
@@ -809,6 +812,10 @@ func (s *regAllocState) regspec(op Op) regInfo {
 	return opcodeTable[op].reg
 }
 
+func (s *regAllocState) isGReg(r register) bool {
+	return s.f.Config.hasGReg && s.GReg == r
+}
+
 func (s *regAllocState) regalloc(f *Func) {
 	regValLiveSet := f.newSparseSet(f.NumValues()) // set of values that may be live in register
 	defer f.retSparseSet(regValLiveSet)
@@ -951,6 +958,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Majority vote? Deepest nesting level?
 			phiRegs = phiRegs[:0]
 			var phiUsed regMask
+
 			for _, v := range phis {
 				if !s.values[v.ID].needReg {
 					phiRegs = append(phiRegs, noRegister)
@@ -1516,6 +1524,9 @@ func (s *regAllocState) regalloc(f *Func) {
 		// predecessor of it, find live values that we use soon after
 		// the merge point and promote them to registers now.
 		if len(b.Succs) == 1 {
+			if s.f.Config.hasGReg && s.regs[s.GReg].v != nil {
+				s.freeReg(s.GReg) // Spill value in G register before any merge.
+			}
 			// For this to be worthwhile, the loop must have no calls in it.
 			top := b.Succs[0].b
 			loop := s.loopnest.b2l[top.ID]
@@ -1996,6 +2007,9 @@ func (e *edgeState) process() {
 			c = e.p.NewValue1(pos, OpLoadReg, c.Type, c)
 		}
 		e.set(r, vid, c, false, pos)
+		if c.Op == OpLoadReg && e.s.isGReg(register(r.(*Register).num)) {
+			e.s.f.Fatalf("process.OpLoadReg targeting g: " + c.LongString())
+		}
 	}
 }
 
@@ -2110,6 +2124,9 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 		}
 	}
 	e.set(loc, vid, x, true, pos)
+	if x.Op == OpLoadReg && e.s.isGReg(register(loc.(*Register).num)) {
+		e.s.f.Fatalf("processDest.OpLoadReg targeting g: " + x.LongString())
+	}
 	if splice != nil {
 		(*splice).Uses--
 		*splice = x

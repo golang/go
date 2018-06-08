@@ -131,11 +131,11 @@ NextRandom:
 //
 // Baillie and Wagstaff, "Lucas Pseudoprimes", Mathematics of Computation 35(152),
 // October 1980, pp. 1391-1417, especially page 1401.
-// http://www.ams.org/journals/mcom/1980-35-152/S0025-5718-1980-0583518-6/S0025-5718-1980-0583518-6.pdf
+// https://www.ams.org/journals/mcom/1980-35-152/S0025-5718-1980-0583518-6/S0025-5718-1980-0583518-6.pdf
 //
 // Grantham, "Frobenius Pseudoprimes", Mathematics of Computation 70(234),
 // March 2000, pp. 873-891.
-// http://www.ams.org/journals/mcom/2001-70-234/S0025-5718-00-01197-2/S0025-5718-00-01197-2.pdf
+// https://www.ams.org/journals/mcom/2001-70-234/S0025-5718-00-01197-2/S0025-5718-00-01197-2.pdf
 //
 // Baillie, "Extra strong Lucas pseudoprimes", OEIS A217719, https://oeis.org/A217719.
 //

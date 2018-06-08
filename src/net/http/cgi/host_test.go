@@ -502,6 +502,7 @@ func TestDirWindows(t *testing.T) {
 }
 
 func TestEnvOverride(t *testing.T) {
+	check(t)
 	cgifile, _ := filepath.Abs("testdata/test.cgi")
 
 	var perl string

@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -48,6 +49,9 @@ func TestReverseProxy(t *testing.T) {
 		}
 		if c := r.Header.Get("Connection"); c != "" {
 			t.Errorf("handler got Connection header value %q", c)
+		}
+		if c := r.Header.Get("Te"); c != "trailers" {
+			t.Errorf("handler got Te header value %q; want 'trailers'", c)
 		}
 		if c := r.Header.Get("Upgrade"); c != "" {
 			t.Errorf("handler got Upgrade header value %q", c)
@@ -85,6 +89,7 @@ func TestReverseProxy(t *testing.T) {
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
 	getReq.Host = "some-name"
 	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("Te", "trailers")
 	getReq.Header.Set("Proxy-Connection", "should be deleted")
 	getReq.Header.Set("Upgrade", "foo")
 	getReq.Close = true
@@ -744,6 +749,8 @@ func TestServeHTTPDeepCopy(t *testing.T) {
 // Issue 18327: verify we always do a deep copy of the Request.Header map
 // before any mutations.
 func TestClonesRequestHeaders(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	defer log.SetOutput(os.Stderr)
 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
 	req.RemoteAddr = "1.2.3.4:56789"
 	rp := &ReverseProxy{
@@ -820,6 +827,8 @@ func (cc *checkCloser) Read(b []byte) (int, error) {
 
 // Issue 23643: panic on body copy error
 func TestReverseProxy_PanicBodyError(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	defer log.SetOutput(os.Stderr)
 	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		out := "this call was relayed by the reverse proxy"
 		// Coerce a wrong content length to induce io.ErrUnexpectedEOF

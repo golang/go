@@ -46,8 +46,7 @@
 (Not x) -> (I64Eqz x)
 
 // Lowering pointer arithmetic
-(OffPtr [0] ptr) -> ptr
-(OffPtr [off] ptr) && off > 0 -> (I64AddConst [off] ptr)
+(OffPtr [off] ptr) -> (I64AddConst [off] ptr)
 
 // Lowering extension
 // It is unnecessary to extend loads
@@ -388,6 +387,7 @@
 (I64Ne x (I64Const [0])) -> (I64Eqz (I64Eqz x))
 
 (I64Add x (I64Const [y])) -> (I64AddConst [y] x)
+(I64AddConst [0] x) -> x
 (I64Eqz (I64Eqz (I64Eqz x))) -> (I64Eqz x)
 
 ((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off] (I64AddConst [off2] ptr) mem)

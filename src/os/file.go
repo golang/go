@@ -221,7 +221,12 @@ func Mkdir(name string, perm FileMode) error {
 
 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
-		setStickyBit(name)
+		e = setStickyBit(name)
+
+		if e != nil {
+			Remove(name)
+			return e
+		}
 	}
 
 	return nil

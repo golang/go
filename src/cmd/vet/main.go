@@ -415,23 +415,24 @@ func doPackage(names []string, basePkg *Package) *Package {
 			warnf("%s: %s", name, err)
 			return nil
 		}
-		checkBuildTag(name, data)
 		var parsedFile *ast.File
 		if strings.HasSuffix(name, ".go") {
-			parsedFile, err = parser.ParseFile(fs, name, data, 0)
+			parsedFile, err = parser.ParseFile(fs, name, data, parser.ParseComments)
 			if err != nil {
 				warnf("%s: %s", name, err)
 				return nil
 			}
 			astFiles = append(astFiles, parsedFile)
 		}
-		files = append(files, &File{
+		file := &File{
 			fset:    fs,
 			content: data,
 			name:    name,
 			file:    parsedFile,
 			dead:    make(map[ast.Node]bool),
-		})
+		}
+		checkBuildTag(file)
+		files = append(files, file)
 	}
 	if len(astFiles) == 0 {
 		return nil

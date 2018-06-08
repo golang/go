@@ -16,7 +16,7 @@
 // (This is a property not guaranteed by most open source
 // implementations of regular expressions.) For more information
 // about this property, see
-//	http://swtch.com/~rsc/regexp/regexp1.html
+//	https://swtch.com/~rsc/regexp/regexp1.html
 // or any book about automata theory.
 //
 // All characters are UTF-8-encoded code points.
@@ -145,7 +145,7 @@ func Compile(expr string) (*Regexp, error) {
 // specifies that the match be chosen to maximize the length of the first
 // subexpression, then the second, and so on from left to right.
 // The POSIX rule is computationally prohibitive and not even well-defined.
-// See http://swtch.com/~rsc/regexp/regexp2.html#posix for details.
+// See https://swtch.com/~rsc/regexp/regexp2.html#posix for details.
 func CompilePOSIX(expr string) (*Regexp, error) {
 	return compile(expr, syntax.POSIX, true)
 }

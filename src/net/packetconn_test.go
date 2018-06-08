@@ -5,6 +5,8 @@
 // This file implements API tests across platforms and will never have a build
 // tag.
 
+// +build !js
+
 package net
 
 import (
