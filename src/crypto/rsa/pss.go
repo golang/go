@@ -200,7 +200,6 @@ func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed,
 	}
 
 	if boring.Enabled {
-		boringFakeRandomBlind(rand, priv)
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err

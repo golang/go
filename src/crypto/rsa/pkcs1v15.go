@@ -97,7 +97,6 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
 	}
 
 	if boring.Enabled {
-		boringFakeRandomBlind(rand, priv)
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
@@ -177,7 +176,6 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 	}
 
 	if boring.Enabled {
-		boringFakeRandomBlind(rand, priv)
 		var bkey *boring.PrivateKeyRSA
 		bkey, err = boringPrivateKey(priv)
 		if err != nil {
@@ -288,7 +286,6 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 	}
 
 	if boring.Enabled {
-		boringFakeRandomBlind(random, priv)
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err

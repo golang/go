@@ -6,8 +6,6 @@ package rsa
 
 import (
 	"crypto/internal/boring"
-	"crypto/rand"
-	"io"
 	"math/big"
 	"sync/atomic"
 	"unsafe"
@@ -123,42 +121,4 @@ func copyPrivateKey(k *PrivateKey) PrivateKey {
 		dst.Precomputed.Qinv = new(big.Int).Set(x)
 	}
 	return dst
-}
-
-// boringFakeRandomBlind consumes from random to mimic the
-// blinding operation done in the standard Go func decrypt.
-// When we are using BoringCrypto, we always let it handle decrypt
-// regardless of random source, because the blind doesn't affect
-// the visible output of decryption, but if the random source is not
-// true randomness then the caller might still observe the side effect
-// of consuming from the source. We consume from the source
-// to give the same side effect. This should only happen during tests
-// (verified by the UnreachableExceptTests call below).
-//
-// We go to the trouble of doing this so that we can verify that
-// func decrypt (standard RSA decryption) is dropped from
-// BoringCrypto-linked binaries entirely; otherwise we'd have to
-// keep it in the binary just in case a call happened with a
-// non-standard randomness source.
-func boringFakeRandomBlind(random io.Reader, priv *PrivateKey) {
-	if random == nil || random == boring.RandReader {
-		return
-	}
-	boring.UnreachableExceptTests()
-
-	// Copied from func decrypt.
-	ir := new(big.Int)
-	for {
-		r, err := rand.Int(random, priv.N)
-		if err != nil {
-			return
-		}
-		if r.Cmp(bigZero) == 0 {
-			r = bigOne
-		}
-		ok := ir.ModInverse(r, priv.N)
-		if ok != nil {
-			break
-		}
-	}
 }

@@ -636,7 +636,6 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	}
 
 	if boring.Enabled {
-		boringFakeRandomBlind(random, priv)
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
