@@ -1,0 +1,7 @@
+module "x"
+
+module "y"
+
+require "x"
+
+require x

@@ -30,7 +30,14 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/go/internal/vgo"
 )
+
+func init() {
+	vgo.InstallHook = func(args []string) {
+		CmdInstall.Run(CmdInstall, args)
+	}
+}
 
 // actionList returns the list of actions in the dag rooted at root
 // as visited in a depth-first post-order traversal.
@@ -597,6 +604,13 @@ func (b *Builder) build(a *Action) (err error) {
 			continue
 		}
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
+	}
+
+	if p.Internal.BuildInfo != "" {
+		if err := b.writeFile(objdir+"_gomod_.go", vgo.ModInfoProg(p.Internal.BuildInfo)); err != nil {
+			return err
+		}
+		gofiles = append(gofiles, objdir+"_gomod_.go")
 	}
 
 	// Compile Go.

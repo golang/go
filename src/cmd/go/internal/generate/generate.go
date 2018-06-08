@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/vgo"
 	"cmd/go/internal/work"
 )
 
@@ -158,7 +159,16 @@ func runGenerate(cmd *base.Command, args []string) {
 		}
 	}
 	// Even if the arguments are .go files, this loop suffices.
+	printed := false
 	for _, pkg := range load.Packages(args) {
+		if vgo.Enabled() && !pkg.Module.Top {
+			if !printed {
+				fmt.Fprintf(os.Stderr, "vgo: not generating in packages in dependency modules\n")
+				printed = true
+			}
+			continue
+		}
+
 		pkgName := pkg.Name
 
 		for _, file := range pkg.InternalGoFiles() {
