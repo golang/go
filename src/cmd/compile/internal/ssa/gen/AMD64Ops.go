@@ -349,10 +349,10 @@ func init() {
 		// result is undefined if the input is zero.
 		// flags are set to "equal" if the input is zero, "not equal" otherwise.
 		// BS{F,R}L returns only the result.
-		{name: "BSFQ", argLength: 1, reg: gp11flags, asm: "BSFQ", typ: "(UInt64,Flags)"}, // # of low-order zeroes in 64-bit arg
-		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", typ: "UInt32"},              // # of low-order zeroes in 32-bit arg
-		{name: "BSRQ", argLength: 1, reg: gp11flags, asm: "BSRQ", typ: "(UInt64,Flags)"}, // # of high-order zeroes in 64-bit arg
-		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", typ: "UInt32"},              // # of high-order zeroes in 32-bit arg
+		{name: "BSFQ", argLength: 1, reg: gp11flags, asm: "BSFQ", typ: "(UInt64,Flags)"},        // # of low-order zeroes in 64-bit arg
+		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", typ: "UInt32", clobberFlags: true}, // # of low-order zeroes in 32-bit arg
+		{name: "BSRQ", argLength: 1, reg: gp11flags, asm: "BSRQ", typ: "(UInt64,Flags)"},        // # of high-order zeroes in 64-bit arg
+		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", typ: "UInt32", clobberFlags: true}, // # of high-order zeroes in 32-bit arg
 
 		// CMOV instructions: 64, 32 and 16-bit sizes.
 		// if arg2 encodes a true result, return arg1, else arg0
