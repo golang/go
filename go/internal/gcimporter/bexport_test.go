@@ -23,6 +23,9 @@ import (
 )
 
 func TestBExportData_stdlib(t *testing.T) {
+	if runtime.Compiler == "gccgo" {
+		t.Skip("gccgo standard library is inaccessible")
+	}
 	if runtime.GOOS == "android" {
 		t.Skipf("incomplete std lib on %s", runtime.GOOS)
 	}

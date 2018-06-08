@@ -41,6 +41,7 @@ func FakeContext(pkgs map[string]map[string]string) *build.Context {
 	ctxt := build.Default // copy
 	ctxt.GOROOT = "/go"
 	ctxt.GOPATH = ""
+	ctxt.Compiler = "gc"
 	ctxt.IsDir = func(dir string) bool {
 		dir = clean(dir)
 		if dir == "" {

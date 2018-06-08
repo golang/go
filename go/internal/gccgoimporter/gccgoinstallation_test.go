@@ -64,8 +64,6 @@ var importablePackages = [...]string{
 	"encoding/pem",
 	"encoding/xml",
 	"errors",
-	"exp/proxy",
-	"exp/terminal",
 	"expvar",
 	"flag",
 	"fmt",
@@ -116,8 +114,6 @@ var importablePackages = [...]string{
 	"net/smtp",
 	"net/textproto",
 	"net/url",
-	"old/regexp",
-	"old/template",
 	"os/exec",
 	"os",
 	"os/signal",
@@ -183,12 +179,12 @@ func TestInstallationImporter(t *testing.T) {
 
 	// Test for certain specific entities in the imported data.
 	for _, test := range [...]importerTest{
-		{pkgpath: "io", name: "Reader", want: "type Reader interface{Read(p []uint8) (n int, err error)}"},
+		{pkgpath: "io", name: "Reader", want: "type Reader interface{Read(p []byte) (n int, err error)}"},
 		{pkgpath: "io", name: "ReadWriter", want: "type ReadWriter interface{Reader; Writer}"},
 		{pkgpath: "math", name: "Pi", want: "const Pi untyped float"},
 		{pkgpath: "math", name: "Sin", want: "func Sin(x float64) float64"},
 		{pkgpath: "sort", name: "Ints", want: "func Ints(a []int)"},
-		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer unsafe.Pointer"},
+		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer"},
 	} {
 		runImporterTest(t, imp, nil, &test)
 	}

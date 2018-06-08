@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build go1.7
+// +build gc
 
 package gcexportdata_test
 
