@@ -27,9 +27,11 @@ type ResponseRecorder struct {
 	Code int
 
 	// HeaderMap contains the headers explicitly set by the Handler.
+	// It is an internal detail.
 	//
-	// To get the implicit headers set by the server (such as
-	// automatic Content-Type), use the Result method.
+	// Deprecated: HeaderMap exists for historical compatibility
+	// and should not be used. To access the headers returned by a handler,
+	// use the Response.Header map as returned by the Result method.
 	HeaderMap http.Header
 
 	// Body is the buffer to which the Handler's Write calls are sent.
