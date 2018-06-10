@@ -19,6 +19,10 @@ import (
 	"cmd/internal/src"
 )
 
+// parseFiles concurrently parses files into *syntax.File structures.
+// Each declaration in every *syntax.File is converted to a syntax tree
+// and its root represented by *Node is appended to xtop.
+// Returns the total count of parsed lines.
 func parseFiles(filenames []string) uint {
 	var noders []*noder
 	// Limit the number of simultaneously open files.
