@@ -1214,13 +1214,16 @@ func withEmptyGoPath(fn func()) {
 
 	oldGOPATH := build.Default.GOPATH
 	oldGOROOT := build.Default.GOROOT
+	oldCompiler := build.Default.Compiler
 	build.Default.GOPATH = ""
+	build.Default.Compiler = "gc"
 	testHookScanDir = func(string) {}
 
 	defer func() {
 		testHookScanDir = func(string) {}
 		build.Default.GOPATH = oldGOPATH
 		build.Default.GOROOT = oldGOROOT
+		build.Default.Compiler = oldCompiler
 	}()
 
 	fn()
