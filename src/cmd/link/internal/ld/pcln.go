@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // iteration over encoded pcdata tables.
@@ -162,11 +163,13 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 	*d = out
 }
 
-// onlycsymbol reports whether this is a cgo symbol provided by the
-// runtime and only used from C code.
+// onlycsymbol reports whether this is a symbol that is referenced by C code.
 func onlycsymbol(s *sym.Symbol) bool {
 	switch s.Name {
 	case "_cgo_topofstack", "_cgo_panic", "crosscall2":
+		return true
+	}
+	if strings.HasPrefix(s.Name, "_cgoexp_") {
 		return true
 	}
 	return false
