@@ -94,7 +94,8 @@ func TestSendfile(t *testing.T) {
 }
 
 func TestSendfileParts(t *testing.T) {
-	if runtime.GOOS == "freebsd" {
+	switch runtime.GOOS {
+	case "dragonfly", "freebsd", "solaris":
 		t.Skipf("skipping on %s (see golang.org/issue/25809 for details)", runtime.GOOS)
 	}
 
