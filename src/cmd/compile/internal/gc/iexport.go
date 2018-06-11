@@ -595,7 +595,7 @@ func (p *iexporter) typOff(t *types.Type) uint64 {
 	if !ok {
 		w := p.newWriter()
 		w.doTyp(t)
-		off = predeclReserved + uint64(w.flush())
+		off = predeclReserved + w.flush()
 		p.typIndex[t] = off
 	}
 	return off

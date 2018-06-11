@@ -2220,14 +2220,6 @@ func callnew(t *types.Type) *Node {
 	return v
 }
 
-func iscallret(n *Node) bool {
-	if n == nil {
-		return false
-	}
-	n = outervalue(n)
-	return n.Op == OINDREGSP
-}
-
 // isReflectHeaderDataField reports whether l is an expression p.Data
 // where p has type reflect.SliceHeader or reflect.StringHeader.
 func isReflectHeaderDataField(l *Node) bool {
