@@ -341,7 +341,7 @@ func Main(archInit func(*Arch)) {
 			}
 			// display help about the -d option itself and quit
 			if name == "help" {
-				fmt.Printf(debugHelpHeader)
+				fmt.Print(debugHelpHeader)
 				maxLen := len("ssa/help")
 				for _, t := range debugtab {
 					if len(t.name) > maxLen {
@@ -353,7 +353,7 @@ func Main(archInit func(*Arch)) {
 				}
 				// ssa options have their own help
 				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
-				fmt.Printf(debugHelpFooter)
+				fmt.Print(debugHelpFooter)
 				os.Exit(0)
 			}
 			val, valstring, haveInt := 1, "", true

@@ -142,7 +142,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 				// return temps (~r%d) that were created during
 				// lowering, or unnamed params ("_").
 				v.ChildIndex = int32(synthCount)
-				synthCount += 1
+				synthCount++
 			}
 		}
 	}
