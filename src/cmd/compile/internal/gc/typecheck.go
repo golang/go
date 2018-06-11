@@ -919,7 +919,7 @@ func typecheck1(n *Node, top int) *Node {
 				yyerror("%v undefined (cannot refer to unexported field or method %v)", n, n.Sym)
 
 			default:
-				if mt := lookdot(n, t, 2); mt != nil { // Case-insensitive lookup.
+				if mt := lookdot(n, t, 2); mt != nil && visible(mt.Sym) { // Case-insensitive lookup.
 					yyerror("%v undefined (type %v has no field or method %v, but does have %v)", n, n.Left.Type, n.Sym, mt.Sym)
 				} else {
 					yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Sym)
@@ -3132,7 +3132,11 @@ func typecheckcomplit(n *Node) *Node {
 				f := lookdot1(nil, l.Sym, t, t.Fields(), 0)
 				if f == nil {
 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
-						yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
+						if visible(ci.Sym) {
+							yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
+						} else {
+							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
+						}
 						continue
 					}
 					p, _ := dotpath(l.Sym, t, nil, true)
@@ -3177,6 +3181,11 @@ func typecheckcomplit(n *Node) *Node {
 
 	n.Orig = norig
 	return n
+}
+
+// visible reports whether sym is exported or locally defined.
+func visible(sym *types.Sym) bool {
+	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == localpkg)
 }
 
 // lvalue etc
