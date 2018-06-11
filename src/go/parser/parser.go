@@ -813,6 +813,8 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 		defer un(trace(p, "ParameterList"))
 	}
 
+	doc := p.leadComment
+
 	// 1st ParameterDecl
 	// A list of identifiers looks like a list of type names.
 	var list []ast.Expr
@@ -831,7 +833,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 	if typ := p.tryVarType(ellipsisOk); typ != nil {
 		// IdentifierList Type
 		idents := p.makeIdentList(list)
-		field := &ast.Field{Names: idents, Type: typ}
+		field := &ast.Field{Doc: doc, Names: idents, Type: typ}
 		params = append(params, field)
 		// Go spec: The scope of an identifier denoting a function
 		// parameter or result variable is the function body.
@@ -841,10 +843,13 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 			return
 		}
 		p.next()
+		field.Comment = p.lineComment
+
 		for p.tok != token.RPAREN && p.tok != token.EOF {
+			doc = p.leadComment
 			idents := p.parseIdentList()
 			typ := p.parseVarType(ellipsisOk)
-			field := &ast.Field{Names: idents, Type: typ}
+			field := &ast.Field{Doc: doc, Names: idents, Type: typ}
 			params = append(params, field)
 			// Go spec: The scope of an identifier denoting a function
 			// parameter or result variable is the function body.
@@ -854,6 +859,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 				break
 			}
 			p.next()
+			field.Comment = p.lineComment
 		}
 		return
 	}
