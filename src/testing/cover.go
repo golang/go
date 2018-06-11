@@ -19,7 +19,7 @@ type CoverBlock struct {
 	Line0 uint32 // line number for block start
 	Col0  uint16 // column number for block start
 	Line1 uint32 // line number for block end
-	Col1  uint16 // column number for block end 
+	Col1  uint16 // column number for block end
 	Stmts uint16 // number of statements included in this block
 }
 
