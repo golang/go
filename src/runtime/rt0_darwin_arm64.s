@@ -8,8 +8,7 @@
 // supports external linking.
 TEXT _rt0_arm64_darwin(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$42, R0
-	MOVD	$1, R16	// SYS_exit
-	SVC	$0x80
+	BL  libc_exit(SB)
 
 // When linking with -buildmode=c-archive or -buildmode=c-shared,
 // this symbol is called from a global initialization function.
