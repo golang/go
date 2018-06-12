@@ -241,6 +241,11 @@ func walkswitch(sw *Node) {
 // search using if..goto, although binary search
 // is used with long runs of constants.
 func (s *exprSwitch) walk(sw *Node) {
+	// Guard against double walk, see #25776.
+	if sw.List.Len() == 0 && sw.Nbody.Len() > 0 {
+		Fatalf("second walk of switch")
+	}
+
 	casebody(sw, nil)
 
 	cond := sw.Left
