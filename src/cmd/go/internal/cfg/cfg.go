@@ -103,6 +103,16 @@ func init() {
 	}
 }
 
+// There is a copy of findGOROOT, isSameDir, and isGOROOT in
+// x/tools/cmd/godoc/goroot.go.
+// Try to keep them in sync for now.
+
+// findGOROOT returns the GOROOT value, using either an explicitly
+// provided environment variable, a GOROOT that contains the current
+// os.Executable value, or else the GOROOT that the binary was built
+// with from runtime.GOROOT().
+//
+// There is a copy of this code in x/tools/cmd/godoc/goroot.go.
 func findGOROOT() string {
 	if env := os.Getenv("GOROOT"); env != "" {
 		return filepath.Clean(env)
@@ -162,6 +172,8 @@ func isSameDir(dir1, dir2 string) bool {
 // It does this by looking for the path/pkg/tool directory,
 // which is necessary for useful operation of the cmd/go tool,
 // and is not typically present in a GOPATH.
+//
+// There is a copy of this code in x/tools/cmd/godoc/goroot.go.
 func isGOROOT(path string) bool {
 	stat, err := os.Stat(filepath.Join(path, "pkg", "tool"))
 	if err != nil {
