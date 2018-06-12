@@ -99,6 +99,7 @@ func init() {
 var testGOROOT string
 
 var testCC string
+var testGOCACHE string
 
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
@@ -175,6 +176,13 @@ func TestMain(m *testing.M) {
 			}
 		}
 
+		out, err = exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "could not find testing GOCACHE: %v\n%s", err, out)
+			os.Exit(2)
+		}
+		testGOCACHE = strings.TrimSpace(string(out))
+
 		// As of Sept 2017, MSan is only supported on linux/amd64.
 		// https://github.com/google/sanitizers/wiki/MemorySanitizer#getting-memorysanitizer
 		canMSan = canCgo && runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
@@ -198,7 +206,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv("HOME", "/test-go-home-does-not-exist")
 	if os.Getenv("GOCACHE") == "" {
-		os.Setenv("GOCACHE", "off") // because $HOME is gone
+		os.Setenv("GOCACHE", testGOCACHE) // because $HOME is gone
 	}
 
 	r := m.Run()
@@ -3261,9 +3269,9 @@ func TestGoTestCoverMultiPackage(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "-cover", "./testdata/testcover/...")
-	tg.grepStdout(`\?.*testdata/testcover/pkg1.*\d\.\d\d\ds.*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
-	tg.grepStdout(`ok.*testdata/testcover/pkg2.*\d\.\d\d\ds.*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
-	tg.grepStdout(`ok.*testdata/testcover/pkg3.*\d\.\d\d\ds.*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
+	tg.grepStdout(`\?.*testdata/testcover/pkg1.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
+	tg.grepStdout(`ok.*testdata/testcover/pkg2.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
+	tg.grepStdout(`ok.*testdata/testcover/pkg3.*(\d\.\d\d\ds|cached).*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
 }
 
 // issue 24570
@@ -3272,9 +3280,9 @@ func TestGoTestCoverprofileMultiPackage(t *testing.T) {
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
 	tg.run("test", "-coverprofile=testdata/cover.out", "./testdata/testcover/...")
-	tg.grepStdout(`\?.*testdata/testcover/pkg1.*\d\.\d\d\ds.*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
-	tg.grepStdout(`ok.*testdata/testcover/pkg2.*\d\.\d\d\ds.*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
-	tg.grepStdout(`ok.*testdata/testcover/pkg3.*\d\.\d\d\ds.*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
+	tg.grepStdout(`\?.*testdata/testcover/pkg1.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
+	tg.grepStdout(`ok.*testdata/testcover/pkg2.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
+	tg.grepStdout(`ok.*testdata/testcover/pkg3.*(\d\.\d\d\ds|cached).*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
 	} else {
