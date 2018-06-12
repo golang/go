@@ -8,7 +8,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"reflect"
 	"runtime"
 	"runtime/pprof/internal/profile"
@@ -224,4 +227,70 @@ func TestProcSelfMaps(t *testing.T) {
 			t.Errorf("#%d: have:\n%s\nwant:\n%s\n%q\n%q", tx, buf.String(), out, buf.String(), out)
 		}
 	}
+}
+
+// TestMapping checkes the mapping section of CPU profiles
+// has the HasFunctions field set correctly. If all PCs included
+// in the samples are successfully symbolized, the corresponding
+// mapping entry (in this test case, only one entry) should have
+// its HasFunctions field set true.
+// The test generates a CPU profile that includes PCs from C side
+// that the runtime can't symbolize. See ./testdata/mappingtest.
+func TestMapping(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
+	prog := "./testdata/mappingtest"
+
+	// GoOnly includes only Go symbols that runtime will symbolize.
+	// Go+C includes C symbols that runtime will not symbolize.
+	for _, traceback := range []string{"GoOnly", "Go+C"} {
+		t.Run("traceback"+traceback, func(t *testing.T) {
+			cmd := exec.Command("go", "run", prog)
+			if traceback != "GoOnly" {
+				cmd.Env = append(os.Environ(), "SETCGOTRACEBACK=1")
+			}
+			cmd.Stderr = new(bytes.Buffer)
+
+			out, err := cmd.Output()
+			if err != nil {
+				t.Fatalf("failed to run the test program %q: %v\n%v", prog, err, cmd.Stderr)
+			}
+
+			prof, err := profile.Parse(bytes.NewReader(out))
+			if err != nil {
+				t.Fatalf("failed to parse the generated profile data: %v", err)
+			}
+
+			allResolved := !hasUnresolvedSymbol(prof)
+			if allResolved && traceback != "GoOnly" {
+				t.Log("No non-Go samples were sampled")
+			}
+
+			for _, m := range prof.Mapping {
+				if !strings.Contains(m.File, "/exe/main") {
+					continue
+				}
+				if allResolved && !m.HasFunctions {
+					t.Errorf("HasFunctions=%t when all sampled PCs were symbolized\n%s", m.HasFunctions, prof)
+				}
+				if !allResolved && m.HasFunctions {
+					t.Errorf("HasFunctions=%t when some sampled PCs were not symbolized\n%s", m.HasFunctions, prof)
+				}
+			}
+		})
+	}
+}
+
+func hasUnresolvedSymbol(prof *profile.Profile) bool {
+	for _, loc := range prof.Location {
+		if len(loc.Line) == 0 {
+			return true
+		}
+		l := loc.Line[0]
+		f := l.Function
+		if l.Line == 0 || f == nil || f.Name == "" || f.Filename == "" {
+			return true
+		}
+	}
+	return false
 }
