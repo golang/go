@@ -63,12 +63,14 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·setitimer(SB), NOSPLIT, $0
-	MOVL	mode+0(FP), DI
-	MOVQ	new+8(FP), SI
-	MOVQ	old+16(FP), DX
-	MOVL	$(0x2000000+83), AX	// syscall entry
-	SYSCALL
+TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 new
+	MOVQ	16(DI), DX		// arg 3 old
+	MOVL	0(DI), DI		// arg 1 which
+	CALL	libc_setitimer(SB)
+	POPQ	BP
 	RET
 
 TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
@@ -338,57 +340,53 @@ TEXT runtime·settls(SB),NOSPLIT,$32
 	// Nothing to do on Darwin, pthread already set thread-local storage up.
 	RET
 
-TEXT runtime·sysctl(SB),NOSPLIT,$0
-	MOVQ	mib+0(FP), DI
-	MOVL	miblen+8(FP), SI
-	MOVQ	out+16(FP), DX
-	MOVQ	size+24(FP), R10
-	MOVQ	dst+32(FP), R8
-	MOVQ	ndst+40(FP), R9
-	MOVL	$(0x2000000+202), AX	// syscall entry
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+48(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+48(FP)
+TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	8(DI), SI		// arg 2 miblen
+	MOVQ	16(DI), DX		// arg 3 out
+	MOVQ	24(DI), CX		// arg 4 size
+	MOVQ	32(DI), R8		// arg 5 dst
+	MOVQ	40(DI), R9		// arg 6 ndst
+	MOVQ	0(DI), DI		// arg 1 mib
+	CALL	libc_sysctl(SB)
+	POPQ	BP
 	RET
 
-// func kqueue() int32
-TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVQ    $0, DI
-	MOVQ    $0, SI
-	MOVQ    $0, DX
-	MOVL	$(0x2000000+362), AX
-	SYSCALL
-	JCC	2(PC)
-	NEGQ	AX
-	MOVL	AX, ret+0(FP)
+TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	CALL	libc_kqueue(SB)
+	POPQ	BP
 	RET
 
-// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL    kq+0(FP), DI
-	MOVQ    ch+8(FP), SI
-	MOVL    nch+16(FP), DX
-	MOVQ    ev+24(FP), R10
-	MOVL    nev+32(FP), R8
-	MOVQ    ts+40(FP), R9
-	MOVL	$(0x2000000+363), AX
-	SYSCALL
-	JCC	2(PC)
-	NEGQ	AX
-	MOVL	AX, ret+48(FP)
+TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 keventt
+	MOVL	16(DI), DX		// arg 3 nch
+	MOVQ	24(DI), CX		// arg 4 ev
+	MOVL	32(DI), R8		// arg 5 nev
+	MOVQ	40(DI), R9		// arg 6 ts
+	MOVL	0(DI), DI		// arg 1 kq
+	CALL	libc_kevent(SB)
+	CMPQ	AX, $-1
+	JNE	ok
+	CALL	libc_error(SB)
+	MOVQ	(AX), AX		// errno
+	NEGQ	AX			// caller wants it as a negative error code
+ok:
+	POPQ	BP
 	RET
 
-// func closeonexec(fd int32)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVL    fd+0(FP), DI  // fd
-	MOVQ    $2, SI  // F_SETFD
-	MOVQ    $1, DX  // FD_CLOEXEC
-	MOVL	$(0x2000000+92), AX  // fcntl
-	SYSCALL
+TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	4(DI), SI		// arg 2 cmd
+	MOVL	8(DI), DX		// arg 3 arg
+	MOVL	0(DI), DI		// arg 1 fd
+	CALL	libc_fcntl(SB)
+	POPQ	BP
 	RET
 
 // mstart_stub is the first function executed on a new thread started by pthread_create.

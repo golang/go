@@ -214,8 +214,49 @@ func raiseproc(sig uint32) {
 }
 func raiseproc_trampoline()
 
+//go:nosplit
+//go:cgo_unsafe_args
+func setitimer(mode int32, new, old *itimerval) {
+	asmcgocall(unsafe.Pointer(funcPC(setitimer_trampoline)), unsafe.Pointer(&mode))
+}
+func setitimer_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
+	return asmcgocall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
+}
+func sysctl_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func fcntl(fd, cmd, arg int32) int32 {
+	return asmcgocall(unsafe.Pointer(funcPC(fcntl_trampoline)), unsafe.Pointer(&fd))
+}
+func fcntl_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func kqueue() int32 {
+	v := asmcgocall(unsafe.Pointer(funcPC(kqueue_trampoline)), nil)
+	return v
+}
+func kqueue_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32 {
+	return asmcgocall(unsafe.Pointer(funcPC(kevent_trampoline)), unsafe.Pointer(&kq))
+}
+func kevent_trampoline()
+
 // Not used on Darwin, but must be defined.
 func exitThread(wait *uint32) {
+}
+
+//go:nosplit
+func closeonexec(fd int32) {
+	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
 }
 
 // Tell the linker that the libc_* functions are to be found
@@ -247,6 +288,11 @@ func exitThread(wait *uint32) {
 //go:cgo_import_dynamic libc_sigaltstack sigaltstack "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_getpid getpid "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_kill kill "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_setitimer setitimer "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_fcntl fcntl "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_kqueue kqueue "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_kevent kevent "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210

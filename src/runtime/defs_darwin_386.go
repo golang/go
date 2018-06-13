@@ -123,6 +123,9 @@ const (
 	_EVFILT_WRITE = -0x2
 
 	_PTHREAD_CREATE_DETACHED = 0x2
+
+	_F_SETFD    = 0x2
+	_FD_CLOEXEC = 0x1
 )
 
 type machbody struct {
