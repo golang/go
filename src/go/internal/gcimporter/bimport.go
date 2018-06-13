@@ -50,24 +50,24 @@ type importer struct {
 // compromised, an error is returned.
 func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
 	// catch panics and return them as errors
+	const currentVersion = 6
+	version := -1 // unknown version
 	defer func() {
 		if e := recover(); e != nil {
-			// The package (filename) causing the problem is added to this
-			// error by a wrapper in the caller (Import in gcimporter.go).
 			// Return a (possibly nil or incomplete) package unchanged (see #16088).
-			err = fmt.Errorf("cannot import, possibly version skew (%v) - reinstall package", e)
+			if version > currentVersion {
+				err = fmt.Errorf("cannot import %q (%v), export data is newer version - update tool", path, e)
+			} else {
+				err = fmt.Errorf("cannot import %q (%v), possibly version skew - reinstall package", path, e)
+			}
 		}
 	}()
-
-	if len(data) > 0 && data[0] == 'i' {
-		return iImportData(fset, imports, data[1:], path)
-	}
 
 	p := importer{
 		imports:    imports,
 		data:       data,
 		importpath: path,
-		version:    -1,           // unknown version
+		version:    version,
 		strList:    []string{""}, // empty string is mapped to 0
 		pathList:   []string{""}, // empty string is mapped to 0
 		fake: fakeFileSet{
@@ -92,7 +92,7 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		p.posInfoFormat = p.int() != 0
 		versionstr = p.string()
 		if versionstr == "v1" {
-			p.version = 0
+			version = 0
 		}
 	} else {
 		// Go1.8 extensible encoding
@@ -100,24 +100,25 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		versionstr = p.rawStringln(b)
 		if s := strings.SplitN(versionstr, " ", 3); len(s) >= 2 && s[0] == "version" {
 			if v, err := strconv.Atoi(s[1]); err == nil && v > 0 {
-				p.version = v
+				version = v
 			}
 		}
 	}
+	p.version = version
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 7:
+	// case currentVersion:
 	// 	...
 	//	fallthrough
-	case 6, 5, 4, 3, 2, 1:
+	case currentVersion, 5, 4, 3, 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.int() != 0
 		p.posInfoFormat = p.int() != 0
 	case 0:
 		// Go1.7 encoding format - nothing to do here
 	default:
-		errorf("unknown export format version %d (%q)", p.version, versionstr)
+		errorf("unknown bexport format version %d (%q)", p.version, versionstr)
 	}
 
 	// --- generic export data ---

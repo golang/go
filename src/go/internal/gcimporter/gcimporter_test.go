@@ -141,9 +141,21 @@ func TestVersionHandling(t *testing.T) {
 		}
 		pkgpath := "./" + name[:len(name)-2]
 
+		if testing.Verbose() {
+			t.Logf("importing %s", name)
+		}
+
 		// test that export data can be imported
 		_, err := Import(make(map[string]*types.Package), pkgpath, dir, nil)
 		if err != nil {
+			// ok to fail if it fails with a newer version error for select files
+			if strings.Contains(err.Error(), "newer version") {
+				switch name {
+				case "test_go1.11_999b.a", "test_go1.11_999i.a":
+					continue
+				}
+				// fall through
+			}
 			t.Errorf("import %q failed: %v", pkgpath, err)
 			continue
 		}
