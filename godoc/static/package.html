@@ -90,6 +90,7 @@
 		{{if $.Examples}}
 		<div id="pkg-examples">
 			<h3>Examples</h3>
+			<div class="js-expandAll expandAll collapsed">(Expand All)</div>
 			<dl>
 			{{range $.Examples}}
 			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>

@@ -329,6 +329,28 @@ function addPermalinks() {
   });
 }
 
+$(".js-expandAll").click(function() {
+  if ($(this).hasClass("collapsed")) {
+    toggleExamples('toggle');
+    $(this).text("(Collapse All)");
+  } else {
+    toggleExamples('toggleVisible');
+    $(this).text("(Expand All)");
+  }
+  $(this).toggleClass("collapsed")
+});
+
+function toggleExamples(className) {
+  // We need to explicitly iterate through divs starting with "example_"
+  // to avoid toggling Overview and Index collapsibles.
+  $("[id^='example_']").each(function() {
+    // Check for state and click it only if required.
+    if ($(this).hasClass(className)) {
+      $(this).find('.toggleButton').first().click();
+    }
+  });
+}
+
 $(document).ready(function() {
   generateTOC();
   addPermalinks();

@@ -912,6 +912,28 @@ function addPermalinks() {
   });
 }
 
+$(".js-expandAll").click(function() {
+  if ($(this).hasClass("collapsed")) {
+    toggleExamples('toggle');
+    $(this).text("(Collapse All)");
+  } else {
+    toggleExamples('toggleVisible');
+    $(this).text("(Expand All)");
+  }
+  $(this).toggleClass("collapsed")
+});
+
+function toggleExamples(className) {
+  // We need to explicitly iterate through divs starting with "example_"
+  // to avoid toggling Overview and Index collapsibles.
+  $("[id^='example_']").each(function() {
+    // Check for state and click it only if required.
+    if ($(this).hasClass(className)) {
+      $(this).find('.toggleButton').first().click();
+    }
+  });
+}
+
 $(document).ready(function() {
   generateTOC();
   addPermalinks();
@@ -1710,6 +1732,7 @@ function cgAddChild(tree, ul, cgn) {
 		{{if $.Examples}}
 		<div id="pkg-examples">
 			<h3>Examples</h3>
+			<div class="js-expandAll expandAll collapsed">(Expand All)</div>
 			<dl>
 			{{range $.Examples}}
 			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
@@ -3042,12 +3065,14 @@ pre .ln {
 }
 
 a,
-.exampleHeading .text {
+.exampleHeading .text,
+.expandAll {
 	color: #375EAB;
 	text-decoration: none;
 }
 a:hover,
-.exampleHeading .text:hover {
+.exampleHeading .text:hover,
+.expandAll:hover {
 	text-decoration: underline;
 }
 .article a {
@@ -3162,6 +3187,20 @@ div#nav table td {
 .top-heading a {
 	color: #222;
 	text-decoration: none;
+}
+
+#pkg-examples h3 {
+	float: left;
+}
+
+#pkg-examples dl {
+	clear: both;
+}
+
+.expandAll {
+	cursor: pointer;
+	float: left;
+	margin: 1.25rem 0;
 }
 
 div#topbar {

@@ -40,12 +40,14 @@ pre .ln {
 }
 
 a,
-.exampleHeading .text {
+.exampleHeading .text,
+.expandAll {
 	color: #375EAB;
 	text-decoration: none;
 }
 a:hover,
-.exampleHeading .text:hover {
+.exampleHeading .text:hover,
+.expandAll:hover {
 	text-decoration: underline;
 }
 .article a {
@@ -160,6 +162,20 @@ div#nav table td {
 .top-heading a {
 	color: #222;
 	text-decoration: none;
+}
+
+#pkg-examples h3 {
+	float: left;
+}
+
+#pkg-examples dl {
+	clear: both;
+}
+
+.expandAll {
+	cursor: pointer;
+	float: left;
+	margin: 1.25rem 0;
 }
 
 div#topbar {
