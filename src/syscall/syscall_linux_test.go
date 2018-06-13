@@ -21,6 +21,69 @@ import (
 	"time"
 )
 
+// chtmpdir changes the working directory to a new temporary directory and
+// provides a cleanup function. Used when PWD is read-only.
+func chtmpdir(t *testing.T) func() {
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	if err := os.Chdir(d); err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	return func() {
+		if err := os.Chdir(oldwd); err != nil {
+			t.Fatalf("chtmpdir: %v", err)
+		}
+		os.RemoveAll(d)
+	}
+}
+
+func touch(t *testing.T, name string) {
+	f, err := os.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+const (
+	_AT_SYMLINK_NOFOLLOW = 0x100
+	_AT_FDCWD            = -0x64
+)
+
+func TestFchmodat(t *testing.T) {
+	defer chtmpdir(t)()
+
+	touch(t, "file1")
+	os.Symlink("file1", "symlink1")
+
+	err := syscall.Fchmodat(_AT_FDCWD, "symlink1", 0444, 0)
+	if err != nil {
+		t.Fatalf("Fchmodat: unexpected error: %v", err)
+	}
+
+	fi, err := os.Stat("file1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if fi.Mode() != 0444 {
+		t.Errorf("Fchmodat: failed to change mode: expected %v, got %v", 0444, fi.Mode())
+	}
+
+	err = syscall.Fchmodat(_AT_FDCWD, "symlink1", 0444, _AT_SYMLINK_NOFOLLOW)
+	if err != syscall.EOPNOTSUPP {
+		t.Fatalf("Fchmodat: unexpected error: %v, expected EOPNOTSUPP", err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	if os.Getenv("GO_DEATHSIG_PARENT") == "1" {
 		deathSignalParent()
