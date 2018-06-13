@@ -85,6 +85,14 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 		return gcimporter.ImportData(imports, path, path, bytes.NewReader(data))
 	}
 
+	// The indexed export format starts with an 'i'; the older
+	// binary export format starts with a 'c', 'd', or 'v'
+	// (from "version"). Select appropriate importer.
+	if len(data) > 0 && data[0] == 'i' {
+		_, pkg, err := gcimporter.IImportData(fset, imports, data[1:], path)
+		return pkg, err
+	}
+
 	_, pkg, err := gcimporter.BImportData(fset, imports, data, path)
 	return pkg, err
 }

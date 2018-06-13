@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file is a copy of $GOROOT/src/go/internal/gcimporter/gcimporter.go,
+// This file is a modified copy of $GOROOT/src/go/internal/gcimporter/gcimporter.go,
 // but it also contains the original source-based importer code for Go1.6.
 // Once we stop supporting 1.6, we can remove that code.
 
@@ -55,6 +55,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		}
 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
+			id = path // make sure we have an id to print in error message
 			return
 		}
 		noext = strings.TrimSuffix(bp.PkgObj, ".a")
@@ -133,7 +134,7 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
 		if path == "unsafe" {
 			return types.Unsafe, nil
 		}
-		err = fmt.Errorf("can't find import: %s", id)
+		err = fmt.Errorf("can't find import: %q", id)
 		return
 	}
 
@@ -164,14 +165,27 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
 	switch hdr {
 	case "$$\n":
 		return ImportData(packages, filename, id, buf)
+
 	case "$$B\n":
 		var data []byte
 		data, err = ioutil.ReadAll(buf)
-		if err == nil {
-			fset := token.NewFileSet()
-			_, pkg, err = BImportData(fset, packages, data, id)
-			return
+		if err != nil {
+			break
 		}
+
+		// TODO(gri): allow clients of go/importer to provide a FileSet.
+		// Or, define a new standard go/types/gcexportdata package.
+		fset := token.NewFileSet()
+
+		// The indexed export format starts with an 'i'; the older
+		// binary export format starts with a 'c', 'd', or 'v'
+		// (from "version"). Select appropriate importer.
+		if len(data) > 0 && data[0] == 'i' {
+			_, pkg, err = IImportData(fset, packages, data[1:], id)
+		} else {
+			_, pkg, err = BImportData(fset, packages, data, id)
+		}
+
 	default:
 		err = fmt.Errorf("unknown export data header: %q", hdr)
 	}
