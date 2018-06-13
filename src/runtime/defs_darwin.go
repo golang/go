@@ -25,6 +25,7 @@ package runtime
 #include <sys/event.h>
 #include <sys/mman.h>
 #include <pthread.h>
+#include <fcntl.h>
 */
 import "C"
 
@@ -146,6 +147,9 @@ const (
 	EVFILT_WRITE = C.EVFILT_WRITE
 
 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
+
+	F_SETFD    = C.F_SETFD
+	FD_CLOEXEC = C.FD_CLOEXEC
 )
 
 type MachBody C.mach_msg_body_t

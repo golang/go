@@ -18,9 +18,6 @@ func mach_reply_port() uint32
 func mach_task_self() uint32
 func mach_thread_self() uint32
 
-//go:noescape
-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
-
 func unimplemented(name string) {
 	println(name, "not implemented")
 	*(*int)(unsafe.Pointer(uintptr(1231))) = 1231
@@ -497,9 +494,6 @@ const (
 	_SIG_SETMASK = 3
 	_SS_DISABLE  = 4
 )
-
-//go:noescape
-func setitimer(mode int32, new, old *itimerval)
 
 //extern SigTabTT runtime·sigtab[];
 
