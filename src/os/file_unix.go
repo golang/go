@@ -114,6 +114,8 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 		stdoutOrErr: fdi == 1 || fdi == 2,
 	}}
 
+	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
+
 	// Don't try to use kqueue with regular files on FreeBSD.
 	// It crashes the system unpredictably while running all.bash.
 	// Issue 19093.
@@ -121,10 +123,19 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// we assume they know what they are doing so we allow it to be
 	// used with kqueue.
 	if runtime.GOOS == "freebsd" && kind == kindOpenFile {
-		kind = kindNewFile
+		pollable = false
 	}
 
-	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
+	// On Darwin, kqueue does not work properly with fifos:
+	// closing the last writer does not cause a kqueue event
+	// for any readers. See issue #24164.
+	if runtime.GOOS == "darwin" && kind == kindOpenFile {
+		var st syscall.Stat_t
+		if err := syscall.Fstat(fdi, &st); err == nil && st.Mode&syscall.S_IFMT == syscall.S_IFIFO {
+			pollable = false
+		}
+	}
+
 	if err := f.pfd.Init("file", pollable); err != nil {
 		// An error here indicates a failure to register
 		// with the netpoll system. That can happen for
