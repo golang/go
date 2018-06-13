@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//+build go1.10
+
 package static
 
 import (
@@ -22,6 +24,10 @@ func TestStaticIsUpToDate(t *testing.T) {
 	}
 
 	if bytes.Compare(oldBuf, newBuf) != 0 {
-		t.Error("static.go is stale")
+		t.Error(`static.go is stale.  Run:
+  $ go generate golang.org/x/tools/godoc/static
+  $ git diff
+to see the differences.`)
+
 	}
 }
