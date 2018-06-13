@@ -336,7 +336,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 	// check embedded interfaces (if they are named, too)
 	for i := 0; i < iface.NumEmbeddeds(); i++ {
 		// embedding of interfaces cannot have cycles; recursion will terminate
-		if etype, _ := iface.EmbeddedType(i).(*types.Named); etype != nil {
+		if etype, _ := embeddedType(iface, i).(*types.Named); etype != nil {
 			verifyInterfaceMethodRecvs(t, etype, level+1)
 		}
 	}

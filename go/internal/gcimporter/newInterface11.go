@@ -11,3 +11,7 @@ import "go/types"
 func newInterface(methods []*types.Func, embeddeds []types.Type) *types.Interface {
 	return types.NewInterface2(methods, embeddeds)
 }
+
+func embeddedType(iface *types.Interface, i int) types.Type {
+	return iface.EmbeddedType(i)
+}
