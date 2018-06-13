@@ -19,7 +19,3 @@ func newInterface(methods []*types.Func, embeddeds []types.Type) *types.Interfac
 	}
 	return types.NewInterface(methods, named)
 }
-
-func embeddedType(iface *types.Interface, i int) types.Type {
-	return iface.Embedded(i)
-}
