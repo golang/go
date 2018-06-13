@@ -240,13 +240,13 @@ func TestMapping(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	testenv.MustHaveCGO(t)
 
-	prog := "./testdata/mappingtest"
+	prog := "./testdata/mappingtest/main.go"
 
 	// GoOnly includes only Go symbols that runtime will symbolize.
 	// Go+C includes C symbols that runtime will not symbolize.
 	for _, traceback := range []string{"GoOnly", "Go+C"} {
 		t.Run("traceback"+traceback, func(t *testing.T) {
-			cmd := exec.Command("go", "run", prog)
+			cmd := exec.Command(testenv.GoToolPath(t), "run", prog)
 			if traceback != "GoOnly" {
 				cmd.Env = append(os.Environ(), "SETCGOTRACEBACK=1")
 			}
