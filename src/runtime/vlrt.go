@@ -163,6 +163,7 @@ func int64div(n, d int64) int64 {
 	return q
 }
 
+//go:nosplit
 func int64mod(n, d int64) int64 {
 	// Check for 32 bit operands
 	if int64(int32(n)) == n && int64(int32(d)) == d {

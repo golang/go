@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // System calls and other sys.stuff for 386, Darwin
-// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
-// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+// System calls are implemented in libSystem, this file contains
+// trampolines that convert from Go to C calling convention.
 
 #include "go_asm.h"
 #include "go_tls.h"
@@ -338,72 +338,6 @@ TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
-// Invoke Mach system call.
-// Assumes system call number in AX,
-// caller PC on stack, caller's caller PC next,
-// and then the system call arguments.
-//
-// Can be used for BSD too, but we don't,
-// because if you use this interface the BSD
-// system call numbers need an extra field
-// in the high 16 bits that seems to be the
-// argument count in bytes but is not always.
-// INT $0x80 works fine for those.
-TEXT runtime·sysenter(SB),NOSPLIT,$0
-	POPL	DX
-	MOVL	SP, CX
-	SYSENTER
-	// returns to DX with SP set to CX
-
-TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
-	MOVL	$-31, AX
-	CALL	runtime·sysenter(SB)
-	MOVL	AX, ret+28(FP)
-	RET
-
-TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
-	MOVL	$-26, AX
-	CALL	runtime·sysenter(SB)
-	MOVL	AX, ret+0(FP)
-	RET
-
-TEXT runtime·mach_task_self(SB),NOSPLIT,$0
-	MOVL	$-28, AX
-	CALL	runtime·sysenter(SB)
-	MOVL	AX, ret+0(FP)
-	RET
-
-// Mach provides trap versions of the semaphore ops,
-// instead of requiring the use of RPC.
-
-// func mach_semaphore_wait(sema uint32) int32
-TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
-	MOVL	$-36, AX
-	CALL	runtime·sysenter(SB)
-	MOVL	AX, ret+4(FP)
-	RET
-
-// func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
-TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
-	MOVL	$-38, AX
-	CALL	runtime·sysenter(SB)
-	MOVL	AX, ret+12(FP)
-	RET
-
-// func mach_semaphore_signal(sema uint32) int32
-TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
-	MOVL	$-33, AX
-	CALL	runtime·sysenter(SB)
-	MOVL	AX, ret+4(FP)
-	RET
-
-// func mach_semaphore_signal_all(sema uint32) int32
-TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
-	MOVL	$-34, AX
-	CALL	runtime·sysenter(SB)
-	MOVL	AX, ret+4(FP)
-	RET
-
 // func setldt(entry int, address int, limit int)
 TEXT runtime·setldt(SB),NOSPLIT,$32
 	// Nothing to do on Darwin, pthread already set thread-local storage up.
@@ -593,4 +527,98 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	CALL    libc_raise(SB)
 	MOVL    BP, SP
 	POPL    BP
+	RET
+
+TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 mutex
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX	// arg 2 attr
+	MOVL	AX, 4(SP)
+	CALL	libc_pthread_mutex_init(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 mutex
+	MOVL	AX, 0(SP)
+	CALL	libc_pthread_mutex_lock(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 mutex
+	MOVL	AX, 0(SP)
+	CALL	libc_pthread_mutex_unlock(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 cond
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX	// arg 2 attr
+	MOVL	AX, 4(SP)
+	CALL	libc_pthread_cond_init(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 cond
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX	// arg 2 mutex
+	MOVL	AX, 4(SP)
+	CALL	libc_pthread_cond_wait(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	0(CX), AX	// arg 1 cond
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX	// arg 2 mutex
+	MOVL	AX, 4(SP)
+	MOVL	8(CX), AX	// arg 3 timeout
+	MOVL	AX, 8(SP)
+	CALL	libc_pthread_cond_timedwait(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 cond
+	MOVL	AX, 0(SP)
+	CALL	libc_pthread_cond_signal(SB)
+	MOVL	BP, SP
+	POPL	BP
 	RET
