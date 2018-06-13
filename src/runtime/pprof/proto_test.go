@@ -238,6 +238,7 @@ func TestProcSelfMaps(t *testing.T) {
 // that the runtime can't symbolize. See ./testdata/mappingtest.
 func TestMapping(t *testing.T) {
 	testenv.MustHaveGoRun(t)
+	testenv.MustHaveCGO(t)
 
 	prog := "./testdata/mappingtest"
 
