@@ -10,19 +10,6 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-// Copied from /usr/include/sys/syscall.h
-#define	SYS_gettimeofday   116
-#define	SYS_kill           37
-#define	SYS_getpid         20
-#define	SYS_pthread_sigmask 329
-#define	SYS_setitimer      83
-#define	SYS___sysctl       202
-#define	SYS_sigaction      46
-#define	SYS_sigreturn      184
-#define	SYS_kqueue         362
-#define	SYS_kevent         363
-#define	SYS_fcntl          92
-
 TEXT notok<>(SB),NOSPLIT,$0
 	MOVW	$0, R8
 	MOVW	R8, (R8)
@@ -114,12 +101,11 @@ TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
 	BL.EQ	notok<>(SB)
 	RET
 
-TEXT runtime·setitimer(SB),NOSPLIT,$0
-	MOVW	mode+0(FP), R0
-	MOVW	new+4(FP), R1
-	MOVW	old+8(FP), R2
-	MOVW	$SYS_setitimer, R12
-	SWI	$0x80
+TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+	MOVW	4(R0), R1	// arg 2 new
+	MOVW	8(R0), R2	// arg 3 old
+	MOVW	0(R0), R0	// arg 1 which
+	BL	libc_setitimer(SB)
 	RET
 
 TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
@@ -265,22 +251,18 @@ TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
-TEXT runtime·sysctl(SB),NOSPLIT,$0
-	MOVW	mib+0(FP), R0
-	MOVW	miblen+4(FP), R1
-	MOVW	out+8(FP), R2
-	MOVW	size+12(FP), R3
-	MOVW	dst+16(FP), R4
-	MOVW	ndst+20(FP), R5
-	MOVW	$SYS___sysctl, R12 // syscall entry
-	SWI	$0x80
-	BCC     sysctl_ret
-	RSB     $0, R0, R0
-	MOVW	R0, ret+24(FP)
-	RET
-sysctl_ret:
-	MOVW	$0, R0
-	MOVW	R0, ret+24(FP)
+TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+	MOVW	4(R0), R1	// arg 2 miblen
+	MOVW	8(R0), R2	// arg 3 out
+	MOVW	12(R0), R3	// arg 4 size
+	MOVW	16(R0), R4	// arg 5 dst
+	MOVW	20(R0), R5	// arg 6 ndst
+	MOVW	0(R0), R0	// arg 1 mib
+	// Only R0-R3 are used for arguments, the rest
+	// go on the stack.
+	MOVM.DB.W [R4-R5], (R13)
+	BL	libc_sysctl(SB)
+	ADD $(2*4), R13
 	RET
 
 // uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
@@ -352,35 +334,37 @@ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVW	R0, ret+4(FP)
 	RET
 
-// int32 runtime·kqueue(void)
-TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVW	$SYS_kqueue, R12
-	SWI	$0x80
-	RSB.CS	$0, R0, R0
-	MOVW	R0, ret+0(FP)
+TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
+	BL	libc_kqueue(SB)
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int events, Timespec *timeout)
-TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVW	$SYS_kevent, R12
-	MOVW	kq+0(FP), R0
-	MOVW	ch+4(FP), R1
-	MOVW	nch+8(FP), R2
-	MOVW	ev+12(FP), R3
-	MOVW	nev+16(FP), R4
-	MOVW	ts+20(FP), R5
-	SWI	$0x80
-	RSB.CS	$0, R0, R0
-	MOVW	R0, ret+24(FP)
+TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
+	MOVW	4(R0), R1	// arg 2 keventss
+	MOVW	8(R0), R2	// arg 3 nch
+	MOVW	12(R0), R3	// arg 4 ev
+	MOVW	16(R0), R4	// arg 5 nev
+	MOVW	20(R0), R5	// arg 6 ts
+	MOVW	0(R0), R0	// arg 1 kq
+	// Only R0-R3 are used for arguments, the rest
+	// go on the stack.
+	MOVM.DB.W [R4-R5], (R13)
+	BL	libc_kevent(SB)
+	ADD	$(2*4), R13
+	MOVW	$-1, R2
+	CMP	R0, R2
+	BNE	ok
+	BL	libc_error(SB)
+	MOVW	(R0), R0	// errno
+	RSB	$0, R0, R0	// caller wants it as a negative error code
+ok:
 	RET
 
-// int32 runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	$SYS_fcntl, R12
-	MOVW	fd+0(FP), R0
-	MOVW	$2, R1	// F_SETFD
-	MOVW	$1, R2	// FD_CLOEXEC
-	SWI	$0x80
+TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+	MOVW	4(R0), R1	// arg 2 cmd
+	MOVW	8(R0), R2	// arg 3 arg
+	MOVW	0(R0), R0	// arg 1 fd
+	BL	libc_fcntl(SB)
 	RET
 
 // sigaltstack is not supported on iOS, so our sigtramp has
