@@ -90,7 +90,7 @@ func (p *Presentation) code(file string, arg ...interface{}) (s string, err erro
 		command = fmt.Sprintf("code %q %s %s", file, stringFor(arg[0]), stringFor(arg[1]))
 		text = p.Corpus.multipleLines(file, text, arg[0], arg[1])
 	default:
-		return "", fmt.Errorf("incorrect code invocation: code %q %q", file, arg)
+		return "", fmt.Errorf("incorrect code invocation: code %q [%v, ...] (%d arguments)", file, arg[0], len(arg))
 	}
 	// Trim spaces from output.
 	text = strings.Trim(text, "\n")
