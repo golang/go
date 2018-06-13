@@ -538,7 +538,7 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
 			embeddeds = append(embeddeds, p.typ(parent, nil))
 		}
 
-		t := types.NewInterface2(p.methodList(parent, tname), embeddeds)
+		t := newInterface(p.methodList(parent, tname), embeddeds)
 		p.interfaceList = append(p.interfaceList, t)
 		if p.trackAllTypes {
 			p.typList[n] = t
