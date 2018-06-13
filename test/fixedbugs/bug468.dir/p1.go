@@ -4,4 +4,4 @@
 
 package p1
 
-type S struct { X, Y int }
+type S struct{ X, Y int }

@@ -5,6 +5,7 @@
 // license that can be found in the LICENSE file.
 
 package main
+
 func f() string {
-	return 0	// ERROR "conversion|type"
+	return 0 // ERROR "conversion|type"
 }

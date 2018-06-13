@@ -10,11 +10,11 @@
 package main
 
 func jump() {
-        goto exit
+	goto exit
 exit:
-        return
+	return
 }
 func main() {
-        jump()
-        jump()
+	jump()
+	jump()
 }

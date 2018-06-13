@@ -10,5 +10,5 @@
 package main
 
 func main() {
-     (_) = 0
+	(_) = 0
 }

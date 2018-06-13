@@ -10,6 +10,6 @@
 package main
 
 func a(b int) int64 {
-  b // ERROR "not used"
-  return 0
+	b // ERROR "not used"
+	return 0
 }

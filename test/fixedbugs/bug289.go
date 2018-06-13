@@ -9,18 +9,18 @@
 package main
 
 func f1() {
-	a, b := f()	// ERROR "assignment mismatch|does not match"
+	a, b := f() // ERROR "assignment mismatch|does not match"
 	_ = a
 	_ = b
 }
 
 func f2() {
 	var a, b int
-	a, b = f()	// ERROR "assignment mismatch|does not match"
+	a, b = f() // ERROR "assignment mismatch|does not match"
 	_ = a
 	_ = b
 }
 
 func f() int {
-	return 1;
+	return 1
 }

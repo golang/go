@@ -10,7 +10,7 @@
 package main
 
 var (
-	a = iota  // ERROR "undefined: iota|iota is only defined in const"
-	b = iota  // ERROR "undefined: iota|iota is only defined in const"
-	c = iota  // ERROR "undefined: iota|iota is only defined in const"
+	a = iota // ERROR "undefined: iota|iota is only defined in const"
+	b = iota // ERROR "undefined: iota|iota is only defined in const"
+	c = iota // ERROR "undefined: iota|iota is only defined in const"
 )

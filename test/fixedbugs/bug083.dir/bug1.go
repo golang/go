@@ -10,5 +10,4 @@ import "./bug0"
 // visible here in package bug1.  The test for failure is in
 // ../bug083.go.
 
-var v1 bug0.t0;	// ERROR "bug0"
-
+var v1 bug0.t0 // ERROR "bug0"

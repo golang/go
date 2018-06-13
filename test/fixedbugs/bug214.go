@@ -10,6 +10,6 @@
 package main
 
 func main() {
-	x := make(map[int]int, 10);
-	x[0], x[1] = 2, 6;
+	x := make(map[int]int, 10)
+	x[0], x[1] = 2, 6
 }

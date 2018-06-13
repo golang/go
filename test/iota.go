@@ -16,9 +16,9 @@ func assert(cond bool, msg string) {
 }
 
 const (
-	x int = iota
-	y = iota
-	z = 1 << iota
+	x int     = iota
+	y         = iota
+	z         = 1 << iota
 	f float32 = 2 * iota
 	g float32 = 4.5 * float32(iota)
 )

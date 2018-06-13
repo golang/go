@@ -86,7 +86,7 @@ func f8(r rune) {
 	case 34, '"': // ERROR "duplicate case '"' .value 34. in switch"
 	case 35, rune('#'): // ERROR "duplicate case rune.'#'. .value 35. in switch"
 	case 36, rune(36): // ERROR "duplicate case rune.36. .value 36. in switch"
-	case 37, '$'+1: // ERROR "duplicate case '\$' \+ 1 .value 37. in switch"
+	case 37, '$' + 1: // ERROR "duplicate case '\$' \+ 1 .value 37. in switch"
 	case 'b':
 	case 'a', 'b', 'c', 'd': // ERROR "duplicate case 'b' .value 98."
 	case x, x: // ERROR "duplicate case x .value 10."

@@ -17,7 +17,7 @@ type T struct {
 }
 
 type T2 struct {
-	pad    [4096]byte
+	pad  [4096]byte
 	A, B byte
 }
 

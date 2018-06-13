@@ -46,7 +46,7 @@ func f1() [3000]byte {
 	// does not pass the frame size, the new
 	// stack (default size 5k) will not be big
 	// enough for the frame, and the morestack
-	// check in f2 will die, if we get that far 
+	// check in f2 will die, if we get that far
 	// without faulting.
 	f2()
 	return [3000]byte{}

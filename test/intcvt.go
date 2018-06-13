@@ -86,6 +86,7 @@ func chku64(i, v uint64) {
 		panic("fail")
 	}
 }
+
 //func chkf32(f, v float32) { if f != v { println(f, "!=", v); panic("fail") } }
 //func chkf64(f, v float64) { if f != v { println(f, "!=", v); panic("fail") } }
 
@@ -133,7 +134,6 @@ func main() {
 	chki64(int64(u64), cu64&0xffffffffffffffff-1<<64)
 	//	chki64(int64(f32), 0)
 	//	chki64(int64(f64), 0)
-
 
 	chku8(uint8(i8), ci8&0xff)
 	chku8(uint8(i16), ci16&0xff)

@@ -7,7 +7,8 @@
 // Issue 8961. Empty composite literals to small globals were not filled in
 package main
 
-type small struct { a int }
+type small struct{ a int }
+
 var foo small
 
 func main() {

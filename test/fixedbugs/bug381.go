@@ -6,7 +6,7 @@
 
 // Issue 2276.
 
-// Check that the error messages says 
+// Check that the error messages says
 //	bug381.go:29: unsafe.Alignof(0) not used
 // and not
 //	bug381.go:29: 4 not used

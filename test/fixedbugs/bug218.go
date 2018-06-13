@@ -10,7 +10,7 @@
 package main
 
 func main() {
-	bar := make(chan bool);
+	bar := make(chan bool)
 	select {
 	case _ = <-bar:
 		return
@@ -18,6 +18,6 @@ func main() {
 }
 
 /*
-6g bug218.go 
+6g bug218.go
 <epoch>: fatal error: dowidth: unknown type: blank
 */

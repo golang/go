@@ -34,7 +34,7 @@ func expectError(expectLine int) {
 	if recover() == nil {
 		panic("did not crash")
 	}
-	for i := 1;; i++ {
+	for i := 1; ; i++ {
 		_, file, line, ok := runtime.Caller(i)
 		if !ok {
 			panic("cannot find issue4562.go on stack")

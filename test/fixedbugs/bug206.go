@@ -6,27 +6,24 @@
 
 package main
 
-import "go/ast";
+import "go/ast"
 
 func g(list []ast.Expr) {
-	n := len(list)-1;
-	println(list[n].Pos());
+	n := len(list) - 1
+	println(list[n].Pos())
 }
-
 
 // f is the same as g except that the expression assigned to n is inlined.
 func f(list []ast.Expr) {
 	// n := len(list)-1;
-	println(list[len(list)-1 /* n */].Pos());
+	println(list[len(list)-1 /* n */].Pos())
 }
-
 
 func main() {
-	list := []ast.Expr{&ast.Ident{}};
-	g(list);  // this works
-	f(list);  // this doesn't
+	list := []ast.Expr{&ast.Ident{}}
+	g(list) // this works
+	f(list) // this doesn't
 }
-
 
 /*
 0

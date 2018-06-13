@@ -4,4 +4,4 @@
 
 package a
 
-var p2 = Printf		// ERROR "undefined"
+var p2 = Printf // ERROR "undefined"

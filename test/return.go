@@ -151,27 +151,31 @@ func _() int {
 func _() int {
 	print(1)
 	return 2
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
 L:
 	print(1)
 	goto L
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
 	print(1)
 	panic(2)
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
 	{
 		print(1)
 		return 2
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -180,7 +184,8 @@ L:
 	{
 		print(1)
 		goto L
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -188,7 +193,8 @@ func _() int {
 	print(1)
 	{
 		panic(2)
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -197,7 +203,8 @@ func _() int {
 		print(1)
 		return 2
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -206,7 +213,8 @@ L:
 		print(1)
 		goto L
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -214,7 +222,8 @@ func _() int {
 	{
 		panic(2)
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 // if-else chain with final else and all terminating is okay
@@ -282,12 +291,12 @@ func _() int {
 	}
 } // ERROR "missing return"
 
-
 // for { loops that never break are okay.
 
 func _() int {
 	print(1)
-	for {}
+	for {
+	}
 }
 
 func _() int {
@@ -300,7 +309,7 @@ func _() int {
 
 func _() int {
 	for {
-		L:
+	L:
 		for {
 			break L
 		}
@@ -311,7 +320,9 @@ func _() int {
 
 func _() int {
 	print(1)
-	for { break }
+	for {
+		break
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -335,7 +346,8 @@ L:
 
 func _() int {
 	print(1)
-	for x == nil {}
+	for x == nil {
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -348,16 +360,17 @@ func _() int {
 
 func _() int {
 	for x == nil {
-		L:
+	L:
 		for {
 			break L
 		}
-	}	
+	}
 } // ERROR "missing return"
 
 func _() int {
 	print(1)
-	for true {}
+	for true {
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -370,7 +383,7 @@ func _() int {
 
 func _() int {
 	for true {
-		L:
+	L:
 		for {
 			break L
 		}
@@ -381,7 +394,7 @@ func _() int {
 
 func _() int {
 	print(1)
-	select{}
+	select {}
 }
 
 func _() int {
@@ -398,7 +411,8 @@ func _() int {
 	select {
 	case <-c:
 		print(2)
-		for{}
+		for {
+		}
 	}
 }
 
@@ -422,7 +436,7 @@ func _() int {
 		print(2)
 		panic("abc")
 	default:
-		select{}
+		select {}
 	}
 }
 
@@ -449,7 +463,6 @@ L:
 	}
 } // ERROR "missing return"
 
-
 func _() int {
 	print(1)
 	select {
@@ -461,12 +474,14 @@ func _() int {
 	}
 } // ERROR "missing return"
 
-
 // if any breaks refer to the select, the select isn't okay anymore, even if they're dead
 
 func _() int {
 	print(1)
-	select{ default: break }
+	select {
+	default:
+		break
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -485,7 +500,9 @@ L:
 	select {
 	case <-c:
 		print(2)
-		for{ break L }
+		for {
+			break L
+		}
 	}
 } // ERROR "missing return"
 
@@ -509,7 +526,7 @@ func _() int {
 		print(1)
 		panic("abc")
 	default:
-		select{}
+		select {}
 		break
 	}
 } // ERROR "missing return"
@@ -556,7 +573,6 @@ func _() int {
 	switch {
 	}
 } // ERROR "missing return"
-
 
 func _() int {
 	print(1)
@@ -672,7 +688,6 @@ func _() int {
 	switch {
 	}
 } // ERROR "missing return"
-
 
 func _() int {
 	print(1)
@@ -863,24 +878,28 @@ func _() int {
 
 func _() int {
 	return 2
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
 L:
 	goto L
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
 	panic(2)
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
 	{
 		return 2
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -888,14 +907,16 @@ func _() int {
 L:
 	{
 		goto L
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
 func _() int {
 	{
 		panic(2)
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -903,7 +924,8 @@ func _() int {
 	{
 		return 2
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -911,14 +933,16 @@ L:
 	{
 		goto L
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 func _() int {
 	{
 		panic(2)
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 // if-else chain with final else and all terminating is okay
@@ -980,11 +1004,11 @@ func _() int {
 	}
 } // ERROR "missing return"
 
-
 // for { loops that never break are okay.
 
 func _() int {
-	for {}
+	for {
+	}
 }
 
 func _() int {
@@ -997,7 +1021,7 @@ func _() int {
 
 func _() int {
 	for {
-		L:
+	L:
 		for {
 			break L
 		}
@@ -1007,7 +1031,9 @@ func _() int {
 // for { loops that break are not okay.
 
 func _() int {
-	for { break }
+	for {
+		break
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -1030,7 +1056,8 @@ L:
 // if there's a condition - even "true" - the loops are no longer syntactically terminating
 
 func _() int {
-	for x == nil {}
+	for x == nil {
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -1043,15 +1070,16 @@ func _() int {
 
 func _() int {
 	for x == nil {
-		L:
+	L:
 		for {
 			break L
 		}
-	}	
+	}
 } // ERROR "missing return"
 
 func _() int {
-	for true {}
+	for true {
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -1064,7 +1092,7 @@ func _() int {
 
 func _() int {
 	for true {
-		L:
+	L:
 		for {
 			break L
 		}
@@ -1074,7 +1102,7 @@ func _() int {
 // select in which all cases terminate and none break are okay.
 
 func _() int {
-	select{}
+	select {}
 }
 
 func _() int {
@@ -1089,7 +1117,8 @@ func _() int {
 	select {
 	case <-c:
 		print(2)
-		for{}
+		for {
+		}
 	}
 }
 
@@ -1111,7 +1140,7 @@ func _() int {
 		print(2)
 		panic("abc")
 	default:
-		select{}
+		select {}
 	}
 }
 
@@ -1136,7 +1165,6 @@ L:
 	}
 } // ERROR "missing return"
 
-
 func _() int {
 	select {
 	case <-c:
@@ -1147,11 +1175,13 @@ func _() int {
 	}
 } // ERROR "missing return"
 
-
 // if any breaks refer to the select, the select isn't okay anymore, even if they're dead
 
 func _() int {
-	select{ default: break }
+	select {
+	default:
+		break
+	}
 } // ERROR "missing return"
 
 func _() int {
@@ -1168,7 +1198,9 @@ L:
 	select {
 	case <-c:
 		print(2)
-		for{ break L }
+		for {
+			break L
+		}
 	}
 } // ERROR "missing return"
 
@@ -1189,7 +1221,7 @@ func _() int {
 	case <-c:
 		panic("abc")
 	default:
-		select{}
+		select {}
 		break
 	}
 } // ERROR "missing return"
@@ -1232,7 +1264,6 @@ func _() int {
 	switch {
 	}
 } // ERROR "missing return"
-
 
 func _() int {
 	switch x {
@@ -1338,7 +1369,6 @@ func _() int {
 	switch {
 	}
 } // ERROR "missing return"
-
 
 func _() int {
 	switch x.(type) {
@@ -1553,27 +1583,31 @@ var _ = func() int {
 var _ = func() int {
 	print(1)
 	return 2
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
 L:
 	print(1)
 	goto L
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
 	print(1)
 	panic(2)
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
 	{
 		print(1)
 		return 2
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -1582,7 +1616,8 @@ L:
 	{
 		print(1)
 		goto L
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -1590,7 +1625,8 @@ var _ = func() int {
 	print(1)
 	{
 		panic(2)
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -1599,7 +1635,8 @@ var _ = func() int {
 		print(1)
 		return 2
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -1608,7 +1645,8 @@ L:
 		print(1)
 		goto L
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -1616,7 +1654,8 @@ var _ = func() int {
 	{
 		panic(2)
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 // if-else chain with final else and all terminating is okay
@@ -1684,12 +1723,12 @@ var _ = func() int {
 	}
 } // ERROR "missing return"
 
-
 // for { loops that never break are okay.
 
 var _ = func() int {
 	print(1)
-	for {}
+	for {
+	}
 }
 
 var _ = func() int {
@@ -1702,7 +1741,7 @@ var _ = func() int {
 
 var _ = func() int {
 	for {
-		L:
+	L:
 		for {
 			break L
 		}
@@ -1713,7 +1752,9 @@ var _ = func() int {
 
 var _ = func() int {
 	print(1)
-	for { break }
+	for {
+		break
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -1737,7 +1778,8 @@ L:
 
 var _ = func() int {
 	print(1)
-	for x == nil {}
+	for x == nil {
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -1750,16 +1792,17 @@ var _ = func() int {
 
 var _ = func() int {
 	for x == nil {
-		L:
+	L:
 		for {
 			break L
 		}
-	}	
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
 	print(1)
-	for true {}
+	for true {
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -1772,7 +1815,7 @@ var _ = func() int {
 
 var _ = func() int {
 	for true {
-		L:
+	L:
 		for {
 			break L
 		}
@@ -1783,7 +1826,7 @@ var _ = func() int {
 
 var _ = func() int {
 	print(1)
-	select{}
+	select {}
 }
 
 var _ = func() int {
@@ -1800,7 +1843,8 @@ var _ = func() int {
 	select {
 	case <-c:
 		print(2)
-		for{}
+		for {
+		}
 	}
 }
 
@@ -1824,7 +1868,7 @@ var _ = func() int {
 		print(2)
 		panic("abc")
 	default:
-		select{}
+		select {}
 	}
 }
 
@@ -1851,7 +1895,6 @@ L:
 	}
 } // ERROR "missing return"
 
-
 var _ = func() int {
 	print(1)
 	select {
@@ -1863,12 +1906,14 @@ var _ = func() int {
 	}
 } // ERROR "missing return"
 
-
 // if any breaks refer to the select, the select isn't okay anymore, even if they're dead
 
 var _ = func() int {
 	print(1)
-	select{ default: break }
+	select {
+	default:
+		break
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -1887,7 +1932,9 @@ L:
 	select {
 	case <-c:
 		print(2)
-		for{ break L }
+		for {
+			break L
+		}
 	}
 } // ERROR "missing return"
 
@@ -1911,7 +1958,7 @@ var _ = func() int {
 		print(1)
 		panic("abc")
 	default:
-		select{}
+		select {}
 		break
 	}
 } // ERROR "missing return"
@@ -1958,7 +2005,6 @@ var _ = func() int {
 	switch {
 	}
 } // ERROR "missing return"
-
 
 var _ = func() int {
 	print(1)
@@ -2074,7 +2120,6 @@ var _ = func() int {
 	switch {
 	}
 } // ERROR "missing return"
-
 
 var _ = func() int {
 	print(1)
@@ -2265,24 +2310,28 @@ var _ = func() int {
 
 var _ = func() int {
 	return 2
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
 L:
 	goto L
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
 	panic(2)
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
 	{
 		return 2
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -2290,14 +2339,16 @@ var _ = func() int {
 L:
 	{
 		goto L
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
 var _ = func() int {
 	{
 		panic(2)
-		{}
+		{
+		}
 	}
 } // ERROR "missing return"
 
@@ -2305,7 +2356,8 @@ var _ = func() int {
 	{
 		return 2
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -2313,14 +2365,16 @@ L:
 	{
 		goto L
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
 	{
 		panic(2)
 	}
-	{}
+	{
+	}
 } // ERROR "missing return"
 
 // if-else chain with final else and all terminating is okay
@@ -2382,11 +2436,11 @@ var _ = func() int {
 	}
 } // ERROR "missing return"
 
-
 // for { loops that never break are okay.
 
 var _ = func() int {
-	for {}
+	for {
+	}
 }
 
 var _ = func() int {
@@ -2399,7 +2453,7 @@ var _ = func() int {
 
 var _ = func() int {
 	for {
-		L:
+	L:
 		for {
 			break L
 		}
@@ -2409,7 +2463,9 @@ var _ = func() int {
 // for { loops that break are not okay.
 
 var _ = func() int {
-	for { break }
+	for {
+		break
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -2432,7 +2488,8 @@ L:
 // if there's a condition - even "true" - the loops are no longer syntactically terminating
 
 var _ = func() int {
-	for x == nil {}
+	for x == nil {
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -2445,15 +2502,16 @@ var _ = func() int {
 
 var _ = func() int {
 	for x == nil {
-		L:
+	L:
 		for {
 			break L
 		}
-	}	
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
-	for true {}
+	for true {
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -2466,7 +2524,7 @@ var _ = func() int {
 
 var _ = func() int {
 	for true {
-		L:
+	L:
 		for {
 			break L
 		}
@@ -2476,7 +2534,7 @@ var _ = func() int {
 // select in which all cases terminate and none break are okay.
 
 var _ = func() int {
-	select{}
+	select {}
 }
 
 var _ = func() int {
@@ -2491,7 +2549,8 @@ var _ = func() int {
 	select {
 	case <-c:
 		print(2)
-		for{}
+		for {
+		}
 	}
 }
 
@@ -2513,7 +2572,7 @@ var _ = func() int {
 		print(2)
 		panic("abc")
 	default:
-		select{}
+		select {}
 	}
 }
 
@@ -2538,7 +2597,6 @@ L:
 	}
 } // ERROR "missing return"
 
-
 var _ = func() int {
 	select {
 	case <-c:
@@ -2549,11 +2607,13 @@ var _ = func() int {
 	}
 } // ERROR "missing return"
 
-
 // if any breaks refer to the select, the select isn't okay anymore, even if they're dead
 
 var _ = func() int {
-	select{ default: break }
+	select {
+	default:
+		break
+	}
 } // ERROR "missing return"
 
 var _ = func() int {
@@ -2570,7 +2630,9 @@ L:
 	select {
 	case <-c:
 		print(2)
-		for{ break L }
+		for {
+			break L
+		}
 	}
 } // ERROR "missing return"
 
@@ -2591,7 +2653,7 @@ var _ = func() int {
 	case <-c:
 		panic("abc")
 	default:
-		select{}
+		select {}
 		break
 	}
 } // ERROR "missing return"
@@ -2634,7 +2696,6 @@ var _ = func() int {
 	switch {
 	}
 } // ERROR "missing return"
-
 
 var _ = func() int {
 	switch x {
@@ -2740,7 +2801,6 @@ var _ = func() int {
 	switch {
 	}
 } // ERROR "missing return"
-
 
 var _ = func() int {
 	switch x.(type) {

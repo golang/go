@@ -25,5 +25,5 @@ func main() {
 	if s[0] != "foo" {
 		panic(`s[0] != "foo"`)
 	}
-	
+
 }

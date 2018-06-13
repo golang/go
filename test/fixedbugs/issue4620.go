@@ -11,7 +11,7 @@ package main
 import "fmt"
 
 func main() {
-	m := map[int]int{0:1}
+	m := map[int]int{0: 1}
 	i := 0
 	i, m[i] = 1, 2
 	if m[0] != 2 {

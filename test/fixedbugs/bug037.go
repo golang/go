@@ -7,5 +7,5 @@
 package main
 
 func main() {
-	s := vlong(0);  // ERROR "undef"
+	s := vlong(0) // ERROR "undef"
 }

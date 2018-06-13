@@ -13,5 +13,5 @@ import "fmt"
 func main() {
 	s := "hello"
 	fmt.Println(s == "")
-	fmt.Println(s + "world" == "world")
+	fmt.Println(s+"world" == "world")
 }

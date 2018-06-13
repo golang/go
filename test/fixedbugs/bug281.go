@@ -17,7 +17,7 @@ type Rect struct {
 }
 
 func (p Point) Sub(q Point) Point {
-	return Point{p.X-q.X, p.Y-q.Y}
+	return Point{p.X - q.X, p.Y - q.Y}
 }
 
 type Obj struct {
@@ -28,7 +28,7 @@ func (o *Obj) Bbox() Rect {
 	return o.bbox
 }
 
-func (o *Obj) Points() [2]Point{
+func (o *Obj) Points() [2]Point {
 	return [2]Point{o.bbox.Min, o.bbox.Max}
 }
 
@@ -42,12 +42,12 @@ func main() {
 		println("BUG dot: ", q.X, q.Y)
 		return
 	}
-	
+
 	q = p.Sub(o.Points()[0])
 	if q.X != 0 || q.Y != 300 {
 		println("BUG index const: ", q.X, q.Y)
 	}
-	
+
 	q = p.Sub(o.Points()[x])
 	if q.X != 0 || q.Y != 300 {
 		println("BUG index var: ", q.X, q.Y)

@@ -10,7 +10,7 @@
 package main
 
 func main() {
-	s := struct{
+	s := struct {
 		t []int
 		u int
 	}{}

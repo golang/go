@@ -8,10 +8,13 @@
 
 package main
 
-type R interface { R() }
-type RW interface { R(); W() }
+type R interface{ R() }
+type RW interface {
+	R()
+	W()
+}
 
-var e interface {}
+var e interface{}
 var r R
 var rw RW
 

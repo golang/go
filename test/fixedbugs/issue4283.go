@@ -9,9 +9,9 @@
 package p
 
 func F1() bool {
-	return nil == nil	// ERROR "invalid"
+	return nil == nil // ERROR "invalid"
 }
 
 func F2() bool {
-	return nil != nil	// ERROR "invalid"
+	return nil != nil // ERROR "invalid"
 }

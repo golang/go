@@ -14,6 +14,7 @@ import (
 )
 
 const N = 10
+
 var count int64
 
 func run() error {
@@ -56,4 +57,3 @@ func main() {
 		panic("not all finalizers are called")
 	}
 }
-

@@ -11,7 +11,7 @@
 package foo
 
 var _ = map[string]string{
-	"1": "2",
+	"1":      "2",
 	"3", "4", // ERROR "missing key|must have keys"
 }
 
@@ -20,4 +20,3 @@ var _ = []string{
 	"bar",
 	20, // ERROR "cannot use|incompatible type"
 }
-

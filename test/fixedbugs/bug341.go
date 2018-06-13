@@ -15,6 +15,7 @@ func main() {
 	_ = uint64(x)
 	_ = float32(0)
 }
+
 /*
 panic: runtime error: floating point error
 

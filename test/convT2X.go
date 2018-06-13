@@ -84,8 +84,8 @@ var (
 	jb    J = b
 	jm    J = m
 	jc    J = c
-	jz J = z
-	jp J = p // The method set for *T contains the methods for T.
+	jz    J = z
+	jp    J = p // The method set for *T contains the methods for T.
 	// pp does not implement error.
 )
 

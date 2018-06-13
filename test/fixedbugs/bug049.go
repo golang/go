@@ -7,8 +7,8 @@
 package main
 
 func atom(s string) {
-	if s == nil {	// ERROR "nil|incompatible"
-		return;
+	if s == nil { // ERROR "nil|incompatible"
+		return
 	}
 }
 

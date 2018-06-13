@@ -8,60 +8,59 @@
 
 package main
 
-type	Iputs	interface {
-	puts	(s string) string;
+type Iputs interface {
+	puts(s string) string
 }
 
 // ---------
 
-type	Print	struct {
-	whoami	int;
-	put	Iputs;
+type Print struct {
+	whoami int
+	put    Iputs
 }
 
 func (p *Print) dop() string {
-	r := " print " + string(p.whoami + '0')
-	return r + p.put.puts("abc");
+	r := " print " + string(p.whoami+'0')
+	return r + p.put.puts("abc")
 }
 
 // ---------
 
-type	Bio	struct {
-	whoami	int;
-	put	Iputs;
+type Bio struct {
+	whoami int
+	put    Iputs
 }
 
 func (b *Bio) puts(s string) string {
-	r := " bio " + string(b.whoami + '0')
-	return r + b.put.puts(s);
+	r := " bio " + string(b.whoami+'0')
+	return r + b.put.puts(s)
 }
 
 // ---------
 
-type	File	struct {
-	whoami	int;
-	put	Iputs;
+type File struct {
+	whoami int
+	put    Iputs
 }
 
 func (f *File) puts(s string) string {
-	return " file " + string(f.whoami + '0') + " -- " + s
+	return " file " + string(f.whoami+'0') + " -- " + s
 }
 
-func
-main() {
-	p := new(Print);
-	b := new(Bio);
-	f := new(File);
+func main() {
+	p := new(Print)
+	b := new(Bio)
+	f := new(File)
 
-	p.whoami = 1;
-	p.put = b;
+	p.whoami = 1
+	p.put = b
 
-	b.whoami = 2;
-	b.put = f;
+	b.whoami = 2
+	b.put = f
 
-	f.whoami = 3;
+	f.whoami = 3
 
-	r := p.dop();
+	r := p.dop()
 	expected := " print 1 bio 2 file 3 -- abc"
 	if r != expected {
 		panic(r + " != " + expected)

@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-type T struct { int }
+type T struct{ int }
 
 var globl *T
 

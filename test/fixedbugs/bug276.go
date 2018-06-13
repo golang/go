@@ -13,10 +13,10 @@ func main() {
 	x := 0
 
 	a := (x & 1) << uint(1-i)
-	
-	s := uint(1-i)
+
+	s := uint(1 - i)
 	b := (x & 1) << s
-	
+
 	if a != b {
 		panic(0)
 	}

@@ -7,16 +7,16 @@
 package main
 
 func main() {
-	var b1 []byte;
-	s1 := string(b1);
-	println(len(s1));  // prints 0
+	var b1 []byte
+	s1 := string(b1)
+	println(len(s1)) // prints 0
 
-	b2 := ([]byte)(nil);
-	s2 := string(b2);
-	println(len(s2));  // prints 0
+	b2 := ([]byte)(nil)
+	s2 := string(b2)
+	println(len(s2)) // prints 0
 
-	s3 := string(([]byte)(nil));  // does not compile (literal substitution of b2)
-	println(len(s3));
+	s3 := string(([]byte)(nil)) // does not compile (literal substitution of b2)
+	println(len(s3))
 }
 
 /*

@@ -7,7 +7,7 @@
 package main
 
 // can't use local path with -u, use -I. instead
-import "pkg"  // ERROR "import unsafe package"
+import "pkg" // ERROR "import unsafe package"
 
 func main() {
 	print(pkg.Float32bits(1.0))

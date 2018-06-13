@@ -6,8 +6,9 @@
 
 //line foo/bar.y:4
 package main
+
 //line foo/bar.y:60
-func main() { 
+func main() {
 //line foo/bar.y:297
 	f, l := 0, 0
 //line yacctab:1
@@ -38,46 +39,74 @@ func main() {
 	l = 146
 //line foo/bar.y:148
 //line foo/bar.y:153
+
 //line foo/bar.y:155
 	l = 155
 //line foo/bar.y:160
 
 //line foo/bar.y:164
+
 //line foo/bar.y:173
 
 //line foo/bar.y:178
+
 //line foo/bar.y:180
+
 //line foo/bar.y:185
+
 //line foo/bar.y:195
+
 //line foo/bar.y:197
+
 //line foo/bar.y:202
+
 //line foo/bar.y:204
+
 //line foo/bar.y:208
+
 //line foo/bar.y:211
+
 //line foo/bar.y:213
+
 //line foo/bar.y:215
+
 //line foo/bar.y:217
+
 //line foo/bar.y:221
+
 //line foo/bar.y:229
+
 //line foo/bar.y:236
+
 //line foo/bar.y:238
+
 //line foo/bar.y:240
+
 //line foo/bar.y:244
+
 //line foo/bar.y:249
+
 //line foo/bar.y:253
+
 //line foo/bar.y:257
+
 //line foo/bar.y:262
+
 //line foo/bar.y:267
+
 //line foo/bar.y:272
 	if l == f {
 //line foo/bar.y:277
-	panic("aie!")
+		panic("aie!")
 //line foo/bar.y:281
 	}
 //line foo/bar.y:285
 	return
 //line foo/bar.y:288
+
 //line foo/bar.y:290
 }
+
 //line foo/bar.y:293
+
 //line foo/bar.y:295

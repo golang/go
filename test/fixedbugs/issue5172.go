@@ -14,6 +14,6 @@ type foo struct {
 
 func main() {
 	var f foo
-	go f.bar()	// GCCGO_ERROR "undefined"
-	defer f.bar()	// GCCGO_ERROR "undefined"
+	go f.bar()    // GCCGO_ERROR "undefined"
+	defer f.bar() // GCCGO_ERROR "undefined"
 }

@@ -25,9 +25,9 @@ func main() {
 	var px p.Exported
 	px = p.X
 
-	px.private()			// ERROR "private"
+	px.private() // ERROR "private"
 
-	px = new(Implementation)	// ERROR "private"
+	px = new(Implementation) // ERROR "private"
 
-	x = px				// ERROR "private"
+	x = px // ERROR "private"
 }

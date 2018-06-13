@@ -5,12 +5,13 @@
 // license that can be found in the LICENSE file.
 
 package main
+
 func main() {
-	var v interface{} = 0;
+	var v interface{} = 0
 	switch v.(type) {
 	case int:
-		fallthrough;		// ERROR "fallthrough"
+		fallthrough // ERROR "fallthrough"
 	default:
-		panic("fell through");
+		panic("fell through")
 	}
 }

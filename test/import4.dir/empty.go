@@ -4,7 +4,10 @@
 
 package empty
 
-import ( )
-const ( )
-var ( )
-type ( )
+import ()
+
+const ()
+
+var ()
+
+type ()

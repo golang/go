@@ -76,8 +76,8 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 	client := &http.Client{
 		Transport: &http.Transport{
 			ResponseHeaderTimeout: timeout + 5*time.Second,
-			Proxy:                 http.ProxyFromEnvironment,
-			TLSClientConfig:       tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: tlsConfig,
 		},
 	}
 	resp, err := client.Get(source)

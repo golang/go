@@ -12,7 +12,7 @@ package main
 func f(n int) int {
 	s := 0
 	for i := 0; i < n; i++ {
-		s += i>>1
+		s += i >> 1
 	}
 	return s
 }

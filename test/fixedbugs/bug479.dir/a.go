@@ -6,7 +6,7 @@ package p
 
 import "unsafe"
 
-type S2 struct {}
+type S2 struct{}
 
 const C = unsafe.Sizeof(S2{})
 

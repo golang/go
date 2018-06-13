@@ -10,6 +10,6 @@
 package test
 
 func main() {
-	buf := [1<<30]byte{}
+	buf := [1 << 30]byte{}
 	_ = buf[:]
 }

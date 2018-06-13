@@ -11,16 +11,16 @@ package main
 import "runtime"
 
 type node struct {
-        next *node
+	next *node
 }
 
 var x bool
 
 func main() {
-        var head *node
-        for x {
-                head = &node{head}
-        }
+	var head *node
+	for x {
+		head = &node{head}
+	}
 
-        runtime.KeepAlive(head)
+	runtime.KeepAlive(head)
 }

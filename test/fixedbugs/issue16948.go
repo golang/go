@@ -18,6 +18,7 @@ func main() {
 var x int32
 
 type T [10]int
+
 var sink *T
 
 func f() (t T) {

@@ -11,7 +11,7 @@ package main
 import "os"
 
 func main() {
-	s := 	0 +
+	s := 0 +
 		123 +
 		0123 +
 		0000 +

@@ -7,5 +7,5 @@
 package main
 
 func main() {
-	s := string(bug);  // ERROR "undef"
+	s := string(bug) // ERROR "undef"
 }

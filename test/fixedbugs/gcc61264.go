@@ -9,5 +9,5 @@
 package main
 
 func main() {
-        map[int]int{}[0]++
+	map[int]int{}[0]++
 }

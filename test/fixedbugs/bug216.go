@@ -9,7 +9,7 @@
 
 package main
 
-func complexSqrt(i int) (int, int)	{ return 0, 1 }
+func complexSqrt(i int) (int, int) { return 0, 1 }
 
 var re, im = complexSqrt(-1)
 

@@ -7,12 +7,12 @@
 package main
 
 func panic1(s string) bool {
-	panic(s);
+	panic(s)
 }
 
 func main() {
-	x := false && panic1("first") && panic1("second");
-	x = x == true && panic1("first") && panic1("second");
+	x := false && panic1("first") && panic1("second")
+	x = x == true && panic1("first") && panic1("second")
 }
 
 /*
@@ -27,5 +27,5 @@ mainstart+0xf /Users/rsc/goX/src/runtime/amd64/asm.s:53
 	mainstart()
 sys·Goexit /Users/rsc/goX/src/runtime/proc.c:124
 	sys·Goexit()
-; 
+;
 */

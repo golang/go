@@ -22,21 +22,21 @@ func main() {
 }
 
 func die() {
-	runtime.Breakpoint()	// can't depend on panic
+	runtime.Breakpoint() // can't depend on panic
 }
 
 func mustRecover(x interface{}) {
-	mustNotRecover()	// because it's not a defer call
+	mustNotRecover() // because it's not a defer call
 	v := recover()
 	if v == nil {
 		println("missing recover")
-		die()	// panic is useless here
+		die() // panic is useless here
 	}
 	if v != x {
 		println("wrong value", v, x)
 		die()
 	}
-	
+
 	// the value should be gone now regardless
 	v = recover()
 	if v != nil {
@@ -54,7 +54,7 @@ func mustNotRecover() {
 }
 
 func withoutRecover() {
-	mustNotRecover()	// because it's a sub-call
+	mustNotRecover() // because it's a sub-call
 }
 
 func test1() {
@@ -116,7 +116,7 @@ func test6() {
 	// Like test3, but changed recover to defer (same change as test4 → test5).
 	defer mustNotRecover()
 	defer func() {
-		defer recover()	// like a normal call from this func; runs because mustRecover stops the panic
+		defer recover() // like a normal call from this func; runs because mustRecover stops the panic
 		defer mustRecover(3)
 		panic(3)
 	}()
@@ -134,7 +134,7 @@ func test7() {
 	defer mustRecover(2)
 	defer func() {
 		defer mustRecover(3)
-		defer recover()	// now a no-op, unlike in test6.
+		defer recover() // now a no-op, unlike in test6.
 		panic(3)
 	}()
 	panic(2)

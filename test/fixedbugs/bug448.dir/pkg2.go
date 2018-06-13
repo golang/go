@@ -11,4 +11,3 @@ import "./pkg1"
 func F() {
 	pkg1.Do()
 }
-

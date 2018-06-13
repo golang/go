@@ -8,10 +8,10 @@ package bug151
 
 type S string
 
-type Empty interface {}
+type Empty interface{}
 
 func (v S) Less(e Empty) bool {
-	return v < e.(S);
+	return v < e.(S)
 }
 
 /*

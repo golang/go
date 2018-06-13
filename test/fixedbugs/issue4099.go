@@ -20,7 +20,7 @@ func F2([]byte)
 func G() {
 	var buf1 [10]byte
 	F1(buf1[:]) // ERROR "buf1 does not escape"
-	
+
 	var buf2 [10]byte // ERROR "moved to heap: buf2"
-	F2(buf2[:]) // ERROR "buf2 escapes to heap"
+	F2(buf2[:])       // ERROR "buf2 escapes to heap"
 }

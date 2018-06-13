@@ -13,15 +13,14 @@ func (p *S) M() {
 }
 
 type I interface {
-	M();
+	M()
 }
 
 func main() {
-	var p *S = nil;
-	var i I = p;  // this should be possible even though p is nil: we still know the type
-	i.M();  // should be possible since we know the type, and don't ever use the receiver
+	var p *S = nil
+	var i I = p // this should be possible even though p is nil: we still know the type
+	i.M()       // should be possible since we know the type, and don't ever use the receiver
 }
-
 
 /*
 throw: ifaces2i: nil pointer

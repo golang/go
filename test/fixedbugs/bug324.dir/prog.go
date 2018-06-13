@@ -16,17 +16,16 @@ type Implementation struct{}
 
 func (p *Implementation) private() {}
 
-
 func main() {
 	// nothing unusual here
 	var x Exported
 	x = new(Implementation)
-	x.private()  //  main.Implementation.private()
+	x.private() //  main.Implementation.private()
 
 	// same here - should be and is legal
 	var px p.Exported
 	px = p.X
-	
+
 	// this assignment is correctly illegal:
 	//	px.private undefined (cannot refer to unexported field or method private)
 	// px.private()
@@ -44,10 +43,10 @@ func main() {
 		recover()
 	}()
 	x = px.(Exported)
-	
+
 	println("should not get this far")
 
 	// this is a legitimate call, but because of the previous assignment,
 	// it invokes the method private in p!
-	x.private()  // p.Implementation.private()
+	x.private() // p.Implementation.private()
 }

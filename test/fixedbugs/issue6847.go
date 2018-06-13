@@ -56,7 +56,7 @@ func F() {
 	case cs, ok = <-cc:
 	case c = <-cc:
 	}
-      // Interfaces.
+	// Interfaces.
 	var (
 		c1 chan I1
 		c2 chan I2

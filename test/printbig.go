@@ -9,6 +9,6 @@
 package main
 
 func main() {
-	print(-(1<<63), "\n")
+	print(-(1 << 63), "\n")
 	print((1<<63)-1, "\n")
 }

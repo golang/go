@@ -90,7 +90,7 @@ func main() {
 			q++
 			g = func() int {
 				return q // test that we capture by ref here
-					 // q++ must on a different decldepth than q declaration
+				// q++ must on a different decldepth than q declaration
 			}
 		}
 		if g() != 2 {
@@ -108,7 +108,7 @@ func main() {
 		}()] = range [2]int{} {
 			g = func() int {
 				return q // test that we capture by ref here
-					 // q++ must on a different decldepth than q declaration
+				// q++ must on a different decldepth than q declaration
 			}
 		}
 		if g() != 2 {

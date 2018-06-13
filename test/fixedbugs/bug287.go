@@ -8,4 +8,4 @@
 
 package main
 
-var mult [3][...]byte = [3][5]byte{}	// ERROR "\.\.\."
+var mult [3][...]byte = [3][5]byte{} // ERROR "\.\.\."

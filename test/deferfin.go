@@ -60,4 +60,3 @@ func main() {
 		panic("not all finalizers are called")
 	}
 }
-

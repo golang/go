@@ -36,7 +36,7 @@ func poison() uintptr {
 	var x [20]uintptr
 	var s uintptr
 	for i := range x {
-		x[i] = uintptr(i+1)
+		x[i] = uintptr(i + 1)
 		s += x[i]
 	}
 	return s

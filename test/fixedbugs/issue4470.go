@@ -10,7 +10,7 @@ package main
 
 func main() {
 	var i interface{}
-	switch (i.(type)) { // ERROR "outside type switch"
+	switch i.(type) { // ERROR "outside type switch"
 	default:
 	}
 }

@@ -6,9 +6,9 @@ package main
 import "math"
 
 var (
-	nan     = math.NaN()
-	inf     = math.Inf(1)
-	zero    = 0.0
+	nan  = math.NaN()
+	inf  = math.Inf(1)
+	zero = 0.0
 )
 
 var tests = []struct {

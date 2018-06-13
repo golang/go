@@ -4,7 +4,7 @@
 
 package a
 
-type S interface{
+type S interface {
 	F() T
 }
 

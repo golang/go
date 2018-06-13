@@ -13,7 +13,7 @@ package main
 // introduced by CL 102036.
 type T struct {
 	pad uint32
-	f float64
+	f   float64
 }
 
 //go:noinline

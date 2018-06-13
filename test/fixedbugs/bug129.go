@@ -5,10 +5,11 @@
 // license that can be found in the LICENSE file.
 
 package foo
+
 import "fmt"
 
 func f() {
-	fmt.Println();
-	fmt := 1;
-	_ = fmt;
+	fmt.Println()
+	fmt := 1
+	_ = fmt
 }

@@ -25,13 +25,13 @@ var bout *bufio.Writer
 // if the compiler has buggy or missing 64-bit support.
 
 type Uint64 struct {
-	hi	uint32
-	lo	uint32
+	hi uint32
+	lo uint32
 }
 
 type Int64 struct {
-	hi	int32
-	lo	uint32
+	hi int32
+	lo uint32
 }
 
 func (a Uint64) Int64() (c Int64) {
@@ -170,7 +170,7 @@ func (a Uint64) DivMod(b Uint64) (quo, rem Uint64) {
 		b = b.LeftShift(uint(n))
 		for i := 0; i <= n; i++ {
 			quo = quo.LeftShift(1)
-			if b.Cmp(a) <= 0 {	// b <= a
+			if b.Cmp(a) <= 0 { // b <= a
 				quo.lo |= 1
 				a = a.Minus(b)
 			}
@@ -205,7 +205,7 @@ func (a Uint64) Xor(b Uint64) (c Uint64) {
 	return
 }
 
-func (a Uint64) String() string	{ return fmt.Sprintf("%#x%08x", a.hi, a.lo) }
+func (a Uint64) String() string { return fmt.Sprintf("%#x%08x", a.hi, a.lo) }
 
 func (a Int64) Uint64() (c Uint64) {
 	c.hi = uint32(a.hi)
@@ -230,15 +230,15 @@ func (a Int64) Cmp(b Int64) int {
 	return 0
 }
 
-func (a Int64) LeftShift(b uint) (c Int64)	{ return a.Uint64().LeftShift(b).Int64() }
+func (a Int64) LeftShift(b uint) (c Int64) { return a.Uint64().LeftShift(b).Int64() }
 
 func (a Int64) RightShift(b uint) (c Int64) {
 	switch {
 	case b >= 64:
-		c.hi = a.hi >> 31	// sign extend
+		c.hi = a.hi >> 31 // sign extend
 		c.lo = uint32(c.hi)
 	case b >= 32:
-		c.hi = a.hi >> 31	// sign extend
+		c.hi = a.hi >> 31 // sign extend
 		c.lo = uint32(a.hi >> (b - 32))
 	default:
 		c.hi = a.hi >> b
@@ -261,15 +261,15 @@ func (a Int64) RightShift64(b Uint64) (c Int64) {
 	return a.RightShift(uint(b.lo))
 }
 
-func (a Int64) Plus(b Int64) (c Int64)	{ return a.Uint64().Plus(b.Uint64()).Int64() }
+func (a Int64) Plus(b Int64) (c Int64) { return a.Uint64().Plus(b.Uint64()).Int64() }
 
-func (a Int64) Minus(b Int64) (c Int64)	{ return a.Uint64().Minus(b.Uint64()).Int64() }
+func (a Int64) Minus(b Int64) (c Int64) { return a.Uint64().Minus(b.Uint64()).Int64() }
 
-func (a Int64) Neg() (c Int64)	{ return a.Uint64().Neg().Int64() }
+func (a Int64) Neg() (c Int64) { return a.Uint64().Neg().Int64() }
 
-func (a Int64) Com() (c Int64)	{ return a.Uint64().Com().Int64() }
+func (a Int64) Com() (c Int64) { return a.Uint64().Com().Int64() }
 
-func (a Int64) Times(b Int64) (c Int64)	{ return a.Uint64().Times(b.Uint64()).Int64() }
+func (a Int64) Times(b Int64) (c Int64) { return a.Uint64().Times(b.Uint64()).Int64() }
 
 func (a Int64) DivMod(b Int64) (quo Int64, rem Int64) {
 	var zero Int64
@@ -299,13 +299,13 @@ func (a Int64) DivMod(b Int64) (quo Int64, rem Int64) {
 	return
 }
 
-func (a Int64) And(b Int64) (c Int64)	{ return a.Uint64().And(b.Uint64()).Int64() }
+func (a Int64) And(b Int64) (c Int64) { return a.Uint64().And(b.Uint64()).Int64() }
 
-func (a Int64) AndNot(b Int64) (c Int64)	{ return a.Uint64().AndNot(b.Uint64()).Int64() }
+func (a Int64) AndNot(b Int64) (c Int64) { return a.Uint64().AndNot(b.Uint64()).Int64() }
 
-func (a Int64) Or(b Int64) (c Int64)	{ return a.Uint64().Or(b.Uint64()).Int64() }
+func (a Int64) Or(b Int64) (c Int64) { return a.Uint64().Or(b.Uint64()).Int64() }
 
-func (a Int64) Xor(b Int64) (c Int64)	{ return a.Uint64().Xor(b.Uint64()).Int64() }
+func (a Int64) Xor(b Int64) (c Int64) { return a.Uint64().Xor(b.Uint64()).Int64() }
 
 func (a Int64) String() string {
 	if a.hi < 0 {
@@ -514,11 +514,11 @@ func varTests() {
 			var div, mod Int64
 			dodiv := false
 			var zero Int64
-			if b.Cmp(zero) != 0 {	// b != 0
+			if b.Cmp(zero) != 0 { // b != 0
 				// Can't divide by zero but also can't divide -0x8000...000 by -1.
 				var bigneg = Int64{-0x80000000, 0}
 				var minus1 = Int64{-1, ^uint32(0)}
-				if a.Cmp(bigneg) != 0 || b.Cmp(minus1) != 0 {	// a != -1<<63 || b != -1
+				if a.Cmp(bigneg) != 0 || b.Cmp(minus1) != 0 { // a != -1<<63 || b != -1
 					div, mod = a.DivMod(b)
 					dodiv = true
 				}
@@ -542,7 +542,7 @@ func varTests() {
 			var div, mod Uint64
 			dodiv := false
 			var zero Uint64
-			if b.Cmp(zero) != 0 {	// b != 0
+			if b.Cmp(zero) != 0 { // b != 0
 				div, mod = a.DivMod(b)
 				dodiv = true
 			}
@@ -661,11 +661,11 @@ func constTests() {
 			var div, mod Int64
 			dodiv := false
 			var zero Int64
-			if b.Cmp(zero) != 0 {	// b != 0
+			if b.Cmp(zero) != 0 { // b != 0
 				// Can't divide by zero but also can't divide -0x8000...000 by -1.
 				var bigneg = Int64{-0x80000000, 0}
 				var minus1 = Int64{-1, ^uint32(0)}
-				if a.Cmp(bigneg) != 0 || b.Cmp(minus1) != 0 {	// a != -1<<63 || b != -1
+				if a.Cmp(bigneg) != 0 || b.Cmp(minus1) != 0 { // a != -1<<63 || b != -1
 					div, mod = a.DivMod(b)
 					dodiv = true
 				}
@@ -692,7 +692,7 @@ func constTests() {
 			var div, mod Uint64
 			dodiv := false
 			var zero Uint64
-			if b.Cmp(zero) != 0 {	// b != 0
+			if b.Cmp(zero) != 0 { // b != 0
 				div, mod = a.DivMod(b)
 				dodiv = true
 			}

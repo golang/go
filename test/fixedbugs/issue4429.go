@@ -7,10 +7,10 @@
 package p
 
 type a struct {
-  a int
+	a int
 }
 
 func main() {
-  av := a{};
-  _ = *a(av); // ERROR "invalid indirect|expected pointer"
+	av := a{}
+	_ = *a(av) // ERROR "invalid indirect|expected pointer"
 }

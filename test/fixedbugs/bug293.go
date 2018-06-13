@@ -9,7 +9,7 @@
 package main
 
 func x() (a int, b bool) {
-	defer func(){
+	defer func() {
 		a++
 	}()
 	a, b = y()
@@ -17,7 +17,7 @@ func x() (a int, b bool) {
 }
 
 func x2() (a int, b bool) {
-	defer func(){
+	defer func() {
 		a++
 	}()
 	return y()

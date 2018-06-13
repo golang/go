@@ -30,4 +30,3 @@ func MakePrivateCollection3() *Collection {
 		root: unsafe.Pointer(&maptype{}),
 	}
 }
-

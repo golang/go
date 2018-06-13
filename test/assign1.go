@@ -214,7 +214,6 @@ func main() {
 	ps1 = ps0 // ERROR "cannot use|incompatible"
 	ps1 = ps  // ERROR "cannot use|incompatible"
 
-
 	a0 = [10]int(a)
 	a0 = [10]int(a1)
 	a = A(a0)
@@ -236,8 +235,8 @@ func main() {
 	c1 = C1(c0)
 	c1 = C1(c)
 
-	f0 = func() int(f)
-	f0 = func() int(f1)
+	f0 = (func() int)(f)
+	f0 = (func() int)(f1)
 	f = F(f0)
 	f = F(f1)
 	f1 = F1(f0)

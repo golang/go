@@ -21,7 +21,7 @@ func main() {
 		println("BUG alignof 0", n)
 		return
 	}
-	
+
 	n = unsafe.Sizeof("")
 	if n != 8 && n != 16 {
 		println("BUG sizeof \"\"", n)
@@ -33,4 +33,3 @@ func main() {
 		return
 	}
 }
-

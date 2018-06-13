@@ -7,8 +7,8 @@
 package main
 
 const (
-	c3div2 = 3/2;
-	f3div2 = 3./2.;
+	c3div2 = 3 / 2
+	f3div2 = 3. / 2.
 )
 
 func assert(t bool, s string) {
@@ -18,29 +18,29 @@ func assert(t bool, s string) {
 }
 
 func main() {
-	var i int;
-	var f float64;
+	var i int
+	var f float64
 
-	assert(c3div2 == 1, "3/2");
-	assert(f3div2 == 1.5, "3/2");
+	assert(c3div2 == 1, "3/2")
+	assert(f3div2 == 1.5, "3/2")
 
-	i = c3div2;
-	assert(i == c3div2, "i == c3div2");
+	i = c3div2
+	assert(i == c3div2, "i == c3div2")
 
-	f = c3div2;
-	assert(f == c3div2, "f == c3div2");
+	f = c3div2
+	assert(f == c3div2, "f == c3div2")
 
-	f = f3div2;
-	assert(f == f3div2, "f == f3div2");
+	f = f3div2
+	assert(f == f3div2, "f == f3div2")
 
-	i = f3div2;	// ERROR "truncate"
-	assert(i == c3div2, "i == c3div2 from f3div2");
-	assert(i != f3div2, "i != f3div2");	// ERROR "truncate"
+	i = f3div2 // ERROR "truncate"
+	assert(i == c3div2, "i == c3div2 from f3div2")
+	assert(i != f3div2, "i != f3div2") // ERROR "truncate"
 
-	const g float64 = 1.0;
-	i = g;  // ERROR "convert|incompatible|cannot"
+	const g float64 = 1.0
+	i = g // ERROR "convert|incompatible|cannot"
 
-	const h float64 = 3.14;
-	i = h;  // ERROR "convert|incompatible|cannot"
-	i = int(h);	// ERROR "truncate"
+	const h float64 = 3.14
+	i = h      // ERROR "convert|incompatible|cannot"
+	i = int(h) // ERROR "truncate"
 }
