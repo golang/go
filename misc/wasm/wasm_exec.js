@@ -16,13 +16,11 @@
 			},
 		};
 
-		const now = () => {
-			const [sec, nsec] = process.hrtime();
-			return sec * 1000 + nsec / 1000000;
-		};
 		global.performance = {
-			timeOrigin: Date.now() - now(),
-			now: now,
+			now() {
+				const [sec, nsec] = process.hrtime();
+				return sec * 1000 + nsec / 1000000;
+			},
 		};
 
 		const util = require("util");
@@ -116,6 +114,7 @@
 				return decoder.decode(new DataView(this._inst.exports.mem.buffer, saddr, len));
 			}
 
+			const timeOrigin = Date.now() - performance.now();
 			this.importObject = {
 				go: {
 					// func wasmExit(code int32)
@@ -133,7 +132,7 @@
 
 					// func nanotime() int64
 					"runtime.nanotime": (sp) => {
-						setInt64(sp + 8, (performance.timeOrigin + performance.now()) * 1000000);
+						setInt64(sp + 8, (timeOrigin + performance.now()) * 1000000);
 					},
 
 					// func walltime() (sec int64, nsec int32)
