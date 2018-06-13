@@ -602,7 +602,7 @@ func (p *parser) parseInterfaceType(pkg *types.Package) types.Type {
 	}
 	p.expect('}')
 
-	return types.NewInterface2(methods, embeddeds)
+	return newInterface(methods, embeddeds)
 }
 
 // PointerType = "*" ("any" | Type) .
