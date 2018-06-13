@@ -11,11 +11,20 @@
 // comprehensive API for users. It is exempt from the Go compatibility promise.
 package js
 
-import "unsafe"
+import (
+	"unsafe"
+)
+
+// ref is used to identify a JavaScript value, since the value itself can not be passed to WebAssembly itself.
+type ref uint32
 
 // Value represents a JavaScript value.
 type Value struct {
-	ref uint32
+	ref ref
+}
+
+func makeValue(v ref) Value {
+	return Value{ref: v}
 }
 
 // Error wraps a JavaScript error.
@@ -31,19 +40,19 @@ func (e Error) Error() string {
 
 var (
 	// Undefined is the JavaScript value "undefined". The zero Value equals to Undefined.
-	Undefined = Value{0}
+	Undefined = makeValue(0)
 
 	// Null is the JavaScript value "null".
-	Null = Value{1}
+	Null = makeValue(1)
 
 	// Global is the JavaScript global object, usually "window" or "global".
-	Global = Value{2}
+	Global = makeValue(2)
 
 	// memory is the WebAssembly linear memory.
-	memory = Value{3}
+	memory = makeValue(3)
 
 	// resolveCallbackPromise is a function that the callback helper uses to resume the execution of Go's WebAssembly code.
-	resolveCallbackPromise = Value{4}
+	resolveCallbackPromise = makeValue(4)
 )
 
 var uint8Array = Global.Get("Uint8Array")
@@ -58,37 +67,37 @@ func ValueOf(x interface{}) Value {
 	case nil:
 		return Null
 	case bool:
-		return boolVal(x)
+		return makeValue(boolVal(x))
 	case int:
-		return intVal(x)
+		return makeValue(intVal(x))
 	case int8:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case int16:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case int32:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case int64:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case uint:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case uint8:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case uint16:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case uint32:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case uint64:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case uintptr:
-		return intVal(int(x))
+		return makeValue(intVal(int(x)))
 	case unsafe.Pointer:
-		return intVal(int(uintptr(x)))
+		return makeValue(intVal(int(uintptr(x))))
 	case float32:
-		return floatVal(float64(x))
+		return makeValue(floatVal(float64(x)))
 	case float64:
-		return floatVal(x)
+		return makeValue(floatVal(x))
 	case string:
-		return stringVal(x)
+		return makeValue(stringVal(x))
 	case []byte:
 		if len(x) == 0 {
 			return uint8Array.New(memory.Get("buffer"), 0, 0)
@@ -99,98 +108,122 @@ func ValueOf(x interface{}) Value {
 	}
 }
 
-func boolVal(x bool) Value
+func boolVal(x bool) ref
 
-func intVal(x int) Value
+func intVal(x int) ref
 
-func floatVal(x float64) Value
+func floatVal(x float64) ref
 
-func stringVal(x string) Value
+func stringVal(x string) ref
 
 // Get returns the JavaScript property p of value v.
-func (v Value) Get(p string) Value
+func (v Value) Get(p string) Value {
+	return makeValue(valueGet(v.ref, p))
+}
+
+func valueGet(v ref, p string) ref
 
 // Set sets the JavaScript property p of value v to x.
 func (v Value) Set(p string, x interface{}) {
-	v.set(p, ValueOf(x))
+	valueSet(v.ref, p, ValueOf(x).ref)
 }
 
-func (v Value) set(p string, x Value)
+func valueSet(v ref, p string, x ref)
 
 // Index returns JavaScript index i of value v.
-func (v Value) Index(i int) Value
+func (v Value) Index(i int) Value {
+	return makeValue(valueIndex(v.ref, i))
+}
+
+func valueIndex(v ref, i int) ref
 
 // SetIndex sets the JavaScript index i of value v to x.
 func (v Value) SetIndex(i int, x interface{}) {
-	v.setIndex(i, ValueOf(x))
+	valueSetIndex(v.ref, i, ValueOf(x).ref)
 }
 
-func (v Value) setIndex(i int, x Value)
+func valueSetIndex(v ref, i int, x ref)
 
-func makeArgs(args []interface{}) []Value {
-	argVals := make([]Value, len(args))
+func makeArgs(args []interface{}) []ref {
+	argVals := make([]ref, len(args))
 	for i, arg := range args {
-		argVals[i] = ValueOf(arg)
+		argVals[i] = ValueOf(arg).ref
 	}
 	return argVals
 }
 
 // Length returns the JavaScript property "length" of v.
-func (v Value) Length() int
+func (v Value) Length() int {
+	return valueLength(v.ref)
+}
+
+func valueLength(v ref) int
 
 // Call does a JavaScript call to the method m of value v with the given arguments.
 // It panics if v has no method m.
 func (v Value) Call(m string, args ...interface{}) Value {
-	res, ok := v.call(m, makeArgs(args))
+	res, ok := valueCall(v.ref, m, makeArgs(args))
 	if !ok {
-		panic(Error{res})
+		panic(Error{makeValue(res)})
 	}
-	return res
+	return makeValue(res)
 }
 
-func (v Value) call(m string, args []Value) (Value, bool)
+func valueCall(v ref, m string, args []ref) (ref, bool)
 
 // Invoke does a JavaScript call of the value v with the given arguments.
 // It panics if v is not a function.
 func (v Value) Invoke(args ...interface{}) Value {
-	res, ok := v.invoke(makeArgs(args))
+	res, ok := valueInvoke(v.ref, makeArgs(args))
 	if !ok {
-		panic(Error{res})
+		panic(Error{makeValue(res)})
 	}
-	return res
+	return makeValue(res)
 }
 
-func (v Value) invoke(args []Value) (Value, bool)
+func valueInvoke(v ref, args []ref) (ref, bool)
 
 // New uses JavaScript's "new" operator with value v as constructor and the given arguments.
 // It panics if v is not a function.
 func (v Value) New(args ...interface{}) Value {
-	res, ok := v.new(makeArgs(args))
+	res, ok := valueNew(v.ref, makeArgs(args))
 	if !ok {
-		panic(Error{res})
+		panic(Error{makeValue(res)})
 	}
-	return res
+	return makeValue(res)
 }
 
-func (v Value) new(args []Value) (Value, bool)
+func valueNew(v ref, args []ref) (ref, bool)
 
 // Float returns the value v converted to float64 according to JavaScript type conversions (parseFloat).
-func (v Value) Float() float64
+func (v Value) Float() float64 {
+	return valueFloat(v.ref)
+}
+
+func valueFloat(v ref) float64
 
 // Int returns the value v converted to int according to JavaScript type conversions (parseInt).
-func (v Value) Int() int
+func (v Value) Int() int {
+	return valueInt(v.ref)
+}
+
+func valueInt(v ref) int
 
 // Bool returns the value v converted to bool according to JavaScript type conversions.
-func (v Value) Bool() bool
+func (v Value) Bool() bool {
+	return valueBool(v.ref)
+}
+
+func valueBool(v ref) bool
 
 // String returns the value v converted to string according to JavaScript type conversions.
 func (v Value) String() string {
-	str, length := v.prepareString()
+	str, length := valuePrepareString(v.ref)
 	b := make([]byte, length)
-	str.loadString(b)
+	valueLoadString(str, b)
 	return string(b)
 }
 
-func (v Value) prepareString() (Value, int)
+func valuePrepareString(v ref) (ref, int)
 
-func (v Value) loadString(b []byte)
+func valueLoadString(v ref, b []byte)
