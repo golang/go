@@ -906,10 +906,3 @@ func (p *parser) parsePackage() *types.Package {
 	p.pkg.MarkComplete()
 	return p.pkg
 }
-
-// InitData = { InitDataDirective } .
-func (p *parser) parseInitData() {
-	for p.tok != scanner.EOF {
-		p.parseInitDataDirective()
-	}
-}
