@@ -8,6 +8,8 @@
 package os_test
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -304,4 +306,69 @@ func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
 	}
 
 	wg.Wait()
+}
+
+// Issue 24164, for pipes.
+func TestPipeEOF(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		defer func() {
+			if err := w.Close(); err != nil {
+				t.Errorf("error closing writer: %v", err)
+			}
+		}()
+
+		for i := 0; i < 3; i++ {
+			time.Sleep(10 * time.Millisecond)
+			_, err := fmt.Fprintf(w, "line %d\n", i)
+			if err != nil {
+				t.Errorf("error writing to fifo: %v", err)
+				return
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}()
+
+	defer wg.Wait()
+
+	done := make(chan bool)
+	go func() {
+		defer close(done)
+
+		defer func() {
+			if err := r.Close(); err != nil {
+				t.Errorf("error closing reader: %v", err)
+			}
+		}()
+
+		rbuf := bufio.NewReader(r)
+		for {
+			b, err := rbuf.ReadBytes('\n')
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			t.Logf("%s\n", bytes.TrimSpace(b))
+		}
+	}()
+
+	select {
+	case <-done:
+		// Test succeeded.
+	case <-time.After(time.Second):
+		t.Error("timed out waiting for read")
+		// Close the reader to force the read to complete.
+		r.Close()
+	}
 }
