@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	intWidths   = []int{8, 16, 32, 64} // int%d and uint%d
-	floatWidths = []int{32, 64}        // float%d
+	intWidths = []int{8, 16, 32, 64} // int%d and uint%d
+	floatWidths = []int{32, 64} // float%d
 )
 
 func main() {
@@ -59,7 +59,8 @@ const testSegment = `
 		}
 	}`
 
-const testFunc = `func test$I(f float64, i int64) {
+const testFunc =
+`func test$I(f float64, i int64) {
 	if i != int64($I(i))$TEST {
 		return
 	}
@@ -67,7 +68,8 @@ $TESTSEGMENTS
 }
 `
 
-var program = `package main
+var program =
+`package main
 
 import (
 	"fmt"

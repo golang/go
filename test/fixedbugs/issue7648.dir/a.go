@@ -6,5 +6,6 @@ package a
 
 const (
 	sinPi4 = 0.70710678118654752440084436210484903928483593768847
-	A      = complex(sinPi4, -sinPi4)
+	A = complex(sinPi4, -sinPi4)
 )
+

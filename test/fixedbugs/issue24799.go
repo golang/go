@@ -10,7 +10,7 @@
 package main
 
 import (
-	"fmt"
+        "fmt"
 )
 
 type Level string
@@ -20,39 +20,39 @@ type Level string
 // not aligned to 4 bytes due to the type of relocation that
 // is generated for the instruction. A fix was made to avoid
 // generating an instruction with DS relocation for go.strings
-// since their alignment is not known until link time.
+// since their alignment is not known until link time. 
 
 // This problem only affects go.string since other types have
 // correct alignment.
 
 const (
-	LevelBad             Level = "badvals"
-	LevelNone            Level = "No"
-	LevelMetadata        Level = "Metadata"
-	LevelRequest         Level = "Request"
-	LevelRequestResponse Level = "RequestResponse"
+        LevelBad Level = "badvals"
+        LevelNone Level = "No"
+        LevelMetadata Level = "Metadata"
+        LevelRequest Level = "Request"
+        LevelRequestResponse Level = "RequestResponse"
 )
 
 func ordLevel(l Level) int {
-	switch l {
-	case LevelMetadata:
-		return 1
-	case LevelRequest:
-		return 2
-	case LevelRequestResponse:
-		return 3
-	default:
-		return 0
-	}
+        switch l {
+        case LevelMetadata:
+                return 1
+        case LevelRequest:
+                return 2
+        case LevelRequestResponse:
+                return 3
+        default:
+                return 0
+        }
 }
 
 //go:noinline
 func test(l Level) {
-	if ordLevel(l) < ordLevel(LevelMetadata) {
-		fmt.Printf("OK\n")
-	}
+        if ordLevel(l) < ordLevel(LevelMetadata) {
+                fmt.Printf("OK\n")
+        }
 }
 
 func main() {
-	test(LevelMetadata)
+        test(LevelMetadata)
 }

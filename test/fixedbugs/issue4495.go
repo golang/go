@@ -26,3 +26,4 @@ func main() {
 		panic("ret != 3")
 	}
 }
+

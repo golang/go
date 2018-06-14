@@ -12,3 +12,4 @@ func NonASCII(b []byte, i int) int {
 	}
 	return i
 }
+

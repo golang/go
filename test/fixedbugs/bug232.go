@@ -5,5 +5,4 @@
 // license that can be found in the LICENSE file.
 
 package bug232
-
-type I interface{ X(...int) }
+type I interface { X(...int) }

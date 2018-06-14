@@ -10,4 +10,4 @@ func init() {
 	B = 2
 }
 
-type V int
+type V int;

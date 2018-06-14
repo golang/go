@@ -9,14 +9,13 @@ package main
 import "./embed0"
 
 type T int
-
 func (t T) m() {}
 
-type I interface{ m() }
-type J interface{ I }
+type I interface { m() }
+type J interface { I }
 
-type PI interface{ p.I }
-type PJ interface{ p.J }
+type PI interface { p.I }
+type PJ interface { p.J }
 
 func main() {
 	var i I

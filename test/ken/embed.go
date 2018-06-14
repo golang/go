@@ -8,6 +8,7 @@
 
 package main
 
+
 type I interface {
 	test1() int
 	test2() int

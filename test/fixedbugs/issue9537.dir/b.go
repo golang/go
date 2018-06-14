@@ -15,8 +15,8 @@ type X struct {
 }
 
 type Intf interface {
-	Get() []byte
-	RetPtr(int) *int
+	Get()        []byte
+	RetPtr(int)  *int
 	RetRPtr(int) (int, *int)
 }
 

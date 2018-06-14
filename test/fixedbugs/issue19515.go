@@ -48,3 +48,4 @@ func (v *VScrollPanel) Draw() {
 	BoxGradient(x+x-2, y-1, 0, 0, 0, Color{}, Color{})
 	BoxGradient(x+y-2, y-1, 0, 0, 0, Color{}, Color{})
 }
+

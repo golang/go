@@ -15,3 +15,4 @@ type Implementation struct{}
 func (p *Implementation) private() {}
 
 var X = new(Implementation)
+

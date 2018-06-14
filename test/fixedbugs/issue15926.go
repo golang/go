@@ -16,5 +16,5 @@ func (s S) def() {}
 var I = S.def
 
 func main() {
-	I(S{})
+    I(S{})
 }

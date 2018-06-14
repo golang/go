@@ -11,10 +11,10 @@
 
 package p
 
-type F func(b T) // ERROR "T is not a type"
+type F func(b T)  // ERROR "T is not a type"
 
 func T(fn F) {
-	func() {
-		fn(nil) // If Decldepth is not initialized properly, typecheckclosure() Fatals here.
-	}()
+    func() {
+        fn(nil)  // If Decldepth is not initialized properly, typecheckclosure() Fatals here.
+    }()
 }

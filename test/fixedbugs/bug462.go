@@ -13,7 +13,7 @@ type T struct {
 }
 
 func main() {
-	_ = T{
+	_ = T {
 		os.File: 1, // ERROR "unknown T? ?field"
 	}
 }

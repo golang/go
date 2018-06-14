@@ -235,7 +235,7 @@ func dotTypeEscape2() { // #13805, #15796
 		var x interface{} = i // ERROR "i does not escape"
 		var y interface{} = j // ERROR "j does not escape"
 
-		*(&v) = x.(int)         // ERROR "&v does not escape"
+		*(&v) = x.(int) // ERROR "&v does not escape"
 		*(&v), *(&ok) = y.(int) // ERROR "&v does not escape" "&ok does not escape"
 	}
 	{
@@ -245,8 +245,8 @@ func dotTypeEscape2() { // #13805, #15796
 		var x interface{} = i // ERROR "i does not escape"
 		var y interface{} = j // ERROR "j does not escape"
 
-		sink = x.(int)         // ERROR "x.\(int\) escapes to heap"
-		sink, *(&ok) = y.(int) // ERROR "&ok does not escape"
+		sink = x.(int)        // ERROR "x.\(int\) escapes to heap"
+		sink, *(&ok) = y.(int)     // ERROR "&ok does not escape"
 	}
 	{
 		i := 0 // ERROR "moved to heap: i"
@@ -255,7 +255,7 @@ func dotTypeEscape2() { // #13805, #15796
 		var x interface{} = &i // ERROR "&i escapes to heap"
 		var y interface{} = &j // ERROR "&j escapes to heap"
 
-		sink = x.(*int)         // ERROR "x.\(\*int\) escapes to heap"
-		sink, *(&ok) = y.(*int) // ERROR "&ok does not escape"
+		sink = x.(*int)        // ERROR "x.\(\*int\) escapes to heap"
+		sink, *(&ok) = y.(*int)     // ERROR "&ok does not escape"
 	}
 }

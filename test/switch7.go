@@ -32,3 +32,4 @@ func f4(e interface{}) {
 	}:
 	}
 }
+

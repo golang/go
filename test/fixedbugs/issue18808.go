@@ -56,8 +56,8 @@ func lte(x uint32) {
 func main() {
 	eq(lim)
 	neq(lim)
-	gt(lim + 1)
-	gte(lim + 1)
-	lt(lim + 1)
-	lte(lim + 1)
+	gt(lim+1)
+	gte(lim+1)
+	lt(lim+1)
+	lte(lim+1)
 }

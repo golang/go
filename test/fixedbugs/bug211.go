@@ -6,12 +6,9 @@
 
 package main
 
-type R interface{ duplicate() }
-type S interface{ duplicate() }
-type T interface {
-	R
-	S
-} // ERROR "duplicate"
+type R interface { duplicate() }
+type S interface { duplicate() }
+type T interface { R; S }	// ERROR "duplicate"
 
 func main() {
 }

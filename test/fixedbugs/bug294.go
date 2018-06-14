@@ -76,3 +76,4 @@ func main() {
 		bad()
 	}
 }
+

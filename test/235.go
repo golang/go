@@ -16,11 +16,12 @@ func M(f uint64) (in, out T) {
 	out = make(T, 100)
 	go func(in, out T, f uint64) {
 		for {
-			out <- f * <-in
+			out <- f*<-in
 		}
 	}(in, out, f)
 	return in, out
 }
+
 
 func min(xs []uint64) uint64 {
 	m := xs[0]
@@ -31,6 +32,7 @@ func min(xs []uint64) uint64 {
 	}
 	return m
 }
+
 
 func main() {
 	F := []uint64{2, 3, 5}

@@ -11,4 +11,4 @@
 package main
 
 /*// comment
- */
+*/

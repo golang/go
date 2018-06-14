@@ -14,3 +14,4 @@ type T struct {
 
 var p *T
 var v = *p
+

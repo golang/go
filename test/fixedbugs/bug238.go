@@ -18,3 +18,4 @@ const g interface{} = 7 // ERROR "constant|wrong|invalid"
 const h bool = false
 const i int = 2
 const j float64 = 5
+

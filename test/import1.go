@@ -9,11 +9,11 @@
 
 package main
 
-import "bufio"    // GCCGO_ERROR "previous|not used"
-import bufio "os" // ERROR "redeclared|redefinition|incompatible" "imported and not used"
+import "bufio"	// GCCGO_ERROR "previous|not used"
+import bufio "os"	// ERROR "redeclared|redefinition|incompatible" "imported and not used"
 
 import (
-	"fmt"      // GCCGO_ERROR "previous|not used"
-	. "math"   // GC_ERROR "imported and not used: \x22math\x22$"
-	fmt "math" // ERROR "redeclared|redefinition|incompatible" "imported and not used: \x22math\x22 as fmt"
+	"fmt"	// GCCGO_ERROR "previous|not used"
+	fmt "math"	// ERROR "redeclared|redefinition|incompatible" "imported and not used: \x22math\x22 as fmt"
+	. "math"	// GC_ERROR "imported and not used: \x22math\x22$"
 )

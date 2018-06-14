@@ -43,3 +43,4 @@ func f1(pkg, typ, meth string) {
 func f2() interface{} {
 	return new(int)
 }
+

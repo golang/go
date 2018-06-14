@@ -31,6 +31,7 @@ func asString(String) {}
 
 func (Map) M() {}
 
+
 // These functions check at run time that the default type
 // (in the absence of any implicit conversion hints)
 // is the given type.

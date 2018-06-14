@@ -5,8 +5,6 @@
 // license that can be found in the LICENSE file.
 
 package bug233
-
 import p "fmt"
-
 var _ = p.Print
 var fmt = 10

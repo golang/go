@@ -5,8 +5,7 @@
 // license that can be found in the LICENSE file.
 
 package main
-
 func f() {
-	v := 1 << 1025 // ERROR "overflow|shift count too large"
+	v := 1 << 1025;		// ERROR "overflow|shift count too large"
 	_ = v
 }

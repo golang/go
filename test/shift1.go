@@ -61,12 +61,12 @@ func _() {
 		o       = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
 		// next test only fails on 32bit systems
 		// p = 1<<s == 1<<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
-		u                                    = 1.0 << s    // ERROR "non-integer|float64"
-		u1                                   = 1.0<<s != 0 // ERROR "non-integer|float64"
-		u2                                   = 1<<s != 1.0 // ERROR "non-integer|float64"
-		v                            float32 = 1 << s      // ERROR "non-integer|float32"
-		w                            int64   = 1.0 << 33   // 1.0<<33 is a constant shift expression
-		_, _, _, _, _, _, _, _, _, _         = j, k, m, n, o, u, u1, u2, v, w
+		u          = 1.0 << s    // ERROR "non-integer|float64"
+		u1         = 1.0<<s != 0 // ERROR "non-integer|float64"
+		u2         = 1<<s != 1.0 // ERROR "non-integer|float64"
+		v  float32 = 1 << s      // ERROR "non-integer|float32"
+		w  int64   = 1.0 << 33   // 1.0<<33 is a constant shift expression
+		_, _, _, _, _, _, _, _, _, _ = j, k, m, n, o, u, u1, u2, v, w
 	)
 
 	// non constants arguments trigger a different path

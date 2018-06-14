@@ -17,6 +17,5 @@ type I2 interface {
 }
 
 type T int
-
 func (t T) foo() I2 { return t }
 func (t T) bar() I1 { return t }

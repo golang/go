@@ -25,7 +25,7 @@ func check(file string, line int) {
 }
 
 func main() {
-	//-style line directives
+//-style line directives
 //line :1
 	check("??", 1) // no file specified
 //line foo.go:1
@@ -35,16 +35,12 @@ func main() {
 //line :11:22
 	check("bar.go", 11) // no file, but column specified => keep old filename
 
-	/*-style line directives */
-	/*line :1*/
-	check("??", 1) // no file specified
-	/*line foo.go:1*/ check("foo.go", 1)
-	/*line bar.go:10:20*/ check("bar.go", 10)
-	/*line :11:22*/ check("bar.go", 11) // no file, but column specified => keep old filename
+/*-style line directives */
+/*line :1*/ check("??", 1) // no file specified
+/*line foo.go:1*/ check("foo.go", 1)
+/*line bar.go:10:20*/ check("bar.go", 10)
+/*line :11:22*/ check("bar.go", 11) // no file, but column specified => keep old filename
 
-	/*line :10*/
-	check("??", 10) /*line foo.go:20*/
-	check("foo.go", 20) /*line :30:1*/
-	check("foo.go", 30)
+	/*line :10*/ check("??", 10); /*line foo.go:20*/ check("foo.go", 20); /*line :30:1*/ check("foo.go", 30)
 	check("foo.go", 31)
 }

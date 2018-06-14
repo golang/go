@@ -18,7 +18,7 @@ func main() {
 	}
 
 	// cmd/compile used to require integer constants to fit into an "int".
-	const huge = string(1 << 100)
+	const huge = string(1<<100)
 	if huge != fffd {
 		panic("huge != bad")
 	}

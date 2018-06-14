@@ -7,11 +7,10 @@
 package main
 
 // Interface
-type I interface{ F() int }
+type I interface { F() int }
 
 // Implements interface
-type S struct{}
-
+type S struct { }
 func (s *S) F() int { return 1 }
 
 // Allocates S but returns I
@@ -28,10 +27,11 @@ func Use(x I) {
 }
 
 func main() {
-	i := NewI(0)
-	Use(i)
+	i := NewI(0);
+	Use(i);
 
 	// Again, without temporary
 	// Crashes because x.F is 0.
-	Use(NewI(0))
+	Use(NewI(0));
 }
+

@@ -22,6 +22,6 @@ func F(c bool, s1, s2 S) (int, int) {
 func main() {
 	i, j := F(true, S{1}, S{20})
 	if i != 20 || j != 1 {
-		panic(i + j)
+		panic(i+j)
 	}
 }

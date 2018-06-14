@@ -33,3 +33,4 @@ func main() {
 		panic("dummy2 != 2")
 	}
 }
+

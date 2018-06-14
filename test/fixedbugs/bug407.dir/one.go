@@ -11,7 +11,10 @@ type T struct {
 }
 
 func (t *T) foo(arg int) {}
-func (t T) goo(arg int)  {}
+func (t T) goo(arg int) {}
 
 func (t *T) F() { t.f = (*T).foo }
 func (t *T) G() { t.g = T.goo }
+
+
+

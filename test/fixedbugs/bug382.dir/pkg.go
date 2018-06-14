@@ -3,7 +3,5 @@
 // license that can be found in the LICENSE file.
 
 package pkg
-
-type T struct{}
-
+type T struct {}
 var E T

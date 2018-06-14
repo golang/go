@@ -13,7 +13,7 @@ type S struct {
 }
 
 var M = map[string]S{
-	"a": {F: 1},
+	"a": { F: 1 },
 }
 
 var P = M["a"]

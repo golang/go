@@ -10,10 +10,10 @@ type T interface {
 
 type S struct{}
 
-func (S) M0(_ int)       {}
-func (S) M1(x, _ int)    {}
+func (S) M0(_ int) {}
+func (S) M1(x, _ int) {}
 func (S) M2() (x, _ int) { return }
-func (_ S) M3()          {}
+func (_ S) M3() {}
 
 // Snippet from x/tools/godoc/analysis/analysis.go.
 // Offending code from #5470.

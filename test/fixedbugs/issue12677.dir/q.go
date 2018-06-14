@@ -3,7 +3,5 @@
 // license that can be found in the LICENSE file.
 
 package q
-
 import "./p"
-
 func f() { println(p.Baz(2)) }

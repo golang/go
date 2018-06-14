@@ -9,10 +9,7 @@
 
 package P
 
-import ()
-
-const ()
-
-var ()
-
-type ()
+import ( )
+const ( )
+var ( )
+type ( )

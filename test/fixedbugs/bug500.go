@@ -35,7 +35,7 @@ func init() {
 
 func main() {
 	runtime.GC()
-	if a[0].str != b+c {
+	if a[0].str != b + c {
 		panic(a[0].str)
 	}
 }

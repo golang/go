@@ -12,19 +12,16 @@ import "os"
 
 const Value = 1e12
 
-type Inter interface{ M() int64 }
+type Inter interface { M() int64 }
 
 type T int64
-
 func (t T) M() int64 { return int64(t) }
-
 var t = T(Value)
 var pt = &t
 var ti Inter = t
 
-type S struct{ Inter }
-
-var s = S{ti}
+type S struct { Inter }
+var s = S{ ti }
 var ps = &s
 
 var i Inter

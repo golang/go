@@ -7,17 +7,19 @@
 package main
 
 func f0() {
-	const x = 0
+	const x = 0;
 }
+
 
 func f1() {
-	x := 0
-	_ = x
+	x := 0;
+	_ = x;
 }
 
+
 func main() {
-	f0()
-	f1()
+	f0();
+	f1();
 }
 
 /*

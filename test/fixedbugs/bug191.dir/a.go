@@ -10,4 +10,5 @@ func init() {
 	A = 1
 }
 
-type T int
+type T int;
+

@@ -10,9 +10,7 @@ import "reflect"
 
 func main() {
 	a := &struct{ x int }{}
-	b := &struct {
-		x int ""
-	}{}
+	b := &struct{ x int "" }{}
 
 	ta := reflect.TypeOf(a)
 	tb := reflect.TypeOf(b)

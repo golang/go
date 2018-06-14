@@ -12,3 +12,4 @@ import _ "unicode//utf8" // ERROR "non-canonical import path .unicode//utf8. \(s
 
 func main() {
 }
+

@@ -11,7 +11,8 @@ package main
 import "os"
 
 func main() {
-	var i uint64 = ' ' +
+	var i uint64 =
+		' ' +
 		'a' +
 		'ä' +
 		'本' +

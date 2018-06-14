@@ -22,10 +22,7 @@ func main() {
 }
 
 func makec(px *int) chan bool {
-	if false {
-		for {
-		}
-	}
+	if false { for {} }
 	*px = 42
 	return make(chan bool, 0)
 }

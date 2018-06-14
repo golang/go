@@ -95,7 +95,7 @@ func map8() {
 	i := 0                     // ERROR "moved to heap: i"
 	j := 0                     // ERROR "moved to heap: j"
 	m := map[*int]*int{&i: &j} // ERROR "&i escapes to heap" "&j escapes to heap" "literal escapes to heap"
-	sink = m                   // ERROR "m escapes to heap"
+	sink = m // ERROR "m escapes to heap"
 }
 
 func map9() *int {

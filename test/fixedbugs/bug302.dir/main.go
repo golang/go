@@ -9,3 +9,4 @@ import _ "p"
 
 // Check that it's still correct in pp.a (which contains p.6).
 import _ "pp"
+

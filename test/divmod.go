@@ -103,7 +103,8 @@ func checkdiv3(x, y uint64) {
 	if (uint64(uint8(x)) == x || uint64(uint8(^x)) == ^x) && (uint64(uint8(y)) == y || uint64(uint8(^y)) == ^y) {
 		checkuint8(uint8(x), uint8(y))
 	}
-
+	
+	
 	sx := int64(x)
 	sy := int64(y)
 	checkint64(sx, sy)
@@ -127,8 +128,8 @@ func checkuint(x, y uint) {
 		return
 	}
 	q, r := udiv(uint64(x), uint64(y))
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != uint(q) {
 		print("uint(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -144,8 +145,8 @@ func checkuint64(x, y uint64) {
 		return
 	}
 	q, r := udiv(x, y)
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != q {
 		print("uint64(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -161,8 +162,8 @@ func checkuint32(x, y uint32) {
 		return
 	}
 	q, r := udiv(uint64(x), uint64(y))
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != uint32(q) {
 		print("uint32(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -178,8 +179,8 @@ func checkuint16(x, y uint16) {
 		return
 	}
 	q, r := udiv(uint64(x), uint64(y))
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != uint16(q) {
 		print("uint16(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -195,8 +196,8 @@ func checkuint8(x, y uint8) {
 		return
 	}
 	q, r := udiv(uint64(x), uint64(y))
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != uint8(q) {
 		print("uint8(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -212,8 +213,8 @@ func checkint(x, y int) {
 		return
 	}
 	q, r := idiv(int64(x), int64(y))
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != int(q) {
 		print("int(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -229,8 +230,8 @@ func checkint64(x, y int64) {
 		return
 	}
 	q, r := idiv(x, y)
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != q {
 		print("int64(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -246,8 +247,8 @@ func checkint32(x, y int32) {
 		return
 	}
 	q, r := idiv(int64(x), int64(y))
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != int32(q) {
 		print("int32(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -263,8 +264,8 @@ func checkint16(x, y int16) {
 		return
 	}
 	q, r := idiv(int64(x), int64(y))
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != int16(q) {
 		print("int16(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -280,8 +281,8 @@ func checkint8(x, y int8) {
 		return
 	}
 	q, r := idiv(int64(x), int64(y))
-	q1 := x / y
-	r1 := x % y
+	q1 := x/y
+	r1 := x%y
 	if q1 != int8(q) {
 		print("int8(", x, "/", y, ") = ", q1, ", want ", q, "\n")
 	}
@@ -429,7 +430,7 @@ func udiv(x, y uint64) (q, r uint64) {
 		}
 		y >>= 1
 	}
-	return q, x
+	return q, x	
 }
 
 // signed divide and mod: do unsigned and adjust signs.

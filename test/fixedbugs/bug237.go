@@ -9,7 +9,6 @@ package main
 import "fmt"
 
 var indent uint = 10
-
 func main() {
 	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . " +
 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "

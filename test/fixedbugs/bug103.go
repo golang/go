@@ -6,8 +6,9 @@
 
 package main
 
-func f()/* no return type */ {}
+func f() /* no return type */ {}
 
 func main() {
-	x := f() // ERROR "mismatch|as value|no type"
+	x := f();  // ERROR "mismatch|as value|no type"
 }
+

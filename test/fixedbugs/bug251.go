@@ -19,6 +19,7 @@ type I2 interface {
 	I1 // GCCGO_ERROR "loop|interface"
 }
 
+
 var i1 I1 = i2
 var i2 I2
 var i2a I2 = i1

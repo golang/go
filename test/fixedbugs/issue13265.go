@@ -9,7 +9,7 @@
 package p
 
 func f() {
-	var c chan chan chan int
-	for ; ; <-<-<-c {
-	}
+    var c chan chan chan int
+    for ; ; <-<-<-c {
+    }
 }

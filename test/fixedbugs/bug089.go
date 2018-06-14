@@ -6,15 +6,16 @@
 
 package main
 
-type I1 interface{}
-type I2 interface{ pr() }
+type	I1	interface {}
+type	I2	interface { pr() }
 
-func e() I1
+func	e()	I1;
 
-var i1 I1
-var i2 I2
+var	i1	I1;
+var	i2	I2;
 
-func main() {
+func
+main() {
 
-	i2 = e().(I2) // bug089.go:16: fatal error: agen_inter i2i
+	i2 = e().(I2);	// bug089.go:16: fatal error: agen_inter i2i
 }

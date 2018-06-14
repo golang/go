@@ -8,11 +8,11 @@
 
 package main
 
-func mine(int b) int { // ERROR "undefined.*b"
-	return b + 2 // ERROR "undefined.*b"
+func mine(int b) int {	// ERROR "undefined.*b"
+	return b + 2	// ERROR "undefined.*b"
 }
 
 func main() {
-	mine()     // GCCGO_ERROR "not enough arguments"
-	c = mine() // ERROR "undefined.*c|not enough arguments"
+	mine()		// GCCGO_ERROR "not enough arguments"
+	c = mine()	// ERROR "undefined.*c|not enough arguments"
 }

@@ -7,7 +7,6 @@
 package main
 
 type T []int
-
 func (t T) m()
 
 func main() {

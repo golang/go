@@ -41,6 +41,7 @@ func f7(a int) (x int, y float32) {
 	return 7, 7.0
 }
 
+
 func f8(a int) (x int, y float32) {
 	return 8, 8.0
 }
@@ -53,11 +54,13 @@ func (t *T) m10(a int, b float32) int {
 	return (t.x + a) * (t.y + int(b))
 }
 
+
 func f9(a int) (i int, f float32) {
 	i = 9
 	f = 9.0
 	return
 }
+
 
 func main() {
 	f1()

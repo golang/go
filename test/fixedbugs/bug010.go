@@ -6,6 +6,7 @@
 
 package main
 
+
 func f(i int, f float64) {
 	i = 8
 	f = 8.0

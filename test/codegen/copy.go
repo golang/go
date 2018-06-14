@@ -44,7 +44,7 @@ func moveDisjointStack() {
 	runtime.KeepAlive(&s)
 }
 
-func moveDisjointArg(b *[256]byte) {
+func moveDisjointArg(b *[256]byte)  {
 	var s [256]byte
 	// s390x:-".*memmove"
 	copy(s[:], b[:])
