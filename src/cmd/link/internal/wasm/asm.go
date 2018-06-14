@@ -177,7 +177,7 @@ func asmb(ctxt *ld.Link) {
 	writeCodeSec(ctxt, fns)
 	writeDataSec(ctxt)
 	if !*ld.FlagS {
-		writeNameSec(ctxt, append(hostImports, fns...))
+		writeNameSec(ctxt, len(hostImports), fns)
 	}
 
 	ctxt.Out.Flush()
@@ -409,14 +409,14 @@ var nameRegexp = regexp.MustCompile(`[^\w\.]`)
 // writeNameSec writes an optional section that assigns names to the functions declared by the "func" section.
 // The names are only used by WebAssembly stack traces, debuggers and decompilers.
 // TODO(neelance): add symbol table of DATA symbols
-func writeNameSec(ctxt *ld.Link, fns []*wasmFunc) {
+func writeNameSec(ctxt *ld.Link, firstFnIndex int, fns []*wasmFunc) {
 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
 	writeName(ctxt.Out, "name")
 
 	sizeOffset2 := writeSecHeader(ctxt, 0x01) // function names
 	writeUleb128(ctxt.Out, uint64(len(fns)))
 	for i, fn := range fns {
-		writeUleb128(ctxt.Out, uint64(i))
+		writeUleb128(ctxt.Out, uint64(firstFnIndex+i))
 		writeName(ctxt.Out, fn.Name)
 	}
 	writeSecSize(ctxt, sizeOffset2)
