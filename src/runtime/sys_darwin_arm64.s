@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // System calls and other sys.stuff for ARM64, Darwin
-// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
-// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+// System calls are implemented in libSystem, this file contains
+// trampolines that convert from Go to C calling convention.
 
 #include "go_asm.h"
 #include "go_tls.h"
@@ -258,75 +258,6 @@ TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
 	BL	libc_sysctl(SB)
 	RET
 
-// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
-TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
-	MOVD	h+0(FP), R0
-	MOVW	op+8(FP), R1
-	MOVW	send_size+12(FP), R2
-	MOVW	rcv_size+16(FP), R3
-	MOVW	rcv_name+20(FP), R4
-	MOVW	timeout+24(FP), R5
-	MOVW	notify+28(FP), R6
-	MOVN	$30, R16
-	SVC	$0x80
-	MOVW	R0, ret+32(FP)
-	RET
-
-TEXT runtime·mach_task_self(SB),NOSPLIT,$0
-	MOVN	$27, R16 // task_self_trap
-	SVC	$0x80
-	MOVW	R0, ret+0(FP)
-	RET
-
-TEXT runtime·mach_thread_self(SB),NOSPLIT,$0
-	MOVN	$26, R16 // thread_self_trap
-	SVC	$0x80
-	MOVW	R0, ret+0(FP)
-	RET
-
-TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
-	MOVN	$25, R16	// mach_reply_port
-	SVC	$0x80
-	MOVW	R0, ret+0(FP)
-	RET
-
-// Mach provides trap versions of the semaphore ops,
-// instead of requiring the use of RPC.
-
-// uint32 mach_semaphore_wait(uint32)
-TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
-	MOVW	sema+0(FP), R0
-	MOVN	$35, R16	// semaphore_wait_trap
-	SVC	$0x80
-	MOVW	R0, ret+8(FP)
-	RET
-
-// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
-TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
-	MOVW	sema+0(FP), R0
-	MOVW	sec+4(FP), R1
-	MOVW	nsec+8(FP), R2
-	MOVN	$37, R16	// semaphore_timedwait_trap
-	SVC	$0x80
-	MOVW	R0, ret+16(FP)
-	RET
-
-// uint32 mach_semaphore_signal(uint32)
-TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
-	MOVW	sema+0(FP), R0
-	MOVN	$32, R16	// semaphore_signal_trap
-	SVC	$0x80
-	MOVW	R0, ret+8(FP)
-	RET
-
-// uint32 mach_semaphore_signal_all(uint32)
-TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
-	MOVW	sema+0(FP), R0
-	MOVN	$33, R16	// semaphore_signal_all_trap
-	SVC	$0x80
-	MOVW	R0, ret+8(FP)
-	RET
-
 TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
 	BL	libc_kqueue(SB)
 	RET
@@ -397,3 +328,44 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	MOVW	0(R0), R0	// arg 1 sig
 	BL	libc_raise(SB)
 	RET
+
+TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 attr
+	MOVD	0(R0), R0	// arg 1 mutex
+	BL	libc_pthread_mutex_init(SB)
+	RET
+
+TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R0	// arg 1 mutex
+	BL	libc_pthread_mutex_lock(SB)
+	RET
+
+TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R0	// arg 1 mutex
+	BL	libc_pthread_mutex_unlock(SB)
+	RET
+
+TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 attr
+	MOVD	0(R0), R0	// arg 1 cond
+	BL	libc_pthread_cond_init(SB)
+	RET
+
+TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 mutex
+	MOVD	0(R0), R0	// arg 1 cond
+	BL	libc_pthread_cond_wait(SB)
+	RET
+
+TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 mutex
+	MOVD	16(R0), R2	// arg 3 timeout
+	MOVD	0(R0), R0	// arg 1 cond
+	BL	libc_pthread_cond_timedwait(SB)
+	RET
+
+TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R0	// arg 1 cond
+	BL	libc_pthread_cond_signal(SB)
+	RET
+
