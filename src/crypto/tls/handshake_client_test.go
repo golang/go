@@ -697,6 +697,10 @@ func TestClientResumption(t *testing.T) {
 	getTicket := func() []byte {
 		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.sessionTicket
 	}
+	deleteTicket := func() {
+		ticketKey := clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).sessionKey
+		clientConfig.ClientSessionCache.Put(ticketKey, nil)
+	}
 	randomKey := func() [32]byte {
 		var k [32]byte
 		if _, err := io.ReadFull(serverConfig.rand(), k[:]); err != nil {
@@ -741,6 +745,29 @@ func TestClientResumption(t *testing.T) {
 	testResumeState("DifferentCipherSuite", false)
 	testResumeState("DifferentCipherSuiteRecovers", true)
 
+	deleteTicket()
+	testResumeState("WithoutSessionTicket", false)
+
+	// Session resumption should work when using client certificates
+	deleteTicket()
+	serverConfig.ClientCAs = rootCAs
+	serverConfig.ClientAuth = RequireAndVerifyClientCert
+	clientConfig.Certificates = serverConfig.Certificates
+	testResumeState("InitialHandshake", false)
+	testResumeState("WithClientCertificates", true)
+
+	// Tickets should be removed from the session cache on TLS handshake failure
+	farFuture := func() time.Time { return time.Unix(16725225600, 0) }
+	serverConfig.Time = farFuture
+	_, _, err = testHandshake(clientConfig, serverConfig)
+	if err == nil {
+		t.Fatalf("handshake did not fail after client certificate expiry")
+	}
+	now := func() time.Time { return time.Unix(1476984729, 0) }
+	serverConfig.Time = now
+	testResumeState("AfterHandshakeFailure", false)
+	serverConfig.ClientAuth = NoClientCert
+
 	clientConfig.ClientSessionCache = nil
 	testResumeState("WithoutSessionCache", false)
 }
@@ -784,10 +811,21 @@ func TestLRUClientSessionCache(t *testing.T) {
 		t.Fatalf("session cache failed update for key 0")
 	}
 
-	// Adding a nil entry is valid.
+	// Calling Put with a nil entry deletes the key.
 	cache.Put(keys[0], nil)
-	if s, ok := cache.Get(keys[0]); !ok || s != nil {
-		t.Fatalf("failed to add nil entry to cache")
+	if _, ok := cache.Get(keys[0]); ok {
+		t.Fatalf("session cache failed to delete key 0")
+	}
+
+	// Delete entry 2. LRU should keep 4 and 5
+	cache.Put(keys[2], nil)
+	if _, ok := cache.Get(keys[2]); ok {
+		t.Fatalf("session cache failed to delete key 4")
+	}
+	for i := 4; i < 6; i++ {
+		if s, ok := cache.Get(keys[i]); !ok || s != &cs[i] {
+			t.Fatalf("session cache should not have deleted key: %s", keys[i])
+		}
 	}
 }
 

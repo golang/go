@@ -853,15 +853,21 @@ func NewLRUClientSessionCache(capacity int) ClientSessionCache {
 	}
 }
 
-// Put adds the provided (sessionKey, cs) pair to the cache.
+// Put adds the provided (sessionKey, cs) pair to the cache. If cs is nil, the entry
+// corresponding to sessionKey is removed from the cache instead.
 func (c *lruSessionCache) Put(sessionKey string, cs *ClientSessionState) {
 	c.Lock()
 	defer c.Unlock()
 
 	if elem, ok := c.m[sessionKey]; ok {
-		entry := elem.Value.(*lruSessionCacheEntry)
-		entry.state = cs
-		c.q.MoveToFront(elem)
+		if cs == nil {
+			c.q.Remove(elem)
+			delete(c.m, sessionKey)
+		} else {
+			entry := elem.Value.(*lruSessionCacheEntry)
+			entry.state = cs
+			c.q.MoveToFront(elem)
+		}
 		return
 	}
 

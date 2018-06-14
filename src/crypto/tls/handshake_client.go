@@ -128,7 +128,7 @@ func (c *Conn) clientHandshake() error {
 		// available.
 		cacheKey = clientSessionCacheKey(c.conn.RemoteAddr(), c.config)
 		candidateSession, ok := sessionCache.Get(cacheKey)
-		if ok {
+		if ok && candidateSession != nil {
 			// Check that the ciphersuite/version used for the
 			// previous session are still valid.
 			cipherSuiteOk := false
@@ -165,6 +165,11 @@ func (c *Conn) clientHandshake() error {
 	}
 
 	if err = hs.handshake(); err != nil {
+		// If we got a handshake failure when resuming a session, throw
+		// the ticket away
+		if session != nil {
+			sessionCache.Put(cacheKey, nil)
+		}
 		return err
 	}
 
