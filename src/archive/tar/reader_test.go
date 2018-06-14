@@ -378,9 +378,9 @@ func TestReader(t *testing.T) {
 				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
 			},
 			PAXRecords: map[string]string{
-				"mtime":                         "1386065770.449252304",
-				"atime":                         "1389782991.41987522",
-				"ctime":                         "1386065770.449252304",
+				"mtime": "1386065770.449252304",
+				"atime": "1389782991.41987522",
+				"ctime": "1386065770.449252304",
 				"SCHILY.xattr.security.selinux": "unconfined_u:object_r:default_t:s0\x00",
 			},
 			Format: FormatPAX,

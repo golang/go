@@ -115,6 +115,6 @@ var goodNamedPointerSliceLiteral = []*unicode.CaseRange{
 	&unicode.CaseRange{Lo: 1, Hi: 2},
 }
 var badNamedPointerSliceLiteral = []*unicode.CaseRange{
-	{1, 2},                   // ERROR "unkeyed fields"
+	{1, 2}, // ERROR "unkeyed fields"
 	&unicode.CaseRange{1, 2}, // ERROR "unkeyed fields"
 }
