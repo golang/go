@@ -541,17 +541,26 @@ func Repeat(s string, count int) string {
 	// See Issue golang.org/issue/16237
 	if count < 0 {
 		panic("strings: negative Repeat count")
-	} else if count > 0 && len(s)*count/count != len(s) {
+	} else if count == 0 {
+		return ""
+	} else if len(s)*count/count != len(s) {
 		panic("strings: Repeat count causes overflow")
 	}
 
-	b := make([]byte, len(s)*count)
-	bp := copy(b, s)
-	for bp < len(b) {
-		copy(b[bp:], b[:bp])
-		bp *= 2
+	k, n := len(s), len(s)*count
+	var b Builder
+	b.Grow(n)
+	b.WriteString(s)
+	for k < n {
+		if k + k < n {
+			b.WriteString(b.String())
+			k = k + k
+		} else {
+			b.WriteString(b.String()[:n-k])
+			break
+		}
 	}
-	return string(b)
+	return b.String()
 }
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
