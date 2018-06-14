@@ -54,7 +54,7 @@ body {
 }
 
 .stats {
-	font-size: 60%;
+    font-size: 60%;
 }
 
 table {
@@ -95,6 +95,26 @@ td.collapsed  div {
          margin-left: -10em;
          margin-right: -10em;
          text-align: right;
+}
+
+code, pre, .lines {
+    font-family: Menlo, monospace;
+    font-size: 12px;
+}
+
+.lines {
+    float: left;
+    overflow: hidden;
+    text-align: right;
+}
+
+.lines div {
+    padding-right: 10px;
+    color: gray;
+}
+
+div.line-number {
+    font-size: 12px;
 }
 
 td.ssa-prog {
@@ -158,8 +178,12 @@ dd.ssa-prog {
 }
 
 .line-number {
-    font-style: italic;
     font-size: 11px;
+}
+
+.no-line-number {
+    font-size: 11px;
+    color: gray;
 }
 
 .highlight-aquamarine     { background-color: aquamarine; }
@@ -235,7 +259,7 @@ for (var i = 0; i < outlines.length; i++) {
 
 window.onload = function() {
     var ssaElemClicked = function(elem, event, selections, selected) {
-        event.stopPropagation()
+        event.stopPropagation();
 
         // TODO: pushState with updated state and read it on page load,
         // so that state can survive across reloads
@@ -288,11 +312,11 @@ window.onload = function() {
 
     var ssaValueClicked = function(event) {
         ssaElemClicked(this, event, highlights, highlighted);
-    }
+    };
 
     var ssaBlockClicked = function(event) {
         ssaElemClicked(this, event, outlines, outlined);
-    }
+    };
 
     var ssavalues = document.getElementsByClassName("ssa-value");
     for (var i = 0; i < ssavalues.length; i++) {
@@ -311,7 +335,14 @@ window.onload = function() {
     for (var i = 0; i < ssablocks.length; i++) {
         ssablocks[i].addEventListener('click', ssaBlockClicked);
     }
-   var expandedDefault = [
+
+    var lines = document.getElementsByClassName("line-number");
+    for (var i = 0; i < lines.length; i++) {
+        lines[i].addEventListener('click', ssaValueClicked);
+    }
+
+    // Contains phase names which are expanded by default. Other columns are collapsed.
+    var expandedDefault = [
         "start",
         "deadcode",
         "opt",
@@ -319,56 +350,53 @@ window.onload = function() {
         "late deadcode",
         "regalloc",
         "genssa",
-    ]
-    function isExpDefault(id) {
-        for (var i = 0; i < expandedDefault.length; i++) {
-            if (id.startsWith(expandedDefault[i])) {
-                return true;
-            }
-        }
-        return false;
-    }
+    ];
+
     function toggler(phase) {
         return function() {
             toggle_cell(phase+'-col');
             toggle_cell(phase+'-exp');
         };
     }
+
     function toggle_cell(id) {
-       var e = document.getElementById(id);
-       if(e.style.display == 'table-cell')
-          e.style.display = 'none';
-       else
-          e.style.display = 'table-cell';
+        var e = document.getElementById(id);
+        if (e.style.display == 'table-cell') {
+            e.style.display = 'none';
+        } else {
+            e.style.display = 'table-cell';
+        }
     }
 
+    // Go through all columns and collapse needed phases.
     var td = document.getElementsByTagName("td");
     for (var i = 0; i < td.length; i++) {
         var id = td[i].id;
-        var def = isExpDefault(id);
         var phase = id.substr(0, id.length-4);
+        var show = expandedDefault.indexOf(phase) !== -1
         if (id.endsWith("-exp")) {
             var h2 = td[i].getElementsByTagName("h2");
             if (h2 && h2[0]) {
                 h2[0].addEventListener('click', toggler(phase));
             }
         } else {
-	        td[i].addEventListener('click', toggler(phase));
+            td[i].addEventListener('click', toggler(phase));
         }
-        if (id.endsWith("-col") && def || id.endsWith("-exp") && !def) {
-               td[i].style.display = 'none';
-               continue
+        if (id.endsWith("-col") && show || id.endsWith("-exp") && !show) {
+            td[i].style.display = 'none';
+            continue;
         }
         td[i].style.display = 'table-cell';
     }
 };
 
 function toggle_visibility(id) {
-   var e = document.getElementById(id);
-   if(e.style.display == 'block')
-      e.style.display = 'none';
-   else
-      e.style.display = 'block';
+    var e = document.getElementById(id);
+    if (e.style.display == 'block') {
+        e.style.display = 'none';
+    } else {
+        e.style.display = 'block';
+    }
 }
 </script>
 
@@ -414,12 +442,34 @@ func (w *HTMLWriter) Close() {
 }
 
 // WriteFunc writes f in a column headed by title.
+// phase is used for collapsing columns and should be unique across the table.
 func (w *HTMLWriter) WriteFunc(phase, title string, f *Func) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
 	w.WriteColumn(phase, title, "", f.HTML())
 	// TODO: Add visual representation of f's CFG.
+}
+
+// WriteSources writes lines as source code in a column headed by title.
+// phase is used for collapsing columns and should be unique across the table.
+func (w *HTMLWriter) WriteSources(phase, title string, firstLineno uint, lines []string) {
+	if w == nil {
+		return // avoid generating HTML just to discard it
+	}
+	var buf bytes.Buffer
+	fmt.Fprint(&buf, "<div class=\"lines\" style=\"width: 8%\">")
+	for i, _ := range lines {
+		ln := int(firstLineno) + i
+		fmt.Fprintf(&buf, "<div class=\"l%v line-number\">%v</div>", ln, ln)
+	}
+	fmt.Fprint(&buf, "</div><div style=\"width: 92%\"><pre>")
+	for i, l := range lines {
+		ln := int(firstLineno) + i
+		fmt.Fprintf(&buf, "<div class=\"l%v line-number\">%v</div>", ln, html.EscapeString(l))
+	}
+	fmt.Fprint(&buf, "</pre></div>")
+	w.WriteColumn(phase, title, "", buf.String())
 }
 
 // WriteColumn writes raw HTML in a column headed by title.
@@ -470,9 +520,9 @@ func (v *Value) LongHTML() string {
 	// maybe we could replace some of that with formatting.
 	s := fmt.Sprintf("<span class=\"%s ssa-long-value\">", v.String())
 
-	linenumber := "<span class=\"line-number\">(?)</span>"
+	linenumber := "<span class=\"no-line-number\">(?)</span>"
 	if v.Pos.IsKnown() {
-		linenumber = fmt.Sprintf("<span class=\"line-number\">(%s)</span>", v.Pos.LineNumberHTML())
+		linenumber = fmt.Sprintf("<span class=\"l%v line-number\">(%s)</span>", v.Pos.LineNumber(), v.Pos.LineNumberHTML())
 	}
 
 	s += fmt.Sprintf("%s %s = %s", v.HTML(), linenumber, v.Op.String())
@@ -536,7 +586,7 @@ func (b *Block) LongHTML() string {
 	if b.Pos.IsKnown() {
 		// TODO does not begin to deal with the full complexity of line numbers.
 		// Maybe we want a string/slice instead, of outer-inner when inlining.
-		s += fmt.Sprintf(" (line %s)", b.Pos.LineNumberHTML())
+		s += fmt.Sprintf(" <span class=\"l%v line-number\">(%s)</span>", b.Pos.LineNumber(), b.Pos.LineNumberHTML())
 	}
 	return s
 }

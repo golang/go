@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -139,9 +140,30 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
 
-	if name == os.Getenv("GOSSAFUNC") {
+	if printssa {
 		s.f.HTMLWriter = ssa.NewHTMLWriter("ssa.html", s.f.Frontend(), name)
 		// TODO: generate and print a mapping from nodes to values and blocks
+
+		// Read sources for a function fn and format into a column.
+		fname := Ctxt.PosTable.Pos(fn.Pos).Filename()
+		f, err := os.Open(fname)
+		if err != nil {
+			s.f.HTMLWriter.Logger.Logf("skipping sources column: %v", err)
+		} else {
+			defer f.Close()
+			firstLn := fn.Pos.Line() - 1
+			lastLn := fn.Func.Endlineno.Line()
+			var lines []string
+			ln := uint(0)
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() && ln < lastLn {
+				if ln >= firstLn {
+					lines = append(lines, scanner.Text())
+				}
+				ln++
+			}
+			s.f.HTMLWriter.WriteSources("sources", fname, firstLn+1, lines)
+		}
 	}
 
 	// Allocate starting block
@@ -5045,7 +5067,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 				buf.WriteString("</dt>")
 				buf.WriteString("<dd class=\"ssa-prog\">")
-				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
+				buf.WriteString(fmt.Sprintf("%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
 				buf.WriteString("</dd>")
 			}
 			buf.WriteString("</dl>")
