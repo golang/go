@@ -494,7 +494,7 @@ func (r *renamer) update() error {
 			}
 		}
 	}
-	if len(generatedFileNames) > 0 {
+	if !Force && len(generatedFileNames) > 0 {
 		return fmt.Errorf("refusing to modify generated file%s containing DO NOT EDIT marker: %v", plural(len(generatedFileNames)), generatedFileNames)
 	}
 
