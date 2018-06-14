@@ -88,7 +88,15 @@ func Generate() ([]byte, error) {
 		fmt.Fprintf(buf, ",\n\n")
 	}
 	fmt.Fprintln(buf, "}")
-	return format.Source(buf.Bytes())
+
+	b := buf.Bytes()
+
+	// The 鿥 U+9FE5 character became printable in go 1.10,
+	// causing it to appear literally in newer output.
+	// Force the old behavior.
+	b = bytes.Replace(b, []byte("\u9fe5"), []byte(`\u9fe5`), -1)
+
+	return format.Source(b)
 }
 
 // sanitize prepares a valid UTF-8 string as a raw string constant.
