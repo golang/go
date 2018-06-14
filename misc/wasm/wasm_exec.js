@@ -41,6 +41,11 @@
 				}
 				return buf.length;
 			},
+			openSync(path, flags, mode) {
+				const err = new Error("not implemented");
+				err.code = "ENOSYS";
+				throw err;
+			},
 		};
 	}
 
