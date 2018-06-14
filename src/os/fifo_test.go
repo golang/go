@@ -23,7 +23,10 @@ import (
 
 // Issue 24164.
 func TestFifoEOF(t *testing.T) {
-	if runtime.GOOS == "openbsd" {
+	switch runtime.GOOS {
+	case "android":
+		t.Skip("skipping on Android; mkfifo syscall not available")
+	case "openbsd":
 		// On OpenBSD 6.2 this test just hangs for some reason.
 		t.Skip("skipping on OpenBSD; issue 25877")
 	}
