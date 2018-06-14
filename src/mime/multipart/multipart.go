@@ -313,7 +313,9 @@ func (r *Reader) NextPart() (*Part, error) {
 	if r.currentPart != nil {
 		r.currentPart.Close()
 	}
-
+	if string(r.dashBoundary) == "--" {
+		return nil, fmt.Errorf("multipart: boundary is empty")
+	}
 	expectNewPart := false
 	for {
 		line, err := r.bufReader.ReadSlice('\n')
