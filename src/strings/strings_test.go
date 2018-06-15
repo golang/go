@@ -1647,23 +1647,21 @@ func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
 }
 
 func BenchmarkRepeat(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		b.Run("length-1", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				Repeat("-", 80)
-			}
-		})
-		b.Run("length-5", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				Repeat("-!@#$", 80)
-			}
-		})
-		b.Run("length-10", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				Repeat("-!@#$abcde", 80)
-			}
-		})
-	}
+	b.Run("length-1", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Repeat("-", 80)
+		}
+	})
+	b.Run("length-5", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Repeat("-!@#$", 80)
+		}
+	})
+	b.Run("length-10", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Repeat("-!@#$abcde", 80)
+		}
+	})
 }
 
 func BenchmarkIndexAnyASCII(b *testing.B) {
