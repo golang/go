@@ -654,6 +654,7 @@ again:
 	CALL	foo(SB)
 
 // LDP/STP
+	LDP	(R0), (R0, R1)      // 000440a9
 	LDP	(R0), (R1, R2)      // 010840a9
 	LDP	8(R0), (R1, R2)     // 018840a9
 	LDP	-8(R0), (R1, R2)    // 01887fa9
