@@ -2818,6 +2818,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 	// s = s[:n]
 	nt := nod(OSLICE, s, nil)
 	nt.SetSliceBounds(nil, nn, nil)
+	nt.SetBounded(true)
 	nodes.Append(nod(OAS, s, nt))
 
 	var ncopy *Node
@@ -2987,6 +2988,7 @@ func extendslice(n *Node, init *Nodes) *Node {
 	// s = s[:n]
 	nt := nod(OSLICE, s, nil)
 	nt.SetSliceBounds(nil, nn, nil)
+	nt.SetBounded(true)
 	nodes = append(nodes, nod(OAS, s, nt))
 
 	// lptr := &l1[0]
@@ -3109,6 +3111,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 
 	nx = nod(OSLICE, ns, nil) // ...s[:n+argc]
 	nx.SetSliceBounds(nil, nod(OADD, nn, na), nil)
+	nx.SetBounded(true)
 	l = append(l, nod(OAS, ns, nx)) // s = s[:n+argc]
 
 	ls = n.List.Slice()[1:]
