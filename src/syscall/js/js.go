@@ -227,3 +227,10 @@ func (v Value) String() string {
 func valuePrepareString(v ref) (ref, int)
 
 func valueLoadString(v ref, b []byte)
+
+// InstanceOf reports whether v is an instance of type t according to JavaScript's instanceof operator.
+func (v Value) InstanceOf(t Value) bool {
+	return valueInstanceOf(v.ref, t.ref)
+}
+
+func valueInstanceOf(v ref, t ref) bool

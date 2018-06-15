@@ -146,6 +146,16 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestInstanceOf(t *testing.T) {
+	someArray := js.Global.Get("Array").New()
+	if got, want := someArray.InstanceOf(js.Global.Get("Array")), true; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := someArray.InstanceOf(js.Global.Get("Function")), false; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+}
+
 func TestCallback(t *testing.T) {
 	c := make(chan struct{})
 	cb := js.NewCallback(func(args []js.Value) {

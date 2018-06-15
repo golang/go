@@ -286,6 +286,11 @@
 						loadSlice(sp + 16).set(str);
 					},
 
+					// func valueInstanceOf(v ref, t ref) bool
+					"syscall/js.valueInstanceOf": (sp) => {
+						mem().setUint8(sp + 16, loadValue(sp + 8) instanceof loadValue(sp + 12));
+					},
+
 					"debug": (value) => {
 						console.log(value);
 					},
