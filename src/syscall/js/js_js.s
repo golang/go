@@ -71,3 +71,7 @@ TEXT ·valuePrepareString(SB), NOSPLIT, $0
 TEXT ·valueLoadString(SB), NOSPLIT, $0
   CallImport
   RET
+
+TEXT ·valueInstanceOf(SB), NOSPLIT, $0
+  CallImport
+  RET
