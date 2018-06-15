@@ -190,7 +190,9 @@ type Hijacker interface {
 	// data from the client.
 	//
 	// After a call to Hijack, the original Request.Body must not
-	// be used, and the Request.Context will be canceled.
+	// be used. The original Request's Context remains valid and
+	// is not canceled until the Request's ServeHTTP method
+	// returns.
 	Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
