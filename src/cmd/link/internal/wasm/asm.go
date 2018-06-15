@@ -122,6 +122,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	// collect functions with WebAssembly body
+	var buildid []byte
 	fns := make([]*wasmFunc, len(ctxt.Textp))
 	for i, fn := range ctxt.Textp {
 		wfn := new(bytes.Buffer)
@@ -129,7 +130,7 @@ func asmb(ctxt *ld.Link) {
 			writeUleb128(wfn, 0) // number of sets of locals
 			writeI32Const(wfn, 0)
 			wfn.WriteByte(0x0b) // end
-
+			buildid = fn.P
 		} else {
 			// Relocations have variable length, handle them here.
 			off := int32(0)
@@ -165,6 +166,11 @@ func asmb(ctxt *ld.Link) {
 
 	ctxt.Out.Write([]byte{0x00, 0x61, 0x73, 0x6d}) // magic
 	ctxt.Out.Write([]byte{0x01, 0x00, 0x00, 0x00}) // version
+
+	// Add any buildid early in the binary:
+	if len(buildid) != 0 {
+		writeBuildID(ctxt, buildid)
+	}
 
 	writeTypeSec(ctxt, types)
 	writeImportSec(ctxt, hostImports)
@@ -205,6 +211,13 @@ func writeSecSize(ctxt *ld.Link, sizeOffset int64) {
 	ctxt.Out.SeekSet(sizeOffset)
 	writeUleb128FixedLength(ctxt.Out, uint64(endOffset-sizeOffset-5), 5)
 	ctxt.Out.SeekSet(endOffset)
+}
+
+func writeBuildID(ctxt *ld.Link, buildid []byte) {
+	sizeOffset := writeSecHeader(ctxt, sectionCustom)
+	writeName(ctxt.Out, "go.buildid")
+	ctxt.Out.Write(buildid)
+	writeSecSize(ctxt, sizeOffset)
 }
 
 // writeTypeSec writes the section that declares all function types
