@@ -2332,7 +2332,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if max != nil {
 			k = s.extendIndex(s.expr(max), panicslice)
 		}
-		p, l, c := s.slice(n.Left.Type, v, i, j, k)
+		p, l, c := s.slice(n.Left.Type, v, i, j, k, n.Bounded())
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
 	case OSLICESTR:
@@ -2345,7 +2345,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if high != nil {
 			j = s.extendIndex(s.expr(high), panicslice)
 		}
-		p, l, _ := s.slice(n.Left.Type, v, i, j, nil)
+		p, l, _ := s.slice(n.Left.Type, v, i, j, nil, n.Bounded())
 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
 
 	case OCALLFUNC:
@@ -4175,7 +4175,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
 // i,j,k may be nil, in which case they are set to their default value.
 // t is a slice, ptr to array, or string type.
-func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) {
 	var elemtype *types.Type
 	var ptrtype *types.Type
 	var ptr *ssa.Value
@@ -4220,13 +4220,15 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value)
 		k = cap
 	}
 
-	// Panic if slice indices are not in bounds.
-	s.sliceBoundsCheck(i, j)
-	if j != k {
-		s.sliceBoundsCheck(j, k)
-	}
-	if k != cap {
-		s.sliceBoundsCheck(k, cap)
+	if !bounded {
+		// Panic if slice indices are not in bounds.
+		s.sliceBoundsCheck(i, j)
+		if j != k {
+			s.sliceBoundsCheck(j, k)
+		}
+		if k != cap {
+			s.sliceBoundsCheck(k, cap)
+		}
 	}
 
 	// Generate the following code assuming that indexes are in bounds.
