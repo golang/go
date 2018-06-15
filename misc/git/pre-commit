@@ -13,14 +13,31 @@
 gofiles=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
 [ -z "$gofiles" ] && exit 0
 
-unformatted=$(gofmt -l $gofiles)
-[ -z "$unformatted" ] && exit 0
+tempdir=$(mktemp -d "${TMPDIR}go_precommit.XXXXX")
+tempfiles=""
+
+for file in $gofiles; do
+    tempname="$tempdir/$file"
+    relative_dir=$(dirname "$file")
+
+    mkdir -p "$tempdir/$relative_dir"
+    git show ":$file" > "$tempname"
+
+    tempfiles="$tempfiles $tempname"
+done
+
+output=$(gofmt -l $tempfiles)
+output=$(echo "$output" | sed "s|$tempdir|$PWD|g")
+
+rm -rf $tempdir
+
+[ -z "$output" ] && exit 0
 
 # Some files are not gofmt'd. Print message and fail.
 
 echo >&2 "Go files must be formatted with gofmt. Please run:"
-for fn in $unformatted; do
-	echo >&2 "  gofmt -w $PWD/$fn"
+for fn in $output; do
+	echo >&2 "  gofmt -w $fn"
 done
 
 exit 1
