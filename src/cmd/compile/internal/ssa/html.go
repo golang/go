@@ -162,14 +162,18 @@ dd.ssa-prog {
     font-size: 11px;
 }
 
-.highlight-yellow         { background-color: yellow; }
 .highlight-aquamarine     { background-color: aquamarine; }
 .highlight-coral          { background-color: coral; }
 .highlight-lightpink      { background-color: lightpink; }
 .highlight-lightsteelblue { background-color: lightsteelblue; }
 .highlight-palegreen      { background-color: palegreen; }
-.highlight-powderblue     { background-color: powderblue; }
+.highlight-skyblue        { background-color: skyblue; }
 .highlight-lightgray      { background-color: lightgray; }
+.highlight-yellow         { background-color: yellow; }
+.highlight-lime           { background-color: lime; }
+.highlight-khaki          { background-color: khaki; }
+.highlight-aqua           { background-color: aqua; }
+.highlight-salmon         { background-color: salmon; }
 
 .outline-blue           { outline: blue solid 2px; }
 .outline-red            { outline: red solid 2px; }
@@ -178,6 +182,10 @@ dd.ssa-prog {
 .outline-fuchsia        { outline: fuchsia solid 2px; }
 .outline-sienna         { outline: sienna solid 2px; }
 .outline-gold           { outline: gold solid 2px; }
+.outline-orangered      { outline: orangered solid 2px; }
+.outline-teal           { outline: teal solid 2px; }
+.outline-maroon         { outline: maroon solid 2px; }
+.outline-black          { outline: black solid 2px; }
 
 </style>
 
@@ -189,8 +197,13 @@ var highlights = [
     "highlight-lightpink",
     "highlight-lightsteelblue",
     "highlight-palegreen",
+    "highlight-skyblue",
     "highlight-lightgray",
-    "highlight-yellow"
+    "highlight-yellow",
+    "highlight-lime",
+    "highlight-khaki",
+    "highlight-aqua",
+    "highlight-salmon"
 ];
 
 // state: which value is highlighted this color?
@@ -207,7 +220,11 @@ var outlines = [
     "outline-darkolivegreen",
     "outline-fuchsia",
     "outline-sienna",
-    "outline-gold"
+    "outline-gold",
+    "outline-orangered",
+    "outline-teal",
+    "outline-maroon",
+    "outline-black"
 ];
 
 // state: which value is outlined this color?
