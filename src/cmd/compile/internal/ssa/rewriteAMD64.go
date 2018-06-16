@@ -173,6 +173,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64DIVSS_0(v)
 	case OpAMD64DIVSSload:
 		return rewriteValueAMD64_OpAMD64DIVSSload_0(v)
+	case OpAMD64HMULL:
+		return rewriteValueAMD64_OpAMD64HMULL_0(v)
+	case OpAMD64HMULLU:
+		return rewriteValueAMD64_OpAMD64HMULLU_0(v)
+	case OpAMD64HMULQ:
+		return rewriteValueAMD64_OpAMD64HMULQ_0(v)
+	case OpAMD64HMULQU:
+		return rewriteValueAMD64_OpAMD64HMULQU_0(v)
 	case OpAMD64LEAL:
 		return rewriteValueAMD64_OpAMD64LEAL_0(v)
 	case OpAMD64LEAL1:
@@ -9234,6 +9242,78 @@ func rewriteValueAMD64_OpAMD64DIVSSload_0(v *Value) bool {
 		v.AddArg(val)
 		v.AddArg(base)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64HMULL_0(v *Value) bool {
+	// match: (HMULL x y)
+	// cond: !x.rematerializeable() && y.rematerializeable()
+	// result: (HMULL y x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(!x.rematerializeable() && y.rematerializeable()) {
+			break
+		}
+		v.reset(OpAMD64HMULL)
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64HMULLU_0(v *Value) bool {
+	// match: (HMULLU x y)
+	// cond: !x.rematerializeable() && y.rematerializeable()
+	// result: (HMULLU y x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(!x.rematerializeable() && y.rematerializeable()) {
+			break
+		}
+		v.reset(OpAMD64HMULLU)
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64HMULQ_0(v *Value) bool {
+	// match: (HMULQ x y)
+	// cond: !x.rematerializeable() && y.rematerializeable()
+	// result: (HMULQ y x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(!x.rematerializeable() && y.rematerializeable()) {
+			break
+		}
+		v.reset(OpAMD64HMULQ)
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64HMULQU_0(v *Value) bool {
+	// match: (HMULQU x y)
+	// cond: !x.rematerializeable() && y.rematerializeable()
+	// result: (HMULQU y x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(!x.rematerializeable() && y.rematerializeable()) {
+			break
+		}
+		v.reset(OpAMD64HMULQU)
+		v.AddArg(y)
+		v.AddArg(x)
 		return true
 	}
 	return false

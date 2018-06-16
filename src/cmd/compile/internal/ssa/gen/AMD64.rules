@@ -2430,6 +2430,13 @@
 // See issue 22947 for details
 (ADD(Q|L)const [off] x:(SP)) -> (LEA(Q|L) [off] x)
 
+// HMULx is commutative, but its first argument must go in AX.
+// If possible, put a rematerializeable value in the first argument slot,
+// to reduce the odds that another value will be have to spilled
+// specifically to free up AX.
+(HMUL(Q|L)  x y) && !x.rematerializeable() && y.rematerializeable() -> (HMUL(Q|L)  y x)
+(HMUL(Q|L)U x y) && !x.rematerializeable() && y.rematerializeable() -> (HMUL(Q|L)U y x)
+
 // Fold loads into compares
 // Note: these may be undone by the flagalloc pass.
 (CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
