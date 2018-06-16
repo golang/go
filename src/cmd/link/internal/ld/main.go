@@ -222,6 +222,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.dostkcheck()
 	if ctxt.HeadType == objabi.Hwindows {
 		ctxt.dope()
+		ctxt.windynrelocsyms()
 	}
 	ctxt.addexport()
 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
