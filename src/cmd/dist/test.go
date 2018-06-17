@@ -324,6 +324,8 @@ func (t *tester) registerStdTest(pkg string) {
 			}
 			if t.compileOnly {
 				args = append(args, "-run=^$")
+			} else if goos == "js" && goarch == "wasm" {
+				args = append(args, "-run=^Test") // exclude examples; Issue 25913
 			}
 			args = append(args, stdMatches...)
 			cmd := exec.Command("go", args...)
@@ -1334,6 +1336,9 @@ func isAlpineLinux() bool {
 func (t *tester) runFlag(rx string) string {
 	if t.compileOnly {
 		return "-run=^$"
+	}
+	if rx == "" && goos == "js" && goarch == "wasm" {
+		return "-run=^Test" // exclude examples; Issue 25913
 	}
 	return "-run=" + rx
 }
