@@ -33,6 +33,9 @@ func checkGdbEnvironment(t *testing.T) {
 		if runtime.GOARCH == "ppc64" {
 			t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
 		}
+		if runtime.GOARCH == "mips" {
+			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
+		}
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
