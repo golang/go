@@ -261,37 +261,43 @@ func TestMapping(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse the generated profile data: %v", err)
 			}
+			t.Logf("Profile: %s", prof)
 
-			allResolved := !hasUnresolvedSymbol(prof)
-			if allResolved && traceback != "GoOnly" {
-				t.Log("No non-Go samples were sampled")
+			hit := make(map[*profile.Mapping]bool)
+			miss := make(map[*profile.Mapping]bool)
+			for _, loc := range prof.Location {
+				if symbolized(loc) {
+					hit[loc.Mapping] = true
+				} else {
+					miss[loc.Mapping] = true
+				}
+			}
+			if len(miss) == 0 {
+				t.Log("no location with missing symbol info was sampled")
 			}
 
 			for _, m := range prof.Mapping {
-				if !strings.Contains(m.File, "/exe/main") {
+				if miss[m] && m.HasFunctions {
+					t.Errorf("mapping %+v has HasFunctions=true, but contains locations with failed symbolization", m)
 					continue
 				}
-				if allResolved && !m.HasFunctions {
-					t.Errorf("HasFunctions=%t when all sampled PCs were symbolized\n%s", m.HasFunctions, prof)
-				}
-				if !allResolved && m.HasFunctions {
-					t.Errorf("HasFunctions=%t when some sampled PCs were not symbolized\n%s", m.HasFunctions, prof)
+				if !miss[m] && hit[m] && !m.HasFunctions {
+					t.Errorf("mapping %+v has HasFunctions=false, but all referenced locations from this lapping were symbolized successfully", m)
+					continue
 				}
 			}
 		})
 	}
 }
 
-func hasUnresolvedSymbol(prof *profile.Profile) bool {
-	for _, loc := range prof.Location {
-		if len(loc.Line) == 0 {
-			return true
-		}
-		l := loc.Line[0]
-		f := l.Function
-		if l.Line == 0 || f == nil || f.Name == "" || f.Filename == "" {
-			return true
-		}
+func symbolized(loc *profile.Location) bool {
+	if len(loc.Line) == 0 {
+		return false
 	}
-	return false
+	l := loc.Line[0]
+	f := l.Function
+	if l.Line == 0 || f == nil || f.Name == "" || f.Filename == "" {
+		return false
+	}
+	return true
 }
