@@ -1128,14 +1128,18 @@ func (p *exporter) stmtList(list Nodes) {
 		}
 		// TODO inlining produces expressions with ninits. we can't export these yet.
 		// (from fmt.go:1461ff)
-		if opprec[n.Op] < 0 {
-			p.stmt(n)
-		} else {
-			p.expr(n)
-		}
+		p.node(n)
 	}
 
 	p.op(OEND)
+}
+
+func (p *exporter) node(n *Node) {
+	if opprec[n.Op] < 0 {
+		p.stmt(n)
+	} else {
+		p.expr(n)
+	}
 }
 
 func (p *exporter) exprList(list Nodes) {
@@ -1552,7 +1556,7 @@ func (p *exporter) exprsOrNil(a, b *Node) {
 		p.expr(a)
 	}
 	if ab&2 != 0 {
-		p.expr(b)
+		p.node(b)
 	}
 }
 

@@ -1209,7 +1209,7 @@ func (p *importer) exprsOrNil() (a, b *Node) {
 		a = p.expr()
 	}
 	if ab&2 != 0 {
-		b = p.expr()
+		b = p.node()
 	}
 	return
 }
