@@ -1060,7 +1060,7 @@ func (r *importReader) exprsOrNil() (a, b *Node) {
 		a = r.expr()
 	}
 	if ab&2 != 0 {
-		b = r.expr()
+		b = r.node()
 	}
 	return
 }
