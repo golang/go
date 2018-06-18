@@ -325,7 +325,7 @@ func TestCoverHTML(t *testing.T) {
 		}
 	}
 	if len(goldenLines) != len(outLines) {
-		t.Fatalf("output longer than golden; first extra output line %d: %q\n", len(goldenLines), outLines[len(goldenLines)])
+		t.Fatalf("output longer than golden; first extra output line %d: %q\n", len(goldenLines)+1, outLines[len(goldenLines)])
 	}
 }
 
