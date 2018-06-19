@@ -611,7 +611,7 @@ func (d *decodeState) array(v reflect.Value) error {
 }
 
 var nullLiteral = []byte("null")
-var textUnmarshalerType = reflect.TypeOf(new(encoding.TextUnmarshaler)).Elem()
+var textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 // object consumes an object from d.data[d.off-1:], decoding into v.
 // The first byte ('{') of the object has been read already.
