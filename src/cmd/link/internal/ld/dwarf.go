@@ -1951,7 +1951,7 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 // relocations are applied. After this, dwarfp will contain a
 // different (new) set of symbols, and sections may have been replaced.
 func dwarfcompress(ctxt *Link) {
-	if !ctxt.IsELF || ctxt.LinkMode == LinkExternal {
+	if !(ctxt.IsELF || ctxt.HeadType == objabi.Hwindows) || ctxt.LinkMode == LinkExternal {
 		return
 	}
 
@@ -1998,6 +1998,10 @@ func dwarfcompress(ctxt *Link) {
 			log.Fatalf("%s: unexpected sub-symbols", s)
 		}
 		pos += uint64(s.Size)
+		if ctxt.HeadType == objabi.Hwindows {
+			pos = uint64(Rnd(int64(pos), PEFILEALIGN))
+		}
+
 	}
 	Segdwarf.Length = pos - Segdwarf.Vaddr
 }
