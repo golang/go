@@ -16,6 +16,8 @@ import (
 // without writing more assembly code, which we haven't bothered to
 // do.  So this is not much of a test.
 
+var Baton int32
+
 func RewindAndSetgid() {
 	atomic.StoreInt32(&Baton, 1)
 	for atomic.LoadInt32(&Baton) != 0 {
