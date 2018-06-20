@@ -144,7 +144,7 @@ func TestDialError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "dial error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 	sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
@@ -293,7 +293,7 @@ func TestListenError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(_ context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(_ context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 	sw.Set(socktest.FilterListen, func(so *socktest.Status) (socktest.AfterFilter, error) {
@@ -353,7 +353,7 @@ func TestListenPacketError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(_ context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(_ context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 

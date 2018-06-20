@@ -277,7 +277,7 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
 	}
 
 	// Try as a literal IP address, then as a DNS name.
-	ips, err := r.LookupIPAddr(ctx, host)
+	ips, err := r.lookupIPAddr(ctx, net, host)
 	if err != nil {
 		return nil, err
 	}

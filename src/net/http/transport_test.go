@@ -3825,9 +3825,9 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	}
 
 	// Install a fake DNS server.
-	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, network, host string) ([]net.IPAddr, error) {
 		if host != "dns-is-faked.golang" {
-			t.Errorf("unexpected DNS host lookup for %q", host)
+			t.Errorf("unexpected DNS host lookup for %q/%q", network, host)
 			return nil, nil
 		}
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
@@ -4176,7 +4176,7 @@ func TestTransportMaxIdleConns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, _, host string) ([]net.IPAddr, error) {
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
@@ -4416,9 +4416,9 @@ func testTransportIDNA(t *testing.T, h2 bool) {
 	}
 
 	// Install a fake DNS server.
-	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, network, host string) ([]net.IPAddr, error) {
 		if host != punyDomain {
-			t.Errorf("got DNS host lookup for %q; want %q", host, punyDomain)
+			t.Errorf("got DNS host lookup for %q/%q; want %q", network, host, punyDomain)
 			return nil, nil
 		}
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
