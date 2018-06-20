@@ -363,7 +363,8 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	// Layout new m scheduler stack on os stack.
 	MOVQ	SP, AX
 	MOVQ	AX, (g_stack+stack_hi)(DX)
-	SUBQ	$(64*1024), AX		// stack size
+	SUBQ	runtime·osStackSize(SB), AX		// stack size
+	ADDQ	$(8*1024), AX				// slop for calling C
 	MOVQ	AX, (g_stack+stack_lo)(DX)
 	ADDQ	$const__StackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)

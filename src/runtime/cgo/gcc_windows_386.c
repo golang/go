@@ -13,7 +13,7 @@ static void threadentry(void*);
 
 /* 1MB is default stack size for 32-bit Windows.
    Allocation granularity on Windows is typically 64 KB.
-   The constant is also hardcoded in cmd/ld/pe.c (keep synchronized). */
+   This constant must match SizeOfStackReserve in ../cmd/link/internal/ld/pe.go. */
 #define STACKSIZE (1*1024*1024)
 
 void
