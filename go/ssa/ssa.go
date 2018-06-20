@@ -547,8 +547,8 @@ type BinOp struct {
 	register
 	// One of:
 	// ADD SUB MUL QUO REM          + - * / %
-	// AND OR XOR SHL SHR AND_NOT   & | ^ << >> &~
-	// EQL LSS GTR NEQ LEQ GEQ      == != < <= < >=
+	// AND OR XOR SHL SHR AND_NOT   & | ^ << >> &^
+	// EQL NEQ LSS LEQ GTR GEQ      == != < <= < >=
 	Op   token.Token
 	X, Y Value
 }
@@ -788,7 +788,7 @@ type Slice struct {
 type FieldAddr struct {
 	register
 	X     Value // *struct
-	Field int   // index into X.Type().Deref().(*types.Struct).Fields
+	Field int   // field is X.Type().Underlying().(*types.Pointer).Elem().Underlying().(*types.Struct).Field(Field)
 }
 
 // The Field instruction yields the Field of struct X.
