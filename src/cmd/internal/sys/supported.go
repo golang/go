@@ -9,7 +9,7 @@ package sys
 func RaceDetectorSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "ppc64le"
+		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
 	case "darwin", "freebsd", "netbsd", "windows":
 		return goarch == "amd64"
 	default:
