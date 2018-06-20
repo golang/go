@@ -135,7 +135,8 @@ RUN go install cloud.google.com/go/compute/metadata \
 
 # golang sets GOPATH=/go
 ADD . /go/src/tip
-RUN go install --tags=autocert tip
+WORKDIR /go/src/tip
+RUN go install --tags=autocert
 ENTRYPOINT ["/go/bin/tip"]
 
 # We listen on 8080 (for historical reasons). The service.yaml maps public port 80 to 8080.

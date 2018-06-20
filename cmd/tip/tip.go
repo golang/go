@@ -34,7 +34,7 @@ const (
 var startTime = time.Now()
 
 var (
-	autoCertDomain      = flag.String("autocert", "", "if non-empty, listen on port 443 and serve a LetsEncrypt cert for this hostname")
+	autoCertDomain      = flag.String("autocert", "", "if non-empty, listen on port 443 and serve a LetsEncrypt cert for this hostname or hostnames (comma-separated)")
 	autoCertCacheBucket = flag.String("autocert-bucket", "", "if non-empty, the Google Cloud Storage bucket in which to store the LetsEncrypt cache")
 )
 
@@ -118,6 +118,18 @@ type Builder interface {
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/_tipstatus" {
 		p.serveStatus(w, r)
+		return
+	}
+	// Redirect the old beta.golang.org URL to tip.golang.org,
+	// just in case there are old links out there to
+	// beta.golang.org. (We used to run a "temporary" beta.golang.org
+	// GCE VM running godoc where "temporary" lasted two years.
+	// So it lasted so long, there are probably links to it out there.)
+	if r.Host == "beta.golang.org" {
+		u := *r.URL
+		u.Scheme = "https"
+		u.Host = "tip.golang.org"
+		http.Redirect(w, r, u.String(), http.StatusFound)
 		return
 	}
 	p.mu.Lock()
