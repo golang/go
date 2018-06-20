@@ -852,8 +852,8 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	//
 	// For other threads we specify stack size in runtime explicitly.
 	// For these, the reserve must match STACKSIZE in
-	// runtime/cgo/gcc_windows_{386,amd64}.c and the correspondent
-	// CreateThread parameter in runtime.newosproc.
+	// runtime/cgo/gcc_windows_{386,amd64}.c and osStackSize in
+	// runtime/os_windows.go.
 	oh64.SizeOfStackReserve = 0x00200000
 	if !iscgo {
 		oh64.SizeOfStackCommit = 0x00001000

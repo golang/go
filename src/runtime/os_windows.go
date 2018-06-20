@@ -291,6 +291,9 @@ func osRelax(relax bool) uint32 {
 	}
 }
 
+// osStackSize must match SizeOfStackReserve in ../cmd/link/internal/ld/pe.go.
+var osStackSize uintptr = 0x00200000*_64bit + 0x00100000*(1-_64bit)
+
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
 	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
@@ -319,6 +322,18 @@ func osinit() {
 	// equivalent threads that all do a mix of GUI, IO, computations, etc.
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
+
+	// Fix the entry thread's stack bounds, since runtime entry
+	// assumed we were on a tiny stack. If this is a cgo binary,
+	// x_cgo_init already fixed these.
+	if !iscgo {
+		// Leave 8K of slop for calling C functions that don't
+		// have stack checks. We shouldn't be anywhere near
+		// this bound anyway.
+		g0.stack.lo = g0.stack.hi - osStackSize + 8*1024
+		g0.stackguard0 = g0.stack.lo + _StackGuard
+		g0.stackguard1 = g0.stackguard0
+	}
 }
 
 func nanotime() int64
@@ -620,9 +635,7 @@ func semacreate(mp *m) {
 //go:nosplit
 func newosproc(mp *m) {
 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
-	// stackSize must match SizeOfStackReserve in cmd/link/internal/ld/pe.go.
-	const stackSize = 0x00200000*_64bit + 0x00100000*(1-_64bit)
-	thandle := stdcall6(_CreateThread, 0, stackSize,
+	thandle := stdcall6(_CreateThread, 0, osStackSize,
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
 
