@@ -56,7 +56,38 @@ func touch(t *testing.T, name string) {
 const (
 	_AT_SYMLINK_NOFOLLOW = 0x100
 	_AT_FDCWD            = -0x64
+	_AT_EACCESS          = 0x200
 )
+
+func TestFaccessat(t *testing.T) {
+	defer chtmpdir(t)()
+	touch(t, "file1")
+
+	err := syscall.Faccessat(_AT_FDCWD, "file1", syscall.O_RDONLY, 0)
+	if err != nil {
+		t.Errorf("Faccessat: unexpected error: %v", err)
+	}
+
+	err = syscall.Faccessat(_AT_FDCWD, "file1", syscall.O_RDONLY, 2)
+	if err != syscall.EINVAL {
+		t.Errorf("Faccessat: unexpected error: %v, want EINVAL", err)
+	}
+
+	err = syscall.Faccessat(_AT_FDCWD, "file1", syscall.O_RDONLY, _AT_EACCESS)
+	if err != syscall.EOPNOTSUPP {
+		t.Errorf("Faccessat: unexpected error: %v, want EOPNOTSUPP", err)
+	}
+
+	err = os.Symlink("file1", "symlink1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = syscall.Faccessat(_AT_FDCWD, "symlink1", syscall.O_RDONLY, _AT_SYMLINK_NOFOLLOW)
+	if err != syscall.EOPNOTSUPP {
+		t.Errorf("Faccessat: unexpected error: %v, want EOPNOTSUPP", err)
+	}
+}
 
 func TestFchmodat(t *testing.T) {
 	defer chtmpdir(t)()

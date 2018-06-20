@@ -35,6 +35,17 @@ func Creat(path string, mode uint32) (fd int, err error) {
 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
 }
 
+//sys	faccessat(dirfd int, path string, mode uint32) (err error)
+
+func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+	if flags & ^(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
+		return EINVAL
+	} else if flags&(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
+		return EOPNOTSUPP
+	}
+	return faccessat(dirfd, path, mode)
+}
+
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
 
 func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
@@ -840,7 +851,6 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	EpollCreate(size int) (fd int, err error)
 //sysnb	EpollCreate1(flag int) (fd int, err error)
 //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
-//sys	Faccessat(dirfd int, path string, mode uint32, flags int) (err error)
 //sys	Fallocate(fd int, mode uint32, off int64, len int64) (err error)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
