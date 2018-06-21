@@ -46,9 +46,7 @@ func expandDecl(n *Node) {
 		return
 	}
 
-	inimport = true
 	r.doDecl(n)
-	inimport = false
 }
 
 func expandInline(fn *Node) {
