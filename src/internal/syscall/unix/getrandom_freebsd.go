@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors. All rights reserved.
+// Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,6 +12,9 @@ import (
 
 var randomUnsupported int32 // atomic
 
+// FreeBSD getrandom system call number.
+const randomTrap uintptr = 563
+
 // GetRandomFlag is a flag supported by the getrandom system call.
 type GetRandomFlag uintptr
 
@@ -23,8 +26,7 @@ const (
 	GRND_RANDOM GetRandomFlag = 0x0002
 )
 
-// GetRandom calls the Linux getrandom system call.
-// See https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=c6e9d6f38894798696f23c8084ca7edbf16ee895
+// GetRandom calls the FreeBSD getrandom system call.
 func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
 	if randomTrap == 0 {
 		return 0, syscall.ENOSYS
