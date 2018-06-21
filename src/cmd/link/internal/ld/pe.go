@@ -845,15 +845,18 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	// and system calls even in "pure" Go code are actually C
 	// calls that may need more stack than we think.
 	//
-	// The default stack reserve size affects only the main
+	// The default stack reserve size directly affects only the main
 	// thread, ctrlhandler thread, and profileloop thread. For
 	// these, it must be greater than the stack size assumed by
 	// externalthreadhandler.
 	//
-	// For other threads we specify stack size in runtime explicitly.
-	// For these, the reserve must match STACKSIZE in
-	// runtime/cgo/gcc_windows_{386,amd64}.c and osStackSize in
-	// runtime/os_windows.go.
+	// For other threads, the runtime explicitly asks the kernel
+	// to use the default stack size so that all stacks are
+	// consistent.
+	//
+	// At thread start, in minit, the runtime queries the OS for
+	// the actual stack bounds so that the stack size doesn't need
+	// to be hard-coded into the runtime.
 	oh64.SizeOfStackReserve = 0x00200000
 	if !iscgo {
 		oh64.SizeOfStackCommit = 0x00001000

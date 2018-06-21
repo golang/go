@@ -71,3 +71,4 @@ type FloatingSaveArea C.FLOATING_SAVE_AREA
 type M128a C.M128A
 type Context C.CONTEXT
 type Overlapped C.OVERLAPPED
+type MemoryBasicInformation C.MEMORY_BASIC_INFORMATION

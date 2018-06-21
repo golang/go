@@ -957,6 +957,52 @@ uintptr_t cfunc() {
 	}
 }
 
+// Test that C code called via a DLL can use large Windows thread
+// stacks and call back in to Go without crashing. See issue #20975.
+//
+// See also TestBigStackCallbackCgo.
+func TestBigStackCallbackSyscall(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+
+	srcname, err := filepath.Abs("testdata/testprogcgo/bigstack_windows.c")
+	if err != nil {
+		t.Fatal("Abs failed: ", err)
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestBigStackCallback")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	var ok bool
+	proc := dll.MustFindProc("bigStack")
+	cb := syscall.NewCallback(func() uintptr {
+		// Do something interesting to force stack checks.
+		forceStackCopy()
+		ok = true
+		return 0
+	})
+	proc.Call(cb)
+	if !ok {
+		t.Fatalf("callback not called")
+	}
+}
+
 // wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
 func wantLoadLibraryEx() bool {
 	return testenv.Builder() == "windows-amd64-gce" || testenv.Builder() == "windows-386-gce"
