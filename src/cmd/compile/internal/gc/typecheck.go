@@ -37,7 +37,12 @@ func resolve(n *Node) *Node {
 	}
 
 	if n.Sym.Pkg != localpkg {
+		if inimport {
+			Fatalf("recursive inimport")
+		}
+		inimport = true
 		expandDecl(n)
+		inimport = false
 		return n
 	}
 
