@@ -45,6 +45,7 @@ const (
 //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
@@ -92,6 +93,7 @@ var (
 	_SwitchToThread,
 	_VirtualAlloc,
 	_VirtualFree,
+	_VirtualQuery,
 	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
 	_WriteConsoleW,
@@ -291,9 +293,6 @@ func osRelax(relax bool) uint32 {
 	}
 }
 
-// osStackSize must match SizeOfStackReserve in ../cmd/link/internal/ld/pe.go.
-var osStackSize uintptr = 0x00200000*_64bit + 0x00100000*(1-_64bit)
-
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
 	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
@@ -322,18 +321,6 @@ func osinit() {
 	// equivalent threads that all do a mix of GUI, IO, computations, etc.
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
-
-	// Fix the entry thread's stack bounds, since runtime entry
-	// assumed we were on a tiny stack. If this is a cgo binary,
-	// x_cgo_init already fixed these.
-	if !iscgo {
-		// Leave 8K of slop for calling C functions that don't
-		// have stack checks. We shouldn't be anywhere near
-		// this bound anyway.
-		g0.stack.lo = g0.stack.hi - osStackSize + 8*1024
-		g0.stackguard0 = g0.stack.lo + _StackGuard
-		g0.stackguard1 = g0.stackguard0
-	}
 }
 
 func nanotime() int64
@@ -634,10 +621,10 @@ func semacreate(mp *m) {
 //go:nowritebarrierrec
 //go:nosplit
 func newosproc(mp *m) {
-	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
-	thandle := stdcall6(_CreateThread, 0, osStackSize,
+	// We pass 0 for the stack size to use the default for this binary.
+	thandle := stdcall6(_CreateThread, 0, 0,
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
-		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
+		0, 0)
 
 	if thandle == 0 {
 		if atomic.Load(&exiting) != 0 {
@@ -702,6 +689,30 @@ func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
 	atomic.Storeuintptr(&getg().m.thread, thandle)
+
+	// Query the true stack base from the OS. Currently we're
+	// running on a small assumed stack.
+	var mbi memoryBasicInformation
+	res := stdcall3(_VirtualQuery, uintptr(unsafe.Pointer(&mbi)), uintptr(unsafe.Pointer(&mbi)), unsafe.Sizeof(mbi))
+	if res == 0 {
+		print("runtime: VirtualQuery failed; errno=", getlasterror(), "\n")
+		throw("VirtualQuery for stack base failed")
+	}
+	// Add 8K of slop for calling C functions that don't have
+	// stack checks. We shouldn't be anywhere near this bound
+	// anyway.
+	base := mbi.allocationBase + 8*1024
+	// Sanity check the stack bounds.
+	g0 := getg()
+	if base > g0.stack.hi || g0.stack.hi-base > 64<<20 {
+		print("runtime: g0 stack [", hex(base), ",", hex(g0.stack.hi), ")\n")
+		throw("bad g0 stack")
+	}
+	g0.stack.lo = base
+	g0.stackguard0 = g0.stack.lo + _StackGuard
+	g0.stackguard1 = g0.stackguard0
+	// Sanity check the SP.
+	stackcheck()
 }
 
 // Called from dropm to undo the effect of an minit.

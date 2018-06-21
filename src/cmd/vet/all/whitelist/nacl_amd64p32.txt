@@ -24,5 +24,3 @@ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
 runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
 
 runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
-
-runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration

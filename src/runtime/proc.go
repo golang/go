@@ -1233,6 +1233,7 @@ func mstart() {
 	if osStack {
 		// Initialize stack bounds from system stack.
 		// Cgo may have left stack size in stack.hi.
+		// minit may update the stack bounds.
 		size := _g_.stack.hi
 		if size == 0 {
 			size = 8192 * sys.StackGuardMultiplier
