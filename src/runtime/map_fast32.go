@@ -293,10 +293,11 @@ search:
 			if t.key.kind&kindNoPointers == 0 {
 				memclrHasPointers(k, t.key.size)
 			}
-			// Only clear value if there are pointers in it.
+			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 			if t.elem.kind&kindNoPointers == 0 {
-				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 				memclrHasPointers(v, t.elem.size)
+			} else {
+				memclrNoHeapPointers(v, t.elem.size)
 			}
 			b.tophash[i] = empty
 			h.count--
