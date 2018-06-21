@@ -80,15 +80,24 @@ func IsDclstackValid() bool {
 
 // PkgDef returns the definition associated with s at package scope.
 func (s *Sym) PkgDef() *Node {
+	return *s.pkgDefPtr()
+}
+
+// SetPkgDef sets the definition associated with s at package scope.
+func (s *Sym) SetPkgDef(n *Node) {
+	*s.pkgDefPtr() = n
+}
+
+func (s *Sym) pkgDefPtr() **Node {
 	// Look for outermost saved declaration, which must be the
 	// package scope definition, if present.
 	for _, d := range dclstack {
 		if s == d.sym {
-			return d.def
+			return &d.def
 		}
 	}
 
 	// Otherwise, the declaration hasn't been shadowed within a
 	// function scope.
-	return s.Def
+	return &s.Def
 }
