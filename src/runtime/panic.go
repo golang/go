@@ -716,6 +716,12 @@ func startpanic_m() bool {
 	// happen (even if we're not in one of these situations).
 	_g_.m.mallocing++
 
+	// If we're dying because of a bad lock count, set it to a
+	// good lock count so we don't recursively panic below.
+	if _g_.m.locks < 0 {
+		_g_.m.locks = 1
+	}
+
 	switch _g_.m.dying {
 	case 0:
 		_g_.m.dying = 1
