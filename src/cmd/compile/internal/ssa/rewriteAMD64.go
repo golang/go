@@ -157,6 +157,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64CMPXCHGLlock_0(v)
 	case OpAMD64CMPXCHGQlock:
 		return rewriteValueAMD64_OpAMD64CMPXCHGQlock_0(v)
+	case OpAMD64DIVSD:
+		return rewriteValueAMD64_OpAMD64DIVSD_0(v)
+	case OpAMD64DIVSDload:
+		return rewriteValueAMD64_OpAMD64DIVSDload_0(v)
+	case OpAMD64DIVSS:
+		return rewriteValueAMD64_OpAMD64DIVSS_0(v)
+	case OpAMD64DIVSSload:
+		return rewriteValueAMD64_OpAMD64DIVSSload_0(v)
 	case OpAMD64LEAL:
 		return rewriteValueAMD64_OpAMD64LEAL_0(v)
 	case OpAMD64LEAL1:
@@ -8803,6 +8811,176 @@ func rewriteValueAMD64_OpAMD64CMPXCHGQlock_0(v *Value) bool {
 		v.AddArg(ptr)
 		v.AddArg(old)
 		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64DIVSD_0(v *Value) bool {
+	// match: (DIVSD x l:(MOVSDload [off] {sym} ptr mem))
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (DIVSDload x [off] {sym} ptr mem)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		l := v.Args[1]
+		if l.Op != OpAMD64MOVSDload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64DIVSDload)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(x)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64DIVSDload_0(v *Value) bool {
+	// match: (DIVSDload [off1] {sym} val (ADDQconst [off2] base) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (DIVSDload [off1+off2] {sym} val base mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		val := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := v_1.AuxInt
+		base := v_1.Args[0]
+		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpAMD64DIVSDload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(val)
+		v.AddArg(base)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (DIVSDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+	// result: (DIVSDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		_ = v.Args[2]
+		val := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := v_1.AuxInt
+		sym2 := v_1.Aux
+		base := v_1.Args[0]
+		mem := v.Args[2]
+		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64DIVSDload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(val)
+		v.AddArg(base)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64DIVSS_0(v *Value) bool {
+	// match: (DIVSS x l:(MOVSSload [off] {sym} ptr mem))
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (DIVSSload x [off] {sym} ptr mem)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		l := v.Args[1]
+		if l.Op != OpAMD64MOVSSload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64DIVSSload)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(x)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64DIVSSload_0(v *Value) bool {
+	// match: (DIVSSload [off1] {sym} val (ADDQconst [off2] base) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (DIVSSload [off1+off2] {sym} val base mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		val := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := v_1.AuxInt
+		base := v_1.Args[0]
+		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpAMD64DIVSSload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(val)
+		v.AddArg(base)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (DIVSSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+	// result: (DIVSSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		_ = v.Args[2]
+		val := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := v_1.AuxInt
+		sym2 := v_1.Aux
+		base := v_1.Args[0]
+		mem := v.Args[2]
+		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64DIVSSload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(val)
+		v.AddArg(base)
 		v.AddArg(mem)
 		return true
 	}

@@ -1037,10 +1037,10 @@
 	((ADD|SUB|AND|OR|XOR)Qload [off1+off2] {sym} val base mem)
 ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
-((ADD|SUB|MUL)SSload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|MUL)SSload [off1+off2] {sym} val base mem)
-((ADD|SUB|MUL)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|MUL)SDload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL|DIV)SSload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL|DIV)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {sym} val base mem)
 ((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
 	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
 ((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
@@ -1079,12 +1079,12 @@
 ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|MUL)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+((ADD|SUB|MUL|DIV)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|MUL)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|MUL)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL|DIV)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|MUL)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
 ((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
 	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
@@ -2274,8 +2274,8 @@
 // TODO: add indexed variants?
 ((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)
 ((ADD|SUB|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Lload x [off] {sym} ptr mem)
-((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SDload x [off] {sym} ptr mem)
-((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SSload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
 
 // Merge ADDQconst and LEAQ into atomic loads.
 (MOVQatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->

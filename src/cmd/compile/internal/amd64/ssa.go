@@ -837,7 +837,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64ADDQload, ssa.OpAMD64ADDLload, ssa.OpAMD64SUBQload, ssa.OpAMD64SUBLload,
 		ssa.OpAMD64ANDQload, ssa.OpAMD64ANDLload, ssa.OpAMD64ORQload, ssa.OpAMD64ORLload,
 		ssa.OpAMD64XORQload, ssa.OpAMD64XORLload, ssa.OpAMD64ADDSDload, ssa.OpAMD64ADDSSload,
-		ssa.OpAMD64SUBSDload, ssa.OpAMD64SUBSSload, ssa.OpAMD64MULSDload, ssa.OpAMD64MULSSload:
+		ssa.OpAMD64SUBSDload, ssa.OpAMD64SUBSSload, ssa.OpAMD64MULSDload, ssa.OpAMD64MULSSload,
+		ssa.OpAMD64DIVSDload, ssa.OpAMD64DIVSSload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[1].Reg()

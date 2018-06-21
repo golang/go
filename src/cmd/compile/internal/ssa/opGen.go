@@ -462,6 +462,8 @@ const (
 	OpAMD64SUBSDload
 	OpAMD64MULSSload
 	OpAMD64MULSDload
+	OpAMD64DIVSSload
+	OpAMD64DIVSDload
 	OpAMD64ADDQ
 	OpAMD64ADDL
 	OpAMD64ADDQconst
@@ -5533,6 +5535,42 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg1: true,
 		symEffect:      SymRead,
 		asm:            x86.AMULSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:           "DIVSSload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.ADIVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:           "DIVSDload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.ADIVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
