@@ -145,6 +145,12 @@ func TestCover(t *testing.T) {
 	cmd := exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
 	run(cmd, t)
 
+	cmd = exec.Command(testcover, "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
+	err = cmd.Run()
+	if err == nil {
+		t.Error("Expected cover to fail with an error")
+	}
+
 	// Copy testmain to testTempDir, so that it is in the same directory
 	// as coverOutput.
 	b, err := ioutil.ReadFile(testMain)
