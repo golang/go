@@ -799,7 +799,6 @@ func TestBuildComplex(t *testing.T) {
 	tg.run("build", "-x", "-o", os.DevNull, "complex")
 
 	if _, err := exec.LookPath("gccgo"); err == nil {
-		t.Skip("golang.org/issue/22472")
 		tg.run("build", "-x", "-o", os.DevNull, "-compiler=gccgo", "complex")
 	}
 }
@@ -3084,7 +3083,6 @@ func TestIssue7573(t *testing.T) {
 	if _, err := exec.LookPath("gccgo"); err != nil {
 		t.Skip("skipping because no gccgo compiler found")
 	}
-	t.Skip("golang.org/issue/22472")
 
 	tg := testgo(t)
 	defer tg.cleanup()
