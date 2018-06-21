@@ -112,6 +112,11 @@ func ConstDivs(n1 uint, n2 int) (uint, int) {
 	return a, b
 }
 
+func FloatDivs(a []float32) float32 {
+	// amd64:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
+	return a[1] / a[2]
+}
+
 func Pow2Mods(n1 uint, n2 int) (uint, int) {
 	// 386:"ANDL\t[$]31",-"DIVL"
 	// amd64:"ANDQ\t[$]31",-"DIVQ"
