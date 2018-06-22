@@ -18,7 +18,7 @@ var (
 	itabTableInit = itabTableType{size: itabInitSize} // starter table
 )
 
-//Note: change the formula in the mallocgc call in itabAdd if you change these fields.
+// Note: change the formula in the mallocgc call in itabAdd if you change these fields.
 type itabTableType struct {
 	size    uintptr             // length of entries array. Always a power of 2.
 	count   uintptr             // current number of filled entries.
