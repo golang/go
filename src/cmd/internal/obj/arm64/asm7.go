@@ -164,6 +164,10 @@ func OPBIT(x uint32) uint32 {
 	return 1<<30 | 0<<29 | 0xD6<<21 | 0<<16 | x<<10
 }
 
+func MOVCONST(d int64, s int, rt int) uint32 {
+	return uint32(((d>>uint(s*16))&0xFFFF)<<5) | uint32(s)&3<<21 | uint32(rt&31)
+}
+
 const (
 	LFROM = 1 << 0
 	LTO   = 1 << 1
@@ -272,12 +276,10 @@ var optab = []Optab{
 	/* MOVs that become MOVK/MOVN/MOVZ/ADD/SUB/OR */
 	{AMOVW, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVD, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
-
-	// TODO: these don't work properly.
-	// { AMOVW,		C_ADDCON,	C_NONE,	C_REG,		2, 4, 0 , 0},
-	// { AMOVD,		C_ADDCON,	C_NONE,	C_REG,		2, 4, 0 , 0},
 	{AMOVW, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVD, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+	{AMOVW, C_LCON, C_NONE, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
+	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
 
 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
 	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
@@ -318,9 +320,7 @@ var optab = []Optab{
 	{AWORD, C_NONE, C_NONE, C_NONE, C_LCON, 14, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 14, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 14, 4, 0, 0, 0},
-	{AMOVW, C_VCON, C_NONE, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
 	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
-	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
 	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
@@ -1105,6 +1105,23 @@ func isSTXPop(op obj.As) bool {
 	return false
 }
 
+func isANDWop(op obj.As) bool {
+	switch op {
+	case AANDW, AORRW, AEORW, AANDSW, ATSTW,
+		ABICW, AEONW, AORNW, ABICSW:
+		return true
+	}
+	return false
+}
+
+func isADDWop(op obj.As) bool {
+	switch op {
+	case AADDW, AADDSW, ASUBW, ASUBSW, ACMNW, ACMPW:
+		return true
+	}
+	return false
+}
+
 func isRegShiftOrExt(a *obj.Addr) bool {
 	return (a.Index-obj.RBaseARM64)&REG_EXT != 0 || (a.Index-obj.RBaseARM64)&REG_LSL != 0
 }
@@ -1411,6 +1428,52 @@ func rclass(r int16) int {
 	return C_GOK
 }
 
+// con32class reclassifies the constant of 32-bit instruction. Becuase the constant type is 32-bit,
+// but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
+func (c *ctxt7) con32class(a *obj.Addr) int {
+	v := uint32(a.Offset)
+	if v == 0 {
+		return C_ZCON
+	}
+	if isaddcon(int64(v)) {
+		if v <= 0xFFF {
+			if isbitcon(uint64(v)) {
+				return C_ABCON0
+			}
+			return C_ADDCON0
+		}
+		if isbitcon(uint64(v)) {
+			return C_ABCON
+		}
+		return C_ADDCON
+	}
+
+	t := movcon(int64(v))
+	if t >= 0 {
+		if isbitcon(uint64(v)) {
+			return C_MBCON
+		}
+		return C_MOVCON
+	}
+
+	t = movcon(int64(^v))
+	if t >= 0 {
+		if isbitcon(uint64(v)) {
+			return C_MBCON
+		}
+		return C_MOVCON
+	}
+
+	if isbitcon(uint64(v)) {
+		return C_BITCON
+	}
+
+	if 0 <= v && v <= 0xffffff {
+		return C_ADDCON2
+	}
+	return C_LCON
+}
+
 func (c *ctxt7) aclass(a *obj.Addr) int {
 	switch a.Type {
 	case obj.TYPE_NONE:
@@ -1517,6 +1580,12 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				if isbitcon(uint64(v)) {
 					return C_ABCON
 				}
+				if movcon(v) >= 0 {
+					return C_AMCON
+				}
+				if movcon(^v) >= 0 {
+					return C_AMCON
+				}
 				return C_ADDCON
 			}
 
@@ -1609,6 +1678,34 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 		}
 		a1 = a0 + 1
 		p.From.Class = int8(a1)
+		// more specific classification of 32-bit integers
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE {
+			if p.As == AMOVW || isADDWop(p.As) {
+				ra0 := c.con32class(&p.From)
+				// do not break C_ADDCON2 when S bit is set
+				if (p.As == AADDSW || p.As == ASUBSW) && ra0 == C_ADDCON2 {
+					ra0 = C_LCON
+				}
+				a1 = ra0 + 1
+				p.From.Class = int8(a1)
+			}
+			if isANDWop(p.As) {
+				switch p.As {
+				case AANDW, AORRW, AEORW, AANDSW, ATSTW:
+					// For 32-bit logical instruction with constant,
+					// rewrite the high 32-bit to be a copy of the low
+					// 32-bit, so that the BITCON test can be shared
+					// for both 32-bit and 64-bit.
+					if a0 == C_BITCON {
+						break
+					}
+					fallthrough
+				default:
+					a1 = c.con32class(&p.From) + 1
+					p.From.Class = int8(a1)
+				}
+			}
+		}
 	}
 
 	a1--
@@ -1679,7 +1776,7 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_ADDCON:
-		if b == C_ZCON || b == C_ABCON0 || b == C_ADDCON0 || b == C_ABCON {
+		if b == C_ZCON || b == C_ABCON0 || b == C_ADDCON0 || b == C_ABCON || b == C_AMCON {
 			return true
 		}
 
@@ -1689,7 +1786,7 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_MOVCON:
-		if b == C_MBCON || b == C_ZCON || b == C_ADDCON0 {
+		if b == C_MBCON || b == C_ZCON || b == C_ADDCON0 || b == C_AMCON {
 			return true
 		}
 
@@ -1699,7 +1796,7 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_LCON:
-		if b == C_ZCON || b == C_BITCON || b == C_ADDCON || b == C_ADDCON0 || b == C_ABCON || b == C_ABCON0 || b == C_MBCON || b == C_MOVCON || b == C_ADDCON2 {
+		if b == C_ZCON || b == C_BITCON || b == C_ADDCON || b == C_ADDCON0 || b == C_ABCON || b == C_ABCON0 || b == C_MBCON || b == C_MOVCON || b == C_ADDCON2 || b == C_AMCON {
 			return true
 		}
 
@@ -3501,8 +3598,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = rt
 		}
-		o1 = c.oaddi(p, int32(op), int32(c.regoff(&p.From)) & 0x000fff, r, rt)
-		o2 = c.oaddi(p, int32(op), int32(c.regoff(&p.From)) & 0xfff000, rt, rt)
+		o1 = c.oaddi(p, int32(op), int32(c.regoff(&p.From))&0x000fff, r, rt)
+		o2 = c.oaddi(p, int32(op), int32(c.regoff(&p.From))&0xfff000, rt, rt)
 
 	case 50: /* sys/sysl */
 		o1 = c.opirr(p, p.As)
@@ -3670,7 +3767,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.Reg == REGTMP {
 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
 		}
-		o1 = c.omovconst(AMOVD, p, &p.From, REGTMP)
+		if isADDWop(p.As) || isANDWop(p.As) {
+			o1 = c.omovconst(AMOVW, p, &p.From, REGTMP)
+		} else {
+			o1 = c.omovconst(AMOVD, p, &p.From, REGTMP)
+		}
 
 		rt := int(p.To.Reg)
 		if p.To.Type == obj.TYPE_NONE {
@@ -6195,31 +6296,37 @@ func (c *ctxt7) omovconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 uint3
 		return o1
 	}
 
-	r := 32
-	if as == AMOVD {
-		r = 64
-	}
-	d := a.Offset
-	s := movcon(d)
-	if s < 0 || s >= r {
-		d = ^d
-		s = movcon(d)
-		if s < 0 || s >= r {
-			c.ctxt.Diag("impossible move wide: %#x\n%v", uint64(a.Offset), p)
-		}
-		if as == AMOVD {
-			o1 = c.opirr(p, AMOVN)
-		} else {
+	if as == AMOVW {
+		d := uint32(a.Offset)
+		s := movcon(int64(d))
+		if s < 0 || 16*s >= 32 {
+			d = ^d
+			s = movcon(int64(d))
+			if s < 0 || 16*s >= 32 {
+				c.ctxt.Diag("impossible 32-bit move wide: %#x\n%v", uint32(a.Offset), p)
+			}
 			o1 = c.opirr(p, AMOVNW)
-		}
-	} else {
-		if as == AMOVD {
-			o1 = c.opirr(p, AMOVZ)
 		} else {
 			o1 = c.opirr(p, AMOVZW)
 		}
+		o1 |= MOVCONST(int64(d), s, rt)
 	}
-	o1 |= uint32((((d >> uint(s*16)) & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
+	if as == AMOVD {
+		d := a.Offset
+		s := movcon(d)
+		if s < 0 || 16*s >= 64 {
+			d = ^d
+			s = movcon(d)
+			if s < 0 || 16*s >= 64 {
+				c.ctxt.Diag("impossible 64-bit move wide: %#x\n%v", uint64(a.Offset), p)
+			}
+			o1 = c.opirr(p, AMOVN)
+		} else {
+			o1 = c.opirr(p, AMOVZ)
+		}
+		o1 |= MOVCONST(d, s, rt)
+	}
+
 	return o1
 }
 
