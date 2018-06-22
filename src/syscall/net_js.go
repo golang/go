@@ -38,6 +38,13 @@ const (
 	SO_ERROR
 )
 
+// Misc constants expected by package net but not supported.
+const (
+	_ = iota
+	F_DUPFD_CLOEXEC
+	SYS_FCNTL = 500 // unsupported; same value as net_nacl.go
+)
+
 type Sockaddr interface {
 }
 

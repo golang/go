@@ -455,9 +455,10 @@ func DupCloseOnExec(fd int) (int, string, error) {
 		switch e1 {
 		case 0:
 			return int(r0), "", nil
-		case syscall.EINVAL:
-			// Old kernel. Fall back to the portable way
-			// from now on.
+		case syscall.EINVAL, syscall.ENOSYS:
+			// Old kernel, or js/wasm (which returns
+			// ENOSYS). Fall back to the portable way from
+			// now on.
 			atomic.StoreInt32(&tryDupCloexec, 0)
 		default:
 			return -1, "fcntl", e1
