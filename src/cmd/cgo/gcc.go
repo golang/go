@@ -1095,8 +1095,8 @@ func (p *Package) mangle(f *File, arg *ast.Expr) (ast.Expr, bool) {
 	return *arg, needsUnsafe
 }
 
-// checkIndex checks whether arg the form &a[i], possibly inside type
-// conversions. If so, it writes
+// checkIndex checks whether arg has the form &a[i], possibly inside
+// type conversions. If so, it writes
 //    _cgoIndexNN := a
 //    _cgoNN := &cgoIndexNN[i] // with type conversions, if any
 // to sb, and writes
@@ -1135,7 +1135,7 @@ func (p *Package) checkIndex(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) boo
 }
 
 // checkAddr checks whether arg has the form &x, possibly inside type
-// conversions. If so it writes
+// conversions. If so, it writes
 //    _cgoBaseNN := &x
 //    _cgoNN := _cgoBaseNN // with type conversions, if any
 // to sb, and writes
