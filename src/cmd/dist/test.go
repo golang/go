@@ -446,7 +446,7 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	if t.race {
+	if t.race || goos == "js" {
 		return
 	}
 
