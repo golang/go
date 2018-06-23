@@ -287,10 +287,10 @@ func pthread_cond_wait_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func pthread_cond_timedwait(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_trampoline)), unsafe.Pointer(&c))
+func pthread_cond_timedwait_relative_np(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
 }
-func pthread_cond_timedwait_trampoline()
+func pthread_cond_timedwait_relative_np_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
@@ -348,7 +348,7 @@ func closeonexec(fd int32) {
 //go:cgo_import_dynamic libc_pthread_mutex_unlock pthread_mutex_unlock "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_init pthread_cond_init "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_cond_timedwait pthread_cond_timedwait "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
