@@ -595,7 +595,7 @@ TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
-TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$24, SP
@@ -606,7 +606,7 @@ TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
 	MOVL	AX, 4(SP)
 	MOVL	8(CX), AX	// arg 3 timeout
 	MOVL	AX, 8(SP)
-	CALL	libc_pthread_cond_timedwait(SB)
+	CALL	libc_pthread_cond_timedwait_relative_np(SB)
 	MOVL	BP, SP
 	POPL	BP
 	RET
