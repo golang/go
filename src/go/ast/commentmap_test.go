@@ -146,7 +146,7 @@ func TestFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	// create comment map object with parsed file
 	cmap := NewCommentMap(fset, f, f.Comments)
 	all := cmap.Comments()
 	// filter out comments for var x = 0
