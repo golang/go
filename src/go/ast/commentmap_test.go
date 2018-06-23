@@ -140,4 +140,41 @@ func TestCommentMap(t *testing.T) {
 	}
 }
 
-// TODO(gri): add tests for Filter.
+func TestFilter(t *testing.T) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmap := NewCommentMap(fset, f, f.Comments)
+	all := cmap.Comments()
+	// filter out comments for var x = 0
+	for i, decl := range f.Decls {
+		if gen, ok := decl.(*GenDecl); ok && gen.Tok == token.VAR {
+			copy(f.Decls[i:], f.Decls[i+1:])
+			f.Decls = f.Decls[:len(f.Decls)-1]
+		}
+	}
+
+	// check if filtered CommentGroup less then all
+	filtered := cmap.Filter(f).Comments()
+	if len(all) <= len(filtered) {
+		t.Errorf("Filtered AST must not contain the comments associated with the variable declaration")
+	}
+
+	filteredSlice := []string{
+		"x",
+		"x = 0",
+		"also associated with x",
+	}
+	// check if there aren't sliced elements/comments in filtered
+	for _, list := range filtered {
+		got := list.Text()
+		for _, notWanted := range filteredSlice {
+			if got == notWanted {
+				t.Errorf("Not wanted, but got: %s", got)
+			}
+		}
+	}
+}
