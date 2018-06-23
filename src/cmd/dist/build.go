@@ -1302,9 +1302,14 @@ func cmdbootstrap() {
 		os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
-	goInstall(goBootstrap, "std", "cmd")
-	checkNotStale(goBootstrap, "std", "cmd")
-	checkNotStale(cmdGo, "std", "cmd")
+	targets := []string{"std", "cmd"}
+	if goos == "js" && goarch == "wasm" {
+		// Skip the cmd tools for js/wasm. They're not usable.
+		targets = targets[:1]
+	}
+	goInstall(goBootstrap, targets...)
+	checkNotStale(goBootstrap, targets...)
+	checkNotStale(cmdGo, targets...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
