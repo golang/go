@@ -50,7 +50,7 @@ type netFD struct {
 
 	// unused
 	pfd         poll.FD
-	isConnected bool
+	isConnected bool // handshake completed or use of association with peer
 }
 
 // socket returns a network file descriptor that is ready for
