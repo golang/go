@@ -262,6 +262,8 @@ const (
 	Op386SUBSDload
 	Op386MULSSload
 	Op386MULSDload
+	Op386DIVSSload
+	Op386DIVSDload
 	Op386ADDL
 	Op386ADDLconst
 	Op386ADDLcarry
@@ -333,6 +335,7 @@ const (
 	Op386ROLBconst
 	Op386ADDLload
 	Op386SUBLload
+	Op386MULLload
 	Op386ANDLload
 	Op386ORLload
 	Op386XORLload
@@ -2753,6 +2756,42 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "DIVSSload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.ADIVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+				{1, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+			},
+		},
+	},
+	{
+		name:           "DIVSDload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.ADIVSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+				{1, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+			},
+		},
+	},
+	{
 		name:         "ADDL",
 		argLen:       2,
 		commutative:  true,
@@ -3811,6 +3850,25 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg1: true,
 		symEffect:      SymRead,
 		asm:            x86.ASUBL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 239},   // AX CX DX BX BP SI DI
+				{1, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:           "MULLload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239},   // AX CX DX BX BP SI DI

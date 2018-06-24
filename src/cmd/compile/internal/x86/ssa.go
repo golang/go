@@ -525,8 +525,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.Op386ADDLload, ssa.Op386SUBLload, ssa.Op386ANDLload, ssa.Op386ORLload, ssa.Op386XORLload,
-		ssa.Op386ADDSDload, ssa.Op386ADDSSload, ssa.Op386SUBSDload, ssa.Op386SUBSSload, ssa.Op386MULSDload, ssa.Op386MULSSload:
+	case ssa.Op386ADDLload, ssa.Op386SUBLload, ssa.Op386MULLload,
+		ssa.Op386ANDLload, ssa.Op386ORLload, ssa.Op386XORLload,
+		ssa.Op386ADDSDload, ssa.Op386ADDSSload, ssa.Op386SUBSDload, ssa.Op386SUBSSload,
+		ssa.Op386MULSDload, ssa.Op386MULSSload, ssa.Op386DIVSSload, ssa.Op386DIVSDload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[1].Reg()
