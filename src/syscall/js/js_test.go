@@ -8,6 +8,7 @@ package js_test
 
 import (
 	"fmt"
+	"math"
 	"syscall/js"
 	"testing"
 )
@@ -21,6 +22,7 @@ var dummys = js.Global().Call("eval", `({
 	add: function(a, b) {
 		return a + b;
 	},
+	NaN: NaN,
 })`)
 
 func TestBool(t *testing.T) {
@@ -32,6 +34,9 @@ func TestBool(t *testing.T) {
 	dummys.Set("otherBool", want)
 	if got := dummys.Get("otherBool").Bool(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if dummys.Get("someBool") != dummys.Get("someBool") {
+		t.Errorf("same value not equal")
 	}
 }
 
@@ -45,6 +50,9 @@ func TestString(t *testing.T) {
 	if got := dummys.Get("otherString").String(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
+	if dummys.Get("someString") != dummys.Get("someString") {
+		t.Errorf("same value not equal")
+	}
 }
 
 func TestInt(t *testing.T) {
@@ -56,6 +64,9 @@ func TestInt(t *testing.T) {
 	dummys.Set("otherInt", want)
 	if got := dummys.Get("otherInt").Int(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if dummys.Get("someInt") != dummys.Get("someInt") {
+		t.Errorf("same value not equal")
 	}
 }
 
@@ -85,6 +96,23 @@ func TestFloat(t *testing.T) {
 	}
 	dummys.Set("otherFloat", want)
 	if got := dummys.Get("otherFloat").Float(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if dummys.Get("someFloat") != dummys.Get("someFloat") {
+		t.Errorf("same value not equal")
+	}
+}
+
+func TestObject(t *testing.T) {
+	if dummys.Get("someArray") != dummys.Get("someArray") {
+		t.Errorf("same value not equal")
+	}
+}
+
+func TestNaN(t *testing.T) {
+	want := js.ValueOf(math.NaN())
+	got := dummys.Get("NaN")
+	if got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
 }
