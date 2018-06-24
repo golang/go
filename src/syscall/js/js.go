@@ -15,8 +15,14 @@ import (
 	"unsafe"
 )
 
-// ref is used to identify a JavaScript value, since the value itself can not be passed to WebAssembly itself.
-type ref uint32
+// ref is used to identify a JavaScript value, since the value itself can not be passed to WebAssembly.
+// A JavaScript number (64-bit float, except NaN) is represented by its IEEE 754 binary representation.
+// All other values are represented as an IEEE 754 binary representation of NaN with the low 32 bits
+// used as an ID.
+type ref uint64
+
+// nanHead are the upper 32 bits of a ref if the value is not a JavaScript number or NaN itself.
+const nanHead = 0x7FF80000
 
 // Value represents a JavaScript value.
 type Value struct {
@@ -25,6 +31,17 @@ type Value struct {
 
 func makeValue(v ref) Value {
 	return Value{ref: v}
+}
+
+func predefValue(id uint32) Value {
+	return Value{ref: nanHead<<32 | ref(id)}
+}
+
+func floatValue(f float64) Value {
+	if f != f {
+		return valueNaN
+	}
+	return Value{ref: *(*ref)(unsafe.Pointer(&f))}
 }
 
 // Error wraps a JavaScript error.
@@ -39,11 +56,14 @@ func (e Error) Error() string {
 }
 
 var (
-	valueUndefined         = makeValue(0)
-	valueNull              = makeValue(1)
-	valueGlobal            = makeValue(2)
-	memory                 = makeValue(3) // WebAssembly linear memory
-	resolveCallbackPromise = makeValue(4) // function that the callback helper uses to resume the execution of Go's WebAssembly code
+	valueNaN               = predefValue(0)
+	valueUndefined         = predefValue(1)
+	valueNull              = predefValue(2)
+	valueTrue              = predefValue(3)
+	valueFalse             = predefValue(4)
+	valueGlobal            = predefValue(5)
+	memory                 = predefValue(6) // WebAssembly linear memory
+	resolveCallbackPromise = predefValue(7) // function that the callback helper uses to resume the execution of Go's WebAssembly code
 )
 
 // Undefined returns the JavaScript value "undefined".
@@ -73,35 +93,39 @@ func ValueOf(x interface{}) Value {
 	case nil:
 		return valueNull
 	case bool:
-		return makeValue(boolVal(x))
+		if x {
+			return valueTrue
+		} else {
+			return valueFalse
+		}
 	case int:
-		return makeValue(intVal(x))
+		return floatValue(float64(x))
 	case int8:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case int16:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case int32:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case int64:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case uint:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case uint8:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case uint16:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case uint32:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case uint64:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case uintptr:
-		return makeValue(intVal(int(x)))
+		return floatValue(float64(x))
 	case unsafe.Pointer:
-		return makeValue(intVal(int(uintptr(x))))
+		return floatValue(float64(uintptr(x)))
 	case float32:
-		return makeValue(floatVal(float64(x)))
+		return floatValue(float64(x))
 	case float64:
-		return makeValue(floatVal(x))
+		return floatValue(x)
 	case string:
 		return makeValue(stringVal(x))
 	case []byte:
@@ -113,12 +137,6 @@ func ValueOf(x interface{}) Value {
 		panic("invalid value")
 	}
 }
-
-func boolVal(x bool) ref
-
-func intVal(x int) ref
-
-func floatVal(x float64) ref
 
 func stringVal(x string) ref
 
@@ -201,26 +219,34 @@ func (v Value) New(args ...interface{}) Value {
 
 func valueNew(v ref, args []ref) (ref, bool)
 
-// Float returns the value v converted to float64 according to JavaScript type conversions (parseFloat).
+func (v Value) isNumber() bool {
+	return v.ref>>32 != nanHead || v.ref == valueNaN.ref
+}
+
+// Float returns the value v as a float64. It panics if v is not a JavaScript number.
 func (v Value) Float() float64 {
-	return valueFloat(v.ref)
+	if !v.isNumber() {
+		panic("syscall/js: not a number")
+	}
+	return *(*float64)(unsafe.Pointer(&v.ref))
 }
 
-func valueFloat(v ref) float64
-
-// Int returns the value v converted to int according to JavaScript type conversions (parseInt).
+// Int returns the value v truncated to an int. It panics if v is not a JavaScript number.
 func (v Value) Int() int {
-	return valueInt(v.ref)
+	return int(v.Float())
 }
 
-func valueInt(v ref) int
-
-// Bool returns the value v converted to bool according to JavaScript type conversions.
+// Bool returns the value v as a bool. It panics if v is not a JavaScript boolean.
 func (v Value) Bool() bool {
-	return valueBool(v.ref)
+	switch v.ref {
+	case valueTrue.ref:
+		return true
+	case valueFalse.ref:
+		return false
+	default:
+		panic("syscall/js: not a boolean")
+	}
 }
-
-func valueBool(v ref) bool
 
 // String returns the value v converted to string according to JavaScript type conversions.
 func (v Value) String() string {

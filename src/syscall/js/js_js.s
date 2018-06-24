@@ -4,18 +4,6 @@
 
 #include "textflag.h"
 
-TEXT ·boolVal(SB), NOSPLIT, $0
-  CallImport
-  RET
-
-TEXT ·intVal(SB), NOSPLIT, $0
-  CallImport
-  RET
-
-TEXT ·floatVal(SB), NOSPLIT, $0
-  CallImport
-  RET
-
 TEXT ·stringVal(SB), NOSPLIT, $0
   CallImport
   RET
@@ -45,18 +33,6 @@ TEXT ·valueInvoke(SB), NOSPLIT, $0
   RET
 
 TEXT ·valueNew(SB), NOSPLIT, $0
-  CallImport
-  RET
-
-TEXT ·valueFloat(SB), NOSPLIT, $0
-  CallImport
-  RET
-
-TEXT ·valueInt(SB), NOSPLIT, $0
-  CallImport
-  RET
-
-TEXT ·valueBool(SB), NOSPLIT, $0
   CallImport
   RET
 

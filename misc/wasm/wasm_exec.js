@@ -31,7 +31,7 @@
 
 		let outputBuf = "";
 		global.fs = {
-			constants: {},
+			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1, O_NONBLOCK: -1, O_SYNC: -1 }, // unused
 			writeSync(fd, buf) {
 				outputBuf += decoder.decode(buf);
 				const nl = outputBuf.lastIndexOf("\n");
@@ -81,21 +81,72 @@
 			}
 
 			const loadValue = (addr) => {
+				const f = mem().getFloat64(addr, true);
+				if (!isNaN(f)) {
+					return f;
+				}
+
 				const id = mem().getUint32(addr, true);
 				return this._values[id];
 			}
 
 			const storeValue = (addr, v) => {
-				if (v === undefined) {
-					mem().setUint32(addr, 0, true);
+				if (typeof v === "number") {
+					if (isNaN(v)) {
+						mem().setUint32(addr + 4, 0x7FF80000, true); // NaN
+						mem().setUint32(addr, 0, true);
+						return;
+					}
+					mem().setFloat64(addr, v, true);
 					return;
 				}
-				if (v === null) {
-					mem().setUint32(addr, 1, true);
+
+				mem().setUint32(addr + 4, 0x7FF80000, true); // NaN
+
+				switch (v) {
+					case undefined:
+						mem().setUint32(addr, 1, true);
+						return;
+					case null:
+						mem().setUint32(addr, 2, true);
+						return;
+					case true:
+						mem().setUint32(addr, 3, true);
+						return;
+					case false:
+						mem().setUint32(addr, 4, true);
+						return;
+				}
+
+				if (typeof v === "string") {
+					let ref = this._stringRefs.get(v);
+					if (ref === undefined) {
+						ref = this._values.length;
+						this._values.push(v);
+						this._stringRefs.set(v, ref);
+					}
+					mem().setUint32(addr, ref, true);
 					return;
 				}
-				this._values.push(v);
-				mem().setUint32(addr, this._values.length - 1, true);
+
+				if (typeof v === "symbol") {
+					let ref = this._symbolRefs.get(v);
+					if (ref === undefined) {
+						ref = this._values.length;
+						this._values.push(v);
+						this._symbolRefs.set(v, ref);
+					}
+					mem().setUint32(addr, ref, true);
+					return;
+				}
+
+				let ref = v[this._refProp];
+				if (ref === undefined) {
+					ref = this._values.length;
+					this._values.push(v);
+					v[this._refProp] = ref;
+				}
+				mem().setUint32(addr, ref, true);
 			}
 
 			const loadSlice = (addr) => {
@@ -109,8 +160,7 @@
 				const len = getInt64(addr + 8);
 				const a = new Array(len);
 				for (let i = 0; i < len; i++) {
-					const id = mem().getUint32(array + i * 4, true);
-					a[i] = this._values[id];
+					a[i] = loadValue(array + i * 8);
 				}
 				return a;
 			}
@@ -173,21 +223,6 @@
 						crypto.getRandomValues(loadSlice(sp + 8));
 					},
 
-					// func boolVal(value bool) ref
-					"syscall/js.boolVal": (sp) => {
-						storeValue(sp + 16, mem().getUint8(sp + 8) !== 0);
-					},
-
-					// func intVal(value int) ref
-					"syscall/js.intVal": (sp) => {
-						storeValue(sp + 16, getInt64(sp + 8));
-					},
-
-					// func floatVal(value float64) ref
-					"syscall/js.floatVal": (sp) => {
-						storeValue(sp + 16, mem().getFloat64(sp + 8, true));
-					},
-
 					// func stringVal(value string) ref
 					"syscall/js.stringVal": (sp) => {
 						storeValue(sp + 24, loadString(sp + 8));
@@ -220,10 +255,10 @@
 							const m = Reflect.get(v, loadString(sp + 16));
 							const args = loadSliceOfValues(sp + 32);
 							storeValue(sp + 56, Reflect.apply(m, v, args));
-							mem().setUint8(sp + 60, 1);
+							mem().setUint8(sp + 64, 1);
 						} catch (err) {
 							storeValue(sp + 56, err);
-							mem().setUint8(sp + 60, 0);
+							mem().setUint8(sp + 64, 0);
 						}
 					},
 
@@ -233,10 +268,10 @@
 							const v = loadValue(sp + 8);
 							const args = loadSliceOfValues(sp + 16);
 							storeValue(sp + 40, Reflect.apply(v, undefined, args));
-							mem().setUint8(sp + 44, 1);
+							mem().setUint8(sp + 48, 1);
 						} catch (err) {
 							storeValue(sp + 40, err);
-							mem().setUint8(sp + 44, 0);
+							mem().setUint8(sp + 48, 0);
 						}
 					},
 
@@ -246,26 +281,11 @@
 							const v = loadValue(sp + 8);
 							const args = loadSliceOfValues(sp + 16);
 							storeValue(sp + 40, Reflect.construct(v, args));
-							mem().setUint8(sp + 44, 1);
+							mem().setUint8(sp + 48, 1);
 						} catch (err) {
 							storeValue(sp + 40, err);
-							mem().setUint8(sp + 44, 0);
+							mem().setUint8(sp + 48, 0);
 						}
-					},
-
-					// func valueFloat(v ref) float64
-					"syscall/js.valueFloat": (sp) => {
-						mem().setFloat64(sp + 16, parseFloat(loadValue(sp + 8)), true);
-					},
-
-					// func valueInt(v ref) int
-					"syscall/js.valueInt": (sp) => {
-						setInt64(sp + 16, parseInt(loadValue(sp + 8)));
-					},
-
-					// func valueBool(v ref) bool
-					"syscall/js.valueBool": (sp) => {
-						mem().setUint8(sp + 16, !!loadValue(sp + 8));
 					},
 
 					// func valueLength(v ref) int
@@ -288,7 +308,7 @@
 
 					// func valueInstanceOf(v ref, t ref) bool
 					"syscall/js.valueInstanceOf": (sp) => {
-						mem().setUint8(sp + 16, loadValue(sp + 8) instanceof loadValue(sp + 12));
+						mem().setUint8(sp + 24, loadValue(sp + 8) instanceof loadValue(sp + 16));
 					},
 
 					"debug": (value) => {
@@ -301,8 +321,11 @@
 		async run(instance) {
 			this._inst = instance;
 			this._values = [ // TODO: garbage collection
+				NaN,
 				undefined,
 				null,
+				true,
+				false,
 				global,
 				this._inst.exports.mem,
 				() => { // resolveCallbackPromise
@@ -312,6 +335,9 @@
 					setTimeout(this._resolveCallbackPromise, 0); // make sure it is asynchronous
 				},
 			];
+			this._stringRefs = new Map();
+			this._symbolRefs = new Map();
+			this._refProp = Symbol();
 			this.exited = false;
 
 			const mem = new DataView(this._inst.exports.mem.buffer)
