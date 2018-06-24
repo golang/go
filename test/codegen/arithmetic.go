@@ -49,6 +49,13 @@ func Mul_96(n int) int {
 	return n * 96
 }
 
+func MulMemSrc(a []uint32, b []float32) {
+	// 386:`IMULL\s4\([A-Z]+\),\s[A-Z]+`
+	a[0] *= a[1]
+	// 386/sse2:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
+	b[0] *= b[1]
+}
+
 // Multiplications merging tests
 
 func MergeMuls1(n int) int {
@@ -84,6 +91,11 @@ func MergeMuls5(a, n int) int {
 // -------------- //
 //    Division    //
 // -------------- //
+
+func DivMemSrc(a []float64) {
+	// 386/sse2:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
+	a[0] /= a[1]
+}
 
 func Pow2Divs(n1 uint, n2 int) (uint, int) {
 	// 386:"SHRL\t[$]5",-"DIVL"
