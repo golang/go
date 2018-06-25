@@ -889,6 +889,11 @@ func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
 
 // isAbortPC returns true if pc is the program counter at which
 // runtime.abort raises a signal.
+//
+// It is nosplit because it's part of the isgoexception
+// implementation.
+//
+//go:nosplit
 func isAbortPC(pc uintptr) bool {
 	return pc == funcPC(abort) || ((GOARCH == "arm" || GOARCH == "arm64") && pc == funcPC(abort)+sys.PCQuantum)
 }

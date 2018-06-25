@@ -687,3 +687,32 @@ func TestRuntimePanic(t *testing.T) {
 		t.Errorf("output did not contain expected string %q", want)
 	}
 }
+
+// Test that g0 stack overflows are handled gracefully.
+func TestG0StackOverflow(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
+	}
+
+	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestG0StackOverflow", "-test.v"))
+		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
+		out, err := cmd.CombinedOutput()
+		// Don't check err since it's expected to crash.
+		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
+			t.Fatalf("%s\n(exit status %v)", out, err)
+		}
+		// Check that it's a signal-style traceback.
+		if runtime.GOOS != "windows" {
+			if want := "PC="; !strings.Contains(string(out), want) {
+				t.Errorf("output does not contain %q:\n%s", want, out)
+			}
+		}
+		return
+	}
+
+	runtime.G0StackOverflow()
+}

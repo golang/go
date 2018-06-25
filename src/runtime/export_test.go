@@ -461,3 +461,14 @@ func PanicForTesting(b []byte, i int) byte {
 func unexportedPanicForTesting(b []byte, i int) byte {
 	return b[i]
 }
+
+func G0StackOverflow() {
+	systemstack(func() {
+		stackOverflow(nil)
+	})
+}
+
+func stackOverflow(x *byte) {
+	var buf [256]byte
+	stackOverflow(&buf[0])
+}
