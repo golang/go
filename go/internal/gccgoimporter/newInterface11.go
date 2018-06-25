@@ -9,5 +9,5 @@ package gccgoimporter
 import "go/types"
 
 func newInterface(methods []*types.Func, embeddeds []types.Type) *types.Interface {
-	return types.NewInterface2(methods, embeddeds)
+	return types.NewInterfaceType(methods, embeddeds)
 }
