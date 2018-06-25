@@ -451,7 +451,7 @@ pkg net/http/httptrace, type ClientTrace struct, Got1xxResponse func(int, textpr
 pkg os, const ModeIrregular = 524288
 pkg os, const ModeIrregular FileMode
 pkg os, const ModeType = 2399666176
-pkg os, func UserCacheDir() string
+pkg os, func UserCacheDir() (string, error)
 pkg os/signal, func Ignored(os.Signal) bool
 pkg regexp/syntax, method (Op) String() string
 pkg runtime/trace, func IsEnabled() bool
