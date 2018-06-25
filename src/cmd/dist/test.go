@@ -446,12 +446,12 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	if t.race || goos == "js" {
+	if t.race {
 		return
 	}
 
 	// Runtime CPU tests.
-	if !t.compileOnly {
+	if !t.compileOnly && goos != "js" { // js can't handle -cpu != 1
 		testName := "runtime:cpu124"
 		t.tests = append(t.tests, distTest{
 			name:    testName,
@@ -492,9 +492,9 @@ func (t *tester) registerTests() {
 	// On the builders only, test that a moved GOROOT still works.
 	// Fails on iOS because CC_FOR_TARGET refers to clangwrap.sh
 	// in the unmoved GOROOT.
-	// Fails on Android with an exec format error.
+	// Fails on Android and js/wasm with an exec format error.
 	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
-	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" {
+	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" {
 		t.tests = append(t.tests, distTest{
 			name:    "moved_goroot",
 			heading: "moved GOROOT",
@@ -585,14 +585,16 @@ func (t *tester) registerTests() {
 	}
 
 	// sync tests
-	t.tests = append(t.tests, distTest{
-		name:    "sync_cpu",
-		heading: "sync -cpu=10",
-		fn: func(dt *distTest) error {
-			t.addCmd(dt, "src", t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
-			return nil
-		},
-	})
+	if goos != "js" { // js doesn't support -cpu=10
+		t.tests = append(t.tests, distTest{
+			name:    "sync_cpu",
+			heading: "sync -cpu=10",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
+				return nil
+			},
+		})
+	}
 
 	if t.raceDetectorSupported() {
 		t.tests = append(t.tests, distTest{
@@ -716,7 +718,7 @@ func (t *tester) registerTests() {
 
 	// Doc tests only run on builders.
 	// They find problems approximately never.
-	if t.hasBash() && goos != "nacl" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
+	if t.hasBash() && goos != "nacl" && goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
@@ -742,7 +744,7 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	if goos != "nacl" && goos != "android" && !t.iOS() {
+	if goos != "nacl" && goos != "android" && !t.iOS() && goos != "js" {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
