@@ -535,7 +535,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
 			methods[i] = types.NewFunc(mpos, r.currPkg, mname, msig)
 		}
 
-		typ := types.NewInterface2(methods, embeddeds)
+		typ := types.NewInterfaceType(methods, embeddeds)
 		r.p.interfaceList = append(r.p.interfaceList, typ)
 		return typ
 	}

@@ -437,7 +437,7 @@ pkg debug/pe, const IMAGE_FILE_MACHINE_ARM64 = 43620
 pkg debug/pe, const IMAGE_FILE_MACHINE_ARM64 ideal-int
 pkg go/ast, type CompositeLit struct, Incomplete bool
 pkg go/token, method (*File) AddLineColumnInfo(int, string, int, int)
-pkg go/types, func NewInterface2([]*Func, []Type) *Interface
+pkg go/types, func NewInterfaceType([]*Func, []Type) *Interface
 pkg go/types, method (*Interface) EmbeddedType(int) Type
 pkg go/types, method (*Var) Embedded() bool
 pkg net, method (*ListenConfig) Listen(context.Context, string, string) (Listener, error)

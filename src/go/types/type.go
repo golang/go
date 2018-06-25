@@ -260,7 +260,7 @@ var markComplete = make([]*Func, 0)
 // NewInterface takes ownership of the provided methods and may modify their types by setting
 // missing receivers. To compute the method set of the interface, Complete must be called.
 //
-// Deprecated: Use NewInterface2 instead which allows any (even non-defined) interface types
+// Deprecated: Use NewInterfaceType instead which allows any (even non-defined) interface types
 // to be embedded. This is necessary for interfaces that embed alias type names referring to
 // non-defined (literal) interface types.
 func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
@@ -268,16 +268,16 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	for i, t := range embeddeds {
 		tnames[i] = t
 	}
-	return NewInterface2(methods, tnames)
+	return NewInterfaceType(methods, tnames)
 }
 
-// NewInterface2 returns a new (incomplete) interface for the given methods and embedded types.
+// NewInterfaceType returns a new (incomplete) interface for the given methods and embedded types.
 // Each embedded type must have an underlying type of interface type (this property is not
 // verified for defined types, which may be in the process of being set up and which don't
 // have a valid underlying type yet).
-// NewInterface2 takes ownership of the provided methods and may modify their types by setting
+// NewInterfaceType takes ownership of the provided methods and may modify their types by setting
 // missing receivers. To compute the method set of the interface, Complete must be called.
-func NewInterface2(methods []*Func, embeddeds []Type) *Interface {
+func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	typ := new(Interface)
 
 	if len(methods) == 0 && len(embeddeds) == 0 {
@@ -344,9 +344,9 @@ func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
 func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
 
 // Complete computes the interface's method set. It must be called by users of
-// NewInterface after the interface's embedded types are fully defined and
-// before using the interface type in any way other than to form other types.
-// Complete returns the receiver.
+// NewInterfaceType and NewInterface after the interface's embedded types are
+// fully defined and before using the interface type in any way other than to
+// form other types. Complete returns the receiver.
 func (t *Interface) Complete() *Interface {
 	if t.allMethods != nil {
 		return t
