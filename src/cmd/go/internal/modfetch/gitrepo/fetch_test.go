@@ -7,6 +7,7 @@ package gitrepo
 import (
 	"archive/zip"
 	"bytes"
+	"flag"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -23,6 +24,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	// needed for initializing the test environment variables as testing.Short
+	// and HasExternalNetwork
+	flag.Parse()
 	os.Exit(testMain(m))
 }
 
