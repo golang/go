@@ -12,7 +12,7 @@ func init() {
 	Reader = &reader{}
 }
 
-var jsCrypto = js.Global.Get("crypto")
+var jsCrypto = js.Global().Get("crypto")
 
 // reader implements a pseudorandom generator
 // using JavaScript crypto.getRandomValues method.

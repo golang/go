@@ -8,9 +8,9 @@ package js
 
 import "sync"
 
-var pendingCallbacks = Global.Get("Array").New()
+var pendingCallbacks = Global().Get("Array").New()
 
-var makeCallbackHelper = Global.Call("eval", `
+var makeCallbackHelper = Global().Call("eval", `
 	(function(id, pendingCallbacks, resolveCallbackPromise) {
 		return function() {
 			pendingCallbacks.push({ id: id, args: arguments });
@@ -19,7 +19,7 @@ var makeCallbackHelper = Global.Call("eval", `
 	})
 `)
 
-var makeEventCallbackHelper = Global.Call("eval", `
+var makeEventCallbackHelper = Global().Call("eval", `
 	(function(preventDefault, stopPropagation, stopImmediatePropagation, fn) {
 		return function(event) {
 			if (preventDefault) {
@@ -118,7 +118,7 @@ func callbackLoop() {
 		sleepUntilCallback()
 		for {
 			cb := pendingCallbacks.Call("shift")
-			if cb == Undefined {
+			if cb == Undefined() {
 				break
 			}
 
@@ -127,7 +127,7 @@ func callbackLoop() {
 			f, ok := callbacks[id]
 			callbacksMu.Unlock()
 			if !ok {
-				Global.Get("console").Call("error", "call to closed callback")
+				Global().Get("console").Call("error", "call to closed callback")
 				continue
 			}
 
