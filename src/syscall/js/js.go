@@ -39,23 +39,29 @@ func (e Error) Error() string {
 }
 
 var (
-	// Undefined is the JavaScript value "undefined". The zero Value equals to Undefined.
-	Undefined = makeValue(0)
-
-	// Null is the JavaScript value "null".
-	Null = makeValue(1)
-
-	// Global is the JavaScript global object, usually "window" or "global".
-	Global = makeValue(2)
-
-	// memory is the WebAssembly linear memory.
-	memory = makeValue(3)
-
-	// resolveCallbackPromise is a function that the callback helper uses to resume the execution of Go's WebAssembly code.
-	resolveCallbackPromise = makeValue(4)
+	valueUndefined         = makeValue(0)
+	valueNull              = makeValue(1)
+	valueGlobal            = makeValue(2)
+	memory                 = makeValue(3) // WebAssembly linear memory
+	resolveCallbackPromise = makeValue(4) // function that the callback helper uses to resume the execution of Go's WebAssembly code
 )
 
-var uint8Array = Global.Get("Uint8Array")
+// Undefined returns the JavaScript value "undefined".
+func Undefined() Value {
+	return valueUndefined
+}
+
+// Null returns the JavaScript value "null".
+func Null() Value {
+	return valueNull
+}
+
+// Global returns the JavaScript global object, usually "window" or "global".
+func Global() Value {
+	return valueGlobal
+}
+
+var uint8Array = valueGlobal.Get("Uint8Array")
 
 // ValueOf returns x as a JavaScript value.
 func ValueOf(x interface{}) Value {
@@ -65,7 +71,7 @@ func ValueOf(x interface{}) Value {
 	case Callback:
 		return x.enqueueFn
 	case nil:
-		return Null
+		return valueNull
 	case bool:
 		return makeValue(boolVal(x))
 	case int:
