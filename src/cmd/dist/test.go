@@ -308,7 +308,7 @@ func (t *tester) registerStdTest(pkg string) {
 			timeoutSec := 180
 			for _, pkg := range stdMatches {
 				if pkg == "cmd/go" {
-					timeoutSec *= 2
+					timeoutSec *= 3
 					break
 				}
 			}
