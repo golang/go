@@ -64,6 +64,11 @@ a full argument: to allow -mfoo=bar, use CGO_CFLAGS_ALLOW='-mfoo.*',
 not just CGO_CFLAGS_ALLOW='-mfoo'. Similarly named variables control
 the allowed CPPFLAGS, CXXFLAGS, FFLAGS, and LDFLAGS.
 
+Also for security reasons, only a limited set of characters are
+permitted, notably alphanumeric characters and a few symbols, such as
+'.', that will not be interpreted in unexpected ways. Attempts to use
+forbidden characters will get a "malformed #cgo argument" error.
+
 When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
 CGO_LDFLAGS environment variables are added to the flags derived from
 these directives. Package-specific flags should be set using the
