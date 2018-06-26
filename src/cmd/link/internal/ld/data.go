@@ -828,6 +828,7 @@ func addstrdata1(ctxt *Link, arg string) {
 	strdata[name] = value
 }
 
+// addstrdata sets the initial value of the string variable name to value.
 func addstrdata(ctxt *Link, name, value string) {
 	s := ctxt.Syms.ROLookup(name, 0)
 	if s == nil || s.Gotype == nil {
