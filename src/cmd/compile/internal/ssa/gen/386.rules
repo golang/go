@@ -644,6 +644,8 @@
 	((ADD|SUB|MUL|DIV)SDload [off1+off2] {sym} val base mem)
 ((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym} (ADDLconst [off2] base) val mem) && is32Bit(off1+off2) ->
 	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {sym} base val mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym} (ADDLconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
 
 // Fold constants into stores.
 (MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
@@ -769,6 +771,9 @@
 ((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
 	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym1} (LEAL [off2] {sym2} base) mem)
+	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 
 (MOVBload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVBloadidx1 [off] {sym} ptr idx mem)
 (MOVWload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVWloadidx1 [off] {sym} ptr idx mem)
@@ -852,6 +857,9 @@
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 (MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
 	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+(MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLload [off] {sym} ptr mem)) mem)
+	&& y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) && validValAndOff(c,off) ->
+	((ADD|AND|OR|XOR)Lconstmodify [makeValAndOff(c,off)] {sym} ptr mem)
 
 (MOVBstoreconstidx1 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
 	(MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
