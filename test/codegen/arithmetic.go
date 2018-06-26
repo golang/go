@@ -19,6 +19,10 @@ func SubMem(arr []int, b int) int {
 	arr[2] -= b
 	// 386:`SUBL\s[A-Z]+,\s12\([A-Z]+\)`
 	arr[3] -= b
+	// 386:`DECL\s16\([A-Z]+\)`
+	arr[4]--
+	// 386:`ADDL\s[$]-20,\s20\([A-Z]+\)`
+	arr[5] -= 20
 	// 386:"SUBL\t4"
 	// amd64:"SUBQ\t8"
 	return arr[0] - arr[1]
