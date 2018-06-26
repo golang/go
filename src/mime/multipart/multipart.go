@@ -81,16 +81,6 @@ func (p *Part) FileName() string {
 	return p.dispositionParams["filename"]
 }
 
-// hasFileName determines if a (empty or otherwise)
-// filename parameter was included in the Content-Disposition header
-func (p *Part) hasFileName() bool {
-	if p.dispositionParams == nil {
-		p.parseContentDisposition()
-	}
-	_, ok := p.dispositionParams["filename"]
-	return ok
-}
-
 func (p *Part) parseContentDisposition() {
 	v := p.Header.Get("Content-Disposition")
 	var err error
