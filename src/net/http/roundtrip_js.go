@@ -22,28 +22,28 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	if useFakeNetwork() {
 		return t.roundTrip(req)
 	}
-	headers := js.Global.Get("Headers").New()
+	headers := js.Global().Get("Headers").New()
 	for key, values := range req.Header {
 		for _, value := range values {
 			headers.Call("append", key, value)
 		}
 	}
 
-	ac := js.Global.Get("AbortController")
-	if ac != js.Undefined {
+	ac := js.Global().Get("AbortController")
+	if ac != js.Undefined() {
 		// Some browsers that support WASM don't necessarily support
 		// the AbortController. See
 		// https://developer.mozilla.org/en-US/docs/Web/API/AbortController#Browser_compatibility.
 		ac = ac.New()
 	}
 
-	opt := js.Global.Get("Object").New()
+	opt := js.Global().Get("Object").New()
 	// See https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch
 	// for options available.
 	opt.Set("headers", headers)
 	opt.Set("method", req.Method)
 	opt.Set("credentials", "same-origin")
-	if ac != js.Undefined {
+	if ac != js.Undefined() {
 		opt.Set("signal", ac.Get("signal"))
 	}
 
@@ -62,7 +62,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		req.Body.Close()
 		opt.Set("body", body)
 	}
-	respPromise := js.Global.Call("fetch", req.URL.String(), opt)
+	respPromise := js.Global().Call("fetch", req.URL.String(), opt)
 	var (
 		respCh = make(chan *Response, 1)
 		errCh  = make(chan error, 1)
@@ -90,7 +90,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 
 		b := result.Get("body")
 		var body io.ReadCloser
-		if b != js.Undefined {
+		if b != js.Undefined() {
 			body = &streamReader{stream: b.Call("getReader")}
 		} else {
 			// Fall back to using ArrayBuffer
@@ -122,7 +122,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	respPromise.Call("then", success, failure)
 	select {
 	case <-req.Context().Done():
-		if ac != js.Undefined {
+		if ac != js.Undefined() {
 			// Abort the Fetch request
 			ac.Call("abort")
 		}
@@ -225,7 +225,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 		)
 		success := js.NewCallback(func(args []js.Value) {
 			// Wrap the input ArrayBuffer with a Uint8Array
-			uint8arrayWrapper := js.Global.Get("Uint8Array").New(args[0])
+			uint8arrayWrapper := js.Global().Get("Uint8Array").New(args[0])
 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
 			js.ValueOf(value).Call("set", uint8arrayWrapper)
 			bCh <- value

@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-var dummys = js.Global.Call("eval", `({
+var dummys = js.Global().Call("eval", `({
 	someBool: true,
 	someString: "abc\u1234",
 	someInt: 42,
@@ -90,16 +90,16 @@ func TestFloat(t *testing.T) {
 }
 
 func TestUndefined(t *testing.T) {
-	dummys.Set("test", js.Undefined)
-	if dummys == js.Undefined || dummys.Get("test") != js.Undefined || dummys.Get("xyz") != js.Undefined {
+	dummys.Set("test", js.Undefined())
+	if dummys == js.Undefined() || dummys.Get("test") != js.Undefined() || dummys.Get("xyz") != js.Undefined() {
 		t.Errorf("js.Undefined expected")
 	}
 }
 
 func TestNull(t *testing.T) {
 	dummys.Set("test1", nil)
-	dummys.Set("test2", js.Null)
-	if dummys == js.Null || dummys.Get("test1") != js.Null || dummys.Get("test2") != js.Null {
+	dummys.Set("test2", js.Null())
+	if dummys == js.Null() || dummys.Get("test1") != js.Null() || dummys.Get("test2") != js.Null() {
 		t.Errorf("js.Null expected")
 	}
 }
@@ -128,7 +128,7 @@ func TestCall(t *testing.T) {
 	if got := dummys.Call("add", i, 2).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
-	if got := dummys.Call("add", js.Global.Call("eval", "40"), 2).Int(); got != 42 {
+	if got := dummys.Call("add", js.Global().Call("eval", "40"), 2).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
 }
@@ -141,8 +141,18 @@ func TestInvoke(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	if got := js.Global.Get("Array").New(42).Length(); got != 42 {
+	if got := js.Global().Get("Array").New(42).Length(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
+	}
+}
+
+func TestInstanceOf(t *testing.T) {
+	someArray := js.Global().Get("Array").New()
+	if got, want := someArray.InstanceOf(js.Global().Get("Array")), true; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := someArray.InstanceOf(js.Global().Get("Function")), false; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
 	}
 }
 
@@ -155,7 +165,7 @@ func TestCallback(t *testing.T) {
 		c <- struct{}{}
 	})
 	defer cb.Close()
-	js.Global.Call("setTimeout", cb, 0, 42)
+	js.Global().Call("setTimeout", cb, 0, 42)
 	<-c
 }
 
@@ -176,7 +186,7 @@ func TestEventCallback(t *testing.T) {
 		})
 		defer cb.Close()
 
-		event := js.Global.Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
+		event := js.Global().Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
 		js.ValueOf(cb).Invoke(event)
 		if !event.Get("called").Bool() {
 			t.Errorf("%s not called", name)
@@ -192,5 +202,5 @@ func ExampleNewCallback() {
 		fmt.Println("button clicked")
 		cb.Close() // close the callback if the button will not be clicked again
 	})
-	js.Global.Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
+	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
 }

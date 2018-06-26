@@ -447,13 +447,13 @@ TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	MOVQ	8(DI), SI	// arg 2 mutex
 	MOVQ	16(DI), DX	// arg 3 timeout
 	MOVQ	0(DI), DI	// arg 1 cond
-	CALL	libc_pthread_cond_timedwait(SB)
+	CALL	libc_pthread_cond_timedwait_relative_np(SB)
 	POPQ	BP
 	RET
 

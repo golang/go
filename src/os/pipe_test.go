@@ -372,3 +372,26 @@ func TestPipeEOF(t *testing.T) {
 		r.Close()
 	}
 }
+
+// Issue 24481.
+func TestFdRace(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	var wg sync.WaitGroup
+	call := func() {
+		defer wg.Done()
+		w.Fd()
+	}
+
+	const tries = 100
+	for i := 0; i < tries; i++ {
+		wg.Add(1)
+		go call()
+	}
+	wg.Wait()
+}

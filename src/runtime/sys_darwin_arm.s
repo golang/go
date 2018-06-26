@@ -368,11 +368,11 @@ TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
 	BL	libc_pthread_cond_wait(SB)
 	RET
 
-TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
 	MOVW	4(R0), R1	// arg 2 mutex
 	MOVW	8(R0), R2	// arg 3 timeout
 	MOVW	0(R0), R0	// arg 1 cond
-	BL	libc_pthread_cond_timedwait(SB)
+	BL	libc_pthread_cond_timedwait_relative_np(SB)
 	RET
 
 TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
