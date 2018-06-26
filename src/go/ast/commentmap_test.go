@@ -140,40 +140,69 @@ func TestCommentMap(t *testing.T) {
 	}
 }
 
+const srcForFilter = `
+// the very first comment
+
+// package p
+package p /* the name is p */
+
+// T
+type T struct {
+	a, b, c int // associated with a, b, c
+	// associated with x, y
+	x, y float64    // float values
+	z    complex128 // complex value
+}
+// also associated with T
+
+// x
+var x = 0 // x = 0
+// also associated with x
+
+// f2
+func f2() {
+}
+
+// the very last comment
+`
+
 func TestFilter(t *testing.T) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", srcForFilter, parser.ParseComments)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	// create comment map object with parsed file
 	cmap := NewCommentMap(fset, f, f.Comments)
 	all := cmap.Comments()
-	// filter out comments for var x = 0
+
+	// remove (possibly grouped) variable declarations
 	for i, decl := range f.Decls {
-		if gen, ok := decl.(*GenDecl); ok && gen.Tok == token.VAR {
+		if gen, ok := decl.(*GenDecl); ok && gen.Tok == token.VAR && gen.Doc.Text() == "x\n" {
 			copy(f.Decls[i:], f.Decls[i+1:])
 			f.Decls = f.Decls[:len(f.Decls)-1]
 		}
 	}
 
-	// check if filtered CommentGroup less then all
+	// verify that the right comments were filtered
 	filtered := cmap.Filter(f).Comments()
 	if len(all) <= len(filtered) {
-		t.Errorf("Filtered AST must not contain the comments associated with the variable declaration")
+		t.Errorf("filtered AST does not have fewer comments")
 	}
 
-	filteredSlice := []string{
+	filteredComments := []string{
 		"x",
 		"x = 0",
 		"also associated with x",
 	}
+
 	// check if there aren't sliced elements/comments in filtered
 	for _, list := range filtered {
 		got := list.Text()
-		for _, notWanted := range filteredSlice {
+		for _, notWanted := range filteredComments {
 			if got == notWanted {
-				t.Errorf("Not wanted, but got: %s", got)
+				t.Errorf("got unwanted comment: %s", got)
 			}
 		}
 	}
