@@ -37,7 +37,7 @@ func TestReader(t *testing.T) {
 		{in: " A B =\n C ", want: " A B  C"}, // lax. treating LF as CRLF
 		{in: "foo=\nbar", want: "foobar"},
 		{in: "foo\x00bar", want: "foo", err: "quotedprintable: invalid unescaped byte 0x00 in body"},
-		{in: "foo bar\xff", want: "foo bar", err: "quotedprintable: invalid unescaped byte 0xff in body"},
+		{in: "foo bar\xff", want: "foo bar\xff"},
 
 		// Equal sign.
 		{in: "=3D30\n", want: "=30\n"},
@@ -65,6 +65,8 @@ func TestReader(t *testing.T) {
 		// Example from RFC 2045:
 		{in: "Now's the time =\n" + "for all folk to come=\n" + " to the aid of their country.",
 			want: "Now's the time for all folk to come to the aid of their country."},
+		{in: "accept UTF-8 right quotation mark: ’",
+			want: "accept UTF-8 right quotation mark: ’"},
 	}
 	for _, tt := range tests {
 		var buf bytes.Buffer
