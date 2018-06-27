@@ -27595,6 +27595,20 @@ func rewriteValuegeneric_OpStaticCall_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (StaticCall {sym} x)
+	// cond: needRaceCleanup(sym,v)
+	// result: x
+	for {
+		sym := v.Aux
+		x := v.Args[0]
+		if !(needRaceCleanup(sym, v)) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpStore_0(v *Value) bool {

@@ -1026,3 +1026,31 @@ func registerizable(b *Block, t interface{}) bool {
 	}
 	return false
 }
+
+// needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
+func needRaceCleanup(sym interface{}, v *Value) bool {
+	f := v.Block.Func
+	if !f.Config.Race {
+		return false
+	}
+	if !isSameSym(sym, "runtime.racefuncenter") && !isSameSym(sym, "runtime.racefuncexit") {
+		return false
+	}
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op == OpStaticCall {
+				switch v.Aux.(fmt.Stringer).String() {
+				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
+					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap":
+				// Check for racefuncenter will encounter racefuncexit and vice versa.
+				// Allow calls to panic*
+				default:
+					// If we encounterd any call, we need to keep racefunc*,
+					// for accurate stacktraces.
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
