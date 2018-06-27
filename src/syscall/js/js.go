@@ -81,13 +81,23 @@ func Global() Value {
 	return valueGlobal
 }
 
-var uint8Array = valueGlobal.Get("Uint8Array")
-
-// ValueOf returns x as a JavaScript value.
+// ValueOf returns x as a JavaScript value:
+//
+//  | Go                    | JavaScript            |
+//  | --------------------- | --------------------- |
+//  | js.Value              | [its value]           |
+//  | js.TypedArray         | [typed array]         |
+//  | js.Callback           | function              |
+//  | nil                   | null                  |
+//  | bool                  | boolean               |
+//  | integers and floats   | number                |
+//  | string                | string                |
 func ValueOf(x interface{}) Value {
 	switch x := x.(type) {
 	case Value:
 		return x
+	case TypedArray:
+		return x.Value
 	case Callback:
 		return x.enqueueFn
 	case nil:
@@ -128,13 +138,8 @@ func ValueOf(x interface{}) Value {
 		return floatValue(x)
 	case string:
 		return makeValue(stringVal(x))
-	case []byte:
-		if len(x) == 0 {
-			return uint8Array.New(memory.Get("buffer"), 0, 0)
-		}
-		return uint8Array.New(memory.Get("buffer"), unsafe.Pointer(&x[0]), len(x))
 	default:
-		panic("invalid value")
+		panic("ValueOf: invalid value")
 	}
 }
 
