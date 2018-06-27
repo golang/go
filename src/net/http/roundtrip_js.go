@@ -110,7 +110,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		case <-req.Context().Done():
 		}
 	})
-	defer success.Close()
+	defer success.Release()
 	failure := js.NewCallback(func(args []js.Value) {
 		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].String())
 		select {
@@ -118,7 +118,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		case <-req.Context().Done():
 		}
 	})
-	defer failure.Close()
+	defer failure.Release()
 	respPromise.Call("then", success, failure)
 	select {
 	case <-req.Context().Done():
@@ -171,7 +171,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 			a.Release()
 			bCh <- value
 		})
-		defer success.Close()
+		defer success.Release()
 		failure := js.NewCallback(func(args []js.Value) {
 			// Assumes it's a TypeError. See
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
@@ -180,7 +180,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 			// the read method.
 			errCh <- errors.New(args[0].Get("message").String())
 		})
-		defer failure.Close()
+		defer failure.Release()
 		r.stream.Call("read").Call("then", success, failure)
 		select {
 		case b := <-bCh:
@@ -234,7 +234,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 			a.Release()
 			bCh <- value
 		})
-		defer success.Close()
+		defer success.Release()
 		failure := js.NewCallback(func(args []js.Value) {
 			// Assumes it's a TypeError. See
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
@@ -242,7 +242,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 			// See https://fetch.spec.whatwg.org/#concept-body-consume-body for reasons this might error.
 			errCh <- errors.New(args[0].Get("message").String())
 		})
-		defer failure.Close()
+		defer failure.Release()
 		r.arrayPromise.Call("then", success, failure)
 		select {
 		case b := <-bCh:

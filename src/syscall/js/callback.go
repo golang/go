@@ -46,8 +46,8 @@ var (
 // A Callback can be passed to functions of this package that accept interface{},
 // for example Value.Set and Value.Call.
 type Callback struct {
-	id        uint32
-	enqueueFn Value // the JavaScript function that queues the callback for execution
+	Value // the JavaScript function that queues the callback for execution
+	id    uint32
 }
 
 // NewCallback returns a wrapped callback function. It can be passed to functions of this package
@@ -59,7 +59,7 @@ type Callback struct {
 // As a consequence, if one callback blocks this goroutine, other callbacks will not be processed.
 // A blocking callback should therefore explicitly start a new goroutine.
 //
-// Callback.Close must be called to free up resources when the callback will not be used any more.
+// Callback.Release must be called to free up resources when the callback will not be used any more.
 func NewCallback(fn func(args []Value)) Callback {
 	callbackLoopOnce.Do(func() {
 		go callbackLoop()
@@ -71,8 +71,8 @@ func NewCallback(fn func(args []Value)) Callback {
 	callbacks[id] = fn
 	callbacksMu.Unlock()
 	return Callback{
-		id:        id,
-		enqueueFn: makeCallbackHelper.Invoke(id, pendingCallbacks, resolveCallbackPromise),
+		Value: makeCallbackHelper.Invoke(id, pendingCallbacks, resolveCallbackPromise),
+		id:    id,
 	}
 }
 
@@ -95,17 +95,19 @@ func NewEventCallback(flags EventCallbackFlag, fn func(event Value)) Callback {
 		fn(args[0])
 	})
 	return Callback{
-		id: c.id,
-		enqueueFn: makeEventCallbackHelper.Invoke(
+		Value: makeEventCallbackHelper.Invoke(
 			flags&PreventDefault != 0,
 			flags&StopPropagation != 0,
 			flags&StopImmediatePropagation != 0,
 			c,
 		),
+		id: c.id,
 	}
 }
 
-func (c Callback) Close() {
+// Release frees up resources allocated for the callback.
+// The callback must not be invoked after calling Release.
+func (c Callback) Release() {
 	callbacksMu.Lock()
 	delete(callbacks, c.id)
 	callbacksMu.Unlock()
