@@ -374,7 +374,9 @@ func Read(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	n, err := fsCall("readSync", fd, b, 0, len(b))
+	a := js.TypedArrayOf(b)
+	n, err := fsCall("readSync", fd, a, 0, len(b))
+	a.Release()
 	if err != nil {
 		return 0, err
 	}
@@ -395,7 +397,9 @@ func Write(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	n, err := fsCall("writeSync", fd, b, 0, len(b))
+	a := js.TypedArrayOf(b)
+	n, err := fsCall("writeSync", fd, a, 0, len(b))
+	a.Release()
 	if err != nil {
 		return 0, err
 	}
@@ -405,7 +409,9 @@ func Write(fd int, b []byte) (int, error) {
 }
 
 func Pread(fd int, b []byte, offset int64) (int, error) {
-	n, err := fsCall("readSync", fd, b, 0, len(b), offset)
+	a := js.TypedArrayOf(b)
+	n, err := fsCall("readSync", fd, a, 0, len(b), offset)
+	a.Release()
 	if err != nil {
 		return 0, err
 	}
@@ -413,7 +419,9 @@ func Pread(fd int, b []byte, offset int64) (int, error) {
 }
 
 func Pwrite(fd int, b []byte, offset int64) (int, error) {
-	n, err := fsCall("writeSync", fd, b, 0, len(b), offset)
+	a := js.TypedArrayOf(b)
+	n, err := fsCall("writeSync", fd, a, 0, len(b), offset)
+	a.Release()
 	if err != nil {
 		return 0, err
 	}

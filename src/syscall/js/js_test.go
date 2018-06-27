@@ -109,6 +109,28 @@ func TestObject(t *testing.T) {
 	}
 }
 
+func TestTypedArrayOf(t *testing.T) {
+	testTypedArrayOf(t, "[]int8", []int8{0, -42, 0}, -42)
+	testTypedArrayOf(t, "[]int16", []int16{0, -42, 0}, -42)
+	testTypedArrayOf(t, "[]int32", []int32{0, -42, 0}, -42)
+	testTypedArrayOf(t, "[]uint8", []uint8{0, 42, 0}, 42)
+	testTypedArrayOf(t, "[]uint16", []uint16{0, 42, 0}, 42)
+	testTypedArrayOf(t, "[]uint32", []uint32{0, 42, 0}, 42)
+	testTypedArrayOf(t, "[]float32", []float32{0, -42.5, 0}, -42.5)
+	testTypedArrayOf(t, "[]float64", []float64{0, -42.5, 0}, -42.5)
+}
+
+func testTypedArrayOf(t *testing.T, name string, slice interface{}, want float64) {
+	t.Run(name, func(t *testing.T) {
+		a := js.TypedArrayOf(slice)
+		got := a.Index(1).Float()
+		a.Release()
+		if got != want {
+			t.Errorf("got %#v, want %#v", got, want)
+		}
+	})
+}
+
 func TestNaN(t *testing.T) {
 	want := js.ValueOf(math.NaN())
 	got := dummys.Get("NaN")

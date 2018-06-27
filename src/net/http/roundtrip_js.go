@@ -166,7 +166,9 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 				return
 			}
 			value := make([]byte, result.Get("value").Get("byteLength").Int())
-			js.ValueOf(value).Call("set", result.Get("value"))
+			a := js.TypedArrayOf(value)
+			a.Call("set", result.Get("value"))
+			a.Release()
 			bCh <- value
 		})
 		defer success.Close()
@@ -227,7 +229,9 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 			// Wrap the input ArrayBuffer with a Uint8Array
 			uint8arrayWrapper := js.Global().Get("Uint8Array").New(args[0])
 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
-			js.ValueOf(value).Call("set", uint8arrayWrapper)
+			a := js.TypedArrayOf(value)
+			a.Call("set", uint8arrayWrapper)
+			a.Release()
 			bCh <- value
 		})
 		defer success.Close()
