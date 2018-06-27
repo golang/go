@@ -99,7 +99,7 @@ func ValueOf(x interface{}) Value {
 	case TypedArray:
 		return x.Value
 	case Callback:
-		return x.enqueueFn
+		return x.Value
 	case nil:
 		return valueNull
 	case bool:

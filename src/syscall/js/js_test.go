@@ -214,7 +214,7 @@ func TestCallback(t *testing.T) {
 		}
 		c <- struct{}{}
 	})
-	defer cb.Close()
+	defer cb.Release()
 	js.Global().Call("setTimeout", cb, 0, 42)
 	<-c
 }
@@ -234,10 +234,10 @@ func TestEventCallback(t *testing.T) {
 		cb := js.NewEventCallback(flags, func(event js.Value) {
 			c <- struct{}{}
 		})
-		defer cb.Close()
+		defer cb.Release()
 
 		event := js.Global().Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
-		js.ValueOf(cb).Invoke(event)
+		cb.Invoke(event)
 		if !event.Get("called").Bool() {
 			t.Errorf("%s not called", name)
 		}
@@ -250,7 +250,7 @@ func ExampleNewCallback() {
 	var cb js.Callback
 	cb = js.NewCallback(func(args []js.Value) {
 		fmt.Println("button clicked")
-		cb.Close() // close the callback if the button will not be clicked again
+		cb.Release() // release the callback if the button will not be clicked again
 	})
 	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
 }
