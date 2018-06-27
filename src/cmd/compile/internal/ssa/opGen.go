@@ -487,14 +487,20 @@ const (
 	OpAMD64ANDL
 	OpAMD64ANDQconst
 	OpAMD64ANDLconst
+	OpAMD64ANDQconstmodify
+	OpAMD64ANDLconstmodify
 	OpAMD64ORQ
 	OpAMD64ORL
 	OpAMD64ORQconst
 	OpAMD64ORLconst
+	OpAMD64ORQconstmodify
+	OpAMD64ORLconstmodify
 	OpAMD64XORQ
 	OpAMD64XORL
 	OpAMD64XORQconst
 	OpAMD64XORLconst
+	OpAMD64XORQconstmodify
+	OpAMD64XORLconstmodify
 	OpAMD64CMPQ
 	OpAMD64CMPL
 	OpAMD64CMPW
@@ -5949,6 +5955,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "ANDQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AANDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:           "ANDLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AANDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:         "ORQ",
 		argLen:       2,
 		commutative:  true,
@@ -6015,6 +6049,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "ORQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:           "ORLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:         "XORQ",
 		argLen:       2,
 		commutative:  true,
@@ -6077,6 +6139,34 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "XORQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AXORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:           "XORLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AXORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
 		},
 	},
