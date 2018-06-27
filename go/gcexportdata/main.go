@@ -20,11 +20,13 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
+var packageFlag = flag.String("package", "", "alternative package to print")
+
 func main() {
 	log.SetPrefix("gcexportdata: ")
 	log.SetFlags(0)
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: gcexportdata file.a")
+		fmt.Fprintln(os.Stderr, "usage: gcexportdata [-package path] file.a")
 	}
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -44,11 +46,27 @@ func main() {
 	}
 
 	// Decode the package.
+	const primary = "<primary>"
 	imports := make(map[string]*types.Package)
 	fset := token.NewFileSet()
-	pkg, err := gcexportdata.Read(r, fset, imports, "dummy")
+	pkg, err := gcexportdata.Read(r, fset, imports, primary)
 	if err != nil {
-		log.Fatal("%s: %s", filename, err)
+		log.Fatalf("%s: %s", filename, err)
+	}
+
+	// Optionally select an indirectly mentioned package.
+	if *packageFlag != "" {
+		pkg = imports[*packageFlag]
+		if pkg == nil {
+			fmt.Fprintf(os.Stderr, "export data file %s does not mention %s; has:\n",
+				filename, *packageFlag)
+			for p := range imports {
+				if p != primary {
+					fmt.Fprintf(os.Stderr, "\t%s\n", p)
+				}
+			}
+			os.Exit(1)
+		}
 	}
 
 	// Print all package-level declarations, including non-exported ones.
