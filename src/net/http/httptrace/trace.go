@@ -143,7 +143,8 @@ type ClientTrace struct {
 	TLSHandshakeDone func(tls.ConnectionState, error)
 
 	// WroteHeaderField is called after the Transport has written
-	// each request header.
+	// each request header. At the time of this call the values
+	// might be buffered and not yet written to the network.
 	WroteHeaderField func(key string, value []string)
 
 	// WroteHeaders is called after the Transport has written
