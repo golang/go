@@ -2467,6 +2467,9 @@ func StructOf(fields []StructField) Type {
 						// Issue 15924.
 						panic("reflect: embedded type with methods not implemented if type is not first field")
 					}
+					if len(fields) > 1 {
+						panic("reflect: embedded type with methods not implemented if there is more than one field")
+					}
 					for _, m := range unt.methods() {
 						mname := ptr.nameOff(m.name)
 						if mname.pkgPath() != "" {
@@ -2503,6 +2506,9 @@ func StructOf(fields []StructField) Type {
 					if i > 0 && unt.mcount > 0 {
 						// Issue 15924.
 						panic("reflect: embedded type with methods not implemented if type is not first field")
+					}
+					if len(fields) > 1 && ft.kind&kindDirectIface != 0 {
+						panic("reflect: embedded type with methods not implemented for non-pointer type")
 					}
 					for _, m := range unt.methods() {
 						mname := ft.nameOff(m.name)

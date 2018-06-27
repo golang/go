@@ -4817,12 +4817,28 @@ func (i StructI) Get() int { return int(i) }
 
 type StructIPtr int
 
-func (i *StructIPtr) Get() int { return int(*i) }
+func (i *StructIPtr) Get() int  { return int(*i) }
+func (i *StructIPtr) Set(v int) { *(*int)(i) = v }
+
+type SettableStruct struct {
+	SettableField int
+}
+
+func (p *SettableStruct) Set(v int) { p.SettableField = v }
+
+type SettablePointer struct {
+	SettableField *int
+}
+
+func (p *SettablePointer) Set(v int) { *p.SettableField = v }
 
 func TestStructOfWithInterface(t *testing.T) {
 	const want = 42
 	type Iface interface {
 		Get() int
+	}
+	type IfaceSet interface {
+		Set(int)
 	}
 	tests := []struct {
 		name string
@@ -4931,6 +4947,76 @@ func TestStructOfWithInterface(t *testing.T) {
 			}
 		}
 	}
+
+	// Test an embedded nil pointer with pointer methods.
+	fields := []StructField{{
+		Name:      "StructIPtr",
+		Anonymous: true,
+		Type:      PtrTo(TypeOf(StructIPtr(want))),
+	}}
+	rt := StructOf(fields)
+	rv := New(rt).Elem()
+	// This should panic since the pointer is nil.
+	shouldPanic(func() {
+		rv.Interface().(IfaceSet).Set(want)
+	})
+
+	// Test an embedded nil pointer to a struct with pointer methods.
+
+	fields = []StructField{{
+		Name:      "SettableStruct",
+		Anonymous: true,
+		Type:      PtrTo(TypeOf(SettableStruct{})),
+	}}
+	rt = StructOf(fields)
+	rv = New(rt).Elem()
+	// This should panic since the pointer is nil.
+	shouldPanic(func() {
+		rv.Interface().(IfaceSet).Set(want)
+	})
+
+	// The behavior is different if there is a second field,
+	// since now an interface value holds a pointer to the struct
+	// rather than just holding a copy of the struct.
+	fields = []StructField{
+		{
+			Name:      "SettableStruct",
+			Anonymous: true,
+			Type:      PtrTo(TypeOf(SettableStruct{})),
+		},
+		{
+			Name:      "EmptyStruct",
+			Anonymous: true,
+			Type:      StructOf(nil),
+		},
+	}
+	// With the current implementation this is expected to panic.
+	// Ideally it should work and we should be able to see a panic
+	// if we call the Set method.
+	shouldPanic(func() {
+		StructOf(fields)
+	})
+
+	// Embed a field that can be stored directly in an interface,
+	// with a second field.
+	fields = []StructField{
+		{
+			Name:      "SettablePointer",
+			Anonymous: true,
+			Type:      TypeOf(SettablePointer{}),
+		},
+		{
+			Name:      "EmptyStruct",
+			Anonymous: true,
+			Type:      StructOf(nil),
+		},
+	}
+	// With the current implementation this is expected to panic.
+	// Ideally it should work and we should be able to call the
+	// Set and Get methods.
+	shouldPanic(func() {
+		StructOf(fields)
+	})
 }
 
 func TestChanOf(t *testing.T) {
