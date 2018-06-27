@@ -262,6 +262,16 @@ func bitcompl32(a, b uint32) (n uint32) {
 	return n
 }
 
+// check direct operation on memory with constant source
+func bitOpOnMem(a []uint32) {
+	// amd64:`ANDL\s[$]200,\s\([A-Z]+\)`
+	a[0] &= 200
+	// amd64:`ORL\s[$]220,\s4\([A-Z]+\)`
+	a[1] |= 220
+	// amd64:`XORL\s[$]240,\s8\([A-Z]+\)`
+	a[2] ^= 240
+}
+
 // Check AND masking on arm64 (Issue #19857)
 
 func and_mask_1(a uint64) uint64 {

@@ -1039,8 +1039,10 @@
 	((ADD|SUB|MUL)SSload [off1+off2] {sym} val base mem)
 ((ADD|SUB|MUL)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
 	((ADD|SUB|MUL)SDload [off1+off2] {sym} val base mem)
-(ADD(L|Q)constmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
-	(ADD(L|Q)constmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
 
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
@@ -1081,9 +1083,12 @@
 ((ADD|SUB|MUL)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	((ADD|SUB|MUL)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-(ADD(L|Q)constmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
-	(ADD(L|Q)constmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 
 // generating indexed loads and stores
 (MOV(B|W|L|Q|SS|SD)load [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
@@ -2352,12 +2357,12 @@
 (MOVWQZX (MOVBQZX x)) -> (MOVBQZX x)
 (MOVBQZX (MOVBQZX x)) -> (MOVBQZX x)
 
-(MOVQstore [off] {sym} ptr a:(ADDQconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
+(MOVQstore [off] {sym} ptr a:((ADD|AND|OR|XOR)Qconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
-	(ADDQconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
-(MOVLstore [off] {sym} ptr a:(ADDLconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
+	((ADD|AND|OR|XOR)Qconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
+(MOVLstore [off] {sym} ptr a:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
-	(ADDLconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
+	((ADD|AND|OR|XOR)Lconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
 
 // float <-> int register moves, with no conversion.
 // These come up when compiling math.{Float{32,64}bits,Float{32,64}frombits}.
