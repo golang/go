@@ -329,3 +329,9 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, er
 	}
 	return
 }
+
+// concurrentThreadsLimit returns the number of threads we permit to
+// run concurrently doing DNS lookups.
+func concurrentThreadsLimit() int {
+	return 500
+}
