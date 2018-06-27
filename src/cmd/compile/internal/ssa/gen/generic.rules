@@ -1791,3 +1791,5 @@
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
 					(Zero {t1} [n] dst mem)))))
+
+(StaticCall {sym} x) && needRaceCleanup(sym,v) -> x
