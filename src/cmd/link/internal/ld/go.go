@@ -294,7 +294,7 @@ func fieldtrack(ctxt *Link) {
 			s.Attr |= sym.AttrNotInSymbolTable
 			if s.Attr.Reachable() {
 				buf.WriteString(s.Name[9:])
-				for p := s.Reachparent; p != nil; p = p.Reachparent {
+				for p := ctxt.Reachparent[s]; p != nil; p = ctxt.Reachparent[p] {
 					buf.WriteString("\t")
 					buf.WriteString(p.Name)
 				}
