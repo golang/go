@@ -489,7 +489,6 @@ func doPackage(names []string, basePkg *Package) *Package {
 			file:    parsedFile,
 			dead:    make(map[ast.Node]bool),
 		}
-		checkBuildTag(file)
 		files = append(files, file)
 	}
 	if len(astFiles) == 0 {
@@ -541,6 +540,7 @@ func doPackage(names []string, basePkg *Package) *Package {
 		}
 	}
 	for _, file := range files {
+		checkBuildTag(file)
 		file.checkers = chk
 		if file.file != nil {
 			file.walkFile(file.name, file.file)

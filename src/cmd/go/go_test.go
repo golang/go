@@ -5817,6 +5817,11 @@ func TestTestVet(t *testing.T) {
 	tg.runFail("test", "vetfail/...")
 	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
 	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
+
+	// Use -a so that we need to recompute the vet-specific export data for
+	// vetfail/p1.
+	tg.run("test", "-a", "vetfail/p2")
+	tg.grepStderrNot(`invalid.*constraint`, "did diagnose bad build constraint in vetxonly mode")
 }
 
 func TestTestVetRebuild(t *testing.T) {
