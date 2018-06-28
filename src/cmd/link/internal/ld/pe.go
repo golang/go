@@ -989,7 +989,7 @@ func initdynimport(ctxt *Link) *Dll {
 			continue
 		}
 		for d = dr; d != nil; d = d.next {
-			if d.name == s.Dynimplib {
+			if d.name == s.Dynimplib() {
 				m = new(Imp)
 				break
 			}
@@ -997,7 +997,7 @@ func initdynimport(ctxt *Link) *Dll {
 
 		if d == nil {
 			d = new(Dll)
-			d.name = s.Dynimplib
+			d.name = s.Dynimplib()
 			d.next = dr
 			dr = d
 			m = new(Imp)
