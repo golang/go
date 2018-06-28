@@ -42,7 +42,7 @@ const (
 	itemChar                         // printable ASCII character; grab bag for comma etc.
 	itemCharConstant                 // character constant
 	itemComplex                      // complex constant (1+2i); imaginary is just a number
-	itemAssign                       // colon-equals ('=') introducing an assignment
+	itemAssign                       // equals ('=') introducing an assignment
 	itemDeclare                      // colon-equals (':=') introducing a declaration
 	itemEOF
 	itemField      // alphanumeric identifier starting with '.'
