@@ -14,6 +14,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -5559,6 +5560,64 @@ func testServerShutdown(t *testing.T, h2 bool) {
 	if err == nil {
 		res.Body.Close()
 		t.Fatal("second request should fail. server should be shut down")
+	}
+}
+
+var slowTests = flag.Bool("slow", false, "run slow tests")
+
+func TestServerShutdownStateNew(t *testing.T) {
+	if !*slowTests {
+		t.Skip("skipping slow test without -slow flag")
+	}
+	setParallel(t)
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// nothing.
+	}))
+	defer ts.Close()
+
+	// Start a connection but never write to it.
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	shutdownRes := make(chan error, 1)
+	go func() {
+		shutdownRes <- ts.Config.Shutdown(context.Background())
+	}()
+	readRes := make(chan error, 1)
+	go func() {
+		_, err := c.Read([]byte{0})
+		readRes <- err
+	}()
+
+	const expectTimeout = 5 * time.Second
+	t0 := time.Now()
+	select {
+	case got := <-shutdownRes:
+		d := time.Since(t0)
+		if got != nil {
+			t.Fatalf("shutdown error after %v: %v", d, err)
+		}
+		if d < expectTimeout/2 {
+			t.Errorf("shutdown too soon after %v", d)
+		}
+	case <-time.After(expectTimeout * 3 / 2):
+		t.Fatalf("timeout waiting for shutdown")
+	}
+
+	// Wait for c.Read to unblock; should be already done at this point,
+	// or within a few milliseconds.
+	select {
+	case err := <-readRes:
+		if err == nil {
+			t.Error("expected error from Read")
+		}
+	case <-time.After(2 * time.Second):
+		t.Errorf("timeout waiting for Read to unblock")
 	}
 }
 

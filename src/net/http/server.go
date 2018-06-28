@@ -283,7 +283,7 @@ type conn struct {
 
 	curReq atomic.Value // of *response (which has a Request in it)
 
-	curState atomic.Value // of ConnState
+	curState struct{ atomic uint64 } // packed (unixtime<<8|uint8(ConnState))
 
 	// mu guards hijackedv
 	mu sync.Mutex
@@ -1679,21 +1679,19 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 	case StateHijacked, StateClosed:
 		srv.trackConn(c, false)
 	}
-	c.curState.Store(connStateInterface[state])
+	if state > 0xff || state < 0 {
+		panic("internal error")
+	}
+	packedState := uint64(time.Now().Unix()<<8) | uint64(state)
+	atomic.StoreUint64(&c.curState.atomic, packedState)
 	if hook := srv.ConnState; hook != nil {
 		hook(nc, state)
 	}
 }
 
-// connStateInterface is an array of the interface{} versions of
-// ConnState values, so we can use them in atomic.Values later without
-// paying the cost of shoving their integers in an interface{}.
-var connStateInterface = [...]interface{}{
-	StateNew:      StateNew,
-	StateActive:   StateActive,
-	StateIdle:     StateIdle,
-	StateHijacked: StateHijacked,
-	StateClosed:   StateClosed,
+func (c *conn) getState() (state ConnState, unixSec int64) {
+	packedState := atomic.LoadUint64(&c.curState.atomic)
+	return ConnState(packedState & 0xff), int64(packedState >> 8)
 }
 
 // badRequestError is a literal string (used by in the server in HTML,
@@ -2624,8 +2622,16 @@ func (s *Server) closeIdleConns() bool {
 	defer s.mu.Unlock()
 	quiescent := true
 	for c := range s.activeConn {
-		st, ok := c.curState.Load().(ConnState)
-		if !ok || st != StateIdle {
+		st, unixSec := c.getState()
+		// Issue 22682: treat StateNew connections as if
+		// they're idle if we haven't read the first request's
+		// header in over 5 seconds.
+		if st == StateNew && unixSec < time.Now().Unix()-5 {
+			st = StateIdle
+		}
+		if st != StateIdle || unixSec == 0 {
+			// Assume unixSec == 0 means it's a very new
+			// connection, without state set yet.
 			quiescent = false
 			continue
 		}
