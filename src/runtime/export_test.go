@@ -451,3 +451,13 @@ type G = g
 func Getg() *G {
 	return getg()
 }
+
+//go:noinline
+func PanicForTesting(b []byte, i int) byte {
+	return unexportedPanicForTesting(b, i)
+}
+
+//go:noinline
+func unexportedPanicForTesting(b []byte, i int) byte {
+	return b[i]
+}

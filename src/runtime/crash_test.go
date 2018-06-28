@@ -654,3 +654,33 @@ func TestAbort(t *testing.T) {
 		}
 	}
 }
+
+// For TestRuntimePanic: test a panic in the runtime package without
+// involving the testing harness.
+func init() {
+	if os.Getenv("GO_TEST_RUNTIME_PANIC") == "1" {
+		defer func() {
+			if r := recover(); r != nil {
+				// We expect to crash, so exit 0
+				// to indicate failure.
+				os.Exit(0)
+			}
+		}()
+		runtime.PanicForTesting(nil, 1)
+		// We expect to crash, so exit 0 to indicate failure.
+		os.Exit(0)
+	}
+}
+
+func TestRuntimePanic(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := exec.Command(os.Args[0], "-test.run=TestRuntimePanic")
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.unexportedPanicForTesting"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
