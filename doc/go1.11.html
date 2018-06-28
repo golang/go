@@ -157,6 +157,35 @@ Do not send CLs removing the interior tags from such phrases.
   please <a href="https://golang.org/issue/new">file an issue</a> to let us know about them.
 </p>
 
+<h2 id="tools">Tools</h2>
+
+<h3 id="test">Test</h3>
+
+<p>
+  Since Go1.10, the <code>go</code>&nbsp;<code>test</code> command runs
+  <code>go</code>&nbsp;<code>vet</code> on the package being tested,
+  to identify problems before running the test. Since <code>vet</code>
+  typechecks the code with <a href="/pkg/go/types/">go/types</a>
+  before running, tests that do not typecheck will now fail.
+
+  In particular, tests that contain an unused variable inside a
+  closure compiled with Go1.10, because the Go compiler incorrectly
+  accepted them (<a href="https://golang.org/issues/3059">Issue #3059</a>),
+  but will now fail, since <code>go/types</code> correctly reports an
+  "unused variable" error in this case.
+</p>
+
+
+<h3 id="vet">Vet</h3>
+
+<p><!-- CL 108555 -->
+  The <a href="/cmd/vet/"><code>go</code>&nbsp;<code>vet</code></a>
+  command now reports a fatal error when the package under analysis
+  does not typecheck. Previously, a type checking error simply caused
+  a warning to be printed, and <code>vet</code> to exit with status 1.
+</p>
+
+
 <h2 id="library">Core library</h2>
 
 <p>
