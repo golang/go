@@ -1032,6 +1032,8 @@ loop:
 	BGT	gt
 	BLT	lt
 	SUB	$256, R8
+	MOVD	$256(R3), R3
+	MOVD	$256(R5), R5
 	CMP	R8, $256
 	BGT	loop
 tail:
