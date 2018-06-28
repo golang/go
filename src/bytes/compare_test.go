@@ -6,6 +6,7 @@ package bytes_test
 
 import (
 	. "bytes"
+	"internal/testenv"
 	"testing"
 )
 
@@ -58,10 +59,20 @@ func TestCompareIdenticalSlice(t *testing.T) {
 }
 
 func TestCompareBytes(t *testing.T) {
-	n := 128
+	lengths := make([]int, 0) // lengths to test in ascending order
+	for i := 0; i <= 128; i++ {
+		lengths = append(lengths, i)
+	}
+	lengths = append(lengths, 256, 512, 1024, 1333, 4095, 4096, 4097)
+
+	if !testing.Short() || testenv.Builder() != "" {
+		lengths = append(lengths, 65535, 65536, 65537, 99999)
+	}
+
+	n := lengths[len(lengths)-1]
 	a := make([]byte, n+1)
 	b := make([]byte, n+1)
-	for len := 0; len < 128; len++ {
+	for _, len := range lengths {
 		// randomish but deterministic data. No 0 or 255.
 		for i := 0; i < len; i++ {
 			a[i] = byte(1 + 31*i%254)
