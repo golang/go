@@ -2011,6 +2011,8 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASWPB, t)
 			oprangeset(ASWPH, t)
 			oprangeset(ASWPW, t)
+			oprangeset(ALDADDALD, t)
+			oprangeset(ALDADDALW, t)
 			oprangeset(ALDADDB, t)
 			oprangeset(ALDADDH, t)
 			oprangeset(ALDADDW, t)
@@ -3363,9 +3365,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := p.RegTo2
 		rb := p.To.Reg
 		switch p.As {
-		case ASWPD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
+		case ASWPD, ALDADDALD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
 			o1 = 3 << 30
-		case ASWPW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
+		case ASWPW, ALDADDALW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
 			o1 = 2 << 30
 		case ASWPH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
 			o1 = 1 << 30
@@ -3377,7 +3379,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		switch p.As {
 		case ASWPD, ASWPW, ASWPH, ASWPB:
 			o1 |= 0x20 << 10
-		case ALDADDD, ALDADDW, ALDADDH, ALDADDB:
+		case ALDADDALD, ALDADDALW, ALDADDD, ALDADDW, ALDADDH, ALDADDB:
 			o1 |= 0x00 << 10
 		case ALDANDD, ALDANDW, ALDANDH, ALDANDB:
 			o1 |= 0x04 << 10
@@ -3385,6 +3387,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 0x08 << 10
 		case ALDORD, ALDORW, ALDORH, ALDORB:
 			o1 |= 0x0c << 10
+		}
+		switch p.As {
+		case ALDADDALD, ALDADDALW:
+			o1 |= 3 << 22
 		}
 		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 

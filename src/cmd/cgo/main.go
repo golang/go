@@ -17,6 +17,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -279,6 +280,7 @@ func main() {
 	// concern is other cgo wrappers for the same functions.
 	// Use the beginning of the md5 of the input to disambiguate.
 	h := md5.New()
+	io.WriteString(h, *importPath)
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
 		if *srcDir != "" {

@@ -442,24 +442,28 @@ func (x *Int) BitLen() int {
 }
 
 // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
-// If y <= 0, the result is 1 mod |m|; if m == nil or m == 0, z = x**y.
+// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1.
 //
 // Modular exponentation of inputs of a particular size is not a
 // cryptographically constant-time operation.
 func (z *Int) Exp(x, y, m *Int) *Int {
 	// See Knuth, volume 2, section 4.6.3.
-	var yWords nat
-	if !y.neg {
-		yWords = y.abs
+	xWords := x.abs
+	if y.neg {
+		if m == nil || len(m.abs) == 0 {
+			return z.SetInt64(1)
+		}
+		// for y < 0: x**y mod m == (x**(-1))**|y| mod m
+		xWords = new(Int).ModInverse(x, m).abs
 	}
-	// y >= 0
+	yWords := y.abs
 
 	var mWords nat
 	if m != nil {
 		mWords = m.abs // m.abs may be nil for m == 0
 	}
 
-	z.abs = z.abs.expNN(x.abs, yWords, mWords)
+	z.abs = z.abs.expNN(xWords, yWords, mWords)
 	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
 	if z.neg && len(mWords) > 0 {
 		// make modulus result positive

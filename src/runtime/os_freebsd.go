@@ -34,6 +34,12 @@ func sys_umtx_op(addr *uint32, mode int32, val uint32, uaddr1 uintptr, ut *umtx_
 
 func osyield()
 
+func kqueue() int32
+
+//go:noescape
+func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+func closeonexec(fd int32)
+
 // From FreeBSD's <sys/sysctl.h>
 const (
 	_CTL_HW      = 6

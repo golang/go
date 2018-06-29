@@ -303,6 +303,7 @@ var (
 	racewriterange,
 	supportPopcnt,
 	supportSSE41,
+	arm64SupportAtomics,
 	typedmemclr,
 	typedmemmove,
 	Udiv,

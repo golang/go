@@ -578,6 +578,13 @@ func init() {
 		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
+		// atomic add variant.
+		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+		// LDADDAL	(Rarg0), Rarg1, Rout
+		// ADD		Rarg1, Rout
+		{name: "LoweredAtomicAdd64Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAdd32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
 		// atomic compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
 		// if *arg0 == arg1 {
@@ -596,13 +603,13 @@ func init() {
 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic and/or.
-		// *arg0 &= (|=) arg1. arg2=mem. returns memory. auxint must be zero.
-		// LDAXRB	(Rarg0), Rtmp
-		// AND/OR	Rarg1, Rtmp
-		// STLXRB	Rtmp, (Rarg0), Rtmp
+		// *arg0 &= (|=) arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+		// LDAXRB	(Rarg0), Rout
+		// AND/OR	Rarg1, Rout
+		// STLXRB	Rout, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
-		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
-		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "ORR", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
 
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It saves all GP registers if necessary,

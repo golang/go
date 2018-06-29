@@ -12,7 +12,7 @@ func init() {
 	Reader = &reader{}
 }
 
-var jsCrypto = js.Global.Get("crypto")
+var jsCrypto = js.Global().Get("crypto")
 
 // reader implements a pseudorandom generator
 // using JavaScript crypto.getRandomValues method.
@@ -20,6 +20,8 @@ var jsCrypto = js.Global.Get("crypto")
 type reader struct{}
 
 func (r *reader) Read(b []byte) (int, error) {
-	jsCrypto.Call("getRandomValues", b)
+	a := js.TypedArrayOf(b)
+	jsCrypto.Call("getRandomValues", a)
+	a.Release()
 	return len(b), nil
 }

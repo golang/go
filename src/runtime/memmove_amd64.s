@@ -43,6 +43,8 @@ tail:
 	// registers before writing it back.  move_256through2048 on the other
 	// hand can be used only when the memory regions don't overlap or the copy
 	// direction is forward.
+	//
+	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTQ	BX, BX
 	JEQ	move_0
 	CMPQ	BX, $2
@@ -63,7 +65,6 @@ tail:
 	JBE	move_65through128
 	CMPQ	BX, $256
 	JBE	move_129through256
-	// TODO: use branch table and BSR to make this just a single dispatch
 
 	TESTB	$1, runtime·useAVXmemmove(SB)
 	JNZ	avxUnaligned

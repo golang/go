@@ -132,6 +132,12 @@ func caninl(fn *Node) {
 		return
 	}
 
+	// If marked "go:norace" and -race compilation, don't inline.
+	if flag_race && fn.Func.Pragma&Norace != 0 {
+		reason = "marked go:norace with -race compilation"
+		return
+	}
+
 	// If marked "go:cgo_unsafe_args", don't inline, since the
 	// function makes assumptions about its argument frame layout.
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {

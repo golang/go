@@ -99,6 +99,7 @@ func init() {
 var testGOROOT string
 
 var testCC string
+var testGOCACHE string
 
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
@@ -175,6 +176,13 @@ func TestMain(m *testing.M) {
 			}
 		}
 
+		out, err = exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "could not find testing GOCACHE: %v\n%s", err, out)
+			os.Exit(2)
+		}
+		testGOCACHE = strings.TrimSpace(string(out))
+
 		// As of Sept 2017, MSan is only supported on linux/amd64.
 		// https://github.com/google/sanitizers/wiki/MemorySanitizer#getting-memorysanitizer
 		canMSan = canCgo && runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
@@ -198,7 +206,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv("HOME", "/test-go-home-does-not-exist")
 	if os.Getenv("GOCACHE") == "" {
-		os.Setenv("GOCACHE", "off") // because $HOME is gone
+		os.Setenv("GOCACHE", testGOCACHE) // because $HOME is gone
 	}
 
 	r := m.Run()
@@ -791,7 +799,6 @@ func TestBuildComplex(t *testing.T) {
 	tg.run("build", "-x", "-o", os.DevNull, "complex")
 
 	if _, err := exec.LookPath("gccgo"); err == nil {
-		t.Skip("golang.org/issue/22472")
 		tg.run("build", "-x", "-o", os.DevNull, "-compiler=gccgo", "complex")
 	}
 }
@@ -1253,14 +1260,14 @@ func TestInternalPackagesInGOROOTAreRespected(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.runFail("build", "-v", "./testdata/testinternal")
-	tg.grepBoth(`testinternal(\/|\\)p\.go\:3\:8\: use of internal package not allowed`, "wrong error message for testdata/testinternal")
+	tg.grepBoth(`testinternal(\/|\\)p\.go\:3\:8\: use of internal package net/http/internal not allowed`, "wrong error message for testdata/testinternal")
 }
 
 func TestInternalPackagesOutsideGOROOTAreRespected(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.runFail("build", "-v", "./testdata/testinternal2")
-	tg.grepBoth(`testinternal2(\/|\\)p\.go\:3\:8\: use of internal package not allowed`, "wrote error message for testdata/testinternal2")
+	tg.grepBoth(`testinternal2(\/|\\)p\.go\:3\:8\: use of internal package .*internal/w not allowed`, "wrote error message for testdata/testinternal2")
 }
 
 func TestRunInternal(t *testing.T) {
@@ -1270,7 +1277,7 @@ func TestRunInternal(t *testing.T) {
 	tg.setenv("GOPATH", dir)
 	tg.run("run", filepath.Join(dir, "src/run/good.go"))
 	tg.runFail("run", filepath.Join(dir, "src/run/bad.go"))
-	tg.grepStderr(`testdata(\/|\\)src(\/|\\)run(\/|\\)bad\.go\:3\:8\: use of internal package not allowed`, "unexpected error for run/bad.go")
+	tg.grepStderr(`testdata(\/|\\)src(\/|\\)run(\/|\\)bad\.go\:3\:8\: use of internal package run/subdir/internal/private not allowed`, "unexpected error for run/bad.go")
 }
 
 func TestRunPkg(t *testing.T) {
@@ -1975,6 +1982,10 @@ func TestGoListTest(t *testing.T) {
 
 	tg.run("list", "-test", "runtime/cgo")
 	tg.grepStdout(`^runtime/cgo$`, "missing runtime/cgo")
+
+	tg.run("list", "-deps", "-f", "{{if .DepOnly}}{{.ImportPath}}{{end}}", "sort")
+	tg.grepStdout(`^reflect$`, "missing reflect")
+	tg.grepStdoutNot(`^sort`, "unexpected sort")
 }
 
 func TestGoListCgo(t *testing.T) {
@@ -3072,7 +3083,6 @@ func TestIssue7573(t *testing.T) {
 	if _, err := exec.LookPath("gccgo"); err != nil {
 		t.Skip("skipping because no gccgo compiler found")
 	}
-	t.Skip("golang.org/issue/22472")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -3257,9 +3267,9 @@ func TestGoTestCoverMultiPackage(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "-cover", "./testdata/testcover/...")
-	tg.grepStdout(`\?.*testdata/testcover/pkg1.*\d\.\d\d\ds.*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
-	tg.grepStdout(`ok.*testdata/testcover/pkg2.*\d\.\d\d\ds.*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
-	tg.grepStdout(`ok.*testdata/testcover/pkg3.*\d\.\d\d\ds.*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
+	tg.grepStdout(`\?.*testdata/testcover/pkg1.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
+	tg.grepStdout(`ok.*testdata/testcover/pkg2.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
+	tg.grepStdout(`ok.*testdata/testcover/pkg3.*(\d\.\d\d\ds|cached).*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
 }
 
 // issue 24570
@@ -3268,9 +3278,9 @@ func TestGoTestCoverprofileMultiPackage(t *testing.T) {
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
 	tg.run("test", "-coverprofile=testdata/cover.out", "./testdata/testcover/...")
-	tg.grepStdout(`\?.*testdata/testcover/pkg1.*\d\.\d\d\ds.*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
-	tg.grepStdout(`ok.*testdata/testcover/pkg2.*\d\.\d\d\ds.*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
-	tg.grepStdout(`ok.*testdata/testcover/pkg3.*\d\.\d\d\ds.*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
+	tg.grepStdout(`\?.*testdata/testcover/pkg1.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
+	tg.grepStdout(`ok.*testdata/testcover/pkg2.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
+	tg.grepStdout(`ok.*testdata/testcover/pkg3.*(\d\.\d\d\ds|cached).*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
 	} else {
@@ -5815,6 +5825,11 @@ func TestTestVet(t *testing.T) {
 	tg.runFail("test", "vetfail/...")
 	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
 	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
+
+	// Use -a so that we need to recompute the vet-specific export data for
+	// vetfail/p1.
+	tg.run("test", "-a", "vetfail/p2")
+	tg.grepStderrNot(`invalid.*constraint`, "did diagnose bad build constraint in vetxonly mode")
 }
 
 func TestTestVetRebuild(t *testing.T) {

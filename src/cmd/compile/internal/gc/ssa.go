@@ -78,6 +78,7 @@ func initssaconfig() {
 	racewriterange = sysfunc("racewriterange")
 	supportPopcnt = sysfunc("support_popcnt")
 	supportSSE41 = sysfunc("support_sse41")
+	arm64SupportAtomics = sysfunc("arm64_support_atomics")
 	typedmemclr = sysfunc("typedmemclr")
 	typedmemmove = sysfunc("typedmemmove")
 	Udiv = sysfunc("udiv")
@@ -2169,8 +2170,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			p := s.addr(n, false)
 			return s.load(n.Left.Type.Elem(), p)
 		case n.Left.Type.IsArray():
-			if bound := n.Left.Type.NumElem(); bound <= 1 {
+			if canSSAType(n.Left.Type) {
 				// SSA can handle arrays of length at most 1.
+				bound := n.Left.Type.NumElem()
 				a := s.expr(n.Left)
 				i := s.expr(n.Right)
 				if bound == 0 {
@@ -2935,14 +2937,56 @@ func init() {
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
 		},
-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
+		sys.AMD64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
 	addF("runtime/internal/atomic", "Xadd64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicAdd64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT64], v)
 		},
-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
+		sys.AMD64, sys.S390X, sys.MIPS64, sys.PPC64)
+
+	makeXaddARM64 := func(op0 ssa.Op, op1 ssa.Op, ty types.EType) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			// Target Atomic feature is identified by dynamic detection
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), arm64SupportAtomics, s.sb)
+			v := s.load(types.Types[TBOOL], addr)
+			b := s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(v)
+			bTrue := s.f.NewBlock(ssa.BlockPlain)
+			bFalse := s.f.NewBlock(ssa.BlockPlain)
+			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			b.AddEdgeTo(bTrue)
+			b.AddEdgeTo(bFalse)
+			b.Likely = ssa.BranchUnlikely // most machines don't have Atomics nowadays
+
+			// We have atomic instructions - use it directly.
+			s.startBlock(bTrue)
+			v0 := s.newValue3(op1, types.NewTuple(types.Types[ty], types.TypeMem), args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v0)
+			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[ty], v0)
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Use original instruction sequence.
+			s.startBlock(bFalse)
+			v1 := s.newValue3(op0, types.NewTuple(types.Types[ty], types.TypeMem), args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v1)
+			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[ty], v1)
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Merge results.
+			s.startBlock(bEnd)
+			return s.variable(n, types.Types[ty])
+		}
+	}
+
+	addF("runtime/internal/atomic", "Xadd",
+		makeXaddARM64(ssa.OpAtomicAdd32, ssa.OpAtomicAdd32Variant, TUINT32),
+		sys.ARM64)
+	addF("runtime/internal/atomic", "Xadd64",
+		makeXaddARM64(ssa.OpAtomicAdd64, ssa.OpAtomicAdd64Variant, TUINT64),
+		sys.ARM64)
 
 	addF("runtime/internal/atomic", "Cas",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -4985,7 +5029,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 			}
 			buf.WriteString("</dl>")
 			buf.WriteString("</code>")
-			f.HTMLWriter.WriteColumn("genssa", "ssa-prog", buf.String())
+			f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
 			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = saved
 		}
 	}

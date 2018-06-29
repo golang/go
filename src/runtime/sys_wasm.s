@@ -149,13 +149,6 @@ TEXT runtime·wasmTruncU(SB), NOSPLIT, $0-0
 	I64TruncUF64
 	Return
 
-TEXT runtime·exit(SB), NOSPLIT, $0-8
-	Call runtime·wasmExit(SB)
-	Drop
-	I32Const $0
-	Set SP
-	I32Const $1
-
 TEXT runtime·exitThread(SB), NOSPLIT, $0-0
 	UNDEF
 
@@ -191,6 +184,14 @@ TEXT ·nanotime(SB), NOSPLIT, $0
 	RET
 
 TEXT ·walltime(SB), NOSPLIT, $0
+	CallImport
+	RET
+
+TEXT ·scheduleCallback(SB), NOSPLIT, $0
+	CallImport
+	RET
+
+TEXT ·clearScheduledCallback(SB), NOSPLIT, $0
 	CallImport
 	RET
 

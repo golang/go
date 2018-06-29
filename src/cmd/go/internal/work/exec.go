@@ -30,7 +30,14 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/go/internal/vgo"
 )
+
+func init() {
+	vgo.InstallHook = func(args []string) {
+		CmdInstall.Run(CmdInstall, args)
+	}
+}
 
 // actionList returns the list of actions in the dag rooted at root
 // as visited in a depth-first post-order traversal.
@@ -599,6 +606,13 @@ func (b *Builder) build(a *Action) (err error) {
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
 	}
 
+	if p.Internal.BuildInfo != "" {
+		if err := b.writeFile(objdir+"_gomod_.go", vgo.ModInfoProg(p.Internal.BuildInfo)); err != nil {
+			return err
+		}
+		gofiles = append(gofiles, objdir+"_gomod_.go")
+	}
+
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), len(sfiles) > 0, gofiles)
@@ -718,16 +732,11 @@ func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error 
 }
 
 func (b *Builder) findCachedObjdirFile(a *Action, c *cache.Cache, name string) (string, error) {
-	entry, err := c.Get(cache.Subkey(a.actionID, name))
+	file, _, err := c.GetFile(cache.Subkey(a.actionID, name))
 	if err != nil {
 		return "", err
 	}
-	out := c.OutputFile(entry.OutputID)
-	info, err := os.Stat(out)
-	if err != nil || info.Size() != entry.Size {
-		return "", fmt.Errorf("not in cache")
-	}
-	return out, nil
+	return file, nil
 }
 
 func (b *Builder) loadCachedObjdirFile(a *Action, c *cache.Cache, name string) error {
@@ -833,16 +842,21 @@ func (b *Builder) loadCachedCgoFiles(a *Action) bool {
 	return true
 }
 
+// vetConfig is the configuration passed to vet describing a single package.
 type vetConfig struct {
-	Compiler    string
-	Dir         string
-	GoFiles     []string
-	ImportMap   map[string]string
-	PackageFile map[string]string
-	Standard    map[string]bool
-	ImportPath  string
+	Compiler   string   // compiler name (gc, gccgo)
+	Dir        string   // directory containing package
+	ImportPath string   // canonical import path ("package path")
+	GoFiles    []string // absolute paths to package source files
 
-	SucceedOnTypecheckFailure bool
+	ImportMap   map[string]string // map import path in source code to package path
+	PackageFile map[string]string // map package path to .a file with export data
+	Standard    map[string]bool   // map package path to whether it's in the standard library
+	PackageVetx map[string]string // map package path to vetx data from earlier vet run
+	VetxOnly    bool              // only compute vetx data; don't report detected problems
+	VetxOutput  string            // write vetx data to this output file
+
+	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
 }
 
 func buildVetConfig(a *Action, gofiles []string) {
@@ -903,6 +917,8 @@ func (b *Builder) vet(a *Action) error {
 	// a.Deps[0] is the build of the package being vetted.
 	// a.Deps[1] is the build of the "fmt" package.
 
+	a.Failed = false // vet of dependency may have failed but we can still succeed
+
 	vcfg := a.Deps[0].vetCfg
 	if vcfg == nil {
 		// Vet config should only be missing if the build failed.
@@ -910,6 +926,38 @@ func (b *Builder) vet(a *Action) error {
 			return fmt.Errorf("vet config not found")
 		}
 		return nil
+	}
+
+	vcfg.VetxOnly = a.VetxOnly
+	vcfg.VetxOutput = a.Objdir + "vet.out"
+	vcfg.PackageVetx = make(map[string]string)
+
+	h := cache.NewHash("vet " + a.Package.ImportPath)
+	fmt.Fprintf(h, "vet %q\n", b.toolID("vet"))
+
+	// Note: We could decide that vet should compute export data for
+	// all analyses, in which case we don't need to include the flags here.
+	// But that would mean that if an analysis causes problems like
+	// unexpected crashes there would be no way to turn it off.
+	// It seems better to let the flags disable export analysis too.
+	fmt.Fprintf(h, "vetflags %q\n", VetFlags)
+
+	fmt.Fprintf(h, "pkg %q\n", a.Deps[0].actionID)
+	for _, a1 := range a.Deps {
+		if a1.Mode == "vet" && a1.built != "" {
+			fmt.Fprintf(h, "vetout %q %s\n", a1.Package.ImportPath, b.fileHash(a1.built))
+			vcfg.PackageVetx[a1.Package.ImportPath] = a1.built
+		}
+	}
+	key := cache.ActionID(h.Sum())
+
+	if vcfg.VetxOnly {
+		if c := cache.Default(); c != nil && !cfg.BuildA {
+			if file, _, err := c.GetFile(key); err == nil {
+				a.built = file
+				return nil
+			}
+		}
 	}
 
 	if vcfg.ImportMap["fmt"] == "" {
@@ -949,7 +997,18 @@ func (b *Builder) vet(a *Action) error {
 	if tool == "" {
 		tool = base.Tool("vet")
 	}
-	return b.run(a, p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
+	runErr := b.run(a, p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
+
+	// If vet wrote export data, save it for input to future vets.
+	if f, err := os.Open(vcfg.VetxOutput); err == nil {
+		a.built = vcfg.VetxOutput
+		if c := cache.Default(); c != nil {
+			c.Put(key, f)
+		}
+		f.Close()
+	}
+
+	return runErr
 }
 
 // linkActionID computes the action ID for a link action.

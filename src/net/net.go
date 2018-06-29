@@ -84,6 +84,7 @@ import (
 	"internal/poll"
 	"io"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -610,9 +611,14 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 // server is not responding. Then the many lookups each use a different
 // thread, and the system or the program runs out of threads.
 
-var threadLimit = make(chan struct{}, 500)
+var threadLimit chan struct{}
+
+var threadOnce sync.Once
 
 func acquireThread() {
+	threadOnce.Do(func() {
+		threadLimit = make(chan struct{}, concurrentThreadsLimit())
+	})
 	threadLimit <- struct{}{}
 }
 

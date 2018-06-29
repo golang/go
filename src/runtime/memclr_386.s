@@ -16,6 +16,7 @@ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
 
 	// MOVOU seems always faster than REP STOSL.
 tail:
+	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTL	BX, BX
 	JEQ	_0
 	CMPL	BX, $2
@@ -38,7 +39,6 @@ tail:
 	JBE	_65through128
 	CMPL	BX, $256
 	JBE	_129through256
-	// TODO: use branch table and BSR to make this just a single dispatch
 
 loop:
 	MOVOU	X0, 0(DI)

@@ -50,7 +50,7 @@ trace. Use tools in isolation to get more precise info.
 Profiling is useful for identifying expensive or frequently called sections
 of code. The Go runtime provides <a href="https://golang.org/pkg/runtime/pprof/">
 profiling data</a> in the format expected by the
-<a href="https://github.com/google/pprof/blob/master/doc/pprof.md">pprof visualization tool</a>.
+<a href="https://github.com/google/pprof/blob/master/doc/README.md">pprof visualization tool</a>.
 The profiling data can be collected during testing
 via <code>go</code> <code>test</code> or endpoints made available from the <a href="/pkg/net/http/pprof/">
 net/http/pprof</a> package. Users need to collect the profiling data and use pprof tools to filter
@@ -127,7 +127,7 @@ so it is recommended to collect only a single profile at a time.
 <p>
 The Go tools provide text, graph, and <a href="http://valgrind.org/docs/manual/cl-manual.html">callgrind</a>
 visualization of the profile data using
-<code><a href="https://github.com/google/pprof/blob/master/doc/pprof.md">go tool pprof</a></code>.
+<code><a href="https://github.com/google/pprof/blob/master/doc/README.md">go tool pprof</a></code>.
 Read <a href="https://blog.golang.org/profiling-go-programs">Profiling Go programs</a>
 to see them in action.
 </p>

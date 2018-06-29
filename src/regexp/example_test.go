@@ -38,6 +38,12 @@ func ExampleMatchString() {
 	// false error parsing regexp: missing closing ): `a(b`
 }
 
+func ExampleQuoteMeta() {
+	fmt.Println(regexp.QuoteMeta("Escaping symbols like: .+*?()|[]{}^$"))
+	// Output:
+	// Escaping symbols like: \.\+\*\?\(\)\|\[\]\{\}\^\$
+}
+
 func ExampleRegexp_FindString() {
 	re := regexp.MustCompile("foo.?")
 	fmt.Printf("%q\n", re.FindString("seafood fool"))

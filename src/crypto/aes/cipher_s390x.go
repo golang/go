@@ -6,6 +6,7 @@ package aes
 
 import (
 	"crypto/cipher"
+	"crypto/internal/subtle"
 	"internal/cpu"
 )
 
@@ -31,12 +32,11 @@ type aesCipherAsm struct {
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
 func newCipher(key []byte) (cipher.Block, error) {
-	// Strictly speaking, this check should be for HasKM.
-	// The check for HasKMC and HasKMCTR provides compatibility
-	// with the existing optimized s390x CBC and CTR implementations
-	// in this package, which already assert that they meet the
-	// cbcEncAble, cbcDecAble, and ctrAble interfaces
-	if !(cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR) {
+	// The aesCipherAsm type implements the cbcEncAble, cbcDecAble,
+	// ctrAble and gcmAble interfaces. We therefore need to check
+	// for all the features required to implement these modes.
+	// Keep in sync with crypto/tls/common.go.
+	if !(cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)) {
 		return newCipherGeneric(key)
 	}
 
@@ -68,6 +68,9 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/aes: invalid buffer overlap")
+	}
 	cryptBlocks(c.function, &c.key[0], &dst[0], &src[0], BlockSize)
 }
 
@@ -77,6 +80,9 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
 	}
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/aes: invalid buffer overlap")
 	}
 	// The decrypt function code is equal to the function code + 128.
 	cryptBlocks(c.function+128, &c.key[0], &dst[0], &src[0], BlockSize)

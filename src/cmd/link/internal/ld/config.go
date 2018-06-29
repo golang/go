@@ -196,6 +196,13 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
 
+	// When the race flag is set, the LLVM tsan relocatable file is linked
+	// into the final binary, which means external linking is required because
+	// internal linking does not support it.
+	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
+		return true, "race on ppc64le"
+	}
+
 	// Some build modes require work the internal linker cannot do (yet).
 	switch ctxt.BuildMode {
 	case BuildModeCArchive:

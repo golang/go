@@ -151,22 +151,27 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 
 // Escape analysis.
 
-// An escape analysis pass for a set of functions.
-// The analysis assumes that closures and the functions in which they
-// appear are analyzed together, so that the aliasing between their
-// variables can be modeled more precisely.
+// An escape analysis pass for a set of functions. The
+// analysis assumes that closures and the functions in which
+// they appear are analyzed together, so that the aliasing
+// between their variables can be modeled more precisely.
 //
-// First escfunc, esc and escassign recurse over the ast of each
-// function to dig out flow(dst,src) edges between any
-// pointer-containing nodes and store them in e.nodeEscState(dst).Flowsrc. For
-// variables assigned to a variable in an outer scope or used as a
-// return value, they store a flow(theSink, src) edge to a fake node
-// 'the Sink'.  For variables referenced in closures, an edge
-// flow(closure, &var) is recorded and the flow of a closure itself to
-// an outer scope is tracked the same way as other variables.
+// First escfunc, esc and escassign recurse over the ast of
+// each function to dig out flow(dst,src) edges between any
+// pointer-containing  nodes and store those edges in
+// e.nodeEscState(dst).Flowsrc. For values assigned to a
+// variable in an outer scope or used as a return value,
+// they store a flow(theSink, src) edge to a fake node 'the
+// Sink'.  For variables referenced in closures, an edge
+// flow(closure, &var) is recorded and the flow of a closure
+// itself to an outer scope is tracked the same way as other
+// variables.
 //
-// Then escflood walks the graph starting at theSink and tags all
-// variables of it can reach an & node as escaping and all function
+// Then escflood walks the graph in destination-to-source
+// order, starting at theSink, propagating a computed
+// "escape level", and tags as escaping values it can
+// reach that are either & (address-taken) nodes or new(T),
+// and tags pointer-typed or pointer-containing function
 // parameters it can reach as leaking.
 //
 // If a value's address is taken but the address does not escape,
@@ -185,19 +190,6 @@ const (
 	EscFuncTagged
 )
 
-// There appear to be some loops in the escape graph, causing
-// arbitrary recursion into deeper and deeper levels.
-// Cut this off safely by making minLevel sticky: once you
-// get that deep, you cannot go down any further but you also
-// cannot go up any further. This is a conservative fix.
-// Making minLevel smaller (more negative) would handle more
-// complex chains of indirections followed by address-of operations,
-// at the cost of repeating the traversal once for each additional
-// allowed level when a loop is encountered. Using -2 suffices to
-// pass all the tests we have written so far, which we assume matches
-// the level of complexity we want the escape analysis code to handle.
-const MinLevel = -2
-
 // A Level encodes the reference state and context applied to
 // (stack, heap) allocated memory.
 //
@@ -205,20 +197,48 @@ const MinLevel = -2
 // along a path from a destination (sink, return value) to a source
 // (allocation, parameter).
 //
-// suffixValue is the maximum-copy-started-suffix-level applied to a sink.
-// For example:
-// sink = x.left.left --> level=2, x is dereferenced twice and does not escape to sink.
-// sink = &Node{x} --> level=-1, x is accessible from sink via one "address of"
-// sink = &Node{&Node{x}} --> level=-2, x is accessible from sink via two "address of"
-// sink = &Node{&Node{x.left}} --> level=-1, but x is NOT accessible from sink because it was indirected and then copied.
-// (The copy operations are sometimes implicit in the source code; in this case,
-// value of x.left was copied into a field of a newly allocated Node)
+// suffixValue is the maximum-copy-started-suffix-level on
+// a flow path from a sink/destination.  That is, a value
+// with suffixValue N is guaranteed to be dereferenced at least
+// N deep (chained applications of DOTPTR or IND or INDEX)
+// before the result is assigned to a sink.
 //
+// For example, suppose x is a pointer to T, declared type T struct { left, right *T }
+//   sink = x.left.left --> level(x)=2, x is reached via two dereferences (DOTPTR) and does not escape to sink.
+//   sink = &T{right:x} --> level(x)=-1, x is accessible from sink via one "address of"
+//   sink = &T{right:&T{right:x}} --> level(x)=-2, x is accessible from sink via two "address of"
+//
+// However, in the next example x's level value and suffixValue differ:
+//   sink = &T{right:&T{right:x.left}} --> level(x).value=-1, level(x).suffixValue=1
+// The positive suffixValue indicates that x is NOT accessible
+// from sink. Without a separate suffixValue to capture this, x would
+// appear to escape because its "value" would be -1.  (The copy
+// operations are sometimes implicit in the source code; in this case,
+// the value of x.left was copied into a field of an newly allocated T).
+//
+// Each node's level (value and suffixValue) is the maximum for
+// all flow paths from (any) sink to that node.
+
 // There's one of these for each Node, and the integer values
 // rarely exceed even what can be stored in 4 bits, never mind 8.
 type Level struct {
 	value, suffixValue int8
 }
+
+// There are loops in the escape graph,
+// causing arbitrary recursion into deeper and deeper
+// levels. Cut this off safely by making minLevel sticky:
+// once you get that deep, you cannot go down any further
+// but you also cannot go up any further. This is a
+// conservative fix. Making minLevel smaller (more negative)
+// would handle more complex chains of indirections followed
+// by address-of operations, at the cost of repeating the
+// traversal once for each additional allowed level when a
+// loop is encountered. Using -2 suffices to pass all the
+// tests we have written so far, which we assume matches the
+// level of complexity we want the escape analysis code to
+// handle.
+const MinLevel = -2
 
 func (l Level) int() int {
 	return int(l.value)
@@ -269,6 +289,7 @@ func (l Level) dec() Level {
 }
 
 // copy returns the level for a copy of a value with level l.
+// The resulting suffixValue is at least zero, or larger if it was already larger.
 func (l Level) copy() Level {
 	return Level{value: l.value, suffixValue: max8(l.suffixValue, 0)}
 }

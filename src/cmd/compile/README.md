@@ -26,7 +26,7 @@ little to do with uppercase GC, which stands for garbage collection.
 * `cmd/compile/internal/syntax` (lexer, parser, syntax tree)
 
 In the first phase of compilation, source code is tokenized (lexical analysis),
-parsed (syntactic analyses), and a syntax tree is constructed for each source
+parsed (syntax analysis), and a syntax tree is constructed for each source
 file.
 
 Each syntax tree is an exact representation of the respective source file, with

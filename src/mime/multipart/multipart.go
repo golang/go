@@ -81,16 +81,6 @@ func (p *Part) FileName() string {
 	return p.dispositionParams["filename"]
 }
 
-// hasFileName determines if a (empty or otherwise)
-// filename parameter was included in the Content-Disposition header
-func (p *Part) hasFileName() bool {
-	if p.dispositionParams == nil {
-		p.parseContentDisposition()
-	}
-	_, ok := p.dispositionParams["filename"]
-	return ok
-}
-
 func (p *Part) parseContentDisposition() {
 	v := p.Header.Get("Content-Disposition")
 	var err error
@@ -313,7 +303,9 @@ func (r *Reader) NextPart() (*Part, error) {
 	if r.currentPart != nil {
 		r.currentPart.Close()
 	}
-
+	if string(r.dashBoundary) == "--" {
+		return nil, fmt.Errorf("multipart: boundary is empty")
+	}
 	expectNewPart := false
 	for {
 		line, err := r.bufReader.ReadSlice('\n')

@@ -32,22 +32,6 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
 	return filepath.ToSlash(dir[len(root):]), true
 }
 
-// hasPathPrefix reports whether the path s begins with the
-// elements in prefix.
-func hasPathPrefix(s, prefix string) bool {
-	switch {
-	default:
-		return false
-	case len(s) == len(prefix):
-		return s == prefix
-	case len(s) > len(prefix):
-		if prefix != "" && prefix[len(prefix)-1] == '/' {
-			return strings.HasPrefix(s, prefix)
-		}
-		return s[len(prefix)] == '/' && s[:len(prefix)] == prefix
-	}
-}
-
 // expandPath returns the symlink-expanded form of path.
 func expandPath(p string) string {
 	x, err := filepath.EvalSymlinks(p)

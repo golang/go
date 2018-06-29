@@ -31,6 +31,7 @@ import (
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/http/internal"
+	"net/textproto"
 	"net/url"
 	"os"
 	"reflect"
@@ -2287,6 +2288,7 @@ Content-Length: %d
 	c := &Client{Transport: tr}
 
 	testResponse := func(req *Request, name string, wantCode int) {
+		t.Helper()
 		res, err := c.Do(req)
 		if err != nil {
 			t.Fatalf("%s: Do: %v", name, err)
@@ -2309,13 +2311,67 @@ Content-Length: %d
 		req.Header.Set("Request-Id", reqID(i))
 		testResponse(req, fmt.Sprintf("100, %d/%d", i, numReqs), 200)
 	}
+}
 
-	// And some other informational 1xx but non-100 responses, to test
-	// we return them but don't re-use the connection.
-	for i := 1; i <= numReqs; i++ {
-		req, _ := NewRequest("POST", "http://other.tld/", strings.NewReader(reqBody(i)))
-		req.Header.Set("X-Want-Response-Code", "123 Sesame Street")
-		testResponse(req, fmt.Sprintf("123, %d/%d", i, numReqs), 123)
+// Issue 17739: the HTTP client must ignore any unknown 1xx
+// informational responses before the actual response.
+func TestTransportIgnore1xxResponses(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.Write([]byte("HTTP/1.1 123 OneTwoThree\r\nFoo: bar\r\n\r\nHTTP/1.1 200 OK\r\nBar: baz\r\nContent-Length: 5\r\n\r\nHello"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+	cst.tr.DisableKeepAlives = true // prevent log spam; our test server is hanging up anyway
+
+	var got bytes.Buffer
+
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			fmt.Fprintf(&got, "1xx: code=%v, header=%v\n", code, header)
+			return nil
+		},
+	}))
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	res.Write(&got)
+	want := "1xx: code=123, header=map[Foo:[bar]]\nHTTP/1.1 200 OK\r\nContent-Length: 5\r\nBar: baz\r\n\r\nHello"
+	if got.String() != want {
+		t.Errorf(" got: %q\nwant: %q\n", got.Bytes(), want)
+	}
+}
+
+func TestTransportLimits1xxResponses(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		for i := 0; i < 10; i++ {
+			buf.Write([]byte("HTTP/1.1 123 OneTwoThree\r\n\r\n"))
+		}
+		buf.Write([]byte("HTTP/1.1 204 No Content\r\n\r\n"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+	cst.tr.DisableKeepAlives = true // prevent log spam; our test server is hanging up anyway
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if res != nil {
+		defer res.Body.Close()
+	}
+	got := fmt.Sprint(err)
+	wantSub := "too many 1xx informational responses"
+	if !strings.Contains(got, wantSub) {
+		t.Errorf("Get error = %v; want substring %q", err, wantSub)
 	}
 }
 
@@ -3677,7 +3733,9 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
-	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader("some body"))
+	body := "some body"
+	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader(body))
+	req.Header["X-Foo-Multiple-Vals"] = []string{"bar", "baz"}
 	trace := &httptrace.ClientTrace{
 		GetConn:              func(hostPort string) { logf("Getting conn for %v ...", hostPort) },
 		GotConn:              func(ci httptrace.GotConnInfo) { logf("got conn: %+v", ci) },
@@ -3691,6 +3749,12 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 				t.Errorf("ConnectDone: %v", err)
 			}
 			logf("ConnectDone: connected to %s %s = %v", network, addr, err)
+		},
+		WroteHeaderField: func(key string, value []string) {
+			logf("WroteHeaderField: %s: %v", key, value)
+		},
+		WroteHeaders: func() {
+			logf("WroteHeaders")
 		},
 		Wait100Continue: func() { logf("Wait100Continue") },
 		Got100Continue:  func() { logf("Got100Continue") },
@@ -3761,7 +3825,15 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		wantOnce("tls handshake done")
 	} else {
 		wantOnce("PutIdleConn = <nil>")
+		wantOnce("WroteHeaderField: User-Agent: [Go-http-client/1.1]")
+		// TODO(meirf): issue 19761. Make these agnostic to h1/h2. (These are not h1 specific, but the
+		// WroteHeaderField hook is not yet implemented in h2.)
+		wantOnce(fmt.Sprintf("WroteHeaderField: Host: [dns-is-faked.golang:%s]", port))
+		wantOnce(fmt.Sprintf("WroteHeaderField: Content-Length: [%d]", len(body)))
+		wantOnce("WroteHeaderField: X-Foo-Multiple-Vals: [bar baz]")
+		wantOnce("WroteHeaderField: Accept-Encoding: [gzip]")
 	}
+	wantOnce("WroteHeaders")
 	wantOnce("Wait100Continue")
 	wantOnce("Got100Continue")
 	wantOnce("WroteRequest: {Err:<nil>}")
@@ -4488,3 +4560,28 @@ func TestNoBodyOnChunked304Response(t *testing.T) {
 type funcWriter func([]byte) (int, error)
 
 func (f funcWriter) Write(p []byte) (int, error) { return f(p) }
+
+type doneContext struct {
+	context.Context
+	err error
+}
+
+func (doneContext) Done() <-chan struct{} {
+	c := make(chan struct{})
+	close(c)
+	return c
+}
+
+func (d doneContext) Err() error { return d.err }
+
+// Issue 25852: Transport should check whether Context is done early.
+func TestTransportCheckContextDoneEarly(t *testing.T) {
+	tr := &Transport{}
+	req, _ := NewRequest("GET", "http://fake.example/", nil)
+	wantErr := errors.New("some error")
+	req = req.WithContext(doneContext{context.Background(), wantErr})
+	_, err := tr.RoundTrip(req)
+	if err != wantErr {
+		t.Errorf("error = %v; want %v", err, wantErr)
+	}
+}

@@ -8,6 +8,7 @@
 // +build !arm64
 // +build !ppc64
 // +build !ppc64le
+// +build !s390x
 
 package cpu
 

@@ -147,6 +147,8 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
 
+	&exactSig{[]byte("\x00\x61\x73\x6D"), "application/wasm"},
+
 	mp4Sig{},
 
 	textSig{}, // should be last

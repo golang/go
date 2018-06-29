@@ -82,9 +82,10 @@ type Action struct {
 	actionID cache.ActionID // cache ID of action input
 	buildID  string         // build ID of action output
 
-	needVet bool       // Mode=="build": need to fill in vet config
-	vetCfg  *vetConfig // vet config
-	output  []byte     // output redirect buffer (nil means use b.Print)
+	VetxOnly bool       // Mode=="vet": only being called to supply info about dependencies
+	needVet  bool       // Mode=="build": need to fill in vet config
+	vetCfg   *vetConfig // vet config
+	output   []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
 	pending  int  // number of deps yet to complete
@@ -141,6 +142,7 @@ type actionJSON struct {
 	Priority   int      `json:",omitempty"`
 	Failed     bool     `json:",omitempty"`
 	Built      string   `json:",omitempty"`
+	VetxOnly   bool     `json:",omitempty"`
 }
 
 // cacheKey is the key for the action cache.
@@ -180,6 +182,7 @@ func actionGraphJSON(a *Action) string {
 			Failed:     a.Failed,
 			Priority:   a.priority,
 			Built:      a.built,
+			VetxOnly:   a.VetxOnly,
 		}
 		if a.Package != nil {
 			// TODO(rsc): Make this a unique key for a.Package somehow.
@@ -383,6 +386,12 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 // If the caller may be causing p to be installed, it is up to the caller
 // to make sure that the install depends on (runs after) vet.
 func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
+	a := b.vetAction(mode, depMode, p)
+	a.VetxOnly = false
+	return a
+}
+
+func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
 		a1 := b.CompileAction(mode, depMode, p)
@@ -394,11 +403,18 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		stk.Pop()
 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
 
+		deps := []*Action{a1, aFmt}
+		for _, p1 := range load.PackageList(p.Internal.Imports) {
+			deps = append(deps, b.vetAction(mode, depMode, p1))
+		}
+
 		a := &Action{
-			Mode:    "vet",
-			Package: p,
-			Deps:    []*Action{a1, aFmt},
-			Objdir:  a1.Objdir,
+			Mode:       "vet",
+			Package:    p,
+			Deps:       deps,
+			Objdir:     a1.Objdir,
+			VetxOnly:   true,
+			IgnoreFail: true, // it's OK if vet of dependencies "fails" (reports problems)
 		}
 		if a1.Func == nil {
 			// Built-in packages like unsafe.
@@ -406,7 +422,6 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		}
 		a1.needVet = true
 		a.Func = (*Builder).vet
-
 		return a
 	})
 	return a

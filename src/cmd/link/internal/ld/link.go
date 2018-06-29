@@ -63,9 +63,10 @@ type Link struct {
 	IsELF    bool
 	HeadType objabi.HeadType
 
-	linkShared bool // link against installed Go shared libraries
-	LinkMode   LinkMode
-	BuildMode  BuildMode
+	linkShared    bool // link against installed Go shared libraries
+	LinkMode      LinkMode
+	BuildMode     BuildMode
+	compressDWARF bool
 
 	Tlsg         *sym.Symbol
 	Libdir       []string

@@ -121,7 +121,8 @@ func ExampleIPv4Mask() {
 }
 
 func ExampleUDPConn_WriteTo() {
-	// Create connection in non-pre-connected state
+	// Unlike Dial, ListenPacket creates a connection without any
+	// association with peers.
 	conn, err := net.ListenPacket("udp", ":0")
 	if err != nil {
 		log.Fatal(err)
@@ -133,7 +134,7 @@ func ExampleUDPConn_WriteTo() {
 		log.Fatal(err)
 	}
 
-	// Write data to the desired address
+	// The connection can write data to the desired address.
 	_, err = conn.WriteTo([]byte("data"), dst)
 	if err != nil {
 		log.Fatal(err)

@@ -64,8 +64,8 @@ const (
 	// StackSystem is a number of additional bytes to add
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows, Plan 9,
-	// and Darwin/ARM because they do not use a separate stack.
-	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm*1024
+	// and iOS because they do not use a separate stack.
+	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm*1024 + sys.GoosDarwin*sys.GoarchArm64*1024
 
 	// The minimum size of stack used by Go code
 	_StackMin = 2048
@@ -940,7 +940,7 @@ func newstack() {
 		throw("missing stack in newstack")
 	}
 	sp := gp.sched.sp
-	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.Wasm {
+	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.WASM {
 		// The call to morestack cost a word.
 		sp -= sys.PtrSize
 	}

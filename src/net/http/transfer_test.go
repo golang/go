@@ -86,7 +86,7 @@ func TestDetectInMemoryReaders(t *testing.T) {
 	for i, tt := range tests {
 		got := isKnownInMemoryReader(tt.r)
 		if got != tt.want {
-			t.Logf("%d: got = %v; want %v", i, got, tt.want)
+			t.Errorf("%d: got = %v; want %v", i, got, tt.want)
 		}
 	}
 }

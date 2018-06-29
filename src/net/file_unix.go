@@ -13,8 +13,11 @@ import (
 )
 
 func dupSocket(f *os.File) (int, error) {
-	s, err := dupCloseOnExec(int(f.Fd()))
+	s, call, err := poll.DupCloseOnExec(int(f.Fd()))
 	if err != nil {
+		if call != "" {
+			err = os.NewSyscallError(call, err)
+		}
 		return -1, err
 	}
 	if err := syscall.SetNonblock(s, true); err != nil {

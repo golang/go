@@ -92,10 +92,10 @@ account to use.
 </p>
 
 <p>
-Google accounts can either be Gmail e-mail accounts, G-Suite organization accounts, or
+Google accounts can either be Gmail e-mail accounts, G Suite organization accounts, or
 accounts associated with an external e-mail address.
 For instance, if you need to use
-an existing corporate e-mail that is not managed through G-Suite, you can create
+an existing corporate e-mail that is not managed through G Suite, you can create
 an account associated
 <a href="https://accounts.google.com/SignUpWithoutGmail">with your existing
 e-mail address</a>.
@@ -168,7 +168,7 @@ completed and update the <code>AUTHORS</code> file.
 <h3 id="config_git_auth">Step 2: Configure git authentication</h3>
 
 <p>
-Go development happens on
+The main Go repository is located at
 <a href="https://go.googlesource.com">go.googlesource.com</a>,
 a Git server hosted by Google.
 Authentication on the web server is made through your Google account, but
@@ -190,8 +190,8 @@ This key is paired with one that is generated and stored on the server,
 analogous to how SSH keys work.
 </li>
 <li>
-Copy and run this script locally in your command line terminal to store your
-secret authentication token in a <code>.gitcookies</code> file.
+Copy and run this script locally in your terminal to store your secret
+authentication token in a <code>.gitcookies</code> file.
 If you are using a Windows computer and running <code>cmd</code>,
 you should instead follow the instructions in the yellow box to run the command;
 otherwise run the regular script.
@@ -251,12 +251,13 @@ symbolic link or just copy the executable from $GOPATH/bin to this directory.
 <h2 id="before_contributing">Before contributing code</h2>
 
 <p>
-The project welcomes submissions but to make sure things are well
-coordinated we ask that everyone to discuss any significant changes to the
-Go repositories before starting work.
-Best practice is to connect your work to the issue tracker,
-either by <a href="https://golang.org/issue/new">filing a new issue</a>
-or by claiming an <a href="https://golang.org/issues">existing issue</a>.
+The project welcomes code patches, but to make sure things are well
+coordinated you should discuss any significant change before starting
+the work.
+It's recommended that you signal your intention to contribute in the
+issue tracker, either by <a href="https://golang.org/issue/new">filing
+a new issue</a> or by claiming
+an <a href="https://golang.org/issues">existing one</a>.
 </p>
 
 <h3>Check the issue tracker</h3>
@@ -309,13 +310,13 @@ When planning work, please note that the Go project follows a <a
 href="https://golang.org/wiki/Go-Release-Cycle">six-month development cycle</a>.
 The latter half of each cycle is a three-month feature freeze during
 which only bug fixes and documentation updates are accepted.
-New contributions can be
-sent during a feature freeze but will not be accepted until the freeze is over.
+New contributions can be sent during a feature freeze, but they will
+not be merged until the freeze is over.
 </p>
 
 <p>
-Changes in general other than bug and documentation fixes
-must go through the
+Significant changes to the language, libraries, or tools must go
+through the
 <a href="https://golang.org/s/proposal-process">change proposal process</a>
 before they can be accepted.
 </p>
@@ -337,10 +338,11 @@ GitHub pull requests to Gerrit.
 
 <p>
 Open a pull request as you normally would.
-Gopherbot will automatically
-sync the code and post a link to Gerrit.
-When somebody comments on the
-change, it will be posted in the pull request, so you will also get a notification.
+Gopherbot will create a corresponding Gerrit change and post a link to
+it on your GitHub pull request; updates to the pull request will also
+get reflected in the Gerrit change.
+When somebody comments on the change, their comment will be also
+posted in your pull request, so you will get a notification.
 </p>
 
 <p>
@@ -384,10 +386,10 @@ This is an overview of the overall process:
 
 <ul>
 <li>
-<b>Step 1:</b> Clone the Go source code from GitHub or go.googlesource.com
+<b>Step 1:</b> Clone the Go source code from go.googlesource.com
 and make sure it's stable by compiling and testing it once:
 <pre>
-$ git clone https://github.com/golang/go    # or https://go.googlesource.com/go
+$ git clone https://go.googlesource.com/go
 $ cd go/src
 $ ./all.bash                                # compile and test
 </pre>
@@ -418,7 +420,7 @@ $ ./all.bash    # recompile and test
 
 <li>
 <b>Step 4:</b> Send the changes for review to Gerrit using <code>git</code>
-<code>codereview</code> <code>mail</code>(which doesn't use e-mail, despite the name).
+<code>codereview</code> <code>mail</code> (which doesn't use e-mail, despite the name).
 <pre>
 $ git codereview mail     # send changes to Gerrit
 </pre>
@@ -545,7 +547,7 @@ ALL TESTS PASSED
 
 <p>
 You can use <code>make.bash</code> instead of <code>all.bash</code>
-to just build the compiler and standard packages without running the test suite.
+to just build the compiler and the standard library without running the test suite.
 Once the <code>go</code> tool is built, it will be installed as <code>bin/go</code>
 under the directory in which you cloned the Go repository, and you can
 run it directly from there.
@@ -597,8 +599,9 @@ if you prefer.
 </p>
 
 <p>
-If you need to revise your change after the review, edit the files in correct branch,
-add them to the Git staging area, and then amend the commit with
+If you need to revise your change after the review, edit the files in
+the same branch you previously created, add them to the Git staging
+area, and then amend the commit with
 <code>git</code> <code>codereview</code> <code>change</code>:
 </p>
 
@@ -639,7 +642,7 @@ The existing implementation has poor numerical properties for
 large arguments, so use the McGillicutty algorithm to improve
 accuracy above 1e10.
 
-The algorithm is described at http://wikipedia.org/wiki/McGillicutty_Algorithm
+The algorithm is described at https://wikipedia.org/wiki/McGillicutty_Algorithm
 
 Fixes #159
 </pre>
@@ -674,7 +677,7 @@ Don't use HTML, Markdown, or any other markup language.
 
 <p>
 Add any relevant information, such as benchmark data if the change
-afects performance.
+affects performance.
 The <a href="https://godoc.org/golang.org/x/tools/cmd/benchcmp">benchcmp</a>
 tool is conventionally used to format
 benchmark data for change descriptions.
@@ -937,7 +940,7 @@ remote: ERROR:  does not match your user account.
 <p>
 you need to configure Git for this repository to use the
 e-mail address that you registered with.
-To change the e-mail address for this doesn't happen again, run:
+To change the e-mail address to ensure this doesn't happen again, run:
 </p>
 
 <pre>
@@ -984,8 +987,8 @@ followed by <code>run.bash</code>.
 
 <li>
 In this section, we'll call the directory into which you cloned the Go repository <code>$GODIR</code>.
-The <code>go</code> tool built by <code>$GODIR/make.bash</code>will be installed
-in <code>$GODIR/bin/go</code>and you
+The <code>go</code> tool built by <code>$GODIR/make.bash</code> will be installed
+in <code>$GODIR/bin/go</code> and you
 can invoke it to test your code.
 For instance, if you
 have modified the compiler and you want to test how it affects the

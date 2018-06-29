@@ -1275,6 +1275,8 @@ const (
 	OpARM64LoweredAtomicExchange32
 	OpARM64LoweredAtomicAdd64
 	OpARM64LoweredAtomicAdd32
+	OpARM64LoweredAtomicAdd64Variant
+	OpARM64LoweredAtomicAdd32Variant
 	OpARM64LoweredAtomicCas64
 	OpARM64LoweredAtomicCas32
 	OpARM64LoweredAtomicAnd8
@@ -2287,6 +2289,8 @@ const (
 	OpAtomicCompareAndSwap64
 	OpAtomicAnd8
 	OpAtomicOr8
+	OpAtomicAdd32Variant
+	OpAtomicAdd64Variant
 	OpClobber
 )
 
@@ -7952,11 +7956,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
+			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -8012,11 +8017,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
+			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -16723,6 +16729,38 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:            "LoweredAtomicAdd64Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicAdd32Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:            "LoweredAtomicCas64",
 		argLen:          4,
 		resultNotInArgs: true,
@@ -16759,28 +16797,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "LoweredAtomicAnd8",
-		argLen:         3,
-		faultOnNilArg0: true,
-		hasSideEffects: true,
-		asm:            arm64.AAND,
+		name:            "LoweredAtomicAnd8",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		asm:             arm64.AAND,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
 				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
 			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
 		},
 	},
 	{
-		name:           "LoweredAtomicOr8",
-		argLen:         3,
-		faultOnNilArg0: true,
-		hasSideEffects: true,
-		asm:            arm64.AORR,
+		name:            "LoweredAtomicOr8",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		asm:             arm64.AORR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
 				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
 			},
 		},
 	},
@@ -27813,6 +27859,18 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "AtomicOr8",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicAdd32Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicAdd64Variant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
