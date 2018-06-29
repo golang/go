@@ -1431,7 +1431,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.typ(e.Type)
+		T := check.typExpr(e.Type, nil, nil)
 		if T == Typ[Invalid] {
 			goto Error
 		}
