@@ -771,6 +771,18 @@ var EvalSymlinksTestDirs = []EvalSymlinksTest{
 	{"test/link1", "../test"},
 	{"test/link2", "dir"},
 	{"test/linkabs", "/"},
+	{"test/link4", "../test2"},
+	{"test2", "test/dir"},
+	// Issue 23444.
+	{"src", ""},
+	{"src/pool", ""},
+	{"src/pool/test", ""},
+	{"src/versions", ""},
+	{"src/versions/current", "../../version"},
+	{"src/versions/v1", ""},
+	{"src/versions/v1/modules", ""},
+	{"src/versions/v1/modules/test", "../../../pool/test"},
+	{"version", "src/versions/v1"},
 }
 
 var EvalSymlinksTests = []EvalSymlinksTest{
@@ -784,6 +796,8 @@ var EvalSymlinksTests = []EvalSymlinksTest{
 	{"test/dir/link3", "."},
 	{"test/link2/link3/test", "test"},
 	{"test/linkabs", "/"},
+	{"test/link4/..", "test"},
+	{"src/versions/current/modules/test", "src/pool/test"},
 }
 
 // simpleJoin builds a file name from the directory and path.
