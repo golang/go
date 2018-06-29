@@ -270,3 +270,27 @@ type issue25301c interface {
 }
 
 type notE = struct{}
+
+// Test that method declarations don't introduce artificial cycles
+// (issue #26124).
+const CC TT = 1
+type TT int
+func (TT) MM() [CC]TT
+
+// Reduced test case from issue #26124.
+const preloadLimit LNumber = 128
+type LNumber float64
+func (LNumber) assertFunction() *LFunction
+type LFunction struct {
+	GFunction LGFunction
+}
+type LGFunction func(*LState)
+type LState struct {
+	reg *registry
+}
+type registry struct {
+	alloc *allocator
+}
+type allocator struct {
+	_ [int(preloadLimit)]int
+}
