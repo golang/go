@@ -150,8 +150,11 @@ type Transport struct {
 	// wait for a TLS handshake. Zero means no timeout.
 	TLSHandshakeTimeout time.Duration
 
-	// DisableKeepAlives, if true, prevents re-use of TCP connections
-	// between different HTTP requests.
+	// DisableKeepAlives, if true, disables HTTP keep-alives and
+	// will only use the connection to the server for a single
+	// HTTP request.
+	//
+	// This is unrelated to the similarly named TCP keep-alives.
 	DisableKeepAlives bool
 
 	// DisableCompression, if true, prevents the Transport from
