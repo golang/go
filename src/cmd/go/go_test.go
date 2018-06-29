@@ -4008,8 +4008,6 @@ func TestCgoConsistentResults(t *testing.T) {
 		t.Skip("skipping because cgo not enabled")
 	}
 	switch runtime.GOOS {
-	case "freebsd":
-		testenv.SkipFlaky(t, 15405)
 	case "solaris":
 		testenv.SkipFlaky(t, 13247)
 	}
