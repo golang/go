@@ -16,11 +16,11 @@ import (
 // NOTE: This struct is internal to the testing infrastructure and may change.
 // It is not covered (yet) by the Go 1 compatibility guidelines.
 type CoverBlock struct {
-	Line0 uint32
-	Col0  uint16
-	Line1 uint32
-	Col1  uint16
-	Stmts uint16
+	Line0 uint32 // line number for block start
+	Col0  uint16 // column number for block start
+	Line1 uint32 // line number for block end
+	Col1  uint16 // column number for block end
+	Stmts uint16 // number of statements included in this block
 }
 
 var cover Cover
