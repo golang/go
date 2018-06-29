@@ -186,6 +186,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 		if s.manualFreeList.ptr() != nil {
 			throw("bad manualFreeList")
 		}
+		osStackAlloc(s)
 		s.elemsize = _FixedStack << order
 		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
 			x := gclinkptr(s.base() + i)
@@ -238,6 +239,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
 		// By not freeing, we prevent step #4 until GC is done.
 		stackpool[order].remove(s)
 		s.manualFreeList = 0
+		osStackFree(s)
 		mheap_.freeManual(s, &memstats.stacks_inuse)
 	}
 }
@@ -385,6 +387,7 @@ func stackalloc(n uint32) stack {
 			if s == nil {
 				throw("out of memory")
 			}
+			osStackAlloc(s)
 			s.elemsize = uintptr(n)
 		}
 		v = unsafe.Pointer(s.base())
@@ -463,6 +466,7 @@ func stackfree(stk stack) {
 		if gcphase == _GCoff {
 			// Free the stack immediately if we're
 			// sweeping.
+			osStackFree(s)
 			mheap_.freeManual(s, &memstats.stacks_inuse)
 		} else {
 			// If the GC is running, we can't return a
@@ -1112,6 +1116,7 @@ func freeStackSpans() {
 			if s.allocCount == 0 {
 				list.remove(s)
 				s.manualFreeList = 0
+				osStackFree(s)
 				mheap_.freeManual(s, &memstats.stacks_inuse)
 			}
 			s = next
@@ -1126,6 +1131,7 @@ func freeStackSpans() {
 		for s := stackLarge.free[i].first; s != nil; {
 			next := s.next
 			stackLarge.free[i].remove(s)
+			osStackFree(s)
 			mheap_.freeManual(s, &memstats.stacks_inuse)
 			s = next
 		}
