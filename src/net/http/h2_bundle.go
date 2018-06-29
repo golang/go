@@ -1290,12 +1290,12 @@ func (f *http2flow) take(n int32) {
 // add adds n bytes (positive or negative) to the flow control window.
 // It returns false if the sum would exceed 2^31-1.
 func (f *http2flow) add(n int32) bool {
-	remain := (1<<31 - 1) - f.n
-	if n > remain {
-		return false
+	sum := f.n + n
+	if (sum > n) == (f.n > 0) {
+		f.n = sum
+		return true
 	}
-	f.n += n
-	return true
+	return false
 }
 
 const http2frameHeaderLen = 9
@@ -5302,7 +5302,10 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
 	// Sender sending more than they'd declared?
 	if st.declBodyBytes != -1 && st.bodyBytes+int64(len(data)) > st.declBodyBytes {
 		st.body.CloseWithError(fmt.Errorf("sender tried to send more than declared Content-Length of %d bytes", st.declBodyBytes))
-		return http2streamError(id, http2ErrCodeStreamClosed)
+		// RFC 7540, sec 8.1.2.6: A request or response is also malformed if the
+		// value of a content-length header field does not equal the sum of the
+		// DATA frame payload lengths that form the body.
+		return http2streamError(id, http2ErrCodeProtocol)
 	}
 	if f.Length > 0 {
 		// Check whether the client has flow control quota.
@@ -6036,6 +6039,19 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 
 		for _, v := range rws.snapHeader["Trailer"] {
 			http2foreachHeaderElement(v, rws.declareTrailer)
+		}
+
+		// "Connection" headers aren't allowed in HTTP/2 (RFC 7540, 8.1.2.2),
+		// but respect "Connection" == "close" to mean sending a GOAWAY and tearing
+		// down the TCP connection when idle, like we do for HTTP/1.
+		// TODO: remove more Connection-specific header fields here, in addition
+		// to "Connection".
+		if _, ok := rws.snapHeader["Connection"]; ok {
+			v := rws.snapHeader.Get("Connection")
+			delete(rws.snapHeader, "Connection")
+			if v == "close" {
+				rws.conn.startGracefulShutdown()
+			}
 		}
 
 		endStream := (rws.handlerDone && !rws.hasTrailers() && len(p) == 0) || isHeadResp
@@ -6845,9 +6861,7 @@ func (http2noCachedConnError) Error() string { return "http2: no cached connecti
 // or its equivalent renamed type in net/http2's h2_bundle.go. Both types
 // may coexist in the same running program.
 func http2isNoCachedConnError(err error) bool {
-	_, ok := err.(interface {
-		IsHTTP2NoCachedConnError()
-	})
+	_, ok := err.(interface{ IsHTTP2NoCachedConnError() })
 	return ok
 }
 
