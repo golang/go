@@ -196,7 +196,6 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 		fallthrough
 
-		// fall through
 	case 512 + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 1,
 		512 + ld.MACHO_X86_64_RELOC_SIGNED*2 + 1,
 		512 + ld.MACHO_X86_64_RELOC_SIGNED_1*2 + 1,
@@ -224,7 +223,6 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 		fallthrough
 
-		// fall through
 	case 512 + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
 		if targ.Type != sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
