@@ -2170,8 +2170,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			p := s.addr(n, false)
 			return s.load(n.Left.Type.Elem(), p)
 		case n.Left.Type.IsArray():
-			if bound := n.Left.Type.NumElem(); bound <= 1 {
+			if canSSAType(n.Left.Type) {
 				// SSA can handle arrays of length at most 1.
+				bound := n.Left.Type.NumElem()
 				a := s.expr(n.Left)
 				i := s.expr(n.Right)
 				if bound == 0 {
