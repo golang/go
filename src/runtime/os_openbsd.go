@@ -88,37 +88,34 @@ const (
 	_HW_PAGESIZE = 7
 )
 
-func getncpu() int32 {
-	mib := [2]uint32{_CTL_HW, _HW_NCPU}
-	out := uint32(0)
+func sysctlInt(mib []uint32) (int32, bool) {
+	var out int32
 	nout := unsafe.Sizeof(out)
+	ret := sysctl(&mib[0], uint32(len(mib)), (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	if ret < 0 {
+		return 0, false
+	}
+	return out, true
+}
 
+func getncpu() int32 {
 	// Fetch hw.ncpu via sysctl.
-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		return int32(out)
+	if ncpu, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPU}); ok {
+		return int32(ncpu)
 	}
 	return 1
 }
 
 func getPageSize() uintptr {
-	mib := [2]uint32{_CTL_HW, _HW_PAGESIZE}
-	out := uint32(0)
-	nout := unsafe.Sizeof(out)
-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		return uintptr(out)
+	if ps, ok := sysctlInt([]uint32{_CTL_HW, _HW_PAGESIZE}); ok {
+		return uintptr(ps)
 	}
 	return 0
 }
 
-func getOSRev() int32 {
-	mib := [2]uint32{_CTL_KERN, _KERN_OSREV}
-	out := uint32(0)
-	nout := unsafe.Sizeof(out)
-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		return int32(out)
+func getOSRev() int {
+	if osrev, ok := sysctlInt([]uint32{_CTL_KERN, _KERN_OSREV}); ok {
+		return int(osrev)
 	}
 	return 0
 }
