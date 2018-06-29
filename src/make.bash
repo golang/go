@@ -141,7 +141,7 @@ export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
-		goroot=$(GOROOT='' "$go_exe" env GOROOT)
+		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
 		if [ "$goroot" != "$GOROOT" ]; then
 			GOROOT_BOOTSTRAP=$goroot
 		fi

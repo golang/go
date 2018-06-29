@@ -198,8 +198,8 @@ func (s *Server) ExportAllConnsIdle() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for c := range s.activeConn {
-		st, ok := c.curState.Load().(ConnState)
-		if !ok || st != StateIdle {
+		st, unixSec := c.getState()
+		if unixSec == 0 || st != StateIdle {
 			return false
 		}
 	}

@@ -274,8 +274,8 @@ func TestBoringClientHello(t *testing.T) {
 }
 
 func TestBoringCertAlgs(t *testing.T) {
-	// NaCl and arm time out generating keys. Nothing in this test is architecture-specific, so just don't bother on those.
-	if runtime.GOOS == "nacl" || runtime.GOARCH == "arm" {
+	// NaCl, arm and wasm time out generating keys. Nothing in this test is architecture-specific, so just don't bother on those.
+	if runtime.GOOS == "nacl" || runtime.GOARCH == "arm" || runtime.GOOS == "js" {
 		t.Skipf("skipping on %s/%s because key generation takes too long", runtime.GOOS, runtime.GOARCH)
 	}
 

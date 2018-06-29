@@ -86,11 +86,11 @@ func TestBoringGenerateKey(t *testing.T) {
 }
 
 func TestBoringFinalizers(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		// Times out on nacl (without BoringCrypto)
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+		// Times out on nacl and js/wasm (without BoringCrypto)
 		// but not clear why - probably consuming rand.Reader too quickly
 		// and being throttled. Also doesn't really matter.
-		t.Skip("skipping on nacl")
+		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
 	k, err := GenerateKey(rand.Reader, 2048)

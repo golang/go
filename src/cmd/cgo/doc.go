@@ -64,6 +64,11 @@ a full argument: to allow -mfoo=bar, use CGO_CFLAGS_ALLOW='-mfoo.*',
 not just CGO_CFLAGS_ALLOW='-mfoo'. Similarly named variables control
 the allowed CPPFLAGS, CXXFLAGS, FFLAGS, and LDFLAGS.
 
+Also for security reasons, only a limited set of characters are
+permitted, notably alphanumeric characters and a few symbols, such as
+'.', that will not be interpreted in unexpected ways. Attempts to use
+forbidden characters will get a "malformed #cgo argument" error.
+
 When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
 CGO_LDFLAGS environment variables are added to the flags derived from
 these directives. Package-specific flags should be set using the
@@ -222,6 +227,26 @@ actually requires a pointer to the first element of the array.
 C compilers are aware of this calling convention and adjust
 the call accordingly, but Go cannot. In Go, you must pass
 the pointer to the first element explicitly: C.f(&C.x[0]).
+
+Calling variadic C functions is not supported. It is possible to
+circumvent this by using a C function wrapper. For example:
+
+	package main
+
+	// #include <stdio.h>
+	// #include <stdlib.h>
+	//
+	// static void myprint(char* s) {
+	//   printf("%s\n", s);
+	// }
+	import "C"
+	import "unsafe"
+
+	func main() {
+		cs := C.CString("Hello from stdio")
+		C.myprint(cs)
+		C.free(unsafe.Pointer(cs))
+	}
 
 A few special functions convert between Go and C types
 by making copies of the data. In pseudo-Go definitions:

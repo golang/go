@@ -604,6 +604,8 @@ again:
 	LDORH	R5, (RSP), R7                        // e7332578
 	LDORB	R5, (R6), R7                         // c7302538
 	LDORB	R5, (RSP), R7                        // e7332538
+	LDADDALD	R2, (R1), R3                 // 2300e2f8
+	LDADDALW	R5, (R4), R6                 // 8600e5b8
 
 // RET
 //

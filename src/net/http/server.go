@@ -190,7 +190,9 @@ type Hijacker interface {
 	// data from the client.
 	//
 	// After a call to Hijack, the original Request.Body must not
-	// be used, and the Request.Context will be canceled.
+	// be used. The original Request's Context remains valid and
+	// is not canceled until the Request's ServeHTTP method
+	// returns.
 	Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
@@ -281,7 +283,7 @@ type conn struct {
 
 	curReq atomic.Value // of *response (which has a Request in it)
 
-	curState atomic.Value // of ConnState
+	curState struct{ atomic uint64 } // packed (unixtime<<8|uint8(ConnState))
 
 	// mu guards hijackedv
 	mu sync.Mutex
@@ -336,7 +338,7 @@ type chunkWriter struct {
 	res *response
 
 	// header is either nil or a deep clone of res.handlerHeader
-	// at the time of res.WriteHeader, if res.WriteHeader is
+	// at the time of res.writeHeader, if res.writeHeader is
 	// called and extra buffering is being done to calculate
 	// Content-Type and/or Content-Length.
 	header Header
@@ -1677,21 +1679,19 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 	case StateHijacked, StateClosed:
 		srv.trackConn(c, false)
 	}
-	c.curState.Store(connStateInterface[state])
+	if state > 0xff || state < 0 {
+		panic("internal error")
+	}
+	packedState := uint64(time.Now().Unix()<<8) | uint64(state)
+	atomic.StoreUint64(&c.curState.atomic, packedState)
 	if hook := srv.ConnState; hook != nil {
 		hook(nc, state)
 	}
 }
 
-// connStateInterface is an array of the interface{} versions of
-// ConnState values, so we can use them in atomic.Values later without
-// paying the cost of shoving their integers in an interface{}.
-var connStateInterface = [...]interface{}{
-	StateNew:      StateNew,
-	StateActive:   StateActive,
-	StateIdle:     StateIdle,
-	StateHijacked: StateHijacked,
-	StateClosed:   StateClosed,
+func (c *conn) getState() (state ConnState, unixSec int64) {
+	packedState := atomic.LoadUint64(&c.curState.atomic)
+	return ConnState(packedState & 0xff), int64(packedState >> 8)
 }
 
 // badRequestError is a literal string (used by in the server in HTML,
@@ -2135,9 +2135,9 @@ func RedirectHandler(url string, code int) Handler {
 // "/codesearch" and "codesearch.google.com/" without also taking over
 // requests for "http://www.google.com/".
 //
-// ServeMux also takes care of sanitizing the URL request path,
-// redirecting any request containing . or .. elements or repeated slashes
-// to an equivalent, cleaner URL.
+// ServeMux also takes care of sanitizing the URL request path and the Host
+// header, stripping the port number and redirecting any request containing . or
+// .. elements or repeated slashes to an equivalent, cleaner URL.
 type ServeMux struct {
 	mu    sync.RWMutex
 	m     map[string]muxEntry
@@ -2234,7 +2234,10 @@ func (mux *ServeMux) match(path string) (h Handler, pattern string) {
 // not for path itself. If the path needs appending to, it creates a new
 // URL, setting the path to u.Path + "/" and returning true to indicate so.
 func (mux *ServeMux) redirectToPathSlash(host, path string, u *url.URL) (*url.URL, bool) {
-	if !mux.shouldRedirect(host, path) {
+	mux.mu.RLock()
+	shouldRedirect := mux.shouldRedirectRLocked(host, path)
+	mux.mu.RUnlock()
+	if !shouldRedirect {
 		return u, false
 	}
 	path = path + "/"
@@ -2242,13 +2245,10 @@ func (mux *ServeMux) redirectToPathSlash(host, path string, u *url.URL) (*url.UR
 	return u, true
 }
 
-// shouldRedirect reports whether the given path and host should be redirected to
+// shouldRedirectRLocked reports whether the given path and host should be redirected to
 // path+"/". This should happen if a handler is registered for path+"/" but
 // not path -- see comments at ServeMux.
-func (mux *ServeMux) shouldRedirect(host, path string) bool {
-	mux.mu.RLock()
-	defer mux.mu.RUnlock()
-
+func (mux *ServeMux) shouldRedirectRLocked(host, path string) bool {
 	p := []string{path, host + path}
 
 	for _, c := range p {
@@ -2622,8 +2622,16 @@ func (s *Server) closeIdleConns() bool {
 	defer s.mu.Unlock()
 	quiescent := true
 	for c := range s.activeConn {
-		st, ok := c.curState.Load().(ConnState)
-		if !ok || st != StateIdle {
+		st, unixSec := c.getState()
+		// Issue 22682: treat StateNew connections as if
+		// they're idle if we haven't read the first request's
+		// header in over 5 seconds.
+		if st == StateNew && unixSec < time.Now().Unix()-5 {
+			st = StateIdle
+		}
+		if st != StateIdle || unixSec == 0 {
+			// Assume unixSec == 0 means it's a very new
+			// connection, without state set yet.
 			quiescent = false
 			continue
 		}
@@ -2770,10 +2778,13 @@ var ErrServerClosed = errors.New("http: Server closed")
 // Serve always returns a non-nil error. After Shutdown or Close, the
 // returned error is ErrServerClosed.
 func (srv *Server) Serve(l net.Listener) error {
-	defer l.Close()
 	if fn := testHookServerServe; fn != nil {
-		fn(srv, l)
+		fn(srv, l) // call hook with unwrapped listener
 	}
+
+	l = &onceCloseListener{Listener: l}
+	defer l.Close()
+
 	var tempDelay time.Duration // how long to sleep on accept failure
 
 	if err := srv.setupHTTP2_Serve(); err != nil {
@@ -3248,6 +3259,21 @@ func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
 	tc.SetKeepAlivePeriod(3 * time.Minute)
 	return tc, nil
 }
+
+// onceCloseListener wraps a net.Listener, protecting it from
+// multiple Close calls.
+type onceCloseListener struct {
+	net.Listener
+	once     sync.Once
+	closeErr error
+}
+
+func (oc *onceCloseListener) Close() error {
+	oc.once.Do(oc.close)
+	return oc.closeErr
+}
+
+func (oc *onceCloseListener) close() { oc.closeErr = oc.Listener.Close() }
 
 // globalOptionsHandler responds to "OPTIONS *" requests.
 type globalOptionsHandler struct{}

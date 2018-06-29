@@ -14,6 +14,7 @@ package testdata
 import (
 	"fmt"
 	. "fmt"
+	logpkg "log" // renamed to make it harder to see
 	"math"
 	"os"
 	"testing"
@@ -175,6 +176,18 @@ func PrintfTests() {
 	f.Warnf(0, "%s", "hello", 3)          // ERROR "Warnf call needs 1 arg but has 2 args"
 	f.Warnf(0, "%r", "hello")             // ERROR "Warnf format %r has unknown verb r"
 	f.Warnf(0, "%#s", "hello")            // ERROR "Warnf format %#s has unrecognized flag #"
+	f.Warn2(0, "%s", "hello", 3)          // ERROR "Warn2 call has possible formatting directive %s"
+	f.Warnf2(0, "%s", "hello", 3)         // ERROR "Warnf2 call needs 1 arg but has 2 args"
+	f.Warnf2(0, "%r", "hello")            // ERROR "Warnf2 format %r has unknown verb r"
+	f.Warnf2(0, "%#s", "hello")           // ERROR "Warnf2 format %#s has unrecognized flag #"
+	f.Wrap(0, "%s", "hello", 3)           // ERROR "Wrap call has possible formatting directive %s"
+	f.Wrapf(0, "%s", "hello", 3)          // ERROR "Wrapf call needs 1 arg but has 2 args"
+	f.Wrapf(0, "%r", "hello")             // ERROR "Wrapf format %r has unknown verb r"
+	f.Wrapf(0, "%#s", "hello")            // ERROR "Wrapf format %#s has unrecognized flag #"
+	f.Wrap2(0, "%s", "hello", 3)          // ERROR "Wrap2 call has possible formatting directive %s"
+	f.Wrapf2(0, "%s", "hello", 3)         // ERROR "Wrapf2 call needs 1 arg but has 2 args"
+	f.Wrapf2(0, "%r", "hello")            // ERROR "Wrapf2 format %r has unknown verb r"
+	f.Wrapf2(0, "%#s", "hello")           // ERROR "Wrapf2 format %#s has unrecognized flag #"
 	fmt.Printf("%#s", FormatterVal(true)) // correct (the type is responsible for formatting)
 	Printf("d%", 2)                       // ERROR "Printf format % is missing verb at end of string"
 	Printf("%d", percentDV)
@@ -283,6 +296,28 @@ func PrintfTests() {
 
 	Printf(someString(), "hello") // OK
 
+	// Printf wrappers in package log should be detected automatically
+	logpkg.Fatal("%d", 1)    // ERROR "Fatal call has possible formatting directive %d"
+	logpkg.Fatalf("%d", "x") // ERROR "Fatalf format %d has arg \x22x\x22 of wrong type string"
+	logpkg.Fatalln("%d", 1)  // ERROR "Fatalln call has possible formatting directive %d"
+	logpkg.Panic("%d", 1)    // ERROR "Panic call has possible formatting directive %d"
+	logpkg.Panicf("%d", "x") // ERROR "Panicf format %d has arg \x22x\x22 of wrong type string"
+	logpkg.Panicln("%d", 1)  // ERROR "Panicln call has possible formatting directive %d"
+	logpkg.Print("%d", 1)    // ERROR "Print call has possible formatting directive %d"
+	logpkg.Printf("%d", "x") // ERROR "Printf format %d has arg \x22x\x22 of wrong type string"
+	logpkg.Println("%d", 1)  // ERROR "Println call has possible formatting directive %d"
+
+	// Methods too.
+	var l *logpkg.Logger
+	l.Fatal("%d", 1)    // ERROR "Fatal call has possible formatting directive %d"
+	l.Fatalf("%d", "x") // ERROR "Fatalf format %d has arg \x22x\x22 of wrong type string"
+	l.Fatalln("%d", 1)  // ERROR "Fatalln call has possible formatting directive %d"
+	l.Panic("%d", 1)    // ERROR "Panic call has possible formatting directive %d"
+	l.Panicf("%d", "x") // ERROR "Panicf format %d has arg \x22x\x22 of wrong type string"
+	l.Panicln("%d", 1)  // ERROR "Panicln call has possible formatting directive %d"
+	l.Print("%d", 1)    // ERROR "Print call has possible formatting directive %d"
+	l.Printf("%d", "x") // ERROR "Printf format %d has arg \x22x\x22 of wrong type string"
+	l.Println("%d", 1)  // ERROR "Println call has possible formatting directive %d"
 }
 
 func someString() string { return "X" }
@@ -368,12 +403,44 @@ func (*ptrStringer) String() string {
 	return "string"
 }
 
-func (*ptrStringer) Warn(int, ...interface{}) string {
+func (p *ptrStringer) Warn2(x int, args ...interface{}) string {
+	return p.Warn(x, args...)
+}
+
+func (p *ptrStringer) Warnf2(x int, format string, args ...interface{}) string {
+	return p.Warnf(x, format, args...)
+}
+
+func (*ptrStringer) Warn(x int, args ...interface{}) string {
 	return "warn"
 }
 
-func (*ptrStringer) Warnf(int, string, ...interface{}) string {
+func (*ptrStringer) Warnf(x int, format string, args ...interface{}) string {
 	return "warnf"
+}
+
+func (p *ptrStringer) Wrap2(x int, args ...interface{}) string {
+	return p.Wrap(x, args...)
+}
+
+func (p *ptrStringer) Wrapf2(x int, format string, args ...interface{}) string {
+	return p.Wrapf(x, format, args...)
+}
+
+func (*ptrStringer) Wrap(x int, args ...interface{}) string {
+	return fmt.Sprint(args...)
+}
+
+func (*ptrStringer) Wrapf(x int, format string, args ...interface{}) string {
+	return fmt.Sprintf(format, args...)
+}
+
+func (*ptrStringer) BadWrap(x int, args ...interface{}) string {
+	return fmt.Sprint(args) // ERROR "missing ... in args forwarded to print-like function"
+}
+
+func (*ptrStringer) BadWrapf(x int, format string, args ...interface{}) string {
+	return fmt.Sprintf(format, args) // ERROR "missing ... in args forwarded to printf-like function"
 }
 
 type embeddedStringer struct {

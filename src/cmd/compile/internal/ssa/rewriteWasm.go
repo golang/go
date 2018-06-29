@@ -5210,6 +5210,27 @@ func rewriteValueWasm_OpWasmI64AddConst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (I64AddConst [off] (LoweredAddr {sym} [off2] base))
+	// cond: isU32Bit(off+off2)
+	// result: (LoweredAddr {sym} [off+off2] base)
+	for {
+		off := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym := v_0.Aux
+		base := v_0.Args[0]
+		if !(isU32Bit(off + off2)) {
+			break
+		}
+		v.reset(OpWasmLoweredAddr)
+		v.AuxInt = off + off2
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
 	return false
 }
 func rewriteValueWasm_OpWasmI64And_0(v *Value) bool {

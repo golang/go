@@ -9,6 +9,6 @@ For asking questions, see:
 
 * [Gophers Slack](https://gophers.slack.com), use the [invite app](https://invite.slack.golangbridge.org/) for access
 
-* [Stack Overflow](http://stackoverflow.com/questions/tagged/go) with questions tagged "go"
+* [Stack Overflow](https://stackoverflow.com/questions/tagged/go) with questions tagged "go"
 
 * **IRC** channel #go-nuts on Freenode

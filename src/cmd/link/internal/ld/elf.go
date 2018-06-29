@@ -1261,7 +1261,7 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 		sh.flags |= SHF_TLS
 		sh.type_ = SHT_NOBITS
 	}
-	if strings.HasPrefix(sect.Name, ".debug") {
+	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
 		sh.flags = 0
 	}
 

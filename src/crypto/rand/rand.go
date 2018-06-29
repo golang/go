@@ -3,13 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package rand implements a cryptographically secure
-// pseudorandom number generator.
+// random number generator.
 package rand
 
 import "io"
 
 // Reader is a global, shared instance of a cryptographically
-// strong pseudo-random generator.
+// secure random number generator.
 //
 // On Linux, Reader uses getrandom(2) if available, /dev/urandom otherwise.
 // On OpenBSD, Reader uses getentropy(2).

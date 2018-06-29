@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -302,6 +303,32 @@ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
 	}
 	if _, err := LookupAddr("fe80::1%lo0"); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestLookupIPv6LinkLocalAddrWithZone(t *testing.T) {
+	if !supportsIPv6() || !*testIPv6 {
+		t.Skip("IPv6 is required")
+	}
+
+	ipaddrs, err := DefaultResolver.LookupIPAddr(context.Background(), "fe80::1%lo0")
+	if err != nil {
+		t.Error(err)
+	}
+	for _, addr := range ipaddrs {
+		if e, a := "lo0", addr.Zone; e != a {
+			t.Errorf("wrong zone: want %q, got %q", e, a)
+		}
+	}
+
+	addrs, err := DefaultResolver.LookupHost(context.Background(), "fe80::1%lo0")
+	if err != nil {
+		t.Error(err)
+	}
+	for _, addr := range addrs {
+		if e, a := "fe80::1%lo0", addr; e != a {
+			t.Errorf("wrong host: want %q got %q", e, a)
+		}
 	}
 }
 
@@ -923,5 +950,61 @@ func TestLookupHostCancel(t *testing.T) {
 	_, err = LookupHost(google)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+type lookupCustomResolver struct {
+	*Resolver
+	mu     sync.RWMutex
+	dialed bool
+}
+
+func (lcr *lookupCustomResolver) dial() func(ctx context.Context, network, address string) (Conn, error) {
+	return func(ctx context.Context, network, address string) (Conn, error) {
+		lcr.mu.Lock()
+		lcr.dialed = true
+		lcr.mu.Unlock()
+		return Dial(network, address)
+	}
+}
+
+// TestConcurrentPreferGoResolversDial tests that multiple resolvers with the
+// PreferGo option used concurrently are all dialed properly.
+func TestConcurrentPreferGoResolversDial(t *testing.T) {
+	// The windows implementation of the resolver does not use the Dial
+	// function.
+	if runtime.GOOS == "windows" {
+		t.Skip("skip on windows")
+	}
+
+	testenv.MustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
+
+	defer dnsWaitGroup.Wait()
+
+	resolvers := make([]*lookupCustomResolver, 2)
+	for i := range resolvers {
+		cs := lookupCustomResolver{Resolver: &Resolver{PreferGo: true}}
+		cs.Dial = cs.dial()
+		resolvers[i] = &cs
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(resolvers))
+	for i, resolver := range resolvers {
+		go func(r *Resolver, index int) {
+			defer wg.Done()
+			_, err := r.LookupIPAddr(context.Background(), "google.com")
+			if err != nil {
+				t.Fatalf("lookup failed for resolver %d: %q", index, err)
+			}
+		}(resolver.Resolver, i)
+	}
+	wg.Wait()
+
+	for i, resolver := range resolvers {
+		if !resolver.dialed {
+			t.Errorf("custom resolver %d not dialed during lookup", i)
+		}
 	}
 }

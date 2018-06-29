@@ -14,6 +14,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -5562,6 +5563,64 @@ func testServerShutdown(t *testing.T, h2 bool) {
 	}
 }
 
+var slowTests = flag.Bool("slow", false, "run slow tests")
+
+func TestServerShutdownStateNew(t *testing.T) {
+	if !*slowTests {
+		t.Skip("skipping slow test without -slow flag")
+	}
+	setParallel(t)
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// nothing.
+	}))
+	defer ts.Close()
+
+	// Start a connection but never write to it.
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	shutdownRes := make(chan error, 1)
+	go func() {
+		shutdownRes <- ts.Config.Shutdown(context.Background())
+	}()
+	readRes := make(chan error, 1)
+	go func() {
+		_, err := c.Read([]byte{0})
+		readRes <- err
+	}()
+
+	const expectTimeout = 5 * time.Second
+	t0 := time.Now()
+	select {
+	case got := <-shutdownRes:
+		d := time.Since(t0)
+		if got != nil {
+			t.Fatalf("shutdown error after %v: %v", d, err)
+		}
+		if d < expectTimeout/2 {
+			t.Errorf("shutdown too soon after %v", d)
+		}
+	case <-time.After(expectTimeout * 3 / 2):
+		t.Fatalf("timeout waiting for shutdown")
+	}
+
+	// Wait for c.Read to unblock; should be already done at this point,
+	// or within a few milliseconds.
+	select {
+	case err := <-readRes:
+		if err == nil {
+			t.Error("expected error from Read")
+		}
+	case <-time.After(2 * time.Second):
+		t.Errorf("timeout waiting for Read to unblock")
+	}
+}
+
 // Issue 17878: tests that we can call Close twice.
 func TestServerCloseDeadlock(t *testing.T) {
 	var s Server
@@ -5884,6 +5943,66 @@ func (eofListenerNotComparable) Close() error              { return nil }
 func TestServerListenNotComparableListener(t *testing.T) {
 	var s Server
 	s.Serve(make(eofListenerNotComparable, 1)) // used to panic
+}
+
+// countCloseListener is a Listener wrapper that counts the number of Close calls.
+type countCloseListener struct {
+	net.Listener
+	closes int32 // atomic
+}
+
+func (p *countCloseListener) Close() error {
+	atomic.AddInt32(&p.closes, 1)
+	return nil
+}
+
+// Issue 24803: don't call Listener.Close on Server.Shutdown.
+func TestServerCloseListenerOnce(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	cl := &countCloseListener{Listener: ln}
+	server := &Server{}
+	sdone := make(chan bool, 1)
+
+	go func() {
+		server.Serve(cl)
+		sdone <- true
+	}()
+	time.Sleep(10 * time.Millisecond)
+	server.Shutdown(context.Background())
+	ln.Close()
+	<-sdone
+
+	nclose := atomic.LoadInt32(&cl.closes)
+	if nclose != 1 {
+		t.Errorf("Close calls = %v; want 1", nclose)
+	}
+}
+
+// Issue 23351: document and test behavior of ServeMux with ports
+func TestStripPortFromHost(t *testing.T) {
+	mux := NewServeMux()
+
+	mux.HandleFunc("example.com/", func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "OK")
+	})
+	mux.HandleFunc("example.com:9000/", func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "uh-oh!")
+	})
+
+	req := httptest.NewRequest("GET", "http://example.com:9000/", nil)
+	rw := httptest.NewRecorder()
+
+	mux.ServeHTTP(rw, req)
+
+	response := rw.Body.String()
+	if response != "OK" {
+		t.Errorf("Response gotten was %q", response)
+	}
 }
 
 func BenchmarkResponseStatusLine(b *testing.B) {

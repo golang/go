@@ -192,9 +192,9 @@ func vetPlatforms(pp []platform) {
 }
 
 func (p platform) vet() {
-	if p.os == "js" && p.arch == "wasm" {
-		// TODO(neelance): enable as soon as js/wasm has fully landed
-		fmt.Println("skipping js/wasm")
+	if p.os == "linux" && p.arch == "riscv64" {
+		// TODO(tklauser): enable as soon as the riscv64 port has fully landed
+		fmt.Println("skipping linux/riscv64")
 		return
 	}
 

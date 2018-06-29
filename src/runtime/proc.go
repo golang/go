@@ -263,6 +263,7 @@ func forcegchelper() {
 // Gosched yields the processor, allowing other goroutines to run. It does not
 // suspend the current goroutine, so execution resumes automatically.
 func Gosched() {
+	checkTimeouts()
 	mcall(gosched_m)
 }
 
@@ -282,6 +283,9 @@ func goschedguarded() {
 // Reasons should be unique and descriptive.
 // Do not re-use reasons, add new ones.
 func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceEv byte, traceskip int) {
+	if reason != waitReasonSleep {
+		checkTimeouts() // timeouts may expire while two goroutines keep the scheduler busy
+	}
 	mp := acquirem()
 	gp := mp.curg
 	status := readgstatus(gp)
@@ -513,6 +517,8 @@ func cpuinit() {
 	support_popcnt = cpu.X86.HasPOPCNT
 	support_sse2 = cpu.X86.HasSSE2
 	support_sse41 = cpu.X86.HasSSE41
+
+	arm64_support_atomics = cpu.ARM64.HasATOMICS
 }
 
 // The bootstrap sequence is:
@@ -2359,6 +2365,14 @@ stop:
 			traceGoUnpark(gp, 0)
 		}
 		return gp, false
+	}
+
+	// wasm only:
+	// Check if a goroutine is waiting for a callback from the WebAssembly host.
+	// If yes, pause the execution until a callback was triggered.
+	if pauseSchedulerUntilCallback() {
+		// A callback was triggered and caused at least one goroutine to wake up.
+		goto top
 	}
 
 	// Before we drop our P, make a snapshot of the allp slice,

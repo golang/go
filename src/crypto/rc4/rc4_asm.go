@@ -6,6 +6,8 @@
 
 package rc4
 
+import "crypto/internal/subtle"
+
 func xorKeyStream(dst, src *byte, n int, state *[256]uint32, i, j *uint8)
 
 // XORKeyStream sets dst to the result of XORing src with the key stream.
@@ -14,7 +16,11 @@ func (c *Cipher) XORKeyStream(dst, src []byte) {
 	if len(src) == 0 {
 		return
 	}
-	// Assert len(dst) >= len(src)
-	_ = dst[len(src)-1]
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
+	if subtle.InexactOverlap(dst[:len(src)], src) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 	xorKeyStream(&dst[0], &src[0], len(src), &c.s, &c.i, &c.j)
 }

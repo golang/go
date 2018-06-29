@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"net/http/httptrace"
+	"net/textproto"
 	"net/url"
 	"os"
 	"strings"
@@ -369,6 +370,13 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			req.closeBody()
+			return nil, ctx.Err()
+		default:
+		}
+
 		// treq gets modified by roundTrip, so we need to recreate for each retry.
 		treq := &transportRequest{Request: req, trace: trace}
 		cm, err := t.connectMethodForRequest(treq)
@@ -1641,26 +1649,42 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 			trace.GotFirstResponseByte()
 		}
 	}
-	resp, err = ReadResponse(pc.br, rc.req)
-	if err != nil {
-		return
-	}
-	if rc.continueCh != nil {
-		if resp.StatusCode == 100 {
-			if trace != nil && trace.Got100Continue != nil {
-				trace.Got100Continue()
-			}
-			rc.continueCh <- struct{}{}
-		} else {
-			close(rc.continueCh)
-		}
-	}
-	if resp.StatusCode == 100 {
-		pc.readLimit = pc.maxHeaderResponseSize() // reset the limit
+	num1xx := 0               // number of informational 1xx headers received
+	const max1xxResponses = 5 // arbitrary bound on number of informational responses
+
+	continueCh := rc.continueCh
+	for {
 		resp, err = ReadResponse(pc.br, rc.req)
 		if err != nil {
 			return
 		}
+		resCode := resp.StatusCode
+		if continueCh != nil {
+			if resCode == 100 {
+				if trace != nil && trace.Got100Continue != nil {
+					trace.Got100Continue()
+				}
+				continueCh <- struct{}{}
+				continueCh = nil
+			} else if resCode >= 200 {
+				close(continueCh)
+				continueCh = nil
+			}
+		}
+		if 100 <= resCode && resCode <= 199 {
+			num1xx++
+			if num1xx > max1xxResponses {
+				return nil, errors.New("net/http: too many 1xx informational responses")
+			}
+			pc.readLimit = pc.maxHeaderResponseSize() // reset the limit
+			if trace != nil && trace.Got1xxResponse != nil {
+				if err := trace.Got1xxResponse(resCode, textproto.MIMEHeader(resp.Header)); err != nil {
+					return nil, err
+				}
+			}
+			continue
+		}
+		break
 	}
 	resp.TLS = pc.tlsState
 	return
