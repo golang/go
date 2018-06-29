@@ -16,8 +16,10 @@ package codegen
 
 func SubMem(arr []int, b int) int {
 	// 386:`SUBL\s[A-Z]+,\s8\([A-Z]+\)`
+	// amd64:`SUBQ\s[A-Z]+,\s16\([A-Z]+\)`
 	arr[2] -= b
 	// 386:`SUBL\s[A-Z]+,\s12\([A-Z]+\)`
+	// amd64:`SUBQ\s[A-Z]+,\s24\([A-Z]+\)`
 	arr[3] -= b
 	// 386:`DECL\s16\([A-Z]+\)`
 	arr[4]--
