@@ -164,7 +164,7 @@ func shouldEscape(c byte, mode encoding) bool {
 
 // QueryUnescape does the inverse transformation of QueryEscape,
 // converting each 3-byte encoded substring of the form "%AB" into the
-// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
+// hex-decoded byte 0xAB.
 // It returns an error if any % is not followed by two hexadecimal
 // digits.
 func QueryUnescape(s string) (string, error) {
