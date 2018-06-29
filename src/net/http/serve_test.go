@@ -14,7 +14,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -5563,11 +5562,9 @@ func testServerShutdown(t *testing.T, h2 bool) {
 	}
 }
 
-var slowTests = flag.Bool("slow", false, "run slow tests")
-
 func TestServerShutdownStateNew(t *testing.T) {
-	if !*slowTests {
-		t.Skip("skipping slow test without -slow flag")
+	if testing.Short() {
+		t.Skip("test takes 5-6 seconds; skipping in short mode")
 	}
 	setParallel(t)
 	defer afterTest(t)
