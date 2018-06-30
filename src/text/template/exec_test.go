@@ -448,6 +448,8 @@ var execTests = []execTest{
 	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
 	{"html", `{{html .PS}}`, "a string", tVal, true},
+	{"html typed nil", `{{html .NIL}}`, "&lt;nil&gt;", tVal, true},
+	{"html untyped nil", `{{html .Empty0}}`, "&lt;no value&gt;", tVal, true},
 
 	// JavaScript.
 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},
