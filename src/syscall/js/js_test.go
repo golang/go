@@ -107,6 +107,13 @@ func TestObject(t *testing.T) {
 	if dummys.Get("someArray") != dummys.Get("someArray") {
 		t.Errorf("same value not equal")
 	}
+
+	// An object and its prototype should not be equal.
+	proto := js.Global().Get("Object").Get("prototype")
+	o := js.Global().Call("eval", "new Object()")
+	if proto == o {
+		t.Errorf("object equals to its prototype")
+	}
 }
 
 func TestTypedArrayOf(t *testing.T) {
