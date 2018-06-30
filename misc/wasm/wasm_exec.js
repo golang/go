@@ -141,7 +141,7 @@
 				}
 
 				let ref = v[this._refProp];
-				if (ref === undefined) {
+				if (ref === undefined || this._values[ref] !== v) {
 					ref = this._values.length;
 					this._values.push(v);
 					v[this._refProp] = ref;
