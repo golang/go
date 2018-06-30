@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!arm gccgo appengine nacl
-
 package poly1305
 
 import "encoding/binary"
 
-// Sum generates an authenticator for msg using a one-time key and puts the
-// 16-byte result into out. Authenticating two different messages with the same
-// key allows an attacker to forge messages at will.
-func Sum(out *[TagSize]byte, msg []byte, key *[32]byte) {
+// sumGeneric generates an authenticator for msg using a one-time key and
+// puts the 16-byte result into out. This is the generic implementation of
+// Sum and should be called if no assembly implementation is available.
+func sumGeneric(out *[TagSize]byte, msg []byte, key *[32]byte) {
 	var (
 		h0, h1, h2, h3, h4 uint32 // the hash accumulators
 		r0, r1, r2, r3, r4 uint64 // the r part of the key

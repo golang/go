@@ -285,7 +285,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 		res = md.text + uintptr(off)
 	}
 
-	if res > md.etext {
+	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
 		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
 		throw("runtime: text offset out of range")
 	}
@@ -329,7 +329,7 @@ type method struct {
 type uncommontype struct {
 	pkgpath nameOff
 	mcount  uint16 // number of methods
-	_       uint16 // unused
+	xcount  uint16 // number of exported methods
 	moff    uint32 // offset from this uncommontype to [mcount]method
 	_       uint32 // unused
 }
@@ -350,7 +350,6 @@ type maptype struct {
 	key           *_type
 	elem          *_type
 	bucket        *_type // internal type representing a hash bucket
-	hmap          *_type // internal type representing a hmap
 	keysize       uint8  // size of key slot
 	indirectkey   bool   // store ptr to key instead of key itself
 	valuesize     uint8  // size of value slot

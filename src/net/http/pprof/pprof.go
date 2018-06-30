@@ -26,7 +26,7 @@
 //
 // Or to look at a 30-second CPU profile:
 //
-//	go tool pprof http://localhost:6060/debug/pprof/profile
+//	go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
 //
 // Or to look at the goroutine blocking profile, after calling
 // runtime.SetBlockProfileRate in your program:
@@ -63,6 +63,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -80,6 +81,7 @@ func init() {
 // command line, with arguments separated by NUL bytes.
 // The package initialization registers it as /debug/pprof/cmdline.
 func Cmdline(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
 }
@@ -100,33 +102,37 @@ func durationExceedsWriteTimeout(r *http.Request, seconds float64) bool {
 	return ok && srv.WriteTimeout != 0 && seconds >= srv.WriteTimeout.Seconds()
 }
 
+func serveError(w http.ResponseWriter, status int, txt string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Go-Pprof", "1")
+	w.Header().Del("Content-Disposition")
+	w.WriteHeader(status)
+	fmt.Fprintln(w, txt)
+}
+
 // Profile responds with the pprof-formatted cpu profile.
+// Profiling lasts for duration specified in seconds GET parameter, or for 30 seconds if not specified.
 // The package initialization registers it as /debug/pprof/profile.
 func Profile(w http.ResponseWriter, r *http.Request) {
-	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
-	if sec == 0 {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	sec, err := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
+	if sec <= 0 || err != nil {
 		sec = 30
 	}
 
 	if durationExceedsWriteTimeout(r, float64(sec)) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Go-Pprof", "1")
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
+		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
 		return
 	}
 
 	// Set Content Type assuming StartCPUProfile will work,
 	// because if it does it starts writing.
 	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", `attachment; filename="profile"`)
 	if err := pprof.StartCPUProfile(w); err != nil {
 		// StartCPUProfile failed, so no writes yet.
-		// Can change header back to text content
-		// and send error code.
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Go-Pprof", "1")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Could not enable CPU profiling: %s\n", err)
+		serveError(w, http.StatusInternalServerError,
+			fmt.Sprintf("Could not enable CPU profiling: %s", err))
 		return
 	}
 	sleep(w, time.Duration(sec)*time.Second)
@@ -137,29 +143,25 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 // Tracing lasts for duration specified in seconds GET parameter, or for 1 second if not specified.
 // The package initialization registers it as /debug/pprof/trace.
 func Trace(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	sec, err := strconv.ParseFloat(r.FormValue("seconds"), 64)
 	if sec <= 0 || err != nil {
 		sec = 1
 	}
 
 	if durationExceedsWriteTimeout(r, sec) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Go-Pprof", "1")
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
+		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
 		return
 	}
 
 	// Set Content Type assuming trace.Start will work,
 	// because if it does it starts writing.
 	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", `attachment; filename="trace"`)
 	if err := trace.Start(w); err != nil {
 		// trace.Start failed, so no writes yet.
-		// Can change header back to text content and send error code.
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Go-Pprof", "1")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Could not enable tracing: %s\n", err)
+		serveError(w, http.StatusInternalServerError,
+			fmt.Sprintf("Could not enable tracing: %s", err))
 		return
 	}
 	sleep(w, time.Duration(sec*float64(time.Second)))
@@ -170,6 +172,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 // responding with a table mapping program counters to function names.
 // The package initialization registers it as /debug/pprof/symbol.
 func Symbol(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	// We have to read the whole POST body before
@@ -222,19 +225,36 @@ func Handler(name string) http.Handler {
 type handler string
 
 func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	debug, _ := strconv.Atoi(r.FormValue("debug"))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	p := pprof.Lookup(string(name))
 	if p == nil {
-		w.WriteHeader(404)
-		fmt.Fprintf(w, "Unknown profile: %s\n", name)
+		serveError(w, http.StatusNotFound, "Unknown profile")
 		return
 	}
 	gc, _ := strconv.Atoi(r.FormValue("gc"))
 	if name == "heap" && gc > 0 {
 		runtime.GC()
 	}
+	debug, _ := strconv.Atoi(r.FormValue("debug"))
+	if debug != 0 {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, name))
+	}
 	p.WriteTo(w, debug)
+}
+
+var profileDescriptions = map[string]string{
+	"allocs":       "A sampling of all past memory allocations",
+	"block":        "Stack traces that led to blocking on synchronization primitives",
+	"cmdline":      "The command line invocation of the current program",
+	"goroutine":    "Stack traces of all current goroutines",
+	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
+	"mutex":        "Stack traces of holders of contended mutexes",
+	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
+	"threadcreate": "Stack traces that led to the creation of new OS threads",
+	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
 }
 
 // Index responds with the pprof-formatted profile named by the request.
@@ -250,7 +270,35 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	profiles := pprof.Profiles()
+	type profile struct {
+		Name  string
+		Href  string
+		Desc  string
+		Count int
+	}
+	var profiles []profile
+	for _, p := range pprof.Profiles() {
+		profiles = append(profiles, profile{
+			Name:  p.Name(),
+			Href:  p.Name() + "?debug=1",
+			Desc:  profileDescriptions[p.Name()],
+			Count: p.Count(),
+		})
+	}
+
+	// Adding other profiles exposed from within this package
+	for _, p := range []string{"cmdline", "profile", "trace"} {
+		profiles = append(profiles, profile{
+			Name: p,
+			Href: p,
+			Desc: profileDescriptions[p],
+		})
+	}
+
+	sort.Slice(profiles, func(i, j int) bool {
+		return profiles[i].Name < profiles[j].Name
+	})
+
 	if err := indexTmpl.Execute(w, profiles); err != nil {
 		log.Print(err)
 	}
@@ -259,18 +307,35 @@ func Index(w http.ResponseWriter, r *http.Request) {
 var indexTmpl = template.Must(template.New("index").Parse(`<html>
 <head>
 <title>/debug/pprof/</title>
+<style>
+.profile-name{
+	display:inline-block;
+	width:6rem;
+}
+</style>
 </head>
 <body>
 /debug/pprof/<br>
 <br>
-profiles:<br>
+Types of profiles available:
 <table>
+<thead><td>Count</td><td>Profile</td></thead>
 {{range .}}
-<tr><td align=right>{{.Count}}<td><a href="{{.Name}}?debug=1">{{.Name}}</a>
+	<tr>
+	<td>{{.Count}}</td><td><a href={{.Href}}>{{.Name}}</a></td>
+	</tr>
 {{end}}
 </table>
-<br>
-<a href="goroutine?debug=2">full goroutine stack dump</a><br>
+<a href="goroutine?debug=2">full goroutine stack dump</a>
+<br/>
+<p>
+Profile Descriptions:
+<ul>
+{{range .}}
+<li><div class=profile-name>{{.Name}}:</div> {{.Desc}}</li>
+{{end}}
+</ul>
+</p>
 </body>
 </html>
 `))

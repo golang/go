@@ -137,9 +137,9 @@ var atoftests = []atofTest{
 	{".e-1", "0", ErrSyntax},
 	{"1\x00.2", "0", ErrSyntax},
 
-	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+	// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
 	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil},
-	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+	// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
 	{"2.2250738585072011e-308", "2.225073858507201e-308", nil},
 
 	// A very large number (initially wrongly parsed by the fast algorithm).

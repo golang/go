@@ -174,7 +174,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 
-		if mode == invalid {
+		if mode == invalid && typ != Typ[Invalid] {
 			check.invalidArg(x.pos(), "%s for %s", x, bin.name)
 			return
 		}
@@ -623,7 +623,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// Note: trace is only available in self-test mode.
 		// (no argument evaluated yet)
 		if nargs == 0 {
-			check.dump("%s: trace() without arguments", call.Pos())
+			check.dump("%v: trace() without arguments", call.Pos())
 			x.mode = novalue
 			break
 		}
@@ -631,7 +631,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		x1 := x
 		for _, arg := range call.Args {
 			check.rawExpr(x1, arg, nil) // permit trace for types, e.g.: new(trace(T))
-			check.dump("%s: %s", x1.pos(), x1)
+			check.dump("%v: %s", x1.pos(), x1)
 			x1 = &t // use incoming x only for first argument
 		}
 		// trace is only available in test mode - no need to record signature

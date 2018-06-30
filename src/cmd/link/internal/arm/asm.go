@@ -229,6 +229,10 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 	switch r.Type {
 	case objabi.R_CALLARM:
+		if ctxt.LinkMode == ld.LinkExternal {
+			// External linker will do this relocation.
+			return true
+		}
 		addpltsym(ctxt, targ)
 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
 		r.Add = int64(targ.Plt)
@@ -649,7 +653,7 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 	return t
 }
 
-func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) *sym.Reloc {
+func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) {
 	r := plt.AddRel()
 	r.Sym = got
 	r.Off = int32(plt.Size)
@@ -660,8 +664,6 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
 	plt.Attr |= sym.AttrReachable
 	plt.Size += 4
 	plt.Grow(plt.Size)
-
-	return r
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {

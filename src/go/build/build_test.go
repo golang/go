@@ -176,6 +176,18 @@ func TestShouldBuild(t *testing.T) {
 	}
 }
 
+func TestGoodOSArchFile(t *testing.T) {
+	ctx := &Context{BuildTags: []string{"linux"}, GOOS: "darwin"}
+	m := map[string]bool{}
+	want := map[string]bool{"linux": true}
+	if !ctx.goodOSArchFile("hello_linux.go", m) {
+		t.Errorf("goodOSArchFile(hello_linux.go) = false, want true")
+	}
+	if !reflect.DeepEqual(m, want) {
+		t.Errorf("goodOSArchFile(hello_linux.go) tags = %v, want %v", m, want)
+	}
+}
+
 type readNopCloser struct {
 	io.Reader
 }

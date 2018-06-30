@@ -41,7 +41,7 @@
 # This is used by cgo.  Default is CC.
 #
 # CXX_FOR_TARGET: Command line to run to compile C++ code for GOARCH.
-# This is used by cgo. Default is CXX, or, if that is not set, 
+# This is used by cgo. Default is CXX, or, if that is not set,
 # "g++" or "clang++".
 #
 # FC: Command line to run to compile Fortran code for GOARCH.
@@ -141,7 +141,7 @@ export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
-		goroot=$(GOROOT='' "$go_exe" env GOROOT)
+		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
 		if [ "$goroot" != "$GOROOT" ]; then
 			GOROOT_BOOTSTRAP=$goroot
 		fi

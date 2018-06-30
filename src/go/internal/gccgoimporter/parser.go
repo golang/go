@@ -585,13 +585,13 @@ func (p *parser) parseInterfaceType(pkg *types.Package) types.Type {
 	p.expectKeyword("interface")
 
 	var methods []*types.Func
-	var typs []*types.Named
+	var embeddeds []types.Type
 
 	p.expect('{')
 	for p.tok != '}' && p.tok != scanner.EOF {
 		if p.tok == '?' {
 			p.next()
-			typs = append(typs, p.parseType(pkg).(*types.Named))
+			embeddeds = append(embeddeds, p.parseType(pkg))
 		} else {
 			method := p.parseFunc(pkg)
 			methods = append(methods, method)
@@ -600,7 +600,7 @@ func (p *parser) parseInterfaceType(pkg *types.Package) types.Type {
 	}
 	p.expect('}')
 
-	return types.NewInterface(methods, typs)
+	return types.NewInterfaceType(methods, embeddeds)
 }
 
 // PointerType = "*" ("any" | Type) .
@@ -905,11 +905,4 @@ func (p *parser) parsePackage() *types.Package {
 	}
 	p.pkg.MarkComplete()
 	return p.pkg
-}
-
-// InitData = { InitDataDirective } .
-func (p *parser) parseInitData() {
-	for p.tok != scanner.EOF {
-		p.parseInitDataDirective()
-	}
 }

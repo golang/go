@@ -1,0 +1,346 @@
+<!--{
+	"Title": "Go 1.11 Release Notes",
+	"Path":  "/doc/go1.11",
+	"Template": true
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.11</h2>
+
+<p>
+  <strong>
+    Go 1.11 is not yet released. These are work-in-progress
+    release notes. Go 1.11 is expected to be released in August 2018.
+  </strong>
+</p>
+
+<p>
+  The latest Go release, version 1.11, arrives six months after <a href="go1.10">Go 1.10</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+  There are no changes to the language specification.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+  As <a href="go1.10#ports">announced in the Go 1.10 release notes</a>, Go 1.11 now requires
+  OpenBSD 6.2 or later, macOS 10.10 Yosemite or later, or Windows 7 or later;
+  Support for previous versions of these operating systems has been removed.
+</p>
+
+<p>
+  There are <a href="https://golang.org/issue/25206">known issues</a> with NetBSD on i386 hardware.
+</p>
+
+<p><!-- CL 107935 -->
+  TODO: PPC64LE race detector support
+</p>
+
+<h3 id="package-versioning">Package Versioning (vgo)</h3>
+<p>
+  <strong>
+    NOTE: This is not present in go1.11beta1 but will be available in future
+    betas and subsequent releases.
+  </strong>
+  Go 1.11 adds experimental, integrated support for package versioning.
+</p>
+
+<h3 id="wasm">WebAssembly</h3>
+<p>
+  Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
+</p>
+
+<h2 id="library">Core library</h2>
+
+<p>
+  All of the changes to the standard library are minor.
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<!-- CL 113315: https://golang.org/cl/113315: cmd/asm: enable AVX512 -->
+<!-- CL 100459: https://golang.org/cl/100459: cmd/compile: reject type switch with guarded declaration and no cases -->
+<!-- CL 106797: https://golang.org/cl/106797: cmd/compile: enable indexed export format by default -->
+<!-- CL 108475: https://golang.org/cl/108475: cmd/compile: add softfloat support to mips64{,le} -->
+<!-- CL 97375: https://golang.org/cl/97375: cmd/compile, cmd/compile/internal/syntax: print relative column info -->
+<!-- CL 110395: https://golang.org/cl/110395: cmd/go, cmd/compile: use Windows response files to avoid arg length limits -->
+<!-- CL 107475: https://golang.org/cl/107475: cmd/internal/obj/arm, runtime: delete old ARM softfloat code -->
+<!-- CL 112436: https://golang.org/cl/112436: cmd/pprof: add readline support similar to upstream -->
+<dl id="all"><dt><a href="/pkg/all/">all</a></dt>
+  <dd>
+    <p><!-- CL 93875 -->
+      TODO: <a href="https://golang.org/cl/93875">https://golang.org/cl/93875</a>: enable c-shared/c-archive support for freebsd/amd64
+    </p>
+
+    <p><!-- CL 94255 -->
+      TODO: <a href="https://golang.org/cl/94255">https://golang.org/cl/94255</a>: drop support for Windows Vista or below (Windows XP)
+    </p>
+
+    <p><!-- CL 115038 -->
+      TODO: <a href="https://golang.org/cl/115038">https://golang.org/cl/115038</a>: remove support for macOS 10.9 and earlier
+    </p>
+
+</dl><!-- all -->
+
+<dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
+  <dd>
+    <p><!-- CL 64451 -->
+      TODO: <a href="https://golang.org/cl/64451">https://golang.org/cl/64451</a>: randomly read an extra byte of randomness in some places.
+    </p>
+
+</dl><!-- crypto -->
+
+<dl id="crypto/cipher"><dt><a href="/pkg/crypto/cipher/">crypto/cipher</a></dt>
+  <dd>
+    <p><!-- CL 48510, CL 116435 -->
+      TODO: <a href="https://golang.org/cl/48510">https://golang.org/cl/48510</a>: add NewGCMWithTagSize for custom tag sizes.
+    </p>
+
+</dl><!-- crypto/cipher -->
+
+<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+  <dd>
+    <p><!-- CL 103876 -->
+      TODO: <a href="https://golang.org/cl/103876">https://golang.org/cl/103876</a>: add PublicKey.Size accessor
+    </p>
+
+</dl><!-- crypto/rsa -->
+
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- CL 112115 -->
+      TODO: <a href="https://golang.org/cl/112115">https://golang.org/cl/112115</a>: add machine and OSABI constants
+    </p>
+
+</dl><!-- debug/elf -->
+
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 110561 -->
+      TODO: <a href="https://golang.org/cl/110561">https://golang.org/cl/110561</a>: allow Marshaling and Unmarshaling private tag class
+    </p>
+
+</dl><!-- encoding/asn1 -->
+
+<dl id="encoding/base32"><dt><a href="/pkg/encoding/base32/">encoding/base32</a></dt>
+  <dd>
+    <p><!-- CL 112516 -->
+      TODO: <a href="https://golang.org/cl/112516">https://golang.org/cl/112516</a>: handle surplus padding consistently
+    </p>
+
+</dl><!-- encoding/base32 -->
+
+<dl id="encoding/csv"><dt><a href="/pkg/encoding/csv/">encoding/csv</a></dt>
+  <dd>
+    <p><!-- CL 99696 -->
+      TODO: <a href="https://golang.org/cl/99696">https://golang.org/cl/99696</a>: disallow quote for use as Comma
+    </p>
+
+</dl><!-- encoding/csv -->
+
+<dl id="go/build, runtime/internal/sys"><dt><a href="/pkg/go/build, runtime/internal/sys/">go/build, runtime/internal/sys</a></dt>
+  <dd>
+    <p><!-- CL 106256 -->
+      TODO: <a href="https://golang.org/cl/106256">https://golang.org/cl/106256</a>: reserve RISC-V arch names
+    </p>
+
+</dl><!-- go/build, runtime/internal/sys -->
+
+<dl id="image/gif"><dt><a href="/pkg/image/gif/">image/gif</a></dt>
+  <dd>
+    <p><!-- CL 93076 -->
+      TODO: <a href="https://golang.org/cl/93076">https://golang.org/cl/93076</a>: support non-looping animated gifs (LoopCount=-1)
+    </p>
+
+</dl><!-- image/gif -->
+
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 105675 -->
+      TODO: <a href="https://golang.org/cl/105675">https://golang.org/cl/105675</a>: change TempFile prefix to a pattern
+    </p>
+
+</dl><!-- io/ioutil -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- CL 74851 -->
+      TODO: <a href="https://golang.org/cl/74851">https://golang.org/cl/74851</a>: speed-up addMulVVW on amd64
+    </p>
+
+</dl><!-- math/big -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 72810 -->
+      TODO: <a href="https://golang.org/cl/72810">https://golang.org/cl/72810</a>: add ListenConfig, Dialer.Control to permit socket opts before listen/dial
+    </p>
+
+    <p><!-- CL 76391 -->
+      TODO: <a href="https://golang.org/cl/76391">https://golang.org/cl/76391</a>: implement (*syscall.RawConn).Read/Write on Windows
+    </p>
+
+    <p><!-- CL 107715 -->
+      TODO: <a href="https://golang.org/cl/107715">https://golang.org/cl/107715</a>: add support for splice(2) in (*TCPConn).ReadFrom on Linux
+    </p>
+
+    <p><!-- CL 108297 -->
+      TODO: <a href="https://golang.org/cl/108297">https://golang.org/cl/108297</a>: calling File leaves the socket in nonblocking mode
+    </p>
+
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 89275 -->
+      TODO: <a href="https://golang.org/cl/89275">https://golang.org/cl/89275</a>: don&#39;t sniff Content-type in Server when X-Content-Type-Options:nosniff
+    </p>
+
+    <p><!-- CL 93296 -->
+      TODO: <a href="https://golang.org/cl/93296">https://golang.org/cl/93296</a>: add StatusMisdirectedRequest (421)
+    </p>
+
+</dl><!-- net/http -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 78835 -->
+      TODO: <a href="https://golang.org/cl/78835">https://golang.org/cl/78835</a>: add UserCacheDir
+    </p>
+
+    <p><!-- CL 94856 -->
+      TODO: <a href="https://golang.org/cl/94856">https://golang.org/cl/94856</a>: add ModeIrregular flag
+    </p>
+
+    <p><!-- CL 99337 -->
+      TODO: <a href="https://golang.org/cl/99337">https://golang.org/cl/99337</a>: enable symlink creation on Windows 10
+    </p>
+
+    <p><!-- CL 100077 -->
+      TODO: <a href="https://golang.org/cl/100077">https://golang.org/cl/100077</a>: use poller when NewFile is called with a blocking descriptor.
+    </p>
+
+</dl><!-- os -->
+
+<dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+  <dd>
+    <p><!-- CL 108376 -->
+      TODO: <a href="https://golang.org/cl/108376">https://golang.org/cl/108376</a>: add func Ignored(sig Signal) bool
+    </p>
+
+</dl><!-- os/signal -->
+
+<dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
+  <dd>
+    <p><!-- CL 92456 -->
+      TODO: <a href="https://golang.org/cl/92456">https://golang.org/cl/92456</a>: add a way to enforce pure Go implementation
+    </p>
+
+</dl><!-- os/user -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 85887 -->
+      TODO: <a href="https://golang.org/cl/85887">https://golang.org/cl/85887</a>: use sparse mappings for the heap
+    </p>
+
+    <p><!-- CL 94076 -->
+      TODO: <a href="https://golang.org/cl/94076">https://golang.org/cl/94076</a>: use native CAS and memory barrier on ARMv7
+    </p>
+
+    <p><!-- CL 106156 -->
+      TODO: <a href="https://golang.org/cl/106156">https://golang.org/cl/106156</a>: use fixed TLS offsets on darwin/amd64 and darwin/386
+    </p>
+
+    <p><!-- CL 109255 -->
+      TODO: <a href="https://golang.org/cl/109255">https://golang.org/cl/109255</a>: enable memory sanitizer on arm64
+    </p>
+
+</dl><!-- runtime -->
+
+<dl id="runtime,cmd/ld"><dt><a href="/pkg/runtime,cmd/ld/">runtime,cmd/ld</a></dt>
+  <dd>
+    <p><!-- CL 108679 -->
+      TODO: <a href="https://golang.org/cl/108679">https://golang.org/cl/108679</a>: on darwin, create theads using libc
+    </p>
+
+</dl><!-- runtime,cmd/ld -->
+
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 102696 -->
+      TODO: <a href="https://golang.org/cl/102696">https://golang.org/cl/102696</a>: introduce &#34;allocs&#34; profile
+    </p>
+
+</dl><!-- runtime/pprof -->
+
+<dl id="runtime/traceback"><dt><a href="/pkg/runtime/traceback/">runtime/traceback</a></dt>
+  <dd>
+    <p><!-- CL 70993 -->
+      TODO: <a href="https://golang.org/cl/70993">https://golang.org/cl/70993</a>: support tracking goroutine ancestor tracebacks with GODEBUG=&#34;tracebackancestors=N&#34;
+    </p>
+
+</dl><!-- runtime/traceback -->
+
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 87095 -->
+      TODO: <a href="https://golang.org/cl/87095">https://golang.org/cl/87095</a>: enable profiling of RWMutex
+    </p>
+
+</dl><!-- sync -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 106275 -->
+      TODO: <a href="https://golang.org/cl/106275">https://golang.org/cl/106275</a>: introduce Pointer type and use it instead of uintptr
+    </p>
+
+</dl><!-- syscall -->
+
+<dl id="text/scanner"><dt><a href="/pkg/text/scanner/">text/scanner</a></dt>
+  <dd>
+    <p><!-- CL 112037 -->
+      TODO: <a href="https://golang.org/cl/112037">https://golang.org/cl/112037</a>: return RawString token rather than String for raw string literals
+    </p>
+
+</dl><!-- text/scanner -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 84480 -->
+      TODO: <a href="https://golang.org/cl/84480">https://golang.org/cl/84480</a>: add variable assignments
+    </p>
+
+</dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 98157 -->
+      TODO: <a href="https://golang.org/cl/98157">https://golang.org/cl/98157</a>: add support for parsing timezones denoted by sign and offset
+    </p>
+
+</dl><!-- time -->

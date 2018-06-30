@@ -214,6 +214,11 @@ type Request struct {
 	// names, Host may be in Punycode or Unicode form. Use
 	// golang.org/x/net/idna to convert it to either format if
 	// needed.
+	// To prevent DNS rebinding attacks, server Handlers should
+	// validate that the Host header has a value for which the
+	// Handler considers itself authoritative. The included
+	// ServeMux supports patterns registered to particular host
+	// names and thus protects its registered Handlers.
 	//
 	// For client requests Host optionally overrides the Host
 	// header to send. If empty, the Request.Write method uses
@@ -550,6 +555,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	if err != nil {
 		return err
 	}
+	if trace != nil && trace.WroteHeaderField != nil {
+		trace.WroteHeaderField("Host", []string{host})
+	}
 
 	// Use the defaultUserAgent unless the Header contains one, which
 	// may be blank to not send the header.
@@ -562,6 +570,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 		if err != nil {
 			return err
 		}
+		if trace != nil && trace.WroteHeaderField != nil {
+			trace.WroteHeaderField("User-Agent", []string{userAgent})
+		}
 	}
 
 	// Process Body,ContentLength,Close,Trailer
@@ -569,18 +580,18 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	if err != nil {
 		return err
 	}
-	err = tw.WriteHeader(w)
+	err = tw.writeHeader(w, trace)
 	if err != nil {
 		return err
 	}
 
-	err = r.Header.WriteSubset(w, reqWriteExcludeHeader)
+	err = r.Header.writeSubset(w, reqWriteExcludeHeader, trace)
 	if err != nil {
 		return err
 	}
 
 	if extraHeaders != nil {
-		err = extraHeaders.Write(w)
+		err = extraHeaders.write(w, trace)
 		if err != nil {
 			return err
 		}
@@ -619,7 +630,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	}
 
 	// Write body and trailer
-	err = tw.WriteBody(w)
+	err = tw.writeBody(w)
 	if err != nil {
 		if tw.bodyReadError == err {
 			err = requestBodyReadError{err}
@@ -858,7 +869,8 @@ func (r *Request) BasicAuth() (username, password string, ok bool) {
 // "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==" returns ("Aladdin", "open sesame", true).
 func parseBasicAuth(auth string) (username, password string, ok bool) {
 	const prefix = "Basic "
-	if !strings.HasPrefix(auth, prefix) {
+	// Case insensitive prefix match. See Issue 22736.
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
 		return
 	}
 	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
@@ -910,6 +922,11 @@ func putTextprotoReader(r *textproto.Reader) {
 }
 
 // ReadRequest reads and parses an incoming request from b.
+//
+// ReadRequest is a low-level function and should only be used for
+// specialized applications; most code should use the Server to read
+// requests and handle them via the Handler interface. ReadRequest
+// only supports HTTP/1.x requests. For HTTP/2, use golang.org/x/net/http2.
 func ReadRequest(b *bufio.Reader) (*Request, error) {
 	return readRequest(b, deleteHostHeader)
 }
@@ -1248,8 +1265,8 @@ func (r *Request) FormValue(key string) string {
 	return ""
 }
 
-// PostFormValue returns the first value for the named component of the POST
-// or PUT request body. URL query parameters are ignored.
+// PostFormValue returns the first value for the named component of the POST,
+// PATCH, or PUT request body. URL query parameters are ignored.
 // PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, PostFormValue returns the empty string.

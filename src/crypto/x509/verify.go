@@ -6,12 +6,14 @@ package x509
 
 import (
 	"bytes"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -54,8 +56,7 @@ const (
 	// CPU time to verify.
 	TooManyConstraints
 	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
-	// certificate does not permit an extended key usage that is claimed by
-	// the leaf certificate.
+	// certificate does not permit a requested extended key usage.
 	CANotAuthorizedForExtKeyUsage
 )
 
@@ -80,7 +81,7 @@ func (e CertificateInvalidError) Error() string {
 	case TooManyIntermediates:
 		return "x509: too many intermediates for path length constraint"
 	case IncompatibleUsage:
-		return "x509: certificate specifies an incompatible key usage: " + e.Detail
+		return "x509: certificate specifies an incompatible key usage"
 	case NameMismatch:
 		return "x509: issuer name does not match subject from issuing certificate"
 	case NameConstraintsWithoutSANs:
@@ -178,10 +179,13 @@ type VerifyOptions struct {
 	Intermediates *CertPool
 	Roots         *CertPool // if nil, the system roots are used
 	CurrentTime   time.Time // if zero, the current time is used
-	// KeyUsage specifies which Extended Key Usage values are acceptable.
-	// An empty list means ExtKeyUsageServerAuth. Key usage is considered a
-	// constraint down the chain which mirrors Windows CryptoAPI behavior,
-	// but not the spec. To accept any key usage, include ExtKeyUsageAny.
+	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
+	// certificate is accepted if it contains any of the listed values. An empty
+	// list means ExtKeyUsageServerAuth. To accept any key usage, include
+	// ExtKeyUsageAny.
+	//
+	// Certificate chains are required to nest these extended key usage values.
+	// (This matches the Windows CryptoAPI behavior, but not the spec.)
 	KeyUsages []ExtKeyUsage
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
@@ -543,51 +547,6 @@ func (c *Certificate) checkNameConstraints(count *int,
 	return nil
 }
 
-const (
-	checkingAgainstIssuerCert = iota
-	checkingAgainstLeafCert
-)
-
-// ekuPermittedBy returns true iff the given extended key usage is permitted by
-// the given EKU from a certificate. Normally, this would be a simple
-// comparison plus a special case for the “any” EKU. But, in order to support
-// existing certificates, some exceptions are made.
-func ekuPermittedBy(eku, certEKU ExtKeyUsage, context int) bool {
-	if certEKU == ExtKeyUsageAny || eku == certEKU {
-		return true
-	}
-
-	// Some exceptions are made to support existing certificates. Firstly,
-	// the ServerAuth and SGC EKUs are treated as a group.
-	mapServerAuthEKUs := func(eku ExtKeyUsage) ExtKeyUsage {
-		if eku == ExtKeyUsageNetscapeServerGatedCrypto || eku == ExtKeyUsageMicrosoftServerGatedCrypto {
-			return ExtKeyUsageServerAuth
-		}
-		return eku
-	}
-
-	eku = mapServerAuthEKUs(eku)
-	certEKU = mapServerAuthEKUs(certEKU)
-
-	if eku == certEKU {
-		return true
-	}
-
-	// If checking a requested EKU against the list in a leaf certificate there
-	// are fewer exceptions.
-	if context == checkingAgainstLeafCert {
-		return false
-	}
-
-	// ServerAuth in a CA permits ClientAuth in the leaf.
-	return (eku == ExtKeyUsageClientAuth && certEKU == ExtKeyUsageServerAuth) ||
-		// Any CA may issue an OCSP responder certificate.
-		eku == ExtKeyUsageOCSPSigning ||
-		// Code-signing CAs can use Microsoft's commercial and
-		// kernel-mode EKUs.
-		(eku == ExtKeyUsageMicrosoftCommercialCodeSigning || eku == ExtKeyUsageMicrosoftKernelCodeSigning) && certEKU == ExtKeyUsageCodeSigning
-}
-
 // isValid performs validity checks on c given that it is a candidate to append
 // to the chain in currentChain.
 func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
@@ -702,59 +661,6 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 	}
 
-	checkEKUs := certType == intermediateCertificate
-
-	// If no extended key usages are specified, then all are acceptable.
-	if checkEKUs && (len(c.ExtKeyUsage) == 0 && len(c.UnknownExtKeyUsage) == 0) {
-		checkEKUs = false
-	}
-
-	// If the “any” key usage is permitted, then no more checks are needed.
-	if checkEKUs {
-		for _, caEKU := range c.ExtKeyUsage {
-			comparisonCount++
-			if caEKU == ExtKeyUsageAny {
-				checkEKUs = false
-				break
-			}
-		}
-	}
-
-	if checkEKUs {
-	NextEKU:
-		for _, eku := range leaf.ExtKeyUsage {
-			if comparisonCount > maxConstraintComparisons {
-				return CertificateInvalidError{c, TooManyConstraints, ""}
-			}
-
-			for _, caEKU := range c.ExtKeyUsage {
-				comparisonCount++
-				if ekuPermittedBy(eku, caEKU, checkingAgainstIssuerCert) {
-					continue NextEKU
-				}
-			}
-
-			oid, _ := oidFromExtKeyUsage(eku)
-			return CertificateInvalidError{c, CANotAuthorizedForExtKeyUsage, fmt.Sprintf("EKU not permitted: %#v", oid)}
-		}
-
-	NextUnknownEKU:
-		for _, eku := range leaf.UnknownExtKeyUsage {
-			if comparisonCount > maxConstraintComparisons {
-				return CertificateInvalidError{c, TooManyConstraints, ""}
-			}
-
-			for _, caEKU := range c.UnknownExtKeyUsage {
-				comparisonCount++
-				if caEKU.Equal(eku) {
-					continue NextUnknownEKU
-				}
-			}
-
-			return CertificateInvalidError{c, CANotAuthorizedForExtKeyUsage, fmt.Sprintf("EKU not permitted: %#v", eku)}
-		}
-	}
-
 	// KeyUsage status flags are ignored. From Engineering Security, Peter
 	// Gutmann: A European government CA marked its signing certificates as
 	// being valid for encryption only, but no-one noticed. Another
@@ -784,6 +690,18 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	}
 
 	return nil
+}
+
+// formatOID formats an ASN.1 OBJECT IDENTIFER in the common, dotted style.
+func formatOID(oid asn1.ObjectIdentifier) string {
+	ret := ""
+	for i, v := range oid {
+		if i > 0 {
+			ret += "."
+		}
+		ret += strconv.Itoa(v)
+	}
+	return ret
 }
 
 // Verify attempts to verify c by building one or more chains from c to a
@@ -843,36 +761,6 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	requestedKeyUsages := make([]ExtKeyUsage, len(opts.KeyUsages))
-	copy(requestedKeyUsages, opts.KeyUsages)
-	if len(requestedKeyUsages) == 0 {
-		requestedKeyUsages = append(requestedKeyUsages, ExtKeyUsageServerAuth)
-	}
-
-	// If no key usages are specified, then any are acceptable.
-	checkEKU := len(c.ExtKeyUsage) > 0
-
-	for _, eku := range requestedKeyUsages {
-		if eku == ExtKeyUsageAny {
-			checkEKU = false
-			break
-		}
-	}
-
-	if checkEKU {
-	NextUsage:
-		for _, eku := range requestedKeyUsages {
-			for _, leafEKU := range c.ExtKeyUsage {
-				if ekuPermittedBy(eku, leafEKU, checkingAgainstLeafCert) {
-					continue NextUsage
-				}
-			}
-
-			oid, _ := oidFromExtKeyUsage(eku)
-			return nil, CertificateInvalidError{c, IncompatibleUsage, fmt.Sprintf("%#v", oid)}
-		}
-	}
-
 	var candidateChains [][]*Certificate
 	if opts.Roots.contains(c) {
 		candidateChains = append(candidateChains, []*Certificate{c})
@@ -882,7 +770,29 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	return candidateChains, nil
+	keyUsages := opts.KeyUsages
+	if len(keyUsages) == 0 {
+		keyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+	}
+
+	// If any key usage is acceptable then we're done.
+	for _, usage := range keyUsages {
+		if usage == ExtKeyUsageAny {
+			return candidateChains, nil
+		}
+	}
+
+	for _, candidate := range candidateChains {
+		if checkChainForKeyUsage(candidate, keyUsages) {
+			chains = append(chains, candidate)
+		}
+	}
+
+	if len(chains) == 0 {
+		return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
+	}
+
+	return chains, nil
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
@@ -1042,4 +952,66 @@ func (c *Certificate) VerifyHostname(h string) error {
 	}
 
 	return HostnameError{c, h}
+}
+
+func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
+	usages := make([]ExtKeyUsage, len(keyUsages))
+	copy(usages, keyUsages)
+
+	if len(chain) == 0 {
+		return false
+	}
+
+	usagesRemaining := len(usages)
+
+	// We walk down the list and cross out any usages that aren't supported
+	// by each certificate. If we cross out all the usages, then the chain
+	// is unacceptable.
+
+NextCert:
+	for i := len(chain) - 1; i >= 0; i-- {
+		cert := chain[i]
+		if len(cert.ExtKeyUsage) == 0 && len(cert.UnknownExtKeyUsage) == 0 {
+			// The certificate doesn't have any extended key usage specified.
+			continue
+		}
+
+		for _, usage := range cert.ExtKeyUsage {
+			if usage == ExtKeyUsageAny {
+				// The certificate is explicitly good for any usage.
+				continue NextCert
+			}
+		}
+
+		const invalidUsage ExtKeyUsage = -1
+
+	NextRequestedUsage:
+		for i, requestedUsage := range usages {
+			if requestedUsage == invalidUsage {
+				continue
+			}
+
+			for _, usage := range cert.ExtKeyUsage {
+				if requestedUsage == usage {
+					continue NextRequestedUsage
+				} else if requestedUsage == ExtKeyUsageServerAuth &&
+					(usage == ExtKeyUsageNetscapeServerGatedCrypto ||
+						usage == ExtKeyUsageMicrosoftServerGatedCrypto) {
+					// In order to support COMODO
+					// certificate chains, we have to
+					// accept Netscape or Microsoft SGC
+					// usages as equal to ServerAuth.
+					continue NextRequestedUsage
+				}
+			}
+
+			usages[i] = invalidUsage
+			usagesRemaining--
+			if usagesRemaining == 0 {
+				return false
+			}
+		}
+	}
+
+	return true
 }

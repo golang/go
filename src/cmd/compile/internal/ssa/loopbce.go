@@ -1,12 +1,26 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa
+
+import "fmt"
+
+type indVarFlags uint8
+
+const (
+	indVarMinExc indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
+	indVarMaxInc                         // maximum value is inclusive (default: exclusive)
+)
 
 type indVar struct {
 	ind   *Value // induction variable
 	inc   *Value // increment, a constant
 	nxt   *Value // ind+inc variable
-	min   *Value // minimum value. inclusive,
-	max   *Value // maximum value. exclusive.
+	min   *Value // minimum value, inclusive/exclusive depends on flags
+	max   *Value // maximum value, inclusive/exclusive depends on flags
 	entry *Block // entry block in the loop.
+	flags indVarFlags
 	// Invariants: for all blocks dominated by entry:
 	//	min <= ind < max
 	//	min <= nxt <= max
@@ -41,20 +55,32 @@ nextb:
 			continue
 		}
 
+		var flags indVarFlags
 		var ind, max *Value // induction, and maximum
 		entry := -1         // which successor of b enters the loop
 
-		// Check thet the control if it either ind < max or max > ind.
-		// TODO: Handle Leq64, Geq64.
+		// Check thet the control if it either ind </<= max or max >/>= ind.
+		// TODO: Handle 32-bit comparisons.
 		switch b.Control.Op {
+		case OpLeq64:
+			flags |= indVarMaxInc
+			fallthrough
 		case OpLess64:
 			entry = 0
 			ind, max = b.Control.Args[0], b.Control.Args[1]
+		case OpGeq64:
+			flags |= indVarMaxInc
+			fallthrough
 		case OpGreater64:
 			entry = 0
 			ind, max = b.Control.Args[1], b.Control.Args[0]
 		default:
 			continue nextb
+		}
+
+		// See if the arguments are reversed (i < len() <=> len() > i)
+		if max.Op == OpPhi {
+			ind, max = max, ind
 		}
 
 		// Check that the induction variable is a phi that depends on itself.
@@ -82,10 +108,22 @@ nextb:
 			panic("unreachable") // one of the cases must be true from the above.
 		}
 
-		// Expect the increment to be a positive constant.
-		// TODO: handle negative increment.
-		if inc.Op != OpConst64 || inc.AuxInt <= 0 {
+		// Expect the increment to be a constant.
+		if inc.Op != OpConst64 {
 			continue
+		}
+
+		// If the increment is negative, swap min/max and their flags
+		if inc.AuxInt <= 0 {
+			min, max = max, min
+			oldf := flags
+			flags = 0
+			if oldf&indVarMaxInc == 0 {
+				flags |= indVarMinExc
+			}
+			if oldf&indVarMinExc == 0 {
+				flags |= indVarMaxInc
+			}
 		}
 
 		// Up to now we extracted the induction variable (ind),
@@ -116,18 +154,11 @@ nextb:
 			continue
 		}
 
-		// If max is c + SliceLen with c <= 0 then we drop c.
-		// Makes sure c + SliceLen doesn't overflow when SliceLen == 0.
-		// TODO: save c as an offset from max.
-		if w, c := dropAdd64(max); (w.Op == OpStringLen || w.Op == OpSliceLen) && 0 >= c && -c >= 0 {
-			max = w
-		}
-
 		// We can only guarantee that the loops runs within limits of induction variable
-		// if the increment is 1 or when the limits are constants.
-		if inc.AuxInt != 1 {
+		// if the increment is ±1 or when the limits are constants.
+		if inc.AuxInt != 1 && inc.AuxInt != -1 {
 			ok := false
-			if min.Op == OpConst64 && max.Op == OpConst64 {
+			if min.Op == OpConst64 && max.Op == OpConst64 && inc.AuxInt != 0 {
 				if max.AuxInt > min.AuxInt && max.AuxInt%inc.AuxInt == min.AuxInt%inc.AuxInt { // handle overflow
 					ok = true
 				}
@@ -137,12 +168,8 @@ nextb:
 			}
 		}
 
-		if f.pass.debug > 1 {
-			if min.Op == OpConst64 {
-				b.Func.Warnl(b.Pos, "Induction variable with minimum %d and increment %d", min.AuxInt, inc.AuxInt)
-			} else {
-				b.Func.Warnl(b.Pos, "Induction variable with non-const minimum and increment %d", inc.AuxInt)
-			}
+		if f.pass.debug >= 1 {
+			printIndVar(b, ind, min, max, inc.AuxInt, flags)
 		}
 
 		iv = append(iv, indVar{
@@ -152,132 +179,12 @@ nextb:
 			min:   min,
 			max:   max,
 			entry: b.Succs[entry].b,
+			flags: flags,
 		})
 		b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
 	}
 
 	return iv
-}
-
-// loopbce performs loop based bounds check elimination.
-func loopbce(f *Func) {
-	ivList := findIndVar(f)
-
-	m := make(map[*Value]indVar)
-	for _, iv := range ivList {
-		m[iv.ind] = iv
-	}
-
-	removeBoundsChecks(f, m)
-}
-
-// removesBoundsChecks remove IsInBounds and IsSliceInBounds based on the induction variables.
-func removeBoundsChecks(f *Func, m map[*Value]indVar) {
-	sdom := f.sdom()
-	for _, b := range f.Blocks {
-		if b.Kind != BlockIf {
-			continue
-		}
-
-		v := b.Control
-
-		// Simplify:
-		// (IsInBounds ind max) where 0 <= const == min <= ind < max.
-		// (IsSliceInBounds ind max) where 0 <= const == min <= ind < max.
-		// Found in:
-		//	for i := range a {
-		//		use a[i]
-		//		use a[i:]
-		//		use a[:i]
-		//	}
-		if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
-			ind, add := dropAdd64(v.Args[0])
-			if ind.Op != OpPhi {
-				goto skip1
-			}
-			if v.Op == OpIsInBounds && add != 0 {
-				goto skip1
-			}
-			if v.Op == OpIsSliceInBounds && (0 > add || add > 1) {
-				goto skip1
-			}
-
-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
-				if v.Args[1] == iv.max {
-					if f.pass.debug > 0 {
-						f.Warnl(b.Pos, "Found redundant %s", v.Op)
-					}
-					goto simplify
-				}
-			}
-		}
-	skip1:
-
-		// Simplify:
-		// (IsSliceInBounds ind (SliceCap a)) where 0 <= min <= ind < max == (SliceLen a)
-		// Found in:
-		//	for i := range a {
-		//		use a[:i]
-		//		use a[:i+1]
-		//	}
-		if v.Op == OpIsSliceInBounds {
-			ind, add := dropAdd64(v.Args[0])
-			if ind.Op != OpPhi {
-				goto skip2
-			}
-			if 0 > add || add > 1 {
-				goto skip2
-			}
-
-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
-				if v.Args[1].Op == OpSliceCap && iv.max.Op == OpSliceLen && v.Args[1].Args[0] == iv.max.Args[0] {
-					if f.pass.debug > 0 {
-						f.Warnl(b.Pos, "Found redundant %s (len promoted to cap)", v.Op)
-					}
-					goto simplify
-				}
-			}
-		}
-	skip2:
-
-		// Simplify
-		// (IsInBounds (Add64 ind) (Const64 [c])) where 0 <= min <= ind < max <= (Const64 [c])
-		// (IsSliceInBounds ind (Const64 [c])) where 0 <= min <= ind < max <= (Const64 [c])
-		if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
-			ind, add := dropAdd64(v.Args[0])
-			if ind.Op != OpPhi {
-				goto skip3
-			}
-
-			// ind + add >= 0 <-> min + add >= 0 <-> min >= -add
-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
-				if !v.Args[1].isGenericIntConst() || !iv.max.isGenericIntConst() {
-					goto skip3
-				}
-
-				limit := v.Args[1].AuxInt
-				if v.Op == OpIsSliceInBounds {
-					// If limit++ overflows signed integer then 0 <= max && max <= limit will be false.
-					limit++
-				}
-
-				if max := iv.max.AuxInt + add; 0 <= max && max <= limit { // handle overflow
-					if f.pass.debug > 0 {
-						f.Warnl(b.Pos, "Found redundant (%s ind %d), ind < %d", v.Op, v.Args[1].AuxInt, iv.max.AuxInt+add)
-					}
-					goto simplify
-				}
-			}
-		}
-	skip3:
-
-		continue
-
-	simplify:
-		f.Logf("removing bounds check %v at %v in %s\n", b.Control, b, f.Name)
-		b.Kind = BlockFirst
-		b.SetControl(nil)
-	}
 }
 
 func dropAdd64(v *Value) (*Value, int64) {
@@ -290,12 +197,33 @@ func dropAdd64(v *Value) (*Value, int64) {
 	return v, 0
 }
 
-func isGreaterOrEqualThan(v *Value, c int64) bool {
-	if c == 0 {
-		return isNonNegative(v)
+func printIndVar(b *Block, i, min, max *Value, inc int64, flags indVarFlags) {
+	mb1, mb2 := "[", "]"
+	if flags&indVarMinExc != 0 {
+		mb1 = "("
 	}
-	if v.isGenericIntConst() && v.AuxInt >= c {
-		return true
+	if flags&indVarMaxInc == 0 {
+		mb2 = ")"
 	}
-	return false
+
+	mlim1, mlim2 := fmt.Sprint(min.AuxInt), fmt.Sprint(max.AuxInt)
+	if !min.isGenericIntConst() {
+		if b.Func.pass.debug >= 2 {
+			mlim1 = fmt.Sprint(min)
+		} else {
+			mlim1 = "?"
+		}
+	}
+	if !max.isGenericIntConst() {
+		if b.Func.pass.debug >= 2 {
+			mlim2 = fmt.Sprint(max)
+		} else {
+			mlim2 = "?"
+		}
+	}
+	extra := ""
+	if b.Func.pass.debug >= 2 {
+		extra = fmt.Sprintf(" (%s)", i)
+	}
+	b.Func.Warnl(b.Pos, "Induction variable: limits %v%v,%v%v, increment %d%s", mb1, mlim1, mlim2, mb2, inc, extra)
 }

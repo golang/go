@@ -9,11 +9,13 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"internal/race"
 	"math/big"
 	"math/rand"
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"testing/quick"
 	. "time"
@@ -673,7 +675,7 @@ var gobTests = []Time{
 	Date(0, 1, 2, 3, 4, 5, 6, UTC),
 	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
 	Unix(81985467080890095, 0x76543210), // Time.sec: 0x0123456789ABCDEF
-	{}, // nil location
+	{},                                  // nil location
 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", 32767*60)),
 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", -32768*60)),
 }
@@ -978,6 +980,8 @@ var subTests = []struct {
 	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), Duration(maxDuration)},
 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2290, 1, 1, 0, 0, 0, 0, UTC), -290*365*24*Hour - 71*24*Hour},
 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), Duration(minDuration)},
+	{MinMonoTime, MaxMonoTime, minDuration},
+	{MaxMonoTime, MinMonoTime, maxDuration},
 }
 
 func TestSub(t *testing.T) {
@@ -1319,6 +1323,16 @@ func TestZeroMonthString(t *testing.T) {
 	}
 }
 
+// Issue 24692: Out of range weekday panics
+func TestWeekdayString(t *testing.T) {
+	if got, want := Weekday(Tuesday).String(), "Tuesday"; got != want {
+		t.Errorf("Tuesday weekday = %q; want %q", got, want)
+	}
+	if got, want := Weekday(14).String(), "%!Weekday(14)"; got != want {
+		t.Errorf("14th weekday = %q; want %q", got, want)
+	}
+}
+
 func TestReadFileLimit(t *testing.T) {
 	const zero = "/dev/zero"
 	if _, err := os.Stat(zero); err != nil {
@@ -1328,4 +1342,39 @@ func TestReadFileLimit(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "is too large") {
 		t.Errorf("readFile(%q) error = %v; want error containing 'is too large'", zero, err)
 	}
+}
+
+// Issue 25686: hard crash on concurrent timer access.
+// This test deliberately invokes a race condition.
+// We are testing that we don't crash with "fatal error: panic holding locks".
+func TestConcurrentTimerReset(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test under race detector")
+	}
+
+	// We expect this code to panic rather than crash.
+	// Don't worry if it doesn't panic.
+	catch := func(i int) {
+		if e := recover(); e != nil {
+			t.Logf("panic in goroutine %d, as expected, with %q", i, e)
+		} else {
+			t.Logf("no panic in goroutine %d", i)
+		}
+	}
+
+	const goroutines = 8
+	const tries = 1000
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	timer := NewTimer(Hour)
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+			defer catch(i)
+			for j := 0; j < tries; j++ {
+				timer.Reset(Hour + Duration(i*j))
+			}
+		}(i)
+	}
+	wg.Wait()
 }

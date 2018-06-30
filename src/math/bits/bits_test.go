@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package bits
+package bits_test
 
 import (
+	. "math/bits"
 	"testing"
 	"unsafe"
 )
@@ -83,7 +84,7 @@ func TestLeadingZeros(t *testing.T) {
 // Exported (global) variable serving as input for some
 // of the benchmarks to ensure side-effect free calls
 // are not optimized away.
-var Input uint64 = deBruijn64
+var Input uint64 = DeBruijn64
 
 // Exported (global) variable to store function results
 // during benchmarking to ensure side-effect free calls
@@ -333,7 +334,7 @@ func BenchmarkOnesCount64(b *testing.B) {
 }
 
 func TestRotateLeft(t *testing.T) {
-	var m uint64 = deBruijn64
+	var m uint64 = DeBruijn64
 
 	for k := uint(0); k < 128; k++ {
 		x8 := uint8(m)

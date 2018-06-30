@@ -16,6 +16,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/http/internal"
+	"net/textproto"
 	"net/url"
 	"os"
 	"reflect"
@@ -958,7 +960,7 @@ func TestTransportExpect100Continue(t *testing.T) {
 	}
 }
 
-func TestSocks5Proxy(t *testing.T) {
+func TestSOCKS5Proxy(t *testing.T) {
 	defer afterTest(t)
 	ch := make(chan string, 1)
 	l := newLocalListener(t)
@@ -995,9 +997,9 @@ func TestSocks5Proxy(t *testing.T) {
 		var ipLen int
 		switch buf[3] {
 		case 1:
-			ipLen = 4
+			ipLen = net.IPv4len
 		case 4:
-			ipLen = 16
+			ipLen = net.IPv6len
 		default:
 			t.Errorf("socks5 proxy second read: unexpected address type %v", buf[4])
 			return
@@ -2286,6 +2288,7 @@ Content-Length: %d
 	c := &Client{Transport: tr}
 
 	testResponse := func(req *Request, name string, wantCode int) {
+		t.Helper()
 		res, err := c.Do(req)
 		if err != nil {
 			t.Fatalf("%s: Do: %v", name, err)
@@ -2308,13 +2311,67 @@ Content-Length: %d
 		req.Header.Set("Request-Id", reqID(i))
 		testResponse(req, fmt.Sprintf("100, %d/%d", i, numReqs), 200)
 	}
+}
 
-	// And some other informational 1xx but non-100 responses, to test
-	// we return them but don't re-use the connection.
-	for i := 1; i <= numReqs; i++ {
-		req, _ := NewRequest("POST", "http://other.tld/", strings.NewReader(reqBody(i)))
-		req.Header.Set("X-Want-Response-Code", "123 Sesame Street")
-		testResponse(req, fmt.Sprintf("123, %d/%d", i, numReqs), 123)
+// Issue 17739: the HTTP client must ignore any unknown 1xx
+// informational responses before the actual response.
+func TestTransportIgnore1xxResponses(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.Write([]byte("HTTP/1.1 123 OneTwoThree\r\nFoo: bar\r\n\r\nHTTP/1.1 200 OK\r\nBar: baz\r\nContent-Length: 5\r\n\r\nHello"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+	cst.tr.DisableKeepAlives = true // prevent log spam; our test server is hanging up anyway
+
+	var got bytes.Buffer
+
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			fmt.Fprintf(&got, "1xx: code=%v, header=%v\n", code, header)
+			return nil
+		},
+	}))
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	res.Write(&got)
+	want := "1xx: code=123, header=map[Foo:[bar]]\nHTTP/1.1 200 OK\r\nContent-Length: 5\r\nBar: baz\r\n\r\nHello"
+	if got.String() != want {
+		t.Errorf(" got: %q\nwant: %q\n", got.Bytes(), want)
+	}
+}
+
+func TestTransportLimits1xxResponses(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		for i := 0; i < 10; i++ {
+			buf.Write([]byte("HTTP/1.1 123 OneTwoThree\r\n\r\n"))
+		}
+		buf.Write([]byte("HTTP/1.1 204 No Content\r\n\r\n"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+	cst.tr.DisableKeepAlives = true // prevent log spam; our test server is hanging up anyway
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if res != nil {
+		defer res.Body.Close()
+	}
+	got := fmt.Sprint(err)
+	wantSub := "too many 1xx informational responses"
+	if !strings.Contains(got, wantSub) {
+		t.Errorf("Get error = %v; want substring %q", err, wantSub)
 	}
 }
 
@@ -2380,7 +2437,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	// where HTTP_PROXY can be attacker-controlled.
 	{env: "http://10.1.2.3:8080", reqmeth: "POST",
 		want:    "<nil>",
-		wanterr: errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")},
+		wanterr: errors.New("refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")},
 
 	{want: "<nil>"},
 
@@ -2391,28 +2448,50 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	{noenv: ".foo.com", req: "http://example.com/", env: "proxy", want: "http://proxy"},
 }
 
+func testProxyForRequest(t *testing.T, tt proxyFromEnvTest, proxyForRequest func(req *Request) (*url.URL, error)) {
+	t.Helper()
+	reqURL := tt.req
+	if reqURL == "" {
+		reqURL = "http://example.com"
+	}
+	req, _ := NewRequest("GET", reqURL, nil)
+	url, err := proxyForRequest(req)
+	if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
+		t.Errorf("%v: got error = %q, want %q", tt, g, e)
+		return
+	}
+	if got := fmt.Sprintf("%s", url); got != tt.want {
+		t.Errorf("%v: got URL = %q, want %q", tt, url, tt.want)
+	}
+}
+
 func TestProxyFromEnvironment(t *testing.T) {
 	ResetProxyEnv()
 	defer ResetProxyEnv()
 	for _, tt := range proxyFromEnvTests {
-		os.Setenv("HTTP_PROXY", tt.env)
-		os.Setenv("HTTPS_PROXY", tt.httpsenv)
-		os.Setenv("NO_PROXY", tt.noenv)
-		os.Setenv("REQUEST_METHOD", tt.reqmeth)
-		ResetCachedEnvironment()
-		reqURL := tt.req
-		if reqURL == "" {
-			reqURL = "http://example.com"
-		}
-		req, _ := NewRequest("GET", reqURL, nil)
-		url, err := ProxyFromEnvironment(req)
-		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
-			t.Errorf("%v: got error = %q, want %q", tt, g, e)
-			continue
-		}
-		if got := fmt.Sprintf("%s", url); got != tt.want {
-			t.Errorf("%v: got URL = %q, want %q", tt, url, tt.want)
-		}
+		testProxyForRequest(t, tt, func(req *Request) (*url.URL, error) {
+			os.Setenv("HTTP_PROXY", tt.env)
+			os.Setenv("HTTPS_PROXY", tt.httpsenv)
+			os.Setenv("NO_PROXY", tt.noenv)
+			os.Setenv("REQUEST_METHOD", tt.reqmeth)
+			ResetCachedEnvironment()
+			return ProxyFromEnvironment(req)
+		})
+	}
+}
+
+func TestProxyFromEnvironmentLowerCase(t *testing.T) {
+	ResetProxyEnv()
+	defer ResetProxyEnv()
+	for _, tt := range proxyFromEnvTests {
+		testProxyForRequest(t, tt, func(req *Request) (*url.URL, error) {
+			os.Setenv("http_proxy", tt.env)
+			os.Setenv("https_proxy", tt.httpsenv)
+			os.Setenv("no_proxy", tt.noenv)
+			os.Setenv("REQUEST_METHOD", tt.reqmeth)
+			ResetCachedEnvironment()
+			return ProxyFromEnvironment(req)
+		})
 	}
 }
 
@@ -3263,8 +3342,8 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 	defer res.Body.Close()
 
 	want := []string{
-		"POST / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: x\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n" +
-			"5\r\nnum0\n\r\n",
+		"POST / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: x\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n",
+		"5\r\nnum0\n\r\n",
 		"5\r\nnum1\n\r\n",
 		"5\r\nnum2\n\r\n",
 		"0\r\n\r\n",
@@ -3272,6 +3351,40 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 	if !reflect.DeepEqual(lw.writes, want) {
 		t.Errorf("Writes differed.\n Got: %q\nWant: %q\n", lw.writes, want)
 	}
+}
+
+// Issue 22088: flush Transport request headers if we're not sure the body won't block on read.
+func TestTransportFlushesRequestHeader(t *testing.T) {
+	defer afterTest(t)
+	gotReq := make(chan struct{})
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		close(gotReq)
+	}))
+	defer cst.close()
+
+	pr, pw := io.Pipe()
+	req, err := NewRequest("POST", cst.ts.URL, pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotRes := make(chan struct{})
+	go func() {
+		defer close(gotRes)
+		res, err := cst.tr.RoundTrip(req)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		res.Body.Close()
+	}()
+
+	select {
+	case <-gotReq:
+		pw.Close()
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for handler to get request")
+	}
+	<-gotRes
 }
 
 // Issue 11745.
@@ -3620,7 +3733,9 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
-	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader("some body"))
+	body := "some body"
+	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader(body))
+	req.Header["X-Foo-Multiple-Vals"] = []string{"bar", "baz"}
 	trace := &httptrace.ClientTrace{
 		GetConn:              func(hostPort string) { logf("Getting conn for %v ...", hostPort) },
 		GotConn:              func(ci httptrace.GotConnInfo) { logf("got conn: %+v", ci) },
@@ -3634,6 +3749,12 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 				t.Errorf("ConnectDone: %v", err)
 			}
 			logf("ConnectDone: connected to %s %s = %v", network, addr, err)
+		},
+		WroteHeaderField: func(key string, value []string) {
+			logf("WroteHeaderField: %s: %v", key, value)
+		},
+		WroteHeaders: func() {
+			logf("WroteHeaders")
 		},
 		Wait100Continue: func() { logf("Wait100Continue") },
 		Got100Continue:  func() { logf("Got100Continue") },
@@ -3704,13 +3825,83 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		wantOnce("tls handshake done")
 	} else {
 		wantOnce("PutIdleConn = <nil>")
+		wantOnce("WroteHeaderField: User-Agent: [Go-http-client/1.1]")
+		// TODO(meirf): issue 19761. Make these agnostic to h1/h2. (These are not h1 specific, but the
+		// WroteHeaderField hook is not yet implemented in h2.)
+		wantOnce(fmt.Sprintf("WroteHeaderField: Host: [dns-is-faked.golang:%s]", port))
+		wantOnce(fmt.Sprintf("WroteHeaderField: Content-Length: [%d]", len(body)))
+		wantOnce("WroteHeaderField: X-Foo-Multiple-Vals: [bar baz]")
+		wantOnce("WroteHeaderField: Accept-Encoding: [gzip]")
 	}
+	wantOnce("WroteHeaders")
 	wantOnce("Wait100Continue")
 	wantOnce("Got100Continue")
 	wantOnce("WroteRequest: {Err:<nil>}")
 	if strings.Contains(got, " to udp ") {
 		t.Errorf("should not see UDP (DNS) connections")
 	}
+	if t.Failed() {
+		t.Errorf("Output:\n%s", got)
+	}
+}
+
+func TestTransportEventTraceTLSVerify(t *testing.T) {
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	logf := func(format string, args ...interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(&buf, format, args...)
+		buf.WriteByte('\n')
+	}
+
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Error("Unexpected request")
+	}))
+	defer ts.Close()
+	ts.Config.ErrorLog = log.New(funcWriter(func(p []byte) (int, error) {
+		logf("%s", p)
+		return len(p), nil
+	}), "", 0)
+
+	certpool := x509.NewCertPool()
+	certpool.AddCert(ts.Certificate())
+
+	c := &Client{Transport: &Transport{
+		TLSClientConfig: &tls.Config{
+			ServerName: "dns-is-faked.golang",
+			RootCAs:    certpool,
+		},
+	}}
+
+	trace := &httptrace.ClientTrace{
+		TLSHandshakeStart: func() { logf("TLSHandshakeStart") },
+		TLSHandshakeDone: func(s tls.ConnectionState, err error) {
+			logf("TLSHandshakeDone: ConnectionState = %v \n err = %v", s, err)
+		},
+	}
+
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), trace))
+	_, err := c.Do(req)
+	if err == nil {
+		t.Error("Expected request to fail TLS verification")
+	}
+
+	mu.Lock()
+	got := buf.String()
+	mu.Unlock()
+
+	wantOnce := func(sub string) {
+		if strings.Count(got, sub) != 1 {
+			t.Errorf("expected substring %q exactly once in output.", sub)
+		}
+	}
+
+	wantOnce("TLSHandshakeStart")
+	wantOnce("TLSHandshakeDone")
+	wantOnce("err = x509: certificate is valid for example.com")
+
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
 	}
@@ -4363,5 +4554,34 @@ func TestNoBodyOnChunked304Response(t *testing.T) {
 
 	if res.Body != NoBody {
 		t.Errorf("Unexpected body on 304 response")
+	}
+}
+
+type funcWriter func([]byte) (int, error)
+
+func (f funcWriter) Write(p []byte) (int, error) { return f(p) }
+
+type doneContext struct {
+	context.Context
+	err error
+}
+
+func (doneContext) Done() <-chan struct{} {
+	c := make(chan struct{})
+	close(c)
+	return c
+}
+
+func (d doneContext) Err() error { return d.err }
+
+// Issue 25852: Transport should check whether Context is done early.
+func TestTransportCheckContextDoneEarly(t *testing.T) {
+	tr := &Transport{}
+	req, _ := NewRequest("GET", "http://fake.example/", nil)
+	wantErr := errors.New("some error")
+	req = req.WithContext(doneContext{context.Background(), wantErr})
+	_, err := tr.RoundTrip(req)
+	if err != wantErr {
+		t.Errorf("error = %v; want %v", err, wantErr)
 	}
 }

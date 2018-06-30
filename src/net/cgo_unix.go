@@ -249,7 +249,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, 
 	var zone string
 	ip := parseIPv4(addr)
 	if ip == nil {
-		ip, zone = parseIPv6(addr, true)
+		ip, zone = parseIPv6Zone(addr)
 	}
 	if ip == nil {
 		return nil, &DNSError{Err: "invalid address", Name: addr}, true

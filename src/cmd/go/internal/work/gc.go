@@ -57,9 +57,14 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		gcargs = append(gcargs, "-std")
 	}
 	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
+	// The runtime package imports a couple of general internal packages.
+	if p.Standard && (p.ImportPath == "internal/cpu" || p.ImportPath == "internal/bytealg") {
+		compilingRuntime = true
+	}
 	if compilingRuntime {
-		// runtime compiles with a special gc flag to emit
-		// additional reflect type data.
+		// runtime compiles with a special gc flag to check for
+		// memory allocations that are invalid in the runtime package,
+		// and to implement some special compiler pragmas.
 		gcargs = append(gcargs, "-+")
 	}
 
@@ -84,7 +89,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		gcargs = append(gcargs, "-buildid", a.buildID)
 	}
 	platform := cfg.Goos + "/" + cfg.Goarch
-	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || platform == "darwin/arm" || platform == "darwin/arm64" || cfg.Goos == "plan9" {
+	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
 		gcargs = append(gcargs, "-dwarf=false")
 	}
 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
@@ -128,7 +133,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		args = append(args, mkAbs(p.Dir, f))
 	}
 
-	output, err = b.runOut(p.Dir, p.ImportPath, nil, args...)
+	output, err = b.runOut(p.Dir, nil, args...)
 	return ofile, output, err
 }
 
@@ -228,6 +233,11 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
 	}
 
+	if cfg.Goarch == "mips64" || cfg.Goarch == "mips64le" {
+		// Define GOMIPS64_value from cfg.GOMIPS64.
+		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
+	}
+
 	var ofiles []string
 	for _, sfile := range sfiles {
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
@@ -289,14 +299,14 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 	if cfg.BuildN {
 		return nil
 	}
-	if err := packInternal(b, absAfile, absOfiles); err != nil {
-		b.showOutput(a, p.Dir, p.ImportPath, err.Error()+"\n")
+	if err := packInternal(absAfile, absOfiles); err != nil {
+		b.showOutput(a, p.Dir, p.Desc(), err.Error()+"\n")
 		return errPrintedOutput
 	}
 	return nil
 }
 
-func packInternal(b *Builder, afile string, ofiles []string) error {
+func packInternal(afile string, ofiles []string) error {
 	dst, err := os.OpenFile(afile, os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
 		return err

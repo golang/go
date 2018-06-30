@@ -37,8 +37,7 @@ type importer struct {
 	posInfoFormat bool
 	prevFile      string
 	prevLine      int
-	fset          *token.FileSet
-	files         map[string]*token.File
+	fake          fakeFileSet
 
 	// debugging support
 	debugFormat bool
@@ -51,12 +50,16 @@ type importer struct {
 // compromised, an error is returned.
 func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
 	// catch panics and return them as errors
+	const currentVersion = 6
+	version := -1 // unknown version
 	defer func() {
 		if e := recover(); e != nil {
-			// The package (filename) causing the problem is added to this
-			// error by a wrapper in the caller (Import in gcimporter.go).
 			// Return a (possibly nil or incomplete) package unchanged (see #16088).
-			err = fmt.Errorf("cannot import, possibly version skew (%v) - reinstall package", e)
+			if version > currentVersion {
+				err = fmt.Errorf("cannot import %q (%v), export data is newer version - update tool", path, e)
+			} else {
+				err = fmt.Errorf("cannot import %q (%v), possibly version skew - reinstall package", path, e)
+			}
 		}
 	}()
 
@@ -64,11 +67,13 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		imports:    imports,
 		data:       data,
 		importpath: path,
-		version:    -1,           // unknown version
+		version:    version,
 		strList:    []string{""}, // empty string is mapped to 0
 		pathList:   []string{""}, // empty string is mapped to 0
-		fset:       fset,
-		files:      make(map[string]*token.File),
+		fake: fakeFileSet{
+			fset:  fset,
+			files: make(map[string]*token.File),
+		},
 	}
 
 	// read version info
@@ -87,7 +92,7 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		p.posInfoFormat = p.int() != 0
 		versionstr = p.string()
 		if versionstr == "v1" {
-			p.version = 0
+			version = 0
 		}
 	} else {
 		// Go1.8 extensible encoding
@@ -95,24 +100,25 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		versionstr = p.rawStringln(b)
 		if s := strings.SplitN(versionstr, " ", 3); len(s) >= 2 && s[0] == "version" {
 			if v, err := strconv.Atoi(s[1]); err == nil && v > 0 {
-				p.version = v
+				version = v
 			}
 		}
 	}
+	p.version = version
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 6:
+	// case currentVersion:
 	// 	...
 	//	fallthrough
-	case 5, 4, 3, 2, 1:
+	case currentVersion, 5, 4, 3, 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.int() != 0
 		p.posInfoFormat = p.int() != 0
 	case 0:
 		// Go1.7 encoding format - nothing to do here
 	default:
-		errorf("unknown export format version %d (%q)", p.version, versionstr)
+		errorf("unknown bexport format version %d (%q)", p.version, versionstr)
 	}
 
 	// --- generic export data ---
@@ -181,6 +187,9 @@ func (p *importer) pkg() *types.Package {
 		path = p.path()
 	} else {
 		path = p.string()
+	}
+	if p.version >= 6 {
+		p.int() // package height; unused by go/types
 	}
 
 	// we should never see an empty package name
@@ -321,15 +330,23 @@ func (p *importer) pos() token.Pos {
 	p.prevFile = file
 	p.prevLine = line
 
-	// Synthesize a token.Pos
+	return p.fake.pos(file, line)
+}
 
+// Synthesize a token.Pos
+type fakeFileSet struct {
+	fset  *token.FileSet
+	files map[string]*token.File
+}
+
+func (s *fakeFileSet) pos(file string, line int) token.Pos {
 	// Since we don't know the set of needed file positions, we
 	// reserve maxlines positions per file.
 	const maxlines = 64 * 1024
-	f := p.files[file]
+	f := s.files[file]
 	if f == nil {
-		f = p.fset.AddFile(file, -1, maxlines)
-		p.files[file] = f
+		f = s.fset.AddFile(file, -1, maxlines)
+		s.files[file] = f
 		// Allocate the fake linebreak indices on first use.
 		// TODO(adonovan): opt: save ~512KB using a more complex scheme?
 		fakeLinesOnce.Do(func() {
@@ -513,13 +530,13 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
 			p.record(nil)
 		}
 
-		var embeddeds []*types.Named
+		var embeddeds []types.Type
 		for n := p.int(); n > 0; n-- {
 			p.pos()
-			embeddeds = append(embeddeds, p.typ(parent, nil).(*types.Named))
+			embeddeds = append(embeddeds, p.typ(parent, nil))
 		}
 
-		t := types.NewInterface(p.methodList(parent, tname), embeddeds)
+		t := types.NewInterfaceType(p.methodList(parent, tname), embeddeds)
 		p.interfaceList = append(p.interfaceList, t)
 		if p.trackAllTypes {
 			p.typList[n] = t
@@ -543,18 +560,7 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
 			p.record(t)
 		}
 
-		var dir types.ChanDir
-		// tag values must match the constants in cmd/compile/internal/gc/go.go
-		switch d := p.int(); d {
-		case 1 /* Crecv */ :
-			dir = types.RecvOnly
-		case 2 /* Csend */ :
-			dir = types.SendOnly
-		case 3 /* Cboth */ :
-			dir = types.SendRecv
-		default:
-			errorf("unexpected channel dir %d", d)
-		}
+		dir := chanDir(p.int())
 		val := p.typ(parent, nil)
 		*t = *types.NewChan(dir, val)
 		return t
@@ -562,6 +568,21 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
 	default:
 		errorf("unexpected type tag %d", i) // panics
 		panic("unreachable")
+	}
+}
+
+func chanDir(d int) types.ChanDir {
+	// tag values must match the constants in cmd/compile/internal/gc/go.go
+	switch d {
+	case 1 /* Crecv */ :
+		return types.RecvOnly
+	case 2 /* Csend */ :
+		return types.SendOnly
+	case 3 /* Cboth */ :
+		return types.SendRecv
+	default:
+		errorf("unexpected channel dir %d", d)
+		return 0
 	}
 }
 

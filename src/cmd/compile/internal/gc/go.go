@@ -78,7 +78,7 @@ var sizeof_Array int // runtime sizeof(Array)
 // } String;
 var sizeof_String int // runtime sizeof(String)
 
-var pragcgobuf string
+var pragcgobuf [][]string
 
 var outfile string
 var linkobj string
@@ -126,6 +126,9 @@ var unsafepkg *types.Pkg // package unsafe
 var trackpkg *types.Pkg // fake package for field tracking
 
 var mappkg *types.Pkg // fake package for map zero value
+
+var gopkg *types.Pkg // pseudo-package for method symbols on anonymous receiver types
+
 var zerosize int64
 
 var myimportpath string
@@ -274,30 +277,47 @@ var (
 	staticbytes,
 	zerobase *Node
 
-	Newproc,
-	Deferproc,
-	Deferreturn,
-	Duffcopy,
-	Duffzero,
-	panicindex,
-	panicslice,
-	panicdivide,
-	growslice,
-	panicdottypeE,
-	panicdottypeI,
-	panicnildottype,
 	assertE2I,
 	assertE2I2,
 	assertI2I,
 	assertI2I2,
-	goschedguarded,
-	writeBarrier,
+	Deferproc,
+	Deferreturn,
+	Duffcopy,
+	Duffzero,
 	gcWriteBarrier,
-	typedmemmove,
+	goschedguarded,
+	growslice,
+	msanread,
+	msanwrite,
+	Newproc,
+	panicdivide,
+	panicdottypeE,
+	panicdottypeI,
+	panicindex,
+	panicnildottype,
+	panicslice,
+	raceread,
+	racereadrange,
+	racewrite,
+	racewriterange,
+	supportPopcnt,
+	supportSSE41,
+	arm64SupportAtomics,
 	typedmemclr,
-	Udiv *obj.LSym
+	typedmemmove,
+	Udiv,
+	writeBarrier *obj.LSym
 
 	// GO386=387
 	ControlWord64trunc,
 	ControlWord32 *obj.LSym
+
+	// Wasm
+	WasmMove,
+	WasmZero,
+	WasmDiv,
+	WasmTruncS,
+	WasmTruncU,
+	SigPanic *obj.LSym
 )

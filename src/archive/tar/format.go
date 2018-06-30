@@ -94,7 +94,7 @@ const (
 	// application can only parse GNU formatted archives.
 	//
 	// Reference:
-	//	http://www.gnu.org/software/tar/manual/html_node/Standard.html
+	//	https://www.gnu.org/software/tar/manual/html_node/Standard.html
 	FormatGNU
 
 	// Schily's tar format, which is incompatible with USTAR.

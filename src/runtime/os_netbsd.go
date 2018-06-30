@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -66,6 +67,12 @@ func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
 func lwp_self() int32
 
 func osyield()
+
+func kqueue() int32
+
+//go:noescape
+func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+func closeonexec(fd int32)
 
 const (
 	_ESRCH     = 3
@@ -173,7 +180,8 @@ func semawakeup(mp *m) {
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
@@ -223,7 +231,9 @@ func netbsdMstart() {
 
 func osinit() {
 	ncpu = getncpu()
-	physPageSize = getPageSize()
+	if physPageSize == 0 {
+		physPageSize = getPageSize()
+	}
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -324,4 +334,35 @@ func sigdelset(mask *sigset, i int) {
 }
 
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func sysargs(argc int32, argv **byte) {
+	n := argc + 1
+
+	// skip over argv, envp to get to auxv
+	for argv_index(argv, n) != nil {
+		n++
+	}
+
+	// skip NULL separator
+	n++
+
+	// now argv+n is auxv
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	sysauxv(auxv[:])
+}
+
+const (
+	_AT_NULL   = 0 // Terminates the vector
+	_AT_PAGESZ = 6 // Page size in bytes
+)
+
+func sysauxv(auxv []uintptr) {
+	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+		tag, val := auxv[i], auxv[i+1]
+		switch tag {
+		case _AT_PAGESZ:
+			physPageSize = val
+		}
+	}
 }

@@ -286,12 +286,12 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d0 *digest) Sum(in []byte) []byte {
-	// Make a copy of d0 so that caller can keep writing and summing.
-	d := new(digest)
-	*d = *d0
-	hash := d.checkSum()
-	switch d.function {
+func (d *digest) Sum(in []byte) []byte {
+	// Make a copy of d so that caller can keep writing and summing.
+	d0 := new(digest)
+	*d0 = *d
+	hash := d0.checkSum()
+	switch d0.function {
 	case crypto.SHA384:
 		return append(in, hash[:Size384]...)
 	case crypto.SHA512_224:

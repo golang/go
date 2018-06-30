@@ -15,7 +15,7 @@ goos=$(go env GOOS)
 goarch=$(go env GOARCH)
 
 function cleanup() {
-	rm -f plugin*.so unnamed*.so iface*.so issue*
+	rm -f plugin*.so unnamed*.so iface*.so life.so issue*
 	rm -rf host pkg sub iface
 }
 trap cleanup EXIT
@@ -85,3 +85,17 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22175 src/issue22175/main.
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue.22295.so issue22295.pkg
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22295 src/issue22295.pkg/main.go
 ./issue22295
+
+# Test for issue 24351
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue24351.so src/issue24351/plugin.go
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue24351 src/issue24351/main.go
+./issue24351
+
+# Test for issue 25756
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o life.so issue25756/plugin
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue25756 src/issue25756/main.go
+# Fails intermittently, but 20 runs should cause the failure
+for i in `seq 1 20`;
+do
+  ./issue25756 > /dev/null
+done

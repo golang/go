@@ -84,6 +84,7 @@ import (
 	"internal/poll"
 	"io"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -229,7 +230,7 @@ func (c *conn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.pfd.SetDeadline(t); err != nil {
+	if err := c.fd.SetDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -240,7 +241,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.pfd.SetReadDeadline(t); err != nil {
+	if err := c.fd.SetReadDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -251,7 +252,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.pfd.SetWriteDeadline(t); err != nil {
+	if err := c.fd.SetWriteDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -281,15 +282,13 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	return nil
 }
 
-// File sets the underlying os.File to blocking mode and returns a copy.
+// File returns a copy of the underlying os.File
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
 //
 // The returned os.File's file descriptor is different from the connection's.
 // Attempting to change properties of the original using this duplicate
 // may or may not have the desired effect.
-//
-// On Unix systems this will cause the SetDeadline methods to stop working.
 func (c *conn) File() (f *os.File, err error) {
 	f, err = c.fd.dup()
 	if err != nil {
@@ -492,6 +491,12 @@ type temporary interface {
 }
 
 func (e *OpError) Temporary() bool {
+	// Treat ECONNRESET and ECONNABORTED as temporary errors when
+	// they come from calling accept. See issue 6163.
+	if e.Op == "accept" && isConnError(e.Err) {
+		return true
+	}
+
 	if ne, ok := e.Err.(*os.SyscallError); ok {
 		t, ok := ne.Err.(temporary)
 		return ok && t.Temporary()
@@ -606,9 +611,14 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 // server is not responding. Then the many lookups each use a different
 // thread, and the system or the program runs out of threads.
 
-var threadLimit = make(chan struct{}, 500)
+var threadLimit chan struct{}
+
+var threadOnce sync.Once
 
 func acquireThread() {
+	threadOnce.Do(func() {
+		threadLimit = make(chan struct{}, concurrentThreadsLimit())
+	})
 	threadLimit <- struct{}{}
 }
 

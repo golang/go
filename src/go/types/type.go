@@ -141,7 +141,7 @@ func NewStruct(fields []*Var, tags []string) *Struct {
 	return &Struct{fields: fields, tags: tags}
 }
 
-// NumFields returns the number of fields in the struct (including blank and anonymous fields).
+// NumFields returns the number of fields in the struct (including blank and embedded fields).
 func (s *Struct) NumFields() int { return len(s.fields) }
 
 // Field returns the i'th field for 0 <= i < NumFields().
@@ -242,8 +242,8 @@ func (s *Signature) Variadic() bool { return s.variadic }
 
 // An Interface represents an interface type.
 type Interface struct {
-	methods   []*Func  // ordered list of explicitly declared methods
-	embeddeds []*Named // ordered list of explicitly embedded types
+	methods   []*Func // ordered list of explicitly declared methods
+	embeddeds []Type  // ordered list of explicitly embedded types
 
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 }
@@ -256,9 +256,28 @@ var emptyInterface = Interface{allMethods: markComplete}
 var markComplete = make([]*Func, 0)
 
 // NewInterface returns a new (incomplete) interface for the given methods and embedded types.
+// Each embedded type must have an underlying type of interface type.
 // NewInterface takes ownership of the provided methods and may modify their types by setting
 // missing receivers. To compute the method set of the interface, Complete must be called.
+//
+// Deprecated: Use NewInterfaceType instead which allows any (even non-defined) interface types
+// to be embedded. This is necessary for interfaces that embed alias type names referring to
+// non-defined (literal) interface types.
 func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+	tnames := make([]Type, len(embeddeds))
+	for i, t := range embeddeds {
+		tnames[i] = t
+	}
+	return NewInterfaceType(methods, tnames)
+}
+
+// NewInterfaceType returns a new (incomplete) interface for the given methods and embedded types.
+// Each embedded type must have an underlying type of interface type (this property is not
+// verified for defined types, which may be in the process of being set up and which don't
+// have a valid underlying type yet).
+// NewInterfaceType takes ownership of the provided methods and may modify their types by setting
+// missing receivers. To compute the method set of the interface, Complete must be called.
+func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	typ := new(Interface)
 
 	if len(methods) == 0 && len(embeddeds) == 0 {
@@ -277,8 +296,17 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	}
 	sort.Sort(byUniqueMethodName(methods))
 
-	if embeddeds != nil {
-		sort.Sort(byUniqueTypeName(embeddeds))
+	if len(embeddeds) > 0 {
+		// All embedded types should be interfaces; however, defined types
+		// may not yet be fully resolved. Only verify that non-defined types
+		// are interfaces. This matches the behavior of the code before the
+		// fix for #25301 (issue #25596).
+		for _, t := range embeddeds {
+			if _, ok := t.(*Named); !ok && !IsInterface(t) {
+				panic("embedded type is not an interface")
+			}
+		}
+		sort.Stable(byUniqueTypeName(embeddeds))
 	}
 
 	typ.methods = methods
@@ -296,9 +324,14 @@ func (t *Interface) ExplicitMethod(i int) *Func { return t.methods[i] }
 // NumEmbeddeds returns the number of embedded types in interface t.
 func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
 
-// Embedded returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
-// The types are ordered by the corresponding TypeName's unique Id.
-func (t *Interface) Embedded(i int) *Named { return t.embeddeds[i] }
+// Embedded returns the i'th embedded defined (*Named) type of interface t for 0 <= i < t.NumEmbeddeds().
+// The result is nil if the i'th embedded type is not a defined type.
+//
+// Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
+func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
+
+// EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
+func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
 
 // NumMethods returns the total number of methods of interface t.
 func (t *Interface) NumMethods() int { return len(t.allMethods) }
@@ -311,36 +344,33 @@ func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
 func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
 
 // Complete computes the interface's method set. It must be called by users of
-// NewInterface after the interface's embedded types are fully defined and
-// before using the interface type in any way other than to form other types.
-// Complete returns the receiver.
+// NewInterfaceType and NewInterface after the interface's embedded types are
+// fully defined and before using the interface type in any way other than to
+// form other types. Complete returns the receiver.
 func (t *Interface) Complete() *Interface {
 	if t.allMethods != nil {
 		return t
 	}
 
 	var allMethods []*Func
-	if t.embeddeds == nil {
-		if t.methods == nil {
-			allMethods = make([]*Func, 0, 1)
-		} else {
-			allMethods = t.methods
+	allMethods = append(allMethods, t.methods...)
+	for _, et := range t.embeddeds {
+		it := et.Underlying().(*Interface)
+		it.Complete()
+		for _, tm := range it.allMethods {
+			// Make a copy of the method and adjust its receiver type.
+			newm := *tm
+			newmtyp := *tm.typ.(*Signature)
+			newm.typ = &newmtyp
+			newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
+			allMethods = append(allMethods, &newm)
 		}
-	} else {
-		allMethods = append(allMethods, t.methods...)
-		for _, et := range t.embeddeds {
-			it := et.Underlying().(*Interface)
-			it.Complete()
-			for _, tm := range it.allMethods {
-				// Make a copy of the method and adjust its receiver type.
-				newm := *tm
-				newmtyp := *tm.typ.(*Signature)
-				newm.typ = &newmtyp
-				newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
-				allMethods = append(allMethods, &newm)
-			}
-		}
-		sort.Sort(byUniqueMethodName(allMethods))
+	}
+	sort.Sort(byUniqueMethodName(allMethods))
+
+	// t.methods and/or t.embeddeds may have been empty
+	if allMethods == nil {
+		allMethods = markComplete
 	}
 	t.allMethods = allMethods
 

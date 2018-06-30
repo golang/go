@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,!386,!amd64,!arm !linux
+// +build linux,!386,!amd64,!arm,!arm64 !linux
 
 package runtime
 

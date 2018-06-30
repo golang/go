@@ -423,6 +423,7 @@ var optab = []Optab{
 	{AVSUBE, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0},  /* vector subtract extended, va-form */
 
 	/* Vector multiply */
+	{AVMULESB, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 9},  /* vector multiply, vx-form */
 	{AVPMSUM, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0},   /* vector polynomial multiply & sum, vx-form */
 	{AVMSUMUDM, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector multiply-sum, va-form */
 
@@ -581,6 +582,8 @@ var optab = []Optab{
 	{AECIWX, C_ZOREG, C_REG, C_NONE, C_REG, 45, 4, 0},
 	{AECOWX, C_REG, C_NONE, C_NONE, C_ZOREG, 44, 4, 0},
 	{AECIWX, C_ZOREG, C_NONE, C_NONE, C_REG, 45, 4, 0},
+	{ALDAR, C_ZOREG, C_NONE, C_NONE, C_REG, 45, 4, 0},
+	{ALDAR, C_ZOREG, C_NONE, C_ANDCON, C_REG, 45, 4, 0},
 	{AEIEIO, C_NONE, C_NONE, C_NONE, C_NONE, 46, 4, 0},
 	{ATLBIE, C_REG, C_NONE, C_NONE, C_NONE, 49, 4, 0},
 	{ATLBIE, C_SCON, C_NONE, C_NONE, C_REG, 49, 4, 0},
@@ -841,13 +844,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 				return C_DACON
 			}
 
-			goto consize
-
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
 			s := a.Sym
 			if s == nil {
-				break
+				return C_GOK
 			}
 
 			c.instoffset = a.Offset
@@ -868,11 +869,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 				return C_SACON
 			}
 			return C_LACON
+
+		default:
+			return C_GOK
 		}
 
-		return C_GOK
-
-	consize:
 		if c.instoffset >= 0 {
 			if c.instoffset == 0 {
 				return C_ZCON
@@ -1342,6 +1343,19 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSUBEUQM, r0)
 			opset(AVSUBECUQ, r0)
 
+		case AVMULESB: /* vmulesb, vmulosb, vmuleub, vmuloub, vmulosh, vmulouh, vmulesw, vmulosw, vmuleuw, vmulouw, vmuluwm */
+			opset(AVMULOSB, r0)
+			opset(AVMULEUB, r0)
+			opset(AVMULOUB, r0)
+			opset(AVMULESH, r0)
+			opset(AVMULOSH, r0)
+			opset(AVMULEUH, r0)
+			opset(AVMULOUH, r0)
+			opset(AVMULESW, r0)
+			opset(AVMULOSW, r0)
+			opset(AVMULEUW, r0)
+			opset(AVMULOUW, r0)
+			opset(AVMULUWM, r0)
 		case AVPMSUM: /* vpmsumb, vpmsumh, vpmsumw, vpmsumd */
 			opset(AVPMSUMB, r0)
 			opset(AVPMSUMH, r0)
@@ -1655,6 +1669,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AFRIPCC, r0)
 			opset(AFRIZ, r0)
 			opset(AFRIZCC, r0)
+			opset(AFRIN, r0)
+			opset(AFRINCC, r0)
 			opset(AFRSQRTE, r0)
 			opset(AFRSQRTECC, r0)
 			opset(AFSQRT, r0)
@@ -1791,10 +1807,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AFMOVS, r0)
 			opset(AFMOVSU, r0)
 
-		case AECIWX:
+		case ALDAR:
 			opset(ALBAR, r0)
+			opset(ALHAR, r0)
 			opset(ALWAR, r0)
-			opset(ALDAR, r0)
 
 		case ASYSCALL: /* just the op; flow of control */
 			opset(ARFI, r0)
@@ -1861,6 +1877,7 @@ func buildop(ctxt *obj.Link) {
 			AVMSUMUDM,
 			AADDEX,
 			ACMPEQB,
+			AECIWX,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -1991,6 +2008,11 @@ func AOP_XX4(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
 /* Z23-form, 3-register operands + CY field */
 func AOP_Z23I(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
 	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<7
+}
+
+/* X-form, 3-register operands + EH field */
+func AOP_RRRI(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
+	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c & 1)
 }
 
 func LOP_RRR(op uint32, a uint32, s uint32, b uint32) uint32 {
@@ -2994,8 +3016,24 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(c.opstorex(p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(p.To.Reg))
 
 	case 45: /* indexed load */
-		o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
-
+		switch p.As {
+		/* The assembler accepts a 4-operand l*arx instruction. The fourth operand is an Exclusive Access Hint (EH) */
+		/* The EH field can be used as a lock acquire/release hint as follows: */
+		/* 0 = Atomic Update (fetch-and-operate or similar algorithm) */
+		/* 1 = Exclusive Access (lock acquire and release) */
+		case ALBAR, ALHAR, ALWAR, ALDAR:
+			if p.From3Type() != obj.TYPE_NONE {
+				eh := int(c.regoff(p.GetFrom3()))
+				if eh > 1 {
+					c.ctxt.Diag("illegal EH field\n%v", p)
+				}
+				o1 = AOP_RRRI(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg), uint32(eh))
+			} else {
+				o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
+			}
+		default:
+			o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
+		}
 	case 46: /* plain op */
 		o1 = c.oprrr(p.As)
 
@@ -3536,7 +3574,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[2] = o3
 	out[3] = o4
 	out[4] = o5
-	return
 }
 
 func (c *ctxt9) vregoff(a *obj.Addr) int64 {
@@ -3861,6 +3898,10 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVCC(63, 424, 0, 0)
 	case AFRIZCC:
 		return OPVCC(63, 424, 0, 1)
+	case AFRIN:
+		return OPVCC(63, 392, 0, 0)
+	case AFRINCC:
+		return OPVCC(63, 392, 0, 1)
 	case AFRSP:
 		return OPVCC(63, 12, 0, 0)
 	case AFRSPCC:
@@ -4158,6 +4199,33 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVX(4, 60, 0, 0) /* vaddeuqm - v2.07 */
 	case AVADDECUQ:
 		return OPVX(4, 61, 0, 0) /* vaddecuq - v2.07 */
+
+	case AVMULESB:
+		return OPVX(4, 776, 0, 0) /* vmulesb - v2.03 */
+	case AVMULOSB:
+		return OPVX(4, 264, 0, 0) /* vmulosb - v2.03 */
+	case AVMULEUB:
+		return OPVX(4, 520, 0, 0) /* vmuleub - v2.03 */
+	case AVMULOUB:
+		return OPVX(4, 8, 0, 0) /* vmuloub - v2.03 */
+	case AVMULESH:
+		return OPVX(4, 840, 0, 0) /* vmulesh - v2.03 */
+	case AVMULOSH:
+		return OPVX(4, 328, 0, 0) /* vmulosh - v2.03 */
+	case AVMULEUH:
+		return OPVX(4, 584, 0, 0) /* vmuleuh - v2.03 */
+	case AVMULOUH:
+		return OPVX(4, 72, 0, 0) /* vmulouh - v2.03 */
+	case AVMULESW:
+		return OPVX(4, 904, 0, 0) /* vmulesw - v2.07 */
+	case AVMULOSW:
+		return OPVX(4, 392, 0, 0) /* vmulosw - v2.07 */
+	case AVMULEUW:
+		return OPVX(4, 648, 0, 0) /* vmuleuw - v2.07 */
+	case AVMULOUW:
+		return OPVX(4, 136, 0, 0) /* vmulouw - v2.07 */
+	case AVMULUWM:
+		return OPVX(4, 137, 0, 0) /* vmuluwm - v2.07 */
 
 	case AVPMSUMB:
 		return OPVX(4, 1032, 0, 0) /* vpmsumb - v2.07 */
@@ -4765,10 +4833,12 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		return OPVCC(31, 310, 0, 0) /* eciwx */
 	case ALBAR:
 		return OPVCC(31, 52, 0, 0) /* lbarx */
+	case ALHAR:
+		return OPVCC(31, 116, 0, 0) /* lharx */
 	case ALWAR:
 		return OPVCC(31, 20, 0, 0) /* lwarx */
 	case ALDAR:
-		return OPVCC(31, 84, 0, 0)
+		return OPVCC(31, 84, 0, 0) /* ldarx */
 	case ALSW:
 		return OPVCC(31, 533, 0, 0) /* lswx */
 	case AMOVD:
@@ -4903,6 +4973,8 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		return OPVCC(31, 661, 0, 0) /* stswx */
 	case AMOVWBR:
 		return OPVCC(31, 662, 0, 0) /* stwbrx */
+	case AMOVDBR:
+		return OPVCC(31, 660, 0, 0) /* stdbrx */
 	case ASTBCCC:
 		return OPVCC(31, 694, 0, 1) /* stbcx. */
 	case ASTWCCC:

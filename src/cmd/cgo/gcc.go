@@ -586,7 +586,25 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 					}
 				}
 			case "fconst":
-				if i < len(floats) {
+				if i >= len(floats) {
+					break
+				}
+				switch base(types[i]).(type) {
+				case *dwarf.IntType, *dwarf.UintType:
+					// This has an integer type so it's
+					// not really a floating point
+					// constant. This can happen when the
+					// C compiler complains about using
+					// the value as an integer constant,
+					// but not as a general constant.
+					// Treat this as a variable of the
+					// appropriate type, not a constant,
+					// to get C-style type handling,
+					// avoiding the problem that C permits
+					// uint64(-1) but Go does not.
+					// See issue 26066.
+					n.Kind = "var"
+				default:
 					n.Const = fmt.Sprintf("%f", floats[i])
 				}
 			case "sconst":

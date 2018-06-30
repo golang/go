@@ -89,3 +89,27 @@ func ExampleSqrt() {
 	fmt.Printf("%.1f", c)
 	// Output: 5.0
 }
+
+func ExampleCeil() {
+	c := math.Ceil(1.49)
+	fmt.Printf("%.1f", c)
+	// Output: 2.0
+}
+
+func ExampleFloor() {
+	c := math.Floor(1.51)
+	fmt.Printf("%.1f", c)
+	// Output: 1.0
+}
+
+func ExamplePow() {
+	c := math.Pow(2, 3)
+	fmt.Printf("%.1f", c)
+	// Output: 8.0
+}
+
+func ExamplePow10() {
+	c := math.Pow10(2)
+	fmt.Printf("%.1f", c)
+	// Output: 100.0
+}

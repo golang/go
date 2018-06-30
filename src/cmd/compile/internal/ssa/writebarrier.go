@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"strings"
 )
 
 // needwb returns whether we need write barrier for store op v.
@@ -99,7 +100,7 @@ func writebarrier(f *Func) {
 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
 			typedmemmove = f.fe.Syslook("typedmemmove")
 			typedmemclr = f.fe.Syslook("typedmemclr")
-			const0 = f.ConstInt32(initpos, f.Config.Types.UInt32, 0)
+			const0 = f.ConstInt32(f.Config.Types.UInt32, 0)
 
 			// allocate auxiliary data structures for computing store order
 			sset = f.newSparseSet(f.NumValues())
@@ -110,6 +111,7 @@ func writebarrier(f *Func) {
 		// order values in store order
 		b.Values = storeOrder(b.Values, sset, storeNumber)
 
+		firstSplit := true
 	again:
 		// find the start and end of the last contiguous WB store sequence.
 		// a branch will be inserted there. values after it will be moved
@@ -267,6 +269,23 @@ func writebarrier(f *Func) {
 			w.Block = bEnd
 		}
 
+		// Preemption is unsafe between loading the write
+		// barrier-enabled flag and performing the write
+		// because that would allow a GC phase transition,
+		// which would invalidate the flag. Remember the
+		// conditional block so liveness analysis can disable
+		// safe-points. This is somewhat subtle because we're
+		// splitting b bottom-up.
+		if firstSplit {
+			// Add b itself.
+			b.Func.WBLoads = append(b.Func.WBLoads, b)
+			firstSplit = false
+		} else {
+			// We've already split b, so we just pushed a
+			// write barrier test into bEnd.
+			b.Func.WBLoads = append(b.Func.WBLoads, bEnd)
+		}
+
 		// if we have more stores in this block, do this block again
 		if nWBops > 0 {
 			goto again
@@ -284,7 +303,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 		// Copy to temp location if the source is volatile (will be clobbered by
 		// a function call). Marshaling the args to typedmemmove might clobber the
 		// value we're trying to move.
-		t := val.Type.ElemType()
+		t := val.Type.Elem()
 		tmp = b.Func.fe.Auto(val.Pos, t)
 		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), tmp, sp)
@@ -344,6 +363,39 @@ func IsStackAddr(v *Value) bool {
 		return true
 	case OpAddr:
 		return v.Args[0].Op == OpSP
+	}
+	return false
+}
+
+// IsSanitizerSafeAddr reports whether v is known to be an address
+// that doesn't need instrumentation.
+func IsSanitizerSafeAddr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+		v = v.Args[0]
+	}
+	switch v.Op {
+	case OpSP:
+		// Stack addresses are always safe.
+		return true
+	case OpITab, OpStringPtr, OpGetClosurePtr:
+		// Itabs, string data, and closure fields are
+		// read-only once initialized.
+		return true
+	case OpAddr:
+		switch v.Args[0].Op {
+		case OpSP:
+			return true
+		case OpSB:
+			sym := v.Aux.(*obj.LSym)
+			// TODO(mdempsky): Find a cleaner way to
+			// detect this. It would be nice if we could
+			// test sym.Type==objabi.SRODATA, but we don't
+			// initialize sym.Type until after function
+			// compilation.
+			if strings.HasPrefix(sym.Name, `"".statictmp_`) {
+				return true
+			}
+		}
 	}
 	return false
 }

@@ -22,7 +22,6 @@
 package expvar
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -32,6 +31,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -111,7 +111,7 @@ type KeyValue struct {
 }
 
 func (v *Map) String() string {
-	var b bytes.Buffer
+	var b strings.Builder
 	fmt.Fprintf(&b, "{")
 	first := true
 	v.Do(func(kv KeyValue) {

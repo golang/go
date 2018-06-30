@@ -166,7 +166,7 @@ TEXT	·erfcAsm(SB), NOSPLIT, $0-16
 	RET
 
 L2:
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	MOVH	$0x0, R4
 	BLTU	L3
 	FMOVD	F0, F1
@@ -264,7 +264,7 @@ L1:
 	FMOVD	F2, ret+8(FP)
 	RET
 L3:
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	BLTU	L30
 	FMOVD	568(R9), F2
 	WFSDB	V0, V2, V0

@@ -70,6 +70,12 @@ func typecheckswitch(n *Node) {
 		if t != nil && !t.IsInterface() {
 			yyerrorl(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
 		}
+		if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
+			// We don't actually declare the type switch's guarded
+			// declaration itself. So if there are no cases, we
+			// won't notice that it went unused.
+			yyerrorl(v.Pos, "%v declared and not used", v.Sym)
+		}
 	} else {
 		// expression switch
 		top = Erv
@@ -137,7 +143,7 @@ func typecheckswitch(n *Node) {
 						} else {
 							yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
 						}
-					case nilonly != "" && !isnil(n1):
+					case nilonly != "" && !n1.isNil():
 						yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
 					case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
 						yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
@@ -235,6 +241,11 @@ func walkswitch(sw *Node) {
 // search using if..goto, although binary search
 // is used with long runs of constants.
 func (s *exprSwitch) walk(sw *Node) {
+	// Guard against double walk, see #25776.
+	if sw.List.Len() == 0 && sw.Nbody.Len() > 0 {
+		Fatalf("second walk of switch")
+	}
+
 	casebody(sw, nil)
 
 	cond := sw.Left
@@ -245,6 +256,34 @@ func (s *exprSwitch) walk(sw *Node) {
 		s.kind = switchKindTrue
 		if !cond.Val().U.(bool) {
 			s.kind = switchKindFalse
+		}
+	}
+
+	// Given "switch string(byteslice)",
+	// with all cases being constants (or the default case),
+	// use a zero-cost alias of the byte slice.
+	// In theory, we could be more aggressive,
+	// allowing any side-effect-free expressions in cases,
+	// but it's a bit tricky because some of that information
+	// is unavailable due to the introduction of temporaries during order.
+	// Restricting to constants is simple and probably powerful enough.
+	// Do this before calling walkexpr on cond,
+	// because walkexpr will lower the string
+	// conversion into a runtime call.
+	// See issue 24937 for more discussion.
+	if cond.Op == OARRAYBYTESTR {
+		ok := true
+		for _, cas := range sw.List.Slice() {
+			if cas.Op != OCASE {
+				Fatalf("switch string(byteslice) bad op: %v", cas.Op)
+			}
+			if cas.Left != nil && !Isconst(cas.Left, CTSTR) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			cond.Op = OARRAYBYTESTRTMP
 		}
 	}
 
@@ -797,19 +836,19 @@ func (s *typeSwitch) walk(sw *Node) {
 		}
 
 		// combine adjacent cases with the same hash
-		ncase := 0
-		for i := 0; i < run; i++ {
-			ncase++
+		var batch []caseClause
+		for i, j := 0, 0; i < run; i = j {
 			hash := []*Node{cc[i].node.Right}
-			for j := i + 1; j < run && cc[i].hash == cc[j].hash; j++ {
+			for j = i + 1; j < run && cc[i].hash == cc[j].hash; j++ {
 				hash = append(hash, cc[j].node.Right)
 			}
 			cc[i].node.Right = liststmt(hash)
+			batch = append(batch, cc[i])
 		}
 
 		// binary search among cases to narrow by hash
-		cas = append(cas, s.walkCases(cc[:ncase]))
-		cc = cc[ncase:]
+		cas = append(cas, s.walkCases(batch))
+		cc = cc[run:]
 	}
 
 	// handle default case

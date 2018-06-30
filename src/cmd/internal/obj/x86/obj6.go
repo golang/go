@@ -33,6 +33,7 @@ package x86
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"math"
 	"strings"
@@ -64,7 +65,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 	switch ctxt.Headtype {
 	case objabi.Hplan9, objabi.Hwindows:
 		return false
-	case objabi.Hlinux:
+	case objabi.Hlinux, objabi.Hfreebsd:
 		return !ctxt.Flag_shared
 	}
 
@@ -676,6 +677,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
 	}
 
+	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
+	// TODO: are there other cases (e.g., wrapper functions) that need marking?
+	markedPrologue := false
+
 	if autoffset != 0 {
 		if autoffset%int32(ctxt.Arch.RegSize) != 0 {
 			ctxt.Diag("unaligned stack size %d", autoffset)
@@ -685,6 +690,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(autoffset)
 		p.Spadj = autoffset
+		p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
+		markedPrologue = true
 	}
 
 	deltasp := autoffset
@@ -700,6 +707,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Reg = REG_SP
 		p.To.Scale = 1
 		p.To.Offset = int64(autoffset) - int64(bpsize)
+		if !markedPrologue {
+			p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
+		}
 
 		// Move current frame to BP
 		p = obj.Appendp(p, newprog)
@@ -964,7 +974,7 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 	return false
 }
 
-func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+func indir_cx(ctxt *obj.Link, a *obj.Addr) {
 	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 		a.Type = obj.TYPE_MEM
 		a.Reg = REG_R15
@@ -1032,7 +1042,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SP
-		indir_cx(ctxt, p, &p.To)
+		indir_cx(ctxt, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1054,7 +1064,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_AX
-		indir_cx(ctxt, p, &p.To)
+		indir_cx(ctxt, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1078,7 +1088,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p = obj.Appendp(p, newprog)
 
 		p.As = mov
-		indir_cx(ctxt, p, &p.From)
+		indir_cx(ctxt, &p.From)
 		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1140,13 +1150,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := obj.Appendp(spfix, newprog)
-	pcdata.Pos = cursym.Func.Text.Pos
-	pcdata.As = obj.APCDATA
-	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
-	pcdata.To.Type = obj.TYPE_CONST
-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+	pcdata := ctxt.EmitEntryLiveness(cursym, spfix, newprog)
 
 	call := obj.Appendp(pcdata, newprog)
 	call.Pos = cursym.Func.Text.Pos

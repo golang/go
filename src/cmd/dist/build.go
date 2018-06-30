@@ -31,6 +31,7 @@ var (
 	goarm            string
 	go386            string
 	gomips           string
+	gomips64         string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
@@ -66,13 +67,16 @@ var okgoarch = []string{
 	"mips64le",
 	"ppc64",
 	"ppc64le",
+	"riscv64",
 	"s390x",
+	"wasm",
 }
 
 // The known operating systems.
 var okgoos = []string{
 	"darwin",
 	"dragonfly",
+	"js",
 	"linux",
 	"android",
 	"solaris",
@@ -145,6 +149,12 @@ func xinit() {
 	}
 	gomips = b
 
+	b = os.Getenv("GOMIPS64")
+	if b == "" {
+		b = "hardfloat"
+	}
+	gomips64 = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -202,6 +212,7 @@ func xinit() {
 	os.Setenv("GOHOSTOS", gohostos)
 	os.Setenv("GOOS", goos)
 	os.Setenv("GOMIPS", gomips)
+	os.Setenv("GOMIPS64", gomips64)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
@@ -822,6 +833,11 @@ func runInstall(dir string, ch chan struct{}) {
 			compile = append(compile, "-D", "GOMIPS_"+gomips)
 		}
 
+		if goarch == "mips64" || goarch == "mipsle64" {
+			// Define GOMIPS64_value from gomips64.
+			compile = append(compile, "-D", "GOMIPS64_"+gomips64)
+		}
+
 		doclean := true
 		b := pathf("%s/%s", workdir, filepath.Base(p))
 
@@ -1062,6 +1078,9 @@ func cmdenv() {
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		xprintf(format, "GOMIPS", gomips)
+	}
+	if goarch == "mips64" || goarch == "mips64le" {
+		xprintf(format, "GOMIPS64", gomips64)
 	}
 
 	if *path {
@@ -1375,11 +1394,13 @@ var cgoEnabled = map[string]bool{
 	"linux/mipsle":    true,
 	"linux/mips64":    true,
 	"linux/mips64le":  true,
+	"linux/riscv64":   true,
 	"linux/s390x":     true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
 	"android/arm64":   true,
+	"js/wasm":         false,
 	"nacl/386":        false,
 	"nacl/amd64p32":   false,
 	"nacl/arm":        false,
@@ -1419,7 +1440,7 @@ func checkCC() {
 		fatalf("cannot invoke C compiler %q: %v\n\n"+
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, set CC=the-compiler.\n"+
-			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
+			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
 }
 

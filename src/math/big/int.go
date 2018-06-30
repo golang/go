@@ -442,24 +442,28 @@ func (x *Int) BitLen() int {
 }
 
 // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
-// If y <= 0, the result is 1 mod |m|; if m == nil or m == 0, z = x**y.
+// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1.
 //
 // Modular exponentation of inputs of a particular size is not a
 // cryptographically constant-time operation.
 func (z *Int) Exp(x, y, m *Int) *Int {
 	// See Knuth, volume 2, section 4.6.3.
-	var yWords nat
-	if !y.neg {
-		yWords = y.abs
+	xWords := x.abs
+	if y.neg {
+		if m == nil || len(m.abs) == 0 {
+			return z.SetInt64(1)
+		}
+		// for y < 0: x**y mod m == (x**(-1))**|y| mod m
+		xWords = new(Int).ModInverse(x, m).abs
 	}
-	// y >= 0
+	yWords := y.abs
 
 	var mWords nat
 	if m != nil {
 		mWords = m.abs // m.abs may be nil for m == 0
 	}
 
-	z.abs = z.abs.expNN(x.abs, yWords, mWords)
+	z.abs = z.abs.expNN(xWords, yWords, mWords)
 	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
 	if z.neg && len(mWords) > 0 {
 		// make modulus result positive
@@ -485,162 +489,223 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 		}
 		return z
 	}
-	if x == nil && y == nil {
-		return z.lehmerGCD(a, b)
+
+	return z.lehmerGCD(x, y, a, b)
+}
+
+// lehmerSimulate attempts to simulate several Euclidean update steps
+// using the leading digits of A and B.  It returns u0, u1, v0, v1
+// such that A and B can be updated as:
+//		A = u0*A + v0*B
+//		B = u1*A + v1*B
+// Requirements: A >= B and len(B.abs) >= 2
+// Since we are calculating with full words to avoid overflow,
+// we use 'even' to track the sign of the cosequences.
+// For even iterations: u0, v1 >= 0 && u1, v0 <= 0
+// For odd  iterations: u0, v1 <= 0 && u1, v0 >= 0
+func lehmerSimulate(A, B *Int) (u0, u1, v0, v1 Word, even bool) {
+	// initialize the digits
+	var a1, a2, u2, v2 Word
+
+	m := len(B.abs) // m >= 2
+	n := len(A.abs) // n >= m >= 2
+
+	// extract the top Word of bits from A and B
+	h := nlz(A.abs[n-1])
+	a1 = A.abs[n-1]<<h | A.abs[n-2]>>(_W-h)
+	// B may have implicit zero words in the high bits if the lengths differ
+	switch {
+	case n == m:
+		a2 = B.abs[n-1]<<h | B.abs[n-2]>>(_W-h)
+	case n == m+1:
+		a2 = B.abs[n-2] >> (_W - h)
+	default:
+		a2 = 0
 	}
 
-	A := new(Int).Set(a)
-	B := new(Int).Set(b)
+	// Since we are calculating with full words to avoid overflow,
+	// we use 'even' to track the sign of the cosequences.
+	// For even iterations: u0, v1 >= 0 && u1, v0 <= 0
+	// For odd  iterations: u0, v1 <= 0 && u1, v0 >= 0
+	// The first iteration starts with k=1 (odd).
+	even = false
+	// variables to track the cosequences
+	u0, u1, u2 = 0, 1, 0
+	v0, v1, v2 = 0, 0, 1
 
-	X := new(Int)
-	lastX := new(Int).SetInt64(1)
-
-	q := new(Int)
-	temp := new(Int)
-
-	r := new(Int)
-	for len(B.abs) > 0 {
-		q, r = q.QuoRem(A, B, r)
-
-		A, B, r = B, r, A
-
-		temp.Set(X)
-		X.Mul(X, q)
-		X.Sub(lastX, X)
-		lastX.Set(temp)
+	// Calculate the quotient and cosequences using Collins' stopping condition.
+	// Note that overflow of a Word is not possible when computing the remainder
+	// sequence and cosequences since the cosequence size is bounded by the input size.
+	// See section 4.2 of Jebelean for details.
+	for a2 >= v2 && a1-a2 >= v1+v2 {
+		q, r := a1/a2, a1%a2
+		a1, a2 = a2, r
+		u0, u1, u2 = u1, u2, u1+q*u2
+		v0, v1, v2 = v1, v2, v1+q*v2
+		even = !even
 	}
+	return
+}
 
-	if x != nil {
-		*x = *lastX
+// lehmerUpdate updates the inputs A and B such that:
+//		A = u0*A + v0*B
+//		B = u1*A + v1*B
+// where the signs of u0, u1, v0, v1 are given by even
+// For even == true: u0, v1 >= 0 && u1, v0 <= 0
+// For even == false: u0, v1 <= 0 && u1, v0 >= 0
+// q, r, s, t are temporary variables to avoid allocations in the multiplication
+func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
+
+	t.abs = t.abs.setWord(u0)
+	s.abs = s.abs.setWord(v0)
+	t.neg = !even
+	s.neg = even
+
+	t.Mul(A, t)
+	s.Mul(B, s)
+
+	r.abs = r.abs.setWord(u1)
+	q.abs = q.abs.setWord(v1)
+	r.neg = even
+	q.neg = !even
+
+	r.Mul(A, r)
+	q.Mul(B, q)
+
+	A.Add(t, s)
+	B.Add(r, q)
+}
+
+// euclidUpdate performs a single step of the Euclidean GCD algorithm
+// if extended is true, it also updates the cosequence Ua, Ub
+func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
+	q, r = q.QuoRem(A, B, r)
+
+	*A, *B, *r = *B, *r, *A
+
+	if extended {
+		// Ua, Ub = Ub, Ua - q*Ub
+		t.Set(Ub)
+		s.Mul(Ub, q)
+		Ub.Sub(Ua, s)
+		Ua.Set(t)
 	}
-
-	if y != nil {
-		// y = (z - a*x)/b
-		y.Mul(a, lastX)
-		y.Sub(A, y)
-		y.Div(y, b)
-	}
-
-	*z = *A
-	return z
 }
 
 // lehmerGCD sets z to the greatest common divisor of a and b,
 // which both must be > 0, and returns z.
+// If x or y are not nil, their values are set such that z = a*x + b*y.
 // See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm L.
 // This implementation uses the improved condition by Collins requiring only one
 // quotient and avoiding the possibility of single Word overflow.
 // See Jebelean, "Improving the multiprecision Euclidean algorithm",
 // Design and Implementation of Symbolic Computation Systems, pp 45-58.
-func (z *Int) lehmerGCD(a, b *Int) *Int {
-	// ensure a >= b
-	if a.abs.cmp(b.abs) < 0 {
-		a, b = b, a
+// The cosequences are updated according to Algorithm 10.45 from
+// Cohen et al. "Handbook of Elliptic and Hyperelliptic Curve Cryptography" pp 192.
+func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
+	var A, B, Ua, Ub *Int
+
+	A = new(Int).Set(a)
+	B = new(Int).Set(b)
+
+	extended := x != nil || y != nil
+
+	if extended {
+		// Ua (Ub) tracks how many times input a has been accumulated into A (B).
+		Ua = new(Int).SetInt64(1)
+		Ub = new(Int)
 	}
 
-	// don't destroy incoming values of a and b
-	B := new(Int).Set(b) // must be set first in case b is an alias of z
-	A := z.Set(a)
-
 	// temp variables for multiprecision update
-	t := new(Int)
+	q := new(Int)
 	r := new(Int)
 	s := new(Int)
-	w := new(Int)
+	t := new(Int)
+
+	// ensure A >= B
+	if A.abs.cmp(B.abs) < 0 {
+		A, B = B, A
+		Ub, Ua = Ua, Ub
+	}
 
 	// loop invariant A >= B
 	for len(B.abs) > 1 {
-		// initialize the digits
-		var a1, a2, u0, u1, u2, v0, v1, v2 Word
+		// Attempt to calculate in single-precision using leading words of A and B.
+		u0, u1, v0, v1, even := lehmerSimulate(A, B)
 
-		m := len(B.abs) // m >= 2
-		n := len(A.abs) // n >= m >= 2
-
-		// extract the top Word of bits from A and B
-		h := nlz(A.abs[n-1])
-		a1 = (A.abs[n-1] << h) | (A.abs[n-2] >> (_W - h))
-		// B may have implicit zero words in the high bits if the lengths differ
-		switch {
-		case n == m:
-			a2 = (B.abs[n-1] << h) | (B.abs[n-2] >> (_W - h))
-		case n == m+1:
-			a2 = (B.abs[n-2] >> (_W - h))
-		default:
-			a2 = 0
-		}
-
-		// Since we are calculating with full words to avoid overflow,
-		// we use 'even' to track the sign of the cosequences.
-		// For even iterations: u0, v1 >= 0 && u1, v0 <= 0
-		// For odd  iterations: u0, v1 <= 0 && u1, v0 >= 0
-		// The first iteration starts with k=1 (odd).
-		even := false
-		// variables to track the cosequences
-		u0, u1, u2 = 0, 1, 0
-		v0, v1, v2 = 0, 0, 1
-
-		// Calculate the quotient and cosequences using Collins' stopping condition.
-		// Note that overflow of a Word is not possible when computing the remainder
-		// sequence and cosequences since the cosequence size is bounded by the input size.
-		// See section 4.2 of Jebelean for details.
-		for a2 >= v2 && a1-a2 >= v1+v2 {
-			q := a1 / a2
-			a1, a2 = a2, a1-q*a2
-			u0, u1, u2 = u1, u2, u1+q*u2
-			v0, v1, v2 = v1, v2, v1+q*v2
-			even = !even
-		}
-
-		// multiprecision step
+		// multiprecision Step
 		if v0 != 0 {
-			// simulate the effect of the single precision steps using the cosequences
+			// Simulate the effect of the single-precision steps using the cosequences.
 			// A = u0*A + v0*B
 			// B = u1*A + v1*B
+			lehmerUpdate(A, B, q, r, s, t, u0, u1, v0, v1, even)
 
-			t.abs = t.abs.setWord(u0)
-			s.abs = s.abs.setWord(v0)
-			t.neg = !even
-			s.neg = even
-
-			t.Mul(A, t)
-			s.Mul(B, s)
-
-			r.abs = r.abs.setWord(u1)
-			w.abs = w.abs.setWord(v1)
-			r.neg = even
-			w.neg = !even
-
-			r.Mul(A, r)
-			w.Mul(B, w)
-
-			A.Add(t, s)
-			B.Add(r, w)
+			if extended {
+				// Ua = u0*Ua + v0*Ub
+				// Ub = u1*Ua + v1*Ub
+				lehmerUpdate(Ua, Ub, q, r, s, t, u0, u1, v0, v1, even)
+			}
 
 		} else {
-			// single-digit calculations failed to simulate any quotients
-			// do a standard Euclidean step
-			t.Rem(A, B)
-			A, B, t = B, t, A
+			// Single-digit calculations failed to simulate any quotients.
+			// Do a standard Euclidean step.
+			euclidUpdate(A, B, Ua, Ub, q, r, s, t, extended)
 		}
 	}
 
 	if len(B.abs) > 0 {
-		// standard Euclidean algorithm base case for B a single Word
+		// extended Euclidean algorithm base case if B is a single Word
 		if len(A.abs) > 1 {
-			// A is longer than a single Word
-			t.Rem(A, B)
-			A, B, t = B, t, A
+			// A is longer than a single Word, so one update is needed.
+			euclidUpdate(A, B, Ua, Ub, q, r, s, t, extended)
 		}
 		if len(B.abs) > 0 {
-			// A and B are both a single Word
-			a1, a2 := A.abs[0], B.abs[0]
-			for a2 != 0 {
-				a1, a2 = a2, a1%a2
+			// A and B are both a single Word.
+			aWord, bWord := A.abs[0], B.abs[0]
+			if extended {
+				var ua, ub, va, vb Word
+				ua, ub = 1, 0
+				va, vb = 0, 1
+				even := true
+				for bWord != 0 {
+					q, r := aWord/bWord, aWord%bWord
+					aWord, bWord = bWord, r
+					ua, ub = ub, ua+q*ub
+					va, vb = vb, va+q*vb
+					even = !even
+				}
+
+				t.abs = t.abs.setWord(ua)
+				s.abs = s.abs.setWord(va)
+				t.neg = !even
+				s.neg = even
+
+				t.Mul(Ua, t)
+				s.Mul(Ub, s)
+
+				Ua.Add(t, s)
+			} else {
+				for bWord != 0 {
+					aWord, bWord = bWord, aWord%bWord
+				}
 			}
-			A.abs[0] = a1
+			A.abs[0] = aWord
 		}
 	}
+
+	if x != nil {
+		*x = *Ua
+	}
+
+	if y != nil {
+		// y = (z - a*x)/b
+		y.Mul(a, Ua)
+		y.Sub(A, y)
+		y.Div(y, b)
+	}
+
 	*z = *A
+
 	return z
 }
 
@@ -659,20 +724,33 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 }
 
 // ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
-// and returns z. If g and n are not relatively prime, the result is undefined.
+// and returns z. If g and n are not relatively prime, g has no multiplicative
+// inverse in the ring ℤ/nℤ.  In this case, z is unchanged and the return value
+// is nil.
 func (z *Int) ModInverse(g, n *Int) *Int {
+	// GCD expects parameters a and b to be > 0.
+	if n.neg {
+		var n2 Int
+		n = n2.Neg(n)
+	}
 	if g.neg {
-		// GCD expects parameters a and b to be > 0.
 		var g2 Int
 		g = g2.Mod(g, n)
 	}
-	var d Int
-	d.GCD(z, nil, g, n)
-	// x and y are such that g*x + n*y = d. Since g and n are
-	// relatively prime, d = 1. Taking that modulo n results in
-	// g*x = 1, therefore x is the inverse element.
-	if z.neg {
-		z.Add(z, n)
+	var d, x Int
+	d.GCD(&x, nil, g, n)
+
+	// if and only if d==1, g and n are relatively prime
+	if d.Cmp(intOne) != 0 {
+		return nil
+	}
+
+	// x and y are such that g*x + n*y = 1, therefore x is the inverse element,
+	// but it may be negative, so convert to the range 0 <= z < |n|
+	if x.neg {
+		z.Add(&x, n)
+	} else {
+		z.Set(&x)
 	}
 	return z
 }
@@ -745,6 +823,30 @@ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
 	return z
 }
 
+// modSqrt5Mod8 uses Atkin's observation that 2 is not a square mod p
+//   alpha ==  (2*a)^((p-5)/8)    mod p
+//   beta  ==  2*a*alpha^2        mod p  is a square root of -1
+//   b     ==  a*alpha*(beta-1)   mod p  is a square root of a
+// to calculate the square root of any quadratic residue mod p quickly for 5
+// mod 8 primes.
+func (z *Int) modSqrt5Mod8Prime(x, p *Int) *Int {
+	// p == 5 mod 8 implies p = e*8 + 5
+	// e is the quotient and 5 the remainder on division by 8
+	e := new(Int).Rsh(p, 3)  // e = (p - 5) / 8
+	tx := new(Int).Lsh(x, 1) // tx = 2*x
+	alpha := new(Int).Exp(tx, e, p)
+	beta := new(Int).Mul(alpha, alpha)
+	beta.Mod(beta, p)
+	beta.Mul(beta, tx)
+	beta.Mod(beta, p)
+	beta.Sub(beta, intOne)
+	beta.Mul(beta, x)
+	beta.Mod(beta, p)
+	beta.Mul(beta, alpha)
+	z.Mod(beta, p)
+	return z
+}
+
 // modSqrtTonelliShanks uses the Tonelli-Shanks algorithm to find the square
 // root of a quadratic residue modulo any prime.
 func (z *Int) modSqrtTonelliShanks(x, p *Int) *Int {
@@ -811,12 +913,17 @@ func (z *Int) ModSqrt(x, p *Int) *Int {
 		x = new(Int).Mod(x, p)
 	}
 
-	// Check whether p is 3 mod 4, and if so, use the faster algorithm.
-	if len(p.abs) > 0 && p.abs[0]%4 == 3 {
+	switch {
+	case p.abs[0]%4 == 3:
+		// Check whether p is 3 mod 4, and if so, use the faster algorithm.
 		return z.modSqrt3Mod4Prime(x, p)
+	case p.abs[0]%8 == 5:
+		// Check whether p is 5 mod 8, use Atkin's algorithm.
+		return z.modSqrt5Mod8Prime(x, p)
+	default:
+		// Otherwise, use Tonelli-Shanks.
+		return z.modSqrtTonelliShanks(x, p)
 	}
-	// Otherwise, use Tonelli-Shanks.
-	return z.modSqrtTonelliShanks(x, p)
 }
 
 // Lsh sets z = x << n and returns z.

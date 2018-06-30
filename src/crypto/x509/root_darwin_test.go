@@ -16,11 +16,6 @@ func TestSystemRoots(t *testing.T) {
 		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
 	}
 
-	switch runtime.GOOS {
-	case "darwin":
-		t.Skipf("skipping on %s/%s until cgo part of golang.org/issue/16532 has been implemented.", runtime.GOOS, runtime.GOARCH)
-	}
-
 	t0 := time.Now()
 	sysRoots := systemRootsPool() // actual system roots
 	sysRootsDuration := time.Since(t0)

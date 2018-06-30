@@ -56,7 +56,7 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
 }
 
 // MarshalPKCS8PrivateKey converts a private key to PKCS#8 encoded form.
-// The following key types are supported: *rsa.PrivateKey, *ecdsa.PublicKey.
+// The following key types are supported: *rsa.PrivateKey, *ecdsa.PrivateKey.
 // Unsupported key types result in an error.
 //
 // See RFC 5208.

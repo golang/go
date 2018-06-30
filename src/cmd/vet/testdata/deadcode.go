@@ -2123,3 +2123,12 @@ var _ = func() {
 	// goto without label used to panic
 	goto
 }
+
+func _() int {
+	// Empty switch tag with non-bool case value used to panic.
+	switch {
+	case 1:
+		println()
+	}
+	println()
+}

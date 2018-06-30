@@ -161,14 +161,14 @@ type Info struct {
 	// in package clauses, or symbolic variables t in t := x.(type) of
 	// type switch headers), the corresponding objects are nil.
 	//
-	// For an anonymous field, Defs returns the field *Var it defines.
+	// For an embedded field, Defs returns the field *Var it defines.
 	//
 	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
 	Defs map[*ast.Ident]Object
 
 	// Uses maps identifiers to the objects they denote.
 	//
-	// For an anonymous field, Uses returns the *TypeName it denotes.
+	// For an embedded field, Uses returns the *TypeName it denotes.
 	//
 	// Invariant: Uses[id].Pos() != id.Pos()
 	Uses map[*ast.Ident]Object
@@ -239,7 +239,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // ObjectOf returns the object denoted by the specified id,
 // or nil if not found.
 //
-// If id is an anonymous struct field, ObjectOf returns the field (*Var)
+// If id is an embedded struct field, ObjectOf returns the field (*Var)
 // it uses, not the type (*TypeName) it defines.
 //
 // Precondition: the Uses and Defs maps are populated.
@@ -309,7 +309,7 @@ func (tv TypeAndValue) Assignable() bool {
 }
 
 // HasOk reports whether the corresponding expression may be
-// used on the lhs of a comma-ok assignment.
+// used on the rhs of a comma-ok assignment.
 func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }

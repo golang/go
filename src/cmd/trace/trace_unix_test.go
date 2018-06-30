@@ -8,10 +8,10 @@ package main
 
 import (
 	"bytes"
-	"internal/trace"
+	traceparser "internal/trace"
 	"io/ioutil"
 	"runtime"
-	rtrace "runtime/trace"
+	"runtime/trace"
 	"sync"
 	"syscall"
 	"testing"
@@ -68,13 +68,15 @@ func TestGoroutineInSyscall(t *testing.T) {
 
 	// Collect and parse trace.
 	buf := new(bytes.Buffer)
-	if err := rtrace.Start(buf); err != nil {
+	if err := trace.Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
-	rtrace.Stop()
+	trace.Stop()
 
-	res, err := trace.Parse(buf, "")
-	if err != nil {
+	res, err := traceparser.Parse(buf, "")
+	if err == traceparser.ErrTimeOrder {
+		t.Skipf("skipping due to golang.org/issue/16755 (timestamps are unreliable): %v", err)
+	} else if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
 

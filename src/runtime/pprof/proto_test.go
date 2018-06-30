@@ -8,7 +8,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"reflect"
 	"runtime"
 	"runtime/pprof/internal/profile"
@@ -63,7 +66,7 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
 		{Type: "cpu", Unit: "nanoseconds"},
 	}
 
-	checkProfile(t, p, 2000*1000, periodType, sampleType, nil)
+	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
 }
 
 func f1() { f1() }
@@ -130,18 +133,23 @@ func TestConvertCPUProfile(t *testing.T) {
 			{ID: 4, Mapping: map2, Address: addr2 + 1},
 		}},
 	}
-	checkProfile(t, p, period, periodType, sampleType, samples)
+	checkProfile(t, p, period, periodType, sampleType, samples, "")
 }
 
-func checkProfile(t *testing.T, p *profile.Profile, period int64, periodType *profile.ValueType, sampleType []*profile.ValueType, samples []*profile.Sample) {
+func checkProfile(t *testing.T, p *profile.Profile, period int64, periodType *profile.ValueType, sampleType []*profile.ValueType, samples []*profile.Sample, defaultSampleType string) {
+	t.Helper()
+
 	if p.Period != period {
-		t.Fatalf("p.Period = %d, want %d", p.Period, period)
+		t.Errorf("p.Period = %d, want %d", p.Period, period)
 	}
 	if !reflect.DeepEqual(p.PeriodType, periodType) {
-		t.Fatalf("p.PeriodType = %v\nwant = %v", fmtJSON(p.PeriodType), fmtJSON(periodType))
+		t.Errorf("p.PeriodType = %v\nwant = %v", fmtJSON(p.PeriodType), fmtJSON(periodType))
 	}
 	if !reflect.DeepEqual(p.SampleType, sampleType) {
-		t.Fatalf("p.SampleType = %v\nwant = %v", fmtJSON(p.SampleType), fmtJSON(sampleType))
+		t.Errorf("p.SampleType = %v\nwant = %v", fmtJSON(p.SampleType), fmtJSON(sampleType))
+	}
+	if defaultSampleType != p.DefaultSampleType {
+		t.Errorf("p.DefaultSampleType = %v\nwant = %v", p.DefaultSampleType, defaultSampleType)
 	}
 	// Clear line info since it is not in the expected samples.
 	// If we used f1 and f2 above, then the samples will have line info.
@@ -219,4 +227,77 @@ func TestProcSelfMaps(t *testing.T) {
 			t.Errorf("#%d: have:\n%s\nwant:\n%s\n%q\n%q", tx, buf.String(), out, buf.String(), out)
 		}
 	}
+}
+
+// TestMapping checkes the mapping section of CPU profiles
+// has the HasFunctions field set correctly. If all PCs included
+// in the samples are successfully symbolized, the corresponding
+// mapping entry (in this test case, only one entry) should have
+// its HasFunctions field set true.
+// The test generates a CPU profile that includes PCs from C side
+// that the runtime can't symbolize. See ./testdata/mappingtest.
+func TestMapping(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+	testenv.MustHaveCGO(t)
+
+	prog := "./testdata/mappingtest/main.go"
+
+	// GoOnly includes only Go symbols that runtime will symbolize.
+	// Go+C includes C symbols that runtime will not symbolize.
+	for _, traceback := range []string{"GoOnly", "Go+C"} {
+		t.Run("traceback"+traceback, func(t *testing.T) {
+			cmd := exec.Command(testenv.GoToolPath(t), "run", prog)
+			if traceback != "GoOnly" {
+				cmd.Env = append(os.Environ(), "SETCGOTRACEBACK=1")
+			}
+			cmd.Stderr = new(bytes.Buffer)
+
+			out, err := cmd.Output()
+			if err != nil {
+				t.Fatalf("failed to run the test program %q: %v\n%v", prog, err, cmd.Stderr)
+			}
+
+			prof, err := profile.Parse(bytes.NewReader(out))
+			if err != nil {
+				t.Fatalf("failed to parse the generated profile data: %v", err)
+			}
+			t.Logf("Profile: %s", prof)
+
+			hit := make(map[*profile.Mapping]bool)
+			miss := make(map[*profile.Mapping]bool)
+			for _, loc := range prof.Location {
+				if symbolized(loc) {
+					hit[loc.Mapping] = true
+				} else {
+					miss[loc.Mapping] = true
+				}
+			}
+			if len(miss) == 0 {
+				t.Log("no location with missing symbol info was sampled")
+			}
+
+			for _, m := range prof.Mapping {
+				if miss[m] && m.HasFunctions {
+					t.Errorf("mapping %+v has HasFunctions=true, but contains locations with failed symbolization", m)
+					continue
+				}
+				if !miss[m] && hit[m] && !m.HasFunctions {
+					t.Errorf("mapping %+v has HasFunctions=false, but all referenced locations from this lapping were symbolized successfully", m)
+					continue
+				}
+			}
+		})
+	}
+}
+
+func symbolized(loc *profile.Location) bool {
+	if len(loc.Line) == 0 {
+		return false
+	}
+	l := loc.Line[0]
+	f := l.Function
+	if l.Line == 0 || f == nil || f.Name == "" || f.Filename == "" {
+		return false
+	}
+	return true
 }

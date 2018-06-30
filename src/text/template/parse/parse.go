@@ -383,10 +383,11 @@ func (t *Tree) action() (n Node) {
 // Pipeline:
 //	declarations? command ('|' command)*
 func (t *Tree) pipeline(context string) (pipe *PipeNode) {
-	var decl []*VariableNode
+	decl := false
+	var vars []*VariableNode
 	token := t.peekNonSpace()
 	pos := token.pos
-	// Are there declarations?
+	// Are there declarations or assignments?
 	for {
 		if v := t.peekNonSpace(); v.typ == itemVariable {
 			t.next()
@@ -395,26 +396,33 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 			// argument variable rather than a declaration. So remember the token
 			// adjacent to the variable so we can push it back if necessary.
 			tokenAfterVariable := t.peek()
-			if next := t.peekNonSpace(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
+			next := t.peekNonSpace()
+			switch {
+			case next.typ == itemAssign, next.typ == itemDeclare,
+				next.typ == itemChar && next.val == ",":
 				t.nextNonSpace()
 				variable := t.newVariable(v.pos, v.val)
-				decl = append(decl, variable)
+				vars = append(vars, variable)
 				t.vars = append(t.vars, v.val)
+				if next.typ == itemDeclare {
+					decl = true
+				}
 				if next.typ == itemChar && next.val == "," {
-					if context == "range" && len(decl) < 2 {
+					if context == "range" && len(vars) < 2 {
 						continue
 					}
 					t.errorf("too many declarations in %s", context)
 				}
-			} else if tokenAfterVariable.typ == itemSpace {
+			case tokenAfterVariable.typ == itemSpace:
 				t.backup3(v, tokenAfterVariable)
-			} else {
+			default:
 				t.backup2(v)
 			}
 		}
 		break
 	}
-	pipe = t.newPipeline(pos, token.line, decl)
+	pipe = t.newPipeline(pos, token.line, vars)
+	pipe.IsAssign = !decl
 	for {
 		switch token := t.nextNonSpace(); token.typ {
 		case itemRightDelim, itemRightParen:

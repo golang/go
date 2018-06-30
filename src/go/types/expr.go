@@ -382,7 +382,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		// The respective sub-expressions got their final types
 		// upon assignment or use.
 		if debug {
-			check.dump("%s: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
+			check.dump("%v: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
 			unreachable()
 		}
 		return
@@ -1064,7 +1064,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					break
 				}
 			}
-			typ = check.typ(e.Type)
+			typ = check.typExpr(e.Type, nil, nil)
 			base = typ
 
 		case hint != nil:

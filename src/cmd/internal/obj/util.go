@@ -21,11 +21,13 @@ func (p *Prog) Line() string {
 // InnermostLineNumber returns a string containing the line number for the
 // innermost inlined function (if any inlining) at p's position
 func (p *Prog) InnermostLineNumber() string {
-	pos := p.Ctxt.InnermostPos(p.Pos)
-	if !pos.IsKnown() {
-		return "?"
-	}
-	return fmt.Sprintf("%d", pos.Line())
+	return p.Ctxt.InnermostPos(p.Pos).LineNumber()
+}
+
+// InnermostLineNumberHTML returns a string containing the line number for the
+// innermost inlined function (if any inlining) at p's position
+func (p *Prog) InnermostLineNumberHTML() string {
+	return p.Ctxt.InnermostPos(p.Pos).LineNumberHTML()
 }
 
 // InnermostFilename returns a string containing the innermost
@@ -70,11 +72,26 @@ const (
 	C_SCOND_XOR = 14
 )
 
-// CConv formats ARM condition codes.
+// CConv formats opcode suffix bits (Prog.Scond).
 func CConv(s uint8) string {
 	if s == 0 {
 		return ""
 	}
+	for i := range opSuffixSpace {
+		sset := &opSuffixSpace[i]
+		if sset.arch == objabi.GOARCH {
+			return sset.cconv(s)
+		}
+	}
+	return fmt.Sprintf("SC???%d", s)
+}
+
+// CConvARM formats ARM opcode suffix bits (mostly condition codes).
+func CConvARM(s uint8) string {
+	// TODO: could be great to move suffix-related things into
+	// ARM asm backends some day.
+	// obj/x86 can be used as an example.
+
 	sc := armCondCode[(s&C_SCOND)^C_SCOND_XOR]
 	if s&C_SBIT != 0 {
 		sc += ".S"
@@ -163,10 +180,6 @@ func (ctxt *Link) CanReuseProgs() bool {
 	return !ctxt.Debugasm
 }
 
-func (ctxt *Link) Dconv(a *Addr) string {
-	return Dconv(nil, a)
-}
-
 func Dconv(p *Prog, a *Addr) string {
 	var str string
 
@@ -216,7 +229,12 @@ func Dconv(p *Prog, a *Addr) string {
 	case TYPE_MEM:
 		str = Mconv(a)
 		if a.Index != REG_NONE {
-			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+			if a.Scale == 0 {
+				// arm64 shifted or extended register offset, scale = 0.
+				str += fmt.Sprintf("(%v)", Rconv(int(a.Index)))
+			} else {
+				str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+			}
 		}
 
 	case TYPE_CONST:
@@ -263,7 +281,8 @@ func Dconv(p *Prog, a *Addr) string {
 			}
 		case "arm64":
 			op := ops[((v>>22)&3)<<1:]
-			str = fmt.Sprintf("R%d%c%c%d", (v>>16)&31, op[0], op[1], (v>>10)&63)
+			r := (v >> 16) & 31
+			str = fmt.Sprintf("%s%c%c%d", Rconv(r+RBaseARM64), op[0], op[1], (v>>10)&63)
 		default:
 			panic("TYPE_SHIFT is not supported on " + objabi.GOARCH)
 		}
@@ -364,6 +383,30 @@ func offConv(off int64) string {
 	return fmt.Sprintf("%+d", off)
 }
 
+// opSuffixSet is like regListSet, but for opcode suffixes.
+//
+// Unlike some other similar structures, uint8 space is not
+// divided by it's own values set (because the're only 256 of them).
+// Instead, every arch may interpret/format all 8 bits as they like,
+// as long as they register proper cconv function for it.
+type opSuffixSet struct {
+	arch  string
+	cconv func(suffix uint8) string
+}
+
+var opSuffixSpace []opSuffixSet
+
+// RegisterOpSuffix assigns cconv function for formatting opcode suffixes
+// when compiling for GOARCH=arch.
+//
+// cconv is never called with 0 argument.
+func RegisterOpSuffix(arch string, cconv func(uint8) string) {
+	opSuffixSpace = append(opSuffixSpace, opSuffixSet{
+		arch:  arch,
+		cconv: cconv,
+	})
+}
+
 type regSet struct {
 	lo    int
 	hi    int
@@ -390,6 +433,7 @@ const (
 	RBaseARM64 = 8 * 1024  // range [8k, 13k)
 	RBaseMIPS  = 13 * 1024 // range [13k, 14k)
 	RBaseS390X = 14 * 1024 // range [14k, 15k)
+	RBaseWasm  = 16 * 1024
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register
@@ -429,6 +473,10 @@ const (
 	// arm64 uses the 60th bit to differentiate from other archs
 	RegListARM64Lo = 1 << 60
 	RegListARM64Hi = 1<<61 - 1
+
+	// x86 uses the 61th bit to differentiate from other archs
+	RegListX86Lo = 1 << 61
+	RegListX86Hi = 1<<62 - 1
 )
 
 // RegisterRegisterList binds a pretty-printer (RLconv) for register list
@@ -489,6 +537,7 @@ var Anames = []string{
 	"NOP",
 	"PCDATA",
 	"RET",
+	"GETCALLERPC",
 	"TEXT",
 	"UNDEF",
 }

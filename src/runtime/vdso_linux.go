@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build 386 amd64 arm
+// +build 386 amd64 arm arm64
 
 package runtime
 
@@ -18,7 +18,7 @@ import "unsafe"
 // http://sco.com/developers/gabi/latest/ch5.dynamic.html
 
 // The version section is documented at
-// http://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
+// https://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
 
 const (
 	_AT_SYSINFO_EHDR = 33
@@ -95,8 +95,6 @@ type vdsoInfo struct {
 	versym *[vdsoVerSymSize]uint16
 	verdef *elfVerdef
 }
-
-var linux26 = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
 
 // see vdso_linux_*.go for vdsoSymbolKeys[] and vdso*Sym vars
 
@@ -220,7 +218,6 @@ func vdsoParseSymbols(info *vdsoInfo, version int32) {
 		if k.name != gostringnocopy(&info.symstrings[sym.st_name]) {
 			return false
 		}
-
 		// Check symbol version.
 		if info.versym != nil && version != 0 && int32(info.versym[symIndex]&0x7fff) != version {
 			return false
@@ -276,7 +273,7 @@ func vdsoauxv(tag, val uintptr) {
 		// when passed to the three functions below.
 		info1 := (*vdsoInfo)(noescape(unsafe.Pointer(&info)))
 		vdsoInitFromSysinfoEhdr(info1, (*elfEhdr)(unsafe.Pointer(val)))
-		vdsoParseSymbols(info1, vdsoFindVersion(info1, &linux26))
+		vdsoParseSymbols(info1, vdsoFindVersion(info1, &vdsoLinuxVersion))
 	}
 }
 

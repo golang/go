@@ -60,6 +60,12 @@ func (out *OutBuf) Write8(v uint8) {
 	}
 }
 
+// WriteByte is an alias for Write8 to fulfill the io.ByteWriter interface.
+func (out *OutBuf) WriteByte(v byte) error {
+	out.Write8(v)
+	return nil
+}
+
 func (out *OutBuf) Write16(v uint16) {
 	out.arch.ByteOrder.PutUint16(out.encbuf[:], v)
 	out.Write(out.encbuf[:2])

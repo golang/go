@@ -138,13 +138,16 @@ import (
 //			offset = second register
 //
 //	[reg, reg, reg-reg]
-//		Register list for ARM and ARM64.
+//		Register list for ARM, ARM64, 386/AMD64.
 //		Encoding:
 //			type = TYPE_REGLIST
 //		On ARM:
 //			offset = bit mask of registers in list; R0 is low bit.
 //		On ARM64:
 //			offset = register count (Q:size) | arrangement (opcode) | first register
+//		On 386/AMD64:
+//			reg = range low register
+//			offset = 2 packed registers + kind tag (see x86.EncodeRegisterRange)
 //
 //	reg, reg
 //		Register pair for ARM.
@@ -213,6 +216,8 @@ const (
 	NAME_DELETED_AUTO
 )
 
+//go:generate stringer -type AddrType
+
 type AddrType uint8
 
 const (
@@ -280,7 +285,7 @@ type Prog struct {
 	RegTo2   int16    // 2nd destination operand
 	Mark     uint16   // bitmask of arch-specific items
 	Optab    uint16   // arch-specific opcode index
-	Scond    uint8    // condition bits for conditional instruction (e.g., on ARM)
+	Scond    uint8    // bits that describe instruction suffixes (e.g. ARM conditions)
 	Back     uint8    // for x86 back end: backwards branch state
 	Ft       uint8    // for x86 back end: type index of Prog.From
 	Tt       uint8    // for x86 back end: type index of Prog.To
@@ -341,6 +346,7 @@ const (
 	ANOP
 	APCDATA
 	ARET
+	AGETCALLERPC
 	ATEXT
 	AUNDEF
 	A_ARCHSPECIFIC
@@ -361,6 +367,7 @@ const (
 	ABaseARM64
 	ABaseMIPS
 	ABaseS390X
+	ABaseWasm
 
 	AllowedOpCodes = 1 << 11            // The number of opcodes available for any given architecture.
 	AMask          = AllowedOpCodes - 1 // AND with this to use the opcode as an array index.
@@ -393,9 +400,11 @@ type FuncInfo struct {
 	dwarfLocSym    *LSym
 	dwarfRangesSym *LSym
 	dwarfAbsFnSym  *LSym
+	dwarfIsStmtSym *LSym
 
 	GCArgs   LSym
 	GCLocals LSym
+	GCRegs   LSym
 }
 
 // Attribute is a set of symbol attributes.
@@ -591,7 +600,7 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
 	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386:
+	case sys.AMD64, sys.I386, sys.Wasm:
 		return 0
 	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to

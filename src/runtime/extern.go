@@ -118,6 +118,12 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
 	error every X milliseconds, summarizing the scheduler state.
 
+	tracebackancestors: setting tracebackancestors=N extends tracebacks with the stacks at
+	which goroutines were created, where N limits the number of ancestor goroutines to
+	report. This also extends the information returned by runtime.Stack. Ancestor's goroutine
+	IDs will refer to the ID of the goroutine at the time of creation; it's possible for this
+	ID to be reused for another goroutine. Setting N to 0 will report no ancestry information.
+
 The net and net/http packages also refer to debugging variables in GODEBUG.
 See the documentation for those packages for details.
 

@@ -39,7 +39,7 @@ func (mode *BuildMode) Set(s string) error {
 	case "pie":
 		switch objabi.GOOS {
 		case "android", "linux":
-		case "darwin":
+		case "darwin", "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":
 			default:
@@ -52,6 +52,12 @@ func (mode *BuildMode) Set(s string) error {
 	case "c-archive":
 		switch objabi.GOOS {
 		case "darwin", "linux":
+		case "freebsd":
+			switch objabi.GOARCH {
+			case "amd64":
+			default:
+				return badmode()
+			}
 		case "windows":
 			switch objabi.GOARCH {
 			case "amd64", "386":
@@ -190,6 +196,13 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
 
+	// When the race flag is set, the LLVM tsan relocatable file is linked
+	// into the final binary, which means external linking is required because
+	// internal linking does not support it.
+	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
+		return true, "race on ppc64le"
+	}
+
 	// Some build modes require work the internal linker cannot do (yet).
 	switch ctxt.BuildMode {
 	case BuildModeCArchive:
@@ -234,6 +247,9 @@ func determineLinkMode(ctxt *Link) {
 			}
 			ctxt.LinkMode = LinkInternal
 		case "1":
+			if objabi.GOARCH == "ppc64" {
+				Exitf("external linking requested via GO_EXTLINK_ENABLED but not supported for linux/ppc64")
+			}
 			ctxt.LinkMode = LinkExternal
 		default:
 			if needed, _ := mustLinkExternal(ctxt); needed {
@@ -245,10 +261,17 @@ func determineLinkMode(ctxt *Link) {
 			} else {
 				ctxt.LinkMode = LinkInternal
 			}
+			if objabi.GOARCH == "ppc64" && ctxt.LinkMode == LinkExternal {
+				Exitf("external linking is not supported for linux/ppc64")
+			}
 		}
 	case LinkInternal:
 		if needed, reason := mustLinkExternal(ctxt); needed {
 			Exitf("internal linking requested but external linking required: %s", reason)
+		}
+	case LinkExternal:
+		if objabi.GOARCH == "ppc64" {
+			Exitf("external linking not supported for linux/ppc64")
 		}
 	}
 }

@@ -126,6 +126,15 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		names["main."+f[0]] = f[1]
 	}
 
+	runtimeSyms := map[string]string{
+		"runtime.text":      "T",
+		"runtime.etext":     "T",
+		"runtime.rodata":    "R",
+		"runtime.erodata":   "R",
+		"runtime.epclntab":  "R",
+		"runtime.noptrdata": "D",
+	}
+
 	out, err = exec.Command(testnmpath, exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, string(out))
@@ -147,6 +156,16 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		if _, found := dups[name]; found {
 			t.Errorf("duplicate name of %q is found", name)
 		}
+		if stype, found := runtimeSyms[name]; found {
+			if runtime.GOOS == "plan9" && stype == "R" {
+				// no read-only data segment symbol on Plan 9
+				stype = "D"
+			}
+			if want, have := stype, strings.ToUpper(f[1]); have != want {
+				t.Errorf("want %s type for %s symbol, but have %s", want, name, have)
+			}
+			delete(runtimeSyms, name)
+		}
 	}
 	err = scanner.Err()
 	if err != nil {
@@ -154,6 +173,9 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 	}
 	if len(names) > 0 {
 		t.Errorf("executable is missing %v symbols", names)
+	}
+	if len(runtimeSyms) > 0 {
+		t.Errorf("executable is missing %v symbols", runtimeSyms)
 	}
 }
 

@@ -62,7 +62,7 @@ simple, reliable, and efficient software.
 <span class="big">Download Go</span>
 <span class="desc">
 Binary distributions available for<br>
-Linux, Mac OS X, Windows, and more.
+Linux, macOS, Windows, and more.
 </span>
 </a>
 
@@ -74,7 +74,7 @@ Linux, Mac OS X, Windows, and more.
 <div class="left">
   <div id="video">
     <div class="rootHeading">Featured video</div>
-    <iframe width="415" height="241" src="//www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe>
+	<div class="js-frontpage-video" style="--aspect-ratio-padding: 58.07%;"><iframe width="415" height="241" src="//www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe></div>
   </div>
 </div>
 
@@ -153,6 +153,10 @@ Linux, Mac OS X, Windows, and more.
 		];
 		var v = videos[Math.floor(Math.random()*videos.length)];
 		$('#video iframe').attr('height', v.h).attr('src', v.s);
+		// Compute the aspect ratio (as a percentage) of the video
+		// using the fixed width 415 and the height of the current video, v.h.
+		var ar = 100*v.h/415;
+		$('.js-frontpage-video').attr('style', '--aspect-ratio-padding: ' + ar + '%;');
 	});
 
 	{{end}}

@@ -32,10 +32,10 @@
 //
 // FormatBool, FormatFloat, FormatInt, and FormatUint convert values to strings:
 //
-// 	s := strconv.FormatBool(true)
-// 	s := strconv.FormatFloat(3.1415, 'E', -1, 64)
-// 	s := strconv.FormatInt(-42, 16)
-// 	s := strconv.FormatUint(42, 16)
+//	s := strconv.FormatBool(true)
+//	s := strconv.FormatFloat(3.1415, 'E', -1, 64)
+//	s := strconv.FormatInt(-42, 16)
+//	s := strconv.FormatUint(42, 16)
 //
 // AppendBool, AppendFloat, AppendInt, and AppendUint are similar but
 // append the formatted value to a destination slice.

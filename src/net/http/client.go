@@ -335,7 +335,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	return stopTimer, timedOut.isSet
 }
 
-// See 2 (end of page 4) http://www.ietf.org/rfc/rfc2617.txt
+// See 2 (end of page 4) https://www.ietf.org/rfc/rfc2617.txt
 // "To receive authorization, the client sends the userid and password,
 // separated by a single colon (":") character, within a base64
 // encoded string in the credentials."
@@ -515,9 +515,9 @@ func (c *Client) Do(req *Request) (*Response, error) {
 		method := valueOrDefault(reqs[0].Method, "GET")
 		var urlStr string
 		if resp != nil && resp.Request != nil {
-			urlStr = resp.Request.URL.String()
+			urlStr = stripPassword(resp.Request.URL)
 		} else {
-			urlStr = req.URL.String()
+			urlStr = stripPassword(req.URL)
 		}
 		return &url.Error{
 			Op:  method[:1] + strings.ToLower(method[1:]),
@@ -718,7 +718,7 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 //
 // See the Client.Do method documentation for details on how redirects
 // are handled.
-func Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
+func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 	return DefaultClient.Post(url, contentType, body)
 }
 
@@ -733,7 +733,7 @@ func Post(url string, contentType string, body io.Reader) (resp *Response, err e
 //
 // See the Client.Do method documentation for details on how redirects
 // are handled.
-func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
+func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
@@ -879,4 +879,13 @@ func isDomainOrSubdomain(sub, parent string) bool {
 		return false
 	}
 	return sub[len(sub)-len(parent)-1] == '.'
+}
+
+func stripPassword(u *url.URL) string {
+	pass, passSet := u.User.Password()
+	if passSet {
+		return strings.Replace(u.String(), pass+"@", "***@", 1)
+	}
+
+	return u.String()
 }

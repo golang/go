@@ -6,7 +6,7 @@ package ssa
 
 import "cmd/internal/src"
 
-// from http://research.swtch.com/sparse
+// from https://research.swtch.com/sparse
 // in turn, from Briggs and Torczon
 
 type sparseEntry struct {
@@ -24,6 +24,10 @@ type sparseMap struct {
 // integers between 0 and n-1 to int32s.
 func newSparseMap(n int) *sparseMap {
 	return &sparseMap{dense: nil, sparse: make([]int32, n)}
+}
+
+func (s *sparseMap) cap() int {
+	return len(s.sparse)
 }
 
 func (s *sparseMap) size() int {

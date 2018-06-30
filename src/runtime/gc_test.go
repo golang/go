@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -155,6 +156,10 @@ func TestHugeGCInfo(t *testing.T) {
 }
 
 func TestPeriodicGC(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no sysmon on wasm yet")
+	}
+
 	// Make sure we're not in the middle of a GC.
 	runtime.GC()
 
@@ -638,4 +643,35 @@ func BenchmarkBulkWriteBarrier(b *testing.B) {
 	})
 
 	runtime.KeepAlive(ptrs)
+}
+
+func BenchmarkScanStackNoLocals(b *testing.B) {
+	var ready sync.WaitGroup
+	teardown := make(chan bool)
+	for j := 0; j < 10; j++ {
+		ready.Add(1)
+		go func() {
+			x := 100000
+			countpwg(&x, &ready, teardown)
+		}()
+	}
+	ready.Wait()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		runtime.GC()
+		runtime.GC()
+		b.StopTimer()
+	}
+	close(teardown)
+}
+
+func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
+	if *n == 0 {
+		ready.Done()
+		<-teardown
+		return
+	}
+	*n--
+	countpwg(n, ready, teardown)
 }

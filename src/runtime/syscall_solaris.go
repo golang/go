@@ -34,9 +34,9 @@ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err 
 		n:    nargs,
 		args: uintptr(unsafe.Pointer(&a1)),
 	}
-	entersyscallblock(0)
+	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	exitsyscall(0)
+	exitsyscall()
 	return call.r1, call.r2, call.err
 }
 
@@ -130,9 +130,9 @@ func syscall_gethostname() (name string, err uintptr) {
 		n:    2,
 		args: uintptr(unsafe.Pointer(&args[0])),
 	}
-	entersyscallblock(0)
+	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	exitsyscall(0)
+	exitsyscall()
 	if call.r1 != 0 {
 		return "", call.err
 	}
@@ -168,9 +168,9 @@ func syscall_pipe() (r, w, err uintptr) {
 		n:    0,
 		args: uintptr(unsafe.Pointer(&pipe1)), // it's unused but must be non-nil, otherwise crashes
 	}
-	entersyscallblock(0)
+	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	exitsyscall(0)
+	exitsyscall()
 	return call.r1, call.r2, call.err
 }
 
@@ -178,6 +178,12 @@ func syscall_pipe() (r, w, err uintptr) {
 // but it doesn't work.
 func syscall_rawsyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	panic("RawSyscall not available on Solaris")
+}
+
+// This is syscall.RawSyscall6, it exists to avoid a linker error because
+// syscall.RawSyscall6 is already declared. See golang.org/issue/24357
+func syscall_rawsyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	panic("RawSyscall6 not available on Solaris")
 }
 
 //go:nosplit
@@ -235,21 +241,15 @@ func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
 	return call.err
 }
 
-// This is syscall.Syscall, it exists to satisfy some build dependency,
-// but it doesn't work correctly.
-//
-// DO NOT USE!
-//
-// TODO(aram): make this panic once we stop calling fcntl(2) in net using it.
 func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
 		fn:   uintptr(unsafe.Pointer(&libc_syscall)),
 		n:    4,
 		args: uintptr(unsafe.Pointer(&trap)),
 	}
-	entersyscallblock(0)
+	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	exitsyscall(0)
+	exitsyscall()
 	return call.r1, call.r2, call.err
 }
 
@@ -259,9 +259,9 @@ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.
 		n:    4,
 		args: uintptr(unsafe.Pointer(&pid)),
 	}
-	entersyscallblock(0)
+	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	exitsyscall(0)
+	exitsyscall()
 	return int(call.r1), call.err
 }
 

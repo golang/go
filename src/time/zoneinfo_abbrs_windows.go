@@ -16,10 +16,11 @@ var abbrs = map[string]abbr{
 	"Egypt Standard Time":             {"EET", "EET"},     // Africa/Cairo
 	"Morocco Standard Time":           {"WET", "WEST"},    // Africa/Casablanca
 	"South Africa Standard Time":      {"SAST", "SAST"},   // Africa/Johannesburg
+	"Sudan Standard Time":             {"CAT", "CAT"},     // Africa/Khartoum
 	"W. Central Africa Standard Time": {"WAT", "WAT"},     // Africa/Lagos
 	"E. Africa Standard Time":         {"EAT", "EAT"},     // Africa/Nairobi
 	"Libya Standard Time":             {"EET", "EET"},     // Africa/Tripoli
-	"Namibia Standard Time":           {"WAT", "WAST"},    // Africa/Windhoek
+	"Namibia Standard Time":           {"CAT", "CAT"},     // Africa/Windhoek
 	"Aleutian Standard Time":          {"HST", "HDT"},     // America/Adak
 	"Alaskan Standard Time":           {"AKST", "AKDT"},   // America/Anchorage
 	"Tocantins Standard Time":         {"-03", "-03"},     // America/Araguaina
@@ -35,7 +36,7 @@ var abbrs = map[string]abbr{
 	"Central Brazilian Standard Time": {"-04", "-03"},     // America/Cuiaba
 	"Mountain Standard Time":          {"MST", "MDT"},     // America/Denver
 	"Greenland Standard Time":         {"-03", "-02"},     // America/Godthab
-	"Turks And Caicos Standard Time":  {"AST", "AST"},     // America/Grand_Turk
+	"Turks And Caicos Standard Time":  {"AST", "EDT"},     // America/Grand_Turk
 	"Central America Standard Time":   {"CST", "CST"},     // America/Guatemala
 	"Atlantic Standard Time":          {"AST", "ADT"},     // America/Halifax
 	"Cuba Standard Time":              {"CST", "CDT"},     // America/Havana
@@ -109,41 +110,41 @@ var abbrs = map[string]abbr{
 	"Lord Howe Standard Time":         {"+1030", "+11"},   // Australia/Lord_Howe
 	"W. Australia Standard Time":      {"AWST", "AWST"},   // Australia/Perth
 	"AUS Eastern Standard Time":       {"AEST", "AEDT"},   // Australia/Sydney
-	"UTC":                            {"GMT", "GMT"},     // Etc/GMT
-	"UTC-11":                         {"-11", "-11"},     // Etc/GMT+11
-	"Dateline Standard Time":         {"-12", "-12"},     // Etc/GMT+12
-	"UTC-02":                         {"-02", "-02"},     // Etc/GMT+2
-	"UTC-08":                         {"-08", "-08"},     // Etc/GMT+8
-	"UTC-09":                         {"-09", "-09"},     // Etc/GMT+9
-	"UTC+12":                         {"+12", "+12"},     // Etc/GMT-12
-	"UTC+13":                         {"+13", "+13"},     // Etc/GMT-13
-	"Astrakhan Standard Time":        {"+04", "+04"},     // Europe/Astrakhan
-	"W. Europe Standard Time":        {"CET", "CEST"},    // Europe/Berlin
-	"GTB Standard Time":              {"EET", "EEST"},    // Europe/Bucharest
-	"Central Europe Standard Time":   {"CET", "CEST"},    // Europe/Budapest
-	"E. Europe Standard Time":        {"EET", "EEST"},    // Europe/Chisinau
-	"Turkey Standard Time":           {"+03", "+03"},     // Europe/Istanbul
-	"Kaliningrad Standard Time":      {"EET", "EET"},     // Europe/Kaliningrad
-	"FLE Standard Time":              {"EET", "EEST"},    // Europe/Kiev
-	"GMT Standard Time":              {"GMT", "BST"},     // Europe/London
-	"Belarus Standard Time":          {"+03", "+03"},     // Europe/Minsk
-	"Russian Standard Time":          {"MSK", "MSK"},     // Europe/Moscow
-	"Romance Standard Time":          {"CET", "CEST"},    // Europe/Paris
-	"Russia Time Zone 3":             {"+04", "+04"},     // Europe/Samara
-	"Saratov Standard Time":          {"+03", "+04"},     // Europe/Saratov
-	"Central European Standard Time": {"CET", "CEST"},    // Europe/Warsaw
-	"Mauritius Standard Time":        {"+04", "+04"},     // Indian/Mauritius
-	"Samoa Standard Time":            {"+13", "+14"},     // Pacific/Apia
-	"New Zealand Standard Time":      {"NZST", "NZDT"},   // Pacific/Auckland
-	"Bougainville Standard Time":     {"+11", "+11"},     // Pacific/Bougainville
-	"Chatham Islands Standard Time":  {"+1245", "+1345"}, // Pacific/Chatham
-	"Easter Island Standard Time":    {"-06", "-05"},     // Pacific/Easter
-	"Fiji Standard Time":             {"+12", "+13"},     // Pacific/Fiji
-	"Central Pacific Standard Time":  {"+11", "+11"},     // Pacific/Guadalcanal
-	"Hawaiian Standard Time":         {"HST", "HST"},     // Pacific/Honolulu
-	"Line Islands Standard Time":     {"+14", "+14"},     // Pacific/Kiritimati
-	"Marquesas Standard Time":        {"-0930", "-0930"}, // Pacific/Marquesas
-	"Norfolk Standard Time":          {"+11", "+11"},     // Pacific/Norfolk
-	"West Pacific Standard Time":     {"+10", "+10"},     // Pacific/Port_Moresby
-	"Tonga Standard Time":            {"+13", "+14"},     // Pacific/Tongatapu
+	"UTC":                             {"GMT", "GMT"},     // Etc/GMT
+	"UTC-11":                          {"-11", "-11"},     // Etc/GMT+11
+	"Dateline Standard Time":          {"-12", "-12"},     // Etc/GMT+12
+	"UTC-02":                          {"-02", "-02"},     // Etc/GMT+2
+	"UTC-08":                          {"-08", "-08"},     // Etc/GMT+8
+	"UTC-09":                          {"-09", "-09"},     // Etc/GMT+9
+	"UTC+12":                          {"+12", "+12"},     // Etc/GMT-12
+	"UTC+13":                          {"+13", "+13"},     // Etc/GMT-13
+	"Astrakhan Standard Time":         {"+04", "+04"},     // Europe/Astrakhan
+	"W. Europe Standard Time":         {"CET", "CEST"},    // Europe/Berlin
+	"GTB Standard Time":               {"EET", "EEST"},    // Europe/Bucharest
+	"Central Europe Standard Time":    {"CET", "CEST"},    // Europe/Budapest
+	"E. Europe Standard Time":         {"EET", "EEST"},    // Europe/Chisinau
+	"Turkey Standard Time":            {"+03", "+03"},     // Europe/Istanbul
+	"Kaliningrad Standard Time":       {"EET", "EET"},     // Europe/Kaliningrad
+	"FLE Standard Time":               {"EET", "EEST"},    // Europe/Kiev
+	"GMT Standard Time":               {"GMT", "BST"},     // Europe/London
+	"Belarus Standard Time":           {"+03", "+03"},     // Europe/Minsk
+	"Russian Standard Time":           {"MSK", "MSK"},     // Europe/Moscow
+	"Romance Standard Time":           {"CET", "CEST"},    // Europe/Paris
+	"Russia Time Zone 3":              {"+04", "+04"},     // Europe/Samara
+	"Saratov Standard Time":           {"+04", "+04"},     // Europe/Saratov
+	"Central European Standard Time":  {"CET", "CEST"},    // Europe/Warsaw
+	"Mauritius Standard Time":         {"+04", "+04"},     // Indian/Mauritius
+	"Samoa Standard Time":             {"+13", "+14"},     // Pacific/Apia
+	"New Zealand Standard Time":       {"NZST", "NZDT"},   // Pacific/Auckland
+	"Bougainville Standard Time":      {"+11", "+11"},     // Pacific/Bougainville
+	"Chatham Islands Standard Time":   {"+1245", "+1345"}, // Pacific/Chatham
+	"Easter Island Standard Time":     {"-06", "-05"},     // Pacific/Easter
+	"Fiji Standard Time":              {"+12", "+13"},     // Pacific/Fiji
+	"Central Pacific Standard Time":   {"+11", "+11"},     // Pacific/Guadalcanal
+	"Hawaiian Standard Time":          {"HST", "HST"},     // Pacific/Honolulu
+	"Line Islands Standard Time":      {"+14", "+14"},     // Pacific/Kiritimati
+	"Marquesas Standard Time":         {"-0930", "-0930"}, // Pacific/Marquesas
+	"Norfolk Standard Time":           {"+11", "+11"},     // Pacific/Norfolk
+	"West Pacific Standard Time":      {"+10", "+10"},     // Pacific/Port_Moresby
+	"Tonga Standard Time":             {"+13", "+13"},     // Pacific/Tongatapu
 }

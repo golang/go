@@ -944,44 +944,46 @@ b12fbfe6|	1	plan9	REV16 R1, R2
 b12fffe6|	1	plan9	REVSH R1, R2
 312fffe6|	1	plan9	RBIT R1, R2
 112f6fe1|	1	plan9	CLZ R1, R2
-f0ffd6f5|	1	gnu	pld [r6, #4080]
-f0ff59f5|	1	gnu	pld [r9, #-4080]
-f0ff96f5|	1	gnu	pldw [r6, #4080]
-f0ff19f5|	1	gnu	pldw [r9, #-4080]
-f0ffdff5|	1	gnu	pld [pc, #4080]
-f0ff5ff5|	1	gnu	pld [pc, #-4080]
-00f0d2f7|	1	gnu	pld [r2, r0]
-00f052f7|	1	gnu	pld [r2, -r0]
-00f092f7|	1	gnu	pldw [r2, r0]
-00f012f7|	1	gnu	pldw [r2, -r0]
-80f0d2f7|	1	gnu	pld [r2, r0, lsl #1]
-80f052f7|	1	gnu	pld [r2, -r0, lsl #1]
-a0f0d2f7|	1	gnu	pld [r2, r0, lsr #1]
-a0f052f7|	1	gnu	pld [r2, -r0, lsr #1]
-c0f0d2f7|	1	gnu	pld [r2, r0, asr #1]
-c0f052f7|	1	gnu	pld [r2, -r0, asr #1]
-e0f0d2f7|	1	gnu	pld [r2, r0, ror #1]
-e0f052f7|	1	gnu	pld [r2, -r0, ror #1]
-80f092f7|	1	gnu	pldw [r2, r0, lsl #1]
-80f012f7|	1	gnu	pldw [r2, -r0, lsl #1]
-a0f092f7|	1	gnu	pldw [r2, r0, lsr #1]
-a0f012f7|	1	gnu	pldw [r2, -r0, lsr #1]
-c0f092f7|	1	gnu	pldw [r2, r0, asr #1]
-c0f012f7|	1	gnu	pldw [r2, -r0, asr #1]
-e0f092f7|	1	gnu	pldw [r2, r0, ror #1]
-e0f012f7|	1	gnu	pldw [r2, -r0, ror #1]
-f0ffd2f4|	1	gnu	pli [r2, #4080]
-f0ff52f4|	1	gnu	pli [r2, #-4080]
-82f0d3f6|	1	gnu	pli [r3, r2, lsl #1]
-82f053f6|	1	gnu	pli [r3, -r2, lsl #1]
-a2f0d3f6|	1	gnu	pli [r3, r2, lsr #1]
-a2f053f6|	1	gnu	pli [r3, -r2, lsr #1]
-c2f0d3f6|	1	gnu	pli [r3, r2, asr #1]
-c2f053f6|	1	gnu	pli [r3, -r2, asr #1]
-e2f0d3f6|	1	gnu	pli [r3, r2, ror #1]
-e2f053f6|	1	gnu	pli [r3, -r2, ror #1]
-939007e1|	1	gnu	swp r9, r3, [r7]
-948042e1|	1	gnu	swpb r8, r4, [r2]
+f0ffd6f5|	1	plan9	PLD 0xff0(R6)
+f0ff59f5|	1	plan9	PLD -0xff0(R9)
+f0ff96f5|	1	plan9	PLD.W 0xff0(R6)
+f0ff19f5|	1	plan9	PLD.W -0xff0(R9)
+f0ffdff5|	1	plan9	PLD 0xff0(R15)
+f0ff5ff5|	1	plan9	PLD -0xff0(R15)
+00f0d2f7|	1	plan9	PLD (R2)(R0)
+00f052f7|	1	plan9	PLD.U (R2)(R0)
+00f092f7|	1	plan9	PLD.W (R2)(R0)
+00f012f7|	1	plan9	PLD.W.U (R2)(R0)
+80f0d2f7|	1	plan9	PLD (R2)(R0<<1)
+80f052f7|	1	plan9	PLD.U (R2)(R0<<1)
+a0f0d2f7|	1	plan9	PLD (R2)(R0>>1)
+a0f052f7|	1	plan9	PLD.U (R2)(R0>>1)
+c0f0d2f7|	1	plan9	PLD (R2)(R0->1)
+c0f052f7|	1	plan9	PLD.U (R2)(R0->1)
+e0f0d2f7|	1	plan9	PLD (R2)(R0@>1)
+e0f052f7|	1	plan9	PLD.U (R2)(R0@>1)
+80f092f7|	1	plan9	PLD.W (R2)(R0<<1)
+80f012f7|	1	plan9	PLD.W.U (R2)(R0<<1)
+a0f092f7|	1	plan9	PLD.W (R2)(R0>>1)
+a0f012f7|	1	plan9	PLD.W.U (R2)(R0>>1)
+c0f092f7|	1	plan9	PLD.W (R2)(R0->1)
+c0f012f7|	1	plan9	PLD.W.U (R2)(R0->1)
+e0f092f7|	1	plan9	PLD.W (R2)(R0@>1)
+e0f012f7|	1	plan9	PLD.W.U (R2)(R0@>1)
+f0ffd2f4|	1	plan9	PLI 0xff0(R2)
+f0ff52f4|	1	plan9	PLI -0xff0(R2)
+00f0d2f6|	1	plan9	PLI (R2)(R0)
+00f052f6|	1	plan9	PLI.U (R2)(R0)
+82f0d3f6|	1	plan9	PLI (R3)(R2<<1)
+82f053f6|	1	plan9	PLI.U (R3)(R2<<1)
+a2f0d3f6|	1	plan9	PLI (R3)(R2>>1)
+a2f053f6|	1	plan9	PLI.U (R3)(R2>>1)
+c2f0d3f6|	1	plan9	PLI (R3)(R2->1)
+c2f053f6|	1	plan9	PLI.U (R3)(R2->1)
+e2f0d3f6|	1	plan9	PLI (R3)(R2@>1)
+e2f053f6|	1	plan9	PLI.U (R3)(R2@>1)
+939007e1|	1	plan9	SWP R3, (R7), R9
+948042e1|	1	plan9	SWP.B R4, (R2), R8
 000000ef|	1	plan9	SVC $0
 ffff00ef|	1	plan9	SVC $65535
 ff10e0e3|	1	plan9	MVN $255, R1
@@ -1061,15 +1063,15 @@ aaaa4a03|	1	plan9	MOVT.EQ $43690, R10
 201012e5|	1	plan9	MOVW -0x20(R2), R1
 201012e4|	1	plan9	MOVW.P -0x20(R2), R1
 201032e5|	1	plan9	MOVW.W -0x20(R2), R1
-00100fe1|	1	plan9	MRS APSR, R1
-fef02ce3|	1	plan9	MSR $254, APSR
-fff42ce3|	1	plan9	MSR $4278190080, APSR
-05f02c01|	1	plan9	MSR.EQ R5, APSR
-09f02c11|	1	plan9	MSR.NE R9, APSR
-109af1ee|	1	plan9	VMRS FPSCR, R9
-10aaf1ee|	1	plan9	VMRS FPSCR, R10
-109ae1ee|	1	plan9	VMSR R9, FPSCR
-10aae1ee|	1	plan9	VMSR R10, FPSCR
+00100fe1|	1	plan9	MOVW APSR, R1
+fef02ce3|	1	plan9	MOVW $254, APSR
+fff42ce3|	1	plan9	MOVW $4278190080, APSR
+05f02c01|	1	plan9	MOVW.EQ R5, APSR
+09f02c11|	1	plan9	MOVW.NE R9, APSR
+109af10e|	1	plan9	MOVW.EQ FPSCR, R9
+10aaf1ee|	1	plan9	MOVW FPSCR, R10
+109ae11e|	1	plan9	MOVW.NE R9, FPSCR
+10aae1ee|	1	plan9	MOVW R10, FPSCR
 202e91e7|	1	plan9	MOVW (R1)(R0>>28), R2
 002e91e7|	1	plan9	MOVW (R1)(R0<<28), R2
 402e91e7|	1	plan9	MOVW (R1)(R0->28), R2
@@ -1200,68 +1202,110 @@ b48259e0|	1	plan9	MOVHU.P -0x24(R9), R8
 f48259e1|	1	plan9	MOVHS -0x24(R9), R8
 f48279e1|	1	plan9	MOVHS.W -0x24(R9), R8
 f48259e0|	1	plan9	MOVHS.P -0x24(R9), R8
-002a31ee|	1	plan9	VADD.F32 S0, S2, S4
-202a31ee|	1	plan9	VADD.F32 S1, S2, S4
-802a31ee|	1	plan9	VADD.F32 S0, S3, S4
-002a71ee|	1	plan9	VADD.F32 S0, S2, S5
-035b340e|	1	plan9	VADD.EQ.F64 D3, D4, D5
-002a321e|	1	plan9	VADD.NE.F32 S0, S4, S4
-035b35ee|	1	plan9	VADD.F64 D3, D5, D5
-402a31ee|	1	plan9	VSUB.F32 S0, S2, S4
-602a31ee|	1	plan9	VSUB.F32 S1, S2, S4
-c02a31ee|	1	plan9	VSUB.F32 S0, S3, S4
-402a71ee|	1	plan9	VSUB.F32 S0, S2, S5
-435b340e|	1	plan9	VSUB.EQ.F64 D3, D4, D5
-402a321e|	1	plan9	VSUB.NE.F32 S0, S4, S4
-435b35ee|	1	plan9	VSUB.F64 D3, D5, D5
-002a21ee|	1	plan9	VMUL.F32 S0, S2, S4
-202a21ee|	1	plan9	VMUL.F32 S1, S2, S4
-802a21ee|	1	plan9	VMUL.F32 S0, S3, S4
-002a61ee|	1	plan9	VMUL.F32 S0, S2, S5
-035b240e|	1	plan9	VMUL.EQ.F64 D3, D4, D5
-002a221e|	1	plan9	VMUL.NE.F32 S0, S4, S4
-035b25ee|	1	plan9	VMUL.F64 D3, D5, D5
-002a81ee|	1	plan9	VDIV.F32 S0, S2, S4
-202a81ee|	1	plan9	VDIV.F32 S1, S2, S4
-802a81ee|	1	plan9	VDIV.F32 S0, S3, S4
-002ac1ee|	1	plan9	VDIV.F32 S0, S2, S5
-035b840e|	1	plan9	VDIV.EQ.F64 D3, D4, D5
-002a821e|	1	plan9	VDIV.NE.F32 S0, S4, S4
-035b85ee|	1	plan9	VDIV.F64 D3, D5, D5
-401ab1ee|	1	plan9	VNEG.F32 S0, S2
-601ab1ee|	1	plan9	VNEG.F32 S1, S2
-401af1ee|	1	plan9	VNEG.F32 S0, S3
-445bb1ee|	1	plan9	VNEG.F64 D4, D5
-c01ab0ee|	1	plan9	VABS.F32 S0, S2
-e01ab0ee|	1	plan9	VABS.F32 S1, S2
-c01af0ee|	1	plan9	VABS.F32 S0, S3
-c45bb0ee|	1	plan9	VABS.F64 D4, D5
-c01ab1ee|	1	plan9	VSQRT.F32 S0, S2
-e01ab1ee|	1	plan9	VSQRT.F32 S1, S2
-c01af1ee|	1	plan9	VSQRT.F32 S0, S3
-c45bb1ee|	1	plan9	VSQRT.F64 D4, D5
-c01ab7ee|	1	gnu	vcvt.f64.f32 d1, s0
-c45bb7ee|	1	gnu	vcvt.f32.f64 s10, d4
-9f9f98e1|	1	gnu	ldrex r9, [r8]
-9f9fd8e1|	1	gnu	ldrexb r9, [r8]
-9f9ff8e1|	1	gnu	ldrexh r9, [r8]
+002a310e|	1	plan9	ADDF.EQ F0, F1, F2
+202a310e|	1	plan9	ADDF.EQ S1, F1, F2
+802a31ee|	1	plan9	ADDF F0, S3, F2
+002a71ee|	1	plan9	ADDF F0, F1, S5
+035b340e|	1	plan9	ADDD.EQ F3, F4, F5
+002a321e|	1	plan9	ADDF.NE F0, F2, F2
+035b35ee|	1	plan9	ADDD F3, F5, F5
+402a31ee|	1	plan9	SUBF F0, F1, F2
+602a31ee|	1	plan9	SUBF S1, F1, F2
+c02a31ee|	1	plan9	SUBF F0, S3, F2
+402a71ee|	1	plan9	SUBF F0, F1, S5
+435b340e|	1	plan9	SUBD.EQ F3, F4, F5
+402a321e|	1	plan9	SUBF.NE F0, F2, F2
+435b35ee|	1	plan9	SUBD F3, F5, F5
+002a21ee|	1	plan9	MULF F0, F1, F2
+202a21ee|	1	plan9	MULF S1, F1, F2
+802a21ee|	1	plan9	MULF F0, S3, F2
+002a61ee|	1	plan9	MULF F0, F1, S5
+035b240e|	1	plan9	MULD.EQ F3, F4, F5
+002a221e|	1	plan9	MULF.NE F0, F2, F2
+035b25ee|	1	plan9	MULD F3, F5, F5
+402a21ee|	1	plan9	NMULF F0, F1, F2
+602a21ee|	1	plan9	NMULF S1, F1, F2
+c02a21ee|	1	plan9	NMULF F0, S3, F2
+402a61ee|	1	plan9	NMULF F0, F1, S5
+435b240e|	1	plan9	NMULD.EQ F3, F4, F5
+402a221e|	1	plan9	NMULF.NE F0, F2, F2
+435b25ee|	1	plan9	NMULD F3, F5, F5
+002a01ee|	1	plan9	MULAF F0, F1, F2
+202a01ee|	1	plan9	MULAF S1, F1, F2
+802a01ee|	1	plan9	MULAF F0, S3, F2
+002a41ee|	1	plan9	MULAF F0, F1, S5
+035b040e|	1	plan9	MULAD.EQ F3, F4, F5
+002a021e|	1	plan9	MULAF.NE F0, F2, F2
+035b05ee|	1	plan9	MULAD F3, F5, F5
+402a01ee|	1	plan9	MULSF F0, F1, F2
+602a01ee|	1	plan9	MULSF S1, F1, F2
+c02a01ee|	1	plan9	MULSF F0, S3, F2
+402a41ee|	1	plan9	MULSF F0, F1, S5
+435b040e|	1	plan9	MULSD.EQ F3, F4, F5
+402a021e|	1	plan9	MULSF.NE F0, F2, F2
+435b05ee|	1	plan9	MULSD F3, F5, F5
+002a11ee|	1	plan9	NMULSF F0, F1, F2
+202a11ee|	1	plan9	NMULSF S1, F1, F2
+802a11ee|	1	plan9	NMULSF F0, S3, F2
+002a51ee|	1	plan9	NMULSF F0, F1, S5
+035b140e|	1	plan9	NMULSD.EQ F3, F4, F5
+002a121e|	1	plan9	NMULSF.NE F0, F2, F2
+035b15ee|	1	plan9	NMULSD F3, F5, F5
+402a11ee|	1	plan9	NMULAF F0, F1, F2
+602a11ee|	1	plan9	NMULAF S1, F1, F2
+c02a11ee|	1	plan9	NMULAF F0, S3, F2
+402a51ee|	1	plan9	NMULAF F0, F1, S5
+435b140e|	1	plan9	NMULAD.EQ F3, F4, F5
+402a121e|	1	plan9	NMULAF.NE F0, F2, F2
+435b15ee|	1	plan9	NMULAD F3, F5, F5
+002a81ee|	1	plan9	DIVF F0, F1, F2
+202a81ee|	1	plan9	DIVF S1, F1, F2
+802a81ee|	1	plan9	DIVF F0, S3, F2
+002ac1ee|	1	plan9	DIVF F0, F1, S5
+035b840e|	1	plan9	DIVD.EQ F3, F4, F5
+002a821e|	1	plan9	DIVF.NE F0, F2, F2
+035b85ee|	1	plan9	DIVD F3, F5, F5
+401ab1ee|	1	plan9	NEGF F0, F1
+601ab1ee|	1	plan9	NEGF S1, F1
+401af1ee|	1	plan9	NEGF F0, S3
+445bb1ee|	1	plan9	NEGD F4, F5
+c01ab0ee|	1	plan9	ABSF F0, F1
+e01ab0ee|	1	plan9	ABSF S1, F1
+c01af0ee|	1	plan9	ABSF F0, S3
+c45bb0ee|	1	plan9	ABSD F4, F5
+c01ab1ee|	1	plan9	SQRTF F0, F1
+e01ab1ee|	1	plan9	SQRTF S1, F1
+c01af1ee|	1	plan9	SQRTF F0, S3
+c45bb1ee|	1	plan9	SQRTD F4, F5
+c01ab7ee|	1	plan9	MOVFD F0, F1
+c45bb7ee|	1	plan9	MOVDF F4, F5
+c89ab4ee|	1	plan9	CMPF F8, F9
+c45bb42e|	1	plan9	CMPD.CS F4, F5
+c07ab56e|	1	plan9	CMPF.VS $0, F7
+c06bb5ee|	1	plan9	CMPD $0, F6
+9f9f98e1|	1	plan9	LDREX (R8), R9
+9f9fd8e1|	1	plan9	LDREXB (R8), R9
+9f9ff8e1|	1	plan9	LDREXH (R8), R9
 9fcfbbe1|	1	gnu	ldrexd ip, [fp]
-935f84e1|	1	gnu	strex r5, r3, [r4]
-935fc4e1|	1	gnu	strexb r5, r3, [r4]
-935fe4e1|	1	gnu	strexh r5, r3, [r4]
+935f84e1|	1	plan9	STREX R3, (R4), R5
+935fc4e1|	1	plan9	STREXB R3, (R4), R5
+935fe4e1|	1	plan9	STREXH R3, (R4), R5
 98afa9e1|	1	gnu	strexd sl, r8, [r9]
-104b08ee|	1	gnu	vmov.32 d8[0], r4
-108b14ee|	1	gnu	vmov.32 r8, d4[0]
-445ab0ee|	1	gnu	vmov.f32 s10, s8
-467bb0ee|	1	gnu	vmov.f64 d7, d6
-c68abdee|	1	gnu	vcvt.s32.f32 s16, s12
-c68abcee|	1	gnu	vcvt.u32.f32 s16, s12
-c68bbdee|	1	gnu	vcvt.s32.f64 s16, d6
-c68bbcee|	1	gnu	vcvt.u32.f64 s16, d6
-c68ab8ee|	1	gnu	vcvt.f32.s32 s16, s12
-468ab8ee|	1	gnu	vcvt.f32.u32 s16, s12
-c68bb8ee|	1	gnu	vcvt.f64.s32 d8, s12
-468bb8ee|	1	gnu	vcvt.f64.u32 d8, s12
+104b08ee|	1	plan9	MOVW R4, F8
+108b14ee|	1	plan9	MOVW F4, R8
+104a080e|	1	plan9	MOVW.EQ R4, F8
+104a181e|	1	plan9	MOVW.NE F8, R4
+904a181e|	1	plan9	MOVW.NE S17, R4
+445ab0ee|	1	plan9	MOVF F4, F5
+467bb0ee|	1	plan9	MOVD F6, F7
+c68abdee|	1	plan9	MOVFW F6, F8
+c68abcee|	1	plan9	MOVFW.U F6, F8
+c68bbdee|	1	plan9	MOVDW F6, F8
+c68bbcee|	1	plan9	MOVDW.U F6, F8
+c68ab8ee|	1	plan9	MOVWF F6, F8
+468ab8ee|	1	plan9	MOVWF.U F6, F8
+c68bb8ee|	1	plan9	MOVWD F6, F8
+468bb8ee|	1	plan9	MOVWD.U F6, F8
 000000ea|	1	plan9	B 0x8
 feffffea|	1	plan9	B 0x0
 fcffffea|	1	plan9	B 0xfffffff8
@@ -1446,34 +1490,34 @@ b310a2e0|	1	gnu	strht r1, [r2], r3
 b640ade0|	1	gnu	strht r4, [sp], r6
 b31022e0|	1	gnu	strht r1, [r2], -r3
 b6402de0|	1	gnu	strht r4, [sp], -r6
-00f020e3|	1	gnu	nop
-445ab0ee|	1	gnu	vmov.f32 s10, s8
-645af0ee|	1	gnu	vmov.f32 s11, s9
-467bb0ee|	1	gnu	vmov.f64 d7, d6
-104b08ee|	1	gnu	vmov.32 d8[0], r4
-104b28ee|	1	gnu	vmov.32 d8[1], r4
-108b14ee|	1	gnu	vmov.32 r8, d4[0]
-108b34ee|	1	gnu	vmov.32 r8, d4[1]
-c68abdee|	1	gnu	vcvt.s32.f32 s16, s12
-e68afdee|	1	gnu	vcvt.s32.f32 s17, s13
-c68abcee|	1	gnu	vcvt.u32.f32 s16, s12
-e68afcee|	1	gnu	vcvt.u32.f32 s17, s13
-c68bbdee|	1	gnu	vcvt.s32.f64 s16, d6
-c68bfdee|	1	gnu	vcvt.s32.f64 s17, d6
-c68bbcee|	1	gnu	vcvt.u32.f64 s16, d6
-c68bfcee|	1	gnu	vcvt.u32.f64 s17, d6
-c68ab8ee|	1	gnu	vcvt.f32.s32 s16, s12
-e68af8ee|	1	gnu	vcvt.f32.s32 s17, s13
-468ab8ee|	1	gnu	vcvt.f32.u32 s16, s12
-668af8ee|	1	gnu	vcvt.f32.u32 s17, s13
-c68bb8ee|	1	gnu	vcvt.f64.s32 d8, s12
-e68bb8ee|	1	gnu	vcvt.f64.s32 d8, s13
-468bb8ee|	1	gnu	vcvt.f64.u32 d8, s12
-668bb8ee|	1	gnu	vcvt.f64.u32 d8, s13
-c01ab7ee|	1	gnu	vcvt.f64.f32 d1, s0
-e01ab7ee|	1	gnu	vcvt.f64.f32 d1, s1
-c45bb7ee|	1	gnu	vcvt.f32.f64 s10, d4
-c65bf7ee|	1	gnu	vcvt.f32.f64 s11, d6
+00f020e3|	1	plan9	NOP
+445ab0ee|	1	plan9	MOVF F4, F5
+645af0ee|	1	plan9	MOVF S9, S11
+467bb0ee|	1	plan9	MOVD F6, F7
+104b08ee|	1	plan9	MOVW R4, F8
+104b28ee|	1	plan9	MOVW R4, D8[1]
+108b14ee|	1	plan9	MOVW F4, R8
+108b34ee|	1	plan9	MOVW D4[1], R8
+c68abdee|	1	plan9	MOVFW F6, F8
+e68afdee|	1	plan9	MOVFW S13, S17
+c68abcee|	1	plan9	MOVFW.U F6, F8
+e68afcee|	1	plan9	MOVFW.U S13, S17
+c68bbdee|	1	plan9	MOVDW F6, F8
+c68bfdee|	1	plan9	MOVDW F6, S17
+c68bbcee|	1	plan9	MOVDW.U F6, F8
+c68bfcee|	1	plan9	MOVDW.U F6, S17
+c68ab8ee|	1	plan9	MOVWF F6, F8
+e68af8ee|	1	plan9	MOVWF S13, S17
+468ab8ee|	1	plan9	MOVWF.U F6, F8
+668af8ee|	1	plan9	MOVWF.U S13, S17
+c68bb8ee|	1	plan9	MOVWD F6, F8
+e68bb8ee|	1	plan9	MOVWD S13, F8
+468bb8ee|	1	plan9	MOVWD.U F6, F8
+668bb8ee|	1	plan9	MOVWD.U S13, F8
+c01ab7ee|	1	plan9	MOVFD F0, F1
+e01ab7ee|	1	plan9	MOVFD S1, F1
+c45bb7ee|	1	plan9	MOVDF F4, F5
+c65bf7ee|	1	plan9	MOVDF F6, S11
 102083e6|	1	gnu	pkhbt r2, r3, r0
 102283e6|	1	gnu	pkhbt r2, r3, r0, lsl #4
 502083e6|	1	gnu	pkhtb r2, r3, r0, asr #32
@@ -1525,8 +1569,8 @@ f92f73e6|	1	gnu	uhsub8 r2, r3, r9
 532f34e6|	1	gnu	shsax r2, r4, r3
 332f74e6|	1	gnu	uhasx r2, r4, r3
 532f74e6|	1	gnu	uhsax r2, r4, r3
-dc51afe7|	1	gnu	sbfx r5, ip, #3, #16
-dc51efe7|	1	gnu	ubfx r5, ip, #3, #16
+dc51afe7|	1	plan9	SBFX $16, $3, R12, R5
+dc51efe7|	1	plan9	UBFX $16, $3, R12, R5
 b12f88e6|	1	gnu	sel r2, r8, r1
 000201f1|	1	gnu	setend be
 000001f1|	1	gnu	setend le
@@ -1537,18 +1581,18 @@ b12f88e6|	1	gnu	sel r2, r8, r1
 1155eae6|	1	gnu	usat r5, #10, r1, lsl #10
 5155eae6|	1	gnu	usat r5, #10, r1, asr #10
 335feae6|	1	gnu	usat16 r5, #10, r3
-7788a9e6|	1	gnu	sxtab r8, r9, r7, ror #16
-778889e6|	1	gnu	sxtab16 r8, r9, r7, ror #16
-7788b9e6|	1	gnu	sxtah r8, r9, r7, ror #16
-7784afe6|	1	gnu	sxtb r8, r7, ror #8
-778c8fe6|	1	gnu	sxtb16 r8, r7, ror #24
-7780bfe6|	1	gnu	sxth r8, r7
-7788e9e6|	1	gnu	uxtab r8, r9, r7, ror #16
-7788c9e6|	1	gnu	uxtab16 r8, r9, r7, ror #16
-7788f9e6|	1	gnu	uxtah r8, r9, r7, ror #16
-7784efe6|	1	gnu	uxtb r8, r7, ror #8
-778ccfe6|	1	gnu	uxtb16 r8, r7, ror #24
-7780ffe6|	1	gnu	uxth r8, r7
+7788a9e6|	1	plan9	SXTAB R7@>$16, R9, R8
+778889e6|	1	plan9	SXTAB16 R7@>$16, R9, R8
+7788b9e6|	1	plan9	SXTAH R7@>$16, R9, R8
+7784afe6|	1	plan9	MOVBS R7@>$8, R8
+778c8fe6|	1	plan9	SXTB16 R7@>$24, R8
+7780bf16|	1	plan9	MOVHS.NE R7, R8
+7788e906|	1	plan9	UXTAB.EQ R7@>$16, R9, R8
+7788c9e6|	1	plan9	UXTAB16 R7@>$16, R9, R8
+7788f9e6|	1	plan9	UXTAH R7@>$16, R9, R8
+7784efe6|	1	plan9	MOVBU R7@>$8, R8
+778ccfe6|	1	plan9	UXTB16 R7@>$24, R8
+7780ffe6|	1	plan9	MOVHU R7, R8
 11f288e7|	1	gnu	usad8 r8, r1, r2
 112388e7|	1	gnu	usada8 r8, r1, r3, r2
 02f020e3|	1	gnu	wfe

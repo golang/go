@@ -19,6 +19,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
@@ -134,12 +135,12 @@ func (p *Parser) line() bool {
 		for {
 			tok = p.lex.Next()
 			if len(operands) == 0 && len(items) == 0 {
-				if p.arch.InFamily(sys.ARM, sys.ARM64) && tok == '.' {
-					// ARM conditionals.
+				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386) && tok == '.' {
+					// Suffixes: ARM conditionals or x86 modifiers.
 					tok = p.lex.Next()
 					str := p.lex.Text()
 					if tok != scanner.Ident {
-						p.errorf("ARM condition expected identifier, found %s", str)
+						p.errorf("instruction suffix expected identifier, found %s", str)
 					}
 					cond = cond + "." + str
 					continue
@@ -219,15 +220,15 @@ func (p *Parser) instruction(op obj.As, word, cond string, operands [][]lex.Toke
 func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
 	switch word {
 	case "DATA":
-		p.asmData(word, operands)
+		p.asmData(operands)
 	case "FUNCDATA":
-		p.asmFuncData(word, operands)
+		p.asmFuncData(operands)
 	case "GLOBL":
-		p.asmGlobl(word, operands)
+		p.asmGlobl(operands)
 	case "PCDATA":
-		p.asmPCData(word, operands)
+		p.asmPCData(operands)
 	case "TEXT":
-		p.asmText(word, operands)
+		p.asmText(operands)
 	default:
 		return false
 	}
@@ -322,6 +323,7 @@ func (p *Parser) operand(a *obj.Addr) {
 				p.get(')')
 			}
 		} else if p.atRegisterExtension() {
+			a.Type = obj.TYPE_REG
 			p.registerExtension(a, tok.String(), prefix)
 			p.expectOperandEnd()
 			return
@@ -604,12 +606,20 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 		return
 	}
 
-	p.get('.')
-	tok := p.next()
-	ext := tok.String()
 	isIndex := false
 	num := int16(0)
 	isAmount := true // Amount is zero by default
+	ext := ""
+	if p.peek() == lex.LSH {
+		// (Rn)(Rm<<2), the shifted offset register.
+		ext = "LSL"
+	} else {
+		// (Rn)(Rm.UXTW<1), the extended offset register.
+		// Rm.UXTW<<3, the extended register.
+		p.get('.')
+		tok := p.next()
+		ext = tok.String()
+	}
 	if p.peek() == lex.LSH {
 		// parses left shift amount applied after extension: <<Amount
 		p.get(lex.LSH)
@@ -714,8 +724,8 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 }
 
 // registerIndirect parses the general form of a register indirection.
-// It is can be (R1), (R2*scale), or (R1)(R2*scale) where R1 may be a simple
-// register or register pair R:R or (R, R) or (R+R).
+// It is can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
+// where R1 may be a simple register or register pair R:R or (R, R) or (R+R).
 // Or it might be a pseudo-indirection like (FP).
 // We are sitting on the opening parenthesis.
 func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
@@ -783,19 +793,26 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 		// General form (R)(R*scale).
 		p.next()
 		tok := p.next()
-		r1, r2, scale, ok = p.register(tok.String(), 0)
-		if !ok {
-			p.errorf("indirect through non-register %s", tok)
-		}
-		if r2 != 0 {
-			p.errorf("unimplemented two-register form")
-		}
-		a.Index = r1
-		if scale == 0 && p.arch.Family == sys.ARM64 {
-			// scale is 1 by default for ARM64
-			a.Scale = 1
+		if p.atRegisterExtension() {
+			p.registerExtension(a, tok.String(), prefix)
+		} else if p.atRegisterShift() {
+			// (R1)(R2<<3)
+			p.registerExtension(a, tok.String(), prefix)
 		} else {
-			a.Scale = int16(scale)
+			r1, r2, scale, ok = p.register(tok.String(), 0)
+			if !ok {
+				p.errorf("indirect through non-register %s", tok)
+			}
+			if r2 != 0 {
+				p.errorf("unimplemented two-register form")
+			}
+			a.Index = r1
+			if scale == 0 && p.arch.Family == sys.ARM64 {
+				// scale is 1 by default for ARM64
+				a.Scale = 1
+			} else {
+				a.Scale = int16(scale)
+			}
 		}
 		p.get(')')
 	} else if scale != 0 {
@@ -811,8 +828,25 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 // registers, as in [R1,R3-R5] or [V1.S4, V2.S4, V3.S4, V4.S4].
 // For ARM, only R0 through R15 may appear.
 // For ARM64, V0 through V31 with arrangement may appear.
+//
+// For 386/AMD64 register list specifies 4VNNIW-style multi-source operand.
+// For range of 4 elements, Intel manual uses "+3" notation, for example:
+//	VP4DPWSSDS zmm1{k1}{z}, zmm2+3, m128
+// Given asm line:
+//	VP4DPWSSDS Z5, [Z10-Z13], (AX)
+// zmm2 is Z10, and Z13 is the only valid value for it (Z10+3).
+// Only simple ranges are accepted, like [Z0-Z3].
+//
 // The opening bracket has been consumed.
 func (p *Parser) registerList(a *obj.Addr) {
+	if p.arch.InFamily(sys.I386, sys.AMD64) {
+		p.registerListX86(a)
+	} else {
+		p.registerListARM(a)
+	}
+}
+
+func (p *Parser) registerListARM(a *obj.Addr) {
 	// One range per loop.
 	var maxReg int
 	var bits uint16
@@ -905,6 +939,39 @@ ListLoop:
 	default:
 		p.errorf("register list not supported on this architecuture")
 	}
+}
+
+func (p *Parser) registerListX86(a *obj.Addr) {
+	// Accept only [RegA-RegB] syntax.
+	// Don't use p.get() to provide better error messages.
+
+	loName := p.next().String()
+	lo, ok := p.arch.Register[loName]
+	if !ok {
+		if loName == "EOF" {
+			p.errorf("register list: expected ']', found EOF")
+		} else {
+			p.errorf("register list: bad low register in `[%s`", loName)
+		}
+		return
+	}
+	if tok := p.next().ScanToken; tok != '-' {
+		p.errorf("register list: expected '-' after `[%s`, found %s", loName, tok)
+		return
+	}
+	hiName := p.next().String()
+	hi, ok := p.arch.Register[hiName]
+	if !ok {
+		p.errorf("register list: bad high register in `[%s-%s`", loName, hiName)
+		return
+	}
+	if tok := p.next().ScanToken; tok != ']' {
+		p.errorf("register list: expected ']' after `[%s-%s`, found %s", loName, hiName, tok)
+	}
+
+	a.Type = obj.TYPE_REGLIST
+	a.Reg = lo
+	a.Offset = x86.EncodeRegisterRange(lo, hi)
 }
 
 // register number is ARM-specific. It returns the number of the specified register.

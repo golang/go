@@ -55,8 +55,62 @@ type Node struct {
 
 	Esc uint16 // EscXXX
 
-	Op    Op
-	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+	Op  Op
+	aux uint8
+}
+
+func (n *Node) ResetAux() {
+	n.aux = 0
+}
+
+func (n *Node) SubOp() Op {
+	switch n.Op {
+	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	default:
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return Op(n.aux)
+}
+
+func (n *Node) SetSubOp(op Op) {
+	switch n.Op {
+	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	default:
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	n.aux = uint8(op)
+}
+
+func (n *Node) IndexMapLValue() bool {
+	if n.Op != OINDEXMAP {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return n.aux != 0
+}
+
+func (n *Node) SetIndexMapLValue(b bool) {
+	if n.Op != OINDEXMAP {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	if b {
+		n.aux = 1
+	} else {
+		n.aux = 0
+	}
+}
+
+func (n *Node) TChanDir() types.ChanDir {
+	if n.Op != OTCHAN {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	return types.ChanDir(n.aux)
+}
+
+func (n *Node) SetTChanDir(dir types.ChanDir) {
+	if n.Op != OTCHAN {
+		Fatalf("unexpected op: %v", n.Op)
+	}
+	n.aux = uint8(dir)
 }
 
 func (n *Node) IsSynthetic() bool {
@@ -242,9 +296,7 @@ type Name struct {
 	Param     *Param     // additional fields for ONAME, OTYPE
 	Decldepth int32      // declaration loop depth, increased for every loop or label
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-
-	used  bool // for variable declared and not used error
-	flags bitset8
+	flags     bitset8
 }
 
 const (
@@ -254,6 +306,7 @@ const (
 	nameNeedzero  // if it contains pointers, needs to be zeroed on function entry
 	nameKeepalive // mark value live across unknown assembly call
 	nameAutoTemp  // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+	nameUsed      // for variable declared and not used error
 )
 
 func (n *Name) Captured() bool  { return n.flags&nameCaptured != 0 }
@@ -262,7 +315,7 @@ func (n *Name) Byval() bool     { return n.flags&nameByval != 0 }
 func (n *Name) Needzero() bool  { return n.flags&nameNeedzero != 0 }
 func (n *Name) Keepalive() bool { return n.flags&nameKeepalive != 0 }
 func (n *Name) AutoTemp() bool  { return n.flags&nameAutoTemp != 0 }
-func (n *Name) Used() bool      { return n.used }
+func (n *Name) Used() bool      { return n.flags&nameUsed != 0 }
 
 func (n *Name) SetCaptured(b bool)  { n.flags.set(nameCaptured, b) }
 func (n *Name) SetReadonly(b bool)  { n.flags.set(nameReadonly, b) }
@@ -270,7 +323,7 @@ func (n *Name) SetByval(b bool)     { n.flags.set(nameByval, b) }
 func (n *Name) SetNeedzero(b bool)  { n.flags.set(nameNeedzero, b) }
 func (n *Name) SetKeepalive(b bool) { n.flags.set(nameKeepalive, b) }
 func (n *Name) SetAutoTemp(b bool)  { n.flags.set(nameAutoTemp, b) }
-func (n *Name) SetUsed(b bool)      { n.used = b }
+func (n *Name) SetUsed(b bool)      { n.flags.set(nameUsed, b) }
 
 type Param struct {
 	Ntype    *Node
@@ -407,7 +460,6 @@ type Func struct {
 	Exit      Nodes
 	Cvars     Nodes   // closure params
 	Dcl       []*Node // autodcl for this func/closure
-	Inldcl    Nodes   // copy of dcl for use in inlining
 
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
@@ -417,8 +469,11 @@ type Func struct {
 	// Marks records scope boundary changes.
 	Marks []Mark
 
-	Closgen    int
-	Outerfunc  *Node // outer function (for closure)
+	// Closgen tracks how many closures have been generated within
+	// this function. Used by closurename for creating unique
+	// function names.
+	Closgen int
+
 	FieldTrack map[*types.Sym]struct{}
 	DebugInfo  *ssa.FuncDebug
 	Ntype      *Node // signature
@@ -427,8 +482,7 @@ type Func struct {
 	Nname      *Node
 	lsym       *obj.LSym
 
-	Inl     Nodes // copy of the body for use in inlining
-	InlCost int32
+	Inl *Inline
 
 	Label int32 // largest auto-generated label in this function
 
@@ -443,6 +497,15 @@ type Func struct {
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	nwbrCalls *[]nowritebarrierrecCallSym
+}
+
+// An Inline holds fields used for function bodies that can be inlined.
+type Inline struct {
+	Cost int32 // heuristic cost of inlining this function
+
+	// Copies of Func.Dcl and Nbody for use during inlining.
+	Dcl  []*Node
+	Body []*Node
 }
 
 // A Mark represents a scope boundary.
@@ -468,6 +531,7 @@ const (
 	funcNilCheckDisabled    // disable nil checks when compiling this function
 	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
 	funcExportInline        // include inline body in export data
+	funcInstrumentBody      // add race/msan instrumentation during SSA construction
 )
 
 func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
@@ -479,6 +543,7 @@ func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
 func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
+func (f *Func) InstrumentBody() bool      { return f.flags&funcInstrumentBody != 0 }
 
 func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
@@ -489,6 +554,7 @@ func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
 func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
+func (f *Func) SetInstrumentBody(b bool)      { f.flags.set(funcInstrumentBody, b) }
 
 func (f *Func) setWBPos(pos src.XPos) {
 	if Debug_wb != 0 {
@@ -634,16 +700,25 @@ const (
 	OEMPTY    // no-op (empty statement)
 	OFALL     // fallthrough
 	OFOR      // for Ninit; Left; Right { Nbody }
-	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
-	OGOTO     // goto Left
-	OIF       // if Ninit; Left { Nbody } else { Rlist }
-	OLABEL    // Left:
-	OPROC     // go Left (Left must be call)
-	ORANGE    // for List = range Right { Nbody }
-	ORETURN   // return List
-	OSELECT   // select { List } (List is list of OXCASE or OCASE)
-	OSWITCH   // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
-	OTYPESW   // Left = Right.(type) (appears as .Left of OSWITCH)
+	// OFORUNTIL is like OFOR, but the test (Left) is applied after the body:
+	// 	Ninit
+	// 	top: { Nbody }   // Execute the body at least once
+	// 	cont: Right
+	// 	if Left {        // And then test the loop condition
+	// 		List     // Before looping to top, execute List
+	// 		goto top
+	// 	}
+	// OFORUNTIL is created by walk. There's no way to write this in Go code.
+	OFORUNTIL
+	OGOTO   // goto Left
+	OIF     // if Ninit; Left { Nbody } else { Rlist }
+	OLABEL  // Left:
+	OPROC   // go Left (Left must be call)
+	ORANGE  // for List = range Right { Nbody }
+	ORETURN // return List
+	OSELECT // select { List } (List is list of OXCASE or OCASE)
+	OSWITCH // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
+	OTYPESW // Left = Right.(type) (appears as .Left of OSWITCH)
 
 	// types
 	OTCHAN   // chan int
@@ -679,6 +754,11 @@ const (
 // For fields that are not used in most nodes, this is used instead of
 // a slice to save space.
 type Nodes struct{ slice *[]*Node }
+
+// asNodes returns a slice of *Node as a Nodes value.
+func asNodes(s []*Node) Nodes {
+	return Nodes{&s}
+}
 
 // Slice returns the entries in Nodes as a slice.
 // Changes to the slice entries (as in s[i] = n) will be reflected in

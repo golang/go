@@ -16,24 +16,25 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 )
 
 const (
-	NoOpt        = "-gcflags=-l -N"
-	Opt          = ""
-	OptInl4      = "-gcflags=all=-l=4"
-	OptInl4DwLoc = "-gcflags=all=-l=4 -dwarflocationlists"
+	DefaultOpt = "-gcflags="
+	NoOpt      = "-gcflags=-l -N"
+	OptInl4    = "-gcflags=all=-l=4"
 )
 
-func TestRuntimeTypeDIEs(t *testing.T) {
+func TestRuntimeTypesPresent(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestRuntimeTypeDIEs")
+	dir, err := ioutil.TempDir("", "TestRuntimeTypesPresent")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -84,9 +85,14 @@ func findTypes(t *testing.T, dw *dwarf.Data, want map[string]bool) (found map[st
 	return
 }
 
-func gobuild(t *testing.T, dir string, testfile string, gcflags string) *objfilepkg.File {
+type builtFile struct {
+	*objfilepkg.File
+	path string
+}
+
+func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFile {
 	src := filepath.Join(dir, "test.go")
-	dst := filepath.Join(dir, "out")
+	dst := filepath.Join(dir, "out.exe")
 
 	if err := ioutil.WriteFile(src, []byte(testfile), 0666); err != nil {
 		t.Fatal(err)
@@ -102,7 +108,39 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *objfile
 	if err != nil {
 		t.Fatal(err)
 	}
-	return f
+	return &builtFile{f, dst}
+}
+
+func envWithGoPathSet(gp string) []string {
+	env := os.Environ()
+	for i := 0; i < len(env); i++ {
+		if strings.HasPrefix(env[i], "GOPATH=") {
+			env[i] = "GOPATH=" + gp
+			return env
+		}
+	}
+	env = append(env, "GOPATH="+gp)
+	return env
+}
+
+// Similar to gobuild() above, but runs off a separate GOPATH environment
+
+func gobuildTestdata(t *testing.T, tdir string, gopathdir string, packtobuild string, gcflags string) *builtFile {
+	dst := filepath.Join(tdir, "out.exe")
+
+	// Run a build with an updated GOPATH
+	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, packtobuild)
+	cmd.Env = envWithGoPathSet(gopathdir)
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("build: %s\n", b)
+		t.Fatalf("build error: %v", err)
+	}
+
+	f, err := objfilepkg.Open(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &builtFile{f, dst}
 }
 
 func TestEmbeddedStructMarker(t *testing.T) {
@@ -541,8 +579,8 @@ func TestInlinedRoutineRecords(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
 	}
 
 	const prog = `
@@ -620,6 +658,27 @@ func main() {
 				t.Fatalf("can't locate origin DIE at off %v", ooff)
 			}
 
+			// Walk the children of the abstract subroutine. We expect
+			// to see child variables there, even if (perhaps due to
+			// optimization) there are no references to them from the
+			// inlined subroutine DIE.
+			absFcnIdx := ex.idxFromOffset(ooff)
+			absFcnChildDies := ex.Children(absFcnIdx)
+			if len(absFcnChildDies) != 2 {
+				t.Fatalf("expected abstract function: expected 2 children, got %d children", len(absFcnChildDies))
+			}
+			formalCount := 0
+			for _, absChild := range absFcnChildDies {
+				if absChild.Tag == dwarf.TagFormalParameter {
+					formalCount += 1
+					continue
+				}
+				t.Fatalf("abstract function child DIE: expected formal, got %v", absChild.Tag)
+			}
+			if formalCount != 2 {
+				t.Fatalf("abstract function DIE: expected 2 formals, got %d", formalCount)
+			}
+
 			if exCount >= len(expectedInl) {
 				t.Fatalf("too many inlined subroutines found in main.main")
 			}
@@ -657,30 +716,8 @@ func main() {
 	}
 }
 
-func abstractOriginSanity(t *testing.T, flags string) {
+func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
 
-	// Nothing special about net/http here, this is just a convenient
-	// way to pull in a lot of code.
-	const prog = `
-package main
-
-import (
-	"net/http"
-	"net/http/httptest"
-)
-
-type statusHandler int
-
-func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(int(*h))
-}
-
-func main() {
-	status := statusHandler(http.StatusNotFound)
-	s := httptest.NewServer(&status)
-	defer s.Close()
-}
-`
 	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
@@ -688,7 +725,7 @@ func main() {
 	defer os.RemoveAll(dir)
 
 	// Build with inlining, to exercise DWARF inlining support.
-	f := gobuild(t, dir, prog, flags)
+	f := gobuildTestdata(t, dir, gopathdir, "main", flags)
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -704,7 +741,6 @@ func main() {
 	// references.
 	abscount := 0
 	for i, die := range ex.dies {
-
 		// Does it have an abstract origin?
 		ooff, originOK := die.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
 		if !originOK {
@@ -761,25 +797,123 @@ func TestAbstractOriginSanity(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
 	}
 
-	abstractOriginSanity(t, OptInl4)
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "httptest")
+		abstractOriginSanity(t, gopathdir, OptInl4)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
 }
 
-func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
+func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
 	}
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
 		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
 	}
 
-	abstractOriginSanity(t, OptInl4DwLoc)
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "issue25459")
+		abstractOriginSanity(t, gopathdir, DefaultOpt)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
+}
+
+func TestRuntimeTypeAttr(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	// Explicitly test external linking, for dsymutil compatility on Darwin.
+	for _, flags := range []string{"-ldflags=-linkmode=internal", "-ldflags=-linkmode=external"} {
+		t.Run("flags="+flags, func(t *testing.T) {
+			if runtime.GOARCH == "ppc64" && strings.Contains(flags, "external") {
+				t.Skip("-linkmode=external not supported on ppc64")
+			}
+
+			testRuntimeTypeAttr(t, flags)
+		})
+	}
+}
+
+func testRuntimeTypeAttr(t *testing.T, flags string) {
+	const prog = `
+package main
+
+import "unsafe"
+
+type X struct{ _ int }
+
+func main() {
+	var x interface{} = &X{}
+	p := *(*uintptr)(unsafe.Pointer(&x))
+	print(p)
+}
+`
+	dir, err := ioutil.TempDir("", "TestRuntimeType")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	f := gobuild(t, dir, prog, flags)
+	out, err := exec.Command(f.path).CombinedOutput()
+	if err != nil {
+		t.Fatalf("could not run test program: %v", err)
+	}
+	addr, err := strconv.ParseUint(string(out), 10, 64)
+	if err != nil {
+		t.Fatalf("could not parse type address from program output %q: %v", out, err)
+	}
+
+	symbols, err := f.Symbols()
+	if err != nil {
+		t.Fatalf("error reading symbols: %v", err)
+	}
+	var types *objfilepkg.Sym
+	for _, sym := range symbols {
+		if sym.Name == "runtime.types" {
+			types = &sym
+			break
+		}
+	}
+	if types == nil {
+		t.Fatal("couldn't find runtime.types in symbols")
+	}
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+	dies := ex.Named("*main.X")
+	if len(dies) != 1 {
+		t.Fatalf("wanted 1 DIE named *main.X, found %v", len(dies))
+	}
+	rtAttr := dies[0].Val(0x2904)
+	if rtAttr == nil {
+		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
+	}
+
+	if rtAttr.(uint64)+types.Addr != addr {
+		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
+	}
 }

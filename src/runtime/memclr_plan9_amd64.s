@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-// void runtime·memclrNoHeapPointers(void*, uintptr)
+// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
 	MOVQ	ptr+0(FP), DI
 	MOVQ	n+8(FP), CX

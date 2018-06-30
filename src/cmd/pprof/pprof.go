@@ -33,6 +33,7 @@ func main() {
 	options := &driver.Options{
 		Fetch: new(fetcher),
 		Obj:   new(objTool),
+		UI:    newUI(),
 	}
 	if err := driver.PProf(options); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -75,8 +76,8 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 	client := &http.Client{
 		Transport: &http.Transport{
 			ResponseHeaderTimeout: timeout + 5*time.Second,
-			Proxy:           http.ProxyFromEnvironment,
-			TLSClientConfig: tlsConfig,
+			Proxy:                 http.ProxyFromEnvironment,
+			TLSClientConfig:       tlsConfig,
 		},
 	}
 	resp, err := client.Get(source)
@@ -369,3 +370,7 @@ func (f *file) Close() error {
 	f.file.Close()
 	return nil
 }
+
+// newUI will be set in readlineui.go in some platforms
+// for interactive readline functionality.
+var newUI = func() driver.UI { return nil }

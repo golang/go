@@ -47,74 +47,7 @@ notintel:
 	CPUID
 	MOVL	AX, runtime·processorVersionInfo(SB)
 
-	TESTL	$(1<<26), DX // SSE2
-	SETNE	runtime·support_sse2(SB)
-
-	TESTL	$(1<<9), CX // SSSE3
-	SETNE	runtime·support_ssse3(SB)
-
-	TESTL	$(1<<19), CX // SSE4.1
-	SETNE	runtime·support_sse41(SB)
-
-	TESTL	$(1<<20), CX // SSE4.2
-	SETNE	runtime·support_sse42(SB)
-
-	TESTL	$(1<<23), CX // POPCNT
-	SETNE	runtime·support_popcnt(SB)
-
-	TESTL	$(1<<25), CX // AES
-	SETNE	runtime·support_aes(SB)
-
-	TESTL	$(1<<27), CX // OSXSAVE
-	SETNE	runtime·support_osxsave(SB)
-
-	// If OS support for XMM and YMM is not present
-	// support_avx will be set back to false later.
-	TESTL	$(1<<28), CX // AVX
-	SETNE	runtime·support_avx(SB)
-
-eax7:
-	// Load EAX=7/ECX=0 cpuid flags
-	CMPL	SI, $7
-	JLT	osavx
-	MOVL	$7, AX
-	MOVL	$0, CX
-	CPUID
-
-	TESTL	$(1<<3), BX // BMI1
-	SETNE	runtime·support_bmi1(SB)
-
-	// If OS support for XMM and YMM is not present
-	// support_avx2 will be set back to false later.
-	TESTL	$(1<<5), BX
-	SETNE	runtime·support_avx2(SB)
-
-	TESTL	$(1<<8), BX // BMI2
-	SETNE	runtime·support_bmi2(SB)
-
-	TESTL	$(1<<9), BX // ERMS
-	SETNE	runtime·support_erms(SB)
-
-osavx:
-	// nacl does not support XGETBV to test
-	// for XMM and YMM OS support.
-#ifndef GOOS_nacl
-	CMPB	runtime·support_osxsave(SB), $1
-	JNE	noavx
-	MOVL	$0, CX
-	// For XGETBV, OSXSAVE bit is required and sufficient
-	XGETBV
-	ANDL	$6, AX
-	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
-	JE nocpuinfo
-#endif
-noavx:
-	MOVB $0, runtime·support_avx(SB)
-	MOVB $0, runtime·support_avx2(SB)
-
 nocpuinfo:
-
-needtls:
 	LEAL	runtime·m0+m_tls(SB), DI
 	CALL	runtime·settls(SB)
 

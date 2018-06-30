@@ -9,8 +9,8 @@ package bytealg
 const MaxBruteForce = 16
 
 func init() {
-	// 8 bytes can be completely loaded into 1 register.
-	MaxLen = 8
+	// Optimize cases where the length of the substring is less than 32 bytes
+	MaxLen = 32
 }
 
 // Cutover reports the number of failures of IndexByte we should tolerate

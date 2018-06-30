@@ -50,12 +50,12 @@ func htmlEscaper(args ...interface{}) string {
 // htmlReplacementTable contains the runes that need to be escaped
 // inside a quoted attribute value or in a text node.
 var htmlReplacementTable = []string{
-	// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+	// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
 	// U+0000 NULL Parse error. Append a U+FFFD REPLACEMENT
 	// CHARACTER character to the current attribute's value.
 	// "
 	// and similarly
-	// http://www.w3.org/TR/html5/syntax.html#before-attribute-value-state
+	// https://www.w3.org/TR/html5/syntax.html#before-attribute-value-state
 	0:    "\uFFFD",
 	'"':  "&#34;",
 	'&':  "&amp;",

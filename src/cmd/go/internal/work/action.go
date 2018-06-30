@@ -36,7 +36,10 @@ type Builder struct {
 	flagCache   map[[2]string]bool   // a cache of supported compiler flags
 	Print       func(args ...interface{}) (int, error)
 
-	ComputeStaleOnly bool // compute staleness for go list; no actual build
+	IsCmdList    bool // running as part of go list; set p.Stale and additional fields below
+	NeedError    bool // list needs p.Error
+	NeedExport   bool // list needs p.Export
+	NeedCgoFiles bool // list needs p.CgoFiles to cgo-generated files, not originals
 
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
@@ -79,9 +82,10 @@ type Action struct {
 	actionID cache.ActionID // cache ID of action input
 	buildID  string         // build ID of action output
 
-	needVet bool       // Mode=="build": need to fill in vet config
-	vetCfg  *vetConfig // vet config
-	output  []byte     // output redirect buffer (nil means use b.Print)
+	VetxOnly bool       // Mode=="vet": only being called to supply info about dependencies
+	needVet  bool       // Mode=="build": need to fill in vet config
+	vetCfg   *vetConfig // vet config
+	output   []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
 	pending  int  // number of deps yet to complete
@@ -138,6 +142,7 @@ type actionJSON struct {
 	Priority   int      `json:",omitempty"`
 	Failed     bool     `json:",omitempty"`
 	Built      string   `json:",omitempty"`
+	VetxOnly   bool     `json:",omitempty"`
 }
 
 // cacheKey is the key for the action cache.
@@ -177,6 +182,7 @@ func actionGraphJSON(a *Action) string {
 			Failed:     a.Failed,
 			Priority:   a.priority,
 			Built:      a.built,
+			VetxOnly:   a.VetxOnly,
 		}
 		if a.Package != nil {
 			// TODO(rsc): Make this a unique key for a.Package somehow.
@@ -222,6 +228,10 @@ func (b *Builder) Init() {
 		b.WorkDir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
 			base.Fatalf("%s", err)
+		}
+		if !filepath.IsAbs(b.WorkDir) {
+			os.RemoveAll(b.WorkDir)
+			base.Fatalf("cmd/go: relative tmpdir not supported")
 		}
 		if cfg.BuildX || cfg.BuildWork {
 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
@@ -335,8 +345,10 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			Objdir:  b.NewObjdir(),
 		}
 
-		for _, p1 := range p.Internal.Imports {
-			a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+		if p.Error == nil || !p.Error.IsImportCycle {
+			for _, p1 := range p.Internal.Imports {
+				a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+			}
 		}
 
 		if p.Standard {
@@ -374,6 +386,12 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 // If the caller may be causing p to be installed, it is up to the caller
 // to make sure that the install depends on (runs after) vet.
 func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
+	a := b.vetAction(mode, depMode, p)
+	a.VetxOnly = false
+	return a
+}
+
+func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
 		a1 := b.CompileAction(mode, depMode, p)
@@ -385,11 +403,18 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		stk.Pop()
 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
 
+		deps := []*Action{a1, aFmt}
+		for _, p1 := range load.PackageList(p.Internal.Imports) {
+			deps = append(deps, b.vetAction(mode, depMode, p1))
+		}
+
 		a := &Action{
-			Mode:    "vet",
-			Package: p,
-			Deps:    []*Action{a1, aFmt},
-			Objdir:  a1.Objdir,
+			Mode:       "vet",
+			Package:    p,
+			Deps:       deps,
+			Objdir:     a1.Objdir,
+			VetxOnly:   true,
+			IgnoreFail: true, // it's OK if vet of dependencies "fails" (reports problems)
 		}
 		if a1.Func == nil {
 			// Built-in packages like unsafe.
@@ -397,7 +422,6 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		}
 		a1.needVet = true
 		a.Func = (*Builder).vet
-
 		return a
 	})
 	return a
@@ -582,7 +606,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
 	p := a.Package
 	if p.UsesCgo() && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
 		hdrTarget := a.Target[:len(a.Target)-len(filepath.Ext(a.Target))] + ".h"
-		if cfg.BuildContext.Compiler == "gccgo" {
+		if cfg.BuildContext.Compiler == "gccgo" && cfg.BuildO == "" {
 			// For the header file, remove the "lib"
 			// added by go/build, so we generate pkg.h
 			// rather than libpkg.h.

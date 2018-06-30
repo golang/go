@@ -64,7 +64,7 @@ func TestableNetwork(network string) bool {
 	switch network {
 	case "unix", "unixgram":
 		switch runtime.GOOS {
-		case "android", "nacl", "plan9", "windows":
+		case "android", "js", "nacl", "plan9", "windows":
 			return false
 		}
 		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
@@ -72,7 +72,7 @@ func TestableNetwork(network string) bool {
 		}
 	case "unixpacket":
 		switch runtime.GOOS {
-		case "android", "darwin", "freebsd", "nacl", "plan9", "windows":
+		case "android", "darwin", "freebsd", "js", "nacl", "plan9", "windows":
 			return false
 		case "netbsd":
 			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.

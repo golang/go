@@ -39,6 +39,7 @@
 #define SYS_setittimer		104
 #define SYS_clone		120
 #define SYS_sched_yield 	158
+#define SYS_nanosleep		162
 #define SYS_rt_sigreturn	173
 #define SYS_rt_sigaction	174
 #define SYS_rt_sigprocmask	175
@@ -56,7 +57,6 @@
 #define SYS_epoll_ctl		255
 #define SYS_epoll_wait		256
 #define SYS_clock_gettime	265
-#define SYS_pselect6		308
 #define SYS_epoll_create1	329
 
 TEXT runtime·exit(SB),NOSPLIT,$0
@@ -141,14 +141,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
 	MULL	DX
 	MOVL	AX, 4(SP)
 
-	// pselect6(0, 0, 0, 0, &ts, 0)
-	MOVL	$SYS_pselect6, AX
-	MOVL	$0, BX
+	// nanosleep(&ts, 0)
+	MOVL	$SYS_nanosleep, AX
+	LEAL	0(SP), BX
 	MOVL	$0, CX
-	MOVL	$0, DX
-	MOVL	$0, SI
-	LEAL	0(SP), DI
-	MOVL	$0, BP
 	INVOKE_SYSCALL
 	RET
 

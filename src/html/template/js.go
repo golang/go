@@ -24,7 +24,7 @@ import (
 // "x = ++/foo/i" which is quite different than "x++/foo/i", but is not known to
 // fail on any known useful programs. It is based on the draft
 // JavaScript 2.0 lexical grammar and requires one token of lookbehind:
-// http://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
+// https://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
 func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 	s = bytes.TrimRight(s, "\t\n\f\r \u2028\u2029")
 	if len(s) == 0 {
@@ -123,6 +123,14 @@ var jsonMarshalType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
 // indirectToJSONMarshaler returns the value, after dereferencing as many times
 // as necessary to reach the base type (or nil) or an implementation of json.Marshal.
 func indirectToJSONMarshaler(a interface{}) interface{} {
+	// text/template now supports passing untyped nil as a func call
+	// argument, so we must support it. Otherwise we'd panic below, as one
+	// cannot call the Type or Interface methods on an invalid
+	// reflect.Value. See golang.org/issue/18716.
+	if a == nil {
+		return nil
+	}
+
 	v := reflect.ValueOf(a)
 	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Ptr && !v.IsNil() {
 		v = v.Elem()

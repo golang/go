@@ -87,7 +87,7 @@ L1:
 	RET
 
 L2:
-	WORD    $0xB3120000     //ltdbr %f0,%f0
+	LTDBR	F0, F0
 	BLEU    L13
 	WORD    $0xED009080     //mdb %f0,.L20-.L19(%r9)
 	BYTE    $0x00

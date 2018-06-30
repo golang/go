@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl
+// +build !nacl,!js
 
 package pprof
 
@@ -700,7 +700,7 @@ func TestMutexProfile(t *testing.T) {
 			return
 		}
 		// checking that the line is like "35258904 1 @ 0x48288d 0x47cd28 0x458931"
-		r2 := `^\d+ 1 @(?: 0x[[:xdigit:]]+)+`
+		r2 := `^\d+ \d+ @(?: 0x[[:xdigit:]]+)+`
 		//r2 := "^[0-9]+ 1 @ 0x[0-9a-f x]+$"
 		if ok, err := regexp.MatchString(r2, lines[3]); err != nil || !ok {
 			t.Errorf("%q didn't match %q", lines[3], r2)
@@ -823,16 +823,22 @@ func containsCounts(prof *profile.Profile, counts []int64) bool {
 	return true
 }
 
+var emptyCallStackTestRun int64
+
 // Issue 18836.
 func TestEmptyCallStack(t *testing.T) {
+	name := fmt.Sprintf("test18836_%d", emptyCallStackTestRun)
+	emptyCallStackTestRun++
+
 	t.Parallel()
 	var buf bytes.Buffer
-	p := NewProfile("test18836")
+	p := NewProfile(name)
+
 	p.Add("foo", 47674)
 	p.WriteTo(&buf, 1)
 	p.Remove("foo")
 	got := buf.String()
-	prefix := "test18836 profile: total 1\n"
+	prefix := name + " profile: total 1\n"
 	if !strings.HasPrefix(got, prefix) {
 		t.Fatalf("got:\n\t%q\nwant prefix:\n\t%q\n", got, prefix)
 	}

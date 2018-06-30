@@ -702,9 +702,8 @@ func _() {
 	//line foo:2
 	_ = 2
 
-	// The following is not a legal line directive (negative line number), but
-	// it looks like one, so don't indent it:
-//line foo:-3
+	// The following is not a legal line directive (missing colon):
+//line foo -3
 	_ = 3
 }
 

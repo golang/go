@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -48,6 +49,9 @@ func TestReverseProxy(t *testing.T) {
 		}
 		if c := r.Header.Get("Connection"); c != "" {
 			t.Errorf("handler got Connection header value %q", c)
+		}
+		if c := r.Header.Get("Te"); c != "trailers" {
+			t.Errorf("handler got Te header value %q; want 'trailers'", c)
 		}
 		if c := r.Header.Get("Upgrade"); c != "" {
 			t.Errorf("handler got Upgrade header value %q", c)
@@ -85,6 +89,7 @@ func TestReverseProxy(t *testing.T) {
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
 	getReq.Host = "some-name"
 	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("Te", "trailers")
 	getReq.Header.Set("Proxy-Connection", "should be deleted")
 	getReq.Header.Set("Upgrade", "foo")
 	getReq.Close = true
@@ -649,18 +654,22 @@ func TestReverseProxy_CopyBuffer(t *testing.T) {
 	var proxyLog bytes.Buffer
 	rproxy := NewSingleHostReverseProxy(rpURL)
 	rproxy.ErrorLog = log.New(&proxyLog, "", log.Lshortfile)
-	frontendProxy := httptest.NewServer(rproxy)
+	donec := make(chan bool, 1)
+	frontendProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() { donec <- true }()
+		rproxy.ServeHTTP(w, r)
+	}))
 	defer frontendProxy.Close()
 
-	resp, err := http.Get(frontendProxy.URL)
-	if err != nil {
-		t.Fatalf("failed to reach proxy: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if _, err := ioutil.ReadAll(resp.Body); err == nil {
+	if _, err = frontendProxy.Client().Get(frontendProxy.URL); err == nil {
 		t.Fatalf("want non-nil error")
 	}
+	// The race detector complains about the proxyLog usage in logf in copyBuffer
+	// and our usage below with proxyLog.Bytes() so we're explicitly using a
+	// channel to ensure that the ReverseProxy's ServeHTTP is done before we
+	// continue after Get.
+	<-donec
+
 	expected := []string{
 		"EOF",
 		"read",
@@ -740,6 +749,8 @@ func TestServeHTTPDeepCopy(t *testing.T) {
 // Issue 18327: verify we always do a deep copy of the Request.Header map
 // before any mutations.
 func TestClonesRequestHeaders(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	defer log.SetOutput(os.Stderr)
 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
 	req.RemoteAddr = "1.2.3.4:56789"
 	rp := &ReverseProxy{
@@ -812,4 +823,38 @@ func (cc *checkCloser) Close() error {
 
 func (cc *checkCloser) Read(b []byte) (int, error) {
 	return len(b), nil
+}
+
+// Issue 23643: panic on body copy error
+func TestReverseProxy_PanicBodyError(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	defer log.SetOutput(os.Stderr)
+	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		out := "this call was relayed by the reverse proxy"
+		// Coerce a wrong content length to induce io.ErrUnexpectedEOF
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(out)*2))
+		fmt.Fprintln(w, out)
+	}))
+	defer backendServer.Close()
+
+	rpURL, err := url.Parse(backendServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rproxy := NewSingleHostReverseProxy(rpURL)
+
+	// Ensure that the handler panics when the body read encounters an
+	// io.ErrUnexpectedEOF
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("handler should have panicked")
+		}
+		if err != http.ErrAbortHandler {
+			t.Fatal("expected ErrAbortHandler, got", err)
+		}
+	}()
+	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+	rproxy.ServeHTTP(httptest.NewRecorder(), req)
 }

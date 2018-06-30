@@ -71,6 +71,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 
 	case *TypeName:
 		x.mode = typexpr
+		// package-level alias cycles are now checked by Checker.objDecl
+		if useCycleMarking {
+			if check.objMap[obj] != nil {
+				break
+			}
+		}
 		if check.cycle(obj, path, true) {
 			// maintain x.mode == typexpr despite error
 			typ = Typ[Invalid]
@@ -132,7 +138,11 @@ func (check *Checker) cycle(obj *TypeName, path []*TypeName, report bool) bool {
 // If def != nil, e is the type specification for the named type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before
 // any components of e are type-checked. Path contains the path of named types
-// referring to this type.
+// referring to this type; i.e. it is the path of named types directly containing
+// each other and leading to the current type e. Indirect containment (e.g. via
+// pointer indirection, function parameter, etc.) breaks the path (leads to a new
+// path, and usually via calling Checker.typ below) and those types are not found
+// in the path.
 //
 func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type) {
 	if trace {
@@ -151,7 +161,18 @@ func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
 	return
 }
 
+// typ is like typExpr (with a nil argument for the def parameter),
+// but typ breaks type cycles. It should be called for components of
+// types that break cycles, such as pointer base types, slice or map
+// element types, etc. See the comment in typExpr for details.
+//
 func (check *Checker) typ(e ast.Expr) Type {
+	// typExpr is called with a nil path indicating an indirection:
+	// push indir sentinel on object path
+	if useCycleMarking {
+		check.push(indir)
+		defer check.pop()
+	}
 	return check.typExpr(e, nil, nil)
 }
 
@@ -487,7 +508,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	interfaceContext := check.context // capture for use in closure below
 	check.later(func() {
 		if trace {
-			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %s", iface)
+			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %v", iface)
 			check.indent++
 			defer func() {
 				check.indent--
@@ -511,10 +532,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 				if typ == Typ[Invalid] {
 					continue // error reported before
 				}
-				if !isNamed(typ) {
-					check.invalidAST(f.Type.Pos(), "%s is not a named type", f.Type)
-					continue
-				}
 				embed, _ := typ.Underlying().(*Interface)
 				if embed == nil {
 					check.errorf(f.Type.Pos(), "%s is not an interface", typ)
@@ -524,17 +541,16 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 				// don't just assert, but report error since this
 				// used to be the underlying cause for issue #18395.
 				if embed.allMethods == nil {
-					check.dump("%s: incomplete embedded interface %s", f.Type.Pos(), typ)
+					check.dump("%v: incomplete embedded interface %s", f.Type.Pos(), typ)
 					unreachable()
 				}
 				// collect interface
-				// (at this point we know that typ must be a named, non-basic type)
-				ityp.embeddeds = append(ityp.embeddeds, typ.(*Named))
+				ityp.embeddeds = append(ityp.embeddeds, typ)
 			}
 		}
-		// sort to match NewInterface
+		// sort to match NewInterface/NewInterface2
 		// TODO(gri) we may be able to switch to source order
-		sort.Sort(byUniqueTypeName(ityp.embeddeds))
+		sort.Stable(byUniqueTypeName(ityp.embeddeds))
 	})
 
 	// compute method set
@@ -605,7 +621,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 	check.context = savedContext
 
-	// sort to match NewInterface
+	// sort to match NewInterface/NewInterface2
 	// TODO(gri) we may be able to switch to source order
 	sort.Sort(byUniqueMethodName(ityp.methods))
 
@@ -617,11 +633,18 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 }
 
 // byUniqueTypeName named type lists can be sorted by their unique type names.
-type byUniqueTypeName []*Named
+type byUniqueTypeName []Type
 
 func (a byUniqueTypeName) Len() int           { return len(a) }
-func (a byUniqueTypeName) Less(i, j int) bool { return a[i].obj.Id() < a[j].obj.Id() }
+func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName(a[j]) }
 func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+func sortName(t Type) string {
+	if named, _ := t.(*Named); named != nil {
+		return named.obj.Id()
+	}
+	return ""
+}
 
 // byUniqueMethodName method lists can be sorted by their unique method names.
 type byUniqueMethodName []*Func
@@ -658,7 +681,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	// current field typ and tag
 	var typ Type
 	var tag string
-	add := func(ident *ast.Ident, anonymous bool, pos token.Pos) {
+	add := func(ident *ast.Ident, embedded bool, pos token.Pos) {
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
@@ -667,12 +690,22 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 		}
 
 		name := ident.Name
-		fld := NewField(pos, check.pkg, name, typ, anonymous)
+		fld := NewField(pos, check.pkg, name, typ, embedded)
 		// spec: "Within a struct, non-blank field names must be unique."
 		if name == "_" || check.declareInSet(&fset, pos, fld) {
 			fields = append(fields, fld)
 			check.recordDef(ident, fld)
 		}
+	}
+
+	// addInvalid adds an embedded field of invalid type to the struct for
+	// fields with errors; this keeps the number of struct fields in sync
+	// with the source as long as the fields are _ or have different names
+	// (issue #25627).
+	addInvalid := func(ident *ast.Ident, pos token.Pos) {
+		typ = Typ[Invalid]
+		tag = ""
+		add(ident, true, pos)
 	}
 
 	for _, f := range list.List {
@@ -684,13 +717,16 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 				add(name, false, name.Pos())
 			}
 		} else {
-			// anonymous field
+			// embedded field
 			// spec: "An embedded type must be specified as a type name T or as a pointer
 			// to a non-interface type name *T, and T itself may not be a pointer type."
 			pos := f.Type.Pos()
-			name := anonymousFieldIdent(f.Type)
+			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.invalidAST(pos, "anonymous field type %s has no name", f.Type)
+				check.invalidAST(pos, "embedded field type %s has no name", f.Type)
+				name = ast.NewIdent("_")
+				name.NamePos = pos
+				addInvalid(name, pos)
 				continue
 			}
 			t, isPtr := deref(typ)
@@ -700,22 +736,26 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 			case *Basic:
 				if t == Typ[Invalid] {
 					// error was reported before
+					addInvalid(name, pos)
 					continue
 				}
 
 				// unsafe.Pointer is treated like a regular pointer
 				if t.kind == UnsafePointer {
-					check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
+					check.errorf(pos, "embedded field type cannot be unsafe.Pointer")
+					addInvalid(name, pos)
 					continue
 				}
 
 			case *Pointer:
-				check.errorf(pos, "anonymous field type cannot be a pointer")
+				check.errorf(pos, "embedded field type cannot be a pointer")
+				addInvalid(name, pos)
 				continue
 
 			case *Interface:
 				if isPtr {
-					check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
+					check.errorf(pos, "embedded field type cannot be a pointer to an interface")
+					addInvalid(name, pos)
 					continue
 				}
 			}
@@ -727,17 +767,17 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	styp.tags = tags
 }
 
-func anonymousFieldIdent(e ast.Expr) *ast.Ident {
+func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 	switch e := e.(type) {
 	case *ast.Ident:
 		return e
 	case *ast.StarExpr:
 		// *T is valid, but **T is not
 		if _, ok := e.X.(*ast.StarExpr); !ok {
-			return anonymousFieldIdent(e.X)
+			return embeddedFieldIdent(e.X)
 		}
 	case *ast.SelectorExpr:
 		return e.Sel
 	}
-	return nil // invalid anonymous field
+	return nil // invalid embedded field
 }

@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/vgo"
 	"cmd/go/internal/work"
 )
 
@@ -46,6 +47,12 @@ is the generator to be run, corresponding to an executable file
 that can be run locally. It must either be in the shell path
 (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
 command alias, described below.
+
+To convey to humans and machine tools that code is generated,
+generated source should have a line early in the file that
+matches the following regular expression (in Go syntax):
+
+	^// Code generated .* DO NOT EDIT\.$
 
 Note that go generate does not parse the file, so lines that look
 like directives in comments or multiline strings will be treated
@@ -152,9 +159,28 @@ func runGenerate(cmd *base.Command, args []string) {
 		}
 	}
 	// Even if the arguments are .go files, this loop suffices.
+	printed := false
 	for _, pkg := range load.Packages(args) {
+		if vgo.Enabled() && !pkg.Module.Top {
+			if !printed {
+				fmt.Fprintf(os.Stderr, "vgo: not generating in packages in dependency modules\n")
+				printed = true
+			}
+			continue
+		}
+
+		pkgName := pkg.Name
+
 		for _, file := range pkg.InternalGoFiles() {
-			if !generate(pkg.Name, file) {
+			if !generate(pkgName, file) {
+				break
+			}
+		}
+
+		pkgName += "_test"
+
+		for _, file := range pkg.InternalXGoFiles() {
+			if !generate(pkgName, file) {
 				break
 			}
 		}

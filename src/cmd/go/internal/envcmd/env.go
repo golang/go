@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/vgo"
 	"cmd/go/internal/work"
 )
 
@@ -56,6 +57,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
 		{Name: "GOOS", Value: cfg.Goos},
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
+		{Name: "GOPROXY", Value: os.Getenv("GOPROXY")},
 		{Name: "GORACE", Value: os.Getenv("GORACE")},
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOTMPDIR", Value: os.Getenv("GOTMPDIR")},
@@ -78,6 +80,8 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: "GO386", Value: cfg.GO386})
 	case "mips", "mipsle":
 		env = append(env, cfg.EnvVar{Name: "GOMIPS", Value: cfg.GOMIPS})
+	case "mips64", "mips64le":
+		env = append(env, cfg.EnvVar{Name: "GOMIPS64", Value: cfg.GOMIPS64})
 	}
 
 	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
@@ -129,6 +133,7 @@ func ExtraEnvVars() []cfg.EnvVar {
 		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
 		{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")},
+		{Name: "VGOMODROOT", Value: vgo.ModRoot},
 	}
 }
 

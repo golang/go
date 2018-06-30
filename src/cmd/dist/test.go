@@ -234,12 +234,32 @@ func (t *tester) shouldRunTest(name string) bool {
 	return false
 }
 
+// short returns a -short flag to pass to 'go test'.
+// It returns "-short", unless the environment variable
+// GO_TEST_SHORT is set to a non-empty, false-ish string.
+//
+// This environment variable is meant to be an internal
+// detail between the Go build system and cmd/dist
+// and is not intended for use by users.
+func short() string {
+	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
+		short, err := strconv.ParseBool(v)
+		if err != nil {
+			log.Fatalf("invalid GO_TEST_SHORT %q: %v", v, err)
+		}
+		if !short {
+			return "-short=false"
+		}
+	}
+	return "-short"
+}
+
 // goTest returns the beginning of the go test command line.
 // Callers should use goTest and then pass flags overriding these
 // defaults as later arguments in the command line.
 func (t *tester) goTest() []string {
 	return []string{
-		"go", "test", "-short", "-count=1", t.tags(), t.runFlag(""),
+		"go", "test", short(), "-count=1", t.tags(), t.runFlag(""),
 	}
 }
 
@@ -273,10 +293,6 @@ func (t *tester) registerStdTest(pkg string) {
 	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
 		stdMatches = append(stdMatches, pkg)
 	}
-	timeoutSec := 180
-	if pkg == "cmd/go" {
-		timeoutSec *= 2
-	}
 	t.tests = append(t.tests, distTest{
 		name:    testName,
 		heading: "Testing packages.",
@@ -288,9 +304,17 @@ func (t *tester) registerStdTest(pkg string) {
 			timelog("start", dt.name)
 			defer timelog("end", dt.name)
 			ranGoTest = true
+
+			timeoutSec := 180
+			for _, pkg := range stdMatches {
+				if pkg == "cmd/go" {
+					timeoutSec *= 3
+					break
+				}
+			}
 			args := []string{
 				"test",
-				"-short",
+				short(),
 				t.tags(),
 				t.timeout(timeoutSec),
 				"-gcflags=all=" + gogcflags,
@@ -300,6 +324,8 @@ func (t *tester) registerStdTest(pkg string) {
 			}
 			if t.compileOnly {
 				args = append(args, "-run=^$")
+			} else if goos == "js" && goarch == "wasm" {
+				args = append(args, "-run=^Test") // exclude examples; Issue 25913
 			}
 			args = append(args, stdMatches...)
 			cmd := exec.Command("go", args...)
@@ -328,9 +354,10 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 			ranGoBench = true
 			args := []string{
 				"test",
-				"-short",
+				short(),
 				"-race",
-				"-run=^$", // nothing. only benchmarks.
+				t.timeout(1200), // longer timeout for race with benchmarks
+				"-run=^$",       // nothing. only benchmarks.
 				"-benchtime=.1s",
 				"-cpu=4",
 			}
@@ -407,12 +434,24 @@ func (t *tester) registerTests() {
 		}
 	}
 
+	// Test the os/user package in the pure-Go mode too.
+	if !t.compileOnly {
+		t.tests = append(t.tests, distTest{
+			name:    "osusergo",
+			heading: "os/user with tag osusergo",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=osusergo", "os/user")
+				return nil
+			},
+		})
+	}
+
 	if t.race {
 		return
 	}
 
 	// Runtime CPU tests.
-	if !t.compileOnly {
+	if !t.compileOnly && goos != "js" { // js can't handle -cpu != 1
 		testName := "runtime:cpu124"
 		t.tests = append(t.tests, distTest{
 			name:    testName,
@@ -453,9 +492,9 @@ func (t *tester) registerTests() {
 	// On the builders only, test that a moved GOROOT still works.
 	// Fails on iOS because CC_FOR_TARGET refers to clangwrap.sh
 	// in the unmoved GOROOT.
-	// Fails on Android with an exec format error.
+	// Fails on Android and js/wasm with an exec format error.
 	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
-	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" {
+	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" {
 		t.tests = append(t.tests, distTest{
 			name:    "moved_goroot",
 			heading: "moved GOROOT",
@@ -546,14 +585,16 @@ func (t *tester) registerTests() {
 	}
 
 	// sync tests
-	t.tests = append(t.tests, distTest{
-		name:    "sync_cpu",
-		heading: "sync -cpu=10",
-		fn: func(dt *distTest) error {
-			t.addCmd(dt, "src", t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
-			return nil
-		},
-	})
+	if goos != "js" { // js doesn't support -cpu=10
+		t.tests = append(t.tests, distTest{
+			name:    "sync_cpu",
+			heading: "sync -cpu=10",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
+				return nil
+			},
+		})
+	}
 
 	if t.raceDetectorSupported() {
 		t.tests = append(t.tests, distTest{
@@ -664,7 +705,7 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if goos == "linux" && goarch == "amd64" {
+		if goos == "linux" && (goarch == "amd64" || goarch == "arm64") {
 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
@@ -677,7 +718,7 @@ func (t *tester) registerTests() {
 
 	// Doc tests only run on builders.
 	// They find problems approximately never.
-	if t.hasBash() && goos != "nacl" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
+	if t.hasBash() && goos != "nacl" && goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
@@ -703,7 +744,7 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	if goos != "nacl" && goos != "android" && !t.iOS() {
+	if goos != "nacl" && goos != "android" && !t.iOS() && goos != "js" {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
@@ -852,7 +893,7 @@ func (t *tester) extLink() bool {
 	pair := gohostos + "-" + goarch
 	switch pair {
 	case "android-arm",
-		"darwin-arm", "darwin-arm64",
+		"darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
@@ -860,15 +901,6 @@ func (t *tester) extLink() bool {
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
 		return true
-	case "darwin-386", "darwin-amd64":
-		// linkmode=external fails on OS X 10.6 and earlier == Darwin
-		// 10.8 and earlier.
-		unameR, err := exec.Command("uname", "-r").Output()
-		if err != nil {
-			log.Fatalf("uname -r: %v", err)
-		}
-		major, _ := strconv.Atoi(string(unameR[:bytes.IndexByte(unameR, '.')]))
-		return major > 10
 	}
 	return false
 }
@@ -912,6 +944,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
+			"freebsd-amd64",
 			"windows-amd64", "windows-386":
 			return true
 		}
@@ -920,6 +953,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
 			"darwin-amd64", "darwin-386",
+			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
 			"windows-amd64", "windows-386":
 			return true
@@ -1288,7 +1322,7 @@ func (t *tester) raceDetectorSupported() bool {
 	case "linux", "darwin", "freebsd", "windows":
 		// The race detector doesn't work on Alpine Linux:
 		// golang.org/issue/14481
-		return t.cgoEnabled && goarch == "amd64" && gohostos == goos && !isAlpineLinux()
+		return t.cgoEnabled && (goarch == "amd64" || goarch == "ppc64le") && gohostos == goos && !isAlpineLinux()
 	}
 	return false
 }
@@ -1305,13 +1339,16 @@ func (t *tester) runFlag(rx string) string {
 	if t.compileOnly {
 		return "-run=^$"
 	}
+	if rx == "" && goos == "js" && goarch == "wasm" {
+		return "-run=^Test" // exclude examples; Issue 25913
+	}
 	return "-run=" + rx
 }
 
 func (t *tester) raceTest(dt *distTest) error {
 	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace"), "flag", "os", "os/exec", "encoding/gob")
+	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
 	// We don't want the following line, because it
 	// slows down all.bash (by 10 seconds on my laptop).
 	// The race builder should catch any error here, but doesn't.

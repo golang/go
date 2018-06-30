@@ -62,7 +62,7 @@ func (pkg *Package) prettyPath() string {
 	// Also convert everything to slash-separated paths for uniform handling.
 	path = filepath.Clean(filepath.ToSlash(pkg.build.Dir))
 	// Can we find a decent prefix?
-	goroot := filepath.Join(build.Default.GOROOT, "src")
+	goroot := filepath.Join(buildCtx.GOROOT, "src")
 	if p, ok := trim(path, filepath.ToSlash(goroot)); ok {
 		return p
 	}

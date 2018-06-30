@@ -2533,9 +2533,9 @@ func TestFieldPkgPath(t *testing.T) {
 	}{})
 
 	type pkgpathTest struct {
-		index     []int
-		pkgPath   string
-		anonymous bool
+		index    []int
+		pkgPath  string
+		embedded bool
 	}
 
 	checkPkgPath := func(name string, s []pkgpathTest) {
@@ -2544,7 +2544,7 @@ func TestFieldPkgPath(t *testing.T) {
 			if got, want := f.PkgPath, test.pkgPath; got != want {
 				t.Errorf("%s: Field(%d).PkgPath = %q, want %q", name, test.index, got, want)
 			}
-			if got, want := f.Anonymous, test.anonymous; got != want {
+			if got, want := f.Anonymous, test.embedded; got != want {
 				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
 			}
 		}
@@ -3918,8 +3918,8 @@ func TestOverflow(t *testing.T) {
 	}
 }
 
-func checkSameType(t *testing.T, x, y interface{}) {
-	if TypeOf(x) != TypeOf(y) {
+func checkSameType(t *testing.T, x Type, y interface{}) {
+	if x != TypeOf(y) || TypeOf(Zero(x).Interface()) != TypeOf(y) {
 		t.Errorf("did not find preexisting type for %s (vs %s)", TypeOf(x), TypeOf(y))
 	}
 }
@@ -4048,7 +4048,7 @@ func TestArrayOf(t *testing.T) {
 
 	// check that type already in binary is found
 	type T int
-	checkSameType(t, Zero(ArrayOf(5, TypeOf(T(1)))).Interface(), [5]T{})
+	checkSameType(t, ArrayOf(5, TypeOf(T(1))), [5]T{})
 }
 
 func TestArrayOfGC(t *testing.T) {
@@ -4184,7 +4184,7 @@ func TestSliceOf(t *testing.T) {
 
 	// check that type already in binary is found
 	type T1 int
-	checkSameType(t, Zero(SliceOf(TypeOf(T1(1)))).Interface(), []T1{})
+	checkSameType(t, SliceOf(TypeOf(T1(1))), []T1{})
 }
 
 func TestSliceOverflow(t *testing.T) {
@@ -4398,7 +4398,18 @@ func TestStructOf(t *testing.T) {
 		})
 	})
 	// check that type already in binary is found
-	checkSameType(t, Zero(StructOf(fields[2:3])).Interface(), struct{ Y uint64 }{})
+	checkSameType(t, StructOf(fields[2:3]), struct{ Y uint64 }{})
+
+	// gccgo used to fail this test.
+	type structFieldType interface{}
+	checkSameType(t,
+		StructOf([]StructField{
+			StructField{
+				Name: "F",
+				Type: TypeOf((*structFieldType)(nil)).Elem(),
+			},
+		}),
+		struct{ F structFieldType }{})
 }
 
 func TestStructOfExportRules(t *testing.T) {
@@ -4806,12 +4817,28 @@ func (i StructI) Get() int { return int(i) }
 
 type StructIPtr int
 
-func (i *StructIPtr) Get() int { return int(*i) }
+func (i *StructIPtr) Get() int  { return int(*i) }
+func (i *StructIPtr) Set(v int) { *(*int)(i) = v }
+
+type SettableStruct struct {
+	SettableField int
+}
+
+func (p *SettableStruct) Set(v int) { p.SettableField = v }
+
+type SettablePointer struct {
+	SettableField *int
+}
+
+func (p *SettablePointer) Set(v int) { *p.SettableField = v }
 
 func TestStructOfWithInterface(t *testing.T) {
 	const want = 42
 	type Iface interface {
 		Get() int
+	}
+	type IfaceSet interface {
+		Set(int)
 	}
 	tests := []struct {
 		name string
@@ -4874,7 +4901,7 @@ func TestStructOfWithInterface(t *testing.T) {
 			})
 
 			// We currently do not correctly implement methods
-			// for anonymous fields other than the first.
+			// for embedded fields other than the first.
 			// Therefore, for now, we expect those methods
 			// to not exist.  See issues 15924 and 20824.
 			// When those issues are fixed, this test of panic
@@ -4920,6 +4947,76 @@ func TestStructOfWithInterface(t *testing.T) {
 			}
 		}
 	}
+
+	// Test an embedded nil pointer with pointer methods.
+	fields := []StructField{{
+		Name:      "StructIPtr",
+		Anonymous: true,
+		Type:      PtrTo(TypeOf(StructIPtr(want))),
+	}}
+	rt := StructOf(fields)
+	rv := New(rt).Elem()
+	// This should panic since the pointer is nil.
+	shouldPanic(func() {
+		rv.Interface().(IfaceSet).Set(want)
+	})
+
+	// Test an embedded nil pointer to a struct with pointer methods.
+
+	fields = []StructField{{
+		Name:      "SettableStruct",
+		Anonymous: true,
+		Type:      PtrTo(TypeOf(SettableStruct{})),
+	}}
+	rt = StructOf(fields)
+	rv = New(rt).Elem()
+	// This should panic since the pointer is nil.
+	shouldPanic(func() {
+		rv.Interface().(IfaceSet).Set(want)
+	})
+
+	// The behavior is different if there is a second field,
+	// since now an interface value holds a pointer to the struct
+	// rather than just holding a copy of the struct.
+	fields = []StructField{
+		{
+			Name:      "SettableStruct",
+			Anonymous: true,
+			Type:      PtrTo(TypeOf(SettableStruct{})),
+		},
+		{
+			Name:      "EmptyStruct",
+			Anonymous: true,
+			Type:      StructOf(nil),
+		},
+	}
+	// With the current implementation this is expected to panic.
+	// Ideally it should work and we should be able to see a panic
+	// if we call the Set method.
+	shouldPanic(func() {
+		StructOf(fields)
+	})
+
+	// Embed a field that can be stored directly in an interface,
+	// with a second field.
+	fields = []StructField{
+		{
+			Name:      "SettablePointer",
+			Anonymous: true,
+			Type:      TypeOf(SettablePointer{}),
+		},
+		{
+			Name:      "EmptyStruct",
+			Anonymous: true,
+			Type:      StructOf(nil),
+		},
+	}
+	// With the current implementation this is expected to panic.
+	// Ideally it should work and we should be able to call the
+	// Set and Get methods.
+	shouldPanic(func() {
+		StructOf(fields)
+	})
 }
 
 func TestChanOf(t *testing.T) {
@@ -4943,7 +5040,7 @@ func TestChanOf(t *testing.T) {
 
 	// check that type already in binary is found
 	type T1 int
-	checkSameType(t, Zero(ChanOf(BothDir, TypeOf(T1(1)))).Interface(), (chan T1)(nil))
+	checkSameType(t, ChanOf(BothDir, TypeOf(T1(1))), (chan T1)(nil))
 }
 
 func TestChanOfDir(t *testing.T) {
@@ -4954,8 +5051,8 @@ func TestChanOfDir(t *testing.T) {
 
 	// check that type already in binary is found
 	type T1 int
-	checkSameType(t, Zero(ChanOf(RecvDir, TypeOf(T1(1)))).Interface(), (<-chan T1)(nil))
-	checkSameType(t, Zero(ChanOf(SendDir, TypeOf(T1(1)))).Interface(), (chan<- T1)(nil))
+	checkSameType(t, ChanOf(RecvDir, TypeOf(T1(1))), (<-chan T1)(nil))
+	checkSameType(t, ChanOf(SendDir, TypeOf(T1(1))), (chan<- T1)(nil))
 
 	// check String form of ChanDir
 	if crt.ChanDir().String() != "<-chan" {
@@ -5031,7 +5128,7 @@ func TestMapOf(t *testing.T) {
 	}
 
 	// check that type already in binary is found
-	checkSameType(t, Zero(MapOf(TypeOf(V(0)), TypeOf(K("")))).Interface(), map[V]K(nil))
+	checkSameType(t, MapOf(TypeOf(V(0)), TypeOf(K(""))), map[V]K(nil))
 
 	// check that invalid key type panics
 	shouldPanic(func() { MapOf(TypeOf((func())(nil)), TypeOf(false)) })
@@ -5161,7 +5258,7 @@ func TestFuncOf(t *testing.T) {
 		{in: []Type{TypeOf(int(0))}, out: []Type{TypeOf(false), TypeOf("")}, want: (func(int) (bool, string))(nil)},
 	}
 	for _, tt := range testCases {
-		checkSameType(t, Zero(FuncOf(tt.in, tt.out, tt.variadic)).Interface(), tt.want)
+		checkSameType(t, FuncOf(tt.in, tt.out, tt.variadic), tt.want)
 	}
 
 	// check that variadic requires last element be a slice.

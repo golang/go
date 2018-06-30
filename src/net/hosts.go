@@ -16,7 +16,7 @@ func parseLiteralIP(addr string) string {
 	var zone string
 	ip = parseIPv4(addr)
 	if ip == nil {
-		ip, zone = parseIPv6(addr, true)
+		ip, zone = parseIPv6Zone(addr)
 	}
 	if ip == nil {
 		return ""

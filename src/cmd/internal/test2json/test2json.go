@@ -147,7 +147,7 @@ var (
 	fourSpace = []byte("    ")
 
 	skipLinePrefix = []byte("?   \t")
-	skipLineSuffix = []byte("\t[no test files]\n")
+	skipLineSuffix = []byte(" [no test files]\n")
 )
 
 // handleInputLine handles a single whole test output line.
@@ -166,7 +166,7 @@ func (c *converter) handleInputLine(line []byte) {
 		return
 	}
 
-	// Special case for entirely skipped test binary: "?   \tpkgname\t[no test files]\n" is only line.
+	// Special case for entirely skipped test binary: "?   \tpkgname\t0.001s [no test files]\n" is only line.
 	// Report it as plain output but remember to say skip in the final summary.
 	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(line, skipLineSuffix) && len(c.report) == 0 {
 		c.result = "skip"
@@ -175,6 +175,7 @@ func (c *converter) handleInputLine(line []byte) {
 	// "=== RUN   "
 	// "=== PAUSE "
 	// "=== CONT  "
+	actionColon := false
 	origLine := line
 	ok := false
 	indent := 0
@@ -196,6 +197,7 @@ func (c *converter) handleInputLine(line []byte) {
 		}
 		for _, magic := range reports {
 			if bytes.HasPrefix(line, magic) {
+				actionColon = true
 				ok = true
 				break
 			}
@@ -209,7 +211,10 @@ func (c *converter) handleInputLine(line []byte) {
 	}
 
 	// Parse out action and test name.
-	i := bytes.IndexByte(line, ':') + 1
+	i := 0
+	if actionColon {
+		i = bytes.IndexByte(line, ':') + 1
+	}
 	if i == 0 {
 		i = len(updates[0])
 	}

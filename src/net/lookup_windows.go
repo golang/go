@@ -79,12 +79,7 @@ func (r *Resolver) lookupHost(ctx context.Context, name string) ([]string, error
 func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
 	// TODO(bradfitz,brainman): use ctx more. See TODO below.
 
-	type ret struct {
-		addrs []IPAddr
-		err   error
-	}
-	ch := make(chan ret, 1)
-	go func() {
+	getaddr := func() ([]IPAddr, error) {
 		acquireThread()
 		defer releaseThread()
 		hints := syscall.AddrinfoW{
@@ -95,7 +90,7 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) 
 		var result *syscall.AddrinfoW
 		e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
 		if e != nil {
-			ch <- ret{err: &DNSError{Err: winError("getaddrinfow", e).Error(), Name: name}}
+			return nil, &DNSError{Err: winError("getaddrinfow", e).Error(), Name: name}
 		}
 		defer syscall.FreeAddrInfoW(result)
 		addrs := make([]IPAddr, 0, 5)
@@ -110,11 +105,23 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) 
 				zone := zoneCache.name(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
 				addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
 			default:
-				ch <- ret{err: &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}}
+				return nil, &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}
 			}
 		}
-		ch <- ret{addrs: addrs}
+		return addrs, nil
+	}
+
+	type ret struct {
+		addrs []IPAddr
+		err   error
+	}
+
+	ch := make(chan ret, 1)
+	go func() {
+		addr, err := getaddr()
+		ch <- ret{addrs: addr, err: err}
 	}()
+
 	select {
 	case r := <-ch:
 		return r.addrs, r.err
@@ -136,7 +143,7 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) 
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
-	if r.PreferGo {
+	if r.preferGo() {
 		return lookupPortMap(network, service)
 	}
 
@@ -356,4 +363,10 @@ Cname:
 		break
 	}
 	return name
+}
+
+// concurrentThreadsLimit returns the number of threads we permit to
+// run concurrently doing DNS lookups.
+func concurrentThreadsLimit() int {
+	return 500
 }

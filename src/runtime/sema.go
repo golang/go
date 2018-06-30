@@ -15,7 +15,7 @@
 // even if, due to races, the wakeup happens before the sleep.
 //
 // See Mullender and Cox, ``Semaphores in Plan 9,''
-// http://swtch.com/semaphore.pdf
+// https://swtch.com/semaphore.pdf
 
 package runtime
 
@@ -141,7 +141,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		root.queue(addr, s, lifo)
-		goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync, 4)
+		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4)
 		if s.ticket != 0 || cansemacquire(addr) {
 			break
 		}
@@ -274,7 +274,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	// addresses, it is kept balanced on average by maintaining a heap ordering
 	// on the ticket: s.ticket <= both s.prev.ticket and s.next.ticket.
 	// https://en.wikipedia.org/wiki/Treap
-	// http://faculty.washington.edu/aragon/pubs/rst89.pdf
+	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
 	//
 	// s.ticket compared with zero in couple of places, therefore set lowest bit.
 	// It will not affect treap's quality noticeably.
@@ -507,7 +507,7 @@ func notifyListWait(l *notifyList, t uint32) {
 		l.tail.next = s
 	}
 	l.tail = s
-	goparkunlock(&l.lock, "semacquire", traceEvGoBlockCond, 3)
+	goparkunlock(&l.lock, waitReasonSyncCondWait, traceEvGoBlockCond, 3)
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
 	}

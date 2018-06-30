@@ -50,6 +50,9 @@ TEXT ·pipe(SB),NOSPLIT,$0
 TEXT ·RawSyscall(SB),NOSPLIT,$0
 	JMP	runtime·syscall_rawsyscall(SB)
 
+TEXT ·RawSyscall6(SB),NOSPLIT,$0
+	JMP	runtime·syscall_rawsyscall6(SB)
+
 TEXT ·setgid(SB),NOSPLIT,$0
 	JMP	runtime·syscall_setgid(SB)
 

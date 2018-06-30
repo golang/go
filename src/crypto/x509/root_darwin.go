@@ -181,12 +181,12 @@ func verifyCertWithSystem(block *pem.Block, cert *Certificate) bool {
 	}
 	if err := cmd.Run(); err != nil {
 		if debugExecDarwinRoots {
-			println(fmt.Sprintf("crypto/x509: verify-cert rejected %s: %q", cert.Subject.CommonName, bytes.TrimSpace(stderr.Bytes())))
+			println(fmt.Sprintf("crypto/x509: verify-cert rejected %s: %q", cert.Subject, bytes.TrimSpace(stderr.Bytes())))
 		}
 		return false
 	}
 	if debugExecDarwinRoots {
-		println(fmt.Sprintf("crypto/x509: verify-cert approved %s", cert.Subject.CommonName))
+		println(fmt.Sprintf("crypto/x509: verify-cert approved %s", cert.Subject))
 	}
 	return true
 }

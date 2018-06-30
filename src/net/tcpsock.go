@@ -212,7 +212,8 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
-	c, err := dialTCP(context.Background(), network, laddr, raddr)
+	sd := &sysDialer{network: network, address: raddr.String()}
+	c, err := sd.dialTCP(context.Background(), laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
@@ -292,8 +293,8 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	return nil
 }
 
-// File returns a copy of the underlying os.File, set to blocking
-// mode. It is the caller's responsibility to close f when finished.
+// File returns a copy of the underlying os.File.
+// It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
 // The returned os.File's file descriptor is different from the
@@ -328,7 +329,8 @@ func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
 	if laddr == nil {
 		laddr = &TCPAddr{}
 	}
-	ln, err := listenTCP(context.Background(), network, laddr)
+	sl := &sysListener{network: network, address: laddr.String()}
+	ln, err := sl.listenTCP(context.Background(), laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}

@@ -436,20 +436,385 @@ CALLFN(·call268435456, 268435464 )
 CALLFN(·call536870912, 536870920 )
 CALLFN(·call1073741824, 1073741832 )
 
-// AES hashing not implemented for ARM64, issue #10109.
-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	$0, R0
-	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	$0, R0
-	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	$0, R0
-	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	$0, R0
-	MOVW	(R0), R1
-	
+// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-24
+	MOVD	p+0(FP), R0
+	MOVD	h+8(FP), R1
+	MOVD	$ret+16(FP), R2
+	MOVD	$runtime·aeskeysched+0(SB), R3
+
+	VEOR	V0.B16, V0.B16, V0.B16
+	VLD1	(R3), [V2.B16]
+	VLD1	(R0), V0.S[1]
+	VMOV	R1, V0.S[0]
+
+	AESE	V2.B16, V0.B16
+	AESMC	V0.B16, V0.B16
+	AESE	V2.B16, V0.B16
+	AESMC	V0.B16, V0.B16
+	AESE	V2.B16, V0.B16
+
+	VST1	[V0.D1], (R2)
+	RET
+
+// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-24
+	MOVD	p+0(FP), R0
+	MOVD	h+8(FP), R1
+	MOVD	$ret+16(FP), R2
+	MOVD	$runtime·aeskeysched+0(SB), R3
+
+	VEOR	V0.B16, V0.B16, V0.B16
+	VLD1	(R3), [V2.B16]
+	VLD1	(R0), V0.D[1]
+	VMOV	R1, V0.D[0]
+
+	AESE	V2.B16, V0.B16
+	AESMC	V0.B16, V0.B16
+	AESE	V2.B16, V0.B16
+	AESMC	V0.B16, V0.B16
+	AESE	V2.B16, V0.B16
+
+	VST1	[V0.D1], (R2)
+	RET
+
+// func aeshash(p unsafe.Pointer, h, size uintptr) uintptr
+TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-32
+	MOVD	p+0(FP), R0
+	MOVD	s+16(FP), R1
+	MOVWU	h+8(FP), R3
+	MOVD	$ret+24(FP), R2
+	B	aeshashbody<>(SB)
+
+// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-24
+	MOVD	p+0(FP), R10 // string pointer
+	LDP	(R10), (R0, R1) //string data/ length
+	MOVWU	h+8(FP), R3
+	MOVD	$ret+16(FP), R2 // return adddress
+	B	aeshashbody<>(SB)
+
+// R0: data
+// R1: length (maximum 32 bits)
+// R2: address to put return value
+// R3: seed data
+TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
+	VEOR	V30.B16, V30.B16, V30.B16
+	VMOV	R3, V30.S[0]
+	VMOV	R1, V30.S[1] // load length into seed
+
+	MOVD	$runtime·aeskeysched+0(SB), R4
+	VLD1.P	16(R4), [V0.B16]
+	AESE	V30.B16, V0.B16
+	AESMC	V0.B16, V0.B16
+	CMP	$16, R1
+	BLO	aes0to15
+	BEQ	aes16
+	CMP	$32, R1
+	BLS	aes17to32
+	CMP	$64, R1
+	BLS	aes33to64
+	CMP	$128, R1
+	BLS	aes65to128
+	B	aes129plus
+
+aes0to15:
+	CMP	$0, R1
+	BEQ	aes0
+	VEOR	V2.B16, V2.B16, V2.B16
+	TBZ	$3, R1, less_than_8
+	VLD1.P	8(R0), V2.D[0]
+
+less_than_8:
+	TBZ	$2, R1, less_than_4
+	VLD1.P	4(R0), V2.S[2]
+
+less_than_4:
+	TBZ	$1, R1, less_than_2
+	VLD1.P	2(R0), V2.H[6]
+
+less_than_2:
+	TBZ	$0, R1, done
+	VLD1	(R0), V2.B[14]
+done:
+	AESE	V0.B16, V2.B16
+	AESMC	V2.B16, V2.B16
+	AESE	V0.B16, V2.B16
+	AESMC	V2.B16, V2.B16
+	AESE	V0.B16, V2.B16
+
+	VST1	[V2.D1], (R2)
+	RET
+aes0:
+	VST1	[V0.D1], (R2)
+	RET
+aes16:
+	VLD1	(R0), [V2.B16]
+	B	done
+
+aes17to32:
+	// make second seed
+	VLD1	(R4), [V1.B16]
+	AESE	V30.B16, V1.B16
+	AESMC	V1.B16, V1.B16
+	SUB	$16, R1, R10
+	VLD1.P	(R0)(R10), [V2.B16]
+	VLD1	(R0), [V3.B16]
+
+	AESE	V0.B16, V2.B16
+	AESMC	V2.B16, V2.B16
+	AESE	V1.B16, V3.B16
+	AESMC	V3.B16, V3.B16
+
+	AESE	V0.B16, V2.B16
+	AESMC	V2.B16, V2.B16
+	AESE	V1.B16, V3.B16
+	AESMC	V3.B16, V3.B16
+
+	AESE	V0.B16, V2.B16
+	AESE	V1.B16, V3.B16
+
+	VEOR	V3.B16, V2.B16, V2.B16
+	VST1	[V2.D1], (R2)
+	RET
+
+aes33to64:
+	VLD1	(R4), [V1.B16, V2.B16, V3.B16]
+	AESE	V30.B16, V1.B16
+	AESMC	V1.B16, V1.B16
+	AESE	V30.B16, V2.B16
+	AESMC	V2.B16, V2.B16
+	AESE	V30.B16, V3.B16
+	AESMC	V3.B16, V3.B16
+	SUB	$32, R1, R10
+
+	VLD1.P	(R0)(R10), [V4.B16, V5.B16]
+	VLD1	(R0), [V6.B16, V7.B16]
+
+	AESE	V0.B16, V4.B16
+	AESMC	V4.B16, V4.B16
+	AESE	V1.B16, V5.B16
+	AESMC	V5.B16, V5.B16
+	AESE	V2.B16, V6.B16
+	AESMC	V6.B16, V6.B16
+	AESE	V3.B16, V7.B16
+	AESMC	V7.B16, V7.B16
+
+	AESE	V0.B16, V4.B16
+	AESMC	V4.B16, V4.B16
+	AESE	V1.B16, V5.B16
+	AESMC	V5.B16, V5.B16
+	AESE	V2.B16, V6.B16
+	AESMC	V6.B16, V6.B16
+	AESE	V3.B16, V7.B16
+	AESMC	V7.B16, V7.B16
+
+	AESE	V0.B16, V4.B16
+	AESE	V1.B16, V5.B16
+	AESE	V2.B16, V6.B16
+	AESE	V3.B16, V7.B16
+
+	VEOR	V6.B16, V4.B16, V4.B16
+	VEOR	V7.B16, V5.B16, V5.B16
+	VEOR	V5.B16, V4.B16, V4.B16
+
+	VST1	[V4.D1], (R2)
+	RET
+
+aes65to128:
+	VLD1.P	64(R4), [V1.B16, V2.B16, V3.B16, V4.B16]
+	VLD1	(R4), [V5.B16, V6.B16, V7.B16]
+	AESE	V30.B16, V1.B16
+	AESMC	V1.B16, V1.B16
+	AESE	V30.B16, V2.B16
+	AESMC	V2.B16, V2.B16
+	AESE	V30.B16, V3.B16
+	AESMC	V3.B16, V3.B16
+	AESE	V30.B16, V4.B16
+	AESMC	V4.B16, V4.B16
+	AESE	V30.B16, V5.B16
+	AESMC	V5.B16, V5.B16
+	AESE	V30.B16, V6.B16
+	AESMC	V6.B16, V6.B16
+	AESE	V30.B16, V7.B16
+	AESMC	V7.B16, V7.B16
+
+	SUB	$64, R1, R10
+	VLD1.P	(R0)(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
+	VLD1	(R0), [V12.B16, V13.B16, V14.B16, V15.B16]
+	AESE	V0.B16,	 V8.B16
+	AESMC	V8.B16,  V8.B16
+	AESE	V1.B16,	 V9.B16
+	AESMC	V9.B16,  V9.B16
+	AESE	V2.B16, V10.B16
+	AESMC	V10.B16,  V10.B16
+	AESE	V3.B16, V11.B16
+	AESMC	V11.B16,  V11.B16
+	AESE	V4.B16, V12.B16
+	AESMC	V12.B16,  V12.B16
+	AESE	V5.B16, V13.B16
+	AESMC	V13.B16,  V13.B16
+	AESE	V6.B16, V14.B16
+	AESMC	V14.B16,  V14.B16
+	AESE	V7.B16, V15.B16
+	AESMC	V15.B16,  V15.B16
+
+	AESE	V0.B16,	 V8.B16
+	AESMC	V8.B16,  V8.B16
+	AESE	V1.B16,	 V9.B16
+	AESMC	V9.B16,  V9.B16
+	AESE	V2.B16, V10.B16
+	AESMC	V10.B16,  V10.B16
+	AESE	V3.B16, V11.B16
+	AESMC	V11.B16,  V11.B16
+	AESE	V4.B16, V12.B16
+	AESMC	V12.B16,  V12.B16
+	AESE	V5.B16, V13.B16
+	AESMC	V13.B16,  V13.B16
+	AESE	V6.B16, V14.B16
+	AESMC	V14.B16,  V14.B16
+	AESE	V7.B16, V15.B16
+	AESMC	V15.B16,  V15.B16
+
+	AESE	V0.B16,	 V8.B16
+	AESE	V1.B16,	 V9.B16
+	AESE	V2.B16, V10.B16
+	AESE	V3.B16, V11.B16
+	AESE	V4.B16, V12.B16
+	AESE	V5.B16, V13.B16
+	AESE	V6.B16, V14.B16
+	AESE	V7.B16, V15.B16
+
+	VEOR	V12.B16, V8.B16, V8.B16
+	VEOR	V13.B16, V9.B16, V9.B16
+	VEOR	V14.B16, V10.B16, V10.B16
+	VEOR	V15.B16, V11.B16, V11.B16
+	VEOR	V10.B16, V8.B16, V8.B16
+	VEOR	V11.B16, V9.B16, V9.B16
+	VEOR	V9.B16, V8.B16, V8.B16
+
+	VST1	[V8.D1], (R2)
+	RET
+
+aes129plus:
+	PRFM (R0), PLDL1KEEP
+	VLD1.P	64(R4), [V1.B16, V2.B16, V3.B16, V4.B16]
+	VLD1	(R4), [V5.B16, V6.B16, V7.B16]
+	AESE	V30.B16, V1.B16
+	AESMC	V1.B16, V1.B16
+	AESE	V30.B16, V2.B16
+	AESMC	V2.B16, V2.B16
+	AESE	V30.B16, V3.B16
+	AESMC	V3.B16, V3.B16
+	AESE	V30.B16, V4.B16
+	AESMC	V4.B16, V4.B16
+	AESE	V30.B16, V5.B16
+	AESMC	V5.B16, V5.B16
+	AESE	V30.B16, V6.B16
+	AESMC	V6.B16, V6.B16
+	AESE	V30.B16, V7.B16
+	AESMC	V7.B16, V7.B16
+	ADD	R0, R1, R10
+	SUB	$128, R10, R10
+	VLD1.P	64(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
+	VLD1	(R10), [V12.B16, V13.B16, V14.B16, V15.B16]
+	SUB	$1, R1, R1
+	LSR	$7, R1, R1
+
+aesloop:
+	AESE	V8.B16,	 V0.B16
+	AESMC	V0.B16,  V0.B16
+	AESE	V9.B16,	 V1.B16
+	AESMC	V1.B16,  V1.B16
+	AESE	V10.B16, V2.B16
+	AESMC	V2.B16,  V2.B16
+	AESE	V11.B16, V3.B16
+	AESMC	V3.B16,  V3.B16
+	AESE	V12.B16, V4.B16
+	AESMC	V4.B16,  V4.B16
+	AESE	V13.B16, V5.B16
+	AESMC	V5.B16,  V5.B16
+	AESE	V14.B16, V6.B16
+	AESMC	V6.B16,  V6.B16
+	AESE	V15.B16, V7.B16
+	AESMC	V7.B16,  V7.B16
+
+	VLD1.P	64(R0), [V8.B16, V9.B16, V10.B16, V11.B16]
+	AESE	V8.B16,	 V0.B16
+	AESMC	V0.B16,  V0.B16
+	AESE	V9.B16,	 V1.B16
+	AESMC	V1.B16,  V1.B16
+	AESE	V10.B16, V2.B16
+	AESMC	V2.B16,  V2.B16
+	AESE	V11.B16, V3.B16
+	AESMC	V3.B16,  V3.B16
+
+	VLD1.P	64(R0), [V12.B16, V13.B16, V14.B16, V15.B16]
+	AESE	V12.B16, V4.B16
+	AESMC	V4.B16,  V4.B16
+	AESE	V13.B16, V5.B16
+	AESMC	V5.B16,  V5.B16
+	AESE	V14.B16, V6.B16
+	AESMC	V6.B16,  V6.B16
+	AESE	V15.B16, V7.B16
+	AESMC	V7.B16,  V7.B16
+	SUB	$1, R1, R1
+	CBNZ	R1, aesloop
+
+	AESE	V8.B16,	 V0.B16
+	AESMC	V0.B16,  V0.B16
+	AESE	V9.B16,	 V1.B16
+	AESMC	V1.B16,  V1.B16
+	AESE	V10.B16, V2.B16
+	AESMC	V2.B16,  V2.B16
+	AESE	V11.B16, V3.B16
+	AESMC	V3.B16,  V3.B16
+	AESE	V12.B16, V4.B16
+	AESMC	V4.B16,  V4.B16
+	AESE	V13.B16, V5.B16
+	AESMC	V5.B16,  V5.B16
+	AESE	V14.B16, V6.B16
+	AESMC	V6.B16,  V6.B16
+	AESE	V15.B16, V7.B16
+	AESMC	V7.B16,  V7.B16
+
+	AESE	V8.B16,	 V0.B16
+	AESMC	V0.B16,  V0.B16
+	AESE	V9.B16,	 V1.B16
+	AESMC	V1.B16,  V1.B16
+	AESE	V10.B16, V2.B16
+	AESMC	V2.B16,  V2.B16
+	AESE	V11.B16, V3.B16
+	AESMC	V3.B16,  V3.B16
+	AESE	V12.B16, V4.B16
+	AESMC	V4.B16,  V4.B16
+	AESE	V13.B16, V5.B16
+	AESMC	V5.B16,  V5.B16
+	AESE	V14.B16, V6.B16
+	AESMC	V6.B16,  V6.B16
+	AESE	V15.B16, V7.B16
+	AESMC	V7.B16,  V7.B16
+
+	AESE	V8.B16,	 V0.B16
+	AESE	V9.B16,	 V1.B16
+	AESE	V10.B16, V2.B16
+	AESE	V11.B16, V3.B16
+	AESE	V12.B16, V4.B16
+	AESE	V13.B16, V5.B16
+	AESE	V14.B16, V6.B16
+	AESE	V15.B16, V7.B16
+
+	VEOR	V0.B16, V1.B16, V0.B16
+	VEOR	V2.B16, V3.B16, V2.B16
+	VEOR	V4.B16, V5.B16, V4.B16
+	VEOR	V6.B16, V7.B16, V6.B16
+	VEOR	V0.B16, V2.B16, V0.B16
+	VEOR	V4.B16, V6.B16, V4.B16
+	VEOR	V4.B16, V0.B16, V0.B16
+
+	VST1	[V0.D1], (R2)
+	RET
+
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	MOVWU	cycles+0(FP), R0
 again:
@@ -498,15 +863,22 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	arg+8(FP), R0
 
 	MOVD	RSP, R2		// save original stack pointer
+	CMP	$0, g
+	BEQ	nosave
 	MOVD	g, R4
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	MOVD	g_m(g), R8
+	MOVD	m_gsignal(R8), R3
+	CMP	R3, g
+	BEQ	nosave
 	MOVD	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	g0
+	BEQ	nosave
+
+	// Switch to system stack.
 	MOVD	R0, R9	// gosave<> and save_g might clobber R0
 	BL	gosave<>(SB)
 	MOVD	R3, g
@@ -516,7 +888,6 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	R9, R0
 
 	// Now on a scheduling stack (a pthread-created stack).
-g0:
 	// Save room for two of our pointers /*, plus 32 bytes of callee
 	// save area that lives on the caller stack. */
 	MOVD	RSP, R13
@@ -539,6 +910,30 @@ g0:
 	MOVD	R5, RSP
 
 	MOVW	R0, ret+16(FP)
+	RET
+
+nosave:
+	// Running on a system stack, perhaps even without a g.
+	// Having no g can happen during thread creation or thread teardown
+	// (see needm/dropm on Solaris, for example).
+	// This code is like the above sequence but without saving/restoring g
+	// and without worrying about the stack moving out from under us
+	// (because we're on a system stack, not a goroutine stack).
+	// The above code could be used directly if already on a system stack,
+	// but then the only path through this code would be a rare case on Solaris.
+	// Using this code for all "already on system stack" calls exercises it more,
+	// which should help keep it correct.
+	MOVD	RSP, R13
+	SUB	$16, R13
+	MOVD	R13, RSP
+	MOVD	$0, R4
+	MOVD	R4, 0(RSP)	// Where above code stores g, in case someone looks during debugging.
+	MOVD	R2, 8(RSP)	// Save original stack pointer.
+	BL	(R1)
+	// Restore stack pointer.
+	MOVD	8(RSP), R2
+	MOVD	R2, RSP	
+	MOVD	R0, ret+16(FP)
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
@@ -704,13 +1099,9 @@ TEXT setg_gcc<>(SB),NOSPLIT,$8
 	MOVD	savedR27-8(SP), R27
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
-	MOVD	0(RSP), R0		// LR saved by caller
-	MOVD	R0, ret+0(FP)
-	RET
-
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
-	B	(ZR)
+	MOVD	ZR, R0
+	MOVD	(R0), R0
 	UNDEF
 
 TEXT runtime·return0(SB), NOSPLIT, $0

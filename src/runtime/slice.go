@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -43,6 +44,14 @@ func maxSliceCap(elemsize uintptr) uintptr {
 	return maxAlloc / elemsize
 }
 
+func panicmakeslicelen() {
+	panic(errorString("makeslice: len out of range"))
+}
+
+func panicmakeslicecap() {
+	panic(errorString("makeslice: cap out of range"))
+}
+
 func makeslice(et *_type, len, cap int) slice {
 	// NOTE: The len > maxElements check here is not strictly necessary,
 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
@@ -51,11 +60,11 @@ func makeslice(et *_type, len, cap int) slice {
 	// See issue 4085.
 	maxElements := maxSliceCap(et.size)
 	if len < 0 || uintptr(len) > maxElements {
-		panic(errorString("makeslice: len out of range"))
+		panicmakeslicelen()
 	}
 
 	if cap < len || uintptr(cap) > maxElements {
-		panic(errorString("makeslice: cap out of range"))
+		panicmakeslicecap()
 	}
 
 	p := mallocgc(et.size*uintptr(cap), et, true)
@@ -65,12 +74,12 @@ func makeslice(et *_type, len, cap int) slice {
 func makeslice64(et *_type, len64, cap64 int64) slice {
 	len := int(len64)
 	if int64(len) != len64 {
-		panic(errorString("makeslice: len out of range"))
+		panicmakeslicelen()
 	}
 
 	cap := int(cap64)
 	if int64(cap) != cap64 {
-		panic(errorString("makeslice: cap out of range"))
+		panicmakeslicecap()
 	}
 
 	return makeslice(et, len, cap)
@@ -127,20 +136,36 @@ func growslice(et *_type, old slice, cap int) slice {
 
 	var overflow bool
 	var lenmem, newlenmem, capmem uintptr
-	const ptrSize = unsafe.Sizeof((*byte)(nil))
-	switch et.size {
-	case 1:
+	// Specialize for common values of et.size.
+	// For 1 we don't need any division/multiplication.
+	// For sys.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
+	// For powers of 2, use a variable shift.
+	switch {
+	case et.size == 1:
 		lenmem = uintptr(old.len)
 		newlenmem = uintptr(cap)
 		capmem = roundupsize(uintptr(newcap))
 		overflow = uintptr(newcap) > maxAlloc
 		newcap = int(capmem)
-	case ptrSize:
-		lenmem = uintptr(old.len) * ptrSize
-		newlenmem = uintptr(cap) * ptrSize
-		capmem = roundupsize(uintptr(newcap) * ptrSize)
-		overflow = uintptr(newcap) > maxAlloc/ptrSize
-		newcap = int(capmem / ptrSize)
+	case et.size == sys.PtrSize:
+		lenmem = uintptr(old.len) * sys.PtrSize
+		newlenmem = uintptr(cap) * sys.PtrSize
+		capmem = roundupsize(uintptr(newcap) * sys.PtrSize)
+		overflow = uintptr(newcap) > maxAlloc/sys.PtrSize
+		newcap = int(capmem / sys.PtrSize)
+	case isPowerOfTwo(et.size):
+		var shift uintptr
+		if sys.PtrSize == 8 {
+			// Mask shift for better code generation.
+			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
+		} else {
+			shift = uintptr(sys.Ctz32(uint32(et.size))) & 31
+		}
+		lenmem = uintptr(old.len) << shift
+		newlenmem = uintptr(cap) << shift
+		capmem = roundupsize(uintptr(newcap) << shift)
+		overflow = uintptr(newcap) > (maxAlloc >> shift)
+		newcap = int(capmem >> shift)
 	default:
 		lenmem = uintptr(old.len) * et.size
 		newlenmem = uintptr(cap) * et.size
@@ -187,6 +212,10 @@ func growslice(et *_type, old slice, cap int) slice {
 	}
 
 	return slice{p, old.len, newcap}
+}
+
+func isPowerOfTwo(x uintptr) bool {
+	return x&(x-1) == 0
 }
 
 func slicecopy(to, fm slice, width uintptr) int {

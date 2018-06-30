@@ -46,7 +46,7 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 		return false
 	}
 
-	if r.ip() == funcPC(abort) || (GOARCH == "arm" && r.ip() == funcPC(abort)+4) {
+	if isAbortPC(r.ip()) {
 		// Never turn abort into a panic.
 		return false
 	}
@@ -224,6 +224,7 @@ func signame(sig uint32) string {
 	return ""
 }
 
+//go:nosplit
 func crash() {
 	// TODO: This routine should do whatever is needed
 	// to make the Windows program abort/crash as it

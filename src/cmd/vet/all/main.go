@@ -192,6 +192,12 @@ func vetPlatforms(pp []platform) {
 }
 
 func (p platform) vet() {
+	if p.os == "linux" && p.arch == "riscv64" {
+		// TODO(tklauser): enable as soon as the riscv64 port has fully landed
+		fmt.Println("skipping linux/riscv64")
+		return
+	}
+
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
 

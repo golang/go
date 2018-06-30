@@ -11,7 +11,6 @@ import (
 	"io"
 	"io/ioutil"
 	"runtime"
-	"sort"
 	"strconv"
 	"time"
 	"unsafe"
@@ -48,24 +47,42 @@ type profileBuilder struct {
 }
 
 type memMap struct {
-	start uintptr
-	end   uintptr
+	// initialized as reading mapping
+	start         uintptr
+	end           uintptr
+	offset        uint64
+	file, buildID string
+
+	funcs symbolizeFlag
 }
+
+// symbolizeFlag keeps track of symbolization result.
+//   0                  : no symbol lookup was performed
+//   1<<0 (lookupTried) : symbol lookup was performed
+//   1<<1 (lookupFailed): symbol lookup was performed but failed
+type symbolizeFlag uint8
+
+const (
+	lookupTried  symbolizeFlag = 1 << iota
+	lookupFailed symbolizeFlag = 1 << iota
+)
 
 const (
 	// message Profile
-	tagProfile_SampleType    = 1  // repeated ValueType
-	tagProfile_Sample        = 2  // repeated Sample
-	tagProfile_Mapping       = 3  // repeated Mapping
-	tagProfile_Location      = 4  // repeated Location
-	tagProfile_Function      = 5  // repeated Function
-	tagProfile_StringTable   = 6  // repeated string
-	tagProfile_DropFrames    = 7  // int64 (string table index)
-	tagProfile_KeepFrames    = 8  // int64 (string table index)
-	tagProfile_TimeNanos     = 9  // int64
-	tagProfile_DurationNanos = 10 // int64
-	tagProfile_PeriodType    = 11 // ValueType (really optional string???)
-	tagProfile_Period        = 12 // int64
+	tagProfile_SampleType        = 1  // repeated ValueType
+	tagProfile_Sample            = 2  // repeated Sample
+	tagProfile_Mapping           = 3  // repeated Mapping
+	tagProfile_Location          = 4  // repeated Location
+	tagProfile_Function          = 5  // repeated Function
+	tagProfile_StringTable       = 6  // repeated string
+	tagProfile_DropFrames        = 7  // int64 (string table index)
+	tagProfile_KeepFrames        = 8  // int64 (string table index)
+	tagProfile_TimeNanos         = 9  // int64
+	tagProfile_DurationNanos     = 10 // int64
+	tagProfile_PeriodType        = 11 // ValueType (really optional string???)
+	tagProfile_Period            = 12 // int64
+	tagProfile_Comment           = 13 // repeated int64
+	tagProfile_DefaultSampleType = 14 // int64
 
 	// message ValueType
 	tagValueType_Type = 1 // int64 (string table index)
@@ -169,7 +186,7 @@ func (b *profileBuilder) pbLine(tag int, funcID uint64, line int64) {
 }
 
 // pbMapping encodes a Mapping message to b.pb.
-func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file, buildID string) {
+func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file, buildID string, hasFuncs bool) {
 	start := b.pb.startMessage()
 	b.pb.uint64Opt(tagMapping_ID, id)
 	b.pb.uint64Opt(tagMapping_Start, base)
@@ -177,8 +194,15 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
 	b.pb.uint64Opt(tagMapping_Offset, offset)
 	b.pb.int64Opt(tagMapping_Filename, b.stringIndex(file))
 	b.pb.int64Opt(tagMapping_BuildID, b.stringIndex(buildID))
-	// TODO: Set any of HasInlineFrames, HasFunctions, HasFilenames, HasLineNumbers?
-	// It seems like they should all be true, but they've never been set.
+	// TODO: we set HasFunctions if all symbols from samples were symbolized (hasFuncs).
+	// Decide what to do about HasInlineFrames and HasLineNumbers.
+	// Also, another approach to handle the mapping entry with
+	// incomplete symbolization results is to dupliace the mapping
+	// entry (but with different Has* fields values) and use
+	// different entries for symbolized locations and unsymbolized locations.
+	if hasFuncs {
+		b.pb.bool(tagMapping_HasFunctions, true)
+	}
 	b.pb.endMessage(tag, start)
 }
 
@@ -201,6 +225,11 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
 		// Short-circuit if we see runtime.goexit so the loop
 		// below doesn't allocate a useless empty location.
 		return 0
+	}
+
+	symbolizeResult := lookupTried
+	if frame.PC == 0 || frame.Function == "" || frame.File == "" || frame.Line == 0 {
+		symbolizeResult |= lookupFailed
 	}
 
 	if frame.PC == 0 {
@@ -237,12 +266,14 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
 		}
 		frame, more = frames.Next()
 	}
-	if len(b.mem) > 0 {
-		i := sort.Search(len(b.mem), func(i int) bool {
-			return b.mem[i].end > addr
-		})
-		if i < len(b.mem) && b.mem[i].start <= addr && addr < b.mem[i].end {
+	for i := range b.mem {
+		if b.mem[i].start <= addr && addr < b.mem[i].end {
 			b.pb.uint64Opt(tagLocation_MappingID, uint64(i+1))
+
+			m := b.mem[i]
+			m.funcs |= symbolizeResult
+			b.mem[i] = m
+			break
 		}
 	}
 	b.pb.endMessage(tagProfile_Location, start)
@@ -343,7 +374,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 }
 
 // build completes and returns the constructed profile.
-func (b *profileBuilder) build() error {
+func (b *profileBuilder) build() {
 	b.end = time.Now()
 
 	b.pb.int64Opt(tagProfile_TimeNanos, b.start.UnixNano())
@@ -390,13 +421,17 @@ func (b *profileBuilder) build() error {
 		b.pbSample(values, locs, labels)
 	}
 
+	for i, m := range b.mem {
+		hasFunctions := m.funcs == lookupTried // lookupTried but not lookupFailed
+		b.pbMapping(tagProfile_Mapping, uint64(i+1), uint64(m.start), uint64(m.end), m.offset, m.file, m.buildID, hasFunctions)
+	}
+
 	// TODO: Anything for tagProfile_DropFrames?
 	// TODO: Anything for tagProfile_KeepFrames?
 
 	b.pb.strings(tagProfile_StringTable, b.strings)
 	b.zw.Write(b.pb.data)
 	b.zw.Close()
-	return nil
 }
 
 // readMapping reads /proc/self/maps and writes mappings to b.pb.
@@ -505,6 +540,11 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 }
 
 func (b *profileBuilder) addMapping(lo, hi, offset uint64, file, buildID string) {
-	b.mem = append(b.mem, memMap{uintptr(lo), uintptr(hi)})
-	b.pbMapping(tagProfile_Mapping, uint64(len(b.mem)), lo, hi, offset, file, buildID)
+	b.mem = append(b.mem, memMap{
+		start:   uintptr(lo),
+		end:     uintptr(hi),
+		offset:  offset,
+		file:    file,
+		buildID: buildID,
+	})
 }

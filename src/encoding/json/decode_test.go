@@ -615,9 +615,9 @@ var unmarshalTests = []unmarshalTest{
 		out: S5{S8: S8{S9: S9{Y: 2}}},
 	},
 	{
-		in:  `{"X": 1,"Y":2}`,
-		ptr: new(S5),
-		err: fmt.Errorf("json: unknown field \"X\""),
+		in:                    `{"X": 1,"Y":2}`,
+		ptr:                   new(S5),
+		err:                   fmt.Errorf("json: unknown field \"X\""),
 		disallowUnknownFields: true,
 	},
 	{
@@ -626,9 +626,9 @@ var unmarshalTests = []unmarshalTest{
 		out: S10{S13: S13{S8: S8{S9: S9{Y: 2}}}},
 	},
 	{
-		in:  `{"X": 1,"Y":2}`,
-		ptr: new(S10),
-		err: fmt.Errorf("json: unknown field \"X\""),
+		in:                    `{"X": 1,"Y":2}`,
+		ptr:                   new(S10),
+		err:                   fmt.Errorf("json: unknown field \"X\""),
 		disallowUnknownFields: true,
 	},
 
@@ -835,8 +835,8 @@ var unmarshalTests = []unmarshalTest{
 			"Q": 18,
 			"extra": true
 		}`,
-		ptr: new(Top),
-		err: fmt.Errorf("json: unknown field \"extra\""),
+		ptr:                   new(Top),
+		err:                   fmt.Errorf("json: unknown field \"extra\""),
 		disallowUnknownFields: true,
 	},
 	{
@@ -862,8 +862,8 @@ var unmarshalTests = []unmarshalTest{
 			"Z": 17,
 			"Q": 18
 		}`,
-		ptr: new(Top),
-		err: fmt.Errorf("json: unknown field \"extra\""),
+		ptr:                   new(Top),
+		err:                   fmt.Errorf("json: unknown field \"extra\""),
 		disallowUnknownFields: true,
 	},
 }

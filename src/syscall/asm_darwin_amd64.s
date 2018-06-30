@@ -117,7 +117,7 @@ ok1:
 	MOVQ	$0, err+48(FP)
 	RET
 
-// func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+// func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
 	MOVQ	a1+8(FP), DI
 	MOVQ	a2+16(FP), SI

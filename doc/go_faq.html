@@ -45,7 +45,7 @@ analysis easy and avoids much of the overhead of C-style include files and
 libraries.
 <li>
 Go's type system has no hierarchy, so no time is spent defining the
-relationships between types. Also, although Go has static types the language
+relationships between types. Also, although Go has static types, the language
 attempts to make types feel lighter weight than in typical OO languages.
 <li>
 Go is fully garbage-collected and provides fundamental support for
@@ -97,14 +97,14 @@ What's the origin of the mascot?</h3>
 
 <p>
 The mascot and logo were designed by
-<a href="http://reneefrench.blogspot.com">Renée French</a>, who also designed
+<a href="https://reneefrench.blogspot.com">Renée French</a>, who also designed
 <a href="https://9p.io/plan9/glenda.html">Glenda</a>,
 the Plan 9 bunny.
 The <a href="https://blog.golang.org/gopher">gopher</a>
-is derived from one she used for an <a href="http://wfmu.org/">WFMU</a>
+is derived from one she used for an <a href="https://wfmu.org/">WFMU</a>
 T-shirt design some years ago.
 The logo and mascot are covered by the
-<a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
+<a href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
 license.
 </p>
 
@@ -1097,24 +1097,27 @@ The <code>go get</code> command therefore uses HTTPS for safety.
 </p>
 
 <p>
-If you use <code>git</code> and prefer to push changes through SSH using your existing key 
-it's easy to work around this. For GitHub, try one of these solutions:
+<code>Git</code> can be configured to authenticate over HTTPS or to use SSH in place of HTTPS.
+To authenticate over HTTPS, you can add a line
+to the <code>$HOME/.netrc</code> file that git consults:
 </p>
-<ul>
-<li>Manually clone the repository in the expected package directory:
 <pre>
-$ cd src/github.com/username
-$ git clone git@github.com:username/package.git
+machine github.com login <i>USERNAME</i> password <i>APIKEY</i>
 </pre>
-</li>
-<li>Force <code>git push</code> to use the <code>SSH</code> protocol by appending
-these two lines to <code>~/.gitconfig</code>:
+<p>
+For GitHub accounts, the password can be a
+<a href="https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/">personal access token</a>.
+</p>
+
+<p>
+<code>Git</code> can also be configured to use SSH in place of HTTPS for URLs matching a given prefix.
+For example, to use SSH for all GitHub access,
+add these lines to your <code>~/.gitconfig</code>:
+</p>
 <pre>
-[url "git@github.com:"]
-	pushInsteadOf = https://github.com/
+[url "ssh://git@github.com/"]
+	insteadOf = https://github.com/
 </pre>
-</li>
-</ul>
 
 <h3 id="get_version">
 How should I manage package versions using "go get"?</h3>
@@ -1393,7 +1396,7 @@ reservation does not deprive other processes of memory.
 <p>
 To find the amount of actual memory allocated to a Go process, use the Unix
 <code>top</code> command and consult the <code>RES</code> (Linux) or
-<code>RSIZE</code> (Mac OS X) columns.
+<code>RSIZE</code> (macOS) columns.
 <!-- TODO(adg): find out how this works on Windows -->
 </p>
 
@@ -1852,18 +1855,19 @@ Why is my trivial program such a large binary?</h3>
 
 <p>
 The linker in the <code>gc</code> toolchain
-creates statically-linked binaries by default.  All Go binaries therefore include the Go
+creates statically-linked binaries by default.
+All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
 </p>
 
 <p>
-A simple C "hello, world" program compiled and linked statically using gcc
-on Linux is around 750 kB,
-including an implementation of <code>printf</code>.
-An equivalent Go program using <code>fmt.Printf</code>
-is around 1.5 MB, but
-that includes more powerful run-time support and type information.
+A simple C "hello, world" program compiled and linked statically using
+gcc on Linux is around 750 kB, including an implementation of
+<code>printf</code>.
+An equivalent Go program using
+<code>fmt.Printf</code> weighs a couple of megabytes, but that includes
+more powerful run-time support and type and debugging information.
 </p>
 
 <h3 id="unused_variables_and_imports">
@@ -1925,7 +1929,7 @@ func main() {
 
 <p>
 Nowadays, most Go programmers use a tool,
-<a href="http://godoc.org/golang.org/x/tools/cmd/goimports">goimports</a>,
+<a href="https://godoc.org/golang.org/x/tools/cmd/goimports">goimports</a>,
 which automatically rewrites a Go source file to have the correct imports,
 eliminating the unused imports issue in practice.
 This program is easily connected to most editors to run automatically when a Go source file is written.
@@ -1964,7 +1968,7 @@ The slowest depend on libraries for which versions of comparable performance
 are not available in Go.
 For instance, <a href="https://go.googlesource.com/exp/+/master/shootout/pidigits.go">pidigits.go</a>
 depends on a multi-precision math package, and the C
-versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
+versions, unlike Go's, use <a href="https://gmplib.org/">GMP</a> (which is
 written in optimized assembler).
 Benchmarks that depend on regular expressions
 (<a href="https://go.googlesource.com/exp/+/master/shootout/regex-dna.go">regex-dna.go</a>,

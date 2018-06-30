@@ -117,6 +117,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 	"fmt"
 	"unsafe"
 )
@@ -163,6 +164,21 @@ func (m regMask) String() string {
 		s += fmt.Sprintf("r%d", r)
 	}
 	return s
+}
+
+func (s *regAllocState) RegMaskString(m regMask) string {
+	str := ""
+	for r := register(0); m != 0; r++ {
+		if m>>r&1 == 0 {
+			continue
+		}
+		m &^= regMask(1) << r
+		if str != "" {
+			str += " "
+		}
+		str += s.registers[r].String()
+	}
+	return str
 }
 
 // countRegs returns the number of set bits in the register mask.
@@ -357,10 +373,14 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
 // If there is no unused register, a Value will be kicked out of
 // a register to make room.
 func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+	if v.OnWasmStack {
+		return noRegister
+	}
+
 	mask &= s.allocatable
 	mask &^= s.nospill
 	if mask == 0 {
-		s.f.Fatalf("no register available for %s", v)
+		s.f.Fatalf("no register available for %s", v.LongString())
 	}
 
 	// Pick an unused register if one is available.
@@ -394,6 +414,14 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	}
 	if maxuse == -1 {
 		s.f.Fatalf("couldn't find register to spill")
+	}
+
+	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm {
+		// TODO(neelance): In theory this should never happen, because all wasm registers are equal.
+		// So if there is still a free register, the allocation should have picked that one in the first place insead of
+		// trying to kick some other value out. In practice, this case does happen and it breaks the stack optimization.
+		s.freeReg(r)
+		return r
 	}
 
 	// Try to move it around before kicking out, if there is a free register.
@@ -443,8 +471,18 @@ func (s *regAllocState) makeSpill(v *Value, b *Block) *Value {
 // undone until the caller allows it by clearing nospill. Returns a
 // *Value which is either v or a copy of v allocated to the chosen register.
 func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos src.XPos) *Value {
-	vi := &s.values[v.ID]
+	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm && v.rematerializeable() {
+		c := v.copyIntoWithXPos(s.curBlock, pos)
+		c.OnWasmStack = true
+		s.setOrig(c, v)
+		return c
+	}
+	if v.OnWasmStack {
+		return v
+	}
 
+	vi := &s.values[v.ID]
+	pos = pos.WithNotStmt()
 	// Check if v is already in a requested register.
 	if mask&vi.regs != 0 {
 		r := pickReg(mask & vi.regs)
@@ -457,8 +495,13 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 		return s.regs[r].c
 	}
 
-	// Allocate a register.
-	r := s.allocReg(mask, v)
+	var r register
+	// If nospill is set, the value is used immedately, so it can live on the WebAssembly stack.
+	onWasmStack := nospill && s.f.Config.ctxt.Arch.Arch == sys.ArchWasm
+	if !onWasmStack {
+		// Allocate a register.
+		r = s.allocReg(mask, v)
+	}
 
 	// Allocate v to the new register.
 	var c *Value
@@ -480,8 +523,18 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 		}
 		c = s.curBlock.NewValue1(pos, OpLoadReg, v.Type, spill)
 	}
+
 	s.setOrig(c, v)
+
+	if onWasmStack {
+		c.OnWasmStack = true
+		return c
+	}
+
 	s.assignReg(r, v, c)
+	if c.Op == OpLoadReg && s.isGReg(r) {
+		s.f.Fatalf("allocValToReg.OpLoadReg targeting g: " + c.LongString())
+	}
 	if nospill {
 		s.nospill |= regMask(1) << r
 	}
@@ -574,7 +627,7 @@ func (s *regAllocState) init(f *Func) {
 			// in the rewrite rules so we always have a free register
 			// available for global load/stores. See gen/386.rules (search for Flag_shared).
 		case "s390x":
-			// nothing to do, R10 & R11 already reserved
+			s.allocatable &^= 1 << 11 // R11
 		default:
 			s.f.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
 		}
@@ -641,6 +694,39 @@ func (s *regAllocState) init(f *Func) {
 	s.startRegs = make([][]startReg, f.NumBlocks())
 	s.spillLive = make([][]ID, f.NumBlocks())
 	s.sdom = f.sdom()
+
+	// wasm: Mark instructions that can be optimized to have their values only on the WebAssembly stack.
+	if f.Config.ctxt.Arch.Arch == sys.ArchWasm {
+		canLiveOnStack := f.newSparseSet(f.NumValues())
+		defer f.retSparseSet(canLiveOnStack)
+		for _, b := range f.Blocks {
+			// New block. Clear candidate set.
+			canLiveOnStack.clear()
+			if b.Control != nil && b.Control.Uses == 1 && !opcodeTable[b.Control.Op].generic {
+				canLiveOnStack.add(b.Control.ID)
+			}
+			// Walking backwards.
+			for i := len(b.Values) - 1; i >= 0; i-- {
+				v := b.Values[i]
+				if canLiveOnStack.contains(v.ID) {
+					v.OnWasmStack = true
+				} else {
+					// Value can not live on stack. Values are not allowed to be reordered, so clear candidate set.
+					canLiveOnStack.clear()
+				}
+				for _, arg := range v.Args {
+					// Value can live on the stack if:
+					// - it is only used once
+					// - it is used in the same basic block
+					// - it is not a "mem" value
+					// - it is a WebAssembly op
+					if arg.Uses == 1 && arg.Block == v.Block && !arg.Type.IsMemory() && !opcodeTable[arg.Op].generic {
+						canLiveOnStack.add(arg.ID)
+					}
+				}
+			}
+		}
+	}
 }
 
 // Adds a use record for id at distance dist from the start of the block.
@@ -714,6 +800,22 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	return m & s.allocatable
 }
 
+// regspec returns the regInfo for operation op.
+func (s *regAllocState) regspec(op Op) regInfo {
+	if op == OpConvert {
+		// OpConvert is a generic op, so it doesn't have a
+		// register set in the static table. It can use any
+		// allocatable integer register.
+		m := s.allocatable & s.f.Config.gpRegMask
+		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
+	}
+	return opcodeTable[op].reg
+}
+
+func (s *regAllocState) isGReg(r register) bool {
+	return s.f.Config.hasGReg && s.GReg == r
+}
+
 func (s *regAllocState) regalloc(f *Func) {
 	regValLiveSet := f.newSparseSet(f.NumValues()) // set of values that may be live in register
 	defer f.retSparseSet(regValLiveSet)
@@ -781,7 +883,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 		}
 		if s.f.pass.debug > regDebug {
-			fmt.Printf("uses for %s:%s\n", s.f.Name, b)
+			fmt.Printf("use distances for %s\n", b)
 			for i := range s.values {
 				vi := &s.values[i]
 				u := vi.uses
@@ -856,6 +958,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Majority vote? Deepest nesting level?
 			phiRegs = phiRegs[:0]
 			var phiUsed regMask
+
 			for _, v := range phis {
 				if !s.values[v.ID].needReg {
 					phiRegs = append(phiRegs, noRegister)
@@ -963,7 +1066,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 
 			// Save the starting state for use by merge edges.
-			var regList []startReg
+			// We append to a stack allocated variable that we'll
+			// later copy into s.startRegs in one fell swoop, to save
+			// on allocations.
+			regList := make([]startReg, 0, 32)
 			for r := register(0); r < s.numRegs; r++ {
 				v := s.regs[r].v
 				if v == nil {
@@ -976,7 +1082,8 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				regList = append(regList, startReg{r, v, s.regs[r].c, s.values[v.ID].uses.pos})
 			}
-			s.startRegs[b.ID] = regList
+			s.startRegs[b.ID] = make([]startReg, len(regList))
+			copy(s.startRegs[b.ID], regList)
 
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("after phis\n")
@@ -987,9 +1094,13 @@ func (s *regAllocState) regalloc(f *Func) {
 		}
 
 		// Allocate space to record the desired registers for each value.
-		dinfo = dinfo[:0]
-		for i := 0; i < len(oldSched); i++ {
-			dinfo = append(dinfo, dentry{})
+		if l := len(oldSched); cap(dinfo) < l {
+			dinfo = make([]dentry, l)
+		} else {
+			dinfo = dinfo[:l]
+			for i := range dinfo {
+				dinfo[i] = dentry{}
+			}
 		}
 
 		// Load static desired register info at the end of the block.
@@ -1027,8 +1138,9 @@ func (s *regAllocState) regalloc(f *Func) {
 		for i := len(oldSched) - 1; i >= 0; i-- {
 			v := oldSched[i]
 			prefs := desired.remove(v.ID)
-			desired.clobber(opcodeTable[v.Op].reg.clobbers)
-			for _, j := range opcodeTable[v.Op].reg.inputs {
+			regspec := s.regspec(v.Op)
+			desired.clobber(regspec.clobbers)
+			for _, j := range regspec.inputs {
 				if countRegs(j.regs) != 1 {
 					continue
 				}
@@ -1056,7 +1168,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("  processing %s\n", v.LongString())
 			}
-			regspec := opcodeTable[v.Op].reg
+			regspec := s.regspec(v.Op)
 			if v.Op == OpPhi {
 				f.Fatalf("phi %s not at start of block", v)
 			}
@@ -1412,10 +1524,13 @@ func (s *regAllocState) regalloc(f *Func) {
 		// predecessor of it, find live values that we use soon after
 		// the merge point and promote them to registers now.
 		if len(b.Succs) == 1 {
+			if s.f.Config.hasGReg && s.regs[s.GReg].v != nil {
+				s.freeReg(s.GReg) // Spill value in G register before any merge.
+			}
 			// For this to be worthwhile, the loop must have no calls in it.
 			top := b.Succs[0].b
 			loop := s.loopnest.b2l[top.ID]
-			if loop == nil || loop.header != top || loop.containsCall {
+			if loop == nil || loop.header != top || loop.containsUnavoidableCall {
 				goto badloop
 			}
 
@@ -1738,9 +1853,10 @@ type edgeState struct {
 	destinations []dstRecord
 	extra        []dstRecord
 
-	usedRegs   regMask // registers currently holding something
-	uniqueRegs regMask // registers holding the only copy of a value
-	finalRegs  regMask // registers holding final target
+	usedRegs              regMask // registers currently holding something
+	uniqueRegs            regMask // registers holding the only copy of a value
+	finalRegs             regMask // registers holding final target
+	rematerializeableRegs regMask // registers that hold rematerializeable values
 }
 
 type contentRecord struct {
@@ -1774,6 +1890,7 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	e.usedRegs = 0
 	e.uniqueRegs = 0
 	e.finalRegs = 0
+	e.rematerializeableRegs = 0
 
 	// Live registers can be sources.
 	for _, x := range srcReg {
@@ -1883,18 +2000,23 @@ func (e *edgeState) process() {
 			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc, c)
 		}
 		e.erase(r)
+		pos := d.pos.WithNotStmt()
 		if _, isReg := loc.(*Register); isReg {
-			c = e.p.NewValue1(d.pos, OpCopy, c.Type, c)
+			c = e.p.NewValue1(pos, OpCopy, c.Type, c)
 		} else {
-			c = e.p.NewValue1(d.pos, OpLoadReg, c.Type, c)
+			c = e.p.NewValue1(pos, OpLoadReg, c.Type, c)
 		}
-		e.set(r, vid, c, false, d.pos)
+		e.set(r, vid, c, false, pos)
+		if c.Op == OpLoadReg && e.s.isGReg(register(r.(*Register).num)) {
+			e.s.f.Fatalf("process.OpLoadReg targeting g: " + c.LongString())
+		}
 	}
 }
 
 // processDest generates code to put value vid into location loc. Returns true
 // if progress was made.
 func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XPos) bool {
+	pos = pos.WithNotStmt()
 	occupant := e.contents[loc]
 	if occupant.vid == vid {
 		// Value is already in the correct place.
@@ -1961,12 +2083,12 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 	// be the last copy of v.
 	e.erase(loc)
 	var x *Value
-	if c == nil {
+	if c == nil || e.s.values[vid].rematerializeable {
 		if !e.s.values[vid].rematerializeable {
 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
 		}
 		if dstReg {
-			x = v.copyIntoNoXPos(e.p)
+			x = v.copyInto(e.p)
 		} else {
 			// Rematerialize into stack slot. Need a free
 			// register to accomplish this.
@@ -2002,6 +2124,9 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 		}
 	}
 	e.set(loc, vid, x, true, pos)
+	if x.Op == OpLoadReg && e.s.isGReg(register(loc.(*Register).num)) {
+		e.s.f.Fatalf("processDest.OpLoadReg targeting g: " + x.LongString())
+	}
 	if splice != nil {
 		(*splice).Uses--
 		*splice = x
@@ -2032,6 +2157,9 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos
 			if t, ok := e.s.f.getHome(a[0].ID).(*Register); ok {
 				e.uniqueRegs &^= regMask(1) << uint(t.num)
 			}
+		}
+		if e.s.values[vid].rematerializeable {
+			e.rematerializeableRegs |= regMask(1) << uint(r.num)
 		}
 	}
 	if e.s.f.pass.debug > regDebug {
@@ -2074,6 +2202,7 @@ func (e *edgeState) erase(loc Location) {
 		if cr.final {
 			e.finalRegs &^= regMask(1) << uint(r.num)
 		}
+		e.rematerializeableRegs &^= regMask(1) << uint(r.num)
 	}
 	if len(a) == 1 {
 		if r, ok := e.s.f.getHome(a[0].ID).(*Register); ok {
@@ -2097,7 +2226,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// 1) an unused register
 	// 2) a non-unique register not holding a final value
 	// 3) a non-unique register
-	// 4) TODO: a register holding a rematerializeable value
+	// 4) a register holding a rematerializeable value
 	x := m &^ e.usedRegs
 	if x != 0 {
 		return &e.s.registers[pickReg(x)]
@@ -2107,6 +2236,10 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 		return &e.s.registers[pickReg(x)]
 	}
 	x = m &^ e.uniqueRegs
+	if x != 0 {
+		return &e.s.registers[pickReg(x)]
+	}
+	x = m & e.rematerializeableRegs
 	if x != 0 {
 		return &e.s.registers[pickReg(x)]
 	}
@@ -2137,7 +2270,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 		}
 	}
 
-	fmt.Printf("m:%d unique:%d final:%d\n", m, e.uniqueRegs, e.finalRegs)
+	fmt.Printf("m:%d unique:%d final:%d rematerializable:%d\n", m, e.uniqueRegs, e.finalRegs, e.rematerializeableRegs)
 	for _, vid := range e.cachedVals {
 		a := e.cache[vid]
 		for _, c := range a {
@@ -2183,8 +2316,10 @@ func (s *regAllocState) computeLive() {
 	s.desired = make([]desiredState, f.NumBlocks())
 	var phis []*Value
 
-	live := newSparseMap(f.NumValues())
-	t := newSparseMap(f.NumValues())
+	live := f.newSparseMap(f.NumValues())
+	defer f.retSparseMap(live)
+	t := f.newSparseMap(f.NumValues())
+	defer f.retSparseMap(t)
 
 	// Keep track of which value we want in each register.
 	var desired desiredState
@@ -2252,10 +2387,11 @@ func (s *regAllocState) computeLive() {
 					// desired registers back though phi nodes.
 					continue
 				}
+				regspec := s.regspec(v.Op)
 				// Cancel desired registers if they get clobbered.
-				desired.clobber(opcodeTable[v.Op].reg.clobbers)
+				desired.clobber(regspec.clobbers)
 				// Update desired registers if there are any fixed register inputs.
-				for _, j := range opcodeTable[v.Op].reg.inputs {
+				for _, j := range regspec.inputs {
 					if countRegs(j.regs) != 1 {
 						continue
 					}
@@ -2364,7 +2500,9 @@ func (s *regAllocState) computeLive() {
 					fmt.Printf("]")
 				}
 			}
-			fmt.Printf(" avoid=%x", int64(s.desired[b.ID].avoid))
+			if avoid := s.desired[b.ID].avoid; avoid != 0 {
+				fmt.Printf(" avoid=%v", s.RegMaskString(avoid))
+			}
 			fmt.Println()
 		}
 	}

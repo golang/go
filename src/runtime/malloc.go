@@ -204,7 +204,9 @@ const (
 	// space because doing so is cheap.
 	// mips32 only has access to the low 2GB of virtual memory, so
 	// we further limit it to 31 bits.
-	heapAddrBits = _64bit*48 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
+	//
+	// WebAssembly currently has a limit of 4GB linear memory.
+	heapAddrBits = (_64bit*(1-sys.GoarchWasm))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle))
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
@@ -387,7 +389,7 @@ func mallocinit() {
 	_g_.m.mcache = allocmcache()
 
 	// Create initial arena growth hints.
-	if sys.PtrSize == 8 {
+	if sys.PtrSize == 8 && GOARCH != "wasm" {
 		// On a 64-bit machine, we pick the following hints
 		// because:
 		//
@@ -557,6 +559,14 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 	}
 
 	if size == 0 {
+		if raceenabled {
+			// The race detector assumes the heap lives in
+			// [0x00c000000000, 0x00e000000000), but we
+			// just ran out of hints in this region. Give
+			// a nice failure.
+			throw("too many address space collisions for -race mode")
+		}
+
 		// All of the hints failed, so we'll take any
 		// (sufficiently aligned) address the kernel will give
 		// us.

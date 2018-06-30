@@ -14,6 +14,11 @@ import (
 // GOTRACEBACK=crash when a signal is received.
 var crashing int32
 
+// testSigtrap is used by the runtime tests. If non-nil, it is called
+// on SIGTRAP. If it returns true, the normal behavior on SIGTRAP is
+// suppressed.
+var testSigtrap func(info *siginfo, ctxt *sigctxt, gp *g) bool
+
 // sighandler is invoked when a signal occurs. The global g will be
 // set to a gsignal goroutine and we will be running on the alternate
 // signal stack. The parameter g will be the value of the global g
@@ -34,6 +39,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		return
 	}
 
+	if sig == _SIGTRAP && testSigtrap != nil && testSigtrap(info, (*sigctxt)(noescape(unsafe.Pointer(c))), gp) {
+		return
+	}
+
 	flags := int32(_SigThrow)
 	if sig < uint32(len(sigtable)) {
 		flags = sigtable[sig].flags
@@ -43,7 +52,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// stack. Abort in the signal handler instead.
 		flags = (flags &^ _SigPanic) | _SigThrow
 	}
-	if c.sigpc() == funcPC(abort) || (GOARCH == "arm" && c.sigpc() == funcPC(abort)+4) {
+	if isAbortPC(c.sigpc()) {
 		// On many architectures, the abort function just
 		// causes a memory fault. Don't turn that into a panic.
 		flags = _SigThrow

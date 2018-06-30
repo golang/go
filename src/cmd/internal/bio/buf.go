@@ -97,3 +97,11 @@ func (w *Writer) Close() error {
 	}
 	return err
 }
+
+func (r *Reader) File() *os.File {
+	return r.f
+}
+
+func (w *Writer) File() *os.File {
+	return w.f
+}

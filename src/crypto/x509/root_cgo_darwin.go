@@ -7,7 +7,7 @@
 package x509
 
 /*
-#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1080
+#cgo CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101300
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
 
 #include <errno.h>
@@ -15,59 +15,6 @@ package x509
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
-
-// FetchPEMRoots_MountainLion is the version of FetchPEMRoots from Go 1.6
-// which still works on OS X 10.8 (Mountain Lion).
-// It lacks support for admin & user cert domains.
-// See golang.org/issue/16473
-int FetchPEMRoots_MountainLion(CFDataRef *pemRoots) {
-	if (pemRoots == NULL) {
-		return -1;
-	}
-	CFArrayRef certs = NULL;
-	OSStatus err = SecTrustCopyAnchorCertificates(&certs);
-	if (err != noErr) {
-		return -1;
-	}
-	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
-	int i, ncerts = CFArrayGetCount(certs);
-	for (i = 0; i < ncerts; i++) {
-		CFDataRef data = NULL;
-		SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, i);
-		if (cert == NULL) {
-			continue;
-		}
-		// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
-		// Once we support weak imports via cgo we should prefer that, and fall back to this
-		// for older systems.
-		err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
-		if (err != noErr) {
-			continue;
-		}
-		if (data != NULL) {
-			CFDataAppendBytes(combinedData, CFDataGetBytePtr(data), CFDataGetLength(data));
-			CFRelease(data);
-		}
-	}
-	CFRelease(certs);
-	*pemRoots = combinedData;
-	return 0;
-}
-
-// useOldCode reports whether the running machine is OS X 10.8 Mountain Lion
-// or older. We only support Mountain Lion and higher, but we'll at least try our
-// best on older machines and continue to use the old code path.
-//
-// See golang.org/issue/16473
-int useOldCode() {
-	char str[256];
-	size_t size = sizeof(str);
-	memset(str, 0, size);
-	sysctlbyname("kern.osrelease", str, &size, NULL, 0);
-	// OS X 10.8 is osrelease "12.*", 10.7 is 11.*, 10.6 is 10.*.
-	// We never supported things before that.
-	return memcmp(str, "12.", 3) == 0 || memcmp(str, "11.", 3) == 0 || memcmp(str, "10.", 3) == 0;
-}
 
 // FetchPEMRoots fetches the system's list of trusted X.509 root certificates.
 //
@@ -78,9 +25,7 @@ int useOldCode() {
 // Note: The CFDataRef returned in pemRoots and untrustedPemRoots must
 // be released (using CFRelease) after we've consumed its content.
 int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
-	if (useOldCode()) {
-		return FetchPEMRoots_MountainLion(pemRoots);
-	}
+	int i;
 
 	// Get certificates from all domains, not just System, this lets
 	// the user add CAs to their "login" keychain, and Admins to add
@@ -101,7 +46,8 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 
 	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
 	CFMutableDataRef combinedUntrustedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
-	for (int i = 0; i < numDomains; i++) {
+	for (i = 0; i < numDomains; i++) {
+		int j;
 		CFArrayRef certs = NULL;
 		OSStatus err = SecTrustSettingsCopyCertificates(domains[i], &certs);
 		if (err != noErr) {
@@ -109,7 +55,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 		}
 
 		CFIndex numCerts = CFArrayGetCount(certs);
-		for (int j = 0; j < numCerts; j++) {
+		for (j = 0; j < numCerts; j++) {
 			CFDataRef data = NULL;
 			CFErrorRef errRef = NULL;
 			CFArrayRef trustSettings = NULL;
@@ -124,6 +70,9 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 			if (i == 0) {
 				trustAsRoot = 1;
 			} else {
+				int k;
+				CFIndex m;
+
 				// Certs found in the system domain are always trusted. If the user
 				// configures "Never Trust" on such a cert, it will also be found in the
 				// admin or user domain, causing it to be added to untrustedPemRoots. The
@@ -133,7 +82,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 				// SecTrustServer.c, "user trust settings overrule admin trust settings",
 				// so take the last trust settings array we find.
 				// Skip the system domain since it is always trusted.
-				for (int k = i; k < numDomains; k++) {
+				for (k = i; k < numDomains; k++) {
 					CFArrayRef domainTrustSettings = NULL;
 					err = SecTrustSettingsCopyTrustSettings(cert, domains[k], &domainTrustSettings);
 					if (err == errSecSuccess && domainTrustSettings != NULL) {
@@ -147,9 +96,9 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 					// "this certificate must be verified to a known trusted certificate"; aka not a root.
 					continue;
 				}
-				for (CFIndex k = 0; k < CFArrayGetCount(trustSettings); k++) {
+				for (m = 0; m < CFArrayGetCount(trustSettings); m++) {
 					CFNumberRef cfNum;
-					CFDictionaryRef tSetting = (CFDictionaryRef)CFArrayGetValueAtIndex(trustSettings, k);
+					CFDictionaryRef tSetting = (CFDictionaryRef)CFArrayGetValueAtIndex(trustSettings, m);
 					if (CFDictionaryGetValueIfPresent(tSetting, policy, (const void**)&cfNum)){
 						SInt32 result = 0;
 						CFNumberGetValue(cfNum, kCFNumberSInt32Type, &result);
@@ -187,10 +136,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 				}
 			}
 
-			// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
-			// Once we support weak imports via cgo we should prefer that, and fall back to this
-			// for older systems.
-			err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
+			err = SecItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
 			if (err != noErr) {
 				continue;
 			}
