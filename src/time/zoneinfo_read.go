@@ -364,7 +364,7 @@ func loadTzinfoFromZip(zipfile, name string) ([]byte, error) {
 		return buf, nil
 	}
 
-	return nil, errors.New("cannot find " + name + " in zip file " + zipfile)
+	return nil, syscall.ENOENT
 }
 
 // loadTzinfoFromTzdata returns the time zone information of the time zone
