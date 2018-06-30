@@ -48,7 +48,7 @@ func instrumentInit() {
 		switch platform {
 		default:
 			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64. darwin/amd64 and windows/amd64\n", flag.Args()[0])
-			os.Exit(2) net
+			os.Exit(2)
 		case "linux/amd64", "linux/ppc64le", "freebsd/amd64", "netbsd/amd64", "darwin/amd64", "windows/amd64":
 			// race supported on these platforms
 		}
