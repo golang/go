@@ -89,6 +89,10 @@
 (Round x) -> (FRINTAD x)
 (Trunc x) -> (FRINTZD x)
 
+// lowering rotates
+(RotateLeft32 x y) -> (RORW x (NEG <y.Type> y))
+(RotateLeft64 x y) -> (ROR x (NEG <y.Type> y))
+
 (Ctz64NonZero x) -> (Ctz64 x)
 (Ctz32NonZero x) -> (Ctz32 x)
 
@@ -127,6 +131,8 @@
 // shifts
 // hardware instruction uses only the low 6 bits of the shift
 // we compare to 64 to ensure Go semantics for large shifts
+// Rules about rotates with non-const shift are based on the following rules,
+// if the following rules change, please also modify the rules based on them.
 (Lsh64x64 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
 (Lsh64x32 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
 (Lsh64x16 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -1592,7 +1598,7 @@
 (ORNshiftRL x (SRLconst x [c]) [d]) && c==d -> (MOVDconst [-1])
 (ORNshiftRA x (SRAconst x [c]) [d]) && c==d -> (MOVDconst [-1])
 
-// Generate rotates
+// Generate rotates with const shift
 (ADDshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
 ( ORshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
 (XORshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
@@ -1609,6 +1615,38 @@
 (ADDshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [c] x)
 ( ORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [c] x)
 (XORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [c] x)
+
+(RORconst [c] (RORconst [d] x)) -> (RORconst [(c+d)&63] x)
+(RORWconst [c] (RORWconst [d] x)) -> (RORWconst [(c+d)&31] x)
+
+// Generate rotates with non-const shift.
+// These rules match the Go source code like
+//	y &= 63
+//	x << y | x >> (64-y)
+// "|" can also be "^" or "+".
+// As arm64 does not have a ROL instruction, so ROL(x, y) is replaced by ROR(x, -y).
+((ADD|OR|XOR) (SLL x (ANDconst <t> [63] y))
+	(CSEL0 <typ.UInt64> {cc} (SRL <typ.UInt64> x (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y)))
+		(CMPconst [64] (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y))))) && cc.(Op) == OpARM64LessThanU
+	-> (ROR x (NEG <t> y))
+((ADD|OR|XOR) (SRL <typ.UInt64> x (ANDconst <t> [63] y))
+	(CSEL0 <typ.UInt64> {cc} (SLL x (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y)))
+		(CMPconst [64] (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y))))) && cc.(Op) == OpARM64LessThanU
+	-> (ROR x y)
+
+// These rules match the Go source code like
+//	y &= 31
+//	x << y | x >> (32-y)
+// "|" can also be "^" or "+".
+// As arm64 does not have a ROLW instruction, so ROLW(x, y) is replaced by RORW(x, -y).
+((ADD|OR|XOR) (SLL x (ANDconst <t> [31] y))
+	(CSEL0 <typ.UInt32> {cc} (SRL <typ.UInt32> (MOVWUreg x) (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y)))
+		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc.(Op) == OpARM64LessThanU
+	-> (RORW x (NEG <t> y))
+((ADD|OR|XOR) (SRL <typ.UInt32> (MOVWUreg x) (ANDconst <t> [31] y))
+	(CSEL0 <typ.UInt32> {cc} (SLL x (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y)))
+		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc.(Op) == OpARM64LessThanU
+	-> (RORW x y)
 
 // Extract from reg pair
 (ADDshiftLL [c] (SRLconst x [64-c]) x2) -> (EXTRconst [64-c] x2 x)
