@@ -203,7 +203,8 @@ func elimDeadAutosGeneric(f *Func) {
 
 		// If the address of the auto reaches a memory or control
 		// operation not covered above then we probably need to keep it.
-		if v.Type.IsMemory() || v.Type.IsFlags() || (v.Op != OpPhi && v.MemoryArg() != nil) {
+		// We also need to keep autos if they reach Phis (issue #26153).
+		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == OpPhi || v.MemoryArg() != nil {
 			for _, a := range args {
 				if n, ok := addr[a]; ok {
 					if !used[n] {
