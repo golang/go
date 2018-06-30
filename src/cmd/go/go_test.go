@@ -6,6 +6,7 @@ package main_test
 
 import (
 	"bytes"
+	"cmd/internal/sys"
 	"debug/elf"
 	"debug/macho"
 	"flag"
@@ -209,15 +210,13 @@ func TestMain(m *testing.M) {
 		}
 		testGOCACHE = strings.TrimSpace(string(out))
 
-		// As of Sept 2017, MSan is only supported on linux/amd64.
-		// https://github.com/google/sanitizers/wiki/MemorySanitizer#getting-memorysanitizer
-		canMSan = canCgo && runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
-
-		switch runtime.GOOS {
-		case "linux", "darwin", "freebsd", "windows":
-			// The race detector doesn't work on Alpine Linux:
-			// golang.org/issue/14481
-			canRace = canCgo && runtime.GOARCH == "amd64" && !isAlpineLinux() && runtime.Compiler != "gccgo"
+		canMSan = canCgo && sys.MSanSupported(runtime.GOOS, runtime.GOARCH)
+		canRace = canCgo && sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
+		// The race detector doesn't work on Alpine Linux:
+		// golang.org/issue/14481
+		// gccgo does not support the race detector.
+		if isAlpineLinux() || runtime.Compiler == "gccgo" {
+			canRace = false
 		}
 	}
 	// Don't let these environment variables confuse the test.

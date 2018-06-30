@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"os"
@@ -42,18 +43,14 @@ func instrumentInit() {
 		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
 		os.Exit(2)
 	}
-	if cfg.BuildMSan && (cfg.Goos != "linux" || cfg.Goarch != "amd64" && cfg.Goarch != "arm64") {
+	if cfg.BuildMSan && !sys.MSanSupported(cfg.Goos, cfg.Goarch) {
 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
 		os.Exit(2)
 	}
 	if cfg.BuildRace {
-		platform := cfg.Goos + "/" + cfg.Goarch
-		switch platform {
-		default:
+		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
 			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 			os.Exit(2)
-		case "linux/amd64", "linux/ppc64le", "freebsd/amd64", "netbsd/amd64", "darwin/amd64", "windows/amd64":
-			// race supported on these platforms
 		}
 	}
 	mode := "race"
