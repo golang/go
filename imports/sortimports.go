@@ -167,10 +167,17 @@ func sortSpecs(fset *token.FileSet, f *ast.File, specs []ast.Spec) []ast.Spec {
 		}
 		s.Path.ValuePos = pos[i].Start
 		s.EndPos = pos[i].End
+		nextSpecPos := pos[i].End
+
 		for _, g := range importComment[s] {
 			for _, c := range g.List {
 				c.Slash = pos[i].End
+				nextSpecPos = c.End()
 			}
+		}
+		if i < len(specs)-1 {
+			pos[i+1].Start = nextSpecPos
+			pos[i+1].End = nextSpecPos
 		}
 	}
 
