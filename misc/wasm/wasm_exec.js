@@ -118,33 +118,11 @@
 						return;
 				}
 
-				if (typeof v === "string") {
-					let ref = this._stringRefs.get(v);
-					if (ref === undefined) {
-						ref = this._values.length;
-						this._values.push(v);
-						this._stringRefs.set(v, ref);
-					}
-					mem().setUint32(addr, ref, true);
-					return;
-				}
-
-				if (typeof v === "symbol") {
-					let ref = this._symbolRefs.get(v);
-					if (ref === undefined) {
-						ref = this._values.length;
-						this._values.push(v);
-						this._symbolRefs.set(v, ref);
-					}
-					mem().setUint32(addr, ref, true);
-					return;
-				}
-
-				let ref = v[this._refProp];
-				if (ref === undefined || this._values[ref] !== v) {
+				let ref = this._refs.get(v);
+				if (ref === undefined) {
 					ref = this._values.length;
 					this._values.push(v);
-					v[this._refProp] = ref;
+					this._refs.set(v, ref);
 				}
 				mem().setUint32(addr, ref, true);
 			}
@@ -335,9 +313,7 @@
 					setTimeout(this._resolveCallbackPromise, 0); // make sure it is asynchronous
 				},
 			];
-			this._stringRefs = new Map();
-			this._symbolRefs = new Map();
-			this._refProp = Symbol();
+			this._refs = new Map();
 			this.exited = false;
 
 			const mem = new DataView(this._inst.exports.mem.buffer)
