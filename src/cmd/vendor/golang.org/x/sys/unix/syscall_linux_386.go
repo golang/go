@@ -10,7 +10,6 @@
 package unix
 
 import (
-	"syscall"
 	"unsafe"
 )
 
@@ -51,6 +50,8 @@ func Pipe2(p []int, flags int) (err error) {
 // 64-bit file system and 32-bit uid calls
 // (386 default is 32-bit file system and 16-bit uid).
 //sys	Dup2(oldfd int, newfd int) (err error)
+//sysnb	EpollCreate(size int) (fd int, err error)
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64_64
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
@@ -78,12 +79,12 @@ func Pipe2(p []int, flags int) (err error) {
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
 //sys	Truncate(path string, length int64) (err error) = SYS_TRUNCATE64
+//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32
 //sysnb	setgroups(n int, list *_Gid_t) (err error) = SYS_SETGROUPS32
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 
 //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
-//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Pause() (err error)
 
 func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error) {
@@ -157,10 +158,6 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
 	return setrlimit(resource, &rl)
 }
 
-// Underlying system call writes to newoffset via pointer.
-// Implemented in assembly to avoid allocation.
-func seek(fd int, offset int64, whence int) (newoffset int64, err syscall.Errno)
-
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 	newoffset, errno := seek(fd, offset, whence)
 	if errno != 0 {
@@ -169,11 +166,11 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 	return newoffset, nil
 }
 
-// Vsyscalls on amd64.
+//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
 //sysnb	Gettimeofday(tv *Timeval) (err error)
 //sysnb	Time(t *Time_t) (tt Time_t, err error)
-
 //sys	Utime(path string, buf *Utimbuf) (err error)
+//sys	utimes(path string, times *[2]Timeval) (err error)
 
 // On x86 Linux, all the socket calls go through an extra indirection,
 // I think because the 5-register system call interface can't handle
@@ -205,9 +202,6 @@ const (
 	_RECVMMSG    = 19
 	_SENDMMSG    = 20
 )
-
-func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err syscall.Errno)
-func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err syscall.Errno)
 
 func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
 	fd, e := socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)

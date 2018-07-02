@@ -36,12 +36,3 @@ gccgoRealSyscallNoError(uintptr_t trap, uintptr_t a1, uintptr_t a2, uintptr_t a3
 {
 	return syscall(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 }
-
-// Define the use function in C so that it is not inlined.
-
-extern void use(void *) __asm__ (GOSYM_PREFIX GOPKGPATH ".use") __attribute__((noinline));
-
-void
-use(void *p __attribute__ ((unused)))
-{
-}

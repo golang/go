@@ -41,6 +41,7 @@ import (
 //go:cgo_import_dynamic libc_dup dup "libc.so"
 //go:cgo_import_dynamic libc_dup2 dup2 "libc.so"
 //go:cgo_import_dynamic libc_exit exit "libc.so"
+//go:cgo_import_dynamic libc_faccessat faccessat "libc.so"
 //go:cgo_import_dynamic libc_fchdir fchdir "libc.so"
 //go:cgo_import_dynamic libc_fchmod fchmod "libc.so"
 //go:cgo_import_dynamic libc_fchmodat fchmodat "libc.so"
@@ -169,6 +170,7 @@ import (
 //go:linkname procDup libc_dup
 //go:linkname procDup2 libc_dup2
 //go:linkname procExit libc_exit
+//go:linkname procFaccessat libc_faccessat
 //go:linkname procFchdir libc_fchdir
 //go:linkname procFchmod libc_fchmod
 //go:linkname procFchmodat libc_fchmodat
@@ -298,6 +300,7 @@ var (
 	procDup,
 	procDup2,
 	procExit,
+	procFaccessat,
 	procFchdir,
 	procFchmod,
 	procFchmodat,
@@ -692,6 +695,19 @@ func Dup2(oldfd int, newfd int) (err error) {
 
 func Exit(code int) {
 	sysvicall6(uintptr(unsafe.Pointer(&procExit)), 1, uintptr(code), 0, 0, 0, 0, 0)
+	return
+}
+
+func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+	var _p0 *byte
+	_p0, err = BytePtrFromString(path)
+	if err != nil {
+		return
+	}
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procFaccessat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
+	if e1 != 0 {
+		err = e1
+	}
 	return
 }
 
