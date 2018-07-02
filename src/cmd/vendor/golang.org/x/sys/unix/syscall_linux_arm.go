@@ -75,6 +75,8 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 // 64-bit file system and 32-bit uid calls
 // (16-bit uid calls are not always supported in newer kernels)
 //sys	Dup2(oldfd int, newfd int) (err error)
+//sysnb	EpollCreate(size int) (fd int, err error)
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
 //sys	Fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
@@ -86,6 +88,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
 //sys	Listen(s int, n int) (err error)
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
+//sys	Pause() (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
@@ -97,11 +100,10 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
+//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
 
-// Vsyscalls on amd64.
+//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
 //sysnb	Gettimeofday(tv *Timeval) (err error)
-//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
-//sys	Pause() (err error)
 
 func Time(t *Time_t) (Time_t, error) {
 	var tv Timeval
@@ -122,6 +124,8 @@ func Utime(path string, buf *Utimbuf) error {
 	}
 	return Utimes(path, tv)
 }
+
+//sys	utimes(path string, times *[2]Timeval) (err error)
 
 //sys   Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys   Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64

@@ -331,4 +331,5 @@ const (
 	SYS_S390_GUARDED_STORAGE   = 378
 	SYS_STATX                  = 379
 	SYS_S390_STHYI             = 380
+	SYS_KEXEC_FILE_LOAD        = 381
 )
