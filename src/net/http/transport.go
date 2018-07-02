@@ -83,6 +83,13 @@ const DefaultMaxIdleConnsPerHost = 2
 // being written while the response body is streamed. Go's HTTP/2
 // implementation does support full duplex, but many CONNECT proxies speak
 // HTTP/1.x.
+//
+// Responses with status codes in the 1xx range are either handled
+// automatically (100 expect-continue) or ignored. The one
+// exception is HTTP status code 101 (Switching Protocols), which is
+// considered a terminal status and returned by RoundTrip. To see the
+// ignored 1xx responses, use the httptrace trace package's
+// ClientTrace.Got1xxResponse.
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool                                // user has requested to close all idle conns
@@ -1674,7 +1681,10 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 				continueCh = nil
 			}
 		}
-		if 100 <= resCode && resCode <= 199 {
+		is1xx := 100 <= resCode && resCode <= 199
+		// treat 101 as a terminal status, see issue 26161
+		is1xxNonTerminal := is1xx && resCode != StatusSwitchingProtocols
+		if is1xxNonTerminal {
 			num1xx++
 			if num1xx > max1xxResponses {
 				return nil, errors.New("net/http: too many 1xx informational responses")
