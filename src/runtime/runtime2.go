@@ -635,8 +635,8 @@ type _func struct {
 	entry   uintptr // start pc
 	nameoff int32   // function name
 
-	args int32 // in/out args size
-	_    int32 // previously legacy frame size; kept for layout compatibility
+	args   int32  // in/out args size
+	funcID funcID // set for certain special runtime functions
 
 	pcsp      int32
 	pcfile    int32

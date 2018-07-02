@@ -15,12 +15,7 @@ Do not send CLs removing the interior tags from such phrases.
 ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.10</h2>
-
-<p><strong>
-  Go 1.10 is not yet released. These are work-in-progress
-  release notes. Go 1.10 is expected to be released in February 2018.
-</strong></p>
+<h2 id="introduction">Introduction to Go 1.10</h2>
 
 <p>
 The latest Go release, version 1.10, arrives six months after <a href="go1.9">Go 1.9</a>.
@@ -35,6 +30,10 @@ adds <a href="#test">caching of successful test results</a>,
 runs <a href="#test-vet">vet automatically during tests</a>,
 and
 permits <a href="#cgo">passing string values directly between Go and C using cgo</a>.
+A new <a href="#cgo">compiler option whitelist</a> may cause
+unexpected <a href="https://golang.org/s/invalidflag"><code>invalid
+flag</code></a> errors in code that built successfully with older
+releases.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -44,9 +43,9 @@ There are no significant changes to the language specification.
 </p>
 
 <p><!-- CL 60230 -->
-A corner case involving shifts by untyped constants has been clarified,
+A corner case involving shifts of untyped constants has been clarified,
 and as a result the compilers have been updated to allow the index expression
-<code>x[1.0</code>&nbsp;<code>&lt;&lt;</code>&nbsp;<code>s]</code> where <code>s</code> is an untyped constant;
+<code>x[1.0</code>&nbsp;<code>&lt;&lt;</code>&nbsp;<code>s]</code> where <code>s</code> is an unsigned integer;
 the <a href="/pkg/go/types/">go/types</a> package already did.
 </p>
 
@@ -265,6 +264,18 @@ and the <a href="/cmd/test2json/">test2json documentation</a>.
 </p>
 
 <h3 id="cgo">Cgo</h3>
+
+<p>
+Options specified by cgo using <code>#cgo CFLAGS</code> and the like
+are now checked against a whitelist of permitted options.
+This closes a security hole in which a downloaded package uses
+compiler options like
+<span style="white-space: nowrap"><code>-fplugin</code></span>
+to run arbitrary code on the machine where it is being built.
+This can cause a build error such as <code>invalid flag in #cgo CFLAGS</code>.
+For more background, and how to handle this error, see
+<a href="https://golang.org/s/invalidflag">https://golang.org/s/invalidflag</a>.
+</p>
 
 <p>
 Cgo now implements a C typedef like “<code>typedef</code> <code>X</code> <code>Y</code>” using a Go type alias,
@@ -785,7 +796,8 @@ Parsed certificates also now report URI names and IP, email, and URI constraints
 <a href="/pkg/crypto/x509/#Certificate"><code>Certificate</code></a> fields
 <code>URIs</code>, <code>PermittedIPRanges</code>, <code>ExcludedIPRanges</code>,
 <code>PermittedEmailAddresses</code>, <code>ExcludedEmailAddresses</code>,
-<code>PermittedURIDomains</code>, and <code>ExcludedURIDomains</code>.
+<code>PermittedURIDomains</code>, and <code>ExcludedURIDomains</code>. Certificates with
+invalid values for those fields are now rejected.
 </p>
 
 <p>
@@ -1211,6 +1223,10 @@ The content-serving handlers also now omit the <code>Content-Type</code> header 
 <p>
 <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a>'s <code>WriteHeader</code> method now panics
 if passed an invalid (non-3-digit) status code.
+</p>
+<p>
+<!-- CL 46631 -->
+The <code>Server</code> will no longer add an implicit Content-Type when a <code>Handler</code> does not write any output.
 </p>
 <p>
 <a href="/pkg/net/http/#Redirect"><code>Redirect</code></a> now sets the <code>Content-Type</code> header before writing its HTTP response.

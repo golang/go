@@ -706,7 +706,9 @@ type Certificate struct {
 	OCSPServer            []string
 	IssuingCertificateURL []string
 
-	// Subject Alternate Name values
+	// Subject Alternate Name values. (Note that these values may not be valid
+	// if invalid values were contained within a parsed certificate. For
+	// example, an element of DNSNames may not be a valid DNS domain name.)
 	DNSNames       []string
 	EmailAddresses []string
 	IPAddresses    []net.IP
@@ -1126,17 +1128,9 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
 	err = forEachSAN(value, func(tag int, data []byte) error {
 		switch tag {
 		case nameTypeEmail:
-			mailbox := string(data)
-			if _, ok := parseRFC2821Mailbox(mailbox); !ok {
-				return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
-			}
-			emailAddresses = append(emailAddresses, mailbox)
+			emailAddresses = append(emailAddresses, string(data))
 		case nameTypeDNS:
-			domain := string(data)
-			if _, ok := domainToReverseLabels(domain); !ok {
-				return fmt.Errorf("x509: cannot parse dnsName %q", string(data))
-			}
-			dnsNames = append(dnsNames, domain)
+			dnsNames = append(dnsNames, string(data))
 		case nameTypeURI:
 			uri, err := url.Parse(string(data))
 			if err != nil {
@@ -1153,7 +1147,7 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
 			case net.IPv4len, net.IPv6len:
 				ipAddresses = append(ipAddresses, data)
 			default:
-				return errors.New("x509: certificate contained IP address of length " + strconv.Itoa(len(data)))
+				return errors.New("x509: cannot parse IP address of length " + strconv.Itoa(len(data)))
 			}
 		}
 

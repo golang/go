@@ -55,6 +55,13 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 			continue
 		}
 		if f := strings.Fields(attrValue(e.Attr, "content")); len(f) == 3 {
+			// Ignore VCS type "mod", which is new Go modules.
+			// This code is for old go get and must ignore the new mod lines.
+			// Otherwise matchGoImport will complain about two
+			// different metaImport lines for the same Prefix.
+			if f[1] == "mod" {
+				continue
+			}
 			imports = append(imports, metaImport{
 				Prefix:   f[0],
 				VCS:      f[1],

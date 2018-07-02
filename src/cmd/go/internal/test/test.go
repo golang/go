@@ -606,10 +606,10 @@ func runTest(cmd *base.Command, args []string) {
 			for _, path := range p.Imports {
 				deps[path] = true
 			}
-			for _, path := range p.Vendored(p.TestImports) {
+			for _, path := range p.Resolve(p.TestImports) {
 				deps[path] = true
 			}
-			for _, path := range p.Vendored(p.XTestImports) {
+			for _, path := range p.Resolve(p.XTestImports) {
 				deps[path] = true
 			}
 		}
@@ -665,6 +665,14 @@ func runTest(cmd *base.Command, args []string) {
 			// Atomic coverage mode uses sync/atomic, so
 			// we can't also do coverage on it.
 			if testCoverMode == "atomic" && p.Standard && p.ImportPath == "sync/atomic" {
+				continue
+			}
+
+			// If using the race detector, silently ignore
+			// attempts to run coverage on the runtime
+			// packages. It will cause the race detector
+			// to be invoked before it has been initialized.
+			if cfg.BuildRace && p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal")) {
 				continue
 			}
 

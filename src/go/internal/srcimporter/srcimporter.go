@@ -44,9 +44,9 @@ func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Pa
 // for a package that is in the process of being imported.
 var importing types.Package
 
-// Import(path) is a shortcut for ImportFrom(path, "", 0).
+// Import(path) is a shortcut for ImportFrom(path, ".", 0).
 func (p *Importer) Import(path string) (*types.Package, error) {
-	return p.ImportFrom(path, "", 0)
+	return p.ImportFrom(path, ".", 0) // use "." rather than "" (see issue #24441)
 }
 
 // ImportFrom imports the package with the given import path resolved from the given srcDir,
@@ -60,23 +60,10 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		panic("non-zero import mode")
 	}
 
-	// determine package path (do vendor resolution)
-	var bp *build.Package
-	var err error
-	switch {
-	default:
-		if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
-			srcDir = abs
-		}
-		bp, err = p.ctxt.Import(path, srcDir, build.FindOnly)
-
-	case build.IsLocalImport(path):
-		// "./x" -> "srcDir/x"
-		bp, err = p.ctxt.ImportDir(filepath.Join(srcDir, path), build.FindOnly)
-
-	case p.isAbsPath(path):
-		return nil, fmt.Errorf("invalid absolute import path %q", path)
+	if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
+		srcDir = abs
 	}
+	bp, err := p.ctxt.Import(path, srcDir, 0)
 	if err != nil {
 		return nil, err // err may be *build.NoGoError - return as is
 	}
@@ -113,11 +100,6 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		}
 	}()
 
-	// collect package files
-	bp, err = p.ctxt.ImportDir(bp.Dir, 0)
-	if err != nil {
-		return nil, err // err may be *build.NoGoError - return as is
-	}
 	var filenames []string
 	filenames = append(filenames, bp.GoFiles...)
 	filenames = append(filenames, bp.CgoFiles...)

@@ -209,7 +209,7 @@ var downloadRootCache = map[string]bool{}
 // download runs the download half of the get command
 // for the package named by the argument.
 func download(arg string, parent *load.Package, stk *load.ImportStack, mode int) {
-	if mode&load.UseVendor != 0 {
+	if mode&load.ResolveImport != 0 {
 		// Caller is responsible for expanding vendor paths.
 		panic("internal error: download mode has useVendor set")
 	}
@@ -217,7 +217,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		if parent == nil {
 			return load.LoadPackage(path, stk)
 		}
-		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode)
+		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
 
 	p := load1(arg, mode)
@@ -346,12 +346,12 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 				base.Errorf("%s", err)
 				continue
 			}
-			// If this is a test import, apply vendor lookup now.
-			// We cannot pass useVendor to download, because
+			// If this is a test import, apply module and vendor lookup now.
+			// We cannot pass ResolveImport to download, because
 			// download does caching based on the value of path,
 			// so it must be the fully qualified path already.
 			if i >= len(p.Imports) {
-				path = load.VendoredImportPath(p, path)
+				path = load.ResolveImportPath(p, path)
 			}
 			download(path, p, stk, 0)
 		}

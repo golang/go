@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 1, 2018",
+	"Subtitle": "Version of May 9, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -3051,7 +3051,6 @@ used in an <a href="#Assignments">assignment</a> or initialization of the specia
 v, ok = a[x]
 v, ok := a[x]
 var v, ok = a[x]
-var v, ok T = a[x]
 </pre>
 
 <p>
@@ -4161,11 +4160,6 @@ operands and are evaluated at compile time.
 Untyped boolean, numeric, and string constants may be used as operands
 wherever it is legal to use an operand of boolean, numeric, or string type,
 respectively.
-Except for shift operations, if the operands of a binary operation are
-different kinds of untyped constants, the operation and, for non-boolean operations, the result use
-the kind that appears later in this list: integer, rune, floating-point, complex.
-For example, an untyped integer constant divided by an
-untyped complex constant yields an untyped complex constant.
 </p>
 
 <p>
@@ -4175,9 +4169,17 @@ an untyped boolean constant.  If the left operand of a constant
 result is an integer constant; otherwise it is a constant of the same
 type as the left operand, which must be of
 <a href="#Numeric_types">integer type</a>.
-Applying all other operators to untyped constants results in an untyped
-constant of the same kind (that is, a boolean, integer, floating-point,
-complex, or string constant).
+</p>
+
+<p>
+Any other operation on untyped constants results in an untyped constant of the
+same kind; that is, a boolean, integer, floating-point, complex, or string
+constant.
+If the untyped operands of a binary operation (other than a shift) are of
+different kinds, the result is of the operand's kind that appears later in this
+list: integer, rune, floating-point, complex.
+For example, an untyped integer constant divided by an
+untyped complex constant yields an untyped complex constant.
 </p>
 
 <pre>

@@ -934,16 +934,29 @@ func splitPkgConfigOutput(out []byte) []string {
 
 // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
 func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, err error) {
-	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
+	if pcargs := p.CgoPkgConfig; len(pcargs) > 0 {
+		// pkg-config permits arguments to appear anywhere in
+		// the command line. Move them all to the front, before --.
+		var pcflags []string
+		var pkgs []string
+		for _, pcarg := range pcargs {
+			if pcarg == "--" {
+				// We're going to add our own "--" argument.
+			} else if strings.HasPrefix(pcarg, "--") {
+				pcflags = append(pcflags, pcarg)
+			} else {
+				pkgs = append(pkgs, pcarg)
+			}
+		}
 		for _, pkg := range pkgs {
 			if !load.SafeArg(pkg) {
 				return nil, nil, fmt.Errorf("invalid pkg-config package name: %s", pkg)
 			}
 		}
 		var out []byte
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--cflags", "--", pkgs)
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {
-			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pkgs, " "), string(out))
+			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pcflags, " ")+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
 			return nil, nil, errPrintedOutput
 		}
@@ -953,15 +966,15 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 				return nil, nil, err
 			}
 		}
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--libs", "--", pkgs)
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
 		if err != nil {
-			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pkgs, " "), string(out))
+			b.showOutput(nil, p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pcflags, " ")+strings.Join(pkgs, " "), string(out))
 			b.Print(err.Error() + "\n")
 			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
 			ldflags = strings.Fields(string(out))
-			if err := checkLinkerFlags("CFLAGS", "pkg-config --cflags", ldflags); err != nil {
+			if err := checkLinkerFlags("LDFLAGS", "pkg-config --libs", ldflags); err != nil {
 				return nil, nil, err
 			}
 		}
@@ -1080,7 +1093,7 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 		// We want to hide that awful detail as much as possible, so don't
 		// advertise it by touching the mtimes (usually the libraries are up
 		// to date).
-		if !a.buggyInstall {
+		if !a.buggyInstall && !b.ComputeStaleOnly {
 			now := time.Now()
 			os.Chtimes(a.Target, now, now)
 		}

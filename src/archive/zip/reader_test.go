@@ -414,7 +414,7 @@ var tests = []ZipTest{
 				Name:     "test.txt",
 				Content:  []byte{},
 				Size:     1<<32 - 1,
-				Modified: time.Date(2017, 10, 31, 21, 17, 27, 0, timeZone(-7*time.Hour)),
+				Modified: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
 				Mode:     0644,
 			},
 		},

@@ -3233,6 +3233,20 @@ func TestGoVetWithOnlyTestFiles(t *testing.T) {
 	tg.run("vet", "p")
 }
 
+// Issue 24193.
+func TestVetWithOnlyCgoFiles(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/p/p.go", "package p; import \"C\"; func F() {}")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("vet", "p")
+}
+
 // Issue 9767, 19769.
 func TestGoGetDotSlashDownload(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
@@ -5068,6 +5082,28 @@ func TestCacheOutput(t *testing.T) {
 	}
 }
 
+func TestCacheListStale(t *testing.T) {
+	tooSlow(t)
+	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+		t.Skip("GODEBUG gocacheverify")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", tg.path("cache"))
+	tg.tempFile("gopath/src/p/p.go", "package p; import _ \"q\"; func F(){}\n")
+	tg.tempFile("gopath/src/q/q.go", "package q; func F(){}\n")
+	tg.tempFile("gopath/src/m/m.go", "package main; import _ \"q\"; func main(){}\n")
+
+	tg.setenv("GOPATH", tg.path("gopath"))
+	tg.run("install", "p", "m")
+	tg.run("list", "-f={{.ImportPath}} {{.Stale}}", "m", "q", "p")
+	tg.grepStdout("^m false", "m should not be stale")
+	tg.grepStdout("^q true", "q should be stale")
+	tg.grepStdout("^p false", "p should not be stale")
+}
+
 func TestCacheCoverage(t *testing.T) {
 	tooSlow(t)
 
@@ -5748,6 +5784,21 @@ func TestAtomicCoverpkgAll(t *testing.T) {
 	}
 }
 
+// Issue 23882.
+func TestCoverpkgAllRuntime(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("src/x/x.go", `package x; import _ "runtime"; func F() {}`)
+	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-coverpkg=all", "x")
+	if canRace {
+		tg.run("test", "-coverpkg=all", "-race", "x")
+	}
+}
+
 func TestBadCommandLines(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -5895,4 +5946,37 @@ func TestBadCgoDirectives(t *testing.T) {
 	`)
 	tg.run("build", "-n", "x")
 	tg.grepStderr("-D@foo", "did not find -D@foo in commands")
+}
+
+func TestTwoPkgConfigs(t *testing.T) {
+	if !canCgo {
+		t.Skip("no cgo")
+	}
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("no shell scripts on %s", runtime.GOOS)
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/x/a.go", `package x
+		// #cgo pkg-config: --static a
+		import "C"
+	`)
+	tg.tempFile("src/x/b.go", `package x
+		// #cgo pkg-config: --static a
+		import "C"
+	`)
+	tg.tempFile("pkg-config.sh", `#!/bin/sh
+echo $* >>`+tg.path("pkg-config.out"))
+	tg.must(os.Chmod(tg.path("pkg-config.sh"), 0755))
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("PKG_CONFIG", tg.path("pkg-config.sh"))
+	tg.run("build", "x")
+	out, err := ioutil.ReadFile(tg.path("pkg-config.out"))
+	tg.must(err)
+	out = bytes.TrimSpace(out)
+	want := "--cflags --static --static -- a a\n--libs --static --static -- a a"
+	if !bytes.Equal(out, []byte(want)) {
+		t.Errorf("got %q want %q", out, want)
+	}
 }

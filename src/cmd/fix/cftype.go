@@ -119,7 +119,7 @@ func typefix(f *ast.File, badType func(string) bool) bool {
 		if !ok {
 			return
 		}
-		t := s.X.(*ast.SelectorExpr)
+		t, ok := s.X.(*ast.SelectorExpr)
 		if !ok {
 			return
 		}
