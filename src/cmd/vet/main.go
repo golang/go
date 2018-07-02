@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -162,6 +163,12 @@ var (
 	pkgCheckers = make(map[string]func(*Package))
 	exporters   = make(map[string]func() interface{})
 )
+
+// The exporters data as written to the vetx output file.
+type vetxExport struct {
+	Name string
+	Data interface{}
+}
 
 // Vet can provide its own "export information"
 // about package A to future invocations of vet
@@ -399,10 +406,17 @@ func doPackageCfg(cfgFile string) {
 	mustTypecheck = true
 	doPackage(vcfg.GoFiles, nil)
 	if vcfg.VetxOutput != "" {
-		out := make(map[string]interface{})
+		out := make([]vetxExport, 0, len(exporters))
 		for name, fn := range exporters {
-			out[name] = fn()
+			out = append(out, vetxExport{
+				Name: name,
+				Data: fn(),
+			})
 		}
+		// Sort the data so that it is consistent across builds.
+		sort.Slice(out, func(i, j int) bool {
+			return out[i].Name < out[j].Name
+		})
 		var buf bytes.Buffer
 		if err := gob.NewEncoder(&buf).Encode(out); err != nil {
 			errorf("encoding vet output: %v", err)
@@ -721,10 +735,14 @@ func readVetx(path, key string) interface{} {
 		if err != nil {
 			return nil
 		}
-		m = make(map[string]interface{})
-		err = gob.NewDecoder(bytes.NewReader(data)).Decode(&m)
+		var out []vetxExport
+		err = gob.NewDecoder(bytes.NewReader(data)).Decode(&out)
 		if err != nil {
 			return nil
+		}
+		m = make(map[string]interface{})
+		for _, x := range out {
+			m[x.Name] = x.Data
 		}
 		imported[path] = m
 	}
