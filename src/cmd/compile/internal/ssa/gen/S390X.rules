@@ -978,7 +978,7 @@
 (SUBconst (MOVDconst [d]) [c]) -> (MOVDconst [d-c])
 (SUBconst (SUBconst x [d]) [c]) && is32Bit(-c-d) -> (ADDconst [-c-d] x)
 (SRADconst [c] (MOVDconst [d])) -> (MOVDconst [d>>uint64(c)])
-(SRAWconst [c] (MOVDconst [d])) -> (MOVDconst [d>>uint64(c)])
+(SRAWconst [c] (MOVDconst [d])) -> (MOVDconst [int64(int32(d))>>uint64(c)])
 (NEG (MOVDconst [c])) -> (MOVDconst [-c])
 (NEGW (MOVDconst [c])) -> (MOVDconst [int64(int32(-c))])
 (MULLDconst [c] (MOVDconst [d])) -> (MOVDconst [c*d])
