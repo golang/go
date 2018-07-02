@@ -203,6 +203,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
+	if p.Internal.ForceLibrary {
+		fmt.Fprintf(h, "forcelibrary\n")
+	}
 	if len(p.CgoFiles)+len(p.SwigFiles) > 0 {
 		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
 		cppflags, cflags, cxxflags, fflags, _, _ := b.CFlags(p)
