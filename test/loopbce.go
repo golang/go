@@ -86,7 +86,7 @@ func g0b(a string) int {
 
 func g0c(a string) int {
 	x := 0
-	for i := len(a); i > 0; i-- { // ERROR "Induction variable: limits \(0,\?\], increment -1$"
+	for i := len(a); i > 0; i-- { // ERROR "Induction variable: limits \(0,\?\], increment 1$"
 		x += int(a[i-1]) // ERROR "Proved IsInBounds$"
 	}
 	return x
@@ -94,7 +94,7 @@ func g0c(a string) int {
 
 func g0d(a string) int {
 	x := 0
-	for i := len(a); 0 < i; i-- { // ERROR "Induction variable: limits \(0,\?\], increment -1$"
+	for i := len(a); 0 < i; i-- { // ERROR "Induction variable: limits \(0,\?\], increment 1$"
 		x += int(a[i-1]) // ERROR "Proved IsInBounds$"
 	}
 	return x
@@ -102,7 +102,7 @@ func g0d(a string) int {
 
 func g0e(a string) int {
 	x := 0
-	for i := len(a) - 1; i >= 0; i-- { // ERROR "Induction variable: limits \[0,\?\], increment -1$"
+	for i := len(a) - 1; i >= 0; i-- { // ERROR "Induction variable: limits \[0,\?\], increment 1$"
 		x += int(a[i]) // ERROR "Proved IsInBounds$"
 	}
 	return x
@@ -110,7 +110,7 @@ func g0e(a string) int {
 
 func g0f(a string) int {
 	x := 0
-	for i := len(a) - 1; 0 <= i; i-- { // ERROR "Induction variable: limits \[0,\?\], increment -1$"
+	for i := len(a) - 1; 0 <= i; i-- { // ERROR "Induction variable: limits \[0,\?\], increment 1$"
 		x += int(a[i]) // ERROR "Proved IsInBounds$"
 	}
 	return x
@@ -223,7 +223,7 @@ func k3(a [100]int) [100]int {
 }
 
 func k3neg(a [100]int) [100]int {
-	for i := 89; i > -11; i-- { // ERROR "Induction variable: limits \(-11,89\], increment -1$"
+	for i := 89; i > -11; i-- { // ERROR "Induction variable: limits \(-11,89\], increment 1$"
 		a[i+9] = i
 		a[i+10] = i // ERROR "Proved IsInBounds$"
 		a[i+11] = i
@@ -232,7 +232,7 @@ func k3neg(a [100]int) [100]int {
 }
 
 func k3neg2(a [100]int) [100]int {
-	for i := 89; i >= -10; i-- { // ERROR "Induction variable: limits \[-10,89\], increment -1$"
+	for i := 89; i >= -10; i-- { // ERROR "Induction variable: limits \[-10,89\], increment 1$"
 		a[i+9] = i
 		a[i+10] = i // ERROR "Proved IsInBounds$"
 		a[i+11] = i
@@ -300,6 +300,16 @@ func nobce3(a [100]int64) [100]int64 {
 		a[i] = i
 	}
 	return a
+}
+
+func issue26116a(a []int) {
+	// There is no induction variable here. The comparison is in the wrong direction.
+	for i := 3; i > 6; i++ {
+		a[i] = 0
+	}
+	for i := 7; i < 3; i-- {
+		a[i] = 1
+	}
 }
 
 //go:noinline
