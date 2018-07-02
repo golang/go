@@ -116,6 +116,14 @@ func TestObject(t *testing.T) {
 	}
 }
 
+func TestFrozenObject(t *testing.T) {
+	o := js.Global().Call("eval", "(function () { let o = new Object(); o.field = 5; Object.freeze(o); return o; })()")
+	want := 5
+	if got := o.Get("field").Int(); want != got {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+}
+
 func TestTypedArrayOf(t *testing.T) {
 	testTypedArrayOf(t, "[]int8", []int8{0, -42, 0}, -42)
 	testTypedArrayOf(t, "[]int16", []int16{0, -42, 0}, -42)
