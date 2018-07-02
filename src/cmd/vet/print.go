@@ -16,6 +16,7 @@ import (
 	"go/token"
 	"go/types"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -30,7 +31,7 @@ func init() {
 		funcDecl, callExpr)
 	registerPkgCheck("printf", findPrintfLike)
 	registerExport("printf", exportPrintfLike)
-	gob.Register(map[string]int(nil))
+	gob.Register([]printfExport(nil))
 }
 
 func initPrintFlags() {
@@ -56,6 +57,15 @@ func initPrintFlags() {
 }
 
 var localPrintfLike = make(map[string]int)
+
+type printfExport struct {
+	Name string
+	Kind int
+}
+
+// printfImported maps from package name to the printf vet data
+// exported by that package.
+var printfImported = make(map[string]map[string]int)
 
 type printfWrapper struct {
 	name       string
@@ -241,7 +251,17 @@ func checkPrintfFwd(pkg *Package, w *printfWrapper, call *ast.CallExpr, kind int
 }
 
 func exportPrintfLike() interface{} {
-	return localPrintfLike
+	out := make([]printfExport, 0, len(localPrintfLike))
+	for name, kind := range localPrintfLike {
+		out = append(out, printfExport{
+			Name: name,
+			Kind: kind,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
 
 // isPrint records the print functions.
@@ -438,9 +458,18 @@ func printfNameAndKind(pkg *Package, called ast.Expr) (pkgpath, name string, kin
 
 	if pkgpath == "" {
 		kind = localPrintfLike[name]
+	} else if m, ok := printfImported[pkgpath]; ok {
+		kind = m[name]
 	} else {
-		printfLike, _ := readVetx(pkgpath, "printf").(map[string]int)
-		kind = printfLike[name]
+		var m map[string]int
+		if out, ok := readVetx(pkgpath, "printf").([]printfExport); ok {
+			m = make(map[string]int)
+			for _, x := range out {
+				m[x.Name] = x.Kind
+			}
+		}
+		printfImported[pkgpath] = m
+		kind = m[name]
 	}
 
 	if kind == 0 {
