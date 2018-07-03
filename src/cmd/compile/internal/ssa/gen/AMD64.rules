@@ -455,6 +455,8 @@
 (GetCallerSP) -> (LoweredGetCallerSP)
 (Addr {sym} base) && config.PtrSize == 8 -> (LEAQ {sym} base)
 (Addr {sym} base) && config.PtrSize == 4 -> (LEAL {sym} base)
+(LocalAddr {sym} base _) && config.PtrSize == 8 -> (LEAQ {sym} base)
+(LocalAddr {sym} base _) && config.PtrSize == 4 -> (LEAL {sym} base)
 
 (MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 -> (SETLstore [off] {sym} ptr x mem)
 (MOVBstore [off] {sym} ptr y:(SETLE x) mem) && y.Uses == 1 -> (SETLEstore [off] {sym} ptr x mem)
