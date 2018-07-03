@@ -1262,7 +1262,26 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	argv = append(argv, ldflag...)
+	// clang, unlike GCC, passes -rdynamic to the linker
+	// even when linking with -static, causing a linker
+	// error when using GNU ld. So take out -rdynamic if
+	// we added it. We do it in this order, rather than
+	// only adding -rdynamic later, so that -*extldflags
+	// can override -rdynamic without using -static.
+	checkStatic := func(arg string) {
+		if ctxt.IsELF && arg == "-static" {
+			for i := range argv {
+				if argv[i] == "-rdynamic" {
+					argv[i] = "-static"
+				}
+			}
+		}
+	}
+
+	for _, p := range ldflag {
+		argv = append(argv, p)
+		checkStatic(p)
+	}
 
 	// When building a program with the default -buildmode=exe the
 	// gc compiler generates code requires DT_TEXTREL in a
@@ -1283,20 +1302,7 @@ func (ctxt *Link) hostlink() {
 
 	for _, p := range strings.Fields(*flagExtldflags) {
 		argv = append(argv, p)
-
-		// clang, unlike GCC, passes -rdynamic to the linker
-		// even when linking with -static, causing a linker
-		// error when using GNU ld. So take out -rdynamic if
-		// we added it. We do it in this order, rather than
-		// only adding -rdynamic later, so that -*extldflags
-		// can override -rdynamic without using -static.
-		if ctxt.IsELF && p == "-static" {
-			for i := range argv {
-				if argv[i] == "-rdynamic" {
-					argv[i] = "-static"
-				}
-			}
-		}
+		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
 		// use gcc linker script to work around gcc bug
