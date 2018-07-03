@@ -27,7 +27,13 @@
 		global.TextEncoder = util.TextEncoder;
 		global.TextDecoder = util.TextDecoder;
 	} else {
-		window.global = window;
+		if (typeof window !== "undefined") {
+			window.global = window;
+		} else if (typeof self !== "undefined") {
+			self.global = self;
+		} else {
+			throw new Error("cannot export Go (neither window nor self is defined)");
+		}
 
 		let outputBuf = "";
 		global.fs = {
