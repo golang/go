@@ -11,3 +11,7 @@ go1.9.2b4 cda3c6f91d7c linux-amd64 https://go-boringcrypto.storage.googleapis.co
 go1.9.2b4 cda3c6f91d7c src https://go-boringcrypto.storage.googleapis.com/go1.9.2b4.src.tar.gz 38a2260b64a6a5ab20f8972d08b4765bad116721356433f39aebd29c7598218c
 go1.9.3b4 f4e5ebdf35c8 linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.9.3b4.linux-amd64.tar.gz db1997b2454a2f27669b849d2d2cafb247a55128d53da678f06cb409310d6660
 go1.9.3b4 f4e5ebdf35c8 src https://go-boringcrypto.storage.googleapis.com/go1.9.3b4.src.tar.gz 7485e1fc53a9fab9cf34f71de74d69f4c50f9d11a449647de40ee04b59bf8a5b
+go1.9.7b4 0bad1bef406e linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.9.7b4.linux-amd64.tar.gz 9e33a0deb8fed3bd7fa3d122bb5143be9e0a974a422ab4ddac5e765fa1310a6f
+go1.9.7b4 0bad1bef406e src https://go-boringcrypto.storage.googleapis.com/go1.9.7b4.src.tar.gz ad9fb6e22a27382c468467ecade4937f725b33818852f1c1da0d09b471e7486c
+go1.10.3b4 35ba5284935c linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.10.3b4.linux-amd64.tar.gz 6754729d78a375bd1debd980b1e3e7fd49198a980d0bbd8f39e89569aa001942
+go1.10.3b4 35ba5284935c src https://go-boringcrypto.storage.googleapis.com/go1.10.3b4.src.tar.gz f3e75c60a835c11b97e30429b63917ceb31f799b2ba7e2001d99db908fb8e28f
