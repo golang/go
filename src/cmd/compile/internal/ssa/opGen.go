@@ -2172,6 +2172,7 @@ const (
 	OpInitMem
 	OpArg
 	OpAddr
+	OpLocalAddr
 	OpSP
 	OpSB
 	OpLoad
@@ -27233,6 +27234,13 @@ var opcodeTable = [...]opInfo{
 		name:      "Addr",
 		auxType:   auxSym,
 		argLen:    1,
+		symEffect: SymAddr,
+		generic:   true,
+	},
+	{
+		name:      "LocalAddr",
+		auxType:   auxSym,
+		argLen:    2,
 		symEffect: SymAddr,
 		generic:   true,
 	},

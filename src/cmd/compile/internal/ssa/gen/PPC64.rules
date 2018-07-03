@@ -273,6 +273,7 @@
 // (MaskIfNotCarry CarrySet) -> -1
 
 (Addr {sym} base) -> (MOVDaddr {sym} base)
+(LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
 (OffPtr [off] ptr) -> (ADD (MOVDconst <typ.Int64> [off]) ptr)
 
 // TODO: optimize these cases?

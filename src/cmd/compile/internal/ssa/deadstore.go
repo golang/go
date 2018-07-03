@@ -146,7 +146,7 @@ func elimDeadAutosGeneric(f *Func) {
 	visit := func(v *Value) (changed bool) {
 		args := v.Args
 		switch v.Op {
-		case OpAddr:
+		case OpAddr, OpLocalAddr:
 			// Propagate the address if it points to an auto.
 			n, ok := v.Aux.(GCNode)
 			if !ok || n.StorageClass() != ClassAuto {
