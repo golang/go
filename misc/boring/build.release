@@ -64,15 +64,22 @@ export GOBIN="$dir"
 go get -u golang.org/x/build/cmd/release
 
 # Build the release.
+sha() {
+    if hash sha256sum 2>/dev/null; then
+        sha256sum "$@"
+    else
+        shasum -a 256 "$@"
+    fi
+}
 shortgo=$(echo "$base" | perl -pe 's/(go\d+\.\d+)(\.\d+|rc\d+)/$1/')
 $dir/release -target linux-amd64 -rev "$commit" -version "$version" -tools "release-branch.$shortgo"
 $dir/release -target src -rev "$commit" -version "$version" -tools "release-branch.$shortgo"
 output="$version.linux-amd64.tar.gz"
 ls -l "$output"
-sha256=$(sha256sum "$output" | awk '{print $1}')
+sha256=$(sha "$output" | awk '{print $1}')
 outputsrc="$version.src.tar.gz"
 ls -l "$outputsrc"
-sha256src=$(sha256sum "$outputsrc" | awk '{print $1}')
+sha256src=$(sha "$outputsrc" | awk '{print $1}')
 
 trap "rm -f /tmp/go.release.$$ /tmp/go.nm.$$" EXIT
 tar -xzf "$output" -O go/bin/go >/tmp/go.release.$$
