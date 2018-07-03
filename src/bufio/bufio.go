@@ -63,7 +63,7 @@ func NewReader(rd io.Reader) *Reader {
 }
 
 // Size returns the size of the underlying buffer in bytes.
-func (r *Reader) Size() int { return len(r.buf) }
+func (b *Reader) Size() int { return len(b.buf) }
 
 // Reset discards any buffered data, resets all state, and switches
 // the buffered reader to read from r.
