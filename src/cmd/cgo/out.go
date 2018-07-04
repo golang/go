@@ -531,6 +531,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	fmt.Fprintf(fgcc, "%s\n", f.Preamble)
 	fmt.Fprintf(fgcc, "%s\n", gccProlog)
 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
+	fmt.Fprintf(fgcc, "%s\n", msanProlog)
 
 	for _, key := range nameKeys(f.Name) {
 		n := f.Name[key]
@@ -636,6 +637,16 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "\t_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));\n")
 		// Save the return value.
 		fmt.Fprintf(fgcc, "\t_cgo_a->r = _cgo_r;\n")
+		// The return value is on the Go stack. If we are using msan,
+		// and if the C value is partially or completely uninitialized,
+		// the assignment will mark the Go stack as uninitialized.
+		// The Go compiler does not update msan for changes to the
+		// stack. It is possible that the stack will remain
+		// uninitialized, and then later be used in a way that is
+		// visible to msan, possibly leading to a false positive.
+		// Mark the stack space as written, to avoid this problem.
+		// See issue 26209.
+		fmt.Fprintf(fgcc, "\t_cgo_msan_write(&_cgo_a->r, sizeof(_cgo_a->r));\n")
 	}
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\treturn _cgo_errno;\n")
@@ -734,6 +745,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	fmt.Fprintf(fgcc, "extern void _cgo_release_context(__SIZE_TYPE__);\n\n")
 	fmt.Fprintf(fgcc, "extern char* _cgo_topofstack(void);")
 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
+	fmt.Fprintf(fgcc, "%s\n", msanProlog)
 
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
@@ -971,6 +983,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 
 	fmt.Fprintf(fgcc, "%s\n", gccgoExportFileProlog)
 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
+	fmt.Fprintf(fgcc, "%s\n", msanProlog)
 
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
@@ -1382,6 +1395,25 @@ static void _cgo_tsan_release() {
 
 // Set to yesTsanProlog if we see -fsanitize=thread in the flags for gcc.
 var tsanProlog = noTsanProlog
+
+// noMsanProlog is a prologue defining an MSAN function in C.
+// This is used when not compiling with -fsanitize=memory.
+const noMsanProlog = `
+#define _cgo_msan_write(addr, sz)
+`
+
+// yesMsanProlog is a prologue defining an MSAN function in C.
+// This is used when compiling with -fsanitize=memory.
+// See the comment above where _cgo_msan_write is called.
+const yesMsanProlog = `
+extern void __msan_unpoison(const volatile void *, size_t);
+
+#define _cgo_msan_write(addr, sz) __msan_unpoison((addr), (sz))
+`
+
+// msanProlog is set to yesMsanProlog if we see -fsanitize=memory in the flags
+// for the C compiler.
+var msanProlog = noMsanProlog
 
 const builtinProlog = `
 #line 1 "cgo-builtin-prolog"

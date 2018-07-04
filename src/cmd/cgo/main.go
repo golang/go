@@ -261,6 +261,9 @@ func main() {
 		if arg == "-fsanitize=thread" {
 			tsanProlog = yesTsanProlog
 		}
+		if arg == "-fsanitize=memory" {
+			msanProlog = yesMsanProlog
+		}
 	}
 
 	p := newPackage(args[:i])
