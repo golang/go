@@ -645,7 +645,7 @@ func (t *tester) registerTests() {
 					return nil
 				},
 			})
-			if cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch)); cxx != "" {
+			if t.hasCxx() {
 				t.tests = append(t.tests, distTest{
 					name:    "swig_callback",
 					heading: "../misc/swig/callback",
@@ -1247,6 +1247,11 @@ func (t *tester) hasBash() bool {
 		return false
 	}
 	return true
+}
+
+func (t *tester) hasCxx() bool {
+	cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch))
+	return cxx != ""
 }
 
 func (t *tester) hasSwig() bool {
