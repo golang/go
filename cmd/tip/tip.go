@@ -408,7 +408,7 @@ func (h httpsOnlyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("X-Appengine-Https") == "on" || r.Header.Get("X-Forwarded-Proto") == "https" ||
 		(!isProxiedReq(r) && r.TLS != nil) {
 		// Only set this header when we're actually in production.
-		w.Header().Set("Strict-Transport-Security", "max-age=31536000; preload")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 	}
 	h.h.ServeHTTP(w, r)
 }

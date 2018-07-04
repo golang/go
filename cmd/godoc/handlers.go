@@ -55,7 +55,7 @@ func (h hostEnforcerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
 		return
 	}
-	w.Header().Set("Strict-Transport-Security", "max-age=31536000; preload")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 	h.h.ServeHTTP(w, r)
 }
 
