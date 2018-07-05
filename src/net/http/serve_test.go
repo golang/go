@@ -5569,17 +5569,31 @@ func TestServerShutdownStateNew(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
 
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		// nothing.
 	}))
+	var connAccepted sync.WaitGroup
+	ts.Config.ConnState = func(conn net.Conn, state ConnState) {
+		if state == StateNew {
+			connAccepted.Done()
+		}
+	}
+	ts.Start()
 	defer ts.Close()
 
 	// Start a connection but never write to it.
+	connAccepted.Add(1)
 	c, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
+
+	// Wait for the connection to be accepted by the server. Otherwise, if
+	// Shutdown happens to run first, the server will be closed when
+	// encountering the connection, in which case it will be rejected
+	// immediately.
+	connAccepted.Wait()
 
 	shutdownRes := make(chan error, 1)
 	go func() {
