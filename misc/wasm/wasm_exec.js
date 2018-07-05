@@ -97,9 +97,11 @@
 			}
 
 			const storeValue = (addr, v) => {
+				const nanHead = 0x7FF80000;
+
 				if (typeof v === "number") {
 					if (isNaN(v)) {
-						mem().setUint32(addr + 4, 0x7FF80000, true); // NaN
+						mem().setUint32(addr + 4, nanHead, true);
 						mem().setUint32(addr, 0, true);
 						return;
 					}
@@ -107,19 +109,21 @@
 					return;
 				}
 
-				mem().setUint32(addr + 4, 0x7FF80000, true); // NaN
-
 				switch (v) {
 					case undefined:
+						mem().setUint32(addr + 4, nanHead, true);
 						mem().setUint32(addr, 1, true);
 						return;
 					case null:
+						mem().setUint32(addr + 4, nanHead, true);
 						mem().setUint32(addr, 2, true);
 						return;
 					case true:
+						mem().setUint32(addr + 4, nanHead, true);
 						mem().setUint32(addr, 3, true);
 						return;
 					case false:
+						mem().setUint32(addr + 4, nanHead, true);
 						mem().setUint32(addr, 4, true);
 						return;
 				}
@@ -130,6 +134,19 @@
 					this._values.push(v);
 					this._refs.set(v, ref);
 				}
+				let typeFlag = 0;
+				switch (typeof v) {
+					case "string":
+						typeFlag = 1;
+						break;
+					case "symbol":
+						typeFlag = 2;
+						break;
+					case "function":
+						typeFlag = 3;
+						break;
+				}
+				mem().setUint32(addr + 4, nanHead | typeFlag, true);
 				mem().setUint32(addr, ref, true);
 			}
 
