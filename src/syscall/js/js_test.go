@@ -53,6 +53,12 @@ func TestString(t *testing.T) {
 	if dummys.Get("someString") != dummys.Get("someString") {
 		t.Errorf("same value not equal")
 	}
+
+	wantInt := "42"
+	o = dummys.Get("someInt")
+	if got := o.String(); got != wantInt {
+		t.Errorf("got %#v, want %#v", got, wantInt)
+	}
 }
 
 func TestInt(t *testing.T) {
