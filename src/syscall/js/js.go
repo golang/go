@@ -257,6 +257,12 @@ func valueLength(v ref) int
 func (v Value) Call(m string, args ...interface{}) Value {
 	res, ok := valueCall(v.ref, m, makeArgs(args))
 	if !ok {
+		if vType := v.Type(); vType != TypeObject && vType != TypeFunction { // check here to avoid overhead in success case
+			panic(&ValueError{"Value.Call", vType})
+		}
+		if propType := v.Get(m).Type(); propType != TypeFunction {
+			panic("syscall/js: Value.Call: property " + m + " is not a function, got " + propType.String())
+		}
 		panic(Error{makeValue(res)})
 	}
 	return makeValue(res)
@@ -269,6 +275,9 @@ func valueCall(v ref, m string, args []ref) (ref, bool)
 func (v Value) Invoke(args ...interface{}) Value {
 	res, ok := valueInvoke(v.ref, makeArgs(args))
 	if !ok {
+		if vType := v.Type(); vType != TypeFunction { // check here to avoid overhead in success case
+			panic(&ValueError{"Value.Invoke", vType})
+		}
 		panic(Error{makeValue(res)})
 	}
 	return makeValue(res)
@@ -292,17 +301,21 @@ func (v Value) isNumber() bool {
 	return v.ref>>32&nanHead != nanHead || v.ref == valueNaN.ref
 }
 
-// Float returns the value v as a float64. It panics if v is not a JavaScript number.
-func (v Value) Float() float64 {
+func (v Value) float(method string) float64 {
 	if !v.isNumber() {
-		panic("syscall/js: not a number")
+		panic(&ValueError{method, v.Type()})
 	}
 	return *(*float64)(unsafe.Pointer(&v.ref))
 }
 
+// Float returns the value v as a float64. It panics if v is not a JavaScript number.
+func (v Value) Float() float64 {
+	return v.float("Value.Float")
+}
+
 // Int returns the value v truncated to an int. It panics if v is not a JavaScript number.
 func (v Value) Int() int {
-	return int(v.Float())
+	return int(v.float("Value.Int"))
 }
 
 // Bool returns the value v as a bool. It panics if v is not a JavaScript boolean.
@@ -313,7 +326,7 @@ func (v Value) Bool() bool {
 	case valueFalse.ref:
 		return false
 	default:
-		panic("syscall/js: not a boolean")
+		panic(&ValueError{"Value.Bool", v.Type()})
 	}
 }
 
@@ -335,3 +348,15 @@ func (v Value) InstanceOf(t Value) bool {
 }
 
 func valueInstanceOf(v ref, t ref) bool
+
+// A ValueError occurs when a Value method is invoked on
+// a Value that does not support it. Such cases are documented
+// in the description of each method.
+type ValueError struct {
+	Method string
+	Type   Type
+}
+
+func (e *ValueError) Error() string {
+	return "syscall/js: call of " + e.Method + " on " + e.Type.String()
+}
