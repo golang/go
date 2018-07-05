@@ -266,8 +266,6 @@ func f(v interface{}) {
   This is currently only supported by Delve.
 </p>
 
-<h2 id="tools">Tools</h2>
-
 <h3 id="test">Test</h3>
 
 <p>
@@ -310,6 +308,26 @@ func f(v interface{}) {
   The <code>go</code>&nbsp;<code>tool</code>&nbsp;<code>trace</code>
   command visualizes this information in the trace view and the new
   user task/region analysis page.
+</p>
+
+<h3 id="gofmt">Gofmt</h3>
+
+<p>
+  One minor detail of the default formatting of Go source code has changed.
+  When formatting expression lists with inline comments, the comments were
+  aligned according to a heuristic.
+  However, in some cases the alignment would be split up too easily, or
+  introduce too much whitespace.
+  The heuristic has been changed to behave better for human-written code.
+</p>
+
+<p>
+  Note that these kinds of minor updates to gofmt are expected from time to
+  time.
+  In general, systems that need consistent formatting of Go source code should
+  use a specific version of the <code>gofmt</code> binary.
+  See the <a href="/pkg/go/format/">go/format</a> package godoc for more
+  information.
 </p>
 
 <h2 id="runtime">Runtime</h2>
