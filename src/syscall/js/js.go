@@ -17,11 +17,11 @@ import (
 
 // ref is used to identify a JavaScript value, since the value itself can not be passed to WebAssembly.
 // A JavaScript number (64-bit float, except NaN) is represented by its IEEE 754 binary representation.
-// All other values are represented as an IEEE 754 binary representation of NaN with the low 32 bits
-// used as an ID.
+// All other values are represented as an IEEE 754 binary representation of NaN with bits 0-31 used as
+// an ID and bits 32-33 used to differentiate between string, symbol, function and object.
 type ref uint64
 
-// nanHead are the upper 32 bits of a ref if the value is not a JavaScript number or NaN itself.
+// nanHead are the upper 32 bits of a ref which are set if the value is not a JavaScript number or NaN itself.
 const nanHead = 0x7FF80000
 
 // Value represents a JavaScript value.
@@ -145,6 +145,70 @@ func ValueOf(x interface{}) Value {
 
 func stringVal(x string) ref
 
+// Type represents the JavaScript type of a Value.
+type Type int
+
+const (
+	TypeUndefined Type = iota
+	TypeNull
+	TypeBoolean
+	TypeNumber
+	TypeString
+	TypeSymbol
+	TypeObject
+	TypeFunction
+)
+
+func (t Type) String() string {
+	switch t {
+	case TypeUndefined:
+		return "undefined"
+	case TypeNull:
+		return "null"
+	case TypeBoolean:
+		return "boolean"
+	case TypeNumber:
+		return "number"
+	case TypeString:
+		return "string"
+	case TypeSymbol:
+		return "symbol"
+	case TypeObject:
+		return "object"
+	case TypeFunction:
+		return "function"
+	default:
+		panic("bad type")
+	}
+}
+
+// Type returns the JavaScript type of the value v. It is similar to JavaScript's typeof operator,
+// except that it returns TypeNull instead of TypeObject for null.
+func (v Value) Type() Type {
+	switch v.ref {
+	case valueUndefined.ref:
+		return TypeUndefined
+	case valueNull.ref:
+		return TypeNull
+	case valueTrue.ref, valueFalse.ref:
+		return TypeBoolean
+	}
+	if v.isNumber() {
+		return TypeNumber
+	}
+	typeFlag := v.ref >> 32 & 3
+	switch typeFlag {
+	case 1:
+		return TypeString
+	case 2:
+		return TypeSymbol
+	case 3:
+		return TypeFunction
+	default:
+		return TypeObject
+	}
+}
+
 // Get returns the JavaScript property p of value v.
 func (v Value) Get(p string) Value {
 	return makeValue(valueGet(v.ref, p))
@@ -225,7 +289,7 @@ func (v Value) New(args ...interface{}) Value {
 func valueNew(v ref, args []ref) (ref, bool)
 
 func (v Value) isNumber() bool {
-	return v.ref>>32 != nanHead || v.ref == valueNaN.ref
+	return v.ref>>32&nanHead != nanHead || v.ref == valueNaN.ref
 }
 
 // Float returns the value v as a float64. It panics if v is not a JavaScript number.

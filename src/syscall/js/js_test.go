@@ -221,6 +221,33 @@ func TestInstanceOf(t *testing.T) {
 	}
 }
 
+func TestType(t *testing.T) {
+	if got, want := js.Undefined().Type(), js.TypeUndefined; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Null().Type(), js.TypeNull; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf(true).Type(), js.TypeBoolean; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf(42).Type(), js.TypeNumber; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf("test").Type(), js.TypeString; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Symbol").Invoke("test").Type(), js.TypeSymbol; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Array").New().Type(), js.TypeObject; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Array").Type(), js.TypeFunction; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+}
+
 func TestCallback(t *testing.T) {
 	c := make(chan struct{})
 	cb := js.NewCallback(func(args []js.Value) {
