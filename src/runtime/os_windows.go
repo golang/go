@@ -698,10 +698,12 @@ func minit() {
 		print("runtime: VirtualQuery failed; errno=", getlasterror(), "\n")
 		throw("VirtualQuery for stack base failed")
 	}
-	// Add 8K of slop for calling C functions that don't have
-	// stack checks. We shouldn't be anywhere near this bound
-	// anyway.
-	base := mbi.allocationBase + 8*1024
+	// The system leaves an 8K PAGE_GUARD region at the bottom of
+	// the stack (in theory VirtualQuery isn't supposed to include
+	// that, but it does). Add an additional 8K of slop for
+	// calling C functions that don't have stack checks. We
+	// shouldn't be anywhere near this bound anyway.
+	base := mbi.allocationBase + 16<<10
 	// Sanity check the stack bounds.
 	g0 := getg()
 	if base > g0.stack.hi || g0.stack.hi-base > 64<<20 {
