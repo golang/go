@@ -6300,6 +6300,30 @@ echo $* >>`+tg.path("pkg-config.out"))
 	}
 }
 
+func TestCgoCache(t *testing.T) {
+	if !canCgo {
+		t.Skip("no cgo")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/x/a.go", `package main
+		// #ifndef VAL
+		// #define VAL 0
+		// #endif
+		// int val = VAL;
+		import "C"
+		import "fmt"
+		func main() { fmt.Println(C.val) }
+	`)
+	tg.setenv("GOPATH", tg.path("."))
+	exe := tg.path("x.exe")
+	tg.run("build", "-o", exe, "x")
+	tg.setenv("CGO_LDFLAGS", "-lnosuchlibraryexists")
+	tg.runFail("build", "-o", exe, "x")
+	tg.grepStderr(`nosuchlibraryexists`, "did not run linker with changed CGO_LDFLAGS")
+}
+
 // Issue 23982
 func TestFilepathUnderCwdFormat(t *testing.T) {
 	tg := testgo(t)
