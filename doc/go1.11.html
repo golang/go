@@ -53,18 +53,61 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: PPC64LE race detector support
 </p>
 
-<h3 id="package-versioning">Package Versioning (vgo)</h3>
+<h3 id="wasm">WebAssembly</h3>
+<p>
+  Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="modules">Modules, package versioning, and dependency management</h3>
 <p>
   <strong>
     NOTE: This is not present in go1.11beta1 but will be available in future
     betas and subsequent releases.
   </strong>
-  Go 1.11 adds experimental, integrated support for package versioning.
+  Go 1.11 adds experimental support for a new concept called “modules,”
+  an alternative to GOPATH with integrated support for versioning and
+  package distribution.
+  Using modules, developers are no longer confined to working inside GOPATH,
+  version dependency information is explicit yet lightweight,
+  and builds are more reliable and reproducible.
 </p>
 
-<h3 id="wasm">WebAssembly</h3>
 <p>
-  Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
+  Module support is considered experimental.
+  Details are likely to change in response to feedback from Go 1.11 users,
+  and we have more tools planned.
+  Although the details of module support may change, projects that convert
+  to modules using Go 1.11 will continue to work with Go 1.12 and later.
+  If you encounter bugs using modules,
+  please <a href="https://golang.org/issue/new">file issues</a>
+  so we can fix them.
+</p>
+
+<p>
+  TODO: Link to intro doc.  
+</p>
+
+<h3 id="gopackages">Package loading</h2>
+
+<p>
+  TODO: Note about go/build versus golang.org/x/tools/go/packages.
+</p>
+
+<h3 id="gocache">Build cache requirement</h2>
+
+<p>
+  Go 1.11 will be the last release to support setting the environment
+  variable <code>GOCACHE=off</code> to disable the
+  <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a>,
+  introduced in Go 1.10.
+  Starting in Go 1.12, the build cache will be required,
+  as a step toward eliminating <code>$GOPATH/pkg</code>.
+  The module and package loading support described above
+  already require that the build cache be enabled.
+  If you have disabled the build cache to avoid problems you encountered,
+  please <a href="https://golang.org/issue/new">file an issue</a> to let us know about them.
 </p>
 
 <h2 id="library">Core library</h2>

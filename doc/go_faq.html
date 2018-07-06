@@ -1153,7 +1153,7 @@ program is one tool to help automate this process.
 
 <p>
 The Go 1.5 release added a facility to the
-<a href="https://golang.org/cmd/go">go</a> command
+<a href="https://golang.org/cmd/go"><code>go</code></a> command
 that makes it easier to manage external dependencies by "vendoring"
 them into a special directory near the package that depends upon them.
 See the <a href="https://golang.org/s/go15vendor">design
@@ -1161,10 +1161,11 @@ document</a> for details.
 </p>
 
 <p>
-Work is underway on an experimental package management tool,
-<a href="https://github.com/golang/dep"><code>dep</code></a>, to learn
-more about how tooling can help package management. More information can be found in
-<a href="https://github.com/golang/dep/blob/master/docs/FAQ.md">the <code>dep</code> FAQ</a>.
+The Go 1.11 release added new, experimental support
+for package versioning to the <code>go</code> command,
+in the form of Go modules.
+For more information, see the <a href="/doc/go1.11#modules">Go 1.11 release notes</a>
+and the <a href="/cmd/go#hdr-Modules__module_versions__and_more"><code>go</code> command documentation</a>.
 </p>
 
 <h2 id="Pointers">Pointers and Allocation</h2>
