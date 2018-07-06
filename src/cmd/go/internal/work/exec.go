@@ -208,8 +208,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	}
 	if len(p.CgoFiles)+len(p.SwigFiles) > 0 {
 		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
-		cppflags, cflags, cxxflags, fflags, _, _ := b.CFlags(p)
-		fmt.Fprintf(h, "CC=%q %q %q\n", b.ccExe(), cppflags, cflags)
+		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
+		fmt.Fprintf(h, "CC=%q %q %q %q\n", b.ccExe(), cppflags, cflags, ldflags)
 		if len(p.CXXFiles)+len(p.SwigFiles) > 0 {
 			fmt.Fprintf(h, "CXX=%q %q\n", b.cxxExe(), cxxflags)
 		}
