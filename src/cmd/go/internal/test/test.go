@@ -650,7 +650,7 @@ func runTest(cmd *base.Command, args []string) {
 		}
 
 		// Select for coverage all dependencies matching the testCoverPaths patterns.
-		for _, p := range load.PackageList(pkgs) {
+		for _, p := range load.TestPackageList(pkgs) {
 			haveMatch := false
 			for i := range testCoverPaths {
 				if match[i](p) {

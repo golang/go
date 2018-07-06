@@ -6210,3 +6210,23 @@ func TestGoBuildDashODevNull(t *testing.T) {
 	tg.mustNotExist("hello")
 	tg.mustNotExist("hello.exe")
 }
+
+// Issue 25093.
+func TestCoverpkgTestOnly(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("src/a/a.go", `package a
+		func F(i int) int {
+			return i*i
+		}`)
+	tg.tempFile("src/atest/a_test.go", `
+		package a_test
+		import ( "a"; "testing" )
+		func TestF(t *testing.T) { a.F(2) }
+	`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-coverpkg=a", "atest")
+	tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
+	tg.grepStdout("coverage: 100", "no coverage")
+}
