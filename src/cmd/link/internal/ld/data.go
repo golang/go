@@ -111,7 +111,20 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 
 }
 
-// resolve relocations in s.
+// relocsym resolve relocations in "s". The main loop walks through
+// the list of relocations attached to "s" and resolves them where
+// applicable. Relocations are often architecture-specific, requiring
+// calls into the 'archreloc' and/or 'archrelocvariant' functions for
+// the architecture. When external linking is in effect, it may not be
+// possible to completely resolve the address/offset for a symbol, in
+// which case the goal is to lay the groundwork for turning a given
+// relocation into an external reloc (to be applied by the external
+// linker). For more on how relocations work in general, see
+//
+//  "Linkers and Loaders", by John R. Levine (Morgan Kaufmann, 1999), ch. 7
+//
+// This is a performance-critical function for the linker; be careful
+// to avoid introducing unnecessary allocations in the main loop.
 func relocsym(ctxt *Link, s *sym.Symbol) {
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r := &s.R[ri]
