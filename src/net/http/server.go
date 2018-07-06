@@ -51,7 +51,9 @@ var (
 	// declared.
 	ErrContentLength = errors.New("http: wrote more than the declared Content-Length")
 
-	// Deprecated: ErrWriteAfterFlush is no longer used.
+	// Deprecated: ErrWriteAfterFlush is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrWriteAfterFlush = errors.New("unused")
 )
 
