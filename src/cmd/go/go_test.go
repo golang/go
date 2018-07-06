@@ -3262,43 +3262,6 @@ func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
 	tg.grepStdout("File with non-runnable example was built.", "file with non-runnable example was not built")
 }
 
-// issue 24570
-func TestGoTestCoverMultiPackage(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-cover", "./testdata/testcover/...")
-	tg.grepStdout(`\?.*testdata/testcover/pkg1.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
-	tg.grepStdout(`ok.*testdata/testcover/pkg2.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
-	tg.grepStdout(`ok.*testdata/testcover/pkg3.*(\d\.\d\d\ds|cached).*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
-}
-
-// issue 24570
-func TestGoTestCoverprofileMultiPackage(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-coverprofile=testdata/cover.out", "./testdata/testcover/...")
-	tg.grepStdout(`\?.*testdata/testcover/pkg1.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
-	tg.grepStdout(`ok.*testdata/testcover/pkg2.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
-	tg.grepStdout(`ok.*testdata/testcover/pkg3.*(\d\.\d\d\ds|cached).*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
-	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
-		t.Error(err)
-	} else {
-		if !bytes.Contains(out, []byte("mode: set")) {
-			t.Errorf(`missing "mode: set" in %s`, out)
-		}
-		if !bytes.Contains(out, []byte(`pkg1/a.go:5.10,7.2 1 0`)) && !bytes.Contains(out, []byte(`pkg1\a.go:5.10,7.2 1 0`)) {
-			t.Errorf(`missing "pkg1/a.go:5.10,7.2 1 0" in %s`, out)
-		}
-		if !bytes.Contains(out, []byte(`pkg2/a.go:5.10,7.2 1 0`)) && !bytes.Contains(out, []byte(`pkg2\a.go:5.10,7.2 1 0`)) {
-			t.Errorf(`missing "pkg2/a.go:5.10,7.2 1 0" in %s`, out)
-		}
-		if !bytes.Contains(out, []byte(`pkg3/a.go:5.10,7.2 1 1`)) && !bytes.Contains(out, []byte(`pkg3\a.go:5.10,7.2 1 1`)) {
-			t.Errorf(`missing "pkg3/a.go:5.10,7.2 1 1" in %s`, out)
-		}
-	}
-}
-
 func TestGoGenerateHandlesSimpleCommand(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping because windows has no echo command")
