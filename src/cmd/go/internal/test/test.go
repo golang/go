@@ -781,6 +781,14 @@ var windowsBadWords = []string{
 }
 
 func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
+	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
+		addTestVet(b, p, run, nil)
+		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
+		return build, run, print, nil
+	}
+
 	// Build Package structs describing:
 	//	pmain - pkg.test binary
 	//	ptest - package + test files
@@ -1168,17 +1176,13 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 
 	if err == nil {
 		norun := ""
-		res := "ok"
 		if !testShowPass && !testJSON {
 			buf.Reset()
 		}
-		if len(a.Package.TestGoFiles)+len(a.Package.XTestGoFiles) == 0 {
-			res = "? "
-			norun = " [no test files]"
-		} else if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
+		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
 			norun = " [no tests to run]"
 		}
-		fmt.Fprintf(cmd.Stdout, "%s  \t%s\t%s%s%s\n", res, a.Package.ImportPath, t, coveragePercentage(out), norun)
+		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
 		c.saveOutput(a)
 	} else {
 		base.SetExitStatus(1)
@@ -1590,5 +1594,17 @@ func builderPrintTest(b *work.Builder, a *work.Action) error {
 		os.Stdout.Write(run.TestOutput.Bytes())
 		run.TestOutput = nil
 	}
+	return nil
+}
+
+// builderNoTest is the action for testing a package with no test files.
+func builderNoTest(b *work.Builder, a *work.Action) error {
+	var stdout io.Writer = os.Stdout
+	if testJSON {
+		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
+		defer json.Close()
+		stdout = json
+	}
+	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
 	return nil
 }
