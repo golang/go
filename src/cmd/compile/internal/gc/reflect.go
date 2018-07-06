@@ -958,6 +958,12 @@ func typesymprefix(prefix string, t *types.Type) *types.Sym {
 	p := prefix + "." + t.ShortString()
 	s := typeLookup(p)
 
+	// This function is for looking up type-related generated functions
+	// (e.g. eq and hash). Make sure they are indeed generated.
+	signatsetmu.Lock()
+	addsignat(t)
+	signatsetmu.Unlock()
+
 	//print("algsym: %s -> %+S\n", p, s);
 
 	return s
