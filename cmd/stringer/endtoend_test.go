@@ -9,7 +9,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"go/build"
 	"io"
@@ -27,8 +26,17 @@ import (
 // binary panics if the String method for X is not correct, including for error cases.
 
 func TestEndToEnd(t *testing.T) {
-	dir, stringer := buildStringer(t)
+	dir, err := ioutil.TempDir("", "stringer")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer os.RemoveAll(dir)
+	// Create stringer in temporary directory.
+	stringer := filepath.Join(dir, "stringer.exe")
+	err = run("go", "build", "-o", stringer)
+	if err != nil {
+		t.Fatalf("building stringer: %s", err)
+	}
 	// Read the testdata directory.
 	fd, err := os.Open("testdata")
 	if err != nil {
@@ -45,10 +53,6 @@ func TestEndToEnd(t *testing.T) {
 			t.Errorf("%s is not a Go file", name)
 			continue
 		}
-		if strings.HasPrefix(name, "tag_") {
-			// This file is used for tag processing in TestTags, below.
-			continue
-		}
 		if name == "cgo.go" && !build.Default.CgoEnabled {
 			t.Logf("cgo is not enabled for %s", name)
 			continue
@@ -59,69 +63,9 @@ func TestEndToEnd(t *testing.T) {
 	}
 }
 
-// TestTags verifies that the -tags flag works as advertised.
-func TestTags(t *testing.T) {
-	dir, stringer := buildStringer(t)
-	defer os.RemoveAll(dir)
-	var (
-		protectedConst = []byte("TagProtected")
-		output         = filepath.Join(dir, "const_string.go")
-	)
-	for _, file := range []string{"tag_main.go", "tag_tag.go"} {
-
-		err := copy(filepath.Join(dir, file), filepath.Join("testdata", file))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-	}
-	err := run(stringer, "-type", "Const", dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := ioutil.ReadFile(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Contains(result, protectedConst) {
-		t.Fatal("tagged variable appears in untagged run")
-	}
-	err = os.Remove(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = run(stringer, "-type", "Const", "-tags", "tag", dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err = ioutil.ReadFile(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(result, protectedConst) {
-		t.Fatal("tagged variable does not appear in tagged run")
-	}
-}
-
-// buildStringer creates a temporary directory and installs stringer there.
-func buildStringer(t *testing.T) (dir string, stringer string) {
-	t.Helper()
-	dir, err := ioutil.TempDir("", "stringer")
-	if err != nil {
-		t.Fatal(err)
-	}
-	stringer = filepath.Join(dir, "stringer.exe")
-	err = run("go", "build", "-o", stringer, "stringer.go")
-	if err != nil {
-		t.Fatalf("building stringer: %s", err)
-	}
-	return dir, stringer
-}
-
 // stringerCompileAndRun runs stringer for the named file and compiles and
 // runs the target binary in directory dir. That binary will panic if the String method is incorrect.
 func stringerCompileAndRun(t *testing.T, dir, stringer, typeName, fileName string) {
-	t.Helper()
 	t.Logf("run: %s %s\n", fileName, typeName)
 	source := filepath.Join(dir, fileName)
 	err := copy(source, filepath.Join("testdata", fileName))

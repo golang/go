@@ -66,7 +66,6 @@ import (
 	"go/build"
 	exact "go/constant"
 	"go/format"
-	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -83,7 +82,6 @@ var (
 	output      = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
 	trimprefix  = flag.String("trimprefix", "", "trim the `prefix` from the generated constant names")
 	linecomment = flag.Bool("linecomment", false, "use line comment text as printed text when present")
-	buildTags   = flag.String("tags", "", "comma-separated list of build tags to apply")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -107,10 +105,6 @@ func main() {
 		os.Exit(2)
 	}
 	types := strings.Split(*typeNames, ",")
-	var tags []string
-	if len(*buildTags) > 0 {
-		tags = strings.Split(*buildTags, ",")
-	}
 
 	// We accept either one directory or a list of files. Which do we have?
 	args := flag.Args()
@@ -127,11 +121,8 @@ func main() {
 	}
 	if len(args) == 1 && isDirectory(args[0]) {
 		dir = args[0]
-		g.parsePackageDir(args[0], tags)
+		g.parsePackageDir(args[0])
 	} else {
-		if len(tags) != 0 {
-			log.Fatal("-tags option applies only to directories, not when files are specified")
-		}
 		dir = filepath.Dir(args[0])
 		g.parsePackageFiles(args)
 	}
@@ -206,15 +197,9 @@ type Package struct {
 	typesPkg *types.Package
 }
 
-func buildContext(tags []string) *build.Context {
-	ctx := build.Default
-	ctx.BuildTags = tags
-	return &ctx
-}
-
 // parsePackageDir parses the package residing in the directory.
-func (g *Generator) parsePackageDir(directory string, tags []string) {
-	pkg, err := buildContext(tags).ImportDir(directory, 0)
+func (g *Generator) parsePackageDir(directory string) {
+	pkg, err := build.Default.ImportDir(directory, 0)
 	if err != nil {
 		log.Fatalf("cannot process directory %s: %s", directory, err)
 	}
@@ -276,17 +261,14 @@ func (g *Generator) parsePackage(directory string, names []string, text interfac
 	g.pkg.name = astFiles[0].Name.Name
 	g.pkg.files = files
 	g.pkg.dir = directory
-	g.pkg.typeCheck(fs, astFiles)
+	// Type check the package.
+	g.pkg.check(fs, astFiles)
 }
 
-// check type-checks the package so we can evaluate contants whose values we are printing.
-func (pkg *Package) typeCheck(fs *token.FileSet, astFiles []*ast.File) {
+// check type-checks the package. The package must be OK to proceed.
+func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) {
 	pkg.defs = make(map[*ast.Ident]types.Object)
-	config := types.Config{
-		IgnoreFuncBodies: true, // We only need to evaluate constants.
-		Importer:         importer.Default(),
-		FakeImportC:      true,
-	}
+	config := types.Config{Importer: defaultImporter(), FakeImportC: true}
 	info := &types.Info{
 		Defs: pkg.defs,
 	}
