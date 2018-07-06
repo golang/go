@@ -36,7 +36,7 @@ type TestCover struct {
 	Pkgs     []*Package
 	Paths    []string
 	Vars     []coverInfo
-	DeclVars func(string, ...string) map[string]*CoverVar
+	DeclVars func(*Package, ...string) map[string]*CoverVar
 }
 
 // TestPackagesFor returns three packages:
@@ -264,7 +264,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		var coverFiles []string
 		coverFiles = append(coverFiles, ptest.GoFiles...)
 		coverFiles = append(coverFiles, ptest.CgoFiles...)
-		ptest.Internal.CoverVars = cover.DeclVars(ptest.ImportPath, coverFiles...)
+		ptest.Internal.CoverVars = cover.DeclVars(ptest, coverFiles...)
 	}
 
 	for _, cp := range pmain.Internal.Imports {
