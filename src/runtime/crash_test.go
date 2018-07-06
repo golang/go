@@ -640,18 +640,21 @@ func TestTimePprof(t *testing.T) {
 
 // Test that runtime.abort does so.
 func TestAbort(t *testing.T) {
-	output := runTestProg(t, "testprog", "Abort")
+	// Pass GOTRACEBACK to ensure we get runtime frames.
+	output := runTestProg(t, "testprog", "Abort", "GOTRACEBACK=system")
 	if want := "runtime.abort"; !strings.Contains(output, want) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
 	}
 	if strings.Contains(output, "BAD") {
 		t.Errorf("output contains BAD:\n%s", output)
 	}
-	// Check that it's a signal-style traceback.
-	if runtime.GOOS != "windows" {
-		if want := "PC="; !strings.Contains(output, want) {
-			t.Errorf("output does not contain %q:\n%s", want, output)
-		}
+	// Check that it's a breakpoint traceback.
+	want := "SIGTRAP"
+	if runtime.GOOS == "windows" {
+		want = "Exception 0x80000003"
+	}
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
 	}
 }
 
