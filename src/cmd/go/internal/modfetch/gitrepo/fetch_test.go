@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +39,12 @@ var localGitRepo string
 func testMain(m *testing.M) int {
 	if _, err := exec.LookPath("git"); err != nil {
 		fmt.Fprintln(os.Stderr, "skipping because git binary not found")
+		fmt.Println("PASS")
+		return 0
+	}
+
+	if runtime.GOOS == "plan9" {
+		fmt.Fprintln(os.Stderr, "skipping on plan9")
 		fmt.Println("PASS")
 		return 0
 	}
