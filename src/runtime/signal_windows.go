@@ -46,7 +46,9 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 		return false
 	}
 
-	if isAbortPC(r.ip()) {
+	// In the case of an abort, the exception IP is one byte after
+	// the INT3 (this differs from UNIX OSes).
+	if isAbortPC(r.ip() - 1) {
 		// Never turn abort into a panic.
 		return false
 	}
