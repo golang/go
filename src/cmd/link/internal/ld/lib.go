@@ -91,28 +91,47 @@ import (
 // THE SOFTWARE.
 
 type Arch struct {
-	Funcalign        int
-	Maxalign         int
-	Minalign         int
-	Dwarfregsp       int
-	Dwarfreglr       int
-	Linuxdynld       string
-	Freebsddynld     string
-	Netbsddynld      string
-	Openbsddynld     string
-	Dragonflydynld   string
-	Solarisdynld     string
-	Adddynrel        func(*Link, *sym.Symbol, *sym.Reloc) bool
-	Archinit         func(*Link)
-	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, int64) (int64, bool)
-	Archrelocvariant func(*Link, *sym.Reloc, *sym.Symbol, int64) int64
-	Trampoline       func(*Link, *sym.Reloc, *sym.Symbol)
-	Asmb             func(*Link)
-	Elfreloc1        func(*Link, *sym.Reloc, int64) bool
-	Elfsetupplt      func(*Link)
-	Gentext          func(*Link)
-	Machoreloc1      func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
-	PEreloc1         func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+	Funcalign      int
+	Maxalign       int
+	Minalign       int
+	Dwarfregsp     int
+	Dwarfreglr     int
+	Linuxdynld     string
+	Freebsddynld   string
+	Netbsddynld    string
+	Openbsddynld   string
+	Dragonflydynld string
+	Solarisdynld   string
+	Adddynrel      func(*Link, *sym.Symbol, *sym.Reloc) bool
+	Archinit       func(*Link)
+	// Archreloc is an arch-specific hook that assists in
+	// relocation processing (invoked by 'relocsym'); it handles
+	// target-specific relocation tasks. Here "rel" is the current
+	// relocation being examined, "sym" is the symbol containing the
+	// chunk of data to which the relocation applies, and "off" is the
+	// contents of the to-be-relocated data item (from sym.P). Return
+	// value is the appropriately relocated value (to be written back
+	// to the same spot in sym.P) and a boolean indicating
+	// success/failure (a failing value indicates a fatal error).
+	Archreloc func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
+		offset int64) (relocatedOffset int64, success bool)
+	// Archrelocvariant is a second arch-specific hook used for
+	// relocation processing; it handles relocations where r.Type is
+	// insufficient to describe the relocation (r.Variant !=
+	// sym.RV_NONE). Here "rel" is the relocation being applied, "sym"
+	// is the symbol containing the chunk of data to which the
+	// relocation applies, and "off" is the contents of the
+	// to-be-relocated data item (from sym.P). Return is an updated
+	// offset value.
+	Archrelocvariant func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
+		offset int64) (relocatedOffset int64)
+	Trampoline  func(*Link, *sym.Reloc, *sym.Symbol)
+	Asmb        func(*Link)
+	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
+	Elfsetupplt func(*Link)
+	Gentext     func(*Link)
+	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 
 	// TLSIEtoLE converts a TLS Initial Executable relocation to
 	// a TLS Local Executable relocation.
