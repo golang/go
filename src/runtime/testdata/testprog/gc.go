@@ -48,8 +48,11 @@ func GCSys() {
 	fmt.Printf("OK\n")
 }
 
+var sink []byte
+
 func workthegc() []byte {
-	return make([]byte, 1029)
+	sink = make([]byte, 1029)
+	return sink
 }
 
 func GCFairness() {
