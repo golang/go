@@ -995,3 +995,18 @@ func TestMarshalPanic(t *testing.T) {
 	Marshal(&marshalPanic{})
 	t.Error("Marshal should have panicked")
 }
+
+func TestMarshalUncommonFieldNames(t *testing.T) {
+	v := struct {
+		A0, À, Aβ int
+	}{}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"A0":0,"À":0,"Aβ":0}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+}
