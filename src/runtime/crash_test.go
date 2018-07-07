@@ -650,7 +650,10 @@ func TestAbort(t *testing.T) {
 	}
 	// Check that it's a breakpoint traceback.
 	want := "SIGTRAP"
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "plan9":
+		want = "sys: breakpoint"
+	case "windows":
 		want = "Exception 0x80000003"
 	}
 	if !strings.Contains(output, want) {
