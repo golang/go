@@ -718,14 +718,22 @@ func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 	}
 	s := v.Bytes()
 	e.WriteByte('"')
-	if len(s) < 1024 {
-		// for small buffers, using Encode directly is much faster.
-		dst := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
+	encodedLen := base64.StdEncoding.EncodedLen(len(s))
+	if encodedLen <= len(e.scratch) {
+		// If the encoded bytes fit in e.scratch, avoid an extra
+		// allocation and use the cheaper Encoding.Encode.
+		dst := e.scratch[:encodedLen]
+		base64.StdEncoding.Encode(dst, s)
+		e.Write(dst)
+	} else if encodedLen <= 1024 {
+		// The encoded bytes are short enough to allocate for, and
+		// Encoding.Encode is still cheaper.
+		dst := make([]byte, encodedLen)
 		base64.StdEncoding.Encode(dst, s)
 		e.Write(dst)
 	} else {
-		// for large buffers, avoid unnecessary extra temporary
-		// buffer space.
+		// The encoded bytes are too long to cheaply allocate, and
+		// Encoding.Encode is no longer noticeably cheaper.
 		enc := base64.NewEncoder(base64.StdEncoding, e)
 		enc.Write(s)
 		enc.Close()
