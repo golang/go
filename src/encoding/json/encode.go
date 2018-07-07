@@ -641,8 +641,11 @@ func (se *structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		} else {
 			e.WriteByte(',')
 		}
-		e.string(f.name, opts.escapeHTML)
-		e.WriteByte(':')
+		if opts.escapeHTML {
+			e.WriteString(f.nameEscHTML)
+		} else {
+			e.WriteString(f.nameNonEsc)
+		}
 		opts.quoted = f.quoted
 		se.fieldEncs[i](e, fv, opts)
 	}
@@ -1036,6 +1039,9 @@ type field struct {
 	nameBytes []byte                 // []byte(name)
 	equalFold func(s, t []byte) bool // bytes.EqualFold or equivalent
 
+	nameNonEsc  string // `"` + name + `":`
+	nameEscHTML string // `"` + HTMLEscape(name) + `":`
+
 	tag       bool
 	index     []int
 	typ       reflect.Type
@@ -1085,6 +1091,9 @@ func typeFields(t reflect.Type) []field {
 
 	// Fields found.
 	var fields []field
+
+	// Buffer to run HTMLEscape on field names.
+	var nameEscBuf bytes.Buffer
 
 	for len(next) > 0 {
 		current, next = next, current[:0]
@@ -1152,14 +1161,24 @@ func typeFields(t reflect.Type) []field {
 					if name == "" {
 						name = sf.Name
 					}
-					fields = append(fields, fillField(field{
+					field := fillField(field{
 						name:      name,
 						tag:       tagged,
 						index:     index,
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
 						quoted:    quoted,
-					}))
+					})
+
+					// Build nameEscHTML and nameNonEsc ahead of time.
+					nameEscBuf.Reset()
+					nameEscBuf.WriteString(`"`)
+					HTMLEscape(&nameEscBuf, field.nameBytes)
+					nameEscBuf.WriteString(`":`)
+					field.nameEscHTML = nameEscBuf.String()
+					field.nameNonEsc = `"` + field.name + `":`
+
+					fields = append(fields, field)
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.

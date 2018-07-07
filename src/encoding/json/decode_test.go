@@ -142,7 +142,7 @@ var (
 	umstructXY   = ustructText{unmarshalerText{"x", "y"}}
 
 	ummapType = map[unmarshalerText]bool{}
-	ummapXY   = map[unmarshalerText]bool{unmarshalerText{"x", "y"}: true}
+	ummapXY   = map[unmarshalerText]bool{{"x", "y"}: true}
 )
 
 // Test data structures for anonymous fields.
