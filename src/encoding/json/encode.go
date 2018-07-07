@@ -839,10 +839,8 @@ func isValidTag(s string) bool {
 			// Backslash and quote chars are reserved, but
 			// otherwise any punctuation chars are allowed
 			// in a tag name.
-		default:
-			if !unicode.IsLetter(c) && !unicode.IsDigit(c) {
-				return false
-			}
+		case !unicode.IsLetter(c) && !unicode.IsDigit(c):
+			return false
 		}
 	}
 	return true
@@ -897,18 +895,15 @@ func (e *encodeState) string(s string, escapeHTML bool) {
 			if start < i {
 				e.WriteString(s[start:i])
 			}
+			e.WriteByte('\\')
 			switch b {
 			case '\\', '"':
-				e.WriteByte('\\')
 				e.WriteByte(b)
 			case '\n':
-				e.WriteByte('\\')
 				e.WriteByte('n')
 			case '\r':
-				e.WriteByte('\\')
 				e.WriteByte('r')
 			case '\t':
-				e.WriteByte('\\')
 				e.WriteByte('t')
 			default:
 				// This encodes bytes < 0x20 except for \t, \n and \r.
@@ -916,7 +911,7 @@ func (e *encodeState) string(s string, escapeHTML bool) {
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
 				// and served to some browsers.
-				e.WriteString(`\u00`)
+				e.WriteString(`u00`)
 				e.WriteByte(hex[b>>4])
 				e.WriteByte(hex[b&0xF])
 			}
@@ -972,18 +967,15 @@ func (e *encodeState) stringBytes(s []byte, escapeHTML bool) {
 			if start < i {
 				e.Write(s[start:i])
 			}
+			e.WriteByte('\\')
 			switch b {
 			case '\\', '"':
-				e.WriteByte('\\')
 				e.WriteByte(b)
 			case '\n':
-				e.WriteByte('\\')
 				e.WriteByte('n')
 			case '\r':
-				e.WriteByte('\\')
 				e.WriteByte('r')
 			case '\t':
-				e.WriteByte('\\')
 				e.WriteByte('t')
 			default:
 				// This encodes bytes < 0x20 except for \t, \n and \r.
@@ -991,7 +983,7 @@ func (e *encodeState) stringBytes(s []byte, escapeHTML bool) {
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
 				// and served to some browsers.
-				e.WriteString(`\u00`)
+				e.WriteString(`u00`)
 				e.WriteByte(hex[b>>4])
 				e.WriteByte(hex[b&0xF])
 			}
@@ -1050,12 +1042,6 @@ type field struct {
 	quoted    bool
 
 	encoder encoderFunc
-}
-
-func fillField(f field) field {
-	f.nameBytes = []byte(f.name)
-	f.equalFold = foldFunc(f.nameBytes)
-	return f
 }
 
 // byIndex sorts field by index sequence.
@@ -1164,14 +1150,16 @@ func typeFields(t reflect.Type) []field {
 					if name == "" {
 						name = sf.Name
 					}
-					field := fillField(field{
+					field := field{
 						name:      name,
 						tag:       tagged,
 						index:     index,
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
 						quoted:    quoted,
-					})
+					}
+					field.nameBytes = []byte(field.name)
+					field.equalFold = foldFunc(field.nameBytes)
 
 					// Build nameEscHTML and nameNonEsc ahead of time.
 					nameEscBuf.Reset()
@@ -1195,7 +1183,7 @@ func typeFields(t reflect.Type) []field {
 				// Record new anonymous struct to explore in next round.
 				nextCount[ft]++
 				if nextCount[ft] == 1 {
-					next = append(next, fillField(field{name: ft.Name(), index: index, typ: ft}))
+					next = append(next, field{name: ft.Name(), index: index, typ: ft})
 				}
 			}
 		}
