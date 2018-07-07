@@ -45,6 +45,7 @@ type Package struct {
 	GoFiles     []string // list of Go files
 	GccFiles    []string // list of gcc output files
 	Preamble    string   // collected preamble for _cgo_export.h
+	ArgTypedefs []string // typedefs used as arguments to or results of C functions
 }
 
 // A File collects information about a single Go input file.

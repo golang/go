@@ -167,6 +167,21 @@ func (p *Package) Translate(f *File) {
 	needType := p.guessKinds(f)
 	if len(needType) > 0 {
 		p.loadDWARF(f, needType)
+		// If there are typedefs used as arguments, add those
+		// types to the list of types we're interested in, and
+		// try again.
+		if len(p.ArgTypedefs) > 0 {
+			for _, a := range p.ArgTypedefs {
+				f.Name[a] = &Name{
+					Go: a,
+					C:  a,
+				}
+			}
+			needType := p.guessKinds(f)
+			if len(needType) > 0 {
+				p.loadDWARF(f, needType)
+			}
+		}
 	}
 	if p.rewriteCalls(f) {
 		// Add `import _cgo_unsafe "unsafe"` after the package statement.
@@ -597,6 +612,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 		}
 		conv.FinishType(pos)
 	}
+	p.ArgTypedefs = conv.argTypedefs
 }
 
 // mangleName does name mangling to translate names
@@ -1678,6 +1694,9 @@ type typeConv struct {
 
 	ptrSize int64
 	intSize int64
+
+	// Typedefs used as argument types for C calls.
+	argTypedefs []string
 }
 
 var tagGen int
@@ -2085,6 +2104,10 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			s := *sub
 			s.Go = c.uintptr
 			sub = &s
+			// Make sure we update any previously computed type.
+			if oldType := typedef[name.Name]; oldType != nil {
+				oldType.Go = sub.Go
+			}
 		}
 		t.Go = name
 		if unionWithPointer[sub.Go] {
@@ -2234,6 +2257,9 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 			C:     tr,
 		}
 	case *dwarf.TypedefType:
+		// Keep track of all the typedefs used as arguments.
+		c.argTypedefs = append(c.argTypedefs, dt.Name)
+
 		// C has much more relaxed rules than Go for
 		// implicit type conversions. When the parameter
 		// is type T defined as *X, simulate a little of the
@@ -2290,6 +2316,9 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 		gr = []*ast.Field{{Type: c.goVoid}}
 	} else if dtype.ReturnType != nil {
 		r = c.Type(unqual(dtype.ReturnType), pos)
+		if dt, ok := dtype.ReturnType.(*dwarf.TypedefType); ok {
+			c.argTypedefs = append(c.argTypedefs, dt.Name)
+		}
 		gr = []*ast.Field{{Type: r.Go}}
 	}
 	return &FuncType{
