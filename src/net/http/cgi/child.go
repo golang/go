@@ -102,7 +102,7 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 	}
 
 	// There's apparently a de-facto standard for this.
-	// http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
+	// https://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
 	if s := params["HTTPS"]; s == "on" || s == "ON" || s == "1" {
 		r.TLS = &tls.ConnectionState{HandshakeComplete: true}
 	}

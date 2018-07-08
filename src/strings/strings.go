@@ -797,6 +797,8 @@ func Trim(s string, cutset string) string {
 
 // TrimLeft returns a slice of the string s with all leading
 // Unicode code points contained in cutset removed.
+//
+// To remove a prefix, use TrimPrefix instead.
 func TrimLeft(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -806,6 +808,8 @@ func TrimLeft(s string, cutset string) string {
 
 // TrimRight returns a slice of the string s, with all trailing
 // Unicode code points contained in cutset removed.
+//
+// To remove a suffix, use TrimSuffix instead.
 func TrimRight(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s

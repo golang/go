@@ -302,7 +302,14 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// returns; everything live at earlier deferprocs is still live at that one.
 		frame.continpc = frame.pc
 		if waspanic {
-			if _defer != nil && _defer.sp == frame.sp {
+			// We match up defers with frames using the SP.
+			// However, if the function has an empty stack
+			// frame, then it's possible (on LR machines)
+			// for multiple call frames to have the same
+			// SP. But, since a function with no frame
+			// can't push a defer, the defer can't belong
+			// to that frame.
+			if _defer != nil && _defer.sp == frame.sp && frame.sp != frame.fp {
 				frame.continpc = _defer.pc
 			} else {
 				frame.continpc = 0
@@ -310,7 +317,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 
 		// Unwind our local defer stack past this frame.
-		for _defer != nil && (_defer.sp == frame.sp || _defer.sp == _NoArgs) {
+		for _defer != nil && ((_defer.sp == frame.sp && frame.sp != frame.fp) || _defer.sp == _NoArgs) {
 			_defer = _defer.link
 		}
 
@@ -990,18 +997,25 @@ func topofstack(f funcInfo, g0 bool) bool {
 		(g0 && f.funcID == funcID_asmcgocall)
 }
 
-// isSystemGoroutine reports whether the goroutine g must be omitted in
-// stack dumps and deadlock detector.
+// isSystemGoroutine reports whether the goroutine g must be omitted
+// in stack dumps and deadlock detector. This is any goroutine that
+// starts at a runtime.* entry point, except for runtime.main and
+// sometimes runtime.runfinq.
 func isSystemGoroutine(gp *g) bool {
+	// Keep this in sync with cmd/trace/trace.go:isSystemGoroutine.
 	f := findfunc(gp.startpc)
 	if !f.valid() {
 		return false
 	}
-	return f.funcID == funcID_runfinq && !fingRunning ||
-		f.funcID == funcID_bgsweep ||
-		f.funcID == funcID_forcegchelper ||
-		f.funcID == funcID_timerproc ||
-		f.funcID == funcID_gcBgMarkWorker
+	if f.funcID == funcID_runtime_main {
+		return false
+	}
+	if f.funcID == funcID_runfinq {
+		// We include the finalizer goroutine if it's calling
+		// back into user code.
+		return !fingRunning
+	}
+	return hasprefix(funcname(f), "runtime.")
 }
 
 // SetCgoTraceback records three C functions to use to gather
@@ -1100,6 +1114,13 @@ func isSystemGoroutine(gp *g) bool {
 // Unlike runtime.Callers, the PC values returned should, when passed
 // to the symbolizer function, return the file/line of the call
 // instruction.  No additional subtraction is required or appropriate.
+//
+// On all platforms, the traceback function is invoked when a call from
+// Go to C to Go requests a stack trace. On linux/amd64, linux/ppc64le,
+// and freebsd/amd64, the traceback function is also invoked when a
+// signal is received by a thread that is executing a cgo call. The
+// traceback function should not make assumptions about when it is
+// called, as future versions of Go may make additional calls.
 //
 // The symbolizer function will be called with a single argument, a
 // pointer to a struct:

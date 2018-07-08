@@ -14,7 +14,11 @@ package codegen
 //    Subtraction    //
 // ----------------- //
 
-func SubMem(arr []int) int {
+func SubMem(arr []int, b int) int {
+	// 386:`SUBL\s[A-Z]+,\s8\([A-Z]+\)`
+	arr[2] -= b
+	// 386:`SUBL\s[A-Z]+,\s12\([A-Z]+\)`
+	arr[3] -= b
 	// 386:"SUBL\t4"
 	// amd64:"SUBQ\t8"
 	return arr[0] - arr[1]

@@ -119,22 +119,17 @@ Printf family
 
 Flag: -printf
 
-Suspicious calls to functions in the Printf family, including any functions
-with these names, disregarding case:
-	Print Printf Println
-	Fprint Fprintf Fprintln
-	Sprint Sprintf Sprintln
-	Error Errorf
-	Fatal Fatalf
-	Log Logf
-	Panic Panicf Panicln
-The -printfuncs flag can be used to redefine this list.
-If the function name ends with an 'f', the function is assumed to take
-a format descriptor string in the manner of fmt.Printf. If not, vet
-complains about arguments that look like format descriptor strings.
+Suspicious calls to fmt.Print, fmt.Printf, and related functions.
+The check applies to known functions (for example, those in package fmt)
+as well as any detected wrappers of known functions.
 
-It also checks for errors such as using a Writer as the first argument of
-Printf.
+The -printfuncs flag specifies a comma-separated list of names of
+additional known formatting functions. Each name can be of the form
+pkg.Name or pkg.Type.Name, where pkg is a complete import path,
+or else can be a case-insensitive unqualified identifier like "errorf".
+If a listed name ends in f, the function is assumed to be Printf-like,
+taking a format string before the argument list. Otherwise it is
+assumed to be Print-like, taking a list of arguments with no format string.
 
 Range loop variables
 

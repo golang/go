@@ -863,15 +863,22 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	arg+8(FP), R0
 
 	MOVD	RSP, R2		// save original stack pointer
+	CMP	$0, g
+	BEQ	nosave
 	MOVD	g, R4
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	MOVD	g_m(g), R8
+	MOVD	m_gsignal(R8), R3
+	CMP	R3, g
+	BEQ	nosave
 	MOVD	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	g0
+	BEQ	nosave
+
+	// Switch to system stack.
 	MOVD	R0, R9	// gosave<> and save_g might clobber R0
 	BL	gosave<>(SB)
 	MOVD	R3, g
@@ -881,7 +888,6 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	R9, R0
 
 	// Now on a scheduling stack (a pthread-created stack).
-g0:
 	// Save room for two of our pointers /*, plus 32 bytes of callee
 	// save area that lives on the caller stack. */
 	MOVD	RSP, R13
@@ -904,6 +910,30 @@ g0:
 	MOVD	R5, RSP
 
 	MOVW	R0, ret+16(FP)
+	RET
+
+nosave:
+	// Running on a system stack, perhaps even without a g.
+	// Having no g can happen during thread creation or thread teardown
+	// (see needm/dropm on Solaris, for example).
+	// This code is like the above sequence but without saving/restoring g
+	// and without worrying about the stack moving out from under us
+	// (because we're on a system stack, not a goroutine stack).
+	// The above code could be used directly if already on a system stack,
+	// but then the only path through this code would be a rare case on Solaris.
+	// Using this code for all "already on system stack" calls exercises it more,
+	// which should help keep it correct.
+	MOVD	RSP, R13
+	SUB	$16, R13
+	MOVD	R13, RSP
+	MOVD	$0, R4
+	MOVD	R4, 0(RSP)	// Where above code stores g, in case someone looks during debugging.
+	MOVD	R2, 8(RSP)	// Save original stack pointer.
+	BL	(R1)
+	// Restore stack pointer.
+	MOVD	8(RSP), R2
+	MOVD	R2, RSP	
+	MOVD	R0, ret+16(FP)
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)

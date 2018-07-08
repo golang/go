@@ -216,8 +216,12 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 	return runcmd(cmd...)
 }
 
-func compileInDir(runcmd runCmd, dir string, flags []string, names ...string) (out []byte, err error) {
-	cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", "."}
+func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, names ...string) (out []byte, err error) {
+	cmd := []string{goTool(), "tool", "compile", "-e"}
+	if localImports {
+		// Set relative path for local imports and import search path to current dir.
+		cmd = append(cmd, "-D", ".", "-I", ".")
+	}
 	cmd = append(cmd, flags...)
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
@@ -489,6 +493,7 @@ func (t *test) run() {
 	wantError := false
 	wantAuto := false
 	singlefilepkgs := false
+	localImports := true
 	f := strings.Fields(action)
 	if len(f) > 0 {
 		action = f[0]
@@ -497,10 +502,6 @@ func (t *test) run() {
 
 	// TODO: Clean up/simplify this switch statement.
 	switch action {
-	case "rundircmpout":
-		action = "rundir"
-	case "cmpout":
-		action = "run" // the run case already looks for <dir>/<test>.out files
 	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
 		// nothing to do
 	case "errorcheckandrundir":
@@ -524,10 +525,18 @@ func (t *test) run() {
 	// collect flags
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
+		case "-1":
+			wantError = true
 		case "-0":
 			wantError = false
 		case "-s":
 			singlefilepkgs = true
+		case "-n":
+			// Do not set relative path for local imports to current dir,
+			// e.g. do not pass -D . -I . to the compiler.
+			// Used in fixedbugs/bug345.go to allow compilation and import of local pkg.
+			// See golang.org/issue/25635
+			localImports = false
 		case "-t": // timeout in seconds
 			args = args[1:]
 			var err error
@@ -607,6 +616,8 @@ func (t *test) run() {
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "asmcheck":
+		// Compile Go file and match the generated assembly
+		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
 		for _, env := range ops.Envs() {
 			cmdline := []string{"build", "-gcflags", "-S"}
@@ -631,6 +642,9 @@ func (t *test) run() {
 		return
 
 	case "errorcheck":
+		// Compile Go file.
+		// Fail if wantError is true and compilation was successful and vice versa.
+		// Match errors produced by gc against errors in comments.
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
 		cmdline := []string{goTool(), "tool", "compile", "-C", "-e", "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
@@ -655,10 +669,11 @@ func (t *test) run() {
 		return
 
 	case "compile":
+		// Compile Go file.
 		_, t.err = compileFile(runcmd, long, flags)
 
 	case "compiledir":
-		// Compile all files in the directory in lexicographic order.
+		// Compile all files in the directory as packages in lexicographic order.
 		longdir := filepath.Join(cwd, t.goDirName())
 		pkgs, err := goDirPackages(longdir, singlefilepkgs)
 		if err != nil {
@@ -666,24 +681,31 @@ func (t *test) run() {
 			return
 		}
 		for _, gofiles := range pkgs {
-			_, t.err = compileInDir(runcmd, longdir, flags, gofiles...)
+			_, t.err = compileInDir(runcmd, longdir, flags, localImports, gofiles...)
 			if t.err != nil {
 				return
 			}
 		}
 
 	case "errorcheckdir", "errorcheckandrundir":
-		// errorcheck all files in lexicographic order
-		// useful for finding importing errors
+		// Compile and errorCheck all files in the directory as packages in lexicographic order.
+		// If errorcheckdir and wantError, compilation of the last package must fail.
+		// If errorcheckandrundir and wantError, compilation of the package prior the last must fail.
 		longdir := filepath.Join(cwd, t.goDirName())
 		pkgs, err := goDirPackages(longdir, singlefilepkgs)
 		if err != nil {
 			t.err = err
 			return
 		}
+		errPkg := len(pkgs) - 1
+		if wantError && action == "errorcheckandrundir" {
+			// The last pkg should compiled successfully and will be run in next case.
+			// Preceding pkg must return an error from compileInDir.
+			errPkg--
+		}
 		for i, gofiles := range pkgs {
-			out, err := compileInDir(runcmd, longdir, flags, gofiles...)
-			if i == len(pkgs)-1 {
+			out, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+			if i == errPkg {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
 					return
@@ -710,8 +732,10 @@ func (t *test) run() {
 		fallthrough
 
 	case "rundir":
-		// Compile all files in the directory in lexicographic order.
-		// then link as if the last file is the main package and run it
+		// Compile all files in the directory as packages in lexicographic order.
+		// In case of errorcheckandrundir, ignore failed compilation of the package before the last.
+		// Link as if the last file is the main package, run it.
+		// Verify the expected output.
 		longdir := filepath.Join(cwd, t.goDirName())
 		pkgs, err := goDirPackages(longdir, singlefilepkgs)
 		if err != nil {
@@ -719,8 +743,10 @@ func (t *test) run() {
 			return
 		}
 		for i, gofiles := range pkgs {
-			_, err := compileInDir(runcmd, longdir, flags, gofiles...)
-			if err != nil {
+			_, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+			// Allow this package compilation fail based on conditions below;
+			// its errors were checked in previous case.
+			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
 				t.err = err
 				return
 			}
@@ -746,6 +772,7 @@ func (t *test) run() {
 		}
 
 	case "build":
+		// Build Go file.
 		_, err := runcmd(goTool(), "build", goGcflags(), "-o", "a.exe", long)
 		if err != nil {
 			t.err = err
@@ -753,7 +780,7 @@ func (t *test) run() {
 
 	case "builddir", "buildrundir":
 		// Build an executable from all the .go and .s files in a subdirectory.
-		useTmp = true
+		// Run it and verify its output in the buildrundir case.
 		longdir := filepath.Join(cwd, t.goDirName())
 		files, dirErr := ioutil.ReadDir(longdir)
 		if dirErr != nil {
@@ -822,9 +849,10 @@ func (t *test) run() {
 			}
 		}
 
-	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
+	case "buildrun":
+		// Build an executable from Go file, then run it, verify its output.
+		// Useful for timeout tests where failure mode is infinite loop.
 		// TODO: not supported on NaCl
-		useTmp = true
 		cmd := []string{goTool(), "build", goGcflags(), "-o", "a.exe"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
@@ -849,6 +877,9 @@ func (t *test) run() {
 		}
 
 	case "run":
+		// Run Go file if no special go command flags are provided;
+		// otherwise build an executable and run it.
+		// Verify the output.
 		useTmp = false
 		var out []byte
 		var err error
@@ -891,6 +922,8 @@ func (t *test) run() {
 		}
 
 	case "runoutput":
+		// Run Go file and write its output into temporary Go file.
+		// Run generated Go file and verify its output.
 		rungatec <- true
 		defer func() {
 			<-rungatec
@@ -926,6 +959,8 @@ func (t *test) run() {
 		}
 
 	case "errorcheckoutput":
+		// Run Go file and write its output into temporary Go file.
+		// Compile and errorCheck generated Go file.
 		useTmp = false
 		cmd := []string{goTool(), "run", goGcflags()}
 		if *linkshared {
@@ -1021,6 +1056,17 @@ func splitOutput(out string, wantAuto bool) []string {
 	return res
 }
 
+// errorCheck matches errors in outStr against comments in source files.
+// For each line of the source files which should generate an error,
+// there should be a comment of the form // ERROR "regexp".
+// If outStr has an error for a line which has no such comment,
+// this function will report an error.
+// Likewise if outStr does not have an error for a line which has a comment,
+// or if the error message does not match the <regexp>.
+// The <regexp> syntax is Perl but its best to stick to egrep.
+//
+// Sources files are supplied as fullshort slice.
+// It consists of pairs: full path to source file and it's base name.
 func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
 	defer func() {
 		if *verbose && err != nil {

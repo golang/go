@@ -63,6 +63,9 @@ func fetchProfiles(s *source, o *plugin.Options) (*profile.Profile, error) {
 	}
 
 	if pbase != nil {
+		if s.DiffBase {
+			pbase.SetLabel("pprof::base", []string{"true"})
+		}
 		if s.Normalize {
 			err := p.Normalize(pbase)
 			if err != nil {
@@ -599,9 +602,9 @@ var httpGet = func(source string, timeout time.Duration) (*http.Response, error)
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			ResponseHeaderTimeout: timeout + 5*time.Second,
 			Proxy:                 http.ProxyFromEnvironment,
 			TLSClientConfig:       tlsConfig,
+			ResponseHeaderTimeout: timeout + 5*time.Second,
 		},
 	}
 	return client.Get(source)

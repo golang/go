@@ -644,7 +644,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		s.Outer = outer
 		s.Value = int64(machsym.value - sect.addr)
 		if !s.Attr.CgoExportDynamic() {
-			s.Dynimplib = "" // satisfy dynimport
+			s.SetDynimplib("") // satisfy dynimport
 		}
 		if outer.Type == sym.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {

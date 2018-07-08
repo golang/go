@@ -20,7 +20,7 @@ func walk(fn *Node) {
 	Curfn = fn
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("\nbefore %v", Curfn.Func.Nname.Sym)
+		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
@@ -276,6 +276,9 @@ func walkstmt(n *Node) *Node {
 		}
 
 		n.Right = walkstmt(n.Right)
+		if n.Op == OFORUNTIL {
+			walkstmtlist(n.List.Slice())
+		}
 		walkstmtlist(n.Nbody.Slice())
 
 	case OIF:
@@ -284,7 +287,6 @@ func walkstmt(n *Node) *Node {
 		walkstmtlist(n.Rlist.Slice())
 
 	case ORETURN:
-		walkexprlist(n.List.Slice(), &n.Ninit)
 		if n.List.Len() == 0 {
 			break
 		}
@@ -314,6 +316,9 @@ func walkstmt(n *Node) *Node {
 
 			if samelist(rl, n.List.Slice()) {
 				// special return in disguise
+				// TODO(josharian, 1.12): is "special return" still relevant?
+				// Tests still pass w/o this. See comments on https://go-review.googlesource.com/c/go/+/118318
+				walkexprlist(n.List.Slice(), &n.Ninit)
 				n.List.Set(nil)
 
 				break
@@ -326,6 +331,7 @@ func walkstmt(n *Node) *Node {
 			n.List.Set(reorder3(ll))
 			break
 		}
+		walkexprlist(n.List.Slice(), &n.Ninit)
 
 		ll := ascompatte(nil, false, Curfn.Type.Results(), n.List.Slice(), 1, &n.Ninit)
 		n.List.Set(ll)
@@ -470,7 +476,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 	lno := setlineno(n)
 
 	if Debug['w'] > 1 {
-		Dump("walk-before", n)
+		Dump("before walk expr", n)
 	}
 
 	if n.Typecheck() != 1 {
@@ -1760,7 +1766,7 @@ opswitch:
 	updateHasCall(n)
 
 	if Debug['w'] != 0 && n != nil {
-		Dump("walk", n)
+		Dump("after walk expr", n)
 	}
 
 	lineno = lno
@@ -1833,10 +1839,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 	return nn
 }
 
-// l is an lv and rt is the type of an rv
-// return 1 if this implies a function call
-// evaluating the lv or a function call
-// in the conversion of the types
+// fncall reports whether assigning an rvalue of type rt to an lvalue l might involve a function call.
 func fncall(l *Node, rt *types.Type) bool {
 	if l.HasCall() || l.Op == OINDEXMAP {
 		return true
@@ -1844,6 +1847,7 @@ func fncall(l *Node, rt *types.Type) bool {
 	if eqtype(l.Type, rt) {
 		return false
 	}
+	// There might be a conversion required, which might involve a runtime call.
 	return true
 }
 
@@ -1862,9 +1866,8 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 		}
 		r := nr.Field(i)
 
-		// any lv that causes a fn call must be
-		// deferred until all the return arguments
-		// have been pulled from the output arguments
+		// Any assignment to an lvalue that might cause a function call must be
+		// deferred until all the returned values have been read.
 		if fncall(l, r.Type) {
 			tmp := temp(r.Type)
 			tmp = typecheck(tmp, Erv)
@@ -2669,8 +2672,6 @@ func paramstoheap(params *types.Type) []*Node {
 // even allocations to move params/results to the heap.
 // The generated code is added to Curfn's Enter list.
 func zeroResults() {
-	lno := lineno
-	lineno = Curfn.Pos
 	for _, f := range Curfn.Type.Results().Fields().Slice() {
 		if v := asNode(f.Nname); v != nil && v.Name.Param.Heapaddr != nil {
 			// The local which points to the return value is the
@@ -2679,9 +2680,8 @@ func zeroResults() {
 			continue
 		}
 		// Zero the stack location containing f.
-		Curfn.Func.Enter.Append(nod(OAS, nodarg(f, 1), nil))
+		Curfn.Func.Enter.Append(nodl(Curfn.Pos, OAS, nodarg(f, 1), nil))
 	}
-	lineno = lno
 }
 
 // returnsfromheap returns code to copy values for heap-escaped parameters
@@ -3057,11 +3057,7 @@ func isAppendOfMake(n *Node) bool {
 	}
 
 	second := n.List.Second()
-	if second.Op != OMAKESLICE {
-		return false
-	}
-
-	if n.List.Second().Right != nil {
+	if second.Op != OMAKESLICE || second.Right != nil {
 		return false
 	}
 
@@ -3138,10 +3134,8 @@ func extendslice(n *Node, init *Nodes) *Node {
 	nodes = append(nodes, nod(OAS, nn, nod(OADD, nod(OLEN, s, nil), l2)))
 
 	// if uint(n) > uint(cap(s))
-	nuint := nod(OCONV, nn, nil)
-	nuint.Type = types.Types[TUINT]
-	capuint := nod(OCONV, nod(OCAP, s, nil), nil)
-	capuint.Type = types.Types[TUINT]
+	nuint := conv(nn, types.Types[TUINT])
+	capuint := conv(nod(OCAP, s, nil), types.Types[TUINT])
 	nif := nod(OIF, nod(OGT, nuint, capuint), nil)
 
 	// instantiate growslice(typ *type, old []any, newcap int) []any
@@ -3167,40 +3161,34 @@ func extendslice(n *Node, init *Nodes) *Node {
 	tmp = nod(OSPTR, s, nil)
 	nodes = append(nodes, nod(OAS, sptr, tmp))
 
-	var clr []*Node
-
 	// hp := &s[len(l1)]
-	hp := temp(types.Types[TUNSAFEPTR])
-
-	tmp = nod(OINDEX, s, nod(OLEN, l1, nil))
-	tmp.SetBounded(true)
-	tmp = nod(OADDR, tmp, nil)
-	tmp = nod(OCONVNOP, tmp, nil)
-	tmp.Type = types.Types[TUNSAFEPTR]
-	clr = append(clr, nod(OAS, hp, tmp))
+	hp := nod(OINDEX, s, nod(OLEN, l1, nil))
+	hp.SetBounded(true)
+	hp = nod(OADDR, hp, nil)
+	hp = nod(OCONVNOP, hp, nil)
+	hp.Type = types.Types[TUNSAFEPTR]
 
 	// hn := l2 * sizeof(elem(s))
-	hn := temp(types.Types[TUINTPTR])
-
-	tmp = nod(OMUL, l2, nodintconst(elemtype.Width))
-	tmp = conv(tmp, types.Types[TUINTPTR])
-	clr = append(clr, nod(OAS, hn, tmp))
+	hn := nod(OMUL, l2, nodintconst(elemtype.Width))
+	hn = conv(hn, types.Types[TUINTPTR])
 
 	clrname := "memclrNoHeapPointers"
 	hasPointers := types.Haspointers(elemtype)
 	if hasPointers {
 		clrname = "memclrHasPointers"
 	}
-	clrfn := mkcall(clrname, nil, init, hp, hn)
-	clr = append(clr, clrfn)
+
+	var clr Nodes
+	clrfn := mkcall(clrname, nil, &clr, hp, hn)
+	clr.Append(clrfn)
 
 	if hasPointers {
 		// if l1ptr == sptr
 		nifclr := nod(OIF, nod(OEQ, l1ptr, sptr), nil)
-		nifclr.Nbody.Set(clr)
+		nifclr.Nbody = clr
 		nodes = append(nodes, nifclr)
 	} else {
-		nodes = append(nodes, clr...)
+		nodes = append(nodes, clr.Slice()...)
 	}
 
 	typecheckslice(nodes, Etop)
@@ -4093,7 +4081,7 @@ func canMergeLoads() bool {
 }
 
 // isRuneCount reports whether n is of the form len([]rune(string)).
-// These are optimized into a call to runtime.runecount.
+// These are optimized into a call to runtime.countrunes.
 func isRuneCount(n *Node) bool {
 	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTRARRAYRUNE
 }

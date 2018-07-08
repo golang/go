@@ -152,19 +152,22 @@ type poset struct {
 	undo      []posetUndo   // undo chain
 }
 
-func newPoset(unsigned bool) *poset {
-	var flags uint8
-	if unsigned {
-		flags |= posetFlagUnsigned
-	}
+func newPoset() *poset {
 	return &poset{
-		flags:     flags,
 		values:    make(map[ID]uint32),
 		constants: make([]*Value, 0, 8),
 		nodes:     make([]posetNode, 1, 16),
 		roots:     make([]uint32, 0, 4),
 		noneq:     make(map[ID]bitset),
 		undo:      make([]posetUndo, 0, 4),
+	}
+}
+
+func (po *poset) SetUnsigned(uns bool) {
+	if uns {
+		po.flags |= posetFlagUnsigned
+	} else {
+		po.flags &^= posetFlagUnsigned
 	}
 }
 
@@ -679,12 +682,23 @@ func (po *poset) CheckIntegrity() (err error) {
 // It can be used for debugging purposes, as a poset is supposed to
 // be empty after it's fully rolled back through Undo.
 func (po *poset) CheckEmpty() error {
-	// Check that the poset is completely empty
+	if len(po.nodes) != 1 {
+		return fmt.Errorf("non-empty nodes list: %v", po.nodes)
+	}
 	if len(po.values) != 0 {
 		return fmt.Errorf("non-empty value map: %v", po.values)
 	}
 	if len(po.roots) != 0 {
 		return fmt.Errorf("non-empty root list: %v", po.roots)
+	}
+	if len(po.constants) != 0 {
+		return fmt.Errorf("non-empty constants: %v", po.constants)
+	}
+	if len(po.undo) != 0 {
+		return fmt.Errorf("non-empty undo list: %v", po.undo)
+	}
+	if po.lastidx != 0 {
+		return fmt.Errorf("lastidx index is not zero: %v", po.lastidx)
 	}
 	for _, bs := range po.noneq {
 		for _, x := range bs {
@@ -692,14 +706,6 @@ func (po *poset) CheckEmpty() error {
 				return fmt.Errorf("non-empty noneq map")
 			}
 		}
-	}
-	for idx, n := range po.nodes {
-		if n.l|n.r != 0 {
-			return fmt.Errorf("non-empty node %v->[%d,%d]", idx, n.l.Target(), n.r.Target())
-		}
-	}
-	if len(po.constants) != 0 {
-		return fmt.Errorf("non-empty constant")
 	}
 	return nil
 }
@@ -1123,6 +1129,9 @@ func (po *poset) Undo() {
 			po.noneq[pass.ID].Clear(pass.idx)
 
 		case undoNewNode:
+			if pass.idx != po.lastidx {
+				panic("invalid newnode index")
+			}
 			if pass.ID != 0 {
 				if po.values[pass.ID] != pass.idx {
 					panic("invalid newnode undo pass")
@@ -1131,6 +1140,8 @@ func (po *poset) Undo() {
 			}
 			po.setchl(pass.idx, 0)
 			po.setchr(pass.idx, 0)
+			po.nodes = po.nodes[:pass.idx]
+			po.lastidx--
 
 			// If it was the last inserted constant, remove it
 			nc := len(po.constants)

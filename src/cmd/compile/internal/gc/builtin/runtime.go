@@ -122,6 +122,7 @@ func mapdelete_fast32(mapType *byte, hmap map[any]any, key any)
 func mapdelete_fast64(mapType *byte, hmap map[any]any, key any)
 func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
 func mapiternext(hiter *any)
+func mapclear(mapType *byte, hmap map[any]any)
 
 // *byte is really *runtime.Type
 func makechan64(chanType *byte, size int64) (hchan chan any)
@@ -182,6 +183,7 @@ func complex128div(num complex128, den complex128) (quo complex128)
 
 // race detection
 func racefuncenter(uintptr)
+func racefuncenterfp()
 func racefuncexit()
 func raceread(uintptr)
 func racewrite(uintptr)

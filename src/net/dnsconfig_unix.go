@@ -73,7 +73,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// to look it up.
 				if parseIPv4(f[1]) != nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
-				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
+				} else if ip, _ := parseIPv6Zone(f[1]); ip != nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				}
 			}
@@ -121,7 +121,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 
 		case "lookup":
 			// OpenBSD option:
-			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
 			// "the legal space-separated values are: bind, file, yp"
 			conf.lookup = f[1:]
 

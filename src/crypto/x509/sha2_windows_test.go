@@ -13,7 +13,7 @@ func init() {
 	}
 	if major := byte(v); major < 6 {
 		// Windows XP SP2 and Windows 2003 do not support SHA2.
-		// http://blogs.technet.com/b/pki/archive/2010/09/30/sha2-and-windows.aspx
+		// https://blogs.technet.com/b/pki/archive/2010/09/30/sha2-and-windows.aspx
 		supportSHA2 = false
 	}
 }

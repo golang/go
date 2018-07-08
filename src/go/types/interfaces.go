@@ -144,7 +144,7 @@ func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tn
 	}
 
 	if trace {
-		check.trace(iface.Pos(), "-- collect methods for %v (path = %s)", iface, pathString(path))
+		check.trace(iface.Pos(), "-- collect methods for %v (path = %s, objPath = %s)", iface, pathString(path), check.pathString())
 		check.indent++
 		defer func() {
 			check.indent--

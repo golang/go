@@ -281,6 +281,10 @@ var (
 	numFailed uint32 // number of test failures
 )
 
+// The maximum number of stack frames to go through when skipping helper functions for
+// the purpose of decorating log messages.
+const maxStackLen = 50
+
 // common holds the elements common between T and B and
 // captures common methods such as Errorf.
 type common struct {
@@ -301,6 +305,7 @@ type common struct {
 
 	parent   *common
 	level    int       // Nesting depth of test or benchmark.
+	creator  []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
 	name     string    // Name of test or benchmark.
 	start    time.Time // Time test or benchmark started
 	duration time.Duration
@@ -327,15 +332,20 @@ func Verbose() bool {
 }
 
 // frameSkip searches, starting after skip frames, for the first caller frame
-// in a function not marked as a helper and returns the frames to skip
-// to reach that site. The search stops if it finds a tRunner function that
-// was the entry point into the test.
+// in a function not marked as a helper and returns that frame.
+// The search stops if it finds a tRunner function that
+// was the entry point into the test and the test is not a subtest.
 // This function must be called with c.mu held.
-func (c *common) frameSkip(skip int) int {
-	if c.helpers == nil {
-		return skip
-	}
-	var pc [50]uintptr
+func (c *common) frameSkip(skip int) runtime.Frame {
+	// If the search continues into the parent test, we'll have to hold
+	// its mu temporarily. If we then return, we need to unlock it.
+	shouldUnlock := false
+	defer func() {
+		if shouldUnlock {
+			c.mu.Unlock()
+		}
+	}()
+	var pc [maxStackLen]uintptr
 	// Skip two extra frames to account for this function
 	// and runtime.Callers itself.
 	n := runtime.Callers(skip+2, pc[:])
@@ -343,32 +353,54 @@ func (c *common) frameSkip(skip int) int {
 		panic("testing: zero callers found")
 	}
 	frames := runtime.CallersFrames(pc[:n])
-	var frame runtime.Frame
-	more := true
-	for i := 0; more; i++ {
+	var firstFrame, prevFrame, frame runtime.Frame
+	for more := true; more; prevFrame = frame {
 		frame, more = frames.Next()
+		if firstFrame.PC == 0 {
+			firstFrame = frame
+		}
 		if frame.Function == c.runner {
 			// We've gone up all the way to the tRunner calling
 			// the test function (so the user must have
 			// called tb.Helper from inside that test function).
-			// Only skip up to the test function itself.
-			return skip + i - 1
+			// If this is a top-level test, only skip up to the test function itself.
+			// If we're in a subtest, continue searching in the parent test,
+			// starting from the point of the call to Run which created this subtest.
+			if c.level > 1 {
+				frames = runtime.CallersFrames(c.creator)
+				parent := c.parent
+				// We're no longer looking at the current c after this point,
+				// so we should unlock its mu, unless it's the original receiver,
+				// in which case our caller doesn't expect us to do that.
+				if shouldUnlock {
+					c.mu.Unlock()
+				}
+				c = parent
+				// Remember to unlock c.mu when we no longer need it, either
+				// because we went up another nesting level, or because we
+				// returned.
+				shouldUnlock = true
+				c.mu.Lock()
+				continue
+			}
+			return prevFrame
 		}
 		if _, ok := c.helpers[frame.Function]; !ok {
 			// Found a frame that wasn't inside a helper function.
-			return skip + i
+			return frame
 		}
 	}
-	return skip
+	return firstFrame
 }
 
 // decorate prefixes the string with the file and line of the call site
-// and inserts the final newline if needed and indentation tabs for formatting.
+// and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
 func (c *common) decorate(s string) string {
-	skip := c.frameSkip(3) // decorate + log + public function.
-	_, file, line, ok := runtime.Caller(skip)
-	if ok {
+	frame := c.frameSkip(3) // decorate + log + public function.
+	file := frame.File
+	line := frame.Line
+	if file != "" {
 		// Truncate file name at last file name separator.
 		if index := strings.LastIndex(file, "/"); index >= 0 {
 			file = file[index+1:]
@@ -377,11 +409,13 @@ func (c *common) decorate(s string) string {
 		}
 	} else {
 		file = "???"
+	}
+	if line == 0 {
 		line = 1
 	}
 	buf := new(strings.Builder)
-	// Every line is indented at least one tab.
-	buf.WriteByte('\t')
+	// Every line is indented at least 4 spaces.
+	buf.WriteString("    ")
 	fmt.Fprintf(buf, "%s:%d: ", file, line)
 	lines := strings.Split(s, "\n")
 	if l := len(lines); l > 1 && lines[l-1] == "" {
@@ -389,8 +423,8 @@ func (c *common) decorate(s string) string {
 	}
 	for i, line := range lines {
 		if i > 0 {
-			// Second and subsequent lines are indented an extra tab.
-			buf.WriteString("\n\t\t")
+			// Second and subsequent lines are indented an additional 4 spaces.
+			buf.WriteString("\n        ")
 		}
 		buf.WriteString(line)
 	}
@@ -642,8 +676,6 @@ func (c *common) Skipped() bool {
 // Helper marks the calling function as a test helper function.
 // When printing file and line information, that function will be skipped.
 // Helper may be called simultaneously from multiple goroutines.
-// Helper has no effect if it is called directly from a TestXxx/BenchmarkXxx
-// function or a subtest/sub-benchmark function.
 func (c *common) Helper() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -810,6 +842,11 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	if !ok || shouldFailFast() {
 		return true
 	}
+	// Record the stack trace at the point of this call so that if the subtest
+	// function - which runs in a separate stack - is marked as a helper, we can
+	// continue walking the stack into the parent test.
+	var pc [maxStackLen]uintptr
+	n := runtime.Callers(2, pc[:])
 	t = &T{
 		common: common{
 			barrier: make(chan bool),
@@ -817,6 +854,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 			name:    testName,
 			parent:  &t.common,
 			level:   t.level + 1,
+			creator: pc[:n],
 			chatty:  t.chatty,
 		},
 		context: t.context,

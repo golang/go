@@ -174,7 +174,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 
-		if mode == invalid {
+		if mode == invalid && typ != Typ[Invalid] {
 			check.invalidArg(x.pos(), "%s for %s", x, bin.name)
 			return
 		}

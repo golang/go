@@ -31,6 +31,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -48,6 +49,9 @@ type Progs struct {
 	curfn     *Node      // fn these Progs are for
 	progcache []obj.Prog // local progcache
 	cacheidx  int        // first free element of progcache
+
+	nextLive LivenessIndex // liveness index for the next Prog
+	prevLive LivenessIndex // last emitted liveness index
 }
 
 // newProgs returns a new Progs for fn.
@@ -66,6 +70,8 @@ func newProgs(fn *Node, worker int) *Progs {
 
 	pp.pos = fn.Pos
 	pp.settext(fn)
+	pp.nextLive = LivenessInvalid
+	pp.prevLive = LivenessInvalid
 	return pp
 }
 
@@ -102,6 +108,23 @@ func (pp *Progs) Free() {
 
 // Prog adds a Prog with instruction As to pp.
 func (pp *Progs) Prog(as obj.As) *obj.Prog {
+	if pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
+		// Emit stack map index change.
+		idx := pp.nextLive.stackMapIndex
+		pp.prevLive.stackMapIndex = idx
+		p := pp.Prog(obj.APCDATA)
+		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
+		Addrconst(&p.To, int64(idx))
+	}
+	if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
+		// Emit register map index change.
+		idx := pp.nextLive.regMapIndex
+		pp.prevLive.regMapIndex = idx
+		p := pp.Prog(obj.APCDATA)
+		Addrconst(&p.From, objabi.PCDATA_RegMapIndex)
+		Addrconst(&p.To, int64(idx))
+	}
+
 	p := pp.next
 	pp.next = pp.NewProg()
 	pp.clearp(pp.next)
@@ -113,6 +136,13 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 
 	p.As = as
 	p.Pos = pp.pos
+	if pp.pos.IsStmt() == src.PosIsStmt {
+		// Clear IsStmt for later Progs at this pos provided that as can be marked as a stmt
+		if ssa.LosesStmtMark(as) {
+			return p
+		}
+		pp.pos = pp.pos.WithNotStmt()
+	}
 	return p
 }
 
@@ -167,6 +197,12 @@ func (pp *Progs) settext(fn *Node) {
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = &fn.Func.lsym.Func.GCLocals
+
+	p = pp.Prog(obj.AFUNCDATA)
+	Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = &fn.Func.lsym.Func.GCRegs
 }
 
 func (f *Func) initLSym() {

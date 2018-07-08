@@ -368,28 +368,30 @@ func (ctxt *Link) symtab() {
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	var symtype *sym.Symbol
 	var symtyperel *sym.Symbol
-	if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-		s = ctxt.Syms.Lookup("type.*", 0)
+	if !ctxt.DynlinkingGo() {
+		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
+			s = ctxt.Syms.Lookup("type.*", 0)
 
-		s.Type = sym.STYPE
-		s.Size = 0
-		s.Attr |= sym.AttrReachable
-		symtype = s
+			s.Type = sym.STYPE
+			s.Size = 0
+			s.Attr |= sym.AttrReachable
+			symtype = s
 
-		s = ctxt.Syms.Lookup("typerel.*", 0)
+			s = ctxt.Syms.Lookup("typerel.*", 0)
 
-		s.Type = sym.STYPERELRO
-		s.Size = 0
-		s.Attr |= sym.AttrReachable
-		symtyperel = s
-	} else if !ctxt.DynlinkingGo() {
-		s = ctxt.Syms.Lookup("type.*", 0)
+			s.Type = sym.STYPERELRO
+			s.Size = 0
+			s.Attr |= sym.AttrReachable
+			symtyperel = s
+		} else {
+			s = ctxt.Syms.Lookup("type.*", 0)
 
-		s.Type = sym.STYPE
-		s.Size = 0
-		s.Attr |= sym.AttrReachable
-		symtype = s
-		symtyperel = s
+			s.Type = sym.STYPE
+			s.Size = 0
+			s.Attr |= sym.AttrReachable
+			symtype = s
+			symtyperel = s
+		}
 	}
 
 	groupSym := func(name string, t sym.SymKind) *sym.Symbol {

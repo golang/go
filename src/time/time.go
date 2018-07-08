@@ -1076,7 +1076,9 @@ func (t Time) Local() Time {
 	return t
 }
 
-// In returns t with the location information set to loc.
+// In returns a copy of t representating the same time instant, but
+// with the copy's location information set to loc for display
+// purposes.
 //
 // In panics if loc is nil.
 func (t Time) In(loc *Location) Time {
@@ -1104,7 +1106,8 @@ func (t Time) Zone() (name string, offset int) {
 }
 
 // Unix returns t as a Unix time, the number of seconds elapsed
-// since January 1, 1970 UTC.
+// since January 1, 1970 UTC. The result does not depend on the
+// location associated with t.
 func (t Time) Unix() int64 {
 	return t.unixSec()
 }
@@ -1113,7 +1116,8 @@ func (t Time) Unix() int64 {
 // since January 1, 1970 UTC. The result is undefined if the Unix time
 // in nanoseconds cannot be represented by an int64 (a date before the year
 // 1678 or after 2262). Note that this means the result of calling UnixNano
-// on the zero Time is undefined.
+// on the zero Time is undefined. The result does not depend on the
+// location associated with t.
 func (t Time) UnixNano() int64 {
 	return (t.unixSec())*1e9 + int64(t.nsec())
 }

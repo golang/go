@@ -111,7 +111,7 @@ func TestRecorder(t *testing.T) {
 		}
 	}
 
-	tests := []struct {
+	for _, tt := range [...]struct {
 		name   string
 		h      func(w http.ResponseWriter, r *http.Request)
 		checks []checkFunc
@@ -273,16 +273,17 @@ func TestRecorder(t *testing.T) {
 			},
 			check(hasStatus(200), hasContents("Some body"), hasContentLength(9)),
 		},
-	}
-	r, _ := http.NewRequest("GET", "http://foo.com/", nil)
-	for _, tt := range tests {
-		h := http.HandlerFunc(tt.h)
-		rec := NewRecorder()
-		h.ServeHTTP(rec, r)
-		for _, check := range tt.checks {
-			if err := check(rec); err != nil {
-				t.Errorf("%s: %v", tt.name, err)
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			r, _ := http.NewRequest("GET", "http://foo.com/", nil)
+			h := http.HandlerFunc(tt.h)
+			rec := NewRecorder()
+			h.ServeHTTP(rec, r)
+			for _, check := range tt.checks {
+				if err := check(rec); err != nil {
+					t.Error(err)
+				}
 			}
-		}
+		})
 	}
 }

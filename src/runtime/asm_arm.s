@@ -36,24 +36,27 @@ TEXT _rt0_arm_lib(SB),NOSPLIT,$104
 	MOVW	R6, 20(R13)
 	MOVW	R7, 24(R13)
 	MOVW	R8, 28(R13)
-	MOVW	R11, 32(R13)
+	MOVW	g, 32(R13)
+	MOVW	R11, 36(R13)
 
 	// Skip floating point registers on GOARM < 6.
 	MOVB    runtime·goarm(SB), R11
 	CMP	$6, R11
 	BLT	skipfpsave
-	MOVD	F8, (32+8*1)(R13)
-	MOVD	F9, (32+8*2)(R13)
-	MOVD	F10, (32+8*3)(R13)
-	MOVD	F11, (32+8*4)(R13)
-	MOVD	F12, (32+8*5)(R13)
-	MOVD	F13, (32+8*6)(R13)
-	MOVD	F14, (32+8*7)(R13)
-	MOVD	F15, (32+8*8)(R13)
+	MOVD	F8, (40+8*0)(R13)
+	MOVD	F9, (40+8*1)(R13)
+	MOVD	F10, (40+8*2)(R13)
+	MOVD	F11, (40+8*3)(R13)
+	MOVD	F12, (40+8*4)(R13)
+	MOVD	F13, (40+8*5)(R13)
+	MOVD	F14, (40+8*6)(R13)
+	MOVD	F15, (40+8*7)(R13)
 skipfpsave:
 	// Save argc/argv.
 	MOVW	R0, _rt0_arm_lib_argc<>(SB)
 	MOVW	R1, _rt0_arm_lib_argv<>(SB)
+
+	MOVW	$0, g // Initialize g.
 
 	// Synchronous initialization.
 	CALL	runtime·libpreinit(SB)
@@ -77,21 +80,22 @@ rr:
 	MOVB    runtime·goarm(SB), R11
 	CMP	$6, R11
 	BLT	skipfprest
-	MOVD	(32+8*1)(R13), F8
-	MOVD	(32+8*2)(R13), F9
-	MOVD	(32+8*3)(R13), F10
-	MOVD	(32+8*4)(R13), F11
-	MOVD	(32+8*5)(R13), F12
-	MOVD	(32+8*6)(R13), F13
-	MOVD	(32+8*7)(R13), F14
-	MOVD	(32+8*8)(R13), F15
+	MOVD	(40+8*0)(R13), F8
+	MOVD	(40+8*1)(R13), F9
+	MOVD	(40+8*2)(R13), F10
+	MOVD	(40+8*3)(R13), F11
+	MOVD	(40+8*4)(R13), F12
+	MOVD	(40+8*5)(R13), F13
+	MOVD	(40+8*6)(R13), F14
+	MOVD	(40+8*7)(R13), F15
 skipfprest:
 	MOVW	12(R13), R4
 	MOVW	16(R13), R5
 	MOVW	20(R13), R6
 	MOVW	24(R13), R7
 	MOVW	28(R13), R8
-	MOVW	32(R13), R11
+	MOVW	32(R13), g
+	MOVW	36(R13), R11
 	RET
 
 // _rt0_arm_lib_go initializes the Go runtime.
@@ -582,15 +586,20 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	MOVW	arg+4(FP), R0
 
 	MOVW	R13, R2
+	CMP	$0, g
+	BEQ nosave
 	MOVW	g, R4
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	MOVW	g_m(g), R8
+	MOVW	m_gsignal(R8), R3
+	CMP	R3, g
+	BEQ	nosave
 	MOVW	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	g0
+	BEQ	nosave
 	BL	gosave<>(SB)
 	MOVW	R0, R5
 	MOVW	R3, R0
@@ -599,7 +608,6 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	MOVW	(g_sched+gobuf_sp)(g), R13
 
 	// Now on a scheduling stack (a pthread-created stack).
-g0:
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
 	MOVW	R4, 20(R13) // save old g
@@ -618,6 +626,30 @@ g0:
 	MOVW	R5, R0
 	MOVW	R1, R13
 
+	MOVW	R0, ret+8(FP)
+	RET
+
+nosave:
+	// Running on a system stack, perhaps even without a g.
+	// Having no g can happen during thread creation or thread teardown
+	// (see needm/dropm on Solaris, for example).
+	// This code is like the above sequence but without saving/restoring g
+	// and without worrying about the stack moving out from under us
+	// (because we're on a system stack, not a goroutine stack).
+	// The above code could be used directly if already on a system stack,
+	// but then the only path through this code would be a rare case on Solaris.
+	// Using this code for all "already on system stack" calls exercises it more,
+	// which should help keep it correct.
+	SUB	$24, R13
+	BIC	$0x7, R13	// alignment for gcc ABI
+	// save null g in case someone looks during debugging.
+	MOVW	$0, R4
+	MOVW	R4, 20(R13)
+	MOVW	R2, 16(R13)	// Save old stack pointer.
+	BL	(R1)
+	// Restore stack pointer.
+	MOVW	16(R13), R2
+	MOVW	R2, R13
 	MOVW	R0, ret+8(FP)
 	RET
 

@@ -121,6 +121,9 @@ type Arch struct {
 	// symbol in an executable, which is typical when internally
 	// linking PIE binaries.
 	TLSIEtoLE func(s *sym.Symbol, off, size int)
+
+	// optional override for assignAddress
+	AssignAddress func(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64)
 }
 
 var (
@@ -413,7 +416,7 @@ func (ctxt *Link) loadlib() {
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
 				// now.
-				if s.Extname != "" && s.Dynimplib != "" && !s.Attr.CgoExport() {
+				if s.Extname != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
 					s.Type = sym.SDYNIMPORT
 				} else {
 					s.Type = 0
@@ -918,12 +921,6 @@ func hostobjs(ctxt *Link) {
 	}
 }
 
-// provided by lib9
-
-func rmtemp() {
-	os.RemoveAll(*flagTmpdir)
-}
-
 func hostlinksetup(ctxt *Link) {
 	if ctxt.LinkMode != LinkExternal {
 		return
@@ -942,7 +939,10 @@ func hostlinksetup(ctxt *Link) {
 			log.Fatal(err)
 		}
 		*flagTmpdir = dir
-		AtExit(rmtemp)
+		AtExit(func() {
+			ctxt.Out.f.Close()
+			os.RemoveAll(*flagTmpdir)
+		})
 	}
 
 	// change our output to temporary object file
@@ -1221,6 +1221,11 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Qunused-arguments")
 	}
 
+	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
+	if ctxt.compressDWARF && linkerFlagSupported(argv[0], compressDWARF) {
+		argv = append(argv, compressDWARF)
+	}
+
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
 
@@ -1257,7 +1262,26 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	argv = append(argv, ldflag...)
+	// clang, unlike GCC, passes -rdynamic to the linker
+	// even when linking with -static, causing a linker
+	// error when using GNU ld. So take out -rdynamic if
+	// we added it. We do it in this order, rather than
+	// only adding -rdynamic later, so that -*extldflags
+	// can override -rdynamic without using -static.
+	checkStatic := func(arg string) {
+		if ctxt.IsELF && arg == "-static" {
+			for i := range argv {
+				if argv[i] == "-rdynamic" {
+					argv[i] = "-static"
+				}
+			}
+		}
+	}
+
+	for _, p := range ldflag {
+		argv = append(argv, p)
+		checkStatic(p)
+	}
 
 	// When building a program with the default -buildmode=exe the
 	// gc compiler generates code requires DT_TEXTREL in a
@@ -1267,21 +1291,9 @@ func (ctxt *Link) hostlink() {
 	// issue #17847. To avoid this problem pass -no-pie to the
 	// toolchain if it is supported.
 	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
-		src := filepath.Join(*flagTmpdir, "trivial.c")
-		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
-			Errorf(nil, "WriteFile trivial.c failed: %v", err)
-		}
-
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			cmd := exec.Command(argv[0], nopie, "trivial.c")
-			cmd.Dir = *flagTmpdir
-			cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
-			out, err := cmd.CombinedOutput()
-			// GCC says "unrecognized command line option ‘-no-pie’"
-			// clang says "unknown argument: '-no-pie'"
-			supported := err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
-			if supported {
+			if linkerFlagSupported(argv[0], nopie) {
 				argv = append(argv, nopie)
 				break
 			}
@@ -1290,20 +1302,7 @@ func (ctxt *Link) hostlink() {
 
 	for _, p := range strings.Fields(*flagExtldflags) {
 		argv = append(argv, p)
-
-		// clang, unlike GCC, passes -rdynamic to the linker
-		// even when linking with -static, causing a linker
-		// error when using GNU ld. So take out -rdynamic if
-		// we added it. We do it in this order, rather than
-		// only adding -rdynamic later, so that -*extldflags
-		// can override -rdynamic without using -static.
-		if ctxt.IsELF && p == "-static" {
-			for i := range argv {
-				if argv[i] == "-rdynamic" {
-					argv[i] = "-static"
-				}
-			}
-		}
+		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
 		// use gcc linker script to work around gcc bug
@@ -1343,7 +1342,7 @@ func (ctxt *Link) hostlink() {
 		}
 		// For os.Rename to work reliably, must be in same directory as outfile.
 		combinedOutput := *flagOutfile + "~"
-		isIOS, err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode)
+		isIOS, err := machoCombineDwarf(ctxt, *flagOutfile, dsym, combinedOutput)
 		if err != nil {
 			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 		}
@@ -1354,6 +1353,25 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	}
+}
+
+var createTrivialCOnce sync.Once
+
+func linkerFlagSupported(linker, flag string) bool {
+	createTrivialCOnce.Do(func() {
+		src := filepath.Join(*flagTmpdir, "trivial.c")
+		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
+			Errorf(nil, "WriteFile trivial.c failed: %v", err)
+		}
+	})
+
+	cmd := exec.Command(linker, flag, "trivial.c")
+	cmd.Dir = *flagTmpdir
+	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+	out, err := cmd.CombinedOutput()
+	// GCC says "unrecognized command line option ‘-no-pie’"
+	// clang says "unknown argument: '-no-pie'"
+	return err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
 }
 
 // hostlinkArchArgs returns arguments to pass to the external linker
@@ -1962,7 +1980,7 @@ func usage() {
 type SymbolType int8
 
 const (
-	// see also http://9p.io/magic/man2html/1/nm
+	// see also https://9p.io/magic/man2html/1/nm
 	TextSym      SymbolType = 'T'
 	DataSym      SymbolType = 'D'
 	BSSSym       SymbolType = 'B'
@@ -2199,6 +2217,18 @@ func undefsym(ctxt *Link, s *sym.Symbol) {
 }
 
 func (ctxt *Link) undef() {
+	// undefsym performs checks (almost) identical to checks
+	// that report undefined relocations in relocsym.
+	// Both undefsym and relocsym can report same symbol as undefined,
+	// which results in error message duplication (see #10978).
+	//
+	// The undef is run after Arch.Asmb and could detect some
+	// programming errors there, but if object being linked is already
+	// failed with errors, it is better to avoid duplicated errors.
+	if nerrors > 0 {
+		return
+	}
+
 	for _, s := range ctxt.Textp {
 		undefsym(ctxt, s)
 	}

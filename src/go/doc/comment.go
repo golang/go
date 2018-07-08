@@ -231,8 +231,8 @@ func heading(line string) string {
 		return ""
 	}
 
-	// exclude lines with illegal characters
-	if strings.ContainsAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") {
+	// exclude lines with illegal characters. we allow "(),"
+	if strings.ContainsAny(line, ".;:!?+*/=[]{}_^°&§~%#@<\">\\") {
 		return ""
 	}
 
@@ -281,7 +281,7 @@ func anchorID(line string) string {
 // a single paragraph. There is one exception to the rule: a span that
 // consists of a single line, is followed by another paragraph span,
 // begins with a capital letter, and contains no punctuation
-// is formatted as a heading.
+// other than parentheses and commas is formatted as a heading.
 //
 // A span of indented lines is converted into a <pre> block,
 // with the common indent prefix removed.

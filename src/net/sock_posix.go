@@ -13,32 +13,9 @@ import (
 	"syscall"
 )
 
-// A sockaddr represents a TCP, UDP, IP or Unix network endpoint
-// address that can be converted into a syscall.Sockaddr.
-type sockaddr interface {
-	Addr
-
-	// family returns the platform-dependent address family
-	// identifier.
-	family() int
-
-	// isWildcard reports whether the address is a wildcard
-	// address.
-	isWildcard() bool
-
-	// sockaddr returns the address converted into a syscall
-	// sockaddr type that implements syscall.Sockaddr
-	// interface. It returns a nil interface when the address is
-	// nil.
-	sockaddr(family int) (syscall.Sockaddr, error)
-
-	// toLocal maps the zero address to a local system address (127.0.0.1 or ::1)
-	toLocal(net string) sockaddr
-}
-
 // socket returns a network file descriptor that is ready for
 // asynchronous I/O using the network poller.
-func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr) (fd *netFD, err error) {
+func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error) (fd *netFD, err error) {
 	s, err := sysSocket(family, sotype, proto)
 	if err != nil {
 		return nil, err
@@ -77,24 +54,39 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
 	if laddr != nil && raddr == nil {
 		switch sotype {
 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
-			if err := fd.listenStream(laddr, listenerBacklog); err != nil {
+			if err := fd.listenStream(laddr, listenerBacklog, ctrlFn); err != nil {
 				fd.Close()
 				return nil, err
 			}
 			return fd, nil
 		case syscall.SOCK_DGRAM:
-			if err := fd.listenDatagram(laddr); err != nil {
+			if err := fd.listenDatagram(laddr, ctrlFn); err != nil {
 				fd.Close()
 				return nil, err
 			}
 			return fd, nil
 		}
 	}
-	if err := fd.dial(ctx, laddr, raddr); err != nil {
+	if err := fd.dial(ctx, laddr, raddr, ctrlFn); err != nil {
 		fd.Close()
 		return nil, err
 	}
 	return fd, nil
+}
+
+func (fd *netFD) ctrlNetwork() string {
+	switch fd.net {
+	case "unix", "unixgram", "unixpacket":
+		return fd.net
+	}
+	switch fd.net[len(fd.net)-1] {
+	case '4', '6':
+		return fd.net
+	}
+	if fd.family == syscall.AF_INET {
+		return fd.net + "4"
+	}
+	return fd.net + "6"
 }
 
 func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
@@ -121,14 +113,29 @@ func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
 	return func(syscall.Sockaddr) Addr { return nil }
 }
 
-func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr) error {
+func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error) error {
+	if ctrlFn != nil {
+		c, err := newRawConn(fd)
+		if err != nil {
+			return err
+		}
+		var ctrlAddr string
+		if raddr != nil {
+			ctrlAddr = raddr.String()
+		} else if laddr != nil {
+			ctrlAddr = laddr.String()
+		}
+		if err := ctrlFn(fd.ctrlNetwork(), ctrlAddr, c); err != nil {
+			return err
+		}
+	}
 	var err error
 	var lsa syscall.Sockaddr
 	if laddr != nil {
 		if lsa, err = laddr.sockaddr(fd.family); err != nil {
 			return err
 		} else if lsa != nil {
-			if err := syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
+			if err = syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
 				return os.NewSyscallError("bind", err)
 			}
 		}
@@ -165,29 +172,39 @@ func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr) error {
 	return nil
 }
 
-func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
-	if err := setDefaultListenerSockopts(fd.pfd.Sysfd); err != nil {
+func (fd *netFD) listenStream(laddr sockaddr, backlog int, ctrlFn func(string, string, syscall.RawConn) error) error {
+	var err error
+	if err = setDefaultListenerSockopts(fd.pfd.Sysfd); err != nil {
 		return err
 	}
-	if lsa, err := laddr.sockaddr(fd.family); err != nil {
+	var lsa syscall.Sockaddr
+	if lsa, err = laddr.sockaddr(fd.family); err != nil {
 		return err
-	} else if lsa != nil {
-		if err := syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
-			return os.NewSyscallError("bind", err)
+	}
+	if ctrlFn != nil {
+		c, err := newRawConn(fd)
+		if err != nil {
+			return err
+		}
+		if err := ctrlFn(fd.ctrlNetwork(), laddr.String(), c); err != nil {
+			return err
 		}
 	}
-	if err := listenFunc(fd.pfd.Sysfd, backlog); err != nil {
+	if err = syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
+		return os.NewSyscallError("bind", err)
+	}
+	if err = listenFunc(fd.pfd.Sysfd, backlog); err != nil {
 		return os.NewSyscallError("listen", err)
 	}
-	if err := fd.init(); err != nil {
+	if err = fd.init(); err != nil {
 		return err
 	}
-	lsa, _ := syscall.Getsockname(fd.pfd.Sysfd)
+	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
 	fd.setAddr(fd.addrFunc()(lsa), nil)
 	return nil
 }
 
-func (fd *netFD) listenDatagram(laddr sockaddr) error {
+func (fd *netFD) listenDatagram(laddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error) error {
 	switch addr := laddr.(type) {
 	case *UDPAddr:
 		// We provide a socket that listens to a wildcard
@@ -211,17 +228,27 @@ func (fd *netFD) listenDatagram(laddr sockaddr) error {
 			laddr = &addr
 		}
 	}
-	if lsa, err := laddr.sockaddr(fd.family); err != nil {
+	var err error
+	var lsa syscall.Sockaddr
+	if lsa, err = laddr.sockaddr(fd.family); err != nil {
 		return err
-	} else if lsa != nil {
-		if err := syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
-			return os.NewSyscallError("bind", err)
+	}
+	if ctrlFn != nil {
+		c, err := newRawConn(fd)
+		if err != nil {
+			return err
+		}
+		if err := ctrlFn(fd.ctrlNetwork(), laddr.String(), c); err != nil {
+			return err
 		}
 	}
-	if err := fd.init(); err != nil {
+	if err = syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
+		return os.NewSyscallError("bind", err)
+	}
+	if err = fd.init(); err != nil {
 		return err
 	}
-	lsa, _ := syscall.Getsockname(fd.pfd.Sysfd)
+	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
 	fd.setAddr(fd.addrFunc()(lsa), nil)
 	return nil
 }

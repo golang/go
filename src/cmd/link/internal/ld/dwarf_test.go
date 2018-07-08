@@ -22,9 +22,9 @@ import (
 )
 
 const (
-	NoOpt        = "-gcflags=-l -N"
-	OptInl4      = "-gcflags=all=-l=4"
-	OptInl4DwLoc = "-gcflags=all=-l=4 -dwarflocationlists"
+	DefaultOpt = "-gcflags="
+	NoOpt      = "-gcflags=-l -N"
+	OptInl4    = "-gcflags=all=-l=4"
 )
 
 func TestRuntimeTypesPresent(t *testing.T) {
@@ -99,6 +99,38 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
 	}
 
 	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("build: %s\n", b)
+		t.Fatalf("build error: %v", err)
+	}
+
+	f, err := objfilepkg.Open(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &builtFile{f, dst}
+}
+
+func envWithGoPathSet(gp string) []string {
+	env := os.Environ()
+	for i := 0; i < len(env); i++ {
+		if strings.HasPrefix(env[i], "GOPATH=") {
+			env[i] = "GOPATH=" + gp
+			return env
+		}
+	}
+	env = append(env, "GOPATH="+gp)
+	return env
+}
+
+// Similar to gobuild() above, but runs off a separate GOPATH environment
+
+func gobuildTestdata(t *testing.T, tdir string, gopathdir string, packtobuild string, gcflags string) *builtFile {
+	dst := filepath.Join(tdir, "out.exe")
+
+	// Run a build with an updated GOPATH
+	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, packtobuild)
+	cmd.Env = envWithGoPathSet(gopathdir)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
 		t.Fatalf("build error: %v", err)
@@ -547,8 +579,8 @@ func TestInlinedRoutineRecords(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
 	}
 
 	const prog = `
@@ -684,30 +716,8 @@ func main() {
 	}
 }
 
-func abstractOriginSanity(t *testing.T, flags string) {
+func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
 
-	// Nothing special about net/http here, this is just a convenient
-	// way to pull in a lot of code.
-	const prog = `
-package main
-
-import (
-	"net/http"
-	"net/http/httptest"
-)
-
-type statusHandler int
-
-func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(int(*h))
-}
-
-func main() {
-	status := statusHandler(http.StatusNotFound)
-	s := httptest.NewServer(&status)
-	defer s.Close()
-}
-`
 	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
@@ -715,7 +725,7 @@ func main() {
 	defer os.RemoveAll(dir)
 
 	// Build with inlining, to exercise DWARF inlining support.
-	f := gobuild(t, dir, prog, flags)
+	f := gobuildTestdata(t, dir, gopathdir, "main", flags)
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -731,7 +741,6 @@ func main() {
 	// references.
 	abscount := 0
 	for i, die := range ex.dies {
-
 		// Does it have an abstract origin?
 		ooff, originOK := die.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
 		if !originOK {
@@ -788,27 +797,37 @@ func TestAbstractOriginSanity(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
 	}
 
-	abstractOriginSanity(t, OptInl4)
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "httptest")
+		abstractOriginSanity(t, gopathdir, OptInl4)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
 }
 
-func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
+func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris, pending resolution of issue #23168")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
 	}
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
 		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
 	}
 
-	abstractOriginSanity(t, OptInl4DwLoc)
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "issue25459")
+		abstractOriginSanity(t, gopathdir, DefaultOpt)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
 }
 
 func TestRuntimeTypeAttr(t *testing.T) {

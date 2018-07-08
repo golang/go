@@ -83,4 +83,10 @@ TEXT errors(SB),$0
 	VST1.P	[V1.B16], (R8)(R9<<1)                            // ERROR "invalid extended register"
 	VREV64	V1.H4, V2.H8                                     // ERROR "invalid arrangement"
 	VREV64	V1.D1, V2.D1                                     // ERROR "invalid arrangement"
+	ADD	R1, R2, R3, R4                                   // ERROR "illegal combination"
+	MADD	R1, R2, R3                                       // ERROR "illegal combination"
+	CINC	CS, R2, R3, R4                                   // ERROR "illegal combination"
+	CSEL	LT, R1, R2                                       // ERROR "illegal combination"
+	AND	$0x22220000, R2, RSP                             // ERROR "illegal combination"
+	ANDS	$0x22220000, R2, RSP                             // ERROR "illegal combination"
 	RET

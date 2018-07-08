@@ -160,69 +160,50 @@
 (Round(32|64)F x) -> (LoweredRound(32|64)F x)
 
 // Lowering shifts
+
+// Lower bounded shifts first. No need to check shift value.
+(Lsh64x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SLD x y)
+(Lsh32x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SLW x y)
+(Lsh16x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SLW x y)
+(Lsh8x(64|32|16|8)   x y) && shiftIsBounded(v) -> (SLW x y)
+(Rsh64Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SRD x y)
+(Rsh32Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SRW x y)
+(Rsh16Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SRW (MOVHZreg x) y)
+(Rsh8Ux(64|32|16|8)  x y) && shiftIsBounded(v) -> (SRW (MOVBZreg x) y)
+(Rsh64x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SRAD x y)
+(Rsh32x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SRAW x y)
+(Rsh16x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SRAW (MOVHreg x) y)
+(Rsh8x(64|32|16|8)   x y) && shiftIsBounded(v) -> (SRAW (MOVBreg x) y)
+
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
-//   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
-(Lsh64x64 <t> x y) -> (AND (SLD <t> x y) (SUBEcarrymask <t> (CMPUconst y [63])))
-(Lsh64x32 <t> x y) -> (AND (SLD <t> x y) (SUBEcarrymask <t> (CMPWUconst y [63])))
-(Lsh64x16 <t> x y) -> (AND (SLD <t> x y) (SUBEcarrymask <t> (CMPWUconst (MOVHZreg y) [63])))
-(Lsh64x8  <t> x y) -> (AND (SLD <t> x y) (SUBEcarrymask <t> (CMPWUconst (MOVBZreg y) [63])))
+//   result = shift >= 64 ? 0 : arg << shift
+(Lsh(64|32|16|8)x64 <t> x y) -> (MOVDGE <t> (SL(D|W|W|W) <t> x y) (MOVDconst [0]) (CMPUconst y [64]))
+(Lsh(64|32|16|8)x32 <t> x y) -> (MOVDGE <t> (SL(D|W|W|W) <t> x y) (MOVDconst [0]) (CMPWUconst y [64]))
+(Lsh(64|32|16|8)x16 <t> x y) -> (MOVDGE <t> (SL(D|W|W|W) <t> x y) (MOVDconst [0]) (CMPWUconst (MOVHZreg y) [64]))
+(Lsh(64|32|16|8)x8  <t> x y) -> (MOVDGE <t> (SL(D|W|W|W) <t> x y) (MOVDconst [0]) (CMPWUconst (MOVBZreg y) [64]))
 
-(Lsh32x64 <t> x y) -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPUconst y [31])))
-(Lsh32x32 <t> x y) -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst y [31])))
-(Lsh32x16 <t> x y) -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst (MOVHZreg y) [31])))
-(Lsh32x8  <t> x y) -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst (MOVBZreg y) [31])))
+(Rsh(64|32)Ux64 <t> x y) -> (MOVDGE <t> (SR(D|W) <t> x y) (MOVDconst [0]) (CMPUconst y [64]))
+(Rsh(64|32)Ux32 <t> x y) -> (MOVDGE <t> (SR(D|W) <t> x y) (MOVDconst [0]) (CMPWUconst y [64]))
+(Rsh(64|32)Ux16 <t> x y) -> (MOVDGE <t> (SR(D|W) <t> x y) (MOVDconst [0]) (CMPWUconst (MOVHZreg y) [64]))
+(Rsh(64|32)Ux8  <t> x y) -> (MOVDGE <t> (SR(D|W) <t> x y) (MOVDconst [0]) (CMPWUconst (MOVBZreg y) [64]))
 
-(Lsh16x64 <t> x y) -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPUconst y [31])))
-(Lsh16x32 <t> x y) -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst y [31])))
-(Lsh16x16 <t> x y) -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst (MOVHZreg y) [31])))
-(Lsh16x8  <t> x y) -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst (MOVBZreg y) [31])))
-
-(Lsh8x64 <t> x y)  -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPUconst y [31])))
-(Lsh8x32 <t> x y)  -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst y [31])))
-(Lsh8x16 <t> x y)  -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst (MOVHZreg y) [31])))
-(Lsh8x8  <t> x y)  -> (ANDW (SLW <t> x y) (SUBEWcarrymask <t> (CMPWUconst (MOVBZreg y) [31])))
-
-(Rsh64Ux64 <t> x y) -> (AND (SRD <t> x y) (SUBEcarrymask <t> (CMPUconst y [63])))
-(Rsh64Ux32 <t> x y) -> (AND (SRD <t> x y) (SUBEcarrymask <t> (CMPWUconst y [63])))
-(Rsh64Ux16 <t> x y) -> (AND (SRD <t> x y) (SUBEcarrymask <t> (CMPWUconst (MOVHZreg y) [63])))
-(Rsh64Ux8  <t> x y) -> (AND (SRD <t> x y) (SUBEcarrymask <t> (CMPWUconst (MOVBZreg y) [63])))
-
-(Rsh32Ux64 <t> x y) -> (ANDW (SRW <t> x y) (SUBEWcarrymask <t> (CMPUconst y [31])))
-(Rsh32Ux32 <t> x y) -> (ANDW (SRW <t> x y) (SUBEWcarrymask <t> (CMPWUconst y [31])))
-(Rsh32Ux16 <t> x y) -> (ANDW (SRW <t> x y) (SUBEWcarrymask <t> (CMPWUconst (MOVHZreg y) [31])))
-(Rsh32Ux8  <t> x y) -> (ANDW (SRW <t> x y) (SUBEWcarrymask <t> (CMPWUconst (MOVBZreg y) [31])))
-
-(Rsh16Ux64 <t> x y) -> (ANDW (SRW <t> (MOVHZreg x) y) (SUBEWcarrymask <t> (CMPUconst y [15])))
-(Rsh16Ux32 <t> x y) -> (ANDW (SRW <t> (MOVHZreg x) y) (SUBEWcarrymask <t> (CMPWUconst y [15])))
-(Rsh16Ux16 <t> x y) -> (ANDW (SRW <t> (MOVHZreg x) y) (SUBEWcarrymask <t> (CMPWUconst (MOVHZreg y) [15])))
-(Rsh16Ux8  <t> x y) -> (ANDW (SRW <t> (MOVHZreg x) y) (SUBEWcarrymask <t> (CMPWUconst (MOVBZreg y) [15])))
-
-(Rsh8Ux64 <t> x y)  -> (ANDW (SRW <t> (MOVBZreg x) y) (SUBEWcarrymask <t> (CMPUconst y [7])))
-(Rsh8Ux32 <t> x y)  -> (ANDW (SRW <t> (MOVBZreg x) y) (SUBEWcarrymask <t> (CMPWUconst y [7])))
-(Rsh8Ux16 <t> x y)  -> (ANDW (SRW <t> (MOVBZreg x) y) (SUBEWcarrymask <t> (CMPWUconst (MOVHZreg y) [7])))
-(Rsh8Ux8  <t> x y)  -> (ANDW (SRW <t> (MOVBZreg x) y) (SUBEWcarrymask <t> (CMPWUconst (MOVBZreg y) [7])))
+(Rsh(16|8)Ux64 <t> x y) -> (MOVDGE <t> (SRW <t> (MOV(H|B)Zreg x) y) (MOVDconst [0]) (CMPUconst y [64]))
+(Rsh(16|8)Ux32 <t> x y) -> (MOVDGE <t> (SRW <t> (MOV(H|B)Zreg x) y) (MOVDconst [0]) (CMPWUconst y [64]))
+(Rsh(16|8)Ux16 <t> x y) -> (MOVDGE <t> (SRW <t> (MOV(H|B)Zreg x) y) (MOVDconst [0]) (CMPWUconst (MOVHZreg y) [64]))
+(Rsh(16|8)Ux8  <t> x y) -> (MOVDGE <t> (SRW <t> (MOV(H|B)Zreg x) y) (MOVDconst [0]) (CMPWUconst (MOVBZreg y) [64]))
 
 // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
-// We implement this by setting the shift value to -1 (all ones) if the shift value is >= width.
-(Rsh64x64 <t> x y) -> (SRAD <t> x (OR <y.Type> y (NOT <y.Type> (SUBEcarrymask <y.Type> (CMPUconst y [63])))))
-(Rsh64x32 <t> x y) -> (SRAD <t> x (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst y [63])))))
-(Rsh64x16 <t> x y) -> (SRAD <t> x (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst (MOVHZreg y) [63])))))
-(Rsh64x8  <t> x y) -> (SRAD <t> x (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst (MOVBZreg y) [63])))))
+// We implement this by setting the shift value to 63 (all ones) if the shift value is more than 63.
+//   result = arg >> (shift >= 64 ? 63 : shift)
+(Rsh(64|32)x64 x y) -> (SRA(D|W) x (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPUconst  y [64])))
+(Rsh(64|32)x32 x y) -> (SRA(D|W) x (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst y [64])))
+(Rsh(64|32)x16 x y) -> (SRA(D|W) x (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVHZreg y) [64])))
+(Rsh(64|32)x8  x y) -> (SRA(D|W) x (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVBZreg y) [64])))
 
-(Rsh32x64 <t> x y) -> (SRAW <t> x (OR <y.Type> y (NOT <y.Type> (SUBEcarrymask <y.Type> (CMPUconst y [31])))))
-(Rsh32x32 <t> x y) -> (SRAW <t> x (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst y [31])))))
-(Rsh32x16 <t> x y) -> (SRAW <t> x (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst (MOVHZreg y) [31])))))
-(Rsh32x8  <t> x y) -> (SRAW <t> x (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst (MOVBZreg y) [31])))))
-
-(Rsh16x64 <t> x y) -> (SRAW <t> (MOVHreg x) (OR <y.Type> y (NOT <y.Type> (SUBEcarrymask <y.Type> (CMPUconst y [15])))))
-(Rsh16x32 <t> x y) -> (SRAW <t> (MOVHreg x) (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst y [15])))))
-(Rsh16x16 <t> x y) -> (SRAW <t> (MOVHreg x) (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst (MOVHZreg y) [15])))))
-(Rsh16x8  <t> x y) -> (SRAW <t> (MOVHreg x) (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst (MOVBZreg y) [15])))))
-
-(Rsh8x64 <t> x y)  -> (SRAW <t> (MOVBreg x) (OR <y.Type> y (NOT <y.Type> (SUBEcarrymask <y.Type> (CMPUconst y [7])))))
-(Rsh8x32 <t> x y)  -> (SRAW <t> (MOVBreg x) (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst y [7])))))
-(Rsh8x16 <t> x y)  -> (SRAW <t> (MOVBreg x) (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst (MOVHZreg y) [7])))))
-(Rsh8x8  <t> x y)  -> (SRAW <t> (MOVBreg x) (ORW <y.Type> y (NOTW <y.Type> (SUBEWcarrymask <y.Type> (CMPWUconst (MOVBZreg y) [7])))))
+(Rsh(16|8)x64 x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPUconst  y [64])))
+(Rsh(16|8)x32 x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst y [64])))
+(Rsh(16|8)x16 x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVHZreg y) [64])))
+(Rsh(16|8)x8  x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVBZreg y) [64])))
 
 // Lowering comparisons
 (Less64      x y) -> (MOVDLT (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
@@ -494,6 +475,7 @@
 // TODO(mundaym): modify the assembler to accept 64-bit values
 // and use isU32Bit(^c).
 (AND x (MOVDconst [c])) && is32Bit(c) && c < 0 -> (ANDconst [c] x)
+(AND x (MOVDconst [c])) && is32Bit(c) && c >= 0 -> (MOVWZreg (ANDWconst <typ.UInt32> [int64(int32(c))] x))
 (ANDW x (MOVDconst [c])) -> (ANDWconst [int64(int32(c))] x)
 
 (ANDWconst [c] (ANDWconst [d] x)) -> (ANDWconst [c & d] x)
@@ -505,19 +487,21 @@
 (XOR x (MOVDconst [c])) && isU32Bit(c) -> (XORconst [c] x)
 (XORW x (MOVDconst [c])) -> (XORWconst [int64(int32(c))] x)
 
-(SLD x (MOVDconst [c])) -> (SLDconst [c&63] x)
-(SLW x (MOVDconst [c])) -> (SLWconst [c&63] x)
-(SRD x (MOVDconst [c])) -> (SRDconst [c&63] x)
-(SRW x (MOVDconst [c])) -> (SRWconst [c&63] x)
-(SRAD x (MOVDconst [c])) -> (SRADconst [c&63] x)
-(SRAW x (MOVDconst [c])) -> (SRAWconst [c&63] x)
+// Constant shifts.
+(S(LD|RD|RAD|LW|RW|RAW) x (MOVDconst [c]))
+	-> (S(LD|RD|RAD|LW|RW|RAW)const x [c&63])
 
-(SRAW x (ANDWconst [63] y)) -> (SRAW x y)
-(SRAD x (ANDconst [63] y)) -> (SRAD x y)
-(SLW x (ANDWconst [63] y)) -> (SLW x y)
-(SLD x (ANDconst [63] y)) -> (SLD x y)
-(SRW x (ANDWconst [63] y)) -> (SRW x y)
-(SRD x (ANDconst [63] y)) -> (SRD x y)
+// Shifts only use the rightmost 6 bits of the shift value.
+(S(LD|RD|RAD|LW|RW|RAW) x (AND (MOVDconst [c]) y))
+	-> (S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst <typ.UInt32> [c&63] y))
+(S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst [c] y)) && c&63 == 63
+	-> (S(LD|RD|RAD|LW|RW|RAW) x y)
+(SLD  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SLD  x y)
+(SRD  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRD  x y)
+(SRAD x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRAD x y)
+(SLW  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SLW  x y)
+(SRW  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRW  x y)
+(SRAW x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRAW x y)
 
 // Rotate generation
 (ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
@@ -953,22 +937,33 @@
 (CMPWUconst (MOVDconst [x]) [y]) && uint32(x)<uint32(y) -> (FlagLT)
 (CMPWUconst (MOVDconst [x]) [y]) && uint32(x)>uint32(y) -> (FlagGT)
 
-// Other known comparisons.
-(CMPconst (MOVBZreg _) [c]) && 0xFF < c -> (FlagLT)
-(CMPconst (MOVHZreg _) [c]) && 0xFFFF < c -> (FlagLT)
-(CMPconst (MOVWZreg _) [c]) && 0xFFFFFFFF < c -> (FlagLT)
-(CMPWconst (SRWconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n) -> (FlagLT)
-(CMPconst (SRDconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n) -> (FlagLT)
-(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT)
-(CMPWconst (ANDWconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT)
+(CMP(W|WU)const (MOVBZreg _) [c]) &&   0xff < c -> (FlagLT)
+(CMP(W|WU)const (MOVHZreg _) [c]) && 0xffff < c -> (FlagLT)
 
-// Absorb flag constants into SBB ops.
-(SUBEcarrymask (FlagEQ)) -> (MOVDconst [-1])
-(SUBEcarrymask (FlagLT)) -> (MOVDconst [-1])
-(SUBEcarrymask (FlagGT)) -> (MOVDconst [0])
-(SUBEWcarrymask (FlagEQ)) -> (MOVDconst [-1])
-(SUBEWcarrymask (FlagLT)) -> (MOVDconst [-1])
-(SUBEWcarrymask (FlagGT)) -> (MOVDconst [0])
+(CMPconst  (SRDconst _ [c]) [n]) && c > 0 && n < 0 -> (FlagGT)
+(CMPWconst (SRWconst _ [c]) [n]) && c > 0 && n < 0 -> (FlagGT)
+
+(CMPUconst  (SRDconst _ [c]) [n]) && c > 0 && c < 64 && (1<<uint(64-c)) <= uint64(n) -> (FlagLT)
+(CMPWUconst (SRWconst _ [c]) [n]) && c > 0 && c < 32 && (1<<uint(32-c)) <= uint32(n) -> (FlagLT)
+
+(CMPWconst  (ANDWconst _ [m]) [n]) && int32(m) >= 0 &&  int32(m) <  int32(n) -> (FlagLT)
+(CMPWUconst (ANDWconst _ [m]) [n]) && uint32(m) < uint32(n) -> (FlagLT)
+
+// Convert 64-bit comparisons to 32-bit comparisons and signed comparisons
+// to unsigned comparisons.
+// Helps simplify constant comparison detection.
+(CM(P|PU)const (MOV(W|WZ)reg x) [c]) -> (CMP(W|WU)const x [c])
+(CM(P|P|PU|PU)const x:(MOV(H|HZ|H|HZ)reg _) [c]) -> (CMP(W|W|WU|WU)const x [c])
+(CM(P|P|PU|PU)const x:(MOV(B|BZ|B|BZ)reg _) [c]) -> (CMP(W|W|WU|WU)const x [c])
+(CMPconst  (MOV(WZ|W)reg x:(ANDWconst [m] _)) [c]) && int32(m) >= 0 && c >= 0 -> (CMPWUconst x [c])
+(CMPUconst (MOV(WZ|W)reg x:(ANDWconst [m] _)) [c]) && int32(m) >= 0           -> (CMPWUconst x [c])
+(CMPconst  x:(SRDconst _ [c]) [n]) && c > 0 && n >= 0 -> (CMPUconst  x [n])
+(CMPWconst x:(SRWconst _ [c]) [n]) && c > 0 && n >= 0 -> (CMPWUconst x [n])
+
+// Absorb sign and zero extensions into 32-bit comparisons.
+(CMP(W|W|WU|WU)      x (MOV(W|WZ|W|WZ)reg y))   -> (CMP(W|W|WU|WU) x y)
+(CMP(W|W|WU|WU)      (MOV(W|WZ|W|WZ)reg x) y)   -> (CMP(W|W|WU|WU) x y)
+(CMP(W|W|WU|WU)const (MOV(W|WZ|W|WZ)reg x) [c]) -> (CMP(W|W|WU|WU)const x [c])
 
 // Absorb flag constants into branches.
 (EQ (FlagEQ) yes no) -> (First nil yes no)
@@ -1079,6 +1074,10 @@
 (XOR x x) -> (MOVDconst [0])
 (XORW x x) -> (MOVDconst [0])
 (NEG (ADDconst [c] (NEG x))) && c != -(1<<31) -> (ADDconst [-c] x)
+(MOVBZreg (ANDWconst [m] x)) -> (MOVWZreg (ANDWconst <typ.UInt32> [int64( uint8(m))] x))
+(MOVHZreg (ANDWconst [m] x)) -> (MOVWZreg (ANDWconst <typ.UInt32> [int64(uint16(m))] x))
+(MOVBreg  (ANDWconst [m] x)) &&  int8(m) >= 0 -> (MOVWZreg (ANDWconst <typ.UInt32> [int64( uint8(m))] x))
+(MOVHreg  (ANDWconst [m] x)) && int16(m) >= 0 -> (MOVWZreg (ANDWconst <typ.UInt32> [int64(uint16(m))] x))
 
 // fused multiply-add
 (FADD (FMUL y z) x) -> (FMADD x y z)

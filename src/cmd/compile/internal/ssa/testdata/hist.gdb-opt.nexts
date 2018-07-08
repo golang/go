@@ -2,7 +2,6 @@
 55:	func test() {
 57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
 58:		tinycall()                // this forces l etc to stack
-57:		l := line{point{1 + zero, 2 + zero}, point{3 + zero, 4 + zero}}
 59:		dx := l.end.x - l.begin.x //gdb-dbg=(l.begin.x,l.end.y)//gdb-opt=(l,dx/O,dy/O)
 l = {begin = {x = 1, y = 2}, end = {x = 3, y = 4}}
 dx = <Optimized out, as expected>
@@ -116,9 +115,15 @@ scanner = (struct bufio.Scanner *) <A>
 a = 0
 n = 0
 t = 0
+86:		for i, a := range hist {
+87:			if a == 0 { //gdb-opt=(a,n,t)
+a = 3
+n = 0
+t = 0
 91:			n += a
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 3
 n = 3
@@ -126,13 +131,20 @@ t = 3
 91:			n += a
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 0
+n = 6
+t = 9
+86:		for i, a := range hist {
+87:			if a == 0 { //gdb-opt=(a,n,t)
+a = 2
 n = 6
 t = 9
 91:			n += a
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 1
 n = 8
@@ -140,8 +152,10 @@ t = 17
 91:			n += a
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
 a = 0
 n = 9
 t = 22
-98:	}
+86:		for i, a := range hist {
+99:	}

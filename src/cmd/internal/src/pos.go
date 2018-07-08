@@ -293,7 +293,7 @@ func (b *PosBase) InliningIndex() int {
 // A lico is a compact encoding of a LIne and COlumn number.
 type lico uint32
 
-// Layout constants: 22 bits for line, 8 bits for column, 2 for isStmt
+// Layout constants: 20 bits for line, 8 bits for column, 2 for isStmt, 2 for pro/epilogue
 // (If this is too tight, we can either make lico 64b wide,
 // or we can introduce a tiered encoding where we remove column
 // information as line numbers grow bigger; similar to what gcc
@@ -301,13 +301,18 @@ type lico uint32
 // The bitfield order is chosen to make IsStmt be the least significant
 // part of a position; its use is to communicate statement edges through
 // instruction scrambling in code generation, not to impose an order.
+// TODO: Prologue and epilogue are perhaps better handled as psuedoops for the assembler,
+// because they have almost no interaction with other uses of the position.
 const (
-	lineBits, lineMax     = 22, 1<<lineBits - 1
+	lineBits, lineMax     = 20, 1<<lineBits - 1
 	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
-	colBits, colMax       = 32 - lineBits - isStmtBits, 1<<colBits - 1
-	isStmtShift           = 0
-	colShift              = isStmtBits + isStmtShift
-	lineShift             = colBits + colShift
+	xlogueBits, xlogueMax = 2, 1<<xlogueBits - 1
+	colBits, colMax       = 32 - lineBits - xlogueBits - isStmtBits, 1<<colBits - 1
+
+	isStmtShift = 0
+	xlogueShift = isStmtBits + isStmtShift
+	colShift    = xlogueBits + xlogueShift
+	lineShift   = colBits + colShift
 )
 const (
 	// It is expected that the front end or a phase in SSA will usually generate positions tagged with
@@ -342,6 +347,14 @@ const (
 	PosNotStmt                 // Position should not be a statement boundary, but line should be preserved for profiling and low-level debugging purposes.
 )
 
+type PosXlogue uint
+
+const (
+	PosDefaultLogue PosXlogue = iota
+	PosPrologueEnd
+	PosEpilogueBegin
+)
+
 func makeLico(line, col uint) lico {
 	if line > lineMax {
 		// cannot represent line, use max. line so we have some information
@@ -363,6 +376,9 @@ func (x lico) IsStmt() uint {
 	}
 	return uint(x) >> isStmtShift & isStmtMax
 }
+func (x lico) Xlogue() PosXlogue {
+	return PosXlogue(uint(x) >> xlogueShift & xlogueMax)
+}
 
 // withNotStmt returns a lico for the same location, but not a statement
 func (x lico) withNotStmt() lico {
@@ -377,6 +393,18 @@ func (x lico) withDefaultStmt() lico {
 // withIsStmt returns a lico for the same location, tagged as definitely a statement
 func (x lico) withIsStmt() lico {
 	return x.withStmt(PosIsStmt)
+}
+
+// withLogue attaches a prologue/epilogue attribute to a lico
+func (x lico) withXlogue(xlogue PosXlogue) lico {
+	if x == 0 {
+		if xlogue == 0 {
+			return x
+		}
+		// Normalize 0 to "not a statement"
+		x = lico(PosNotStmt << isStmtShift)
+	}
+	return lico(uint(x) & ^uint(xlogueMax<<xlogueShift) | (uint(xlogue) << xlogueShift))
 }
 
 // withStmt returns a lico for the same location with specified is_stmt attribute
@@ -395,9 +423,10 @@ func (x lico) lineNumberHTML() string {
 	if x.IsStmt() == PosDefaultStmt {
 		return fmt.Sprintf("%d", x.Line())
 	}
-	style := "b"
+	style, pfx := "b", "+"
 	if x.IsStmt() == PosNotStmt {
 		style = "s" // /strike not supported in HTML5
+		pfx = ""
 	}
-	return fmt.Sprintf("<%s>%d</%s>", style, x.Line(), style)
+	return fmt.Sprintf("<%s>%s%d</%s>", style, pfx, x.Line(), style)
 }

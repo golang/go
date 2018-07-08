@@ -157,7 +157,8 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 	return dnsmessage.Parser{}, dnsmessage.Header{}, errors.New("no answer from DNS server")
 }
 
-func checkHeaders(p *dnsmessage.Parser, h dnsmessage.Header, name, server string) error {
+// checkHeader performs basic sanity checks on the header.
+func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header, name, server string) error {
 	_, err := p.AnswerHeader()
 	if err != nil && err != dnsmessage.ErrSectionDone {
 		return &DNSError{
@@ -173,14 +174,7 @@ func checkHeaders(p *dnsmessage.Parser, h dnsmessage.Header, name, server string
 		return &DNSError{Err: "lame referral", Name: name, Server: server}
 	}
 
-	// If answer errored for rcodes dnsRcodeSuccess or dnsRcodeNameError,
-	// it means the response in msg was not useful and trying another
-	// server probably won't help. Return now in those cases.
-	// TODO: indicate this in a more obvious way, such as a field on DNSError?
-	if h.RCode == dnsmessage.RCodeNameError {
-		return &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
-	}
-	if h.RCode != dnsmessage.RCodeSuccess {
+	if h.RCode != dnsmessage.RCodeSuccess && h.RCode != dnsmessage.RCodeNameError {
 		// None of the error codes make sense
 		// for the query we sent. If we didn't get
 		// a name error and we didn't get success,
@@ -265,7 +259,14 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 				continue
 			}
 
-			lastErr = checkHeaders(&p, h, name, server)
+			// The name does not exist, so trying another server won't help.
+			//
+			// TODO: indicate this in a more obvious way, such as a field on DNSError?
+			if h.RCode == dnsmessage.RCodeNameError {
+				return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
+			}
+
+			lastErr = checkHeader(&p, h, name, server)
 			if lastErr != nil {
 				continue
 			}

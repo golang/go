@@ -27,9 +27,14 @@ func checkGdbEnvironment(t *testing.T) {
 		t.Skip("gdb does not work on darwin")
 	case "netbsd":
 		t.Skip("gdb does not work with threads on NetBSD; see golang.org/issue/22893 and gnats.netbsd.org/52548")
+	case "windows":
+		t.Skip("gdb tests fail on Windows: https://golang.org/issue/22687")
 	case "linux":
 		if runtime.GOARCH == "ppc64" {
 			t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
+		}
+		if runtime.GOARCH == "mips" {
+			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
 		}
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
@@ -536,7 +541,7 @@ func TestGdbPanic(t *testing.T) {
 		`main`,
 	}
 	for _, name := range bt {
-		s := fmt.Sprintf("#.* .* in main\\.%v", name)
+		s := fmt.Sprintf("(#.* .* in )?main\\.%v", name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
 			t.Errorf("could not find '%v' in backtrace", s)

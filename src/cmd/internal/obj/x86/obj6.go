@@ -33,6 +33,7 @@ package x86
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"math"
 	"strings"
@@ -676,6 +677,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
 	}
 
+	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
+	// TODO: are there other cases (e.g., wrapper functions) that need marking?
+	markedPrologue := false
+
 	if autoffset != 0 {
 		if autoffset%int32(ctxt.Arch.RegSize) != 0 {
 			ctxt.Diag("unaligned stack size %d", autoffset)
@@ -685,6 +690,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(autoffset)
 		p.Spadj = autoffset
+		p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
+		markedPrologue = true
 	}
 
 	deltasp := autoffset
@@ -700,6 +707,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Reg = REG_SP
 		p.To.Scale = 1
 		p.To.Offset = int64(autoffset) - int64(bpsize)
+		if !markedPrologue {
+			p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
+		}
 
 		// Move current frame to BP
 		p = obj.Appendp(p, newprog)
@@ -1140,13 +1150,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := obj.Appendp(spfix, newprog)
-	pcdata.Pos = cursym.Func.Text.Pos
-	pcdata.As = obj.APCDATA
-	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
-	pcdata.To.Type = obj.TYPE_CONST
-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+	pcdata := ctxt.EmitEntryLiveness(cursym, spfix, newprog)
 
 	call := obj.Appendp(pcdata, newprog)
 	call.Pos = cursym.Func.Text.Pos

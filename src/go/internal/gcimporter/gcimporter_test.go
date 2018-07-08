@@ -141,9 +141,21 @@ func TestVersionHandling(t *testing.T) {
 		}
 		pkgpath := "./" + name[:len(name)-2]
 
+		if testing.Verbose() {
+			t.Logf("importing %s", name)
+		}
+
 		// test that export data can be imported
 		_, err := Import(make(map[string]*types.Package), pkgpath, dir, nil)
 		if err != nil {
+			// ok to fail if it fails with a newer version error for select files
+			if strings.Contains(err.Error(), "newer version") {
+				switch name {
+				case "test_go1.11_999b.a", "test_go1.11_999i.a":
+					continue
+				}
+				// fall through
+			}
 			t.Errorf("import %q failed: %v", pkgpath, err)
 			continue
 		}
@@ -286,10 +298,12 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 		}
 	}
 
-	// check embedded interfaces (they are named, too)
+	// check embedded interfaces (if they are named, too)
 	for i := 0; i < iface.NumEmbeddeds(); i++ {
 		// embedding of interfaces cannot have cycles; recursion will terminate
-		verifyInterfaceMethodRecvs(t, iface.Embedded(i), level+1)
+		if etype, _ := iface.EmbeddedType(i).(*types.Named); etype != nil {
+			verifyInterfaceMethodRecvs(t, etype, level+1)
+		}
 	}
 }
 
@@ -506,6 +520,47 @@ func TestIssue20046(t *testing.T) {
 	if m, index, indirect := types.LookupFieldOrMethod(obj.Type(), false, nil, "M"); m == nil {
 		t.Fatalf("V.M not found (index = %v, indirect = %v)", index, indirect)
 	}
+}
+func TestIssue25301(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	if f := compile(t, "testdata", "issue25301.go"); f != "" {
+		defer os.Remove(f)
+	}
+
+	importPkg(t, "./testdata/issue25301")
+}
+
+func TestIssue25596(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	if f := compile(t, "testdata", "issue25596.go"); f != "" {
+		defer os.Remove(f)
+	}
+
+	importPkg(t, "./testdata/issue25596")
 }
 
 func importPkg(t *testing.T, path string) *types.Package {

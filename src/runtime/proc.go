@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -125,9 +126,11 @@ func main() {
 	// Allow newproc to start new Ms.
 	mainStarted = true
 
-	systemstack(func() {
-		newm(sysmon, nil)
-	})
+	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
+		systemstack(func() {
+			newm(sysmon, nil)
+		})
+	}
 
 	// Lock the main goroutine onto this, the main OS thread,
 	// during initialization. Most programs won't care, but a few
@@ -260,6 +263,7 @@ func forcegchelper() {
 // Gosched yields the processor, allowing other goroutines to run. It does not
 // suspend the current goroutine, so execution resumes automatically.
 func Gosched() {
+	checkTimeouts()
 	mcall(gosched_m)
 }
 
@@ -279,6 +283,9 @@ func goschedguarded() {
 // Reasons should be unique and descriptive.
 // Do not re-use reasons, add new ones.
 func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceEv byte, traceskip int) {
+	if reason != waitReasonSleep {
+		checkTimeouts() // timeouts may expire while two goroutines keep the scheduler busy
+	}
 	mp := acquirem()
 	gp := mp.curg
 	status := readgstatus(gp)
@@ -471,7 +478,48 @@ const (
 )
 
 //go:linkname internal_cpu_initialize internal/cpu.initialize
-func internal_cpu_initialize()
+func internal_cpu_initialize(env string)
+
+//go:linkname internal_cpu_debugOptions internal/cpu.debugOptions
+var internal_cpu_debugOptions bool
+
+// cpuinit extracts the environment variable GODEBUGCPU from the environment on
+// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.initialize.
+func cpuinit() {
+	const prefix = "GODEBUGCPU="
+	var env string
+
+	if haveexperiment("debugcpu") && (GOOS == "linux" || GOOS == "darwin") {
+		internal_cpu_debugOptions = true
+
+		// Similar to goenv_unix but extracts the environment value for
+		// GODEBUGCPU directly.
+		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
+		n := int32(0)
+		for argv_index(argv, argc+1+n) != nil {
+			n++
+		}
+
+		for i := int32(0); i < n; i++ {
+			p := argv_index(argv, argc+1+i)
+			s := *(*string)(unsafe.Pointer(&stringStruct{unsafe.Pointer(p), findnull(p)}))
+
+			if hasprefix(s, prefix) {
+				env = gostring(p)[len(prefix):]
+				break
+			}
+		}
+	}
+
+	internal_cpu_initialize(env)
+
+	support_erms = cpu.X86.HasERMS
+	support_popcnt = cpu.X86.HasPOPCNT
+	support_sse2 = cpu.X86.HasSSE2
+	support_sse41 = cpu.X86.HasSSE41
+
+	arm64_support_atomics = cpu.ARM64.HasATOMICS
+}
 
 // The bootstrap sequence is:
 //
@@ -496,11 +544,11 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
-	internal_cpu_initialize() // must run before alginit
-	alginit()                 // maps must not be used before this call
-	modulesinit()             // provides activeModules
-	typelinksinit()           // uses maps, activeModules
-	itabsinit()               // uses activeModules
+	cpuinit()       // must run before alginit
+	alginit()       // maps must not be used before this call
+	modulesinit()   // provides activeModules
+	typelinksinit() // uses maps, activeModules
+	itabsinit()     // uses activeModules
 
 	msigsave(_g_.m)
 	initSigmask = _g_.m.sigmask
@@ -801,7 +849,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		})
 	}
 
-	// See http://golang.org/cl/21503 for justification of the yield delay.
+	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 5 * 1000
 	var nextYield int64
 
@@ -865,7 +913,7 @@ func scang(gp *g, gcw *gcWork) {
 
 	gp.gcscandone = false
 
-	// See http://golang.org/cl/21503 for justification of the yield delay.
+	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 10 * 1000
 	var nextYield int64
 
@@ -1185,6 +1233,7 @@ func mstart() {
 	if osStack {
 		// Initialize stack bounds from system stack.
 		// Cgo may have left stack size in stack.hi.
+		// minit may update the stack bounds.
 		size := _g_.stack.hi
 		if size == 0 {
 			size = 8192 * sys.StackGuardMultiplier
@@ -1199,7 +1248,7 @@ func mstart() {
 	mstart1()
 
 	// Exit this thread.
-	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || (GOOS == "darwin" && (GOARCH == "amd64" || GOARCH == "386")) {
+	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || GOOS == "darwin" {
 		// Window, Solaris, Darwin and Plan 9 always system-allocate
 		// the stack, but put it in _g_.stack before mstart,
 		// so the logic above hasn't set osStack yet.
@@ -1251,7 +1300,9 @@ func mstart1() {
 //go:yeswritebarrierrec
 func mstartm0() {
 	// Create an extra M for callbacks on threads not created by Go.
-	if iscgo && !cgoHasExtraM {
+	// An extra M is also needed on Windows for callbacks created by
+	// syscall.NewCallback. See issue #6751 for details.
+	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		cgoHasExtraM = true
 		newextram()
 	}
@@ -1523,7 +1574,7 @@ func allocm(_p_ *p, fn func()) *m {
 
 	// In case of cgo or Solaris or Darwin, pthread_create will make us a stack.
 	// Windows and Plan 9 will layout sched stack on OS stack.
-	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" || (GOOS == "darwin" && (GOARCH == "386" || GOARCH == "amd64")) {
+	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" || GOOS == "darwin" {
 		mp.g0 = malg(-1)
 	} else {
 		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
@@ -1576,8 +1627,12 @@ func allocm(_p_ *p, fn func()) *m {
 // put the m back on the list.
 //go:nosplit
 func needm(x byte) {
-	if iscgo && !cgoHasExtraM {
+	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		// Can happen if C/C++ code calls Go from a global ctor.
+		// Can also happen on Windows if a global ctor uses a
+		// callback created by syscall.NewCallback. See issue #6751
+		// for details.
+		//
 		// Can not throw, because scheduler is not initialized yet.
 		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
 		exit(1)
@@ -1891,13 +1946,16 @@ func newm1(mp *m) {
 //
 // The calling thread must itself be in a known-good state.
 func startTemplateThread() {
+	if GOARCH == "wasm" { // no threads on wasm yet
+		return
+	}
 	if !atomic.Cas(&newmHandoff.haveTemplateThread, 0, 1) {
 		return
 	}
 	newm(templateThread, nil)
 }
 
-// tmeplateThread is a thread in a known-good state that exists solely
+// templateThread is a thread in a known-good state that exists solely
 // to start new threads in known-good states when the calling thread
 // may not be a a good state.
 //
@@ -2310,6 +2368,14 @@ stop:
 		return gp, false
 	}
 
+	// wasm only:
+	// Check if a goroutine is waiting for a callback from the WebAssembly host.
+	// If yes, pause the execution until a callback was triggered.
+	if pauseSchedulerUntilCallback() {
+		// A callback was triggered and caused at least one goroutine to wake up.
+		goto top
+	}
+
 	// Before we drop our P, make a snapshot of the allp slice,
 	// which can change underfoot once we no longer block
 	// safe-points. We don't need to snapshot the contents because
@@ -2698,6 +2764,11 @@ func goexit0(gp *g) {
 	// stack.
 	gp.gcscanvalid = true
 	dropg()
+
+	if GOARCH == "wasm" { // no threads yet on wasm
+		gfput(_g_.m.p.ptr(), gp)
+		schedule() // never returns
+	}
 
 	if _g_.m.lockedInt != 0 {
 		print("invalid m->lockedInt = ", _g_.m.lockedInt, "\n")
@@ -3497,6 +3568,9 @@ func Breakpoint() {
 // or else the m might be different in this function than in the caller.
 //go:nosplit
 func dolockOSThread() {
+	if GOARCH == "wasm" {
+		return // no threads on wasm yet
+	}
 	_g_ := getg()
 	_g_.m.lockedg.set(_g_)
 	_g_.lockedm.set(_g_.m)
@@ -3545,6 +3619,9 @@ func lockOSThread() {
 // or else the m might be in different in this function than in the caller.
 //go:nosplit
 func dounlockOSThread() {
+	if GOARCH == "wasm" {
+		return // no threads on wasm yet
+	}
 	_g_ := getg()
 	if _g_.m.lockedInt != 0 || _g_.m.lockedExt != 0 {
 		return
@@ -3637,7 +3714,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// As a workaround, create a counter of SIGPROFs while in critical section
 	// to store the count, and pass it to sigprof.add() later when SIGPROF is
 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
-	if GOARCH == "mips" || GOARCH == "mipsle" {
+	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
 		if f := findfunc(pc); f.valid() {
 			if hasprefix(funcname(f), "runtime/internal/atomic") {
 				lostAtomic64Count++
@@ -3777,7 +3854,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 
 	if prof.hz != 0 {
-		if (GOARCH == "mips" || GOARCH == "mipsle") && lostAtomic64Count > 0 {
+		if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm") && lostAtomic64Count > 0 {
 			cpuprof.addLostAtomic64(lostAtomic64Count)
 			lostAtomic64Count = 0
 		}
@@ -4159,8 +4236,17 @@ func checkdead() {
 		return
 	}
 
+	// If we are not running under cgo, but we have an extra M then account
+	// for it. (It is possible to have an extra M on Windows without cgo to
+	// accommodate callbacks created by syscall.NewCallback. See issue #6751
+	// for details.)
+	var run0 int32
+	if !iscgo && cgoHasExtraM {
+		run0 = 1
+	}
+
 	run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys
-	if run > 0 {
+	if run > run0 {
 		return
 	}
 	if run < 0 {
@@ -4706,7 +4792,7 @@ func runqempty(_p_ *p) bool {
 const randomizeScheduler = raceenabled
 
 // runqput tries to put g on the local runnable queue.
-// If next if false, runqput adds g to the tail of the runnable queue.
+// If next is false, runqput adds g to the tail of the runnable queue.
 // If next is true, runqput puts g in the _p_.runnext slot.
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.
@@ -4972,7 +5058,7 @@ func sync_runtime_canSpin(i int) bool {
 	// Spin only few times and only if running on a multicore machine and
 	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
 	// As opposed to runtime mutex we don't do passive spinning here,
-	// because there can be work on global runq on on other Ps.
+	// because there can be work on global runq or on other Ps.
 	if i >= active_spin || ncpu <= 1 || gomaxprocs <= int32(sched.npidle+sched.nmspinning)+1 {
 		return false
 	}

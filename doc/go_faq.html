@@ -45,7 +45,7 @@ analysis easy and avoids much of the overhead of C-style include files and
 libraries.
 <li>
 Go's type system has no hierarchy, so no time is spent defining the
-relationships between types. Also, although Go has static types the language
+relationships between types. Also, although Go has static types, the language
 attempts to make types feel lighter weight than in typical OO languages.
 <li>
 Go is fully garbage-collected and provides fundamental support for
@@ -97,14 +97,14 @@ What's the origin of the mascot?</h3>
 
 <p>
 The mascot and logo were designed by
-<a href="http://reneefrench.blogspot.com">Renée French</a>, who also designed
+<a href="https://reneefrench.blogspot.com">Renée French</a>, who also designed
 <a href="https://9p.io/plan9/glenda.html">Glenda</a>,
 the Plan 9 bunny.
 The <a href="https://blog.golang.org/gopher">gopher</a>
-is derived from one she used for an <a href="http://wfmu.org/">WFMU</a>
+is derived from one she used for an <a href="https://wfmu.org/">WFMU</a>
 T-shirt design some years ago.
 The logo and mascot are covered by the
-<a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
+<a href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
 license.
 </p>
 
@@ -1153,7 +1153,7 @@ program is one tool to help automate this process.
 
 <p>
 The Go 1.5 release added a facility to the
-<a href="https://golang.org/cmd/go">go</a> command
+<a href="https://golang.org/cmd/go"><code>go</code></a> command
 that makes it easier to manage external dependencies by "vendoring"
 them into a special directory near the package that depends upon them.
 See the <a href="https://golang.org/s/go15vendor">design
@@ -1161,10 +1161,11 @@ document</a> for details.
 </p>
 
 <p>
-Work is underway on an experimental package management tool,
-<a href="https://github.com/golang/dep"><code>dep</code></a>, to learn
-more about how tooling can help package management. More information can be found in
-<a href="https://github.com/golang/dep/blob/master/docs/FAQ.md">the <code>dep</code> FAQ</a>.
+The Go 1.11 release added new, experimental support
+for package versioning to the <code>go</code> command,
+in the form of Go modules.
+For more information, see the <a href="/doc/go1.11#modules">Go 1.11 release notes</a>
+and the <a href="/cmd/go#hdr-Modules__module_versions__and_more"><code>go</code> command documentation</a>.
 </p>
 
 <h2 id="Pointers">Pointers and Allocation</h2>
@@ -1396,7 +1397,7 @@ reservation does not deprive other processes of memory.
 <p>
 To find the amount of actual memory allocated to a Go process, use the Unix
 <code>top</code> command and consult the <code>RES</code> (Linux) or
-<code>RSIZE</code> (Mac OS X) columns.
+<code>RSIZE</code> (macOS) columns.
 <!-- TODO(adg): find out how this works on Windows -->
 </p>
 
@@ -1855,7 +1856,8 @@ Why is my trivial program such a large binary?</h3>
 
 <p>
 The linker in the <code>gc</code> toolchain
-creates statically-linked binaries by default.  All Go binaries therefore include the Go
+creates statically-linked binaries by default.
+All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
 </p>
@@ -1863,9 +1865,10 @@ type checks, reflection, and even panic-time stack traces.
 <p>
 A simple C "hello, world" program compiled and linked statically using
 gcc on Linux is around 750 kB, including an implementation of
-<code>printf</code>. An equivalent Go program using
-<code>fmt.Printf</code> weighs a couple megabytes, but that includes
-more powerful run-time support, and type and debugging information.
+<code>printf</code>.
+An equivalent Go program using
+<code>fmt.Printf</code> weighs a couple of megabytes, but that includes
+more powerful run-time support and type and debugging information.
 </p>
 
 <h3 id="unused_variables_and_imports">
@@ -1927,7 +1930,7 @@ func main() {
 
 <p>
 Nowadays, most Go programmers use a tool,
-<a href="http://godoc.org/golang.org/x/tools/cmd/goimports">goimports</a>,
+<a href="https://godoc.org/golang.org/x/tools/cmd/goimports">goimports</a>,
 which automatically rewrites a Go source file to have the correct imports,
 eliminating the unused imports issue in practice.
 This program is easily connected to most editors to run automatically when a Go source file is written.
@@ -1966,7 +1969,7 @@ The slowest depend on libraries for which versions of comparable performance
 are not available in Go.
 For instance, <a href="https://go.googlesource.com/exp/+/master/shootout/pidigits.go">pidigits.go</a>
 depends on a multi-precision math package, and the C
-versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
+versions, unlike Go's, use <a href="https://gmplib.org/">GMP</a> (which is
 written in optimized assembler).
 Benchmarks that depend on regular expressions
 (<a href="https://go.googlesource.com/exp/+/master/shootout/regex-dna.go">regex-dna.go</a>,

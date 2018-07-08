@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"unicode/utf8"
 )
@@ -154,6 +153,14 @@ func cheapComputableIndex(width int64) bool {
 // Node n may also be modified in place, and may also be
 // the returned node.
 func walkrange(n *Node) *Node {
+	if isMapClear(n) {
+		m := n.Right
+		lno := setlineno(m)
+		n = mapClear(m)
+		lineno = lno
+		return n
+	}
+
 	// variable name conventions:
 	//	ohv1, hv1, hv2: hidden (old) val 1, 2
 	//	ha, hit: hidden aggregate, iterator
@@ -246,13 +253,21 @@ func walkrange(n *Node) *Node {
 			break
 		}
 
-		if objabi.Preemptibleloops_enabled != 0 {
-			// Doing this transformation makes a bounds check removal less trivial; see #20711
-			// TODO enhance the preemption check insertion so that this transformation is not necessary.
-			ifGuard = nod(OIF, nil, nil)
-			ifGuard.Left = nod(OLT, hv1, hn)
-			translatedLoopOp = OFORUNTIL
-		}
+		// TODO(austin): OFORUNTIL is a strange beast, but is
+		// necessary for expressing the control flow we need
+		// while also making "break" and "continue" work. It
+		// would be nice to just lower ORANGE during SSA, but
+		// racewalk needs to see many of the operations
+		// involved in ORANGE's implementation. If racewalk
+		// moves into SSA, consider moving ORANGE into SSA and
+		// eliminating OFORUNTIL.
+
+		// TODO(austin): OFORUNTIL inhibits bounds-check
+		// elimination on the index variable (see #20711).
+		// Enhance the prove pass to understand this.
+		ifGuard = nod(OIF, nil, nil)
+		ifGuard.Left = nod(OLT, hv1, hn)
+		translatedLoopOp = OFORUNTIL
 
 		hp := temp(types.NewPtr(n.Type.Elem()))
 		tmp := nod(OINDEX, ha, nodintconst(0))
@@ -266,14 +281,11 @@ func walkrange(n *Node) *Node {
 		a.Rlist.Set2(hv1, nod(OIND, hp, nil))
 		body = append(body, a)
 
-		// Advance pointer as part of increment.
-		// We used to advance the pointer before executing the loop body,
-		// but doing so would make the pointer point past the end of the
-		// array during the final iteration, possibly causing another unrelated
-		// piece of memory not to be garbage collected until the loop finished.
-		// Advancing during the increment ensures that the pointer p only points
-		// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
-		// after which p is dead, so it cannot confuse the collector.
+		// Advance pointer as part of the late increment.
+		//
+		// This runs *after* the condition check, so we know
+		// advancing the pointer is safe and won't go past the
+		// end of the allocation.
 		tmp = nod(OADD, hp, nodintconst(t.Elem().Width))
 
 		tmp.Type = hp.Type
@@ -282,7 +294,7 @@ func walkrange(n *Node) *Node {
 		tmp.Right.SetTypecheck(1)
 		a = nod(OAS, hp, tmp)
 		a = typecheck(a, Etop)
-		n.Right.Ninit.Set1(a)
+		n.List.Set1(a)
 
 	case TMAP:
 		// orderstmt allocated the iterator for us.
@@ -446,6 +458,69 @@ func walkrange(n *Node) *Node {
 	n = walkstmt(n)
 
 	lineno = lno
+	return n
+}
+
+// isMapClear checks if n is of the form:
+//
+// for k := range m {
+//   delete(m, k)
+// }
+//
+// where == for keys of map m is reflexive.
+func isMapClear(n *Node) bool {
+	if Debug['N'] != 0 || instrumenting {
+		return false
+	}
+
+	if n.Op != ORANGE || n.Type.Etype != TMAP || n.List.Len() != 1 {
+		return false
+	}
+
+	k := n.List.First()
+	if k == nil || k.isBlank() {
+		return false
+	}
+
+	// Require k to be a new variable name.
+	if k.Name == nil || k.Name.Defn != n {
+		return false
+	}
+
+	if n.Nbody.Len() != 1 {
+		return false
+	}
+
+	stmt := n.Nbody.First() // only stmt in body
+	if stmt == nil || stmt.Op != ODELETE {
+		return false
+	}
+
+	m := n.Right
+	if !samesafeexpr(stmt.List.First(), m) || !samesafeexpr(stmt.List.Second(), k) {
+		return false
+	}
+
+	// Keys where equality is not reflexive can not be deleted from maps.
+	if !isreflexive(m.Type.Key()) {
+		return false
+	}
+
+	return true
+}
+
+// mapClear constructs a call to runtime.mapclear for the map m.
+func mapClear(m *Node) *Node {
+	t := m.Type
+
+	// instantiate mapclear(typ *type, hmap map[any]any)
+	fn := syslook("mapclear")
+	fn = substArgTypes(fn, t.Key(), t.Elem())
+	n := mkcall1(fn, nil, nil, typename(t), m)
+
+	n = typecheck(n, Etop)
+	n = walkstmt(n)
+
 	return n
 }
 

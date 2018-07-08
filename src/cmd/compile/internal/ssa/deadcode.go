@@ -4,10 +4,14 @@
 
 package ssa
 
+import (
+	"cmd/internal/src"
+)
+
 // findlive returns the reachable blocks and live values in f.
 func findlive(f *Func) (reachable []bool, live []bool) {
 	reachable = ReachableBlocks(f)
-	live = liveValues(f, reachable)
+	live, _ = liveValues(f, reachable)
 	return
 }
 
@@ -40,10 +44,12 @@ func ReachableBlocks(f *Func) []bool {
 	return reachable
 }
 
-// liveValues returns the live values in f.
+// liveValues returns the live values in f and a list of values that are eligible
+// to be statements in reversed data flow order.
+// The second result is used to help conserve statement boundaries for debugging.
 // reachable is a map from block ID to whether the block is reachable.
-func liveValues(f *Func, reachable []bool) []bool {
-	live := make([]bool, f.NumValues())
+func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value) {
+	live = make([]bool, f.NumValues())
 
 	// After regalloc, consider all values to be live.
 	// See the comment at the top of regalloc.go and in deadcode for details.
@@ -51,7 +57,7 @@ func liveValues(f *Func, reachable []bool) []bool {
 		for i := range live {
 			live[i] = true
 		}
-		return live
+		return
 	}
 
 	// Find all live values
@@ -66,16 +72,25 @@ func liveValues(f *Func, reachable []bool) []bool {
 		if v := b.Control; v != nil && !live[v.ID] {
 			live[v.ID] = true
 			q = append(q, v)
+			if v.Pos.IsStmt() != src.PosNotStmt {
+				liveOrderStmts = append(liveOrderStmts, v)
+			}
 		}
 		for _, v := range b.Values {
 			if (opcodeTable[v.Op].call || opcodeTable[v.Op].hasSideEffects) && !live[v.ID] {
 				live[v.ID] = true
 				q = append(q, v)
+				if v.Pos.IsStmt() != src.PosNotStmt {
+					liveOrderStmts = append(liveOrderStmts, v)
+				}
 			}
 			if v.Type.IsVoid() && !live[v.ID] {
 				// The only Void ops are nil checks.  We must keep these.
 				live[v.ID] = true
 				q = append(q, v)
+				if v.Pos.IsStmt() != src.PosNotStmt {
+					liveOrderStmts = append(liveOrderStmts, v)
+				}
 			}
 		}
 	}
@@ -92,11 +107,14 @@ func liveValues(f *Func, reachable []bool) []bool {
 			if !live[x.ID] {
 				live[x.ID] = true
 				q = append(q, x) // push
+				if x.Pos.IsStmt() != src.PosNotStmt {
+					liveOrderStmts = append(liveOrderStmts, x)
+				}
 			}
 		}
 	}
 
-	return live
+	return
 }
 
 // deadcode removes dead code from f.
@@ -144,7 +162,7 @@ func deadcode(f *Func) {
 	copyelim(f)
 
 	// Find live values.
-	live := liveValues(f, reachable)
+	live, order := liveValues(f, reachable)
 
 	// Remove dead & duplicate entries from namedValues map.
 	s := f.newSparseSet(f.NumValues())
@@ -177,15 +195,40 @@ func deadcode(f *Func) {
 	}
 	f.Names = f.Names[:i]
 
-	// Unlink values.
-	for _, b := range f.Blocks {
+	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+	pendingLines.clear()
+
+	// Unlink values and conserve statement boundaries
+	for i, b := range f.Blocks {
 		if !reachable[b.ID] {
+			// TODO what if control is statement boundary? Too late here.
 			b.SetControl(nil)
 		}
 		for _, v := range b.Values {
 			if !live[v.ID] {
 				v.resetArgs()
+				if v.Pos.IsStmt() == src.PosIsStmt && reachable[b.ID] {
+					pendingLines.set(v.Pos.Line(), int32(i)) // TODO could be more than one pos for a line
+				}
 			}
+		}
+	}
+
+	// Find new homes for lost lines -- require earliest in data flow with same line that is also in same block
+	for i := len(order) - 1; i >= 0; i-- {
+		w := order[i]
+		if j := pendingLines.get(w.Pos.Line()); j > -1 && f.Blocks[j] == w.Block {
+			w.Pos = w.Pos.WithIsStmt()
+			pendingLines.remove(w.Pos.Line())
+		}
+	}
+
+	// Any boundary that failed to match a live value can move to a block end
+	for i := 0; i < pendingLines.size(); i++ {
+		l, bi := pendingLines.getEntry(i)
+		b := f.Blocks[bi]
+		if b.Pos.Line() == l {
+			b.Pos = b.Pos.WithIsStmt()
 		}
 	}
 
@@ -208,6 +251,19 @@ func deadcode(f *Func) {
 		}
 		b.Values = b.Values[:i]
 	}
+
+	// Remove dead blocks from WBLoads list.
+	i = 0
+	for _, b := range f.WBLoads {
+		if reachable[b.ID] {
+			f.WBLoads[i] = b
+			i++
+		}
+	}
+	for j := i; j < len(f.WBLoads); j++ {
+		f.WBLoads[j] = nil
+	}
+	f.WBLoads = f.WBLoads[:i]
 
 	// Remove unreachable blocks. Return dead blocks to allocator.
 	i = 0

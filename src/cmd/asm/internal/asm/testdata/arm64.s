@@ -190,6 +190,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	EOR	$(1<<63), R1   // EOR	$-9223372036854775808, R1 // 210041d2
 	EOR	$(1<<63-1), R1 // EOR	$9223372036854775807, R1  // 21f840d2
 
+	AND	$0x22220000, R3, R4   // AND $572653568, R3, R4   // 5b44a4d264001b8a
+	ORR	$0x22220000, R3, R4   // ORR $572653568, R3, R4   // 5b44a4d264001baa
+	EOR	$0x22220000, R3, R4   // EOR $572653568, R3, R4   // 5b44a4d264001bca
+	BIC	$0x22220000, R3, R4   // BIC $572653568, R3, R4   // 5b44a4d264003b8a
+	ORN	$0x22220000, R3, R4   // ORN $572653568, R3, R4   // 5b44a4d264003baa
+	EON	$0x22220000, R3, R4   // EON $572653568, R3, R4   // 5b44a4d264003bca
+	ANDS	$0x22220000, R3, R4   // ANDS $572653568, R3, R4  // 5b44a4d264001bea
+	BICS	$0x22220000, R3, R4   // BICS $572653568, R3, R4  // 5b44a4d264003bea
+
 	AND	$8, R0, RSP // 1f007d92
 	ORR	$8, R0, RSP // 1f007db2
 	EOR	$8, R0, RSP // 1f007dd2
@@ -390,6 +399,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	CMP	R1>>22, R2
 	CMP	R1<<33, R2
 	CMP	R22.SXTX, RSP // ffe336eb
+
+	CMP	$0x22220000, RSP  // CMP $572653568, RSP   // 5b44a4d2ff633beb
+	CMPW	$0x22220000, RSP  // CMPW $572653568, RSP  // 5b44a4d2ff633b6b
+
+// TST
+	TST	$15, R2                               // 5f0c40f2
+	TST	R1, R2                                // 5f0001ea
+	TST	R1->11, R2                            // 5f2c81ea
+	TST	R1>>22, R2                            // 5f5841ea
+	TST	R1<<33, R2                            // 5f8401ea
+	TST	$0x22220000, R3 // TST $572653568, R3 // 5b44a4d27f001bea
+
 //
 // CBZ
 //
@@ -408,6 +429,7 @@ again:
 //		outcode($1, &$2, NREG, &$4);
 //	}
 	CSET	GT, R1	// e1d79f9a
+	CSETW	HI, R2	// e2979f1a
 //
 // CSEL/CSINC/CSNEG/CSINV
 //
@@ -416,17 +438,22 @@ again:
 //		outgcode($1, &$2, $6.reg, &$4, &$8);
 //	}
 	CSEL	LT, R1, R2, ZR	// 3fb0829a
+	CSELW	LT, R2, R3, R4	// 44b0831a
 	CSINC	GT, R1, ZR, R3	// 23c49f9a
 	CSNEG	MI, R1, R2, R3	// 234482da
 	CSINV	CS, R1, R2, R3	// CSINV HS, R1, R2, R3 // 232082da
+	CSINVW	MI, R2, ZR, R2	// 42409f5a
 
 //		LTYPES cond ',' reg ',' reg
 //	{
 //		outcode($1, &$2, $4.reg, &$6);
 //	}
 	CINC	EQ, R4, R9	// 8914849a
+	CINCW	PL, R2, ZR	// 5f44821a
 	CINV	PL, R11, R22	// 76418bda
+	CINVW	LS, R7, R13	// ed80875a
 	CNEG	LS, R13, R7	// a7858dda
+	CNEGW	EQ, R8, R13	// 0d15885a
 //
 // CCMN
 //
@@ -577,6 +604,8 @@ again:
 	LDORH	R5, (RSP), R7                        // e7332578
 	LDORB	R5, (R6), R7                         // c7302538
 	LDORB	R5, (RSP), R7                        // e7332538
+	LDADDALD	R2, (R1), R3                 // 2300e2f8
+	LDADDALW	R5, (R4), R6                 // 8600e5b8
 
 // RET
 //

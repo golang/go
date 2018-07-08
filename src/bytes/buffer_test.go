@@ -269,6 +269,39 @@ func TestReadFrom(t *testing.T) {
 	}
 }
 
+type panicReader struct{ panic bool }
+
+func (r panicReader) Read(p []byte) (int, error) {
+	if r.panic {
+		panic(nil)
+	}
+	return 0, io.EOF
+}
+
+// Make sure that an empty Buffer remains empty when
+// it is "grown" before a Read that panics
+func TestReadFromPanicReader(t *testing.T) {
+
+	// First verify non-panic behaviour
+	var buf Buffer
+	i, err := buf.ReadFrom(panicReader{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 0 {
+		t.Fatalf("unexpected return from bytes.ReadFrom (1): got: %d, want %d", i, 0)
+	}
+	check(t, "TestReadFromPanicReader (1)", &buf, "")
+
+	// Confirm that when Reader panics, the emtpy buffer remains empty
+	var buf2 Buffer
+	defer func() {
+		recover()
+		check(t, "TestReadFromPanicReader (2)", &buf2, "")
+	}()
+	buf2.ReadFrom(panicReader{panic: true})
+}
+
 func TestReadFromNegativeReader(t *testing.T) {
 	var b Buffer
 	defer func() {

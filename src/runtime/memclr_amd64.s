@@ -9,7 +9,7 @@
 
 // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
 
-// void runtime·memclrNoHeapPointers(void*, uintptr)
+// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
 	MOVQ	ptr+0(FP), DI
 	MOVQ	n+8(FP), BX
@@ -17,6 +17,7 @@ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
 
 	// MOVOU seems always faster than REP STOSQ.
 tail:
+	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTQ	BX, BX
 	JEQ	_0
 	CMPQ	BX, $2
@@ -39,7 +40,6 @@ tail:
 	JBE	_129through256
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JE loop_preheader_avx2
-	// TODO: use branch table and BSR to make this just a single dispatch
 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
 
 loop:

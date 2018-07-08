@@ -185,11 +185,15 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		// If goid argument is present, we are rendering a trace for this particular goroutine.
 		goid, err := strconv.ParseUint(goids, 10, 64)
 		if err != nil {
-			log.Printf("failed to parse goid parameter '%v': %v", goids, err)
+			log.Printf("failed to parse goid parameter %q: %v", goids, err)
 			return
 		}
 		analyzeGoroutines(res.Events)
-		g := gs[goid]
+		g, ok := gs[goid]
+		if !ok {
+			log.Printf("failed to find goroutine %d", goid)
+			return
+		}
 		params.mode = modeGoroutineOriented
 		params.startTime = g.StartTime
 		if g.EndTime != 0 {
@@ -249,12 +253,12 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		// If start/end arguments are present, we are rendering a range of the trace.
 		start, err = strconv.ParseInt(startStr, 10, 64)
 		if err != nil {
-			log.Printf("failed to parse start parameter '%v': %v", startStr, err)
+			log.Printf("failed to parse start parameter %q: %v", startStr, err)
 			return
 		}
 		end, err = strconv.ParseInt(endStr, 10, 64)
 		if err != nil {
-			log.Printf("failed to parse end parameter '%v': %v", endStr, err)
+			log.Printf("failed to parse end parameter %q: %v", endStr, err)
 			return
 		}
 	}
@@ -415,9 +419,9 @@ type heapStats struct {
 }
 
 type threadStats struct {
-	insyscallRuntime uint64 // system goroutine in syscall
-	insyscall        uint64 // user goroutine in syscall
-	prunning         uint64 // thread running P
+	insyscallRuntime int64 // system goroutine in syscall
+	insyscall        int64 // user goroutine in syscall
+	prunning         int64 // thread running P
 }
 
 type frameNode struct {
@@ -576,7 +580,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 
 			fname := stk[0].Fn
 			info.name = fmt.Sprintf("G%v %s", newG, fname)
-			info.isSystemG = strings.HasPrefix(fname, "runtime.") && fname != "runtime.main"
+			info.isSystemG = isSystemGoroutine(fname)
 
 			ctx.gcount++
 			setGState(ev, newG, gDead, gRunnable)
@@ -1006,8 +1010,8 @@ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
 }
 
 type threadCountersArg struct {
-	Running   uint64
-	InSyscall uint64
+	Running   int64
+	InSyscall int64
 }
 
 func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
@@ -1125,6 +1129,12 @@ func (ctx *traceContext) buildBranch(parent frameNode, stk []*trace.Frame) int {
 	return ctx.buildBranch(node, stk)
 }
 
+func isSystemGoroutine(entryFn string) bool {
+	// This mimics runtime.isSystemGoroutine as closely as
+	// possible.
+	return entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
+}
+
 // firstTimestamp returns the timestamp of the first event record.
 func firstTimestamp() int64 {
 	res, _ := parseTrace()
@@ -1193,38 +1203,38 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
 // https://github.com/catapult-project/catapult/blob/master/tracing/tracing/base/color_scheme.html#L50
 // The chrome trace viewer allows only those as cname values.
 const (
-	colorLightMauve     string = "thread_state_uninterruptible" // 182, 125, 143
-	colorOrange                = "thread_state_iowait"          // 255, 140, 0
-	colorSeafoamGreen          = "thread_state_running"         // 126, 200, 148
-	colorVistaBlue             = "thread_state_runnable"        // 133, 160, 210
-	colorTan                   = "thread_state_unknown"         // 199, 155, 125
-	colorIrisBlue              = "background_memory_dump"       // 0, 180, 180
-	colorMidnightBlue          = "light_memory_dump"            // 0, 0, 180
-	colorDeepMagenta           = "detailed_memory_dump"         // 180, 0, 180
-	colorBlue                  = "vsync_highlight_color"        // 0, 0, 255
-	colorGrey                  = "generic_work"                 // 125, 125, 125
-	colorGreen                 = "good"                         // 0, 125, 0
-	colorDarkGoldenrod         = "bad"                          // 180, 125, 0
-	colorPeach                 = "terrible"                     // 180, 0, 0
-	colorBlack                 = "black"                        // 0, 0, 0
-	colorLightGrey             = "grey"                         // 221, 221, 221
-	colorWhite                 = "white"                        // 255, 255, 255
-	colorYellow                = "yellow"                       // 255, 255, 0
-	colorOlive                 = "olive"                        // 100, 100, 0
-	colorCornflowerBlue        = "rail_response"                // 67, 135, 253
-	colorSunsetOrange          = "rail_animation"               // 244, 74, 63
-	colorTangerine             = "rail_idle"                    // 238, 142, 0
-	colorShamrockGreen         = "rail_load"                    // 13, 168, 97
-	colorGreenishYellow        = "startup"                      // 230, 230, 0
-	colorDarkGrey              = "heap_dump_stack_frame"        // 128, 128, 128
-	colorTawny                 = "heap_dump_child_node_arrow"   // 204, 102, 0
-	colorLemon                 = "cq_build_running"             // 255, 255, 119
-	colorLime                  = "cq_build_passed"              // 153, 238, 102
-	colorPink                  = "cq_build_failed"              // 238, 136, 136
-	colorSilver                = "cq_build_abandoned"           // 187, 187, 187
-	colorManzGreen             = "cq_build_attempt_runnig"      // 222, 222, 75
-	colorKellyGreen            = "cq_build_attempt_passed"      // 108, 218, 35
-	colorAnotherGrey           = "cq_build_attempt_failed"      // 187, 187, 187
+	colorLightMauve     = "thread_state_uninterruptible" // 182, 125, 143
+	colorOrange         = "thread_state_iowait"          // 255, 140, 0
+	colorSeafoamGreen   = "thread_state_running"         // 126, 200, 148
+	colorVistaBlue      = "thread_state_runnable"        // 133, 160, 210
+	colorTan            = "thread_state_unknown"         // 199, 155, 125
+	colorIrisBlue       = "background_memory_dump"       // 0, 180, 180
+	colorMidnightBlue   = "light_memory_dump"            // 0, 0, 180
+	colorDeepMagenta    = "detailed_memory_dump"         // 180, 0, 180
+	colorBlue           = "vsync_highlight_color"        // 0, 0, 255
+	colorGrey           = "generic_work"                 // 125, 125, 125
+	colorGreen          = "good"                         // 0, 125, 0
+	colorDarkGoldenrod  = "bad"                          // 180, 125, 0
+	colorPeach          = "terrible"                     // 180, 0, 0
+	colorBlack          = "black"                        // 0, 0, 0
+	colorLightGrey      = "grey"                         // 221, 221, 221
+	colorWhite          = "white"                        // 255, 255, 255
+	colorYellow         = "yellow"                       // 255, 255, 0
+	colorOlive          = "olive"                        // 100, 100, 0
+	colorCornflowerBlue = "rail_response"                // 67, 135, 253
+	colorSunsetOrange   = "rail_animation"               // 244, 74, 63
+	colorTangerine      = "rail_idle"                    // 238, 142, 0
+	colorShamrockGreen  = "rail_load"                    // 13, 168, 97
+	colorGreenishYellow = "startup"                      // 230, 230, 0
+	colorDarkGrey       = "heap_dump_stack_frame"        // 128, 128, 128
+	colorTawny          = "heap_dump_child_node_arrow"   // 204, 102, 0
+	colorLemon          = "cq_build_running"             // 255, 255, 119
+	colorLime           = "cq_build_passed"              // 153, 238, 102
+	colorPink           = "cq_build_failed"              // 238, 136, 136
+	colorSilver         = "cq_build_abandoned"           // 187, 187, 187
+	colorManzGreen      = "cq_build_attempt_runnig"      // 222, 222, 75
+	colorKellyGreen     = "cq_build_attempt_passed"      // 108, 218, 35
+	colorAnotherGrey    = "cq_build_attempt_failed"      // 187, 187, 187
 )
 
 var colorForTask = []string{

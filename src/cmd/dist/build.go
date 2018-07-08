@@ -67,13 +67,16 @@ var okgoarch = []string{
 	"mips64le",
 	"ppc64",
 	"ppc64le",
+	"riscv64",
 	"s390x",
+	"wasm",
 }
 
 // The known operating systems.
 var okgoos = []string{
 	"darwin",
 	"dragonfly",
+	"js",
 	"linux",
 	"android",
 	"solaris",
@@ -1299,9 +1302,14 @@ func cmdbootstrap() {
 		os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
-	goInstall(goBootstrap, "std", "cmd")
-	checkNotStale(goBootstrap, "std", "cmd")
-	checkNotStale(cmdGo, "std", "cmd")
+	targets := []string{"std", "cmd"}
+	if goos == "js" && goarch == "wasm" {
+		// Skip the cmd tools for js/wasm. They're not usable.
+		targets = targets[:1]
+	}
+	goInstall(goBootstrap, targets...)
+	checkNotStale(goBootstrap, targets...)
+	checkNotStale(cmdGo, targets...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
@@ -1391,6 +1399,7 @@ var cgoEnabled = map[string]bool{
 	"linux/mipsle":    true,
 	"linux/mips64":    true,
 	"linux/mips64le":  true,
+	"linux/riscv64":   true,
 	"linux/s390x":     true,
 	"android/386":     true,
 	"android/amd64":   true,
@@ -1436,7 +1445,7 @@ func checkCC() {
 		fatalf("cannot invoke C compiler %q: %v\n\n"+
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, set CC=the-compiler.\n"+
-			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
+			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
 }
 

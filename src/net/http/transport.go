@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"net/http/httptrace"
+	"net/textproto"
 	"net/url"
 	"os"
 	"strings"
@@ -28,7 +29,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang_org/x/net/lex/httplex"
+	"golang_org/x/net/http/httpguts"
+	"golang_org/x/net/http/httpproxy"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -81,6 +83,13 @@ const DefaultMaxIdleConnsPerHost = 2
 // being written while the response body is streamed. Go's HTTP/2
 // implementation does support full duplex, but many CONNECT proxies speak
 // HTTP/1.x.
+//
+// Responses with status codes in the 1xx range are either handled
+// automatically (100 expect-continue) or ignored. The one
+// exception is HTTP status code 101 (Switching Protocols), which is
+// considered a terminal status and returned by RoundTrip. To see the
+// ignored 1xx responses, use the httptrace trace package's
+// ClientTrace.Got1xxResponse.
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool                                // user has requested to close all idle conns
@@ -108,9 +117,19 @@ type Transport struct {
 	// DialContext specifies the dial function for creating unencrypted TCP connections.
 	// If DialContext is nil (and the deprecated Dial below is also nil),
 	// then the transport dials using package net.
+	//
+	// DialContext runs concurrently with calls to RoundTrip.
+	// A RoundTrip call that initiates a dial may end up using
+	// an connection dialed previously when the earlier connection
+	// becomes idle before the later DialContext completes.
 	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
 	// Dial specifies the dial function for creating unencrypted TCP connections.
+	//
+	// Dial runs concurrently with calls to RoundTrip.
+	// A RoundTrip call that initiates a dial may end up using
+	// an connection dialed previously when the earlier connection
+	// becomes idle before the later Dial completes.
 	//
 	// Deprecated: Use DialContext instead, which allows the transport
 	// to cancel dials as soon as they are no longer needed.
@@ -138,8 +157,11 @@ type Transport struct {
 	// wait for a TLS handshake. Zero means no timeout.
 	TLSHandshakeTimeout time.Duration
 
-	// DisableKeepAlives, if true, prevents re-use of TCP connections
-	// between different HTTP requests.
+	// DisableKeepAlives, if true, disables HTTP keep-alives and
+	// will only use the connection to the server for a single
+	// HTTP request.
+	//
+	// This is unrelated to the similarly named TCP keep-alives.
 	DisableKeepAlives bool
 
 	// DisableCompression, if true, prevents the Transport from
@@ -272,39 +294,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 // As a special case, if req.URL.Host is "localhost" (with or without
 // a port number), then a nil URL and nil error will be returned.
 func ProxyFromEnvironment(req *Request) (*url.URL, error) {
-	var proxy string
-	if req.URL.Scheme == "https" {
-		proxy = httpsProxyEnv.Get()
-	}
-	if proxy == "" {
-		proxy = httpProxyEnv.Get()
-		if proxy != "" && os.Getenv("REQUEST_METHOD") != "" {
-			return nil, errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")
-		}
-	}
-	if proxy == "" {
-		return nil, nil
-	}
-	if !useProxy(canonicalAddr(req.URL)) {
-		return nil, nil
-	}
-	proxyURL, err := url.Parse(proxy)
-	if err != nil ||
-		(proxyURL.Scheme != "http" &&
-			proxyURL.Scheme != "https" &&
-			proxyURL.Scheme != "socks5") {
-		// proxy was bogus. Try prepending "http://" to it and
-		// see if that parses correctly. If not, we fall
-		// through and complain about the original one.
-		if proxyURL, err := url.Parse("http://" + proxy); err == nil {
-			return proxyURL, nil
-		}
-
-	}
-	if err != nil {
-		return nil, fmt.Errorf("invalid proxy address %q: %v", proxy, err)
-	}
-	return proxyURL, nil
+	return envProxyFunc()(req.URL)
 }
 
 // ProxyURL returns a proxy function (for use in a Transport)
@@ -342,11 +332,8 @@ func (tr *transportRequest) setError(err error) {
 	tr.mu.Unlock()
 }
 
-// RoundTrip implements the RoundTripper interface.
-//
-// For higher-level HTTP client support (such as handling of cookies
-// and redirects), see Get, Post, and the Client type.
-func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+// roundTrip implements a RoundTripper over HTTP.
+func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	ctx := req.Context()
 	trace := httptrace.ContextClientTrace(ctx)
@@ -363,11 +350,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	isHTTP := scheme == "http" || scheme == "https"
 	if isHTTP {
 		for k, vv := range req.Header {
-			if !httplex.ValidHeaderFieldName(k) {
+			if !httpguts.ValidHeaderFieldName(k) {
 				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
 			}
 			for _, v := range vv {
-				if !httplex.ValidHeaderFieldValue(v) {
+				if !httpguts.ValidHeaderFieldValue(v) {
 					return nil, fmt.Errorf("net/http: invalid header field value %q for key %v", v, k)
 				}
 			}
@@ -393,6 +380,13 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			req.closeBody()
+			return nil, ctx.Err()
+		default:
+		}
+
 		// treq gets modified by roundTrip, so we need to recreate for each retry.
 		treq := &transportRequest{Request: req, trace: trace}
 		cm, err := t.connectMethodForRequest(treq)
@@ -574,44 +568,25 @@ func (t *Transport) cancelRequest(req *Request, err error) {
 //
 
 var (
-	httpProxyEnv = &envOnce{
-		names: []string{"HTTP_PROXY", "http_proxy"},
-	}
-	httpsProxyEnv = &envOnce{
-		names: []string{"HTTPS_PROXY", "https_proxy"},
-	}
-	noProxyEnv = &envOnce{
-		names: []string{"NO_PROXY", "no_proxy"},
-	}
+	// proxyConfigOnce guards proxyConfig
+	envProxyOnce      sync.Once
+	envProxyFuncValue func(*url.URL) (*url.URL, error)
 )
 
-// envOnce looks up an environment variable (optionally by multiple
-// names) once. It mitigates expensive lookups on some platforms
-// (e.g. Windows).
-type envOnce struct {
-	names []string
-	once  sync.Once
-	val   string
+// defaultProxyConfig returns a ProxyConfig value looked up
+// from the environment. This mitigates expensive lookups
+// on some platforms (e.g. Windows).
+func envProxyFunc() func(*url.URL) (*url.URL, error) {
+	envProxyOnce.Do(func() {
+		envProxyFuncValue = httpproxy.FromEnvironment().ProxyFunc()
+	})
+	return envProxyFuncValue
 }
 
-func (e *envOnce) Get() string {
-	e.once.Do(e.init)
-	return e.val
-}
-
-func (e *envOnce) init() {
-	for _, n := range e.names {
-		e.val = os.Getenv(n)
-		if e.val != "" {
-			return
-		}
-	}
-}
-
-// reset is used by tests
-func (e *envOnce) reset() {
-	e.once = sync.Once{}
-	e.val = ""
+// resetProxyConfig is used by tests.
+func resetProxyConfig() {
+	envProxyOnce = sync.Once{}
+	envProxyFuncValue = nil
 }
 
 func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectMethod, err error) {
@@ -1139,9 +1114,6 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 	case cm.proxyURL.Scheme == "socks5":
 		conn := pconn.conn
 		d := socksNewDialer("tcp", conn.RemoteAddr().String())
-		d.ProxyDial = func(_ context.Context, _, _ string) (net.Conn, error) {
-			return conn, nil
-		}
 		if u := cm.proxyURL.User; u != nil {
 			auth := &socksUsernamePassword{
 				Username: u.Username(),
@@ -1153,7 +1125,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 			}
 			d.Authenticate = auth.Authenticate
 		}
-		if _, err := d.DialContext(ctx, "tcp", cm.targetAddr); err != nil {
+		if _, err := d.DialWithConn(ctx, conn, "tcp", cm.targetAddr); err != nil {
 			conn.Close()
 			return nil, err
 		}
@@ -1233,63 +1205,6 @@ func (w persistConnWriter) Write(p []byte) (n int, err error) {
 	n, err = w.pc.conn.Write(p)
 	w.pc.nwrite += int64(n)
 	return
-}
-
-// useProxy reports whether requests to addr should use a proxy,
-// according to the NO_PROXY or no_proxy environment variable.
-// addr is always a canonicalAddr with a host and port.
-func useProxy(addr string) bool {
-	if len(addr) == 0 {
-		return true
-	}
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return false
-	}
-	if host == "localhost" {
-		return false
-	}
-	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() {
-			return false
-		}
-	}
-
-	noProxy := noProxyEnv.Get()
-	if noProxy == "*" {
-		return false
-	}
-
-	addr = strings.ToLower(strings.TrimSpace(addr))
-	if hasPort(addr) {
-		addr = addr[:strings.LastIndex(addr, ":")]
-	}
-
-	for _, p := range strings.Split(noProxy, ",") {
-		p = strings.ToLower(strings.TrimSpace(p))
-		if len(p) == 0 {
-			continue
-		}
-		if hasPort(p) {
-			p = p[:strings.LastIndex(p, ":")]
-		}
-		if addr == p {
-			return false
-		}
-		if len(p) == 0 {
-			// There is no host part, likely the entry is malformed; ignore.
-			continue
-		}
-		if p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:]) {
-			// no_proxy ".foo.com" matches "bar.foo.com" or "foo.com"
-			return false
-		}
-		if p[0] != '.' && strings.HasSuffix(addr, p) && addr[len(addr)-len(p)-1] == '.' {
-			// no_proxy "foo.com" matches "bar.foo.com"
-			return false
-		}
-	}
-	return true
 }
 
 // connectMethod is the map key (in its String form) for keeping persistent
@@ -1744,26 +1659,45 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 			trace.GotFirstResponseByte()
 		}
 	}
-	resp, err = ReadResponse(pc.br, rc.req)
-	if err != nil {
-		return
-	}
-	if rc.continueCh != nil {
-		if resp.StatusCode == 100 {
-			if trace != nil && trace.Got100Continue != nil {
-				trace.Got100Continue()
-			}
-			rc.continueCh <- struct{}{}
-		} else {
-			close(rc.continueCh)
-		}
-	}
-	if resp.StatusCode == 100 {
-		pc.readLimit = pc.maxHeaderResponseSize() // reset the limit
+	num1xx := 0               // number of informational 1xx headers received
+	const max1xxResponses = 5 // arbitrary bound on number of informational responses
+
+	continueCh := rc.continueCh
+	for {
 		resp, err = ReadResponse(pc.br, rc.req)
 		if err != nil {
 			return
 		}
+		resCode := resp.StatusCode
+		if continueCh != nil {
+			if resCode == 100 {
+				if trace != nil && trace.Got100Continue != nil {
+					trace.Got100Continue()
+				}
+				continueCh <- struct{}{}
+				continueCh = nil
+			} else if resCode >= 200 {
+				close(continueCh)
+				continueCh = nil
+			}
+		}
+		is1xx := 100 <= resCode && resCode <= 199
+		// treat 101 as a terminal status, see issue 26161
+		is1xxNonTerminal := is1xx && resCode != StatusSwitchingProtocols
+		if is1xxNonTerminal {
+			num1xx++
+			if num1xx > max1xxResponses {
+				return nil, errors.New("net/http: too many 1xx informational responses")
+			}
+			pc.readLimit = pc.maxHeaderResponseSize() // reset the limit
+			if trace != nil && trace.Got1xxResponse != nil {
+				if err := trace.Got1xxResponse(resCode, textproto.MIMEHeader(resp.Header)); err != nil {
+					return nil, err
+				}
+			}
+			continue
+		}
+		break
 	}
 	resp.TLS = pc.tlsState
 	return
@@ -1959,7 +1893,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		//
 		// Note that we don't request this for HEAD requests,
 		// due to a bug in nginx:
-		//   http://trac.nginx.org/nginx/ticket/358
+		//   https://trac.nginx.org/nginx/ticket/358
 		//   https://golang.org/issue/5522
 		//
 		// We don't request gzip if the request is for a range, since

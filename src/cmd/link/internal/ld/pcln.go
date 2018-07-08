@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // iteration over encoded pcdata tables.
@@ -159,11 +160,13 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 	*d = out
 }
 
-// onlycsymbol reports whether this is a cgo symbol provided by the
-// runtime and only used from C code.
+// onlycsymbol reports whether this is a symbol that is referenced by C code.
 func onlycsymbol(s *sym.Symbol) bool {
 	switch s.Name {
 	case "_cgo_topofstack", "_cgo_panic", "crosscall2":
+		return true
+	}
+	if strings.HasPrefix(s.Name, "_cgoexp_") {
 		return true
 	}
 	return false
@@ -312,6 +315,8 @@ func (ctxt *Link) pclntab() {
 		// funcID uint32
 		funcID := objabi.FuncID_normal
 		switch s.Name {
+		case "runtime.main":
+			funcID = objabi.FuncID_runtime_main
 		case "runtime.goexit":
 			funcID = objabi.FuncID_goexit
 		case "runtime.jmpdefer":
@@ -330,12 +335,6 @@ func (ctxt *Link) pclntab() {
 			funcID = objabi.FuncID_sigpanic
 		case "runtime.runfinq":
 			funcID = objabi.FuncID_runfinq
-		case "runtime.bgsweep":
-			funcID = objabi.FuncID_bgsweep
-		case "runtime.forcegchelper":
-			funcID = objabi.FuncID_forcegchelper
-		case "runtime.timerproc":
-			funcID = objabi.FuncID_timerproc
 		case "runtime.gcBgMarkWorker":
 			funcID = objabi.FuncID_gcBgMarkWorker
 		case "runtime.systemstack_switch":
@@ -348,6 +347,8 @@ func (ctxt *Link) pclntab() {
 			funcID = objabi.FuncID_gogo
 		case "runtime.externalthreadhandler":
 			funcID = objabi.FuncID_externalthreadhandler
+		case "runtime.debugCallV1":
+			funcID = objabi.FuncID_debugCallV1
 		}
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(funcID)))
 

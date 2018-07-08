@@ -4,6 +4,10 @@
 
 package ssa
 
+import (
+	"cmd/internal/src"
+)
+
 // fuse simplifies control flow by joining basic blocks.
 func fuse(f *Func) {
 	for changed := true; changed; {
@@ -121,6 +125,25 @@ func fuseBlockPlain(b *Block) bool {
 		return false
 	}
 
+	// If a block happened to end in a statement marker,
+	// try to preserve it.
+	if b.Pos.IsStmt() == src.PosIsStmt {
+		l := b.Pos.Line()
+		for _, v := range c.Values {
+			if v.Pos.IsStmt() == src.PosNotStmt {
+				continue
+			}
+			if l == v.Pos.Line() {
+				v.Pos = v.Pos.WithIsStmt()
+				l = 0
+				break
+			}
+		}
+		if l != 0 && c.Pos.Line() == l {
+			c.Pos = c.Pos.WithIsStmt()
+		}
+	}
+
 	// move all of b's values to c.
 	for _, v := range b.Values {
 		v.Block = c
@@ -128,8 +151,25 @@ func fuseBlockPlain(b *Block) bool {
 	// Use whichever value slice is larger, in the hopes of avoiding growth.
 	// However, take care to avoid c.Values pointing to b.valstorage.
 	// See golang.org/issue/18602.
+	// It's important to keep the elements in the same order; maintenance of
+	// debugging information depends on the order of *Values in Blocks.
+	// This can also cause changes in the order (which may affect other
+	// optimizations and possibly compiler output) for 32-vs-64 bit compilation
+	// platforms (word size affects allocation bucket size affects slice capacity).
 	if cap(c.Values) >= cap(b.Values) || len(b.Values) <= len(b.valstorage) {
-		c.Values = append(c.Values, b.Values...)
+		bl := len(b.Values)
+		cl := len(c.Values)
+		var t []*Value // construct t = b.Values followed-by c.Values, but with attention to allocation.
+		if cap(c.Values) < bl+cl {
+			// reallocate
+			t = make([]*Value, bl+cl)
+		} else {
+			// in place.
+			t = c.Values[0 : bl+cl]
+		}
+		copy(t[bl:], c.Values) // possibly in-place
+		c.Values = t
+		copy(c.Values, b.Values)
 	} else {
 		c.Values = append(b.Values, c.Values...)
 	}

@@ -4,10 +4,12 @@
 
 // Vet is a simple checker for static errors in Go source code.
 // See doc.go for more information.
+
 package main
 
 import (
 	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -22,8 +24,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+
+	"cmd/internal/objabi"
 )
 
 // Important! If you add flags here, make sure to update cmd/go/internal/vet/vetflag.go.
@@ -154,9 +159,31 @@ var (
 	// checkers is a two-level map.
 	// The outer level is keyed by a nil pointer, one of the AST vars above.
 	// The inner level is keyed by checker name.
-	checkers = make(map[ast.Node]map[string]func(*File, ast.Node))
+	checkers    = make(map[ast.Node]map[string]func(*File, ast.Node))
+	pkgCheckers = make(map[string]func(*Package))
+	exporters   = make(map[string]func() interface{})
 )
 
+// The exporters data as written to the vetx output file.
+type vetxExport struct {
+	Name string
+	Data interface{}
+}
+
+// Vet can provide its own "export information"
+// about package A to future invocations of vet
+// on packages importing A. If B imports A,
+// then running "go vet B" actually invokes vet twice:
+// first, it runs vet on A, in "vetx-only" mode, which
+// skips most checks and only computes export data
+// describing A. Then it runs vet on B, making A's vetx
+// data available for consultation. The vet of B
+// computes vetx data for B in addition to its
+// usual vet checks.
+
+// register registers the named check function,
+// to be called with AST nodes of the given types.
+// The registered functions are not called in vetx-only mode.
 func register(name, usage string, fn func(*File, ast.Node), types ...ast.Node) {
 	report[name] = triStateFlag(name, unset, usage)
 	for _, typ := range types {
@@ -167,6 +194,25 @@ func register(name, usage string, fn func(*File, ast.Node), types ...ast.Node) {
 		}
 		m[name] = fn
 	}
+}
+
+// registerPkgCheck registers a package-level checking function,
+// to be invoked with the whole package being vetted
+// before any of the per-node handlers.
+// The registered function fn is called even in vetx-only mode
+// (see comment above), so fn must take care not to report
+// errors when vcfg.VetxOnly is true.
+func registerPkgCheck(name string, fn func(*Package)) {
+	pkgCheckers[name] = fn
+}
+
+// registerExport registers a function to return vetx export data
+// that should be saved and provided to future invocations of vet
+// when checking packages importing this one.
+// The value returned by fn should be nil or else valid to encode using gob.
+// Typically a registerExport call is paired with a call to gob.Register.
+func registerExport(name string, fn func() interface{}) {
+	exporters[name] = fn
 }
 
 // Usage is a replacement usage function for the flags package.
@@ -209,6 +255,7 @@ type File struct {
 }
 
 func main() {
+	objabi.AddVersionFlag()
 	flag.Usage = Usage
 	flag.Parse()
 
@@ -294,6 +341,10 @@ type vetConfig struct {
 	GoFiles     []string
 	ImportMap   map[string]string
 	PackageFile map[string]string
+	Standard    map[string]bool
+	PackageVetx map[string]string // map from import path to vetx data file
+	VetxOnly    bool              // only compute vetx output; don't run ordinary checks
+	VetxOutput  string            // file where vetx output should be written
 
 	SucceedOnTypecheckFailure bool
 
@@ -312,6 +363,11 @@ func (v *vetConfig) Import(path string) (*types.Package, error) {
 		return nil, fmt.Errorf("unknown import path %q", path)
 	}
 	if v.PackageFile[p] == "" {
+		if v.Compiler == "gccgo" && v.Standard[path] {
+			// gccgo doesn't have sources for standard library packages,
+			// but the importer will do the right thing.
+			return v.imp.Import(path)
+		}
 		return nil, fmt.Errorf("unknown package file for import %q", path)
 	}
 	return v.imp.Import(p)
@@ -320,6 +376,10 @@ func (v *vetConfig) Import(path string) (*types.Package, error) {
 func (v *vetConfig) openPackageFile(path string) (io.ReadCloser, error) {
 	file := v.PackageFile[path]
 	if file == "" {
+		if v.Compiler == "gccgo" && v.Standard[path] {
+			// The importer knows how to handle this.
+			return nil, nil
+		}
 		// Note that path here has been translated via v.ImportMap,
 		// unlike in the error in Import above. We prefer the error in
 		// Import, but it's worth diagnosing this one too, just in case.
@@ -345,6 +405,28 @@ func doPackageCfg(cfgFile string) {
 	inittypes()
 	mustTypecheck = true
 	doPackage(vcfg.GoFiles, nil)
+	if vcfg.VetxOutput != "" {
+		out := make([]vetxExport, 0, len(exporters))
+		for name, fn := range exporters {
+			out = append(out, vetxExport{
+				Name: name,
+				Data: fn(),
+			})
+		}
+		// Sort the data so that it is consistent across builds.
+		sort.Slice(out, func(i, j int) bool {
+			return out[i].Name < out[j].Name
+		})
+		var buf bytes.Buffer
+		if err := gob.NewEncoder(&buf).Encode(out); err != nil {
+			errorf("encoding vet output: %v", err)
+			return
+		}
+		if err := ioutil.WriteFile(vcfg.VetxOutput, buf.Bytes(), 0666); err != nil {
+			errorf("saving vet output: %v", err)
+			return
+		}
+	}
 }
 
 // doPackageDir analyzes the single package found in the directory, if there is one,
@@ -405,23 +487,23 @@ func doPackage(names []string, basePkg *Package) *Package {
 			warnf("%s: %s", name, err)
 			return nil
 		}
-		checkBuildTag(name, data)
 		var parsedFile *ast.File
 		if strings.HasSuffix(name, ".go") {
-			parsedFile, err = parser.ParseFile(fs, name, data, 0)
+			parsedFile, err = parser.ParseFile(fs, name, data, parser.ParseComments)
 			if err != nil {
 				warnf("%s: %s", name, err)
 				return nil
 			}
 			astFiles = append(astFiles, parsedFile)
 		}
-		files = append(files, &File{
+		file := &File{
 			fset:    fs,
 			content: data,
 			name:    name,
 			file:    parsedFile,
 			dead:    make(map[ast.Node]bool),
-		})
+		}
+		files = append(files, file)
 	}
 	if len(astFiles) == 0 {
 		return nil
@@ -450,6 +532,19 @@ func doPackage(names []string, basePkg *Package) *Package {
 	}
 
 	// Check.
+	for _, file := range files {
+		file.pkg = pkg
+		file.basePkg = basePkg
+	}
+	for name, fn := range pkgCheckers {
+		if vet(name) {
+			fn(pkg)
+		}
+	}
+	if vcfg.VetxOnly {
+		return pkg
+	}
+
 	chk := make(map[ast.Node][]func(*File, ast.Node))
 	for typ, set := range checkers {
 		for name, fn := range set {
@@ -459,14 +554,12 @@ func doPackage(names []string, basePkg *Package) *Package {
 		}
 	}
 	for _, file := range files {
-		file.pkg = pkg
-		file.basePkg = basePkg
+		checkBuildTag(file)
 		file.checkers = chk
 		if file.file != nil {
 			file.walkFile(file.name, file.file)
 		}
 	}
-	asmCheck(pkg)
 	return pkg
 }
 
@@ -618,4 +711,40 @@ func (f *File) gofmt(x ast.Expr) string {
 	f.b.Reset()
 	printer.Fprint(&f.b, f.fset, x)
 	return f.b.String()
+}
+
+// imported[path][key] is previously written export data.
+var imported = make(map[string]map[string]interface{})
+
+// readVetx reads export data written by a previous
+// invocation of vet on an imported package (path).
+// The key is the name passed to registerExport
+// when the data was originally generated.
+// readVetx returns nil if the data is unavailable.
+func readVetx(path, key string) interface{} {
+	if path == "unsafe" || vcfg.ImportPath == "" {
+		return nil
+	}
+	m := imported[path]
+	if m == nil {
+		file := vcfg.PackageVetx[path]
+		if file == "" {
+			return nil
+		}
+		data, err := ioutil.ReadFile(file)
+		if err != nil {
+			return nil
+		}
+		var out []vetxExport
+		err = gob.NewDecoder(bytes.NewReader(data)).Decode(&out)
+		if err != nil {
+			return nil
+		}
+		m = make(map[string]interface{})
+		for _, x := range out {
+			m[x.Name] = x.Data
+		}
+		imported[path] = m
+	}
+	return m[key]
 }

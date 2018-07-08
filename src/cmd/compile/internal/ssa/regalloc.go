@@ -117,6 +117,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 	"fmt"
 	"unsafe"
 )
@@ -372,10 +373,14 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
 // If there is no unused register, a Value will be kicked out of
 // a register to make room.
 func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+	if v.OnWasmStack {
+		return noRegister
+	}
+
 	mask &= s.allocatable
 	mask &^= s.nospill
 	if mask == 0 {
-		s.f.Fatalf("no register available for %s", v)
+		s.f.Fatalf("no register available for %s", v.LongString())
 	}
 
 	// Pick an unused register if one is available.
@@ -409,6 +414,14 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	}
 	if maxuse == -1 {
 		s.f.Fatalf("couldn't find register to spill")
+	}
+
+	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm {
+		// TODO(neelance): In theory this should never happen, because all wasm registers are equal.
+		// So if there is still a free register, the allocation should have picked that one in the first place insead of
+		// trying to kick some other value out. In practice, this case does happen and it breaks the stack optimization.
+		s.freeReg(r)
+		return r
 	}
 
 	// Try to move it around before kicking out, if there is a free register.
@@ -458,6 +471,16 @@ func (s *regAllocState) makeSpill(v *Value, b *Block) *Value {
 // undone until the caller allows it by clearing nospill. Returns a
 // *Value which is either v or a copy of v allocated to the chosen register.
 func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos src.XPos) *Value {
+	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm && v.rematerializeable() {
+		c := v.copyIntoWithXPos(s.curBlock, pos)
+		c.OnWasmStack = true
+		s.setOrig(c, v)
+		return c
+	}
+	if v.OnWasmStack {
+		return v
+	}
+
 	vi := &s.values[v.ID]
 	pos = pos.WithNotStmt()
 	// Check if v is already in a requested register.
@@ -472,8 +495,13 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 		return s.regs[r].c
 	}
 
-	// Allocate a register.
-	r := s.allocReg(mask, v)
+	var r register
+	// If nospill is set, the value is used immedately, so it can live on the WebAssembly stack.
+	onWasmStack := nospill && s.f.Config.ctxt.Arch.Arch == sys.ArchWasm
+	if !onWasmStack {
+		// Allocate a register.
+		r = s.allocReg(mask, v)
+	}
 
 	// Allocate v to the new register.
 	var c *Value
@@ -495,8 +523,18 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 		}
 		c = s.curBlock.NewValue1(pos, OpLoadReg, v.Type, spill)
 	}
+
 	s.setOrig(c, v)
+
+	if onWasmStack {
+		c.OnWasmStack = true
+		return c
+	}
+
 	s.assignReg(r, v, c)
+	if c.Op == OpLoadReg && s.isGReg(r) {
+		s.f.Fatalf("allocValToReg.OpLoadReg targeting g: " + c.LongString())
+	}
 	if nospill {
 		s.nospill |= regMask(1) << r
 	}
@@ -656,6 +694,39 @@ func (s *regAllocState) init(f *Func) {
 	s.startRegs = make([][]startReg, f.NumBlocks())
 	s.spillLive = make([][]ID, f.NumBlocks())
 	s.sdom = f.sdom()
+
+	// wasm: Mark instructions that can be optimized to have their values only on the WebAssembly stack.
+	if f.Config.ctxt.Arch.Arch == sys.ArchWasm {
+		canLiveOnStack := f.newSparseSet(f.NumValues())
+		defer f.retSparseSet(canLiveOnStack)
+		for _, b := range f.Blocks {
+			// New block. Clear candidate set.
+			canLiveOnStack.clear()
+			if b.Control != nil && b.Control.Uses == 1 && !opcodeTable[b.Control.Op].generic {
+				canLiveOnStack.add(b.Control.ID)
+			}
+			// Walking backwards.
+			for i := len(b.Values) - 1; i >= 0; i-- {
+				v := b.Values[i]
+				if canLiveOnStack.contains(v.ID) {
+					v.OnWasmStack = true
+				} else {
+					// Value can not live on stack. Values are not allowed to be reordered, so clear candidate set.
+					canLiveOnStack.clear()
+				}
+				for _, arg := range v.Args {
+					// Value can live on the stack if:
+					// - it is only used once
+					// - it is used in the same basic block
+					// - it is not a "mem" value
+					// - it is a WebAssembly op
+					if arg.Uses == 1 && arg.Block == v.Block && !arg.Type.IsMemory() && !opcodeTable[arg.Op].generic {
+						canLiveOnStack.add(arg.ID)
+					}
+				}
+			}
+		}
+	}
 }
 
 // Adds a use record for id at distance dist from the start of the block.
@@ -739,6 +810,10 @@ func (s *regAllocState) regspec(op Op) regInfo {
 		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
 	}
 	return opcodeTable[op].reg
+}
+
+func (s *regAllocState) isGReg(r register) bool {
+	return s.f.Config.hasGReg && s.GReg == r
 }
 
 func (s *regAllocState) regalloc(f *Func) {
@@ -883,6 +958,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Majority vote? Deepest nesting level?
 			phiRegs = phiRegs[:0]
 			var phiUsed regMask
+
 			for _, v := range phis {
 				if !s.values[v.ID].needReg {
 					phiRegs = append(phiRegs, noRegister)
@@ -1448,6 +1524,9 @@ func (s *regAllocState) regalloc(f *Func) {
 		// predecessor of it, find live values that we use soon after
 		// the merge point and promote them to registers now.
 		if len(b.Succs) == 1 {
+			if s.f.Config.hasGReg && s.regs[s.GReg].v != nil {
+				s.freeReg(s.GReg) // Spill value in G register before any merge.
+			}
 			// For this to be worthwhile, the loop must have no calls in it.
 			top := b.Succs[0].b
 			loop := s.loopnest.b2l[top.ID]
@@ -1928,6 +2007,9 @@ func (e *edgeState) process() {
 			c = e.p.NewValue1(pos, OpLoadReg, c.Type, c)
 		}
 		e.set(r, vid, c, false, pos)
+		if c.Op == OpLoadReg && e.s.isGReg(register(r.(*Register).num)) {
+			e.s.f.Fatalf("process.OpLoadReg targeting g: " + c.LongString())
+		}
 	}
 }
 
@@ -2006,7 +2088,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
 		}
 		if dstReg {
-			x = v.copyIntoNoXPos(e.p)
+			x = v.copyInto(e.p)
 		} else {
 			// Rematerialize into stack slot. Need a free
 			// register to accomplish this.
@@ -2042,6 +2124,9 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 		}
 	}
 	e.set(loc, vid, x, true, pos)
+	if x.Op == OpLoadReg && e.s.isGReg(register(loc.(*Register).num)) {
+		e.s.f.Fatalf("processDest.OpLoadReg targeting g: " + x.LongString())
+	}
 	if splice != nil {
 		(*splice).Uses--
 		*splice = x

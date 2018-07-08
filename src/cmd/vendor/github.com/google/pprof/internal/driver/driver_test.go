@@ -65,6 +65,7 @@ func TestParse(t *testing.T) {
 		{"topproto,lines,cum,hide=mangled[X3]0", "cpu"},
 		{"tree,lines,cum,focus=[24]00", "heap"},
 		{"tree,relative_percentages,cum,focus=[24]00", "heap"},
+		{"tree,lines,cum,show_from=line2", "cpu"},
 		{"callgrind", "cpu"},
 		{"callgrind,call_tree", "cpu"},
 		{"callgrind", "heap"},
@@ -261,6 +262,9 @@ func solutionFilename(source string, f *testFlags) string {
 	if f.strings["ignore"] != "" || f.strings["tagignore"] != "" {
 		name = append(name, "ignore")
 	}
+	if f.strings["show_from"] != "" {
+		name = append(name, "show_from")
+	}
 	name = addString(name, f, []string{"hide", "show"})
 	if f.strings["unit"] != "minimum" {
 		name = addString(name, f, []string{"unit"})
@@ -284,7 +288,7 @@ type testFlags struct {
 	floats      map[string]float64
 	strings     map[string]string
 	args        []string
-	stringLists map[string][]*string
+	stringLists map[string][]string
 }
 
 func (testFlags) ExtraUsage() string { return "" }
@@ -351,7 +355,12 @@ func (f testFlags) StringVar(p *string, s, d, c string) {
 
 func (f testFlags) StringList(s, d, c string) *[]*string {
 	if t, ok := f.stringLists[s]; ok {
-		return &t
+		// convert slice of strings to slice of string pointers before returning.
+		tp := make([]*string, len(t))
+		for i, v := range t {
+			tp[i] = &v
+		}
+		return &tp
 	}
 	return &[]*string{}
 }

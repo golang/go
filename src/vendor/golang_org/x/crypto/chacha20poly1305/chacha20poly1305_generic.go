@@ -7,7 +7,7 @@ package chacha20poly1305
 import (
 	"encoding/binary"
 
-	"golang_org/x/crypto/chacha20poly1305/internal/chacha20"
+	"golang_org/x/crypto/internal/chacha20"
 	"golang_org/x/crypto/poly1305"
 )
 
@@ -16,15 +16,17 @@ func roundTo16(n int) int {
 }
 
 func (c *chacha20poly1305) sealGeneric(dst, nonce, plaintext, additionalData []byte) []byte {
-	var counter [16]byte
-	copy(counter[4:], nonce)
+	ret, out := sliceForAppend(dst, len(plaintext)+poly1305.TagSize)
 
 	var polyKey [32]byte
-	chacha20.XORKeyStream(polyKey[:], polyKey[:], &counter, &c.key)
-
-	ret, out := sliceForAppend(dst, len(plaintext)+poly1305.TagSize)
-	counter[0] = 1
-	chacha20.XORKeyStream(out, plaintext, &counter, &c.key)
+	s := chacha20.New(c.key, [3]uint32{
+		binary.LittleEndian.Uint32(nonce[0:4]),
+		binary.LittleEndian.Uint32(nonce[4:8]),
+		binary.LittleEndian.Uint32(nonce[8:12]),
+	})
+	s.XORKeyStream(polyKey[:], polyKey[:])
+	s.Advance() // skip the next 32 bytes
+	s.XORKeyStream(out, plaintext)
 
 	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(plaintext))+8+8)
 	copy(polyInput, additionalData)
@@ -44,11 +46,14 @@ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []
 	copy(tag[:], ciphertext[len(ciphertext)-16:])
 	ciphertext = ciphertext[:len(ciphertext)-16]
 
-	var counter [16]byte
-	copy(counter[4:], nonce)
-
 	var polyKey [32]byte
-	chacha20.XORKeyStream(polyKey[:], polyKey[:], &counter, &c.key)
+	s := chacha20.New(c.key, [3]uint32{
+		binary.LittleEndian.Uint32(nonce[0:4]),
+		binary.LittleEndian.Uint32(nonce[4:8]),
+		binary.LittleEndian.Uint32(nonce[8:12]),
+	})
+	s.XORKeyStream(polyKey[:], polyKey[:])
+	s.Advance() // skip the next 32 bytes
 
 	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(ciphertext))+8+8)
 	copy(polyInput, additionalData)
@@ -64,7 +69,6 @@ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []
 		return nil, errOpen
 	}
 
-	counter[0] = 1
-	chacha20.XORKeyStream(out, ciphertext, &counter, &c.key)
+	s.XORKeyStream(out, ciphertext)
 	return ret, nil
 }

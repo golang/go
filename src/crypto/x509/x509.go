@@ -1952,7 +1952,8 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 	}
 
 	// Adding another extension here? Remember to update the maximum number
-	// of elements in the make() at the top of the function.
+	// of elements in the make() at the top of the function and the list of
+	// template fields used in CreateCertificate documentation.
 
 	return append(ret[:n], template.ExtraExtensions...), nil
 }
@@ -2039,11 +2040,39 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 var emptyASN1Subject = []byte{0x30, 0}
 
 // CreateCertificate creates a new X.509v3 certificate based on a template.
-// The following members of template are used: AuthorityKeyId,
-// BasicConstraintsValid, DNSNames, ExcludedDNSDomains, ExtKeyUsage,
-// IsCA, KeyUsage, MaxPathLen, MaxPathLenZero, NotAfter, NotBefore,
-// PermittedDNSDomains, PermittedDNSDomainsCritical, SerialNumber,
-// SignatureAlgorithm, Subject, SubjectKeyId, and UnknownExtKeyUsage.
+// The following members of template are used:
+//
+//  - AuthorityKeyId
+//  - BasicConstraintsValid
+//  - CRLDistributionPoints
+//  - DNSNames
+//  - EmailAddresses
+//  - ExcludedDNSDomains
+//  - ExcludedEmailAddresses
+//  - ExcludedIPRanges
+//  - ExcludedURIDomains
+//  - ExtKeyUsage
+//  - ExtraExtensions
+//  - IsCA
+//  - IssuingCertificateURL
+//  - KeyUsage
+//  - MaxPathLen
+//  - MaxPathLenZero
+//  - NotAfter
+//  - NotBefore
+//  - OCSPServer
+//  - PermittedDNSDomains
+//  - PermittedDNSDomainsCritical
+//  - PermittedEmailAddresses
+//  - PermittedIPRanges
+//  - PermittedURIDomains
+//  - PolicyIdentifiers
+//  - SerialNumber
+//  - SignatureAlgorithm
+//  - Subject
+//  - SubjectKeyId
+//  - URIs
+//  - UnknownExtKeyUsage
 //
 // The certificate is signed by parent. If parent is equal to template then the
 // certificate is self-signed. The parameter pub is the public key of the
@@ -2365,9 +2394,18 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 }
 
 // CreateCertificateRequest creates a new certificate request based on a
-// template. The following members of template are used: Attributes, DNSNames,
-// EmailAddresses, ExtraExtensions, IPAddresses, URIs, SignatureAlgorithm, and
-// Subject. The private key is the private key of the signer.
+// template. The following members of template are used:
+//
+//  - Attributes
+//  - DNSNames
+//  - EmailAddresses
+//  - ExtraExtensions
+//  - IPAddresses
+//  - URIs
+//  - SignatureAlgorithm
+//  - Subject
+//
+// The private key is the private key of the signer.
 //
 // The returned slice is the certificate request in DER encoding.
 //

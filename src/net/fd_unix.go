@@ -11,8 +11,8 @@ import (
 	"internal/poll"
 	"os"
 	"runtime"
-	"sync/atomic"
 	"syscall"
+	"time"
 )
 
 // Network file descriptor.
@@ -22,7 +22,7 @@ type netFD struct {
 	// immutable until Close
 	family      int
 	sotype      int
-	isConnected bool
+	isConnected bool // handshake completed or use of association with peer
 	net         string
 	laddr       Addr
 	raddr       Addr
@@ -256,58 +256,26 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 	return netfd, nil
 }
 
-// tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
-// If the kernel doesn't support it, this is set to 0.
-var tryDupCloexec = int32(1)
-
-func dupCloseOnExec(fd int) (newfd int, err error) {
-	if atomic.LoadInt32(&tryDupCloexec) == 1 {
-		r0, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_DUPFD_CLOEXEC, 0)
-		if runtime.GOOS == "darwin" && e1 == syscall.EBADF {
-			// On OS X 10.6 and below (but we only support
-			// >= 10.6), F_DUPFD_CLOEXEC is unsupported
-			// and fcntl there falls back (undocumented)
-			// to doing an ioctl instead, returning EBADF
-			// in this case because fd is not of the
-			// expected device fd type. Treat it as
-			// EINVAL instead, so we fall back to the
-			// normal dup path.
-			// TODO: only do this on 10.6 if we can detect 10.6
-			// cheaply.
-			e1 = syscall.EINVAL
-		}
-		switch e1 {
-		case 0:
-			return int(r0), nil
-		case syscall.EINVAL:
-			// Old kernel. Fall back to the portable way
-			// from now on.
-			atomic.StoreInt32(&tryDupCloexec, 0)
-		default:
-			return -1, os.NewSyscallError("fcntl", e1)
-		}
-	}
-	return dupCloseOnExecOld(fd)
-}
-
-// dupCloseOnExecUnixOld is the traditional way to dup an fd and
-// set its O_CLOEXEC bit, using two system calls.
-func dupCloseOnExecOld(fd int) (newfd int, err error) {
-	syscall.ForkLock.RLock()
-	defer syscall.ForkLock.RUnlock()
-	newfd, err = syscall.Dup(fd)
-	if err != nil {
-		return -1, os.NewSyscallError("dup", err)
-	}
-	syscall.CloseOnExec(newfd)
-	return
-}
-
 func (fd *netFD) dup() (f *os.File, err error) {
-	ns, err := dupCloseOnExec(fd.pfd.Sysfd)
+	ns, call, err := fd.pfd.Dup()
 	if err != nil {
+		if call != "" {
+			err = os.NewSyscallError(call, err)
+		}
 		return nil, err
 	}
 
 	return os.NewFile(uintptr(ns), fd.name()), nil
+}
+
+func (fd *netFD) SetDeadline(t time.Time) error {
+	return fd.pfd.SetDeadline(t)
+}
+
+func (fd *netFD) SetReadDeadline(t time.Time) error {
+	return fd.pfd.SetReadDeadline(t)
+}
+
+func (fd *netFD) SetWriteDeadline(t time.Time) error {
+	return fd.pfd.SetWriteDeadline(t)
 }

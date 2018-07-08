@@ -557,7 +557,7 @@ var expTests = []struct {
 	{"0x8000000000000000", "3", "6719", "5447"},
 	{"0x8000000000000000", "1000", "6719", "1603"},
 	{"0x8000000000000000", "1000000", "6719", "3199"},
-	{"0x8000000000000000", "-1000000", "6719", "1"},
+	{"0x8000000000000000", "-1000000", "6719", "3663"}, // 3663 = ModInverse(3199, 6719) Issue #25865
 
 	{"0xffffffffffffffffffffffffffffffff", "0x12345678123456781234567812345678123456789", "0x01112222333344445555666677778889", "0x36168FA1DB3AAE6C8CE647E137F97A"},
 
@@ -675,21 +675,43 @@ func checkGcd(aBytes, bBytes []byte) bool {
 	return x.Cmp(d) == 0
 }
 
-// euclidGCD is a reference implementation of Euclid's GCD
-// algorithm for testing against optimized algorithms.
+// euclidExtGCD is a reference implementation of Euclid's
+// extended GCD algorithm for testing against optimized algorithms.
 // Requirements: a, b > 0
-func euclidGCD(a, b *Int) *Int {
-
+func euclidExtGCD(a, b *Int) (g, x, y *Int) {
 	A := new(Int).Set(a)
 	B := new(Int).Set(b)
-	t := new(Int)
 
+	// A = Ua*a + Va*b
+	// B = Ub*a + Vb*b
+	Ua := new(Int).SetInt64(1)
+	Va := new(Int)
+
+	Ub := new(Int)
+	Vb := new(Int).SetInt64(1)
+
+	q := new(Int)
+	temp := new(Int)
+
+	r := new(Int)
 	for len(B.abs) > 0 {
-		// A, B = B, A % B
-		t.Rem(A, B)
-		A, B, t = B, t, A
+		q, r = q.QuoRem(A, B, r)
+
+		A, B, r = B, r, A
+
+		// Ua, Ub = Ub, Ua-q*Ub
+		temp.Set(Ub)
+		Ub.Mul(Ub, q)
+		Ub.Sub(Ua, Ub)
+		Ua.Set(temp)
+
+		// Va, Vb = Vb, Va-q*Vb
+		temp.Set(Vb)
+		Vb.Mul(Vb, q)
+		Vb.Sub(Va, Vb)
+		Va.Set(temp)
 	}
-	return A
+	return A, Ua, Va
 }
 
 func checkLehmerGcd(aBytes, bBytes []byte) bool {
@@ -700,10 +722,26 @@ func checkLehmerGcd(aBytes, bBytes []byte) bool {
 		return true // can only test positive arguments
 	}
 
-	d := new(Int).lehmerGCD(a, b)
-	d0 := euclidGCD(a, b)
+	d := new(Int).lehmerGCD(nil, nil, a, b)
+	d0, _, _ := euclidExtGCD(a, b)
 
 	return d.Cmp(d0) == 0
+}
+
+func checkLehmerExtGcd(aBytes, bBytes []byte) bool {
+	a := new(Int).SetBytes(aBytes)
+	b := new(Int).SetBytes(bBytes)
+	x := new(Int)
+	y := new(Int)
+
+	if a.Sign() <= 0 || b.Sign() <= 0 {
+		return true // can only test positive arguments
+	}
+
+	d := new(Int).lehmerGCD(x, y, a, b)
+	d0, x0, y0 := euclidExtGCD(a, b)
+
+	return d.Cmp(d0) == 0 && x.Cmp(x0) == 0 && y.Cmp(y0) == 0
 }
 
 var gcdTests = []struct {
@@ -783,6 +821,10 @@ func TestGcd(t *testing.T) {
 	}
 
 	if err := quick.Check(checkLehmerGcd, nil); err != nil {
+		t.Error(err)
+	}
+
+	if err := quick.Check(checkLehmerExtGcd, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -1318,7 +1360,7 @@ func BenchmarkModSqrt225_Tonelli(b *testing.B) {
 	}
 }
 
-func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+func BenchmarkModSqrt225_3Mod4(b *testing.B) {
 	p := tri(225)
 	x := new(Int).SetUint64(2)
 	for i := 0; i < b.N; i++ {
@@ -1327,27 +1369,25 @@ func BenchmarkModSqrt224_3Mod4(b *testing.B) {
 	}
 }
 
-func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
-	if isRaceBuilder {
-		b.Skip("skipping on race builder")
-	}
-	p := tri(5430)
-	x := new(Int).SetUint64(2)
+func BenchmarkModSqrt231_Tonelli(b *testing.B) {
+	p := tri(231)
+	p.Sub(p, intOne)
+	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
+	x := new(Int).SetUint64(7)
 	for i := 0; i < b.N; i++ {
-		x.SetUint64(2)
+		x.SetUint64(7)
 		x.modSqrtTonelliShanks(x, p)
 	}
 }
 
-func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
-	if isRaceBuilder {
-		b.Skip("skipping on race builder")
-	}
-	p := tri(5430)
-	x := new(Int).SetUint64(2)
+func BenchmarkModSqrt231_5Mod8(b *testing.B) {
+	p := tri(231)
+	p.Sub(p, intOne)
+	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
+	x := new(Int).SetUint64(7)
 	for i := 0; i < b.N; i++ {
-		x.SetUint64(2)
-		x.modSqrt3Mod4Prime(x, p)
+		x.SetUint64(7)
+		x.modSqrt5Mod8Prime(x, p)
 	}
 }
 

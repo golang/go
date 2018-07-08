@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -327,4 +328,76 @@ func TestVendor12156(t *testing.T) {
 	tg.runFail("build", "p.go")
 	tg.grepStderrNot("panic", "panicked")
 	tg.grepStderr(`cannot find package "x"`, "wrong error")
+}
+
+// Module legacy support does path rewriting very similar to vendoring.
+
+func TestModLegacy(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/modlegacy"))
+	tg.run("list", "-f", "{{.Imports}}", "old/p1")
+	tg.grepStdout("new/p1", "old/p1 should import new/p1")
+	tg.run("list", "-f", "{{.Imports}}", "new/p1")
+	tg.grepStdout("new/p2", "new/p1 should import new/p2 (not new/v2/p2)")
+	tg.grepStdoutNot("new/v2", "new/p1 should NOT import new/v2*")
+	tg.grepStdout("new/sub/x/v1/y", "new/p1 should import new/sub/x/v1/y (not new/sub/v2/x/v1/y)")
+	tg.grepStdoutNot("new/sub/v2", "new/p1 should NOT import new/sub/v2*")
+	tg.grepStdout("new/sub/inner/x", "new/p1 should import new/sub/inner/x (no rewrites)")
+	tg.run("build", "old/p1", "new/p1")
+}
+
+func TestModLegacyGet(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("d1"))
+	tg.run("get", "vcs-test.golang.org/git/modlegacy1-old.git/p1")
+	tg.run("list", "-f", "{{.Deps}}", "vcs-test.golang.org/git/modlegacy1-old.git/p1")
+	tg.grepStdout("new.git/p2", "old/p1 should depend on new/p2")
+	tg.grepStdoutNot("new.git/v2/p2", "old/p1 should NOT depend on new/v2/p2")
+	tg.run("build", "vcs-test.golang.org/git/modlegacy1-old.git/p1", "vcs-test.golang.org/git/modlegacy1-new.git/p1")
+
+	tg.setenv("GOPATH", tg.path("d2"))
+
+	tg.must(os.RemoveAll(tg.path("d2")))
+	tg.run("get", "github.com/rsc/vgotest5")
+	tg.run("get", "github.com/rsc/vgotest4")
+	tg.run("get", "github.com/myitcv/vgo_example_compat")
+
+	if testing.Short() {
+		return
+	}
+
+	tg.must(os.RemoveAll(tg.path("d2")))
+	tg.run("get", "github.com/rsc/vgotest4")
+	tg.run("get", "github.com/rsc/vgotest5")
+	tg.run("get", "github.com/myitcv/vgo_example_compat")
+
+	tg.must(os.RemoveAll(tg.path("d2")))
+	tg.run("get", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5")
+	tg.run("get", "github.com/myitcv/vgo_example_compat")
+
+	tg.must(os.RemoveAll(tg.path("d2")))
+	tg.run("get", "github.com/rsc/vgotest5", "github.com/rsc/vgotest4")
+	tg.run("get", "github.com/myitcv/vgo_example_compat")
+
+	tg.must(os.RemoveAll(tg.path("d2")))
+	tg.run("get", "github.com/myitcv/vgo_example_compat")
+	tg.run("get", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5")
+
+	pkgs := []string{"github.com/myitcv/vgo_example_compat", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5"}
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			for k := 0; k < 3; k++ {
+				if i == j || i == k || k == j {
+					continue
+				}
+				tg.must(os.RemoveAll(tg.path("d2")))
+				tg.run("get", pkgs[i], pkgs[j], pkgs[k])
+			}
+		}
+	}
 }

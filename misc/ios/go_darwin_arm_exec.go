@@ -31,6 +31,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -125,6 +126,10 @@ func runMain() (int, error) {
 		return 1, err
 	}
 
+	if err := uninstall(bundleID); err != nil {
+		return 1, err
+	}
+
 	if err := install(appdir); err != nil {
 		return 1, err
 	}
@@ -132,6 +137,9 @@ func runMain() (int, error) {
 	if err := mountDevImage(); err != nil {
 		return 1, err
 	}
+
+	// Kill any hanging debug bridges that might take up port 3222.
+	exec.Command("killall", "idevicedebugserverproxy").Run()
 
 	closer, err := startDebugBridge()
 	if err != nil {
@@ -413,6 +421,18 @@ func parsePlistDict(dict []byte) (map[string]string, error) {
 	return values, nil
 }
 
+func uninstall(bundleID string) error {
+	cmd := idevCmd(exec.Command(
+		"ideviceinstaller",
+		"-U", bundleID,
+	))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		os.Stderr.Write(out)
+		return fmt.Errorf("ideviceinstaller -U %q: %s", bundleID, err)
+	}
+	return nil
+}
+
 func install(appdir string) error {
 	attempt := 0
 	for {
@@ -437,7 +457,9 @@ func install(appdir string) error {
 
 func idevCmd(cmd *exec.Cmd) *exec.Cmd {
 	if deviceID != "" {
-		cmd.Args = append(cmd.Args, "-u", deviceID)
+		// Inject -u device_id after the executable, but before the arguments.
+		args := []string{cmd.Args[0], "-u", deviceID}
+		cmd.Args = append(args, cmd.Args[1:]...)
 	}
 	return cmd
 }
@@ -453,12 +475,17 @@ func run(appdir, bundleID string, args []string) error {
 	}
 	attempt := 0
 	for {
-		// The device app path is constant for a given installed app,
-		// but the device might not return a stale device path for
-		// a newly overwritten app, so retry the lookup as well.
+		// The device app path reported by the device might be stale, so retry
+		// the lookup of the device path along with the lldb launching below.
 		deviceapp, err := findDeviceAppPath(bundleID)
 		if err != nil {
-			return err
+			// The device app path might not yet exist for a newly installed app.
+			if attempt == 5 {
+				return err
+			}
+			attempt++
+			time.Sleep(5 * time.Second)
+			continue
 		}
 		lldb := exec.Command(
 			"python",
@@ -472,7 +499,22 @@ func run(appdir, bundleID string, args []string) error {
 		lldb.Stdout = os.Stdout
 		var out bytes.Buffer
 		lldb.Stderr = io.MultiWriter(&out, os.Stderr)
-		err = lldb.Run()
+		err = lldb.Start()
+		if err == nil {
+			// Forward SIGQUIT to the lldb driver which in turn will forward
+			// to the running program.
+			sigs := make(chan os.Signal, 1)
+			signal.Notify(sigs, syscall.SIGQUIT)
+			proc := lldb.Process
+			go func() {
+				for sig := range sigs {
+					proc.Signal(sig)
+				}
+			}()
+			err = lldb.Wait()
+			signal.Stop(sigs)
+			close(sigs)
+		}
 		// If the program was not started it can be retried without papering over
 		// real test failures.
 		started := bytes.HasPrefix(out.Bytes(), []byte("lldb: running program"))
@@ -683,6 +725,7 @@ const resourceRules = `<?xml version="1.0" encoding="UTF-8"?>
 const lldbDriver = `
 import sys
 import os
+import signal
 
 exe, device_exe, args = sys.argv[1], sys.argv[2], sys.argv[3:]
 
@@ -721,6 +764,7 @@ for i in range(0, sigs.GetNumSignals()):
 
 event = lldb.SBEvent()
 running = False
+prev_handler = None
 while True:
 	if not listener.WaitForEvent(1, event):
 		continue
@@ -740,6 +784,8 @@ while True:
 			sys.stderr.write(out)
 	state = process.GetStateFromEvent(event)
 	if state in [lldb.eStateCrashed, lldb.eStateDetached, lldb.eStateUnloaded, lldb.eStateExited]:
+		if running:
+			signal.signal(signal.SIGQUIT, prev_handler)
 		break
 	elif state == lldb.eStateConnected:
 		process.RemoteLaunch(args, env, None, None, None, None, 0, False, err)
@@ -748,6 +794,10 @@ while True:
 			process.Kill()
 			debugger.Terminate()
 			sys.exit(1)
+		# Forward SIGQUIT to the program.
+		def signal_handler(signal, frame):
+			process.Signal(signal)
+		prev_handler = signal.signal(signal.SIGQUIT, signal_handler)
 		# Tell the Go driver that the program is running and should not be retried.
 		sys.stderr.write("lldb: running program\n")
 		running = True

@@ -250,7 +250,7 @@ func (oi ObjectIdentifier) String() string {
 // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
 // returns it. An object identifier is a sequence of variable length integers
 // that are assigned in a hierarchy.
-func parseObjectIdentifier(bytes []byte) (s []int, err error) {
+func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length OBJECT IDENTIFIER"}
 		return
@@ -793,6 +793,12 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		matchAnyClassAndTag = false
 	}
 
+	if !params.explicit && params.private && params.tag != nil {
+		expectedClass = ClassPrivate
+		expectedTag = *params.tag
+		matchAnyClassAndTag = false
+	}
+
 	// We have unwrapped any explicit tagging at this point.
 	if !matchAnyClassAndTag && (t.class != expectedClass || t.tag != expectedTag) ||
 		(!matchAny && t.isCompound != compoundType) {
@@ -1028,6 +1034,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // The following tags on struct fields have special meaning to Unmarshal:
 //
 //	application specifies that an APPLICATION tag is used
+//	private     specifies that a PRIVATE tag is used
 //	default:x   sets the default value for optional integer fields (only used if optional is also present)
 //	explicit    specifies that an additional, explicit tag wraps the implicit one
 //	optional    marks the field as ASN.1 OPTIONAL

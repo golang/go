@@ -89,7 +89,7 @@ func dumpexport(bout *bio.Writer) {
 }
 
 func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
-	n := asNode(s.Def)
+	n := asNode(s.PkgDef())
 	if n == nil {
 		// iimport should have created a stub ONONAME
 		// declaration for all imported symbols. The exception
@@ -100,7 +100,7 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
 		}
 
 		n = dclname(s)
-		s.Def = asTypesNode(n)
+		s.SetPkgDef(asTypesNode(n))
 		s.Importdef = ipkg
 	}
 	if n.Op != ONONAME && n.Op != op {

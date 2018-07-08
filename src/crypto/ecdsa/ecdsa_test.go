@@ -213,7 +213,7 @@ func fromHex(s string) *big.Int {
 
 func TestVectors(t *testing.T) {
 	// This test runs the full set of NIST test vectors from
-	// http://csrc.nist.gov/groups/STM/cavp/documents/dss/186-3ecdsatestvectors.zip
+	// https://csrc.nist.gov/groups/STM/cavp/documents/dss/186-3ecdsatestvectors.zip
 	//
 	// The SigVer.rsp file has been edited to remove test vectors for
 	// unsupported algorithms and has been compressed.

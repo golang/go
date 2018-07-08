@@ -9,54 +9,81 @@
 63:		hist := make([]int, 7)                                //gdb-opt=(dx/O,dy/O) // TODO sink is missing if this code is in 'test' instead of 'main'
 64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A) // TODO cannedInput/A is missing if this code is in 'test' instead of 'main'
 65:		if len(os.Args) > 1 {
+73:		scanner := bufio.NewScanner(reader)
+63:		hist := make([]int, 7)                                //gdb-opt=(dx/O,dy/O) // TODO sink is missing if this code is in 'test' instead of 'main'
+74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 76:			i, err := strconv.ParseInt(s, 10, 64)
 77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+76:			i, err := strconv.ParseInt(s, 10, 64)
 81:			hist = ensure(int(i), hist)
 82:			hist[int(i)]++
+81:			hist = ensure(int(i), hist)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
+86:		for i, a := range hist {
+87:			if a == 0 { //gdb-opt=(a,n,t)
+86:		for i, a := range hist {
+91:			n += a
+90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -65,8 +92,14 @@
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
+90:			t += i * a
+91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
+86:		for i, a := range hist {
+91:			n += a
+90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -75,8 +108,16 @@
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
+90:			t += i * a
+91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
+86:		for i, a := range hist {
+87:			if a == 0 { //gdb-opt=(a,n,t)
+86:		for i, a := range hist {
+91:			n += a
+90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -85,8 +126,14 @@
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
+90:			t += i * a
+91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
+86:		for i, a := range hist {
+91:			n += a
+90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -95,7 +142,10 @@
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
+90:			t += i * a
+91:			n += a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-98:	}
+86:		for i, a := range hist {
+99:	}

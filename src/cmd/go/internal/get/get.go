@@ -16,7 +16,9 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/go/internal/vgo"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
 )
@@ -90,6 +92,10 @@ func init() {
 }
 
 func runGet(cmd *base.Command, args []string) {
+	if vgo.Enabled() {
+		base.Fatalf("go get: vgo not implemented")
+	}
+
 	work.BuildInit()
 
 	if *getF && !*getU {
@@ -170,7 +176,7 @@ func runGet(cmd *base.Command, args []string) {
 // in the hope that we can figure out the repository from the
 // initial ...-free prefix.
 func downloadPaths(args []string) []string {
-	args = load.ImportPathsNoDotExpansion(args)
+	args = load.ImportPathsForGoGet(args)
 	var out []string
 	for _, a := range args {
 		if strings.Contains(a, "...") {
@@ -179,9 +185,9 @@ func downloadPaths(args []string) []string {
 			// warnings. They will be printed by the
 			// eventual call to importPaths instead.
 			if build.IsLocalImport(a) {
-				expand = load.MatchPackagesInFS(a)
+				expand = search.MatchPackagesInFS(a)
 			} else {
-				expand = load.MatchPackages(a)
+				expand = search.MatchPackages(a)
 			}
 			if len(expand) > 0 {
 				out = append(out, expand...)
@@ -209,7 +215,7 @@ var downloadRootCache = map[string]bool{}
 // download runs the download half of the get command
 // for the package named by the argument.
 func download(arg string, parent *load.Package, stk *load.ImportStack, mode int) {
-	if mode&load.UseVendor != 0 {
+	if mode&load.ResolveImport != 0 {
 		// Caller is responsible for expanding vendor paths.
 		panic("internal error: download mode has useVendor set")
 	}
@@ -217,7 +223,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		if parent == nil {
 			return load.LoadPackage(path, stk)
 		}
-		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode)
+		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
 
 	p := load1(arg, mode)
@@ -271,9 +277,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		// for p has been replaced in the package cache.
 		if wildcardOkay && strings.Contains(arg, "...") {
 			if build.IsLocalImport(arg) {
-				args = load.MatchPackagesInFS(arg)
+				args = search.MatchPackagesInFS(arg)
 			} else {
-				args = load.MatchPackages(arg)
+				args = search.MatchPackages(arg)
 			}
 			isWildcard = true
 		}
@@ -346,12 +352,12 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 				base.Errorf("%s", err)
 				continue
 			}
-			// If this is a test import, apply vendor lookup now.
-			// We cannot pass useVendor to download, because
+			// If this is a test import, apply module and vendor lookup now.
+			// We cannot pass ResolveImport to download, because
 			// download does caching based on the value of path,
 			// so it must be the fully qualified path already.
 			if i >= len(p.Imports) {
-				path = load.VendoredImportPath(p, path)
+				path = load.ResolveImportPath(p, path)
 			}
 			download(path, p, stk, 0)
 		}
@@ -369,6 +375,7 @@ func downloadPackage(p *load.Package) error {
 		vcs            *vcsCmd
 		repo, rootPath string
 		err            error
+		blindRepo      bool // set if the repo has unusual configuration
 	)
 
 	security := web.Secure
@@ -389,10 +396,12 @@ func downloadPackage(p *load.Package) error {
 			dir := filepath.Join(p.Internal.Build.SrcRoot, filepath.FromSlash(rootPath))
 			remote, err := vcs.remoteRepo(vcs, dir)
 			if err != nil {
-				return err
+				// Proceed anyway. The package is present; we likely just don't understand
+				// the repo configuration (e.g. unusual remote protocol).
+				blindRepo = true
 			}
 			repo = remote
-			if !*getF {
+			if !*getF && err == nil {
 				if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
 					repo := rr.repo
 					if rr.vcs.resolveRepo != nil {
@@ -416,7 +425,7 @@ func downloadPackage(p *load.Package) error {
 		}
 		vcs, repo, rootPath = rr.vcs, rr.repo, rr.root
 	}
-	if !vcs.isSecure(repo) && !*getInsecure {
+	if !blindRepo && !vcs.isSecure(repo) && !*getInsecure {
 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
 	}
 

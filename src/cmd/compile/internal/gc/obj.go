@@ -292,7 +292,7 @@ func addGCLocals() {
 		if s.Func == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals} {
+		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals, &s.Func.GCRegs} {
 			if seen[gcsym.Name] {
 				continue
 			}

@@ -6,6 +6,8 @@
 // +build !solaris
 // +build !windows
 // +build !nacl
+// +build !js
+// +build !darwin
 
 package runtime
 

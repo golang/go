@@ -343,9 +343,11 @@ func (f *Func) funcInfo() funcInfo {
 const (
 	_PCDATA_StackMapIndex       = 0
 	_PCDATA_InlTreeIndex        = 1
+	_PCDATA_RegMapIndex         = 2
 	_FUNCDATA_ArgsPointerMaps   = 0
 	_FUNCDATA_LocalsPointerMaps = 1
 	_FUNCDATA_InlTree           = 2
+	_FUNCDATA_RegPointerMaps    = 3
 	_ArgsSizeUnknown            = -0x80000000
 )
 
@@ -358,6 +360,7 @@ type funcID uint32
 
 const (
 	funcID_normal funcID = iota // not a special function
+	funcID_runtime_main
 	funcID_goexit
 	funcID_jmpdefer
 	funcID_mcall
@@ -367,15 +370,13 @@ const (
 	funcID_asmcgocall
 	funcID_sigpanic
 	funcID_runfinq
-	funcID_bgsweep
-	funcID_forcegchelper
-	funcID_timerproc
 	funcID_gcBgMarkWorker
 	funcID_systemstack_switch
 	funcID_systemstack
 	funcID_cgocallback_gofunc
 	funcID_gogo
 	funcID_externalthreadhandler
+	funcID_debugCallV1
 )
 
 // moduledata records information about the layout of the executable

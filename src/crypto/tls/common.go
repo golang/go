@@ -7,12 +7,12 @@ package tls
 import (
 	"container/list"
 	"crypto"
-	"crypto/internal/cipherhw"
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"internal/cpu"
 	"io"
 	"math/big"
 	"net"
@@ -127,10 +127,12 @@ const (
 	// Rest of these are reserved by the TLS spec
 )
 
-// Signature algorithms for TLS 1.2 (See RFC 5246, section A.4.1)
+// Signature algorithms (for internal signaling use). Starting at 16 to avoid overlap with
+// TLS 1.2 codepoints (RFC 5246, section A.4.1), with which these have nothing to do.
 const (
-	signatureRSA   uint8 = 1
-	signatureECDSA uint8 = 3
+	signaturePKCS1v15 uint8 = iota + 16
+	signatureECDSA
+	signatureRSAPSS
 )
 
 // supportedSignatureAlgorithms contains the signature and hash algorithms that
@@ -246,19 +248,19 @@ type ClientHelloInfo struct {
 	// ServerName indicates the name of the server requested by the client
 	// in order to support virtual hosting. ServerName is only set if the
 	// client is using SNI (see
-	// http://tools.ietf.org/html/rfc4366#section-3.1).
+	// https://tools.ietf.org/html/rfc4366#section-3.1).
 	ServerName string
 
 	// SupportedCurves lists the elliptic curves supported by the client.
 	// SupportedCurves is set only if the Supported Elliptic Curves
 	// Extension is being used (see
-	// http://tools.ietf.org/html/rfc4492#section-5.1.1).
+	// https://tools.ietf.org/html/rfc4492#section-5.1.1).
 	SupportedCurves []CurveID
 
 	// SupportedPoints lists the point formats supported by the client.
 	// SupportedPoints is set only if the Supported Point Formats Extension
 	// is being used (see
-	// http://tools.ietf.org/html/rfc4492#section-5.1.2).
+	// https://tools.ietf.org/html/rfc4492#section-5.1.2).
 	SupportedPoints []uint8
 
 	// SignatureSchemes lists the signature and hash schemes that the client
@@ -459,7 +461,8 @@ type Config struct {
 	PreferServerCipherSuites bool
 
 	// SessionTicketsDisabled may be set to true to disable session ticket
-	// (resumption) support.
+	// (resumption) support. Note that on clients, session ticket support is
+	// also disabled if ClientSessionCache is nil.
 	SessionTicketsDisabled bool
 
 	// SessionTicketKey is used by TLS servers to provide session
@@ -473,7 +476,7 @@ type Config struct {
 	SessionTicketKey [32]byte
 
 	// ClientSessionCache is a cache of ClientSessionState entries for TLS
-	// session resumption.
+	// session resumption. It is only used by clients.
 	ClientSessionCache ClientSessionCache
 
 	// MinVersion contains the minimum SSL/TLS version that is acceptable.
@@ -917,7 +920,24 @@ func defaultCipherSuites() []uint16 {
 
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
-	if cipherhw.AESGCMSupport() {
+
+	// Check the cpu flags for each platform that has optimized GCM implementations.
+	// Worst case, these variables will just all be false
+	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+
+	// TODO: enable the arm64 HasAES && HasPMULL feature check after the
+	// optimized AES-GCM implementation for arm64 is merged (CL 107298).
+	// This is explicitly set to false for now to prevent misprioritization
+	// of AES-GCM based cipher suites, which will be slower than chacha20-poly1305
+	hasGCMAsmARM64 := false
+	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+
+	// Keep in sync with crypto/aes/cipher_s390x.go.
+	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
+
+	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
+
+	if hasGCMAsm {
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
 		topCipherSuites = []uint16{
@@ -976,7 +996,9 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
 	switch signatureAlgorithm {
 	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
-		return signatureRSA
+		return signaturePKCS1v15
+	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
+		return signatureRSAPSS
 	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
 		return signatureECDSA
 	default:

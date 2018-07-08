@@ -15,7 +15,7 @@
 // even if, due to races, the wakeup happens before the sleep.
 //
 // See Mullender and Cox, ``Semaphores in Plan 9,''
-// http://swtch.com/semaphore.pdf
+// https://swtch.com/semaphore.pdf
 
 package runtime
 
@@ -274,7 +274,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	// addresses, it is kept balanced on average by maintaining a heap ordering
 	// on the ticket: s.ticket <= both s.prev.ticket and s.next.ticket.
 	// https://en.wikipedia.org/wiki/Treap
-	// http://faculty.washington.edu/aragon/pubs/rst89.pdf
+	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
 	//
 	// s.ticket compared with zero in couple of places, therefore set lowest bit.
 	// It will not affect treap's quality noticeably.

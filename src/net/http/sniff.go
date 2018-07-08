@@ -13,7 +13,7 @@ import (
 const sniffLen = 512
 
 // DetectContentType implements the algorithm described
-// at http://mimesniff.spec.whatwg.org/ to determine the
+// at https://mimesniff.spec.whatwg.org/ to determine the
 // Content-Type of the given data. It considers at most the
 // first 512 bytes of data. DetectContentType always returns
 // a valid MIME type: if it cannot determine a more specific one, it
@@ -146,6 +146,8 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("\x52\x61\x72\x20\x1A\x07\x00"), "application/x-rar-compressed"},
 	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
+
+	&exactSig{[]byte("\x00\x61\x73\x6D"), "application/wasm"},
 
 	mp4Sig{},
 

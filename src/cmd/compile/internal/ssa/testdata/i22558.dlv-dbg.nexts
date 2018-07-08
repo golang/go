@@ -8,4 +8,4 @@
 27:		for _, p := range t.stuff {
 28:			if isFoo(t, p) {
 29:				return
-43:	}
+44:	}

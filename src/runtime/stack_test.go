@@ -310,6 +310,39 @@ func testDeferPtrsPanic(c chan int, i int) {
 	useStackAndCall(i, func() { panic(1) })
 }
 
+//go:noinline
+func testDeferLeafSigpanic1() {
+	// Cause a sigpanic to be injected in this frame.
+	//
+	// This function has to be declared before
+	// TestDeferLeafSigpanic so the runtime will crash if we think
+	// this function's continuation PC is in
+	// TestDeferLeafSigpanic.
+	*(*int)(nil) = 0
+}
+
+// TestDeferLeafSigpanic tests defer matching around leaf functions
+// that sigpanic. This is tricky because on LR machines the outer
+// function and the inner function have the same SP, but it's critical
+// that we match up the defer correctly to get the right liveness map.
+// See issue #25499.
+func TestDeferLeafSigpanic(t *testing.T) {
+	// Push a defer that will walk the stack.
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatal("expected panic from nil pointer")
+		}
+		GC()
+	}()
+	// Call a leaf function. We must set up the exact call stack:
+	//
+	//  defering function -> leaf function -> sigpanic
+	//
+	// On LR machines, the leaf function will have the same SP as
+	// the SP pushed for the defer frame.
+	testDeferLeafSigpanic1()
+}
+
 // TestPanicUseStack checks that a chain of Panic structs on the stack are
 // updated correctly if the stack grows during the deferred execution that
 // happens as a result of the panic.

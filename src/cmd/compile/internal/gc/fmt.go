@@ -994,6 +994,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 			fmt.Fprint(s, ";")
 		}
 
+		if n.Op == OFORUNTIL && n.List.Len() != 0 {
+			mode.Fprintf(s, "; %v", n.List)
+		}
+
 		mode.Fprintf(s, " { %v }", n.Nbody)
 
 	case ORANGE:
@@ -1264,7 +1268,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OTARRAY:
 		if n.Left != nil {
-			mode.Fprintf(s, "[]%v", n.Left)
+			mode.Fprintf(s, "[%v]%v", n.Left, n.Right)
 			return
 		}
 		mode.Fprintf(s, "[]%v", n.Right) // happens before typecheck
@@ -1595,7 +1599,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 
 	case OTYPE:
 		mode.Fprintf(s, "%v %v%j type=%v", n.Op, n.Sym, n, n.Type)
-		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
+		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
 			indent(s)
 			mode.Fprintf(s, "%v-ntype%v", n.Op, n.Name.Param.Ntype)
 		}

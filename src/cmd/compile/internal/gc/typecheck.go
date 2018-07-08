@@ -37,7 +37,12 @@ func resolve(n *Node) *Node {
 	}
 
 	if n.Sym.Pkg != localpkg {
+		if inimport {
+			Fatalf("recursive inimport")
+		}
+		inimport = true
 		expandDecl(n)
+		inimport = false
 		return n
 	}
 
@@ -110,19 +115,35 @@ func typekind(t *types.Type) string {
 	return fmt.Sprintf("etype=%d", et)
 }
 
-// sprint_depchain prints a dependency chain of nodes into trace.
-// It is used by typecheck in the case of OLITERAL nodes
-// to print constant definition loops.
-func sprint_depchain(trace *string, stack []*Node, cur *Node, first *Node) {
-	for i := len(stack) - 1; i >= 0; i-- {
-		if n := stack[i]; n.Op == cur.Op {
-			if n != first {
-				sprint_depchain(trace, stack[:i], n, first)
-			}
-			*trace += fmt.Sprintf("\n\t%v: %v uses %v", n.Line(), n, cur)
-			return
+func cycleFor(start *Node) []*Node {
+	// Find the start node in typecheck_tcstack.
+	// We know that it must exist because each time we mark
+	// a node with n.SetTypecheck(2) we push it on the stack,
+	// and each time we mark a node with n.SetTypecheck(2) we
+	// pop it from the stack. We hit a cycle when we encounter
+	// a node marked 2 in which case is must be on the stack.
+	i := len(typecheck_tcstack) - 1
+	for i > 0 && typecheck_tcstack[i] != start {
+		i--
+	}
+
+	// collect all nodes with same Op
+	var cycle []*Node
+	for _, n := range typecheck_tcstack[i:] {
+		if n.Op == start.Op {
+			cycle = append(cycle, n)
 		}
 	}
+
+	return cycle
+}
+
+func cycleTrace(cycle []*Node) string {
+	var s string
+	for i, n := range cycle {
+		s += fmt.Sprintf("\n\t%v: %v uses %v", n.Line(), n, cycle[(i+1)%len(cycle)])
+	}
+	return s
 }
 
 var typecheck_tcstack []*Node
@@ -174,10 +195,20 @@ func typecheck(n *Node, top int) *Node {
 			}
 
 		case OTYPE:
+			// Only report a type cycle if we are expecting a type.
+			// Otherwise let other code report an error.
 			if top&Etype == Etype {
-				var trace string
-				sprint_depchain(&trace, typecheck_tcstack, n, n)
-				yyerrorl(n.Pos, "invalid recursive type alias %v%s", n, trace)
+				// A cycle containing only alias types is an error
+				// since it would expand indefinitely when aliases
+				// are substituted.
+				cycle := cycleFor(n)
+				for _, n := range cycle {
+					if n.Name != nil && !n.Name.Param.Alias {
+						lineno = lno
+						return n
+					}
+				}
+				yyerrorl(n.Pos, "invalid recursive type alias %v%s", n, cycleTrace(cycle))
 			}
 
 		case OLITERAL:
@@ -185,9 +216,7 @@ func typecheck(n *Node, top int) *Node {
 				yyerror("%v is not a type", n)
 				break
 			}
-			var trace string
-			sprint_depchain(&trace, typecheck_tcstack, n, n)
-			yyerrorl(n.Pos, "constant definition loop%s", trace)
+			yyerrorl(n.Pos, "constant definition loop%s", cycleTrace(cycleFor(n)))
 		}
 
 		if nsavederrors+nerrors == 0 {
@@ -895,7 +924,7 @@ func typecheck1(n *Node, top int) *Node {
 				yyerror("%v undefined (cannot refer to unexported field or method %v)", n, n.Sym)
 
 			default:
-				if mt := lookdot(n, t, 2); mt != nil { // Case-insensitive lookup.
+				if mt := lookdot(n, t, 2); mt != nil && visible(mt.Sym) { // Case-insensitive lookup.
 					yyerror("%v undefined (type %v has no field or method %v, but does have %v)", n, n.Left.Type, n.Sym, mt.Sym)
 				} else {
 					yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Sym)
@@ -2010,6 +2039,9 @@ func typecheck1(n *Node, top int) *Node {
 			}
 		}
 		n.Right = typecheck(n.Right, Etop)
+		if n.Op == OFORUNTIL {
+			typecheckslice(n.List.Slice(), Etop)
+		}
 		typecheckslice(n.Nbody.Slice(), Etop)
 		decldepth--
 
@@ -3105,7 +3137,11 @@ func typecheckcomplit(n *Node) *Node {
 				f := lookdot1(nil, l.Sym, t, t.Fields(), 0)
 				if f == nil {
 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
-						yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
+						if visible(ci.Sym) {
+							yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
+						} else {
+							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
+						}
 						continue
 					}
 					p, _ := dotpath(l.Sym, t, nil, true)
@@ -3150,6 +3186,11 @@ func typecheckcomplit(n *Node) *Node {
 
 	n.Orig = norig
 	return n
+}
+
+// visible reports whether sym is exported or locally defined.
+func visible(sym *types.Sym) bool {
+	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == localpkg)
 }
 
 // lvalue etc
