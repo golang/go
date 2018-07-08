@@ -594,20 +594,26 @@ func (c *common) FailNow() {
 func (c *common) log(s string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.chatty {
+		fmt.Printf("%s: %s", c.name, c.decorate(s))
+		return
+	}
 	c.output = append(c.output, c.decorate(s)...)
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
 // and records the text in the error log. For tests, the text will be printed only if
-// the test fails or the -test.v flag is set. For benchmarks, the text is always
-// printed to avoid having performance depend on the value of the -test.v flag.
+// the test fails or the -test.v flag is set, if -test.v is set the output will be
+// streamed. For benchmarks, the text is always printed to avoid having performance
+// depend on the value of the -test.v flag.
 func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
 
 // Logf formats its arguments according to the format, analogous to Printf, and
 // records the text in the error log. A final newline is added if not provided. For
 // tests, the text will be printed only if the test fails or the -test.v flag is
-// set. For benchmarks, the text is always printed to avoid having performance
-// depend on the value of the -test.v flag.
+// set, if -test.v is set the output will be streamed. For benchmarks, the text
+// is always printed to avoid having performance depend on the value of the
+// -test.v flag.
 func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
 
 // Error is equivalent to Log followed by Fail.
