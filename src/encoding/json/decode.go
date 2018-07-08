@@ -267,7 +267,7 @@ type decodeState struct {
 	opcode       int // last read result
 	scan         scanner
 	errorContext struct { // provides context for type errors
-		Struct string
+		Struct reflect.Type
 		Field  string
 	}
 	savedError            error
@@ -289,7 +289,7 @@ func (d *decodeState) init(data []byte) *decodeState {
 	d.data = data
 	d.off = 0
 	d.savedError = nil
-	d.errorContext.Struct = ""
+	d.errorContext.Struct = nil
 	d.errorContext.Field = ""
 	return d
 }
@@ -304,10 +304,10 @@ func (d *decodeState) saveError(err error) {
 
 // addErrorContext returns a new error enhanced with information from d.errorContext
 func (d *decodeState) addErrorContext(err error) error {
-	if d.errorContext.Struct != "" || d.errorContext.Field != "" {
+	if d.errorContext.Struct != nil || d.errorContext.Field != "" {
 		switch err := err.(type) {
 		case *UnmarshalTypeError:
-			err.Struct = d.errorContext.Struct
+			err.Struct = d.errorContext.Struct.Name()
 			err.Field = d.errorContext.Field
 			return err
 		}
@@ -744,7 +744,7 @@ func (d *decodeState) object(v reflect.Value) error {
 					subv = subv.Field(i)
 				}
 				d.errorContext.Field = f.name
-				d.errorContext.Struct = v.Type().Name()
+				d.errorContext.Struct = v.Type()
 			} else if d.disallowUnknownFields {
 				d.saveError(fmt.Errorf("json: unknown field %q", key))
 			}
@@ -832,7 +832,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			return errPhase
 		}
 
-		d.errorContext.Struct = ""
+		d.errorContext.Struct = nil
 		d.errorContext.Field = ""
 	}
 	return nil
