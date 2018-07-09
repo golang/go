@@ -709,8 +709,17 @@ func (cr *connReader) setReadLimit(remain int64) { cr.remain = remain }
 func (cr *connReader) setInfiniteReadLimit()     { cr.remain = maxInt64 }
 func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
 
-// may be called from multiple goroutines.
-func (cr *connReader) handleReadError(err error) {
+// handleReadError is called whenever a Read from the client returns a
+// non-nil error.
+//
+// The provided non-nil err is almost always io.EOF or a "use of
+// closed network connection". In any case, the error is not
+// particularly interesting, except perhaps for debugging during
+// development. Any error means the connection is dead and we should
+// down its context.
+//
+// It may be called from multiple goroutines.
+func (cr *connReader) handleReadError(_ error) {
 	cr.conn.cancelCtx()
 	cr.closeNotify()
 }
