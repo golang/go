@@ -183,6 +183,17 @@ func sortSpecs(fset *token.FileSet, f *ast.File, specs []ast.Spec) []ast.Spec {
 
 	sort.Sort(byCommentPos(comments))
 
+	// Fixup comments can insert blank lines, because import specs are on different lines.
+	// We remove those blank lines here by merging import spec to the first import spec line.
+	firstSpecLine := fset.Position(specs[0].Pos()).Line
+	for _, s := range specs[1:] {
+		p := s.Pos()
+		line := fset.File(p).Line(p)
+		for previousLine := line - 1; previousLine >= firstSpecLine; {
+			fset.File(p).MergeLine(previousLine)
+			previousLine--
+		}
+	}
 	return specs
 }
 
