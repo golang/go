@@ -50,6 +50,7 @@ TEXT ·IndexByteString(SB), NOSPLIT, $0-32
 	RET
 
 TEXT bytes·IndexByte(SB), NOSPLIT, $0-40
+	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
 	Get SP
 	I64Load b_base+0(FP)
 	I32WrapI64
@@ -72,6 +73,7 @@ TEXT bytes·IndexByte(SB), NOSPLIT, $0-40
 	RET
 
 TEXT strings·IndexByte(SB), NOSPLIT, $0-32
+	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
 	Get SP
 	I64Load s_base+0(FP)
 	I32WrapI64
