@@ -1140,6 +1140,32 @@ var (
 
 }
 
+// Test for x/y/v2 convention for package y.
+func TestFixModuleVersion(t *testing.T) {
+	testConfig{}.test(t, func(t *goimportTest) {
+		input := `package p
+
+import (
+	"fmt"
+
+	"foo/v2"
+)
+
+var (
+	_ = fmt.Print
+	_ = foo.Foo
+)
+`
+		buf, err := Process(filepath.Join(t.gopath, "src/mypkg.com/outpkg/toformat.go"), []byte(input), &Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(buf); got != input {
+			t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, input)
+		}
+	})
+}
+
 // Test for correctly identifying the name of a vendored package when it
 // differs from its directory name. In this test, the import line
 // "mypkg.com/mypkg.v1" would be removed if goimports wasn't able to detect
@@ -1670,8 +1696,8 @@ func TestImportPathToNameGoPathParse(t *testing.T) {
 func TestIgnoreConfiguration(t *testing.T) {
 	testConfig{
 		gopathFiles: map[string]string{
-			".goimportsignore":                                     "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
-			"example.net/pkg/pkg.go":                               "package pkg\nconst X = 1",
+			".goimportsignore":       "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
+			"example.net/pkg/pkg.go": "package pkg\nconst X = 1",
 			"otherwise-longer-so-worse.example.net/foo/pkg/pkg.go": "package pkg\nconst X = 1",
 		},
 	}.test(t, func(t *goimportTest) {
