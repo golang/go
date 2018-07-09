@@ -217,6 +217,9 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo BEGIN goroutine 2 bt\n",
 		"-ex", "goroutine 2 bt",
 		"-ex", "echo END\n",
+		"-ex", "echo BEGIN goroutine all bt\n",
+		"-ex", "goroutine all bt",
+		"-ex", "echo END\n",
 		"-ex", "clear main.go:15", // clear the previous break point
 		"-ex", fmt.Sprintf("br main.go:%d", nLines), // new break point at the end of main
 		"-ex", "c",
@@ -301,6 +304,10 @@ func testGdbPython(t *testing.T, cgo bool) {
 	btGoroutine2Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
 	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
 		t.Fatalf("goroutine 2 bt failed: %s", bl)
+	}
+
+	if bl := blocks["goroutine all bt"]; !btGoroutine1Re.MatchString(bl) || !btGoroutine2Re.MatchString(bl) {
+		t.Fatalf("goroutine all bt failed: %s", bl)
 	}
 
 	btGoroutine1AtTheEndRe := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)

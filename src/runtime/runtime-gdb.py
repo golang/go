@@ -511,6 +511,10 @@ class GoroutineCmd(gdb.Command):
 
 	Usage: (gdb) goroutine <goid> <gdbcmd>
 
+	You could pass "all" as <goid> to apply <gdbcmd> to all goroutines.
+
+	For example: (gdb) goroutine all <gdbcmd>
+
 	Note that it is ill-defined to modify state in the context of a goroutine.
 	Restrict yourself to inspecting values.
 	"""
@@ -519,9 +523,20 @@ class GoroutineCmd(gdb.Command):
 		gdb.Command.__init__(self, "goroutine", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
 
 	def invoke(self, arg, _from_tty):
-		goid, cmd = arg.split(None, 1)
-		goid = gdb.parse_and_eval(goid)
-		pc, sp = find_goroutine(int(goid))
+		goid_str, cmd = arg.split(None, 1)
+		goids = []
+
+		if goid_str == 'all':
+			for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+				goids.append(int(ptr['goid']))
+		else:
+			goids = [int(gdb.parse_and_eval(goid_str))]
+
+		for goid in goids:
+			self.invoke_per_goid(goid, cmd)
+
+	def invoke_per_goid(self, goid, cmd):
+		pc, sp = find_goroutine(goid)
 		if not pc:
 			print("No such goroutine: ", goid)
 			return
