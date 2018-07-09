@@ -52,7 +52,9 @@ notfound:
 	RET
 
 TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
 	JMP ·IndexByte(SB)
 
 TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
 	JMP ·IndexByteString(SB)

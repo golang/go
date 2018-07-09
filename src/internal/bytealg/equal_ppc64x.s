@@ -29,6 +29,7 @@ equal:
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
+	FUNCDATA $0, ·Equal·args_stackmap(SB)
 	MOVD	a_len+8(FP), R4
 	MOVD	b_len+32(FP), R5
 	CMP	R5, R4		// unequal lengths are not equal
