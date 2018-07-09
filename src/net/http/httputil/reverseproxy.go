@@ -253,7 +253,11 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
 		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
-		// on read error while copying body
+		// on read error while copying body.
+		if !shouldPanicOnCopyError(req) {
+			p.logf("suppressing panic for copyResponse error in test; copy error: %v", err)
+			return
+		}
 		panic(http.ErrAbortHandler)
 	}
 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
@@ -269,6 +273,28 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			rw.Header().Add(k, v)
 		}
 	}
+}
+
+var inOurTests bool // whether we're in our own tests
+
+// shouldPanicOnCopyError reports whether the reverse proxy should
+// panic with http.ErrAbortHandler. This is the right thing to do by
+// default, but Go 1.10 and earlier did not, so existing unit tests
+// weren't expecting panics. Only panic in our own tests, or when
+// running under the HTTP server.
+func shouldPanicOnCopyError(req *http.Request) bool {
+	if inOurTests {
+		// Our tests know to handle this panic.
+		return true
+	}
+	if req.Context().Value(http.ServerContextKey) != nil {
+		// We seem to be running under an HTTP server, so
+		// it'll recover the panic.
+		return true
+	}
+	// Otherwise act like Go 1.10 and earlier to not break
+	// existing tests.
+	return false
 }
 
 // removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.

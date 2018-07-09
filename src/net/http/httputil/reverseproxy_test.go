@@ -29,6 +29,7 @@ import (
 const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
 
 func init() {
+	inOurTests = true
 	hopHeaders = append(hopHeaders, fakeHopHeader)
 }
 
