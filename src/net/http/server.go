@@ -2806,9 +2806,6 @@ func (srv *Server) Serve(l net.Listener) error {
 		return err
 	}
 
-	serveDone := make(chan struct{})
-	defer close(serveDone)
-
 	if !srv.trackListener(&l, true) {
 		return ErrServerClosed
 	}
@@ -2910,11 +2907,6 @@ func (s *Server) trackListener(ln *net.Listener, add bool) bool {
 		if s.shuttingDown() {
 			return false
 		}
-		// If the *Server is being reused after a previous
-		// Close or Shutdown, reset its doneChan:
-		if len(s.listeners) == 0 && len(s.activeConn) == 0 {
-			s.doneChan = nil
-		}
 		s.listeners[ln] = struct{}{}
 	} else {
 		delete(s.listeners, ln)
@@ -2973,14 +2965,7 @@ func (srv *Server) SetKeepAlivesEnabled(v bool) {
 	// Close idle HTTP/1 conns:
 	srv.closeIdleConns()
 
-	// Close HTTP/2 conns, as soon as they become idle, but reset
-	// the chan so future conns (if the listener is still active)
-	// still work and don't get a GOAWAY immediately, before their
-	// first request:
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	srv.closeDoneChanLocked() // closes http2 conns
-	srv.doneChan = nil
+	// TODO: Issue 26303: close HTTP/2 conns as soon as they become idle.
 }
 
 func (s *Server) logf(format string, args ...interface{}) {
