@@ -643,15 +643,15 @@ func scanGoDirs(which goDirType) {
 		srcV := filepath.Join(srcDir, "v")
 		srcMod := filepath.Join(srcDir, "mod")
 		walkFn := func(path string, typ os.FileMode) error {
+			if path == srcV || path == srcMod {
+				return filepath.SkipDir
+			}
 			dir := filepath.Dir(path)
 			if typ.IsRegular() {
 				if dir == srcDir {
 					// Doesn't make sense to have regular files
 					// directly in your $GOPATH/src or $GOROOT/src.
 					return nil
-				}
-				if dir == srcV || dir == srcMod {
-					return filepath.SkipDir
 				}
 				if !strings.HasSuffix(path, ".go") {
 					return nil
