@@ -3782,8 +3782,12 @@ func TestTransportEventTrace_NoHooks_h2(t *testing.T) { testTransportEventTrace(
 func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	defer afterTest(t)
 	const resBody = "some body"
-	gotWroteReqEvent := make(chan struct{})
+	gotWroteReqEvent := make(chan struct{}, 500)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method == "GET" {
+			// Do nothing for the second request.
+			return
+		}
 		if _, err := ioutil.ReadAll(r.Body); err != nil {
 			t.Error(err)
 		}
@@ -3851,7 +3855,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		Got100Continue:  func() { logf("Got100Continue") },
 		WroteRequest: func(e httptrace.WroteRequestInfo) {
 			logf("WroteRequest: %+v", e)
-			close(gotWroteReqEvent)
+			gotWroteReqEvent <- struct{}{}
 		},
 	}
 	if h2 {
@@ -3934,6 +3938,28 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
 	}
+
+	// And do a second request:
+	req, _ = NewRequest("GET", cst.scheme()+"://dns-is-faked.golang:"+port, nil)
+	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
+	res, err = cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 200 {
+		t.Fatal(res.Status)
+	}
+	res.Body.Close()
+
+	mu.Lock()
+	got = buf.String()
+	mu.Unlock()
+
+	sub := "Getting conn for dns-is-faked.golang:"
+	if gotn, want := strings.Count(got, sub), 2; gotn != want {
+		t.Errorf("substring %q appeared %d times; want %d. Log:\n%s", sub, gotn, want, got)
+	}
+
 }
 
 func TestTransportEventTraceTLSVerify(t *testing.T) {
