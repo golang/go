@@ -369,6 +369,9 @@ func defaultPath(path string) string {
 	if i == 0 {
 		return "/" // Path has the form "/abc".
 	}
+	if s, err := url.PathUnescape(path[:i]); err == nil {
+		return s
+	}
 	return path[:i] // Path is either of form "/abc/xyz" or "/abc/xyz/".
 }
 
@@ -386,6 +389,8 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 
 	if c.Path == "" || c.Path[0] != '/' {
 		e.Path = defPath
+	} else if path, err := url.PathUnescape(c.Path); err == nil {
+		e.Path = path
 	} else {
 		e.Path = c.Path
 	}

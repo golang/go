@@ -1320,3 +1320,22 @@ func TestIssue19384(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue26247(t *testing.T) {
+	cookies := []*http.Cookie{{Name: "name", Value: "value", Path: "/a%20path"}}
+	jar, _ := New(nil)
+	u := &url.URL{Scheme: "http", Host: "example.com"}
+	jar.SetCookies(u, cookies)
+	for _, path := range []string{"", "/", "/a", "/a/path", "/a/path/", "/a/path/here"} {
+		u.Path = path
+		if got := jar.Cookies(u); len(got) != 0 {
+			t.Errorf("path %q, got %v", path, got)
+		}
+	}
+	for _, path := range []string{"/a path", "/a path/", "/a path/here"} {
+		u.Path = path
+		if got := jar.Cookies(u); len(got) != 1 {
+			t.Errorf("path %q, got %v", path, got)
+		}
+	}
+}
