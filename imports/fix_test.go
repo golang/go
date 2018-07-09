@@ -1021,6 +1021,38 @@ func main() {
 }
 `,
 	},
+
+	{
+		name: "issue #26290 1",
+		in: `package p // comment
+
+import "math"
+
+var _ = fmt.Printf
+`,
+		out: `package p // comment
+
+import "fmt"
+
+var _ = fmt.Printf
+`,
+	},
+
+	{
+		name: "issue #26290 2",
+		in: `package p
+
+import "math"
+
+var _ = fmt.Printf
+`,
+		out: `package p
+
+import "fmt"
+
+var _ = fmt.Printf
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
@@ -1800,8 +1832,8 @@ func TestImportPathToNameGoPathParse(t *testing.T) {
 func TestIgnoreConfiguration(t *testing.T) {
 	testConfig{
 		gopathFiles: map[string]string{
-			".goimportsignore":       "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
-			"example.net/pkg/pkg.go": "package pkg\nconst X = 1",
+			".goimportsignore":                                     "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
+			"example.net/pkg/pkg.go":                               "package pkg\nconst X = 1",
 			"otherwise-longer-so-worse.example.net/foo/pkg/pkg.go": "package pkg\nconst X = 1",
 		},
 	}.test(t, func(t *goimportTest) {

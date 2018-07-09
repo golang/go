@@ -101,8 +101,8 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 			impDecl.TokPos = f.Decls[lastImport].End()
 		} else {
 			// There are no existing imports.
-			// Our new import goes after the package declaration and after
-			// the comment, if any, that starts on the same line as the
+			// Our new import, preceded by a blank line,  goes after the package declaration
+			// and after the comment, if any, that starts on the same line as the
 			// package declaration.
 			impDecl.TokPos = f.Package
 
@@ -112,7 +112,8 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 				if file.Line(c.Pos()) > pkgLine {
 					break
 				}
-				impDecl.TokPos = c.End()
+				// +2 for a blank line
+				impDecl.TokPos = c.End() + 2
 			}
 		}
 		f.Decls = append(f.Decls, nil)
