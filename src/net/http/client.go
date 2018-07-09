@@ -129,8 +129,8 @@ type RoundTripper interface {
 	// RoundTrip should not modify the request, except for
 	// consuming and closing the Request's Body. RoundTrip may
 	// read fields of the request in a separate goroutine. Callers
-	// should not mutate the request until the Response's Body has
-	// been closed.
+	// should not mutate or reuse the request until the Response's
+	// Body has been closed.
 	//
 	// RoundTrip must always close the body, including on errors,
 	// but depending on the implementation may do so in a separate
