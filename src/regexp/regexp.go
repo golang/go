@@ -79,13 +79,15 @@ import (
 // A Regexp is safe for concurrent use by multiple goroutines,
 // except for configuration methods, such as Longest.
 type Regexp struct {
-	// cache of machines for running regexp. This is a shared pointer across
-	// all copies of the original Regexp object to decrease the overall
-	// memory footprint of the regexps (since there will be one machine
-	// cached per thread instead of one per thread per copy).
-	machines *sync.Pool
+	// read-only after Compile
+	regexpRO
 
-	// everything below is read-only after Compile
+	// cache of machines for running regexp
+	mu      sync.Mutex
+	machine []*machine
+}
+
+type regexpRO struct {
 	expr           string         // as passed to Compile
 	prog           *syntax.Prog   // compiled program
 	onepass        *onePassProg   // onepass program or nil
@@ -107,10 +109,14 @@ func (re *Regexp) String() string {
 
 // Copy returns a new Regexp object copied from re.
 //
-// Deprecated: This exists for historical reasons.
+// When using a Regexp in multiple goroutines, giving each goroutine
+// its own copy helps to avoid lock contention.
 func (re *Regexp) Copy() *Regexp {
-	re2 := *re
-	return &re2
+	// It is not safe to copy Regexp by value
+	// since it contains a sync.Mutex.
+	return &Regexp{
+		regexpRO: re.regexpRO,
+	}
 }
 
 // Compile parses a regular expression and returns, if successful,
@@ -173,21 +179,15 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 	if err != nil {
 		return nil, err
 	}
-	onepass := compileOnePass(prog)
 	regexp := &Regexp{
-		expr:        expr,
-		prog:        prog,
-		onepass:     onepass,
-		numSubexp:   maxCap,
-		subexpNames: capNames,
-		cond:        prog.StartCond(),
-		longest:     longest,
-	}
-	regexp.machines = &sync.Pool{
-		New: func() interface{} {
-			z := progMachine(prog, onepass)
-			z.re = regexp
-			return z
+		regexpRO: regexpRO{
+			expr:        expr,
+			prog:        prog,
+			onepass:     compileOnePass(prog),
+			numSubexp:   maxCap,
+			subexpNames: capNames,
+			cond:        prog.StartCond(),
+			longest:     longest,
 		},
 	}
 	if regexp.onepass == notOnePass {
@@ -208,7 +208,17 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 // It uses the re's machine cache if possible, to avoid
 // unnecessary allocation.
 func (re *Regexp) get() *machine {
-	return re.machines.Get().(*machine)
+	re.mu.Lock()
+	if n := len(re.machine); n > 0 {
+		z := re.machine[n-1]
+		re.machine = re.machine[:n-1]
+		re.mu.Unlock()
+		return z
+	}
+	re.mu.Unlock()
+	z := progMachine(re.prog, re.onepass)
+	z.re = re
+	return z
 }
 
 // put returns a machine to the re's machine cache.
@@ -221,7 +231,9 @@ func (re *Regexp) put(z *machine) {
 	z.inputString.str = ""
 	z.inputReader.r = nil
 
-	re.machines.Put(z)
+	re.mu.Lock()
+	re.machine = append(re.machine, z)
+	re.mu.Unlock()
 }
 
 // MustCompile is like Compile but panics if the expression cannot be parsed.
