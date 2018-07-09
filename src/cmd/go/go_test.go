@@ -6452,6 +6452,16 @@ func TestCDAndGOPATHAreDifferent(t *testing.T) {
 	}
 }
 
+// Issue 26242.
+func TestGoTestWithoutTests(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "testnorun")
+	tg.grepStdout(`testnorun\t\[no test files\]`, "do not want test to run")
+}
+
 // Issue 25579.
 func TestGoBuildDashODevNull(t *testing.T) {
 	tg := testgo(t)
