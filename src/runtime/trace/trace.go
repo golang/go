@@ -82,10 +82,10 @@
 //
 //      ctx, task := trace.NewTask(ctx, "makeCappuccino")
 //      trace.Log(ctx, "orderID", orderID)
-
+//
 //      milk := make(chan bool)
 //      espresso := make(chan bool)
-
+//
 //      go func() {
 //              trace.WithRegion(ctx, "steamMilk", steamMilk)
 //              milk <- true
