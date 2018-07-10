@@ -990,7 +990,7 @@ func (b *Builder) vet(a *Action) error {
 		return err
 	}
 
-	var env []string
+	env := b.cCompilerEnv()
 	if cfg.BuildToolchainName == "gccgo" {
 		env = append(env, "GCCGO="+BuildToolchain.compiler())
 	}
@@ -1863,6 +1863,13 @@ func joinUnambiguously(a []string) string {
 	return buf.String()
 }
 
+// cCompilerEnv returns environment variables to set when running the
+// C compiler. This is needed to disable escape codes in clang error
+// messages that confuse tools like cgo.
+func (b *Builder) cCompilerEnv() []string {
+	return []string{"TERM=dumb"}
+}
+
 // mkdir makes the named directory.
 func (b *Builder) Mkdir(dir string) error {
 	// Make Mkdir(a.Objdir) a no-op instead of an error when a.Objdir == "".
@@ -2010,7 +2017,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 	if !filepath.IsAbs(outfile) {
 		outfile = filepath.Join(p.Dir, outfile)
 	}
-	output, err := b.runOut(filepath.Dir(file), nil, compiler, flags, "-o", outfile, "-c", filepath.Base(file))
+	output, err := b.runOut(filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
 	if len(output) > 0 {
 		// On FreeBSD 11, when we pass -g to clang 3.8 it
 		// invokes its internal assembler with -dwarf-version=2.
@@ -2050,7 +2057,7 @@ func (b *Builder) gccld(p *load.Package, objdir, out string, flags []string, obj
 	} else {
 		cmd = b.GccCmd(p.Dir, objdir)
 	}
-	return b.run(nil, p.Dir, p.ImportPath, nil, cmd, "-o", out, objs, flags)
+	return b.run(nil, p.Dir, p.ImportPath, b.cCompilerEnv(), cmd, "-o", out, objs, flags)
 }
 
 // Grab these before main helpfully overwrites them.
@@ -2345,7 +2352,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	// along to the host linker. At this point in the code, cgoLDFLAGS
 	// consists of the original $CGO_LDFLAGS (unchecked) and all the
 	// flags put together from source code (checked).
-	var cgoenv []string
+	cgoenv := b.cCompilerEnv()
 	if len(cgoLDFLAGS) > 0 {
 		flags := make([]string, len(cgoLDFLAGS))
 		for i, f := range cgoLDFLAGS {
@@ -2492,7 +2499,7 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
 	}
-	return b.run(a, p.Dir, p.ImportPath, nil, cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	return b.run(a, p.Dir, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
 }
 
 // Run SWIG on all SWIG input files.
