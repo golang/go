@@ -89,6 +89,18 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: Link to intro doc.  
 </p>
 
+<h3 id="importpath">Import path restriction</h3>
+
+<p>
+  Because Go module support assigns special meaning to the
+  <code>@</code> symbol in command line operations,
+  the <code>go</code> command now disallows the use of
+  import paths containing <code>@</code> symbols.
+  Such import paths were never allowed by <code>go</code> <code>get</code>,
+  so this restriction can only affect users building
+  custom GOPATH trees by other means.
+</p>
+
 <h3 id="gopackages">Package loading</h2>
 
 <p>
