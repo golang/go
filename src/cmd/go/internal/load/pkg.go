@@ -87,8 +87,9 @@ type PackagePublic struct {
 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
 
 	// Dependency information
-	Imports []string `json:",omitempty"` // import paths used by this package
-	Deps    []string `json:",omitempty"` // all (recursively) imported dependencies
+	Imports   []string          `json:",omitempty"` // import paths used by this package
+	ImportMap map[string]string `json:",omitempty"` // map from source import to ImportPath (identity entries omitted)
+	Deps      []string          `json:",omitempty"` // all (recursively) imported dependencies
 
 	// Error information
 	Incomplete bool            `json:",omitempty"` // was there an error loading this package or dependencies?

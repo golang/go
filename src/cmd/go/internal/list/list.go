@@ -83,10 +83,11 @@ syntax of package template. The default output is equivalent to -f
         CgoPkgConfig []string // cgo: pkg-config names
 
         // Dependency information
-        Imports      []string // import paths used by this package
-        Deps         []string // all (recursively) imported dependencies
-        TestImports  []string // imports from TestGoFiles
-        XTestImports []string // imports from XTestGoFiles
+        Imports      []string          // import paths used by this package
+        ImportMap    map[string]string // map from source import to ImportPath (identity entries omitted)
+        Deps         []string          // all (recursively) imported dependencies
+        TestImports  []string          // imports from TestGoFiles
+        XTestImports []string          // imports from XTestGoFiles
 
         // Error information
         Incomplete bool            // this package or a dependency has an error
@@ -348,22 +349,30 @@ func runList(cmd *base.Command, args []string) {
 		// This must happen only once the build code is done
 		// looking at import paths, because it will get very confused
 		// if it sees these.
+		old := make(map[string]string)
 		for _, p := range all {
 			if p.ForTest != "" {
-				p.ImportPath += " [" + p.ForTest + ".test]"
+				new := p.ImportPath + " [" + p.ForTest + ".test]"
+				old[new] = p.ImportPath
+				p.ImportPath = new
 			}
 			p.DepOnly = !cmdline[p]
 		}
 		// Update import path lists to use new strings.
+		m := make(map[string]string)
 		for _, p := range all {
-			j := 0
-			for i := range p.Imports {
-				// Internal skips "C"
-				if p.Imports[i] == "C" {
-					continue
+			for _, p1 := range p.Internal.Imports {
+				if p1.ForTest != "" {
+					m[old[p1.ImportPath]] = p1.ImportPath
 				}
-				p.Imports[i] = p.Internal.Imports[j].ImportPath
-				j++
+			}
+			for i, old := range p.Imports {
+				if new := m[old]; new != "" {
+					p.Imports[i] = new
+				}
+			}
+			for old := range m {
+				delete(m, old)
 			}
 		}
 		// Recompute deps lists using new strings, from the leaves up.
@@ -380,6 +389,19 @@ func runList(cmd *base.Command, args []string) {
 				p.Deps = append(p.Deps, d)
 			}
 			sort.Strings(p.Deps)
+		}
+	}
+
+	// Record non-identity import mappings in p.ImportMap.
+	for _, p := range pkgs {
+		for i, srcPath := range p.Internal.RawImports {
+			path := p.Imports[i]
+			if path != srcPath {
+				if p.ImportMap == nil {
+					p.ImportMap = make(map[string]string)
+				}
+				p.ImportMap[srcPath] = path
+			}
 		}
 	}
 
