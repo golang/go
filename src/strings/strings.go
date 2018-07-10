@@ -466,9 +466,7 @@ func Map(mapping func(rune) rune, s string) string {
 
 	// The output buffer b is initialized on demand, the first
 	// time a character differs.
-	var b []byte
-	// nbytes is the number of bytes encoded in b.
-	var nbytes int
+	var b Builder
 
 	for i, c := range s {
 		r := mapping(c)
@@ -476,15 +474,10 @@ func Map(mapping func(rune) rune, s string) string {
 			continue
 		}
 
-		b = make([]byte, len(s)+utf8.UTFMax)
-		nbytes = copy(b, s[:i])
+		b.Grow(len(s) + utf8.UTFMax)
+		b.WriteString(s[:i])
 		if r >= 0 {
-			if r < utf8.RuneSelf {
-				b[nbytes] = byte(r)
-				nbytes++
-			} else {
-				nbytes += utf8.EncodeRune(b[nbytes:], r)
-			}
+			b.WriteRune(r)
 		}
 
 		if c == utf8.RuneError {
@@ -501,33 +494,28 @@ func Map(mapping func(rune) rune, s string) string {
 		break
 	}
 
-	if b == nil {
+	// Fast path for unchanged input
+	if b.Cap() == 0 { // didn't call b.Grow above
 		return s
 	}
 
 	for _, c := range s {
 		r := mapping(c)
 
-		// common case
-		if (0 <= r && r < utf8.RuneSelf) && nbytes < len(b) {
-			b[nbytes] = byte(r)
-			nbytes++
-			continue
-		}
-
-		// b is not big enough or r is not a ASCII rune.
 		if r >= 0 {
-			if nbytes+utf8.UTFMax >= len(b) {
-				// Grow the buffer.
-				nb := make([]byte, 2*len(b))
-				copy(nb, b[:nbytes])
-				b = nb
+			// common case
+			// Due to inlining, it is more performant to determine if WriteByte should be
+			// invoked rather than always call WriteRune
+			if r < utf8.RuneSelf {
+				b.WriteByte(byte(r))
+			} else {
+				// r is not a ASCII rune.
+				b.WriteRune(r)
 			}
-			nbytes += utf8.EncodeRune(b[nbytes:], r)
 		}
 	}
 
-	return string(b[:nbytes])
+	return b.String()
 }
 
 // Repeat returns a new string consisting of count copies of the string s.
