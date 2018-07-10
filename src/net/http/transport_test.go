@@ -4887,3 +4887,68 @@ func TestTransportResponseBodyWritableOnProtocolSwitch(t *testing.T) {
 		t.Errorf("read %q; want %q", got, want)
 	}
 }
+
+func TestTransportCONNECTBidi(t *testing.T) {
+	defer afterTest(t)
+	const target = "backend:443"
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method != "CONNECT" {
+			t.Errorf("unexpected method %q", r.Method)
+			w.WriteHeader(500)
+			return
+		}
+		if r.RequestURI != target {
+			t.Errorf("unexpected CONNECT target %q", r.RequestURI)
+			w.WriteHeader(500)
+			return
+		}
+		nc, brw, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer nc.Close()
+		nc.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+		// Switch to a little protocol that capitalize its input lines:
+		for {
+			line, err := brw.ReadString('\n')
+			if err != nil {
+				if err != io.EOF {
+					t.Error(err)
+				}
+				return
+			}
+			io.WriteString(brw, strings.ToUpper(line))
+			brw.Flush()
+		}
+	}))
+	defer cst.close()
+	pr, pw := io.Pipe()
+	defer pw.Close()
+	req, err := NewRequest("CONNECT", cst.ts.URL, pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.URL.Opaque = target
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("status code = %d; want 200", res.StatusCode)
+	}
+	br := bufio.NewReader(res.Body)
+	for _, str := range []string{"foo", "bar", "baz"} {
+		fmt.Fprintf(pw, "%s\n", str)
+		got, err := br.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = strings.TrimSpace(got)
+		want := strings.ToUpper(str)
+		if got != want {
+			t.Fatalf("got %q; want %q", got, want)
+		}
+	}
+}
