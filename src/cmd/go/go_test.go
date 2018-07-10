@@ -1409,6 +1409,21 @@ func TestImportCycle(t *testing.T) {
 	tg.run("list", "-e", "-json", "selfimport")
 }
 
+func TestListImportMap(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.run("list", "-f", "{{.ImportPath}}: {{.ImportMap}}", "net", "fmt")
+	tg.grepStdout(`^net: map\[(.* )?golang_org/x/net/dns/dnsmessage:vendor/golang_org/x/net/dns/dnsmessage.*\]`, "net/http should have rewritten dnsmessage import")
+	tg.grepStdout(`^fmt: map\[\]`, "fmt should have no rewritten imports")
+	tg.run("list", "-deps", "-test", "-f", "{{.ImportPath}} MAP: {{.ImportMap}}\n{{.ImportPath}} IMPORT: {{.Imports}}", "fmt")
+	tg.grepStdout(`^flag \[fmt\.test\] MAP: map\[fmt:fmt \[fmt\.test\]\]`, "flag [fmt.test] should import fmt [fmt.test] as fmt")
+	tg.grepStdout(`^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]`, "fmt.test should import testing [fmt.test] as testing")
+	tg.grepStdout(`^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]`, "fmt.test should import testing [fmt.test] as testing")
+	tg.grepStdoutNot(`^fmt\.test MAP: map\[(.* )?os:`, "fmt.test should not import a modified os")
+	tg.grepStdout(`^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]`, "wrong imports for fmt.test")
+}
+
 // cmd/go: custom import path checking should not apply to Go packages without import comment.
 func TestIssue10952(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
