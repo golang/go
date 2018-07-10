@@ -13,6 +13,60 @@ import (
 	. "time"
 )
 
+var nextStdChunkTests = []string{
+	"(2006)-(01)-(02)T(15):(04):(05)(Z07:00)",
+	"(2006)-(01)-(02) (002) (15):(04):(05)",
+	"(2006)-(01) (002) (15):(04):(05)",
+	"(2006)-(002) (15):(04):(05)",
+	"(2006)(002)(01) (15):(04):(05)",
+	"(2006)(002)(04) (15):(04):(05)",
+}
+
+func TestNextStdChunk(t *testing.T) {
+	// Most bugs in Parse or Format boil down to problems with
+	// the exact detection of format chunk boundaries in the
+	// helper function nextStdChunk (here called as NextStdChunk).
+	// This test checks nextStdChunk's behavior directly,
+	// instead of needing to test it only indirectly through Parse/Format.
+
+	// markChunks returns format with each detected
+	// 'format chunk' parenthesized.
+	// For example showChunks("2006-01-02") == "(2006)-(01)-(02)".
+	markChunks := func(format string) string {
+		// Note that NextStdChunk and StdChunkNames
+		// are not part of time's public API.
+		// They are exported in export_test for this test.
+		out := ""
+		for s := format; s != ""; {
+			prefix, std, suffix := NextStdChunk(s)
+			out += prefix
+			if std > 0 {
+				out += "(" + StdChunkNames[std] + ")"
+			}
+			s = suffix
+		}
+		return out
+	}
+
+	noParens := func(r rune) rune {
+		if r == '(' || r == ')' {
+			return -1
+		}
+		return r
+	}
+
+	for _, marked := range nextStdChunkTests {
+		// marked is an expected output from markChunks.
+		// If we delete the parens and pass it through markChunks,
+		// we should get the original back.
+		format := strings.Map(noParens, marked)
+		out := markChunks(format)
+		if out != marked {
+			t.Errorf("nextStdChunk parses %q as %q, want %q", format, out, marked)
+		}
+	}
+}
+
 type TimeFormatTest struct {
 	time           Time
 	formattedValue string
@@ -61,6 +115,7 @@ var formatTests = []FormatTest{
 	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
 	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
 	{"StampNano", StampNano, "Feb  4 21:00:57.012345600"},
+	{"YearDay", "Jan  2 002 __2 2", "Feb  4 035  35 4"},
 }
 
 func TestFormat(t *testing.T) {
@@ -180,6 +235,13 @@ var parseTests = []ParseTest{
 	{"", "Jan _2 15:04:05.999", "Feb  4 21:00:57.012345678", false, false, -1, 9},
 	{"", "Jan _2 15:04:05.999999999", "Feb  4 21:00:57.0123", false, false, -1, 4},
 	{"", "Jan _2 15:04:05.999999999", "Feb  4 21:00:57.012345678", false, false, -1, 9},
+
+	// Day of year.
+	{"", "2006-01-02 002 15:04:05", "2010-02-04 035 21:00:57", false, false, 1, 0},
+	{"", "2006-01 002 15:04:05", "2010-02 035 21:00:57", false, false, 1, 0},
+	{"", "2006-002 15:04:05", "2010-035 21:00:57", false, false, 1, 0},
+	{"", "200600201 15:04:05", "201003502 21:00:57", false, false, 1, 0},
+	{"", "200600204 15:04:05", "201003504 21:00:57", false, false, 1, 0},
 }
 
 func TestParse(t *testing.T) {
@@ -485,6 +547,10 @@ var parseErrorTests = []ParseErrorTest{
 	// issue 21113
 	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
 	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
+
+	// invalid or mismatched day-of-year
+	{"Jan _2 002 2006", "Feb  4 034 2006", "day-of-year does not match day"},
+	{"Jan _2 002 2006", "Feb  4 004 2006", "day-of-year does not match month"},
 }
 
 func TestParseErrors(t *testing.T) {

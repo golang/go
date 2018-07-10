@@ -522,13 +522,28 @@ var yearDayLocations = []*Location{
 }
 
 func TestYearDay(t *testing.T) {
-	for _, loc := range yearDayLocations {
+	for i, loc := range yearDayLocations {
 		for _, ydt := range yearDayTests {
 			dt := Date(ydt.year, Month(ydt.month), ydt.day, 0, 0, 0, 0, loc)
 			yday := dt.YearDay()
 			if yday != ydt.yday {
-				t.Errorf("got %d, expected %d for %d-%02d-%02d in %v",
-					yday, ydt.yday, ydt.year, ydt.month, ydt.day, loc)
+				t.Errorf("Date(%d-%02d-%02d in %v).YearDay() = %d, want %d",
+					ydt.year, ydt.month, ydt.day, loc, yday, ydt.yday)
+				continue
+			}
+
+			if ydt.year < 0 || ydt.year > 9999 {
+				continue
+			}
+			f := fmt.Sprintf("%04d-%02d-%02d %03d %+.2d00",
+				ydt.year, ydt.month, ydt.day, ydt.yday, (i-2)*4)
+			dt1, err := Parse("2006-01-02 002 -0700", f)
+			if err != nil {
+				t.Errorf(`Parse("2006-01-02 002 -0700", %q): %v`, f, err)
+				continue
+			}
+			if !dt1.Equal(dt) {
+				t.Errorf(`Parse("2006-01-02 002 -0700", %q) = %v, want %v`, f, dt1, dt)
 			}
 		}
 	}
