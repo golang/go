@@ -40,7 +40,8 @@ func NewTicker(d Duration) *Ticker {
 }
 
 // Stop turns off a ticker. After Stop, no more ticks will be sent.
-// Stop does not close the channel. This prevents a concurrent goroutine (reading from said channel) from succeeding incorrectly.
+// Stop does not close the channel. This prevents a concurrent goroutine
+// (reading from said channel) from seeing a read succeed incorrectly.
 func (t *Ticker) Stop() {
 	stopTimer(&t.r)
 }
