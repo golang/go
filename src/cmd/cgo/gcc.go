@@ -164,23 +164,21 @@ func (p *Package) Translate(f *File) {
 		cref.Name.C = cname(cref.Name.Go)
 	}
 	p.loadDefines(f)
-	needType := p.guessKinds(f)
-	if len(needType) > 0 {
-		p.loadDWARF(f, needType)
-		// If there are typedefs used as arguments, add those
-		// types to the list of types we're interested in, and
-		// try again.
-		if len(p.ArgTypedefs) > 0 {
-			for _, a := range p.ArgTypedefs {
-				f.Name[a] = &Name{
-					Go: a,
-					C:  a,
-				}
+	p.typedefs = map[string]bool{}
+	p.typedefList = nil
+	numTypedefs := -1
+	for len(p.typedefs) > numTypedefs {
+		numTypedefs = len(p.typedefs)
+		// Also ask about any typedefs we've seen so far.
+		for _, a := range p.typedefList {
+			f.Name[a] = &Name{
+				Go: a,
+				C:  a,
 			}
-			needType := p.guessKinds(f)
-			if len(needType) > 0 {
-				p.loadDWARF(f, needType)
-			}
+		}
+		needType := p.guessKinds(f)
+		if len(needType) > 0 {
+			p.loadDWARF(f, needType)
 		}
 	}
 	if p.rewriteCalls(f) {
@@ -566,6 +564,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 				fatalf("malformed __cgo__ name: %s", name)
 			}
 			types[i] = t.Type
+			p.recordTypedefs(t.Type)
 		}
 		if e.Tag != dwarf.TagCompileUnit {
 			r.SkipChildren()
@@ -630,7 +629,43 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 		}
 		conv.FinishType(pos)
 	}
-	p.ArgTypedefs = conv.argTypedefs
+}
+
+// recordTypedefs remembers in p.typedefs all the typedefs used in dtypes and its children.
+func (p *Package) recordTypedefs(dtype dwarf.Type) {
+	p.recordTypedefs1(dtype, map[dwarf.Type]bool{})
+}
+func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool) {
+	if dtype == nil {
+		return
+	}
+	if visited[dtype] {
+		return
+	}
+	visited[dtype] = true
+	switch dt := dtype.(type) {
+	case *dwarf.TypedefType:
+		if !p.typedefs[dt.Name] {
+			p.typedefs[dt.Name] = true
+			p.typedefList = append(p.typedefList, dt.Name)
+			p.recordTypedefs1(dt.Type, visited)
+		}
+	case *dwarf.PtrType:
+		p.recordTypedefs1(dt.Type, visited)
+	case *dwarf.ArrayType:
+		p.recordTypedefs1(dt.Type, visited)
+	case *dwarf.QualType:
+		p.recordTypedefs1(dt.Type, visited)
+	case *dwarf.FuncType:
+		p.recordTypedefs1(dt.ReturnType, visited)
+		for _, a := range dt.ParamType {
+			p.recordTypedefs1(a, visited)
+		}
+	case *dwarf.StructType:
+		for _, f := range dt.Field {
+			p.recordTypedefs1(f.Type, visited)
+		}
+	}
 }
 
 // mangleName does name mangling to translate names
@@ -1712,9 +1747,6 @@ type typeConv struct {
 
 	ptrSize int64
 	intSize int64
-
-	// Typedefs used as argument types for C calls.
-	argTypedefs []string
 }
 
 var tagGen int
@@ -2275,9 +2307,6 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 			C:     tr,
 		}
 	case *dwarf.TypedefType:
-		// Keep track of all the typedefs used as arguments.
-		c.argTypedefs = append(c.argTypedefs, dt.Name)
-
 		// C has much more relaxed rules than Go for
 		// implicit type conversions. When the parameter
 		// is type T defined as *X, simulate a little of the
@@ -2290,7 +2319,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 			}
 			// ...or the typedef is one in which we expect bad pointers.
 			// It will be a uintptr instead of *X.
-			if c.badPointerTypedef(dt) {
+			if c.baseBadPointerTypedef(dt) {
 				break
 			}
 
@@ -2334,9 +2363,6 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 		gr = []*ast.Field{{Type: c.goVoid}}
 	} else if dtype.ReturnType != nil {
 		r = c.Type(unqual(dtype.ReturnType), pos)
-		if dt, ok := dtype.ReturnType.(*dwarf.TypedefType); ok {
-			c.argTypedefs = append(c.argTypedefs, dt.Name)
-		}
 		gr = []*ast.Field{{Type: r.Go}}
 	}
 	return &FuncType{
@@ -2643,6 +2669,19 @@ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 		return true
 	}
 	return false
+}
+
+// baseBadPointerTypedef reports whether the base of a chain of typedefs is a bad typedef
+// as badPointerTypedef reports.
+func (c *typeConv) baseBadPointerTypedef(dt *dwarf.TypedefType) bool {
+	for {
+		if t, ok := dt.Type.(*dwarf.TypedefType); ok {
+			dt = t
+			continue
+		}
+		break
+	}
+	return c.badPointerTypedef(dt)
 }
 
 func (c *typeConv) badCFType(dt *dwarf.TypedefType) bool {
