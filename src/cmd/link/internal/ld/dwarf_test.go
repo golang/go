@@ -830,6 +830,23 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	}
 }
 
+func TestAbstractOriginSanityIssue26237(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	}
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "issue26237")
+		abstractOriginSanity(t, gopathdir, DefaultOpt)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
+}
+
 func TestRuntimeTypeAttr(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
