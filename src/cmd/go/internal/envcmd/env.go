@@ -62,9 +62,6 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOTMPDIR", Value: os.Getenv("GOTMPDIR")},
 		{Name: "GOTOOLDIR", Value: base.ToolDir},
-
-		// disable escape codes in clang errors
-		{Name: "TERM", Value: "dumb"},
 	}
 
 	if work.GccgoBin != "" {
