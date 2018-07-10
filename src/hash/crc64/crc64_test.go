@@ -62,15 +62,13 @@ func TestGolden(t *testing.T) {
 		io.WriteString(c, g.in)
 		s := c.Sum64()
 		if s != g.outISO {
-			t.Errorf("ISO crc64(%s) = 0x%x want 0x%x", g.in, s, g.outISO)
-			t.FailNow()
+			t.Fatalf("ISO crc64(%s) = 0x%x want 0x%x", g.in, s, g.outISO)
 		}
 		c = New(tabECMA)
 		io.WriteString(c, g.in)
 		s = c.Sum64()
 		if s != g.outECMA {
-			t.Errorf("ECMA crc64(%s) = 0x%x want 0x%x", g.in, s, g.outECMA)
-			t.FailNow()
+			t.Fatalf("ECMA crc64(%s) = 0x%x want 0x%x", g.in, s, g.outECMA)
 		}
 	}
 }
