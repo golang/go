@@ -157,3 +157,15 @@ func CmpZero4(a int64, ptr *int) {
 		*ptr = 0
 	}
 }
+
+func CmpToZero(a, b int32) int32 {
+	if a&b < 0 { // arm:`TST`,-`AND`
+		return 1
+	} else if a+b < 0 { // arm:`CMN`,-`ADD`
+		return 2
+	} else if a^b < 0 { // arm:`TEQ`,-`XOR`
+		return 3
+	} else {
+		return 0
+	}
+}
