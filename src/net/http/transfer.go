@@ -184,6 +184,9 @@ func (t *transferWriter) shouldSendChunkedRequestBody() bool {
 	if t.ContentLength >= 0 || t.Body == nil { // redundant checks; caller did them
 		return false
 	}
+	if t.Method == "CONNECT" {
+		return false
+	}
 	if requestMethodUsuallyLacksBody(t.Method) {
 		// Only probe the Request.Body for GET/HEAD/DELETE/etc
 		// requests, because it's only those types of requests
@@ -357,7 +360,11 @@ func (t *transferWriter) writeBody(w io.Writer) error {
 				err = cw.Close()
 			}
 		} else if t.ContentLength == -1 {
-			ncopy, err = io.Copy(w, body)
+			dst := w
+			if t.Method == "CONNECT" {
+				dst = bufioFlushWriter{dst}
+			}
+			ncopy, err = io.Copy(dst, body)
 		} else {
 			ncopy, err = io.Copy(w, io.LimitReader(body, t.ContentLength))
 			if err != nil {
@@ -1049,4 +1056,19 @@ func isKnownInMemoryReader(r io.Reader) bool {
 		return isKnownInMemoryReader(reflect.ValueOf(r).Field(0).Interface().(io.Reader))
 	}
 	return false
+}
+
+// bufioFlushWriter is an io.Writer wrapper that flushes all writes
+// on its wrapped writer if it's a *bufio.Writer.
+type bufioFlushWriter struct{ w io.Writer }
+
+func (fw bufioFlushWriter) Write(p []byte) (n int, err error) {
+	n, err = fw.w.Write(p)
+	if bw, ok := fw.w.(*bufio.Writer); n > 0 && ok {
+		ferr := bw.Flush()
+		if ferr != nil && err == nil {
+			err = ferr
+		}
+	}
+	return
 }
