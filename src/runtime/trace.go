@@ -584,10 +584,10 @@ func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
 	gp := mp.curg
 	var nstk int
 	if gp == _g_ {
-		nstk = callers(skip+1, buf[:])
+		nstk = callers(skip+1, buf)
 	} else if gp != nil {
 		gp = mp.curg
-		nstk = gcallers(gp, skip, buf[:])
+		nstk = gcallers(gp, skip, buf)
 	}
 	if nstk > 0 {
 		nstk-- // skip runtime.goexit
