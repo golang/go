@@ -284,6 +284,11 @@ func and_mask_2(a uint64) uint64 {
 	return a & (1 << 63)
 }
 
+func and_mask_3(a uint32) uint32 {
+	// arm/7:`BIC`,-`AND`
+	return a & 0xffff0000
+}
+
 // Check generation of arm64 BIC/EON/ORN instructions
 
 func op_bic(x, y uint32) uint32 {
