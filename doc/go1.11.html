@@ -57,6 +57,14 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
 </p>
+<p>
+  As a result of the addition of the new <code>GOOS</code> value
+  "<code>js</code>" and <code>GOARCH</code> value "<code>wasm</code>",
+  Go files named <code>*_js.go</code> or <code>*_wasm.go</code> will
+  now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored by Go
+  tools</a> except when those GOOS/GOARCH values are being used.
+  If you have existing filenames matching those patterns, you will have to rename them.
+</p>
 
 <h2 id="tools">Tools</h2>
 
