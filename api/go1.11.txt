@@ -529,6 +529,7 @@ pkg syscall (openbsd-amd64-cgo), func Pipe2([]int, int) error
 pkg syscall (windows-386), const TOKEN_ADJUST_SESSIONID = 256
 pkg syscall (windows-386), const TOKEN_ADJUST_SESSIONID ideal-int
 pkg syscall (windows-386), const TOKEN_ALL_ACCESS = 983551
+pkg syscall (windows-386), type AddrinfoW struct, Addr Pointer
 pkg syscall (windows-386), type CertChainPolicyPara struct, ExtraPolicyPara Pointer
 pkg syscall (windows-386), type CertChainPolicyStatus struct, ExtraPolicyStatus Pointer
 pkg syscall (windows-386), type CertContext struct, CertInfo *CertInfo
@@ -542,6 +543,7 @@ pkg syscall (windows-386), type Pointer *struct
 pkg syscall (windows-amd64), const TOKEN_ADJUST_SESSIONID = 256
 pkg syscall (windows-amd64), const TOKEN_ADJUST_SESSIONID ideal-int
 pkg syscall (windows-amd64), const TOKEN_ALL_ACCESS = 983551
+pkg syscall (windows-amd64), type AddrinfoW struct, Addr Pointer
 pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara Pointer
 pkg syscall (windows-amd64), type CertChainPolicyStatus struct, ExtraPolicyStatus Pointer
 pkg syscall (windows-amd64), type CertContext struct, CertInfo *CertInfo
