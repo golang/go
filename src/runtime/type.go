@@ -131,6 +131,25 @@ func (t *_type) name() string {
 	return s[i+1:]
 }
 
+// pkgpath returns the path of the package where t was defined, if
+// available. This is not the same as the reflect package's PkgPath
+// method, in that it returns the package path for struct and interface
+// types, not just named types.
+func (t *_type) pkgpath() string {
+	if u := t.uncommon(); u != nil {
+		return t.nameOff(u.pkgpath).name()
+	}
+	switch t.kind & kindMask {
+	case kindStruct:
+		st := (*structtype)(unsafe.Pointer(t))
+		return st.pkgPath.name()
+	case kindInterface:
+		it := (*interfacetype)(unsafe.Pointer(t))
+		return it.pkgpath.name()
+	}
+	return ""
+}
+
 // reflectOffs holds type offsets defined at run time by the reflect package.
 //
 // When a type is defined at run time, its *rtype data lives on the heap.
