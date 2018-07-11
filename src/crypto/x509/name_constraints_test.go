@@ -57,6 +57,7 @@ type constraintsSpec struct {
 type leafSpec struct {
 	sans []string
 	ekus []string
+	cn   string
 }
 
 var nameConstraintsTests = []nameConstraintsTest{
@@ -633,7 +634,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #30: without SANs, a certificate is rejected in a constrained chain.
+	// #30: without SANs, a certificate with a CN is rejected in a constrained chain.
 	nameConstraintsTest{
 		roots: []constraintsSpec{
 			constraintsSpec{
@@ -647,9 +648,9 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 		leaf: leafSpec{
 			sans: []string{},
+			cn:   "foo.com",
 		},
 		expectedError: "leaf doesn't have a SAN extension",
-		noOpenSSL:     true, // OpenSSL doesn't require SANs in this case.
 	},
 
 	// #31: IPv6 addresses work in constraints: roots can permit them as
@@ -1580,6 +1581,60 @@ var nameConstraintsTests = []nameConstraintsTest{
 			ekus: []string{"email", "serverAuth"},
 		},
 	},
+
+	// #82: a certificate without SANs and CN is accepted in a constrained chain.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				ok: []string{"dns:foo.com", "dns:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{},
+		},
+	},
+
+	// #83: a certificate without SANs and with a CN that does not parse as a
+	// hostname is accepted in a constrained chain.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				ok: []string{"dns:foo.com", "dns:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{},
+			cn:   "foo,bar",
+		},
+	},
+
+	// #84: a certificate with SANs and CN is accepted in a constrained chain.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				ok: []string{"dns:foo.com", "dns:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:foo.com"},
+			cn:   "foo.bar",
+		},
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
@@ -1625,9 +1680,8 @@ func makeConstraintsLeafCert(leaf leafSpec, key *ecdsa.PrivateKey, parent *Certi
 	template := &Certificate{
 		SerialNumber: new(big.Int).SetBytes(serialBytes[:]),
 		Subject: pkix.Name{
-			// Don't set a CommonName because OpenSSL (at least) will try to
-			// match it against name constraints.
 			OrganizationalUnit: []string{"Leaf"},
+			CommonName:         leaf.cn,
 		},
 		NotBefore:             time.Unix(1000, 0),
 		NotAfter:              time.Unix(2000, 0),
@@ -1899,7 +1953,9 @@ func TestConstraintCases(t *testing.T) {
 			t.Fatalf("#%d: cannot create leaf: %s", i, err)
 		}
 
-		if !test.noOpenSSL && testNameConstraintsAgainstOpenSSL {
+		// Skip tests with CommonName set because OpenSSL will try to match it
+		// against name constraints, while we ignore it when it's not hostname-looking.
+		if !test.noOpenSSL && testNameConstraintsAgainstOpenSSL && test.leaf.cn == "" {
 			output, err := testChainAgainstOpenSSL(leafCert, intermediatePool, rootPool)
 			if err == nil && len(test.expectedError) > 0 {
 				t.Errorf("#%d: unexpectedly succeeded against OpenSSL", i)
@@ -1912,7 +1968,7 @@ func TestConstraintCases(t *testing.T) {
 				if _, ok := err.(*exec.ExitError); !ok {
 					t.Errorf("#%d: OpenSSL failed to run: %s", i, err)
 				} else if len(test.expectedError) == 0 {
-					t.Errorf("#%d: OpenSSL unexpectedly failed: %q", i, output)
+					t.Errorf("#%d: OpenSSL unexpectedly failed: %v", i, output)
 					if debugOpenSSLFailure {
 						return
 					}
@@ -1949,7 +2005,7 @@ func TestConstraintCases(t *testing.T) {
 			certAsPEM := func(cert *Certificate) string {
 				var buf bytes.Buffer
 				pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-				return string(buf.Bytes())
+				return buf.String()
 			}
 			t.Errorf("#%d: root:\n%s", i, certAsPEM(rootPool.certs[0]))
 			t.Errorf("#%d: leaf:\n%s", i, certAsPEM(leafCert))
@@ -2012,7 +2068,7 @@ func testChainAgainstOpenSSL(leaf *Certificate, intermediates, roots *CertPool) 
 	cmd.Stderr = &output
 
 	err := cmd.Run()
-	return string(output.Bytes()), err
+	return output.String(), err
 }
 
 var rfc2821Tests = []struct {
