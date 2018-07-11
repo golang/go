@@ -15,8 +15,6 @@ import (
 	"time"
 )
 
-var supportSHA2 = true
-
 type verifyTest struct {
 	leaf                 string
 	intermediates        []string
@@ -425,9 +423,6 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 			continue
 		}
 		if runtime.GOOS == "windows" && test.testSystemRootsError {
-			continue
-		}
-		if useSystemRoots && !supportSHA2 && test.sha2 {
 			continue
 		}
 
