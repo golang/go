@@ -464,19 +464,22 @@ func (p *exporter) markType(t *types.Type) {
 	}
 
 	// Recursively mark any types that can be produced given a
-	// value of type t: dereferencing a pointer; indexing an
-	// array, slice, or map; receiving from a channel; accessing a
-	// struct field or interface method; or calling a function.
+	// value of type t: dereferencing a pointer; indexing or
+	// iterating over an array, slice, or map; receiving from a
+	// channel; accessing a struct field or interface method; or
+	// calling a function.
 	//
-	// Notably, we don't mark map key or function parameter types,
-	// because the user already needs some way to construct values
-	// of those types.
-	//
-	// It's not critical for correctness that this algorithm is
-	// perfect. Worst case, we might miss opportunities to inline
-	// some function calls in downstream packages.
+	// Notably, we don't mark function parameter types, because
+	// the user already needs some way to construct values of
+	// those types.
 	switch t.Etype {
-	case TPTR32, TPTR64, TARRAY, TSLICE, TCHAN, TMAP:
+	case TPTR32, TPTR64, TARRAY, TSLICE, TCHAN:
+		// TODO(mdempsky): Skip marking element type for
+		// send-only channels?
+		p.markType(t.Elem())
+
+	case TMAP:
+		p.markType(t.Key())
 		p.markType(t.Elem())
 
 	case TSTRUCT:
