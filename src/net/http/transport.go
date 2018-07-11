@@ -811,12 +811,6 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
 			// carry on.
 			continue
 		}
-		if pconn.idleTimer != nil && !pconn.idleTimer.Stop() {
-			// We picked this conn at the ~same time it
-			// was expiring and it's trying to close
-			// itself in another goroutine. Don't use it.
-			continue
-		}
 		return pconn, pconn.idleAt
 	}
 }
