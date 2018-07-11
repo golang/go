@@ -4702,3 +4702,122 @@ func TestTransportCheckContextDoneEarly(t *testing.T) {
 		t.Errorf("error = %v; want %v", err, wantErr)
 	}
 }
+
+// Issue 23399: verify that if a client request times out, the Transport's
+// conn is closed so that it's not reused.
+//
+// This is the test variant that times out before the server replies with
+// any response headers.
+func TestClientTimeoutKillsConn_BeforeHeaders(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	inHandler := make(chan net.Conn, 1)
+	handlerReadReturned := make(chan bool, 1)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		inHandler <- conn
+		n, err := conn.Read([]byte{0})
+		if n != 0 || err != io.EOF {
+			t.Errorf("unexpected Read result: %v, %v", n, err)
+		}
+		handlerReadReturned <- true
+	}))
+	defer cst.close()
+
+	const timeout = 50 * time.Millisecond
+	cst.c.Timeout = timeout
+
+	_, err := cst.c.Get(cst.ts.URL)
+	if err == nil {
+		t.Fatal("unexpected Get succeess")
+	}
+
+	select {
+	case c := <-inHandler:
+		select {
+		case <-handlerReadReturned:
+			// Success.
+			return
+		case <-time.After(5 * time.Second):
+			t.Error("Handler's conn.Read seems to be stuck in Read")
+			c.Close() // close it to unblock Handler
+		}
+	case <-time.After(timeout * 10):
+		// If we didn't get into the Handler in 50ms, that probably means
+		// the builder was just slow and the the Get failed in that time
+		// but never made it to the server. That's fine. We'll usually
+		// test the part above on faster machines.
+		t.Skip("skipping test on slow builder")
+	}
+}
+
+// Issue 23399: verify that if a client request times out, the Transport's
+// conn is closed so that it's not reused.
+//
+// This is the test variant that has the server send response headers
+// first, and time out during the the write of the response body.
+func TestClientTimeoutKillsConn_AfterHeaders(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	inHandler := make(chan net.Conn, 1)
+	handlerReadReturned := make(chan bool, 1)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "100")
+		w.(Flusher).Flush()
+		conn, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		conn.Write([]byte("foo"))
+		inHandler <- conn
+		n, err := conn.Read([]byte{0})
+		if n != 0 || err != io.EOF {
+			t.Errorf("unexpected Read result: %v, %v", n, err)
+		}
+		handlerReadReturned <- true
+	}))
+	defer cst.close()
+
+	const timeout = 50 * time.Millisecond
+	cst.c.Timeout = timeout
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		select {
+		case <-inHandler:
+			t.Fatalf("Get error: %v", err)
+		default:
+			// Failed before entering handler. Ignore result.
+			t.Skip("skipping test on slow builder")
+		}
+	}
+
+	got, err := ioutil.ReadAll(res.Body)
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+	t.Logf("Read %q, %v", got, err)
+
+	select {
+	case c := <-inHandler:
+		select {
+		case <-handlerReadReturned:
+			// Success.
+			return
+		case <-time.After(5 * time.Second):
+			t.Error("Handler's conn.Read seems to be stuck in Read")
+			c.Close() // close it to unblock Handler
+		}
+	case <-time.After(timeout * 10):
+		// If we didn't get into the Handler in 50ms, that probably means
+		// the builder was just slow and the the Get failed in that time
+		// but never made it to the server. That's fine. We'll usually
+		// test the past above on faster machines.
+		t.Skip("skipping test on slow builder")
+	}
+}
