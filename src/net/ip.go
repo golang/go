@@ -222,7 +222,7 @@ func (ip IP) DefaultMask() IPMask {
 	if ip = ip.To4(); ip == nil {
 		return nil
 	}
-	switch true {
+	switch {
 	case ip[0] < 0x80:
 		return classAMask
 	case ip[0] < 0xC0:
