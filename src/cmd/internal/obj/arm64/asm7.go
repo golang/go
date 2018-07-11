@@ -2752,7 +2752,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 
-		if !(o1 != 0) {
+		if o1 == 0 {
 			break
 		}
 		rt := int(p.To.Reg)
@@ -3013,7 +3013,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 28: /* logop $vcon, [R], R (64 bit literal) */
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 
-		if !(o1 != 0) {
+		if o1 == 0 {
 			break
 		}
 		rt := int(p.To.Reg)
@@ -3158,7 +3158,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 34: /* mov $lacon,R */
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 
-		if !(o1 != 0) {
+		if o1 == 0 {
 			break
 		}
 		o2 = c.opxrrr(p, AADD, false)
