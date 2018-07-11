@@ -2850,6 +2850,20 @@ func rewriteValueARM_OpARMADDconst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ADDconst [c] x)
+	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
+	// result: (SUBconst [int64(int32(-c))] x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
+			break
+		}
+		v.reset(OpARMSUBconst)
+		v.AuxInt = int64(int32(-c))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ADDconst [c] (MOVWconst [d]))
 	// cond:
 	// result: (MOVWconst [int64(int32(c+d))])
@@ -3670,6 +3684,20 @@ func rewriteValueARM_OpARMANDconst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ANDconst [c] x)
+	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
+	// result: (BICconst [int64(int32(^uint32(c)))] x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
+			break
+		}
+		v.reset(OpARMBICconst)
+		v.AuxInt = int64(int32(^uint32(c)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ANDconst [c] (MOVWconst [d]))
 	// cond:
 	// result: (MOVWconst [c&d])
@@ -4236,6 +4264,20 @@ func rewriteValueARM_OpARMBICconst_0(v *Value) bool {
 		c := v.AuxInt
 		x := v.Args[0]
 		if !(!isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))) {
+			break
+		}
+		v.reset(OpARMANDconst)
+		v.AuxInt = int64(int32(^uint32(c)))
+		v.AddArg(x)
+		return true
+	}
+	// match: (BICconst [c] x)
+	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
+	// result: (ANDconst [int64(int32(^uint32(c)))] x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
 			break
 		}
 		v.reset(OpARMANDconst)
@@ -15239,6 +15281,20 @@ func rewriteValueARM_OpARMSUBconst_0(v *Value) bool {
 			break
 		}
 		v.reset(OpARMADDconst)
+		v.AuxInt = int64(int32(-c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBconst [c] x)
+	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
+	// result: (ANDconst [int64(int32(-c))] x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
+			break
+		}
+		v.reset(OpARMANDconst)
 		v.AuxInt = int64(int32(-c))
 		v.AddArg(x)
 		return true
