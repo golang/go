@@ -345,9 +345,9 @@ func TestWholeProgramOverlay(t *testing.T) {
 	}{
 		{nil, `"abc"`, nil}, // default
 		{M{}, `"abc"`, nil}, // empty overlay
-		{M{tmp + "/src/c/c.go": `package c; const C = "C"`}, `"abC"`, nil},
-		{M{tmp + "/src/b/b.go": `package b; import "c"; const B = "B" + c.C`}, `"aBc"`, nil},
-		{M{tmp + "/src/b/b.go": `package b; import "d"; const B = "B" + d.D`}, `unknown`,
+		{M{filepath.Join(tmp, "src/c/c.go"): `package c; const C = "C"`}, `"abC"`, nil},
+		{M{filepath.Join(tmp, "src/b/b.go"): `package b; import "c"; const B = "B" + c.C`}, `"aBc"`, nil},
+		{M{filepath.Join(tmp, "src/b/b.go"): `package b; import "d"; const B = "B" + d.D`}, `unknown`,
 			[]string{`could not import d (no metadata for d)`}},
 	} {
 		var parseFile func(fset *token.FileSet, filename string) (*ast.File, error)
