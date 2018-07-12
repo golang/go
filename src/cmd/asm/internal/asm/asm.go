@@ -137,7 +137,7 @@ func (p *Parser) asmText(operands [][]lex.Token) {
 	// Bizarre syntax: $frameSize-argSize is two words, not subtraction.
 	// Both frameSize and argSize must be simple integers; only frameSize
 	// can be negative.
-	// The "-argSize" may be missing; if so, set it to obj.ArgsSizeUnknown.
+	// The "-argSize" may be missing; if so, set it to objabi.ArgsSizeUnknown.
 	// Parse left to right.
 	op := operands[next]
 	if len(op) < 2 || op[0].ScanToken != '$' {
