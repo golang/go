@@ -11,9 +11,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/str"
 )
 
 func Unzip(dir, zipfile, prefix string, maxSize int64) error {
@@ -49,11 +51,14 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 	// Check total size.
 	var size int64
 	for _, zf := range z.File {
-		if !strings.HasPrefix(zf.Name, prefix) {
+		if !str.HasPathPrefix(zf.Name, prefix) {
 			return fmt.Errorf("unzip %v: unexpected file name %s", zipfile, zf.Name)
 		}
-		if strings.HasSuffix(zf.Name, "/") {
+		if zf.Name == prefix || strings.HasSuffix(zf.Name, "/") {
 			continue
+		}
+		if filepath.Clean(zf.Name) != zf.Name || strings.HasPrefix(zf.Name[len(prefix)+1:], "/") {
+			return fmt.Errorf("unzip %v: invalid file name %s", zipfile, zf.Name)
 		}
 		s := int64(zf.UncompressedSize64)
 		if s < 0 || maxSize-size < s {
@@ -63,11 +68,18 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 	}
 
 	// Unzip, enforcing sizes checked earlier.
+	dirs := map[string]bool{dir: true}
 	for _, zf := range z.File {
-		if strings.HasSuffix(zf.Name, "/") {
+		if zf.Name == prefix || strings.HasSuffix(zf.Name, "/") {
 			continue
 		}
-		dst := filepath.Join(dir, zf.Name[len(prefix):])
+		name := zf.Name[len(prefix):]
+		dst := filepath.Join(dir, name)
+		parent := filepath.Dir(dst)
+		for parent != dir {
+			dirs[parent] = true
+			parent = filepath.Dir(parent)
+		}
 		if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
 			return err
 		}
@@ -77,7 +89,6 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		}
 		r, err := zf.Open()
 		if err != nil {
-			r.Close()
 			w.Close()
 			return fmt.Errorf("unzip %v: %v", zipfile, err)
 		}
@@ -94,6 +105,18 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		if lr.N <= 0 {
 			return fmt.Errorf("unzip %v: content too large", zipfile)
 		}
+	}
+
+	// Mark directories unwritable, best effort.
+	var dirlist []string
+	for dir := range dirs {
+		dirlist = append(dirlist, dir)
+	}
+	sort.Strings(dirlist)
+
+	// Run over list backward to chmod children before parents.
+	for i := len(dirlist) - 1; i >= 0; i-- {
+		os.Chmod(dir, 0555)
 	}
 
 	return nil

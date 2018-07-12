@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"cmd/go/internal/cfg"
@@ -32,10 +33,8 @@ const (
 // A Repo represents a code hosting source.
 // Typical implementations include local version control repositories,
 // remote version control servers, and code hosting sites.
+// A Repo must be safe for simultaneous use by multiple goroutines.
 type Repo interface {
-	// Root returns the import path of the root directory of the repository.
-	Root() string
-
 	// List lists all tags with the given prefix.
 	Tags(prefix string) (tags []string, err error)
 
@@ -50,6 +49,9 @@ type Repo interface {
 
 	// ReadFile reads the given file in the file tree corresponding to revision rev.
 	// It should refuse to read more than maxSize bytes.
+	//
+	// If the requested file does not exist it should return an error for which
+	// os.IsNotExist(err) returns true.
 	ReadFile(rev, file string, maxSize int64) (data []byte, err error)
 
 	// ReadZip downloads a zip file for the subdir subdirectory
@@ -66,8 +68,9 @@ type Repo interface {
 type RevInfo struct {
 	Name    string    // complete ID in underlying repository
 	Short   string    // shortened ID, for use in pseudo-version
-	Version string    // TODO what is this?
+	Version string    // version used in lookup
 	Time    time.Time // commit time
+	Tags    []string  // known tags for commit
 }
 
 // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.
@@ -92,7 +95,7 @@ func ShortenSHA1(rev string) string {
 }
 
 // WorkRoot is the root of the cached work directory.
-// It is set by cmd/go/internal/vgo.InitMod.
+// It is set by cmd/go/internal/modload.InitMod.
 var WorkRoot string
 
 // WorkDir returns the name of the cached work directory to use for the
@@ -113,14 +116,12 @@ func WorkDir(typ, name string) (string, error) {
 	key := typ + ":" + name
 	dir := filepath.Join(WorkRoot, fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
 	data, err := ioutil.ReadFile(dir + ".info")
-	if err == nil {
+	info, err2 := os.Stat(dir)
+	if err == nil && err2 == nil && info.IsDir() {
+		// Info file and directory both already exist: reuse.
 		have := strings.TrimSuffix(string(data), "\n")
 		if have != key {
 			return "", fmt.Errorf("%s exists with wrong content (have %q want %q)", dir+".info", have, key)
-		}
-		_, err := os.Stat(dir)
-		if err != nil {
-			return "", fmt.Errorf("%s exists but %s does not", dir+".info", dir)
 		}
 		if cfg.BuildX {
 			fmt.Fprintf(os.Stderr, "# %s for %s %s\n", dir, typ, name)
@@ -128,6 +129,7 @@ func WorkDir(typ, name string) (string, error) {
 		return dir, nil
 	}
 
+	// Info file or directory missing. Start from scratch.
 	if cfg.BuildX {
 		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", dir, typ, name)
 	}
@@ -157,19 +159,36 @@ func (e *RunError) Error() string {
 	return text
 }
 
+var dirLock sync.Map
+
 // Run runs the command line in the given directory
 // (an empty dir means the current directory).
 // It returns the standard output and, for a non-zero exit,
 // a *RunError indicating the command, exit status, and standard error.
 // Standard error is unavailable for commands that exit successfully.
 func Run(dir string, cmdline ...interface{}) ([]byte, error) {
+	if dir != "" {
+		muIface, ok := dirLock.Load(dir)
+		if !ok {
+			muIface, _ = dirLock.LoadOrStore(dir, new(sync.Mutex))
+		}
+		mu := muIface.(*sync.Mutex)
+		mu.Lock()
+		defer mu.Unlock()
+	}
+
 	cmd := str.StringList(cmdline...)
 	if cfg.BuildX {
-		var cd string
+		var text string
 		if dir != "" {
-			cd = "cd " + dir + "; "
+			text = "cd " + dir + "; "
 		}
-		fmt.Fprintf(os.Stderr, "%s%s\n", cd, strings.Join(cmd, " "))
+		text += strings.Join(cmd, " ")
+		fmt.Fprintf(os.Stderr, "%s\n", text)
+		start := time.Now()
+		defer func() {
+			fmt.Fprintf(os.Stderr, "%.3fs # %s\n", time.Since(start).Seconds(), text)
+		}()
 	}
 	// TODO: Impose limits on command output size.
 	// TODO: Set environment to get English error messages.

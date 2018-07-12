@@ -9,6 +9,7 @@ package work
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"flag"
 	"fmt"
 	"os"
@@ -223,5 +224,17 @@ func buildModeInit() {
 			}
 			cfg.BuildContext.InstallSuffix += codegenArg[1:]
 		}
+	}
+
+	switch cfg.BuildGetmode {
+	case "":
+		// ok
+	case "local", "vendor":
+		// ok but check for modules
+		if load.ModLookup == nil {
+			base.Fatalf("build flag -getmode=%s only valid when using modules", cfg.BuildGetmode)
+		}
+	default:
+		base.Fatalf("-getmode=%s not supported (can be '', 'local', or 'vendor')", cfg.BuildGetmode)
 	}
 }

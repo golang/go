@@ -7,10 +7,11 @@ package modconv
 import (
 	"encoding/json"
 
+	"cmd/go/internal/modfile"
 	"cmd/go/internal/module"
 )
 
-func ParseVendorManifest(file string, data []byte) ([]module.Version, error) {
+func ParseVendorManifest(file string, data []byte) (*modfile.File, error) {
 	var cfg struct {
 		Dependencies []struct {
 			ImportPath string
@@ -20,9 +21,9 @@ func ParseVendorManifest(file string, data []byte) ([]module.Version, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
-	var list []module.Version
+	mf := new(modfile.File)
 	for _, d := range cfg.Dependencies {
-		list = append(list, module.Version{Path: d.ImportPath, Version: d.Revision})
+		mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: d.ImportPath, Version: d.Revision}})
 	}
-	return list, nil
+	return mf, nil
 }

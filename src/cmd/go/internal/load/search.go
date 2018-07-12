@@ -15,7 +15,7 @@ import (
 // MatchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
 func MatchPackage(pattern, cwd string) func(*Package) bool {
 	switch {
-	case strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../") || pattern == "." || pattern == "..":
+	case search.IsRelativePath(pattern):
 		// Split pattern into leading pattern-free directory path
 		// (including all . and .. elements) and the final pattern.
 		var dir string

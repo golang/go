@@ -30,7 +30,7 @@ the C or C++ compiler, respectively, to use.
 
 var HelpPackages = &base.Command{
 	UsageLine: "packages",
-	Short:     "package lists",
+	Short:     "package lists and patterns",
 	Long: `
 Many commands apply to a set of packages:
 
@@ -54,9 +54,11 @@ for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
 
-- "all" expands to all package directories found in all the GOPATH
+- "all" expands to all packages found in all the GOPATH
 trees. For example, 'go list all' lists all the packages on the local
-system.
+system. When using modules, "all" expands to all packages in
+the main module and their dependencies, including dependencies
+needed by tests of any of those.
 
 - "std" is like all but expands to just the packages in the standard
 Go library.

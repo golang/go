@@ -4,9 +4,9 @@
 
 package modconv
 
-import "cmd/go/internal/module"
+import "cmd/go/internal/modfile"
 
-var Converters = map[string]func(string, []byte) ([]module.Version, error){
+var Converters = map[string]func(string, []byte) (*modfile.File, error){
 	"GLOCKFILE":          ParseGLOCKFILE,
 	"Godeps/Godeps.json": ParseGodepsJSON,
 	"Gopkg.lock":         ParseGopkgLock,
@@ -17,9 +17,3 @@ var Converters = map[string]func(string, []byte) ([]module.Version, error){
 	"vendor/manifest":    ParseVendorManifest,
 	"vendor/vendor.json": ParseVendorJSON,
 }
-
-// Prefix is a line we write at the top of auto-converted go.mod files
-// for dependencies before caching them.
-// In case of bugs in the converter, if we bump this version number,
-// then all the cached copies will be ignored.
-const Prefix = "//vgo 0.0.4\n"
