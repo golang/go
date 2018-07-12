@@ -10,12 +10,16 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
+
+// ignoreCN disables interpreting Common Name as a hostname. See issue 24151.
+var ignoreCN = strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=1")
 
 type InvalidReason int
 
@@ -43,6 +47,10 @@ const (
 	// contain a Subject Alternative Name extension, but a CA certificate
 	// contains name constraints, and the Common Name can be interpreted as
 	// a hostname.
+	//
+	// You can avoid this error by setting the experimental GODEBUG environment
+	// variable to "x509ignoreCN=1", disabling Common Name matching entirely.
+	// This behavior might become the default in the future.
 	NameConstraintsWithoutSANs
 	// UnconstrainedName results when a CA certificate contains permitted
 	// name constraints, but leaf certificate contains a name of an
@@ -907,7 +915,7 @@ func validHostname(host string) bool {
 // constraints if there is no risk the CN would be matched as a hostname.
 // See NameConstraintsWithoutSANs and issue 24151.
 func (c *Certificate) commonNameAsHostname() bool {
-	return !c.hasSANExtension() && validHostname(c.Subject.CommonName)
+	return !ignoreCN && !c.hasSANExtension() && validHostname(c.Subject.CommonName)
 }
 
 func matchHostnames(pattern, host string) bool {

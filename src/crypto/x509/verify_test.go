@@ -25,6 +25,7 @@ type verifyTest struct {
 	keyUsages            []ExtKeyUsage
 	testSystemRootsError bool
 	sha2                 bool
+	ignoreCN             bool
 
 	errorCallback  func(*testing.T, int, error) bool
 	expectedChains [][]string
@@ -349,6 +350,37 @@ var verifyTests = []verifyTest{
 			{"foo.example.com", "Test root"},
 		},
 	},
+	// Replicate CN tests with ignoreCN = true
+	{
+		leaf:        ignoreCNWithSANLeaf,
+		dnsName:     "foo.example.com",
+		roots:       []string{ignoreCNWithSANRoot},
+		currentTime: 1486684488,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("certificate is not valid for any names"),
+	},
+	{
+		leaf:        invalidCNWithoutSAN,
+		dnsName:     "foo,invalid",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+	},
+	{
+		leaf:        validCNWithoutSAN,
+		dnsName:     "foo.example.com",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("not valid for any names"),
+	},
 }
 
 func expectHostnameError(msg string) func(*testing.T, int, error) bool {
@@ -454,6 +486,9 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 }
 
 func testVerify(t *testing.T, useSystemRoots bool) {
+	defer func(savedIgnoreCN bool) {
+		ignoreCN = savedIgnoreCN
+	}(ignoreCN)
 	for i, test := range verifyTests {
 		if useSystemRoots && test.systemSkip {
 			continue
@@ -462,6 +497,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 			continue
 		}
 
+		ignoreCN = test.ignoreCN
 		opts := VerifyOptions{
 			Intermediates: NewCertPool(),
 			DNSName:       test.dnsName,

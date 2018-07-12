@@ -46,6 +46,7 @@ type nameConstraintsTest struct {
 	requestedEKUs []ExtKeyUsage
 	expectedError string
 	noOpenSSL     bool
+	ignoreCN      bool
 }
 
 type constraintsSpec struct {
@@ -1635,6 +1636,26 @@ var nameConstraintsTests = []nameConstraintsTest{
 			cn:   "foo.bar",
 		},
 	},
+
+	// #85: without SANs, a certificate with a valid CN is accepted in a
+	// constrained chain if x509ignoreCN is set.
+	nameConstraintsTest{
+		roots: []constraintsSpec{
+			constraintsSpec{
+				ok: []string{"dns:foo.com", "dns:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			[]constraintsSpec{
+				constraintsSpec{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{},
+			cn:   "foo.com",
+		},
+		ignoreCN: true,
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
@@ -1885,6 +1906,10 @@ func parseEKUs(ekuStrs []string) (ekus []ExtKeyUsage, unknowns []asn1.ObjectIden
 }
 
 func TestConstraintCases(t *testing.T) {
+	defer func(savedIgnoreCN bool) {
+		ignoreCN = savedIgnoreCN
+	}(ignoreCN)
+
 	privateKeys := sync.Pool{
 		New: func() interface{} {
 			priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -1976,6 +2001,7 @@ func TestConstraintCases(t *testing.T) {
 			}
 		}
 
+		ignoreCN = test.ignoreCN
 		verifyOpts := VerifyOptions{
 			Roots:         rootPool,
 			Intermediates: intermediatePool,
