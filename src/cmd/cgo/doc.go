@@ -377,6 +377,14 @@ and of course there is nothing stopping the C code from doing anything
 it likes. However, programs that break these rules are likely to fail
 in unexpected and unpredictable ways.
 
+Note: the current implementation has a bug. While Go code is permitted
+to write nil or a C pointer (but not a Go pointer) to C memory, the
+current implementation may sometimes cause a runtime error if the
+contents of the C memory appear to be a Go pointer. Therefore, avoid
+passing uninitialized C memory to Go code if the Go code is going to
+store pointer values in it. Zero out the memory in C before passing it
+to Go.
+
 Special cases
 
 A few special C types which would normally be represented by a pointer
