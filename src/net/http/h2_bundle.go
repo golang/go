@@ -999,7 +999,7 @@ func http2configureTransport(t1 *Transport) (*http2Transport, error) {
 
 // registerHTTPSProtocol calls Transport.RegisterProtocol but
 // converting panics into errors.
-func http2registerHTTPSProtocol(t *Transport, rt RoundTripper) (err error) {
+func http2registerHTTPSProtocol(t *Transport, rt http2noDialH2RoundTripper) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("%v", e)
@@ -1011,10 +1011,12 @@ func http2registerHTTPSProtocol(t *Transport, rt RoundTripper) (err error) {
 
 // noDialH2RoundTripper is a RoundTripper which only tries to complete the request
 // if there's already has a cached connection to the host.
-type http2noDialH2RoundTripper struct{ t *http2Transport }
+// (The field is exported so it can be accessed via reflect from net/http; tested
+// by TestNoDialH2RoundTripperType)
+type http2noDialH2RoundTripper struct{ *http2Transport }
 
 func (rt http2noDialH2RoundTripper) RoundTrip(req *Request) (*Response, error) {
-	res, err := rt.t.RoundTrip(req)
+	res, err := rt.http2Transport.RoundTrip(req)
 	if http2isNoCachedConnError(err) {
 		return nil, ErrSkipAltProtocol
 	}
@@ -2895,6 +2897,13 @@ func http2traceWroteHeaderField(trace *http2clientTrace, k, v string) {
 	if trace != nil && trace.WroteHeaderField != nil {
 		trace.WroteHeaderField(k, []string{v})
 	}
+}
+
+func http2traceGot1xxResponseFunc(trace *http2clientTrace) func(int, textproto.MIMEHeader) error {
+	if trace != nil {
+		return trace.Got1xxResponse
+	}
+	return nil
 }
 
 func http2transportExpectContinueTimeout(t1 *Transport) time.Duration {
@@ -6815,9 +6824,10 @@ type http2clientStream struct {
 	done chan struct{} // closed when stream remove from cc.streams map; close calls guarded by cc.mu
 
 	// owned by clientConnReadLoop:
-	firstByte    bool // got the first response byte
-	pastHeaders  bool // got first MetaHeadersFrame (actual headers)
-	pastTrailers bool // got optional second MetaHeadersFrame (trailers)
+	firstByte    bool  // got the first response byte
+	pastHeaders  bool  // got first MetaHeadersFrame (actual headers)
+	pastTrailers bool  // got optional second MetaHeadersFrame (trailers)
+	num1xx       uint8 // number of 1xx responses seen
 
 	trailer    Header  // accumulated trailers
 	resTrailer *Header // client's Response.Trailer
@@ -6839,6 +6849,17 @@ func http2awaitRequestCancel(req *Request, done <-chan struct{}) error {
 	case <-done:
 		return nil
 	}
+}
+
+var http2got1xxFuncForTests func(int, textproto.MIMEHeader) error
+
+// get1xxTraceFunc returns the value of request's httptrace.ClientTrace.Got1xxResponse func,
+// if any. It returns nil if not set or if the Go version is too old.
+func (cs *http2clientStream) get1xxTraceFunc() func(int, textproto.MIMEHeader) error {
+	if fn := http2got1xxFuncForTests; fn != nil {
+		return fn
+	}
+	return http2traceGot1xxResponseFunc(cs.trace)
 }
 
 // awaitRequestCancel waits for the user to cancel a request, its context to
@@ -8338,8 +8359,7 @@ func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) erro
 // is the detail.
 //
 // As a special case, handleResponse may return (nil, nil) to skip the
-// frame (currently only used for 100 expect continue). This special
-// case is going away after Issue 13851 is fixed.
+// frame (currently only used for 1xx responses).
 func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http2MetaHeadersFrame) (*Response, error) {
 	if f.Truncated {
 		return nil, http2errResponseHeaderListSize
@@ -8352,15 +8372,6 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 	statusCode, err := strconv.Atoi(status)
 	if err != nil {
 		return nil, errors.New("malformed response from server: malformed non-numeric status pseudo header")
-	}
-
-	if statusCode == 100 {
-		http2traceGot100Continue(cs.trace)
-		if cs.on100 != nil {
-			cs.on100() // forces any write delay timer to fire
-		}
-		cs.pastHeaders = false // do it all again
-		return nil, nil
 	}
 
 	header := make(Header)
@@ -8385,6 +8396,27 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 		} else {
 			header[key] = append(header[key], hf.Value)
 		}
+	}
+
+	if statusCode >= 100 && statusCode <= 199 {
+		cs.num1xx++
+		const max1xxResponses = 5 // arbitrary bound on number of informational responses, same as net/http
+		if cs.num1xx > max1xxResponses {
+			return nil, errors.New("http2: too many 1xx informational responses")
+		}
+		if fn := cs.get1xxTraceFunc(); fn != nil {
+			if err := fn(statusCode, textproto.MIMEHeader(header)); err != nil {
+				return nil, err
+			}
+		}
+		if statusCode == 100 {
+			http2traceGot100Continue(cs.trace)
+			if cs.on100 != nil {
+				cs.on100() // forces any write delay timer to fire
+			}
+		}
+		cs.pastHeaders = false // do it all again
+		return nil, nil
 	}
 
 	streamEnded := f.StreamEnded()
