@@ -51,6 +51,9 @@ The -u flag instructs get to use the network to update the named packages
 and their dependencies. By default, get uses the network to check out
 missing packages but does not use it to look for updates to existing packages.
 
+The -b flag instructs get to use other repo url and gopath local build the
+base repo path.
+
 The -v flag enables verbose progress and debug output.
 
 Get also accepts build flags to control the installation. See 'go help build'.
@@ -85,6 +88,7 @@ var getT = CmdGet.Flag.Bool("t", false, "")
 var getU = CmdGet.Flag.Bool("u", false, "")
 var getFix = CmdGet.Flag.Bool("fix", false, "")
 var getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+var getB = CmdGet.Flag.String("b", "", "")
 
 func init() {
 	work.AddBuildFlags(CmdGet)
@@ -427,6 +431,10 @@ func downloadPackage(p *load.Package) error {
 	}
 	if !blindRepo && !vcs.isSecure(repo) && !*getInsecure {
 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
+	}
+	
+	if getB != "" {
+		repo = *getB
 	}
 
 	if p.Internal.Build.SrcRoot == "" {
