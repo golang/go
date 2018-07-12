@@ -5320,6 +5320,12 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
 		// type PROTOCOL_ERROR."
 		return http2ConnectionError(http2ErrCodeProtocol)
 	}
+	// RFC 7540, sec 6.1: If a DATA frame is received whose stream is not in
+	// "open" or "half-closed (local)" state, the recipient MUST respond with a
+	// stream error (Section 5.4.2) of type STREAM_CLOSED.
+	if state == http2stateClosed {
+		return http2streamError(id, http2ErrCodeStreamClosed)
+	}
 	if st == nil || state != http2stateOpen || st.gotTrailerHeader || st.resetQueued {
 		// This includes sending a RST_STREAM if the stream is
 		// in stateHalfClosedLocal (which currently means that
@@ -7022,27 +7028,36 @@ func http2shouldRetryRequest(req *Request, err error, afterBodyWrite bool) (*Req
 	if !http2canRetryError(err) {
 		return nil, err
 	}
-	if !afterBodyWrite {
-		return req, nil
-	}
 	// If the Body is nil (or http.NoBody), it's safe to reuse
 	// this request and its Body.
 	if req.Body == nil || http2reqBodyIsNoBody(req.Body) {
 		return req, nil
 	}
-	// Otherwise we depend on the Request having its GetBody
-	// func defined.
+
+	// If the request body can be reset back to its original
+	// state via the optional req.GetBody, do that.
 	getBody := http2reqGetBody(req) // Go 1.8: getBody = req.GetBody
-	if getBody == nil {
-		return nil, fmt.Errorf("http2: Transport: cannot retry err [%v] after Request.Body was written; define Request.GetBody to avoid this error", err)
+	if getBody != nil {
+		// TODO: consider a req.Body.Close here? or audit that all caller paths do?
+		body, err := getBody()
+		if err != nil {
+			return nil, err
+		}
+		newReq := *req
+		newReq.Body = body
+		return &newReq, nil
 	}
-	body, err := getBody()
-	if err != nil {
-		return nil, err
+
+	// The Request.Body can't reset back to the beginning, but we
+	// don't seem to have started to read from it yet, so reuse
+	// the request directly. The "afterBodyWrite" means the
+	// bodyWrite process has started, which becomes true before
+	// the first Read.
+	if !afterBodyWrite {
+		return req, nil
 	}
-	newReq := *req
-	newReq.Body = body
-	return &newReq, nil
+
+	return nil, fmt.Errorf("http2: Transport: cannot retry err [%v] after Request.Body was written; define Request.GetBody to avoid this error", err)
 }
 
 func http2canRetryError(err error) bool {
