@@ -226,7 +226,7 @@ func (b *Builder) Init() {
 	} else {
 		tmp, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
-			base.Fatalf("%s", err)
+			base.Fatalf("go: creating work dir: %v", err)
 		}
 		if !filepath.IsAbs(tmp) {
 			abs, err := filepath.Abs(tmp)
