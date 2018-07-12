@@ -16,6 +16,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"io"
 	"net/http"
@@ -432,11 +433,31 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		listHandler(w, r)
 		return
 	}
-	if !fileRe.MatchString(name) {
-		http.NotFound(w, r)
+	if fileRe.MatchString(name) {
+		http.Redirect(w, r, downloadBaseURL+name, http.StatusFound)
 		return
 	}
-	http.Redirect(w, r, downloadBaseURL+name, http.StatusFound)
+	if goGetRe.MatchString(name) {
+		if r.Method == "GET" || r.Method == "HEAD" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		}
+		w.Header().Set("Location", "https://golang.org/dl/#"+name)
+		w.WriteHeader(http.StatusFound)
+		fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
+<meta http-equiv="refresh" content="0; url=https://golang.org/dl/#%s">
+</head>
+<body>
+Nothing to see here; <a href="https://golang.org/dl/#%s">move along</a>.
+</body>
+</html>
+`, html.EscapeString(name), html.EscapeString(name))
+		return
+	}
+	http.NotFound(w, r)
 }
 
 func validUser(user string) bool {
@@ -453,7 +474,10 @@ func userKey(c context.Context, user string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-var fileRe = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+\.(tar\.gz|pkg|msi|zip)$`)
+var (
+	fileRe  = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+\.(tar\.gz|pkg|msi|zip)$`)
+	goGetRe = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+$`)
+)
 
 func initHandler(w http.ResponseWriter, r *http.Request) {
 	var fileRoot struct {
