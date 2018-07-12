@@ -1437,7 +1437,7 @@ Do not communicate by sharing memory. Instead, share memory by communicating.
 
 <p>
 See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code walk
-and its <a href="//blog.golang.org/2010/07/share-memory-by-communicating.html">
+and its <a href="https://blog.golang.org/2010/07/share-memory-by-communicating.html">
 associated article</a> for a detailed discussion of this concept.
 </p>
 
@@ -1445,8 +1445,42 @@ associated article</a> for a detailed discussion of this concept.
 Large concurrent programs are likely to borrow from both these toolkits.
 </p>
 
-<h3 id="Why_no_multi_CPU">
-Why doesn't my multi-goroutine program use multiple CPUs?</h3>
+<h3 id="parallel_slow">
+Why doesn't my program run faster with more CPUs?</h3>
+
+<p>
+Whether a program runs faster with more CPUs depends on the problem
+it is solving.
+The Go language provides concurrency primitives, such as goroutines
+and channels, but concurrency only enables parallelism
+when the underlying problem is intrinsically parallel.
+Problems that are intrinsically sequential cannot be sped up by adding
+more CPUs, while those that can be broken into pieces that can
+execute in parallel can be sped up, sometimes dramatically.
+</p>
+
+<p>
+Sometimes adding more CPUs can slow a program down.
+In practical terms, programs that spend more time
+synchronizing or communicating than doing useful computation
+may experience performance degradation when using
+multiple OS threads.
+This is because passing data between threads involves switching
+contexts, which has significant cost, and that cost can increase
+with more CPUs.
+For instance, the <a href="/ref/spec#An_example_package">prime sieve example</a>
+from the Go specification has no significant parallelism although it launches many
+goroutines; increasing the number of threads (CPUs) is more likely to slow it down than
+to speed it up.
+</p>
+
+<p>
+For more detail on this topic see the talk entitled
+<a href="//blog.golang.org/2013/01/concurrency-is-not-parallelism.html">Concurrency
+is not Parallelism</a>.
+
+<h3 id="number_cpus">
+How can I control the number of CPUs?</h3>
 
 <p>
 The number of CPUs available simultaneously to executing goroutines is
@@ -1464,50 +1498,22 @@ forcing independent goroutines to take turns executing.
 </p>
 
 <p>
-Programs that perform parallel computation might benefit from a further increase in
-<code>GOMAXPROCS</code>.
-However, be aware that
-<a href="//blog.golang.org/2013/01/concurrency-is-not-parallelism.html">concurrency
-is not parallelism</a>.
-</p>
-
-<h3 id="Why_GOMAXPROCS">
-Why does using <code>GOMAXPROCS</code> &gt; 1 sometimes make my program
-slower?</h3>
-
-<p>
-It depends on the nature of your program.
-Problems that are intrinsically sequential cannot be sped up by adding
-more goroutines.
-Concurrency only becomes parallelism when the problem is
-intrinsically parallel.
-</p>
-
-<p>
-In practical terms, programs that spend more time
-synchronizing or communicating than doing useful computation
-may experience performance degradation when using
-multiple OS threads.
-This is because passing data between threads involves switching
-contexts, which has significant cost.
-For instance, the <a href="/ref/spec#An_example_package">prime sieve example</a>
-from the Go specification has no significant parallelism although it launches many
-goroutines; increasing <code>GOMAXPROCS</code> is more likely to slow it down than
-to speed it up.
+The runtime can allocate more threads than the value
+of <code>GOMAXPROCS</code> to service multiple outstanding
+I/O requests.
+<code>GOMAXPROCS</code> only affects how many goroutines
+can actually execute at once; arbitrarily more may be blocked
+in system calls.
 </p>
 
 <p>
 Go's goroutine scheduler is not as good as it needs to be, although it
-has improved in recent releases.
+has improved over time.
 In the future, it may better optimize its use of OS threads.
 For now, if there are performance issues,
 setting <code>GOMAXPROCS</code> on a per-application basis may help.
 </p>
 
-<p>
-For more detail on this topic see the talk entitled,
-<a href="//blog.golang.org/2013/01/concurrency-is-not-parallelism.html">Concurrency
-is not Parallelism</a>.
 
 <h3 id="no_goroutine_id">
 Why is there no goroutine ID?</h3>
