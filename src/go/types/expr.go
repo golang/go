@@ -1094,6 +1094,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						continue
 					}
 					key, _ := kv.Key.(*ast.Ident)
+					check.expr(x, kv.Value)
 					if key == nil {
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
 						continue
@@ -1105,15 +1106,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					}
 					fld := fields[i]
 					check.recordUse(key, fld)
+					etyp := fld.typ
+					check.assignment(x, etyp, "struct literal")
 					// 0 <= i < len(fields)
 					if visited[i] {
 						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)
 						continue
 					}
 					visited[i] = true
-					check.expr(x, kv.Value)
-					etyp := fld.typ
-					check.assignment(x, etyp, "struct literal")
 				}
 			} else {
 				// no element must have a key
