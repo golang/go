@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -57,7 +58,7 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		if zf.Name == prefix || strings.HasSuffix(zf.Name, "/") {
 			continue
 		}
-		if filepath.Clean(zf.Name) != zf.Name || strings.HasPrefix(zf.Name[len(prefix)+1:], "/") {
+		if path.Clean(zf.Name) != zf.Name || strings.HasPrefix(zf.Name[len(prefix)+1:], "/") {
 			return fmt.Errorf("unzip %v: invalid file name %s", zipfile, zf.Name)
 		}
 		s := int64(zf.UncompressedSize64)
