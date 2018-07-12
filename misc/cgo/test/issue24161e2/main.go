@@ -11,6 +11,12 @@ package issue24161e2
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
+  typedef CFStringRef SecKeyAlgorithm;
+  static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
+  #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
+  static SecKeyAlgorithm foo(void){return NULL;}
+#endif
 */
 import "C"
 import (
