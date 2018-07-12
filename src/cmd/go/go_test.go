@@ -838,44 +838,6 @@ func TestBrokenTestsWithoutTestFunctionsAllFail(t *testing.T) {
 	tg.grepBoth("FAIL.*badtest/badvar", "test did not run everything")
 }
 
-func TestGoBuildDashAInDevBranch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("don't rebuild the standard library in short mode")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("install", "math") // should be up to date already but just in case
-	tg.setenv("TESTGO_IS_GO_RELEASE", "0")
-	tg.run("build", "-v", "-a", "math")
-	tg.grepStderr("runtime", "testgo build -a math in dev branch DID NOT build runtime, but should have")
-
-	// Everything is out of date. Rebuild to leave things in a better state.
-	tg.run("install", "std")
-}
-
-func TestGoBuildDashAInReleaseBranch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("don't rebuild the standard library in short mode")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("install", "math", "net/http") // should be up to date already but just in case
-	tg.setenv("TESTGO_IS_GO_RELEASE", "1")
-	tg.run("install", "-v", "-a", "math")
-	tg.grepStderr("runtime", "testgo build -a math in release branch DID NOT build runtime, but should have")
-
-	// Now runtime.a is updated (newer mtime), so everything would look stale if not for being a release.
-	tg.run("build", "-v", "net/http")
-	tg.grepStderrNot("strconv", "testgo build -v net/http in release branch with newer runtime.a DID build strconv but should not have")
-	tg.grepStderrNot("golang.org/x/net/http2/hpack", "testgo build -v net/http in release branch with newer runtime.a DID build .../golang.org/x/net/http2/hpack but should not have")
-	tg.grepStderrNot("net/http", "testgo build -v net/http in release branch with newer runtime.a DID build net/http but should not have")
-
-	// Everything is out of date. Rebuild to leave things in a better state.
-	tg.run("install", "std")
-}
-
 func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	if testing.Short() {
 		t.Skip("don't rebuild the standard library in short mode")
