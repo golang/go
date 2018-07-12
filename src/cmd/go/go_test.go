@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"debug/elf"
 	"debug/macho"
+	"flag"
 	"fmt"
 	"go/format"
 	"internal/race"
@@ -111,6 +112,12 @@ func TestMain(m *testing.M) {
 		return
 	}
 	os.Unsetenv("GOROOT_FINAL")
+
+	flag.Parse()
+	if *proxyAddr != "" {
+		StartProxy()
+		select {}
+	}
 
 	if canRun {
 		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
@@ -417,7 +424,8 @@ func (tg *testgoData) doRun(args []string) error {
 func (tg *testgoData) run(args ...string) {
 	tg.t.Helper()
 	if status := tg.doRun(args); status != nil {
-		tg.t.Logf("go %v failed unexpectedly: %v", args, status)
+		wd, _ := os.Getwd()
+		tg.t.Logf("go %v failed unexpectedly in %s: %v", args, wd, status)
 		tg.t.FailNow()
 	}
 }
@@ -760,22 +768,49 @@ func (tg *testgoData) wantNotStale(pkg, reason, msg string) {
 	}
 }
 
+// If -testwork is specified, the test prints the name of the temp directory
+// and does not remove it when done, so that a programmer can
+// poke at the test file tree afterward.
+var testWork = flag.Bool("testwork", false, "")
+
 // cleanup cleans up a test that runs testgo.
 func (tg *testgoData) cleanup() {
 	tg.t.Helper()
 	if tg.wd != "" {
+		wd, _ := os.Getwd()
+		tg.t.Logf("ended in %s", wd)
+
 		if err := os.Chdir(tg.wd); err != nil {
 			// We are unlikely to be able to continue.
 			fmt.Fprintln(os.Stderr, "could not restore working directory, crashing:", err)
 			os.Exit(2)
 		}
 	}
+	if *testWork {
+		tg.t.Logf("TESTWORK=%s\n", tg.path("."))
+		return
+	}
 	for _, path := range tg.temps {
-		tg.check(os.RemoveAll(path))
+		tg.check(removeAll(path))
 	}
 	if tg.tempdir != "" {
-		tg.check(os.RemoveAll(tg.tempdir))
+		tg.check(removeAll(tg.tempdir))
 	}
+}
+
+func removeAll(dir string) error {
+	// module cache has 0444 directories;
+	// make them writable in order to remove content.
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // ignore errors walking in file system
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
 }
 
 // failSSH puts an ssh executable in the PATH that always fails.
@@ -1745,8 +1780,8 @@ func TestGoGetTestOnlyPkg(t *testing.T) {
 	defer tg.cleanup()
 	tg.tempDir("gopath")
 	tg.setenv("GOPATH", tg.path("gopath"))
-	tg.run("get", "golang.org/x/tour/content")
-	tg.run("get", "-t", "golang.org/x/tour/content")
+	tg.run("get", "golang.org/x/tour/content...")
+	tg.run("get", "-t", "golang.org/x/tour/content...")
 }
 
 func TestInstalls(t *testing.T) {
@@ -3165,11 +3200,25 @@ func TestBuildDashIInstallsDependencies(t *testing.T) {
 	checkbar("cmd")
 }
 
-func TestGoBuildInTestOnlyDirectoryFailsWithAGoodError(t *testing.T) {
+func TestGoBuildTestOnly(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.runFail("build", "./testdata/testonly")
-	tg.grepStderr("no non-test Go files in", "go build ./testdata/testonly produced unexpected error")
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.tempFile("src/testonly/t_test.go", `package testonly`)
+	tg.tempFile("src/testonly2/t.go", `package testonly2`)
+	tg.cd(tg.path("src"))
+
+	// Named explicitly, test-only packages should be reported as unbuildable/uninstallable,
+	// even if there is a wildcard also matching.
+	tg.runFail("build", "testonly", "testonly...")
+	tg.grepStderr("no non-test Go files in", "go build ./xtestonly produced unexpected error")
+	tg.runFail("install", "./testonly")
+	tg.grepStderr("no non-test Go files in", "go install ./testonly produced unexpected error")
+
+	// Named through a wildcards, the test-only packages should be silently ignored.
+	tg.run("build", "testonly...")
+	tg.run("install", "./testonly...")
 }
 
 func TestGoTestDetectsTestOnlyImportCycles(t *testing.T) {
@@ -6115,12 +6164,12 @@ func TestBadCommandLines(t *testing.T) {
 	tg.tempFile("src/@x/x.go", "package x\n")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.runFail("build", "@x")
-	tg.grepStderr("invalid input directory name \"@x\"", "did not reject @x directory")
+	tg.grepStderr("invalid input directory name \"@x\"|cannot use path@version syntax", "did not reject @x directory")
 
 	tg.tempFile("src/@x/y/y.go", "package y\n")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.runFail("build", "@x/y")
-	tg.grepStderr("invalid import path \"@x/y\"", "did not reject @x/y import path")
+	tg.grepStderr("invalid import path \"@x/y\"|cannot use path@version syntax", "did not reject @x/y import path")
 
 	tg.tempFile("src/-x/x.go", "package x\n")
 	tg.setenv("GOPATH", tg.path("."))

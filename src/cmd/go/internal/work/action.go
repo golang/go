@@ -327,8 +327,8 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 // depMode is the action (build or install) to use when building dependencies.
 // To turn package main into an executable, call b.Link instead.
 func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
-	if mode != ModeBuild && p.Internal.Local && p.Target == "" {
-		// Imported via local path. No permanent target.
+	if mode != ModeBuild && (p.Internal.Local || p.Module != nil) && p.Target == "" {
+		// Imported via local path or using modules. No permanent target.
 		mode = ModeBuild
 	}
 	if mode != ModeBuild && p.Name == "main" {

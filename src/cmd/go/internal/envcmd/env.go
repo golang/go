@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
-	"cmd/go/internal/vgo"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 )
 
@@ -112,6 +113,18 @@ func findEnv(env []cfg.EnvVar, name string) string {
 
 // ExtraEnvVars returns environment variables that should not leak into child processes.
 func ExtraEnvVars() []cfg.EnvVar {
+	gomod := ""
+	if modload.Init(); modload.ModRoot != "" {
+		gomod = filepath.Join(modload.ModRoot, "go.mod")
+	}
+	return []cfg.EnvVar{
+		{Name: "GOMOD", Value: gomod},
+	}
+}
+
+// ExtraEnvVarsCostly returns environment variables that should not leak into child processes
+// but are costly to evaluate.
+func ExtraEnvVarsCostly() []cfg.EnvVar {
 	var b work.Builder
 	b.Init()
 	cppflags, cflags, cxxflags, fflags, ldflags, err := b.CFlags(&load.Package{})
@@ -121,6 +134,7 @@ func ExtraEnvVars() []cfg.EnvVar {
 		return nil
 	}
 	cmd := b.GccCmd(".", "")
+
 	return []cfg.EnvVar{
 		// Note: Update the switch in runEnv below when adding to this list.
 		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
@@ -130,19 +144,19 @@ func ExtraEnvVars() []cfg.EnvVar {
 		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
 		{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")},
-		{Name: "VGOMODROOT", Value: vgo.ModRoot},
 	}
 }
 
 func runEnv(cmd *base.Command, args []string) {
 	env := cfg.CmdEnv
+	env = append(env, ExtraEnvVars()...)
 
-	// Do we need to call ExtraEnvVars, which is a bit expensive?
+	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
 	// Only if we're listing all environment variables ("go env")
 	// or the variables being requested are in the extra list.
-	needExtra := true
+	needCostly := true
 	if len(args) > 0 {
-		needExtra = false
+		needCostly = false
 		for _, arg := range args {
 			switch arg {
 			case "CGO_CFLAGS",
@@ -152,12 +166,12 @@ func runEnv(cmd *base.Command, args []string) {
 				"CGO_LDFLAGS",
 				"PKG_CONFIG",
 				"GOGCCFLAGS":
-				needExtra = true
+				needCostly = true
 			}
 		}
 	}
-	if needExtra {
-		env = append(env, ExtraEnvVars()...)
+	if needCostly {
+		env = append(env, ExtraEnvVarsCostly()...)
 	}
 
 	if len(args) > 0 {

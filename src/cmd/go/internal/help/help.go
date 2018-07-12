@@ -45,7 +45,15 @@ func Help(args []string) {
 		buf := new(bytes.Buffer)
 		PrintUsage(buf)
 		usage := &base.Command{Long: buf.String()}
-		tmpl(&commentWriter{W: os.Stdout}, documentationTemplate, append([]*base.Command{usage}, base.Commands...))
+		cmds := []*base.Command{usage}
+		for _, cmd := range base.Commands {
+			if cmd.UsageLine == "gopath-get" {
+				// Avoid duplication of the "get" documentation.
+				continue
+			}
+			cmds = append(cmds, cmd)
+		}
+		tmpl(&commentWriter{W: os.Stdout}, documentationTemplate, cmds)
 		fmt.Println("package main")
 		return
 	}

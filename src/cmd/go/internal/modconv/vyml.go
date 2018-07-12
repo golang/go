@@ -5,12 +5,14 @@
 package modconv
 
 import (
-	"cmd/go/internal/module"
 	"strings"
+
+	"cmd/go/internal/modfile"
+	"cmd/go/internal/module"
 )
 
-func ParseVendorYML(file string, data []byte) ([]module.Version, error) {
-	var list []module.Version
+func ParseVendorYML(file string, data []byte) (*modfile.File, error) {
+	mf := new(modfile.File)
 	vendors := false
 	path := ""
 	for lineno, line := range strings.Split(string(data), "\n") {
@@ -32,9 +34,9 @@ func ParseVendorYML(file string, data []byte) ([]module.Version, error) {
 		if strings.HasPrefix(line, "  rev:") {
 			rev := strings.TrimSpace(line[len("  rev:"):])
 			if path != "" && rev != "" {
-				list = append(list, module.Version{Path: path, Version: rev})
+				mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: path, Version: rev}})
 			}
 		}
 	}
-	return list, nil
+	return mf, nil
 }

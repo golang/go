@@ -19,14 +19,20 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 )
 
 var CmdList = &base.Command{
-	UsageLine: "list [-cgo] [-deps] [-e] [-export] [-f format] [-json] [-test] [build flags] [packages]",
-	Short:     "list packages",
+	// Note: -f -json -m are listed explicitly because they are the most common list flags.
+	// Do not send CLs removing them because they're covered by [list flags].
+	UsageLine: "list [-f format] [-json] [-m] [list flags] [build flags] [packages]",
+	Short:     "list packages or modules",
 	Long: `
-List lists the packages named by the import paths, one per line.
+List lists the named packages, one per line.
+The most commonly-used flags are -f and -json, which control the form
+of the output printed for each package. Other list flags, documented below,
+control more specific details.
 
 The default output shows the package import path:
 
@@ -36,27 +42,28 @@ The default output shows the package import path:
     golang.org/x/net/html
 
 The -f flag specifies an alternate format for the list, using the
-syntax of package template. The default output is equivalent to -f
-'{{.ImportPath}}'. The struct being passed to the template is:
+syntax of package template. The default output is equivalent
+to -f '{{.ImportPath}}'. The struct being passed to the template is:
 
     type Package struct {
-        Dir           string // directory containing package sources
-        ImportPath    string // import path of package in dir
-        ImportComment string // path in import comment on package statement
-        Name          string // package name
-        Doc           string // package documentation string
-        Target        string // install path
-        Shlib         string // the shared library that contains this package (only set when -linkshared)
-        Goroot        bool   // is this package in the Go root?
-        Standard      bool   // is this package part of the standard Go library?
-        Stale         bool   // would 'go install' do anything for this package?
-        StaleReason   string // explanation for Stale==true
-        Root          string // Go root or Go path dir containing this package
-        ConflictDir   string // this directory shadows Dir in $GOPATH
-        BinaryOnly    bool   // binary-only package: cannot be recompiled from sources
-        ForTest       string // package is only for use in named test
-        DepOnly       bool   // package is only a dependency, not explicitly listed
-        Export        string // file containing export data (when using -export)
+        Dir           string  // directory containing package sources
+        ImportPath    string  // import path of package in dir
+        ImportComment string  // path in import comment on package statement
+        Name          string  // package name
+        Doc           string  // package documentation string
+        Target        string  // install path
+        Shlib         string  // the shared library that contains this package (only set when -linkshared)
+        Goroot        bool    // is this package in the Go root?
+        Standard      bool    // is this package part of the standard Go library?
+        Stale         bool    // would 'go install' do anything for this package?
+        StaleReason   string  // explanation for Stale==true
+        Root          string  // Go root or Go path dir containing this package
+        ConflictDir   string  // this directory shadows Dir in $GOPATH
+        BinaryOnly    bool    // binary-only package: cannot be recompiled from sources
+        ForTest       string  // package is only for use in named test
+        DepOnly       bool    // package is only a dependency, not explicitly listed
+        Export        string  // file containing export data (when using -export)
+        Module        *Module // info about package's containing module, if any (can be nil)
 
         // Source files
         GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -109,22 +116,25 @@ The error information, if any, is
         Err           string   // the error itself
     }
 
+The module information is a Module struct, defined in the discussion
+of list -m below.
+
 The template function "join" calls strings.Join.
 
 The template function "context" returns the build context, defined as:
 
-	type Context struct {
-		GOARCH        string   // target architecture
-		GOOS          string   // target operating system
-		GOROOT        string   // Go root
-		GOPATH        string   // Go path
-		CgoEnabled    bool     // whether cgo can be used
-		UseAllFiles   bool     // use files regardless of +build lines, file names
-		Compiler      string   // compiler to assume when computing target paths
-		BuildTags     []string // build constraints to match in +build lines
-		ReleaseTags   []string // releases the current release is compatible with
-		InstallSuffix string   // suffix to use in the name of the install dir
-	}
+    type Context struct {
+        GOARCH        string   // target architecture
+        GOOS          string   // target operating system
+        GOROOT        string   // Go root
+        GOPATH        string   // Go path
+        CgoEnabled    bool     // whether cgo can be used
+        UseAllFiles   bool     // use files regardless of +build lines, file names
+        Compiler      string   // compiler to assume when computing target paths
+        BuildTags     []string // build constraints to match in +build lines
+        ReleaseTags   []string // releases the current release is compatible with
+        InstallSuffix string   // suffix to use in the name of the install dir
+    }
 
 For more information about the meaning of these fields see the documentation
 for the go/build package's Context type.
@@ -178,9 +188,90 @@ The extra entries added by the -cgo and -test flags are absolute paths
 referring to cached copies of generated Go source files.
 Although they are Go source files, the paths may not end in ".go".
 
+The -m flag causes list to list modules instead of packages.
+
+When listing modules, the -f flag still specifies a format template
+applied to a Go struct, but now a Module struct:
+
+    type Module struct {
+        Path     string       // module path
+        Version  string       // module version
+        Versions []string     // available module versions (with -versions)
+        Replace  *Module      // replaced by this module
+        Time     *time.Time   // time version was created
+        Update   *Module      // available update, if any (with -u)
+        Main     bool         // is this the main module?
+        Indirect bool         // is this module only an indirect dependency of main module?
+        Dir      string       // directory holding files for this module, if any
+        Error    *ModuleError // error loading module
+    }
+
+    type ModuleError struct {
+        Err string // the error itself
+    }
+
+The default output is to print the module path and then
+information about the version and replacement if any.
+For example, 'go list -m all' might print:
+
+    my/main/module
+    golang.org/x/text v0.3.0 => /tmp/text
+    rsc.io/pdf v0.1.1
+
+The Module struct has a String method that formats this
+line of output, so that the default format is equivalent
+to -f '{{.String}}'.
+
+Note that when a module has been replaced, its Replace field
+describes the replacement module, and its Dir field is set to
+the replacement's source code, if present. (That is, if Replace
+is non-nil, then Dir is set to Replace.Dir, with no access to
+the replaced source code.)
+
+The -u flag adds information about available upgrades.
+When the latest version of a given module is newer than
+the current one, list -u sets the Module's Update field
+to information about the newer module.
+The Module's String method indicates an available upgrade by
+formatting the newer version in brackets after the current version.
+For example, 'go list -m -u all' might print:
+
+    my/main/module
+    golang.org/x/text v0.3.0 [v0.4.0] => /tmp/text
+    rsc.io/pdf v0.1.1 [v0.1.2]
+
+(For tools, 'go list -m -u -json all' may be more convenient to parse.)
+
+The -versions flag causes list to set the Module's Versions field
+to a list of all known versions of that module, ordered according
+to semantic versioning, earliest to latest. The flag also changes
+the default output format to display the module path followed by the
+space-separated version list.
+
+The arguments to list -m are interpreted as a list of modules, not packages.
+The main module is the module containing the current directory.
+The active modules are the main module and its dependencies.
+With no arguments, list -m shows the main module.
+With arguments, list -m shows the modules specified by the arguments.
+Any of the active modules can be specified by its module path.
+The special pattern "all" specifies all the active modules, first the main
+module and then dependencies sorted by module path.
+A pattern containing "..." specifies the active modules whose
+module paths match the pattern.
+A query of the form path@version specifies the result of that query,
+which is not limited to active modules.
+See 'go help module' for more about module queries.
+
+The template function "module" takes a single string argument
+that must be a module path or query and returns the specified
+module as a Module struct. If an error occurs, the result will
+be a Module struct with a non-nil Error field.
+
 For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
+
+For more about modules, see 'go help modules'.
 	`,
 }
 
@@ -189,13 +280,19 @@ func init() {
 	work.AddBuildFlags(CmdList)
 }
 
-var listCgo = CmdList.Flag.Bool("cgo", false, "")
-var listDeps = CmdList.Flag.Bool("deps", false, "")
-var listE = CmdList.Flag.Bool("e", false, "")
-var listExport = CmdList.Flag.Bool("export", false, "")
-var listFmt = CmdList.Flag.String("f", "{{.ImportPath}}", "")
-var listJson = CmdList.Flag.Bool("json", false, "")
-var listTest = CmdList.Flag.Bool("test", false, "")
+var (
+	listCgo      = CmdList.Flag.Bool("cgo", false, "")
+	listDeps     = CmdList.Flag.Bool("deps", false, "")
+	listE        = CmdList.Flag.Bool("e", false, "")
+	listExport   = CmdList.Flag.Bool("export", false, "")
+	listFmt      = CmdList.Flag.String("f", "", "")
+	listJson     = CmdList.Flag.Bool("json", false, "")
+	listM        = CmdList.Flag.Bool("m", false, "")
+	listU        = CmdList.Flag.Bool("u", false, "")
+	listTest     = CmdList.Flag.Bool("test", false, "")
+	listVersions = CmdList.Flag.Bool("versions", false, "")
+)
+
 var nl = []byte{'\n'}
 
 func runList(cmd *base.Command, args []string) {
@@ -203,10 +300,21 @@ func runList(cmd *base.Command, args []string) {
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
-	var do func(*load.PackagePublic)
+	if *listFmt == "" {
+		if *listM {
+			*listFmt = "{{.String}}"
+			if *listVersions {
+				*listFmt = `{{.Path}}{{range .Versions}} {{.}}{{end}}`
+			}
+		} else {
+			*listFmt = "{{.ImportPath}}"
+		}
+	}
+
+	var do func(interface{})
 	if *listJson {
-		do = func(p *load.PackagePublic) {
-			b, err := json.MarshalIndent(p, "", "\t")
+		do = func(x interface{}) {
+			b, err := json.MarshalIndent(x, "", "\t")
 			if err != nil {
 				out.Flush()
 				base.Fatalf("%s", err)
@@ -225,13 +333,14 @@ func runList(cmd *base.Command, args []string) {
 		fm := template.FuncMap{
 			"join":    strings.Join,
 			"context": context,
+			"module":  modload.ModuleInfo,
 		}
 		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
-		do = func(p *load.PackagePublic) {
-			if err := tmpl.Execute(out, p); err != nil {
+		do = func(x interface{}) {
+			if err := tmpl.Execute(out, x); err != nil {
 				out.Flush()
 				base.Fatalf("%s", err)
 			}
@@ -239,6 +348,50 @@ func runList(cmd *base.Command, args []string) {
 				out.Write(nl)
 			}
 		}
+	}
+
+	if *listM {
+		// Module mode.
+		if *listCgo {
+			base.Fatalf("go list -cgo cannot be used with -m")
+		}
+		if *listDeps {
+			// TODO(rsc): Could make this mean something with -m.
+			base.Fatalf("go list -deps cannot be used with -m")
+		}
+		if *listExport {
+			base.Fatalf("go list -export cannot be used with -m")
+		}
+		if *listTest {
+			base.Fatalf("go list -test cannot be used with -m")
+		}
+
+		if modload.Init(); !modload.Enabled() {
+			base.Fatalf("go list -m: not using modules")
+		}
+		modload.LoadBuildList()
+
+		mods := modload.ListModules(args, *listU, *listVersions)
+		if !*listE {
+			for _, m := range mods {
+				if m.Error != nil {
+					base.Errorf("go list -m %s: %v", m.Path, m.Error.Err)
+				}
+			}
+			base.ExitIfErrors()
+		}
+		for _, m := range mods {
+			do(m)
+		}
+		return
+	}
+
+	// Package mode (not -m).
+	if *listU {
+		base.Fatalf("go list -u can only be used with -m")
+	}
+	if *listVersions {
+		base.Fatalf("go list -versions can only be used with -m")
 	}
 
 	var pkgs []*load.Package

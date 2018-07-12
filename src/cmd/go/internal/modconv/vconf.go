@@ -7,11 +7,12 @@ package modconv
 import (
 	"strings"
 
+	"cmd/go/internal/modfile"
 	"cmd/go/internal/module"
 )
 
-func ParseVendorConf(file string, data []byte) ([]module.Version, error) {
-	var list []module.Version
+func ParseVendorConf(file string, data []byte) (*modfile.File, error) {
+	mf := new(modfile.File)
 	for lineno, line := range strings.Split(string(data), "\n") {
 		lineno++
 		if i := strings.Index(line, "#"); i >= 0 {
@@ -19,8 +20,8 @@ func ParseVendorConf(file string, data []byte) ([]module.Version, error) {
 		}
 		f := strings.Fields(line)
 		if len(f) >= 2 {
-			list = append(list, module.Version{Path: f[0], Version: f[1]})
+			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[1]}})
 		}
 	}
-	return list, nil
+	return mf, nil
 }
