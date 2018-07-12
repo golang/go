@@ -119,9 +119,6 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 		ctxt.Diag("InitTextSym double init for %s", s.Name)
 	}
 	s.Func = new(FuncInfo)
-	if s.Func.Text != nil {
-		ctxt.Diag("duplicate TEXT for %s", s.Name)
-	}
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
