@@ -6,8 +6,10 @@ package main_test
 
 import (
 	"bytes"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -81,48 +83,48 @@ func TestModGO111MODULE(t *testing.T) {
 	// In GOPATH/src with go.mod.
 	tg.cd(tg.path("gp/src/x/y/z"))
 	tg.setenv("GO111MODULE", "auto")
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ""`, "expected module mode disabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
 
 	tg.cd(tg.path("gp/src/x/y/z/w"))
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ""`, "expected module mode disabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
 
 	tg.setenv("GO111MODULE", "off")
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ""`, "expected module mode disabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
 
 	tg.setenv("GO111MODULE", "on")
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ".*z[/\\]go.mod"`, "expected module mode enabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdout(`.*z[/\\]go.mod$`, "expected module mode enabled")
 
 	// In GOPATH/src without go.mod.
 	tg.cd(tg.path("gp/src/x/y"))
 	tg.setenv("GO111MODULE", "auto")
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ""`, "expected module mode disabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
 
 	tg.setenv("GO111MODULE", "off")
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ""`, "expected module mode disabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
 
 	tg.setenv("GO111MODULE", "on")
-	tg.runFail("env", "-json")
+	tg.runFail("env", "GOMOD")
 	tg.grepStderr(`cannot find main module root`, "expected module mode failure")
 
 	// Outside GOPATH/src with go.mod.
 	tg.cd(tg.path("gp/foo"))
 	tg.setenv("GO111MODULE", "auto")
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ".*foo[/\\]go.mod"`, "expected module mode enabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdout(`.*foo[/\\]go.mod$`, "expected module mode enabled")
 
 	tg.cd(tg.path("gp/foo/bar/baz"))
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ".*foo[/\\]go.mod"`, "expected module mode enabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdout(`.*foo[/\\]go.mod$`, "expected module mode enabled")
 
 	tg.setenv("GO111MODULE", "off")
-	tg.run("env", "-json")
-	tg.grepStdout(`"GOMOD": ""`, "expected module mode disabled")
+	tg.run("env", "GOMOD")
+	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
 }
 
 func TestModVersionsInGOPATHMode(t *testing.T) {
@@ -933,6 +935,11 @@ func TestModList(t *testing.T) {
 }
 
 func TestModInitLegacy(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("skipping because git binary not found")
+	}
+
 	tg := testGoModules(t)
 	defer tg.cleanup()
 
@@ -1035,6 +1042,11 @@ func TestModRequireExcluded(t *testing.T) {
 }
 
 func TestModInitLegacy2(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("skipping because git binary not found")
+	}
+
 	tg := testGoModules(t)
 	defer tg.cleanup()
 
