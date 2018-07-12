@@ -219,8 +219,6 @@ var optab = []Optab{
 
 	{AFADDS, C_FREG, C_NONE, C_NONE, C_FREG, 54, 4, 0, 0, 0},
 	{AFADDS, C_FREG, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFADDS, C_FCON, C_NONE, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFADDS, C_FCON, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
 	{AFMSUBD, C_FREG, C_FREG, C_FREG, C_FREG, 15, 4, 0, 0, 0},
 	{AFCMPS, C_FREG, C_FREG, C_NONE, C_NONE, 56, 4, 0, 0, 0},
 	{AFCMPS, C_FCON, C_FREG, C_NONE, C_NONE, 56, 4, 0, 0, 0},
@@ -340,9 +338,9 @@ var optab = []Optab{
 	{AFMOVS, C_ADDR, C_NONE, C_NONE, C_FREG, 65, 12, 0, 0, 0},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AFMOVD, C_ADDR, C_NONE, C_NONE, C_FREG, 65, 12, 0, 0, 0},
-	{AFMOVS, C_FCON, C_NONE, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AFMOVS, C_FCON, C_NONE, C_NONE, C_FREG, 55, 4, 0, 0, 0},
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_FREG, 54, 4, 0, 0, 0},
-	{AFMOVD, C_FCON, C_NONE, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+	{AFMOVD, C_FCON, C_NONE, C_NONE, C_FREG, 55, 4, 0, 0, 0},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_FREG, 54, 4, 0, 0, 0},
 	{AFMOVS, C_REG, C_NONE, C_NONE, C_FREG, 29, 4, 0, 0, 0},
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_REG, 29, 4, 0, 0, 0},
@@ -2461,6 +2459,9 @@ func buildop(ctxt *obj.Link) {
 	}
 }
 
+// chipfloat7() checks if the immediate constants available in  FMOVS/FMOVD instructions.
+// For details of the range of constants available, see
+// http://infocenter.arm.com/help/topic/com.arm.doc.dui0473m/dom1359731199385.html.
 func (c *ctxt7) chipfloat7(e float64) int {
 	ei := math.Float64bits(e)
 	l := uint32(int32(ei))
@@ -3486,19 +3487,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 54: /* floating point arith */
 		o1 = c.oprrr(p, p.As)
-
-		var rf int
-		if p.From.Type == obj.TYPE_CONST {
-			rf = c.chipfloat7(p.From.Val.(float64))
-			if rf < 0 || true {
-				c.ctxt.Diag("invalid floating-point immediate\n%v", p)
-				rf = 0
-			}
-
-			rf |= (1 << 3)
-		} else {
-			rf = int(p.From.Reg)
-		}
+		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		r := int(p.Reg)
 		if (o1&(0x1F<<24)) == (0x1E<<24) && (o1&(1<<11)) == 0 { /* monadic */
@@ -3508,6 +3497,18 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = rt
 		}
 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
+
+	case 55: /* floating-point constant */
+		var rf int
+		o1 = 0xf<<25 | 1<<21 | 1<<12
+		rf = c.chipfloat7(p.From.Val.(float64))
+		if rf < 0 {
+			c.ctxt.Diag("invalid floating-point immediate\n%v", p)
+		}
+		if p.As == AFMOVD {
+			o1 |= 1 << 22
+		}
+		o1 |= (uint32(rf&0xff) << 13) | uint32(p.To.Reg&31)
 
 	case 56: /* floating point compare */
 		o1 = c.oprrr(p, p.As)

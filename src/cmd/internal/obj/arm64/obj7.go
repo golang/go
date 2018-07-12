@@ -254,7 +254,11 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	switch p.As {
 	case AFMOVS:
 		if p.From.Type == obj.TYPE_FCONST {
-			f32 := float32(p.From.Val.(float64))
+			f64 := p.From.Val.(float64)
+			f32 := float32(f64)
+			if c.chipfloat7(f64) > 0 {
+				break
+			}
 			if math.Float32bits(f32) == 0 {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGZERO
@@ -269,6 +273,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AFMOVD:
 		if p.From.Type == obj.TYPE_FCONST {
 			f64 := p.From.Val.(float64)
+			if c.chipfloat7(f64) > 0 {
+				break
+			}
 			if math.Float64bits(f64) == 0 {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGZERO
