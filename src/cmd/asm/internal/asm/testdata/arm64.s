@@ -163,6 +163,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVB	(R29)(R30<<0), R14              // ae7bbe38
 	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
+	FMOVS	$(4.0), F0                      // 0010221e
+	FMOVD	$(4.0), F0                      // 0010621e
+	FMOVS	$(0.265625), F1                 // 01302a1e
+	FMOVD	$(0.1796875), F2                // 02f0681e
+	FMOVS	$(0.96875), F3                  // 03f02d1e
+	FMOVD	$(28.0), F4                     // 0490671e
 
 	FMOVS	(R2)(R6), F4       // FMOVS (R2)(R6*1), F4    // 446866bc
 	FMOVS	(R2)(R6<<2), F4                               // 447866bc
@@ -479,14 +485,14 @@ again:
 //	{
 //		outcode($1, &$2, NREG, &$4);
 //	}
-	FADDD	$0.5, F1 // FADDD $(0.5), F1
+//	FADDD	$0.5, F1 // FADDD $(0.5), F1
 	FADDD	F1, F2
 
 //		LTYPEK frcon ',' freg ',' freg
 //	{
 //		outcode($1, &$2, $4.reg, &$6);
 //	}
-	FADDD	$0.7, F1, F2 // FADDD	$(0.69999999999999996), F1, F2
+//	FADDD	$0.7, F1, F2 // FADDD	$(0.69999999999999996), F1, F2
 	FADDD	F1, F2, F3
 
 //
