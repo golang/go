@@ -24,6 +24,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -255,7 +256,17 @@ type Transport struct {
 	// nextProtoOnce guards initialization of TLSNextProto and
 	// h2transport (via onceSetNextProtoDefaults)
 	nextProtoOnce sync.Once
-	h2transport   *http2Transport // non-nil if http2 wired up
+	h2transport   h2Transport // non-nil if http2 wired up
+}
+
+// h2Transport is the interface we expect to be able to call from
+// net/http against an *http2.Transport that's either bundled into
+// h2_bundle.go or supplied by the user via x/net/http2.
+//
+// We name it with the "h2" prefix to stay out of the "http2" prefix
+// namespace used by x/tools/cmd/bundle for h2_bundle.go.
+type h2Transport interface {
+	CloseIdleConnections()
 }
 
 // onceSetNextProtoDefaults initializes TLSNextProto.
@@ -264,6 +275,21 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
 		return
 	}
+
+	// If they've already configured http2 with
+	// golang.org/x/net/http2 instead of the bundled copy, try to
+	// get at its http2.Transport value (via the the "https"
+	// altproto map) so we can call CloseIdleConnections on it if
+	// requested. (Issue 22891)
+	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+	if rv := reflect.ValueOf(altProto["https"]); rv.IsValid() && rv.Type().Kind() == reflect.Struct && rv.Type().NumField() == 1 {
+		if v := rv.Field(0); v.CanInterface() {
+			if h2i, ok := v.Interface().(h2Transport); ok {
+				t.h2transport = h2i
+			}
+		}
+	}
+
 	if t.TLSNextProto != nil {
 		// This is the documented way to disable http2 on a
 		// Transport.

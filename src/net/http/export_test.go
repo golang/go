@@ -117,7 +117,7 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 
 func (t *Transport) IdleConnStrsForTesting_h2() []string {
 	var ret []string
-	noDialPool := t.h2transport.ConnPool.(http2noDialClientConnPool)
+	noDialPool := t.h2transport.(*http2Transport).ConnPool.(http2noDialClientConnPool)
 	pool := noDialPool.http2clientConnPool
 
 	pool.mu.Lock()
