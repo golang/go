@@ -1,0 +1,12 @@
+[!gc] skip
+
+# listing GOROOT should only find standard packages
+cd $GOROOT/src
+go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./...
+! stdout .
+# TODO: ignore _/blah/go/src in output
+
+# our vendored packages should be reported as standard
+go list std cmd
+stdout golang_org/x/net/http2/hpack
+stdout cmd/vendor/golang\.org/x/arch/x86/x86asm

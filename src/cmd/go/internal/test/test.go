@@ -716,13 +716,12 @@ func runTest(cmd *base.Command, args []string) {
 		if err != nil {
 			str := err.Error()
 			str = strings.TrimPrefix(str, "\n")
-			failed := fmt.Sprintf("FAIL\t%s [setup failed]\n", p.ImportPath)
-
 			if p.ImportPath != "" {
-				base.Errorf("# %s\n%s\n%s", p.ImportPath, str, failed)
+				base.Errorf("# %s\n%s", p.ImportPath, str)
 			} else {
-				base.Errorf("%s\n%s", str, failed)
+				base.Errorf("%s", str)
 			}
+			fmt.Printf("FAIL\t%s [setup failed]\n", p.ImportPath)
 			continue
 		}
 		builds = append(builds, buildTest)
