@@ -423,10 +423,22 @@ func FindModulePath(dir string) (string, error) {
 	}
 
 	// Look for path in GOPATH.
+	xdir, errdir := filepath.EvalSymlinks(dir)
 	for _, gpdir := range filepath.SplitList(cfg.BuildContext.GOPATH) {
+		xgpdir, errgpdir := filepath.EvalSymlinks(gpdir)
 		src := filepath.Join(gpdir, "src") + string(filepath.Separator)
+		xsrc := filepath.Join(xgpdir, "src") + string(filepath.Separator)
 		if strings.HasPrefix(dir, src) {
 			return filepath.ToSlash(dir[len(src):]), nil
+		}
+		if errdir == nil && strings.HasPrefix(xdir, src) {
+			return filepath.ToSlash(xdir[len(src):]), nil
+		}
+		if errgpdir == nil && strings.HasPrefix(dir, xsrc) {
+			return filepath.ToSlash(dir[len(xsrc):]), nil
+		}
+		if errdir == nil && errgpdir == nil && strings.HasPrefix(xdir, xsrc) {
+			return filepath.ToSlash(xdir[len(xsrc):]), nil
 		}
 	}
 
