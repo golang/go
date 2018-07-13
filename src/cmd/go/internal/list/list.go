@@ -425,16 +425,17 @@ func runList(cmd *base.Command, args []string) {
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
 				pmain, _, _, err := load.TestPackagesFor(p, nil)
 				if err != nil {
-					if !*listE {
-						base.Errorf("can't load test package: %s", err)
+					if *listE {
+						pkgs = append(pkgs, &load.Package{
+							PackagePublic: load.PackagePublic{
+								ImportPath: p.ImportPath + ".test",
+								Error:      &load.PackageError{Err: err.Error()},
+							},
+						})
 						continue
 					}
-					pmain = &load.Package{
-						PackagePublic: load.PackagePublic{
-							ImportPath: p.ImportPath + ".test",
-							Error:      &load.PackageError{Err: err.Error()},
-						},
-					}
+					base.Errorf("can't load test package: %s", err)
+					continue
 				}
 				pkgs = append(pkgs, pmain)
 
