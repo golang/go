@@ -203,6 +203,9 @@ type Hijacker interface {
 //
 // This mechanism can be used to cancel long operations on the server
 // if the client has disconnected before the response is ready.
+//
+// Deprecated: the CloseNotifier interface predates Go's context package.
+// New code should use Request.Context instead.
 type CloseNotifier interface {
 	// CloseNotify returns a channel that receives at most a
 	// single value (true) when the client connection has gone
@@ -674,10 +677,28 @@ func (cr *connReader) backgroundRead() {
 	cr.lock()
 	if n == 1 {
 		cr.hasByte = true
-		// We were at EOF already (since we wouldn't be in a
-		// background read otherwise), so this is a pipelined
-		// HTTP request.
-		cr.closeNotifyFromPipelinedRequest()
+		// We were past the end of the previous request's body already
+		// (since we wouldn't be in a background read otherwise), so
+		// this is a pipelined HTTP request. Prior to Go 1.11 we used to
+		// send on the CloseNotify channel and cancel the context here,
+		// but the behavior was documented as only "may", and we only
+		// did that because that's how CloseNotify accidentally behaved
+		// in very early Go releases prior to context support. Once we
+		// added context support, people used a Handler's
+		// Request.Context() and passed it along. Having that context
+		// cancel on pipelined HTTP requests caused problems.
+		// Fortunately, almost nothing uses HTTP/1.x pipelining.
+		// Unfortunately, apt-get does, or sometimes does.
+		// New Go 1.11 behavior: don't fire CloseNotify or cancel
+		// contexts on pipelined requests. Shouldn't affect people, but
+		// fixes cases like Issue 23921. This does mean that a client
+		// closing their TCP connection after sending a pipelined
+		// request won't cancel the context, but we'll catch that on any
+		// write failure (in checkConnErrorWriter.Write).
+		// If the server never writes, yes, there are still contrived
+		// server & client behaviors where this fails to ever cancel the
+		// context, but that's kinda why HTTP/1.x pipelining died
+		// anyway.
 	}
 	if ne, ok := err.(net.Error); ok && cr.aborted && ne.Timeout() {
 		// Ignore this error. It's the expected error from
@@ -721,19 +742,6 @@ func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
 // It may be called from multiple goroutines.
 func (cr *connReader) handleReadError(_ error) {
 	cr.conn.cancelCtx()
-	cr.closeNotify()
-}
-
-// closeNotifyFromPipelinedRequest simply calls closeNotify.
-//
-// This method wrapper is here for documentation. The callers are the
-// cases where we send on the closenotify channel because of a
-// pipelined HTTP request, per the previous Go behavior and
-// documentation (that this "MAY" happen).
-//
-// TODO: consider changing this behavior and making context
-// cancelation and closenotify work the same.
-func (cr *connReader) closeNotifyFromPipelinedRequest() {
 	cr.closeNotify()
 }
 
@@ -1834,9 +1842,6 @@ func (c *conn) serve(ctx context.Context) {
 		if requestBodyRemains(req.Body) {
 			registerOnHitEOF(req.Body, w.conn.r.startBackgroundRead)
 		} else {
-			if w.conn.bufr.Buffered() > 0 {
-				w.conn.r.closeNotifyFromPipelinedRequest()
-			}
 			w.conn.r.startBackgroundRead()
 		}
 

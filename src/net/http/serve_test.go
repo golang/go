@@ -3175,25 +3175,32 @@ For:
 	ts.Close()
 }
 
-// Tests that a pipelined request causes the first request's Handler's CloseNotify
-// channel to fire. Previously it deadlocked.
+// Tests that a pipelined request does not cause the first request's
+// Handler's CloseNotify channel to fire.
 //
-// Issue 13165
+// Issue 13165 (where it used to deadlock), but behavior changed in Issue 23921.
 func TestCloseNotifierPipelined(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	gotReq := make(chan bool, 2)
 	sawClose := make(chan bool, 2)
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
 		gotReq <- true
 		cc := rw.(CloseNotifier).CloseNotify()
-		<-cc
+		select {
+		case <-cc:
+			t.Error("unexpected CloseNotify")
+		case <-time.After(100 * time.Millisecond):
+		}
 		sawClose <- true
 	}))
+	defer ts.Close()
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("error dialing: %v", err)
 	}
 	diec := make(chan bool, 1)
+	defer close(diec)
 	go func() {
 		const req = "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n"
 		_, err = io.WriteString(conn, req+req) // two requests
@@ -3206,27 +3213,23 @@ func TestCloseNotifierPipelined(t *testing.T) {
 	}()
 	reqs := 0
 	closes := 0
-For:
 	for {
 		select {
 		case <-gotReq:
 			reqs++
 			if reqs > 2 {
 				t.Fatal("too many requests")
-			} else if reqs > 1 {
-				diec <- true
 			}
 		case <-sawClose:
 			closes++
 			if closes > 1 {
-				break For
+				return
 			}
 		case <-time.After(5 * time.Second):
 			ts.CloseClientConnections()
 			t.Fatal("timeout")
 		}
 	}
-	ts.Close()
 }
 
 func TestCloseNotifierChanLeak(t *testing.T) {
@@ -5796,30 +5799,22 @@ func TestServerHijackGetsBackgroundByte(t *testing.T) {
 		// Tell the client to send more data after the GET request.
 		inHandler <- true
 
-		// Wait until the HTTP server sees the extra data
-		// after the GET request. The HTTP server fires the
-		// close notifier here, assuming it's a pipelined
-		// request, as documented.
-		select {
-		case <-w.(CloseNotifier).CloseNotify():
-		case <-time.After(5 * time.Second):
-			t.Error("timeout")
-			return
-		}
-
 		conn, buf, err := w.(Hijacker).Hijack()
 		if err != nil {
 			t.Error(err)
 			return
 		}
 		defer conn.Close()
-		n := buf.Reader.Buffered()
-		if n != 1 {
-			t.Errorf("buffered data = %d; want 1", n)
-		}
+
 		peek, err := buf.Reader.Peek(3)
 		if string(peek) != "foo" || err != nil {
 			t.Errorf("Peek = %q, %v; want foo, nil", peek, err)
+		}
+
+		select {
+		case <-r.Context().Done():
+			t.Error("context unexpectedly canceled")
+		default:
 		}
 	}))
 	defer ts.Close()
@@ -5860,17 +5855,6 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
 	const size = 8 << 10
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		defer close(done)
-
-		// Wait until the HTTP server sees the extra data
-		// after the GET request. The HTTP server fires the
-		// close notifier here, assuming it's a pipelined
-		// request, as documented.
-		select {
-		case <-w.(CloseNotifier).CloseNotify():
-		case <-time.After(5 * time.Second):
-			t.Error("timeout")
-			return
-		}
 
 		conn, buf, err := w.(Hijacker).Hijack()
 		if err != nil {
