@@ -400,7 +400,7 @@ func flagReplace(arg string) {
 	if i = strings.Index(arg, "="); i < 0 {
 		base.Fatalf("go mod: -replace=%s: need old@v=new[@v] (missing =)", arg)
 	}
-	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+2:])
+	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
 	if strings.HasPrefix(new, ">") {
 		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
 	}

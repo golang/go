@@ -383,8 +383,8 @@ func TestModEdit(t *testing.T) {
 		"-droprequire=x.2",
 		"-exclude=x.1 @ v1.2.0",
 		"-exclude=x.1@v1.2.1",
-		"-replace=x.1@v1.3.0=>y.1@v1.4.0",
-		"-replace=x.1@v1.4.0 => ../z",
+		"-replace=x.1@v1.3.0=y.1@v1.4.0",
+		"-replace=x.1@v1.4.0 = ../z",
 	)
 	mustHaveGoMod(`module x.x/y/z
 
@@ -451,8 +451,8 @@ require x.3 v1.99.0
 	}
 
 	tg.run("mod",
-		"-replace=x.1@v1.3.0=>y.1/v2@v2.3.5",
-		"-replace=x.1@v1.4.0=>y.1/v2@v2.3.5",
+		"-replace=x.1@v1.3.0=y.1/v2@v2.3.5",
+		"-replace=x.1@v1.4.0=y.1/v2@v2.3.5",
 	)
 	mustHaveGoMod(`module x.x/y/z
 
@@ -466,7 +466,7 @@ replace (
 require x.3 v1.99.0
 `)
 	tg.run("mod",
-		"-replace=x.1=>y.1/v2@v2.3.6",
+		"-replace=x.1=y.1/v2@v2.3.6",
 	)
 	mustHaveGoMod(`module x.x/y/z
 
