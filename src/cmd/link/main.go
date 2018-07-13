@@ -15,6 +15,7 @@ import (
 	"cmd/link/internal/mips64"
 	"cmd/link/internal/ppc64"
 	"cmd/link/internal/s390x"
+	"cmd/link/internal/wasm"
 	"cmd/link/internal/x86"
 	"fmt"
 	"os"
@@ -32,7 +33,7 @@ import (
 // Then control flow passes to ld.Main, which parses flags, makes
 // some configuration decisions, and then gives the architecture
 // packages a second chance to modify the linker's configuration
-// via the ld.Thearch.Archinit function.
+// via the ld.Arch.Archinit function.
 
 func main() {
 	var arch *sys.Arch
@@ -58,6 +59,8 @@ func main() {
 		arch, theArch = ppc64.Init()
 	case "s390x":
 		arch, theArch = s390x.Init()
+	case "wasm":
+		arch, theArch = wasm.Init()
 	}
 	ld.Main(arch, theArch)
 }

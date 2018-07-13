@@ -243,7 +243,12 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
-		// for both ELF and Mach-O
+		if ctxt.LinkMode == ld.LinkExternal {
+			// External linker will do this relocation.
+			return true
+		}
+		// Internal linking, for both ELF and Mach-O.
+		// Build a PLT entry and change the relocation target to that entry.
 		addpltsym(ctxt, targ)
 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
 		r.Add = int64(targ.Plt)
@@ -432,7 +437,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 
 	rs := r.Xsym
 
-	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_PCREL || r.Type == objabi.R_GOTPCREL {
+	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_PCREL || r.Type == objabi.R_GOTPCREL || r.Type == objabi.R_CALL {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 			return false
@@ -612,7 +617,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		// so for now we'll just use non-lazy pointers,
 		// which don't need to be told which library to use.
 		//
-		// http://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
+		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
 		// has details about what we're avoiding.
 
 		addgotsym(ctxt, s)

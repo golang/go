@@ -113,6 +113,8 @@ func (f *machoFile) goarch() string {
 		return "amd64"
 	case macho.CpuArm:
 		return "arm"
+	case macho.CpuArm64:
+		return "arm64"
 	case macho.CpuPpc64:
 		return "ppc64"
 	}

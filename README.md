@@ -19,19 +19,19 @@ BSD-style license found in the LICENSE file.
 Official binary distributions are available at https://golang.org/dl/.
 
 After downloading a binary release, visit https://golang.org/doc/install
-or load doc/install.html in your web browser for installation
+or load [doc/install.html](./doc/install.html) in your web browser for installation
 instructions.
 
 #### Install From Source
 
 If a binary distribution is not available for your combination of
 operating system and architecture, visit
-https://golang.org/doc/install/source or load doc/install-source.html
+https://golang.org/doc/install/source or load [doc/install-source.html](./doc/install-source.html)
 in your web browser for source installation instructions.
 
 ### Contributing
 
-Go is the work of hundreds of contributors. We appreciate your help!
+Go is the work of thousands of contributors. We appreciate your help!
 
 To contribute, please read the contribution guidelines:
 	https://golang.org/doc/contribute.html

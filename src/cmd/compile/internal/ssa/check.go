@@ -203,8 +203,20 @@ func checkFunc(f *Func) {
 				if len(v.Args) == 0 {
 					f.Fatalf("no args for OpAddr %s", v.LongString())
 				}
-				if v.Args[0].Op != OpSP && v.Args[0].Op != OpSB {
+				if v.Args[0].Op != OpSB {
 					f.Fatalf("bad arg to OpAddr %v", v)
+				}
+			}
+
+			if v.Op == OpLocalAddr {
+				if len(v.Args) != 2 {
+					f.Fatalf("wrong # of args for OpLocalAddr %s", v.LongString())
+				}
+				if v.Args[0].Op != OpSP {
+					f.Fatalf("bad arg 0 to OpLocalAddr %v", v)
+				}
+				if !v.Args[1].Type.IsMemory() {
+					f.Fatalf("bad arg 1 to OpLocalAddr %v", v)
 				}
 			}
 
@@ -212,8 +224,17 @@ func checkFunc(f *Func) {
 				f.Fatalf("unexpected floating-point type %v", v.LongString())
 			}
 
+			// Check types.
+			// TODO: more type checks?
+			switch c := f.Config; v.Op {
+			case OpSP, OpSB:
+				if v.Type != c.Types.Uintptr {
+					f.Fatalf("bad %s type: want uintptr, have %s",
+						v.Op, v.Type.String())
+				}
+			}
+
 			// TODO: check for cycles in values
-			// TODO: check type
 		}
 	}
 

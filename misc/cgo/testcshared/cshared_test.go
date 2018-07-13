@@ -322,7 +322,11 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 
 	createHeadersOnce(t)
 
-	runCC(t, "-o", cmd, "main1.c", "-ldl")
+	if GOOS != "freebsd" {
+		runCC(t, "-o", cmd, "main1.c", "-ldl")
+	} else {
+		runCC(t, "-o", cmd, "main1.c")
+	}
 	adbPush(t, cmd)
 
 	defer os.Remove(bin)
@@ -411,7 +415,11 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 		"-o", libname, pkgname,
 	)
 	adbPush(t, libname)
-	runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
+	if GOOS != "freebsd" {
+		runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
+	} else {
+		runCC(t, "-pthread", "-o", cmd, cfile)
+	}
 	adbPush(t, cmd)
 
 	bin := cmdToRun(cmd)

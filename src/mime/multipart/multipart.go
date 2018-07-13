@@ -61,7 +61,7 @@ type Part struct {
 // FormName returns the name parameter if p has a Content-Disposition
 // of type "form-data".  Otherwise it returns the empty string.
 func (p *Part) FormName() string {
-	// See http://tools.ietf.org/html/rfc2183 section 2 for EBNF
+	// See https://tools.ietf.org/html/rfc2183 section 2 for EBNF
 	// of Content-Disposition value format.
 	if p.dispositionParams == nil {
 		p.parseContentDisposition()
@@ -303,7 +303,9 @@ func (r *Reader) NextPart() (*Part, error) {
 	if r.currentPart != nil {
 		r.currentPart.Close()
 	}
-
+	if string(r.dashBoundary) == "--" {
+		return nil, fmt.Errorf("multipart: boundary is empty")
+	}
 	expectNewPart := false
 	for {
 		line, err := r.bufReader.ReadSlice('\n')
@@ -370,7 +372,7 @@ func (mr *Reader) isFinalBoundary(line []byte) bool {
 }
 
 func (mr *Reader) isBoundaryDelimiterLine(line []byte) (ret bool) {
-	// http://tools.ietf.org/html/rfc2046#section-5.1
+	// https://tools.ietf.org/html/rfc2046#section-5.1
 	//   The boundary delimiter line is then defined as a line
 	//   consisting entirely of two hyphen characters ("-",
 	//   decimal value 45) followed by the boundary parameter

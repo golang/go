@@ -13,18 +13,22 @@ var sink64 [8]float64
 func approx(x float64) {
 	// s390x:"FIDBR\t[$]6"
 	// arm64:"FRINTPD"
+	// ppc64le:"FRIP"
 	sink64[0] = math.Ceil(x)
 
 	// s390x:"FIDBR\t[$]7"
 	// arm64:"FRINTMD"
+	// ppc64le:"FRIM"
 	sink64[1] = math.Floor(x)
 
 	// s390x:"FIDBR\t[$]1"
 	// arm64:"FRINTAD"
+	// ppc64le:"FRIN"
 	sink64[2] = math.Round(x)
 
 	// s390x:"FIDBR\t[$]5"
 	// arm64:"FRINTZD"
+	// ppc64le:"FRIZ"
 	sink64[3] = math.Trunc(x)
 
 	// s390x:"FIDBR\t[$]4"
@@ -33,20 +37,22 @@ func approx(x float64) {
 
 func sqrt(x float64) float64 {
 	// amd64:"SQRTSD"
-	// 386:"FSQRT|SQRTSD"   (387 or sse2)
+	// 386/387:"FSQRT" 386/sse2:"SQRTSD"
 	// arm64:"FSQRTD"
-	// mips:"SQRTD" mips64:"SQRTD"
+	// arm/7:"SQRTD"
+	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
+	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
 	return math.Sqrt(x)
 }
 
 // Check that it's using integer registers
 func abs(x, y float64) {
-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1,"
+	// amd64:"BTRQ\t[$]63"
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FABS\t"
 	sink64[0] = math.Abs(x)
 
-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1,"
+	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FNABS\t"
 	sink64[1] = -math.Abs(y)
@@ -60,12 +66,12 @@ func abs32(x float32) float32 {
 
 // Check that it's using integer registers
 func copysign(a, b, c float64) {
-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+	// amd64:"BTRQ\t[$]63","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
 	// ppc64le:"FCPSGN"
 	sink64[0] = math.Copysign(a, b)
 
-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1",-"SHRQ\t[$]63",-"SHLQ\t[$]63","ORQ"
+	// amd64:"BTSQ\t[$]63"
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FCPSGN"
 	sink64[1] = math.Copysign(c, -1)

@@ -792,7 +792,7 @@ func (v Value) Field(i int) Value {
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
 	if !field.name.isExported() {
-		if field.anon() {
+		if field.embedded() {
 			fl |= flagEmbedRO
 		} else {
 			fl |= flagStickyRO
@@ -2319,7 +2319,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 		return cvtDirect
 	}
 
-	// dst and src are unnamed pointer types with same underlying base type.
+	// dst and src are non-defined pointer types with same underlying base type.
 	if dst.Kind() == Ptr && dst.Name() == "" &&
 		src.Kind() == Ptr && src.Name() == "" &&
 		haveIdenticalUnderlyingType(dst.Elem().common(), src.Elem().common(), false) {

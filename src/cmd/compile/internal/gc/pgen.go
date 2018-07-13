@@ -27,32 +27,32 @@ var (
 	compilequeue    []*Node // functions waiting to be compiled
 )
 
-func emitptrargsmap() {
-	if Curfn.funcname() == "_" {
+func emitptrargsmap(fn *Node) {
+	if fn.funcname() == "_" {
 		return
 	}
-	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.funcname()))
+	sym := lookup(fmt.Sprintf("%s.args_stackmap", fn.funcname()))
 	lsym := sym.Linksym()
 
-	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
+	nptr := int(fn.Type.ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
-	if Curfn.Type.NumResults() > 0 {
+	if fn.Type.NumResults() > 0 {
 		nbitmap = 2
 	}
 	off := duint32(lsym, 0, uint32(nbitmap))
 	off = duint32(lsym, off, uint32(bv.n))
 
-	if Curfn.IsMethod() {
-		onebitwalktype1(Curfn.Type.Recvs(), 0, bv)
+	if fn.IsMethod() {
+		onebitwalktype1(fn.Type.Recvs(), 0, bv)
 	}
-	if Curfn.Type.NumParams() > 0 {
-		onebitwalktype1(Curfn.Type.Params(), 0, bv)
+	if fn.Type.NumParams() > 0 {
+		onebitwalktype1(fn.Type.Params(), 0, bv)
 	}
 	off = dbvec(lsym, off, bv)
 
-	if Curfn.Type.NumResults() > 0 {
-		onebitwalktype1(Curfn.Type.Results(), 0, bv)
+	if fn.Type.NumResults() > 0 {
+		onebitwalktype1(fn.Type.Results(), 0, bv)
 		off = dbvec(lsym, off, bv)
 	}
 
@@ -183,15 +183,36 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stkptrsize = Rnd(s.stkptrsize, int64(Widthreg))
 }
 
-func compile(fn *Node) {
-	Curfn = fn
-	dowidth(fn.Type)
+func funccompile(fn *Node) {
+	if Curfn != nil {
+		Fatalf("funccompile %v inside %v", fn.Func.Nname.Sym, Curfn.Func.Nname.Sym)
+	}
 
-	if fn.Nbody.Len() == 0 {
-		emitptrargsmap()
+	if fn.Type == nil {
+		if nerrors == 0 {
+			Fatalf("funccompile missing type")
+		}
 		return
 	}
 
+	// assign parameter offsets
+	dowidth(fn.Type)
+
+	if fn.Nbody.Len() == 0 {
+		emitptrargsmap(fn)
+		return
+	}
+
+	dclcontext = PAUTO
+	Curfn = fn
+
+	compile(fn)
+
+	Curfn = nil
+	dclcontext = PEXTERN
+}
+
+func compile(fn *Node) {
 	saveerrors()
 
 	order(fn)
@@ -236,18 +257,32 @@ const maxStackSize = 1 << 30
 // worker indicates which of the backend workers is doing the processing.
 func compileSSA(fn *Node, worker int) {
 	f := buildssa(fn, worker)
-	if f.Frontend().(*ssafn).stksize >= maxStackSize {
+	// Note: check arg size to fix issue 25507.
+	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
 		largeStackFrames = append(largeStackFrames, fn.Pos)
 		largeStackFramesMu.Unlock()
 		return
 	}
 	pp := newProgs(fn, worker)
+	defer pp.Free()
 	genssa(f, pp)
-	pp.Flush()
+	// Check frame size again.
+	// The check above included only the space needed for local variables.
+	// After genssa, the space needed includes local variables and the callee arg region.
+	// We must do this check prior to calling pp.Flush.
+	// If there are any oversized stack frames,
+	// the assembler may emit inscrutable complaints about invalid instructions.
+	if pp.Text.To.Offset >= maxStackSize {
+		largeStackFramesMu.Lock()
+		largeStackFrames = append(largeStackFrames, fn.Pos)
+		largeStackFramesMu.Unlock()
+		return
+	}
+
+	pp.Flush() // assemble, fill in boilerplate, etc.
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
-	pp.Free()
 }
 
 func init() {
@@ -369,7 +404,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCall
 	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
 	var inlcalls dwarf.InlCalls
 	if genDwarfInline > 0 {
-		inlcalls = assembleInlines(fnsym, fn, dwarfVars)
+		inlcalls = assembleInlines(fnsym, dwarfVars)
 	}
 	return scopes, inlcalls
 }
@@ -436,7 +471,7 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
 
 // createComplexVars creates recomposed DWARF vars with location lists,
 // suitable for describing optimized code.
-func createComplexVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	debugInfo := fn.DebugInfo
 
 	// Produce a DWARF variable entry for each user variable.
@@ -444,8 +479,8 @@ func createComplexVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, 
 	var vars []*dwarf.Var
 	ssaVars := make(map[*Node]bool)
 
-	for varID := range debugInfo.Vars {
-		n := debugInfo.Vars[varID].(*Node)
+	for varID, dvar := range debugInfo.Vars {
+		n := dvar.(*Node)
 		ssaVars[n] = true
 		for _, slot := range debugInfo.VarSlots[varID] {
 			ssaVars[debugInfo.Slots[slot].N.(*Node)] = true
@@ -468,7 +503,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 	var decls []*Node
 	var selected map[*Node]bool
 	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil {
-		decls, vars, selected = createComplexVars(fnsym, fn, automDecls)
+		decls, vars, selected = createComplexVars(fn)
 	} else {
 		decls, vars, selected = createSimpleVars(automDecls)
 	}
@@ -549,13 +584,8 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 // with local vars; disregard this versioning when sorting.
 func preInliningDcls(fnsym *obj.LSym) []*Node {
 	fn := Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*Node)
-	var dcl, rdcl []*Node
-	if fn.Name.Defn != nil {
-		dcl = fn.Func.Inldcl.Slice() // local function
-	} else {
-		dcl = fn.Func.Dcl // imported function
-	}
-	for _, n := range dcl {
+	var rdcl []*Node
+	for _, n := range fn.Func.Inl.Dcl {
 		c := n.Sym.Name[0]
 		// Avoid reporting "_" parameters, since if there are more than
 		// one, it can result in a collision later on, as in #23179.

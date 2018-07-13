@@ -114,18 +114,19 @@ func initConfVal() {
 // canUseCgo reports whether calling cgo functions is allowed
 // for non-hostname lookups.
 func (c *conf) canUseCgo() bool {
-	return c.hostLookupOrder("") == hostLookupCgo
+	return c.hostLookupOrder(nil, "") == hostLookupCgo
 }
 
 // hostLookupOrder determines which strategy to use to resolve hostname.
-func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
+// The provided Resolver is optional. nil means to not consider its options.
+func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrder) {
 	if c.dnsDebugLevel > 1 {
 		defer func() {
 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
 		}()
 	}
 	fallbackOrder := hostLookupCgo
-	if c.netGo {
+	if c.netGo || r.preferGo() {
 		fallbackOrder = hostLookupFilesDNS
 	}
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
@@ -148,7 +149,7 @@ func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
 		}
 		lookup := c.resolv.lookup
 		if len(lookup) == 0 {
-			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
 			// "If the lookup keyword is not used in the
 			// system's resolv.conf file then the assumed
 			// order is 'bind file'"
@@ -202,7 +203,7 @@ func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
 		}
 		if c.goos == "linux" {
 			// glibc says the default is "dns [!UNAVAIL=return] files"
-			// http://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
+			// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
 			return hostLookupDNSFiles
 		}
 		return hostLookupFilesDNS

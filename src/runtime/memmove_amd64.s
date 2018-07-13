@@ -27,7 +27,7 @@
 
 #include "textflag.h"
 
-// void runtime·memmove(void*, void*, uintptr)
+// func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-24
 
 	MOVQ	to+0(FP), DI
@@ -43,6 +43,8 @@ tail:
 	// registers before writing it back.  move_256through2048 on the other
 	// hand can be used only when the memory regions don't overlap or the copy
 	// direction is forward.
+	//
+	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTQ	BX, BX
 	JEQ	move_0
 	CMPQ	BX, $2
@@ -63,7 +65,6 @@ tail:
 	JBE	move_65through128
 	CMPQ	BX, $256
 	JBE	move_129through256
-	// TODO: use branch table and BSR to make this just a single dispatch
 
 	TESTB	$1, runtime·useAVXmemmove(SB)
 	JNZ	avxUnaligned
@@ -409,7 +410,7 @@ gobble_mem_fwd_loop:
 	// Prefetch values were chosen empirically.
 	// Approach for prefetch usage as in 7.6.6 of [1]
 	// [1] 64-ia-32-architectures-optimization-manual.pdf
-	// http://www.intel.ru/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
+	// https://www.intel.ru/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
 	VMOVDQU	(SI), Y0
 	VMOVDQU	0x20(SI), Y1
 	VMOVDQU	0x40(SI), Y2

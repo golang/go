@@ -133,7 +133,7 @@ again:
 		}
 		se.pcExpander.init(ncallers[0], se.wasPanic)
 		ncallers = ncallers[1:]
-		se.wasPanic = se.pcExpander.funcInfo.valid() && se.pcExpander.funcInfo.entry == sigpanicPC
+		se.wasPanic = se.pcExpander.funcInfo.valid() && se.pcExpander.funcInfo.funcID == funcID_sigpanic
 		if se.skip > 0 {
 			for ; se.skip > 0; se.skip-- {
 				se.pcExpander.next()
@@ -343,10 +343,40 @@ func (f *Func) funcInfo() funcInfo {
 const (
 	_PCDATA_StackMapIndex       = 0
 	_PCDATA_InlTreeIndex        = 1
+	_PCDATA_RegMapIndex         = 2
 	_FUNCDATA_ArgsPointerMaps   = 0
 	_FUNCDATA_LocalsPointerMaps = 1
 	_FUNCDATA_InlTree           = 2
+	_FUNCDATA_RegPointerMaps    = 3
 	_ArgsSizeUnknown            = -0x80000000
+)
+
+// A FuncID identifies particular functions that need to be treated
+// specially by the runtime.
+// Note that in some situations involving plugins, there may be multiple
+// copies of a particular special runtime function.
+// Note: this list must match the list in cmd/internal/objabi/funcid.go.
+type funcID uint32
+
+const (
+	funcID_normal funcID = iota // not a special function
+	funcID_runtime_main
+	funcID_goexit
+	funcID_jmpdefer
+	funcID_mcall
+	funcID_morestack
+	funcID_mstart
+	funcID_rt0_go
+	funcID_asmcgocall
+	funcID_sigpanic
+	funcID_runfinq
+	funcID_gcBgMarkWorker
+	funcID_systemstack_switch
+	funcID_systemstack
+	funcID_cgocallback_gofunc
+	funcID_gogo
+	funcID_externalthreadhandler
+	funcID_debugCallV1
 )
 
 // moduledata records information about the layout of the executable
@@ -648,7 +678,6 @@ func findfunc(pc uintptr) funcInfo {
 		idx = uint32(len(datap.ftab) - 1)
 	}
 	if pc < datap.ftab[idx].entry {
-
 		// With multiple text sections, the idx might reference a function address that
 		// is higher than the pc being searched, so search backward until the matching address is found.
 
@@ -659,7 +688,6 @@ func findfunc(pc uintptr) funcInfo {
 			throw("findfunc: bad findfunctab entry idx")
 		}
 	} else {
-
 		// linear search to find func with pc >= entry.
 		for datap.ftab[idx+1].entry <= pc {
 			idx++
@@ -889,10 +917,13 @@ type stackmap struct {
 
 //go:nowritebarrier
 func stackmapdata(stkmap *stackmap, n int32) bitvector {
-	if n < 0 || n >= stkmap.n {
+	// Check this invariant only when stackDebug is on at all.
+	// The invariant is already checked by many of stackmapdata's callers,
+	// and disabling it by default allows stackmapdata to be inlined.
+	if stackDebug > 0 && (n < 0 || n >= stkmap.n) {
 		throw("stackmapdata: index out of range")
 	}
-	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+7)>>3))))}
+	return bitvector{stkmap.nbit, addb(&stkmap.bytedata[0], uintptr(n*((stkmap.nbit+7)>>3)))}
 }
 
 // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.

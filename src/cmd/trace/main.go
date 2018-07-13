@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sync"
 
 	_ "net/http/pprof" // Required to use pprof
@@ -82,19 +83,19 @@ func main() {
 		flag.Usage()
 	}
 
-	var pprofFunc func(io.Writer, string) error
+	var pprofFunc func(io.Writer, *http.Request) error
 	switch *pprofFlag {
 	case "net":
-		pprofFunc = pprofIO
+		pprofFunc = pprofByGoroutine(computePprofIO)
 	case "sync":
-		pprofFunc = pprofBlock
+		pprofFunc = pprofByGoroutine(computePprofBlock)
 	case "syscall":
-		pprofFunc = pprofSyscall
+		pprofFunc = pprofByGoroutine(computePprofSyscall)
 	case "sched":
-		pprofFunc = pprofSched
+		pprofFunc = pprofByGoroutine(computePprofSched)
 	}
 	if pprofFunc != nil {
-		if err := pprofFunc(os.Stdout, ""); err != nil {
+		if err := pprofFunc(os.Stdout, &http.Request{}); err != nil {
 			dief("failed to generate pprof: %v\n", err)
 		}
 		os.Exit(0)
@@ -119,21 +120,12 @@ func main() {
 		os.Exit(0)
 	}
 	reportMemoryUsage("after parsing trace")
-
-	log.Print("Serializing trace...")
-	params := &traceParams{
-		parsed:  res,
-		endTime: int64(1<<63 - 1),
-	}
-	data, err := generateTrace(params)
-	if err != nil {
-		dief("%v\n", err)
-	}
-	reportMemoryUsage("after generating trace")
+	debug.FreeOSMemory()
 
 	log.Print("Splitting trace...")
-	ranges = splitTrace(data)
+	ranges = splitTrace(res)
 	reportMemoryUsage("after spliting trace")
+	debug.FreeOSMemory()
 
 	addr := "http://" + ln.Addr().String()
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
@@ -208,6 +200,7 @@ var templMain = template.Must(template.New("").Parse(`
 <a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
 <a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
 <a href="/usertasks">User-defined tasks</a><br>
+<a href="/userregions">User-defined regions</a><br>
 </body>
 </html>
 `))

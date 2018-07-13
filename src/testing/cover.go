@@ -13,14 +13,17 @@ import (
 )
 
 // CoverBlock records the coverage data for a single basic block.
+// The fields are 1-indexed, as in an editor: The opening line of
+// the file is number 1, for example. Columns are measured
+// in bytes.
 // NOTE: This struct is internal to the testing infrastructure and may change.
 // It is not covered (yet) by the Go 1 compatibility guidelines.
 type CoverBlock struct {
-	Line0 uint32
-	Col0  uint16
-	Line1 uint32
-	Col1  uint16
-	Stmts uint16
+	Line0 uint32 // Line number for block start.
+	Col0  uint16 // Column number for block start.
+	Line1 uint32 // Line number for block end.
+	Col1  uint16 // Column number for block end.
+	Stmts uint16 // Number of statements included in this block.
 }
 
 var cover Cover

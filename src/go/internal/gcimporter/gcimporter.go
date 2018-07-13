@@ -133,9 +133,7 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 		}()
 		rc = f
 	}
-	defer func() {
-		rc.Close()
-	}()
+	defer rc.Close()
 
 	var hdr string
 	buf := bufio.NewReader(rc)
@@ -146,16 +144,27 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 	switch hdr {
 	case "$$\n":
 		err = fmt.Errorf("import %q: old export format no longer supported (recompile library)", path)
+
 	case "$$B\n":
 		var data []byte
 		data, err = ioutil.ReadAll(buf)
-		if err == nil {
-			// TODO(gri): allow clients of go/importer to provide a FileSet.
-			// Or, define a new standard go/types/gcexportdata package.
-			fset := token.NewFileSet()
-			_, pkg, err = BImportData(fset, packages, data, id)
-			return
+		if err != nil {
+			break
 		}
+
+		// TODO(gri): allow clients of go/importer to provide a FileSet.
+		// Or, define a new standard go/types/gcexportdata package.
+		fset := token.NewFileSet()
+
+		// The indexed export format starts with an 'i'; the older
+		// binary export format starts with a 'c', 'd', or 'v'
+		// (from "version"). Select appropriate importer.
+		if len(data) > 0 && data[0] == 'i' {
+			_, pkg, err = iImportData(fset, packages, data[1:], id)
+		} else {
+			_, pkg, err = BImportData(fset, packages, data, id)
+		}
+
 	default:
 		err = fmt.Errorf("unknown export data header: %q", hdr)
 	}

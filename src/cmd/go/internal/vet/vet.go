@@ -57,16 +57,16 @@ func runVet(cmd *base.Command, args []string) {
 
 	root := &work.Action{Mode: "go vet"}
 	for _, p := range pkgs {
-		ptest, pxtest, err := load.TestPackagesFor(p, false)
+		_, ptest, pxtest, err := load.TestPackagesFor(p, nil)
 		if err != nil {
 			base.Errorf("%v", err)
 			continue
 		}
-		if len(ptest.GoFiles) == 0 && pxtest == nil {
+		if len(ptest.GoFiles) == 0 && len(ptest.CgoFiles) == 0 && pxtest == nil {
 			base.Errorf("go vet %s: no Go files in %s", p.ImportPath, p.Dir)
 			continue
 		}
-		if len(ptest.GoFiles) > 0 {
+		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {
 			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, ptest))
 		}
 		if pxtest != nil {

@@ -5,13 +5,11 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -268,7 +266,7 @@ func (ar *Archive) scan(action func(*Entry)) {
 }
 
 // listEntry prints to standard output a line describing the entry.
-func listEntry(ar *Archive, entry *Entry, verbose bool) {
+func listEntry(entry *Entry, verbose bool) {
 	if verbose {
 		fmt.Fprintf(stdout, "%s\n", entry)
 	} else {
@@ -332,11 +330,26 @@ func (ar *Archive) addFiles() {
 		if verbose {
 			fmt.Printf("%s\n", file)
 		}
-		fd, err := os.Open(file)
-		if err != nil {
-			log.Fatal(err)
+
+		if !isGoCompilerObjFile(file) {
+			fd, err := os.Open(file)
+			if err != nil {
+				log.Fatal(err)
+			}
+			ar.addFile(fd)
+			continue
 		}
-		ar.addFile(fd)
+
+		aro := archive(file, os.O_RDONLY, nil)
+		aro.scan(func(entry *Entry) {
+			if entry.name != "_go_.o" {
+				aro.skip(entry)
+				return
+			}
+			ar.startFile(filepath.Base(file), 0, 0, 0, 0644, entry.size)
+			aro.output(entry, ar.fd)
+			ar.endFile()
+		})
 	}
 	ar.files = nil
 }
@@ -397,61 +410,29 @@ func (ar *Archive) endFile() {
 // from the first Go object file on the file list, if any.
 // The archive is known to be empty.
 func (ar *Archive) addPkgdef() {
+	done := false
 	for _, file := range ar.files {
-		pkgdef, err := readPkgdef(file)
-		if err != nil {
+		if !isGoCompilerObjFile(file) {
 			continue
 		}
-		if verbose {
-			fmt.Printf("__.PKGDEF # %s\n", file)
-		}
-		ar.startFile("__.PKGDEF", 0, 0, 0, 0644, int64(len(pkgdef)))
-		_, err = ar.fd.Write(pkgdef)
-		if err != nil {
-			log.Fatal("writing __.PKGDEF: ", err)
-		}
-		ar.endFile()
-		break
-	}
-}
-
-// readPkgdef extracts the __.PKGDEF data from a Go object file.
-func readPkgdef(file string) (data []byte, err error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	// Read from file, collecting header for __.PKGDEF.
-	// The header is from the beginning of the file until a line
-	// containing just "!". The first line must begin with "go object ".
-	//
-	// Note: It's possible for "\n!\n" to appear within the binary
-	// package export data format. To avoid truncating the package
-	// definition prematurely (issue 21703), we keep keep track of
-	// how many "$$" delimiters we've seen.
-
-	rbuf := bufio.NewReader(f)
-	var wbuf bytes.Buffer
-	markers := 0
-	for {
-		line, err := rbuf.ReadBytes('\n')
-		if err != nil {
-			return nil, err
-		}
-		if wbuf.Len() == 0 && !bytes.HasPrefix(line, []byte("go object ")) {
-			return nil, errors.New("not a Go object file")
-		}
-		if markers%2 == 0 && bytes.Equal(line, []byte("!\n")) {
+		aro := archive(file, os.O_RDONLY, nil)
+		aro.scan(func(entry *Entry) {
+			if entry.name != "__.PKGDEF" {
+				aro.skip(entry)
+				return
+			}
+			if verbose {
+				fmt.Printf("__.PKGDEF # %s\n", file)
+			}
+			ar.startFile("__.PKGDEF", 0, 0, 0, 0644, entry.size)
+			aro.output(entry, ar.fd)
+			ar.endFile()
+			done = true
+		})
+		if done {
 			break
 		}
-		if bytes.HasPrefix(line, []byte("$$")) {
-			markers++
-		}
-		wbuf.Write(line)
 	}
-	return wbuf.Bytes(), nil
 }
 
 // exactly16Bytes truncates the string if necessary so it is at most 16 bytes long,
@@ -476,7 +457,7 @@ var stdout io.Writer = os.Stdout
 func (ar *Archive) printContents(entry *Entry) {
 	if ar.match(entry) {
 		if verbose {
-			listEntry(ar, entry, false)
+			listEntry(entry, false)
 		}
 		ar.output(entry, stdout)
 	} else {
@@ -493,7 +474,7 @@ func (ar *Archive) skipContents(entry *Entry) {
 // tableOfContents implements the 't' command.
 func (ar *Archive) tableOfContents(entry *Entry) {
 	if ar.match(entry) {
-		listEntry(ar, entry, verbose)
+		listEntry(entry, verbose)
 	}
 	ar.skip(entry)
 }
@@ -502,7 +483,7 @@ func (ar *Archive) tableOfContents(entry *Entry) {
 func (ar *Archive) extractContents(entry *Entry) {
 	if ar.match(entry) {
 		if verbose {
-			listEntry(ar, entry, false)
+			listEntry(entry, false)
 		}
 		fd, err := os.OpenFile(entry.name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, entry.mode)
 		if err != nil {
@@ -512,5 +493,69 @@ func (ar *Archive) extractContents(entry *Entry) {
 		fd.Close()
 	} else {
 		ar.skip(entry)
+	}
+}
+
+// isGoCompilerObjFile reports whether file is an object file created
+// by the Go compiler.
+func isGoCompilerObjFile(file string) bool {
+	fd, err := os.Open(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check for "!<arch>\n" header.
+	buf := make([]byte, len(arHeader))
+	_, err = io.ReadFull(fd, buf)
+	if err != nil {
+		if err == io.EOF {
+			return false
+		}
+		log.Fatal(err)
+	}
+	if string(buf) != arHeader {
+		return false
+	}
+
+	// Check for exactly two entries: "__.PKGDEF" and "_go_.o".
+	match := []string{"__.PKGDEF", "_go_.o"}
+	buf = make([]byte, entryLen)
+	for {
+		_, err := io.ReadFull(fd, buf)
+		if err != nil {
+			if err == io.EOF {
+				// No entries left.
+				return true
+			}
+			log.Fatal(err)
+		}
+		if buf[entryLen-2] != '`' || buf[entryLen-1] != '\n' {
+			return false
+		}
+
+		name := strings.TrimRight(string(buf[:16]), " ")
+		for {
+			if len(match) == 0 {
+				return false
+			}
+			var next string
+			next, match = match[0], match[1:]
+			if name == next {
+				break
+			}
+		}
+
+		size, err := strconv.ParseInt(strings.TrimRight(string(buf[48:58]), " "), 10, 64)
+		if err != nil {
+			return false
+		}
+		if size&1 != 0 {
+			size++
+		}
+
+		_, err = fd.Seek(size, io.SeekCurrent)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }

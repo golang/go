@@ -116,6 +116,9 @@
 
 (Sqrt x) -> (SQRTD x)
 
+// TODO: optimize this case?
+(Ctz32NonZero x) -> (Ctz32 x)
+
 // count trailing zero
 // 32 - CLZ(x&-x - 1)
 (Ctz32 <t> x) -> (SUB (MOVWconst [32]) (CLZ <t> (SUBconst <t> [1] (AND <t> x (NEG <t> x)))))
@@ -216,6 +219,7 @@
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
 (Addr {sym} base) -> (MOVWaddr {sym} base)
+(LocalAddr {sym} base _) -> (MOVWaddr {sym} base)
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
@@ -399,7 +403,7 @@
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
-(Convert x mem) -> (MOVWconvert x mem)
+(GetCallerPC) -> (LoweredGetCallerPC)
 
 (If cond yes no) -> (NE cond yes no)
 

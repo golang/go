@@ -68,44 +68,14 @@ func Xchguintptr(addr *uintptr, v uintptr) uintptr {
 	return uintptr(Xchg((*uint32)(unsafe.Pointer(addr)), uint32(v)))
 }
 
-//go:nosplit
-func Load(addr *uint32) uint32 {
-	return Xadd(addr, 0)
-}
+// Not noescape -- it installs a pointer to addr.
+func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer)
 
-// Should be a built-in for unsafe.Pointer?
-//go:nosplit
-func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(p) + x)
-}
+//go:noescape
+func Store(addr *uint32, v uint32)
 
 //go:nosplit
-func Loadp(addr unsafe.Pointer) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(Xadd((*uint32)(addr), 0)))
-}
-
-//go:nosplit
-func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer) {
-	for {
-		old := *(*unsafe.Pointer)(addr)
-		if Casp1((*unsafe.Pointer)(addr), old, v) {
-			return
-		}
-	}
-}
-
-//go:nosplit
-func Store(addr *uint32, v uint32) {
-	for {
-		old := *addr
-		if Cas(addr, old, v) {
-			return
-		}
-	}
-}
-
-//go:nosplit
-func Cas64(addr *uint64, old, new uint64) bool {
+func goCas64(addr *uint64, old, new uint64) bool {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
@@ -121,7 +91,7 @@ func Cas64(addr *uint64, old, new uint64) bool {
 }
 
 //go:nosplit
-func Xadd64(addr *uint64, delta int64) uint64 {
+func goXadd64(addr *uint64, delta int64) uint64 {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
@@ -135,7 +105,7 @@ func Xadd64(addr *uint64, delta int64) uint64 {
 }
 
 //go:nosplit
-func Xchg64(addr *uint64, v uint64) uint64 {
+func goXchg64(addr *uint64, v uint64) uint64 {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
@@ -149,7 +119,7 @@ func Xchg64(addr *uint64, v uint64) uint64 {
 }
 
 //go:nosplit
-func Load64(addr *uint64) uint64 {
+func goLoad64(addr *uint64) uint64 {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
@@ -162,7 +132,7 @@ func Load64(addr *uint64) uint64 {
 }
 
 //go:nosplit
-func Store64(addr *uint64, v uint64) {
+func goStore64(addr *uint64, v uint64) {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
@@ -204,3 +174,24 @@ func And8(addr *uint8, v uint8) {
 
 //go:nosplit
 func armcas(ptr *uint32, old, new uint32) bool
+
+//go:noescape
+func Load(addr *uint32) uint32
+
+//go:noescape
+func Loadp(addr unsafe.Pointer) unsafe.Pointer
+
+//go:noescape
+func Cas64(addr *uint64, old, new uint64) bool
+
+//go:noescape
+func Xadd64(addr *uint64, delta int64) uint64
+
+//go:noescape
+func Xchg64(addr *uint64, v uint64) uint64
+
+//go:noescape
+func Load64(addr *uint64) uint64
+
+//go:noescape
+func Store64(addr *uint64, v uint64)

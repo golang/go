@@ -230,6 +230,27 @@ def makematcher(klass):
 
 goobjfile.pretty_printers.extend([makematcher(var) for var in vars().values() if hasattr(var, 'pattern')])
 
+
+#
+#  Utilities
+#
+
+def pc_to_int(pc):
+	# python2 will not cast pc (type void*) to an int cleanly
+	# instead python2 and python3 work with the hex string representation
+	# of the void pointer which we can parse back into an int.
+	# int(pc) will not work.
+	try:
+		# python3 / newer versions of gdb
+		pc = int(pc)
+	except gdb.error:
+		# str(pc) can return things like
+		# "0x429d6c <runtime.gopark+284>", so
+		# chop at first space.
+		pc = int(str(pc).split(None, 1)[0], 16)
+	return pc
+
+
 #
 #  For reference, this is what we're trying to do:
 #  eface: p *(*(struct 'runtime.rtype'*)'main.e'->type_->data)->string
@@ -424,18 +445,7 @@ class GoroutinesCmd(gdb.Command):
 			if ptr['m']:
 				s = '*'
 			pc = ptr['sched']['pc'].cast(vp)
-			# python2 will not cast pc (type void*) to an int cleanly
-			# instead python2 and python3 work with the hex string representation
-			# of the void pointer which we can parse back into an int.
-			# int(pc) will not work.
-			try:
-				#python3 / newer versions of gdb
-				pc = int(pc)
-			except gdb.error:
-				# str(pc) can return things like
-				# "0x429d6c <runtime.gopark+284>", so
-				# chop at first space.
-				pc = int(str(pc).split(None, 1)[0], 16)
+			pc = pc_to_int(pc)
 			blk = gdb.block_for_pc(pc)
 			status = int(ptr['atomicstatus'])
 			st = sts.get(status, "unknown(%d)" % status)
@@ -445,7 +455,7 @@ class GoroutinesCmd(gdb.Command):
 def find_goroutine(goid):
 	"""
 	find_goroutine attempts to find the goroutine identified by goid.
-	It returns a touple of gdv.Value's representing the stack pointer
+	It returns a tuple of gdb.Value's representing the stack pointer
 	and program counter pointer for the goroutine.
 
 	@param int goid
@@ -514,11 +524,7 @@ class GoroutineCmd(gdb.Command):
 		if not pc:
 			print("No such goroutine: ", goid)
 			return
-		try:
-			#python3 / newer versions of gdb
-			pc = int(pc)
-		except gdb.error:
-			pc = int(str(pc).split(None, 1)[0], 16)
+		pc = pc_to_int(pc)
 		save_frame = gdb.selected_frame()
 		gdb.parse_and_eval('$save_sp = $sp')
 		gdb.parse_and_eval('$save_pc = $pc')

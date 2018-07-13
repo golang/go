@@ -310,6 +310,7 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 				check.recordDef(ident, obj)
 			}
 		} else {
+			check.expr(&operand{}, lhs)
 			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
 		}
 		if obj == nil {

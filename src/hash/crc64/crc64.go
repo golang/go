@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package crc64 implements the 64-bit cyclic redundancy check, or CRC-64,
-// checksum. See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for
+// checksum. See https://en.wikipedia.org/wiki/Cyclic_redundancy_check for
 // information.
 package crc64
 

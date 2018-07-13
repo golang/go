@@ -63,9 +63,10 @@ type Link struct {
 	IsELF    bool
 	HeadType objabi.HeadType
 
-	linkShared bool // link against installed Go shared libraries
-	LinkMode   LinkMode
-	BuildMode  BuildMode
+	linkShared    bool // link against installed Go shared libraries
+	LinkMode      LinkMode
+	BuildMode     BuildMode
+	compressDWARF bool
 
 	Tlsg         *sym.Symbol
 	Libdir       []string
@@ -81,6 +82,36 @@ type Link struct {
 	PackageShlib map[string]string
 
 	tramps []*sym.Symbol // trampolines
+
+	// unresolvedSymSet is a set of erroneous unresolved references.
+	// Used to avoid duplicated error messages.
+	unresolvedSymSet map[unresolvedSymKey]bool
+
+	// Used to implement field tracking.
+	Reachparent map[*sym.Symbol]*sym.Symbol
+}
+
+type unresolvedSymKey struct {
+	from *sym.Symbol // Symbol that referenced unresolved "to"
+	to   *sym.Symbol // Unresolved symbol referenced by "from"
+}
+
+// ErrorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
+func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
+	if ctxt.unresolvedSymSet == nil {
+		ctxt.unresolvedSymSet = make(map[unresolvedSymKey]bool)
+	}
+
+	k := unresolvedSymKey{from: s, to: r.Sym}
+	if !ctxt.unresolvedSymSet[k] {
+		ctxt.unresolvedSymSet[k] = true
+		// Give a special error message for main symbol (see #24809).
+		if r.Sym.Name == "main.main" {
+			Errorf(s, "function main is undeclared in the main package")
+		} else {
+			Errorf(s, "relocation target %s not defined", r.Sym.Name)
+		}
+	}
 }
 
 // The smallest possible offset from the hardware stack pointer to a local

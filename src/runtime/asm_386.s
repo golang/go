@@ -132,7 +132,7 @@ bad_proc: // show that the program requires MMX.
 	CALL	runtime·write(SB)
 	MOVL	$1, 0(SP)
 	CALL	runtime·exit(SB)
-	INT	$3
+	CALL	runtime·abort(SB)
 
 has_cpuid:
 	MOVL	$0, AX
@@ -164,71 +164,6 @@ notintel:
 	TESTL	$(1<<23), DX // MMX
 	JZ	bad_proc
 
-	TESTL	$(1<<26), DX // SSE2
-	SETNE	runtime·support_sse2(SB)
-
-	TESTL	$(1<<9), DI // SSSE3
-	SETNE	runtime·support_ssse3(SB)
-
-	TESTL	$(1<<19), DI // SSE4.1
-	SETNE	runtime·support_sse41(SB)
-
-	TESTL	$(1<<20), DI // SSE4.2
-	SETNE	runtime·support_sse42(SB)
-
-	TESTL	$(1<<23), DI // POPCNT
-	SETNE	runtime·support_popcnt(SB)
-
-	TESTL	$(1<<25), DI // AES
-	SETNE	runtime·support_aes(SB)
-
-	TESTL	$(1<<27), DI // OSXSAVE
-	SETNE	runtime·support_osxsave(SB)
-
-	// If OS support for XMM and YMM is not present
-	// support_avx will be set back to false later.
-	TESTL	$(1<<28), DI // AVX
-	SETNE	runtime·support_avx(SB)
-
-eax7:
-	// Load EAX=7/ECX=0 cpuid flags
-	CMPL	SI, $7
-	JLT	osavx
-	MOVL	$7, AX
-	MOVL	$0, CX
-	CPUID
-
-	TESTL	$(1<<3), BX // BMI1
-	SETNE	runtime·support_bmi1(SB)
-
-	// If OS support for XMM and YMM is not present
-	// support_avx2 will be set back to false later.
-	TESTL	$(1<<5), BX
-	SETNE	runtime·support_avx2(SB)
-
-	TESTL	$(1<<8), BX // BMI2
-	SETNE	runtime·support_bmi2(SB)
-
-	TESTL	$(1<<9), BX // ERMS
-	SETNE	runtime·support_erms(SB)
-
-osavx:
-	// nacl does not support XGETBV to test
-	// for XMM and YMM OS support.
-#ifndef GOOS_nacl
-	CMPB	runtime·support_osxsave(SB), $1
-	JNE	noavx
-	MOVL	$0, CX
-	// For XGETBV, OSXSAVE bit is required and sufficient
-	XGETBV
-	ANDL	$6, AX
-	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
-	JE nocpuinfo
-#endif
-noavx:
-	MOVB $0, runtime·support_avx(SB)
-	MOVB $0, runtime·support_avx2(SB)
-
 nocpuinfo:
 	// if there is an _cgo_init, call it to let it
 	// initialize and to set up GS.  if not,
@@ -255,6 +190,10 @@ nocpuinfo:
 needtls:
 #ifdef GOOS_plan9
 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
+	JMP	ok
+#endif
+#ifdef GOOS_darwin
+	// skip runtime·ldt0setup(SB) on Darwin
 	JMP	ok
 #endif
 
@@ -306,7 +245,7 @@ ok:
 	// start this M
 	CALL	runtime·mstart(SB)
 
-	INT $3
+	CALL	runtime·abort(SB)
 	RET
 
 DATA	bad_proc_msg<>+0x00(SB)/8, $"This pro"
@@ -479,6 +418,7 @@ bad:
 	// Hide call from linker nosplit analysis.
 	MOVL	$runtime·badsystemstack(SB), AX
 	CALL	AX
+	INT	$3
 
 /*
  * support for morestack
@@ -499,14 +439,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	CMPL	g(CX), SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackg0(SB)
-	INT	$3
+	CALL	runtime·abort(SB)
 
 	// Cannot grow signal stack.
 	MOVL	m_gsignal(BX), SI
 	CMPL	g(CX), SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackgsignal(SB)
-	INT	$3
+	CALL	runtime·abort(SB)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -533,7 +473,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVL	-4(AX), BX	// fault if CALL would, before smashing SP
 	MOVL	AX, SP
 	CALL	runtime·newstack(SB)
-	MOVL	$0, 0x1003	// crash if newstack returns
+	CALL	runtime·abort(SB)	// crash if newstack returns
 	RET
 
 TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
@@ -721,10 +661,14 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	// come in on the m->g0 stack already.
 	get_tls(CX)
 	MOVL	g(CX), BP
+	CMPL	BP, $0
+	JEQ	nosave	// Don't even have a G yet.
 	MOVL	g_m(BP), BP
 	MOVL	m_g0(BP), SI
 	MOVL	g(CX), DI
 	CMPL	SI, DI
+	JEQ	noswitch
+	CMPL	DI, m_gsignal(BP)
 	JEQ	noswitch
 	CALL	gosave<>(SB)
 	get_tls(CX)
@@ -750,6 +694,18 @@ noswitch:
 	MOVL	DI, g(CX)
 	MOVL	SI, SP
 
+	MOVL	AX, ret+8(FP)
+	RET
+nosave:
+	// Now on a scheduling stack (a pthread-created stack).
+	SUBL	$32, SP
+	ANDL	$~15, SP	// alignment, perhaps unnecessary
+	MOVL	DX, 4(SP)	// save original stack pointer
+	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
+	CALL	AX
+
+	MOVL	4(SP), CX	// restore original stack pointer
+	MOVL	CX, SP
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -906,16 +862,21 @@ TEXT setg_gcc<>(SB), NOSPLIT, $0
 	MOVL	DX, g(AX)
 	RET
 
+TEXT runtime·abort(SB),NOSPLIT,$0-0
+	INT	$3
+loop:
+	JMP	loop
+
 // check that SP is in range [g->stack.lo, g->stack.hi)
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	get_tls(CX)
 	MOVL	g(CX), AX
 	CMPL	(g_stack+stack_hi)(AX), SP
 	JHI	2(PC)
-	INT	$3
+	CALL	runtime·abort(SB)
 	CMPL	SP, (g_stack+stack_lo)(AX)
 	JHI	2(PC)
-	INT	$3
+	CALL	runtime·abort(SB)
 	RET
 
 // func cputicks() int64
@@ -924,10 +885,10 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	JNE	done
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
 	JNE	mfence
-	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
+	LFENCE
 	JMP	done
 mfence:
-	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
+	MFENCE
 done:
 	RDTSC
 	MOVL	AX, ret_lo+0(FP)

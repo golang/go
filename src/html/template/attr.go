@@ -13,9 +13,9 @@ import (
 // other content, or affects the contents, idempotency, or credentials of a
 // network message, then the value in this map is contentTypeUnsafe.
 // This map is derived from HTML5, specifically
-// http://www.w3.org/TR/html5/Overview.html#attributes-1
+// https://www.w3.org/TR/html5/Overview.html#attributes-1
 // as well as "%URI"-typed attributes from
-// http://www.w3.org/TR/html4/index/attributes.html
+// https://www.w3.org/TR/html4/index/attributes.html
 var attrTypeMap = map[string]contentType{
 	"accept":          contentTypePlain,
 	"accept-charset":  contentTypeUnsafe,
@@ -90,7 +90,7 @@ var attrTypeMap = map[string]contentType{
 	"name":            contentTypePlain,
 	"novalidate":      contentTypeUnsafe,
 	// Skip handler names from
-	// http://www.w3.org/TR/html5/webappapis.html#event-handlers-on-elements,-document-objects,-and-window-objects
+	// https://www.w3.org/TR/html5/webappapis.html#event-handlers-on-elements,-document-objects,-and-window-objects
 	// since we have special handling in attrType.
 	"open":        contentTypePlain,
 	"optimum":     contentTypePlain,
@@ -160,7 +160,7 @@ func attrType(name string) contentType {
 
 	// Heuristics to prevent "javascript:..." injection in custom
 	// data attributes and custom attributes like g:tweetUrl.
-	// http://www.w3.org/TR/html5/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes
+	// https://www.w3.org/TR/html5/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes
 	// "Custom data attributes are intended to store custom data
 	//  private to the page or application, for which there are no
 	//  more appropriate attributes or elements."

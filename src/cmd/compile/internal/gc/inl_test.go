@@ -49,6 +49,7 @@ func TestIntendedInlining(t *testing.T) {
 			"fastrand",
 			"float64bits",
 			"funcPC",
+			"getArgInfoFast",
 			"getm",
 			"isDirectIface",
 			"itabHashFunc",
@@ -59,7 +60,7 @@ func TestIntendedInlining(t *testing.T) {
 			"releasem",
 			"round",
 			"roundupsize",
-			"selectsize",
+			"stackmapdata",
 			"stringStructOf",
 			"subtract1",
 			"subtractb",
@@ -132,6 +133,9 @@ func TestIntendedInlining(t *testing.T) {
 		},
 		"regexp": {
 			"(*bitState).push",
+		},
+		"math/big": {
+			"bigEndianWord",
 		},
 	}
 

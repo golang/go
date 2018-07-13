@@ -116,7 +116,7 @@ const (
 // license that can be found in the LICENSE file.
 
 // PE (Portable Executable) file writing
-// http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+// https://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
@@ -395,6 +395,7 @@ type peFile struct {
 	sections       []*peSection
 	stringTable    peStringTable
 	textSect       *peSection
+	rdataSect      *peSection
 	dataSect       *peSection
 	bssSect        *peSection
 	ctorsSect      *peSection
@@ -526,7 +527,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 			if sym.Value >= int64(eaddr) {
 				break
 			}
-			for ri := 0; ri < len(sym.R); ri++ {
+			for ri := range sym.R {
 				r := &sym.R[ri]
 				if r.Done {
 					continue
@@ -538,7 +539,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 				if r.Xsym.Dynid < 0 {
 					Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 				}
-				if !Thearch.PEreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
+				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
 					Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 				}
 				relocs++
@@ -548,21 +549,24 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		return relocs
 	}
 
-	f.textSect.emitRelocations(ctxt.Out, func() int {
-		n := relocsect(Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
-		for _, sect := range Segtext.Sections[1:] {
-			n += relocsect(sect, datap, Segtext.Vaddr)
-		}
-		return n
-	})
-
-	f.dataSect.emitRelocations(ctxt.Out, func() int {
-		var n int
-		for _, sect := range Segdata.Sections {
-			n += relocsect(sect, datap, Segdata.Vaddr)
-		}
-		return n
-	})
+	sects := []struct {
+		peSect *peSection
+		seg    *sym.Segment
+		syms   []*sym.Symbol
+	}{
+		{f.textSect, &Segtext, ctxt.Textp},
+		{f.rdataSect, &Segrodata, datap},
+		{f.dataSect, &Segdata, datap},
+	}
+	for _, s := range sects {
+		s.peSect.emitRelocations(ctxt.Out, func() int {
+			var n int
+			for _, sect := range s.seg.Sections {
+				n += relocsect(sect, s.syms, s.seg.Vaddr)
+			}
+			return n
+		})
+	}
 
 dwarfLoop:
 	for _, sect := range Segdwarf.Sections {
@@ -622,8 +626,11 @@ func (f *peFile) mapToPESection(s *sym.Symbol, linkmode LinkMode) (pesectidx int
 	if s.Sect.Seg == &Segtext {
 		return f.textSect.index, int64(uint64(s.Value) - Segtext.Vaddr), nil
 	}
+	if s.Sect.Seg == &Segrodata {
+		return f.rdataSect.index, int64(uint64(s.Value) - Segrodata.Vaddr), nil
+	}
 	if s.Sect.Seg != &Segdata {
-		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .data section", s.Name)
+		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .rdata or .data section", s.Name)
 	}
 	v := uint64(s.Value) - Segdata.Vaddr
 	if linkmode != LinkExternal {
@@ -838,15 +845,18 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	// and system calls even in "pure" Go code are actually C
 	// calls that may need more stack than we think.
 	//
-	// The default stack reserve size affects only the main
+	// The default stack reserve size directly affects only the main
 	// thread, ctrlhandler thread, and profileloop thread. For
 	// these, it must be greater than the stack size assumed by
 	// externalthreadhandler.
 	//
-	// For other threads we specify stack size in runtime explicitly.
-	// For these, the reserve must match STACKSIZE in
-	// runtime/cgo/gcc_windows_{386,amd64}.c and the correspondent
-	// CreateThread parameter in runtime.newosproc.
+	// For other threads, the runtime explicitly asks the kernel
+	// to use the default stack size so that all stacks are
+	// consistent.
+	//
+	// At thread start, in minit, the runtime queries the OS for
+	// the actual stack bounds so that the stack size doesn't need
+	// to be hard-coded into the runtime.
 	oh64.SizeOfStackReserve = 0x00200000
 	if !iscgo {
 		oh64.SizeOfStackCommit = 0x00001000
@@ -904,7 +914,11 @@ func Peinit(ctxt *Link) {
 	}
 
 	if ctxt.LinkMode == LinkExternal {
-		PESECTALIGN = 0
+		// .rdata section will contain "masks" and "shifts" symbols, and they
+		// need to be aligned to 16-bytes. So make all sections aligned
+		// to 32-byte and mark them all IMAGE_SCN_ALIGN_32BYTES so external
+		// linker will honour that requirement.
+		PESECTALIGN = 32
 		PEFILEALIGN = 0
 	}
 
@@ -975,7 +989,7 @@ func initdynimport(ctxt *Link) *Dll {
 			continue
 		}
 		for d = dr; d != nil; d = d.next {
-			if d.name == s.Dynimplib {
+			if d.name == s.Dynimplib() {
 				m = new(Imp)
 				break
 			}
@@ -983,7 +997,7 @@ func initdynimport(ctxt *Link) *Dll {
 
 		if d == nil {
 			d = new(Dll)
-			d.name = s.Dynimplib
+			d.name = s.Dynimplib()
 			d.next = dr
 			dr = d
 			m = new(Imp)
@@ -1082,9 +1096,8 @@ func addimports(ctxt *Link, datsect *peSection) {
 	}
 
 	// write function names
-	var m *Imp
 	for d := dr; d != nil; d = d.next {
-		for m = d.ms; m != nil; m = m.next {
+		for m := d.ms; m != nil; m = m.next {
 			m.off = uint64(pefile.nextSectOffset) + uint64(ctxt.Out.Offset()) - uint64(startoff)
 			ctxt.Out.Write16(0) // hint
 			strput(ctxt.Out, m.s.Extname)
@@ -1097,7 +1110,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	n = uint64(ctxt.Out.Offset())
 	for d := dr; d != nil; d = d.next {
 		d.thunkoff = uint64(ctxt.Out.Offset()) - n
-		for m = d.ms; m != nil; m = m.next {
+		for m := d.ms; m != nil; m = m.next {
 			if pe64 != 0 {
 				ctxt.Out.Write64(m.off)
 			} else {
@@ -1126,7 +1139,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 
 	ctxt.Out.SeekSet(int64(uint64(datsect.pointerToRawData) + ftbase))
 	for d := dr; d != nil; d = d.next {
-		for m = d.ms; m != nil; m = m.next {
+		for m := d.ms; m != nil; m = m.next {
 			if pe64 != 0 {
 				ctxt.Out.Write64(m.off)
 			} else {
@@ -1287,13 +1300,10 @@ func addpersrc(ctxt *Link) {
 	h.checkOffset(ctxt.Out.Offset())
 
 	// relocation
-	var p []byte
-	var r *sym.Reloc
-	var val uint32
-	for ri := 0; ri < len(rsrcsym.R); ri++ {
-		r = &rsrcsym.R[ri]
-		p = rsrcsym.P[r.Off:]
-		val = uint32(int64(h.virtualAddress) + r.Add)
+	for ri := range rsrcsym.R {
+		r := &rsrcsym.R[ri]
+		p := rsrcsym.P[r.Off:]
+		val := uint32(int64(h.virtualAddress) + r.Add)
 
 		// 32-bit little-endian
 		p[0] = byte(val)
@@ -1328,6 +1338,19 @@ func Asmbpe(ctxt *Link) {
 	}
 	t.checkSegment(&Segtext)
 	pefile.textSect = t
+
+	ro := pefile.addSection(".rdata", int(Segrodata.Length), int(Segrodata.Length))
+	ro.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	if ctxt.LinkMode == LinkExternal {
+		// some data symbols (e.g. masks) end up in the .rdata section, and they normally
+		// expect larger alignment requirement than the default text section alignment.
+		ro.characteristics |= IMAGE_SCN_ALIGN_32BYTES
+	} else {
+		// TODO(brainman): should not need IMAGE_SCN_MEM_EXECUTE, but I do not know why it carshes without it
+		ro.characteristics |= IMAGE_SCN_MEM_EXECUTE
+	}
+	ro.checkSegment(&Segrodata)
+	pefile.rdataSect = ro
 
 	var d *peSection
 	if ctxt.LinkMode != LinkExternal {

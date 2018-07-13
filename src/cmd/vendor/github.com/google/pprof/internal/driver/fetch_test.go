@@ -210,13 +210,20 @@ func TestFetchWithBase(t *testing.T) {
 	baseVars := pprofVariables
 	defer func() { pprofVariables = baseVars }()
 
+	type WantSample struct {
+		values []int64
+		labels map[string][]string
+	}
+
 	const path = "testdata/"
 	type testcase struct {
-		desc            string
-		sources         []string
-		bases           []string
-		normalize       bool
-		expectedSamples [][]int64
+		desc         string
+		sources      []string
+		bases        []string
+		diffBases    []string
+		normalize    bool
+		wantSamples  []WantSample
+		wantErrorMsg string
 	}
 
 	testcases := []testcase{
@@ -224,58 +231,216 @@ func TestFetchWithBase(t *testing.T) {
 			"not normalized base is same as source",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.contention"},
+			nil,
 			false,
-			[][]int64{},
+			nil,
+			"",
+		},
+		{
+			"not normalized base is same as source",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention"},
+			nil,
+			false,
+			nil,
+			"",
 		},
 		{
 			"not normalized single source, multiple base (all profiles same)",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.contention", path + "cppbench.contention"},
+			nil,
 			false,
-			[][]int64{{-2700, -608881724}, {-100, -23992}, {-200, -179943}, {-100, -17778444}, {-100, -75976}, {-300, -63568134}},
+			[]WantSample{
+				{
+					values: []int64{-2700, -608881724},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-100, -23992},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-200, -179943},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-100, -17778444},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-100, -75976},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-300, -63568134},
+					labels: map[string][]string{},
+				},
+			},
+			"",
 		},
 		{
 			"not normalized, different base and source",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.small.contention"},
+			nil,
 			false,
-			[][]int64{{1700, 608878600}, {100, 23992}, {200, 179943}, {100, 17778444}, {100, 75976}, {300, 63568134}},
+			[]WantSample{
+				{
+					values: []int64{1700, 608878600},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 23992},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{200, 179943},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 17778444},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 75976},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{300, 63568134},
+					labels: map[string][]string{},
+				},
+			},
+			"",
 		},
 		{
 			"normalized base is same as source",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.contention"},
+			nil,
 			true,
-			[][]int64{},
+			nil,
+			"",
 		},
 		{
 			"normalized single source, multiple base (all profiles same)",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.contention", path + "cppbench.contention"},
+			nil,
 			true,
-			[][]int64{},
+			nil,
+			"",
 		},
 		{
 			"normalized different base and source",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.small.contention"},
+			nil,
 			true,
-			[][]int64{{-229, -370}, {28, 0}, {57, 0}, {28, 80}, {28, 0}, {85, 287}},
+			[]WantSample{
+				{
+					values: []int64{-229, -370},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{28, 0},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{57, 0},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{28, 80},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{28, 0},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{85, 287},
+					labels: map[string][]string{},
+				},
+			},
+			"",
+		},
+		{
+			"not normalized diff base is same as source",
+			[]string{path + "cppbench.contention"},
+			nil,
+			[]string{path + "cppbench.contention"},
+			false,
+			[]WantSample{
+				{
+					values: []int64{2700, 608881724},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 23992},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{200, 179943},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 17778444},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 75976},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{300, 63568134},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-2700, -608881724},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-100, -23992},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-200, -179943},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-100, -17778444},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-100, -75976},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-300, -63568134},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+			},
+			"",
+		},
+		{
+			"diff_base and base both specified",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention"},
+			false,
+			nil,
+			"-base and -diff_base flags cannot both be specified",
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			pprofVariables = baseVars.makeCopy()
-
-			base := make([]*string, len(tc.bases))
-			for i, s := range tc.bases {
-				base[i] = &s
-			}
-
 			f := testFlags{
-				stringLists: map[string][]*string{
-					"base": base,
+				stringLists: map[string][]string{
+					"base":      tc.bases,
+					"diff_base": tc.diffBases,
 				},
 				bools: map[string]bool{
 					"normalize": tc.normalize,
@@ -283,34 +448,43 @@ func TestFetchWithBase(t *testing.T) {
 			}
 			f.args = tc.sources
 
-			o := setDefaults(nil)
-			o.Flagset = f
+			o := setDefaults(&plugin.Options{
+				UI:      &proftest.TestUI{T: t, AllowRx: "Local symbolization failed|Some binary filenames not available"},
+				Flagset: f,
+			})
 			src, _, err := parseFlags(o)
 
+			if tc.wantErrorMsg != "" {
+				if err == nil {
+					t.Fatalf("got nil, want error %q", tc.wantErrorMsg)
+				}
+
+				if gotErrMsg := err.Error(); gotErrMsg != tc.wantErrorMsg {
+					t.Fatalf("got error %q, want error %q", gotErrMsg, tc.wantErrorMsg)
+				}
+				return
+			}
+
 			if err != nil {
-				t.Fatalf("%s: %v", tc.desc, err)
+				t.Fatalf("got error %q, want no error", err)
 			}
 
 			p, err := fetchProfiles(src, o)
-			pprofVariables = baseVars
+
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("got error %q, want no error", err)
 			}
 
-			if want, got := len(tc.expectedSamples), len(p.Sample); want != got {
-				t.Fatalf("want %d samples got %d", want, got)
+			if got, want := len(p.Sample), len(tc.wantSamples); got != want {
+				t.Fatalf("got %d samples want %d", got, want)
 			}
 
-			if len(p.Sample) > 0 {
-				for i, sample := range p.Sample {
-					if want, got := len(tc.expectedSamples[i]), len(sample.Value); want != got {
-						t.Errorf("want %d values for sample %d, got %d", want, i, got)
-					}
-					for j, value := range sample.Value {
-						if want, got := tc.expectedSamples[i][j], value; want != got {
-							t.Errorf("want value of %d for value %d of sample %d, got %d", want, j, i, got)
-						}
-					}
+			for i, sample := range p.Sample {
+				if !reflect.DeepEqual(tc.wantSamples[i].values, sample.Value) {
+					t.Errorf("for sample %d got values %v, want %v", i, sample.Value, tc.wantSamples[i])
+				}
+				if !reflect.DeepEqual(tc.wantSamples[i].labels, sample.Label) {
+					t.Errorf("for sample %d got labels %v, want %v", i, sample.Label, tc.wantSamples[i].labels)
 				}
 			}
 		})
@@ -359,7 +533,7 @@ func closedError() string {
 }
 
 func TestHttpsInsecure(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		t.Skip("test assumes tcp available")
 	}
 	saveHome := os.Getenv(homeEnv())
@@ -397,18 +571,6 @@ func TestHttpsInsecure(t *testing.T) {
 	}()
 	defer l.Close()
 
-	go func() {
-		deadline := time.Now().Add(5 * time.Second)
-		for time.Now().Before(deadline) {
-			// Simulate a hotspot function. Spin in the inner loop for 100M iterations
-			// to ensure we get most of the samples landed here rather than in the
-			// library calls. We assume Go compiler won't elide the empty loop.
-			for i := 0; i < 1e8; i++ {
-			}
-			runtime.Gosched()
-		}
-	}()
-
 	outputTempFile, err := ioutil.TempFile("", "profile_output")
 	if err != nil {
 		t.Fatalf("Failed to create tempfile: %v", err)
@@ -416,7 +578,7 @@ func TestHttpsInsecure(t *testing.T) {
 	defer os.Remove(outputTempFile.Name())
 	defer outputTempFile.Close()
 
-	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/profile"
+	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/goroutine"
 	s := &source{
 		Sources:   []string{address},
 		Seconds:   10,
@@ -435,29 +597,12 @@ func TestHttpsInsecure(t *testing.T) {
 	if len(p.SampleType) == 0 {
 		t.Fatalf("fetchProfiles(%s) got empty profile: len(p.SampleType)==0", address)
 	}
-	switch runtime.GOOS {
-	case "plan9":
-		// CPU profiling is not supported on Plan9; see golang.org/issues/22564.
-		return
-	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			// CPU profiling on iOS os not symbolized; see golang.org/issues/22612.
-			return
-		}
-	}
 	if len(p.Function) == 0 {
 		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
 	}
-	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); !badSigprofOS[runtime.GOOS] && err != nil {
+	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); err != nil {
 		t.Fatalf("fetchProfiles(%s) %v", address, err)
 	}
-}
-
-// Some operating systems don't trigger the profiling signal right.
-// See https://github.com/golang/go/issues/13841.
-var badSigprofOS = map[string]bool{
-	"darwin": true,
-	"netbsd": true,
 }
 
 func checkProfileHasFunction(p *profile.Profile, fname string) error {

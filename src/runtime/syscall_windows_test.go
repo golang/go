@@ -251,7 +251,37 @@ func TestBlockingCallback(t *testing.T) {
 }
 
 func TestCallbackInAnotherThread(t *testing.T) {
-	// TODO: test a function which calls back in another thread: QueueUserAPC() or CreateThread()
+	d := GetDLL(t, "kernel32.dll")
+
+	f := func(p uintptr) uintptr {
+		return p
+	}
+	r, _, err := d.Proc("CreateThread").Call(0, 0, syscall.NewCallback(f), 123, 0, 0)
+	if r == 0 {
+		t.Fatalf("CreateThread failed: %v", err)
+	}
+	h := syscall.Handle(r)
+	defer syscall.CloseHandle(h)
+
+	switch s, err := syscall.WaitForSingleObject(h, 100); s {
+	case syscall.WAIT_OBJECT_0:
+		break
+	case syscall.WAIT_TIMEOUT:
+		t.Fatal("timeout waiting for thread to exit")
+	case syscall.WAIT_FAILED:
+		t.Fatalf("WaitForSingleObject failed: %v", err)
+	default:
+		t.Fatalf("WaitForSingleObject returns unexpected value %v", s)
+	}
+
+	var ec uint32
+	r, _, err = d.Proc("GetExitCodeThread").Call(uintptr(h), uintptr(unsafe.Pointer(&ec)))
+	if r == 0 {
+		t.Fatalf("GetExitCodeThread failed: %v", err)
+	}
+	if ec != 123 {
+		t.Fatalf("expected 123, but got %d", ec)
+	}
 }
 
 type cbDLLFunc int // int determines number of callback parameters
@@ -924,6 +954,52 @@ uintptr_t cfunc() {
 			t.Fatalf("Bad: insecure load of DLL by base name %q before sysdll registration: %v", name, err)
 		}
 		t.Skip("insecure load of DLL, but expected")
+	}
+}
+
+// Test that C code called via a DLL can use large Windows thread
+// stacks and call back in to Go without crashing. See issue #20975.
+//
+// See also TestBigStackCallbackCgo.
+func TestBigStackCallbackSyscall(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+
+	srcname, err := filepath.Abs("testdata/testprogcgo/bigstack_windows.c")
+	if err != nil {
+		t.Fatal("Abs failed: ", err)
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestBigStackCallback")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	var ok bool
+	proc := dll.MustFindProc("bigStack")
+	cb := syscall.NewCallback(func() uintptr {
+		// Do something interesting to force stack checks.
+		forceStackCopy()
+		ok = true
+		return 0
+	})
+	proc.Call(cb)
+	if !ok {
+		t.Fatalf("callback not called")
 	}
 }
 

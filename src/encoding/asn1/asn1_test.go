@@ -227,7 +227,7 @@ func TestBitStringRightAlign(t *testing.T) {
 type objectIdentifierTest struct {
 	in  []byte
 	ok  bool
-	out []int
+	out ObjectIdentifier // has base type[]int
 }
 
 var objectIdentifierTestData = []objectIdentifierTest{
@@ -428,11 +428,12 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
 	{"optional", fieldParameters{optional: true}},
 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
 	{"application", fieldParameters{application: true, tag: new(int)}},
+	{"private", fieldParameters{private: true, tag: new(int)}},
 	{"optional,explicit", fieldParameters{optional: true, explicit: true, tag: new(int)}},
 	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
 	{"tag:17", fieldParameters{tag: newInt(17)}},
 	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
-	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, 0, false, false}},
+	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{optional: true, explicit: true, application: false, defaultValue: newInt64(42), tag: newInt(17), stringType: 0, timeType: 0, set: false, omitEmpty: false}},
 	{"set", fieldParameters{set: true}},
 }
 
@@ -1079,6 +1080,7 @@ func TestTaggedRawValue(t *testing.T) {
 		{true, []byte{0x30, 3, (ClassContextSpecific << 6) | tag, 1, 1}},
 		{true, []byte{0x30, 3, (ClassContextSpecific << 6) | tag | isCompound, 1, 1}},
 		{false, []byte{0x30, 3, (ClassApplication << 6) | tag | isCompound, 1, 1}},
+		{false, []byte{0x30, 3, (ClassPrivate << 6) | tag | isCompound, 1, 1}},
 	}
 
 	for i, test := range tests {

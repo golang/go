@@ -16,7 +16,7 @@
 // (This is a property not guaranteed by most open source
 // implementations of regular expressions.) For more information
 // about this property, see
-//	http://swtch.com/~rsc/regexp/regexp1.html
+//	https://swtch.com/~rsc/regexp/regexp1.html
 // or any book about automata theory.
 //
 // All characters are UTF-8-encoded code points.
@@ -30,8 +30,8 @@
 // matches of the entire expression. Empty matches abutting a preceding
 // match are ignored. The return value is a slice containing the successive
 // return values of the corresponding non-'All' routine. These routines take
-// an extra integer argument, n; if n >= 0, the function returns at most n
-// matches/submatches.
+// an extra integer argument, n. If n >= 0, the function returns at most n
+// matches/submatches; otherwise, it returns all of them.
 //
 // If 'String' is present, the argument is a string; otherwise it is a slice
 // of bytes; return values are adjusted as appropriate.
@@ -151,7 +151,7 @@ func Compile(expr string) (*Regexp, error) {
 // specifies that the match be chosen to maximize the length of the first
 // subexpression, then the second, and so on from left to right.
 // The POSIX rule is computationally prohibitive and not even well-defined.
-// See http://swtch.com/~rsc/regexp/regexp2.html#posix for details.
+// See https://swtch.com/~rsc/regexp/regexp2.html#posix for details.
 func CompilePOSIX(expr string) (*Regexp, error) {
 	return compile(expr, syntax.POSIX, true)
 }
@@ -636,9 +636,9 @@ func init() {
 	}
 }
 
-// QuoteMeta returns a string that quotes all regular expression metacharacters
+// QuoteMeta returns a string that escapes all regular expression metacharacters
 // inside the argument text; the returned string is a regular expression matching
-// the literal text. For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
+// the literal text.
 func QuoteMeta(s string) string {
 	// A byte loop is correct because all metacharacters are ASCII.
 	var i int

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#undef nil
 #define nil ((void*)0)
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
 
@@ -94,6 +95,16 @@ struct context_arg {
 	uintptr_t Context;
 };
 extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
+
+/*
+ * The argument for the cgo traceback callback. See runtime.SetCgoTraceback.
+ */
+struct cgoTracebackArg {
+	uintptr_t  Context;
+	uintptr_t  SigContext;
+	uintptr_t* Buf;
+	uintptr_t  Max;
+};
 
 /*
  * TSAN support.  This is only useful when building with

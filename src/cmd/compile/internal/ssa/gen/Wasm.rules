@@ -1,0 +1,405 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Lowering arithmetic
+(Add(64|32|16|8|Ptr) x y) -> (I64Add x y)
+(Add(64|32)F x y) -> (F64Add x y)
+
+(Sub(64|32|16|8|Ptr) x y) -> (I64Sub x y)
+(Sub(64|32)F x y) -> (F64Sub x y)
+
+(Mul(64|32|16|8) x y) -> (I64Mul x y)
+(Mul(64|32)F x y) -> (F64Mul x y)
+
+(Div64  x y) -> (I64DivS x y)
+(Div64u x y) -> (I64DivU x y)
+(Div32  x y) -> (I64DivS (SignExt32to64 x) (SignExt32to64 y))
+(Div32u x y) -> (I64DivU (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Div16  x y) -> (I64DivS (SignExt16to64 x) (SignExt16to64 y))
+(Div16u x y) -> (I64DivU (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Div8   x y) -> (I64DivS (SignExt8to64 x) (SignExt8to64 y))
+(Div8u  x y) -> (I64DivU (ZeroExt8to64 x) (ZeroExt8to64 y))
+(Div(64|32)F x y) -> (F64Div x y)
+
+(Mod64  x y) -> (I64RemS x y)
+(Mod64u x y) -> (I64RemU x y)
+(Mod32  x y) -> (I64RemS (SignExt32to64 x) (SignExt32to64 y))
+(Mod32u x y) -> (I64RemU (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Mod16  x y) -> (I64RemS (SignExt16to64 x) (SignExt16to64 y))
+(Mod16u x y) -> (I64RemU (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Mod8   x y) -> (I64RemS (SignExt8to64  x) (SignExt8to64  y))
+(Mod8u  x y) -> (I64RemU (ZeroExt8to64  x) (ZeroExt8to64  y))
+
+(And(64|32|16|8|B) x y) -> (I64And x y)
+
+(Or(64|32|16|8|B) x y) -> (I64Or x y)
+
+(Xor(64|32|16|8) x y) -> (I64Xor x y)
+
+(Neg(64|32|16|8) x) -> (I64Sub (I64Const [0]) x)
+(Neg32F x) -> (F64Neg x)
+(Neg64F x) -> (F64Neg x)
+
+(Com(64|32|16|8) x) -> (I64Xor x (I64Const [-1]))
+
+(Not x) -> (I64Eqz x)
+
+// Lowering pointer arithmetic
+(OffPtr [off] ptr) -> (I64AddConst [off] ptr)
+
+// Lowering extension
+// It is unnecessary to extend loads
+(SignExt32to64        x:(I64Load32S _ _)) -> x
+(SignExt16to(64|32)   x:(I64Load16S _ _)) -> x
+(SignExt8to(64|32|16) x:(I64Load8S  _ _)) -> x
+(ZeroExt32to64        x:(I64Load32U _ _)) -> x
+(ZeroExt16to(64|32)   x:(I64Load16U _ _)) -> x
+(ZeroExt8to(64|32|16) x:(I64Load8U  _ _)) -> x
+(SignExt32to64        x) -> (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
+(SignExt16to(64|32)   x) -> (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
+(SignExt8to(64|32|16) x) -> (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
+(ZeroExt32to64        x) -> (I64ShrU (I64Shl x (I64Const [32])) (I64Const [32]))
+(ZeroExt16to(64|32)   x) -> (I64ShrU (I64Shl x (I64Const [48])) (I64Const [48]))
+(ZeroExt8to(64|32|16) x) -> (I64ShrU (I64Shl x (I64Const [56])) (I64Const [56]))
+
+(Slicemask x) -> (I64ShrS (I64Sub (I64Const [0]) x) (I64Const [63]))
+
+// Lowering truncation
+// Because we ignore the high parts, truncates are just copies.
+(Trunc64to(32|16|8) x) -> x
+(Trunc32to(16|8)    x) -> x
+(Trunc16to8         x) -> x
+
+// Lowering float <-> int
+(Cvt32to32F x) -> (LoweredRound32F (F64ConvertSI64 (SignExt32to64 x)))
+(Cvt32to64F x) -> (F64ConvertSI64 (SignExt32to64 x))
+(Cvt64to32F x) -> (LoweredRound32F (F64ConvertSI64 x))
+(Cvt64to64F x) -> (F64ConvertSI64 x)
+(Cvt32Uto32F x) -> (LoweredRound32F (F64ConvertUI64 (ZeroExt32to64 x)))
+(Cvt32Uto64F x) -> (F64ConvertUI64 (ZeroExt32to64 x))
+(Cvt64Uto32F x) -> (LoweredRound32F (F64ConvertUI64 x))
+(Cvt64Uto64F x) -> (F64ConvertUI64 x)
+
+(Cvt32Fto32 x) -> (I64TruncSF64 x)
+(Cvt32Fto64 x) -> (I64TruncSF64 x)
+(Cvt64Fto32 x) -> (I64TruncSF64 x)
+(Cvt64Fto64 x) -> (I64TruncSF64 x)
+(Cvt32Fto32U x) -> (I64TruncUF64 x)
+(Cvt32Fto64U x) -> (I64TruncUF64 x)
+(Cvt64Fto32U x) -> (I64TruncUF64 x)
+(Cvt64Fto64U x) -> (I64TruncUF64 x)
+
+(Cvt32Fto64F x) -> x
+(Cvt64Fto32F x) -> (LoweredRound32F x)
+
+(Round32F x) -> (LoweredRound32F x)
+(Round64F x) -> x
+
+// Lowering shifts
+// Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
+
+(Lsh64x64 x y) -> (Select (I64Shl x y) (I64Const [0]) (I64LtU y (I64Const [64])))
+(Lsh64x32 x y) -> (Lsh64x64 x (ZeroExt32to64 y))
+(Lsh64x16 x y) -> (Lsh64x64 x (ZeroExt16to64 y))
+(Lsh64x8  x y) -> (Lsh64x64 x (ZeroExt8to64  y))
+
+(Lsh32x64 x y) -> (Lsh64x64 x y)
+(Lsh32x32 x y) -> (Lsh64x64 x (ZeroExt32to64 y))
+(Lsh32x16 x y) -> (Lsh64x64 x (ZeroExt16to64 y))
+(Lsh32x8  x y) -> (Lsh64x64 x (ZeroExt8to64  y))
+
+(Lsh16x64 x y) -> (Lsh64x64 x y)
+(Lsh16x32 x y) -> (Lsh64x64 x (ZeroExt32to64 y))
+(Lsh16x16 x y) -> (Lsh64x64 x (ZeroExt16to64 y))
+(Lsh16x8  x y) -> (Lsh64x64 x (ZeroExt8to64  y))
+
+(Lsh8x64  x y) -> (Lsh64x64 x y)
+(Lsh8x32  x y) -> (Lsh64x64 x (ZeroExt32to64 y))
+(Lsh8x16  x y) -> (Lsh64x64 x (ZeroExt16to64 y))
+(Lsh8x8   x y) -> (Lsh64x64 x (ZeroExt8to64  y))
+
+(Rsh64Ux64 x y) -> (Select (I64ShrU x y) (I64Const [0]) (I64LtU y (I64Const [64])))
+(Rsh64Ux32 x y) -> (Rsh64Ux64 x (ZeroExt32to64 y))
+(Rsh64Ux16 x y) -> (Rsh64Ux64 x (ZeroExt16to64 y))
+(Rsh64Ux8  x y) -> (Rsh64Ux64 x (ZeroExt8to64  y))
+
+(Rsh32Ux64 x y) -> (Rsh64Ux64 (ZeroExt32to64 x) y)
+(Rsh32Ux32 x y) -> (Rsh64Ux64 (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Rsh32Ux16 x y) -> (Rsh64Ux64 (ZeroExt32to64 x) (ZeroExt16to64 y))
+(Rsh32Ux8  x y) -> (Rsh64Ux64 (ZeroExt32to64 x) (ZeroExt8to64  y))
+
+(Rsh16Ux64 x y) -> (Rsh64Ux64 (ZeroExt16to64 x) y)
+(Rsh16Ux32 x y) -> (Rsh64Ux64 (ZeroExt16to64 x) (ZeroExt32to64 y))
+(Rsh16Ux16 x y) -> (Rsh64Ux64 (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Rsh16Ux8  x y) -> (Rsh64Ux64 (ZeroExt16to64 x) (ZeroExt8to64  y))
+
+(Rsh8Ux64  x y) -> (Rsh64Ux64 (ZeroExt8to64 x) y)
+(Rsh8Ux32  x y) -> (Rsh64Ux64 (ZeroExt8to64 x) (ZeroExt32to64 y))
+(Rsh8Ux16  x y) -> (Rsh64Ux64 (ZeroExt8to64 x) (ZeroExt16to64 y))
+(Rsh8Ux8   x y) -> (Rsh64Ux64 (ZeroExt8to64 x) (ZeroExt8to64  y))
+
+// Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
+// We implement this by setting the shift value to (width - 1) if the shift value is >= width.
+
+(Rsh64x64 x y) -> (I64ShrS x (Select <typ.Int64> y (I64Const [63]) (I64LtU y (I64Const [64]))))
+(Rsh64x32 x y) -> (Rsh64x64 x (ZeroExt32to64 y))
+(Rsh64x16 x y) -> (Rsh64x64 x (ZeroExt16to64 y))
+(Rsh64x8  x y) -> (Rsh64x64 x (ZeroExt8to64  y))
+
+(Rsh32x64 x y) -> (Rsh64x64 (SignExt32to64 x) y)
+(Rsh32x32 x y) -> (Rsh64x64 (SignExt32to64 x) (ZeroExt32to64 y))
+(Rsh32x16 x y) -> (Rsh64x64 (SignExt32to64 x) (ZeroExt16to64 y))
+(Rsh32x8  x y) -> (Rsh64x64 (SignExt32to64 x) (ZeroExt8to64  y))
+
+(Rsh16x64 x y) -> (Rsh64x64 (SignExt16to64 x) y)
+(Rsh16x32 x y) -> (Rsh64x64 (SignExt16to64 x) (ZeroExt32to64 y))
+(Rsh16x16 x y) -> (Rsh64x64 (SignExt16to64 x) (ZeroExt16to64 y))
+(Rsh16x8  x y) -> (Rsh64x64 (SignExt16to64 x) (ZeroExt8to64  y))
+
+(Rsh8x64 x y)  -> (Rsh64x64 (SignExt8to64 x) y)
+(Rsh8x32 x y)  -> (Rsh64x64 (SignExt8to64 x) (ZeroExt32to64 y))
+(Rsh8x16 x y)  -> (Rsh64x64 (SignExt8to64 x) (ZeroExt16to64 y))
+(Rsh8x8  x y)  -> (Rsh64x64 (SignExt8to64 x) (ZeroExt8to64  y))
+
+// Lowering comparisons
+(Less64  x y) -> (I64LtS x y)
+(Less32  x y) -> (I64LtS (SignExt32to64 x) (SignExt32to64 y))
+(Less16  x y) -> (I64LtS (SignExt16to64 x) (SignExt16to64 y))
+(Less8   x y) -> (I64LtS (SignExt8to64  x) (SignExt8to64  y))
+(Less64U x y) -> (I64LtU x y)
+(Less32U x y) -> (I64LtU (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Less16U x y) -> (I64LtU (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Less8U  x y) -> (I64LtU (ZeroExt8to64  x) (ZeroExt8to64  y))
+(Less64F x y) -> (F64Lt x y)
+(Less32F x y) -> (F64Lt (LoweredRound32F x) (LoweredRound32F y))
+
+(Leq64  x y) -> (I64LeS x y)
+(Leq32  x y) -> (I64LeS (SignExt32to64 x) (SignExt32to64 y))
+(Leq16  x y) -> (I64LeS (SignExt16to64 x) (SignExt16to64 y))
+(Leq8   x y) -> (I64LeS (SignExt8to64  x) (SignExt8to64  y))
+(Leq64U x y) -> (I64LeU x y)
+(Leq32U x y) -> (I64LeU (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Leq16U x y) -> (I64LeU (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Leq8U  x y) -> (I64LeU (ZeroExt8to64  x) (ZeroExt8to64  y))
+(Leq64F x y) -> (F64Le x y)
+(Leq32F x y) -> (F64Le (LoweredRound32F x) (LoweredRound32F y))
+
+(Greater64  x y) -> (I64GtS x y)
+(Greater32  x y) -> (I64GtS (SignExt32to64 x) (SignExt32to64 y))
+(Greater16  x y) -> (I64GtS (SignExt16to64 x) (SignExt16to64 y))
+(Greater8   x y) -> (I64GtS (SignExt8to64  x) (SignExt8to64  y))
+(Greater64U x y) -> (I64GtU x y)
+(Greater32U x y) -> (I64GtU (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Greater16U x y) -> (I64GtU (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Greater8U  x y) -> (I64GtU (ZeroExt8to64  x) (ZeroExt8to64  y))
+(Greater64F x y) -> (F64Gt x y)
+(Greater32F x y) -> (F64Gt (LoweredRound32F x) (LoweredRound32F y))
+
+(Geq64  x y) -> (I64GeS x y)
+(Geq32  x y) -> (I64GeS (SignExt32to64 x) (SignExt32to64 y))
+(Geq16  x y) -> (I64GeS (SignExt16to64 x) (SignExt16to64 y))
+(Geq8   x y) -> (I64GeS (SignExt8to64  x) (SignExt8to64  y))
+(Geq64U x y) -> (I64GeU x y)
+(Geq32U x y) -> (I64GeU (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Geq16U x y) -> (I64GeU (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Geq8U  x y) -> (I64GeU (ZeroExt8to64  x) (ZeroExt8to64  y))
+(Geq64F x y) -> (F64Ge x y)
+(Geq32F x y) -> (F64Ge (LoweredRound32F x) (LoweredRound32F y))
+
+(Eq64  x y) -> (I64Eq x y)
+(Eq32  x y) -> (I64Eq (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Eq16  x y) -> (I64Eq (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Eq8   x y) -> (I64Eq (ZeroExt8to64  x) (ZeroExt8to64  y))
+(EqB   x y) -> (I64Eq x y)
+(EqPtr x y) -> (I64Eq x y)
+(Eq64F x y) -> (F64Eq x y)
+(Eq32F x y) -> (F64Eq (LoweredRound32F x) (LoweredRound32F y))
+
+(Neq64  x y) -> (I64Ne x y)
+(Neq32  x y) -> (I64Ne (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Neq16  x y) -> (I64Ne (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Neq8   x y) -> (I64Ne (ZeroExt8to64  x) (ZeroExt8to64  y))
+(NeqB   x y) -> (I64Ne x y)
+(NeqPtr x y) -> (I64Ne x y)
+(Neq64F x y) -> (F64Ne x y)
+(Neq32F x y) -> (F64Ne (LoweredRound32F x) (LoweredRound32F y))
+
+// Lowering loads
+(Load <t> ptr mem) && is32BitFloat(t) -> (F32Load ptr mem)
+(Load <t> ptr mem) && is64BitFloat(t) -> (F64Load ptr mem)
+(Load <t> ptr mem) && t.Size() == 8 -> (I64Load ptr mem)
+(Load <t> ptr mem) && t.Size() == 4 && !t.IsSigned() -> (I64Load32U ptr mem)
+(Load <t> ptr mem) && t.Size() == 4 &&  t.IsSigned() -> (I64Load32S ptr mem)
+(Load <t> ptr mem) && t.Size() == 2 && !t.IsSigned() -> (I64Load16U ptr mem)
+(Load <t> ptr mem) && t.Size() == 2 &&  t.IsSigned() -> (I64Load16S ptr mem)
+(Load <t> ptr mem) && t.Size() == 1 && !t.IsSigned() -> (I64Load8U ptr mem)
+(Load <t> ptr mem) && t.Size() == 1 &&  t.IsSigned() -> (I64Load8S ptr mem)
+
+// Lowering stores
+(Store {t} ptr val mem) && is64BitFloat(t.(*types.Type)) -> (F64Store ptr val mem)
+(Store {t} ptr val mem) && is32BitFloat(t.(*types.Type)) -> (F32Store ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 -> (I64Store ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 -> (I64Store32 ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 2 -> (I64Store16 ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 1 -> (I64Store8 ptr val mem)
+
+// Lowering moves
+(Move [0] _ _ mem) -> mem
+(Move [1] dst src mem) -> (I64Store8 dst (I64Load8U src mem) mem)
+(Move [2] dst src mem) -> (I64Store16 dst (I64Load16U src mem) mem)
+(Move [4] dst src mem) -> (I64Store32 dst (I64Load32U src mem) mem)
+(Move [8] dst src mem) -> (I64Store dst (I64Load src mem) mem)
+(Move [16] dst src mem) ->
+	(I64Store [8] dst (I64Load [8] src mem)
+		(I64Store dst (I64Load src mem) mem))
+(Move [3] dst src mem) ->
+	(I64Store8 [2] dst (I64Load8U [2] src mem)
+		(I64Store16 dst (I64Load16U src mem) mem))
+(Move [5] dst src mem) ->
+	(I64Store8 [4] dst (I64Load8U [4] src mem)
+		(I64Store32 dst (I64Load32U src mem) mem))
+(Move [6] dst src mem) ->
+	(I64Store16 [4] dst (I64Load16U [4] src mem)
+		(I64Store32 dst (I64Load32U src mem) mem))
+(Move [7] dst src mem) ->
+	(I64Store32 [3] dst (I64Load32U [3] src mem)
+		(I64Store32 dst (I64Load32U src mem) mem))
+(Move [s] dst src mem) && s > 8 && s < 16 ->
+	(I64Store [s-8] dst (I64Load [s-8] src mem)
+		(I64Store dst (I64Load src mem) mem))
+
+// Adjust moves to be a multiple of 16 bytes.
+(Move [s] dst src mem)
+	&& s > 16 && s%16 != 0 && s%16 <= 8 ->
+	(Move [s-s%16]
+		(OffPtr <dst.Type> dst [s%16])
+		(OffPtr <src.Type> src [s%16])
+		(I64Store dst (I64Load src mem) mem))
+(Move [s] dst src mem)
+	&& s > 16 && s%16 != 0 && s%16 > 8 ->
+	(Move [s-s%16]
+		(OffPtr <dst.Type> dst [s%16])
+		(OffPtr <src.Type> src [s%16])
+		(I64Store [8] dst (I64Load [8] src mem)
+			(I64Store dst (I64Load src mem) mem)))
+
+// Large copying uses helper.
+(Move [s] dst src mem) && s%8 == 0 ->
+	(LoweredMove [s/8] dst src mem)
+
+// Lowering Zero instructions
+(Zero [0] _ mem) -> mem
+(Zero [1] destptr mem) -> (I64Store8 destptr (I64Const [0]) mem)
+(Zero [2] destptr mem) -> (I64Store16 destptr (I64Const [0]) mem)
+(Zero [4] destptr mem) -> (I64Store32 destptr (I64Const [0]) mem)
+(Zero [8] destptr mem) -> (I64Store destptr (I64Const [0]) mem)
+
+(Zero [3] destptr mem) ->
+	(I64Store8 [2] destptr (I64Const [0])
+		(I64Store16 destptr (I64Const [0]) mem))
+(Zero [5] destptr mem) ->
+	(I64Store8 [4] destptr (I64Const [0])
+		(I64Store32 destptr (I64Const [0]) mem))
+(Zero [6] destptr mem) ->
+	(I64Store16 [4] destptr (I64Const [0])
+		(I64Store32 destptr (I64Const [0]) mem))
+(Zero [7] destptr mem) ->
+	(I64Store32 [3] destptr (I64Const [0])
+		(I64Store32 destptr (I64Const [0]) mem))
+
+// Strip off any fractional word zeroing.
+(Zero [s] destptr mem) && s%8 != 0 && s > 8 ->
+	(Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
+		(I64Store destptr (I64Const [0]) mem))
+
+// Zero small numbers of words directly.
+(Zero [16] destptr mem) ->
+	(I64Store [8] destptr (I64Const [0])
+		(I64Store destptr (I64Const [0]) mem))
+(Zero [24] destptr mem) ->
+	(I64Store [16] destptr (I64Const [0])
+		(I64Store [8] destptr (I64Const [0])
+			(I64Store destptr (I64Const [0]) mem)))
+(Zero [32] destptr mem) ->
+	(I64Store [24] destptr (I64Const [0])
+		(I64Store [16] destptr (I64Const [0])
+			(I64Store [8] destptr (I64Const [0])
+				(I64Store destptr (I64Const [0]) mem))))
+
+// Large zeroing uses helper.
+(Zero [s] destptr mem) && s%8 == 0 && s > 32 ->
+	(LoweredZero [s/8] destptr mem)
+
+// Lowering constants
+(Const(64|32|16|8) [val]) -> (I64Const [val])
+(Const(64|32)F [val]) -> (F64Const [val])
+(ConstNil) -> (I64Const [0])
+(ConstBool [b]) -> (I64Const [b])
+
+// Lowering calls
+(StaticCall [argwid] {target} mem) -> (LoweredStaticCall [argwid] {target} mem)
+(ClosureCall [argwid] entry closure mem) -> (LoweredClosureCall [argwid] entry closure mem)
+(InterCall [argwid] entry mem) -> (LoweredInterCall [argwid] entry mem)
+
+// Miscellaneous
+(Convert <t> x mem) -> (LoweredConvert <t> x mem)
+(IsNonNil p) -> (I64Eqz (I64Eqz p))
+(IsInBounds idx len) -> (I64LtU idx len)
+(IsSliceInBounds idx len) -> (I64LeU idx len)
+(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+(GetClosurePtr) -> (LoweredGetClosurePtr)
+(GetCallerPC) -> (LoweredGetCallerPC)
+(GetCallerSP) -> (LoweredGetCallerSP)
+(Addr {sym} base) -> (LoweredAddr {sym} base)
+(LocalAddr {sym} base _) -> (LoweredAddr {sym} base)
+
+// Write barrier.
+(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
+// --- Optimizations ---
+(I64Add (I64Const [x]) (I64Const [y])) -> (I64Const [x + y])
+(I64Mul (I64Const [x]) (I64Const [y])) -> (I64Const [x * y])
+(I64And (I64Const [x]) (I64Const [y])) -> (I64Const [x & y])
+(I64Or  (I64Const [x]) (I64Const [y])) -> (I64Const [x | y])
+(I64Xor (I64Const [x]) (I64Const [y])) -> (I64Const [x ^ y])
+(F64Add (F64Const [x]) (F64Const [y])) -> (F64Const [f2i(i2f(x) + i2f(y))])
+(F64Mul (F64Const [x]) (F64Const [y])) -> (F64Const [f2i(i2f(x) * i2f(y))])
+(I64Eq  (I64Const [x]) (I64Const [y])) && x == y -> (I64Const [1])
+(I64Eq  (I64Const [x]) (I64Const [y])) && x != y -> (I64Const [0])
+(I64Ne  (I64Const [x]) (I64Const [y])) && x == y -> (I64Const [0])
+(I64Ne  (I64Const [x]) (I64Const [y])) && x != y -> (I64Const [1])
+
+(I64Shl (I64Const [x]) (I64Const [y])) -> (I64Const [x << uint64(y)])
+(I64ShrU (I64Const [x]) (I64Const [y])) -> (I64Const [int64(uint64(x) >> uint64(y))])
+(I64ShrS (I64Const [x]) (I64Const [y])) -> (I64Const [x >> uint64(y)])
+
+(I64Add (I64Const [x]) y) -> (I64Add y (I64Const [x]))
+(I64Mul (I64Const [x]) y) -> (I64Mul y (I64Const [x]))
+(I64And (I64Const [x]) y) -> (I64And y (I64Const [x]))
+(I64Or  (I64Const [x]) y) -> (I64Or  y (I64Const [x]))
+(I64Xor (I64Const [x]) y) -> (I64Xor y (I64Const [x]))
+(F64Add (F64Const [x]) y) -> (F64Add y (F64Const [x]))
+(F64Mul (F64Const [x]) y) -> (F64Mul y (F64Const [x]))
+(I64Eq  (I64Const [x]) y) -> (I64Eq y  (I64Const [x]))
+(I64Ne  (I64Const [x]) y) -> (I64Ne y  (I64Const [x]))
+
+(I64Eq x (I64Const [0])) -> (I64Eqz x)
+(I64Ne x (I64Const [0])) -> (I64Eqz (I64Eqz x))
+
+(I64Add x (I64Const [y])) -> (I64AddConst [y] x)
+(I64AddConst [0] x) -> x
+(I64Eqz (I64Eqz (I64Eqz x))) -> (I64Eqz x)
+
+// folding offset into load/store
+((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off] (I64AddConst [off2] ptr) mem)
+	&& isU32Bit(off+off2) ->
+	((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off+off2] ptr mem)
+
+((I64Store|I64Store32|I64Store16|I64Store8) [off] (I64AddConst [off2] ptr) val mem)
+	&& isU32Bit(off+off2) ->
+	((I64Store|I64Store32|I64Store16|I64Store8) [off+off2] ptr val mem)
+
+// folding offset into address
+(I64AddConst [off] (LoweredAddr {sym} [off2] base)) && isU32Bit(off+off2) ->
+	(LoweredAddr {sym} [off+off2] base)

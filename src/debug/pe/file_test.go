@@ -532,3 +532,31 @@ func TestBuildingWindowsGUI(t *testing.T) {
 		t.Fatalf("unexpected OptionalHeader type: have %T, but want *pe.OptionalHeader32 or *pe.OptionalHeader64", oh)
 	}
 }
+
+func TestImportTableInUnknownSection(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows only test")
+	}
+
+	// first we need to find this font driver
+	path, err := exec.LookPath("atmfd.dll")
+	if err != nil {
+		t.Fatalf("unable to locate required file %q in search path: %s", "atmfd.dll", err)
+	}
+
+	f, err := Open(path)
+	if err != nil {
+		t.Error(err)
+	}
+	defer f.Close()
+
+	// now we can extract its imports
+	symbols, err := f.ImportedSymbols()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(symbols) == 0 {
+		t.Fatalf("unable to locate any imported symbols within file %q.", path)
+	}
+}

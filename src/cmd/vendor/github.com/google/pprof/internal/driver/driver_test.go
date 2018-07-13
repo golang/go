@@ -65,6 +65,7 @@ func TestParse(t *testing.T) {
 		{"topproto,lines,cum,hide=mangled[X3]0", "cpu"},
 		{"tree,lines,cum,focus=[24]00", "heap"},
 		{"tree,relative_percentages,cum,focus=[24]00", "heap"},
+		{"tree,lines,cum,show_from=line2", "cpu"},
 		{"callgrind", "cpu"},
 		{"callgrind,call_tree", "cpu"},
 		{"callgrind", "heap"},
@@ -96,114 +97,118 @@ func TestParse(t *testing.T) {
 	baseVars := pprofVariables
 	defer func() { pprofVariables = baseVars }()
 	for _, tc := range testcase {
-		// Reset the pprof variables before processing
-		pprofVariables = baseVars.makeCopy()
+		t.Run(tc.flags+":"+tc.source, func(t *testing.T) {
+			// Reset the pprof variables before processing
+			pprofVariables = baseVars.makeCopy()
 
-		f := baseFlags()
-		f.args = []string{tc.source}
+			testUI := &proftest.TestUI{T: t, AllowRx: "Generating report in|Ignoring local file|expression matched no samples|Interpreted .* as range, not regexp"}
 
-		flags := strings.Split(tc.flags, ",")
+			f := baseFlags()
+			f.args = []string{tc.source}
 
-		// Skip the output format in the first flag, to output to a proto
-		addFlags(&f, flags[1:])
+			flags := strings.Split(tc.flags, ",")
 
-		// Encode profile into a protobuf and decode it again.
-		protoTempFile, err := ioutil.TempFile("", "profile_proto")
-		if err != nil {
-			t.Errorf("cannot create tempfile: %v", err)
-		}
-		defer os.Remove(protoTempFile.Name())
-		defer protoTempFile.Close()
-		f.strings["output"] = protoTempFile.Name()
+			// Skip the output format in the first flag, to output to a proto
+			addFlags(&f, flags[1:])
 
-		if flags[0] == "topproto" {
-			f.bools["proto"] = false
-			f.bools["topproto"] = true
-		}
-
-		// First pprof invocation to save the profile into a profile.proto.
-		o1 := setDefaults(nil)
-		o1.Flagset = f
-		o1.Fetch = testFetcher{}
-		o1.Sym = testSymbolizer{}
-		if err := PProf(o1); err != nil {
-			t.Errorf("%s %q:  %v", tc.source, tc.flags, err)
-			continue
-		}
-		// Reset the pprof variables after the proto invocation
-		pprofVariables = baseVars.makeCopy()
-
-		// Read the profile from the encoded protobuf
-		outputTempFile, err := ioutil.TempFile("", "profile_output")
-		if err != nil {
-			t.Errorf("cannot create tempfile: %v", err)
-		}
-		defer os.Remove(outputTempFile.Name())
-		defer outputTempFile.Close()
-		f.strings["output"] = outputTempFile.Name()
-		f.args = []string{protoTempFile.Name()}
-
-		var solution string
-		// Apply the flags for the second pprof run, and identify name of
-		// the file containing expected results
-		if flags[0] == "topproto" {
-			solution = solutionFilename(tc.source, &f)
-			delete(f.bools, "topproto")
-			f.bools["text"] = true
-		} else {
-			delete(f.bools, "proto")
-			addFlags(&f, flags[:1])
-			solution = solutionFilename(tc.source, &f)
-		}
-		// The add_comment flag is not idempotent so only apply it on the first run.
-		delete(f.strings, "add_comment")
-
-		// Second pprof invocation to read the profile from profile.proto
-		// and generate a report.
-		o2 := setDefaults(nil)
-		o2.Flagset = f
-		o2.Sym = testSymbolizeDemangler{}
-		o2.Obj = new(mockObjTool)
-
-		if err := PProf(o2); err != nil {
-			t.Errorf("%s: %v", tc.source, err)
-		}
-		b, err := ioutil.ReadFile(outputTempFile.Name())
-		if err != nil {
-			t.Errorf("Failed to read profile %s: %v", outputTempFile.Name(), err)
-		}
-
-		// Read data file with expected solution
-		solution = "testdata/" + solution
-		sbuf, err := ioutil.ReadFile(solution)
-		if err != nil {
-			t.Errorf("reading solution file %s: %v", solution, err)
-			continue
-		}
-		if runtime.GOOS == "windows" {
-			sbuf = bytes.Replace(sbuf, []byte("testdata/"), []byte("testdata\\"), -1)
-			sbuf = bytes.Replace(sbuf, []byte("/path/to/"), []byte("\\path\\to\\"), -1)
-		}
-
-		if flags[0] == "svg" {
-			b = removeScripts(b)
-			sbuf = removeScripts(sbuf)
-		}
-
-		if string(b) != string(sbuf) {
-			t.Errorf("diff %s %s", solution, tc.source)
-			d, err := proftest.Diff(sbuf, b)
+			// Encode profile into a protobuf and decode it again.
+			protoTempFile, err := ioutil.TempFile("", "profile_proto")
 			if err != nil {
-				t.Fatalf("diff %s %v", solution, err)
+				t.Errorf("cannot create tempfile: %v", err)
 			}
-			t.Errorf("%s\n%s\n", solution, d)
-			if *updateFlag {
-				err := ioutil.WriteFile(solution, b, 0644)
+			defer os.Remove(protoTempFile.Name())
+			defer protoTempFile.Close()
+			f.strings["output"] = protoTempFile.Name()
+
+			if flags[0] == "topproto" {
+				f.bools["proto"] = false
+				f.bools["topproto"] = true
+			}
+
+			// First pprof invocation to save the profile into a profile.proto.
+			o1 := setDefaults(nil)
+			o1.Flagset = f
+			o1.Fetch = testFetcher{}
+			o1.Sym = testSymbolizer{}
+			o1.UI = testUI
+			if err := PProf(o1); err != nil {
+				t.Fatalf("%s %q:  %v", tc.source, tc.flags, err)
+			}
+			// Reset the pprof variables after the proto invocation
+			pprofVariables = baseVars.makeCopy()
+
+			// Read the profile from the encoded protobuf
+			outputTempFile, err := ioutil.TempFile("", "profile_output")
+			if err != nil {
+				t.Errorf("cannot create tempfile: %v", err)
+			}
+			defer os.Remove(outputTempFile.Name())
+			defer outputTempFile.Close()
+			f.strings["output"] = outputTempFile.Name()
+			f.args = []string{protoTempFile.Name()}
+
+			var solution string
+			// Apply the flags for the second pprof run, and identify name of
+			// the file containing expected results
+			if flags[0] == "topproto" {
+				solution = solutionFilename(tc.source, &f)
+				delete(f.bools, "topproto")
+				f.bools["text"] = true
+			} else {
+				delete(f.bools, "proto")
+				addFlags(&f, flags[:1])
+				solution = solutionFilename(tc.source, &f)
+			}
+			// The add_comment flag is not idempotent so only apply it on the first run.
+			delete(f.strings, "add_comment")
+
+			// Second pprof invocation to read the profile from profile.proto
+			// and generate a report.
+			o2 := setDefaults(nil)
+			o2.Flagset = f
+			o2.Sym = testSymbolizeDemangler{}
+			o2.Obj = new(mockObjTool)
+			o2.UI = testUI
+
+			if err := PProf(o2); err != nil {
+				t.Errorf("%s: %v", tc.source, err)
+			}
+			b, err := ioutil.ReadFile(outputTempFile.Name())
+			if err != nil {
+				t.Errorf("Failed to read profile %s: %v", outputTempFile.Name(), err)
+			}
+
+			// Read data file with expected solution
+			solution = "testdata/" + solution
+			sbuf, err := ioutil.ReadFile(solution)
+			if err != nil {
+				t.Fatalf("reading solution file %s: %v", solution, err)
+			}
+			if runtime.GOOS == "windows" {
+				sbuf = bytes.Replace(sbuf, []byte("testdata/"), []byte("testdata\\"), -1)
+				sbuf = bytes.Replace(sbuf, []byte("/path/to/"), []byte("\\path\\to\\"), -1)
+			}
+
+			if flags[0] == "svg" {
+				b = removeScripts(b)
+				sbuf = removeScripts(sbuf)
+			}
+
+			if string(b) != string(sbuf) {
+				t.Errorf("diff %s %s", solution, tc.source)
+				d, err := proftest.Diff(sbuf, b)
 				if err != nil {
-					t.Errorf("failed to update the solution file %q: %v", solution, err)
+					t.Fatalf("diff %s %v", solution, err)
+				}
+				t.Errorf("%s\n%s\n", solution, d)
+				if *updateFlag {
+					err := ioutil.WriteFile(solution, b, 0644)
+					if err != nil {
+						t.Errorf("failed to update the solution file %q: %v", solution, err)
+					}
 				}
 			}
-		}
+		})
 	}
 }
 
@@ -257,6 +262,9 @@ func solutionFilename(source string, f *testFlags) string {
 	if f.strings["ignore"] != "" || f.strings["tagignore"] != "" {
 		name = append(name, "ignore")
 	}
+	if f.strings["show_from"] != "" {
+		name = append(name, "show_from")
+	}
 	name = addString(name, f, []string{"hide", "show"})
 	if f.strings["unit"] != "minimum" {
 		name = addString(name, f, []string{"unit"})
@@ -280,7 +288,7 @@ type testFlags struct {
 	floats      map[string]float64
 	strings     map[string]string
 	args        []string
-	stringLists map[string][]*string
+	stringLists map[string][]string
 }
 
 func (testFlags) ExtraUsage() string { return "" }
@@ -347,7 +355,12 @@ func (f testFlags) StringVar(p *string, s, d, c string) {
 
 func (f testFlags) StringList(s, d, c string) *[]*string {
 	if t, ok := f.stringLists[s]; ok {
-		return &t
+		// convert slice of strings to slice of string pointers before returning.
+		tp := make([]*string, len(t))
+		for i, v := range t {
+			tp[i] = &v
+		}
+		return &tp
 	}
 	return &[]*string{}
 }

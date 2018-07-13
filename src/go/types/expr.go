@@ -382,7 +382,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		// The respective sub-expressions got their final types
 		// upon assignment or use.
 		if debug {
-			check.dump("%s: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
+			check.dump("%v: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
 			unreachable()
 		}
 		return
@@ -1064,7 +1064,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					break
 				}
 			}
-			typ = check.typ(e.Type)
+			typ = check.typExpr(e.Type, nil, nil)
 			base = typ
 
 		case hint != nil:
@@ -1094,6 +1094,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						continue
 					}
 					key, _ := kv.Key.(*ast.Ident)
+					check.expr(x, kv.Value)
 					if key == nil {
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
 						continue
@@ -1105,15 +1106,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					}
 					fld := fields[i]
 					check.recordUse(key, fld)
+					etyp := fld.typ
+					check.assignment(x, etyp, "struct literal")
 					// 0 <= i < len(fields)
 					if visited[i] {
 						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)
 						continue
 					}
 					visited[i] = true
-					check.expr(x, kv.Value)
-					etyp := fld.typ
-					check.assignment(x, etyp, "struct literal")
 				}
 			} else {
 				// no element must have a key
@@ -1431,7 +1431,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.typ(e.Type)
+		T := check.typExpr(e.Type, nil, nil)
 		if T == Typ[Invalid] {
 			goto Error
 		}

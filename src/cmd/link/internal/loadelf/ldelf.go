@@ -805,7 +805,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		s.Type = sect.sym.Type
 		s.Attr |= sym.AttrSubSymbol
 		if !s.Attr.CgoExportDynamic() {
-			s.Dynimplib = "" // satisfy dynimport
+			s.SetDynimplib("") // satisfy dynimport
 		}
 		s.Value = int64(elfsym.value)
 		s.Size = int64(elfsym.size)
@@ -1048,7 +1048,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				// __i686.get_pc_thunk.bx is allowed to be duplicated, to
 				// workaround that we set dupok.
 				// TODO(minux): correctly handle __i686.get_pc_thunk.bx without
-				// set dupok generally. See http://codereview.appspot.com/5823055/
+				// set dupok generally. See https://golang.org/cl/5823055
 				// comment #5 for details.
 				if s != nil && elfsym.other == 2 {
 					s.Attr |= sym.AttrDuplicateOK | sym.AttrVisibilityHidden

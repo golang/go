@@ -6,11 +6,14 @@
 package pe
 
 import (
+	"bytes"
+	"compress/zlib"
 	"debug/dwarf"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // Avoid use of post-Go 1.4 io features, to make safe for toolchain bootstrap.
@@ -217,29 +220,91 @@ func (f *File) Section(name string) *Section {
 }
 
 func (f *File) DWARF() (*dwarf.Data, error) {
-	// There are many other DWARF sections, but these
-	// are the ones the debug/dwarf package uses.
-	// Don't bother loading others.
-	var names = [...]string{"abbrev", "info", "line", "ranges", "str"}
-	var dat [len(names)][]byte
-	for i, name := range names {
-		name = ".debug_" + name
-		s := f.Section(name)
-		if s == nil {
-			continue
+	dwarfSuffix := func(s *Section) string {
+		switch {
+		case strings.HasPrefix(s.Name, ".debug_"):
+			return s.Name[7:]
+		case strings.HasPrefix(s.Name, ".zdebug_"):
+			return s.Name[8:]
+		default:
+			return ""
 		}
+
+	}
+
+	// sectionData gets the data for s and checks its size.
+	sectionData := func(s *Section) ([]byte, error) {
 		b, err := s.Data()
 		if err != nil && uint32(len(b)) < s.Size {
 			return nil, err
 		}
+
 		if 0 < s.VirtualSize && s.VirtualSize < s.Size {
 			b = b[:s.VirtualSize]
 		}
-		dat[i] = b
+
+		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
+			dlen := binary.BigEndian.Uint64(b[4:12])
+			dbuf := make([]byte, dlen)
+			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
+			if err != nil {
+				return nil, err
+			}
+			if _, err := io.ReadFull(r, dbuf); err != nil {
+				return nil, err
+			}
+			if err := r.Close(); err != nil {
+				return nil, err
+			}
+			b = dbuf
+		}
+		return b, nil
 	}
 
-	abbrev, info, line, ranges, str := dat[0], dat[1], dat[2], dat[3], dat[4]
-	return dwarf.New(abbrev, nil, nil, info, line, nil, ranges, str)
+	// There are many other DWARF sections, but these
+	// are the ones the debug/dwarf package uses.
+	// Don't bother loading others.
+	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
+	for _, s := range f.Sections {
+		suffix := dwarfSuffix(s)
+		if suffix == "" {
+			continue
+		}
+		if _, ok := dat[suffix]; !ok {
+			continue
+		}
+
+		b, err := sectionData(s)
+		if err != nil {
+			return nil, err
+		}
+		dat[suffix] = b
+	}
+
+	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, dat["ranges"], dat["str"])
+	if err != nil {
+		return nil, err
+	}
+
+	// Look for DWARF4 .debug_types sections.
+	for i, s := range f.Sections {
+		suffix := dwarfSuffix(s)
+		if suffix != "types" {
+			continue
+		}
+
+		b, err := sectionData(s)
+		if err != nil {
+			return nil, err
+		}
+
+		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d, nil
 }
 
 // TODO(brainman): document ImportDirectory once we decide what to do with it.
@@ -260,19 +325,59 @@ type ImportDirectory struct {
 // It does not return weak symbols.
 func (f *File) ImportedSymbols() ([]string, error) {
 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
-	ds := f.Section(".idata")
-	if ds == nil {
-		// not dynamic, so no libraries
+
+	// grab the number of data directory entries
+	var dd_length uint32
+	if pe64 {
+		dd_length = f.OptionalHeader.(*OptionalHeader64).NumberOfRvaAndSizes
+	} else {
+		dd_length = f.OptionalHeader.(*OptionalHeader32).NumberOfRvaAndSizes
+	}
+
+	// check that the length of data directory entries is large
+	// enough to include the imports directory.
+	if dd_length < IMAGE_DIRECTORY_ENTRY_IMPORT+1 {
 		return nil, nil
 	}
+
+	// grab the import data directory entry
+	var idd DataDirectory
+	if pe64 {
+		idd = f.OptionalHeader.(*OptionalHeader64).DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
+	} else {
+		idd = f.OptionalHeader.(*OptionalHeader32).DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
+	}
+
+	// figure out which section contains the import directory table
+	var ds *Section
+	ds = nil
+	for _, s := range f.Sections {
+		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress+s.VirtualSize {
+			ds = s
+			break
+		}
+	}
+
+	// didn't find a section, so no import libraries were found
+	if ds == nil {
+		return nil, nil
+	}
+
 	d, err := ds.Data()
 	if err != nil {
 		return nil, err
 	}
+
+	// seek to the virtual address specified in the import data directory
+	d = d[idd.VirtualAddress-ds.VirtualAddress:]
+
+	// start decoding the import directory
 	var ida []ImportDirectory
 	for len(d) > 0 {
 		var dt ImportDirectory
 		dt.OriginalFirstThunk = binary.LittleEndian.Uint32(d[0:4])
+		dt.TimeDateStamp = binary.LittleEndian.Uint32(d[4:8])
+		dt.ForwarderChain = binary.LittleEndian.Uint32(d[8:12])
 		dt.Name = binary.LittleEndian.Uint32(d[12:16])
 		dt.FirstThunk = binary.LittleEndian.Uint32(d[16:20])
 		d = d[20:]
@@ -282,7 +387,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		ida = append(ida, dt)
 	}
 	// TODO(brainman): this needs to be rewritten
-	//  ds.Data() return contets of .idata section. Why store in variable called "names"?
+	//  ds.Data() returns contents of section containing import table. Why store in variable called "names"?
 	//  Why we are retrieving it second time? We already have it in "d", and it is not modified anywhere.
 	//  getString does not extracts a string from symbol string table (as getString doco says).
 	//  Why ds.Data() called again and again in the loop?

@@ -144,14 +144,15 @@ func (t *TextNode) Copy() Node {
 type PipeNode struct {
 	NodeType
 	Pos
-	tr   *Tree
-	Line int             // The line number in the input. Deprecated: Kept for compatibility.
-	Decl []*VariableNode // Variable declarations in lexical order.
-	Cmds []*CommandNode  // The commands in lexical order.
+	tr       *Tree
+	Line     int             // The line number in the input. Deprecated: Kept for compatibility.
+	IsAssign bool            // The variables are being assigned, not declared.
+	Decl     []*VariableNode // Variables in lexical order.
+	Cmds     []*CommandNode  // The commands in lexical order.
 }
 
-func (t *Tree) newPipeline(pos Pos, line int, decl []*VariableNode) *PipeNode {
-	return &PipeNode{tr: t, NodeType: NodePipe, Pos: pos, Line: line, Decl: decl}
+func (t *Tree) newPipeline(pos Pos, line int, vars []*VariableNode) *PipeNode {
+	return &PipeNode{tr: t, NodeType: NodePipe, Pos: pos, Line: line, Decl: vars}
 }
 
 func (p *PipeNode) append(command *CommandNode) {
@@ -186,11 +187,12 @@ func (p *PipeNode) CopyPipe() *PipeNode {
 	if p == nil {
 		return p
 	}
-	var decl []*VariableNode
+	var vars []*VariableNode
 	for _, d := range p.Decl {
-		decl = append(decl, d.Copy().(*VariableNode))
+		vars = append(vars, d.Copy().(*VariableNode))
 	}
-	n := p.tr.newPipeline(p.Pos, p.Line, decl)
+	n := p.tr.newPipeline(p.Pos, p.Line, vars)
+	n.IsAssign = p.IsAssign
 	for _, c := range p.Cmds {
 		n.append(c.Copy().(*CommandNode))
 	}
@@ -317,7 +319,7 @@ func (i *IdentifierNode) Copy() Node {
 	return NewIdentifier(i.Ident).SetTree(i.tr).SetPos(i.Pos)
 }
 
-// VariableNode holds a list of variable names, possibly with chained field
+// AssignNode holds a list of variable names, possibly with chained field
 // accesses. The dollar sign is part of the (first) name.
 type VariableNode struct {
 	NodeType

@@ -31,6 +31,9 @@ func TestEventBatch(t *testing.T) {
 	if race.Enabled {
 		t.Skip("skipping in race mode")
 	}
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -81,6 +84,9 @@ func TestEventBatch(t *testing.T) {
 }
 
 func TestTraceStartStop(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -98,6 +104,9 @@ func TestTraceStartStop(t *testing.T) {
 }
 
 func TestTraceDoubleStart(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	Stop()
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
@@ -111,6 +120,9 @@ func TestTraceDoubleStart(t *testing.T) {
 }
 
 func TestTrace(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -168,6 +180,12 @@ func testBrokenTimestamps(t *testing.T, data []byte) {
 }
 
 func TestTraceStress(t *testing.T) {
+	if runtime.GOOS == "js" {
+		t.Skip("no os.Pipe on js")
+	}
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	var wg sync.WaitGroup
 	done := make(chan bool)
 
@@ -307,6 +325,12 @@ func TestTraceStress(t *testing.T) {
 // Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
 // And concurrently with all that start/stop trace 3 times.
 func TestTraceStressStartStop(t *testing.T) {
+	if runtime.GOOS == "js" {
+		t.Skip("no os.Pipe on js")
+	}
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 	outerDone := make(chan bool)
 
@@ -454,6 +478,9 @@ func TestTraceStressStartStop(t *testing.T) {
 }
 
 func TestTraceFutileWakeup(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)

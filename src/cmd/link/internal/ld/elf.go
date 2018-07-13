@@ -791,13 +791,11 @@ func elfwriteinterp(out *OutBuf) int {
 	return int(sh.size)
 }
 
-func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int, alloc bool) int {
+func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int) int {
 	n := 3*4 + uint64(sz) + resoff%4
 
 	sh.type_ = SHT_NOTE
-	if alloc {
-		sh.flags = SHF_ALLOC
-	}
+	sh.flags = SHF_ALLOC
 	sh.addralign = 4
 	sh.addr = startva + resoff - n
 	sh.off = resoff - n
@@ -831,7 +829,7 @@ var ELF_NOTE_NETBSD_NAME = []byte("NetBSD\x00")
 
 func elfnetbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := int(Rnd(ELF_NOTE_NETBSD_NAMESZ, 4) + Rnd(ELF_NOTE_NETBSD_DESCSZ, 4))
-	return elfnote(sh, startva, resoff, n, true)
+	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwritenetbsdsig(out *OutBuf) int {
@@ -862,7 +860,7 @@ var ELF_NOTE_OPENBSD_NAME = []byte("OpenBSD\x00")
 
 func elfopenbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := ELF_NOTE_OPENBSD_NAMESZ + ELF_NOTE_OPENBSD_DESCSZ
-	return elfnote(sh, startva, resoff, n, true)
+	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwriteopenbsdsig(out *OutBuf) int {
@@ -918,12 +916,12 @@ var ELF_NOTE_BUILDINFO_NAME = []byte("GNU\x00")
 
 func elfbuildinfo(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := int(ELF_NOTE_BUILDINFO_NAMESZ + Rnd(int64(len(buildinfo)), 4))
-	return elfnote(sh, startva, resoff, n, true)
+	return elfnote(sh, startva, resoff, n)
 }
 
 func elfgobuildid(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(*flagBuildid)), 4))
-	return elfnote(sh, startva, resoff, n, true)
+	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwritebuildinfo(out *OutBuf) int {
@@ -1032,8 +1030,8 @@ func elfdynhash(ctxt *Link) {
 			continue
 		}
 
-		if sy.Dynimpvers != "" {
-			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib, sy.Dynimpvers)
+		if sy.Dynimpvers() != "" {
+			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
 		}
 
 		name := sy.Extname
@@ -1263,7 +1261,7 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 		sh.flags |= SHF_TLS
 		sh.type_ = SHT_NOBITS
 	}
-	if strings.HasPrefix(sect.Name, ".debug") {
+	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
 		sh.flags = 0
 	}
 
@@ -1351,7 +1349,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 		if s.Value >= int64(eaddr) {
 			break
 		}
-		for ri := 0; ri < len(s.R); ri++ {
+		for ri := range s.R {
 			r := &s.R[ri]
 			if r.Done {
 				continue
@@ -1366,7 +1364,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 			if !r.Xsym.Attr.Reachable() {
 				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+			if !thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
 				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}
@@ -1599,7 +1597,7 @@ func (ctxt *Link) doelf() {
 			s.Type = sym.SELFRXSECT
 		}
 
-		Thearch.Elfsetupplt(ctxt)
+		thearch.Elfsetupplt(ctxt)
 
 		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
 		s.Attr |= sym.AttrReachable
@@ -1845,22 +1843,22 @@ func Asmbelf(ctxt *Link, symo int64) {
 		if interpreter == "" {
 			switch ctxt.HeadType {
 			case objabi.Hlinux:
-				interpreter = Thearch.Linuxdynld
+				interpreter = thearch.Linuxdynld
 
 			case objabi.Hfreebsd:
-				interpreter = Thearch.Freebsddynld
+				interpreter = thearch.Freebsddynld
 
 			case objabi.Hnetbsd:
-				interpreter = Thearch.Netbsddynld
+				interpreter = thearch.Netbsddynld
 
 			case objabi.Hopenbsd:
-				interpreter = Thearch.Openbsddynld
+				interpreter = thearch.Openbsddynld
 
 			case objabi.Hdragonfly:
-				interpreter = Thearch.Dragonflydynld
+				interpreter = thearch.Dragonflydynld
 
 			case objabi.Hsolaris:
-				interpreter = Thearch.Solarisdynld
+				interpreter = thearch.Solarisdynld
 			}
 		}
 
@@ -2289,8 +2287,8 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 		/* size of object */
 		d.AddUint64(ctxt.Arch, uint64(s.Size))
 
-		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
-			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib)))
+		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib() != "" && !seenlib[s.Dynimplib()] {
+			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib())))
 		}
 	} else {
 		s.Dynid = int32(Nelfsym)

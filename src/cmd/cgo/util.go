@@ -59,6 +59,8 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	var bout, berr bytes.Buffer
 	p.Stdout = &bout
 	p.Stderr = &berr
+	// Disable escape codes in clang error messages.
+	p.Env = append(os.Environ(), "TERM=dumb")
 	err := p.Run()
 	if _, ok := err.(*exec.ExitError); err != nil && !ok {
 		fatalf("%s", err)

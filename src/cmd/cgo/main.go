@@ -17,6 +17,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -42,9 +43,11 @@ type Package struct {
 	Name        map[string]*Name // accumulated Name from Files
 	ExpFunc     []*ExpFunc       // accumulated ExpFunc from Files
 	Decl        []ast.Decl
-	GoFiles     []string // list of Go files
-	GccFiles    []string // list of gcc output files
-	Preamble    string   // collected preamble for _cgo_export.h
+	GoFiles     []string        // list of Go files
+	GccFiles    []string        // list of gcc output files
+	Preamble    string          // collected preamble for _cgo_export.h
+	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
+	typedefList []string
 }
 
 // A File collects information about a single Go input file.
@@ -163,8 +166,10 @@ var ptrSizeMap = map[string]int64{
 	"mips64le": 8,
 	"ppc64":    8,
 	"ppc64le":  8,
+	"riscv64":  8,
 	"s390":     4,
 	"s390x":    8,
+	"sparc64":  8,
 }
 
 var intSizeMap = map[string]int64{
@@ -178,8 +183,10 @@ var intSizeMap = map[string]int64{
 	"mips64le": 8,
 	"ppc64":    8,
 	"ppc64le":  8,
+	"riscv64":  8,
 	"s390":     4,
 	"s390x":    8,
+	"sparc64":  8,
 }
 
 var cPrefix string
@@ -256,6 +263,9 @@ func main() {
 		if arg == "-fsanitize=thread" {
 			tsanProlog = yesTsanProlog
 		}
+		if arg == "-fsanitize=memory" {
+			msanProlog = yesMsanProlog
+		}
 	}
 
 	p := newPackage(args[:i])
@@ -275,6 +285,7 @@ func main() {
 	// concern is other cgo wrappers for the same functions.
 	// Use the beginning of the md5 of the input to disambiguate.
 	h := md5.New()
+	io.WriteString(h, *importPath)
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
 		if *srcDir != "" {

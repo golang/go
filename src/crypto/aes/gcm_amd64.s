@@ -71,20 +71,6 @@ GLOBL bswapMask<>(SB), (NOPTR+RODATA), $16
 GLOBL gcmPoly<>(SB), (NOPTR+RODATA), $16
 GLOBL andMask<>(SB), (NOPTR+RODATA), $240
 
-// func hasGCMAsm() bool
-// returns whether AES-NI AND CLMUL-NI are supported
-TEXT ·hasGCMAsm(SB),NOSPLIT,$0
-	XORQ AX, AX
-	INCL AX
-	CPUID
-	MOVQ CX, DX
-	SHRQ $25, CX
-	SHRQ $1, DX
-	ANDQ DX, CX
-	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
-	RET
-
 // func aesEncBlock(dst, src *[16]byte, ks []uint32)
 TEXT ·aesEncBlock(SB),NOSPLIT,$0
 	MOVQ dst+0(FP), DI

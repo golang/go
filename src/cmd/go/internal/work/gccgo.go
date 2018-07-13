@@ -85,7 +85,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg 
 		args = append(args, mkAbs(p.Dir, f))
 	}
 
-	output, err = b.runOut(p.Dir, p.ImportPath, nil, args)
+	output, err = b.runOut(p.Dir, nil, args)
 	return ofile, output, err
 }
 
@@ -232,7 +232,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	readAndRemoveCgoFlags := func(archive string) (string, error) {
 		newID++
 		newArchive := root.Objdir + fmt.Sprintf("_pkg%d_.a", newID)
-		if err := b.copyFile(root, newArchive, archive, 0666, false); err != nil {
+		if err := b.copyFile(newArchive, archive, 0666, false); err != nil {
 			return "", err
 		}
 		if cfg.BuildN || cfg.BuildX {

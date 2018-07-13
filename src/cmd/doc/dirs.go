@@ -5,7 +5,6 @@
 package main
 
 import (
-	"go/build"
 	"log"
 	"os"
 	"path"
@@ -25,8 +24,11 @@ type Dirs struct {
 
 var dirs Dirs
 
-func init() {
+// dirsInit starts the scanning of package directories in GOROOT and GOPATH. Any
+// extra paths passed to it are included in the channel.
+func dirsInit(extra ...string) {
 	dirs.paths = make([]string, 0, 1000)
+	dirs.paths = append(dirs.paths, extra...)
 	dirs.scan = make(chan string)
 	go dirs.walk()
 }
@@ -55,7 +57,7 @@ func (d *Dirs) Next() (string, bool) {
 
 // walk walks the trees in GOROOT and GOPATH.
 func (d *Dirs) walk() {
-	d.bfsWalkRoot(build.Default.GOROOT)
+	d.bfsWalkRoot(buildCtx.GOROOT)
 	for _, root := range splitGopath() {
 		d.bfsWalkRoot(root)
 	}
@@ -98,8 +100,9 @@ func (d *Dirs) bfsWalkRoot(root string) {
 					continue
 				}
 				// Entry is a directory.
-				// No .git or other dot nonsense please.
-				if strings.HasPrefix(name, ".") {
+
+				// The go tool ignores directories starting with ., _, or named "testdata".
+				if name[0] == '.' || name[0] == '_' || name == "testdata" {
 					continue
 				}
 				// Remember this (fully qualified) directory for the next pass.

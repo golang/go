@@ -26,7 +26,7 @@ func anyinit(n []*Node) bool {
 		switch ln.Op {
 		case ODCLFUNC, ODCLCONST, ODCLTYPE, OEMPTY:
 		case OAS:
-			if !isblank(ln.Left) || !candiscard(ln.Right) {
+			if !ln.Left.isBlank() || !candiscard(ln.Right) {
 				return true
 			}
 		default:
@@ -115,12 +115,18 @@ func fninit(n []*Node) {
 
 	// (6)
 	for _, s := range types.InitSyms {
-		if s.Def != nil && s != initsym {
-			n := asNode(s.Def)
-			n.checkInitFuncSignature()
-			a = nod(OCALL, n, nil)
-			r = append(r, a)
+		if s == initsym {
+			continue
 		}
+		n := resolve(oldname(s))
+		if n.Op == ONONAME {
+			// No package-scope init function; just a
+			// local variable, field name, or something.
+			continue
+		}
+		n.checkInitFuncSignature()
+		a = nod(OCALL, n, nil)
+		r = append(r, a)
 	}
 
 	// (7)
@@ -182,7 +188,6 @@ func fninit(n []*Node) {
 		loop.Ninit.Set1(zero)
 
 		loop = typecheck(loop, Etop)
-		loop = walkstmt(loop)
 		r = append(r, loop)
 	}
 

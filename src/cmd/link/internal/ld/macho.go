@@ -103,32 +103,57 @@ const (
 )
 
 const (
-	LC_SEGMENT              = 0x1
-	LC_SYMTAB               = 0x2
-	LC_UNIXTHREAD           = 0x5
-	LC_DYSYMTAB             = 0xb
-	LC_LOAD_DYLIB           = 0xc
-	LC_ID_DYLIB             = 0xd
-	LC_LOAD_DYLINKER        = 0xe
-	LC_PREBOUND_DYLIB       = 0x10
-	LC_LOAD_WEAK_DYLIB      = 0x18
-	LC_SEGMENT_64           = 0x19
-	LC_UUID                 = 0x1b
-	LC_RPATH                = 0x8000001c
-	LC_CODE_SIGNATURE       = 0x1d
-	LC_SEGMENT_SPLIT_INFO   = 0x1e
-	LC_REEXPORT_DYLIB       = 0x8000001f
-	LC_ENCRYPTION_INFO      = 0x21
-	LC_DYLD_INFO            = 0x22
-	LC_DYLD_INFO_ONLY       = 0x80000022
-	LC_VERSION_MIN_MACOSX   = 0x24
-	LC_VERSION_MIN_IPHONEOS = 0x25
-	LC_FUNCTION_STARTS      = 0x26
-	LC_MAIN                 = 0x80000028
-	LC_DATA_IN_CODE         = 0x29
-	LC_SOURCE_VERSION       = 0x2A
-	LC_DYLIB_CODE_SIGN_DRS  = 0x2B
-	LC_ENCRYPTION_INFO_64   = 0x2C
+	LC_SEGMENT                  = 0x1
+	LC_SYMTAB                   = 0x2
+	LC_SYMSEG                   = 0x3
+	LC_THREAD                   = 0x4
+	LC_UNIXTHREAD               = 0x5
+	LC_LOADFVMLIB               = 0x6
+	LC_IDFVMLIB                 = 0x7
+	LC_IDENT                    = 0x8
+	LC_FVMFILE                  = 0x9
+	LC_PREPAGE                  = 0xa
+	LC_DYSYMTAB                 = 0xb
+	LC_LOAD_DYLIB               = 0xc
+	LC_ID_DYLIB                 = 0xd
+	LC_LOAD_DYLINKER            = 0xe
+	LC_ID_DYLINKER              = 0xf
+	LC_PREBOUND_DYLIB           = 0x10
+	LC_ROUTINES                 = 0x11
+	LC_SUB_FRAMEWORK            = 0x12
+	LC_SUB_UMBRELLA             = 0x13
+	LC_SUB_CLIENT               = 0x14
+	LC_SUB_LIBRARY              = 0x15
+	LC_TWOLEVEL_HINTS           = 0x16
+	LC_PREBIND_CKSUM            = 0x17
+	LC_LOAD_WEAK_DYLIB          = 0x18
+	LC_SEGMENT_64               = 0x19
+	LC_ROUTINES_64              = 0x1a
+	LC_UUID                     = 0x1b
+	LC_RPATH                    = 0x8000001c
+	LC_CODE_SIGNATURE           = 0x1d
+	LC_SEGMENT_SPLIT_INFO       = 0x1e
+	LC_REEXPORT_DYLIB           = 0x8000001f
+	LC_LAZY_LOAD_DYLIB          = 0x20
+	LC_ENCRYPTION_INFO          = 0x21
+	LC_DYLD_INFO                = 0x22
+	LC_DYLD_INFO_ONLY           = 0x80000022
+	LC_LOAD_UPWARD_DYLIB        = 0x80000023
+	LC_VERSION_MIN_MACOSX       = 0x24
+	LC_VERSION_MIN_IPHONEOS     = 0x25
+	LC_FUNCTION_STARTS          = 0x26
+	LC_DYLD_ENVIRONMENT         = 0x27
+	LC_MAIN                     = 0x80000028
+	LC_DATA_IN_CODE             = 0x29
+	LC_SOURCE_VERSION           = 0x2A
+	LC_DYLIB_CODE_SIGN_DRS      = 0x2B
+	LC_ENCRYPTION_INFO_64       = 0x2C
+	LC_LINKER_OPTION            = 0x2D
+	LC_LINKER_OPTIMIZATION_HINT = 0x2E
+	LC_VERSION_MIN_TVOS         = 0x2F
+	LC_VERSION_MIN_WATCHOS      = 0x30
+	LC_VERSION_NOTE             = 0x31
+	LC_BUILD_VERSION            = 0x32
 )
 
 const (
@@ -142,12 +167,8 @@ const (
 	S_ATTR_SOME_INSTRUCTIONS   = 0x00000400
 )
 
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 // Mach-O file writing
-// http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
+// https://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
 
 var machohdr MachoHdr
 
@@ -234,7 +255,7 @@ func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
 	o1 := out.Offset()
 
 	loadsize := 4 * 4 * ndebug
-	for i := 0; i < len(load); i++ {
+	for i := range load {
 		loadsize += 4 * (len(load[i].data) + 2)
 	}
 	if arch.PtrSize == 8 {
@@ -327,7 +348,7 @@ func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
 		}
 	}
 
-	for i := 0; i < len(load); i++ {
+	for i := range load {
 		l := &load[i]
 		out.Write32(l.type_)
 		out.Write32(4 * (uint32(len(l.data)) + 2))
@@ -436,6 +457,10 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 
 	if sect.Rwx&1 != 0 {
 		msect.flag |= S_ATTR_SOME_INSTRUCTIONS
+	}
+
+	if sect.Name == ".text" {
+		msect.flag |= S_ATTR_PURE_INSTRUCTIONS
 	}
 
 	if sect.Name == ".plt" {
@@ -617,13 +642,13 @@ func Asmbmacho(ctxt *Link) {
 			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
 
-			for i := 0; i < len(dylib); i++ {
-				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(dylib[i]))+1+7)/8*2)
+			for _, lib := range dylib {
+				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(lib))+1+7)/8*2)
 				ml.data[0] = 24 /* offset of string from beginning of load */
 				ml.data[1] = 0  /* time stamp */
 				ml.data[2] = 0  /* version */
 				ml.data[3] = 0  /* compatibility version */
-				stringtouint32(ml.data[4:], dylib[i])
+				stringtouint32(ml.data[4:], lib)
 			}
 		}
 	}
@@ -717,7 +742,7 @@ func machosymorder(ctxt *Link) {
 	// On Mac OS X Mountain Lion, we must sort exported symbols
 	// So we sort them here and pre-allocate dynid for them
 	// See https://golang.org/issue/4029
-	for i := 0; i < len(dynexp); i++ {
+	for i := range dynexp {
 		dynexp[i].Attr |= sym.AttrReachable
 	}
 	machogenasmsym(ctxt)
@@ -915,7 +940,7 @@ func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 		if s.Value >= int64(eaddr) {
 			break
 		}
-		for ri := 0; ri < len(s.R); ri++ {
+		for ri := range s.R {
 			r := &s.R[ri]
 			if r.Done {
 				continue
@@ -927,7 +952,7 @@ func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 			if !r.Xsym.Attr.Reachable() {
 				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !Thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+			if !thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
 				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}

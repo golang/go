@@ -482,7 +482,7 @@ func symMerge(data Interface, a, m, b int) {
 	}
 }
 
-// Rotate two consecutives blocks u = data[a:m] and v = data[m:b] in data:
+// Rotate two consecutive blocks u = data[a:m] and v = data[m:b] in data:
 // Data of the form 'x u v y' is changed to 'x v u y'.
 // Rotate performs at most b-a many calls to data.Swap.
 // Rotate assumes non-degenerate arguments: a < m && m < b.

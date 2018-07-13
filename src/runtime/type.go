@@ -131,6 +131,25 @@ func (t *_type) name() string {
 	return s[i+1:]
 }
 
+// pkgpath returns the path of the package where t was defined, if
+// available. This is not the same as the reflect package's PkgPath
+// method, in that it returns the package path for struct and interface
+// types, not just named types.
+func (t *_type) pkgpath() string {
+	if u := t.uncommon(); u != nil {
+		return t.nameOff(u.pkgpath).name()
+	}
+	switch t.kind & kindMask {
+	case kindStruct:
+		st := (*structtype)(unsafe.Pointer(t))
+		return st.pkgPath.name()
+	case kindInterface:
+		it := (*interfacetype)(unsafe.Pointer(t))
+		return it.pkgpath.name()
+	}
+	return ""
+}
+
 // reflectOffs holds type offsets defined at run time by the reflect package.
 //
 // When a type is defined at run time, its *rtype data lives on the heap.
@@ -285,7 +304,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 		res = md.text + uintptr(off)
 	}
 
-	if res > md.etext {
+	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
 		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
 		throw("runtime: text offset out of range")
 	}
@@ -329,7 +348,7 @@ type method struct {
 type uncommontype struct {
 	pkgpath nameOff
 	mcount  uint16 // number of methods
-	_       uint16 // unused
+	xcount  uint16 // number of exported methods
 	moff    uint32 // offset from this uncommontype to [mcount]method
 	_       uint32 // unused
 }
@@ -350,7 +369,6 @@ type maptype struct {
 	key           *_type
 	elem          *_type
 	bucket        *_type // internal type representing a hash bucket
-	hmap          *_type // internal type representing a hmap
 	keysize       uint8  // size of key slot
 	indirectkey   bool   // store ptr to key instead of key itself
 	valuesize     uint8  // size of value slot

@@ -9,7 +9,10 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
+	"fmt"
+	"os"
 )
 
 var CmdFix = &base.Command{
@@ -29,7 +32,15 @@ See also: go fmt, go vet.
 }
 
 func runFix(cmd *base.Command, args []string) {
+	printed := false
 	for _, pkg := range load.Packages(args) {
+		if modload.Enabled() && !pkg.Module.Main {
+			if !printed {
+				fmt.Fprintf(os.Stderr, "go: not fixing packages in dependency modules\n")
+				printed = true
+			}
+			continue
+		}
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.

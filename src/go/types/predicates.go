@@ -164,13 +164,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *Struct:
 		// Two struct types are identical if they have the same sequence of fields,
 		// and if corresponding fields have the same names, and identical types,
-		// and identical tags. Two anonymous fields are considered to have the same
+		// and identical tags. Two embedded fields are considered to have the same
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
 			if x.NumFields() == y.NumFields() {
 				for i, f := range x.fields {
 					g := y.fields[i]
-					if f.anonymous != g.anonymous ||
+					if f.embedded != g.embedded ||
 						cmpTags && x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
 						!identical(f.typ, g.typ, cmpTags, p) {

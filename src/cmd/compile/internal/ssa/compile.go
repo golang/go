@@ -43,7 +43,7 @@ func Compile(f *Func) {
 
 	// Run all the passes
 	printFunc(f)
-	f.HTMLWriter.WriteFunc("start", f)
+	f.HTMLWriter.WriteFunc("start", "start", f)
 	if BuildDump != "" && BuildDump == f.Name {
 		f.dumpFile("build")
 	}
@@ -86,7 +86,7 @@ func Compile(f *Func) {
 
 			f.Logf("  pass %s end %s\n", p.name, stats)
 			printFunc(f)
-			f.HTMLWriter.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
+			f.HTMLWriter.WriteFunc(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		}
 		if p.time || p.mem {
 			// Surround timing information w/ enough context to allow comparisons.
@@ -192,29 +192,55 @@ var BuildDump string // name of function to dump after initial build of ssa
 func PhaseOption(phase, flag string, val int, valString string) string {
 	if phase == "help" {
 		lastcr := 0
-		phasenames := "check, all, build, intrinsics"
+		phasenames := "    check, all, build, intrinsics"
 		for _, p := range passes {
 			pn := strings.Replace(p.name, " ", "_", -1)
 			if len(pn)+len(phasenames)-lastcr > 70 {
-				phasenames += "\n"
+				phasenames += "\n    "
 				lastcr = len(phasenames)
 				phasenames += pn
 			} else {
 				phasenames += ", " + pn
 			}
 		}
-		return "" +
-			`GcFlag -d=ssa/<phase>/<flag>[=<value>|<function_name>]
-<phase> is one of:
+		return `PhaseOptions usage:
+
+    go tool compile -d=ssa/<phase>/<flag>[=<value>|<function_name>]
+
+where:
+
+- <phase> is one of:
 ` + phasenames + `
-<flag> is one of on, off, debug, mem, time, test, stats, dump
-<value> defaults to 1
-<function_name> is required for "dump", specifies name of function to dump after <phase>
-Except for dump, output is directed to standard out; dump appears in a file.
+
+- <flag> is one of:
+    on, off, debug, mem, time, test, stats, dump
+
+- <value> defaults to 1
+
+- <function_name> is required for the "dump" flag, and specifies the
+  name of function to dump after <phase>
+
 Phase "all" supports flags "time", "mem", and "dump".
-Phases "intrinsics" supports flags "on", "off", and "debug".
-Interpretation of the "debug" value depends on the phase.
-Dump files are named <phase>__<function_name>_<seq>.dump.
+Phase "intrinsics" supports flags "on", "off", and "debug".
+
+If the "dump" flag is specified, the output is written on a file named
+<phase>__<function_name>_<seq>.dump; otherwise it is directed to stdout.
+
+Examples:
+
+    -d=ssa/check/on
+enables checking after each phase
+
+    -d=ssa/all/time
+enables time reporting for all phases
+
+    -d=ssa/prove/debug=2
+sets debugging level to 2 in the prove pass
+
+Multiple flags can be passed at once, by separating them with
+commas. For example:
+
+    -d=ssa/check/on,ssa/all/time
 `
 	}
 
@@ -330,6 +356,7 @@ Dump files are named <phase>__<function_name>_<seq>.dump.
 // list of passes for the compiler
 var passes = [...]pass{
 	// TODO: combine phielim and copyelim into a single pass?
+	{name: "number lines", fn: numberLines, required: true},
 	{name: "early phielim", fn: phielim},
 	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
@@ -342,11 +369,11 @@ var passes = [...]pass{
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
-	{name: "loopbce", fn: loopbce},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
-	{name: "generic deadcode", fn: deadcode},
+	{name: "dead auto elim", fn: elimDeadAutosGeneric},
+	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
 	{name: "fuse", fn: fuse},

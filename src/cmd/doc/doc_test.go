@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"flag"
-	"go/build"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,6 +14,22 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	// Clear GOPATH so we don't access the user's own packages in the test.
+	buildCtx.GOPATH = ""
+
+	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
+	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
+	// a hack that works around the check.
+	testdataDir, err := filepath.Abs("testdata")
+	if err != nil {
+		panic(err)
+	}
+	dirsInit(testdataDir, filepath.Join(testdataDir, "nested"), filepath.Join(testdataDir, "nested", "nested"))
+
+	os.Exit(m.Run())
+}
 
 func maybeSkip(t *testing.T) {
 	if strings.HasPrefix(runtime.GOOS, "nacl") {
@@ -108,7 +123,7 @@ var tests = []test{
 			`var MultiLineVar = map\[struct{ ... }\]struct{ ... }{ ... }`,  // Multi line variable.
 			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
 			`var LongLine = newLongLine\(("someArgument[1-4]", ){4}...\)`,  // Long list of arguments.
-			`type T1 = T2`, // Type alias
+			`type T1 = T2`,                                                 // Type alias
 		},
 		[]string{
 			`const internalConstant = 2`,        // No internal constants.
@@ -495,6 +510,24 @@ var tests = []test{
 			"\\)\n+const", // This will appear if the const decl appears twice.
 		},
 	},
+	{
+		"non-imported: pkg.sym",
+		[]string{"nested.Foo"},
+		[]string{"Foo struct"},
+		nil,
+	},
+	{
+		"non-imported: pkg only",
+		[]string{"nested"},
+		[]string{"Foo struct"},
+		nil,
+	},
+	{
+		"non-imported: pkg sym",
+		[]string{"nested", "Foo"},
+		[]string{"Foo struct"},
+		nil,
+	},
 }
 
 func TestDoc(t *testing.T) {
@@ -653,7 +686,7 @@ func TestDotSlashLookup(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	if err := os.Chdir(filepath.Join(build.Default.GOROOT, "src", "text")); err != nil {
+	if err := os.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text")); err != nil {
 		t.Fatal(err)
 	}
 	var b bytes.Buffer

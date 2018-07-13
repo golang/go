@@ -46,7 +46,7 @@ func gentext(ctxt *ld.Link) {
 		return
 	}
 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT {
+	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
@@ -72,7 +72,7 @@ func gentext(ctxt *ld.Link) {
 	rel.Sym = ctxt.Moduledata
 	rel.Type = objabi.R_ADDRARM64
 
-	// 8:	14000000 	bl	0 <runtime.addmoduledata>
+	// 8:	14000000 	b	0 <runtime.addmoduledata>
 	// 	8: R_AARCH64_CALL26	runtime.addmoduledata
 	o(0x14000000)
 	rel = initfunc.AddRel()
@@ -81,6 +81,9 @@ func gentext(ctxt *ld.Link) {
 	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
 	rel.Type = objabi.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
 
+	if ctxt.BuildMode == ld.BuildModePlugin {
+		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+	}
 	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= sym.AttrReachable
@@ -89,8 +92,25 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
+// adddynrel implements just enough to support external linking to
+// the system libc functions used by the runtime.
 func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
-	log.Fatalf("adddynrel not implemented")
+	targ := r.Sym
+
+	switch r.Type {
+	case objabi.R_CALL,
+		objabi.R_PCREL,
+		objabi.R_CALLARM64:
+		if targ.Type != sym.SDYNIMPORT {
+			// nothing to do, the relocation will be laid out in reloc
+			return true
+		}
+		if ctxt.LinkMode == ld.LinkExternal {
+			// External linker will do this relocation.
+			return true
+		}
+	}
+	log.Fatalf("adddynrel not implemented for relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
 	return false
 }
 
@@ -150,10 +170,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 
 	rs := r.Xsym
 
-	// ld64 has a bug handling MACHO_ARM64_RELOC_UNSIGNED with !extern relocation.
-	// see cmd/internal/ld/data.go for details. The workaround is that don't use !extern
-	// UNSIGNED relocation at all.
-	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 || r.Type == objabi.R_ADDR {
+	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
 			return false

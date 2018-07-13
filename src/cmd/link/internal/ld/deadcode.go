@@ -190,7 +190,9 @@ func (d *deadcodepass) mark(s, parent *sym.Symbol) {
 		fmt.Printf("%s -> %s\n", p, s.Name)
 	}
 	s.Attr |= sym.AttrReachable
-	s.Reachparent = parent
+	if d.ctxt.Reachparent != nil {
+		d.ctxt.Reachparent[s] = parent
+	}
 	d.markQueue = append(d.markQueue, s)
 }
 
@@ -295,7 +297,7 @@ func (d *deadcodepass) flood() {
 
 		mpos := 0 // 0-3, the R_METHODOFF relocs of runtime.uncommontype
 		var methods []methodref
-		for i := 0; i < len(s.R); i++ {
+		for i := range s.R {
 			r := &s.R[i]
 			if r.Sym == nil {
 				continue

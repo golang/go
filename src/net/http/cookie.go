@@ -5,7 +5,6 @@
 package http
 
 import (
-	"bytes"
 	"log"
 	"net"
 	"strconv"
@@ -16,7 +15,7 @@ import (
 // A Cookie represents an HTTP cookie as sent in the Set-Cookie header of an
 // HTTP response or the Cookie header of an HTTP request.
 //
-// See http://tools.ietf.org/html/rfc6265 for details.
+// See https://tools.ietf.org/html/rfc6265 for details.
 type Cookie struct {
 	Name  string
 	Value string
@@ -32,9 +31,24 @@ type Cookie struct {
 	MaxAge   int
 	Secure   bool
 	HttpOnly bool
+	SameSite SameSite
 	Raw      string
 	Unparsed []string // Raw text of unparsed attribute-value pairs
 }
+
+// SameSite allows a server define a cookie attribute making it impossible to
+// the browser send this cookie along with cross-site requests. The main goal
+// is mitigate the risk of cross-origin information leakage, and provides some
+// protection against cross-site request forgery attacks.
+//
+// See https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00 for details.
+type SameSite int
+
+const (
+	SameSiteDefaultMode SameSite = iota + 1
+	SameSiteLaxMode
+	SameSiteStrictMode
+)
 
 // readSetCookies parses all "Set-Cookie" values from
 // the header h and returns the successfully parsed Cookies.
@@ -84,6 +98,17 @@ func readSetCookies(h Header) []*Cookie {
 				continue
 			}
 			switch lowerAttr {
+			case "samesite":
+				lowerVal := strings.ToLower(val)
+				switch lowerVal {
+				case "lax":
+					c.SameSite = SameSiteLaxMode
+				case "strict":
+					c.SameSite = SameSiteStrictMode
+				default:
+					c.SameSite = SameSiteDefaultMode
+				}
+				continue
 			case "secure":
 				c.Secure = true
 				continue
@@ -143,7 +168,7 @@ func (c *Cookie) String() string {
 	if c == nil || !isCookieNameValid(c.Name) {
 		return ""
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	b.WriteString(sanitizeCookieName(c.Name))
 	b.WriteRune('=')
 	b.WriteString(sanitizeCookieValue(c.Value))
@@ -168,17 +193,14 @@ func (c *Cookie) String() string {
 			log.Printf("net/http: invalid Cookie.Domain %q; dropping domain attribute", c.Domain)
 		}
 	}
+	var buf [len(TimeFormat)]byte
 	if validCookieExpires(c.Expires) {
 		b.WriteString("; Expires=")
-		b2 := b.Bytes()
-		b.Reset()
-		b.Write(c.Expires.UTC().AppendFormat(b2, TimeFormat))
+		b.Write(c.Expires.UTC().AppendFormat(buf[:0], TimeFormat))
 	}
 	if c.MaxAge > 0 {
 		b.WriteString("; Max-Age=")
-		b2 := b.Bytes()
-		b.Reset()
-		b.Write(strconv.AppendInt(b2, int64(c.MaxAge), 10))
+		b.Write(strconv.AppendInt(buf[:0], int64(c.MaxAge), 10))
 	} else if c.MaxAge < 0 {
 		b.WriteString("; Max-Age=0")
 	}
@@ -187,6 +209,14 @@ func (c *Cookie) String() string {
 	}
 	if c.Secure {
 		b.WriteString("; Secure")
+	}
+	switch c.SameSite {
+	case SameSiteDefaultMode:
+		b.WriteString("; SameSite")
+	case SameSiteLaxMode:
+		b.WriteString("; SameSite=Lax")
+	case SameSiteStrictMode:
+		b.WriteString("; SameSite=Strict")
 	}
 	return b.String()
 }
@@ -311,7 +341,7 @@ func sanitizeCookieName(n string) string {
 	return cookieNameSanitizer.Replace(n)
 }
 
-// http://tools.ietf.org/html/rfc6265#section-4.1.1
+// https://tools.ietf.org/html/rfc6265#section-4.1.1
 // cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
 // cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
 //           ; US-ASCII characters excluding CTLs,

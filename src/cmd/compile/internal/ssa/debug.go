@@ -8,6 +8,7 @@ import (
 	"cmd/internal/obj"
 	"encoding/hex"
 	"fmt"
+	"math/bits"
 	"sort"
 	"strings"
 )
@@ -92,7 +93,7 @@ func (state *stateAtPC) reset(live []liveSlot) {
 			if mask == 0 {
 				break
 			}
-			reg := uint8(TrailingZeros64(mask))
+			reg := uint8(bits.TrailingZeros64(mask))
 			mask &^= 1 << reg
 
 			registers[reg] = append(registers[reg], live.slot)
@@ -116,7 +117,7 @@ func (s *debugState) LocString(loc VarLoc) string {
 		if mask == 0 {
 			break
 		}
-		reg := uint8(TrailingZeros64(mask))
+		reg := uint8(bits.TrailingZeros64(mask))
 		mask &^= 1 << reg
 
 		storage = append(storage, s.registers[reg].String())
@@ -151,14 +152,6 @@ var BlockEnd = &Value{
 
 // RegisterSet is a bitmap of registers, indexed by Register.num.
 type RegisterSet uint64
-
-// unexpected is used to indicate an inconsistency or bug in the debug info
-// generation process. These are not fixable by users. At time of writing,
-// changing this to a Fprintf(os.Stderr) and running make.bash generates
-// thousands of warnings.
-func (s *debugState) unexpected(v *Value, msg string, args ...interface{}) {
-	s.f.Logf("unexpected at "+fmt.Sprint(v.ID)+":"+msg, args...)
-}
 
 func (s *debugState) logf(msg string, args ...interface{}) {
 	s.f.Logf(msg, args...)
@@ -343,6 +336,10 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	state.stackOffset = stackOffset
 	state.ctxt = ctxt
 
+	if state.loggingEnabled {
+		state.logf("Generating location lists for function %q\n", f.Name)
+	}
+
 	if state.varParts == nil {
 		state.varParts = make(map[GCNode][]SlotID)
 	} else {
@@ -370,6 +367,26 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 			state.vars = append(state.vars, topSlot.N)
 		}
 		state.varParts[topSlot.N] = append(state.varParts[topSlot.N], SlotID(i))
+	}
+
+	// Recreate the LocalSlot for each stack-only variable.
+	// This would probably be better as an output from stackframe.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op == OpVarDef || v.Op == OpVarKill {
+				n := v.Aux.(GCNode)
+				if n.IsSynthetic() {
+					continue
+				}
+
+				if _, ok := state.varParts[n]; !ok {
+					slot := LocalSlot{N: n, Type: v.Type, Off: 0}
+					state.slots = append(state.slots, slot)
+					state.varParts[n] = []SlotID{SlotID(len(state.slots) - 1)}
+					state.vars = append(state.vars, n)
+				}
+			}
+		}
 	}
 
 	// Fill in the var<->slot mappings.
@@ -452,12 +469,14 @@ func (state *debugState) liveness() []*BlockDebug {
 				source = v.Args[0]
 			case OpLoadReg:
 				switch a := v.Args[0]; a.Op {
-				case OpArg:
+				case OpArg, OpPhi:
 					source = a
 				case OpStoreReg:
 					source = a.Args[0]
 				default:
-					state.unexpected(v, "load with unexpected source op %v", a)
+					if state.loggingEnabled {
+						state.logf("at %v: load with unexpected source op: %v (%v)\n", v, a.Op, a)
+					}
 				}
 			}
 			// Update valueNames with the source so that later steps
@@ -578,12 +597,12 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 
 	// A slot is live if it was seen in all predecessors, and they all had
 	// some storage in common.
-	for slotID := range p0 {
-		slotLoc := slotLocs[slotID]
+	for _, predSlot := range p0 {
+		slotLoc := slotLocs[predSlot.slot]
 
-		if state.liveCount[slotID] != len(preds) {
+		if state.liveCount[predSlot.slot] != len(preds) {
 			// Seen in only some predecessors. Clear it out.
-			slotLocs[slotID] = VarLoc{}
+			slotLocs[predSlot.slot] = VarLoc{}
 			continue
 		}
 
@@ -593,10 +612,10 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 			if mask == 0 {
 				break
 			}
-			reg := uint8(TrailingZeros64(mask))
+			reg := uint8(bits.TrailingZeros64(mask))
 			mask &^= 1 << reg
 
-			state.currentState.registers[reg] = append(state.currentState.registers[reg], SlotID(slotID))
+			state.currentState.registers[reg] = append(state.currentState.registers[reg], predSlot.slot)
 		}
 	}
 	return nil, false
@@ -623,12 +642,12 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		if clobbers == 0 {
 			break
 		}
-		reg := uint8(TrailingZeros64(clobbers))
+		reg := uint8(bits.TrailingZeros64(clobbers))
 		clobbers &^= 1 << reg
 
 		for _, slot := range locs.registers[reg] {
 			if state.loggingEnabled {
-				state.logf("at %v: %v clobbered out of %v\n", v.ID, state.slots[slot], &state.registers[reg])
+				state.logf("at %v: %v clobbered out of %v\n", v, state.slots[slot], &state.registers[reg])
 			}
 
 			last := locs.slots[slot]
@@ -644,14 +663,34 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	}
 
 	switch {
+	case v.Op == OpVarDef, v.Op == OpVarKill:
+		n := v.Aux.(GCNode)
+		if n.IsSynthetic() {
+			break
+		}
+
+		slotID := state.varParts[n][0]
+		var stackOffset StackOffset
+		if v.Op == OpVarDef {
+			stackOffset = StackOffset(state.stackOffset(state.slots[slotID])<<1 | 1)
+		}
+		setSlot(slotID, VarLoc{0, stackOffset})
+		if state.loggingEnabled {
+			if v.Op == OpVarDef {
+				state.logf("at %v: stack-only var %v now live\n", v, state.slots[slotID])
+			} else {
+				state.logf("at %v: stack-only var %v now dead\n", v, state.slots[slotID])
+			}
+		}
+
 	case v.Op == OpArg:
 		home := state.f.getHome(v.ID).(LocalSlot)
 		stackOffset := state.stackOffset(home)<<1 | 1
 		for _, slot := range vSlots {
 			if state.loggingEnabled {
-				state.logf("at %v: arg %v now on stack in location %v\n", v.ID, state.slots[slot], home)
+				state.logf("at %v: arg %v now on stack in location %v\n", v, state.slots[slot], home)
 				if last := locs.slots[slot]; !last.absent() {
-					state.unexpected(v, "Arg op on already-live slot %v", state.slots[slot])
+					state.logf("at %v: unexpected arg op on already-live slot %v\n", v, state.slots[slot])
 				}
 			}
 
@@ -664,13 +703,15 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		for _, slot := range vSlots {
 			last := locs.slots[slot]
 			if last.absent() {
-				state.unexpected(v, "spill of unnamed register %s\n", vReg)
+				if state.loggingEnabled {
+					state.logf("at %v: unexpected spill of unnamed register %s\n", v, vReg)
+				}
 				break
 			}
 
 			setSlot(slot, VarLoc{last.Registers, StackOffset(stackOffset)})
 			if state.loggingEnabled {
-				state.logf("at %v: %v spilled to stack location %v\n", v.ID, state.slots[slot], home)
+				state.logf("at %v: %v spilled to stack location %v\n", v, state.slots[slot], home)
 			}
 		}
 
@@ -696,7 +737,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		locs.registers[vReg.num] = append(locs.registers[vReg.num], vSlots...)
 		for _, slot := range vSlots {
 			if state.loggingEnabled {
-				state.logf("at %v: %v now in %s\n", v.ID, state.slots[slot], vReg)
+				state.logf("at %v: %v now in %s\n", v, state.slots[slot], vReg)
 			}
 
 			last := locs.slots[slot]
@@ -724,7 +765,7 @@ type partsByVarOffset struct {
 
 func (a partsByVarOffset) Len() int { return len(a.slotIDs) }
 func (a partsByVarOffset) Less(i, j int) bool {
-	return varOffset(a.slots[a.slotIDs[i]]) < varOffset(a.slots[a.slotIDs[i]])
+	return varOffset(a.slots[a.slotIDs[i]]) < varOffset(a.slots[a.slotIDs[j]])
 }
 func (a partsByVarOffset) Swap(i, j int) { a.slotIDs[i], a.slotIDs[j] = a.slotIDs[j], a.slotIDs[i] }
 
@@ -772,7 +813,7 @@ func firstReg(set RegisterSet) uint8 {
 		// produce locations with no storage.
 		return 0
 	}
-	return uint8(TrailingZeros64(uint64(set)))
+	return uint8(bits.TrailingZeros64(uint64(set)))
 }
 
 // buildLocationLists builds location lists for all the user variables in
@@ -824,12 +865,12 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 	for varID := range state.lists {
 		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, BlockEnd.ID)
 		list := state.lists[varID]
-		if len(list) == 0 {
-			continue
-		}
-
 		if state.loggingEnabled {
-			state.logf("\t%v : %q\n", state.vars[varID], hex.EncodeToString(state.lists[varID]))
+			if len(list) == 0 {
+				state.logf("\t%v : empty list\n", state.vars[varID])
+			} else {
+				state.logf("\t%v : %q\n", state.vars[varID], hex.EncodeToString(state.lists[varID]))
+			}
 		}
 	}
 }
@@ -1001,7 +1042,7 @@ func decodeValue(ctxt *obj.Link, word uint64) (ID, ID) {
 	if ctxt.Arch.PtrSize != 4 {
 		panic("unexpected pointer size")
 	}
-	return ID(word >> 16), ID(word)
+	return ID(word >> 16), ID(int16(word))
 }
 
 // Append a pointer-sized uint to buf.

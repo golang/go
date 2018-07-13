@@ -4,7 +4,7 @@
 
 // Support for memory sanitizer. See runtime/cgo/sigaction.go.
 
-// +build linux,amd64
+// +build linux,amd64 freebsd,amd64 linux,arm64
 
 package runtime
 
@@ -17,7 +17,7 @@ var _cgo_sigaction unsafe.Pointer
 
 //go:nosplit
 //go:nowritebarrierrec
-func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
+func sigaction(sig uint32, new, old *sigactiont) {
 	// The runtime package is explicitly blacklisted from sanitizer
 	// instrumentation in racewalk.go, but we might be calling into instrumented C
 	// functions here — so we need the pointer parameters to be properly marked.
@@ -28,10 +28,8 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
 		msanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
 	}
 
-	var ret int32
-
 	if _cgo_sigaction == nil || inForkedChild {
-		ret = sysSigaction(sig, new, old, size)
+		sysSigaction(sig, new, old)
 	} else {
 		// We need to call _cgo_sigaction, which means we need a big enough stack
 		// for C.  To complicate matters, we may be in libpreinit (before the
@@ -39,17 +37,19 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
 		// the current thread in transition between goroutines, or with the g0
 		// system stack already in use).
 
+		var ret int32
+
 		g := getg()
 		sp := uintptr(unsafe.Pointer(&sig))
 		switch {
 		case g == nil:
 			// No g: we're on a C stack or a signal stack.
-			ret = callCgoSigaction(sig, new, old)
+			ret = callCgoSigaction(uintptr(sig), new, old)
 		case sp < g.stack.lo || sp >= g.stack.hi:
 			// We're no longer on g's stack, so we must be handling a signal.  It's
 			// possible that we interrupted the thread during a transition between g
 			// and g0, so we should stay on the current stack to avoid corrupting g0.
-			ret = callCgoSigaction(sig, new, old)
+			ret = callCgoSigaction(uintptr(sig), new, old)
 		default:
 			// We're running on g's stack, so either we're not in a signal handler or
 			// the signal handler has set the correct g.  If we're on gsignal or g0,
@@ -60,7 +60,7 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
 			// that's ok: we'll be running on a fresh, clean system stack so the stack
 			// check will always succeed anyway.
 			systemstack(func() {
-				ret = callCgoSigaction(sig, new, old)
+				ret = callCgoSigaction(uintptr(sig), new, old)
 			})
 		}
 
@@ -69,19 +69,14 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
 			// libc reserves certain signals — normally 32-33 — for pthreads, and
 			// returns EINVAL for sigaction calls on those signals.  If we get EINVAL,
 			// fall back to making the syscall directly.
-			ret = sysSigaction(sig, new, old, size)
+			sysSigaction(sig, new, old)
 		}
 	}
 
-	if msanenabled && old != nil && ret == 0 {
+	if msanenabled && old != nil {
 		msanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
 	}
-	return ret
 }
-
-// sysSigaction calls the rt_sigaction system call. It is implemented in assembly.
-//go:noescape
-func sysSigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
 
 // callCgoSigaction calls the sigaction function in the runtime/cgo package
 // using the GCC calling convention. It is implemented in assembly.

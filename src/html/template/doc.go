@@ -70,6 +70,9 @@ In this case it becomes
 where urlescaper, attrescaper, and htmlescaper are aliases for internal escaping
 functions.
 
+For these internal escaping functions, if an action pipeline evaluates to
+a nil interface value, it is treated as though it were an empty string.
+
 Errors
 
 See the documentation of ErrorCode for details.

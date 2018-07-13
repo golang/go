@@ -74,17 +74,17 @@ func ExampleDuration_Truncate() {
 	}
 
 	for _, t := range trunc {
-		fmt.Printf("t.Truncate(%6s) = %s\n", t, d.Truncate(t).String())
+		fmt.Printf("d.Truncate(%6s) = %s\n", t, d.Truncate(t).String())
 	}
 	// Output:
-	// t.Truncate(   1ns) = 1h15m30.918273645s
-	// t.Truncate(   1µs) = 1h15m30.918273s
-	// t.Truncate(   1ms) = 1h15m30.918s
-	// t.Truncate(    1s) = 1h15m30s
-	// t.Truncate(    2s) = 1h15m30s
-	// t.Truncate(  1m0s) = 1h15m0s
-	// t.Truncate( 10m0s) = 1h10m0s
-	// t.Truncate(1h0m0s) = 1h0m0s
+	// d.Truncate(   1ns) = 1h15m30.918273645s
+	// d.Truncate(   1µs) = 1h15m30.918273s
+	// d.Truncate(   1ms) = 1h15m30.918s
+	// d.Truncate(    1s) = 1h15m30s
+	// d.Truncate(    2s) = 1h15m30s
+	// d.Truncate(  1m0s) = 1h15m0s
+	// d.Truncate( 10m0s) = 1h10m0s
+	// d.Truncate(1h0m0s) = 1h0m0s
 }
 
 func ExampleParseDuration() {

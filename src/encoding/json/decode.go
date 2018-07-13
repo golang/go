@@ -204,7 +204,7 @@ func (n Number) Int64() (int64, error) {
 func isValidNumber(s string) bool {
 	// This function implements the JSON numbers grammar.
 	// See https://tools.ietf.org/html/rfc7159#section-6
-	// and http://json.org/number.gif
+	// and https://json.org/number.gif
 
 	if s == "" {
 		return false
@@ -868,11 +868,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	isNull := item[0] == 'n' // null
 	u, ut, pv := indirect(v, isNull)
 	if u != nil {
-		err := u.UnmarshalJSON(item)
-		if err != nil {
-			return err
-		}
-		return nil
+		return u.UnmarshalJSON(item)
 	}
 	if ut != nil {
 		if item[0] != '"' {
@@ -896,15 +892,10 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		if !ok {
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
-			} else {
-				return errPhase
 			}
+			return errPhase
 		}
-		err := ut.UnmarshalText(s)
-		if err != nil {
-			return err
-		}
-		return nil
+		return ut.UnmarshalText(s)
 	}
 
 	v = pv
@@ -952,9 +943,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		if !ok {
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
-			} else {
-				return errPhase
 			}
+			return errPhase
 		}
 		switch v.Kind() {
 		default:
@@ -985,9 +975,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		if c != '-' && (c < '0' || c > '9') {
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
-			} else {
-				return errPhase
 			}
+			return errPhase
 		}
 		s := string(item)
 		switch v.Kind() {
@@ -1001,9 +990,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			}
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
-			} else {
-				return &UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())}
 			}
+			return &UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())}
 		case reflect.Interface:
 			n, err := d.convertNumber(s)
 			if err != nil {

@@ -18,6 +18,7 @@ func newobject(typ *byte) *any
 func panicindex()
 func panicslice()
 func panicdivide()
+func panicmakeslicelen()
 func throwinit()
 func panicwrap()
 
@@ -54,25 +55,27 @@ func slicebytetostringtmp([]byte) string
 func slicerunetostring(*[32]byte, []rune) string
 func stringtoslicebyte(*[32]byte, string) []byte
 func stringtoslicerune(*[32]rune, string) []rune
-func decoderune(string, int) (retv rune, retk int)
 func slicecopy(to any, fr any, wid uintptr) int
 func slicestringcopy(to any, fr any) int
+
+func decoderune(string, int) (retv rune, retk int)
+func countrunes(string) int
 
 // interface conversions
 func convI2I(typ *byte, elem any) (ret any)
 
 func convT2E(typ *byte, elem *any) (ret any)
-func convT2E16(typ *byte, elem *any) (ret any)
-func convT2E32(typ *byte, elem *any) (ret any)
-func convT2E64(typ *byte, elem *any) (ret any)
+func convT2E16(typ *byte, val any) (ret any)
+func convT2E32(typ *byte, val any) (ret any)
+func convT2E64(typ *byte, val any) (ret any)
 func convT2Estring(typ *byte, elem *any) (ret any)
 func convT2Eslice(typ *byte, elem *any) (ret any)
 func convT2Enoptr(typ *byte, elem *any) (ret any)
 
 func convT2I(tab *byte, elem *any) (ret any)
-func convT2I16(tab *byte, elem *any) (ret any)
-func convT2I32(tab *byte, elem *any) (ret any)
-func convT2I64(tab *byte, elem *any) (ret any)
+func convT2I16(tab *byte, val any) (ret any)
+func convT2I32(tab *byte, val any) (ret any)
+func convT2I64(tab *byte, val any) (ret any)
 func convT2Istring(tab *byte, elem *any) (ret any)
 func convT2Islice(tab *byte, elem *any) (ret any)
 func convT2Inoptr(tab *byte, elem *any) (ret any)
@@ -119,6 +122,7 @@ func mapdelete_fast32(mapType *byte, hmap map[any]any, key any)
 func mapdelete_fast64(mapType *byte, hmap map[any]any, key any)
 func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
 func mapiternext(hiter *any)
+func mapclear(mapType *byte, hmap map[any]any)
 
 // *byte is really *runtime.Type
 func makechan64(chanType *byte, size int64) (hchan chan any)
@@ -145,11 +149,8 @@ func selectnbsend(hchan chan<- any, elem *any) bool
 func selectnbrecv(elem *any, hchan <-chan any) bool
 func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
 
-func newselect(sel *byte, selsize int64, size int32)
-func selectsend(sel *byte, hchan chan<- any, elem *any)
-func selectrecv(sel *byte, hchan <-chan any, elem *any, received *bool)
-func selectdefault(sel *byte)
-func selectgo(sel *byte) int
+func selectsetpc(cas *byte)
+func selectgo(cas0 *byte, order0 *byte, ncases int) (int, bool)
 func block()
 
 func makeslice(typ *byte, len int, cap int) (ary []any)
@@ -182,6 +183,7 @@ func complex128div(num complex128, den complex128) (quo complex128)
 
 // race detection
 func racefuncenter(uintptr)
+func racefuncenterfp()
 func racefuncexit()
 func raceread(uintptr)
 func racewrite(uintptr)

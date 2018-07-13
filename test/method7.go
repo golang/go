@@ -45,10 +45,9 @@ func main() {
 	interface{ m1(string) }.m1(x, "d")
 	want += " m1(d)"
 
-	// cannot link the call below - see #22444
-	// g := struct{ T }.m2
-	// g(struct{T}{})
-	// want += " m2()"
+	g := struct{ T }.m2
+	g(struct{ T }{})
+	want += " m2()"
 
 	if got != want {
 		panic("got" + got + ", want" + want)

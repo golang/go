@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !js
+
 package net
 
 import (
@@ -511,6 +513,33 @@ func TestCloseUnblocksRead(t *testing.T) {
 		n, err := ss.Read([]byte{0})
 		if n != 0 || err != io.EOF {
 			return fmt.Errorf("Read = %v, %v; want 0, EOF", n, err)
+		}
+		return nil
+	}
+	withTCPConnPair(t, client, server)
+}
+
+// Issue 24808: verify that ECONNRESET is not temporary for read.
+func TestNotTemporaryRead(t *testing.T) {
+	t.Parallel()
+	server := func(cs *TCPConn) error {
+		cs.SetLinger(0)
+		// Give the client time to get stuck in a Read.
+		time.Sleep(20 * time.Millisecond)
+		cs.Close()
+		return nil
+	}
+	client := func(ss *TCPConn) error {
+		_, err := ss.Read([]byte{0})
+		if err == nil {
+			return errors.New("Read succeeded unexpectedly")
+		} else if err == io.EOF {
+			// This happens on NaCl and Plan 9.
+			return nil
+		} else if ne, ok := err.(Error); !ok {
+			return fmt.Errorf("unexpected error %v", err)
+		} else if ne.Temporary() {
+			return fmt.Errorf("unexpected temporary error %v", err)
 		}
 		return nil
 	}

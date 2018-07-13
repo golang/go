@@ -87,6 +87,8 @@ type dirInfo struct {
 func epipecheck(file *File, e error) {
 }
 
+// DevNull is the name of the operating system's ``null device.''
+// On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "NUL"
 
 func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
@@ -169,7 +171,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 }
 
 // Close closes the File, rendering it unusable for I/O.
-// It returns an error, if any.
+// On files that support SetDeadline, any pending I/O operations will
+// be canceled and return immediately with an error.
 func (file *File) Close() error {
 	if file == nil {
 		return ErrInvalid
@@ -371,11 +374,20 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
 
-	var flags uint32
+	var flags uint32 = windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 	if isdir {
 		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
 	}
 	err = syscall.CreateSymbolicLink(n, o, flags)
+
+	if err != nil {
+		// the unprivileged create flag is unsupported
+		// below Windows 10 (1703, v10.0.14972). retry without it.
+		flags &^= windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+
+		err = syscall.CreateSymbolicLink(n, o, flags)
+	}
+
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}

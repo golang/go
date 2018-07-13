@@ -103,10 +103,6 @@ func TestEnvVars(t *testing.T) {
 			}
 
 			if r == nil {
-				if tc.cns == nil {
-					// Expected nil
-					return
-				}
 				t.Fatal("nil roots")
 			}
 

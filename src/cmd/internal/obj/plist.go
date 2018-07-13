@@ -136,7 +136,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s.
-	info, loc, ranges, _ := ctxt.dwarfSym(s)
+	info, loc, ranges, _, isstmt := ctxt.dwarfSym(s)
 	info.Type = objabi.SDWARFINFO
 	info.Set(AttrDuplicateOK, s.DuplicateOK())
 	if loc != nil {
@@ -147,6 +147,9 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ranges.Type = objabi.SDWARFRANGE
 	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
 	ctxt.Data = append(ctxt.Data, info, ranges)
+	isstmt.Type = objabi.SDWARFMISC
+	isstmt.Set(AttrDuplicateOK, s.DuplicateOK())
+	ctxt.Data = append(ctxt.Data, isstmt)
 
 	// Set up the function's gcargs and gclocals.
 	// They will be filled in later if needed.
@@ -156,6 +159,9 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	gclocals := &s.Func.GCLocals
 	gclocals.Set(AttrDuplicateOK, true)
 	gclocals.Type = objabi.SRODATA
+	gcregs := &s.Func.GCRegs
+	gcregs.Set(AttrDuplicateOK, true)
+	gcregs.Type = objabi.SRODATA
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
@@ -186,4 +192,28 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
 	}
+}
+
+// EmitEntryLiveness generates PCDATA Progs after p to switch to the
+// liveness map active at the entry of function s. It returns the last
+// Prog generated.
+func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+	pcdata := Appendp(p, newprog)
+	pcdata.Pos = s.Func.Text.Pos
+	pcdata.As = APCDATA
+	pcdata.From.Type = TYPE_CONST
+	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.To.Type = TYPE_CONST
+	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+
+	// Same, with register map.
+	pcdata = Appendp(pcdata, newprog)
+	pcdata.Pos = s.Func.Text.Pos
+	pcdata.As = APCDATA
+	pcdata.From.Type = TYPE_CONST
+	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.To.Type = TYPE_CONST
+	pcdata.To.Offset = -1
+
+	return pcdata
 }

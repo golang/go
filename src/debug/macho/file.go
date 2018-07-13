@@ -9,11 +9,13 @@ package macho
 
 import (
 	"bytes"
+	"compress/zlib"
 	"debug/dwarf"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // A File represents an open Mach-O file.
@@ -545,8 +547,9 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) error {
 }
 
 func cstring(b []byte) string {
-	var i int
-	for i = 0; i < len(b) && b[i] != 0; i++ {
+	i := bytes.IndexByte(b, 0)
+	if i == -1 {
+		i = len(b)
 	}
 	return string(b[0:i])
 }
@@ -574,26 +577,84 @@ func (f *File) Section(name string) *Section {
 
 // DWARF returns the DWARF debug information for the Mach-O file.
 func (f *File) DWARF() (*dwarf.Data, error) {
-	// There are many other DWARF sections, but these
-	// are the ones the debug/dwarf package uses.
-	// Don't bother loading others.
-	var names = [...]string{"abbrev", "info", "line", "ranges", "str"}
-	var dat [len(names)][]byte
-	for i, name := range names {
-		name = "__debug_" + name
-		s := f.Section(name)
-		if s == nil {
-			continue
+	dwarfSuffix := func(s *Section) string {
+		switch {
+		case strings.HasPrefix(s.Name, "__debug_"):
+			return s.Name[8:]
+		case strings.HasPrefix(s.Name, "__zdebug_"):
+			return s.Name[9:]
+		default:
+			return ""
 		}
+
+	}
+	sectionData := func(s *Section) ([]byte, error) {
 		b, err := s.Data()
 		if err != nil && uint64(len(b)) < s.Size {
 			return nil, err
 		}
-		dat[i] = b
+
+		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
+			dlen := binary.BigEndian.Uint64(b[4:12])
+			dbuf := make([]byte, dlen)
+			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
+			if err != nil {
+				return nil, err
+			}
+			if _, err := io.ReadFull(r, dbuf); err != nil {
+				return nil, err
+			}
+			if err := r.Close(); err != nil {
+				return nil, err
+			}
+			b = dbuf
+		}
+		return b, nil
 	}
 
-	abbrev, info, line, ranges, str := dat[0], dat[1], dat[2], dat[3], dat[4]
-	return dwarf.New(abbrev, nil, nil, info, line, nil, ranges, str)
+	// There are many other DWARF sections, but these
+	// are the ones the debug/dwarf package uses.
+	// Don't bother loading others.
+	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
+	for _, s := range f.Sections {
+		suffix := dwarfSuffix(s)
+		if suffix == "" {
+			continue
+		}
+		if _, ok := dat[suffix]; !ok {
+			continue
+		}
+		b, err := sectionData(s)
+		if err != nil {
+			return nil, err
+		}
+		dat[suffix] = b
+	}
+
+	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, dat["ranges"], dat["str"])
+	if err != nil {
+		return nil, err
+	}
+
+	// Look for DWARF4 .debug_types sections.
+	for i, s := range f.Sections {
+		suffix := dwarfSuffix(s)
+		if suffix != "types" {
+			continue
+		}
+
+		b, err := sectionData(s)
+		if err != nil {
+			return nil, err
+		}
+
+		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d, nil
 }
 
 // ImportedSymbols returns the names of all symbols

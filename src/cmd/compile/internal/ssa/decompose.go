@@ -266,9 +266,9 @@ func decomposeUserArrayInto(f *Func, name LocalSlot, slots []LocalSlot) []LocalS
 	// delete the name for the array as a whole
 	delete(f.NamedValues, name)
 
-	if t.ElemType().IsArray() {
+	if t.Elem().IsArray() {
 		return decomposeUserArrayInto(f, elemName, slots)
-	} else if t.ElemType().IsStruct() {
+	} else if t.Elem().IsStruct() {
 		return decomposeUserStructInto(f, elemName, slots)
 	}
 
@@ -362,9 +362,9 @@ func decomposeArrayPhi(v *Value) {
 	if t.NumElem() != 1 {
 		v.Fatalf("SSAable array must have no more than 1 element")
 	}
-	elem := v.Block.NewValue0(v.Pos, OpPhi, t.ElemType())
+	elem := v.Block.NewValue0(v.Pos, OpPhi, t.Elem())
 	for _, a := range v.Args {
-		elem.AddArg(a.Block.NewValue1I(v.Pos, OpArraySelect, t.ElemType(), 0, a))
+		elem.AddArg(a.Block.NewValue1I(v.Pos, OpArraySelect, t.Elem(), 0, a))
 	}
 	v.reset(OpArrayMake1)
 	v.AddArg(elem)

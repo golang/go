@@ -11,6 +11,8 @@ import (
 	"errors"
 	"io"
 	"math/big"
+
+	"crypto/internal/randutil"
 )
 
 // Parameters represents the domain parameters for a key. These parameters can
@@ -195,6 +197,8 @@ func fermatInverse(k, P *big.Int) *big.Int {
 // Be aware that calling Sign with an attacker-controlled PrivateKey may
 // require an arbitrary amount of CPU.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+	randutil.MaybeReadByte(rand)
+
 	// FIPS 186-3, section 4.6
 
 	n := priv.Q.BitLen()

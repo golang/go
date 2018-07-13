@@ -4,6 +4,10 @@
 
 package ssa
 
+import (
+	"cmd/internal/src"
+)
+
 // nilcheckelim eliminates unnecessary nil checks.
 // runs on machine-independent code.
 func nilcheckelim(f *Func) {
@@ -43,7 +47,7 @@ func nilcheckelim(f *Func) {
 			// a value resulting from taking the address of a
 			// value, or a value constructed from an offset of a
 			// non-nil ptr (OpAddPtr) implies it is non-nil
-			if v.Op == OpAddr || v.Op == OpAddPtr {
+			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr {
 				nonNilValues[v.ID] = true
 			}
 		}
@@ -103,6 +107,9 @@ func nilcheckelim(f *Func) {
 			// Next, order values in the current block w.r.t. stores.
 			b.Values = storeOrder(b.Values, sset, storeNumber)
 
+			pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+			pendingLines.clear()
+
 			// Next, process values in the block.
 			i := 0
 			for _, v := range b.Values {
@@ -112,6 +119,10 @@ func nilcheckelim(f *Func) {
 				case OpIsNonNil:
 					ptr := v.Args[0]
 					if nonNilValues[ptr.ID] {
+						if v.Pos.IsStmt() == src.PosIsStmt { // Boolean true is a terrible statement boundary.
+							pendingLines.add(v.Pos.Line())
+							v.Pos = v.Pos.WithNotStmt()
+						}
 						// This is a redundant explicit nil check.
 						v.reset(OpConstBool)
 						v.AuxInt = 1 // true
@@ -125,6 +136,9 @@ func nilcheckelim(f *Func) {
 						if f.fe.Debug_checknil() && v.Pos.Line() > 1 {
 							f.Warnl(v.Pos, "removed nil check")
 						}
+						if v.Pos.IsStmt() == src.PosIsStmt { // About to lose a statement boundary
+							pendingLines.add(v.Pos.Line())
+						}
 						v.reset(OpUnknown)
 						f.freeValue(v)
 						i--
@@ -134,7 +148,17 @@ func nilcheckelim(f *Func) {
 					// undo that information when this dominator subtree is done.
 					nonNilValues[ptr.ID] = true
 					work = append(work, bp{op: ClearPtr, ptr: ptr})
+					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
+				default:
+					if pendingLines.contains(v.Pos.Line()) && v.Pos.IsStmt() != src.PosNotStmt {
+						v.Pos = v.Pos.WithIsStmt()
+						pendingLines.remove(v.Pos.Line())
+					}
 				}
+			}
+			if pendingLines.contains(b.Pos.Line()) {
+				b.Pos = b.Pos.WithIsStmt()
+				pendingLines.remove(b.Pos.Line())
 			}
 			for j := i; j < len(b.Values); j++ {
 				b.Values[j] = nil
@@ -163,11 +187,15 @@ const minZeroPage = 4096
 func nilcheckelim2(f *Func) {
 	unnecessary := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(unnecessary)
+
+	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+
 	for _, b := range f.Blocks {
 		// Walk the block backwards. Find instructions that will fault if their
 		// input pointer is nil. Remove nil checks on those pointers, as the
 		// faulting instruction effectively does the nil check for free.
 		unnecessary.clear()
+		pendingLines.clear()
 		// Optimization: keep track of removed nilcheck with smallest index
 		firstToRemove := len(b.Values)
 		for i := len(b.Values) - 1; i >= 0; i-- {
@@ -175,6 +203,9 @@ func nilcheckelim2(f *Func) {
 			if opcodeTable[v.Op].nilCheck && unnecessary.contains(v.Args[0].ID) {
 				if f.fe.Debug_checknil() && v.Pos.Line() > 1 {
 					f.Warnl(v.Pos, "removed nil check")
+				}
+				if v.Pos.IsStmt() == src.PosIsStmt {
+					pendingLines.add(v.Pos.Line())
 				}
 				v.reset(OpUnknown)
 				firstToRemove = i
@@ -231,10 +262,19 @@ func nilcheckelim2(f *Func) {
 		for j := i; j < len(b.Values); j++ {
 			v := b.Values[j]
 			if v.Op != OpUnknown {
+				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos.Line()) {
+					v.Pos = v.Pos.WithIsStmt()
+					pendingLines.remove(v.Pos.Line())
+				}
 				b.Values[i] = v
 				i++
 			}
 		}
+
+		if pendingLines.contains(b.Pos.Line()) {
+			b.Pos = b.Pos.WithIsStmt()
+		}
+
 		for j := i; j < len(b.Values); j++ {
 			b.Values[j] = nil
 		}

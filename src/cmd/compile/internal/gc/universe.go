@@ -114,16 +114,15 @@ func lexinit() {
 	}
 
 	for _, s := range builtinFuncs {
-		// TODO(marvin): Fix Node.EType type union.
 		s2 := builtinpkg.Lookup(s.name)
 		s2.Def = asTypesNode(newname(s2))
-		asNode(s2.Def).Etype = types.EType(s.op)
+		asNode(s2.Def).SetSubOp(s.op)
 	}
 
 	for _, s := range unsafeFuncs {
 		s2 := unsafepkg.Lookup(s.name)
 		s2.Def = asTypesNode(newname(s2))
-		asNode(s2.Def).Etype = types.EType(s.op)
+		asNode(s2.Def).SetSubOp(s.op)
 	}
 
 	types.Idealstring = types.New(TSTRING)

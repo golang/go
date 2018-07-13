@@ -7,138 +7,121 @@
 package net
 
 import (
-	"bytes"
+	"errors"
 	"syscall"
-	"testing"
 )
 
-func TestRawConn(t *testing.T) {
-	handler := func(ls *localServer, ln Listener) {
-		c, err := ln.Accept()
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		defer c.Close()
-		var b [32]byte
-		n, err := c.Read(b[:])
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		if _, err := c.Write(b[:n]); err != nil {
-			t.Error(err)
-			return
-		}
-	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ls.teardown()
-	if err := ls.buildup(handler); err != nil {
-		t.Fatal(err)
-	}
-
-	c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	cc, err := c.(*TCPConn).SyscallConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func readRawConn(c syscall.RawConn, b []byte) (int, error) {
 	var operr error
-	data := []byte("HELLO-R-U-THERE")
-	err = cc.Write(func(s uintptr) bool {
-		_, operr = syscall.Write(int(s), data)
+	var n int
+	err := c.Read(func(s uintptr) bool {
+		n, operr = syscall.Read(int(s), b)
 		if operr == syscall.EAGAIN {
 			return false
 		}
 		return true
 	})
-	if err != nil || operr != nil {
-		t.Fatal(err, operr)
+	if err != nil {
+		return n, err
 	}
-
-	var nr int
-	var b [32]byte
-	err = cc.Read(func(s uintptr) bool {
-		nr, operr = syscall.Read(int(s), b[:])
-		if operr == syscall.EAGAIN {
-			return false
-		}
-		return true
-	})
-	if err != nil || operr != nil {
-		t.Fatal(err, operr)
+	if operr != nil {
+		return n, operr
 	}
-	if bytes.Compare(b[:nr], data) != 0 {
-		t.Fatalf("got %#v; want %#v", b[:nr], data)
-	}
-
-	fn := func(s uintptr) {
-		operr = syscall.SetsockoptInt(int(s), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	}
-	err = cc.Control(fn)
-	if err != nil || operr != nil {
-		t.Fatal(err, operr)
-	}
-	c.Close()
-	err = cc.Control(fn)
-	if err == nil {
-		t.Fatal("should fail")
-	}
+	return n, nil
 }
 
-func TestRawConnListener(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-
-	cc, err := ln.(*TCPListener).SyscallConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	called := false
-	op := func(uintptr) bool {
-		called = true
+func writeRawConn(c syscall.RawConn, b []byte) error {
+	var operr error
+	err := c.Write(func(s uintptr) bool {
+		_, operr = syscall.Write(int(s), b)
+		if operr == syscall.EAGAIN {
+			return false
+		}
 		return true
+	})
+	if err != nil {
+		return err
 	}
+	if operr != nil {
+		return operr
+	}
+	return nil
+}
 
-	err = cc.Write(op)
-	if err == nil {
-		t.Error("Write should return an error")
-	}
-	if called {
-		t.Error("Write shouldn't call op")
-	}
-
-	called = false
-	err = cc.Read(op)
-	if err == nil {
-		t.Error("Read should return an error")
-	}
-	if called {
-		t.Error("Read shouldn't call op")
-	}
-
+func controlRawConn(c syscall.RawConn, addr Addr) error {
 	var operr error
 	fn := func(s uintptr) {
 		_, operr = syscall.GetsockoptInt(int(s), syscall.SOL_SOCKET, syscall.SO_REUSEADDR)
+		if operr != nil {
+			return
+		}
+		switch addr := addr.(type) {
+		case *TCPAddr:
+			// There's no guarantee that IP-level socket
+			// options work well with dual stack sockets.
+			// A simple solution would be to take a look
+			// at the bound address to the raw connection
+			// and to classify the address family of the
+			// underlying socket by the bound address:
+			//
+			// - When IP.To16() != nil and IP.To4() == nil,
+			//   we can assume that the raw connection
+			//   consists of an IPv6 socket using only
+			//   IPv6 addresses.
+			//
+			// - When IP.To16() == nil and IP.To4() != nil,
+			//   the raw connection consists of an IPv4
+			//   socket using only IPv4 addresses.
+			//
+			// - Otherwise, the raw connection is a dual
+			//   stack socket, an IPv6 socket using IPv6
+			//   addresses including IPv4-mapped or
+			//   IPv4-embedded IPv6 addresses.
+			if addr.IP.To16() != nil && addr.IP.To4() == nil {
+				operr = syscall.SetsockoptInt(int(s), syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 1)
+			} else if addr.IP.To16() == nil && addr.IP.To4() != nil {
+				operr = syscall.SetsockoptInt(int(s), syscall.IPPROTO_IP, syscall.IP_TTL, 1)
+			}
+		}
 	}
-	err = cc.Control(fn)
-	if err != nil || operr != nil {
-		t.Fatal(err, operr)
+	if err := c.Control(fn); err != nil {
+		return err
 	}
-	ln.Close()
-	err = cc.Control(fn)
-	if err == nil {
-		t.Fatal("Control after Close should fail")
+	if operr != nil {
+		return operr
 	}
+	return nil
+}
+
+func controlOnConnSetup(network string, address string, c syscall.RawConn) error {
+	var operr error
+	var fn func(uintptr)
+	switch network {
+	case "tcp", "udp", "ip":
+		return errors.New("ambiguous network: " + network)
+	case "unix", "unixpacket", "unixgram":
+		fn = func(s uintptr) {
+			_, operr = syscall.GetsockoptInt(int(s), syscall.SOL_SOCKET, syscall.SO_ERROR)
+		}
+	default:
+		switch network[len(network)-1] {
+		case '4':
+			fn = func(s uintptr) {
+				operr = syscall.SetsockoptInt(int(s), syscall.IPPROTO_IP, syscall.IP_TTL, 1)
+			}
+		case '6':
+			fn = func(s uintptr) {
+				operr = syscall.SetsockoptInt(int(s), syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 1)
+			}
+		default:
+			return errors.New("unknown network: " + network)
+		}
+	}
+	if err := c.Control(fn); err != nil {
+		return err
+	}
+	if operr != nil {
+		return operr
+	}
+	return nil
 }

@@ -90,6 +90,7 @@ type Checker struct {
 	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
 	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
 	delayed    []func()                 // stack of delayed actions
+	objPath    []Object                 // path of object dependencies during type inference (for cycle reporting)
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -142,6 +143,26 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
 // (so that f still sees the scope before any new declarations).
 func (check *Checker) later(f func()) {
 	check.delayed = append(check.delayed, f)
+}
+
+// push pushes obj onto the object path and returns its index in the path.
+func (check *Checker) push(obj Object) int {
+	check.objPath = append(check.objPath, obj)
+	return len(check.objPath) - 1
+}
+
+// pop pops and returns the topmost object from the object path.
+func (check *Checker) pop() Object {
+	i := len(check.objPath) - 1
+	obj := check.objPath[i]
+	check.objPath[i] = nil
+	check.objPath = check.objPath[:i]
+	return obj
+}
+
+// pathString returns a string of the form a->b-> ... ->g for an object path [a, b, ... g].
+func (check *Checker) pathString() string {
+	return objPathString(check.objPath)
 }
 
 // NewChecker returns a new Checker instance for a given package.
@@ -249,7 +270,7 @@ func (check *Checker) recordUntyped() {
 
 	for x, info := range check.untyped {
 		if debug && isTyped(info.typ) {
-			check.dump("%s: %s (type %s) is typed", x.Pos(), x, info.typ)
+			check.dump("%v: %s (type %s) is typed", x.Pos(), x, info.typ)
 			unreachable()
 		}
 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)

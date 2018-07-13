@@ -277,8 +277,14 @@ func notetsleepg(n *note, ns int64) bool {
 		throw("notetsleepg on g0")
 	}
 	semacreate(gp.m)
-	entersyscallblock(0)
+	entersyscallblock()
 	ok := notetsleep_internal(n, ns, nil, 0)
-	exitsyscall(0)
+	exitsyscall()
 	return ok
 }
+
+func pauseSchedulerUntilCallback() bool {
+	return false
+}
+
+func checkTimeouts() {}

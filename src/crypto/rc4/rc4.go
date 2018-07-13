@@ -9,7 +9,10 @@
 // applications.
 package rc4
 
-import "strconv"
+import (
+	"crypto/internal/subtle"
+	"strconv"
+)
 
 // A Cipher is an instance of RC4 using a particular key.
 type Cipher struct {
@@ -57,12 +60,22 @@ func (c *Cipher) Reset() {
 // This is the pure Go version. rc4_{amd64,386,arm}* contain assembly
 // implementations. This is here for tests and to prevent bitrot.
 func (c *Cipher) xorKeyStreamGeneric(dst, src []byte) {
+	if len(src) == 0 {
+		return
+	}
+	if subtle.InexactOverlap(dst[:len(src)], src) {
+		panic("crypto/rc4: invalid buffer overlap")
+	}
 	i, j := c.i, c.j
+	_ = dst[len(src)-1]
+	dst = dst[:len(src)] // eliminate bounds check from loop
 	for k, v := range src {
 		i += 1
-		j += uint8(c.s[i])
-		c.s[i], c.s[j] = c.s[j], c.s[i]
-		dst[k] = v ^ uint8(c.s[uint8(c.s[i]+c.s[j])])
+		x := c.s[i]
+		j += uint8(x)
+		y := c.s[j]
+		c.s[i], c.s[j] = y, x
+		dst[k] = v ^ uint8(c.s[uint8(x+y)])
 	}
 	c.i, c.j = i, j
 }

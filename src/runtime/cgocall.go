@@ -125,7 +125,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// "system call", run the Go code (which may grow the stack),
 	// and then re-enter the "system call" reusing the PC and SP
 	// saved by entersyscall here.
-	entersyscall(0)
+	entersyscall()
 
 	mp.incgo = true
 	errno := asmcgocall(fn, arg)
@@ -134,7 +134,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// reschedule us on to a different M.
 	endcgo(mp)
 
-	exitsyscall(0)
+	exitsyscall()
 
 	// From the garbage collector's perspective, time can move
 	// backwards in the sequence above. If there's a callback into
@@ -188,7 +188,7 @@ func cgocallbackg(ctxt uintptr) {
 	// save syscall* and let reentersyscall restore them.
 	savedsp := unsafe.Pointer(gp.syscallsp)
 	savedpc := gp.syscallpc
-	exitsyscall(0) // coming out of cgo call
+	exitsyscall() // coming out of cgo call
 	gp.m.incgo = false
 
 	cgocallbackg1(ctxt)

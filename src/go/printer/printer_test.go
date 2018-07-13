@@ -188,12 +188,14 @@ var data = []entry{
 	{"comments.input", "comments.golden", 0},
 	{"comments.input", "comments.x", export},
 	{"comments2.input", "comments2.golden", idempotent},
+	{"alignment.input", "alignment.golden", idempotent},
 	{"linebreaks.input", "linebreaks.golden", idempotent},
 	{"expressions.input", "expressions.golden", idempotent},
 	{"expressions.input", "expressions.raw", rawFormat | idempotent},
 	{"declarations.input", "declarations.golden", 0},
 	{"statements.input", "statements.golden", 0},
 	{"slow.input", "slow.golden", idempotent},
+	{"complit.input", "complit.x", export},
 }
 
 func TestFiles(t *testing.T) {
@@ -325,7 +327,7 @@ func fibo(n int) {
 
 	comment := f.Comments[0].List[0]
 	pos := comment.Pos()
-	if fset.Position(pos).Offset != 1 {
+	if fset.PositionFor(pos, false /* absolute position */).Offset != 1 {
 		t.Error("expected offset 1") // error in test
 	}
 
@@ -422,6 +424,7 @@ func (t *t) foo(a, b, c int) int {
 			t.Errorf("got ident %s; want %s", i2.Name, i1.Name)
 		}
 
+		// here we care about the relative (line-directive adjusted) positions
 		l1 := fset.Position(i1.Pos()).Line
 		l2 := fset.Position(i2.Pos()).Line
 		if l2 != l1 {

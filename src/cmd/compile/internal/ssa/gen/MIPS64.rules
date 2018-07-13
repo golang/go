@@ -229,6 +229,7 @@
 (OffPtr [off] ptr) -> (ADDVconst [off] ptr)
 
 (Addr {sym} base) -> (MOVVaddr {sym} base)
+(LocalAddr {sym} base _) -> (MOVVaddr {sym} base)
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
@@ -404,7 +405,7 @@
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
-(Convert x mem) -> (MOVVconvert x mem)
+(GetCallerPC) -> (LoweredGetCallerPC)
 
 (If cond yes no) -> (NE cond yes no)
 

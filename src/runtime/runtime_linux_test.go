@@ -52,3 +52,12 @@ func TestMincoreErrorSign(t *testing.T) {
 		t.Errorf("mincore = %v, want %v", v, -EINVAL)
 	}
 }
+
+func TestEpollctlErrorSign(t *testing.T) {
+	v := Epollctl(-1, 1, -1, unsafe.Pointer(&struct{}{}))
+
+	const EBADF = 0x09
+	if v != -EBADF {
+		t.Errorf("epollctl = %v, want %v", v, -EBADF)
+	}
+}

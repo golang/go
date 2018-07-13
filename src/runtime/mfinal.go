@@ -172,7 +172,7 @@ func runfinq() {
 			gp := getg()
 			fing = gp
 			fingwait = true
-			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock, 1)
+			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
 			continue
 		}
 		unlock(&finlock)
@@ -267,8 +267,8 @@ func runfinq() {
 // is not guaranteed to run, because there is no ordering that
 // respects the dependencies.
 //
-// The finalizer for obj is scheduled to run at some arbitrary time after
-// obj becomes unreachable.
+// The finalizer is scheduled to run at some arbitrary time after the
+// program can no longer reach the object to which obj points.
 // There is no guarantee that finalizers will run before a program exits,
 // so typically they are useful only for releasing non-memory resources
 // associated with an object during a long-running program.

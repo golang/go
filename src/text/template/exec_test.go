@@ -304,6 +304,13 @@ var execTests = []execTest{
 	{"$.I", "{{$.I}}", "17", tVal, true},
 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
 	{"declare in action", "{{$x := $.U.V}}{{$x}}", "v", tVal, true},
+	{"simple assignment", "{{$x := 2}}{{$x = 3}}{{$x}}", "3", tVal, true},
+	{"nested assignment",
+		"{{$x := 2}}{{if true}}{{$x = 3}}{{end}}{{$x}}",
+		"3", tVal, true},
+	{"nested assignment changes the last declaration",
+		"{{$x := 1}}{{if true}}{{$x := 2}}{{if true}}{{$x = 3}}{{end}}{{end}}{{$x}}",
+		"1", tVal, true},
 
 	// Type with String method.
 	{"V{6666}.String()", "-{{.V0}}-", "-<6666>-", tVal, true},
@@ -441,6 +448,8 @@ var execTests = []execTest{
 	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
 	{"html", `{{html .PS}}`, "a string", tVal, true},
+	{"html typed nil", `{{html .NIL}}`, "&lt;nil&gt;", tVal, true},
+	{"html untyped nil", `{{html .Empty0}}`, "&lt;no value&gt;", tVal, true},
 
 	// JavaScript.
 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},

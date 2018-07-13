@@ -479,7 +479,7 @@ func Map(mapping func(rune) rune, s string) string {
 		b = make([]byte, len(s)+utf8.UTFMax)
 		nbytes = copy(b, s[:i])
 		if r >= 0 {
-			if r <= utf8.RuneSelf {
+			if r < utf8.RuneSelf {
 				b[nbytes] = byte(r)
 				nbytes++
 			} else {
@@ -509,7 +509,7 @@ func Map(mapping func(rune) rune, s string) string {
 		r := mapping(c)
 
 		// common case
-		if (0 <= r && r <= utf8.RuneSelf) && nbytes < len(b) {
+		if (0 <= r && r < utf8.RuneSelf) && nbytes < len(b) {
 			b[nbytes] = byte(r)
 			nbytes++
 			continue
@@ -797,6 +797,8 @@ func Trim(s string, cutset string) string {
 
 // TrimLeft returns a slice of the string s with all leading
 // Unicode code points contained in cutset removed.
+//
+// To remove a prefix, use TrimPrefix instead.
 func TrimLeft(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -806,6 +808,8 @@ func TrimLeft(s string, cutset string) string {
 
 // TrimRight returns a slice of the string s, with all trailing
 // Unicode code points contained in cutset removed.
+//
+// To remove a suffix, use TrimSuffix instead.
 func TrimRight(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -908,9 +912,9 @@ func EqualFold(s, t string) bool {
 			tr, sr = sr, tr
 		}
 		// Fast check for ASCII.
-		if tr < utf8.RuneSelf && 'A' <= sr && sr <= 'Z' {
-			// ASCII, and sr is upper case.  tr must be lower case.
-			if tr == sr+'a'-'A' {
+		if tr < utf8.RuneSelf {
+			// ASCII only, sr/tr must be upper/lower case
+			if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
 				continue
 			}
 			return false

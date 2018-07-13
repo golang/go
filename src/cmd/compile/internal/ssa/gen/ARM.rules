@@ -57,6 +57,9 @@
 
 (Sqrt x) -> (SQRTD x)
 
+// TODO: optimize this for ARMv5 and ARMv6
+(Ctz32NonZero x) -> (Ctz32 x)
+
 // count trailing zero for ARMv5 and ARMv6
 // 32 - CLZ(x&-x - 1)
 (Ctz32 <t> x) && objabi.GOARM<=6 -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
@@ -250,6 +253,7 @@
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
 (Addr {sym} base) -> (MOVWaddr {sym} base)
+(LocalAddr {sym} base _) -> (MOVWaddr {sym} base)
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
@@ -362,7 +366,7 @@
 // pseudo-ops
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (GetCallerSP) -> (LoweredGetCallerSP)
-(Convert x mem) -> (MOVWconvert x mem)
+(GetCallerPC) -> (LoweredGetCallerPC)
 
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)
@@ -826,14 +830,14 @@
 (RSBconst [c] (SUBconst [d] x)) -> (RSBconst [int64(int32(c+d))] x)
 (RSCconst [c] (ADDconst [d] x) flags) -> (RSCconst [int64(int32(c-d))] x flags)
 (RSCconst [c] (SUBconst [d] x) flags) -> (RSCconst [int64(int32(c+d))] x flags)
-(SLLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)<<uint64(c))])
-(SRLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)>>uint64(c))])
+(SLLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(uint32(d)<<uint64(c)))])
+(SRLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(uint32(d)>>uint64(c)))])
 (SRAconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)>>uint64(c))])
 (MUL (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(int32(c*d))])
 (MULA (MOVWconst [c]) (MOVWconst [d]) a) -> (ADDconst [int64(int32(c*d))] a)
 (MULS (MOVWconst [c]) (MOVWconst [d]) a) -> (SUBconst [int64(int32(c*d))] a)
-(Select0 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(uint32(c)/uint32(d))])
-(Select1 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(uint32(c)%uint32(d))])
+(Select0 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(int32(uint32(c)/uint32(d)))])
+(Select1 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(int32(uint32(c)%uint32(d)))])
 (ANDconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])
 (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c&d] x)
 (ORconst [c] (MOVWconst [d])) -> (MOVWconst [c|d])
@@ -850,7 +854,7 @@
 (MOVWreg (MOVWconst [c])) -> (MOVWconst [c])
 // BFX: Width = c >> 8, LSB = c & 0xff, result = d << (32 - Width - LSB) >> (32 - Width)
 (BFX [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
-(BFXU [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
+(BFXU [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8))))])
 
 // absorb shifts into ops
 (ADD x (SLLconst [c] y)) -> (ADDshiftLL x y [c])

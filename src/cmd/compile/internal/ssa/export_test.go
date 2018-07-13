@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
@@ -22,10 +23,12 @@ var Copyelim = copyelim
 var testCtxts = map[string]*obj.Link{
 	"amd64": obj.Linknew(&x86.Linkamd64),
 	"s390x": obj.Linknew(&s390x.Links390x),
+	"arm64": obj.Linknew(&arm64.Linkarm64),
 }
 
 func testConfig(tb testing.TB) *Conf      { return testConfigArch(tb, "amd64") }
 func testConfigS390X(tb testing.TB) *Conf { return testConfigArch(tb, "s390x") }
+func testConfigARM64(tb testing.TB) *Conf { return testConfigArch(tb, "arm64") }
 
 func testConfigArch(tb testing.TB, arch string) *Conf {
 	ctxt, ok := testCtxts[arch]
@@ -96,7 +99,7 @@ func (d DummyFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
 	return LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off + 8}
 }
 func (d DummyFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
-	return LocalSlot{N: s.N, Type: s.Type.ElemType().PtrTo(), Off: s.Off},
+	return LocalSlot{N: s.N, Type: s.Type.Elem().PtrTo(), Off: s.Off},
 		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 8},
 		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 16}
 }
@@ -116,7 +119,7 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 	return LocalSlot{N: s.N, Type: s.Type.FieldType(i), Off: s.Off + s.Type.FieldOff(i)}
 }
 func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
-	return LocalSlot{N: s.N, Type: s.Type.ElemType(), Off: s.Off}
+	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
 }
 func (DummyFrontend) Line(_ src.XPos) string {
 	return "unknown.go:0"

@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build !nacl
+// +build !js
 // +build !plan9
 // +build !windows
 
@@ -586,4 +587,37 @@ func TestRacyWrite(t *testing.T) {
 			}
 		}()
 	}
+}
+
+// Closing a TTY while reading from it should not hang.  Issue 23943.
+func TestTTYClose(t *testing.T) {
+	f, err := os.Open("/dev/tty")
+	if err != nil {
+		t.Skipf("skipping because opening /dev/tty failed: %v", err)
+	}
+
+	go func() {
+		var buf [1]byte
+		f.Read(buf[:])
+	}()
+
+	// Give the goroutine a chance to enter the read.
+	// It doesn't matter much if it occasionally fails to do so,
+	// we won't be testing what we want to test but the test will pass.
+	time.Sleep(time.Millisecond)
+
+	c := make(chan bool)
+	go func() {
+		defer close(c)
+		f.Close()
+	}()
+
+	select {
+	case <-c:
+	case <-time.After(time.Second):
+		t.Error("timed out waiting for close")
+	}
+
+	// On some systems the goroutines may now be hanging.
+	// There's not much we can do about that.
 }

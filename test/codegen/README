@@ -1,0 +1,147 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+The codegen directory contains code generation tests for the gc
+compiler.
+
+
+- Introduction
+
+The test harness compiles Go code inside files in this directory and
+then matches the generated assembly (the output of `go tool compile -S`)
+against a set of regexps specified in comments that follow a special
+syntax (described below). The test driver is implemented as a step of
+the top-level test/run.go suite, called "asmcheck".
+
+The codegen tests run during all.bash, but can also be run in
+isolation by using
+
+  $ ../bin/go run run.go -v codegen
+
+in the top-level test directory.
+
+The test harness compiles the tests with the same go toolchain that is
+used to run run.go. After writing tests for a newly added codegen
+transformation, it can be useful to first run the test harness with a
+toolchain from a released Go version (and verify that the new tests
+fail), and then re-runnig the tests using the devel toolchain.
+
+
+- Regexps comments syntax
+
+Instructions to match are specified inside plain comments that start
+with an architecture tag, followed by a colon and a quoted Go-style
+regexp to be matched. For example, the following test:
+
+  func Sqrt(x float64) float64 {
+  	   // amd64:"SQRTSD"
+  	   // arm64:"FSQRTD"
+  	   return math.Sqrt(x)
+  }
+
+verifies that math.Sqrt calls are intrinsified to a SQRTSD instruction
+on amd64, and to a FSQRTD instruction on arm64.
+
+It is possible to put multiple architectures checks into the same
+line, as:
+
+  // amd64:"SQRTSD" arm64:"FSQRTD"
+
+although this form should be avoided when doing so would make the
+regexps line excessively long and difficult to read.
+
+Comments that are on their own line will be matched against the first
+subsequent non-comment line. Inline comments are also supported; the
+regexp will be matched against the code found on the same line:
+
+  func Sqrt(x float64) float64 {
+  	   return math.Sqrt(x) // arm:"SQRTD"
+  }
+
+It's possible to specify a comma-separated list of regexps to be
+matched. For example, the following test:
+
+  func TZ8(n uint8) int {
+  	   // amd64:"BSFQ","ORQ\t\\$256"
+  	   return bits.TrailingZeros8(n)
+  }
+
+verifies that the code generated for a bits.TrailingZeros8 call on
+amd64 contains both a "BSFQ" instruction and an "ORQ $256".
+
+Note how the ORQ regex includes a tab char (\t). In the Go assembly
+syntax, operands are separated from opcodes by a tabulation.
+
+Regexps can be quoted using either " or `. Special characters must be
+escaped accordingly. Both of these are accepted, and equivalent:
+
+  // amd64:"ADDQ\t\\$3"
+  // amd64:`ADDQ\t\$3`
+
+and they'll match this assembly line:
+
+  ADDQ	$3
+
+Negative matches can be specified using a - before the quoted regexp.
+For example:
+
+  func MoveSmall() {
+  	   x := [...]byte{1, 2, 3, 4, 5, 6, 7}
+  	   copy(x[1:], x[:]) // arm64:-".*memmove"
+  }
+
+verifies that NO memmove call is present in the assembly generated for
+the copy() line.
+
+- Architecture specifiers
+
+There are three different ways to specify on which architecture a test
+should be run:
+
+* Specify only the architecture (eg: "amd64"). This indicates that the
+  check should be run on all the supported architecture variants. For
+  instance, arm checks will be run against all supported GOARM
+  variations (5,6,7).
+* Specify both the architecture and a variant, separated by a slash
+  (eg: "arm/7"). This means that the check will be run only on that
+  specific variant.
+* Specify the operating system, the architecture and the variant,
+  separated by slashes (eg: "plan9/386/sse2", "plan9/amd64/"). This is
+  needed in the rare case that you need to do a codegen test affected
+  by a specific operating system; by default, tests are compiled only
+  targeting linux.
+
+
+- Remarks, and Caveats
+
+-- Write small test functions
+
+As a general guideline, test functions should be small, to avoid
+possible interactions between unrelated lines of code that may be
+introduced, for example, by the compiler's optimization passes.
+
+Any given line of Go code could get assigned more instructions that it
+may appear from reading the source. In particular, matching all MOV
+instructions should be avoided; the compiler may add them for
+unrelated reasons and this may render the test ineffective.
+
+-- Line matching logic
+
+Regexps are always matched from the start of the instructions line.
+This means, for example, that the "MULQ" regexp is equivalent to
+"^MULQ" (^ representing the start of the line), and it will NOT match
+the following assembly line:
+
+  IMULQ	$99, AX
+
+To force a match at any point of the line, ".*MULQ" should be used.
+
+For the same reason, a negative regexp like -"memmove" is not enough
+to make sure that no memmove call is included in the assembly. A
+memmove call looks like this:
+
+  CALL	runtime.memmove(SB)
+
+To make sure that the "memmove" symbol does not appear anywhere in the
+assembly, the negative regexp to be used is -".*memmove".

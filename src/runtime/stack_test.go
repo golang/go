@@ -7,8 +7,11 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
+	"regexp"
 	. "runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -75,6 +78,10 @@ func TestStackMem(t *testing.T) {
 
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
+	if GOARCH == "wasm" {
+		t.Skip("fails on wasm (too slow?)")
+	}
+
 	// Don't make this test parallel as this makes the 20 second
 	// timeout unreliable on slow builders. (See issue #19381.)
 
@@ -121,9 +128,18 @@ func TestStackGrowth(t *testing.T) {
 		}()
 		<-done
 		GC()
+
+		timeout := 20 * time.Second
+		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+			scale, err := strconv.Atoi(s)
+			if err == nil {
+				timeout *= time.Duration(scale)
+			}
+		}
+
 		select {
 		case <-done:
-		case <-time.After(20 * time.Second):
+		case <-time.After(timeout):
 			if atomic.LoadUint32(&started) == 0 {
 				t.Log("finalizer did not start")
 			} else {
@@ -305,6 +321,39 @@ func testDeferPtrsPanic(c chan int, i int) {
 	useStackAndCall(i, func() { panic(1) })
 }
 
+//go:noinline
+func testDeferLeafSigpanic1() {
+	// Cause a sigpanic to be injected in this frame.
+	//
+	// This function has to be declared before
+	// TestDeferLeafSigpanic so the runtime will crash if we think
+	// this function's continuation PC is in
+	// TestDeferLeafSigpanic.
+	*(*int)(nil) = 0
+}
+
+// TestDeferLeafSigpanic tests defer matching around leaf functions
+// that sigpanic. This is tricky because on LR machines the outer
+// function and the inner function have the same SP, but it's critical
+// that we match up the defer correctly to get the right liveness map.
+// See issue #25499.
+func TestDeferLeafSigpanic(t *testing.T) {
+	// Push a defer that will walk the stack.
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatal("expected panic from nil pointer")
+		}
+		GC()
+	}()
+	// Call a leaf function. We must set up the exact call stack:
+	//
+	//  defering function -> leaf function -> sigpanic
+	//
+	// On LR machines, the leaf function will have the same SP as
+	// the SP pushed for the defer frame.
+	testDeferLeafSigpanic1()
+}
+
 // TestPanicUseStack checks that a chain of Panic structs on the stack are
 // updated correctly if the stack grows during the deferred execution that
 // happens as a result of the panic.
@@ -452,6 +501,26 @@ func TestStackPanic(t *testing.T) {
 	panic("test panic")
 }
 
+func BenchmarkStackCopyPtr(b *testing.B) {
+	c := make(chan bool)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			i := 1000000
+			countp(&i)
+			c <- true
+		}()
+		<-c
+	}
+}
+
+func countp(n *int) {
+	if *n == 0 {
+		return
+	}
+	*n--
+	countp(n)
+}
+
 func BenchmarkStackCopy(b *testing.B) {
 	c := make(chan bool)
 	for i := 0; i < b.N; i++ {
@@ -482,165 +551,34 @@ func BenchmarkStackCopyNoCache(b *testing.B) {
 }
 
 func count1(n int) int {
-	if n == 0 {
+	if n <= 0 {
 		return 0
 	}
 	return 1 + count2(n-1)
 }
 
-func count2(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count3(n-1)
-}
-
-func count3(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count4(n-1)
-}
-
-func count4(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count5(n-1)
-}
-
-func count5(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count6(n-1)
-}
-
-func count6(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count7(n-1)
-}
-
-func count7(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count8(n-1)
-}
-
-func count8(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count9(n-1)
-}
-
-func count9(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count10(n-1)
-}
-
-func count10(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count11(n-1)
-}
-
-func count11(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count12(n-1)
-}
-
-func count12(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count13(n-1)
-}
-
-func count13(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count14(n-1)
-}
-
-func count14(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count15(n-1)
-}
-
-func count15(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count16(n-1)
-}
-
-func count16(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count17(n-1)
-}
-
-func count17(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count18(n-1)
-}
-
-func count18(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count19(n-1)
-}
-
-func count19(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count20(n-1)
-}
-
-func count20(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count21(n-1)
-}
-
-func count21(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count22(n-1)
-}
-
-func count22(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count23(n-1)
-}
-
-func count23(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count1(n-1)
-}
+func count2(n int) int  { return 1 + count3(n-1) }
+func count3(n int) int  { return 1 + count4(n-1) }
+func count4(n int) int  { return 1 + count5(n-1) }
+func count5(n int) int  { return 1 + count6(n-1) }
+func count6(n int) int  { return 1 + count7(n-1) }
+func count7(n int) int  { return 1 + count8(n-1) }
+func count8(n int) int  { return 1 + count9(n-1) }
+func count9(n int) int  { return 1 + count10(n-1) }
+func count10(n int) int { return 1 + count11(n-1) }
+func count11(n int) int { return 1 + count12(n-1) }
+func count12(n int) int { return 1 + count13(n-1) }
+func count13(n int) int { return 1 + count14(n-1) }
+func count14(n int) int { return 1 + count15(n-1) }
+func count15(n int) int { return 1 + count16(n-1) }
+func count16(n int) int { return 1 + count17(n-1) }
+func count17(n int) int { return 1 + count18(n-1) }
+func count18(n int) int { return 1 + count19(n-1) }
+func count19(n int) int { return 1 + count20(n-1) }
+func count20(n int) int { return 1 + count21(n-1) }
+func count21(n int) int { return 1 + count22(n-1) }
+func count22(n int) int { return 1 + count23(n-1) }
+func count23(n int) int { return 1 + count1(n-1) }
 
 type structWithMethod struct{}
 
@@ -805,5 +743,44 @@ func TestTracebackSystemstack(t *testing.T) {
 	}
 	if countIn != 5 || countOut != 1 {
 		t.Fatalf("expected 5 calls to TracebackSystemstack and 1 call to TestTracebackSystemstack, got:%s", tb.String())
+	}
+}
+
+func TestTracebackAncestors(t *testing.T) {
+	goroutineRegex := regexp.MustCompile(`goroutine [0-9]+ \[`)
+	for _, tracebackDepth := range []int{0, 1, 5, 50} {
+		output := runTestProg(t, "testprog", "TracebackAncestors", fmt.Sprintf("GODEBUG=tracebackancestors=%d", tracebackDepth))
+
+		numGoroutines := 3
+		numFrames := 2
+		ancestorsExpected := numGoroutines
+		if numGoroutines > tracebackDepth {
+			ancestorsExpected = tracebackDepth
+		}
+
+		matches := goroutineRegex.FindAllStringSubmatch(output, -1)
+		if len(matches) != 2 {
+			t.Fatalf("want 2 goroutines, got:\n%s", output)
+		}
+
+		// Check functions in the traceback.
+		fns := []string{"main.recurseThenCallGo", "main.main", "main.printStack", "main.TracebackAncestors"}
+		for _, fn := range fns {
+			if !strings.Contains(output, "\n"+fn+"(") {
+				t.Fatalf("expected %q function in traceback:\n%s", fn, output)
+			}
+		}
+
+		if want, count := "originating from goroutine", ancestorsExpected; strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
+
+		if want, count := "main.recurseThenCallGo(...)", ancestorsExpected*(numFrames+1); strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
+
+		if want, count := "main.recurseThenCallGo(0x", 1; strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
 	}
 }

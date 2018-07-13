@@ -300,6 +300,7 @@ func WriteString(w Writer, s string) (n int, err error) {
 // ReadAtLeast returns ErrUnexpectedEOF.
 // If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
 // On return, n >= min if and only if err == nil.
+// If r returns an error having read at least min bytes, the error is dropped.
 func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 	if len(buf) < min {
 		return 0, ErrShortBuffer
@@ -323,6 +324,7 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 // If an EOF happens after reading some but not all the bytes,
 // ReadFull returns ErrUnexpectedEOF.
 // On return, n == len(buf) if and only if err == nil.
+// If r returns an error having read at least len(buf) bytes, the error is dropped.
 func ReadFull(r Reader, buf []byte) (n int, err error) {
 	return ReadAtLeast(r, buf, len(buf))
 }
@@ -385,15 +387,15 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	if rt, ok := dst.(ReaderFrom); ok {
 		return rt.ReadFrom(src)
 	}
-	size := 32 * 1024
-	if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
-		if l.N < 1 {
-			size = 1
-		} else {
-			size = int(l.N)
-		}
-	}
 	if buf == nil {
+		size := 32 * 1024
+		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
+			if l.N < 1 {
+				size = 1
+			} else {
+				size = int(l.N)
+			}
+		}
 		buf = make([]byte, size)
 	}
 	for {

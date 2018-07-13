@@ -9,9 +9,9 @@ import (
 
 type traceContextKey struct{}
 
-// NewContext creates a child context with a new task instance with
-// the type taskType. If the input context contains a task, the
-// new task is its subtask.
+// NewTask creates a task instance with the type taskType and returns
+// it along with a Context that carries the task.
+// If the input context contains a task, the new task is its subtask.
 //
 // The taskType is used to classify task instances. Analysis tools
 // like the Go execution tracer may assume there are only a bounded
@@ -24,21 +24,19 @@ type traceContextKey struct{}
 // If the end function is called multiple times, only the first
 // call is used in the latency measurement.
 //
-//   ctx, taskEnd := trace.NewContext(ctx, "awesome task")
-//   trace.WithSpan(ctx, prepWork)
+//   ctx, task := trace.NewTask(ctx, "awesome task")
+//   trace.WithRegion(ctx, prepWork)
 //   // preparation of the task
 //   go func() {  // continue processing the task in a separate goroutine.
-//       defer taskEnd()
-//       trace.WithSpan(ctx, remainingWork)
+//       defer task.End()
+//       trace.WithRegion(ctx, remainingWork)
 //   }
-func NewContext(pctx context.Context, taskType string) (ctx context.Context, end func()) {
+func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *Task) {
 	pid := fromContext(pctx).id
 	id := newID()
 	userTaskCreate(id, pid, taskType)
-	s := &task{id: id}
-	return context.WithValue(pctx, traceContextKey{}, s), func() {
-		userTaskEnd(id)
-	}
+	s := &Task{id: id}
+	return context.WithValue(pctx, traceContextKey{}, s), s
 
 	// We allocate a new task and the end function even when
 	// the tracing is disabled because the context and the detach
@@ -47,8 +45,8 @@ func NewContext(pctx context.Context, taskType string) (ctx context.Context, end
 	//
 	// For example, consider the following scenario:
 	//   - trace is enabled.
-	//   - trace.WithSpan is called, so a new context ctx
-	//     with a new span is created.
+	//   - trace.WithRegion is called, so a new context ctx
+	//     with a new region is created.
 	//   - trace is disabled.
 	//   - trace is enabled again.
 	//   - trace APIs with the ctx is called. Is the ID in the task
@@ -60,16 +58,22 @@ func NewContext(pctx context.Context, taskType string) (ctx context.Context, end
 	// tracing round.
 }
 
-func fromContext(ctx context.Context) *task {
-	if s, ok := ctx.Value(traceContextKey{}).(*task); ok {
+func fromContext(ctx context.Context) *Task {
+	if s, ok := ctx.Value(traceContextKey{}).(*Task); ok {
 		return s
 	}
 	return &bgTask
 }
 
-type task struct {
+// Task is a data type for tracing a user-defined, logical operation.
+type Task struct {
 	id uint64
 	// TODO(hyangah): record parent id?
+}
+
+// End marks the end of the operation represented by the Task.
+func (t *Task) End() {
+	userTaskEnd(t.id)
 }
 
 var lastTaskID uint64 = 0 // task id issued last time
@@ -79,7 +83,7 @@ func newID() uint64 {
 	return atomic.AddUint64(&lastTaskID, 1)
 }
 
-var bgTask = task{id: uint64(0)}
+var bgTask = Task{id: uint64(0)}
 
 // Log emits a one-off event with the given category and message.
 // Category can be empty and the API assumes there are only a handful of
@@ -100,24 +104,24 @@ func Logf(ctx context.Context, category, format string, args ...interface{}) {
 }
 
 const (
-	spanStartCode = uint64(0)
-	spanEndCode   = uint64(1)
+	regionStartCode = uint64(0)
+	regionEndCode   = uint64(1)
 )
 
-// WithSpan starts a span associated with its calling goroutine, runs fn,
-// and then ends the span. If the context carries a task, the span is
-// attached to the task. Otherwise, the span is attached to the background
+// WithRegion starts a region associated with its calling goroutine, runs fn,
+// and then ends the region. If the context carries a task, the region is
+// associated with the task. Otherwise, the region is attached to the background
 // task.
 //
-// The spanType is used to classify spans, so there should be only a
-// handful of unique span types.
-func WithSpan(ctx context.Context, spanType string, fn func(context.Context)) {
+// The regionType is used to classify regions, so there should be only a
+// handful of unique region types.
+func WithRegion(ctx context.Context, regionType string, fn func()) {
 	// NOTE:
-	// WithSpan helps avoiding misuse of the API but in practice,
+	// WithRegion helps avoiding misuse of the API but in practice,
 	// this is very restrictive:
-	// - Use of WithSpan makes the stack traces captured from
-	//   span start and end are identical.
-	// - Refactoring the existing code to use WithSpan is sometimes
+	// - Use of WithRegion makes the stack traces captured from
+	//   region start and end are identical.
+	// - Refactoring the existing code to use WithRegion is sometimes
 	//   hard and makes the code less readable.
 	//     e.g. code block nested deep in the loop with various
 	//          exit point with return values
@@ -128,22 +132,43 @@ func WithSpan(ctx context.Context, spanType string, fn func(context.Context)) {
 	// makes the code less readable.
 
 	id := fromContext(ctx).id
-	userSpan(id, spanStartCode, spanType)
-	defer userSpan(id, spanEndCode, spanType)
-	fn(ctx)
+	userRegion(id, regionStartCode, regionType)
+	defer userRegion(id, regionEndCode, regionType)
+	fn()
 }
 
-// StartSpan starts a span and returns a function for marking the
-// end of the span. The span end function must be called from the
-// same goroutine where the span was started.
-// Within each goroutine, spans must nest. That is, spans started
-// after this span must be ended before this span can be ended.
-// Callers are encouraged to instead use WithSpan when possible,
-// since it naturally satisfies these restrictions.
-func StartSpan(ctx context.Context, spanType string) func() {
+// StartRegion starts a region and returns a function for marking the
+// end of the region. The returned Region's End function must be called
+// from the same goroutine where the region was started.
+// Within each goroutine, regions must nest. That is, regions started
+// after this region must be ended before this region can be ended.
+// Recommended usage is
+//
+//     defer trace.StartRegion(ctx, "myTracedRegion").End()
+//
+func StartRegion(ctx context.Context, regionType string) *Region {
+	if !IsEnabled() {
+		return noopRegion
+	}
 	id := fromContext(ctx).id
-	userSpan(id, spanStartCode, spanType)
-	return func() { userSpan(id, spanEndCode, spanType) }
+	userRegion(id, regionStartCode, regionType)
+	return &Region{id, regionType}
+}
+
+// Region is a region of code whose execution time interval is traced.
+type Region struct {
+	id         uint64
+	regionType string
+}
+
+var noopRegion = &Region{}
+
+// End marks the end of the traced code region.
+func (r *Region) End() {
+	if r == noopRegion {
+		return
+	}
+	userRegion(r.id, regionEndCode, r.regionType)
 }
 
 // IsEnabled returns whether tracing is enabled.
@@ -164,8 +189,8 @@ func userTaskCreate(id, parentID uint64, taskType string)
 // emits UserTaskEnd event.
 func userTaskEnd(id uint64)
 
-// emits UserSpan event.
-func userSpan(id, mode uint64, spanType string)
+// emits UserRegion event.
+func userRegion(id, mode uint64, regionType string)
 
 // emits UserLog event.
 func userLog(id uint64, category, message string)

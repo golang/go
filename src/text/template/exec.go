@@ -19,7 +19,14 @@ import (
 // templates. This limit is only practically reached by accidentally
 // recursive template invocations. This limit allows us to return
 // an error instead of triggering a stack overflow.
-const maxExecDepth = 100000
+var maxExecDepth = initMaxExecDepth()
+
+func initMaxExecDepth() int {
+	if runtime.GOARCH == "wasm" {
+		return 1000
+	}
+	return 100000
+}
 
 // state represents the state of an execution. It's not part of the
 // template so that multiple executions of the same template
@@ -53,8 +60,20 @@ func (s *state) pop(mark int) {
 	s.vars = s.vars[0:mark]
 }
 
-// setVar overwrites the top-nth variable on the stack. Used by range iterations.
-func (s *state) setVar(n int, value reflect.Value) {
+// setVar overwrites the last declared variable with the given name.
+// Used by variable assignments.
+func (s *state) setVar(name string, value reflect.Value) {
+	for i := s.mark() - 1; i >= 0; i-- {
+		if s.vars[i].name == name {
+			s.vars[i].value = value
+			return
+		}
+	}
+	s.errorf("undefined variable: %s", name)
+}
+
+// setTopVar overwrites the top-nth variable on the stack. Used by range iterations.
+func (s *state) setTopVar(n int, value reflect.Value) {
 	s.vars[len(s.vars)-n].value = value
 }
 
@@ -321,11 +340,11 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	oneIteration := func(index, elem reflect.Value) {
 		// Set top var (lexically the second if there are two) to the element.
 		if len(r.Pipe.Decl) > 0 {
-			s.setVar(1, elem)
+			s.setTopVar(1, elem)
 		}
 		// Set next var (lexically the first if there are two) to the index.
 		if len(r.Pipe.Decl) > 1 {
-			s.setVar(2, index)
+			s.setTopVar(2, index)
 		}
 		s.walk(elem, r.List)
 		s.pop(mark)
@@ -414,7 +433,11 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
 		}
 	}
 	for _, variable := range pipe.Decl {
-		s.push(variable.Ident[0], value)
+		if pipe.IsAssign {
+			s.setVar(variable.Ident[0], value)
+		} else {
+			s.push(variable.Ident[0], value)
+		}
 	}
 	return value
 }

@@ -34,19 +34,18 @@ var (
 
 var canCancelIO bool // determines if CancelIoEx API is present
 
-// This package uses SetFileCompletionNotificationModes Windows API
-// to skip calling GetQueuedCompletionStatus if an IO operation completes
-// synchronously. Unfortuently SetFileCompletionNotificationModes is not
-// available on Windows XP. Also there is a known bug where
-// SetFileCompletionNotificationModes crashes on some systems
-// (see http://support.microsoft.com/kb/2568167 for details).
+// This package uses the SetFileCompletionNotificationModes Windows
+// API to skip calling GetQueuedCompletionStatus if an IO operation
+// completes synchronously. There is a known bug where
+// SetFileCompletionNotificationModes crashes on some systems (see
+// https://support.microsoft.com/kb/2568167 for details).
 
 var useSetFileCompletionNotificationModes bool // determines is SetFileCompletionNotificationModes is present and safe to use
 
 // checkSetFileCompletionNotificationModes verifies that
 // SetFileCompletionNotificationModes Windows API is present
 // on the system and is safe to use.
-// See http://support.microsoft.com/kb/2568167 for details.
+// See https://support.microsoft.com/kb/2568167 for details.
 func checkSetFileCompletionNotificationModes() {
 	err := syscall.LoadSetFileCompletionNotificationModes()
 	if err != nil {
@@ -226,7 +225,7 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		if o.errno != 0 {
 			err = syscall.Errno(o.errno)
 			// More data available. Return back the size of received data.
-			if err == syscall.ERROR_MORE_DATA || err == syscall.WSAEMSGSIZE {
+			if err == syscall.ERROR_MORE_DATA || err == windows.WSAEMSGSIZE {
 				return int(o.qty), err
 			}
 			return 0, err
@@ -383,7 +382,7 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 		// We do not use events, so we can skip them always.
 		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
 		// It's not safe to skip completion notifications for UDP:
-		// http://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
+		// https://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
 		if net == "tcp" {
 			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
 		}
@@ -913,12 +912,46 @@ func (fd *FD) RawControl(f func(uintptr)) error {
 
 // RawRead invokes the user-defined function f for a read operation.
 func (fd *FD) RawRead(f func(uintptr) bool) error {
-	return errors.New("not implemented")
+	if err := fd.readLock(); err != nil {
+		return err
+	}
+	defer fd.readUnlock()
+	for {
+		if f(uintptr(fd.Sysfd)) {
+			return nil
+		}
+
+		// Use a zero-byte read as a way to get notified when this
+		// socket is readable. h/t https://stackoverflow.com/a/42019668/332798
+		o := &fd.rop
+		o.InitBuf(nil)
+		if !fd.IsStream {
+			o.flags |= windows.MSG_PEEK
+		}
+		_, err := rsrv.ExecIO(o, func(o *operation) error {
+			return syscall.WSARecv(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
+		})
+		if err == windows.WSAEMSGSIZE {
+			// expected with a 0-byte peek, ignore.
+		} else if err != nil {
+			return err
+		}
+	}
 }
 
 // RawWrite invokes the user-defined function f for a write operation.
 func (fd *FD) RawWrite(f func(uintptr) bool) error {
-	return errors.New("not implemented")
+	if err := fd.writeLock(); err != nil {
+		return err
+	}
+	defer fd.writeUnlock()
+
+	if f(uintptr(fd.Sysfd)) {
+		return nil
+	}
+
+	// TODO(tmm1): find a way to detect socket writability
+	return syscall.EWINDOWS
 }
 
 func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {

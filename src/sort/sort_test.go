@@ -194,7 +194,7 @@ func BenchmarkSortString1K_Slice(b *testing.B) {
 func BenchmarkStableString1K(b *testing.B) {
 	b.StopTimer()
 	unsorted := make([]string, 1<<10)
-	for i := 0; i < len(data); i++ {
+	for i := range unsorted {
 		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
 	}
 	data := make([]string, len(unsorted))
@@ -456,7 +456,7 @@ func TestStableBM(t *testing.T) {
 }
 
 // This is based on the "antiquicksort" implementation by M. Douglas McIlroy.
-// See http://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
+// See https://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
 type adversaryTestingData struct {
 	t         *testing.T
 	data      []int // item values, initialized to special gas value and changed by Less

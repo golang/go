@@ -11,6 +11,7 @@ import (
 	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/s390x"
+	"cmd/internal/obj/wasm"
 	"cmd/internal/obj/x86"
 	"fmt"
 	"strings"
@@ -87,12 +88,18 @@ func Set(GOARCH string) *Arch {
 		a := archS390x()
 		a.LinkArch = &s390x.Links390x
 		return a
+	case "wasm":
+		return archWasm()
 	}
 	return nil
 }
 
 func jumpX86(word string) bool {
 	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP") || word == "XBEGIN"
+}
+
+func jumpWasm(word string) bool {
+	return word == "JMP" || word == "CALL" || word == "Call" || word == "Br" || word == "BrIf"
 }
 
 func archX86(linkArch *obj.LinkArch) *Arch {
@@ -205,6 +212,16 @@ func archArm() *Arch {
 		"R": true,
 	}
 
+	// special operands for DMB/DSB instructions
+	register["MB_SY"] = arm.REG_MB_SY
+	register["MB_ST"] = arm.REG_MB_ST
+	register["MB_ISH"] = arm.REG_MB_ISH
+	register["MB_ISHST"] = arm.REG_MB_ISHST
+	register["MB_NSH"] = arm.REG_MB_NSH
+	register["MB_NSHST"] = arm.REG_MB_NSHST
+	register["MB_OSH"] = arm.REG_MB_OSH
+	register["MB_OSHST"] = arm.REG_MB_OSHST
+
 	instructions := make(map[string]obj.As)
 	for i, s := range obj.Anames {
 		instructions[s] = obj.As(i)
@@ -260,6 +277,7 @@ func archArm64() *Arch {
 	register["SPSel"] = arm64.REG_SPSel
 	register["DAIFSet"] = arm64.REG_DAIFSet
 	register["DAIFClr"] = arm64.REG_DAIFClr
+	register["DCZID_EL0"] = arm64.REG_DCZID_EL0
 	register["PLDL1KEEP"] = arm64.REG_PLDL1KEEP
 	register["PLDL1STRM"] = arm64.REG_PLDL1STRM
 	register["PLDL2KEEP"] = arm64.REG_PLDL2KEEP
@@ -564,5 +582,26 @@ func archS390x() *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: s390xRegisterNumber,
 		IsJump:         jumpS390x,
+	}
+}
+
+func archWasm() *Arch {
+	instructions := make(map[string]obj.As)
+	for i, s := range obj.Anames {
+		instructions[s] = obj.As(i)
+	}
+	for i, s := range wasm.Anames {
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseWasm
+		}
+	}
+
+	return &Arch{
+		LinkArch:       &wasm.Linkwasm,
+		Instructions:   instructions,
+		Register:       wasm.Register,
+		RegisterPrefix: nil,
+		RegisterNumber: nilRegisterNumber,
+		IsJump:         jumpWasm,
 	}
 }

@@ -4,7 +4,7 @@
 
 // Parse "zoneinfo" time zone file.
 // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
-// See tzfile(5), http://en.wikipedia.org/wiki/Zoneinfo,
+// See tzfile(5), https://en.wikipedia.org/wiki/Zoneinfo,
 // and ftp://munnari.oz.au/pub/oldtz/
 
 package time

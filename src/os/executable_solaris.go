@@ -6,12 +6,17 @@ package os
 
 import "syscall"
 
+var executablePath string // set by sysauxv in ../runtime/os3_solaris.go
+
 var initCwd, initCwdErr = Getwd()
 
 func executable() (string, error) {
-	path, err := syscall.Getexecname()
-	if err != nil {
-		return path, err
+	path := executablePath
+	if len(path) == 0 {
+		path, err := syscall.Getexecname()
+		if err != nil {
+			return path, err
+		}
 	}
 	if len(path) > 0 && path[0] != '/' {
 		if initCwdErr != nil {

@@ -54,15 +54,16 @@ const (
 	ModeSetgid                                     // g: setgid
 	ModeCharDevice                                 // c: Unix character device, when ModeDevice is set
 	ModeSticky                                     // t: sticky
+	ModeIrregular                                  // ?: non-regular file; nothing else is known about this file
 
 	// Mask for the type bits. For regular files, none will be set.
-	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
+	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeIrregular
 
 	ModePerm FileMode = 0777 // Unix permission bits
 )
 
 func (m FileMode) String() string {
-	const str = "dalTLDpSugct"
+	const str = "dalTLDpSugct?"
 	var buf [32]byte // Mode is uint32.
 	w := 0
 	for i, c := range str {

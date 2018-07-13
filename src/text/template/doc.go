@@ -69,6 +69,7 @@ data, defined in detail in the corresponding sections that follow.
 
 */
 //	{{/* a comment */}}
+//	{{- /* a comment with white space trimmed from preceding and following text */ -}}
 //		A comment; discarded. May contain newlines.
 //		Comments do not nest and must start and end at the
 //		delimiters, as shown here.
@@ -240,6 +241,10 @@ The initialization has syntax
 
 where $variable is the name of the variable. An action that declares a
 variable produces no output.
+
+Variables previously declared can also be assigned, using the syntax
+
+	$variable = pipeline
 
 If a "range" action initializes a variable, the variable is set to the
 successive elements of the iteration. Also, a "range" may declare two

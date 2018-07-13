@@ -11,11 +11,11 @@ import "math"
 
 func f0(a []int) int {
 	a[0] = 1
-	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[0] = 1 // ERROR "Proved IsInBounds$"
 	a[6] = 1
-	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[6] = 1 // ERROR "Proved IsInBounds$"
 	a[5] = 1 // ERROR "Proved IsInBounds$"
-	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[5] = 1 // ERROR "Proved IsInBounds$"
 	return 13
 }
 
@@ -23,27 +23,27 @@ func f1(a []int) int {
 	if len(a) <= 5 {
 		return 18
 	}
-	a[0] = 1 // ERROR "Proved non-negative bounds IsInBounds$"
-	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[0] = 1 // ERROR "Proved IsInBounds$"
+	a[0] = 1 // ERROR "Proved IsInBounds$"
 	a[6] = 1
-	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[6] = 1 // ERROR "Proved IsInBounds$"
 	a[5] = 1 // ERROR "Proved IsInBounds$"
-	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[5] = 1 // ERROR "Proved IsInBounds$"
 	return 26
 }
 
 func f1b(a []int, i int, j uint) int {
 	if i >= 0 && i < len(a) {
-		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+		return a[i] // ERROR "Proved IsInBounds$"
 	}
 	if i >= 10 && i < len(a) {
-		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+		return a[i] // ERROR "Proved IsInBounds$"
 	}
 	if i >= 10 && i < len(a) {
-		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+		return a[i] // ERROR "Proved IsInBounds$"
 	}
-	if i >= 10 && i < len(a) { // todo: handle this case
-		return a[i-10]
+	if i >= 10 && i < len(a) {
+		return a[i-10] // ERROR "Proved IsInBounds$"
 	}
 	if j < uint(len(a)) {
 		return a[j] // ERROR "Proved IsInBounds$"
@@ -62,9 +62,9 @@ func f1c(a []int, i int64) int {
 }
 
 func f2(a []int) int {
-	for i := range a {
+	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1"
 		a[i+1] = i
-		a[i+1] = i // ERROR "Proved boolean IsInBounds$"
+		a[i+1] = i // ERROR "Proved IsInBounds$"
 	}
 	return 34
 }
@@ -84,14 +84,13 @@ func f4a(a, b, c int) int {
 		if a > b { // ERROR "Disproved Greater64$"
 			return 50
 		}
-		if a < b { // ERROR "Proved boolean Less64$"
+		if a < b { // ERROR "Proved Less64$"
 			return 53
 		}
-		if a == b { // ERROR "Disproved boolean Eq64$"
+		// We can't get to this point and prove knows that, so
+		// there's no message for the next (obvious) branch.
+		if a != a {
 			return 56
-		}
-		if a > b { // ERROR "Disproved boolean Greater64$"
-			return 59
 		}
 		return 61
 	}
@@ -127,8 +126,8 @@ func f4c(a, b, c int) int {
 func f4d(a, b, c int) int {
 	if a < b {
 		if a < c {
-			if a < b { // ERROR "Proved boolean Less64$"
-				if a < c { // ERROR "Proved boolean Less64$"
+			if a < b { // ERROR "Proved Less64$"
+				if a < c { // ERROR "Proved Less64$"
 					return 87
 				}
 				return 89
@@ -218,8 +217,8 @@ func f6e(a uint8) int {
 func f7(a []int, b int) int {
 	if b < len(a) {
 		a[b] = 3
-		if b < len(a) { // ERROR "Proved boolean Less64$"
-			a[b] = 5 // ERROR "Proved boolean IsInBounds$"
+		if b < len(a) { // ERROR "Proved Less64$"
+			a[b] = 5 // ERROR "Proved IsInBounds$"
 		}
 	}
 	return 161
@@ -242,7 +241,7 @@ func f9(a, b bool) int {
 	if a {
 		return 1
 	}
-	if a || b { // ERROR "Disproved boolean Arg$"
+	if a || b { // ERROR "Disproved Arg$"
 		return 2
 	}
 	return 3
@@ -260,22 +259,22 @@ func f10(a string) int {
 
 func f11a(a []int, i int) {
 	useInt(a[i])
-	useInt(a[i]) // ERROR "Proved boolean IsInBounds$"
+	useInt(a[i]) // ERROR "Proved IsInBounds$"
 }
 
 func f11b(a []int, i int) {
 	useSlice(a[i:])
-	useSlice(a[i:]) // ERROR "Proved boolean IsSliceInBounds$"
+	useSlice(a[i:]) // ERROR "Proved IsSliceInBounds$"
 }
 
 func f11c(a []int, i int) {
 	useSlice(a[:i])
-	useSlice(a[:i]) // ERROR "Proved boolean IsSliceInBounds$"
+	useSlice(a[:i]) // ERROR "Proved IsSliceInBounds$"
 }
 
 func f11d(a []int, i int) {
 	useInt(a[2*i+7])
-	useInt(a[2*i+7]) // ERROR "Proved boolean IsInBounds$"
+	useInt(a[2*i+7]) // ERROR "Proved IsInBounds$"
 }
 
 func f12(a []int, b int) {
@@ -305,7 +304,7 @@ func f13a(a, b, c int, x bool) int {
 			}
 		}
 		if x {
-			if a > 12 { // ERROR "Proved boolean Greater64$"
+			if a > 12 { // ERROR "Proved Greater64$"
 				return 5
 			}
 		}
@@ -327,7 +326,7 @@ func f13b(a int, x bool) int {
 			}
 		}
 		if x {
-			if a == -9 { // ERROR "Proved boolean Eq64$"
+			if a == -9 { // ERROR "Proved Eq64$"
 				return 9
 			}
 		}
@@ -349,7 +348,7 @@ func f13b(a int, x bool) int {
 func f13c(a int, x bool) int {
 	if a < 90 {
 		if x {
-			if a < 90 { // ERROR "Proved boolean Less64$"
+			if a < 90 { // ERROR "Proved Less64$"
 				return 13
 			}
 		}
@@ -398,8 +397,7 @@ func f13e(a int) int {
 
 func f13f(a int64) int64 {
 	if a > math.MaxInt64 {
-		// Unreachable, but prove doesn't know that.
-		if a == 0 {
+		if a == 0 { // ERROR "Disproved Eq64$"
 			return 1
 		}
 	}
@@ -450,7 +448,7 @@ func f14(p, q *int, a []int) {
 	j := *q
 	i2 := *p
 	useInt(a[i1+j])
-	useInt(a[i2+j]) // ERROR "Proved boolean IsInBounds$"
+	useInt(a[i2+j]) // ERROR "Proved IsInBounds$"
 }
 
 func f15(s []int, x int) {
@@ -460,9 +458,236 @@ func f15(s []int, x int) {
 
 func f16(s []int) []int {
 	if len(s) >= 10 {
-		return s[:10] // ERROR "Proved non-negative bounds IsSliceInBounds$"
+		return s[:10] // ERROR "Proved IsSliceInBounds$"
 	}
 	return nil
+}
+
+func f17(b []int) {
+	for i := 0; i < len(b); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+		// This tests for i <= cap, which we can only prove
+		// using the derived relation between len and cap.
+		// This depends on finding the contradiction, since we
+		// don't query this condition directly.
+		useSlice(b[:i]) // ERROR "Proved IsSliceInBounds$"
+	}
+}
+
+func f18(b []int, x int, y uint) {
+	_ = b[x]
+	_ = b[y]
+
+	if x > len(b) { // ERROR "Disproved Greater64$"
+		return
+	}
+	if y > uint(len(b)) { // ERROR "Disproved Greater64U$"
+		return
+	}
+	if int(y) > len(b) { // ERROR "Disproved Greater64$"
+		return
+	}
+}
+
+func sm1(b []int, x int) {
+	// Test constant argument to slicemask.
+	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
+	// Test non-constant argument with known limits.
+	if cap(b) > 10 {
+		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
+	}
+}
+
+func lim1(x, y, z int) {
+	// Test relations between signed and unsigned limits.
+	if x > 5 {
+		if uint(x) > 5 { // ERROR "Proved Greater64U$"
+			return
+		}
+	}
+	if y >= 0 && y < 4 {
+		if uint(y) > 4 { // ERROR "Disproved Greater64U$"
+			return
+		}
+		if uint(y) < 5 { // ERROR "Proved Less64U$"
+			return
+		}
+	}
+	if z < 4 {
+		if uint(z) > 4 { // Not provable without disjunctions.
+			return
+		}
+	}
+}
+
+// fence1–4 correspond to the four fence-post implications.
+
+func fence1(b []int, x, y int) {
+	// Test proofs that rely on fence-post implications.
+	if x+1 > y {
+		if x < y { // ERROR "Disproved Less64$"
+			return
+		}
+	}
+	if len(b) < cap(b) {
+		// This eliminates the growslice path.
+		b = append(b, 1) // ERROR "Disproved Greater64$"
+	}
+}
+
+func fence2(x, y int) {
+	if x-1 < y {
+		if x > y { // ERROR "Disproved Greater64$"
+			return
+		}
+	}
+}
+
+func fence3(b []int, x, y int64) {
+	if x-1 >= y {
+		if x <= y { // Can't prove because x may have wrapped.
+			return
+		}
+	}
+
+	if x != math.MinInt64 && x-1 >= y {
+		if x <= y { // ERROR "Disproved Leq64$"
+			return
+		}
+	}
+
+	if n := len(b); n > 0 {
+		b[n-1] = 0 // ERROR "Proved IsInBounds$"
+	}
+}
+
+func fence4(x, y int64) {
+	if x >= y+1 {
+		if x <= y {
+			return
+		}
+	}
+	if y != math.MaxInt64 && x >= y+1 {
+		if x <= y { // ERROR "Disproved Leq64$"
+			return
+		}
+	}
+}
+
+// Check transitive relations
+func trans1(x, y int64) {
+	if x > 5 {
+		if y > x {
+			if y > 2 { // ERROR "Proved Greater64"
+				return
+			}
+		} else if y == x {
+			if y > 5 { // ERROR "Proved Greater64"
+				return
+			}
+		}
+	}
+	if x >= 10 {
+		if y > x {
+			if y > 10 { // ERROR "Proved Greater64"
+				return
+			}
+		}
+	}
+}
+
+func trans2(a, b []int, i int) {
+	if len(a) != len(b) {
+		return
+	}
+
+	_ = a[i]
+	_ = b[i] // ERROR "Proved IsInBounds$"
+}
+
+func trans3(a, b []int, i int) {
+	if len(a) > len(b) {
+		return
+	}
+
+	_ = a[i]
+	_ = b[i] // ERROR "Proved IsInBounds$"
+}
+
+// Derived from nat.cmp
+func natcmp(x, y []uint) (r int) {
+	m := len(x)
+	n := len(y)
+	if m != n || m == 0 {
+		return
+	}
+
+	i := m - 1
+	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment 1"
+		x[i] == // ERROR "Proved IsInBounds$"
+			y[i] { // ERROR "Proved IsInBounds$"
+		i--
+	}
+
+	switch {
+	case x[i] < // todo, cannot prove this because it's dominated by i<=0 || x[i]==y[i]
+		y[i]: // ERROR "Proved IsInBounds$"
+		r = -1
+	case x[i] > // ERROR "Proved IsInBounds$"
+		y[i]: // ERROR "Proved IsInBounds$"
+		r = 1
+	}
+	return
+}
+
+func suffix(s, suffix string) bool {
+	// todo, we're still not able to drop the bound check here in the general case
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+func constsuffix(s string) bool {
+	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$"
+}
+
+// oforuntil tests the pattern created by OFORUNTIL blocks. These are
+// handled by addLocalInductiveFacts rather than findIndVar.
+func oforuntil(b []int) {
+	i := 0
+	if len(b) > i {
+	top:
+		println(b[i]) // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		i++
+		if i < len(b) {
+			goto top
+		}
+	}
+}
+
+// The range tests below test the index variable of range loops.
+
+// range1 compiles to the "efficiently indexable" form of a range loop.
+func range1(b []int) {
+	for i, v := range b { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+		b[i] = v + 1    // ERROR "Proved IsInBounds$"
+		if i < len(b) { // ERROR "Proved Less64$"
+			println("x")
+		}
+		if i >= 0 { // ERROR "Proved Geq64$"
+			println("x")
+		}
+	}
+}
+
+// range2 elements are larger, so they use the general form of a range loop.
+func range2(b [][32]int) {
+	for i, v := range b {
+		b[i][0] = v[0] + 1 // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		if i < len(b) {    // ERROR "Proved Less64$"
+			println("x")
+		}
+		if i >= 0 { // ERROR "Proved Geq64"
+			println("x")
+		}
+	}
 }
 
 //go:noinline

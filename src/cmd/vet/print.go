@@ -8,6 +8,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -15,6 +16,7 @@ import (
 	"go/token"
 	"go/types"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -27,6 +29,9 @@ func init() {
 		"check printf-like invocations",
 		checkFmtPrintfCall,
 		funcDecl, callExpr)
+	registerPkgCheck("printf", findPrintfLike)
+	registerExport("printf", exportPrintfLike)
+	gob.Register([]printfExport(nil))
 }
 
 func initPrintFlags() {
@@ -44,73 +49,263 @@ func initPrintFlags() {
 			name = name[:colon]
 		}
 
-		isPrint[strings.ToLower(name)] = true
+		if !strings.Contains(name, ".") {
+			name = strings.ToLower(name)
+		}
+		isPrint[name] = true
 	}
 }
 
-// TODO(rsc): Incorporate user-defined printf wrappers again.
-// The general plan is to allow vet of one package P to output
-// additional information to supply to later vets of packages
-// importing P. Then vet of P can record a list of printf wrappers
-// and the later vet using P.Printf will find it in the list and check it.
-// That's not ready for Go 1.10.
-// When that does happen, uncomment the user-defined printf
-// wrapper tests in testdata/print.go.
+var localPrintfLike = make(map[string]int)
+
+type printfExport struct {
+	Name string
+	Kind int
+}
+
+// printfImported maps from package name to the printf vet data
+// exported by that package.
+var printfImported = make(map[string]map[string]int)
+
+type printfWrapper struct {
+	name       string
+	fn         *ast.FuncDecl
+	format     *ast.Field
+	args       *ast.Field
+	callers    []printfCaller
+	printfLike bool
+}
+
+type printfCaller struct {
+	w    *printfWrapper
+	call *ast.CallExpr
+}
+
+// maybePrintfWrapper decides whether decl (a declared function) may be a wrapper
+// around a fmt.Printf or fmt.Print function. If so it returns a printfWrapper
+// function describing the declaration. Later processing will analyze the
+// graph of potential printf wrappers to pick out the ones that are true wrappers.
+// A function may be a Printf or Print wrapper if its last argument is ...interface{}.
+// If the next-to-last argument is a string, then this may be a Printf wrapper.
+// Otherwise it may be a Print wrapper.
+func maybePrintfWrapper(decl ast.Decl) *printfWrapper {
+	// Look for functions with final argument type ...interface{}.
+	fn, ok := decl.(*ast.FuncDecl)
+	if !ok || fn.Body == nil {
+		return nil
+	}
+	name := fn.Name.Name
+	if fn.Recv != nil {
+		// For (*T).Name or T.name, use "T.name".
+		rcvr := fn.Recv.List[0].Type
+		if ptr, ok := rcvr.(*ast.StarExpr); ok {
+			rcvr = ptr.X
+		}
+		id, ok := rcvr.(*ast.Ident)
+		if !ok {
+			return nil
+		}
+		name = id.Name + "." + name
+	}
+	params := fn.Type.Params.List
+	if len(params) == 0 {
+		return nil
+	}
+	args := params[len(params)-1]
+	if len(args.Names) != 1 {
+		return nil
+	}
+	ddd, ok := args.Type.(*ast.Ellipsis)
+	if !ok {
+		return nil
+	}
+	iface, ok := ddd.Elt.(*ast.InterfaceType)
+	if !ok || len(iface.Methods.List) > 0 {
+		return nil
+	}
+	var format *ast.Field
+	if len(params) >= 2 {
+		p := params[len(params)-2]
+		if len(p.Names) == 1 {
+			if id, ok := p.Type.(*ast.Ident); ok && id.Name == "string" {
+				format = p
+			}
+		}
+	}
+
+	return &printfWrapper{
+		name:   name,
+		fn:     fn,
+		format: format,
+		args:   args,
+	}
+}
+
+// findPrintfLike scans the entire package to find printf-like functions.
+func findPrintfLike(pkg *Package) {
+	if vcfg.ImportPath == "" { // no type or vetx information; don't bother
+		return
+	}
+
+	// Gather potential wrappesr and call graph between them.
+	byName := make(map[string]*printfWrapper)
+	var wrappers []*printfWrapper
+	for _, file := range pkg.files {
+		if file.file == nil {
+			continue
+		}
+		for _, decl := range file.file.Decls {
+			w := maybePrintfWrapper(decl)
+			if w == nil {
+				continue
+			}
+			byName[w.name] = w
+			wrappers = append(wrappers, w)
+		}
+	}
+
+	// Walk the graph to figure out which are really printf wrappers.
+	for _, w := range wrappers {
+		// Scan function for calls that could be to other printf-like functions.
+		ast.Inspect(w.fn.Body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok || len(call.Args) == 0 || !match(call.Args[len(call.Args)-1], w.args) {
+				return true
+			}
+
+			pkgpath, name, kind := printfNameAndKind(pkg, call.Fun)
+			if kind != 0 {
+				checkPrintfFwd(pkg, w, call, kind)
+				return true
+			}
+
+			// If the call is to another function in this package,
+			// maybe we will find out it is printf-like later.
+			// Remember this call for later checking.
+			if pkgpath == "" && byName[name] != nil {
+				callee := byName[name]
+				callee.callers = append(callee.callers, printfCaller{w, call})
+			}
+
+			return true
+		})
+	}
+}
+
+func match(arg ast.Expr, param *ast.Field) bool {
+	id, ok := arg.(*ast.Ident)
+	return ok && id.Obj != nil && id.Obj.Decl == param
+}
+
+const (
+	kindPrintf = 1
+	kindPrint  = 2
+)
+
+// printfLike reports whether a call to fn should be considered a call to a printf-like function.
+// It returns 0 (indicating not a printf-like function), kindPrintf, or kindPrint.
+func printfLike(pkg *Package, fn ast.Expr, byName map[string]*printfWrapper) int {
+	if id, ok := fn.(*ast.Ident); ok && id.Obj != nil {
+		if w := byName[id.Name]; w != nil && id.Obj.Decl == w.fn {
+			// Found call to function in same package.
+			return localPrintfLike[id.Name]
+		}
+	}
+	if sel, ok := fn.(*ast.SelectorExpr); ok {
+		if id, ok := sel.X.(*ast.Ident); ok && id.Name == "fmt" && strings.Contains(sel.Sel.Name, "rint") {
+			if strings.HasSuffix(sel.Sel.Name, "f") {
+				return kindPrintf
+			}
+			return kindPrint
+		}
+	}
+	return 0
+}
+
+// checkPrintfFwd checks that a printf-forwarding wrapper is forwarding correctly.
+// It diagnoses writing fmt.Printf(format, args) instead of fmt.Printf(format, args...).
+func checkPrintfFwd(pkg *Package, w *printfWrapper, call *ast.CallExpr, kind int) {
+	matched := kind == kindPrint ||
+		kind == kindPrintf && len(call.Args) >= 2 && match(call.Args[len(call.Args)-2], w.format)
+	if !matched {
+		return
+	}
+
+	if !call.Ellipsis.IsValid() {
+		if !vcfg.VetxOnly {
+			desc := "printf"
+			if kind == kindPrint {
+				desc = "print"
+			}
+			pkg.files[0].Badf(call.Pos(), "missing ... in args forwarded to %s-like function", desc)
+		}
+		return
+	}
+	name := w.name
+	if localPrintfLike[name] == 0 {
+		localPrintfLike[name] = kind
+		for _, caller := range w.callers {
+			checkPrintfFwd(pkg, caller.w, caller.call, kind)
+		}
+	}
+}
+
+func exportPrintfLike() interface{} {
+	out := make([]printfExport, 0, len(localPrintfLike))
+	for name, kind := range localPrintfLike {
+		out = append(out, printfExport{
+			Name: name,
+			Kind: kind,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
 
 // isPrint records the print functions.
 // If a key ends in 'f' then it is assumed to be a formatted print.
 var isPrint = map[string]bool{
-	"fmt.Errorf":         true,
-	"fmt.Fprint":         true,
-	"fmt.Fprintf":        true,
-	"fmt.Fprintln":       true,
-	"fmt.Print":          true,
-	"fmt.Printf":         true,
-	"fmt.Println":        true,
-	"fmt.Sprint":         true,
-	"fmt.Sprintf":        true,
-	"fmt.Sprintln":       true,
-	"log.Fatal":          true,
-	"log.Fatalf":         true,
-	"log.Fatalln":        true,
-	"log.Logger.Fatal":   true,
-	"log.Logger.Fatalf":  true,
-	"log.Logger.Fatalln": true,
-	"log.Logger.Panic":   true,
-	"log.Logger.Panicf":  true,
-	"log.Logger.Panicln": true,
-	"log.Logger.Printf":  true,
-	"log.Logger.Println": true,
-	"log.Panic":          true,
-	"log.Panicf":         true,
-	"log.Panicln":        true,
-	"log.Print":          true,
-	"log.Printf":         true,
-	"log.Println":        true,
-	"testing.B.Error":    true,
-	"testing.B.Errorf":   true,
-	"testing.B.Fatal":    true,
-	"testing.B.Fatalf":   true,
-	"testing.B.Log":      true,
-	"testing.B.Logf":     true,
-	"testing.B.Skip":     true,
-	"testing.B.Skipf":    true,
-	"testing.T.Error":    true,
-	"testing.T.Errorf":   true,
-	"testing.T.Fatal":    true,
-	"testing.T.Fatalf":   true,
-	"testing.T.Log":      true,
-	"testing.T.Logf":     true,
-	"testing.T.Skip":     true,
-	"testing.T.Skipf":    true,
-	"testing.TB.Error":   true,
-	"testing.TB.Errorf":  true,
-	"testing.TB.Fatal":   true,
-	"testing.TB.Fatalf":  true,
-	"testing.TB.Log":     true,
-	"testing.TB.Logf":    true,
-	"testing.TB.Skip":    true,
-	"testing.TB.Skipf":   true,
+	"fmt.Errorf":   true,
+	"fmt.Fprint":   true,
+	"fmt.Fprintf":  true,
+	"fmt.Fprintln": true,
+	"fmt.Print":    true,
+	"fmt.Printf":   true,
+	"fmt.Println":  true,
+	"fmt.Sprint":   true,
+	"fmt.Sprintf":  true,
+	"fmt.Sprintln": true,
+
+	// testing.B, testing.T not auto-detected
+	// because the methods are picked up by embedding.
+	"testing.B.Error":  true,
+	"testing.B.Errorf": true,
+	"testing.B.Fatal":  true,
+	"testing.B.Fatalf": true,
+	"testing.B.Log":    true,
+	"testing.B.Logf":   true,
+	"testing.B.Skip":   true,
+	"testing.B.Skipf":  true,
+	"testing.T.Error":  true,
+	"testing.T.Errorf": true,
+	"testing.T.Fatal":  true,
+	"testing.T.Fatalf": true,
+	"testing.T.Log":    true,
+	"testing.T.Logf":   true,
+	"testing.T.Skip":   true,
+	"testing.T.Skipf":  true,
+
+	// testing.TB is an interface, so can't detect wrapping.
+	"testing.TB.Error":  true,
+	"testing.TB.Errorf": true,
+	"testing.TB.Fatal":  true,
+	"testing.TB.Fatalf": true,
+	"testing.TB.Log":    true,
+	"testing.TB.Logf":   true,
+	"testing.TB.Skip":   true,
+	"testing.TB.Skipf":  true,
 }
 
 // formatString returns the format string argument and its index within
@@ -206,66 +401,93 @@ func checkFmtPrintfCall(f *File, node ast.Node) {
 	}
 
 	// Construct name like pkg.Printf or pkg.Type.Printf for lookup.
-	var name string
-	switch x := call.Fun.(type) {
+	_, name, kind := printfNameAndKind(f.pkg, call.Fun)
+	if kind == kindPrintf {
+		f.checkPrintf(call, name)
+	}
+	if kind == kindPrint {
+		f.checkPrint(call, name)
+	}
+}
+
+func printfName(pkg *Package, called ast.Expr) (pkgpath, name string) {
+	switch x := called.(type) {
 	case *ast.Ident:
-		if fn, ok := f.pkg.uses[x].(*types.Func); ok {
-			var pkg string
-			if fn.Pkg() == nil || fn.Pkg() == f.pkg.typesPkg {
-				pkg = vcfg.ImportPath
+		if fn, ok := pkg.uses[x].(*types.Func); ok {
+			if fn.Pkg() == nil || fn.Pkg() == pkg.typesPkg {
+				pkgpath = ""
 			} else {
-				pkg = fn.Pkg().Path()
+				pkgpath = fn.Pkg().Path()
 			}
-			name = pkg + "." + x.Name
-			break
+			return pkgpath, x.Name
 		}
 
 	case *ast.SelectorExpr:
 		// Check for "fmt.Printf".
 		if id, ok := x.X.(*ast.Ident); ok {
-			if pkgName, ok := f.pkg.uses[id].(*types.PkgName); ok {
-				name = pkgName.Imported().Path() + "." + x.Sel.Name
-				break
+			if pkgName, ok := pkg.uses[id].(*types.PkgName); ok {
+				return pkgName.Imported().Path(), x.Sel.Name
 			}
 		}
 
 		// Check for t.Logf where t is a *testing.T.
-		if sel := f.pkg.selectors[x]; sel != nil {
+		if sel := pkg.selectors[x]; sel != nil {
 			recv := sel.Recv()
 			if p, ok := recv.(*types.Pointer); ok {
 				recv = p.Elem()
 			}
 			if named, ok := recv.(*types.Named); ok {
 				obj := named.Obj()
-				var pkg string
-				if obj.Pkg() == nil || obj.Pkg() == f.pkg.typesPkg {
-					pkg = vcfg.ImportPath
+				if obj.Pkg() == nil || obj.Pkg() == pkg.typesPkg {
+					pkgpath = ""
 				} else {
-					pkg = obj.Pkg().Path()
+					pkgpath = obj.Pkg().Path()
 				}
-				name = pkg + "." + obj.Name() + "." + x.Sel.Name
-				break
+				return pkgpath, obj.Name() + "." + x.Sel.Name
 			}
 		}
 	}
+	return "", ""
+}
+
+func printfNameAndKind(pkg *Package, called ast.Expr) (pkgpath, name string, kind int) {
+	pkgpath, name = printfName(pkg, called)
 	if name == "" {
-		return
+		return pkgpath, name, 0
 	}
 
-	shortName := name[strings.LastIndex(name, ".")+1:]
-
-	_, ok = isPrint[name]
-	if !ok {
-		// Next look up just "printf", for use with -printfuncs.
-		_, ok = isPrint[strings.ToLower(shortName)]
+	if pkgpath == "" {
+		kind = localPrintfLike[name]
+	} else if m, ok := printfImported[pkgpath]; ok {
+		kind = m[name]
+	} else {
+		var m map[string]int
+		if out, ok := readVetx(pkgpath, "printf").([]printfExport); ok {
+			m = make(map[string]int)
+			for _, x := range out {
+				m[x.Name] = x.Kind
+			}
+		}
+		printfImported[pkgpath] = m
+		kind = m[name]
 	}
-	if ok {
-		if strings.HasSuffix(name, "f") {
-			f.checkPrintf(call, shortName)
-		} else {
-			f.checkPrint(call, shortName)
+
+	if kind == 0 {
+		_, ok := isPrint[pkgpath+"."+name]
+		if !ok {
+			// Next look up just "printf", for use with -printfuncs.
+			short := name[strings.LastIndex(name, ".")+1:]
+			_, ok = isPrint[strings.ToLower(short)]
+		}
+		if ok {
+			if strings.HasSuffix(name, "f") {
+				kind = kindPrintf
+			} else {
+				kind = kindPrint
+			}
 		}
 	}
+	return pkgpath, name, kind
 }
 
 // isStringer returns true if the provided declaration is a "String() string"
@@ -534,7 +756,7 @@ var printVerbs = []printVerb{
 	{'%', noFlag, 0},
 	{'b', numFlag, argInt | argFloat | argComplex},
 	{'c', "-", argRune | argInt},
-	{'d', numFlag, argInt},
+	{'d', numFlag, argInt | argPointer},
 	{'e', sharpNumFlag, argFloat | argComplex},
 	{'E', sharpNumFlag, argFloat | argComplex},
 	{'f', sharpNumFlag, argFloat | argComplex},
@@ -549,8 +771,8 @@ var printVerbs = []printVerb{
 	{'T', "-", anyType},
 	{'U', "-#", argRune | argInt},
 	{'v', allFlags, anyType},
-	{'x', sharpNumFlag, argRune | argInt | argString},
-	{'X', sharpNumFlag, argRune | argInt | argString},
+	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
+	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
 }
 
 // okPrintfArg compares the formatState to the arguments actually present,
@@ -708,7 +930,7 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, state *formatS
 	// There are bad indexes in the format or there are fewer arguments than the format needs.
 	// This is the argument number relative to the format: Printf("%s", "hi") will give 1 for the "hi".
 	arg := argNum - state.firstArg + 1 // People think of arguments as 1-indexed.
-	f.Badf(call.Pos(), "%s format %s reads arg #%d, but call has only %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
+	f.Badf(call.Pos(), "%s format %s reads arg #%d, but call has %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
 	return false
 }
 
@@ -721,7 +943,7 @@ const (
 	flagsRE    = `[+\-#]*`
 	indexOptRE = `(\[[0-9]+\])?`
 	numOptRE   = `([0-9]+|` + indexOptRE + `\*)?`
-	verbRE     = `[bcdefgopqstvxEFGUX]`
+	verbRE     = `[bcdefgopqstvxEFGTUX]`
 )
 
 // checkPrint checks a call to an unformatted print routine such as Println.

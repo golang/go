@@ -4,4 +4,9 @@ the LLVM project (http://llvm.org/git/compiler-rt.git).
 
 To update the .syso files use golang.org/x/build/cmd/racebuild.
 
-Current runtime is built on rev 68e1532492f9b3fce0e9024f3c31411105965b11.
+race_darwin_amd64.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
+race_freebsd_amd64.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
+race_linux_amd64.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
+race_linux_ppc64le.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
+race_netbsd_amd64.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
+race_windows_amd64.syso built with LLVM ae08a22cc215448aa3ad5a6fb099f6df77e9fa01 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.

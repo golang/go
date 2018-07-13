@@ -4,7 +4,7 @@
 
 package ssa
 
-// branchelim tries to elminiate branches by
+// branchelim tries to eliminate branches by
 // generating CondSelect instructions.
 //
 // Search for basic blocks that look like
@@ -19,7 +19,10 @@ package ssa
 // rewrite Phis in the postdominator as CondSelects.
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
-	if f.Config.arch != "arm64" {
+	switch f.Config.arch {
+	case "arm64", "amd64":
+		// implemented
+	default:
 		return
 	}
 
@@ -32,10 +35,22 @@ func branchelim(f *Func) {
 	}
 }
 
-func canCondSelect(v *Value) bool {
+func canCondSelect(v *Value, arch string) bool {
 	// For now, stick to simple scalars that fit in registers
-	sz := v.Type.Size()
-	return sz <= v.Block.Func.Config.RegSize && (v.Type.IsInteger() || v.Type.IsPtrShaped())
+	switch {
+	case v.Type.Size() > v.Block.Func.Config.RegSize:
+		return false
+	case v.Type.IsPtrShaped():
+		return true
+	case v.Type.IsInteger():
+		if arch == "amd64" && v.Type.Size() < 2 {
+			// amd64 doesn't support CMOV with byte registers
+			return false
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 func elimIf(f *Func, dom *Block) bool {
@@ -68,7 +83,7 @@ func elimIf(f *Func, dom *Block) bool {
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
-			if !canCondSelect(v) {
+			if !canCondSelect(v, f.Config.arch) {
 				return false
 			}
 		}
@@ -169,12 +184,17 @@ func elimIfElse(f *Func, b *Block) bool {
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
-			if !canCondSelect(v) {
+			if !canCondSelect(v, f.Config.arch) {
 				return false
 			}
 		}
 	}
 	if !hasphis {
+		return false
+	}
+
+	// Don't generate CondSelects if branch is cheaper.
+	if !shouldElimIfElse(no, yes, post, f.Config.arch) {
 		return false
 	}
 
@@ -221,6 +241,39 @@ func elimIfElse(f *Func, b *Block) bool {
 
 	f.invalidateCFG()
 	return true
+}
+
+// shouldElimIfElse reports whether estimated cost of eliminating branch
+// is lower than threshold.
+func shouldElimIfElse(no, yes, post *Block, arch string) bool {
+	switch arch {
+	default:
+		return true
+	case "amd64":
+		const maxcost = 2
+		phi := 0
+		other := 0
+		for _, v := range post.Values {
+			if v.Op == OpPhi {
+				// Each phi results in CondSelect, which lowers into CMOV,
+				// CMOV has latency >1 on most CPUs.
+				phi++
+			}
+			for _, x := range v.Args {
+				if x.Block == no || x.Block == yes {
+					other++
+				}
+			}
+		}
+		cost := phi * 1
+		if phi > 1 {
+			// If we have more than 1 phi and some values in post have args
+			// in yes or no blocks, we may have to recalucalte condition, because
+			// those args may clobber flags. For now assume that all operations clobber flags.
+			cost += other * 1
+		}
+		return cost < maxcost
+	}
 }
 
 func allTrivial(b *Block) bool {

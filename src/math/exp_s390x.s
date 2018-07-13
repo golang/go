@@ -59,7 +59,7 @@ GLOBL ·exptexp<> + 0(SB), RODATA, $128
 TEXT	·expAsm(SB), NOSPLIT, $0-16
 	FMOVD	x+0(FP), F0
 	MOVD	$·exprodataL22<>+0(SB), R5
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	BLTU	L20
 	FMOVD	F0, F2
 L2:

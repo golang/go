@@ -107,11 +107,12 @@ func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 		}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
 		c.args = uintptr(noescape(unsafe.Pointer(&args)))
 	} else {
-		// User is on Windows XP or something ancient.
-		// The caller wanted to only load the filename DLL
-		// from the System32 directory but that facility
-		// doesn't exist, so just load it the normal way. This
-		// is a potential security risk, but so is Windows XP.
+		// User doesn't have KB2533623 installed. The caller
+		// wanted to only load the filename DLL from the
+		// System32 directory but that facility doesn't exist,
+		// so just load it the normal way. This is a potential
+		// security risk, but so is not installing security
+		// updates.
 		c.fn = getLoadLibrary()
 		c.n = 1
 		c.args = uintptr(noescape(unsafe.Pointer(&filename)))

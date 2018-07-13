@@ -31,6 +31,7 @@ var (
 	goarm            string
 	go386            string
 	gomips           string
+	gomips64         string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
@@ -66,13 +67,16 @@ var okgoarch = []string{
 	"mips64le",
 	"ppc64",
 	"ppc64le",
+	"riscv64",
 	"s390x",
+	"wasm",
 }
 
 // The known operating systems.
 var okgoos = []string{
 	"darwin",
 	"dragonfly",
+	"js",
 	"linux",
 	"android",
 	"solaris",
@@ -145,6 +149,12 @@ func xinit() {
 	}
 	gomips = b
 
+	b = os.Getenv("GOMIPS64")
+	if b == "" {
+		b = "hardfloat"
+	}
+	gomips64 = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -202,16 +212,14 @@ func xinit() {
 	os.Setenv("GOHOSTOS", gohostos)
 	os.Setenv("GOOS", goos)
 	os.Setenv("GOMIPS", gomips)
+	os.Setenv("GOMIPS64", gomips64)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
 	// Use a build cache separate from the default user one.
 	// Also one that will be wiped out during startup, so that
 	// make.bash really does start from a clean slate.
-	// But if the user has specified no caching, don't cache.
-	if os.Getenv("GOCACHE") != "off" {
-		os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
-	}
+	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
 
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")
@@ -822,6 +830,11 @@ func runInstall(dir string, ch chan struct{}) {
 			compile = append(compile, "-D", "GOMIPS_"+gomips)
 		}
 
+		if goarch == "mips64" || goarch == "mipsle64" {
+			// Define GOMIPS64_value from gomips64.
+			compile = append(compile, "-D", "GOMIPS64_"+gomips64)
+		}
+
 		doclean := true
 		b := pathf("%s/%s", workdir, filepath.Base(p))
 
@@ -1047,12 +1060,16 @@ func cmdenv() {
 		format = "set %s=%s\r\n"
 	}
 
-	xprintf(format, "GOROOT", goroot)
-	xprintf(format, "GOBIN", gobin)
 	xprintf(format, "GOARCH", goarch)
-	xprintf(format, "GOOS", goos)
+	xprintf(format, "GOBIN", gobin)
+	xprintf(format, "GOCACHE", os.Getenv("GOCACHE"))
+	xprintf(format, "GODEBUG", os.Getenv("GODEBUG"))
 	xprintf(format, "GOHOSTARCH", gohostarch)
 	xprintf(format, "GOHOSTOS", gohostos)
+	xprintf(format, "GOOS", goos)
+	xprintf(format, "GOPROXY", os.Getenv("GOPROXY"))
+	xprintf(format, "GOROOT", goroot)
+	xprintf(format, "GOTMPDIR", os.Getenv("GOTMPDIR"))
 	xprintf(format, "GOTOOLDIR", tooldir)
 	if goarch == "arm" {
 		xprintf(format, "GOARM", goarm)
@@ -1062,6 +1079,9 @@ func cmdenv() {
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		xprintf(format, "GOMIPS", gomips)
+	}
+	if goarch == "mips64" || goarch == "mips64le" {
+		xprintf(format, "GOMIPS64", gomips64)
 	}
 
 	if *path {
@@ -1283,9 +1303,14 @@ func cmdbootstrap() {
 		os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
-	goInstall(goBootstrap, "std", "cmd")
-	checkNotStale(goBootstrap, "std", "cmd")
-	checkNotStale(cmdGo, "std", "cmd")
+	targets := []string{"std", "cmd"}
+	if goos == "js" && goarch == "wasm" {
+		// Skip the cmd tools for js/wasm. They're not usable.
+		targets = targets[:1]
+	}
+	goInstall(goBootstrap, targets...)
+	checkNotStale(goBootstrap, targets...)
+	checkNotStale(cmdGo, targets...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
@@ -1375,11 +1400,13 @@ var cgoEnabled = map[string]bool{
 	"linux/mipsle":    true,
 	"linux/mips64":    true,
 	"linux/mips64le":  true,
+	"linux/riscv64":   true,
 	"linux/s390x":     true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
 	"android/arm64":   true,
+	"js/wasm":         false,
 	"nacl/386":        false,
 	"nacl/amd64p32":   false,
 	"nacl/arm":        false,
@@ -1419,7 +1446,7 @@ func checkCC() {
 		fatalf("cannot invoke C compiler %q: %v\n\n"+
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, set CC=the-compiler.\n"+
-			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
+			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
 }
 

@@ -149,9 +149,14 @@ func greetings(p *profile.Profile, ui plugin.UI) {
 	numLabelUnits := identifyNumLabelUnits(p, ui)
 	ropt, err := reportOptions(p, numLabelUnits, pprofVariables)
 	if err == nil {
-		ui.Print(strings.Join(report.ProfileLabels(report.New(p, ropt)), "\n"))
+		rpt := report.New(p, ropt)
+		ui.Print(strings.Join(report.ProfileLabels(rpt), "\n"))
+		if rpt.Total() == 0 && len(p.SampleType) > 1 {
+			ui.Print(`No samples were found with the default sample value type.`)
+			ui.Print(`Try "sample_index" command to analyze different sample values.`, "\n")
+		}
 	}
-	ui.Print("Entering interactive mode (type \"help\" for commands, \"o\" for options)")
+	ui.Print(`Entering interactive mode (type "help" for commands, "o" for options)`)
 }
 
 // shortcuts represents composite commands that expand into a sequence

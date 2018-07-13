@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 )
 
@@ -61,6 +60,8 @@ func main() {
 		// Even on 64-bit platform, darwin uname -m prints i386.
 		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
 		gohostarch = "amd64"
+		// macOS 10.9 and later require clang
+		defaultclang = true
 	case "freebsd":
 		// Since FreeBSD 10 gcc is no longer part of the base system.
 		defaultclang = true
@@ -125,29 +126,6 @@ func main() {
 		maxbg = min(maxbg, runtime.NumCPU())
 	}
 	bginit()
-
-	// The OS X 10.6 linker does not support external linking mode.
-	// See golang.org/issue/5130.
-	//
-	// OS X 10.6 does not work with clang either, but OS X 10.9 requires it.
-	// It seems to work with OS X 10.8, so we default to clang for 10.8 and later.
-	// See golang.org/issue/5822.
-	//
-	// Roughly, OS X 10.N shows up as uname release (N+4),
-	// so OS X 10.6 is uname version 10 and OS X 10.8 is uname version 12.
-	if gohostos == "darwin" {
-		rel := run("", CheckExit, "uname", "-r")
-		if i := strings.Index(rel, "."); i >= 0 {
-			rel = rel[:i]
-		}
-		osx, _ := strconv.Atoi(rel)
-		if osx <= 6+4 {
-			goextlinkenabled = "0"
-		}
-		if osx >= 8+4 {
-			defaultclang = true
-		}
-	}
 
 	if len(os.Args) > 1 && os.Args[1] == "-check-goarm" {
 		useVFPv1() // might fail with SIGILL

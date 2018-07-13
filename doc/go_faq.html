@@ -45,7 +45,7 @@ analysis easy and avoids much of the overhead of C-style include files and
 libraries.
 <li>
 Go's type system has no hierarchy, so no time is spent defining the
-relationships between types. Also, although Go has static types the language
+relationships between types. Also, although Go has static types, the language
 attempts to make types feel lighter weight than in typical OO languages.
 <li>
 Go is fully garbage-collected and provides fundamental support for
@@ -97,14 +97,14 @@ What's the origin of the mascot?</h3>
 
 <p>
 The mascot and logo were designed by
-<a href="http://reneefrench.blogspot.com">Renée French</a>, who also designed
+<a href="https://reneefrench.blogspot.com">Renée French</a>, who also designed
 <a href="https://9p.io/plan9/glenda.html">Glenda</a>,
 the Plan 9 bunny.
 The <a href="https://blog.golang.org/gopher">gopher</a>
-is derived from one she used for an <a href="http://wfmu.org/">WFMU</a>
+is derived from one she used for an <a href="https://wfmu.org/">WFMU</a>
 T-shirt design some years ago.
 The logo and mascot are covered by the
-<a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
+<a href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
 license.
 </p>
 
@@ -1097,24 +1097,27 @@ The <code>go get</code> command therefore uses HTTPS for safety.
 </p>
 
 <p>
-If you use <code>git</code> and prefer to push changes through SSH using your existing key 
-it's easy to work around this. For GitHub, try one of these solutions:
+<code>Git</code> can be configured to authenticate over HTTPS or to use SSH in place of HTTPS.
+To authenticate over HTTPS, you can add a line
+to the <code>$HOME/.netrc</code> file that git consults:
 </p>
-<ul>
-<li>Manually clone the repository in the expected package directory:
 <pre>
-$ cd src/github.com/username
-$ git clone git@github.com:username/package.git
+machine github.com login <i>USERNAME</i> password <i>APIKEY</i>
 </pre>
-</li>
-<li>Force <code>git push</code> to use the <code>SSH</code> protocol by appending
-these two lines to <code>~/.gitconfig</code>:
+<p>
+For GitHub accounts, the password can be a
+<a href="https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/">personal access token</a>.
+</p>
+
+<p>
+<code>Git</code> can also be configured to use SSH in place of HTTPS for URLs matching a given prefix.
+For example, to use SSH for all GitHub access,
+add these lines to your <code>~/.gitconfig</code>:
+</p>
 <pre>
-[url "git@github.com:"]
-	pushInsteadOf = https://github.com/
+[url "ssh://git@github.com/"]
+	insteadOf = https://github.com/
 </pre>
-</li>
-</ul>
 
 <h3 id="get_version">
 How should I manage package versions using "go get"?</h3>
@@ -1150,7 +1153,7 @@ program is one tool to help automate this process.
 
 <p>
 The Go 1.5 release added a facility to the
-<a href="https://golang.org/cmd/go">go</a> command
+<a href="https://golang.org/cmd/go"><code>go</code></a> command
 that makes it easier to manage external dependencies by "vendoring"
 them into a special directory near the package that depends upon them.
 See the <a href="https://golang.org/s/go15vendor">design
@@ -1158,10 +1161,11 @@ document</a> for details.
 </p>
 
 <p>
-Work is underway on an experimental package management tool,
-<a href="https://github.com/golang/dep"><code>dep</code></a>, to learn
-more about how tooling can help package management. More information can be found in
-<a href="https://github.com/golang/dep/blob/master/docs/FAQ.md">the <code>dep</code> FAQ</a>.
+The Go 1.11 release added new, experimental support
+for package versioning to the <code>go</code> command,
+in the form of Go modules.
+For more information, see the <a href="/doc/go1.11#modules">Go 1.11 release notes</a>
+and the <a href="/cmd/go#hdr-Modules__module_versions__and_more"><code>go</code> command documentation</a>.
 </p>
 
 <h2 id="Pointers">Pointers and Allocation</h2>
@@ -1393,7 +1397,7 @@ reservation does not deprive other processes of memory.
 <p>
 To find the amount of actual memory allocated to a Go process, use the Unix
 <code>top</code> command and consult the <code>RES</code> (Linux) or
-<code>RSIZE</code> (Mac OS X) columns.
+<code>RSIZE</code> (macOS) columns.
 <!-- TODO(adg): find out how this works on Windows -->
 </p>
 
@@ -1403,16 +1407,28 @@ To find the amount of actual memory allocated to a Go process, use the Unix
 What operations are atomic? What about mutexes?</h3>
 
 <p>
-We haven't fully defined it all yet, but some details about atomicity are
-available in the <a href="/ref/mem">Go Memory Model specification</a>.
+A description of the atomicity of operations in Go can be found in
+the <a href="/ref/mem">Go Memory Model</a> document.
 </p>
 
 <p>
-Regarding mutexes, the <a href="/pkg/sync">sync</a>
-package implements them, but we hope Go programming style will
-encourage people to try higher-level techniques. In particular, consider
-structuring your program so that only one goroutine at a time is ever
-responsible for a particular piece of data.
+Low-level synchronization and atomic primitives are available in the
+<a href="/pkg/sync">sync</a> and
+<a href="/pkg/sync/atomic">sync/atomic</a>
+packages.
+These packages are good for simple tasks such as incrementing
+reference counts or guaranteeing small-scale mutual exclusion.
+</p>
+
+<p>
+For higher-level operations, such as coordination among
+concurrent servers, higher-level techniques can lead
+to nicer programs, and Go supports this approach through
+its goroutines and channels.
+For instance, you can structure your program so that only one
+goroutine at a time is ever responsible for a particular piece of data.
+That approach is summarized by the original
+<a href="https://www.youtube.com/watch?v=PAAkCSZUG1c">Go proverb</a>,
 </p>
 
 <p>
@@ -1420,7 +1436,13 @@ Do not communicate by sharing memory. Instead, share memory by communicating.
 </p>
 
 <p>
-See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code walk and its <a href="//blog.golang.org/2010/07/share-memory-by-communicating.html">associated article</a> for a detailed discussion of this concept.
+See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code walk
+and its <a href="//blog.golang.org/2010/07/share-memory-by-communicating.html">
+associated article</a> for a detailed discussion of this concept.
+</p>
+
+<p>
+Large concurrent programs are likely to borrow from both these toolkits.
 </p>
 
 <h3 id="Why_no_multi_CPU">
@@ -1428,15 +1450,17 @@ Why doesn't my multi-goroutine program use multiple CPUs?</h3>
 
 <p>
 The number of CPUs available simultaneously to executing goroutines is
-controlled by the <code>GOMAXPROCS</code> shell environment variable.
-In earlier releases of Go, the default value was 1, but as of Go 1.5 the default
-value is the number of cores available.
-Therefore programs compiled after 1.5 should demonstrate parallel execution
-of multiple goroutines.
-To change the behavior, set the environment variable or use the similarly-named
+controlled by the <code>GOMAXPROCS</code> shell environment variable,
+whose default value is the number of CPU cores available.
+Programs with the potential for parallel execution should therefore
+achieve it by default on a multiple-CPU machine.
+To change the number of parallel CPUs to use,
+set the environment variable or use the similarly-named
 <a href="/pkg/runtime/#GOMAXPROCS">function</a>
 of the runtime package to configure the
 run-time support to utilize a different number of threads.
+Setting it to 1 eliminates the possibility of true parallelism,
+forcing independent goroutines to take turns executing.
 </p>
 
 <p>
@@ -1461,10 +1485,10 @@ intrinsically parallel.
 
 <p>
 In practical terms, programs that spend more time
-communicating on channels than doing computation
+synchronizing or communicating than doing useful computation
 may experience performance degradation when using
 multiple OS threads.
-This is because sending data between threads involves switching
+This is because passing data between threads involves switching
 contexts, which has significant cost.
 For instance, the <a href="/ref/spec#An_example_package">prime sieve example</a>
 from the Go specification has no significant parallelism although it launches many
@@ -1538,21 +1562,26 @@ used in flexible ways to interact with it.
 Why do T and *T have different method sets?</h3>
 
 <p>
-From the <a href="/ref/spec#Types">Go Spec</a>:
+As the <a href="/ref/spec#Types">Go specification</a> says,
+the method set of a type <code>T</code> consists of all methods
+with receiver type <code>T</code>,
+while that of the corresponding pointer
+type <code>*T</code> consists of all methods with receiver <code>*T</code> or
+<code>T</code>.
+That means the method set of <code>*T</code>
+includes that of <code>T</code>),
+but not the reverse.
 </p>
 
-<blockquote>
-The method set of any other named type <code>T</code> consists of all methods
-with receiver type <code>T</code>. The method set of the corresponding pointer
-type <code>*T</code> is the set of all methods with receiver <code>*T</code> or
-<code>T</code> (that is, it also contains the method set of <code>T</code>).
-</blockquote>
-
 <p>
-If an interface value contains a pointer <code>*T</code>,
+This distinction arises because
+if an interface value contains a pointer <code>*T</code>,
 a method call can obtain a value by dereferencing the pointer,
 but if an interface value contains a value <code>T</code>,
-there is no useful way for a method call to obtain a pointer.
+there is no safe way for a method call to obtain a pointer.
+(Doing so would allow a method to modify the contents of
+the value inside the interface, which is not permitted by
+the language specification.)
 </p>
 
 <p>
@@ -1650,13 +1679,21 @@ seem odd but works fine in Go:
     }
 </pre>
 
+<p>
+This behavior of the language, not defining a new variable for
+each iteration, may have been a mistake in retrospect.
+It may be addressed in a later version but, for compatibility,
+cannot change in Go version 1.
+</p>
+
 <h2 id="Control_flow">Control flow</h2>
 
 <h3 id="Does_Go_have_a_ternary_form">
-Does Go have the <code>?:</code> operator?</h3>
+Why does Go not have the <code>?:</code> operator?</h3>
 
 <p>
-There is no ternary testing operation in Go. You may use the following to achieve the same
+There is no ternary testing operation in Go.
+You may use the following to achieve the same
 result:
 </p>
 
@@ -1667,6 +1704,14 @@ if expr {
     n = falseVal
 }
 </pre>
+
+<p>
+The reason <code>?:</code> is absent from Go is that the language's designers
+had seen the operation used too often to create impenetrably complex expressions.
+The <code>if-else</code> form, although longer,
+is unquestionably clearer.
+A language needs only one conditional control flow construct.
+</p>
 
 <h2 id="Packages_Testing">Packages and Testing</h2>
 
@@ -1852,18 +1897,19 @@ Why is my trivial program such a large binary?</h3>
 
 <p>
 The linker in the <code>gc</code> toolchain
-creates statically-linked binaries by default.  All Go binaries therefore include the Go
+creates statically-linked binaries by default.
+All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
 </p>
 
 <p>
-A simple C "hello, world" program compiled and linked statically using gcc
-on Linux is around 750 kB,
-including an implementation of <code>printf</code>.
-An equivalent Go program using <code>fmt.Printf</code>
-is around 1.5 MB, but
-that includes more powerful run-time support and type information.
+A simple C "hello, world" program compiled and linked statically using
+gcc on Linux is around 750 kB, including an implementation of
+<code>printf</code>.
+An equivalent Go program using
+<code>fmt.Printf</code> weighs a couple of megabytes, but that includes
+more powerful run-time support and type and debugging information.
 </p>
 
 <h3 id="unused_variables_and_imports">
@@ -1925,7 +1971,7 @@ func main() {
 
 <p>
 Nowadays, most Go programmers use a tool,
-<a href="http://godoc.org/golang.org/x/tools/cmd/goimports">goimports</a>,
+<a href="https://godoc.org/golang.org/x/tools/cmd/goimports">goimports</a>,
 which automatically rewrites a Go source file to have the correct imports,
 eliminating the unused imports issue in practice.
 This program is easily connected to most editors to run automatically when a Go source file is written.
@@ -1964,7 +2010,7 @@ The slowest depend on libraries for which versions of comparable performance
 are not available in Go.
 For instance, <a href="https://go.googlesource.com/exp/+/master/shootout/pidigits.go">pidigits.go</a>
 depends on a multi-precision math package, and the C
-versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
+versions, unlike Go's, use <a href="https://gmplib.org/">GMP</a> (which is
 written in optimized assembler).
 Benchmarks that depend on regular expressions
 (<a href="https://go.googlesource.com/exp/+/master/shootout/regex-dna.go">regex-dna.go</a>,

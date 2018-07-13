@@ -180,6 +180,7 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
 	// Hide call from linker nosplit analysis.
 	MOVW	$runtime·badsystemstack(SB), R4
 	JAL	(R4)
+	JAL	runtime·abort(SB)
 
 switch:
 	// save our state in g->sched.  Pretend to
@@ -608,11 +609,6 @@ TEXT runtime·setg(SB),NOSPLIT,$0-4
 TEXT setg_gcc<>(SB),NOSPLIT,$0
 	MOVW	R4, g
 	JAL	runtime·save_g(SB)
-	RET
-
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	0(R29), R1	// LR saved by caller
-	MOVW	R1, ret+0(FP)
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT,$0-0

@@ -489,14 +489,17 @@ func (b *B) Run(name string, f func(b *B)) bool {
 	if !ok {
 		return true
 	}
+	var pc [maxStackLen]uintptr
+	n := runtime.Callers(2, pc[:])
 	sub := &B{
 		common: common{
-			signal: make(chan bool),
-			name:   benchName,
-			parent: &b.common,
-			level:  b.level + 1,
-			w:      b.w,
-			chatty: b.chatty,
+			signal:  make(chan bool),
+			name:    benchName,
+			parent:  &b.common,
+			level:   b.level + 1,
+			creator: pc[:n],
+			w:       b.w,
+			chatty:  b.chatty,
 		},
 		importPath: b.importPath,
 		benchFunc:  f,

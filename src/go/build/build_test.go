@@ -176,6 +176,18 @@ func TestShouldBuild(t *testing.T) {
 	}
 }
 
+func TestGoodOSArchFile(t *testing.T) {
+	ctx := &Context{BuildTags: []string{"linux"}, GOOS: "darwin"}
+	m := map[string]bool{}
+	want := map[string]bool{"linux": true}
+	if !ctx.goodOSArchFile("hello_linux.go", m) {
+		t.Errorf("goodOSArchFile(hello_linux.go) = false, want true")
+	}
+	if !reflect.DeepEqual(m, want) {
+		t.Errorf("goodOSArchFile(hello_linux.go) tags = %v, want %v", m, want)
+	}
+}
+
 type readNopCloser struct {
 	io.Reader
 }
@@ -393,5 +405,21 @@ func TestImportDirTarget(t *testing.T) {
 	}
 	if p.PkgTargetRoot == "" || p.PkgObj == "" {
 		t.Errorf("p.PkgTargetRoot == %q, p.PkgObj == %q, want non-empty", p.PkgTargetRoot, p.PkgObj)
+	}
+}
+
+// TestIssue23594 prevents go/build from regressing and populating Package.Doc
+// from comments in test files.
+func TestIssue23594(t *testing.T) {
+	// Package testdata/doc contains regular and external test files
+	// with comments attached to their package declarations. The names of the files
+	// ensure that we see the comments from the test files first.
+	p, err := ImportDir("testdata/doc", 0)
+	if err != nil {
+		t.Fatalf("could not import testdata: %v", err)
+	}
+
+	if p.Doc != "Correct" {
+		t.Fatalf("incorrectly set .Doc to %q", p.Doc)
 	}
 }

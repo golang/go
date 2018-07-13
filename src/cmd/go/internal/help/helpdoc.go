@@ -30,7 +30,7 @@ the C or C++ compiler, respectively, to use.
 
 var HelpPackages = &base.Command{
 	UsageLine: "packages",
-	Short:     "package lists",
+	Short:     "package lists and patterns",
 	Long: `
 Many commands apply to a set of packages:
 
@@ -54,9 +54,11 @@ for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
 
-- "all" expands to all package directories found in all the GOPATH
+- "all" expands to all packages found in all the GOPATH
 trees. For example, 'go list all' lists all the packages on the local
-system.
+system. When using modules, "all" expands to all packages in
+the main module and their dependencies, including dependencies
+needed by tests of any of those.
 
 - "std" is like all but expands to just the packages in the standard
 Go library.
@@ -461,6 +463,9 @@ General-purpose environment variables:
 		Examples are amd64, 386, arm, ppc64.
 	GOBIN
 		The directory where 'go install' will install a command.
+	GOCACHE
+		The directory where the go command will store cached
+		information for reuse in future builds.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
@@ -474,9 +479,10 @@ General-purpose environment variables:
 	GOTMPDIR
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
-	GOCACHE
-		The directory where the go command will store
-		cached information for reuse in future builds.
+	GOTOOLDIR
+		The directory where the go tools (compile, cover, doc, etc...)
+		are installed. This is printed by go env, but setting the
+		environment variable has no effect.
 
 Environment variables for use with cgo:
 
@@ -523,9 +529,15 @@ Architecture-specific environment variables:
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
+	GOMIPS64
+		For GOARCH=mips64{,le}, whether to use floating point instructions.
+		Valid values are hardfloat (default), softfloat.
 
 Special-purpose environment variables:
 
+	GCCGOTOOLDIR
+		If set, where to find gccgo tools, such as cgo.
+		The default is based on how gccgo was configured.
 	GOROOT_FINAL
 		The root of the installed Go tree, when it is
 		installed in a location other than where it is built.
@@ -648,6 +660,7 @@ The default location for cache data is a subdirectory named go-build
 in the standard user cache directory for the current operating system.
 Setting the GOCACHE environment variable overrides this default,
 and running 'go env GOCACHE' prints the current cache directory.
+You can set the variable to 'off' to disable the cache.
 
 The go command periodically deletes cached data that has not been
 used recently. Running 'go clean -cache' deletes all cached data.
