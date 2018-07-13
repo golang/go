@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,7 +26,8 @@ type GoTooOldError struct{ error }
 
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
-func golistPackages(ctx context.Context, gopath string, cgo, export, tests bool, words []string) ([]*Package, error) {
+// dir may be "" and env may be nil, as per os/exec.Command.
+func golistPackages(ctx context.Context, dir string, env []string, cgo, export, tests bool, words []string) ([]*Package, error) {
 	// Fields must match go list;
 	// see $GOROOT/src/cmd/go/internal/load/pkg.go.
 	type jsonPackage struct {
@@ -62,7 +64,7 @@ func golistPackages(ctx context.Context, gopath string, cgo, export, tests bool,
 	// Run "go list" for complete
 	// information on the specified packages.
 
-	buf, err := golist(ctx, gopath, cgo, export, tests, words)
+	buf, err := golist(ctx, dir, env, cgo, export, tests, words)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +113,11 @@ func golistPackages(ctx context.Context, gopath string, cgo, export, tests bool,
 
 		if pkgpath == "unsafe" {
 			p.GoFiles = nil // ignore fake unsafe.go file
+		}
+
+		// Assume go list emits only absolute paths for Dir.
+		if !filepath.IsAbs(p.Dir) {
+			log.Fatalf("internal error: go list returned non-absolute Package.Dir: %s", p.Dir)
 		}
 
 		export := p.Export
@@ -176,7 +183,7 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 }
 
 // golist returns the JSON-encoded result of a "go list args..." query.
-func golist(ctx context.Context, gopath string, cgo, export, tests bool, args []string) (*bytes.Buffer, error) {
+func golist(ctx context.Context, dir string, env []string, cgo, export, tests bool, args []string) (*bytes.Buffer, error) {
 	out := new(bytes.Buffer)
 	cmd := exec.CommandContext(ctx, "go", append([]string{
 		"list",
@@ -188,10 +195,15 @@ func golist(ctx context.Context, gopath string, cgo, export, tests bool, args []
 		"-json",
 		"--",
 	}, args...)...)
-	cmd.Env = append(append([]string(nil), os.Environ()...), "GOPATH="+gopath)
-	if !cgo {
-		cmd.Env = append(cmd.Env, "CGO_ENABLED=0")
+
+	if env == nil {
+		env = os.Environ()
 	}
+	if !cgo {
+		env = append(env, "CGO_ENABLED=0")
+	}
+	cmd.Env = env
+	cmd.Dir = dir
 	cmd.Stdout = out
 	cmd.Stderr = new(bytes.Buffer)
 	if err := cmd.Run(); err != nil {

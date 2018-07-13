@@ -244,27 +244,23 @@ application, but not by the metadata query, so, for example:
 
 Questions & Tasks
 
-- Add pass-through options for the underlying query tool:
-     Dir     string
-     Environ []string
+- Add this pass-through option for the underlying query tool:
      Flags   []string
-  Do away with GOROOT and don't add GOARCH/GOOS:
-  they are not portable concepts.
-  The goal is to allow users to express themselves using the conventions
+
+- Add GOARCH/GOOS?
+  They are not portable concepts, but could be made portable.
+  Our goal has been to allow users to express themselves using the conventions
   of the underlying build system: if the build system honors GOARCH
   during a build and during a metadata query, then so should
   applications built atop that query mechanism.
   Conversely, if the target architecture of the build is determined by
-  command-line flags, the application must pass the relevant
+  command-line flags, the application can pass the relevant
   flags through to the build system using a command such as:
     myapp -query_flag="--cpu=amd64" -query_flag="--os=darwin"
+  However, this approach is low-level, unwieldy, and non-portable.
+  GOOS and GOARCH seem important enough to warrant a dedicated option.
 
 - Build tags: where do they fit in?  How does Bazel/Blaze handle them?
-
-- Add an 'IncludeTests bool' option to include tests among the results.
-  This flag is needed to avoid unnecessary dependencies (and, for vgo, downloads).
-  Should it include/skip implied tests? (all tests are implied in go build)
-  Or include/skip all tests?
 
 - How should we handle partial failures such as a mixture of good and
   malformed patterns, existing and non-existent packages, succesful and
@@ -275,7 +271,7 @@ Questions & Tasks
   source file in Srcs to that of the original file, if known, or "" otherwise?
   Or are //line directives and "Generated" comments in those files enough?
 
-- Support bazel/blaze, not just "go list".
+- Support bazel, blaze, and go1.10 list, not just go1.11 list.
 
 - Support a "contains" query: a boolean option would cause the the
   pattern words to be interpreted as filenames, and the query would

@@ -32,14 +32,6 @@ type Options struct {
 	// is equivalent to context.Background().
 	Context context.Context
 
-	// GOPATH is the effective value of the GOPATH environment variable.
-	// If unset, the default is Getenv("GOPATH").
-	//
-	// TODO(adonovan): this is primarily needed for testing, but it
-	// is not a build-system portable concept.
-	// Replace with flags/cwd/environ pass-through.
-	GOPATH string
-
 	// The Tests flag causes the result to include any test packages
 	// implied by the patterns.
 	//
@@ -85,6 +77,15 @@ type Options struct {
 	// bodies to reduce the load on the type-checker.
 	// ParseFile is not used in Metadata mode.
 	ParseFile func(fset *token.FileSet, filename string) (*ast.File, error)
+
+	// Env is a list of environment variables to pass through
+	// to the build system's metadata query tool.
+	// If nil, the current process's environment is used.
+	Env []string
+
+	// Dir is the directory in which to run the build system's metadata query tool.
+	// If "", the current process's working directory is used.
+	Dir string
 }
 
 // Metadata returns the metadata for a set of Go packages,
@@ -215,8 +216,7 @@ type Package struct {
 
 	// Srcs is the list of names of this package's Go
 	// source files as presented to the compiler.
-	// Names aren't guaranteed to be absolute,
-	// but they are openable.
+	// Names are guaranteed to be absolute.
 	//
 	// In Metadata queries, or if DisableCgo is set,
 	// Srcs includes the unmodified source files even
@@ -226,8 +226,8 @@ type Package struct {
 	Srcs []string
 
 	// OtherSrcs is the list of names of non-Go source files that the package
-	// contains. This includes assembly and C source files. The names are
-	// "openable" in the same sense as are Srcs above.
+	// contains. This includes assembly and C source files.
+	// Names are guaranteed to be absolute.
 	OtherSrcs []string
 
 	// Imports maps each import path to its package
@@ -307,17 +307,13 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		}
 	}
 
-	if ld.GOPATH == "" {
-		ld.GOPATH = os.Getenv("GOPATH")
-	}
-
 	if len(patterns) == 0 {
 		return nil, fmt.Errorf("no packages to load")
 	}
 
 	// Do the metadata query and partial build.
 	// TODO(adonovan): support alternative build systems at this seam.
-	list, err := golistPackages(ld.Context, ld.GOPATH, ld.cgo, ld.mode == typeCheck, ld.Tests, patterns)
+	list, err := golistPackages(ld.Context, ld.Dir, ld.Env, ld.cgo, ld.mode == typeCheck, ld.Tests, patterns)
 	if err != nil {
 		return nil, err
 	}

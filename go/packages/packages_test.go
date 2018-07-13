@@ -32,7 +32,7 @@ import (
 //   that will allow the maintainer to interact with the failing scenario.
 // - vendoring
 // - errors in go-list metadata
-// - all returned file names should be openable
+// - all returned file names are absolute
 // - a foo.test package that cannot be built for some reason (e.g.
 //   import error) will result in a JSON blob with no name and a
 //   nonexistent testmain file in GoFiles. Test that we handle this
@@ -50,7 +50,7 @@ func TestMetadataImportGraph(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skipf("TODO: skipping on non-Linux; fix this test to run everywhere. golang.org/issue/26387")
 	}
-	tmp, cleanup := enterTree(t, map[string]string{
+	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go":             `package a; const A = 1`,
 		"src/b/b.go":             `package b; import ("a"; _ "errors"); var B = a.A`,
 		"src/c/c.go":             `package c; import (_ "b"; _ "unsafe")`,
@@ -64,9 +64,8 @@ func TestMetadataImportGraph(t *testing.T) {
 		"src/f/f.go":             `package f`,
 	})
 	defer cleanup()
-	// -- tmp is now the current directory --
 
-	opts := &packages.Options{GOPATH: tmp}
+	opts := &packages.Options{Env: append(os.Environ(), "GOPATH="+tmp)}
 	initial, err := packages.Metadata(opts, "c", "subdir/d", "e")
 	if err != nil {
 		t.Fatal(err)
@@ -178,8 +177,8 @@ func TestMetadataImportGraph(t *testing.T) {
 	}
 
 	// Test an ad-hoc package, analogous to "go run hello.go".
-	if initial, err := packages.Metadata(opts, "src/c/c.go"); len(initial) == 0 {
-		t.Errorf("failed to obtain metadata for ad-hoc package (err=%v)", err)
+	if initial, err := packages.Metadata(opts, filepath.Join(tmp, "src/c/c.go")); len(initial) == 0 {
+		t.Errorf("failed to obtain metadata for ad-hoc package: %s", err)
 	} else {
 		got := fmt.Sprintf("%s %s", initial[0].ID, srcs(initial[0]))
 		if want := "command-line-arguments [c.go]"; got != want {
@@ -203,6 +202,52 @@ func TestMetadataImportGraph(t *testing.T) {
 	}
 }
 
+func TestOptionsDir(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go":   `package a; const Name = "a" `,
+		"src/a/b/b.go": `package b; const Name = "a/b"`,
+		"src/b/b.go":   `package b; const Name = "b"`,
+	})
+	defer cleanup()
+
+	for _, test := range []struct {
+		dir     string
+		pattern string
+		want    string // value of Name constant, or error
+	}{
+		{"", "a", `"a"`},
+		{"", "b", `"b"`},
+		{"", "./a", "packages not found"},
+		{"", "./b", "packages not found"},
+		{filepath.Join(tmp, "/src"), "a", `"a"`},
+		{filepath.Join(tmp, "/src"), "b", `"b"`},
+		{filepath.Join(tmp, "/src"), "./a", `"a"`},
+		{filepath.Join(tmp, "/src"), "./b", `"b"`},
+		{filepath.Join(tmp, "/src/a"), "a", `"a"`},
+		{filepath.Join(tmp, "/src/a"), "b", `"b"`},
+		{filepath.Join(tmp, "/src/a"), "./a", "packages not found"},
+		{filepath.Join(tmp, "/src/a"), "./b", `"a/b"`},
+	} {
+		opts := &packages.Options{
+			Dir: test.dir,
+			Env: append(os.Environ(), "GOPATH="+tmp),
+		}
+		// Use TypeCheck to ensure that files can be opened.
+		initial, err := packages.TypeCheck(opts, test.pattern)
+		var got string
+		if err != nil {
+			got = err.Error()
+		} else {
+			got = constant(initial[0], "Name").Val().String()
+		}
+		if got != test.want {
+			t.Errorf("dir %q, pattern %q: got %s, want %s",
+				test.dir, test.pattern, got, test.want)
+		}
+	}
+
+}
+
 type errCollector struct {
 	mu     sync.Mutex
 	errors []error
@@ -215,7 +260,7 @@ func (ec *errCollector) add(err error) {
 }
 
 func TestTypeCheckOK(t *testing.T) {
-	tmp, cleanup := enterTree(t, map[string]string{
+	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go": `package a; import "b"; const A = "a" + b.B`,
 		"src/b/b.go": `package b; import "c"; const B = "b" + c.C`,
 		"src/c/c.go": `package c; import "d"; const C = "c" + d.D`,
@@ -223,9 +268,8 @@ func TestTypeCheckOK(t *testing.T) {
 		"src/e/e.go": `package e; const E = "e"`,
 	})
 	defer cleanup()
-	// -- tmp is now the current directory --
 
-	opts := &packages.Options{GOPATH: tmp, Error: func(error) {}}
+	opts := &packages.Options{Env: append(os.Environ(), "GOPATH="+tmp), Error: func(error) {}}
 	initial, err := packages.TypeCheck(opts, "a", "c")
 	if err != nil {
 		t.Fatal(err)
@@ -283,7 +327,7 @@ func TestTypeCheckOK(t *testing.T) {
 	}
 
 	// Check value of constant.
-	aA := all["a"].Type.Scope().Lookup("A").(*types.Const)
+	aA := constant(all["a"], "A")
 	if got, want := fmt.Sprintf("%v %v", aA, aA.Val()), `const a.A untyped string "abcde"`; got != want {
 		t.Errorf("a.A: got %s, want %s", got, want)
 	}
@@ -297,7 +341,7 @@ func TestTypeCheckError(t *testing.T) {
 	// are IllTyped. Package e is not ill-typed, because the user
 	// did not demand its type information (despite it actually
 	// containing a type error).
-	tmp, cleanup := enterTree(t, map[string]string{
+	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go": `package a; import "b"; const A = "a" + b.B`,
 		"src/b/b.go": `package b; import "c"; const B = "b" + c.C`,
 		"src/c/c.go": `package c; import "d"; const C = "c" + d.D`,
@@ -305,9 +349,8 @@ func TestTypeCheckError(t *testing.T) {
 		"src/e/e.go": `package e; const E = "e" + 1`, // type error
 	})
 	defer cleanup()
-	// -- tmp is now the current directory --
 
-	opts := &packages.Options{GOPATH: tmp, Error: func(error) {}}
+	opts := &packages.Options{Env: append(os.Environ(), "GOPATH="+tmp), Error: func(error) {}}
 	initial, err := packages.TypeCheck(opts, "a", "c")
 	if err != nil {
 		t.Fatal(err)
@@ -356,7 +399,7 @@ func TestTypeCheckError(t *testing.T) {
 	}
 
 	// Check value of constant.
-	aA := all["a"].Type.Scope().Lookup("A").(*types.Const)
+	aA := constant(all["a"], "A")
 	if got, want := aA.String(), `const a.A invalid type`; got != want {
 		t.Errorf("a.A: got %s, want %s", got, want)
 	}
@@ -367,14 +410,13 @@ func TestTypeCheckError(t *testing.T) {
 func TestWholeProgramOverlay(t *testing.T) {
 	type M = map[string]string
 
-	tmp, cleanup := enterTree(t, M{
+	tmp, cleanup := makeTree(t, M{
 		"src/a/a.go": `package a; import "b"; const A = "a" + b.B`,
 		"src/b/b.go": `package b; import "c"; const B = "b" + c.C`,
 		"src/c/c.go": `package c; const C = "c"`,
 		"src/d/d.go": `package d; const D = "d"`,
 	})
 	defer cleanup()
-	// -- tmp is now the current directory --
 
 	for i, test := range []struct {
 		overlay  M
@@ -401,7 +443,7 @@ func TestWholeProgramOverlay(t *testing.T) {
 		}
 		var errs errCollector
 		opts := &packages.Options{
-			GOPATH:    tmp,
+			Env:       append(os.Environ(), "GOPATH="+tmp),
 			Error:     errs.add,
 			ParseFile: parseFile,
 		}
@@ -413,7 +455,7 @@ func TestWholeProgramOverlay(t *testing.T) {
 
 		// Check value of a.A.
 		a := initial[0]
-		got := a.Type.Scope().Lookup("A").(*types.Const).Val().String()
+		got := constant(a, "A").Val().String()
 		if got != test.want {
 			t.Errorf("%d. a.A: got %s, want %s", i, got, test.want)
 		}
@@ -425,7 +467,7 @@ func TestWholeProgramOverlay(t *testing.T) {
 }
 
 func TestWholeProgramImportErrors(t *testing.T) {
-	tmp, cleanup := enterTree(t, map[string]string{
+	tmp, cleanup := makeTree(t, map[string]string{
 		"src/unicycle/unicycle.go": `package unicycle; import _ "unicycle"`,
 		"src/bicycle1/bicycle1.go": `package bicycle1; import _ "bicycle2"`,
 		"src/bicycle2/bicycle2.go": `package bicycle2; import _ "bicycle1"`,
@@ -440,12 +482,14 @@ import (
 )`,
 	})
 	defer cleanup()
-	// -- tmp is now the current directory --
 
-	os.Mkdir("src/empty", 0777) // create an existing but empty package
+	os.Mkdir(filepath.Join(tmp, "src/empty"), 0777) // create an existing but empty package
 
 	var errs2 errCollector
-	opts := &packages.Options{GOPATH: tmp, Error: errs2.add}
+	opts := &packages.Options{
+		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Error: errs2.add,
+	}
 	initial, err := packages.WholeProgram(opts, "root")
 	if err != nil {
 		t.Fatal(err)
@@ -519,8 +563,6 @@ func errorMessages(errors []error) []string {
 }
 
 func srcs(p *packages.Package) (basenames []string) {
-	// Ideally we would show the root-relative portion (e.g. after
-	// src/) but vgo doesn't necessarily have a src/ dir.
 	for i, src := range p.Srcs {
 		if strings.Contains(src, ".cache/go-build") {
 			src = fmt.Sprintf("%d.go", i) // make cache names predictable
@@ -600,35 +642,25 @@ func importGraph(initial []*packages.Package) (string, map[string]*packages.Pack
 
 const skipCleanup = false // for debugging; don't commit 'true'!
 
-// enterTree creates a new temporary directory containing the specified
+// makeTree creates a new temporary directory containing the specified
 // file tree, and chdirs to it. Call the cleanup function to restore the
 // cwd and delete the tree.
-func enterTree(t *testing.T, tree map[string]string) (dir string, cleanup func()) {
-	oldcwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir, err = ioutil.TempDir("", "")
+func makeTree(t *testing.T, tree map[string]string) (dir string, cleanup func()) {
+	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	cleanup = func() {
-		if err := os.Chdir(oldcwd); err != nil {
-			t.Errorf("cannot restore cwd: %v", err)
-		}
 		if skipCleanup {
 			t.Logf("Skipping cleanup of temp dir: %s", dir)
-		} else {
-			os.RemoveAll(dir) // ignore errors
+			return
 		}
-	}
-
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
+		os.RemoveAll(dir) // ignore errors
 	}
 
 	for name, content := range tree {
+		name := filepath.Join(dir, name)
 		if err := os.MkdirAll(filepath.Dir(name), 0777); err != nil {
 			cleanup()
 			t.Fatal(err)
@@ -639,4 +671,8 @@ func enterTree(t *testing.T, tree map[string]string) (dir string, cleanup func()
 		}
 	}
 	return dir, cleanup
+}
+
+func constant(p *packages.Package, name string) *types.Const {
+	return p.Type.Scope().Lookup(name).(*types.Const)
 }
