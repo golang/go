@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.11
-
 package packages_test
 
 import (
@@ -25,6 +23,10 @@ import (
 
 	"golang.org/x/tools/go/packages"
 )
+
+// TODO(matloob): remove this once Go 1.12 is released as we will end support
+// for the loader-backed implementation then.
+var usesLegacyLoader = false
 
 // TODO(adonovan): more test cases to write:
 //
@@ -131,7 +133,7 @@ func TestMetadataImportGraph(t *testing.T) {
   subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
 `[1:]
 
-	if graph != wantGraph {
+	if graph != wantGraph && !usesLegacyLoader {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 	}
 
@@ -151,6 +153,10 @@ func TestMetadataImportGraph(t *testing.T) {
 		{"subdir/d.test", "main", "command", "0.go"},
 		{"unsafe", "unsafe", "package", ""},
 	} {
+		if usesLegacyLoader && test.id == "subdir/d.test" {
+			// Legacy Loader does not support tests.
+			continue
+		}
 		p, ok := all[test.id]
 		if !ok {
 			t.Errorf("no package %s", test.id)
@@ -181,9 +187,14 @@ func TestMetadataImportGraph(t *testing.T) {
 		t.Errorf("failed to obtain metadata for ad-hoc package: %s", err)
 	} else {
 		got := fmt.Sprintf("%s %s", initial[0].ID, srcs(initial[0]))
-		if want := "command-line-arguments [c.go]"; got != want {
+		if want := "command-line-arguments [c.go]"; got != want && !usesLegacyLoader {
 			t.Errorf("oops: got %s, want %s", got, want)
 		}
+	}
+
+	if usesLegacyLoader {
+		// TODO(matloob): Wildcards are not yet supported.
+		return
 	}
 
 	// Wildcards
@@ -202,7 +213,7 @@ func TestMetadataImportGraph(t *testing.T) {
 	}
 }
 
-func TestOptionsDir(t *testing.T) {
+func TestOptionsDir_Go110(t *testing.T) {
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go":   `package a; const Name = "a" `,
 		"src/a/b/b.go": `package b; const Name = "a/b"`,
@@ -260,7 +271,7 @@ func (ec *errCollector) add(err error) {
 	ec.mu.Unlock()
 }
 
-func TestTypeCheckOK(t *testing.T) {
+func TestTypeCheckOK_Go110(t *testing.T) {
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go": `package a; import "b"; const A = "a" + b.B`,
 		"src/b/b.go": `package b; import "c"; const B = "b" + c.C`,
@@ -296,6 +307,10 @@ func TestTypeCheckOK(t *testing.T) {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 	}
 
+	// TODO(matloob): The go/loader based support loads everything from source
+	// because it doesn't do a build and the .a files don't exist.
+	// Can we simulate its existance?
+
 	for _, test := range []struct {
 		id         string
 		wantType   bool
@@ -307,6 +322,10 @@ func TestTypeCheckOK(t *testing.T) {
 		{"d", true, false},  // export data package
 		{"e", false, false}, // no package
 	} {
+		if usesLegacyLoader && test.id == "d" || test.id == "e" {
+			// legacyLoader always does a whole-program load.
+			continue
+		}
 		p := all[test.id]
 		if p == nil {
 			t.Errorf("missing package: %s", test.id)
@@ -392,6 +411,11 @@ func TestTypeCheckError(t *testing.T) {
 		{"d", false, false, true, nil},  // missing export data
 		{"e", false, false, false, nil}, // type info not requested (despite type error)
 	} {
+		if usesLegacyLoader && test.id == "c" || test.id == "d" || test.id == "e" {
+			// Behavior is different for legacy loader because it always loads wholeProgram.
+			// TODO(matloob): can we run more of this test? Can we put export data into the test GOPATH?
+			continue
+		}
 		p := all[test.id]
 		if p == nil {
 			t.Errorf("missing package: %s", test.id)
@@ -429,6 +453,10 @@ func TestTypeCheckError(t *testing.T) {
 // This function tests use of the ParseFile hook to supply
 // alternative file contents to the parser and type-checker.
 func TestWholeProgramOverlay(t *testing.T) {
+	if usesLegacyLoader {
+		t.Skip("not yet supported in go/loader based implementation")
+	}
+
 	type M = map[string]string
 
 	tmp, cleanup := makeTree(t, M{
@@ -489,6 +517,10 @@ func TestWholeProgramOverlay(t *testing.T) {
 }
 
 func TestWholeProgramImportErrors(t *testing.T) {
+	if usesLegacyLoader {
+		t.Skip("not yet supported in go/loader based implementation")
+	}
+
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/unicycle/unicycle.go": `package unicycle; import _ "unicycle"`,
 		"src/bicycle1/bicycle1.go": `package bicycle1; import _ "bicycle2"`,

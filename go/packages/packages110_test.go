@@ -6,16 +6,6 @@
 
 package packages_test
 
-import (
-	"testing"
-
-	"golang.org/x/tools/go/packages"
-)
-
-func TestGoIsTooOld(t *testing.T) {
-	_, err := packages.Load(nil, "errors")
-
-	if _, ok := err.(packages.GoTooOldError); !ok {
-		t.Fatalf("using go/packages with pre-Go 1.11 go: err=%v, want ErrGoTooOld", err)
-	}
+func init() {
+	usesLegacyLoader = true
 }

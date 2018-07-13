@@ -269,6 +269,9 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 	export := ld.Mode > LoadImports && ld.Mode < LoadAllSyntax
 	deps := ld.Mode >= LoadImports
 	list, err := golistPackages(ld.Context, ld.Dir, ld.Env, export, ld.Tests, deps, patterns)
+	if _, ok := err.(GoTooOldError); ok {
+		return loaderFallback(ld.Dir, ld.Env, patterns)
+	}
 	if err != nil {
 		return nil, err
 	}
