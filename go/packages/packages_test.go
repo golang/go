@@ -1,3 +1,9 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build go1.11
+
 package packages_test
 
 import (
@@ -44,7 +50,7 @@ func TestMetadataImportGraph(t *testing.T) {
 		"src/a/a.go":             `package a; const A = 1`,
 		"src/b/b.go":             `package b; import ("a"; _ "errors"); var B = a.A`,
 		"src/c/c.go":             `package c; import (_ "b"; _ "unsafe")`,
-		"src/c/c2.go":            "//+build ignore\n\n" + `package c; import _ "fmt"`,
+		"src/c/c2.go":            "// +build ignore\n\n" + `package c; import _ "fmt"`,
 		"src/subdir/d/d.go":      `package d`,
 		"src/subdir/d/d_test.go": `package d; import _ "math/bits"`,
 		"src/subdir/d/x_test.go": `package d_test; import _ "subdir/d"`, // TODO(adonovan): test bad import here

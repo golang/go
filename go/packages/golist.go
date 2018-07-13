@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package packages
 
 // This file defines the "go list" implementation of the Packages metadata query.
@@ -12,6 +16,12 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+// A GoTooOldError indicates that the go command predates the Go
+// 1.11 features needed by this package. This error is a stopgap measure
+// until the necessary features can be emulated in terms of an older go
+// command, at which point this error will no longer be used.
+type GoTooOldError struct{ error }
 
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
@@ -201,7 +211,7 @@ func golist(ctx context.Context, gopath string, cgo, export bool, args []string)
 
 		// Old go list?
 		if strings.Contains(fmt.Sprint(cmd.Stderr), "flag provided but not defined") {
-			return nil, fmt.Errorf("unsupported version of go list: %s: %s", exitErr, cmd.Stderr)
+			return nil, GoTooOldError{fmt.Errorf("unsupported version of go list: %s: %s", exitErr, cmd.Stderr)}
 		}
 
 		// Export mode entails a build.

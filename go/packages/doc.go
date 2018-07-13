@@ -13,6 +13,9 @@ recursively loading dependencies from source code.
 
 THIS INTERFACE IS EXPERIMENTAL AND IS LIKELY TO CHANGE.
 
+This package currently requires a go1.11 version of go list;
+its functions will return a GoTooOldError for older toolchains.
+
 This package is intended to replace golang.org/x/tools/go/loader.
 It provides a simpler interface to the same functionality and serves
 as a foundation for analysis tools that work with 'go build',
