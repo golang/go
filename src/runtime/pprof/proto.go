@@ -54,6 +54,7 @@ type memMap struct {
 	file, buildID string
 
 	funcs symbolizeFlag
+	fake  bool // map entry was faked; /proc/self/maps wasn't available
 }
 
 // symbolizeFlag keeps track of symbolization result.
@@ -267,7 +268,7 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
 		frame, more = frames.Next()
 	}
 	for i := range b.mem {
-		if b.mem[i].start <= addr && addr < b.mem[i].end {
+		if b.mem[i].start <= addr && addr < b.mem[i].end || b.mem[i].fake {
 			b.pb.uint64Opt(tagLocation_MappingID, uint64(i+1))
 
 			m := b.mem[i]
@@ -440,6 +441,12 @@ func (b *profileBuilder) build() {
 func (b *profileBuilder) readMapping() {
 	data, _ := ioutil.ReadFile("/proc/self/maps")
 	parseProcSelfMaps(data, b.addMapping)
+	if len(b.mem) == 0 { // pprof expects a map entry, so fake one.
+		b.addMappingEntry(0, 0, 0, "", "", true)
+		// TODO(hyangah): make addMapping return *memMap or
+		// take a memMap struct, and get rid of addMappingEntry
+		// that takes a bunch of positional arguments.
+	}
 }
 
 func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file, buildID string)) {
@@ -540,11 +547,16 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 }
 
 func (b *profileBuilder) addMapping(lo, hi, offset uint64, file, buildID string) {
+	b.addMappingEntry(lo, hi, offset, file, buildID, false)
+}
+
+func (b *profileBuilder) addMappingEntry(lo, hi, offset uint64, file, buildID string, fake bool) {
 	b.mem = append(b.mem, memMap{
 		start:   uintptr(lo),
 		end:     uintptr(hi),
 		offset:  offset,
 		file:    file,
 		buildID: buildID,
+		fake:    fake,
 	})
 }
