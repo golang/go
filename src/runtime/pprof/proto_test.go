@@ -97,9 +97,16 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		addr2 = mprof.Mapping[1].Start
 		map2 = mprof.Mapping[1]
 		map2.BuildID, _ = elfBuildID(map2.File)
+	case "js":
+		addr1 = uint64(funcPC(f1))
+		addr2 = uint64(funcPC(f2))
 	default:
 		addr1 = uint64(funcPC(f1))
 		addr2 = uint64(funcPC(f2))
+		// Fake mapping - HasFunctions will be true because two PCs from Go
+		// will be fully symbolized.
+		fake := &profile.Mapping{ID: 1, HasFunctions: true}
+		map1, map2 = fake, fake
 	}
 	return
 }
@@ -300,4 +307,42 @@ func symbolized(loc *profile.Location) bool {
 		return false
 	}
 	return true
+}
+
+// TestFakeMapping tests if at least one mapping exists
+// (including a fake mapping), and their HasFunctions bits
+// are set correctly.
+func TestFakeMapping(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Lookup("heap").WriteTo(&buf, 0); err != nil {
+		t.Fatalf("failed to write heap profile: %v", err)
+	}
+	prof, err := profile.Parse(&buf)
+	if err != nil {
+		t.Fatalf("failed to parse the generated profile data: %v", err)
+	}
+	t.Logf("Profile: %s", prof)
+	if len(prof.Mapping) == 0 {
+		t.Fatal("want profile with at least one mapping entry, got 0 mapping")
+	}
+
+	hit := make(map[*profile.Mapping]bool)
+	miss := make(map[*profile.Mapping]bool)
+	for _, loc := range prof.Location {
+		if symbolized(loc) {
+			hit[loc.Mapping] = true
+		} else {
+			miss[loc.Mapping] = true
+		}
+	}
+	for _, m := range prof.Mapping {
+		if miss[m] && m.HasFunctions {
+			t.Errorf("mapping %+v has HasFunctions=true, but contains locations with failed symbolization", m)
+			continue
+		}
+		if !miss[m] && hit[m] && !m.HasFunctions {
+			t.Errorf("mapping %+v has HasFunctions=false, but all referenced locations from this lapping were symbolized successfully", m)
+			continue
+		}
+	}
 }
