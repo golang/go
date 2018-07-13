@@ -25,7 +25,7 @@ type GoTooOldError struct{ error }
 
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
-func golistPackages(ctx context.Context, gopath string, cgo, export bool, words []string) ([]*Package, error) {
+func golistPackages(ctx context.Context, gopath string, cgo, export, tests bool, words []string) ([]*Package, error) {
 	// Fields must match go list;
 	// see $GOROOT/src/cmd/go/internal/load/pkg.go.
 	type jsonPackage struct {
@@ -62,7 +62,7 @@ func golistPackages(ctx context.Context, gopath string, cgo, export bool, words 
 	// Run "go list" for complete
 	// information on the specified packages.
 
-	buf, err := golist(ctx, gopath, cgo, export, words)
+	buf, err := golist(ctx, gopath, cgo, export, tests, words)
 	if err != nil {
 		return nil, err
 	}
@@ -176,19 +176,13 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 }
 
 // golist returns the JSON-encoded result of a "go list args..." query.
-func golist(ctx context.Context, gopath string, cgo, export bool, args []string) (*bytes.Buffer, error) {
+func golist(ctx context.Context, gopath string, cgo, export, tests bool, args []string) (*bytes.Buffer, error) {
 	out := new(bytes.Buffer)
-	if len(args) == 0 {
-		return out, nil
-	}
-
-	const test = true // TODO(adonovan): expose a flag for this.
-
 	cmd := exec.CommandContext(ctx, "go", append([]string{
 		"list",
 		"-e",
 		fmt.Sprintf("-cgo=%t", cgo),
-		fmt.Sprintf("-test=%t", test),
+		fmt.Sprintf("-test=%t", tests),
 		fmt.Sprintf("-export=%t", export),
 		"-deps",
 		"-json",

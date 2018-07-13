@@ -27,6 +27,7 @@ import (
 // flags
 var (
 	depsFlag = flag.Bool("deps", false, "show dependencies too")
+	testFlag = flag.Bool("test", false, "include any tests implied by the patterns")
 	cgoFlag  = flag.Bool("cgo", true, "process cgo files")
 	mode     = flag.String("mode", "metadata", "mode (one of metadata, typecheck, wholeprogram)")
 	private  = flag.Bool("private", false, "show non-exported declarations too")
@@ -119,6 +120,7 @@ func main() {
 	opts := &packages.Options{
 		Error:      func(error) {}, // we'll take responsibility for printing errors
 		DisableCgo: !*cgoFlag,
+		Tests:      *testFlag,
 	}
 	lpkgs, err := load(opts, flag.Args()...)
 	if err != nil {

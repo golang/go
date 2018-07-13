@@ -44,7 +44,7 @@ func TestStdlibMetadata(t *testing.T) {
 
 	t.Logf("Loaded %d packages", len(pkgs))
 	numPkgs := len(pkgs)
-	if want := 340; numPkgs < want {
+	if want := 186; numPkgs < want {
 		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
 	}
 

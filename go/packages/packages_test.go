@@ -36,7 +36,6 @@ import (
 //   import error) will result in a JSON blob with no name and a
 //   nonexistent testmain file in GoFiles. Test that we handle this
 //   gracefully.
-// - import graph for synthetic testmain and "p [t.test]" packages.
 // - IsTest boolean
 //
 // TypeCheck & WholeProgram modes:
@@ -44,6 +43,7 @@ import (
 //   - Packages.Info is correctly set.
 //   - typechecker configuration is honored
 //   - import cycles are gracefully handled in type checker.
+//   - test typechecking of generated test main and cgo.
 
 func TestMetadataImportGraph(t *testing.T) {
 	tmp, cleanup := enterTree(t, map[string]string{
@@ -71,6 +71,34 @@ func TestMetadataImportGraph(t *testing.T) {
 	// Check graph topology.
 	graph, all := importGraph(initial)
 	wantGraph := `
+  a
+  b
+* c
+* e
+  errors
+* subdir/d
+  unsafe
+  b -> a
+  b -> errors
+  c -> b
+  c -> unsafe
+  e -> b
+  e -> c
+`[1:]
+
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+
+	opts.Tests = true
+	initial, err = packages.Metadata(opts, "c", "subdir/d", "e")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check graph topology.
+	graph, all = importGraph(initial)
+	wantGraph = `
   a
   b
 * c
@@ -114,7 +142,7 @@ func TestMetadataImportGraph(t *testing.T) {
 		{"e", "main", "command", "e.go e2.go"},
 		{"errors", "errors", "package", "errors.go"},
 		{"subdir/d", "d", "package", "d.go"},
-		// {"subdir/d.test", "main", "test command", "<hideous generated file name>"},
+		{"subdir/d.test", "main", "test command", "0.go"},
 		{"unsafe", "unsafe", "package", ""},
 	} {
 		p, ok := all[test.id]
@@ -489,8 +517,13 @@ func errorMessages(errors []error) []string {
 func srcs(p *packages.Package) (basenames []string) {
 	// Ideally we would show the root-relative portion (e.g. after
 	// src/) but vgo doesn't necessarily have a src/ dir.
-	for _, src := range p.Srcs {
-		basenames = append(basenames, filepath.Base(src))
+	for i, src := range p.Srcs {
+		if strings.Contains(src, ".cache/go-build") {
+			src = fmt.Sprintf("%d.go", i) // make cache names predictable
+		} else {
+			src = filepath.Base(src)
+		}
+		basenames = append(basenames, src)
 	}
 	return basenames
 }

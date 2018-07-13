@@ -40,6 +40,19 @@ type Options struct {
 	// Replace with flags/cwd/environ pass-through.
 	GOPATH string
 
+	// The Tests flag causes the result to include any test packages
+	// implied by the patterns.
+	//
+	// For example, under 'go build', the "fmt" pattern ordinarily
+	// identifies a single importable package, but with the Tests
+	// flag it additionally denotes the "fmt.test" executable, which
+	// in turn depends on the variant of "fmt" augmented by its
+	// in-packages tests, and the "fmt_test" external test package.
+	//
+	// For build systems in which test names are explicit,
+	// this flag may have no effect.
+	Tests bool
+
 	// DisableCgo disables cgo-processing of files that import "C",
 	// and removes the 'cgo' build tag, which may affect source file selection.
 	// By default, TypeCheck, and WholeProgram queries process such
@@ -298,9 +311,13 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		ld.GOPATH = os.Getenv("GOPATH")
 	}
 
+	if len(patterns) == 0 {
+		return nil, fmt.Errorf("no packages to load")
+	}
+
 	// Do the metadata query and partial build.
 	// TODO(adonovan): support alternative build systems at this seam.
-	list, err := golistPackages(ld.Context, ld.GOPATH, ld.cgo, ld.mode == typeCheck, patterns)
+	list, err := golistPackages(ld.Context, ld.GOPATH, ld.cgo, ld.mode == typeCheck, ld.Tests, patterns)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +337,7 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		}
 	}
 	if len(pkgs) == 0 {
-		return nil, fmt.Errorf("no packages to load")
+		return nil, fmt.Errorf("packages not found")
 	}
 
 	// Materialize the import graph.
