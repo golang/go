@@ -751,7 +751,11 @@ func (tg *testgoData) wantStale(pkg, reason, msg string) {
 	if !stale {
 		tg.t.Fatal(msg)
 	}
-	if reason == "" && why != "" || !strings.Contains(why, reason) {
+	// We always accept the reason as being "not installed but
+	// available in build cache", because when that is the case go
+	// list doesn't try to sort out the underlying reason why the
+	// package is not installed.
+	if reason == "" && why != "" || !strings.Contains(why, reason) && !strings.Contains(why, "not installed but available in build cache") {
 		tg.t.Errorf("wrong reason for Stale=true: %q, want %q", why, reason)
 	}
 }
@@ -881,13 +885,13 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
-	addNL := func(name string) (restore func()) {
+	addVar := func(name string, idx int) (restore func()) {
 		data, err := ioutil.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
 		old := data
-		data = append(data, '\n')
+		data = append(data, fmt.Sprintf("var DummyUnusedVar%d bool\n", idx)...)
 		if err := ioutil.WriteFile(name, append(data, '\n'), 0666); err != nil {
 			t.Fatal(err)
 		}
@@ -911,19 +915,19 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	// In fact this should be true even outside a release branch.
 	sys := runtime.GOROOT() + "/src/runtime/internal/sys/sys.go"
 	tg.sleep()
-	restore := addNL(sys)
+	restore := addVar(sys, 0)
 	restore()
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after updating mtime of runtime/internal/sys/sys.go")
 
 	// But changing content of any file should have an effect.
 	// Previously zversion.go was the only one that mattered;
 	// now they all matter, so keep using sys.go.
-	restore = addNL(sys)
+	restore = addVar(sys, 1)
 	defer restore()
 	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go")
 	restore()
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
-	addNL(sys)
+	addVar(sys, 2)
 	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
 	tg.run("install", "-i", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with new release")
