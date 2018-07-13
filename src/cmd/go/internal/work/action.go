@@ -213,7 +213,6 @@ const (
 )
 
 func (b *Builder) Init() {
-	var err error
 	b.Print = func(a ...interface{}) (int, error) {
 		return fmt.Fprint(os.Stderr, a...)
 	}
@@ -225,14 +224,19 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		b.WorkDir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
+		tmp, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
-		if !filepath.IsAbs(b.WorkDir) {
-			os.RemoveAll(b.WorkDir)
-			base.Fatalf("cmd/go: relative tmpdir not supported")
+		if !filepath.IsAbs(tmp) {
+			abs, err := filepath.Abs(tmp)
+			if err != nil {
+				os.RemoveAll(tmp)
+				base.Fatalf("go: creating work dir: %v", err)
+			}
+			tmp = abs
 		}
+		b.WorkDir = tmp
 		if cfg.BuildX || cfg.BuildWork {
 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
 		}

@@ -6390,15 +6390,14 @@ func TestNoRelativeTmpdir(t *testing.T) {
 	tg.setenv("GOCACHE", "off")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.setenv("GOTMPDIR", "tmp")
-	tg.runFail("build", "a")
-	tg.grepStderr("relative tmpdir", "wrong error")
+	tg.run("build", "-work", "a")
+	tg.grepStderr("WORK=[^t]", "work should be absolute path")
 
-	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
-		tg.unsetenv("GOTMPDIR")
-		tg.setenv("TMPDIR", "tmp")
-		tg.runFail("build", "a")
-		tg.grepStderr("relative tmpdir", "wrong error")
-	}
+	tg.unsetenv("GOTMPDIR")
+	tg.setenv("TMP", "tmp")    // windows
+	tg.setenv("TMPDIR", "tmp") // unix
+	tg.run("build", "-work", "a")
+	tg.grepStderr("WORK=[^t]", "work should be absolute path")
 }
 
 // Issue 24704.
