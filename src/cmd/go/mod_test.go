@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -212,10 +211,6 @@ func TestModFindModulePath(t *testing.T) {
 	path, err = modload.FindModulePath(tg.path("gp/src/example.com/x/y/z"))
 	if path != "unexpected.com/z" || err != nil {
 		t.Fatalf("FindModulePath = %q, %v, want %q, nil", path, err, "unexpected.com/z")
-	}
-
-	if runtime.GOOS == "windows" {
-		t.Skipf("windows removeall fails")
 	}
 
 	// Empty dir outside GOPATH
