@@ -953,6 +953,7 @@ and implementation.
 
 <h3 id="conversions">
 Why does Go not provide implicit numeric conversions?</h3>
+
 <p>
 The convenience of automatic conversion between numeric types in C is
 outweighed by the confusion it causes.  When is an expression unsigned?
@@ -972,6 +973,43 @@ A related detail is that, unlike in C, <code>int</code> and <code>int64</code>
 are distinct types even if <code>int</code> is a 64-bit type.  The <code>int</code>
 type is generic; if you care about how many bits an integer holds, Go
 encourages you to be explicit.
+</p>
+
+<h3 id="constants">
+How do constants work in Go?</h3>
+
+<p>
+Although Go is strict about conversion between variables of different
+numeric types, constants in the language are much more flexible.
+Literal constants such as <code>23</code>, <code>3.14159</code>
+and <a href="/pkg/math/#pkg-constants"><code>math.Pi</code></a>
+occupy a sort of ideal number space, with arbitrary precision and
+no overflow or underflow.
+For instance, the value of <code>math.Pi</code> is specified to 63 places
+in the source code, and constant expressions involving the value keep
+precision beyond what a <code>float64</code> could hold.
+Only when the constant or constant expression is assigned to a
+variable&mdash;a memory location in the program&mdash;does
+it become a "computer" number with
+the usual floating-point properties and precision.
+</p>
+
+<p>
+Also,
+because they are just numbers, not typed values, constants in Go can be
+used more freely than variables, thereby softening some of the awkwardness
+around the strict conversion rules.
+One can write expressions such as
+</p>
+
+<pre>
+sqrt2 := math.Sqrt(2)
+</pre>
+
+<p>
+without complaint from the compiler because the ideal number <code>2</code>
+can be converted safely and accurately
+to a <code>float64</code> for the call to <code>math.Sqrt</code>.
 </p>
 
 <p>
@@ -1028,8 +1066,9 @@ How are libraries documented?</h3>
 
 <p>
 There is a program, <code>godoc</code>, written in Go, that extracts
-package documentation from the source code. It can be used on the
-command line or on the web. An instance is running at
+package documentation from the source code and serves it as a web
+page with links to declarations, files, and so on.
+An instance is running at
 <a href="/pkg/">golang.org/pkg/</a>.
 In fact, <code>godoc</code> implements the full site at
 <a href="/">golang.org/</a>.
@@ -1052,14 +1091,20 @@ subcommand that provides a textual interface to the same information.
 Is there a Go programming style guide?</h3>
 
 <p>
-Eventually, there may be a small number of rules to guide things
-like naming, layout, and file organization.
+There is no explicit style guide, although there is certainly
+a recognizable "Go style".
+</p>
+
+<p>
+Go has established conventions to guide decisions around
+naming, layout, and file organization.
 The document <a href="effective_go.html">Effective Go</a>
-contains some style advice.
+contains some advice on these topics.
 More directly, the program <code>gofmt</code> is a pretty-printer
 whose purpose is to enforce layout rules; it replaces the usual
 compendium of do's and don'ts that allows interpretation.
-All the Go code in the repository has been run through <code>gofmt</code>.
+All the Go code in the repository, and the vast majority in the
+open source world, has been run through <code>gofmt</code>.
 </p>
 
 <p>
@@ -1123,11 +1168,25 @@ add these lines to your <code>~/.gitconfig</code>:
 How should I manage package versions using "go get"?</h3>
 
 <p>
-"Go get" does not have any explicit concept of package versions.
+Since the inception of the project, Go has had no explicit concept of package versions,
+but that is changing.
 Versioning is a source of significant complexity, especially in large code bases,
-and we are unaware of any approach that works well at scale in a large enough
-variety of situations to be appropriate to force on all Go users.
-What "go get" and the larger Go toolchain do provide is isolation of
+and it has taken some time to develop an
+approach that works well at scale in a large enough
+variety of situations to be appropriate to supply to all Go users.
+</p>
+
+<p>
+The Go 1.11 release adds new, experimental support
+for package versioning to the <code>go</code> command,
+in the form of Go modules.
+For more information, see the <a href="/doc/go1.11#modules">Go 1.11 release notes</a>
+and the <a href="/cmd/go#hdr-Modules__module_versions__and_more"><code>go</code> command documentation</a>.
+</p>
+
+<p>
+Regardless of the actual package management technology,
+"go get" and the larger Go toolchain does provide isolation of
 packages with different import paths.
 For example, the standard library's <code>html/template</code> and <code>text/template</code>
 coexist even though both are "package template".
@@ -1139,33 +1198,19 @@ Packages intended for public use should try to maintain backwards compatibility 
 The <a href="/doc/go1compat.html">Go 1 compatibility guidelines</a> are a good reference here:
 don't remove exported names, encourage tagged composite literals, and so on.
 If different functionality is required, add a new name instead of changing an old one.
-If a complete break is required, create a new package with a new import path.</p>
+If a complete break is required, create a new package with a new import path.
+</p>
 
 <p>
 If you're using an externally supplied package and worry that it might change in
-unexpected ways, the simplest solution is to copy it to your local repository.
-(This is the approach Google takes internally.)
-Store the copy under a new import path that identifies it as a local copy.
-For example, you might copy "original.com/pkg" to "you.com/external/original.com/pkg".
-The <a href="https://godoc.org/golang.org/x/tools/cmd/gomvpkg">gomvpkg</a>
-program is one tool to help automate this process.
-</p>
-
-<p>
-The Go 1.5 release added a facility to the
-<a href="https://golang.org/cmd/go"><code>go</code></a> command
-that makes it easier to manage external dependencies by "vendoring"
-them into a special directory near the package that depends upon them.
+unexpected ways, but are not yet using Go modules,
+the simplest solution is to copy it to your local repository.
+This is the approach Google takes internally and is supported by the
+<code>go</code> command through a technique called "vendoring".
+This involves
+storing a copy of the dependency under a new import path that identifies it as a local copy.
 See the <a href="https://golang.org/s/go15vendor">design
 document</a> for details.
-</p>
-
-<p>
-The Go 1.11 release added new, experimental support
-for package versioning to the <code>go</code> command,
-in the form of Go modules.
-For more information, see the <a href="/doc/go1.11#modules">Go 1.11 release notes</a>
-and the <a href="/cmd/go#hdr-Modules__module_versions__and_more"><code>go</code> command documentation</a>.
 </p>
 
 <h2 id="Pointers">Pointers and Allocation</h2>
@@ -1209,7 +1254,7 @@ disguising an interface value's type for delayed evaluation.
 </p>
 
 <p>
-It is however a common mistake to pass a pointer to an interface value
+It is a common mistake to pass a pointer to an interface value
 to a function expecting an interface. The compiler will complain about this
 error but the situation can still be confusing, because sometimes a
 <a href="#different_method_sets">pointer
@@ -1285,9 +1330,10 @@ of passing a value), so changes it makes will be invisible to the caller.
 </p>
 
 <p>
-By the way, pointer receivers are identical to the situation in Java,
-although in Java the pointers are hidden under the covers; it's Go's
-value receivers that are unusual.
+By the way, in Java method receivers are always pointers,
+although their pointer nature is somewhat disguised
+(and there is a proposal to add value receivers to the language).
+It is the value receivers in Go that are unusual.
 </p>
 
 <p>
@@ -1315,7 +1361,7 @@ requires a pointer, a value receiver is efficient and clear.
 What's the difference between new and make?</h3>
 
 <p>
-In short: <code>new</code> allocates memory, <code>make</code> initializes
+In short: <code>new</code> allocates memory, while <code>make</code> initializes
 the slice, map, and channel types.
 </p>
 
@@ -1332,9 +1378,9 @@ The sizes of <code>int</code> and <code>uint</code> are implementation-specific
 but the same as each other on a given platform.
 For portability, code that relies on a particular
 size of value should use an explicitly sized type, like <code>int64</code>.
-Prior to Go 1.1, the 64-bit Go compilers (both gc and gccgo) used
-a 32-bit representation for <code>int</code>. As of Go 1.1 they use
-a 64-bit representation.
+On 32-bit machines the compilers use 32-bit integers by default,
+while on 64-bit machines integers have 64 bits.
+(Historically, this was not always true.)
 </p>
 
 <p>
