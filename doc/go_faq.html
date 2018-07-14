@@ -1851,38 +1851,69 @@ But we encourage most new code to live elsewhere.
 What compiler technology is used to build the compilers?</h3>
 
 <p>
-<code>Gccgo</code> has a front end written in C++, with a recursive descent parser coupled to the
-standard GCC back end. <code>Gc</code> is written in Go with a recursive descent parser
+There are several production compilers for Go, and a number of others
+in development for various platforms.
+</p>
+
+<p>
+The default compiler, <code>gc</code>, is included with the
+Go distribution as part of the support for the <code>go</code>
+command.
+<code>Gc</code> was originally written in C
+because of the difficulties of bootstrapping&mdash;you'd need a Go compiler to
+set up a Go environment.
+But things have advanced and since the Go 1.5 release the compiler has been
+a Go program.
+The compiler was converted from C to Go using automatic translation tools, as
+described in this <a href="/s/go13compiler">design document</a>
+and <a href="https://talks.golang.org/2015/gogo.slide#1">talk</a>.
+Thus the compiler is now "self-hosting", which means we needed to face
+the bootstrapping problem.
+The solution is to have a working Go installation already in place,
+just as one normally has with a working C installation.
+The story of how to bring up a new Go environment from source
+is described <a href="/s/go15bootstrap">here</a> and
+<a href="/doc/install/source">here</a>.
+</p>
+
+<p>
+<code>Gc</code> is written in Go with a recursive descent parser
 and uses a custom loader, also written in Go but
 based on the Plan 9 loader, to generate ELF/Mach-O/PE binaries.
 </p>
 
 <p>
-We considered using LLVM for <code>gc</code> but we felt it was too large and
-slow to meet our performance goals.
+At the beginning of the project we considered using LLVM for
+<code>gc</code> but decided it was too large and slow to meet
+our performance goals.
+More important in retrospect, starting with LLVM would have made it
+harder to introduce some of the ABI and related changes, such as
+stack management, that Go requires but not are not part of the
+standard C setup.
+A new <a href="https://go.googlesource.com/gollvm/">LLVM implementation</a>
+is starting to come together now, however.
 </p>
 
 <p>
-The original <code>gc</code>, the Go compiler, was written in C
-because of the difficulties of bootstrapping&mdash;you'd need a Go compiler to
-set up a Go environment.
-But things have advanced and as of Go 1.5 the compiler is written in Go.
-It was converted from C to Go using automatic translation tools, as
-described in <a href="/s/go13compiler">this design document</a>
-and <a href="https://talks.golang.org/2015/gogo.slide#1">a recent talk</a>.
-Thus the compiler is now "self-hosting", which means we must face
-the bootstrapping problem.
-The solution, naturally, is to have a working Go installation already,
-just as one normally has a working C installation in place.
-The story of how to bring up a new Go installation from source
-is described <a href="/s/go15bootstrap">separately</a>.
+The <code>Gccgo</code> compiler is a front end written in C++
+with a recursive descent parser coupled to the
+standard GCC back end.
 </p>
 
 <p>
-Go is a fine language in which to implement a Go compiler.
+Go turned out to be a fine language in which to implement a Go compiler,
+although that was not its original goal.
+Not being self-hosting from the beginning allowed Go's design to
+concentrate on its original use case, which was networked servers.
+Had we decided Go should compile itself early on, we might have
+ended up with a language targeted more for compiler construction,
+which is a worthy goal but not the one we had initially.
+</p>
+
+<p>
 Although <code>gc</code> does not use them (yet?), a native lexer and
 parser are available in the <a href="/pkg/go/"><code>go</code></a> package
-and there is also a <a href="/pkg/go/types">type checker</a>.
+and there is also a native <a href="/pkg/go/types">type checker</a>.
 </p>
 
 <h3 id="How_is_the_run_time_support_implemented">
@@ -1896,6 +1927,8 @@ tiny bit of assembler) but it has since been translated to Go
 The <code>gccgo</code> compiler implements goroutines using
 a technique called segmented stacks,
 supported by recent modifications to the gold linker.
+<code>Gollvm</code> similarly is built on the corresponding
+LLVM infrastructure. 
 </p>
 
 <h3 id="Why_is_my_trivial_program_such_a_large_binary">
@@ -1905,7 +1938,7 @@ Why is my trivial program such a large binary?</h3>
 The linker in the <code>gc</code> toolchain
 creates statically-linked binaries by default.
 All Go binaries therefore include the Go
-run-time, along with the run-time type information necessary to support dynamic
+runtime, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
 </p>
 
@@ -1916,6 +1949,14 @@ gcc on Linux is around 750 kB, including an implementation of
 An equivalent Go program using
 <code>fmt.Printf</code> weighs a couple of megabytes, but that includes
 more powerful run-time support and type and debugging information.
+</p>
+
+<p>
+A Go program compiled with <code>gc</code> can be linked with
+the <code>-ldflags=-w</code> flag to disable DWARF generation,
+removing debugging information from the binary but with no
+other loss of functionality.
+This can reduce the binary size substantially.
 </p>
 
 <h3 id="unused_variables_and_imports">
@@ -2157,7 +2198,7 @@ brace to live on the next line.  We disagree.  Since Go code is meant
 to be formatted automatically by
 <a href="/cmd/gofmt/"><code>gofmt</code></a>,
 <i>some</i> style must be chosen.  That style may differ from what
-you've used in C or Java, but Go is a new language and
+you've used in C or Java, but Go is a different language and
 <code>gofmt</code>'s style is as good as any other.  More
 important&mdash;much more important&mdash;the advantages of a single,
 programmatically mandated format for all Go programs greatly outweigh
@@ -2170,15 +2211,19 @@ Go can use the standard syntax one line at a time without special rules.
 Why do garbage collection?  Won't it be too expensive?</h3>
 <p>
 One of the biggest sources of bookkeeping in systems programs is
-memory management.  We feel it's critical to eliminate that
+memory management.
+In languages in which it is done manually,
+it can consume a significant amount of programmer time and is
+often the cause of pernicious bugs.
+We felt it was critical to eliminate that
 programmer overhead, and advances in garbage collection
-technology in the last few years give us confidence that we can
-implement it with low enough overhead and no significant
+technology in the last few years gave us confidence that it
+could be implemented with low enough overhead and no significant
 latency.
 </p>
 
 <p>
-Another point is that a large part of the difficulty of concurrent
+Another issue is that a large part of the difficulty of concurrent
 and multi-threaded programming is memory management;
 as objects get passed among threads it becomes cumbersome
 to guarantee they become freed safely.
@@ -2194,12 +2239,15 @@ simpler because they don't need to specify how memory is managed across them.
 </p>
 
 <p>
-The current implementation is a parallel mark-and-sweep collector.
-Recent improvements, documented in
-<a href="/s/go14gc">this design document</a>,
-have introduced bounded pause times and improved the
-parallelism.
-Future versions might attempt new approaches.
+The current implementation is a mark-and-sweep collector that runs
+in parallel with the main program on a separate CPU core if the
+machine is a multiprocessor.
+Major work on the collector in recent years has reduced pause times
+often to the sub-millisecond range, even for large heaps,
+all but eliminating one of the major objections to garbage collection
+in networked servers.
+Work continues to refine the algorithm, reduce overhead and
+latency further, and to explore new approaches.
 </p>
 
 <p>
