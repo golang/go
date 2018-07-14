@@ -286,7 +286,8 @@ to <code>libc</code>, the C library.
 <p>
 It is important to understand, however, that Go's runtime does not
 include a virtual machine, such as is provided by the Java runtime.
-Go programs are compiled ahead of time to native machine code.
+Go programs are compiled ahead of time to native machine code
+(or JavaScript or WebAssembly, for some variant implementations).
 Thus, although the term is often used to describe the virtual
 environment in which a program runs, in Go the word &ldquo;runtime&rdquo;
 is just the name given to the library providing critical language services.
@@ -296,28 +297,47 @@ is just the name given to the library providing critical language services.
 What's up with Unicode identifiers?</h3>
 
 <p>
-It was important to us to extend the space of identifiers from the
-confines of ASCII.  Go's rule&mdash;identifier characters must be
+When designing Go, we wanted to make sure that it was not
+overly ASCII-centric,
+which meant extending the space of identifiers from the
+confines of 7-bit ASCII.
+Go's rule&mdash;identifier characters must be
 letters or digits as defined by Unicode&mdash;is simple to understand
-and to implement but has restrictions.  Combining characters are
-excluded by design, for instance.
-Until there
-is an agreed external definition of what an identifier might be,
-plus a definition of canonicalization of identifiers that guarantees
-no ambiguity, it seemed better to keep combining characters out of
-the mix.  Thus we have a simple rule that can be expanded later
-without breaking programs, one that avoids bugs that would surely arise
-from a rule that admits ambiguous identifiers.
+and to implement but has restrictions.
+Combining characters are
+excluded by design, for instance,
+and that excludes some languages such as Devanagari.
 </p>
 
 <p>
-On a related note, since an exported identifier must begin with an
-upper-case letter, identifiers created from &ldquo;letters&rdquo;
-in some languages can, by definition, not be exported.  For now the
+This rule has one other unfortunate consequence.
+Since an exported identifier must begin with an
+upper-case letter, identifiers created from characters
+in some languages can, by definition, not be exported.
+For now the
 only solution is to use something like <code>X日本語</code>, which
-is clearly unsatisfactory; we are considering other options.  The
-case-for-visibility rule is unlikely to change however; it's one
-of our favorite features of Go.
+is clearly unsatisfactory.
+</p>
+
+<p>
+Since the earliest version of the language, there has been considerable
+thought into how best to expand the identifier space to accommodate
+programmers using other native languages.
+Exactly what to do remains an active topic of discussion, and a future
+version of the language may be more liberal in its definition
+of an identifier.
+For instance, it might adopt some of the ideas from the Unicode
+organization's <a href="http://unicode.org/reports/tr31/">recommendations</a>
+for identifiers.
+Whatever happens, it must be done compatibly while preserving
+(or perhaps expanding) the way letter case determines visibility of
+identifiers, which remains one of our favorite features of Go.
+</p>
+
+<p>
+For the time being, we have a simple rule that can be expanded later
+without breaking programs, one that avoids bugs that would surely arise
+from a rule that admits ambiguous identifiers.
 </p>
 
 <h3 id="Why_doesnt_Go_have_feature_X">Why does Go not have feature X?</h3>
@@ -343,6 +363,23 @@ Why does Go not have generic types?</h3>
 <p>
 Generics may well be added at some point.  We don't feel an urgency for
 them, although we understand some programmers do.
+</p>
+
+<p>
+Go was intended as a language for writing server programs that would be
+easy to maintain over time.
+(See <a href="https://talks.golang.org/2012/splash.article">this
+article</a> for more background.)
+The design concentrated on things like scalability, readability, and
+concurrency.
+Polymorphic programming did not seem essential to the language's
+goals at the time, and so was left out for simplicity.
+</p>
+
+<p>
+The language is more mature now, and there is scope to consider
+some form of generic programming.
+However, there remain some caveats.
 </p>
 
 <p>
@@ -391,6 +428,9 @@ when used well, can result in clean error-handling code.
 
 <p>
 See the <a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a> article for details.
+Also, the <a href="https://blog.golang.org/errors-are-values">Errors are values</a> blog post
+describes one approach to handling errors cleanly in Go by demonstrating that,
+since errors are just values, the full power of Go can deployed in error handling.
 </p>
 
 <h3 id="assertions">
@@ -400,7 +440,7 @@ Why does Go not have assertions?</h3>
 Go doesn't provide assertions. They are undeniably convenient, but our
 experience has been that programmers use them as a crutch to avoid thinking
 about proper error handling and reporting. Proper error handling means that
-servers continue operation after non-fatal errors instead of crashing.
+servers continue to operate instead of crashing after a non-fatal error.
 Proper error reporting means that errors are direct and to the point,
 saving the programmer from interpreting a large crash trace. Precise
 errors are particularly important when the programmer seeing the errors is
@@ -416,9 +456,11 @@ because we feel it's sometimes worth trying a different approach.
 <h3 id="csp">
 Why build concurrency on the ideas of CSP?</h3>
 <p>
-Concurrency and multi-threaded programming have a reputation
-for difficulty.  We believe this is due partly to complex
-designs such as pthreads and partly to overemphasis on low-level details
+Concurrency and multi-threaded programming have over time
+developed a reputation for difficulty.  We believe this is due partly to complex
+designs such as
+<a href="https://en.wikipedia.org/wiki/POSIX_Threads">pthreads</a>
+and partly to overemphasis on low-level details
 such as mutexes, condition variables, and memory barriers.
 Higher-level interfaces enable much simpler code, even if there are still
 mutexes and such under the covers.
@@ -488,6 +530,12 @@ by assigning to elements or doing deletions,
 it is safe for them to access the map concurrently without synchronization.
 </p>
 
+<p>
+As an aid to correct map use, some implementations of the language
+contain a special check that automatically reports at run time when a map is modified
+unsafely by concurrent execution.
+</p>
+
 <h3 id="language_changes">
 Will you accept my language change?</h3>
 
@@ -501,11 +549,15 @@ been accepted.
 <p>
 Although Go is an open source project, the language and libraries are protected
 by a <a href="/doc/go1compat.html">compatibility promise</a> that prevents
-changes that break existing programs.
+changes that break existing programs, at least at the source code level
+(programs may need to be recompiled occasionally to stay current).
 If your proposal violates the Go 1 specification we cannot even entertain the
 idea, regardless of its merit.
-A future major release of Go may be incompatible with Go 1, but we're not ready
-to start talking about what that might be.
+A future major release of Go may be incompatible with Go 1, but discussions
+on that topic have only just begun and one thing is certain:
+there will be very few such incompatibilities introduced in the process.
+Moreover, the compatibility promise encourages us to provide an automatic path
+forward for old programs to adapt should that situation arise.
 </p>
 
 <p>
@@ -619,7 +671,8 @@ Why doesn't Go have "implements" declarations?</h3>
 <p>
 A Go type satisfies an interface by implementing the methods of that interface,
 nothing more.  This property allows interfaces to be defined and used without
-having to modify existing code.  It enables a kind of structural typing that
+needing to modify existing code.  It enables a kind of
+<a href="https://en.wikipedia.org/wiki/Structural_type_system">structural typing</a> that
 promotes separation of concerns and improves code re-use, and makes it easier
 to build on patterns that emerge as the code develops.
 The semantics of interfaces is one of the main reasons for Go's nimble,
@@ -764,7 +817,9 @@ examples and also have them be statically checked.
 Can I convert a []T to an []interface{}?</h3>
 
 <p>
-Not directly, because they do not have the same representation in memory.
+Not directly.
+It is disallowed by the language specification because the two types
+do not have the same representation in memory.
 It is necessary to copy the elements individually to the destination
 slice. This example converts a slice of <code>int</code> to a slice of
 <code>interface{}</code>:
@@ -806,22 +861,30 @@ Why is my nil error value not equal to nil?
 </h3>
 
 <p>
-Under the covers, interfaces are implemented as two elements, a type and a value.
-The value, called the interface's dynamic value,
-is an arbitrary concrete value and the type is that of the value.
-For the <code>int</code> value 3, an interface value contains,
-schematically, (<code>int</code>, <code>3</code>).
+Under the covers, interfaces are implemented as two elements, a type <code>T</code>
+and a value <code>V</code>.
+<code>V</code> is a concrete value such as an <code>int</code>,
+<code>struct</code> or pointer, never an interface itself, and has
+type <code>T</code>.
+For instance, if we store the <code>int</code> value 3 in an interface,
+the resulting interface value has, schematically,
+(<code>T=int</code>, <code>V=3</code>).
+The value <code>V</code> is also known as the interface's
+<em>dynamic</em> value,
+since a given interface variable might hold different values <code>V</code>
+(and corresponding types <code>T</code>)
+during the execution of the program.
 </p>
 
 <p>
-An interface value is <code>nil</code> only if the inner value and type are both unset,
-(<code>nil</code>, <code>nil</code>).
+An interface value is <code>nil</code> only if the <code>V</code> and <code>T</code>
+are both unset, (<code>T=nil</code>, <code>V</code> is not set),
 In particular, a <code>nil</code> interface will always hold a <code>nil</code> type.
 If we store a <code>nil</code> pointer of type <code>*int</code> inside
 an interface value, the inner type will be <code>*int</code> regardless of the value of the pointer:
-(<code>*int</code>, <code>nil</code>).
+(<code>T=*int</code>, <code>V=nil</code>).
 Such an interface value will therefore be non-<code>nil</code>
-<em>even when the pointer inside is</em> <code>nil</code>.
+<em>even when the pointer value <code>V</code> inside is</em> <code>nil</code>.
 </p>
 
 <p>
@@ -842,7 +905,7 @@ func returnsError() error {
 <p>
 If all goes well, the function returns a <code>nil</code> <code>p</code>,
 so the return value is an <code>error</code> interface
-value holding (<code>*MyError</code>, <code>nil</code>).
+value holding (<code>T=*MyError</code>, <code>V=nil</code>).
 This means that if the caller compares the returned error to <code>nil</code>,
 it will always look as if there was an error even if nothing bad happened.
 To return a proper <code>nil</code> <code>error</code> to the caller,
