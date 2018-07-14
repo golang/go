@@ -333,14 +333,10 @@
 				false,
 				global,
 				this._inst.exports.mem,
-				() => { // resolveCallbackPromise
-					if (this.exited) {
-						throw new Error("bad callback: Go program has already exited");
-					}
-					setTimeout(this._resolveCallbackPromise, 0); // make sure it is asynchronous
-				},
+				this,
 			];
 			this._refs = new Map();
+			this._callbackShutdown = false;
 			this.exited = false;
 
 			const mem = new DataView(this._inst.exports.mem.buffer)
@@ -377,7 +373,12 @@
 
 			while (true) {
 				const callbackPromise = new Promise((resolve) => {
-					this._resolveCallbackPromise = resolve;
+					this._resolveCallbackPromise = () => {
+						if (this.exited) {
+							throw new Error("bad callback: Go program has already exited");
+						}
+						setTimeout(resolve, 0); // make sure it is asynchronous
+					};
 				});
 				this._inst.exports.run(argc, argv);
 				if (this.exited) {
@@ -399,17 +400,16 @@
 		go.env = process.env;
 		go.exit = process.exit;
 		WebAssembly.instantiate(fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
-			process.on("exit", () => { // Node.js exits if no callback is pending
-				if (!go.exited) {
-					console.error("error: all goroutines asleep and no JavaScript callback pending - deadlock!");
-					process.exit(1);
+			process.on("exit", (code) => { // Node.js exits if no callback is pending
+				if (code === 0 && !go.exited) {
+					// deadlock, make Go print error and stack traces
+					go._callbackShutdown = true;
+					go._inst.exports.run();
 				}
 			});
 			return go.run(result.instance);
 		}).catch((err) => {
-			console.error(err);
-			go.exited = true;
-			process.exit(1);
+			throw err;
 		});
 	}
 })();
