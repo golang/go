@@ -56,14 +56,14 @@ func (e Error) Error() string {
 }
 
 var (
-	valueNaN               = predefValue(0)
-	valueUndefined         = predefValue(1)
-	valueNull              = predefValue(2)
-	valueTrue              = predefValue(3)
-	valueFalse             = predefValue(4)
-	valueGlobal            = predefValue(5)
-	memory                 = predefValue(6) // WebAssembly linear memory
-	resolveCallbackPromise = predefValue(7) // function that the callback helper uses to resume the execution of Go's WebAssembly code
+	valueNaN       = predefValue(0)
+	valueUndefined = predefValue(1)
+	valueNull      = predefValue(2)
+	valueTrue      = predefValue(3)
+	valueFalse     = predefValue(4)
+	valueGlobal    = predefValue(5)
+	memory         = predefValue(6) // WebAssembly linear memory
+	jsGo           = predefValue(7) // instance of the Go class in JavaScript
 )
 
 // Undefined returns the JavaScript value "undefined".
