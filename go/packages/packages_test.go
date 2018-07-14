@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -46,6 +47,9 @@ import (
 //   - test typechecking of generated test main and cgo.
 
 func TestMetadataImportGraph(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skipf("TODO: skipping on non-Linux; fix this test to run everywhere. golang.org/issue/26387")
+	}
 	tmp, cleanup := enterTree(t, map[string]string{
 		"src/a/a.go":             `package a; const A = 1`,
 		"src/b/b.go":             `package b; import ("a"; _ "errors"); var B = a.A`,
