@@ -9,9 +9,10 @@ package issue24161e0
 /*
 #cgo CFLAGS: -x objective-c
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
+#include <TargetConditionals.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
-#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
+#if TARGET_OS_OSX && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
   typedef CFStringRef SecKeyAlgorithm;
   static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
   #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
