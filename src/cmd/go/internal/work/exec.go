@@ -915,13 +915,17 @@ func (b *Builder) vet(a *Action) error {
 
 	a.Failed = false // vet of dependency may have failed but we can still succeed
 
+	if a.Deps[0].Failed {
+		// The build of the package has failed. Skip vet check.
+		// Vet could return export data for non-typecheck errors,
+		// but we ignore it because the package cannot be compiled.
+		return nil
+	}
+
 	vcfg := a.Deps[0].vetCfg
 	if vcfg == nil {
 		// Vet config should only be missing if the build failed.
-		if !a.Deps[0].Failed {
-			return fmt.Errorf("vet config not found")
-		}
-		return nil
+		return fmt.Errorf("vet config not found")
 	}
 
 	vcfg.VetxOnly = a.VetxOnly

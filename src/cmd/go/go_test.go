@@ -5526,6 +5526,21 @@ func TestTestVet(t *testing.T) {
 	tg.grepStderrNot(`invalid.*constraint`, "did diagnose bad build constraint in vetxonly mode")
 }
 
+func TestTestSkipVetAfterFailedBuild(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("x_test.go", `package x
+		func f() {
+			return 1
+		}
+	`)
+
+	tg.runFail("test", tg.path("x_test.go"))
+	tg.grepStderrNot(`vet`, "vet should be skipped after the failed build")
+}
+
 func TestTestVetRebuild(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
