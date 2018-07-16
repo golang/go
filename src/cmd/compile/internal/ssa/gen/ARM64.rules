@@ -110,8 +110,17 @@
 (FMOVDfpgp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
 
 // Similarly for stores, if we see a store after FPR <-> GPR move, then redirect store to use the other register set.
-(MOVDstore ptr (FMOVDfpgp val) mem) -> (FMOVDstore ptr val mem)
-(FMOVDstore ptr (FMOVDgpfp val) mem) -> (MOVDstore ptr val mem)
+(MOVDstore [off] {sym} ptr (FMOVDfpgp val) mem) -> (FMOVDstore [off] {sym} ptr val mem)
+(FMOVDstore [off] {sym} ptr (FMOVDgpfp val) mem) -> (MOVDstore [off] {sym} ptr val mem)
+(MOVWstore [off] {sym} ptr (FMOVSfpgp val) mem) -> (FMOVSstore [off] {sym} ptr val mem)
+(FMOVSstore [off] {sym} ptr (FMOVSgpfp val) mem) -> (MOVWstore [off] {sym} ptr val mem)
+
+// float <-> int register moves, with no conversion.
+// These come up when compiling math.{Float64bits, Float64frombits, Float32bits, Float32frombits}.
+(MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr val _)) -> (FMOVDfpgp val)
+(FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr val _)) -> (FMOVDgpfp val)
+(MOVWUload [off] {sym} ptr (FMOVSstore [off] {sym} ptr val _)) -> (FMOVSfpgp val)
+(FMOVSload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) -> (FMOVSgpfp val)
 
 (BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
 
