@@ -2348,9 +2348,9 @@ simpler because they don't need to specify how memory is managed across them.
 </p>
 
 <p>
-The current implementation is a mark-and-sweep collector that runs
-in parallel with the main program on a separate CPU core if the
-machine is a multiprocessor.
+The current implementation is a mark-and-sweep collector.
+If the machine is a multiprocessor, it runs on a separate CPU
+core in parallel with the main program.
 Major work on the collector in recent years has reduced pause times
 often to the sub-millisecond range, even for large heaps,
 all but eliminating one of the major objections to garbage collection
