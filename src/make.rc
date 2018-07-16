@@ -45,6 +45,11 @@ rm -f ./runtime/runtime_defs.go
 # Determine the host compiler toolchain.
 eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
 
+# cgo is not generally supported on 1.4.
+# Disable unless explicitly requested.
+if(~ $CGO_ENABLED '')
+	CGO_ENABLED = 0
+
 echo '# Building C bootstrap tool.'
 echo cmd/dist
 GOROOT = `{cd .. && pwd}

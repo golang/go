@@ -37,6 +37,12 @@ setlocal
 
 set GOBUILDFAIL=0
 
+:: cgo is not generally supported on 1.4.
+:: Disable unless explicitly requested.
+if not x%CGO_ENABLED%==x goto cgodone
+set CGO_ENABLED=0
+:cgodone
+
 if exist make.bat goto ok
 echo Must run make.bat from Go src directory.
 goto fail 

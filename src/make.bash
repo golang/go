@@ -106,6 +106,13 @@ if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
         export CGO_ENABLED=0
 fi
 
+# cgo is not generally supported on 1.4.
+# Disable unless explicitly requested.
+# See also https://github.com/Homebrew/homebrew-core/issues/18465.
+if [ "$CGO_ENABLED" == "" ]; then
+	export CGO_ENABLED=0
+fi
+
 # Clean old generated file that will cause problems in the build.
 rm -f ./runtime/runtime_defs.go
 
