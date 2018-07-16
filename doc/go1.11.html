@@ -39,7 +39,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
-<p>
+<p> <!-- CL 94255, CL 115038, etc -->
   As <a href="go1.10#ports">announced in the Go 1.10 release notes</a>, Go 1.11 now requires
   OpenBSD 6.2 or later, macOS 10.10 Yosemite or later, or Windows 7 or later;
   Support for previous versions of these operating systems has been removed.
@@ -53,6 +53,20 @@ Do not send CLs removing the interior tags from such phrases.
   The race detector is now supported on <code>linux/ppc64le</code>
   and, to a lesser extent, on <code>netbsd/amd64</code>. The NetBSD race detector support
   has <a href="https://golang.org/issue/26403">known issues</a>.
+</p>
+
+<p><!-- CL 93875 -->
+  The build modes <code>c-shared</code> and <code>c-archive</code> are now supported on
+  <code>freebsd/amd64</code>.
+</p>
+
+<p id="mips"><!-- CL 108475 -->
+  On 64-bit MIPS systems, the new environment variable settings
+  <code>GOMIPS64=hardfloat</code> (the default) and
+  <code>GOMIPS64=softfloat</code> select whether to use
+  hardware instructions or software emulation for floating-point computations.
+  For 32-bit systems, the environment variable is still <code>GOMIPS</code>,
+  as <a href="go1.10#mips">added in Go 1.10</a>.
 </p>
 
 <h3 id="wasm">WebAssembly</h3>
@@ -161,7 +175,6 @@ Do not send CLs removing the interior tags from such phrases.
 <!-- CL 100459: https://golang.org/cl/100459: cmd/compile: reject type switch with guarded declaration and no cases -->
 <!-- CL 100738: https://golang.org/cl/100738: cmd/compile: turn on DWARF locations lists for ssa vars -->
 <!-- CL 106797: https://golang.org/cl/106797: cmd/compile: enable indexed export format by default -->
-<!-- CL 108475: https://golang.org/cl/108475: cmd/compile: add softfloat support to mips64{,le} -->
 <!-- CL 109918: https://golang.org/cl/109918: More functions are now eligible for inlining by default, including functions that call panic.: cmd/compile: refactor inlining parameters; inline panic -->
 <!-- CL 97375: https://golang.org/cl/97375: cmd/compile, cmd/compile/internal/syntax: print relative column info -->
 <!-- CL 115095: https://golang.org/cl/115095: yes (`go test pkg` now always builds pkg even if there are no test files): cmd/go: output coverage report even if there are no test files -->
@@ -170,21 +183,7 @@ Do not send CLs removing the interior tags from such phrases.
 <!-- CL 93664: https://golang.org/cl/93664: cmd/link: process is_stmt data into dwarf line tables -->
 <!-- CL 118276: https://golang.org/cl/118276: yes here?: cmd/link: compress DWARF sections in ELF binaries -->
 <!-- CL 112436: https://golang.org/cl/112436: cmd/pprof: add readline support similar to upstream -->
-<dl id="all"><dt><a href="/pkg/all/">all</a></dt>
-  <dd>
-    <p><!-- CL 93875 -->
-      TODO: <a href="https://golang.org/cl/93875">https://golang.org/cl/93875</a>: enable c-shared/c-archive support for freebsd/amd64
-    </p>
 
-    <p><!-- CL 94255 -->
-      TODO: <a href="https://golang.org/cl/94255">https://golang.org/cl/94255</a>: drop support for Windows Vista or below (Windows XP)
-    </p>
-
-    <p><!-- CL 115038 -->
-      TODO: <a href="https://golang.org/cl/115038">https://golang.org/cl/115038</a>: remove support for macOS 10.9 and earlier
-    </p>
-
-</dl><!-- all -->
 
 <dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
   <dd>
@@ -426,7 +425,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
   <dd>
     <p><!-- CL 108376 -->
-      TODO: <a href="https://golang.org/cl/108376">https://golang.org/cl/108376</a>: add func Ignored(sig Signal) bool
+      The new <a href="/pkg/os/signal/#Ignored"><code>Ignored</code></a> function reports
+      whether a signal is currently ignored.
     </p>
 
 </dl><!-- os/signal -->
