@@ -49,6 +49,9 @@ var checkTests = []struct {
 	{"gopkg.in/yaml.v2", "v2.0.0", true},
 	{"gopkg.in/yaml.v2", "v2.1.5", true},
 	{"gopkg.in/yaml.v2", "v3.0.0", false},
+
+	{"rsc.io/quote", "v17.0.0", false},
+	{"rsc.io/quote", "v17.0.0+incompatible", true},
 }
 
 func TestCheck(t *testing.T) {

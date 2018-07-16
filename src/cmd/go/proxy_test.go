@@ -159,6 +159,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	a := readArchive(path, vers)
 	if a == nil {
+		fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s\n", path, vers)
 		http.Error(w, "cannot load archive", 500)
 		return
 	}
@@ -200,6 +201,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		}).(cached)
 
 		if c.err != nil {
+			fmt.Fprintf(os.Stderr, "go proxy: %v\n", c.err)
 			http.Error(w, c.err.Error(), 500)
 			return
 		}
@@ -232,6 +234,7 @@ var archiveCache par.Cache
 func readArchive(path, vers string) *txtar.Archive {
 	enc, err := module.EncodePath(path)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
 		return nil
 	}
 
