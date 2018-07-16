@@ -807,6 +807,27 @@ func TestModGetUpgrade(t *testing.T) {
 	tg.grepStderr(`go get: disabled by -getmode=vendor`, "expected disabled")
 }
 
+func TestModPathCase(t *testing.T) {
+	tg := testGoModules(t)
+	defer tg.cleanup()
+
+	tg.run("get", "rsc.io/QUOTE")
+
+	tg.run("list", "-m", "all")
+	tg.grepStdout(`^rsc.io/quote v1.5.2`, "want lower-case quote v1.5.2")
+	tg.grepStdout(`^rsc.io/QUOTE v1.5.2`, "want upper-case quote v1.5.2")
+
+	// Note: the package is rsc.io/QUOTE/QUOTE to avoid
+	// a case-sensitive import collision error in load/pkg.go.
+	// Once the module code is checking imports within a module,
+	// that error should probably e relaxed, so that it's allowed to have
+	// both x.com/FOO/bar and x.com/foo/bar in the same program
+	// provided the module paths are x.com/FOO and x.com/foo.
+	tg.run("list", "-f=DEPS {{.Deps}}\nDIR {{.Dir}}", "rsc.io/QUOTE/QUOTE")
+	tg.grepStdout(`DEPS.*rsc.io/quote`, "want quote as dep")
+	tg.grepStdout(`DIR.*!q!u!o!t!e`, "want !q!u!o!t!e in directory name")
+}
+
 func TestModBadDomain(t *testing.T) {
 	tg := testGoModules(t)
 	defer tg.cleanup()

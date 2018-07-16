@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/dirhash"
@@ -30,10 +29,14 @@ func runVerify() {
 
 func verifyMod(mod module.Version) bool {
 	ok := true
-	zip := filepath.Join(modfetch.SrcMod, "cache/download", mod.Path, "/@v/", mod.Version+".zip")
-	_, zipErr := os.Stat(zip)
-	dir := filepath.Join(modfetch.SrcMod, mod.Path+"@"+mod.Version)
-	_, dirErr := os.Stat(dir)
+	zip, zipErr := modfetch.CachePath(mod, "zip")
+	if zipErr == nil {
+		_, zipErr = os.Stat(zip)
+	}
+	dir, dirErr := modfetch.DownloadDir(mod)
+	if dirErr == nil {
+		_, dirErr = os.Stat(dir)
+	}
 	data, err := ioutil.ReadFile(zip + "hash")
 	if err != nil {
 		if zipErr != nil && os.IsNotExist(zipErr) && dirErr != nil && os.IsNotExist(dirErr) {

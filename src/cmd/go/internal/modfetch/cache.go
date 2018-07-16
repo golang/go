@@ -15,6 +15,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/semver"
 )
@@ -22,6 +23,48 @@ import (
 var QuietLookup bool // do not print about lookups
 
 var SrcMod string // $GOPATH/src/mod; set by package modload
+
+func cacheDir(path string) (string, error) {
+	if SrcMod == "" {
+		return "", fmt.Errorf("internal error: modfetch.SrcMod not set")
+	}
+	enc, err := module.EncodePath(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(SrcMod, "cache/download", enc, "/@v"), nil
+}
+
+func CachePath(m module.Version, suffix string) (string, error) {
+	dir, err := cacheDir(m.Path)
+	if err != nil {
+		return "", err
+	}
+	if !semver.IsValid(m.Version) {
+		return "", fmt.Errorf("non-semver module version %q", m.Version)
+	}
+	if semver.Canonical(m.Version) != m.Version {
+		return "", fmt.Errorf("non-canonical module version %q", m.Version)
+	}
+	return filepath.Join(dir, m.Version+"."+suffix), nil
+}
+
+func DownloadDir(m module.Version) (string, error) {
+	if SrcMod == "" {
+		return "", fmt.Errorf("internal error: modfetch.SrcMod not set")
+	}
+	enc, err := module.EncodePath(m.Path)
+	if err != nil {
+		return "", err
+	}
+	if !semver.IsValid(m.Version) {
+		return "", fmt.Errorf("non-semver module version %q", m.Version)
+	}
+	if semver.Canonical(m.Version) != m.Version {
+		return "", fmt.Errorf("non-canonical module version %q", m.Version)
+	}
+	return filepath.Join(SrcMod, enc+"@"+m.Version), nil
+}
 
 // A cachingRepo is a cache around an underlying Repo,
 // avoiding redundant calls to ModulePath, Versions, Stat, Latest, and GoMod (but not Zip).
@@ -245,7 +288,11 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
 		return "", nil, errNotCached
 	}
 	rev = rev[:12]
-	dir, err := os.Open(filepath.Join(SrcMod, "cache/download", path, "@v"))
+	cdir, err := cacheDir(path)
+	if err != nil {
+		return "", nil, errNotCached
+	}
+	dir, err := os.Open(cdir)
 	if err != nil {
 		return "", nil, errNotCached
 	}
@@ -296,10 +343,10 @@ func readDiskGoMod(path, rev string) (file string, data []byte, err error) {
 // If the read fails, the caller can use
 // writeDiskCache(file, data) to write a new cache entry.
 func readDiskCache(path, rev, suffix string) (file string, data []byte, err error) {
-	if !semver.IsValid(rev) || SrcMod == "" {
+	file, err = CachePath(module.Version{Path: path, Version: rev}, suffix)
+	if err != nil {
 		return "", nil, errNotCached
 	}
-	file = filepath.Join(SrcMod, "cache/download", path, "@v", rev+"."+suffix)
 	data, err = ioutil.ReadFile(file)
 	if err != nil {
 		return file, nil, errNotCached

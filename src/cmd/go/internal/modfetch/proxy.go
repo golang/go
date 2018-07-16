@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
 )
 
@@ -26,7 +27,7 @@ func lookupProxy(path string) (Repo, error) {
 		// Don't echo $GOPROXY back in case it has user:password in it (sigh).
 		return nil, fmt.Errorf("invalid $GOPROXY setting")
 	}
-	return newProxyRepo(u.String(), path), nil
+	return newProxyRepo(u.String(), path)
 }
 
 type proxyRepo struct {
@@ -34,8 +35,12 @@ type proxyRepo struct {
 	path string
 }
 
-func newProxyRepo(baseURL, path string) Repo {
-	return &proxyRepo{strings.TrimSuffix(baseURL, "/") + "/" + pathEscape(path), path}
+func newProxyRepo(baseURL, path string) (Repo, error) {
+	enc, err := module.EncodePath(path)
+	if err != nil {
+		return nil, err
+	}
+	return &proxyRepo{strings.TrimSuffix(baseURL, "/") + "/" + pathEscape(enc), path}, nil
 }
 
 func (p *proxyRepo) ModulePath() string {
