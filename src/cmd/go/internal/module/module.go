@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"cmd/go/internal/semver"
@@ -85,14 +86,14 @@ func firstPathOK(r rune) bool {
 		'a' <= r && r <= 'z'
 }
 
-// pathOK reports whether r can appear in a module path.
-// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: + - . / _ and ~.
+// pathOK reports whether r can appear in an import path element.
+// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
 // This matches what "go get" has historically recognized in import paths.
 // TODO(rsc): We would like to allow Unicode letters, but that requires additional
 // care in the safe encoding (see note below).
 func pathOK(r rune) bool {
 	if r < utf8.RuneSelf {
-		return r == '+' || r == '-' || r == '.' || r == '/' || r == '_' || r == '~' ||
+		return r == '+' || r == '-' || r == '.' || r == '_' || r == '~' ||
 			'0' <= r && r <= '9' ||
 			'A' <= r && r <= 'Z' ||
 			'a' <= r && r <= 'z'
@@ -100,9 +101,38 @@ func pathOK(r rune) bool {
 	return false
 }
 
+// fileNameOK reports whether r can appear in a file name.
+// For now we allow all Unicode letters but otherwise limit to pathOK plus a few more punctuation characters.
+// If we expand the set of allowed characters here, we have to
+// work harder at detecting potential case-folding and normalization collisions.
+// See note about "safe encoding" below.
+func fileNameOK(r rune) bool {
+	if r < utf8.RuneSelf {
+		// Entire set of ASCII punctuation, from which we remove characters:
+		//     ! " # $ % & ' ( ) * + , - . / : ; < = > ? @ [ \ ] ^ _ ` { | } ~
+		// We disallow some shell special characters: " ' * < > ? ` |
+		// (Note that some of those are disallowed by the Windows file system as well.)
+		// We also disallow path separators / : and \ (fileNameOK is only called on path element characters).
+		// We allow spaces (U+0020) in file names.
+		const allowed = "!#$%&()+,-.=@[]^_{}~ "
+		if '0' <= r && r <= '9' || 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' {
+			return true
+		}
+		for i := 0; i < len(allowed); i++ {
+			if rune(allowed[i]) == r {
+				return true
+			}
+		}
+		return false
+	}
+	// It may be OK to add more ASCII punctuation here, but only carefully.
+	// For example Windows disallows < > \, and macOS disallows :, so we must not allow those.
+	return unicode.IsLetter(r)
+}
+
 // CheckPath checks that a module path is valid.
 func CheckPath(path string) error {
-	if err := checkImportPath(path); err != nil {
+	if err := checkPath(path, false); err != nil {
 		return fmt.Errorf("malformed module path %q: %v", path, err)
 	}
 	i := strings.Index(path, "/")
@@ -131,17 +161,19 @@ func CheckPath(path string) error {
 
 // CheckImportPath checks that an import path is valid.
 func CheckImportPath(path string) error {
-	if err := checkImportPath(path); err != nil {
+	if err := checkPath(path, false); err != nil {
 		return fmt.Errorf("malformed import path %q: %v", path, err)
 	}
 	return nil
 }
 
-// checkImportPath checks that an import path is valid.
+// checkPath checks that a general path is valid.
 // It returns an error describing why but not mentioning path.
 // Because these checks apply to both module paths and import paths,
 // the caller is expected to add the "malformed ___ path %q: " prefix.
-func checkImportPath(path string) error {
+// fileName indicates whether the final element of the path is a file name
+// (as opposed to a directory name).
+func checkPath(path string, fileName bool) error {
 	if !utf8.ValidString(path) {
 		return fmt.Errorf("invalid UTF-8")
 	}
@@ -159,32 +191,42 @@ func checkImportPath(path string) error {
 	}
 	elemStart := 0
 	for i, r := range path {
-		if !pathOK(r) {
-			return fmt.Errorf("invalid char %q", r)
-		}
 		if r == '/' {
-			if err := checkElem(path[elemStart:i]); err != nil {
+			if err := checkElem(path[elemStart:i], fileName); err != nil {
 				return err
 			}
 			elemStart = i + 1
 		}
 	}
-	if err := checkElem(path[elemStart:]); err != nil {
+	if err := checkElem(path[elemStart:], fileName); err != nil {
 		return err
 	}
 	return nil
 }
 
 // checkElem checks whether an individual path element is valid.
-func checkElem(elem string) error {
+// fileName indicates whether the element is a file name (not a directory name).
+func checkElem(elem string, fileName bool) error {
 	if elem == "" {
 		return fmt.Errorf("empty path element")
 	}
-	if elem[0] == '.' {
+	if strings.Count(elem, ".") == len(elem) {
+		return fmt.Errorf("invalid path element %q", elem)
+	}
+	if elem[0] == '.' && !fileName {
 		return fmt.Errorf("leading dot in path element")
 	}
 	if elem[len(elem)-1] == '.' {
 		return fmt.Errorf("trailing dot in path element")
+	}
+	charOK := pathOK
+	if fileName {
+		charOK = fileNameOK
+	}
+	for _, r := range elem {
+		if !charOK(r) {
+			return fmt.Errorf("invalid char %q", r)
+		}
 	}
 
 	// Windows disallows a bunch of path elements, sadly.
@@ -197,6 +239,14 @@ func checkElem(elem string) error {
 		if strings.EqualFold(bad, short) {
 			return fmt.Errorf("disallowed path element %q", elem)
 		}
+	}
+	return nil
+}
+
+// CheckFilePath checks whether a slash-separated file path is valid.
+func CheckFilePath(path string) error {
+	if err := checkPath(path, true); err != nil {
+		return fmt.Errorf("malformed file path %q: %v", path, err)
 	}
 	return nil
 }
