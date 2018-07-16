@@ -94,7 +94,7 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p>
-  TODO: Link to intro doc.  
+  TODO: Link to intro doc.
 </p>
 
 <h3 id="importpath">Import path restriction</h3>
@@ -146,11 +146,16 @@ Do not send CLs removing the interior tags from such phrases.
 
 <!-- CL 113315: https://golang.org/cl/113315: cmd/asm: enable AVX512 -->
 <!-- CL 100459: https://golang.org/cl/100459: cmd/compile: reject type switch with guarded declaration and no cases -->
+<!-- CL 100738: https://golang.org/cl/100738: cmd/compile: turn on DWARF locations lists for ssa vars -->
 <!-- CL 106797: https://golang.org/cl/106797: cmd/compile: enable indexed export format by default -->
 <!-- CL 108475: https://golang.org/cl/108475: cmd/compile: add softfloat support to mips64{,le} -->
+<!-- CL 109918: https://golang.org/cl/109918: More functions are now eligible for inlining by default, including functions that call panic.: cmd/compile: refactor inlining parameters; inline panic -->
 <!-- CL 97375: https://golang.org/cl/97375: cmd/compile, cmd/compile/internal/syntax: print relative column info -->
+<!-- CL 115095: https://golang.org/cl/115095: yes (`go test pkg` now always builds pkg even if there are no test files): cmd/go: output coverage report even if there are no test files -->
 <!-- CL 110395: https://golang.org/cl/110395: cmd/go, cmd/compile: use Windows response files to avoid arg length limits -->
 <!-- CL 107475: https://golang.org/cl/107475: cmd/internal/obj/arm, runtime: delete old ARM softfloat code -->
+<!-- CL 93664: https://golang.org/cl/93664: cmd/link: process is_stmt data into dwarf line tables -->
+<!-- CL 118276: https://golang.org/cl/118276: yes here?: cmd/link: compress DWARF sections in ELF binaries -->
 <!-- CL 112436: https://golang.org/cl/112436: cmd/pprof: add readline support similar to upstream -->
 <dl id="all"><dt><a href="/pkg/all/">all</a></dt>
   <dd>
@@ -232,6 +237,38 @@ Do not send CLs removing the interior tags from such phrases.
 
 </dl><!-- go/build, runtime/internal/sys -->
 
+<dl id="go/scanner"><dt><a href="/pkg/go/scanner/">go/scanner</a></dt>
+  <dd>
+    <p><!-- CL 100235 -->
+      TODO: <a href="https://golang.org/cl/100235">https://golang.org/cl/100235</a>: report errors for incorrect line directives
+    </p>
+
+</dl><!-- go/scanner -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 121815 -->
+      TODO: <a href="https://golang.org/cl/121815">https://golang.org/cl/121815</a>: ignore untyped nil arguments to default escapers
+    </p>
+
+</dl><!-- html/template -->
+
+<dl id="http/http/httputil"><dt><a href="/pkg/http/http/httputil/">http/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 77410 -->
+      TODO: <a href="https://golang.org/cl/77410">https://golang.org/cl/77410</a>: add ReverseProxy.ErrorHandler
+    </p>
+
+</dl><!-- http/http/httputil -->
+
+<dl id="http/httpproxy"><dt><a href="/pkg/http/httpproxy/">http/httpproxy</a></dt>
+  <dd>
+    <p><!-- CL 115255 -->
+      TODO: <a href="https://golang.org/cl/115255">https://golang.org/cl/115255</a>: support CIDR notation and ports with NO_PROXY
+    </p>
+
+</dl><!-- http/httpproxy -->
+
 <dl id="image/gif"><dt><a href="/pkg/image/gif/">image/gif</a></dt>
   <dd>
     <p><!-- CL 93076 -->
@@ -256,6 +293,22 @@ Do not send CLs removing the interior tags from such phrases.
 
 </dl><!-- math/big -->
 
+<dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
+  <dd>
+    <p><!-- CL 121055 -->
+      TODO: <a href="https://golang.org/cl/121055">https://golang.org/cl/121055</a>: restore 1.9 handling of missing/empty form-data file name
+    </p>
+
+</dl><!-- mime/multipart -->
+
+<dl id="mime/quotedprintable"><dt><a href="/pkg/mime/quotedprintable/">mime/quotedprintable</a></dt>
+  <dd>
+    <p><!-- CL 121095 -->
+      TODO: <a href="https://golang.org/cl/121095">https://golang.org/cl/121095</a>: accept bytes &gt;= 0x80
+    </p>
+
+</dl><!-- mime/quotedprintable -->
+
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 72810 -->
@@ -278,12 +331,28 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
+    <p><!-- CL 71272 -->
+      TODO: <a href="https://golang.org/cl/71272">https://golang.org/cl/71272</a>: add Transport.MaxConnsPerHost knob
+    </p>
+
+    <p><!-- CL 79919 -->
+      TODO: <a href="https://golang.org/cl/79919">https://golang.org/cl/79919</a>: add support for SameSite option in http.Cookie
+    </p>
+
+    <p><!-- CL 81778 -->
+      TODO: <a href="https://golang.org/cl/81778">https://golang.org/cl/81778</a>: prevent Server reuse after a Shutdown
+    </p>
+
     <p><!-- CL 89275 -->
       TODO: <a href="https://golang.org/cl/89275">https://golang.org/cl/89275</a>: don&#39;t sniff Content-type in Server when X-Content-Type-Options:nosniff
     </p>
 
     <p><!-- CL 93296 -->
       TODO: <a href="https://golang.org/cl/93296">https://golang.org/cl/93296</a>: add StatusMisdirectedRequest (421)
+    </p>
+
+    <p><!-- CL 123875 -->
+      TODO: <a href="https://golang.org/cl/123875">https://golang.org/cl/123875</a>: don&#39;t cancel Request.Context on pipelined Server requests
     </p>
 
 </dl><!-- net/http -->
@@ -324,6 +393,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 </dl><!-- os/user -->
 
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 101715 -->
+      TODO: <a href="https://golang.org/cl/101715">https://golang.org/cl/101715</a>: use sync.Pool to cache regexp.machine objects
+    </p>
+
+</dl><!-- regexp -->
+
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 85887 -->
@@ -340,6 +417,14 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- CL 109255 -->
       TODO: <a href="https://golang.org/cl/109255">https://golang.org/cl/109255</a>: enable memory sanitizer on arm64
+    </p>
+
+    <p><!-- CL 109699 -->
+      TODO: <a href="https://golang.org/cl/109699">https://golang.org/cl/109699</a>: support for debugger function calls
+    </p>
+
+    <p><!-- CL 121657 -->
+      TODO: <a href="https://golang.org/cl/121657">https://golang.org/cl/121657</a>: remap stack spans with MAP_STACK on OpenBSD
     </p>
 
 </dl><!-- runtime -->
@@ -359,6 +444,22 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
 </dl><!-- runtime/pprof -->
+
+<dl id="runtime/race"><dt><a href="/pkg/runtime/race/">runtime/race</a></dt>
+  <dd>
+    <p><!-- CL 107935 -->
+      TODO: <a href="https://golang.org/cl/107935">https://golang.org/cl/107935</a>: implement race detector for ppc64le
+    </p>
+
+</dl><!-- runtime/race -->
+
+<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
+  <dd>
+    <p><!-- CL 63274 -->
+      TODO: <a href="https://golang.org/cl/63274">https://golang.org/cl/63274</a>: user annotation API
+    </p>
+
+</dl><!-- runtime/trace -->
 
 <dl id="runtime/traceback"><dt><a href="/pkg/runtime/traceback/">runtime/traceback</a></dt>
   <dd>
@@ -382,6 +483,10 @@ Do not send CLs removing the interior tags from such phrases.
       TODO: <a href="https://golang.org/cl/106275">https://golang.org/cl/106275</a>: introduce Pointer type and use it instead of uintptr
     </p>
 
+    <p><!-- CL 118658 -->
+      TODO: <a href="https://golang.org/cl/118658">https://golang.org/cl/118658</a>: check Fchmodat flags parameter on Linux
+    </p>
+
 </dl><!-- syscall -->
 
 <dl id="text/scanner"><dt><a href="/pkg/text/scanner/">text/scanner</a></dt>
@@ -396,6 +501,127 @@ Do not send CLs removing the interior tags from such phrases.
   <dd>
     <p><!-- CL 84480 -->
       TODO: <a href="https://golang.org/cl/84480">https://golang.org/cl/84480</a>: add variable assignments
+    </p>
+
+    <p><!-- CL 95215 -->
+      TODO: <a href="https://golang.org/cl/95215">https://golang.org/cl/95215</a>: differentiate nil from missing arg
+    </p>
+
+</dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 98157 -->
+      TODO: <a href="https://golang.org/cl/98157">https://golang.org/cl/98157</a>: add support for parsing timezones denoted by sign and offset
+    </p>
+
+</dl><!-- time -->
+</dl><!-- regexp -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 85887 -->
+      TODO: <a href="https://golang.org/cl/85887">https://golang.org/cl/85887</a>: use sparse mappings for the heap
+    </p>
+
+    <p><!-- CL 94076 -->
+      TODO: <a href="https://golang.org/cl/94076">https://golang.org/cl/94076</a>: use native CAS and memory barrier on ARMv7
+    </p>
+
+    <p><!-- CL 106156 -->
+      TODO: <a href="https://golang.org/cl/106156">https://golang.org/cl/106156</a>: use fixed TLS offsets on darwin/amd64 and darwin/386
+    </p>
+
+    <p><!-- CL 109255 -->
+      TODO: <a href="https://golang.org/cl/109255">https://golang.org/cl/109255</a>: enable memory sanitizer on arm64
+    </p>
+
+    <p><!-- CL 109699 -->
+      TODO: <a href="https://golang.org/cl/109699">https://golang.org/cl/109699</a>: support for debugger function calls
+    </p>
+
+    <p><!-- CL 121657 -->
+      TODO: <a href="https://golang.org/cl/121657">https://golang.org/cl/121657</a>: remap stack spans with MAP_STACK on OpenBSD
+    </p>
+
+</dl><!-- runtime -->
+
+<dl id="runtime,cmd/ld"><dt><a href="/pkg/runtime,cmd/ld/">runtime,cmd/ld</a></dt>
+  <dd>
+    <p><!-- CL 108679 -->
+      TODO: <a href="https://golang.org/cl/108679">https://golang.org/cl/108679</a>: on darwin, create theads using libc
+    </p>
+
+</dl><!-- runtime,cmd/ld -->
+
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 102696 -->
+      TODO: <a href="https://golang.org/cl/102696">https://golang.org/cl/102696</a>: introduce &#34;allocs&#34; profile
+    </p>
+
+</dl><!-- runtime/pprof -->
+
+<dl id="runtime/race"><dt><a href="/pkg/runtime/race/">runtime/race</a></dt>
+  <dd>
+    <p><!-- CL 107935 -->
+      TODO: <a href="https://golang.org/cl/107935">https://golang.org/cl/107935</a>: implement race detector for ppc64le
+    </p>
+
+</dl><!-- runtime/race -->
+
+<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
+  <dd>
+    <p><!-- CL 63274 -->
+      TODO: <a href="https://golang.org/cl/63274">https://golang.org/cl/63274</a>: user annotation API
+    </p>
+
+</dl><!-- runtime/trace -->
+
+<dl id="runtime/traceback"><dt><a href="/pkg/runtime/traceback/">runtime/traceback</a></dt>
+  <dd>
+    <p><!-- CL 70993 -->
+      TODO: <a href="https://golang.org/cl/70993">https://golang.org/cl/70993</a>: support tracking goroutine ancestor tracebacks with GODEBUG=&#34;tracebackancestors=N&#34;
+    </p>
+
+</dl><!-- runtime/traceback -->
+
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 87095 -->
+      TODO: <a href="https://golang.org/cl/87095">https://golang.org/cl/87095</a>: enable profiling of RWMutex
+    </p>
+
+</dl><!-- sync -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 106275 -->
+      TODO: <a href="https://golang.org/cl/106275">https://golang.org/cl/106275</a>: introduce Pointer type and use it instead of uintptr
+    </p>
+
+    <p><!-- CL 118658 -->
+      TODO: <a href="https://golang.org/cl/118658">https://golang.org/cl/118658</a>: check Fchmodat flags parameter on Linux
+    </p>
+
+</dl><!-- syscall -->
+
+<dl id="text/scanner"><dt><a href="/pkg/text/scanner/">text/scanner</a></dt>
+  <dd>
+    <p><!-- CL 112037 -->
+      TODO: <a href="https://golang.org/cl/112037">https://golang.org/cl/112037</a>: return RawString token rather than String for raw string literals
+    </p>
+
+</dl><!-- text/scanner -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 84480 -->
+      TODO: <a href="https://golang.org/cl/84480">https://golang.org/cl/84480</a>: add variable assignments
+    </p>
+
+    <p><!-- CL 95215 -->
+      TODO: <a href="https://golang.org/cl/95215">https://golang.org/cl/95215</a>: differentiate nil from missing arg
     </p>
 
 </dl><!-- text/template -->
