@@ -332,27 +332,46 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
     <p><!-- CL 71272 -->
-      TODO: <a href="https://golang.org/cl/71272">https://golang.org/cl/71272</a>: add Transport.MaxConnsPerHost knob
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> has a
+      new <a href="/pkg/net/http/#Transport.MaxConnsPerHost"><code>MaxConnsPerHost</code></a>
+      option that permits limiting the maximum number of connections
+      per host.
     </p>
 
     <p><!-- CL 79919 -->
-      TODO: <a href="https://golang.org/cl/79919">https://golang.org/cl/79919</a>: add support for SameSite option in http.Cookie
+      The <a href="/pkg/net/http/#Cookie"><code>Cookie</code></a> type has a new
+      The <a href="/pkg/net/http/#Cookie.SameSite"><code>SameSite</code></a> field
+      (of new type also named
+      <a href="/pkg/net/http/#SameSite"><code>SameSite</code></a>) to represent the new cookie attribute recently supported by most browsers.
+      The <code>net/http</code>'s <code>Transport</code> does not use the <code>SameSite</code>
+      attribute itself, but the package supports parsing and serializing the
+      attribute for browsers to use.
     </p>
 
     <p><!-- CL 81778 -->
-      TODO: <a href="https://golang.org/cl/81778">https://golang.org/cl/81778</a>: prevent Server reuse after a Shutdown
+      It is no longer allowed to reuse a <a href="/pkg/net/http/#Server"><code>Server</code></a>
+      after a call to
+      <a href="/pkg/net/http/#Server.Shutdown"><code>Shutdown</code></a> or
+      <a href="/pkg/net/http/#Server.Close"><code>Close</code></a>. It was never officially supported
+      in the past and had often surprising behavior. Now, all future calls to the server's <code>Serve</code>
+      methods will return errors after a shutdown or close.
     </p>
 
     <p><!-- CL 89275 -->
-      TODO: <a href="https://golang.org/cl/89275">https://golang.org/cl/89275</a>: don&#39;t sniff Content-type in Server when X-Content-Type-Options:nosniff
+      The HTTP server will no longer automatically set the Content-Type if a
+      <code>Handler</code> sets the "<code>X-Content-Type-Options</code>" header to "<code>nosniff</code>".
     </p>
 
     <p><!-- CL 93296 -->
-      TODO: <a href="https://golang.org/cl/93296">https://golang.org/cl/93296</a>: add StatusMisdirectedRequest (421)
+      The constant <code>StatusMisdirectedRequest</code> is now defined for HTTP status code 421.
     </p>
 
     <p><!-- CL 123875 -->
-      TODO: <a href="https://golang.org/cl/123875">https://golang.org/cl/123875</a>: don&#39;t cancel Request.Context on pipelined Server requests
+      The HTTP server will no longer cancel contexts or send on
+      <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
+      channels upon receiving pipelined HTTP/1.1 requests. Browsers do
+      not use HTTP pipelining, but some clients (such as
+      Debian's <code>apt</code>) may be configured to do so.
     </p>
 
 </dl><!-- net/http -->
