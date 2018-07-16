@@ -92,21 +92,25 @@ func copysign(a, b, c float64) {
 
 func fromFloat64(f64 float64) uint64 {
 	// amd64:"MOVQ\tX.*, [^X].*"
+	// arm64:"FMOVD\tF.*, R.*"
 	return math.Float64bits(f64+1) + 1
 }
 
 func fromFloat32(f32 float32) uint32 {
 	// amd64:"MOVL\tX.*, [^X].*"
+	// arm64:"FMOVS\tF.*, R.*"
 	return math.Float32bits(f32+1) + 1
 }
 
 func toFloat64(u64 uint64) float64 {
 	// amd64:"MOVQ\t[^X].*, X.*"
+	// arm64:"FMOVD\tR.*, F.*"
 	return math.Float64frombits(u64+1) + 1
 }
 
 func toFloat32(u32 uint32) float32 {
 	// amd64:"MOVL\t[^X].*, X.*"
+	// arm64:"FMOVS\tR.*, F.*"
 	return math.Float32frombits(u32+1) + 1
 }
 
@@ -132,6 +136,7 @@ func constantConvert32(x float32) float32 {
 	// amd64:"MOVSS\t[$]f32.3f800000\\(SB\\)"
 	// s390x:"FMOVS\t[$]f32.3f800000\\(SB\\)"
 	// ppc64le:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+	// arm64:"FMOVS\t[$]\\(1.0\\)"
 	if x > math.Float32frombits(0x3f800000) {
 		return -x
 	}
@@ -142,6 +147,7 @@ func constantConvertInt32(x uint32) uint32 {
 	// amd64:-"MOVSS"
 	// s390x:-"FMOVS"
 	// ppc64le:-"FMOVS"
+	// arm64:-"FMOVS"
 	if x > math.Float32bits(1) {
 		return -x
 	}
