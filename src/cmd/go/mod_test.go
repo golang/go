@@ -819,13 +819,29 @@ func TestModPathCase(t *testing.T) {
 
 	// Note: the package is rsc.io/QUOTE/QUOTE to avoid
 	// a case-sensitive import collision error in load/pkg.go.
-	// Once the module code is checking imports within a module,
-	// that error should probably e relaxed, so that it's allowed to have
-	// both x.com/FOO/bar and x.com/foo/bar in the same program
-	// provided the module paths are x.com/FOO and x.com/foo.
 	tg.run("list", "-f=DEPS {{.Deps}}\nDIR {{.Dir}}", "rsc.io/QUOTE/QUOTE")
 	tg.grepStdout(`DEPS.*rsc.io/quote`, "want quote as dep")
 	tg.grepStdout(`DIR.*!q!u!o!t!e`, "want !q!u!o!t!e in directory name")
+}
+
+func TestModFileNames(t *testing.T) {
+	tg := testGoModules(t)
+	defer tg.cleanup()
+
+	tg.runFail("get",
+		"rsc.io/badfile1",
+		"rsc.io/badfile2",
+		"rsc.io/badfile3",
+		"rsc.io/badfile4",
+		"rsc.io/badfile5",
+		"rsc.io/badfile6",
+	)
+	tg.grepStderrNot(`unzip .*badfile1.*:`, "badfile1 should be OK")
+	tg.grepStderr(`rsc.io/badfile2.*malformed file path "☺.go": invalid char '☺'`, "want diagnosed invalid character")
+	tg.grepStderr(`rsc.io/badfile3.*malformed file path "x@y.go": invalid char '@'`, "want diagnosed invalid character")
+	tg.grepStderr(`rsc.io/badfile4.*case-insensitive file name collision: "x/Y.go" and "x/y.go"`, "want case collision")
+	tg.grepStderr(`rsc.io/badfile5.*case-insensitive file name collision: "x/y" and "x/Y"`, "want case collision")
+	tg.grepStderr(`rsc.io/badfile6.*malformed file path "x/.gitignore/y": leading dot in path element`, "want leading dot in path element")
 }
 
 func TestModBadDomain(t *testing.T) {

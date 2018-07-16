@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/module"
 	"cmd/go/internal/str"
 )
 
@@ -49,7 +50,28 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		return fmt.Errorf("unzip %v: %s", zipfile, err)
 	}
 
-	// Check total size.
+	foldPath := make(map[string]string)
+	var checkFold func(string) error
+	checkFold = func(name string) error {
+		fold := str.ToFold(name)
+		if foldPath[fold] == name {
+			return nil
+		}
+		dir := path.Dir(name)
+		if dir != "." {
+			if err := checkFold(dir); err != nil {
+				return err
+			}
+		}
+		if foldPath[fold] == "" {
+			foldPath[fold] = name
+			return nil
+		}
+		other := foldPath[fold]
+		return fmt.Errorf("unzip %v: case-insensitive file name collision: %q and %q", zipfile, other, name)
+	}
+
+	// Check total size, valid file names.
 	var size int64
 	for _, zf := range z.File {
 		if !str.HasPathPrefix(zf.Name, prefix) {
@@ -57,6 +79,13 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		}
 		if zf.Name == prefix || strings.HasSuffix(zf.Name, "/") {
 			continue
+		}
+		name := zf.Name[len(prefix)+1:]
+		if err := module.CheckFilePath(name); err != nil {
+			return fmt.Errorf("unzip %v: %v", zipfile, err)
+		}
+		if err := checkFold(name); err != nil {
+			return err
 		}
 		if path.Clean(zf.Name) != zf.Name || strings.HasPrefix(zf.Name[len(prefix)+1:], "/") {
 			return fmt.Errorf("unzip %v: invalid file name %s", zipfile, zf.Name)
