@@ -58,6 +58,17 @@ Do not send CLs removing the interior tags from such phrases.
   Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
 </p>
 <p>
+  Go programs currently compile to one WebAssembly module that
+  includes the Go runtime for goroutine scheduling, garbage
+  collection, maps, etc.
+  As a result, the resulting size is at minimum around
+  2 MB, or 500 KB compressed. Go programs can call into JavaScript
+  using the new experimental
+  <a href="/pkg/syscall/js/"><code>syscall/js</code></a> package.
+  Binary size and interop with other languages has not yet been a
+  priority but may be addressed in future releases.
+</p>
+<p>
   As a result of the addition of the new <code>GOOS</code> value
   "<code>js</code>" and <code>GOARCH</code> value "<code>wasm</code>",
   Go files named <code>*_js.go</code> or <code>*_wasm.go</code> will
@@ -304,7 +315,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="mime/quotedprintable"><dt><a href="/pkg/mime/quotedprintable/">mime/quotedprintable</a></dt>
   <dd>
     <p><!-- CL 121095 -->
-      TODO: <a href="https://golang.org/cl/121095">https://golang.org/cl/121095</a>: accept bytes &gt;= 0x80
+      To support invalid input found in the wild, the package now
+      permits non-ASCII bytes but does not validate their encoding.
     </p>
 
 </dl><!-- mime/quotedprintable -->
@@ -312,7 +324,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 72810 -->
-      TODO: <a href="https://golang.org/cl/72810">https://golang.org/cl/72810</a>: add ListenConfig, Dialer.Control to permit socket opts before listen/dial
+      The new <a href="/pkg/net/#ListenConfig"><code>ListenConfig</code></a> type and the new
+      <a href="/pkg/net/#Dialer.Control"><code>Dialer.Control</code></a> field permit
+      setting socket options before accepting and creating connections, respectively.
     </p>
 
     <p><!-- CL 76391 -->
@@ -320,7 +334,11 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 107715 -->
-      TODO: <a href="https://golang.org/cl/107715">https://golang.org/cl/107715</a>: add support for splice(2) in (*TCPConn).ReadFrom on Linux
+      The <code>net</code> package now automatically uses the
+      <a href="http://man7.org/linux/man-pages/man2/splice.2.html"><code>splice</code> system call</a>
+      on Linux when calling copying data between TCP connections in
+      <a href="/pkg/net/#TCPConn.ReadFrom"><code>TCPConn.ReadFrom</code></a>, as called by
+      <a href="/pkg/io/#Copy"><code>io.Copy</code>. The result is faster, more efficient TCP proxying.
     </p>
 
     <p><!-- CL 108297 -->
@@ -407,18 +425,17 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
   <dd>
     <p><!-- CL 92456 -->
-      TODO: <a href="https://golang.org/cl/92456">https://golang.org/cl/92456</a>: add a way to enforce pure Go implementation
+      The <code>os/user</code> package can now be built in pure Go
+      mode using the build tag "<code>osusergo</code>",
+      independent of the use of the environment
+      variable <code>CGO_ENABLED=0</code>. Previously the only way to use
+      the package's pure Go implementation was to disable <code>cgo</code>
+      support across the entire program.
     </p>
 
 </dl><!-- os/user -->
 
-<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
-  <dd>
-    <p><!-- CL 101715 -->
-      TODO: <a href="https://golang.org/cl/101715">https://golang.org/cl/101715</a>: use sync.Pool to cache regexp.machine objects
-    </p>
-
-</dl><!-- regexp -->
+<!-- CL 101715 was reverted -->
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
