@@ -164,6 +164,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
 
+	FMOVS	(R2)(R6), F4       // FMOVS (R2)(R6*1), F4    // 446866bc
+	FMOVS	(R2)(R6<<2), F4                               // 447866bc
+	FMOVD	(R2)(R6), F4       // FMOVD (R2)(R6*1), F4    // 446866fc
+	FMOVD	(R2)(R6<<3), F4                               // 447866fc
+	FMOVS	F4, (R2)(R6)       // FMOVS F4, (R2)(R6*1)    // 446826bc
+	FMOVS	F4, (R2)(R6<<2)                               // 447826bc
+	FMOVD	F4, (R2)(R6)       // FMOVD F4, (R2)(R6*1)    // 446826fc
+	FMOVD	F4, (R2)(R6<<3)                               // 447826fc
+
 //	LTYPE1 imsr ',' spreg ','
 //	{
 //		outcode($1, &$2, $4, &nullgen);

@@ -519,12 +519,16 @@ var optab = []Optab{
 	{AMOVH, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
 	{AMOVB, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
 	{AMOVBU, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
+	{AFMOVS, C_ROFF, C_NONE, C_NONE, C_FREG, 98, 4, 0, 0, 0},
+	{AFMOVD, C_ROFF, C_NONE, C_NONE, C_FREG, 98, 4, 0, 0, 0},
 
 	/* store with extended register offset */
 	{AMOVD, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 
 	/* pre/post-indexed/signed-offset load/store register pair
 	   (unscaled, signed 10-bit quad-aligned and long offset) */
@@ -2540,11 +2544,11 @@ func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
 		if amount != 1 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
-	case AMOVW, AMOVWU:
+	case AMOVW, AMOVWU, AFMOVS:
 		if amount != 2 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
-	case AMOVD:
+	case AMOVD, AFMOVD:
 		if amount != 3 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
