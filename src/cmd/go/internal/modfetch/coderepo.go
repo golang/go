@@ -97,7 +97,9 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	list := []string{}
+	var incompatible []string
 	for _, tag := range tags {
 		if !strings.HasPrefix(tag, p) {
 			continue
@@ -106,11 +108,34 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 		if r.codeDir != "" {
 			v = v[len(r.codeDir)+1:]
 		}
-		if !semver.IsValid(v) || v != semver.Canonical(v) || IsPseudoVersion(v) || !module.MatchPathMajor(v, r.pathMajor) {
+		if v == "" || v != module.CanonicalVersion(v) || IsPseudoVersion(v) {
+			continue
+		}
+		if !module.MatchPathMajor(v, r.pathMajor) {
+			if r.codeDir == "" && r.pathMajor == "" && semver.Major(v) > "v1" {
+				incompatible = append(incompatible, v)
+			}
 			continue
 		}
 		list = append(list, v)
 	}
+
+	if len(incompatible) > 0 {
+		// Check for later versions that were created not following semantic import versioning,
+		// as indicated by the absence of a go.mod file. Those versions can be addressed
+		// by referring to them with a +incompatible suffix, as in v17.0.0+incompatible.
+		files, err := r.code.ReadFileRevs(incompatible, "go.mod", codehost.MaxGoMod)
+		if err != nil {
+			return nil, err
+		}
+		for _, rev := range incompatible {
+			f := files[rev]
+			if os.IsNotExist(f.Err) {
+				list = append(list, rev+"+incompatible")
+			}
+		}
+	}
+
 	SortVersions(list)
 	return list, nil
 }
@@ -146,7 +171,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	}
 
 	// Determine version.
-	if semver.IsValid(statVers) && statVers == semver.Canonical(statVers) && module.MatchPathMajor(statVers, r.pathMajor) {
+	if module.CanonicalVersion(statVers) == statVers && module.MatchPathMajor(statVers, r.pathMajor) {
 		// The original call was repo.Stat(statVers), and requestedVersion is OK, so use it.
 		info2.Version = statVers
 	} else {
@@ -157,22 +182,43 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 			p = r.codeDir + "/"
 		}
 
-		tagOK := func(v string) bool {
+		// If this is a plain tag (no dir/ prefix)
+		// and the module path is unversioned,
+		// and if the underlying file tree has no go.mod,
+		// then allow using the tag with a +incompatible suffix.
+		canUseIncompatible := false
+		if r.codeDir == "" && r.pathMajor == "" {
+			_, errGoMod := r.code.ReadFile(info.Name, "go.mod", codehost.MaxGoMod)
+			if errGoMod != nil {
+				canUseIncompatible = true
+			}
+		}
+
+		tagOK := func(v string) string {
 			if !strings.HasPrefix(v, p) {
-				return false
+				return ""
 			}
 			v = v[len(p):]
-			return semver.IsValid(v) && v == semver.Canonical(v) && module.MatchPathMajor(v, r.pathMajor) && !IsPseudoVersion(v)
+			if module.CanonicalVersion(v) != v || IsPseudoVersion(v) {
+				return ""
+			}
+			if module.MatchPathMajor(v, r.pathMajor) {
+				return v
+			}
+			if canUseIncompatible {
+				return v + "+incompatible"
+			}
+			return ""
 		}
 
 		// If info.Version is OK, use it.
-		if tagOK(info.Version) {
-			info2.Version = info.Version[len(p):]
+		if v := tagOK(info.Version); v != "" {
+			info2.Version = v
 		} else {
 			// Otherwise look through all known tags for latest in semver ordering.
 			for _, tag := range info.Tags {
-				if tagOK(tag) && semver.Compare(info2.Version, tag[len(p):]) < 0 {
-					info2.Version = tag[len(p):]
+				if v := tagOK(tag); v != "" && semver.Compare(info2.Version, v) < 0 {
+					info2.Version = v
 				}
 			}
 			// Otherwise make a pseudo-version.
@@ -185,6 +231,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	// Do not allow a successful stat of a pseudo-version for a subdirectory
 	// unless the subdirectory actually does have a go.mod.
 	if IsPseudoVersion(info2.Version) && r.codeDir != "" {
+		// TODO: git describe --first-parent --match 'v[0-9]*' --tags
 		_, _, _, err := r.findDir(info2.Version)
 		if err != nil {
 			// TODO: It would be nice to return an error like "not a module".
@@ -202,6 +249,9 @@ func (r *codeRepo) revToRev(rev string) string {
 			i := strings.Index(rev, "-")
 			j := strings.Index(rev[i+1:], "-")
 			return rev[i+1+j+1:]
+		}
+		if semver.Build(rev) == "+incompatible" {
+			rev = rev[:len(rev)-len("+incompatible")]
 		}
 		if r.codeDir == "" {
 			return rev

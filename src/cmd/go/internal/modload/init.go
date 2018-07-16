@@ -17,7 +17,6 @@ import (
 	"cmd/go/internal/module"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/str"
 	"encoding/json"
 	"fmt"
@@ -525,7 +524,7 @@ func fixVersion(path, vers string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("malformed module path: %s", path)
 	}
-	if semver.IsValid(vers) && vers == semver.Canonical(vers) && module.MatchPathMajor(vers, pathMajor) {
+	if vers != "" && module.CanonicalVersion(vers) == vers && module.MatchPathMajor(vers, pathMajor) {
 		return vers, nil
 	}
 

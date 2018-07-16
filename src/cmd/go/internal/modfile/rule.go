@@ -167,13 +167,16 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			fmt.Fprintf(errs, "%s:%d: invalid module version %q: %v\n", f.Syntax.Name, line.Start.Line, old, err)
 			return
 		}
-		v1, err := moduleMajorVersion(s)
+		pathMajor, err := modulePathMajor(s)
 		if err != nil {
 			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
 		}
-		if v2 := semver.Major(v); v1 != v2 && (v1 != "v1" || v2 != "v0") {
-			fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, v1, v2, v)
+		if !module.MatchPathMajor(v, pathMajor) {
+			if pathMajor == "" {
+				pathMajor = "v0 or v1"
+			}
+			fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
 			return
 		}
 		if verb == "require" {
@@ -202,7 +205,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
 		}
-		v1, err := moduleMajorVersion(s)
+		pathMajor, err := modulePathMajor(s)
 		if err != nil {
 			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
@@ -215,8 +218,11 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 				fmt.Fprintf(errs, "%s:%d: invalid module version %v: %v\n", f.Syntax.Name, line.Start.Line, old, err)
 				return
 			}
-			if v2 := semver.Major(v); v1 != v2 && (v1 != "v1" || v2 != "v0") {
-				fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, v1, v2, v)
+			if !module.MatchPathMajor(v, pathMajor) {
+				if pathMajor == "" {
+					pathMajor = "v0 or v1"
+				}
+				fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
 				return
 			}
 		}
@@ -364,39 +370,19 @@ func parseVersion(path string, s *string, fix VersionFixer) (string, error) {
 			return "", err
 		}
 	}
-	if semver.IsValid(t) {
-		*s = semver.Canonical(t)
+	if v := module.CanonicalVersion(t); v != "" {
+		*s = v
 		return *s, nil
 	}
 	return "", fmt.Errorf("version must be of the form v1.2.3")
 }
 
-func moduleMajorVersion(p string) (string, error) {
-	if _, _, major, _, ok := ParseGopkgIn(p); ok {
-		return major, nil
+func modulePathMajor(path string) (string, error) {
+	_, major, ok := module.SplitPathVersion(path)
+	if !ok {
+		return "", fmt.Errorf("invalid module path")
 	}
-
-	start := strings.LastIndex(p, "/") + 1
-	v := p[start:]
-	if !isMajorVersion(v) {
-		return "v1", nil
-	}
-	if v[1] == '0' || v == "v1" {
-		return "", fmt.Errorf("module path has invalid version number %s", v)
-	}
-	return v, nil
-}
-
-func isMajorVersion(v string) bool {
-	if len(v) < 2 || v[0] != 'v' {
-		return false
-	}
-	for i := 1; i < len(v); i++ {
-		if v[i] < '0' || '9' < v[i] {
-			return false
-		}
-	}
-	return true
+	return major, nil
 }
 
 func (f *File) Format() ([]byte, error) {

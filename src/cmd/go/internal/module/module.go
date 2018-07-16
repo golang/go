@@ -324,9 +324,19 @@ func MatchPathMajor(v, pathMajor string) bool {
 	}
 	m := semver.Major(v)
 	if pathMajor == "" {
-		return m == "v0" || m == "v1"
+		return m == "v0" || m == "v1" || semver.Build(v) == "+incompatible"
 	}
 	return (pathMajor[0] == '/' || pathMajor[0] == '.') && m == pathMajor[1:]
+}
+
+// CanonicalVersion returns the canonical form of the version string v.
+// It is the same as semver.Canonical(v) except that it preserves the special build suffix "+incompatible".
+func CanonicalVersion(v string) string {
+	cv := semver.Canonical(v)
+	if semver.Build(v) == "+incompatible" {
+		cv += "+incompatible"
+	}
+	return cv
 }
 
 // Sort sorts the list by Path, breaking ties by comparing Versions.

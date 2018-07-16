@@ -125,7 +125,7 @@ func TestConvertLegacyConfig(t *testing.T) {
 				cloud.google.com/go v0.18.0
 				github.com/fishy/fsdb v0.0.0-20180217030800-5527ded01371
 				github.com/golang/protobuf v1.0.0
-				github.com/googleapis/gax-go v0.0.0-20170915024731-317e0006254c
+				github.com/googleapis/gax-go v2.0.0+incompatible
 				golang.org/x/net v0.0.0-20180216171745-136a25c244d3
 				golang.org/x/oauth2 v0.0.0-20180207181906-543e37812f10
 				golang.org/x/text v0.0.0-20180208041248-4e4a3210bb54

@@ -245,10 +245,12 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 	}
 
 	// Fast path: maybe rev is a hash we already have locally.
+	didStatLocal := false
 	if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
 		if info, err := r.statLocal(rev, rev); err == nil {
 			return info, nil
 		}
+		didStatLocal = true
 	}
 
 	// Maybe rev is a tag we already have locally.
@@ -308,11 +310,25 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// Perhaps r.localTags did not have the ref when we loaded local tags,
+	// but we've since done fetches that pulled down the hash we need
+	// (or already have the hash we need, just without its tag).
+	// Either way, try a local stat before falling back to network I/O.
+	if !didStatLocal {
+		if info, err := r.statLocal(rev, hash); err == nil {
+			if strings.HasPrefix(ref, "refs/tags/") {
+				// Make sure tag exists, so it will be in localTags next time the go command is run.
+				Run(r.dir, "git", "tag", strings.TrimPrefix(ref, "refs/tags/"), hash)
+			}
+			return info, nil
+		}
+	}
+
 	// If we know a specific commit we need, fetch it.
 	if r.fetchLevel <= fetchSome && hash != "" && !r.local {
 		r.fetchLevel = fetchSome
 		var refspec string
-		if ref != "" && ref != "head" {
+		if ref != "" && ref != "HEAD" {
 			// If we do know the ref name, save the mapping locally
 			// so that (if it is a tag) it can show up in localTags
 			// on a future call. Also, some servers refuse to allow
@@ -436,6 +452,154 @@ func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 		return nil, os.ErrNotExist
 	}
 	return out, nil
+}
+
+func (r *gitRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[string]*FileRev, error) {
+	// Create space to hold results.
+	files := make(map[string]*FileRev)
+	for _, rev := range revs {
+		f := &FileRev{Rev: rev}
+		files[rev] = f
+	}
+
+	// Collect locally-known revs.
+	need, err := r.readFileRevs(revs, file, files)
+	if err != nil {
+		return nil, err
+	}
+	if len(need) == 0 {
+		return files, nil
+	}
+
+	// Build list of known remote refs that might help.
+	var redo []string
+	r.refsOnce.Do(r.loadRefs)
+	if r.refsErr != nil {
+		return nil, r.refsErr
+	}
+	for _, tag := range need {
+		if r.refs["refs/tags/"+tag] != "" {
+			redo = append(redo, tag)
+		}
+	}
+	if len(redo) == 0 {
+		return files, nil
+	}
+
+	// Protect r.fetchLevel and the "fetch more and more" sequence.
+	// See stat method above.
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var refs []string
+	var protoFlag []string
+	var unshallowFlag []string
+	for _, tag := range redo {
+		refs = append(refs, "refs/tags/"+tag+":refs/tags/"+tag)
+	}
+	if len(refs) > 1 {
+		unshallowFlag = unshallow(r.dir)
+		if len(unshallowFlag) > 0 {
+			// To work around a protocol version 2 bug that breaks --unshallow,
+			// add -c protocol.version=0.
+			// TODO(rsc): The bug is believed to be server-side, meaning only
+			// on Google's Git servers. Once the servers are fixed, drop the
+			// protocol.version=0. See Google-internal bug b/110495752.
+			protoFlag = []string{"-c", "protocol.version=0"}
+		}
+	}
+	if _, err := Run(r.dir, "git", protoFlag, "fetch", unshallowFlag, "-f", r.remote, refs); err != nil {
+		return nil, err
+	}
+
+	if _, err := r.readFileRevs(redo, file, files); err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*FileRev) (missing []string, err error) {
+	var stdin bytes.Buffer
+	for _, tag := range tags {
+		fmt.Fprintf(&stdin, "refs/tags/%s\n", tag)
+		fmt.Fprintf(&stdin, "refs/tags/%s:%s\n", tag, file)
+	}
+
+	data, err := RunWithStdin(r.dir, &stdin, "git", "cat-file", "--batch")
+	if err != nil {
+		return nil, err
+	}
+
+	next := func() (typ string, body []byte, ok bool) {
+		var line string
+		i := bytes.IndexByte(data, '\n')
+		if i < 0 {
+			return "", nil, false
+		}
+		line, data = string(bytes.TrimSpace(data[:i])), data[i+1:]
+		if strings.HasSuffix(line, " missing") {
+			return "missing", nil, true
+		}
+		f := strings.Fields(line)
+		if len(f) != 3 {
+			return "", nil, false
+		}
+		n, err := strconv.Atoi(f[2])
+		if err != nil || n > len(data) {
+			return "", nil, false
+		}
+		body, data = data[:n], data[n:]
+		if len(data) > 0 && data[0] == '\r' {
+			data = data[1:]
+		}
+		if len(data) > 0 && data[0] == '\n' {
+			data = data[1:]
+		}
+		return f[1], body, true
+	}
+
+	badGit := func() ([]string, error) {
+		return nil, fmt.Errorf("malformed output from git cat-file --batch")
+	}
+
+	for _, tag := range tags {
+		commitType, _, ok := next()
+		if !ok {
+			return badGit()
+		}
+		fileType, fileData, ok := next()
+		if !ok {
+			return badGit()
+		}
+		f := fileMap[tag]
+		f.Data = nil
+		f.Err = nil
+		switch commitType {
+		default:
+			f.Err = fmt.Errorf("unexpected non-commit type %q for rev %s", commitType, tag)
+
+		case "missing":
+			// Note: f.Err must not satisfy os.IsNotExist. That's reserved for the file not existing in a valid commit.
+			f.Err = fmt.Errorf("no such rev %s", tag)
+			missing = append(missing, tag)
+
+		case "tag", "commit":
+			switch fileType {
+			default:
+				f.Err = &os.PathError{Path: tag + ":" + file, Op: "read", Err: fmt.Errorf("unexpected non-blob type %q", fileType)}
+			case "missing":
+				f.Err = &os.PathError{Path: tag + ":" + file, Op: "read", Err: os.ErrNotExist}
+			case "blob":
+				f.Data = fileData
+			}
+		}
+	}
+	if len(bytes.TrimSpace(data)) != 0 {
+		return badGit()
+	}
+
+	return missing, nil
 }
 
 func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
