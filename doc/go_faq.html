@@ -210,11 +210,12 @@ easier to understand what happens when things combine.
 
 <h2 id="Usage">Usage</h2>
 
-<h3 id="Is_Google_using_go_internally"> Is Google using Go internally?</h3>
+<h3 id="internal_usage">
+Is Google using Go internally?</h3>
 
 <p>
-Yes. There are now several Go programs deployed in
-production inside Google.  A public example is the server behind
+Yes. Go is used widely in production inside Google.
+One easy example is the server behind
 <a href="//golang.org">golang.org</a>.
 It's just the <a href="/cmd/godoc"><code>godoc</code></a>
 document server running in a production configuration on
@@ -222,39 +223,109 @@ document server running in a production configuration on
 </p>
 
 <p>
-Other examples include the <a href="//github.com/youtube/vitess/">Vitess</a>
-system for large-scale SQL installations and Google's download server, <code>dl.google.com</code>,
+A more significant instance is Google's download server, <code>dl.google.com</code>,
 which delivers Chrome binaries and other large installables such as <code>apt-get</code>
 packages.
+</p>
+
+<p>
+Go is not the only language used at Google, far from it, but it is a key language
+for a number of areas including
+<a href="https://talks.golang.org/2013/go-sreops.slide">site reliability
+engineering (SRE)</a>
+and large-scale data processing.
+</p>
+
+<h3 id="external_usage">
+What other companies use Go?</h3>
+
+<p>
+Go usage is growing worldwide, especially but by no means exclusively
+in the cloud computing space.
+A couple of major cloud infrastructure projects written in Go are
+Docker and Kubernetes,
+but there are many more.
+</p>
+
+<p>
+It's not just cloud, though.
+The Go Wiki includes a
+<a href="https://github.com/golang/go/wiki/GoUsers">page</a>,
+updated regularly, that lists some of the many companies using Go.
+</p>
+
+<p>
+The Wiki also has a page with links to
+<a href="https://github.com/golang/go/wiki/SuccessStories">success stories</a>
+about companies and projects that are using the language.
 </p>
 
 <h3 id="Do_Go_programs_link_with_Cpp_programs">
 Do Go programs link with C/C++ programs?</h3>
 
 <p>
-There are two Go compiler implementations, <code>gc</code>
-and <code>gccgo</code>.
-<code>Gc</code> uses a different calling convention and linker and can
-therefore only be linked with C programs using the same convention.
-There is such a C compiler but no C++ compiler.
-<code>Gccgo</code> is a GCC front-end that can, with care, be linked with
-GCC-compiled C or C++ programs.
+It is possible to use C and Go together in the same address space,
+but it is not a natural fit and can require special interface software.
+Also, linking C with Go code gives up the memory
+safety and stack management guarantees that Go provides.
+Sometimes it's absolutely necessary to use C libraries to solve a problem,
+but doing so always introduces an element of risk not present with
+pure Go code, so do so with care.
 </p>
 
 <p>
-The <a href="/cmd/cgo/">cgo</a> program provides the mechanism for a
-&ldquo;foreign function interface&rdquo; to allow safe calling of
-C libraries from Go code. SWIG extends this capability to C++ libraries.
+If you do need to use C with Go, how to proceed depends on the Go
+compiler implementation.
+There are three Go compiler implementations supported by the
+Go team.
+These are <code>gc</code>, the default compiler,
+<code>gccgo</code>, which uses the GCC back end,
+and a somewhat less mature <code>gollvm</code>, which uses the LLVM infrastructure.
 </p>
 
+<p>
+<code>Gc</code> uses a different calling convention and linker from C and
+therefore cannot be called directly from C programs, or vice versa.
+The <a href="/cmd/cgo/"><code>cgo</code></a> program provides the mechanism for a
+&ldquo;foreign function interface&rdquo; to allow safe calling of
+C libraries from Go code.
+SWIG extends this capability to C++ libraries.
+</p>
 
-<h3 id="Does_Go_support_Google_protocol_buffers">
+<p>
+You can also use <code>cgo</code> and SWIG with <code>Gccgo</code> and <code>gollvm</code>.
+Since they use a traditional API, it's also possible, with great care,
+to link code from these compilers directly with GCC/LLVM-compiled C or C++ programs.
+However, doing so safely requires an understanding of the calling conventions for
+all languages concerned, as well as concern for stack limits when calling C or C++
+from Go.
+</p>
+
+<h3 id="ide">
+What IDEs does Go support?</h3>
+
+<p>
+The Go project does not include a custom IDE, but the language and
+libraries have been designed to make it easy to analyze source code.
+As a consequence, most well-known editors and IDEs support Go well,
+either directly or through a plugin.
+</p>
+
+<p>
+The list of well-known IDEs and editors that have good Go support
+available includes Emacs, Vim, VSCode, Atom, Eclipse, Sublime, IntelliJ
+(through a custom variant called Goland), and many more.
+Chances are your favorite environment is a productive one for
+programming in Go.
+</p>
+
+<h3 id="protocol_buffers">
 Does Go support Google's protocol buffers?</h3>
 
 <p>
 A separate open source project provides the necessary compiler plugin and library.
 It is available at
-<a href="//github.com/golang/protobuf">github.com/golang/protobuf/</a>
+<a href="//github.com/golang/protobuf">github.com/golang/protobuf/</a>.
 </p>
 
 
@@ -2037,7 +2108,7 @@ The <code>gccgo</code> compiler implements goroutines using
 a technique called segmented stacks,
 supported by recent modifications to the gold linker.
 <code>Gollvm</code> similarly is built on the corresponding
-LLVM infrastructure. 
+LLVM infrastructure.
 </p>
 
 <h3 id="Why_is_my_trivial_program_such_a_large_binary">
