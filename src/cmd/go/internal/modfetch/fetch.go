@@ -41,17 +41,22 @@ func Download(mod module.Version) (dir string, err error) {
 		err error
 	}
 	c := downloadCache.Do(mod, func() interface{} {
-		modpath := mod.Path + "@" + mod.Version
-		dir = filepath.Join(SrcMod, modpath)
+		dir, err := DownloadDir(mod)
+		if err != nil {
+			return cached{"", err}
+		}
 		if files, _ := ioutil.ReadDir(dir); len(files) == 0 {
-			zipfile := filepath.Join(SrcMod, "cache/download", mod.Path, "@v", mod.Version+".zip")
+			zipfile, err := CachePath(mod, "zip")
+			if err != nil {
+				return cached{"", err}
+			}
 			if _, err := os.Stat(zipfile); err == nil {
 				// Use it.
 				// This should only happen if the mod/cache directory is preinitialized
 				// or if src/mod/path was removed but not src/mod/cache/download.
 				fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
 			} else {
-				if err := os.MkdirAll(filepath.Join(SrcMod, "cache/download", mod.Path, "@v"), 0777); err != nil {
+				if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
 					return cached{"", err}
 				}
 				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
@@ -59,6 +64,7 @@ func Download(mod module.Version) (dir string, err error) {
 					return cached{"", err}
 				}
 			}
+			modpath := mod.Path + "@" + mod.Version
 			if err := Unzip(dir, zipfile, modpath, 0); err != nil {
 				fmt.Fprintf(os.Stderr, "-> %s\n", err)
 				return cached{"", err}
@@ -201,7 +207,11 @@ func checkSum(mod module.Version) {
 	}
 
 	// Do the file I/O before acquiring the go.sum lock.
-	data, err := ioutil.ReadFile(filepath.Join(SrcMod, "cache/download", mod.Path, "@v", mod.Version+".ziphash"))
+	ziphash, err := CachePath(mod, "ziphash")
+	if err != nil {
+		base.Fatalf("go: verifying %s@%s: %v", mod.Path, mod.Version, err)
+	}
+	data, err := ioutil.ReadFile(ziphash)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
@@ -260,7 +270,11 @@ func Sum(mod module.Version) string {
 		return ""
 	}
 
-	data, err := ioutil.ReadFile(filepath.Join(SrcMod, "cache/download", mod.Path, "@v", mod.Version+".ziphash"))
+	ziphash, err := CachePath(mod, "ziphash")
+	if err != nil {
+		return ""
+	}
+	data, err := ioutil.ReadFile(ziphash)
 	if err != nil {
 		return ""
 	}

@@ -12,7 +12,6 @@ import (
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/module"
 	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -115,10 +114,9 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 				m.Version = q.Version
 				m.Time = &q.Time
 			}
-
-			if semver.IsValid(m.Version) {
-				dir := filepath.Join(modfetch.SrcMod, m.Path+"@"+m.Version)
-				if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
+			dir, err := modfetch.DownloadDir(module.Version{Path: m.Path, Version: m.Version})
+			if err == nil {
+				if info, err := os.Stat(dir); err == nil && info.IsDir() {
 					m.Dir = dir
 				}
 			}

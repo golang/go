@@ -218,7 +218,7 @@ func lookup(path string) (r Repo, err error) {
 
 	if rr.VCS == "mod" {
 		// Fetch module from proxy with base URL rr.Repo.
-		return newProxyRepo(rr.Repo, path), nil
+		return newProxyRepo(rr.Repo, path)
 	}
 
 	code, err := lookupCodeRepo(rr)
