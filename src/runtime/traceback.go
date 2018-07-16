@@ -679,7 +679,14 @@ func traceback(pc, sp, lr uintptr, gp *g) {
 // the initial PC must not be rewound to the previous instruction.
 // (All the saved pairs record a PC that is a return address, so we
 // rewind it into the CALL instruction.)
+// If gp.m.libcall{g,pc,sp} information is available, it uses that information in preference to
+// the pc/sp/lr passed in.
 func tracebacktrap(pc, sp, lr uintptr, gp *g) {
+	if gp.m.libcallsp != 0 {
+		// We're in C code somewhere, traceback from the saved position.
+		traceback1(gp.m.libcallpc, gp.m.libcallsp, 0, gp.m.libcallg.ptr(), 0)
+		return
+	}
 	traceback1(pc, sp, lr, gp, _TraceTrap)
 }
 
