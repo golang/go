@@ -188,7 +188,11 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
   <dd>
     <p><!-- CL 64451 -->
-      TODO: <a href="https://golang.org/cl/64451">https://golang.org/cl/64451</a>: randomly read an extra byte of randomness in some places.
+      Certain crypto operations, including
+      <a href="/pkg/crypto/ecdsa/#Sign"><code>crypto/ecdsa.Sign</code></a>,
+      <a href="/pkg/crypto/rsa/#EncryptPKCS1v15"><code>crypto/rsa.EncryptPKCS1v15</code></a> and
+      <a href="/pkg/crypto/rsa/#GenerateKey"><code>crypto/rsa.GenerateKey</code></a>,
+      now randomly read an extra byte of randomness to ensure tests don't rely on internal behavior.
     </p>
 
 </dl><!-- crypto -->
@@ -196,7 +200,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/cipher"><dt><a href="/pkg/crypto/cipher/">crypto/cipher</a></dt>
   <dd>
     <p><!-- CL 48510, CL 116435 -->
-      TODO: <a href="https://golang.org/cl/48510">https://golang.org/cl/48510</a>: add NewGCMWithTagSize for custom tag sizes.
+      The new <a href="/pkg/crypto/cipher/#NewGCMWithTagSize"><code>NewGCMWithTagSize</code></a>
+      implements Galois Counter Mode with non-standard tag lengths for compatibility with existing cryptosystems.
     </p>
 
 </dl><!-- crypto/cipher -->
@@ -204,10 +209,46 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
   <dd>
     <p><!-- CL 103876 -->
-      TODO: <a href="https://golang.org/cl/103876">https://golang.org/cl/103876</a>: add PublicKey.Size accessor
+      <a href="/pkg/crypto/rsa/#PublicKey"><code>PublicKey</code></a> now implements a
+      <a href="/pkg/crypto/rsa/#PublicKey.Size"><code>Size</code></a> method that
+      returns the modulus size in bytes.
     </p>
 
 </dl><!-- crypto/rsa -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 85115 -->
+      <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>'s new
+      <code>ExportKeyingMaterial</code> field allows exporting keying material bound to the
+      connection according to RFC 5705.
+    </p>
+
+</dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 123355, CL 123695 -->
+      The deprecated, legacy behavior of treating the <code>Common</code> <code>Name</code> field as
+      a hostname when no Subject Alternative Names are present is now disabled when the CN is not a
+      valid hostname.
+      The <code>Common</code> <code>Name</code> can be completely ignored by adding the experimental value
+      <code>x509ignoreCN=1</code> to the <code>GODEBUG</code> environment variable.
+      When the CN is ignored, certificates without SANs validate under chains with name constraints
+      instead of returning <code>NameConstraintsWithoutSANs</code>.
+    </p>
+
+    <p><!-- CL 113475 -->
+      Extended key usage restrictions are again checked only if they appear in the <code>KeyUsages</code>
+      field of <a href="/pkg/crypto/x509/#VerifyOptions"><code>VerifyOptions</code></a>, instead of all at once.
+    </p>
+
+    <p><!-- CL 102699 -->
+      The value returned by <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
+      is now cached and might not reflect system changes between invocations.
+    </p>
+
+</dl><!-- crypto/x509 -->
 
 <dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
   <dd>
@@ -285,6 +326,10 @@ Do not send CLs removing the interior tags from such phrases.
   <dd>
     <p><!-- CL 74851 -->
       TODO: <a href="https://golang.org/cl/74851">https://golang.org/cl/74851</a>: speed-up addMulVVW on amd64
+    </p>
+
+    <p><!-- CL 108996 -->
+      <a href="/pkg/math/bin/#Int.ModInverse"><code>ModInverse</code></a> now returns nil when g and n are not relatively prime. The result was previously undefined.
     </p>
 
 </dl><!-- math/big -->
