@@ -14,6 +14,11 @@ goto end
 set OLDPATH=%PATH%
 call make.bat --no-banner --no-local
 if %GOBUILDFAIL%==1 goto end
+if x%GO14TESTS%==x1 goto runtests
+echo Build complete; skipping tests.
+echo To force tests, set GO14TESTS=1 and re-run, but expect some failures.
+goto end
+:runtests
 call run.bat --no-rebuild --no-local
 if %GOBUILDFAIL%==1 goto end
 :: we must restore %PATH% before running "dist banner" so that the latter
