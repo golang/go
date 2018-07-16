@@ -218,9 +218,9 @@ Do not send CLs removing the interior tags from such phrases.
   <dd>
     <p><!-- CL 64451 -->
       Certain crypto operations, including
-      <a href="/pkg/crypto/ecdsa/#Sign"><code>crypto/ecdsa.Sign</code></a>,
-      <a href="/pkg/crypto/rsa/#EncryptPKCS1v15"><code>crypto/rsa.EncryptPKCS1v15</code></a> and
-      <a href="/pkg/crypto/rsa/#GenerateKey"><code>crypto/rsa.GenerateKey</code></a>,
+      <a href="/pkg/crypto/ecdsa/#Sign"><code>ecdsa.Sign</code></a>,
+      <a href="/pkg/crypto/rsa/#EncryptPKCS1v15"><code>rsa.EncryptPKCS1v15</code></a> and
+      <a href="/pkg/crypto/rsa/#GenerateKey"><code>rsa.GenerateKey</code></a>,
       now randomly read an extra byte of randomness to ensure tests don't rely on internal behavior.
     </p>
 
@@ -229,7 +229,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/cipher"><dt><a href="/pkg/crypto/cipher/">crypto/cipher</a></dt>
   <dd>
     <p><!-- CL 48510, CL 116435 -->
-      The new <a href="/pkg/crypto/cipher/#NewGCMWithTagSize"><code>NewGCMWithTagSize</code></a>
+      The new function <a href="/pkg/crypto/cipher/#NewGCMWithTagSize"><code>NewGCMWithTagSize</code></a>
       implements Galois Counter Mode with non-standard tag lengths for compatibility with existing cryptosystems.
     </p>
 
@@ -258,10 +258,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
     <p><!-- CL 123355, CL 123695 -->
-      The deprecated, legacy behavior of treating the <code>Common</code> <code>Name</code> field as
+      The deprecated, legacy behavior of treating the <code>CommonName</code> field as
       a hostname when no Subject Alternative Names are present is now disabled when the CN is not a
       valid hostname.
-      The <code>Common</code> <code>Name</code> can be completely ignored by adding the experimental value
+      The <code>CommonName</code> can be completely ignored by adding the experimental value
       <code>x509ignoreCN=1</code> to the <code>GODEBUG</code> environment variable.
       When the CN is ignored, certificates without SANs validate under chains with name constraints
       instead of returning <code>NameConstraintsWithoutSANs</code>.
@@ -269,7 +269,8 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- CL 113475 -->
       Extended key usage restrictions are again checked only if they appear in the <code>KeyUsages</code>
-      field of <a href="/pkg/crypto/x509/#VerifyOptions"><code>VerifyOptions</code></a>, instead of all at once.
+      field of <a href="/pkg/crypto/x509/#VerifyOptions"><code>VerifyOptions</code></a>, instead of always being checked.
+      This matches the behavior of Go 1.9 and earlier.
     </p>
 
     <p><!-- CL 102699 -->
