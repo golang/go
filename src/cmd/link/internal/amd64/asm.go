@@ -139,7 +139,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add += int64(targ.Plt)
+			r.Add += int64(targ.Plt())
 		}
 
 		return true
@@ -164,7 +164,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		r.Type = objabi.R_PCREL
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
 		r.Add += 4
-		r.Add += int64(targ.Got)
+		r.Add += int64(targ.Got())
 		return true
 
 	case 256 + objabi.RelocType(elf.R_X86_64_64):
@@ -190,7 +190,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(targ.Plt)
+			r.Add = int64(targ.Plt())
 			r.Type = objabi.R_PCREL
 			return true
 		}
@@ -230,7 +230,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		addgotsym(ctxt, targ)
 		r.Type = objabi.R_PCREL
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
-		r.Add += int64(targ.Got)
+		r.Add += int64(targ.Got())
 		return true
 	}
 
@@ -249,7 +249,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		// Build a PLT entry and change the relocation target to that entry.
 		addpltsym(ctxt, targ)
 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
-		r.Add = int64(targ.Plt)
+		r.Add = int64(targ.Plt())
 		return true
 
 	case objabi.R_ADDR:
@@ -257,7 +257,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			if ctxt.HeadType == objabi.Hsolaris {
 				addpltsym(ctxt, targ)
 				r.Sym = ctxt.Syms.Lookup(".plt", 0)
-				r.Add += int64(targ.Plt)
+				r.Add += int64(targ.Plt())
 				return true
 			}
 			// The code is asking for the address of an external
@@ -266,7 +266,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			addgotsym(ctxt, targ)
 
 			r.Sym = ctxt.Syms.Lookup(".got", 0)
-			r.Add += int64(targ.Got)
+			r.Add += int64(targ.Got())
 			return true
 		}
 
@@ -567,7 +567,7 @@ func elfsetupplt(ctxt *ld.Link) {
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Plt >= 0 {
+	if s.Plt() >= 0 {
 		return
 	}
 
@@ -606,7 +606,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 
-		s.Plt = int32(plt.Size - 16)
+		s.SetPlt(int32(plt.Size - 16))
 	} else if ctxt.HeadType == objabi.Hdarwin {
 		// To do lazy symbol lookup right, we're supposed
 		// to tell the dynamic loader which library each
@@ -624,29 +624,29 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		ctxt.Syms.Lookup(".linkedit.plt", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
 
 		// jmpq *got+size(IP)
-		s.Plt = int32(plt.Size)
+		s.SetPlt(int32(plt.Size))
 
 		plt.AddUint8(0xff)
 		plt.AddUint8(0x25)
-		plt.AddPCRelPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
+		plt.AddPCRelPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got()))
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
 func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Got >= 0 {
+	if s.Got() >= 0 {
 		return
 	}
 
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
-	s.Got = int32(got.Size)
+	s.SetGot(int32(got.Size))
 	got.AddUint64(ctxt.Arch, 0)
 
 	if ctxt.IsELF {
 		rela := ctxt.Syms.Lookup(".rela", 0)
-		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else if ctxt.HeadType == objabi.Hdarwin {

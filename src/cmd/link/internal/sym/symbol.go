@@ -19,8 +19,6 @@ type Symbol struct {
 	Version     int16
 	Attr        Attribute
 	Dynid       int32
-	Plt         int32
-	Got         int32
 	Align       int32
 	Elfsym      int32
 	LocalElfsym int32
@@ -49,6 +47,8 @@ type AuxSymbol struct {
 	dynimplib  string
 	dynimpvers string
 	localentry uint8
+	plt        int32
+	got        int32
 }
 
 func (s *Symbol) String() string {
@@ -271,7 +271,7 @@ func (s *Symbol) setUintXX(arch *sys.Arch, off int64, v uint64, wid int64) int64
 
 func (s *Symbol) makeAuxInfo() {
 	if s.auxinfo == nil {
-		s.auxinfo = &AuxSymbol{extname: s.Name}
+		s.auxinfo = &AuxSymbol{extname: s.Name, plt: -1, got: -1}
 	}
 }
 
@@ -342,6 +342,40 @@ func (s *Symbol) SetLocalentry(val uint8) {
 		s.makeAuxInfo()
 	}
 	s.auxinfo.localentry = val
+}
+
+func (s *Symbol) Plt() int32 {
+	if s.auxinfo == nil {
+		return -1
+	}
+	return s.auxinfo.plt
+}
+
+func (s *Symbol) SetPlt(val int32) {
+	if s.auxinfo == nil {
+		if val == -1 {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.plt = val
+}
+
+func (s *Symbol) Got() int32 {
+	if s.auxinfo == nil {
+		return -1
+	}
+	return s.auxinfo.got
+}
+
+func (s *Symbol) SetGot(val int32) {
+	if s.auxinfo == nil {
+		if val == -1 {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.got = val
 }
 
 // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
