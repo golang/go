@@ -1067,6 +1067,11 @@ func TestModList(t *testing.T) {
 		t.Fatalf("%s should be unwritable", filepath.Join(dir, "buggy"))
 	}
 
+	tg.run("clean", "-modcache")
+	if _, err = os.Stat(dir); err == nil {
+		t.Fatal("clean -modcache did not remove download dir")
+	}
+
 	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
 		module x
 		require rsc.io/quote v1.5.1
