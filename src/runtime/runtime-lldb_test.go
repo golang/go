@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -83,12 +82,8 @@ target = debugger.CreateTargetWithFileAndArch("a.exe", None)
 if target:
   print "Created target"
   main_bp = target.BreakpointCreateByLocation("main.go", 10)
-  if main_bp.GetNumLocations() != 0:
+  if main_bp:
     print "Created breakpoint"
-  else:
-    # This happens if lldb can't read the program's DWARF. See https://golang.org/issue/25925.
-    print "SKIP: no matching locations for breakpoint"
-    exit(1)
   process = target.LaunchSimple(None, None, os.getcwd())
   if process:
     print "Process launched"
@@ -103,7 +98,7 @@ if target:
         if state in [lldb.eStateUnloaded, lldb.eStateLaunching, lldb.eStateRunning]:
           continue
       else:
-        print "SKIP: Timeout launching"
+        print "Timeout launching"
       break
     if state == lldb.eStateStopped:
       for t in process.threads:
@@ -179,9 +174,8 @@ func TestLldbPython(t *testing.T) {
 	got, _ := cmd.CombinedOutput()
 
 	if string(got) != expectedLldbOutput {
-		skipReason := regexp.MustCompile("SKIP: .*\n").Find(got)
-		if skipReason != nil {
-			t.Skip(string(skipReason))
+		if strings.Contains(string(got), "Timeout launching") {
+			t.Skip("Timeout launching")
 		}
 		t.Fatalf("Unexpected lldb output:\n%s", got)
 	}
