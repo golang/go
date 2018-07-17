@@ -2772,13 +2772,31 @@ func (c *typeConv) badJNI(dt *dwarf.TypedefType) bool {
 			}
 		}
 
-		// Check that the typedef is:
-		//     struct _jobject;
-		//     typedef struct _jobject *jobject;
+		// Check that the typedef is either:
+		// 1:
+		//     	struct _jobject;
+		//     	typedef struct _jobject *jobject;
+		// 2: (in NDK16 in C++)
+		//     	class _jobject {};
+		//     	typedef _jobject* jobject;
+		// 3: (in NDK16 in C)
+		//     	typedef void* jobject;
 		if ptr, ok := w.Type.(*dwarf.PtrType); ok {
-			if str, ok := ptr.Type.(*dwarf.StructType); ok {
-				if str.StructName == "_jobject" && str.Kind == "struct" && len(str.Field) == 0 && str.Incomplete {
-					return true
+			switch v := ptr.Type.(type) {
+			case *dwarf.VoidType:
+				return true
+			case *dwarf.StructType:
+				if v.StructName == "_jobject" && len(v.Field) == 0 {
+					switch v.Kind {
+					case "struct":
+						if v.Incomplete {
+							return true
+						}
+					case "class":
+						if !v.Incomplete {
+							return true
+						}
+					}
 				}
 			}
 		}
