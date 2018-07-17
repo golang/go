@@ -15,7 +15,6 @@ import (
 // Symbol is an entry in the symbol table.
 type Symbol struct {
 	Name        string
-	Extname     string
 	Type        SymKind
 	Version     int16
 	Attr        Attribute
@@ -36,7 +35,7 @@ type Symbol struct {
 	Outer    *Symbol
 	Gotype   *Symbol
 	File     string
-	dyninfo  *dynimp
+	auxinfo  *AuxSymbol
 	Sect     *Section
 	FuncInfo *FuncInfo
 	Lib      *Library // Package defining this symbol
@@ -45,7 +44,9 @@ type Symbol struct {
 	R []Reloc
 }
 
-type dynimp struct {
+// AuxSymbol contains less-frequently used sym.Symbol fields.
+type AuxSymbol struct {
+	extname    string
 	dynimplib  string
 	dynimpvers string
 }
@@ -268,38 +269,62 @@ func (s *Symbol) setUintXX(arch *sys.Arch, off int64, v uint64, wid int64) int64
 	return off + wid
 }
 
+func (s *Symbol) makeAuxInfo() {
+	if s.auxinfo == nil {
+		s.auxinfo = &AuxSymbol{extname: s.Name}
+	}
+}
+
+func (s *Symbol) Extname() string {
+	if s.auxinfo == nil {
+		return s.Name
+	}
+	return s.auxinfo.extname
+}
+
+func (s *Symbol) SetExtname(n string) {
+	if s.auxinfo == nil {
+		if s.Name == n {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.extname = n
+}
+
 func (s *Symbol) Dynimplib() string {
-	if s.dyninfo == nil {
+	if s.auxinfo == nil {
 		return ""
 	}
-	return s.dyninfo.dynimplib
+	return s.auxinfo.dynimplib
 }
 
 func (s *Symbol) Dynimpvers() string {
-	if s.dyninfo == nil {
+	if s.auxinfo == nil {
 		return ""
 	}
-	return s.dyninfo.dynimpvers
+	return s.auxinfo.dynimpvers
 }
 
 func (s *Symbol) SetDynimplib(lib string) {
-	if s.dyninfo == nil {
-		s.dyninfo = &dynimp{dynimplib: lib}
-	} else {
-		s.dyninfo.dynimplib = lib
+	if s.auxinfo == nil {
+		s.makeAuxInfo()
 	}
+	s.auxinfo.dynimplib = lib
 }
 
 func (s *Symbol) SetDynimpvers(vers string) {
-	if s.dyninfo == nil {
-		s.dyninfo = &dynimp{dynimpvers: vers}
-	} else {
-		s.dyninfo.dynimpvers = vers
+	if s.auxinfo == nil {
+		s.makeAuxInfo()
 	}
+	s.auxinfo.dynimpvers = vers
 }
 
 func (s *Symbol) ResetDyninfo() {
-	s.dyninfo = nil
+	if s.auxinfo != nil {
+		s.auxinfo.dynimplib = ""
+		s.auxinfo.dynimpvers = ""
+	}
 }
 
 // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
