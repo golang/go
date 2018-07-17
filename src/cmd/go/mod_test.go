@@ -834,14 +834,12 @@ func TestModFileNames(t *testing.T) {
 		"rsc.io/badfile3",
 		"rsc.io/badfile4",
 		"rsc.io/badfile5",
-		"rsc.io/badfile6",
 	)
 	tg.grepStderrNot(`unzip .*badfile1.*:`, "badfile1 should be OK")
 	tg.grepStderr(`rsc.io/badfile2.*malformed file path "☺.go": invalid char '☺'`, "want diagnosed invalid character")
-	tg.grepStderr(`rsc.io/badfile3.*malformed file path "x@y.go": invalid char '@'`, "want diagnosed invalid character")
+	tg.grepStderr(`rsc.io/badfile3.*malformed file path "x\?y.go": invalid char '\?'`, "want diagnosed invalid character")
 	tg.grepStderr(`rsc.io/badfile4.*case-insensitive file name collision: "x/Y.go" and "x/y.go"`, "want case collision")
 	tg.grepStderr(`rsc.io/badfile5.*case-insensitive file name collision: "x/y" and "x/Y"`, "want case collision")
-	tg.grepStderr(`rsc.io/badfile6.*malformed file path "x/.gitignore/y": leading dot in path element`, "want leading dot in path element")
 }
 
 func TestModBadDomain(t *testing.T) {
