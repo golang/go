@@ -407,7 +407,16 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		stk.Pop()
 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
 
-		deps := []*Action{a1, aFmt}
+		var deps []*Action
+		if a1.buggyInstall {
+			// (*Builder).vet expects deps[0] to be the package
+			// and deps[1] to be "fmt". If we see buggyInstall
+			// here then a1 is an install of a shared library,
+			// and the real package is a1.Deps[0].
+			deps = []*Action{a1.Deps[0], aFmt, a1}
+		} else {
+			deps = []*Action{a1, aFmt}
+		}
 		for _, p1 := range load.PackageList(p.Internal.Imports) {
 			deps = append(deps, b.vetAction(mode, depMode, p1))
 		}
@@ -424,7 +433,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 			// Built-in packages like unsafe.
 			return a
 		}
-		a1.needVet = true
+		deps[0].needVet = true
 		a.Func = (*Builder).vet
 		return a
 	})

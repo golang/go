@@ -1368,7 +1368,9 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 	// so the built target is not in the a1.Objdir tree that b.cleanup(a1) removes.
 	if a1.built == a.Target {
 		a.built = a.Target
-		b.cleanup(a1)
+		if !a.buggyInstall {
+			b.cleanup(a1)
+		}
 		// Whether we're smart enough to avoid a complete rebuild
 		// depends on exactly what the staleness and rebuild algorithms
 		// are, as well as potentially the state of the Go build cache.
@@ -1422,7 +1424,9 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 		}
 	}
 
-	defer b.cleanup(a1)
+	if !a.buggyInstall {
+		defer b.cleanup(a1)
+	}
 
 	return b.moveOrCopyFile(a.Target, a1.built, perm, false)
 }
