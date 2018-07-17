@@ -24,7 +24,7 @@ type Snippet struct {
 func (p *Presentation) newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
 	// TODO instead of pretty-printing the node, should use the original source instead
 	var buf1 bytes.Buffer
-	p.writeNode(&buf1, fset, decl)
+	p.writeNode(&buf1, nil, fset, decl)
 	// wrap text with <pre> tag
 	var buf2 bytes.Buffer
 	buf2.WriteString("<pre>")

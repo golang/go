@@ -31,8 +31,9 @@ type apiVersions map[string]pkgAPIVersions // keyed by Go package ("net/http")
 // form "1.1", "1.2", etc.
 type pkgAPIVersions struct {
 	typeSince   map[string]string            // "Server" -> "1.7"
-	methodSince map[string]map[string]string // "*Server"->"Shutdown"->1.8
+	methodSince map[string]map[string]string // "*Server" ->"Shutdown"->1.8
 	funcSince   map[string]string            // "NewServer" -> "1.7"
+	fieldSince  map[string]map[string]string // "ClientTrace" -> "Got1xxResponse" -> "1.11"
 }
 
 // sinceVersionFunc returns a string (such as "1.7") specifying which Go
@@ -62,10 +63,11 @@ func (v apiVersions) sinceVersionFunc(kind, receiver, name, pkg string) string {
 // versionedRow represents an API feature, a parsed line of a
 // $GOROOT/api/go.*txt file.
 type versionedRow struct {
-	pkg  string // "net/http"
-	kind string // "type", "func", "method", TODO: "const", "var"
-	recv string // for methods, the receiver type ("Server", "*Server")
-	name string // name of type, func, or method
+	pkg        string // "net/http"
+	kind       string // "type", "func", "method", "field" TODO: "const", "var"
+	recv       string // for methods, the receiver type ("Server", "*Server")
+	name       string // name of type, (struct) field, func, method
+	structName string // for struct fields, the outer struct name
 }
 
 // versionParser parses $GOROOT/api/go*.txt files and stores them in in its rows field.
@@ -100,6 +102,7 @@ func (vp *versionParser) parseFile(name string) error {
 				typeSince:   make(map[string]string),
 				methodSince: make(map[string]map[string]string),
 				funcSince:   make(map[string]string),
+				fieldSince:  make(map[string]map[string]string),
 			}
 			vp.res[row.pkg] = pkgi
 		}
@@ -113,6 +116,11 @@ func (vp *versionParser) parseFile(name string) error {
 				pkgi.methodSince[row.recv] = make(map[string]string)
 			}
 			pkgi.methodSince[row.recv][row.name] = ver
+		case "field":
+			if _, ok := pkgi.fieldSince[row.structName]; !ok {
+				pkgi.fieldSince[row.structName] = make(map[string]string)
+			}
+			pkgi.fieldSince[row.structName][row.name] = ver
 		}
 	}
 	return sc.Err()
@@ -139,18 +147,23 @@ func parseRow(s string) (vr versionedRow, ok bool) {
 
 	switch {
 	case strings.HasPrefix(rest, "type "):
-		vr.kind = "type"
 		rest = rest[len("type "):]
 		sp := strings.IndexByte(rest, ' ')
 		if sp == -1 {
 			return
 		}
 		vr.name, rest = rest[:sp], rest[sp+1:]
-		if strings.HasPrefix(rest, "struct, ") {
-			// TODO: handle struct fields
-			return
+		if !strings.HasPrefix(rest, "struct, ") {
+			vr.kind = "type"
+			return vr, true
 		}
-		return vr, true
+		rest = rest[len("struct, "):]
+		if i := strings.IndexByte(rest, ' '); i != -1 {
+			vr.kind = "field"
+			vr.structName = vr.name
+			vr.name = rest[:i]
+			return vr, true
+		}
 	case strings.HasPrefix(rest, "func "):
 		vr.kind = "func"
 		rest = rest[len("func "):]

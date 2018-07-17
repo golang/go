@@ -27,7 +27,12 @@ func TestParseVersionRow(t *testing.T) {
 		},
 		{
 			row: "pkg archive/tar, type Header struct, AccessTime time.Time",
-			// TODO: implement; for now we expect nothing
+			want: versionedRow{
+				pkg:        "archive/tar",
+				kind:       "field",
+				structName: "Header",
+				name:       "AccessTime",
+			},
 		},
 		{
 			row: "pkg archive/tar, method (*Reader) Read([]uint8) (int, error)",
