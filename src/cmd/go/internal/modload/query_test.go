@@ -102,7 +102,7 @@ var queryTests = []struct {
 	{path: queryRepo, query: ">v1.9.9", vers: "v1.9.10-pre1"},
 	{path: queryRepo, query: ">v1.10.0", err: `no matching versions for query ">v1.10.0"`},
 	{path: queryRepo, query: ">=v1.10.0", err: `no matching versions for query ">=v1.10.0"`},
-	{path: queryRepo, query: "6cf84eb", vers: "v0.0.0-20180704023347-6cf84ebaea54"},
+	{path: queryRepo, query: "6cf84eb", vers: "v0.0.2-0.20180704023347-6cf84ebaea54"},
 	{path: queryRepo, query: "start", vers: "v0.0.0-20180704023101-5e9e31667ddf"},
 	{path: queryRepo, query: "7a1b6bf", vers: "v0.1.0"},
 
