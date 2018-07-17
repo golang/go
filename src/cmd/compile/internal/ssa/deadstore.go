@@ -262,6 +262,14 @@ func elimDeadAutosGeneric(f *Func) {
 			for _, v := range b.Values {
 				changed = visit(v) || changed
 			}
+			// keep the auto if its address reaches a control value
+			if b.Control == nil {
+				continue
+			}
+			if n, ok := addr[b.Control]; ok && !used[n] {
+				used[n] = true
+				changed = true
+			}
 		}
 		if !changed {
 			break
