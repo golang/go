@@ -267,7 +267,7 @@ Do Go programs link with C/C++ programs?</h3>
 It is possible to use C and Go together in the same address space,
 but it is not a natural fit and can require special interface software.
 Also, linking C with Go code gives up the memory
-safety and stack management guarantees that Go provides.
+safety and stack management properties that Go provides.
 Sometimes it's absolutely necessary to use C libraries to solve a problem,
 but doing so always introduces an element of risk not present with
 pure Go code, so do so with care.
@@ -2391,20 +2391,25 @@ Go can use the standard syntax one line at a time without special rules.
 Why do garbage collection?  Won't it be too expensive?</h3>
 <p>
 One of the biggest sources of bookkeeping in systems programs is
-memory management.
-In languages in which it is done manually,
+managing the lifetimes of allocated objects.
+In languages such as C in which it is done manually,
 it can consume a significant amount of programmer time and is
 often the cause of pernicious bugs.
-We felt it was critical to eliminate that
-programmer overhead, and advances in garbage collection
+Even in languages like C++ or Rust that provide mechanisms
+to assist, those mechanisms can have a significant effect on the
+design of the software, often adding programming overhead
+of its own.
+We felt it was critical to eliminate such
+programmer overheads, and advances in garbage collection
 technology in the last few years gave us confidence that it
-could be implemented with low enough overhead and no significant
-latency.
+could be implemented cheaply enough, and with low enough
+latency, that it could be a viable approach for networked
+systems.
 </p>
 
 <p>
-Another issue is that a large part of the difficulty of concurrent
-and multi-threaded programming is memory management;
+A related issue is that a large part of the difficulty of concurrent
+and multi-threaded programming is the object lifetime problem:
 as objects get passed among threads it becomes cumbersome
 to guarantee they become freed safely.
 Automatic garbage collection makes concurrent code far easier to write.
@@ -2419,8 +2424,18 @@ simpler because they don't need to specify how memory is managed across them.
 </p>
 
 <p>
+This is not to say that the recent work in languages
+like Rust that bring new ideas to the problem of to managing
+resources is misguided; we encourage this work and are excited to see
+how it evolves.
+But Go takes a more traditional approach by addressing
+object lifetimes through
+garbage collection, and garbage collection only.
+</p>
+
+<p>
 The current implementation is a mark-and-sweep collector.
-If the machine is a multiprocessor, it runs on a separate CPU
+If the machine is a multiprocessor, the collector runs on a separate CPU
 core in parallel with the main program.
 Major work on the collector in recent years has reduced pause times
 often to the sub-millisecond range, even for large heaps,
@@ -2428,6 +2443,10 @@ all but eliminating one of the major objections to garbage collection
 in networked servers.
 Work continues to refine the algorithm, reduce overhead and
 latency further, and to explore new approaches.
+The 2018
+<a href="https://talks.golang.org/2018/ismmkeynote">ISMM keynote</a>
+by Rick Hudson of the Go team
+describes the progress so far and suggests some future approaches.
 </p>
 
 <p>
