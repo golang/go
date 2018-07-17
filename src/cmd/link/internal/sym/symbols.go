@@ -77,7 +77,6 @@ func (syms *Symbols) Lookup(name string, v int) *Symbol {
 		return s
 	}
 	s = syms.Newsym(name, v)
-	s.Extname = s.Name
 	m[name] = s
 	return s
 }
@@ -97,9 +96,10 @@ func (syms *Symbols) IncVersion() int {
 // Rename renames a symbol.
 func (syms *Symbols) Rename(old, new string, v int, reachparent map[*Symbol]*Symbol) {
 	s := syms.hash[v][old]
+	oldExtName := s.Extname()
 	s.Name = new
-	if s.Extname == old {
-		s.Extname = new
+	if oldExtName == old {
+		s.SetExtname(new)
 	}
 	delete(syms.hash[v], old)
 

@@ -724,7 +724,7 @@ func (x machoscmp) Less(i, j int) bool {
 		return k1 < k2
 	}
 
-	return s1.Extname < s2.Extname
+	return s1.Extname() < s2.Extname()
 }
 
 func machogenasmsym(ctxt *Link) {
@@ -763,7 +763,7 @@ func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
 	if !ctxt.DynlinkingGo() || s.Attr.Local() {
 		return false
 	}
-	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(s.Extname, objabi.PathToPrefix(*flagPluginPath)) {
+	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(s.Extname(), objabi.PathToPrefix(*flagPluginPath)) {
 		return true
 	}
 	if strings.HasPrefix(s.Name, "go.itab.") {
@@ -798,13 +798,13 @@ func machosymtab(ctxt *Link) {
 		// symbols like crosscall2 are in pclntab and end up
 		// pointing at the host binary, breaking unwinding.
 		// See Issue #18190.
-		cexport := !strings.Contains(s.Extname, ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
+		cexport := !strings.Contains(s.Extname(), ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
 		if cexport || export {
 			symstr.AddUint8('_')
 		}
 
 		// replace "·" as ".", because DTrace cannot handle it.
-		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
+		Addstring(symstr, strings.Replace(s.Extname(), "·", ".", -1))
 
 		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
