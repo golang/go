@@ -59,8 +59,6 @@ func (syms *Symbols) Newsym(name string, v int) *Symbol {
 	syms.symbolBatch = batch[1:]
 
 	s.Dynid = -1
-	s.Plt = -1
-	s.Got = -1
 	s.Name = name
 	s.Version = int16(v)
 	syms.Allsym = append(syms.Allsym, s)

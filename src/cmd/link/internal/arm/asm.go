@@ -132,7 +132,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
 		return true
@@ -150,7 +150,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		r.Type = objabi.R_CONST // write r->add during relocsym
 		r.Sym = nil
-		r.Add += int64(targ.Got)
+		r.Add += int64(targ.Got())
 		return true
 
 	case 256 + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
@@ -162,7 +162,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		r.Type = objabi.R_PCREL
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
-		r.Add += int64(targ.Got) + 4
+		r.Add += int64(targ.Got()) + 4
 		return true
 
 	case 256 + objabi.RelocType(elf.R_ARM_GOTOFF): // R_ARM_GOTOFF32
@@ -182,7 +182,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
 		return true
@@ -216,7 +216,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
 		return true
@@ -235,7 +235,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 		addpltsym(ctxt, targ)
 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
-		r.Add = int64(targ.Plt)
+		r.Add = int64(targ.Plt())
 		return true
 
 	case objabi.R_ADDR:
@@ -678,7 +678,7 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
 	r.Off = int32(plt.Size)
 	r.Siz = 4
 	r.Type = typ
-	r.Add = int64(s.Got) - 8
+	r.Add = int64(s.Got()) - 8
 
 	plt.Attr |= sym.AttrReachable
 	plt.Size += 4
@@ -686,7 +686,7 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Plt >= 0 {
+	if s.Plt() >= 0 {
 		return
 	}
 
@@ -701,7 +701,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		}
 
 		// .got entry
-		s.Got = int32(got.Size)
+		s.SetGot(int32(got.Size))
 
 		// In theory, all GOT should point to the first PLT entry,
 		// Linux/ARM's dynamic linker will do that for us, but FreeBSD/ARM's
@@ -709,14 +709,14 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		got.AddAddrPlus(ctxt.Arch, plt, 0)
 
 		// .plt entry, this depends on the .got entry
-		s.Plt = int32(plt.Size)
+		s.SetPlt(int32(plt.Size))
 
 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT0) // add lr, pc, #0xXX00000
 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT1) // add lr, lr, #0xYY000
 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT2) // ldr pc, [lr, #0xZZZ]!
 
 		// rel
-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
 
 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_JUMP_SLOT)))
 	} else {
@@ -725,12 +725,12 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 }
 
 func addgotsyminternal(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Got >= 0 {
+	if s.Got() >= 0 {
 		return
 	}
 
 	got := ctxt.Syms.Lookup(".got", 0)
-	s.Got = int32(got.Size)
+	s.SetGot(int32(got.Size))
 
 	got.AddAddrPlus(ctxt.Arch, s, 0)
 
@@ -741,18 +741,18 @@ func addgotsyminternal(ctxt *ld.Link, s *sym.Symbol) {
 }
 
 func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Got >= 0 {
+	if s.Got() >= 0 {
 		return
 	}
 
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
-	s.Got = int32(got.Size)
+	s.SetGot(int32(got.Size))
 	got.AddUint32(ctxt.Arch, 0)
 
 	if ctxt.IsELF {
 		rel := ctxt.Syms.Lookup(".rel", 0)
-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_GLOB_DAT)))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")

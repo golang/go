@@ -236,7 +236,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 
 	r.Off = int32(stub.Size)
 	r.Sym = plt
-	r.Add = int64(targ.Plt)
+	r.Add = int64(targ.Plt())
 	r.Siz = 2
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
@@ -247,7 +247,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 	r = stub.AddRel()
 	r.Off = int32(stub.Size)
 	r.Sym = plt
-	r.Add = int64(targ.Plt)
+	r.Add = int64(targ.Plt())
 	r.Siz = 2
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
@@ -793,7 +793,7 @@ overflow:
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Plt >= 0 {
+	if s.Plt() >= 0 {
 		return
 	}
 
@@ -825,11 +825,11 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		// JMP_SLOT dynamic relocation for it.
 		//
 		// TODO(austin): ABI v1 is different
-		s.Plt = int32(plt.Size)
+		s.SetPlt(int32(plt.Size))
 
 		plt.Size += 8
 
-		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt))
+		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt()))
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_PPC64_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else {

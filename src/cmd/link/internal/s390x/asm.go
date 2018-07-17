@@ -157,7 +157,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add += int64(targ.Plt)
+			r.Add += int64(targ.Plt())
 		}
 		return true
 
@@ -168,7 +168,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add += int64(targ.Plt)
+			r.Add += int64(targ.Plt())
 		}
 		return true
 
@@ -224,7 +224,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_390_DBL
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
-		r.Add += int64(targ.Got)
+		r.Add += int64(targ.Got())
 		r.Add += int64(r.Siz)
 		return true
 	}
@@ -417,7 +417,7 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Plt >= 0 {
+	if s.Plt() >= 0 {
 		return
 	}
 
@@ -472,7 +472,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 
-		s.Plt = int32(plt.Size - 32)
+		s.SetPlt(int32(plt.Size - 32))
 
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
@@ -480,18 +480,18 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 }
 
 func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Got >= 0 {
+	if s.Got() >= 0 {
 		return
 	}
 
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
-	s.Got = int32(got.Size)
+	s.SetGot(int32(got.Size))
 	got.AddUint64(ctxt.Arch, 0)
 
 	if ctxt.IsELF {
 		rela := ctxt.Syms.Lookup(".rela", 0)
-		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_GLOB_DAT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else {

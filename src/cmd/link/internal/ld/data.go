@@ -546,10 +546,10 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
 			}
 			Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
 		}
-		if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
-			targ.Plt = int32(rel.Size)
+		if r.Sym.Plt() == -2 && r.Sym.Got() != -2 { // make dynimport JMP table for PE object files.
+			targ.SetPlt(int32(rel.Size))
 			r.Sym = rel
-			r.Add = int64(targ.Plt)
+			r.Add = int64(targ.Plt())
 
 			// jmp *addr
 			switch ctxt.Arch.Family {
@@ -569,9 +569,9 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
 				rel.AddAddrPlus4(targ, 0)
 				rel.AddUint8(0x90)
 			}
-		} else if r.Sym.Plt >= 0 {
+		} else if r.Sym.Plt() >= 0 {
 			r.Sym = rel
-			r.Add = int64(targ.Plt)
+			r.Add = int64(targ.Plt())
 		}
 	}
 }

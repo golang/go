@@ -358,7 +358,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 
 		if pesym.SectionNumber == 0 { // extern
 			if s.Type == sym.SDYNIMPORT {
-				s.Plt = -2 // flag for dynimport in PE object files.
+				s.SetPlt(-2) // flag for dynimport in PE object files.
 			}
 			if s.Type == sym.SXREF && pesym.Value > 0 { // global data
 				s.Type = sym.SNOPTRDATA
@@ -479,7 +479,7 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
 		s.Type = sym.SXREF
 	}
 	if strings.HasPrefix(symname, "__imp_") {
-		s.Got = -2 // flag for __imp_
+		s.SetGot(-2) // flag for __imp_
 	}
 
 	return s, nil
