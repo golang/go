@@ -12,6 +12,9 @@ package module
 // There are many subtle considerations, including Unicode ambiguity,
 // security, network, and file system representations.
 //
+// This file also defines the set of valid module path and version combinations,
+// another topic with many subtle considerations.
+//
 // Changes to the semantics in this file require approval from rsc.
 
 import (
@@ -50,31 +53,17 @@ func Check(path, version string) error {
 	if !semver.IsValid(version) {
 		return fmt.Errorf("malformed semantic version %v", version)
 	}
-	vm := semver.Major(version)
-	_, pathVersion, _ := SplitPathVersion(path)
-
-	if strings.HasPrefix(pathVersion, ".") {
-		// Special-case gopkg.in path requirements.
-		pathVersion = pathVersion[1:] // cut .
-		if vm == pathVersion {
-			return nil
+	_, pathMajor, _ := SplitPathVersion(path)
+	if !MatchPathMajor(version, pathMajor) {
+		if pathMajor == "" {
+			pathMajor = "v0 or v1"
 		}
-	} else {
-		// Standard path requirements.
-		if pathVersion != "" {
-			pathVersion = pathVersion[1:] // cut /
+		if pathMajor[0] == '.' { // .v1
+			pathMajor = pathMajor[1:]
 		}
-		if vm == "v0" || vm == "v1" {
-			vm = ""
-		}
-		if vm == pathVersion {
-			return nil
-		}
-		if pathVersion == "" {
-			pathVersion = "v0 or v1"
-		}
+		return fmt.Errorf("mismatched module path %v and version %v (want %v)", path, version, pathMajor)
 	}
-	return fmt.Errorf("mismatched module path %v and version %v (want %v)", path, version, pathVersion)
+	return nil
 }
 
 // firstPathOK reports whether r can appear in the first element of a module path.
@@ -328,6 +317,11 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
 // MatchPathMajor reports whether the semantic version v
 // matches the path major version pathMajor.
 func MatchPathMajor(v, pathMajor string) bool {
+	if strings.HasPrefix(v, "v0.0.0-") && pathMajor == ".v1" {
+		// Allow old bug in pseudo-versions that generated v0.0.0- pseudoversion for gopkg .v1.
+		// For example, gopkg.in/yaml.v2@v2.2.1's go.mod requires gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405.
+		return true
+	}
 	m := semver.Major(v)
 	if pathMajor == "" {
 		return m == "v0" || m == "v1"

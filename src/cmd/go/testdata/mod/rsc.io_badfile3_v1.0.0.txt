@@ -7,6 +7,6 @@ module rsc.io/badfile3
 {"Version":"v1.0.0"}
 -- go.mod --
 module rsc.io/badfile3
--- x@y.go --
+-- x?y.go --
 package x
 
