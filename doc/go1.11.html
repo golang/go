@@ -45,6 +45,11 @@ Do not send CLs removing the interior tags from such phrases.
   Support for previous versions of these operating systems has been removed.
 </p>
 
+<p> <!-- CL 121657 -->
+  Go 1.11 supports the upcoming OpenBSD 6.4 release. Due to changes in
+  the OpenBSD kernel, older versions of Go will not work on OpenBSD 6.4.
+</p>
+
 <p>
   There are <a href="https://golang.org/issue/25206">known issues</a> with NetBSD on i386 hardware.
 </p>
@@ -53,6 +58,10 @@ Do not send CLs removing the interior tags from such phrases.
   The race detector is now supported on <code>linux/ppc64le</code>
   and, to a lesser extent, on <code>netbsd/amd64</code>. The NetBSD race detector support
   has <a href="https://golang.org/issue/26403">known issues</a>.
+</p>
+
+<p><!-- CL 109255 -->
+  The memory sanitizer (<code>-msan</code>) is now supported on <code>linux/arm64</code>.
 </p>
 
 <p><!-- CL 93875 -->
@@ -67,6 +76,21 @@ Do not send CLs removing the interior tags from such phrases.
   hardware instructions or software emulation for floating-point computations.
   For 32-bit systems, the environment variable is still <code>GOMIPS</code>,
   as <a href="go1.10#mips">added in Go 1.10</a>.
+</p>
+
+<p><!-- CL 107475 -->
+  On soft-float ARM systems (<code>GOARM=5</code>), Go now uses a more
+  efficient software floating point interface. This is transparent to
+  Go code, but ARM assembly that uses floating-point instructions not
+  guarded on GOARM will break and must be ported to
+  the <a href="https://golang.org/cl/107475">new interface</a>.
+</p>
+
+<p><!-- CL 94076 -->
+  Go 1.11 on ARMv7 no longer requires a Linux kernel configured
+  with <code>KUSER_HELPERS</code>. This setting is enabled in default
+  kernel configurations, but is sometimes disabled in stripped-down
+  configurations.
 </p>
 
 <h3 id="wasm">WebAssembly</h3>
@@ -157,6 +181,88 @@ Do not send CLs removing the interior tags from such phrases.
   please <a href="https://golang.org/issue/new">file an issue</a> to let us know about them.
 </p>
 
+<h3 id="compiler">Compiler toolchain</h3>
+
+<p><!-- CL 109918 -->
+  More functions are now eligible for inlining by default, including
+  functions that call <code>panic</code>.
+</p>
+
+<p><!-- CL 97375 -->
+  The compiler toolchain now supports column information
+  in <a href="/cmd/compile/#hdr-Compiler_Directives">line
+  directives</a>.
+</p>
+
+<p><!-- CL 106797 -->
+  A new package export data format has been introduced.
+  This should be transparent to end users, except for speeding up
+  build times for large Go projects.
+  If it does cause problems, it can be turned off again by
+  passing <code>-gcflags=all=-iexport=false</code> to
+  the <code>go</code> tool when building a binary.
+</p>
+
+<p><!-- CL 100459 -->
+  The compiler now rejects unused variables declared in a type switch
+  guard, such as <code>x</code> in the following example:
+</p>
+<pre>
+func f(v interface{}) {
+	switch x := v.(type) {
+	}
+}
+</pre>
+<p>
+  This was already rejected by both <code>gccgo</code>
+  and <a href="/pkg/go/types/">go/types</a>.
+</p>
+
+<h3 id="assembler">Assembler</h3>
+
+<p><!-- CL 113315 -->
+  The assembler for <code>amd64</code> now accepts AVX512 instructions.
+</p>
+
+<h3 id="debugging">Debugging</h3>
+
+<p><!-- CL 100738, CL 93664 -->
+  The compiler now produces significantly more accurate debug
+  information for optimized binaries, including variable location
+  information, line numbers, and breakpoint locations.
+
+  This should make it possible to debug binaries
+  compiled <em>without</em> <code>-N</code>&nbsp;<code>-l</code>.
+
+  There are still limitations to the quality of the debug information,
+  some of which are fundamental, and some of which will continue to
+  improve with future releases.
+</p>
+
+<p><!-- CL 118276 -->
+  DWARF sections are now compressed by default because of the expanded
+  and more accurate debug information produced by the compiler.
+
+  This is transparent to most ELF tools (such as debuggers on Linux
+  and *BSD) and is supported by the Delve debugger on all platforms,
+  but has limited support in the native tools on macOS and Windows.
+
+  To disable DWARF compression,
+  pass <code>-ldflags=-compressdwarf=false</code> to
+  the <code>go</code> tool when building a binary.
+</p>
+
+<p><!-- CL 109699 -->
+  Go 1.11 adds experimental support for calling Go functions from
+  within a debugger.
+
+  This is useful, for example, to call <code>String</code> methods
+  when paused at a breakpoint.
+  <!-- TODO(austin): Make sure methods calls are actually supported by Delve -->
+
+  This is currently only supported by Delve.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <h3 id="test">Test</h3>
@@ -175,6 +281,12 @@ Do not send CLs removing the interior tags from such phrases.
   "unused variable" error in this case.
 </p>
 
+<p><!-- CL 102696 -->
+  The <code>-memprofile</code> flag
+  to <code>go</code>&nbsp;<code>test</code> now defaults to the
+  "allocs" profile, which records the total bytes allocated since the
+  test began (including garbage-collected bytes).
+</p>
 
 <h3 id="vet">Vet</h3>
 
@@ -185,6 +297,22 @@ Do not send CLs removing the interior tags from such phrases.
   a warning to be printed, and <code>vet</code> to exit with status 1.
 </p>
 
+<h2 id="runtime">Runtime</h2>
+
+<p><!-- CL 85887 -->
+  The runtime now uses a sparse heap layout so there is no longer a
+  limit to the size of the Go heap (previously, the limit was 512GiB).
+  This also fixes rare "address space conflict" failures in mixed Go/C
+  binaries or binaries compiled with <code>-race</code>.
+</p>
+
+<p><!-- CL 108679 -->
+  On macOS, the runtime now uses <code>libSystem.so</code> instead of
+  calling the kernel directly. This should make Go binaries more
+  compatible with future versions of macOS.
+  The <a href="/pkg/syscall">syscall</a> package still makes direct
+  system calls; fixing this is planned for a future release.
+</p>
 
 <h2 id="library">Core library</h2>
 
@@ -200,17 +328,8 @@ Do not send CLs removing the interior tags from such phrases.
   in mind.
 </p>
 
-<!-- CL 113315: https://golang.org/cl/113315: cmd/asm: enable AVX512 -->
-<!-- CL 100459: https://golang.org/cl/100459: cmd/compile: reject type switch with guarded declaration and no cases -->
-<!-- CL 100738: https://golang.org/cl/100738: cmd/compile: turn on DWARF locations lists for ssa vars -->
-<!-- CL 106797: https://golang.org/cl/106797: cmd/compile: enable indexed export format by default -->
-<!-- CL 109918: https://golang.org/cl/109918: More functions are now eligible for inlining by default, including functions that call panic.: cmd/compile: refactor inlining parameters; inline panic -->
-<!-- CL 97375: https://golang.org/cl/97375: cmd/compile, cmd/compile/internal/syntax: print relative column info -->
 <!-- CL 115095: https://golang.org/cl/115095: yes (`go test pkg` now always builds pkg even if there are no test files): cmd/go: output coverage report even if there are no test files -->
 <!-- CL 110395: https://golang.org/cl/110395: cmd/go, cmd/compile: use Windows response files to avoid arg length limits -->
-<!-- CL 107475: https://golang.org/cl/107475: cmd/internal/obj/arm, runtime: delete old ARM softfloat code -->
-<!-- CL 93664: https://golang.org/cl/93664: cmd/link: process is_stmt data into dwarf line tables -->
-<!-- CL 118276: https://golang.org/cl/118276: yes here?: cmd/link: compress DWARF sections in ELF binaries -->
 <!-- CL 112436: https://golang.org/cl/112436: cmd/pprof: add readline support similar to upstream -->
 
 
@@ -523,48 +642,27 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
-    <p><!-- CL 85887 -->
-      TODO: <a href="https://golang.org/cl/85887">https://golang.org/cl/85887</a>: use sparse mappings for the heap
-    </p>
-
-    <p><!-- CL 94076 -->
-      TODO: <a href="https://golang.org/cl/94076">https://golang.org/cl/94076</a>: use native CAS and memory barrier on ARMv7
-    </p>
-
     <p><!-- CL 106156 -->
       TODO: <a href="https://golang.org/cl/106156">https://golang.org/cl/106156</a>: use fixed TLS offsets on darwin/amd64 and darwin/386
     </p>
 
-    <p><!-- CL 109255 -->
-      TODO: <a href="https://golang.org/cl/109255">https://golang.org/cl/109255</a>: enable memory sanitizer on arm64
-    </p>
-
-    <p><!-- CL 109699 -->
-      TODO: <a href="https://golang.org/cl/109699">https://golang.org/cl/109699</a>: support for debugger function calls
-    </p>
-
-    <p><!-- CL 121657 -->
-      TODO: <a href="https://golang.org/cl/121657">https://golang.org/cl/121657</a>: remap stack spans with MAP_STACK on OpenBSD
-    </p>
-
     <p><!-- CL 70993 -->
-      TODO: <a href="https://golang.org/cl/70993">https://golang.org/cl/70993</a>: support tracking goroutine ancestor tracebacks with GODEBUG=&#34;tracebackancestors=N&#34;
+      Setting the <code>GODEBUG=tracebackancestors=<em>N</em></code>
+      environment variable now extends tracebacks with the stacks at
+      which goroutines were created, where <em>N</em> limits the
+      number of ancestor goroutines to report.
     </p>
 
 </dl><!-- runtime -->
 
-<dl id="runtime,cmd/ld"><dt><a href="/pkg/runtime,cmd/ld/">runtime,cmd/ld</a></dt>
-  <dd>
-    <p><!-- CL 108679 -->
-      TODO: <a href="https://golang.org/cl/108679">https://golang.org/cl/108679</a>: on darwin, create theads using libc
-    </p>
-
-</dl><!-- runtime,cmd/ld -->
-
 <dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
   <dd>
     <p><!-- CL 102696 -->
-      TODO: <a href="https://golang.org/cl/102696">https://golang.org/cl/102696</a>: introduce &#34;allocs&#34; profile
+      This release adds a new "allocs" profile type that profiles
+      total number of bytes allocated since the program began
+      (including garbage-collected bytes). This is identical to the
+      existing "heap" profile viewed in <code>-alloc_space</code>
+      mode.
     </p>
 
 </dl><!-- runtime/pprof -->
@@ -577,37 +675,13 @@ Do not send CLs removing the interior tags from such phrases.
 
 </dl><!-- runtime/trace -->
 
-
-</dl><!-- regexp -->
-
-<dl id="runtime,cmd/ld"><dt><a href="/pkg/runtime,cmd/ld/">runtime,cmd/ld</a></dt>
-  <dd>
-    <p><!-- CL 108679 -->
-      TODO: <a href="https://golang.org/cl/108679">https://golang.org/cl/108679</a>: on darwin, create theads using libc
-    </p>
-
-</dl><!-- runtime,cmd/ld -->
-
-<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
-  <dd>
-    <p><!-- CL 63274 -->
-      TODO: <a href="https://golang.org/cl/63274">https://golang.org/cl/63274</a>: user annotation API
-    </p>
-
-</dl><!-- runtime/trace -->
-
-<dl id="runtime/traceback"><dt><a href="/pkg/runtime/traceback/">runtime/traceback</a></dt>
-  <dd>
-    <p><!-- CL 70993 -->
-      TODO: <a href="https://golang.org/cl/70993">https://golang.org/cl/70993</a>: support tracking goroutine ancestor tracebacks with GODEBUG=&#34;tracebackancestors=N&#34;
-    </p>
-
-</dl><!-- runtime/traceback -->
-
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- CL 87095 -->
-      TODO: <a href="https://golang.org/cl/87095">https://golang.org/cl/87095</a>: enable profiling of RWMutex
+      The mutex profile now includes reader/writer contention
+      for <a href="/pkg/sync/#RWMutex"><code>RWMutex</code>.
+      Writer/writer contention was already included in the mutex
+      profile.
     </p>
 
 </dl><!-- sync -->
