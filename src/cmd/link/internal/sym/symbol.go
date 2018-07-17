@@ -18,7 +18,6 @@ type Symbol struct {
 	Type        SymKind
 	Version     int16
 	Attr        Attribute
-	Localentry  uint8
 	Dynid       int32
 	Plt         int32
 	Got         int32
@@ -49,6 +48,7 @@ type AuxSymbol struct {
 	extname    string
 	dynimplib  string
 	dynimpvers string
+	localentry uint8
 }
 
 func (s *Symbol) String() string {
@@ -325,6 +325,23 @@ func (s *Symbol) ResetDyninfo() {
 		s.auxinfo.dynimplib = ""
 		s.auxinfo.dynimpvers = ""
 	}
+}
+
+func (s *Symbol) Localentry() uint8 {
+	if s.auxinfo == nil {
+		return 0
+	}
+	return s.auxinfo.localentry
+}
+
+func (s *Symbol) SetLocalentry(val uint8) {
+	if s.auxinfo == nil {
+		if val != 0 {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.localentry = val
 }
 
 // SortSub sorts a linked-list (by Sub) of *Symbol by Value.

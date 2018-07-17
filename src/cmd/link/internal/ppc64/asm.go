@@ -280,7 +280,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		// callee. Hence, we need to go to the local entry
 		// point.  (If we don't do this, the callee will try
 		// to use r12 to compute r2.)
-		r.Add += int64(r.Sym.Localentry) * 4
+		r.Add += int64(r.Sym.Localentry()) * 4
 
 		if targ.Type == sym.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
