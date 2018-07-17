@@ -1037,8 +1037,7 @@ func TestModList(t *testing.T) {
 	`), 0666))
 	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
 		module x
-		require rsc.io/quote v1.5.1
-		replace rsc.io/sampler v1.3.0 => rsc.io/sampler v1.3.1
+		require rsc.io/quote v1.5.2
 	`), 0666))
 	tg.cd(tg.path("x"))
 
@@ -1051,7 +1050,7 @@ func TestModList(t *testing.T) {
 	tg.grepStdoutNot(`quote@`, "should not have local copy of code")
 
 	tg.run("list", "-f={{.Dir}}", "rsc.io/quote") // downloads code to load package
-	tg.grepStdout(`mod[\\/]rsc.io[\\/]quote@v1.5.1`, "expected cached copy of code")
+	tg.grepStdout(`mod[\\/]rsc.io[\\/]quote@v1.5.2`, "expected cached copy of code")
 	dir := strings.TrimSpace(tg.getStdout())
 	info, err := os.Stat(dir)
 	if err != nil {
@@ -1060,7 +1059,21 @@ func TestModList(t *testing.T) {
 	if info.Mode()&0222 != 0 {
 		t.Fatalf("%s should be unwritable", dir)
 	}
+	info, err = os.Stat(filepath.Join(dir, "buggy"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&0222 != 0 {
+		t.Fatalf("%s should be unwritable", filepath.Join(dir, "buggy"))
+	}
 
+	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+		module x
+		require rsc.io/quote v1.5.1
+		replace rsc.io/sampler v1.3.0 => rsc.io/sampler v1.3.1
+	`), 0666))
+
+	tg.run("list", "-f={{.Dir}}", "rsc.io/quote") // downloads code to load package
 	tg.run("list", "-m", "-f={{.Path}} {{.Version}} {{.Dir}}{{with .Replace}} => {{.Version}} {{.Dir}}{{end}}", "all")
 	tg.grepStdout(`mod[\\/]rsc.io[\\/]quote@v1.5.1`, "expected cached copy of code")
 	tg.grepStdout(`v1.3.0 .*mod[\\/]rsc.io[\\/]sampler@v1.3.1 => v1.3.1 .*@v1.3.1`, "expected v1.3.1 replacement")

@@ -146,7 +146,7 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 
 	// Run over list backward to chmod children before parents.
 	for i := len(dirlist) - 1; i >= 0; i-- {
-		os.Chmod(dir, 0555)
+		os.Chmod(dirlist[i], 0555)
 	}
 
 	return nil
