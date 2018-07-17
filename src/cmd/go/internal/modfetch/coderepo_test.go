@@ -237,7 +237,7 @@ var codeRepoTests = []struct {
 		// redirect to googlesource
 		path:    "golang.org/x/text",
 		rev:     "4e4a3210bb",
-		version: "v0.0.0-20180208041248-4e4a3210bb54",
+		version: "v0.3.1-0.20180208041248-4e4a3210bb54",
 		name:    "4e4a3210bb54bb31f6ab2cdca2edcc0b50c420c1",
 		short:   "4e4a3210bb54",
 		time:    time.Date(2018, 2, 8, 4, 12, 48, 0, time.UTC),
@@ -609,6 +609,9 @@ func (ch *fixedTagsRepo) ReadFileRevs([]string, string, int64) (map[string]*code
 	panic("not impl")
 }
 func (ch *fixedTagsRepo) ReadZip(string, string, int64) (io.ReadCloser, string, error) {
+	panic("not impl")
+}
+func (ch *fixedTagsRepo) RecentTag(string, string) (string, error) {
 	panic("not impl")
 }
 func (ch *fixedTagsRepo) Stat(string) (*codehost.RevInfo, error) { panic("not impl") }

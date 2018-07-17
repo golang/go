@@ -77,6 +77,15 @@ type Repo interface {
 	// contained in the zip file. All files in the zip file are expected to be
 	// nested in a single top-level directory, whose name is not specified.
 	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error)
+
+	// RecentTag returns the most recent tag at or before the given rev
+	// with the given prefix. It should make a best-effort attempt to
+	// find a tag that is a valid semantic version (following the prefix),
+	// or else the result is not useful to the caller, but it need not
+	// incur great expense in doing so. For example, the git implementation
+	// of RecentTag limits git's search to tags matching the glob expression
+	// "v[0-9]*.[0-9]*.[0-9]*" (after the prefix).
+	RecentTag(rev, prefix string) (tag string, err error)
 }
 
 // A Rev describes a single revision in a source code repository.

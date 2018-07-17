@@ -6,15 +6,12 @@ package modfetch
 
 import (
 	"archive/zip"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"regexp"
 	"strings"
-	"time"
 
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modfile"
@@ -194,7 +191,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 			}
 		}
 
-		tagOK := func(v string) string {
+		tagToVersion := func(v string) string {
 			if !strings.HasPrefix(v, p) {
 				return ""
 			}
@@ -212,18 +209,21 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		}
 
 		// If info.Version is OK, use it.
-		if v := tagOK(info.Version); v != "" {
+		if v := tagToVersion(info.Version); v != "" {
 			info2.Version = v
 		} else {
 			// Otherwise look through all known tags for latest in semver ordering.
 			for _, tag := range info.Tags {
-				if v := tagOK(tag); v != "" && semver.Compare(info2.Version, v) < 0 {
+				if v := tagToVersion(tag); v != "" && semver.Compare(info2.Version, v) < 0 {
 					info2.Version = v
 				}
 			}
 			// Otherwise make a pseudo-version.
 			if info2.Version == "" {
-				info2.Version = PseudoVersion(r.pseudoMajor, info.Time, info.Short)
+				tag, _ := r.code.RecentTag(statVers, p)
+				v = tagToVersion(tag)
+				// TODO: Check that v is OK for r.pseudoMajor or else is OK for incompatible.
+				info2.Version = PseudoVersion(r.pseudoMajor, v, info.Time, info.Short)
 			}
 		}
 	}
@@ -231,7 +231,6 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	// Do not allow a successful stat of a pseudo-version for a subdirectory
 	// unless the subdirectory actually does have a go.mod.
 	if IsPseudoVersion(info2.Version) && r.codeDir != "" {
-		// TODO: git describe --first-parent --match 'v[0-9]*' --tags
 		_, _, _, err := r.findDir(info2.Version)
 		if err != nil {
 			// TODO: It would be nice to return an error like "not a module".
@@ -246,9 +245,8 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 func (r *codeRepo) revToRev(rev string) string {
 	if semver.IsValid(rev) {
 		if IsPseudoVersion(rev) {
-			i := strings.Index(rev, "-")
-			j := strings.Index(rev[i+1:], "-")
-			return rev[i+1+j+1:]
+			r, _ := PseudoVersionRev(rev)
+			return r
 		}
 		if semver.Build(rev) == "+incompatible" {
 			rev = rev[:len(rev)-len("+incompatible")]
@@ -597,72 +595,4 @@ func isVendoredPackage(name string) bool {
 		return false
 	}
 	return strings.Contains(name[i:], "/")
-}
-
-func PseudoVersion(major string, t time.Time, rev string) string {
-	if major == "" {
-		major = "v0"
-	}
-	return fmt.Sprintf("%s.0.0-%s-%s", major, t.UTC().Format("20060102150405"), rev)
-}
-
-var ErrNotPseudoVersion = errors.New("not a pseudo-version")
-
-/*
-func ParsePseudoVersion(repo Repo, version string) (rev string, err error) {
-	major := semver.Major(version)
-	if major == "" {
-		return "", ErrNotPseudoVersion
-	}
-	majorPrefix := major + ".0.0-"
-	if !strings.HasPrefix(version, majorPrefix) || !strings.Contains(version[len(majorPrefix):], "-") {
-		return "", ErrNotPseudoVersion
-	}
-	versionSuffix := version[len(majorPrefix):]
-	for i := 0; versionSuffix[i] != '-'; i++ {
-		c := versionSuffix[i]
-		if c < '0' || '9' < c {
-			return "", ErrNotPseudoVersion
-		}
-	}
-	rev = versionSuffix[strings.Index(versionSuffix, "-")+1:]
-	if rev == "" {
-		return "", ErrNotPseudoVersion
-	}
-	if proxyURL != "" {
-		return version, nil
-	}
-	fullRev, t, err := repo.CommitInfo(rev)
-	if err != nil {
-		return "", fmt.Errorf("unknown pseudo-version %s: loading %v: %v", version, rev, err)
-	}
-	v := PseudoVersion(major, t, repo.ShortRev(fullRev))
-	if v != version {
-		return "", fmt.Errorf("unknown pseudo-version %s: %v is %v", version, rev, v)
-	}
-	return fullRev, nil
-}
-*/
-
-var pseudoVersionRE = regexp.MustCompile(`^v[0-9]+\.0\.0-[0-9]{14}-[A-Za-z0-9]+$`)
-
-// IsPseudoVersion reports whether v is a pseudo-version.
-func IsPseudoVersion(v string) bool {
-	return pseudoVersionRE.MatchString(v)
-}
-
-// PseudoVersionTime returns the time stamp of the pseudo-version v.
-// It returns an error if v is not a pseudo-version or if the time stamp
-// embedded in the pseudo-version is not a valid time.
-func PseudoVersionTime(v string) (time.Time, error) {
-	if !IsPseudoVersion(v) {
-		return time.Time{}, fmt.Errorf("not a pseudo-version")
-	}
-	i := strings.Index(v, "-") + 1
-	j := i + strings.Index(v[i:], "-")
-	t, err := time.Parse("20060102150405", v[i:j])
-	if err != nil {
-		return time.Time{}, fmt.Errorf("malformed pseudo-version %q", v)
-	}
-	return t, nil
 }

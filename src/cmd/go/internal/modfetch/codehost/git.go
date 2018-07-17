@@ -602,6 +602,18 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
 	return missing, nil
 }
 
+func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+	_, err = r.Stat(rev)
+	if err != nil {
+		return "", err
+	}
+	out, err := Run(r.dir, "git", "describe", "--first-parent", "--tags", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
 	// TODO: Use maxSize or drop it.
 	args := []string{}
