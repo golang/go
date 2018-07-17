@@ -2925,16 +2925,121 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 	if rs.lastcols == nil {
 		return errors.New("sql: Scan called without calling Next")
 	}
+
+	dest, err := unpackStructs(dest...)
+	if err != nil {
+		return err
+	}
+
 	if len(dest) != len(rs.lastcols) {
 		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
 	}
 	for i, sv := range rs.lastcols {
+
 		err := convertAssign(dest[i], sv)
 		if err != nil {
 			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %v`, i, rs.rowsi.Columns()[i], err)
 		}
 	}
 	return nil
+}
+
+//Not sure if there is a different helper function for this
+//since I think exported fields matter to the scanner anyway
+
+//hasExportedFields method returns true if ALL fields are exported.
+//The input is expected to be a struct pointer.
+func hasExportedFields(obj interface{}) bool {
+	for i := 0; i < reflect.ValueOf(obj).Elem().NumField(); i++ {
+		if !reflect.ValueOf(obj).Elem().Field(i).CanInterface() {
+			return false
+		}
+	}
+	return true
+}
+
+func unpackStructs(objs ...interface{}) ([]interface{}, error) {
+	var result []interface{}
+	for _, e := range objs {
+		tmp, err := unpackStruct(e)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, tmp...)
+	}
+	return result, nil
+}
+
+//Return a list of pointers to fields in the struct.
+//If the object is not a struct, just return that element.
+//There are a couple different cases where that occurs.
+func unpackStruct(obj interface{}) ([]interface{}, error) {
+	var result []interface{}
+
+	if reflect.ValueOf(obj).Kind() != reflect.Ptr {
+		//errors occur later if the element isn't a pointer. exit silently here?
+		return nil, errors.New("unpacking struct: expected pointer to struct")
+	}
+
+	val := reflect.ValueOf(obj).Elem()
+	if val.Kind() != reflect.Struct {
+		return append(result, obj), nil
+	}
+
+	//if obj implements stringer, treat obj like string
+	if _, ok := obj.(fmt.Stringer); ok {
+		return append(result, obj), nil
+	}
+
+	//if obj implements scanner, reat obj as atomic value
+	if _, ok := obj.(Scanner); ok {
+		return append(result, obj), nil
+	}
+
+	//Can't reflect on private data
+	if !hasExportedFields(obj) {
+		return append(result, obj), nil
+	}
+
+	for i := 0; i < val.NumField(); i++ {
+		f := val.Field(i)
+
+		if f.Kind() == reflect.Struct {
+			//fmt.Printf("DEBUG: Traverse Embedded Struct\n")
+			new, err := unpackStruct(f.Addr().Interface())
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, new...)
+
+		} else if f.Kind() == reflect.Ptr {
+
+			if f.Elem().Kind() == reflect.Struct {
+				//fmt.Printf("DEBUG: Traverse Embedded Struct Pointer\n")
+				new, err := unpackStruct(f.Interface())
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, new...)
+
+			} else if f.Elem().Kind() == reflect.Ptr {
+				return nil, errors.New("unpacking struct: double pointer not supported")
+
+			} else {
+				//fmt.Printf("DEBUG: Append pointer directly\n")
+				if f.CanAddr() && f.Addr().CanInterface() { //Need this?
+					result = append(result, f.Interface())
+				}
+			}
+
+		} else {
+			//fmt.Printf("DEBUG: Append pointer by taking address of value\n")
+			if f.CanAddr() && f.Addr().CanInterface() { //Need this?
+				result = append(result, f.Addr().Interface())
+			}
+		}
+	}
+	return result, nil
 }
 
 // rowsCloseHook returns a function so tests may install the
