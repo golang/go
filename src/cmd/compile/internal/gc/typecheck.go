@@ -3152,7 +3152,7 @@ func typecheckcomplit(n *Node) *Node {
 					// dotpath returns the parent embedded types in reverse order.
 					var ep []string
 					for ei := len(p) - 1; ei >= 0; ei-- {
-						ep = append(ep, p[ei].field.Type.Sym.Name)
+						ep = append(ep, p[ei].field.Sym.Name)
 					}
 					ep = append(ep, l.Sym.Name)
 					yyerror("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
