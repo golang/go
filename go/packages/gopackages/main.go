@@ -165,9 +165,8 @@ func main() {
 func print(lpkg *packages.Package) {
 	// title
 	var kind string
-	if lpkg.IsTest {
-		kind = "test "
-	}
+	// TODO(matloob): If IsTest is added back print "test command" or
+	// "test package" for packages with IsTest == true.
 	if lpkg.Name == "main" {
 		kind += "command"
 	} else {

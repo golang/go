@@ -211,9 +211,6 @@ type Package struct {
 	// The name of an executable is "main".
 	Name string
 
-	// IsTest indicates whether this package is a test.
-	IsTest bool
-
 	// Srcs is the list of names of this package's Go
 	// source files as presented to the compiler.
 	// Names are guaranteed to be absolute.

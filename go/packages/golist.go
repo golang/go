@@ -107,10 +107,6 @@ func golistPackages(ctx context.Context, dir string, env []string, cgo, export, 
 			pkgpath = id[:i]
 		}
 
-		// Is this a test?
-		// ("foo [foo.test]" package or "foo.test" command)
-		isTest := p.ForTest != "" || strings.HasSuffix(pkgpath, ".test")
-
 		if pkgpath == "unsafe" {
 			p.GoFiles = nil // ignore fake unsafe.go file
 		}
@@ -156,7 +152,6 @@ func golistPackages(ctx context.Context, dir string, env []string, cgo, export, 
 			ID:        id,
 			Name:      p.Name,
 			PkgPath:   pkgpath,
-			IsTest:    isTest,
 			Srcs:      absJoin(p.Dir, p.GoFiles, p.CgoFiles),
 			OtherSrcs: absJoin(p.Dir, p.SFiles, p.CFiles),
 			imports:   imports,

@@ -172,12 +172,9 @@ files were nearly always missing or stale. Now that 'go build' supports
 caching, all the underlying build systems can guarantee to produce
 export data in a reasonable (amortized) time.
 
-Packages that are part of a test are marked IsTest=true.
-Such packages include in-package tests, external tests,
-and the test "main" packages synthesized by the build system.
-The latter packages are reported as first-class packages,
-avoiding the need for clients (such as go/ssa) to reinvent this
-generation logic.
+Test "main" packages synthesized by the build system are now reported as
+first-class packages, avoiding the need for clients (such as go/ssa) to
+reinvent this generation logic.
 
 One way in which go/packages is simpler than the old loader is in its
 treatment of in-package tests. In-package tests are packages that
@@ -306,5 +303,8 @@ Questions & Tasks
 - Modify stringer to use go/packages, perhaps initially under flag control.
 
 - Bug: "gopackages fmt a.go" doesn't produce an error.
+
+- If necessary, add back an IsTest boolean or expose ForTests on the Package struct.
+  IsTest was removed because we couldn't agree on a useful definition.
 
 */

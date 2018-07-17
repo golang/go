@@ -145,7 +145,7 @@ func TestMetadataImportGraph(t *testing.T) {
 		{"e", "main", "command", "e.go e2.go"},
 		{"errors", "errors", "package", "errors.go"},
 		{"subdir/d", "d", "package", "d.go"},
-		{"subdir/d.test", "main", "test command", "0.go"},
+		{"subdir/d.test", "main", "command", "0.go"},
 		{"unsafe", "unsafe", "package", ""},
 	} {
 		p, ok := all[test.id]
@@ -159,9 +159,6 @@ func TestMetadataImportGraph(t *testing.T) {
 
 		// kind
 		var kind string
-		if p.IsTest {
-			kind = "test "
-		}
 		if p.Name == "main" {
 			kind += "command"
 		} else {
