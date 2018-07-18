@@ -32192,7 +32192,7 @@ func rewriteBlockARM64(b *Block) bool {
 		}
 		// match: (EQ (CMPWconst [0] z:(AND x y)) yes no)
 		// cond: z.Uses == 1
-		// result: (EQ (TST x y) yes no)
+		// result: (EQ (TSTW x y) yes no)
 		for {
 			v := b.Control
 			if v.Op != OpARM64CMPWconst {
@@ -32212,7 +32212,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.Kind = BlockARM64EQ
-			v0 := b.NewValue0(v.Pos, OpARM64TST, types.TypeFlags)
+			v0 := b.NewValue0(v.Pos, OpARM64TSTW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.SetControl(v0)
@@ -33290,7 +33290,7 @@ func rewriteBlockARM64(b *Block) bool {
 		}
 		// match: (NE (CMPWconst [0] z:(AND x y)) yes no)
 		// cond: z.Uses == 1
-		// result: (NE (TST x y) yes no)
+		// result: (NE (TSTW x y) yes no)
 		for {
 			v := b.Control
 			if v.Op != OpARM64CMPWconst {
@@ -33310,7 +33310,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.Kind = BlockARM64NE
-			v0 := b.NewValue0(v.Pos, OpARM64TST, types.TypeFlags)
+			v0 := b.NewValue0(v.Pos, OpARM64TSTW, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
 			b.SetControl(v0)
