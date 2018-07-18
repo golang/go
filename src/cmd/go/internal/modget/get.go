@@ -206,9 +206,15 @@ func runGet(cmd *base.Command, args []string) {
 
 	modload.LoadBuildList()
 
+	// Do not allow any updating of go.mod until we've applied
+	// all the requested changes and checked that the result matches
+	// what was requested.
+	modload.DisallowWriteGoMod()
+
 	// A task holds the state for processing a single get argument (path@vers).
 	type task struct {
-		arg             string           // original argument
+		arg             string // original argument
+		index           int
 		path            string           // package path part of arg
 		forceModulePath bool             // path must be interpreted as a module path
 		vers            string           // version part of arg
@@ -429,6 +435,7 @@ func runGet(cmd *base.Command, args []string) {
 			base.Fatalf("go get: %v", err)
 		}
 		required = upgraded[1:] // slice off upgradeTarget
+		base.ExitIfErrors()
 	}
 
 	// Put together the final build list as described above (1) (2) (3).
@@ -441,8 +448,9 @@ func runGet(cmd *base.Command, args []string) {
 	list = append(list, required...)
 	modload.SetBuildList(list)
 	modload.ReloadBuildList() // note: does not update go.mod
+	base.ExitIfErrors()
 
-	// Apply any needed downgrades.
+	// Scan for and apply any needed downgrades.
 	var down []module.Version
 	for _, m := range modload.BuildList() {
 		t := byPath[m.Path]
@@ -458,8 +466,64 @@ func runGet(cmd *base.Command, args []string) {
 		modload.SetBuildList(list)
 		modload.ReloadBuildList() // note: does not update go.mod
 	}
+	base.ExitIfErrors()
+
+	// Scan for any upgrades lost by the downgrades.
+	lost := make(map[string]string)
+	for _, m := range modload.BuildList() {
+		t := byPath[m.Path]
+		if t != nil && semver.Compare(m.Version, t.m.Version) != 0 {
+			lost[m.Path] = m.Version
+		}
+	}
+	if len(lost) > 0 {
+		desc := func(m module.Version) string {
+			s := m.Path + "@" + m.Version
+			t := byPath[m.Path]
+			if t != nil && t.arg != s {
+				s += " from " + t.arg
+			}
+			return s
+		}
+		downByPath := make(map[string]module.Version)
+		for _, d := range down {
+			downByPath[d.Path] = d
+		}
+		var buf strings.Builder
+		fmt.Fprintf(&buf, "go get: inconsistent versions:")
+		for _, t := range tasks {
+			if lost[t.m.Path] == "" {
+				continue
+			}
+			// We lost t because its build list requires a newer version of something in down.
+			// Figure out exactly what.
+			// Repeatedly constructing the build list is inefficient
+			// if there are MANY command-line arguments,
+			// but at least all the necessary requirement lists are cached at this point.
+			list, err := mvs.BuildList(t.m, reqs)
+			if err != nil {
+				base.Fatalf("go get: %v", err)
+			}
+
+			fmt.Fprintf(&buf, "\n\t%s", desc(t.m))
+			sep := " requires"
+			for _, m := range list {
+				if down, ok := downByPath[m.Path]; ok && semver.Compare(down.Version, m.Version) < 0 {
+					fmt.Fprintf(&buf, "%s %s@%s (not %s)", sep, m.Path, m.Version, desc(down))
+					sep = ","
+				}
+			}
+			if sep != "," {
+				// We have no idea why this happened.
+				// At least report the problem.
+				fmt.Fprintf(&buf, " ended up at %v unexpectedly (please report at golang.org/issue/new)", lost[t.m.Path])
+			}
+		}
+		base.Fatalf("%v", buf.String())
+	}
 
 	// Everything succeeded. Update go.mod.
+	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
 
 	// If -m was specified, we're done after the module work. No download, no build.
