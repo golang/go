@@ -1,0 +1,27 @@
+# Use download cache for -getmode=local.
+env GO111MODULE=on
+env GOPATH=$WORK/gopath1
+cd $WORK/x
+! go list -getmode=local all
+go list all
+go list -getmode=local all
+env GOPROXY=file:///nonexist
+go list -getmode=local all
+grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
+
+# Use download cache as file:/// proxy.
+env GOPATH=$WORK/gopath2
+env GOPROXY=file:///nonexist
+! go list -getmode=local all
+! go list all
+env GOPROXY=file://$WORK/gopath1/src/mod/cache/download
+! go list -getmode=local all
+go list all
+grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
+
+-- $WORK/x/go.mod --
+module x
+require rsc.io/quote v1.5.1
+-- $WORK/x/x.go --
+package x
+import _ "rsc.io/quote"
