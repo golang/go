@@ -453,7 +453,8 @@ for k := range m {
 <dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
   <dd>
     <p><!-- CL 112115 -->
-      TODO: <a href="https://golang.org/cl/112115">https://golang.org/cl/112115</a>: add machine and OSABI constants
+      More <code>ELFOSABI</code> and <code>EM</code> constants have
+      been added.
     </p>
 
 </dl><!-- debug/elf -->
@@ -469,7 +470,10 @@ for k := range m {
 <dl id="encoding/base32"><dt><a href="/pkg/encoding/base32/">encoding/base32</a></dt>
   <dd>
     <p><!-- CL 112516 -->
-      TODO: <a href="https://golang.org/cl/112516">https://golang.org/cl/112516</a>: handle surplus padding consistently
+      The decoder now consistently
+      returns <code>io.ErrUnexpectedEOF</code> for an incomplete
+      chunk. Previously it would return <code>io.EOF</code> in some
+      cases.
     </p>
 
 </dl><!-- encoding/base32 -->
@@ -477,7 +481,9 @@ for k := range m {
 <dl id="encoding/csv"><dt><a href="/pkg/encoding/csv/">encoding/csv</a></dt>
   <dd>
     <p><!-- CL 99696 -->
-      TODO: <a href="https://golang.org/cl/99696">https://golang.org/cl/99696</a>: disallow quote for use as Comma
+      The <code>Reader</code> now rejects attempts to set
+      the <code>Comma</code> field to a double-quote character, as
+      double-quote characters already have a special meaning in CSV.
     </p>
 
 </dl><!-- encoding/csv -->
@@ -485,7 +491,11 @@ for k := range m {
 <dl id="go/scanner"><dt><a href="/pkg/go/scanner/">go/scanner</a></dt>
   <dd>
     <p><!-- CL 100235 -->
-      TODO: <a href="https://golang.org/cl/100235">https://golang.org/cl/100235</a>: report errors for incorrect line directives
+      The package no longer modifies filenames in <code>//line</code>
+      directives when recording position information or reporting
+      errors. Previously the package would change relative paths
+      in <code>//line</code> directives to absolute paths by
+      prepending the source file directory.
     </p>
 
 </dl><!-- go/scanner -->
@@ -493,7 +503,12 @@ for k := range m {
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
     <p><!-- CL 121815 -->
-      TODO: <a href="https://golang.org/cl/121815">https://golang.org/cl/121815</a>: ignore untyped nil arguments to default escapers
+      The package has changed its behavior when a typed interface
+      value is passed to an implicit escaper function. Previously such
+      a value was written out as (an escaped form)
+      of <code>&lt;nil&gt;</code>. Now such values are ignored, just
+      as an untyped <code>nil</code> value is (and always has been)
+      ignored.
     </p>
 
 </dl><!-- html/template -->
@@ -769,10 +784,9 @@ for k := range m {
     </p>
 
     <p><!-- CL 95215 -->
-      In previous versions, passing an untyped nil to a template function
-      would result in an incorrect error stating that the function was missing an argument.
-      Errors resulting from untyped nil values being passed to template-evaluated functions
-      are now properly reported.
+      In previous versions untyped <code>nil</code> values passed to
+      template functions were ignored. They are now passed as normal
+      arguments.
     </p>
 
 </dl><!-- text/template -->
