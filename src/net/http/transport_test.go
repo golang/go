@@ -4764,7 +4764,7 @@ func TestClientTimeoutKillsConn_AfterHeaders(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
 	inHandler := make(chan net.Conn, 1)
-	handlerReadReturned := make(chan bool, 1)
+	handlerResult := make(chan error, 1)
 	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Length", "100")
 		w.(Flusher).Flush()
@@ -4776,17 +4776,29 @@ func TestClientTimeoutKillsConn_AfterHeaders(t *testing.T) {
 		conn.Write([]byte("foo"))
 		inHandler <- conn
 		n, err := conn.Read([]byte{0})
-		if n != 0 || err != io.EOF {
-			t.Errorf("unexpected Read result: %v, %v", n, err)
+		// The error should be io.EOF or "read tcp
+		// 127.0.0.1:35827->127.0.0.1:40290: read: connection
+		// reset by peer" depending on timing. Really we just
+		// care that it returns at all. But if it returns with
+		// data, that's weird.
+		if n != 0 || err == nil {
+			handlerResult <- fmt.Errorf("unexpected Read result: %v, %v", n, err)
+			return
 		}
-		handlerReadReturned <- true
+		handlerResult <- nil
 	}))
 	defer cst.close()
 
-	const timeout = 50 * time.Millisecond
-	cst.c.Timeout = timeout
+	// Set Timeout to something very long but non-zero to exercise
+	// the codepaths that check for it. But rather than wait for it to fire
+	// (which would make the test slow), we send on the req.Cancel channel instead,
+	// which happens to exercise the same code paths.
+	cst.c.Timeout = time.Minute // just to be non-zero, not to hit it.
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	cancel := make(chan struct{})
+	req.Cancel = cancel
 
-	res, err := cst.c.Get(cst.ts.URL)
+	res, err := cst.c.Do(req)
 	if err != nil {
 		select {
 		case <-inHandler:
@@ -4797,27 +4809,25 @@ func TestClientTimeoutKillsConn_AfterHeaders(t *testing.T) {
 		}
 	}
 
+	close(cancel)
 	got, err := ioutil.ReadAll(res.Body)
 	if err == nil {
-		t.Fatal("unexpected result")
+		t.Fatalf("unexpected success; read %q, nil", got)
 	}
-	t.Logf("Read %q, %v", got, err)
 
 	select {
 	case c := <-inHandler:
 		select {
-		case <-handlerReadReturned:
-			// Success.
+		case err := <-handlerResult:
+			if err != nil {
+				t.Errorf("handler: %v", err)
+			}
 			return
 		case <-time.After(5 * time.Second):
 			t.Error("Handler's conn.Read seems to be stuck in Read")
 			c.Close() // close it to unblock Handler
 		}
-	case <-time.After(timeout * 10):
-		// If we didn't get into the Handler in 50ms, that probably means
-		// the builder was just slow and the the Get failed in that time
-		// but never made it to the server. That's fine. We'll usually
-		// test the past above on faster machines.
-		t.Skip("skipping test on slow builder")
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout")
 	}
 }
