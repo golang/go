@@ -1706,7 +1706,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			continue
 		}
 		lsym.Type = sym.SDYNIMPORT
-		lsym.ElfType = elf.ST_TYPE(elfsym.Info)
+		lsym.SetElfType(elf.ST_TYPE(elfsym.Info))
 		lsym.Size = int64(elfsym.Size)
 		if elfsym.Section != elf.SHN_UNDEF {
 			// Set .File for the library that actually defines the symbol.
