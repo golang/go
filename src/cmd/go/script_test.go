@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -288,6 +289,7 @@ var scriptCmds = map[string]func(*testScript, bool, []string){
 	"exec":   (*testScript).cmdExec,
 	"exists": (*testScript).cmdExists,
 	"go":     (*testScript).cmdGo,
+	"grep":   (*testScript).cmdGrep,
 	"mkdir":  (*testScript).cmdMkdir,
 	"rm":     (*testScript).cmdRm,
 	"skip":   (*testScript).cmdSkip,
@@ -406,8 +408,13 @@ func (ts *testScript) cmdExec(neg bool, args []string) {
 
 // exists checks that the list of files exists.
 func (ts *testScript) cmdExists(neg bool, args []string) {
+	var readonly bool
+	if len(args) > 0 && args[0] == "-readonly" {
+		readonly = true
+		args = args[1:]
+	}
 	if len(args) == 0 {
-		ts.fatalf("usage: exists file...")
+		ts.fatalf("usage: exists [-readonly] file...")
 	}
 
 	for _, file := range args {
@@ -422,6 +429,9 @@ func (ts *testScript) cmdExists(neg bool, args []string) {
 		}
 		if err != nil && !neg {
 			ts.fatalf("%s does not exist", file)
+		}
+		if err == nil && !neg && readonly && info.Mode()&0222 != 0 {
+			ts.fatalf("%s exists but is writable", file)
 		}
 	}
 }
@@ -521,20 +531,63 @@ func (ts *testScript) cmdStderr(neg bool, args []string) {
 	scriptMatch(ts, neg, args, ts.stderr, "stderr")
 }
 
+// grep checks that file content matches a regexp.
+// Like stdout/stderr and unlike Unix grep, it accepts Go regexp syntax.
+func (ts *testScript) cmdGrep(neg bool, args []string) {
+	scriptMatch(ts, neg, args, "", "grep")
+}
+
 // scriptMatch implements both stdout and stderr.
 func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
-	if len(args) != 1 {
-		ts.fatalf("usage: %s 'pattern' (%q)", name, args)
+	n := 0
+	if len(args) >= 1 && strings.HasPrefix(args[0], "-count=") {
+		if neg {
+			ts.fatalf("cannot use -count= with negated match")
+		}
+		var err error
+		n, err = strconv.Atoi(args[0][len("-count="):])
+		if err != nil {
+			ts.fatalf("bad -count=: %v", err)
+		}
+		if n < 1 {
+			ts.fatalf("bad -count=: must be at least 1")
+		}
+		args = args[1:]
 	}
-	re, err := regexp.Compile(`(?m)` + args[0])
+
+	extraUsage := ""
+	want := 1
+	if name == "grep" {
+		extraUsage = " file"
+		want = 2
+	}
+	if len(args) != want {
+		ts.fatalf("usage: %s [-count=N] 'pattern' file%s", name, extraUsage)
+	}
+
+	pattern := args[0]
+	re, err := regexp.Compile(`(?m)` + pattern)
 	ts.check(err)
+
+	if name == "grep" {
+		data, err := ioutil.ReadFile(ts.mkabs(args[1]))
+		ts.check(err)
+		text = string(data)
+	}
+
 	if neg {
 		if re.MatchString(text) {
-			ts.fatalf("unexpected match for %#q found in %s: %s %q", args[0], name, text, re.FindString(text))
+			ts.fatalf("unexpected match for %#q found in %s: %s %q", pattern, name, text, re.FindString(text))
 		}
 	} else {
 		if !re.MatchString(text) {
-			ts.fatalf("no match for %#q found in %s", args[0], name)
+			ts.fatalf("no match for %#q found in %s", pattern, name)
+		}
+		if n > 0 {
+			count := len(re.FindAllString(text, -1))
+			if count != n {
+				ts.fatalf("have %d matches for %#q, want %d", count, pattern, n)
+			}
 		}
 	}
 }

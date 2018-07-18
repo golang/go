@@ -97,12 +97,17 @@ The commands are:
   It must (or must not) succeed.
   Note that 'exec' does not terminate the script (unlike in Unix shells).
 
-- [!] exists file...
-  Each of the listed files must (or must not) exist. (Directories are allowed.)
+- [!] exists [-readonly] file...
+  Each of the listed files or directories must (or must not) exist.
+  If -readonly is given, the files or directories must be unwritable.
 
 - [!] go args...
   Run the (test copy of the) go command with the given arguments.
   It must (or must not) succeed.
+
+- [!] grep [-count=N] pattern file
+  The file's content must (or must not) match the regular expression pattern.
+  For positive matches, -count=N specifies an exact number of matches to require.
 
 - mkdir path...
   Create the listed directories, if they do not already exists.
@@ -117,13 +122,13 @@ The commands are:
   The packages named by the path arguments must (or must not)
   be reported as "stale" by the go command.
 
-- [!] stderr pattern
-  Standard error from the most recent exec or go command
-  must (or must not) match the regular expression pattern.
+- [!] stderr [-count=N] pattern
+  Apply the grep command (see above) to the standard error
+  from the most recent exec or go command.
 
-- [!] stdout pattern
-  Standard output from the most recent exec or go command
-  must (or must not) match the regular expression pattern.
+- [!] stdout [-count=N] pattern
+  Apply the grep command (see above) to the standard output
+  from the most recent exec or go command.
 
 - stop [message]
   Stop the test early (marking it as passing), including the message if given.
