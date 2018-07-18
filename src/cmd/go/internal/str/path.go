@@ -19,7 +19,7 @@ func HasPathPrefix(s, prefix string) bool {
 		return true
 	}
 	if len(s) > len(prefix) {
-		if prefix != "" && prefix[len(prefix)-1] == '/' || s[len(prefix)] == '/' {
+		if prefix[len(prefix)-1] == '/' || s[len(prefix)] == '/' {
 			return s[:len(prefix)] == prefix
 		}
 	}
