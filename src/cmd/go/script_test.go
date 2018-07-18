@@ -569,7 +569,9 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 	re, err := regexp.Compile(`(?m)` + pattern)
 	ts.check(err)
 
-	if name == "grep" {
+	isGrep := name == "grep"
+	if isGrep {
+		name = args[1] // for error messages
 		data, err := ioutil.ReadFile(ts.mkabs(args[1]))
 		ts.check(err)
 		text = string(data)
@@ -577,15 +579,24 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 
 	if neg {
 		if re.MatchString(text) {
-			ts.fatalf("unexpected match for %#q found in %s: %s %q", pattern, name, text, re.FindString(text))
+			if isGrep {
+				fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+			}
+			ts.fatalf("unexpected match for %#q found in %s: %s", pattern, name, re.FindString(text))
 		}
 	} else {
 		if !re.MatchString(text) {
+			if isGrep {
+				fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+			}
 			ts.fatalf("no match for %#q found in %s", pattern, name)
 		}
 		if n > 0 {
 			count := len(re.FindAllString(text, -1))
 			if count != n {
+				if isGrep {
+					fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+				}
 				ts.fatalf("have %d matches for %#q, want %d", count, pattern, n)
 			}
 		}
