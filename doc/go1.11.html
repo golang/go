@@ -132,10 +132,6 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="modules">Modules, package versioning, and dependency management</h3>
 <p>
-  <strong>
-    NOTE: This is not present in go1.11beta1 but will be available in future
-    betas and subsequent releases.
-  </strong>
   Go 1.11 adds preliminary support for a <a href="/cmd/go/#hdr-Modules__module_versions__and_more">new concept called “modules,”</a>
   an alternative to GOPATH with integrated support for versioning and
   package distribution.
@@ -711,7 +707,8 @@ func f(v interface{}) {
 <dl id="text/scanner"><dt><a href="/pkg/text/scanner/">text/scanner</a></dt>
   <dd>
     <p><!-- CL 112037 -->
-      TODO: <a href="https://golang.org/cl/112037">https://golang.org/cl/112037</a>: return RawString token rather than String for raw string literals
+      <code>Scan()</code> now returns a <code>RawString</code> token instead of <code>String</code>
+      for raw string literals.
     </p>
 
 </dl><!-- text/scanner -->
@@ -719,11 +716,26 @@ func f(v interface{}) {
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
     <p><!-- CL 84480 -->
-      TODO: <a href="https://golang.org/cl/84480">https://golang.org/cl/84480</a>: add variable assignments
+      Modifying template variables via assignments is now permitted via the <code>=</code> token:
+    </p>
+    <pre>
+  {{"{{"}} $v := "init" {{"}}"}}
+  {{"{{"}} if true {{"}}"}}
+    {{"{{"}} $v = "changed" {{"}}"}}
+  {{"{{"}} end {{"}}"}}
+  v: {{"{{"}} $v {{"}}"}} {{"{{"}}/* "changed" */{{"}}"}}</pre>
+
+    <p>
+      This required backwards-incompatible changes to the <code>text/template/parse</code>
+      package, but was deemed acceptable since the package's documentation clearly states
+      that it isn't intended for general use.
     </p>
 
     <p><!-- CL 95215 -->
-      TODO: <a href="https://golang.org/cl/95215">https://golang.org/cl/95215</a>: differentiate nil from missing arg
+      In previous versions, passing an untyped nil to a template function
+      would result in an incorrect error stating that the function was missing an argument.
+      Errors resulting from untyped nil values being passed to template-evaluated functions
+      are now properly reported.
     </p>
 
 </dl><!-- text/template -->
