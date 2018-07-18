@@ -93,7 +93,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	case UndefinedSym:
 		// ElfType is only set for symbols read from Go shared libraries, but
 		// for other symbols it is left as STT_NOTYPE which is fine.
-		typ = int(x.ElfType)
+		typ = int(x.ElfType())
 
 	case TLSSym:
 		typ = STT_TLS

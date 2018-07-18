@@ -24,18 +24,14 @@ type Symbol struct {
 	LocalElfsym int32
 	Value       int64
 	Size        int64
-	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
-	// is not set for symbols defined by the packages being linked or by symbols
-	// read by ldelf (and so is left as elf.STT_NOTYPE).
-	ElfType  elf.SymType
-	Sub      *Symbol
-	Outer    *Symbol
-	Gotype   *Symbol
-	File     string
-	auxinfo  *AuxSymbol
-	Sect     *Section
-	FuncInfo *FuncInfo
-	Lib      *Library // Package defining this symbol
+	Sub         *Symbol
+	Outer       *Symbol
+	Gotype      *Symbol
+	File        string
+	auxinfo     *AuxSymbol
+	Sect        *Section
+	FuncInfo    *FuncInfo
+	Lib         *Library // Package defining this symbol
 	// P contains the raw symbol data.
 	P []byte
 	R []Reloc
@@ -49,6 +45,10 @@ type AuxSymbol struct {
 	localentry uint8
 	plt        int32
 	got        int32
+	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
+	// is not set for symbols defined by the packages being linked or by symbols
+	// read by ldelf (and so is left as elf.STT_NOTYPE).
+	elftype elf.SymType
 }
 
 func (s *Symbol) String() string {
@@ -376,6 +376,23 @@ func (s *Symbol) SetGot(val int32) {
 		s.makeAuxInfo()
 	}
 	s.auxinfo.got = val
+}
+
+func (s *Symbol) ElfType() elf.SymType {
+	if s.auxinfo == nil {
+		return elf.STT_NOTYPE
+	}
+	return s.auxinfo.elftype
+}
+
+func (s *Symbol) SetElfType(val elf.SymType) {
+	if s.auxinfo == nil {
+		if val == elf.STT_NOTYPE {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.elftype = val
 }
 
 // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
