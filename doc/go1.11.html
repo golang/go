@@ -275,7 +275,7 @@ func f(v interface{}) {
   before running, tests that do not typecheck will now fail.
 
   In particular, tests that contain an unused variable inside a
-  closure compiled with Go1.10, because the Go compiler incorrectly
+  closure compiled with Go 1.10, because the Go compiler incorrectly
   accepted them (<a href="https://golang.org/issues/3059">Issue #3059</a>),
   but will now fail, since <code>go/types</code> correctly reports an
   "unused variable" error in this case.
