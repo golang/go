@@ -1,0 +1,10 @@
+env GO111MODULE=on
+
+# detect root of module tree as root of enclosing git repo
+cd $WORK/test/x
+go list -m all
+stdout '^m$'
+
+-- $WORK/test/.git/config --
+-- $WORK/test/x/x.go --
+package x // import "m/x"

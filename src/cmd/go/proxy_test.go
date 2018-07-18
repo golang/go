@@ -231,6 +231,8 @@ func findHash(m module.Version) string {
 
 var archiveCache par.Cache
 
+var cmdGoDir, _ = os.Getwd()
+
 func readArchive(path, vers string) *txtar.Archive {
 	enc, err := module.EncodePath(path)
 	if err != nil {
