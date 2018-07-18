@@ -158,7 +158,9 @@ func init() {
 		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
 		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
+		fpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
 		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
 	)
 	ops := []opData{
@@ -324,13 +326,15 @@ func init() {
 		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
 
 		// register indexed load
-		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},   // load 64-bit dword from arg0 + arg1, arg2 = mem.
-		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},    // load 32-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVWUloadidx", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"}, // load 32-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},    // load 16-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"}, // load 16-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB", typ: "Int8"},     // load 8-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU", typ: "UInt8"},  // load 8-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},    // load 64-bit dword from arg0 + arg1, arg2 = mem.
+		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},     // load 32-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVWUloadidx", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"},  // load 32-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},     // load 16-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"},  // load 16-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB", typ: "Int8"},      // load 8-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU", typ: "UInt8"},   // load 8-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "FMOVSloadidx", argLength: 3, reg: fp2load, asm: "FMOVS", typ: "Float32"}, // load 32-bit float from arg0 + arg1, arg2=mem.
+		{name: "FMOVDloadidx", argLength: 3, reg: fp2load, asm: "FMOVD", typ: "Float64"}, // load 64-bit float from arg0 + arg1, arg2=mem.
 
 		// shifted register indexed load
 		{name: "MOVHloadidx2", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},    // load 16-bit half-word from arg0 + arg1*2, sign-extended to 64-bit, arg2=mem.
@@ -348,10 +352,12 @@ func init() {
 		{name: "FMOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 
 		// register indexed store
-		{name: "MOVBstoreidx", argLength: 4, reg: gpstore2, asm: "MOVB", typ: "Mem"}, // store 1 byte of arg2 to arg0 + arg1, arg3 = mem.
-		{name: "MOVHstoreidx", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg2 to arg0 + arg1, arg3 = mem.
-		{name: "MOVWstoreidx", argLength: 4, reg: gpstore2, asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg2 to arg0 + arg1, arg3 = mem.
-		{name: "MOVDstoreidx", argLength: 4, reg: gpstore2, asm: "MOVD", typ: "Mem"}, // store 8 bytes of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "MOVBstoreidx", argLength: 4, reg: gpstore2, asm: "MOVB", typ: "Mem"},   // store 1 byte of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "MOVHstoreidx", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"},   // store 2 bytes of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "MOVWstoreidx", argLength: 4, reg: gpstore2, asm: "MOVW", typ: "Mem"},   // store 4 bytes of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "MOVDstoreidx", argLength: 4, reg: gpstore2, asm: "MOVD", typ: "Mem"},   // store 8 bytes of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "FMOVSstoreidx", argLength: 4, reg: fpstore2, asm: "FMOVS", typ: "Mem"}, // store 32-bit float of arg2 to arg0 + arg1, arg3=mem.
+		{name: "FMOVDstoreidx", argLength: 4, reg: fpstore2, asm: "FMOVD", typ: "Mem"}, // store 64-bit float of arg2 to arg0 + arg1, arg3=mem.
 
 		// shifted register indexed store
 		{name: "MOVHstoreidx2", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg2 to arg0 + arg1*2, arg3 = mem.

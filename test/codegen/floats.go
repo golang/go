@@ -55,6 +55,16 @@ func getPi() float64 {
 	return math.Pi
 }
 
+func indexLoad(b0 []float32, b1 float32, idx int) float32 {
+	// arm64:`FMOVS\s\(R[0-9]+\)\(R[0-9]+\),\sF[0-9]+`
+	return b0[idx] * b1
+}
+
+func indexStore(b0 []float64, b1 float64, idx int) {
+	// arm64:`FMOVD\sF[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`
+	b0[idx] = b1
+}
+
 // ----------- //
 //    Fused    //
 // ----------- //

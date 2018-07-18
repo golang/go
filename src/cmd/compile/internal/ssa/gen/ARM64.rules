@@ -650,6 +650,8 @@
 (MOVHload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVHloadidx ptr idx mem)
 (MOVBUload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVBUloadidx ptr idx mem)
 (MOVBload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVBloadidx ptr idx mem)
+(FMOVSload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (FMOVSloadidx ptr idx mem)
+(FMOVDload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (FMOVDloadidx ptr idx mem)
 (MOVDloadidx ptr (MOVDconst [c]) mem) -> (MOVDload [c] ptr mem)
 (MOVDloadidx (MOVDconst [c]) ptr mem) -> (MOVDload [c] ptr mem)
 (MOVWUloadidx ptr (MOVDconst [c]) mem) -> (MOVWUload [c] ptr mem)
@@ -664,6 +666,10 @@
 (MOVBUloadidx (MOVDconst [c]) ptr mem) -> (MOVBUload [c] ptr mem)
 (MOVBloadidx ptr (MOVDconst [c]) mem) -> (MOVBload [c] ptr mem)
 (MOVBloadidx (MOVDconst [c]) ptr mem) -> (MOVBload [c] ptr mem)
+(FMOVSloadidx ptr (MOVDconst [c]) mem) -> (FMOVSload [c] ptr mem)
+(FMOVSloadidx (MOVDconst [c]) ptr mem) -> (FMOVSload [c] ptr mem)
+(FMOVDloadidx ptr (MOVDconst [c]) mem) -> (FMOVDload [c] ptr mem)
+(FMOVDloadidx (MOVDconst [c]) ptr mem) -> (FMOVDload [c] ptr mem)
 
 // shifted register indexed load
 (MOVDload [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil -> (MOVDloadidx8 ptr idx mem)
@@ -731,6 +737,8 @@
 (MOVWstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVWstoreidx ptr idx val mem)
 (MOVHstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVHstoreidx ptr idx val mem)
 (MOVBstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVBstoreidx ptr idx val mem)
+(FMOVDstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (FMOVDstoreidx ptr idx val mem)
+(FMOVSstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (FMOVSstoreidx ptr idx val mem)
 (MOVDstoreidx ptr (MOVDconst [c]) val mem) -> (MOVDstore [c] ptr val mem)
 (MOVDstoreidx (MOVDconst [c]) idx val mem) -> (MOVDstore [c] idx val mem)
 (MOVWstoreidx ptr (MOVDconst [c]) val mem) -> (MOVWstore [c] ptr val mem)
@@ -739,6 +747,10 @@
 (MOVHstoreidx (MOVDconst [c]) idx val mem) -> (MOVHstore [c] idx val mem)
 (MOVBstoreidx ptr (MOVDconst [c]) val mem) -> (MOVBstore [c] ptr val mem)
 (MOVBstoreidx (MOVDconst [c]) idx val mem) -> (MOVBstore [c] idx val mem)
+(FMOVDstoreidx ptr (MOVDconst [c]) val mem) -> (FMOVDstore [c] ptr val mem)
+(FMOVDstoreidx (MOVDconst [c]) idx val mem) -> (FMOVDstore [c] idx val mem)
+(FMOVSstoreidx ptr (MOVDconst [c]) val mem) -> (FMOVSstore [c] ptr val mem)
+(FMOVSstoreidx (MOVDconst [c]) idx val mem) -> (FMOVSstore [c] idx val mem)
 
 // shifted register indexed store
 (MOVDstore [off] {sym} (ADDshiftLL [3] ptr idx) val mem) && off == 0 && sym == nil -> (MOVDstoreidx8 ptr idx val mem)
