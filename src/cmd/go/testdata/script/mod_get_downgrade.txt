@@ -1,0 +1,11 @@
+env GO111MODULE=on
+
+go get rsc.io/quote@v2.0.0
+go list -m all
+stdout 'rsc.io/quote v0.0.0-'
+
+-- go.mod --
+module x
+require rsc.io/quote v1.5.1
+-- x.go --
+package x
