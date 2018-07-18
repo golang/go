@@ -317,6 +317,42 @@ func f(v interface{}) {
   system calls; fixing this is planned for a future release.
 </p>
 
+<h2 id="performance">Performance</h2>
+
+<p>
+As always, the changes are so general and varied that precise
+statements about performance are difficult to make.  Most programs
+should run a bit faster, due to better generated code and
+optimizations in the core library.
+</p>
+
+<h3 id="performance-compiler">Compiler toolchain</h3>
+
+<p><!-- CL 110055 -->
+  The compiler now optimizes map clearing operations of the form:
+</p>
+<pre>
+for k := range m {
+	delete(m, k)
+}
+</pre>
+
+<p><!-- CL 109517 -->
+  The compiler now optimizes slice extension of the form
+  <code>append(s,</code>&nbsp;<code>make([]T,</code>&nbsp;<code>n)...)</code>.
+</p>
+
+<p><!-- CL 100277, CL 105635, CL 109776 -->
+  The compiler now performs significantly more aggressive bounds-check
+  and branch elimination. Notably, it now recognizes transitive
+  relations, so if <code>i&lt;j</code> and <code>j&lt;len(s)</code>,
+  it can use these facts to eliminate the bounds check
+  for <code>s[i]</code>. It also understands simple arithmetic such
+  as <code>s[i-10]</code> and can recognize more inductive cases in
+  loops. Furthermore, the compiler now uses bounds information to more
+  aggressively optimize shift operations.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <p>
