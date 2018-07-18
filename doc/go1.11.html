@@ -661,8 +661,9 @@ func f(v interface{}) {
       This release adds a new "allocs" profile type that profiles
       total number of bytes allocated since the program began
       (including garbage-collected bytes). This is identical to the
-      existing "heap" profile viewed in <code>-alloc_space</code>
-      mode.
+      existing "heap" profile viewed in <code>-alloc_space</code> mode.
+      Now <code>go test -memprofile=...</code> reports an "allocs" profile
+      instead of "heap" profile.
     </p>
 
 </dl><!-- runtime/pprof -->
