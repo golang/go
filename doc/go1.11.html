@@ -300,6 +300,18 @@ func f(v interface{}) {
   a warning to be printed, and <code>vet</code> to exit with status 1.
 </p>
 
+<h3 id="trace">Trace</h3>
+
+<p><!-- CL 63274 -->
+  With the new <code>runtime/trace</code>
+  package's <a href="/pkg/runtime/trace/#hdr-User_annotation">user
+  annotation API</a>, users can record application-level information
+  in execution traces and create groups of related goroutines.
+  The <code>go</code>&nbsp;<code>tool</code>&nbsp;<code>trace</code>
+  command visualizes this information in the trace view and the new
+  user task/span analysis page.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p><!-- CL 85887 -->
@@ -695,65 +707,6 @@ for k := range m {
     </p>
 
 </dl><!-- runtime/pprof -->
-
-<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
-  <dd>
-    <p><!-- CL 63274 -->
-      This release adds a new user annotation API.
-      It introduces three basic building blocks: Log, Span, and Task.
-    </p>
-
-    <p>
-      Log is for basic logging. When called, the message will be recorded
-      to the trace along with timestamp, goroutine id, and stack info.
-    </p>
-
-    <pre>trace.Log(ctx, messageType message)</pre>
-
-    <p>
-      Span can be thought as an extension of log to record interesting
-      time interval during a goroutine's execution. A span is local to a
-      goroutine by definition.
-    </p>
-
-    <pre>
-trace.WithSpan(ctx, "doVeryExpensiveOp", func(ctx context) {
-    /* do something very expensive */
-})</pre>
-
-    <p>
-      Task is higher-level concept that aids tracing of complex operations
-      that encompass multiple goroutines or are asynchronous.
-      For example, an RPC request, a HTTP request, a file write, or a
-      batch job can be traced with a Task.
-    </p>
-
-    <p>
-      Note we chose to design the API around context.Context so it allows
-      easier integration with other tracing tools, often designed around
-      context.Context as well. Log and WithSpan APIs recognize the task
-      information embedded in the context and record it in the trace as
-      well. That allows the Go execution tracer to associate and group
-      the spans and log messages based on the task information.
-    </p>
-
-    <p>
-      In order to create a Task,
-    </p>
-
-    <pre>ctx, end := trace.NewContext(ctx, "myTask")
-defer end()</pre>
-
-    <p>
-      The Go execution tracer measures the time between the task created
-      and the task ended for the task latency.
-    </p>
-
-    <p>
-      More discussion history is in <a href="https://golang.org/cl/59572">golang.org/cl/59572</a>.
-    </p>
-
-</dl><!-- runtime/trace -->
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
