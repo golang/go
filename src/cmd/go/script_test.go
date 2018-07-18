@@ -73,6 +73,7 @@ type testScript struct {
 
 // setup sets up the test execution temporary directory and environment.
 func (ts *testScript) setup() {
+	StartProxy()
 	ts.workdir = filepath.Join(testTmpDir, "script-"+ts.name)
 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "gopath/src"), 0777))
@@ -85,6 +86,7 @@ func (ts *testScript) setup() {
 		"GOCACHE=" + testGOCACHE,
 		"GOOS=" + runtime.GOOS,
 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+		"GOPROXY=" + proxyURL,
 		"GOROOT=" + testGOROOT,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
@@ -604,7 +606,7 @@ func (ts *testScript) parse(line string) []string {
 		quoted = false // currently processing quoted text
 	)
 	for i := 0; ; i++ {
-		if !quoted && (i >= len(line) || line[i] == ' ' || line[i] == '\t' || line[i] == '\r') {
+		if !quoted && (i >= len(line) || line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '#') {
 			// Found arg-separating space.
 			if start >= 0 {
 				arg += ts.expand(line[start:i])
@@ -612,7 +614,7 @@ func (ts *testScript) parse(line string) []string {
 				start = -1
 				arg = ""
 			}
-			if i >= len(line) {
+			if i >= len(line) || line[i] == '#' {
 				break
 			}
 			continue
