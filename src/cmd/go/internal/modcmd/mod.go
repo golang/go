@@ -207,7 +207,7 @@ func init() {
 
 func runMod(cmd *base.Command, args []string) {
 	if modload.Init(); !modload.Enabled() {
-		base.Fatalf("go mod: cannot use outside module")
+		base.Fatalf("go mod: cannot use outside module; see 'go help modules'")
 	}
 	if len(args) != 0 {
 		base.Fatalf("go mod: mod takes no arguments")
