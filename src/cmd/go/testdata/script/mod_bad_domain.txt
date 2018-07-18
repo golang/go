@@ -1,0 +1,21 @@
+env GO111MODULE=on
+
+# explicit get should report errors about bad names
+! go get appengine
+stderr 'cannot find module providing package appengine'
+! go get x/y.z
+stderr 'cannot find module providing package x/y.z'
+
+# build should skip over appengine imports
+! go build
+! stderr appengine
+stderr 'cannot find module providing package nonexistent.rsc.io'
+
+-- go.mod --
+module x
+
+-- x.go --
+package x
+
+import _ "appengine"
+import _ "nonexistent.rsc.io" // domain does not exist
