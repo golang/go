@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
@@ -154,7 +155,8 @@ effectively imply 'go mod -fix'.
 The -sync flag synchronizes go.mod with the source code in the module.
 It adds any missing modules necessary to build the current module's
 packages and dependencies, and it removes unused modules that
-don't provide any relevant packages.
+don't provide any relevant packages. It also adds any missing entries
+to go.sum and removes any unnecessary ones.
 
 The -vendor flag resets the module's vendor directory to include all
 packages needed to build and test all the module's packages.
@@ -291,6 +293,7 @@ func runMod(cmd *base.Command, args []string) {
 				}
 			}
 			modload.SetBuildList(keep)
+			modSyncGoSum() // updates memory copy; WriteGoMod on next line flushes it out
 		}
 		modload.WriteGoMod()
 		if *modVendor {
@@ -529,4 +532,25 @@ func modPrintGraph() {
 		w.WriteString(line)
 	}
 	w.Flush()
+}
+
+// modSyncGoSum resets the go.sum file content
+// to be exactly what's needed for the current go.mod.
+func modSyncGoSum() {
+	// Assuming go.sum already has at least enough from the successful load,
+	// we only have to tell modfetch what needs keeping.
+	reqs := modload.Reqs()
+	keep := make(map[module.Version]bool)
+	var walk func(module.Version)
+	walk = func(m module.Version) {
+		keep[m] = true
+		list, _ := reqs.Required(m)
+		for _, r := range list {
+			if !keep[r] {
+				walk(r)
+			}
+		}
+	}
+	walk(modload.Target)
+	modfetch.TrimGoSum(keep)
 }
