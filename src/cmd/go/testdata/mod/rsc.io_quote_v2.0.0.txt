@@ -1,4 +1,4 @@
-rsc.io/quote@v2.0.0 && cp mod/rsc.io_quote_v0.0.0-20180709153244-fd906ed3b100.txt mod/rsc.io_quote_v2.0.0.txt
+rsc.io/quote@v2.0.0
 
 -- .mod --
 module "rsc.io/quote"

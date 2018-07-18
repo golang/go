@@ -46,7 +46,11 @@ func CachePath(m module.Version, suffix string) (string, error) {
 	if module.CanonicalVersion(m.Version) != m.Version {
 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
 	}
-	return filepath.Join(dir, m.Version+"."+suffix), nil
+	encVer, err := module.EncodeVersion(m.Version)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, encVer+"."+suffix), nil
 }
 
 func DownloadDir(m module.Version) (string, error) {
@@ -63,7 +67,11 @@ func DownloadDir(m module.Version) (string, error) {
 	if module.CanonicalVersion(m.Version) != m.Version {
 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
 	}
-	return filepath.Join(SrcMod, enc+"@"+m.Version), nil
+	encVer, err := module.EncodeVersion(m.Version)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(SrcMod, enc+"@"+encVer), nil
 }
 
 // A cachingRepo is a cache around an underlying Repo,

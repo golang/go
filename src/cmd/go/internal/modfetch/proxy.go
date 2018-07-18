@@ -163,7 +163,11 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 	var data []byte
-	err := webGetBytes(p.url+"/@v/"+pathEscape(rev)+".info", &data)
+	encRev, err := module.EncodeVersion(rev)
+	if err != nil {
+		return nil, err
+	}
+	err = webGetBytes(p.url+"/@v/"+pathEscape(encRev)+".info", &data)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +195,11 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
 
 func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 	var data []byte
-	err := webGetBytes(p.url+"/@v/"+pathEscape(version)+".mod", &data)
+	encVer, err := module.EncodeVersion(version)
+	if err != nil {
+		return nil, err
+	}
+	err = webGetBytes(p.url+"/@v/"+pathEscape(encVer)+".mod", &data)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +208,11 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 
 func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err error) {
 	var body io.ReadCloser
-	err = webGetBody(p.url+"/@v/"+pathEscape(version)+".zip", &body)
+	encVer, err := module.EncodeVersion(version)
+	if err != nil {
+		return "", err
+	}
+	err = webGetBody(p.url+"/@v/"+pathEscape(encVer)+".zip", &body)
 	if err != nil {
 		return "", err
 	}
