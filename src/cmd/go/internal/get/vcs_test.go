@@ -401,6 +401,22 @@ func TestMatchGoImport(t *testing.T) {
 			path: "different.example.com/user/foo",
 			err:  errors.New("meta tags do not match import path"),
 		},
+		{
+			imports: []metaImport{
+				{Prefix: "myitcv.io/blah2", VCS: "mod", RepoRoot: "https://raw.githubusercontent.com/myitcv/pubx/master"},
+				{Prefix: "myitcv.io", VCS: "git", RepoRoot: "https://github.com/myitcv/x"},
+			},
+			path: "myitcv.io/blah2/foo",
+			mi:   metaImport{Prefix: "myitcv.io/blah2", VCS: "mod", RepoRoot: "https://raw.githubusercontent.com/myitcv/pubx/master"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "myitcv.io/blah2", VCS: "mod", RepoRoot: "https://raw.githubusercontent.com/myitcv/pubx/master"},
+				{Prefix: "myitcv.io", VCS: "git", RepoRoot: "https://github.com/myitcv/x"},
+			},
+			path: "myitcv.io/other",
+			mi:   metaImport{Prefix: "myitcv.io", VCS: "git", RepoRoot: "https://github.com/myitcv/x"},
+		},
 	}
 
 	for _, test := range tests {

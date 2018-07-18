@@ -98,6 +98,23 @@ var parseMetaGoImportsTests = []struct {
 		IgnoreMod,
 		[]metaImport{{"chitin.io/chitin", "git", "https://github.com/chitin-io/chitin"}},
 	},
+	{
+		`<meta name="go-import" content="myitcv.io git https://github.com/myitcv/x">
+	        <meta name="go-import" content="myitcv.io/blah2 mod https://raw.githubusercontent.com/myitcv/pubx/master">
+	        `,
+		IgnoreMod,
+		[]metaImport{{"myitcv.io", "git", "https://github.com/myitcv/x"}},
+	},
+	{
+		`<meta name="go-import" content="myitcv.io git https://github.com/myitcv/x">
+	        <meta name="go-import" content="myitcv.io/blah2 mod https://raw.githubusercontent.com/myitcv/pubx/master">
+	        `,
+		PreferMod,
+		[]metaImport{
+			{"myitcv.io/blah2", "mod", "https://raw.githubusercontent.com/myitcv/pubx/master"},
+			{"myitcv.io", "git", "https://github.com/myitcv/x"},
+		},
+	},
 }
 
 func TestParseMetaGoImports(t *testing.T) {
