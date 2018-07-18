@@ -399,6 +399,10 @@ func (p *Package) Record(f *File) {
 		for k, v := range f.Name {
 			if p.Name[k] == nil {
 				p.Name[k] = v
+			} else if p.incompleteTypedef(p.Name[k].Type) {
+				p.Name[k] = v
+			} else if p.incompleteTypedef(v.Type) {
+				// Nothing to do.
 			} else if !reflect.DeepEqual(p.Name[k], v) {
 				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
 			}
@@ -410,4 +414,10 @@ func (p *Package) Record(f *File) {
 		p.Preamble += "\n" + f.Preamble
 	}
 	p.Decl = append(p.Decl, f.AST.Decls...)
+}
+
+// incompleteTypedef reports whether t appears to be an incomplete
+// typedef definition.
+func (p *Package) incompleteTypedef(t *Type) bool {
+	return t == nil || (t.Size == 0 && t.Align == -1)
 }
