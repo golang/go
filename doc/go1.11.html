@@ -42,7 +42,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p> <!-- CL 94255, CL 115038, etc -->
   As <a href="go1.10#ports">announced in the Go 1.10 release notes</a>, Go 1.11 now requires
   OpenBSD 6.2 or later, macOS 10.10 Yosemite or later, or Windows 7 or later;
-  Support for previous versions of these operating systems has been removed.
+  support for previous versions of these operating systems has been removed.
 </p>
 
 <p> <!-- CL 121657 -->
@@ -338,6 +338,11 @@ should run a bit faster, due to better generated code and
 optimizations in the core library.
 </p>
 
+<p><!-- CL 74851 -->
+There were multiple performance changes to the <code>math/big</code>
+package as well as many changes across the tree specific to <code>GOARCH=arm64</code>.
+</p>
+
 <h3 id="performance-compiler">Compiler toolchain</h3>
 
 <p><!-- CL 110055 -->
@@ -528,19 +533,21 @@ for k := range m {
 <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
   <dd>
     <p><!-- CL 105675 -->
-      If the string given to <code>TempFile</code> includes a "*", the random string
-      replaces the "*". For example "myname.*.bat" will result in a random
-      filename such as "myname.123456.bat".  If no "*' is included the
-      old behavior is retained, and the random digits are appended to the end.
+      The <code><a href="/pkg/io/ioutil/#TempFile">TempFile</a></code>
+      function now supports specifying where the random characters in
+      the filename are placed. If the <code>prefix</code> argument
+      includes a "<code>*</code>", the random string replaces the
+      "<code>*</code>". For example, a <code>prefix</code> argument of "<code>myname.*.bat</code>" will
+      result in a random filename such as
+      "<code>myname.123456.bat</code>". If no "<code>*</code>" is
+      included the old behavior is retained, and the random digits are
+      appended to the end.
     </p>
 
 </dl><!-- io/ioutil -->
 
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
-    <p><!-- CL 74851 -->
-      TODO: <a href="https://golang.org/cl/74851">https://golang.org/cl/74851</a>: speed-up addMulVVW on amd64
-    </p>
 
     <p><!-- CL 108996 -->
       <a href="/pkg/math/bin/#Int.ModInverse"><code>ModInverse</code></a> now returns nil when g and n are not relatively prime. The result was previously undefined.
@@ -672,7 +679,9 @@ for k := range m {
     </p>
 
     <p><!-- CL 99337 -->
-      TODO: <a href="https://golang.org/cl/99337">https://golang.org/cl/99337</a>: enable symlink creation on Windows 10
+      <a href="/pkg/os/#Symlink"><code>Symlink</code></a> now works
+      for unprivileged users on Windows 10 on machines with Developer
+      Mode enabled.
     </p>
 
     <p><!-- CL 100077 -->
