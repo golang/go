@@ -309,7 +309,7 @@ func f(v interface{}) {
   binaries or binaries compiled with <code>-race</code>.
 </p>
 
-<p><!-- CL 108679 -->
+<p><!-- CL 108679, CL 106156 -->
   On macOS and iOS, the runtime now uses <code>libSystem.so</code> instead of
   calling the kernel directly. This should make Go binaries more
   compatible with future versions of macOS and iOS.
@@ -637,9 +637,6 @@ func f(v interface{}) {
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
-    <p><!-- CL 106156 -->
-      TODO: <a href="https://golang.org/cl/106156">https://golang.org/cl/106156</a>: use fixed TLS offsets on darwin/amd64 and darwin/386
-    </p>
 
     <p><!-- CL 70993 -->
       Setting the <code>GODEBUG=tracebackancestors=<em>N</em></code>
