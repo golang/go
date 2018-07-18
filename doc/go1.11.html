@@ -728,7 +728,10 @@ func f(v interface{}) {
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- CL 98157 -->
-      TODO: <a href="https://golang.org/cl/98157">https://golang.org/cl/98157</a>: add support for parsing timezones denoted by sign and offset
+	  Parsing of timezones denoted by sign and offset is now
+	  supported. In previous versions, numeric timezone names
+	  (such as <code>+03</code>) were not considered valid, and only
+	  three-letter abbreviations (such as <code>MST</code>) were accepted
+	  when expecting a timezone name.
     </p>
-
 </dl><!-- time -->
