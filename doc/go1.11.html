@@ -558,7 +558,15 @@ for k := range m {
 <dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
   <dd>
     <p><!-- CL 121055 -->
-      TODO: <a href="https://golang.org/cl/121055">https://golang.org/cl/121055</a>: restore 1.9 handling of missing/empty form-data file name
+      The handling of form-data with missing/empty file names has been
+      restored to the behavior in Go 1.9: in the
+      <a href="/pkg/mime/multipart/#Form"><code>Form</code></a> for
+      the form-data part the value is available in
+      the <code>Value</code> field rather than the <code>File</code>
+      field. In Go releases 1.10 through 1.10.3 a form-data part with
+      a missing/empty file name and a non-empty "Content-Type" field
+      was stored in the <code>File</code> field.  This change was a
+      mistake in 1.10 and has been reverted to the 1.9 behavior.
     </p>
 
 </dl><!-- mime/multipart -->
@@ -581,7 +589,8 @@ for k := range m {
     </p>
 
     <p><!-- CL 76391 -->
-      TODO: <a href="https://golang.org/cl/76391">https://golang.org/cl/76391</a>: implement (*syscall.RawConn).Read/Write on Windows
+      The <a href="/pkg/syscall/#RawConn"><code>syscall.RawConn</code></a> <code>Read</code>
+      and <code>Write</code> methods now work correctly on Windows.
     </p>
 
     <p><!-- CL 107715 -->
@@ -593,7 +602,12 @@ for k := range m {
     </p>
 
     <p><!-- CL 108297 -->
-      TODO: <a href="https://golang.org/cl/108297">https://golang.org/cl/108297</a>: calling File leaves the socket in nonblocking mode
+      The <a href="/pkg/net/#TCPConn.File"><code>TCPConn.File</code></a>,
+      <a href="/pkg/net/#UDPConn.File"><code>UDPConn.File</code></a>,
+      <a href="/pkg/net/#UnixCOnn.File"><code>UnixConn.File</code></a>,
+      and <a href="/pkg/net/#IPConn.File"><code>IPConn.File</code></a>
+      methods no longer put the returned <code>*os.File</code> into
+      blocking mode.
     </p>
 
 </dl><!-- net -->
@@ -685,7 +699,13 @@ for k := range m {
     </p>
 
     <p><!-- CL 100077 -->
-      TODO: <a href="https://golang.org/cl/100077">https://golang.org/cl/100077</a>: use poller when NewFile is called with a blocking descriptor.
+      When a non-blocking descriptor is passed
+      to <a href="/pkg/os#NewFile"><code>NewFile</code></a>, the
+      resulting <code>*File</code> will be kept in non-blocking
+      mode. This means that I/O for that <code>*File</code> will use
+      the runtime poller rather than a separate thread, and that
+      the <a href="/pkg/os/#File.SetDeadline"><code>SetDeadline</code></a>
+      methods will work.
     </p>
 
 </dl><!-- os -->
