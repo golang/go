@@ -49,6 +49,10 @@ Module support is enabled only when the current directory is outside
 GOPATH/src and itself contains a go.mod file or is below a directory
 containing a go.mod file.
 
+In module-aware mode, GOPATH no longer defines the meaning of imports
+during a build, but it still stores downloaded dependencies (in GOPATH/src/mod)
+and installed commands (in GOPATH/bin, unless GOBIN is set).
+
 Defining a module
 
 A module is defined by a tree of Go source files with a go.mod file
@@ -245,7 +249,6 @@ For example, these commands are all valid:
 	go get github.com/gorilla/mux@c856192   # records v0.0.0-20180517173623-c85619274f5d
 	go get github.com/gorilla/mux@master    # records current meaning of master
 
-
 Module compatibility and semantic versioning
 
 The go command requires that modules use semantic versions and expects that
@@ -314,7 +317,15 @@ See https://research.swtch.com/vgo-import for more information about
 semantic import versioning, and see https://semver.org/ for more about
 semantic versioning.
 
-Module verification
+Module code layout
+
+For now, see https://research.swtch.com/vgo-module for information
+about how source code in version control systems is mapped to
+module file trees.
+
+TODO: Add documentation to go command.
+
+Module downloading and verification
 
 The go command maintains, in the main module's root directory alongside
 go.mod, a file named go.sum containing the expected cryptographic checksums
@@ -329,6 +340,13 @@ against the main module's go.sum file, instead of recomputing them on
 each command invocation. The 'go mod -verify' command checks that
 the cached copies of module downloads still match both their recorded
 checksums and the entries in go.sum.
+
+The go command can fetch modules from a proxy instead of connecting
+to source control systems directly, according to the setting of the GOPROXY
+environment variable.
+
+See 'go help goproxy' for details about the proxy and also the format of
+the cached downloaded packages.
 
 Modules and vendoring
 
