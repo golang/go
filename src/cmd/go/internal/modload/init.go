@@ -465,8 +465,27 @@ func findImportComment(file string) string {
 	return path
 }
 
+var allowWriteGoMod = true
+
+// DisallowWriteGoMod causes future calls to WriteGoMod to do nothing at all.
+func DisallowWriteGoMod() {
+	allowWriteGoMod = false
+}
+
+// AllowWriteGoMod undoes the effect of DisallowWriteGoMod:
+// future calls to WriteGoMod will update go.mod if needed.
+// Note that any past calls have been discarded, so typically
+// a call to AlowWriteGoMod should be followed by a call to WriteGoMod.
+func AllowWriteGoMod() {
+	allowWriteGoMod = true
+}
+
 // WriteGoMod writes the current build list back to go.mod.
 func WriteGoMod() {
+	if !allowWriteGoMod {
+		return
+	}
+
 	modfetch.WriteGoSum()
 
 	if loaded != nil {
