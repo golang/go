@@ -7,6 +7,7 @@ package httptest
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"testing"
 )
@@ -35,6 +36,19 @@ func TestRecorder(t *testing.T) {
 		return func(rec *ResponseRecorder) error {
 			if rec.Result().StatusCode != wantCode {
 				return fmt.Errorf("Result().StatusCode = %d; want %d", rec.Result().StatusCode, wantCode)
+			}
+			return nil
+		}
+	}
+	hasResultContents := func(want string) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			contentBytes, err := ioutil.ReadAll(rec.Result().Body)
+			if err != nil {
+				return err
+			}
+			contents := string(contentBytes)
+			if contents != want {
+				return fmt.Errorf("Result().Body = %s; want %s", contents, want)
 			}
 			return nil
 		}
@@ -286,4 +300,17 @@ func TestRecorder(t *testing.T) {
 			}
 		})
 	}
+
+	// Test that even when a ResponseRecorder's body is nil,
+	// it will not return a response with nil body.
+	// Issue 26642
+	t.Run("setting ResponseRecord.Body to nil", func(t *testing.T) {
+		rec := NewRecorder()
+		rec.Body = nil
+		check := hasResultContents("")
+		if err := check(rec); err != nil {
+			t.Error(err)
+		}
+	})
+
 }
