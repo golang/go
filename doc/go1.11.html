@@ -307,9 +307,9 @@ func f(v interface{}) {
 </p>
 
 <p><!-- CL 108679 -->
-  On macOS, the runtime now uses <code>libSystem.so</code> instead of
+  On macOS and iOS, the runtime now uses <code>libSystem.so</code> instead of
   calling the kernel directly. This should make Go binaries more
-  compatible with future versions of macOS.
+  compatible with future versions of macOS and iOS.
   The <a href="/pkg/syscall">syscall</a> package still makes direct
   system calls; fixing this is planned for a future release.
 </p>
