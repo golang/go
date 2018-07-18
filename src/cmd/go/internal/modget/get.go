@@ -356,16 +356,17 @@ func runGet(cmd *base.Command, args []string) {
 	}
 	lookup.Do(10, func(item interface{}) {
 		t := item.(*task)
+		if t.vers == "none" {
+			// Wait for downgrade step.
+			t.m = module.Version{Path: t.path, Version: "none"}
+			return
+		}
 		m, err := getQuery(t.path, t.vers, t.forceModulePath)
 		if err != nil {
 			base.Errorf("go get %v: %v", t.arg, err)
 			return
 		}
 		t.m = m
-		if t.vers == "none" {
-			// Wait for downgrade step.
-			return
-		}
 		// If there is no -u, then we don't need to upgrade the
 		// collected requirements separately from the overall
 		// recalculation of the build list (modload.ReloadBuildList below),

@@ -1,8 +1,15 @@
 env GO111MODULE=on
 
-go get rsc.io/quote@v2.0.0
+# downgrade sampler should downgrade quote
+go get rsc.io/sampler@v1.0.0
 go list -m all
-stdout 'rsc.io/quote v0.0.0-'
+stdout 'rsc.io/quote v1.4.0'
+stdout 'rsc.io/sampler v1.0.0'
+
+# downgrade sampler away should downgrade quote further
+go get rsc.io/sampler@none
+go list -m all
+stdout 'rsc.io/quote v1.3.0'
 
 -- go.mod --
 module x
