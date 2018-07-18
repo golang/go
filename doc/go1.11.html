@@ -463,7 +463,7 @@ for k := range m {
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
   <dd>
     <p><!-- CL 110561 -->
-      TODO: <a href="https://golang.org/cl/110561">https://golang.org/cl/110561</a>: allow Marshaling and Unmarshaling private tag class
+      <code>Marshal</code> and <code>Unmarshal</code> now support private class annotations for fields.
     </p>
 
 </dl><!-- encoding/asn1 -->
@@ -518,7 +518,8 @@ for k := range m {
 <dl id="image/gif"><dt><a href="/pkg/image/gif/">image/gif</a></dt>
   <dd>
     <p><!-- CL 93076 -->
-      TODO: <a href="https://golang.org/cl/93076">https://golang.org/cl/93076</a>: support non-looping animated gifs (LoopCount=-1)
+      Non-looping animated GIFs are now supported. They are denoted by having a
+      <code><a href="/pkg/image/gif/#GIF.LoopCount">LoopCount</a></code> of -1.
     </p>
 
 </dl><!-- image/gif -->
@@ -526,7 +527,10 @@ for k := range m {
 <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
   <dd>
     <p><!-- CL 105675 -->
-      TODO: <a href="https://golang.org/cl/105675">https://golang.org/cl/105675</a>: change TempFile prefix to a pattern
+      If the string given to <code>TempFile</code> includes a "*", the random string
+      replaces the "*". For example "myname.*.bat" will result in a random
+      filename such as "myname.123456.bat".  If no "*' is included the
+      old behavior is retained, and the random digits are appended to the end.
     </p>
 
 </dl><!-- io/ioutil -->
