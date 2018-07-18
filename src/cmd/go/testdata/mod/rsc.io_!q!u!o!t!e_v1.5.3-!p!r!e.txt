@@ -1,11 +1,11 @@
-rsc.io/QUOTE v1.5.2
+rsc.io/QUOTE v1.5.3-PRE (sigh)
 
 -- .mod --
 module rsc.io/QUOTE
 
 require rsc.io/quote v1.5.2
 -- .info --
-{"Version":"v1.5.2","Name":"","Short":"","Time":"2018-07-15T16:25:34Z"}
+{"Version":"v1.5.3-PRE","Name":"","Short":"","Time":"2018-07-15T16:25:34Z"}
 -- go.mod --
 module rsc.io/QUOTE
 
