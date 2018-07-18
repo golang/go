@@ -30,6 +30,7 @@ Scripts also have access to these other environment variables:
 	GOCACHE=<actual GOCACHE being used outside the test>
 	GOOS=<target GOOS>
 	GOPATH=$WORK/gopath
+	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>
@@ -48,10 +49,11 @@ by a tiny script engine in ../../script_test.go (not the system shell).
 The script stops and the overall test fails if any particular command fails.
 
 Each line is parsed into a sequence of space-separated command words,
-with environment variable expansion. Adding single quotes around text
-keeps spaces in that text from being treated as word separators and also
-disables environment variable expansion. Inside a single-quoted block of
-text, a repeated single quote indicates a literal single quote, as in:
+with environment variable expansion and # marking an end-of-line comment.
+Adding single quotes around text keeps spaces in that text from being treated
+as word separators and also disables environment variable expansion.
+Inside a single-quoted block of text, a repeated single quote indicates
+a literal single quote, as in:
 
 	'Don''t communicate by sharing memory.'
 

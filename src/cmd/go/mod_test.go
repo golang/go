@@ -69,83 +69,6 @@ func (tg *testgoData) extract(file string) {
 	}
 }
 
-func TestModGO111MODULE(t *testing.T) {
-	tg := testGoModules(t)
-	defer tg.cleanup()
-
-	tg.tempFile("gp/src/x/y/z/go.mod", "module x/y/z")
-	tg.tempFile("gp/src/x/y/z/w/w.txt", "")
-	tg.tempFile("gp/foo/go.mod", "module example.com/mod")
-	tg.tempFile("gp/foo/bar/baz/quux.txt", "")
-	tg.tempFile("gp/bar/x.txt", "")
-	tg.setenv("GOPATH", tg.path("gp"))
-
-	// In GOPATH/src with go.mod.
-	tg.cd(tg.path("gp/src/x/y/z"))
-	tg.setenv("GO111MODULE", "auto")
-	tg.run("env", "GOMOD")
-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
-
-	tg.cd(tg.path("gp/src/x/y/z/w"))
-	tg.run("env", "GOMOD")
-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
-
-	tg.setenv("GO111MODULE", "off")
-	tg.run("env", "GOMOD")
-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
-
-	tg.setenv("GO111MODULE", "on")
-	tg.run("env", "GOMOD")
-	tg.grepStdout(`.*z[/\\]go.mod$`, "expected module mode enabled")
-
-	// In GOPATH/src without go.mod.
-	tg.cd(tg.path("gp/src/x/y"))
-	tg.setenv("GO111MODULE", "auto")
-	tg.run("env", "GOMOD")
-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
-
-	tg.setenv("GO111MODULE", "off")
-	tg.run("env", "GOMOD")
-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
-
-	tg.setenv("GO111MODULE", "on")
-	tg.runFail("env", "GOMOD")
-	tg.grepStderr(`cannot find main module root`, "expected module mode failure")
-
-	// Outside GOPATH/src with go.mod.
-	tg.cd(tg.path("gp/foo"))
-	tg.setenv("GO111MODULE", "auto")
-	tg.run("env", "GOMOD")
-	tg.grepStdout(`.*foo[/\\]go.mod$`, "expected module mode enabled")
-
-	tg.cd(tg.path("gp/foo/bar/baz"))
-	tg.run("env", "GOMOD")
-	tg.grepStdout(`.*foo[/\\]go.mod$`, "expected module mode enabled")
-
-	tg.setenv("GO111MODULE", "off")
-	tg.run("env", "GOMOD")
-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
-}
-
-func TestModVersionsInGOPATHMode(t *testing.T) {
-	tg := testgo(t)
-	tg.setenv("GO111MODULE", "off") // GOPATH mode
-	defer tg.cleanup()
-	tg.makeTempdir()
-
-	tg.runFail("get", "rsc.io/quote@v1.5.1")
-	tg.grepStderr(`go: cannot use path@version syntax in GOPATH mode`, "expected path@version error")
-
-	tg.runFail("build", "rsc.io/quote@v1.5.1")
-	tg.grepStderr(`can't load package:.* cannot use path@version syntax in GOPATH mode`, "expected path@version error")
-
-	tg.setenv("GO111MODULE", "on") // GOPATH mode
-	tg.tempFile("x/go.mod", "module x")
-	tg.cd(tg.path("x"))
-	tg.runFail("build", "rsc.io/quote@v1.5.1")
-	tg.grepStderr(`can't load package:.* can only use path@version syntax with 'go get'`, "expected path@version error")
-}
-
 func TestModFindModuleRoot(t *testing.T) {
 	tg := testGoModules(t)
 	defer tg.cleanup()
@@ -328,16 +251,6 @@ func TestModFindModulePath(t *testing.T) {
 	// }
 }
 
-func TestModImportModFails(t *testing.T) {
-	tg := testGoModules(t)
-	defer tg.cleanup()
-
-	tg.setenv("GO111MODULE", "off")
-	tg.tempFile("gopath/src/mod/foo/foo.go", "package foo")
-	tg.runFail("list", "mod/foo")
-	tg.grepStderr(`disallowed import path`, "expected disallowed because of module cache")
-}
-
 func TestModEdit(t *testing.T) {
 	// Test that local replacements work
 	// and that they can use a dummy name
@@ -500,91 +413,6 @@ replace x.1 => y.1/v2 v2.3.6
 
 require x.3 v1.99.0
 `)
-}
-
-func TestModLocalModule(t *testing.T) {
-	// Test that local replacements work
-	// and that they can use a dummy name
-	// that isn't resolvable and need not even
-	// include a dot. See golang.org/issue/24100.
-	tg := testGoModules(t)
-	defer tg.cleanup()
-
-	tg.must(os.MkdirAll(tg.path("x/y"), 0777))
-	tg.must(os.MkdirAll(tg.path("x/z"), 0777))
-	tg.must(ioutil.WriteFile(tg.path("x/y/go.mod"), []byte(`
-		module x/y
-		require zz v1.0.0
-		replace zz v1.0.0 => ../z
-	`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/y/y.go"), []byte(`package y; import _ "zz"`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/z/go.mod"), []byte(`
-		module x/z
-	`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/z/z.go"), []byte(`package z`), 0666))
-	tg.cd(tg.path("x/y"))
-	tg.run("build")
-}
-
-func TestModTags(t *testing.T) {
-	// Test that build tags are used. See golang.org/issue/24053.
-	tg := testGoModules(t)
-	defer tg.cleanup()
-
-	tg.must(os.MkdirAll(tg.path("x"), 0777))
-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
-		module x
-	`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`// +build tag1
-
-		package y
-	`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/y.go"), []byte(`// +build tag2
-
-		package y
-	`), 0666))
-	tg.cd(tg.path("x"))
-
-	tg.runFail("list", "-f={{.GoFiles}}")
-	tg.grepStderr("build constraints exclude all Go files", "no Go source files without tags")
-
-	tg.run("list", "-f={{.GoFiles}}", "-tags=tag1")
-	tg.grepStdout(`\[x.go\]`, "Go source files for tag1")
-
-	tg.run("list", "-f={{.GoFiles}}", "-tags", "tag2")
-	tg.grepStdout(`\[y.go\]`, "Go source files for tag2")
-
-	tg.run("list", "-f={{.GoFiles}}", "-tags", "tag1 tag2")
-	tg.grepStdout(`\[x.go y.go\]`, "Go source files for tag1 and tag2")
-}
-
-func TestModFSPatterns(t *testing.T) {
-	tg := testGoModules(t)
-	defer tg.cleanup()
-
-	tg.must(os.MkdirAll(tg.path("x/vendor/v"), 0777))
-	tg.must(os.MkdirAll(tg.path("x/y/z/w"), 0777))
-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
-		module m
-	`), 0666))
-
-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`package x`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/vendor/v/v.go"), []byte(`package v; import "golang.org/x/crypto"`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/vendor/v.go"), []byte(`package main`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/y/y.go"), []byte(`package y`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/y/z/go.mod"), []byte(`syntax error`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/y/z/z.go"), []byte(`package z`), 0666))
-	tg.must(ioutil.WriteFile(tg.path("x/y/z/w/w.go"), []byte(`package w`), 0666))
-
-	tg.cd(tg.path("x"))
-	for _, pattern := range []string{"all", "m/...", "./..."} {
-		tg.run("list", pattern)
-		tg.grepStdout(`^m$`, "expected m")
-		tg.grepStdout(`^m/vendor$`, "must see package named vendor")
-		tg.grepStdoutNot(`vendor/`, "must not see vendored packages")
-		tg.grepStdout(`^m/y$`, "expected m/y")
-		tg.grepStdoutNot(`^m/y/z`, "should ignore submodule m/y/z...")
-	}
 }
 
 func TestModGetVersions(t *testing.T) {
