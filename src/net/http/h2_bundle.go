@@ -2044,32 +2044,67 @@ func (f *http2SettingsFrame) IsAck() bool {
 	return f.http2FrameHeader.Flags.Has(http2FlagSettingsAck)
 }
 
-func (f *http2SettingsFrame) Value(s http2SettingID) (v uint32, ok bool) {
+func (f *http2SettingsFrame) Value(id http2SettingID) (v uint32, ok bool) {
 	f.checkValid()
-	buf := f.p
-	for len(buf) > 0 {
-		settingID := http2SettingID(binary.BigEndian.Uint16(buf[:2]))
-		if settingID == s {
-			return binary.BigEndian.Uint32(buf[2:6]), true
+	for i := 0; i < f.NumSettings(); i++ {
+		if s := f.Setting(i); s.ID == id {
+			return s.Val, true
 		}
-		buf = buf[6:]
 	}
 	return 0, false
+}
+
+// Setting returns the setting from the frame at the given 0-based index.
+// The index must be >= 0 and less than f.NumSettings().
+func (f *http2SettingsFrame) Setting(i int) http2Setting {
+	buf := f.p
+	return http2Setting{
+		ID:  http2SettingID(binary.BigEndian.Uint16(buf[i*6 : i*6+2])),
+		Val: binary.BigEndian.Uint32(buf[i*6+2 : i*6+6]),
+	}
+}
+
+func (f *http2SettingsFrame) NumSettings() int { return len(f.p) / 6 }
+
+// HasDuplicates reports whether f contains any duplicate setting IDs.
+func (f *http2SettingsFrame) HasDuplicates() bool {
+	num := f.NumSettings()
+	if num == 0 {
+		return false
+	}
+	// If it's small enough (the common case), just do the n^2
+	// thing and avoid a map allocation.
+	if num < 10 {
+		for i := 0; i < num; i++ {
+			idi := f.Setting(i).ID
+			for j := i + 1; j < num; j++ {
+				idj := f.Setting(j).ID
+				if idi == idj {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	seen := map[http2SettingID]bool{}
+	for i := 0; i < num; i++ {
+		id := f.Setting(i).ID
+		if seen[id] {
+			return true
+		}
+		seen[id] = true
+	}
+	return false
 }
 
 // ForeachSetting runs fn for each setting.
 // It stops and returns the first error.
 func (f *http2SettingsFrame) ForeachSetting(fn func(http2Setting) error) error {
 	f.checkValid()
-	buf := f.p
-	for len(buf) > 0 {
-		if err := fn(http2Setting{
-			http2SettingID(binary.BigEndian.Uint16(buf[:2])),
-			binary.BigEndian.Uint32(buf[2:6]),
-		}); err != nil {
+	for i := 0; i < f.NumSettings(); i++ {
+		if err := fn(f.Setting(i)); err != nil {
 			return err
 		}
-		buf = buf[6:]
 	}
 	return nil
 }
@@ -5240,6 +5275,12 @@ func (sc *http2serverConn) processSettings(f *http2SettingsFrame) error {
 			return http2ConnectionError(http2ErrCodeProtocol)
 		}
 		return nil
+	}
+	if f.NumSettings() > 100 || f.HasDuplicates() {
+		// This isn't actually in the spec, but hang up on
+		// suspiciously large settings frames or those with
+		// duplicate entries.
+		return http2ConnectionError(http2ErrCodeProtocol)
 	}
 	if err := f.ForeachSetting(sc.processSetting); err != nil {
 		return err
