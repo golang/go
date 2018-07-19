@@ -176,7 +176,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// what it called, so that CallersFrames can see if it "called"
 	// sigpanic, and possibly a PC for skipPleaseUseCallersFrames.
 	var rpc [3]uintptr
-	if callers(1+skip-1, rpc[:]) < 2 {
+	if callers(skip, rpc[:]) < 2 {
 		return
 	}
 	var stackExpander stackExpander
