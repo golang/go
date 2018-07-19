@@ -118,6 +118,11 @@ func runGet(cmd *base.Command, args []string) {
 		// Should not happen: main.go should install the separate module-enabled get code.
 		base.Fatalf("go get: modules not implemented")
 	}
+	if cfg.GoModInGOPATH != "" {
+		// Warn about not using modules with GO111MODULE=auto when go.mod exists.
+		// To silence the warning, users can set GO111MODULE=off.
+		fmt.Fprintf(os.Stderr, "go get: warning: modules disabled by GO111MODULE=auto in GOPATH/src;\n\tignoring %s;\n\tsee 'go help modules'\n", base.ShortPath(cfg.GoModInGOPATH))
+	}
 
 	work.BuildInit()
 
