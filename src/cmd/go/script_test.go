@@ -42,10 +42,6 @@ func TestScript(t *testing.T) {
 		file := file
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
 		t.Run(name, func(t *testing.T) {
-			if strings.HasPrefix(name, "mod_") && runtime.GOOS == "windows" {
-				// Windows is very unhappy about the module proxy.
-				t.Skip("golang.org/issue/26457")
-			}
 			t.Parallel()
 			ts := &testScript{t: t, name: name, file: file}
 			ts.setup()
@@ -76,6 +72,10 @@ type testScript struct {
 	start   time.Time         // time phase started
 }
 
+var extraEnvKeys = []string{
+	"SYSTEMROOT", // must be preserved on Windows to find DLLs; golang.org/issue/25210
+}
+
 // setup sets up the test execution temporary directory and environment.
 func (ts *testScript) setup() {
 	StartProxy()
@@ -96,11 +96,18 @@ func (ts *testScript) setup() {
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
 	}
+
 	if runtime.GOOS == "windows" {
 		ts.env = append(ts.env, "exe=.exe")
 	} else {
 		ts.env = append(ts.env, "exe=")
 	}
+	for _, key := range extraEnvKeys {
+		if val := os.Getenv(key); val != "" {
+			ts.env = append(ts.env, key+"="+val)
+		}
+	}
+
 	ts.envMap = make(map[string]string)
 	for _, kv := range ts.env {
 		if i := strings.Index(kv, "="); i >= 0 {
