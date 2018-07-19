@@ -815,12 +815,6 @@ for k := range m {
   {{"{{"}} end {{"}}"}}
   v: {{"{{"}} $v {{"}}"}} {{"{{"}}/* "changed" */{{"}}"}}</pre>
 
-    <p>
-      This required backwards-incompatible changes to the <code>text/template/parse</code>
-      package, but was deemed acceptable since the package's documentation clearly states
-      that it isn't intended for general use.
-    </p>
-
     <p><!-- CL 95215 -->
       In previous versions untyped <code>nil</code> values passed to
       template functions were ignored. They are now passed as normal
