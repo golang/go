@@ -177,10 +177,15 @@ func init() {
 	CmdGet.Flag.Var(&getU, "u", "")
 }
 
-type Pkg struct {
-	Arg  string
-	Path string
-	Vers string
+// A task holds the state for processing a single get argument (path@vers).
+type task struct {
+	arg             string // original argument
+	index           int
+	path            string           // package path part of arg
+	forceModulePath bool             // path must be interpreted as a module path
+	vers            string           // version part of arg
+	m               module.Version   // module version indicated by argument
+	req             []module.Version // m's requirement list (not upgraded)
 }
 
 func runGet(cmd *base.Command, args []string) {
@@ -210,17 +215,6 @@ func runGet(cmd *base.Command, args []string) {
 	// all the requested changes and checked that the result matches
 	// what was requested.
 	modload.DisallowWriteGoMod()
-
-	// A task holds the state for processing a single get argument (path@vers).
-	type task struct {
-		arg             string // original argument
-		index           int
-		path            string           // package path part of arg
-		forceModulePath bool             // path must be interpreted as a module path
-		vers            string           // version part of arg
-		m               module.Version   // module version indicated by argument
-		req             []module.Version // m's requirement list (not upgraded)
-	}
 
 	// Build task and install lists.
 	// The command-line arguments are of the form path@version
@@ -291,10 +285,6 @@ func runGet(cmd *base.Command, args []string) {
 			continue
 		}
 		if path == "all" {
-			if path != arg {
-				base.Errorf("go get %s: cannot use pattern %q with explicit version", arg, arg)
-			}
-
 			// TODO: If *getM, should this be the module pattern "all"?
 
 			// This is the package pattern "all" not the module pattern "all":
@@ -354,7 +344,7 @@ func runGet(cmd *base.Command, args []string) {
 	base.ExitIfErrors()
 
 	// Now we've reduced the upgrade/downgrade work to a list of path@vers pairs (tasks).
-	// Resolve each one and load direct requirements in parallel.
+	// Resolve each one in parallell.
 	reqs := modload.Reqs()
 	var lookup par.Work
 	for _, t := range tasks {
@@ -373,36 +363,21 @@ func runGet(cmd *base.Command, args []string) {
 			return
 		}
 		t.m = m
-		// If there is no -u, then we don't need to upgrade the
-		// collected requirements separately from the overall
-		// recalculation of the build list (modload.ReloadBuildList below),
-		// so don't bother doing it now. Doing it now wouldn't be
-		// any slower (because it would prime the cache for later)
-		// but the larger operation below can report more errors in a single run.
-		if getU != "" {
-			list, err := reqs.Required(m)
-			if err != nil {
-				base.Errorf("go get %v: %v", t.arg, err)
-				return
-			}
-			t.req = list
-		}
 	})
 	base.ExitIfErrors()
 
-	// Now we know the specific version of each path@vers along with its requirements.
+	// Now we know the specific version of each path@vers.
 	// The final build list will be the union of three build lists:
 	//	1. the original build list
 	//	2. the modules named on the command line
 	//	3. the upgraded requirements of those modules (if upgrading)
 	// Start building those lists.
-	// This loop collects (2) and the not-yet-upgraded (3).
+	// This loop collects (2).
 	// Also, because the list of paths might have named multiple packages in a single module
 	// (or even the same package multiple times), now that we know the module for each
 	// package, this loop deduplicates multiple references to a given module.
 	// (If a module is mentioned multiple times, the listed target version must be the same each time.)
 	var named []module.Version
-	var required []module.Version
 	byPath := make(map[string]*task)
 	for _, t := range tasks {
 		prev, ok := byPath[t.m.Path]
@@ -416,7 +391,6 @@ func runGet(cmd *base.Command, args []string) {
 		}
 		byPath[t.m.Path] = t
 		named = append(named, t.m)
-		required = append(required, t.req...)
 	}
 	base.ExitIfErrors()
 
@@ -425,11 +399,13 @@ func runGet(cmd *base.Command, args []string) {
 	// chase down the full list of upgraded dependencies.
 	// This turns required from a not-yet-upgraded (3) to the final (3).
 	// (See list above.)
-	if len(required) > 0 {
+	var required []module.Version
+	if getU != "" {
 		upgraded, err := mvs.UpgradeAll(upgradeTarget, &upgrader{
 			Reqs:    modload.Reqs(),
-			targets: required,
+			targets: named,
 			patch:   getU == "patch",
+			tasks:   byPath,
 		})
 		if err != nil {
 			base.Fatalf("go get: %v", err)
@@ -609,6 +585,7 @@ type upgrader struct {
 	mvs.Reqs
 	targets []module.Version
 	patch   bool
+	tasks   map[string]*task
 }
 
 // upgradeTarget is a fake "target" requiring all the modules to be upgraded.
@@ -631,6 +608,17 @@ func (u *upgrader) Required(m module.Version) ([]module.Version, error) {
 // This special case prevents accidental downgrades
 // when already using a pseudo-version newer than the latest tagged version.
 func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
+	// Allow pkg@vers on the command line to override the upgrade choice v.
+	// If t's version is < v, then we're going to downgrade anyway,
+	// and it's cleaner to avoid moving back and forth and picking up
+	// extraneous other newer dependencies.
+	// If t's version is > v, then we're going to upgrade past v anyway,
+	// and again it's cleaner to avoid moving back and forth picking up
+	// extraneous other newer dependencies.
+	if t := u.tasks[m.Path]; t != nil {
+		return t.m, nil
+	}
+
 	// Note that query "latest" is not the same as
 	// using repo.Latest.
 	// The query only falls back to untagged versions
@@ -667,5 +655,6 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
 	if mTime, err := modfetch.PseudoVersionTime(m.Version); err == nil && info.Time.Before(mTime) {
 		return m, nil
 	}
+
 	return module.Version{Path: m.Path, Version: info.Version}, nil
 }
