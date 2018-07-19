@@ -7,6 +7,7 @@ package par
 import (
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestWork(t *testing.T) {
@@ -28,6 +29,30 @@ func TestWork(t *testing.T) {
 	if n != N+1 {
 		t.Fatalf("ran %d items, expected %d", n, N+1)
 	}
+}
+
+func TestWorkParallel(t *testing.T) {
+	var w Work
+
+	for tries := 0; tries < 10; tries++ {
+		const N = 100
+		for i := 0; i < N; i++ {
+			w.Add(i)
+		}
+		start := time.Now()
+		var n int32
+		w.Do(N, func(x interface{}) {
+			time.Sleep(1 * time.Millisecond)
+			atomic.AddInt32(&n, +1)
+		})
+		if n != N {
+			t.Fatalf("par.Work.Do did not do all the work")
+		}
+		if time.Since(start) < N/2*time.Millisecond {
+			return
+		}
+	}
+	t.Fatalf("par.Work.Do does not seem to be parallel")
 }
 
 func TestCache(t *testing.T) {
