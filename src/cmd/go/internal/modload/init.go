@@ -153,6 +153,9 @@ func Init() {
 	} else {
 		if inGOPATH && !MustUseModules {
 			// No automatic enabling in GOPATH.
+			if root, _ := FindModuleRoot(cwd, "", false); root != "" {
+				cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
+			}
 			return
 		}
 		root, _ := FindModuleRoot(cwd, "", MustUseModules)
