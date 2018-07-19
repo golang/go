@@ -158,13 +158,39 @@ func CmpZero4(a int64, ptr *int) {
 	}
 }
 
-func CmpToZero(a, b int32) int32 {
-	if a&b < 0 { // arm:`TST`,-`AND`
+func CmpToZero(a, b, d int32) int32 {
+	// arm:`TST`,-`AND`
+	// arm64:`TSTW`,-`AND`
+	c0 := a&b < 0
+	// arm:`CMN`,-`ADD`
+	// arm64:`CMNW`,-`ADD`
+	c1 := a+b < 0
+	// arm:`TEQ`,-`XOR`
+	c2 := a^b < 0
+	// arm64:`TST`,-`AND`
+	c3 := int64(a)&int64(b) < 0
+	// arm64:`CMN`,-`ADD`
+	c4 := int64(a)+int64(b) < 0
+	// not optimized to CMNW/CMN due to further use of b+d
+	// arm64:`ADD`,-`CMNW`
+	c5 := b+d == 0
+	// not optimized to TSTW/TST due to further use of a&d
+	// arm64:`AND`,-`TSTW`
+	c6 := a&d >= 0
+	if c0 {
 		return 1
-	} else if a+b < 0 { // arm:`CMN`,-`ADD`
+	} else if c1 {
 		return 2
-	} else if a^b < 0 { // arm:`TEQ`,-`XOR`
+	} else if c2 {
 		return 3
+	} else if c3 {
+		return 4
+	} else if c4 {
+		return 5
+	} else if c5 {
+		return b + d
+	} else if c6 {
+		return a & d
 	} else {
 		return 0
 	}
