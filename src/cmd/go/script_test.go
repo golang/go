@@ -95,6 +95,7 @@ func (ts *testScript) setup() {
 		"GOROOT=" + testGOROOT,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
+		":=" + string(os.PathListSeparator),
 	}
 
 	if runtime.GOOS == "windows" {
