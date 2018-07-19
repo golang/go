@@ -68,12 +68,12 @@ type printfExport struct {
 var printfImported = make(map[string]map[string]int)
 
 type printfWrapper struct {
-	name       string
-	fn         *ast.FuncDecl
-	format     *ast.Field
-	args       *ast.Field
-	callers    []printfCaller
-	printfLike bool
+	name    string
+	fn      *ast.FuncDecl
+	format  *ast.Field
+	args    *ast.Field
+	callers []printfCaller
+	failed  bool // if true, not a printf wrapper
 }
 
 type printfCaller struct {
@@ -168,6 +168,33 @@ func findPrintfLike(pkg *Package) {
 	for _, w := range wrappers {
 		// Scan function for calls that could be to other printf-like functions.
 		ast.Inspect(w.fn.Body, func(n ast.Node) bool {
+			if w.failed {
+				return false
+			}
+
+			// TODO: Relax these checks; issue 26555.
+			if assign, ok := n.(*ast.AssignStmt); ok {
+				for _, lhs := range assign.Lhs {
+					if match(lhs, w.format) || match(lhs, w.args) {
+						// Modifies the format
+						// string or args in
+						// some way, so not a
+						// simple wrapper.
+						w.failed = true
+						return false
+					}
+				}
+			}
+			if un, ok := n.(*ast.UnaryExpr); ok && un.Op == token.AND {
+				if match(un.X, w.format) || match(un.X, w.args) {
+					// Taking the address of the
+					// format string or args,
+					// so not a simple wrapper.
+					w.failed = true
+					return false
+				}
+			}
+
 			call, ok := n.(*ast.CallExpr)
 			if !ok || len(call.Args) == 0 || !match(call.Args[len(call.Args)-1], w.args) {
 				return true
