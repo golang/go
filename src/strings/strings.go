@@ -947,21 +947,22 @@ func Index(s, substr string) int {
 		if len(s) <= bytealg.MaxBruteForce {
 			return bytealg.IndexString(s, substr)
 		}
-		c := substr[0]
+		c0 := substr[0]
+		c1 := substr[1]
 		i := 0
-		t := s[:len(s)-n+1]
+		t := len(s) - n + 1
 		fails := 0
-		for i < len(t) {
-			if t[i] != c {
+		for i < t {
+			if s[i] != c0 {
 				// IndexByte is faster than bytealg.IndexString, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(t[i:], c)
+				o := IndexByte(s[i:t], c0)
 				if o < 0 {
 					return -1
 				}
 				i += o
 			}
-			if s[i:i+n] == substr {
+			if s[i+1] == c1 && s[i:i+n] == substr {
 				return i
 			}
 			fails++
@@ -977,24 +978,25 @@ func Index(s, substr string) int {
 		}
 		return -1
 	}
-	c := substr[0]
+	c0 := substr[0]
+	c1 := substr[1]
 	i := 0
-	t := s[:len(s)-n+1]
+	t := len(s) - n + 1
 	fails := 0
-	for i < len(t) {
-		if t[i] != c {
-			o := IndexByte(t[i:], c)
+	for i < t {
+		if s[i] != c0 {
+			o := IndexByte(s[i:t], c0)
 			if o < 0 {
 				return -1
 			}
 			i += o
 		}
-		if s[i:i+n] == substr {
+		if s[i+1] == c1 && s[i:i+n] == substr {
 			return i
 		}
 		i++
 		fails++
-		if fails >= 4+i>>4 && i < len(t) {
+		if fails >= 4+i>>4 && i < t {
 			// See comment in ../bytes/bytes_generic.go.
 			j := indexRabinKarp(s[i:], substr)
 			if j < 0 {
