@@ -42,6 +42,10 @@ func TestScript(t *testing.T) {
 		file := file
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
 		t.Run(name, func(t *testing.T) {
+			if strings.HasPrefix(name, "mod_") && runtime.GOOS == "windows" {
+				// Windows is very unhappy about the module proxy.
+				t.Skip("golang.org/issue/26457")
+			}
 			t.Parallel()
 			ts := &testScript{t: t, name: name, file: file}
 			ts.setup()
