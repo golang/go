@@ -849,21 +849,22 @@ func Index(s, sep []byte) int {
 		if len(s) <= bytealg.MaxBruteForce {
 			return bytealg.Index(s, sep)
 		}
-		c := sep[0]
+		c0 := sep[0]
+		c1 := sep[1]
 		i := 0
-		t := s[:len(s)-n+1]
+		t := len(s) - n + 1
 		fails := 0
-		for i < len(t) {
-			if t[i] != c {
+		for i < t {
+			if s[i] != c0 {
 				// IndexByte is faster than bytealg.Index, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(t[i:], c)
+				o := IndexByte(s[i:t], c0)
 				if o < 0 {
 					return -1
 				}
 				i += o
 			}
-			if Equal(s[i:i+n], sep) {
+			if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 				return i
 			}
 			fails++
@@ -879,24 +880,25 @@ func Index(s, sep []byte) int {
 		}
 		return -1
 	}
-	c := sep[0]
+	c0 := sep[0]
+	c1 := sep[1]
 	i := 0
 	fails := 0
-	t := s[:len(s)-n+1]
-	for i < len(t) {
-		if t[i] != c {
-			o := IndexByte(t[i:], c)
+	t := len(s) - n + 1
+	for i < t {
+		if s[i] != c0 {
+			o := IndexByte(s[i:t], c0)
 			if o < 0 {
 				break
 			}
 			i += o
 		}
-		if Equal(s[i:i+n], sep) {
+		if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 			return i
 		}
 		i++
 		fails++
-		if fails >= 4+i>>4 && i < len(t) {
+		if fails >= 4+i>>4 && i < t {
 			// Give up on IndexByte, it isn't skipping ahead
 			// far enough to be better than Rabin-Karp.
 			// Experiments (using IndexPeriodic) suggest
