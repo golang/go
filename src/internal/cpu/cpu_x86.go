@@ -84,11 +84,14 @@ func doinit() {
 	X86.HasOSXSAVE = isSet(ecx1, cpuid_OSXSAVE)
 
 	osSupportsAVX := false
+	osSupportsAVX512 := false
 	// For XGETBV, OSXSAVE bit is required and sufficient.
 	if X86.HasOSXSAVE {
 		eax, _ := xgetbv()
 		// Check if XMM and YMM registers have OS support.
 		osSupportsAVX = isSet(eax, 1<<1) && isSet(eax, 1<<2)
+		// Check if ZMM registers have OS support.
+		osSupportsAVX512 = (eax>>5)&7 == 7 && (eax>>1)&3 == 3
 	}
 
 	X86.HasAVX = isSet(ecx1, cpuid_AVX) && osSupportsAVX
@@ -100,9 +103,17 @@ func doinit() {
 	_, ebx7, _, _ := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
+	X86.HasAVX512 = hasAVX512(ebx7) && osSupportsAVX512
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
+}
+
+func hasAVX512(value uint32) bool {
+	return isSet(16, ebx) && //  AVX512F
+		isSet(17, ebx) && //  AVX512DQ
+		isSet(30, ebx) && // AVX512BW
+		isSet(31, ebx) // AVX512VL
 }
 
 func isSet(hwc uint32, value uint32) bool {
