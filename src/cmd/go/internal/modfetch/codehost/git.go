@@ -378,7 +378,7 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 // statLocal returns a RevInfo describing rev in the local git repository.
 // It uses version as info.Version.
 func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
-	out, err := Run(r.dir, "git", "log", "-n1", "--format=format:%H %ct %D", "--no-show-signature", rev)
+	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev)
 	if err != nil {
 		return nil, fmt.Errorf("unknown revision %s", rev)
 	}
