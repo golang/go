@@ -32,7 +32,6 @@ var usesOldGolist = false
 //
 // - When the tests fail, make them print a 'cd & load' command
 //   that will allow the maintainer to interact with the failing scenario.
-// - vendoring
 // - errors in go-list metadata
 // - a foo.test package that cannot be built for some reason (e.g.
 //   import error) will result in a JSON blob with no name and a
@@ -209,6 +208,65 @@ func TestMetadataImportGraph(t *testing.T) {
 			t.Errorf("for subdir/... wildcard, got %s, want %s", initial, want)
 		}
 	}
+}
+
+func TestVendorImports(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go":          `package a; import _ "b"; import _ "c";`,
+		"src/a/vendor/b/b.go": `package b; import _ "c"`,
+		"src/c/c.go":          `package c; import _ "b"`,
+		"src/c/vendor/b/b.go": `package b`,
+	})
+	defer cleanup()
+
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Env:  append(os.Environ(), "GOPATH="+tmp),
+	}
+	initial, err := packages.Load(cfg, "a", "c")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	graph, all := importGraph(initial)
+	wantGraph := `
+* a
+  a/vendor/b
+* c
+  c/vendor/b
+  a -> a/vendor/b
+  a -> c
+  a/vendor/b -> c
+  c -> c/vendor/b
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+
+	for _, test := range []struct {
+		pattern     string
+		wantImports string
+	}{
+		{"a", "b:a/vendor/b c:c"},
+		{"c", "b:c/vendor/b"},
+		{"a/vendor/b", "c:c"},
+		{"c/vendor/b", ""},
+	} {
+		// Test the import paths.
+		pkg := all[test.pattern]
+		if imports := strings.Join(imports(pkg), " "); imports != test.wantImports {
+			t.Errorf("package %q: got %s, want %s", test.pattern, imports, test.wantImports)
+		}
+	}
+}
+
+func imports(p *packages.Package) []string {
+	keys := make([]string, 0, len(p.Imports))
+	for k, v := range p.Imports {
+		keys = append(keys, fmt.Sprintf("%s:%s", k, v.ID))
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func TestOptionsDir(t *testing.T) {
