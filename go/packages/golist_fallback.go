@@ -96,7 +96,7 @@ func golistPackagesFallback(cfg *rawConfig, words ...string) ([]*rawPackage, err
 		return result, nil
 	}
 
-	buf, err := golist(cfg, append([]string{"list", "-e", "-json", "--"}, deps...))
+	buf, err := golist(cfg, golistargs_fallback(cfg, deps))
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func golistPackagesFallback(cfg *rawConfig, words ...string) ([]*rawPackage, err
 
 // getDeps runs an initial go list to determine all the dependency packages.
 func getDeps(cfg *rawConfig, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
-	buf, err := golist(cfg, append([]string{"list", "-e", "-json", "--"}, words...))
+	buf, err := golist(cfg, golistargs_fallback(cfg, words))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -145,4 +145,12 @@ func getDeps(cfg *rawConfig, words ...string) (originalSet map[string]*jsonPacka
 		deps = append(deps, dep)
 	}
 	return originalSet, deps, nil
+}
+
+func golistargs_fallback(cfg *rawConfig, words []string) []string {
+	fullargs := []string{"list", "-e", "-json"}
+	fullargs = append(fullargs, cfg.ExtraFlags...)
+	fullargs = append(fullargs, "--")
+	fullargs = append(fullargs, words...)
+	return fullargs
 }

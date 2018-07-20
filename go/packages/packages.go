@@ -78,6 +78,10 @@ type Config struct {
 	//
 	Env []string
 
+	// Flags is a list of command-line flags to be passed through to
+	// the underlying query tool.
+	Flags []string
+
 	// Error is called for each error encountered during package loading.
 	// It must be safe to call Error simultaneously from multiple goroutines.
 	// In addition to calling Error, the loader will record each error

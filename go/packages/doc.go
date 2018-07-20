@@ -214,9 +214,6 @@ application, but not by the metadata query, so, for example:
 
 Questions & Tasks
 
-- Add this pass-through option for the underlying query tool:
-     Flags   []string
-
 - Add GOARCH/GOOS?
   They are not portable concepts, but could be made portable.
   Our goal has been to allow users to express themselves using the conventions
@@ -229,8 +226,6 @@ Questions & Tasks
     myapp -query_flag="--cpu=amd64" -query_flag="--os=darwin"
   However, this approach is low-level, unwieldy, and non-portable.
   GOOS and GOARCH seem important enough to warrant a dedicated option.
-
-- Build tags: where do they fit in?  How does Bazel/Blaze handle them?
 
 - How should we handle partial failures such as a mixture of good and
   malformed patterns, existing and non-existent packages, succesful and

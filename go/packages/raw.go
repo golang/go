@@ -51,22 +51,24 @@ type rawPackage struct {
 // rawConfig specifies details about what raw package information is needed
 // and how the underlying build tool should load package data.
 type rawConfig struct {
-	Context context.Context
-	Dir     string
-	Env     []string
-	Export  bool
-	Tests   bool
-	Deps    bool
+	Context    context.Context
+	Dir        string
+	Env        []string
+	ExtraFlags []string
+	Export     bool
+	Tests      bool
+	Deps       bool
 }
 
 func newRawConfig(cfg *Config) *rawConfig {
 	rawCfg := &rawConfig{
-		Context: cfg.Context,
-		Dir:     cfg.Dir,
-		Env:     cfg.Env,
-		Export:  cfg.Mode > LoadImports && cfg.Mode < LoadAllSyntax,
-		Tests:   cfg.Tests,
-		Deps:    cfg.Mode >= LoadImports,
+		Context:    cfg.Context,
+		Dir:        cfg.Dir,
+		Env:        cfg.Env,
+		ExtraFlags: cfg.Flags,
+		Export:     cfg.Mode > LoadImports && cfg.Mode < LoadAllSyntax,
+		Tests:      cfg.Tests,
+		Deps:       cfg.Mode >= LoadImports,
 	}
 	if rawCfg.Env == nil {
 		rawCfg.Env = os.Environ()
@@ -75,9 +77,11 @@ func newRawConfig(cfg *Config) *rawConfig {
 }
 
 func (cfg *rawConfig) Flags() []string {
-	return []string{
+	return append([]string{
 		fmt.Sprintf("-test=%t", cfg.Tests),
 		fmt.Sprintf("-export=%t", cfg.Export),
 		fmt.Sprintf("-deps=%t", cfg.Deps),
-	}
+	},
+		cfg.ExtraFlags...,
+	)
 }
