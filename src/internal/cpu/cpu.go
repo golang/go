@@ -22,6 +22,7 @@ type x86 struct {
 	HasADX       bool
 	HasAVX       bool
 	HasAVX2      bool
+	HasAVX512    bool
 	HasBMI1      bool
 	HasBMI2      bool
 	HasERMS      bool
