@@ -437,14 +437,14 @@ func (c *common) decorate(s string) string {
 func (c *common) flushToParent(format string, args ...interface{}) {
 	p := c.parent
 	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	fmt.Fprintf(p.w, format, args...)
 
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	io.Copy(p.w, bytes.NewReader(c.output))
 	c.output = c.output[:0]
+	p.mu.Unlock()
+	c.mu.Unlock()
 }
 
 type indenter struct {
@@ -530,8 +530,8 @@ func (c *common) setRan() {
 		c.parent.setRan()
 	}
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.ran = true
+	c.mu.Unlock()
 }
 
 // Fail marks the function as having failed but continues execution.
@@ -540,12 +540,13 @@ func (c *common) Fail() {
 		c.parent.Fail()
 	}
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	// c.done needs to be locked to synchronize checks to c.done in parent tests.
 	if c.done {
+		c.mu.Unlock()
 		panic("Fail in goroutine after " + c.name + " has completed")
 	}
 	c.failed = true
+	c.mu.Unlock()
 }
 
 // Failed reports whether the function has failed.
@@ -593,8 +594,8 @@ func (c *common) FailNow() {
 // log generates the output. It's always at the same stack depth.
 func (c *common) log(s string) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.output = append(c.output, c.decorate(s)...)
+	c.mu.Unlock()
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
@@ -662,8 +663,8 @@ func (c *common) SkipNow() {
 
 func (c *common) skip() {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.skipped = true
+	c.mu.Unlock()
 }
 
 // Skipped reports whether the test was skipped.
@@ -678,11 +679,11 @@ func (c *common) Skipped() bool {
 // Helper may be called simultaneously from multiple goroutines.
 func (c *common) Helper() {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.helpers == nil {
 		c.helpers = make(map[string]struct{})
 	}
 	c.helpers[callerName(1)] = struct{}{}
+	c.mu.Unlock()
 }
 
 // callerName gives the function name (qualified with a package path)
