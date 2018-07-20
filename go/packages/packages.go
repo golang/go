@@ -20,94 +20,99 @@ import (
 	"golang.org/x/tools/go/gcexportdata"
 )
 
-// An Options holds the options for a call to Metadata, TypeCheck
-// or WholeProgram to load Go packages from source code.
+// An Options specifies details about how packages should be loaded.
+// The loaders do not modify this struct.
+// TODO(rsc): Better name would be Config.
 type Options struct {
-	// Fset is the file set for the parser
-	// to use when loading the program.
-	Fset *token.FileSet
-
-	// Context may be used to cancel a pending call.
-	// Context is optional; the default behavior
-	// is equivalent to context.Background().
+	// Context specifies the context for the load operation.
+	// If the context is cancelled, the loader may stop early
+	// and return an ErrCancelled error.
+	// If Context is nil, the load cannot be cancelled.
 	Context context.Context
 
-	// The Tests flag causes the result to include any test packages
-	// implied by the patterns.
-	//
-	// For example, under 'go build', the "fmt" pattern ordinarily
-	// identifies a single importable package, but with the Tests
-	// flag it additionally denotes the "fmt.test" executable, which
-	// in turn depends on the variant of "fmt" augmented by its
-	// in-packages tests, and the "fmt_test" external test package.
-	//
-	// For build systems in which test names are explicit,
-	// this flag may have no effect.
-	Tests bool
+	// Dir is the directory in which to run the build system tool
+	// that provides information about the packages.
+	// If Dir is empty, the tool is run in the current directory.
+	Dir string
 
 	// DisableCgo disables cgo-processing of files that import "C",
 	// and removes the 'cgo' build tag, which may affect source file selection.
 	// By default, TypeCheck, and WholeProgram queries process such
 	// files, and the resulting Package.Srcs describes the generated
 	// files seen by the compiler.
+	// TODO(rsc): Drop entirely. I don't think these are the right semantics.
 	DisableCgo bool
 
-	// TypeChecker contains options relating to the type checker,
-	// such as the Sizes function.
+	// Env is the environment to use when invoking the build system tool.
+	// If Env is nil, the current environment is used.
+	// Like in os/exec's Cmd, only the last value in the slice for
+	// each environment key is used. To specify the setting of only
+	// a few variables, append to the current environment, as in:
 	//
-	// The following fields of TypeChecker are ignored:
-	// - Import: the Loader provides the import machinery.
-	// - Error: errors are reported to the Error function, below.
-	TypeChecker types.Config
-
-	// Error is called for each error encountered during package loading.
-	// Implementations must be concurrency-safe.
-	// If nil, the default implementation prints errors to os.Stderr.
-	// Errors are additionally recorded in each Package.
-	// Error is not used in Metadata mode.
-	Error func(error)
-
-	// ParseFile is called to read and parse each file,
-	// Implementations must be concurrency-safe.
-	// If nil, the default implementation uses parser.ParseFile.
-	// A client may supply a custom implementation to,
-	// for example, provide alternative contents for files
-	// modified in a text editor but unsaved,
-	// or to selectively eliminate unwanted function
-	// bodies to reduce the load on the type-checker.
-	// ParseFile is not used in Metadata mode.
-	ParseFile func(fset *token.FileSet, filename string) (*ast.File, error)
-
-	// Env is a list of environment variables to pass through
-	// to the build system's metadata query tool.
-	// If nil, the current process's environment is used.
+	//	opt.Env = append(os.Environ(), "GOOS=plan9", "GOARCH=386")
+	//
 	Env []string
 
-	// Dir is the directory in which to run the build system's metadata query tool.
-	// If "", the current process's working directory is used.
-	Dir string
+	// Error is called for each error encountered during package loading.
+	// It must be safe to call Error simultaneously from multiple goroutines.
+	// In addition to calling Error, the loader will record each error
+	// in the corresponding Package's Errors list.
+	// If Error is nil, the loader will print errors to os.Stderr.
+	// To disable printing of errors, set opt.Error = func(error){}.
+	// TODO(rsc): What happens in the Metadata loader? Currently nothing.
+	Error func(error)
+
+	// Fset is the token.FileSet to use when parsing loaded source files.
+	// If Fset is nil, the loader will create one.
+	Fset *token.FileSet
+
+	// ParseFile is called to read and parse each file
+	// when preparing a package's type-checked syntax tree.
+	// It must be safe to call ParseFile simultaneously from multiple goroutines.
+	// If ParseFile is nil, the loader will uses parser.ParseFile.
+	//
+	// Setting ParseFile to a custom implementation can allow
+	// providing alternate file content in order to type-check
+	// unsaved text editor buffers, or to selectively eliminate
+	// unwanted function bodies to reduce the amount of work
+	// done by the type checker.
+	ParseFile func(fset *token.FileSet, filename string) (*ast.File, error)
+
+	// If Tests is set, the loader includes not just the packages
+	// matching a particular pattern but also any related test packages,
+	// including test-only variants of the package and the test executable.
+	//
+	// For example, when using the go command, loading "fmt" with Tests=true
+	// returns four packages, with IDs "fmt" (the standard package),
+	// "fmt [fmt.test]" (the package as compiled for the test),
+	// "fmt_test" (the test functions from source files in package fmt_test),
+	// and "fmt.test" (the test binary).
+	//
+	// In build systems with explicit names for tests,
+	// setting Tests may have no effect.
+	Tests bool
+
+	// TypeChecker provides additional configuration for type-checking syntax trees.
+	//
+	// The TypeCheck loader does not use the TypeChecker configuration
+	// for packages that have their type information provided by the
+	// underlying build system.
+	//
+	// The TypeChecker.Error function is ignored:
+	// errors are reported using the Error function defined above.
+	//
+	// The TypeChecker.Importer function is ignored:
+	// the loader defines an appropriate importer.
+	//
+	// The TypeChecker.Sizes are only used by the WholeProgram loader.
+	// The TypeCheck loader uses the same sizes as the main build.
+	// TODO(rsc): At least, it should. Derive these from runtime?
+	TypeChecker types.Config
 }
 
-// Metadata returns the metadata for a set of Go packages,
-// but does not parse or type-check their source files.
-// The returned packages are the roots of a directed acyclic graph,
-// the "import graph", whose edges are represented by Package.Imports
-// and whose transitive closure includes all dependencies of the
-// initial packages.
-//
-// The packages are denoted by patterns, using the usual notation of the
-// build system (currently "go build", but in future others such as
-// Bazel). Clients should not attempt to infer the relationship between
-// patterns and the packages they denote, as in general it is complex
-// and many-to-many. Metadata reports an error if the patterns denote no
-// packages.
-//
-// If Metadata was unable to expand the specified patterns to a set of
-// packages, or if there was a cycle in the dependency graph, it returns
-// an error. Otherwise it returns a set of loaded Packages, even if
-// errors were encountered while loading some of them; such errors are
-// recorded in each Package.
-//
+// Metadata loads and returns the Go packages named by the given patterns,
+// omitting type information and type-checked syntax trees from all packages.
+// TODO(rsc): Better name would be Load.
 func Metadata(o *Options, patterns ...string) ([]*Package, error) {
 	l := &loader{mode: metadata}
 	if o != nil {
@@ -116,41 +121,10 @@ func Metadata(o *Options, patterns ...string) ([]*Package, error) {
 	return l.load(patterns...)
 }
 
-// TypeCheck returns metadata, syntax trees, and type information
-// for a set of Go packages.
-//
-// In addition to the information returned by the Metadata function,
-// TypeCheck loads, parses, and type-checks each of the requested packages.
-// These packages are "source packages", and the resulting Package
-// structure provides complete syntax and type information.
-// Due to limitations of the type checker, any package that transitively
-// depends on a source package must also be loaded from source.
-//
-// For each immediate dependency of a source package that is not itself
-// a source package, type information is obtained from export data
-// files produced by the Go compiler; this mode may entail a partial build.
-// The Package for these dependencies provides complete package-level type
-// information (types.Package), but no syntax trees.
-//
-// The remaining packages, comprising the indirect dependencies of the
-// packages with complete export data, may have partial package-level type
-// information or perhaps none at all.
-//
-// For example, consider the import graph A->B->C->D->E.
-// If the requested packages are A and C,
-// then packages A, B, C are source packages,
-// D is a complete export data package,
-// and E is a partial export data package.
-// (B must be a source package because it
-// transitively depends on C, a source package.)
-//
-// Each package bears a flag, IllTyped, indicating whether it
-// or one of its transitive dependencies contains an error.
-// A package that is not IllTyped is buildable.
-//
-// Use this mode for compiler-like tools
-// that analyze one package at a time.
-//
+// TypeCheck loads and returns the Go packages named by the given patterns.
+// It includes type information in all packages, including dependencies.
+// The packages named by the patterns also have type-checked syntax trees.
+// TODO(rsc): Better name would be LoadTyped.
 func TypeCheck(o *Options, patterns ...string) ([]*Package, error) {
 	l := &loader{mode: typeCheck}
 	if o != nil {
@@ -159,14 +133,10 @@ func TypeCheck(o *Options, patterns ...string) ([]*Package, error) {
 	return l.load(patterns...)
 }
 
-// WholeProgram returns metadata, complete syntax trees, and complete
-// type information for a set of Go packages and their entire transitive
-// closure of dependencies.
-// Every package in the returned import graph is a source package,
-// as defined by the documentation for TypeCheck
-//
-// Use this mode for whole-program analysis tools.
-//
+// WholeProgram loads and returns the Go packages named by the given patterns.
+// It includes type information and type-checked syntax trees for all packages,
+// including dependencies.
+// TODO(rsc): Better name would be LoadAllTyped.
 func WholeProgram(o *Options, patterns ...string) ([]*Package, error) {
 	l := &loader{mode: wholeProgram}
 	if o != nil {
@@ -175,71 +145,93 @@ func WholeProgram(o *Options, patterns ...string) ([]*Package, error) {
 	return l.load(patterns...)
 }
 
-// Package holds the metadata, and optionally syntax trees
-// and type information, for a single Go package.
-//
-// The import graph, Imports, forms a directed acyclic graph over Packages.
-// (Cycle-forming edges are not inserted into the map.)
-//
-// A Package is not mutated once returned.
+// A Package describes a single loaded Go package.
 type Package struct {
-	// ID is a unique, opaque identifier for a package,
-	// as determined by the underlying workspace.
+	// ID is a unique identifier for a package,
+	// in a syntax provided by the underlying build system.
 	//
-	// IDs distinguish packages that have the same PkgPath, such as
-	// a regular package and the variant of that package built
-	// during testing. (IDs also distinguish packages that would be
-	// lumped together by the go/build API, such as a regular
-	// package and its external tests.)
-	//
-	// Clients should not interpret the ID string as its
-	// structure varies from one build system to another.
+	// Because the syntax varies based on the build system,
+	// clients should treat IDs as opaque and not attempt to
+	// interpret them.
 	ID string
 
-	// PkgPath is the path of the package as understood
-	// by the Go compiler and by reflect.Type.PkgPath.
+	// PkgPath is the import path of the package during a particular build.
 	//
-	// PkgPaths are unique for each package in a given executable
-	// program, but are not necessarily unique within a workspace.
-	// For example, an importable package (fmt) and its in-package
-	// tests (fmt·test) may have the same PkgPath, but those
-	// two packages are never linked together.
+	// Analyses that need a unique string to identify a returned Package
+	// should use ID, not PkgPath. Although PkgPath does uniquely identify
+	// a package in a particular build, the loader may return packages
+	// spanning multiple builds (for example, multiple commands,
+	// or a package and its tests), so PkgPath is not guaranteed unique
+	// across all packages returned by a single load.
+	//
+	// TODO(rsc): This name should be ImportPath.
 	PkgPath string
 
-	// Name is the identifier appearing in the package declaration
-	// at the start of each source file in this package.
-	// The name of an executable is "main".
+	// Name is the package name as it appears in the package source code.
 	Name string
 
-	// Srcs is the list of names of this package's Go
-	// source files as presented to the compiler.
-	// Names are guaranteed to be absolute.
-	//
-	// In Metadata queries, or if DisableCgo is set,
-	// Srcs includes the unmodified source files even
-	// if they use cgo (import "C").
-	// In all other queries, Srcs contains the files
-	// resulting from cgo processing.
-	Srcs []string
+	// Errors lists any errors encountered while loading the package.
+	// TODO(rsc): Say something about the errors or at least their Strings,
+	// as far as file:line being at the beginning and so on.
+	Errors []error
 
-	// OtherSrcs is the list of names of non-Go source files that the package
-	// contains. This includes assembly and C source files.
-	// Names are guaranteed to be absolute.
-	OtherSrcs []string
-
-	// Imports maps each import path to its package
-	// The keys are import paths as they appear in the source files.
+	// Imports maps import paths appearing in the package's Go source files
+	// to corresponding loaded Packages.
 	Imports map[string]*Package
 
-	// syntax and type information (only in TypeCheck and WholeProgram modes)
-	Fset     *token.FileSet // source position information
-	Files    []*ast.File    // syntax trees for the package's Srcs files
-	Errors   []error        // non-nil if the package had errors
-	Type     *types.Package // type information about the package
-	Info     *types.Info    // type-checker deductions
-	IllTyped bool           // this package or a dependency has a parse or type error
+	// Srcs lists the absolute file paths of the package's Go source files.
+	//
+	// If a package has typed syntax trees and the DisableCgo option is false,
+	// the cgo-processed output files are listed instead of the original
+	// source files that contained import "C" statements.
+	// In this case, the file paths may not even end in ".go".
+	// Although the original sources are not listed in Srcs, the corresponding
+	// syntax tree positions will still refer back to the orignal source code,
+	// respecting the //line directives in the cgo-processed output.
+	//
+	// TODO(rsc): Actually, in TypeCheck mode even the packages without
+	// syntax trees (pure dependencies) lose their original sources.
+	// We should fix that.
+	//
+	// TODO(rsc): This should be GoFiles.
+	Srcs []string
+
+	// OtherSrcs lists the absolute file paths of the package's non-Go source files,
+	// including assembly, C, C++, Fortran, Objective-C, SWIG, and so on.
+	//
+	// TODO(rsc): This should be OtherFiles.
+	OtherSrcs []string
+
+	// Type is the type information for the package.
+	// The TypeCheck and WholeProgram loaders set this field for all packages.
+	// TODO(rsc): This should be Types.
+	Type *types.Package
+
+	// IllTyped indicates whether the package has any type errors.
+	// The TypeCheck and WholeProgram loaders set this field for all packages.
+	IllTyped bool
+
+	// Files is the package's syntax trees, for the files listed in Srcs.
+	//
+	// The TypeCheck loader sets Files for packages matching the patterns.
+	// The WholeProgram loader sets Files for all packages, including dependencies.
+	//
+	// TODO(rsc): This should be ASTs or Syntax.
+	Files []*ast.File
+
+	// Info is the type-checking results for the package's syntax trees.
+	// It is set only when Files is set.
+	//
+	// TODO(rsc): This should be TypesInfo.
+	Info *types.Info
+
+	// Fset is the token.FileSet for the package's syntax trees listed in Files.
+	// It is set only when Files is set.
+	// All packages loaded together share a single Fset.
+	Fset *token.FileSet
 
 	// ---- temporary state ----
+	// the Package struct should be pure exported data.
 
 	// export holds the path to the export data file
 	// for this package, if mode == TypeCheck.
@@ -734,9 +726,13 @@ func (ld *loader) loadFromExportData(lpkg *Package) (*types.Package, error) {
 	return tpkg, nil
 }
 
-// All returns a new map containing all the transitive dependencies of
-// the specified initial packages, keyed by ID.
-func All(initial []*Package) map[string]*Package {
+// All returns a map, from package ID to package,
+// containing the packages in the given list and all their dependencies.
+// Each call to All returns a new map.
+//
+// TODO(rsc): I don't understand why this function exists.
+// It might be more useful to return a slice in dependency order.
+func All(list []*Package) map[string]*Package {
 	all := make(map[string]*Package)
 	var visit func(p *Package)
 	visit = func(p *Package) {
@@ -747,7 +743,7 @@ func All(initial []*Package) map[string]*Package {
 			}
 		}
 	}
-	for _, p := range initial {
+	for _, p := range list {
 		visit(p)
 	}
 	return all

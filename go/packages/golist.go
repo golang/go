@@ -18,11 +18,15 @@ import (
 	"strings"
 )
 
-// A GoTooOldError indicates that the go command predates the Go
-// 1.11 features needed by this package. This error is a stopgap measure
-// until the necessary features can be emulated in terms of an older go
-// command, at which point this error will no longer be used.
-type GoTooOldError struct{ error }
+// A GoTooOldError reports that the go command
+// found by exec.LookPath does not contain the necessary
+// support to be used with go/packages.
+// Currently, go/packages requires Go 1.11 or later.
+// (We intend to issue a point release for Go 1.10
+// so that go/packages can be used with updated Go 1.10 systems too.)
+type GoTooOldError struct {
+	error
+}
 
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
