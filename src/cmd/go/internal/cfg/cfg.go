@@ -20,7 +20,7 @@ import (
 var (
 	BuildA                 bool   // -a flag
 	BuildBuildmode         string // -buildmode flag
-	BuildContext           = build.Default
+	BuildContext           = defaultContext()
 	BuildGetmode           string             // -getmode flag
 	BuildI                 bool               // -i flag
 	BuildLinkshared        bool               // -linkshared flag
@@ -42,6 +42,12 @@ var (
 
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 )
+
+func defaultContext() build.Context {
+	ctxt := build.Default
+	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
+	return ctxt
+}
 
 func init() {
 	BuildToolchainCompiler = func() string { return "missing-compiler" }

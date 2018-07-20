@@ -94,12 +94,6 @@ func Init() {
 		}
 	}
 
-	// If this is testgo - the test binary during cmd/go tests -
-	// then do not let it look for a go.mod unless GO111MODULE has an explicit setting or this is 'go mod -init'.
-	if base := filepath.Base(os.Args[0]); (base == "testgo" || base == "testgo.exe") && env == "" && !CmdModInit {
-		return
-	}
-
 	// Disable any prompting for passwords by Git.
 	// Only has an effect for 2.3.0 or later, but avoiding
 	// the prompt in earlier versions is just too hard.
