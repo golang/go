@@ -105,6 +105,7 @@ var testGOCACHE string
 
 var testGo string
 var testTmpDir string
+var testBin string
 
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
@@ -133,7 +134,11 @@ func TestMain(m *testing.M) {
 	}
 
 	if canRun {
-		testGo = filepath.Join(testTmpDir, "testgo"+exeSuffix)
+		testBin = filepath.Join(testTmpDir, "testbin")
+		if err := os.Mkdir(testBin, 0777); err != nil {
+			log.Fatal(err)
+		}
+		testGo = filepath.Join(testBin, "go"+exeSuffix)
 		args := []string{"build", "-tags", "testgo", "-o", testGo}
 		if race.Enabled {
 			args = append(args, "-race")
