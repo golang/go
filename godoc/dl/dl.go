@@ -41,7 +41,7 @@ const (
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
-	mux.Handle("/dl", http.RedirectHandler("/dl/", http.StatusFound))
+	mux.HandleFunc("/dl", getHandler)
 	mux.HandleFunc("/dl/", getHandler) // also serves listHandler
 	mux.HandleFunc("/dl/upload", uploadHandler)
 	mux.HandleFunc("/dl/init", initHandler)
@@ -428,6 +428,20 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getHandler(w http.ResponseWriter, r *http.Request) {
+	// For go get golang.org/dl/go1.x.y, we need to serve the
+	// same meta tags at /dl for cmd/go to validate against /dl/go1.x.y:
+	if r.URL.Path == "/dl" && (r.Method == "GET" || r.Method == "HEAD") && r.FormValue("go-get") == "1" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `<!DOCTYPE html><html><head>
+<meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
+</head></html>`)
+		return
+	}
+	if r.URL.Path == "/dl" {
+		http.Redirect(w, r, "/dl/", http.StatusFound)
+		return
+	}
+
 	name := strings.TrimPrefix(r.URL.Path, "/dl/")
 	if name == "" {
 		listHandler(w, r)
@@ -438,11 +452,15 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if goGetRe.MatchString(name) {
+		var isGoGet bool
 		if r.Method == "GET" || r.Method == "HEAD" {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			isGoGet = r.FormValue("go-get") == "1"
 		}
-		w.Header().Set("Location", "https://golang.org/dl/#"+name)
-		w.WriteHeader(http.StatusFound)
+		if !isGoGet {
+			w.Header().Set("Location", "https://golang.org/dl/#"+name)
+			w.WriteHeader(http.StatusFound)
+		}
 		fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
 <head>
