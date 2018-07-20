@@ -221,13 +221,22 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		// If the previous line and the current line had single-
 		// line-expressions and the key sizes are small or the
 		// ratio between the current key and the geometric mean
-		// if the previous key sizes does not exceed a threshold,
-		// align columns and do not use formfeed.
+		// does not exceed a threshold, align columns and do not use
+		// formfeed.
+		// If the previous line was an empty line, break the alignment.
+		// (The text/tabwriter will break alignment after an empty line
+		// even if we don't do anything here, but we can't see that; yet
+		// we need to reset the variables used in the geomean
+		// computation after an alignment break. Do it explicitly
+		// instead so we're aware of the break. Was issue #26352.)
 		if prevSize > 0 && size > 0 {
 			const smallSize = 40
-			if count == 0 || prevSize <= smallSize && size <= smallSize {
+			switch {
+			case prevLine+1 < line:
+				useFF = true
+			case count == 0, prevSize <= smallSize && size <= smallSize:
 				useFF = false
-			} else {
+			default:
 				const r = 2.5                               // threshold
 				geomean := math.Exp(lnsum / float64(count)) // count > 0
 				ratio := float64(size) / geomean
