@@ -90,7 +90,6 @@ func downloadZip(mod module.Version, target string) error {
 	// Double-check zip file looks OK.
 	z, err := zip.OpenReader(tmpfile)
 	if err != nil {
-		z.Close()
 		return err
 	}
 	prefix := mod.Path + "@" + mod.Version
