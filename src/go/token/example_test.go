@@ -70,8 +70,8 @@ func ok(pos p) bool {
 	//
 	// main.go:3:1: import
 	// main.go:5:1: import
-	// main.go:1:5[main.go:8:1]: type
-	// main.go:3:1[main.go:10:1]: const
-	// fake.go:42:11[main.go:13:1]: func
-	// fake.go:7:9[main.go:17:14]: func
+	// :1:5:1[main.go:8:1]: type
+	// :1:7:1[main.go:10:1]: const
+	// fake.go:42:11:1[main.go:13:1]: func
+	// fake.go:42:15:14[main.go:17:14]: func
 }
