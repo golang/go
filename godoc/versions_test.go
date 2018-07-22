@@ -51,6 +51,15 @@ func TestParseVersionRow(t *testing.T) {
 				name: "FileInfoHeader",
 			},
 		},
+		{
+			row: "pkg encoding/base32, method (Encoding) WithPadding(int32) *Encoding",
+			want: versionedRow{
+				pkg:  "encoding/base32",
+				kind: "method",
+				name: "WithPadding",
+				recv: "Encoding",
+			},
+		},
 	}
 
 	for i, tt := range tests {
