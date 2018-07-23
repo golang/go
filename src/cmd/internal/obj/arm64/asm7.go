@@ -2193,14 +2193,21 @@ func buildop(ctxt *obj.Link) {
 			AWORD,
 			ADWORD,
 			obj.ARET,
-			obj.ATEXT,
-			ASTP,
-			ASTPW,
-			ALDP:
+			obj.ATEXT:
 			break
+
+		case ALDP:
+			oprangeset(AFLDPD, t)
+
+		case ASTP:
+			oprangeset(AFSTPD, t)
+
+		case ASTPW:
+			oprangeset(AFSTPS, t)
 
 		case ALDPW:
 			oprangeset(ALDPSW, t)
+			oprangeset(AFLDPS, t)
 
 		case AERET:
 			oprangeset(AWFE, t)
@@ -6164,13 +6171,26 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) u
 /* genrate instruction encoding for LDP/LDPW/LDPSW/STP/STPW */
 func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uint32) uint32 {
 	var ret uint32
+	// check offset
 	switch p.As {
+	case AFLDPD, AFSTPD:
+		if vo < -512 || vo > 504 || vo%8 != 0 {
+			c.ctxt.Diag("invalid offset %v\n", p)
+		}
+		vo /= 8
+		ret = 1<<30 | 1<<26
 	case ALDP, ASTP:
 		if vo < -512 || vo > 504 || vo%8 != 0 {
 			c.ctxt.Diag("invalid offset %v\n", p)
 		}
 		vo /= 8
 		ret = 2 << 30
+	case AFLDPS, AFSTPS:
+		if vo < -256 || vo > 252 || vo%4 != 0 {
+			c.ctxt.Diag("invalid offset %v\n", p)
+		}
+		vo /= 4
+		ret = 1 << 26
 	case ALDPW, ASTPW:
 		if vo < -256 || vo > 252 || vo%4 != 0 {
 			c.ctxt.Diag("invalid offset %v\n", p)
@@ -6186,7 +6206,12 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 	default:
 		c.ctxt.Diag("invalid instruction %v\n", p)
 	}
+	// check register pair
 	switch p.As {
+	case AFLDPD, AFLDPS, AFSTPD, AFSTPS:
+		if rl < REG_F0 || REG_F31 < rl || rh < REG_F0 || REG_F31 < rh {
+			c.ctxt.Diag("invalid register pair %v\n", p)
+		}
 	case ALDP, ALDPW, ALDPSW:
 		if rl < REG_R0 || REG_R30 < rl || rh < REG_R0 || REG_R30 < rh {
 			c.ctxt.Diag("invalid register pair %v\n", p)
@@ -6196,6 +6221,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 			c.ctxt.Diag("invalid register pair %v\n", p)
 		}
 	}
+	// other conditional flag bits
 	switch o.scond {
 	case C_XPOST:
 		ret |= 1 << 23
