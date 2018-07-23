@@ -33,6 +33,8 @@ var (
 	Export_writeStatusLine            = writeStatusLine
 )
 
+const MaxWriteWaitBeforeConnReuse = maxWriteWaitBeforeConnReuse
+
 func init() {
 	// We only want to pay for this cost during testing.
 	// When not under test, these values are always nil

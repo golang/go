@@ -3050,9 +3050,16 @@ func TestRetryRequestsOnError(t *testing.T) {
 			defer SetRoundTripRetried(nil)
 
 			for i := 0; i < 3; i++ {
+				t0 := time.Now()
 				res, err := c.Do(tc.req())
 				if err != nil {
-					t.Fatalf("i=%d: Do = %v", i, err)
+					if time.Since(t0) < MaxWriteWaitBeforeConnReuse/2 {
+						mu.Lock()
+						got := logbuf.String()
+						mu.Unlock()
+						t.Fatalf("i=%d: Do = %v; log:\n%s", i, err, got)
+					}
+					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", MaxWriteWaitBeforeConnReuse)
 				}
 				res.Body.Close()
 			}
