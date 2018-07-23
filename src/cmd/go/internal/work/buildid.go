@@ -530,6 +530,7 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 							}
 						}
 						a.built = file
+						a.Package.Shlib = ""
 						a.Target = "DO NOT USE - using cache"
 						a.buildID = buildID
 						if p := a.Package; p != nil {
