@@ -65,8 +65,11 @@ func TestMetadataImportGraph(t *testing.T) {
 	})
 	defer cleanup()
 
-	opts := &packages.Options{Env: append(os.Environ(), "GOPATH="+tmp)}
-	initial, err := packages.Metadata(opts, "c", "subdir/d", "e")
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Env:  append(os.Environ(), "GOPATH="+tmp),
+	}
+	initial, err := packages.Load(cfg, "c", "subdir/d", "e")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,8 +96,8 @@ func TestMetadataImportGraph(t *testing.T) {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 	}
 
-	opts.Tests = true
-	initial, err = packages.Metadata(opts, "c", "subdir/d", "e")
+	cfg.Tests = true
+	initial, err = packages.Load(cfg, "c", "subdir/d", "e")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +177,7 @@ func TestMetadataImportGraph(t *testing.T) {
 	}
 
 	// Test an ad-hoc package, analogous to "go run hello.go".
-	if initial, err := packages.Metadata(opts, filepath.Join(tmp, "src/c/c.go")); len(initial) == 0 {
+	if initial, err := packages.Load(cfg, filepath.Join(tmp, "src/c/c.go")); len(initial) == 0 {
 		t.Errorf("failed to obtain metadata for ad-hoc package: %s", err)
 	} else {
 		got := fmt.Sprintf("%s %s", initial[0].ID, srcs(initial[0]))
@@ -188,7 +191,7 @@ func TestMetadataImportGraph(t *testing.T) {
 	// TODO(adonovan): test "all" returns everything in the current module.
 	{
 		// "..." (subdirectory)
-		initial, err = packages.Metadata(opts, "subdir/...")
+		initial, err = packages.Load(cfg, "subdir/...")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -225,12 +228,13 @@ func TestOptionsDir(t *testing.T) {
 		{filepath.Join(tmp, "/src/a"), "./a", "packages not found"},
 		{filepath.Join(tmp, "/src/a"), "./b", `"a/b"`},
 	} {
-		opts := &packages.Options{
-			Dir: test.dir,
-			Env: append(os.Environ(), "GOPATH="+tmp),
+		cfg := &packages.Config{
+			Mode: packages.LoadSyntax, // Use LoadSyntax to ensure that files can be opened.
+			Dir:  test.dir,
+			Env:  append(os.Environ(), "GOPATH="+tmp),
 		}
-		// Use TypeCheck to ensure that files can be opened.
-		initial, err := packages.TypeCheck(opts, test.pattern)
+
+		initial, err := packages.Load(cfg, test.pattern)
 		var got string
 		if err != nil {
 			got = err.Error()
@@ -266,8 +270,12 @@ func TestTypeCheckOK(t *testing.T) {
 	})
 	defer cleanup()
 
-	opts := &packages.Options{Env: append(os.Environ(), "GOPATH="+tmp), Error: func(error) {}}
-	initial, err := packages.TypeCheck(opts, "a", "c")
+	cfg := &packages.Config{
+		Mode:  packages.LoadSyntax,
+		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Error: func(error) {},
+	}
+	initial, err := packages.Load(cfg, "a", "c")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,9 +297,9 @@ func TestTypeCheckOK(t *testing.T) {
 	}
 
 	for _, test := range []struct {
-		id        string
-		wantType  bool
-		wantFiles bool
+		id         string
+		wantType   bool
+		wantSyntax bool
 	}{
 		{"a", true, true},   // source package
 		{"b", true, true},   // source package
@@ -304,15 +312,15 @@ func TestTypeCheckOK(t *testing.T) {
 			t.Errorf("missing package: %s", test.id)
 			continue
 		}
-		if (p.Type != nil) != test.wantType {
+		if (p.Types != nil) != test.wantType {
 			if test.wantType {
 				t.Errorf("missing types.Package for %s", p)
 			} else {
 				t.Errorf("unexpected types.Package for %s", p)
 			}
 		}
-		if (p.Files != nil) != test.wantFiles {
-			if test.wantFiles {
+		if (p.Syntax != nil) != test.wantSyntax {
+			if test.wantSyntax {
 				t.Errorf("missing ast.Files for %s", p)
 			} else {
 				t.Errorf("unexpected ast.Files for for %s", p)
@@ -347,18 +355,34 @@ func TestTypeCheckError(t *testing.T) {
 	})
 	defer cleanup()
 
-	opts := &packages.Options{Env: append(os.Environ(), "GOPATH="+tmp), Error: func(error) {}}
-	initial, err := packages.TypeCheck(opts, "a", "c")
+	cfg := &packages.Config{
+		Mode:  packages.LoadSyntax,
+		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Error: func(error) {},
+	}
+	initial, err := packages.Load(cfg, "a", "c")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	all := packages.All(initial)
+	all := make(map[string]*packages.Package)
+	var visit func(p *packages.Package)
+	visit = func(p *packages.Package) {
+		if all[p.ID] == nil {
+			all[p.ID] = p
+			for _, imp := range p.Imports {
+				visit(imp)
+			}
+		}
+	}
+	for _, p := range initial {
+		visit(p)
+	}
 
 	for _, test := range []struct {
 		id           string
-		wantType     bool
-		wantFiles    bool
+		wantTypes    bool
+		wantSyntax   bool
 		wantIllTyped bool
 		wantErrs     []string
 	}{
@@ -373,15 +397,15 @@ func TestTypeCheckError(t *testing.T) {
 			t.Errorf("missing package: %s", test.id)
 			continue
 		}
-		if (p.Type != nil) != test.wantType {
-			if test.wantType {
+		if (p.Types != nil) != test.wantTypes {
+			if test.wantTypes {
 				t.Errorf("missing types.Package for %s", test.id)
 			} else {
 				t.Errorf("unexpected types.Package for %s", test.id)
 			}
 		}
-		if (p.Files != nil) != test.wantFiles {
-			if test.wantFiles {
+		if (p.Syntax != nil) != test.wantSyntax {
+			if test.wantSyntax {
 				t.Errorf("missing ast.Files for %s", test.id)
 			} else {
 				t.Errorf("unexpected ast.Files for for %s", test.id)
@@ -439,12 +463,13 @@ func TestWholeProgramOverlay(t *testing.T) {
 			}
 		}
 		var errs errCollector
-		opts := &packages.Options{
+		cfg := &packages.Config{
+			Mode:      packages.LoadAllSyntax,
 			Env:       append(os.Environ(), "GOPATH="+tmp),
 			Error:     errs.add,
 			ParseFile: parseFile,
 		}
-		initial, err := packages.WholeProgram(opts, "a")
+		initial, err := packages.Load(cfg, "a")
 		if err != nil {
 			t.Error(err)
 			continue
@@ -483,11 +508,12 @@ import (
 	os.Mkdir(filepath.Join(tmp, "src/empty"), 0777) // create an existing but empty package
 
 	var errs2 errCollector
-	opts := &packages.Options{
+	cfg := &packages.Config{
+		Mode:  packages.LoadAllSyntax,
 		Env:   append(os.Environ(), "GOPATH="+tmp),
 		Error: errs2.add,
 	}
-	initial, err := packages.WholeProgram(opts, "root")
+	initial, err := packages.Load(cfg, "root")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,10 +556,10 @@ import (
 			t.Errorf("missing package: %s", test.id)
 			continue
 		}
-		if p.Type == nil {
+		if p.Types == nil {
 			t.Errorf("missing types.Package for %s", test.id)
 		}
-		if p.Files == nil {
+		if p.Syntax == nil {
 			t.Errorf("missing ast.Files for %s", test.id)
 		}
 		if !p.IllTyped {
@@ -560,7 +586,7 @@ func errorMessages(errors []error) []string {
 }
 
 func srcs(p *packages.Package) (basenames []string) {
-	for i, src := range p.Srcs {
+	for i, src := range p.GoFiles {
 		if strings.Contains(src, ".cache/go-build") {
 			src = fmt.Sprintf("%d.go", i) // make cache names predictable
 		} else {
@@ -671,5 +697,5 @@ func makeTree(t *testing.T, tree map[string]string) (dir string, cleanup func())
 }
 
 func constant(p *packages.Package, name string) *types.Const {
-	return p.Type.Scope().Lookup(name).(*types.Const)
+	return p.Types.Scope().Lookup(name).(*types.Const)
 }

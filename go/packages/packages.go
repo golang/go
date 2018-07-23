@@ -20,10 +20,41 @@ import (
 	"golang.org/x/tools/go/gcexportdata"
 )
 
-// An Options specifies details about how packages should be loaded.
-// The loaders do not modify this struct.
-// TODO(rsc): Better name would be Config.
-type Options struct {
+// A LoadMode specifies the amount of detail to return when loading packages.
+type LoadMode int
+
+const (
+	_ LoadMode = iota
+
+	// LoadFiles finds the packages and computes their source file lists.
+	// Package fields: ID, Name, Errors, GoFiles, OtherFiles.
+	LoadFiles
+
+	// LoadImports adds import information for each package
+	// and its dependencies.
+	// Package fields added: Imports.
+	LoadImports
+
+	// LoadTypes adds type information for the package's exported symbols.
+	// Package fields added: Types, IllTyped.
+	LoadTypes
+
+	// LoadSyntax adds typed syntax trees for the packages matching the patterns.
+	// Package fields added: Syntax, TypesInfo, Fset, for direct pattern matches only.
+	LoadSyntax
+
+	// LoadAllSyntax adds typed syntax trees for the packages matching the patterns
+	// and all dependencies.
+	// Package fields added: Syntax, TypesInfo, Fset, for all packages in import graph.
+	LoadAllSyntax
+)
+
+// An Config specifies details about how packages should be loaded.
+// Calls to Load do not modify this struct.
+type Config struct {
+	// Mode controls the level of information returned for each package.
+	Mode LoadMode
+
 	// Context specifies the context for the load operation.
 	// If the context is cancelled, the loader may stop early
 	// and return an ErrCancelled error.
@@ -34,14 +65,6 @@ type Options struct {
 	// that provides information about the packages.
 	// If Dir is empty, the tool is run in the current directory.
 	Dir string
-
-	// DisableCgo disables cgo-processing of files that import "C",
-	// and removes the 'cgo' build tag, which may affect source file selection.
-	// By default, TypeCheck, and WholeProgram queries process such
-	// files, and the resulting Package.Srcs describes the generated
-	// files seen by the compiler.
-	// TODO(rsc): Drop entirely. I don't think these are the right semantics.
-	DisableCgo bool
 
 	// Env is the environment to use when invoking the build system tool.
 	// If Env is nil, the current environment is used.
@@ -110,37 +133,11 @@ type Options struct {
 	TypeChecker types.Config
 }
 
-// Metadata loads and returns the Go packages named by the given patterns,
-// omitting type information and type-checked syntax trees from all packages.
-// TODO(rsc): Better name would be Load.
-func Metadata(o *Options, patterns ...string) ([]*Package, error) {
-	l := &loader{mode: metadata}
-	if o != nil {
-		l.Options = *o
-	}
-	return l.load(patterns...)
-}
-
-// TypeCheck loads and returns the Go packages named by the given patterns.
-// It includes type information in all packages, including dependencies.
-// The packages named by the patterns also have type-checked syntax trees.
-// TODO(rsc): Better name would be LoadTyped.
-func TypeCheck(o *Options, patterns ...string) ([]*Package, error) {
-	l := &loader{mode: typeCheck}
-	if o != nil {
-		l.Options = *o
-	}
-	return l.load(patterns...)
-}
-
-// WholeProgram loads and returns the Go packages named by the given patterns.
-// It includes type information and type-checked syntax trees for all packages,
-// including dependencies.
-// TODO(rsc): Better name would be LoadAllTyped.
-func WholeProgram(o *Options, patterns ...string) ([]*Package, error) {
-	l := &loader{mode: wholeProgram}
-	if o != nil {
-		l.Options = *o
+// Load and returns the Go packages named by the given patterns.
+func Load(cfg *Config, patterns ...string) ([]*Package, error) {
+	l := &loader{}
+	if cfg != nil {
+		l.Config = *cfg
 	}
 	return l.load(patterns...)
 }
@@ -155,18 +152,6 @@ type Package struct {
 	// interpret them.
 	ID string
 
-	// PkgPath is the import path of the package during a particular build.
-	//
-	// Analyses that need a unique string to identify a returned Package
-	// should use ID, not PkgPath. Although PkgPath does uniquely identify
-	// a package in a particular build, the loader may return packages
-	// spanning multiple builds (for example, multiple commands,
-	// or a package and its tests), so PkgPath is not guaranteed unique
-	// across all packages returned by a single load.
-	//
-	// TODO(rsc): This name should be ImportPath.
-	PkgPath string
-
 	// Name is the package name as it appears in the package source code.
 	Name string
 
@@ -179,7 +164,7 @@ type Package struct {
 	// to corresponding loaded Packages.
 	Imports map[string]*Package
 
-	// Srcs lists the absolute file paths of the package's Go source files.
+	// GoFiles lists the absolute file paths of the package's Go source files.
 	//
 	// If a package has typed syntax trees and the DisableCgo option is false,
 	// the cgo-processed output files are listed instead of the original
@@ -192,20 +177,15 @@ type Package struct {
 	// TODO(rsc): Actually, in TypeCheck mode even the packages without
 	// syntax trees (pure dependencies) lose their original sources.
 	// We should fix that.
-	//
-	// TODO(rsc): This should be GoFiles.
-	Srcs []string
+	GoFiles []string
 
-	// OtherSrcs lists the absolute file paths of the package's non-Go source files,
+	// OtherFiles lists the absolute file paths of the package's non-Go source files,
 	// including assembly, C, C++, Fortran, Objective-C, SWIG, and so on.
-	//
-	// TODO(rsc): This should be OtherFiles.
-	OtherSrcs []string
+	OtherFiles []string
 
 	// Type is the type information for the package.
 	// The TypeCheck and WholeProgram loaders set this field for all packages.
-	// TODO(rsc): This should be Types.
-	Type *types.Package
+	Types *types.Package
 
 	// IllTyped indicates whether the package has any type errors.
 	// The TypeCheck and WholeProgram loaders set this field for all packages.
@@ -215,15 +195,11 @@ type Package struct {
 	//
 	// The TypeCheck loader sets Files for packages matching the patterns.
 	// The WholeProgram loader sets Files for all packages, including dependencies.
-	//
-	// TODO(rsc): This should be ASTs or Syntax.
-	Files []*ast.File
+	Syntax []*ast.File
 
 	// Info is the type-checking results for the package's syntax trees.
 	// It is set only when Files is set.
-	//
-	// TODO(rsc): This should be TypesInfo.
-	Info *types.Info
+	TypesInfo *types.Info
 
 	// Fset is the token.FileSet for the package's syntax trees listed in Files.
 	// It is set only when Files is set.
@@ -249,41 +225,26 @@ type loaderPackage struct {
 	loadOnce      sync.Once
 	color         uint8 // for cycle detection
 	mark, needsrc bool  // used in TypeCheck mode only
+	pkgpath       string
 }
 
 func (lpkg *Package) String() string { return lpkg.ID }
 
 // loader holds the working state of a single call to load.
 type loader struct {
-	mode mode
-	cgo  bool
 	pkgs map[string]*loaderPackage
-	Options
+	Config
 	exportMu sync.Mutex // enforces mutual exclusion of exportdata operations
 }
-
-// The mode determines which packages are visited
-// and the level of information reported about each one.
-// Modes are ordered by increasing detail.
-type mode uint8
-
-const (
-	metadata = iota
-	typeCheck
-	wholeProgram
-)
 
 func (ld *loader) load(patterns ...string) ([]*Package, error) {
 	if ld.Context == nil {
 		ld.Context = context.Background()
 	}
-
-	if ld.mode > metadata {
+	if ld.Mode >= LoadSyntax {
 		if ld.Fset == nil {
 			ld.Fset = token.NewFileSet()
 		}
-
-		ld.cgo = !ld.DisableCgo
 
 		if ld.Error == nil {
 			ld.Error = func(e error) {
@@ -305,7 +266,9 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 
 	// Do the metadata query and partial build.
 	// TODO(adonovan): support alternative build systems at this seam.
-	list, err := golistPackages(ld.Context, ld.Dir, ld.Env, ld.cgo, ld.mode == typeCheck, ld.Tests, patterns)
+	export := ld.Mode > LoadImports && ld.Mode < LoadAllSyntax
+	deps := ld.Mode >= LoadImports
+	list, err := golistPackages(ld.Context, ld.Dir, ld.Env, export, ld.Tests, deps, patterns)
 	if err != nil {
 		return nil, err
 	}
@@ -319,9 +282,12 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		if !pkg.indirect {
 			initial = append(initial, pkg)
 
-			if ld.mode == typeCheck {
+			if ld.Mode == LoadSyntax {
 				pkg.needsrc = true
 			}
+		}
+		if ld.Mode >= LoadAllSyntax {
+			pkg.needsrc = true
 		}
 	}
 	if len(ld.pkgs) == 0 {
@@ -343,9 +309,9 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 	// Invalid imports (cycles and missing nodes) are saved in the importErrors map.
 	// Thus, even in the presence of both kinds of errors, the Import graph remains a DAG.
 	//
-	// visit returns whether the package is initial or has a transitive
-	// dependency on an initial package. These are the only packages
-	// for which we load source code in typeCheck mode.
+	// visit returns whether the package needs src or has a transitive
+	// dependency on a package that does. These are the only packages
+	// for which we load source code.
 	var stack []*loaderPackage
 	var visit func(lpkg *loaderPackage) bool
 	visit = func(lpkg *loaderPackage) bool {
@@ -390,14 +356,15 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		return lpkg.needsrc
 	}
 
-	// For each initial package, create its import DAG.
-	for _, lpkg := range initial {
-		visit(lpkg)
+	if ld.Mode >= LoadImports {
+		// For each initial package, create its import DAG.
+		for _, lpkg := range initial {
+			visit(lpkg)
+		}
 	}
-
-	// Load some/all packages from source, starting at
+	// Load type data if needed, starting at
 	// the initial packages (roots of the import DAG).
-	if ld.mode != metadata {
+	if ld.Mode >= LoadTypes {
 		var wg sync.WaitGroup
 		for _, lpkg := range initial {
 			wg.Add(1)
@@ -445,16 +412,16 @@ func (ld *loader) loadRecursive(lpkg *loaderPackage) {
 // after immediate dependencies are loaded.
 // Precondition: ld.mode != Metadata.
 func (ld *loader) loadPackage(lpkg *loaderPackage) {
-	if lpkg.PkgPath == "unsafe" {
+	if lpkg.pkgpath == "unsafe" {
 		// Fill in the blanks to avoid surprises.
-		lpkg.Type = types.Unsafe
+		lpkg.Types = types.Unsafe
 		lpkg.Fset = ld.Fset
-		lpkg.Files = []*ast.File{}
-		lpkg.Info = new(types.Info)
+		lpkg.Syntax = []*ast.File{}
+		lpkg.TypesInfo = new(types.Info)
 		return
 	}
 
-	if ld.mode == typeCheck && !lpkg.needsrc {
+	if !lpkg.needsrc {
 		return // not a source package
 	}
 
@@ -469,20 +436,20 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		lpkg.Errors = append(lpkg.Errors, err)
 	}
 
-	files, errs := ld.parseFiles(lpkg.Srcs)
+	files, errs := ld.parseFiles(lpkg.GoFiles)
 	for _, err := range errs {
 		appendError(err)
 	}
 
 	lpkg.Fset = ld.Fset
-	lpkg.Files = files
+	lpkg.Syntax = files
 
 	// Call NewPackage directly with explicit name.
 	// This avoids skew between golist and go/types when the files'
 	// package declarations are inconsistent.
-	lpkg.Type = types.NewPackage(lpkg.PkgPath, lpkg.Name)
+	lpkg.Types = types.NewPackage(lpkg.pkgpath, lpkg.Name)
 
-	lpkg.Info = &types.Info{
+	lpkg.TypesInfo = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
@@ -493,9 +460,6 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 
 	// Copy the prototype types.Config as it must vary across Packages.
 	tc := ld.TypeChecker // copy
-	if !ld.cgo {
-		tc.FakeImportC = true
-	}
 	tc.Importer = importerFunc(func(path string) (*types.Package, error) {
 		if path == "unsafe" {
 			return types.Unsafe, nil
@@ -513,11 +477,11 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 			// used to supply alternative file contents.
 			return nil, fmt.Errorf("no metadata for %s", path)
 		}
-		if ipkg.Type != nil && ipkg.Type.Complete() {
-			return ipkg.Type, nil
+		if ipkg.Types != nil && ipkg.Types.Complete() {
+			return ipkg.Types, nil
 		}
 		imp := ld.pkgs[ipkg.ID]
-		if ld.mode == typeCheck && !imp.needsrc {
+		if !imp.needsrc {
 			return ld.loadFromExportData(imp)
 		}
 		log.Fatalf("internal error: nil Pkg importing %q from %q", path, lpkg)
@@ -526,7 +490,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 	tc.Error = appendError
 
 	// type-check
-	types.NewChecker(&tc, ld.Fset, lpkg.Type, lpkg.Info).Files(lpkg.Files)
+	types.NewChecker(&tc, ld.Fset, lpkg.Types, lpkg.TypesInfo).Files(lpkg.Syntax)
 
 	lpkg.importErrors = nil // no longer needed
 
@@ -540,7 +504,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 	// we could just set IllTyped quietly.
 	if tc.FakeImportC {
 	outer:
-		for _, f := range lpkg.Files {
+		for _, f := range lpkg.Syntax {
 			for _, imp := range f.Imports {
 				if imp.Path.Value == `"C"` {
 					appendError(fmt.Errorf(`%s: import "C" ignored`,
@@ -621,7 +585,7 @@ func (ld *loader) parseFiles(filenames []string) ([]*ast.File, []error) {
 // loadFromExportData returns type information for the specified
 // package, loading it from an export data file on the first request.
 func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error) {
-	if lpkg.PkgPath == "" {
+	if lpkg.pkgpath == "" {
 		log.Fatalf("internal error: Package %s has no PkgPath", lpkg)
 	}
 
@@ -640,7 +604,7 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	ld.exportMu.Lock()
 	defer ld.exportMu.Unlock()
 
-	if tpkg := lpkg.Type; tpkg != nil && tpkg.Complete() {
+	if tpkg := lpkg.Types; tpkg != nil && tpkg.Complete() {
 		return tpkg, nil // cache hit
 	}
 
@@ -688,7 +652,7 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	// export data packages, processing of the A->B and A->C import
 	// edges may occur in either order, depending on the sequence
 	// of imports within A. If B is processed first, and its export
-	// data mentions C, an imcomplete package for C will be created
+	// data mentions C, an incomplete package for C will be created
 	// before processing of C.)
 	// We could do export data processing in topological order using
 	// loadRecursive, but there's no parallelism to be gained.
@@ -704,8 +668,8 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	visit = func(p *loaderPackage) {
 		if !seen[p] {
 			seen[p] = true
-			if p.Type != nil {
-				view[p.PkgPath] = p.Type
+			if p.Types != nil {
+				view[p.pkgpath] = p.Types
 			} else {
 				copyback = append(copyback, p)
 			}
@@ -718,7 +682,7 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 
 	// Parse the export data.
 	// (May create/modify packages in view.)
-	tpkg, err := gcexportdata.Read(r, ld.Fset, view, lpkg.PkgPath)
+	tpkg, err := gcexportdata.Read(r, ld.Fset, view, lpkg.pkgpath)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %v", lpkg.export, err)
 	}
@@ -726,34 +690,11 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	// For each newly created types.Package in the view,
 	// save it in the main graph.
 	for _, p := range copyback {
-		p.Type = view[p.PkgPath] // may still be nil
+		p.Types = view[p.pkgpath] // may still be nil
 	}
 
-	lpkg.Type = tpkg
+	lpkg.Types = tpkg
 	lpkg.IllTyped = false
 
 	return tpkg, nil
-}
-
-// All returns a map, from package ID to package,
-// containing the packages in the given list and all their dependencies.
-// Each call to All returns a new map.
-//
-// TODO(rsc): I don't understand why this function exists.
-// It might be more useful to return a slice in dependency order.
-func All(list []*Package) map[string]*Package {
-	all := make(map[string]*Package)
-	var visit func(p *Package)
-	visit = func(p *Package) {
-		if all[p.ID] == nil {
-			all[p.ID] = p
-			for _, imp := range p.Imports {
-				visit(imp)
-			}
-		}
-	}
-	for _, p := range list {
-		visit(p)
-	}
-	return all
 }

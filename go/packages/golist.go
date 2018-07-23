@@ -31,7 +31,7 @@ type GoTooOldError struct {
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
 // dir may be "" and env may be nil, as per os/exec.Command.
-func golistPackages(ctx context.Context, dir string, env []string, cgo, export, tests bool, words []string) ([]*loaderPackage, error) {
+func golistPackages(ctx context.Context, dir string, env []string, export, tests, deps bool, words []string) ([]*loaderPackage, error) {
 	// Fields must match go list;
 	// see $GOROOT/src/cmd/go/internal/load/pkg.go.
 	type jsonPackage struct {
@@ -68,7 +68,7 @@ func golistPackages(ctx context.Context, dir string, env []string, cgo, export, 
 	// Run "go list" for complete
 	// information on the specified packages.
 
-	buf, err := golist(ctx, dir, env, cgo, export, tests, words)
+	buf, err := golist(ctx, dir, env, export, tests, deps, words)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func golistPackages(ctx context.Context, dir string, env []string, cgo, export, 
 		}
 		for id := range ids {
 			// Go issue 26136: go list omits imports in cgo-generated files.
-			if id == "C" && cgo {
+			if id == "C" {
 				imports["unsafe"] = "unsafe"
 				imports["syscall"] = "syscall"
 				if pkgpath != "runtime/cgo" {
@@ -154,12 +154,12 @@ func golistPackages(ctx context.Context, dir string, env []string, cgo, export, 
 
 		pkg := &loaderPackage{
 			Package: &Package{
-				ID:        id,
-				Name:      p.Name,
-				PkgPath:   pkgpath,
-				Srcs:      absJoin(p.Dir, p.GoFiles, p.CgoFiles),
-				OtherSrcs: absJoin(p.Dir, p.SFiles, p.CFiles),
+				ID:         id,
+				Name:       p.Name,
+				GoFiles:    absJoin(p.Dir, p.GoFiles, p.CgoFiles),
+				OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
 			},
+			pkgpath:  pkgpath,
 			imports:  imports,
 			export:   export,
 			indirect: p.DepOnly,
@@ -184,24 +184,21 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 }
 
 // golist returns the JSON-encoded result of a "go list args..." query.
-func golist(ctx context.Context, dir string, env []string, cgo, export, tests bool, args []string) (*bytes.Buffer, error) {
+func golist(ctx context.Context, dir string, env []string, export, tests, deps bool, args []string) (*bytes.Buffer, error) {
 	out := new(bytes.Buffer)
 	cmd := exec.CommandContext(ctx, "go", append([]string{
 		"list",
 		"-e",
-		fmt.Sprintf("-cgo=%t", cgo),
+		fmt.Sprintf("-cgo=%t", true),
 		fmt.Sprintf("-test=%t", tests),
 		fmt.Sprintf("-export=%t", export),
-		"-deps",
+		fmt.Sprintf("-deps=%t", deps),
 		"-json",
 		"--",
 	}, args...)...)
 
 	if env == nil {
 		env = os.Environ()
-	}
-	if !cgo {
-		env = append(env, "CGO_ENABLED=0")
 	}
 	cmd.Env = env
 	cmd.Dir = dir

@@ -13,7 +13,7 @@ import (
 )
 
 func TestGoIsTooOld(t *testing.T) {
-	_, err := packages.Metadata(nil, "errors")
+	_, err := packages.Load(nil, "errors")
 
 	if _, ok := err.(packages.GoTooOldError); !ok {
 		t.Fatalf("using go/packages with pre-Go 1.11 go: err=%v, want ErrGoTooOld", err)
