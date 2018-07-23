@@ -34,12 +34,10 @@ var usesOldGolist = false
 //   that will allow the maintainer to interact with the failing scenario.
 // - vendoring
 // - errors in go-list metadata
-// - all returned file names are absolute
 // - a foo.test package that cannot be built for some reason (e.g.
 //   import error) will result in a JSON blob with no name and a
 //   nonexistent testmain file in GoFiles. Test that we handle this
 //   gracefully.
-// - IsTest boolean
 //
 // TypeCheck & WholeProgram modes:
 //   - Fset may be user-supplied or not.
@@ -599,6 +597,83 @@ import (
 	}
 }
 
+func TestAbsoluteFilenames(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go":          `package a; const A = 1`,
+		"src/b/b.go":          `package b; import ("a"; _ "errors"); var B = a.A`,
+		"src/b/vendor/a/a.go": `package a; const A = 1`,
+		"src/c/c.go":          `package c; import (_ "b"; _ "unsafe")`,
+		"src/c/c2.go":         "// +build ignore\n\n" + `package c; import _ "fmt"`,
+		"src/subdir/d/d.go":   `package d`,
+		"src/subdir/e/d.go":   `package e`,
+		"src/e/e.go":          `package main; import _ "b"`,
+		"src/e/e2.go":         `package main; import _ "c"`,
+		"src/f/f.go":          `package f`,
+		"src/f/f.s":           ``,
+	})
+	defer cleanup()
+
+	checkFile := func(filename string) {
+		if !filepath.IsAbs(filename) {
+			t.Errorf("filename is not absolute: %s", filename)
+		}
+		if _, err := os.Stat(filename); err != nil {
+			t.Errorf("stat error, %s: %v", filename, err)
+		}
+	}
+
+	for _, test := range []struct {
+		pattern string
+		want    string
+	}{
+		// Import paths
+		{"a", "a.go"},
+		{"b/vendor/a", "a.go"},
+		{"b", "b.go"},
+		{"c", "c.go"},
+		{"subdir/d", "d.go"},
+		{"subdir/e", "d.go"},
+		{"e", "e.go e2.go"},
+		{"f", "f.go f.s"},
+		// Relative paths
+		{"./a", "a.go"},
+		{"./b/vendor/a", "a.go"},
+		{"./b", "b.go"},
+		{"./c", "c.go"},
+		{"./subdir/d", "d.go"},
+		{"./subdir/e", "d.go"},
+		{"./e", "e.go e2.go"},
+		{"./f", "f.go f.s"},
+	} {
+		cfg := &packages.Config{
+			Mode: packages.LoadFiles,
+			Dir:  filepath.Join(tmp, "src"),
+			Env:  append(os.Environ(), "GOPATH="+tmp),
+		}
+		pkgs, err := packages.Load(cfg, test.pattern)
+		if err != nil {
+			t.Errorf("pattern %s: %v", test.pattern, err)
+			continue
+		}
+
+		// Don't check which files are included with the legacy loader (breaks with .s files).
+		if got := strings.Join(srcs(pkgs[0]), " "); got != test.want {
+			t.Errorf("in package %s, got %s, want %s", test.pattern, got, test.want)
+		}
+
+		// Test that files in all packages exist and are absolute paths.
+		_, all := importGraph(pkgs)
+		for _, pkg := range all {
+			for _, filename := range pkg.GoFiles {
+				checkFile(filename)
+			}
+			for _, filename := range pkg.OtherFiles {
+				checkFile(filename)
+			}
+		}
+	}
+}
+
 func errorMessages(errors []error) []string {
 	var msgs []string
 	for _, err := range errors {
@@ -614,7 +689,8 @@ func errorMessages(errors []error) []string {
 }
 
 func srcs(p *packages.Package) (basenames []string) {
-	for i, src := range p.GoFiles {
+	files := append(p.GoFiles, p.OtherFiles...)
+	for i, src := range files {
 		if strings.Contains(src, ".cache/go-build") {
 			src = fmt.Sprintf("%d.go", i) // make cache names predictable
 		} else {
