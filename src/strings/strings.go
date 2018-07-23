@@ -63,7 +63,7 @@ func hashStrRev(sep string) (uint32, uint32) {
 	for i := len(sep) - 1; i >= 0; i-- {
 		hash = hash*primeRK + uint32(sep[i])
 	}
-	var pow, sq uint32 = 1, primeRK
+	var pow, sq uint32 = 1
 	for i := len(sep); i > 0; i >>= 1 {
 		if i&1 != 0 {
 			pow *= sq
