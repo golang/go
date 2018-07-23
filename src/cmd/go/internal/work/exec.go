@@ -714,6 +714,7 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	a.built = objpkg
+	a.Package.Shlib = ""
 	return nil
 }
 
