@@ -2418,7 +2418,15 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 // Serve accepts incoming HTTP connections on the listener l,
 // creating a new service goroutine for each. The service goroutines
 // read requests and then call handler to reply to them.
-// Handler is typically nil, in which case the DefaultServeMux is used.
+//
+// The handler is typically nil, in which case the DefaultServeMux is
+// used.
+//
+// HTTP/2 support is only enabled if the Listener returns *tls.Conn
+// connections and they were configured with "h2" in the TLS
+// Config.NextProtos.
+//
+// Serve always returns a non-nil reror.
 func Serve(l net.Listener, handler Handler) error {
 	srv := &Server{Handler: handler}
 	return srv.Serve(l)
@@ -2792,10 +2800,9 @@ var ErrServerClosed = errors.New("http: Server closed")
 // new service goroutine for each. The service goroutines read requests and
 // then call srv.Handler to reply to them.
 //
-// For HTTP/2 support, srv.TLSConfig should be initialized to the
-// provided listener's TLS Config before calling Serve. If
-// srv.TLSConfig is non-nil and doesn't include the string "h2" in
-// Config.NextProtos, HTTP/2 support is not enabled.
+// HTTP/2 support is only enabled if the Listener returns *tls.Conn
+// connections and they were configured with "h2" in the TLS
+// Config.NextProtos.
 //
 // Serve always returns a non-nil error and closes l.
 // After Shutdown or Close, the returned error is ErrServerClosed.
@@ -2850,19 +2857,19 @@ func (srv *Server) Serve(l net.Listener) error {
 }
 
 // ServeTLS accepts incoming connections on the Listener l, creating a
-// new service goroutine for each. The service goroutines read requests and
-// then call srv.Handler to reply to them.
+// new service goroutine for each. The service goroutines perform TLS
+// setup and then read requests, calling srv.Handler to reply to them.
 //
-// Additionally, files containing a certificate and matching private key for
-// the server must be provided if neither the Server's TLSConfig.Certificates
-// nor TLSConfig.GetCertificate are populated.. If the certificate is signed by
-// a certificate authority, the certFile should be the concatenation of the
-// server's certificate, any intermediates, and the CA's certificate.
+// Files containing a certificate and matching private key for the
+// server must be provided if neither the Server's
+// TLSConfig.Certificates nor TLSConfig.GetCertificate are populated.
+// If the certificate is signed by a certificate authority, the
+// certFile should be the concatenation of the server's certificate,
+// any intermediates, and the CA's certificate.
 //
-// For HTTP/2 support, srv.TLSConfig should be initialized to the
-// provided listener's TLS Config before calling ServeTLS. If
-// srv.TLSConfig is non-nil and doesn't include the string "h2" in
-// Config.NextProtos, HTTP/2 support is not enabled.
+// For HTTP/2 support, srv.TLSConfig should be initialized before
+// calling ServeTLS and must contain the string "h2" in its NextProtos
+// field.
 //
 // ServeTLS always returns a non-nil error. After Shutdown or Close, the
 // returned error is ErrServerClosed.
@@ -3072,7 +3079,8 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 //
 // If srv.Addr is blank, ":https" is used.
 //
-// ListenAndServeTLS always returns a non-nil error.
+// ListenAndServeTLS always returns a non-nil error. After Shutdown or
+// Close, the returned error is ErrServerClosed.
 func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	if srv.shuttingDown() {
 		return ErrServerClosed
