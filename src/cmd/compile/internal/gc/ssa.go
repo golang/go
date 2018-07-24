@@ -23,6 +23,9 @@ import (
 var ssaConfig *ssa.Config
 var ssaCaches []ssa.Cache
 
+var ssaDump string // early copy of $GOSSAFUNC; the func name to dump output for
+const ssaDumpFile = "ssa.html"
+
 func initssaconfig() {
 	types_ := ssa.NewTypes()
 
@@ -103,7 +106,7 @@ func initssaconfig() {
 // worker indicates which of the backend workers is doing the processing.
 func buildssa(fn *Node, worker int) *ssa.Func {
 	name := fn.funcname()
-	printssa := name == os.Getenv("GOSSAFUNC")
+	printssa := name == ssaDump
 	if printssa {
 		fmt.Println("generating SSA for", name)
 		dumplist("buildssa-enter", fn.Func.Enter)
@@ -141,7 +144,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.softFloat = s.config.SoftFloat
 
 	if printssa {
-		s.f.HTMLWriter = ssa.NewHTMLWriter("ssa.html", s.f.Frontend(), name)
+		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name)
 		// TODO: generate and print a mapping from nodes to values and blocks
 
 		// Read sources for a function fn and format into a column.

@@ -427,6 +427,8 @@ func Main(archInit func(*Arch)) {
 		Debug['l'] = 1 - Debug['l']
 	}
 
+	ssaDump = os.Getenv("GOSSAFUNC")
+
 	trackScopes = flagDWARF
 
 	Widthptr = thearch.LinkArch.PtrSize
