@@ -1,0 +1,44 @@
+env GO111MODULE=on
+
+# golang.org/x/internal should be importable from other golang.org/x modules.
+go mod -init -module golang.org/x/anything
+go build .
+
+# ...but that should not leak into other modules.
+! go build ./baddep
+stderr 'use of internal package'
+
+# Internal packages in the standard library should not leak into modules.
+! go build ./fromstd
+stderr 'use of internal package'
+
+
+# Dependencies should be able to use their own internal modules...
+rm go.mod
+go mod -init -module golang.org/notx
+go build ./throughdep
+
+# ... but other modules should not, even if they have transitive dependencies.
+! go build .
+stderr 'use of internal package'
+
+# And transitive dependencies still should not leak.
+! go build ./baddep
+stderr 'use of internal package'
+
+
+-- useinternal.go --
+package useinternal
+import _ "golang.org/x/internal/subtle"
+
+-- throughdep/useinternal.go --
+package throughdep
+import _ "golang.org/x/useinternal"
+
+-- baddep/useinternal.go --
+package baddep
+import _ "golang.org/notx/useinternal"
+
+-- fromstd/useinternal.go --
+package fromstd
+import _ "internal/testenv"
