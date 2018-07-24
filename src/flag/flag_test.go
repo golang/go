@@ -28,8 +28,10 @@ func TestEverything(t *testing.T) {
 	ResetForTesting(nil)
 	Bool("test_bool", false, "bool value")
 	Int("test_int", 0, "int value")
+	Int32("test_int32", 0, "int32 value")
 	Int64("test_int64", 0, "int64 value")
 	Uint("test_uint", 0, "uint value")
+	Uint32("test_uint32", 0, "uint32 value")
 	Uint64("test_uint64", 0, "uint64 value")
 	String("test_string", "0", "string value")
 	Float64("test_float64", 0, "float64 value")
@@ -72,8 +74,10 @@ func TestEverything(t *testing.T) {
 	// Now set all flags
 	Set("test_bool", "true")
 	Set("test_int", "1")
+	Set("test_int32", "1")
 	Set("test_int64", "1")
 	Set("test_uint", "1")
+	Set("test_uint32", "1")
 	Set("test_uint64", "1")
 	Set("test_string", "1")
 	Set("test_float64", "1")
@@ -98,12 +102,14 @@ func TestGet(t *testing.T) {
 	ResetForTesting(nil)
 	Bool("test_bool", true, "bool value")
 	Int("test_int", 1, "int value")
-	Int64("test_int64", 2, "int64 value")
-	Uint("test_uint", 3, "uint value")
-	Uint64("test_uint64", 4, "uint64 value")
-	String("test_string", "5", "string value")
-	Float64("test_float64", 6, "float64 value")
-	Duration("test_duration", 7, "time.Duration value")
+	Int32("test_int32", 2, "int32 value")
+	Int64("test_int64", 3, "int64 value")
+	Uint("test_uint", 4, "uint value")
+	Uint32("test_uint32", 5, "uint32 value")
+	Uint64("test_uint64", 6, "uint64 value")
+	String("test_string", "7", "string value")
+	Float64("test_float64", 8, "float64 value")
+	Duration("test_duration", 9, "time.Duration value")
 
 	visitor := func(f *Flag) {
 		if len(f.Name) > 5 && f.Name[0:5] == "test_" {
@@ -117,18 +123,22 @@ func TestGet(t *testing.T) {
 				ok = g.Get() == true
 			case "test_int":
 				ok = g.Get() == int(1)
+			case "test_int32":
+				ok = g.Get() == int(2)
 			case "test_int64":
-				ok = g.Get() == int64(2)
+				ok = g.Get() == int64(3)
 			case "test_uint":
-				ok = g.Get() == uint(3)
+				ok = g.Get() == uint(4)
+			case "test_uint32":
+				ok = g.Get() == uint(5)
 			case "test_uint64":
-				ok = g.Get() == uint64(4)
+				ok = g.Get() == uint64(6)
 			case "test_string":
-				ok = g.Get() == "5"
+				ok = g.Get() == "7"
 			case "test_float64":
-				ok = g.Get() == float64(6)
+				ok = g.Get() == float64(8)
 			case "test_duration":
-				ok = g.Get() == time.Duration(7)
+				ok = g.Get() == time.Duration(9)
 			}
 			if !ok {
 				t.Errorf("Visit: bad value %T(%v) for %s", g.Get(), g.Get(), f.Name)
@@ -156,8 +166,10 @@ func testParse(f *FlagSet, t *testing.T) {
 	boolFlag := f.Bool("bool", false, "bool value")
 	bool2Flag := f.Bool("bool2", false, "bool2 value")
 	intFlag := f.Int("int", 0, "int value")
+	int32Flag := f.Int32("int32", 0, "int32 value")
 	int64Flag := f.Int64("int64", 0, "int64 value")
 	uintFlag := f.Uint("uint", 0, "uint value")
+	uint32Flag := f.Uint32("uint32", 0, "uint32 value")
 	uint64Flag := f.Uint64("uint64", 0, "uint64 value")
 	stringFlag := f.String("string", "0", "string value")
 	float64Flag := f.Float64("float64", 0, "float64 value")
@@ -167,8 +179,10 @@ func testParse(f *FlagSet, t *testing.T) {
 		"-bool",
 		"-bool2=true",
 		"--int", "22",
+		"--int32", "11",
 		"--int64", "0x23",
-		"-uint", "24",
+		"--uint", "24",
+		"--uint32", "12",
 		"--uint64", "25",
 		"-string", "hello",
 		"-float64", "2718e28",
@@ -182,31 +196,37 @@ func testParse(f *FlagSet, t *testing.T) {
 		t.Error("f.Parse() = false after Parse")
 	}
 	if *boolFlag != true {
-		t.Error("bool flag should be true, is ", *boolFlag)
+		t.Error("bool flag should be true, it is ", *boolFlag)
 	}
 	if *bool2Flag != true {
-		t.Error("bool2 flag should be true, is ", *bool2Flag)
+		t.Error("bool2 flag should be true, it is ", *bool2Flag)
 	}
 	if *intFlag != 22 {
-		t.Error("int flag should be 22, is ", *intFlag)
+		t.Error("int flag should be 22, it is ", *intFlag)
+	}
+	if *int32Flag != 11 {
+		t.Error("int32 flag should be 11, it is ", *int32Flag)
 	}
 	if *int64Flag != 0x23 {
-		t.Error("int64 flag should be 0x23, is ", *int64Flag)
+		t.Error("int64 flag should be 0x23, it is ", *int64Flag)
 	}
 	if *uintFlag != 24 {
-		t.Error("uint flag should be 24, is ", *uintFlag)
+		t.Error("uint flag should be 24, it is ", *uintFlag)
+	}
+	if *uint32Flag != 12 {
+		t.Error("uint flag should be 12, it is ", *uint32Flag)
 	}
 	if *uint64Flag != 25 {
-		t.Error("uint64 flag should be 25, is ", *uint64Flag)
+		t.Error("uint64 flag should be 25, it is ", *uint64Flag)
 	}
 	if *stringFlag != "hello" {
-		t.Error("string flag should be `hello`, is ", *stringFlag)
+		t.Error("string flag should be `hello`, it is ", *stringFlag)
 	}
 	if *float64Flag != 2718e28 {
-		t.Error("float64 flag should be 2718e28, is ", *float64Flag)
+		t.Error("float64 flag should be 2718e28, it is ", *float64Flag)
 	}
 	if *durationFlag != 2*time.Minute {
-		t.Error("duration flag should be 2m, is ", *durationFlag)
+		t.Error("duration flag should be 2m, it is ", *durationFlag)
 	}
 	if len(f.Args()) != 1 {
 		t.Error("expected one argument, got", len(f.Args()))

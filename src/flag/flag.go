@@ -128,6 +128,24 @@ func (i *intValue) Get() interface{} { return int(*i) }
 
 func (i *intValue) String() string { return strconv.Itoa(int(*i)) }
 
+// -- int32 Value
+type int32Value int32
+
+func newInt32Value(val int32, p *int32) *int32Value {
+	*p = val
+	return (*int32Value)(p)
+}
+
+func (i *int32Value) Set(s string) error {
+	v, err := strconv.ParseUint(s, 0, strconv.IntSize)
+	*i = int32Value(v)
+	return err
+}
+
+func (i *int32Value) Get() interface{} { return int32(*i) }
+
+func (i *int32Value) String() string { return strconv.FormatInt(int64(*i), 10) }
+
 // -- int64 Value
 type int64Value int64
 
@@ -163,6 +181,24 @@ func (i *uintValue) Set(s string) error {
 func (i *uintValue) Get() interface{} { return uint(*i) }
 
 func (i *uintValue) String() string { return strconv.FormatUint(uint64(*i), 10) }
+
+// -- uint32 Value
+type uint32Value uint32
+
+func newUint32Value(val uint32, p *uint32) *uint32Value {
+	*p = val
+	return (*uint32Value)(p)
+}
+
+func (i *uint32Value) Set(s string) error {
+	v, err := strconv.ParseUint(s, 0, strconv.IntSize)
+	*i = uint32Value(v)
+	return err
+}
+
+func (i *uint32Value) Get() interface{} { return uint32(*i) }
+
+func (i *uint32Value) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
 // -- uint64 Value
 type uint64Value uint64
@@ -624,6 +660,32 @@ func Int(name string, value int, usage string) *int {
 	return CommandLine.Int(name, value, usage)
 }
 
+// Int32Var defines an int32 flag with specified name, default value, and usage string.
+// The argument p points to an int32 variable in which to store the value of the flag.
+func (f *FlagSet) Int32Var(p *int32, name string, value int32, usage string) {
+	f.Var(newInt32Value(value, p), name, usage)
+}
+
+// Uint32Var defines an int32 flag with specified name, default value, and usage string.
+// The argument p points to an int32 variable in which to store the value of the flag.
+func Int32Var(p *int32, name string, value int32, usage string) {
+	CommandLine.Var(newInt32Value(value, p), name, usage)
+}
+
+// Int32 defines an int32 flag with specified name, default value, and usage string.
+// The return value is the address of an int32 variable that stores the value of the flag.
+func (f *FlagSet) Int32(name string, value int32, usage string) *int32 {
+	p := new(int32)
+	f.Int32Var(p, name, value, usage)
+	return p
+}
+
+// Int32 defines an int32 flag with specified name, default value, and usage string.
+// The return value is the address of a an int32 variable that stores the value of the flag.
+func Int32(name string, value int32, usage string) *int32 {
+	return CommandLine.Int32(name, value, usage)
+}
+
 // Int64Var defines an int64 flag with specified name, default value, and usage string.
 // The argument p points to an int64 variable in which to store the value of the flag.
 func (f *FlagSet) Int64Var(p *int64, name string, value int64, usage string) {
@@ -674,6 +736,32 @@ func (f *FlagSet) Uint(name string, value uint, usage string) *uint {
 // The return value is the address of a uint variable that stores the value of the flag.
 func Uint(name string, value uint, usage string) *uint {
 	return CommandLine.Uint(name, value, usage)
+}
+
+// Uint32Var defines a uint32 flag with specified name, default value, and usage string.
+// The argument p points to a uint32 variable in which to store the value of the flag.
+func (f *FlagSet) Uint32Var(p *uint32, name string, value uint32, usage string) {
+	f.Var(newUint32Value(value, p), name, usage)
+}
+
+// Uint32Var defines a uint32 flag with specified name, default value, and usage string.
+// The argument p points to a uint32 variable in which to store the value of the flag.
+func Uint32Var(p *uint32, name string, value uint32, usage string) {
+	CommandLine.Var(newUint32Value(value, p), name, usage)
+}
+
+// Uint32 defines a uint32 flag with specified name, default value, and usage string.
+// The return value is the address of a uint32 variable that stores the value of the flag.
+func (f *FlagSet) Uint32(name string, value uint32, usage string) *uint32 {
+	p := new(uint32)
+	f.Uint32Var(p, name, value, usage)
+	return p
+}
+
+// Uint32 defines a uint32 flag with specified name, default value, and usage string.
+// The return value is the address of a uint32 variable that stores the value of the flag.
+func Uint32(name string, value uint32, usage string) *uint32 {
+	return CommandLine.Uint32(name, value, usage)
 }
 
 // Uint64Var defines a uint64 flag with specified name, default value, and usage string.
