@@ -961,16 +961,29 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
 	if i > 0 {
 		i-- // rewind over slash in ".../internal"
 	}
-	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
-	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
-		return p
-	}
+	if p.Module == nil {
+		parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
 
-	// Look for symlinks before reporting error.
-	srcDir = expandPath(srcDir)
-	parent = expandPath(parent)
-	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
-		return p
+		if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+			return p
+		}
+
+		// Look for symlinks before reporting error.
+		srcDir = expandPath(srcDir)
+		parent = expandPath(parent)
+		if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+			return p
+		}
+	} else {
+		// p is in a module, so make it available based on the import path instead
+		// of the file path (https://golang.org/issue/23970).
+		parent := p.ImportPath[:i]
+		// TODO(bcmills): In case of replacements, use the module path declared by
+		// the replacement module, not the path seen by the user.
+		importerPath := (*stk)[len(*stk)-2]
+		if strings.HasPrefix(importerPath, parent) {
+			return p
+		}
 	}
 
 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
