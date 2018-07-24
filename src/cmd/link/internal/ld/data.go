@@ -539,13 +539,17 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
 			r.Add = int64(targ.Plt)
 
 			// jmp *addr
-			if ctxt.Arch.Family == sys.I386 {
+			switch ctxt.Arch.Family {
+			default:
+				Errorf(s, "unsupported arch %v", ctxt.Arch.Family)
+				return
+			case sys.I386:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x25)
 				rel.AddAddr(ctxt.Arch, targ)
 				rel.AddUint8(0x90)
 				rel.AddUint8(0x90)
-			} else {
+			case sys.AMD64:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x24)
 				rel.AddUint8(0x25)

@@ -57,6 +57,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
+		PEreloc1:         pereloc1,
 
 		Linuxdynld:     "/lib/ld-linux.so.3", // 2 for OABI, 3 for EABI
 		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
@@ -130,6 +131,10 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
 		}
+
+	case objabi.Hwindows: /* PE executable */
+		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
+		return
 	}
 
 	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
