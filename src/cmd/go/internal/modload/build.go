@@ -91,6 +91,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 			Version: m.Version,
 			Main:    true,
 			Dir:     ModRoot,
+			GoMod:   filepath.Join(ModRoot, "go.mod"),
 		}
 	}
 
@@ -114,7 +115,15 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 				m.Version = q.Version
 				m.Time = &q.Time
 			}
-			dir, err := modfetch.DownloadDir(module.Version{Path: m.Path, Version: m.Version})
+
+			mod := module.Version{Path: m.Path, Version: m.Version}
+			gomod, err := modfetch.CachePath(mod, "mod")
+			if err == nil {
+				if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
+					m.GoMod = gomod
+				}
+			}
+			dir, err := modfetch.DownloadDir(mod)
 			if err == nil {
 				if info, err := os.Stat(dir); err == nil && info.IsDir() {
 					m.Dir = dir
@@ -142,6 +151,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 		}
 		complete(info.Replace)
 		info.Dir = info.Replace.Dir
+		info.GoMod = filepath.Join(info.Dir, "go.mod")
 		info.Error = nil // ignore error loading original module version (it has been replaced)
 	}
 

@@ -474,6 +474,22 @@ func AllowWriteGoMod() {
 	allowWriteGoMod = true
 }
 
+// MinReqs returns a Reqs with minimal dependencies of Target,
+// as will be written to go.mod.
+func MinReqs() mvs.Reqs {
+	var direct []string
+	for _, m := range buildList[1:] {
+		if loaded.direct[m.Path] {
+			direct = append(direct, m.Path)
+		}
+	}
+	min, err := mvs.Req(Target, buildList, direct, Reqs())
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	return &mvsReqs{buildList: append([]module.Version{Target}, min...)}
+}
+
 // WriteGoMod writes the current build list back to go.mod.
 func WriteGoMod() {
 	if !allowWriteGoMod {
@@ -483,13 +499,8 @@ func WriteGoMod() {
 	modfetch.WriteGoSum()
 
 	if loaded != nil {
-		var direct []string
-		for _, m := range buildList[1:] {
-			if loaded.direct[m.Path] {
-				direct = append(direct, m.Path)
-			}
-		}
-		min, err := mvs.Req(Target, buildList, direct, Reqs())
+		reqs := MinReqs()
+		min, err := reqs.Required(Target)
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
