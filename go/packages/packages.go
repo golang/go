@@ -135,10 +135,7 @@ type Config struct {
 
 // Load and returns the Go packages named by the given patterns.
 func Load(cfg *Config, patterns ...string) ([]*Package, error) {
-	l := &loader{}
-	if cfg != nil {
-		l.Config = *cfg
-	}
+	l := newLoader(cfg)
 	return l.load(patterns...)
 }
 
@@ -209,23 +206,12 @@ type Package struct {
 
 // loaderPackage augments Package with state used during the loading phase
 type loaderPackage struct {
+	raw *rawPackage
 	*Package
-
-	// export holds the path to the export data file
-	// for this package, if mode == TypeCheck.
-	// The export data file contains the package's type information
-	// in a compiler-specific format; see
-	// golang.org/x/tools/go/{gc,gccgo}exportdata.
-	// May be the empty string if the build failed.
-	export string
-
-	indirect      bool              // package is a dependency, not explicitly requested
-	imports       map[string]string // nominal form of Imports graph
-	importErrors  map[string]error  // maps each bad import to its error
+	importErrors  map[string]error // maps each bad import to its error
 	loadOnce      sync.Once
 	color         uint8 // for cycle detection
 	mark, needsrc bool  // used in TypeCheck mode only
-	pkgpath       string
 }
 
 func (lpkg *Package) String() string { return lpkg.ID }
@@ -237,7 +223,11 @@ type loader struct {
 	exportMu sync.Mutex // enforces mutual exclusion of exportdata operations
 }
 
-func (ld *loader) load(patterns ...string) ([]*Package, error) {
+func newLoader(cfg *Config) *loader {
+	ld := &loader{}
+	if cfg != nil {
+		ld.Config = *cfg
+	}
 	if ld.Context == nil {
 		ld.Context = context.Background()
 	}
@@ -259,7 +249,10 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 			}
 		}
 	}
+	return ld
+}
 
+func (ld *loader) load(patterns ...string) ([]*Package, error) {
 	if len(patterns) == 0 {
 		return nil, fmt.Errorf("no packages to load")
 	}
@@ -274,26 +267,38 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	ld.pkgs = make(map[string]*loaderPackage)
+	return ld.loadFrom(list...)
+}
+
+func (ld *loader) loadFrom(list ...*rawPackage) ([]*Package, error) {
+	ld.pkgs = make(map[string]*loaderPackage, len(list))
 	var initial []*loaderPackage
+	// first pass, fixup and build the map and roots
 	for _, pkg := range list {
-		ld.pkgs[pkg.ID] = pkg
-
-		// Record the set of initial packages
-		// corresponding to the patterns.
-		if !pkg.indirect {
-			initial = append(initial, pkg)
-
-			if ld.Mode == LoadSyntax {
-				pkg.needsrc = true
-			}
+		lpkg := &loaderPackage{
+			raw: pkg,
+			Package: &Package{
+				ID:         pkg.ID,
+				Name:       pkg.Name,
+				GoFiles:    pkg.GoFiles,
+				OtherFiles: pkg.OtherFiles,
+			},
+			// TODO: should needsrc also be true if pkg.Export == ""
+			needsrc: ld.Mode >= LoadAllSyntax,
 		}
-		if ld.Mode >= LoadAllSyntax {
-			pkg.needsrc = true
+		ld.pkgs[lpkg.ID] = lpkg
+		if !pkg.DepOnly {
+			initial = append(initial, lpkg)
+			if ld.Mode == LoadSyntax {
+				lpkg.needsrc = true
+			}
 		}
 	}
 	if len(ld.pkgs) == 0 {
 		return nil, fmt.Errorf("packages not found")
+	}
+	if len(initial) == 0 {
+		return nil, fmt.Errorf("packages had no initial set")
 	}
 
 	// Materialize the import graph.
@@ -325,9 +330,8 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		}
 		lpkg.color = grey
 		stack = append(stack, lpkg) // push
-
-		imports := make(map[string]*Package)
-		for importPath, id := range lpkg.imports {
+		lpkg.Imports = make(map[string]*Package, len(lpkg.raw.Imports))
+		for importPath, id := range lpkg.raw.Imports {
 			var importErr error
 			imp := ld.pkgs[id]
 			if imp == nil {
@@ -347,10 +351,8 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 			if visit(imp) {
 				lpkg.needsrc = true
 			}
-			imports[importPath] = imp.Package
+			lpkg.Imports[importPath] = imp.Package
 		}
-		lpkg.imports = nil // no longer needed
-		lpkg.Imports = imports
 
 		stack = stack[:len(stack)-1] // pop
 		lpkg.color = black
@@ -414,7 +416,7 @@ func (ld *loader) loadRecursive(lpkg *loaderPackage) {
 // after immediate dependencies are loaded.
 // Precondition: ld.mode != Metadata.
 func (ld *loader) loadPackage(lpkg *loaderPackage) {
-	if lpkg.pkgpath == "unsafe" {
+	if lpkg.raw.PkgPath == "unsafe" {
 		// Fill in the blanks to avoid surprises.
 		lpkg.Types = types.Unsafe
 		lpkg.Fset = ld.Fset
@@ -449,7 +451,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 	// Call NewPackage directly with explicit name.
 	// This avoids skew between golist and go/types when the files'
 	// package declarations are inconsistent.
-	lpkg.Types = types.NewPackage(lpkg.pkgpath, lpkg.Name)
+	lpkg.Types = types.NewPackage(lpkg.raw.PkgPath, lpkg.Name)
 
 	lpkg.TypesInfo = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
@@ -587,7 +589,7 @@ func (ld *loader) parseFiles(filenames []string) ([]*ast.File, []error) {
 // loadFromExportData returns type information for the specified
 // package, loading it from an export data file on the first request.
 func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error) {
-	if lpkg.pkgpath == "" {
+	if lpkg.raw.PkgPath == "" {
 		log.Fatalf("internal error: Package %s has no PkgPath", lpkg)
 	}
 
@@ -612,11 +614,11 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 
 	lpkg.IllTyped = true // fail safe
 
-	if lpkg.export == "" {
+	if lpkg.raw.Export == "" {
 		// Errors while building export data will have been printed to stderr.
 		return nil, fmt.Errorf("no export data file")
 	}
-	f, err := os.Open(lpkg.export)
+	f, err := os.Open(lpkg.raw.Export)
 	if err != nil {
 		return nil, err
 	}
@@ -630,7 +632,7 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	// queries.)
 	r, err := gcexportdata.NewReader(f)
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %v", lpkg.export, err)
+		return nil, fmt.Errorf("reading %s: %v", lpkg.raw.Export, err)
 	}
 
 	// Build the view.
@@ -671,7 +673,7 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 		if !seen[p] {
 			seen[p] = true
 			if p.Types != nil {
-				view[p.pkgpath] = p.Types
+				view[p.raw.PkgPath] = p.Types
 			} else {
 				copyback = append(copyback, p)
 			}
@@ -684,15 +686,15 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 
 	// Parse the export data.
 	// (May create/modify packages in view.)
-	tpkg, err := gcexportdata.Read(r, ld.Fset, view, lpkg.pkgpath)
+	tpkg, err := gcexportdata.Read(r, ld.Fset, view, lpkg.raw.PkgPath)
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %v", lpkg.export, err)
+		return nil, fmt.Errorf("reading %s: %v", lpkg.raw.Export, err)
 	}
 
 	// For each newly created types.Package in the view,
 	// save it in the main graph.
 	for _, p := range copyback {
-		p.Types = view[p.pkgpath] // may still be nil
+		p.Types = view[p.raw.PkgPath] // may still be nil
 	}
 
 	lpkg.Types = tpkg

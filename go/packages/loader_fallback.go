@@ -23,9 +23,10 @@ package packages
 import (
 	"fmt"
 	"go/build"
+	"strings"
+
 	legacy "golang.org/x/tools/go/loader"
 	"golang.org/x/tools/imports"
-	"strings"
 )
 
 func loaderFallback(dir string, env []string, patterns []string) ([]*Package, error) {
@@ -84,6 +85,13 @@ func loaderFallback(dir string, env []string, patterns []string) ([]*Package, er
 		}
 
 		allpkgs[id] = &loaderPackage{
+			raw: &rawPackage{
+				ID:      id,
+				Name:    lpkg.Pkg.Name(),
+				Imports: pkgimports,
+				GoFiles: goFiles,
+				DepOnly: !initial[lpkg],
+			},
 			Package: &Package{
 				ID:         id,
 				Name:       lpkg.Pkg.Name(),
@@ -96,14 +104,13 @@ func loaderFallback(dir string, env []string, patterns []string) ([]*Package, er
 				IllTyped:   !lpkg.TransitivelyErrorFree,
 				OtherFiles: nil, // Never set for the fallback, because we can't extract from loader.
 			},
-			imports: pkgimports,
 		}
 	}
 
 	// Do a second pass to populate imports.
 	for _, pkg := range allpkgs {
 		pkg.Imports = make(map[string]*Package)
-		for imppath, impid := range pkg.imports {
+		for imppath, impid := range pkg.raw.Imports {
 			target, ok := allpkgs[impid]
 			if !ok {
 				// return nil, fmt.Errorf("could not load package: %v", impid)

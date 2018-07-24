@@ -30,7 +30,7 @@ type GoTooOldError struct {
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
 // dir may be "" and env may be nil, as per os/exec.Command.
-func golistPackages(cfg *rawConfig, words ...string) ([]*loaderPackage, error) {
+func golistPackages(cfg *rawConfig, words ...string) ([]*rawPackage, error) {
 	// Fields must match go list;
 	// see $GOROOT/src/cmd/go/internal/load/pkg.go.
 	type jsonPackage struct {
@@ -71,7 +71,7 @@ func golistPackages(cfg *rawConfig, words ...string) ([]*loaderPackage, error) {
 		return nil, err
 	}
 	// Decode the JSON and convert it to Package form.
-	var result []*loaderPackage
+	var result []*rawPackage
 	for dec := json.NewDecoder(buf); dec.More(); {
 		p := new(jsonPackage)
 		if err := dec.Decode(p); err != nil {
@@ -150,17 +150,15 @@ func golistPackages(cfg *rawConfig, words ...string) ([]*loaderPackage, error) {
 			imports[id] = id // identity import
 		}
 
-		pkg := &loaderPackage{
-			Package: &Package{
-				ID:         id,
-				Name:       p.Name,
-				GoFiles:    absJoin(p.Dir, p.GoFiles, p.CgoFiles),
-				OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
-			},
-			pkgpath:  pkgpath,
-			imports:  imports,
-			export:   export,
-			indirect: p.DepOnly,
+		pkg := &rawPackage{
+			ID:         id,
+			Name:       p.Name,
+			GoFiles:    absJoin(p.Dir, p.GoFiles, p.CgoFiles),
+			OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
+			PkgPath:    pkgpath,
+			Imports:    imports,
+			Export:     export,
+			DepOnly:    p.DepOnly,
 		}
 		result = append(result, pkg)
 	}
