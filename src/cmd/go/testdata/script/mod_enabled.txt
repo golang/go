@@ -4,6 +4,8 @@ env GO111MODULE=auto
 cd $GOPATH/src/x/y/z
 go env GOMOD
 ! stdout . # no non-empty lines
+! go list -m -f {{.GoMod}}
+stderr 'not using modules'
 
 cd $GOPATH/src/x/y/z/w
 go env GOMOD
@@ -15,6 +17,8 @@ go env GOMOD
 
 cd $GOPATH/foo
 go env GOMOD
+stdout foo[/\\]go.mod
+go list -m -f {{.GoMod}}
 stdout foo[/\\]go.mod
 
 cd $GOPATH/foo/bar/baz
