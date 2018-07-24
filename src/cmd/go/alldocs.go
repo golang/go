@@ -928,7 +928,7 @@
 // 		Indirect bool
 // 	}
 //
-// 	type Replace string {
+// 	type Replace struct {
 // 		Old Module
 // 		New Module
 // 	}
