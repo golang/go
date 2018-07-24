@@ -28,6 +28,7 @@ import (
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
 	"cmd/go/internal/modcmd"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modget"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
@@ -65,6 +66,7 @@ func init() {
 		help.HelpFileType,
 		help.HelpGopath,
 		get.HelpGopathGet,
+		modfetch.HelpGoproxy,
 		help.HelpImportPath,
 		modload.HelpModules,
 		modget.HelpModuleGet,
