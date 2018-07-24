@@ -11,12 +11,14 @@ import (
 	"html"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 type HTMLWriter struct {
 	Logger
-	w io.WriteCloser
+	w    io.WriteCloser
+	path string
 }
 
 func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
@@ -24,7 +26,11 @@ func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
 	if err != nil {
 		logger.Fatalf(src.NoXPos, "%v", err)
 	}
-	html := HTMLWriter{w: out, Logger: logger}
+	pwd, err := os.Getwd()
+	if err != nil {
+		logger.Fatalf(src.NoXPos, "%v", err)
+	}
+	html := HTMLWriter{w: out, Logger: logger, path: filepath.Join(pwd, path)}
 	html.start(funcname)
 	return &html
 }
@@ -439,6 +445,7 @@ func (w *HTMLWriter) Close() {
 	io.WriteString(w.w, "</body>")
 	io.WriteString(w.w, "</html>")
 	w.w.Close()
+	fmt.Printf("dumped SSA to %v\n", w.path)
 }
 
 // WriteFunc writes f in a column headed by title.
