@@ -2426,7 +2426,7 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 // connections and they were configured with "h2" in the TLS
 // Config.NextProtos.
 //
-// Serve always returns a non-nil reror.
+// Serve always returns a non-nil error.
 func Serve(l net.Listener, handler Handler) error {
 	srv := &Server{Handler: handler}
 	return srv.Serve(l)
