@@ -496,7 +496,7 @@ func modPrintJSON() {
 
 // modPrintGraph prints the -graph output.
 func modPrintGraph() {
-	reqs := modload.Reqs()
+	reqs := modload.MinReqs()
 
 	format := func(m module.Version) string {
 		if m.Version == "" {
