@@ -42,6 +42,7 @@
 // 	filetype    file types
 // 	gopath      GOPATH environment variable
 // 	gopath-get  legacy GOPATH go get
+// 	goproxy     module proxy protocol
 // 	importpath  import path syntax
 // 	modules     modules, module versions, and more
 // 	module-get  module-aware go get
@@ -777,6 +778,7 @@
 //         Main     bool         // is this the main module?
 //         Indirect bool         // is this module only an indirect dependency of main module?
 //         Dir      string       // directory holding files for this module, if any
+//         GoMod    string       // go.mod file for this module, if any
 //         Error    *ModuleError // error loading module
 //     }
 //
@@ -1335,10 +1337,6 @@
 // 	GOTMPDIR
 // 		The directory where the go command will write
 // 		temporary source files, packages, and binaries.
-// 	GOTOOLDIR
-// 		The directory where the go tools (compile, cover, doc, etc...)
-// 		are installed. This is printed by go env, but setting the
-// 		environment variable has no effect.
 //
 // Environment variables for use with cgo:
 //
@@ -1407,6 +1405,20 @@
 // 		Defined by Git. A colon-separated list of schemes that are allowed to be used
 // 		with git fetch/clone. If set, any scheme not explicitly mentioned will be
 // 		considered insecure by 'go get'.
+//
+// Additional information available from 'go env' but not read from the environment:
+//
+// 	GOEXE
+// 		The executable file name suffix (".exe" on Windows, "" on other systems).
+// 	GOHOSTARCH
+// 		The architecture (GOARCH) of the Go toolchain binaries.
+// 	GOHOSTOS
+// 		The operating system (GOOS) of the Go toolchain binaries.
+// 	GOMOD
+// 		The absolute path to the go.mod of the main module,
+// 		or the empty string if not using modules.
+// 	GOTOOLDIR
+// 		The directory where the go tools (compile, cover, doc, etc...) are installed.
 //
 //
 // File types
@@ -1607,6 +1619,66 @@
 // placed in the main GOPATH, never in a vendor subtree.
 //
 // See https://golang.org/s/go15vendor for details.
+//
+//
+// Module proxy protocol
+//
+// The go command by default downloads modules from version control systems
+// directly, just as 'go get' always has. If the GOPROXY environment variable
+// is set to the URL of a module proxy, the go command will instead fetch
+// all modules from that proxy. No matter the source of the modules, downloaded
+// modules must match existing entries in go.sum (see 'go help modules' for
+// discussion of verification).
+//
+// A Go module proxy is any web server that can respond to GET requests for
+// URLs of a specified form. The requests have no query parameters, so even
+// a site serving from a fixed file system (including a file:/// URL)
+// can be a module proxy.
+//
+// The GET requests sent to a Go module proxy are:
+//
+// GET $GOPROXY/<module>/@v/list returns a list of all known versions of the
+// given module, one per line.
+//
+// GET $GOPROXY/<module>/@v/<version>.info returns JSON-formatted metadata
+// about that version of the given module.
+//
+// GET $GOPROXY/<module>/@v/<version>.mod returns the go.mod file
+// for that version of the given module.
+//
+// GET $GOPROXY/<module>/@v/<version>.zip returns the zip archive
+// for that version of the given module.
+//
+// To avoid problems when serving from case-sensitive file systems,
+// the <module> and <version> elements are case-encoded, replacing every
+// uppercase letter with an exclamation mark followed by the correponding
+// lower-case letter: github.com/Azure encodes as github.com/!azure.
+//
+// The JSON-formatted metadata about a given module corresponds to
+// this Go data structure, which may be expanded in the future:
+//
+//     type Info struct {
+//         Version string    // version string
+//         Time    time.Time // commit time
+//     }
+//
+// The zip archive for a specific version of a given module is a
+// standard zip file that contains the file tree corresponding
+// to the module's source code and related files. The archive uses
+// slash-separated paths, and every file path in the archive must
+// begin with <module>@<version>/, where the module and version are
+// substituted directly, not case-encoded. The root of the module
+// file tree corresponds to the <module>@<version>/ prefix in the
+// archive.
+//
+// Even when downloading directly from version control systems,
+// the go command synthesizes explicit info, mod, and zip files
+// and stores them in its local cache, $GOPATH/src/mod/cache/download,
+// the same as if it had downloaded them directly from a proxy.
+// The cache layout is the same as the proxy URL space, so
+// serving $GOPATH/src/mod/cache/download at (or copying it to)
+// https://example.com/proxy would let other users access those
+// cached module versions with GOPROXY=https://example.com/proxy.
 //
 //
 // Import path syntax
