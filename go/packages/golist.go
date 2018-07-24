@@ -8,7 +8,6 @@ package packages
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -31,7 +30,7 @@ type GoTooOldError struct {
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
 // dir may be "" and env may be nil, as per os/exec.Command.
-func golistPackages(ctx context.Context, dir string, env []string, export, tests, deps bool, words []string) ([]*loaderPackage, error) {
+func golistPackages(cfg *rawConfig, words ...string) ([]*loaderPackage, error) {
 	// Fields must match go list;
 	// see $GOROOT/src/cmd/go/internal/load/pkg.go.
 	type jsonPackage struct {
@@ -53,7 +52,6 @@ func golistPackages(ctx context.Context, dir string, env []string, export, tests
 		ForTest      string // q in a "p [q.test]" package, else ""
 		DepOnly      bool
 	}
-
 	// go list uses the following identifiers in ImportPath and Imports:
 	//
 	// 	"p"			-- importable package or main (command)
@@ -68,7 +66,7 @@ func golistPackages(ctx context.Context, dir string, env []string, export, tests
 	// Run "go list" for complete
 	// information on the specified packages.
 
-	buf, err := golist(ctx, dir, env, export, tests, deps, words)
+	buf, err := golist(cfg, words)
 	if err != nil {
 		return nil, err
 	}
@@ -184,24 +182,15 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 }
 
 // golist returns the JSON-encoded result of a "go list args..." query.
-func golist(ctx context.Context, dir string, env []string, export, tests, deps bool, args []string) (*bytes.Buffer, error) {
+func golist(cfg *rawConfig, args []string) (*bytes.Buffer, error) {
 	out := new(bytes.Buffer)
-	cmd := exec.CommandContext(ctx, "go", append([]string{
-		"list",
-		"-e",
-		fmt.Sprintf("-cgo=%t", true),
-		fmt.Sprintf("-test=%t", tests),
-		fmt.Sprintf("-export=%t", export),
-		fmt.Sprintf("-deps=%t", deps),
-		"-json",
-		"--",
-	}, args...)...)
-
-	if env == nil {
-		env = os.Environ()
-	}
-	cmd.Env = env
-	cmd.Dir = dir
+	fullargs := []string{"list", "-e", "-json", "-cgo=true"}
+	fullargs = append(fullargs, cfg.Flags()...)
+	fullargs = append(fullargs, "--")
+	fullargs = append(fullargs, args...)
+	cmd := exec.CommandContext(cfg.Context, "go", fullargs...)
+	cmd.Env = cfg.Env
+	cmd.Dir = cfg.Dir
 	cmd.Stdout = out
 	cmd.Stderr = new(bytes.Buffer)
 	if err := cmd.Run(); err != nil {
@@ -222,7 +211,7 @@ func golist(ctx context.Context, dir string, env []string, export, tests, deps b
 		// If that build fails, errors appear on stderr
 		// (despite the -e flag) and the Export field is blank.
 		// Do not fail in that case.
-		if !export {
+		if !cfg.Export {
 			return nil, fmt.Errorf("go list: %s: %s", exitErr, cmd.Stderr)
 		}
 	}

@@ -266,9 +266,8 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 
 	// Do the metadata query and partial build.
 	// TODO(adonovan): support alternative build systems at this seam.
-	export := ld.Mode > LoadImports && ld.Mode < LoadAllSyntax
-	deps := ld.Mode >= LoadImports
-	list, err := golistPackages(ld.Context, ld.Dir, ld.Env, export, ld.Tests, deps, patterns)
+	rawCfg := newRawConfig(&ld.Config)
+	list, err := golistPackages(rawCfg, patterns...)
 	if _, ok := err.(GoTooOldError); ok {
 		return loaderFallback(ld.Dir, ld.Env, patterns)
 	}
