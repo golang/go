@@ -9,7 +9,9 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"net/url"
 	"sort"
 	"sync"
 	"testing"
@@ -40,6 +42,21 @@ func init() {
 	// When not under test, these values are always nil
 	// and never assigned to.
 	testHookMu = new(sync.Mutex)
+
+	testHookClientDoResult = func(res *Response, err error) {
+		if err != nil {
+			if _, ok := err.(*url.Error); !ok {
+				panic(fmt.Sprintf("unexpected Client.Do error of type %T; want *url.Error", err))
+			}
+		} else {
+			if res == nil {
+				panic("Client.Do returned nil, nil")
+			}
+			if res.Body == nil {
+				panic("Client.Do returned nil res.Body and no error")
+			}
+		}
+	}
 }
 
 var (
