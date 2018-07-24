@@ -23,7 +23,8 @@ import (
 var ssaConfig *ssa.Config
 var ssaCaches []ssa.Cache
 
-var ssaDump string // early copy of $GOSSAFUNC; the func name to dump output for
+var ssaDump string     // early copy of $GOSSAFUNC; the func name to dump output for
+var ssaDumpStdout bool // whether to dump to stdout
 const ssaDumpFile = "ssa.html"
 
 func initssaconfig() {
@@ -125,7 +126,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 
 	fe := ssafn{
 		curfn: fn,
-		log:   printssa,
+		log:   printssa && ssaDumpStdout,
 	}
 	s.curfn = fn
 
@@ -4873,7 +4874,8 @@ func genssa(f *ssa.Func, pp *Progs) {
 	var progToBlock map[*obj.Prog]*ssa.Block
 	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
 	var logProgs = e.log
-	if logProgs {
+	if f.HTMLWriter != nil {
+		// logProgs can be false, meaning that we do not dump to the Stdout.
 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
@@ -5042,42 +5044,36 @@ func genssa(f *ssa.Func, pp *Progs) {
 			}
 			f.Logf(" %-6s\t%.5d (%s)\t%s\n", s, p.Pc, p.InnermostLineNumber(), p.InstructionString())
 		}
-		if f.HTMLWriter != nil {
-			// LineHist is defunct now - this code won't do
-			// anything.
-			// TODO: fix this (ideally without a global variable)
-			// saved := pp.Text.Ctxt.LineHist.PrintFilenameOnly
-			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = true
-			var buf bytes.Buffer
-			buf.WriteString("<code>")
-			buf.WriteString("<dl class=\"ssa-gen\">")
-			filename := ""
-			for p := pp.Text; p != nil; p = p.Link {
-				// Don't spam every line with the file name, which is often huge.
-				// Only print changes, and "unknown" is not a change.
-				if p.Pos.IsKnown() && p.InnermostFilename() != filename {
-					filename = p.InnermostFilename()
-					buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
-					buf.WriteString(html.EscapeString("# " + filename))
-					buf.WriteString("</dd>")
-				}
-
-				buf.WriteString("<dt class=\"ssa-prog-src\">")
-				if v, ok := progToValue[p]; ok {
-					buf.WriteString(v.HTML())
-				} else if b, ok := progToBlock[p]; ok {
-					buf.WriteString("<b>" + b.HTML() + "</b>")
-				}
-				buf.WriteString("</dt>")
-				buf.WriteString("<dd class=\"ssa-prog\">")
-				buf.WriteString(fmt.Sprintf("%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
+	}
+	if f.HTMLWriter != nil {
+		var buf bytes.Buffer
+		buf.WriteString("<code>")
+		buf.WriteString("<dl class=\"ssa-gen\">")
+		filename := ""
+		for p := pp.Text; p != nil; p = p.Link {
+			// Don't spam every line with the file name, which is often huge.
+			// Only print changes, and "unknown" is not a change.
+			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
+				filename = p.InnermostFilename()
+				buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
+				buf.WriteString(html.EscapeString("# " + filename))
 				buf.WriteString("</dd>")
 			}
-			buf.WriteString("</dl>")
-			buf.WriteString("</code>")
-			f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
-			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = saved
+
+			buf.WriteString("<dt class=\"ssa-prog-src\">")
+			if v, ok := progToValue[p]; ok {
+				buf.WriteString(v.HTML())
+			} else if b, ok := progToBlock[p]; ok {
+				buf.WriteString("<b>" + b.HTML() + "</b>")
+			}
+			buf.WriteString("</dt>")
+			buf.WriteString("<dd class=\"ssa-prog\">")
+			buf.WriteString(fmt.Sprintf("%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
+			buf.WriteString("</dd>")
 		}
+		buf.WriteString("</dl>")
+		buf.WriteString("</code>")
+		f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
 	}
 
 	defframe(&s, e)
@@ -5435,7 +5431,7 @@ type ssafn struct {
 	scratchFpMem *Node                  // temp for floating point register / memory moves on some architectures
 	stksize      int64                  // stack size for current frame
 	stkptrsize   int64                  // prefix of stack containing pointers
-	log          bool
+	log          bool                   // print ssa debug to the stdout
 }
 
 // StringData returns a symbol (a *types.Sym wrapped in an interface) which
