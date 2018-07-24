@@ -411,6 +411,35 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return true
 }
 
+func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
+	rs := r.Xsym
+
+	if rs.Dynid < 0 {
+		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+		return false
+	}
+
+	out.Write32(uint32(sectoff))
+	out.Write32(uint32(rs.Dynid))
+
+	var v uint32
+	switch r.Type {
+	default:
+		// unsupported relocation type
+		return false
+
+	case objabi.R_DWARFSECREF:
+		v = ld.IMAGE_REL_ARM_SECREL
+
+	case objabi.R_ADDR:
+		v = ld.IMAGE_REL_ARM_ADDR32
+	}
+
+	out.Write16(uint16(v))
+
+	return true
+}
+
 // sign extend a 24-bit integer
 func signext24(x int64) int32 {
 	return (int32(x) << 8) >> 8
@@ -799,6 +828,10 @@ func asmb(ctxt *ld.Link) {
 
 		case objabi.Hdarwin:
 			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+
+		case objabi.Hwindows:
+			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+			symo = uint32(ld.Rnd(int64(symo), ld.PEFILEALIGN))
 		}
 
 		ctxt.Out.SeekSet(int64(symo))
@@ -826,6 +859,11 @@ func asmb(ctxt *ld.Link) {
 				ld.Lcsize = int32(len(sym.P))
 				ctxt.Out.Write(sym.P)
 				ctxt.Out.Flush()
+			}
+
+		case objabi.Hwindows:
+			if ctxt.Debugvlog != 0 {
+				ctxt.Logf("%5.2f dwarf\n", ld.Cputime())
 			}
 
 		case objabi.Hdarwin:
@@ -860,6 +898,9 @@ func asmb(ctxt *ld.Link) {
 
 	case objabi.Hdarwin:
 		ld.Asmbmacho(ctxt)
+
+	case objabi.Hwindows:
+		ld.Asmbpe(ctxt)
 	}
 
 	ctxt.Out.Flush()

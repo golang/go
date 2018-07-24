@@ -60,7 +60,7 @@ func (mode *BuildMode) Set(s string) error {
 			}
 		case "windows":
 			switch objabi.GOARCH {
-			case "amd64", "386":
+			case "amd64", "386", "arm":
 			default:
 				return badmode()
 			}
