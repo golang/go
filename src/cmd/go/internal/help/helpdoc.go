@@ -501,10 +501,6 @@ General-purpose environment variables:
 	GOTMPDIR
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
-	GOTOOLDIR
-		The directory where the go tools (compile, cover, doc, etc...)
-		are installed. This is printed by go env, but setting the
-		environment variable has no effect.
 
 Environment variables for use with cgo:
 
@@ -573,6 +569,20 @@ Special-purpose environment variables:
 		Defined by Git. A colon-separated list of schemes that are allowed to be used
 		with git fetch/clone. If set, any scheme not explicitly mentioned will be
 		considered insecure by 'go get'.
+
+Additional information available from 'go env' but not read from the environment:
+
+	GOEXE
+		The executable file name suffix (".exe" on Windows, "" on other systems).
+	GOHOSTARCH
+		The architecture (GOARCH) of the Go toolchain binaries.
+	GOHOSTOS
+		The operating system (GOOS) of the Go toolchain binaries.
+	GOMOD
+		The absolute path to the go.mod of the main module,
+		or the empty string if not using modules.
+	GOTOOLDIR
+		The directory where the go tools (compile, cover, doc, etc...) are installed.
 	`,
 }
 
