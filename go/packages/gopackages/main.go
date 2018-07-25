@@ -28,7 +28,7 @@ import (
 var (
 	depsFlag = flag.Bool("deps", false, "show dependencies too")
 	testFlag = flag.Bool("test", false, "include any tests implied by the patterns")
-	mode     = flag.String("mode", "graph", "mode (one of metadata, graph, typed, alltyped)")
+	mode     = flag.String("mode", "imports", "mode (one of files, imports, types, syntax, allsyntax)")
 	private  = flag.Bool("private", false, "show non-exported declarations too")
 
 	cpuprofile = flag.String("cpuprofile", "", "write CPU profile to this file")
