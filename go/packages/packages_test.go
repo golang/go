@@ -732,6 +732,31 @@ func TestAbsoluteFilenames(t *testing.T) {
 	}
 }
 
+func TestContains(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go": `package a; import "b"`,
+		"src/b/b.go": `package b; import "c"`,
+		"src/c/c.go": `package c`,
+	})
+	defer cleanup()
+
+	opts := &packages.Config{Env: append(os.Environ(), "GOPATH="+tmp), Dir: tmp, Mode: packages.LoadImports}
+	initial, err := packages.Load(opts, "contains:src/b/b.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	graph, _ := importGraph(initial)
+	wantGraph := `
+* b
+  c
+  b -> c
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+}
+
 func errorMessages(errors []error) []string {
 	var msgs []string
 	for _, err := range errors {

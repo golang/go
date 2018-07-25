@@ -18,6 +18,8 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/gcexportdata"
+	"path/filepath"
+	"strings"
 )
 
 // A LoadMode specifies the amount of detail to return when loading packages.
@@ -231,6 +233,12 @@ func newLoader(cfg *Config) *loader {
 	if ld.Context == nil {
 		ld.Context = context.Background()
 	}
+	// Determine directory to be used for relative contains: paths.
+	if ld.Dir == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			ld.Dir = cwd
+		}
+	}
 	if ld.Mode >= LoadSyntax {
 		if ld.Fset == nil {
 			ld.Fset = token.NewFileSet()
@@ -257,21 +265,79 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		return nil, fmt.Errorf("no packages to load")
 	}
 
+	if ld.Dir == "" {
+		return nil, fmt.Errorf("failed to get working directory")
+	}
+
+	// Determine files requested in contains patterns
+	var containFiles []string
+	{
+		restPatterns := patterns[:0]
+		for _, pattern := range patterns {
+			if containFile := strings.TrimPrefix(pattern, "contains:"); containFile != pattern {
+				containFiles = append(containFiles, containFile)
+			} else {
+				restPatterns = append(restPatterns, pattern)
+			}
+		}
+		containFiles = absJoin(ld.Dir, containFiles)
+		patterns = restPatterns
+	}
+
 	// Do the metadata query and partial build.
 	// TODO(adonovan): support alternative build systems at this seam.
 	rawCfg := newRawConfig(&ld.Config)
-	list, err := golistPackages(rawCfg, patterns...)
+	listfunc := golistPackages
+	// TODO(matloob): Patterns may now be empty, if it was solely comprised of contains: patterns.
+	// See if the extra process invocation can be avoided.
+	list, err := listfunc(rawCfg, patterns...)
 	if _, ok := err.(GoTooOldError); ok {
 		if ld.Config.Mode >= LoadTypes {
 			// Upgrade to LoadAllSyntax because we can't depend on the existance
 			// of export data. We can remove this once iancottrell's cl is in.
 			ld.Config.Mode = LoadAllSyntax
 		}
-		list, err = golistPackagesFallback(rawCfg, patterns...)
+		listfunc = golistPackagesFallback
+		list, err = listfunc(rawCfg, patterns...)
 	}
 	if err != nil {
 		return nil, err
 	}
+
+	// Run go list for contains: patterns.
+	seenPkgs := make(map[string]bool) // for deduplication. different containing queries could produce same packages
+	if len(containFiles) > 0 {
+		for _, pkg := range list {
+			seenPkgs[pkg.ID] = true
+		}
+	}
+	for _, f := range containFiles {
+		// TODO(matloob): Do only one query per directory.
+		fdir := filepath.Dir(f)
+		rawCfg.Dir = fdir
+		cList, err := listfunc(rawCfg, ".")
+		if err != nil {
+			return nil, err
+		}
+		// Deduplicate and set deplist to set of packages requested files.
+		dedupedList := cList[:0] // invariant: only packages that haven't been seen before
+		for _, pkg := range cList {
+			if seenPkgs[pkg.ID] {
+				continue
+			}
+			seenPkgs[pkg.ID] = true
+			dedupedList = append(dedupedList, pkg)
+			pkg.DepOnly = true
+			for _, pkgFile := range pkg.GoFiles {
+				if filepath.Base(f) == filepath.Base(pkgFile) {
+					pkg.DepOnly = false
+					break
+				}
+			}
+		}
+		list = append(list, dedupedList...)
+	}
+
 	return ld.loadFrom(list...)
 }
 
