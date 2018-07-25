@@ -415,9 +415,18 @@ func (c *sigctxt) fixsigcode(sig uint32) {
 //go:nosplit
 func sysSigaction(sig uint32, new, old *sigactiont) {
 	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
-		// Workaround for bug in Qemu user mode emulation. (qemu
-		// rejects rt_sigaction of signal 64, SIGRTMAX).
-		if sig != 64 {
+		// Workaround for bugs in QEMU user mode emulation.
+		//
+		// QEMU turns calls to the sigaction system call into
+		// calls to the C library sigaction call; the C
+		// library call rejects attempts to call sigaction for
+		// SIGCANCEL (32) or SIGSETXID (33).
+		//
+		// QEMU rejects calling sigaction on SIGRTMAX (64).
+		//
+		// Just ignore the error in these case. There isn't
+		// anything we can do about it anyhow.
+		if sig != 32 && sig != 33 && sig != 64 {
 			// Use system stack to avoid split stack overflow on ppc64/ppc64le.
 			systemstack(func() {
 				throw("sigaction failed")
