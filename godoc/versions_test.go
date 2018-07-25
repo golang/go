@@ -4,7 +4,10 @@
 
 package godoc
 
-import "testing"
+import (
+	"go/build"
+	"testing"
+)
 
 func TestParseVersionRow(t *testing.T) {
 	tests := []struct {
@@ -73,6 +76,17 @@ func TestParseVersionRow(t *testing.T) {
 	}
 }
 
+// hasTag checks whether a given release tag is contained in the current version
+// of the go binary.
+func hasTag(t string) bool {
+	for _, v := range build.Default.ReleaseTags {
+		if t == v {
+			return true
+		}
+	}
+	return false
+}
+
 func TestAPIVersion(t *testing.T) {
 	av, err := parsePackageAPIInfo()
 	if err != nil {
@@ -108,6 +122,9 @@ func TestAPIVersion(t *testing.T) {
 		{"type", "archive/tar", "Header", "", ""},
 		{"method", "archive/tar", "Next", "*Reader", ""},
 	} {
+		if tc.want != "" && !hasTag("go"+tc.want) {
+			continue
+		}
 		if got := av.sinceVersionFunc(tc.kind, tc.receiver, tc.name, tc.pkg); got != tc.want {
 			t.Errorf(`sinceFunc("%s", "%s", "%s", "%s") = "%s"; want "%s"`, tc.kind, tc.receiver, tc.name, tc.pkg, got, tc.want)
 		}
