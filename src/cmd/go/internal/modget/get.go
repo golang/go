@@ -344,7 +344,7 @@ func runGet(cmd *base.Command, args []string) {
 	base.ExitIfErrors()
 
 	// Now we've reduced the upgrade/downgrade work to a list of path@vers pairs (tasks).
-	// Resolve each one in parallell.
+	// Resolve each one in parallel.
 	reqs := modload.Reqs()
 	var lookup par.Work
 	for _, t := range tasks {

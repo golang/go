@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 // A File is the parsed, interpreted form of a go.mod file.
 type File struct {
 	Module  *Module
+	Go      *Go
 	Require []*Require
 	Exclude []*Exclude
 	Replace []*Replace
@@ -32,6 +34,12 @@ type File struct {
 type Module struct {
 	Mod    module.Version
 	Syntax *Line
+}
+
+// A Go is the go statement.
+type Go struct {
+	Version string // "1.23"
+	Syntax  *Line
 }
 
 // A Require is a single require statement.
@@ -146,20 +154,39 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
 	return f, nil
 }
 
+var goVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
+
 func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
 	// If strict is false, this module is a dependency.
-	// We ignore all unknown directives and do not attempt to parse
-	// replace and exclude either. They don't matter, and it will work better for
+	// We ignore all unknown directives as well as main-module-only
+	// directives like replace and exclude. It will work better for
 	// forward compatibility if we can depend on modules that have unknown
-	// statements (presumed relevant only when acting as the main module).
-	if !strict && verb != "module" && verb != "require" {
-		return
+	// statements (presumed relevant only when acting as the main module)
+	// and simply ignore those statements.
+	if !strict {
+		switch verb {
+		case "module", "require", "go":
+			// want these even for dependency go.mods
+		default:
+			return
+		}
 	}
 
 	switch verb {
 	default:
 		fmt.Fprintf(errs, "%s:%d: unknown directive: %s\n", f.Syntax.Name, line.Start.Line, verb)
 
+	case "go":
+		if f.Go != nil {
+			fmt.Fprintf(errs, "%s:%d: repeated go statement\n", f.Syntax.Name, line.Start.Line)
+			return
+		}
+		if len(args) != 1 || !goVersionRE.MatchString(args[0]) {
+			fmt.Fprintf(errs, "%s:%d: usage: go 1.23\n", f.Syntax.Name, line.Start.Line)
+			return
+		}
+		f.Go = &Go{Syntax: line}
+		f.Go.Version = args[0]
 	case "module":
 		if f.Module != nil {
 			fmt.Fprintf(errs, "%s:%d: repeated module statement\n", f.Syntax.Name, line.Start.Line)

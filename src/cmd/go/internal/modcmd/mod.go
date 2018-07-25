@@ -51,6 +51,8 @@ To override this guess, use the -module flag.
 The -module flag changes (or, with -init, sets) the module's path
 (the go.mod file's module line).
 
+The -go flag changes the minimum required version of Go listed in go.mod.
+
 The -require=path@version and -droprequire=path flags
 add and drop a requirement on the given module path and version.
 Note that -require overrides any existing requirements on path.
