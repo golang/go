@@ -1719,14 +1719,14 @@ func typecheck1(n *Node, top int) *Node {
 				}
 			}
 
-		// do not use stringtoarraylit.
+		// do not convert to []byte literal. See CL 125796.
 		// generated code and compiler memory footprint is better without it.
 		case OSTRARRAYBYTE:
 			break
 
 		case OSTRARRAYRUNE:
 			if n.Left.Op == OLITERAL {
-				n = stringtoarraylit(n)
+				n = stringtoruneslit(n)
 			}
 		}
 
@@ -3509,27 +3509,19 @@ func typecheckfunc(n *Node) {
 	}
 }
 
-// The result of stringtoarraylit MUST be assigned back to n, e.g.
-// 	n.Left = stringtoarraylit(n.Left)
-func stringtoarraylit(n *Node) *Node {
+// The result of stringtoruneslit MUST be assigned back to n, e.g.
+// 	n.Left = stringtoruneslit(n.Left)
+func stringtoruneslit(n *Node) *Node {
 	if n.Left.Op != OLITERAL || n.Left.Val().Ctype() != CTSTR {
 		Fatalf("stringtoarraylit %v", n)
 	}
 
-	s := n.Left.Val().U.(string)
 	var l []*Node
-	if n.Type.Elem().Etype == TUINT8 {
-		// []byte
-		for i := 0; i < len(s); i++ {
-			l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(s[0]))))
-		}
-	} else {
-		// []rune
-		i := 0
-		for _, r := range s {
-			l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
-			i++
-		}
+	s := n.Left.Val().U.(string)
+	i := 0
+	for _, r := range s {
+		l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
+		i++
 	}
 
 	nn := nod(OCOMPLIT, nil, typenod(n.Type))
