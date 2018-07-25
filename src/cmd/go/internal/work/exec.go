@@ -411,7 +411,7 @@ func (b *Builder) build(a *Action) (err error) {
 		if b.IsCmdList {
 			return nil
 		}
-		return fmt.Errorf("missing or invalid binary-only package")
+		return fmt.Errorf("missing or invalid binary-only package; expected file %q", a.Package.Target)
 	}
 
 	if err := b.Mkdir(a.Objdir); err != nil {
