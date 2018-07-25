@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"go/build"
 	"io"
 	"io/ioutil"
 	"net"
@@ -202,6 +203,17 @@ func waitForServer(t *testing.T, url, match string, timeout time.Duration, rever
 	t.Fatalf("Server failed to respond in %v", timeout)
 }
 
+// hasTag checks whether a given release tag is contained in the current version
+// of the go binary.
+func hasTag(t string) bool {
+	for _, v := range build.Default.ReleaseTags {
+		if t == v {
+			return true
+		}
+	}
+	return false
+}
+
 func killAndWait(cmd *exec.Cmd) {
 	cmd.Process.Kill()
 	cmd.Wait()
@@ -260,6 +272,7 @@ func testWeb(t *testing.T, withIndex bool) {
 		match       []string // regexp
 		notContains []string
 		needIndex   bool
+		releaseTag  string // optional release tag that must be in go/build.ReleaseTags
 	}{
 		{
 			path:     "/",
@@ -338,6 +351,7 @@ func testWeb(t *testing.T, withIndex bool) {
 			match: []string{
 				`Got1xxResponse.*// Go 1\.11`,
 			},
+			releaseTag: "go1.11",
 		},
 		// Verify we don't add version info to a struct field added the same time
 		// as the struct itself:
@@ -354,6 +368,7 @@ func testWeb(t *testing.T, withIndex bool) {
 				"The number of connections currently in use; added in Go 1.11",
 				"The number of idle connections; added in Go 1.11",
 			},
+			releaseTag: "go1.11",
 		},
 	}
 	for _, test := range tests {
@@ -374,12 +389,18 @@ func testWeb(t *testing.T, withIndex bool) {
 		}
 		isErr := false
 		for _, substr := range test.contains {
+			if test.releaseTag != "" && !hasTag(test.releaseTag) {
+				continue
+			}
 			if !bytes.Contains(body, []byte(substr)) {
 				t.Errorf("GET %s: wanted substring %q in body", url, substr)
 				isErr = true
 			}
 		}
 		for _, re := range test.match {
+			if test.releaseTag != "" && !hasTag(test.releaseTag) {
+				continue
+			}
 			if ok, err := regexp.MatchString(re, strBody); !ok || err != nil {
 				if err != nil {
 					t.Fatalf("Bad regexp %q: %v", re, err)
