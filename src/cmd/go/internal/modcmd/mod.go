@@ -63,12 +63,13 @@ The -exclude=path@version and -dropexclude=path@version flags
 add and drop an exclusion for the given module path and version.
 Note that -exclude=path@version is a no-op if that exclusion already exists.
 
-The -replace=old@v=new@w and -dropreplace=old@v flags
+The -replace=old[@v]=new[@w] and -dropreplace=old[@v] flags
 add and drop a replacement of the given module path and version pair.
 If the @v in old@v is omitted, the replacement applies to all versions
-with the old module path. If the @v in new@v is omitted, the
-new path should be a directory on the local system, not a module path.
-Note that -replace overrides any existing replacements for old@v.
+with the old module path. If the @w in new@w is omitted, the
+new path should be a directory on the local system containing
+source for a module, not a module path.
+Note that -replace overrides any existing replacements for old[@v].
 
 These editing flags (-require, -droprequire, -exclude, -dropexclude,
 -replace, and -dropreplace) may be repeated.
@@ -362,6 +363,25 @@ func parsePath(flag, arg string) (path string) {
 	return path
 }
 
+// parsePathVersionOptional parses path[@version], using adj to
+// describe any errors.
+func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
+	if i := strings.Index(arg, "@"); i < 0 {
+		path = arg
+	} else {
+		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+	}
+	if err := module.CheckPath(path); err != nil {
+		if !allowDirPath || !modfile.IsDirectoryPath(path) {
+			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
+		}
+	}
+	if path != arg && modfile.MustQuote(version) {
+		return path, version, fmt.Errorf("invalid %s version: %q", adj, version)
+	}
+	return path, version, nil
+}
+
 // flagRequire implements the -require flag.
 func flagRequire(arg string) {
 	path, version := parsePathVersion("require", arg)
@@ -406,38 +426,22 @@ func flagDropExclude(arg string) {
 func flagReplace(arg string) {
 	var i int
 	if i = strings.Index(arg, "="); i < 0 {
-		base.Fatalf("go mod: -replace=%s: need old@v=new[@v] (missing =)", arg)
+		base.Fatalf("go mod: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
 	}
 	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
 	if strings.HasPrefix(new, ">") {
 		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
 	}
-	var oldPath, oldVersion string
-	if i = strings.Index(old, "@"); i < 0 {
-		oldPath = old
-	} else {
-		oldPath, oldVersion = strings.TrimSpace(old[:i]), strings.TrimSpace(old[i+1:])
+	oldPath, oldVersion, err := parsePathVersionOptional("old", old, false)
+	if err != nil {
+		base.Fatalf("go mod: -replace=%s: %v", arg, err)
 	}
-	if err := module.CheckPath(oldPath); err != nil {
-		base.Fatalf("go mod: -replace=%s: invalid old path: %v", arg, err)
+	newPath, newVersion, err := parsePathVersionOptional("new", new, true)
+	if err != nil {
+		base.Fatalf("go mod: -replace=%s: %v", arg, err)
 	}
-	if oldPath != old && modfile.MustQuote(oldVersion) {
-		base.Fatalf("go mod: -replace=%s: invalid old version %q", arg, oldVersion)
-	}
-	var newPath, newVersion string
-	if i = strings.Index(new, "@"); i >= 0 {
-		newPath, newVersion = strings.TrimSpace(new[:i]), strings.TrimSpace(new[i+1:])
-		if err := module.CheckPath(newPath); err != nil {
-			base.Fatalf("go mod: -replace=%s: invalid new path: %v", arg, err)
-		}
-		if modfile.MustQuote(newVersion) {
-			base.Fatalf("go mod: -replace=%s: invalid new version %q", arg, newVersion)
-		}
-	} else {
-		if !modfile.IsDirectoryPath(new) {
-			base.Fatalf("go mod: -replace=%s: unversioned new path must be local directory", arg)
-		}
-		newPath = new
+	if newPath == new && !modfile.IsDirectoryPath(new) {
+		base.Fatalf("go mod: -replace=%s: unversioned new path must be local directory", arg)
 	}
 
 	modEdits = append(modEdits, func(f *modfile.File) {
@@ -449,7 +453,10 @@ func flagReplace(arg string) {
 
 // flagDropReplace implements the -dropreplace flag.
 func flagDropReplace(arg string) {
-	path, version := parsePathVersion("dropreplace", arg)
+	path, version, err := parsePathVersionOptional("old", arg, true)
+	if err != nil {
+		base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
+	}
 	modEdits = append(modEdits, func(f *modfile.File) {
 		if err := f.DropReplace(path, version); err != nil {
 			base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
