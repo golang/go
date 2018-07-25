@@ -320,6 +320,27 @@ func (b *Builder) needCgoHdr(a *Action) bool {
 	return false
 }
 
+// allowedVersion reports whether the version v is an allowed version of go
+// (one that we can compile).
+// v is known to be of the form "1.23".
+func allowedVersion(v string) bool {
+	// Special case: no requirement.
+	if v == "" {
+		return true
+	}
+	// Special case "1.0" means "go1", which is OK.
+	if v == "1.0" {
+		return true
+	}
+	// Otherwise look through release tags of form "go1.23" for one that matches.
+	for _, tag := range cfg.BuildContext.ReleaseTags {
+		if strings.HasPrefix(tag, "go") && tag[2:] == v {
+			return true
+		}
+	}
+	return false
+}
+
 const (
 	needBuild uint32 = 1 << iota
 	needCgoHdr
@@ -412,6 +433,10 @@ func (b *Builder) build(a *Action) (err error) {
 			return nil
 		}
 		return fmt.Errorf("missing or invalid binary-only package; expected file %q", a.Package.Target)
+	}
+
+	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+		return fmt.Errorf("module requires Go %s", p.Module.GoVersion)
 	}
 
 	if err := b.Mkdir(a.Objdir); err != nil {

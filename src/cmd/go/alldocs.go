@@ -778,7 +778,7 @@
 //         Main     bool         // is this the main module?
 //         Indirect bool         // is this module only an indirect dependency of main module?
 //         Dir      string       // directory holding files for this module, if any
-//         GoMod    string       // go.mod file for this module, if any
+//         GoMod    string       // path to go.mod file for this module, if any
 //         Error    *ModuleError // error loading module
 //     }
 //
@@ -881,6 +881,8 @@
 //
 // The -module flag changes (or, with -init, sets) the module's path
 // (the go.mod file's module line).
+//
+// The -go flag changes the minimum required version of Go listed in go.mod.
 //
 // The -require=path@version and -droprequire=path flags
 // add and drop a requirement on the given module path and version.

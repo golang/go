@@ -86,19 +86,26 @@ func addVersions(m *modinfo.ModulePublic) {
 
 func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 	if m == Target {
-		return &modinfo.ModulePublic{
+		info := &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: m.Version,
 			Main:    true,
 			Dir:     ModRoot,
 			GoMod:   filepath.Join(ModRoot, "go.mod"),
 		}
+		if modFile.Go != nil {
+			info.GoVersion = modFile.Go.Version
+		}
+		return info
 	}
 
 	info := &modinfo.ModulePublic{
 		Path:     m.Path,
 		Version:  m.Version,
 		Indirect: fromBuildList && loaded != nil && !loaded.direct[m.Path],
+	}
+	if loaded != nil {
+		info.GoVersion = loaded.goVersion[m.Path]
 	}
 
 	if cfg.BuildGetmode == "vendor" {
@@ -139,8 +146,9 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 
 	if r := Replacement(m); r.Path != "" {
 		info.Replace = &modinfo.ModulePublic{
-			Path:    r.Path,
-			Version: r.Version,
+			Path:      r.Path,
+			Version:   r.Version,
+			GoVersion: info.GoVersion,
 		}
 		if r.Version == "" {
 			if filepath.IsAbs(r.Path) {
