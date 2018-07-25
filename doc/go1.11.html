@@ -709,6 +709,12 @@ for k := range m {
       option to permit changing how errors are handled.
     </p>
 
+    <p><!-- CL 115135 -->
+      The <code>ReverseProxy</code> now also passes
+      "<code>TE:</code>&nbsp;<code>trailers</code>" request headers
+      through to the backend, as required by the gRPC protocol.
+    </p>
+
 </dl><!-- net/http/httputil -->
 
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
