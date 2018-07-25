@@ -2324,6 +2324,9 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 	if !strings.Contains(string(body), "<title>Timeout</title>") {
 		t.Errorf("expected timeout body; got %q", string(body))
 	}
+	if g, w := res.Header.Get("Content-Type"), "text/html; charset=utf-8"; g != w {
+		t.Errorf("response content-type = %q; want %q", g, w)
+	}
 
 	// Now make the previously-timed out handler speak again,
 	// which verifies the panic is handled:
