@@ -28,6 +28,11 @@ var CmdMod = &base.Command{
 Mod performs module maintenance operations as specified by the
 following flags, which may be combined.
 
+Note that support for modules is built into all the go commands,
+not just 'go mod'. For example, day-to-day adding, removing, upgrading,
+and downgrading of dependencies should be done using 'go get'.
+See 'go help modules' for an overview of module functionality.
+
 The -v flag enables additional output about operations performed.
 
 The first group of operations provide low-level editing operations
