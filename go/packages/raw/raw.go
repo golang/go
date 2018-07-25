@@ -17,6 +17,18 @@ data for the packages API, all tools should interact only with the packages API.
 */
 package raw
 
+import (
+	"flag"
+)
+
+// Results describes the results of a load operation.
+type Results struct {
+	// Roots is the set of package identifiers that directly matched the patterns.
+	Roots []string
+	// Error is an error message if the query failed for some reason.
+	Error string `json:",omitempty"`
+}
+
 // Package is the raw serialized form of a packages.Package
 type Package struct {
 	// ID is a unique identifier for a package,
@@ -101,4 +113,30 @@ type Config struct {
 	// Packages that are only in the results because of Deps will have DepOnly
 	// set on them.
 	Deps bool
+}
+
+// AddFlags adds the standard flags used to set a Config to the supplied flag set.
+// This is used by implementations of the external raw package binary to correctly
+// interpret the flags passed from the config.
+func (cfg *Config) AddFlags(flags *flag.FlagSet) {
+	flags.BoolVar(&cfg.Deps, "deps", false, "include all dependencies")
+	flags.BoolVar(&cfg.Tests, "test", false, "include all test packages")
+	flags.BoolVar(&cfg.Export, "export", false, "include export data files")
+	flags.Var(extraFlags{cfg}, "flags", "extra flags to pass to the underlying command")
+}
+
+// extraFlags collects all occurrences of --flags into a single array
+// We do this because it's much easier than escaping joining and splitting
+// the extra flags that must be passed across the boundary unmodified
+type extraFlags struct {
+	cfg *Config
+}
+
+func (e extraFlags) String() string {
+	return ""
+}
+
+func (e extraFlags) Set(value string) error {
+	e.cfg.Flags = append(e.cfg.Flags, value)
+	return nil
 }

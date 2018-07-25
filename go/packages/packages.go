@@ -162,6 +162,9 @@ func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 // an error if the operation failed.
 func loadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string, []*raw.Package, error) {
 	//TODO: this is the seam at which we enable alternate build systems
+	if tool := findRawTool(ctx, cfg); tool != "" {
+		return externalPackages(ctx, cfg, tool, patterns...)
+	}
 	return golist.LoadRaw(ctx, cfg, patterns...)
 }
 
