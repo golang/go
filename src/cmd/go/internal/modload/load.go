@@ -764,7 +764,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
 				return nil, ErrRequire
 			}
-			f, err := modfile.Parse(gomod, data, nil)
+			f, err := modfile.ParseLax(gomod, data, nil)
 			if err != nil {
 				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
 				return nil, ErrRequire
@@ -792,7 +792,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 		base.Errorf("go: %s@%s: %v\n", mod.Path, mod.Version, err)
 		return nil, ErrRequire
 	}
-	f, err := modfile.Parse("go.mod", data, nil)
+	f, err := modfile.ParseLax("go.mod", data, nil)
 	if err != nil {
 		base.Errorf("go: %s@%s: parsing go.mod: %v", mod.Path, mod.Version, err)
 		return nil, ErrRequire
