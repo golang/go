@@ -159,6 +159,11 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 	return
 }
 
+// Certificates returns all certificates from the pool.
+func (s *CertPool) Certificates() []*Certificate {
+	return append([]*Certificate(nil), s.certs...)
+}
+
 // Subjects returns a list of the DER-encoded subjects of
 // all of the certificates in the pool.
 func (s *CertPool) Subjects() [][]byte {
