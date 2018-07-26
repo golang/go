@@ -1710,6 +1710,7 @@ type typeConv struct {
 	// Map from types to incomplete pointers to those types.
 	ptrs map[dwarf.Type][]*Type
 	// Keys of ptrs in insertion order (deterministic worklist)
+	// ptrKeys contains exactly the keys in ptrs.
 	ptrKeys []dwarf.Type
 
 	// Type names X for which there exists an XGetTypeID function with type func() CFTypeID.
@@ -1852,14 +1853,15 @@ func (c *typeConv) FinishType(pos token.Pos) {
 	for len(c.ptrKeys) > 0 {
 		dtype := c.ptrKeys[0]
 		c.ptrKeys = c.ptrKeys[1:]
+		ptrs := c.ptrs[dtype]
+		delete(c.ptrs, dtype)
 
 		// Note Type might invalidate c.ptrs[dtype].
 		t := c.Type(dtype, pos)
-		for _, ptr := range c.ptrs[dtype] {
+		for _, ptr := range ptrs {
 			ptr.Go.(*ast.StarExpr).X = t.Go
 			ptr.C.Set("%s*", t.C)
 		}
-		c.ptrs[dtype] = nil // retain the map key
 	}
 }
 
