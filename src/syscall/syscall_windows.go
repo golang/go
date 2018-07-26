@@ -122,14 +122,14 @@ func compileCallback(fn interface{}, cleanstack bool) uintptr
 
 // NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
-// The argument is expected to be a function with signature - func(args) uintptr { ... }. The size of any arg must not be more than the size of uintptr.
+// The argument is expected to be a function with signature - func(args) uintptr { ... }. The size of arguments must not be more than the size of uintptr.
 func NewCallback(fn interface{}) uintptr {
 	return compileCallback(fn, true)
 }
 
 // NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
-// The argument is expected to be a function with signature - func(args) uintptr { ... }. The size of any arg must not be more than the size of uintptr.
+// The argument is expected to be a function with signature - func(args) uintptr { ... }. The size of arguments must not be more than the size of uintptr.
 func NewCallbackCDecl(fn interface{}) uintptr {
 	return compileCallback(fn, false)
 }
