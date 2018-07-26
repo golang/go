@@ -679,6 +679,7 @@ func (r *importReader) funcExt(n *Node) {
 		n.Func.Inl = &Inline{
 			Cost: int32(u - 1),
 		}
+		n.Func.Endlineno = r.pos()
 	}
 }
 
