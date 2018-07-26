@@ -458,25 +458,70 @@ func (w *HTMLWriter) WriteFunc(phase, title string, f *Func) {
 	// TODO: Add visual representation of f's CFG.
 }
 
+// FuncLines contains source code for a function to be displayed
+// in sources column.
+type FuncLines struct {
+	Filename    string
+	StartLineno uint
+	Lines       []string
+}
+
+// ByTopo sorts topologically: target function is on top,
+// followed by inlined functions sorted by filename and line numbers.
+type ByTopo []*FuncLines
+
+func (x ByTopo) Len() int      { return len(x) }
+func (x ByTopo) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+func (x ByTopo) Less(i, j int) bool {
+	a := x[i]
+	b := x[j]
+	if a.Filename == a.Filename {
+		return a.StartLineno < b.StartLineno
+	}
+	return a.Filename < b.Filename
+}
+
 // WriteSources writes lines as source code in a column headed by title.
 // phase is used for collapsing columns and should be unique across the table.
-func (w *HTMLWriter) WriteSources(phase, title string, firstLineno uint, lines []string) {
+func (w *HTMLWriter) WriteSources(phase string, all []*FuncLines) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
 	var buf bytes.Buffer
 	fmt.Fprint(&buf, "<div class=\"lines\" style=\"width: 8%\">")
-	for i, _ := range lines {
-		ln := int(firstLineno) + i
-		fmt.Fprintf(&buf, "<div class=\"l%v line-number\">%v</div>", ln, ln)
+	filename := ""
+	for _, fl := range all {
+		fmt.Fprint(&buf, "<div>&nbsp;</div>")
+		if filename != fl.Filename {
+			fmt.Fprint(&buf, "<div>&nbsp;</div>")
+			filename = fl.Filename
+		}
+		for i := range fl.Lines {
+			ln := int(fl.StartLineno) + i
+			fmt.Fprintf(&buf, "<div class=\"l%v line-number\">%v</div>", ln, ln)
+		}
 	}
 	fmt.Fprint(&buf, "</div><div style=\"width: 92%\"><pre>")
-	for i, l := range lines {
-		ln := int(firstLineno) + i
-		fmt.Fprintf(&buf, "<div class=\"l%v line-number\">%v</div>", ln, html.EscapeString(l))
+	filename = ""
+	for _, fl := range all {
+		fmt.Fprint(&buf, "<div>&nbsp;</div>")
+		if filename != fl.Filename {
+			fmt.Fprintf(&buf, "<div><strong>%v</strong></div>", fl.Filename)
+			filename = fl.Filename
+		}
+		for i, line := range fl.Lines {
+			ln := int(fl.StartLineno) + i
+			var escaped string
+			if strings.TrimSpace(line) == "" {
+				escaped = "&nbsp;"
+			} else {
+				escaped = html.EscapeString(line)
+			}
+			fmt.Fprintf(&buf, "<div class=\"l%v line-number\">%v</div>", ln, escaped)
+		}
 	}
 	fmt.Fprint(&buf, "</pre></div>")
-	w.WriteColumn(phase, title, "", buf.String())
+	w.WriteColumn(phase, phase, "", buf.String())
 }
 
 // WriteColumn writes raw HTML in a column headed by title.
