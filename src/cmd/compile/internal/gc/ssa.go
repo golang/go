@@ -27,6 +27,9 @@ var ssaDump string     // early copy of $GOSSAFUNC; the func name to dump output
 var ssaDumpStdout bool // whether to dump to stdout
 const ssaDumpFile = "ssa.html"
 
+// ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
+var ssaDumpInlined []*Node
+
 func initssaconfig() {
 	types_ := ssa.NewTypes()
 
@@ -147,27 +150,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	if printssa {
 		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name)
 		// TODO: generate and print a mapping from nodes to values and blocks
-
-		// Read sources for a function fn and format into a column.
-		fname := Ctxt.PosTable.Pos(fn.Pos).Filename()
-		f, err := os.Open(fname)
-		if err != nil {
-			s.f.HTMLWriter.Logger.Logf("skipping sources column: %v", err)
-		} else {
-			defer f.Close()
-			firstLn := fn.Pos.Line() - 1
-			lastLn := fn.Func.Endlineno.Line()
-			var lines []string
-			ln := uint(0)
-			scanner := bufio.NewScanner(f)
-			for scanner.Scan() && ln < lastLn {
-				if ln >= firstLn {
-					lines = append(lines, scanner.Text())
-				}
-				ln++
-			}
-			s.f.HTMLWriter.WriteSources("sources", fname, firstLn+1, lines)
-		}
+		dumpSourcesColumn(s.f.HTMLWriter, fn)
 	}
 
 	// Allocate starting block
@@ -237,6 +220,59 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 	return s.f
+}
+
+func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *Node) {
+	// Read sources of target function fn.
+	fname := Ctxt.PosTable.Pos(fn.Pos).Filename()
+	targetFn, err := readFuncLines(fname, fn.Pos.Line(), fn.Func.Endlineno.Line())
+	if err != nil {
+		writer.Logger.Logf("cannot read sources for function %v: %v", fn, err)
+	}
+
+	// Read sources of inlined functions.
+	var inlFns []*ssa.FuncLines
+	for _, fi := range ssaDumpInlined {
+		var elno src.XPos
+		if fi.Name.Defn == nil {
+			// Endlineno is filled from exported data.
+			elno = fi.Func.Endlineno
+		} else {
+			elno = fi.Name.Defn.Func.Endlineno
+		}
+		fname := Ctxt.PosTable.Pos(fi.Pos).Filename()
+		fnLines, err := readFuncLines(fname, fi.Pos.Line(), elno.Line())
+		if err != nil {
+			writer.Logger.Logf("cannot read sources for function %v: %v", fi, err)
+			continue
+		}
+		inlFns = append(inlFns, fnLines)
+	}
+
+	sort.Sort(ssa.ByTopo(inlFns))
+	if targetFn != nil {
+		inlFns = append([]*ssa.FuncLines{targetFn}, inlFns...)
+	}
+
+	writer.WriteSources("sources", inlFns)
+}
+
+func readFuncLines(file string, start, end uint) (*ssa.FuncLines, error) {
+	f, err := os.Open(os.ExpandEnv(file))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var lines []string
+	ln := uint(1)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() && ln <= end {
+		if ln >= start {
+			lines = append(lines, scanner.Text())
+		}
+		ln++
+	}
+	return &ssa.FuncLines{Filename: file, StartLineno: start, Lines: lines}, nil
 }
 
 // updateUnsetPredPos propagates the earliest-value position information for b
