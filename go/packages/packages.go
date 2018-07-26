@@ -262,7 +262,12 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 	rawCfg := newRawConfig(&ld.Config)
 	list, err := golistPackages(rawCfg, patterns...)
 	if _, ok := err.(GoTooOldError); ok {
-		return loaderFallback(ld.Dir, ld.Env, patterns)
+		if ld.Config.Mode >= LoadTypes {
+			// Upgrade to LoadAllSyntax because we can't depend on the existance
+			// of export data. We can remove this once iancottrell's cl is in.
+			ld.Config.Mode = LoadAllSyntax
+		}
+		list, err = golistPackagesFallback(rawCfg, patterns...)
 	}
 	if err != nil {
 		return nil, err

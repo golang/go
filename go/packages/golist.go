@@ -27,31 +27,32 @@ type GoTooOldError struct {
 	error
 }
 
+// Fields must match go list;
+// see $GOROOT/src/cmd/go/internal/load/pkg.go.
+type jsonPackage struct {
+	ImportPath   string
+	Dir          string
+	Name         string
+	Export       string
+	GoFiles      []string
+	CFiles       []string
+	CgoFiles     []string
+	SFiles       []string
+	Imports      []string
+	ImportMap    map[string]string
+	Deps         []string
+	TestGoFiles  []string
+	TestImports  []string
+	XTestGoFiles []string
+	XTestImports []string
+	ForTest      string // q in a "p [q.test]" package, else ""
+	DepOnly      bool
+}
+
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
 // dir may be "" and env may be nil, as per os/exec.Command.
 func golistPackages(cfg *rawConfig, words ...string) ([]*rawPackage, error) {
-	// Fields must match go list;
-	// see $GOROOT/src/cmd/go/internal/load/pkg.go.
-	type jsonPackage struct {
-		ImportPath   string
-		Dir          string
-		Name         string
-		Export       string
-		GoFiles      []string
-		CFiles       []string
-		CgoFiles     []string
-		SFiles       []string
-		Imports      []string
-		ImportMap    map[string]string
-		Deps         []string
-		TestGoFiles  []string
-		TestImports  []string
-		XTestGoFiles []string
-		XTestImports []string
-		ForTest      string // q in a "p [q.test]" package, else ""
-		DepOnly      bool
-	}
 	// go list uses the following identifiers in ImportPath and Imports:
 	//
 	// 	"p"			-- importable package or main (command)
@@ -66,11 +67,11 @@ func golistPackages(cfg *rawConfig, words ...string) ([]*rawPackage, error) {
 	// Run "go list" for complete
 	// information on the specified packages.
 
-	buf, err := golist(cfg, words)
+	buf, err := golist(cfg, golistargs(cfg, words))
 	if err != nil {
 		return nil, err
 	}
-	// Decode the JSON and convert it to Package form.
+	// Decode the JSON and convert it to rawPackage form.
 	var result []*rawPackage
 	for dec := json.NewDecoder(buf); dec.More(); {
 		p := new(jsonPackage)
@@ -179,14 +180,18 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 	return res
 }
 
-// golist returns the JSON-encoded result of a "go list args..." query.
-func golist(cfg *rawConfig, args []string) (*bytes.Buffer, error) {
-	out := new(bytes.Buffer)
+func golistargs(cfg *rawConfig, words []string) []string {
 	fullargs := []string{"list", "-e", "-json", "-cgo=true"}
 	fullargs = append(fullargs, cfg.Flags()...)
 	fullargs = append(fullargs, "--")
-	fullargs = append(fullargs, args...)
-	cmd := exec.CommandContext(cfg.Context, "go", fullargs...)
+	fullargs = append(fullargs, words...)
+	return fullargs
+}
+
+// golist returns the JSON-encoded result of a "go list args..." query.
+func golist(cfg *rawConfig, args []string) (*bytes.Buffer, error) {
+	out := new(bytes.Buffer)
+	cmd := exec.CommandContext(cfg.Context, "go", args...)
 	cmd.Env = cfg.Env
 	cmd.Dir = cfg.Dir
 	cmd.Stdout = out

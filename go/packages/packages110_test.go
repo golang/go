@@ -7,5 +7,5 @@
 package packages_test
 
 func init() {
-	usesLegacyLoader = true
+	usesOldGolist = true
 }
