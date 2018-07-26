@@ -854,23 +854,30 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 	}
 }
 
-func TestRuntimeTypeAttr(t *testing.T) {
+func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	// Explicitly test external linking, for dsymutil compatility on Darwin.
-	for _, flags := range []string{"-ldflags=-linkmode=internal", "-ldflags=-linkmode=external"} {
-		t.Run("flags="+flags, func(t *testing.T) {
-			if runtime.GOARCH == "ppc64" && strings.Contains(flags, "external") {
-				t.Skip("-linkmode=external not supported on ppc64")
-			}
+	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
+}
 
-			testRuntimeTypeAttr(t, flags)
-		})
+// External linking requires a host linker (https://golang.org/src/cmd/cgo/doc.go l.732)
+func TestRuntimeTypeAttrExternal(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+
+	// Explicitly test external linking, for dsymutil compatibility on Darwin.
+	if runtime.GOARCH == "ppc64" {
+		t.Skip("-linkmode=external not supported on ppc64")
+	}
+	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
 }
 
 func testRuntimeTypeAttr(t *testing.T, flags string) {
