@@ -952,6 +952,16 @@ func (w *exportWriter) funcExt(n *Node) {
 		if n.Func.ExportInline() {
 			w.p.doInline(n)
 		}
+
+		// Endlineno for inlined function.
+		if n.Name.Defn != nil {
+			w.pos(n.Name.Defn.Func.Endlineno)
+		} else {
+			// When the exported node was defined externally,
+			// e.g. io exports atomic.(*Value).Load or bytes exports errors.New.
+			// Keep it as we don't distinguish this case in iimport.go.
+			w.pos(n.Func.Endlineno)
+		}
 	} else {
 		w.uint64(0)
 	}
