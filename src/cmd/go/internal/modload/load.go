@@ -115,6 +115,25 @@ func ImportPaths(args []string) []string {
 		}
 		return roots
 	})
+
+	// A given module path may be used as itself or as a replacement for another
+	// module, but not both at the same time. Otherwise, the aliasing behavior is
+	// too subtle (see https://golang.org/issue/26607), and we don't want to
+	// commit to a specific behavior at this point.
+	firstPath := make(map[module.Version]string, len(buildList))
+	for _, mod := range buildList {
+		src := mod
+		if rep := Replacement(mod); rep.Path != "" {
+			src = rep
+		}
+		if prev, ok := firstPath[src]; !ok {
+			firstPath[src] = mod.Path
+		} else if prev != mod.Path {
+			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", mod.Path, mod.Version, prev, mod.Path)
+		}
+	}
+	base.ExitIfErrors()
+
 	WriteGoMod()
 
 	// Process paths to produce final paths list.
