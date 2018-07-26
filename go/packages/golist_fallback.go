@@ -3,6 +3,7 @@ package packages
 import (
 	"encoding/json"
 	"fmt"
+
 	"golang.org/x/tools/imports"
 )
 
@@ -71,7 +72,7 @@ func golistPackagesFallback(cfg *rawConfig, words ...string) ([]*rawPackage, err
 					GoFiles:    absJoin(p.Dir, p.GoFiles, p.TestGoFiles, p.CgoFiles),
 					OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
 					PkgPath:    pkgpath,
-					Imports:    importMap(append(p.Imports, p.TestImports)),
+					Imports:    importMap(append(p.Imports, p.TestImports...)),
 					DepOnly:    original[id] == nil,
 				})
 			}
