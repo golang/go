@@ -816,6 +816,13 @@ for k := range m {
 
     <p><!-- CL 118658 -->
       On Linux, the <code>flags</code> parameter to
+      <a href="/pkg/syscall/?GOOS=linux&GOARCH=amd64#Faccessat"><code>Faccessat</code></a>
+      is now implemented just as in glibc. In earlier Go releases the
+      flags parameter was ignored.
+    </p>
+
+    <p><!-- CL 118658 -->
+      On Linux, the <code>flags</code> parameter to
       <a href="/pkg/syscall/?GOOS=linux&GOARCH=amd64#Fchmodat"><code>Fchmodat</code></a>
       is now validated. Linux's <code>fchmodat</code> doesn't support the <code>flags</code> parameter
       so we now mimic glibc's behavior and return an error if it's non-zero.
