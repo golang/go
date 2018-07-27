@@ -1464,12 +1464,6 @@ func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg.grepStderr(`([\\/]compile|gccgo).* (-p p1|-fgo-pkgpath=p1).*p1\.go`, "should have run compile -p p1 p1.go")
 }
 
-// The runtime version string takes one of two forms:
-// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
-// Determine whether we are in a released copy by
-// inspecting the version.
-var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
-
 // Issue 12690
 func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	skipIfGccgo(t, "gccgo does not have GOROOT")
