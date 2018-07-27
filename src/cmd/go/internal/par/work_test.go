@@ -32,9 +32,8 @@ func TestWork(t *testing.T) {
 }
 
 func TestWorkParallel(t *testing.T) {
-	var w Work
-
 	for tries := 0; tries < 10; tries++ {
+		var w Work
 		const N = 100
 		for i := 0; i < N; i++ {
 			w.Add(i)
