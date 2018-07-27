@@ -42,15 +42,15 @@ func callbackasmAddr(i int) uintptr {
 //go:linkname compileCallback syscall.compileCallback
 func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
-		panic("compileCallback: expected a function with signature - func(args) uintptr { ... }")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
 	if len(ft.out()) != 1 {
-		panic("compileCallback: function must have one result of type uintptr")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	uintptrSize := unsafe.Sizeof(uintptr(0))
 	if ft.out()[0].size != uintptrSize {
-		panic("compileCallback: result is not of type uintptr")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	argsize := uintptr(0)
 	for _, t := range ft.in() {
