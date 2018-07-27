@@ -1523,6 +1523,43 @@ func TestPointerParamsAndScans(t *testing.T) {
 	}
 }
 
+func TestStructScan(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|resultset|id=int32,age=int32,name=string,car_make=string,car_model=string,car_year=int64")
+
+	type Car struct {
+		Make  string
+		Model string
+		Year  int
+	}
+	//Recursion works with embedded struct, embedded pointer struct,
+	//a struct as a variable, and a struct pointer as a variable.
+	//(every field must be exported though)
+	type Person struct {
+		Age  int
+		Name string
+		Car
+	}
+
+	id := 0
+	c := Car{"Toyota", "Camry", 2011}
+	bob := Person{42, "Bob", c}
+
+	//The query language does not have any joins, so just pretending we have a resultset here, where multiple tables were joined.
+	exec(t, db, "INSERT|resultset|id=10,age=?,name=?,car_make=?,car_model=?,car_year=?",
+		bob.Age, bob.Name, c.Make, c.Model, c.Year)
+
+	err := db.QueryRow("SELECT|resultset|id,age,name,car_make,car_model,car_year|id=?", 10).Scan(&id, &bob)
+	if err != nil {
+		t.Fatalf("querying id 10: %v", err)
+	}
+
+	//fmt.Printf("The result of the query is id=%d, Person: %+v\n", id, bob)
+	//fmt.Printf("The car is: %+v\n", bob.Car)
+
+}
+
 func TestQueryRowClosingStmt(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
