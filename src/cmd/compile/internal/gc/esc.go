@@ -654,6 +654,58 @@ func (e *EscState) esclist(l Nodes, parent *Node) {
 	}
 }
 
+// isSelfAssign reports whether assignment from src to dst can
+// be ignored by the escape analysis as it's effectively a self-assignment.
+func (e *EscState) isSelfAssign(dst, src *Node) bool {
+	if dst == nil || src == nil || dst.Op != src.Op {
+		return false
+	}
+
+	switch dst.Op {
+	case ODOT, ODOTPTR:
+		// Safe trailing accessors that are permitted to differ.
+	case OINDEX:
+		if e.mayAffectMemory(dst.Right) || e.mayAffectMemory(src.Right) {
+			return false
+		}
+	default:
+		return false
+	}
+
+	// The expression prefix must be both "safe" and identical.
+	return samesafeexpr(dst.Left, src.Left)
+}
+
+// mayAffectMemory reports whether n evaluation may affect program memory state.
+// If expression can't affect it, then it can be safely ignored by the escape analysis.
+func (e *EscState) mayAffectMemory(n *Node) bool {
+	// We may want to use "memory safe" black list instead of general
+	// "side-effect free", which can include all calls and other ops
+	// that can affect allocate or change global state.
+	// It's safer to start from a whitelist for now.
+	//
+	// We're ignoring things like division by zero, index out of range,
+	// and nil pointer dereference here.
+	switch n.Op {
+	case ONAME, OCLOSUREVAR, OLITERAL:
+		return false
+	case ODOT, ODOTPTR:
+		return e.mayAffectMemory(n.Left)
+	case OIND, OCONVNOP:
+		return e.mayAffectMemory(n.Left)
+	case OCONV:
+		return e.mayAffectMemory(n.Left)
+	case OINDEX:
+		return e.mayAffectMemory(n.Left) && e.mayAffectMemory(n.Right)
+	case OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
+		return e.mayAffectMemory(n.Left) && e.mayAffectMemory(n.Right)
+	case ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
+		return e.mayAffectMemory(n.Left)
+	default:
+		return true
+	}
+}
+
 func (e *EscState) esc(n *Node, parent *Node) {
 	if n == nil {
 		return
@@ -810,6 +862,22 @@ opSwitch:
 				Warnl(n.Pos, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
 			}
 
+			break
+		}
+
+		// Also skip trivial assignments that assign back to the same object.
+		//
+		// It covers these cases:
+		//	val.x = val.y
+		//	val.x[i] = val.y[j]
+		//	val.x1.x2 = val.x1.y2
+		//	... etc
+		//
+		// These assignments do not change assigned object lifetime.
+		if e.isSelfAssign(n.Left, n.Right) {
+			if Debug['m'] != 0 {
+				Warnl(n.Pos, "%v ignoring self-assignment in %S", e.curfnSym(n), n)
+			}
 			break
 		}
 
