@@ -76,6 +76,7 @@ var ARM arm
 // The struct is padded to avoid false sharing.
 type arm struct {
 	_        CacheLinePad
+	HasVFPv4 bool
 	HasIDIVA bool
 	_        CacheLinePad
 }
