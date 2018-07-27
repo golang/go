@@ -424,7 +424,7 @@ func runList(cmd *base.Command, args []string) {
 				continue
 			}
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
-				pmain, _, _, err := load.TestPackagesFor(p, nil)
+				pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
 				if err != nil {
 					if *listE {
 						pkgs = append(pkgs, &load.Package{
@@ -439,6 +439,12 @@ func runList(cmd *base.Command, args []string) {
 					continue
 				}
 				pkgs = append(pkgs, pmain)
+				if ptest != nil {
+					pkgs = append(pkgs, ptest)
+				}
+				if pxtest != nil {
+					pkgs = append(pkgs, pxtest)
+				}
 
 				data := *pmain.Internal.TestmainGo
 				h := cache.NewHash("testmain")

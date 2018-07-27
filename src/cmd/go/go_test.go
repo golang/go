@@ -1757,7 +1757,7 @@ func TestGoListTest(t *testing.T) {
 	tg.run("list", "-test", "sort")
 	tg.grepStdout(`^sort.test$`, "missing test main")
 	tg.grepStdout(`^sort$`, "missing real sort")
-	tg.grepStdoutNot(`^sort \[sort.test\]$`, "unexpected test copy of sort")
+	tg.grepStdout(`^sort \[sort.test\]$`, "unexpected test copy of sort")
 	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
 
