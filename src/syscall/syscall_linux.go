@@ -40,10 +40,70 @@ func Creat(path string, mode uint32) (fd int, err error) {
 func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 	if flags & ^(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
 		return EINVAL
-	} else if flags&(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
-		return EOPNOTSUPP
 	}
-	return faccessat(dirfd, path, mode)
+
+	// The Linux kernel faccessat system call does not take any flags.
+	// The glibc faccessat implements the flags itself; see
+	// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/faccessat.c;hb=HEAD
+	// Because people naturally expect syscall.Faccessat to act
+	// like C faccessat, we do the same.
+
+	if flags == 0 {
+		return faccessat(dirfd, path, mode)
+	}
+
+	var st Stat_t
+	if err := fstatat(dirfd, path, &st, flags&_AT_SYMLINK_NOFOLLOW); err != nil {
+		return err
+	}
+
+	mode &= 7
+	if mode == 0 {
+		return nil
+	}
+
+	var uid int
+	if flags&_AT_EACCESS != 0 {
+		uid = Geteuid()
+	} else {
+		uid = Getuid()
+	}
+
+	if uid == 0 {
+		if mode&1 == 0 {
+			// Root can read and write any file.
+			return nil
+		}
+		if st.Mode&0111 != 0 {
+			// Root can execute any file that anybody can execute.
+			return nil
+		}
+		return EACCES
+	}
+
+	var fmode uint32
+	if uint32(uid) == st.Uid {
+		fmode = (st.Mode >> 6) & 7
+	} else {
+		var gid int
+		if flags&_AT_EACCESS != 0 {
+			gid = Getegid()
+		} else {
+			gid = Getgid()
+		}
+
+		if uint32(gid) == st.Gid {
+			fmode = (st.Mode >> 3) & 7
+		} else {
+			fmode = st.Mode & 7
+		}
+	}
+
+	if fmode&mode == mode {
+		return nil
+	}
+
+	return EACCES
 }
 
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
