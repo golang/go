@@ -836,16 +836,15 @@ var (
 	newprocs   int32
 
 	// Information about what cpu features are available.
-	// Set on startup in runtime.cpuinit.
 	// Packages outside the runtime should not use these
 	// as they are not an external api.
-	// TODO: deprecate these; use internal/cpu directly.
+	// Set on startup in asm_{386,amd64,amd64p32}.s
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
 
 	// Set in runtime.cpuinit.
-	support_erms          bool
+	// TODO: deprecate these; use internal/cpu directly.
 	support_popcnt        bool
 	support_sse2          bool
 	support_sse41         bool
