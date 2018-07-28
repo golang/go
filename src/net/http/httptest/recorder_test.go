@@ -309,4 +309,17 @@ func TestRecorder(t *testing.T) {
 			}
 		})
 	}
+
+	// Test that even when a ResponseRecorder's body is nil,
+	// it will not return a response with nil body.
+	// Issue 26642
+	t.Run("setting ResponseRecord.Body to nil", func(t *testing.T) {
+		rec := NewRecorder()
+		rec.Body = nil
+		check := hasResultContents("")
+		if err := check(rec); err != nil {
+			t.Error(err)
+		}
+	})
+
 }
