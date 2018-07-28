@@ -67,8 +67,11 @@ func OpenReader(name string) (*ReadCloser, error) {
 }
 
 // NewReader returns a new Reader reading from r, which is assumed to
-// have the given size in bytes.
+// have the given size in bytes. The size cannot be less than zero.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+	if size < 0 {
+		return nil, errors.New("archive/zip.NewReader: size cannot be less than zero")
+	}
 	zr := new(Reader)
 	if err := zr.init(r, size); err != nil {
 		return nil, err
