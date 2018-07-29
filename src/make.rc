@@ -47,7 +47,7 @@ if(~ $1 -v) {
 	shift
 }
 
-
+GOFLAGS=()
 GOROOT = `{cd .. && pwd}
 if(! ~ $#GOROOT_BOOTSTRAP 1)
 	GOROOT_BOOTSTRAP = $home/go1.4
