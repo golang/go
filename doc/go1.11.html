@@ -310,6 +310,18 @@ func f(v interface{}) {
   user task/region analysis page.
 </p>
 
+<h3 id="godoc">Godoc</h3>
+
+<p><!-- CL 85396, CL 124495 -->
+  The <code>godoc</code> web server now shows which version of Go introduced
+  new API features. The initial Go version of types, funcs, and methods are shown
+  right-aligned. For example, see <a href="/pkg/os/#UserCacheDir"><code>UserCacheDir</code></a>, with "1.11"
+  on the right side. For struct fields, inline comments are added when the struct field was
+  added in a Go version other than when the type itself was introduced.
+  For a struct field example, see
+  <a href="/pkg/net/http/httptrace/#ClientTrace.Got1xxResponse"><code>ClientTrace.Got1xxResponse</code></a>.
+</p>
+
 <h3 id="gofmt">Gofmt</h3>
 
 <p>
