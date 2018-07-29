@@ -122,6 +122,16 @@ func CmpMem5(p **int) {
 	*p = nil
 }
 
+func CmpMem6(a []int) int {
+	// 386:`CMPL\s8\([A-Z]+\),`
+	// amd64:`CMPQ\s16\([A-Z]+\),`
+	if a[1] > a[2] {
+		return 1
+	} else {
+		return 2
+	}
+}
+
 // Check tbz/tbnz are generated when comparing against zero on arm64
 
 func CmpZero1(a int32, ptr *int) {

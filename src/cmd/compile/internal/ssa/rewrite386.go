@@ -47,14 +47,20 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_Op386CMPB_0(v)
 	case Op386CMPBconst:
 		return rewriteValue386_Op386CMPBconst_0(v)
+	case Op386CMPBload:
+		return rewriteValue386_Op386CMPBload_0(v)
 	case Op386CMPL:
 		return rewriteValue386_Op386CMPL_0(v)
 	case Op386CMPLconst:
-		return rewriteValue386_Op386CMPLconst_0(v)
+		return rewriteValue386_Op386CMPLconst_0(v) || rewriteValue386_Op386CMPLconst_10(v)
+	case Op386CMPLload:
+		return rewriteValue386_Op386CMPLload_0(v)
 	case Op386CMPW:
 		return rewriteValue386_Op386CMPW_0(v)
 	case Op386CMPWconst:
 		return rewriteValue386_Op386CMPWconst_0(v)
+	case Op386CMPWload:
+		return rewriteValue386_Op386CMPWload_0(v)
 	case Op386LEAL:
 		return rewriteValue386_Op386LEAL_0(v)
 	case Op386LEAL1:
@@ -2216,9 +2222,65 @@ func rewriteValue386_Op386CMPB_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMPB l:(MOVBload {sym} [off] ptr mem) x)
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (CMPBload {sym} [off] ptr x mem)
+	for {
+		_ = v.Args[1]
+		l := v.Args[0]
+		if l.Op != Op386MOVBload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		x := v.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(Op386CMPBload)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (CMPB x l:(MOVBload {sym} [off] ptr mem))
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (InvertFlags (CMPBload {sym} [off] ptr x mem))
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		l := v.Args[1]
+		if l.Op != Op386MOVBload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, Op386CMPBload, types.TypeFlags)
+		v0.AuxInt = off
+		v0.Aux = sym
+		v0.AddArg(ptr)
+		v0.AddArg(x)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		return true
+	}
 	return false
 }
 func rewriteValue386_Op386CMPBconst_0(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (CMPBconst (MOVLconst [x]) [y])
 	// cond: int8(x)==int8(y)
 	// result: (FlagEQ)
@@ -2365,6 +2427,60 @@ func rewriteValue386_Op386CMPBconst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (CMPBconst l:(MOVBload {sym} [off] ptr mem) [c])
+	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
+	// result: @l.Block (CMPBconstload {sym} [makeValAndOff(c,off)] ptr mem)
+	for {
+		c := v.AuxInt
+		l := v.Args[0]
+		if l.Op != Op386MOVBload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
+			break
+		}
+		b = l.Block
+		v0 := b.NewValue0(v.Pos, Op386CMPBconstload, types.TypeFlags)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = makeValAndOff(c, off)
+		v0.Aux = sym
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386CMPBload_0(v *Value) bool {
+	// match: (CMPBload {sym} [off] ptr (MOVLconst [c]) mem)
+	// cond: validValAndOff(int64(int8(c)),off)
+	// result: (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		mem := v.Args[2]
+		if !(validValAndOff(int64(int8(c)), off)) {
+			break
+		}
+		v.reset(Op386CMPBconstload)
+		v.AuxInt = makeValAndOff(int64(int8(c)), off)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValue386_Op386CMPL_0(v *Value) bool {
@@ -2401,6 +2517,60 @@ func rewriteValue386_Op386CMPL_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
 		v0.AuxInt = c
 		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPL l:(MOVLload {sym} [off] ptr mem) x)
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (CMPLload {sym} [off] ptr x mem)
+	for {
+		_ = v.Args[1]
+		l := v.Args[0]
+		if l.Op != Op386MOVLload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		x := v.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(Op386CMPLload)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (CMPL x l:(MOVLload {sym} [off] ptr mem))
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (InvertFlags (CMPLload {sym} [off] ptr x mem))
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		l := v.Args[1]
+		if l.Op != Op386MOVLload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, Op386CMPLload, types.TypeFlags)
+		v0.AuxInt = off
+		v0.Aux = sym
+		v0.AddArg(ptr)
+		v0.AddArg(x)
+		v0.AddArg(mem)
 		v.AddArg(v0)
 		return true
 	}
@@ -2571,6 +2741,65 @@ func rewriteValue386_Op386CMPLconst_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValue386_Op386CMPLconst_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (CMPLconst l:(MOVLload {sym} [off] ptr mem) [c])
+	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
+	// result: @l.Block (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
+	for {
+		c := v.AuxInt
+		l := v.Args[0]
+		if l.Op != Op386MOVLload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
+			break
+		}
+		b = l.Block
+		v0 := b.NewValue0(v.Pos, Op386CMPLconstload, types.TypeFlags)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = makeValAndOff(c, off)
+		v0.Aux = sym
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386CMPLload_0(v *Value) bool {
+	// match: (CMPLload {sym} [off] ptr (MOVLconst [c]) mem)
+	// cond: validValAndOff(int64(int32(c)),off)
+	// result: (CMPLconstload {sym} [makeValAndOff(int64(int32(c)),off)] ptr mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		mem := v.Args[2]
+		if !(validValAndOff(int64(int32(c)), off)) {
+			break
+		}
+		v.reset(Op386CMPLconstload)
+		v.AuxInt = makeValAndOff(int64(int32(c)), off)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
 func rewriteValue386_Op386CMPW_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -2608,9 +2837,65 @@ func rewriteValue386_Op386CMPW_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMPW l:(MOVWload {sym} [off] ptr mem) x)
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (CMPWload {sym} [off] ptr x mem)
+	for {
+		_ = v.Args[1]
+		l := v.Args[0]
+		if l.Op != Op386MOVWload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		x := v.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(Op386CMPWload)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (CMPW x l:(MOVWload {sym} [off] ptr mem))
+	// cond: canMergeLoad(v, l, x) && clobber(l)
+	// result: (InvertFlags (CMPWload {sym} [off] ptr x mem))
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		l := v.Args[1]
+		if l.Op != Op386MOVWload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(canMergeLoad(v, l, x) && clobber(l)) {
+			break
+		}
+		v.reset(Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, Op386CMPWload, types.TypeFlags)
+		v0.AuxInt = off
+		v0.Aux = sym
+		v0.AddArg(ptr)
+		v0.AddArg(x)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		return true
+	}
 	return false
 }
 func rewriteValue386_Op386CMPWconst_0(v *Value) bool {
+	b := v.Block
+	_ = b
 	// match: (CMPWconst (MOVLconst [x]) [y])
 	// cond: int16(x)==int16(y)
 	// result: (FlagEQ)
@@ -2755,6 +3040,60 @@ func rewriteValue386_Op386CMPWconst_0(v *Value) bool {
 		v.reset(Op386TESTW)
 		v.AddArg(x)
 		v.AddArg(x)
+		return true
+	}
+	// match: (CMPWconst l:(MOVWload {sym} [off] ptr mem) [c])
+	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
+	// result: @l.Block (CMPWconstload {sym} [makeValAndOff(c,off)] ptr mem)
+	for {
+		c := v.AuxInt
+		l := v.Args[0]
+		if l.Op != Op386MOVWload {
+			break
+		}
+		off := l.AuxInt
+		sym := l.Aux
+		_ = l.Args[1]
+		ptr := l.Args[0]
+		mem := l.Args[1]
+		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
+			break
+		}
+		b = l.Block
+		v0 := b.NewValue0(v.Pos, Op386CMPWconstload, types.TypeFlags)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = makeValAndOff(c, off)
+		v0.Aux = sym
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386CMPWload_0(v *Value) bool {
+	// match: (CMPWload {sym} [off] ptr (MOVLconst [c]) mem)
+	// cond: validValAndOff(int64(int16(c)),off)
+	// result: (CMPWconstload {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		mem := v.Args[2]
+		if !(validValAndOff(int64(int16(c)), off)) {
+			break
+		}
+		v.reset(Op386CMPWconstload)
+		v.AuxInt = makeValAndOff(int64(int16(c)), off)
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
 		return true
 	}
 	return false
