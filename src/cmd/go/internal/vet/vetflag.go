@@ -27,33 +27,33 @@ var vetFlagDefn = []*cmdflag.Defn{
 	// to vet. We handle them in vetFlags.
 
 	// local.
-	{Name: "all", BoolVar: new(bool)},
-	{Name: "asmdecl", BoolVar: new(bool)},
-	{Name: "assign", BoolVar: new(bool)},
-	{Name: "atomic", BoolVar: new(bool)},
-	{Name: "bool", BoolVar: new(bool)},
-	{Name: "buildtags", BoolVar: new(bool)},
-	{Name: "cgocall", BoolVar: new(bool)},
-	{Name: "composites", BoolVar: new(bool)},
-	{Name: "copylocks", BoolVar: new(bool)},
-	{Name: "httpresponse", BoolVar: new(bool)},
-	{Name: "lostcancel", BoolVar: new(bool)},
-	{Name: "methods", BoolVar: new(bool)},
-	{Name: "nilfunc", BoolVar: new(bool)},
-	{Name: "printf", BoolVar: new(bool)},
-	{Name: "printfuncs"},
-	{Name: "rangeloops", BoolVar: new(bool)},
-	{Name: "shadow", BoolVar: new(bool)},
-	{Name: "shadowstrict", BoolVar: new(bool)},
-	{Name: "shift", BoolVar: new(bool)},
-	{Name: "source", BoolVar: new(bool)},
-	{Name: "structtags", BoolVar: new(bool)},
-	{Name: "tests", BoolVar: new(bool)},
-	{Name: "unreachable", BoolVar: new(bool)},
-	{Name: "unsafeptr", BoolVar: new(bool)},
-	{Name: "unusedfuncs"},
-	{Name: "unusedresult", BoolVar: new(bool)},
-	{Name: "unusedstringmethods"},
+	{Name: "all", BoolVar: new(bool), PassToTest: true},
+	{Name: "asmdecl", BoolVar: new(bool), PassToTest: true},
+	{Name: "assign", BoolVar: new(bool), PassToTest: true},
+	{Name: "atomic", BoolVar: new(bool), PassToTest: true},
+	{Name: "bool", BoolVar: new(bool), PassToTest: true},
+	{Name: "buildtags", BoolVar: new(bool), PassToTest: true},
+	{Name: "cgocall", BoolVar: new(bool), PassToTest: true},
+	{Name: "composites", BoolVar: new(bool), PassToTest: true},
+	{Name: "copylocks", BoolVar: new(bool), PassToTest: true},
+	{Name: "httpresponse", BoolVar: new(bool), PassToTest: true},
+	{Name: "lostcancel", BoolVar: new(bool), PassToTest: true},
+	{Name: "methods", BoolVar: new(bool), PassToTest: true},
+	{Name: "nilfunc", BoolVar: new(bool), PassToTest: true},
+	{Name: "printf", BoolVar: new(bool), PassToTest: true},
+	{Name: "printfuncs", PassToTest: true},
+	{Name: "rangeloops", BoolVar: new(bool), PassToTest: true},
+	{Name: "shadow", BoolVar: new(bool), PassToTest: true},
+	{Name: "shadowstrict", BoolVar: new(bool), PassToTest: true},
+	{Name: "shift", BoolVar: new(bool), PassToTest: true},
+	{Name: "source", BoolVar: new(bool), PassToTest: true},
+	{Name: "structtags", BoolVar: new(bool), PassToTest: true},
+	{Name: "tests", BoolVar: new(bool), PassToTest: true},
+	{Name: "unreachable", BoolVar: new(bool), PassToTest: true},
+	{Name: "unsafeptr", BoolVar: new(bool), PassToTest: true},
+	{Name: "unusedfuncs", PassToTest: true},
+	{Name: "unusedresult", BoolVar: new(bool), PassToTest: true},
+	{Name: "unusedstringmethods", PassToTest: true},
 }
 
 var vetTool string
@@ -91,9 +91,17 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 			if err := f.Value.Set(value); err != nil {
 				base.Fatalf("invalid flag argument for -%s: %v", f.Name, err)
 			}
-			switch f.Name {
-			// Flags known to the build but not to vet, so must be dropped.
-			case "a", "x", "n", "vettool", "compiler":
+			keep := f.PassToTest
+			if !keep {
+				// A build flag, probably one we don't want to pass to vet.
+				// Can whitelist.
+				switch f.Name {
+				case "tags", "v":
+					keep = true
+				}
+			}
+			if !keep {
+				// Flags known to the build but not to vet, so must be dropped.
 				if extraWord {
 					args = append(args[:i], args[i+2:]...)
 					extraWord = false

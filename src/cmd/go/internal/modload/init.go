@@ -525,8 +525,6 @@ func WriteGoMod() {
 		return
 	}
 
-	modfetch.WriteGoSum()
-
 	if loaded != nil {
 		reqs := MinReqs()
 		min, err := reqs.Required(Target)
@@ -550,12 +548,15 @@ func WriteGoMod() {
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
-	if bytes.Equal(old, new) {
-		return
+	if !bytes.Equal(old, new) {
+		if cfg.BuildMod == "readonly" {
+			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+		}
+		if err := ioutil.WriteFile(file, new, 0666); err != nil {
+			base.Fatalf("go: %v", err)
+		}
 	}
-	if err := ioutil.WriteFile(file, new, 0666); err != nil {
-		base.Fatalf("go: %v", err)
-	}
+	modfetch.WriteGoSum()
 }
 
 func fixVersion(path, vers string) (string, error) {

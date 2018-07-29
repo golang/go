@@ -108,7 +108,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 		info.GoVersion = loaded.goVersion[m.Path]
 	}
 
-	if cfg.BuildGetmode == "vendor" {
+	if cfg.BuildMod == "vendor" {
 		info.Dir = filepath.Join(ModRoot, "vendor", m.Path)
 		return info
 	}
@@ -137,7 +137,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 				}
 			}
 		}
-		if cfg.BuildGetmode == "vendor" {
+		if cfg.BuildMod == "vendor" {
 			m.Dir = filepath.Join(ModRoot, "vendor", m.Path)
 		}
 	}

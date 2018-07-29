@@ -35,7 +35,7 @@ var CmdGet = &base.Command{
 Get resolves and adds dependencies to the current development module
 and then builds and installs them.
 
-The first step is to resolve which dependencies to add. 
+The first step is to resolve which dependencies to add.
 
 For each named package or package pattern, get must decide which version of
 the corresponding module to use. By default, get chooses the latest tagged
@@ -189,6 +189,11 @@ type task struct {
 }
 
 func runGet(cmd *base.Command, args []string) {
+	// -mod=readonly has no effect on "go get".
+	if cfg.BuildMod == "readonly" {
+		cfg.BuildMod = ""
+	}
+
 	switch getU {
 	case "", "patch", "true":
 		// ok
@@ -205,8 +210,8 @@ func runGet(cmd *base.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "go get: -t flag is a no-op when using modules\n")
 	}
 
-	if cfg.BuildGetmode == "vendor" {
-		base.Fatalf("go get: disabled by -getmode=vendor")
+	if cfg.BuildMod == "vendor" {
+		base.Fatalf("go get: disabled by -mod=%s", cfg.BuildMod)
 	}
 
 	modload.LoadBuildList()

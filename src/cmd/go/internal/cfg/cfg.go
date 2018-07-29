@@ -21,7 +21,7 @@ var (
 	BuildA                 bool   // -a flag
 	BuildBuildmode         string // -buildmode flag
 	BuildContext           = defaultContext()
-	BuildGetmode           string             // -getmode flag
+	BuildMod               string             // -mod flag
 	BuildI                 bool               // -i flag
 	BuildLinkshared        bool               // -linkshared flag
 	BuildMSan              bool               // -msan flag
