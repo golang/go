@@ -98,6 +98,10 @@ func (ts *testScript) setup() {
 		":=" + string(os.PathListSeparator),
 	}
 
+	if runtime.GOOS == "plan9" {
+		ts.env = append(ts.env, "path="+testBin+string(filepath.ListSeparator)+os.Getenv("path"))
+	}
+
 	if runtime.GOOS == "windows" {
 		ts.env = append(ts.env, "exe=.exe")
 	} else {
