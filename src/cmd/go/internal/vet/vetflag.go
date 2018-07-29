@@ -12,6 +12,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cmdflag"
+	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
 
@@ -59,6 +60,7 @@ var vetTool string
 
 // add build flags to vetFlagDefn.
 func init() {
+	cmdflag.AddKnownFlags("vet", vetFlagDefn)
 	var cmd base.Command
 	work.AddBuildFlags(&cmd)
 	cmd.Flag.StringVar(&vetTool, "vettool", "", "path to vet tool binary") // for cmd/vet tests; undocumented for now
@@ -73,6 +75,7 @@ func init() {
 // vetFlags processes the command line, splitting it at the first non-flag
 // into the list of flags and list of packages.
 func vetFlags(args []string) (passToVet, packageNames []string) {
+	args = str.StringList(cmdflag.FindGOFLAGS(vetFlagDefn), args)
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
 			return args[:i], args[i:]

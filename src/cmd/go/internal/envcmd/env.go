@@ -54,6 +54,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOBIN", Value: cfg.GOBIN},
 		{Name: "GOCACHE", Value: cache.DefaultDir()},
 		{Name: "GOEXE", Value: cfg.ExeSuffix},
+		{Name: "GOFLAGS", Value: os.Getenv("GOFLAGS")},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
 		{Name: "GOOS", Value: cfg.Goos},

@@ -209,6 +209,7 @@ BigCmdLoop:
 			if cmd.CustomFlags {
 				args = args[1:]
 			} else {
+				base.SetFromGOFLAGS(cmd.Flag)
 				cmd.Flag.Parse(args[1:])
 				args = cmd.Flag.Args()
 			}
