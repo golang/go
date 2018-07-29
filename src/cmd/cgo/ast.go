@@ -95,7 +95,7 @@ func (f *File) ParseGo(name string, src []byte) {
 		}
 	}
 	if !sawC {
-		error_(token.NoPos, `cannot find import "C"`)
+		error_(ast1.Package, `cannot find import "C"`)
 	}
 
 	// In ast2, strip the import "C" line.

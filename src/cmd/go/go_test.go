@@ -1776,7 +1776,7 @@ func TestGoListTest(t *testing.T) {
 	tg.grepStdoutNot(`^sort`, "unexpected sort")
 }
 
-func TestGoListCgo(t *testing.T) {
+func TestGoListCompiledCgo(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1788,18 +1788,26 @@ func TestGoListCgo(t *testing.T) {
 		t.Skip("net does not use cgo")
 	}
 	if strings.Contains(tg.stdout.String(), tg.tempdir) {
-		t.Fatalf(".CgoFiles without -cgo unexpectedly mentioned cache %s", tg.tempdir)
+		t.Fatalf(".CgoFiles unexpectedly mentioned cache %s", tg.tempdir)
 	}
-	tg.run("list", "-cgo", "-f", `{{join .CgoFiles "\n"}}`, "net")
+	tg.run("list", "-compiled", "-f", `{{.Dir}}{{"\n"}}{{join .CompiledGoFiles "\n"}}`, "net")
 	if !strings.Contains(tg.stdout.String(), tg.tempdir) {
-		t.Fatalf(".CgoFiles with -cgo did not mention cache %s", tg.tempdir)
+		t.Fatalf(".CompiledGoFiles with -compiled did not mention cache %s", tg.tempdir)
 	}
+	dir := ""
 	for _, file := range strings.Split(tg.stdout.String(), "\n") {
 		if file == "" {
 			continue
 		}
+		if dir == "" {
+			dir = file
+			continue
+		}
+		if !strings.Contains(file, "/") && !strings.Contains(file, `\`) {
+			file = filepath.Join(dir, file)
+		}
 		if _, err := os.Stat(file); err != nil {
-			t.Fatalf("cannot find .CgoFiles result %s: %v", file, err)
+			t.Fatalf("cannot find .CompiledGoFiles result %s: %v", file, err)
 		}
 	}
 }
