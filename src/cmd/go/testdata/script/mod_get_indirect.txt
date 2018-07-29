@@ -17,15 +17,15 @@ go list
 grep 'rsc.io/quote v1.5.2$' go.mod
 grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
 
-# indirect tag should be added by go mod -sync
+# indirect tag should be added by go mod tidy
 cp $WORK/tmp/usequote.go x.go
-go mod -sync
+go mod tidy
 grep 'rsc.io/quote v1.5.2$' go.mod
 grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
 
 # requirement should be dropped entirely if not needed
 cp $WORK/tmp/usetext.go x.go
-go mod -sync
+go mod tidy
 ! grep rsc.io/quote go.mod
 grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
 

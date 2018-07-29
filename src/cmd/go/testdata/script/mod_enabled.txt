@@ -37,8 +37,10 @@ go env GOMOD
 stdout z[/\\]go.mod
 
 cd $GOPATH/src/x/y
-! go env GOMOD
-stderr 'cannot find main module root'
+go env GOMOD
+! stdout .
+! go list -m
+stderr 'cannot find main module'
 
 cd $GOPATH/foo
 go env GOMOD

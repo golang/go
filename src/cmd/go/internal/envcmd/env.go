@@ -22,7 +22,7 @@ import (
 )
 
 var CmdEnv = &base.Command{
-	UsageLine: "env [-json] [var ...]",
+	UsageLine: "go env [-json] [var ...]",
 	Short:     "print Go environment information",
 	Long: `
 Env prints Go environment information.

@@ -17,6 +17,7 @@ import (
 )
 
 func BuildInit() {
+	load.ModInit()
 	instrumentInit()
 	buildModeInit()
 

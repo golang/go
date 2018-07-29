@@ -1,13 +1,13 @@
-# Check that mod -sync does not introduce repeated
+# Check that mod tidy does not introduce repeated
 # require statements when input go.mod has quoted requirements.
 env GO111MODULE=on
 
-go mod -sync -json
-stdout -count=1 '"Path": "rsc.io/quote"'
+go mod tidy
+grep -count=1 rsc.io/quote go.mod
 
 cp go.mod2 go.mod
-go mod -sync -json
-stdout -count=1 '"Path": "rsc.io/quote"'
+go mod tidy
+grep -count=1 rsc.io/quote go.mod
 
 
 -- go.mod --

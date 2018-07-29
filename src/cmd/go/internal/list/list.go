@@ -26,7 +26,7 @@ import (
 var CmdList = &base.Command{
 	// Note: -f -json -m are listed explicitly because they are the most common list flags.
 	// Do not send CLs removing them because they're covered by [list flags].
-	UsageLine: "list [-f format] [-json] [-m] [list flags] [build flags] [packages]",
+	UsageLine: "go list [-f format] [-json] [-m] [list flags] [build flags] [packages]",
 	Short:     "list packages or modules",
 	Long: `
 List lists the named packages, one per line.

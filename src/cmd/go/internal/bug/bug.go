@@ -25,7 +25,7 @@ import (
 
 var CmdBug = &base.Command{
 	Run:       runBug,
-	UsageLine: "bug",
+	UsageLine: "go bug",
 	Short:     "start a bug report",
 	Long: `
 Bug opens the default browser and starts a new bug report.
@@ -38,6 +38,9 @@ func init() {
 }
 
 func runBug(cmd *base.Command, args []string) {
+	if len(args) > 0 {
+		base.Fatalf("go bug: bug takes no arguments")
+	}
 	var buf bytes.Buffer
 	buf.WriteString(bugHeader)
 	inspectGoVersion(&buf)

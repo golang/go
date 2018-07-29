@@ -2,7 +2,7 @@ env GO111MODULE=on
 
 # golang.org/x/internal should be importable from other golang.org/x modules.
 rm go.mod
-go mod -init -module golang.org/x/anything
+go mod init golang.org/x/anything
 go build .
 
 # ...but that should not leak into other modules.
@@ -20,7 +20,7 @@ stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed$'
 
 # Dependencies should be able to use their own internal modules...
 rm go.mod
-go mod -init -module golang.org/notx
+go mod init golang.org/notx
 go build ./throughdep
 
 # ... but other modules should not, even if they have transitive dependencies.
@@ -34,19 +34,18 @@ stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/u
 
 # Replacing an internal module should keep it internal to the same paths.
 rm go.mod
-go mod -init -module golang.org/notx
-go mod -replace golang.org/x/internal=./replace/golang.org/notx/internal
+go mod init golang.org/notx
+go mod edit -replace golang.org/x/internal=./replace/golang.org/notx/internal
 go build ./throughdep
 
 ! go build ./baddep
 stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
 
-go mod -replace golang.org/x/internal=./vendor/golang.org/x/internal
+go mod edit -replace golang.org/x/internal=./vendor/golang.org/x/internal
 go build ./throughdep
 
 ! go build ./baddep
 stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
-
 
 -- useinternal.go --
 package useinternal

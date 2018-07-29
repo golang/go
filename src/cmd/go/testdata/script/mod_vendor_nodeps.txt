@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-go mod -vendor
+go mod vendor
 stderr '^go: no dependencies to vendor'
 
 -- go.mod --

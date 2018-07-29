@@ -40,7 +40,7 @@ import (
 )
 
 func init() {
-	base.Commands = []*base.Command{
+	base.Go.Commands = []*base.Command{
 		bug.CmdBug,
 		work.CmdBuild,
 		clean.CmdClean,
@@ -129,26 +129,42 @@ func main() {
 		os.Exit(2)
 	}
 
+	// TODO(rsc): Remove all these helper prints in Go 1.12.
 	switch args[0] {
 	case "mod":
-		// Skip modload.Init (which may insist on go.mod existing)
-		// so that go mod -init has a chance to write the file.
-	case "version":
-		// Skip modload.Init so that users can report bugs against
-		// go mod -init.
+		if len(args) >= 2 {
+			flag := args[1]
+			if strings.HasPrefix(flag, "--") {
+				flag = flag[1:]
+			}
+			if i := strings.Index(flag, "="); i >= 0 {
+				flag = flag[:i]
+			}
+			switch flag {
+			case "-sync":
+				fmt.Fprintf(os.Stderr, "go: go mod -sync is now go mod tidy\n")
+				os.Exit(2)
+			case "-init", "-fix", "-graph", "-vendor", "-verify":
+				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod %s\n", flag, flag[1:])
+				os.Exit(2)
+			case "-fmt", "-json", "-module", "-require", "-droprequire", "-replace", "-dropreplace", "-exclude", "-dropexclude":
+				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod edit %s\n", flag, flag)
+				os.Exit(2)
+			}
+		}
 	case "vendor":
-		fmt.Fprintf(os.Stderr, "go vendor is now go mod -vendor\n")
+		fmt.Fprintf(os.Stderr, "go: vgo vendor is now go mod vendor\n")
 		os.Exit(2)
 	case "verify":
-		fmt.Fprintf(os.Stderr, "go verify is now go mod -verify\n")
+		fmt.Fprintf(os.Stderr, "go: vgo verify is now go mod verify\n")
 		os.Exit(2)
-	default:
-		// Run modload.Init so that each subcommand doesn't have to worry about it.
-		// Also install the module get command instead of the GOPATH go get command
-		// if modules are enabled.
-		modload.Init()
-		if modload.Enabled() {
-			// Might not have done this above, so do it now.
+	}
+
+	if args[0] == "get" {
+		// Replace get with module-aware get if appropriate.
+		// Note that if MustUseModules is true, this happened already above,
+		// but no harm in doing it again.
+		if modload.Init(); modload.Enabled() {
 			*get.CmdGet = *modget.CmdGet
 		}
 	}
@@ -166,8 +182,29 @@ func main() {
 		}
 	}
 
-	for _, cmd := range base.Commands {
-		if cmd.Name() == args[0] && cmd.Runnable() {
+BigCmdLoop:
+	for bigCmd := base.Go; ; {
+		for _, cmd := range bigCmd.Commands {
+			if cmd.Name() != args[0] {
+				continue
+			}
+			if len(cmd.Commands) > 0 {
+				bigCmd = cmd
+				args = args[1:]
+				if len(args) == 0 {
+					help.PrintUsage(os.Stderr, bigCmd)
+				}
+				if args[0] == "help" {
+					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
+					help.Help(append(strings.Split(cfg.CmdName, " "), args[1:]...))
+					return
+				}
+				cfg.CmdName += " " + args[0]
+				continue BigCmdLoop
+			}
+			if !cmd.Runnable() {
+				continue
+			}
 			cmd.Flag.Usage = func() { cmd.Usage() }
 			if cmd.CustomFlags {
 				args = args[1:]
@@ -179,11 +216,14 @@ func main() {
 			base.Exit()
 			return
 		}
+		helpArg := ""
+		if i := strings.LastIndex(cfg.CmdName, " "); i >= 0 {
+			helpArg = " " + cfg.CmdName[:i]
+		}
+		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
-
-	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'go help' for usage.\n", args[0])
-	base.SetExitStatus(2)
-	base.Exit()
 }
 
 func init() {
@@ -195,6 +235,6 @@ func mainUsage() {
 	if len(os.Args) > 1 && os.Args[1] == "test" {
 		test.Usage()
 	}
-	help.PrintUsage(os.Stderr)
+	help.PrintUsage(os.Stderr, base.Go)
 	os.Exit(2)
 }

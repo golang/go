@@ -5,22 +5,20 @@ exec ./a1.exe
 stdout 'Don''t communicate by sharing memory'
 
 # Modules can be replaced by local packages.
-go mod -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
+go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
 go build -o a2.exe .
 exec ./a2.exe
 stdout 'Concurrency is not parallelism.'
 
 # The module path of the replacement doesn't need to match.
 # (For example, it could be a long-running fork with its own import path.)
-go mod -replace=rsc.io/quote/v3=./local/not-rsc.io/quote/v3
+go mod edit -replace=rsc.io/quote/v3=./local/not-rsc.io/quote/v3
 go build -o a3.exe .
 exec ./a3.exe
 stdout 'Clear is better than clever.'
 
 # However, the same module can't be used as two different paths.
-go mod -dropreplace=rsc.io/quote/v3
-go mod -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0
-go mod -require=not-rsc.io/quote/v3@v3.0.0
+go mod edit -dropreplace=rsc.io/quote/v3 -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
 ! go build -o a4.exe .
 
 

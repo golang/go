@@ -10,7 +10,7 @@ stdout '^w'
 go list -f {{.Dir}} x
 stdout 'src[\\/]x'
 
-go mod -vendor -v
+go mod vendor -v
 stderr '^# x v1.0.0 => ./x'
 stderr '^x'
 stderr '^# y v1.0.0 => ./y'

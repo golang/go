@@ -14,11 +14,33 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
 )
 
-func runVendor() {
+var cmdVendor = &base.Command{
+	UsageLine: "go mod vendor [-v]",
+	Short:     "make vendored copy of dependencies",
+	Long: `
+Vendor resets the main module's vendor directory to include all packages
+needed to build and test all the main module's packages.
+It does not include test code for vendored packages.
+
+The -v flag causes vendor to print the names of vendored
+modules and packages to standard error.
+	`,
+	Run: runVendor,
+}
+
+func init() {
+	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+}
+
+func runVendor(cmd *base.Command, args []string) {
+	if len(args) != 0 {
+		base.Fatalf("go mod vendor: vendor takes no arguments")
+	}
 	pkgs := modload.LoadVendor()
 
 	vdir := filepath.Join(modload.ModRoot, "vendor")
@@ -46,12 +68,12 @@ func runVendor() {
 				}
 			}
 			fmt.Fprintf(&buf, "# %s %s%s\n", m.Path, m.Version, repl)
-			if *modV {
+			if cfg.BuildV {
 				fmt.Fprintf(os.Stderr, "# %s %s%s\n", m.Path, m.Version, repl)
 			}
 			for _, pkg := range pkgs {
 				fmt.Fprintf(&buf, "%s\n", pkg)
-				if *modV {
+				if cfg.BuildV {
 					fmt.Fprintf(os.Stderr, "%s\n", pkg)
 				}
 				vendorPkg(vdir, pkg)

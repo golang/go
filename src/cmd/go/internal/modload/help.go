@@ -85,12 +85,12 @@ For more about the go.mod file, see https://research.swtch.com/vgo-module.
 
 To start a new module, simply create a go.mod file in the root of the
 module's directory tree, containing only a module statement.
-The 'go mod' command can be used to do this:
+The 'go mod init' command can be used to do this:
 
-	go mod -init -module example.com/m
+	go mod init example.com/m
 
 In a project already using an existing dependency management tool like
-godep, glide, or dep, 'go mod -init' will also add require statements
+godep, glide, or dep, 'go mod init' will also add require statements
 matching the existing configuration.
 
 Once the go.mod file exists, no additional steps are required:
@@ -147,7 +147,7 @@ package from the module. On the other hand, determining that a module requiremen
 is no longer necessary and can be deleted requires a full view of
 all packages in the module, across all possible build configurations
 (architectures, operating systems, build tags, and so on).
-The 'go mod -sync' command builds that view and then
+The 'go mod tidy' command builds that view and then
 adds any missing module requirements and removes unnecessary ones.
 
 As part of maintaining the require statements in go.mod, the go command
@@ -337,7 +337,7 @@ The go command maintains a cache of downloaded packages and computes
 and records the cryptographic checksum of each package at download time.
 In normal operation, the go command checks these pre-computed checksums
 against the main module's go.sum file, instead of recomputing them on
-each command invocation. The 'go mod -verify' command checks that
+each command invocation. The 'go mod verify' command checks that
 the cached copies of module downloads still match both their recorded
 checksums and the entries in go.sum.
 
@@ -356,7 +356,7 @@ By default, the go command satisfies dependencies by downloading modules
 from their sources and using those downloaded copies (after verification,
 as described in the previous section). To allow interoperation with older
 versions of Go, or to ensure that all files used for a build are stored
-together in a single file tree, 'go mod -vendor' creates a directory named
+together in a single file tree, 'go mod vendor' creates a directory named
 vendor in the root directory of the main module and stores there all the
 packages from dependency modules that are needed to support builds and
 tests of packages in the main module.
