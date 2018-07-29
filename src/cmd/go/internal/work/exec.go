@@ -345,7 +345,7 @@ const (
 	needBuild uint32 = 1 << iota
 	needCgoHdr
 	needVet
-	needCgoFiles
+	needCompiledGoFiles
 	needStale
 )
 
@@ -365,10 +365,7 @@ func (b *Builder) build(a *Action) (err error) {
 	need := bit(needBuild, !b.IsCmdList || b.NeedExport) |
 		bit(needCgoHdr, b.needCgoHdr(a)) |
 		bit(needVet, a.needVet) |
-		bit(needCgoFiles, b.NeedCgoFiles && (p.UsesCgo() || p.UsesSwig()))
-
-	// Save p.CgoFiles now, because we may modify it for go list.
-	cgofiles := append([]string{}, p.CgoFiles...)
+		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
 	if !p.BinaryOnly {
 		if b.useCache(a, p, b.buildActionID(a), p.Target) {
@@ -378,8 +375,8 @@ func (b *Builder) build(a *Action) (err error) {
 			if b.NeedExport {
 				p.Export = a.built
 			}
-			if need&needCgoFiles != 0 && b.loadCachedCgoFiles(a) {
-				need &^= needCgoFiles
+			if need&needCompiledGoFiles != 0 && b.loadCachedGoFiles(a) {
+				need &^= needCompiledGoFiles
 			}
 			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
 			// Remember that we might have them in cache
@@ -469,11 +466,12 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
-	var gofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
-	gofiles = append(gofiles, a.Package.GoFiles...)
-	cfiles = append(cfiles, a.Package.CFiles...)
-	sfiles = append(sfiles, a.Package.SFiles...)
-	cxxfiles = append(cxxfiles, a.Package.CXXFiles...)
+	gofiles := str.StringList(a.Package.GoFiles)
+	cgofiles := str.StringList(a.Package.CgoFiles)
+	cfiles := str.StringList(a.Package.CFiles)
+	sfiles := str.StringList(a.Package.SFiles)
+	cxxfiles := str.StringList(a.Package.CXXFiles)
+	var objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
 
 	if a.Package.UsesCgo() || a.Package.UsesSwig() {
 		if pcCFLAGS, pcLDFLAGS, err = b.getPkgConfigFlags(a.Package); err != nil {
@@ -594,11 +592,11 @@ func (b *Builder) build(a *Action) (err error) {
 		buildVetConfig(a, gofiles)
 		need &^= needVet
 	}
-	if need&needCgoFiles != 0 {
-		if !b.loadCachedCgoFiles(a) {
-			return fmt.Errorf("failed to cache translated CgoFiles")
+	if need&needCompiledGoFiles != 0 {
+		if !b.loadCachedGoFiles(a) {
+			return fmt.Errorf("failed to cache compiled Go files")
 		}
-		need &^= needCgoFiles
+		need &^= needCompiledGoFiles
 	}
 	if need == 0 {
 		// Nothing left to do.
@@ -836,7 +834,7 @@ func (b *Builder) loadCachedVet(a *Action) bool {
 	return true
 }
 
-func (b *Builder) loadCachedCgoFiles(a *Action) bool {
+func (b *Builder) loadCachedGoFiles(a *Action) bool {
 	c := cache.Default()
 	if c == nil {
 		return false
@@ -851,6 +849,7 @@ func (b *Builder) loadCachedCgoFiles(a *Action) bool {
 			continue
 		}
 		if strings.HasPrefix(name, "./") {
+			files = append(files, name[len("./"):])
 			continue
 		}
 		file, err := b.findCachedObjdirFile(a, c, name)
@@ -859,7 +858,7 @@ func (b *Builder) loadCachedCgoFiles(a *Action) bool {
 		}
 		files = append(files, file)
 	}
-	a.Package.CgoFiles = files
+	a.Package.CompiledGoFiles = files
 	return true
 }
 

@@ -99,6 +99,8 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
 	nerrors++
 	if pos.IsValid() {
 		fmt.Fprintf(os.Stderr, "%s: ", fset.Position(pos).String())
+	} else {
+		fmt.Fprintf(os.Stderr, "cgo: ")
 	}
 	fmt.Fprintf(os.Stderr, msg, args...)
 	fmt.Fprintf(os.Stderr, "\n")

@@ -36,10 +36,10 @@ type Builder struct {
 	flagCache   map[[2]string]bool   // a cache of supported compiler flags
 	Print       func(args ...interface{}) (int, error)
 
-	IsCmdList    bool // running as part of go list; set p.Stale and additional fields below
-	NeedError    bool // list needs p.Error
-	NeedExport   bool // list needs p.Export
-	NeedCgoFiles bool // list needs p.CgoFiles to cgo-generated files, not originals
+	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
+	NeedError           bool // list needs p.Error
+	NeedExport          bool // list needs p.Export
+	NeedCompiledGoFiles bool // list needs p.CompiledGoFIles
 
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
