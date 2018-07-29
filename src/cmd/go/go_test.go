@@ -3047,6 +3047,9 @@ func TestGoTestMainAsNormalTest(t *testing.T) {
 }
 
 func TestGoTestMainTwice(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
@@ -5815,57 +5818,6 @@ func init() {}
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("build", "-o", tg.path("a.exe"), "a")
 	tg.run("test", "a")
-}
-
-// Issue 23150.
-func TestCpuprofileTwice(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempFile("prof/src/x/x_test.go", `
-		package x_test
-		import (
-			"testing"
-			"time"
-		)
-		func TestSleep(t *testing.T) { time.Sleep(10 * time.Millisecond) }`)
-	tg.setenv("GOPATH", tg.path("prof"))
-	bin := tg.path("x.test")
-	out := tg.path("cpu.out")
-	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
-	tg.must(os.Remove(out))
-	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
-	tg.mustExist(out)
-}
-
-// Issue 23694.
-func TestAtomicCoverpkgAll(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-
-	tg.tempFile("src/x/x.go", `package x; import _ "sync/atomic"; func F() {}`)
-	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("test", "-coverpkg=all", "-covermode=atomic", "x")
-	if canRace {
-		tg.run("test", "-coverpkg=all", "-race", "x")
-	}
-}
-
-// Issue 23882.
-func TestCoverpkgAllRuntime(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-
-	tg.tempFile("src/x/x.go", `package x; import _ "runtime"; func F() {}`)
-	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("test", "-coverpkg=all", "x")
-	if canRace {
-		tg.run("test", "-coverpkg=all", "-race", "x")
-	}
 }
 
 func TestBadCommandLines(t *testing.T) {

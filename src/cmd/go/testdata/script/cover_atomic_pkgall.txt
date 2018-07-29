@@ -1,0 +1,23 @@
+[short] skip
+
+go test -coverpkg=all -covermode=atomic x
+stdout ok[\s\S]+?coverage
+
+[!race] stop
+
+go test -coverpkg=all -race x
+stdout ok[\s\S]+?coverage
+
+-- x/x.go --
+package x
+
+import _ "sync/atomic"
+
+func F() {}
+
+-- x/x_test.go --
+package x
+
+import "testing"
+
+func TestF(t *testing.T) { F() }

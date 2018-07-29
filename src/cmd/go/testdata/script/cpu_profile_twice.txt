@@ -1,0 +1,20 @@
+# Issue 23150
+
+[short] skip
+
+go test -o=$WORK/x.test -cpuprofile=$WORK/cpu_profile_twice.out x
+rm $WORK/cpu_profile_twice.out
+
+go test -o=$WORK/x.test -cpuprofile=$WORK/cpu_profile_twice.out x
+exists $WORK/cpu_profile_twice.out
+
+
+-- x/x_test.go --
+package x_test
+import (
+    "testing"
+    "time"
+)
+func TestSleep(t *testing.T) {
+    time.Sleep(10 * time.Millisecond)
+}
