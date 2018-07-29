@@ -15,7 +15,7 @@ import (
 var CmdVet = &base.Command{
 	Run:         runVet,
 	CustomFlags: true,
-	UsageLine:   "vet [-n] [-x] [build flags] [vet flags] [packages]",
+	UsageLine:   "go vet [-n] [-x] [build flags] [vet flags] [packages]",
 	Short:       "report likely mistakes in packages",
 	Long: `
 Vet runs the Go vet command on the packages named by the import paths.

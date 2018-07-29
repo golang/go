@@ -32,12 +32,12 @@ grep 'rsc.io/quote v0.0.0-20180214005840-23179ee8a569' go.mod
 go get rsc.io/quote@23179ee8
 grep 'rsc.io/quote v1.5.1' go.mod
 
-# go mod -require does not interpret commits
-go mod -require rsc.io/quote@23179ee
+# go mod edit -require does not interpret commits
+go mod edit -require rsc.io/quote@23179ee
 grep 'rsc.io/quote 23179ee' go.mod
 
-# but go mod -fix fixes them
-go mod -fix
+# but go mod fix fixes them
+go mod fix
 grep 'rsc.io/quote v1.5.1' go.mod
 
 -- go.mod --

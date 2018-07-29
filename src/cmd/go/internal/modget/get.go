@@ -29,7 +29,7 @@ import (
 var CmdGet = &base.Command{
 	// Note: -d -m -u are listed explicitly because they are the most common get flags.
 	// Do not send CLs removing them because they're covered by [get flags].
-	UsageLine: "get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]",
+	UsageLine: "go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]",
 	Short:     "add dependencies to current module and install them",
 	Long: `
 Get resolves and adds dependencies to the current development module

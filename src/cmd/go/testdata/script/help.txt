@@ -1,0 +1,30 @@
+# go help shows overview.
+go help
+stdout 'Go is a tool'
+stdout 'bug.*start a bug report'
+
+# go help bug shows usage for bug
+go help bug
+stdout 'usage: go bug'
+stdout 'bug report'
+
+# go bug help is an error (bug takes no arguments)
+! go bug help
+stderr 'bug takes no arguments'
+
+# go help mod shows mod subcommands
+go help mod
+stdout 'go mod <command>'
+stdout tidy
+
+# go help mod tidy explains tidy
+go help mod tidy
+stdout 'usage: go mod tidy'
+
+# go mod help tidy does too
+go mod help tidy
+stdout 'usage: go mod tidy'
+
+# go mod --help doesn't print help but at least suggests it.
+! go mod --help
+stderr 'Run ''go help mod'' for usage.'

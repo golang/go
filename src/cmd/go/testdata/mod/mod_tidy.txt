@@ -1,7 +1,7 @@
 env GO111MODULE=on
 
-# sync removes unused y, but everything else is used
-go mod -sync -v
+# tidy removes unused y, but everything else is used
+go mod tidy -v
 stderr '^unused y.1'
 ! stderr '^unused [^y]'
 

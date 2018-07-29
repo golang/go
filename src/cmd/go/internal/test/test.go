@@ -37,7 +37,7 @@ func init() {
 	CmdTest.Run = runTest
 }
 
-const testUsage = "test [build/test flags] [packages] [build/test flags & test binary flags]"
+const testUsage = "go test [build/test flags] [packages] [build/test flags & test binary flags]"
 
 var CmdTest = &base.Command{
 	CustomFlags: true,
@@ -168,7 +168,7 @@ flags are also accessible by 'go test'.
 
 // Usage prints the usage message for 'go test -h' and exits.
 func Usage() {
-	os.Stderr.WriteString(testUsage + "\n\n" +
+	os.Stderr.WriteString("usage: " + testUsage + "\n\n" +
 		strings.TrimSpace(testFlag1) + "\n\n\t" +
 		strings.TrimSpace(testFlag2) + "\n")
 	os.Exit(2)

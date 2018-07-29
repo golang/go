@@ -28,6 +28,9 @@ import (
 )
 
 var (
+	// module initialization hook; never nil, no-op if module use is disabled
+	ModInit func()
+
 	// module hooks; nil if module use is disabled
 	ModBinDir            func() string                                                   // return effective bin directory
 	ModLookup            func(parentPath, path string) (dir, realPath string, err error) // lookup effective meaning of import
@@ -1817,7 +1820,7 @@ func ImportPaths(args []string) []string {
 	if cmdlineMatchers == nil {
 		SetCmdlinePatterns(search.CleanImportPaths(args))
 	}
-	if cfg.ModulesEnabled {
+	if ModInit(); cfg.ModulesEnabled {
 		return ModImportPaths(args)
 	}
 	return search.ImportPaths(args)
@@ -1877,6 +1880,8 @@ func PackagesForBuild(args []string) []*Package {
 // (typically named on the command line). The target is named p.a for
 // package p or named after the first Go file for package main.
 func GoFilesPackage(gofiles []string) *Package {
+	ModInit()
+
 	// TODO: Remove this restriction.
 	for _, f := range gofiles {
 		if !strings.HasSuffix(f, ".go") {

@@ -10,7 +10,7 @@ go build sub.1
 stderr 'module requires Go 1.11111'
 
 go build versioned.1
-go mod -require versioned.1@v1.1.0
+go mod edit -require versioned.1@v1.1.0
 ! go build versioned.1
 stderr 'module requires Go 1.99999'
 

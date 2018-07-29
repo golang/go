@@ -26,7 +26,7 @@ func init() {
 
 var CmdFmt = &base.Command{
 	Run:       runFmt,
-	UsageLine: "fmt [-n] [-x] [packages]",
+	UsageLine: "go fmt [-n] [-x] [packages]",
 	Short:     "gofmt (reformat) package sources",
 	Long: `
 Fmt runs the command 'gofmt -l -w' on the packages named

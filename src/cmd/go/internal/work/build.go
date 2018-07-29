@@ -22,7 +22,7 @@ import (
 )
 
 var CmdBuild = &base.Command{
-	UsageLine: "build [-o output] [-i] [build flags] [packages]",
+	UsageLine: "go build [-o output] [-i] [build flags] [packages]",
 	Short:     "compile packages and dependencies",
 	Long: `
 Build compiles the packages named by the import paths,
@@ -341,7 +341,7 @@ func runBuild(cmd *base.Command, args []string) {
 }
 
 var CmdInstall = &base.Command{
-	UsageLine: "install [-i] [build flags] [packages]",
+	UsageLine: "go install [-i] [build flags] [packages]",
 	Short:     "compile and install packages and dependencies",
 	Long: `
 Install compiles and installs the packages named by the import paths.
