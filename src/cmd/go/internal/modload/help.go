@@ -20,12 +20,12 @@ including recording and resolving dependencies on other modules.
 Modules replace the old GOPATH-based approach to specifying
 which source files are used in a given build.
 
-Experimental module support
+Preliminary module support
 
-Go 1.11 includes experimental support for Go modules,
+Go 1.11 includes preliminary support for Go modules,
 including a new module-aware 'go get' command.
 We intend to keep revising this support, while preserving compatibility,
-until it can be declared official (no longer experimental),
+until it can be declared official (no longer preliminary),
 and then at a later point we may remove support for work
 in GOPATH and the old 'go get' command.
 
@@ -172,6 +172,19 @@ automatically make any implied upgrades and update go.mod to reflect them.
 
 The 'go mod' command provides other functionality for use in maintaining
 and understanding modules and go.mod files. See 'go help mod'.
+
+The -mod build flag provides additional control over updating and use of go.mod.
+
+If invoked with -mod=readonly, the go command is disallowed from the implicit
+automatic updating of go.mod described above. Instead, it fails when any changes
+to go.mod are needed. This setting is most useful to check that go.mod does
+not need updates, such as in a continuous integration and testing system.
+The "go get" command remains permitted to update go.mod even with -mod=readonly,
+and the "go mod" commands do not take the -mod flag (or any other build flags).
+
+If invoked with -mod=vendor, the go command assumes that the vendor
+directory holds the correct copies of dependencies and ignores
+the dependency descriptions in go.mod.
 
 Pseudo-versions
 
@@ -363,7 +376,7 @@ tests of packages in the main module.
 
 To build using the main module's top-level vendor directory to satisfy
 dependencies (disabling use of the usual network sources and local
-caches), use 'go build -getmode=vendor'. Note that only the main module's
+caches), use 'go build -mod=vendor'. Note that only the main module's
 top-level vendor directory is used; vendor directories in other locations
 are still ignored.
 	`,

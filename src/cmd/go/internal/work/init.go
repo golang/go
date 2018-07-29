@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func BuildInit() {
@@ -227,15 +228,30 @@ func buildModeInit() {
 		}
 	}
 
-	switch cfg.BuildGetmode {
+	switch cfg.BuildMod {
 	case "":
 		// ok
-	case "local", "vendor":
-		// ok but check for modules
-		if load.ModLookup == nil {
-			base.Fatalf("build flag -getmode=%s only valid when using modules", cfg.BuildGetmode)
+	case "readonly", "vendor":
+		if load.ModLookup == nil && !inGOFLAGS("-mod") {
+			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
-		base.Fatalf("-getmode=%s not supported (can be '', 'local', or 'vendor')", cfg.BuildGetmode)
+		base.Fatalf("-mod=%s not supported (can be '', 'readonly', or 'vendor')", cfg.BuildMod)
 	}
+}
+
+func inGOFLAGS(flag string) bool {
+	for _, goflag := range base.GOFLAGS() {
+		name := goflag
+		if strings.HasPrefix(name, "--") {
+			name = name[1:]
+		}
+		if i := strings.Index(name, "="); i >= 0 {
+			name = name[:i]
+		}
+		if name == flag {
+			return true
+		}
+	}
+	return false
 }

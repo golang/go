@@ -66,9 +66,9 @@ func Import(path string) (m module.Version, dir string, err error) {
 		}
 	}
 
-	// -getmode=vendor is special.
+	// -mod=vendor is special.
 	// Everything must be in the main module or the main module's vendor directory.
-	if cfg.BuildGetmode == "vendor" {
+	if cfg.BuildMod == "vendor" {
 		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot, true)
 		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot, "vendor"), false)
 		if mainOK && vendorOK {
@@ -146,8 +146,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 
 	// Look up module containing the package, for addition to the build list.
 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
-	if cfg.BuildGetmode == "local" {
-		return module.Version{}, "", fmt.Errorf("import lookup disabled by -getmode=local")
+	if cfg.BuildMod == "readonly" {
+		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
 	}
 
 	for p := path; p != "."; p = pathpkg.Dir(p) {

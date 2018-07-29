@@ -1,22 +1,19 @@
-# Use download cache for -getmode=local.
+# Allow (cached) downloads for -mod=readonly.
 env GO111MODULE=on
 env GOPATH=$WORK/gopath1
 cd $WORK/x
-! go list -getmode=local
-go list
-go list -getmode=local
+go mod edit -fmt
+go list -mod=readonly
 env GOPROXY=file:///nonexist
-go list -getmode=local
+go list
 grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
 
 # Use download cache as file:/// proxy.
 [windows] stop # TODO: file://$WORK puts backslashes in the URL
 env GOPATH=$WORK/gopath2
 env GOPROXY=file:///nonexist
-! go list -getmode=local
 ! go list
 env GOPROXY=file://$WORK/gopath1/src/mod/cache/download
-! go list -getmode=local
 go list
 grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
 

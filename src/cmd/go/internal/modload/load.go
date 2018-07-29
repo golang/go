@@ -651,6 +651,7 @@ func Replacement(mod module.Version) module.Version {
 		// Happens during testing.
 		return module.Version{}
 	}
+
 	var found *modfile.Replace
 	for _, r := range modFile.Replace {
 		if r.Old.Path == mod.Path && (r.Old.Version == "" || r.Old.Version == mod.Version) {
@@ -761,7 +762,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 		return append(list, r.buildList[1:]...), nil
 	}
 
-	if cfg.BuildGetmode == "vendor" {
+	if cfg.BuildMod == "vendor" {
 		// For every module other than the target,
 		// return the full list of modules from modules.txt.
 		readVendorList()

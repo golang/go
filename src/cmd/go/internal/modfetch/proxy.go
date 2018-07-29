@@ -25,11 +25,14 @@ var HelpGoproxy = &base.Command{
 	Short:     "module proxy protocol",
 	Long: `
 The go command by default downloads modules from version control systems
-directly, just as 'go get' always has. If the GOPROXY environment variable
-is set to the URL of a module proxy, the go command will instead fetch
-all modules from that proxy. No matter the source of the modules, downloaded
-modules must match existing entries in go.sum (see 'go help modules' for
-discussion of verification).
+directly, just as 'go get' always has. The GOPROXY environment variable allows
+further control over the download source. If GOPROXY is unset, is the empty string,
+or is the string "direct", downloads use the default direct connection to version
+control systems. Setting GOPROXY to "off" disallows downloading modules from
+any source. Otherwise, GOPROXY is expected to be the URL of a module proxy,
+in which case the go command will fetch all modules from that proxy.
+No matter the source of the modules, downloaded modules must match existing
+entries in go.sum (see 'go help modules' for discussion of verification).
 
 A Go module proxy is any web server that can respond to GET requests for
 URLs of a specified form. The requests have no query parameters, so even

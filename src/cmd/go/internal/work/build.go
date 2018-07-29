@@ -86,8 +86,6 @@ and test commands:
 		arguments to pass on each gccgo compiler/linker invocation.
 	-gcflags '[pattern=]arg list'
 		arguments to pass on each go tool compile invocation.
-	-getmode mode
-		module download mode to use. See 'go help modules' for more.
 	-installsuffix suffix
 		a suffix to use in the name of the package installation directory,
 		in order to keep output separate from default builds.
@@ -100,6 +98,9 @@ and test commands:
 	-linkshared
 		link against shared libraries previously created with
 		-buildmode=shared.
+	-mod mode
+		module download mode to use: readonly, release, or vendor.
+		See 'go help modules' for more.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
@@ -220,7 +221,7 @@ func AddBuildFlags(cmd *base.Command) {
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
-	cmd.Flag.StringVar(&cfg.BuildGetmode, "getmode", "", "")
+	cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
