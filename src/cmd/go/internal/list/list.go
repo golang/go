@@ -167,6 +167,9 @@ a non-nil Error field; other information may or may not be missing
 The -export flag causes list to set the Export field to the name of a
 file containing up-to-date export information for the given package.
 
+The -find flag causes list to identify the named packages but not
+resolve their dependencies: the Imports and Deps lists will be empty.
+
 The -test flag causes list to report not only the named packages
 but also their test binaries (for packages with tests), to convey to
 source code analysis tools exactly how test binaries are constructed.
@@ -289,6 +292,7 @@ var (
 	listE        = CmdList.Flag.Bool("e", false, "")
 	listExport   = CmdList.Flag.Bool("export", false, "")
 	listFmt      = CmdList.Flag.String("f", "", "")
+	listFind     = CmdList.Flag.Bool("find", false, "")
 	listJson     = CmdList.Flag.Bool("json", false, "")
 	listM        = CmdList.Flag.Bool("m", false, "")
 	listU        = CmdList.Flag.Bool("u", false, "")
@@ -365,6 +369,9 @@ func runList(cmd *base.Command, args []string) {
 		if *listExport {
 			base.Fatalf("go list -export cannot be used with -m")
 		}
+		if *listFind {
+			base.Fatalf("go list -find cannot be used with -m")
+		}
 		if *listTest {
 			base.Fatalf("go list -test cannot be used with -m")
 		}
@@ -397,6 +404,15 @@ func runList(cmd *base.Command, args []string) {
 		base.Fatalf("go list -versions can only be used with -m")
 	}
 
+	// These pairings make no sense.
+	if *listFind && *listDeps {
+		base.Fatalf("go list -deps cannot be used with -find")
+	}
+	if *listFind && *listTest {
+		base.Fatalf("go list -test cannot be used with -find")
+	}
+
+	load.IgnoreImports = *listFind
 	var pkgs []*load.Package
 	if *listE {
 		pkgs = load.PackagesAndErrors(args)

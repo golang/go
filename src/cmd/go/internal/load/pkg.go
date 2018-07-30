@@ -287,6 +287,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.XTestImports = pp.XTestImports
 	if IgnoreImports {
 		p.Imports = nil
+		p.Internal.RawImports = nil
 		p.TestImports = nil
 		p.XTestImports = nil
 	}
