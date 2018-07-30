@@ -253,13 +253,13 @@ function personalizeInstallInstructions() {
 
   var filename = s.substr(prefix.length);
   var filenameRE = /^go1\.\d+(\.\d+)?([a-z0-9]+)?\.([a-z0-9]+)(-[a-z0-9]+)?(-osx10\.[68])?\.([a-z.]+)$/;
-  $('.downloadFilename').text(filename);
-  $('.hideFromDownload').hide();
   var m = filenameRE.exec(filename);
   if (!m) {
     // Can't interpret file name; bail.
     return;
   }
+  $('.downloadFilename').text(filename);
+  $('.hideFromDownload').hide();
 
   var os = m[3];
   var ext = m[6];
