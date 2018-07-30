@@ -29,7 +29,6 @@ import (
 	"time"
 	"unicode/utf8"
 	"unicode/utf16"
-
 )
 
 // A StructuralError suggests that the ASN.1 data is valid, but the Go type
