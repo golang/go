@@ -112,9 +112,9 @@ func TestMetadataImportGraph(t *testing.T) {
   errors
   math/bits
 * subdir/d
-  subdir/d [subdir/d.test]
+* subdir/d [subdir/d.test]
 * subdir/d.test
-  subdir/d_test [subdir/d.test]
+* subdir/d_test [subdir/d.test]
   unsafe
   b -> a
   b -> errors
@@ -204,9 +204,24 @@ func TestMetadataImportGraph(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		const want = "[subdir/d subdir/e subdir/d.test]"
-		if fmt.Sprint(initial) != want {
-			t.Errorf("for subdir/... wildcard, got %s, want %s", initial, want)
+		graph, all = importGraph(initial)
+		wantGraph = `
+  math/bits
+* subdir/d
+* subdir/d [subdir/d.test]
+* subdir/d.test
+* subdir/d_test [subdir/d.test]
+* subdir/e
+  subdir/d [subdir/d.test] -> math/bits
+  subdir/d.test -> os (pruned)
+  subdir/d.test -> subdir/d [subdir/d.test]
+  subdir/d.test -> subdir/d_test [subdir/d.test]
+  subdir/d.test -> testing (pruned)
+  subdir/d.test -> testing/internal/testdeps (pruned)
+  subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
+`[1:]
+		if graph != wantGraph {
+			t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 		}
 	}
 }
