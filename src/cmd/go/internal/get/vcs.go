@@ -5,7 +5,6 @@
 package get
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -428,19 +427,18 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 		fmt.Printf("cd %s\n", dir)
 		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))
 	}
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	err = cmd.Run()
-	out := buf.Bytes()
+	out, err := cmd.Output()
 	if err != nil {
 		if verbose || cfg.BuildV {
 			fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
-			os.Stderr.Write(out)
+			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+				os.Stderr.Write(ee.Stderr)
+			} else {
+				fmt.Fprintf(os.Stderr, err.Error())
+			}
 		}
-		return out, err
 	}
-	return out, nil
+	return out, err
 }
 
 // ping pings to determine scheme to use.
