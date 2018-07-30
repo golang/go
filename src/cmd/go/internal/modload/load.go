@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -60,17 +61,26 @@ func ImportPaths(args []string) []string {
 		paths = nil
 		for _, pkg := range cleaned {
 			switch {
-			case build.IsLocalImport(pkg):
+			case build.IsLocalImport(pkg) || filepath.IsAbs(pkg):
 				list := []string{pkg}
 				if strings.Contains(pkg, "...") {
 					// TODO: Where is the go.mod cutoff?
 					list = warnPattern(pkg, search.AllPackagesInFS(pkg))
 				}
 				for _, pkg := range list {
-					dir := filepath.Join(cwd, pkg)
+					dir := pkg
+					if !filepath.IsAbs(dir) {
+						dir = filepath.Join(cwd, pkg)
+					} else {
+						dir = filepath.Clean(dir)
+					}
+
+					// Note: The checks for @ here are just to avoid misinterpreting
+					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
+					// It's not strictly necessary but helpful to keep the checks.
 					if dir == ModRoot {
 						pkg = Target.Path
-					} else if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) {
+					} else if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) && !strings.Contains(dir[len(ModRoot):], "@") {
 						suffix := filepath.ToSlash(dir[len(ModRoot):])
 						if strings.HasPrefix(suffix, "/vendor/") {
 							// TODO getmode vendor check
@@ -78,8 +88,12 @@ func ImportPaths(args []string) []string {
 						} else {
 							pkg = Target.Path + suffix
 						}
+					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && !strings.Contains(sub, "@") {
+						pkg = filepath.ToSlash(sub)
+					} else if path := pathInModuleCache(dir); path != "" {
+						pkg = path
 					} else {
-						base.Errorf("go: package %s outside module root", pkg)
+						base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
 						continue
 					}
 					roots = append(roots, pkg)
@@ -154,6 +168,24 @@ func ImportPaths(args []string) []string {
 		final = append(final, path)
 	}
 	return final
+}
+
+// pathInModuleCache returns the import path of the directory dir,
+// if dir is in the module cache copy of a module in our build list.
+func pathInModuleCache(dir string) string {
+	for _, m := range buildList[1:] {
+		root, err := modfetch.DownloadDir(m)
+		if err != nil {
+			continue
+		}
+		if sub := search.InDir(dir, root); sub != "" {
+			sub = filepath.ToSlash(sub)
+			if !strings.Contains(sub, "/vendor/") && !strings.HasPrefix(sub, "vendor/") && !strings.Contains(sub, "@") {
+				return path.Join(m.Path, filepath.ToSlash(sub))
+			}
+		}
+	}
+	return ""
 }
 
 // warnPattern returns list, the result of matching pattern,

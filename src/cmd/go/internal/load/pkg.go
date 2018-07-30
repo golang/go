@@ -1755,8 +1755,12 @@ func LoadPackage(arg string, stk *ImportStack) *Package {
 	// This lets you run go test ./ioutil in package io and be
 	// referring to io/ioutil rather than a hypothetical import of
 	// "./ioutil".
-	if build.IsLocalImport(arg) {
-		bp, _ := cfg.BuildContext.ImportDir(filepath.Join(base.Cwd, arg), build.FindOnly)
+	if build.IsLocalImport(arg) || filepath.IsAbs(arg) {
+		dir := arg
+		if !filepath.IsAbs(arg) {
+			dir = filepath.Join(base.Cwd, arg)
+		}
+		bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly)
 		if bp.ImportPath != "" && bp.ImportPath != "." {
 			arg = bp.ImportPath
 		}
