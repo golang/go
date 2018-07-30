@@ -933,7 +933,7 @@ func (t Time) AddDate(years int, months int, days int) Time {
 
 const (
 	secondsPerMinute = 60
-	secondsPerHour   = 60 * 60
+	secondsPerHour   = 60 * secondsPerMinute
 	secondsPerDay    = 24 * secondsPerHour
 	secondsPerWeek   = 7 * secondsPerDay
 	daysPer400Years  = 365*400 + 97
