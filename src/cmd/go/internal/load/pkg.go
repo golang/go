@@ -434,7 +434,7 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 
 	if strings.HasPrefix(path, "mod/") {
 		// Paths beginning with "mod/" might accidentally
-		// look in the module cache directory tree in $GOPATH/src/mod/.
+		// look in the module cache directory tree in $GOPATH/pkg/mod/.
 		// This prefix is owned by the Go core for possible use in the
 		// standard library (since it does not begin with a domain name),
 		// so it's OK to disallow entirely.

@@ -50,7 +50,7 @@ GOPATH/src and itself contains a go.mod file or is below a directory
 containing a go.mod file.
 
 In module-aware mode, GOPATH no longer defines the meaning of imports
-during a build, but it still stores downloaded dependencies (in GOPATH/src/mod)
+during a build, but it still stores downloaded dependencies (in GOPATH/pkg/mod)
 and installed commands (in GOPATH/bin, unless GOBIN is set).
 
 Defining a module

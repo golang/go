@@ -97,13 +97,13 @@ func main() {
 			continue
 		}
 		path, vers, dir := f[0], f[1], f[2]
-		mod, err := ioutil.ReadFile(filepath.Join(gopath, "src/mod/cache/download", path, "@v", vers+".mod"))
+		mod, err := ioutil.ReadFile(filepath.Join(gopath, "pkg/mod/cache/download", path, "@v", vers+".mod"))
 		if err != nil {
 			log.Printf("%s: %v", arg, err)
 			exitCode = 1
 			continue
 		}
-		info, err := ioutil.ReadFile(filepath.Join(gopath, "src/mod/cache/download", path, "@v", vers+".info"))
+		info, err := ioutil.ReadFile(filepath.Join(gopath, "pkg/mod/cache/download", path, "@v", vers+".info"))
 		if err != nil {
 			log.Printf("%s: %v", arg, err)
 			exitCode = 1

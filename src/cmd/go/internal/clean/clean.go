@@ -153,10 +153,10 @@ func runClean(cmd *base.Command, args []string) {
 	}
 
 	if cleanModcache {
-		if modfetch.SrcMod == "" {
+		if modfetch.PkgMod == "" {
 			base.Fatalf("go clean -modcache: no module cache")
 		}
-		if err := removeAll(modfetch.SrcMod); err != nil {
+		if err := removeAll(modfetch.PkgMod); err != nil {
 			base.Errorf("go clean -modcache: %v", err)
 		}
 	}

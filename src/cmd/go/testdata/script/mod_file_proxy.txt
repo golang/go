@@ -6,16 +6,16 @@ go mod edit -fmt
 go list -mod=readonly
 env GOPROXY=file:///nonexist
 go list
-grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
+grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
 
 # Use download cache as file:/// proxy.
 [windows] stop # TODO: file://$WORK puts backslashes in the URL
 env GOPATH=$WORK/gopath2
 env GOPROXY=file:///nonexist
 ! go list
-env GOPROXY=file://$WORK/gopath1/src/mod/cache/download
+env GOPROXY=file://$WORK/gopath1/pkg/mod/cache/download
 go list
-grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
+grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
 
 -- $WORK/x/go.mod --
 module x

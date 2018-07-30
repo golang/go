@@ -39,7 +39,7 @@ func testMain(m *testing.M) int {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	modfetch.SrcMod = filepath.Join(dir, "src/mod")
+	modfetch.PkgMod = filepath.Join(dir, "pkg/mod")
 	codehost.WorkRoot = filepath.Join(dir, "codework")
 
 	return m.Run()

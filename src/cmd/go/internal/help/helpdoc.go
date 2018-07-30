@@ -377,7 +377,7 @@ See https://golang.org/doc/code.html for an example.
 GOPATH and Modules
 
 When using modules, GOPATH is no longer used for resolving imports.
-However, it is still used to store downloaded source code (in GOPATH/src/mod)
+However, it is still used to store downloaded source code (in GOPATH/pkg/mod)
 and compiled commands (in GOPATH/bin).
 
 Internal Directories
