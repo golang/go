@@ -10,12 +10,12 @@ go list -f '{{.Dir}}' rsc.io/quote
 stdout '.*mod[\\/]rsc.io[\\/]quote@v1.5.2$'
 
 # downloaded dependencies are read-only
-exists -readonly $GOPATH/src/mod/rsc.io/quote@v1.5.2
-exists -readonly $GOPATH/src/mod/rsc.io/quote@v1.5.2/buggy
+exists -readonly $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+exists -readonly $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/buggy
 
 # go clean -modcache can delete read-only dependencies
 go clean -modcache
-! exists $GOPATH/src/mod/rsc.io/quote@v1.5.2
+! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
 
 # list {{.Dir}} shows replaced directories
 cp go.mod2 go.mod

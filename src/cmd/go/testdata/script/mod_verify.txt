@@ -3,12 +3,12 @@ env GO111MODULE=on
 # With good go.sum, verify succeeds by avoiding download.
 cp go.sum.good go.sum
 go mod verify
-! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
 
 # With bad go.sum, verify succeeds by avoiding download.
 cp go.sum.bad go.sum
 go mod verify
-! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
 
 # With bad go.sum, sync (which must download) fails.
 # Even if the bad sum is in the old legacy go.modverify file.
@@ -16,14 +16,14 @@ rm go.sum
 cp go.sum.bad go.modverify
 ! go mod tidy
 stderr 'checksum mismatch'
-! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
 
 # With good go.sum, sync works (and moves go.modverify to go.sum).
 rm go.sum
 cp go.sum.good go.modverify
 go mod tidy
-exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
-exists $GOPATH/src/mod/rsc.io/quote@v1.1.0/quote.go
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+exists $GOPATH/pkg/mod/rsc.io/quote@v1.1.0/quote.go
 ! exists go.modverify
 
 # go.sum should have the new checksum for go.mod
@@ -50,7 +50,7 @@ grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
 grep '^rsc.io/quote v1.1.0 ' go.sum
 
 # sync should ignore missing ziphash; verify should not
-rm $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
 go mod tidy
 ! go mod verify
 

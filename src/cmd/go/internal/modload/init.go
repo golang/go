@@ -170,9 +170,9 @@ func Init() {
 func init() {
 	load.ModInit = Init
 
-	// Set modfetch.SrcMod unconditionally, so that go clean -modcache can run even without modules enabled.
+	// Set modfetch.PkgMod unconditionally, so that go clean -modcache can run even without modules enabled.
 	if list := filepath.SplitList(cfg.BuildContext.GOPATH); len(list) > 0 && list[0] != "" {
-		modfetch.SrcMod = filepath.Join(list[0], "src/mod")
+		modfetch.PkgMod = filepath.Join(list[0], "pkg/mod")
 	}
 }
 
@@ -233,17 +233,17 @@ func InitMod() {
 		base.Fatalf("$GOPATH/go.mod exists but should not")
 	}
 
-	srcV := filepath.Join(list[0], "src/v")
-	srcMod := filepath.Join(list[0], "src/mod")
-	infoV, errV := os.Stat(srcV)
-	_, errMod := os.Stat(srcMod)
-	if errV == nil && infoV.IsDir() && errMod != nil && os.IsNotExist(errMod) {
-		os.Rename(srcV, srcMod)
+	oldSrcMod := filepath.Join(list[0], "src/mod")
+	pkgMod := filepath.Join(list[0], "pkg/mod")
+	infoOld, errOld := os.Stat(oldSrcMod)
+	_, errMod := os.Stat(pkgMod)
+	if errOld == nil && infoOld.IsDir() && errMod != nil && os.IsNotExist(errMod) {
+		os.Rename(oldSrcMod, pkgMod)
 	}
 
-	modfetch.SrcMod = srcMod
+	modfetch.PkgMod = pkgMod
 	modfetch.GoSumFile = filepath.Join(ModRoot, "go.sum")
-	codehost.WorkRoot = filepath.Join(srcMod, "cache/vcs")
+	codehost.WorkRoot = filepath.Join(pkgMod, "cache/vcs")
 
 	if CmdModInit {
 		// Running go mod init: do legacy module conversion

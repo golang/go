@@ -1,4 +1,4 @@
-# Test that GOPATH/src/mod is excluded
+# Test that GOPATH/pkg/mod is excluded
 env GO111MODULE=off
 ! go list mod/foo
 stderr 'disallowed import path'

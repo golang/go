@@ -28,9 +28,9 @@ var downloadCache par.Cache
 // local download cache and returns the name of the directory
 // corresponding to the root of the module's file tree.
 func Download(mod module.Version) (dir string, err error) {
-	if SrcMod == "" {
+	if PkgMod == "" {
 		// Do not download to current directory.
-		return "", fmt.Errorf("missing modfetch.SrcMod")
+		return "", fmt.Errorf("missing modfetch.PkgMod")
 	}
 
 	// The par.Cache here avoids duplicate work but also
@@ -53,7 +53,7 @@ func Download(mod module.Version) (dir string, err error) {
 			if _, err := os.Stat(zipfile); err == nil {
 				// Use it.
 				// This should only happen if the mod/cache directory is preinitialized
-				// or if src/mod/path was removed but not src/mod/cache/download.
+				// or if pkg/mod/path was removed but not pkg/mod/cache/download.
 				fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
 			} else {
 				if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
@@ -200,7 +200,7 @@ func readGoSum(file string, data []byte) {
 
 // checkSum checks the given module's checksum.
 func checkSum(mod module.Version) {
-	if SrcMod == "" {
+	if PkgMod == "" {
 		// Do not use current directory.
 		return
 	}
@@ -264,7 +264,7 @@ func checkOneSum(mod module.Version, h string) {
 // Sum returns the checksum for the downloaded copy of the given module,
 // if present in the download cache.
 func Sum(mod module.Version) string {
-	if SrcMod == "" {
+	if PkgMod == "" {
 		// Do not use current directory.
 		return ""
 	}

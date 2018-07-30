@@ -77,10 +77,10 @@ archive.
 
 Even when downloading directly from version control systems,
 the go command synthesizes explicit info, mod, and zip files
-and stores them in its local cache, $GOPATH/src/mod/cache/download,
+and stores them in its local cache, $GOPATH/pkg/mod/cache/download,
 the same as if it had downloaded them directly from a proxy.
 The cache layout is the same as the proxy URL space, so
-serving $GOPATH/src/mod/cache/download at (or copying it to)
+serving $GOPATH/pkg/mod/cache/download at (or copying it to)
 https://example.com/proxy would let other users access those
 cached module versions with GOPROXY=https://example.com/proxy.
 `,
