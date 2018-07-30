@@ -1,10 +1,15 @@
-package packages
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package golist
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 
+	"golang.org/x/tools/go/packages/raw"
 	"golang.org/x/tools/imports"
 )
 
@@ -19,13 +24,13 @@ import (
 
 // TODO(matloob): Support cgo. Copy code from the loader that runs cgo.
 
-func golistPackagesFallback(ctx context.Context, cfg *rawConfig, words ...string) ([]string, []*rawPackage, error) {
+func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...string) ([]string, []*raw.Package, error) {
 	original, deps, err := getDeps(ctx, cfg, words...)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var result []*rawPackage
+	var result []*raw.Package
 	var roots []string
 	addPackage := func(p *jsonPackage) {
 		if p.Name == "" {
@@ -59,7 +64,7 @@ func golistPackagesFallback(ctx context.Context, cfg *rawConfig, words ...string
 		if isRoot {
 			roots = append(roots, id)
 		}
-		result = append(result, &rawPackage{
+		result = append(result, &raw.Package{
 			ID:         id,
 			Name:       p.Name,
 			GoFiles:    absJoin(p.Dir, p.GoFiles, p.CgoFiles),
@@ -73,7 +78,7 @@ func golistPackagesFallback(ctx context.Context, cfg *rawConfig, words ...string
 				if isRoot {
 					roots = append(roots, testID)
 				}
-				result = append(result, &rawPackage{
+				result = append(result, &raw.Package{
 					ID:         testID,
 					Name:       p.Name,
 					GoFiles:    absJoin(p.Dir, p.GoFiles, p.TestGoFiles, p.CgoFiles),
@@ -87,7 +92,7 @@ func golistPackagesFallback(ctx context.Context, cfg *rawConfig, words ...string
 				if isRoot {
 					roots = append(roots, xtestID)
 				}
-				result = append(result, &rawPackage{
+				result = append(result, &raw.Package{
 					ID:      xtestID,
 					Name:    p.Name + "_test",
 					GoFiles: absJoin(p.Dir, p.XTestGoFiles),
@@ -110,7 +115,7 @@ func golistPackagesFallback(ctx context.Context, cfg *rawConfig, words ...string
 		return nil, nil, err
 	}
 
-	// Decode the JSON and convert it to rawPackage form.
+	// Decode the JSON and convert it to Package form.
 	for dec := json.NewDecoder(buf); dec.More(); {
 		p := new(jsonPackage)
 		if err := dec.Decode(p); err != nil {
@@ -124,7 +129,7 @@ func golistPackagesFallback(ctx context.Context, cfg *rawConfig, words ...string
 }
 
 // getDeps runs an initial go list to determine all the dependency packages.
-func getDeps(ctx context.Context, cfg *rawConfig, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
+func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
 	buf, err := golist(ctx, cfg, golistargs_fallback(cfg, words))
 	if err != nil {
 		return nil, nil, err
@@ -156,7 +161,7 @@ func getDeps(ctx context.Context, cfg *rawConfig, words ...string) (originalSet 
 	return originalSet, deps, nil
 }
 
-func golistargs_fallback(cfg *rawConfig, words []string) []string {
+func golistargs_fallback(cfg *raw.Config, words []string) []string {
 	fullargs := []string{"list", "-e", "-json"}
 	fullargs = append(fullargs, cfg.Flags...)
 	fullargs = append(fullargs, "--")

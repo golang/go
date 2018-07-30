@@ -17,10 +17,9 @@ import (
 	"os"
 	"sync"
 
-	"path/filepath"
-	"strings"
-
 	"golang.org/x/tools/go/gcexportdata"
+	"golang.org/x/tools/go/packages/golist"
+	"golang.org/x/tools/go/packages/raw"
 )
 
 // A LoadMode specifies the amount of detail to return when loading packages.
@@ -143,7 +142,23 @@ type Config struct {
 // Load and returns the Go packages named by the given patterns.
 func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 	l := newLoader(cfg)
-	return l.load(patterns...)
+	rawCfg := newRawConfig(&l.Config)
+	roots, pkgs, err := loadRaw(l.Context, rawCfg, patterns...)
+	if err != nil {
+		return nil, err
+	}
+	return l.loadFrom(roots, pkgs...)
+}
+
+// loadRaw returns the raw Go packages named by the given patterns.
+// This is a low level API, in general you should be using the Load function
+// unless you have a very strong need for the raw data.
+// It returns the packages identifiers that directly matched the patterns, the
+// full set of packages requested (which may include the dependencies) and
+// an error if the operation failed.
+func loadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string, []*raw.Package, error) {
+	//TODO: this is the seam at which we enable alternate build systems
+	return golist.LoadRaw(ctx, cfg, patterns...)
 }
 
 // A Package describes a single loaded Go package.
@@ -213,7 +228,7 @@ type Package struct {
 
 // loaderPackage augments Package with state used during the loading phase
 type loaderPackage struct {
-	raw *rawPackage
+	raw *raw.Package
 	*Package
 	importErrors  map[string]error // maps each bad import to its error
 	loadOnce      sync.Once
@@ -265,82 +280,22 @@ func newLoader(cfg *Config) *loader {
 	return ld
 }
 
-func (ld *loader) load(patterns ...string) ([]*Package, error) {
-	if len(patterns) == 0 {
-		return nil, fmt.Errorf("no packages to load")
+func newRawConfig(cfg *Config) *raw.Config {
+	rawCfg := &raw.Config{
+		Dir:    cfg.Dir,
+		Env:    cfg.Env,
+		Flags:  cfg.Flags,
+		Export: cfg.Mode > LoadImports && cfg.Mode < LoadAllSyntax,
+		Tests:  cfg.Tests,
+		Deps:   cfg.Mode >= LoadImports,
 	}
-
-	if ld.Dir == "" {
-		return nil, fmt.Errorf("failed to get working directory")
+	if rawCfg.Env == nil {
+		rawCfg.Env = os.Environ()
 	}
-
-	// Determine files requested in contains patterns
-	var containFiles []string
-	{
-		restPatterns := patterns[:0]
-		for _, pattern := range patterns {
-			if containFile := strings.TrimPrefix(pattern, "contains:"); containFile != pattern {
-				containFiles = append(containFiles, containFile)
-			} else {
-				restPatterns = append(restPatterns, pattern)
-			}
-		}
-		containFiles = absJoin(ld.Dir, containFiles)
-		patterns = restPatterns
-	}
-
-	// Do the metadata query and partial build.
-	// TODO(adonovan): support alternative build systems at this seam.
-	rawCfg := newRawConfig(&ld.Config)
-	listfunc := golistPackages
-	// TODO(matloob): Patterns may now be empty, if it was solely comprised of contains: patterns.
-	// See if the extra process invocation can be avoided.
-	roots, list, err := listfunc(ld.Context, rawCfg, patterns...)
-	if _, ok := err.(GoTooOldError); ok {
-		listfunc = golistPackagesFallback
-		roots, list, err = listfunc(ld.Context, rawCfg, patterns...)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	// Run go list for contains: patterns.
-	seenPkgs := make(map[string]bool) // for deduplication. different containing queries could produce same packages
-	if len(containFiles) > 0 {
-		for _, pkg := range list {
-			seenPkgs[pkg.ID] = true
-		}
-	}
-	for _, f := range containFiles {
-		// TODO(matloob): Do only one query per directory.
-		fdir := filepath.Dir(f)
-		rawCfg.Dir = fdir
-		_, cList, err := listfunc(ld.Context, rawCfg, ".")
-		if err != nil {
-			return nil, err
-		}
-		// Deduplicate and set deplist to set of packages requested files.
-		dedupedList := cList[:0] // invariant: only packages that haven't been seen before
-		for _, pkg := range cList {
-			if seenPkgs[pkg.ID] {
-				continue
-			}
-			seenPkgs[pkg.ID] = true
-			dedupedList = append(dedupedList, pkg)
-			for _, pkgFile := range pkg.GoFiles {
-				if filepath.Base(f) == filepath.Base(pkgFile) {
-					roots = append(roots, pkg.ID)
-					break
-				}
-			}
-		}
-		list = append(list, dedupedList...)
-	}
-
-	return ld.loadFrom(roots, list...)
+	return rawCfg
 }
 
-func (ld *loader) loadFrom(roots []string, list ...*rawPackage) ([]*Package, error) {
+func (ld *loader) loadFrom(roots []string, list ...*raw.Package) ([]*Package, error) {
 	if len(list) == 0 {
 		return nil, fmt.Errorf("packages not found")
 	}

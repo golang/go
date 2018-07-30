@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package packages
-
-// This file defines the "go list" implementation of the Packages metadata query.
+// Package golist defines the "go list" implementation of the Packages metadata query.
+package golist
 
 import (
 	"bytes"
@@ -16,16 +15,93 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/go/packages/raw"
 )
 
-// A GoTooOldError reports that the go command
-// found by exec.LookPath does not contain the necessary
-// support to be used with go/packages.
-// Currently, go/packages requires Go 1.11 or later.
-// (We intend to issue a point release for Go 1.10
-// so that go/packages can be used with updated Go 1.10 systems too.)
-type GoTooOldError struct {
+// A goTooOldError reports that the go command
+// found by exec.LookPath is too old to use the new go list behavior.
+type goTooOldError struct {
 	error
+}
+
+// LoadRaw and returns the raw Go packages named by the given patterns.
+// This is a low level API, in general you should be using the packages.Load
+// unless you have a very strong need for the raw data, and you know that you
+// are using conventional go layout as supported by `go list`
+// It returns the packages identifiers that directly matched the patterns, the
+// full set of packages requested (which may include the dependencies) and
+// an error if the operation failed.
+func LoadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string, []*raw.Package, error) {
+	if len(patterns) == 0 {
+		return nil, nil, fmt.Errorf("no packages to load")
+	}
+	if cfg == nil {
+		return nil, nil, fmt.Errorf("Load must be passed a valid Config")
+	}
+	if cfg.Dir == "" {
+		return nil, nil, fmt.Errorf("Config does not have a working directory")
+	}
+	// Determine files requested in contains patterns
+	var containFiles []string
+	{
+		restPatterns := patterns[:0]
+		for _, pattern := range patterns {
+			if containFile := strings.TrimPrefix(pattern, "contains:"); containFile != pattern {
+				containFiles = append(containFiles, containFile)
+			} else {
+				restPatterns = append(restPatterns, pattern)
+			}
+		}
+		containFiles = absJoin(cfg.Dir, containFiles)
+		patterns = restPatterns
+	}
+
+	listfunc := golistPackages
+	// TODO(matloob): Patterns may now be empty, if it was solely comprised of contains: patterns.
+	// See if the extra process invocation can be avoided.
+	roots, pkgs, err := listfunc(ctx, cfg, patterns...)
+	if _, ok := err.(goTooOldError); ok {
+		listfunc = golistPackagesFallback
+		roots, pkgs, err = listfunc(ctx, cfg, patterns...)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Run go list for contains: patterns.
+	seenPkgs := make(map[string]bool) // for deduplication. different containing queries could produce same packages
+	if len(containFiles) > 0 {
+		for _, pkg := range pkgs {
+			seenPkgs[pkg.ID] = true
+		}
+	}
+	for _, f := range containFiles {
+		// TODO(matloob): Do only one query per directory.
+		fdir := filepath.Dir(f)
+		cfg.Dir = fdir
+		_, cList, err := listfunc(ctx, cfg, ".")
+		if err != nil {
+			return nil, nil, err
+		}
+		// Deduplicate and set deplist to set of packages requested files.
+		dedupedList := cList[:0] // invariant: only packages that haven't been seen before
+		for _, pkg := range cList {
+			if seenPkgs[pkg.ID] {
+				continue
+			}
+			seenPkgs[pkg.ID] = true
+			dedupedList = append(dedupedList, pkg)
+			for _, pkgFile := range pkg.GoFiles {
+				if filepath.Base(f) == filepath.Base(pkgFile) {
+					roots = append(roots, pkg.ID)
+					break
+				}
+			}
+		}
+		pkgs = append(pkgs, dedupedList...)
+	}
+	return roots, pkgs, nil
 }
 
 // Fields must match go list;
@@ -53,7 +129,7 @@ type jsonPackage struct {
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
 // dir may be "" and env may be nil, as per os/exec.Command.
-func golistPackages(ctx context.Context, cfg *rawConfig, words ...string) ([]string, []*rawPackage, error) {
+func golistPackages(ctx context.Context, cfg *raw.Config, words ...string) ([]string, []*raw.Package, error) {
 	// go list uses the following identifiers in ImportPath and Imports:
 	//
 	// 	"p"			-- importable package or main (command)
@@ -72,9 +148,9 @@ func golistPackages(ctx context.Context, cfg *rawConfig, words ...string) ([]str
 	if err != nil {
 		return nil, nil, err
 	}
-	// Decode the JSON and convert it to rawPackage form.
+	// Decode the JSON and convert it to Package form.
 	var roots []string
-	var result []*rawPackage
+	var result []*raw.Package
 	for dec := json.NewDecoder(buf); dec.More(); {
 		p := new(jsonPackage)
 		if err := dec.Decode(p); err != nil {
@@ -153,7 +229,7 @@ func golistPackages(ctx context.Context, cfg *rawConfig, words ...string) ([]str
 			imports[id] = id // identity import
 		}
 
-		pkg := &rawPackage{
+		pkg := &raw.Package{
 			ID:         id,
 			Name:       p.Name,
 			GoFiles:    absJoin(p.Dir, p.GoFiles, p.CgoFiles),
@@ -184,7 +260,7 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 	return res
 }
 
-func golistargs(cfg *rawConfig, words []string) []string {
+func golistargs(cfg *raw.Config, words []string) []string {
 	fullargs := []string{
 		"list", "-e", "-json", "-cgo=true",
 		fmt.Sprintf("-test=%t", cfg.Tests),
@@ -198,7 +274,7 @@ func golistargs(cfg *rawConfig, words []string) []string {
 }
 
 // golist returns the JSON-encoded result of a "go list args..." query.
-func golist(ctx context.Context, cfg *rawConfig, args []string) (*bytes.Buffer, error) {
+func golist(ctx context.Context, cfg *raw.Config, args []string) (*bytes.Buffer, error) {
 	out := new(bytes.Buffer)
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Env = cfg.Env
@@ -216,7 +292,7 @@ func golist(ctx context.Context, cfg *rawConfig, args []string) (*bytes.Buffer, 
 
 		// Old go list?
 		if strings.Contains(fmt.Sprint(cmd.Stderr), "flag provided but not defined") {
-			return nil, GoTooOldError{fmt.Errorf("unsupported version of go list: %s: %s", exitErr, cmd.Stderr)}
+			return nil, goTooOldError{fmt.Errorf("unsupported version of go list: %s: %s", exitErr, cmd.Stderr)}
 		}
 
 		// Export mode entails a build.
