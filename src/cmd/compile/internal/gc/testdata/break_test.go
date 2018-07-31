@@ -1,5 +1,3 @@
-// run
-
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -7,6 +5,8 @@
 // Tests continue and break.
 
 package main
+
+import "testing"
 
 func continuePlain_ssa() int {
 	var n int
@@ -214,7 +214,8 @@ Done:
 	return n
 }
 
-func main() {
+// TestBreakContinue tests that continue and break statements do what they say.
+func TestBreakContinue(t *testing.T) {
 	tests := [...]struct {
 		name string
 		fn   func() int
@@ -241,15 +242,9 @@ func main() {
 		// no select tests; they're identical to switch
 	}
 
-	var failed bool
 	for _, test := range tests {
-		if got := test.fn(); test.fn() != test.want {
-			print(test.name, "()=", got, ", want ", test.want, "\n")
-			failed = true
+		if got := test.fn(); got != test.want {
+			t.Errorf("%s()=%d, want %d", test.name, got, test.want)
 		}
-	}
-
-	if failed {
-		panic("failed")
 	}
 }
