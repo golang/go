@@ -64,6 +64,9 @@ var (
 	valueGlobal    = predefValue(5)
 	memory         = predefValue(6) // WebAssembly linear memory
 	jsGo           = predefValue(7) // instance of the Go class in JavaScript
+
+	objectConstructor = valueGlobal.Get("Object")
+	arrayConstructor  = valueGlobal.Get("Array")
 )
 
 // Undefined returns the JavaScript value "undefined".
@@ -83,15 +86,17 @@ func Global() Value {
 
 // ValueOf returns x as a JavaScript value:
 //
-//  | Go                    | JavaScript            |
-//  | --------------------- | --------------------- |
-//  | js.Value              | [its value]           |
-//  | js.TypedArray         | [typed array]         |
-//  | js.Callback           | function              |
-//  | nil                   | null                  |
-//  | bool                  | boolean               |
-//  | integers and floats   | number                |
-//  | string                | string                |
+//  | Go                     | JavaScript             |
+//  | ---------------------- | ---------------------- |
+//  | js.Value               | [its value]            |
+//  | js.TypedArray          | typed array            |
+//  | js.Callback            | function               |
+//  | nil                    | null                   |
+//  | bool                   | boolean                |
+//  | integers and floats    | number                 |
+//  | string                 | string                 |
+//  | []interface{}          | new array              |
+//  | map[string]interface{} | new object             |
 func ValueOf(x interface{}) Value {
 	switch x := x.(type) {
 	case Value:
@@ -138,6 +143,18 @@ func ValueOf(x interface{}) Value {
 		return floatValue(x)
 	case string:
 		return makeValue(stringVal(x))
+	case []interface{}:
+		a := arrayConstructor.New(len(x))
+		for i, s := range x {
+			a.SetIndex(i, s)
+		}
+		return a
+	case map[string]interface{}:
+		o := objectConstructor.New()
+		for k, v := range x {
+			o.Set(k, v)
+		}
+		return o
 	default:
 		panic("ValueOf: invalid value")
 	}
