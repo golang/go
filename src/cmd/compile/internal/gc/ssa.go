@@ -111,11 +111,16 @@ func initssaconfig() {
 func buildssa(fn *Node, worker int) *ssa.Func {
 	name := fn.funcname()
 	printssa := name == ssaDump
+	var astBuf *bytes.Buffer
 	if printssa {
-		fmt.Println("generating SSA for", name)
-		dumplist("buildssa-enter", fn.Func.Enter)
-		dumplist("buildssa-body", fn.Nbody)
-		dumplist("buildssa-exit", fn.Func.Exit)
+		astBuf = &bytes.Buffer{}
+		fdumplist(astBuf, "buildssa-enter", fn.Func.Enter)
+		fdumplist(astBuf, "buildssa-body", fn.Nbody)
+		fdumplist(astBuf, "buildssa-exit", fn.Func.Exit)
+		if ssaDumpStdout {
+			fmt.Println("generating SSA for", name)
+			fmt.Print(astBuf.String())
+		}
 	}
 
 	var s state
@@ -151,6 +156,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name)
 		// TODO: generate and print a mapping from nodes to values and blocks
 		dumpSourcesColumn(s.f.HTMLWriter, fn)
+		s.f.HTMLWriter.WriteAST("AST", astBuf)
 	}
 
 	// Allocate starting block
