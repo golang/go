@@ -17,8 +17,6 @@ import (
 	"cmd/go/internal/module"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
-	"cmd/go/internal/str"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -96,12 +94,6 @@ func Init() {
 		}
 	}
 
-	// If this is testgo - the test binary during cmd/go tests -
-	// then do not let it look for a go.mod unless GO111MODULE has an explicit setting.
-	if base := filepath.Base(os.Args[0]); (base == "testgo" || base == "testgo.exe") && env == "" {
-		return
-	}
-
 	// Disable any prompting for passwords by Git.
 	// Only has an effect for 2.3.0 or later, but avoiding
 	// the prompt in earlier versions is just too hard.
@@ -135,25 +127,30 @@ func Init() {
 		base.Fatalf("go: %v", err)
 	}
 
+	inGOPATH := false
+	for _, gopath := range filepath.SplitList(cfg.BuildContext.GOPATH) {
+		if gopath == "" {
+			continue
+		}
+		if search.InDir(cwd, filepath.Join(gopath, "src")) != "" {
+			inGOPATH = true
+			break
+		}
+	}
+	if inGOPATH && !MustUseModules && cfg.CmdName == "mod" {
+		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
+	}
+
 	if CmdModInit {
 		// Running 'go mod -init': go.mod will be created in current directory.
 		ModRoot = cwd
 	} else {
-		inGOPATH := false
-		for _, gopath := range filepath.SplitList(cfg.BuildContext.GOPATH) {
-			if gopath == "" {
-				continue
+		if inGOPATH && !MustUseModules {
+			// No automatic enabling in GOPATH.
+			if root, _ := FindModuleRoot(cwd, "", false); root != "" {
+				cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
 			}
-			if str.HasFilePathPrefix(cwd, filepath.Join(gopath, "src")) {
-				inGOPATH = true
-				break
-			}
-		}
-		if inGOPATH {
-			if !MustUseModules {
-				// No automatic enabling in GOPATH.
-				return
-			}
+			return
 		}
 		root, _ := FindModuleRoot(cwd, "", MustUseModules)
 		if root == "" {
@@ -423,22 +420,12 @@ func FindModulePath(dir string) (string, error) {
 	}
 
 	// Look for path in GOPATH.
-	xdir, errdir := filepath.EvalSymlinks(dir)
 	for _, gpdir := range filepath.SplitList(cfg.BuildContext.GOPATH) {
-		xgpdir, errgpdir := filepath.EvalSymlinks(gpdir)
-		src := filepath.Join(gpdir, "src") + string(filepath.Separator)
-		xsrc := filepath.Join(xgpdir, "src") + string(filepath.Separator)
-		if strings.HasPrefix(dir, src) {
-			return filepath.ToSlash(dir[len(src):]), nil
+		if gpdir == "" {
+			continue
 		}
-		if errdir == nil && strings.HasPrefix(xdir, src) {
-			return filepath.ToSlash(xdir[len(src):]), nil
-		}
-		if errgpdir == nil && strings.HasPrefix(dir, xsrc) {
-			return filepath.ToSlash(dir[len(xsrc):]), nil
-		}
-		if errdir == nil && errgpdir == nil && strings.HasPrefix(xdir, xsrc) {
-			return filepath.ToSlash(xdir[len(xsrc):]), nil
+		if rel := search.InDir(dir, filepath.Join(gpdir, "src")); rel != "" && rel != "." {
+			return filepath.ToSlash(rel), nil
 		}
 	}
 
@@ -472,18 +459,48 @@ func findImportComment(file string) string {
 	return path
 }
 
+var allowWriteGoMod = true
+
+// DisallowWriteGoMod causes future calls to WriteGoMod to do nothing at all.
+func DisallowWriteGoMod() {
+	allowWriteGoMod = false
+}
+
+// AllowWriteGoMod undoes the effect of DisallowWriteGoMod:
+// future calls to WriteGoMod will update go.mod if needed.
+// Note that any past calls have been discarded, so typically
+// a call to AlowWriteGoMod should be followed by a call to WriteGoMod.
+func AllowWriteGoMod() {
+	allowWriteGoMod = true
+}
+
+// MinReqs returns a Reqs with minimal dependencies of Target,
+// as will be written to go.mod.
+func MinReqs() mvs.Reqs {
+	var direct []string
+	for _, m := range buildList[1:] {
+		if loaded.direct[m.Path] {
+			direct = append(direct, m.Path)
+		}
+	}
+	min, err := mvs.Req(Target, buildList, direct, Reqs())
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	return &mvsReqs{buildList: append([]module.Version{Target}, min...)}
+}
+
 // WriteGoMod writes the current build list back to go.mod.
 func WriteGoMod() {
+	if !allowWriteGoMod {
+		return
+	}
+
 	modfetch.WriteGoSum()
 
 	if loaded != nil {
-		var direct []string
-		for _, m := range buildList[1:] {
-			if loaded.direct[m.Path] {
-				direct = append(direct, m.Path)
-			}
-		}
-		min, err := mvs.Req(Target, buildList, direct, Reqs())
+		reqs := MinReqs()
+		min, err := reqs.Required(Target)
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
@@ -525,7 +542,7 @@ func fixVersion(path, vers string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("malformed module path: %s", path)
 	}
-	if semver.IsValid(vers) && vers == semver.Canonical(vers) && module.MatchPathMajor(vers, pathMajor) {
+	if vers != "" && module.CanonicalVersion(vers) == vers && module.MatchPathMajor(vers, pathMajor) {
 		return vers, nil
 	}
 

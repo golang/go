@@ -1,0 +1,4 @@
+# Test go version with no module.
+env GO111MODULE=on
+! go mod -json
+go version

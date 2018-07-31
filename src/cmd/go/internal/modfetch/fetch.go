@@ -90,7 +90,6 @@ func downloadZip(mod module.Version, target string) error {
 	// Double-check zip file looks OK.
 	z, err := zip.OpenReader(tmpfile)
 	if err != nil {
-		z.Close()
 		return err
 	}
 	prefix := mod.Path + "@" + mod.Version
@@ -312,5 +311,23 @@ func WriteGoSum() {
 
 	if goSum.modverify != "" {
 		os.Remove(goSum.modverify)
+	}
+}
+
+// TrimGoSum trims go.sum to contain only the modules for which keep[m] is true.
+func TrimGoSum(keep map[module.Version]bool) {
+	goSum.mu.Lock()
+	defer goSum.mu.Unlock()
+	if !initGoSum() {
+		return
+	}
+
+	for m := range goSum.m {
+		// If we're keeping x@v we also keep x@v/go.mod.
+		// Map x@v/go.mod back to x@v for the keep lookup.
+		noGoMod := module.Version{Path: m.Path, Version: strings.TrimSuffix(m.Version, "/go.mod")}
+		if !keep[m] && !keep[noGoMod] {
+			delete(goSum.m, m)
+		}
 	}
 }

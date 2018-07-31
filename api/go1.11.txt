@@ -458,6 +458,7 @@ pkg net/http, type SameSite int
 pkg net/http, type Transport struct, MaxConnsPerHost int
 pkg net/http/httptrace, type ClientTrace struct, Got1xxResponse func(int, textproto.MIMEHeader) error
 pkg net/http/httptrace, type ClientTrace struct, WroteHeaderField func(string, []string)
+pkg net/http/httputil, type ReverseProxy struct, ErrorHandler func(http.ResponseWriter, *http.Request, error)
 pkg os, const ModeIrregular = 524288
 pkg os, const ModeIrregular FileMode
 pkg os, const ModeType = 2399666176

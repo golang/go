@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -71,29 +72,47 @@ type testScript struct {
 	start   time.Time         // time phase started
 }
 
+var extraEnvKeys = []string{
+	"SYSTEMROOT", // must be preserved on Windows to find DLLs; golang.org/issue/25210
+}
+
 // setup sets up the test execution temporary directory and environment.
 func (ts *testScript) setup() {
+	StartProxy()
 	ts.workdir = filepath.Join(testTmpDir, "script-"+ts.name)
 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "gopath/src"), 0777))
 	ts.cd = filepath.Join(ts.workdir, "gopath/src")
 	ts.env = []string{
 		"WORK=" + ts.workdir, // must be first for ts.abbrev
-		"PATH=" + os.Getenv("PATH"),
+		"PATH=" + testBin + string(filepath.ListSeparator) + os.Getenv("PATH"),
 		homeEnvName() + "=/no-home",
 		"GOARCH=" + runtime.GOARCH,
 		"GOCACHE=" + testGOCACHE,
 		"GOOS=" + runtime.GOOS,
 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+		"GOPROXY=" + proxyURL,
 		"GOROOT=" + testGOROOT,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
+		":=" + string(os.PathListSeparator),
 	}
+
+	if runtime.GOOS == "plan9" {
+		ts.env = append(ts.env, "path="+testBin+string(filepath.ListSeparator)+os.Getenv("path"))
+	}
+
 	if runtime.GOOS == "windows" {
 		ts.env = append(ts.env, "exe=.exe")
 	} else {
 		ts.env = append(ts.env, "exe=")
 	}
+	for _, key := range extraEnvKeys {
+		if val := os.Getenv(key); val != "" {
+			ts.env = append(ts.env, key+"="+val)
+		}
+	}
+
 	ts.envMap = make(map[string]string)
 	for _, kv := range ts.env {
 		if i := strings.Index(kv, "="); i >= 0 {
@@ -280,19 +299,37 @@ Script:
 // NOTE: If you make changes here, update testdata/script/README too!
 //
 var scriptCmds = map[string]func(*testScript, bool, []string){
-	"cd":     (*testScript).cmdCd,
-	"cp":     (*testScript).cmdCp,
-	"env":    (*testScript).cmdEnv,
-	"exec":   (*testScript).cmdExec,
-	"exists": (*testScript).cmdExists,
-	"go":     (*testScript).cmdGo,
-	"mkdir":  (*testScript).cmdMkdir,
-	"rm":     (*testScript).cmdRm,
-	"skip":   (*testScript).cmdSkip,
-	"stale":  (*testScript).cmdStale,
-	"stderr": (*testScript).cmdStderr,
-	"stdout": (*testScript).cmdStdout,
-	"stop":   (*testScript).cmdStop,
+	"addcrlf": (*testScript).cmdAddcrlf,
+	"cd":      (*testScript).cmdCd,
+	"cmp":     (*testScript).cmdCmp,
+	"cp":      (*testScript).cmdCp,
+	"env":     (*testScript).cmdEnv,
+	"exec":    (*testScript).cmdExec,
+	"exists":  (*testScript).cmdExists,
+	"go":      (*testScript).cmdGo,
+	"grep":    (*testScript).cmdGrep,
+	"mkdir":   (*testScript).cmdMkdir,
+	"rm":      (*testScript).cmdRm,
+	"skip":    (*testScript).cmdSkip,
+	"stale":   (*testScript).cmdStale,
+	"stderr":  (*testScript).cmdStderr,
+	"stdout":  (*testScript).cmdStdout,
+	"stop":    (*testScript).cmdStop,
+	"symlink": (*testScript).cmdSymlink,
+}
+
+// addcrlf adds CRLF line endings to the named files.
+func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
+	if len(args) == 0 {
+		ts.fatalf("usage: addcrlf file...")
+	}
+
+	for _, file := range args {
+		file = ts.mkabs(file)
+		data, err := ioutil.ReadFile(file)
+		ts.check(err)
+		ts.check(ioutil.WriteFile(file, bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1), 0666))
+	}
 }
 
 // cd changes to a different directory.
@@ -318,6 +355,40 @@ func (ts *testScript) cmdCd(neg bool, args []string) {
 	}
 	ts.cd = dir
 	fmt.Fprintf(&ts.log, "%s\n", ts.cd)
+}
+
+// cmp compares two files.
+func (ts *testScript) cmdCmp(neg bool, args []string) {
+	if neg {
+		// It would be strange to say "this file can have any content except this precise byte sequence".
+		ts.fatalf("unsupported: ! cmp")
+	}
+	if len(args) != 2 {
+		ts.fatalf("usage: cmp file1 file2")
+	}
+
+	name1, name2 := args[0], args[1]
+	var text1, text2 string
+	if name1 == "stdout" {
+		text1 = ts.stdout
+	} else if name1 == "stderr" {
+		text1 = ts.stderr
+	} else {
+		data, err := ioutil.ReadFile(ts.mkabs(name1))
+		ts.check(err)
+		text1 = string(data)
+	}
+
+	data, err := ioutil.ReadFile(ts.mkabs(name2))
+	ts.check(err)
+	text2 = string(data)
+
+	if text1 == text2 {
+		return
+	}
+
+	fmt.Fprintf(&ts.log, "[diff -%s +%s]\n%s\n", name1, name2, diff(text1, text2))
+	ts.fatalf("%s and %s differ", name1, name2)
 }
 
 // cp copies files, maybe eventually directories.
@@ -404,8 +475,13 @@ func (ts *testScript) cmdExec(neg bool, args []string) {
 
 // exists checks that the list of files exists.
 func (ts *testScript) cmdExists(neg bool, args []string) {
+	var readonly bool
+	if len(args) > 0 && args[0] == "-readonly" {
+		readonly = true
+		args = args[1:]
+	}
 	if len(args) == 0 {
-		ts.fatalf("usage: exists file...")
+		ts.fatalf("usage: exists [-readonly] file...")
 	}
 
 	for _, file := range args {
@@ -420,6 +496,9 @@ func (ts *testScript) cmdExists(neg bool, args []string) {
 		}
 		if err != nil && !neg {
 			ts.fatalf("%s does not exist", file)
+		}
+		if err == nil && !neg && readonly && info.Mode()&0222 != 0 {
+			ts.fatalf("%s exists but is writable", file)
 		}
 	}
 }
@@ -493,6 +572,88 @@ func (ts *testScript) cmdStale(neg bool, args []string) {
 	}
 }
 
+// stdout checks that the last go command standard output matches a regexp.
+func (ts *testScript) cmdStdout(neg bool, args []string) {
+	scriptMatch(ts, neg, args, ts.stdout, "stdout")
+}
+
+// stderr checks that the last go command standard output matches a regexp.
+func (ts *testScript) cmdStderr(neg bool, args []string) {
+	scriptMatch(ts, neg, args, ts.stderr, "stderr")
+}
+
+// grep checks that file content matches a regexp.
+// Like stdout/stderr and unlike Unix grep, it accepts Go regexp syntax.
+func (ts *testScript) cmdGrep(neg bool, args []string) {
+	scriptMatch(ts, neg, args, "", "grep")
+}
+
+// scriptMatch implements both stdout and stderr.
+func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
+	n := 0
+	if len(args) >= 1 && strings.HasPrefix(args[0], "-count=") {
+		if neg {
+			ts.fatalf("cannot use -count= with negated match")
+		}
+		var err error
+		n, err = strconv.Atoi(args[0][len("-count="):])
+		if err != nil {
+			ts.fatalf("bad -count=: %v", err)
+		}
+		if n < 1 {
+			ts.fatalf("bad -count=: must be at least 1")
+		}
+		args = args[1:]
+	}
+
+	extraUsage := ""
+	want := 1
+	if name == "grep" {
+		extraUsage = " file"
+		want = 2
+	}
+	if len(args) != want {
+		ts.fatalf("usage: %s [-count=N] 'pattern' file%s", name, extraUsage)
+	}
+
+	pattern := args[0]
+	re, err := regexp.Compile(`(?m)` + pattern)
+	ts.check(err)
+
+	isGrep := name == "grep"
+	if isGrep {
+		name = args[1] // for error messages
+		data, err := ioutil.ReadFile(ts.mkabs(args[1]))
+		ts.check(err)
+		text = string(data)
+	}
+
+	if neg {
+		if re.MatchString(text) {
+			if isGrep {
+				fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+			}
+			ts.fatalf("unexpected match for %#q found in %s: %s", pattern, name, re.FindString(text))
+		}
+	} else {
+		if !re.MatchString(text) {
+			if isGrep {
+				fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+			}
+			ts.fatalf("no match for %#q found in %s", pattern, name)
+		}
+		if n > 0 {
+			count := len(re.FindAllString(text, -1))
+			if count != n {
+				if isGrep {
+					fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+				}
+				ts.fatalf("have %d matches for %#q, want %d", count, pattern, n)
+			}
+		}
+	}
+}
+
 // stop stops execution of the test (marking it passed).
 func (ts *testScript) cmdStop(neg bool, args []string) {
 	if neg {
@@ -509,32 +670,17 @@ func (ts *testScript) cmdStop(neg bool, args []string) {
 	ts.stopped = true
 }
 
-// stdout checks that the last go command standard output matches a regexp.
-func (ts *testScript) cmdStdout(neg bool, args []string) {
-	scriptMatch(ts, neg, args, ts.stdout, "stdout")
-}
-
-// stderr checks that the last go command standard output matches a regexp.
-func (ts *testScript) cmdStderr(neg bool, args []string) {
-	scriptMatch(ts, neg, args, ts.stderr, "stderr")
-}
-
-// scriptMatch implements both stdout and stderr.
-func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
-	if len(args) != 1 {
-		ts.fatalf("usage: %s 'pattern' (%q)", name, args)
-	}
-	re, err := regexp.Compile(`(?m)` + args[0])
-	ts.check(err)
+// symlink creates a symbolic link.
+func (ts *testScript) cmdSymlink(neg bool, args []string) {
 	if neg {
-		if re.MatchString(text) {
-			ts.fatalf("unexpected match for %#q found in %s: %s %q", args[0], name, text, re.FindString(text))
-		}
-	} else {
-		if !re.MatchString(text) {
-			ts.fatalf("no match for %#q found in %s", args[0], name)
-		}
+		ts.fatalf("unsupported: ! symlink")
 	}
+	if len(args) != 3 || args[1] != "->" {
+		ts.fatalf("usage: symlink file -> target")
+	}
+	// Note that the link target args[2] is not interpreted with mkabs:
+	// it will be interpreted relative to the directory file is in.
+	ts.check(os.Symlink(args[2], ts.mkabs(args[0])))
 }
 
 // Helpers for command implementations.
@@ -560,7 +706,7 @@ func (ts *testScript) check(err error) {
 // exec runs the given command line (an actual subprocess, not simulated)
 // in ts.cd with environment ts.env and then returns collected standard output and standard error.
 func (ts *testScript) exec(command string, args ...string) (stdout, stderr string, err error) {
-	cmd := exec.Command(testGo, args...)
+	cmd := exec.Command(command, args...)
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)
 	var stdoutBuf, stderrBuf strings.Builder
@@ -604,7 +750,7 @@ func (ts *testScript) parse(line string) []string {
 		quoted = false // currently processing quoted text
 	)
 	for i := 0; ; i++ {
-		if !quoted && (i >= len(line) || line[i] == ' ' || line[i] == '\t' || line[i] == '\r') {
+		if !quoted && (i >= len(line) || line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '#') {
 			// Found arg-separating space.
 			if start >= 0 {
 				arg += ts.expand(line[start:i])
@@ -612,7 +758,7 @@ func (ts *testScript) parse(line string) []string {
 				start = -1
 				arg = ""
 			}
-			if i >= len(line) {
+			if i >= len(line) || line[i] == '#' {
 				break
 			}
 			continue
@@ -649,4 +795,105 @@ func (ts *testScript) parse(line string) []string {
 		}
 	}
 	return args
+}
+
+// diff returns a formatted diff of the two texts,
+// showing the entire text and the minimum line-level
+// additions and removals to turn text1 into text2.
+// (That is, lines only in text1 appear with a leading -,
+// and lines only in text2 appear with a leading +.)
+func diff(text1, text2 string) string {
+	if text1 != "" && !strings.HasSuffix(text1, "\n") {
+		text1 += "(missing final newline)"
+	}
+	lines1 := strings.Split(text1, "\n")
+	lines1 = lines1[:len(lines1)-1] // remove empty string after final line
+	if text2 != "" && !strings.HasSuffix(text2, "\n") {
+		text2 += "(missing final newline)"
+	}
+	lines2 := strings.Split(text2, "\n")
+	lines2 = lines2[:len(lines2)-1] // remove empty string after final line
+
+	// Naive dynamic programming algorithm for edit distance.
+	// https://en.wikipedia.org/wiki/Wagner–Fischer_algorithm
+	// dist[i][j] = edit distance between lines1[:len(lines1)-i] and lines2[:len(lines2)-j]
+	// (The reversed indices make following the minimum cost path
+	// visit lines in the same order as in the text.)
+	dist := make([][]int, len(lines1)+1)
+	for i := range dist {
+		dist[i] = make([]int, len(lines2)+1)
+		if i == 0 {
+			for j := range dist[0] {
+				dist[0][j] = j
+			}
+			continue
+		}
+		for j := range dist[i] {
+			if j == 0 {
+				dist[i][0] = i
+				continue
+			}
+			cost := dist[i][j-1] + 1
+			if cost > dist[i-1][j]+1 {
+				cost = dist[i-1][j] + 1
+			}
+			if lines1[len(lines1)-i] == lines2[len(lines2)-j] {
+				if cost > dist[i-1][j-1] {
+					cost = dist[i-1][j-1]
+				}
+			}
+			dist[i][j] = cost
+		}
+	}
+
+	var buf strings.Builder
+	i, j := len(lines1), len(lines2)
+	for i > 0 || j > 0 {
+		cost := dist[i][j]
+		if i > 0 && j > 0 && cost == dist[i-1][j-1] && lines1[len(lines1)-i] == lines2[len(lines2)-j] {
+			fmt.Fprintf(&buf, " %s\n", lines1[len(lines1)-i])
+			i--
+			j--
+		} else if i > 0 && cost == dist[i-1][j]+1 {
+			fmt.Fprintf(&buf, "-%s\n", lines1[len(lines1)-i])
+			i--
+		} else {
+			fmt.Fprintf(&buf, "+%s\n", lines2[len(lines2)-j])
+			j--
+		}
+	}
+	return buf.String()
+}
+
+var diffTests = []struct {
+	text1 string
+	text2 string
+	diff  string
+}{
+	{"a b c", "a b d e f", "a b -c +d +e +f"},
+	{"", "a b c", "+a +b +c"},
+	{"a b c", "", "-a -b -c"},
+	{"a b c", "d e f", "-a -b -c +d +e +f"},
+	{"a b c d e f", "a b d e f", "a b -c d e f"},
+	{"a b c e f", "a b c d e f", "a b c +d e f"},
+}
+
+func TestDiff(t *testing.T) {
+	for _, tt := range diffTests {
+		// Turn spaces into \n.
+		text1 := strings.Replace(tt.text1, " ", "\n", -1)
+		if text1 != "" {
+			text1 += "\n"
+		}
+		text2 := strings.Replace(tt.text2, " ", "\n", -1)
+		if text2 != "" {
+			text2 += "\n"
+		}
+		out := diff(text1, text2)
+		// Cut final \n, cut spaces, turn remaining \n into spaces.
+		out = strings.Replace(strings.Replace(strings.TrimSuffix(out, "\n"), " ", "", -1), "\n", " ", -1)
+		if out != tt.diff {
+			t.Errorf("diff(%q, %q) = %q, want %q", text1, text2, out, tt.diff)
+		}
+	}
 }

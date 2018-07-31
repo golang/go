@@ -203,6 +203,7 @@ applied to a Go struct, but now a Module struct:
         Main     bool         // is this the main module?
         Indirect bool         // is this module only an indirect dependency of main module?
         Dir      string       // directory holding files for this module, if any
+        GoMod    string       // path to go.mod file for this module, if any
         Error    *ModuleError // error loading module
     }
 
@@ -423,20 +424,27 @@ func runList(cmd *base.Command, args []string) {
 				continue
 			}
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
-				pmain, _, _, err := load.TestPackagesFor(p, nil)
+				pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
 				if err != nil {
-					if !*listE {
-						base.Errorf("can't load test package: %s", err)
+					if *listE {
+						pkgs = append(pkgs, &load.Package{
+							PackagePublic: load.PackagePublic{
+								ImportPath: p.ImportPath + ".test",
+								Error:      &load.PackageError{Err: err.Error()},
+							},
+						})
 						continue
 					}
-					pmain = &load.Package{
-						PackagePublic: load.PackagePublic{
-							ImportPath: p.ImportPath + ".test",
-							Error:      &load.PackageError{Err: err.Error()},
-						},
-					}
+					base.Errorf("can't load test package: %s", err)
+					continue
 				}
 				pkgs = append(pkgs, pmain)
+				if ptest != nil {
+					pkgs = append(pkgs, ptest)
+				}
+				if pxtest != nil {
+					pkgs = append(pkgs, pxtest)
+				}
 
 				data := *pmain.Internal.TestmainGo
 				h := cache.NewHash("testmain")

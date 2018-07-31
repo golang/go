@@ -115,6 +115,25 @@ func ImportPaths(args []string) []string {
 		}
 		return roots
 	})
+
+	// A given module path may be used as itself or as a replacement for another
+	// module, but not both at the same time. Otherwise, the aliasing behavior is
+	// too subtle (see https://golang.org/issue/26607), and we don't want to
+	// commit to a specific behavior at this point.
+	firstPath := make(map[module.Version]string, len(buildList))
+	for _, mod := range buildList {
+		src := mod
+		if rep := Replacement(mod); rep.Path != "" {
+			src = rep
+		}
+		if prev, ok := firstPath[src]; !ok {
+			firstPath[src] = mod.Path
+		} else if prev != mod.Path {
+			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", mod.Path, mod.Version, prev, mod.Path)
+		}
+	}
+	base.ExitIfErrors()
+
 	WriteGoMod()
 
 	// Process paths to produce final paths list.
@@ -494,7 +513,17 @@ func (ld *loader) doPkg(item interface{}) {
 		pkg.mod = pkg.testOf.mod
 		imports = pkg.testOf.testImports
 	} else {
-		pkg.mod, pkg.dir, pkg.err = ld.doImport(pkg.path)
+		if strings.Contains(pkg.path, "@") {
+			// Leave for error during load.
+			return
+		}
+		if build.IsLocalImport(pkg.path) {
+			// Leave for error during load.
+			// (Module mode does not allow local imports.)
+			return
+		}
+
+		pkg.mod, pkg.dir, pkg.err = Import(pkg.path)
 		if pkg.dir == "" {
 			return
 		}
@@ -524,26 +553,6 @@ func (ld *loader) doPkg(item interface{}) {
 	if pkg.test != nil {
 		ld.work.Add(pkg.test)
 	}
-}
-
-// doImport finds the directory holding source code for the given import path.
-// It returns the module containing the package (if any),
-// the directory containing the package (if any),
-// and any error encountered.
-// Not all packages have modules: the ones in the standard library do not.
-// Not all packages have directories: "unsafe" and "C" do not.
-func (ld *loader) doImport(path string) (mod module.Version, dir string, err error) {
-	if strings.Contains(path, "@") {
-		// Leave for error during load.
-		return module.Version{}, "", nil
-	}
-	if build.IsLocalImport(path) {
-		// Leave for error during load.
-		// (Module mode does not allow local imports.)
-		return module.Version{}, "", nil
-	}
-
-	return Import(path)
 }
 
 // scanDir is like imports.ScanDir but elides known magic imports from the list,
@@ -764,7 +773,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
 				return nil, ErrRequire
 			}
-			f, err := modfile.Parse(gomod, data, nil)
+			f, err := modfile.ParseLax(gomod, data, nil)
 			if err != nil {
 				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
 				return nil, ErrRequire
@@ -792,7 +801,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 		base.Errorf("go: %s@%s: %v\n", mod.Path, mod.Version, err)
 		return nil, ErrRequire
 	}
-	f, err := modfile.Parse("go.mod", data, nil)
+	f, err := modfile.ParseLax("go.mod", data, nil)
 	if err != nil {
 		base.Errorf("go: %s@%s: parsing go.mod: %v", mod.Path, mod.Version, err)
 		return nil, ErrRequire

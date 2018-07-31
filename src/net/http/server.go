@@ -2418,7 +2418,14 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 // Serve accepts incoming HTTP connections on the listener l,
 // creating a new service goroutine for each. The service goroutines
 // read requests and then call handler to reply to them.
-// Handler is typically nil, in which case the DefaultServeMux is used.
+//
+// The handler is typically nil, in which case the DefaultServeMux is used.
+//
+// HTTP/2 support is only enabled if the Listener returns *tls.Conn
+// connections and they were configured with "h2" in the TLS
+// Config.NextProtos.
+//
+// Serve always returns a non-nil error.
 func Serve(l net.Listener, handler Handler) error {
 	srv := &Server{Handler: handler}
 	return srv.Serve(l)
@@ -2428,12 +2435,14 @@ func Serve(l net.Listener, handler Handler) error {
 // creating a new service goroutine for each. The service goroutines
 // read requests and then call handler to reply to them.
 //
-// Handler is typically nil, in which case the DefaultServeMux is used.
+// The handler is typically nil, in which case the DefaultServeMux is used.
 //
 // Additionally, files containing a certificate and matching private key
 // for the server must be provided. If the certificate is signed by a
 // certificate authority, the certFile should be the concatenation
 // of the server's certificate, any intermediates, and the CA's certificate.
+//
+// ServeTLS always returns a non-nil error.
 func ServeTLS(l net.Listener, handler Handler, certFile, keyFile string) error {
 	srv := &Server{Handler: handler}
 	return srv.ServeTLS(l, certFile, keyFile)
@@ -2743,8 +2752,11 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 // ListenAndServe listens on the TCP network address srv.Addr and then
 // calls Serve to handle requests on incoming connections.
 // Accepted connections are configured to enable TCP keep-alives.
+//
 // If srv.Addr is blank, ":http" is used.
-// ListenAndServe always returns a non-nil error.
+//
+// ListenAndServe always returns a non-nil error. After Shutdown or Close,
+// the returned error is ErrServerClosed.
 func (srv *Server) ListenAndServe() error {
 	if srv.shuttingDown() {
 		return ErrServerClosed
@@ -2792,10 +2804,9 @@ var ErrServerClosed = errors.New("http: Server closed")
 // new service goroutine for each. The service goroutines read requests and
 // then call srv.Handler to reply to them.
 //
-// For HTTP/2 support, srv.TLSConfig should be initialized to the
-// provided listener's TLS Config before calling Serve. If
-// srv.TLSConfig is non-nil and doesn't include the string "h2" in
-// Config.NextProtos, HTTP/2 support is not enabled.
+// HTTP/2 support is only enabled if the Listener returns *tls.Conn
+// connections and they were configured with "h2" in the TLS
+// Config.NextProtos.
 //
 // Serve always returns a non-nil error and closes l.
 // After Shutdown or Close, the returned error is ErrServerClosed.
@@ -2850,19 +2861,15 @@ func (srv *Server) Serve(l net.Listener) error {
 }
 
 // ServeTLS accepts incoming connections on the Listener l, creating a
-// new service goroutine for each. The service goroutines read requests and
-// then call srv.Handler to reply to them.
+// new service goroutine for each. The service goroutines perform TLS
+// setup and then read requests, calling srv.Handler to reply to them.
 //
-// Additionally, files containing a certificate and matching private key for
-// the server must be provided if neither the Server's TLSConfig.Certificates
-// nor TLSConfig.GetCertificate are populated.. If the certificate is signed by
-// a certificate authority, the certFile should be the concatenation of the
-// server's certificate, any intermediates, and the CA's certificate.
-//
-// For HTTP/2 support, srv.TLSConfig should be initialized to the
-// provided listener's TLS Config before calling ServeTLS. If
-// srv.TLSConfig is non-nil and doesn't include the string "h2" in
-// Config.NextProtos, HTTP/2 support is not enabled.
+// Files containing a certificate and matching private key for the
+// server must be provided if neither the Server's
+// TLSConfig.Certificates nor TLSConfig.GetCertificate are populated.
+// If the certificate is signed by a certificate authority, the
+// certFile should be the concatenation of the server's certificate,
+// any intermediates, and the CA's certificate.
 //
 // ServeTLS always returns a non-nil error. After Shutdown or Close, the
 // returned error is ErrServerClosed.
@@ -2993,32 +3000,11 @@ func logf(r *Request, format string, args ...interface{}) {
 	}
 }
 
-// ListenAndServe listens on the TCP network address addr
-// and then calls Serve with handler to handle requests
-// on incoming connections.
+// ListenAndServe listens on the TCP network address addr and then calls
+// Serve with handler to handle requests on incoming connections.
 // Accepted connections are configured to enable TCP keep-alives.
-// Handler is typically nil, in which case the DefaultServeMux is
-// used.
 //
-// A trivial example server is:
-//
-//	package main
-//
-//	import (
-//		"io"
-//		"net/http"
-//		"log"
-//	)
-//
-//	// hello world, the web server
-//	func HelloServer(w http.ResponseWriter, req *http.Request) {
-//		io.WriteString(w, "hello, world!\n")
-//	}
-//
-//	func main() {
-//		http.HandleFunc("/hello", HelloServer)
-//		log.Fatal(http.ListenAndServe(":12345", nil))
-//	}
+// The handler is typically nil, in which case the DefaultServeMux is used.
 //
 // ListenAndServe always returns a non-nil error.
 func ListenAndServe(addr string, handler Handler) error {
@@ -3031,36 +3017,13 @@ func ListenAndServe(addr string, handler Handler) error {
 // matching private key for the server must be provided. If the certificate
 // is signed by a certificate authority, the certFile should be the concatenation
 // of the server's certificate, any intermediates, and the CA's certificate.
-//
-// A trivial example server is:
-//
-//	import (
-//		"log"
-//		"net/http"
-//	)
-//
-//	func handler(w http.ResponseWriter, req *http.Request) {
-//		w.Header().Set("Content-Type", "text/plain")
-//		w.Write([]byte("This is an example server.\n"))
-//	}
-//
-//	func main() {
-//		http.HandleFunc("/", handler)
-//		log.Printf("About to listen on 10443. Go to https://127.0.0.1:10443/")
-//		err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
-//		log.Fatal(err)
-//	}
-//
-// One can use generate_cert.go in crypto/tls to generate cert.pem and key.pem.
-//
-// ListenAndServeTLS always returns a non-nil error.
 func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 	server := &Server{Addr: addr, Handler: handler}
 	return server.ListenAndServeTLS(certFile, keyFile)
 }
 
 // ListenAndServeTLS listens on the TCP network address srv.Addr and
-// then calls Serve to handle requests on incoming TLS connections.
+// then calls ServeTLS to handle requests on incoming TLS connections.
 // Accepted connections are configured to enable TCP keep-alives.
 //
 // Filenames containing a certificate and matching private key for the
@@ -3072,7 +3035,8 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 //
 // If srv.Addr is blank, ":https" is used.
 //
-// ListenAndServeTLS always returns a non-nil error.
+// ListenAndServeTLS always returns a non-nil error. After Shutdown or
+// Close, the returned error is ErrServerClosed.
 func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	if srv.shuttingDown() {
 		return ErrServerClosed
@@ -3102,8 +3066,8 @@ func (srv *Server) setupHTTP2_ServeTLS() error {
 
 // setupHTTP2_Serve is called from (*Server).Serve and conditionally
 // configures HTTP/2 on srv using a more conservative policy than
-// setupHTTP2_ServeTLS because Serve may be called
-// concurrently.
+// setupHTTP2_ServeTLS because Serve is called after tls.Listen,
+// and may be called concurrently. See shouldConfigureHTTP2ForServe.
 //
 // The tests named TestTransportAutomaticHTTP2* and
 // TestConcurrentServerServe in server_test.go demonstrate some

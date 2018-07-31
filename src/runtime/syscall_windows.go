@@ -42,20 +42,20 @@ func callbackasmAddr(i int) uintptr {
 //go:linkname compileCallback syscall.compileCallback
 func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
-		panic("compileCallback: not a function")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
 	if len(ft.out()) != 1 {
-		panic("compileCallback: function must have one output parameter")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	uintptrSize := unsafe.Sizeof(uintptr(0))
 	if ft.out()[0].size != uintptrSize {
-		panic("compileCallback: output parameter size is wrong")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	argsize := uintptr(0)
 	for _, t := range ft.in() {
 		if t.size > uintptrSize {
-			panic("compileCallback: input parameter size is wrong")
+			panic("compileCallback: argument size is larger than uintptr")
 		}
 		argsize += uintptrSize
 	}

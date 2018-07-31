@@ -54,6 +54,21 @@ type Repo interface {
 	// os.IsNotExist(err) returns true.
 	ReadFile(rev, file string, maxSize int64) (data []byte, err error)
 
+	// ReadFileRevs reads a single file at multiple versions.
+	// It should refuse to read more than maxSize bytes.
+	// The result is a map from each requested rev strings
+	// to the associated FileRev. The map must have a non-nil
+	// entry for every requested rev (unless ReadFileRevs returned an error).
+	// A file simply being missing or even corrupted in revs[i]
+	// should be reported only in files[revs[i]].Err, not in the error result
+	// from ReadFileRevs.
+	// The overall call should return an error (and no map) only
+	// in the case of a problem with obtaining the data, such as
+	// a network failure.
+	// Implementations may assume that revs only contain tags,
+	// not direct commit hashes.
+	ReadFileRevs(revs []string, file string, maxSize int64) (files map[string]*FileRev, err error)
+
 	// ReadZip downloads a zip file for the subdir subdirectory
 	// of the given revision to a new file in a given temporary directory.
 	// It should refuse to read more than maxSize bytes.
@@ -62,6 +77,15 @@ type Repo interface {
 	// contained in the zip file. All files in the zip file are expected to be
 	// nested in a single top-level directory, whose name is not specified.
 	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error)
+
+	// RecentTag returns the most recent tag at or before the given rev
+	// with the given prefix. It should make a best-effort attempt to
+	// find a tag that is a valid semantic version (following the prefix),
+	// or else the result is not useful to the caller, but it need not
+	// incur great expense in doing so. For example, the git implementation
+	// of RecentTag limits git's search to tags matching the glob expression
+	// "v[0-9]*.[0-9]*.[0-9]*" (after the prefix).
+	RecentTag(rev, prefix string) (tag string, err error)
 }
 
 // A Rev describes a single revision in a source code repository.
@@ -71,6 +95,13 @@ type RevInfo struct {
 	Version string    // version used in lookup
 	Time    time.Time // commit time
 	Tags    []string  // known tags for commit
+}
+
+// A FileRev describes the result of reading a file at a given revision.
+type FileRev struct {
+	Rev  string // requested revision
+	Data []byte // file data
+	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
 }
 
 // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.
@@ -167,6 +198,10 @@ var dirLock sync.Map
 // a *RunError indicating the command, exit status, and standard error.
 // Standard error is unavailable for commands that exit successfully.
 func Run(dir string, cmdline ...interface{}) ([]byte, error) {
+	return RunWithStdin(dir, nil, cmdline...)
+}
+
+func RunWithStdin(dir string, stdin io.Reader, cmdline ...interface{}) ([]byte, error) {
 	if dir != "" {
 		muIface, ok := dirLock.Load(dir)
 		if !ok {
@@ -196,6 +231,7 @@ func Run(dir string, cmdline ...interface{}) ([]byte, error) {
 	var stdout bytes.Buffer
 	c := exec.Command(cmd[0], cmd[1:]...)
 	c.Dir = dir
+	c.Stdin = stdin
 	c.Stderr = &stderr
 	c.Stdout = &stdout
 	err := c.Run()

@@ -734,17 +734,20 @@ func stdcall(fn stdFunction) uintptr {
 	gp := getg()
 	mp := gp.m
 	mp.libcall.fn = uintptr(unsafe.Pointer(fn))
-
-	if mp.profilehz != 0 {
+	resetLibcall := false
+	if mp.profilehz != 0 && mp.libcallsp == 0 {
 		// leave pc/sp for cpu profiler
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
+		resetLibcall = true // See comment in sys_darwin.go:libcCall
 	}
 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
-	mp.libcallsp = 0
+	if resetLibcall {
+		mp.libcallsp = 0
+	}
 	return mp.libcall.r1
 }
 

@@ -11,10 +11,10 @@ import "sync"
 var pendingCallbacks = Global().Get("Array").New()
 
 var makeCallbackHelper = Global().Call("eval", `
-	(function(id, pendingCallbacks, resolveCallbackPromise) {
+	(function(id, pendingCallbacks, go) {
 		return function() {
 			pendingCallbacks.push({ id: id, args: arguments });
-			resolveCallbackPromise();
+			go._resolveCallbackPromise();
 		};
 	})
 `)
@@ -71,7 +71,7 @@ func NewCallback(fn func(args []Value)) Callback {
 	callbacks[id] = fn
 	callbacksMu.Unlock()
 	return Callback{
-		Value: makeCallbackHelper.Invoke(id, pendingCallbacks, resolveCallbackPromise),
+		Value: makeCallbackHelper.Invoke(id, pendingCallbacks, jsGo),
 		id:    id,
 	}
 }
@@ -116,7 +116,7 @@ func (c Callback) Release() {
 var callbackLoopOnce sync.Once
 
 func callbackLoop() {
-	for {
+	for !jsGo.Get("_callbackShutdown").Bool() {
 		sleepUntilCallback()
 		for {
 			cb := pendingCallbacks.Call("shift")

@@ -87,7 +87,24 @@ func (f *File) AddComment(text string) {
 
 type VersionFixer func(path, version string) (string, error)
 
+// Parse parses the data, reported in errors as being from file,
+// into a File struct. It applies fix, if non-nil, to canonicalize all module versions found.
 func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
+	return parseToFile(file, data, fix, true)
+}
+
+// ParseLax is like Parse but ignores unknown statements.
+// It is used when parsing go.mod files other than the main module,
+// under the theory that most statement types we add in the future will
+// only apply in the main module, like exclude and replace,
+// and so we get better gradual deployments if old go commands
+// simply ignore those statements when found in go.mod files
+// in dependencies.
+func ParseLax(file string, data []byte, fix VersionFixer) (*File, error) {
+	return parseToFile(file, data, fix, false)
+}
+
+func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File, error) {
 	fs, err := parse(file, data)
 	if err != nil {
 		return nil, err
@@ -100,20 +117,24 @@ func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
 	for _, x := range fs.Stmt {
 		switch x := x.(type) {
 		case *Line:
-			f.add(&errs, x, x.Token[0], x.Token[1:], fix)
+			f.add(&errs, x, x.Token[0], x.Token[1:], fix, strict)
 
 		case *LineBlock:
 			if len(x.Token) > 1 {
-				fmt.Fprintf(&errs, "%s:%d: unknown block type: %s\n", file, x.Start.Line, strings.Join(x.Token, " "))
+				if strict {
+					fmt.Fprintf(&errs, "%s:%d: unknown block type: %s\n", file, x.Start.Line, strings.Join(x.Token, " "))
+				}
 				continue
 			}
 			switch x.Token[0] {
 			default:
-				fmt.Fprintf(&errs, "%s:%d: unknown block type: %s\n", file, x.Start.Line, strings.Join(x.Token, " "))
+				if strict {
+					fmt.Fprintf(&errs, "%s:%d: unknown block type: %s\n", file, x.Start.Line, strings.Join(x.Token, " "))
+				}
 				continue
 			case "module", "require", "exclude", "replace":
 				for _, l := range x.Line {
-					f.add(&errs, l, x.Token[0], l.Token, fix)
+					f.add(&errs, l, x.Token[0], l.Token, fix, strict)
 				}
 			}
 		}
@@ -125,15 +146,20 @@ func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
 	return f, nil
 }
 
-func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer) {
-	// TODO: We should pass in a flag saying whether this module is a dependency.
-	// If so, we should ignore all unknown directives and not attempt to parse
+func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
+	// If strict is false, this module is a dependency.
+	// We ignore all unknown directives and do not attempt to parse
 	// replace and exclude either. They don't matter, and it will work better for
-	// forward compatibility if we can depend on modules that have local changes.
+	// forward compatibility if we can depend on modules that have unknown
+	// statements (presumed relevant only when acting as the main module).
+	if !strict && verb != "module" && verb != "require" {
+		return
+	}
 
 	switch verb {
 	default:
 		fmt.Fprintf(errs, "%s:%d: unknown directive: %s\n", f.Syntax.Name, line.Start.Line, verb)
+
 	case "module":
 		if f.Module != nil {
 			fmt.Fprintf(errs, "%s:%d: repeated module statement\n", f.Syntax.Name, line.Start.Line)
@@ -167,13 +193,16 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			fmt.Fprintf(errs, "%s:%d: invalid module version %q: %v\n", f.Syntax.Name, line.Start.Line, old, err)
 			return
 		}
-		v1, err := moduleMajorVersion(s)
+		pathMajor, err := modulePathMajor(s)
 		if err != nil {
 			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
 		}
-		if v2 := semver.Major(v); v1 != v2 && (v1 != "v1" || v2 != "v0") {
-			fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, v1, v2, v)
+		if !module.MatchPathMajor(v, pathMajor) {
+			if pathMajor == "" {
+				pathMajor = "v0 or v1"
+			}
+			fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
 			return
 		}
 		if verb == "require" {
@@ -202,7 +231,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
 		}
-		v1, err := moduleMajorVersion(s)
+		pathMajor, err := modulePathMajor(s)
 		if err != nil {
 			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
 			return
@@ -215,8 +244,11 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 				fmt.Fprintf(errs, "%s:%d: invalid module version %v: %v\n", f.Syntax.Name, line.Start.Line, old, err)
 				return
 			}
-			if v2 := semver.Major(v); v1 != v2 && (v1 != "v1" || v2 != "v0") {
-				fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, v1, v2, v)
+			if !module.MatchPathMajor(v, pathMajor) {
+				if pathMajor == "" {
+					pathMajor = "v0 or v1"
+				}
+				fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
 				return
 			}
 		}
@@ -364,39 +396,19 @@ func parseVersion(path string, s *string, fix VersionFixer) (string, error) {
 			return "", err
 		}
 	}
-	if semver.IsValid(t) {
-		*s = semver.Canonical(t)
+	if v := module.CanonicalVersion(t); v != "" {
+		*s = v
 		return *s, nil
 	}
 	return "", fmt.Errorf("version must be of the form v1.2.3")
 }
 
-func moduleMajorVersion(p string) (string, error) {
-	if _, _, major, _, ok := ParseGopkgIn(p); ok {
-		return major, nil
+func modulePathMajor(path string) (string, error) {
+	_, major, ok := module.SplitPathVersion(path)
+	if !ok {
+		return "", fmt.Errorf("invalid module path")
 	}
-
-	start := strings.LastIndex(p, "/") + 1
-	v := p[start:]
-	if !isMajorVersion(v) {
-		return "v1", nil
-	}
-	if v[1] == '0' || v == "v1" {
-		return "", fmt.Errorf("module path has invalid version number %s", v)
-	}
-	return v, nil
-}
-
-func isMajorVersion(v string) bool {
-	if len(v) < 2 || v[0] != 'v' {
-		return false
-	}
-	for i := 1; i < len(v); i++ {
-		if v[i] < '0' || '9' < v[i] {
-			return false
-		}
-	}
-	return true
+	return major, nil
 }
 
 func (f *File) Format() ([]byte, error) {

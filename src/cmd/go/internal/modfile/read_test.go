@@ -66,6 +66,21 @@ func testPrint(t *testing.T, in, out string) {
 	}
 }
 
+func TestParseLax(t *testing.T) {
+	badFile := []byte(`module m
+		surprise attack
+		x y (
+			z
+		)
+		exclude v1.2.3
+		replace <-!!!
+	`)
+	_, err := ParseLax("file", badFile, nil)
+	if err != nil {
+		t.Fatalf("ParseLax did not ignore irrelevant errors: %v", err)
+	}
+}
+
 // Test that when files in the testdata directory are parsed
 // and printed and parsed again, we get the same parse tree
 // both times.

@@ -40,6 +40,7 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
 		return nil, fmt.Errorf("invalid semantic version %q in range %q", v, query)
 	}
 	var ok func(module.Version) bool
+	var prefix string
 	var preferOlder bool
 	switch {
 	case query == "latest":
@@ -95,9 +96,10 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
 		ok = func(m module.Version) bool {
 			return matchSemverPrefix(query, m.Version) && allowed(m)
 		}
+		prefix = query + "."
 
 	case semver.IsValid(query):
-		vers := semver.Canonical(query)
+		vers := module.CanonicalVersion(query)
 		if !allowed(module.Version{Path: path, Version: vers}) {
 			return nil, fmt.Errorf("%s@%s excluded", path, vers)
 		}
@@ -120,7 +122,7 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
 	if err != nil {
 		return nil, err
 	}
-	versions, err := repo.Versions("")
+	versions, err := repo.Versions(prefix)
 	if err != nil {
 		return nil, err
 	}

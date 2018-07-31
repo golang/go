@@ -63,7 +63,10 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
 		}
 		mu.Lock()
 		path := repo.ModulePath()
-		need[path] = semver.Max(need[path], info.Version)
+		// Don't use semver.Max here; need to preserve +incompatible suffix.
+		if v, ok := need[path]; !ok || semver.Compare(v, info.Version) < 0 {
+			need[path] = info.Version
+		}
 		mu.Unlock()
 	})
 

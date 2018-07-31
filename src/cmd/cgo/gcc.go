@@ -180,6 +180,13 @@ func (p *Package) Translate(f *File) {
 		if len(needType) > 0 {
 			p.loadDWARF(f, needType)
 		}
+
+		// In godefs mode we're OK with the typedefs, which
+		// will presumably also be defined in the file, we
+		// don't want to resolve them to their base types.
+		if *godefs {
+			break
+		}
 	}
 	if p.rewriteCalls(f) {
 		// Add `import _cgo_unsafe "unsafe"` after the package statement.

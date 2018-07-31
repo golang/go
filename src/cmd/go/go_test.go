@@ -105,6 +105,7 @@ var testGOCACHE string
 
 var testGo string
 var testTmpDir string
+var testBin string
 
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
@@ -133,7 +134,11 @@ func TestMain(m *testing.M) {
 	}
 
 	if canRun {
-		testGo = filepath.Join(testTmpDir, "testgo"+exeSuffix)
+		testBin = filepath.Join(testTmpDir, "testbin")
+		if err := os.Mkdir(testBin, 0777); err != nil {
+			log.Fatal(err)
+		}
+		testGo = filepath.Join(testBin, "go"+exeSuffix)
 		args := []string{"build", "-tags", "testgo", "-o", testGo}
 		if race.Enabled {
 			args = append(args, "-race")
@@ -1464,12 +1469,6 @@ func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg.grepStderr(`([\\/]compile|gccgo).* (-p p1|-fgo-pkgpath=p1).*p1\.go`, "should have run compile -p p1 p1.go")
 }
 
-// The runtime version string takes one of two forms:
-// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
-// Determine whether we are in a released copy by
-// inspecting the version.
-var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
-
 // Issue 12690
 func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	skipIfGccgo(t, "gccgo does not have GOROOT")
@@ -1758,7 +1757,7 @@ func TestGoListTest(t *testing.T) {
 	tg.run("list", "-test", "sort")
 	tg.grepStdout(`^sort.test$`, "missing test main")
 	tg.grepStdout(`^sort$`, "missing real sort")
-	tg.grepStdoutNot(`^sort \[sort.test\]$`, "unexpected test copy of sort")
+	tg.grepStdout(`^sort \[sort.test\]$`, "unexpected test copy of sort")
 	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
 
@@ -5524,6 +5523,21 @@ func TestTestVet(t *testing.T) {
 	// vetfail/p1.
 	tg.run("test", "-a", "vetfail/p2")
 	tg.grepStderrNot(`invalid.*constraint`, "did diagnose bad build constraint in vetxonly mode")
+}
+
+func TestTestSkipVetAfterFailedBuild(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("x_test.go", `package x
+		func f() {
+			return 1
+		}
+	`)
+
+	tg.runFail("test", tg.path("x_test.go"))
+	tg.grepStderrNot(`vet`, "vet should be skipped after the failed build")
 }
 
 func TestTestVetRebuild(t *testing.T) {

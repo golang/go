@@ -1,0 +1,24 @@
+env GO111MODULE=on
+
+go list -m -versions rsc.io/quote
+stdout '^rsc.io/quote v1.0.0 v1.1.0 v1.2.0 v1.2.1 v1.3.0 v1.4.0 v1.5.0 v1.5.1 v1.5.2 v1.5.3-pre1$'
+
+# latest rsc.io/quote should be v1.5.2 not v1.5.3-pre1
+go list -m rsc.io/quote@latest
+stdout 'rsc.io/quote v1.5.2$'
+
+go list -m rsc.io/quote@>v1.5.2
+stdout 'rsc.io/quote v1.5.3-pre1$'
+
+go list -m rsc.io/quote@<v1.5.4
+stdout 'rsc.io/quote v1.5.2$'
+
+! go list -m rsc.io/quote@>v1.5.3
+stderr 'go list -m rsc.io/quote: no matching versions for query ">v1.5.3"'
+
+go list -m -e -f '{{.Error.Err}}' rsc.io/quote@>v1.5.3
+stdout 'no matching versions for query ">v1.5.3"'
+
+-- go.mod --
+module x
+require rsc.io/quote v1.0.0

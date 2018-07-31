@@ -325,6 +325,14 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 	return out, nil
 }
 
+func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[string]*FileRev, error) {
+	return nil, fmt.Errorf("ReadFileRevs not implemented")
+}
+
+func (r *vcsRepo) RecentTag(rev, prefix string) (tag string, err error) {
+	return "", fmt.Errorf("RecentTags not implemented")
+}
+
 func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
 	if rev == "latest" {
 		rev = r.cmd.latest

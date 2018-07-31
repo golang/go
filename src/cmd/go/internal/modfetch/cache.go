@@ -43,10 +43,14 @@ func CachePath(m module.Version, suffix string) (string, error) {
 	if !semver.IsValid(m.Version) {
 		return "", fmt.Errorf("non-semver module version %q", m.Version)
 	}
-	if semver.Canonical(m.Version) != m.Version {
+	if module.CanonicalVersion(m.Version) != m.Version {
 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
 	}
-	return filepath.Join(dir, m.Version+"."+suffix), nil
+	encVer, err := module.EncodeVersion(m.Version)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, encVer+"."+suffix), nil
 }
 
 func DownloadDir(m module.Version) (string, error) {
@@ -60,10 +64,14 @@ func DownloadDir(m module.Version) (string, error) {
 	if !semver.IsValid(m.Version) {
 		return "", fmt.Errorf("non-semver module version %q", m.Version)
 	}
-	if semver.Canonical(m.Version) != m.Version {
+	if module.CanonicalVersion(m.Version) != m.Version {
 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
 	}
-	return filepath.Join(SrcMod, enc+"@"+m.Version), nil
+	encVer, err := module.EncodeVersion(m.Version)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(SrcMod, enc+"@"+encVer), nil
 }
 
 // A cachingRepo is a cache around an underlying Repo,
@@ -433,7 +441,7 @@ func rewriteVersionList(dir string) {
 		name := info.Name()
 		if strings.HasSuffix(name, ".mod") {
 			v := strings.TrimSuffix(name, ".mod")
-			if semver.IsValid(v) && semver.Canonical(v) == v {
+			if v != "" && module.CanonicalVersion(v) == v {
 				list = append(list, v)
 			}
 		}

@@ -88,9 +88,9 @@ var codeRepoTests = []struct {
 		path:    "github.com/rsc/vgotest1/v2",
 		rev:     "v2.0.0",
 		version: "v2.0.0",
-		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
-		short:   "80d85c5d4d17",
-		time:    time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
+		name:    "45f53230a74ad275c7127e117ac46914c8126160",
+		short:   "45f53230a74a",
+		time:    time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
 		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 	},
 	{
@@ -121,11 +121,11 @@ var codeRepoTests = []struct {
 	},
 	{
 		path:     "github.com/rsc/vgotest1/v2",
-		rev:      "80d85c5",
+		rev:      "45f53230a",
 		version:  "v2.0.0",
-		name:     "80d85c5d4d17598a0e9055e7c175a32b415d6128",
-		short:    "80d85c5d4d17",
-		time:     time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
+		name:     "45f53230a74ad275c7127e117ac46914c8126160",
+		short:    "45f53230a74a",
+		time:     time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
 		gomoderr: "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 		ziperr:   "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
 	},
@@ -237,7 +237,7 @@ var codeRepoTests = []struct {
 		// redirect to googlesource
 		path:    "golang.org/x/text",
 		rev:     "4e4a3210bb",
-		version: "v0.0.0-20180208041248-4e4a3210bb54",
+		version: "v0.3.1-0.20180208041248-4e4a3210bb54",
 		name:    "4e4a3210bb54bb31f6ab2cdca2edcc0b50c420c1",
 		short:   "4e4a3210bb54",
 		time:    time.Date(2018, 2, 8, 4, 12, 48, 0, time.UTC),
@@ -459,6 +459,7 @@ var hgmap = map[string]string{
 	"2f615117ce481c8efef46e0cc0b4b4dccfac8fea": "879ea98f7743c8eff54f59a918f3a24123d1cf46",
 	"80d85c5d4d17598a0e9055e7c175a32b415d6128": "e125018e286a4b09061079a81e7b537070b7ff71",
 	"1f863feb76bc7029b78b21c5375644838962f88d": "bf63880162304a9337477f3858f5b7e255c75459",
+	"45f53230a74ad275c7127e117ac46914c8126160": "814fce58e83abd5bf2a13892e0b0e1198abefcd4",
 }
 
 func remap(name string, m map[string]string) string {
@@ -486,10 +487,9 @@ var codeRepoVersionsTests = []struct {
 	prefix   string
 	versions []string
 }{
-	// TODO: Why do we allow a prefix here at all?
 	{
 		path:     "github.com/rsc/vgotest1",
-		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0"},
+		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0", "v2.0.0+incompatible"},
 	},
 	{
 		path:     "github.com/rsc/vgotest1",
@@ -605,7 +605,13 @@ type fixedTagsRepo struct {
 func (ch *fixedTagsRepo) Tags(string) ([]string, error)                  { return ch.tags, nil }
 func (ch *fixedTagsRepo) Latest() (*codehost.RevInfo, error)             { panic("not impl") }
 func (ch *fixedTagsRepo) ReadFile(string, string, int64) ([]byte, error) { panic("not impl") }
+func (ch *fixedTagsRepo) ReadFileRevs([]string, string, int64) (map[string]*codehost.FileRev, error) {
+	panic("not impl")
+}
 func (ch *fixedTagsRepo) ReadZip(string, string, int64) (io.ReadCloser, string, error) {
+	panic("not impl")
+}
+func (ch *fixedTagsRepo) RecentTag(string, string) (string, error) {
 	panic("not impl")
 }
 func (ch *fixedTagsRepo) Stat(string) (*codehost.RevInfo, error) { panic("not impl") }

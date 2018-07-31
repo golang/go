@@ -30,6 +30,7 @@ Scripts also have access to these other environment variables:
 	GOCACHE=<actual GOCACHE being used outside the test>
 	GOOS=<target GOOS>
 	GOPATH=$WORK/gopath
+	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>
@@ -48,10 +49,11 @@ by a tiny script engine in ../../script_test.go (not the system shell).
 The script stops and the overall test fails if any particular command fails.
 
 Each line is parsed into a sequence of space-separated command words,
-with environment variable expansion. Adding single quotes around text
-keeps spaces in that text from being treated as word separators and also
-disables environment variable expansion. Inside a single-quoted block of
-text, a repeated single quote indicates a literal single quote, as in:
+with environment variable expansion and # marking an end-of-line comment.
+Adding single quotes around text keeps spaces in that text from being treated
+as word separators and also disables environment variable expansion.
+Inside a single-quoted block of text, a repeated single quote indicates
+a literal single quote, as in:
 
 	'Don''t communicate by sharing memory.'
 
@@ -83,6 +85,13 @@ The commands are:
 - cd dir
   Change to the given directory for future commands.
 
+- cmp file1 file2
+  Check that the named files have the same content.
+  By convention, file1 is the actual data and file2 the expected data.
+  File1 can be "stdout" or "stderr" to use the standard output or standard error
+  from the most recent exec or go command.
+  (If the files have differing content, the failure prints a diff.)
+
 - cp src... dst
   Copy the listed files to the target file or existing directory.
 
@@ -95,12 +104,17 @@ The commands are:
   It must (or must not) succeed.
   Note that 'exec' does not terminate the script (unlike in Unix shells).
 
-- [!] exists file...
-  Each of the listed files must (or must not) exist. (Directories are allowed.)
+- [!] exists [-readonly] file...
+  Each of the listed files or directories must (or must not) exist.
+  If -readonly is given, the files or directories must be unwritable.
 
 - [!] go args...
   Run the (test copy of the) go command with the given arguments.
   It must (or must not) succeed.
+
+- [!] grep [-count=N] pattern file
+  The file's content must (or must not) match the regular expression pattern.
+  For positive matches, -count=N specifies an exact number of matches to require.
 
 - mkdir path...
   Create the listed directories, if they do not already exists.
@@ -115,16 +129,19 @@ The commands are:
   The packages named by the path arguments must (or must not)
   be reported as "stale" by the go command.
 
-- [!] stderr pattern
-  Standard error from the most recent exec or go command
-  must (or must not) match the regular expression pattern.
+- [!] stderr [-count=N] pattern
+  Apply the grep command (see above) to the standard error
+  from the most recent exec or go command.
 
-- [!] stdout pattern
-  Standard output from the most recent exec or go command
-  must (or must not) match the regular expression pattern.
+- [!] stdout [-count=N] pattern
+  Apply the grep command (see above) to the standard output
+  from the most recent exec or go command.
 
 - stop [message]
   Stop the test early (marking it as passing), including the message if given.
+
+- symlink file -> target
+  Create file as a symlink to target. The -> (like in ls -l output) is required.
 
 When TestScript runs a script and the script fails, by default TestScript shows
 the execution of the most recent phase of the script (since the last # comment)
@@ -132,7 +149,7 @@ and only shows the # comments for earlier phases. For example, here is a
 multi-phase script with a bug in it:
 
 	# GOPATH with p1 in d2, p2 in d2
-	env GOPATH=$WORK/d1:$WORK/d2
+	env GOPATH=$WORK/d1${:}$WORK/d2
 
 	# build & install p1
 	env

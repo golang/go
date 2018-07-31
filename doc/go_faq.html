@@ -9,103 +9,49 @@
 What is the purpose of the project?</h3>
 
 <p>
-No major systems language has emerged in over a decade, but over that time
-the computing landscape has changed tremendously. There are several trends:
+At the time of Go's inception, only a decade ago, the programming world was different from today.
+Production software was usually written in C++ or Java,
+GitHub did not exist, most computers were not yet multiprocessors,
+and other than Visual Studio and Eclipse there were few IDEs or other high-level tools available
+at all, let alone for free on the Internet.
 </p>
 
-<ul>
-<li>
-Computers are enormously quicker but software development is not faster.
-<li>
-Dependency management is a big part of software development today but the
-&ldquo;header files&rdquo; of languages in the C tradition are antithetical to clean
-dependency analysis&mdash;and fast compilation.
-<li>
-There is a growing rebellion against cumbersome type systems like those of
-Java and C++, pushing people towards dynamically typed languages such as
-Python and JavaScript.
-<li>
-Some fundamental concepts such as garbage collection and parallel computation
-are not well supported by popular systems languages.
-<li>
-The emergence of multicore computers has generated worry and confusion.
-</ul>
-
 <p>
-We believe it's worth trying again with a new language, a concurrent,
-garbage-collected language with fast compilation. Regarding the points above:
+Meanwhile, we had become frustrated by the undue complexity required to use
+the languages we worked with to develop server software.
+Computers had become enormously quicker since languages such as
+C, C++ and Java were first developed but the act of programming had not
+itself advanced nearly as much.
+Also, it was clear that multiprocessors were becoming universal but
+most languages offered little help to program them efficiently
+and safely.
 </p>
 
-<ul>
-<li>
-It is possible to compile a large Go program in a few seconds on a single computer.
-<li>
-Go provides a model for software construction that makes dependency
-analysis easy and avoids much of the overhead of C-style include files and
-libraries.
-<li>
-Go's type system has no hierarchy, so no time is spent defining the
-relationships between types. Also, although Go has static types, the language
-attempts to make types feel lighter weight than in typical OO languages.
-<li>
-Go is fully garbage-collected and provides fundamental support for
-concurrent execution and communication.
-<li>
-By its design, Go proposes an approach for the construction of system
-software on multicore machines.
-</ul>
+<p>
+We decided to take a step back and think about what major issues were
+going to dominate software engineering in the years ahead as technology
+developed, and how a new language might help address them.
+For instance, the rise of multicore CPUs argued that a language should
+provide first-class support for some sort of concurrency or parallelism.
+And to make resource management tractable in a large concurrent program,
+garbage collection, or at least some sort of safe automatic memory management was required.
+</p>
 
 <p>
-A much more expansive answer to this question is available in the article,
+These considerations led to
+<a href="https://commandcenter.blogspot.com/2017/09/go-ten-years-and-climbing.html">a 
+series of discussions</a> from which Go arose, first as a set of ideas and
+desiderata, then as a language.
+An overarching goal was that Go do more to help the working programmer
+by enabling tooling, automating mundane tasks such as code formatting,
+and removing obstacles to working on large code bases.
+</p>
+
+<p>
+A much more expansive description of the goals of Go and how
+they are met, or at least approached, is available in the article,
 <a href="//talks.golang.org/2012/splash.article">Go at Google:
 Language Design in the Service of Software Engineering</a>.
-
-<h3 id="What_is_the_status_of_the_project">
-What is the status of the project?</h3>
-
-<p>
-Go became a public open source project on November 10, 2009.
-After a couple of years of very active design and development, stability was called for and
-Go 1 was <a href="//blog.golang.org/2012/03/go-version-1-is-released.html">released</a>
-on March 28, 2012.
-Go 1, which includes a <a href="/ref/spec">language specification</a>,
-<a href="/pkg/">standard libraries</a>,
-and <a href="/cmd/go/">custom tools</a>,
-provides a stable foundation for creating reliable products, projects, and publications.
-</p>
-
-<p>
-With that stability established, we are using Go to develop programs, products, and tools rather than
-actively changing the language and libraries.
-In fact, the purpose of Go 1 is to provide <a href="/doc/go1compat.html">long-term stability</a>.
-Backwards-incompatible changes will not be made to any Go 1 point release.
-We want to use what we have to learn how a future version of Go might look, rather than to play with
-the language underfoot.
-</p>
-
-<p>
-Of course, development will continue on Go itself, but the focus will be on performance, reliability,
-portability and the addition of new functionality such as improved support for internationalization.
-</p>
-
-<p>
-There may well be a Go 2 one day, but not for a few years and it will be influenced by what we learn using Go 1 as it is today.
-</p>
-
-<h3 id="Whats_the_origin_of_the_mascot">
-What's the origin of the mascot?</h3>
-
-<p>
-The mascot and logo were designed by
-<a href="https://reneefrench.blogspot.com">Renée French</a>, who also designed
-<a href="https://9p.io/plan9/glenda.html">Glenda</a>,
-the Plan 9 bunny.
-The <a href="https://blog.golang.org/gopher">gopher</a>
-is derived from one she used for an <a href="https://wfmu.org/">WFMU</a>
-T-shirt design some years ago.
-The logo and mascot are covered by the
-<a href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
-license.
 </p>
 
 <h3 id="history">
@@ -126,14 +72,49 @@ and libraries from prototype to reality.
 
 <p>
 Go became a public open source project on November 10, 2009.
-Many people from the community have contributed ideas, discussions, and code.
+Countless people from the community have contributed ideas, discussions, and code.
+</p>
+
+<p>
+There are now millions of Go programmers—gophers—around the world,
+and there are more every day.
+Go's success has far exceeded our expectations.
+</p>
+
+<h3 id="gopher">
+What's the origin of the gopher mascot?</h3>
+
+<p>
+The mascot and logo were designed by
+<a href="https://reneefrench.blogspot.com">Renée French</a>, who also designed
+<a href="https://9p.io/plan9/glenda.html">Glenda</a>,
+the Plan 9 bunny.
+A <a href="https://blog.golang.org/gopher">blog post</a>
+about the gopher explains how it was
+derived from one she used for a <a href="https://wfmu.org/">WFMU</a>
+T-shirt design some years ago.
+The logo and mascot are covered by the
+<a href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
+license.
+</p>
+
+<p>
+The gopher has a
+<a href="/doc/gopher/modelsheet.jpg">model sheet</a>
+illustrating his characteristics and how to represent them correctly.
+The model sheet was first shown in a
+<a href="https://www.youtube.com/watch?v=4rw_B4yY69k">talk</a>
+by Renée at Gophercon in 2016.
+He has unique features; he's the <em>Go gopher</em>, not just any old gopher.
 </p>
 
 <h3 id="creating_a_new_language">
-Why are you creating a new language?</h3>
+Why did you create a new language?</h3>
+
 <p>
 Go was born out of frustration with existing languages and
-environments for systems programming.  Programming had become too
+environments for the work we were doing at Google.
+Programming had become too
 difficult and the choice of languages was partly to blame.  One had to
 choose either efficient compilation, efficient execution, or ease of
 programming; all three were not available in the same mainstream
@@ -143,10 +124,18 @@ Python and JavaScript rather than C++ or, to a lesser extent, Java.
 </p>
 
 <p>
-Go is an attempt to combine the ease of programming of an interpreted,
+We were not alone in our concerns.
+After many years with a pretty quiet landscape for programming languages,
+Go was among the first of several new languages—Rust,
+Elixir, Swift, and more—that have made programming language development
+an active, almost mainstream field again.
+</p>
+
+<p>
+Go addressed these issues by attempting to combine the ease of programming of an interpreted,
 dynamically typed
 language with the efficiency and safety of a statically typed, compiled language.
-It also aims to be modern, with support for networked and multicore
+It also aimed to be modern, with support for networked and multicore
 computing.  Finally, working with Go is intended to be <i>fast</i>: it should take
 at most a few seconds to build a large executable on a single computer.
 To meet these goals required addressing a number of
@@ -161,6 +150,7 @@ The article <a href="//talks.golang.org/2012/splash.article">Go at Google</a>
 discusses the background and motivation behind the design of the Go language,
 as well as providing more detail about many of the answers presented in this FAQ.
 </p>
+
 
 <h3 id="ancestors">
 What are Go's ancestors?</h3>
@@ -179,15 +169,19 @@ kind of programming we do, more effective, which means more fun.
 
 <h3 id="principles">
 What are the guiding principles in the design?</h3>
+
 <p>
-Programming today involves too much bookkeeping, repetition, and
-clerical work.  As Dick Gabriel says, &ldquo;Old programs read
-like quiet conversations between a well-spoken research worker and a
-well-studied mechanical colleague, not as a debate with a compiler.
-Who'd have guessed sophistication bought such noise?&rdquo;
-The sophistication is worthwhile&mdash;no one wants to go back to
-the old languages&mdash;but can it be more quietly achieved?
+When Go was designed, Java and C++ were the most commonly
+used languages for writing servers, at least at Google.
+We felt that these languages required
+too much bookkeeping and repetition.
+Some programmers reacted by moving towards more dynamic,
+fluid languages like Python, at the cost of efficiency and
+type safety.
+We felt it should be possible to have the efficiency,
+the safety, and the fluidity in a single language.
 </p>
+
 <p>
 Go attempts to reduce the amount of typing in both senses of the word.
 Throughout its design, we have tried to reduce clutter and
@@ -2408,8 +2402,8 @@ systems.
 </p>
 
 <p>
-A related issue is that a large part of the difficulty of concurrent
-and multi-threaded programming is the object lifetime problem:
+Much of the difficulty of concurrent programming
+has its roots in the object lifetime problem:
 as objects get passed among threads it becomes cumbersome
 to guarantee they become freed safely.
 Automatic garbage collection makes concurrent code far easier to write.
@@ -2425,12 +2419,12 @@ simpler because they don't need to specify how memory is managed across them.
 
 <p>
 This is not to say that the recent work in languages
-like Rust that bring new ideas to the problem of to managing
+like Rust that bring new ideas to the problem of managing
 resources is misguided; we encourage this work and are excited to see
 how it evolves.
 But Go takes a more traditional approach by addressing
 object lifetimes through
-garbage collection, and garbage collection only.
+garbage collection, and garbage collection alone.
 </p>
 
 <p>

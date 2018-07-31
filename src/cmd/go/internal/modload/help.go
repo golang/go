@@ -49,6 +49,10 @@ Module support is enabled only when the current directory is outside
 GOPATH/src and itself contains a go.mod file or is below a directory
 containing a go.mod file.
 
+In module-aware mode, GOPATH no longer defines the meaning of imports
+during a build, but it still stores downloaded dependencies (in GOPATH/src/mod)
+and installed commands (in GOPATH/bin, unless GOBIN is set).
+
 Defining a module
 
 A module is defined by a tree of Go source files with a go.mod file
@@ -68,7 +72,7 @@ of the module with path example.com/m, and it also declares that the module
 depends on specific versions of golang.org/x/text and gopkg.in/yaml.v2:
 
 	module example.com/m
-	
+
 	require (
 		golang.org/x/text v0.3.0
 		gopkg.in/yaml.v2 v2.1.0
@@ -176,13 +180,25 @@ the standard form for describing module versions, so that versions can be
 compared to determine which should be considered earlier or later than another.
 A module version like v1.2.3 is introduced by tagging a revision in the
 underlying source repository. Untagged revisions can be referred to
-using a "pseudo-version" of the form v0.0.0-yyyymmddhhmmss-abcdefabcdef,
+using a "pseudo-version" like v0.0.0-yyyymmddhhmmss-abcdefabcdef,
 where the time is the commit time in UTC and the final suffix is the prefix
 of the commit hash. The time portion ensures that two pseudo-versions can
 be compared to determine which happened later, the commit hash identifes
-the underlying commit, and the v0.0.0- prefix identifies the pseudo-version
-as a pre-release before version v0.0.0, so that the go command prefers any
-tagged release over any pseudo-version.
+the underlying commit, and the prefix (v0.0.0- in this example) is derived from
+the most recent tagged version in the commit graph before this commit.
+
+There are three pseudo-version forms:
+
+vX.0.0-yyyymmddhhmmss-abcdefabcdef is used when there is no earlier
+versioned commit with an appropriate major version before the target commit.
+(This was originally the only form, so some older go.mod files use this form
+even for commits that do follow tags.)
+
+vX.Y.Z-pre.0.yyyymmddhhmmss-abcdefabcdef is used when the most
+recent versioned commit before the target commit is vX.Y.Z-pre.
+
+vX.Y.(Z+1)-0.yyyymmddhhmmss-abcdefabcdef is used when the most
+recent versioned commit before the target commit is vX.Y.Z.
 
 Pseudo-versions never need to be typed by hand: the go command will accept
 the plain commit hash and translate it into a pseudo-version (or a tagged
@@ -233,7 +249,6 @@ For example, these commands are all valid:
 	go get github.com/gorilla/mux@c856192   # records v0.0.0-20180517173623-c85619274f5d
 	go get github.com/gorilla/mux@master    # records current meaning of master
 
-
 Module compatibility and semantic versioning
 
 The go command requires that modules use semantic versions and expects that
@@ -242,11 +257,11 @@ backwards-compatible replacement for v1.5.3, v1.4.0, and even v1.0.0.
 More generally the go command expects that packages follow the
 "import compatibility rule", which says:
 
-"If an old package and a new package have the same import path, 
+"If an old package and a new package have the same import path,
 the new package must be backwards compatible with the old package."
 
 Because the go command assumes the import compatibility rule,
-a module definition can only set the minimum required version of one 
+a module definition can only set the minimum required version of one
 of its dependencies: it cannot set a maximum or exclude selected versions.
 Still, the import compatibility rule is not a guarantee: it may be that
 v1.5.4 is buggy and not a backwards-compatible replacement for v1.5.3.
@@ -265,6 +280,11 @@ called "semantic import versioning". Pseudo-versions for modules with major
 version v2 and later begin with that major version instead of v0, as in
 v2.0.0-20180326061214-4fc5987536ef.
 
+As a special case, module paths beginning with gopkg.in/ continue to use the
+conventions established on that system: the major version is always present,
+and it is preceded by a dot instead of a slash: gopkg.in/yaml.v1
+and gopkg.in/yaml.v2, not gopkg.in/yaml and gopkg.in/yaml/v2.
+
 The go command treats modules with different module paths as unrelated:
 it makes no connection between example.com/m and example.com/m/v2.
 Modules with different major versions can be used together in a build
@@ -277,16 +297,35 @@ Major version v0 does not appear in the module path, because those
 versions are preparation for v1.0.0, and v1 does not appear in the
 module path either.
 
-As a special case, for historical reasons, module paths beginning with
-gopkg.in/ continue to use the conventions established on that system:
-the major version is always present, and it is preceded by a dot 
-instead of a slash: gopkg.in/yaml.v1 and gopkg.in/yaml.v2, not
-gopkg.in/yaml and gopkg.in/yaml/v2.
+Code written before the semantic import versioning convention
+was introduced may use major versions v2 and later to describe
+the same set of unversioned import paths as used in v0 and v1.
+To accommodate such code, if a source code repository has a
+v2.0.0 or later tag for a file tree with no go.mod, the version is
+considered to be part of the v1 module's available versions
+and is given an +incompatible suffix when converted to a module
+version, as in v2.0.0+incompatible. The +incompatible tag is also
+applied to pseudo-versions derived from such versions, as in
+v2.0.1-0.yyyymmddhhmmss-abcdefabcdef+incompatible.
 
-See https://research.swtch.com/vgo-import and https://semver.org/
-for more information.
+In general, having a dependency in the build list (as reported by 'go list -m all')
+on a v0 version, pre-release version, pseudo-version, or +incompatible version
+is an indication that problems are more likely when upgrading that
+dependency, since there is no expectation of compatibility for those.
 
-Module verification
+See https://research.swtch.com/vgo-import for more information about
+semantic import versioning, and see https://semver.org/ for more about
+semantic versioning.
+
+Module code layout
+
+For now, see https://research.swtch.com/vgo-module for information
+about how source code in version control systems is mapped to
+module file trees.
+
+TODO: Add documentation to go command.
+
+Module downloading and verification
 
 The go command maintains, in the main module's root directory alongside
 go.mod, a file named go.sum containing the expected cryptographic checksums
@@ -301,6 +340,13 @@ against the main module's go.sum file, instead of recomputing them on
 each command invocation. The 'go mod -verify' command checks that
 the cached copies of module downloads still match both their recorded
 checksums and the entries in go.sum.
+
+The go command can fetch modules from a proxy instead of connecting
+to source control systems directly, according to the setting of the GOPROXY
+environment variable.
+
+See 'go help goproxy' for details about the proxy and also the format of
+the cached downloaded packages.
 
 Modules and vendoring
 
