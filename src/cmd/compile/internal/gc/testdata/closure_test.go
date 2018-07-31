@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// map_ssa.go tests map operations.
+// closure.go tests closure operations.
 package main
 
-import "fmt"
-
-var failed = false
+import "testing"
 
 //go:noinline
 func testCFunc_ssa() int {
@@ -22,17 +20,13 @@ func testCFunc_ssa() int {
 	return a
 }
 
-func testCFunc() {
+func testCFunc(t *testing.T) {
 	if want, got := 2, testCFunc_ssa(); got != want {
-		fmt.Printf("expected %d, got %d", want, got)
-		failed = true
+		t.Errorf("expected %d, got %d", want, got)
 	}
 }
 
-func main() {
-	testCFunc()
-
-	if failed {
-		panic("failed")
-	}
+// TestClosure tests closure related behavior.
+func TestClosure(t *testing.T) {
+	testCFunc(t)
 }

@@ -1,5 +1,3 @@
-// run
-
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -11,8 +9,8 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
+	"testing"
 )
 
 // Our heap-allocated object that will be GC'd incorrectly.
@@ -21,44 +19,44 @@ import (
 type B [4]int
 
 // small (SSAable) array
-type T1 [3]*B
+type A1 [3]*B
 
 //go:noinline
-func f1() (t T1) {
+func f1() (t A1) {
 	t[0] = &B{91, 92, 93, 94}
 	runtime.GC()
 	return t
 }
 
 // large (non-SSAable) array
-type T2 [8]*B
+type A2 [8]*B
 
 //go:noinline
-func f2() (t T2) {
+func f2() (t A2) {
 	t[0] = &B{91, 92, 93, 94}
 	runtime.GC()
 	return t
 }
 
 // small (SSAable) struct
-type T3 struct {
+type A3 struct {
 	a, b, c *B
 }
 
 //go:noinline
-func f3() (t T3) {
+func f3() (t A3) {
 	t.a = &B{91, 92, 93, 94}
 	runtime.GC()
 	return t
 }
 
 // large (non-SSAable) struct
-type T4 struct {
+type A4 struct {
 	a, b, c, d, e, f *B
 }
 
 //go:noinline
-func f4() (t T4) {
+func f4() (t A4) {
 	t.a = &B{91, 92, 93, 94}
 	runtime.GC()
 	return t
@@ -68,7 +66,7 @@ var sink *B
 
 func f5() int {
 	b := &B{91, 92, 93, 94}
-	t := T4{b, nil, nil, nil, nil, nil}
+	t := A4{b, nil, nil, nil, nil, nil}
 	sink = b   // make sure b is heap allocated ...
 	sink = nil // ... but not live
 	runtime.GC()
@@ -76,30 +74,20 @@ func f5() int {
 	return t.a[1]
 }
 
-func main() {
-	failed := false
-
+func TestNamedReturn(t *testing.T) {
 	if v := f1()[0][1]; v != 92 {
-		fmt.Printf("f1()[0][1]=%d, want 92\n", v)
-		failed = true
+		t.Errorf("f1()[0][1]=%d, want 92\n", v)
 	}
 	if v := f2()[0][1]; v != 92 {
-		fmt.Printf("f2()[0][1]=%d, want 92\n", v)
-		failed = true
+		t.Errorf("f2()[0][1]=%d, want 92\n", v)
 	}
 	if v := f3().a[1]; v != 92 {
-		fmt.Printf("f3().a[1]=%d, want 92\n", v)
-		failed = true
+		t.Errorf("f3().a[1]=%d, want 92\n", v)
 	}
 	if v := f4().a[1]; v != 92 {
-		fmt.Printf("f4().a[1]=%d, want 92\n", v)
-		failed = true
+		t.Errorf("f4().a[1]=%d, want 92\n", v)
 	}
 	if v := f5(); v != 92 {
-		fmt.Printf("f5()=%d, want 92\n", v)
-		failed = true
-	}
-	if failed {
-		panic("bad")
+		t.Errorf("f5()=%d, want 92\n", v)
 	}
 }

@@ -5,8 +5,8 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
+	"testing"
 	"unsafe"
 )
 
@@ -14,7 +14,7 @@ import (
 var a *[8]uint
 
 // unfoldable true
-var b = true
+var always = true
 
 // Test to make sure that a pointer value which is alive
 // across a call is retained, even when there are matching
@@ -25,7 +25,7 @@ var b = true
 func f_ssa() *[8]uint {
 	// Make x a uintptr pointing to where a points.
 	var x uintptr
-	if b {
+	if always {
 		x = uintptr(unsafe.Pointer(a))
 	} else {
 		x = 0
@@ -48,7 +48,7 @@ func f_ssa() *[8]uint {
 	// to unsafe.Pointer can't be combined with the
 	// uintptr cast above.
 	var z uintptr
-	if b {
+	if always {
 		z = y
 	} else {
 		z = 0
@@ -61,7 +61,7 @@ func f_ssa() *[8]uint {
 func g_ssa() *[7]uint {
 	// Make x a uintptr pointing to where a points.
 	var x uintptr
-	if b {
+	if always {
 		x = uintptr(unsafe.Pointer(a))
 	} else {
 		x = 0
@@ -87,7 +87,7 @@ func g_ssa() *[7]uint {
 	// to unsafe.Pointer can't be combined with the
 	// uintptr cast above.
 	var z uintptr
-	if b {
+	if always {
 		z = y
 	} else {
 		z = 0
@@ -95,7 +95,7 @@ func g_ssa() *[7]uint {
 	return (*[7]uint)(unsafe.Pointer(z))
 }
 
-func testf() {
+func testf(t *testing.T) {
 	a = new([8]uint)
 	for i := 0; i < 8; i++ {
 		a[i] = 0xabcd
@@ -103,13 +103,12 @@ func testf() {
 	c := f_ssa()
 	for i := 0; i < 8; i++ {
 		if c[i] != 0xabcd {
-			fmt.Printf("%d:%x\n", i, c[i])
-			panic("bad c")
+			t.Fatalf("%d:%x\n", i, c[i])
 		}
 	}
 }
 
-func testg() {
+func testg(t *testing.T) {
 	a = new([8]uint)
 	for i := 0; i < 8; i++ {
 		a[i] = 0xabcd
@@ -117,8 +116,7 @@ func testg() {
 	c := g_ssa()
 	for i := 0; i < 7; i++ {
 		if c[i] != 0xabcd {
-			fmt.Printf("%d:%x\n", i, c[i])
-			panic("bad c")
+			t.Fatalf("%d:%x\n", i, c[i])
 		}
 	}
 }
@@ -130,19 +128,18 @@ func alias_ssa(ui64 *uint64, ui32 *uint32) uint32 {
 	*ui64 = 0xffffffffffffffff // store
 	return ret
 }
-func testdse() {
+func testdse(t *testing.T) {
 	x := int64(-1)
 	// construct two pointers that alias one another
 	ui64 := (*uint64)(unsafe.Pointer(&x))
 	ui32 := (*uint32)(unsafe.Pointer(&x))
 	if want, got := uint32(0), alias_ssa(ui64, ui32); got != want {
-		fmt.Printf("alias_ssa: wanted %d, got %d\n", want, got)
-		panic("alias_ssa")
+		t.Fatalf("alias_ssa: wanted %d, got %d\n", want, got)
 	}
 }
 
-func main() {
-	testf()
-	testg()
-	testdse()
+func TestUnsafe(t *testing.T) {
+	testf(t)
+	testg(t)
+	testdse(t)
 }
