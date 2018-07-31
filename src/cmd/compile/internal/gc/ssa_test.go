@@ -227,16 +227,7 @@ func TestCode(t *testing.T) {
 	}
 }
 
-// TestArithmeticBoundary tests boundary results for arithmetic operations.
-func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary.go") }
-
-// TestArithmeticConst tests results for arithmetic operations against constants.
-func TestArithmeticConst(t *testing.T) { runTest(t, "arithConst.go") }
-
 func TestChan(t *testing.T) { runTest(t, "chan.go") }
-
-// TestComparisonsConst tests results for comparison operations against constants.
-func TestComparisonsConst(t *testing.T) { runTest(t, "cmpConst.go") }
 
 func TestCompound(t *testing.T) { runTest(t, "compound.go") }
 
@@ -259,11 +250,7 @@ func TestArray(t *testing.T) { runTest(t, "array.go") }
 
 func TestAppend(t *testing.T) { runTest(t, "append.go") }
 
-func TestZero(t *testing.T) { runTest(t, "zero.go") }
-
 func TestAddressed(t *testing.T) { runTest(t, "addressed.go") }
-
-func TestCopy(t *testing.T) { runTest(t, "copy.go") }
 
 func TestUnsafe(t *testing.T) { runTest(t, "unsafe.go") }
 
