@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -103,9 +104,13 @@ td.collapsed  div {
          text-align: right;
 }
 
-code, pre, .lines {
+code, pre, .lines, .ast {
     font-family: Menlo, monospace;
     font-size: 12px;
+}
+
+.allow-x-scroll {
+    overflow-x: scroll;
 }
 
 .lines {
@@ -121,6 +126,10 @@ code, pre, .lines {
 
 div.line-number {
     font-size: 12px;
+}
+
+.ast {
+    white-space: nowrap;
 }
 
 td.ssa-prog {
@@ -521,7 +530,49 @@ func (w *HTMLWriter) WriteSources(phase string, all []*FuncLines) {
 		}
 	}
 	fmt.Fprint(&buf, "</pre></div>")
-	w.WriteColumn(phase, phase, "", buf.String())
+	w.WriteColumn(phase, phase, "allow-x-scroll", buf.String())
+}
+
+func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
+	if w == nil {
+		return // avoid generating HTML just to discard it
+	}
+	lines := strings.Split(buf.String(), "\n")
+	var out bytes.Buffer
+
+	fmt.Fprint(&out, "<div>")
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		var escaped string
+		var lineNo string
+		if l == "" {
+			escaped = "&nbsp;"
+		} else {
+			if strings.HasPrefix(l, "buildssa") {
+				escaped = fmt.Sprintf("<b>%v</b>", l)
+			} else {
+				// Parse the line number from the format l(123).
+				idx := strings.Index(l, " l(")
+				if idx != -1 {
+					subl := l[idx+3:]
+					idxEnd := strings.Index(subl, ")")
+					if idxEnd != -1 {
+						if _, err := strconv.Atoi(subl[:idxEnd]); err == nil {
+							lineNo = subl[:idxEnd]
+						}
+					}
+				}
+				escaped = html.EscapeString(l)
+			}
+		}
+		if lineNo != "" {
+			fmt.Fprintf(&out, "<div class=\"l%v line-number ast\">%v</div>", lineNo, escaped)
+		} else {
+			fmt.Fprintf(&out, "<div class=\"ast\">%v</div>", escaped)
+		}
+	}
+	fmt.Fprint(&out, "</div>")
+	w.WriteColumn(phase, phase, "allow-x-scroll", out.String())
 }
 
 // WriteColumn writes raw HTML in a column headed by title.

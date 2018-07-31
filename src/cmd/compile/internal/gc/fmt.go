@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -1834,6 +1835,10 @@ func (l Nodes) hconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 
 func dumplist(s string, l Nodes) {
 	fmt.Printf("%s%+v\n", s, l)
+}
+
+func fdumplist(w io.Writer, s string, l Nodes) {
+	fmt.Fprintf(w, "%s%+v\n", s, l)
 }
 
 func Dump(s string, n *Node) {
