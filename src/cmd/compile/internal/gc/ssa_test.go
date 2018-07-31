@@ -26,10 +26,6 @@ func runTest(t *testing.T, filename string, flags ...string) {
 	t.Parallel()
 	doTest(t, filename, "run", flags...)
 }
-func buildTest(t *testing.T, filename string, flags ...string) {
-	t.Parallel()
-	doTest(t, filename, "build", flags...)
-}
 func doTest(t *testing.T, filename string, kind string, flags ...string) {
 	testenv.MustHaveGoBuild(t)
 	gotool := testenv.GoToolPath(t)
@@ -226,22 +222,6 @@ func TestCode(t *testing.T) {
 		}
 	}
 }
-
-func TestChan(t *testing.T) { runTest(t, "chan.go") }
-
-func TestCompound(t *testing.T) { runTest(t, "compound.go") }
-
-func TestCtl(t *testing.T) { runTest(t, "ctl.go") }
-
-func TestLoadStore(t *testing.T) { runTest(t, "loadstore.go") }
-
-func TestMap(t *testing.T) { runTest(t, "map.go") }
-
-func TestRegalloc(t *testing.T) { runTest(t, "regalloc.go") }
-
-func TestString(t *testing.T) { runTest(t, "string.go") }
-
-func TestDeferNoReturn(t *testing.T) { buildTest(t, "deferNoReturn.go") }
 
 // TestClosure tests closure related behavior.
 func TestClosure(t *testing.T) { runTest(t, "closure.go") }

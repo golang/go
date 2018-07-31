@@ -5,7 +5,7 @@
 // string_ssa.go tests string operations.
 package main
 
-var failed = false
+import "testing"
 
 //go:noinline
 func testStringSlice1_ssa(a string, i, j int) string {
@@ -22,7 +22,7 @@ func testStringSlice12_ssa(a string, i, j int) string {
 	return a[i:j]
 }
 
-func testStringSlice() {
+func testStringSlice(t *testing.T) {
 	tests := [...]struct {
 		fn        func(string, int, int) string
 		s         string
@@ -44,10 +44,9 @@ func testStringSlice() {
 		{testStringSlice12_ssa, "", 0, 0, ""},
 	}
 
-	for i, t := range tests {
-		if got := t.fn(t.s, t.low, t.high); t.want != got {
-			println("#", i, " ", t.s, "[", t.low, ":", t.high, "] = ", got, " want ", t.want)
-			failed = true
+	for i, test := range tests {
+		if got := test.fn(test.s, test.low, test.high); test.want != got {
+			t.Errorf("#%d %s[%d,%d] = %s, want %s", i, test.s, test.low, test.high, got, test.want)
 		}
 	}
 }
@@ -61,26 +60,23 @@ func (p *prefix) slice_ssa() {
 }
 
 //go:noinline
-func testStructSlice() {
+func testStructSlice(t *testing.T) {
 	p := &prefix{"prefix"}
 	p.slice_ssa()
 	if "pre" != p.prefix {
-		println("wrong field slice: wanted %s got %s", "pre", p.prefix)
-		failed = true
+		t.Errorf("wrong field slice: wanted %s got %s", "pre", p.prefix)
 	}
 }
 
-func testStringSlicePanic() {
+func testStringSlicePanic(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			println("panicked as expected")
+			//println("panicked as expected")
 		}
 	}()
 
 	str := "foobar"
-	println("got ", testStringSlice12_ssa(str, 3, 9))
-	println("expected to panic, but didn't")
-	failed = true
+	t.Errorf("got %s and expected to panic, but didn't", testStringSlice12_ssa(str, 3, 9))
 }
 
 const _Accuracy_name = "BelowExactAbove"
@@ -92,7 +88,7 @@ func testSmallIndexType_ssa(i int) string {
 	return _Accuracy_name[_Accuracy_index[i]:_Accuracy_index[i+1]]
 }
 
-func testSmallIndexType() {
+func testSmallIndexType(t *testing.T) {
 	tests := []struct {
 		i    int
 		want string
@@ -102,10 +98,9 @@ func testSmallIndexType() {
 		{2, "Above"},
 	}
 
-	for i, t := range tests {
-		if got := testSmallIndexType_ssa(t.i); got != t.want {
-			println("#", i, "got ", got, ", wanted", t.want)
-			failed = true
+	for i, test := range tests {
+		if got := testSmallIndexType_ssa(test.i); got != test.want {
+			t.Errorf("#%d got %s wanted %s", i, got, test.want)
 		}
 	}
 }
@@ -120,7 +115,7 @@ func testInt64Slice_ssa(s string, i, j int64) string {
 	return s[i:j]
 }
 
-func testInt64Index() {
+func testInt64Index(t *testing.T) {
 	tests := []struct {
 		i int64
 		j int64
@@ -133,42 +128,36 @@ func testInt64Index() {
 	}
 
 	str := "BelowExactAbove"
-	for i, t := range tests {
-		if got := testInt64Index_ssa(str, t.i); got != t.b {
-			println("#", i, "got ", got, ", wanted", t.b)
-			failed = true
+	for i, test := range tests {
+		if got := testInt64Index_ssa(str, test.i); got != test.b {
+			t.Errorf("#%d got %d wanted %d", i, got, test.b)
 		}
-		if got := testInt64Slice_ssa(str, t.i, t.j); got != t.s {
-			println("#", i, "got ", got, ", wanted", t.s)
-			failed = true
+		if got := testInt64Slice_ssa(str, test.i, test.j); got != test.s {
+			t.Errorf("#%d got %s wanted %s", i, got, test.s)
 		}
 	}
 }
 
-func testInt64IndexPanic() {
+func testInt64IndexPanic(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			println("panicked as expected")
+			//println("panicked as expected")
 		}
 	}()
 
 	str := "foobar"
-	println("got ", testInt64Index_ssa(str, 1<<32+1))
-	println("expected to panic, but didn't")
-	failed = true
+	t.Errorf("got %d and expected to panic, but didn't", testInt64Index_ssa(str, 1<<32+1))
 }
 
-func testInt64SlicePanic() {
+func testInt64SlicePanic(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			println("panicked as expected")
+			//println("panicked as expected")
 		}
 	}()
 
 	str := "foobar"
-	println("got ", testInt64Slice_ssa(str, 1<<32, 1<<32+1))
-	println("expected to panic, but didn't")
-	failed = true
+	t.Errorf("got %s and expected to panic, but didn't", testInt64Slice_ssa(str, 1<<32, 1<<32+1))
 }
 
 //go:noinline
@@ -176,7 +165,7 @@ func testStringElem_ssa(s string, i int) byte {
 	return s[i]
 }
 
-func testStringElem() {
+func testStringElem(t *testing.T) {
 	tests := []struct {
 		s string
 		i int
@@ -186,10 +175,9 @@ func testStringElem() {
 		{"foobar", 0, 102},
 		{"foobar", 5, 114},
 	}
-	for _, t := range tests {
-		if got := testStringElem_ssa(t.s, t.i); got != t.n {
-			print("testStringElem \"", t.s, "\"[", t.i, "]=", got, ", wanted ", t.n, "\n")
-			failed = true
+	for _, test := range tests {
+		if got := testStringElem_ssa(test.s, test.i); got != test.n {
+			t.Errorf("testStringElem \"%s\"[%d] = %d, wanted %d", test.s, test.i, got, test.n)
 		}
 	}
 }
@@ -200,25 +188,20 @@ func testStringElemConst_ssa(i int) byte {
 	return s[i]
 }
 
-func testStringElemConst() {
+func testStringElemConst(t *testing.T) {
 	if got := testStringElemConst_ssa(3); got != 98 {
-		println("testStringElemConst=", got, ", wanted 98")
-		failed = true
+		t.Errorf("testStringElemConst= %d, wanted 98", got)
 	}
 }
 
-func main() {
-	testStringSlice()
-	testStringSlicePanic()
-	testStructSlice()
-	testSmallIndexType()
-	testStringElem()
-	testStringElemConst()
-	testInt64Index()
-	testInt64IndexPanic()
-	testInt64SlicePanic()
-
-	if failed {
-		panic("failed")
-	}
+func TestString(t *testing.T) {
+	testStringSlice(t)
+	testStringSlicePanic(t)
+	testStructSlice(t)
+	testSmallIndexType(t)
+	testStringElem(t)
+	testStringElemConst(t)
+	testInt64Index(t)
+	testInt64IndexPanic(t)
+	testInt64SlicePanic(t)
 }

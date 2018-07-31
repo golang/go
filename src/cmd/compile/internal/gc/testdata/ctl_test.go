@@ -1,5 +1,3 @@
-// run
-
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -7,6 +5,8 @@
 // Test control flow
 
 package main
+
+import "testing"
 
 // nor_ssa calculates NOR(a, b).
 // It is implemented in a way that generates
@@ -25,7 +25,7 @@ func nor_ssa(a, b bool) bool {
 	return true
 }
 
-func testPhiControl() {
+func testPhiControl(t *testing.T) {
 	tests := [...][3]bool{ // a, b, want
 		{false, false, true},
 		{true, false, false},
@@ -37,8 +37,7 @@ func testPhiControl() {
 		got := nor_ssa(a, b)
 		want := test[2]
 		if want != got {
-			print("nor(", a, ", ", b, ")=", want, " got ", got, "\n")
-			failed = true
+			t.Errorf("nor(%t, %t)=%t got %t", a, b, want, got)
 		}
 	}
 }
@@ -50,10 +49,9 @@ func emptyRange_ssa(b []byte) bool {
 	return true
 }
 
-func testEmptyRange() {
+func testEmptyRange(t *testing.T) {
 	if !emptyRange_ssa([]byte{}) {
-		println("emptyRange_ssa([]byte{})=false, want true")
-		failed = true
+		t.Errorf("emptyRange_ssa([]byte{})=false, want true")
 	}
 }
 
@@ -97,20 +95,18 @@ func fallthrough_ssa(a int) int {
 
 }
 
-func testFallthrough() {
+func testFallthrough(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		if got := fallthrough_ssa(i); got != i {
-			println("fallthrough_ssa(i) =", got, "wanted", i)
-			failed = true
+			t.Errorf("fallthrough_ssa(i) = %d, wanted %d", got, i)
 		}
 	}
 }
 
-func testSwitch() {
+func testSwitch(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		if got := switch_ssa(i); got != i {
-			println("switch_ssa(i) =", got, "wanted", i)
-			failed = true
+			t.Errorf("switch_ssa(i) = %d, wanted %d", got, i)
 		}
 	}
 }
@@ -135,26 +131,19 @@ func flagOverwrite_ssa(s *junk, c int) int {
 	return 3
 }
 
-func testFlagOverwrite() {
+func testFlagOverwrite(t *testing.T) {
 	j := junk{}
 	if got := flagOverwrite_ssa(&j, ' '); got != 3 {
-		println("flagOverwrite_ssa =", got, "wanted 3")
-		failed = true
+		t.Errorf("flagOverwrite_ssa = %d, wanted 3", got)
 	}
 }
 
-var failed = false
+func TestCtl(t *testing.T) {
+	testPhiControl(t)
+	testEmptyRange(t)
 
-func main() {
-	testPhiControl()
-	testEmptyRange()
+	testSwitch(t)
+	testFallthrough(t)
 
-	testSwitch()
-	testFallthrough()
-
-	testFlagOverwrite()
-
-	if failed {
-		panic("failed")
-	}
+	testFlagOverwrite(t)
 }
