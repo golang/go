@@ -6,11 +6,16 @@ package gc
 
 import (
 	"bytes"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -104,11 +109,123 @@ func TestGenFlowGraph(t *testing.T) {
 	runGenTest(t, "flowgraph_generator1.go", "ssa_fg_tmp1")
 }
 
-// TestShortCircuit tests OANDAND and OOROR expressions and short circuiting.
-func TestShortCircuit(t *testing.T) { runTest(t, "short.go") }
+// TestCode runs all the tests in the testdata directory as subtests.
+// These tests are special because we want to run them with different
+// compiler flags set (and thus they can't just be _test.go files in
+// this directory).
+func TestCode(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	gotool := testenv.GoToolPath(t)
 
-// TestBreakContinue tests that continue and break statements do what they say.
-func TestBreakContinue(t *testing.T) { runTest(t, "break.go") }
+	// Make a temporary directory to work in.
+	tmpdir, err := ioutil.TempDir("", "TestCode")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	// Find all the test functions (and the files containing them).
+	var srcs []string // files containing Test functions
+	type test struct {
+		name      string // TestFoo
+		usesFloat bool   // might use float operations
+	}
+	var tests []test
+	files, err := ioutil.ReadDir("testdata")
+	if err != nil {
+		t.Fatalf("can't read testdata directory: %v", err)
+	}
+	for _, f := range files {
+		if !strings.HasSuffix(f.Name(), "_test.go") {
+			continue
+		}
+		text, err := ioutil.ReadFile(filepath.Join("testdata", f.Name()))
+		if err != nil {
+			t.Fatalf("can't read testdata/%s: %v", f.Name(), err)
+		}
+		fset := token.NewFileSet()
+		code, err := parser.ParseFile(fset, f.Name(), text, 0)
+		if err != nil {
+			t.Fatalf("can't parse testdata/%s: %v", f.Name(), err)
+		}
+		srcs = append(srcs, filepath.Join("testdata", f.Name()))
+		foundTest := false
+		for _, d := range code.Decls {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			if !strings.HasPrefix(fd.Name.Name, "Test") {
+				continue
+			}
+			if fd.Recv != nil {
+				continue
+			}
+			if fd.Type.Results != nil {
+				continue
+			}
+			if len(fd.Type.Params.List) != 1 {
+				continue
+			}
+			p := fd.Type.Params.List[0]
+			if len(p.Names) != 1 {
+				continue
+			}
+			s, ok := p.Type.(*ast.StarExpr)
+			if !ok {
+				continue
+			}
+			sel, ok := s.X.(*ast.SelectorExpr)
+			if !ok {
+				continue
+			}
+			base, ok := sel.X.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			if base.Name != "testing" {
+				continue
+			}
+			if sel.Sel.Name != "T" {
+				continue
+			}
+			// Found a testing function.
+			tests = append(tests, test{name: fd.Name.Name, usesFloat: bytes.Contains(text, []byte("float"))})
+			foundTest = true
+		}
+		if !foundTest {
+			t.Fatalf("test file testdata/%s has no tests in it", f.Name())
+		}
+	}
+
+	flags := []string{""}
+	if runtime.GOARCH == "arm" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" {
+		flags = append(flags, ",softfloat")
+	}
+	for _, flag := range flags {
+		args := []string{"test", "-c", "-gcflags=-d=ssa/check/on" + flag, "-o", filepath.Join(tmpdir, "code.test")}
+		args = append(args, srcs...)
+		out, err := exec.Command(gotool, args...).CombinedOutput()
+		if err != nil || len(out) != 0 {
+			t.Fatalf("Build failed: %v\n%s\n", err, out)
+		}
+
+		// Now we have a test binary. Run it with all the tests as subtests of this one.
+		for _, test := range tests {
+			test := test
+			if flag == ",softfloat" && !test.usesFloat {
+				// No point in running the soft float version if the test doesn't use floats.
+				continue
+			}
+			t.Run(fmt.Sprintf("%s%s", test.name[4:], flag), func(t *testing.T) {
+				out, err := exec.Command(filepath.Join(tmpdir, "code.test"), "-test.run="+test.name).CombinedOutput()
+				if err != nil || string(out) != "PASS\n" {
+					t.Errorf("Failed:\n%s\n", out)
+				}
+			})
+		}
+	}
+}
 
 // TestTypeAssertion tests type assertions.
 func TestTypeAssertion(t *testing.T) { runTest(t, "assert.go") }
