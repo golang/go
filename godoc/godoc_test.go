@@ -321,3 +321,50 @@ func TestSrcToPkgLinkFunc(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterOutBuildAnnotations(t *testing.T) {
+	// TODO: simplify this by using a multiline string once we stop
+	// using go vet from 1.10 on the build dashboard.
+	// https://golang.org/issue/26627
+	src := []byte("// +build !foo\n" +
+		"// +build !anothertag\n" +
+		"\n" +
+		"// non-tag comment\n" +
+		"\n" +
+		"package foo\n" +
+		"\n" +
+		"func bar() int {\n" +
+		"	return 42\n" +
+		"}\n")
+
+	fset := token.NewFileSet()
+	af, err := parser.ParseFile(fset, "foo.go", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+	for _, cg := range af.Comments {
+		if strings.HasPrefix(cg.Text(), "+build ") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("TestFilterOutBuildAnnotations is broken: missing build tag in test input")
+	}
+
+	found = false
+	for _, cg := range filterOutBuildAnnotations(af.Comments) {
+		if strings.HasPrefix(cg.Text(), "+build ") {
+			t.Errorf("filterOutBuildAnnotations failed to filter build tag")
+		}
+
+		if strings.Contains(cg.Text(), "non-tag comment") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("filterOutBuildAnnotations should not remove non-build tag comment")
+	}
+}

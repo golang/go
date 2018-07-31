@@ -666,6 +666,7 @@ func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string 
 		play := ""
 		if eg.Play != nil && p.ShowPlayground {
 			var buf bytes.Buffer
+			eg.Play.Comments = filterOutBuildAnnotations(eg.Play.Comments)
 			if err := format.Node(&buf, info.FSet, eg.Play); err != nil {
 				log.Print(err)
 			} else {
@@ -692,6 +693,23 @@ func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string 
 		}
 	}
 	return buf.String()
+}
+
+func filterOutBuildAnnotations(cg []*ast.CommentGroup) []*ast.CommentGroup {
+	if len(cg) == 0 {
+		return cg
+	}
+
+	for i := range cg {
+		if !strings.HasPrefix(cg[i].Text(), "+build ") {
+			// Found the first non-build tag, return from here until the end
+			// of the slice.
+			return cg[i:]
+		}
+	}
+
+	// There weren't any non-build tags, return an empty slice.
+	return []*ast.CommentGroup{}
 }
 
 // example_nameFunc takes an example function name and returns its display
