@@ -533,13 +533,12 @@ func TestTypeCheckError(t *testing.T) {
 		wantTypes    bool
 		wantSyntax   bool
 		wantIllTyped bool
-		wantErrs     []string
 	}{
-		{"a", true, true, true, nil},
-		{"b", true, true, true, nil},
-		{"c", true, true, true, []string{"could not import d (no export data file)"}},
-		{"d", false, false, true, nil},  // missing export data
-		{"e", false, false, false, nil}, // type info not requested (despite type error)
+		{"a", true, true, true},
+		{"b", true, true, true},
+		{"c", true, true, true},
+		{"d", false, false, true},  // missing export data
+		{"e", false, false, false}, // type info not requested (despite type error)
 	} {
 		if usesOldGolist && test.id == "c" || test.id == "d" || test.id == "e" {
 			// Behavior is different for old golist because it upgrades to wholeProgram.
@@ -567,9 +566,6 @@ func TestTypeCheckError(t *testing.T) {
 		}
 		if p.IllTyped != test.wantIllTyped {
 			t.Errorf("IllTyped was %t for %s", p.IllTyped, test.id)
-		}
-		if errs := errorMessages(p.Errors); !reflect.DeepEqual(errs, test.wantErrs) {
-			t.Errorf("in package %s, got errors %s, want %s", p, errs, test.wantErrs)
 		}
 	}
 

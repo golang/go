@@ -17,9 +17,10 @@ import (
 	"os"
 	"sync"
 
-	"golang.org/x/tools/go/gcexportdata"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/go/gcexportdata"
 )
 
 // A LoadMode specifies the amount of detail to return when loading packages.
@@ -296,11 +297,6 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 	// See if the extra process invocation can be avoided.
 	list, err := listfunc(rawCfg, patterns...)
 	if _, ok := err.(GoTooOldError); ok {
-		if ld.Config.Mode >= LoadTypes {
-			// Upgrade to LoadAllSyntax because we can't depend on the existance
-			// of export data. We can remove this once iancottrell's cl is in.
-			ld.Config.Mode = LoadAllSyntax
-		}
 		listfunc = golistPackagesFallback
 		list, err = listfunc(rawCfg, patterns...)
 	}
@@ -358,8 +354,7 @@ func (ld *loader) loadFrom(list ...*rawPackage) ([]*Package, error) {
 				GoFiles:    pkg.GoFiles,
 				OtherFiles: pkg.OtherFiles,
 			},
-			// TODO: should needsrc also be true if pkg.Export == ""
-			needsrc: ld.Mode >= LoadAllSyntax,
+			needsrc: ld.Mode >= LoadAllSyntax || pkg.Export == "",
 		}
 		ld.pkgs[lpkg.ID] = lpkg
 		if !pkg.DepOnly {
