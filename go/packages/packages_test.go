@@ -376,7 +376,7 @@ package b`,
 			t.Error(err)
 		}
 		if len(initial) != 1 {
-			t.Errorf("test tags %v: pattern %s, expected 1 package, got %d packages.", test.tags, test.pattern, len(initial))
+			t.Fatalf("test tags %v: pattern %s, expected 1 package, got %d packages.", test.tags, test.pattern, len(initial))
 		}
 		pkg := initial[0]
 		if srcs := strings.Join(srcs(pkg), " "); srcs != test.wantSrcs {
