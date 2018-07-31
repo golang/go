@@ -5,9 +5,7 @@
 // cmp_ssa.go tests compare simplification operations.
 package main
 
-import "fmt"
-
-var failed = false
+import "testing"
 
 //go:noinline
 func eq_ssa(a int64) bool {
@@ -19,30 +17,21 @@ func neq_ssa(a int64) bool {
 	return 10 != a+4
 }
 
-func testCmp() {
+func testCmp(t *testing.T) {
 	if wanted, got := true, eq_ssa(6); wanted != got {
-		fmt.Printf("eq_ssa: expected %v, got %v\n", wanted, got)
-		failed = true
+		t.Errorf("eq_ssa: expected %v, got %v\n", wanted, got)
 	}
 	if wanted, got := false, eq_ssa(7); wanted != got {
-		fmt.Printf("eq_ssa: expected %v, got %v\n", wanted, got)
-		failed = true
+		t.Errorf("eq_ssa: expected %v, got %v\n", wanted, got)
 	}
-
 	if wanted, got := false, neq_ssa(6); wanted != got {
-		fmt.Printf("neq_ssa: expected %v, got %v\n", wanted, got)
-		failed = true
+		t.Errorf("neq_ssa: expected %v, got %v\n", wanted, got)
 	}
 	if wanted, got := true, neq_ssa(7); wanted != got {
-		fmt.Printf("neq_ssa: expected %v, got %v\n", wanted, got)
-		failed = true
+		t.Errorf("neq_ssa: expected %v, got %v\n", wanted, got)
 	}
 }
 
-func main() {
-	testCmp()
-
-	if failed {
-		panic("failed")
-	}
+func TestCmp(t *testing.T) {
+	testCmp(t)
 }
