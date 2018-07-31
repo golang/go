@@ -1,5 +1,3 @@
-// run
-
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -8,14 +6,13 @@
 
 package main
 
-import "fmt"
+import "testing"
 
 // testLoadStoreOrder tests for reordering of stores/loads.
-func testLoadStoreOrder() {
+func testLoadStoreOrder(t *testing.T) {
 	z := uint32(1000)
 	if testLoadStoreOrder_ssa(&z, 100) == 0 {
-		println("testLoadStoreOrder failed")
-		failed = true
+		t.Errorf("testLoadStoreOrder failed")
 	}
 }
 
@@ -29,13 +26,12 @@ func testLoadStoreOrder_ssa(z *uint32, prec uint) int {
 	return 0
 }
 
-func testStoreSize() {
+func testStoreSize(t *testing.T) {
 	a := [4]uint16{11, 22, 33, 44}
 	testStoreSize_ssa(&a[0], &a[2], 77)
 	want := [4]uint16{77, 22, 33, 44}
 	if a != want {
-		fmt.Println("testStoreSize failed.  want =", want, ", got =", a)
-		failed = true
+		t.Errorf("testStoreSize failed.  want = %d, got = %d", want, a)
 	}
 }
 
@@ -55,8 +51,6 @@ func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
 	}
 }
 
-var failed = false
-
 //go:noinline
 func testExtStore_ssa(p *byte, b bool) int {
 	x := *p
@@ -67,12 +61,11 @@ func testExtStore_ssa(p *byte, b bool) int {
 	return 0
 }
 
-func testExtStore() {
+func testExtStore(t *testing.T) {
 	const start = 8
 	var b byte = start
 	if got := testExtStore_ssa(&b, true); got != start {
-		fmt.Println("testExtStore failed.  want =", start, ", got =", got)
-		failed = true
+		t.Errorf("testExtStore failed.  want = %d, got = %d", start, got)
 	}
 }
 
@@ -95,10 +88,9 @@ func testDeadStorePanic_ssa(a int) (r int) {
 	return
 }
 
-func testDeadStorePanic() {
+func testDeadStorePanic(t *testing.T) {
 	if want, got := 2, testDeadStorePanic_ssa(1); want != got {
-		fmt.Println("testDeadStorePanic failed.  want =", want, ", got =", got)
-		failed = true
+		t.Errorf("testDeadStorePanic failed.  want = %d, got = %d", want, got)
 	}
 }
 
@@ -144,7 +136,7 @@ func loadHitStoreU32(x uint32, p *uint32) uint64 {
 	return uint64(*p) // load and cast
 }
 
-func testLoadHitStore() {
+func testLoadHitStore(t *testing.T) {
 	// Test that sign/zero extensions are kept when a load-hit-store
 	// is replaced by a register-register move.
 	{
@@ -153,8 +145,7 @@ func testLoadHitStore() {
 		got := loadHitStore8(in, &p)
 		want := int32(in * in)
 		if got != want {
-			fmt.Println("testLoadHitStore (int8) failed. want =", want, ", got =", got)
-			failed = true
+			t.Errorf("testLoadHitStore (int8) failed. want = %d, got = %d", want, got)
 		}
 	}
 	{
@@ -163,8 +154,7 @@ func testLoadHitStore() {
 		got := loadHitStoreU8(in, &p)
 		want := uint32(in * in)
 		if got != want {
-			fmt.Println("testLoadHitStore (uint8) failed. want =", want, ", got =", got)
-			failed = true
+			t.Errorf("testLoadHitStore (uint8) failed. want = %d, got = %d", want, got)
 		}
 	}
 	{
@@ -173,8 +163,7 @@ func testLoadHitStore() {
 		got := loadHitStore16(in, &p)
 		want := int32(in * in)
 		if got != want {
-			fmt.Println("testLoadHitStore (int16) failed. want =", want, ", got =", got)
-			failed = true
+			t.Errorf("testLoadHitStore (int16) failed. want = %d, got = %d", want, got)
 		}
 	}
 	{
@@ -183,8 +172,7 @@ func testLoadHitStore() {
 		got := loadHitStoreU16(in, &p)
 		want := uint32(in * in)
 		if got != want {
-			fmt.Println("testLoadHitStore (uint16) failed. want =", want, ", got =", got)
-			failed = true
+			t.Errorf("testLoadHitStore (uint16) failed. want = %d, got = %d", want, got)
 		}
 	}
 	{
@@ -193,8 +181,7 @@ func testLoadHitStore() {
 		got := loadHitStore32(in, &p)
 		want := int64(in * in)
 		if got != want {
-			fmt.Println("testLoadHitStore (int32) failed. want =", want, ", got =", got)
-			failed = true
+			t.Errorf("testLoadHitStore (int32) failed. want = %d, got = %d", want, got)
 		}
 	}
 	{
@@ -203,21 +190,15 @@ func testLoadHitStore() {
 		got := loadHitStoreU32(in, &p)
 		want := uint64(in * in)
 		if got != want {
-			fmt.Println("testLoadHitStore (uint32) failed. want =", want, ", got =", got)
-			failed = true
+			t.Errorf("testLoadHitStore (uint32) failed. want = %d, got = %d", want, got)
 		}
 	}
 }
 
-func main() {
-
-	testLoadStoreOrder()
-	testStoreSize()
-	testExtStore()
-	testDeadStorePanic()
-	testLoadHitStore()
-
-	if failed {
-		panic("failed")
-	}
+func TestLoadStore(t *testing.T) {
+	testLoadStoreOrder(t)
+	testStoreSize(t)
+	testExtStore(t)
+	testDeadStorePanic(t)
+	testLoadHitStore(t)
 }

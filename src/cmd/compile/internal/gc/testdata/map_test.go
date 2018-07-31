@@ -2,19 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// map_ssa.go tests map operations.
+// map.go tests map operations.
 package main
 
-import "fmt"
-
-var failed = false
+import "testing"
 
 //go:noinline
 func lenMap_ssa(v map[int]int) int {
 	return len(v)
 }
 
-func testLenMap() {
+func testLenMap(t *testing.T) {
 
 	v := make(map[int]int)
 	v[0] = 0
@@ -22,24 +20,18 @@ func testLenMap() {
 	v[2] = 0
 
 	if want, got := 3, lenMap_ssa(v); got != want {
-		fmt.Printf("expected len(map) = %d, got %d", want, got)
-		failed = true
+		t.Errorf("expected len(map) = %d, got %d", want, got)
 	}
 }
 
-func testLenNilMap() {
+func testLenNilMap(t *testing.T) {
 
 	var v map[int]int
 	if want, got := 0, lenMap_ssa(v); got != want {
-		fmt.Printf("expected len(nil) = %d, got %d", want, got)
-		failed = true
+		t.Errorf("expected len(nil) = %d, got %d", want, got)
 	}
 }
-func main() {
-	testLenMap()
-	testLenNilMap()
-
-	if failed {
-		panic("failed")
-	}
+func TestMap(t *testing.T) {
+	testLenMap(t)
+	testLenNilMap(t)
 }
