@@ -9,12 +9,9 @@ package main
 // of the post-shortened size.
 
 import (
-	"fmt"
 	"runtime"
+	"testing"
 )
-
-// unfoldable true
-var true_ = true
 
 var data1 [26]int32
 var data2 [26]int64
@@ -29,7 +26,7 @@ func init() {
 
 func foo() int32 {
 	var a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z int32
-	if true_ {
+	if always {
 		a = data1[0]
 		b = data1[1]
 		c = data1[2]
@@ -93,11 +90,10 @@ func foo() int32 {
 	return a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y + z
 }
 
-func main() {
+func TestPhi(t *testing.T) {
 	want := int32(0)
 	got := foo()
 	if got != want {
-		fmt.Printf("want %d, got %d\n", want, got)
-		panic("bad")
+		t.Fatalf("want %d, got %d\n", want, got)
 	}
 }

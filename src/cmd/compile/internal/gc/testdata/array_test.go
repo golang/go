@@ -1,6 +1,6 @@
 package main
 
-var failed = false
+import "testing"
 
 //go:noinline
 func testSliceLenCap12_ssa(a [10]int, i, j int) (int, int) {
@@ -20,7 +20,7 @@ func testSliceLenCap2_ssa(a [10]int, i, j int) (int, int) {
 	return len(b), cap(b)
 }
 
-func testSliceLenCap() {
+func testSliceLenCap(t *testing.T) {
 	a := [10]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	tests := [...]struct {
 		fn   func(a [10]int, i, j int) (int, int)
@@ -43,11 +43,9 @@ func testSliceLenCap() {
 		{testSliceLenCap2_ssa, -1, 10, 10, 10},
 	}
 
-	for i, t := range tests {
-		if l, c := t.fn(a, t.i, t.j); l != t.l && c != t.c {
-			println("#", i, " len(a[", t.i, ":", t.j, "]), cap(a[", t.i, ":", t.j, "]) =", l, c,
-				", want", t.l, t.c)
-			failed = true
+	for i, test := range tests {
+		if l, c := test.fn(a, test.i, test.j); l != test.l && c != test.c {
+			t.Errorf("#%d len(a[%d:%d]), cap(a[%d:%d]) = %d %d, want %d %d", i, test.i, test.j, test.i, test.j, l, c, test.l, test.c)
 		}
 	}
 }
@@ -57,7 +55,7 @@ func testSliceGetElement_ssa(a [10]int, i, j, p int) int {
 	return a[i:j][p]
 }
 
-func testSliceGetElement() {
+func testSliceGetElement(t *testing.T) {
 	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
 	tests := [...]struct {
 		i, j, p int
@@ -69,10 +67,9 @@ func testSliceGetElement() {
 		{1, 9, 7, 80},
 	}
 
-	for i, t := range tests {
-		if got := testSliceGetElement_ssa(a, t.i, t.j, t.p); got != t.want {
-			println("#", i, " a[", t.i, ":", t.j, "][", t.p, "] = ", got, " wanted ", t.want)
-			failed = true
+	for i, test := range tests {
+		if got := testSliceGetElement_ssa(a, test.i, test.j, test.p); got != test.want {
+			t.Errorf("#%d a[%d:%d][%d] = %d, wanted %d", i, test.i, test.j, test.p, got, test.want)
 		}
 	}
 }
@@ -82,7 +79,7 @@ func testSliceSetElement_ssa(a *[10]int, i, j, p, x int) {
 	(*a)[i:j][p] = x
 }
 
-func testSliceSetElement() {
+func testSliceSetElement(t *testing.T) {
 	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
 	tests := [...]struct {
 		i, j, p int
@@ -94,49 +91,42 @@ func testSliceSetElement() {
 		{1, 9, 7, 99},
 	}
 
-	for i, t := range tests {
-		testSliceSetElement_ssa(&a, t.i, t.j, t.p, t.want)
-		if got := a[t.i+t.p]; got != t.want {
-			println("#", i, " a[", t.i, ":", t.j, "][", t.p, "] = ", got, " wanted ", t.want)
-			failed = true
+	for i, test := range tests {
+		testSliceSetElement_ssa(&a, test.i, test.j, test.p, test.want)
+		if got := a[test.i+test.p]; got != test.want {
+			t.Errorf("#%d a[%d:%d][%d] = %d, wanted %d", i, test.i, test.j, test.p, got, test.want)
 		}
 	}
 }
 
-func testSlicePanic1() {
+func testSlicePanic1(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			println("panicked as expected")
+			//println("panicked as expected")
 		}
 	}()
 
 	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
 	testSliceLenCap12_ssa(a, 3, 12)
-	println("expected to panic, but didn't")
-	failed = true
+	t.Errorf("expected to panic, but didn't")
 }
 
-func testSlicePanic2() {
+func testSlicePanic2(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			println("panicked as expected")
+			//println("panicked as expected")
 		}
 	}()
 
 	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
 	testSliceGetElement_ssa(a, 3, 7, 4)
-	println("expected to panic, but didn't")
-	failed = true
+	t.Errorf("expected to panic, but didn't")
 }
 
-func main() {
-	testSliceLenCap()
-	testSliceGetElement()
-	testSliceSetElement()
-	testSlicePanic1()
-	testSlicePanic2()
-
-	if failed {
-		panic("failed")
-	}
+func TestArray(t *testing.T) {
+	testSliceLenCap(t)
+	testSliceGetElement(t)
+	testSliceSetElement(t)
+	testSlicePanic1(t)
+	testSlicePanic2(t)
 }

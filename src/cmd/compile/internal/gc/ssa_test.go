@@ -20,39 +20,6 @@ import (
 	"testing"
 )
 
-// TODO: move all these tests elsewhere?
-// Perhaps teach test/run.go how to run them with a new action verb.
-func runTest(t *testing.T, filename string, flags ...string) {
-	t.Parallel()
-	doTest(t, filename, "run", flags...)
-}
-func doTest(t *testing.T, filename string, kind string, flags ...string) {
-	testenv.MustHaveGoBuild(t)
-	gotool := testenv.GoToolPath(t)
-
-	var stdout, stderr bytes.Buffer
-	args := []string{kind}
-	if len(flags) == 0 {
-		args = append(args, "-gcflags=-d=ssa/check/on")
-	} else {
-		args = append(args, flags...)
-	}
-	args = append(args, filepath.Join("testdata", filename))
-	cmd := exec.Command(gotool, args...)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
-	}
-	if s := stdout.String(); s != "" {
-		t.Errorf("Stdout = %s\nWant empty", s)
-	}
-	if s := stderr.String(); strings.Contains(s, "SSA unimplemented") {
-		t.Errorf("Unimplemented message found in stderr:\n%s", s)
-	}
-}
-
 // runGenTest runs a test-generator, then runs the generated test.
 // Generated test can either fail in compilation or execution.
 // The environment variable parameter(s) is passed to the run
@@ -222,24 +189,3 @@ func TestCode(t *testing.T) {
 		}
 	}
 }
-
-// TestClosure tests closure related behavior.
-func TestClosure(t *testing.T) { runTest(t, "closure.go") }
-
-func TestArray(t *testing.T) { runTest(t, "array.go") }
-
-func TestAppend(t *testing.T) { runTest(t, "append.go") }
-
-func TestAddressed(t *testing.T) { runTest(t, "addressed.go") }
-
-func TestUnsafe(t *testing.T) { runTest(t, "unsafe.go") }
-
-func TestPhi(t *testing.T) { runTest(t, "phi.go") }
-
-func TestSlice(t *testing.T) { runTest(t, "slice.go") }
-
-func TestNamedReturn(t *testing.T) { runTest(t, "namedReturn.go") }
-
-func TestDuplicateLoad(t *testing.T) { runTest(t, "dupLoad.go") }
-
-func TestSqrt(t *testing.T) { runTest(t, "sqrt_const.go") }

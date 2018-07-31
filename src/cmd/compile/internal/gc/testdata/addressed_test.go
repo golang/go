@@ -4,48 +4,51 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"testing"
+)
 
 var output string
 
-func mypanic(s string) {
-	fmt.Printf(output)
-	panic(s)
+func mypanic(t *testing.T, s string) {
+	t.Fatalf(s + "\n" + output)
+
 }
 
-func assertEqual(x, y int) {
+func assertEqual(t *testing.T, x, y int) {
 	if x != y {
-		mypanic("assertEqual failed")
+		mypanic(t, fmt.Sprintf("assertEqual failed got %d, want %d", x, y))
 	}
 }
 
-func main() {
+func TestAddressed(t *testing.T) {
 	x := f1_ssa(2, 3)
 	output += fmt.Sprintln("*x is", *x)
 	output += fmt.Sprintln("Gratuitously use some stack")
 	output += fmt.Sprintln("*x is", *x)
-	assertEqual(*x, 9)
+	assertEqual(t, *x, 9)
 
 	w := f3a_ssa(6)
 	output += fmt.Sprintln("*w is", *w)
 	output += fmt.Sprintln("Gratuitously use some stack")
 	output += fmt.Sprintln("*w is", *w)
-	assertEqual(*w, 6)
+	assertEqual(t, *w, 6)
 
 	y := f3b_ssa(12)
 	output += fmt.Sprintln("*y.(*int) is", *y.(*int))
 	output += fmt.Sprintln("Gratuitously use some stack")
 	output += fmt.Sprintln("*y.(*int) is", *y.(*int))
-	assertEqual(*y.(*int), 12)
+	assertEqual(t, *y.(*int), 12)
 
 	z := f3c_ssa(8)
 	output += fmt.Sprintln("*z.(*int) is", *z.(*int))
 	output += fmt.Sprintln("Gratuitously use some stack")
 	output += fmt.Sprintln("*z.(*int) is", *z.(*int))
-	assertEqual(*z.(*int), 8)
+	assertEqual(t, *z.(*int), 8)
 
-	args()
-	test_autos()
+	args(t)
+	test_autos(t)
 }
 
 //go:noinline
@@ -75,13 +78,13 @@ type V struct {
 	w, x int64
 }
 
-func args() {
+func args(t *testing.T) {
 	v := V{p: nil, w: 1, x: 1}
 	a := V{p: &v, w: 2, x: 2}
 	b := V{p: &v, w: 0, x: 0}
 	i := v.args_ssa(a, b)
 	output += fmt.Sprintln("i=", i)
-	assertEqual(int(i), 2)
+	assertEqual(t, int(i), 2)
 }
 
 //go:noinline
@@ -100,32 +103,32 @@ func (v V) args_ssa(a, b V) int64 {
 	return -1
 }
 
-func test_autos() {
-	test(11)
-	test(12)
-	test(13)
-	test(21)
-	test(22)
-	test(23)
-	test(31)
-	test(32)
+func test_autos(t *testing.T) {
+	test(t, 11)
+	test(t, 12)
+	test(t, 13)
+	test(t, 21)
+	test(t, 22)
+	test(t, 23)
+	test(t, 31)
+	test(t, 32)
 }
 
-func test(which int64) {
+func test(t *testing.T, which int64) {
 	output += fmt.Sprintln("test", which)
 	v1 := V{w: 30, x: 3, p: nil}
 	v2, v3 := v1.autos_ssa(which, 10, 1, 20, 2)
 	if which != v2.val() {
 		output += fmt.Sprintln("Expected which=", which, "got v2.val()=", v2.val())
-		mypanic("Failure of expected V value")
+		mypanic(t, "Failure of expected V value")
 	}
 	if v2.p.val() != v3.val() {
 		output += fmt.Sprintln("Expected v2.p.val()=", v2.p.val(), "got v3.val()=", v3.val())
-		mypanic("Failure of expected V.p value")
+		mypanic(t, "Failure of expected V.p value")
 	}
 	if which != v3.p.p.p.p.p.p.p.val() {
 		output += fmt.Sprintln("Expected which=", which, "got v3.p.p.p.p.p.p.p.val()=", v3.p.p.p.p.p.p.p.val())
-		mypanic("Failure of expected V.p value")
+		mypanic(t, "Failure of expected V.p value")
 	}
 }
 

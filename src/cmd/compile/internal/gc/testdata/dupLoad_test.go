@@ -1,5 +1,3 @@
-// run
-
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -9,7 +7,7 @@
 
 package main
 
-import "fmt"
+import "testing"
 
 //go:noinline
 func read1(b []byte) (uint16, uint16) {
@@ -19,9 +17,8 @@ func read1(b []byte) (uint16, uint16) {
 	return uint16(v), uint16(v) | uint16(b[1])<<8
 }
 
-const N = 100000
-
-func main1() {
+func main1(t *testing.T) {
+	const N = 100000
 	done := make(chan struct{})
 	b := make([]byte, 2)
 	go func() {
@@ -35,8 +32,7 @@ func main1() {
 		for i := 0; i < N; i++ {
 			x, y := read1(b)
 			if byte(x) != byte(y) {
-				fmt.Printf("x=%x y=%x\n", x, y)
-				panic("bad")
+				t.Fatalf("x=%x y=%x\n", x, y)
 			}
 		}
 		done <- struct{}{}
@@ -53,7 +49,8 @@ func read2(b []byte) (uint16, uint16) {
 	return v, uint16(b[0]) | v
 }
 
-func main2() {
+func main2(t *testing.T) {
+	const N = 100000
 	done := make(chan struct{})
 	b := make([]byte, 2)
 	go func() {
@@ -67,8 +64,7 @@ func main2() {
 		for i := 0; i < N; i++ {
 			x, y := read2(b)
 			if x&0xff00 != y&0xff00 {
-				fmt.Printf("x=%x y=%x\n", x, y)
-				panic("bad")
+				t.Fatalf("x=%x y=%x\n", x, y)
 			}
 		}
 		done <- struct{}{}
@@ -77,7 +73,7 @@ func main2() {
 	<-done
 }
 
-func main() {
-	main1()
-	main2()
+func TestDupLoad(t *testing.T) {
+	main1(t)
+	main2(t)
 }

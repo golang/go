@@ -5,8 +5,8 @@
 package main
 
 import (
-	"fmt"
 	"math"
+	"testing"
 )
 
 var tests = [...]struct {
@@ -33,27 +33,18 @@ var nanTests = [...]struct {
 	{"sqrtNegInf", math.Inf(-1), math.Sqrt(math.Inf(-1))},
 }
 
-var failed = false
-
-func main() {
+func TestSqrtConst(t *testing.T) {
 	for _, test := range tests {
 		if test.got != test.want {
-			fmt.Printf("%s: math.Sqrt(%f): got %f, want %f\n", test.name, test.in, test.got, test.want)
-			failed = true
+			t.Errorf("%s: math.Sqrt(%f): got %f, want %f\n", test.name, test.in, test.got, test.want)
 		}
 	}
 	for _, test := range nanTests {
 		if math.IsNaN(test.got) != true {
-			fmt.Printf("%s: math.Sqrt(%f): got %f, want NaN\n", test.name, test.in, test.got)
-			failed = true
+			t.Errorf("%s: math.Sqrt(%f): got %f, want NaN\n", test.name, test.in, test.got)
 		}
 	}
 	if got := math.Sqrt(math.Inf(1)); !math.IsInf(got, 1) {
-		fmt.Printf("math.Sqrt(+Inf), got %f, want +Inf\n", got)
-		failed = true
-	}
-
-	if failed {
-		panic("failed")
+		t.Errorf("math.Sqrt(+Inf), got %f, want +Inf\n", got)
 	}
 }

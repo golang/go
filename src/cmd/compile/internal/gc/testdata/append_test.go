@@ -5,9 +5,7 @@
 // append_ssa.go tests append operations.
 package main
 
-import "fmt"
-
-var failed = false
+import "testing"
 
 //go:noinline
 func appendOne_ssa(a []int, x int) []int {
@@ -19,7 +17,7 @@ func appendThree_ssa(a []int, x, y, z int) []int {
 	return append(a, x, y, z)
 }
 
-func eq(a, b []int) bool {
+func eqBytes(a, b []int) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -31,40 +29,33 @@ func eq(a, b []int) bool {
 	return true
 }
 
-func expect(got, want []int) {
-	if eq(got, want) {
+func expect(t *testing.T, got, want []int) {
+	if eqBytes(got, want) {
 		return
 	}
-	fmt.Printf("expected %v, got %v\n", want, got)
-	failed = true
+	t.Errorf("expected %v, got %v\n", want, got)
 }
 
-func testAppend() {
+func testAppend(t *testing.T) {
 	var store [7]int
 	a := store[:0]
 
 	a = appendOne_ssa(a, 1)
-	expect(a, []int{1})
+	expect(t, a, []int{1})
 	a = appendThree_ssa(a, 2, 3, 4)
-	expect(a, []int{1, 2, 3, 4})
+	expect(t, a, []int{1, 2, 3, 4})
 	a = appendThree_ssa(a, 5, 6, 7)
-	expect(a, []int{1, 2, 3, 4, 5, 6, 7})
+	expect(t, a, []int{1, 2, 3, 4, 5, 6, 7})
 	if &a[0] != &store[0] {
-		fmt.Println("unnecessary grow")
-		failed = true
+		t.Errorf("unnecessary grow")
 	}
 	a = appendOne_ssa(a, 8)
-	expect(a, []int{1, 2, 3, 4, 5, 6, 7, 8})
+	expect(t, a, []int{1, 2, 3, 4, 5, 6, 7, 8})
 	if &a[0] == &store[0] {
-		fmt.Println("didn't grow")
-		failed = true
+		t.Errorf("didn't grow")
 	}
 }
 
-func main() {
-	testAppend()
-
-	if failed {
-		panic("failed")
-	}
+func TestAppend(t *testing.T) {
+	testAppend(t)
 }
