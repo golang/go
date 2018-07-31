@@ -43,15 +43,12 @@ var (
 )
 
 // Callback is a Go function that got wrapped for use as a JavaScript callback.
-// A Callback can be passed to functions of this package that accept interface{},
-// for example Value.Set and Value.Call.
 type Callback struct {
 	Value // the JavaScript function that queues the callback for execution
 	id    uint32
 }
 
-// NewCallback returns a wrapped callback function. It can be passed to functions of this package
-// that accept interface{}, for example Value.Set and Value.Call.
+// NewCallback returns a wrapped callback function.
 //
 // Invoking the callback in JavaScript will queue the Go function fn for execution.
 // This execution happens asynchronously on a special goroutine that handles all callbacks and preserves
