@@ -1,5 +1,3 @@
-// run
-
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -8,7 +6,10 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"testing"
+)
 
 // manysub_ssa is designed to tickle bugs that depend on register
 // pressure or unfriendly operand ordering in registers (and at
@@ -159,81 +160,78 @@ func conv2Float32_ssa(a int8, b uint8, c int16, d uint16,
 	return
 }
 
-func integer2floatConversions() int {
-	fails := 0
+func integer2floatConversions(t *testing.T) {
 	{
 		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(0, 0, 0, 0, 0, 0, 0, 0, 0)
-		fails += expectAll64("zero64", 0, a, b, c, d, e, f, g, h, i)
+		expectAll64(t, "zero64", 0, a, b, c, d, e, f, g, h, i)
 	}
 	{
 		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(1, 1, 1, 1, 1, 1, 1, 1, 1)
-		fails += expectAll64("one64", 1, a, b, c, d, e, f, g, h, i)
+		expectAll64(t, "one64", 1, a, b, c, d, e, f, g, h, i)
 	}
 	{
 		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(0, 0, 0, 0, 0, 0, 0, 0, 0)
-		fails += expectAll32("zero32", 0, a, b, c, d, e, f, g, h, i)
+		expectAll32(t, "zero32", 0, a, b, c, d, e, f, g, h, i)
 	}
 	{
 		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(1, 1, 1, 1, 1, 1, 1, 1, 1)
-		fails += expectAll32("one32", 1, a, b, c, d, e, f, g, h, i)
+		expectAll32(t, "one32", 1, a, b, c, d, e, f, g, h, i)
 	}
 	{
 		// Check maximum values
 		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823E38)
-		fails += expect64("a", a, 127)
-		fails += expect64("b", b, 255)
-		fails += expect64("c", c, 32767)
-		fails += expect64("d", d, 65535)
-		fails += expect64("e", e, float64(int32(0x7fffffff)))
-		fails += expect64("f", f, float64(uint32(0xffffffff)))
-		fails += expect64("g", g, float64(int64(0x7fffffffffffffff)))
-		fails += expect64("h", h, float64(uint64(0xffffffffffffffff)))
-		fails += expect64("i", i, float64(float32(3.402823E38)))
+		expect64(t, "a", a, 127)
+		expect64(t, "b", b, 255)
+		expect64(t, "c", c, 32767)
+		expect64(t, "d", d, 65535)
+		expect64(t, "e", e, float64(int32(0x7fffffff)))
+		expect64(t, "f", f, float64(uint32(0xffffffff)))
+		expect64(t, "g", g, float64(int64(0x7fffffffffffffff)))
+		expect64(t, "h", h, float64(uint64(0xffffffffffffffff)))
+		expect64(t, "i", i, float64(float32(3.402823E38)))
 	}
 	{
 		// Check minimum values (and tweaks for unsigned)
 		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5E-45)
-		fails += expect64("a", a, -128)
-		fails += expect64("b", b, 254)
-		fails += expect64("c", c, -32768)
-		fails += expect64("d", d, 65534)
-		fails += expect64("e", e, float64(^int32(0x7fffffff)))
-		fails += expect64("f", f, float64(uint32(0xfffffffe)))
-		fails += expect64("g", g, float64(^int64(0x7fffffffffffffff)))
-		fails += expect64("h", h, float64(uint64(0xfffffffffffff401)))
-		fails += expect64("i", i, float64(float32(1.5E-45)))
+		expect64(t, "a", a, -128)
+		expect64(t, "b", b, 254)
+		expect64(t, "c", c, -32768)
+		expect64(t, "d", d, 65534)
+		expect64(t, "e", e, float64(^int32(0x7fffffff)))
+		expect64(t, "f", f, float64(uint32(0xfffffffe)))
+		expect64(t, "g", g, float64(^int64(0x7fffffffffffffff)))
+		expect64(t, "h", h, float64(uint64(0xfffffffffffff401)))
+		expect64(t, "i", i, float64(float32(1.5E-45)))
 	}
 	{
 		// Check maximum values
 		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823E38)
-		fails += expect32("a", a, 127)
-		fails += expect32("b", b, 255)
-		fails += expect32("c", c, 32767)
-		fails += expect32("d", d, 65535)
-		fails += expect32("e", e, float32(int32(0x7fffffff)))
-		fails += expect32("f", f, float32(uint32(0xffffffff)))
-		fails += expect32("g", g, float32(int64(0x7fffffffffffffff)))
-		fails += expect32("h", h, float32(uint64(0xffffffffffffffff)))
-		fails += expect32("i", i, float32(float64(3.402823E38)))
+		expect32(t, "a", a, 127)
+		expect32(t, "b", b, 255)
+		expect32(t, "c", c, 32767)
+		expect32(t, "d", d, 65535)
+		expect32(t, "e", e, float32(int32(0x7fffffff)))
+		expect32(t, "f", f, float32(uint32(0xffffffff)))
+		expect32(t, "g", g, float32(int64(0x7fffffffffffffff)))
+		expect32(t, "h", h, float32(uint64(0xffffffffffffffff)))
+		expect32(t, "i", i, float32(float64(3.402823E38)))
 	}
 	{
 		// Check minimum values (and tweaks for unsigned)
 		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5E-45)
-		fails += expect32("a", a, -128)
-		fails += expect32("b", b, 254)
-		fails += expect32("c", c, -32768)
-		fails += expect32("d", d, 65534)
-		fails += expect32("e", e, float32(^int32(0x7fffffff)))
-		fails += expect32("f", f, float32(uint32(0xfffffffe)))
-		fails += expect32("g", g, float32(^int64(0x7fffffffffffffff)))
-		fails += expect32("h", h, float32(uint64(0xfffffffffffff401)))
-		fails += expect32("i", i, float32(float64(1.5E-45)))
+		expect32(t, "a", a, -128)
+		expect32(t, "b", b, 254)
+		expect32(t, "c", c, -32768)
+		expect32(t, "d", d, 65534)
+		expect32(t, "e", e, float32(^int32(0x7fffffff)))
+		expect32(t, "f", f, float32(uint32(0xfffffffe)))
+		expect32(t, "g", g, float32(^int64(0x7fffffffffffffff)))
+		expect32(t, "h", h, float32(uint64(0xfffffffffffff401)))
+		expect32(t, "i", i, float32(float64(1.5E-45)))
 	}
-	return fails
 }
 
-func multiplyAdd() int {
-	fails := 0
+func multiplyAdd(t *testing.T) {
 	{
 		// Test that a multiply-accumulate operation with intermediate
 		// rounding forced by a float32() cast produces the expected
@@ -252,22 +250,20 @@ func multiplyAdd() int {
 			{0.6280982, 0.12675293, 0.2813303, 0.36094356},    // fused multiply-add result: 0.3609436
 			{0.29400632, 0.75316125, 0.15096405, 0.3723982},   // fused multiply-add result: 0.37239823
 		}
-		check := func(s string, got, expected float32) int {
+		check := func(s string, got, expected float32) {
 			if got != expected {
 				fmt.Printf("multiplyAdd: %s, expected %g, got %g\n", s, expected, got)
-				return 1
 			}
-			return 0
 		}
 		for _, t := range tests {
-			fails += check(
+			check(
 				fmt.Sprintf("float32(%v * %v) + %v", t.x, t.y, t.z),
 				func(x, y, z float32) float32 {
 					return float32(x*y) + z
 				}(t.x, t.y, t.z),
 				t.res)
 
-			fails += check(
+			check(
 				fmt.Sprintf("%v += float32(%v * %v)", t.z, t.x, t.y),
 				func(x, y, z float32) float32 {
 					z += float32(x * y)
@@ -294,22 +290,20 @@ func multiplyAdd() int {
 			{0.3691117091643448, 0.826454125634742, 0.34768170859156955, 0.6527356034505334},    // fused multiply-add result: 0.6527356034505333
 			{0.16867966833433606, 0.33136826030698385, 0.8279280961505588, 0.8838231843956668},  // fused multiply-add result: 0.8838231843956669
 		}
-		check := func(s string, got, expected float64) int {
+		check := func(s string, got, expected float64) {
 			if got != expected {
 				fmt.Printf("multiplyAdd: %s, expected %g, got %g\n", s, expected, got)
-				return 1
 			}
-			return 0
 		}
 		for _, t := range tests {
-			fails += check(
+			check(
 				fmt.Sprintf("float64(%v * %v) + %v", t.x, t.y, t.z),
 				func(x, y, z float64) float64 {
 					return float64(x*y) + z
 				}(t.x, t.y, t.z),
 				t.res)
 
-			fails += check(
+			check(
 				fmt.Sprintf("%v += float64(%v * %v)", t.z, t.x, t.y),
 				func(x, y, z float64) float64 {
 					z += float64(x * y)
@@ -339,22 +333,20 @@ func multiplyAdd() int {
 			{0.8963417453962161, 0.3220839705208817, (3.0111092067095298 + 3i)},   // fused multiply-add result: (3.01110920670953 + 3i)
 			{0.39998376285699544, 0.497868113342702, (1.697819401913688 + 3i)},    // fused multiply-add result: (1.6978194019136883 + 3i)
 		}
-		check := func(s string, got, expected complex128) int {
+		check := func(s string, got, expected complex128) {
 			if got != expected {
 				fmt.Printf("multiplyAdd: %s, expected %v, got %v\n", s, expected, got)
-				return 1
 			}
-			return 0
 		}
 		for _, t := range tests {
-			fails += check(
+			check(
 				fmt.Sprintf("complex128(complex(%v, 1)*3) + complex(%v, 0)", t.x, t.y),
 				func(x, y float64) complex128 {
 					return complex128(complex(x, 1)*3) + complex(y, 0)
 				}(t.x, t.y),
 				t.res)
 
-			fails += check(
+			check(
 				fmt.Sprintf("z := complex(%v, 1); z += complex128(complex(%v, 1) * 3)", t.y, t.x),
 				func(x, y float64) complex128 {
 					z := complex(y, 0)
@@ -364,7 +356,6 @@ func multiplyAdd() int {
 				t.res)
 		}
 	}
-	return fails
 }
 
 const (
@@ -1256,48 +1247,43 @@ func F64toI64_ssa(x float64) int64 {
 	return int64(x)
 }
 
-func floatsToInts(x float64, expected int64) int {
+func floatsToInts(t *testing.T, x float64, expected int64) {
 	y := float32(x)
-	fails := 0
-	fails += expectInt64("F64toI8", int64(F64toI8_ssa(x)), expected)
-	fails += expectInt64("F64toI16", int64(F64toI16_ssa(x)), expected)
-	fails += expectInt64("F64toI32", int64(F64toI32_ssa(x)), expected)
-	fails += expectInt64("F64toI64", int64(F64toI64_ssa(x)), expected)
-	fails += expectInt64("F32toI8", int64(F32toI8_ssa(y)), expected)
-	fails += expectInt64("F32toI16", int64(F32toI16_ssa(y)), expected)
-	fails += expectInt64("F32toI32", int64(F32toI32_ssa(y)), expected)
-	fails += expectInt64("F32toI64", int64(F32toI64_ssa(y)), expected)
-	return fails
+	expectInt64(t, "F64toI8", int64(F64toI8_ssa(x)), expected)
+	expectInt64(t, "F64toI16", int64(F64toI16_ssa(x)), expected)
+	expectInt64(t, "F64toI32", int64(F64toI32_ssa(x)), expected)
+	expectInt64(t, "F64toI64", int64(F64toI64_ssa(x)), expected)
+	expectInt64(t, "F32toI8", int64(F32toI8_ssa(y)), expected)
+	expectInt64(t, "F32toI16", int64(F32toI16_ssa(y)), expected)
+	expectInt64(t, "F32toI32", int64(F32toI32_ssa(y)), expected)
+	expectInt64(t, "F32toI64", int64(F32toI64_ssa(y)), expected)
 }
 
-func floatsToUints(x float64, expected uint64) int {
+func floatsToUints(t *testing.T, x float64, expected uint64) {
 	y := float32(x)
-	fails := 0
-	fails += expectUint64("F64toU8", uint64(F64toU8_ssa(x)), expected)
-	fails += expectUint64("F64toU16", uint64(F64toU16_ssa(x)), expected)
-	fails += expectUint64("F64toU32", uint64(F64toU32_ssa(x)), expected)
-	fails += expectUint64("F64toU64", uint64(F64toU64_ssa(x)), expected)
-	fails += expectUint64("F32toU8", uint64(F32toU8_ssa(y)), expected)
-	fails += expectUint64("F32toU16", uint64(F32toU16_ssa(y)), expected)
-	fails += expectUint64("F32toU32", uint64(F32toU32_ssa(y)), expected)
-	fails += expectUint64("F32toU64", uint64(F32toU64_ssa(y)), expected)
-	return fails
+	expectUint64(t, "F64toU8", uint64(F64toU8_ssa(x)), expected)
+	expectUint64(t, "F64toU16", uint64(F64toU16_ssa(x)), expected)
+	expectUint64(t, "F64toU32", uint64(F64toU32_ssa(x)), expected)
+	expectUint64(t, "F64toU64", uint64(F64toU64_ssa(x)), expected)
+	expectUint64(t, "F32toU8", uint64(F32toU8_ssa(y)), expected)
+	expectUint64(t, "F32toU16", uint64(F32toU16_ssa(y)), expected)
+	expectUint64(t, "F32toU32", uint64(F32toU32_ssa(y)), expected)
+	expectUint64(t, "F32toU64", uint64(F32toU64_ssa(y)), expected)
 }
 
-func floatingToIntegerConversionsTest() int {
-	fails := 0
-	fails += floatsToInts(0.0, 0)
-	fails += floatsToInts(0.5, 0)
-	fails += floatsToInts(0.9, 0)
-	fails += floatsToInts(1.0, 1)
-	fails += floatsToInts(1.5, 1)
-	fails += floatsToInts(127.0, 127)
-	fails += floatsToInts(-1.0, -1)
-	fails += floatsToInts(-128.0, -128)
+func floatingToIntegerConversionsTest(t *testing.T) {
+	floatsToInts(t, 0.0, 0)
+	floatsToInts(t, 0.5, 0)
+	floatsToInts(t, 0.9, 0)
+	floatsToInts(t, 1.0, 1)
+	floatsToInts(t, 1.5, 1)
+	floatsToInts(t, 127.0, 127)
+	floatsToInts(t, -1.0, -1)
+	floatsToInts(t, -128.0, -128)
 
-	fails += floatsToUints(0.0, 0)
-	fails += floatsToUints(1.0, 1)
-	fails += floatsToUints(255.0, 255)
+	floatsToUints(t, 0.0, 0)
+	floatsToUints(t, 1.0, 1)
+	floatsToUints(t, 255.0, 255)
 
 	for j := uint(0); j < 24; j++ {
 		// Avoid hard cases in the construction
@@ -1306,17 +1292,17 @@ func floatingToIntegerConversionsTest() int {
 		w := uint64(v)
 		f := float32(v)
 		d := float64(v)
-		fails += expectUint64("2**62...", F32toU64_ssa(f), w)
-		fails += expectUint64("2**62...", F64toU64_ssa(d), w)
-		fails += expectInt64("2**62...", F32toI64_ssa(f), v)
-		fails += expectInt64("2**62...", F64toI64_ssa(d), v)
-		fails += expectInt64("2**62...", F32toI64_ssa(-f), -v)
-		fails += expectInt64("2**62...", F64toI64_ssa(-d), -v)
+		expectUint64(t, "2**62...", F32toU64_ssa(f), w)
+		expectUint64(t, "2**62...", F64toU64_ssa(d), w)
+		expectInt64(t, "2**62...", F32toI64_ssa(f), v)
+		expectInt64(t, "2**62...", F64toI64_ssa(d), v)
+		expectInt64(t, "2**62...", F32toI64_ssa(-f), -v)
+		expectInt64(t, "2**62...", F64toI64_ssa(-d), -v)
 		w += w
 		f += f
 		d += d
-		fails += expectUint64("2**63...", F32toU64_ssa(f), w)
-		fails += expectUint64("2**63...", F64toU64_ssa(d), w)
+		expectUint64(t, "2**63...", F32toU64_ssa(f), w)
+		expectUint64(t, "2**63...", F64toU64_ssa(d), w)
 	}
 
 	for j := uint(0); j < 16; j++ {
@@ -1326,17 +1312,17 @@ func floatingToIntegerConversionsTest() int {
 		w := uint32(v)
 		f := float32(v)
 		d := float64(v)
-		fails += expectUint32("2**30...", F32toU32_ssa(f), w)
-		fails += expectUint32("2**30...", F64toU32_ssa(d), w)
-		fails += expectInt32("2**30...", F32toI32_ssa(f), v)
-		fails += expectInt32("2**30...", F64toI32_ssa(d), v)
-		fails += expectInt32("2**30...", F32toI32_ssa(-f), -v)
-		fails += expectInt32("2**30...", F64toI32_ssa(-d), -v)
+		expectUint32(t, "2**30...", F32toU32_ssa(f), w)
+		expectUint32(t, "2**30...", F64toU32_ssa(d), w)
+		expectInt32(t, "2**30...", F32toI32_ssa(f), v)
+		expectInt32(t, "2**30...", F64toI32_ssa(d), v)
+		expectInt32(t, "2**30...", F32toI32_ssa(-f), -v)
+		expectInt32(t, "2**30...", F64toI32_ssa(-d), -v)
 		w += w
 		f += f
 		d += d
-		fails += expectUint32("2**31...", F32toU32_ssa(f), w)
-		fails += expectUint32("2**31...", F64toU32_ssa(d), w)
+		expectUint32(t, "2**31...", F32toU32_ssa(f), w)
+		expectUint32(t, "2**31...", F64toU32_ssa(d), w)
 	}
 
 	for j := uint(0); j < 15; j++ {
@@ -1346,220 +1332,184 @@ func floatingToIntegerConversionsTest() int {
 		w := uint16(v)
 		f := float32(v)
 		d := float64(v)
-		fails += expectUint16("2**14...", F32toU16_ssa(f), w)
-		fails += expectUint16("2**14...", F64toU16_ssa(d), w)
-		fails += expectInt16("2**14...", F32toI16_ssa(f), v)
-		fails += expectInt16("2**14...", F64toI16_ssa(d), v)
-		fails += expectInt16("2**14...", F32toI16_ssa(-f), -v)
-		fails += expectInt16("2**14...", F64toI16_ssa(-d), -v)
+		expectUint16(t, "2**14...", F32toU16_ssa(f), w)
+		expectUint16(t, "2**14...", F64toU16_ssa(d), w)
+		expectInt16(t, "2**14...", F32toI16_ssa(f), v)
+		expectInt16(t, "2**14...", F64toI16_ssa(d), v)
+		expectInt16(t, "2**14...", F32toI16_ssa(-f), -v)
+		expectInt16(t, "2**14...", F64toI16_ssa(-d), -v)
 		w += w
 		f += f
 		d += d
-		fails += expectUint16("2**15...", F32toU16_ssa(f), w)
-		fails += expectUint16("2**15...", F64toU16_ssa(d), w)
+		expectUint16(t, "2**15...", F32toU16_ssa(f), w)
+		expectUint16(t, "2**15...", F64toU16_ssa(d), w)
 	}
 
-	fails += expectInt32("-2147483648", F32toI32_ssa(-2147483648), -2147483648)
+	expectInt32(t, "-2147483648", F32toI32_ssa(-2147483648), -2147483648)
 
-	fails += expectInt32("-2147483648", F64toI32_ssa(-2147483648), -2147483648)
-	fails += expectInt32("-2147483647", F64toI32_ssa(-2147483647), -2147483647)
-	fails += expectUint32("4294967295", F64toU32_ssa(4294967295), 4294967295)
+	expectInt32(t, "-2147483648", F64toI32_ssa(-2147483648), -2147483648)
+	expectInt32(t, "-2147483647", F64toI32_ssa(-2147483647), -2147483647)
+	expectUint32(t, "4294967295", F64toU32_ssa(4294967295), 4294967295)
 
-	fails += expectInt16("-32768", F64toI16_ssa(-32768), -32768)
-	fails += expectInt16("-32768", F32toI16_ssa(-32768), -32768)
+	expectInt16(t, "-32768", F64toI16_ssa(-32768), -32768)
+	expectInt16(t, "-32768", F32toI16_ssa(-32768), -32768)
 
 	// NB more of a pain to do these for 32-bit because of lost bits in Float32 mantissa
-	fails += expectInt16("32767", F64toI16_ssa(32767), 32767)
-	fails += expectInt16("32767", F32toI16_ssa(32767), 32767)
-	fails += expectUint16("32767", F64toU16_ssa(32767), 32767)
-	fails += expectUint16("32767", F32toU16_ssa(32767), 32767)
-	fails += expectUint16("65535", F64toU16_ssa(65535), 65535)
-	fails += expectUint16("65535", F32toU16_ssa(65535), 65535)
-
-	return fails
+	expectInt16(t, "32767", F64toI16_ssa(32767), 32767)
+	expectInt16(t, "32767", F32toI16_ssa(32767), 32767)
+	expectUint16(t, "32767", F64toU16_ssa(32767), 32767)
+	expectUint16(t, "32767", F32toU16_ssa(32767), 32767)
+	expectUint16(t, "65535", F64toU16_ssa(65535), 65535)
+	expectUint16(t, "65535", F32toU16_ssa(65535), 65535)
 }
 
-func fail64(s string, f func(a, b float64) float64, a, b, e float64) int {
+func fail64(s string, f func(a, b float64) float64, a, b, e float64) {
 	d := f(a, b)
 	if d != e {
 		fmt.Printf("For (float64) %v %v %v, expected %v, got %v\n", a, s, b, e, d)
-		return 1
 	}
-	return 0
 }
 
-func fail64bool(s string, f func(a, b float64) bool, a, b float64, e bool) int {
+func fail64bool(s string, f func(a, b float64) bool, a, b float64, e bool) {
 	d := f(a, b)
 	if d != e {
 		fmt.Printf("For (float64) %v %v %v, expected %v, got %v\n", a, s, b, e, d)
-		return 1
 	}
-	return 0
 }
 
-func fail32(s string, f func(a, b float32) float32, a, b, e float32) int {
+func fail32(s string, f func(a, b float32) float32, a, b, e float32) {
 	d := f(a, b)
 	if d != e {
 		fmt.Printf("For (float32) %v %v %v, expected %v, got %v\n", a, s, b, e, d)
-		return 1
 	}
-	return 0
 }
 
-func fail32bool(s string, f func(a, b float32) bool, a, b float32, e bool) int {
+func fail32bool(s string, f func(a, b float32) bool, a, b float32, e bool) {
 	d := f(a, b)
 	if d != e {
 		fmt.Printf("For (float32) %v %v %v, expected %v, got %v\n", a, s, b, e, d)
-		return 1
 	}
-	return 0
 }
 
-func expect64(s string, x, expected float64) int {
+func expect64(t *testing.T, s string, x, expected float64) {
 	if x != expected {
 		println("F64 Expected", expected, "for", s, ", got", x)
-		return 1
 	}
-	return 0
 }
 
-func expect32(s string, x, expected float32) int {
+func expect32(t *testing.T, s string, x, expected float32) {
 	if x != expected {
 		println("F32 Expected", expected, "for", s, ", got", x)
-		return 1
 	}
-	return 0
 }
 
-func expectUint64(s string, x, expected uint64) int {
+func expectUint64(t *testing.T, s string, x, expected uint64) {
 	if x != expected {
 		fmt.Printf("U64 Expected 0x%016x for %s, got 0x%016x\n", expected, s, x)
-		return 1
 	}
-	return 0
 }
 
-func expectInt64(s string, x, expected int64) int {
+func expectInt64(t *testing.T, s string, x, expected int64) {
 	if x != expected {
 		fmt.Printf("%s: Expected 0x%016x, got 0x%016x\n", s, expected, x)
-		return 1
 	}
-	return 0
 }
 
-func expectUint32(s string, x, expected uint32) int {
+func expectUint32(t *testing.T, s string, x, expected uint32) {
 	if x != expected {
 		fmt.Printf("U32 %s: Expected 0x%08x, got 0x%08x\n", s, expected, x)
-		return 1
 	}
-	return 0
 }
 
-func expectInt32(s string, x, expected int32) int {
+func expectInt32(t *testing.T, s string, x, expected int32) {
 	if x != expected {
 		fmt.Printf("I32 %s: Expected 0x%08x, got 0x%08x\n", s, expected, x)
-		return 1
 	}
-	return 0
 }
 
-func expectUint16(s string, x, expected uint16) int {
+func expectUint16(t *testing.T, s string, x, expected uint16) {
 	if x != expected {
 		fmt.Printf("U16 %s: Expected 0x%04x, got 0x%04x\n", s, expected, x)
-		return 1
 	}
-	return 0
 }
 
-func expectInt16(s string, x, expected int16) int {
+func expectInt16(t *testing.T, s string, x, expected int16) {
 	if x != expected {
 		fmt.Printf("I16 %s: Expected 0x%04x, got 0x%04x\n", s, expected, x)
-		return 1
 	}
-	return 0
 }
 
-func expectAll64(s string, expected, a, b, c, d, e, f, g, h, i float64) int {
-	fails := 0
-	fails += expect64(s+":a", a, expected)
-	fails += expect64(s+":b", b, expected)
-	fails += expect64(s+":c", c, expected)
-	fails += expect64(s+":d", d, expected)
-	fails += expect64(s+":e", e, expected)
-	fails += expect64(s+":f", f, expected)
-	fails += expect64(s+":g", g, expected)
-	return fails
+func expectAll64(t *testing.T, s string, expected, a, b, c, d, e, f, g, h, i float64) {
+	expect64(t, s+":a", a, expected)
+	expect64(t, s+":b", b, expected)
+	expect64(t, s+":c", c, expected)
+	expect64(t, s+":d", d, expected)
+	expect64(t, s+":e", e, expected)
+	expect64(t, s+":f", f, expected)
+	expect64(t, s+":g", g, expected)
 }
 
-func expectAll32(s string, expected, a, b, c, d, e, f, g, h, i float32) int {
-	fails := 0
-	fails += expect32(s+":a", a, expected)
-	fails += expect32(s+":b", b, expected)
-	fails += expect32(s+":c", c, expected)
-	fails += expect32(s+":d", d, expected)
-	fails += expect32(s+":e", e, expected)
-	fails += expect32(s+":f", f, expected)
-	fails += expect32(s+":g", g, expected)
-	return fails
+func expectAll32(t *testing.T, s string, expected, a, b, c, d, e, f, g, h, i float32) {
+	expect32(t, s+":a", a, expected)
+	expect32(t, s+":b", b, expected)
+	expect32(t, s+":c", c, expected)
+	expect32(t, s+":d", d, expected)
+	expect32(t, s+":e", e, expected)
+	expect32(t, s+":f", f, expected)
+	expect32(t, s+":g", g, expected)
 }
 
 var ev64 [2]float64 = [2]float64{42.0, 17.0}
 var ev32 [2]float32 = [2]float32{42.0, 17.0}
 
-func cmpOpTest(s string,
+func cmpOpTest(t *testing.T,
+	s string,
 	f func(a, b float64) bool,
 	g func(a, b float64) float64,
 	ff func(a, b float32) bool,
 	gg func(a, b float32) float32,
-	zero, one, inf, nan float64, result uint) int {
-	fails := 0
-	fails += fail64bool(s, f, zero, zero, result>>16&1 == 1)
-	fails += fail64bool(s, f, zero, one, result>>12&1 == 1)
-	fails += fail64bool(s, f, zero, inf, result>>8&1 == 1)
-	fails += fail64bool(s, f, zero, nan, result>>4&1 == 1)
-	fails += fail64bool(s, f, nan, nan, result&1 == 1)
+	zero, one, inf, nan float64, result uint) {
+	fail64bool(s, f, zero, zero, result>>16&1 == 1)
+	fail64bool(s, f, zero, one, result>>12&1 == 1)
+	fail64bool(s, f, zero, inf, result>>8&1 == 1)
+	fail64bool(s, f, zero, nan, result>>4&1 == 1)
+	fail64bool(s, f, nan, nan, result&1 == 1)
 
-	fails += fail64(s, g, zero, zero, ev64[result>>16&1])
-	fails += fail64(s, g, zero, one, ev64[result>>12&1])
-	fails += fail64(s, g, zero, inf, ev64[result>>8&1])
-	fails += fail64(s, g, zero, nan, ev64[result>>4&1])
-	fails += fail64(s, g, nan, nan, ev64[result>>0&1])
+	fail64(s, g, zero, zero, ev64[result>>16&1])
+	fail64(s, g, zero, one, ev64[result>>12&1])
+	fail64(s, g, zero, inf, ev64[result>>8&1])
+	fail64(s, g, zero, nan, ev64[result>>4&1])
+	fail64(s, g, nan, nan, ev64[result>>0&1])
 
 	{
 		zero := float32(zero)
 		one := float32(one)
 		inf := float32(inf)
 		nan := float32(nan)
-		fails += fail32bool(s, ff, zero, zero, (result>>16)&1 == 1)
-		fails += fail32bool(s, ff, zero, one, (result>>12)&1 == 1)
-		fails += fail32bool(s, ff, zero, inf, (result>>8)&1 == 1)
-		fails += fail32bool(s, ff, zero, nan, (result>>4)&1 == 1)
-		fails += fail32bool(s, ff, nan, nan, result&1 == 1)
+		fail32bool(s, ff, zero, zero, (result>>16)&1 == 1)
+		fail32bool(s, ff, zero, one, (result>>12)&1 == 1)
+		fail32bool(s, ff, zero, inf, (result>>8)&1 == 1)
+		fail32bool(s, ff, zero, nan, (result>>4)&1 == 1)
+		fail32bool(s, ff, nan, nan, result&1 == 1)
 
-		fails += fail32(s, gg, zero, zero, ev32[(result>>16)&1])
-		fails += fail32(s, gg, zero, one, ev32[(result>>12)&1])
-		fails += fail32(s, gg, zero, inf, ev32[(result>>8)&1])
-		fails += fail32(s, gg, zero, nan, ev32[(result>>4)&1])
-		fails += fail32(s, gg, nan, nan, ev32[(result>>0)&1])
+		fail32(s, gg, zero, zero, ev32[(result>>16)&1])
+		fail32(s, gg, zero, one, ev32[(result>>12)&1])
+		fail32(s, gg, zero, inf, ev32[(result>>8)&1])
+		fail32(s, gg, zero, nan, ev32[(result>>4)&1])
+		fail32(s, gg, nan, nan, ev32[(result>>0)&1])
 	}
-
-	return fails
 }
 
-func expectCx128(s string, x, expected complex128) int {
+func expectCx128(t *testing.T, s string, x, expected complex128) {
 	if x != expected {
-		println("Cx 128 Expected", expected, "for", s, ", got", x)
-		return 1
+		t.Errorf("Cx 128 Expected %f for %s, got %f", expected, s, x)
 	}
-	return 0
 }
 
-func expectCx64(s string, x, expected complex64) int {
+func expectCx64(t *testing.T, s string, x, expected complex64) {
 	if x != expected {
-		println("Cx 64 Expected", expected, "for", s, ", got", x)
-		return 1
+		t.Errorf("Cx 64 Expected %f for %s, got %f", expected, s, x)
 	}
-	return 0
 }
 
 //go:noinline
@@ -1658,23 +1608,18 @@ func cx64ne_ssa(a, b complex64) bool {
 	return a != b
 }
 
-func expectTrue(s string, b bool) int {
+func expectTrue(t *testing.T, s string, b bool) {
 	if !b {
-		println("expected true for", s, ", got false")
-		return 1
+		t.Errorf("expected true for %s, got false", s)
 	}
-	return 0
 }
-func expectFalse(s string, b bool) int {
+func expectFalse(t *testing.T, s string, b bool) {
 	if b {
-		println("expected false for", s, ", got true")
-		return 1
+		t.Errorf("expected false for %s, got true", s)
 	}
-	return 0
 }
 
-func complexTest128() int {
-	fails := 0
+func complexTest128(t *testing.T) {
 	var a complex128 = 1 + 2i
 	var b complex128 = 3 + 6i
 	sum := cx128sum_ssa(b, a)
@@ -1690,24 +1635,21 @@ func complexTest128() int {
 	c3 := cx128ne_ssa(a, a)
 	c4 := cx128ne_ssa(a, b)
 
-	fails += expectCx128("sum", sum, 4+8i)
-	fails += expectCx128("diff", diff, 2+4i)
-	fails += expectCx128("prod", prod, -9+12i)
-	fails += expectCx128("quot", quot, 3+0i)
-	fails += expectCx128("neg", neg, -1-2i)
-	fails += expect64("real", r, 1)
-	fails += expect64("imag", i, 2)
-	fails += expectCx128("cnst", cnst, -4+7i)
-	fails += expectTrue(fmt.Sprintf("%v==%v", a, a), c1)
-	fails += expectFalse(fmt.Sprintf("%v==%v", a, b), c2)
-	fails += expectFalse(fmt.Sprintf("%v!=%v", a, a), c3)
-	fails += expectTrue(fmt.Sprintf("%v!=%v", a, b), c4)
-
-	return fails
+	expectCx128(t, "sum", sum, 4+8i)
+	expectCx128(t, "diff", diff, 2+4i)
+	expectCx128(t, "prod", prod, -9+12i)
+	expectCx128(t, "quot", quot, 3+0i)
+	expectCx128(t, "neg", neg, -1-2i)
+	expect64(t, "real", r, 1)
+	expect64(t, "imag", i, 2)
+	expectCx128(t, "cnst", cnst, -4+7i)
+	expectTrue(t, fmt.Sprintf("%v==%v", a, a), c1)
+	expectFalse(t, fmt.Sprintf("%v==%v", a, b), c2)
+	expectFalse(t, fmt.Sprintf("%v!=%v", a, a), c3)
+	expectTrue(t, fmt.Sprintf("%v!=%v", a, b), c4)
 }
 
-func complexTest64() int {
-	fails := 0
+func complexTest64(t *testing.T) {
 	var a complex64 = 1 + 2i
 	var b complex64 = 3 + 6i
 	sum := cx64sum_ssa(b, a)
@@ -1722,23 +1664,21 @@ func complexTest64() int {
 	c3 := cx64ne_ssa(a, a)
 	c4 := cx64ne_ssa(a, b)
 
-	fails += expectCx64("sum", sum, 4+8i)
-	fails += expectCx64("diff", diff, 2+4i)
-	fails += expectCx64("prod", prod, -9+12i)
-	fails += expectCx64("quot", quot, 3+0i)
-	fails += expectCx64("neg", neg, -1-2i)
-	fails += expect32("real", r, 1)
-	fails += expect32("imag", i, 2)
-	fails += expectTrue(fmt.Sprintf("%v==%v", a, a), c1)
-	fails += expectFalse(fmt.Sprintf("%v==%v", a, b), c2)
-	fails += expectFalse(fmt.Sprintf("%v!=%v", a, a), c3)
-	fails += expectTrue(fmt.Sprintf("%v!=%v", a, b), c4)
-
-	return fails
+	expectCx64(t, "sum", sum, 4+8i)
+	expectCx64(t, "diff", diff, 2+4i)
+	expectCx64(t, "prod", prod, -9+12i)
+	expectCx64(t, "quot", quot, 3+0i)
+	expectCx64(t, "neg", neg, -1-2i)
+	expect32(t, "real", r, 1)
+	expect32(t, "imag", i, 2)
+	expectTrue(t, fmt.Sprintf("%v==%v", a, a), c1)
+	expectFalse(t, fmt.Sprintf("%v==%v", a, b), c2)
+	expectFalse(t, fmt.Sprintf("%v!=%v", a, a), c3)
+	expectTrue(t, fmt.Sprintf("%v!=%v", a, b), c4)
 }
 
-func main() {
-
+// TestFP tests that we get the right answer for floating point expressions.
+func TestFP(t *testing.T) {
 	a := 3.0
 	b := 4.0
 
@@ -1748,92 +1688,86 @@ func main() {
 	tiny := float32(1.5E-45) // smallest f32 denorm = 2**(-149)
 	dtiny := float64(tiny)   // well within range of f64
 
-	fails := 0
-	fails += fail64("+", add64_ssa, a, b, 7.0)
-	fails += fail64("*", mul64_ssa, a, b, 12.0)
-	fails += fail64("-", sub64_ssa, a, b, -1.0)
-	fails += fail64("/", div64_ssa, a, b, 0.75)
-	fails += fail64("neg", neg64_ssa, a, b, -7)
+	fail64("+", add64_ssa, a, b, 7.0)
+	fail64("*", mul64_ssa, a, b, 12.0)
+	fail64("-", sub64_ssa, a, b, -1.0)
+	fail64("/", div64_ssa, a, b, 0.75)
+	fail64("neg", neg64_ssa, a, b, -7)
 
-	fails += fail32("+", add32_ssa, c, d, 7.0)
-	fails += fail32("*", mul32_ssa, c, d, 12.0)
-	fails += fail32("-", sub32_ssa, c, d, -1.0)
-	fails += fail32("/", div32_ssa, c, d, 0.75)
-	fails += fail32("neg", neg32_ssa, c, d, -7)
+	fail32("+", add32_ssa, c, d, 7.0)
+	fail32("*", mul32_ssa, c, d, 12.0)
+	fail32("-", sub32_ssa, c, d, -1.0)
+	fail32("/", div32_ssa, c, d, 0.75)
+	fail32("neg", neg32_ssa, c, d, -7)
 
 	// denorm-squared should underflow to zero.
-	fails += fail32("*", mul32_ssa, tiny, tiny, 0)
+	fail32("*", mul32_ssa, tiny, tiny, 0)
 
 	// but should not underflow in float and in fact is exactly representable.
-	fails += fail64("*", mul64_ssa, dtiny, dtiny, 1.9636373861190906e-90)
+	fail64("*", mul64_ssa, dtiny, dtiny, 1.9636373861190906e-90)
 
 	// Intended to create register pressure which forces
 	// asymmetric op into different code paths.
 	aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc, cd, da, db, dc, dd := manysub_ssa(1000.0, 100.0, 10.0, 1.0)
 
-	fails += expect64("aa", aa, 11.0)
-	fails += expect64("ab", ab, 900.0)
-	fails += expect64("ac", ac, 990.0)
-	fails += expect64("ad", ad, 999.0)
+	expect64(t, "aa", aa, 11.0)
+	expect64(t, "ab", ab, 900.0)
+	expect64(t, "ac", ac, 990.0)
+	expect64(t, "ad", ad, 999.0)
 
-	fails += expect64("ba", ba, -900.0)
-	fails += expect64("bb", bb, 22.0)
-	fails += expect64("bc", bc, 90.0)
-	fails += expect64("bd", bd, 99.0)
+	expect64(t, "ba", ba, -900.0)
+	expect64(t, "bb", bb, 22.0)
+	expect64(t, "bc", bc, 90.0)
+	expect64(t, "bd", bd, 99.0)
 
-	fails += expect64("ca", ca, -990.0)
-	fails += expect64("cb", cb, -90.0)
-	fails += expect64("cc", cc, 33.0)
-	fails += expect64("cd", cd, 9.0)
+	expect64(t, "ca", ca, -990.0)
+	expect64(t, "cb", cb, -90.0)
+	expect64(t, "cc", cc, 33.0)
+	expect64(t, "cd", cd, 9.0)
 
-	fails += expect64("da", da, -999.0)
-	fails += expect64("db", db, -99.0)
-	fails += expect64("dc", dc, -9.0)
-	fails += expect64("dd", dd, 44.0)
+	expect64(t, "da", da, -999.0)
+	expect64(t, "db", db, -99.0)
+	expect64(t, "dc", dc, -9.0)
+	expect64(t, "dd", dd, 44.0)
 
-	fails += integer2floatConversions()
+	integer2floatConversions(t)
 
-	fails += multiplyAdd()
+	multiplyAdd(t)
 
 	var zero64 float64 = 0.0
 	var one64 float64 = 1.0
 	var inf64 float64 = 1.0 / zero64
 	var nan64 float64 = sub64_ssa(inf64, inf64)
 
-	fails += cmpOpTest("!=", ne64_ssa, nebr64_ssa, ne32_ssa, nebr32_ssa, zero64, one64, inf64, nan64, 0x01111)
-	fails += cmpOpTest("==", eq64_ssa, eqbr64_ssa, eq32_ssa, eqbr32_ssa, zero64, one64, inf64, nan64, 0x10000)
-	fails += cmpOpTest("<=", le64_ssa, lebr64_ssa, le32_ssa, lebr32_ssa, zero64, one64, inf64, nan64, 0x11100)
-	fails += cmpOpTest("<", lt64_ssa, ltbr64_ssa, lt32_ssa, ltbr32_ssa, zero64, one64, inf64, nan64, 0x01100)
-	fails += cmpOpTest(">", gt64_ssa, gtbr64_ssa, gt32_ssa, gtbr32_ssa, zero64, one64, inf64, nan64, 0x00000)
-	fails += cmpOpTest(">=", ge64_ssa, gebr64_ssa, ge32_ssa, gebr32_ssa, zero64, one64, inf64, nan64, 0x10000)
+	cmpOpTest(t, "!=", ne64_ssa, nebr64_ssa, ne32_ssa, nebr32_ssa, zero64, one64, inf64, nan64, 0x01111)
+	cmpOpTest(t, "==", eq64_ssa, eqbr64_ssa, eq32_ssa, eqbr32_ssa, zero64, one64, inf64, nan64, 0x10000)
+	cmpOpTest(t, "<=", le64_ssa, lebr64_ssa, le32_ssa, lebr32_ssa, zero64, one64, inf64, nan64, 0x11100)
+	cmpOpTest(t, "<", lt64_ssa, ltbr64_ssa, lt32_ssa, ltbr32_ssa, zero64, one64, inf64, nan64, 0x01100)
+	cmpOpTest(t, ">", gt64_ssa, gtbr64_ssa, gt32_ssa, gtbr32_ssa, zero64, one64, inf64, nan64, 0x00000)
+	cmpOpTest(t, ">=", ge64_ssa, gebr64_ssa, ge32_ssa, gebr32_ssa, zero64, one64, inf64, nan64, 0x10000)
 
 	{
 		lt, le, eq, ne, ge, gt := compares64_ssa(0.0, 1.0, inf64, nan64)
-		fails += expectUint64("lt", lt, 0x0110001000000000)
-		fails += expectUint64("le", le, 0x1110011000100000)
-		fails += expectUint64("eq", eq, 0x1000010000100000)
-		fails += expectUint64("ne", ne, 0x0111101111011111)
-		fails += expectUint64("ge", ge, 0x1000110011100000)
-		fails += expectUint64("gt", gt, 0x0000100011000000)
+		expectUint64(t, "lt", lt, 0x0110001000000000)
+		expectUint64(t, "le", le, 0x1110011000100000)
+		expectUint64(t, "eq", eq, 0x1000010000100000)
+		expectUint64(t, "ne", ne, 0x0111101111011111)
+		expectUint64(t, "ge", ge, 0x1000110011100000)
+		expectUint64(t, "gt", gt, 0x0000100011000000)
 		// fmt.Printf("lt=0x%016x, le=0x%016x, eq=0x%016x, ne=0x%016x, ge=0x%016x, gt=0x%016x\n",
 		// 	lt, le, eq, ne, ge, gt)
 	}
 	{
 		lt, le, eq, ne, ge, gt := compares32_ssa(0.0, 1.0, float32(inf64), float32(nan64))
-		fails += expectUint64("lt", lt, 0x0110001000000000)
-		fails += expectUint64("le", le, 0x1110011000100000)
-		fails += expectUint64("eq", eq, 0x1000010000100000)
-		fails += expectUint64("ne", ne, 0x0111101111011111)
-		fails += expectUint64("ge", ge, 0x1000110011100000)
-		fails += expectUint64("gt", gt, 0x0000100011000000)
+		expectUint64(t, "lt", lt, 0x0110001000000000)
+		expectUint64(t, "le", le, 0x1110011000100000)
+		expectUint64(t, "eq", eq, 0x1000010000100000)
+		expectUint64(t, "ne", ne, 0x0111101111011111)
+		expectUint64(t, "ge", ge, 0x1000110011100000)
+		expectUint64(t, "gt", gt, 0x0000100011000000)
 	}
 
-	fails += floatingToIntegerConversionsTest()
-	fails += complexTest128()
-	fails += complexTest64()
-
-	if fails > 0 {
-		fmt.Printf("Saw %v failures\n", fails)
-		panic("Failed.")
-	}
+	floatingToIntegerConversionsTest(t)
+	complexTest128(t)
+	complexTest64(t)
 }

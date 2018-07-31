@@ -1,5 +1,3 @@
-// run
-
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -8,7 +6,9 @@
 
 package main
 
-import "fmt"
+import (
+	"testing"
+)
 
 const (
 	y = 0x0fffFFFF
@@ -56,39 +56,31 @@ func rshNotNop(x uint64) uint64 {
 	return (((x >> 5) << 2) >> 1)
 }
 
-func testShiftRemoval() {
+func testShiftRemoval(t *testing.T) {
 	allSet := ^uint64(0)
 	if want, got := uint64(0x7ffffffffffffff), rshNop1(allSet); want != got {
-		println("testShiftRemoval rshNop1 failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftRemoval rshNop1 failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint64(0x3ffffffffffffff), rshNop2(allSet); want != got {
-		println("testShiftRemoval rshNop2 failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftRemoval rshNop2 failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint64(0x7fffffffffffff), rshNop3(allSet); want != got {
-		println("testShiftRemoval rshNop3 failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftRemoval rshNop3 failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint64(0xffffffffffffffe), rshNotNop(allSet); want != got {
-		println("testShiftRemoval rshNotNop failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftRemoval rshNotNop failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint64(0xffffffffffffffe0), lshNop1(allSet); want != got {
-		println("testShiftRemoval lshNop1 failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftRemoval lshNop1 failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint64(0xffffffffffffffc0), lshNop2(allSet); want != got {
-		println("testShiftRemoval lshNop2 failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftRemoval lshNop2 failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint64(0xfffffffffffffe00), lshNop3(allSet); want != got {
-		println("testShiftRemoval lshNop3 failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftRemoval lshNop3 failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint64(0x7ffffffffffffff0), lshNotNop(allSet); want != got {
-		println("testShiftRemoval lshNotNop failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftRemoval lshNotNop failed, wanted %d got %d", want, got)
 	}
 }
 
@@ -110,37 +102,32 @@ func parseLE16(b []byte) uint16 {
 }
 
 // testLoadCombine tests for issue #14694 where load combining didn't respect the pointer offset.
-func testLoadCombine() {
+func testLoadCombine(t *testing.T) {
 	testData := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	if want, got := uint64(0x0908070605040302), parseLE64(testData); want != got {
-		println("testLoadCombine failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testLoadCombine failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint32(0x05040302), parseLE32(testData); want != got {
-		println("testLoadCombine failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testLoadCombine failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint16(0x0302), parseLE16(testData); want != got {
-		println("testLoadCombine failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testLoadCombine failed, wanted %d got %d", want, got)
 	}
 }
 
 var loadSymData = [...]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-func testLoadSymCombine() {
+func testLoadSymCombine(t *testing.T) {
 	w2 := uint16(0x0201)
 	g2 := uint16(loadSymData[0]) | uint16(loadSymData[1])<<8
 	if g2 != w2 {
-		println("testLoadSymCombine failed, wanted", w2, "got", g2)
-		failed = true
+		t.Errorf("testLoadSymCombine failed, wanted %d got %d", w2, g2)
 	}
 	w4 := uint32(0x04030201)
 	g4 := uint32(loadSymData[0]) | uint32(loadSymData[1])<<8 |
 		uint32(loadSymData[2])<<16 | uint32(loadSymData[3])<<24
 	if g4 != w4 {
-		println("testLoadSymCombine failed, wanted", w4, "got", g4)
-		failed = true
+		t.Errorf("testLoadSymCombine failed, wanted %d got %d", w4, g4)
 	}
 	w8 := uint64(0x0807060504030201)
 	g8 := uint64(loadSymData[0]) | uint64(loadSymData[1])<<8 |
@@ -148,8 +135,7 @@ func testLoadSymCombine() {
 		uint64(loadSymData[4])<<32 | uint64(loadSymData[5])<<40 |
 		uint64(loadSymData[6])<<48 | uint64(loadSymData[7])<<56
 	if g8 != w8 {
-		println("testLoadSymCombine failed, wanted", w8, "got", g8)
-		failed = true
+		t.Errorf("testLoadSymCombine failed, wanted %d got %d", w8, g8)
 	}
 }
 
@@ -170,34 +156,29 @@ func invalidMul_ssa(x uint32) uint32 {
 
 // testLargeConst tests a situation where larger than 32 bit consts were passed to ADDL
 // causing an invalid instruction error.
-func testLargeConst() {
+func testLargeConst(t *testing.T) {
 	if want, got := uint32(268435440), invalidAdd_ssa(1); want != got {
-		println("testLargeConst add failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testLargeConst add failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint32(4026531858), invalidSub_ssa(1); want != got {
-		println("testLargeConst sub failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testLargeConst sub failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint32(268435455), invalidMul_ssa(1); want != got {
-		println("testLargeConst mul failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testLargeConst mul failed, wanted %d got %d", want, got)
 	}
 }
 
 // testArithRshConst ensures that "const >> const" right shifts correctly perform
 // sign extension on the lhs constant
-func testArithRshConst() {
+func testArithRshConst(t *testing.T) {
 	wantu := uint64(0x4000000000000000)
 	if got := arithRshuConst_ssa(); got != wantu {
-		println("arithRshuConst failed, wanted", wantu, "got", got)
-		failed = true
+		t.Errorf("arithRshuConst failed, wanted %d got %d", wantu, got)
 	}
 
 	wants := int64(-0x4000000000000000)
 	if got := arithRshConst_ssa(); got != wants {
-		println("arithRshuConst failed, wanted", wants, "got", got)
-		failed = true
+		t.Errorf("arithRshConst failed, wanted %d got %d", wants, got)
 	}
 }
 
@@ -222,16 +203,14 @@ func arithConstShift_ssa(x int64) int64 {
 
 // testArithConstShift tests that right shift by large constants preserve
 // the sign of the input.
-func testArithConstShift() {
+func testArithConstShift(t *testing.T) {
 	want := int64(-1)
 	if got := arithConstShift_ssa(-1); want != got {
-		println("arithConstShift_ssa(-1) failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("arithConstShift_ssa(-1) failed, wanted %d got %d", want, got)
 	}
 	want = 0
 	if got := arithConstShift_ssa(1); want != got {
-		println("arithConstShift_ssa(1) failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("arithConstShift_ssa(1) failed, wanted %d got %d", want, got)
 	}
 }
 
@@ -257,35 +236,34 @@ func overflowConstShift8_ssa(x int64) int8 {
 	return int8(x) << uint8(0xff) << uint8(1)
 }
 
-func testOverflowConstShift() {
+func testOverflowConstShift(t *testing.T) {
 	want := int64(0)
 	for x := int64(-127); x < int64(127); x++ {
 		got := overflowConstShift64_ssa(x)
 		if want != got {
-			fmt.Printf("overflowShift64 failed, wanted %d got %d\n", want, got)
+			t.Errorf("overflowShift64 failed, wanted %d got %d", want, got)
 		}
 		got = int64(overflowConstShift32_ssa(x))
 		if want != got {
-			fmt.Printf("overflowShift32 failed, wanted %d got %d\n", want, got)
+			t.Errorf("overflowShift32 failed, wanted %d got %d", want, got)
 		}
 		got = int64(overflowConstShift16_ssa(x))
 		if want != got {
-			fmt.Printf("overflowShift16 failed, wanted %d got %d\n", want, got)
+			t.Errorf("overflowShift16 failed, wanted %d got %d", want, got)
 		}
 		got = int64(overflowConstShift8_ssa(x))
 		if want != got {
-			fmt.Printf("overflowShift8 failed, wanted %d got %d\n", want, got)
+			t.Errorf("overflowShift8 failed, wanted %d got %d", want, got)
 		}
 	}
 }
 
 // test64BitConstMult tests that rewrite rules don't fold 64 bit constants
 // into multiply instructions.
-func test64BitConstMult() {
+func test64BitConstMult(t *testing.T) {
 	want := int64(103079215109)
 	if got := test64BitConstMult_ssa(1, 2); want != got {
-		println("test64BitConstMult failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("test64BitConstMult failed, wanted %d got %d", want, got)
 	}
 }
 
@@ -296,11 +274,10 @@ func test64BitConstMult_ssa(a, b int64) int64 {
 
 // test64BitConstAdd tests that rewrite rules don't fold 64 bit constants
 // into add instructions.
-func test64BitConstAdd() {
+func test64BitConstAdd(t *testing.T) {
 	want := int64(3567671782835376650)
 	if got := test64BitConstAdd_ssa(1, 2); want != got {
-		println("test64BitConstAdd failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("test64BitConstAdd failed, wanted %d got %d", want, got)
 	}
 }
 
@@ -311,11 +288,10 @@ func test64BitConstAdd_ssa(a, b int64) int64 {
 
 // testRegallocCVSpill tests that regalloc spills a value whose last use is the
 // current value.
-func testRegallocCVSpill() {
+func testRegallocCVSpill(t *testing.T) {
 	want := int8(-9)
 	if got := testRegallocCVSpill_ssa(1, 2, 3, 4); want != got {
-		println("testRegallocCVSpill failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testRegallocCVSpill failed, wanted %d got %d", want, got)
 	}
 }
 
@@ -324,55 +300,43 @@ func testRegallocCVSpill_ssa(a, b, c, d int8) int8 {
 	return a + -32 + b + 63*c*-87*d
 }
 
-func testBitwiseLogic() {
+func testBitwiseLogic(t *testing.T) {
 	a, b := uint32(57623283), uint32(1314713839)
 	if want, got := uint32(38551779), testBitwiseAnd_ssa(a, b); want != got {
-		println("testBitwiseAnd failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseAnd failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint32(1333785343), testBitwiseOr_ssa(a, b); want != got {
-		println("testBitwiseOr failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseOr failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint32(1295233564), testBitwiseXor_ssa(a, b); want != got {
-		println("testBitwiseXor failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseXor failed, wanted %d got %d", want, got)
 	}
 	if want, got := int32(832), testBitwiseLsh_ssa(13, 4, 2); want != got {
-		println("testBitwiseLsh failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseLsh failed, wanted %d got %d", want, got)
 	}
 	if want, got := int32(0), testBitwiseLsh_ssa(13, 25, 15); want != got {
-		println("testBitwiseLsh failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseLsh failed, wanted %d got %d", want, got)
 	}
 	if want, got := int32(0), testBitwiseLsh_ssa(-13, 25, 15); want != got {
-		println("testBitwiseLsh failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseLsh failed, wanted %d got %d", want, got)
 	}
 	if want, got := int32(-13), testBitwiseRsh_ssa(-832, 4, 2); want != got {
-		println("testBitwiseRsh failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseRsh failed, wanted %d got %d", want, got)
 	}
 	if want, got := int32(0), testBitwiseRsh_ssa(13, 25, 15); want != got {
-		println("testBitwiseRsh failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseRsh failed, wanted %d got %d", want, got)
 	}
 	if want, got := int32(-1), testBitwiseRsh_ssa(-13, 25, 15); want != got {
-		println("testBitwiseRsh failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseRsh failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint32(0x3ffffff), testBitwiseRshU_ssa(0xffffffff, 4, 2); want != got {
-		println("testBitwiseRshU failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseRshU failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint32(0), testBitwiseRshU_ssa(13, 25, 15); want != got {
-		println("testBitwiseRshU failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseRshU failed, wanted %d got %d", want, got)
 	}
 	if want, got := uint32(0), testBitwiseRshU_ssa(0x8aaaaaaa, 25, 15); want != got {
-		println("testBitwiseRshU failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testBitwiseRshU failed, wanted %d got %d", want, got)
 	}
 }
 
@@ -419,20 +383,18 @@ func testShiftCX_ssa() int {
 	return int(uint64(2*1)<<(3-2)<<uint(3>>v7)-2)&v11 | v11 - int(2)<<0>>(2-1)*(v11*0&v11<<1<<(uint8(2)+v4))
 }
 
-func testShiftCX() {
+func testShiftCX(t *testing.T) {
 	want := 141
 	if got := testShiftCX_ssa(); want != got {
-		println("testShiftCX failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testShiftCX failed, wanted %d got %d", want, got)
 	}
 }
 
 // testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
-func testSubqToNegq() {
+func testSubqToNegq(t *testing.T) {
 	want := int64(-318294940372190156)
 	if got := testSubqToNegq_ssa(1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2); want != got {
-		println("testSubqToNegq failed, wanted", want, "got", got)
-		failed = true
+		t.Errorf("testSubqToNegq failed, wanted %d got %d", want, got)
 	}
 }
 
@@ -441,12 +403,10 @@ func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
 	return a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
 }
 
-func testOcom() {
+func testOcom(t *testing.T) {
 	want1, want2 := int32(0x55555555), int32(-0x55555556)
 	if got1, got2 := testOcom_ssa(0x55555555, 0x55555555); want1 != got1 || want2 != got2 {
-		println("testSubqToNegq failed, wanted", want1, "and", want2,
-			"got", got1, "and", got2)
-		failed = true
+		t.Errorf("testOcom failed, wanted %d and %d got %d and %d", want1, want2, got1, got2)
 	}
 }
 
@@ -479,27 +439,21 @@ func lrot3_ssa(w uint32) uint32 {
 	return (w << 32) | (w >> (32 - 32))
 }
 
-func testLrot() {
+func testLrot(t *testing.T) {
 	wantA, wantB, wantC, wantD := uint8(0xe1), uint16(0xe001),
 		uint32(0xe0000001), uint64(0xe000000000000001)
 	a, b, c, d := lrot1_ssa(0xf, 0xf, 0xf, 0xf)
 	if a != wantA || b != wantB || c != wantC || d != wantD {
-		println("lrot1_ssa(0xf, 0xf, 0xf, 0xf)=",
-			wantA, wantB, wantC, wantD, ", got", a, b, c, d)
-		failed = true
+		t.Errorf("lrot1_ssa(0xf, 0xf, 0xf, 0xf)=%d %d %d %d, got %d %d %d %d", wantA, wantB, wantC, wantD, a, b, c, d)
 	}
 	x := lrot2_ssa(0xb0000001, 32)
 	wantX := uint32(0xb0000001)
 	if x != wantX {
-		println("lrot2_ssa(0xb0000001, 32)=",
-			wantX, ", got", x)
-		failed = true
+		t.Errorf("lrot2_ssa(0xb0000001, 32)=%d, got %d", wantX, x)
 	}
 	x = lrot3_ssa(0xb0000001)
 	if x != wantX {
-		println("lrot3_ssa(0xb0000001)=",
-			wantX, ", got", x)
-		failed = true
+		t.Errorf("lrot3_ssa(0xb0000001)=%d, got %d", wantX, x)
 	}
 
 }
@@ -518,18 +472,16 @@ func sub2_ssa() uint8 {
 	return v1 ^ v1*v1 - v3
 }
 
-func testSubConst() {
+func testSubConst(t *testing.T) {
 	x1 := sub1_ssa()
 	want1 := uint64(6)
 	if x1 != want1 {
-		println("sub1_ssa()=", want1, ", got", x1)
-		failed = true
+		t.Errorf("sub1_ssa()=%d, got %d", want1, x1)
 	}
 	x2 := sub2_ssa()
 	want2 := uint8(251)
 	if x2 != want2 {
-		println("sub2_ssa()=", want2, ", got", x2)
-		failed = true
+		t.Errorf("sub2_ssa()=%d, got %d", want2, x2)
 	}
 }
 
@@ -544,12 +496,12 @@ func orPhi_ssa(a bool, x int) int {
 	return x | v
 }
 
-func testOrPhi() {
+func testOrPhi(t *testing.T) {
 	if want, got := -1, orPhi_ssa(true, 4); got != want {
-		println("orPhi_ssa(true, 4)=", got, " want ", want)
+		t.Errorf("orPhi_ssa(true, 4)=%d, want %d", got, want)
 	}
 	if want, got := -1, orPhi_ssa(false, 0); got != want {
-		println("orPhi_ssa(false, 0)=", got, " want ", want)
+		t.Errorf("orPhi_ssa(false, 0)=%d, want %d", got, want)
 	}
 }
 
@@ -794,227 +746,173 @@ func notshiftRAreg_ssa(a int32, s uint8) int32 {
 }
 
 // test ARM shifted ops
-func testShiftedOps() {
+func testShiftedOps(t *testing.T) {
 	a, b := uint32(10), uint32(42)
 	if want, got := a+b<<3, addshiftLL_ssa(a, b); got != want {
-		println("addshiftLL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("addshiftLL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a-b<<3, subshiftLL_ssa(a, b); got != want {
-		println("subshiftLL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("subshiftLL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a<<3-b, rsbshiftLL_ssa(a, b); got != want {
-		println("rsbshiftLL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("rsbshiftLL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a&(b<<3), andshiftLL_ssa(a, b); got != want {
-		println("andshiftLL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("andshiftLL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a|b<<3, orshiftLL_ssa(a, b); got != want {
-		println("orshiftLL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("orshiftLL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a^b<<3, xorshiftLL_ssa(a, b); got != want {
-		println("xorshiftLL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("xorshiftLL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a&^(b<<3), bicshiftLL_ssa(a, b); got != want {
-		println("bicshiftLL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("bicshiftLL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := ^(a << 3), notshiftLL_ssa(a); got != want {
-		println("notshiftLL_ssa(10) =", got, " want ", want)
-		failed = true
+		t.Errorf("notshiftLL_ssa(10) = %d want %d", got, want)
 	}
 	if want, got := a+b>>3, addshiftRL_ssa(a, b); got != want {
-		println("addshiftRL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("addshiftRL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a-b>>3, subshiftRL_ssa(a, b); got != want {
-		println("subshiftRL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("subshiftRL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a>>3-b, rsbshiftRL_ssa(a, b); got != want {
-		println("rsbshiftRL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("rsbshiftRL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a&(b>>3), andshiftRL_ssa(a, b); got != want {
-		println("andshiftRL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("andshiftRL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a|b>>3, orshiftRL_ssa(a, b); got != want {
-		println("orshiftRL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("orshiftRL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a^b>>3, xorshiftRL_ssa(a, b); got != want {
-		println("xorshiftRL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("xorshiftRL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := a&^(b>>3), bicshiftRL_ssa(a, b); got != want {
-		println("bicshiftRL_ssa(10, 42) =", got, " want ", want)
-		failed = true
+		t.Errorf("bicshiftRL_ssa(10, 42) = %d want %d", got, want)
 	}
 	if want, got := ^(a >> 3), notshiftRL_ssa(a); got != want {
-		println("notshiftRL_ssa(10) =", got, " want ", want)
-		failed = true
+		t.Errorf("notshiftRL_ssa(10) = %d want %d", got, want)
 	}
 	c, d := int32(10), int32(-42)
 	if want, got := c+d>>3, addshiftRA_ssa(c, d); got != want {
-		println("addshiftRA_ssa(10, -42) =", got, " want ", want)
-		failed = true
+		t.Errorf("addshiftRA_ssa(10, -42) = %d want %d", got, want)
 	}
 	if want, got := c-d>>3, subshiftRA_ssa(c, d); got != want {
-		println("subshiftRA_ssa(10, -42) =", got, " want ", want)
-		failed = true
+		t.Errorf("subshiftRA_ssa(10, -42) = %d want %d", got, want)
 	}
 	if want, got := c>>3-d, rsbshiftRA_ssa(c, d); got != want {
-		println("rsbshiftRA_ssa(10, -42) =", got, " want ", want)
-		failed = true
+		t.Errorf("rsbshiftRA_ssa(10, -42) = %d want %d", got, want)
 	}
 	if want, got := c&(d>>3), andshiftRA_ssa(c, d); got != want {
-		println("andshiftRA_ssa(10, -42) =", got, " want ", want)
-		failed = true
+		t.Errorf("andshiftRA_ssa(10, -42) = %d want %d", got, want)
 	}
 	if want, got := c|d>>3, orshiftRA_ssa(c, d); got != want {
-		println("orshiftRA_ssa(10, -42) =", got, " want ", want)
-		failed = true
+		t.Errorf("orshiftRA_ssa(10, -42) = %d want %d", got, want)
 	}
 	if want, got := c^d>>3, xorshiftRA_ssa(c, d); got != want {
-		println("xorshiftRA_ssa(10, -42) =", got, " want ", want)
-		failed = true
+		t.Errorf("xorshiftRA_ssa(10, -42) = %d want %d", got, want)
 	}
 	if want, got := c&^(d>>3), bicshiftRA_ssa(c, d); got != want {
-		println("bicshiftRA_ssa(10, -42) =", got, " want ", want)
-		failed = true
+		t.Errorf("bicshiftRA_ssa(10, -42) = %d want %d", got, want)
 	}
 	if want, got := ^(d >> 3), notshiftRA_ssa(d); got != want {
-		println("notshiftRA_ssa(-42) =", got, " want ", want)
-		failed = true
+		t.Errorf("notshiftRA_ssa(-42) = %d want %d", got, want)
 	}
 	s := uint8(3)
 	if want, got := a+b<<s, addshiftLLreg_ssa(a, b, s); got != want {
-		println("addshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("addshiftLLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a-b<<s, subshiftLLreg_ssa(a, b, s); got != want {
-		println("subshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("subshiftLLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a<<s-b, rsbshiftLLreg_ssa(a, b, s); got != want {
-		println("rsbshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("rsbshiftLLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a&(b<<s), andshiftLLreg_ssa(a, b, s); got != want {
-		println("andshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("andshiftLLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a|b<<s, orshiftLLreg_ssa(a, b, s); got != want {
-		println("orshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("orshiftLLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a^b<<s, xorshiftLLreg_ssa(a, b, s); got != want {
-		println("xorshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("xorshiftLLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a&^(b<<s), bicshiftLLreg_ssa(a, b, s); got != want {
-		println("bicshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("bicshiftLLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := ^(a << s), notshiftLLreg_ssa(a, s); got != want {
-		println("notshiftLLreg_ssa(10) =", got, " want ", want)
-		failed = true
+		t.Errorf("notshiftLLreg_ssa(10) = %d want %d", got, want)
 	}
 	if want, got := a+b>>s, addshiftRLreg_ssa(a, b, s); got != want {
-		println("addshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("addshiftRLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a-b>>s, subshiftRLreg_ssa(a, b, s); got != want {
-		println("subshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("subshiftRLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a>>s-b, rsbshiftRLreg_ssa(a, b, s); got != want {
-		println("rsbshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("rsbshiftRLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a&(b>>s), andshiftRLreg_ssa(a, b, s); got != want {
-		println("andshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("andshiftRLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a|b>>s, orshiftRLreg_ssa(a, b, s); got != want {
-		println("orshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("orshiftRLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a^b>>s, xorshiftRLreg_ssa(a, b, s); got != want {
-		println("xorshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("xorshiftRLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := a&^(b>>s), bicshiftRLreg_ssa(a, b, s); got != want {
-		println("bicshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("bicshiftRLreg_ssa(10, 42, 3) = %d want %d", got, want)
 	}
 	if want, got := ^(a >> s), notshiftRLreg_ssa(a, s); got != want {
-		println("notshiftRLreg_ssa(10) =", got, " want ", want)
-		failed = true
+		t.Errorf("notshiftRLreg_ssa(10) = %d want %d", got, want)
 	}
 	if want, got := c+d>>s, addshiftRAreg_ssa(c, d, s); got != want {
-		println("addshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("addshiftRAreg_ssa(10, -42, 3) = %d want %d", got, want)
 	}
 	if want, got := c-d>>s, subshiftRAreg_ssa(c, d, s); got != want {
-		println("subshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("subshiftRAreg_ssa(10, -42, 3) = %d want %d", got, want)
 	}
 	if want, got := c>>s-d, rsbshiftRAreg_ssa(c, d, s); got != want {
-		println("rsbshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("rsbshiftRAreg_ssa(10, -42, 3) = %d want %d", got, want)
 	}
 	if want, got := c&(d>>s), andshiftRAreg_ssa(c, d, s); got != want {
-		println("andshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("andshiftRAreg_ssa(10, -42, 3) = %d want %d", got, want)
 	}
 	if want, got := c|d>>s, orshiftRAreg_ssa(c, d, s); got != want {
-		println("orshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("orshiftRAreg_ssa(10, -42, 3) = %d want %d", got, want)
 	}
 	if want, got := c^d>>s, xorshiftRAreg_ssa(c, d, s); got != want {
-		println("xorshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("xorshiftRAreg_ssa(10, -42, 3) = %d want %d", got, want)
 	}
 	if want, got := c&^(d>>s), bicshiftRAreg_ssa(c, d, s); got != want {
-		println("bicshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("bicshiftRAreg_ssa(10, -42, 3) = %d want %d", got, want)
 	}
 	if want, got := ^(d >> s), notshiftRAreg_ssa(d, s); got != want {
-		println("notshiftRAreg_ssa(-42, 3) =", got, " want ", want)
-		failed = true
+		t.Errorf("notshiftRAreg_ssa(-42, 3) = %d want %d", got, want)
 	}
 }
 
-var failed = false
-
-func main() {
-
-	test64BitConstMult()
-	test64BitConstAdd()
-	testRegallocCVSpill()
-	testSubqToNegq()
-	testBitwiseLogic()
-	testOcom()
-	testLrot()
-	testShiftCX()
-	testSubConst()
-	testOverflowConstShift()
-	testArithConstShift()
-	testArithRshConst()
-	testLargeConst()
-	testLoadCombine()
-	testLoadSymCombine()
-	testShiftRemoval()
-	testShiftedOps()
-
-	if failed {
-		panic("failed")
-	}
+// TestArithmetic tests that both backends have the same result for arithmetic expressions.
+func TestArithmetic(t *testing.T) {
+	test64BitConstMult(t)
+	test64BitConstAdd(t)
+	testRegallocCVSpill(t)
+	testSubqToNegq(t)
+	testBitwiseLogic(t)
+	testOcom(t)
+	testLrot(t)
+	testShiftCX(t)
+	testSubConst(t)
+	testOverflowConstShift(t)
+	testArithConstShift(t)
+	testArithRshConst(t)
+	testLargeConst(t)
+	testLoadCombine(t)
+	testLoadSymCombine(t)
+	testShiftRemoval(t)
+	testShiftedOps(t)
 }
