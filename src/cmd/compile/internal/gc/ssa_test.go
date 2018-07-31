@@ -227,19 +227,6 @@ func TestCode(t *testing.T) {
 	}
 }
 
-// TestTypeAssertion tests type assertions.
-func TestTypeAssertion(t *testing.T) { runTest(t, "assert.go") }
-
-// TestArithmetic tests that both backends have the same result for arithmetic expressions.
-func TestArithmetic(t *testing.T) { runTest(t, "arith.go") }
-
-// TestFP tests that both backends have the same result for floating point expressions.
-func TestFP(t *testing.T) { runTest(t, "fp.go") }
-
-func TestFPSoftFloat(t *testing.T) {
-	runTest(t, "fp.go", "-gcflags=-d=softfloat,ssa/check/on")
-}
-
 // TestArithmeticBoundary tests boundary results for arithmetic operations.
 func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary.go") }
 
