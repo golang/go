@@ -677,10 +677,7 @@ for k := range m {
       methods will return errors after a shutdown or close.
     </p>
 
-    <p><!-- CL 89275 -->
-      The HTTP server will no longer automatically set the Content-Type if a
-      <code>Handler</code> sets the "<code>X-Content-Type-Options</code>" header to "<code>nosniff</code>".
-    </p>
+    <!-- CL 89275 was reverted before Go 1.11 -->
 
     <p><!-- CL 93296 -->
       The constant <code>StatusMisdirectedRequest</code> is now defined for HTTP status code 421.

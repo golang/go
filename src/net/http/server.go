@@ -1360,15 +1360,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		// If no content type, apply sniffing algorithm to body.
 		_, haveType := header["Content-Type"]
 		if !haveType && !hasTE && len(p) > 0 {
-			if cto := header.get("X-Content-Type-Options"); strings.EqualFold("nosniff", cto) {
-				// nosniff is an explicit directive not to guess a content-type.
-				// Content-sniffing is no less susceptible to polyglot attacks via
-				// hosted content when done on the server.
-				setHeader.contentType = "application/octet-stream"
-				w.conn.server.logf("http: WriteHeader called with X-Content-Type-Options:nosniff but no Content-Type")
-			} else {
-				setHeader.contentType = DetectContentType(p)
-			}
+			setHeader.contentType = DetectContentType(p)
 		}
 	} else {
 		for _, k := range suppressedHeaders(code) {
