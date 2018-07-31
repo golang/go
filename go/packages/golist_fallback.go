@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -18,19 +19,21 @@ import (
 
 // TODO(matloob): Support cgo. Copy code from the loader that runs cgo.
 
-func golistPackagesFallback(cfg *rawConfig, words ...string) ([]*rawPackage, error) {
-	original, deps, err := getDeps(cfg, words...)
+func golistPackagesFallback(ctx context.Context, cfg *rawConfig, words ...string) ([]string, []*rawPackage, error) {
+	original, deps, err := getDeps(ctx, cfg, words...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var result []*rawPackage
+	var roots []string
 	addPackage := func(p *jsonPackage) {
 		if p.Name == "" {
 			return
 		}
 
 		id := p.ImportPath
+		isRoot := original[id] != nil
 		pkgpath := id
 
 		if pkgpath == "unsafe" {
@@ -53,7 +56,9 @@ func golistPackagesFallback(cfg *rawConfig, words ...string) ([]*rawPackage, err
 			}
 			return importMap
 		}
-
+		if isRoot {
+			roots = append(roots, id)
+		}
 		result = append(result, &rawPackage{
 			ID:         id,
 			Name:       p.Name,
@@ -61,11 +66,13 @@ func golistPackagesFallback(cfg *rawConfig, words ...string) ([]*rawPackage, err
 			OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
 			PkgPath:    pkgpath,
 			Imports:    importMap(p.Imports),
-			DepOnly:    original[id] == nil,
 		})
 		if cfg.Tests {
 			testID := fmt.Sprintf("%s [%s.test]", id, id)
 			if len(p.TestGoFiles) > 0 || len(p.XTestGoFiles) > 0 {
+				if isRoot {
+					roots = append(roots, testID)
+				}
 				result = append(result, &rawPackage{
 					ID:         testID,
 					Name:       p.Name,
@@ -73,17 +80,19 @@ func golistPackagesFallback(cfg *rawConfig, words ...string) ([]*rawPackage, err
 					OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
 					PkgPath:    pkgpath,
 					Imports:    importMap(append(p.Imports, p.TestImports...)),
-					DepOnly:    original[id] == nil,
 				})
 			}
 			if len(p.XTestGoFiles) > 0 {
+				xtestID := fmt.Sprintf("%s_test [%s.test]", id, id)
+				if isRoot {
+					roots = append(roots, xtestID)
+				}
 				result = append(result, &rawPackage{
-					ID:      fmt.Sprintf("%s_test [%s.test]", id, id),
+					ID:      xtestID,
 					Name:    p.Name + "_test",
 					GoFiles: absJoin(p.Dir, p.XTestGoFiles),
 					PkgPath: pkgpath,
 					Imports: importMap(append(p.XTestImports, testID)),
-					DepOnly: original[id] == nil,
 				})
 			}
 		}
@@ -93,30 +102,30 @@ func golistPackagesFallback(cfg *rawConfig, words ...string) ([]*rawPackage, err
 		addPackage(pkg)
 	}
 	if !cfg.Deps || len(deps) == 0 {
-		return result, nil
+		return roots, result, nil
 	}
 
-	buf, err := golist(cfg, golistargs_fallback(cfg, deps))
+	buf, err := golist(ctx, cfg, golistargs_fallback(cfg, deps))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Decode the JSON and convert it to rawPackage form.
 	for dec := json.NewDecoder(buf); dec.More(); {
 		p := new(jsonPackage)
 		if err := dec.Decode(p); err != nil {
-			return nil, fmt.Errorf("JSON decoding failed: %v", err)
+			return nil, nil, fmt.Errorf("JSON decoding failed: %v", err)
 		}
 
 		addPackage(p)
 	}
 
-	return result, nil
+	return roots, result, nil
 }
 
 // getDeps runs an initial go list to determine all the dependency packages.
-func getDeps(cfg *rawConfig, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
-	buf, err := golist(cfg, golistargs_fallback(cfg, words))
+func getDeps(ctx context.Context, cfg *rawConfig, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
+	buf, err := golist(ctx, cfg, golistargs_fallback(cfg, words))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -149,7 +158,7 @@ func getDeps(cfg *rawConfig, words ...string) (originalSet map[string]*jsonPacka
 
 func golistargs_fallback(cfg *rawConfig, words []string) []string {
 	fullargs := []string{"list", "-e", "-json"}
-	fullargs = append(fullargs, cfg.ExtraFlags...)
+	fullargs = append(fullargs, cfg.Flags...)
 	fullargs = append(fullargs, "--")
 	fullargs = append(fullargs, words...)
 	return fullargs

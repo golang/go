@@ -8,6 +8,7 @@ package packages
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -52,7 +53,7 @@ type jsonPackage struct {
 // golistPackages uses the "go list" command to expand the
 // pattern words and return metadata for the specified packages.
 // dir may be "" and env may be nil, as per os/exec.Command.
-func golistPackages(cfg *rawConfig, words ...string) ([]*rawPackage, error) {
+func golistPackages(ctx context.Context, cfg *rawConfig, words ...string) ([]string, []*rawPackage, error) {
 	// go list uses the following identifiers in ImportPath and Imports:
 	//
 	// 	"p"			-- importable package or main (command)
@@ -67,16 +68,17 @@ func golistPackages(cfg *rawConfig, words ...string) ([]*rawPackage, error) {
 	// Run "go list" for complete
 	// information on the specified packages.
 
-	buf, err := golist(cfg, golistargs(cfg, words))
+	buf, err := golist(ctx, cfg, golistargs(cfg, words))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// Decode the JSON and convert it to rawPackage form.
+	var roots []string
 	var result []*rawPackage
 	for dec := json.NewDecoder(buf); dec.More(); {
 		p := new(jsonPackage)
 		if err := dec.Decode(p); err != nil {
-			return nil, fmt.Errorf("JSON decoding failed: %v", err)
+			return nil, nil, fmt.Errorf("JSON decoding failed: %v", err)
 		}
 
 		// Bad package?
@@ -159,12 +161,14 @@ func golistPackages(cfg *rawConfig, words ...string) ([]*rawPackage, error) {
 			PkgPath:    pkgpath,
 			Imports:    imports,
 			Export:     export,
-			DepOnly:    p.DepOnly,
+		}
+		if !p.DepOnly {
+			roots = append(roots, pkg.ID)
 		}
 		result = append(result, pkg)
 	}
 
-	return result, nil
+	return roots, result, nil
 }
 
 // absJoin absolutizes and flattens the lists of files.
@@ -181,17 +185,22 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 }
 
 func golistargs(cfg *rawConfig, words []string) []string {
-	fullargs := []string{"list", "-e", "-json", "-cgo=true"}
-	fullargs = append(fullargs, cfg.Flags()...)
+	fullargs := []string{
+		"list", "-e", "-json", "-cgo=true",
+		fmt.Sprintf("-test=%t", cfg.Tests),
+		fmt.Sprintf("-export=%t", cfg.Export),
+		fmt.Sprintf("-deps=%t", cfg.Deps),
+	}
+	fullargs = append(fullargs, cfg.Flags...)
 	fullargs = append(fullargs, "--")
 	fullargs = append(fullargs, words...)
 	return fullargs
 }
 
 // golist returns the JSON-encoded result of a "go list args..." query.
-func golist(cfg *rawConfig, args []string) (*bytes.Buffer, error) {
+func golist(ctx context.Context, cfg *rawConfig, args []string) (*bytes.Buffer, error) {
 	out := new(bytes.Buffer)
-	cmd := exec.CommandContext(cfg.Context, "go", args...)
+	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Env = cfg.Env
 	cmd.Dir = cfg.Dir
 	cmd.Stdout = out

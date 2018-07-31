@@ -295,10 +295,10 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 	listfunc := golistPackages
 	// TODO(matloob): Patterns may now be empty, if it was solely comprised of contains: patterns.
 	// See if the extra process invocation can be avoided.
-	list, err := listfunc(rawCfg, patterns...)
+	roots, list, err := listfunc(ld.Context, rawCfg, patterns...)
 	if _, ok := err.(GoTooOldError); ok {
 		listfunc = golistPackagesFallback
-		list, err = listfunc(rawCfg, patterns...)
+		roots, list, err = listfunc(ld.Context, rawCfg, patterns...)
 	}
 	if err != nil {
 		return nil, err
@@ -315,7 +315,7 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		// TODO(matloob): Do only one query per directory.
 		fdir := filepath.Dir(f)
 		rawCfg.Dir = fdir
-		cList, err := listfunc(rawCfg, ".")
+		_, cList, err := listfunc(ld.Context, rawCfg, ".")
 		if err != nil {
 			return nil, err
 		}
@@ -327,10 +327,9 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 			}
 			seenPkgs[pkg.ID] = true
 			dedupedList = append(dedupedList, pkg)
-			pkg.DepOnly = true
 			for _, pkgFile := range pkg.GoFiles {
 				if filepath.Base(f) == filepath.Base(pkgFile) {
-					pkg.DepOnly = false
+					roots = append(roots, pkg.ID)
 					break
 				}
 			}
@@ -338,12 +337,17 @@ func (ld *loader) load(patterns ...string) ([]*Package, error) {
 		list = append(list, dedupedList...)
 	}
 
-	return ld.loadFrom(list...)
+	return ld.loadFrom(roots, list...)
 }
 
-func (ld *loader) loadFrom(list ...*rawPackage) ([]*Package, error) {
+func (ld *loader) loadFrom(roots []string, list ...*rawPackage) ([]*Package, error) {
+	if len(list) == 0 {
+		return nil, fmt.Errorf("packages not found")
+	}
+	if len(roots) == 0 {
+		return nil, fmt.Errorf("packages had no initial set")
+	}
 	ld.pkgs = make(map[string]*loaderPackage, len(list))
-	var initial []*loaderPackage
 	// first pass, fixup and build the map and roots
 	for _, pkg := range list {
 		lpkg := &loaderPackage{
@@ -357,18 +361,19 @@ func (ld *loader) loadFrom(list ...*rawPackage) ([]*Package, error) {
 			needsrc: ld.Mode >= LoadAllSyntax || pkg.Export == "",
 		}
 		ld.pkgs[lpkg.ID] = lpkg
-		if !pkg.DepOnly {
-			initial = append(initial, lpkg)
-			if ld.Mode == LoadSyntax {
-				lpkg.needsrc = true
-			}
+	}
+	// check all the roots were found
+	initial := make([]*loaderPackage, len(roots))
+	for i, root := range roots {
+		lpkg := ld.pkgs[root]
+		if lpkg == nil {
+			return nil, fmt.Errorf("root package %v not found", root)
 		}
-	}
-	if len(ld.pkgs) == 0 {
-		return nil, fmt.Errorf("packages not found")
-	}
-	if len(initial) == 0 {
-		return nil, fmt.Errorf("packages had no initial set")
+		initial[i] = lpkg
+		// mark the roots as needing source
+		if ld.Mode == LoadSyntax {
+			lpkg.needsrc = true
+		}
 	}
 
 	// Materialize the import graph.
