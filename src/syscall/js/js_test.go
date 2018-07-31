@@ -254,6 +254,21 @@ func TestType(t *testing.T) {
 	}
 }
 
+type object = map[string]interface{}
+type array = []interface{}
+
+func TestValueOf(t *testing.T) {
+	a := js.ValueOf(array{0, array{0, 42, 0}, 0})
+	if got := a.Index(1).Index(1).Int(); got != 42 {
+		t.Errorf("got %v, want %v", got, 42)
+	}
+
+	o := js.ValueOf(object{"x": object{"y": 42}})
+	if got := o.Get("x").Get("y").Int(); got != 42 {
+		t.Errorf("got %v, want %v", got, 42)
+	}
+}
+
 func TestCallback(t *testing.T) {
 	c := make(chan struct{})
 	cb := js.NewCallback(func(args []js.Value) {
