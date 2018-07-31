@@ -19,6 +19,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 )
@@ -26,7 +27,7 @@ import (
 var CmdList = &base.Command{
 	// Note: -f -json -m are listed explicitly because they are the most common list flags.
 	// Do not send CLs removing them because they're covered by [list flags].
-	UsageLine: "list [-f format] [-json] [-m] [list flags] [build flags] [packages]",
+	UsageLine: "list [-f format] [-json] [-m] [-q] [list flags] [build flags] [packages]",
 	Short:     "list packages or modules",
 	Long: `
 List lists the named packages, one per line.
@@ -249,6 +250,9 @@ to semantic versioning, earliest to latest. The flag also changes
 the default output format to display the module path followed by the
 space-separated version list.
 
+The -q flag will suppress prints about module look ups. This makes 
+it easier for tools to just use the -json output from the CLI.
+
 The arguments to list -m are interpreted as a list of modules, not packages.
 The main module is the module containing the current directory.
 The active modules are the main module and its dependencies.
@@ -292,6 +296,7 @@ var (
 	listU        = CmdList.Flag.Bool("u", false, "")
 	listTest     = CmdList.Flag.Bool("test", false, "")
 	listVersions = CmdList.Flag.Bool("versions", false, "")
+	listQuiet    = CmdList.Flag.Bool("q", false, "")
 )
 
 var nl = []byte{'\n'}
@@ -352,6 +357,9 @@ func runList(cmd *base.Command, args []string) {
 	}
 
 	if *listM {
+		if *listQuiet {
+			modfetch.QuietLookup = true
+		}
 		// Module mode.
 		if *listCgo {
 			base.Fatalf("go list -cgo cannot be used with -m")
