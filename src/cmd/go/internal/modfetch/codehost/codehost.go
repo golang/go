@@ -201,6 +201,10 @@ func Run(dir string, cmdline ...interface{}) ([]byte, error) {
 	return RunWithStdin(dir, nil, cmdline...)
 }
 
+// bashQuoter escapes characters that have special meaning in double-quoted strings in the bash shell.
+// See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
+var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
+
 func RunWithStdin(dir string, stdin io.Reader, cmdline ...interface{}) ([]byte, error) {
 	if dir != "" {
 		muIface, ok := dirLock.Load(dir)
@@ -214,11 +218,31 @@ func RunWithStdin(dir string, stdin io.Reader, cmdline ...interface{}) ([]byte, 
 
 	cmd := str.StringList(cmdline...)
 	if cfg.BuildX {
-		var text string
+		text := new(strings.Builder)
 		if dir != "" {
-			text = "cd " + dir + "; "
+			text.WriteString("cd ")
+			text.WriteString(dir)
+			text.WriteString("; ")
 		}
-		text += strings.Join(cmd, " ")
+		for i, arg := range cmd {
+			if i > 0 {
+				text.WriteByte(' ')
+			}
+			switch {
+			case strings.ContainsAny(arg, "'"):
+				// Quote args that could be mistaken for quoted args.
+				text.WriteByte('"')
+				text.WriteString(bashQuoter.Replace(arg))
+				text.WriteByte('"')
+			case strings.ContainsAny(arg, "$`\\*?[\"\t\n\v\f\r \u0085\u00a0"):
+				// Quote args that contain special characters, glob patterns, or spaces.
+				text.WriteByte('\'')
+				text.WriteString(arg)
+				text.WriteByte('\'')
+			default:
+				text.WriteString(arg)
+			}
+		}
 		fmt.Fprintf(os.Stderr, "%s\n", text)
 		start := time.Now()
 		defer func() {
