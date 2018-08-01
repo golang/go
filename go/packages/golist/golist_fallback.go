@@ -65,12 +65,13 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 			roots = append(roots, id)
 		}
 		result = append(result, &raw.Package{
-			ID:         id,
-			Name:       p.Name,
-			GoFiles:    absJoin(p.Dir, p.GoFiles, p.CgoFiles),
-			OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
-			PkgPath:    pkgpath,
-			Imports:    importMap(p.Imports),
+			ID:              id,
+			Name:            p.Name,
+			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
+			CompiledGoFiles: absJoin(p.Dir, p.GoFiles, p.CgoFiles), // TODO(matloob): Use cgo-processed Go files instead of p.GoFiles
+			OtherFiles:      absJoin(p.Dir, p.SFiles, p.CFiles),
+			PkgPath:         pkgpath,
+			Imports:         importMap(p.Imports),
 		})
 		if cfg.Tests {
 			testID := fmt.Sprintf("%s [%s.test]", id, id)
@@ -79,12 +80,13 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 					roots = append(roots, testID)
 				}
 				result = append(result, &raw.Package{
-					ID:         testID,
-					Name:       p.Name,
-					GoFiles:    absJoin(p.Dir, p.GoFiles, p.TestGoFiles, p.CgoFiles),
-					OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
-					PkgPath:    pkgpath,
-					Imports:    importMap(append(p.Imports, p.TestImports...)),
+					ID:              testID,
+					Name:            p.Name,
+					GoFiles:         absJoin(p.Dir, p.GoFiles, p.TestGoFiles, p.CgoFiles),
+					CompiledGoFiles: absJoin(p.Dir, p.GoFiles, p.TestGoFiles, p.CgoFiles), // TODO(matloob): Use cgo-processed Go files instead of p.GoFiles
+					OtherFiles:      absJoin(p.Dir, p.SFiles, p.CFiles),
+					PkgPath:         pkgpath,
+					Imports:         importMap(append(p.Imports, p.TestImports...)),
 				})
 			}
 			if len(p.XTestGoFiles) > 0 {
@@ -99,11 +101,12 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 					}
 				}
 				result = append(result, &raw.Package{
-					ID:      xtestID,
-					Name:    p.Name + "_test",
-					GoFiles: absJoin(p.Dir, p.XTestGoFiles),
-					PkgPath: pkgpath,
-					Imports: importMap(p.XTestImports),
+					ID:              xtestID,
+					Name:            p.Name + "_test",
+					GoFiles:         absJoin(p.Dir, p.XTestGoFiles),
+					CompiledGoFiles: absJoin(p.Dir, p.XTestGoFiles),
+					PkgPath:         pkgpath,
+					Imports:         importMap(p.XTestImports),
 				})
 			}
 		}

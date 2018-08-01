@@ -671,6 +671,9 @@ func TestWholeProgramOverlay(t *testing.T) {
 }
 
 func TestWholeProgramImportErrors(t *testing.T) {
+	// TODO(matloob): Remove this once go list -e -compiled is fixed. See golang.org/issue/26755
+	t.Skip("go list -compiled -e fails with non-zero exit status for empty packages")
+
 	if usesOldGolist {
 		t.Skip("not yet supported in pre-Go 1.10.4 golist fallback implementation")
 	}

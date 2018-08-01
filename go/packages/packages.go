@@ -464,7 +464,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		lpkg.Errors = append(lpkg.Errors, err)
 	}
 
-	files, errs := ld.parseFiles(lpkg.GoFiles)
+	files, errs := ld.parseFiles(lpkg.raw.CompiledGoFiles)
 	for _, err := range errs {
 		appendError(err)
 	}

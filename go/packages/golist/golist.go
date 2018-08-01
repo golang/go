@@ -57,16 +57,27 @@ func LoadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string
 		patterns = restPatterns
 	}
 
-	listfunc := golistPackages
+	// TODO(matloob): Remove the definition of listfunc and just use golistPackages once go1.12 is released.
+	var listfunc func(ctx context.Context, cfg *raw.Config, words ...string) ([]string, []*raw.Package, error)
+	listfunc = func(ctx context.Context, cfg *raw.Config, words ...string) ([]string, []*raw.Package, error) {
+		roots, pkgs, err := golistPackages(ctx, cfg, patterns...)
+		if _, ok := err.(goTooOldError); ok {
+			listfunc = golistPackagesFallback
+			roots, pkgs, err = listfunc(ctx, cfg, patterns...)
+		}
+		listfunc = golistPackages
+		return roots, pkgs, err
+	}
+
+	roots, pkgs, err := []string(nil), []*raw.Package(nil), error(nil)
+
 	// TODO(matloob): Patterns may now be empty, if it was solely comprised of contains: patterns.
 	// See if the extra process invocation can be avoided.
-	roots, pkgs, err := listfunc(ctx, cfg, patterns...)
-	if _, ok := err.(goTooOldError); ok {
-		listfunc = golistPackagesFallback
+	if len(patterns) > 0 {
 		roots, pkgs, err = listfunc(ctx, cfg, patterns...)
-	}
-	if err != nil {
-		return nil, nil, err
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// Run go list for contains: patterns.
@@ -107,23 +118,24 @@ func LoadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string
 // Fields must match go list;
 // see $GOROOT/src/cmd/go/internal/load/pkg.go.
 type jsonPackage struct {
-	ImportPath   string
-	Dir          string
-	Name         string
-	Export       string
-	GoFiles      []string
-	CFiles       []string
-	CgoFiles     []string
-	SFiles       []string
-	Imports      []string
-	ImportMap    map[string]string
-	Deps         []string
-	TestGoFiles  []string
-	TestImports  []string
-	XTestGoFiles []string
-	XTestImports []string
-	ForTest      string // q in a "p [q.test]" package, else ""
-	DepOnly      bool
+	ImportPath      string
+	Dir             string
+	Name            string
+	Export          string
+	GoFiles         []string
+	CompiledGoFiles []string
+	CFiles          []string
+	CgoFiles        []string
+	SFiles          []string
+	Imports         []string
+	ImportMap       map[string]string
+	Deps            []string
+	TestGoFiles     []string
+	TestImports     []string
+	XTestGoFiles    []string
+	XTestImports    []string
+	ForTest         string // q in a "p [q.test]" package, else ""
+	DepOnly         bool
 }
 
 // golistPackages uses the "go list" command to expand the
@@ -230,13 +242,18 @@ func golistPackages(ctx context.Context, cfg *raw.Config, words ...string) ([]st
 		}
 
 		pkg := &raw.Package{
-			ID:         id,
-			Name:       p.Name,
-			GoFiles:    absJoin(p.Dir, p.GoFiles, p.CgoFiles),
-			OtherFiles: absJoin(p.Dir, p.SFiles, p.CFiles),
-			PkgPath:    pkgpath,
-			Imports:    imports,
-			Export:     export,
+			ID:              id,
+			Name:            p.Name,
+			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
+			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
+			OtherFiles:      absJoin(p.Dir, p.SFiles, p.CFiles),
+			PkgPath:         pkgpath,
+			Imports:         imports,
+			Export:          export,
+		}
+		// TODO(matloob): Temporary hack since CompiledGoFiles isn't always set.
+		if len(pkg.CompiledGoFiles) == 0 {
+			pkg.CompiledGoFiles = pkg.GoFiles
 		}
 		if !p.DepOnly {
 			roots = append(roots, pkg.ID)
@@ -262,7 +279,7 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 
 func golistargs(cfg *raw.Config, words []string) []string {
 	fullargs := []string{
-		"list", "-e", "-json",
+		"list", "-e", "-json", "-compiled",
 		fmt.Sprintf("-test=%t", cfg.Tests),
 		fmt.Sprintf("-export=%t", cfg.Export),
 		fmt.Sprintf("-deps=%t", cfg.Deps),
