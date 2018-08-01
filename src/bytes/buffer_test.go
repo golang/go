@@ -46,7 +46,7 @@ func check(t *testing.T, testname string, buf *Buffer, s string) {
 	}
 
 	if string(bytes) != s {
-		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q", testname, string(bytes), s)
+		t.Errorf("%s: buf.String() == %q, s == %q", testname, string(bytes), s)
 	}
 }
 

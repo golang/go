@@ -176,8 +176,8 @@ func TestLineBreaker(t *testing.T) {
 			continue
 		}
 
-		if string(buf.Bytes()) != test.out {
-			t.Errorf("#%d: got:%s want:%s", i, string(buf.Bytes()), test.out)
+		if buf.String() != test.out {
+			t.Errorf("#%d: got:%s want:%s", i, buf.String(), test.out)
 		}
 	}
 
@@ -199,8 +199,8 @@ func TestLineBreaker(t *testing.T) {
 			continue
 		}
 
-		if string(buf.Bytes()) != test.out {
-			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, string(buf.Bytes()), test.out)
+		if buf.String() != test.out {
+			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, buf.String(), test.out)
 		}
 	}
 }

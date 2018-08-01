@@ -453,6 +453,6 @@ func TestEscapingNilNonemptyInterfaces(t *testing.T) {
 	tmpl.Execute(want, data)
 
 	if !bytes.Equal(want.Bytes(), got.Bytes()) {
-		t.Errorf("expected %q got %q", string(want.Bytes()), string(got.Bytes()))
+		t.Errorf("expected %q got %q", want.String(), got.String())
 	}
 }

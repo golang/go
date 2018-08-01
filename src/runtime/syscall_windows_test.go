@@ -831,7 +831,7 @@ func TestNumCPU(t *testing.T) {
 	}
 	defer func() {
 		err = cmd.Wait()
-		childOutput := string(buf.Bytes())
+		childOutput := buf.String()
 		if err != nil {
 			t.Fatalf("child failed: %v: %v", err, childOutput)
 		}
