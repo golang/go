@@ -3264,10 +3264,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		switch p.As {
 		case ABFI:
-			o1 = c.opbfm(p, ABFM, 64-r, s-1, rf, rt)
+			if r != 0 {
+				r = 64 - r
+			}
+			o1 = c.opbfm(p, ABFM, r, s-1, rf, rt)
 
 		case ABFIW:
-			o1 = c.opbfm(p, ABFMW, 32-r, s-1, rf, rt)
+			if r != 0 {
+				r = 32 - r
+			}
+			o1 = c.opbfm(p, ABFMW, r, s-1, rf, rt)
 
 		case ABFXIL:
 			o1 = c.opbfm(p, ABFM, r, r+s-1, rf, rt)
@@ -3276,10 +3282,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = c.opbfm(p, ABFMW, r, r+s-1, rf, rt)
 
 		case ASBFIZ:
-			o1 = c.opbfm(p, ASBFM, 64-r, s-1, rf, rt)
+			if r != 0 {
+				r = 64 - r
+			}
+			o1 = c.opbfm(p, ASBFM, r, s-1, rf, rt)
 
 		case ASBFIZW:
-			o1 = c.opbfm(p, ASBFMW, 32-r, s-1, rf, rt)
+			if r != 0 {
+				r = 32 - r
+			}
+			o1 = c.opbfm(p, ASBFMW, r, s-1, rf, rt)
 
 		case ASBFX:
 			o1 = c.opbfm(p, ASBFM, r, r+s-1, rf, rt)
@@ -3288,10 +3300,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = c.opbfm(p, ASBFMW, r, r+s-1, rf, rt)
 
 		case AUBFIZ:
-			o1 = c.opbfm(p, AUBFM, 64-r, s-1, rf, rt)
+			if r != 0 {
+				r = 64 - r
+			}
+			o1 = c.opbfm(p, AUBFM, r, s-1, rf, rt)
 
 		case AUBFIZW:
-			o1 = c.opbfm(p, AUBFMW, 32-r, s-1, rf, rt)
+			if r != 0 {
+				r = 32 - r
+			}
+			o1 = c.opbfm(p, AUBFMW, r, s-1, rf, rt)
 
 		case AUBFX:
 			o1 = c.opbfm(p, AUBFM, r, r+s-1, rf, rt)
