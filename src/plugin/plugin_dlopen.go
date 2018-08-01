@@ -39,16 +39,6 @@ import (
 	"unsafe"
 )
 
-// avoid a dependency on strings
-func lastIndexByte(s string, c byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
-}
-
 func open(name string) (*Plugin, error) {
 	cPath := make([]byte, C.PATH_MAX+1)
 	cRelName := make([]byte, len(name)+1)
