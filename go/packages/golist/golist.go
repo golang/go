@@ -262,7 +262,7 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 
 func golistargs(cfg *raw.Config, words []string) []string {
 	fullargs := []string{
-		"list", "-e", "-json", "-cgo=true",
+		"list", "-e", "-json",
 		fmt.Sprintf("-test=%t", cfg.Tests),
 		fmt.Sprintf("-export=%t", cfg.Export),
 		fmt.Sprintf("-deps=%t", cfg.Deps),
