@@ -23,6 +23,10 @@ import (
 )
 
 // A LoadMode specifies the amount of detail to return when loading packages.
+// The modes are all strictly additive, as you go through the list it increases
+// the amount of information available to you, but may also increase the cost
+// of collecting the information.
+// Load is always allowed to return more information than requested.
 type LoadMode int
 
 const (
@@ -184,44 +188,32 @@ type Package struct {
 	Imports map[string]*Package
 
 	// GoFiles lists the absolute file paths of the package's Go source files.
-	//
-	// If a package has typed syntax trees and the DisableCgo option is false,
-	// the cgo-processed output files are listed instead of the original
-	// source files that contained import "C" statements.
-	// In this case, the file paths may not even end in ".go".
-	// Although the original sources are not listed in Srcs, the corresponding
-	// syntax tree positions will still refer back to the orignal source code,
-	// respecting the //line directives in the cgo-processed output.
-	//
-	// TODO(rsc): Actually, in TypeCheck mode even the packages without
-	// syntax trees (pure dependencies) lose their original sources.
-	// We should fix that.
 	GoFiles []string
 
 	// OtherFiles lists the absolute file paths of the package's non-Go source files,
 	// including assembly, C, C++, Fortran, Objective-C, SWIG, and so on.
 	OtherFiles []string
 
-	// Type is the type information for the package.
-	// The TypeCheck and WholeProgram loaders set this field for all packages.
+	// Types is the type information for the package.
+	// Modes LoadTypes and above set this field for all packages.
 	Types *types.Package
 
 	// IllTyped indicates whether the package has any type errors.
-	// The TypeCheck and WholeProgram loaders set this field for all packages.
+	// Modes LoadTypes and above set this field for all packages.
 	IllTyped bool
 
-	// Files is the package's syntax trees, for the files listed in Srcs.
+	// Syntax is the package's syntax trees, for the files listed in GoFiles.
 	//
-	// The TypeCheck loader sets Files for packages matching the patterns.
-	// The WholeProgram loader sets Files for all packages, including dependencies.
+	// Mode LoadSyntax set this field for packages matching the patterns.
+	// Mode LoadSyntaxAll sets this field for all packages, including dependencies.
 	Syntax []*ast.File
 
-	// Info is the type-checking results for the package's syntax trees.
-	// It is set only when Files is set.
+	// TypesInfo is the type-checking results for the package's syntax trees.
+	// It is set only when Syntax is set.
 	TypesInfo *types.Info
 
-	// Fset is the token.FileSet for the package's syntax trees listed in Files.
-	// It is set only when Files is set.
+	// Fset is the token.FileSet for the package's syntax trees listed in Syntax.
+	// It is set only when Syntax is set.
 	// All packages loaded together share a single Fset.
 	Fset *token.FileSet
 }
@@ -249,6 +241,8 @@ func newLoader(cfg *Config) *loader {
 	ld := &loader{}
 	if cfg != nil {
 		ld.Config = *cfg
+	} else {
+		ld.Config.Mode = LoadAllSyntax
 	}
 	if ld.Context == nil {
 		ld.Context = context.Background()

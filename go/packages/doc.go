@@ -6,14 +6,13 @@
 Package packages loads Go packages for inspection and analysis.
 
 NOTE: THIS PACKAGE IS NOT YET READY FOR WIDESPREAD USE:
- - The interface is still being reivsed and is likely to change.
+ - The interface is still being revised and is likely to change.
  - The implementation depends on the Go 1.11 go command.
  - We intend to finalize the API before Go 1.11 is released.
 
-The three loaders Metadata, TypeCheck, and WholeProgram provide differing
-amounts of detail about the loaded packages but otherwise behave the same.
-All three take as input a list of patterns and return a list of Package structs
-describing individual packages matched by those patterns.
+The Load function takes as input a list of patterns and return a list of Package
+structs describing individual packages matched by those patterns.
+The LoadMode controls the amounts of detail about the loaded packages.
 
 The patterns are used as arguments to the underlying build tool,
 such as the go command or Bazel, and are interpreted according to
@@ -22,19 +21,18 @@ that tool's conventions.
 The Package struct provides basic information about the package, including
 
   - ID, a unique identifier for the package in the returned set;
-  - PkgPath, the import path for the package when used in a build;
-  - Srcs, the names of the package's Go source files;
+  - GoFiles, the names of the package's Go source files;
   - Imports, a map from source import strings to the Packages they name;
-  - Type, the type information for the package's exported symbols;
-  - Files, the parsed syntax trees for the package's source code; and
-  - Info, the result of a complete type-check of the package syntax trees.
+  - Types, the type information for the package's exported symbols;
+  - Syntax, the parsed syntax trees for the package's source code; and
+  - TypeInfo, the result of a complete type-check of the package syntax trees.
 
 (See the documentation for type Package for the complete list of fields
 and more detailed descriptions.)
 
 For example,
 
-	Metadata(nil, "bytes", "unicode...")
+	Load(nil, "bytes", "unicode...")
 
 returns four Package structs describing the standard library packages
 bytes, unicode, unicode/utf16, and unicode/utf8. Note that one pattern
@@ -42,23 +40,20 @@ can match multiple packages and that a package might be matched by
 multiple patterns: in general it is not possible to determine which
 packages correspond to which patterns.
 
-Note that the list returned by the loader (Metadata in this case)
+Note that the list returned by Load (LoadAllSyntax in this case)
 only contains the packages matched by the patterns. Their dependencies
 can be found by walking the import graph using the Imports fields.
 
-As noted earlier, the three loaders provide increasing amounts of detail
-about the loaded packages.
+The Load function can be configured by passing a non-nil Config struct as
+the first argument. If you pass nil for the Config Load will
+run in LoadAllSyntax mode, collecting the maximal amount of information
+it can.
+See the documentation for type Config for details.
 
-Metadata loads information about package location, source files, and imports.
-
-TypeCheck adds type information for all packages, including dependencies,
-and type-checked syntax trees only for the packages matched by the patterns.
-
-WholeProgram adds type-checked syntax trees for all packages,
-including dependencies.
-
-The loaders can be configured by passing a non-nil Options struct as
-the first argument. See the documentation for type Options for details.
+As noted earlier, the Config.Mode controls increasing amounts of detail
+about the loaded packages, with each mode returning all the data of the
+previous mode with some extra added. See the documentation for type LoadMode
+for details.
 
 Most tools should pass their command-line arguments (after any flags)
 uninterpreted to the loader, so that the loader can interpret them
@@ -78,12 +73,12 @@ for each package listed on the command line:
 
 	func main() {
 		flag.Parse()
-		pkgs, err := packages.Metadata(nil, flag.Args()...)
+		pkgs, err := packages.Load(nil, flag.Args()...)
 		if err != nil {
 			log.Fatal(err)
 		}
 		for _, pkg := range pkgs {
-			fmt.Print(pkg.ID, pkg.Srcs)
+			fmt.Print(pkg.ID, pkg.GoFiles)
 		}
 	}
 */
@@ -233,14 +228,10 @@ Questions & Tasks
   Load?
 
 - Do we need a GeneratedBy map that maps the name of each generated Go
-  source file in Srcs to that of the original file, if known, or "" otherwise?
+  source file in GoFiles to that of the original file, if known, or "" otherwise?
   Or are //line directives and "Generated" comments in those files enough?
 
 - Support bazel, blaze, and go1.10 list, not just go1.11 list.
-
-- Support a "contains" query: a boolean option would cause the the
-  pattern words to be interpreted as filenames, and the query would
-  return the package(s) to which the file(s) belong.
 
 - Handle (and test) various partial success cases, e.g.
   a mixture of good packages and:
