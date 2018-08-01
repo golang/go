@@ -193,6 +193,8 @@ BigCmdLoop:
 				args = args[1:]
 				if len(args) == 0 {
 					help.PrintUsage(os.Stderr, bigCmd)
+					base.SetExitStatus(2)
+					base.Exit()
 				}
 				if args[0] == "help" {
 					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
