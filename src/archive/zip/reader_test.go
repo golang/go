@@ -658,6 +658,12 @@ func TestInvalidFiles(t *testing.T) {
 	if err != ErrFormat {
 		t.Errorf("sigs: error=%v, want %v", err, ErrFormat)
 	}
+
+	// negative size
+	_, err = NewReader(bytes.NewReader([]byte("foobar")), -1)
+	if err == nil {
+		t.Errorf("archive/zip.NewReader: expected error when negative size is passed")
+	}
 }
 
 func messWith(fileName string, corrupter func(b []byte)) (r io.ReaderAt, size int64) {
