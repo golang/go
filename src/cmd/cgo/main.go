@@ -403,6 +403,10 @@ func (p *Package) Record(f *File) {
 				p.Name[k] = v
 			} else if p.incompleteTypedef(v.Type) {
 				// Nothing to do.
+			} else if _, ok := nameToC[k]; ok {
+				// Names we predefine may appear inconsistent
+				// if some files typedef them and some don't.
+				// Issue 26743.
 			} else if !reflect.DeepEqual(p.Name[k], v) {
 				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
 			}
