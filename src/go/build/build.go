@@ -1505,7 +1505,8 @@ func (ctxt *Context) makePathsAbsolute(args []string, srcDir string) {
 // See golang.org/issue/6038.
 // The @ is for OS X. See golang.org/issue/13720.
 // The % is for Jenkins. See golang.org/issue/16959.
-const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@% "
+// The ! is because module paths may use them. See golang.org/issue/26716.
+const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@%! "
 
 func safeCgoName(s string) bool {
 	if s == "" {
