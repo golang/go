@@ -8,33 +8,11 @@ package js
 
 import "sync"
 
-var pendingCallbacks = Global().Get("Array").New()
-
-var makeCallbackHelper = Global().Call("eval", `
-	(function(id, pendingCallbacks, go) {
-		return function() {
-			pendingCallbacks.push({ id: id, args: arguments });
-			go._resolveCallbackPromise();
-		};
-	})
-`)
-
-var makeEventCallbackHelper = Global().Call("eval", `
-	(function(preventDefault, stopPropagation, stopImmediatePropagation, fn) {
-		return function(event) {
-			if (preventDefault) {
-				event.preventDefault();
-			}
-			if (stopPropagation) {
-				event.stopPropagation();
-			}
-			if (stopImmediatePropagation) {
-				event.stopImmediatePropagation();
-			}
-			fn(event);
-		};
-	})
-`)
+var (
+	pendingCallbacks        = Global().Get("Array").New()
+	makeCallbackHelper      = Global().Get("Go").Get("_makeCallbackHelper")
+	makeEventCallbackHelper = Global().Get("Go").Get("_makeEventCallbackHelper")
+)
 
 var (
 	callbacksMu    sync.Mutex

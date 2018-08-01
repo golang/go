@@ -387,6 +387,28 @@
 				await callbackPromise;
 			}
 		}
+
+		static _makeCallbackHelper(id, pendingCallbacks, go) {
+			return function() {
+				pendingCallbacks.push({ id: id, args: arguments });
+				go._resolveCallbackPromise();
+			};
+		}
+
+		static _makeEventCallbackHelper(preventDefault, stopPropagation, stopImmediatePropagation, fn) {
+			return function(event) {
+				if (preventDefault) {
+					event.preventDefault();
+				}
+				if (stopPropagation) {
+					event.stopPropagation();
+				}
+				if (stopImmediatePropagation) {
+					event.stopImmediatePropagation();
+				}
+				fn(event);
+			};
+		}
 	}
 
 	if (isNodeJS) {
