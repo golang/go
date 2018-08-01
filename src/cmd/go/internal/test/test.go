@@ -1405,6 +1405,9 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 	for l := range lineSet {
 		lines = append(lines, l)
 	}
+	// Iterating over the map means the unique lines are in random order.
+	// Sorting puts them in a deterministic order so the hashing below will
+	// get the same result if the set of log lines is the same.
 	sort.Strings(lines)
 
 	for _, line := range lines {
