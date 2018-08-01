@@ -374,7 +374,7 @@ func runGet(cmd *base.Command, args []string) {
 	// Now we know the specific version of each path@vers.
 	// The final build list will be the union of three build lists:
 	//	1. the original build list
-	//	2. the modules named on the command line
+	//	2. the modules named on the command line (other than @none)
 	//	3. the upgraded requirements of those modules (if upgrading)
 	// Start building those lists.
 	// This loop collects (2).
@@ -395,7 +395,9 @@ func runGet(cmd *base.Command, args []string) {
 			continue // already added
 		}
 		byPath[t.m.Path] = t
-		named = append(named, t.m)
+		if t.m.Version != "none" {
+			named = append(named, t.m)
+		}
 	}
 	base.ExitIfErrors()
 
