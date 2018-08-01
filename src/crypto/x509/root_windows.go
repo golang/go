@@ -6,6 +6,11 @@ package x509
 
 import (
 	"errors"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -226,41 +231,78 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 }
 
 func loadSystemRoots() (*CertPool, error) {
-	// TODO: restore this functionality on Windows. We tried to do
-	// it in Go 1.8 but had to revert it. See Issue 18609.
-	// Returning (nil, nil) was the old behavior, prior to CL 30578.
-	return nil, nil
+	// // TODO: restore this functionality on Windows. We tried to do
+	// // it in Go 1.8 but had to revert it. See Issue 18609.
+	// // Returning (nil, nil) was the old behavior, prior to CL 30578.
+	// return nil, nil
 
-	const CRYPT_E_NOT_FOUND = 0x80092004
+	// const CRYPT_E_NOT_FOUND = 0x80092004
 
-	store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("ROOT"))
+	// store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("ROOT"))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer syscall.CertCloseStore(store, 0)
+
+	// roots := NewCertPool()
+	// var cert *syscall.CertContext
+	// for {
+	// 	cert, err = syscall.CertEnumCertificatesInStore(store, cert)
+	// 	if err != nil {
+	// 		if errno, ok := err.(syscall.Errno); ok {
+	// 			if errno == CRYPT_E_NOT_FOUND {
+	// 				break
+	// 			}
+	// 		}
+	// 		return nil, err
+	// 	}
+	// 	if cert == nil {
+	// 		break
+	// 	}
+	// 	// Copy the buf, since ParseCertificate does not create its own copy.
+	// 	buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
+	// 	buf2 := make([]byte, cert.Length)
+	// 	copy(buf2, buf)
+	// 	if c, err := ParseCertificate(buf2); err == nil {
+	// 		roots.AddCert(c)
+	// 	}
+	// }
+	// return roots, nil
+
+	tempdir, err := ioutil.TempDir("", "go_x509_certs")
 	if err != nil {
 		return nil, err
 	}
-	defer syscall.CertCloseStore(store, 0)
+	defer os.RemoveAll(tempdir)
+
+	cmdOut, err := exec.Command("certutil", "-syncWithWU", "-f", tempdir).Output()
+	if err != nil {
+		return nil, errors.New(string(cmdOut))
+	}
+
+	certs, err := ioutil.ReadDir(tempdir)
+	if err != nil {
+		return nil, err
+	}
 
 	roots := NewCertPool()
-	var cert *syscall.CertContext
-	for {
-		cert, err = syscall.CertEnumCertificatesInStore(store, cert)
+
+	for _, cert := range certs {
+		if !strings.HasSuffix(cert.Name(), ".crt") {
+			continue
+		}
+
+		certBytes, err := ioutil.ReadFile(filepath.Join(tempdir, cert.Name()))
 		if err != nil {
-			if errno, ok := err.(syscall.Errno); ok {
-				if errno == CRYPT_E_NOT_FOUND {
-					break
-				}
-			}
 			return nil, err
 		}
-		if cert == nil {
-			break
+
+		c, err := ParseCertificate(certBytes)
+		if err != nil {
+			return nil, errors.New("file: " + cert.Name() + "\n" + err.Error())
 		}
-		// Copy the buf, since ParseCertificate does not create its own copy.
-		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
-		buf2 := make([]byte, cert.Length)
-		copy(buf2, buf)
-		if c, err := ParseCertificate(buf2); err == nil {
-			roots.AddCert(c)
-		}
+		roots.AddCert(c)
 	}
+
 	return roots, nil
 }
