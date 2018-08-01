@@ -434,6 +434,31 @@ func TestTRun(t *T) {
 			<-ch
 			t.Errorf("error")
 		},
+	}, {
+		// A chatty test should always log with fmt.Print, even if the
+		// parent test has completed.
+		// TODO(deklerk) Capture the log of fmt.Print and assert that the
+		// subtest message is not lost.
+		desc:   "log in finished sub test with chatty",
+		ok:     false,
+		chatty: true,
+		output: `
+		--- FAIL: log in finished sub test with chatty (N.NNs)`,
+		maxPar: 1,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Log("message1")
+					ch <- true
+				}()
+			})
+			t.Log("message2")
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
 	}}
 	for _, tc := range testCases {
 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
@@ -521,13 +546,6 @@ func TestBRun(t *T) {
 		chatty: true,
 		output: "--- SKIP: root",
 		f:      func(b *B) { b.SkipNow() },
-	}, {
-		desc:   "skipping with message, chatty",
-		chatty: true,
-		output: `
---- SKIP: root
-    sub_test.go:NNN: skipping`,
-		f: func(b *B) { b.Skip("skipping") },
 	}, {
 		desc:   "chatty with recursion",
 		chatty: true,
