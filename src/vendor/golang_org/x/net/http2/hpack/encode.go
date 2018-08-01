@@ -206,7 +206,7 @@ func appendVarInt(dst []byte, n byte, i uint64) []byte {
 }
 
 // appendHpackString appends s, as encoded in "String Literal"
-// representation, to dst and returns the the extended buffer.
+// representation, to dst and returns the extended buffer.
 //
 // s will be encoded in Huffman codes only when it produces strictly
 // shorter byte string.
