@@ -627,6 +627,10 @@ func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool)
 	visited[dtype] = true
 	switch dt := dtype.(type) {
 	case *dwarf.TypedefType:
+		if strings.HasPrefix(dt.Name, "__builtin") {
+			// Don't look inside builtin types. There be dragons.
+			return
+		}
 		if !p.typedefs[dt.Name] {
 			p.typedefs[dt.Name] = true
 			p.typedefList = append(p.typedefList, dt.Name)
