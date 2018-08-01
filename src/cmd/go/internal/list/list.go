@@ -107,7 +107,7 @@ Packages stored in vendor directories report an ImportPath that includes the
 path to the vendor directory (for example, "d/vendor/p" instead of "p"),
 so that the ImportPath uniquely identifies a given copy of a package.
 The Imports, Deps, TestImports, and XTestImports lists also contain these
-expanded imports paths. See golang.org/s/go15vendor for more about vendoring.
+expanded import paths. See golang.org/s/go15vendor for more about vendoring.
 
 The error information, if any, is
 

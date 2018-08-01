@@ -683,7 +683,7 @@
 // path to the vendor directory (for example, "d/vendor/p" instead of "p"),
 // so that the ImportPath uniquely identifies a given copy of a package.
 // The Imports, Deps, TestImports, and XTestImports lists also contain these
-// expanded imports paths. See golang.org/s/go15vendor for more about vendoring.
+// expanded import paths. See golang.org/s/go15vendor for more about vendoring.
 //
 // The error information, if any, is
 //
@@ -1708,10 +1708,10 @@
 //
 // The go command by default downloads modules from version control systems
 // directly, just as 'go get' always has. The GOPROXY environment variable allows
-// further control over the download source. GOPROXY being unset, the empty string,
-// or the string "direct" corresponds to the default direct connection to version
+// further control over the download source. If GOPROXY is unset, is the empty string,
+// or is the string "direct", downloads use the default direct connection to version
 // control systems. Setting GOPROXY to "off" disallows downloading modules from
-// any source. Otherwise, if GOPROXY is expected to be the URL of a module proxy,
+// any source. Otherwise, GOPROXY is expected to be the URL of a module proxy,
 // in which case the go command will fetch all modules from that proxy.
 // No matter the source of the modules, downloaded modules must match existing
 // entries in go.sum (see 'go help modules' for discussion of verification).
@@ -2117,10 +2117,14 @@
 // and understanding modules and go.mod files. See 'go help mod'.
 //
 // The -mod build flag provides additional control over updating and use of go.mod.
-// If invoked with -mod=readonly, the go command disables its automatic updates
-// of go.mod as described above and fails if any changes are needed. This setting
-// is most useful to check that go.mod does not need any updates, such as in a
-// continuous integration and testing system.
+//
+// If invoked with -mod=readonly, the go command is disallowed from the implicit
+// automatic updating of go.mod described above. Instead, it fails when any changes
+// to go.mod are needed. This setting is most useful to check that go.mod does
+// not need updates, such as in a continuous integration and testing system.
+// The "go get" command remains permitted to update go.mod even with -mod=readonly,
+// and the "go mod" commands do not take the -mod flag (or any other build flags).
+//
 // If invoked with -mod=vendor, the go command assumes that the vendor
 // directory holds the correct copies of dependencies and ignores
 // the dependency descriptions in go.mod.
