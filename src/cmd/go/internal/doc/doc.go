@@ -12,7 +12,7 @@ import (
 
 var CmdDoc = &base.Command{
 	Run:         runDoc,
-	UsageLine:   "doc [-u] [-c] [package|[package.]symbol[.methodOrField]]",
+	UsageLine:   "go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]",
 	CustomFlags: true,
 	Short:       "show documentation for package or symbol",
 	Long: `

@@ -104,10 +104,13 @@ compiled with the C compiler. Any .cc, .cpp, or .cxx files will be
 compiled with the C++ compiler. Any .f, .F, .for or .f90 files will be
 compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
 not be compiled separately, but, if these header files are changed,
-the C and C++ files will be recompiled. The default C and C++
-compilers may be changed by the CC and CXX environment variables,
-respectively; those environment variables may include command line
-options.
+the package (including its non-Go source files) will be recompiled.
+Note that changes to files in other directories do not cause the package
+to be recompiled, so all non-Go source code for the package should be
+stored in the package directory, not in subdirectories.
+The default C and C++ compilers may be changed by the CC and CXX
+environment variables, respectively; those environment variables
+may include command line options.
 
 The cgo tool is enabled by default for native builds on systems where
 it is expected to work. It is disabled by default when
@@ -376,6 +379,14 @@ It is possible to defeat this enforcement by using the unsafe package,
 and of course there is nothing stopping the C code from doing anything
 it likes. However, programs that break these rules are likely to fail
 in unexpected and unpredictable ways.
+
+Note: the current implementation has a bug. While Go code is permitted
+to write nil or a C pointer (but not a Go pointer) to C memory, the
+current implementation may sometimes cause a runtime error if the
+contents of the C memory appear to be a Go pointer. Therefore, avoid
+passing uninitialized C memory to Go code if the Go code is going to
+store pointer values in it. Zero out the memory in C before passing it
+to Go.
 
 Special cases
 

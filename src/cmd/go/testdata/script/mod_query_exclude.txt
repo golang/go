@@ -1,0 +1,26 @@
+env GO111MODULE=on
+
+# get excluded version
+cp go.mod1 go.mod
+! go get rsc.io/quote@v1.5.0
+stderr 'rsc.io/quote@v1.5.0 excluded'
+
+# get non-excluded version
+cp go.mod1 go.mod
+go get rsc.io/quote@v1.5.1
+stderr 'rsc.io/quote v1.5.1'
+
+# get range with excluded version
+cp go.mod1 go.mod
+go get rsc.io/quote@>=v1.5
+go list -m ...quote
+stdout 'rsc.io/quote v1.5.[1-9]'
+
+-- go.mod1 --
+module x
+exclude rsc.io/quote v1.5.0
+
+-- x.go --
+package x
+import _ "rsc.io/quote"
+

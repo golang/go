@@ -55,10 +55,23 @@ type ReverseProxy struct {
 	// copying HTTP response bodies.
 	BufferPool BufferPool
 
-	// ModifyResponse is an optional function that
-	// modifies the Response from the backend.
-	// If it returns an error, the proxy returns a StatusBadGateway error.
+	// ModifyResponse is an optional function that modifies the
+	// Response from the backend. It is called if the backend
+	// returns a response at all, with any HTTP status code.
+	// If the backend is unreachable, the optional ErrorHandler is
+	// called without any call to ModifyResponse.
+	//
+	// If ModifyResponse returns an error, ErrorHandler is called
+	// with its error value. If ErrorHandler is nil, its default
+	// implementation is used.
 	ModifyResponse func(*http.Response) error
+
+	// ErrorHandler is an optional function that handles errors
+	// reaching the backend or errors from ModifyResponse.
+	//
+	// If nil, the default is to log the provided error and return
+	// a 502 Status Bad Gateway response.
+	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -141,6 +154,18 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
+func (p *ReverseProxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
+	p.logf("http: proxy error: %v", err)
+	rw.WriteHeader(http.StatusBadGateway)
+}
+
+func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
+	if p.ErrorHandler != nil {
+		return p.ErrorHandler
+	}
+	return p.defaultErrorHandler
+}
+
 func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	if transport == nil {
@@ -206,8 +231,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	res, err := transport.RoundTrip(outreq)
 	if err != nil {
-		p.logf("http: proxy error: %v", err)
-		rw.WriteHeader(http.StatusBadGateway)
+		p.getErrorHandler()(rw, outreq, err)
 		return
 	}
 
@@ -219,9 +243,8 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	if p.ModifyResponse != nil {
 		if err := p.ModifyResponse(res); err != nil {
-			p.logf("http: proxy error: %v", err)
-			rw.WriteHeader(http.StatusBadGateway)
 			res.Body.Close()
+			p.getErrorHandler()(rw, outreq, err)
 			return
 		}
 	}
@@ -253,7 +276,11 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
 		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
-		// on read error while copying body
+		// on read error while copying body.
+		if !shouldPanicOnCopyError(req) {
+			p.logf("suppressing panic for copyResponse error in test; copy error: %v", err)
+			return
+		}
 		panic(http.ErrAbortHandler)
 	}
 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
@@ -269,6 +296,28 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			rw.Header().Add(k, v)
 		}
 	}
+}
+
+var inOurTests bool // whether we're in our own tests
+
+// shouldPanicOnCopyError reports whether the reverse proxy should
+// panic with http.ErrAbortHandler. This is the right thing to do by
+// default, but Go 1.10 and earlier did not, so existing unit tests
+// weren't expecting panics. Only panic in our own tests, or when
+// running under the HTTP server.
+func shouldPanicOnCopyError(req *http.Request) bool {
+	if inOurTests {
+		// Our tests know to handle this panic.
+		return true
+	}
+	if req.Context().Value(http.ServerContextKey) != nil {
+		// We seem to be running under an HTTP server, so
+		// it'll recover the panic.
+		return true
+	}
+	// Otherwise act like Go 1.10 and earlier to not break
+	// existing tests.
+	return false
 }
 
 // removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.

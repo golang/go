@@ -34,6 +34,9 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 				check.conversion(x, T)
 			}
 		default:
+			for _, arg := range e.Args {
+				check.expr(&operand{}, arg)
+			}
 			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
 		}
 		x.expr = e

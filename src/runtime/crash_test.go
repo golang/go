@@ -648,10 +648,19 @@ func TestAbort(t *testing.T) {
 	if strings.Contains(output, "BAD") {
 		t.Errorf("output contains BAD:\n%s", output)
 	}
-	// Check that it's a breakpoint traceback.
-	want := "SIGTRAP"
-	if runtime.GOOS == "windows" {
-		want = "Exception 0x80000003"
+	// Check that it's a signal traceback.
+	want := "PC="
+	// For systems that use a breakpoint, check specifically for that.
+	switch runtime.GOARCH {
+	case "386", "amd64":
+		switch runtime.GOOS {
+		case "plan9":
+			want = "sys: breakpoint"
+		case "windows":
+			want = "Exception 0x80000003"
+		default:
+			want = "SIGTRAP"
+		}
 	}
 	if !strings.Contains(output, want) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
@@ -693,7 +702,7 @@ func TestG0StackOverflow(t *testing.T) {
 	testenv.MustHaveExec(t)
 
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "android":
 		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
 	}
 

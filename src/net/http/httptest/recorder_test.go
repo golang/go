@@ -7,6 +7,7 @@ package httptest
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"testing"
 )
@@ -35,6 +36,19 @@ func TestRecorder(t *testing.T) {
 		return func(rec *ResponseRecorder) error {
 			if rec.Result().StatusCode != wantCode {
 				return fmt.Errorf("Result().StatusCode = %d; want %d", rec.Result().StatusCode, wantCode)
+			}
+			return nil
+		}
+	}
+	hasResultContents := func(want string) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			contentBytes, err := ioutil.ReadAll(rec.Result().Body)
+			if err != nil {
+				return err
+			}
+			contents := string(contentBytes)
+			if contents != want {
+				return fmt.Errorf("Result().Body = %s; want %s", contents, want)
 			}
 			return nil
 		}
@@ -272,6 +286,15 @@ func TestRecorder(t *testing.T) {
 				io.WriteString(w, body)
 			},
 			check(hasStatus(200), hasContents("Some body"), hasContentLength(9)),
+		},
+		{
+			"nil ResponseRecorder.Body", // Issue 26642
+			func(w http.ResponseWriter, r *http.Request) {
+				w.(*ResponseRecorder).Body = nil
+				io.WriteString(w, "hi")
+			},
+			check(hasResultContents("")), // check we don't crash reading the body
+
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

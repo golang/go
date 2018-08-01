@@ -1009,7 +1009,7 @@ type AddrinfoW struct {
 	Protocol  int32
 	Addrlen   uintptr
 	Canonname *uint16
-	Addr      uintptr
+	Addr      Pointer
 	Next      *AddrinfoW
 }
 

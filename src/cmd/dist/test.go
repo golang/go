@@ -645,7 +645,7 @@ func (t *tester) registerTests() {
 					return nil
 				},
 			})
-			if cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch)); cxx != "" {
+			if t.hasCxx() {
 				t.tests = append(t.tests, distTest{
 					name:    "swig_callback",
 					heading: "../misc/swig/callback",
@@ -1249,6 +1249,11 @@ func (t *tester) hasBash() bool {
 	return true
 }
 
+func (t *tester) hasCxx() bool {
+	cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch))
+	return cxx != ""
+}
+
 func (t *tester) hasSwig() bool {
 	swig, err := exec.LookPath("swig")
 	if err != nil {
@@ -1354,7 +1359,7 @@ func (t *tester) runFlag(rx string) string {
 func (t *tester) raceTest(dt *distTest) error {
 	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
+	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFdReadRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
 	// We don't want the following line, because it
 	// slows down all.bash (by 10 seconds on my laptop).
 	// The race builder should catch any error here, but doesn't.

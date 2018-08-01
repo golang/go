@@ -24,7 +24,8 @@ import (
 const (
 	DefaultOpt = "-gcflags="
 	NoOpt      = "-gcflags=-l -N"
-	OptInl4    = "-gcflags=all=-l=4"
+	OptInl4    = "-gcflags=-l=4"
+	OptAllInl4 = "-gcflags=all=-l=4"
 )
 
 func TestRuntimeTypesPresent(t *testing.T) {
@@ -610,7 +611,9 @@ func main() {
 
 	// Note: this is a build with "-l=4", as opposed to "-l -N". The
 	// test is intended to verify DWARF that is only generated when
-	// the inliner is active.
+	// the inliner is active. We're only going to look at the DWARF for
+	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
+	// to "-gcflags=all=-l=4".
 	f := gobuild(t, dir, prog, OptInl4)
 
 	d, err := f.DWARF()
@@ -794,6 +797,10 @@ func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
 func TestAbstractOriginSanity(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
@@ -803,7 +810,7 @@ func TestAbstractOriginSanity(t *testing.T) {
 
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "httptest")
-		abstractOriginSanity(t, gopathdir, OptInl4)
+		abstractOriginSanity(t, gopathdir, OptAllInl4)
 	} else {
 		t.Fatalf("os.Getwd() failed %v", err)
 	}
@@ -830,23 +837,47 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	}
 }
 
-func TestRuntimeTypeAttr(t *testing.T) {
+func TestAbstractOriginSanityIssue26237(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	}
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "issue26237")
+		abstractOriginSanity(t, gopathdir, DefaultOpt)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
+}
+
+func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	// Explicitly test external linking, for dsymutil compatility on Darwin.
-	for _, flags := range []string{"-ldflags=-linkmode=internal", "-ldflags=-linkmode=external"} {
-		t.Run("flags="+flags, func(t *testing.T) {
-			if runtime.GOARCH == "ppc64" && strings.Contains(flags, "external") {
-				t.Skip("-linkmode=external not supported on ppc64")
-			}
+	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
+}
 
-			testRuntimeTypeAttr(t, flags)
-		})
+// External linking requires a host linker (https://golang.org/src/cmd/cgo/doc.go l.732)
+func TestRuntimeTypeAttrExternal(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+
+	// Explicitly test external linking, for dsymutil compatibility on Darwin.
+	if runtime.GOARCH == "ppc64" {
+		t.Skip("-linkmode=external not supported on ppc64")
+	}
+	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
 }
 
 func testRuntimeTypeAttr(t *testing.T, flags string) {

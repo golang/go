@@ -17,11 +17,13 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 )
 
 var CmdClean = &base.Command{
-	UsageLine: "clean [-i] [-r] [-n] [-x] [-cache] [-testcache] [build flags] [packages]",
+	UsageLine: "go clean [clean flags] [build flags] [packages]",
 	Short:     "remove object files and cached files",
 	Long: `
 Clean removes object files from package source directories.
@@ -65,6 +67,10 @@ The -cache flag causes clean to remove the entire go build cache.
 The -testcache flag causes clean to expire all test results in the
 go build cache.
 
+The -modcache flag causes clean to remove the entire module
+download cache, including unpacked source code of versioned
+dependencies.
+
 For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
@@ -75,6 +81,7 @@ var (
 	cleanI         bool // clean -i flag
 	cleanR         bool // clean -r flag
 	cleanCache     bool // clean -cache flag
+	cleanModcache  bool // clean -modcache flag
 	cleanTestcache bool // clean -testcache flag
 )
 
@@ -85,6 +92,7 @@ func init() {
 	CmdClean.Flag.BoolVar(&cleanI, "i", false, "")
 	CmdClean.Flag.BoolVar(&cleanR, "r", false, "")
 	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "")
+	CmdClean.Flag.BoolVar(&cleanModcache, "modcache", false, "")
 	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "")
 
 	// -n and -x are important enough to be
@@ -95,8 +103,13 @@ func init() {
 }
 
 func runClean(cmd *base.Command, args []string) {
-	for _, pkg := range load.PackagesAndErrors(args) {
-		clean(pkg)
+	if len(args) == 0 && modload.Failed() {
+		// Don't try to clean current directory,
+		// which will cause modload to base.Fatalf.
+	} else {
+		for _, pkg := range load.PackagesAndErrors(args) {
+			clean(pkg)
+		}
 	}
 
 	if cleanCache {
@@ -138,6 +151,29 @@ func runClean(cmd *base.Command, args []string) {
 			}
 		}
 	}
+
+	if cleanModcache {
+		if modfetch.PkgMod == "" {
+			base.Fatalf("go clean -modcache: no module cache")
+		}
+		if err := removeAll(modfetch.PkgMod); err != nil {
+			base.Errorf("go clean -modcache: %v", err)
+		}
+	}
+}
+
+func removeAll(dir string) error {
+	// Module cache has 0555 directories; make them writable in order to remove content.
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // ignore errors walking in file system
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
 }
 
 var cleaned = map[*load.Package]bool{}

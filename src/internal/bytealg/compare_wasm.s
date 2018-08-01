@@ -16,6 +16,7 @@ TEXT ·Compare(SB), NOSPLIT, $0-56
 	RET
 
 TEXT bytes·Compare(SB), NOSPLIT, $0-56
+	FUNCDATA $0, ·Compare·args_stackmap(SB)
 	Get SP
 	I64Load a_base+0(FP)
 	I64Load a_len+8(FP)

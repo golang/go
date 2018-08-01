@@ -20,7 +20,8 @@ import (
 var (
 	BuildA                 bool   // -a flag
 	BuildBuildmode         string // -buildmode flag
-	BuildContext           = build.Default
+	BuildContext           = defaultContext()
+	BuildMod               string             // -mod flag
 	BuildI                 bool               // -i flag
 	BuildLinkshared        bool               // -linkshared flag
 	BuildMSan              bool               // -msan flag
@@ -41,6 +42,12 @@ var (
 
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 )
+
+func defaultContext() build.Context {
+	ctxt := build.Default
+	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
+	return ctxt
+}
 
 func init() {
 	BuildToolchainCompiler = func() string { return "missing-compiler" }
@@ -67,6 +74,16 @@ var (
 	Goos      = BuildContext.GOOS
 	ExeSuffix string
 	Gopath    = filepath.SplitList(BuildContext.GOPATH)
+
+	// ModulesEnabled specifies whether the go command is running
+	// in module-aware mode (as opposed to GOPATH mode).
+	// It is equal to modload.Enabled, but not all packages can import modload.
+	ModulesEnabled bool
+
+	// GoModInGOPATH records whether we've found a go.mod in GOPATH/src
+	// in GO111MODULE=auto mode. In that case, we don't use modules
+	// but people might expect us to, so 'go get' warns.
+	GoModInGOPATH string
 )
 
 func init() {

@@ -1,0 +1,19 @@
+[!gc] skip
+
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+# Building a trivial non-main package should run compiler the first time.
+go build -x -gcflags=-m lib.go
+stderr 'compile( |\.exe)'
+stderr 'lib.go:2.* can inline f'
+
+# ... but not the second, even though it still prints the compiler output.
+go build -x -gcflags=-m lib.go
+! stderr 'compile( |\.exe)'
+stderr 'lib.go:2.* can inline f'
+
+-- lib.go --
+package p
+func f(x *int) *int { return x }

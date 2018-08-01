@@ -9,11 +9,13 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/go/internal/modfile"
 	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
 )
 
-func ParseGopkgLock(file string, data []byte) ([]module.Version, error) {
+func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
+	mf := new(modfile.File)
 	var list []module.Version
 	var r *module.Version
 	for lineno, line := range strings.Split(string(data), "\n") {
@@ -66,6 +68,7 @@ func ParseGopkgLock(file string, data []byte) ([]module.Version, error) {
 		if r.Path == "" || r.Version == "" {
 			return nil, fmt.Errorf("%s: empty [[projects]] stanza (%s)", file, r.Path)
 		}
+		mf.Require = append(mf.Require, &modfile.Require{Mod: r})
 	}
-	return list, nil
+	return mf, nil
 }

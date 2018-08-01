@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -182,10 +183,12 @@ func newosproc(mp *m) {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
+	// Stack pointer must point inside stack area (as marked with MAP_STACK),
+	// rather than at the top of it.
 	param := tforkt{
 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
 		tf_tid:   (*int32)(unsafe.Pointer(&mp.procid)),
-		tf_stack: uintptr(stk),
+		tf_stack: uintptr(stk) - sys.PtrSize,
 	}
 
 	var oset sigset

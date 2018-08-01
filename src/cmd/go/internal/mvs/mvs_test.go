@@ -156,6 +156,47 @@ D1: E2
 E1: D2
 build A: A B C D2 E2
 
+# Upgrade from B1 to B2 should drop the transitive dep on D.
+name: drop
+A: B1 C1
+B1: D1
+B2:
+C2:
+D2:
+build A: A B1 C1 D1
+upgrade* A: A B2 C2
+
+name: simplify
+A: B1 C1
+B1: C2
+C1: D1
+C2:
+build A: A B1 C2
+
+name: up1
+A: B1 C1
+B1:
+B2:
+B3:
+B4:
+B5.hidden:
+C2:
+C3:
+build A: A B1 C1
+upgrade* A: A B4 C3
+
+name: up2
+A: B5.hidden C1
+B1:
+B2:
+B3:
+B4:
+B5.hidden:
+C2:
+C3:
+build A: A B5.hidden C1
+upgrade* A: A B5.hidden C3
+
 name: down1
 A: B2
 B1: C1
@@ -199,6 +240,48 @@ B3:
 B2.hidden: 
 C2: 
 downgrade A B2.hidden: A B2.hidden C2
+
+# Cycles involving the target.
+
+# The target must be the newest version of itself.
+name: cycle1
+A: B1
+B1: A1
+B2: A2
+B3: A3
+build A: A B1
+upgrade A B2: A B2
+upgrade* A: A B3
+
+# Requirements of older versions of the target
+# must not be carried over.
+name: cycle2
+A: B1
+A1: C1
+A2: D1
+B1: A1
+B2: A2
+C1: A2
+C2:
+D2:
+build A: A B1
+upgrade* A: A B2
+
+# Requirement minimization.
+
+name: req1
+A: B1 C1 D1 E1 F1
+B1: C1 E1 F1
+req A: B1 D1
+req A C: B1 C1 D1
+
+name: req2
+A: G1 H1
+G1: H1
+H1: G1
+req A: G1
+req A G: G1
+req A H: H1
 `
 
 func Test(t *testing.T) {
@@ -281,19 +364,19 @@ func Test(t *testing.T) {
 			continue
 		case "upgradereq":
 			if len(kf) < 2 {
-				t.Fatalf("upgrade takes at least one arguments: %q", line)
+				t.Fatalf("upgrade takes at least one argument: %q", line)
 			}
 			fns = append(fns, func(t *testing.T) {
 				list, err := Upgrade(m(kf[1]), reqs, ms(kf[2:])...)
 				if err == nil {
-					list, err = Req(m(kf[1]), list, reqs)
+					list, err = Req(m(kf[1]), list, nil, reqs)
 				}
 				checkList(t, key, list, err, val)
 			})
 			continue
 		case "upgrade":
 			if len(kf) < 2 {
-				t.Fatalf("upgrade takes at least one arguments: %q", line)
+				t.Fatalf("upgrade takes at least one argument: %q", line)
 			}
 			fns = append(fns, func(t *testing.T) {
 				list, err := Upgrade(m(kf[1]), reqs, ms(kf[2:])...)
@@ -302,10 +385,23 @@ func Test(t *testing.T) {
 			continue
 		case "downgrade":
 			if len(kf) < 2 {
-				t.Fatalf("downgrade takes at least one arguments: %q", line)
+				t.Fatalf("downgrade takes at least one argument: %q", line)
 			}
 			fns = append(fns, func(t *testing.T) {
 				list, err := Downgrade(m(kf[1]), reqs, ms(kf[1:])...)
+				checkList(t, key, list, err, val)
+			})
+			continue
+		case "req":
+			if len(kf) < 2 {
+				t.Fatalf("req takes at least one argument: %q", line)
+			}
+			fns = append(fns, func(t *testing.T) {
+				list, err := BuildList(m(kf[1]), reqs)
+				if err != nil {
+					t.Fatal(err)
+				}
+				list, err = Req(m(kf[1]), list, kf[2:], reqs)
 				checkList(t, key, list, err, val)
 			})
 			continue
@@ -330,10 +426,10 @@ func Test(t *testing.T) {
 type reqsMap map[module.Version][]module.Version
 
 func (r reqsMap) Max(v1, v2 string) string {
-	if v1 == "none" {
+	if v1 == "none" || v2 == "" {
 		return v2
 	}
-	if v2 == "none" {
+	if v2 == "none" || v1 == "" {
 		return v1
 	}
 	if v1 < v2 {
@@ -342,17 +438,17 @@ func (r reqsMap) Max(v1, v2 string) string {
 	return v1
 }
 
-func (r reqsMap) Latest(path string) (module.Version, error) {
-	var m module.Version
+func (r reqsMap) Upgrade(m module.Version) (module.Version, error) {
+	var u module.Version
 	for k := range r {
-		if k.Path == path && m.Version < k.Version {
-			m = k
+		if k.Path == m.Path && u.Version < k.Version && !strings.HasSuffix(k.Version, ".hidden") {
+			u = k
 		}
 	}
-	if m.Path == "" {
-		return module.Version{}, &MissingModuleError{module.Version{Path: path, Version: ""}}
+	if u.Path == "" {
+		return module.Version{}, &MissingModuleError{module.Version{Path: m.Path, Version: ""}}
 	}
-	return m, nil
+	return u, nil
 }
 
 func (r reqsMap) Previous(m module.Version) (module.Version, error) {

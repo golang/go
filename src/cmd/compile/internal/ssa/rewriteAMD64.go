@@ -783,6 +783,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpLess8U_0(v)
 	case OpLoad:
 		return rewriteValueAMD64_OpLoad_0(v)
+	case OpLocalAddr:
+		return rewriteValueAMD64_OpLocalAddr_0(v)
 	case OpLsh16x16:
 		return rewriteValueAMD64_OpLsh16x16_0(v)
 	case OpLsh16x32:
@@ -56297,6 +56299,43 @@ func rewriteValueAMD64_OpLoad_0(v *Value) bool {
 		v.reset(OpAMD64MOVSDload)
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpLocalAddr_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	// match: (LocalAddr {sym} base _)
+	// cond: config.PtrSize == 8
+	// result: (LEAQ {sym} base)
+	for {
+		sym := v.Aux
+		_ = v.Args[1]
+		base := v.Args[0]
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpAMD64LEAQ)
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
+	// match: (LocalAddr {sym} base _)
+	// cond: config.PtrSize == 4
+	// result: (LEAL {sym} base)
+	for {
+		sym := v.Aux
+		_ = v.Args[1]
+		base := v.Args[0]
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpAMD64LEAL)
+		v.Aux = sym
+		v.AddArg(base)
 		return true
 	}
 	return false

@@ -20,7 +20,7 @@ import (
 //
 // On success, InjectDebugCall returns the panic value of fn or nil.
 // If fn did not panic, its results will be available in args.
-func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int)) (interface{}, error) {
+func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (interface{}, error) {
 	if gp.lockedm == 0 {
 		return nil, plainError("goroutine not locked to thread")
 	}
@@ -54,7 +54,9 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int)) (interfac
 
 	defer func() { testSigtrap = nil }()
 	testSigtrap = h.inject
-	tkill(tid)
+	if err := tkill(tid); err != nil {
+		return nil, err
+	}
 	// Wait for completion.
 	notetsleepg(&h.done, -1)
 	if len(h.err) != 0 {

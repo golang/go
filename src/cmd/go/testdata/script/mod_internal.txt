@@ -1,0 +1,82 @@
+env GO111MODULE=on
+
+# golang.org/x/internal should be importable from other golang.org/x modules.
+rm go.mod
+go mod init golang.org/x/anything
+go build .
+
+# ...but that should not leak into other modules.
+! go build ./baddep
+stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+
+# Internal packages in the standard library should not leak into modules.
+! go build ./fromstd
+stderr 'use of internal package internal/testenv not allowed$'
+
+# Packages found via standard-library vendoring should not leak.
+! go build ./fromstdvendor
+stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed$'
+
+
+# Dependencies should be able to use their own internal modules...
+rm go.mod
+go mod init golang.org/notx
+go build ./throughdep
+
+# ... but other modules should not, even if they have transitive dependencies.
+! go build .
+stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx$'
+
+# And transitive dependencies still should not leak.
+! go build ./baddep
+stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+
+
+# Replacing an internal module should keep it internal to the same paths.
+rm go.mod
+go mod init golang.org/notx
+go mod edit -replace golang.org/x/internal=./replace/golang.org/notx/internal
+go build ./throughdep
+
+! go build ./baddep
+stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+
+go mod edit -replace golang.org/x/internal=./vendor/golang.org/x/internal
+go build ./throughdep
+
+! go build ./baddep
+stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+
+-- useinternal.go --
+package useinternal
+import _ "golang.org/x/internal/subtle"
+
+-- throughdep/useinternal.go --
+package throughdep
+import _ "golang.org/x/useinternal"
+
+-- baddep/useinternal.go --
+package baddep
+import _ "golang.org/notx/useinternal"
+
+-- fromstd/useinternal.go --
+package fromstd
+import _ "internal/testenv"
+
+-- fromstdvendor/useinternal.go --
+package fromstdvendor
+import _ "golang_org/x/net/http/httpguts"
+
+-- replace/golang.org/notx/internal/go.mod --
+module golang.org/x/internal
+
+-- replace/golang.org/notx/internal/subtle/subtle.go --
+package subtle
+// Ha ha! Nothing here!
+
+-- vendor/golang.org/x/internal/go.mod --
+module golang.org/x/internal
+
+-- vendor/golang.org/x/internal/subtle/subtle.go --
+package subtle
+// Ha ha! Nothing here!

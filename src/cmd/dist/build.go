@@ -219,10 +219,7 @@ func xinit() {
 	// Use a build cache separate from the default user one.
 	// Also one that will be wiped out during startup, so that
 	// make.bash really does start from a clean slate.
-	// But if the user has specified no caching, don't cache.
-	if os.Getenv("GOCACHE") != "off" {
-		os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
-	}
+	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
 
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")
@@ -1063,12 +1060,16 @@ func cmdenv() {
 		format = "set %s=%s\r\n"
 	}
 
-	xprintf(format, "GOROOT", goroot)
-	xprintf(format, "GOBIN", gobin)
 	xprintf(format, "GOARCH", goarch)
-	xprintf(format, "GOOS", goos)
+	xprintf(format, "GOBIN", gobin)
+	xprintf(format, "GOCACHE", os.Getenv("GOCACHE"))
+	xprintf(format, "GODEBUG", os.Getenv("GODEBUG"))
 	xprintf(format, "GOHOSTARCH", gohostarch)
 	xprintf(format, "GOHOSTOS", gohostos)
+	xprintf(format, "GOOS", goos)
+	xprintf(format, "GOPROXY", os.Getenv("GOPROXY"))
+	xprintf(format, "GOROOT", goroot)
+	xprintf(format, "GOTMPDIR", os.Getenv("GOTMPDIR"))
 	xprintf(format, "GOTOOLDIR", tooldir)
 	if goarch == "arm" {
 		xprintf(format, "GOARM", goarm)

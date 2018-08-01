@@ -275,6 +275,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpLess8U_0(v)
 	case OpLoad:
 		return rewriteValueS390X_OpLoad_0(v)
+	case OpLocalAddr:
+		return rewriteValueS390X_OpLocalAddr_0(v)
 	case OpLsh16x16:
 		return rewriteValueS390X_OpLsh16x16_0(v)
 	case OpLsh16x32:
@@ -3476,6 +3478,20 @@ func rewriteValueS390X_OpLoad_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueS390X_OpLocalAddr_0(v *Value) bool {
+	// match: (LocalAddr {sym} base _)
+	// cond:
+	// result: (MOVDaddr {sym} base)
+	for {
+		sym := v.Aux
+		_ = v.Args[1]
+		base := v.Args[0]
+		v.reset(OpS390XMOVDaddr)
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
 }
 func rewriteValueS390X_OpLsh16x16_0(v *Value) bool {
 	b := v.Block

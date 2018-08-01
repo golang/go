@@ -425,12 +425,36 @@ func (pkg *Package) packageClause(checkUserPath bool) {
 			return
 		}
 	}
+
 	importPath := pkg.build.ImportComment
 	if importPath == "" {
 		importPath = pkg.build.ImportPath
 	}
+
+	// If we're using modules, the import path derived from module code locations wins.
+	// If we did a file system scan, we knew the import path when we found the directory.
+	// But if we started with a directory name, we never knew the import path.
+	// Either way, we don't know it now, and it's cheap to (re)compute it.
+	if usingModules {
+		for _, root := range codeRoots() {
+			if pkg.build.Dir == root.dir {
+				importPath = root.importPath
+				break
+			}
+			if strings.HasPrefix(pkg.build.Dir, root.dir+string(filepath.Separator)) {
+				suffix := filepath.ToSlash(pkg.build.Dir[len(root.dir)+1:])
+				if root.importPath == "" {
+					importPath = suffix
+				} else {
+					importPath = root.importPath + "/" + suffix
+				}
+				break
+			}
+		}
+	}
+
 	pkg.Printf("package %s // import %q\n\n", pkg.name, importPath)
-	if importPath != pkg.build.ImportPath {
+	if !usingModules && importPath != pkg.build.ImportPath {
 		pkg.Printf("WARNING: package source is installed in %q\n", pkg.build.ImportPath)
 	}
 }

@@ -9,7 +9,9 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"net/url"
 	"sort"
 	"sync"
 	"testing"
@@ -33,11 +35,28 @@ var (
 	Export_writeStatusLine            = writeStatusLine
 )
 
+const MaxWriteWaitBeforeConnReuse = maxWriteWaitBeforeConnReuse
+
 func init() {
 	// We only want to pay for this cost during testing.
 	// When not under test, these values are always nil
 	// and never assigned to.
 	testHookMu = new(sync.Mutex)
+
+	testHookClientDoResult = func(res *Response, err error) {
+		if err != nil {
+			if _, ok := err.(*url.Error); !ok {
+				panic(fmt.Sprintf("unexpected Client.Do error of type %T; want *url.Error", err))
+			}
+		} else {
+			if res == nil {
+				panic("Client.Do returned nil, nil")
+			}
+			if res.Body == nil {
+				panic("Client.Do returned nil res.Body and no error")
+			}
+		}
+	}
 }
 
 var (
@@ -117,7 +136,7 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 
 func (t *Transport) IdleConnStrsForTesting_h2() []string {
 	var ret []string
-	noDialPool := t.h2transport.ConnPool.(http2noDialClientConnPool)
+	noDialPool := t.h2transport.(*http2Transport).ConnPool.(http2noDialClientConnPool)
 	pool := noDialPool.http2clientConnPool
 
 	pool.mu.Lock()
@@ -133,9 +152,11 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
 	return ret
 }
 
-func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
+func (t *Transport) IdleConnCountForTesting(scheme, addr string) int {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
+	key := connectMethodKey{"", scheme, addr}
+	cacheKey := key.String()
 	for k, conns := range t.idleConn {
 		if k.String() == cacheKey {
 			return len(conns)
@@ -160,13 +181,19 @@ func (t *Transport) RequestIdleConnChForTesting() {
 	t.getIdleConnCh(connectMethod{nil, "http", "example.com"})
 }
 
-func (t *Transport) PutIdleTestConn() bool {
+func (t *Transport) PutIdleTestConn(scheme, addr string) bool {
 	c, _ := net.Pipe()
+	key := connectMethodKey{"", scheme, addr}
+	select {
+	case <-t.incHostConnCount(key):
+	default:
+		return false
+	}
 	return t.tryPutIdleConn(&persistConn{
 		t:        t,
 		conn:     c,                   // dummy
 		closech:  make(chan struct{}), // so it can be closed
-		cacheKey: connectMethodKey{"", "http", "example.com"},
+		cacheKey: key,
 	}) == nil
 }
 

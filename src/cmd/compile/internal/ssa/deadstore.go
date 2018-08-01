@@ -146,7 +146,7 @@ func elimDeadAutosGeneric(f *Func) {
 	visit := func(v *Value) (changed bool) {
 		args := v.Args
 		switch v.Op {
-		case OpAddr:
+		case OpAddr, OpLocalAddr:
 			// Propagate the address if it points to an auto.
 			n, ok := v.Aux.(GCNode)
 			if !ok || n.StorageClass() != ClassAuto {
@@ -261,6 +261,14 @@ func elimDeadAutosGeneric(f *Func) {
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				changed = visit(v) || changed
+			}
+			// keep the auto if its address reaches a control value
+			if b.Control == nil {
+				continue
+			}
+			if n, ok := addr[b.Control]; ok && !used[n] {
+				used[n] = true
+				changed = true
 			}
 		}
 		if !changed {

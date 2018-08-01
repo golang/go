@@ -1,0 +1,136 @@
+env GO111MODULE=on
+
+# Test that go mod edits and related mod flags work.
+# Also test that they can use a dummy name that isn't resolvable. golang.org/issue/24100
+
+# go mod init
+! go mod init
+stderr 'cannot determine module path'
+! exists go.mod
+
+go mod init x.x/y/z
+stderr 'creating new go.mod: module x.x/y/z'
+cmp go.mod $WORK/go.mod.init
+
+! go mod init
+cmp go.mod $WORK/go.mod.init
+
+# go mod edits
+go mod edit -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
+cmp go.mod $WORK/go.mod.edit1
+go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0
+cmp go.mod $WORK/go.mod.edit2
+
+# go mod edit -json
+go mod edit -json
+cmp stdout $WORK/go.mod.json
+
+# go mod edit -replace
+go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
+cmp go.mod $WORK/go.mod.edit3
+go mod edit -replace=x.1=y.1/v2@v2.3.6
+cmp go.mod $WORK/go.mod.edit4
+go mod edit -dropreplace=x.1
+cmp go.mod $WORK/go.mod.edit5
+
+# go mod edit -fmt
+cp $WORK/go.mod.badfmt go.mod
+go mod edit -fmt -print # -print should avoid writing file
+cmp stdout $WORK/go.mod.edit4
+cmp go.mod $WORK/go.mod.badfmt
+go mod edit -fmt # without -print, should write file (and nothing to stdout)
+! stdout .
+cmp go.mod $WORK/go.mod.edit4
+
+-- x.go --
+package x
+
+-- w/w.go --
+package w
+
+-- $WORK/go.mod.init --
+module x.x/y/z
+-- $WORK/go.mod.edit1 --
+module x.x/y/z
+
+require x.1 v1.0.0
+
+exclude (
+	x.1 v1.2.0
+	x.1 v1.2.1
+)
+
+replace (
+	x.1 v1.3.0 => y.1 v1.4.0
+	x.1 v1.4.0 => ../z
+)
+-- $WORK/go.mod.edit2 --
+module x.x/y/z
+
+exclude x.1 v1.2.0
+
+replace x.1 v1.4.0 => ../z
+
+require x.3 v1.99.0
+-- $WORK/go.mod.json --
+{
+	"Module": {
+		"Path": "x.x/y/z"
+	},
+	"Require": [
+		{
+			"Path": "x.3",
+			"Version": "v1.99.0"
+		}
+	],
+	"Exclude": [
+		{
+			"Path": "x.1",
+			"Version": "v1.2.0"
+		}
+	],
+	"Replace": [
+		{
+			"Old": {
+				"Path": "x.1",
+				"Version": "v1.4.0"
+			},
+			"New": {
+				"Path": "../z"
+			}
+		}
+	]
+}
+-- $WORK/go.mod.edit3 --
+module x.x/y/z
+
+exclude x.1 v1.2.0
+
+replace (
+	x.1 v1.3.0 => y.1/v2 v2.3.5
+	x.1 v1.4.0 => y.1/v2 v2.3.5
+)
+
+require x.3 v1.99.0
+-- $WORK/go.mod.edit4 --
+module x.x/y/z
+
+exclude x.1 v1.2.0
+
+replace x.1 => y.1/v2 v2.3.6
+
+require x.3 v1.99.0
+-- $WORK/go.mod.edit5 --
+module x.x/y/z
+
+exclude x.1 v1.2.0
+
+require x.3 v1.99.0
+-- $WORK/go.mod.badfmt --
+module     x.x/y/z
+
+exclude x.1     v1.2.0
+
+replace x.1    =>   y.1/v2 v2.3.6
+
+require x.3   v1.99.0

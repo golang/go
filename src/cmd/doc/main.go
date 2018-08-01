@@ -39,6 +39,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -189,6 +190,10 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 		// Done below.
 	case 2:
 		// Package must be findable and importable.
+		pkg, err := build.Import(args[0], "", build.ImportComment)
+		if err == nil {
+			return pkg, args[0], args[1], false
+		}
 		for {
 			packagePath, ok := findNextPackage(arg)
 			if !ok {
@@ -355,14 +360,22 @@ func findNextPackage(pkg string) (string, bool) {
 	if pkg == "" || isUpper(pkg) { // Upper case symbol cannot be a package name.
 		return "", false
 	}
-	pkgString := filepath.Clean(string(filepath.Separator) + pkg)
+	if filepath.IsAbs(pkg) {
+		if dirs.offset == 0 {
+			dirs.offset = -1
+			return pkg, true
+		}
+		return "", false
+	}
+	pkg = path.Clean(pkg)
+	pkgSuffix := "/" + pkg
 	for {
-		path, ok := dirs.Next()
+		d, ok := dirs.Next()
 		if !ok {
 			return "", false
 		}
-		if strings.HasSuffix(path, pkgString) {
-			return path, true
+		if d.importPath == pkg || strings.HasSuffix(d.importPath, pkgSuffix) {
+			return d.dir, true
 		}
 	}
 }

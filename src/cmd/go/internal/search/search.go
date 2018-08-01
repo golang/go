@@ -173,6 +173,7 @@ func MatchPackagesInFS(pattern string) []string {
 		if err != nil || !fi.IsDir() {
 			return nil
 		}
+		top := false
 		if path == dir {
 			// filepath.Walk starts at dir and recurses. For the recursive case,
 			// the path is the result of filepath.Join, which calls filepath.Clean.
@@ -182,6 +183,7 @@ func MatchPackagesInFS(pattern string) []string {
 			// "cd $GOROOT/src; go list ./io/..." would incorrectly skip the io
 			// package, because prepending the prefix "./" to the unclean path would
 			// result in "././io", and match("././io") returns false.
+			top = true
 			path = filepath.Clean(path)
 		}
 
@@ -190,6 +192,13 @@ func MatchPackagesInFS(pattern string) []string {
 		dot := strings.HasPrefix(elem, ".") && elem != "." && elem != ".."
 		if dot || strings.HasPrefix(elem, "_") || elem == "testdata" {
 			return filepath.SkipDir
+		}
+
+		if !top && cfg.ModulesEnabled {
+			// Ignore other modules found in subdirectories.
+			if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
+				return filepath.SkipDir
+			}
 		}
 
 		name := prefix + filepath.ToSlash(path)
@@ -352,7 +361,7 @@ func CleanImportPaths(args []string) []string {
 
 // ImportPathsNoDotExpansion returns the import paths to use for the given
 // command line, but it does no ... expansion.
-// TODO(vgo): Delete once old go get is gone.
+// TODO(rsc): Delete once old go get is gone.
 func ImportPathsNoDotExpansion(args []string) []string {
 	args = CleanImportPaths(args)
 	var out []string
@@ -420,4 +429,82 @@ func IsStandardImportPath(path string) bool {
 	}
 	elem := path[:i]
 	return !strings.Contains(elem, ".")
+}
+
+// IsRelativePath reports whether pattern should be interpreted as a directory
+// path relative to the current directory, as opposed to a pattern matching
+// import paths.
+func IsRelativePath(pattern string) bool {
+	return strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../") || pattern == "." || pattern == ".."
+}
+
+// InDir checks whether path is in the file tree rooted at dir.
+// If so, InDir returns an equivalent path relative to dir.
+// If not, InDir returns an empty string.
+// InDir makes some effort to succeed even in the presence of symbolic links.
+// TODO(rsc): Replace internal/test.inDir with a call to this function for Go 1.12.
+func InDir(path, dir string) string {
+	if rel := inDirLex(path, dir); rel != "" {
+		return rel
+	}
+	xpath, err := filepath.EvalSymlinks(path)
+	if err != nil || xpath == path {
+		xpath = ""
+	} else {
+		if rel := inDirLex(xpath, dir); rel != "" {
+			return rel
+		}
+	}
+
+	xdir, err := filepath.EvalSymlinks(dir)
+	if err == nil && xdir != dir {
+		if rel := inDirLex(path, xdir); rel != "" {
+			return rel
+		}
+		if xpath != "" {
+			if rel := inDirLex(xpath, xdir); rel != "" {
+				return rel
+			}
+		}
+	}
+	return ""
+}
+
+// inDirLex is like inDir but only checks the lexical form of the file names.
+// It does not consider symbolic links.
+// TODO(rsc): This is a copy of str.HasFilePathPrefix, modified to
+// return the suffix. Most uses of str.HasFilePathPrefix should probably
+// be calling InDir instead.
+func inDirLex(path, dir string) string {
+	pv := strings.ToUpper(filepath.VolumeName(path))
+	dv := strings.ToUpper(filepath.VolumeName(dir))
+	path = path[len(pv):]
+	dir = dir[len(dv):]
+	switch {
+	default:
+		return ""
+	case pv != dv:
+		return ""
+	case len(path) == len(dir):
+		if path == dir {
+			return "."
+		}
+		return ""
+	case dir == "":
+		return path
+	case len(path) > len(dir):
+		if dir[len(dir)-1] == filepath.Separator {
+			if path[:len(dir)] == dir {
+				return path[len(dir):]
+			}
+			return ""
+		}
+		if path[len(dir)] == filepath.Separator && path[:len(dir)] == dir {
+			if len(path) == len(dir)+1 {
+				return "."
+			}
+			return path[len(dir)+1:]
+		}
+		return ""
+	}
 }

@@ -2177,7 +2177,14 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 	binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
 	buf.Write(sizeBytes[:])
 
-	z := zlib.NewWriter(&buf)
+	// Using zlib.BestSpeed achieves very nearly the same
+	// compression levels of zlib.DefaultCompression, but takes
+	// substantially less time. This is important because DWARF
+	// compression can be a significant fraction of link time.
+	z, err := zlib.NewWriterLevel(&buf, zlib.BestSpeed)
+	if err != nil {
+		log.Fatalf("NewWriterLevel failed: %s", err)
+	}
 	for _, sym := range syms {
 		if _, err := z.Write(sym.P); err != nil {
 			log.Fatalf("compression failed: %s", err)

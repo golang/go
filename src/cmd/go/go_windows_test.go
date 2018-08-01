@@ -97,7 +97,7 @@ func TestACL(t *testing.T) {
 	// will make all files created in TestACL/tmp have different
 	// security attributes to the files created in TestACL.
 	runIcacls(t, newtmpdir,
-		"/grant", "guest:(oi)(ci)f", // add Guest user to have full access
+		"/grant", "*S-1-5-32-546:(oi)(ci)f", // add Guests group to have full access
 	)
 
 	src := filepath.Join(tmpdir, "main.go")

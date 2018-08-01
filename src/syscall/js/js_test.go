@@ -53,6 +53,12 @@ func TestString(t *testing.T) {
 	if dummys.Get("someString") != dummys.Get("someString") {
 		t.Errorf("same value not equal")
 	}
+
+	wantInt := "42"
+	o = dummys.Get("someInt")
+	if got := o.String(); got != wantInt {
+		t.Errorf("got %#v, want %#v", got, wantInt)
+	}
 }
 
 func TestInt(t *testing.T) {
@@ -218,6 +224,33 @@ func TestInstanceOf(t *testing.T) {
 	}
 	if got, want := someArray.InstanceOf(js.Global().Get("Function")), false; got != want {
 		t.Errorf("got %#v, want %#v", got, want)
+	}
+}
+
+func TestType(t *testing.T) {
+	if got, want := js.Undefined().Type(), js.TypeUndefined; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Null().Type(), js.TypeNull; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf(true).Type(), js.TypeBoolean; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf(42).Type(), js.TypeNumber; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf("test").Type(), js.TypeString; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Symbol").Invoke("test").Type(), js.TypeSymbol; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Array").New().Type(), js.TypeObject; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Array").Type(), js.TypeFunction; got != want {
+		t.Errorf("got %s, want %s", got, want)
 	}
 }
 

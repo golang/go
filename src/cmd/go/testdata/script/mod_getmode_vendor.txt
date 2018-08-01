@@ -1,0 +1,23 @@
+env GO111MODULE=on
+
+go get -m rsc.io/quote@v1.5.1
+go mod vendor
+env GOPATH=$WORK/empty
+env GOPROXY=file:///nonexist
+
+go list -mod=vendor
+go list -mod=vendor -m -f '{{.Path}} {{.Version}} {{.Dir}}' all
+stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
+stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text$'
+
+! go list -mod=vendor -m rsc.io/quote@latest
+stderr 'module lookup disabled by -mod=vendor'
+! go get -mod=vendor -u
+stderr 'go get: disabled by -mod=vendor'
+
+-- go.mod --
+module x
+
+-- x.go --
+package x
+import _ "rsc.io/quote"

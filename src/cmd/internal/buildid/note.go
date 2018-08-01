@@ -30,6 +30,7 @@ func ReadELFNote(filename, name string, typ int32) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 	for _, sect := range f.Sections {
 		if sect.Type != elf.SHT_NOTE {
 			continue

@@ -1,0 +1,34 @@
+# go doc should find module documentation
+
+env GO111MODULE=on
+
+go doc y
+stdout 'Package y is.*alphabet'
+stdout 'import "x/y"'
+go doc x/y
+stdout 'Package y is.*alphabet'
+! go doc quote.Hello
+stderr 'doc: symbol quote is not a type' # because quote is not in local cache
+go list rsc.io/quote # now it is
+go doc quote.Hello
+stdout 'Hello returns a greeting'
+go doc quote
+stdout 'Package quote collects pithy sayings.'
+
+# Double-check go doc y when y is not in GOPATH/src.
+env GOPATH=$WORK/altgopath
+go doc x/y
+stdout 'Package y is.*alphabet'
+go doc y
+stdout 'Package y is.*alphabet'
+
+-- go.mod --
+module x
+require rsc.io/quote v1.5.2
+
+-- y/y.go --
+// Package y is the next to last package of the alphabet.
+package y
+
+-- x.go --
+package x

@@ -925,12 +925,7 @@ func initDefaultCipherSuites() {
 	// Worst case, these variables will just all be false
 	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
 
-	// TODO: enable the arm64 HasAES && HasPMULL feature check after the
-	// optimized AES-GCM implementation for arm64 is merged (CL 107298).
-	// This is explicitly set to false for now to prevent misprioritization
-	// of AES-GCM based cipher suites, which will be slower than chacha20-poly1305
-	hasGCMAsmARM64 := false
-	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+	hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
 
 	// Keep in sync with crypto/aes/cipher_s390x.go.
 	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)

@@ -47,6 +47,7 @@ setlocal
 :nolocal
 
 set GOBUILDFAIL=0
+set GOFLAGS=
 
 if exist make.bat goto ok
 echo Must run make.bat from Go src directory.

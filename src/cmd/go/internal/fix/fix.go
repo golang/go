@@ -9,15 +9,15 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
-	"cmd/go/internal/vgo"
 	"fmt"
 	"os"
 )
 
 var CmdFix = &base.Command{
 	Run:       runFix,
-	UsageLine: "fix [packages]",
+	UsageLine: "go fix [packages]",
 	Short:     "update packages to use new APIs",
 	Long: `
 Fix runs the Go fix command on the packages named by the import paths.
@@ -34,9 +34,9 @@ See also: go fmt, go vet.
 func runFix(cmd *base.Command, args []string) {
 	printed := false
 	for _, pkg := range load.Packages(args) {
-		if vgo.Enabled() && !pkg.Module.Top {
+		if modload.Enabled() && !pkg.Module.Main {
 			if !printed {
-				fmt.Fprintf(os.Stderr, "vgo: not fixing packages in dependency modules\n")
+				fmt.Fprintf(os.Stderr, "go: not fixing packages in dependency modules\n")
 				printed = true
 			}
 			continue

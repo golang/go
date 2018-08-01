@@ -441,6 +441,8 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_OpLess8U_0(v)
 	case OpLoad:
 		return rewriteValue386_OpLoad_0(v)
+	case OpLocalAddr:
+		return rewriteValue386_OpLocalAddr_0(v)
 	case OpLsh16x16:
 		return rewriteValue386_OpLsh16x16_0(v)
 	case OpLsh16x32:
@@ -17877,6 +17879,20 @@ func rewriteValue386_OpLoad_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValue386_OpLocalAddr_0(v *Value) bool {
+	// match: (LocalAddr {sym} base _)
+	// cond:
+	// result: (LEAL {sym} base)
+	for {
+		sym := v.Aux
+		_ = v.Args[1]
+		base := v.Args[0]
+		v.reset(Op386LEAL)
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
 }
 func rewriteValue386_OpLsh16x16_0(v *Value) bool {
 	b := v.Block

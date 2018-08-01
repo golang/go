@@ -1,0 +1,261 @@
+This directory holds test scripts *.txt run during 'go test cmd/go'.
+To run a specific script foo.txt
+
+	go test cmd/go -run=Script/^foo$
+
+In general script files should have short names: a few words, not whole sentences.
+The first word should be the general category of behavior being tested,
+often the name of a go subcommand (list, build, test, ...) or concept (vendor, pattern).
+
+Each script is a text archive (go doc cmd/go/internal/txtar).
+The script begins with an actual command script to run
+followed by the content of zero or more supporting files to
+create in the script's temporary file system before it starts executing.
+
+As an example, run_hello.txt says:
+
+	# hello world
+	go run hello.go
+	stderr 'hello world'
+	! stdout .
+
+	-- hello.go --
+	package main
+	func main() { println("hello world") }
+
+Each script runs in a fresh temporary work directory tree, available to scripts as $WORK.
+Scripts also have access to these other environment variables:
+
+	GOARCH=<target GOARCH>
+	GOCACHE=<actual GOCACHE being used outside the test>
+	GOOS=<target GOOS>
+	GOPATH=$WORK/gopath
+	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
+	GOROOT=<actual GOROOT>
+	HOME=/no-home
+	PATH=<actual PATH>
+	TMPDIR=$WORK/tmp
+	devnull=<value of os.DevNull>
+
+The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
+
+The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
+and then the script begins execution in that directory as well. Thus the example above runs
+in $WORK/gopath/src with GOPATH=$WORK/gopath and $WORK/gopath/src/hello.go
+containing the listed contents.
+
+The lines at the top of the script are a sequence of commands to be executed
+by a tiny script engine in ../../script_test.go (not the system shell).
+The script stops and the overall test fails if any particular command fails.
+
+Each line is parsed into a sequence of space-separated command words,
+with environment variable expansion and # marking an end-of-line comment.
+Adding single quotes around text keeps spaces in that text from being treated
+as word separators and also disables environment variable expansion.
+Inside a single-quoted block of text, a repeated single quote indicates
+a literal single quote, as in:
+
+	'Don''t communicate by sharing memory.'
+
+A line beginning with # is a comment and conventionally explains what is
+being done or tested at the start of a new phase in the script.
+
+The command prefix ! indicates that the command on the rest of the line
+(typically go or a matching predicate) must fail, not succeed. Only certain
+commands support this prefix. They are indicated below by [!] in the synopsis.
+
+The command prefix [cond] indicates that the command on the rest of the line
+should only run when the condition is satisfied. The available conditions are:
+
+ - GOOS and GOARCH values, like [386], [windows], and so on.
+ - Compiler names, like [gccgo], [gc].
+ - Test environment details:
+   - [short] for testing.Short()
+   - [cgo], [msan], [race] for whether cgo, msan, and the race detector can be used
+   - [net] for whether the external network can be used
+   - [link] for testenv.HasLink()
+   - [symlink] for testenv.HasSymlink()
+   - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+
+A condition can be negated: [!short] means to run the rest of the line
+when testing.Short() is false.
+
+The commands are:
+
+- cd dir
+  Change to the given directory for future commands.
+
+- cmp file1 file2
+  Check that the named files have the same content.
+  By convention, file1 is the actual data and file2 the expected data.
+  File1 can be "stdout" or "stderr" to use the standard output or standard error
+  from the most recent exec or go command.
+  (If the files have differing content, the failure prints a diff.)
+
+- cp src... dst
+  Copy the listed files to the target file or existing directory.
+
+- env [key=value...]
+  With no arguments, print the environment (useful for debugging).
+  Otherwise add the listed key=value pairs to the environment.
+
+- [!] exec program [args...]
+  Run the given executable program with the arguments.
+  It must (or must not) succeed.
+  Note that 'exec' does not terminate the script (unlike in Unix shells).
+
+- [!] exists [-readonly] file...
+  Each of the listed files or directories must (or must not) exist.
+  If -readonly is given, the files or directories must be unwritable.
+
+- [!] go args...
+  Run the (test copy of the) go command with the given arguments.
+  It must (or must not) succeed.
+
+- [!] grep [-count=N] pattern file
+  The file's content must (or must not) match the regular expression pattern.
+  For positive matches, -count=N specifies an exact number of matches to require.
+
+- mkdir path...
+  Create the listed directories, if they do not already exists.
+
+- rm file...
+  Remove the listed files or directories.
+
+- skip [message]
+  Mark the test skipped, including the message if given.
+
+- [!] stale path...
+  The packages named by the path arguments must (or must not)
+  be reported as "stale" by the go command.
+
+- [!] stderr [-count=N] pattern
+  Apply the grep command (see above) to the standard error
+  from the most recent exec or go command.
+
+- [!] stdout [-count=N] pattern
+  Apply the grep command (see above) to the standard output
+  from the most recent exec or go command.
+
+- stop [message]
+  Stop the test early (marking it as passing), including the message if given.
+
+- symlink file -> target
+  Create file as a symlink to target. The -> (like in ls -l output) is required.
+
+When TestScript runs a script and the script fails, by default TestScript shows
+the execution of the most recent phase of the script (since the last # comment)
+and only shows the # comments for earlier phases. For example, here is a
+multi-phase script with a bug in it:
+
+	# GOPATH with p1 in d2, p2 in d2
+	env GOPATH=$WORK/d1${:}$WORK/d2
+
+	# build & install p1
+	env
+	go install -i p1
+	! stale p1
+	! stale p2
+
+	# modify p2 - p1 should appear stale
+	cp $WORK/p2x.go $WORK/d2/src/p2/p2.go
+	stale p1 p2
+
+	# build & install p1 again
+	go install -i p11
+	! stale p1
+	! stale p2
+
+	-- $WORK/d1/src/p1/p1.go --
+	package p1
+	import "p2"
+	func F() { p2.F() }
+	-- $WORK/d2/src/p2/p2.go --
+	package p2
+	func F() {}
+	-- $WORK/p2x.go --
+	package p2
+	func F() {}
+	func G() {}
+
+The bug is that the final phase installs p11 instead of p1. The test failure looks like:
+
+	$ go test -run=Script
+	--- FAIL: TestScript (3.75s)
+	    --- FAIL: TestScript/install_rebuild_gopath (0.16s)
+	        script_test.go:223:
+	            # GOPATH with p1 in d2, p2 in d2 (0.000s)
+	            # build & install p1 (0.087s)
+	            # modify p2 - p1 should appear stale (0.029s)
+	            # build & install p1 again (0.022s)
+	            > go install -i p11
+	            [stderr]
+	            can't load package: package p11: cannot find package "p11" in any of:
+	            	/Users/rsc/go/src/p11 (from $GOROOT)
+	            	$WORK/d1/src/p11 (from $GOPATH)
+	            	$WORK/d2/src/p11
+	            [exit status 1]
+	            FAIL: unexpected go command failure
+
+	        script_test.go:73: failed at testdata/script/install_rebuild_gopath.txt:15 in $WORK/gopath/src
+
+	FAIL
+	exit status 1
+	FAIL	cmd/go	4.875s
+	$
+
+Note that the commands in earlier phases have been hidden, so that the relevant
+commands are more easily found, and the elapsed time for a completed phase
+is shown next to the phase heading. To see the entire execution, use "go test -v",
+which also adds an initial environment dump to the beginning of the log.
+
+Note also that in reported output, the actual name of the per-script temporary directory
+has been consistently replaced with the literal string $WORK.
+
+The cmd/go test flag -testwork (which must appear on the "go test" command line after
+standard test flags) causes each test to log the name of its $WORK directory and other
+environment variable settings and also to leave that directory behind when it exits,
+for manual debugging of failing tests:
+
+	$ go test -run=Script -work
+	--- FAIL: TestScript (3.75s)
+	    --- FAIL: TestScript/install_rebuild_gopath (0.16s)
+	        script_test.go:223:
+	            WORK=/tmp/cmd-go-test-745953508/script-install_rebuild_gopath
+	            GOARCH=
+	            GOCACHE=/Users/rsc/Library/Caches/go-build
+	            GOOS=
+	            GOPATH=$WORK/gopath
+	            GOROOT=/Users/rsc/go
+	            HOME=/no-home
+	            TMPDIR=$WORK/tmp
+	            exe=
+
+	            # GOPATH with p1 in d2, p2 in d2 (0.000s)
+	            # build & install p1 (0.085s)
+	            # modify p2 - p1 should appear stale (0.030s)
+	            # build & install p1 again (0.019s)
+	            > go install -i p11
+	            [stderr]
+	            can't load package: package p11: cannot find package "p11" in any of:
+	            	/Users/rsc/go/src/p11 (from $GOROOT)
+	            	$WORK/d1/src/p11 (from $GOPATH)
+	            	$WORK/d2/src/p11
+	            [exit status 1]
+	            FAIL: unexpected go command failure
+
+	        script_test.go:73: failed at testdata/script/install_rebuild_gopath.txt:15 in $WORK/gopath/src
+
+	FAIL
+	exit status 1
+	FAIL	cmd/go	4.875s
+	$
+
+	$ WORK=/tmp/cmd-go-test-745953508/script-install_rebuild_gopath
+	$ cd $WORK/d1/src/p1
+	$ cat p1.go
+	package p1
+	import "p2"
+	func F() { p2.F() }
+	$
+
