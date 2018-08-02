@@ -92,12 +92,18 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 				if isRoot {
 					roots = append(roots, xtestID)
 				}
+				for i, imp := range p.XTestImports {
+					if imp == p.ImportPath {
+						p.XTestImports[i] = testID
+						break
+					}
+				}
 				result = append(result, &raw.Package{
 					ID:      xtestID,
 					Name:    p.Name + "_test",
 					GoFiles: absJoin(p.Dir, p.XTestGoFiles),
 					PkgPath: pkgpath,
-					Imports: importMap(append(p.XTestImports, testID)),
+					Imports: importMap(p.XTestImports),
 				})
 			}
 		}
@@ -137,6 +143,7 @@ func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet
 
 	depsSet := make(map[string]bool)
 	originalSet = make(map[string]*jsonPackage)
+	var testImports []string
 
 	// Extract deps from the JSON.
 	for dec := json.NewDecoder(buf); dec.More(); {
@@ -149,7 +156,36 @@ func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet
 		for _, dep := range p.Deps {
 			depsSet[dep] = true
 		}
+		if cfg.Tests {
+			// collect the additional imports of the test packages.
+			pkgTestImports := append(p.TestImports, p.XTestImports...)
+			for _, imp := range pkgTestImports {
+				if depsSet[imp] {
+					continue
+				}
+				depsSet[imp] = true
+				testImports = append(testImports, imp)
+			}
+		}
 	}
+	// Get the deps of the packages imported by tests.
+	if len(testImports) > 0 {
+		buf, err = golist(ctx, cfg, golistargs_fallback(cfg, testImports))
+		if err != nil {
+			return nil, nil, err
+		}
+		// Extract deps from the JSON.
+		for dec := json.NewDecoder(buf); dec.More(); {
+			p := new(jsonPackage)
+			if err := dec.Decode(p); err != nil {
+				return nil, nil, fmt.Errorf("JSON decoding failed: %v", err)
+			}
+			for _, dep := range p.Deps {
+				depsSet[dep] = true
+			}
+		}
+	}
+
 	for orig := range originalSet {
 		delete(depsSet, orig)
 	}

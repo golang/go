@@ -39,14 +39,14 @@ var usesOldGolist = false
 //   gracefully.
 // - test more Flags.
 //
-// TypeCheck & WholeProgram modes:
+// LoadSyntax & LoadAllSyntax modes:
 //   - Fset may be user-supplied or not.
 //   - Packages.Info is correctly set.
 //   - typechecker configuration is honored
 //   - import cycles are gracefully handled in type checker.
 //   - test typechecking of generated test main and cgo.
 
-func TestMetadataImportGraph(t *testing.T) {
+func TestLoadImportsGraph(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skipf("TODO: skipping on non-Linux; fix this test to run everywhere. golang.org/issue/26387")
 	}
@@ -131,8 +131,32 @@ func TestMetadataImportGraph(t *testing.T) {
   subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
 `[1:]
 
+	// Legacy go list support does not create test main package.
+	wantOldGraph := `
+  a
+  b
+* c
+* e
+  errors
+  math/bits
+* subdir/d
+* subdir/d [subdir/d.test]
+* subdir/d_test [subdir/d.test]
+  unsafe
+  b -> a
+  b -> errors
+  c -> b
+  c -> unsafe
+  e -> b
+  e -> c
+  subdir/d [subdir/d.test] -> math/bits
+  subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
+`[1:]
+
 	if graph != wantGraph && !usesOldGolist {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	} else if graph != wantOldGraph && usesOldGolist {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantOldGraph)
 	}
 
 	// Check node information: kind, name, srcs.
@@ -190,11 +214,6 @@ func TestMetadataImportGraph(t *testing.T) {
 		}
 	}
 
-	if usesOldGolist {
-		// TODO(matloob): Wildcards are not yet supported.
-		return
-	}
-
 	// Wildcards
 	// See StdlibTest for effective test of "std" wildcard.
 	// TODO(adonovan): test "all" returns everything in the current module.
@@ -220,8 +239,21 @@ func TestMetadataImportGraph(t *testing.T) {
   subdir/d.test -> testing/internal/testdeps (pruned)
   subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
 `[1:]
-		if graph != wantGraph {
+
+		// Legacy go list support does not create test main package.
+		wantOldGraph = `
+  math/bits
+* subdir/d
+* subdir/d [subdir/d.test]
+* subdir/d_test [subdir/d.test]
+* subdir/e
+  subdir/d [subdir/d.test] -> math/bits
+  subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
+`[1:]
+		if graph != wantGraph && !usesOldGolist {
 			t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+		} else if graph != wantOldGraph && usesOldGolist {
+			t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantOldGraph)
 		}
 	}
 }
@@ -844,6 +876,7 @@ func errorMessages(errors []error) []string {
 func srcs(p *packages.Package) (basenames []string) {
 	files := append(p.GoFiles, p.OtherFiles...)
 	for i, src := range files {
+		// TODO(suzmue): make cache names predictable on all os.
 		if strings.Contains(src, ".cache/go-build") {
 			src = fmt.Sprintf("%d.go", i) // make cache names predictable
 		} else {
