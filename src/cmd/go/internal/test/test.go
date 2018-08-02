@@ -1391,20 +1391,35 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 	testlog = bytes.TrimPrefix(testlog, testlogMagic)
 	h := cache.NewHash("testInputs")
 	pwd := a.Package.Dir
+
+	// Get the unique lines from the test log to save time by not computing
+	// the same hash more than once.
+	lineSet := make(map[string]bool)
 	for _, line := range bytes.Split(testlog, []byte("\n")) {
 		if len(line) == 0 {
 			continue
 		}
-		s := string(line)
-		i := strings.Index(s, " ")
+		lineSet[string(line)] = true
+	}
+	var lines []string
+	for l := range lineSet {
+		lines = append(lines, l)
+	}
+	// Iterating over the map means the unique lines are in random order.
+	// Sorting puts them in a deterministic order so the hashing below will
+	// get the same result if the set of log lines is the same.
+	sort.Strings(lines)
+
+	for _, line := range lines {
+		i := strings.Index(line, " ")
 		if i < 0 {
 			if cache.DebugTest {
 				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed (%q)\n", a.Package.ImportPath, line)
 			}
 			return cache.ActionID{}, errBadTestInputs
 		}
-		op := s[:i]
-		name := s[i+1:]
+		op := line[:i]
+		name := line[i+1:]
 		switch op {
 		default:
 			if cache.DebugTest {
