@@ -259,6 +259,14 @@ func (s *Scanner) updateLineInfo(next, offs int, text []byte) {
 	filename := string(text[:i-1]) // lop off ":line", and trim white space
 	if filename == "" && ok2 {
 		filename = s.file.Position(s.file.Pos(offs)).Filename
+	} else if filename != "" {
+		// Put a relative filename in the current directory.
+		// This is for compatibility with earlier releases.
+		// See issue 26671.
+		filename = filepath.Clean(filename)
+		if !filepath.IsAbs(filename) {
+			filename = filepath.Join(s.dir, filename)
+		}
 	}
 
 	s.file.AddLineColumnInfo(next, filename, line, col)
