@@ -51,11 +51,6 @@ func (s *CertPool) copy() *CertPool {
 // New changes in the the system cert pool might not be reflected
 // in subsequent calls.
 func SystemCertPool() (*CertPool, error) {
-	// if runtime.GOOS == "windows" {
-	// 	// Issue 16736, 18609:
-	// 	return nil, errors.New("crypto/x509: system root pool is not available on Windows")
-	// }
-
 	if sysRoots := systemRootsPool(); sysRoots != nil {
 		return sysRoots.copy(), nil
 	}
