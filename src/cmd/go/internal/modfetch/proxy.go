@@ -65,10 +65,10 @@ The JSON-formatted metadata about a given module corresponds to
 this Go data structure, which may be expanded in the future:
 
     type Info struct {
-		Version string    // version string
-		Name    string    // complete ID in underlying repository
-		Short   string    // shortened ID, for use in pseudo-version
-		Time    time.Time // commit time
+        Version string    // version string
+        Name    string    // complete ID in underlying repository
+        Short   string    // shortened ID, for use in pseudo-version
+        Time    time.Time // commit time
     }
 
 The zip archive for a specific version of a given module is a
