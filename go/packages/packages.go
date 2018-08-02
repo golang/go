@@ -505,6 +505,10 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 			// used to supply alternative file contents.
 			return nil, fmt.Errorf("no metadata for %s", path)
 		}
+
+		ld.exportMu.Lock()
+		defer ld.exportMu.Unlock()
+
 		if ipkg.Types != nil && ipkg.Types.Complete() {
 			return ipkg.Types, nil
 		}
@@ -629,8 +633,16 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	// Not all accesses to Package.Pkg need to be protected by exportMu:
 	// graph ordering ensures that direct dependencies of source
 	// packages are fully loaded before the importer reads their Pkg field.
-	ld.exportMu.Lock()
-	defer ld.exportMu.Unlock()
+	//
+	// TODO(matloob): Ask adonovan if this is safe. Because of diamonds in the
+	// dependency graph, it's possible that the same package is loaded in
+	// two separate goroutines and there's a race in the write of the Package's
+	// Types here and the read earlier checking if types is set before calling
+	// this function.
+	/*
+		ld.exportMu.Lock()
+		defer ld.exportMu.Unlock()
+	*/
 
 	if tpkg := lpkg.Types; tpkg != nil && tpkg.Complete() {
 		return tpkg, nil // cache hit
