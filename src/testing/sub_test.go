@@ -411,6 +411,29 @@ func TestTRun(t *T) {
 			ch <- true
 			<-ch
 		},
+	}, {
+		desc: "log in finished sub test logs to parent",
+		ok:   false,
+		output: `
+		--- FAIL: log in finished sub test logs to parent (N.NNs)
+    sub_test.go:NNN: message2
+    sub_test.go:NNN: message1
+    sub_test.go:NNN: error`,
+		maxPar: 1,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Log("message1")
+					ch <- true
+				}()
+			})
+			t.Log("message2")
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
 	}}
 	for _, tc := range testCases {
 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
