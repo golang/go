@@ -113,7 +113,7 @@ func callbackLoop() {
 			for i := range args {
 				args[i] = argsObj.Index(i)
 			}
-			f(args)
+			go f(args)
 		}
 	}
 }
