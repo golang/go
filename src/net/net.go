@@ -357,7 +357,16 @@ type PacketConn interface {
 	SetWriteDeadline(t time.Time) error
 }
 
-var listenerBacklog = maxListenerBacklog()
+var listenerBacklogCache struct {
+	sync.Once
+	val int
+}
+
+// listenerBacklog is a caching wrapper around maxListenerBacklog.
+func listenerBacklog() int {
+	listenerBacklogCache.Do(func() { listenerBacklogCache.val = maxListenerBacklog() })
+	return listenerBacklogCache.val
+}
 
 // A Listener is a generic network listener for stream-oriented protocols.
 //
