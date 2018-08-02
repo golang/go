@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/sym"
 	"io"
 	"regexp"
+	"runtime"
 )
 
 const (
@@ -172,6 +173,7 @@ func asmb(ctxt *ld.Link) {
 		writeBuildID(ctxt, buildid)
 	}
 
+	writeGoVersion(ctxt)
 	writeTypeSec(ctxt, types)
 	writeImportSec(ctxt, hostImports)
 	writeFunctionSec(ctxt, fns)
@@ -217,6 +219,13 @@ func writeBuildID(ctxt *ld.Link, buildid []byte) {
 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
 	writeName(ctxt.Out, "go.buildid")
 	ctxt.Out.Write(buildid)
+	writeSecSize(ctxt, sizeOffset)
+}
+
+func writeGoVersion(ctxt *ld.Link) {
+	sizeOffset := writeSecHeader(ctxt, sectionCustom)
+	writeName(ctxt.Out, "go.version")
+	ctxt.Out.Write([]byte(runtime.Version()))
 	writeSecSize(ctxt, sizeOffset)
 }
 
