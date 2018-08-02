@@ -167,8 +167,8 @@ type Decoder struct {
 	//
 	// Setting:
 	//
-	//	d.Strict = false;
-	//	d.AutoClose = HTMLAutoClose;
+	//	d.Strict = false
+	//	d.AutoClose = HTMLAutoClose
 	//	d.Entity = HTMLEntity
 	//
 	// creates a parser that can handle typical HTML.
