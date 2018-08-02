@@ -20,7 +20,6 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/envcmd"
 	"cmd/go/internal/web"
 )
 
@@ -44,23 +43,10 @@ func runBug(cmd *base.Command, args []string) {
 	}
 	var buf bytes.Buffer
 	buf.WriteString(bugHeader)
-	inspectGoVersion(&buf)
-	fmt.Fprint(&buf, "#### System details\n\n")
-	fmt.Fprintln(&buf, "```")
-	fmt.Fprintf(&buf, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	env := cfg.CmdEnv
-	env = append(env, envcmd.ExtraEnvVars()...)
-	for _, e := range env {
-		// Hide the TERM environment variable from "go bug".
-		// See issue #18128
-		if e.Name != "TERM" {
-			fmt.Fprintf(&buf, "%s=\"%s\"\n", e.Name, e.Value)
-		}
-	}
-	printGoDetails(&buf)
-	printOSDetails(&buf)
-	printCDetails(&buf)
-	fmt.Fprintln(&buf, "```")
+	printGoVersion(&buf)
+	buf.WriteString("### Does this issue reproduce with the latest release?\n\n\n")
+	printEnvDetails(&buf)
+	buf.WriteString(bugFooter)
 
 	body := buf.String()
 	url := "https://github.com/golang/go/issues/new?body=" + urlpkg.QueryEscape(body)
@@ -70,21 +56,46 @@ func runBug(cmd *base.Command, args []string) {
 	}
 }
 
-const bugHeader = `Please answer these questions before submitting your issue. Thanks!
+const bugHeader = `<!-- Please answer these questions before submitting your issue. Thanks! -->
 
-#### What did you do?
+`
+const bugFooter = `### What did you do?
+
+<!--
 If possible, provide a recipe for reproducing the error.
 A complete runnable program is good.
 A link on play.golang.org is best.
+-->
 
 
-#### What did you expect to see?
+
+### What did you expect to see?
 
 
-#### What did you see instead?
 
+### What did you see instead?
 
 `
+
+func printGoVersion(w io.Writer) {
+	fmt.Fprintf(w, "### What version of Go are you using (`go version`)?\n\n")
+	fmt.Fprintf(w, "<pre>\n")
+	fmt.Fprintf(w, "$ go version\n")
+	printCmdOut(w, "", "go", "version")
+	fmt.Fprintf(w, "</pre>\n")
+	fmt.Fprintf(w, "\n")
+}
+
+func printEnvDetails(w io.Writer) {
+	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env`)?\n\n")
+	fmt.Fprintf(w, "<details><summary><code>go env</code> Output</summary><br><pre>\n")
+	fmt.Fprintf(w, "$ go env\n")
+	printCmdOut(w, "", "go", "env")
+	printGoDetails(w)
+	printOSDetails(w)
+	printCDetails(w)
+	fmt.Fprintf(w, "</pre></details>\n\n")
+}
 
 func printGoDetails(w io.Writer) {
 	printCmdOut(w, "GOROOT/bin/go version: ", filepath.Join(runtime.GOROOT(), "bin/go"), "version")
@@ -130,35 +141,6 @@ func printCDetails(w io.Writer) {
 			fmt.Printf("failed to run gdb --version: %v\n", err)
 		}
 	}
-}
-
-func inspectGoVersion(w io.Writer) {
-	data, err := web.GetBytes(&urlpkg.URL{
-		Scheme:   "https",
-		Host:     "golang.org",
-		Path:     "/VERSION",
-		RawQuery: "?m=text",
-	})
-	if err != nil {
-		if cfg.BuildV {
-			fmt.Printf("failed to read from golang.org/VERSION: %v\n", err)
-		}
-		return
-	}
-
-	// golang.org/VERSION currently returns a whitespace-free string,
-	// but just in case, protect against that changing.
-	// Similarly so for runtime.Version.
-	release := string(bytes.TrimSpace(data))
-	vers := strings.TrimSpace(runtime.Version())
-
-	if vers == release {
-		// Up to date
-		return
-	}
-
-	// Devel version or outdated release. Either way, this request is apropos.
-	fmt.Fprintf(w, "#### Does this issue reproduce with the latest release (%s)?\n\n\n", release)
 }
 
 // printCmdOut prints the output of running the given command.
