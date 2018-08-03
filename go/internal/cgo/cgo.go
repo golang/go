@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package loader
+package cgo
 
 // This file handles cgo preprocessing of files containing `import "C"`.
 //
@@ -66,10 +66,10 @@ import (
 	"strings"
 )
 
-// processCgoFiles invokes the cgo preprocessor on bp.CgoFiles, parses
+// ProcessCgoFiles invokes the cgo preprocessor on bp.CgoFiles, parses
 // the output and returns the resulting ASTs.
 //
-func processCgoFiles(bp *build.Package, fset *token.FileSet, DisplayPath func(path string) string, mode parser.Mode) ([]*ast.File, error) {
+func ProcessCgoFiles(bp *build.Package, fset *token.FileSet, DisplayPath func(path string) string, mode parser.Mode) ([]*ast.File, error) {
 	tmpdir, err := ioutil.TempDir("", strings.Replace(bp.ImportPath, "/", "_", -1)+"_C")
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func processCgoFiles(bp *build.Package, fset *token.FileSet, DisplayPath func(pa
 		pkgdir = DisplayPath(pkgdir)
 	}
 
-	cgoFiles, cgoDisplayFiles, err := runCgo(bp, pkgdir, tmpdir)
+	cgoFiles, cgoDisplayFiles, err := RunCgo(bp, pkgdir, tmpdir, false)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func processCgoFiles(bp *build.Package, fset *token.FileSet, DisplayPath func(pa
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
-// runCgo invokes the cgo preprocessor on bp.CgoFiles and returns two
+// RunCgo invokes the cgo preprocessor on bp.CgoFiles and returns two
 // lists of files: the resulting processed files (in temporary
 // directory tmpdir) and the corresponding names of the unprocessed files.
 //
@@ -112,7 +112,7 @@ var cgoRe = regexp.MustCompile(`[/\\:]`)
 // $GOROOT/src/cmd/go/build.go, but these features are unsupported:
 // Objective C, CGOPKGPATH, CGO_FLAGS.
 //
-func runCgo(bp *build.Package, pkgdir, tmpdir string) (files, displayFiles []string, err error) {
+func RunCgo(bp *build.Package, pkgdir, tmpdir string, useabs bool) (files, displayFiles []string, err error) {
 	cgoCPPFLAGS, _, _, _ := cflags(bp, true)
 	_, cgoexeCFLAGS, _, _ := cflags(bp, false)
 
@@ -145,9 +145,17 @@ func runCgo(bp *build.Package, pkgdir, tmpdir string) (files, displayFiles []str
 		cgoflags = append(cgoflags, "-import_syscall=false")
 	}
 
+	var cgoFiles []string = bp.CgoFiles
+	if useabs {
+		cgoFiles = make([]string, len(bp.CgoFiles))
+		for i := range cgoFiles {
+			cgoFiles[i] = filepath.Join(pkgdir, bp.CgoFiles[i])
+		}
+	}
+
 	args := stringList(
 		"go", "tool", "cgo", "-objdir", tmpdir, cgoflags, "--",
-		cgoCPPFLAGS, cgoexeCFLAGS, bp.CgoFiles,
+		cgoCPPFLAGS, cgoexeCFLAGS, cgoFiles,
 	)
 	if false {
 		log.Printf("Running cgo for package %q: %s (dir=%s)", bp.ImportPath, args, pkgdir)
