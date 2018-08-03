@@ -18,15 +18,25 @@ import (
 )
 
 var cmdGraph = &base.Command{
-	UsageLine: "go mod graph",
+	UsageLine: "go mod graph [-dot]",
 	Short:     "print module requirement graph",
 	Long: `
 Graph prints the module requirement graph (with replacements applied)
 in text form. Each line in the output has two space-separated fields: a module
 and one of its requirements. Each module is identified as a string of the form
 path@version, except for the main module, which has no @version suffix.
+
+The -dot flag generates the output in graphviz format that can be used
+with a tool like dot to visually render the dependency graph.
 	`,
-	Run: runGraph,
+}
+
+var (
+	graphDot = cmdGraph.Flag.Bool("dot", false, "")
+)
+
+func init() {
+	cmdGraph.Run = runGraph // break init cycle
 }
 
 func runGraph(cmd *base.Command, args []string) {
@@ -51,10 +61,21 @@ func runGraph(cmd *base.Command, args []string) {
 	work.Add(modload.Target)
 	work.Do(1, func(item interface{}) {
 		m := item.(module.Version)
+		if *graphDot {
+			if m.Version == "" {
+				out = append(out, "\""+m.Path+"\" [label=<"+m.Path+">]\n")
+			} else {
+				out = append(out, "\""+m.Path+"\" [label=<"+m.Path+"<br/><font point-size=\"9\">"+m.Version+"</font>>]\n")
+			}
+		}
 		list, _ := reqs.Required(m)
 		for _, r := range list {
 			work.Add(r)
-			out = append(out, format(m)+" "+format(r)+"\n")
+			if *graphDot {
+				out = append(out, "\""+m.Path+"\" -> \""+r.Path+"\"\n")
+			} else {
+				out = append(out, format(m)+" "+format(r)+"\n")
+			}
 		}
 		if m == modload.Target {
 			deps = len(out)
@@ -66,8 +87,14 @@ func runGraph(cmd *base.Command, args []string) {
 	})
 
 	w := bufio.NewWriter(os.Stdout)
+	if *graphDot {
+		w.WriteString("digraph deps {\nrankdir=LR\n")
+	}
 	for _, line := range out {
 		w.WriteString(line)
+	}
+	if *graphDot {
+		w.WriteString("}\n")
 	}
 	w.Flush()
 }
