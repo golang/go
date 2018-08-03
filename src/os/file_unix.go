@@ -296,7 +296,7 @@ func Truncate(name string, size int64) error {
 	return nil
 }
 
-// Remove removes the named file or directory.
+// Remove removes the named file or (empty) directory.
 // If there is an error, it will be of type *PathError.
 func Remove(name string) error {
 	// System call interface forces us to know
