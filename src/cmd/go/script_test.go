@@ -87,6 +87,7 @@ func (ts *testScript) setup() {
 		"WORK=" + ts.workdir, // must be first for ts.abbrev
 		"PATH=" + testBin + string(filepath.ListSeparator) + os.Getenv("PATH"),
 		homeEnvName() + "=/no-home",
+		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
 		"GOARCH=" + runtime.GOARCH,
 		"GOCACHE=" + testGOCACHE,
 		"GOOS=" + runtime.GOOS,

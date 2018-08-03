@@ -224,13 +224,11 @@ func TestMain(m *testing.M) {
 	os.Unsetenv("GOBIN")
 	os.Unsetenv("GOPATH")
 	os.Unsetenv("GIT_ALLOW_PROTOCOL")
-	if home, ccacheDir := os.Getenv("HOME"), os.Getenv("CCACHE_DIR"); home != "" && ccacheDir == "" {
-		// On some systems the default C compiler is ccache.
-		// Setting HOME to a non-existent directory will break
-		// those systems. Set CCACHE_DIR to cope. Issue 17668.
-		os.Setenv("CCACHE_DIR", filepath.Join(home, ".ccache"))
-	}
 	os.Setenv("HOME", "/test-go-home-does-not-exist")
+	// On some systems the default C compiler is ccache.
+	// Setting HOME to a non-existent directory will break
+	// those systems. Disable ccache and use real compiler. Issue 17668.
+	os.Setenv("CCACHE_DISABLE", "1")
 	if os.Getenv("GOCACHE") == "" {
 		os.Setenv("GOCACHE", testGOCACHE) // because $HOME is gone
 	}
