@@ -318,7 +318,8 @@ func (p *PackageError) Error() string {
 	return "package " + strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
 }
 
-// An ImportStack is a stack of import paths.
+// An ImportStack is a stack of import paths, possibly with the suffix " (test)" appended.
+// TODO(bcmills): When the tree opens for 1.12, replace the suffixed string with a struct.
 type ImportStack []string
 
 func (s *ImportStack) Push(p string) {
@@ -986,7 +987,7 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
 		// p is in a module, so make it available based on the import path instead
 		// of the file path (https://golang.org/issue/23970).
 		parent := p.ImportPath[:i]
-		importer := (*stk)[len(*stk)-2]
+		importer := strings.TrimSuffix((*stk)[len(*stk)-2], " (test)")
 		if str.HasPathPrefix(importer, parent) {
 			return p
 		}
@@ -1039,7 +1040,7 @@ func disallowVendor(srcDir, path string, p *Package, stk *ImportStack) *Package 
 		// but the usual vendor visibility check will not catch them
 		// because the module loader presents them with an ImportPath starting
 		// with "golang_org/" instead of "vendor/".
-		importer := (*stk)[len(*stk)-2]
+		importer := strings.TrimSuffix((*stk)[len(*stk)-2], " (test)")
 		if mod := ModPackageModuleInfo(importer); mod != nil {
 			dir := p.Dir
 			if relDir, err := filepath.Rel(p.Root, p.Dir); err == nil {
