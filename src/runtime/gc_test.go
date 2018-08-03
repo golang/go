@@ -574,8 +574,8 @@ func BenchmarkWriteBarrier(b *testing.B) {
 		n := &node{mkTree(level - 1), mkTree(level - 1)}
 		if level == 10 {
 			// Seed GC with enough early pointers so it
-			// doesn't accidentally switch to mark 2 when
-			// it only has the top of the tree.
+			// doesn't start termination barriers when it
+			// only has the top of the tree.
 			wbRoots = append(wbRoots, n)
 		}
 		return n

@@ -28,8 +28,7 @@
 //    b. Sweep any unswept spans. There will only be unswept spans if
 //    this GC cycle was forced before the expected time.
 //
-// 2. GC performs the "mark 1" sub-phase. In this sub-phase, Ps are
-// allowed to locally cache parts of the work queue.
+// 2. GC performs the mark phase.
 //
 //    a. Prepare for the mark phase by setting gcphase to _GCmark
 //    (from _GCoff), enabling the write barrier, enabling mutator
@@ -54,28 +53,21 @@
 //    object to black and shading all pointers found in the object
 //    (which in turn may add those pointers to the work queue).
 //
-// 3. Once the global work queue is empty (but local work queue caches
-// may still contain work), GC performs the "mark 2" sub-phase.
+//    e. Because GC work is spread across local caches, GC uses a
+//    distributed termination algorithm to detect when there are no
+//    more root marking jobs or grey objects (see gcMarkDone). At this
+//    point, GC transitions to mark termination.
 //
-//    a. GC stops all workers, disables local work queue caches,
-//    flushes each P's local work queue cache to the global work queue
-//    cache, and reenables workers.
-//
-//    b. GC again drains the work queue, as in 2d above.
-//
-// 4. Once the work queue is empty, GC performs mark termination.
+// 3. GC performs mark termination.
 //
 //    a. Stop the world.
 //
 //    b. Set gcphase to _GCmarktermination, and disable workers and
 //    assists.
 //
-//    c. Drain any remaining work from the work queue (typically there
-//    will be none).
+//    c. Perform housekeeping like flushing mcaches.
 //
-//    d. Perform other housekeeping like flushing mcaches.
-//
-// 5. GC performs the sweep phase.
+// 4. GC performs the sweep phase.
 //
 //    a. Prepare for the sweep phase by setting gcphase to _GCoff,
 //    setting up sweep state and disabling the write barrier.
@@ -86,7 +78,7 @@
 //    c. GC does concurrent sweeping in the background and in response
 //    to allocation. See description below.
 //
-// 6. When sufficient allocation has taken place, replay the sequence
+// 5. When sufficient allocation has taken place, replay the sequence
 // starting with 1 above. See discussion of GC rate below.
 
 // Concurrent sweep.
@@ -996,8 +988,7 @@ var work struct {
 	// startSema protects the transition from "off" to mark or
 	// mark termination.
 	startSema uint32
-	// markDoneSema protects transitions from mark 1 to mark 2 and
-	// from mark 2 to mark termination.
+	// markDoneSema protects transitions from mark to mark termination.
 	markDoneSema uint32
 
 	bgMarkReady note   // signal background mark worker has started
@@ -1385,128 +1376,121 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 	semrelease(&work.startSema)
 }
 
-// gcMarkDone transitions the GC from mark 1 to mark 2 and from mark 2
-// to mark termination.
+// gcMarkDoneFlushed counts the number of P's with flushed work.
 //
-// This should be called when all mark work has been drained. In mark
-// 1, this includes all root marking jobs, global work buffers, and
-// active work buffers in assists and background workers; however,
-// work may still be cached in per-P work buffers. In mark 2, per-P
-// caches are disabled.
+// Ideally this would be a captured local in gcMarkDone, but forEachP
+// escapes its callback closure, so it can't capture anything.
+//
+// This is protected by markDoneSema.
+var gcMarkDoneFlushed uint32
+
+// gcMarkDone transitions the GC from mark to mark termination if all
+// reachable objects have been marked (that is, there are no grey
+// objects and can be no more in the future). Otherwise, it flushes
+// all local work to the global queues where it can be discovered by
+// other workers.
+//
+// This should be called when all local mark work has been drained and
+// there are no remaining workers. Specifically, when
+//
+//   work.nwait == work.nproc && !gcMarkWorkAvailable(p)
 //
 // The calling context must be preemptible.
 //
-// Note that it is explicitly okay to have write barriers in this
-// function because completion of concurrent mark is best-effort
-// anyway. Any work created by write barriers here will be cleaned up
-// by mark termination.
+// Flushing local work is important because idle Ps may have local
+// work queued. This is the only way to make that work visible and
+// drive GC to completion.
+//
+// It is explicitly okay to have write barriers in this function. If
+// it does transition to mark termination, then all reachable objects
+// have been marked, so the write barrier cannot shade any more
+// objects.
 func gcMarkDone() {
-top:
+	// Ensure only one thread is running the ragged barrier at a
+	// time.
 	semacquire(&work.markDoneSema)
 
+top:
 	// Re-check transition condition under transition lock.
+	//
+	// It's critical that this checks the global work queues are
+	// empty before performing the ragged barrier. Otherwise,
+	// there could be global work that a P could take after the P
+	// has passed the ragged barrier.
 	if !(gcphase == _GCmark && work.nwait == work.nproc && !gcMarkWorkAvailable(nil)) {
 		semrelease(&work.markDoneSema)
 		return
 	}
 
-	// Disallow starting new workers so that any remaining workers
-	// in the current mark phase will drain out.
-	//
-	// TODO(austin): Should dedicated workers keep an eye on this
-	// and exit gcDrain promptly?
-	atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, -0xffffffff)
-	prevFractionalGoal := gcController.fractionalUtilizationGoal
-	gcController.fractionalUtilizationGoal = 0
-
-	if !gcBlackenPromptly {
-		// Transition from mark 1 to mark 2.
-		//
-		// The global work list is empty, but there can still be work
-		// sitting in the per-P work caches.
-		// Flush and disable work caches.
-
-		// Disallow caching workbufs and indicate that we're in mark 2.
-		gcBlackenPromptly = true
-
-		// Prevent completion of mark 2 until we've flushed
-		// cached workbufs.
-		atomic.Xadd(&work.nwait, -1)
-
-		// GC is set up for mark 2. Let Gs blocked on the
-		// transition lock go while we flush caches.
-		semrelease(&work.markDoneSema)
-
-		systemstack(func() {
-			// Flush all currently cached workbufs and
-			// ensure all Ps see gcBlackenPromptly. This
-			// also blocks until any remaining mark 1
-			// workers have exited their loop so we can
-			// start new mark 2 workers.
-			forEachP(func(_p_ *p) {
-				wbBufFlush1(_p_)
-				_p_.gcw.dispose()
-			})
+	// Flush all local buffers and collect flushedWork flags.
+	gcMarkDoneFlushed = 0
+	systemstack(func() {
+		forEachP(func(_p_ *p) {
+			// Flush the write barrier buffer, since this may add
+			// work to the gcWork.
+			wbBufFlush1(_p_)
+			// Flush the gcWork, since this may create global work
+			// and set the flushedWork flag.
+			//
+			// TODO(austin): Break up these workbufs to
+			// better distribute work.
+			_p_.gcw.dispose()
+			// Collect the flushedWork flag.
+			if _p_.gcw.flushedWork {
+				atomic.Xadd(&gcMarkDoneFlushed, 1)
+				_p_.gcw.flushedWork = false
+			}
 		})
+	})
 
-		// Check that roots are marked. We should be able to
-		// do this before the forEachP, but based on issue
-		// #16083 there may be a (harmless) race where we can
-		// enter mark 2 while some workers are still scanning
-		// stacks. The forEachP ensures these scans are done.
-		//
-		// TODO(austin): Figure out the race and fix this
-		// properly.
-		gcMarkRootCheck()
-
-		// Now we can start up mark 2 workers.
-		atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 0xffffffff)
-		gcController.fractionalUtilizationGoal = prevFractionalGoal
-
-		incnwait := atomic.Xadd(&work.nwait, +1)
-		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
-			// This loop will make progress because
-			// gcBlackenPromptly is now true, so it won't
-			// take this same "if" branch.
-			goto top
-		}
-	} else {
-		// Transition to mark termination.
-		now := nanotime()
-		work.tMarkTerm = now
-		work.pauseStart = now
-		getg().m.preemptoff = "gcing"
-		if trace.enabled {
-			traceGCSTWStart(0)
-		}
-		systemstack(stopTheWorldWithSema)
-		// The gcphase is _GCmark, it will transition to _GCmarktermination
-		// below. The important thing is that the wb remains active until
-		// all marking is complete. This includes writes made by the GC.
-
-		// Record that one root marking pass has completed.
-		work.markrootDone = true
-
-		// Disable assists and background workers. We must do
-		// this before waking blocked assists.
-		atomic.Store(&gcBlackenEnabled, 0)
-
-		// Wake all blocked assists. These will run when we
-		// start the world again.
-		gcWakeAllAssists()
-
-		// Likewise, release the transition lock. Blocked
-		// workers and assists will run when we start the
-		// world again.
-		semrelease(&work.markDoneSema)
-
-		// endCycle depends on all gcWork cache stats being
-		// flushed. This is ensured by mark 2.
-		nextTriggerRatio := gcController.endCycle()
-
-		// Perform mark termination. This will restart the world.
-		gcMarkTermination(nextTriggerRatio)
+	if gcMarkDoneFlushed != 0 {
+		// More grey objects were discovered since the
+		// previous termination check, so there may be more
+		// work to do. Keep going. It's possible the
+		// transition condition became true again during the
+		// ragged barrier, so re-check it.
+		goto top
 	}
+
+	// There was no global work, no local work, and no Ps
+	// communicated work since we took markDoneSema. Therefore
+	// there are no grey objects and no more objects can be
+	// shaded. Transition to mark termination.
+	now := nanotime()
+	work.tMarkTerm = now
+	work.pauseStart = now
+	getg().m.preemptoff = "gcing"
+	if trace.enabled {
+		traceGCSTWStart(0)
+	}
+	systemstack(stopTheWorldWithSema)
+	// The gcphase is _GCmark, it will transition to _GCmarktermination
+	// below. The important thing is that the wb remains active until
+	// all marking is complete. This includes writes made by the GC.
+
+	// Record that one root marking pass has completed.
+	work.markrootDone = true
+
+	// Disable assists and background workers. We must do
+	// this before waking blocked assists.
+	atomic.Store(&gcBlackenEnabled, 0)
+
+	// Wake all blocked assists. These will run when we
+	// start the world again.
+	gcWakeAllAssists()
+
+	// Likewise, release the transition lock. Blocked
+	// workers and assists will run when we start the
+	// world again.
+	semrelease(&work.markDoneSema)
+
+	// endCycle depends on all gcWork cache stats being flushed.
+	// The termination algorithm above ensured that up to
+	// allocations since the ragged barrier.
+	nextTriggerRatio := gcController.endCycle()
+
+	// Perform mark termination. This will restart the world.
+	gcMarkTermination(nextTriggerRatio)
 }
 
 func gcMarkTermination(nextTriggerRatio float64) {
@@ -1940,23 +1924,23 @@ func gcMark(start_time int64) {
 	if work.full == 0 && work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots == 0 {
 		// There's no work on the work queue and no root jobs
 		// that can produce work, so don't bother entering the
-		// getfull() barrier.
+		// getfull() barrier. There will be flushCacheRoots
+		// work, but that doesn't gray anything.
 		//
-		// This will be the situation the vast majority of the
-		// time after concurrent mark. However, we still need
-		// a fallback for STW GC and because there are some
-		// known races that occasionally leave work around for
-		// mark termination.
-		//
-		// We're still hedging our bets here: if we do
-		// accidentally produce some work, we'll still process
-		// it, just not necessarily in parallel.
-		//
-		// TODO(austin): Fix the races and and remove
-		// work draining from mark termination so we don't
-		// need the fallback path.
+		// This should always be the situation after
+		// concurrent mark.
 		work.helperDrainBlock = false
 	} else {
+		// There's marking work to do. This is the case during
+		// STW GC and in checkmark mode. Instruct GC workers
+		// to block in getfull until all GC workers are in getfull.
+		//
+		// TODO(austin): Move STW and checkmark marking out of
+		// mark termination and eliminate this code path.
+		if !useCheckmark && debug.gcstoptheworld == 0 && debug.gcrescanstacks == 0 {
+			print("runtime: full=", hex(work.full), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
+			panic("non-empty mark queue after concurrent mark")
+		}
 		work.helperDrainBlock = true
 	}
 
@@ -1991,16 +1975,35 @@ func gcMark(start_time int64) {
 	// Record that at least one root marking pass has completed.
 	work.markrootDone = true
 
-	// Double-check that all gcWork caches are empty. This should
-	// be ensured by mark 2 before we enter mark termination.
+	// Clear out buffers and double-check that all gcWork caches
+	// are empty. This should be ensured by gcMarkDone before we
+	// enter mark termination.
+	//
+	// TODO: We could clear out buffers just before mark if this
+	// has a non-negligible impact on STW time.
 	for _, p := range allp {
+		// The write barrier may have buffered pointers since
+		// the gcMarkDone barrier. However, since the barrier
+		// ensured all reachable objects were marked, all of
+		// these must be pointers to black objects. Hence we
+		// can just discard the write barrier buffer.
+		if debug.gccheckmark > 0 {
+			// For debugging, flush the buffer and make
+			// sure it really was all marked.
+			wbBufFlush1(p)
+		} else {
+			p.wbBuf.reset()
+		}
+
 		gcw := &p.gcw
 		if !gcw.empty() {
 			throw("P has cached GC work at end of mark termination")
 		}
-		if gcw.scanWork != 0 || gcw.bytesMarked != 0 {
-			throw("P has unflushed stats at end of mark termination")
-		}
+		// There may still be cached empty buffers, which we
+		// need to flush since we're going to free them. Also,
+		// there may be non-zero stats because we allocated
+		// black after the gcMarkDone barrier.
+		gcw.dispose()
 	}
 
 	cachestats()
