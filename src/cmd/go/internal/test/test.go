@@ -1448,7 +1448,15 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 }
 
 func inDir(path, dir string) bool {
-	return str.HasFilePathPrefix(path, dir)
+	if str.HasFilePathPrefix(path, dir) {
+		return true
+	}
+	xpath, err1 := filepath.EvalSymlinks(path)
+	xdir, err2 := filepath.EvalSymlinks(dir)
+	if err1 == nil && err2 == nil && str.HasFilePathPrefix(xpath, xdir) {
+		return true
+	}
+	return false
 }
 
 func hashGetenv(name string) cache.ActionID {
