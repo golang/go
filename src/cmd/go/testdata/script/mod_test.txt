@@ -1,0 +1,18 @@
+env GO111MODULE=on
+
+cd a/
+go test
+stdout PASS
+
+-- a/go.mod --
+module github.com/user/a
+
+-- a/a.go --
+package a
+
+-- a/a_test.go --
+package a
+
+import "testing"
+
+func Test(t *testing.T) {}
