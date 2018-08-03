@@ -70,7 +70,7 @@ func ExampleFileMode() {
 func ExampleIsNotExist() {
 	filename := "a-nonexistent-file"
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		fmt.Printf("file does not exist")
+		fmt.Println("file does not exist")
 	}
 	// Output:
 	// file does not exist
