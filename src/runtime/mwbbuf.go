@@ -163,6 +163,13 @@ func wbBufFlush(dst *uintptr, src uintptr) {
 	// Note: Every possible return from this function must reset
 	// the buffer's next pointer to prevent buffer overflow.
 
+	// This *must not* modify its arguments because this
+	// function's argument slots do double duty in gcWriteBarrier
+	// as register spill slots. Currently, not modifying the
+	// arguments is sufficient to keep the spill slots unmodified
+	// (which seems unlikely to change since it costs little and
+	// helps with debugging).
+
 	if getg().m.dying > 0 {
 		// We're going down. Not much point in write barriers
 		// and this way we can allow write barriers in the
