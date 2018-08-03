@@ -319,7 +319,8 @@ func (p *PackageError) Error() string {
 }
 
 // An ImportStack is a stack of import paths, possibly with the suffix " (test)" appended.
-// TODO(bcmills): When the tree opens for 1.12, replace the suffixed string with a struct.
+// The import path of a test package is the import path of the corresponding
+// non-test package with the suffix "_test" added.
 type ImportStack []string
 
 func (s *ImportStack) Push(p string) {
@@ -468,6 +469,11 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		}
 	}
 
+	parentPath := ""
+	if parent != nil {
+		parentPath = parent.ImportPath
+	}
+
 	// Determine canonical identifier for this package.
 	// For a local import the identifier is the pseudo-import path
 	// we create from the full directory to the package.
@@ -481,10 +487,6 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 	if isLocal {
 		importPath = dirToImportPath(filepath.Join(srcDir, path))
 	} else if cfg.ModulesEnabled {
-		parentPath := ""
-		if parent != nil {
-			parentPath = parent.ImportPath
-		}
 		var p string
 		modDir, p, modErr = ModLookup(parentPath, path)
 		if modErr == nil {
@@ -557,11 +559,11 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
-	if perr := disallowInternal(srcDir, p, stk); perr != p {
+	if perr := disallowInternal(srcDir, parentPath, p, stk); perr != p {
 		return setErrorPos(perr, importPos)
 	}
 	if mode&ResolveImport != 0 {
-		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
+		if perr := disallowVendor(srcDir, parentPath, origPath, p, stk); perr != p {
 			return setErrorPos(perr, importPos)
 		}
 	}
@@ -922,10 +924,11 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 	return p
 }
 
-// disallowInternal checks that srcDir is allowed to import p.
+// disallowInternal checks that srcDir (containing package importerPath, if non-empty)
+// is allowed to import p.
 // If the import is allowed, disallowInternal returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
+func disallowInternal(srcDir, importerPath string, p *Package, stk *ImportStack) *Package {
 	// golang.org/s/go14internal:
 	// An import of a path containing the element “internal”
 	// is disallowed if the importing code is outside the tree
@@ -969,7 +972,6 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
 		i-- // rewind over slash in ".../internal"
 	}
 
-	var where string
 	if p.Module == nil {
 		parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
 
@@ -987,18 +989,16 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
 		// p is in a module, so make it available based on the import path instead
 		// of the file path (https://golang.org/issue/23970).
 		parent := p.ImportPath[:i]
-		importer := strings.TrimSuffix((*stk)[len(*stk)-2], " (test)")
-		if str.HasPathPrefix(importer, parent) {
+		if str.HasPathPrefix(importerPath, parent) {
 			return p
 		}
-		where = " in " + importer
 	}
 
 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
 	perr := *p
 	perr.Error = &PackageError{
 		ImportStack: stk.Copy(),
-		Err:         "use of internal package " + p.ImportPath + " not allowed" + where,
+		Err:         "use of internal package " + p.ImportPath + " not allowed",
 	}
 	perr.Incomplete = true
 	return &perr
@@ -1023,10 +1023,11 @@ func findInternal(path string) (index int, ok bool) {
 	return 0, false
 }
 
-// disallowVendor checks that srcDir is allowed to import p as path.
+// disallowVendor checks that srcDir (containing package importerPath, if non-empty)
+// is allowed to import p as path.
 // If the import is allowed, disallowVendor returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowVendor(srcDir, path string, p *Package, stk *ImportStack) *Package {
+func disallowVendor(srcDir, importerPath, path string, p *Package, stk *ImportStack) *Package {
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an
@@ -1035,13 +1036,12 @@ func disallowVendor(srcDir, path string, p *Package, stk *ImportStack) *Package 
 		return p
 	}
 
-	if p.Standard && ModPackageModuleInfo != nil {
+	if p.Standard && ModPackageModuleInfo != nil && importerPath != "" {
 		// Modules must not import vendor packages in the standard library,
 		// but the usual vendor visibility check will not catch them
 		// because the module loader presents them with an ImportPath starting
 		// with "golang_org/" instead of "vendor/".
-		importer := strings.TrimSuffix((*stk)[len(*stk)-2], " (test)")
-		if mod := ModPackageModuleInfo(importer); mod != nil {
+		if mod := ModPackageModuleInfo(importerPath); mod != nil {
 			dir := p.Dir
 			if relDir, err := filepath.Rel(p.Root, p.Dir); err == nil {
 				dir = relDir
