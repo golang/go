@@ -38,7 +38,7 @@ type extraModes interface {
 	NewCBCEncrypter(iv []byte) cipher.BlockMode
 	NewCBCDecrypter(iv []byte) cipher.BlockMode
 	NewCTR(iv []byte) cipher.Stream
-	NewGCM(nonceSize int) (cipher.AEAD, error)
+	NewGCM(nonceSize, tagSize int) (cipher.AEAD, error)
 
 	// Invented for BoringCrypto.
 	NewGCMTLS() (cipher.AEAD, error)
@@ -188,20 +188,25 @@ type noGCM struct {
 	cipher.Block
 }
 
-func (c *aesCipher) NewGCM(nonceSize int) (cipher.AEAD, error) {
-	return c.newGCM(nonceSize, false)
+func (c *aesCipher) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+	if nonceSize != gcmStandardNonceSize && tagSize != gcmTagSize {
+		return nil, errors.New("crypto/aes: GCM tag and nonce sizes can't be non-standard at the same time")
+	}
+	// Fall back to standard library for GCM with non-standard nonce or tag size.
+	if nonceSize != gcmStandardNonceSize {
+		return cipher.NewGCMWithNonceSize(&noGCM{c}, nonceSize)
+	}
+	if tagSize != gcmTagSize {
+		return cipher.NewGCMWithTagSize(&noGCM{c}, tagSize)
+	}
+	return c.newGCM(false)
 }
 
 func (c *aesCipher) NewGCMTLS() (cipher.AEAD, error) {
-	return c.newGCM(gcmStandardNonceSize, true)
+	return c.newGCM(true)
 }
 
-func (c *aesCipher) newGCM(nonceSize int, tls bool) (cipher.AEAD, error) {
-	if nonceSize != gcmStandardNonceSize {
-		// Fall back to standard library for GCM with non-standard nonce size.
-		return cipher.NewGCMWithNonceSize(&noGCM{c}, nonceSize)
-	}
-
+func (c *aesCipher) newGCM(tls bool) (cipher.AEAD, error) {
 	var aead *C.GO_EVP_AEAD
 	switch len(c.key) * 8 {
 	case 128:
@@ -218,7 +223,7 @@ func (c *aesCipher) newGCM(nonceSize int, tls bool) (cipher.AEAD, error) {
 		}
 	default:
 		// Fall back to standard library for GCM with non-standard key size.
-		return cipher.NewGCMWithNonceSize(&noGCM{c}, nonceSize)
+		return cipher.NewGCMWithNonceSize(&noGCM{c}, gcmStandardNonceSize)
 	}
 
 	g := &aesGCM{aead: aead}
@@ -230,7 +235,7 @@ func (c *aesCipher) newGCM(nonceSize int, tls bool) (cipher.AEAD, error) {
 	// to make sure g is not collected (and finalized) before the cgo
 	// call returns.
 	runtime.SetFinalizer(g, (*aesGCM).finalize)
-	if g.NonceSize() != nonceSize {
+	if g.NonceSize() != gcmStandardNonceSize {
 		panic("boringcrypto: internal confusion about nonce size")
 	}
 	if g.Overhead() != gcmTagSize {
