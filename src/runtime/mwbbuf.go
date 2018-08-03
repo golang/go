@@ -107,6 +107,11 @@ func (b *wbBuf) discard() {
 	b.next = uintptr(unsafe.Pointer(&b.buf[0]))
 }
 
+// empty returns true if b contains no pointers.
+func (b *wbBuf) empty() bool {
+	return b.next == uintptr(unsafe.Pointer(&b.buf[0]))
+}
+
 // putFast adds old and new to the write barrier buffer and returns
 // false if a flush is necessary. Callers should use this as:
 //
