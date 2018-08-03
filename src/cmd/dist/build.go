@@ -805,10 +805,14 @@ func runInstall(dir string, ch chan struct{}) {
 		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
 	}
 	compile = append(compile, gofiles...)
-	run(path, CheckExit|ShowOutput, compile...)
+	var wg sync.WaitGroup
+	// We use bgrun and immediately wait for it instead of calling run() synchronously.
+	// This executes all jobs through the bgwork channel and allows the process
+	// to exit cleanly in case an error occurs.
+	bgrun(&wg, path, compile...)
+	bgwait(&wg)
 
 	// Compile the files.
-	var wg sync.WaitGroup
 	for _, p := range files {
 		if !strings.HasSuffix(p, ".s") {
 			continue
@@ -858,7 +862,8 @@ func runInstall(dir string, ch chan struct{}) {
 
 	// Remove target before writing it.
 	xremove(link[targ])
-	run("", CheckExit|ShowOutput, link...)
+	bgrun(&wg, "", link...)
+	bgwait(&wg)
 }
 
 // matchfield reports whether the field (x,y,z) matches this build.
