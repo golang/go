@@ -18,6 +18,9 @@ import (
 // BUG(mikio): On NaCl, the ListenMulticastUDP function is not
 // implemented.
 
+// BUG(mikio): On JS, methods and functions related to UDPConn are not
+// implemented.
+
 // UDPAddr represents the address of a UDP end point.
 type UDPAddr struct {
 	IP   IP

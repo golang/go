@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// BUG(mikio): On Windows, the File method of TCPListener is not
-// implemented.
+// BUG(mikio): On JS, NaCl and Windows, the File method of TCPConn and
+// TCPListener is not implemented.
 
 // TCPAddr represents the address of a TCP end point.
 type TCPAddr struct {
