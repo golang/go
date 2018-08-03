@@ -83,6 +83,12 @@ type gcWork struct {
 	// Scan work performed on this gcWork. This is aggregated into
 	// gcController by dispose and may also be flushed by callers.
 	scanWork int64
+
+	// flushedWork indicates that a non-empty work buffer was
+	// flushed to the global work list since the last gcMarkDone
+	// termination check. Specifically, this indicates that this
+	// gcWork may have communicated work to another gcWork.
+	flushedWork bool
 }
 
 // Most of the methods of gcWork are go:nowritebarrierrec because the
@@ -116,6 +122,7 @@ func (w *gcWork) put(obj uintptr) {
 		wbuf = w.wbuf1
 		if wbuf.nobj == len(wbuf.obj) {
 			putfull(wbuf)
+			w.flushedWork = true
 			wbuf = getempty()
 			w.wbuf1 = wbuf
 			flushed = true
@@ -169,6 +176,7 @@ func (w *gcWork) putBatch(obj []uintptr) {
 	for len(obj) > 0 {
 		for wbuf.nobj == len(wbuf.obj) {
 			putfull(wbuf)
+			w.flushedWork = true
 			w.wbuf1, w.wbuf2 = w.wbuf2, getempty()
 			wbuf = w.wbuf1
 			flushed = true
@@ -275,6 +283,7 @@ func (w *gcWork) dispose() {
 			putempty(wbuf)
 		} else {
 			putfull(wbuf)
+			w.flushedWork = true
 		}
 		w.wbuf1 = nil
 
@@ -283,6 +292,7 @@ func (w *gcWork) dispose() {
 			putempty(wbuf)
 		} else {
 			putfull(wbuf)
+			w.flushedWork = true
 		}
 		w.wbuf2 = nil
 	}
@@ -309,9 +319,11 @@ func (w *gcWork) balance() {
 	}
 	if wbuf := w.wbuf2; wbuf.nobj != 0 {
 		putfull(wbuf)
+		w.flushedWork = true
 		w.wbuf2 = getempty()
 	} else if wbuf := w.wbuf1; wbuf.nobj > 4 {
 		w.wbuf1 = handoff(wbuf)
+		w.flushedWork = true // handoff did putfull
 	} else {
 		return
 	}
