@@ -606,19 +606,19 @@ func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
 // ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
 // upper case using the case mapping specified by c.
 func ToUpperSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
+	return Map(c.ToUpper, s)
 }
 
 // ToLowerSpecial returns a copy of the string s with all Unicode letters mapped to their
 // lower case using the case mapping specified by c.
 func ToLowerSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToLower(r) }, s)
+	return Map(c.ToLower, s)
 }
 
 // ToTitleSpecial returns a copy of the string s with all Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
+	return Map(c.ToTitle, s)
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
