@@ -95,7 +95,7 @@ func main() {
 
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
-		help.Help(args[1:])
+		help.Help(os.Stdout, args[1:])
 		return
 	}
 
@@ -199,7 +199,7 @@ BigCmdLoop:
 				}
 				if args[0] == "help" {
 					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
-					help.Help(append(strings.Split(cfg.CmdName, " "), args[1:]...))
+					help.Help(os.Stdout, append(strings.Split(cfg.CmdName, " "), args[1:]...))
 					return
 				}
 				cfg.CmdName += " " + args[0]
