@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package arch provides basic constants and deals with machine architecture information.
+// It contains the Arch object with architecture information
 package arch
 
 import (
