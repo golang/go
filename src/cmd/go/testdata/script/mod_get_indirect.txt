@@ -15,7 +15,7 @@ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
 # TODO(bcmills): This doesn't seem correct. Fix is in the next change.
 cp $WORK/tmp/usetext.go x.go
 go list -e
-grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
+grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
 
 # indirect tag should be removed upon seeing direct import.
 cp $WORK/tmp/uselang.go x.go

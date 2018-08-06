@@ -35,13 +35,13 @@ grep 'rsc.io/quote.*v1.5.2' go.mod
 grep 'golang.org/x/text.*v0.3.0' go.mod
 cp go.mod go.mod.dotpkg
 
-# BUG: 'go get -u -d' with an explicit package in a local-only package fails.
-# TODO: Determine the correct behavior.
+# 'go get -u -d' with an explicit package in the main module updates
+# all dependencies of the main module.
+# TODO: Determine whether that behavior is a bug.
 # (https://golang.org/issue/26902)
 cp go.mod.orig go.mod
-! go get -u -d local/uselang
-stderr 'missing dot in first path element'
-cmp go.mod go.mod.orig
+go get -u -d local/uselang
+cmp go.mod go.mod.dotpkg
 
 
 -- go.mod --

@@ -2,9 +2,9 @@ env GO111MODULE=on
 
 # explicit get should report errors about bad names
 ! go get appengine
-stderr 'cannot find module providing package appengine'
+stderr 'malformed module path "appengine": missing dot in first path element'
 ! go get x/y.z
-stderr 'cannot find module providing package x/y.z'
+stderr 'malformed module path "x/y.z": missing dot in first path element'
 
 # build should report all unsatisfied imports,
 # but should be more definitive about non-module import paths
