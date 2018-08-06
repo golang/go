@@ -1,0 +1,16 @@
+env GO111MODULE=on
+
+go mod init example.com/m
+
+# get of a binary should install it to $GOPATH/bin
+# BUG: vgo-tour should be installed as vgo-tour, not vgo-tour@v1.0.0.
+go get research.swtch.com/vgo-tour
+exec $GOPATH/bin/vgo-tour@v1.0.0
+stdout 'Hello, world.'
+rm $GOPATH/bin/vgo-tour@v1.0.0
+
+# install of a binary should install it to $GOPATH/bin
+# BUG: vgo-tour should be installed as vgo-tour, not vgo-tour@v1.0.0.
+go install research.swtch.com/vgo-tour
+exec $GOPATH/bin/vgo-tour@v1.0.0
+stdout 'Hello, world.'
