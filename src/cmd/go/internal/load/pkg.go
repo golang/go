@@ -32,13 +32,13 @@ var (
 	ModInit func()
 
 	// module hooks; nil if module use is disabled
-	ModBinDir            func() string                                                   // return effective bin directory
-	ModLookup            func(parentPath, path string) (dir, realPath string, err error) // lookup effective meaning of import
-	ModPackageModuleInfo func(path string) *modinfo.ModulePublic                         // return module info for Package struct
-	ModImportPaths       func(args []string) []string                                    // expand import paths
-	ModPackageBuildInfo  func(main string, deps []string) string                         // return module info to embed in binary
-	ModInfoProg          func(info string) []byte                                        // wrap module info in .go code for binary
-	ModImportFromFiles   func([]string)                                                  // update go.mod to add modules for imports in these files
+	ModBinDir            func() string                                       // return effective bin directory
+	ModLookup            func(path string) (dir, realPath string, err error) // lookup effective meaning of import
+	ModPackageModuleInfo func(path string) *modinfo.ModulePublic             // return module info for Package struct
+	ModImportPaths       func(args []string) []string                        // expand import paths
+	ModPackageBuildInfo  func(main string, deps []string) string             // return module info to embed in binary
+	ModInfoProg          func(info string) []byte                            // wrap module info in .go code for binary
+	ModImportFromFiles   func([]string)                                      // update go.mod to add modules for imports in these files
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -488,7 +488,7 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		importPath = dirToImportPath(filepath.Join(srcDir, path))
 	} else if cfg.ModulesEnabled {
 		var p string
-		modDir, p, modErr = ModLookup(parentPath, path)
+		modDir, p, modErr = ModLookup(path)
 		if modErr == nil {
 			importPath = p
 		}
@@ -628,11 +628,7 @@ func isDir(path string) bool {
 // Go 1.11 module legacy conversion (golang.org/issue/25069).
 func ResolveImportPath(parent *Package, path string) (found string) {
 	if cfg.ModulesEnabled {
-		parentPath := ""
-		if parent != nil {
-			parentPath = parent.ImportPath
-		}
-		if _, p, e := ModLookup(parentPath, path); e == nil {
+		if _, p, e := ModLookup(path); e == nil {
 			return p
 		}
 		return path
@@ -1771,7 +1767,7 @@ func LoadPackage(arg string, stk *ImportStack) *Package {
 	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
 }
 
-// packages returns the packages named by the
+// Packages returns the packages named by the
 // command line arguments 'args'. If a named package
 // cannot be loaded at all (for example, if the directory does not exist),
 // then packages prints an error and does not include that
@@ -1791,7 +1787,7 @@ func Packages(args []string) []*Package {
 	return pkgs
 }
 
-// packagesAndErrors is like 'packages' but returns a
+// PackagesAndErrors is like 'packages' but returns a
 // *Package for every argument, even the ones that
 // cannot be loaded at all.
 // The packages that fail to load will have p.Error != nil.
