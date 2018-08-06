@@ -28,6 +28,25 @@ encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible wit
 runtime/testdata/testprog/deadlock.go: unreachable code
 runtime/testdata/testprog/deadlock.go: unreachable code
 
+// Compiler tests that make sure even vet-failing code adheres to the spec.
+cmd/compile/internal/gc/testdata/arithConst_test.go: a (64 bits) too small for shift of 4294967296
+cmd/compile/internal/gc/testdata/arithConst_test.go: a (64 bits) too small for shift of 4294967296
+cmd/compile/internal/gc/testdata/arithConst_test.go: a (32 bits) too small for shift of 4294967295
+cmd/compile/internal/gc/testdata/arithConst_test.go: a (32 bits) too small for shift of 4294967295
+cmd/compile/internal/gc/testdata/arithConst_test.go: a (16 bits) too small for shift of 65535
+cmd/compile/internal/gc/testdata/arithConst_test.go: a (16 bits) too small for shift of 65535
+cmd/compile/internal/gc/testdata/arithConst_test.go: a (8 bits) too small for shift of 255
+cmd/compile/internal/gc/testdata/arithConst_test.go: a (8 bits) too small for shift of 255
+cmd/compile/internal/gc/testdata/arith_test.go: x (64 bits) too small for shift of 100
+cmd/compile/internal/gc/testdata/arith_test.go: int32(x) (32 bits) too small for shift of 4294967295
+cmd/compile/internal/gc/testdata/arith_test.go: int16(x) (16 bits) too small for shift of 65535
+cmd/compile/internal/gc/testdata/arith_test.go: int8(x) (8 bits) too small for shift of 255
+cmd/compile/internal/gc/testdata/arith_test.go: w (32 bits) too small for shift of 32
+cmd/compile/internal/gc/testdata/break_test.go: unreachable code
+cmd/compile/internal/gc/testdata/break_test.go: unreachable code
+cmd/compile/internal/gc/testdata/namedReturn_test.go: self-assignment of t to t
+cmd/compile/internal/gc/testdata/short_test.go: unreachable code
+
 // Non-standard method signatures.
 // These cases are basically ok.
 // Errors are handled reasonably and there's no clear need for interface satisfaction.
