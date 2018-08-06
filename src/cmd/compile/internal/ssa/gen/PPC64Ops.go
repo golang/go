@@ -470,12 +470,12 @@ func init() {
 			faultOnNilArg1: true,
 		},
 
-		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, typ: "Mem", faultOnNilArg0: true, hasSideEffects: true},
-		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, typ: "Mem", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
 
-		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, typ: "UInt32", clobberFlags: true, faultOnNilArg0: true},
-		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, typ: "Int64", clobberFlags: true, faultOnNilArg0: true},
-		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", clobberFlags: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, typ: "UInt32", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 
 		// atomic add32, 64
 		// SYNC
@@ -516,8 +516,8 @@ func init() {
 		// BNE		-4(PC)
 		// CBNZ         Rtmp, -4(PC)
 		// CSET         EQ, Rout
-		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
-		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, aux: "Int64", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, aux: "Int64", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic 8 and/or.
 		// *arg0 &= (|=) arg1. arg2=mem. returns memory. auxint must be zero.
