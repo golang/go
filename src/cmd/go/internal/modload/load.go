@@ -337,8 +337,10 @@ func ModuleUsedDirectly(path string) bool {
 	return loaded.direct[path]
 }
 
-// Lookup XXX TODO.
-func Lookup(parentPath, path string) (dir, realPath string, err error) {
+// Lookup returns the source directory and import path for the package at path.
+// Lookup requires that one of the Load functions in this package has already
+// been called.
+func Lookup(path string) (dir, realPath string, err error) {
 	realPath = ImportMap(path)
 	if realPath == "" {
 		if isStandardImportPath(path) {
