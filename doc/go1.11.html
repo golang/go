@@ -311,6 +311,19 @@ func f(v interface{}) {
   user task/region analysis page.
 </p>
 
+<h3 id="cgo">Cgo</h3>
+
+<p>
+Since Go 1.10, cgo has translated some C pointer types to the Go
+type <code>uintptr</code>. These types include
+the <code>CFTypeRef</code> hierarchy in Darwin's CoreFoundation
+framework and the <code>jobject</code> hierarchy in Java's JNI
+interface. In Go 1.11, several improvements have been made to the code
+that detects these types. Code that uses these types may need some
+updating. See the <a href="go1.10.html#cgo">Go 1.10 release notes</a> for
+details. <!-- CL 126275, CL 127156, CL 122217, CL 122575, CL 123177 -->
+</p>
+
 <h3 id="godoc">Godoc</h3>
 
 <p>
