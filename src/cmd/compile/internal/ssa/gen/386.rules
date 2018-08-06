@@ -25,9 +25,9 @@
 (Div32F x y) -> (DIVSS x y)
 (Div64F x y) -> (DIVSD x y)
 
-(Div32  x y) -> (DIVL  x y)
+(Div32 [a] x y) -> (DIVL [a] x y)
 (Div32u x y) -> (DIVLU x y)
-(Div16  x y) -> (DIVW  x y)
+(Div16 [a] x y) -> (DIVW [a] x y)
 (Div16u x y) -> (DIVWU x y)
 (Div8   x y) -> (DIVW  (SignExt8to16 x) (SignExt8to16 y))
 (Div8u  x y) -> (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
@@ -35,9 +35,9 @@
 (Hmul32  x y) -> (HMULL  x y)
 (Hmul32u x y) -> (HMULLU x y)
 
-(Mod32  x y) -> (MODL  x y)
+(Mod32 [a] x y) -> (MODL [a] x y)
 (Mod32u x y) -> (MODLU x y)
-(Mod16  x y) -> (MODW  x y)
+(Mod16 [a] x y) -> (MODW [a] x y)
 (Mod16u x y) -> (MODWU x y)
 (Mod8   x y) -> (MODW  (SignExt8to16 x) (SignExt8to16 y))
 (Mod8u  x y) -> (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))

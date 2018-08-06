@@ -1076,6 +1076,13 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 }
 
 var ctzNonZeroOp = map[Op]Op{OpCtz8: OpCtz8NonZero, OpCtz16: OpCtz16NonZero, OpCtz32: OpCtz32NonZero, OpCtz64: OpCtz64NonZero}
+var mostNegativeDividend = map[Op]int64{
+	OpDiv16: -1 << 15,
+	OpMod16: -1 << 15,
+	OpDiv32: -1 << 31,
+	OpMod32: -1 << 31,
+	OpDiv64: -1 << 63,
+	OpMod64: -1 << 63}
 
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
@@ -1145,6 +1152,22 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				v.AuxInt = 1 // see shiftIsBounded
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
+				}
+			}
+		case OpDiv16, OpDiv32, OpDiv64, OpMod16, OpMod32, OpMod64:
+			// On amd64 and 386 fix-up code can be avoided if we know
+			//  the divisor is not -1 or the dividend > MinIntNN.
+			divr := v.Args[1]
+			divrLim, divrLimok := ft.limits[divr.ID]
+			divd := v.Args[0]
+			divdLim, divdLimok := ft.limits[divd.ID]
+			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
+				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
+				v.AuxInt = 1 // see NeedsFixUp in genericOps - v.AuxInt = 0 means we have not proved
+				// that the divisor is not -1 and the dividend is not the most negative,
+				// so we need to add fix-up code.
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
 				}
 			}
 		}
