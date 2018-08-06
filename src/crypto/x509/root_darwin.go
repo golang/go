@@ -21,7 +21,7 @@ import (
 	"sync"
 )
 
-var debugExecDarwinRoots = strings.Contains(os.Getenv("GODEBUG"), "x509roots=1")
+var debugDarwinRoots = strings.Contains(os.Getenv("GODEBUG"), "x509roots=1")
 
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil
@@ -57,7 +57,7 @@ func execSecurityRoots() (*CertPool, error) {
 	if err != nil {
 		return nil, err
 	}
-	if debugExecDarwinRoots {
+	if debugDarwinRoots {
 		println(fmt.Sprintf("crypto/x509: %d certs have a trust policy", len(hasPolicy)))
 	}
 
@@ -68,8 +68,8 @@ func execSecurityRoots() (*CertPool, error) {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		if debugExecDarwinRoots {
-			println("crypto/x509: can't get user home directory: %v", err)
+		if debugDarwinRoots {
+			println(fmt.Sprintf("crypto/x509: can't get user home directory: %v", err))
 		}
 	} else {
 		args = append(args,
@@ -147,7 +147,7 @@ func execSecurityRoots() (*CertPool, error) {
 	close(blockCh)
 	wg.Wait()
 
-	if debugExecDarwinRoots {
+	if debugDarwinRoots {
 		mu.Lock()
 		defer mu.Unlock()
 		println(fmt.Sprintf("crypto/x509: ran security verify-cert %d times", numVerified))
@@ -175,16 +175,16 @@ func verifyCertWithSystem(block *pem.Block, cert *Certificate) bool {
 	}
 	cmd := exec.Command("/usr/bin/security", "verify-cert", "-c", f.Name(), "-l", "-L")
 	var stderr bytes.Buffer
-	if debugExecDarwinRoots {
+	if debugDarwinRoots {
 		cmd.Stderr = &stderr
 	}
 	if err := cmd.Run(); err != nil {
-		if debugExecDarwinRoots {
+		if debugDarwinRoots {
 			println(fmt.Sprintf("crypto/x509: verify-cert rejected %s: %q", cert.Subject, bytes.TrimSpace(stderr.Bytes())))
 		}
 		return false
 	}
-	if debugExecDarwinRoots {
+	if debugDarwinRoots {
 		println(fmt.Sprintf("crypto/x509: verify-cert approved %s", cert.Subject))
 	}
 	return true
@@ -217,7 +217,7 @@ func getCertsWithTrustPolicy() (map[string]bool, error) {
 			// Rather than match on English substrings that are probably
 			// localized on macOS, just interpret any failure to mean that
 			// there are no trust settings.
-			if debugExecDarwinRoots {
+			if debugDarwinRoots {
 				println(fmt.Sprintf("crypto/x509: exec %q: %v, %s", cmd.Args, err, stderr.Bytes()))
 			}
 			return nil
