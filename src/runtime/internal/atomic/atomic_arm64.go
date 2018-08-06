@@ -36,6 +36,9 @@ func Load64(ptr *uint64) uint64
 func Loadp(ptr unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
+func LoadAcq(addr *uint32) uint32
+
+//go:noescape
 func Or8(ptr *uint8, val uint8)
 
 //go:noescape
@@ -45,6 +48,9 @@ func And8(ptr *uint8, val uint8)
 func Cas64(ptr *uint64, old, new uint64) bool
 
 //go:noescape
+func CasRel(ptr *uint32, old, new uint32) bool
+
+//go:noescape
 func Store(ptr *uint32, val uint32)
 
 //go:noescape
@@ -52,3 +58,6 @@ func Store64(ptr *uint64, val uint64)
 
 // NO go:noescape annotation; see atomic_pointer.go.
 func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+
+//go:noescape
+func StoreRel(ptr *uint32, val uint32)
