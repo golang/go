@@ -158,6 +158,9 @@ func ImportPaths(args []string) []string {
 		have[path] = true
 		if path == "all" {
 			for _, pkg := range loaded.pkgs {
+				if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
+					continue // Package doesn't actually exist, so don't report it.
+				}
 				if !have[pkg.path] {
 					have[pkg.path] = true
 					final = append(final, pkg.path)
@@ -270,6 +273,9 @@ func loadAll(testAll bool) []string {
 
 	var paths []string
 	for _, pkg := range loaded.pkgs {
+		if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
+			continue // Package doesn't actually exist.
+		}
 		paths = append(paths, pkg.path)
 	}
 	return paths
@@ -337,21 +343,22 @@ func ModuleUsedDirectly(path string) bool {
 	return loaded.direct[path]
 }
 
-// Lookup returns the source directory and import path for the package at path.
+// Lookup returns the source directory, import path, and any loading error for
+// the package at path.
 // Lookup requires that one of the Load functions in this package has already
 // been called.
 func Lookup(path string) (dir, realPath string, err error) {
-	realPath = ImportMap(path)
-	if realPath == "" {
+	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	if !ok {
 		if isStandardImportPath(path) {
 			dir := filepath.Join(cfg.GOROOT, "src", path)
 			if _, err := os.Stat(dir); err == nil {
 				return dir, path, nil
 			}
 		}
-		return "", "", fmt.Errorf("no such package in module")
+		return "", "", errMissing
 	}
-	return PackageDir(realPath), realPath, nil
+	return pkg.dir, pkg.path, pkg.err
 }
 
 // A loader manages the process of loading information about
@@ -459,9 +466,7 @@ func (ld *loader) load(roots func() []string) {
 				}
 				continue
 			}
-			if pkg.err != nil {
-				base.Errorf("go: %s: %s", pkg.stackText(), pkg.err)
-			}
+			// Leave other errors for Import or load.Packages to report.
 		}
 		base.ExitIfErrors()
 		if numAdded == 0 {
@@ -560,11 +565,6 @@ func (ld *loader) doPkg(item interface{}) {
 		var err error
 		imports, testImports, err = scanDir(pkg.dir, ld.tags)
 		if err != nil {
-			if strings.HasPrefix(err.Error(), "no Go ") {
-				// Don't print about directories with no Go source files.
-				// Let the eventual real package load do that.
-				return
-			}
 			pkg.err = err
 			return
 		}
