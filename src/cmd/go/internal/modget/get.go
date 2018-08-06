@@ -515,13 +515,28 @@ func runGet(cmd *base.Command, args []string) {
 	}
 
 	if len(install) > 0 {
+		// All requested versions were explicitly @none.
+		// Note that 'go get -u' without any arguments results in len(install) == 1:
+		// search.CleanImportPaths returns "." for empty args.
 		work.BuildInit()
 		var pkgs []string
 		for _, p := range load.PackagesAndErrors(install) {
-			if p.Error == nil || !strings.HasPrefix(p.Error.Err, "no Go files") {
-				pkgs = append(pkgs, p.ImportPath)
+			// Ignore "no Go source files" errors for 'go get' operations on modules.
+			if p.Error != nil {
+				if len(args) == 0 && getU != "" && strings.HasPrefix(p.Error.Err, "no Go files") {
+					// Upgrading modules: skip the implicitly-requested package at the
+					// current directory, even if it is not tho module root.
+					continue
+				}
+				if strings.HasPrefix(p.Error.Err, "no Go files") && modload.ModuleInfo(p.ImportPath) != nil {
+					// Explicitly-requested module, but it doesn't contain a package at the
+					// module root.
+					continue
+				}
 			}
+			pkgs = append(pkgs, p.ImportPath)
 		}
+
 		// If -d was specified, we're done after the download: no build.
 		// (The load.PackagesAndErrors is what did the download
 		// of the named packages and their dependencies.)
@@ -564,7 +579,9 @@ func getQuery(path, vers string, forceModulePath bool) (module.Version, error) {
 	// if found in the current source code.
 	// Then apply the version to that module.
 	m, _, err := modload.Import(path)
-	if err != nil {
+	if e, ok := err.(*modload.ImportMissingError); ok && e.Module.Path != "" {
+		m = e.Module
+	} else if err != nil {
 		return module.Version{}, err
 	}
 	if m.Path == "" {

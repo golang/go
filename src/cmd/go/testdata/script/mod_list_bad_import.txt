@@ -4,25 +4,35 @@
 env GO111MODULE=on
 cd example.com
 
-# Listing an otherwise-valid package with an unsatisfied direct import should succeed,
-# but name that package in DepsErrors.
-! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/direct
-stderr example.com[/\\]notfound
+# Without -e, listing an otherwise-valid package with an unsatisfied direct import should fail.
+# BUG: Today it succeeds.
+go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/direct
+! stdout ^error
+stdout 'incomplete'
+stdout 'bad dep: .*example.com/notfound'
 
 # Listing with -deps should also fail.
-! go list -deps example.com/direct
-stderr example.com[/\\]notfound
+# BUG: Today, it does not.
+# ! go list -deps example.com/direct
+# stderr example.com/notfound
+go list -deps example.com/direct
+stdout example.com/notfound
 
 
 # Listing an otherwise-valid package that imports some *other* package with an
-# unsatisfied import should also succeed.
-# NOTE: This behavior differs between GOPATH mode and module mode.
-! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/indirect
-stderr example.com[/\\]notfound
+# unsatisfied import should also fail.
+# BUG: Today, it succeeds.
+go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/indirect
+! stdout ^error
+stdout incomplete
+stdout 'bad dep: .*example.com/notfound'
 
 # Again, -deps should fail.
-! go list -deps example.com/indirect
-stderr example.com[/\\]notfound
+# BUG: Again, it does not.
+# ! go list -deps example.com/indirect
+# stderr example.com/notfound
+go list -deps example.com/indirect
+stdout example.com/notfound
 
 
 # Listing the missing dependency directly should fail outright...
@@ -32,16 +42,17 @@ stderr 'cannot find module providing package example.com/notfound'
 ! stdout incomplete
 
 # ...but listing with -e should succeed.
-# BUG: Today, it fails.
-! go list -e -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
-stderr example.com[/\\]notfound
+go list -e -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
+stdout error
+stdout incomplete
 
 
 # The pattern "all" should match only packages that acutally exist,
 # ignoring those whose existence is merely implied by imports.
-# BUG: Today, `go list -e` fails if there are any unresolved imports.
-! go list -e -f '{{.ImportPath}}' all
-stderr example.com[/\\]notfound
+go list -e -f '{{.ImportPath}}' all
+stdout example.com/direct
+stdout example.com/indirect
+! stdout example.com/notfound
 
 
 -- example.com/go.mod --

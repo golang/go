@@ -155,6 +155,12 @@ package m
 
 import _ "appengine"
 import _ "appengine/datastore"
+-- nonexistent.go --
+// +build alternatereality
+
+package m
+
+import _ "nonexistent.rsc.io"
 -- mypkg/go.mod --
 module me
 -- mypkg/mydir/d.go --
