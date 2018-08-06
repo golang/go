@@ -42,7 +42,7 @@ func (e *ImportMissingError) Error() string {
 // If the package cannot be found in the current build list,
 // Import returns an ImportMissingError as the error.
 // If Import can identify a module that could be added to supply the package,
-// the ImportMissingErr records that module.
+// the ImportMissingError records that module.
 func Import(path string) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")

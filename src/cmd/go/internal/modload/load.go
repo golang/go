@@ -504,9 +504,6 @@ func (ld *loader) load(roots func() []string) {
 			}
 		}
 	}
-
-	// Check for visibility violations.
-	// TODO!
 }
 
 // pkg returns the *loadPkg for path, creating and queuing it if needed.
