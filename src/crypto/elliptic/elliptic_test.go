@@ -13,9 +13,17 @@ import (
 )
 
 func TestOnCurve(t *testing.T) {
-	p224 := P224()
-	if !p224.IsOnCurve(p224.Params().Gx, p224.Params().Gy) {
-		t.Errorf("FAIL")
+	for _, curve := range [...]Curve{
+		P224(), P256(), P384(), P521(),
+	} {
+		curveParams := curve.Params()
+		t.Logf("Testing G is on curve %v", curveParams.Name)
+		if !curve.IsOnCurve(curveParams.Gx, curveParams.Gy) {
+			t.Errorf("FAIL")
+		}
+		if !curveParams.IsOnCurve(curveParams.Gx, curveParams.Gy) {
+			t.Errorf("FAIL")
+		}
 	}
 }
 

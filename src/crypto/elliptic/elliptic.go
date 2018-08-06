@@ -19,7 +19,7 @@ import (
 	"sync"
 )
 
-// A Curve represents a short-form Weierstrass curve with a=-3.
+// A Curve represents a short-form Weierstrass curve.
 // See https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
 type Curve interface {
 	// Params returns the parameters for the curve.
@@ -42,6 +42,7 @@ type Curve interface {
 type CurveParams struct {
 	P       *big.Int // the order of the underlying field
 	N       *big.Int // the order of the base point
+	A       *big.Int // the coefficient of x in the curve equation
 	B       *big.Int // the constant of the curve equation
 	Gx, Gy  *big.Int // (x,y) of the base point
 	BitSize int      // the size of the underlying field
@@ -53,17 +54,17 @@ func (curve *CurveParams) Params() *CurveParams {
 }
 
 func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
-	// y² = x³ - 3x + b
+	// y² = x³ + ax + b
 	y2 := new(big.Int).Mul(y, y)
 	y2.Mod(y2, curve.P)
 
 	x3 := new(big.Int).Mul(x, x)
 	x3.Mul(x3, x)
 
-	threeX := new(big.Int).Lsh(x, 1)
-	threeX.Add(threeX, x)
+	aX := new(big.Int).Mul(curve.A, x)
+	aX.Mod(aX, curve.P)
 
-	x3.Sub(x3, threeX)
+	x3.Add(x3, aX)
 	x3.Add(x3, curve.B)
 	x3.Mod(x3, curve.P)
 
@@ -354,6 +355,7 @@ func initP384() {
 	p384 = &CurveParams{Name: "P-384"}
 	p384.P, _ = new(big.Int).SetString("39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319", 10)
 	p384.N, _ = new(big.Int).SetString("39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643", 10)
+	p384.A, _ = new(big.Int).SetString("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000fffffffc", 16)
 	p384.B, _ = new(big.Int).SetString("b3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aef", 16)
 	p384.Gx, _ = new(big.Int).SetString("aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7", 16)
 	p384.Gy, _ = new(big.Int).SetString("3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f", 16)
@@ -365,6 +367,7 @@ func initP521() {
 	p521 = &CurveParams{Name: "P-521"}
 	p521.P, _ = new(big.Int).SetString("6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151", 10)
 	p521.N, _ = new(big.Int).SetString("6864797660130609714981900799081393217269435300143305409394463459185543183397655394245057746333217197532963996371363321113864768612440380340372808892707005449", 10)
+	p521.A, _ = new(big.Int).SetString("01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc", 16)
 	p521.B, _ = new(big.Int).SetString("051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00", 16)
 	p521.Gx, _ = new(big.Int).SetString("c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66", 16)
 	p521.Gy, _ = new(big.Int).SetString("11839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650", 16)
