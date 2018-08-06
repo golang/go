@@ -7,11 +7,19 @@
 package main
 
 import (
+	"runtime"
 	"testing"
 )
 
 const (
 	y = 0x0fffFFFF
+)
+
+var (
+	g8  int8
+	g16 int16
+	g32 int32
+	g64 int64
 )
 
 //go:noinline
@@ -915,4 +923,32 @@ func TestArithmetic(t *testing.T) {
 	testLoadSymCombine(t)
 	testShiftRemoval(t)
 	testShiftedOps(t)
+	testDivFixUp(t)
+}
+
+// testDivFixUp ensures that signed division fix-ups are being generated.
+func testDivFixUp(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("testDivFixUp failed")
+			if e, ok := r.(runtime.Error); ok {
+				t.Logf("%v\n", e.Error())
+			}
+		}
+	}()
+	var w int8 = -128
+	var x int16 = -32768
+	var y int32 = -2147483648
+	var z int64 = -9223372036854775808
+
+	for i := -5; i < 0; i++ {
+		g8 = w / int8(i)
+		g16 = x / int16(i)
+		g32 = y / int32(i)
+		g64 = z / int64(i)
+		g8 = w % int8(i)
+		g16 = x % int16(i)
+		g32 = y % int32(i)
+		g64 = z % int64(i)
+	}
 }

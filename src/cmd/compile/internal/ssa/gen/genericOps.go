@@ -66,23 +66,26 @@ var genericOps = []opData{
 	{name: "Avg32u", argLength: 2, typ: "UInt32"}, // 32-bit platforms only
 	{name: "Avg64u", argLength: 2, typ: "UInt64"}, // 64-bit platforms only
 
+	// For Div16, Div32 and Div64, AuxInt non-zero means that the divisor has been proved to be not -1
+	// or that the dividend is not the most negative value.
 	{name: "Div8", argLength: 2},  // arg0 / arg1, signed
 	{name: "Div8u", argLength: 2}, // arg0 / arg1, unsigned
-	{name: "Div16", argLength: 2},
+	{name: "Div16", argLength: 2, aux: "Bool"},
 	{name: "Div16u", argLength: 2},
-	{name: "Div32", argLength: 2},
+	{name: "Div32", argLength: 2, aux: "Bool"},
 	{name: "Div32u", argLength: 2},
-	{name: "Div64", argLength: 2},
+	{name: "Div64", argLength: 2, aux: "Bool"},
 	{name: "Div64u", argLength: 2},
 	{name: "Div128u", argLength: 3}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
 
+	// For Mod16, Mod32 and Mod64, AuxInt non-zero means that the divisor has been proved to be not -1.
 	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
 	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
-	{name: "Mod16", argLength: 2},
+	{name: "Mod16", argLength: 2, aux: "Bool"},
 	{name: "Mod16u", argLength: 2},
-	{name: "Mod32", argLength: 2},
+	{name: "Mod32", argLength: 2, aux: "Bool"},
 	{name: "Mod32u", argLength: 2},
-	{name: "Mod64", argLength: 2},
+	{name: "Mod64", argLength: 2, aux: "Bool"},
 	{name: "Mod64u", argLength: 2},
 
 	{name: "And8", argLength: 2, commutative: true}, // arg0 & arg1

@@ -23,7 +23,7 @@
 (Hmul(64|32)  x y) -> (HMUL(Q|L)  x y)
 (Hmul(64|32)u x y) -> (HMUL(Q|L)U x y)
 
-(Div(64|32|16)  x y) -> (Select0 (DIV(Q|L|W)  x y))
+(Div(64|32|16) [a] x y) -> (Select0 (DIV(Q|L|W) [a] x y))
 (Div8  x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
 (Div(64|32|16)u x y) -> (Select0 (DIV(Q|L|W)U x y))
 (Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
@@ -34,7 +34,7 @@
 
 (Avg64u x y) -> (AVGQU x y)
 
-(Mod(64|32|16)  x y) -> (Select1 (DIV(Q|L|W)  x y))
+(Mod(64|32|16) [a] x y) -> (Select1 (DIV(Q|L|W) [a] x y))
 (Mod8  x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
 (Mod(64|32|16)u x y) -> (Select1 (DIV(Q|L|W)U x y))
 (Mod8u x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))

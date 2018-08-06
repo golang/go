@@ -181,6 +181,87 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 	return a, b
 }
 
+// Check that fix-up code is not generated for divisions where it has been proven that
+// that the divisor is not -1 or that the dividend is > MinIntNN.
+func NoFix64A(divr int64) (int64, int64) {
+	var d int64 = 42
+	var e int64 = 84
+	if divr > 5 {
+		d /= divr // amd64:-"JMP"
+		e %= divr // amd64:-"JMP"
+	}
+	return d, e
+}
+
+func NoFix64B(divd int64) (int64, int64) {
+	var d int64
+	var e int64
+	var divr int64 = -1
+	if divd > -9223372036854775808 {
+		d = divd / divr // amd64:-"JMP"
+		e = divd % divr // amd64:-"JMP"
+	}
+	return d, e
+}
+
+func NoFix32A(divr int32) (int32, int32) {
+	var d int32 = 42
+	var e int32 = 84
+	if divr > 5 {
+		// amd64:-"JMP"
+		// 386:-"JMP"
+		d /= divr
+		// amd64:-"JMP"
+		// 386:-"JMP"
+		e %= divr
+	}
+	return d, e
+}
+
+func NoFix32B(divd int32) (int32, int32) {
+	var d int32
+	var e int32
+	var divr int32 = -1
+	if divd > -2147483648 {
+		// amd64:-"JMP"
+		// 386:-"JMP"
+		d = divd / divr
+		// amd64:-"JMP"
+		// 386:-"JMP"
+		e = divd % divr
+	}
+	return d, e
+}
+
+func NoFix16A(divr int16) (int16, int16) {
+	var d int16 = 42
+	var e int16 = 84
+	if divr > 5 {
+		// amd64:-"JMP"
+		// 386:-"JMP"
+		d /= divr
+		// amd64:-"JMP"
+		// 386:-"JMP"
+		e %= divr
+	}
+	return d, e
+}
+
+func NoFix16B(divd int16) (int16, int16) {
+	var d int16
+	var e int16
+	var divr int16 = -1
+	if divd > -32768 {
+		// amd64:-"JMP"
+		// 386:-"JMP"
+		d = divd / divr
+		// amd64:-"JMP"
+		// 386:-"JMP"
+		e = divd % divr
+	}
+	return d, e
+}
+
 // Check that len() and cap() calls divided by powers of two are
 // optimized into shifts and ands
 
