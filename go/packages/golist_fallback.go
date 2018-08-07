@@ -2,22 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package golist
+package packages
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
 	"go/build"
-	"golang.org/x/tools/go/internal/cgo"
-	"golang.org/x/tools/go/packages/raw"
-	"golang.org/x/tools/imports"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"golang.org/x/tools/go/internal/cgo"
+	"golang.org/x/tools/imports"
 )
 
 // TODO(matloob): Delete this file once Go 1.12 is released.
@@ -29,16 +28,15 @@ import (
 // This support will be removed once Go 1.12 is released
 // in Q1 2019.
 
-func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...string) ([]string, []*raw.Package, error) {
-	original, deps, err := getDeps(ctx, cfg, words...)
+func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error) {
+	original, deps, err := getDeps(cfg, words...)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var tmpdir string // used for generated cgo files
 
-	var result []*raw.Package
-	var roots []string
+	var response driverResponse
 	addPackage := func(p *jsonPackage) {
 		if p.Name == "" {
 			return
@@ -52,24 +50,21 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 			p.GoFiles = nil // ignore fake unsafe.go file
 		}
 
-		importMap := func(importlist []string) map[string]string {
-			importMap := make(map[string]string)
+		importMap := func(importlist []string) map[string]*Package {
+			importMap := make(map[string]*Package)
 			for _, id := range importlist {
 
 				if id == "C" {
-					importMap["unsafe"] = "unsafe"
-					importMap["syscall"] = "syscall"
+					importMap["unsafe"] = &Package{ID: "unsafe"}
+					importMap["syscall"] = &Package{ID: "syscall"}
 					if pkgpath != "runtime/cgo" {
-						importMap["runtime/cgo"] = "runtime/cgo"
+						importMap["runtime/cgo"] = &Package{ID: "runtime/cgo"}
 					}
 					continue
 				}
-				importMap[imports.VendorlessPath(id)] = id
+				importMap[imports.VendorlessPath(id)] = &Package{ID: id}
 			}
 			return importMap
-		}
-		if isRoot {
-			roots = append(roots, id)
 		}
 		compiledGoFiles := absJoin(p.Dir, p.GoFiles)
 		// Use a function to simplify control flow. It's just a bunch of gotos.
@@ -99,7 +94,10 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 		if len(p.CgoFiles) == 0 || !processCgo() {
 			compiledGoFiles = append(compiledGoFiles, absJoin(p.Dir, p.CgoFiles)...) // Punt to typechecker.
 		}
-		result = append(result, &raw.Package{
+		if isRoot {
+			response.Roots = append(response.Roots, id)
+		}
+		response.Packages = append(response.Packages, &Package{
 			ID:              id,
 			Name:            p.Name,
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
@@ -113,9 +111,9 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 			testID := fmt.Sprintf("%s [%s.test]", id, id)
 			if len(p.TestGoFiles) > 0 || len(p.XTestGoFiles) > 0 {
 				if isRoot {
-					roots = append(roots, testID)
+					response.Roots = append(response.Roots, testID)
 				}
-				result = append(result, &raw.Package{
+				response.Packages = append(response.Packages, &Package{
 					ID:              testID,
 					Name:            p.Name,
 					GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles, p.TestGoFiles),
@@ -128,7 +126,7 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 				if len(p.XTestGoFiles) > 0 {
 					xtestID := fmt.Sprintf("%s_test [%s.test]", id, id)
 					if isRoot {
-						roots = append(roots, xtestID)
+						response.Roots = append(response.Roots, xtestID)
 					}
 					for i, imp := range p.XTestImports {
 						if imp == p.ImportPath {
@@ -136,7 +134,7 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 							break
 						}
 					}
-					result = append(result, &raw.Package{
+					response.Packages = append(response.Packages, &Package{
 						ID:              xtestID,
 						Name:            p.Name + "_test",
 						GoFiles:         absJoin(p.Dir, p.XTestGoFiles),
@@ -152,31 +150,31 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 	for _, pkg := range original {
 		addPackage(pkg)
 	}
-	if !cfg.Deps || len(deps) == 0 {
-		return roots, result, nil
+	if cfg.Mode < LoadImports || len(deps) == 0 {
+		return &response, nil
 	}
 
-	buf, err := golist(ctx, cfg, golistArgsFallback(cfg, deps))
+	buf, err := golist(cfg, golistArgsFallback(cfg, deps))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Decode the JSON and convert it to Package form.
 	for dec := json.NewDecoder(buf); dec.More(); {
 		p := new(jsonPackage)
 		if err := dec.Decode(p); err != nil {
-			return nil, nil, fmt.Errorf("JSON decoding failed: %v", err)
+			return nil, fmt.Errorf("JSON decoding failed: %v", err)
 		}
 
 		addPackage(p)
 	}
 
-	return roots, result, nil
+	return &response, nil
 }
 
 // getDeps runs an initial go list to determine all the dependency packages.
-func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
-	buf, err := golist(ctx, cfg, golistArgsFallback(cfg, words))
+func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
+	buf, err := golist(cfg, golistArgsFallback(cfg, words))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -210,7 +208,7 @@ func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet
 	}
 	// Get the deps of the packages imported by tests.
 	if len(testImports) > 0 {
-		buf, err = golist(ctx, cfg, golistArgsFallback(cfg, testImports))
+		buf, err = golist(cfg, golistArgsFallback(cfg, testImports))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -238,7 +236,7 @@ func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet
 	return originalSet, deps, nil
 }
 
-func golistArgsFallback(cfg *raw.Config, words []string) []string {
+func golistArgsFallback(cfg *Config, words []string) []string {
 	fullargs := []string{"list", "-e", "-json"}
 	fullargs = append(fullargs, cfg.Flags...)
 	fullargs = append(fullargs, "--")

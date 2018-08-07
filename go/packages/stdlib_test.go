@@ -30,7 +30,11 @@ func TestStdlibMetadata(t *testing.T) {
 	alloc := memstats.Alloc
 
 	// Load, parse and type-check the program.
-	pkgs, err := packages.Load(nil, "std")
+	cfg := &packages.Config{
+		Mode:  packages.LoadAllSyntax,
+		Error: func(error) {},
+	}
+	pkgs, err := packages.Load(cfg, "std")
 	if err != nil {
 		t.Fatalf("failed to load metadata: %v", err)
 	}

@@ -9,6 +9,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"go/types"
@@ -26,10 +27,11 @@ import (
 
 // flags
 var (
-	depsFlag = flag.Bool("deps", false, "show dependencies too")
-	testFlag = flag.Bool("test", false, "include any tests implied by the patterns")
-	mode     = flag.String("mode", "imports", "mode (one of files, imports, types, syntax, allsyntax)")
-	private  = flag.Bool("private", false, "show non-exported declarations too")
+	depsFlag  = flag.Bool("deps", false, "show dependencies too")
+	testFlag  = flag.Bool("test", false, "include any tests implied by the patterns")
+	mode      = flag.String("mode", "imports", "mode (one of files, imports, types, syntax, allsyntax)")
+	private   = flag.Bool("private", false, "show non-exported declarations too")
+	printJSON = flag.Bool("json", false, "print package in JSON form")
 
 	cpuprofile = flag.String("cpuprofile", "", "write CPU profile to this file")
 	memprofile = flag.String("memprofile", "", "write memory profile to this file")
@@ -166,6 +168,11 @@ func main() {
 }
 
 func print(lpkg *packages.Package) {
+	if *printJSON {
+		data, _ := json.MarshalIndent(lpkg, "", "\t")
+		os.Stdout.Write(data)
+		return
+	}
 	// title
 	var kind string
 	// TODO(matloob): If IsTest is added back print "test command" or

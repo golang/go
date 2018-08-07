@@ -6,6 +6,7 @@ package packages_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -22,6 +23,11 @@ import (
 
 	"golang.org/x/tools/go/packages"
 )
+
+func init() {
+	// Insulate the tests from the users' environment.
+	os.Setenv("GOPACKAGESDRIVER", "off")
+}
 
 // TODO(matloob): remove this once Go 1.12 is released as we will end support
 // for versions of go list before Go 1.10.4.
@@ -324,6 +330,9 @@ func TestVendorImports(t *testing.T) {
 }
 
 func imports(p *packages.Package) []string {
+	if p == nil {
+		return nil
+	}
 	keys := make([]string, 0, len(p.Imports))
 	for k, v := range p.Imports {
 		keys = append(keys, fmt.Sprintf("%s:%s", k, v.ID))
@@ -413,7 +422,7 @@ package b`,
 		{`a`, []string{`-tags=tag tag2`}, "a.go b.go c.go d.go", "a.go b.go"},
 	} {
 		cfg := &packages.Config{
-			Mode:  packages.LoadFiles,
+			Mode:  packages.LoadImports,
 			Flags: test.tags,
 			Env:   append(os.Environ(), "GOPATH="+tmp),
 		}
@@ -929,8 +938,12 @@ func TestContains(t *testing.T) {
 	})
 	defer cleanup()
 
-	opts := &packages.Config{Env: append(os.Environ(), "GOPATH="+tmp), Dir: tmp, Mode: packages.LoadImports}
-	initial, err := packages.Load(opts, "contains:src/b/b.go")
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Dir:  tmp,
+		Env:  append(os.Environ(), "GOPATH="+tmp),
+	}
+	initial, err := packages.Load(cfg, "contains:src/b/b.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -957,8 +970,12 @@ func TestContains_FallbackSticks(t *testing.T) {
 	})
 	defer cleanup()
 
-	opts := &packages.Config{Env: append(os.Environ(), "GOPATH="+tmp), Dir: tmp, Mode: packages.LoadImports}
-	initial, err := packages.Load(opts, "a", "contains:src/b/b.go")
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Dir:  tmp,
+		Env:  append(os.Environ(), "GOPATH="+tmp),
+	}
+	initial, err := packages.Load(cfg, "a", "contains:src/b/b.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -976,6 +993,165 @@ func TestContains_FallbackSticks(t *testing.T) {
 	}
 }
 
+func TestJSON(t *testing.T) {
+	//TODO: add in some errors
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go": `package a; const A = 1`,
+		"src/b/b.go": `package b; import "a"; var B = a.A`,
+		"src/c/c.go": `package c; import "b" ; var C = b.B`,
+		"src/d/d.go": `package d; import "b" ; var D = b.B`,
+	})
+	defer cleanup()
+
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Env:  append(os.Environ(), "GOPATH="+tmp),
+	}
+	initial, err := packages.Load(cfg, "c", "d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := &bytes.Buffer{}
+	enc := json.NewEncoder(buf)
+	enc.SetIndent("", "\t")
+	seen := make(map[string]bool)
+	var visit func(*packages.Package)
+	visit = func(pkg *packages.Package) {
+		if seen[pkg.ID] {
+			return
+		}
+		seen[pkg.ID] = true
+		// trim the source lists for stable results
+		pkg.GoFiles = cleanPaths(pkg.GoFiles)
+		pkg.CompiledGoFiles = cleanPaths(pkg.CompiledGoFiles)
+		pkg.OtherFiles = cleanPaths(pkg.OtherFiles)
+		for _, ipkg := range pkg.Imports {
+			visit(ipkg)
+		}
+		if err := enc.Encode(pkg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, pkg := range initial {
+		visit(pkg)
+	}
+	wantJSON := `
+{
+	"ID": "a",
+	"Name": "a",
+	"PkgPath": "a",
+	"GoFiles": [
+		"a.go"
+	],
+	"CompiledGoFiles": [
+		"a.go"
+	]
+}
+{
+	"ID": "b",
+	"Name": "b",
+	"PkgPath": "b",
+	"GoFiles": [
+		"b.go"
+	],
+	"CompiledGoFiles": [
+		"b.go"
+	],
+	"Imports": {
+		"a": "a"
+	}
+}
+{
+	"ID": "c",
+	"Name": "c",
+	"PkgPath": "c",
+	"GoFiles": [
+		"c.go"
+	],
+	"CompiledGoFiles": [
+		"c.go"
+	],
+	"Imports": {
+		"b": "b"
+	}
+}
+{
+	"ID": "d",
+	"Name": "d",
+	"PkgPath": "d",
+	"GoFiles": [
+		"d.go"
+	],
+	"CompiledGoFiles": [
+		"d.go"
+	],
+	"Imports": {
+		"b": "b"
+	}
+}
+`[1:]
+
+	if buf.String() != wantJSON {
+		t.Errorf("wrong JSON: got <<%s>>, want <<%s>>", buf.String(), wantJSON)
+	}
+	// now decode it again
+	var decoded []*packages.Package
+	dec := json.NewDecoder(buf)
+	for dec.More() {
+		p := new(packages.Package)
+		if err := dec.Decode(p); err != nil {
+			t.Fatal(err)
+		}
+		decoded = append(decoded, p)
+	}
+	if len(decoded) != 4 {
+		t.Fatalf("got %d packages, want 4", len(decoded))
+	}
+	for i, want := range []*packages.Package{{
+		ID:   "a",
+		Name: "a",
+	}, {
+		ID:   "b",
+		Name: "b",
+		Imports: map[string]*packages.Package{
+			"a": &packages.Package{ID: "a"},
+		},
+	}, {
+		ID:   "c",
+		Name: "c",
+		Imports: map[string]*packages.Package{
+			"b": &packages.Package{ID: "b"},
+		},
+	}, {
+		ID:   "d",
+		Name: "d",
+		Imports: map[string]*packages.Package{
+			"b": &packages.Package{ID: "b"},
+		},
+	}} {
+		got := decoded[i]
+		if got.ID != want.ID {
+			t.Errorf("Package %d has ID %q want %q", i, got.ID, want.ID)
+		}
+		if got.Name != want.Name {
+			t.Errorf("Package %q has Name %q want %q", got.ID, got.Name, want.Name)
+		}
+		if len(got.Imports) != len(want.Imports) {
+			t.Errorf("Package %q has %d imports want %d", got.ID, len(got.Imports), len(want.Imports))
+			continue
+		}
+		for path, ipkg := range got.Imports {
+			if want.Imports[path] == nil {
+				t.Errorf("Package %q has unexpected import %q", got.ID, path)
+				continue
+			}
+			if want.Imports[path].ID != ipkg.ID {
+				t.Errorf("Package %q import %q is %q want %q", got.ID, path, ipkg.ID, want.Imports[path].ID)
+			}
+		}
+	}
+}
+
 func errorMessages(errors []error) []string {
 	var msgs []string
 	for _, err := range errors {
@@ -990,19 +1166,23 @@ func errorMessages(errors []error) []string {
 	return msgs
 }
 
-func srcs(p *packages.Package) (basenames []string) {
-	files := append(p.GoFiles, p.OtherFiles...)
-	for i, src := range files {
+func srcs(p *packages.Package) []string {
+	return cleanPaths(append(p.GoFiles, p.OtherFiles...))
+}
+
+// cleanPaths attempts to reduce path names to stable forms
+func cleanPaths(paths []string) []string {
+	result := make([]string, len(paths))
+	for i, src := range paths {
 		// The default location for cache data is a subdirectory named go-build
 		// in the standard user cache directory for the current operating system.
 		if strings.Contains(filepath.ToSlash(src), "/go-build/") {
-			src = fmt.Sprintf("%d.go", i) // make cache names predictable
+			result[i] = fmt.Sprintf("%d.go", i) // make cache names predictable
 		} else {
-			src = filepath.Base(src)
+			result[i] = filepath.Base(src)
 		}
-		basenames = append(basenames, src)
 	}
-	return basenames
+	return result
 }
 
 // importGraph returns the import graph as a user-friendly string,
