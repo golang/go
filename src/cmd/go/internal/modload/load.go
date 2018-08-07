@@ -671,6 +671,51 @@ func (pkg *loadPkg) stackText() string {
 	return buf.String()
 }
 
+// why returns the text to use in "go mod why" output about the given package.
+// It is less ornate than the stackText but conatins the same information.
+func (pkg *loadPkg) why() string {
+	var buf strings.Builder
+	var stack []*loadPkg
+	for p := pkg; p != nil; p = p.stack {
+		stack = append(stack, p)
+	}
+
+	for i := len(stack) - 1; i >= 0; i-- {
+		p := stack[i]
+		if p.testOf != nil {
+			fmt.Fprintf(&buf, "%s.test\n", p.testOf.path)
+		} else {
+			fmt.Fprintf(&buf, "%s\n", p.path)
+		}
+	}
+	return buf.String()
+}
+
+// Why returns the "go mod why" output stanza for the given package,
+// without the leading # comment.
+// The package graph must have been loaded already, usually by LoadALL.
+// If there is no reason for the package to be in the current build,
+// Why returns an empty string.
+func Why(path string) string {
+	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	if !ok {
+		return ""
+	}
+	return pkg.why()
+}
+
+// WhyDepth returns the number of steps in the Why listing.
+// If there is no reason for the package to be in the current build,
+// WhyDepth returns 0.
+func WhyDepth(path string) int {
+	n := 0
+	pkg, _ := loaded.pkgCache.Get(path).(*loadPkg)
+	for p := pkg; p != nil; p = p.stack {
+		n++
+	}
+	return n
+}
+
 // Replacement returns the replacement for mod, if any, from go.mod.
 // If there is no replacement for mod, Replacement returns
 // a module.Version with Path == "".

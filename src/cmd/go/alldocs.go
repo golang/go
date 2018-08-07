@@ -871,6 +871,7 @@
 //
 // The commands are:
 //
+// 	download    download modules to local cache
 // 	edit        edit go.mod from tools or scripts
 // 	fix         make go.mod semantically consistent
 // 	graph       print module requirement graph
@@ -878,8 +879,41 @@
 // 	tidy        add missing and remove unused modules
 // 	vendor      make vendored copy of dependencies
 // 	verify      verify dependencies have expected content
+// 	why         explain why packages or modules are needed
 //
 // Use "go help mod <command>" for more information about a command.
+//
+// Download modules to local cache
+//
+// Usage:
+//
+// 	go mod download [-dir] [-json] [modules]
+//
+// Download downloads the named modules, which can be module patterns selecting
+// dependencies of the main module or module queries of the form path@version.
+// With no arguments, download applies to all dependencies of the main module.
+//
+// The go command will automatically download modules as needed during ordinary
+// execution. The "go mod download" command is useful mainly for pre-filling
+// the local cache or to compute the answers for a Go module proxy.
+//
+// By default, download reports errors to standard error but is otherwise silent.
+// The -json flag causes download to print a sequence of JSON objects
+// to standard output, describing each downloaded module (or failure),
+// corresponding to this Go struct:
+//
+//     type Module struct {
+//         Path    string // module path
+//         Version string // module version
+//         Error   string // error loading module
+//         Info    string // absolute path to cached .info file
+//         GoMod   string // absolute path to cached .mod file
+//         Zip     string // absolute path to cached .zip file
+//         Dir     string // absolute path to cached source root directory
+//     }
+//
+// See 'go help module' for more about module queries.
+//
 //
 // Edit go.mod from tools or scripts
 //
@@ -1077,6 +1111,30 @@
 // verify prints "all modules verified." Otherwise it reports which
 // modules have been changed and causes 'go mod' to exit with a
 // non-zero status.
+//
+//
+// Explain why packages or modules are needed
+//
+// Usage:
+//
+// 	go mod why [-m] [-vendor] packages...
+//
+// Why shows a shortest path in the import graph from the main module to
+// each of the listed packages. If the -m flag is given, why treats the
+// arguments as a list of modules and finds a path to any package in each
+// of the modules.
+//
+// By default, why queries the graph of packages matched by "go list all",
+// which includes tests for reachable packages. The -vendor flag causes why
+// to exclude tests of dependencies.
+//
+// The output is a sequence of stanzas, one for each package or module
+// name on the command line, separated by blank lines. Each stanza begins
+// with a comment line "# package" or "# module" giving the target
+// package or module. Subsequent lines give a path through the import
+// graph, one package per line. If the package or module is not
+// referenced from the main module the stanza will be empty except for
+// the comment line.
 //
 //
 // Compile and run Go program

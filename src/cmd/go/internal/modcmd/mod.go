@@ -27,5 +27,6 @@ See 'go help modules' for an overview of module functionality.
 		cmdTidy,
 		cmdVendor,
 		cmdVerify,
+		cmdWhy,
 	},
 }
