@@ -6,6 +6,8 @@ module golang.org/x/text
 {"Version":"v0.0.0-20170915032832-14c0d48ead0c","Name":"v0.0.0-20170915032832-14c0d48ead0c","Short":"14c0d48ead0c","Time":"2017-09-15T03:28:32Z"}
 -- go.mod --
 module golang.org/x/text
+-- unused/unused.go --
+package unused
 -- language/lang.go --
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
