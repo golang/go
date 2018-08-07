@@ -128,9 +128,9 @@ type Config struct {
 
 	// TypeChecker provides additional configuration for type-checking syntax trees.
 	//
-	// The TypeCheck loader does not use the TypeChecker configuration
-	// for packages that have their type information provided by the
-	// underlying build system.
+	// It is used for all packages in LoadAllSyntax mode,
+	// and for the packages matching the patterns, but not their dependencies,
+	// in LoadSyntax mode.
 	//
 	// The TypeChecker.Error function is ignored:
 	// errors are reported using the Error function defined above.
@@ -138,9 +138,8 @@ type Config struct {
 	// The TypeChecker.Importer function is ignored:
 	// the loader defines an appropriate importer.
 	//
-	// The TypeChecker.Sizes are only used by the WholeProgram loader.
-	// The TypeCheck loader uses the same sizes as the main build.
-	// TODO(rsc): At least, it should. Derive these from runtime?
+	// TODO(rsc): TypeChecker.Sizes should use the same sizes as the main build.
+	// Derive them from the runtime?
 	TypeChecker types.Config
 }
 
@@ -232,7 +231,7 @@ type loaderPackage struct {
 	importErrors  map[string]error // maps each bad import to its error
 	loadOnce      sync.Once
 	color         uint8 // for cycle detection
-	mark, needsrc bool  // used in TypeCheck mode only
+	mark, needsrc bool  // used when Mode >= LoadTypes
 }
 
 func (lpkg *Package) String() string { return lpkg.ID }
@@ -317,7 +316,8 @@ func (ld *loader) loadFrom(roots []string, list ...*raw.Package) ([]*Package, er
 				GoFiles:    pkg.GoFiles,
 				OtherFiles: pkg.OtherFiles,
 			},
-			needsrc: ld.Mode >= LoadAllSyntax || pkg.Export == "",
+			needsrc: ld.Mode >= LoadAllSyntax ||
+				(pkg.Export == "" && pkg.PkgPath != "unsafe"),
 		}
 		ld.pkgs[lpkg.ID] = lpkg
 	}
@@ -421,11 +421,10 @@ func (ld *loader) loadFrom(roots []string, list ...*raw.Package) ([]*Package, er
 	return result, nil
 }
 
-// loadRecursive loads, parses, and type-checks the specified package and its
-// dependencies, recursively, in parallel, in topological order.
+// loadRecursive loads the specified package and its dependencies,
+// recursively, in parallel, in topological order.
 // It is atomic and idempotent.
-// Precondition: ld.mode != Metadata.
-// In typeCheck mode, only needsrc packages are loaded.
+// Precondition: ld.Mode >= LoadTypes.
 func (ld *loader) loadRecursive(lpkg *loaderPackage) {
 	lpkg.loadOnce.Do(func() {
 		// Load the direct dependencies, in parallel.
@@ -444,11 +443,10 @@ func (ld *loader) loadRecursive(lpkg *loaderPackage) {
 	})
 }
 
-// loadPackage loads, parses, and type-checks the
-// files of the specified package, if needed.
+// loadPackage loads the specified package.
 // It must be called only once per Package,
 // after immediate dependencies are loaded.
-// Precondition: ld.mode != Metadata.
+// Precondition: ld.Mode >= LoadTypes.
 func (ld *loader) loadPackage(lpkg *loaderPackage) {
 	if lpkg.raw.PkgPath == "unsafe" {
 		// Fill in the blanks to avoid surprises.
@@ -459,8 +457,14 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		return
 	}
 
+	// Call NewPackage directly with explicit name.
+	// This avoids skew between golist and go/types when the files'
+	// package declarations are inconsistent.
+	lpkg.Types = types.NewPackage(lpkg.raw.PkgPath, lpkg.Name)
+
 	if !lpkg.needsrc {
-		return // not a source package
+		ld.loadFromExportData(lpkg)
+		return // not a source package, don't get syntax trees
 	}
 
 	hardErrors := false
@@ -481,11 +485,6 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 
 	lpkg.Fset = ld.Fset
 	lpkg.Syntax = files
-
-	// Call NewPackage directly with explicit name.
-	// This avoids skew between golist and go/types when the files'
-	// package declarations are inconsistent.
-	lpkg.Types = types.NewPackage(lpkg.raw.PkgPath, lpkg.Name)
 
 	lpkg.TypesInfo = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
@@ -516,15 +515,8 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 			return nil, fmt.Errorf("no metadata for %s", path)
 		}
 
-		ld.exportMu.Lock()
-		defer ld.exportMu.Unlock()
-
 		if ipkg.Types != nil && ipkg.Types.Complete() {
 			return ipkg.Types, nil
-		}
-		imp := ld.pkgs[ipkg.ID]
-		if !imp.needsrc {
-			return ld.loadFromExportData(imp)
 		}
 		log.Fatalf("internal error: nil Pkg importing %q from %q", path, lpkg)
 		panic("unreachable")
@@ -643,16 +635,8 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	// Not all accesses to Package.Pkg need to be protected by exportMu:
 	// graph ordering ensures that direct dependencies of source
 	// packages are fully loaded before the importer reads their Pkg field.
-	//
-	// TODO(matloob): Ask adonovan if this is safe. Because of diamonds in the
-	// dependency graph, it's possible that the same package is loaded in
-	// two separate goroutines and there's a race in the write of the Package's
-	// Types here and the read earlier checking if types is set before calling
-	// this function.
-	/*
-		ld.exportMu.Lock()
-		defer ld.exportMu.Unlock()
-	*/
+	ld.exportMu.Lock()
+	defer ld.exportMu.Unlock()
 
 	if tpkg := lpkg.Types; tpkg != nil && tpkg.Complete() {
 		return tpkg, nil // cache hit
@@ -690,22 +674,9 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	//
 	// So, we must build a PkgPath-keyed view of the global
 	// (conceptually ID-keyed) cache of packages and pass it to
-	// gcexportdata, then copy back to the global cache any newly
-	// created entries in the view map. The view must contain every
-	// existing package that might possibly be mentioned by the
-	// current package---its reflexive transitive closure.
-	//
-	// (Yes, reflexive: although loadRecursive processes source
-	// packages in topological order, export data packages are
-	// processed only lazily within Importer calls. In the graph
-	// A->B->C, A->C where A is a source package and B and C are
-	// export data packages, processing of the A->B and A->C import
-	// edges may occur in either order, depending on the sequence
-	// of imports within A. If B is processed first, and its export
-	// data mentions C, an incomplete package for C will be created
-	// before processing of C.)
-	// We could do export data processing in topological order using
-	// loadRecursive, but there's no parallelism to be gained.
+	// gcexportdata. The view must contain every existing
+	// package that might possibly be mentioned by the
+	// current package---its transitive closure.
 	//
 	// TODO(adonovan): it would be more simpler and more efficient
 	// if the export data machinery invoked a callback to
@@ -713,34 +684,24 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	//
 	view := make(map[string]*types.Package) // view seen by gcexportdata
 	seen := make(map[*loaderPackage]bool)   // all visited packages
-	var copyback []*loaderPackage           // candidates for copying back to global cache
-	var visit func(p *loaderPackage)
-	visit = func(p *loaderPackage) {
-		if !seen[p] {
-			seen[p] = true
-			if p.Types != nil {
-				view[p.raw.PkgPath] = p.Types
-			} else {
-				copyback = append(copyback, p)
-			}
-			for _, p := range p.Imports {
-				visit(ld.pkgs[p.ID])
+	var visit func(pkgs map[string]*Package)
+	visit = func(pkgs map[string]*Package) {
+		for _, p := range pkgs {
+			lpkg := ld.pkgs[p.ID]
+			if !seen[lpkg] {
+				seen[lpkg] = true
+				view[lpkg.raw.PkgPath] = lpkg.Types
+				visit(lpkg.Imports)
 			}
 		}
 	}
-	visit(lpkg)
+	visit(lpkg.Imports)
 
 	// Parse the export data.
 	// (May create/modify packages in view.)
 	tpkg, err := gcexportdata.Read(r, ld.Fset, view, lpkg.raw.PkgPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %v", lpkg.raw.Export, err)
-	}
-
-	// For each newly created types.Package in the view,
-	// save it in the main graph.
-	for _, p := range copyback {
-		p.Types = view[p.raw.PkgPath] // may still be nil
 	}
 
 	lpkg.Types = tpkg

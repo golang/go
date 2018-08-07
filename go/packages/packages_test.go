@@ -432,13 +432,83 @@ func (ec *errCollector) add(err error) {
 	ec.mu.Unlock()
 }
 
+func TestLoadTypes(t *testing.T) {
+	// In LoadTypes and LoadSyntax modes, the compiler will
+	// fail to generate an export data file for c, because it has
+	// a type error.  The loader should fall back loading a and c
+	// from source, but use the export data for b.
+
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go": `package a; import "b"; import "c"; const A = "a" + b.B + c.C`,
+		"src/b/b.go": `package b; const B = "b"`,
+		"src/c/c.go": `package c; const C = "c" + 1`,
+	})
+	defer cleanup()
+
+	cfg := &packages.Config{
+		Mode:  packages.LoadTypes,
+		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Error: func(error) {},
+	}
+	initial, err := packages.Load(cfg, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	graph, all := importGraph(initial)
+	wantGraph := `
+* a
+  b
+  c
+  a -> b
+  a -> c
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+
+	for _, test := range []struct {
+		id         string
+		wantSyntax bool
+	}{
+		{"a", true},  // need src, no export data for c
+		{"b", false}, // use export data
+		{"c", true},  // need src, no export data for c
+	} {
+		if usesOldGolist && !test.wantSyntax {
+			// legacy go list always upgrades to LoadAllSyntax, syntax will be filled in.
+			// still check that types information is complete.
+			test.wantSyntax = true
+		}
+		p := all[test.id]
+		if p == nil {
+			t.Errorf("missing package: %s", test.id)
+			continue
+		}
+		if p.Types == nil {
+			t.Errorf("missing types.Package for %s", p)
+			continue
+		} else if !p.Types.Complete() {
+			t.Errorf("incomplete types.Package for %s", p)
+		}
+		if (p.Syntax != nil) != test.wantSyntax {
+			if test.wantSyntax {
+				t.Errorf("missing ast.Files for %s", p)
+			} else {
+				t.Errorf("unexpected ast.Files for for %s", p)
+			}
+		}
+	}
+}
+
 func TestLoadSyntaxOK(t *testing.T) {
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go": `package a; import "b"; const A = "a" + b.B`,
 		"src/b/b.go": `package b; import "c"; const B = "b" + c.C`,
 		"src/c/c.go": `package c; import "d"; const C = "c" + d.D`,
 		"src/d/d.go": `package d; import "e"; const D = "d" + e.E`,
-		"src/e/e.go": `package e; const E = "e"`,
+		"src/e/e.go": `package e; import "f"; const E = "e" + f.F`,
+		"src/f/f.go": `package f; const F = "f"`,
 	})
 	defer cleanup()
 
@@ -459,10 +529,12 @@ func TestLoadSyntaxOK(t *testing.T) {
 * c
   d
   e
+  f
   a -> b
   b -> c
   c -> d
   d -> e
+  e -> f
 `[1:]
 	if graph != wantGraph {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
@@ -474,30 +546,29 @@ func TestLoadSyntaxOK(t *testing.T) {
 
 	for _, test := range []struct {
 		id         string
-		wantType   bool
 		wantSyntax bool
 	}{
-		{"a", true, true},   // source package
-		{"b", true, true},   // source package
-		{"c", true, true},   // source package
-		{"d", true, false},  // export data package
-		{"e", false, false}, // no package
+		{"a", true},  // source package
+		{"b", true},  // source package
+		{"c", true},  // source package
+		{"d", false}, // export data package
+		{"e", false}, // export data package
+		{"f", false}, // export data package
 	} {
-		if usesOldGolist && test.id == "d" || test.id == "e" {
-			// go list always upgrades  whole-program load.
-			continue
+		if usesOldGolist && !test.wantSyntax {
+			// legacy go list always upgrades to LoadAllSyntax, syntax will be filled in.
+			test.wantSyntax = true
 		}
 		p := all[test.id]
 		if p == nil {
 			t.Errorf("missing package: %s", test.id)
 			continue
 		}
-		if (p.Types != nil) != test.wantType {
-			if test.wantType {
-				t.Errorf("missing types.Package for %s", p)
-			} else {
-				t.Errorf("unexpected types.Package for %s", p)
-			}
+		if p.Types == nil {
+			t.Errorf("missing types.Package for %s", p)
+			continue
+		} else if !p.Types.Complete() {
+			t.Errorf("incomplete types.Package for %s", p)
 		}
 		if (p.Syntax != nil) != test.wantSyntax {
 			if test.wantSyntax {
@@ -513,7 +584,7 @@ func TestLoadSyntaxOK(t *testing.T) {
 
 	// Check value of constant.
 	aA := constant(all["a"], "A")
-	if got, want := fmt.Sprintf("%v %v", aA, aA.Val()), `const a.A untyped string "abcde"`; got != want {
+	if got, want := fmt.Sprintf("%v %v", aA, aA.Val()), `const a.A untyped string "abcdef"`; got != want {
 		t.Errorf("a.A: got %s, want %s", got, want)
 	}
 }
@@ -521,17 +592,15 @@ func TestLoadSyntaxOK(t *testing.T) {
 func TestLoadSyntaxError(t *testing.T) {
 	// A type error in a lower-level package (e) prevents go list
 	// from producing export data for all packages that depend on it
-	// [a-e]. Export data is only required for package d, so package
-	// c, which imports d, gets an error, and all packages above d
-	// are IllTyped. Package e is not ill-typed, because the user
-	// did not demand its type information (despite it actually
-	// containing a type error).
+	// [a-e]. Only f should be loaded from export data, and the rest
+	// should be IllTyped.
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go": `package a; import "b"; const A = "a" + b.B`,
 		"src/b/b.go": `package b; import "c"; const B = "b" + c.C`,
 		"src/c/c.go": `package c; import "d"; const C = "c" + d.D`,
 		"src/d/d.go": `package d; import "e"; const D = "d" + e.E`,
-		"src/e/e.go": `package e; const E = "e" + 1`, // type error
+		"src/e/e.go": `package e; import "f"; const E = "e" + f.F + 1`, // type error
+		"src/f/f.go": `package f; const F = "f"`,
 	})
 	defer cleanup()
 
@@ -561,32 +630,30 @@ func TestLoadSyntaxError(t *testing.T) {
 
 	for _, test := range []struct {
 		id           string
-		wantTypes    bool
 		wantSyntax   bool
 		wantIllTyped bool
 	}{
-		{"a", true, true, true},
-		{"b", true, true, true},
-		{"c", true, true, true},
-		{"d", false, false, true},  // missing export data
-		{"e", false, false, false}, // type info not requested (despite type error)
+		{"a", true, true},
+		{"b", true, true},
+		{"c", true, true},
+		{"d", true, true},
+		{"e", true, true},
+		{"f", false, false},
 	} {
-		if usesOldGolist && test.id == "c" || test.id == "d" || test.id == "e" {
-			// Behavior is different for old golist because it upgrades to wholeProgram.
-			// TODO(matloob): can we run more of this test? Can we put export data into the test GOPATH?
-			continue
+		if usesOldGolist && !test.wantSyntax {
+			// legacy go list always upgrades to LoadAllSyntax, syntax will be filled in.
+			test.wantSyntax = true
 		}
 		p := all[test.id]
 		if p == nil {
 			t.Errorf("missing package: %s", test.id)
 			continue
 		}
-		if (p.Types != nil) != test.wantTypes {
-			if test.wantTypes {
-				t.Errorf("missing types.Package for %s", test.id)
-			} else {
-				t.Errorf("unexpected types.Package for %s", test.id)
-			}
+		if p.Types == nil {
+			t.Errorf("missing types.Package for %s", p)
+			continue
+		} else if !p.Types.Complete() {
+			t.Errorf("incomplete types.Package for %s", p)
 		}
 		if (p.Syntax != nil) != test.wantSyntax {
 			if test.wantSyntax {
