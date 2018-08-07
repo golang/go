@@ -9,6 +9,7 @@ import (
 	"internal/testenv"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -17,6 +18,21 @@ import (
 
 	"cmd/go/internal/modfetch/codehost"
 )
+
+func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	dir, err := ioutil.TempDir("", "gitrepo-test-")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	codehost.WorkRoot = dir
+	return m.Run()
+}
 
 const (
 	vgotest1git = "github.com/rsc/vgotest1"
