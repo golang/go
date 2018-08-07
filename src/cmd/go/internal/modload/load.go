@@ -101,9 +101,7 @@ func ImportPaths(args []string) []string {
 				}
 
 			case pkg == "all":
-				if loaded.testRoots {
-					loaded.testAll = true
-				}
+				loaded.testAll = true
 				// TODO: Don't print warnings multiple times.
 				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, []module.Version{Target}))...)
 				paths = append(paths, "all") // will expand after load completes
@@ -391,14 +389,13 @@ type loader struct {
 	goVersion map[string]string // go version recorded in each module
 }
 
+// LoadTests controls whether the loaders load tests of the root packages.
+var LoadTests bool
+
 func newLoader() *loader {
 	ld := new(loader)
 	ld.tags = imports.Tags()
-
-	switch cfg.CmdName {
-	case "test", "vet":
-		ld.testRoots = true
-	}
+	ld.testRoots = LoadTests
 	return ld
 }
 
