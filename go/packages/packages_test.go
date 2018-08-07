@@ -862,6 +862,36 @@ func TestContains(t *testing.T) {
 	}
 }
 
+// TestContains_FallbackSticks ensures that when there are both contains and non-contains queries
+// the decision whether to fallback to the pre-1.11 go list sticks across both sets of calls to
+// go list.
+func TestContains_FallbackSticks(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go": `package a; import "b"`,
+		"src/b/b.go": `package b; import "c"`,
+		"src/c/c.go": `package c`,
+	})
+	defer cleanup()
+
+	opts := &packages.Config{Env: append(os.Environ(), "GOPATH="+tmp), Dir: tmp, Mode: packages.LoadImports}
+	initial, err := packages.Load(opts, "a", "contains:src/b/b.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	graph, _ := importGraph(initial)
+	wantGraph := `
+* a
+* b
+  c
+  a -> b
+  b -> c
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+}
+
 func errorMessages(errors []error) []string {
 	var msgs []string
 	for _, err := range errors {

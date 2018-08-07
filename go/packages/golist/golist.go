@@ -45,7 +45,7 @@ func LoadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string
 	// Determine files requested in contains patterns
 	var containFiles []string
 	{
-		restPatterns := patterns[:0]
+		restPatterns := make([]string, 0, len(patterns))
 		for _, pattern := range patterns {
 			if containFile := strings.TrimPrefix(pattern, "contains:"); containFile != pattern {
 				containFiles = append(containFiles, containFile)
@@ -63,7 +63,7 @@ func LoadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string
 		roots, pkgs, err := golistPackages(ctx, cfg, patterns...)
 		if _, ok := err.(goTooOldError); ok {
 			listfunc = golistPackagesFallback
-			roots, pkgs, err = listfunc(ctx, cfg, patterns...)
+			return listfunc(ctx, cfg, patterns...)
 		}
 		listfunc = golistPackages
 		return roots, pkgs, err
@@ -82,6 +82,7 @@ func LoadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string
 
 	// Run go list for contains: patterns.
 	seenPkgs := make(map[string]bool) // for deduplication. different containing queries could produce same packages
+	seenRoots := make(map[string]bool)
 	if len(containFiles) > 0 {
 		for _, pkg := range pkgs {
 			seenPkgs[pkg.ID] = true
@@ -96,21 +97,23 @@ func LoadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string
 			return nil, nil, err
 		}
 		// Deduplicate and set deplist to set of packages requested files.
-		dedupedList := cList[:0] // invariant: only packages that haven't been seen before
 		for _, pkg := range cList {
-			if seenPkgs[pkg.ID] {
+			if seenRoots[pkg.ID] {
 				continue
 			}
-			seenPkgs[pkg.ID] = true
-			dedupedList = append(dedupedList, pkg)
 			for _, pkgFile := range pkg.GoFiles {
 				if filepath.Base(f) == filepath.Base(pkgFile) {
+					seenRoots[pkg.ID] = true
 					roots = append(roots, pkg.ID)
 					break
 				}
 			}
+			if seenPkgs[pkg.ID] {
+				continue
+			}
+			seenPkgs[pkg.ID] = true
+			pkgs = append(pkgs, pkg)
 		}
-		pkgs = append(pkgs, dedupedList...)
 	}
 	return roots, pkgs, nil
 }
