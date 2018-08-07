@@ -25,11 +25,15 @@ var a64k *[64 * 1024]byte
 // vary for run to run. This test only checks that the resulting
 // values appear reasonable.
 func main() {
-	const countInterleaved = 10000
-	allocInterleaved(countInterleaved)
-	checkAllocations(getMemProfileRecords(), "main.allocInterleaved", countInterleaved, []int64{256 * 1024, 1024, 256 * 1024, 512, 256 * 1024, 256})
+        // Sample at 5K instead of default 512K to exercise sampling more.
+        runtime.MemProfileRate = 64 * 1024
 
-	const count = 100000
+	const countInterleaved = 100000
+	allocInterleaved(countInterleaved)
+	checkAllocations(getMemProfileRecords(), "main.allocInterleaved", countInterleaved, 
+	[]int64{64 * 1024, 1024, 64 * 1024, 512, 64 * 1024, 256})
+
+	const count = 1000000
 	alloc(count)
 	checkAllocations(getMemProfileRecords(), "main.alloc", count, []int64{1024, 512, 256})
 }
@@ -78,15 +82,14 @@ func checkAllocations(records []runtime.MemProfileRecord, fname string, count in
 		totalcount += s.objects
 	}
 	// Check the total number of allocations, to ensure some sampling occurred.
-	if totalwant := count * int64(len(size)); totalcount <= 0 || totalcount > totalwant*1024 {
-		panic(fmt.Sprintf("%s want total count > 0 && <= %d, got %d", fname, totalwant*1024, totalcount))
-	}
+	checkValue(fname, 0, "total", count * int64(len(size)), totalcount)
 }
 
 // checkValue checks an unsampled value against a range.
 func checkValue(fname string, ln int, name string, want, got int64) {
-	if got < 0 || got > 1024*want {
-		panic(fmt.Sprintf("%s:%d want %s >= 0 && <= %d, got %d", fname, ln, name, 1024*want, got))
+        margin := want / 10
+	if got < want - margin || got > want + margin {
+		panic(fmt.Sprintf("%s:%d want %s >= %d && <= %d, got %d", fname, ln, name, want-margin, want+margin, got))
 	}
 }
 
