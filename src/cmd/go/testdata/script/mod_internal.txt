@@ -22,6 +22,10 @@ stderr 'use of internal package internal/testenv not allowed'
 ! go build ./fromstdvendor
 stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed'
 
+env GO111MODULE=off
+! go build ./fromstdvendor
+stderr 'cannot find package "golang_org/x/net/http/httpguts" in any of:'
+env GO111MODULE=on
 
 # Dependencies should be able to use their own internal modules...
 rm go.mod

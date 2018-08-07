@@ -2,6 +2,34 @@ env GO111MODULE=on
 
 # A test in the module's root package should work.
 cd a/
+cp go.mod.empty go.mod
+go test
+stdout PASS
+
+cp go.mod.empty go.mod
+go list -deps
+! stdout ^testing$
+
+# list all should include test dependencies, like testing
+cp go.mod.empty go.mod
+go list all
+stdout ^testing$
+stdout ^rsc.io/quote$
+stdout ^rsc.io/testonly$
+
+# list -deps -tests should also include testing
+# but not deps of tests of deps (rsc.io/testonly).
+go list -deps -test
+stdout ^testing$
+stdout ^rsc.io/quote$
+! stdout ^rsc.io/testonly$
+
+# list -test all should succeed
+cp go.mod.empty go.mod
+go list -test all
+stdout '^testing'
+
+cp go.mod.empty go.mod
 go test
 stdout PASS
 
@@ -20,7 +48,7 @@ cd ../d_test
 go test
 stdout PASS
 
--- a/go.mod --
+-- a/go.mod.empty --
 module example.com/user/a
 
 -- a/a.go --
@@ -30,6 +58,7 @@ package a
 package a
 
 import "testing"
+import _ "rsc.io/quote"
 
 func Test(t *testing.T) {}
 
