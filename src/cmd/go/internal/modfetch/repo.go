@@ -55,9 +55,12 @@ type Repo interface {
 // A Rev describes a single revision in a module repository.
 type RevInfo struct {
 	Version string    // version string
-	Name    string    // complete ID in underlying repository
-	Short   string    // shortened ID, for use in pseudo-version
 	Time    time.Time // commit time
+
+	// These fields are used for Stat of arbitrary rev,
+	// but they are not recorded when talking about module versions.
+	Name  string `json:"-"` // complete ID in underlying repository
+	Short string `json:"-"` // shortened ID, for use in pseudo-version
 }
 
 // Re: module paths, import paths, repository roots, and lookups

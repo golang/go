@@ -144,23 +144,25 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 
 	complete(info)
 
-	if r := Replacement(m); r.Path != "" {
-		info.Replace = &modinfo.ModulePublic{
-			Path:      r.Path,
-			Version:   r.Version,
-			GoVersion: info.GoVersion,
-		}
-		if r.Version == "" {
-			if filepath.IsAbs(r.Path) {
-				info.Replace.Dir = r.Path
-			} else {
-				info.Replace.Dir = filepath.Join(ModRoot, r.Path)
+	if fromBuildList {
+		if r := Replacement(m); r.Path != "" {
+			info.Replace = &modinfo.ModulePublic{
+				Path:      r.Path,
+				Version:   r.Version,
+				GoVersion: info.GoVersion,
 			}
+			if r.Version == "" {
+				if filepath.IsAbs(r.Path) {
+					info.Replace.Dir = r.Path
+				} else {
+					info.Replace.Dir = filepath.Join(ModRoot, r.Path)
+				}
+			}
+			complete(info.Replace)
+			info.Dir = info.Replace.Dir
+			info.GoMod = filepath.Join(info.Dir, "go.mod")
+			info.Error = nil // ignore error loading original module version (it has been replaced)
 		}
-		complete(info.Replace)
-		info.Dir = info.Replace.Dir
-		info.GoMod = filepath.Join(info.Dir, "go.mod")
-		info.Error = nil // ignore error loading original module version (it has been replaced)
 	}
 
 	return info

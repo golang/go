@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/dirhash"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
@@ -46,23 +47,9 @@ func Download(mod module.Version) (dir string, err error) {
 			return cached{"", err}
 		}
 		if files, _ := ioutil.ReadDir(dir); len(files) == 0 {
-			zipfile, err := CachePath(mod, "zip")
+			zipfile, err := DownloadZip(mod)
 			if err != nil {
 				return cached{"", err}
-			}
-			if _, err := os.Stat(zipfile); err == nil {
-				// Use it.
-				// This should only happen if the mod/cache directory is preinitialized
-				// or if pkg/mod/path was removed but not pkg/mod/cache/download.
-				fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
-			} else {
-				if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
-					return cached{"", err}
-				}
-				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
-				if err := downloadZip(mod, zipfile); err != nil {
-					return cached{"", err}
-				}
 			}
 			modpath := mod.Path + "@" + mod.Version
 			if err := Unzip(dir, zipfile, modpath, 0); err != nil {
@@ -74,6 +61,46 @@ func Download(mod module.Version) (dir string, err error) {
 		return cached{dir, nil}
 	}).(cached)
 	return c.dir, c.err
+}
+
+var downloadZipCache par.Cache
+
+// DownloadZip downloads the specific module version to the
+// local zip cache and returns the name of the zip file.
+func DownloadZip(mod module.Version) (zipfile string, err error) {
+	// The par.Cache here avoids duplicate work but also
+	// avoids conflicts from simultaneous calls by multiple goroutines
+	// for the same version.
+	type cached struct {
+		zipfile string
+		err     error
+	}
+	c := downloadZipCache.Do(mod, func() interface{} {
+		zipfile, err := CachePath(mod, "zip")
+		if err != nil {
+			return cached{"", err}
+		}
+		if _, err := os.Stat(zipfile); err == nil {
+			// Use it.
+			// This should only happen if the mod/cache directory is preinitialized
+			// or if pkg/mod/path was removed but not pkg/mod/cache/download.
+			if cfg.CmdName != "mod download" {
+				fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
+			}
+		} else {
+			if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
+				return cached{"", err}
+			}
+			if cfg.CmdName != "mod download" {
+				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
+			}
+			if err := downloadZip(mod, zipfile); err != nil {
+				return cached{"", err}
+			}
+		}
+		return cached{zipfile, nil}
+	}).(cached)
+	return c.zipfile, c.err
 }
 
 func downloadZip(mod module.Version, target string) error {
