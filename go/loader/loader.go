@@ -755,7 +755,7 @@ func (conf *Config) parsePackageFiles(bp *build.Package, which rune) ([]*ast.Fil
 
 	// Preprocess CgoFiles and parse the outputs (sequentially).
 	if which == 'g' && bp.CgoFiles != nil {
-		cgofiles, err := cgo.ProcessCgoFiles(bp, conf.fset(), conf.DisplayPath, conf.ParserMode)
+		cgofiles, err := cgo.ProcessFiles(bp, conf.fset(), conf.DisplayPath, conf.ParserMode)
 		if err != nil {
 			errs = append(errs, err)
 		} else {

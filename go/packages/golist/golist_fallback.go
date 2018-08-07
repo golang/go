@@ -72,20 +72,24 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 		}
 		compiledGoFiles := absJoin(p.Dir, p.GoFiles)
 		// Use a function to simplify control flow. It's just a bunch of gotos.
+		var cgoErrors []error
 		processCgo := func() bool {
 			// Suppress any cgo errors. Any relevant errors will show up in typechecking.
 			// TODO(matloob): Skip running cgo if Mode < LoadTypes.
 			if tmpdir == "" {
 				if tmpdir, err = ioutil.TempDir("", "gopackages"); err != nil {
+					cgoErrors = append(cgoErrors, err)
 					return false
 				}
 			}
 			outdir := filepath.Join(tmpdir, strings.Replace(p.ImportPath, "/", "_", -1))
 			if err := os.Mkdir(outdir, 0755); err != nil {
+				cgoErrors = append(cgoErrors, err)
 				return false
 			}
 			files, _, err := runCgo(p.Dir, outdir, cfg.Env)
 			if err != nil {
+				cgoErrors = append(cgoErrors, err)
 				return false
 			}
 			compiledGoFiles = append(compiledGoFiles, files...)
@@ -98,10 +102,11 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 			ID:              id,
 			Name:            p.Name,
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
-			CompiledGoFiles: compiledGoFiles, // TODO(matloob): Use cgo-processed Go files instead of p.GoFiles
+			CompiledGoFiles: compiledGoFiles,
 			OtherFiles:      absJoin(p.Dir, p.SFiles, p.CFiles),
 			PkgPath:         pkgpath,
 			Imports:         importMap(p.Imports),
+			// TODO(matloob): set errors on the Package to cgoErrors
 		})
 		if cfg.Tests {
 			testID := fmt.Sprintf("%s [%s.test]", id, id)
@@ -113,10 +118,11 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 					ID:              testID,
 					Name:            p.Name,
 					GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles, p.TestGoFiles),
-					CompiledGoFiles: append(compiledGoFiles, absJoin(p.Dir, p.TestGoFiles)...), // TODO(matloob): Can there be cgo files in the tests?
+					CompiledGoFiles: append(compiledGoFiles, absJoin(p.Dir, p.TestGoFiles)...),
 					OtherFiles:      absJoin(p.Dir, p.SFiles, p.CFiles),
 					PkgPath:         pkgpath,
 					Imports:         importMap(append(p.Imports, p.TestImports...)),
+					// TODO(matloob): set errors on the Package to cgoErrors
 				})
 			}
 			if len(p.XTestGoFiles) > 0 {
@@ -259,5 +265,5 @@ func runCgo(pkgdir, tmpdir string, env []string) (files, displayfiles []string, 
 			bp.CgoLDFLAGS = append(bp.CgoLDFLAGS, strings.Fields(v)...)
 		}
 	}
-	return cgo.RunCgo(bp, pkgdir, tmpdir, true)
+	return cgo.Run(bp, pkgdir, tmpdir, true)
 }
