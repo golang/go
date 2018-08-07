@@ -49,10 +49,12 @@ type CurveParams struct {
 	Name    string   // the canonical name of the curve
 }
 
+// Params returns the elliptic CurveParams of the implemented curve.
 func (curve *CurveParams) Params() *CurveParams {
 	return curve
 }
 
+// IsOnCurve returns whether or not a (x, y) point is on the curve.
 func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
 	// y² = x³ + ax + b
 	y2 := new(big.Int).Mul(y, y)
@@ -100,6 +102,7 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
 	return
 }
 
+// Add returns the sum of two affine points.
 func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	z1 := zForAffine(x1, y1)
 	z2 := zForAffine(x2, y2)
@@ -109,7 +112,7 @@ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
 // (x2, y2, z2) and returns their sum, also in Jacobian form.
 func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big.Int, *big.Int) {
-	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
+	// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#addition-add-2007-bl
 	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
 	if z1.Sign() == 0 {
 		x3.Set(x2)
@@ -184,6 +187,7 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 	return x3, y3, z3
 }
 
+// Double returns the double of an affine point.
 func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	z1 := zForAffine(x1, y1)
 	return curve.affineFromJacobian(curve.doubleJacobian(x1, y1, z1))
@@ -192,63 +196,130 @@ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 // doubleJacobian takes a point in Jacobian coordinates, (x, y, z), and
 // returns its double, also in Jacobian form.
 func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, *big.Int) {
-	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2001-b
-	delta := new(big.Int).Mul(z, z)
-	delta.Mod(delta, curve.P)
-	gamma := new(big.Int).Mul(y, y)
-	gamma.Mod(gamma, curve.P)
-	alpha := new(big.Int).Sub(x, delta)
-	if alpha.Sign() == -1 {
-		alpha.Add(alpha, curve.P)
-	}
-	alpha2 := new(big.Int).Add(x, delta)
-	alpha.Mul(alpha, alpha2)
-	alpha2.Set(alpha)
-	alpha.Lsh(alpha, 1)
-	alpha.Add(alpha, alpha2)
+	// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
 
-	beta := alpha2.Mul(x, gamma)
+	// XX = X1^2
+	xx := new(big.Int).Mul(x, x)
+	xx.Mod(xx, curve.P)
 
-	x3 := new(big.Int).Mul(alpha, alpha)
-	beta8 := new(big.Int).Lsh(beta, 3)
-	x3.Sub(x3, beta8)
-	for x3.Sign() == -1 {
-		x3.Add(x3, curve.P)
-	}
+	// YY = Y1^2
+	yy := new(big.Int).Mul(y, y)
+	yy.Mod(yy, curve.P)
+
+	// YYYY = YY^2
+	yyyy := new(big.Int).Mul(yy, yy)
+	yyyy.Mod(yyyy, curve.P)
+
+	// ZZ = Z1^2
+	zz := new(big.Int).Mul(z, z)
+	zz.Mod(zz, curve.P)
+
+	// S = 2 ((X1+YY)^2-XX-YYYY)
+	s := new(big.Int).Add(x, yy)
+	s.Mul(s, s)
+	s.Sub(s, xx)
+	s.Sub(s, yyyy)
+	s.Mul(s, big.NewInt(2))
+	s.Mod(s, curve.P)
+
+	// M = 3 XX+a ZZ^2
+	m := new(big.Int).Add(xx, curve.A)
+	m2 := new(big.Int).Mul(zz, zz)
+	m.Mul(m, big.NewInt(3))
+	m.Mul(m, m2)
+	m.Mod(m, curve.P)
+
+	// T = M^2 - 2S
+	t := new(big.Int).Mul(m, m)
+	t2 := new(big.Int).Mul(big.NewInt(2), s)
+	t.Sub(t, t2)
+	t.Mod(t, curve.P)
+
+	// X3 = T
+	x3 := new(big.Int).Set(t)
 	x3.Mod(x3, curve.P)
 
+	// Y3 = M (S-T)- 8YYYY
+	y3 := new(big.Int).Sub(s, t)
+	y3.Mul(y3, m)
+	yyyy8 := new(big.Int).Mul(big.NewInt(8), yyyy)
+	y3.Sub(y3, yyyy8)
+	y3.Mod(y3, curve.P)
+
+	// Z3 = (Y1+Z1)^2-YY-XX
 	z3 := new(big.Int).Add(y, z)
 	z3.Mul(z3, z3)
-	z3.Sub(z3, gamma)
-	if z3.Sign() == -1 {
-		z3.Add(z3, curve.P)
-	}
-	z3.Sub(z3, delta)
-	if z3.Sign() == -1 {
-		z3.Add(z3, curve.P)
-	}
+	z3.Sub(z, yy)
+	z3.Sub(z, zz)
 	z3.Mod(z3, curve.P)
 
-	beta.Lsh(beta, 2)
-	beta.Sub(beta, x3)
-	if beta.Sign() == -1 {
-		beta.Add(beta, curve.P)
-	}
-	y3 := alpha.Mul(alpha, beta)
+	// // delta = Z1^3
+	// delta := new(big.Int).Mul(z, z)
+	// delta.Mod(delta, curve.P)
 
-	gamma.Mul(gamma, gamma)
-	gamma.Lsh(gamma, 3)
-	gamma.Mod(gamma, curve.P)
+	// // gamma = Y1^2
+	// gamma := new(big.Int).Mul(y, y)
+	// gamma.Mod(gamma, curve.P)
 
-	y3.Sub(y3, gamma)
-	if y3.Sign() == -1 {
-		y3.Add(y3, curve.P)
-	}
-	y3.Mod(y3, curve.P)
+	// // alpha = 3 (X1-delta) (X1+delta)
+	// alpha := new(big.Int).Sub(x, delta)
+	// if alpha.Sign() == -1 {
+	// 	alpha.Add(alpha, curve.P)
+	// }
+	// alpha2 := new(big.Int).Add(x, delta)
+	// alpha.Mul(alpha, alpha2)
+	// alpha2.Set(alpha)
+	// alpha.Lsh(alpha, 1)
+	// alpha.Add(alpha, alpha2)
+
+	// // beta = X1 gamma
+	// beta := alpha2.Mul(x, gamma)
+
+	// // X3 = alpha^2-8 beta
+	// x3 := new(big.Int).Mul(alpha, alpha)
+	// beta8 := new(big.Int).Lsh(beta, 3)
+	// x3.Sub(x3, beta8)
+	// for x3.Sign() == -1 {
+	// 	x3.Add(x3, curve.P)
+	// }
+	// x3.Mod(x3, curve.P)
+
+	// // (Y1 + Z1)^2-gamma-delta
+	// z3 := new(big.Int).Add(y, z)
+	// z3.Mul(z3, z3)
+	// z3.Sub(z3, gamma)
+	// if z3.Sign() == -1 {
+	// 	z3.Add(z3, curve.P)
+	// }
+	// z3.Sub(z3, delta)
+	// if z3.Sign() == -1 {
+	// 	z3.Add(z3, curve.P)
+	// }
+	// z3.Mod(z3, curve.P)
+
+	// beta.Lsh(beta, 2)
+	// beta.Sub(beta, x3)
+	// if beta.Sign() == -1 {
+	// 	beta.Add(beta, curve.P)
+	// }
+
+	// // Y3 = alpha (4 beta-X3)-8 gamma^2
+	// y3 := alpha.Mul(alpha, beta)
+
+	// gamma.Mul(gamma, gamma)
+	// gamma.Lsh(gamma, 3)
+	// gamma.Mod(gamma, curve.P)
+
+	// y3.Sub(y3, gamma)
+	// if y3.Sign() == -1 {
+	// 	y3.Add(y3, curve.P)
+	// }
+	// y3.Mod(y3, curve.P)
 
 	return x3, y3, z3
 }
 
+// ScalarMult multiplies the point (Bx, By) by the scalar k using repeated doubling.
 func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
 	Bz := new(big.Int).SetInt64(1)
 	x, y, z := new(big.Int), new(big.Int), new(big.Int)
@@ -266,6 +337,7 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
 	return curve.affineFromJacobian(x, y, z)
 }
 
+// ScalarBaseMult multiplies the base point by the scalar k using repeated doubling.
 func (curve *CurveParams) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 	return curve.ScalarMult(curve.Gx, curve.Gy, k)
 }
