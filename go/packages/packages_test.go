@@ -15,7 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -47,9 +46,6 @@ var usesOldGolist = false
 //   - test typechecking of generated test main and cgo.
 
 func TestLoadImportsGraph(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skipf("TODO: skipping on non-Linux; fix this test to run everywhere. golang.org/issue/26387")
-	}
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go":             `package a; const A = 1`,
 		"src/b/b.go":             `package b; import ("a"; _ "errors"); var B = a.A`,
@@ -390,12 +386,12 @@ package b`,
 		pattern        string
 		tags           []string
 		wantSrcs       string
-		wantImportSrcs map[string]string
+		wantImportSrcs string
 	}{
-		{`a`, []string{}, "a.go", map[string]string{"a/b": "a.go"}},
-		{`a`, []string{`-tags=tag`}, "a.go b.go c.go", map[string]string{"a/b": "a.go b.go"}},
-		{`a`, []string{`-tags=tag2`}, "a.go c.go", map[string]string{"a/b": "a.go"}},
-		{`a`, []string{`-tags=tag tag2`}, "a.go b.go c.go d.go", map[string]string{"a/b": "a.go b.go"}},
+		{`a`, []string{}, "a.go", "a.go"},
+		{`a`, []string{`-tags=tag`}, "a.go b.go c.go", "a.go b.go"},
+		{`a`, []string{`-tags=tag2`}, "a.go c.go", "a.go"},
+		{`a`, []string{`-tags=tag tag2`}, "a.go b.go c.go d.go", "a.go b.go"},
 	} {
 		cfg := &packages.Config{
 			Mode:  packages.LoadFiles,
@@ -406,19 +402,22 @@ package b`,
 		initial, err := packages.Load(cfg, test.pattern)
 		if err != nil {
 			t.Error(err)
+			continue
 		}
 		if len(initial) != 1 {
-			t.Fatalf("test tags %v: pattern %s, expected 1 package, got %d packages.", test.tags, test.pattern, len(initial))
+			t.Errorf("test tags %v: pattern %s, expected 1 package, got %d packages.", test.tags, test.pattern, len(initial))
+			continue
 		}
 		pkg := initial[0]
 		if srcs := strings.Join(srcs(pkg), " "); srcs != test.wantSrcs {
 			t.Errorf("test tags %v: srcs of package %s = [%s], want [%s]", test.tags, test.pattern, srcs, test.wantSrcs)
 		}
 		for path, ipkg := range pkg.Imports {
-			if srcs := strings.Join(srcs(ipkg), " "); srcs != test.wantImportSrcs[path] {
-				t.Errorf("build tags %v: srcs of imported package %s = [%s], want [%s]", test.tags, path, srcs, test.wantImportSrcs[path])
+			if srcs := strings.Join(srcs(ipkg), " "); srcs != test.wantImportSrcs {
+				t.Errorf("build tags %v: srcs of imported package %s = [%s], want [%s]", test.tags, path, srcs, test.wantImportSrcs)
 			}
 		}
+
 	}
 }
 
@@ -433,7 +432,7 @@ func (ec *errCollector) add(err error) {
 	ec.mu.Unlock()
 }
 
-func TestTypeCheckOK(t *testing.T) {
+func TestLoadSyntaxOK(t *testing.T) {
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go": `package a; import "b"; const A = "a" + b.B`,
 		"src/b/b.go": `package b; import "c"; const B = "b" + c.C`,
@@ -519,7 +518,7 @@ func TestTypeCheckOK(t *testing.T) {
 	}
 }
 
-func TestTypeCheckError(t *testing.T) {
+func TestLoadSyntaxError(t *testing.T) {
 	// A type error in a lower-level package (e) prevents go list
 	// from producing export data for all packages that depend on it
 	// [a-e]. Export data is only required for package d, so package
@@ -610,7 +609,7 @@ func TestTypeCheckError(t *testing.T) {
 
 // This function tests use of the ParseFile hook to supply
 // alternative file contents to the parser and type-checker.
-func TestWholeProgramOverlay(t *testing.T) {
+func TestLoadAllSyntaxOverlay(t *testing.T) {
 	type M = map[string]string
 
 	tmp, cleanup := makeTree(t, M{
@@ -670,7 +669,7 @@ func TestWholeProgramOverlay(t *testing.T) {
 	}
 }
 
-func TestWholeProgramImportErrors(t *testing.T) {
+func TestLoadAllSyntaxImportErrors(t *testing.T) {
 	// TODO(matloob): Remove this once go list -e -compiled is fixed. See golang.org/issue/26755
 	t.Skip("go list -compiled -e fails with non-zero exit status for empty packages")
 
@@ -819,7 +818,6 @@ func TestAbsoluteFilenames(t *testing.T) {
 			continue
 		}
 
-		// Don't check which files are included with the legacy loader (breaks with .s files).
 		if got := strings.Join(srcs(pkgs[0]), " "); got != test.want {
 			t.Errorf("in package %s, got %s, want %s", test.pattern, got, test.want)
 		}
@@ -909,8 +907,9 @@ func errorMessages(errors []error) []string {
 func srcs(p *packages.Package) (basenames []string) {
 	files := append(p.GoFiles, p.OtherFiles...)
 	for i, src := range files {
-		// TODO(suzmue): make cache names predictable on all os.
-		if strings.Contains(src, ".cache/go-build") {
+		// The default location for cache data is a subdirectory named go-build
+		// in the standard user cache directory for the current operating system.
+		if strings.Contains(filepath.ToSlash(src), "/go-build/") {
 			src = fmt.Sprintf("%d.go", i) // make cache names predictable
 		} else {
 			src = filepath.Base(src)

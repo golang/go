@@ -149,7 +149,7 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 		return roots, result, nil
 	}
 
-	buf, err := golist(ctx, cfg, golistargs_fallback(cfg, deps))
+	buf, err := golist(ctx, cfg, golistArgsFallback(cfg, deps))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -169,7 +169,7 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 
 // getDeps runs an initial go list to determine all the dependency packages.
 func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
-	buf, err := golist(ctx, cfg, golistargs_fallback(cfg, words))
+	buf, err := golist(ctx, cfg, golistArgsFallback(cfg, words))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -203,7 +203,7 @@ func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet
 	}
 	// Get the deps of the packages imported by tests.
 	if len(testImports) > 0 {
-		buf, err = golist(ctx, cfg, golistargs_fallback(cfg, testImports))
+		buf, err = golist(ctx, cfg, golistArgsFallback(cfg, testImports))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -230,7 +230,7 @@ func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet
 	return originalSet, deps, nil
 }
 
-func golistargs_fallback(cfg *raw.Config, words []string) []string {
+func golistArgsFallback(cfg *raw.Config, words []string) []string {
 	fullargs := []string{"list", "-e", "-json"}
 	fullargs = append(fullargs, cfg.Flags...)
 	fullargs = append(fullargs, "--")
