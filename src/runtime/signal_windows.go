@@ -27,7 +27,7 @@ func lastcontinuetramp()
 
 func initExceptionHandler() {
 	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
-	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 {
+	if _AddVectoredContinueHandler == nil || GOARCH == "386" {
 		// use SetUnhandledExceptionFilter for windows-386 or
 		// if VectoredContinueHandler is unavailable.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
@@ -177,9 +177,15 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	}
 	print("\n")
 
+	// TODO(jordanrh1): This may be needed for 386/AMD64 as well.
+	if GOARCH == "arm" {
+		_g_.m.throwing = 1
+		_g_.m.caughtsig.set(gp)
+	}
+
 	level, _, docrash := gotraceback()
 	if level > 0 {
-		tracebacktrap(r.ip(), r.sp(), 0, gp)
+		tracebacktrap(r.ip(), r.sp(), r.lr(), gp)
 		tracebackothers(gp)
 		dumpregs(r)
 	}

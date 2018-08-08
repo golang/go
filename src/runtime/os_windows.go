@@ -43,6 +43,7 @@ const (
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._TlsAlloc TlsAlloc%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
@@ -91,6 +92,7 @@ var (
 	_SetWaitableTimer,
 	_SuspendThread,
 	_SwitchToThread,
+	_TlsAlloc,
 	_VirtualAlloc,
 	_VirtualFree,
 	_VirtualQuery,
@@ -860,14 +862,34 @@ func profilem(mp *m) {
 	var r *context
 	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
 
-	tls := &mp.tls[0]
-	gp := *((**g)(unsafe.Pointer(tls)))
-
 	// align Context to 16 bytes
 	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
 	r.contextflags = _CONTEXT_CONTROL
 	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
-	sigprof(r.ip(), r.sp(), 0, gp, mp)
+
+	var gp *g
+	switch GOARCH {
+	default:
+		panic("unsupported architecture")
+	case "arm":
+		// TODO(jordanrh1): this is incorrect when Go is executing
+		// on the system or signal stacks because curg returns
+		// the current user g. The true g is stored in thread
+		// local storage, which we cannot access from another CPU.
+		// We cannot pull R10 from the thread context because
+		// it might be executing C code, in which case R10
+		// would not be g.
+		gp = mp.curg
+	case "386", "amd64":
+		tls := &mp.tls[0]
+		gp = *((**g)(unsafe.Pointer(tls)))
+	}
+
+	if gp == nil {
+		sigprofNonGoPC(r.ip())
+	} else {
+		sigprof(r.ip(), r.sp(), 0, gp, mp)
+	}
 }
 
 func profileloop1(param uintptr) uint32 {
