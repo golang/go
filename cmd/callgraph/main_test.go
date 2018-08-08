@@ -11,25 +11,23 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/build"
-	"reflect"
-	"sort"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestCallgraph(t *testing.T) {
-	ctxt := build.Default // copy
-	ctxt.GOPATH = "testdata"
-
-	const format = "{{.Caller}} --> {{.Callee}}"
+	gopath, err := filepath.Abs("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, test := range []struct {
-		algo, format string
-		tests        bool
-		want         []string
+		algo  string
+		tests bool
+		want  []string
 	}{
-		{"rta", format, false, []string{
+		{"rta", false, []string{
 			// rta imprecisely shows cross product of {main,main2} x {C,D}
 			`pkg.main --> (pkg.C).f`,
 			`pkg.main --> (pkg.D).f`,
@@ -37,7 +35,7 @@ func TestCallgraph(t *testing.T) {
 			`pkg.main2 --> (pkg.C).f`,
 			`pkg.main2 --> (pkg.D).f`,
 		}},
-		{"pta", format, false, []string{
+		{"pta", false, []string{
 			// pta distinguishes main->C, main2->D.  Also has a root node.
 			`<root> --> pkg.init`,
 			`<root> --> pkg.main`,
@@ -45,37 +43,42 @@ func TestCallgraph(t *testing.T) {
 			`pkg.main --> pkg.main2`,
 			`pkg.main2 --> (pkg.D).f`,
 		}},
-		// tests: main is not called.
-		{"rta", format, true, []string{
-			`pkg$testmain.init --> pkg.init`,
+		// tests: both the package's main and the test's main are called.
+		// The callgraph includes all the guts of the "testing" package.
+		{"rta", true, []string{
+			`pkg.test.main --> testing.MainStart`,
+			`testing.runExample --> pkg.Example`,
 			`pkg.Example --> (pkg.C).f`,
+			`pkg.main --> (pkg.C).f`,
 		}},
-		{"pta", format, true, []string{
-			`<root> --> pkg$testmain.init`,
-			`<root> --> pkg.Example`,
-			`pkg$testmain.init --> pkg.init`,
+		{"pta", true, []string{
+			`<root> --> pkg.test.main`,
+			`<root> --> pkg.main`,
+			`pkg.test.main --> testing.MainStart`,
+			`testing.runExample --> pkg.Example`,
 			`pkg.Example --> (pkg.C).f`,
+			`pkg.main --> (pkg.C).f`,
 		}},
 	} {
+		const format = "{{.Caller}} --> {{.Callee}}"
 		stdout = new(bytes.Buffer)
-		if err := doCallgraph(&ctxt, test.algo, test.format, test.tests, []string{"pkg"}); err != nil {
+		if err := doCallgraph("testdata/src", gopath, test.algo, format, test.tests, []string{"pkg"}); err != nil {
 			t.Error(err)
 			continue
 		}
 
-		got := sortedLines(fmt.Sprint(stdout))
-		if !reflect.DeepEqual(got, test.want) {
-			t.Errorf("callgraph(%q, %q, %t):\ngot:\n%s\nwant:\n%s",
-				test.algo, test.format, test.tests,
-				strings.Join(got, "\n"),
-				strings.Join(test.want, "\n"))
+		edges := make(map[string]bool)
+		for _, line := range strings.Split(fmt.Sprint(stdout), "\n") {
+			edges[line] = true
+		}
+		for _, edge := range test.want {
+			if !edges[edge] {
+				t.Errorf("callgraph(%q, %t): missing edge: %s",
+					test.algo, test.tests, edge)
+			}
+		}
+		if t.Failed() {
+			t.Log("got:\n", stdout)
 		}
 	}
-}
-
-func sortedLines(s string) []string {
-	s = strings.TrimSpace(s)
-	lines := strings.Split(s, "\n")
-	sort.Strings(lines)
-	return lines
 }
