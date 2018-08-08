@@ -42,16 +42,16 @@ const (
 	LoadImports
 
 	// LoadTypes adds type information for the package's exported symbols.
-	// Package fields added: Types, IllTyped.
+	// Package fields added: Types, Fset, IllTyped.
 	LoadTypes
 
 	// LoadSyntax adds typed syntax trees for the packages matching the patterns.
-	// Package fields added: Syntax, TypesInfo, Fset, for direct pattern matches only.
+	// Package fields added: Syntax, TypesInfo, for direct pattern matches only.
 	LoadSyntax
 
 	// LoadAllSyntax adds typed syntax trees for the packages matching the patterns
 	// and all dependencies.
-	// Package fields added: Syntax, TypesInfo, Fset, for all packages in import graph.
+	// Package fields added: Syntax, TypesInfo, for all packages in import graph.
 	LoadAllSyntax
 )
 
@@ -95,7 +95,8 @@ type Config struct {
 	// TODO(rsc): What happens in the Metadata loader? Currently nothing.
 	Error func(error)
 
-	// Fset is the token.FileSet to use when parsing loaded source files.
+	// Fset is the token.FileSet to use when parsing source files or
+	// type information provided by the build system.
 	// If Fset is nil, the loader will create one.
 	Fset *token.FileSet
 
@@ -199,7 +200,15 @@ type Package struct {
 
 	// Types is the type information for the package.
 	// Modes LoadTypes and above set this field for all packages.
+	//
+	// TODO(adonovan): all packages? In Types mode this entails
+	// asymptotically more export data processing than is required
+	// to load the requested packages. Is that what we want?
 	Types *types.Package
+
+	// Fset provides position information for Types, TypesInfo, and Syntax.
+	// Modes LoadTypes and above set this for field for all packages.
+	Fset *token.FileSet
 
 	// IllTyped indicates whether the package has any type errors.
 	// Modes LoadTypes and above set this field for all packages.
@@ -214,11 +223,6 @@ type Package struct {
 	// TypesInfo is the type-checking results for the package's syntax trees.
 	// It is set only when Syntax is set.
 	TypesInfo *types.Info
-
-	// Fset is the token.FileSet for the package's syntax trees listed in Syntax.
-	// It is set only when Syntax is set.
-	// All packages loaded together share a single Fset.
-	Fset *token.FileSet
 }
 
 // loaderPackage augments Package with state used during the loading phase
@@ -250,16 +254,19 @@ func newLoader(cfg *Config) *loader {
 	if ld.Context == nil {
 		ld.Context = context.Background()
 	}
-	// Determine directory to be used for relative contains: paths.
 	if ld.Dir == "" {
 		if cwd, err := os.Getwd(); err == nil {
 			ld.Dir = cwd
 		}
 	}
-	if ld.Mode >= LoadSyntax {
+
+	if ld.Mode >= LoadTypes {
 		if ld.Fset == nil {
 			ld.Fset = token.NewFileSet()
 		}
+
+		// Error and ParseFile are required even in LoadTypes mode
+		// because we load source if export data is missing.
 
 		if ld.Error == nil {
 			ld.Error = func(e error) {
