@@ -219,19 +219,20 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	s.Mul(s, s)
 	s.Sub(s, xx)
 	s.Sub(s, yyyy)
-	s.Mul(s, big.NewInt(2))
+	s.Lsh(s, 1) // multiplication by 2
 	s.Mod(s, curve.P)
 
-	// M = 3 XX+a ZZ^2
-	m := new(big.Int).Add(xx, curve.A)
+	// M = (3 XX) + (a ZZ^2)
+	m := new(big.Int).Lsh(xx, 1)
+	m.Add(m, xx) // multiplication by 3
 	m2 := new(big.Int).Mul(zz, zz)
-	m.Mul(m, big.NewInt(3))
-	m.Mul(m, m2)
+	m2.Mul(curve.A, m2)
+	m.Add(m, m2)
 	m.Mod(m, curve.P)
 
 	// T = M^2 - 2S
 	t := new(big.Int).Mul(m, m)
-	t2 := new(big.Int).Mul(big.NewInt(2), s)
+	t2 := new(big.Int).Lsh(s, 1)
 	t.Sub(t, t2)
 	t.Mod(t, curve.P)
 
@@ -239,10 +240,10 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	x3 := new(big.Int).Set(t)
 	x3.Mod(x3, curve.P)
 
-	// Y3 = M (S-T)- 8YYYY
+	// Y3 = M (S-T) - 8YYYY
 	y3 := new(big.Int).Sub(s, t)
 	y3.Mul(y3, m)
-	yyyy8 := new(big.Int).Mul(big.NewInt(8), yyyy)
+	yyyy8 := new(big.Int).Lsh(yyyy, 3)
 	y3.Sub(y3, yyyy8)
 	y3.Mod(y3, curve.P)
 
@@ -261,7 +262,7 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	// gamma := new(big.Int).Mul(y, y)
 	// gamma.Mod(gamma, curve.P)
 
-	// // alpha = 3 (X1-delta) (X1+delta)
+	// alpha = 3 (X1-delta) (X1+delta)
 	// alpha := new(big.Int).Sub(x, delta)
 	// if alpha.Sign() == -1 {
 	// 	alpha.Add(alpha, curve.P)
