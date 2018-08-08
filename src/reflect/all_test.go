@@ -5019,6 +5019,18 @@ func TestStructOfWithInterface(t *testing.T) {
 	})
 }
 
+func TestStructOfTooManyFields(t *testing.T) {
+	// Bug Fix: #25402 - this should not panic
+	tt := StructOf([]StructField{
+		{Name: "Time", Type: TypeOf(time.Time{}), Anonymous: true},
+	})
+
+	_, present := tt.MethodByName("After")
+	if present != true {
+		t.Errorf("Expected method `After` to be found")
+	}
+}
+
 func TestChanOf(t *testing.T) {
 	// check construction and use of type not in binary
 	type T string
