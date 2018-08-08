@@ -218,7 +218,13 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	s := new(big.Int).Add(x, yy)
 	s.Mul(s, s)
 	s.Sub(s, xx)
+	if s.Sign() == -1 {
+		s.Add(s, curve.P)
+	}
 	s.Sub(s, yyyy)
+	if s.Sign() == -1 {
+		s.Add(s, curve.P)
+	}
 	s.Lsh(s, 1) // multiplication by 2
 	s.Mod(s, curve.P)
 
@@ -234,27 +240,42 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	t := new(big.Int).Mul(m, m)
 	t2 := new(big.Int).Lsh(s, 1)
 	t.Sub(t, t2)
+	if t.Sign() == -1 {
+		t.Add(t, curve.P)
+	}
 	t.Mod(t, curve.P)
 
 	// X3 = T
 	x3 := new(big.Int).Set(t)
-	x3.Mod(x3, curve.P)
+	// x3.Mod(x3, curve.P)
 
 	// Y3 = M (S-T) - 8YYYY
 	y3 := new(big.Int).Sub(s, t)
+	if y3.Sign() == -1 {
+		y3.Add(y3, curve.P)
+	}
 	y3.Mul(y3, m)
 	yyyy8 := new(big.Int).Lsh(yyyy, 3)
 	y3.Sub(y3, yyyy8)
+	if y3.Sign() == -1 {
+		y3.Add(y3, curve.P)
+	}
 	y3.Mod(y3, curve.P)
 
-	// Z3 = (Y1+Z1)^2-YY-XX
+	// Z3 = (Y1+Z1)^2-YY-ZZ
 	z3 := new(big.Int).Add(y, z)
 	z3.Mul(z3, z3)
-	z3.Sub(z, yy)
-	z3.Sub(z, zz)
+	z3.Sub(z3, yy)
+	if z3.Sign() == -1 {
+		z3.Add(z3, curve.P)
+	}
+	z3.Sub(z3, zz)
+	if z3.Sign() == -1 {
+		z3.Add(z3, curve.P)
+	}
 	z3.Mod(z3, curve.P)
 
-	// // delta = Z1^3
+	// // delta = Z1^2
 	// delta := new(big.Int).Mul(z, z)
 	// delta.Mod(delta, curve.P)
 
@@ -262,7 +283,7 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	// gamma := new(big.Int).Mul(y, y)
 	// gamma.Mod(gamma, curve.P)
 
-	// alpha = 3 (X1-delta) (X1+delta)
+	// // alpha = 3(X1 - delta)(X1 + delta)
 	// alpha := new(big.Int).Sub(x, delta)
 	// if alpha.Sign() == -1 {
 	// 	alpha.Add(alpha, curve.P)
@@ -298,13 +319,13 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	// }
 	// z3.Mod(z3, curve.P)
 
+	// // Y3 = alpha (4 beta-X3)-8 gamma^2
 	// beta.Lsh(beta, 2)
 	// beta.Sub(beta, x3)
 	// if beta.Sign() == -1 {
 	// 	beta.Add(beta, curve.P)
 	// }
 
-	// // Y3 = alpha (4 beta-X3)-8 gamma^2
 	// y3 := alpha.Mul(alpha, beta)
 
 	// gamma.Mul(gamma, gamma)
