@@ -197,24 +197,18 @@ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 // returns its double, also in Jacobian form.
 func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, *big.Int) {
 	// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
-
-	// XX = X1^2
 	xx := new(big.Int).Mul(x, x)
 	xx.Mod(xx, curve.P)
 
-	// YY = Y1^2
 	yy := new(big.Int).Mul(y, y)
 	yy.Mod(yy, curve.P)
 
-	// YYYY = YY^2
 	yyyy := new(big.Int).Mul(yy, yy)
 	yyyy.Mod(yyyy, curve.P)
 
-	// ZZ = Z1^2
 	zz := new(big.Int).Mul(z, z)
 	zz.Mod(zz, curve.P)
 
-	// S = 2 ((X1+YY)^2-XX-YYYY)
 	s := new(big.Int).Add(x, yy)
 	s.Mul(s, s)
 	s.Sub(s, xx)
@@ -225,18 +219,16 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	if s.Sign() == -1 {
 		s.Add(s, curve.P)
 	}
-	s.Lsh(s, 1) // multiplication by 2
+	s.Lsh(s, 1)
 	s.Mod(s, curve.P)
 
-	// M = (3 XX) + (a ZZ^2)
 	m := new(big.Int).Lsh(xx, 1)
-	m.Add(m, xx) // multiplication by 3
+	m.Add(m, xx)
 	m2 := new(big.Int).Mul(zz, zz)
 	m2.Mul(curve.A, m2)
 	m.Add(m, m2)
 	m.Mod(m, curve.P)
 
-	// T = M^2 - 2S
 	t := new(big.Int).Mul(m, m)
 	t2 := new(big.Int).Lsh(s, 1)
 	t.Sub(t, t2)
@@ -245,11 +237,8 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	}
 	t.Mod(t, curve.P)
 
-	// X3 = T
 	x3 := new(big.Int).Set(t)
-	// x3.Mod(x3, curve.P)
 
-	// Y3 = M (S-T) - 8YYYY
 	y3 := new(big.Int).Sub(s, t)
 	if y3.Sign() == -1 {
 		y3.Add(y3, curve.P)
@@ -262,7 +251,6 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	}
 	y3.Mod(y3, curve.P)
 
-	// Z3 = (Y1+Z1)^2-YY-ZZ
 	z3 := new(big.Int).Add(y, z)
 	z3.Mul(z3, z3)
 	z3.Sub(z3, yy)
@@ -274,69 +262,6 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 		z3.Add(z3, curve.P)
 	}
 	z3.Mod(z3, curve.P)
-
-	// // delta = Z1^2
-	// delta := new(big.Int).Mul(z, z)
-	// delta.Mod(delta, curve.P)
-
-	// // gamma = Y1^2
-	// gamma := new(big.Int).Mul(y, y)
-	// gamma.Mod(gamma, curve.P)
-
-	// // alpha = 3(X1 - delta)(X1 + delta)
-	// alpha := new(big.Int).Sub(x, delta)
-	// if alpha.Sign() == -1 {
-	// 	alpha.Add(alpha, curve.P)
-	// }
-	// alpha2 := new(big.Int).Add(x, delta)
-	// alpha.Mul(alpha, alpha2)
-	// alpha2.Set(alpha)
-	// alpha.Lsh(alpha, 1)
-	// alpha.Add(alpha, alpha2)
-
-	// // beta = X1 gamma
-	// beta := alpha2.Mul(x, gamma)
-
-	// // X3 = alpha^2-8 beta
-	// x3 := new(big.Int).Mul(alpha, alpha)
-	// beta8 := new(big.Int).Lsh(beta, 3)
-	// x3.Sub(x3, beta8)
-	// for x3.Sign() == -1 {
-	// 	x3.Add(x3, curve.P)
-	// }
-	// x3.Mod(x3, curve.P)
-
-	// // (Y1 + Z1)^2-gamma-delta
-	// z3 := new(big.Int).Add(y, z)
-	// z3.Mul(z3, z3)
-	// z3.Sub(z3, gamma)
-	// if z3.Sign() == -1 {
-	// 	z3.Add(z3, curve.P)
-	// }
-	// z3.Sub(z3, delta)
-	// if z3.Sign() == -1 {
-	// 	z3.Add(z3, curve.P)
-	// }
-	// z3.Mod(z3, curve.P)
-
-	// // Y3 = alpha (4 beta-X3)-8 gamma^2
-	// beta.Lsh(beta, 2)
-	// beta.Sub(beta, x3)
-	// if beta.Sign() == -1 {
-	// 	beta.Add(beta, curve.P)
-	// }
-
-	// y3 := alpha.Mul(alpha, beta)
-
-	// gamma.Mul(gamma, gamma)
-	// gamma.Lsh(gamma, 3)
-	// gamma.Mod(gamma, curve.P)
-
-	// y3.Sub(y3, gamma)
-	// if y3.Sign() == -1 {
-	// 	y3.Add(y3, curve.P)
-	// }
-	// y3.Mod(y3, curve.P)
 
 	return x3, y3, z3
 }
