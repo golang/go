@@ -99,7 +99,7 @@ var redirects = map[string]string{
 	"/issues":     "https://github.com/golang/go/issues",
 	"/issues/new": "https://github.com/golang/go/issues/new",
 	"/play":       "http://play.golang.org",
-	"/design":     "https://github.com/golang/proposal/tree/master/design",
+	"/design":     "https://go.googlesource.com/proposal/+/master/design",
 
 	// In Go 1.2 the references page is part of /doc/.
 	"/ref": "/doc/#references",
@@ -115,7 +115,7 @@ var redirects = map[string]string{
 	"/tour":  "http://tour.golang.org",
 	"/wiki":  "https://github.com/golang/go/wiki",
 
-	"/doc/articles/c_go_cgo.html":                    "/blog/c-go-cgo",
+	"/doc/articles/c_go_cgo.html": "/blog/c-go-cgo",
 	"/doc/articles/concurrency_patterns.html":        "/blog/go-concurrency-patterns-timing-out-and",
 	"/doc/articles/defer_panic_recover.html":         "/blog/defer-panic-and-recover",
 	"/doc/articles/error_handling.html":              "/blog/error-handling-and-go",
@@ -245,6 +245,6 @@ func designHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := r.URL.Path[len(prefix):]
-	target := "https://github.com/golang/proposal/blob/master/design/" + name + ".md"
+	target := "https://go.googlesource.com/proposal/+/master/design/" + name + ".md"
 	http.Redirect(w, r, target, http.StatusFound)
 }
