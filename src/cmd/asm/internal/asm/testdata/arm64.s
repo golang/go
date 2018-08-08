@@ -572,6 +572,14 @@ again:
 	SWPH	R5, (RSP), R7                        // e7832578
 	SWPB	R5, (R6), R7                         // c7802538
 	SWPB	R5, (RSP), R7                        // e7832538
+	SWPALD	R5, (R6), R7                         // c780e5f8
+	SWPALD	R5, (RSP), R7                        // e783e5f8
+	SWPALW	R5, (R6), R7                         // c780e5b8
+	SWPALW	R5, (RSP), R7                        // e783e5b8
+	SWPALH	R5, (R6), R7                         // c780e578
+	SWPALH	R5, (RSP), R7                        // e783e578
+	SWPALB	R5, (R6), R7                         // c780e538
+	SWPALB	R5, (RSP), R7                        // e783e538
 	LDADDD	R5, (R6), R7                         // c70025f8
 	LDADDD	R5, (RSP), R7                        // e70325f8
 	LDADDW	R5, (R6), R7                         // c70025b8
