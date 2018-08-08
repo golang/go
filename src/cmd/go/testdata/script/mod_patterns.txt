@@ -1,0 +1,77 @@
+env GO111MODULE=on
+
+cd m
+
+# 'go list all' should list all of the packages used (directly or indirectly) by
+# the packages in the main module, but no other packages from the standard
+# library or active modules.
+go list all
+cmp stdout all.txt
+
+# 'go list ...' should list packages in all active modules and the standard library.
+# BUG: It currently omits the standard library (https://golang.org/issue/26905).
+go list ...
+cmp stdout dots.txt
+
+# 'go list example.com/m/...' should list packages in all modules that begin with
+# "example.com/m/".
+go list example.com/m/...
+cmp stdout prefix.txt
+
+# 'go list ./...' should list only packages in the current module, not other active modules.
+go list ./...
+cmp stdout in-mod.txt
+
+
+-- m/go.mod --
+module example.com/m
+
+require example.com/unused v0.0.0 // indirect
+replace example.com/unused => ../unused
+
+require example.com/m/nested v0.0.0 // indirect
+replace example.com/m/nested => ../nested
+
+-- m/useC/useC.go --
+package useC
+import _ "C" // "C" is a pseudo-package, not an actual one
+-- m/useunicode/useunicode.go --
+package useunicode
+import _ "unicode"
+-- m/useunsafe/useunsafe.go --
+package useunsafe
+import _ "unsafe"
+
+-- unused/go.mod --
+module example.com/unused
+-- unused/useerrors/useerrors.go --
+package useerrors
+import _ "errors"
+
+-- nested/go.mod --
+module example.com/m/nested
+-- nested/useencoding/useencoding.go --
+package useencoding
+import _ "encoding"
+
+-- m/all.txt --
+example.com/m/useC
+example.com/m/useunicode
+example.com/m/useunsafe
+unicode
+unsafe
+-- m/dots.txt --
+example.com/m/useC
+example.com/m/useunicode
+example.com/m/useunsafe
+example.com/m/nested/useencoding
+example.com/unused/useerrors
+-- m/prefix.txt --
+example.com/m/useC
+example.com/m/useunicode
+example.com/m/useunsafe
+example.com/m/nested/useencoding
+-- m/in-mod.txt --
+example.com/m/useC
+example.com/m/useunicode
+example.com/m/useunsafe
