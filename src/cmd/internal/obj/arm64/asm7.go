@@ -2008,9 +2008,13 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AMOVZW, t)
 
 		case ASWPD:
+			oprangeset(ASWPALD, t)
 			oprangeset(ASWPB, t)
 			oprangeset(ASWPH, t)
 			oprangeset(ASWPW, t)
+			oprangeset(ASWPALB, t)
+			oprangeset(ASWPALH, t)
+			oprangeset(ASWPALW, t)
 			oprangeset(ALDADDALD, t)
 			oprangeset(ALDADDALW, t)
 			oprangeset(ALDADDB, t)
@@ -3383,19 +3387,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := p.RegTo2
 		rb := p.To.Reg
 		switch p.As {
-		case ASWPD, ALDADDALD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
+		case ASWPD, ASWPALD, ALDADDALD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
 			o1 = 3 << 30
-		case ASWPW, ALDADDALW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
+		case ASWPW, ASWPALW, ALDADDALW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
 			o1 = 2 << 30
-		case ASWPH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
+		case ASWPH, ASWPALH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
 			o1 = 1 << 30
-		case ASWPB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
+		case ASWPB, ASWPALB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
 			o1 = 0 << 30
 		default:
 			c.ctxt.Diag("illegal instruction: %v\n", p)
 		}
 		switch p.As {
-		case ASWPD, ASWPW, ASWPH, ASWPB:
+		case ASWPD, ASWPW, ASWPH, ASWPB, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
 			o1 |= 0x20 << 10
 		case ALDADDALD, ALDADDALW, ALDADDD, ALDADDW, ALDADDH, ALDADDB:
 			o1 |= 0x00 << 10
@@ -3407,7 +3411,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 0x0c << 10
 		}
 		switch p.As {
-		case ALDADDALD, ALDADDALW:
+		case ALDADDALD, ALDADDALW, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
 			o1 |= 3 << 22
 		}
 		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
