@@ -18,8 +18,9 @@ import (
 )
 
 type dumpTest struct {
-	Req  http.Request
-	Body interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
+	Req               http.Request
+	Body              interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
+	MustReadReqString string      // if set will call mustReadRequest and assign Req field
 
 	WantDump    string
 	WantDumpOut string
@@ -158,6 +159,10 @@ var dumpTests = []dumpTest{
 			"Host: passport.myhost.com\r\n" +
 			"Content-Length: 3\r\n" +
 			"\r\nkey1=name1&key2=name2"),
+		MustReadReqString: "POST /v2/api/?login HTTP/1.1\r\n" +
+			"Host: passport.myhost.com\r\n" +
+			"Content-Length: 3\r\n" +
+			"\r\nkey1=name1&key2=name2",
 		WantDump: "POST /v2/api/?login HTTP/1.1\r\n" +
 			"Host: passport.myhost.com\r\n" +
 			"Content-Length: 3\r\n" +
@@ -215,6 +220,9 @@ func TestDumpRequest(t *testing.T) {
 		}
 		if tt.Req.Header == nil {
 			tt.Req.Header = make(http.Header)
+		}
+		if tt.MustReadReqString != "" {
+			tt.Req = *mustReadRequest(tt.MustReadReqString)
 		}
 
 		if tt.WantDump != "" {
