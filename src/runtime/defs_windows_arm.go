@@ -1,5 +1,6 @@
-// created by cgo -cdefs and then converted to Go
-// cgo -cdefs defs_windows.go
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 package runtime
 
@@ -61,69 +62,69 @@ type exceptionrecord struct {
 	exceptioninformation [15]uint32
 }
 
-type floatingsavearea struct {
-	controlword   uint32
-	statusword    uint32
-	tagword       uint32
-	erroroffset   uint32
-	errorselector uint32
-	dataoffset    uint32
-	dataselector  uint32
-	registerarea  [80]uint8
-	cr0npxstate   uint32
+type neon128 struct {
+	low  uint64
+	high int64
 }
 
 type context struct {
-	contextflags      uint32
-	dr0               uint32
-	dr1               uint32
-	dr2               uint32
-	dr3               uint32
-	dr6               uint32
-	dr7               uint32
-	floatsave         floatingsavearea
-	seggs             uint32
-	segfs             uint32
-	seges             uint32
-	segds             uint32
-	edi               uint32
-	esi               uint32
-	ebx               uint32
-	edx               uint32
-	ecx               uint32
-	eax               uint32
-	ebp               uint32
-	eip               uint32
-	segcs             uint32
-	eflags            uint32
-	esp               uint32
-	segss             uint32
-	extendedregisters [512]uint8
+	contextflags uint32
+	r0           uint32
+	r1           uint32
+	r2           uint32
+	r3           uint32
+	r4           uint32
+	r5           uint32
+	r6           uint32
+	r7           uint32
+	r8           uint32
+	r9           uint32
+	r10          uint32
+	r11          uint32
+	r12          uint32
+
+	spr  uint32
+	lrr  uint32
+	pc   uint32
+	cpsr uint32
+
+	fpscr   uint32
+	padding uint32
+
+	floatNeon [16]neon128
+
+	bvr      [8]uint32
+	bcr      [8]uint32
+	wvr      [1]uint32
+	wcr      [1]uint32
+	padding2 [2]uint32
 }
 
-func (c *context) ip() uintptr { return uintptr(c.eip) }
-func (c *context) sp() uintptr { return uintptr(c.esp) }
+func (c *context) ip() uintptr { return uintptr(c.pc) }
+func (c *context) sp() uintptr { return uintptr(c.spr) }
+func (c *context) lr() uintptr { return uintptr(c.lrr) }
 
-// 386 does not have link register, so this returns 0.
-func (c *context) lr() uintptr { return 0 }
-
-func (c *context) setip(x uintptr) { c.eip = uint32(x) }
-func (c *context) setsp(x uintptr) { c.esp = uint32(x) }
+func (c *context) setip(x uintptr) { c.pc = uint32(x) }
+func (c *context) setsp(x uintptr) { c.spr = uint32(x) }
 
 func dumpregs(r *context) {
-	print("eax     ", hex(r.eax), "\n")
-	print("ebx     ", hex(r.ebx), "\n")
-	print("ecx     ", hex(r.ecx), "\n")
-	print("edx     ", hex(r.edx), "\n")
-	print("edi     ", hex(r.edi), "\n")
-	print("esi     ", hex(r.esi), "\n")
-	print("ebp     ", hex(r.ebp), "\n")
-	print("esp     ", hex(r.esp), "\n")
-	print("eip     ", hex(r.eip), "\n")
-	print("eflags  ", hex(r.eflags), "\n")
-	print("cs      ", hex(r.segcs), "\n")
-	print("fs      ", hex(r.segfs), "\n")
-	print("gs      ", hex(r.seggs), "\n")
+	print("r0   ", hex(r.r0), "\n")
+	print("r1   ", hex(r.r1), "\n")
+	print("r2   ", hex(r.r2), "\n")
+	print("r3   ", hex(r.r3), "\n")
+	print("r4   ", hex(r.r4), "\n")
+	print("r5   ", hex(r.r5), "\n")
+	print("r6   ", hex(r.r6), "\n")
+	print("r7   ", hex(r.r7), "\n")
+	print("r8   ", hex(r.r8), "\n")
+	print("r9   ", hex(r.r9), "\n")
+	print("r10  ", hex(r.r10), "\n")
+	print("r11  ", hex(r.r11), "\n")
+	print("r12  ", hex(r.r12), "\n")
+	print("sp   ", hex(r.spr), "\n")
+	print("lr   ", hex(r.lrr), "\n")
+	print("pc   ", hex(r.pc), "\n")
+	print("cpsr ", hex(r.cpsr), "\n")
 }
 
 type overlapped struct {
@@ -141,4 +142,8 @@ type memoryBasicInformation struct {
 	state             uint32
 	protect           uint32
 	type_             uint32
+}
+
+func stackcheck() {
+	// TODO: not implemented on ARM
 }
