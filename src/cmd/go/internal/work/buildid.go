@@ -18,6 +18,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
+	"cmd/internal/objabi"
 )
 
 // Build IDs
@@ -204,6 +205,11 @@ func (b *Builder) toolID(name string) string {
 	} else {
 		// For a release, the output is like: "compile version go1.9.1". Use the whole line.
 		id = f[2]
+	}
+
+	// For the compiler, add any experiments.
+	if name == "compile" {
+		id += " " + objabi.Expstring()
 	}
 
 	b.id.Lock()
