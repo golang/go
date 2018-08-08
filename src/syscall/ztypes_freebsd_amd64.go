@@ -71,6 +71,8 @@ const (
 	S_IRUSR  = 0x100
 	S_IWUSR  = 0x80
 	S_IXUSR  = 0x40
+	S_IRWXG  = 0x38
+	S_IRWXO  = 0x7
 )
 
 type Stat_t struct {
