@@ -324,20 +324,20 @@ func init() {
 		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
 
 		// register indexed load
-		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD"},   // load 64-bit dword from arg0 + arg1, arg2 = mem.
-		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW"},   // load 32-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVWUloadidx", argLength: 3, reg: gp2load, asm: "MOVWU"}, // load 32-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH"},   // load 16-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU"}, // load 16-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB"},   // load 8-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU"}, // load 8-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},   // load 64-bit dword from arg0 + arg1, arg2 = mem.
+		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},    // load 32-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVWUloadidx", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"}, // load 32-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},    // load 16-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"}, // load 16-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB", typ: "Int8"},     // load 8-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU", typ: "UInt8"},  // load 8-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
 
 		// shifted register indexed load
-		{name: "MOVHloadidx2", argLength: 3, reg: gp2load, asm: "MOVH"},   // load 16-bit half-word from arg0 + arg1*2, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVHUloadidx2", argLength: 3, reg: gp2load, asm: "MOVHU"}, // load 16-bit half-word from arg0 + arg1*2, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVWloadidx4", argLength: 3, reg: gp2load, asm: "MOVW"},   // load 32-bit word from arg0 + arg1*4, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVWUloadidx4", argLength: 3, reg: gp2load, asm: "MOVWU"}, // load 32-bit word from arg0 + arg1*4, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVDloadidx8", argLength: 3, reg: gp2load, asm: "MOVD"},   // load 64-bit double-word from arg0 + arg1*8, arg2 = mem.
+		{name: "MOVHloadidx2", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},    // load 16-bit half-word from arg0 + arg1*2, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVHUloadidx2", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"}, // load 16-bit half-word from arg0 + arg1*2, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVWloadidx4", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},    // load 32-bit word from arg0 + arg1*4, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVWUloadidx4", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"}, // load 32-bit word from arg0 + arg1*4, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVDloadidx8", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},   // load 64-bit double-word from arg0 + arg1*8, arg2 = mem.
 
 		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
