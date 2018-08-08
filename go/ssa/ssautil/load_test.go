@@ -5,14 +5,17 @@
 package ssautil_test
 
 import (
+	"bytes"
 	"go/ast"
 	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
+	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
@@ -46,6 +49,42 @@ func TestBuildPackage(t *testing.T) {
 	if ssapkg.Func("main") == nil {
 		ssapkg.WriteTo(os.Stderr)
 		t.Errorf("ssapkg has no main function")
+	}
+}
+
+func TestPackages(t *testing.T) {
+	cfg := &packages.Config{Mode: packages.LoadSyntax}
+	initial, err := packages.Load(cfg, "bytes")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	prog, pkgs := ssautil.Packages(initial, 0)
+	bytesNewBuffer := pkgs[0].Func("NewBuffer")
+	bytesNewBuffer.Pkg.Build()
+
+	// We'll dump the SSA of bytes.NewBuffer because it is small and stable.
+	out := new(bytes.Buffer)
+	bytesNewBuffer.WriteTo(out)
+
+	// For determinism, sanitize the location.
+	location := prog.Fset.Position(bytesNewBuffer.Pos()).String()
+	got := strings.Replace(out.String(), location, "$GOROOT/src/bytes/buffer.go:1", -1)
+
+	want := `
+# Name: bytes.NewBuffer
+# Package: bytes
+# Location: $GOROOT/src/bytes/buffer.go:1
+func NewBuffer(buf []byte) *Buffer:
+0:                                                                entry P:0 S:0
+	t0 = new Buffer (complit)                                       *Buffer
+	t1 = &t0.buf [#0]                                               *[]byte
+	*t1 = buf
+	return t0
+
+`[1:]
+	if got != want {
+		t.Errorf("bytes.NewBuffer SSA = <<%s>>, want <<%s>>", got, want)
 	}
 }
 

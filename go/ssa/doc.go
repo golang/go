@@ -23,11 +23,13 @@
 // such as multi-way branch can be reconstructed as needed; see
 // ssautil.Switches() for an example.
 //
-// To construct an SSA-form program, call ssautil.CreateProgram on a
-// loader.Program, a set of type-checked packages created from
-// parsed Go source files.  The resulting ssa.Program contains all the
-// packages and their members, but SSA code is not created for
-// function bodies until a subsequent call to (*Package).Build.
+// The simplest way to create the SSA representation of a package is
+// to load typed syntax trees using golang.org/x/tools/go/packages, then
+// invoke the ssautil.Packages helper function. See ExampleLoadPackages
+// and ExampleWholeProgram for examples.
+// The resulting ssa.Program contains all the packages and their
+// members, but SSA code is not created for function bodies until a
+// subsequent call to (*Package).Build or (*Program).Build.
 //
 // The builder initially builds a naive SSA form in which all local
 // variables are addresses of stack locations with explicit loads and

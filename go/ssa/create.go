@@ -251,12 +251,19 @@ func (prog *Program) AllPackages() []*Package {
 	return pkgs
 }
 
-// ImportedPackage returns the importable SSA Package whose import
-// path is path, or nil if no such SSA package has been created.
+// ImportedPackage returns the importable Package whose PkgPath
+// is path, or nil if no such Package has been created.
 //
-// Not all packages are importable.  For example, no import
-// declaration can resolve to the x_test package created by 'go test'
-// or the ad-hoc main package created 'go build foo.go'.
+// A parameter to CreatePackage determines whether a package should be
+// considered importable. For example, no import declaration can resolve
+// to the ad-hoc main package created by 'go build foo.go'.
+//
+// TODO(adonovan): rethink this function and the "importable" concept;
+// most packages are importable. This function assumes that all
+// types.Package.Path values are unique within the ssa.Program, which is
+// false---yet this function remains very convenient.
+// Clients should use (*Program).Package instead where possible.
+// SSA doesn't really need a string-keyed map of packages.
 //
 func (prog *Program) ImportedPackage(path string) *Package {
 	return prog.imported[path]

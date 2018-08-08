@@ -8,8 +8,8 @@ package ssa
 // tests of the supplied packages.
 // It is closely coupled to $GOROOT/src/cmd/go/test.go and $GOROOT/src/testing.
 //
-// TODO(adonovan): this file no longer needs to live in the ssa package.
-// Move it to ssautil.
+// TODO(adonovan): throws this all away now that x/tools/go/packages
+// provides access to the actual synthetic test main files.
 
 import (
 	"bytes"
@@ -26,6 +26,8 @@ import (
 // FindTests returns the Test, Benchmark, and Example functions
 // (as defined by "go test") defined in the specified package,
 // and its TestMain function, if any.
+//
+// Deprecated: use x/tools/go/packages to access synthetic testmain packages.
 func FindTests(pkg *Package) (tests, benchmarks, examples []*Function, main *Function) {
 	prog := pkg.Prog
 
@@ -109,6 +111,8 @@ func isTest(name, prefix string) bool {
 //
 // Subsequent calls to prog.AllPackages include the new package.
 // The package pkg must belong to the program prog.
+//
+// Deprecated: use x/tools/go/packages to access synthetic testmain packages.
 func (prog *Program) CreateTestMainPackage(pkg *Package) *Package {
 	if pkg.Prog != prog {
 		log.Fatal("Package does not belong to Program")
