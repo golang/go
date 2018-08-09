@@ -54,10 +54,10 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 			for _, id := range importlist {
 
 				if id == "C" {
-					importMap["unsafe"] = &Package{ID: "unsafe"}
-					importMap["syscall"] = &Package{ID: "syscall"}
-					if pkgpath != "runtime/cgo" {
-						importMap["runtime/cgo"] = &Package{ID: "runtime/cgo"}
+					for _, path := range []string{"unsafe", "syscall", "runtime/cgo"} {
+						if pkgpath != path && importMap[path] == nil {
+							importMap[path] = &Package{ID: path}
+						}
 					}
 					continue
 				}

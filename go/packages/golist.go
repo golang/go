@@ -230,13 +230,7 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 			delete(ids, id)
 		}
 		for id := range ids {
-			// Go issue 26136: go list omits imports in cgo-generated files.
 			if id == "C" {
-				imports["unsafe"] = &Package{ID: "unsafe"}
-				imports["syscall"] = &Package{ID: "syscall"}
-				if pkgpath != "runtime/cgo" {
-					imports["runtime/cgo"] = &Package{ID: "runtime/cgo"}
-				}
 				continue
 			}
 

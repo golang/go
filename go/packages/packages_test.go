@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -275,6 +276,98 @@ func TestLoadImportsGraph(t *testing.T) {
 			t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 		} else if graph != wantOldGraph && usesOldGolist {
 			t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantOldGraph)
+		}
+	}
+}
+
+func TestLoadImportsTestVariants(t *testing.T) {
+	if usesOldGolist {
+		t.Skip("not yet supported in pre-Go 1.10.4 golist fallback implementation")
+	}
+
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go":       `package a; import _ "b"`,
+		"src/b/b.go":       `package b`,
+		"src/b/b_test.go":  `package b`,
+		"src/b/bx_test.go": `package b_test; import _ "a"`,
+	})
+	defer cleanup()
+
+	cfg := &packages.Config{
+		Mode:  packages.LoadImports,
+		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Tests: true,
+	}
+	initial, err := packages.Load(cfg, "a", "b")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check graph topology.
+	graph, _ := importGraph(initial)
+	wantGraph := `
+* a
+  a [b.test]
+* b
+* b [b.test]
+* b.test
+* b_test [b.test]
+  a -> b
+  a [b.test] -> b [b.test]
+  b.test -> b [b.test]
+  b.test -> b_test [b.test]
+  b.test -> os (pruned)
+  b.test -> testing (pruned)
+  b.test -> testing/internal/testdeps (pruned)
+  b_test [b.test] -> a [b.test]
+`[1:]
+
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+}
+
+func TestLoadImportsC(t *testing.T) {
+	// This test checks that when a package depends on the
+	// test variant of "syscall", "unsafe", or "runtime/cgo", that dependency
+	// is not removed when those packages are added when it imports "C".
+	//
+	// For this test to work, the external test of syscall must have a dependency
+	// on net, and net must import "syscall" and "C".
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping on windows; packages on windows do not satisfy conditions for test.")
+	}
+
+	if usesOldGolist {
+		t.Skip("not yet supported in pre-Go 1.10.4 golist fallback implementation")
+	}
+
+	cfg := &packages.Config{
+		Mode:  packages.LoadImports,
+		Tests: true,
+	}
+	initial, err := packages.Load(cfg, "syscall", "net")
+	if err != nil {
+		t.Fatalf("failed to load imports: %v", err)
+	}
+
+	_, all := importGraph(initial)
+
+	for _, test := range []struct {
+		pattern    string
+		wantImport string // an import to check for
+	}{
+		{"net", "syscall:syscall"},
+		{"net [syscall.test]", "syscall:syscall [syscall.test]"},
+		{"syscall_test [syscall.test]", "net:net [syscall.test]"},
+	} {
+		// Test the import paths.
+		pkg := all[test.pattern]
+		if pkg == nil {
+			t.Errorf("package %q not loaded", test.pattern)
+		}
+		if imports := strings.Join(imports(pkg), " "); !strings.Contains(imports, test.wantImport) {
+			t.Errorf("package %q: got \n%s, \nwant to have %s", test.pattern, imports, test.wantImport)
 		}
 	}
 }
