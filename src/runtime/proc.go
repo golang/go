@@ -477,20 +477,14 @@ const (
 	_GoidCacheBatch = 16
 )
 
-//go:linkname internal_cpu_initialize internal/cpu.initialize
-func internal_cpu_initialize(env string)
-
-//go:linkname internal_cpu_debugOptions internal/cpu.debugOptions
-var internal_cpu_debugOptions bool
-
 // cpuinit extracts the environment variable GODEBUGCPU from the environment on
-// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.initialize.
+// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.Initialize.
 func cpuinit() {
 	const prefix = "GODEBUGCPU="
 	var env string
 
 	if haveexperiment("debugcpu") && (GOOS == "linux" || GOOS == "darwin") {
-		internal_cpu_debugOptions = true
+		cpu.DebugOptions = true
 
 		// Similar to goenv_unix but extracts the environment value for
 		// GODEBUGCPU directly.
@@ -511,7 +505,7 @@ func cpuinit() {
 		}
 	}
 
-	internal_cpu_initialize(env)
+	cpu.Initialize(env)
 
 	support_erms = cpu.X86.HasERMS
 	support_popcnt = cpu.X86.HasPOPCNT
