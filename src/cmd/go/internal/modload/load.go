@@ -140,7 +140,7 @@ func ImportPaths(args []string) []string {
 		if prev, ok := firstPath[src]; !ok {
 			firstPath[src] = mod.Path
 		} else if prev != mod.Path {
-			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", mod.Path, mod.Version, prev, mod.Path)
+			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", src.Path, src.Version, prev, mod.Path)
 		}
 	}
 	base.ExitIfErrors()
