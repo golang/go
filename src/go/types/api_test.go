@@ -42,7 +42,7 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 	return pkg.Name()
 }
 
-func maybeTypecheck(t *testing.T, path, source string, info *Info) string {
+func mayTypecheck(t *testing.T, path, source string, info *Info) string {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, source, 0)
 	if f == nil { // ignore errors unless f is nil
@@ -265,7 +265,7 @@ func TestTypesInfo(t *testing.T) {
 
 	for _, test := range tests {
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
-		name := maybeTypecheck(t, "TypesInfo", test.src, &info)
+		name := mayTypecheck(t, "TypesInfo", test.src, &info)
 
 		// look for expression type
 		var typ Type

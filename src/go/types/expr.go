@@ -1094,6 +1094,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						continue
 					}
 					key, _ := kv.Key.(*ast.Ident)
+					// do all possible checks early (before exiting due to errors)
+					// so we don't drop information on the floor
 					check.expr(x, kv.Value)
 					if key == nil {
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
