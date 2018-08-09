@@ -47,7 +47,7 @@ stdout error
 stdout incomplete
 
 
-# The pattern "all" should match only packages that acutally exist,
+# The pattern "all" should match only packages that actually exist,
 # ignoring those whose existence is merely implied by imports.
 go list -e -f '{{.ImportPath}}' all
 stdout example.com/direct
