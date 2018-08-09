@@ -253,21 +253,6 @@ var writeBarrier struct {
 // gcphase == _GCmark.
 var gcBlackenEnabled uint32
 
-// gcBlackenPromptly indicates that optimizations that may
-// hide work from the global work queue should be disabled.
-//
-// If gcBlackenPromptly is true, per-P gcWork caches should
-// be flushed immediately and new objects should be allocated black.
-//
-// There is a tension between allocating objects white and
-// allocating them black. If white and the objects die before being
-// marked they can be collected during this GC cycle. On the other
-// hand allocating them black will reduce _GCmarktermination latency
-// since more work is done in the mark phase. This tension is resolved
-// by allocating white until the mark phase is approaching its end and
-// then allocating black for the remainder of the mark phase.
-var gcBlackenPromptly bool
-
 const (
 	_GCoff             = iota // GC not running; sweeping in background, write barrier disabled
 	_GCmark                   // GC marking roots and workbufs: allocate black, write barrier ENABLED
@@ -1497,7 +1482,6 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// World is stopped.
 	// Start marktermination which includes enabling the write barrier.
 	atomic.Store(&gcBlackenEnabled, 0)
-	gcBlackenPromptly = false
 	setGCPhase(_GCmarktermination)
 
 	work.heap1 = memstats.heap_live
@@ -1827,16 +1811,6 @@ func gcBgMarkWorker(_p_ *p) {
 			}
 			casgstatus(gp, _Gwaiting, _Grunning)
 		})
-
-		// If we are nearing the end of mark, dispose
-		// of the cache promptly. We must do this
-		// before signaling that we're no longer
-		// working so that other workers can't observe
-		// no workers and no work while we have this
-		// cached, and before we compute done.
-		if gcBlackenPromptly {
-			_p_.gcw.dispose()
-		}
 
 		// Account for time.
 		duration := nanotime() - startTime

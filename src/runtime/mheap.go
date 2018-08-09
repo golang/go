@@ -1438,9 +1438,6 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 			// Mark the finalizer itself, since the
 			// special isn't part of the GC'd heap.
 			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw)
-			if gcBlackenPromptly {
-				gcw.dispose()
-			}
 			releasem(mp)
 		}
 		return true
