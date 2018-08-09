@@ -45,6 +45,25 @@ var usesOldGolist = false
 //   - import cycles are gracefully handled in type checker.
 //   - test typechecking of generated test main and cgo.
 
+// The zero-value of Config has LoadFiles mode.
+func TestLoadZeroConfig(t *testing.T) {
+	initial, err := packages.Load(nil, "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(initial) != 1 {
+		t.Fatalf("got %s, want [hash]", initial)
+	}
+	hash := initial[0]
+	// Even though the hash package has imports,
+	// they are not reported.
+	got := fmt.Sprintf("name=%s srcs=%v imports=%v", hash.Name, srcs(hash), hash.Imports)
+	want := "name=hash srcs=[hash.go] imports=map[]"
+	if got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+}
+
 func TestLoadImportsGraph(t *testing.T) {
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go":             `package a; const A = 1`,

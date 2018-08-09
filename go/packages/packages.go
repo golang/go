@@ -30,11 +30,9 @@ import (
 type LoadMode int
 
 const (
-	_ LoadMode = iota
-
 	// LoadFiles finds the packages and computes their source file lists.
 	// Package fields: ID, Name, Errors, GoFiles, OtherFiles.
-	LoadFiles
+	LoadFiles LoadMode = iota
 
 	// LoadImports adds import information for each package
 	// and its dependencies.
@@ -144,6 +142,14 @@ type Config struct {
 }
 
 // Load and returns the Go packages named by the given patterns.
+//
+// Config specifies loading options;
+// nil behaves the same as an empty Config.
+//
+// Load returns an error if any of the patterns was invalid
+// as defined by the underlying build system.
+// It may return an empty list of packages without an error,
+// for instance for an empty expansion of a valid wildcard.
 func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 	l := newLoader(cfg)
 	rawCfg := newRawConfig(&l.Config)
@@ -247,8 +253,6 @@ func newLoader(cfg *Config) *loader {
 	ld := &loader{}
 	if cfg != nil {
 		ld.Config = *cfg
-	} else {
-		ld.Config.Mode = LoadAllSyntax
 	}
 	if ld.Context == nil {
 		ld.Context = context.Background()
