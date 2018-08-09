@@ -1,5 +1,8 @@
 env GO111MODULE=on
 
+# TODO(bcmills): Convert the 'go test' calls below to 'go list -test' once 'go
+# list' is more sensitive to package loading errors.
+
 # A test in the module's root package should work.
 cd a/
 cp go.mod.empty go.mod
@@ -45,6 +48,10 @@ go test
 stdout PASS
 
 cd ../d_test
+go test
+stdout PASS
+
+cd ../e
 go test
 stdout PASS
 
