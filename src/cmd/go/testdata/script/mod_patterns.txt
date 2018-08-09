@@ -1,3 +1,6 @@
+# Broken on nocgo builders: https://golang.org/issue/26906
+[!cgo] skip
+
 env GO111MODULE=on
 
 cd m
