@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -103,7 +104,7 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 			Name:            p.Name,
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
 			CompiledGoFiles: compiledGoFiles,
-			OtherFiles:      absJoin(p.Dir, p.SFiles, p.CFiles),
+			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 			PkgPath:         pkgpath,
 			Imports:         importMap(p.Imports),
 			// TODO(matloob): set errors on the Package to cgoErrors
@@ -119,31 +120,31 @@ func golistPackagesFallback(ctx context.Context, cfg *raw.Config, words ...strin
 					Name:            p.Name,
 					GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles, p.TestGoFiles),
 					CompiledGoFiles: append(compiledGoFiles, absJoin(p.Dir, p.TestGoFiles)...),
-					OtherFiles:      absJoin(p.Dir, p.SFiles, p.CFiles),
+					OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 					PkgPath:         pkgpath,
 					Imports:         importMap(append(p.Imports, p.TestImports...)),
 					// TODO(matloob): set errors on the Package to cgoErrors
 				})
-			}
-			if len(p.XTestGoFiles) > 0 {
-				xtestID := fmt.Sprintf("%s_test [%s.test]", id, id)
-				if isRoot {
-					roots = append(roots, xtestID)
-				}
-				for i, imp := range p.XTestImports {
-					if imp == p.ImportPath {
-						p.XTestImports[i] = testID
-						break
+				if len(p.XTestGoFiles) > 0 {
+					xtestID := fmt.Sprintf("%s_test [%s.test]", id, id)
+					if isRoot {
+						roots = append(roots, xtestID)
 					}
+					for i, imp := range p.XTestImports {
+						if imp == p.ImportPath {
+							p.XTestImports[i] = testID
+							break
+						}
+					}
+					result = append(result, &raw.Package{
+						ID:              xtestID,
+						Name:            p.Name + "_test",
+						GoFiles:         absJoin(p.Dir, p.XTestGoFiles),
+						CompiledGoFiles: absJoin(p.Dir, p.XTestGoFiles),
+						PkgPath:         pkgpath,
+						Imports:         importMap(p.XTestImports),
+					})
 				}
-				result = append(result, &raw.Package{
-					ID:              xtestID,
-					Name:            p.Name + "_test",
-					GoFiles:         absJoin(p.Dir, p.XTestGoFiles),
-					CompiledGoFiles: absJoin(p.Dir, p.XTestGoFiles),
-					PkgPath:         pkgpath,
-					Imports:         importMap(p.XTestImports),
-				})
 			}
 		}
 	}
@@ -233,6 +234,7 @@ func getDeps(ctx context.Context, cfg *raw.Config, words ...string) (originalSet
 	for dep := range depsSet {
 		deps = append(deps, dep)
 	}
+	sort.Strings(deps) // ensure output is deterministic
 	return originalSet, deps, nil
 }
 

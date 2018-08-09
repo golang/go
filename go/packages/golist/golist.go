@@ -129,7 +129,14 @@ type jsonPackage struct {
 	CompiledGoFiles []string
 	CFiles          []string
 	CgoFiles        []string
+	CXXFiles        []string
+	MFiles          []string
+	HFiles          []string
+	FFiles          []string
 	SFiles          []string
+	SwigFiles       []string
+	SwigCXXFiles    []string
+	SysoFiles       []string
 	Imports         []string
 	ImportMap       map[string]string
 	Deps            []string
@@ -139,6 +146,10 @@ type jsonPackage struct {
 	XTestImports    []string
 	ForTest         string // q in a "p [q.test]" package, else ""
 	DepOnly         bool
+}
+
+func otherFiles(p *jsonPackage) [][]string {
+	return [][]string{p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.SwigFiles, p.SwigCXXFiles, p.SysoFiles}
 }
 
 // golistPackages uses the "go list" command to expand the
@@ -249,7 +260,7 @@ func golistPackages(ctx context.Context, cfg *raw.Config, words ...string) ([]st
 			Name:            p.Name,
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
 			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
-			OtherFiles:      absJoin(p.Dir, p.SFiles, p.CFiles),
+			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 			PkgPath:         pkgpath,
 			Imports:         imports,
 			Export:          export,
