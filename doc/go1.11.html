@@ -299,6 +299,22 @@ func f(v interface{}) {
   a warning to be printed, and <code>vet</code> to exit with status 1.
 </p>
 
+<p><!-- CL 108559 -->
+  Additionally, <a href="/cmd/vet"><code>go</code>&nbsp;<code>vet</code></a>
+  has become more robust when format-checking <code>printf</code> wrappers.
+  Vet now detects the mistake in this example:
+</p>
+
+<pre>
+func wrapper(s string, args ...interface{}) {
+	fmt.Printf(s, args...)
+}
+
+func main() {
+	wrapper("%s", 42)
+}
+</pre>
+
 <h3 id="trace">Trace</h3>
 
 <p><!-- CL 63274 -->
