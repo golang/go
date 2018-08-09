@@ -258,8 +258,8 @@ func newLoader(cfg *Config) *loader {
 		ld.Context = context.Background()
 	}
 	if ld.Dir == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			ld.Dir = cwd
+		if dir, err := os.Getwd(); err == nil {
+			ld.Dir = dir
 		}
 	}
 

@@ -44,18 +44,17 @@ func LoadRaw(ctx context.Context, cfg *raw.Config, patterns ...string) ([]string
 	}
 	// Determine files requested in contains patterns
 	var containFiles []string
-	{
-		restPatterns := make([]string, 0, len(patterns))
-		for _, pattern := range patterns {
-			if containFile := strings.TrimPrefix(pattern, "contains:"); containFile != pattern {
-				containFiles = append(containFiles, containFile)
-			} else {
-				restPatterns = append(restPatterns, pattern)
-			}
+	restPatterns := make([]string, 0, len(patterns))
+	for _, pattern := range patterns {
+		if strings.HasPrefix(pattern, "contains:") {
+			containFile := strings.TrimPrefix(pattern, "contains:")
+			containFiles = append(containFiles, containFile)
+		} else {
+			restPatterns = append(restPatterns, pattern)
 		}
-		containFiles = absJoin(cfg.Dir, containFiles)
-		patterns = restPatterns
 	}
+	containFiles = absJoin(cfg.Dir, containFiles)
+	patterns = restPatterns
 
 	// TODO(matloob): Remove the definition of listfunc and just use golistPackages once go1.12 is released.
 	var listfunc func(ctx context.Context, cfg *raw.Config, words ...string) ([]string, []*raw.Package, error)
