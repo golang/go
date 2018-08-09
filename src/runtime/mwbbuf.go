@@ -79,7 +79,7 @@ const (
 func (b *wbBuf) reset() {
 	start := uintptr(unsafe.Pointer(&b.buf[0]))
 	b.next = start
-	if gcBlackenPromptly || writeBarrier.cgo {
+	if writeBarrier.cgo {
 		// Effectively disable the buffer by forcing a flush
 		// on every barrier.
 		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
@@ -275,7 +275,7 @@ func wbBufFlush1(_p_ *p) {
 
 	// Enqueue the greyed objects.
 	gcw.putBatch(ptrs[:pos])
-	if gcphase == _GCmarktermination || gcBlackenPromptly {
+	if gcphase == _GCmarktermination {
 		// Ps aren't allowed to cache work during mark
 		// termination.
 		gcw.dispose()

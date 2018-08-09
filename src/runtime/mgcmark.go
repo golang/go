@@ -556,11 +556,6 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	// will be more cache friendly.
 	gcw := &getg().m.p.ptr().gcw
 	workDone := gcDrainN(gcw, scanWork)
-	// If we are near the end of the mark phase
-	// dispose of the gcw.
-	if gcBlackenPromptly {
-		gcw.dispose()
-	}
 
 	casgstatus(gp, _Gwaiting, _Grunning)
 
@@ -577,8 +572,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	incnwait := atomic.Xadd(&work.nwait, +1)
 	if incnwait > work.nproc {
 		println("runtime: work.nwait=", incnwait,
-			"work.nproc=", work.nproc,
-			"gcBlackenPromptly=", gcBlackenPromptly)
+			"work.nproc=", work.nproc)
 		throw("work.nwait > work.nproc")
 	}
 
@@ -1155,7 +1149,7 @@ func shade(b uintptr) {
 	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
 		gcw := &getg().m.p.ptr().gcw
 		greyobject(obj, 0, 0, span, gcw, objIndex)
-		if gcphase == _GCmarktermination || gcBlackenPromptly {
+		if gcphase == _GCmarktermination {
 			// Ps aren't allowed to cache work during mark
 			// termination.
 			gcw.dispose()
@@ -1289,18 +1283,13 @@ func gcDumpObject(label string, obj, off uintptr) {
 //go:nowritebarrier
 //go:nosplit
 func gcmarknewobject(obj, size, scanSize uintptr) {
-	if useCheckmark && !gcBlackenPromptly { // The world should be stopped so this should not happen.
+	if useCheckmark { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
 	markBitsForAddr(obj).setMarked()
 	gcw := &getg().m.p.ptr().gcw
 	gcw.bytesMarked += uint64(size)
 	gcw.scanWork += int64(scanSize)
-	if gcBlackenPromptly {
-		// There shouldn't be anything in the work queue, but
-		// we still need to flush stats.
-		gcw.dispose()
-	}
 }
 
 // gcMarkTinyAllocs greys all active tiny alloc blocks.
@@ -1315,9 +1304,6 @@ func gcMarkTinyAllocs() {
 		_, span, objIndex := findObject(c.tiny, 0, 0)
 		gcw := &p.gcw
 		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
-		if gcBlackenPromptly {
-			gcw.dispose()
-		}
 	}
 }
 
