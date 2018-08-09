@@ -969,10 +969,10 @@ func (b *builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	c.Args = b.emitCallArgs(fn, sig, e, c.Args)
 }
 
-// assignOp emits to fn code to perform loc += incr or loc -= incr.
-func (b *builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token) {
+// assignOp emits to fn code to perform loc <op>= val.
+func (b *builder) assignOp(fn *Function, loc lvalue, val Value, op token.Token, pos token.Pos) {
 	oldv := loc.load(fn)
-	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, incr, oldv.Type()), loc.typ(), token.NoPos))
+	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, val, oldv.Type()), loc.typ(), pos))
 }
 
 // localValueSpec emits to fn code to define all of the vars in the
@@ -1998,7 +1998,7 @@ start:
 			op = token.SUB
 		}
 		loc := b.addr(fn, s.X, false)
-		b.assignOp(fn, loc, NewConst(exact.MakeInt64(1), loc.typ()), op)
+		b.assignOp(fn, loc, NewConst(exact.MakeInt64(1), loc.typ()), op, s.Pos())
 
 	case *ast.AssignStmt:
 		switch s.Tok {
@@ -2007,7 +2007,7 @@ start:
 
 		default: // +=, etc.
 			op := s.Tok + token.ADD - token.ADD_ASSIGN
-			b.assignOp(fn, b.addr(fn, s.Lhs[0], false), b.expr(fn, s.Rhs[0]), op)
+			b.assignOp(fn, b.addr(fn, s.Lhs[0], false), b.expr(fn, s.Rhs[0]), op, s.Pos())
 		}
 
 	case *ast.GoStmt:
