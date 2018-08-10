@@ -49,7 +49,7 @@ func passThru(w io.Writer, req *http.Request) error {
 	return nil
 }
 
-var onAppengine = false // will be overriden by appengine.go and appenginevm.go
+var onAppengine = false // will be overridden by appengine.go and appenginevm.go
 
 func allowShare(r *http.Request) bool {
 	if !onAppengine {

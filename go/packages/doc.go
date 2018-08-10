@@ -223,7 +223,7 @@ Questions & Tasks
   GOOS and GOARCH seem important enough to warrant a dedicated option.
 
 - How should we handle partial failures such as a mixture of good and
-  malformed patterns, existing and non-existent packages, succesful and
+  malformed patterns, existing and non-existent packages, successful and
   failed builds, import failures, import cycles, and so on, in a call to
   Load?
 

@@ -322,7 +322,7 @@ func soleExpr(fn *ast.FuncDecl) (ast.Expr, error) {
 	return nil, fmt.Errorf("must contain a single return or expression statement")
 }
 
-// stmtAndExpr returns the expression in the last return statement as well as the preceeding lines.
+// stmtAndExpr returns the expression in the last return statement as well as the preceding lines.
 func stmtAndExpr(fn *ast.FuncDecl) ([]ast.Stmt, ast.Expr, error) {
 	if fn.Body == nil {
 		return nil, nil, fmt.Errorf("no body")

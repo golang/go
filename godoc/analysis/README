@@ -49,7 +49,7 @@ CALLEES:
 
 Type info:
 - In the source viewer's lower pane, use a toggle div around the
-  IMPLEMENTS and METHODSETS lists, like we do in the pacakge view.
+  IMPLEMENTS and METHODSETS lists, like we do in the package view.
   Only expand them initially if short.
 - Include IMPLEMENTS and METHOD SETS information in search index.
 - URLs in IMPLEMENTS/METHOD SETS always link to source, even from the

@@ -570,7 +570,7 @@ func TestLoadSyntaxOK(t *testing.T) {
 
 	// TODO(matloob): The legacy go list based support loads everything from source
 	// because it doesn't do a build and the .a files don't exist.
-	// Can we simulate its existance?
+	// Can we simulate its existence?
 
 	for _, test := range []struct {
 		id         string

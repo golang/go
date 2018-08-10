@@ -8,7 +8,7 @@
 //
 // TODO(adonovan):
 // - support input files other than stdin
-// - suport alternative formats (AT&T GraphViz, CSV, etc),
+// - support alternative formats (AT&T GraphViz, CSV, etc),
 //   a comment syntax, etc.
 // - allow queries to nest, like Blaze query language.
 //

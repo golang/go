@@ -1004,7 +1004,7 @@ func pkgIsCandidate(filename, pkgIdent string, pkg *pkg) bool {
 	// permit a directory "foo" to be package
 	// "bar", which is strongly discouraged
 	// anyway. There's no reason goimports needs
-	// to be slow just to accomodate that.
+	// to be slow just to accommodate that.
 	lastTwo := lastTwoComponents(pkg.importPathShort)
 	if strings.Contains(lastTwo, pkgIdent) {
 		return true
