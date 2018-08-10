@@ -506,8 +506,10 @@ type p struct {
 	runnext guintptr
 
 	// Available G's (status == Gdead)
-	gfree    *g
-	gfreecnt int32
+	gFree struct {
+		gList
+		n int32
+	}
 
 	sudogcache []*sudog
 	sudogbuf   [128]*sudog
@@ -578,10 +580,12 @@ type schedt struct {
 	runqsize int32
 
 	// Global cache of dead G's.
-	gflock       mutex
-	gfreeStack   *g
-	gfreeNoStack *g
-	ngfree       int32
+	gFree struct {
+		lock    mutex
+		stack   gList // Gs with stacks
+		noStack gList // Gs without stacks
+		n       int32
+	}
 
 	// Central cache of sudog structs.
 	sudoglock  mutex
