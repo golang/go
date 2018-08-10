@@ -116,10 +116,24 @@ func ImportPaths(patterns []string) []*search.Match {
 					} else if path := pathInModuleCache(dir); path != "" {
 						pkg = path
 					} else {
+						pkg = ""
 						if !iterating {
 							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
 						}
+					}
+					info, err := os.Stat(dir)
+					if err != nil || !info.IsDir() {
+						// If the directory does not exist,
+						// don't turn it into an import path
+						// that will trigger a lookup.
 						pkg = ""
+						if !iterating {
+							if err != nil {
+								base.Errorf("go: no such directory %v", m.Pattern)
+							} else {
+								base.Errorf("go: %s is not a directory", m.Pattern)
+							}
+						}
 					}
 					m.Pkgs[i] = pkg
 				}
