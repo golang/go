@@ -374,15 +374,17 @@ func ClearPackageCachePartial(args []string) {
 	}
 }
 
-// reloadPackage is like loadPackage but makes sure
+// ReloadPackageNoFlags is like LoadPackageNoFlags but makes sure
 // not to use the package cache.
-func ReloadPackage(arg string, stk *ImportStack) *Package {
+// It is only for use by GOPATH-based "go get".
+// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
+func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 	p := packageCache[arg]
 	if p != nil {
 		delete(packageCache, p.Dir)
 		delete(packageCache, p.ImportPath)
 	}
-	return LoadPackage(arg, stk)
+	return LoadPackageNoFlags(arg, stk)
 }
 
 // dirToImportPath returns the pseudo-import path we use for a package
@@ -431,6 +433,9 @@ const (
 // but possibly a local import path (an absolute file system path or one beginning
 // with ./ or ../). A local relative path is interpreted relative to srcDir.
 // It returns a *Package describing the package found in that directory.
+// LoadImport does not set tool flags and should only be used by
+// this package, as part of a bigger load operation, and by GOPATH-based "go get".
+// TODO(rsc): When GOPATH-based "go get" is removed, unexport this function.
 func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
 	stk.Push(path)
 	defer stk.Pop()
@@ -1185,27 +1190,6 @@ var foldPath = make(map[string]string)
 func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	p.copyBuild(bp)
 
-	// Decide whether p was listed on the command line.
-	// Given that load is called while processing the command line,
-	// you might think we could simply pass a flag down into load
-	// saying whether we are loading something named on the command
-	// line or something to satisfy an import. But the first load of a
-	// package named on the command line may be as a dependency
-	// of an earlier package named on the command line, not when we
-	// get to that package during command line processing.
-	// For example "go test fmt reflect" will load reflect as a dependency
-	// of fmt before it attempts to load as a command-line argument.
-	// Because loads are cached, the later load will be a no-op,
-	// so it is important that the first load can fill in CmdlinePkg correctly.
-	// Hence the call to a separate matching check here.
-	p.Internal.CmdlinePkg = isCmdlinePkg(p)
-	p.Internal.CmdlinePkgLiteral = isCmdlinePkgLiteral(p)
-
-	p.Internal.Asmflags = BuildAsmflags.For(p)
-	p.Internal.Gcflags = BuildGcflags.For(p)
-	p.Internal.Ldflags = BuildLdflags.For(p)
-	p.Internal.Gccgoflags = BuildGccgoflags.For(p)
-
 	// The localPrefix is the path we interpret ./ imports relative to.
 	// Synthesized main packages sometimes override this.
 	if p.Internal.Local {
@@ -1740,11 +1724,31 @@ func ClearCmdCache() {
 	}
 }
 
+// LoadPackage loads the package named by arg.
+func LoadPackage(arg string, stk *ImportStack) *Package {
+	p := loadPackage(arg, stk)
+	setToolFlags(p)
+	return p
+}
+
+// LoadPackageNoFlags is like LoadPackage
+// but does not guarantee that the build tool flags are set in the result.
+// It is only for use by GOPATH-based "go get"
+// and is only appropriate for preliminary loading of packages.
+// A real load using LoadPackage or (more likely)
+// Packages, PackageAndErrors, or PackagesForBuild
+// must be done before passing the package to any build
+// steps, so that the tool flags can be set properly.
+// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
+func LoadPackageNoFlags(arg string, stk *ImportStack) *Package {
+	return loadPackage(arg, stk)
+}
+
 // loadPackage is like loadImport but is used for command-line arguments,
 // not for paths found in import statements. In addition to ordinary import paths,
 // loadPackage accepts pseudo-paths beginning with cmd/ to denote commands
 // in the Go command directory, as well as paths to those directories.
-func LoadPackage(arg string, stk *ImportStack) *Package {
+func loadPackage(arg string, stk *ImportStack) *Package {
 	if build.IsLocalImport(arg) {
 		dir := arg
 		if !filepath.IsAbs(dir) {
@@ -1843,7 +1847,14 @@ func PackagesAndErrors(patterns []string) []*Package {
 
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
-			p := LoadPackage(pkg, &stk)
+			p := loadPackage(pkg, &stk)
+			p.Internal.CmdlinePkg = true
+			if m.Literal {
+				// Note: do not set = m.Literal unconditionally
+				// because maybe we'll see p matching both
+				// a literal and also a non-literal pattern.
+				p.Internal.CmdlinePkgLiteral = true
+			}
 			if seenPkg[p] {
 				continue
 			}
@@ -1852,7 +1863,22 @@ func PackagesAndErrors(patterns []string) []*Package {
 		}
 	}
 
+	// Now that CmdlinePkg is set correctly,
+	// compute the effective flags for all loaded packages
+	// (not just the ones matching the patterns but also
+	// their dependencies).
+	setToolFlags(pkgs...)
+
 	return pkgs
+}
+
+func setToolFlags(pkgs ...*Package) {
+	for _, p := range PackageList(pkgs) {
+		p.Internal.Asmflags = BuildAsmflags.For(p)
+		p.Internal.Gcflags = BuildGcflags.For(p)
+		p.Internal.Ldflags = BuildLdflags.For(p)
+		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+	}
 }
 
 func ImportPaths(args []string) []*search.Match {
@@ -1985,6 +2011,8 @@ func GoFilesPackage(gofiles []string) *Package {
 			pkg.Target = filepath.Join(ModBinDir(), exe)
 		}
 	}
+
+	setToolFlags(pkg)
 
 	return pkg
 }

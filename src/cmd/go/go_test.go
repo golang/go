@@ -5648,37 +5648,6 @@ func TestRelativePkgdir(t *testing.T) {
 	tg.run("build", "-i", "-pkgdir=.", "runtime")
 }
 
-func TestGcflagsPatterns(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no standard packages")
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", "")
-	tg.setenv("GOCACHE", "off")
-
-	tg.run("build", "-n", "-v", "-gcflags= \t\r\n -e", "fmt")
-	tg.grepStderr("^# fmt", "did not rebuild fmt")
-	tg.grepStderrNot("^# reflect", "incorrectly rebuilt reflect")
-
-	tg.run("build", "-n", "-v", "-gcflags=-e", "fmt", "reflect")
-	tg.grepStderr("^# fmt", "did not rebuild fmt")
-	tg.grepStderr("^# reflect", "did not rebuild reflect")
-	tg.grepStderrNot("^# runtime", "incorrectly rebuilt runtime")
-
-	tg.run("build", "-n", "-x", "-v", "-gcflags= \t\r\n reflect \t\r\n = \t\r\n -N", "fmt")
-	tg.grepStderr("^# fmt", "did not rebuild fmt")
-	tg.grepStderr("^# reflect", "did not rebuild reflect")
-	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
-	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
-
-	tg.run("test", "-c", "-n", "-gcflags=-N", "-ldflags=-X=x.y=z", "strings")
-	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
-	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
-
-	tg.run("test", "-c", "-n", "-gcflags=strings=-N", "-ldflags=strings=-X=x.y=z", "strings")
-	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
-	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
-}
-
 func TestGoTestMinusN(t *testing.T) {
 	// Intent here is to verify that 'go test -n' works without crashing.
 	// This reuses flag_test.go, but really any test would do.

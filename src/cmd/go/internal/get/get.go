@@ -240,7 +240,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	}
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
-			return load.LoadPackage(path, stk)
+			return load.LoadPackageNoFlags(path, stk)
 		}
 		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
@@ -329,7 +329,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), files))
 
 			// The imports might have changed, so reload again.
-			p = load.ReloadPackage(arg, stk)
+			p = load.ReloadPackageNoFlags(arg, stk)
 			if p.Error != nil {
 				base.Errorf("%s", p.Error)
 				return
