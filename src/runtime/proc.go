@@ -1148,8 +1148,8 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 
 	_g_.m.locks++ // disable preemption because it can be holding p in a local var
 	if netpollinited() {
-		gp := netpoll(false) // non-blocking
-		injectglist(gp)
+		list := netpoll(false) // non-blocking
+		injectglist(list.head.ptr())
 	}
 	add := needaddgcproc()
 	lock(&sched.lock)
@@ -2312,9 +2312,9 @@ top:
 	// not set lastpoll yet), this thread will do blocking netpoll below
 	// anyway.
 	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && atomic.Load64(&sched.lastpoll) != 0 {
-		if gp := netpoll(false); gp != nil { // non-blocking
-			// netpoll returns list of goroutines linked by schedlink.
-			injectglist(gp.schedlink.ptr())
+		if list := netpoll(false); !list.empty() { // non-blocking
+			gp := list.pop()
+			injectglist(list.head.ptr())
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			if trace.enabled {
 				traceGoUnpark(gp, 0)
@@ -2466,22 +2466,23 @@ stop:
 		if _g_.m.spinning {
 			throw("findrunnable: netpoll with spinning")
 		}
-		gp := netpoll(true) // block until new work is available
+		list := netpoll(true) // block until new work is available
 		atomic.Store64(&sched.lastpoll, uint64(nanotime()))
-		if gp != nil {
+		if !list.empty() {
 			lock(&sched.lock)
 			_p_ = pidleget()
 			unlock(&sched.lock)
 			if _p_ != nil {
 				acquirep(_p_)
-				injectglist(gp.schedlink.ptr())
+				gp := list.pop()
+				injectglist(list.head.ptr())
 				casgstatus(gp, _Gwaiting, _Grunnable)
 				if trace.enabled {
 					traceGoUnpark(gp, 0)
 				}
 				return gp, false
 			}
-			injectglist(gp)
+			injectglist(list.head.ptr())
 		}
 	}
 	stopm()
@@ -2501,8 +2502,8 @@ func pollWork() bool {
 		return true
 	}
 	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && sched.lastpoll != 0 {
-		if gp := netpoll(false); gp != nil {
-			injectglist(gp)
+		if list := netpoll(false); !list.empty() {
+			injectglist(list.head.ptr())
 			return true
 		}
 	}
@@ -4387,8 +4388,8 @@ func sysmon() {
 		now := nanotime()
 		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
 			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
-			gp := netpoll(false) // non-blocking - returns list of goroutines
-			if gp != nil {
+			list := netpoll(false) // non-blocking - returns list of goroutines
+			if !list.empty() {
 				// Need to decrement number of idle locked M's
 				// (pretending that one more is running) before injectglist.
 				// Otherwise it can lead to the following situation:
@@ -4397,7 +4398,7 @@ func sysmon() {
 				// observes that there is no work to do and no other running M's
 				// and reports deadlock.
 				incidlelocked(-1)
-				injectglist(gp)
+				injectglist(list.head.ptr())
 				incidlelocked(1)
 			}
 		}

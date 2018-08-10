@@ -63,17 +63,17 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // Polls for completed network IO.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) *g {
+func netpoll(block bool) gList {
 	var entries [64]overlappedEntry
 	var wait, qty, key, flags, n, i uint32
 	var errno int32
 	var op *net_op
-	var gp guintptr
+	var toRun gList
 
 	mp := getg().m
 
 	if iocphandle == _INVALID_HANDLE_VALUE {
-		return nil
+		return gList{}
 	}
 	wait = 0
 	if block {
@@ -92,7 +92,7 @@ retry:
 			mp.blocked = false
 			errno = int32(getlasterror())
 			if !block && errno == _WAIT_TIMEOUT {
-				return nil
+				return gList{}
 			}
 			println("runtime: GetQueuedCompletionStatusEx failed (errno=", errno, ")")
 			throw("runtime: netpoll failed")
@@ -105,7 +105,7 @@ retry:
 			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
 				errno = int32(getlasterror())
 			}
-			handlecompletion(&gp, op, errno, qty)
+			handlecompletion(&toRun, op, errno, qty)
 		}
 	} else {
 		op = nil
@@ -118,7 +118,7 @@ retry:
 			mp.blocked = false
 			errno = int32(getlasterror())
 			if !block && errno == _WAIT_TIMEOUT {
-				return nil
+				return gList{}
 			}
 			if op == nil {
 				println("runtime: GetQueuedCompletionStatus failed (errno=", errno, ")")
@@ -127,15 +127,15 @@ retry:
 			// dequeued failed IO packet, so report that
 		}
 		mp.blocked = false
-		handlecompletion(&gp, op, errno, qty)
+		handlecompletion(&toRun, op, errno, qty)
 	}
-	if block && gp == 0 {
+	if block && toRun.empty() {
 		goto retry
 	}
-	return gp.ptr()
+	return toRun
 }
 
-func handlecompletion(gpp *guintptr, op *net_op, errno int32, qty uint32) {
+func handlecompletion(toRun *gList, op *net_op, errno int32, qty uint32) {
 	if op == nil {
 		println("runtime: GetQueuedCompletionStatus returned op == nil")
 		throw("runtime: netpoll failed")
@@ -147,5 +147,5 @@ func handlecompletion(gpp *guintptr, op *net_op, errno int32, qty uint32) {
 	}
 	op.errno = errno
 	op.qty = qty
-	netpollready(gpp, op.pd, mode)
+	netpollready(toRun, op.pd, mode)
 }
