@@ -1155,11 +1155,11 @@ func (b *Builder) link(a *Action) (err error) {
 	// We still call updateBuildID to update a.buildID, which is important
 	// for test result caching, but passing rewrite=false (final arg)
 	// means we don't actually rewrite the binary, nor store the
-	// result into the cache.
-	// Not calling updateBuildID means we also don't insert these
-	// binaries into the build object cache. That's probably a net win:
+	// result into the cache. That's probably a net win:
 	// less cache space wasted on large binaries we are not likely to
 	// need again. (On the other hand it does make repeated go test slower.)
+	// It also makes repeated go run slower, which is a win in itself:
+	// we don't want people to treat go run like a scripting environment.
 	if err := b.updateBuildID(a, a.Target, !a.Package.Internal.OmitDebug); err != nil {
 		return err
 	}
