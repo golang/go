@@ -32,7 +32,7 @@ TEXT indexbody<>(SB),NOSPLIT,$0-56
 	// to avoid repeatedly re-load it again and again
 	// for sebsequent substring comparisons
 	SUB	R3, R1, R4
-	// R4 contains the start of last substring for comparsion
+	// R4 contains the start of last substring for comparison
 	ADD	R0, R4, R4
 	ADD	$1, R0, R8
 

@@ -1465,7 +1465,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $0x14	// Size duplicated below
 // This function communicates back to the debugger by setting RAX and
 // invoking INT3 to raise a breakpoint signal. See the comments in the
 // implementation for the protocol the debugger is expected to
-// follow. InjectDebugCall in the runtime tests demonstates this protocol.
+// follow. InjectDebugCall in the runtime tests demonstrates this protocol.
 //
 // The debugger must ensure that any pointers passed to the function
 // obey escape analysis requirements. Specifically, it must not pass

@@ -5648,7 +5648,7 @@ func (n *Node) StorageClass() ssa.StorageClass {
 	case PAUTO:
 		return ssa.ClassAuto
 	default:
-		Fatalf("untranslateable storage class for %v: %s", n, n.Class())
+		Fatalf("untranslatable storage class for %v: %s", n, n.Class())
 		return 0
 	}
 }

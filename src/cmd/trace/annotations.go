@@ -439,6 +439,7 @@ func (task *taskDesc) complete() bool {
 }
 
 // descendents returns all the task nodes in the subtree rooted from this task.
+// FIXIME: the method name is misspelled
 func (task *taskDesc) decendents() []*taskDesc {
 	if task == nil {
 		return nil

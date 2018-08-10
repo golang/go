@@ -55,7 +55,7 @@ for that version of the given module.
 
 To avoid problems when serving from case-sensitive file systems,
 the <module> and <version> elements are case-encoded, replacing every
-uppercase letter with an exclamation mark followed by the correponding
+uppercase letter with an exclamation mark followed by the corresponding
 lower-case letter: github.com/Azure encodes as github.com/!azure.
 
 The JSON-formatted metadata about a given module corresponds to

@@ -1076,7 +1076,7 @@ func (t Time) Local() Time {
 	return t
 }
 
-// In returns a copy of t representating the same time instant, but
+// In returns a copy of t representing the same time instant, but
 // with the copy's location information set to loc for display
 // purposes.
 //
