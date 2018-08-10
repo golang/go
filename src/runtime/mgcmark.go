@@ -302,26 +302,27 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 //TODO go:nowritebarrier
 func markrootFreeGStacks() {
 	// Take list of dead Gs with stacks.
-	lock(&sched.gflock)
-	list := sched.gfreeStack
-	sched.gfreeStack = nil
-	unlock(&sched.gflock)
-	if list == nil {
+	lock(&sched.gFree.lock)
+	list := sched.gFree.stack
+	sched.gFree.stack = gList{}
+	unlock(&sched.gFree.lock)
+	if list.empty() {
 		return
 	}
 
 	// Free stacks.
-	tail := list
-	for gp := list; gp != nil; gp = gp.schedlink.ptr() {
+	q := gQueue{list.head, list.head}
+	for gp := list.head.ptr(); gp != nil; gp = gp.schedlink.ptr() {
 		shrinkstack(gp)
-		tail = gp
+		// Manipulate the queue directly since the Gs are
+		// already all linked the right way.
+		q.tail.set(gp)
 	}
 
 	// Put Gs back on the free list.
-	lock(&sched.gflock)
-	tail.schedlink.set(sched.gfreeNoStack)
-	sched.gfreeNoStack = list
-	unlock(&sched.gflock)
+	lock(&sched.gFree.lock)
+	sched.gFree.noStack.pushAll(q)
+	unlock(&sched.gFree.lock)
 }
 
 // markrootSpans marks roots for one shard of work.spans.

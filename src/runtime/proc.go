@@ -3471,25 +3471,21 @@ func gfput(_p_ *p, gp *g) {
 		gp.stackguard0 = 0
 	}
 
-	gp.schedlink.set(_p_.gfree)
-	_p_.gfree = gp
-	_p_.gfreecnt++
-	if _p_.gfreecnt >= 64 {
-		lock(&sched.gflock)
-		for _p_.gfreecnt >= 32 {
-			_p_.gfreecnt--
-			gp = _p_.gfree
-			_p_.gfree = gp.schedlink.ptr()
+	_p_.gFree.push(gp)
+	_p_.gFree.n++
+	if _p_.gFree.n >= 64 {
+		lock(&sched.gFree.lock)
+		for _p_.gFree.n >= 32 {
+			_p_.gFree.n--
+			gp = _p_.gFree.pop()
 			if gp.stack.lo == 0 {
-				gp.schedlink.set(sched.gfreeNoStack)
-				sched.gfreeNoStack = gp
+				sched.gFree.noStack.push(gp)
 			} else {
-				gp.schedlink.set(sched.gfreeStack)
-				sched.gfreeStack = gp
+				sched.gFree.stack.push(gp)
 			}
-			sched.ngfree++
+			sched.gFree.n++
 		}
-		unlock(&sched.gflock)
+		unlock(&sched.gFree.lock)
 	}
 }
 
@@ -3497,44 +3493,42 @@ func gfput(_p_ *p, gp *g) {
 // If local list is empty, grab a batch from global list.
 func gfget(_p_ *p) *g {
 retry:
-	gp := _p_.gfree
-	if gp == nil && (sched.gfreeStack != nil || sched.gfreeNoStack != nil) {
-		lock(&sched.gflock)
-		for _p_.gfreecnt < 32 {
-			if sched.gfreeStack != nil {
-				// Prefer Gs with stacks.
-				gp = sched.gfreeStack
-				sched.gfreeStack = gp.schedlink.ptr()
-			} else if sched.gfreeNoStack != nil {
-				gp = sched.gfreeNoStack
-				sched.gfreeNoStack = gp.schedlink.ptr()
-			} else {
-				break
+	if _p_.gFree.empty() && (!sched.gFree.stack.empty() || !sched.gFree.noStack.empty()) {
+		lock(&sched.gFree.lock)
+		// Move a batch of free Gs to the P.
+		for _p_.gFree.n < 32 {
+			// Prefer Gs with stacks.
+			gp := sched.gFree.stack.pop()
+			if gp == nil {
+				gp = sched.gFree.noStack.pop()
+				if gp == nil {
+					break
+				}
 			}
-			_p_.gfreecnt++
-			sched.ngfree--
-			gp.schedlink.set(_p_.gfree)
-			_p_.gfree = gp
+			sched.gFree.n--
+			_p_.gFree.push(gp)
+			_p_.gFree.n++
 		}
-		unlock(&sched.gflock)
+		unlock(&sched.gFree.lock)
 		goto retry
 	}
-	if gp != nil {
-		_p_.gfree = gp.schedlink.ptr()
-		_p_.gfreecnt--
-		if gp.stack.lo == 0 {
-			// Stack was deallocated in gfput. Allocate a new one.
-			systemstack(func() {
-				gp.stack = stackalloc(_FixedStack)
-			})
-			gp.stackguard0 = gp.stack.lo + _StackGuard
-		} else {
-			if raceenabled {
-				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
-			}
-			if msanenabled {
-				msanmalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
-			}
+	gp := _p_.gFree.pop()
+	if gp == nil {
+		return nil
+	}
+	_p_.gFree.n--
+	if gp.stack.lo == 0 {
+		// Stack was deallocated in gfput. Allocate a new one.
+		systemstack(func() {
+			gp.stack = stackalloc(_FixedStack)
+		})
+		gp.stackguard0 = gp.stack.lo + _StackGuard
+	} else {
+		if raceenabled {
+			racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+		}
+		if msanenabled {
+			msanmalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
 		}
 	}
 	return gp
@@ -3542,21 +3536,18 @@ retry:
 
 // Purge all cached G's from gfree list to the global list.
 func gfpurge(_p_ *p) {
-	lock(&sched.gflock)
-	for _p_.gfreecnt != 0 {
-		_p_.gfreecnt--
-		gp := _p_.gfree
-		_p_.gfree = gp.schedlink.ptr()
+	lock(&sched.gFree.lock)
+	for !_p_.gFree.empty() {
+		gp := _p_.gFree.pop()
+		_p_.gFree.n--
 		if gp.stack.lo == 0 {
-			gp.schedlink.set(sched.gfreeNoStack)
-			sched.gfreeNoStack = gp
+			sched.gFree.noStack.push(gp)
 		} else {
-			gp.schedlink.set(sched.gfreeStack)
-			sched.gfreeStack = gp
+			sched.gFree.stack.push(gp)
 		}
-		sched.ngfree++
+		sched.gFree.n++
 	}
-	unlock(&sched.gflock)
+	unlock(&sched.gFree.lock)
 }
 
 // Breakpoint executes a breakpoint trap.
@@ -3669,9 +3660,9 @@ func badunlockosthread() {
 }
 
 func gcount() int32 {
-	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
+	n := int32(allglen) - sched.gFree.n - int32(atomic.Load(&sched.ngsys))
 	for _, _p_ := range allp {
-		n -= _p_.gfreecnt
+		n -= _p_.gFree.n
 	}
 
 	// All these variables can be changed concurrently, so the result can be inconsistent.
@@ -4581,7 +4572,7 @@ func schedtrace(detailed bool) {
 			if mp != nil {
 				id = mp.id
 			}
-			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gfreecnt, "\n")
+			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gFree.n, "\n")
 		} else {
 			// In non-detailed mode format lengths of per-P run queues as:
 			// [len1 len2 len3 len4]
