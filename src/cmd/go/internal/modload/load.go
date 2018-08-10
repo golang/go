@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/semver"
+	"cmd/go/internal/str"
 )
 
 // buildList is the list of modules to use for building packages.
@@ -50,24 +51,46 @@ var loaded *loader
 
 // ImportPaths returns the set of packages matching the args (patterns),
 // adding modules to the build list as needed to satisfy new imports.
-func ImportPaths(args []string) []string {
+func ImportPaths(patterns []string) []*search.Match {
 	InitMod()
 
-	cleaned := search.CleanImportPaths(args)
+	var matches []*search.Match
+	for _, pattern := range search.CleanPatterns(patterns) {
+			m := &search.Match{
+				Pattern: pattern,
+				Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
+			}
+			if m.Literal {
+				m.Pkgs = []string{pattern}
+			}
+			matches = append(matches, m)
+	}
+
+	fsDirs := make([][]string, len(matches))
 	loaded = newLoader()
-	var paths []string
-	loaded.load(func() []string {
-		var roots []string
-		paths = nil
-		for _, pkg := range cleaned {
+	updateMatches := func(iterating bool) {
+		for i, m := range matches {
 			switch {
-			case build.IsLocalImport(pkg) || filepath.IsAbs(pkg):
-				list := []string{pkg}
-				if strings.Contains(pkg, "...") {
-					// TODO: Where is the go.mod cutoff?
-					list = warnPattern(pkg, search.AllPackagesInFS(pkg))
+			case build.IsLocalImport(m.Pattern) || filepath.IsAbs(m.Pattern):
+				// Evaluate list of file system directories on first iteration.
+				if fsDirs[i] == nil {
+					var dirs []string
+					if m.Literal {
+						dirs = []string{m.Pattern}
+					} else {
+						dirs = search.MatchPackagesInFS(m.Pattern).Pkgs
+					}
+					fsDirs[i] = dirs
 				}
-				for _, pkg := range list {
+
+				// Make a copy of the directory list and translate to import paths.
+				// Note that whether a directory corresponds to an import path
+				// changes as the build list is updated, and a directory can change
+				// from not being in the build list to being in it and back as
+				// the exact version of a particular module increases during
+				// the loader iterations.
+				m.Pkgs = str.StringList(fsDirs[i])
+				for i, pkg := range m.Pkgs {
 					dir := pkg
 					if !filepath.IsAbs(dir) {
 						dir = filepath.Join(cwd, pkg)
@@ -93,37 +116,52 @@ func ImportPaths(args []string) []string {
 					} else if path := pathInModuleCache(dir); path != "" {
 						pkg = path
 					} else {
-						base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
-						continue
+						if !iterating {
+							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
+						}
+						pkg = ""
 					}
-					roots = append(roots, pkg)
-					paths = append(paths, pkg)
+					m.Pkgs[i] = pkg
 				}
 
-			case pkg == "all":
+			case strings.Contains(m.Pattern, "..."):
+				m.Pkgs = matchPackages(m.Pattern, loaded.tags, true, buildList)
+
+			case m.Pattern == "all":
 				loaded.testAll = true
-				// TODO: Don't print warnings multiple times.
-				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, false, []module.Version{Target}))...)
-				paths = append(paths, "all") // will expand after load completes
+				if iterating {
+					// Enumerate the packages in the main module.
+					// We'll load the dependencies as we find them.
+					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
+				} else {
+					// Starting with the packages in the main module,
+					// enumerate the full list of "all".
+					m.Pkgs = loaded.computePatternAll(m.Pkgs)
+				}
 
-			case search.IsMetaPackage(pkg): // std, cmd
-				list := search.AllPackages(pkg)
-				roots = append(roots, list...)
-				paths = append(paths, list...)
+			case search.IsMetaPackage(m.Pattern): // std, cmd
+				if len(m.Pkgs) == 0 {
+					m.Pkgs = search.MatchPackages(m.Pattern).Pkgs
+				}
+			}
+		}
+	}
 
-			case strings.Contains(pkg, "..."):
-				// TODO: Don't we need to reevaluate this one last time once the build list stops changing?
-				list := warnPattern(pkg, matchPackages(pkg, loaded.tags, true, buildList))
-				roots = append(roots, list...)
-				paths = append(paths, list...)
-
-			default:
-				roots = append(roots, pkg)
-				paths = append(paths, pkg)
+	loaded.load(func() []string {
+		var roots []string
+		updateMatches(true)
+		for _, m := range matches {
+			for _, pkg := range m.Pkgs {
+				if pkg != "" {
+					roots = append(roots, pkg)
+				}
 			}
 		}
 		return roots
 	})
+
+	// One last pass to finalize wildcards.
+	updateMatches(false)
 
 	// A given module path may be used as itself or as a replacement for another
 	// module, but not both at the same time. Otherwise, the aliasing behavior is
@@ -142,33 +180,10 @@ func ImportPaths(args []string) []string {
 		}
 	}
 	base.ExitIfErrors()
-
 	WriteGoMod()
 
-	// Process paths to produce final paths list.
-	// Remove duplicates and expand "all".
-	have := make(map[string]bool)
-	var final []string
-	for _, path := range paths {
-		if have[path] {
-			continue
-		}
-		have[path] = true
-		if path == "all" {
-			for _, pkg := range loaded.pkgs {
-				if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
-					continue // Package doesn't actually exist, so don't report it.
-				}
-				if !have[pkg.path] {
-					have[pkg.path] = true
-					final = append(final, pkg.path)
-				}
-			}
-			continue
-		}
-		final = append(final, path)
-	}
-	return final
+	search.WarnUnmatched(matches)
+	return matches
 }
 
 // pathInModuleCache returns the import path of the directory dir,
@@ -579,6 +594,36 @@ func (ld *loader) doPkg(item interface{}) {
 	if pkg.test != nil {
 		ld.work.Add(pkg.test)
 	}
+}
+
+// computePatternAll returns the list of packages matching pattern "all",
+// starting with a list of the import paths for the packages in the main module.
+func (ld *loader) computePatternAll(paths []string) []string {
+	seen := make(map[*loadPkg]bool)
+	var all []string
+	var walk func(*loadPkg)
+	walk = func(pkg *loadPkg) {
+		if seen[pkg] {
+			return
+		}
+		seen[pkg] = true
+		if pkg.testOf == nil {
+			all = append(all, pkg.path)
+		}
+		for _, p := range pkg.imports {
+			walk(p)
+		}
+		if p := pkg.test; p != nil {
+			walk(p)
+		}
+	}
+	for _, path := range paths {
+		walk(ld.pkg(path, false))
+	}
+	sort.Strings(all)
+
+	fmt.Fprintf(os.Stderr, "ALL %v -> %v\n", paths, all)
+	return all
 }
 
 // scanDir is like imports.ScanDir but elides known magic imports from the list,
