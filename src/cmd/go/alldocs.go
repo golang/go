@@ -1133,8 +1133,20 @@
 // with a comment line "# package" or "# module" giving the target
 // package or module. Subsequent lines give a path through the import
 // graph, one package per line. If the package or module is not
-// referenced from the main module the stanza will be empty except for
-// the comment line.
+// referenced from the main module, the stanza will display a single
+// parenthesized note indicating that fact.
+//
+// For example:
+//
+// 	$ go mod why golang.org/x/text/language golang.org/x/text/encoding
+// 	# golang.org/x/text/language
+// 	rsc.io/quote
+// 	rsc.io/sampler
+// 	golang.org/x/text/language
+//
+// 	# golang.org/x/text/encoding
+// 	(main module does not need package golang.org/x/text/encoding)
+// 	$
 //
 //
 // Compile and run Go program
@@ -1795,7 +1807,7 @@
 //
 // To avoid problems when serving from case-sensitive file systems,
 // the <module> and <version> elements are case-encoded, replacing every
-// uppercase letter with an exclamation mark followed by the correponding
+// uppercase letter with an exclamation mark followed by the corresponding
 // lower-case letter: github.com/Azure encodes as github.com/!azure.
 //
 // The JSON-formatted metadata about a given module corresponds to
