@@ -603,7 +603,8 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 // new assists from going to sleep after this point.
 func gcWakeAllAssists() {
 	lock(&work.assistQueue.lock)
-	injectglist(work.assistQueue.q.popList().head.ptr())
+	list := work.assistQueue.q.popList()
+	injectglist(&list)
 	unlock(&work.assistQueue.lock)
 }
 

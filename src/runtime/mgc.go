@@ -1630,8 +1630,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// Bump GC cycle count and wake goroutines waiting on sweep.
 	lock(&work.sweepWaiters.lock)
 	memstats.numgc++
-	injectglist(work.sweepWaiters.list.head.ptr())
-	work.sweepWaiters.list = gList{}
+	injectglist(&work.sweepWaiters.list)
 	unlock(&work.sweepWaiters.lock)
 
 	// Finish the current heap profiling cycle and start a new
