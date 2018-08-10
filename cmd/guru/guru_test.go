@@ -268,11 +268,6 @@ func TestGuru(t *testing.T) {
 				// tests once we drop support for go1.8.
 				t.Skip()
 			}
-			if filename == "testdata/src/referrers/main.go" && !contains(build.Default.ReleaseTags, "go1.11") {
-				// Disabling broken test on Go 1.9 and Go 1.10. https://golang.org/issue/24421
-				// TODO(gri,adonovan): fix this test.
-				t.Skip()
-			}
 
 			json := strings.Contains(filename, "-json/")
 			queries := parseQueries(t, filename)
