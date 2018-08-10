@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"fmt"
 	"go/build"
 	"io/ioutil"
 	"os"
@@ -1066,15 +1067,21 @@ func TestFixImports(t *testing.T) {
 		"regexp":    "regexp",
 		"snappy":    "code.google.com/p/snappy-go/snappy",
 		"str":       "strings",
+		"strings":   "strings",
 		"user":      "appengine/user",
 		"zip":       "archive/zip",
 	}
-	old := findImport
+	oldFindImport := findImport
+	oldDirPackageInfo := dirPackageInfo
 	defer func() {
-		findImport = old
+		findImport = oldFindImport
+		dirPackageInfo = oldDirPackageInfo
 	}()
 	findImport = func(_ context.Context, pkgName string, symbols map[string]bool, filename string) (string, bool, error) {
 		return simplePkgs[pkgName], pkgName == "str", nil
+	}
+	dirPackageInfo = func(_, _, _ string) (*packageInfo, error) {
+		return nil, fmt.Errorf("no directory package info in tests")
 	}
 
 	options := &Options{
@@ -1832,8 +1839,8 @@ func TestImportPathToNameGoPathParse(t *testing.T) {
 func TestIgnoreConfiguration(t *testing.T) {
 	testConfig{
 		gopathFiles: map[string]string{
-			".goimportsignore":                                     "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
-			"example.net/pkg/pkg.go":                               "package pkg\nconst X = 1",
+			".goimportsignore":       "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
+			"example.net/pkg/pkg.go": "package pkg\nconst X = 1",
 			"otherwise-longer-so-worse.example.net/foo/pkg/pkg.go": "package pkg\nconst X = 1",
 		},
 	}.test(t, func(t *goimportTest) {
