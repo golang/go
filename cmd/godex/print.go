@@ -7,7 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	exact "go/constant"
+	"go/constant"
 	"go/token"
 	"go/types"
 	"io"
@@ -213,9 +213,9 @@ func (p *printer) printDecl(keyword string, n int, printGroup func()) {
 
 // absInt returns the absolute value of v as a *big.Int.
 // v must be a numeric value.
-func absInt(v exact.Value) *big.Int {
+func absInt(v constant.Value) *big.Int {
 	// compute big-endian representation of v
-	b := exact.Bytes(v) // little-endian
+	b := constant.Bytes(v) // little-endian
 	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
 		b[i], b[j] = b[j], b[i]
 	}
@@ -229,14 +229,14 @@ var (
 
 // floatString returns the string representation for a
 // numeric value v in normalized floating-point format.
-func floatString(v exact.Value) string {
-	if exact.Sign(v) == 0 {
+func floatString(v constant.Value) string {
+	if constant.Sign(v) == 0 {
 		return "0.0"
 	}
 	// x != 0
 
 	// convert |v| into a big.Rat x
-	x := new(big.Rat).SetFrac(absInt(exact.Num(v)), absInt(exact.Denom(v)))
+	x := new(big.Rat).SetFrac(absInt(constant.Num(v)), absInt(constant.Denom(v)))
 
 	// normalize x and determine exponent e
 	// (This is not very efficient, but also not speed-critical.)
@@ -272,7 +272,7 @@ func floatString(v exact.Value) string {
 	if e != 0 {
 		s += fmt.Sprintf("e%+d", e)
 	}
-	if exact.Sign(v) < 0 {
+	if constant.Sign(v) < 0 {
 		s = "-" + s
 	}
 
@@ -286,29 +286,29 @@ func floatString(v exact.Value) string {
 // valString returns the string representation for the value v.
 // Setting floatFmt forces an integer value to be formatted in
 // normalized floating-point format.
-// TODO(gri) Move this code into package exact.
-func valString(v exact.Value, floatFmt bool) string {
+// TODO(gri) Move this code into package constant.
+func valString(v constant.Value, floatFmt bool) string {
 	switch v.Kind() {
-	case exact.Int:
+	case constant.Int:
 		if floatFmt {
 			return floatString(v)
 		}
-	case exact.Float:
+	case constant.Float:
 		return floatString(v)
-	case exact.Complex:
-		re := exact.Real(v)
-		im := exact.Imag(v)
+	case constant.Complex:
+		re := constant.Real(v)
+		im := constant.Imag(v)
 		var s string
-		if exact.Sign(re) != 0 {
+		if constant.Sign(re) != 0 {
 			s = floatString(re)
-			if exact.Sign(im) >= 0 {
+			if constant.Sign(im) >= 0 {
 				s += " + "
 			} else {
 				s += " - "
-				im = exact.UnaryOp(token.SUB, im, 0) // negate im
+				im = constant.UnaryOp(token.SUB, im, 0) // negate im
 			}
 		}
-		// im != 0, otherwise v would be exact.Int or exact.Float
+		// im != 0, otherwise v would be constant.Int or constant.Float
 		return s + floatString(im) + "i"
 	}
 	return v.String()

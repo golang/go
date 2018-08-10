@@ -9,7 +9,7 @@ package ssa_test
 import (
 	"fmt"
 	"go/ast"
-	exact "go/constant"
+	"go/constant"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -144,7 +144,7 @@ func checkConstValue(t *testing.T, prog *ssa.Program, obj *types.Const) {
 		return
 	}
 	if obj.Name() != "nil" {
-		if !exact.Compare(c.Value, token.EQL, obj.Val()) {
+		if !constant.Compare(c.Value, token.EQL, obj.Val()) {
 			t.Errorf("ConstValue(%s).Value (%s) != %s",
 				obj, c.Value, obj.Val())
 			return

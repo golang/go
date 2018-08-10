@@ -32,7 +32,7 @@ package ssa
 import (
 	"fmt"
 	"go/ast"
-	exact "go/constant"
+	"go/constant"
 	"go/token"
 	"go/types"
 	"os"
@@ -63,7 +63,7 @@ var (
 	// SSA Value constants.
 	vZero = intConst(0)
 	vOne  = intConst(1)
-	vTrue = NewConst(exact.MakeBool(true), tBool)
+	vTrue = NewConst(constant.MakeBool(true), tBool)
 )
 
 // builder holds state associated with the package currently being built.
@@ -131,11 +131,11 @@ func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 	switch e.Op {
 	case token.LAND:
 		b.cond(fn, e.X, rhs, done)
-		short = NewConst(exact.MakeBool(false), t)
+		short = NewConst(constant.MakeBool(false), t)
 
 	case token.LOR:
 		b.cond(fn, e.X, done, rhs)
-		short = NewConst(exact.MakeBool(true), t)
+		short = NewConst(constant.MakeBool(true), t)
 	}
 
 	// Is rhs unreachable?
@@ -1998,7 +1998,7 @@ start:
 			op = token.SUB
 		}
 		loc := b.addr(fn, s.X, false)
-		b.assignOp(fn, loc, NewConst(exact.MakeInt64(1), loc.typ()), op, s.Pos())
+		b.assignOp(fn, loc, NewConst(constant.MakeInt64(1), loc.typ()), op, s.Pos())
 
 	case *ast.AssignStmt:
 		switch s.Tok {

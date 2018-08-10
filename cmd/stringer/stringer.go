@@ -64,7 +64,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
-	exact "go/constant"
+	"go/constant"
 	"go/format"
 	"go/parser"
 	"go/token"
@@ -390,7 +390,7 @@ type Value struct {
 	// by Value.String.
 	value  uint64 // Will be converted to int64 when needed.
 	signed bool   // Whether the constant is a signed type.
-	str    string // The string representation given by the "go/exact" package.
+	str    string // The string representation given by the "go/constant" package.
 }
 
 func (v *Value) String() string {
@@ -464,11 +464,11 @@ func (f *File) genDecl(node ast.Node) bool {
 				log.Fatalf("can't handle non-integer constant type %s", typ)
 			}
 			value := obj.(*types.Const).Val() // Guaranteed to succeed as this is CONST.
-			if value.Kind() != exact.Int {
+			if value.Kind() != constant.Int {
 				log.Fatalf("can't happen: constant is not an integer %s", name)
 			}
-			i64, isInt := exact.Int64Val(value)
-			u64, isUint := exact.Uint64Val(value)
+			i64, isInt := constant.Int64Val(value)
+			u64, isUint := constant.Uint64Val(value)
 			if !isInt && !isUint {
 				log.Fatalf("internal error: value of %s is not an integer: %s", name, value.String())
 			}

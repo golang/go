@@ -11,7 +11,7 @@ package eg_test
 import (
 	"bytes"
 	"flag"
-	exact "go/constant"
+	"go/constant"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -110,7 +110,7 @@ func Test(t *testing.T) {
 			if err != nil {
 				if shouldFail == nil {
 					t.Errorf("NewTransformer(%s): %s", filename, err)
-				} else if want := exact.StringVal(shouldFail.Val()); !strings.Contains(err.Error(), want) {
+				} else if want := constant.StringVal(shouldFail.Val()); !strings.Contains(err.Error(), want) {
 					t.Errorf("NewTransformer(%s): got error %q, want error %q", filename, err, want)
 				}
 			} else if shouldFail != nil {

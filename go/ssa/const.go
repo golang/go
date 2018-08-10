@@ -8,7 +8,7 @@ package ssa
 
 import (
 	"fmt"
-	exact "go/constant"
+	"go/constant"
 	"go/token"
 	"go/types"
 	"strconv"
@@ -17,14 +17,14 @@ import (
 // NewConst returns a new constant of the specified value and type.
 // val must be valid according to the specification of Const.Value.
 //
-func NewConst(val exact.Value, typ types.Type) *Const {
+func NewConst(val constant.Value, typ types.Type) *Const {
 	return &Const{typ, val}
 }
 
 // intConst returns an 'int' constant that evaluates to i.
 // (i is an int64 in case the host is narrower than the target.)
 func intConst(i int64) *Const {
-	return NewConst(exact.MakeInt64(i), tInt)
+	return NewConst(constant.MakeInt64(i), tInt)
 }
 
 // nilConst returns a nil constant of the specified type, which may
@@ -36,7 +36,7 @@ func nilConst(typ types.Type) *Const {
 
 // stringConst returns a 'string' constant that evaluates to s.
 func stringConst(s string) *Const {
-	return NewConst(exact.MakeString(s), tString)
+	return NewConst(constant.MakeString(s), tString)
 }
 
 // zeroConst returns a new "zero" constant of the specified type,
@@ -48,11 +48,11 @@ func zeroConst(t types.Type) *Const {
 	case *types.Basic:
 		switch {
 		case t.Info()&types.IsBoolean != 0:
-			return NewConst(exact.MakeBool(false), t)
+			return NewConst(constant.MakeBool(false), t)
 		case t.Info()&types.IsNumeric != 0:
-			return NewConst(exact.MakeInt64(0), t)
+			return NewConst(constant.MakeInt64(0), t)
 		case t.Info()&types.IsString != 0:
-			return NewConst(exact.MakeString(""), t)
+			return NewConst(constant.MakeString(""), t)
 		case t.Kind() == types.UnsafePointer:
 			fallthrough
 		case t.Kind() == types.UntypedNil:
@@ -74,8 +74,8 @@ func (c *Const) RelString(from *types.Package) string {
 	var s string
 	if c.Value == nil {
 		s = "nil"
-	} else if c.Value.Kind() == exact.String {
-		s = exact.StringVal(c.Value)
+	} else if c.Value.Kind() == constant.String {
+		s = constant.StringVal(c.Value)
 		const max = 20
 		// TODO(adonovan): don't cut a rune in half.
 		if len(s) > max {
@@ -121,14 +121,14 @@ func (c *Const) IsNil() bool {
 // a signed 64-bit integer.
 //
 func (c *Const) Int64() int64 {
-	switch x := exact.ToInt(c.Value); x.Kind() {
-	case exact.Int:
-		if i, ok := exact.Int64Val(x); ok {
+	switch x := constant.ToInt(c.Value); x.Kind() {
+	case constant.Int:
+		if i, ok := constant.Int64Val(x); ok {
 			return i
 		}
 		return 0
-	case exact.Float:
-		f, _ := exact.Float64Val(x)
+	case constant.Float:
+		f, _ := constant.Float64Val(x)
 		return int64(f)
 	}
 	panic(fmt.Sprintf("unexpected constant value: %T", c.Value))
@@ -138,14 +138,14 @@ func (c *Const) Int64() int64 {
 // an unsigned 64-bit integer.
 //
 func (c *Const) Uint64() uint64 {
-	switch x := exact.ToInt(c.Value); x.Kind() {
-	case exact.Int:
-		if u, ok := exact.Uint64Val(x); ok {
+	switch x := constant.ToInt(c.Value); x.Kind() {
+	case constant.Int:
+		if u, ok := constant.Uint64Val(x); ok {
 			return u
 		}
 		return 0
-	case exact.Float:
-		f, _ := exact.Float64Val(x)
+	case constant.Float:
+		f, _ := constant.Float64Val(x)
 		return uint64(f)
 	}
 	panic(fmt.Sprintf("unexpected constant value: %T", c.Value))
@@ -155,7 +155,7 @@ func (c *Const) Uint64() uint64 {
 // a float64.
 //
 func (c *Const) Float64() float64 {
-	f, _ := exact.Float64Val(c.Value)
+	f, _ := constant.Float64Val(c.Value)
 	return f
 }
 
@@ -163,7 +163,7 @@ func (c *Const) Float64() float64 {
 // fit a complex128.
 //
 func (c *Const) Complex128() complex128 {
-	re, _ := exact.Float64Val(exact.Real(c.Value))
-	im, _ := exact.Float64Val(exact.Imag(c.Value))
+	re, _ := constant.Float64Val(constant.Real(c.Value))
+	im, _ := constant.Float64Val(constant.Imag(c.Value))
 	return complex(re, im)
 }

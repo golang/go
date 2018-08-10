@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	exact "go/constant"
+	"go/constant"
 	"go/token"
 	"go/types"
 	"os"
@@ -349,10 +349,10 @@ func describeValue(qpos *queryPos, path []ast.Node) (*describeValueResult, error
 
 type describeValueResult struct {
 	qpos     *queryPos
-	expr     ast.Expr     // query node
-	typ      types.Type   // type of expression
-	constVal exact.Value  // value of expression, if constant
-	obj      types.Object // var/func/const object, if expr was Ident
+	expr     ast.Expr       // query node
+	typ      types.Type     // type of expression
+	constVal constant.Value // value of expression, if constant
+	obj      types.Object   // var/func/const object, if expr was Ident
 	methods  []*types.Selection
 	fields   []describeField
 }

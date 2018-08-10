@@ -16,7 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
-	exact "go/constant"
+	"go/constant"
 	"go/token"
 	"go/types"
 	"io"
@@ -777,9 +777,9 @@ func (p *parser) parseInt() string {
 
 // number = int_lit [ "p" int_lit ] .
 //
-func (p *parser) parseNumber() (typ *types.Basic, val exact.Value) {
+func (p *parser) parseNumber() (typ *types.Basic, val constant.Value) {
 	// mantissa
-	mant := exact.MakeFromLiteral(p.parseInt(), token.INT, 0)
+	mant := constant.MakeFromLiteral(p.parseInt(), token.INT, 0)
 	if mant == nil {
 		panic("invalid mantissa")
 	}
@@ -792,14 +792,14 @@ func (p *parser) parseNumber() (typ *types.Basic, val exact.Value) {
 			p.error(err)
 		}
 		if exp < 0 {
-			denom := exact.MakeInt64(1)
-			denom = exact.Shift(denom, token.SHL, uint(-exp))
+			denom := constant.MakeInt64(1)
+			denom = constant.Shift(denom, token.SHL, uint(-exp))
 			typ = types.Typ[types.UntypedFloat]
-			val = exact.BinaryOp(mant, token.QUO, denom)
+			val = constant.BinaryOp(mant, token.QUO, denom)
 			return
 		}
 		if exp > 0 {
-			mant = exact.Shift(mant, token.SHL, uint(exp))
+			mant = constant.Shift(mant, token.SHL, uint(exp))
 		}
 		typ = types.Typ[types.UntypedFloat]
 		val = mant
@@ -830,7 +830,7 @@ func (p *parser) parseConstDecl() {
 
 	p.expect('=')
 	var typ types.Type
-	var val exact.Value
+	var val constant.Value
 	switch p.tok {
 	case scanner.Ident:
 		// bool_lit
@@ -838,7 +838,7 @@ func (p *parser) parseConstDecl() {
 			p.error("expected true or false")
 		}
 		typ = types.Typ[types.UntypedBool]
-		val = exact.MakeBool(p.lit == "true")
+		val = constant.MakeBool(p.lit == "true")
 		p.next()
 
 	case '-', scanner.Int:
@@ -862,18 +862,18 @@ func (p *parser) parseConstDecl() {
 		p.expectKeyword("i")
 		p.expect(')')
 		typ = types.Typ[types.UntypedComplex]
-		val = exact.BinaryOp(re, token.ADD, exact.MakeImag(im))
+		val = constant.BinaryOp(re, token.ADD, constant.MakeImag(im))
 
 	case scanner.Char:
 		// rune_lit
 		typ = types.Typ[types.UntypedRune]
-		val = exact.MakeFromLiteral(p.lit, token.CHAR, 0)
+		val = constant.MakeFromLiteral(p.lit, token.CHAR, 0)
 		p.next()
 
 	case scanner.String:
 		// string_lit
 		typ = types.Typ[types.UntypedString]
-		val = exact.MakeFromLiteral(p.lit, token.STRING, 0)
+		val = constant.MakeFromLiteral(p.lit, token.STRING, 0)
 		p.next()
 
 	default:
