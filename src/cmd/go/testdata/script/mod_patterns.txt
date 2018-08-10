@@ -15,15 +15,14 @@ stdout '^unsafe$'
 ! stdout index/suffixarray
 
 # 'go list ...' should list packages in all active modules and the standard library.
-# BUG: It currently omits the standard library (https://golang.org/issue/26905).
 go list ...
 stdout example.com/unused/useerrors
 stdout example.com/m/useunsafe
 [cgo] stdout example.com/m/useC
 [!cgo] ! stdout example.com/m/useC
-# stdout '^unicode$'
-# stdout '^unsafe$'
-# stdout index/suffixarray
+stdout '^unicode$'
+stdout '^unsafe$'
+stdout index/suffixarray
 
 # 'go list example.com/m/...' should list packages in all modules that begin with
 # "example.com/m/".
