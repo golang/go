@@ -4667,13 +4667,7 @@ func mget() *m {
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func globrunqput(gp *g) {
-	gp.schedlink = 0
-	if sched.runqtail != 0 {
-		sched.runqtail.ptr().schedlink.set(gp)
-	} else {
-		sched.runqhead.set(gp)
-	}
-	sched.runqtail.set(gp)
+	sched.runq.pushBack(gp)
 	sched.runqsize++
 }
 
@@ -4682,25 +4676,17 @@ func globrunqput(gp *g) {
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func globrunqputhead(gp *g) {
-	gp.schedlink = sched.runqhead
-	sched.runqhead.set(gp)
-	if sched.runqtail == 0 {
-		sched.runqtail.set(gp)
-	}
+	sched.runq.push(gp)
 	sched.runqsize++
 }
 
 // Put a batch of runnable goroutines on the global runnable queue.
+// This clears *batch.
 // Sched must be locked.
-func globrunqputbatch(ghead *g, gtail *g, n int32) {
-	gtail.schedlink = 0
-	if sched.runqtail != 0 {
-		sched.runqtail.ptr().schedlink.set(ghead)
-	} else {
-		sched.runqhead.set(ghead)
-	}
-	sched.runqtail.set(gtail)
+func globrunqputbatch(batch *gQueue, n int32) {
+	sched.runq.pushBackAll(*batch)
 	sched.runqsize += n
+	*batch = gQueue{}
 }
 
 // Try get a batch of G's from the global runnable queue.
@@ -4722,16 +4708,11 @@ func globrunqget(_p_ *p, max int32) *g {
 	}
 
 	sched.runqsize -= n
-	if sched.runqsize == 0 {
-		sched.runqtail = 0
-	}
 
-	gp := sched.runqhead.ptr()
-	sched.runqhead = gp.schedlink
+	gp := sched.runq.pop()
 	n--
 	for ; n > 0; n-- {
-		gp1 := sched.runqhead.ptr()
-		sched.runqhead = gp1.schedlink
+		gp1 := sched.runq.pop()
 		runqput(_p_, gp1, false)
 	}
 	return gp
@@ -4859,10 +4840,13 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
 	for i := uint32(0); i < n; i++ {
 		batch[i].schedlink.set(batch[i+1])
 	}
+	var q gQueue
+	q.head.set(batch[0])
+	q.tail.set(batch[n])
 
 	// Now put the batch on global queue.
 	lock(&sched.lock)
-	globrunqputbatch(batch[0], batch[n], int32(n+1))
+	globrunqputbatch(&q, int32(n+1))
 	unlock(&sched.lock)
 	return true
 }
@@ -4971,6 +4955,107 @@ func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
 		throw("runqsteal: runq overflow")
 	}
 	atomic.Store(&_p_.runqtail, t+n) // store-release, makes the item available for consumption
+	return gp
+}
+
+// A gQueue is a dequeue of Gs linked through g.schedlink. A G can only
+// be on one gQueue or gList at a time.
+type gQueue struct {
+	head guintptr
+	tail guintptr
+}
+
+// empty returns true if q is empty.
+func (q *gQueue) empty() bool {
+	return q.head == 0
+}
+
+// push adds gp to the head of q.
+func (q *gQueue) push(gp *g) {
+	gp.schedlink = q.head
+	q.head.set(gp)
+	if q.tail == 0 {
+		q.tail.set(gp)
+	}
+}
+
+// pushBack adds gp to the tail of q.
+func (q *gQueue) pushBack(gp *g) {
+	gp.schedlink = 0
+	if q.tail != 0 {
+		q.tail.ptr().schedlink.set(gp)
+	} else {
+		q.head.set(gp)
+	}
+	q.tail.set(gp)
+}
+
+// pushBackAll adds all Gs in l2 to the tail of q. After this q2 must
+// not be used.
+func (q *gQueue) pushBackAll(q2 gQueue) {
+	if q2.tail == 0 {
+		return
+	}
+	q2.tail.ptr().schedlink = 0
+	if q.tail != 0 {
+		q.tail.ptr().schedlink = q2.head
+	} else {
+		q.head = q2.head
+	}
+	q.tail = q2.tail
+}
+
+// pop removes and returns the head of queue q. It returns nil if
+// q is empty.
+func (q *gQueue) pop() *g {
+	gp := q.head.ptr()
+	if gp != nil {
+		q.head = gp.schedlink
+		if q.head == 0 {
+			q.tail = 0
+		}
+	}
+	return gp
+}
+
+// popList takes all Gs in q and returns them as a gList.
+func (q *gQueue) popList() gList {
+	stack := gList{q.head}
+	*q = gQueue{}
+	return stack
+}
+
+// A gList is a list of Gs linked through g.schedlink. A G can only be
+// on one gQueue or gList at a time.
+type gList struct {
+	head guintptr
+}
+
+// empty returns true if l is empty.
+func (l *gList) empty() bool {
+	return l.head == 0
+}
+
+// push adds gp to the head of l.
+func (l *gList) push(gp *g) {
+	gp.schedlink = l.head
+	l.head.set(gp)
+}
+
+// pushAll prepends all Gs in q to l.
+func (l *gList) pushAll(q gQueue) {
+	if !q.empty() {
+		q.tail.ptr().schedlink = l.head
+		l.head = q.head
+	}
+}
+
+// pop removes and returns the head of l. If l is empty, it returns nil.
+func (l *gList) pop() *g {
+	gp := l.head.ptr()
+	if gp != nil {
+		l.head = gp.schedlink
+	}
 	return gp
 }
 

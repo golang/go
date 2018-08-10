@@ -1023,8 +1023,8 @@ var work struct {
 	// there was neither enough credit to steal or enough work to
 	// do.
 	assistQueue struct {
-		lock       mutex
-		head, tail guintptr
+		lock mutex
+		q    gQueue
 	}
 
 	// sweepWaiters is a list of blocked goroutines to wake when

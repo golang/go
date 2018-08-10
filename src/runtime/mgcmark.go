@@ -602,9 +602,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 // new assists from going to sleep after this point.
 func gcWakeAllAssists() {
 	lock(&work.assistQueue.lock)
-	injectglist(work.assistQueue.head.ptr())
-	work.assistQueue.head.set(nil)
-	work.assistQueue.tail.set(nil)
+	injectglist(work.assistQueue.q.popList().head.ptr())
 	unlock(&work.assistQueue.lock)
 }
 
@@ -625,24 +623,17 @@ func gcParkAssist() bool {
 	}
 
 	gp := getg()
-	oldHead, oldTail := work.assistQueue.head, work.assistQueue.tail
-	if oldHead == 0 {
-		work.assistQueue.head.set(gp)
-	} else {
-		oldTail.ptr().schedlink.set(gp)
-	}
-	work.assistQueue.tail.set(gp)
-	gp.schedlink.set(nil)
+	oldList := work.assistQueue.q
+	work.assistQueue.q.pushBack(gp)
 
 	// Recheck for background credit now that this G is in
 	// the queue, but can still back out. This avoids a
 	// race in case background marking has flushed more
 	// credit since we checked above.
 	if atomic.Loadint64(&gcController.bgScanCredit) > 0 {
-		work.assistQueue.head = oldHead
-		work.assistQueue.tail = oldTail
-		if oldTail != 0 {
-			oldTail.ptr().schedlink.set(nil)
+		work.assistQueue.q = oldList
+		if oldList.tail != 0 {
+			oldList.tail.ptr().schedlink.set(nil)
 		}
 		unlock(&work.assistQueue.lock)
 		return false
@@ -663,7 +654,7 @@ func gcParkAssist() bool {
 //
 //go:nowritebarrierrec
 func gcFlushBgCredit(scanWork int64) {
-	if work.assistQueue.head == 0 {
+	if work.assistQueue.q.empty() {
 		// Fast path; there are no blocked assists. There's a
 		// small window here where an assist may add itself to
 		// the blocked queue and park. If that happens, we'll
@@ -675,23 +666,21 @@ func gcFlushBgCredit(scanWork int64) {
 	scanBytes := int64(float64(scanWork) * gcController.assistBytesPerWork)
 
 	lock(&work.assistQueue.lock)
-	gp := work.assistQueue.head.ptr()
-	for gp != nil && scanBytes > 0 {
+	for !work.assistQueue.q.empty() && scanBytes > 0 {
+		gp := work.assistQueue.q.pop()
 		// Note that gp.gcAssistBytes is negative because gp
 		// is in debt. Think carefully about the signs below.
 		if scanBytes+gp.gcAssistBytes >= 0 {
 			// Satisfy this entire assist debt.
 			scanBytes += gp.gcAssistBytes
 			gp.gcAssistBytes = 0
-			xgp := gp
-			gp = gp.schedlink.ptr()
-			// It's important that we *not* put xgp in
+			// It's important that we *not* put gp in
 			// runnext. Otherwise, it's possible for user
 			// code to exploit the GC worker's high
 			// scheduler priority to get itself always run
 			// before other goroutines and always in the
 			// fresh quantum started by GC.
-			ready(xgp, 0, false)
+			ready(gp, 0, false)
 		} else {
 			// Partially satisfy this assist.
 			gp.gcAssistBytes += scanBytes
@@ -700,22 +689,9 @@ func gcFlushBgCredit(scanWork int64) {
 			// back of the queue so that large assists
 			// can't clog up the assist queue and
 			// substantially delay small assists.
-			xgp := gp
-			gp = gp.schedlink.ptr()
-			if gp == nil {
-				// gp is the only assist in the queue.
-				gp = xgp
-			} else {
-				xgp.schedlink = 0
-				work.assistQueue.tail.ptr().schedlink.set(xgp)
-				work.assistQueue.tail.set(xgp)
-			}
+			work.assistQueue.q.pushBack(gp)
 			break
 		}
-	}
-	work.assistQueue.head.set(gp)
-	if gp == nil {
-		work.assistQueue.tail.set(nil)
 	}
 
 	if scanBytes > 0 {
