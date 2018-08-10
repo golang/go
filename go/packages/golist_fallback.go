@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/internal/cgo"
-	"golang.org/x/tools/imports"
 )
 
 // TODO(matloob): Delete this file once Go 1.12 is released.
@@ -62,7 +61,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 					}
 					continue
 				}
-				importMap[imports.VendorlessPath(id)] = &Package{ID: id}
+				importMap[vendorlessPath(id)] = &Package{ID: id}
 			}
 			return importMap
 		}
@@ -170,6 +169,20 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 	}
 
 	return &response, nil
+}
+
+// vendorlessPath returns the devendorized version of the import path ipath.
+// For example, VendorlessPath("foo/bar/vendor/a/b") returns "a/b".
+// Copied from golang.org/x/tools/imports/fix.go.
+func vendorlessPath(ipath string) string {
+	// Devendorize for use in import statement.
+	if i := strings.LastIndex(ipath, "/vendor/"); i >= 0 {
+		return ipath[i+len("/vendor/"):]
+	}
+	if strings.HasPrefix(ipath, "vendor/") {
+		return ipath[len("vendor/"):]
+	}
+	return ipath
 }
 
 // getDeps runs an initial go list to determine all the dependency packages.
