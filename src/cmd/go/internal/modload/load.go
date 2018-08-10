@@ -103,7 +103,7 @@ func ImportPaths(args []string) []string {
 			case pkg == "all":
 				loaded.testAll = true
 				// TODO: Don't print warnings multiple times.
-				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, []module.Version{Target}))...)
+				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, false, []module.Version{Target}))...)
 				paths = append(paths, "all") // will expand after load completes
 
 			case search.IsMetaPackage(pkg): // std, cmd
@@ -113,7 +113,7 @@ func ImportPaths(args []string) []string {
 
 			case strings.Contains(pkg, "..."):
 				// TODO: Don't we need to reevaluate this one last time once the build list stops changing?
-				list := warnPattern(pkg, matchPackages(pkg, loaded.tags, buildList))
+				list := warnPattern(pkg, matchPackages(pkg, loaded.tags, true, buildList))
 				roots = append(roots, list...)
 				paths = append(paths, list...)
 
@@ -286,7 +286,7 @@ var anyTags = map[string]bool{"*": true}
 // TargetPackages returns the list of packages in the target (top-level) module,
 // under all build tag settings.
 func TargetPackages() []string {
-	return matchPackages("...", anyTags, []module.Version{Target})
+	return matchPackages("...", anyTags, false, []module.Version{Target})
 }
 
 // BuildList returns the module build list,
