@@ -1031,7 +1031,7 @@ var work struct {
 	// we transition from mark termination to sweep.
 	sweepWaiters struct {
 		lock mutex
-		head guintptr
+		list gList
 	}
 
 	// cycles is the number of completed GC cycles, where a GC
@@ -1146,9 +1146,7 @@ func gcWaitOnMark(n uint32) {
 
 		// Wait until sweep termination, mark, and mark
 		// termination of cycle N complete.
-		gp := getg()
-		gp.schedlink = work.sweepWaiters.head
-		work.sweepWaiters.head.set(gp)
+		work.sweepWaiters.list.push(getg())
 		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
 	}
 }
@@ -1632,8 +1630,8 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// Bump GC cycle count and wake goroutines waiting on sweep.
 	lock(&work.sweepWaiters.lock)
 	memstats.numgc++
-	injectglist(work.sweepWaiters.head.ptr())
-	work.sweepWaiters.head = 0
+	injectglist(work.sweepWaiters.list.head.ptr())
+	work.sweepWaiters.list = gList{}
 	unlock(&work.sweepWaiters.lock)
 
 	// Finish the current heap profiling cycle and start a new
