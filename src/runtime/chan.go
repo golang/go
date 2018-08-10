@@ -343,7 +343,7 @@ func closechan(c *hchan) {
 
 	c.closed = 1
 
-	var glist *g
+	var glist gList
 
 	// release all readers
 	for {
@@ -363,8 +363,7 @@ func closechan(c *hchan) {
 		if raceenabled {
 			raceacquireg(gp, unsafe.Pointer(c))
 		}
-		gp.schedlink.set(glist)
-		glist = gp
+		glist.push(gp)
 	}
 
 	// release all writers (they will panic)
@@ -382,15 +381,13 @@ func closechan(c *hchan) {
 		if raceenabled {
 			raceacquireg(gp, unsafe.Pointer(c))
 		}
-		gp.schedlink.set(glist)
-		glist = gp
+		glist.push(gp)
 	}
 	unlock(&c.lock)
 
 	// Ready all Gs now that we've dropped the channel lock.
-	for glist != nil {
-		gp := glist
-		glist = glist.schedlink.ptr()
+	for !glist.empty() {
+		gp := glist.pop()
 		gp.schedlink = 0
 		goready(gp, 3)
 	}
