@@ -32,13 +32,13 @@ var (
 	ModInit func()
 
 	// module hooks; nil if module use is disabled
-	ModBinDir            func() string                                                   // return effective bin directory
-	ModLookup            func(parentPath, path string) (dir, realPath string, err error) // lookup effective meaning of import
-	ModPackageModuleInfo func(path string) *modinfo.ModulePublic                         // return module info for Package struct
-	ModImportPaths       func(args []string) []string                                    // expand import paths
-	ModPackageBuildInfo  func(main string, deps []string) string                         // return module info to embed in binary
-	ModInfoProg          func(info string) []byte                                        // wrap module info in .go code for binary
-	ModImportFromFiles   func([]string)                                                  // update go.mod to add modules for imports in these files
+	ModBinDir            func() string                                       // return effective bin directory
+	ModLookup            func(path string) (dir, realPath string, err error) // lookup effective meaning of import
+	ModPackageModuleInfo func(path string) *modinfo.ModulePublic             // return module info for Package struct
+	ModImportPaths       func(args []string) []string                        // expand import paths
+	ModPackageBuildInfo  func(main string, deps []string) string             // return module info to embed in binary
+	ModInfoProg          func(info string) []byte                            // wrap module info in .go code for binary
+	ModImportFromFiles   func([]string)                                      // update go.mod to add modules for imports in these files
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -157,6 +157,7 @@ type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build             *build.Package
 	Imports           []*Package           // this package's direct imports
+	CompiledImports   []string             // additional Imports necessary when using CompiledGoFiles (all from standard library)
 	RawImports        []string             // this package's original imports as they appear in the text of the program
 	ForceLibrary      bool                 // this package is a library (even if named "main")
 	CmdlineFiles      bool                 // package built from files listed on command line
@@ -319,7 +320,8 @@ func (p *PackageError) Error() string {
 }
 
 // An ImportStack is a stack of import paths, possibly with the suffix " (test)" appended.
-// TODO(bcmills): When the tree opens for 1.12, replace the suffixed string with a struct.
+// The import path of a test package is the import path of the corresponding
+// non-test package with the suffix "_test" added.
 type ImportStack []string
 
 func (s *ImportStack) Push(p string) {
@@ -468,6 +470,11 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		}
 	}
 
+	parentPath := ""
+	if parent != nil {
+		parentPath = parent.ImportPath
+	}
+
 	// Determine canonical identifier for this package.
 	// For a local import the identifier is the pseudo-import path
 	// we create from the full directory to the package.
@@ -481,12 +488,8 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 	if isLocal {
 		importPath = dirToImportPath(filepath.Join(srcDir, path))
 	} else if cfg.ModulesEnabled {
-		parentPath := ""
-		if parent != nil {
-			parentPath = parent.ImportPath
-		}
 		var p string
-		modDir, p, modErr = ModLookup(parentPath, path)
+		modDir, p, modErr = ModLookup(path)
 		if modErr == nil {
 			importPath = p
 		}
@@ -557,11 +560,11 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
-	if perr := disallowInternal(srcDir, p, stk); perr != p {
+	if perr := disallowInternal(srcDir, parentPath, p, stk); perr != p {
 		return setErrorPos(perr, importPos)
 	}
 	if mode&ResolveImport != 0 {
-		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
+		if perr := disallowVendor(srcDir, parentPath, origPath, p, stk); perr != p {
 			return setErrorPos(perr, importPos)
 		}
 	}
@@ -626,11 +629,7 @@ func isDir(path string) bool {
 // Go 1.11 module legacy conversion (golang.org/issue/25069).
 func ResolveImportPath(parent *Package, path string) (found string) {
 	if cfg.ModulesEnabled {
-		parentPath := ""
-		if parent != nil {
-			parentPath = parent.ImportPath
-		}
-		if _, p, e := ModLookup(parentPath, path); e == nil {
+		if _, p, e := ModLookup(path); e == nil {
 			return p
 		}
 		return path
@@ -922,10 +921,11 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 	return p
 }
 
-// disallowInternal checks that srcDir is allowed to import p.
+// disallowInternal checks that srcDir (containing package importerPath, if non-empty)
+// is allowed to import p.
 // If the import is allowed, disallowInternal returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
+func disallowInternal(srcDir, importerPath string, p *Package, stk *ImportStack) *Package {
 	// golang.org/s/go14internal:
 	// An import of a path containing the element “internal”
 	// is disallowed if the importing code is outside the tree
@@ -969,7 +969,6 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
 		i-- // rewind over slash in ".../internal"
 	}
 
-	var where string
 	if p.Module == nil {
 		parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
 
@@ -987,18 +986,16 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
 		// p is in a module, so make it available based on the import path instead
 		// of the file path (https://golang.org/issue/23970).
 		parent := p.ImportPath[:i]
-		importer := strings.TrimSuffix((*stk)[len(*stk)-2], " (test)")
-		if str.HasPathPrefix(importer, parent) {
+		if str.HasPathPrefix(importerPath, parent) {
 			return p
 		}
-		where = " in " + importer
 	}
 
 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
 	perr := *p
 	perr.Error = &PackageError{
 		ImportStack: stk.Copy(),
-		Err:         "use of internal package " + p.ImportPath + " not allowed" + where,
+		Err:         "use of internal package " + p.ImportPath + " not allowed",
 	}
 	perr.Incomplete = true
 	return &perr
@@ -1023,10 +1020,11 @@ func findInternal(path string) (index int, ok bool) {
 	return 0, false
 }
 
-// disallowVendor checks that srcDir is allowed to import p as path.
+// disallowVendor checks that srcDir (containing package importerPath, if non-empty)
+// is allowed to import p as path.
 // If the import is allowed, disallowVendor returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowVendor(srcDir, path string, p *Package, stk *ImportStack) *Package {
+func disallowVendor(srcDir, importerPath, path string, p *Package, stk *ImportStack) *Package {
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an
@@ -1035,13 +1033,12 @@ func disallowVendor(srcDir, path string, p *Package, stk *ImportStack) *Package 
 		return p
 	}
 
-	if p.Standard && ModPackageModuleInfo != nil {
+	if p.Standard && ModPackageModuleInfo != nil && importerPath != "" {
 		// Modules must not import vendor packages in the standard library,
 		// but the usual vendor visibility check will not catch them
 		// because the module loader presents them with an ImportPath starting
 		// with "golang_org/" instead of "vendor/".
-		importer := strings.TrimSuffix((*stk)[len(*stk)-2], " (test)")
-		if mod := ModPackageModuleInfo(importer); mod != nil {
+		if mod := ModPackageModuleInfo(importerPath); mod != nil {
 			dir := p.Dir
 			if relDir, err := filepath.Rel(p.Root, p.Dir); err == nil {
 				dir = relDir
@@ -1245,6 +1242,37 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 			return
 		}
 		_, elem := filepath.Split(p.Dir)
+		if cfg.ModulesEnabled {
+			// NOTE(rsc): Using p.ImportPath instead of p.Dir
+			// makes sure we install a package in the root of a
+			// cached module directory as that package name
+			// not name@v1.2.3.
+			// Using p.ImportPath instead of p.Dir
+			// is probably correct all the time,
+			// even for non-module-enabled code,
+			// but I'm not brave enough to change the
+			// non-module behavior this late in the
+			// release cycle. Maybe for Go 1.12.
+			// See golang.org/issue/26869.
+			_, elem = pathpkg.Split(p.ImportPath)
+
+			// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
+			// See golang.org/issue/24667.
+			isVersion := func(v string) bool {
+				if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
+					return false
+				}
+				for i := 2; i < len(v); i++ {
+					if c := v[i]; c < '0' || '9' < c {
+						return false
+					}
+				}
+				return true
+			}
+			if isVersion(elem) {
+				_, elem = pathpkg.Split(pathpkg.Dir(p.ImportPath))
+			}
+		}
 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
 		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
 			// Install cross-compiled binaries to subdirectories of bin.
@@ -1300,31 +1328,37 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	// Build augmented import list to add implicit dependencies.
 	// Be careful not to add imports twice, just to avoid confusion.
 	importPaths := p.Imports
-	addImport := func(path string) {
+	addImport := func(path string, forCompiler bool) {
 		for _, p := range importPaths {
 			if path == p {
 				return
 			}
 		}
 		importPaths = append(importPaths, path)
+		if forCompiler {
+			p.Internal.CompiledImports = append(p.Internal.CompiledImports, path)
+		}
 	}
 
-	// Cgo translation adds imports of "runtime/cgo" and "syscall",
+	// Cgo translation adds imports of "unsafe", "runtime/cgo" and "syscall",
 	// except for certain packages, to avoid circular dependencies.
+	if p.UsesCgo() {
+		addImport("unsafe", true)
+	}
 	if p.UsesCgo() && (!p.Standard || !cgoExclude[p.ImportPath]) && cfg.BuildContext.Compiler != "gccgo" {
-		addImport("runtime/cgo")
+		addImport("runtime/cgo", true)
 	}
 	if p.UsesCgo() && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
-		addImport("syscall")
+		addImport("syscall", true)
 	}
 
 	// SWIG adds imports of some standard packages.
 	if p.UsesSwig() {
 		if cfg.BuildContext.Compiler != "gccgo" {
-			addImport("runtime/cgo")
+			addImport("runtime/cgo", true)
 		}
-		addImport("syscall")
-		addImport("sync")
+		addImport("syscall", true)
+		addImport("sync", true)
 
 		// TODO: The .swig and .swigcxx files can use
 		// %go_import directives to import other packages.
@@ -1333,7 +1367,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	// The linker loads implicit dependencies.
 	if p.Name == "main" && !p.Internal.ForceLibrary {
 		for _, dep := range LinkerDeps(p) {
-			addImport(dep)
+			addImport(dep, false)
 		}
 	}
 
@@ -1771,7 +1805,7 @@ func LoadPackage(arg string, stk *ImportStack) *Package {
 	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
 }
 
-// packages returns the packages named by the
+// Packages returns the packages named by the
 // command line arguments 'args'. If a named package
 // cannot be loaded at all (for example, if the directory does not exist),
 // then packages prints an error and does not include that
@@ -1791,7 +1825,7 @@ func Packages(args []string) []*Package {
 	return pkgs
 }
 
-// packagesAndErrors is like 'packages' but returns a
+// PackagesAndErrors is like 'packages' but returns a
 // *Package for every argument, even the ones that
 // cannot be loaded at all.
 // The packages that fail to load will have p.Error != nil.

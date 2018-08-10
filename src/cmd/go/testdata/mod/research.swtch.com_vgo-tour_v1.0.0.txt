@@ -1,0 +1,23 @@
+research.swtch.com/vgo-tour@v1.0.0
+
+-- .mod --
+module "research.swtch.com/vgo-tour"
+-- .info --
+{"Version":"v1.0.0","Name":"84de74b35823c1e49634f2262f1a58cfc951ebae","Short":"84de74b35823","Time":"2018-02-20T00:04:00Z"}
+-- go.mod --
+module "research.swtch.com/vgo-tour"
+-- hello.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"rsc.io/quote"
+)
+
+func main() {
+	fmt.Println(quote.Hello())
+}

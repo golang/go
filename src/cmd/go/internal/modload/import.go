@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/build"
 	"os"
-	pathpkg "path"
 	"path/filepath"
 	"strings"
 
@@ -42,7 +41,7 @@ func (e *ImportMissingError) Error() string {
 // If the package cannot be found in the current build list,
 // Import returns an ImportMissingError as the error.
 // If Import can identify a module that could be added to supply the package,
-// the ImportMissingErr records that module.
+// the ImportMissingError records that module.
 func Import(path string) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
@@ -124,24 +123,6 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return module.Version{}, "", errors.New(buf.String())
 	}
 
-	// Special case: if the path matches a module path,
-	// and we haven't found code in any module on the build list
-	// (since we haven't returned yet),
-	// force the use of the current module instead of
-	// looking for an alternate one.
-	// This helps "go get golang.org/x/net" even though
-	// there is no code in x/net.
-	for _, m := range buildList {
-		if m.Path == path {
-			root, isLocal, err := fetch(m)
-			if err != nil {
-				return module.Version{}, "", err
-			}
-			dir, _ := dirInModule(path, m.Path, root, isLocal)
-			return m, dir, nil
-		}
-	}
-
 	// Not on build list.
 
 	// Look up module containing the package, for addition to the build list.
@@ -150,43 +131,11 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
 	}
 
-	for p := path; p != "."; p = pathpkg.Dir(p) {
-		// We can't upgrade the main module.
-		// Note that this loop does consider upgrading other modules on the build list.
-		// If that's too aggressive we can skip all paths already on the build list,
-		// not just Target.Path, but for now let's try being aggressive.
-		if p == Target.Path {
-			// Can't move to a new version of main module.
-			continue
-		}
-
-		info, err := Query(p, "latest", Allowed)
-		if err != nil {
-			continue
-		}
-		m := module.Version{Path: p, Version: info.Version}
-		root, isLocal, err := fetch(m)
-		if err != nil {
-			continue
-		}
-		_, ok := dirInModule(path, m.Path, root, isLocal)
-		if ok {
-			return module.Version{}, "", &ImportMissingError{ImportPath: path, Module: m}
-		}
-
-		// Special case matching the one above:
-		// if m.Path matches path, assume adding it to the build list
-		// will either add the right code or the right code doesn't exist.
-		if m.Path == path {
-			return module.Version{}, "", &ImportMissingError{ImportPath: path, Module: m}
-		}
+	m, _, err = QueryPackage(path, "latest", Allowed)
+	if err != nil {
+		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
-
-	// Did not resolve import to any module.
-	// TODO(rsc): It would be nice to return a specific error encountered
-	// during the loop above if possible, but it's not clear how to pick
-	// out the right one.
-	return module.Version{}, "", &ImportMissingError{ImportPath: path}
+	return m, "", &ImportMissingError{ImportPath: path, Module: m}
 }
 
 // maybeInModule reports whether, syntactically,

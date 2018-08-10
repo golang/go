@@ -20,7 +20,7 @@ stdout 'Clear is better than clever.'
 # However, the same module can't be used as two different paths.
 go mod edit -dropreplace=rsc.io/quote/v3 -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
 ! go build -o a4.exe .
-
+stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
 
 -- go.mod --
 module quoter

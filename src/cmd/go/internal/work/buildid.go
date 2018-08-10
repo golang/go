@@ -18,6 +18,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
+	"cmd/internal/objabi"
 )
 
 // Build IDs
@@ -204,6 +205,11 @@ func (b *Builder) toolID(name string) string {
 	} else {
 		// For a release, the output is like: "compile version go1.9.1". Use the whole line.
 		id = f[2]
+	}
+
+	// For the compiler, add any experiments.
+	if name == "compile" {
+		id += " " + objabi.Expstring()
 	}
 
 	b.id.Lock()
@@ -463,6 +469,14 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 				a.buildID = id[1] + buildIDSeparator + id[2]
 				linkID := hashToString(b.linkActionID(a.triggers[0]))
 				if id[0] == linkID {
+					// Best effort attempt to display output from the compile and link steps.
+					// If it doesn't work, it doesn't work: reusing the cached binary is more
+					// important than reprinting diagnostic information.
+					if c := cache.Default(); c != nil {
+						showStdout(b, c, a.actionID, "stdout")      // compile output
+						showStdout(b, c, a.actionID, "link-stdout") // link output
+					}
+
 					// Poison a.Target to catch uses later in the build.
 					a.Target = "DO NOT USE - main build pseudo-cache Target"
 					a.built = "DO NOT USE - main build pseudo-cache built"
@@ -480,6 +494,15 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// We avoid the nested build ID problem in the previous special case
 	// by recording the test results in the cache under the action ID half.
 	if !cfg.BuildA && len(a.triggers) == 1 && a.triggers[0].TryCache != nil && a.triggers[0].TryCache(b, a.triggers[0]) {
+		// Best effort attempt to display output from the compile and link steps.
+		// If it doesn't work, it doesn't work: reusing the test result is more
+		// important than reprinting diagnostic information.
+		if c := cache.Default(); c != nil {
+			showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
+			showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
+		}
+
+		// Poison a.Target to catch uses later in the build.
 		a.Target = "DO NOT USE -  pseudo-cache Target"
 		a.built = "DO NOT USE - pseudo-cache built"
 		return true
@@ -520,15 +543,7 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 		if !cfg.BuildA {
 			if file, _, err := c.GetFile(actionHash); err == nil {
 				if buildID, err := buildid.ReadFile(file); err == nil {
-					if stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(a.actionID, "stdout")); err == nil {
-						if len(stdout) > 0 {
-							if cfg.BuildX || cfg.BuildN {
-								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
-							}
-							if !cfg.BuildN {
-								b.Print(string(stdout))
-							}
-						}
+					if err := showStdout(b, c, a.actionID, "stdout"); err == nil {
 						a.built = file
 						a.Target = "DO NOT USE - using cache"
 						a.buildID = buildID
@@ -547,6 +562,23 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	}
 
 	return false
+}
+
+func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string) error {
+	stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(actionID, key))
+	if err != nil {
+		return err
+	}
+
+	if len(stdout) > 0 {
+		if cfg.BuildX || cfg.BuildN {
+			b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
+		}
+		if !cfg.BuildN {
+			b.Print(string(stdout))
+		}
+	}
+	return nil
 }
 
 // flushOutput flushes the output being queued in a.
@@ -570,6 +602,26 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 		}
 		if cfg.BuildN {
 			return nil
+		}
+	}
+
+	// Cache output from compile/link, even if we don't do the rest.
+	if c := cache.Default(); c != nil {
+		switch a.Mode {
+		case "build":
+			c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
+		case "link":
+			// Even though we don't cache the binary, cache the linker text output.
+			// We might notice that an installed binary is up-to-date but still
+			// want to pretend to have run the linker.
+			// Store it under the main package's action ID
+			// to make it easier to find when that's all we have.
+			for _, a1 := range a.Deps {
+				if p1 := a1.Package; p1 != nil && p1.Name == "main" {
+					c.PutBytes(cache.Subkey(a1.actionID, "link-stdout"), a.output)
+					break
+				}
+			}
 		}
 	}
 
@@ -640,7 +692,6 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 				}
 				a.Package.Export = c.OutputFile(outputID)
 			}
-			c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
 		}
 	}
 

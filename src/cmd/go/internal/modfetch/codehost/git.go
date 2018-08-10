@@ -347,32 +347,39 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 		if err == nil {
 			return r.statLocal(rev, ref)
 		}
-		if !strings.Contains(err.Error(), "unadvertised object") && !strings.Contains(err.Error(), "no such remote ref") && !strings.Contains(err.Error(), "does not support shallow") {
-			return nil, err
-		}
+		// Don't try to be smart about parsing the error.
+		// It's too complex and varies too much by git version.
+		// No matter what went wrong, fall back to a complete fetch.
 	}
 
 	// Last resort.
 	// Fetch all heads and tags and hope the hash we want is in the history.
 	if r.fetchLevel < fetchAll {
+		// TODO(bcmills): should we wait to upgrade fetchLevel until after we check
+		// err? If there is a temporary server error, we want subsequent fetches to
+		// try again instead of proceeding with an incomplete repo.
 		r.fetchLevel = fetchAll
-
-		// To work around a protocol version 2 bug that breaks --unshallow,
-		// add -c protocol.version=0.
-		// TODO(rsc): The bug is believed to be server-side, meaning only
-		// on Google's Git servers. Once the servers are fixed, drop the
-		// protocol.version=0. See Google-internal bug b/110495752.
-		var protoFlag []string
-		unshallowFlag := unshallow(r.dir)
-		if len(unshallowFlag) > 0 {
-			protoFlag = []string{"-c", "protocol.version=0"}
-		}
-		if _, err := Run(r.dir, "git", protoFlag, "fetch", unshallowFlag, "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
 			return nil, err
 		}
 	}
 
 	return r.statLocal(rev, rev)
+}
+
+func (r *gitRepo) fetchUnshallow(refSpecs ...string) error {
+	// To work around a protocol version 2 bug that breaks --unshallow,
+	// add -c protocol.version=0.
+	// TODO(rsc): The bug is believed to be server-side, meaning only
+	// on Google's Git servers. Once the servers are fixed, drop the
+	// protocol.version=0. See Google-internal bug b/110495752.
+	var protoFlag []string
+	unshallowFlag := unshallow(r.dir)
+	if len(unshallowFlag) > 0 {
+		protoFlag = []string{"-c", "protocol.version=0"}
+	}
+	_, err := Run(r.dir, "git", protoFlag, "fetch", unshallowFlag, "-f", r.remote, refSpecs)
+	return err
 }
 
 // statLocal returns a RevInfo describing rev in the local git repository.
@@ -512,6 +519,18 @@ func (r *gitRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
 		return nil, err
 	}
 
+	// TODO(bcmills): after the 1.11 freeze, replace the block above with:
+	//	if r.fetchLevel <= fetchSome {
+	//		r.fetchLevel = fetchSome
+	//		var refs []string
+	//		for _, tag := range redo {
+	//			refs = append(refs, "refs/tags/"+tag+":refs/tags/"+tag)
+	//		}
+	//		if _, err := Run(r.dir, "git", "fetch", "--update-shallow", "-f", r.remote, refs); err != nil {
+	//			return nil, err
+	//		}
+	//	}
+
 	if _, err := r.readFileRevs(redo, file, files); err != nil {
 		return nil, err
 	}
@@ -603,15 +622,65 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
 }
 
 func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
-	_, err = r.Stat(rev)
+	info, err := r.Stat(rev)
 	if err != nil {
 		return "", err
 	}
-	out, err := Run(r.dir, "git", "describe", "--first-parent", "--tags", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
+	rev = info.Name // expand hash prefixes
+
+	// describe sets tag and err using 'git describe' and reports whether the
+	// result is definitive.
+	describe := func() (definitive bool) {
+		var out []byte
+		out, err = Run(r.dir, "git", "describe", "--first-parent", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
+		if err != nil {
+			return true // Because we use "--always", describe should never fail.
+		}
+
+		tag = string(bytes.TrimSpace(out))
+		return tag != "" && !AllHex(tag)
+	}
+
+	if describe() {
+		return tag, err
+	}
+
+	// Git didn't find a version tag preceding the requested rev.
+	// See whether any plausible tag exists.
+	tags, err := r.Tags(prefix + "v")
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	if len(tags) == 0 {
+		return "", nil
+	}
+
+	// There are plausible tags, but we don't know if rev is a descendent of any of them.
+	// Fetch the history to find out.
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.fetchLevel < fetchAll {
+		// Fetch all heads and tags and see if that gives us enough history.
+		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+			return "", err
+		}
+		r.fetchLevel = fetchAll
+	}
+
+	// If we've reached this point, we have all of the commits that are reachable
+	// from all heads and tags.
+	//
+	// The only refs we should be missing are those that are no longer reachable
+	// (or never were reachable) from any branch or tag, including the master
+	// branch, and we don't want to resolve them anyway (they're probably
+	// unreachable for a reason).
+	//
+	// Try one last time in case some other goroutine fetched rev while we were
+	// waiting on r.mu.
+	describe()
+	return tag, err
 }
 
 func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {

@@ -81,13 +81,13 @@ func readModList() {
 		encPath := strings.Replace(name[:i], "_", "/", -1)
 		path, err := module.DecodePath(encPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
+			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
 			continue
 		}
 		encVers := name[i+1:]
 		vers, err := module.DecodeVersion(encVers)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
+			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
 			continue
 		}
 		modList = append(modList, module.Version{Path: path, Version: vers})
@@ -140,7 +140,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	encVers, ext := file[:i], file[i+1:]
 	vers, err := module.DecodeVersion(encVers)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
+		fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
 		http.NotFound(w, r)
 		return
 	}

@@ -162,7 +162,22 @@ func testGdbPython(t *testing.T, cgo bool) {
 	args := []string{"-nx", "-q", "--batch",
 		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
-		"-ex", "info auto-load python-scripts",
+	}
+	if cgo {
+		// When we build the cgo version of the program, the system's
+		// linker is used. Some external linkers, like GNU gold,
+		// compress the .debug_gdb_scripts into .zdebug_gdb_scripts.
+		// Until gold and gdb can work together, temporarily load the
+		// python script directly.
+		args = append(args,
+			"-ex", "source "+filepath.Join(runtime.GOROOT(), "src", "runtime", "runtime-gdb.py"),
+		)
+	} else {
+		args = append(args,
+			"-ex", "info auto-load python-scripts",
+		)
+	}
+	args = append(args,
 		"-ex", "set python print-stack full",
 		"-ex", "br fmt.Println",
 		"-ex", "run",
@@ -193,7 +208,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "goroutine 1 bt",
 		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe"),
-	}
+	)
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output: %s\n", got)
 

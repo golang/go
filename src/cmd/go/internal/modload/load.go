@@ -101,11 +101,9 @@ func ImportPaths(args []string) []string {
 				}
 
 			case pkg == "all":
-				if loaded.testRoots {
-					loaded.testAll = true
-				}
+				loaded.testAll = true
 				// TODO: Don't print warnings multiple times.
-				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, []module.Version{Target}))...)
+				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, false, []module.Version{Target}))...)
 				paths = append(paths, "all") // will expand after load completes
 
 			case search.IsMetaPackage(pkg): // std, cmd
@@ -115,7 +113,7 @@ func ImportPaths(args []string) []string {
 
 			case strings.Contains(pkg, "..."):
 				// TODO: Don't we need to reevaluate this one last time once the build list stops changing?
-				list := warnPattern(pkg, matchPackages(pkg, loaded.tags, buildList))
+				list := warnPattern(pkg, matchPackages(pkg, loaded.tags, true, buildList))
 				roots = append(roots, list...)
 				paths = append(paths, list...)
 
@@ -140,7 +138,7 @@ func ImportPaths(args []string) []string {
 		if prev, ok := firstPath[src]; !ok {
 			firstPath[src] = mod.Path
 		} else if prev != mod.Path {
-			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", mod.Path, mod.Version, prev, mod.Path)
+			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", src.Path, src.Version, prev, mod.Path)
 		}
 	}
 	base.ExitIfErrors()
@@ -158,6 +156,9 @@ func ImportPaths(args []string) []string {
 		have[path] = true
 		if path == "all" {
 			for _, pkg := range loaded.pkgs {
+				if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
+					continue // Package doesn't actually exist, so don't report it.
+				}
 				if !have[pkg.path] {
 					have[pkg.path] = true
 					final = append(final, pkg.path)
@@ -270,6 +271,9 @@ func loadAll(testAll bool) []string {
 
 	var paths []string
 	for _, pkg := range loaded.pkgs {
+		if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
+			continue // Package doesn't actually exist.
+		}
 		paths = append(paths, pkg.path)
 	}
 	return paths
@@ -282,7 +286,7 @@ var anyTags = map[string]bool{"*": true}
 // TargetPackages returns the list of packages in the target (top-level) module,
 // under all build tag settings.
 func TargetPackages() []string {
-	return matchPackages("...", anyTags, []module.Version{Target})
+	return matchPackages("...", anyTags, false, []module.Version{Target})
 }
 
 // BuildList returns the module build list,
@@ -337,19 +341,22 @@ func ModuleUsedDirectly(path string) bool {
 	return loaded.direct[path]
 }
 
-// Lookup XXX TODO.
-func Lookup(parentPath, path string) (dir, realPath string, err error) {
-	realPath = ImportMap(path)
-	if realPath == "" {
+// Lookup returns the source directory, import path, and any loading error for
+// the package at path.
+// Lookup requires that one of the Load functions in this package has already
+// been called.
+func Lookup(path string) (dir, realPath string, err error) {
+	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	if !ok {
 		if isStandardImportPath(path) {
 			dir := filepath.Join(cfg.GOROOT, "src", path)
 			if _, err := os.Stat(dir); err == nil {
 				return dir, path, nil
 			}
 		}
-		return "", "", fmt.Errorf("no such package in module")
+		return "", "", errMissing
 	}
-	return PackageDir(realPath), realPath, nil
+	return pkg.dir, pkg.path, pkg.err
 }
 
 // A loader manages the process of loading information about
@@ -382,14 +389,13 @@ type loader struct {
 	goVersion map[string]string // go version recorded in each module
 }
 
+// LoadTests controls whether the loaders load tests of the root packages.
+var LoadTests bool
+
 func newLoader() *loader {
 	ld := new(loader)
 	ld.tags = imports.Tags()
-
-	switch cfg.CmdName {
-	case "test", "vet":
-		ld.testRoots = true
-	}
+	ld.testRoots = LoadTests
 	return ld
 }
 
@@ -457,9 +463,7 @@ func (ld *loader) load(roots func() []string) {
 				}
 				continue
 			}
-			if pkg.err != nil {
-				base.Errorf("go: %s: %s", pkg.stackText(), pkg.err)
-			}
+			// Leave other errors for Import or load.Packages to report.
 		}
 		base.ExitIfErrors()
 		if numAdded == 0 {
@@ -504,9 +508,6 @@ func (ld *loader) load(roots func() []string) {
 			}
 		}
 	}
-
-	// Check for visibility violations.
-	// TODO!
 }
 
 // pkg returns the *loadPkg for path, creating and queuing it if needed.
@@ -561,11 +562,6 @@ func (ld *loader) doPkg(item interface{}) {
 		var err error
 		imports, testImports, err = scanDir(pkg.dir, ld.tags)
 		if err != nil {
-			if strings.HasPrefix(err.Error(), "no Go ") {
-				// Don't print about directories with no Go source files.
-				// Let the eventual real package load do that.
-				return
-			}
 			pkg.err = err
 			return
 		}
@@ -673,6 +669,51 @@ func (pkg *loadPkg) stackText() string {
 	}
 	fmt.Fprintf(&buf, "import %q", pkg.path)
 	return buf.String()
+}
+
+// why returns the text to use in "go mod why" output about the given package.
+// It is less ornate than the stackText but conatins the same information.
+func (pkg *loadPkg) why() string {
+	var buf strings.Builder
+	var stack []*loadPkg
+	for p := pkg; p != nil; p = p.stack {
+		stack = append(stack, p)
+	}
+
+	for i := len(stack) - 1; i >= 0; i-- {
+		p := stack[i]
+		if p.testOf != nil {
+			fmt.Fprintf(&buf, "%s.test\n", p.testOf.path)
+		} else {
+			fmt.Fprintf(&buf, "%s\n", p.path)
+		}
+	}
+	return buf.String()
+}
+
+// Why returns the "go mod why" output stanza for the given package,
+// without the leading # comment.
+// The package graph must have been loaded already, usually by LoadALL.
+// If there is no reason for the package to be in the current build,
+// Why returns an empty string.
+func Why(path string) string {
+	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	if !ok {
+		return ""
+	}
+	return pkg.why()
+}
+
+// WhyDepth returns the number of steps in the Why listing.
+// If there is no reason for the package to be in the current build,
+// WhyDepth returns 0.
+func WhyDepth(path string) int {
+	n := 0
+	pkg, _ := loaded.pkgCache.Get(path).(*loadPkg)
+	for p := pkg; p != nil; p = p.stack {
+		n++
+	}
+	return n
 }
 
 // Replacement returns the replacement for mod, if any, from go.mod.

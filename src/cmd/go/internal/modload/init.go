@@ -521,7 +521,10 @@ func MinReqs() mvs.Reqs {
 
 // WriteGoMod writes the current build list back to go.mod.
 func WriteGoMod() {
-	if !allowWriteGoMod {
+	// If we're using -mod=vendor we basically ignored
+	// go.mod, so definitely don't try to write back our
+	// incomplete view of the world.
+	if !allowWriteGoMod || cfg.BuildMod == "vendor" {
 		return
 	}
 

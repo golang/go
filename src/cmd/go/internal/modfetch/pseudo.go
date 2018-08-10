@@ -49,6 +49,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 	if major == "" {
 		major = "v0"
 	}
+	major = strings.TrimSuffix(major, "-unstable") // make gopkg.in/macaroon-bakery.v2-unstable use "v2"
 	segment := fmt.Sprintf("%s-%s", t.UTC().Format("20060102150405"), rev)
 	build := semver.Build(older)
 	older = semver.Canonical(older)

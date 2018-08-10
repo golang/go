@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 	"cmd/internal/test2json"
@@ -527,6 +528,8 @@ var testVetFlags = []string{
 }
 
 func runTest(cmd *base.Command, args []string) {
+	modload.LoadTests = true
+
 	pkgArgs, testArgs = testFlags(args)
 
 	work.FindExecCmd() // initialize cached result
