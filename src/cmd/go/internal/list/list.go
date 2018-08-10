@@ -20,6 +20,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
 
@@ -146,7 +147,8 @@ instead of using the template format.
 The -compiled flag causes list to set CompiledGoFiles to the Go source
 files presented to the compiler. Typically this means that it repeats
 the files listed in GoFiles and then also adds the Go code generated
-by processing CgoFiles and SwigFiles.
+by processing CgoFiles and SwigFiles. The Imports list contains the
+union of all imports from both GoFiles and CompiledGoFiles.
 
 The -deps flag causes list to iterate over not just the named packages
 but also all their dependencies. It visits them in a depth-first post-order
@@ -517,6 +519,10 @@ func runList(cmd *base.Command, args []string) {
 		p.TestImports = p.Resolve(p.TestImports)
 		p.XTestImports = p.Resolve(p.XTestImports)
 		p.DepOnly = !cmdline[p]
+
+		if *listCompiled {
+			p.Imports = str.StringList(p.Imports, p.Internal.CompiledImports)
+		}
 	}
 
 	if *listTest {
