@@ -574,8 +574,7 @@ type schedt struct {
 	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
 
 	// Global runnable queue.
-	runqhead guintptr
-	runqtail guintptr
+	runq     gQueue
 	runqsize int32
 
 	// Global cache of dead G's.
