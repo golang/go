@@ -35,7 +35,7 @@ var (
 	ModBinDir            func() string                                       // return effective bin directory
 	ModLookup            func(path string) (dir, realPath string, err error) // lookup effective meaning of import
 	ModPackageModuleInfo func(path string) *modinfo.ModulePublic             // return module info for Package struct
-	ModImportPaths       func(args []string) []string                        // expand import paths
+	ModImportPaths       func(args []string) []*search.Match                 // expand import paths
 	ModPackageBuildInfo  func(main string, deps []string) string             // return module info to embed in binary
 	ModInfoProg          func(info string) []byte                            // wrap module info in .go code for binary
 	ModImportFromFiles   func([]string)                                      // update go.mod to add modules for imports in these files
@@ -1829,54 +1829,41 @@ func Packages(args []string) []*Package {
 // *Package for every argument, even the ones that
 // cannot be loaded at all.
 // The packages that fail to load will have p.Error != nil.
-func PackagesAndErrors(args []string) []*Package {
-	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
-		return []*Package{GoFilesPackage(args)}
+func PackagesAndErrors(patterns []string) []*Package {
+	if len(patterns) > 0 && strings.HasSuffix(patterns[0], ".go") {
+		return []*Package{GoFilesPackage(patterns)}
 	}
 
-	args = ImportPaths(args)
+	matches := ImportPaths(patterns)
 	var (
 		pkgs    []*Package
 		stk     ImportStack
-		seenArg = make(map[string]bool)
 		seenPkg = make(map[*Package]bool)
 	)
 
-	for _, arg := range args {
-		if seenArg[arg] {
-			continue
+	for _, m := range matches {
+		for _, pkg := range m.Pkgs {
+			p := LoadPackage(pkg, &stk)
+			if seenPkg[p] {
+				continue
+			}
+			seenPkg[p] = true
+			pkgs = append(pkgs, p)
 		}
-		seenArg[arg] = true
-		pkg := LoadPackage(arg, &stk)
-		if seenPkg[pkg] {
-			continue
-		}
-		seenPkg[pkg] = true
-		pkgs = append(pkgs, pkg)
 	}
 
 	return pkgs
 }
 
-func ImportPaths(args []string) []string {
-	if cmdlineMatchers == nil {
-		SetCmdlinePatterns(search.CleanImportPaths(args))
-	}
+func ImportPaths(args []string) []*search.Match {
 	if ModInit(); cfg.ModulesEnabled {
 		return ModImportPaths(args)
 	}
 	return search.ImportPaths(args)
 }
 
-func ImportPathsForGoGet(args []string) []string {
-	if cmdlineMatchers == nil {
-		SetCmdlinePatterns(search.CleanImportPaths(args))
-	}
-	return search.ImportPathsNoDotExpansion(args)
-}
-
-// packagesForBuild is like 'packages' but fails if any of
-// the packages or their dependencies have errors
+// PackagesForBuild is like Packages but exits
+// if any of the packages or their dependencies have errors
 // (cannot be built).
 func PackagesForBuild(args []string) []*Package {
 	pkgs := PackagesAndErrors(args)

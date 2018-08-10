@@ -229,7 +229,7 @@ func runGet(cmd *base.Command, args []string) {
 	// and a list of install targets (for the "go install" at the end).
 	var tasks []*task
 	var install []string
-	for _, arg := range search.CleanImportPaths(args) {
+	for _, arg := range search.CleanPatterns(args) {
 		// Argument is module query path@vers, or else path with implicit @latest.
 		path := arg
 		vers := ""
@@ -519,8 +519,9 @@ func runGet(cmd *base.Command, args []string) {
 		// Note that 'go get -u' without any arguments results in len(install) == 1:
 		// search.CleanImportPaths returns "." for empty args.
 		work.BuildInit()
-		var pkgs []string
-		for _, p := range load.PackagesAndErrors(install) {
+		pkgs := load.PackagesAndErrors(install)
+		var todo []*load.Package
+		for _, p := range pkgs {
 			// Ignore "no Go source files" errors for 'go get' operations on modules.
 			if p.Error != nil {
 				if len(args) == 0 && getU != "" && strings.HasPrefix(p.Error.Err, "no Go files") {
@@ -534,14 +535,14 @@ func runGet(cmd *base.Command, args []string) {
 					continue
 				}
 			}
-			pkgs = append(pkgs, p.ImportPath)
+			todo = append(todo, p)
 		}
 
 		// If -d was specified, we're done after the download: no build.
 		// (The load.PackagesAndErrors is what did the download
 		// of the named packages and their dependencies.)
-		if len(pkgs) > 0 && !*getD {
-			work.InstallPackages(pkgs)
+		if len(todo) > 0 && !*getD {
+			work.InstallPackages(install, todo)
 		}
 	}
 }
