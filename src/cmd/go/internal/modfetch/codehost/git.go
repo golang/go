@@ -347,9 +347,9 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 		if err == nil {
 			return r.statLocal(rev, ref)
 		}
-		if !strings.Contains(err.Error(), "unadvertised object") && !strings.Contains(err.Error(), "no such remote ref") && !strings.Contains(err.Error(), "does not support shallow") {
-			return nil, err
-		}
+		// Don't try to be smart about parsing the error.
+		// It's too complex and varies too much by git version.
+		// No matter what went wrong, fall back to a complete fetch.
 	}
 
 	// Last resort.
