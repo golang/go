@@ -142,27 +142,27 @@ type Config struct {
 	TypeChecker types.Config
 }
 
-// driver is the type for functions that return the package structure as
-// provided by a build system for the packages named by the given patterns.
+// driver is the type for functions that query the build system for the
+// packages named by the patterns.
 type driver func(cfg *Config, patterns ...string) (*driverResponse, error)
 
 // driverResponse contains the results for a driver query.
 type driverResponse struct {
 	// Roots is the set of package IDs that make up the root packages.
 	// We have to encode this separately because when we encode a single package
-	// we cannot know if it is one of the roots, that requires knowledge of the
+	// we cannot know if it is one of the roots as that requires knowledge of the
 	// graph it is part of.
 	Roots []string `json:",omitempty"`
 
 	// Packages is the full set of packages in the graph.
-	// The packages are not connected into a graph, the Imports if populated will be
-	// stubs that only have their ID set.
-	// It will be connected and then type and syntax information added in a later
-	// pass (see refine).
+	// The packages are not connected into a graph.
+	// The Imports if populated will be stubs that only have their ID set.
+	// Imports will be connected and then type and syntax information added in a
+	// later pass (see refine).
 	Packages []*Package
 }
 
-// Load and returns the Go packages named by the given patterns.
+// Load loads and returns the Go packages named by the given patterns.
 //
 // Config specifies loading options;
 // nil behaves the same as an empty Config.
@@ -341,7 +341,7 @@ func (p *Package) UnmarshalJSON(b []byte) error {
 		OtherFiles:      flat.OtherFiles,
 		ExportFile:      flat.ExportFile,
 	}
-	if len(flat.Errors) >= 0 {
+	if len(flat.Errors) > 0 {
 		p.Errors = make([]error, len(flat.Errors))
 		for i, err := range flat.Errors {
 			p.Errors[i] = err
@@ -499,7 +499,6 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 	}
 
 	if ld.Mode < LoadImports {
-		//TODO: we are throwing away correct information, is that the right thing to do?
 		//we do this to drop the stub import packages that we are not even going to try to resolve
 		for _, lpkg := range initial {
 			lpkg.Imports = nil
