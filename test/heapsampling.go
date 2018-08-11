@@ -18,6 +18,8 @@ var a16 *[16]byte
 var a512 *[512]byte
 var a256 *[256]byte
 var a1k *[1024]byte
+var a16k *[16 * 1024]byte
+var a32k *[32 * 1024]byte
 var a64k *[64 * 1024]byte
 
 // This test checks that heap sampling produces reasonable
@@ -25,17 +27,31 @@ var a64k *[64 * 1024]byte
 // vary for run to run. This test only checks that the resulting
 // values appear reasonable.
 func main() {
-        // Sample at 5K instead of default 512K to exercise sampling more.
-        runtime.MemProfileRate = 64 * 1024
+	// Sample at 16K instead of default 512K to exercise sampling more heavily.
+	runtime.MemProfileRate = 16 * 1024
 
 	const countInterleaved = 100000
-	allocInterleaved(countInterleaved)
-	checkAllocations(getMemProfileRecords(), "main.allocInterleaved", countInterleaved, 
-	[]int64{64 * 1024, 1024, 64 * 1024, 512, 64 * 1024, 256})
+	allocInterleaved1(countInterleaved)
+	allocInterleaved2(countInterleaved)
+	allocInterleaved3(countInterleaved)
+	allocInterleavedNames := []string{
+		"main.allocInterleaved1",
+		"main.allocInterleaved2",
+		"main.allocInterleaved3",
+	}
+	checkAllocations(getMemProfileRecords(), allocInterleavedNames, countInterleaved,
+		[]int64{64 * 1024, 1024, 32 * 1024, 512, 16 * 1024, 256})
 
 	const count = 1000000
-	alloc(count)
-	checkAllocations(getMemProfileRecords(), "main.alloc", count, []int64{1024, 512, 256})
+	allocSmall1(count)
+	allocSmall2(count)
+	allocSmall3(count)
+	allocSmallNames := []string{
+		"main.allocSmall1",
+		"main.allocSmall2",
+		"main.allocSmall3",
+	}
+	checkAllocations(getMemProfileRecords(), allocSmallNames, count, []int64{1024, 512, 256})
 }
 
 // allocInterleaved stress-tests the heap sampling logic by
@@ -45,15 +61,28 @@ func allocInterleaved(n int) {
 		// Test verification depends on these lines being contiguous.
 		a64k = new([64 * 1024]byte)
 		a1k = new([1024]byte)
-		a64k = new([64 * 1024]byte)
+		a32k = new([32 * 1024]byte)
 		a512 = new([512]byte)
-		a64k = new([64 * 1024]byte)
+		a16k = new([16 * 1024]byte)
 		a256 = new([256]byte)
 	}
 }
 
+// Three separate instances of testing to avoid flakes.
+func allocInterleaved1(n int) {
+	allocInterleaved(n)
+}
+
+func allocInterleaved2(n int) {
+	allocInterleaved(n)
+}
+
+func allocInterleaved3(n int) {
+	allocInterleaved(n)
+}
+
 // alloc performs only small allocations for sanity testing.
-func alloc(n int) {
+func allocSmall(n int) {
 	for i := 0; i < n; i++ {
 		// Test verification depends on these lines being contiguous.
 		a1k = new([1024]byte)
@@ -62,34 +91,77 @@ func alloc(n int) {
 	}
 }
 
+// Three separate instances of testing to avoid flakes.
+func allocSmall1(n int) {
+	allocSmall(n)
+}
+
+func allocSmall2(n int) {
+	allocSmall(n)
+}
+
+func allocSmall3(n int) {
+	allocSmall(n)
+}
+
 // checkAllocations validates that the profile records collected for
 // the named function are consistent with count contiguous allocations
 // of the specified sizes.
-func checkAllocations(records []runtime.MemProfileRecord, fname string, count int64, size []int64) {
-	a := allocObjects(records, fname)
-	firstLine := 0
-	for ln := range a {
+// Check multiple functions and only report consistent failures across
+// multiple tests.
+func checkAllocations(records []runtime.MemProfileRecord, fnames []string, count int64, size []int64) {
+	objectsPerLine := map[int][]int64{}
+	bytesPerLine := map[int][]int64{}
+	totalCount := []int64{}
+	var firstLine int
+	for ln := range allocObjects(records, fnames[0]) {
 		if firstLine == 0 || firstLine > ln {
 			firstLine = ln
 		}
 	}
-	var totalcount int64
+	for _, fname := range fnames {
+		var objectCount int64
+		a := allocObjects(records, fname)
+		for i := range size {
+			ln := firstLine + i
+			objectsPerLine[ln] = append(objectsPerLine[ln], a[ln].objects)
+			bytesPerLine[ln] = append(bytesPerLine[ln], a[ln].bytes)
+			objectCount += a[ln].objects
+		}
+		totalCount = append(totalCount, objectCount)
+	}
 	for i, w := range size {
 		ln := firstLine + i
-		s := a[ln]
-		checkValue(fname, ln, "objects", count, s.objects)
-		checkValue(fname, ln, "bytes", count*w, s.bytes)
-		totalcount += s.objects
+		checkValue(fnames[0], ln, "objects", count, objectsPerLine[ln])
+		checkValue(fnames[0], ln, "bytes", count*w, bytesPerLine[ln])
 	}
-	// Check the total number of allocations, to ensure some sampling occurred.
-	checkValue(fname, 0, "total", count * int64(len(size)), totalcount)
+	checkValue(fnames[0], 0, "total", count*int64(len(size)), totalCount)
 }
 
-// checkValue checks an unsampled value against a range.
-func checkValue(fname string, ln int, name string, want, got int64) {
-        margin := want / 10
-	if got < want - margin || got > want + margin {
-		panic(fmt.Sprintf("%s:%d want %s >= %d && <= %d, got %d", fname, ln, name, want-margin, want+margin, got))
+// checkValue checks an unsampled value against its expected value.
+// Given that this is a sampled value, it will be unexact and will change
+// from run to run. Only report it as a failure if all the values land
+// consistently land far from the expected value.
+func checkValue(fname string, ln int, testName string, want int64, got []int64) {
+	if got == nil {
+		panic("Unexpected empty result")
+	}
+	min, max := got[0], got[0]
+	for _, g := range got[1:] {
+		if g < min {
+			min = g
+		}
+		if g > max {
+			max = g
+		}
+	}
+	margin := want / 10 // 10% margin.
+	if min > want+margin {
+		panic(fmt.Sprintf("%s:%d want %s <= %d, got %v", fname, ln, testName, want+margin, got))
+	}
+	if max < want-margin {
+		panic(fmt.Sprintf("%s:%d want %s >= %d, got %d", fname, ln, testName, want-margin, got))
+
 	}
 }
 
@@ -132,13 +204,16 @@ type allocStat struct {
 func allocObjects(records []runtime.MemProfileRecord, function string) map[int]allocStat {
 	a := make(map[int]allocStat)
 	for _, r := range records {
+		var line int
 		for _, s := range r.Stack0 {
 			if s == 0 {
 				break
 			}
 			if f := runtime.FuncForPC(s); f != nil {
 				name := f.Name()
-				_, line := f.FileLine(s)
+				if line == 0 {
+					_, line = f.FileLine(s)
+				}
 				if name == function {
 					allocStat := a[line]
 					allocStat.bytes += r.AllocBytes
