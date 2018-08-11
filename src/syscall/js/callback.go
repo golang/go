@@ -89,17 +89,25 @@ func (c Callback) Release() {
 }
 
 var callbackLoopOnce sync.Once
+var (
+	fun                      = Global().Get("Function")
+	funcShift                = fun.New("t", "return t.shift()")
+	funcPropID               = fun.New("t", "return t.id")
+	funcPropArgs             = fun.New("t", "return t.args")
+	funcPropCallbackShutdown = fun.New("t", "return t._callbackShutdown")
+)
 
 func callbackLoop() {
-	for !jsGo.Get("_callbackShutdown").Bool() {
+
+	for !funcPropCallbackShutdown.Invoke(jsGo).Bool() {
 		sleepUntilCallback()
 		for {
-			cb := pendingCallbacks.Call("shift")
+			cb := funcShift.Invoke(pendingCallbacks)
 			if cb == Undefined() {
 				break
 			}
 
-			id := uint32(cb.Get("id").Int())
+			id := uint32(funcPropID.Invoke(cb).Int())
 			callbacksMu.Lock()
 			f, ok := callbacks[id]
 			callbacksMu.Unlock()
@@ -108,7 +116,7 @@ func callbackLoop() {
 				continue
 			}
 
-			argsObj := cb.Get("args")
+			argsObj := funcPropArgs.Invoke(cb)
 			args := make([]Value, argsObj.Length())
 			for i := range args {
 				args[i] = argsObj.Index(i)
