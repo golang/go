@@ -65,6 +65,15 @@ cd $GOPATH/foo/bar/baz
 go env GOMOD
 ! stdout .+
 
+# GO111MODULE=auto should ignore and warn about /tmp/go.mod
+env GO111MODULE=auto
+cp $GOPATH/src/x/y/z/go.mod $WORK/tmp/go.mod
+mkdir $WORK/tmp/mydir
+cd $WORK/tmp/mydir
+go env GOMOD
+! stdout .+
+stderr '^go: warning: ignoring go.mod in system temp root '
+
 -- $GOPATH/src/x/y/z/go.mod --
 module x/y/z
 -- $GOPATH/src/x/y/z/w/w.txt --
