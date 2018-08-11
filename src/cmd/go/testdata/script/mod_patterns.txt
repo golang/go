@@ -15,6 +15,7 @@ stdout '^unsafe$'
 ! stdout index/suffixarray
 
 # 'go list ...' should list packages in all active modules and the standard library.
+# But not cmd/* - see golang.org/issue/26924.
 go list ...
 stdout example.com/unused/useerrors
 stdout example.com/m/useunsafe
@@ -23,6 +24,7 @@ stdout example.com/m/useunsafe
 stdout '^unicode$'
 stdout '^unsafe$'
 stdout index/suffixarray
+! stdout cmd/pprof
 
 # 'go list example.com/m/...' should list packages in all modules that begin with
 # "example.com/m/".
