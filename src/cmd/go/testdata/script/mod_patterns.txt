@@ -43,6 +43,10 @@ stdout example.com/m/useunsafe
 [cgo] stdout example.com/m/useC
 [!cgo] ! stdout example.com/m/useC
 
+env CGO_ENABLED=0
+go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
+! stdout example.com/m/useC
+
 -- m/go.mod --
 module example.com/m
 
