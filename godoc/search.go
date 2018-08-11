@@ -133,3 +133,54 @@ func (p *Presentation) serveSearchDesc(w http.ResponseWriter, r *http.Request) {
 	}
 	applyTemplateToResponseWriter(w, p.SearchDescXML, &data)
 }
+
+// tocColCount returns the no. of columns
+// to split the toc table to.
+func tocColCount(result SearchResult) int {
+	tocLen := tocLen(result)
+	colCount := 0
+	// Simple heuristic based on visual aesthetic in manual testing.
+	switch {
+	case tocLen <= 10:
+		colCount = 1
+	case tocLen <= 20:
+		colCount = 2
+	case tocLen <= 80:
+		colCount = 3
+	default:
+		colCount = 4
+	}
+	return colCount
+}
+
+// tocLen calculates the no. of items in the toc table
+// by going through various fields in the SearchResult
+// that is rendered in the UI.
+func tocLen(result SearchResult) int {
+	tocLen := 0
+	for _, val := range result.Idents {
+		if len(val) != 0 {
+			tocLen++
+		}
+	}
+	// If no identifiers, then just one item for the header text "Package <result.Query>".
+	// See searchcode.html for further details.
+	if len(result.Idents) == 0 {
+		tocLen++
+	}
+	if result.Hit != nil {
+		if len(result.Hit.Decls) > 0 {
+			tocLen += len(result.Hit.Decls)
+			// We need one extra item for the header text "Package-level declarations".
+			tocLen++
+		}
+		if len(result.Hit.Others) > 0 {
+			tocLen += len(result.Hit.Others)
+			// We need one extra item for the header text "Local declarations and uses".
+			tocLen++
+		}
+	}
+	// For "textual occurrences".
+	tocLen++
+	return tocLen
+}

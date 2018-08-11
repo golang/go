@@ -47,6 +47,18 @@ pre .ln {
 	width: 8ch;
 }
 
+.search-nav{
+	margin-left: 1.25rem;
+	font-size: 0.875rem;
+	column-gap: 1.25rem;
+	column-fill: auto;
+	column-width: 14rem;
+}
+
+.search-nav .indent {
+	margin-left: 1.25rem;
+}
+
 a,
 .exampleHeading .text,
 .expandAll {

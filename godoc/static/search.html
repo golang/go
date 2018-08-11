@@ -3,6 +3,54 @@
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
+
+{{ $colCount := tocColCount .}}
+{{/* Generate the TOC */}}
+<nav class="search-nav" style="column-count: {{$colCount}}" role="navigation">
+{{range $key, $val := .Idents}}
+	{{if $val}}
+		<a href="#{{$key.Name}}">{{$key.Name}}</a>
+		<br />
+	{{end}}
+{{end}}
+
+{{if not .Idents}}
+	{{with .Pak}}
+		<a href="#Packages">Package {{html $.Query}}</a>
+		<br />
+	{{end}}
+{{end}}
+
+{{with .Hit}}
+	{{with .Decls}}
+		<a href="#Global">Package-level declarations</a>
+		<br />
+		{{range .}}
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<a href="#Global_{{$pkg_html}}" class="indent">package {{html .Pak.Name}}</a>
+			<br />
+		{{end}}
+	{{end}}
+	{{with .Others}}
+		<a href="#Local">Local declarations and uses</a>
+		<br />
+		{{range .}}
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<a href="#Local_{{$pkg_html}}" class="indent">package {{html .Pak.Name}}</a>
+			<br />
+		{{end}}
+	{{end}}
+{{end}}
+
+{{with .Textual}}
+	{{if $.Complete}}
+		<a href="#Textual">{{html $.Found}} textual occurrences</a>
+	{{else}}
+		<a href="#Textual">More than {{html $.Found}} textual occurrences</a>
+	{{end}}
+{{end}}
+</nav>
+
 {{with .Alert}}
 	<p>
 	<span class="alert" style="font-size:120%">{{html .}}</span>

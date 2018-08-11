@@ -109,6 +109,9 @@ func (p *Presentation) initFuncMap() {
 
 		// check whether to display third party section or not
 		"hasThirdParty": hasThirdParty,
+
+		// get the no. of columns to split the toc in search page
+		"tocColCount": tocColCount,
 	}
 	if p.URLForSrc != nil {
 		p.funcMap["srcLink"] = p.URLForSrc
