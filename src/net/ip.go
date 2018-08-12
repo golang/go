@@ -75,8 +75,18 @@ func CIDRMask(ones, bits int) IPMask {
 	if ones < 0 || ones > bits {
 		return nil
 	}
-	l := bits / 8
-	m := make(IPMask, l)
+	return putCIDRMask(nil, ones, bits/8)
+}
+
+// putCIDRMask will put an IPMask into `m` consisting of `ones` 1 bits
+// followed by 0s up to a total length of `bits' bits if the length
+// of m is < `l` bytes and returns the same slice m. If m did not have
+// sufficient length for the mask l a new m is returned instead.
+func putCIDRMask(m IPMask, ones, l int) IPMask {
+	if len(m) < l {
+		m = make(IPMask, l)
+	}
+
 	n := uint(ones)
 	for i := 0; i < l; i++ {
 		if n >= 8 {
@@ -243,6 +253,12 @@ func allFF(b []byte) bool {
 
 // Mask returns the result of masking the IP address ip with mask.
 func (ip IP) Mask(mask IPMask) IP {
+	return putIPMask(nil, ip, mask)
+}
+
+// putIPMask will return out when it has sufficient len for the result
+// of masking the IP address ip with mask, otherwise returning a new slice.
+func putIPMask(out, ip IP, mask IPMask) []byte {
 	if len(mask) == IPv6len && len(ip) == IPv4len && allFF(mask[:12]) {
 		mask = mask[12:]
 	}
@@ -253,7 +269,9 @@ func (ip IP) Mask(mask IPMask) IP {
 	if n != len(mask) {
 		return nil
 	}
-	out := make(IP, n)
+	if len(out) < n {
+		out = make(IP, n)
+	}
 	for i := 0; i < n; i++ {
 		out[i] = ip[i] & mask[i]
 	}
@@ -534,28 +552,32 @@ func (n *IPNet) String() string {
 // Parse IPv4 address (d.d.d.d).
 func parseIPv4(s string) IP {
 	var p [IPv4len]byte
+	if !parseIntoIPv4(p[:], s) {
+		return nil
+	}
+	return IPv4(p[0], p[1], p[2], p[3])
+}
+
+func parseIntoIPv4(p []byte, s string) bool {
 	for i := 0; i < IPv4len; i++ {
 		if len(s) == 0 {
 			// Missing octets.
-			return nil
+			return false
 		}
 		if i > 0 {
 			if s[0] != '.' {
-				return nil
+				return false
 			}
 			s = s[1:]
 		}
 		n, c, ok := dtoi(s)
 		if !ok || n > 0xFF {
-			return nil
+			return false
 		}
 		s = s[c:]
 		p[i] = byte(n)
 	}
-	if len(s) != 0 {
-		return nil
-	}
-	return IPv4(p[0], p[1], p[2], p[3])
+	return len(s) == 0
 }
 
 // parseIPv6Zone parses s as a literal IPv6 address and its associated zone
@@ -568,7 +590,15 @@ func parseIPv6Zone(s string) (IP, string) {
 // parseIPv6Zone parses s as a literal IPv6 address described in RFC 4291
 // and RFC 5952.
 func parseIPv6(s string) (ip IP) {
-	ip = make(IP, IPv6len)
+	if ip = make(IP, IPv6len); !parseIntoIPv6(ip, s) {
+		ip = nil
+	}
+	return
+}
+
+// parseIPv6Zone parses s as a literal IPv6 address described in RFC 4291
+// and RFC 5952.
+func parseIntoIPv6(ip IP, s string) bool {
 	ellipsis := -1 // position of ellipsis in ip
 
 	// Might have leading ellipsis
@@ -577,7 +607,7 @@ func parseIPv6(s string) (ip IP) {
 		s = s[2:]
 		// Might be only ellipsis
 		if len(s) == 0 {
-			return ip
+			return true
 		}
 	}
 
@@ -587,22 +617,22 @@ func parseIPv6(s string) (ip IP) {
 		// Hex number.
 		n, c, ok := xtoi(s)
 		if !ok || n > 0xFFFF {
-			return nil
+			return false
 		}
 
 		// If followed by dot, might be in trailing IPv4.
 		if c < len(s) && s[c] == '.' {
 			if ellipsis < 0 && i != IPv6len-IPv4len {
 				// Not the right place.
-				return nil
+				return false
 			}
 			if i+IPv4len > IPv6len {
 				// Not enough room.
-				return nil
+				return false
 			}
 			ip4 := parseIPv4(s)
 			if ip4 == nil {
-				return nil
+				return false
 			}
 			ip[i] = ip4[12]
 			ip[i+1] = ip4[13]
@@ -626,14 +656,14 @@ func parseIPv6(s string) (ip IP) {
 
 		// Otherwise must be followed by colon and more.
 		if s[0] != ':' || len(s) == 1 {
-			return nil
+			return false
 		}
 		s = s[1:]
 
 		// Look for ellipsis.
 		if s[0] == ':' {
 			if ellipsis >= 0 { // already have one
-				return nil
+				return false
 			}
 			ellipsis = i
 			s = s[1:]
@@ -645,13 +675,13 @@ func parseIPv6(s string) (ip IP) {
 
 	// Must have used entire string.
 	if len(s) != 0 {
-		return nil
+		return false
 	}
 
 	// If didn't parse enough, expand ellipsis.
 	if i < IPv6len {
 		if ellipsis < 0 {
-			return nil
+			return false
 		}
 		n := IPv6len - i
 		for j := i - 1; j >= ellipsis; j-- {
@@ -662,9 +692,9 @@ func parseIPv6(s string) (ip IP) {
 		}
 	} else if ellipsis >= 0 {
 		// Ellipsis must represent at least one 0 group.
-		return nil
+		return false
 	}
-	return ip
+	return true
 }
 
 // ParseIP parses s as an IP address, returning the result.
@@ -673,15 +703,26 @@ func parseIPv6(s string) (ip IP) {
 // If s is not a valid textual representation of an IP address,
 // ParseIP returns nil.
 func ParseIP(s string) IP {
+	switch n := strToIPvLen(s); n {
+	case IPv4len:
+		return parseIPv4(s)
+	case IPv6len:
+		return parseIPv6(s)
+	default:
+		return nil
+	}
+}
+
+func strToIPvLen(s string) int {
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '.':
-			return parseIPv4(s)
+			return IPv4len
 		case ':':
-			return parseIPv6(s)
+			return IPv6len
 		}
 	}
-	return nil
+	return -1
 }
 
 // parseIPZone parses s as an IP address, return it and its associated zone
@@ -711,17 +752,53 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 	if i < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
-	addr, mask := s[:i], s[i+1:]
-	iplen := IPv4len
-	ip := parseIPv4(addr)
-	if ip == nil {
-		iplen = IPv6len
-		ip = parseIPv6(addr)
-	}
-	n, i, ok := dtoi(mask)
-	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
+
+	iplen := strToIPvLen(s[:i])
+	if iplen < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
-	m := CIDRMask(n, 8*iplen)
-	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
+
+	nwlen, y, ok := dtoi(s[i+1:])
+	if !ok || y != len(s[i+1:]) || nwlen < 0 || nwlen > 8*iplen {
+		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+	}
+
+	var (
+		buf []byte
+		ipn *IPNet
+	)
+	switch iplen {
+	case IPv4len:
+		var block struct {
+			ipn IPNet
+			arr [IPv6len + (IPv4len * 2)]byte
+		}
+		ipn = &block.ipn
+		buf = block.arr[:]
+		copy(buf, v4InV6Prefix)
+		if !parseIntoIPv4(buf[len(v4InV6Prefix):], s[:i]) {
+			return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+		}
+	case IPv6len:
+		var block struct {
+			ipn IPNet
+			arr [IPv6len * 3]byte
+		}
+		ipn = &block.ipn
+		buf = block.arr[:]
+		if !parseIntoIPv6(buf, s[:i]) {
+			return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+		}
+	default:
+		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+	}
+
+	ip := buf[:IPv6len:IPv6len]
+	buf = buf[IPv6len:]
+
+	ipn.Mask = putCIDRMask(buf[:iplen:iplen], nwlen, iplen)
+	buf = buf[iplen:]
+
+	ipn.IP = putIPMask(buf[:iplen:iplen], ip, ipn.Mask)
+	return ip, ipn, nil
 }
