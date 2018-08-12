@@ -89,15 +89,15 @@ func (c Callback) Release() {
 }
 
 var callbackLoopOnce sync.Once
-var (
-	fun                      = Global().Get("Function")
-	funcShift                = fun.New("t", "return t.shift()")
-	funcPropID               = fun.New("t", "return t.id")
-	funcPropArgs             = fun.New("t", "return t.args")
-	funcPropCallbackShutdown = fun.New("t", "return t._callbackShutdown")
-)
 
 func callbackLoop() {
+	var (
+		fun                      = Global().Get("Function")
+		funcShift                = fun.New("t", "return t.shift()")
+		funcPropID               = fun.New("t", "return t.id")
+		funcPropArgs             = fun.New("t", "return t.args")
+		funcPropCallbackShutdown = fun.New("t", "return t._callbackShutdown")
+	)
 
 	for !funcPropCallbackShutdown.Invoke(jsGo).Bool() {
 		sleepUntilCallback()
