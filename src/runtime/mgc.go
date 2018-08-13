@@ -1063,7 +1063,7 @@ func GC() {
 	// We're now in sweep N or later. Trigger GC cycle N+1, which
 	// will first finish sweep N if necessary and then enter sweep
 	// termination N+1.
-	gcStart(gcBackgroundMode, gcTrigger{kind: gcTriggerCycle, n: n + 1})
+	gcStart(gcTrigger{kind: gcTriggerCycle, n: n + 1})
 
 	// Wait for mark termination N+1 to complete.
 	gcWaitOnMark(n + 1)
@@ -1201,13 +1201,13 @@ func (t gcTrigger) test() bool {
 	return true
 }
 
-// gcStart transitions the GC from _GCoff to _GCmark (if
-// !mode.stwMark) or _GCmarktermination (if mode.stwMark) by
-// performing sweep termination and GC initialization.
+// gcStart starts the GC. It transitions from _GCoff to _GCmark (if
+// debug.gcstoptheworld == 0) or performs all of GC (if
+// debug.gcstoptheworld != 0).
 //
 // This may return without performing this transition in some cases,
 // such as when called on a system stack or with locks held.
-func gcStart(mode gcMode, trigger gcTrigger) {
+func gcStart(trigger gcTrigger) {
 	// Since this is called from malloc and malloc is called in
 	// the guts of a number of libraries that might be holding
 	// locks, don't attempt to start GC in non-preemptible or
@@ -1250,12 +1250,11 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 	// We do this after re-checking the transition condition so
 	// that multiple goroutines that detect the heap trigger don't
 	// start multiple STW GCs.
-	if mode == gcBackgroundMode {
-		if debug.gcstoptheworld == 1 {
-			mode = gcForceMode
-		} else if debug.gcstoptheworld == 2 {
-			mode = gcForceBlockMode
-		}
+	mode := gcBackgroundMode
+	if debug.gcstoptheworld == 1 {
+		mode = gcForceMode
+	} else if debug.gcstoptheworld == 2 {
+		mode = gcForceBlockMode
 	}
 
 	// Ok, we're doing it! Stop everybody else
