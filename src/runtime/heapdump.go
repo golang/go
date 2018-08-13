@@ -346,7 +346,7 @@ func dumpgoroutine(gp *g) {
 	dumpint(uint64(gp.goid))
 	dumpint(uint64(gp.gopc))
 	dumpint(uint64(readgstatus(gp)))
-	dumpbool(isSystemGoroutine(gp))
+	dumpbool(isSystemGoroutine(gp, false))
 	dumpbool(false) // isbackground
 	dumpint(uint64(gp.waitsince))
 	dumpstr(gp.waitreason.String())
