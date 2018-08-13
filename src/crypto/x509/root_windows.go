@@ -231,19 +231,112 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 }
 
 func loadSystemRoots() (*CertPool, error) {
-	tempdir, err := ioutil.TempDir("", "go_x509_certs")
+	roots := NewCertPool()
+	disallowedRoots := NewCertPool()
+
+	storeLocations := []string{"CurrentUser", "LocalMachine"}
+	storeNames := []string{"AddressBook", "AuthRoot", "CertificateAuthority", "My", "Root", "TrustedPeople", "TrustedPublisher"}
+
+	for _, l := range storeLocations {
+		disallowed, err := windowsX509Store("Disallowed", l)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, c := range disallowed.certs {
+			disallowedRoots.AddCert(c)
+		}
+	}
+
+	for _, l := range storeLocations {
+		for _, n := range storeNames {
+			x509Store, err := windowsX509Store(n, l)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, c := range x509Store.certs {
+				if !disallowedRoots.contains(c) {
+					roots.AddCert(c)
+				}
+			}
+		}
+	}
+
+	wuCerts, _, err := downloadWUCerts()
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(tempdir)
 
-	// certutil -f -syncWithWU download certificates from Windows Update
-	cmdOut, err := exec.Command("certutil", "-f", "-syncWithWU", tempdir).Output()
+	for _, c := range wuCerts.certs {
+		if !disallowedRoots.contains(c) {
+			roots.AddCert(c)
+		}
+	}
+
+	return roots, nil
+}
+
+func windowsX509Store(storeName string, storeLocation string) (*CertPool, error) {
+	certStoreDir, err := ioutil.TempDir("", "go_x509_certs_"+storeName+storeLocation)
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(certStoreDir)
+
+	powershellScript := "$xs = New-Object System.Security.Cryptography.X509Certificates.X509Store('" + storeName + "', '" + storeLocation + "'); $xs.Open('OpenExistingOnly'); [io.file]::WriteAllBytes('" + filepath.Join(certStoreDir, "\\certs.sst") + "', $xs.Certificates.Export('SerializedStore')); $xs.Close();"
+
+	cmdOut, err := exec.Command("powershell", "-Command", powershellScript).Output()
 	if err != nil {
 		return nil, errors.New(string(cmdOut))
 	}
 
-	certs, err := ioutil.ReadDir(tempdir)
+	roots, err := certPoolFromSST(certStoreDir, "certs.sst")
+	if err != nil {
+		return nil, err
+	}
+
+	return roots, nil
+}
+
+func downloadWUCerts() (*CertPool, *CertPool, error) {
+	// directory for allowed certificates
+	wuAllowedDir, err := ioutil.TempDir("", "go_x509_certs_wuauth")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer os.RemoveAll(wuAllowedDir)
+
+	// directory for disallowed certificates
+	wuDisallowedDir, err := ioutil.TempDir("", "go_x509_certs_wudisallowed")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer os.RemoveAll(wuDisallowedDir)
+
+	// certutil -f -syncWithWU download certificates from Windows Update
+	cmdOut, err := exec.Command("certutil", "-f", "-syncWithWU", wuAllowedDir).Output()
+	if err != nil {
+		return nil, nil, errors.New(string(cmdOut))
+	}
+
+	// move the disallowedcert.sst certificate store from wuAllowedDir to wuDisallowedDir
+	os.Rename(filepath.Join(wuAllowedDir, "disallowedcert.sst"), filepath.Join(wuDisallowedDir, "disallowedcert.sst"))
+
+	wuAllowedRoots, err := certPoolFromDir(wuAllowedDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	wuDisallowedRoots, err := certPoolFromSST(wuDisallowedDir, "disallowedcert.sst")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return wuAllowedRoots, wuDisallowedRoots, nil
+}
+
+func certPoolFromDir(path string) (*CertPool, error) {
+	certs, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
@@ -255,17 +348,38 @@ func loadSystemRoots() (*CertPool, error) {
 			continue
 		}
 
-		certBytes, err := ioutil.ReadFile(filepath.Join(tempdir, cert.Name()))
+		certBytes, err := ioutil.ReadFile(filepath.Join(path, cert.Name()))
 		if err != nil {
 			return nil, err
 		}
 
 		c, err := ParseCertificate(certBytes)
 		if err != nil {
-			return nil, errors.New("file: " + cert.Name() + "\n" + err.Error())
+			return nil, errors.New("crypto/x509: error while parsing " + cert.Name() + "\n" + err.Error())
 		}
 		roots.AddCert(c)
 	}
 
 	return roots, nil
+}
+
+func dumpSST(dir string, file string) error {
+	dumpCmd := "cd /d " + dir + " && certutil -f -split -dump " + file
+	cmdOut, err := exec.Command("cmd", "/K", dumpCmd).Output()
+	if err != nil {
+		return errors.New(string(cmdOut))
+	}
+	return nil
+}
+
+func certPoolFromSST(dir string, file string) (*CertPool, error) {
+	err := dumpSST(dir, file)
+	if err != nil {
+		return nil, err
+	}
+	certPool, err := certPoolFromDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	return certPool, nil
 }
