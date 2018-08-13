@@ -132,7 +132,7 @@ func (c *Config) AddIndirectQuery(v ssa.Value) {
 // 	// 'type T struct { F *int }', the following query will access the field F.
 // 	c.AddExtendedQuery(v, "x[1][0].F")
 func (c *Config) AddExtendedQuery(v ssa.Value, query string) (*Pointer, error) {
-	ops, _, err := parseExtendedQuery(v.Type().Underlying(), query)
+	ops, _, err := parseExtendedQuery(v.Type(), query)
 	if err != nil {
 		return nil, fmt.Errorf("invalid query %q: %s", query, err)
 	}

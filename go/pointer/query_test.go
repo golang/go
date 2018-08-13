@@ -1,17 +1,20 @@
 package pointer
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/types"
 	"reflect"
 	"testing"
+
+	"golang.org/x/tools/go/loader"
 )
 
 func TestParseExtendedQuery(t *testing.T) {
 	const myprog = `
 package pkg
+
+import "reflect"
+
+type T []*int
+
 var V1 *int
 var V2 **int
 var V3 []*int
@@ -19,6 +22,8 @@ var V4 chan []*int
 var V5 struct {F1, F2 chan *int}
 var V6 [1]chan *int
 var V7 int
+var V8 T
+var V9 reflect.Value
 `
 	tests := []struct {
 		in    string
@@ -27,8 +32,10 @@ var V7 int
 		valid bool
 	}{
 		{`x`, []interface{}{"x"}, "V1", true},
+		{`x`, []interface{}{"x"}, "V9", true},
 		{`*x`, []interface{}{"x", "load"}, "V2", true},
 		{`x[0]`, []interface{}{"x", "sliceelem"}, "V3", true},
+		{`x[0]`, []interface{}{"x", "sliceelem"}, "V8", true},
 		{`<-x`, []interface{}{"x", "recv"}, "V4", true},
 		{`(<-x)[0]`, []interface{}{"x", "recv", "sliceelem"}, "V4", true},
 		{`<-x.F2`, []interface{}{"x", "field", 1, "recv"}, "V5", true},
@@ -40,19 +47,20 @@ var V7 int
 		{`close(x)`, nil, "V1", false},
 	}
 
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "file.go", myprog, 0)
+	var conf loader.Config
+	f, err := conf.ParseFile("file.go", myprog)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := &types.Config{}
-	pkg, err := cfg.Check("main", fset, []*ast.File{f}, nil)
+	conf.CreateFromFiles("main", f)
+	lprog, err := conf.Load()
 	if err != nil {
 		t.Fatal(err)
 	}
+	pkg := lprog.Created[0].Pkg
 
 	for _, test := range tests {
-		typ := pkg.Scope().Lookup(test.v).Type().Underlying()
+		typ := pkg.Scope().Lookup(test.v).Type()
 		ops, _, err := parseExtendedQuery(typ, test.in)
 		if test.valid && err != nil {
 			t.Errorf("parseExtendedQuery(%q) = %s, expected no error", test.in, err)
