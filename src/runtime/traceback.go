@@ -945,7 +945,7 @@ func tracebackothers(me *g) {
 
 	lock(&allglock)
 	for _, gp := range allgs {
-		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || isSystemGoroutine(gp) && level < 2 {
+		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
 			continue
 		}
 		print("\n")
@@ -1031,7 +1031,11 @@ func topofstack(f funcInfo, g0 bool) bool {
 // in stack dumps and deadlock detector. This is any goroutine that
 // starts at a runtime.* entry point, except for runtime.main and
 // sometimes runtime.runfinq.
-func isSystemGoroutine(gp *g) bool {
+//
+// If fixed is true, any goroutine that can vary between user and
+// system (that is, the finalizer goroutine) is considered a user
+// goroutine.
+func isSystemGoroutine(gp *g, fixed bool) bool {
 	// Keep this in sync with cmd/trace/trace.go:isSystemGoroutine.
 	f := findfunc(gp.startpc)
 	if !f.valid() {
@@ -1043,6 +1047,11 @@ func isSystemGoroutine(gp *g) bool {
 	if f.funcID == funcID_runfinq {
 		// We include the finalizer goroutine if it's calling
 		// back into user code.
+		if fixed {
+			// This goroutine can vary. In fixed mode,
+			// always consider it a user goroutine.
+			return false
+		}
 		return !fingRunning
 	}
 	return hasPrefix(funcname(f), "runtime.")

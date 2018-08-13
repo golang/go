@@ -2730,7 +2730,7 @@ func goexit0(gp *g) {
 	_g_ := getg()
 
 	casgstatus(gp, _Grunning, _Gdead)
-	if isSystemGoroutine(gp) {
+	if isSystemGoroutine(gp, false) {
 		atomic.Xadd(&sched.ngsys, -1)
 	}
 	gp.m = nil
@@ -3381,7 +3381,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintpt
 	if _g_.m.curg != nil {
 		newg.labels = _g_.m.curg.labels
 	}
-	if isSystemGoroutine(newg) {
+	if isSystemGoroutine(newg, false) {
 		atomic.Xadd(&sched.ngsys, +1)
 	}
 	newg.gcscanvalid = false
@@ -4244,7 +4244,7 @@ func checkdead() {
 	lock(&allglock)
 	for i := 0; i < len(allgs); i++ {
 		gp := allgs[i]
-		if isSystemGoroutine(gp) {
+		if isSystemGoroutine(gp, false) {
 			continue
 		}
 		s := readgstatus(gp)
