@@ -594,6 +594,34 @@
 (EQ (CMPWconst [0] x) yes no) -> (ZW x yes no)
 (NE (CMPWconst [0] x) yes no) -> (NZW x yes no)
 
+(EQ (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (EQ (CMN a (MUL <x.Type> x y)) yes no)
+(NE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (NE (CMN a (MUL <x.Type> x y)) yes no)
+(LT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (LT (CMN a (MUL <x.Type> x y)) yes no)
+(LE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (LE (CMN a (MUL <x.Type> x y)) yes no)
+(GT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (GT (CMN a (MUL <x.Type> x y)) yes no)
+(GE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (GE (CMN a (MUL <x.Type> x y)) yes no)
+
+(EQ (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (EQ (CMP a (MUL <x.Type> x y)) yes no)
+(NE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (NE (CMP a (MUL <x.Type> x y)) yes no)
+(LE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (LE (CMP a (MUL <x.Type> x y)) yes no)
+(LT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (LT (CMP a (MUL <x.Type> x y)) yes no)
+(GE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (GE (CMP a (MUL <x.Type> x y)) yes no)
+(GT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (GT (CMP a (MUL <x.Type> x y)) yes no)
+
+(EQ (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (EQ (CMNW a (MULW <x.Type> x y)) yes no)
+(NE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (NE (CMNW a (MULW <x.Type> x y)) yes no)
+(LE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (LE (CMNW a (MULW <x.Type> x y)) yes no)
+(LT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (LT (CMNW a (MULW <x.Type> x y)) yes no)
+(GE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (GE (CMNW a (MULW <x.Type> x y)) yes no)
+(GT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (GT (CMNW a (MULW <x.Type> x y)) yes no)
+
+(EQ (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (EQ (CMPW a (MULW <x.Type> x y)) yes no)
+(NE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (NE (CMPW a (MULW <x.Type> x y)) yes no)
+(LE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (LE (CMPW a (MULW <x.Type> x y)) yes no)
+(LT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (LT (CMPW a (MULW <x.Type> x y)) yes no)
+(GE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (GE (CMPW a (MULW <x.Type> x y)) yes no)
+(GT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (GT (CMPW a (MULW <x.Type> x y)) yes no)
+
 // Absorb bit-tests into block
 (Z  (ANDconst [c] x) yes no) && oneBit(c) -> (TBZ  {ntz(c)} x yes no)
 (NZ (ANDconst [c] x) yes no) && oneBit(c) -> (TBNZ {ntz(c)} x yes no)
@@ -1057,6 +1085,17 @@
 (NEG (MULW x y)) -> (MNEGW x y)
 (MUL (NEG x) y) -> (MNEG x y)
 (MULW (NEG x) y) -> (MNEGW x y)
+
+// madd/msub
+(ADD a l:(MUL  x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADD a x y)
+(SUB a l:(MUL  x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUB a x y)
+(ADD a l:(MNEG x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUB a x y)
+(SUB a l:(MNEG x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADD a x y)
+
+(ADD a l:(MULW  x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADDW a x y)
+(SUB a l:(MULW  x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUBW a x y)
+(ADD a l:(MNEGW x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUBW a x y)
+(SUB a l:(MNEGW x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADDW a x y)
 
 // mul by constant
 (MUL x (MOVDconst [-1])) -> (NEG x)
