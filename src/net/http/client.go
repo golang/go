@@ -95,14 +95,12 @@ type Client struct {
 	// A Timeout of zero means no timeout.
 	//
 	// The Client cancels requests to the underlying Transport
-	// using the Request.Cancel mechanism. Requests passed
-	// to Client.Do may still set Request.Cancel; both will
-	// cancel the request.
+	// as if the Request's Context ended.
 	//
 	// For compatibility, the Client will also use the deprecated
 	// CancelRequest method on Transport if found. New
-	// RoundTripper implementations should use Request.Cancel
-	// instead of implementing CancelRequest.
+	// RoundTripper implementations should use the Request's Context
+	// for cancelation instead of implementing CancelRequest.
 	Timeout time.Duration
 }
 
