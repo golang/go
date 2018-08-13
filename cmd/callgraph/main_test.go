@@ -5,6 +5,7 @@
 // No testdata on Android.
 
 // +build !android
+// +build go1.11
 
 package main
 
