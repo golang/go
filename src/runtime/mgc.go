@@ -455,6 +455,12 @@ func (c *gcControllerState) startCycle() {
 		c.fractionalUtilizationGoal = 0
 	}
 
+	// In STW mode, we just want dedicated workers.
+	if debug.gcstoptheworld > 0 {
+		c.dedicatedMarkWorkersNeeded = int64(gomaxprocs)
+		c.fractionalUtilizationGoal = 0
+	}
+
 	// Clear per-P state
 	for _, p := range allp {
 		p.gcAssistTime = 0
@@ -1264,9 +1270,7 @@ func gcStart(trigger gcTrigger) {
 		traceGCStart()
 	}
 
-	if mode == gcBackgroundMode {
-		gcBgMarkStartWorkers()
-	}
+	gcBgMarkStartWorkers()
 
 	gcResetMarkState()
 
@@ -1296,65 +1300,65 @@ func gcStart(trigger gcTrigger) {
 	clearpools()
 
 	work.cycles++
-	if mode == gcBackgroundMode { // Do as much work concurrently as possible
-		gcController.startCycle()
-		work.heapGoal = memstats.next_gc
 
-		// Enter concurrent mark phase and enable
-		// write barriers.
-		//
-		// Because the world is stopped, all Ps will
-		// observe that write barriers are enabled by
-		// the time we start the world and begin
-		// scanning.
-		//
-		// Write barriers must be enabled before assists are
-		// enabled because they must be enabled before
-		// any non-leaf heap objects are marked. Since
-		// allocations are blocked until assists can
-		// happen, we want enable assists as early as
-		// possible.
-		setGCPhase(_GCmark)
+	gcController.startCycle()
+	work.heapGoal = memstats.next_gc
 
-		gcBgMarkPrepare() // Must happen before assist enable.
-		gcMarkRootPrepare()
+	// In STW mode, disable scheduling of user Gs. This may also
+	// disable scheduling of this goroutine, so it may block as
+	// soon as we start the world again.
+	if mode != gcBackgroundMode {
+		schedEnableUser(false)
+	}
 
-		// Mark all active tinyalloc blocks. Since we're
-		// allocating from these, they need to be black like
-		// other allocations. The alternative is to blacken
-		// the tiny block on every allocation from it, which
-		// would slow down the tiny allocator.
-		gcMarkTinyAllocs()
+	// Enter concurrent mark phase and enable
+	// write barriers.
+	//
+	// Because the world is stopped, all Ps will
+	// observe that write barriers are enabled by
+	// the time we start the world and begin
+	// scanning.
+	//
+	// Write barriers must be enabled before assists are
+	// enabled because they must be enabled before
+	// any non-leaf heap objects are marked. Since
+	// allocations are blocked until assists can
+	// happen, we want enable assists as early as
+	// possible.
+	setGCPhase(_GCmark)
 
-		// At this point all Ps have enabled the write
-		// barrier, thus maintaining the no white to
-		// black invariant. Enable mutator assists to
-		// put back-pressure on fast allocating
-		// mutators.
-		atomic.Store(&gcBlackenEnabled, 1)
+	gcBgMarkPrepare() // Must happen before assist enable.
+	gcMarkRootPrepare()
 
-		// Assists and workers can start the moment we start
-		// the world.
-		gcController.markStartTime = now
+	// Mark all active tinyalloc blocks. Since we're
+	// allocating from these, they need to be black like
+	// other allocations. The alternative is to blacken
+	// the tiny block on every allocation from it, which
+	// would slow down the tiny allocator.
+	gcMarkTinyAllocs()
 
-		// Concurrent mark.
-		systemstack(func() {
-			now = startTheWorldWithSema(trace.enabled)
-		})
+	// At this point all Ps have enabled the write
+	// barrier, thus maintaining the no white to
+	// black invariant. Enable mutator assists to
+	// put back-pressure on fast allocating
+	// mutators.
+	atomic.Store(&gcBlackenEnabled, 1)
+
+	// Assists and workers can start the moment we start
+	// the world.
+	gcController.markStartTime = now
+
+	// Concurrent mark.
+	systemstack(func() {
+		now = startTheWorldWithSema(trace.enabled)
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
-	} else {
-		if trace.enabled {
-			// Switch to mark termination STW.
-			traceGCSTWDone()
-			traceGCSTWStart(0)
-		}
-		t := nanotime()
-		work.tMark, work.tMarkTerm = t, t
-		work.heapGoal = work.heap0
-
-		// Perform mark termination. This will restart the world.
-		gcMarkTermination(memstats.triggerRatio)
+	})
+	// In STW mode, we could block the instant systemstack
+	// returns, so don't do anything important here. Make sure we
+	// block rather than returning to user code.
+	if mode != gcBackgroundMode {
+		Gosched()
 	}
 
 	semrelease(&work.startSema)
@@ -1467,6 +1471,10 @@ top:
 	// workers and assists will run when we start the
 	// world again.
 	semrelease(&work.markDoneSema)
+
+	// In STW mode, re-enable user goroutines. These will be
+	// queued to run after we start the world.
+	schedEnableUser(true)
 
 	// endCycle depends on all gcWork cache stats being flushed.
 	// The termination algorithm above ensured that up to
