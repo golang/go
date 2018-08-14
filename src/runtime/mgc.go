@@ -1513,12 +1513,16 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	systemstack(func() {
 		work.heap2 = work.bytesMarked
 		if debug.gccheckmark > 0 {
-			// Run a full stop-the-world mark using checkmark bits,
-			// to check that we didn't forget to mark anything during
-			// the concurrent mark process.
+			// Run a full non-parallel, stop-the-world
+			// mark using checkmark bits, to check that we
+			// didn't forget to mark anything during the
+			// concurrent mark process.
 			gcResetMarkState()
 			initCheckmarks()
-			gcMark(startTime)
+			gcw := &getg().m.p.ptr().gcw
+			gcDrain(gcw, gcDrainNoBlock)
+			wbBufFlush1(getg().m.p.ptr())
+			gcw.dispose()
 			clearCheckmarks()
 		}
 
@@ -1905,12 +1909,12 @@ func gcMark(start_time int64) {
 		work.helperDrainBlock = false
 	} else {
 		// There's marking work to do. This is the case during
-		// STW GC and in checkmark mode. Instruct GC workers
+		// STW GC. Instruct GC workers
 		// to block in getfull until all GC workers are in getfull.
 		//
-		// TODO(austin): Move STW and checkmark marking out of
+		// TODO(austin): Move STW marking out of
 		// mark termination and eliminate this code path.
-		if !useCheckmark && debug.gcstoptheworld == 0 && debug.gcrescanstacks == 0 {
+		if debug.gcstoptheworld == 0 && debug.gcrescanstacks == 0 {
 			print("runtime: full=", hex(work.full), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
 			panic("non-empty mark queue after concurrent mark")
 		}
