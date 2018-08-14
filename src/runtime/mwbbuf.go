@@ -275,9 +275,4 @@ func wbBufFlush1(_p_ *p) {
 
 	// Enqueue the greyed objects.
 	gcw.putBatch(ptrs[:pos])
-	if gcphase == _GCmarktermination {
-		// Ps aren't allowed to cache work during mark
-		// termination.
-		gcw.dispose()
-	}
 }

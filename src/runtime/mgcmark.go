@@ -1149,11 +1149,6 @@ func shade(b uintptr) {
 	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
 		gcw := &getg().m.p.ptr().gcw
 		greyobject(obj, 0, 0, span, gcw, objIndex)
-		if gcphase == _GCmarktermination {
-			// Ps aren't allowed to cache work during mark
-			// termination.
-			gcw.dispose()
-		}
 	}
 }
 

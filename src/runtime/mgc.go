@@ -1931,7 +1931,6 @@ func gcMark(start_time int64) {
 	} else {
 		gcDrain(gcw, gcDrainNoBlock)
 	}
-	gcw.dispose()
 
 	if debug.gccheckmark > 0 {
 		// This is expensive when there's a large number of
@@ -2130,7 +2129,6 @@ func gchelper() {
 		} else {
 			gcDrain(gcw, gcDrainNoBlock)
 		}
-		gcw.dispose()
 	}
 
 	nproc := atomic.Load(&work.nproc) // work.nproc can change right after we increment work.ndone
