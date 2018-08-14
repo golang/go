@@ -7,20 +7,28 @@
 package playground
 
 import (
+	"context"
+	"io"
 	"net/http"
 
-	"appengine"
-	"appengine/urlfetch"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
 )
 
 func init() {
 	onAppengine = !appengine.IsDevAppServer()
 }
 
-func client(r *http.Request) *http.Client {
-	return urlfetch.Client(appengine.NewContext(r))
+func contextFunc(r *http.Request) context.Context {
+	return appengine.NewContext(r)
+}
+
+func post(ctx context.Context, url, contentType string, body io.Reader) (*http.Response, error) {
+	return urlfetch.Client(ctx).Post(url, contentType, body)
 }
 
 func report(r *http.Request, err error) {
-	appengine.NewContext(r).Errorf("%v", err)
+	ctx := appengine.NewContext(r)
+	log.Errorf(ctx, "%v", err)
 }
