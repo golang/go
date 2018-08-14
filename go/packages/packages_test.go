@@ -666,15 +666,16 @@ func TestLoadSyntaxOK(t *testing.T) {
 	// Can we simulate its existence?
 
 	for _, test := range []struct {
-		id         string
-		wantSyntax bool
+		id           string
+		wantSyntax   bool
+		wantComplete bool
 	}{
-		{"a", true},  // source package
-		{"b", true},  // source package
-		{"c", true},  // source package
-		{"d", false}, // export data package
-		{"e", false}, // export data package
-		{"f", false}, // export data package
+		{"a", true, true},   // source package
+		{"b", true, true},   // source package
+		{"c", true, true},   // source package
+		{"d", false, true},  // export data package
+		{"e", false, false}, // export data package
+		{"f", false, false}, // export data package
 	} {
 		if usesOldGolist && !test.wantSyntax {
 			// legacy go list always upgrades to LoadAllSyntax, syntax will be filled in.
@@ -688,8 +689,12 @@ func TestLoadSyntaxOK(t *testing.T) {
 		if p.Types == nil {
 			t.Errorf("missing types.Package for %s", p)
 			continue
-		} else if !p.Types.Complete() {
-			t.Errorf("incomplete types.Package for %s", p)
+		} else if p.Types.Complete() != test.wantComplete {
+			if test.wantComplete {
+				t.Errorf("incomplete types.Package for %s", p)
+			} else {
+				t.Errorf("unexpected complete types.Package for %s", p)
+			}
 		}
 		if (p.Syntax != nil) != test.wantSyntax {
 			if test.wantSyntax {
@@ -707,6 +712,62 @@ func TestLoadSyntaxOK(t *testing.T) {
 	aA := constant(all["a"], "A")
 	if got, want := fmt.Sprintf("%v %v", aA, aA.Val()), `const a.A untyped string "abcdef"`; got != want {
 		t.Errorf("a.A: got %s, want %s", got, want)
+	}
+}
+
+func TestLoadDiamondTypes(t *testing.T) {
+	// We make a diamond dependency and check the type d.D is the same through both paths
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go": `package a; import ("b"; "c"); var _ = b.B == c.C`,
+		"src/b/b.go": `package b; import "d"; var B d.D`,
+		"src/c/c.go": `package c; import "d"; var C d.D`,
+		"src/d/d.go": `package d; type D int`,
+	})
+	defer cleanup()
+
+	cfg := &packages.Config{
+		Mode: packages.LoadSyntax,
+		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
+		Error: func(err error) {
+			t.Errorf("Error during load: %v", err)
+		},
+	}
+	initial, err := packages.Load(cfg, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var visit func(pkg *packages.Package)
+	seen := make(map[string]bool)
+	visit = func(pkg *packages.Package) {
+		if seen[pkg.ID] {
+			return
+		}
+		seen[pkg.ID] = true
+		for _, err := range pkg.Errors {
+			t.Errorf("Error on package %v: %v", pkg.ID, err)
+		}
+		for _, imp := range pkg.Imports {
+			visit(imp)
+		}
+	}
+	for _, pkg := range initial {
+		visit(pkg)
+	}
+
+	graph, _ := importGraph(initial)
+	wantGraph := `
+* a
+  b
+  c
+  d
+  a -> b
+  a -> c
+  b -> d
+  c -> d
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 	}
 }
 
