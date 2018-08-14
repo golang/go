@@ -886,8 +886,9 @@ opSwitch:
 	case OAS2: // x,y = a,b
 		if n.List.Len() == n.Rlist.Len() {
 			rs := n.Rlist.Slice()
+			where := n
 			for i, n := range n.List.Slice() {
-				e.escassignWhyWhere(n, rs[i], "assign-pair", n)
+				e.escassignWhyWhere(n, rs[i], "assign-pair", where)
 			}
 		}
 
@@ -928,11 +929,12 @@ opSwitch:
 		// esccall already done on n.Rlist.First(). tie it's Retval to n.List
 	case OAS2FUNC: // x,y = f()
 		rs := e.nodeEscState(n.Rlist.First()).Retval.Slice()
+		where := n
 		for i, n := range n.List.Slice() {
 			if i >= len(rs) {
 				break
 			}
-			e.escassignWhyWhere(n, rs[i], "assign-pair-func-call", n)
+			e.escassignWhyWhere(n, rs[i], "assign-pair-func-call", where)
 		}
 		if n.List.Len() != len(rs) {
 			Fatalf("esc oas2func")
