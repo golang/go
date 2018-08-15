@@ -763,6 +763,11 @@ a.error {
 		font-size: 0.9375rem;
 	}
 
+	div#playground {
+		left: 0;
+		right: 0;
+	}
+
 	pre,
 	code {
 		font-size: 0.866rem;
