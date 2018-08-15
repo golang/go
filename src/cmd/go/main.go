@@ -239,6 +239,13 @@ func mainUsage() {
 	if len(os.Args) > 1 && os.Args[1] == "test" {
 		test.Usage()
 	}
+	// Since vet shares code with test in cmdflag, it doesn't show its
+	// command usage properly. For now, special case it too.
+	// TODO(mvdan): fix the cmdflag package instead; see
+	// golang.org/issue/26999
+	if len(os.Args) > 1 && os.Args[1] == "vet" {
+		vet.CmdVet.Usage()
+	}
 	help.PrintUsage(os.Stderr, base.Go)
 	os.Exit(2)
 }
