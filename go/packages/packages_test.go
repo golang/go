@@ -89,7 +89,7 @@ func TestLoadImportsGraph(t *testing.T) {
 
 	cfg := &packages.Config{
 		Mode: packages.LoadImports,
-		Env:  append(os.Environ(), "GOPATH="+tmp),
+		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 	}
 	initial, err := packages.Load(cfg, "c", "subdir/d", "e")
 	if err != nil {
@@ -295,7 +295,7 @@ func TestLoadImportsTestVariants(t *testing.T) {
 
 	cfg := &packages.Config{
 		Mode:  packages.LoadImports,
-		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Env:   append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		Tests: true,
 	}
 	initial, err := packages.Load(cfg, "a", "b")
@@ -383,7 +383,7 @@ func TestVendorImports(t *testing.T) {
 
 	cfg := &packages.Config{
 		Mode: packages.LoadImports,
-		Env:  append(os.Environ(), "GOPATH="+tmp),
+		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 	}
 	initial, err := packages.Load(cfg, "a", "c")
 	if err != nil {
@@ -463,7 +463,7 @@ func TestConfigDir(t *testing.T) {
 		cfg := &packages.Config{
 			Mode: packages.LoadSyntax, // Use LoadSyntax to ensure that files can be opened.
 			Dir:  test.dir,
-			Env:  append(os.Environ(), "GOPATH="+tmp),
+			Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		}
 
 		initial, err := packages.Load(cfg, test.pattern)
@@ -517,7 +517,7 @@ package b`,
 		cfg := &packages.Config{
 			Mode:  packages.LoadImports,
 			Flags: test.tags,
-			Env:   append(os.Environ(), "GOPATH="+tmp),
+			Env:   append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		}
 
 		initial, err := packages.Load(cfg, test.pattern)
@@ -568,7 +568,7 @@ func TestLoadTypes(t *testing.T) {
 
 	cfg := &packages.Config{
 		Mode:  packages.LoadTypes,
-		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Env:   append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		Error: func(error) {},
 	}
 	initial, err := packages.Load(cfg, "a")
@@ -635,7 +635,7 @@ func TestLoadSyntaxOK(t *testing.T) {
 
 	cfg := &packages.Config{
 		Mode:  packages.LoadSyntax,
-		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Env:   append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		Error: func(error) {},
 	}
 	initial, err := packages.Load(cfg, "a", "c")
@@ -727,7 +727,7 @@ func TestLoadSyntaxError(t *testing.T) {
 
 	cfg := &packages.Config{
 		Mode:  packages.LoadSyntax,
-		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Env:   append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		Error: func(error) {},
 	}
 	initial, err := packages.Load(cfg, "a", "c")
@@ -834,7 +834,7 @@ func TestLoadAllSyntaxOverlay(t *testing.T) {
 		var errs errCollector
 		cfg := &packages.Config{
 			Mode:      packages.LoadAllSyntax,
-			Env:       append(os.Environ(), "GOPATH="+tmp),
+			Env:       append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 			Error:     errs.add,
 			ParseFile: parseFile,
 		}
@@ -886,7 +886,7 @@ import (
 	var errs2 errCollector
 	cfg := &packages.Config{
 		Mode:  packages.LoadAllSyntax,
-		Env:   append(os.Environ(), "GOPATH="+tmp),
+		Env:   append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		Error: errs2.add,
 	}
 	initial, err := packages.Load(cfg, "root")
@@ -998,7 +998,7 @@ func TestAbsoluteFilenames(t *testing.T) {
 		cfg := &packages.Config{
 			Mode: packages.LoadFiles,
 			Dir:  filepath.Join(tmp, "src"),
-			Env:  append(os.Environ(), "GOPATH="+tmp),
+			Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		}
 		pkgs, err := packages.Load(cfg, test.pattern)
 		if err != nil {
@@ -1034,7 +1034,7 @@ func TestContains(t *testing.T) {
 	cfg := &packages.Config{
 		Mode: packages.LoadImports,
 		Dir:  tmp,
-		Env:  append(os.Environ(), "GOPATH="+tmp),
+		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 	}
 	initial, err := packages.Load(cfg, "contains:src/b/b.go")
 	if err != nil {
@@ -1066,7 +1066,7 @@ func TestContains_FallbackSticks(t *testing.T) {
 	cfg := &packages.Config{
 		Mode: packages.LoadImports,
 		Dir:  tmp,
-		Env:  append(os.Environ(), "GOPATH="+tmp),
+		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 	}
 	initial, err := packages.Load(cfg, "a", "contains:src/b/b.go")
 	if err != nil {
@@ -1098,7 +1098,7 @@ func TestJSON(t *testing.T) {
 
 	cfg := &packages.Config{
 		Mode: packages.LoadImports,
-		Env:  append(os.Environ(), "GOPATH="+tmp),
+		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 	}
 	initial, err := packages.Load(cfg, "c", "d")
 	if err != nil {
