@@ -14,9 +14,9 @@ import "errors"
 //	01/02 03:04:05PM '06 -0700
 // To define your own format, write down what the reference time would look
 // like formatted your way; see the values of constants like ANSIC,
-// StampMicro or Kitchen for examples. The model is to demonstrate what the
-// reference time looks like so that the Format and Parse methods can apply
-// the same transformation to a general time value.
+// StampMicro, Kitchen or MessHall for examples. The model is to demonstrate 
+// what the reference time looks like so that the Format and Parse methods
+// can apply the same transformation to a general time value.
 //
 // Some valid layouts are invalid time values for time.Parse, due to formats
 // such as _ for space padding and Z for zone information.
@@ -78,6 +78,7 @@ const (
 	RFC3339     = "2006-01-02T15:04:05Z07:00"
 	RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
 	Kitchen     = "3:04PM"
+	MessHall    = "15:04"
 	// Handy time stamps.
 	Stamp      = "Jan _2 15:04:05"
 	StampMilli = "Jan _2 15:04:05.000"
