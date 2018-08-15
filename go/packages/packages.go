@@ -124,22 +124,6 @@ type Config struct {
 	// In build systems with explicit names for tests,
 	// setting Tests may have no effect.
 	Tests bool
-
-	// TypeChecker provides additional configuration for type-checking syntax trees.
-	//
-	// It is used for all packages in LoadAllSyntax mode,
-	// and for the packages matching the patterns, but not their dependencies,
-	// in LoadSyntax mode.
-	//
-	// The TypeChecker.Error function is ignored:
-	// errors are reported using the Error function defined above.
-	//
-	// The TypeChecker.Importer function is ignored:
-	// the loader defines an appropriate importer.
-	//
-	// TODO(rsc): TypeChecker.Sizes should use the same sizes as the main build.
-	// Derive them from the runtime?
-	TypeChecker types.Config
 }
 
 // driver is the type for functions that query the build system for the
@@ -361,10 +345,11 @@ func (p *Package) String() string { return p.ID }
 // loaderPackage augments Package with state used during the loading phase
 type loaderPackage struct {
 	*Package
-	importErrors  map[string]error // maps each bad import to its error
-	loadOnce      sync.Once
-	color         uint8 // for cycle detection
-	mark, needsrc bool  // used when Mode >= LoadTypes
+	importErrors map[string]error // maps each bad import to its error
+	loadOnce     sync.Once
+	color        uint8 // for cycle detection
+	needsrc      bool  // load from source (Mode >= LoadTypes)
+	initial      bool  // package was matched by a pattern
 }
 
 // loader holds the working state of a single call to load.
@@ -435,6 +420,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		ld.pkgs[lpkg.ID] = lpkg
 		if isRoot[lpkg.ID] {
 			initial = append(initial, lpkg)
+			lpkg.initial = true
 		}
 	}
 
@@ -604,9 +590,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
 
-	// Copy the prototype types.Config as it must vary across Packages.
-	tc := ld.TypeChecker // copy
-	tc.Importer = importerFunc(func(path string) (*types.Package, error) {
+	importer := importerFunc(func(path string) (*types.Package, error) {
 		if path == "unsafe" {
 			return types.Unsafe, nil
 		}
@@ -630,10 +614,22 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		log.Fatalf("internal error: nil Pkg importing %q from %q", path, lpkg)
 		panic("unreachable")
 	})
-	tc.Error = appendError
 
 	// type-check
-	types.NewChecker(&tc, ld.Fset, lpkg.Types, lpkg.TypesInfo).Files(lpkg.Syntax)
+	tc := &types.Config{
+		Importer: importer,
+
+		// Type-check bodies of functions only in non-initial packages.
+		// Example: for import graph A->B->C and initial packages {A,C},
+		// we can ignore function bodies in B.
+		IgnoreFuncBodies: ld.Mode < LoadAllSyntax && !lpkg.initial,
+
+		Error: appendError,
+
+		// TODO(adonovan): derive Sizes from the underlying
+		// build system.
+	}
+	types.NewChecker(tc, ld.Fset, lpkg.Types, lpkg.TypesInfo).Files(lpkg.Syntax)
 
 	lpkg.importErrors = nil // no longer needed
 
