@@ -1558,23 +1558,6 @@ func gcMarkTermination(nextTriggerRatio float64) {
 		// marking is complete so we can turn the write barrier off
 		setGCPhase(_GCoff)
 		gcSweep(work.mode)
-
-		if debug.gctrace > 1 {
-			startTime = nanotime()
-			// The g stacks have been scanned so
-			// they have gcscanvalid==true and gcworkdone==true.
-			// Reset these so that all stacks will be rescanned.
-			gcResetMarkState()
-			finishsweep_m()
-
-			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
-			// At this point all objects will be found during the gcMark which
-			// does a complete STW mark and object scan.
-			setGCPhase(_GCmarktermination)
-			gcMark(startTime)
-			setGCPhase(_GCoff) // marking is done, turn off wb.
-			gcSweep(work.mode)
-		}
 	})
 
 	_g_.m.traceback = 0
