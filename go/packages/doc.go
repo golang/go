@@ -6,13 +6,14 @@
 Package packages loads Go packages for inspection and analysis.
 
 NOTE: THIS PACKAGE IS NOT YET READY FOR WIDESPREAD USE:
- - The interface is still being revised and is likely to change.
- - The implementation depends on the Go 1.11 go command.
+ - The interface is still being revised and minor changes are likely.
+ - The implementation depends on the Go 1.11 go command;
+   support for earlier versions will be added soon.
  - We intend to finalize the API before Go 1.11 is released.
 
 The Load function takes as input a list of patterns and return a list of Package
 structs describing individual packages matched by those patterns.
-The LoadMode controls the amounts of detail about the loaded packages.
+The LoadMode controls the amount of detail in the loaded packages.
 
 The patterns are used as arguments to the underlying build tool,
 such as the go command or Bazel, and are interpreted according to
@@ -40,18 +41,17 @@ can match multiple packages and that a package might be matched by
 multiple patterns: in general it is not possible to determine which
 packages correspond to which patterns.
 
-Note that the list returned by Load (LoadAllSyntax in this case)
-only contains the packages matched by the patterns. Their dependencies
-can be found by walking the import graph using the Imports fields.
+Note that the list returned by Load contains only the packages matched
+by the patterns. Their dependencies can be found by walking the import
+graph using the Imports fields.
 
-The Load function can be configured by passing a non-nil Config struct as
-the first argument. If you pass nil for the Config Load will
-run in LoadAllSyntax mode, collecting the maximal amount of information
-it can.
+The Load function can be configured by passing a pointer to a Config as
+the first argument. A nil Config is equivalent to the zero Config, which
+causes Load to run in LoadFiles mode, collecting minimal information.
 See the documentation for type Config for details.
 
-As noted earlier, the Config.Mode controls increasing amounts of detail
-about the loaded packages, with each mode returning all the data of the
+As noted earlier, the Config.Mode controls the amount of detail
+reported about the loaded packages, with each mode returning all the data of the
 previous mode with some extra added. See the documentation for type LoadMode
 for details.
 
@@ -114,12 +114,6 @@ about one package without visiting all its dependencies too, so there is
 no additional asymptotic cost to providing transitive information.
 (This property might not be true of a hypothetical 5th build system.)
 
-This package provides no parse-but-don't-typecheck operation because most tools
-that need only untyped syntax (such as gofmt, goimports, and golint)
-seem not to care about any files other than the ones they are directly
-instructed to look at.  Also, it is trivial for a client to supplement
-this functionality on top of a Metadata query.
-
 In calls to TypeCheck, all initial packages, and any package that
 transitively depends on one of them, must be loaded from source.
 Consider A->B->C->D->E: if A,C are initial, A,B,C must be loaded from
@@ -169,15 +163,13 @@ type-check again. This two-phase approach had four major problems:
    in several times in sequence as is now possible in WholeProgram mode.
    (TypeCheck mode has a similar one-shot restriction for a different reason.)
 
-Early drafts of this package supported "multi-shot" operation
-in the Metadata and WholeProgram modes, although this feature is not exposed
-through the API and will likely be removed.
+Early drafts of this package supported "multi-shot" operation.
 Although it allowed clients to make a sequence of calls (or concurrent
 calls) to Load, building up the graph of Packages incrementally,
 it was of marginal value: it complicated the API
 (since it allowed some options to vary across calls but not others),
 it complicated the implementation,
-it cannot be made to work in TypeCheck mode, as explained above,
+it cannot be made to work in Types mode, as explained above,
 and it was less efficient than making one combined call (when this is possible).
 Among the clients we have inspected, none made multiple calls to load
 but could not be easily and satisfactorily modified to make only a single call.
@@ -227,10 +219,6 @@ Questions & Tasks
   failed builds, import failures, import cycles, and so on, in a call to
   Load?
 
-- Do we need a GeneratedBy map that maps the name of each generated Go
-  source file in GoFiles to that of the original file, if known, or "" otherwise?
-  Or are //line directives and "Generated" comments in those files enough?
-
 - Support bazel, blaze, and go1.10 list, not just go1.11 list.
 
 - Handle (and test) various partial success cases, e.g.
@@ -251,19 +239,5 @@ Questions & Tasks
 - "undeclared name" errors (for example) are reported out of source file
   order. I suspect this is due to the breadth-first resolution now used
   by go/types. Is that a bug? Discuss with gri.
-
-- https://github.com/golang/go/issues/25980 causes these commands to crash:
-  $ GOPATH=/none ./gopackages -all all
-  due to:
-  $ GOPATH=/none go list -e -test -json all
-  and:
-  $ go list -e -test ./relative/path
-
-- Modify stringer to use go/packages, perhaps initially under flag control.
-
-- Bug: "gopackages fmt a.go" doesn't produce an error.
-
-- If necessary, add back an IsTest boolean or expose ForTests on the Package struct.
-  IsTest was removed because we couldn't agree on a useful definition.
 
 */
