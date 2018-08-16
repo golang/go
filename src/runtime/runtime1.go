@@ -305,7 +305,6 @@ var debug struct {
 	gccheckmark        int32
 	gcpacertrace       int32
 	gcshrinkstackoff   int32
-	gcrescanstacks     int32
 	gcstoptheworld     int32
 	gctrace            int32
 	invalidptr         int32
@@ -323,7 +322,6 @@ var dbgvars = []dbgVar{
 	{"gccheckmark", &debug.gccheckmark},
 	{"gcpacertrace", &debug.gcpacertrace},
 	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
-	{"gcrescanstacks", &debug.gcrescanstacks},
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},

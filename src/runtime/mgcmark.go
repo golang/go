@@ -116,11 +116,6 @@ func gcMarkRootPrepare() {
 		// contain pointers to unmarked objects, so on the
 		// second markroot, there's no need to scan stacks.
 		work.nStackRoots = 0
-
-		if debug.gcrescanstacks > 0 {
-			// Scan stacks anyway for debugging.
-			work.nStackRoots = int(atomic.Loaduintptr(&allglen))
-		}
 	}
 
 	work.markrootNext = 0
@@ -138,19 +133,10 @@ func gcMarkRootCheck() {
 	lock(&allglock)
 	// Check that stacks have been scanned.
 	var gp *g
-	if gcphase == _GCmarktermination && debug.gcrescanstacks > 0 {
-		for i := 0; i < len(allgs); i++ {
-			gp = allgs[i]
-			if !(gp.gcscandone && gp.gcscanvalid) && readgstatus(gp) != _Gdead {
-				goto fail
-			}
-		}
-	} else {
-		for i := 0; i < work.nStackRoots; i++ {
-			gp = allgs[i]
-			if !gp.gcscandone {
-				goto fail
-			}
+	for i := 0; i < work.nStackRoots; i++ {
+		gp = allgs[i]
+		if !gp.gcscandone {
+			goto fail
 		}
 	}
 	unlock(&allglock)
