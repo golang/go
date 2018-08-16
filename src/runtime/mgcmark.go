@@ -62,57 +62,41 @@ func gcMarkRootPrepare() {
 	work.nDataRoots = 0
 	work.nBSSRoots = 0
 
-	// Only scan globals once per cycle; preferably concurrently.
-	if !work.markrootDone {
-		for _, datap := range activeModules() {
-			nDataRoots := nBlocks(datap.edata - datap.data)
-			if nDataRoots > work.nDataRoots {
-				work.nDataRoots = nDataRoots
-			}
-		}
-
-		for _, datap := range activeModules() {
-			nBSSRoots := nBlocks(datap.ebss - datap.bss)
-			if nBSSRoots > work.nBSSRoots {
-				work.nBSSRoots = nBSSRoots
-			}
+	// Scan globals.
+	for _, datap := range activeModules() {
+		nDataRoots := nBlocks(datap.edata - datap.data)
+		if nDataRoots > work.nDataRoots {
+			work.nDataRoots = nDataRoots
 		}
 	}
 
-	if !work.markrootDone {
-		// On the first markroot, we need to scan span roots.
-		// In concurrent GC, this happens during concurrent
-		// mark and we depend on addfinalizer to ensure the
-		// above invariants for objects that get finalizers
-		// after concurrent mark. In STW GC, this will happen
-		// during mark termination.
-		//
-		// We're only interested in scanning the in-use spans,
-		// which will all be swept at this point. More spans
-		// may be added to this list during concurrent GC, but
-		// we only care about spans that were allocated before
-		// this mark phase.
-		work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
-
-		// On the first markroot, we need to scan all Gs. Gs
-		// may be created after this point, but it's okay that
-		// we ignore them because they begin life without any
-		// roots, so there's nothing to scan, and any roots
-		// they create during the concurrent phase will be
-		// scanned during mark termination. During mark
-		// termination, allglen isn't changing, so we'll scan
-		// all Gs.
-		work.nStackRoots = int(atomic.Loaduintptr(&allglen))
-	} else {
-		// We've already scanned span roots and kept the scan
-		// up-to-date during concurrent mark.
-		work.nSpanRoots = 0
-
-		// The hybrid barrier ensures that stacks can't
-		// contain pointers to unmarked objects, so on the
-		// second markroot, there's no need to scan stacks.
-		work.nStackRoots = 0
+	for _, datap := range activeModules() {
+		nBSSRoots := nBlocks(datap.ebss - datap.bss)
+		if nBSSRoots > work.nBSSRoots {
+			work.nBSSRoots = nBSSRoots
+		}
 	}
+
+	// Scan span roots for finalizer specials.
+	//
+	// We depend on addfinalizer to mark objects that get
+	// finalizers after root marking.
+	//
+	// We're only interested in scanning the in-use spans,
+	// which will all be swept at this point. More spans
+	// may be added to this list during concurrent GC, but
+	// we only care about spans that were allocated before
+	// this mark phase.
+	work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
+
+	// Scan stacks.
+	//
+	// Gs may be created after this point, but it's okay that we
+	// ignore them because they begin life without any roots, so
+	// there's nothing to scan, and any roots they create during
+	// the concurrent phase will be scanned during mark
+	// termination.
+	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
 
 	work.markrootNext = 0
 	work.markrootJobs = uint32(fixedRootCount + work.nFlushCacheRoots + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
@@ -183,24 +167,15 @@ func markroot(gcw *gcWork, i uint32) {
 		}
 
 	case i == fixedRootFinalizers:
-		// Only do this once per GC cycle since we don't call
-		// queuefinalizer during marking.
-		if work.markrootDone {
-			break
-		}
 		for fb := allfin; fb != nil; fb = fb.alllink {
 			cnt := uintptr(atomic.Load(&fb.cnt))
 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw)
 		}
 
 	case i == fixedRootFreeGStacks:
-		// Only do this once per GC cycle; preferably
-		// concurrently.
-		if !work.markrootDone {
-			// Switch to the system stack so we can call
-			// stackfree.
-			systemstack(markrootFreeGStacks)
-		}
+		// Switch to the system stack so we can call
+		// stackfree.
+		systemstack(markrootFreeGStacks)
 
 	case baseSpans <= i && i < baseStacks:
 		// mark MSpan.specials
@@ -323,10 +298,6 @@ func markrootSpans(gcw *gcWork, shard int) {
 	//
 	// TODO(austin): There are several ideas for making this more
 	// efficient in issue #11485.
-
-	if work.markrootDone {
-		throw("markrootSpans during second markroot")
-	}
 
 	sg := mheap_.sweepgen
 	spans := mheap_.sweepSpans[mheap_.sweepgen/2%2].block(shard)
@@ -719,11 +690,8 @@ func scanstack(gp *g, gcw *gcWork) {
 		throw("can't scan gchelper stack")
 	}
 
-	// Shrink the stack if not much of it is being used. During
-	// concurrent GC, we can do this during concurrent mark.
-	if !work.markrootDone {
-		shrinkstack(gp)
-	}
+	// Shrink the stack if not much of it is being used.
+	shrinkstack(gp)
 
 	// Scan the saved context register. This is effectively a live
 	// register that gets moved back and forth between the
