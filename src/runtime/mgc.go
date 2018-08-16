@@ -948,14 +948,6 @@ var work struct {
 	nFlushCacheRoots                               int
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
 
-	// markrootDone indicates that roots have been marked at least
-	// once during the current GC cycle. This is checked by root
-	// marking operations that have to happen only during the
-	// first root marking pass, whether that's during the
-	// concurrent mark phase in current GC or mark termination in
-	// STW GC.
-	markrootDone bool
-
 	// Each type of GC state transition is protected by a lock.
 	// Since multiple threads can simultaneously detect the state
 	// transition condition, any thread that detects a transition
@@ -1456,9 +1448,6 @@ top:
 	// below. The important thing is that the wb remains active until
 	// all marking is complete. This includes writes made by the GC.
 
-	// Record that one root marking pass has completed.
-	work.markrootDone = true
-
 	// Disable assists and background workers. We must do
 	// this before waking blocked assists.
 	atomic.Store(&gcBlackenEnabled, 0)
@@ -1909,18 +1898,19 @@ func gcMark(start_time int64) {
 	}
 	work.tstart = start_time
 
-	// Queue root marking jobs.
-	gcMarkRootPrepare()
-
 	work.nwait = 0
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
 
 	// Check that there's no marking work remaining.
-	if work.full != 0 || work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots != 0 {
-		print("runtime: full=", hex(work.full), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
+	if work.full != 0 || work.markrootNext < work.markrootJobs {
+		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
 		panic("non-empty mark queue after concurrent mark")
 	}
+
+	// Clear root marking queue.
+	work.markrootNext = 0
+	work.markrootJobs = 0
 
 	if work.nproc > 1 {
 		noteclear(&work.alldone)
@@ -1944,9 +1934,6 @@ func gcMark(start_time int64) {
 	if work.nproc > 1 {
 		notesleep(&work.alldone)
 	}
-
-	// Record that at least one root marking pass has completed.
-	work.markrootDone = true
 
 	// Clear out buffers and double-check that all gcWork caches
 	// are empty. This should be ensured by gcMarkDone before we
@@ -2061,7 +2048,6 @@ func gcResetMarkState() {
 
 	work.bytesMarked = 0
 	work.initialHeapLive = atomic.Load64(&memstats.heap_live)
-	work.markrootDone = false
 }
 
 // Hooks for other packages
