@@ -944,14 +944,6 @@ var work struct {
 	ndone   uint32
 	alldone note
 
-	// helperDrainBlock indicates that GC mark termination helpers
-	// should pass gcDrainBlock to gcDrain to block in the
-	// getfull() barrier. Otherwise, they should pass gcDrainNoBlock.
-	//
-	// TODO: This is a temporary fallback to work around races
-	// that cause early mark termination.
-	helperDrainBlock bool
-
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
 	nFlushCacheRoots                               int
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
@@ -1528,7 +1520,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 			gcResetMarkState()
 			initCheckmarks()
 			gcw := &getg().m.p.ptr().gcw
-			gcDrain(gcw, gcDrainNoBlock)
+			gcDrain(gcw, 0)
 			wbBufFlush1(getg().m.p.ptr())
 			gcw.dispose()
 			clearCheckmarks()
@@ -1814,7 +1806,7 @@ func gcBgMarkWorker(_p_ *p) {
 				}
 				// Go back to draining, this time
 				// without preemption.
-				gcDrain(&_p_.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
+				gcDrain(&_p_.gcw, gcDrainFlushBgCredit)
 			case gcMarkWorkerFractionalMode:
 				gcDrain(&_p_.gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
 			case gcMarkWorkerIdleMode:
@@ -1905,7 +1897,6 @@ func gcMark(start_time int64) {
 	work.nwait = 0
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
-	work.helperDrainBlock = false
 
 	// Check that there's no marking work remaining.
 	if work.full != 0 || work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots != 0 {
@@ -1921,11 +1912,7 @@ func gcMark(start_time int64) {
 	gchelperstart()
 
 	gcw := &getg().m.p.ptr().gcw
-	if work.helperDrainBlock {
-		gcDrain(gcw, gcDrainBlock)
-	} else {
-		gcDrain(gcw, gcDrainNoBlock)
-	}
+	gcDrain(gcw, 0)
 
 	if debug.gccheckmark > 0 {
 		// This is expensive when there's a large number of
@@ -2119,11 +2106,7 @@ func gchelper() {
 	// Parallel mark over GC roots and heap
 	if gcphase == _GCmarktermination {
 		gcw := &_g_.m.p.ptr().gcw
-		if work.helperDrainBlock {
-			gcDrain(gcw, gcDrainBlock) // blocks in getfull
-		} else {
-			gcDrain(gcw, gcDrainNoBlock)
-		}
+		gcDrain(gcw, 0)
 	}
 
 	nproc := atomic.Load(&work.nproc) // work.nproc can change right after we increment work.ndone

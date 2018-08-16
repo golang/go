@@ -771,33 +771,25 @@ type gcDrainFlags int
 
 const (
 	gcDrainUntilPreempt gcDrainFlags = 1 << iota
-	gcDrainNoBlock
 	gcDrainFlushBgCredit
 	gcDrainIdle
 	gcDrainFractional
-
-	// gcDrainBlock means neither gcDrainUntilPreempt or
-	// gcDrainNoBlock. It is the default, but callers should use
-	// the constant for documentation purposes.
-	gcDrainBlock gcDrainFlags = 0
 )
 
 // gcDrain scans roots and objects in work buffers, blackening grey
-// objects until all roots and work buffers have been drained.
+// objects until it is unable to get more work. It may return before
+// GC is done; it's the caller's responsibility to balance work from
+// other Ps.
 //
 // If flags&gcDrainUntilPreempt != 0, gcDrain returns when g.preempt
-// is set. This implies gcDrainNoBlock.
+// is set.
 //
 // If flags&gcDrainIdle != 0, gcDrain returns when there is other work
-// to do. This implies gcDrainNoBlock.
+// to do.
 //
 // If flags&gcDrainFractional != 0, gcDrain self-preempts when
 // pollFractionalWorkerExit() returns true. This implies
 // gcDrainNoBlock.
-//
-// If flags&gcDrainNoBlock != 0, gcDrain returns as soon as it is
-// unable to get more work. Otherwise, it will block until all
-// blocking calls are blocked in gcDrain.
 //
 // If flags&gcDrainFlushBgCredit != 0, gcDrain flushes scan work
 // credit to gcController.bgScanCredit every gcCreditSlack units of
@@ -811,7 +803,6 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 
 	gp := getg().m.curg
 	preemptible := flags&gcDrainUntilPreempt != 0
-	blocking := flags&(gcDrainUntilPreempt|gcDrainIdle|gcDrainFractional|gcDrainNoBlock) == 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
 	idle := flags&gcDrainIdle != 0
 
@@ -855,24 +846,19 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 			gcw.balance()
 		}
 
-		var b uintptr
-		if blocking {
-			b = gcw.get()
-		} else {
-			b = gcw.tryGetFast()
+		b := gcw.tryGetFast()
+		if b == 0 {
+			b = gcw.tryGet()
 			if b == 0 {
+				// Flush the write barrier
+				// buffer; this may create
+				// more work.
+				wbBufFlush(nil, 0)
 				b = gcw.tryGet()
-				if b == 0 {
-					// Flush the write barrier
-					// buffer; this may create
-					// more work.
-					wbBufFlush(nil, 0)
-					b = gcw.tryGet()
-				}
 			}
 		}
 		if b == 0 {
-			// work barrier reached or tryGet failed.
+			// Unable to get work.
 			break
 		}
 		scanobject(b, gcw)
@@ -897,10 +883,6 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 			}
 		}
 	}
-
-	// In blocking mode, write barriers are not allowed after this
-	// point because we must preserve the condition that the work
-	// buffers are empty.
 
 done:
 	// Flush remaining scan work credit.
