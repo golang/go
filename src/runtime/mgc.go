@@ -1905,28 +1905,12 @@ func gcMark(start_time int64) {
 	work.nwait = 0
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
+	work.helperDrainBlock = false
 
-	if work.full == 0 && work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots == 0 {
-		// There's no work on the work queue and no root jobs
-		// that can produce work, so don't bother entering the
-		// getfull() barrier. There will be flushCacheRoots
-		// work, but that doesn't gray anything.
-		//
-		// This should always be the situation after
-		// concurrent mark.
-		work.helperDrainBlock = false
-	} else {
-		// There's marking work to do. This is the case during
-		// STW GC. Instruct GC workers
-		// to block in getfull until all GC workers are in getfull.
-		//
-		// TODO(austin): Move STW marking out of
-		// mark termination and eliminate this code path.
-		if debug.gcstoptheworld == 0 {
-			print("runtime: full=", hex(work.full), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
-			panic("non-empty mark queue after concurrent mark")
-		}
-		work.helperDrainBlock = true
+	// Check that there's no marking work remaining.
+	if work.full != 0 || work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots != 0 {
+		print("runtime: full=", hex(work.full), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
+		panic("non-empty mark queue after concurrent mark")
 	}
 
 	if work.nproc > 1 {
