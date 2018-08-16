@@ -167,7 +167,18 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="gopackages">Package loading</h3>
 
 <p>
-  TODO: Note about go/build versus golang.org/x/tools/go/packages.
+  The new package
+  <a href="https://godoc.org/golang.org/x/tools/go/packages"><code>golang.org/x/tools/go/packages</code></a>
+  provides a simple API for locating and loading packages of Go source code.
+  Although not yet part of the standard library, for many tasks it
+  effectively replaces the <a href="/pkg/go/build"><code>go/build</code></a>
+  package, whose API is unable to fully support modules.
+  Because it runs an external query command such as
+  <a href="/cmd/go/#hdr-List_packages"><code>go list</code></a>
+  to obtain information about Go packages, it enables the construction of
+  analysis tools that work equally well with alternative build systems
+  such as <a href="https://bazel.build">Bazel</a>
+  and <a href="https://buckbuild.com">Buck</a>.
 </p>
 
 <h3 id="gocache">Build cache requirement</h3>
@@ -793,7 +804,7 @@ for k := range m {
 
 <!-- CL 101715 was reverted -->
 
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+<dl id="runtime-again"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
 
     <p><!-- CL 70993 -->
