@@ -1293,6 +1293,7 @@ func TestGetGitDefaultBranch(t *testing.T) {
 
 func TestAccidentalGitCheckout(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	testenv.SkipFlaky(t, 22983) // this test might not have ever worked; see issue.
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("skipping because git binary not found")
 	}
