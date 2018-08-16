@@ -1914,7 +1914,7 @@ func gcMark(start_time int64) {
 		//
 		// TODO(austin): Move STW marking out of
 		// mark termination and eliminate this code path.
-		if debug.gcstoptheworld == 0 && debug.gcrescanstacks == 0 {
+		if debug.gcstoptheworld == 0 {
 			print("runtime: full=", hex(work.full), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
 			panic("non-empty mark queue after concurrent mark")
 		}
