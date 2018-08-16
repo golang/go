@@ -160,6 +160,9 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 			sizeLeft /= n
 		}
 		for i := 0; i < n; i++ {
+			if !v.Field(i).CanSet() {
+				continue
+			}
 			elem, ok := sizedValue(concrete.Field(i).Type, rand, sizeLeft)
 			if !ok {
 				return reflect.Value{}, false
