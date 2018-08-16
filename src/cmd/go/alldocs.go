@@ -722,7 +722,8 @@
 // The -compiled flag causes list to set CompiledGoFiles to the Go source
 // files presented to the compiler. Typically this means that it repeats
 // the files listed in GoFiles and then also adds the Go code generated
-// by processing CgoFiles and SwigFiles.
+// by processing CgoFiles and SwigFiles. The Imports list contains the
+// union of all imports from both GoFiles and CompiledGoFiles.
 //
 // The -deps flag causes list to iterate over not just the named packages
 // but also all their dependencies. It visits them in a depth-first post-order
@@ -842,7 +843,7 @@
 // module paths match the pattern.
 // A query of the form path@version specifies the result of that query,
 // which is not limited to active modules.
-// See 'go help module' for more about module queries.
+// See 'go help modules' for more about module queries.
 //
 // The template function "module" takes a single string argument
 // that must be a module path or query and returns the specified
@@ -912,7 +913,7 @@
 //         Dir     string // absolute path to cached source root directory
 //     }
 //
-// See 'go help module' for more about module queries.
+// See 'go help modules' for more about module queries.
 //
 //
 // Edit go.mod from tools or scripts
