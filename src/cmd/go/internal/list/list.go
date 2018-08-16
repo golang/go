@@ -268,7 +268,7 @@ A pattern containing "..." specifies the active modules whose
 module paths match the pattern.
 A query of the form path@version specifies the result of that query,
 which is not limited to active modules.
-See 'go help module' for more about module queries.
+See 'go help modules' for more about module queries.
 
 The template function "module" takes a single string argument
 that must be a module path or query and returns the specified

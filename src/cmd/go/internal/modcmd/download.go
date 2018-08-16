@@ -41,7 +41,7 @@ corresponding to this Go struct:
         Dir     string // absolute path to cached source root directory
     }
 
-See 'go help module' for more about module queries.
+See 'go help modules' for more about module queries.
 	`,
 }
 
