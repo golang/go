@@ -56,14 +56,14 @@ func ImportPaths(patterns []string) []*search.Match {
 
 	var matches []*search.Match
 	for _, pattern := range search.CleanPatterns(patterns) {
-			m := &search.Match{
-				Pattern: pattern,
-				Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
-			}
-			if m.Literal {
-				m.Pkgs = []string{pattern}
-			}
-			matches = append(matches, m)
+		m := &search.Match{
+			Pattern: pattern,
+			Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
+		}
+		if m.Literal {
+			m.Pkgs = []string{pattern}
+		}
+		matches = append(matches, m)
 	}
 
 	fsDirs := make([][]string, len(matches))
@@ -622,7 +622,6 @@ func (ld *loader) computePatternAll(paths []string) []string {
 	}
 	sort.Strings(all)
 
-	fmt.Fprintf(os.Stderr, "ALL %v -> %v\n", paths, all)
 	return all
 }
 
