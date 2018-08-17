@@ -60,15 +60,17 @@ type PackagePublic struct {
 	Doc           string                `json:",omitempty"` // package documentation string
 	Target        string                `json:",omitempty"` // installed target for this package (may be executable)
 	Shlib         string                `json:",omitempty"` // the shared library that contains this package (only set when -linkshared)
-	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?
-	Standard      bool                  `json:",omitempty"` // is this package part of the standard Go library?
 	Root          string                `json:",omitempty"` // Go root or Go path dir containing this package
 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
-	BinaryOnly    bool                  `json:",omitempty"` // package cannot be recompiled
 	ForTest       string                `json:",omitempty"` // package is only for use in named test
-	DepOnly       bool                  `json:",omitempty"` // package is only as a dependency, not explicitly listed
 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
 	Module        *modinfo.ModulePublic `json:",omitempty"` // info about package's module, if any
+	Match         []string              `json:",omitempty"` // command-line patterns matching this package
+	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?
+	Standard      bool                  `json:",omitempty"` // is this package part of the standard Go library?
+	DepOnly       bool                  `json:",omitempty"` // package is only as a dependency, not explicitly listed
+	BinaryOnly    bool                  `json:",omitempty"` // package cannot be recompiled
+	Incomplete    bool                  `json:",omitempty"` // was there an error loading this package or dependencies?
 
 	// Stale and StaleReason remain here *only* for the list command.
 	// They are only initialized in preparation for list execution.
@@ -107,7 +109,7 @@ type PackagePublic struct {
 	Deps      []string          `json:",omitempty"` // all (recursively) imported dependencies
 
 	// Error information
-	Incomplete bool            `json:",omitempty"` // was there an error loading this package or dependencies?
+	// Incomplete is above, packed into the other bools
 	Error      *PackageError   `json:",omitempty"` // error loading this package (not dependencies)
 	DepsErrors []*PackageError `json:",omitempty"` // errors loading dependencies
 
@@ -1848,6 +1850,7 @@ func PackagesAndErrors(patterns []string) []*Package {
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
 			p := loadPackage(pkg, &stk)
+			p.Match = append(p.Match, m.Pattern)
 			p.Internal.CmdlinePkg = true
 			if m.Literal {
 				// Note: do not set = m.Literal unconditionally
@@ -1937,7 +1940,6 @@ func PackagesForBuild(args []string) []*Package {
 func GoFilesPackage(gofiles []string) *Package {
 	ModInit()
 
-	// TODO: Remove this restriction.
 	for _, f := range gofiles {
 		if !strings.HasSuffix(f, ".go") {
 			base.Fatalf("named files must be .go files")
@@ -1998,6 +2000,7 @@ func GoFilesPackage(gofiles []string) *Package {
 	pkg.Internal.LocalPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"
 	pkg.Target = ""
+	pkg.Match = gofiles
 
 	if pkg.Name == "main" {
 		_, elem := filepath.Split(gofiles[0])
