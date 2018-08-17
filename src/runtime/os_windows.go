@@ -858,14 +858,14 @@ func profileloop()
 
 var profiletimer uintptr
 
-func profilem(mp *m) {
+func profilem(mp *m, thread uintptr) {
 	var r *context
 	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
 
 	// align Context to 16 bytes
 	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
 	r.contextflags = _CONTEXT_CONTROL
-	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(r)))
 
 	var gp *g
 	switch GOARCH {
@@ -906,9 +906,16 @@ func profileloop1(param uintptr) uint32 {
 			if thread == 0 || mp.profilehz == 0 || mp.blocked {
 				continue
 			}
-			stdcall1(_SuspendThread, thread)
+			// mp may exit between the load above and the
+			// SuspendThread, so be careful.
+			if int32(stdcall1(_SuspendThread, thread)) == -1 {
+				// The thread no longer exists.
+				continue
+			}
 			if mp.profilehz != 0 && !mp.blocked {
-				profilem(mp)
+				// Pass the thread handle in case mp
+				// was in the process of shutting down.
+				profilem(mp, thread)
 			}
 			stdcall1(_ResumeThread, thread)
 		}
