@@ -228,10 +228,9 @@ var codeRepoTests = []struct {
 		path:    "swtch.com/testmod",
 		rev:     "v1.0.0",
 		version: "v1.0.0",
-		name:    "v1.0.0",
-		short:   "v1.0.0",
-		time:    time.Date(1972, 7, 18, 12, 34, 56, 0, time.UTC),
-		gomod:   "module \"swtch.com/testmod\"\n",
+		// NO name or short - we intentionally ignore those in the proxy protocol
+		time:  time.Date(1972, 7, 18, 12, 34, 56, 0, time.UTC),
+		gomod: "module \"swtch.com/testmod\"\n",
 	},
 	{
 		// redirect to googlesource
