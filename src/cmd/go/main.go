@@ -64,6 +64,7 @@ func init() {
 		help.HelpCache,
 		help.HelpEnvironment,
 		help.HelpFileType,
+		modload.HelpGoMod,
 		help.HelpGopath,
 		get.HelpGopathGet,
 		modfetch.HelpGoproxy,
