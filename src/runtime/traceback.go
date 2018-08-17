@@ -99,8 +99,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	if skip > 0 && callback != nil {
 		throw("gentraceback callback cannot be used with non-zero skip")
 	}
-	g := getg()
-	if g == gp && g == g.m.curg {
+
+	// Don't call this "g"; it's too easy get "g" and "gp" confused.
+	if ourg := getg(); ourg == gp && ourg == ourg.m.curg {
 		// The starting sp has been passed in as a uintptr, and the caller may
 		// have other uintptr-typed stack references as well.
 		// If during one of the calls that got us here or during one of the
@@ -200,7 +201,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// g0, this systemstack is at the top of the stack.
 			// if we're not on g0 or there's a no curg, then this is a regular call.
 			sp := frame.sp
-			if flags&_TraceJumpStack != 0 && f.funcID == funcID_systemstack && gp == g.m.g0 && gp.m.curg != nil {
+			if flags&_TraceJumpStack != 0 && f.funcID == funcID_systemstack && gp == gp.m.g0 && gp.m.curg != nil {
 				sp = gp.m.curg.sched.sp
 				frame.sp = sp
 				cgoCtxt = gp.m.curg.cgoCtxt
@@ -425,7 +426,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if frame.pc > f.entry {
 					print(" +", hex(frame.pc-f.entry))
 				}
-				if g.m.throwing > 0 && gp == g.m.curg || level >= 2 {
+				if gp.m != nil && gp.m.throwing > 0 && gp == gp.m.curg || level >= 2 {
 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
 				}
 				print("\n")
