@@ -1,0 +1,11 @@
+[exec:bzr] skip 'tests NOT having bzr'
+[!net] skip
+
+env GO111MODULE=on
+env GOPROXY=
+
+! go list launchpad.net/gocheck
+stderr '"bzr": executable file not found'
+
+-- go.mod --
+module m
