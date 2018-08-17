@@ -49,12 +49,19 @@ Files:
 		if err != nil {
 			return nil, nil, fmt.Errorf("reading %s: %v", name, err)
 		}
-		// import "C" is implicit requirement of cgo tag
+
+		// import "C" is implicit requirement of cgo tag.
+		// When listing files on the command line (explicitFiles=true)
+		// we do not apply build tag filtering but we still do apply
+		// cgo filtering, so no explicitFiles check here.
+		// Why? Because we always have, and it's not worth breaking
+		// that behavior now.
 		for _, path := range list {
 			if path == `"C"` && !tags["cgo"] && !tags["*"] {
 				continue Files
 			}
 		}
+
 		if !explicitFiles && !ShouldBuild(data, tags) {
 			continue
 		}
