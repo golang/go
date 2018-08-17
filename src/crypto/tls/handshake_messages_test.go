@@ -188,7 +188,7 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		numSCTs := rand.Intn(4)
 		m.scts = make([][]byte, numSCTs)
 		for i := range m.scts {
-			m.scts[i] = randomBytes(rand.Intn(500), rand)
+			m.scts[i] = randomBytes(rand.Intn(500)+1, rand)
 		}
 	}
 
