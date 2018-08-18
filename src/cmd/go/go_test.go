@@ -4188,9 +4188,10 @@ func TestGoGetUpdateWithWildcard(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	const aPkgImportPath = "github.com/tmwh/go-get-issue-14450/a"
 	tg.run("get", aPkgImportPath)
-	tg.run("get", "-u", ".../")
-	tg.grepStderrNot("cannot find package", "did not update packages given wildcard path")
+	tg.runFail("get", "-u", ".../")
+	tg.grepStderr("cannot find package.*d-dependency/e", "should have detected e missing")
 
+	// Even though get -u failed, the source for others should be downloaded.
 	var expectedPkgPaths = []string{
 		"src/github.com/tmwh/go-get-issue-14450/b",
 		"src/github.com/tmwh/go-get-issue-14450-b-dependency/c",
