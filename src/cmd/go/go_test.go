@@ -3532,24 +3532,43 @@ func TestImportLocal(t *testing.T) {
 }
 
 func TestGoGetInsecure(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
+	test := func(t *testing.T, modules bool) {
+		testenv.MustHaveExternalNetwork(t)
 
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.failSSH()
+		tg := testgo(t)
+		defer tg.cleanup()
+		tg.makeTempdir()
+		tg.failSSH()
 
-	const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
+		if modules {
+			tg.setenv("GOPATH", tg.path("gp"))
+			tg.tempFile("go.mod", "module m")
+			tg.cd(tg.path("."))
+			tg.setenv("GO111MODULE", "on")
+		} else {
+			tg.setenv("GOPATH", tg.path("."))
+			tg.setenv("GO111MODULE", "off")
+		}
 
-	// Try go get -d of HTTP-only repo (should fail).
-	tg.runFail("get", "-d", repo)
+		const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
 
-	// Try again with -insecure (should succeed).
-	tg.run("get", "-d", "-insecure", repo)
+		// Try go get -d of HTTP-only repo (should fail).
+		tg.runFail("get", "-d", repo)
 
-	// Try updating without -insecure (should fail).
-	tg.runFail("get", "-d", "-u", "-f", repo)
+		// Try again with -insecure (should succeed).
+		tg.run("get", "-d", "-insecure", repo)
+
+		// Try updating without -insecure (should fail).
+		tg.runFail("get", "-d", "-u", "-f", repo)
+
+		if modules {
+			tg.run("list", "-m", "...")
+			tg.grepStdout("insecure.go-get-issue", "should find insecure module")
+		}
+	}
+
+	t.Run("gopath", func(t *testing.T) { test(t, false) })
+	t.Run("modules", func(t *testing.T) { test(t, true) })
 }
 
 func TestGoGetUpdateInsecure(t *testing.T) {
