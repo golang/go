@@ -175,6 +175,7 @@ func Init() {
 	load.ModPackageBuildInfo = PackageBuildInfo
 	load.ModInfoProg = ModInfoProg
 	load.ModImportFromFiles = ImportFromFiles
+	load.ModDirImportPath = DirImportPath
 
 	search.SetModRoot(ModRoot)
 }
