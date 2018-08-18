@@ -15,6 +15,8 @@ stdout '^\t"Version": "v1.5.0"'
 stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.info"'
 stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.mod"'
 stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.zip"'
+stdout '^\t"Sum": "h1:6fJa6E\+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE="'  # hash of testdata/mod version, not real version!
+stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
 ! stdout '"Error"'
 
 # download queries above should not have added to go.mod.
