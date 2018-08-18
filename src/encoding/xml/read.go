@@ -87,7 +87,7 @@ import (
 //      of the above rules and the struct has a field with tag ",any",
 //      unmarshal maps the sub-element to that struct field.
 //
-//   * An anonymous struct field is handled as if the fields of its
+//   * An embedded struct field is handled as if the fields of its
 //      value were part of the outer struct.
 //
 //   * A struct field with tag "-" is never unmarshaled into.
