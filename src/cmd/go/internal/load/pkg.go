@@ -39,6 +39,7 @@ var (
 	ModPackageBuildInfo  func(main string, deps []string) string             // return module info to embed in binary
 	ModInfoProg          func(info string) []byte                            // wrap module info in .go code for binary
 	ModImportFromFiles   func([]string)                                      // update go.mod to add modules for imports in these files
+	ModDirImportPath     func(string) string                                 // return effective import path for directory
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -567,11 +568,11 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
-	if perr := disallowInternal(srcDir, parentPath, p, stk); perr != p {
+	if perr := disallowInternal(srcDir, parent, parentPath, p, stk); perr != p {
 		return setErrorPos(perr, importPos)
 	}
 	if mode&ResolveImport != 0 {
-		if perr := disallowVendor(srcDir, parentPath, origPath, p, stk); perr != p {
+		if perr := disallowVendor(srcDir, parent, parentPath, origPath, p, stk); perr != p {
 			return setErrorPos(perr, importPos)
 		}
 	}
@@ -932,7 +933,7 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 // is allowed to import p.
 // If the import is allowed, disallowInternal returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowInternal(srcDir, importerPath string, p *Package, stk *ImportStack) *Package {
+func disallowInternal(srcDir string, importer *Package, importerPath string, p *Package, stk *ImportStack) *Package {
 	// golang.org/s/go14internal:
 	// An import of a path containing the element “internal”
 	// is disallowed if the importing code is outside the tree
@@ -990,10 +991,16 @@ func disallowInternal(srcDir, importerPath string, p *Package, stk *ImportStack)
 			return p
 		}
 	} else {
-		// p is in a module, so make it available based on the import path instead
+		// p is in a module, so make it available based on the importer's import path instead
 		// of the file path (https://golang.org/issue/23970).
-		parent := p.ImportPath[:i]
-		if str.HasPathPrefix(importerPath, parent) {
+		if importerPath == "." {
+			// The importer is a list of command-line files.
+			// Pretend that the import path is the import path of the
+			// directory containing them.
+			importerPath = ModDirImportPath(importer.Dir)
+		}
+		parentOfInternal := p.ImportPath[:i]
+		if str.HasPathPrefix(importerPath, parentOfInternal) {
 			return p
 		}
 	}
@@ -1031,7 +1038,7 @@ func findInternal(path string) (index int, ok bool) {
 // is allowed to import p as path.
 // If the import is allowed, disallowVendor returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowVendor(srcDir, importerPath, path string, p *Package, stk *ImportStack) *Package {
+func disallowVendor(srcDir string, importer *Package, importerPath, path string, p *Package, stk *ImportStack) *Package {
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an
@@ -1040,26 +1047,18 @@ func disallowVendor(srcDir, importerPath, path string, p *Package, stk *ImportSt
 		return p
 	}
 
-	if p.Standard && ModPackageModuleInfo != nil && importerPath != "" {
-		// Modules must not import vendor packages in the standard library,
-		// but the usual vendor visibility check will not catch them
-		// because the module loader presents them with an ImportPath starting
-		// with "golang_org/" instead of "vendor/".
-		if mod := ModPackageModuleInfo(importerPath); mod != nil {
-			dir := p.Dir
-			if relDir, err := filepath.Rel(p.Root, p.Dir); err == nil {
-				dir = relDir
-			}
-			if _, ok := FindVendor(filepath.ToSlash(dir)); ok {
-				perr := *p
-				perr.Error = &PackageError{
-					ImportStack: stk.Copy(),
-					Err:         "use of vendored package " + path + " not allowed",
-				}
-				perr.Incomplete = true
-				return &perr
-			}
+	// Modules must not import vendor packages in the standard library,
+	// but the usual vendor visibility check will not catch them
+	// because the module loader presents them with an ImportPath starting
+	// with "golang_org/" instead of "vendor/".
+	if p.Standard && !importer.Standard && strings.HasPrefix(p.ImportPath, "golang_org") {
+		perr := *p
+		perr.Error = &PackageError{
+			ImportStack: stk.Copy(),
+			Err:         "use of vendored package " + path + " not allowed",
 		}
+		perr.Incomplete = true
+		return &perr
 	}
 
 	if perr := disallowVendorVisibility(srcDir, p, stk); perr != p {
@@ -1991,6 +1990,11 @@ func GoFilesPackage(gofiles []string) *Package {
 	}
 
 	bp, err := ctxt.ImportDir(dir, 0)
+	if ModDirImportPath != nil {
+		// Use the effective import path of the directory
+		// for deciding visibility during pkg.load.
+		bp.ImportPath = ModDirImportPath(dir)
+	}
 	pkg := new(Package)
 	pkg.Internal.Local = true
 	pkg.Internal.CmdlineFiles = true

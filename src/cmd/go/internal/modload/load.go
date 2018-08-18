@@ -248,6 +248,28 @@ func ImportFromFiles(gofiles []string) {
 	WriteGoMod()
 }
 
+// DirImportPath returns the effective import path for dir,
+// provided it is within the main module, or else returns ".".
+func DirImportPath(dir string) string {
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(cwd, dir)
+	} else {
+		dir = filepath.Clean(dir)
+	}
+
+	if dir == ModRoot {
+		return Target.Path
+	}
+	if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) {
+		suffix := filepath.ToSlash(dir[len(ModRoot):])
+		if strings.HasPrefix(suffix, "/vendor/") {
+			return strings.TrimPrefix(suffix, "/vendor/")
+		}
+		return Target.Path + suffix
+	}
+	return "."
+}
+
 // LoadBuildList loads and returns the build list from go.mod.
 // The loading of the build list happens automatically in ImportPaths:
 // LoadBuildList need only be called if ImportPaths is not
