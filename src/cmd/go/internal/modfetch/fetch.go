@@ -253,12 +253,17 @@ func checkSum(mod module.Version) {
 	checkOneSum(mod, h)
 }
 
+// goModSum returns the checksum for the go.mod contents.
+func goModSum(data []byte) (string, error) {
+	return dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
+		return ioutil.NopCloser(bytes.NewReader(data)), nil
+	})
+}
+
 // checkGoMod checks the given module's go.mod checksum;
 // data is the go.mod content.
 func checkGoMod(path, version string, data []byte) {
-	h, err := dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewReader(data)), nil
-	})
+	h, err := goModSum(data)
 	if err != nil {
 		base.Fatalf("go: verifying %s %s go.mod: %v", path, version, err)
 	}

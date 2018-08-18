@@ -290,6 +290,23 @@ func GoModFile(path, version string) (string, error) {
 	return file, nil
 }
 
+// GoModSum returns the go.sum entry for the module version's go.mod file.
+// (That is, it returns the entry listed in go.sum as "path version/go.mod".)
+func GoModSum(path, version string) (string, error) {
+	if !semver.IsValid(version) {
+		return "", fmt.Errorf("invalid version %q", version)
+	}
+	data, err := GoMod(path, version)
+	if err != nil {
+		return "", err
+	}
+	sum, err := goModSum(data)
+	if err != nil {
+		return "", err
+	}
+	return sum, nil
+}
+
 var errNotCached = fmt.Errorf("not in cache")
 
 // readDiskStat reads a cached stat result from disk,
