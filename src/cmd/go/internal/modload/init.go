@@ -24,6 +24,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -379,7 +380,7 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) 
 
 	// Look for enclosing go.mod.
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !(runtime.GOOS == "plan9" && fi.IsDir()) {
 			return dir, "go.mod"
 		}
 		if dir == limit {
@@ -397,7 +398,7 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) 
 		dir = dir1
 		for {
 			for _, name := range altConfigs {
-				if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+				if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !(runtime.GOOS == "plan9" && fi.IsDir()) {
 					return dir, name
 				}
 			}
