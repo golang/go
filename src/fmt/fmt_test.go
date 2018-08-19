@@ -861,13 +861,8 @@ var fmtTests = []struct {
 	// Extra argument errors should format without flags set.
 	{"%010.2", "12345", "%!(NOVERB)%!(EXTRA string=12345)"},
 
-	// The "<nil>" show up because maps are printed by
-	// first obtaining a list of keys and then looking up
-	// each key. Since NaNs can be map keys but cannot
-	// be fetched directly, the lookup fails and returns a
-	// zero reflect.Value, which formats as <nil>.
-	// This test is just to check that it shows the two NaNs at all.
-	{"%v", map[float64]int{NaN: 1, NaN: 2}, "map[NaN:<nil> NaN:<nil>]"},
+	// Test that maps with non-reflexive keys print all keys and values.
+	{"%v", map[float64]int{NaN: 1, NaN: 1}, "map[NaN:1 NaN:1]"},
 
 	// Comparison of padding rules with C printf.
 	/*
@@ -1033,7 +1028,7 @@ var fmtTests = []struct {
 	{"%☠", &[]interface{}{I(1), G(2)}, "&[%!☠(fmt_test.I=1) %!☠(fmt_test.G=2)]"},
 	{"%☠", SI{&[]interface{}{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
 	{"%☠", reflect.Value{}, "<invalid reflect.Value>"},
-	{"%☠", map[float64]int{NaN: 1}, "map[%!☠(float64=NaN):%!☠(<nil>)]"},
+	{"%☠", map[float64]int{NaN: 1}, "map[%!☠(float64=NaN):%!☠(int=1)]"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
