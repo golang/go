@@ -181,7 +181,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// So we only check local module trees
 	// (the main module, and any directory trees pointed at by replace directives).
 	if isLocal {
-		for d := dir; d != mdir && len(d) > len(mdir); d = filepath.Dir(d) {
+		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
 				_, err := os.Stat(filepath.Join(d, "go.mod"))
 				return err == nil
@@ -190,6 +190,13 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 			if haveGoMod {
 				return "", false
 			}
+			parent := filepath.Dir(d)
+			if parent == d {
+				// Break the loop, as otherwise we'd loop
+				// forever if d=="." and mdir=="".
+				break
+			}
+			d = parent
 		}
 	}
 
