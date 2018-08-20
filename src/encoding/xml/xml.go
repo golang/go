@@ -302,6 +302,10 @@ func (d *Decoder) Token() (Token, error) {
 		// the translations first.
 		for _, a := range t1.Attr {
 			if a.Name.Space == xmlnsPrefix {
+				if a.Value == "" {
+					d.err = d.syntaxError("empty namespace with prefix")
+					return nil, d.err
+				}
 				v, ok := d.ns[a.Name.Local]
 				d.pushNs(a.Name.Local, v, ok)
 				d.ns[a.Name.Local] = a.Value

@@ -916,6 +916,35 @@ func TestIssue5880(t *testing.T) {
 	}
 }
 
+func TestIssue8068(t *testing.T) {
+	emptyError := SyntaxError{}
+	noError := emptyError.Error()
+	testCases := []struct {
+		s       string
+		wantErr SyntaxError
+	}{
+		{`<foo xmlns:bar="a"></foo>`, SyntaxError{}},
+		{`<foo xmlns:bar=""></foo>`, SyntaxError{Msg: "empty namespace with prefix", Line: 1}},
+		{`<foo xmlns:="a"></foo>`, SyntaxError{}},
+		{`<foo xmlns:""></foo>`, SyntaxError{Msg: "attribute name without = in element", Line: 1}},
+		{`<foo xmlns:"a"></foo>`, SyntaxError{Msg: "attribute name without = in element", Line: 1}},
+	}
+	var dest string
+	for _, tc := range testCases {
+		if got, want := Unmarshal([]byte(tc.s), &dest), tc.wantErr.Error(); got == nil {
+			if want != noError {
+				t.Errorf("%q: got nil, want %s", tc.s, want)
+			}
+		} else {
+			if want == "" {
+				t.Errorf("%q: got %s, want nil", tc.s, got)
+			} else if got.Error() != want {
+				t.Errorf("%q: got %s, want %s", tc.s, got, want)
+			}
+		}
+	}
+}
+
 func TestIssue8535(t *testing.T) {
 
 	type ExampleConflict struct {
