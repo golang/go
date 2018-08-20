@@ -64,7 +64,7 @@ GLOBL ·atanhtabh2075<> + 0(SB), RODATA, $16
 TEXT    ·atanhAsm(SB), NOSPLIT, $0-16
     FMOVD   x+0(FP), F0
     MOVD    $·atanhrodataL10<>+0(SB), R5
-    WORD    $0xB3CD0010	//lgdr %r1, %f0
+    LGDR    F0, R1
     WORD    $0xC0393FEF //iilf  %r3,1072693247
     BYTE    $0xFF
     BYTE    $0xFF
@@ -128,7 +128,7 @@ L9:
     WORD    $0xED405088 //adb   %f4,.L12-.L10(%r5)
     BYTE    $0x00
     BYTE    $0x1A
-    WORD    $0xB3CD0044	//lgdr %r4, %f4
+    LGDR    F4, R4
     SRAD    $32, R4
     FMOVD   F4, F3
     WORD    $0xED305088 //sdb   %f3,.L12-.L10(%r5)
@@ -140,7 +140,7 @@ L9:
     BYTE    $0x00
     BYTE    $0x55
     SLD $32, R1, R1
-    WORD    $0xB3C10021 //ldgr  %f2,%r1
+    LDGR    R1, F2
     WFMADB  V4, V2, V16, V4
     SRAW    $8, R2, R1
     WFMADB  V4, V5, V6, V5
