@@ -54,7 +54,7 @@ TEXT	·atanAsm(SB), NOSPLIT, $0-16
 
 	MOVD	$·atanrodataL8<>+0(SB), R5
 	MOVH	$0x3FE0, R3
-	WORD	$0xB3CD0010	//lgdr	%r1,%f0
+	LGDR	F0, R1
 	WORD	$0xEC1120BF	//risbgn	%r1,%r1,64-32,128+63,64+0+32
 	BYTE	$0x60
 	BYTE	$0x59
