@@ -519,9 +519,9 @@ package b`,
 		{`a`, []string{`-tags=tag tag2`}, "a.go b.go c.go d.go", "a.go b.go"},
 	} {
 		cfg := &packages.Config{
-			Mode:  packages.LoadImports,
-			Flags: test.tags,
-			Env:   append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
+			Mode:       packages.LoadImports,
+			BuildFlags: test.tags,
+			Env:        append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 		}
 
 		initial, err := packages.Load(cfg, test.pattern)

@@ -46,8 +46,8 @@ func findExternalDriver(cfg *Config) driver {
 			fmt.Sprintf("-export=%t", usesExportData(cfg)),
 			fmt.Sprintf("-deps=%t", cfg.Mode >= LoadImports),
 		}
-		for _, f := range cfg.Flags {
-			fullargs = append(fullargs, fmt.Sprintf("-flags=%v", f))
+		for _, f := range cfg.BuildFlags {
+			fullargs = append(fullargs, fmt.Sprintf("-buildflag=%v", f))
 		}
 		fullargs = append(fullargs, "--")
 		fullargs = append(fullargs, words...)

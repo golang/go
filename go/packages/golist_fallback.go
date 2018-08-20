@@ -251,7 +251,7 @@ func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage,
 
 func golistArgsFallback(cfg *Config, words []string) []string {
 	fullargs := []string{"list", "-e", "-json"}
-	fullargs = append(fullargs, cfg.Flags...)
+	fullargs = append(fullargs, cfg.BuildFlags...)
 	fullargs = append(fullargs, "--")
 	fullargs = append(fullargs, words...)
 	return fullargs

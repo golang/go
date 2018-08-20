@@ -36,7 +36,13 @@ var (
 	cpuprofile = flag.String("cpuprofile", "", "write CPU profile to this file")
 	memprofile = flag.String("memprofile", "", "write memory profile to this file")
 	traceFlag  = flag.String("trace", "", "write trace log to this file")
+
+	buildFlags stringListValue
 )
+
+func init() {
+	flag.Var(&buildFlags, "buildflag", "pass argument to underlying build system (may be repeated)")
+}
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `Usage: gopackages [-deps] [-cgo] [-mode=...] [-private] package...
@@ -106,9 +112,10 @@ func main() {
 
 	// Load, parse, and type-check the packages named on the command line.
 	cfg := &packages.Config{
-		Mode:  packages.LoadSyntax,
-		Error: func(error) {}, // we'll take responsibility for printing errors
-		Tests: *testFlag,
+		Mode:       packages.LoadSyntax,
+		Error:      func(error) {}, // we'll take responsibility for printing errors
+		Tests:      *testFlag,
+		BuildFlags: buildFlags,
 	}
 
 	// -mode flag
@@ -249,3 +256,18 @@ func print(lpkg *packages.Package) {
 
 	fmt.Println()
 }
+
+// stringListValue is a flag.Value that accumulates strings.
+// e.g. --flag=one --flag=two would produce []string{"one", "two"}.
+type stringListValue []string
+
+func newStringListValue(val []string, p *[]string) *stringListValue {
+	*p = val
+	return (*stringListValue)(p)
+}
+
+func (ss *stringListValue) Get() interface{} { return []string(*ss) }
+
+func (ss *stringListValue) String() string { return fmt.Sprintf("%q", *ss) }
+
+func (ss *stringListValue) Set(s string) error { *ss = append(*ss, s); return nil }

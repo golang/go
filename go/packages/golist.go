@@ -279,7 +279,7 @@ func golistargs(cfg *Config, words []string) []string {
 		fmt.Sprintf("-export=%t", usesExportData(cfg)),
 		fmt.Sprintf("-deps=%t", cfg.Mode >= LoadImports),
 	}
-	fullargs = append(fullargs, cfg.Flags...)
+	fullargs = append(fullargs, cfg.BuildFlags...)
 	fullargs = append(fullargs, "--")
 	fullargs = append(fullargs, words...)
 	return fullargs
