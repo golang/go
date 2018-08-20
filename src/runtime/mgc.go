@@ -407,7 +407,7 @@ type gcControllerState struct {
 	// each P that isn't running a dedicated worker.
 	//
 	// For example, if the utilization goal is 25% and there are
-	// no dedicated workers, this will be 0.25. If there goal is
+	// no dedicated workers, this will be 0.25. If the goal is
 	// 25%, there is one dedicated worker, and GOMAXPROCS is 5,
 	// this will be 0.05 to make up the missing 5%.
 	//
