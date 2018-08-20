@@ -446,6 +446,10 @@ func (*ptrStringer) BadWrapf(x int, format string, args ...interface{}) string {
 	return fmt.Sprintf(format, args) // ERROR "missing ... in args forwarded to printf-like function"
 }
 
+func (*ptrStringer) WrapfFalsePositive(x int, arg1 string, arg2 ...interface{}) string {
+	return fmt.Sprintf("%s %v", arg1, arg2)
+}
+
 type embeddedStringer struct {
 	foo string
 	ptrStringer

@@ -259,6 +259,20 @@ func checkPrintfFwd(pkg *Package, w *printfWrapper, call *ast.CallExpr, kind int
 	}
 
 	if !call.Ellipsis.IsValid() {
+		typ, ok := pkg.types[call.Fun].Type.(*types.Signature)
+		if !ok {
+			return
+		}
+		if len(call.Args) > typ.Params().Len() {
+			// If we're passing more arguments than what the
+			// print/printf function can take, adding an ellipsis
+			// would break the program. For example:
+			//
+			//   func foo(arg1 string, arg2 ...interface{} {
+			//       fmt.Printf("%s %v", arg1, arg2)
+			//   }
+			return
+		}
 		if !vcfg.VetxOnly {
 			desc := "printf"
 			if kind == kindPrint {

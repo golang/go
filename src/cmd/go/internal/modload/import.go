@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -133,6 +134,9 @@ func Import(path string) (m module.Version, dir string, err error) {
 
 	m, _, err = QueryPackage(path, "latest", Allowed)
 	if err != nil {
+		if _, ok := err.(*codehost.VCSError); ok {
+			return module.Version{}, "", err
+		}
 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
 	return m, "", &ImportMissingError{ImportPath: path, Module: m}

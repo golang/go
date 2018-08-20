@@ -3515,6 +3515,10 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			break
 		}
 		closure = s.expr(fn)
+		if thearch.LinkArch.Family == sys.Wasm {
+			// TODO(neelance): On other architectures this should be eliminated by the optimization steps
+			s.nilCheck(closure)
+		}
 	case OCALLMETH:
 		if fn.Op != ODOTMETH {
 			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)

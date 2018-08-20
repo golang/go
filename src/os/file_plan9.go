@@ -478,7 +478,12 @@ func (f *File) Chown(uid, gid int) error {
 }
 
 func tempDir() string {
-	return "/tmp"
+	dir := Getenv("TMPDIR")
+	if dir == "" {
+		dir = "/tmp"
+	}
+	return dir
+
 }
 
 // Chdir changes the current working directory to the file,

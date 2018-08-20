@@ -32,8 +32,10 @@ import (
 
 // Print as many newlines as necessary (but at least min newlines) to get to
 // the current line. ws is printed before the first line break. If newSection
-// is set, the first line break is printed as formfeed. Returns true if any
-// line break was printed; returns false otherwise.
+// is set, the first line break is printed as formfeed. Returns 0 if no line
+// breaks were printed, returns 1 if there was exactly one newline printed,
+// and returns a value > 1 if there was a formfeed or more than one newline
+// printed.
 //
 // TODO(gri): linebreak may add too many lines if the next statement at "line"
 //            is preceded by comments because the computation of n assumes
@@ -43,7 +45,7 @@ import (
 //            linebreaks. At the moment there is no easy way to know about
 //            future (not yet interspersed) comments in this function.
 //
-func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (printedBreak bool) {
+func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (nbreaks int) {
 	n := nlimit(line - p.pos.Line)
 	if n < min {
 		n = min
@@ -53,11 +55,12 @@ func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (prin
 		if newSection {
 			p.print(formfeed)
 			n--
+			nbreaks = 2
 		}
+		nbreaks += n
 		for ; n > 0; n-- {
 			p.print(newline)
 		}
-		printedBreak = true
 	}
 	return
 }
@@ -173,7 +176,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 	// The first linebreak is always a formfeed since this section must not
 	// depend on any previous formatting.
 	prevBreak := -1 // index of last expression that was followed by a linebreak
-	if prev.IsValid() && prev.Line < line && p.linebreak(line, 0, ws, true) {
+	if prev.IsValid() && prev.Line < line && p.linebreak(line, 0, ws, true) > 0 {
 		ws = ignore
 		prevBreak = 0
 	}
@@ -221,35 +224,18 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		// If the previous line and the current line had single-
 		// line-expressions and the key sizes are small or the
 		// ratio between the current key and the geometric mean
-		// does not exceed a threshold, align columns and do not use
-		// formfeed.
-		// If the previous line was an empty line, break the alignment.
-		// (The text/tabwriter will break alignment after an empty line
-		// even if we don't do anything here, but we can't see that; yet
-		// we need to reset the variables used in the geomean
-		// computation after an alignment break. Do it explicitly
-		// instead so we're aware of the break. Was issue #26352.)
+		// if the previous key sizes does not exceed a threshold,
+		// align columns and do not use formfeed.
 		if prevSize > 0 && size > 0 {
 			const smallSize = 40
-			switch {
-			case prevLine+1 < line:
-				useFF = true
-			case count == 0, prevSize <= smallSize && size <= smallSize:
+			if count == 0 || prevSize <= smallSize && size <= smallSize {
 				useFF = false
-			default:
+			} else {
 				const r = 2.5                               // threshold
 				geomean := math.Exp(lnsum / float64(count)) // count > 0
 				ratio := float64(size) / geomean
 				useFF = r*ratio <= 1 || r <= ratio
 			}
-		}
-		if useFF {
-			lnsum = 0
-			count = 0
-		}
-		if size > 0 {
-			lnsum += math.Log(float64(size))
-			count++
 		}
 
 		needsLinebreak := 0 < prevLine && prevLine < line
@@ -266,10 +252,19 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 				// Lines are broken using newlines so comments remain aligned
 				// unless useFF is set or there are multiple expressions on
 				// the same line in which case formfeed is used.
-				if p.linebreak(line, 0, ws, useFF || prevBreak+1 < i) {
+				nbreaks := p.linebreak(line, 0, ws, useFF || prevBreak+1 < i)
+				if nbreaks > 0 {
 					ws = ignore
 					prevBreak = i
 					needsBlank = false // we got a line break instead
+				}
+				// If there was a new section or more than one new line
+				// (which means that the tabwriter will implicitly break
+				// the section), reset the geomean variables since we are
+				// starting a new group of elements with the next element.
+				if nbreaks > 1 {
+					lnsum = 0
+					count = 0
 				}
 			}
 			if needsBlank {
@@ -288,6 +283,11 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 			p.expr(pair.Value)
 		} else {
 			p.expr0(x, depth)
+		}
+
+		if size > 0 {
+			lnsum += math.Log(float64(size))
+			count++
 		}
 
 		prevLine = line
@@ -347,7 +347,7 @@ func (p *printer) parameters(fields *ast.FieldList) {
 				p.print(token.COMMA)
 			}
 			// separator if needed (linebreak or blank)
-			if needsLinebreak && p.linebreak(parLineBeg, 0, ws, true) {
+			if needsLinebreak && p.linebreak(parLineBeg, 0, ws, true) > 0 {
 				// break line if the opening "(" or previous parameter ended on a different line
 				ws = ignore
 			} else if i > 0 {
@@ -718,7 +718,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int) {
 	if xline != yline && xline > 0 && yline > 0 {
 		// at least one line break, but respect an extra empty line
 		// in the source
-		if p.linebreak(yline, 1, ws, true) {
+		if p.linebreak(yline, 1, ws, true) > 0 {
 			ws = ignore
 			printBlank = false // no blank after line break
 		}

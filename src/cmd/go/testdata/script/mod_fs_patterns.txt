@@ -28,6 +28,18 @@ stdout ^m/vendor$
 stdout ^m/y$
 ! stdout ^m/y/z
 
+# non-existent directory should not prompt lookups
+! go build -mod=readonly example.com/nonexist
+stderr 'import lookup disabled'
+
+! go build -mod=readonly ./nonexist
+! stderr 'import lookup disabled'
+stderr '^go: no such directory ./nonexist'
+
+! go build -mod=readonly ./go.mod
+! stderr 'import lookup disabled'
+stderr '^go: ./go.mod is not a directory'
+
 -- x/go.mod --
 module m
 

@@ -5,43 +5,34 @@ cd m
 # 'go list all' should list all of the packages used (directly or indirectly) by
 # the packages in the main module, but no other packages from the standard
 # library or active modules.
-go list all
-stdout example.com/m/useunicode
-stdout example.com/m/useunsafe
-[cgo] stdout example.com/m/useC
-[!cgo] ! stdout example.com/m/useC
-stdout '^unicode$'
-stdout '^unsafe$'
-! stdout index/suffixarray
-
+#
 # 'go list ...' should list packages in all active modules and the standard library.
 # But not cmd/* - see golang.org/issue/26924.
-go list ...
-stdout example.com/unused/useerrors
-stdout example.com/m/useunsafe
-[cgo] stdout example.com/m/useC
-[!cgo] ! stdout example.com/m/useC
-stdout '^unicode$'
-stdout '^unsafe$'
-stdout index/suffixarray
-! stdout cmd/pprof
-
-# 'go list example.com/m/...' should list packages in all modules that begin with
-# "example.com/m/".
-go list example.com/m/...
-stdout example.com/m/useunicode
-stdout example.com/m/useunsafe
-! stdout example.com/[^m]
-! stdout ^[^e]
-[cgo] stdout example.com/m/useC
-[!cgo] ! stdout example.com/m/useC
-
+#
+# 'go list example.com/m/...' should list packages in all modules that begin with 'example.com/m/'.
+#
 # 'go list ./...' should list only packages in the current module, not other active modules.
-go list ./...
-stdout example.com/m/useunicode
-stdout example.com/m/useunsafe
-[cgo] stdout example.com/m/useC
+#
+# Warnings about unmatched patterns should only be printed once.
+#
+# And the go command should be able to keep track of all this!
+go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
+stdout 'example.com/m/useunicode: \[all \.\.\. example.com/m/... ./...\]'
+stdout 'example.com/m/useunsafe: \[all \.\.\. example.com/m/... ./...\]'
+[cgo] stdout 'example.com/m/useC: \[all \.\.\. example.com/m/... ./...\]'
 [!cgo] ! stdout example.com/m/useC
+stdout 'example.com/unused/useerrors: \[\.\.\.\]' # but not "all"
+stdout 'example.com/m/nested/useencoding: \[\.\.\. example.com/m/...\]' # but NOT "all" or "./..."
+stdout '^unicode: \[all \.\.\.\]'
+stdout '^unsafe: \[all \.\.\.\]'
+stdout 'index/suffixarray: \[\.\.\.\]'
+! stdout cmd/pprof # golang.org/issue/26924
+
+stderr -count=1 '^go: warning: "./xyz..." matched no packages$'
+
+env CGO_ENABLED=0
+go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
+! stdout example.com/m/useC
 
 -- m/go.mod --
 module example.com/m
