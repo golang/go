@@ -56,7 +56,7 @@ func initssaconfig() {
 	assertE2I2 = sysfunc("assertE2I2")
 	assertI2I = sysfunc("assertI2I")
 	assertI2I2 = sysfunc("assertI2I2")
-	Deferproc = sysfunc("deferproc")
+	deferproc = sysfunc("deferproc")
 	Deferreturn = sysfunc("deferreturn")
 	Duffcopy = sysfunc("duffcopy")
 	Duffzero = sysfunc("duffzero")
@@ -65,7 +65,7 @@ func initssaconfig() {
 	growslice = sysfunc("growslice")
 	msanread = sysfunc("msanread")
 	msanwrite = sysfunc("msanwrite")
-	Newproc = sysfunc("newproc")
+	newproc = sysfunc("newproc")
 	panicdivide = sysfunc("panicdivide")
 	panicdottypeE = sysfunc("panicdottypeE")
 	panicdottypeI = sysfunc("panicdottypeI")
@@ -3578,7 +3578,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 
 	// Defer/go args
 	if k != callNormal {
-		// Write argsize and closure (args to Newproc/Deferproc).
+		// Write argsize and closure (args to newproc/deferproc).
 		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
 		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
@@ -3592,9 +3592,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	var call *ssa.Value
 	switch {
 	case k == callDefer:
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Deferproc, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferproc, s.mem())
 	case k == callGo:
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Newproc, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, newproc, s.mem())
 	case closure != nil:
 		// rawLoad because loading the code pointer from a
 		// closure is always safe, but IsSanitizerSafeAddr
