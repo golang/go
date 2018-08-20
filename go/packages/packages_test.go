@@ -665,10 +665,6 @@ func TestLoadSyntaxOK(t *testing.T) {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 	}
 
-	// TODO(matloob): The legacy go list based support loads everything from source
-	// because it doesn't do a build and the .a files don't exist.
-	// Can we simulate its existence?
-
 	for _, test := range []struct {
 		id           string
 		wantSyntax   bool
@@ -681,8 +677,12 @@ func TestLoadSyntaxOK(t *testing.T) {
 		{"e", false, false}, // export data package
 		{"f", false, false}, // export data package
 	} {
-		if usesOldGolist && !test.wantSyntax {
-			// legacy go list always upgrades to LoadAllSyntax, syntax will be filled in.
+		// TODO(matloob): The legacy go list based support loads
+		// everything from source because it doesn't do a build
+		// and the .a files don't exist.
+		// Can we simulate its existence?
+		if usesOldGolist {
+			test.wantComplete = true
 			test.wantSyntax = true
 		}
 		p := all[test.id]
