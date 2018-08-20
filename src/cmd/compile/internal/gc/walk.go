@@ -1022,64 +1022,13 @@ opswitch:
 		n = walkexpr(n, init)
 
 	case OCONV, OCONVNOP:
-		if thearch.SoftFloat {
-			// For the soft-float case, ssa.go handles these conversions.
-			n.Left = walkexpr(n.Left, init)
+		n.Left = walkexpr(n.Left, init)
+		param, result := rtconvfn(n.Left.Type, n.Type)
+		if param == Txxx {
 			break
 		}
-		switch thearch.LinkArch.Family {
-		case sys.ARM, sys.MIPS:
-			if n.Left.Type.IsFloat() {
-				switch n.Type.Etype {
-				case TINT64:
-					n = mkcall("float64toint64", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break opswitch
-				case TUINT64:
-					n = mkcall("float64touint64", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break opswitch
-				}
-			}
-
-			if n.Type.IsFloat() {
-				switch n.Left.Type.Etype {
-				case TINT64:
-					n = conv(mkcall("int64tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TINT64])), n.Type)
-					break opswitch
-				case TUINT64:
-					n = conv(mkcall("uint64tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TUINT64])), n.Type)
-					break opswitch
-				}
-			}
-
-		case sys.I386:
-			if n.Left.Type.IsFloat() {
-				switch n.Type.Etype {
-				case TINT64:
-					n = mkcall("float64toint64", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break opswitch
-				case TUINT64:
-					n = mkcall("float64touint64", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break opswitch
-				case TUINT32, TUINT, TUINTPTR:
-					n = mkcall("float64touint32", n.Type, init, conv(n.Left, types.Types[TFLOAT64]))
-					break opswitch
-				}
-			}
-			if n.Type.IsFloat() {
-				switch n.Left.Type.Etype {
-				case TINT64:
-					n = conv(mkcall("int64tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TINT64])), n.Type)
-					break opswitch
-				case TUINT64:
-					n = conv(mkcall("uint64tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TUINT64])), n.Type)
-					break opswitch
-				case TUINT32, TUINT, TUINTPTR:
-					n = conv(mkcall("uint32tofloat64", types.Types[TFLOAT64], init, conv(n.Left, types.Types[TUINT32])), n.Type)
-					break opswitch
-				}
-			}
-		}
-		n.Left = walkexpr(n.Left, init)
+		fn := basicnames[param] + "to" + basicnames[result]
+		n = conv(mkcall(fn, types.Types[result], init, conv(n.Left, types.Types[param])), n.Type)
 
 	case OANDNOT:
 		n.Left = walkexpr(n.Left, init)
@@ -1769,6 +1718,52 @@ opswitch:
 
 	lineno = lno
 	return n
+}
+
+// rtconvfn returns the parameter and result types that will be used by a
+// runtime function to convert from type src to type dst. The runtime function
+// name can be derived from the names of the returned types.
+//
+// If no such function is necessary, it returns (Txxx, Txxx).
+func rtconvfn(src, dst *types.Type) (param, result types.EType) {
+	if thearch.SoftFloat {
+		return Txxx, Txxx
+	}
+
+	switch thearch.LinkArch.Family {
+	case sys.ARM, sys.MIPS:
+		if src.IsFloat() {
+			switch dst.Etype {
+			case TINT64, TUINT64:
+				return TFLOAT64, dst.Etype
+			}
+		}
+		if dst.IsFloat() {
+			switch src.Etype {
+			case TINT64, TUINT64:
+				return src.Etype, TFLOAT64
+			}
+		}
+
+	case sys.I386:
+		if src.IsFloat() {
+			switch dst.Etype {
+			case TINT64, TUINT64:
+				return TFLOAT64, dst.Etype
+			case TUINT32, TUINT, TUINTPTR:
+				return TFLOAT64, TUINT32
+			}
+		}
+		if dst.IsFloat() {
+			switch src.Etype {
+			case TINT64, TUINT64:
+				return src.Etype, TFLOAT64
+			case TUINT32, TUINT, TUINTPTR:
+				return TUINT32, TFLOAT64
+			}
+		}
+	}
+	return Txxx, Txxx
 }
 
 // TODO(josharian): combine this with its caller and simplify
