@@ -337,7 +337,10 @@ func TestLoadImportsC(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping on windows; packages on windows do not satisfy conditions for test.")
 	}
-
+	if runtime.GOOS == "plan9" {
+		// See https://github.com/golang/go/issues/27100.
+		t.Skip(`skipping on plan9; for some reason "net [syscall.test]" is not loaded`)
+	}
 	if usesOldGolist {
 		t.Skip("not yet supported in pre-Go 1.10.4 golist fallback implementation")
 	}
@@ -365,6 +368,7 @@ func TestLoadImportsC(t *testing.T) {
 		pkg := all[test.pattern]
 		if pkg == nil {
 			t.Errorf("package %q not loaded", test.pattern)
+			continue
 		}
 		if imports := strings.Join(imports(pkg), " "); !strings.Contains(imports, test.wantImport) {
 			t.Errorf("package %q: got \n%s, \nwant to have %s", test.pattern, imports, test.wantImport)
