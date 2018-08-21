@@ -420,7 +420,19 @@ See 'go help mod edit'.
 
 The go command automatically updates go.mod each time it uses the
 module graph, to make sure go.mod always accurately reflects reality
-and is properly formatted.
+and is properly formatted. For example, consider this go.mod file:
+
+        module M
+
+        require (
+                A v1
+                B v1.0.0
+                C v1.0.0
+                D v1.2.3
+                E dev
+        )
+
+        exclude D v1.2.3
 
 The update rewrites non-canonical version identifiers to semver form,
 so A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the

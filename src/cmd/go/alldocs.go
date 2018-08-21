@@ -905,13 +905,15 @@
 // corresponding to this Go struct:
 //
 //     type Module struct {
-//         Path    string // module path
-//         Version string // module version
-//         Error   string // error loading module
-//         Info    string // absolute path to cached .info file
-//         GoMod   string // absolute path to cached .mod file
-//         Zip     string // absolute path to cached .zip file
-//         Dir     string // absolute path to cached source root directory
+//         Path     string // module path
+//         Version  string // module version
+//         Error    string // error loading module
+//         Info     string // absolute path to cached .info file
+//         GoMod    string // absolute path to cached .mod file
+//         Zip      string // absolute path to cached .zip file
+//         Dir      string // absolute path to cached source root directory
+//         Sum      string // checksum for path, version (as in go.sum)
+//         GoModSum string // checksum for go.mod (as in go.sum)
 //     }
 //
 // See 'go help modules' for more about module queries.
@@ -1614,7 +1616,19 @@
 //
 // The go command automatically updates go.mod each time it uses the
 // module graph, to make sure go.mod always accurately reflects reality
-// and is properly formatted.
+// and is properly formatted. For example, consider this go.mod file:
+//
+//         module M
+//
+//         require (
+//                 A v1
+//                 B v1.0.0
+//                 C v1.0.0
+//                 D v1.2.3
+//                 E dev
+//         )
+//
+//         exclude D v1.2.3
 //
 // The update rewrites non-canonical version identifiers to semver form,
 // so A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the
