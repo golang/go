@@ -420,6 +420,10 @@ func (check *Checker) collectObjects() {
 					check.recordDef(d.Name, obj)
 				}
 				info := &declInfo{file: fileScope, fdecl: d}
+				// Methods are not package-level objects but we still track them in the
+				// object map so that we can handle them like regular functions (if the
+				// receiver is invalid); also we need their fdecl info when associating
+				// them with their receiver base type, below.
 				check.objMap[obj] = info
 				obj.setOrder(uint32(len(check.objMap)))
 

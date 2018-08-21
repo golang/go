@@ -158,6 +158,8 @@ type T20 chan [unsafe.Sizeof(func(ch T20){ _ = <-ch })]byte
 type T22 = chan [unsafe.Sizeof(func(ch T20){ _ = <-ch })]byte
 
 func _() {
-	type T1 chan [unsafe.Sizeof(func(ch T1){ _ = <-ch })]byte
-	type T2 = chan [unsafe.Sizeof(func(ch T2){ _ = <-ch })]byte
+	type T0 func(T0)
+	type T1 /* ERROR cycle */ = func(T1)
+	type T2 chan [unsafe.Sizeof(func(ch T2){ _ = <-ch })]byte
+	type T3 /* ERROR cycle */ = chan [unsafe.Sizeof(func(ch T3){ _ = <-ch })]byte
 }
