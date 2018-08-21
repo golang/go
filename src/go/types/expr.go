@@ -1064,7 +1064,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					break
 				}
 			}
-			typ = check.typExpr(e.Type, nil)
+			typ = check.typ(e.Type)
 			base = typ
 
 		case hint != nil:
@@ -1439,7 +1439,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.typExpr(e.Type, nil)
+		T := check.typ(e.Type)
 		if T == Typ[Invalid] {
 			goto Error
 		}
