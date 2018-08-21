@@ -535,19 +535,21 @@ func Map(mapping func(rune) rune, s string) string {
 // It panics if count is negative or if
 // the result of (len(s) * count) overflows.
 func Repeat(s string, count int) string {
+	if count == 0 {
+		return ""
+	}
+
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
 	// See Issue golang.org/issue/16237
 	if count < 0 {
 		panic("strings: negative Repeat count")
-	} else if count == 0 {
-		return ""
 	} else if len(s)*count/count != len(s) {
 		panic("strings: Repeat count causes overflow")
 	}
 
-	n := len(s)*count
+	n := len(s) * count
 	var b Builder
 	b.Grow(n)
 	b.WriteString(s)
