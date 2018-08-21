@@ -8,6 +8,7 @@ package net
 
 import (
 	"context"
+	"internal/bytealg"
 	"sync"
 	"syscall"
 
@@ -27,7 +28,7 @@ func readProtocols() {
 
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		// tcp    6   TCP    # transmission control protocol
-		if i := byteIndex(line, '#'); i >= 0 {
+		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
 			line = line[0:i]
 		}
 		f := getFields(line)
