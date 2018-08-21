@@ -58,29 +58,8 @@ for details.
 Most tools should pass their command-line arguments (after any flags)
 uninterpreted to the loader, so that the loader can interpret them
 according to the conventions of the underlying build system.
-For example, this program prints the names of the source files
-for each package listed on the command line:
+See the Example function for typical usage.
 
-	package main
-
-	import (
-		"flag"
-		"fmt"
-		"log"
-
-		"golang.org/x/tools/go/packages"
-	)
-
-	func main() {
-		flag.Parse()
-		pkgs, err := packages.Load(nil, flag.Args()...)
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, pkg := range pkgs {
-			fmt.Print(pkg.ID, pkg.GoFiles)
-		}
-	}
 */
 package packages // import "golang.org/x/tools/go/packages"
 

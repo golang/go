@@ -87,14 +87,6 @@ type Config struct {
 	// the build system's query tool.
 	BuildFlags []string
 
-	// Error is called for each error encountered during parsing and type-checking.
-	// It must be safe to call Error simultaneously from multiple goroutines.
-	// In addition to calling Error, the loader records each error
-	// in the corresponding Package's Errors list.
-	// If Error is nil, the loader prints errors to os.Stderr.
-	// To disable printing of errors, set opt.Error = func(error) {}.
-	Error func(error)
-
 	// Fset provides source position information for syntax trees and types.
 	// If Fset is nil, the loader will create a new FileSet.
 	Fset *token.FileSet
@@ -155,6 +147,11 @@ type driverResponse struct {
 // as defined by the underlying build system.
 // It may return an empty list of packages without an error,
 // for instance for an empty expansion of a valid wildcard.
+// Errors associated with a particular package are recorded in the
+// corresponding Package's Errors list, and do not cause Load to
+// return an error. Clients may need to handle such errors before
+// proceeding with further analysis. The PrintErrors function is
+// provided for convenient display of all errors.
 func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 	l := newLoader(cfg)
 	response, err := defaultDriver(&l.Config, patterns...)
@@ -367,15 +364,8 @@ func newLoader(cfg *Config) *loader {
 			ld.Fset = token.NewFileSet()
 		}
 
-		// Error and ParseFile are required even in LoadTypes mode
+		// ParseFile is required even in LoadTypes mode
 		// because we load source if export data is missing.
-
-		if ld.Error == nil {
-			ld.Error = func(e error) {
-				fmt.Fprintln(os.Stderr, e)
-			}
-		}
-
 		if ld.ParseFile == nil {
 			ld.ParseFile = func(fset *token.FileSet, filename string) (*ast.File, error) {
 				const mode = parser.AllErrors | parser.ParseComments
@@ -614,20 +604,6 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 
 			// If you see this error message, please file a bug.
 			log.Printf("internal error: error %q (%T) without position", err, err)
-		}
-
-		// Allow application to print errors.
-		//
-		// TODO(adonovan): the real purpose of this hook is to
-		// allow (most) applications to _disable_ printing,
-		// while printing by default.
-		// Should we remove it, and make clients responsible for
-		// walking the import graph and printing errors?
-		// Though convenient for the common case,
-		// it seems like an unsafe default, and is decidedly less
-		// convenient for a tool that wants to print the errors.
-		for _, err := range errs {
-			ld.Error(err)
 		}
 
 		lpkg.Errors = append(lpkg.Errors, errs...)

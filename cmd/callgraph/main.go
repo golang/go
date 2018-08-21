@@ -182,6 +182,9 @@ func doCallgraph(dir, gopath, algo, format string, tests bool, args []string) er
 	if err != nil {
 		return err
 	}
+	if packages.PrintErrors(initial) > 0 {
+		return fmt.Errorf("packages contain errors")
+	}
 
 	// Create and build SSA-form program representation.
 	prog, pkgs := ssautil.Packages(initial, 0)

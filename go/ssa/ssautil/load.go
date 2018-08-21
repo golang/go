@@ -35,30 +35,17 @@ func Packages(initial []*packages.Package, mode ssa.BuilderMode) (*ssa.Program, 
 	}
 
 	prog := ssa.NewProgram(fset, mode)
-	seen := make(map[*packages.Package]*ssa.Package)
-	var create func(p *packages.Package) *ssa.Package
-	create = func(p *packages.Package) *ssa.Package {
-		ssapkg, ok := seen[p]
-		if !ok {
-			if p.Types == nil || p.IllTyped {
-				// not well typed
-				seen[p] = nil
-				return nil
-			}
 
-			ssapkg = prog.CreatePackage(p.Types, p.Syntax, p.TypesInfo, true)
-			seen[p] = ssapkg
-
-			for _, imp := range p.Imports {
-				create(imp)
-			}
+	ssamap := make(map[*packages.Package]*ssa.Package)
+	packages.Visit(initial, nil, func(p *packages.Package) {
+		if p.Types != nil && !p.IllTyped {
+			ssamap[p] = prog.CreatePackage(p.Types, p.Syntax, p.TypesInfo, true)
 		}
-		return ssapkg
-	}
+	})
 
 	var ssapkgs []*ssa.Package
 	for _, p := range initial {
-		ssapkgs = append(ssapkgs, create(p))
+		ssapkgs = append(ssapkgs, ssamap[p]) // may be nil
 	}
 	return prog, ssapkgs
 }

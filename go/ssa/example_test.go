@@ -125,6 +125,13 @@ func ExampleLoadPackages() {
 		log.Fatal(err)
 	}
 
+	// Stop if any package had errors.
+	// This step is optional; without it, the next step
+	// will create SSA for only a subset of packages.
+	if packages.PrintErrors(initial) > 0 {
+		log.Fatalf("packages contain errors")
+	}
+
 	// Create SSA packages for all well-typed packages.
 	prog, pkgs := ssautil.Packages(initial, ssa.PrintPackages)
 	_ = prog

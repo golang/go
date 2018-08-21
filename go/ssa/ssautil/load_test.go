@@ -58,6 +58,9 @@ func TestPackages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if packages.PrintErrors(initial) > 0 {
+		t.Fatal("there were errors")
+	}
 
 	prog, pkgs := ssautil.Packages(initial, 0)
 	bytesNewBuffer := pkgs[0].Func("NewBuffer")

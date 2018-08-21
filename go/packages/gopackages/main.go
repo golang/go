@@ -113,7 +113,6 @@ func main() {
 	// Load, parse, and type-check the packages named on the command line.
 	cfg := &packages.Config{
 		Mode:       packages.LoadSyntax,
-		Error:      func(error) {}, // we'll take responsibility for printing errors
 		Tests:      *testFlag,
 		BuildFlags: buildFlags,
 	}

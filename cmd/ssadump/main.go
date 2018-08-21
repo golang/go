@@ -126,6 +126,9 @@ func doMain() error {
 	if len(initial) == 0 {
 		return fmt.Errorf("no packages")
 	}
+	if packages.PrintErrors(initial) > 0 {
+		return fmt.Errorf("packages contain errors")
+	}
 
 	// Create SSA-form program representation.
 	prog, pkgs := ssautil.Packages(initial, mode)
