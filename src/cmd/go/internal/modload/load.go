@@ -399,11 +399,17 @@ func ModuleUsedDirectly(path string) bool {
 func Lookup(path string) (dir, realPath string, err error) {
 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
 	if !ok {
-		if isStandardImportPath(path) {
-			dir := filepath.Join(cfg.GOROOT, "src", path)
-			if _, err := os.Stat(dir); err == nil {
-				return dir, path, nil
-			}
+		// The loader should have found all the relevant paths.
+		// There are a few exceptions, though:
+		//	- during go list without -test, the p.Resolve calls to process p.TestImports and p.XTestImports
+		//	  end up here to canonicalize the import paths.
+		//	- during any load, non-loaded packages like "unsafe" end up here.
+		//	- during any load, build-injected dependencies like "runtime/cgo" end up here.
+		//	- because we ignore appengine/* in the module loader,
+		//	  the dependencies of any actual appengine/* library end up here.
+		dir := findStandardImportPath(path)
+		if dir != "" {
+			return dir, path, nil
 		}
 		return "", "", errMissing
 	}
