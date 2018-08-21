@@ -36,10 +36,10 @@ type Cookie struct {
 	Unparsed []string // Raw text of unparsed attribute-value pairs
 }
 
-// SameSite allows a server define a cookie attribute making it impossible to
-// the browser send this cookie along with cross-site requests. The main goal
-// is mitigate the risk of cross-origin information leakage, and provides some
-// protection against cross-site request forgery attacks.
+// SameSite allows a server define a cookie attribute making it impossible for
+// the browser to send this cookie along with cross-site requests. The main
+// goal is mitigate the risk of cross-origin information leakage, and provides
+// some protection against cross-site request forgery attacks.
 //
 // See https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00 for details.
 type SameSite int
