@@ -554,7 +554,7 @@ func Repeat(s string, count int) string {
 	b.Grow(n)
 	b.WriteString(s)
 	for b.Len() < n {
-		if b.Len() <= n>>1 {
+		if b.Len() <= n/2 {
 			b.WriteString(b.String())
 		} else {
 			b.WriteString(b.String()[:n-b.Len()])
