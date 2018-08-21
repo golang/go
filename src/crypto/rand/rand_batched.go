@@ -12,7 +12,7 @@ import (
 
 // maxGetRandomRead is platform dependent.
 func init() {
-	altGetRandom = batched(getRandomLinux, maxGetRandomRead)
+	altGetRandom = batched(getRandomBatch, maxGetRandomRead)
 }
 
 // batched returns a function that calls f to populate a []byte by chunking it
@@ -36,7 +36,7 @@ func batched(f func([]byte) bool, readMax int) func([]byte) bool {
 // If the kernel supports the getrandom() syscall, unix.GetRandom will block
 // until the kernel has sufficient randomness (as we don't use GRND_NONBLOCK).
 // In this case, unix.GetRandom will not return an error.
-func getRandomLinux(p []byte) (ok bool) {
+func getRandomBatch(p []byte) (ok bool) {
 	n, err := unix.GetRandom(p, 0)
 	return n == len(p) && err == nil
 }
