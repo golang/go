@@ -7,6 +7,7 @@ package tls
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/testenv"
@@ -905,5 +906,13 @@ func BenchmarkLatency(b *testing.B) {
 				latency(b, kbps*1000, mode == "Max")
 			})
 		}
+	}
+}
+
+func TestConnectionStateMarshal(t *testing.T) {
+	cs := &ConnectionState{}
+	_, err := json.Marshal(cs)
+	if err != nil {
+		t.Errorf("json.Marshal failed on ConnectionState: %v", err)
 	}
 }

@@ -1,7 +1,7 @@
 pkg crypto/cipher, func NewGCMWithTagSize(Block, int) (AEAD, error)
 pkg crypto/rsa, method (*PrivateKey) Size() int
 pkg crypto/rsa, method (*PublicKey) Size() int
-pkg crypto/tls, type ConnectionState struct, ExportKeyingMaterial func(string, []uint8, int) ([]uint8, bool)
+pkg crypto/tls, method (*ConnectionState) ExportKeyingMaterial(string, []uint8, int) ([]uint8, error)
 pkg database/sql, method (IsolationLevel) String() string
 pkg database/sql, type DBStats struct, Idle int
 pkg database/sql, type DBStats struct, InUse int

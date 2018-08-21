@@ -56,7 +56,7 @@ type Conn struct {
 	// renegotiation is not supported in that case.)
 	secureRenegotiation bool
 	// ekm is a closure for exporting keying material.
-	ekm func(label string, context []byte, length int) ([]byte, bool)
+	ekm func(label string, context []byte, length int) ([]byte, error)
 
 	// clientFinishedIsFirst is true if the client sent the first Finished
 	// message during the most recent handshake. This is recorded because
@@ -1315,9 +1315,9 @@ func (c *Conn) ConnectionState() ConnectionState {
 			}
 		}
 		if c.config.Renegotiation != RenegotiateNever {
-			state.ExportKeyingMaterial = noExportedKeyingMaterial
+			state.ekm = noExportedKeyingMaterial
 		} else {
-			state.ExportKeyingMaterial = c.ekm
+			state.ekm = c.ekm
 		}
 	}
 
