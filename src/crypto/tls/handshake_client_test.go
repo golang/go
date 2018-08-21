@@ -979,6 +979,24 @@ func TestRenegotiateTwiceRejected(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
+func TestHandshakeClientExportKeyingMaterial(t *testing.T) {
+	test := &clientTest{
+		name:    "ExportKeyingMaterial",
+		command: []string{"openssl", "s_server"},
+		config:  testConfig.Clone(),
+		validate: func(state ConnectionState) error {
+			if km, err := state.ExportKeyingMaterial("test", nil, 42); err != nil {
+				return fmt.Errorf("ExportKeyingMaterial failed: %v", err)
+			} else if len(km) != 42 {
+				return fmt.Errorf("Got %d bytes from ExportKeyingMaterial, wanted %d", len(km), 42)
+			}
+			return nil
+		},
+	}
+	runClientTestTLS10(t, test)
+	runClientTestTLS12(t, test)
+}
+
 var hostnameInSNITests = []struct {
 	in, out string
 }{

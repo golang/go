@@ -998,6 +998,24 @@ func TestFallbackSCSV(t *testing.T) {
 	runServerTestTLS11(t, test)
 }
 
+func TestHandshakeServerExportKeyingMaterial(t *testing.T) {
+	test := &serverTest{
+		name:    "ExportKeyingMaterial",
+		command: []string{"openssl", "s_client"},
+		config:  testConfig.Clone(),
+		validate: func(state ConnectionState) error {
+			if km, err := state.ExportKeyingMaterial("test", nil, 42); err != nil {
+				return fmt.Errorf("ExportKeyingMaterial failed: %v", err)
+			} else if len(km) != 42 {
+				return fmt.Errorf("Got %d bytes from ExportKeyingMaterial, wanted %d", len(km), 42)
+			}
+			return nil
+		},
+	}
+	runServerTestTLS10(t, test)
+	runServerTestTLS12(t, test)
+}
+
 func benchmarkHandshakeServer(b *testing.B, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
 	config := testConfig.Clone()
 	config.CipherSuites = []uint16{cipherSuite}
