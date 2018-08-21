@@ -1005,15 +1005,12 @@
 //
 // Usage:
 //
-// 	go mod graph [-dot]
+// 	go mod graph
 //
 // Graph prints the module requirement graph (with replacements applied)
 // in text form. Each line in the output has two space-separated fields: a module
 // and one of its requirements. Each module is identified as a string of the form
 // path@version, except for the main module, which has no @version suffix.
-//
-// The -dot flag generates the output in graphviz format that can be used
-// with a tool like dot to visually render the dependency graph.
 //
 //
 // Initialize new module in current directory
