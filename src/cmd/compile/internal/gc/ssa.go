@@ -49,6 +49,7 @@ func initssaconfig() {
 		ssaConfig.Set387(thearch.Use387)
 	}
 	ssaConfig.SoftFloat = thearch.SoftFloat
+	ssaConfig.Race = flag_race
 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
 
 	// Set up some runtime functions we'll need to call.
@@ -131,7 +132,6 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.f.Cache = &ssaCaches[worker]
 	s.f.Cache.Reset()
 	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH", name)
-	s.f.Config.Race = flag_race
 	s.f.Name = name
 	if fn.Func.Pragma&Nosplit != 0 {
 		s.f.NoSplit = true
