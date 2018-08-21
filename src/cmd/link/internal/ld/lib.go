@@ -1366,7 +1366,12 @@ func linkerFlagSupported(linker, flag string) bool {
 		}
 	})
 
-	cmd := exec.Command(linker, flag, "trivial.c")
+	var flags []string
+	flags = append(flags, ldflag...)
+	flags = append(flags, strings.Fields(*flagExtldflags)...)
+	flags = append(flags, flag, "trivial.c")
+
+	cmd := exec.Command(linker, flags...)
 	cmd.Dir = *flagTmpdir
 	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
 	out, err := cmd.CombinedOutput()
