@@ -71,17 +71,6 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 
 	case *TypeName:
 		x.mode = typexpr
-		// package-level alias cycles are now checked by Checker.objDecl
-		if useCycleMarking {
-			if check.objMap[obj] != nil {
-				break
-			}
-		}
-		if check.cycle(obj, path, true) {
-			// maintain x.mode == typexpr despite error
-			typ = Typ[Invalid]
-			break
-		}
 
 	case *Var:
 		// It's ok to mark non-local variables, but ignore variables
@@ -169,10 +158,8 @@ func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
 func (check *Checker) typ(e ast.Expr) Type {
 	// typExpr is called with a nil path indicating an indirection:
 	// push indir sentinel on object path
-	if useCycleMarking {
-		check.push(indir)
-		defer check.pop()
-	}
+	check.push(indir)
+	defer check.pop()
 	return check.typExpr(e, nil, nil)
 }
 
