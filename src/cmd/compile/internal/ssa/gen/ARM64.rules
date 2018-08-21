@@ -101,6 +101,8 @@
 
 // Load args directly into the register class where it will be used.
 (FMOVDgpfp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+(FMOVDfpgp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+
 // Similarly for stores, if we see a store after FPR <-> GPR move, then redirect store to use the other register set.
 (MOVDstore ptr (FMOVDfpgp val) mem) -> (FMOVDstore ptr val mem)
 (FMOVDstore ptr (FMOVDgpfp val) mem) -> (MOVDstore ptr val mem)
@@ -1625,6 +1627,9 @@
 // Rewrite it back to AND.
 (SRLconst [c] (SLLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [1<<uint(64-c)-1] x) // mask out high bits
 (SLLconst [c] (SRLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [^(1<<uint(c)-1)] x) // mask out low bits
+
+// Special case setting bit as 1. An example is math.Copysign(c,-1)
+(ORconst [c1] (ANDconst [c2] x)) && c2|c1 == ^0  -> (ORconst [c1] x)
 
 // bitfield ops
 

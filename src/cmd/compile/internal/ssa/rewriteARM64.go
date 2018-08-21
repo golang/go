@@ -87,6 +87,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64FADDD_0(v)
 	case OpARM64FADDS:
 		return rewriteValueARM64_OpARM64FADDS_0(v)
+	case OpARM64FMOVDfpgp:
+		return rewriteValueARM64_OpARM64FMOVDfpgp_0(v)
 	case OpARM64FMOVDgpfp:
 		return rewriteValueARM64_OpARM64FMOVDgpfp_0(v)
 	case OpARM64FMOVDload:
@@ -3956,6 +3958,30 @@ func rewriteValueARM64_OpARM64FADDS_0(v *Value) bool {
 		v.AddArg(a)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64FMOVDfpgp_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (FMOVDfpgp <t> (Arg [off] {sym}))
+	// cond:
+	// result: @b.Func.Entry (Arg <t> [off] {sym})
+	for {
+		t := v.Type
+		v_0 := v.Args[0]
+		if v_0.Op != OpArg {
+			break
+		}
+		off := v_0.AuxInt
+		sym := v_0.Aux
+		b = b.Func.Entry
+		v0 := b.NewValue0(v.Pos, OpArg, t)
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = off
+		v0.Aux = sym
 		return true
 	}
 	return false
@@ -21831,6 +21857,25 @@ func rewriteValueARM64_OpARM64ORconst_0(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpARM64ORconst)
 		v.AuxInt = c | d
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORconst [c1] (ANDconst [c2] x))
+	// cond: c2|c1 == ^0
+	// result: (ORconst [c1] x)
+	for {
+		c1 := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64ANDconst {
+			break
+		}
+		c2 := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(c2|c1 == ^0) {
+			break
+		}
+		v.reset(OpARM64ORconst)
+		v.AuxInt = c1
 		v.AddArg(x)
 		return true
 	}
