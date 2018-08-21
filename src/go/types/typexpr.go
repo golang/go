@@ -16,9 +16,9 @@ import (
 
 // ident type-checks identifier e and initializes x with the value or type of e.
 // If an error occurred, x.mode is set to invalid.
-// For the meaning of def and path, see check.typ, below.
+// For the meaning of def, see check.typExpr, below.
 //
-func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeName) {
+func (check *Checker) ident(x *operand, e *ast.Ident, def *Named) {
 	x.mode = invalid
 	x.expr = e
 
@@ -35,7 +35,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 	}
 	check.recordUse(e, obj)
 
-	check.objDecl(obj, def, path)
+	check.objDecl(obj, def)
 	typ := obj.Type()
 	assert(typ != nil)
 
@@ -103,37 +103,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 	x.typ = typ
 }
 
-// cycle reports whether obj appears in path or not.
-// If it does, and report is set, it also reports a cycle error.
-func (check *Checker) cycle(obj *TypeName, path []*TypeName, report bool) bool {
-	// (it's ok to iterate forward because each named type appears at most once in path)
-	for i, prev := range path {
-		if prev == obj {
-			if report {
-				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
-				// print cycle
-				for _, obj := range path[i:] {
-					check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
-				}
-				check.errorf(obj.Pos(), "\t%s", obj.Name())
-			}
-			return true
-		}
-	}
-	return false
-}
-
 // typExpr type-checks the type expression e and returns its type, or Typ[Invalid].
 // If def != nil, e is the type specification for the named type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before
-// any components of e are type-checked. Path contains the path of named types
-// referring to this type; i.e. it is the path of named types directly containing
-// each other and leading to the current type e. Indirect containment (e.g. via
-// pointer indirection, function parameter, etc.) breaks the path (leads to a new
-// path, and usually via calling Checker.typ below) and those types are not found
-// in the path.
+// any components of e are type-checked.
 //
-func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type) {
+func (check *Checker) typExpr(e ast.Expr, def *Named) (T Type) {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
@@ -143,7 +118,7 @@ func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
 		}()
 	}
 
-	T = check.typExprInternal(e, def, path)
+	T = check.typExprInternal(e, def)
 	assert(isTyped(T))
 	check.recordTypeAndValue(e, typexpr, T, nil)
 
@@ -156,11 +131,10 @@ func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
 // element types, etc. See the comment in typExpr for details.
 //
 func (check *Checker) typ(e ast.Expr) Type {
-	// typExpr is called with a nil path indicating an indirection:
-	// push indir sentinel on object path
+	// push indir sentinel on object path to indicate an indirection
 	check.push(indir)
 	defer check.pop()
-	return check.typExpr(e, nil, nil)
+	return check.typExpr(e, nil)
 }
 
 // funcType type-checks a function or method type.
@@ -231,14 +205,14 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 // typExprInternal drives type checking of types.
 // Must only be called by typExpr.
 //
-func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) Type {
+func (check *Checker) typExprInternal(e ast.Expr, def *Named) Type {
 	switch e := e.(type) {
 	case *ast.BadExpr:
 		// ignore - error reported before
 
 	case *ast.Ident:
 		var x operand
-		check.ident(&x, e, def, path)
+		check.ident(&x, e, def)
 
 		switch x.mode {
 		case typexpr:
@@ -271,14 +245,14 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) 
 		}
 
 	case *ast.ParenExpr:
-		return check.typExpr(e.X, def, path)
+		return check.typExpr(e.X, def)
 
 	case *ast.ArrayType:
 		if e.Len != nil {
 			typ := new(Array)
 			def.setUnderlying(typ)
 			typ.len = check.arrayLength(e.Len)
-			typ.elem = check.typExpr(e.Elt, nil, path)
+			typ.elem = check.typExpr(e.Elt, nil)
 			return typ
 
 		} else {
@@ -291,7 +265,7 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) 
 	case *ast.StructType:
 		typ := new(Struct)
 		def.setUnderlying(typ)
-		check.structType(typ, e, path)
+		check.structType(typ, e)
 		return typ
 
 	case *ast.StarExpr:
@@ -309,7 +283,7 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) 
 	case *ast.InterfaceType:
 		typ := new(Interface)
 		def.setUnderlying(typ)
-		check.interfaceType(typ, e, def, path)
+		check.interfaceType(typ, e, def)
 		return typ
 
 	case *ast.MapType:
@@ -479,7 +453,7 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
 	return true
 }
 
-func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named, path []*TypeName) {
+func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
 	// fast-track empty interface
 	if iface.Methods.List == nil {
 		ityp.allMethods = markComplete
@@ -542,8 +516,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	// compute method set
 	var tname *TypeName
+	var path []*TypeName
 	if def != nil {
 		tname = def.obj
+		path = []*TypeName{tname}
 	}
 	info := check.infoFromTypeLit(check.scope, iface, tname, path)
 	if info == nil || info == &emptyIfaceInfo {
@@ -652,7 +628,7 @@ func (check *Checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeName) {
+func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	list := e.Fields
 	if list == nil {
 		return
@@ -696,7 +672,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	}
 
 	for _, f := range list.List {
-		typ = check.typExpr(f.Type, nil, path)
+		typ = check.typExpr(f.Type, nil)
 		tag = check.tag(f.Tag)
 		if len(f.Names) > 0 {
 			// named fields

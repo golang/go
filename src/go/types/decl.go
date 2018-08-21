@@ -66,9 +66,9 @@ func objPathString(path []Object) string {
 
 // objDecl type-checks the declaration of obj in its respective (file) context.
 // See check.typ for the details on def and path.
-func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+func (check *Checker) objDecl(obj Object, def *Named) {
 	if trace {
-		check.trace(obj.Pos(), "-- checking %s %s (path = %s, objPath = %s)", obj.color(), obj, pathString(path), check.pathString())
+		check.trace(obj.Pos(), "-- checking %s %s (objPath = %s)", obj.color(), obj, objPathString(check.objPath))
 		check.indent++
 		defer func() {
 			check.indent--
@@ -237,7 +237,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 		check.varDecl(obj, d.lhs, d.typ, d.init)
 	case *TypeName:
 		// invalid recursive types are detected via path
-		check.typeDecl(obj, d.typ, def, path, d.alias)
+		check.typeDecl(obj, d.typ, def, d.alias)
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
@@ -388,7 +388,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 
 	// determine type, if any
 	if typ != nil {
-		t := check.typExpr(typ, nil, nil)
+		t := check.typExpr(typ, nil)
 		if !isConstType(t) {
 			// don't report an error if the type is an invalid C (defined) type
 			// (issue #22090)
@@ -414,7 +414,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 
 	// determine type, if any
 	if typ != nil {
-		obj.typ = check.typExpr(typ, nil, nil)
+		obj.typ = check.typExpr(typ, nil)
 		// We cannot spread the type to all lhs variables if there
 		// are more than one since that would mark them as checked
 		// (see Checker.objDecl) and the assignment of init exprs,
@@ -489,13 +489,13 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName, alias bool) {
+func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bool) {
 	assert(obj.typ == nil)
 
 	if alias {
 
 		obj.typ = Typ[Invalid]
-		obj.typ = check.typExpr(typ, nil, append(path, obj))
+		obj.typ = check.typExpr(typ, nil)
 
 	} else {
 
@@ -504,7 +504,7 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 		obj.typ = named // make sure recursive type declarations terminate
 
 		// determine underlying type of named
-		check.typExpr(typ, named, append(path, obj))
+		check.typExpr(typ, named)
 
 		// The underlying type of named may be itself a named type that is
 		// incomplete:
@@ -594,7 +594,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		}
 
 		// type-check
-		check.objDecl(m, nil, nil)
+		check.objDecl(m, nil)
 
 		if base != nil {
 			base.methods = append(base.methods, m)
@@ -745,7 +745,7 @@ func (check *Checker) declStmt(decl ast.Decl) {
 				check.declare(check.scope, s.Name, obj, scopePos)
 				// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
 				obj.setColor(grey + color(check.push(obj)))
-				check.typeDecl(obj, s.Type, nil, nil, s.Assign.IsValid())
+				check.typeDecl(obj, s.Type, nil, s.Assign.IsValid())
 				check.pop().setColor(black)
 			default:
 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")

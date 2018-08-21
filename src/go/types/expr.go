@@ -1010,7 +1010,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		check.ident(x, e, nil, nil)
+		check.ident(x, e, nil)
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are legal
@@ -1064,7 +1064,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					break
 				}
 			}
-			typ = check.typExpr(e.Type, nil, nil)
+			typ = check.typExpr(e.Type, nil)
 			base = typ
 
 		case hint != nil:
@@ -1439,7 +1439,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.typExpr(e.Type, nil, nil)
+		T := check.typExpr(e.Type, nil)
 		if T == Typ[Invalid] {
 			goto Error
 		}
