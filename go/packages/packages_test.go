@@ -548,12 +548,12 @@ package b`,
 
 type errCollector struct {
 	mu     sync.Mutex
-	errors []error
+	errors []packages.Error
 }
 
 func (ec *errCollector) add(err error) {
 	ec.mu.Lock()
-	ec.errors = append(ec.errors, err)
+	ec.errors = append(ec.errors, err.(packages.Error))
 	ec.mu.Unlock()
 }
 
@@ -1401,15 +1401,10 @@ EOF
 	}
 }
 
-func errorMessages(errors []error) []string {
+func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
-		msg := err.Error()
-		// Strip off /tmp filename.
-		if i := strings.Index(msg, ": "); i >= 0 {
-			msg = msg[i+len(": "):]
-		}
-		msgs = append(msgs, msg)
+		msgs = append(msgs, err.Msg)
 	}
 	sort.Strings(msgs)
 	return msgs
