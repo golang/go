@@ -160,11 +160,6 @@ func (check *Checker) pop() Object {
 	return obj
 }
 
-// pathString returns a string of the form a->b-> ... ->g for an object path [a, b, ... g].
-func (check *Checker) pathString() string {
-	return objPathString(check.objPath)
-}
-
 // NewChecker returns a new Checker instance for a given package.
 // Package files may be added incrementally via checker.Files.
 func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
