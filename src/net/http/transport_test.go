@@ -3593,6 +3593,13 @@ func TestTransportAutomaticHTTP2(t *testing.T) {
 	testTransportAutoHTTP(t, &Transport{}, true)
 }
 
+func TestTransportAutomaticHTTP2_DialerAndTLSConfigSupportsHTTP2AndTLSConfig(t *testing.T) {
+	testTransportAutoHTTP(t, &Transport{
+		DialerAndTLSConfigSupportsHTTP2: true,
+		TLSClientConfig:                 new(tls.Config),
+	}, true)
+}
+
 // golang.org/issue/14391: also check DefaultTransport
 func TestTransportAutomaticHTTP2_DefaultTransport(t *testing.T) {
 	testTransportAutoHTTP(t, DefaultTransport.(*Transport), true)
@@ -3620,6 +3627,13 @@ func TestTransportAutomaticHTTP2_Dial(t *testing.T) {
 	var d net.Dialer
 	testTransportAutoHTTP(t, &Transport{
 		Dial: d.Dial,
+	}, false)
+}
+
+func TestTransportAutomaticHTTP2_DialContext(t *testing.T) {
+	var d net.Dialer
+	testTransportAutoHTTP(t, &Transport{
+		DialContext: d.DialContext,
 	}, false)
 }
 
