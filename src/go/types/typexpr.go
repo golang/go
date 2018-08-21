@@ -103,12 +103,17 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named) {
 	x.typ = typ
 }
 
-// typExpr type-checks the type expression e and returns its type, or Typ[Invalid].
-// If def != nil, e is the type specification for the named type def, declared
+// typ type-checks the type expression e and returns its type, or Typ[Invalid].
+func (check *Checker) typ(e ast.Expr) Type {
+	return check.definedType(e, nil)
+}
+
+// definedType is like typ but also accepts a type name def.
+// If def != nil, e is the type specification for the defined type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before
 // any components of e are type-checked.
 //
-func (check *Checker) typExpr(e ast.Expr, def *Named) (T Type) {
+func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
@@ -118,23 +123,21 @@ func (check *Checker) typExpr(e ast.Expr, def *Named) (T Type) {
 		}()
 	}
 
-	T = check.typExprInternal(e, def)
+	T = check.typInternal(e, def)
 	assert(isTyped(T))
 	check.recordTypeAndValue(e, typexpr, T, nil)
 
 	return
 }
 
-// typ is like typExpr (with a nil argument for the def parameter),
-// but typ breaks type cycles. It should be called for components of
-// types that break cycles, such as pointer base types, slice or map
-// element types, etc. See the comment in typExpr for details.
-//
-func (check *Checker) typ(e ast.Expr) Type {
-	// push indir sentinel on object path to indicate an indirection
+// indirectType is like typ but it also breaks the (otherwise) infinite size of recursive
+// types by introducing an indirection. It should be called for components of types that
+// are not layed out in place in memory, such as pointer base types, slice or map element
+// types, function parameter types, etc.
+func (check *Checker) indirectType(e ast.Expr) Type {
 	check.push(indir)
 	defer check.pop()
-	return check.typExpr(e, nil)
+	return check.definedType(e, nil)
 }
 
 // funcType type-checks a function or method type.
@@ -202,10 +205,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	sig.variadic = variadic
 }
 
-// typExprInternal drives type checking of types.
-// Must only be called by typExpr.
+// typInternal drives type checking of types.
+// Must only be called by definedType.
 //
-func (check *Checker) typExprInternal(e ast.Expr, def *Named) Type {
+func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	switch e := e.(type) {
 	case *ast.BadExpr:
 		// ignore - error reported before
@@ -245,20 +248,20 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named) Type {
 		}
 
 	case *ast.ParenExpr:
-		return check.typExpr(e.X, def)
+		return check.definedType(e.X, def)
 
 	case *ast.ArrayType:
 		if e.Len != nil {
 			typ := new(Array)
 			def.setUnderlying(typ)
 			typ.len = check.arrayLength(e.Len)
-			typ.elem = check.typExpr(e.Elt, nil)
+			typ.elem = check.typ(e.Elt)
 			return typ
 
 		} else {
 			typ := new(Slice)
 			def.setUnderlying(typ)
-			typ.elem = check.typ(e.Elt)
+			typ.elem = check.indirectType(e.Elt)
 			return typ
 		}
 
@@ -271,7 +274,7 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named) Type {
 	case *ast.StarExpr:
 		typ := new(Pointer)
 		def.setUnderlying(typ)
-		typ.base = check.typ(e.X)
+		typ.base = check.indirectType(e.X)
 		return typ
 
 	case *ast.FuncType:
@@ -290,8 +293,8 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named) Type {
 		typ := new(Map)
 		def.setUnderlying(typ)
 
-		typ.key = check.typ(e.Key)
-		typ.elem = check.typ(e.Value)
+		typ.key = check.indirectType(e.Key)
+		typ.elem = check.indirectType(e.Value)
 
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
@@ -325,7 +328,7 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named) Type {
 		}
 
 		typ.dir = dir
-		typ.elem = check.typ(e.Value)
+		typ.elem = check.indirectType(e.Value)
 		return typ
 
 	default:
@@ -406,7 +409,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 				// ignore ... and continue
 			}
 		}
-		typ := check.typ(ftype)
+		typ := check.indirectType(ftype)
 		// The parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag.
 		if len(field.Names) > 0 {
@@ -486,7 +489,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 		for _, f := range iface.Methods.List {
 			if len(f.Names) == 0 {
-				typ := check.typ(f.Type)
+				typ := check.indirectType(f.Type)
 				// typ should be a named type denoting an interface
 				// (the parser will make sure it's a named type but
 				// constructed ASTs may be wrong).
@@ -569,7 +572,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// (possibly embedded) methods must be type-checked within their scope and
 		// type-checking them must not affect the current context (was issue #23914)
 		check.context = context{scope: minfo.scope}
-		typ := check.typ(minfo.src.Type)
+		typ := check.indirectType(minfo.src.Type)
 		sig, _ := typ.(*Signature)
 		if sig == nil {
 			if typ != Typ[Invalid] {
@@ -672,7 +675,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	}
 
 	for _, f := range list.List {
-		typ = check.typExpr(f.Type, nil)
+		typ = check.typ(f.Type)
 		tag = check.tag(f.Tag)
 		if len(f.Names) > 0 {
 			// named fields
