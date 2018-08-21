@@ -381,8 +381,8 @@ func typeEncoder(t reflect.Type) encoderFunc {
 }
 
 var (
-	marshalerType     = reflect.TypeOf(new(Marshaler)).Elem()
-	textMarshalerType = reflect.TypeOf(new(encoding.TextMarshaler)).Elem()
+	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
+	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
 )
 
 // newTypeEncoder constructs an encoderFunc for a type.
@@ -641,8 +641,11 @@ func (se *structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		} else {
 			e.WriteByte(',')
 		}
-		e.string(f.name, opts.escapeHTML)
-		e.WriteByte(':')
+		if opts.escapeHTML {
+			e.WriteString(f.nameEscHTML)
+		} else {
+			e.WriteString(f.nameNonEsc)
+		}
 		opts.quoted = f.quoted
 		se.fieldEncs[i](e, fv, opts)
 	}
@@ -715,14 +718,22 @@ func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 	}
 	s := v.Bytes()
 	e.WriteByte('"')
-	if len(s) < 1024 {
-		// for small buffers, using Encode directly is much faster.
-		dst := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
+	encodedLen := base64.StdEncoding.EncodedLen(len(s))
+	if encodedLen <= len(e.scratch) {
+		// If the encoded bytes fit in e.scratch, avoid an extra
+		// allocation and use the cheaper Encoding.Encode.
+		dst := e.scratch[:encodedLen]
+		base64.StdEncoding.Encode(dst, s)
+		e.Write(dst)
+	} else if encodedLen <= 1024 {
+		// The encoded bytes are short enough to allocate for, and
+		// Encoding.Encode is still cheaper.
+		dst := make([]byte, encodedLen)
 		base64.StdEncoding.Encode(dst, s)
 		e.Write(dst)
 	} else {
-		// for large buffers, avoid unnecessary extra temporary
-		// buffer space.
+		// The encoded bytes are too long to cheaply allocate, and
+		// Encoding.Encode is no longer noticeably cheaper.
 		enc := base64.NewEncoder(base64.StdEncoding, e)
 		enc.Write(s)
 		enc.Close()
@@ -1036,6 +1047,9 @@ type field struct {
 	nameBytes []byte                 // []byte(name)
 	equalFold func(s, t []byte) bool // bytes.EqualFold or equivalent
 
+	nameNonEsc  string // `"` + name + `":`
+	nameEscHTML string // `"` + HTMLEscape(name) + `":`
+
 	tag       bool
 	index     []int
 	typ       reflect.Type
@@ -1085,6 +1099,9 @@ func typeFields(t reflect.Type) []field {
 
 	// Fields found.
 	var fields []field
+
+	// Buffer to run HTMLEscape on field names.
+	var nameEscBuf bytes.Buffer
 
 	for len(next) > 0 {
 		current, next = next, current[:0]
@@ -1152,14 +1169,24 @@ func typeFields(t reflect.Type) []field {
 					if name == "" {
 						name = sf.Name
 					}
-					fields = append(fields, fillField(field{
+					field := fillField(field{
 						name:      name,
 						tag:       tagged,
 						index:     index,
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
 						quoted:    quoted,
-					}))
+					})
+
+					// Build nameEscHTML and nameNonEsc ahead of time.
+					nameEscBuf.Reset()
+					nameEscBuf.WriteString(`"`)
+					HTMLEscape(&nameEscBuf, field.nameBytes)
+					nameEscBuf.WriteString(`":`)
+					field.nameEscHTML = nameEscBuf.String()
+					field.nameNonEsc = `"` + field.name + `":`
+
+					fields = append(fields, field)
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.

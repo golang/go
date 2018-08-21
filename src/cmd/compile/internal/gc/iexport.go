@@ -595,7 +595,7 @@ func (p *iexporter) typOff(t *types.Type) uint64 {
 	if !ok {
 		w := p.newWriter()
 		w.doTyp(t)
-		off = predeclReserved + uint64(w.flush())
+		off = predeclReserved + w.flush()
 		p.typIndex[t] = off
 	}
 	return off
@@ -970,13 +970,17 @@ func (w *exportWriter) linkname(s *types.Sym) {
 
 func (w *exportWriter) stmtList(list Nodes) {
 	for _, n := range list.Slice() {
-		if opprec[n.Op] < 0 {
-			w.stmt(n)
-		} else {
-			w.expr(n)
-		}
+		w.node(n)
 	}
 	w.op(OEND)
+}
+
+func (w *exportWriter) node(n *Node) {
+	if opprec[n.Op] < 0 {
+		w.stmt(n)
+	} else {
+		w.expr(n)
+	}
 }
 
 // Caution: stmt will emit more than one node for statement nodes n that have a non-empty
@@ -1338,7 +1342,7 @@ func (w *exportWriter) exprsOrNil(a, b *Node) {
 		w.expr(a)
 	}
 	if ab&2 != 0 {
-		w.expr(b)
+		w.node(b)
 	}
 }
 

@@ -1,0 +1,61 @@
+# Test 'go get' with a local module with a name that is not valid for network lookup.
+
+env GO111MODULE=on
+go mod edit -fmt
+cp go.mod go.mod.orig
+
+# 'go get -u -m' within the main module should work, even if it has a local-only name.
+cp go.mod.orig go.mod
+go get -u -m
+grep 'rsc.io/quote.*v1.5.2' go.mod
+grep 'golang.org/x/text.*v0.3.0' go.mod
+cp go.mod go.mod.implicitmod
+
+# 'go get -u -m' with the name of the main module should be equivalent to
+# 'go get -u -m' without any further arguments.
+cp go.mod.orig go.mod
+go get -u -m local
+cmp go.mod go.mod.implicitmod
+
+# 'go get -u -d' in the empty root of the main module should update the
+# dependencies of all packages in the module.
+cp go.mod.orig go.mod
+go get -u -d
+cmp go.mod go.mod.implicitmod
+
+# 'go get -u -d .' within a package in the main module updates all dependencies
+# of the main module.
+# TODO: Determine whether that behavior is a bug.
+# (https://golang.org/issue/26902)
+cp go.mod.orig go.mod
+cd uselang
+go get -u -d .
+cd ..
+grep 'rsc.io/quote.*v1.5.2' go.mod
+grep 'golang.org/x/text.*v0.3.0' go.mod
+cp go.mod go.mod.dotpkg
+
+# 'go get -u -d' with an explicit package in the main module updates
+# all dependencies of the main module.
+# TODO: Determine whether that behavior is a bug.
+# (https://golang.org/issue/26902)
+cp go.mod.orig go.mod
+go get -u -d local/uselang
+cmp go.mod go.mod.dotpkg
+
+
+-- go.mod --
+module local
+
+require (
+	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c
+	rsc.io/quote v1.3.0
+)
+
+-- uselang/uselang.go --
+package uselang
+import _ "golang.org/x/text/language"
+
+-- usequote/usequote.go --
+package usequote
+import _ "rsc.io/quote"

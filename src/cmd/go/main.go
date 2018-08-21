@@ -27,6 +27,10 @@ import (
 	"cmd/go/internal/get"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
+	"cmd/go/internal/modcmd"
+	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modget"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
@@ -36,7 +40,7 @@ import (
 )
 
 func init() {
-	base.Commands = []*base.Command{
+	base.Go.Commands = []*base.Command{
 		bug.CmdBug,
 		work.CmdBuild,
 		clean.CmdClean,
@@ -48,6 +52,7 @@ func init() {
 		get.CmdGet,
 		work.CmdInstall,
 		list.CmdList,
+		modcmd.CmdMod,
 		run.CmdRun,
 		test.CmdTest,
 		tool.CmdTool,
@@ -59,8 +64,13 @@ func init() {
 		help.HelpCache,
 		help.HelpEnvironment,
 		help.HelpFileType,
+		modload.HelpGoMod,
 		help.HelpGopath,
+		get.HelpGopathGet,
+		modfetch.HelpGoproxy,
 		help.HelpImportPath,
+		modload.HelpModules,
+		modget.HelpModuleGet,
 		help.HelpPackages,
 		test.HelpTestflag,
 		test.HelpTestfunc,
@@ -78,9 +88,14 @@ func main() {
 		base.Usage()
 	}
 
+	if modload.MustUseModules {
+		// If running with modules force-enabled, change get now to change help message.
+		*get.CmdGet = *modget.CmdGet
+	}
+
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
-		help.Help(args[1:])
+		help.Help(os.Stdout, args[1:])
 		return
 	}
 
@@ -115,6 +130,46 @@ func main() {
 		os.Exit(2)
 	}
 
+	// TODO(rsc): Remove all these helper prints in Go 1.12.
+	switch args[0] {
+	case "mod":
+		if len(args) >= 2 {
+			flag := args[1]
+			if strings.HasPrefix(flag, "--") {
+				flag = flag[1:]
+			}
+			if i := strings.Index(flag, "="); i >= 0 {
+				flag = flag[:i]
+			}
+			switch flag {
+			case "-sync":
+				fmt.Fprintf(os.Stderr, "go: go mod -sync is now go mod tidy\n")
+				os.Exit(2)
+			case "-init", "-fix", "-graph", "-vendor", "-verify":
+				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod %s\n", flag, flag[1:])
+				os.Exit(2)
+			case "-fmt", "-json", "-module", "-require", "-droprequire", "-replace", "-dropreplace", "-exclude", "-dropexclude":
+				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod edit %s\n", flag, flag)
+				os.Exit(2)
+			}
+		}
+	case "vendor":
+		fmt.Fprintf(os.Stderr, "go: vgo vendor is now go mod vendor\n")
+		os.Exit(2)
+	case "verify":
+		fmt.Fprintf(os.Stderr, "go: vgo verify is now go mod verify\n")
+		os.Exit(2)
+	}
+
+	if args[0] == "get" {
+		// Replace get with module-aware get if appropriate.
+		// Note that if MustUseModules is true, this happened already above,
+		// but no harm in doing it again.
+		if modload.Init(); modload.Enabled() {
+			*get.CmdGet = *modget.CmdGet
+		}
+	}
+
 	// Set environment (GOOS, GOARCH, etc) explicitly.
 	// In theory all the commands we invoke should have
 	// the same default computation of these as we do,
@@ -128,12 +183,36 @@ func main() {
 		}
 	}
 
-	for _, cmd := range base.Commands {
-		if cmd.Name() == args[0] && cmd.Runnable() {
+BigCmdLoop:
+	for bigCmd := base.Go; ; {
+		for _, cmd := range bigCmd.Commands {
+			if cmd.Name() != args[0] {
+				continue
+			}
+			if len(cmd.Commands) > 0 {
+				bigCmd = cmd
+				args = args[1:]
+				if len(args) == 0 {
+					help.PrintUsage(os.Stderr, bigCmd)
+					base.SetExitStatus(2)
+					base.Exit()
+				}
+				if args[0] == "help" {
+					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
+					help.Help(os.Stdout, append(strings.Split(cfg.CmdName, " "), args[1:]...))
+					return
+				}
+				cfg.CmdName += " " + args[0]
+				continue BigCmdLoop
+			}
+			if !cmd.Runnable() {
+				continue
+			}
 			cmd.Flag.Usage = func() { cmd.Usage() }
 			if cmd.CustomFlags {
 				args = args[1:]
 			} else {
+				base.SetFromGOFLAGS(cmd.Flag)
 				cmd.Flag.Parse(args[1:])
 				args = cmd.Flag.Args()
 			}
@@ -141,11 +220,14 @@ func main() {
 			base.Exit()
 			return
 		}
+		helpArg := ""
+		if i := strings.LastIndex(cfg.CmdName, " "); i >= 0 {
+			helpArg = " " + cfg.CmdName[:i]
+		}
+		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
-
-	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'go help' for usage.\n", args[0])
-	base.SetExitStatus(2)
-	base.Exit()
 }
 
 func init() {
@@ -157,6 +239,13 @@ func mainUsage() {
 	if len(os.Args) > 1 && os.Args[1] == "test" {
 		test.Usage()
 	}
-	help.PrintUsage(os.Stderr)
+	// Since vet shares code with test in cmdflag, it doesn't show its
+	// command usage properly. For now, special case it too.
+	// TODO(mvdan): fix the cmdflag package instead; see
+	// golang.org/issue/26999
+	if len(os.Args) > 1 && os.Args[1] == "vet" {
+		vet.CmdVet.Usage()
+	}
+	help.PrintUsage(os.Stderr, base.Go)
 	os.Exit(2)
 }

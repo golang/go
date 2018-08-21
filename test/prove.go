@@ -622,7 +622,7 @@ func natcmp(x, y []uint) (r int) {
 	}
 
 	i := m - 1
-	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment -1"
+	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment 1"
 		x[i] == // ERROR "Proved IsInBounds$"
 			y[i] { // ERROR "Proved IsInBounds$"
 		i--

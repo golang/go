@@ -336,6 +336,12 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 		fh.Method = Store
 		fh.Flags &^= 0x8 // we will not write a data descriptor
 
+		// Explicitly clear sizes as they have no meaning for directories.
+		fh.CompressedSize = 0
+		fh.CompressedSize64 = 0
+		fh.UncompressedSize = 0
+		fh.UncompressedSize64 = 0
+
 		ow = dirWriter{}
 	} else {
 		fh.Flags |= 0x8 // we will write a data descriptor
@@ -419,7 +425,10 @@ func (w *Writer) compressor(method uint16) Compressor {
 
 type dirWriter struct{}
 
-func (dirWriter) Write([]byte) (int, error) {
+func (dirWriter) Write(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
 	return 0, errors.New("zip: write to directory")
 }
 

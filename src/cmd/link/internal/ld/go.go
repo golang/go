@@ -155,9 +155,9 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 			s := ctxt.Syms.Lookup(local, 0)
 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
-				s.Dynimplib = lib
+				s.SetDynimplib(lib)
 				s.Extname = remote
-				s.Dynimpvers = q
+				s.SetDynimpvers(q)
 				if s.Type != sym.SHOSTOBJ {
 					s.Type = sym.SDYNIMPORT
 				}
@@ -198,10 +198,9 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 
 			// export overrides import, for openbsd/cgo.
 			// see issue 4878.
-			if s.Dynimplib != "" {
-				s.Dynimplib = ""
+			if s.Dynimplib() != "" {
+				s.ResetDyninfo()
 				s.Extname = ""
-				s.Dynimpvers = ""
 				s.Type = 0
 			}
 
@@ -294,7 +293,7 @@ func fieldtrack(ctxt *Link) {
 			s.Attr |= sym.AttrNotInSymbolTable
 			if s.Attr.Reachable() {
 				buf.WriteString(s.Name[9:])
-				for p := s.Reachparent; p != nil; p = p.Reachparent {
+				for p := ctxt.Reachparent[s]; p != nil; p = ctxt.Reachparent[p] {
 					buf.WriteString("\t")
 					buf.WriteString(p.Name)
 				}

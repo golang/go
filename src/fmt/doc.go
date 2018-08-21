@@ -97,10 +97,11 @@
 
 	For floating-point values, width sets the minimum width of the field and
 	precision sets the number of places after the decimal, if appropriate,
-	except that for %g/%G precision sets the total number of significant
-	digits. For example, given 12.345 the format %6.3f prints 12.345 while
-	%.3g prints 12.3. The default precision for %e, %f and %#g is 6; for %g it
-	is the smallest number of digits necessary to identify the value uniquely.
+	except that for %g/%G precision sets the maximum number of significant
+	digits (trailing zeros are removed). For example, given 12.345 the format
+	%6.3f prints 12.345 while %.3g prints 12.3. The default precision for %e, %f
+	and %#g is 6; for %g it is the smallest number of digits necessary to identify
+	the value uniquely.
 
 	For complex numbers, the width and precision apply to the two
 	components independently and the result is parenthesized, so %f applied

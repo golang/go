@@ -147,7 +147,7 @@ var (
 	fourSpace = []byte("    ")
 
 	skipLinePrefix = []byte("?   \t")
-	skipLineSuffix = []byte(" [no test files]\n")
+	skipLineSuffix = []byte("\t[no test files]\n")
 )
 
 // handleInputLine handles a single whole test output line.
@@ -166,7 +166,7 @@ func (c *converter) handleInputLine(line []byte) {
 		return
 	}
 
-	// Special case for entirely skipped test binary: "?   \tpkgname\t0.001s [no test files]\n" is only line.
+	// Special case for entirely skipped test binary: "?   \tpkgname\t[no test files]\n" is only line.
 	// Report it as plain output but remember to say skip in the final summary.
 	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(line, skipLineSuffix) && len(c.report) == 0 {
 		c.result = "skip"

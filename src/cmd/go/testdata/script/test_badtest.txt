@@ -1,0 +1,30 @@
+! go test badtest/...
+! stdout ^ok
+stdout ^FAIL\tbadtest/badexec
+stdout ^FAIL\tbadtest/badsyntax
+stdout ^FAIL\tbadtest/badvar
+
+-- badtest/badexec/x_test.go --
+package badexec
+
+func init() {
+	panic("badexec")
+}
+
+-- badtest/badsyntax/x.go --
+package badsyntax
+
+-- badtest/badsyntax/x_test.go --
+package badsyntax
+
+func func func func func!
+
+-- badtest/badvar/x.go --
+package badvar
+
+-- badtest/badvar/x_test.go --
+package badvar_test
+
+func f() {
+	_ = notdefined
+}

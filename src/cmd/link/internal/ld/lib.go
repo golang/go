@@ -104,7 +104,7 @@ type Arch struct {
 	Solarisdynld     string
 	Adddynrel        func(*Link, *sym.Symbol, *sym.Reloc) bool
 	Archinit         func(*Link)
-	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, *int64) bool
+	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, int64) (int64, bool)
 	Archrelocvariant func(*Link, *sym.Reloc, *sym.Symbol, int64) int64
 	Trampoline       func(*Link, *sym.Reloc, *sym.Symbol)
 	Asmb             func(*Link)
@@ -416,7 +416,7 @@ func (ctxt *Link) loadlib() {
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
 				// now.
-				if s.Extname != "" && s.Dynimplib != "" && !s.Attr.CgoExport() {
+				if s.Extname != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
 					s.Type = sym.SDYNIMPORT
 				} else {
 					s.Type = 0
@@ -503,7 +503,8 @@ func (ctxt *Link) loadlib() {
 		// objects, try to read them from the libgcc file.
 		any := false
 		for _, s := range ctxt.Syms.Allsym {
-			for _, r := range s.R {
+			for i := range s.R {
+				r := &s.R[i] // Copying sym.Reloc has measurable impact on peformance
 				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
 					any = true
 					break
@@ -1221,6 +1222,11 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Qunused-arguments")
 	}
 
+	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
+	if ctxt.compressDWARF && linkerFlagSupported(argv[0], compressDWARF) {
+		argv = append(argv, compressDWARF)
+	}
+
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
 
@@ -1257,7 +1263,26 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	argv = append(argv, ldflag...)
+	// clang, unlike GCC, passes -rdynamic to the linker
+	// even when linking with -static, causing a linker
+	// error when using GNU ld. So take out -rdynamic if
+	// we added it. We do it in this order, rather than
+	// only adding -rdynamic later, so that -*extldflags
+	// can override -rdynamic without using -static.
+	checkStatic := func(arg string) {
+		if ctxt.IsELF && arg == "-static" {
+			for i := range argv {
+				if argv[i] == "-rdynamic" {
+					argv[i] = "-static"
+				}
+			}
+		}
+	}
+
+	for _, p := range ldflag {
+		argv = append(argv, p)
+		checkStatic(p)
+	}
 
 	// When building a program with the default -buildmode=exe the
 	// gc compiler generates code requires DT_TEXTREL in a
@@ -1267,21 +1292,9 @@ func (ctxt *Link) hostlink() {
 	// issue #17847. To avoid this problem pass -no-pie to the
 	// toolchain if it is supported.
 	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
-		src := filepath.Join(*flagTmpdir, "trivial.c")
-		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
-			Errorf(nil, "WriteFile trivial.c failed: %v", err)
-		}
-
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			cmd := exec.Command(argv[0], nopie, "trivial.c")
-			cmd.Dir = *flagTmpdir
-			cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
-			out, err := cmd.CombinedOutput()
-			// GCC says "unrecognized command line option ‘-no-pie’"
-			// clang says "unknown argument: '-no-pie'"
-			supported := err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
-			if supported {
+			if linkerFlagSupported(argv[0], nopie) {
 				argv = append(argv, nopie)
 				break
 			}
@@ -1290,20 +1303,7 @@ func (ctxt *Link) hostlink() {
 
 	for _, p := range strings.Fields(*flagExtldflags) {
 		argv = append(argv, p)
-
-		// clang, unlike GCC, passes -rdynamic to the linker
-		// even when linking with -static, causing a linker
-		// error when using GNU ld. So take out -rdynamic if
-		// we added it. We do it in this order, rather than
-		// only adding -rdynamic later, so that -*extldflags
-		// can override -rdynamic without using -static.
-		if ctxt.IsELF && p == "-static" {
-			for i := range argv {
-				if argv[i] == "-rdynamic" {
-					argv[i] = "-static"
-				}
-			}
-		}
+		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
 		// use gcc linker script to work around gcc bug
@@ -1343,7 +1343,7 @@ func (ctxt *Link) hostlink() {
 		}
 		// For os.Rename to work reliably, must be in same directory as outfile.
 		combinedOutput := *flagOutfile + "~"
-		isIOS, err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode)
+		isIOS, err := machoCombineDwarf(ctxt, *flagOutfile, dsym, combinedOutput)
 		if err != nil {
 			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 		}
@@ -1354,6 +1354,30 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	}
+}
+
+var createTrivialCOnce sync.Once
+
+func linkerFlagSupported(linker, flag string) bool {
+	createTrivialCOnce.Do(func() {
+		src := filepath.Join(*flagTmpdir, "trivial.c")
+		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
+			Errorf(nil, "WriteFile trivial.c failed: %v", err)
+		}
+	})
+
+	var flags []string
+	flags = append(flags, ldflag...)
+	flags = append(flags, strings.Fields(*flagExtldflags)...)
+	flags = append(flags, flag, "trivial.c")
+
+	cmd := exec.Command(linker, flags...)
+	cmd.Dir = *flagTmpdir
+	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+	out, err := cmd.CombinedOutput()
+	// GCC says "unrecognized command line option ‘-no-pie’"
+	// clang says "unknown argument: '-no-pie'"
+	return err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
 }
 
 // hostlinkArchArgs returns arguments to pass to the external linker

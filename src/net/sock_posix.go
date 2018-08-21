@@ -54,7 +54,7 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
 	if laddr != nil && raddr == nil {
 		switch sotype {
 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
-			if err := fd.listenStream(laddr, listenerBacklog, ctrlFn); err != nil {
+			if err := fd.listenStream(laddr, listenerBacklog(), ctrlFn); err != nil {
 				fd.Close()
 				return nil, err
 			}

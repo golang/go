@@ -26,6 +26,7 @@ not_equal:
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
+	FUNCDATA $0, ·Equal·args_stackmap(SB)
 	MOVD	a_len+8(FP), R1
 	MOVD	b_len+32(FP), R3
 	CMP	R1, R3

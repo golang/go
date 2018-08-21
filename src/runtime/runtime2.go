@@ -506,8 +506,10 @@ type p struct {
 	runnext guintptr
 
 	// Available G's (status == Gdead)
-	gfree    *g
-	gfreecnt int32
+	gFree struct {
+		gList
+		n int32
+	}
 
 	sudogcache []*sudog
 	sudogbuf   [128]*sudog
@@ -574,15 +576,16 @@ type schedt struct {
 	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
 
 	// Global runnable queue.
-	runqhead guintptr
-	runqtail guintptr
+	runq     gQueue
 	runqsize int32
 
 	// Global cache of dead G's.
-	gflock       mutex
-	gfreeStack   *g
-	gfreeNoStack *g
-	ngfree       int32
+	gFree struct {
+		lock    mutex
+		stack   gList // Gs with stacks
+		noStack gList // Gs without stacks
+		n       int32
+	}
 
 	// Central cache of sudog structs.
 	sudoglock  mutex
@@ -840,10 +843,13 @@ var (
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
-	support_erms         bool
-	support_popcnt       bool
-	support_sse2         bool
-	support_sse41        bool
+
+	// Set in runtime.cpuinit.
+	support_erms          bool
+	support_popcnt        bool
+	support_sse2          bool
+	support_sse41         bool
+	arm64_support_atomics bool
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link

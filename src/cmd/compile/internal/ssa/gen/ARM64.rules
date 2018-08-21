@@ -317,6 +317,7 @@
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
 (Addr {sym} base) -> (MOVDaddr {sym} base)
+(LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
@@ -540,8 +541,12 @@
 (AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
 
-(AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
-(AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
+// Currently the updated value is not used, but we need a register to temporarily hold it.
+(AtomicAnd8 ptr val mem) -> (Select1 (LoweredAtomicAnd8 ptr val mem))
+(AtomicOr8  ptr val mem) -> (Select1 (LoweredAtomicOr8  ptr val mem))
+
+(AtomicAdd32Variant ptr val mem) -> (LoweredAtomicAdd32Variant ptr val mem)
+(AtomicAdd64Variant ptr val mem) -> (LoweredAtomicAdd64Variant ptr val mem)
 
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
@@ -569,8 +574,8 @@
 
 (EQ (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
 (NE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
-(EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
-(NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
+(EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TSTW x y) yes no)
+(NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TSTW x y) yes no)
 
 (EQ (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTconst [c] y) yes no)
 (NE (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTconst [c] y) yes no)

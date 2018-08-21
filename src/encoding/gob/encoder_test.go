@@ -1015,7 +1015,7 @@ type Bug4Secret struct {
 }
 
 // Test that a failed compilation doesn't leave around an executable encoder.
-// Issue 3273.
+// Issue 3723.
 func TestMutipleEncodingsOfBadType(t *testing.T) {
 	x := Bug4Public{
 		Name:   "name",

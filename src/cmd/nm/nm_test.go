@@ -157,6 +157,10 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 			t.Errorf("duplicate name of %q is found", name)
 		}
 		if stype, found := runtimeSyms[name]; found {
+			if runtime.GOOS == "plan9" && stype == "R" {
+				// no read-only data segment symbol on Plan 9
+				stype = "D"
+			}
 			if want, have := stype, strings.ToUpper(f[1]); have != want {
 				t.Errorf("want %s type for %s symbol, but have %s", want, name, have)
 			}

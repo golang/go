@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package trace contains facilities for programs to generate trace
-// for Go execution tracer.
+// Package trace contains facilities for programs to generate traces
+// for the Go execution tracer.
 //
 // Tracing runtime activities
 //
@@ -82,10 +82,10 @@
 //
 //      ctx, task := trace.NewTask(ctx, "makeCappuccino")
 //      trace.Log(ctx, "orderID", orderID)
-
+//
 //      milk := make(chan bool)
 //      espresso := make(chan bool)
-
+//
 //      go func() {
 //              trace.WithRegion(ctx, "steamMilk", steamMilk)
 //              milk <- true

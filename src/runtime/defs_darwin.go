@@ -15,8 +15,6 @@ package runtime
 
 /*
 #define __DARWIN_UNIX03 0
-#include <mach/mach.h>
-#include <mach/message.h>
 #include <mach/mach_time.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -25,12 +23,14 @@ package runtime
 #include <sys/event.h>
 #include <sys/mman.h>
 #include <pthread.h>
+#include <fcntl.h>
 */
 import "C"
 
 const (
-	EINTR  = C.EINTR
-	EFAULT = C.EFAULT
+	EINTR     = C.EINTR
+	EFAULT    = C.EFAULT
+	ETIMEDOUT = C.ETIMEDOUT
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
@@ -43,40 +43,6 @@ const (
 
 	MADV_DONTNEED = C.MADV_DONTNEED
 	MADV_FREE     = C.MADV_FREE
-
-	MACH_MSG_TYPE_MOVE_RECEIVE   = C.MACH_MSG_TYPE_MOVE_RECEIVE
-	MACH_MSG_TYPE_MOVE_SEND      = C.MACH_MSG_TYPE_MOVE_SEND
-	MACH_MSG_TYPE_MOVE_SEND_ONCE = C.MACH_MSG_TYPE_MOVE_SEND_ONCE
-	MACH_MSG_TYPE_COPY_SEND      = C.MACH_MSG_TYPE_COPY_SEND
-	MACH_MSG_TYPE_MAKE_SEND      = C.MACH_MSG_TYPE_MAKE_SEND
-	MACH_MSG_TYPE_MAKE_SEND_ONCE = C.MACH_MSG_TYPE_MAKE_SEND_ONCE
-	MACH_MSG_TYPE_COPY_RECEIVE   = C.MACH_MSG_TYPE_COPY_RECEIVE
-
-	MACH_MSG_PORT_DESCRIPTOR         = C.MACH_MSG_PORT_DESCRIPTOR
-	MACH_MSG_OOL_DESCRIPTOR          = C.MACH_MSG_OOL_DESCRIPTOR
-	MACH_MSG_OOL_PORTS_DESCRIPTOR    = C.MACH_MSG_OOL_PORTS_DESCRIPTOR
-	MACH_MSG_OOL_VOLATILE_DESCRIPTOR = C.MACH_MSG_OOL_VOLATILE_DESCRIPTOR
-
-	MACH_MSGH_BITS_COMPLEX = C.MACH_MSGH_BITS_COMPLEX
-
-	MACH_SEND_MSG  = C.MACH_SEND_MSG
-	MACH_RCV_MSG   = C.MACH_RCV_MSG
-	MACH_RCV_LARGE = C.MACH_RCV_LARGE
-
-	MACH_SEND_TIMEOUT   = C.MACH_SEND_TIMEOUT
-	MACH_SEND_INTERRUPT = C.MACH_SEND_INTERRUPT
-	MACH_SEND_ALWAYS    = C.MACH_SEND_ALWAYS
-	MACH_SEND_TRAILER   = C.MACH_SEND_TRAILER
-	MACH_RCV_TIMEOUT    = C.MACH_RCV_TIMEOUT
-	MACH_RCV_NOTIFY     = C.MACH_RCV_NOTIFY
-	MACH_RCV_INTERRUPT  = C.MACH_RCV_INTERRUPT
-	MACH_RCV_OVERWRITE  = C.MACH_RCV_OVERWRITE
-
-	NDR_PROTOCOL_2_0      = C.NDR_PROTOCOL_2_0
-	NDR_INT_BIG_ENDIAN    = C.NDR_INT_BIG_ENDIAN
-	NDR_INT_LITTLE_ENDIAN = C.NDR_INT_LITTLE_ENDIAN
-	NDR_FLOAT_IEEE        = C.NDR_FLOAT_IEEE
-	NDR_CHAR_ASCII        = C.NDR_CHAR_ASCII
 
 	SA_SIGINFO   = C.SA_SIGINFO
 	SA_RESTART   = C.SA_RESTART
@@ -146,18 +112,17 @@ const (
 	EVFILT_WRITE = C.EVFILT_WRITE
 
 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
-)
 
-type MachBody C.mach_msg_body_t
-type MachHeader C.mach_msg_header_t
-type MachNDR C.NDR_record_t
-type MachPort C.mach_msg_port_descriptor_t
+	F_SETFD    = C.F_SETFD
+	FD_CLOEXEC = C.FD_CLOEXEC
+)
 
 type StackT C.struct_sigaltstack
 type Sighandler C.union___sigaction_u
 
 type Sigaction C.struct___sigaction // used in syscalls
 type Usigaction C.struct_sigaction  // used by sigaction second argument
+type Sigset C.sigset_t
 type Sigval C.union_sigval
 type Siginfo C.siginfo_t
 type Timeval C.struct_timeval
@@ -185,5 +150,9 @@ type Kevent C.struct_kevent
 
 type Pthread C.pthread_t
 type PthreadAttr C.pthread_attr_t
+type PthreadMutex C.pthread_mutex_t
+type PthreadMutexAttr C.pthread_mutexattr_t
+type PthreadCond C.pthread_cond_t
+type PthreadCondAttr C.pthread_condattr_t
 
 type MachTimebaseInfo C.mach_timebase_info_data_t

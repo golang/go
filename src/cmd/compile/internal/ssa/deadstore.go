@@ -146,7 +146,7 @@ func elimDeadAutosGeneric(f *Func) {
 	visit := func(v *Value) (changed bool) {
 		args := v.Args
 		switch v.Op {
-		case OpAddr:
+		case OpAddr, OpLocalAddr:
 			// Propagate the address if it points to an auto.
 			n, ok := v.Aux.(GCNode)
 			if !ok || n.StorageClass() != ClassAuto {
@@ -203,7 +203,8 @@ func elimDeadAutosGeneric(f *Func) {
 
 		// If the address of the auto reaches a memory or control
 		// operation not covered above then we probably need to keep it.
-		if v.Type.IsMemory() || v.Type.IsFlags() || (v.Op != OpPhi && v.MemoryArg() != nil) {
+		// We also need to keep autos if they reach Phis (issue #26153).
+		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == OpPhi || v.MemoryArg() != nil {
 			for _, a := range args {
 				if n, ok := addr[a]; ok {
 					if !used[n] {
@@ -260,6 +261,14 @@ func elimDeadAutosGeneric(f *Func) {
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				changed = visit(v) || changed
+			}
+			// keep the auto if its address reaches a control value
+			if b.Control == nil {
+				continue
+			}
+			if n, ok := addr[b.Control]; ok && !used[n] {
+				used[n] = true
+				changed = true
 			}
 		}
 		if !changed {

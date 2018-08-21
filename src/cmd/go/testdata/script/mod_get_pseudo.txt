@@ -1,0 +1,80 @@
+env GO111MODULE=on
+
+# Testing git->module converter's generation of +incompatible tags; turn off proxy.
+[!net] skip
+[!exec:git] skip
+env GOPROXY=
+
+# We can resolve the @master branch without unshallowing the local repository
+# (even with older gits), so try that before we do anything else.
+# (This replicates https://golang.org/issue/26713 with git 2.7.4.)
+go get -m github.com/rsc/legacytest@master
+go list -m all
+stdout '^github.com/rsc/legacytest v2\.0\.1-0\.\d{14}-7303f7796364\+incompatible$'
+
+# get should include incompatible tags in "latest" calculation.
+go get -m github.com/rsc/legacytest@latest
+go list
+go list -m all
+stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+
+# v2.0.1-0.pseudo+incompatible
+go get -m ...test@7303f77
+go list -m all
+stdout '^github.com/rsc/legacytest v2\.0\.1-0\.\d{14}-7303f7796364\+incompatible$'
+
+# v2.0.0+incompatible by tag+incompatible
+go get -m ...test@v2.0.0+incompatible
+go list -m all
+stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+
+# v2.0.0+incompatible by tag
+go get -m ...test@v2.0.0
+go list -m all
+stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+
+# v2.0.0+incompatible by hash (back on master)
+go get -m ...test@d7ae1e4
+go list -m all
+stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+
+# v1.2.1-0.pseudo
+go get -m ...test@d2d4c3e
+go list -m all
+stdout '^github.com/rsc/legacytest v1\.2\.1-0\.\d{14}-d2d4c3ea6623$'
+
+# v1.2.0
+go get -m ...test@9f6f860
+go list -m all
+stdout '^github.com/rsc/legacytest v1\.2\.0$'
+
+# v1.1.0-pre.0.pseudo
+go get -m ...test@fb3c628
+go list -m all
+stdout '^github.com/rsc/legacytest v1\.1\.0-pre\.0\.\d{14}-fb3c628075e3$'
+
+# v1.1.0-pre (no longer on master)
+go get -m ...test@731e3b1
+go list -m all
+stdout '^github.com/rsc/legacytest v1\.1\.0-pre$'
+
+# v1.0.1-0.pseudo
+go get -m ...test@fa4f5d6
+go list -m all
+stdout '^github.com/rsc/legacytest v1\.0\.1-0\.\d{14}-fa4f5d6a71c6$'
+
+# v1.0.0
+go get -m ...test@7fff7f3
+go list -m all
+stdout '^github.com/rsc/legacytest v1\.0\.0$'
+
+# v0.0.0-pseudo
+go get -m ...test@52853eb
+go list -m all
+stdout '^github.com/rsc/legacytest v0\.0\.0-\d{14}-52853eb7b552$'
+
+-- go.mod --
+module x
+-- x.go --
+package x
+import "github.com/rsc/legacytest"

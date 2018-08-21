@@ -316,6 +316,13 @@ type common struct {
 
 // Short reports whether the -test.short flag is set.
 func Short() bool {
+	// Catch code that calls this from TestMain without first
+	// calling flag.Parse. This shouldn't really be a panic
+	if !flag.Parsed() {
+		fmt.Fprintf(os.Stderr, "testing: testing.Short called before flag.Parse\n")
+		os.Exit(2)
+	}
+
 	return *short
 }
 

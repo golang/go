@@ -2324,6 +2324,9 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 	if !strings.Contains(string(body), "<title>Timeout</title>") {
 		t.Errorf("expected timeout body; got %q", string(body))
 	}
+	if g, w := res.Header.Get("Content-Type"), "text/html; charset=utf-8"; g != w {
+		t.Errorf("response content-type = %q; want %q", g, w)
+	}
 
 	// Now make the previously-timed out handler speak again,
 	// which verifies the panic is handled:
@@ -2985,7 +2988,7 @@ func testRequestBodyLimit(t *testing.T, h2 bool) {
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
 func TestClientWriteShutdown(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see https://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/17906")
 	}
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
@@ -3175,25 +3178,32 @@ For:
 	ts.Close()
 }
 
-// Tests that a pipelined request causes the first request's Handler's CloseNotify
-// channel to fire. Previously it deadlocked.
+// Tests that a pipelined request does not cause the first request's
+// Handler's CloseNotify channel to fire.
 //
-// Issue 13165
+// Issue 13165 (where it used to deadlock), but behavior changed in Issue 23921.
 func TestCloseNotifierPipelined(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	gotReq := make(chan bool, 2)
 	sawClose := make(chan bool, 2)
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
 		gotReq <- true
 		cc := rw.(CloseNotifier).CloseNotify()
-		<-cc
+		select {
+		case <-cc:
+			t.Error("unexpected CloseNotify")
+		case <-time.After(100 * time.Millisecond):
+		}
 		sawClose <- true
 	}))
+	defer ts.Close()
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("error dialing: %v", err)
 	}
 	diec := make(chan bool, 1)
+	defer close(diec)
 	go func() {
 		const req = "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n"
 		_, err = io.WriteString(conn, req+req) // two requests
@@ -3206,27 +3216,23 @@ func TestCloseNotifierPipelined(t *testing.T) {
 	}()
 	reqs := 0
 	closes := 0
-For:
 	for {
 		select {
 		case <-gotReq:
 			reqs++
 			if reqs > 2 {
 				t.Fatal("too many requests")
-			} else if reqs > 1 {
-				diec <- true
 			}
 		case <-sawClose:
 			closes++
 			if closes > 1 {
-				break For
+				return
 			}
 		case <-time.After(5 * time.Second):
 			ts.CloseClientConnections()
 			t.Fatal("timeout")
 		}
 	}
-	ts.Close()
 }
 
 func TestCloseNotifierChanLeak(t *testing.T) {
@@ -3575,26 +3581,6 @@ func TestHeaderToWire(t *testing.T) {
 				}
 				if strings.Contains(got, "Too-Late") {
 					return errors.New("shouldn't have seen Too-Late")
-				}
-				return nil
-			},
-		},
-		{
-			name: "Nosniff without Content-type",
-			handler: func(rw ResponseWriter, r *Request) {
-				rw.Header().Set("X-Content-Type-Options", "nosniff")
-				rw.WriteHeader(200)
-				rw.Write([]byte("<!doctype html>\n<html><head></head><body>some html</body></html>"))
-			},
-			check: func(got, logs string) error {
-				if !strings.Contains(got, "Content-Type: application/octet-stream\r\n") {
-					return errors.New("Output should have an innocuous content-type")
-				}
-				if strings.Contains(got, "text/html") {
-					return errors.New("Output should not have a guess")
-				}
-				if !strings.Contains(logs, "X-Content-Type-Options:nosniff but no Content-Type") {
-					return errors.New("Expected log message")
 				}
 				return nil
 			},
@@ -5562,6 +5548,76 @@ func testServerShutdown(t *testing.T, h2 bool) {
 	}
 }
 
+func TestServerShutdownStateNew(t *testing.T) {
+	if testing.Short() {
+		t.Skip("test takes 5-6 seconds; skipping in short mode")
+	}
+	setParallel(t)
+	defer afterTest(t)
+
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// nothing.
+	}))
+	var connAccepted sync.WaitGroup
+	ts.Config.ConnState = func(conn net.Conn, state ConnState) {
+		if state == StateNew {
+			connAccepted.Done()
+		}
+	}
+	ts.Start()
+	defer ts.Close()
+
+	// Start a connection but never write to it.
+	connAccepted.Add(1)
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	// Wait for the connection to be accepted by the server. Otherwise, if
+	// Shutdown happens to run first, the server will be closed when
+	// encountering the connection, in which case it will be rejected
+	// immediately.
+	connAccepted.Wait()
+
+	shutdownRes := make(chan error, 1)
+	go func() {
+		shutdownRes <- ts.Config.Shutdown(context.Background())
+	}()
+	readRes := make(chan error, 1)
+	go func() {
+		_, err := c.Read([]byte{0})
+		readRes <- err
+	}()
+
+	const expectTimeout = 5 * time.Second
+	t0 := time.Now()
+	select {
+	case got := <-shutdownRes:
+		d := time.Since(t0)
+		if got != nil {
+			t.Fatalf("shutdown error after %v: %v", d, err)
+		}
+		if d < expectTimeout/2 {
+			t.Errorf("shutdown too soon after %v", d)
+		}
+	case <-time.After(expectTimeout * 3 / 2):
+		t.Fatalf("timeout waiting for shutdown")
+	}
+
+	// Wait for c.Read to unblock; should be already done at this point,
+	// or within a few milliseconds.
+	select {
+	case err := <-readRes:
+		if err == nil {
+			t.Error("expected error from Read")
+		}
+	case <-time.After(2 * time.Second):
+		t.Errorf("timeout waiting for Read to unblock")
+	}
+}
+
 // Issue 17878: tests that we can call Close twice.
 func TestServerCloseDeadlock(t *testing.T) {
 	var s Server
@@ -5726,30 +5782,22 @@ func TestServerHijackGetsBackgroundByte(t *testing.T) {
 		// Tell the client to send more data after the GET request.
 		inHandler <- true
 
-		// Wait until the HTTP server sees the extra data
-		// after the GET request. The HTTP server fires the
-		// close notifier here, assuming it's a pipelined
-		// request, as documented.
-		select {
-		case <-w.(CloseNotifier).CloseNotify():
-		case <-time.After(5 * time.Second):
-			t.Error("timeout")
-			return
-		}
-
 		conn, buf, err := w.(Hijacker).Hijack()
 		if err != nil {
 			t.Error(err)
 			return
 		}
 		defer conn.Close()
-		n := buf.Reader.Buffered()
-		if n != 1 {
-			t.Errorf("buffered data = %d; want 1", n)
-		}
+
 		peek, err := buf.Reader.Peek(3)
 		if string(peek) != "foo" || err != nil {
 			t.Errorf("Peek = %q, %v; want foo, nil", peek, err)
+		}
+
+		select {
+		case <-r.Context().Done():
+			t.Error("context unexpectedly canceled")
+		default:
 		}
 	}))
 	defer ts.Close()
@@ -5790,17 +5838,6 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
 	const size = 8 << 10
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		defer close(done)
-
-		// Wait until the HTTP server sees the extra data
-		// after the GET request. The HTTP server fires the
-		// close notifier here, assuming it's a pipelined
-		// request, as documented.
-		select {
-		case <-w.(CloseNotifier).CloseNotify():
-		case <-time.After(5 * time.Second):
-			t.Error("timeout")
-			return
-		}
 
 		conn, buf, err := w.(Hijacker).Hijack()
 		if err != nil {
@@ -5884,6 +5921,81 @@ func (eofListenerNotComparable) Close() error              { return nil }
 func TestServerListenNotComparableListener(t *testing.T) {
 	var s Server
 	s.Serve(make(eofListenerNotComparable, 1)) // used to panic
+}
+
+// countCloseListener is a Listener wrapper that counts the number of Close calls.
+type countCloseListener struct {
+	net.Listener
+	closes int32 // atomic
+}
+
+func (p *countCloseListener) Close() error {
+	atomic.AddInt32(&p.closes, 1)
+	return nil
+}
+
+// Issue 24803: don't call Listener.Close on Server.Shutdown.
+func TestServerCloseListenerOnce(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	cl := &countCloseListener{Listener: ln}
+	server := &Server{}
+	sdone := make(chan bool, 1)
+
+	go func() {
+		server.Serve(cl)
+		sdone <- true
+	}()
+	time.Sleep(10 * time.Millisecond)
+	server.Shutdown(context.Background())
+	ln.Close()
+	<-sdone
+
+	nclose := atomic.LoadInt32(&cl.closes)
+	if nclose != 1 {
+		t.Errorf("Close calls = %v; want 1", nclose)
+	}
+}
+
+// Issue 20239: don't block in Serve if Shutdown is called first.
+func TestServerShutdownThenServe(t *testing.T) {
+	var srv Server
+	cl := &countCloseListener{Listener: nil}
+	srv.Shutdown(context.Background())
+	got := srv.Serve(cl)
+	if got != ErrServerClosed {
+		t.Errorf("Serve err = %v; want ErrServerClosed", got)
+	}
+	nclose := atomic.LoadInt32(&cl.closes)
+	if nclose != 1 {
+		t.Errorf("Close calls = %v; want 1", nclose)
+	}
+}
+
+// Issue 23351: document and test behavior of ServeMux with ports
+func TestStripPortFromHost(t *testing.T) {
+	mux := NewServeMux()
+
+	mux.HandleFunc("example.com/", func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "OK")
+	})
+	mux.HandleFunc("example.com:9000/", func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "uh-oh!")
+	})
+
+	req := httptest.NewRequest("GET", "http://example.com:9000/", nil)
+	rw := httptest.NewRecorder()
+
+	mux.ServeHTTP(rw, req)
+
+	response := rw.Body.String()
+	if response != "OK" {
+		t.Errorf("Response gotten was %q", response)
+	}
 }
 
 func BenchmarkResponseStatusLine(b *testing.B) {

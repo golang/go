@@ -8,6 +8,7 @@ package vet
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 	"path/filepath"
 )
@@ -15,7 +16,7 @@ import (
 var CmdVet = &base.Command{
 	Run:         runVet,
 	CustomFlags: true,
-	UsageLine:   "vet [-n] [-x] [build flags] [vet flags] [packages]",
+	UsageLine:   "go vet [-n] [-x] [build flags] [vet flags] [packages]",
 	Short:       "report likely mistakes in packages",
 	Long: `
 Vet runs the Go vet command on the packages named by the import paths.
@@ -35,6 +36,8 @@ See also: go fmt, go fix.
 }
 
 func runVet(cmd *base.Command, args []string) {
+	modload.LoadTests = true
+
 	vetFlags, pkgArgs := vetFlags(args)
 
 	work.BuildInit()

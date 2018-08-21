@@ -28,7 +28,7 @@ func charsetReader(charset string, input io.Reader) (io.Reader, error) {
 
 // parseMetaGoImports returns meta imports from the HTML in r.
 // Parsing ends at the end of the <head> section or the beginning of the <body>.
-func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
+func parseMetaGoImports(r io.Reader, mod ModuleMode) (imports []metaImport, err error) {
 	d := xml.NewDecoder(r)
 	d.CharsetReader = charsetReader
 	d.Strict = false
@@ -39,13 +39,13 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 			if err == io.EOF || len(imports) > 0 {
 				err = nil
 			}
-			return
+			break
 		}
 		if e, ok := t.(xml.StartElement); ok && strings.EqualFold(e.Name.Local, "body") {
-			return
+			break
 		}
 		if e, ok := t.(xml.EndElement); ok && strings.EqualFold(e.Name.Local, "head") {
-			return
+			break
 		}
 		e, ok := t.(xml.StartElement)
 		if !ok || !strings.EqualFold(e.Name.Local, "meta") {
@@ -55,13 +55,6 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 			continue
 		}
 		if f := strings.Fields(attrValue(e.Attr, "content")); len(f) == 3 {
-			// Ignore VCS type "mod", which is new Go modules.
-			// This code is for old go get and must ignore the new mod lines.
-			// Otherwise matchGoImport will complain about two
-			// different metaImport lines for the same Prefix.
-			if f[1] == "mod" {
-				continue
-			}
 			imports = append(imports, metaImport{
 				Prefix:   f[0],
 				VCS:      f[1],
@@ -69,6 +62,27 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 			})
 		}
 	}
+
+	// Extract mod entries if we are paying attention to them.
+	var list []metaImport
+	var have map[string]bool
+	if mod == PreferMod {
+		have = make(map[string]bool)
+		for _, m := range imports {
+			if m.VCS == "mod" {
+				have[m.Prefix] = true
+				list = append(list, m)
+			}
+		}
+	}
+
+	// Append non-mod entries, ignoring those superseded by a mod entry.
+	for _, m := range imports {
+		if m.VCS != "mod" && !have[m.Prefix] {
+			list = append(list, m)
+		}
+	}
+	return list, nil
 }
 
 // attrValue returns the attribute value for the case-insensitive key

@@ -315,7 +315,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 	// Layout new m scheduler stack on os stack.
 	MOVL	SP, AX
 	MOVL	AX, (g_stack+stack_hi)(DX)
-	SUBL	$(64*1024), AX		// stack size
+	SUBL	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVL	AX, (g_stack+stack_lo)(DX)
 	ADDL	$const__StackGuard, AX
 	MOVL	AX, g_stackguard0(DX)

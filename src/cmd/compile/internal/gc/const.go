@@ -243,15 +243,20 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 			n.Type = t
 		}
 
-		if n.Type.Etype == TIDEAL {
-			n.Left = convlit(n.Left, t)
-			n.Right = convlit(n.Right, t)
-			n.Type = t
+		if n.Type.IsUntyped() {
+			if t.IsInterface() {
+				n.Left, n.Right = defaultlit2(n.Left, n.Right, true)
+				n.Type = n.Left.Type // same as n.Right.Type per defaultlit2
+			} else {
+				n.Left = convlit(n.Left, t)
+				n.Right = convlit(n.Right, t)
+				n.Type = t
+			}
 		}
 
 		return n
 
-		// target is invalid type for a constant? leave alone.
+	// target is invalid type for a constant? leave alone.
 	case OLITERAL:
 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
 			return defaultlitreuse(n, nil, reuse)
@@ -294,7 +299,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 		return n
 	}
 
-	// avoided repeated calculations, errors
+	// avoid repeated calculations, errors
 	if eqtype(n.Type, t) {
 		return n
 	}
@@ -761,7 +766,7 @@ func evconst(n *Node) {
 			v.U.(*Mpint).Neg()
 
 		case OCOM_ | CTINT_:
-			var et types.EType = Txxx
+			et := Txxx
 			if nl.Type != nil {
 				et = nl.Type.Etype
 			}
@@ -1266,7 +1271,6 @@ func idealkind(n *Node) Ctype {
 		OOR,
 		OPLUS:
 		k1 := idealkind(n.Left)
-
 		k2 := idealkind(n.Right)
 		if k1 > k2 {
 			return k1

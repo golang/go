@@ -100,7 +100,7 @@ GLOBL ·erftab12067<> + 0(SB), RODATA, $16
 TEXT	·erfAsm(SB), NOSPLIT, $0-16
 	FMOVD	x+0(FP), F0
 	MOVD	$·erfrodataL13<>+0(SB), R5
-	WORD	$0xB3CD0010	//lgdr %r1, %f0
+	LGDR	F0, R1
 	FMOVD	F0, F6
 	SRAD	$48, R1
 	MOVH	$16383, R3
@@ -205,7 +205,7 @@ L9:
 	FMOVD	256(R5), F4
 	WFMADB	V1, V4, V3, V4
 	FDIV	F6, F2
-	WORD	$0xB3CD0014	//lgdr %r1, %f4
+	LGDR	F4, R1
 	FSUB	F3, F4
 	FMOVD	248(R5), F6
 	WFMSDB	V4, V6, V1, V4
@@ -230,7 +230,7 @@ L9:
 	BYTE	$0x59
 	MOVD	$·erftab2066<>+0(SB), R1
 	FMOVD	192(R5), F1
-	WORD	$0xB3C10033	//ldgr %f3,%r3
+	LDGR	R3, F3
 	WORD	$0xED221000	//madb %f2,%f2,0(%r2,%r1)
 	BYTE	$0x20
 	BYTE	$0x1E

@@ -44,18 +44,16 @@ control repositories.
 <h3 id="Workspaces">Workspaces</h3>
 
 <p>
-A workspace is a directory hierarchy with three directories at its root:
+A workspace is a directory hierarchy with two directories at its root:
 </p>
 
 <ul>
-<li><code>src</code> contains Go source files,
-<li><code>pkg</code> contains package objects, and
+<li><code>src</code> contains Go source files, and
 <li><code>bin</code> contains executable commands.
 </ul>
 
 <p>
-The <code>go</code> tool builds source packages and installs the resulting
-binaries to the <code>pkg</code> and <code>bin</code> directories.
+The <code>go</code> tool builds and installs binaries to the <code>bin</code> directory.
 </p>
 
 <p>
@@ -72,10 +70,6 @@ To give you an idea of how a workspace looks in practice, here's an example:
 bin/
     hello                          # command executable
     outyet                         # command executable
-pkg/
-    linux_amd64/
-        github.com/golang/example/
-            stringutil.a           # package object
 src/
     <a href="https://github.com/golang/example/">github.com/golang/example/</a>
         .git/                      # Git repository metadata
@@ -108,6 +102,10 @@ and <a href="https://godoc.org/golang.org/x/image">several others</a>.
 A typical workspace contains many source repositories containing many
 packages and commands. Most Go programmers keep <i>all</i> their Go source code
 and dependencies in a single workspace.
+</p>
+
+<p>
+Note that symbolic links should <b>not</b> be used to link files or directories into your workspace.
 </p>
 
 <p>
@@ -236,7 +234,7 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Printf("Hello, world.\n")
+	fmt.Println("Hello, world.")
 }
 </pre>
 
@@ -370,9 +368,8 @@ $ <b>go build</b>
 </pre>
 
 <p>
-This won't produce an output file. To do that, you must use <code>go
-install</code>, which places the package object inside the <code>pkg</code>
-directory of the workspace.
+This won't produce an output file.
+Instead it saves the compiled package in the local build cache.
 </p>
 
 <p>
@@ -391,23 +388,17 @@ import (
 )
 
 func main() {
-	fmt.Printf(stringutil.Reverse("!oG ,olleH"))
+	fmt.Println(stringutil.Reverse("!oG ,olleH"))
 }
 </pre>
 
 <p>
-Whenever the <code>go</code> tool installs a package or binary, it also
-installs whatever dependencies it has.
-So when you install the <code>hello</code> program
+Install the <code>hello</code> program:
 </p>
 
 <pre>
 $ <b>go install github.com/user/hello</b>
 </pre>
-
-<p>
-the <code>stringutil</code> package will be installed as well, automatically.
-</p>
 
 <p>
 Running the new version of the program, you should see a new, reversed message:
@@ -425,10 +416,6 @@ After the steps above, your workspace should look like this:
 <pre>
 bin/
     hello                 # command executable
-pkg/
-    linux_amd64/          # this will reflect your OS and architecture
-        github.com/user/
-            stringutil.a  # package object
 src/
     github.com/user/
         hello/
@@ -436,22 +423,6 @@ src/
         stringutil/
             reverse.go    # package source
 </pre>
-
-<p>
-Note that <code>go install</code> placed the <code>stringutil.a</code> object
-in a directory inside <code>pkg/linux_amd64</code> that mirrors its source
-directory.
-This is so that future invocations of the <code>go</code> tool can find the
-package object and avoid recompiling the package unnecessarily.
-The <code>linux_amd64</code> part is there to aid in cross-compilation,
-and will reflect the operating system and architecture of your system.
-</p>
-
-<p>
-Go command executables are statically linked; the package objects need not
-be present to run Go programs.
-</p>
-
 
 <h3 id="PackageNames">Package names</h3>
 
@@ -593,12 +564,6 @@ tree should now look like this:
 <pre>
 bin/
     hello                           # command executable
-pkg/
-    linux_amd64/
-        github.com/golang/example/
-            stringutil.a            # package object
-        github.com/user/
-            stringutil.a            # package object
 src/
     github.com/golang/example/
 	.git/                       # Git repository metadata
@@ -669,7 +634,7 @@ articles about the Go language and its libraries and tools.
 
 <p>
 For real-time help, ask the helpful gophers in <code>#go-nuts</code> on the
-<a href="http://freenode.net/">Freenode</a> IRC server.
+<a href="https://freenode.net/">Freenode</a> IRC server.
 </p>
 
 <p>

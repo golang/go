@@ -32,6 +32,7 @@ type systeminfo struct {
 const (
 	PROCESSOR_ARCHITECTURE_AMD64 = 9
 	PROCESSOR_ARCHITECTURE_INTEL = 0
+	PROCESSOR_ARCHITECTURE_ARM   = 5
 )
 
 var sysinfo systeminfo
@@ -43,6 +44,8 @@ func sysinit() {
 		gohostarch = "amd64"
 	case PROCESSOR_ARCHITECTURE_INTEL:
 		gohostarch = "386"
+	case PROCESSOR_ARCHITECTURE_ARM:
+		gohostarch = "arm"
 	default:
 		fatalf("unknown processor architecture")
 	}

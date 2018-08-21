@@ -238,6 +238,7 @@ func Version() string {
 
 // GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
+// To view possible combinations of GOOS and GOARCH, run "go tool dist list".
 const GOOS string = sys.GOOS
 
 // GOARCH is the running program's architecture target:

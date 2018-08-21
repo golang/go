@@ -451,3 +451,24 @@ type G = g
 func Getg() *G {
 	return getg()
 }
+
+//go:noinline
+func PanicForTesting(b []byte, i int) byte {
+	return unexportedPanicForTesting(b, i)
+}
+
+//go:noinline
+func unexportedPanicForTesting(b []byte, i int) byte {
+	return b[i]
+}
+
+func G0StackOverflow() {
+	systemstack(func() {
+		stackOverflow(nil)
+	})
+}
+
+func stackOverflow(x *byte) {
+	var buf [256]byte
+	stackOverflow(&buf[0])
+}

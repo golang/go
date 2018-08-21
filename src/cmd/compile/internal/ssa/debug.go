@@ -535,8 +535,6 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
 	}
 
 	if len(preds) == 0 {
-		if state.loggingEnabled {
-		}
 		state.currentState.reset(nil)
 		return nil, true
 	}
@@ -765,7 +763,7 @@ type partsByVarOffset struct {
 
 func (a partsByVarOffset) Len() int { return len(a.slotIDs) }
 func (a partsByVarOffset) Less(i, j int) bool {
-	return varOffset(a.slots[a.slotIDs[i]]) < varOffset(a.slots[a.slotIDs[i]])
+	return varOffset(a.slots[a.slotIDs[i]]) < varOffset(a.slots[a.slotIDs[j]])
 }
 func (a partsByVarOffset) Swap(i, j int) { a.slotIDs[i], a.slotIDs[j] = a.slotIDs[j], a.slotIDs[i] }
 
@@ -854,7 +852,6 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 			}
 			state.changedVars.clear()
 		}
-
 	}
 
 	if state.loggingEnabled {
@@ -914,8 +911,6 @@ func (state *debugState) updateVar(varID VarID, v *Value, curLoc []VarLoc) {
 	for i, slot := range state.varSlots[varID] {
 		pending.pieces[i] = curLoc[slot]
 	}
-	return
-
 }
 
 // writePendingEntry writes out the pending entry for varID, if any,

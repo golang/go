@@ -625,13 +625,13 @@ func ToLower(s string) string {
 func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
 
 // ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
-// upper case, giving priority to the special casing rules.
+// upper case using the case mapping specified by c.
 func ToUpperSpecial(c unicode.SpecialCase, s string) string {
 	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
 }
 
 // ToLowerSpecial returns a copy of the string s with all Unicode letters mapped to their
-// lower case, giving priority to the special casing rules.
+// lower case using the case mapping specified by c.
 func ToLowerSpecial(c unicode.SpecialCase, s string) string {
 	return Map(func(r rune) rune { return c.ToLower(r) }, s)
 }
@@ -806,6 +806,8 @@ func Trim(s string, cutset string) string {
 
 // TrimLeft returns a slice of the string s with all leading
 // Unicode code points contained in cutset removed.
+//
+// To remove a prefix, use TrimPrefix instead.
 func TrimLeft(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -815,6 +817,8 @@ func TrimLeft(s string, cutset string) string {
 
 // TrimRight returns a slice of the string s, with all trailing
 // Unicode code points contained in cutset removed.
+//
+// To remove a suffix, use TrimSuffix instead.
 func TrimRight(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s

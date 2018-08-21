@@ -186,7 +186,7 @@ TEXT runtime·return0(SB), NOSPLIT, $0-0
 	RET
 
 TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
-	MOVD fn+0(FP), CTXT
+	MOVD fv+0(FP), CTXT
 
 	Get CTXT
 	I64Eqz
@@ -297,7 +297,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-0
 	JMP ·reflectcall(SB)
 
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
-	I64Load f+8(FP)
+	I64Load fn+8(FP)
 	I64Eqz
 	If
 		CALLNORESUME runtime·sigpanic(SB)

@@ -20,7 +20,8 @@ import (
 var (
 	BuildA                 bool   // -a flag
 	BuildBuildmode         string // -buildmode flag
-	BuildContext           = build.Default
+	BuildContext           = defaultContext()
+	BuildMod               string             // -mod flag
 	BuildI                 bool               // -i flag
 	BuildLinkshared        bool               // -linkshared flag
 	BuildMSan              bool               // -msan flag
@@ -41,6 +42,12 @@ var (
 
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 )
+
+func defaultContext() build.Context {
+	ctxt := build.Default
+	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
+	return ctxt
+}
 
 func init() {
 	BuildToolchainCompiler = func() string { return "missing-compiler" }
@@ -67,6 +74,16 @@ var (
 	Goos      = BuildContext.GOOS
 	ExeSuffix string
 	Gopath    = filepath.SplitList(BuildContext.GOPATH)
+
+	// ModulesEnabled specifies whether the go command is running
+	// in module-aware mode (as opposed to GOPATH mode).
+	// It is equal to modload.Enabled, but not all packages can import modload.
+	ModulesEnabled bool
+
+	// GoModInGOPATH records whether we've found a go.mod in GOPATH/src
+	// in GO111MODULE=auto mode. In that case, we don't use modules
+	// but people might expect us to, so 'go get' warns.
+	GoModInGOPATH string
 )
 
 func init() {
@@ -103,6 +120,16 @@ func init() {
 	}
 }
 
+// There is a copy of findGOROOT, isSameDir, and isGOROOT in
+// x/tools/cmd/godoc/goroot.go.
+// Try to keep them in sync for now.
+
+// findGOROOT returns the GOROOT value, using either an explicitly
+// provided environment variable, a GOROOT that contains the current
+// os.Executable value, or else the GOROOT that the binary was built
+// with from runtime.GOROOT().
+//
+// There is a copy of this code in x/tools/cmd/godoc/goroot.go.
 func findGOROOT() string {
 	if env := os.Getenv("GOROOT"); env != "" {
 		return filepath.Clean(env)
@@ -162,6 +189,8 @@ func isSameDir(dir1, dir2 string) bool {
 // It does this by looking for the path/pkg/tool directory,
 // which is necessary for useful operation of the cmd/go tool,
 // and is not typically present in a GOPATH.
+//
+// There is a copy of this code in x/tools/cmd/godoc/goroot.go.
 func isGOROOT(path string) bool {
 	stat, err := os.Stat(filepath.Join(path, "pkg", "tool"))
 	if err != nil {

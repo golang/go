@@ -1258,6 +1258,31 @@ func TestFloatAdd(t *testing.T) {
 	}
 }
 
+// TestFloatAddRoundZero tests Float.Add/Sub rounding when the result is exactly zero.
+// x + (-x) or x - x for non-zero x should be +0 in all cases except when
+// the rounding mode is ToNegativeInf in which case it should be -0.
+func TestFloatAddRoundZero(t *testing.T) {
+	for _, mode := range [...]RoundingMode{ToNearestEven, ToNearestAway, ToZero, AwayFromZero, ToPositiveInf, ToNegativeInf} {
+		x := NewFloat(5.0)
+		y := new(Float).Neg(x)
+		want := NewFloat(0.0)
+		if mode == ToNegativeInf {
+			want.Neg(want)
+		}
+		got := new(Float).SetMode(mode)
+		got.Add(x, y)
+		if got.Cmp(want) != 0 || got.neg != (mode == ToNegativeInf) {
+			t.Errorf("%s:\n\t     %v\n\t+    %v\n\t=    %v\n\twant %v",
+				mode, x, y, got, want)
+		}
+		got.Sub(x, x)
+		if got.Cmp(want) != 0 || got.neg != (mode == ToNegativeInf) {
+			t.Errorf("%v:\n\t     %v\n\t-    %v\n\t=    %v\n\twant %v",
+				mode, x, x, got, want)
+		}
+	}
+}
+
 // TestFloatAdd32 tests that Float.Add/Sub of numbers with
 // 24bit mantissa behaves like float32 addition/subtraction
 // (excluding denormal numbers).

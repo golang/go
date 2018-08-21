@@ -352,6 +352,7 @@
 (GetCallerPC) -> (LoweredGetCallerPC)
 (GetCallerSP) -> (LoweredGetCallerSP)
 (Addr {sym} base) -> (LoweredAddr {sym} base)
+(LocalAddr {sym} base _) -> (LoweredAddr {sym} base)
 
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
@@ -390,6 +391,7 @@
 (I64AddConst [0] x) -> x
 (I64Eqz (I64Eqz (I64Eqz x))) -> (I64Eqz x)
 
+// folding offset into load/store
 ((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off] (I64AddConst [off2] ptr) mem)
 	&& isU32Bit(off+off2) ->
 	((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off+off2] ptr mem)
@@ -397,3 +399,7 @@
 ((I64Store|I64Store32|I64Store16|I64Store8) [off] (I64AddConst [off2] ptr) val mem)
 	&& isU32Bit(off+off2) ->
 	((I64Store|I64Store32|I64Store16|I64Store8) [off+off2] ptr val mem)
+
+// folding offset into address
+(I64AddConst [off] (LoweredAddr {sym} [off2] base)) && isU32Bit(off+off2) ->
+	(LoweredAddr {sym} [off+off2] base)

@@ -34,6 +34,10 @@ type readlineUI struct {
 }
 
 func newReadlineUI() driver.UI {
+	// disable readline UI in dumb terminal. (golang.org/issue/26254)
+	if v := strings.ToLower(os.Getenv("TERM")); v == "" || v == "dumb" {
+		return nil
+	}
 	// test if we can use terminal.ReadLine
 	// that assumes operation in the raw mode.
 	oldState, err := terminal.MakeRaw(0)

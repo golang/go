@@ -2,14 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//
 // System calls and other sys.stuff for AMD64, Darwin
-// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
-// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
-//
-// The low 24 bits are the system call number.
-// The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
-//
+// System calls are implemented in libSystem, this file contains
+// trampolines that convert from Go to C calling convention.
 
 #include "go_asm.h"
 #include "go_tls.h"
@@ -63,22 +58,14 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·raiseproc(SB),NOSPLIT,$24
-	MOVL	$(0x2000000+20), AX // getpid
-	SYSCALL
-	MOVQ	AX, DI	// arg 1 - pid
-	MOVL	sig+0(FP), SI	// arg 2 - signal
-	MOVL	$1, DX	// arg 3 - posix
-	MOVL	$(0x2000000+37), AX // kill
-	SYSCALL
-	RET
-
-TEXT runtime·setitimer(SB), NOSPLIT, $0
-	MOVL	mode+0(FP), DI
-	MOVQ	new+8(FP), SI
-	MOVQ	old+16(FP), DX
-	MOVL	$(0x2000000+83), AX	// syscall entry
-	SYSCALL
+TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 new
+	MOVQ	16(DI), DX		// arg 3 old
+	MOVL	0(DI), DI		// arg 1 which
+	CALL	libc_setitimer(SB)
+	POPQ	BP
 	RET
 
 TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
@@ -132,26 +119,53 @@ TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	how+0(FP), DI
-	MOVQ	new+8(FP), SI
-	MOVQ	old+16(FP), DX
-	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
-	SYSCALL
-	JCC	2(PC)
+TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 new
+	MOVQ	16(DI), DX		// arg 3 old
+	MOVL	0(DI), DI		// arg 1 sig
+	CALL	libc_sigaction(SB)
+	TESTL	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	POPQ	BP
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$0-24
-	MOVL	mode+0(FP), DI		// arg 1 sig
-	MOVQ	new+8(FP), SI		// arg 2 act
-	MOVQ	old+16(FP), DX		// arg 3 oact
-	MOVQ	old+16(FP), CX		// arg 3 oact
-	MOVQ	old+16(FP), R10		// arg 3 oact
-	MOVL	$(0x2000000+46), AX	// syscall entry
-	SYSCALL
-	JCC	2(PC)
+TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 new
+	MOVQ	16(DI), DX	// arg 3 old
+	MOVL	0(DI), DI	// arg 1 how
+	CALL	libc_pthread_sigmask(SB)
+	TESTL	AX, AX
+	JEQ	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	POPQ	BP
+	RET
+
+TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 old
+	MOVQ	0(DI), DI		// arg 1 new
+	CALL	libc_sigaltstack(SB)
+	TESTQ	AX, AX
+	JEQ	2(PC)
+	MOVL	$0xf1, 0xf1  // crash
+	POPQ	BP
+	RET
+
+TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	0(DI), BX	// signal
+	CALL	libc_getpid(SB)
+	MOVL	AX, DI		// arg 1 pid
+	MOVL	BX, SI		// arg 2 signal
+	CALL	libc_kill(SB)
+	POPQ	BP
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
@@ -167,21 +181,115 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$40
-	MOVL SI, 24(SP) // save infostyle for sigreturn below
-	MOVQ R8, 32(SP) // save ctx
-	MOVL DX, 0(SP)  // sig
-	MOVQ CX, 8(SP)  // info
-	MOVQ R8, 16(SP) // ctx
-	MOVQ $runtime·sigtrampgo(SB), AX
-	CALL AX
-	MOVQ 32(SP), DI // ctx
-	MOVL 24(SP), SI // infostyle
-	MOVL $(0x2000000+184), AX
-	SYSCALL
-	INT $3 // not reached
+// This is the function registered during sigaction and is invoked when
+// a signal is received. It just redirects to the Go function sigtrampgo.
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// This runs on the signal stack, so we have lots of stack available.
+	// We allocate our own stack space, because if we tell the linker
+	// how much we're using, the NOSPLIT check fails.
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$64, SP
 
+	// Save callee-save registers.
+	MOVQ	BX, 24(SP)
+	MOVQ	R12, 32(SP)
+	MOVQ	R13, 40(SP)
+	MOVQ	R14, 48(SP)
+	MOVQ	R15, 56(SP)
 
+	// Call into the Go signal handler
+	MOVL	DI, 0(SP)  // sig
+	MOVQ	SI, 8(SP)  // info
+	MOVQ	DX, 16(SP) // ctx
+	CALL runtime·sigtrampgo(SB)
+
+	// Restore callee-save registers.
+	MOVQ	24(SP), BX
+	MOVQ	32(SP), R12
+	MOVQ	40(SP), R13
+	MOVQ	48(SP), R14
+	MOVQ	56(SP), R15
+
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
+
+// Used instead of sigtramp in programs that use cgo.
+// Arguments from kernel are in DI, SI, DX.
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	// If no traceback function, do usual sigtramp.
+	MOVQ	runtime·cgoTraceback(SB), AX
+	TESTQ	AX, AX
+	JZ	sigtramp
+
+	// If no traceback support function, which means that
+	// runtime/cgo was not linked in, do usual sigtramp.
+	MOVQ	_cgo_callers(SB), AX
+	TESTQ	AX, AX
+	JZ	sigtramp
+
+	// Figure out if we are currently in a cgo call.
+	// If not, just do usual sigtramp.
+	get_tls(CX)
+	MOVQ	g(CX),AX
+	TESTQ	AX, AX
+	JZ	sigtrampnog     // g == nil
+	MOVQ	g_m(AX), AX
+	TESTQ	AX, AX
+	JZ	sigtramp        // g.m == nil
+	MOVL	m_ncgo(AX), CX
+	TESTL	CX, CX
+	JZ	sigtramp        // g.m.ncgo == 0
+	MOVQ	m_curg(AX), CX
+	TESTQ	CX, CX
+	JZ	sigtramp        // g.m.curg == nil
+	MOVQ	g_syscallsp(CX), CX
+	TESTQ	CX, CX
+	JZ	sigtramp        // g.m.curg.syscallsp == 0
+	MOVQ	m_cgoCallers(AX), R8
+	TESTQ	R8, R8
+	JZ	sigtramp        // g.m.cgoCallers == nil
+	MOVL	m_cgoCallersUse(AX), CX
+	TESTL	CX, CX
+	JNZ	sigtramp	// g.m.cgoCallersUse != 0
+
+	// Jump to a function in runtime/cgo.
+	// That function, written in C, will call the user's traceback
+	// function with proper unwind info, and will then call back here.
+	// The first three arguments, and the fifth, are already in registers.
+	// Set the two remaining arguments now.
+	MOVQ	runtime·cgoTraceback(SB), CX
+	MOVQ	$runtime·sigtramp(SB), R9
+	MOVQ	_cgo_callers(SB), AX
+	JMP	AX
+
+sigtramp:
+	JMP	runtime·sigtramp(SB)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+	// stack trace.
+	CMPL	DI, $27 // 27 == SIGPROF
+	JNZ	sigtramp
+
+	// Lock sigprofCallersUse.
+	MOVL	$0, AX
+	MOVL	$1, CX
+	MOVQ	$runtime·sigprofCallersUse(SB), R11
+	LOCK
+	CMPXCHGL	CX, 0(R11)
+	JNZ	sigtramp  // Skip stack trace if already locked.
+
+	// Jump to the traceback function in runtime/cgo.
+	// It will call back to sigprofNonGo, which will ignore the
+	// arguments passed in registers.
+	// First three arguments to traceback function are in registers already.
+	MOVQ	runtime·cgoTraceback(SB), CX
+	MOVQ	$runtime·sigprofCallers(SB), R8
+	MOVQ	$runtime·sigprofNonGo(SB), R9
+	MOVQ	_cgo_callers(SB), AX
+	JMP	AX
 
 TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP			// make a frame; keep stack aligned
@@ -198,7 +306,7 @@ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	CMPQ	AX, $-1
 	JNE	ok
 	CALL	libc_error(SB)
-	MOVQ	(AX), DX		// errno
+	MOVLQSX	(AX), DX		// errno
 	XORL	AX, AX
 ok:
 	MOVQ	AX, 32(BX)
@@ -218,15 +326,6 @@ TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVQ	new+0(FP), DI
-	MOVQ	old+8(FP), SI
-	MOVQ	$(0x2000000+53), AX
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
-	RET
-
 TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
@@ -235,134 +334,57 @@ TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-// Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
-
-// func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
-TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
-	MOVQ	h+0(FP), DI
-	MOVL	op+8(FP), SI
-	MOVL	send_size+12(FP), DX
-	MOVL	rcv_size+16(FP), R10
-	MOVL	rcv_name+20(FP), R8
-	MOVL	timeout+24(FP), R9
-	MOVL	notify+28(FP), R11
-	PUSHQ	R11	// seventh arg, on stack
-	MOVL	$(0x1000000+31), AX	// mach_msg_trap
-	SYSCALL
-	POPQ	R11
-	MOVL	AX, ret+32(FP)
-	RET
-
-TEXT runtime·mach_task_self(SB),NOSPLIT,$0
-	MOVL	$(0x1000000+28), AX	// task_self_trap
-	SYSCALL
-	MOVL	AX, ret+0(FP)
-	RET
-
-TEXT runtime·mach_thread_self(SB),NOSPLIT,$0
-	MOVL	$(0x1000000+27), AX	// thread_self_trap
-	SYSCALL
-	MOVL	AX, ret+0(FP)
-	RET
-
-TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
-	MOVL	$(0x1000000+26), AX	// mach_reply_port
-	SYSCALL
-	MOVL	AX, ret+0(FP)
-	RET
-
-// Mach provides trap versions of the semaphore ops,
-// instead of requiring the use of RPC.
-
-// func mach_semaphore_wait(sema uint32) int32
-TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
-	MOVL	sema+0(FP), DI
-	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
-	SYSCALL
-	MOVL	AX, ret+8(FP)
-	RET
-
-// func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
-TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
-	MOVL	sema+0(FP), DI
-	MOVL	sec+4(FP), SI
-	MOVL	nsec+8(FP), DX
-	MOVL	$(0x1000000+38), AX	// semaphore_timedwait_trap
-	SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
-// func mach_semaphore_signal(sema uint32) int32
-TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
-	MOVL	sema+0(FP), DI
-	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
-	SYSCALL
-	MOVL	AX, ret+8(FP)
-	RET
-
-// func mach_semaphore_signal_all(sema uint32) int32
-TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
-	MOVL	sema+0(FP), DI
-	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
-	SYSCALL
-	MOVL	AX, ret+8(FP)
-	RET
-
 TEXT runtime·settls(SB),NOSPLIT,$32
 	// Nothing to do on Darwin, pthread already set thread-local storage up.
 	RET
 
-TEXT runtime·sysctl(SB),NOSPLIT,$0
-	MOVQ	mib+0(FP), DI
-	MOVL	miblen+8(FP), SI
-	MOVQ	out+16(FP), DX
-	MOVQ	size+24(FP), R10
-	MOVQ	dst+32(FP), R8
-	MOVQ	ndst+40(FP), R9
-	MOVL	$(0x2000000+202), AX	// syscall entry
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+48(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+48(FP)
+TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	8(DI), SI		// arg 2 miblen
+	MOVQ	16(DI), DX		// arg 3 out
+	MOVQ	24(DI), CX		// arg 4 size
+	MOVQ	32(DI), R8		// arg 5 dst
+	MOVQ	40(DI), R9		// arg 6 ndst
+	MOVQ	0(DI), DI		// arg 1 mib
+	CALL	libc_sysctl(SB)
+	POPQ	BP
 	RET
 
-// func kqueue() int32
-TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVQ    $0, DI
-	MOVQ    $0, SI
-	MOVQ    $0, DX
-	MOVL	$(0x2000000+362), AX
-	SYSCALL
-	JCC	2(PC)
-	NEGQ	AX
-	MOVL	AX, ret+0(FP)
+TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	CALL	libc_kqueue(SB)
+	POPQ	BP
 	RET
 
-// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL    kq+0(FP), DI
-	MOVQ    ch+8(FP), SI
-	MOVL    nch+16(FP), DX
-	MOVQ    ev+24(FP), R10
-	MOVL    nev+32(FP), R8
-	MOVQ    ts+40(FP), R9
-	MOVL	$(0x2000000+363), AX
-	SYSCALL
-	JCC	2(PC)
-	NEGQ	AX
-	MOVL	AX, ret+48(FP)
+TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 keventt
+	MOVL	16(DI), DX		// arg 3 nch
+	MOVQ	24(DI), CX		// arg 4 ev
+	MOVL	32(DI), R8		// arg 5 nev
+	MOVQ	40(DI), R9		// arg 6 ts
+	MOVL	0(DI), DI		// arg 1 kq
+	CALL	libc_kevent(SB)
+	CMPQ	AX, $-1
+	JNE	ok
+	CALL	libc_error(SB)
+	MOVLQSX	(AX), AX		// errno
+	NEGQ	AX			// caller wants it as a negative error code
+ok:
+	POPQ	BP
 	RET
 
-// func closeonexec(fd int32)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVL    fd+0(FP), DI  // fd
-	MOVQ    $2, SI  // F_SETFD
-	MOVQ    $1, DX  // FD_CLOEXEC
-	MOVL	$(0x2000000+92), AX  // fcntl
-	SYSCALL
+TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVL	4(DI), SI		// arg 2 cmd
+	MOVL	8(DI), DX		// arg 3 arg
+	MOVL	0(DI), DI		// arg 1 fd
+	CALL	libc_fcntl(SB)
+	POPQ	BP
 	RET
 
 // mstart_stub is the first function executed on a new thread started by pthread_create.
@@ -371,6 +393,14 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 	// DI points to the m.
 	// We are already on m's g0 stack.
+
+	// Save callee-save registers.
+	SUBQ	$40, SP
+	MOVQ	BX, 0(SP)
+	MOVQ	R12, 8(SP)
+	MOVQ	R13, 16(SP)
+	MOVQ	R14, 24(SP)
+	MOVQ	R15, 32(SP)
 
 	MOVQ	m_g0(DI), DX // g
 
@@ -383,10 +413,19 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
 
 	CALL	runtime·mstart(SB)
 
+	// Restore callee-save registers.
+	MOVQ	0(SP), BX
+	MOVQ	8(SP), R12
+	MOVQ	16(SP), R13
+	MOVQ	24(SP), R14
+	MOVQ	32(SP), R15
+
 	// Go is all done with this OS thread.
 	// Tell pthread everything is ok (we never join with this thread, so
 	// the value here doesn't really matter).
 	XORL	AX, AX
+
+	ADDQ	$40, SP
 	RET
 
 // These trampolines help convert from Go calling convention to C calling convention.
@@ -438,5 +477,66 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
 	MOVQ	SP, BP
 	MOVL	0(DI), DI	// arg 1 signal
 	CALL	libc_raise(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 attr
+	MOVQ	0(DI), DI	// arg 1 mutex
+	CALL	libc_pthread_mutex_init(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	0(DI), DI	// arg 1 mutex
+	CALL	libc_pthread_mutex_lock(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	0(DI), DI	// arg 1 mutex
+	CALL	libc_pthread_mutex_unlock(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 attr
+	MOVQ	0(DI), DI	// arg 1 cond
+	CALL	libc_pthread_cond_init(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 mutex
+	MOVQ	0(DI), DI	// arg 1 cond
+	CALL	libc_pthread_cond_wait(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI	// arg 2 mutex
+	MOVQ	16(DI), DX	// arg 3 timeout
+	MOVQ	0(DI), DI	// arg 1 cond
+	CALL	libc_pthread_cond_timedwait_relative_np(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	0(DI), DI	// arg 1 cond
+	CALL	libc_pthread_cond_signal(SB)
 	POPQ	BP
 	RET

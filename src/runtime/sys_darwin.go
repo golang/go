@@ -18,12 +18,30 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
 	if gp != nil {
 		mp = gp.m
 	}
-	if mp != nil {
+	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
+	} else {
+		// Make sure we don't reset libcallsp. This makes
+		// libcCall reentrant; We remember the g/pc/sp for the
+		// first call on an M, until that libcCall instance
+		// returns.  Reentrance only matters for signals, as
+		// libc never calls back into Go.  The tricky case is
+		// where we call libcX from an M and record g/pc/sp.
+		// Before that call returns, a signal arrives on the
+		// same M and the signal handling code calls another
+		// libc function.  We don't want that second libcCall
+		// from within the handler to be recorded, and we
+		// don't want that call's completion to zero
+		// libcallsp.
+		// We don't need to set libcall* while we're in a sighandler
+		// (even if we're not currently in libc) because we block all
+		// signals while we're handling a signal. That includes the
+		// profile signal, which is the one that uses the libcall* info.
+		mp = nil
 	}
 	res := asmcgocall(fn, arg)
 	if mp != nil {
@@ -179,8 +197,133 @@ func walltime() (int64, int32) {
 }
 func walltime_trampoline()
 
+//go:nosplit
+//go:cgo_unsafe_args
+func sigaction(sig uint32, new *usigactiont, old *usigactiont) {
+	libcCall(unsafe.Pointer(funcPC(sigaction_trampoline)), unsafe.Pointer(&sig))
+}
+func sigaction_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sigprocmask(how uint32, new *sigset, old *sigset) {
+	libcCall(unsafe.Pointer(funcPC(sigprocmask_trampoline)), unsafe.Pointer(&how))
+}
+func sigprocmask_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sigaltstack(new *stackt, old *stackt) {
+	if new != nil && new.ss_flags&_SS_DISABLE != 0 && new.ss_size == 0 {
+		// Despite the fact that Darwin's sigaltstack man page says it ignores the size
+		// when SS_DISABLE is set, it doesn't. sigaltstack returns ENOMEM
+		// if we don't give it a reasonable size.
+		// ref: http://lists.llvm.org/pipermail/llvm-commits/Week-of-Mon-20140421/214296.html
+		new.ss_size = 32768
+	}
+	libcCall(unsafe.Pointer(funcPC(sigaltstack_trampoline)), unsafe.Pointer(&new))
+}
+func sigaltstack_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func raiseproc(sig uint32) {
+	libcCall(unsafe.Pointer(funcPC(raiseproc_trampoline)), unsafe.Pointer(&sig))
+}
+func raiseproc_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func setitimer(mode int32, new, old *itimerval) {
+	libcCall(unsafe.Pointer(funcPC(setitimer_trampoline)), unsafe.Pointer(&mode))
+}
+func setitimer_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
+}
+func sysctl_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func fcntl(fd, cmd, arg int32) int32 {
+	return libcCall(unsafe.Pointer(funcPC(fcntl_trampoline)), unsafe.Pointer(&fd))
+}
+func fcntl_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func kqueue() int32 {
+	v := libcCall(unsafe.Pointer(funcPC(kqueue_trampoline)), nil)
+	return v
+}
+func kqueue_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32 {
+	return libcCall(unsafe.Pointer(funcPC(kevent_trampoline)), unsafe.Pointer(&kq))
+}
+func kevent_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_mutex_init(m *pthreadmutex, attr *pthreadmutexattr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_init_trampoline)), unsafe.Pointer(&m))
+}
+func pthread_mutex_init_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_mutex_lock(m *pthreadmutex) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_lock_trampoline)), unsafe.Pointer(&m))
+}
+func pthread_mutex_lock_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_mutex_unlock(m *pthreadmutex) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_unlock_trampoline)), unsafe.Pointer(&m))
+}
+func pthread_mutex_unlock_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_cond_init(c *pthreadcond, attr *pthreadcondattr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_init_trampoline)), unsafe.Pointer(&c))
+}
+func pthread_cond_init_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_cond_wait(c *pthreadcond, m *pthreadmutex) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_wait_trampoline)), unsafe.Pointer(&c))
+}
+func pthread_cond_wait_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_cond_timedwait_relative_np(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
+}
+func pthread_cond_timedwait_relative_np_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_cond_signal(c *pthreadcond) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_cond_signal_trampoline)), unsafe.Pointer(&c))
+}
+func pthread_cond_signal_trampoline()
+
 // Not used on Darwin, but must be defined.
 func exitThread(wait *uint32) {
+}
+
+//go:nosplit
+func closeonexec(fd int32) {
+	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
 }
 
 // Tell the linker that the libc_* functions are to be found
@@ -207,6 +350,24 @@ func exitThread(wait *uint32) {
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_gettimeofday gettimeofday "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sigaction sigaction "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sigaltstack sigaltstack "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_getpid getpid "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_kill kill "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_setitimer setitimer "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_fcntl fcntl "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_kqueue kqueue "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_kevent kevent "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_pthread_mutex_init pthread_mutex_init "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_mutex_lock pthread_mutex_lock "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_mutex_unlock pthread_mutex_unlock "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_init pthread_cond_init "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210

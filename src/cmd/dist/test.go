@@ -308,11 +308,10 @@ func (t *tester) registerStdTest(pkg string) {
 			timeoutSec := 180
 			for _, pkg := range stdMatches {
 				if pkg == "cmd/go" {
-					timeoutSec *= 2
+					timeoutSec *= 3
 					break
 				}
 			}
-
 			args := []string{
 				"test",
 				short(),
@@ -325,6 +324,8 @@ func (t *tester) registerStdTest(pkg string) {
 			}
 			if t.compileOnly {
 				args = append(args, "-run=^$")
+			} else if goos == "js" && goarch == "wasm" {
+				args = append(args, "-run=^Test") // exclude examples; Issue 25913
 			}
 			args = append(args, stdMatches...)
 			cmd := exec.Command("go", args...)
@@ -355,7 +356,8 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 				"test",
 				short(),
 				"-race",
-				"-run=^$", // nothing. only benchmarks.
+				t.timeout(1200), // longer timeout for race with benchmarks
+				"-run=^$",       // nothing. only benchmarks.
 				"-benchtime=.1s",
 				"-cpu=4",
 			}
@@ -449,7 +451,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Runtime CPU tests.
-	if !t.compileOnly {
+	if !t.compileOnly && goos != "js" { // js can't handle -cpu != 1
 		testName := "runtime:cpu124"
 		t.tests = append(t.tests, distTest{
 			name:    testName,
@@ -490,9 +492,9 @@ func (t *tester) registerTests() {
 	// On the builders only, test that a moved GOROOT still works.
 	// Fails on iOS because CC_FOR_TARGET refers to clangwrap.sh
 	// in the unmoved GOROOT.
-	// Fails on Android with an exec format error.
+	// Fails on Android and js/wasm with an exec format error.
 	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
-	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" {
+	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" {
 		t.tests = append(t.tests, distTest{
 			name:    "moved_goroot",
 			heading: "moved GOROOT",
@@ -583,14 +585,16 @@ func (t *tester) registerTests() {
 	}
 
 	// sync tests
-	t.tests = append(t.tests, distTest{
-		name:    "sync_cpu",
-		heading: "sync -cpu=10",
-		fn: func(dt *distTest) error {
-			t.addCmd(dt, "src", t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
-			return nil
-		},
-	})
+	if goos != "js" { // js doesn't support -cpu=10
+		t.tests = append(t.tests, distTest{
+			name:    "sync_cpu",
+			heading: "sync -cpu=10",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
+				return nil
+			},
+		})
+	}
 
 	if t.raceDetectorSupported() {
 		t.tests = append(t.tests, distTest{
@@ -641,7 +645,7 @@ func (t *tester) registerTests() {
 					return nil
 				},
 			})
-			if cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch)); cxx != "" {
+			if t.hasCxx() {
 				t.tests = append(t.tests, distTest{
 					name:    "swig_callback",
 					heading: "../misc/swig/callback",
@@ -701,7 +705,7 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if goos == "linux" && (goarch == "amd64" || goarch == "arm64") {
+		if mSanSupported(goos, goarch) {
 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
@@ -714,7 +718,7 @@ func (t *tester) registerTests() {
 
 	// Doc tests only run on builders.
 	// They find problems approximately never.
-	if t.hasBash() && goos != "nacl" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
+	if t.hasBash() && goos != "nacl" && goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
@@ -740,7 +744,7 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	if goos != "nacl" && goos != "android" && !t.iOS() {
+	if goos != "nacl" && goos != "android" && !t.iOS() && goos != "js" {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
@@ -1061,6 +1065,12 @@ func (t *tester) cgoTest(dt *distTest) error {
 				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external`)
 				if goos != "android" {
 					t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					// -static in CGO_LDFLAGS triggers a different code path
+					// than -static in -extldflags, so test both.
+					// See issue #16651.
+					cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static")
+					cmd.Env = append(os.Environ(), "CGO_LDFLAGS=-static -pthread")
 				}
 			}
 
@@ -1239,6 +1249,11 @@ func (t *tester) hasBash() bool {
 	return true
 }
 
+func (t *tester) hasCxx() bool {
+	cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch))
+	return cxx != ""
+}
+
 func (t *tester) hasSwig() bool {
 	swig, err := exec.LookPath("swig")
 	if err != nil {
@@ -1314,13 +1329,21 @@ func (t *tester) hasSwig() bool {
 }
 
 func (t *tester) raceDetectorSupported() bool {
-	switch gohostos {
-	case "linux", "darwin", "freebsd", "windows":
-		// The race detector doesn't work on Alpine Linux:
-		// golang.org/issue/14481
-		return t.cgoEnabled && goarch == "amd64" && gohostos == goos && !isAlpineLinux()
+	if gohostos != goos {
+		return false
 	}
-	return false
+	if !t.cgoEnabled {
+		return false
+	}
+	if !raceDetectorSupported(goos, goarch) {
+		return false
+	}
+	// The race detector doesn't work on Alpine Linux:
+	// golang.org/issue/14481
+	if isAlpineLinux() {
+		return false
+	}
+	return true
 }
 
 func isAlpineLinux() bool {
@@ -1335,13 +1358,16 @@ func (t *tester) runFlag(rx string) string {
 	if t.compileOnly {
 		return "-run=^$"
 	}
+	if rx == "" && goos == "js" && goarch == "wasm" {
+		return "-run=^Test" // exclude examples; Issue 25913
+	}
 	return "-run=" + rx
 }
 
 func (t *tester) raceTest(dt *distTest) error {
 	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace"), "flag", "os", "os/exec", "encoding/gob")
+	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFdReadRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
 	// We don't want the following line, because it
 	// slows down all.bash (by 10 seconds on my laptop).
 	// The race builder should catch any error here, but doesn't.
@@ -1431,4 +1457,27 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
 		}
 	}
 	return false
+}
+
+// raceDetectorSupported is a copy of the function
+// cmd/internal/sys.RaceDetectorSupported, which can't be used here
+// because cmd/dist has to be buildable by Go 1.4.
+func raceDetectorSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux", "darwin", "freebsd", "netbsd", "windows":
+		return goarch == "amd64" || goarch == "ppc64le"
+	default:
+		return false
+	}
+}
+
+// mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
+// which can't be used here because cmd/dist has to be buildable by Go 1.4.
+func mSanSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux":
+		return goarch == "amd64" || goarch == "arm64"
+	default:
+		return false
+	}
 }

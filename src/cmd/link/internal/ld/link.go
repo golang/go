@@ -63,9 +63,10 @@ type Link struct {
 	IsELF    bool
 	HeadType objabi.HeadType
 
-	linkShared bool // link against installed Go shared libraries
-	LinkMode   LinkMode
-	BuildMode  BuildMode
+	linkShared    bool // link against installed Go shared libraries
+	LinkMode      LinkMode
+	BuildMode     BuildMode
+	compressDWARF bool
 
 	Tlsg         *sym.Symbol
 	Libdir       []string
@@ -85,6 +86,9 @@ type Link struct {
 	// unresolvedSymSet is a set of erroneous unresolved references.
 	// Used to avoid duplicated error messages.
 	unresolvedSymSet map[unresolvedSymKey]bool
+
+	// Used to implement field tracking.
+	Reachparent map[*sym.Symbol]*sym.Symbol
 }
 
 type unresolvedSymKey struct {

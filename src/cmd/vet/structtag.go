@@ -10,6 +10,7 @@ import (
 	"errors"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"reflect"
 	"strconv"
 	"strings"
@@ -24,9 +25,12 @@ func init() {
 
 // checkStructFieldTags checks all the field tags of a struct, including checking for duplicates.
 func checkStructFieldTags(f *File, node ast.Node) {
+	styp := f.pkg.types[node.(*ast.StructType)].Type.(*types.Struct)
 	var seen map[[2]string]token.Pos
-	for _, field := range node.(*ast.StructType).Fields.List {
-		checkCanonicalFieldTag(f, field, &seen)
+	for i := 0; i < styp.NumFields(); i++ {
+		field := styp.Field(i)
+		tag := styp.Tag(i)
+		checkCanonicalFieldTag(f, field, tag, &seen)
 	}
 }
 
@@ -34,20 +38,13 @@ var checkTagDups = []string{"json", "xml"}
 var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
 
 // checkCanonicalFieldTag checks a single struct field tag.
-func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token.Pos) {
-	if field.Tag == nil {
-		return
-	}
-
-	tag, err := strconv.Unquote(field.Tag.Value)
-	if err != nil {
-		f.Badf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
+func checkCanonicalFieldTag(f *File, field *types.Var, tag string, seen *map[[2]string]token.Pos) {
+	if tag == "" {
 		return
 	}
 
 	if err := validateStructTag(tag); err != nil {
-		raw, _ := strconv.Unquote(field.Tag.Value) // field.Tag.Value is known to be a quoted string
-		f.Badf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", raw, err)
+		f.Badf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", tag, err)
 	}
 
 	for _, key := range checkTagDups {
@@ -55,7 +52,7 @@ func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token
 		if val == "" || val == "-" || val[0] == ',' {
 			continue
 		}
-		if key == "xml" && len(field.Names) > 0 && field.Names[0].Name == "XMLName" {
+		if key == "xml" && field.Name() == "XMLName" {
 			// XMLName defines the XML element name of the struct being
 			// checked. That name cannot collide with element or attribute
 			// names defined on other fields of the struct. Vet does not have a
@@ -79,13 +76,7 @@ func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token
 			*seen = map[[2]string]token.Pos{}
 		}
 		if pos, ok := (*seen)[[2]string{key, val}]; ok {
-			var name string
-			if len(field.Names) > 0 {
-				name = field.Names[0].Name
-			} else {
-				name = field.Type.(*ast.Ident).Name
-			}
-			f.Badf(field.Pos(), "struct field %s repeats %s tag %q also at %s", name, key, val, f.loc(pos))
+			f.Badf(field.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, f.loc(pos))
 		} else {
 			(*seen)[[2]string{key, val}] = field.Pos()
 		}
@@ -95,17 +86,17 @@ func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token
 
 	// Embedded struct. Nothing to do for now, but that
 	// may change, depending on what happens with issue 7363.
-	if len(field.Names) == 0 {
+	if field.Anonymous() {
 		return
 	}
 
-	if field.Names[0].IsExported() {
+	if field.Exported() {
 		return
 	}
 
 	for _, enc := range [...]string{"json", "xml"} {
 		if reflect.StructTag(tag).Get(enc) != "" {
-			f.Badf(field.Pos(), "struct field %s has %s tag but is not exported", field.Names[0].Name, enc)
+			f.Badf(field.Pos(), "struct field %s has %s tag but is not exported", field.Name(), enc)
 			return
 		}
 	}

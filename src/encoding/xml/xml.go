@@ -167,9 +167,9 @@ type Decoder struct {
 	//
 	// Setting:
 	//
-	//	d.Strict = false;
-	//	d.AutoClose = HTMLAutoClose;
-	//	d.Entity = HTMLEntity
+	//	d.Strict = false
+	//	d.AutoClose = xml.HTMLAutoClose
+	//	d.Entity = xml.HTMLEntity
 	//
 	// creates a parser that can handle typical HTML.
 	//
@@ -1581,7 +1581,9 @@ var second = &unicode.RangeTable{
 
 // HTMLEntity is an entity map containing translations for the
 // standard HTML entity characters.
-var HTMLEntity = htmlEntity
+//
+// See the Decoder.Strict and Decoder.Entity fields' documentation.
+var HTMLEntity map[string]string = htmlEntity
 
 var htmlEntity = map[string]string{
 	/*
@@ -1848,7 +1850,9 @@ var htmlEntity = map[string]string{
 
 // HTMLAutoClose is the set of HTML elements that
 // should be considered to close automatically.
-var HTMLAutoClose = htmlAutoClose
+//
+// See the Decoder.Strict and Decoder.Entity fields' documentation.
+var HTMLAutoClose []string = htmlAutoClose
 
 var htmlAutoClose = []string{
 	/*

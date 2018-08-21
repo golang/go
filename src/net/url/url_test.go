@@ -590,6 +590,16 @@ var urltests = []URLTest{
 		},
 		"mailto:?subject=hi",
 	},
+	{
+		"https://example.com/search?q=Фотки собак&source=lnms",
+		&URL{
+			Scheme:   "https",
+			Host:     "example.com",
+			Path:     "/search",
+			RawQuery: "q%3D%D0%A4%D0%BE%D1%82%D0%BA%D0%B8+%D1%81%D0%BE%D0%B1%D0%B0%D0%BA%26source%3Dlnms",
+		},
+		"https://example.com/search?q%3D%D0%A4%D0%BE%D1%82%D0%BA%D0%B8+%D1%81%D0%BE%D0%B1%D0%B0%D0%BA%26source%3Dlnms",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -1075,6 +1085,7 @@ var resolveReferenceTests = []struct {
 
 	// Fragment
 	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
+	{"http://example.org/", "#!$&%27()*+,;=", "http://example.org/#!$&%27()*+,;="},
 
 	// Paths with escaping (issue 16947).
 	{"http://foo.com/foo%2fbar/", "../baz", "http://foo.com/baz"},
@@ -1438,6 +1449,7 @@ func TestParseErrors(t *testing.T) {
 		{"cache_object:foo", true},
 		{"cache_object:foo/bar", true},
 		{"cache_object/:foo/bar", false},
+		{"https://example.com/search?q=Фотки собак&source=lnms", false},
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)

@@ -58,9 +58,9 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // polls for ready network connections
 // returns list of goroutines that become runnable
-func netpoll(block bool) *g {
+func netpoll(block bool) gList {
 	if epfd == -1 {
-		return nil
+		return gList{}
 	}
 	waitms := int32(-1)
 	if !block {
@@ -76,7 +76,7 @@ retry:
 		}
 		goto retry
 	}
-	var gp guintptr
+	var toRun gList
 	for i := int32(0); i < n; i++ {
 		ev := &events[i]
 		if ev.events == 0 {
@@ -92,11 +92,11 @@ retry:
 		if mode != 0 {
 			pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
 
-			netpollready(&gp, pd, mode)
+			netpollready(&toRun, pd, mode)
 		}
 	}
-	if block && gp == 0 {
+	if block && toRun.empty() {
 		goto retry
 	}
-	return gp.ptr()
+	return toRun
 }

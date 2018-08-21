@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"errors"
 	"io"
 	"sync"
 	"syscall/js"
@@ -15,19 +16,17 @@ import (
 // Provided by package runtime.
 func now() (sec int64, nsec int32)
 
-var jsProcess = js.Global.Get("process")
-var jsFS = js.Global.Get("fs")
+var jsProcess = js.Global().Get("process")
+var jsFS = js.Global().Get("fs")
 var constants = jsFS.Get("constants")
 
 var (
-	nodeWRONLY   = constants.Get("O_WRONLY").Int()
-	nodeRDWR     = constants.Get("O_RDWR").Int()
-	nodeCREATE   = constants.Get("O_CREAT").Int()
-	nodeTRUNC    = constants.Get("O_TRUNC").Int()
-	nodeAPPEND   = constants.Get("O_APPEND").Int()
-	nodeEXCL     = constants.Get("O_EXCL").Int()
-	nodeNONBLOCK = constants.Get("O_NONBLOCK").Int()
-	nodeSYNC     = constants.Get("O_SYNC").Int()
+	nodeWRONLY = constants.Get("O_WRONLY").Int()
+	nodeRDWR   = constants.Get("O_RDWR").Int()
+	nodeCREATE = constants.Get("O_CREAT").Int()
+	nodeTRUNC  = constants.Get("O_TRUNC").Int()
+	nodeAPPEND = constants.Get("O_APPEND").Int()
+	nodeEXCL   = constants.Get("O_EXCL").Int()
 )
 
 type jsFile struct {
@@ -78,11 +77,8 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 	if openmode&O_EXCL != 0 {
 		flags |= nodeEXCL
 	}
-	if openmode&O_NONBLOCK != 0 {
-		flags |= nodeNONBLOCK
-	}
 	if openmode&O_SYNC != 0 {
-		flags |= nodeSYNC
+		return 0, errors.New("syscall.Open: O_SYNC is not supported by js/wasm")
 	}
 
 	jsFD, err := fsCall("openSync", path, flags, perm)
@@ -374,7 +370,9 @@ func Read(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	n, err := fsCall("readSync", fd, b, 0, len(b))
+	a := js.TypedArrayOf(b)
+	n, err := fsCall("readSync", fd, a, 0, len(b))
+	a.Release()
 	if err != nil {
 		return 0, err
 	}
@@ -395,7 +393,9 @@ func Write(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
-	n, err := fsCall("writeSync", fd, b, 0, len(b))
+	a := js.TypedArrayOf(b)
+	n, err := fsCall("writeSync", fd, a, 0, len(b))
+	a.Release()
 	if err != nil {
 		return 0, err
 	}
@@ -405,7 +405,9 @@ func Write(fd int, b []byte) (int, error) {
 }
 
 func Pread(fd int, b []byte, offset int64) (int, error) {
-	n, err := fsCall("readSync", fd, b, 0, len(b), offset)
+	a := js.TypedArrayOf(b)
+	n, err := fsCall("readSync", fd, a, 0, len(b), offset)
+	a.Release()
 	if err != nil {
 		return 0, err
 	}
@@ -413,7 +415,9 @@ func Pread(fd int, b []byte, offset int64) (int, error) {
 }
 
 func Pwrite(fd int, b []byte, offset int64) (int, error) {
-	n, err := fsCall("writeSync", fd, b, 0, len(b), offset)
+	a := js.TypedArrayOf(b)
+	n, err := fsCall("writeSync", fd, a, 0, len(b), offset)
+	a.Release()
 	if err != nil {
 		return 0, err
 	}

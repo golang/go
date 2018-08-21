@@ -84,6 +84,15 @@ func checkUserNS(t *testing.T) {
 			t.Skip("kernel doesn't support user namespaces")
 		}
 	}
+
+	// On Centos 7.5+, user namespaces are disabled if user.max_user_namespaces = 0
+	if _, err := os.Stat("/proc/sys/user/max_user_namespaces"); err == nil {
+		buf, errRead := ioutil.ReadFile("/proc/sys/user/max_user_namespaces")
+		if errRead == nil && buf[0] == '0' {
+			t.Skip("kernel doesn't support user namespaces")
+		}
+	}
+
 	// When running under the Go continuous build, skip tests for
 	// now when under Kubernetes. (where things are root but not quite)
 	// Both of these are our own environment variables.

@@ -390,6 +390,19 @@ func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value)
 	return v
 }
 
+// NewValue2A returns a new value in the block with two arguments and one aux values.
+func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = 0
+	v.Aux = aux
+	v.Args = v.argstorage[:2]
+	v.argstorage[0] = arg0
+	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
+	return v
+}
+
 // NewValue2I returns a new value in the block with two arguments and an auxint value.
 func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)

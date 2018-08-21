@@ -237,6 +237,8 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpLess8U_0(v)
 	case OpLoad:
 		return rewriteValueWasm_OpLoad_0(v)
+	case OpLocalAddr:
+		return rewriteValueWasm_OpLocalAddr_0(v)
 	case OpLsh16x16:
 		return rewriteValueWasm_OpLsh16x16_0(v)
 	case OpLsh16x32:
@@ -2495,6 +2497,20 @@ func rewriteValueWasm_OpLoad_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueWasm_OpLocalAddr_0(v *Value) bool {
+	// match: (LocalAddr {sym} base _)
+	// cond:
+	// result: (LoweredAddr {sym} base)
+	for {
+		sym := v.Aux
+		_ = v.Args[1]
+		base := v.Args[0]
+		v.reset(OpWasmLoweredAddr)
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
 }
 func rewriteValueWasm_OpLsh16x16_0(v *Value) bool {
 	b := v.Block
@@ -5208,6 +5224,27 @@ func rewriteValueWasm_OpWasmI64AddConst_0(v *Value) bool {
 		v.reset(OpCopy)
 		v.Type = x.Type
 		v.AddArg(x)
+		return true
+	}
+	// match: (I64AddConst [off] (LoweredAddr {sym} [off2] base))
+	// cond: isU32Bit(off+off2)
+	// result: (LoweredAddr {sym} [off+off2] base)
+	for {
+		off := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym := v_0.Aux
+		base := v_0.Args[0]
+		if !(isU32Bit(off + off2)) {
+			break
+		}
+		v.reset(OpWasmLoweredAddr)
+		v.AuxInt = off + off2
+		v.Aux = sym
+		v.AddArg(base)
 		return true
 	}
 	return false

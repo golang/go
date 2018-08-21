@@ -287,7 +287,6 @@ func walkstmt(n *Node) *Node {
 		walkstmtlist(n.Rlist.Slice())
 
 	case ORETURN:
-		walkexprlist(n.List.Slice(), &n.Ninit)
 		if n.List.Len() == 0 {
 			break
 		}
@@ -317,6 +316,9 @@ func walkstmt(n *Node) *Node {
 
 			if samelist(rl, n.List.Slice()) {
 				// special return in disguise
+				// TODO(josharian, 1.12): is "special return" still relevant?
+				// Tests still pass w/o this. See comments on https://go-review.googlesource.com/c/go/+/118318
+				walkexprlist(n.List.Slice(), &n.Ninit)
 				n.List.Set(nil)
 
 				break
@@ -329,6 +331,7 @@ func walkstmt(n *Node) *Node {
 			n.List.Set(reorder3(ll))
 			break
 		}
+		walkexprlist(n.List.Slice(), &n.Ninit)
 
 		ll := ascompatte(nil, false, Curfn.Type.Results(), n.List.Slice(), 1, &n.Ninit)
 		n.List.Set(ll)
@@ -2215,14 +2218,6 @@ func callnew(t *types.Type) *Node {
 	v := mkcall1(fn, types.NewPtr(t), nil, typename(t))
 	v.SetNonNil(true)
 	return v
-}
-
-func iscallret(n *Node) bool {
-	if n == nil {
-		return false
-	}
-	n = outervalue(n)
-	return n.Op == OINDREGSP
 }
 
 // isReflectHeaderDataField reports whether l is an expression p.Data

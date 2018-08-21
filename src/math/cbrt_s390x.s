@@ -77,7 +77,7 @@ GLOBL ·cbrttab12067<> + 0(SB), RODATA, $128
 TEXT	·cbrtAsm(SB), NOSPLIT, $0-16
 	FMOVD	x+0(FP), F0
 	MOVD	$·cbrtrodataL9<>+0(SB), R9
-	WORD	$0xB3CD0020	//lgdr %r2, %f0
+	LGDR	F0, R2
 	WORD	$0xC039000F	//iilf	%r3,1048575
 	BYTE	$0xFF
 	BYTE	$0xFF
@@ -103,7 +103,7 @@ L2:
 	BYTE	$0x00
 	BYTE	$0x1C
 	MOVH	$0x200, R4
-	WORD	$0xB3CD0022	//lgdr %r2, %f2
+	LGDR	F2, R2
 	SRAD	$32, R2
 L4:
 	WORD	$0xEC3239BE	//risbg	%r3,%r2,57,128+62,64-25
@@ -134,7 +134,7 @@ L4:
 	ADDW	R4, R1
 	SLW	$16, R1, R1
 	SLD	$32, R1, R1
-	WORD	$0xB3C10021	//ldgr	%f2,%r1
+	LDGR	R1, F2
 	WFMDB	V2, V2, V4
 	WFMDB	V4, V0, V6
 	WFMSDB	V4, V6, V2, V4

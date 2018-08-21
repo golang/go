@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -277,6 +278,8 @@ func defaultGOPATH() string {
 	return ""
 }
 
+var defaultReleaseTags []string
+
 func defaultContext() Context {
 	var c Context
 
@@ -296,6 +299,8 @@ func defaultContext() Context {
 	for i := 1; i <= version; i++ {
 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
 	}
+
+	defaultReleaseTags = append([]string{}, c.ReleaseTags...) // our own private copy
 
 	env := os.Getenv("CGO_ENABLED")
 	if env == "" {
@@ -583,13 +588,19 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			return p, fmt.Errorf("import %q: cannot import absolute path", path)
 		}
 
+		gopath := ctxt.gopath() // needed by both importGo and below; avoid computing twice
+		if err := ctxt.importGo(p, path, srcDir, mode, gopath); err == nil {
+			goto Found
+		} else if err != errNoModules {
+			return p, err
+		}
+
 		// tried records the location of unsuccessful package lookups
 		var tried struct {
 			vendor []string
 			goroot string
 			gopath []string
 		}
-		gopath := ctxt.gopath()
 
 		// Vendor directories get first chance to satisfy import.
 		if mode&IgnoreVendor == 0 && srcDir != "" {
@@ -928,6 +939,116 @@ Found:
 	}
 
 	return p, pkgerr
+}
+
+var errNoModules = errors.New("not using modules")
+
+// importGo checks whether it can use the go command to find the directory for path.
+// If using the go command is not appopriate, importGo returns errNoModules.
+// Otherwise, importGo tries using the go command and reports whether that succeeded.
+// Using the go command lets build.Import and build.Context.Import find code
+// in Go modules. In the long term we want tools to use go/packages (currently golang.org/x/tools/go/packages),
+// which will also use the go command.
+// Invoking the go command here is not very efficient in that it computes information
+// about the requested package and all dependencies and then only reports about the requested package.
+// Then we reinvoke it for every dependency. But this is still better than not working at all.
+// See golang.org/issue/26504.
+func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, gopath []string) error {
+	const debugImportGo = false
+
+	// To invoke the go command, we must know the source directory,
+	// we must not being doing special things like AllowBinary or IgnoreVendor,
+	// and all the file system callbacks must be nil (we're meant to use the local file system).
+	if srcDir == "" || mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
+		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
+		return errNoModules
+	}
+
+	// If modules are not enabled, then the in-process code works fine and we should keep using it.
+	switch os.Getenv("GO111MODULE") {
+	case "off":
+		return errNoModules
+	case "on":
+		// ok
+	default: // "", "auto", anything else
+		// Automatic mode: no module use in $GOPATH/src.
+		for _, root := range gopath {
+			sub, ok := ctxt.hasSubdir(root, srcDir)
+			if ok && strings.HasPrefix(sub, "src/") {
+				return errNoModules
+			}
+		}
+	}
+
+	// For efficiency, if path is a standard library package, let the usual lookup code handle it.
+	if ctxt.GOROOT != "" {
+		dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
+		if ctxt.isDir(dir) {
+			return errNoModules
+		}
+	}
+
+	// Look to see if there is a go.mod.
+	abs, err := filepath.Abs(srcDir)
+	if err != nil {
+		return errNoModules
+	}
+	for {
+		info, err := os.Stat(filepath.Join(abs, "go.mod"))
+		if err == nil && !info.IsDir() {
+			break
+		}
+		d := filepath.Dir(abs)
+		if len(d) >= len(abs) {
+			return errNoModules // reached top of file system, no go.mod
+		}
+		abs = d
+	}
+
+	cmd := exec.Command("go", "list", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n", path)
+	cmd.Dir = srcDir
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	cgo := "0"
+	if ctxt.CgoEnabled {
+		cgo = "1"
+	}
+	cmd.Env = append(os.Environ(),
+		"GOOS="+ctxt.GOOS,
+		"GOARCH="+ctxt.GOARCH,
+		"GOROOT="+ctxt.GOROOT,
+		"GOPATH="+ctxt.GOPATH,
+		"CGO_ENABLED="+cgo,
+	)
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go/build: importGo %s: %v\n%s\n", path, err, stderr.String())
+	}
+
+	f := strings.Split(stdout.String(), "\n")
+	if len(f) != 5 || f[4] != "" {
+		return fmt.Errorf("go/build: importGo %s: unexpected output:\n%s\n", path, stdout.String())
+	}
+
+	p.Dir = f[0]
+	p.ImportPath = f[1]
+	p.Root = f[2]
+	p.Goroot = f[3] == "true"
+	return nil
+}
+
+func equal(x, y []string) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, xi := range x {
+		if xi != y[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // hasGoFiles reports whether dir contains any files with names ending in .go.
@@ -1384,7 +1505,8 @@ func (ctxt *Context) makePathsAbsolute(args []string, srcDir string) {
 // See golang.org/issue/6038.
 // The @ is for OS X. See golang.org/issue/13720.
 // The % is for Jenkins. See golang.org/issue/16959.
-const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@% "
+// The ! is because module paths may use them. See golang.org/issue/26716.
+const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@%! "
 
 func safeCgoName(s string) bool {
 	if s == "" {

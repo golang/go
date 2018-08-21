@@ -64,8 +64,8 @@ const (
 	// StackSystem is a number of additional bytes to add
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows, Plan 9,
-	// and Darwin/ARM because they do not use a separate stack.
-	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm*1024
+	// and iOS because they do not use a separate stack.
+	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm*1024 + sys.GoosDarwin*sys.GoarchArm64*1024
 
 	// The minimum size of stack used by Go code
 	_StackMin = 2048
@@ -186,6 +186,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 		if s.manualFreeList.ptr() != nil {
 			throw("bad manualFreeList")
 		}
+		osStackAlloc(s)
 		s.elemsize = _FixedStack << order
 		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
 			x := gclinkptr(s.base() + i)
@@ -238,6 +239,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
 		// By not freeing, we prevent step #4 until GC is done.
 		stackpool[order].remove(s)
 		s.manualFreeList = 0
+		osStackFree(s)
 		mheap_.freeManual(s, &memstats.stacks_inuse)
 	}
 }
@@ -385,6 +387,7 @@ func stackalloc(n uint32) stack {
 			if s == nil {
 				throw("out of memory")
 			}
+			osStackAlloc(s)
 			s.elemsize = uintptr(n)
 		}
 		v = unsafe.Pointer(s.base())
@@ -463,6 +466,7 @@ func stackfree(stk stack) {
 		if gcphase == _GCoff {
 			// Free the stack immediately if we're
 			// sweeping.
+			osStackFree(s)
 			mheap_.freeManual(s, &memstats.stacks_inuse)
 		} else {
 			// If the GC is running, we can't return a
@@ -940,7 +944,7 @@ func newstack() {
 		throw("missing stack in newstack")
 	}
 	sp := gp.sched.sp
-	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.Wasm {
+	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.WASM {
 		// The call to morestack cost a word.
 		sp -= sys.PtrSize
 	}
@@ -1112,6 +1116,7 @@ func freeStackSpans() {
 			if s.allocCount == 0 {
 				list.remove(s)
 				s.manualFreeList = 0
+				osStackFree(s)
 				mheap_.freeManual(s, &memstats.stacks_inuse)
 			}
 			s = next
@@ -1126,6 +1131,7 @@ func freeStackSpans() {
 		for s := stackLarge.free[i].first; s != nil; {
 			next := s.next
 			stackLarge.free[i].remove(s)
+			osStackFree(s)
 			mheap_.freeManual(s, &memstats.stacks_inuse)
 			s = next
 		}

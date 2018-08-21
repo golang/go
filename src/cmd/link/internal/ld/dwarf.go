@@ -451,7 +451,6 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 
 	case objabi.KindChan:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_CHANTYPE, name, 0)
-		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		s := decodetypeChanElem(ctxt.Arch, gotype)
 		newrefattr(die, dwarf.DW_AT_go_elem, defgotype(ctxt, s))
 		// Save elem type for synthesizechantypes. We could synthesize here
@@ -462,7 +461,6 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_FUNCTYPE, name, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		dotypedef(ctxt, &dwtypes, name, die)
-		newrefattr(die, dwarf.DW_AT_type, mustFind(ctxt, "void"))
 		nfields := decodetypeFuncInCount(ctxt.Arch, gotype)
 		for i := 0; i < nfields; i++ {
 			s := decodetypeFuncInType(ctxt.Arch, gotype, i)
@@ -483,7 +481,6 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 	case objabi.KindInterface:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_IFACETYPE, name, 0)
 		dotypedef(ctxt, &dwtypes, name, die)
-		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		nfields := int(decodetypeIfaceMethodCount(ctxt.Arch, gotype))
 		var s *sym.Symbol
 		if nfields == 0 {
@@ -1064,7 +1061,8 @@ func getCompilationDir() string {
 func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
 	dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
 	dsym.Type = sym.SDWARFINFO
-	for _, r := range dsym.R {
+	for i := range dsym.R {
+		r := &dsym.R[i] // Copying sym.Reloc has measurable impact on peformance
 		if r.Type == objabi.R_DWARFSECREF && r.Sym.Size == 0 {
 			if ctxt.BuildMode == BuildModeShared {
 				// These type symbols may not be present in BuildModeShared. Skip.
@@ -1093,7 +1091,8 @@ func collectAbstractFunctions(ctxt *Link, fn *sym.Symbol, dsym *sym.Symbol, absf
 
 	// Walk the relocations on the primary subprogram DIE and look for
 	// references to abstract funcs.
-	for _, reloc := range dsym.R {
+	for i := range dsym.R {
+		reloc := &dsym.R[i] // Copying sym.Reloc has measurable impact on peformance
 		candsym := reloc.Sym
 		if reloc.Type != objabi.R_DWARFSECREF {
 			continue
@@ -1804,7 +1803,8 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
 	empty := true
 	for _, u := range units {
 		for _, fn := range u.funcDIEs {
-			for _, reloc := range fn.R {
+			for i := range fn.R {
+				reloc := &fn.R[i] // Copying sym.Reloc has measurable impact on peformance
 				if reloc.Type == objabi.R_DWARFSECREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
 					reloc.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 					syms = append(syms, reloc.Sym)
@@ -1908,23 +1908,14 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *sym.Symbol) {
 		return
 	}
 
-	Addstring(shstrtab, ".debug_abbrev")
-	Addstring(shstrtab, ".debug_frame")
-	Addstring(shstrtab, ".debug_info")
-	Addstring(shstrtab, ".debug_loc")
-	Addstring(shstrtab, ".debug_line")
-	Addstring(shstrtab, ".debug_pubnames")
-	Addstring(shstrtab, ".debug_pubtypes")
-	Addstring(shstrtab, ".debug_gdb_scripts")
-	Addstring(shstrtab, ".debug_ranges")
-	if ctxt.LinkMode == LinkExternal {
-		Addstring(shstrtab, elfRelType+".debug_info")
-		Addstring(shstrtab, elfRelType+".debug_loc")
-		Addstring(shstrtab, elfRelType+".debug_line")
-		Addstring(shstrtab, elfRelType+".debug_frame")
-		Addstring(shstrtab, elfRelType+".debug_pubnames")
-		Addstring(shstrtab, elfRelType+".debug_pubtypes")
-		Addstring(shstrtab, elfRelType+".debug_ranges")
+	secs := []string{"abbrev", "frame", "info", "loc", "line", "pubnames", "pubtypes", "gdb_scripts", "ranges"}
+	for _, sec := range secs {
+		Addstring(shstrtab, ".debug_"+sec)
+		if ctxt.LinkMode == LinkExternal {
+			Addstring(shstrtab, elfRelType+".debug_"+sec)
+		} else {
+			Addstring(shstrtab, ".zdebug_"+sec)
+		}
 	}
 }
 
@@ -1937,6 +1928,7 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	if ctxt.LinkMode != LinkExternal {
 		return
 	}
+
 	s := ctxt.Syms.Lookup(".debug_info", 0)
 	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_abbrev", 0)
@@ -1953,4 +1945,64 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	if s.Sect != nil {
 		putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	}
+}
+
+// dwarfcompress compresses the DWARF sections. This must happen after
+// relocations are applied. After this, dwarfp will contain a
+// different (new) set of symbols, and sections may have been replaced.
+func dwarfcompress(ctxt *Link) {
+	supported := ctxt.IsELF || ctxt.HeadType == objabi.Hwindows || ctxt.HeadType == objabi.Hdarwin
+	if !ctxt.compressDWARF || !supported || ctxt.LinkMode != LinkInternal {
+		return
+	}
+
+	var start int
+	var newDwarfp []*sym.Symbol
+	Segdwarf.Sections = Segdwarf.Sections[:0]
+	for i, s := range dwarfp {
+		// Find the boundaries between sections and compress
+		// the whole section once we've found the last of its
+		// symbols.
+		if i+1 >= len(dwarfp) || s.Sect != dwarfp[i+1].Sect {
+			s1 := compressSyms(ctxt, dwarfp[start:i+1])
+			if s1 == nil {
+				// Compression didn't help.
+				newDwarfp = append(newDwarfp, dwarfp[start:i+1]...)
+				Segdwarf.Sections = append(Segdwarf.Sections, s.Sect)
+			} else {
+				compressedSegName := ".zdebug_" + s.Sect.Name[len(".debug_"):]
+				sect := addsection(ctxt.Arch, &Segdwarf, compressedSegName, 04)
+				sect.Length = uint64(len(s1))
+				newSym := ctxt.Syms.Lookup(compressedSegName, 0)
+				newSym.P = s1
+				newSym.Size = int64(len(s1))
+				newSym.Sect = sect
+				newDwarfp = append(newDwarfp, newSym)
+			}
+			start = i + 1
+		}
+	}
+	dwarfp = newDwarfp
+
+	// Re-compute the locations of the compressed DWARF symbols
+	// and sections, since the layout of these within the file is
+	// based on Section.Vaddr and Symbol.Value.
+	pos := Segdwarf.Vaddr
+	var prevSect *sym.Section
+	for _, s := range dwarfp {
+		s.Value = int64(pos)
+		if s.Sect != prevSect {
+			s.Sect.Vaddr = uint64(s.Value)
+			prevSect = s.Sect
+		}
+		if s.Sub != nil {
+			log.Fatalf("%s: unexpected sub-symbols", s)
+		}
+		pos += uint64(s.Size)
+		if ctxt.HeadType == objabi.Hwindows {
+			pos = uint64(Rnd(int64(pos), PEFILEALIGN))
+		}
+
+	}
+	Segdwarf.Length = pos - Segdwarf.Vaddr
 }

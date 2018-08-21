@@ -600,7 +600,7 @@ func (p *parser) parseInterfaceType(pkg *types.Package) types.Type {
 	}
 	p.expect('}')
 
-	return types.NewInterface2(methods, embeddeds)
+	return types.NewInterfaceType(methods, embeddeds)
 }
 
 // PointerType = "*" ("any" | Type) .
@@ -905,11 +905,4 @@ func (p *parser) parsePackage() *types.Package {
 	}
 	p.pkg.MarkComplete()
 	return p.pkg
-}
-
-// InitData = { InitDataDirective } .
-func (p *parser) parseInitData() {
-	for p.tok != scanner.EOF {
-		p.parseInitDataDirective()
-	}
 }

@@ -17,7 +17,7 @@
 <p>
 <a href="/dl/" target="_blank">Official binary
 distributions</a> are available for the FreeBSD (release 10-STABLE and above),
-Linux, Mac OS X (10.8 and above), and Windows operating systems and
+Linux, macOS (10.10 and above), and Windows operating systems and
 the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
 architectures.
 </p>
@@ -49,15 +49,15 @@ If your OS or architecture is not on the list, you may be able to
 <tr><td colspan="3"><hr></td></tr>
 <tr><td>FreeBSD 10.3 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
 <tr valign='top'><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm, arm64,<br>s390x, ppc64le</td> <td>CentOS/RHEL 5.x not supported.<br>Install from source for other libc.</td></tr>
-<tr><td>macOS 10.8 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
-<tr><td>Windows XP SP2 or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+<tr><td>macOS 10.10 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
+<tr><td>Windows 7, Server 2008R2 or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
 </table>
 
 <p>
 <sup>&#8224;</sup>A C compiler is required only if you plan to use
 <a href="/cmd/cgo">cgo</a>.<br/>
 <sup>&#8225;</sup>You only need to install the command line tools for
-<a href="http://developer.apple.com/Xcode/">Xcode</a>. If you have already
+<a href="https://developer.apple.com/Xcode/">Xcode</a>. If you have already
 installed Xcode 4.3+, you can install it from the Components tab of the
 Downloads preferences panel.
 </p>
@@ -74,7 +74,7 @@ first <a href="#uninstall">remove the existing version</a>.
 
 <div id="tarballInstructions">
 
-<h3 id="tarball">Linux, Mac OS X, and FreeBSD tarballs</h3>
+<h3 id="tarball">Linux, macOS, and FreeBSD tarballs</h3>
 
 <p>
 <a href="/dl/">Download the archive</a>
@@ -114,36 +114,11 @@ or execute them from the profile using a command such as
 <code>source $HOME/.profile</code>.
 </p>
 
-<h4 id="tarball_non_standard">Installing to a custom location</h4>
-
-<p>
-The Go binary distributions assume they will be installed in
-<code>/usr/local/go</code> (or <code>c:\Go</code> under Windows),
-but it is possible to install the Go tools to a different location.
-In this case you must set the <code>GOROOT</code> environment variable
-to point to the directory in which it was installed.
-</p>
-
-<p>
-For example, if you installed Go to your home directory you should add
-commands like the following to <code>$HOME/.profile</code>:
-</p>
-
-<pre>
-export GOROOT=$HOME/go1.X
-export PATH=$PATH:$GOROOT/bin
-</pre>
-
-<p>
-<b>Note</b>: <code>GOROOT</code> must be set only when installing to a custom
-location.
-</p>
-
 </div><!-- tarballInstructions -->
 
 <div id="darwinPackageInstructions">
 
-<h3 id="osx">Mac OS X package installer</h3>
+<h3 id="macos"><div id="osx"></div>macOS package installer</h3>
 
 <p>
 <a href="/dl/">Download the package file</a>,
@@ -301,7 +276,7 @@ which describes some essential concepts about using the Go tools.
 <p>
 To remove an existing Go installation from your system delete the
 <code>go</code> directory. This is usually <code>/usr/local/go</code>
-under Linux, Mac OS X, and FreeBSD or <code>c:\Go</code>
+under Linux, macOS, and FreeBSD or <code>c:\Go</code>
 under Windows.
 </p>
 
@@ -310,7 +285,7 @@ You should also remove the Go <code>bin</code> directory from your
 <code>PATH</code> environment variable.
 Under Linux and FreeBSD you should edit <code>/etc/profile</code> or
 <code>$HOME/.profile</code>.
-If you installed Go with the <a href="#osx">Mac OS X package</a> then you
+If you installed Go with the <a href="#macos">macOS package</a> then you
 should remove the <code>/etc/paths.d/go</code> file.
 Windows users should read the section about <a href="#windows_env">setting
 environment variables under Windows</a>.

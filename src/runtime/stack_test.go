@@ -7,9 +7,11 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	. "runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -126,9 +128,18 @@ func TestStackGrowth(t *testing.T) {
 		}()
 		<-done
 		GC()
+
+		timeout := 20 * time.Second
+		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+			scale, err := strconv.Atoi(s)
+			if err == nil {
+				timeout *= time.Duration(scale)
+			}
+		}
+
 		select {
 		case <-done:
-		case <-time.After(20 * time.Second):
+		case <-time.After(timeout):
 			if atomic.LoadUint32(&started) == 0 {
 				t.Log("finalizer did not start")
 			} else {

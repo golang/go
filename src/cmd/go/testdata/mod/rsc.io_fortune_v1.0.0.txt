@@ -1,0 +1,15 @@
+rsc.io/fortune v1.0.0
+written by hand
+
+-- .mod --
+module rsc.io/fortune
+-- .info --
+{"Version":"v1.0.0"}
+-- fortune.go --
+package main
+
+import "rsc.io/quote"
+
+func main() {
+	println(quote.Hello())
+}

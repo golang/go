@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa
 
 import "fmt"
@@ -11,15 +15,15 @@ const (
 
 type indVar struct {
 	ind   *Value // induction variable
-	inc   *Value // increment, a constant
-	nxt   *Value // ind+inc variable
 	min   *Value // minimum value, inclusive/exclusive depends on flags
 	max   *Value // maximum value, inclusive/exclusive depends on flags
 	entry *Block // entry block in the loop.
 	flags indVarFlags
-	// Invariants: for all blocks dominated by entry:
-	//	min <= ind < max
-	//	min <= nxt <= max
+	// Invariant: for all blocks strictly dominated by entry:
+	//	min <= ind <  max    [if flags == 0]
+	//	min <  ind <  max    [if flags == indVarMinExc]
+	//	min <= ind <= max    [if flags == indVarMaxInc]
+	//	min <  ind <= max    [if flags == indVarMinExc|indVarMaxInc]
 }
 
 // findIndVar finds induction variables in a function.
@@ -45,7 +49,6 @@ func findIndVar(f *Func) []indVar {
 	var iv []indVar
 	sdom := f.sdom()
 
-nextb:
 	for _, b := range f.Blocks {
 		if b.Kind != BlockIf || len(b.Preds) != 2 {
 			continue
@@ -53,7 +56,6 @@ nextb:
 
 		var flags indVarFlags
 		var ind, max *Value // induction, and maximum
-		entry := -1         // which successor of b enters the loop
 
 		// Check thet the control if it either ind </<= max or max >/>= ind.
 		// TODO: Handle 32-bit comparisons.
@@ -62,21 +64,21 @@ nextb:
 			flags |= indVarMaxInc
 			fallthrough
 		case OpLess64:
-			entry = 0
 			ind, max = b.Control.Args[0], b.Control.Args[1]
 		case OpGeq64:
 			flags |= indVarMaxInc
 			fallthrough
 		case OpGreater64:
-			entry = 0
 			ind, max = b.Control.Args[1], b.Control.Args[0]
 		default:
-			continue nextb
+			continue
 		}
 
 		// See if the arguments are reversed (i < len() <=> len() > i)
+		less := true
 		if max.Op == OpPhi {
 			ind, max = max, ind
+			less = false
 		}
 
 		// Check that the induction variable is a phi that depends on itself.
@@ -104,22 +106,35 @@ nextb:
 			panic("unreachable") // one of the cases must be true from the above.
 		}
 
-		// Expect the increment to be a constant.
+		// Expect the increment to be a nonzero constant.
 		if inc.Op != OpConst64 {
+			continue
+		}
+		step := inc.AuxInt
+		if step == 0 {
+			continue
+		}
+
+		// Increment sign must match comparison direction.
+		// When incrementing, the termination comparison must be ind </<= max.
+		// When decrementing, the termination comparison must be ind >/>= max.
+		// See issue 26116.
+		if step > 0 && !less {
+			continue
+		}
+		if step < 0 && less {
 			continue
 		}
 
 		// If the increment is negative, swap min/max and their flags
-		if inc.AuxInt <= 0 {
+		if step < 0 {
 			min, max = max, min
 			oldf := flags
-			flags = 0
+			flags = indVarMaxInc
 			if oldf&indVarMaxInc == 0 {
 				flags |= indVarMinExc
 			}
-			if oldf&indVarMinExc == 0 {
-				flags |= indVarMaxInc
-			}
+			step = -step
 		}
 
 		// Up to now we extracted the induction variable (ind),
@@ -136,26 +151,26 @@ nextb:
 		// as an induction variable.
 
 		// First condition: loop entry has a single predecessor, which
-		// is the header block.  This implies that b.Succs[entry] is
+		// is the header block.  This implies that b.Succs[0] is
 		// reached iff ind < max.
-		if len(b.Succs[entry].b.Preds) != 1 {
-			// b.Succs[1-entry] must exit the loop.
+		if len(b.Succs[0].b.Preds) != 1 {
+			// b.Succs[1] must exit the loop.
 			continue
 		}
 
-		// Second condition: b.Succs[entry] dominates nxt so that
+		// Second condition: b.Succs[0] dominates nxt so that
 		// nxt is computed when inc < max, meaning nxt <= max.
-		if !sdom.isAncestorEq(b.Succs[entry].b, nxt.Block) {
+		if !sdom.isAncestorEq(b.Succs[0].b, nxt.Block) {
 			// inc+ind can only be reached through the branch that enters the loop.
 			continue
 		}
 
 		// We can only guarantee that the loops runs within limits of induction variable
 		// if the increment is ±1 or when the limits are constants.
-		if inc.AuxInt != 1 && inc.AuxInt != -1 {
+		if step != 1 {
 			ok := false
 			if min.Op == OpConst64 && max.Op == OpConst64 {
-				if max.AuxInt > min.AuxInt && max.AuxInt%inc.AuxInt == min.AuxInt%inc.AuxInt { // handle overflow
+				if max.AuxInt > min.AuxInt && max.AuxInt%step == min.AuxInt%step { // handle overflow
 					ok = true
 				}
 			}
@@ -165,16 +180,14 @@ nextb:
 		}
 
 		if f.pass.debug >= 1 {
-			printIndVar(b, ind, min, max, inc.AuxInt, flags)
+			printIndVar(b, ind, min, max, step, flags)
 		}
 
 		iv = append(iv, indVar{
 			ind:   ind,
-			inc:   inc,
-			nxt:   nxt,
 			min:   min,
 			max:   max,
-			entry: b.Succs[entry].b,
+			entry: b.Succs[0].b,
 			flags: flags,
 		})
 		b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)

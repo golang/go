@@ -356,6 +356,7 @@
 (GetCallerPC) -> (LoweredGetCallerPC)
 (GetCallerSP) -> (LoweredGetCallerSP)
 (Addr {sym} base) -> (LEAL {sym} base)
+(LocalAddr {sym} base _) -> (LEAL {sym} base)
 
 // block rewrites
 (If (SETL  cmp) yes no) -> (LT  cmp yes no)
@@ -1261,3 +1262,16 @@
 // a register to use for holding the address of the constant pool entry.
 (MOVSSconst [c]) && config.ctxt.Flag_shared -> (MOVSSconst2 (MOVSSconst1 [c]))
 (MOVSDconst [c]) && config.ctxt.Flag_shared -> (MOVSDconst2 (MOVSDconst1 [c]))
+
+(CMP(L|W|B) l:(MOV(L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(L|W|B)load {sym} [off] ptr x mem)
+(CMP(L|W|B) x l:(MOV(L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> (InvertFlags (CMP(L|W|B)load {sym} [off] ptr x mem))
+
+(CMP(L|W|B)const l:(MOV(L|W|B)load {sym} [off] ptr mem) [c])
+	&& l.Uses == 1
+	&& validValAndOff(c, off)
+	&& clobber(l) ->
+  @l.Block (CMP(L|W|B)constload {sym} [makeValAndOff(c,off)] ptr mem)
+
+(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int32(c)),off) -> (CMPLconstload {sym} [makeValAndOff(int64(int32(c)),off)] ptr mem)
+(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstload {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
+(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)

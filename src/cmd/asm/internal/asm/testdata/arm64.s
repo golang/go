@@ -164,6 +164,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
 
+	FMOVS	(R2)(R6), F4       // FMOVS (R2)(R6*1), F4    // 446866bc
+	FMOVS	(R2)(R6<<2), F4                               // 447866bc
+	FMOVD	(R2)(R6), F4       // FMOVD (R2)(R6*1), F4    // 446866fc
+	FMOVD	(R2)(R6<<3), F4                               // 447866fc
+	FMOVS	F4, (R2)(R6)       // FMOVS F4, (R2)(R6*1)    // 446826bc
+	FMOVS	F4, (R2)(R6<<2)                               // 447826bc
+	FMOVD	F4, (R2)(R6)       // FMOVD F4, (R2)(R6*1)    // 446826fc
+	FMOVD	F4, (R2)(R6<<3)                               // 447826fc
+
 //	LTYPE1 imsr ',' spreg ','
 //	{
 //		outcode($1, &$2, $4, &nullgen);
@@ -572,6 +581,14 @@ again:
 	SWPH	R5, (RSP), R7                        // e7832578
 	SWPB	R5, (R6), R7                         // c7802538
 	SWPB	R5, (RSP), R7                        // e7832538
+	SWPALD	R5, (R6), R7                         // c780e5f8
+	SWPALD	R5, (RSP), R7                        // e783e5f8
+	SWPALW	R5, (R6), R7                         // c780e5b8
+	SWPALW	R5, (RSP), R7                        // e783e5b8
+	SWPALH	R5, (R6), R7                         // c780e578
+	SWPALH	R5, (RSP), R7                        // e783e578
+	SWPALB	R5, (R6), R7                         // c780e538
+	SWPALB	R5, (RSP), R7                        // e783e538
 	LDADDD	R5, (R6), R7                         // c70025f8
 	LDADDD	R5, (RSP), R7                        // e70325f8
 	LDADDW	R5, (R6), R7                         // c70025b8
@@ -604,6 +621,8 @@ again:
 	LDORH	R5, (RSP), R7                        // e7332578
 	LDORB	R5, (R6), R7                         // c7302538
 	LDORB	R5, (RSP), R7                        // e7332538
+	LDADDALD	R2, (R1), R3                 // 2300e2f8
+	LDADDALW	R5, (R4), R6                 // 8600e5b8
 
 // RET
 //
@@ -713,6 +732,14 @@ again:
 	STPW	(R3, R4), 1024(RSP) // fb03109163130029
 	STPW	(R3, R4), x(SB)
 	STPW	(R3, R4), x+8(SB)
+
+// bit field operation
+	BFI	$0, R1, $1, R2      // 220040b3
+	BFIW	$0, R1, $1, R2      // 22000033
+	SBFIZ	$0, R1, $1, R2      // 22004093
+	SBFIZW	$0, R1, $1, R2      // 22000013
+	UBFIZ	$0, R1, $1, R2      // 220040d3
+	UBFIZW	$0, R1, $1, R2      // 22000053
 
 // END
 //

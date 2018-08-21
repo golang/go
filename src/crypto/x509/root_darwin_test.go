@@ -18,7 +18,7 @@ func TestSystemRoots(t *testing.T) {
 
 	switch runtime.GOOS {
 	case "darwin":
-		t.Skipf("skipping on %s/%s until cgo part of golang.org/issue/16532 has been implemented.", runtime.GOOS, runtime.GOARCH)
+		t.Skipf("skipping on %s/%s until golang.org/issue/24652 has been resolved.", runtime.GOOS, runtime.GOARCH)
 	}
 
 	t0 := time.Now()

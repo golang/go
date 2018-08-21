@@ -45,6 +45,7 @@ const (
 //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
@@ -92,6 +93,7 @@ var (
 	_SwitchToThread,
 	_VirtualAlloc,
 	_VirtualFree,
+	_VirtualQuery,
 	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
 	_WriteConsoleW,
@@ -619,12 +621,10 @@ func semacreate(mp *m) {
 //go:nowritebarrierrec
 //go:nosplit
 func newosproc(mp *m) {
-	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
-	// stackSize must match SizeOfStackReserve in cmd/link/internal/ld/pe.go.
-	const stackSize = 0x00200000*_64bit + 0x00100000*(1-_64bit)
-	thandle := stdcall6(_CreateThread, 0, stackSize,
+	// We pass 0 for the stack size to use the default for this binary.
+	thandle := stdcall6(_CreateThread, 0, 0,
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
-		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
+		0, 0)
 
 	if thandle == 0 {
 		if atomic.Load(&exiting) != 0 {
@@ -689,6 +689,33 @@ func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
 	atomic.Storeuintptr(&getg().m.thread, thandle)
+
+	// Query the true stack base from the OS. Currently we're
+	// running on a small assumed stack.
+	var mbi memoryBasicInformation
+	res := stdcall3(_VirtualQuery, uintptr(unsafe.Pointer(&mbi)), uintptr(unsafe.Pointer(&mbi)), unsafe.Sizeof(mbi))
+	if res == 0 {
+		print("runtime: VirtualQuery failed; errno=", getlasterror(), "\n")
+		throw("VirtualQuery for stack base failed")
+	}
+	// The system leaves an 8K PAGE_GUARD region at the bottom of
+	// the stack (in theory VirtualQuery isn't supposed to include
+	// that, but it does). Add an additional 8K of slop for
+	// calling C functions that don't have stack checks and for
+	// lastcontinuehandler. We shouldn't be anywhere near this
+	// bound anyway.
+	base := mbi.allocationBase + 16<<10
+	// Sanity check the stack bounds.
+	g0 := getg()
+	if base > g0.stack.hi || g0.stack.hi-base > 64<<20 {
+		print("runtime: g0 stack [", hex(base), ",", hex(g0.stack.hi), ")\n")
+		throw("bad g0 stack")
+	}
+	g0.stack.lo = base
+	g0.stackguard0 = g0.stack.lo + _StackGuard
+	g0.stackguard1 = g0.stackguard0
+	// Sanity check the SP.
+	stackcheck()
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -707,17 +734,20 @@ func stdcall(fn stdFunction) uintptr {
 	gp := getg()
 	mp := gp.m
 	mp.libcall.fn = uintptr(unsafe.Pointer(fn))
-
-	if mp.profilehz != 0 {
+	resetLibcall := false
+	if mp.profilehz != 0 && mp.libcallsp == 0 {
 		// leave pc/sp for cpu profiler
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
+		resetLibcall = true // See comment in sys_darwin.go:libcCall
 	}
 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
-	mp.libcallsp = 0
+	if resetLibcall {
+		mp.libcallsp = 0
+	}
 	return mp.libcall.r1
 }
 

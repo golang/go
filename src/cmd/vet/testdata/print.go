@@ -4,16 +4,11 @@
 
 // This file contains tests for the printf checker.
 
-// TODO(rsc): The user-defined wrapper tests are commented out
-// because they produced too many false positives when vet was
-// enabled during go test. See the TODO in ../print.go for a plan
-// to fix that; when it's fixed, uncomment the user-defined wrapper tests.
-
 package testdata
 
 import (
 	"fmt"
-	. "fmt"
+	logpkg "log" // renamed to make it harder to see
 	"math"
 	"os"
 	"testing"
@@ -102,7 +97,7 @@ func PrintfTests() {
 	fmt.Printf("%s", stringerarrayv)
 	fmt.Printf("%v", notstringerarrayv)
 	fmt.Printf("%T", notstringerarrayv)
-	fmt.Printf("%d", new(Formatter))
+	fmt.Printf("%d", new(fmt.Formatter))
 	fmt.Printf("%*%", 2)               // Ridiculous but allowed.
 	fmt.Printf("%s", interface{}(nil)) // Nothing useful we can say.
 
@@ -175,6 +170,18 @@ func PrintfTests() {
 	f.Warnf(0, "%s", "hello", 3)          // ERROR "Warnf call needs 1 arg but has 2 args"
 	f.Warnf(0, "%r", "hello")             // ERROR "Warnf format %r has unknown verb r"
 	f.Warnf(0, "%#s", "hello")            // ERROR "Warnf format %#s has unrecognized flag #"
+	f.Warn2(0, "%s", "hello", 3)          // ERROR "Warn2 call has possible formatting directive %s"
+	f.Warnf2(0, "%s", "hello", 3)         // ERROR "Warnf2 call needs 1 arg but has 2 args"
+	f.Warnf2(0, "%r", "hello")            // ERROR "Warnf2 format %r has unknown verb r"
+	f.Warnf2(0, "%#s", "hello")           // ERROR "Warnf2 format %#s has unrecognized flag #"
+	f.Wrap(0, "%s", "hello", 3)           // ERROR "Wrap call has possible formatting directive %s"
+	f.Wrapf(0, "%s", "hello", 3)          // ERROR "Wrapf call needs 1 arg but has 2 args"
+	f.Wrapf(0, "%r", "hello")             // ERROR "Wrapf format %r has unknown verb r"
+	f.Wrapf(0, "%#s", "hello")            // ERROR "Wrapf format %#s has unrecognized flag #"
+	f.Wrap2(0, "%s", "hello", 3)          // ERROR "Wrap2 call has possible formatting directive %s"
+	f.Wrapf2(0, "%s", "hello", 3)         // ERROR "Wrapf2 call needs 1 arg but has 2 args"
+	f.Wrapf2(0, "%r", "hello")            // ERROR "Wrapf2 format %r has unknown verb r"
+	f.Wrapf2(0, "%#s", "hello")           // ERROR "Wrapf2 format %#s has unrecognized flag #"
 	fmt.Printf("%#s", FormatterVal(true)) // correct (the type is responsible for formatting)
 	Printf("d%", 2)                       // ERROR "Printf format % is missing verb at end of string"
 	Printf("%d", percentDV)
@@ -237,13 +244,13 @@ func PrintfTests() {
 	t.Logf("%d", 3)
 	t.Logf("%d", "hi") // ERROR "Logf format %d has arg \x22hi\x22 of wrong type string"
 
-	// Errorf(1, "%d", 3)    // OK
-	// Errorf(1, "%d", "hi") // no error "Errorf format %d has arg \x22hi\x22 of wrong type string"
+	Errorf(1, "%d", 3)    // OK
+	Errorf(1, "%d", "hi") // ERROR "Errorf format %d has arg \x22hi\x22 of wrong type string"
 
 	// Multiple string arguments before variadic args
-	// errorf("WARNING", "foobar")            // OK
-	// errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
-	// errorf("ERROR", "%d")                  // no error "errorf format %d reads arg #1, but call has 0 args"
+	errorf("WARNING", "foobar")            // OK
+	errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
+	errorf("ERROR", "%d")                  // no error "errorf format %d reads arg #1, but call has 0 args"
 
 	// Printf from external package
 	// externalprintf.Printf("%d", 42) // OK
@@ -283,6 +290,31 @@ func PrintfTests() {
 
 	Printf(someString(), "hello") // OK
 
+	// Printf wrappers in package log should be detected automatically
+	logpkg.Fatal("%d", 1)    // ERROR "Fatal call has possible formatting directive %d"
+	logpkg.Fatalf("%d", "x") // ERROR "Fatalf format %d has arg \x22x\x22 of wrong type string"
+	logpkg.Fatalln("%d", 1)  // ERROR "Fatalln call has possible formatting directive %d"
+	logpkg.Panic("%d", 1)    // ERROR "Panic call has possible formatting directive %d"
+	logpkg.Panicf("%d", "x") // ERROR "Panicf format %d has arg \x22x\x22 of wrong type string"
+	logpkg.Panicln("%d", 1)  // ERROR "Panicln call has possible formatting directive %d"
+	logpkg.Print("%d", 1)    // ERROR "Print call has possible formatting directive %d"
+	logpkg.Printf("%d", "x") // ERROR "Printf format %d has arg \x22x\x22 of wrong type string"
+	logpkg.Println("%d", 1)  // ERROR "Println call has possible formatting directive %d"
+
+	// Methods too.
+	var l *logpkg.Logger
+	l.Fatal("%d", 1)    // ERROR "Fatal call has possible formatting directive %d"
+	l.Fatalf("%d", "x") // ERROR "Fatalf format %d has arg \x22x\x22 of wrong type string"
+	l.Fatalln("%d", 1)  // ERROR "Fatalln call has possible formatting directive %d"
+	l.Panic("%d", 1)    // ERROR "Panic call has possible formatting directive %d"
+	l.Panicf("%d", "x") // ERROR "Panicf format %d has arg \x22x\x22 of wrong type string"
+	l.Panicln("%d", 1)  // ERROR "Panicln call has possible formatting directive %d"
+	l.Print("%d", 1)    // ERROR "Print call has possible formatting directive %d"
+	l.Printf("%d", "x") // ERROR "Printf format %d has arg \x22x\x22 of wrong type string"
+	l.Println("%d", 1)  // ERROR "Println call has possible formatting directive %d"
+
+	// Issue 26486
+	dbg("", 1) // no error "call has arguments but no formatting directive"
 }
 
 func someString() string { return "X" }
@@ -310,46 +342,32 @@ func (ss *someStruct) log(f func(), args ...interface{}) {}
 // A function we use as a function value; it has no other purpose.
 func someFunction() {}
 
-/*
 // Printf is used by the test so we must declare it.
 func Printf(format string, args ...interface{}) {
-	panic("don't call - testing only")
+	fmt.Printf(format, args...)
 }
 
 // Println is used by the test so we must declare it.
 func Println(args ...interface{}) {
-	panic("don't call - testing only")
+	fmt.Println(args...)
 }
-
-// Logf is used by the test so we must declare it.
-func Logf(format string, args ...interface{}) {
-	panic("don't call - testing only")
-}
-
-// Log is used by the test so we must declare it.
-func Log(args ...interface{}) {
-	panic("don't call - testing only")
-}
-*/
 
 // printf is used by the test so we must declare it.
 func printf(format string, args ...interface{}) {
-	panic("don't call - testing only")
+	fmt.Printf(format, args...)
 }
 
-/*
 // Errorf is used by the test for a case in which the first parameter
 // is not a format string.
 func Errorf(i int, format string, args ...interface{}) {
-	panic("don't call - testing only")
+	_ = fmt.Errorf(format, args...)
 }
 
 // errorf is used by the test for a case in which the function accepts multiple
 // string parameters before variadic arguments
 func errorf(level, format string, args ...interface{}) {
-	panic("don't call - testing only")
+	_ = fmt.Errorf(format, args...)
 }
-*/
 
 // multi is used by the test.
 func multi() []interface{} {
@@ -368,12 +386,48 @@ func (*ptrStringer) String() string {
 	return "string"
 }
 
-func (*ptrStringer) Warn(int, ...interface{}) string {
+func (p *ptrStringer) Warn2(x int, args ...interface{}) string {
+	return p.Warn(x, args...)
+}
+
+func (p *ptrStringer) Warnf2(x int, format string, args ...interface{}) string {
+	return p.Warnf(x, format, args...)
+}
+
+func (*ptrStringer) Warn(x int, args ...interface{}) string {
 	return "warn"
 }
 
-func (*ptrStringer) Warnf(int, string, ...interface{}) string {
+func (*ptrStringer) Warnf(x int, format string, args ...interface{}) string {
 	return "warnf"
+}
+
+func (p *ptrStringer) Wrap2(x int, args ...interface{}) string {
+	return p.Wrap(x, args...)
+}
+
+func (p *ptrStringer) Wrapf2(x int, format string, args ...interface{}) string {
+	return p.Wrapf(x, format, args...)
+}
+
+func (*ptrStringer) Wrap(x int, args ...interface{}) string {
+	return fmt.Sprint(args...)
+}
+
+func (*ptrStringer) Wrapf(x int, format string, args ...interface{}) string {
+	return fmt.Sprintf(format, args...)
+}
+
+func (*ptrStringer) BadWrap(x int, args ...interface{}) string {
+	return fmt.Sprint(args) // ERROR "missing ... in args forwarded to print-like function"
+}
+
+func (*ptrStringer) BadWrapf(x int, format string, args ...interface{}) string {
+	return fmt.Sprintf(format, args) // ERROR "missing ... in args forwarded to printf-like function"
+}
+
+func (*ptrStringer) WrapfFalsePositive(x int, arg1 string, arg2 ...interface{}) string {
+	return fmt.Sprintf("%s %v", arg1, arg2)
 }
 
 type embeddedStringer struct {
@@ -582,4 +636,12 @@ func UnexportedStringerOrError() {
 // See issues 23598 and 23605.
 func DisableErrorForFlag0() {
 	fmt.Printf("%0t", true)
+}
+
+// Issue 26486.
+func dbg(format string, args ...interface{}) {
+	if format == "" {
+		format = "%v"
+	}
+	fmt.Printf(format, args...)
 }

@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	blockSize = 4096
+	// More than 5760 to work around https://golang.org/issue/24015.
+	blockSize = 8192
 )
 
 func (f *File) readdir(n int) (fi []FileInfo, err error) {

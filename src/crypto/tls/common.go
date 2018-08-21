@@ -127,10 +127,12 @@ const (
 	// Rest of these are reserved by the TLS spec
 )
 
-// Signature algorithms for TLS 1.2 (See RFC 5246, section A.4.1)
+// Signature algorithms (for internal signaling use). Starting at 16 to avoid overlap with
+// TLS 1.2 codepoints (RFC 5246, section A.4.1), with which these have nothing to do.
 const (
-	signatureRSA   uint8 = 1
-	signatureECDSA uint8 = 3
+	signaturePKCS1v15 uint8 = iota + 16
+	signatureECDSA
+	signatureRSAPSS
 )
 
 // supportedSignatureAlgorithms contains the signature and hash algorithms that
@@ -923,12 +925,7 @@ func initDefaultCipherSuites() {
 	// Worst case, these variables will just all be false
 	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
 
-	// TODO: enable the arm64 HasAES && HasPMULL feature check after the
-	// optimized AES-GCM implementation for arm64 is merged (CL 107298).
-	// This is explicitly set to false for now to prevent misprioritization
-	// of AES-GCM based cipher suites, which will be slower than chacha20-poly1305
-	hasGCMAsmARM64 := false
-	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+	hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
 
 	// Keep in sync with crypto/aes/cipher_s390x.go.
 	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
@@ -994,7 +991,9 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
 	switch signatureAlgorithm {
 	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
-		return signatureRSA
+		return signaturePKCS1v15
+	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
+		return signatureRSAPSS
 	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
 		return signatureECDSA
 	default:

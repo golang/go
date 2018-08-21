@@ -219,6 +219,8 @@ const (
 	// However, it is not allowed to switch goroutines while inside of an ACALLNORESUME call.
 	ACALLNORESUME
 
+	ARETUNWIND
+
 	AMOVB
 	AMOVH
 	AMOVW
@@ -244,6 +246,7 @@ const (
 	REG_RET1
 	REG_RET2
 	REG_RET3
+	REG_RUN
 
 	// locals
 	REG_R0

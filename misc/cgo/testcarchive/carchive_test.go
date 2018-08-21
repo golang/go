@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -83,13 +84,17 @@ func init() {
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
 	libgodir = GOOS + "_" + GOARCH
-	switch GOOS {
-	case "darwin":
-		if GOARCH == "arm" || GOARCH == "arm64" {
+	if runtime.Compiler == "gccgo" {
+		libgodir = "gccgo_" + libgodir + "_fPIC"
+	} else {
+		switch GOOS {
+		case "darwin":
+			if GOARCH == "arm" || GOARCH == "arm64" {
+				libgodir += "_shared"
+			}
+		case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
 			libgodir += "_shared"
 		}
-	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
-		libgodir += "_shared"
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
 
@@ -155,6 +160,9 @@ func testInstall(t *testing.T, exe, libgoa, libgoh string, buildcmd ...string) {
 	} else {
 		ccArgs = append(ccArgs, "main_unix.c", libgoa)
 	}
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	t.Log(ccArgs)
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -163,7 +171,11 @@ func testInstall(t *testing.T, exe, libgoa, libgoh string, buildcmd ...string) {
 	defer os.Remove(exe)
 
 	binArgs := append(cmdToRun(exe), "arg1", "arg2")
-	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
+	cmd = exec.Command(binArgs[0], binArgs[1:]...)
+	if runtime.Compiler == "gccgo" {
+		cmd.Env = append(os.Environ(), "GCCGO=1")
+	}
+	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
@@ -194,8 +206,13 @@ func checkLineComments(t *testing.T, hdrname string) {
 func TestInstall(t *testing.T) {
 	defer os.RemoveAll("pkg")
 
+	libgoa := "libgo.a"
+	if runtime.Compiler == "gccgo" {
+		libgoa = "liblibgo.a"
+	}
+
 	testInstall(t, "./testp1"+exeSuffix,
-		filepath.Join("pkg", libgodir, "libgo.a"),
+		filepath.Join("pkg", libgodir, libgoa),
 		filepath.Join("pkg", libgodir, "libgo.h"),
 		"go", "install", "-i", "-buildmode=c-archive", "libgo")
 
@@ -235,6 +252,9 @@ func TestEarlySignalHandler(t *testing.T) {
 	checkLineComments(t, "libgo2.h")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main2.c", "libgo2.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -265,6 +285,9 @@ func TestSignalForwarding(t *testing.T) {
 	checkLineComments(t, "libgo2.h")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -306,6 +329,9 @@ func TestSignalForwardingExternal(t *testing.T) {
 	checkLineComments(t, "libgo2.h")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -419,6 +445,9 @@ func TestOsSignal(t *testing.T) {
 	checkLineComments(t, "libgo3.h")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main3.c", "libgo3.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -452,6 +481,9 @@ func TestSigaltstack(t *testing.T) {
 	checkLineComments(t, "libgo4.h")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main4.c", "libgo4.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -475,6 +507,9 @@ func TestExtar(t *testing.T) {
 	switch GOOS {
 	case "windows":
 		t.Skip("skipping signal test on Windows")
+	}
+	if runtime.Compiler == "gccgo" {
+		t.Skip("skipping -extar test when using gccgo")
 	}
 
 	defer func() {
@@ -530,14 +565,26 @@ func TestPIE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", filepath.Join("pkg", libgodir, "libgo.a"))
+	libgoa := "libgo.a"
+	if runtime.Compiler == "gccgo" {
+		libgoa = "liblibgo.a"
+	}
+
+	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", filepath.Join("pkg", libgodir, libgoa))
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
 
 	binArgs := append(bin, "arg1", "arg2")
-	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
+	cmd = exec.Command(binArgs[0], binArgs[1:]...)
+	if runtime.Compiler == "gccgo" {
+		cmd.Env = append(os.Environ(), "GCCGO=1")
+	}
+	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
@@ -605,6 +652,9 @@ func TestSIGPROF(t *testing.T) {
 	checkLineComments(t, "libgo6.h")
 
 	ccArgs := append(cc, "-o", "testp6"+exeSuffix, "main6.c", "libgo6.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -648,6 +698,9 @@ func TestCompileWithoutShared(t *testing.T) {
 	// In some cases, -no-pie is needed here, but not accepted everywhere. First try
 	// if -no-pie is accepted. See #22126.
 	ccArgs := append(cc, "-o", exe, "-no-pie", "main5.c", "libgo2.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
 	t.Log(ccArgs)
 	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
 

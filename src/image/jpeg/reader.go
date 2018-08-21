@@ -89,7 +89,8 @@ var unzig = [blockSize]int{
 	53, 60, 61, 54, 47, 55, 62, 63,
 }
 
-// Deprecated: Reader is deprecated.
+// Deprecated: Reader is not used by the image/jpeg package and should
+// not be used by others. It is kept for compatibility.
 type Reader interface {
 	io.ByteReader
 	io.Reader

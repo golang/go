@@ -1,0 +1,9 @@
+env GO111MODULE=on
+
+cd $WORK/test/x
+go list -m all
+stdout '^m$'
+
+-- $WORK/test/Gopkg.lock --
+-- $WORK/test/x/x.go --
+package x // import "m/x"

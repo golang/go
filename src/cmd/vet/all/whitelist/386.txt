@@ -22,5 +22,3 @@ runtime/duff_386.s: [386] duffcopy: function duffcopy missing Go declaration
 
 runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go declaration
 runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
-
-runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
