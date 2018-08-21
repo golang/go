@@ -547,16 +547,15 @@ func Repeat(s string, count int) string {
 		panic("strings: Repeat count causes overflow")
 	}
 
-	k, n := len(s), len(s)*count
+	n := len(s)*count
 	var b Builder
 	b.Grow(n)
 	b.WriteString(s)
-	for k < n {
-		if k + k < n {
+	for b.Len() < n {
+		if b.Len() <= n>>1 {
 			b.WriteString(b.String())
-			k = k + k
 		} else {
-			b.WriteString(b.String()[:n-k])
+			b.WriteString(b.String()[:n-b.Len()])
 			break
 		}
 	}
