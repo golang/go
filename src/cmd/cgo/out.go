@@ -1432,7 +1432,7 @@ void *CBytes(_GoBytes_);
 void *_CMalloc(size_t);
 
 __attribute__ ((unused))
-static size_t _GoStringLen(_GoString_ s) { return s.n; }
+static size_t _GoStringLen(_GoString_ s) { return (size_t)s.n; }
 
 __attribute__ ((unused))
 static const char *_GoStringPtr(_GoString_ s) { return s.p; }
