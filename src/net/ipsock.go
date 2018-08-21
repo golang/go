@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"internal/bytealg"
 	"sync"
 )
 
@@ -170,7 +171,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 
 	if hostport[0] == '[' {
 		// Expect the first ']' just before the last ':'.
-		end := byteIndex(hostport, ']')
+		end := bytealg.IndexByteString(hostport, ']')
 		if end < 0 {
 			return addrErr(hostport, "missing ']' in address")
 		}
@@ -192,14 +193,14 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
 	} else {
 		host = hostport[:i]
-		if byteIndex(host, ':') >= 0 {
+		if bytealg.IndexByteString(host, ':') >= 0 {
 			return addrErr(hostport, tooManyColons)
 		}
 	}
-	if byteIndex(hostport[j:], '[') >= 0 {
+	if bytealg.IndexByteString(hostport[j:], '[') >= 0 {
 		return addrErr(hostport, "unexpected '[' in address")
 	}
-	if byteIndex(hostport[k:], ']') >= 0 {
+	if bytealg.IndexByteString(hostport[k:], ']') >= 0 {
 		return addrErr(hostport, "unexpected ']' in address")
 	}
 
@@ -226,7 +227,7 @@ func splitHostZone(s string) (host, zone string) {
 func JoinHostPort(host, port string) string {
 	// We assume that host is a literal IPv6 address if host has
 	// colons.
-	if byteIndex(host, ':') >= 0 {
+	if bytealg.IndexByteString(host, ':') >= 0 {
 		return "[" + host + "]:" + port
 	}
 	return host + ":" + port

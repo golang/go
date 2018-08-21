@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/bytealg"
 	"sync"
 	"time"
 )
@@ -68,7 +69,7 @@ func readHosts() {
 		return
 	}
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
-		if i := byteIndex(line, '#'); i >= 0 {
+		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
 			// Discard comments.
 			line = line[0:i]
 		}

@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"internal/bytealg"
 	"os"
 	"syscall"
 )
@@ -49,7 +50,7 @@ func probe(filename, query string) bool {
 // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
 func parsePlan9Addr(s string) (ip IP, iport int, err error) {
 	addr := IPv4zero // address contains port only
-	i := byteIndex(s, '!')
+	i := bytealg.IndexByteString(s, '!')
 	if i >= 0 {
 		addr = ParseIP(s[:i])
 		if addr == nil {
