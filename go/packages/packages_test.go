@@ -1179,13 +1179,22 @@ func TestJSON(t *testing.T) {
 			return
 		}
 		seen[pkg.ID] = true
-		// trim the source lists for stable results
+
+		// Trim the source lists for stable results.
 		pkg.GoFiles = cleanPaths(pkg.GoFiles)
 		pkg.CompiledGoFiles = cleanPaths(pkg.CompiledGoFiles)
 		pkg.OtherFiles = cleanPaths(pkg.OtherFiles)
-		for _, ipkg := range pkg.Imports {
-			visit(ipkg)
+
+		// Visit imports.
+		var importPaths []string
+		for path := range pkg.Imports {
+			importPaths = append(importPaths, path)
 		}
+		sort.Strings(importPaths) // for determinism
+		for _, path := range importPaths {
+			visit(pkg.Imports[path])
+		}
+
 		if err := enc.Encode(pkg); err != nil {
 			t.Fatal(err)
 		}
@@ -1353,8 +1362,6 @@ func importGraph(initial []*packages.Package) (string, map[string]*packages.Pack
 		initialSet[p] = true
 	}
 
-	// We can't use packages.All because
-	// we need to prune the traversal.
 	var nodes, edges []string
 	res := make(map[string]*packages.Package)
 	seen := make(map[*packages.Package]bool)
