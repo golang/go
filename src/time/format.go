@@ -1172,13 +1172,15 @@ func parseSignedOffset(value string) int {
 		return 0
 	}
 	x, rem, err := leadingInt(value[1:])
-	if err != nil {
+
+	// fail if nothing consumed by leadingInt
+	if err != nil || value[1:] == rem {
 		return 0
 	}
 	if sign == '-' {
 		x = -x
 	}
-	if x == 0 || x < -23 || 23 < x {
+	if x < -23 || 23 < x {
 		return 0
 	}
 	return len(value) - len(rem)

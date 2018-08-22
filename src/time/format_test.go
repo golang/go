@@ -416,7 +416,11 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
 	{"gmt hi there", 0, false},
 	{"GMT hi there", 3, true},
 	{"GMT+12 hi there", 6, true},
-	{"GMT+00 hi there", 3, true}, // 0 or 00 is not a legal offset.
+	{"GMT+00 hi there", 6, true},
+	{"GMT+", 3, true},
+	{"GMT+3", 5, true},
+	{"GMT+a", 3, true},
+	{"GMT+3a", 5, true},
 	{"GMT-5 hi there", 5, true},
 	{"GMT-51 hi there", 3, true},
 	{"ChST hi there", 4, true},
@@ -431,6 +435,7 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
 	{"+03 hi", 3, true},
 	{"-04 hi", 3, true},
 	// Issue #26032
+	{"+00", 3, true},
 	{"-11", 3, true},
 	{"-12", 3, true},
 	{"-23", 3, true},
