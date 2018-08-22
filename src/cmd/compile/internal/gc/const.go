@@ -121,6 +121,17 @@ func (n *Node) Int64() int64 {
 	return n.Val().U.(*Mpint).Int64()
 }
 
+// CanInt64 reports whether it is safe to call Int64() on n.
+func (n *Node) CanInt64() bool {
+	if !Isconst(n, CTINT) {
+		return false
+	}
+
+	// if the value inside n cannot be represented as an int64, the
+	// return value of Int64 is undefined
+	return n.Val().U.(*Mpint).CmpInt64(n.Int64()) == 0
+}
+
 // Bool returns n as a bool.
 // n must be a boolean constant.
 func (n *Node) Bool() bool {
