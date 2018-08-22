@@ -523,23 +523,33 @@ func Map(mapping func(rune) rune, s string) string {
 // It panics if count is negative or if
 // the result of (len(s) * count) overflows.
 func Repeat(s string, count int) string {
+	if count == 0 {
+		return ""
+	}
+
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
 	// See Issue golang.org/issue/16237
 	if count < 0 {
 		panic("strings: negative Repeat count")
-	} else if count > 0 && len(s)*count/count != len(s) {
+	} else if len(s)*count/count != len(s) {
 		panic("strings: Repeat count causes overflow")
 	}
 
-	b := make([]byte, len(s)*count)
-	bp := copy(b, s)
-	for bp < len(b) {
-		copy(b[bp:], b[:bp])
-		bp *= 2
+	n := len(s) * count
+	var b Builder
+	b.Grow(n)
+	b.WriteString(s)
+	for b.Len() < n {
+		if b.Len() <= n/2 {
+			b.WriteString(b.String())
+		} else {
+			b.WriteString(b.String()[:n-b.Len()])
+			break
+		}
 	}
-	return string(b)
+	return b.String()
 }
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.

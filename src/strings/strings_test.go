@@ -1660,8 +1660,15 @@ func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
 }
 
 func BenchmarkRepeat(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Repeat("-", 80)
+	s := "0123456789"
+	for _, n := range []int{5, 10} {
+		for _, c := range []int{1, 2, 6} {
+			b.Run(fmt.Sprintf("%dx%d", n, c), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					Repeat(s[:n], c)
+				}
+			})
+		}
 	}
 }
 
