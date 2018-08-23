@@ -365,6 +365,9 @@ func newLoader(cfg *Config) *loader {
 	if cfg != nil {
 		ld.Config = *cfg
 	}
+	if ld.Config.Env == nil {
+		ld.Config.Env = os.Environ()
+	}
 	if ld.Context == nil {
 		ld.Context = context.Background()
 	}
