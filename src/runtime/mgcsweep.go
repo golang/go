@@ -161,7 +161,8 @@ func (s *mspan) ensureSwept() {
 	}
 
 	sg := mheap_.sweepgen
-	if atomic.Load(&s.sweepgen) == sg {
+	spangen := atomic.Load(&s.sweepgen)
+	if spangen == sg || spangen == sg+3 {
 		return
 	}
 	// The caller must be sure that the span is a mSpanInUse span.
@@ -170,7 +171,11 @@ func (s *mspan) ensureSwept() {
 		return
 	}
 	// unfortunate condition, and we don't have efficient means to wait
-	for atomic.Load(&s.sweepgen) != sg {
+	for {
+		spangen := atomic.Load(&s.sweepgen)
+		if spangen == sg || spangen == sg+3 {
+			break
+		}
 		osyield()
 	}
 }

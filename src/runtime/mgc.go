@@ -1262,6 +1262,14 @@ func gcStart(trigger gcTrigger) {
 		traceGCStart()
 	}
 
+	// Check that all Ps have finished deferred mcache flushes.
+	for _, p := range allp {
+		if fg := atomic.Load(&p.mcache.flushGen); fg != mheap_.sweepgen {
+			println("runtime: p", p.id, "flushGen", fg, "!= sweepgen", mheap_.sweepgen)
+			throw("p mcache not flushed")
+		}
+	}
+
 	gcBgMarkStartWorkers()
 
 	gcResetMarkState()
@@ -1605,6 +1613,16 @@ func gcMarkTermination(nextTriggerRatio float64) {
 
 	// Free stack spans. This must be done between GC cycles.
 	systemstack(freeStackSpans)
+
+	// Ensure all mcaches are flushed. Each P will flush its own
+	// mcache before allocating, but idle Ps may not. Since this
+	// is necessary to sweep all spans, we need to ensure all
+	// mcaches are flushed before we start the next GC cycle.
+	systemstack(func() {
+		forEachP(func(_p_ *p) {
+			_p_.mcache.prepareForSweep()
+		})
+	})
 
 	// Print gctrace before dropping worldsema. As soon as we drop
 	// worldsema another cycle could start and smash the stats
