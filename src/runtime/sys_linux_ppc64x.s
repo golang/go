@@ -154,21 +154,87 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$16
-	MOVD	$0, R3 // CLOCK_REALTIME
-	MOVD	$0(R1), R4
-	SYSCALL	$SYS_clock_gettime
-	MOVD	0(R1), R3	// sec
-	MOVD	8(R1), R5	// nsec
+	MOVD	R1, R15		// R15 is unchanged by C code
+	MOVD	g_m(g), R21	// R21 = m
+
+	MOVD	$0, R3		// CLOCK_REALTIME
+
+	MOVD	runtime·vdsoClockgettimeSym(SB), R12	// Check for VDSO availability
+	CMP	R12, R0
+	BEQ	fallback
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVD	LR, R14
+	MOVD	R14, m_vdsoPC(R21)
+	MOVD	R15, m_vdsoSP(R21)
+
+	MOVD	m_curg(R21), R6
+	CMP	g, R6
+	BNE	noswitch
+
+	MOVD	m_g0(R21), R7
+	MOVD	(g_sched+gobuf_sp)(R7), R1	// Set SP to g0 stack
+
+noswitch:
+	SUB	$16, R1			// Space for results
+	RLDICR	$0, R1, $59, R1		// Align for C code
+	MOVD	R12, CTR
+	MOVD	R1, R4
+	BL	(CTR)			// Call from VDSO
+	MOVD	$0, R0			// Restore R0
+	MOVD	R0, m_vdsoSP(R21)	// Clear vdsoSP
+	MOVD	0(R1), R3		// sec
+	MOVD	8(R1), R5		// nsec
+	MOVD	R15, R1			// Restore SP
+
+finish:
 	MOVD	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
 
+	// Syscall fallback
+fallback:
+	ADD	$32, R1, R4
+	SYSCALL $SYS_clock_gettime
+	MOVD	32(R1), R3
+	MOVD	40(R1), R5
+	JMP	finish
+
 TEXT runtime·nanotime(SB),NOSPLIT,$16
-	MOVW	$1, R3 // CLOCK_MONOTONIC
-	MOVD	$0(R1), R4
-	SYSCALL	$SYS_clock_gettime
-	MOVD	0(R1), R3	// sec
-	MOVD	8(R1), R5	// nsec
+	MOVD	$1, R3		// CLOCK_MONOTONIC
+
+	MOVD	R1, R15		// R15 is unchanged by C code
+	MOVD	g_m(g), R21	// R21 = m
+
+	MOVD	runtime·vdsoClockgettimeSym(SB), R12	// Check for VDSO availability
+	CMP	R12, R0
+	BEQ	fallback
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVD	LR, R14		// R14 is unchanged by C code
+	MOVD	R14, m_vdsoPC(R21)
+	MOVD	R15, m_vdsoSP(R21)
+
+	MOVD	m_curg(R21), R6
+	CMP	g, R6
+	BNE	noswitch
+
+	MOVD	m_g0(R21), R7
+	MOVD	(g_sched+gobuf_sp)(R7), R1	// Set SP to g0 stack
+
+noswitch:
+	SUB	$16, R1			// Space for results
+	RLDICR	$0, R1, $59, R1		// Align for C code
+	MOVD	R12, CTR
+	MOVD	R1, R4
+	BL	(CTR)			// Call from VDSO
+	MOVD	$0, R0			// Restore R0
+	MOVD	$0, m_vdsoSP(R21)	// Clear vdsoSP
+	MOVD	0(R1), R3		// sec
+	MOVD	8(R1), R5		// nsec
+	MOVD	R15, R1			// Restore SP
+
+finish:
 	// sec is in R3, nsec in R5
 	// return nsec in R3
 	MOVD	$1000000000, R4
@@ -176,6 +242,14 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	ADD	R5, R3
 	MOVD	R3, ret+0(FP)
 	RET
+
+	// Syscall fallback
+fallback:
+	ADD	$32, R1, R4
+	SYSCALL $SYS_clock_gettime
+	MOVD	32(R1), R3
+	MOVD	48(R1), R5
+	JMP	finish
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), R3
