@@ -758,7 +758,7 @@ func (pkg *loadPkg) stackText() string {
 }
 
 // why returns the text to use in "go mod why" output about the given package.
-// It is less ornate than the stackText but conatins the same information.
+// It is less ornate than the stackText but contains the same information.
 func (pkg *loadPkg) why() string {
 	var buf strings.Builder
 	var stack []*loadPkg

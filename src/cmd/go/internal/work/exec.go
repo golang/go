@@ -2858,7 +2858,7 @@ func useResponseFile(path string, argLen int) bool {
 	}
 
 	// On the Go build system, use response files about 10% of the
-	// time, just to excercise this codepath.
+	// time, just to exercise this codepath.
 	isBuilder := os.Getenv("GO_BUILDER_NAME") != ""
 	if isBuilder && rand.Intn(10) == 0 {
 		return true

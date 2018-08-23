@@ -133,7 +133,7 @@ func dse(f *Func) {
 	}
 }
 
-// elimDeadAutosGeneric deletes autos that are never accessed. To acheive this
+// elimDeadAutosGeneric deletes autos that are never accessed. To achieve this
 // we track the operations that the address of each auto reaches and if it only
 // reaches stores then we delete all the stores. The other operations will then
 // be eliminated by the dead code elimination pass.

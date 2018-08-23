@@ -560,7 +560,7 @@ func TestNotes(t *testing.T) {
 			abiHashNoteFound = true
 		case 3: // ELF_NOTE_GODEPS_TAG
 			if depsNoteFound {
-				t.Error("multiple depedency list notes")
+				t.Error("multiple dependency list notes")
 			}
 			testDepsNote(t, f, note)
 			depsNoteFound = true
