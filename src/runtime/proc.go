@@ -4119,6 +4119,7 @@ func procresize(nprocs int32) *p {
 	if _g_.m.p != 0 && _g_.m.p.ptr().id < nprocs {
 		// continue to use the current P
 		_g_.m.p.ptr().status = _Prunning
+		_g_.m.p.ptr().mcache.prepareForSweep()
 	} else {
 		// release the current P and acquire allp[0]
 		if _g_.m.p != 0 {
@@ -4168,6 +4169,10 @@ func acquirep(_p_ *p) {
 	// have p; write barriers now allowed
 	_g_ := getg()
 	_g_.m.mcache = _p_.mcache
+
+	// Perform deferred mcache flush before this P can allocate
+	// from a potentially stale mcache.
+	_p_.mcache.prepareForSweep()
 
 	if trace.enabled {
 		traceProcStart()

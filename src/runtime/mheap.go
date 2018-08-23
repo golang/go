@@ -317,6 +317,8 @@ type mspan struct {
 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
 	// if sweepgen == h->sweepgen - 1, the span is currently being swept
 	// if sweepgen == h->sweepgen, the span is swept and ready to use
+	// if sweepgen == h->sweepgen + 1, the span was cached before sweep began and is still cached, and needs sweeping
+	// if sweepgen == h->sweepgen + 3, the span was swept and then cached and is still cached
 	// h->sweepgen is incremented by 2 after every GC
 
 	sweepgen    uint32
@@ -324,7 +326,6 @@ type mspan struct {
 	baseMask    uint16     // if non-0, elemsize is a power of 2, & this will get object allocation base
 	allocCount  uint16     // number of allocated objects
 	spanclass   spanClass  // size class and noscan (uint8)
-	incache     bool       // being used by an mcache
 	state       mSpanState // mspaninuse etc
 	needzero    uint8      // needs to be zeroed before allocation
 	divShift    uint8      // for divide by elemsize - divMagic.shift
@@ -1185,7 +1186,6 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.npages = npages
 	span.allocCount = 0
 	span.spanclass = 0
-	span.incache = false
 	span.elemsize = 0
 	span.state = mSpanDead
 	span.unusedsince = 0

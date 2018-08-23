@@ -52,11 +52,7 @@ const (
 //
 //go:nowritebarrier
 func gcMarkRootPrepare() {
-	if gcphase == _GCmarktermination {
-		work.nFlushCacheRoots = int(gomaxprocs)
-	} else {
-		work.nFlushCacheRoots = 0
-	}
+	work.nFlushCacheRoots = 0
 
 	// Compute how many data and BSS root blocks there are.
 	nBlocks := func(bytes uintptr) int {
@@ -344,7 +340,8 @@ func markrootSpans(gcw *gcWork, shard int) {
 		if s.state != mSpanInUse {
 			continue
 		}
-		if !useCheckmark && s.sweepgen != sg {
+		// Check that this span was swept (it may be cached or uncached).
+		if !useCheckmark && !(s.sweepgen == sg || s.sweepgen == sg+3) {
 			// sweepgen was updated (+2) during non-checkmark GC pass
 			print("sweep ", s.sweepgen, " ", sg, "\n")
 			throw("gc: unswept span")
