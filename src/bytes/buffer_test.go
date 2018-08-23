@@ -293,7 +293,7 @@ func TestReadFromPanicReader(t *testing.T) {
 	}
 	check(t, "TestReadFromPanicReader (1)", &buf, "")
 
-	// Confirm that when Reader panics, the emtpy buffer remains empty
+	// Confirm that when Reader panics, the empty buffer remains empty
 	var buf2 Buffer
 	defer func() {
 		recover()

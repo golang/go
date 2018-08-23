@@ -33,7 +33,7 @@ func newParser(goarch string) *Parser {
 
 // tryParse executes parse func in panicOnError=true context.
 // parse is expected to call any parsing methods that may panic.
-// Returns error gathered from recover; nil if no parse errors occured.
+// Returns error gathered from recover; nil if no parse errors occurred.
 //
 // For unexpected panics, calls t.Fatal.
 func tryParse(t *testing.T, parse func()) (err error) {
