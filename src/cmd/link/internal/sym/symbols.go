@@ -95,7 +95,7 @@ func (syms *Symbols) IncVersion() int {
 }
 
 // Rename renames a symbol.
-func (syms *Symbols) Rename(old, new string, v int) {
+func (syms *Symbols) Rename(old, new string, v int, reachparent map[*Symbol]*Symbol) {
 	s := syms.hash[v][old]
 	s.Name = new
 	if s.Extname == old {
@@ -108,8 +108,16 @@ func (syms *Symbols) Rename(old, new string, v int) {
 		syms.hash[v][new] = s
 	} else {
 		if s.Type == 0 {
+			dup.Attr |= s.Attr
+			if s.Attr.Reachable() && reachparent != nil {
+				reachparent[dup] = reachparent[s]
+			}
 			*s = *dup
 		} else if dup.Type == 0 {
+			s.Attr |= dup.Attr
+			if dup.Attr.Reachable() && reachparent != nil {
+				reachparent[s] = reachparent[dup]
+			}
 			*dup = *s
 			syms.hash[v][new] = s
 		}

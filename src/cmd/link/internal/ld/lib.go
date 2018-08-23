@@ -577,27 +577,6 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	// If type. symbols are visible in the symbol table, rename them
-	// using a SHA-1 prefix. This reduces binary size (the full
-	// string of a type symbol can be multiple kilobytes) and removes
-	// characters that upset external linkers.
-	//
-	// Keep the type.. prefix, which parts of the linker (like the
-	// DWARF generator) know means the symbol is not decodable.
-	//
-	// Leave type.runtime. symbols alone, because other parts of
-	// the linker manipulates them, and also symbols whose names
-	// would not be shortened by this process.
-	if typeSymbolMangling(ctxt) {
-		*FlagW = true // disable DWARF generation
-		for _, s := range ctxt.Syms.Allsym {
-			newName := typeSymbolMangle(s.Name)
-			if newName != s.Name {
-				ctxt.Syms.Rename(s.Name, newName, int(s.Version))
-			}
-		}
-	}
-
 	// If package versioning is required, generate a hash of the
 	// packages used in the link.
 	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
@@ -657,23 +636,39 @@ func (ctxt *Link) loadlib() {
 	}
 }
 
-// typeSymbolMangling reports whether the linker should shorten the
-// names of symbols that represent Go types.
+// mangleTypeSym shortens the names of symbols that represent Go types
+// if they are visible in the symbol table.
 //
 // As the names of these symbols are derived from the string of
 // the type, they can run to many kilobytes long. So we shorten
 // them using a SHA-1 when the name appears in the final binary.
+// This also removes characters that upset external linkers.
 //
 // These are the symbols that begin with the prefix 'type.' and
 // contain run-time type information used by the runtime and reflect
 // packages. All Go binaries contain these symbols, but only only
 // those programs loaded dynamically in multiple parts need these
 // symbols to have entries in the symbol table.
-func typeSymbolMangling(ctxt *Link) bool {
-	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+func (ctxt *Link) mangleTypeSym() {
+	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && ctxt.Syms.ROLookup("plugin.Open", 0) == nil {
+		return
+	}
+
+	*FlagW = true // disable DWARF generation
+	for _, s := range ctxt.Syms.Allsym {
+		newName := typeSymbolMangle(s.Name)
+		if newName != s.Name {
+			ctxt.Syms.Rename(s.Name, newName, int(s.Version), ctxt.Reachparent)
+		}
+	}
 }
 
 // typeSymbolMangle mangles the given symbol name into something shorter.
+//
+// Keep the type.. prefix, which parts of the linker (like the
+// DWARF generator) know means the symbol is not decodable.
+// Leave type.runtime. symbols alone, because other parts of
+// the linker manipulates them.
 func typeSymbolMangle(name string) string {
 	if !strings.HasPrefix(name, "type.") {
 		return name
