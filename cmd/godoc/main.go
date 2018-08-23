@@ -183,6 +183,9 @@ func main() {
 		usage()
 	}
 
+	// Setting the resolved goroot.
+	vfs.GOROOT = *goroot
+
 	var fsGate chan bool
 	fsGate = make(chan bool, 20)
 

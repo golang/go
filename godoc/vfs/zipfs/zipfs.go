@@ -25,7 +25,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -87,7 +86,7 @@ func (fs *zipFS) String() string {
 func (fs *zipFS) RootType(abspath string) vfs.RootType {
 	var t vfs.RootType
 	switch {
-	case abspath == runtime.GOROOT():
+	case abspath == vfs.GOROOT:
 		t = vfs.RootTypeGoRoot
 	case isGoPath(abspath):
 		t = vfs.RootTypeGoPath

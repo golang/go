@@ -14,6 +14,14 @@ import (
 	"runtime"
 )
 
+// GOROOT returns the GOROOT path under which the godoc binary is running.
+// It is needed to check whether a filesystem root is under GOROOT or not.
+// This is set from cmd/godoc/main.go
+
+// We expose a new variable because otherwise we need to copy the findGOROOT logic again
+// from cmd/godoc which is already copied twice from the standard library.
+var GOROOT = runtime.GOROOT()
+
 // OS returns an implementation of FileSystem reading from the
 // tree rooted at root.  Recording a root is convenient everywhere
 // but necessary on Windows, because the slash-separated path
@@ -22,7 +30,7 @@ import (
 func OS(root string) FileSystem {
 	var t RootType
 	switch {
-	case root == runtime.GOROOT():
+	case root == GOROOT:
 		t = RootTypeGoRoot
 	case isGoPath(root):
 		t = RootTypeGoPath
