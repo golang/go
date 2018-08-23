@@ -1829,7 +1829,7 @@ before committing them to your version control system.
 	refer to tour.golang.org instead of go-tour.appspot.com.
 * exp/norm: fixed bug that crept in with moving to the new regexp.
 * exp/ssh: fix length header leaking into channel data (thanks Dave Cheney).
-* fmt: handle os.Error values explicitly (as distinct from Stringer).
+* fmt: handle os.Error values explicity (as distinct from Stringer).
 * gc: clean up printing,
 	fix [568]g -V crash (thanks Mikio Hara),
 	test + fix escape analysis bug.
@@ -3438,7 +3438,7 @@ Other changes:
         drop Author: line on self-clpatch,
         recognize code URL without trailing slash.
 * crypto/block: remove deprecated package.
-* crypto/des: new package implementing DES and TDEA (thanks Yasuhiro Matsumoto).
+* crypto/des: new package implementating DES and TDEA (thanks Yasuhiro Matsumoto).
 * crypto/ecdsa, crypto/rsa: use io.ReadFull to read from random source (thanks Dmitry Chestnykh).
 * crypto/rsa: add 3-prime support,
         add support for precomputing CRT values,
@@ -3776,7 +3776,7 @@ Code that uses the Addr method will have to call UnsafeAddr instead.
 The path package has been split into two packages: path and path/filepath.
 Package path manipulates slash-separated paths, regardless of operating system.
 Package filepath implements the local operating system's native file paths.
-OS-specific functioanlity in package path, such as Walk, moved to filepath.
+OS-specific functioanlity in pacakge path, such as Walk, moved to filepath.
 
 Other changes:
 * build: fixes and simplifications (thanks Dave Cheney),
