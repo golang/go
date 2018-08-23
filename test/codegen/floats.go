@@ -6,6 +6,8 @@
 
 package codegen
 
+import "math"
+
 // This file contains codegen tests related to arithmetic
 // simplifications and optimizations on float types.
 // For codegen tests on integer types, see arithmetic.go.
@@ -46,6 +48,11 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
 	z := f3 / 0.5
 
 	return x, y, z
+}
+
+func getPi() float64 {
+	// 386/387:"FLDPI"
+	return math.Pi
 }
 
 // ----------- //
