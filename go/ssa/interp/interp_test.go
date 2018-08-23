@@ -103,8 +103,8 @@ var gorootTestTests = []string{
 	"floatcmp.go",
 	"crlf.go", // doesn't actually assert anything (runoutput)
 	// Slow tests follow.
-	"bom.go", // ~1.7s
-	"gc1.go", // ~1.7s
+	"bom.go",                         // ~1.7s
+	"gc1.go",                         // ~1.7s
 	"cmplxdivide.go cmplxdivide1.go", // ~2.4s
 
 	// Working, but not worth enabling:
@@ -192,7 +192,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 		interp.CapturedOutput = nil
 	}()
 
-	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -test -build=CFP %s\n", input)
+	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -test -build=CFP %s\n", strings.Join(inputs, " "))
 
 	iprog, err := conf.Load()
 	if err != nil {
@@ -227,7 +227,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	var out bytes.Buffer
 	interp.CapturedOutput = &out
 
-	hint = fmt.Sprintf("To trace execution, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -build=C -test -run --interp=T %s\n", input)
+	hint = fmt.Sprintf("To trace execution, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -build=C -test -run --interp=T %s\n", strings.Join(inputs, " "))
 	exitCode := interp.Interpret(mainPkg, 0, &types.StdSizes{WordSize: 8, MaxAlign: 8}, inputs[0], []string{})
 
 	// The definition of success varies with each file.
