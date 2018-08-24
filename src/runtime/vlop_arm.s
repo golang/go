@@ -44,7 +44,7 @@
 // the RET instruction will clobber R12 on nacl, and the compiler's register
 // allocator needs to know.
 TEXT runtime·udiv(SB),NOSPLIT|NOFRAME,$0
-	MOVBU	internal∕cpu·ARM+const_offset_arm_HasIDIVA(SB), Ra
+	MOVBU	internal∕cpu·ARM+const_offsetARMHasIDIVA(SB), Ra
 	CMP	$0, Ra
 	BNE	udiv_hardware
 

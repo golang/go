@@ -47,7 +47,7 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
 
 	CMPQ	R8, $63
 	JBE	loop
-	CMPB	internal∕cpu·X86+const_x86_HasAVX2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JEQ     big_loop_avx2
 	JMP	big_loop
 loop:

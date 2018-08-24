@@ -52,7 +52,7 @@ tail:
 	JBE	move_5through8
 	CMPL	BX, $16
 	JBE	move_9through16
-	CMPB	internal∕cpu·X86+const_offset_x86_HasSSE2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	nosse2
 	CMPL	BX, $32
 	JBE	move_17through32
@@ -73,7 +73,7 @@ nosse2:
  */
 forward:
 	// If REP MOVSB isn't fast, don't use it
-	CMPB	internal∕cpu·X86+const_offset_x86_HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
+	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
 	JNE	fwdBy4
 
 	// Check alignment

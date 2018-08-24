@@ -84,7 +84,7 @@ forward:
 	JLS	move_256through2048
 
 	// If REP MOVSB isn't fast, don't use it
-	CMPB	internal∕cpu·X86+const_offset_x86_HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
+	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
 	JNE	fwdBy8
 
 	// Check alignment
