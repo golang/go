@@ -396,7 +396,7 @@ details. <!-- CL 126275, CL 127156, CL 122217, CL 122575, CL 123177 -->
 </p>
 
 <p><!-- CL 108679, CL 106156 -->
-  On macOS and iOS, the runtime now uses <code>libSystem.so</code> instead of
+  On macOS and iOS, the runtime now uses <code>libSystem.dylib</code> instead of
   calling the kernel directly. This should make Go binaries more
   compatible with future versions of macOS and iOS.
   The <a href="/pkg/syscall">syscall</a> package still makes direct
