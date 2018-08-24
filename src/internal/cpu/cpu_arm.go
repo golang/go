@@ -4,7 +4,7 @@
 
 package cpu
 
-const CacheLineSize = 32
+const CacheLinePadSize = 32
 
 // arm doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
 // These are linknamed in runtime/os_(linux|freebsd)_arm.go and are

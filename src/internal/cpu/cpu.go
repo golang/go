@@ -12,7 +12,12 @@ package cpu
 var DebugOptions bool
 
 // CacheLinePad is used to pad structs to avoid false sharing.
-type CacheLinePad struct{ _ [CacheLineSize]byte }
+type CacheLinePad struct{ _ [CacheLinePadSize]byte }
+
+// CacheLineSize is the CPU's assumed cache line size.
+// There is currently no runtime detection of the real cache line size
+// so we use the constant per GOARCH CacheLinePadSize as an approximation.
+var CacheLineSize = CacheLinePadSize
 
 var X86 x86
 

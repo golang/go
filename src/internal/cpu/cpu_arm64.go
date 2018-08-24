@@ -4,7 +4,7 @@
 
 package cpu
 
-const CacheLineSize = 64
+const CacheLinePadSize = 64
 
 // arm64 doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
 // These are initialized by archauxv in runtime/os_linux_arm64.go.
