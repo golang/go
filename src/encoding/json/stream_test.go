@@ -93,6 +93,10 @@ func TestEncoderIndent(t *testing.T) {
 func TestEncoderSetEscapeHTML(t *testing.T) {
 	var c C
 	var ct CText
+	var tagStruct struct {
+		Valid   int `json:"<>&#! "`
+		Invalid int `json:"\\"`
+	}
 	for _, tt := range []struct {
 		name       string
 		v          interface{}
@@ -102,6 +106,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 		{"c", c, `"\u003c\u0026\u003e"`, `"<&>"`},
 		{"ct", ct, `"\"\u003c\u0026\u003e\""`, `"\"<&>\""`},
 		{`"<&>"`, "<&>", `"\u003c\u0026\u003e"`, `"<&>"`},
+		{
+			"tagStruct", tagStruct,
+			`{"\u003c\u003e\u0026#! ":0,"Invalid":0}`,
+			`{"<>&#! ":0,"Invalid":0}`,
+		},
 	} {
 		var buf bytes.Buffer
 		enc := NewEncoder(&buf)

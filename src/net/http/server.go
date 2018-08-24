@@ -3176,7 +3176,6 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusServiceUnavailable)
 		io.WriteString(w, h.errorBody())
 		tw.timedOut = true
-		return
 	}
 }
 

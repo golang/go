@@ -62,6 +62,6 @@ func TestDefaultDir(t *testing.T) {
 	os.Setenv("HOME", "/")
 	if _, showWarnings := defaultDir(); showWarnings {
 		// https://golang.org/issue/26280
-		t.Error("Cache initalization warnings should be squelched when $GOCACHE and $XDG_CACHE_HOME are unset and $HOME is /")
+		t.Error("Cache initialization warnings should be squelched when $GOCACHE and $XDG_CACHE_HOME are unset and $HOME is /")
 	}
 }

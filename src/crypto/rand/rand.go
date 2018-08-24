@@ -11,7 +11,7 @@ import "io"
 // Reader is a global, shared instance of a cryptographically
 // secure random number generator.
 //
-// On Linux, Reader uses getrandom(2) if available, /dev/urandom otherwise.
+// On Linux and FreeBSD, Reader uses getrandom(2) if available, /dev/urandom otherwise.
 // On OpenBSD, Reader uses getentropy(2).
 // On other Unix-like systems, Reader reads from /dev/urandom.
 // On Windows systems, Reader uses the CryptGenRandom API.

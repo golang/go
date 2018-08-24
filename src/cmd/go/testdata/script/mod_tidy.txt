@@ -10,6 +10,10 @@ go list -m all
 stdout '^w.1 v1.2.0'
 stdout '^z.1 v1.2.0'
 
+# empty tidy should not crash
+cd triv
+go mod tidy
+
 -- go.mod --
 module m
 
@@ -55,3 +59,6 @@ module z
 
 -- z/sub/sub.go --
 package sub
+
+-- triv/go.mod --
+module triv

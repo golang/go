@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -133,6 +134,9 @@ func Import(path string) (m module.Version, dir string, err error) {
 
 	m, _, err = QueryPackage(path, "latest", Allowed)
 	if err != nil {
+		if _, ok := err.(*codehost.VCSError); ok {
+			return module.Version{}, "", err
+		}
 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
 	return m, "", &ImportMissingError{ImportPath: path, Module: m}
@@ -177,7 +181,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// So we only check local module trees
 	// (the main module, and any directory trees pointed at by replace directives).
 	if isLocal {
-		for d := dir; d != mdir && len(d) > len(mdir); d = filepath.Dir(d) {
+		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
 				_, err := os.Stat(filepath.Join(d, "go.mod"))
 				return err == nil
@@ -186,6 +190,13 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 			if haveGoMod {
 				return "", false
 			}
+			parent := filepath.Dir(d)
+			if parent == d {
+				// Break the loop, as otherwise we'd loop
+				// forever if d=="." and mdir=="".
+				break
+			}
+			d = parent
 		}
 	}
 

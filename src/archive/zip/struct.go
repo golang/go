@@ -303,8 +303,8 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
 }
 
 // isZip64 reports whether the file size exceeds the 32 bit limit
-func (fh *FileHeader) isZip64() bool {
-	return fh.CompressedSize64 >= uint32max || fh.UncompressedSize64 >= uint32max
+func (h *FileHeader) isZip64() bool {
+	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
 }
 
 func msdosModeToFileMode(m uint32) (mode os.FileMode) {

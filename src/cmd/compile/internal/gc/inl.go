@@ -893,6 +893,10 @@ func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
 	}
 
+	if ssaDump != "" && ssaDump == Curfn.funcname() {
+		ssaDumpInlined = append(ssaDumpInlined, fn)
+	}
+
 	ninit := n.Ninit
 
 	// Make temp names to use instead of the originals.

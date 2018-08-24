@@ -9,6 +9,7 @@
 package net
 
 import (
+	"internal/bytealg"
 	"os"
 	"sync/atomic"
 	"time"
@@ -155,7 +156,7 @@ func dnsDefaultSearch() []string {
 		// best effort
 		return nil
 	}
-	if i := byteIndex(hn, '.'); i >= 0 && i < len(hn)-1 {
+	if i := bytealg.IndexByteString(hn, '.'); i >= 0 && i < len(hn)-1 {
 		return []string{ensureRooted(hn[i+1:])}
 	}
 	return nil

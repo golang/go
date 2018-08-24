@@ -15,14 +15,7 @@ Do not send CLs removing the interior tags from such phrases.
   ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.11</h2>
-
-<p>
-  <strong>
-    Go 1.11 is not yet released. These are work-in-progress
-    release notes. Go 1.11 is expected to be released in August 2018.
-  </strong>
-</p>
+<h2 id="introduction">Introduction to Go 1.11</h2>
 
 <p>
   The latest Go release, version 1.11, arrives six months after <a href="go1.10">Go 1.10</a>.
@@ -95,7 +88,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="wasm">WebAssembly</h3>
 <p>
-  Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
+  Go 1.11 adds an experimental port to <a href="https://webassembly.org">WebAssembly</a>
+  (<code>js/wasm</code>).
 </p>
 <p>
   Go programs currently compile to one WebAssembly module that
@@ -115,6 +109,10 @@ Do not send CLs removing the interior tags from such phrases.
   now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored by Go
   tools</a> except when those GOOS/GOARCH values are being used.
   If you have existing filenames matching those patterns, you will need to rename them.
+</p>
+<p>
+  More information can be found on the
+  <a href="https://golang.org/wiki/WebAssembly">WebAssembly wiki page</a>.
 </p>
 
 <h3 id="riscv">RISC-V GOARCH values reserved</h3>
@@ -167,7 +165,18 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="gopackages">Package loading</h3>
 
 <p>
-  TODO: Note about go/build versus golang.org/x/tools/go/packages.
+  The new package
+  <a href="https://godoc.org/golang.org/x/tools/go/packages"><code>golang.org/x/tools/go/packages</code></a>
+  provides a simple API for locating and loading packages of Go source code.
+  Although not yet part of the standard library, for many tasks it
+  effectively replaces the <a href="/pkg/go/build"><code>go/build</code></a>
+  package, whose API is unable to fully support modules.
+  Because it runs an external query command such as
+  <a href="/cmd/go/#hdr-List_packages"><code>go list</code></a>
+  to obtain information about Go packages, it enables the construction of
+  analysis tools that work equally well with alternative build systems
+  such as <a href="https://bazel.build">Bazel</a>
+  and <a href="https://buckbuild.com">Buck</a>.
 </p>
 
 <h3 id="gocache">Build cache requirement</h3>
@@ -262,9 +271,8 @@ func f(v interface{}) {
 
   This is useful, for example, to call <code>String</code> methods
   when paused at a breakpoint.
-  <!-- TODO(austin): Make sure methods calls are actually supported by Delve -->
 
-  This is currently only supported by Delve.
+  This is currently only supported by Delve (version 1.1.0 and up).
 </p>
 
 <h3 id="test">Test</h3>
@@ -374,7 +382,7 @@ details. <!-- CL 126275, CL 127156, CL 122217, CL 122575, CL 123177 -->
   time.
   In general, systems that need consistent formatting of Go source code should
   use a specific version of the <code>gofmt</code> binary.
-  See the <a href="/pkg/go/format/">go/format</a> package godoc for more
+  See the <a href="/pkg/go/format/">go/format</a> package documentation for more
   information.
 </p>
 
@@ -500,7 +508,8 @@ for k := range m {
   <dd>
     <p><!-- CL 85115 -->
       <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>'s new
-      <code>ExportKeyingMaterial</code> field allows exporting keying material bound to the
+      <a href="/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial"><code>ExportKeyingMaterial</code></a>
+      method allows exporting keying material bound to the
       connection according to RFC 5705.
     </p>
 
@@ -803,7 +812,7 @@ for k := range m {
 
 <!-- CL 101715 was reverted -->
 
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+<dl id="runtime-again"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
 
     <p><!-- CL 70993 -->

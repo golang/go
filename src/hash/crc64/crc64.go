@@ -10,6 +10,7 @@ package crc64
 import (
 	"errors"
 	"hash"
+	"sync"
 )
 
 // The size of a CRC-64 checksum in bytes.
@@ -28,13 +29,24 @@ const (
 type Table [256]uint64
 
 var (
-	slicing8TableISO  = makeSlicingBy8Table(makeTable(ISO))
-	slicing8TableECMA = makeSlicingBy8Table(makeTable(ECMA))
+	slicing8TablesBuildOnce sync.Once
+	slicing8TableISO        *[8]Table
+	slicing8TableECMA       *[8]Table
 )
+
+func buildSlicing8TablesOnce() {
+	slicing8TablesBuildOnce.Do(buildSlicing8Tables)
+}
+
+func buildSlicing8Tables() {
+	slicing8TableISO = makeSlicingBy8Table(makeTable(ISO))
+	slicing8TableECMA = makeSlicingBy8Table(makeTable(ECMA))
+}
 
 // MakeTable returns a Table constructed from the specified polynomial.
 // The contents of this Table must not be modified.
 func MakeTable(poly uint64) *Table {
+	buildSlicing8TablesOnce()
 	switch poly {
 	case ISO:
 		return &slicing8TableISO[0]
@@ -141,6 +153,7 @@ func readUint64(b []byte) uint64 {
 }
 
 func update(crc uint64, tab *Table, p []byte) uint64 {
+	buildSlicing8TablesOnce()
 	crc = ^crc
 	// Table comparison is somewhat expensive, so avoid it for small sizes
 	for len(p) >= 64 {

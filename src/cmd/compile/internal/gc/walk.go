@@ -1506,9 +1506,7 @@ opswitch:
 				a = typecheck(a, Etop)
 				a = walkexpr(a, init)
 				init.Append(a)
-				n = nod(OCONVNOP, h, nil)
-				n.Type = t
-				n = typecheck(n, Erv)
+				n = convnop(h, t)
 			} else {
 				// Call runtime.makehmap to allocate an
 				// hmap on the heap and initialize hmap's hash0 field.
@@ -2029,8 +2027,7 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
 		// optimization - can do block copy
 		if eqtypenoname(rhs[0].Type, lhs) {
 			nl := nodarg(lhs, fp)
-			nr := nod(OCONVNOP, rhs[0], nil)
-			nr.Type = nl.Type
+			nr := convnop(rhs[0], nl.Type)
 			n := convas(nod(OAS, nl, nr), init)
 			n.SetTypecheck(1)
 			return []*Node{n}
@@ -2218,14 +2215,6 @@ func callnew(t *types.Type) *Node {
 	v := mkcall1(fn, types.NewPtr(t), nil, typename(t))
 	v.SetNonNil(true)
 	return v
-}
-
-func iscallret(n *Node) bool {
-	if n == nil {
-		return false
-	}
-	n = outervalue(n)
-	return n.Op == OINDREGSP
 }
 
 // isReflectHeaderDataField reports whether l is an expression p.Data
@@ -2756,6 +2745,15 @@ func conv(n *Node, t *types.Type) *Node {
 	return n
 }
 
+// convnop converts node n to type t using the OCONVNOP op
+// and typechecks the result with Erv.
+func convnop(n *Node, t *types.Type) *Node {
+	n = nod(OCONVNOP, n, nil)
+	n.Type = t
+	n = typecheck(n, Erv)
+	return n
+}
+
 // byteindex converts n, which is byte-sized, to a uint8.
 // We cannot use conv, because we allow converting bool to uint8 here,
 // which is forbidden in user code.
@@ -2952,92 +2950,93 @@ func appendslice(n *Node, init *Nodes) *Node {
 	l1 := n.List.First()
 	l2 := n.List.Second()
 
-	var l []*Node
+	var nodes Nodes
 
 	// var s []T
 	s := temp(l1.Type)
-	l = append(l, nod(OAS, s, l1)) // s = l1
+	nodes.Append(nod(OAS, s, l1)) // s = l1
+
+	elemtype := s.Type.Elem()
 
 	// n := len(s) + len(l2)
 	nn := temp(types.Types[TINT])
-	l = append(l, nod(OAS, nn, nod(OADD, nod(OLEN, s, nil), nod(OLEN, l2, nil))))
+	nodes.Append(nod(OAS, nn, nod(OADD, nod(OLEN, s, nil), nod(OLEN, l2, nil))))
 
 	// if uint(n) > uint(cap(s))
 	nif := nod(OIF, nil, nil)
-	nif.Left = nod(OGT, nod(OCONV, nn, nil), nod(OCONV, nod(OCAP, s, nil), nil))
-	nif.Left.Left.Type = types.Types[TUINT]
-	nif.Left.Right.Type = types.Types[TUINT]
+	nuint := conv(nn, types.Types[TUINT])
+	scapuint := conv(nod(OCAP, s, nil), types.Types[TUINT])
+	nif.Left = nod(OGT, nuint, scapuint)
 
-	// instantiate growslice(Type*, []any, int) []any
+	// instantiate growslice(typ *type, []any, int) []any
 	fn := syslook("growslice")
-	fn = substArgTypes(fn, s.Type.Elem(), s.Type.Elem())
+	fn = substArgTypes(fn, elemtype, elemtype)
 
 	// s = growslice(T, s, n)
-	nif.Nbody.Set1(nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type.Elem()), s, nn)))
-	l = append(l, nif)
+	nif.Nbody.Set1(nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(elemtype), s, nn)))
+	nodes.Append(nif)
 
 	// s = s[:n]
 	nt := nod(OSLICE, s, nil)
 	nt.SetSliceBounds(nil, nn, nil)
-	l = append(l, nod(OAS, s, nt))
+	nodes.Append(nod(OAS, s, nt))
 
-	if l1.Type.Elem().HasHeapPointer() {
+	var ncopy *Node
+	if elemtype.HasHeapPointer() {
 		// copy(s[len(l1):], l2)
 		nptr1 := nod(OSLICE, s, nil)
 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
+
 		nptr2 := l2
+
 		Curfn.Func.setWBPos(n.Pos)
+
+		// instantiate typedslicecopy(typ *type, dst any, src any) int
 		fn := syslook("typedslicecopy")
 		fn = substArgTypes(fn, l1.Type, l2.Type)
-		var ln Nodes
-		ln.Set(l)
-		nt := mkcall1(fn, types.Types[TINT], &ln, typename(l1.Type.Elem()), nptr1, nptr2)
-		l = append(ln.Slice(), nt)
+		ncopy = mkcall1(fn, types.Types[TINT], &nodes, typename(elemtype), nptr1, nptr2)
+
 	} else if instrumenting && !compiling_runtime {
 		// rely on runtime to instrument copy.
 		// copy(s[len(l1):], l2)
 		nptr1 := nod(OSLICE, s, nil)
 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
+
 		nptr2 := l2
 
-		var ln Nodes
-		ln.Set(l)
-		var nt *Node
 		if l2.Type.IsString() {
+			// instantiate func slicestringcopy(to any, fr any) int
 			fn := syslook("slicestringcopy")
 			fn = substArgTypes(fn, l1.Type, l2.Type)
-			nt = mkcall1(fn, types.Types[TINT], &ln, nptr1, nptr2)
+			ncopy = mkcall1(fn, types.Types[TINT], &nodes, nptr1, nptr2)
 		} else {
+			// instantiate func slicecopy(to any, fr any, wid uintptr) int
 			fn := syslook("slicecopy")
 			fn = substArgTypes(fn, l1.Type, l2.Type)
-			nt = mkcall1(fn, types.Types[TINT], &ln, nptr1, nptr2, nodintconst(s.Type.Elem().Width))
+			ncopy = mkcall1(fn, types.Types[TINT], &nodes, nptr1, nptr2, nodintconst(elemtype.Width))
 		}
 
-		l = append(ln.Slice(), nt)
 	} else {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
 		nptr1 := nod(OINDEX, s, nod(OLEN, l1, nil))
 		nptr1.SetBounded(true)
-
 		nptr1 = nod(OADDR, nptr1, nil)
 
 		nptr2 := nod(OSPTR, l2, nil)
 
+		nwid := cheapexpr(conv(nod(OLEN, l2, nil), types.Types[TUINTPTR]), &nodes)
+		nwid = nod(OMUL, nwid, nodintconst(elemtype.Width))
+
+		// instantiate func memmove(to *any, frm *any, length uintptr)
 		fn := syslook("memmove")
-		fn = substArgTypes(fn, s.Type.Elem(), s.Type.Elem())
-
-		var ln Nodes
-		ln.Set(l)
-		nwid := cheapexpr(conv(nod(OLEN, l2, nil), types.Types[TUINTPTR]), &ln)
-
-		nwid = nod(OMUL, nwid, nodintconst(s.Type.Elem().Width))
-		nt := mkcall1(fn, nil, &ln, nptr1, nptr2, nwid)
-		l = append(ln.Slice(), nt)
+		fn = substArgTypes(fn, elemtype, elemtype)
+		ncopy = mkcall1(fn, nil, &nodes, nptr1, nptr2, nwid)
 	}
+	ln := append(nodes.Slice(), ncopy)
 
-	typecheckslice(l, Etop)
-	walkstmtlist(l)
-	init.Append(l...)
+	typecheckslice(ln, Etop)
+	walkstmtlist(ln)
+	init.Append(ln...)
 	return s
 }
 
@@ -3165,8 +3164,7 @@ func extendslice(n *Node, init *Nodes) *Node {
 	hp := nod(OINDEX, s, nod(OLEN, l1, nil))
 	hp.SetBounded(true)
 	hp = nod(OADDR, hp, nil)
-	hp = nod(OCONVNOP, hp, nil)
-	hp.Type = types.Types[TUNSAFEPTR]
+	hp = convnop(hp, types.Types[TUNSAFEPTR])
 
 	// hn := l2 * sizeof(elem(s))
 	hn := nod(OMUL, l2, nodintconst(elemtype.Width))

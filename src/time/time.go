@@ -933,7 +933,7 @@ func (t Time) AddDate(years int, months int, days int) Time {
 
 const (
 	secondsPerMinute = 60
-	secondsPerHour   = 60 * 60
+	secondsPerHour   = 60 * secondsPerMinute
 	secondsPerDay    = 24 * secondsPerHour
 	secondsPerWeek   = 7 * secondsPerDay
 	daysPer400Years  = 365*400 + 97
@@ -1076,7 +1076,7 @@ func (t Time) Local() Time {
 	return t
 }
 
-// In returns a copy of t representating the same time instant, but
+// In returns a copy of t representing the same time instant, but
 // with the copy's location information set to loc for display
 // purposes.
 //

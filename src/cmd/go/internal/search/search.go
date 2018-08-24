@@ -17,32 +17,22 @@ import (
 	"strings"
 )
 
-// AllPackages returns all the packages that can be found
+// A Match represents the result of matching a single package pattern.
+type Match struct {
+	Pattern string   // the pattern itself
+	Literal bool     // whether it is a literal (no wildcards)
+	Pkgs    []string // matching packages (dirs or import paths)
+}
+
+// MatchPackages returns all the packages that can be found
 // under the $GOPATH directories and $GOROOT matching pattern.
 // The pattern is either "all" (all packages), "std" (standard packages),
 // "cmd" (standard commands), or a path including "...".
-func AllPackages(pattern string) []string {
-	pkgs := MatchPackages(pattern)
-	if len(pkgs) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
+func MatchPackages(pattern string) *Match {
+	m := &Match{
+		Pattern: pattern,
+		Literal: false,
 	}
-	return pkgs
-}
-
-// AllPackagesInFS is like allPackages but is passed a pattern
-// beginning ./ or ../, meaning it should scan the tree rooted
-// at the given directory. There are ... in the pattern too.
-func AllPackagesInFS(pattern string) []string {
-	pkgs := MatchPackagesInFS(pattern)
-	if len(pkgs) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
-	}
-	return pkgs
-}
-
-// MatchPackages returns a list of package paths matching pattern
-// (see go help packages for pattern syntax).
-func MatchPackages(pattern string) []string {
 	match := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
 	if !IsMetaPackage(pattern) {
@@ -56,7 +46,6 @@ func MatchPackages(pattern string) []string {
 	if !cfg.BuildContext.CgoEnabled {
 		have["runtime/cgo"] = true // ignore during walk
 	}
-	var pkgs []string
 
 	for _, src := range cfg.BuildContext.SrcDirs() {
 		if (pattern == "std" || pattern == "cmd") && src != cfg.GOROOTsrc {
@@ -123,11 +112,11 @@ func MatchPackages(pattern string) []string {
 				return nil
 			}
 
-			pkgs = append(pkgs, name)
+			m.Pkgs = append(m.Pkgs, name)
 			return nil
 		})
 	}
-	return pkgs
+	return m
 }
 
 var modRoot string
@@ -136,10 +125,16 @@ func SetModRoot(dir string) {
 	modRoot = dir
 }
 
-// MatchPackagesInFS returns a list of package paths matching pattern,
-// which must begin with ./ or ../
-// (see go help packages for pattern syntax).
-func MatchPackagesInFS(pattern string) []string {
+// MatchPackagesInFS is like allPackages but is passed a pattern
+// beginning ./ or ../, meaning it should scan the tree rooted
+// at the given directory. There are ... in the pattern too.
+// (See go help packages for pattern syntax.)
+func MatchPackagesInFS(pattern string) *Match {
+	m := &Match{
+		Pattern: pattern,
+		Literal: false,
+	}
+
 	// Find directory to begin the scan.
 	// Could be smarter but this one optimization
 	// is enough for now, since ... is usually at the
@@ -168,7 +163,6 @@ func MatchPackagesInFS(pattern string) []string {
 		}
 	}
 
-	var pkgs []string
 	filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
 		if err != nil || !fi.IsDir() {
 			return nil
@@ -218,10 +212,10 @@ func MatchPackagesInFS(pattern string) []string {
 			}
 			return nil
 		}
-		pkgs = append(pkgs, name)
+		m.Pkgs = append(m.Pkgs, name)
 		return nil
 	})
-	return pkgs
+	return m
 }
 
 // TreeCanMatchPattern(pattern)(name) reports whether
@@ -308,36 +302,53 @@ func replaceVendor(x, repl string) string {
 	return strings.Join(elem, "/")
 }
 
-// ImportPaths returns the import paths to use for the given command line.
-func ImportPaths(args []string) []string {
-	args = CleanImportPaths(args)
-	var out []string
-	for _, a := range args {
+// WarnUnmatched warns about patterns that didn't match any packages.
+func WarnUnmatched(matches []*Match) {
+	for _, m := range matches {
+		if len(m.Pkgs) == 0 {
+			fmt.Fprintf(os.Stderr, "go: warning: %q matched no packages\n", m.Pattern)
+		}
+	}
+}
+
+// ImportPaths returns the matching paths to use for the given command line.
+// It calls ImportPathsQuiet and then WarnUnmatched.
+func ImportPaths(patterns []string) []*Match {
+	matches := ImportPathsQuiet(patterns)
+	WarnUnmatched(matches)
+	return matches
+}
+
+// ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
+func ImportPathsQuiet(patterns []string) []*Match {
+	var out []*Match
+	for _, a := range CleanPatterns(patterns) {
 		if IsMetaPackage(a) {
-			out = append(out, AllPackages(a)...)
+			out = append(out, MatchPackages(a))
 			continue
 		}
 		if strings.Contains(a, "...") {
 			if build.IsLocalImport(a) {
-				out = append(out, AllPackagesInFS(a)...)
+				out = append(out, MatchPackagesInFS(a))
 			} else {
-				out = append(out, AllPackages(a)...)
+				out = append(out, MatchPackages(a))
 			}
 			continue
 		}
-		out = append(out, a)
+		out = append(out, &Match{Pattern: a, Literal: true, Pkgs: []string{a}})
 	}
 	return out
 }
 
-// CleanImportPaths returns the import paths to use for the given
-// command line, but it does no wildcard expansion.
-func CleanImportPaths(args []string) []string {
-	if len(args) == 0 {
+// CleanPatterns returns the patterns to use for the given
+// command line. It canonicalizes the patterns but does not
+// evaluate any matches.
+func CleanPatterns(patterns []string) []string {
+	if len(patterns) == 0 {
 		return []string{"."}
 	}
 	var out []string
-	for _, a := range args {
+	for _, a := range patterns {
 		// Arguments are supposed to be import paths, but
 		// as a courtesy to Windows developers, rewrite \ to /
 		// in command-line arguments. Handles .\... and so on.
@@ -353,22 +364,6 @@ func CleanImportPaths(args []string) []string {
 			}
 		} else {
 			a = path.Clean(a)
-		}
-		out = append(out, a)
-	}
-	return out
-}
-
-// ImportPathsNoDotExpansion returns the import paths to use for the given
-// command line, but it does no ... expansion.
-// TODO(rsc): Delete once old go get is gone.
-func ImportPathsNoDotExpansion(args []string) []string {
-	args = CleanImportPaths(args)
-	var out []string
-	for _, a := range args {
-		if IsMetaPackage(a) {
-			out = append(out, AllPackages(a)...)
-			continue
 		}
 		out = append(out, a)
 	}

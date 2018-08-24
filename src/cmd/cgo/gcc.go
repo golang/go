@@ -1693,6 +1693,9 @@ func (p *Package) gccErrors(stdin []byte) string {
 		}
 	}
 
+	// Force -O0 optimization
+	nargs = append(nargs, "-O0")
+
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))
 		os.Stderr.Write(stdin)

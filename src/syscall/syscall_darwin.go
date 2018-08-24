@@ -252,6 +252,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
 //sys	Fstatfs(fd int, stat *Statfs_t) (err error) = SYS_FSTATFS64
 //sys	Fsync(fd int) (err error)
+//  Fsync is not called for os.File.Sync(). Please see internal/poll/fd_fsync_darwin.go
 //sys	Ftruncate(fd int, length int64) (err error)
 //sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) = SYS_GETDIRENTRIES64
 //sys	Getdtablesize() (size int)

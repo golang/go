@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -21,6 +22,13 @@ import (
 
 var ssaConfig *ssa.Config
 var ssaCaches []ssa.Cache
+
+var ssaDump string     // early copy of $GOSSAFUNC; the func name to dump output for
+var ssaDumpStdout bool // whether to dump to stdout
+const ssaDumpFile = "ssa.html"
+
+// ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
+var ssaDumpInlined []*Node
 
 func initssaconfig() {
 	types_ := ssa.NewTypes()
@@ -49,6 +57,7 @@ func initssaconfig() {
 		ssaConfig.Set387(thearch.Use387)
 	}
 	ssaConfig.SoftFloat = thearch.SoftFloat
+	ssaConfig.Race = flag_race
 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
 
 	// Set up some runtime functions we'll need to call.
@@ -56,7 +65,7 @@ func initssaconfig() {
 	assertE2I2 = sysfunc("assertE2I2")
 	assertI2I = sysfunc("assertI2I")
 	assertI2I2 = sysfunc("assertI2I2")
-	Deferproc = sysfunc("deferproc")
+	deferproc = sysfunc("deferproc")
 	Deferreturn = sysfunc("deferreturn")
 	Duffcopy = sysfunc("duffcopy")
 	Duffzero = sysfunc("duffzero")
@@ -65,7 +74,7 @@ func initssaconfig() {
 	growslice = sysfunc("growslice")
 	msanread = sysfunc("msanread")
 	msanwrite = sysfunc("msanwrite")
-	Newproc = sysfunc("newproc")
+	newproc = sysfunc("newproc")
 	panicdivide = sysfunc("panicdivide")
 	panicdottypeE = sysfunc("panicdottypeE")
 	panicdottypeI = sysfunc("panicdottypeI")
@@ -101,7 +110,7 @@ func initssaconfig() {
 // worker indicates which of the backend workers is doing the processing.
 func buildssa(fn *Node, worker int) *ssa.Func {
 	name := fn.funcname()
-	printssa := name == os.Getenv("GOSSAFUNC")
+	printssa := name == ssaDump
 	if printssa {
 		fmt.Println("generating SSA for", name)
 		dumplist("buildssa-enter", fn.Func.Enter)
@@ -120,7 +129,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 
 	fe := ssafn{
 		curfn: fn,
-		log:   printssa,
+		log:   printssa && ssaDumpStdout,
 	}
 	s.curfn = fn
 
@@ -138,9 +147,10 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
 
-	if name == os.Getenv("GOSSAFUNC") {
-		s.f.HTMLWriter = ssa.NewHTMLWriter("ssa.html", s.f.Frontend(), name)
+	if printssa {
+		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name)
 		// TODO: generate and print a mapping from nodes to values and blocks
+		dumpSourcesColumn(s.f.HTMLWriter, fn)
 	}
 
 	// Allocate starting block
@@ -210,6 +220,59 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 	return s.f
+}
+
+func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *Node) {
+	// Read sources of target function fn.
+	fname := Ctxt.PosTable.Pos(fn.Pos).Filename()
+	targetFn, err := readFuncLines(fname, fn.Pos.Line(), fn.Func.Endlineno.Line())
+	if err != nil {
+		writer.Logger.Logf("cannot read sources for function %v: %v", fn, err)
+	}
+
+	// Read sources of inlined functions.
+	var inlFns []*ssa.FuncLines
+	for _, fi := range ssaDumpInlined {
+		var elno src.XPos
+		if fi.Name.Defn == nil {
+			// Endlineno is filled from exported data.
+			elno = fi.Func.Endlineno
+		} else {
+			elno = fi.Name.Defn.Func.Endlineno
+		}
+		fname := Ctxt.PosTable.Pos(fi.Pos).Filename()
+		fnLines, err := readFuncLines(fname, fi.Pos.Line(), elno.Line())
+		if err != nil {
+			writer.Logger.Logf("cannot read sources for function %v: %v", fi, err)
+			continue
+		}
+		inlFns = append(inlFns, fnLines)
+	}
+
+	sort.Sort(ssa.ByTopo(inlFns))
+	if targetFn != nil {
+		inlFns = append([]*ssa.FuncLines{targetFn}, inlFns...)
+	}
+
+	writer.WriteSources("sources", inlFns)
+}
+
+func readFuncLines(file string, start, end uint) (*ssa.FuncLines, error) {
+	f, err := os.Open(os.ExpandEnv(file))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var lines []string
+	ln := uint(1)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() && ln <= end {
+		if ln >= start {
+			lines = append(lines, scanner.Text())
+		}
+		ln++
+	}
+	return &ssa.FuncLines{Filename: file, StartLineno: start, Lines: lines}, nil
 }
 
 // updateUnsetPredPos propagates the earliest-value position information for b
@@ -3577,7 +3640,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 
 	// Defer/go args
 	if k != callNormal {
-		// Write argsize and closure (args to Newproc/Deferproc).
+		// Write argsize and closure (args to newproc/deferproc).
 		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
 		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
@@ -3591,9 +3654,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	var call *ssa.Value
 	switch {
 	case k == callDefer:
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Deferproc, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferproc, s.mem())
 	case k == callGo:
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Newproc, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, newproc, s.mem())
 	case closure != nil:
 		// rawLoad because loading the code pointer from a
 		// closure is always safe, but IsSanitizerSafeAddr
@@ -4847,7 +4910,8 @@ func genssa(f *ssa.Func, pp *Progs) {
 	var progToBlock map[*obj.Prog]*ssa.Block
 	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
 	var logProgs = e.log
-	if logProgs {
+	if f.HTMLWriter != nil {
+		// logProgs can be false, meaning that we do not dump to the Stdout.
 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
@@ -5016,42 +5080,36 @@ func genssa(f *ssa.Func, pp *Progs) {
 			}
 			f.Logf(" %-6s\t%.5d (%s)\t%s\n", s, p.Pc, p.InnermostLineNumber(), p.InstructionString())
 		}
-		if f.HTMLWriter != nil {
-			// LineHist is defunct now - this code won't do
-			// anything.
-			// TODO: fix this (ideally without a global variable)
-			// saved := pp.Text.Ctxt.LineHist.PrintFilenameOnly
-			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = true
-			var buf bytes.Buffer
-			buf.WriteString("<code>")
-			buf.WriteString("<dl class=\"ssa-gen\">")
-			filename := ""
-			for p := pp.Text; p != nil; p = p.Link {
-				// Don't spam every line with the file name, which is often huge.
-				// Only print changes, and "unknown" is not a change.
-				if p.Pos.IsKnown() && p.InnermostFilename() != filename {
-					filename = p.InnermostFilename()
-					buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
-					buf.WriteString(html.EscapeString("# " + filename))
-					buf.WriteString("</dd>")
-				}
-
-				buf.WriteString("<dt class=\"ssa-prog-src\">")
-				if v, ok := progToValue[p]; ok {
-					buf.WriteString(v.HTML())
-				} else if b, ok := progToBlock[p]; ok {
-					buf.WriteString("<b>" + b.HTML() + "</b>")
-				}
-				buf.WriteString("</dt>")
-				buf.WriteString("<dd class=\"ssa-prog\">")
-				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
+	}
+	if f.HTMLWriter != nil {
+		var buf bytes.Buffer
+		buf.WriteString("<code>")
+		buf.WriteString("<dl class=\"ssa-gen\">")
+		filename := ""
+		for p := pp.Text; p != nil; p = p.Link {
+			// Don't spam every line with the file name, which is often huge.
+			// Only print changes, and "unknown" is not a change.
+			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
+				filename = p.InnermostFilename()
+				buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
+				buf.WriteString(html.EscapeString("# " + filename))
 				buf.WriteString("</dd>")
 			}
-			buf.WriteString("</dl>")
-			buf.WriteString("</code>")
-			f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
-			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = saved
+
+			buf.WriteString("<dt class=\"ssa-prog-src\">")
+			if v, ok := progToValue[p]; ok {
+				buf.WriteString(v.HTML())
+			} else if b, ok := progToBlock[p]; ok {
+				buf.WriteString("<b>" + b.HTML() + "</b>")
+			}
+			buf.WriteString("</dt>")
+			buf.WriteString("<dd class=\"ssa-prog\">")
+			buf.WriteString(fmt.Sprintf("%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
+			buf.WriteString("</dd>")
 		}
+		buf.WriteString("</dl>")
+		buf.WriteString("</code>")
+		f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
 	}
 
 	defframe(&s, e)
@@ -5409,7 +5467,7 @@ type ssafn struct {
 	scratchFpMem *Node                  // temp for floating point register / memory moves on some architectures
 	stksize      int64                  // stack size for current frame
 	stkptrsize   int64                  // prefix of stack containing pointers
-	log          bool
+	log          bool                   // print ssa debug to the stdout
 }
 
 // StringData returns a symbol (a *types.Sym wrapped in an interface) which
@@ -5652,7 +5710,7 @@ func (n *Node) StorageClass() ssa.StorageClass {
 	case PAUTO:
 		return ssa.ClassAuto
 	default:
-		Fatalf("untranslateable storage class for %v: %s", n, n.Class())
+		Fatalf("untranslatable storage class for %v: %s", n, n.Class())
 		return 0
 	}
 }

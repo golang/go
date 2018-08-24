@@ -198,7 +198,9 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			case 8:
 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
-			if !thearch.Archreloc(ctxt, r, s, &o) {
+			if offset, ok := thearch.Archreloc(ctxt, r, s, o); ok {
+				o = offset
+			} else {
 				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			}
 		case objabi.R_TLS_LE:
@@ -537,13 +539,17 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
 			r.Add = int64(targ.Plt)
 
 			// jmp *addr
-			if ctxt.Arch.Family == sys.I386 {
+			switch ctxt.Arch.Family {
+			default:
+				Errorf(s, "unsupported arch %v", ctxt.Arch.Family)
+				return
+			case sys.I386:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x25)
 				rel.AddAddr(ctxt.Arch, targ)
 				rel.AddUint8(0x90)
 				rel.AddUint8(0x90)
-			} else {
+			case sys.AMD64:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x24)
 				rel.AddUint8(0x25)
@@ -770,7 +776,8 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 		if ctxt.LinkMode != LinkExternal {
 			continue
 		}
-		for _, r := range sym.R {
+		for i := range sym.R {
+			r := &sym.R[i] // Copying sym.Reloc has measurable impact on peformance
 			rsname := ""
 			if r.Sym != nil {
 				rsname = r.Sym.Name

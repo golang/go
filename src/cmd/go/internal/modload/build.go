@@ -25,15 +25,21 @@ var (
 )
 
 func isStandardImportPath(path string) bool {
+	return findStandardImportPath(path) != ""
+}
+
+func findStandardImportPath(path string) string {
 	if search.IsStandardImportPath(path) {
-		if _, err := os.Stat(filepath.Join(cfg.GOROOT, "src", path)); err == nil {
-			return true
+		dir := filepath.Join(cfg.GOROOT, "src", path)
+		if _, err := os.Stat(dir); err == nil {
+			return dir
 		}
-		if _, err := os.Stat(filepath.Join(cfg.GOROOT, "src/vendor", path)); err == nil {
-			return true
+		dir = filepath.Join(cfg.GOROOT, "src/vendor", path)
+		if _, err := os.Stat(dir); err == nil {
+			return dir
 		}
 	}
-	return false
+	return ""
 }
 
 func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {

@@ -24,6 +24,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -150,8 +151,20 @@ func Init() {
 		ModRoot = cwd
 	} else {
 		ModRoot, _ = FindModuleRoot(cwd, "", MustUseModules)
-		if ModRoot == "" && !MustUseModules {
-			return
+		if !MustUseModules {
+			if ModRoot == "" {
+				return
+			}
+			if search.InDir(ModRoot, os.TempDir()) == "." {
+				// If you create /tmp/go.mod for experimenting,
+				// then any tests that create work directories under /tmp
+				// will find it and get modules when they're not expecting them.
+				// It's a bit of a peculiar thing to disallow but quite mysterious
+				// when it happens. See golang.org/issue/26708.
+				ModRoot = ""
+				fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
+				return
+			}
 		}
 	}
 
@@ -163,6 +176,7 @@ func Init() {
 	load.ModPackageBuildInfo = PackageBuildInfo
 	load.ModInfoProg = ModInfoProg
 	load.ModImportFromFiles = ImportFromFiles
+	load.ModDirImportPath = DirImportPath
 
 	search.SetModRoot(ModRoot)
 }
@@ -366,7 +380,7 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) 
 
 	// Look for enclosing go.mod.
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !(runtime.GOOS == "plan9" && fi.IsDir()) {
 			return dir, "go.mod"
 		}
 		if dir == limit {
@@ -384,7 +398,7 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) 
 		dir = dir1
 		for {
 			for _, name := range altConfigs {
-				if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+				if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !(runtime.GOOS == "plan9" && fi.IsDir()) {
 					return dir, name
 				}
 			}

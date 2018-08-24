@@ -299,8 +299,8 @@ func (a *Mpint) SetString(as string) {
 	}
 }
 
-func (x *Mpint) String() string {
-	return bconv(x, 0)
+func (a *Mpint) String() string {
+	return bconv(a, 0)
 }
 
 func bconv(xval *Mpint, flag FmtFlag) string {

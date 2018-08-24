@@ -519,12 +519,16 @@ var optab = []Optab{
 	{AMOVH, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
 	{AMOVB, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
 	{AMOVBU, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
+	{AFMOVS, C_ROFF, C_NONE, C_NONE, C_FREG, 98, 4, 0, 0, 0},
+	{AFMOVD, C_ROFF, C_NONE, C_NONE, C_FREG, 98, 4, 0, 0, 0},
 
 	/* store with extended register offset */
 	{AMOVD, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 
 	/* pre/post-indexed/signed-offset load/store register pair
 	   (unscaled, signed 10-bit quad-aligned and long offset) */
@@ -2008,9 +2012,13 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AMOVZW, t)
 
 		case ASWPD:
+			oprangeset(ASWPALD, t)
 			oprangeset(ASWPB, t)
 			oprangeset(ASWPH, t)
 			oprangeset(ASWPW, t)
+			oprangeset(ASWPALB, t)
+			oprangeset(ASWPALH, t)
+			oprangeset(ASWPALW, t)
 			oprangeset(ALDADDALD, t)
 			oprangeset(ALDADDALW, t)
 			oprangeset(ALDADDB, t)
@@ -2185,14 +2193,21 @@ func buildop(ctxt *obj.Link) {
 			AWORD,
 			ADWORD,
 			obj.ARET,
-			obj.ATEXT,
-			ASTP,
-			ASTPW,
-			ALDP:
+			obj.ATEXT:
 			break
+
+		case ALDP:
+			oprangeset(AFLDPD, t)
+
+		case ASTP:
+			oprangeset(AFSTPD, t)
+
+		case ASTPW:
+			oprangeset(AFSTPS, t)
 
 		case ALDPW:
 			oprangeset(ALDPSW, t)
+			oprangeset(AFLDPS, t)
 
 		case AERET:
 			oprangeset(AWFE, t)
@@ -2536,11 +2551,11 @@ func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
 		if amount != 1 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
-	case AMOVW, AMOVWU:
+	case AMOVW, AMOVWU, AFMOVS:
 		if amount != 2 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
-	case AMOVD:
+	case AMOVD, AFMOVD:
 		if amount != 3 && amount != 0 {
 			c.ctxt.Diag("invalid index shift amount: %v", p)
 		}
@@ -2744,7 +2759,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 
-		if !(o1 != 0) {
+		if o1 == 0 {
 			break
 		}
 		rt := int(p.To.Reg)
@@ -3005,7 +3020,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 28: /* logop $vcon, [R], R (64 bit literal) */
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 
-		if !(o1 != 0) {
+		if o1 == 0 {
 			break
 		}
 		rt := int(p.To.Reg)
@@ -3150,7 +3165,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 34: /* mov $lacon,R */
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 
-		if !(o1 != 0) {
+		if o1 == 0 {
 			break
 		}
 		o2 = c.opxrrr(p, AADD, false)
@@ -3383,19 +3398,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := p.RegTo2
 		rb := p.To.Reg
 		switch p.As {
-		case ASWPD, ALDADDALD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
+		case ASWPD, ASWPALD, ALDADDALD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
 			o1 = 3 << 30
-		case ASWPW, ALDADDALW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
+		case ASWPW, ASWPALW, ALDADDALW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
 			o1 = 2 << 30
-		case ASWPH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
+		case ASWPH, ASWPALH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
 			o1 = 1 << 30
-		case ASWPB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
+		case ASWPB, ASWPALB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
 			o1 = 0 << 30
 		default:
 			c.ctxt.Diag("illegal instruction: %v\n", p)
 		}
 		switch p.As {
-		case ASWPD, ASWPW, ASWPH, ASWPB:
+		case ASWPD, ASWPW, ASWPH, ASWPB, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
 			o1 |= 0x20 << 10
 		case ALDADDALD, ALDADDALW, ALDADDD, ALDADDW, ALDADDH, ALDADDB:
 			o1 |= 0x00 << 10
@@ -3407,7 +3422,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 0x0c << 10
 		}
 		switch p.As {
-		case ALDADDALD, ALDADDALW:
+		case ALDADDALD, ALDADDALW, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
 			o1 |= 3 << 22
 		}
 		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
@@ -6156,13 +6171,26 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) u
 /* genrate instruction encoding for LDP/LDPW/LDPSW/STP/STPW */
 func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uint32) uint32 {
 	var ret uint32
+	// check offset
 	switch p.As {
+	case AFLDPD, AFSTPD:
+		if vo < -512 || vo > 504 || vo%8 != 0 {
+			c.ctxt.Diag("invalid offset %v\n", p)
+		}
+		vo /= 8
+		ret = 1<<30 | 1<<26
 	case ALDP, ASTP:
 		if vo < -512 || vo > 504 || vo%8 != 0 {
 			c.ctxt.Diag("invalid offset %v\n", p)
 		}
 		vo /= 8
 		ret = 2 << 30
+	case AFLDPS, AFSTPS:
+		if vo < -256 || vo > 252 || vo%4 != 0 {
+			c.ctxt.Diag("invalid offset %v\n", p)
+		}
+		vo /= 4
+		ret = 1 << 26
 	case ALDPW, ASTPW:
 		if vo < -256 || vo > 252 || vo%4 != 0 {
 			c.ctxt.Diag("invalid offset %v\n", p)
@@ -6178,7 +6206,12 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 	default:
 		c.ctxt.Diag("invalid instruction %v\n", p)
 	}
+	// check register pair
 	switch p.As {
+	case AFLDPD, AFLDPS, AFSTPD, AFSTPS:
+		if rl < REG_F0 || REG_F31 < rl || rh < REG_F0 || REG_F31 < rh {
+			c.ctxt.Diag("invalid register pair %v\n", p)
+		}
 	case ALDP, ALDPW, ALDPSW:
 		if rl < REG_R0 || REG_R30 < rl || rh < REG_R0 || REG_R30 < rh {
 			c.ctxt.Diag("invalid register pair %v\n", p)
@@ -6188,6 +6221,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 			c.ctxt.Diag("invalid register pair %v\n", p)
 		}
 	}
+	// other conditional flag bits
 	switch o.scond {
 	case C_XPOST:
 		ret |= 1 << 23

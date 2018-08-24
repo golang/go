@@ -502,8 +502,6 @@ func escAnalyze(all []*Node, recursive bool) {
 		}
 	}
 
-	// print("escapes: %d e.dsts, %d edges\n", e.dstcount, e.edgecount);
-
 	// visit the upstream of each dst, mark address nodes with
 	// addrescapes, mark parameters unsafe
 	escapes := make([]uint16, len(e.dsts))
@@ -551,7 +549,6 @@ func escAnalyze(all []*Node, recursive bool) {
 }
 
 func (e *EscState) escfunc(fn *Node) {
-	//	print("escfunc %N %s\n", fn.Func.Nname, e.recursive?"(recursive)":"");
 	if fn.Esc != EscFuncPlanned {
 		Fatalf("repeat escfunc %v", fn.Func.Nname)
 	}
@@ -630,8 +627,6 @@ func (e *EscState) escloopdepth(n *Node) {
 
 		// Walk will complain about this label being already defined, but that's not until
 		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
-		// if(n.Left.Sym.Label != nil)
-		//	fatal("escape analysis messed up analyzing label: %+N", n);
 		n.Left.Sym.Label = asTypesNode(&nonlooping)
 
 	case OGOTO:
@@ -755,10 +750,6 @@ opSwitch:
 			}
 			e.loopdepth++
 		}
-
-		// See case OLABEL in escloopdepth above
-		// else if(n.Left.Sym.Label == nil)
-		//	fatal("escape analysis missed or messed up a label: %+N", n);
 
 		n.Left.Sym.Label = nil
 
@@ -1561,12 +1552,11 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	cE := e.nodeEscState(call)
 	if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC &&
 		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+		// function in same mutually recursive group. Incorporate into flow graph.
 		if Debug['m'] > 3 {
 			fmt.Printf("%v::esccall:: %S in recursive group\n", linestr(lineno), call)
 		}
 
-		// function in same mutually recursive group. Incorporate into flow graph.
-		//		print("esc local fn: %N\n", fn.Func.Ntype);
 		if fn.Name.Defn.Esc == EscFuncUnknown || cE.Retval.Len() != 0 {
 			Fatalf("graph inconsistency")
 		}
@@ -1628,8 +1618,6 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 
 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
 	e.initEscRetval(call, fntype)
-
-	//	print("esc analyzed fn: %#N (%+T) returning (%+H)\n", fn, fntype, e.nodeEscState(call).Retval);
 
 	// Receiver.
 	if call.Op != OCALLFUNC {

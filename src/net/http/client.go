@@ -833,6 +833,22 @@ func (c *Client) Head(url string) (resp *Response, err error) {
 	return c.Do(req)
 }
 
+// CloseIdleConnections closes any connections on its Transport which
+// were previously connected from previous requests but are now
+// sitting idle in a "keep-alive" state. It does not interrupt any
+// connections currently in use.
+//
+// If the Client's Transport does not have a CloseIdleConnections method
+// then this method does nothing.
+func (c *Client) CloseIdleConnections() {
+	type closeIdler interface {
+		CloseIdleConnections()
+	}
+	if tr, ok := c.transport().(closeIdler); ok {
+		tr.CloseIdleConnections()
+	}
+}
+
 // cancelTimerBody is an io.ReadCloser that wraps rc with two features:
 // 1) on Read error or close, the stop func is called.
 // 2) On Read failure, if reqDidTimeout is true, the error is wrapped and

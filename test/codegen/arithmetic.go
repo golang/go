@@ -19,6 +19,10 @@ func SubMem(arr []int, b int) int {
 	arr[2] -= b
 	// 386:`SUBL\s[A-Z]+,\s12\([A-Z]+\)`
 	arr[3] -= b
+	// 386:`DECL\s16\([A-Z]+\)`
+	arr[4]--
+	// 386:`ADDL\s[$]-20,\s20\([A-Z]+\)`
+	arr[5] -= 20
 	// 386:"SUBL\t4"
 	// amd64:"SUBQ\t8"
 	return arr[0] - arr[1]
@@ -47,6 +51,13 @@ func Pow2Muls(n1, n2 int) (int, int) {
 func Mul_96(n int) int {
 	// amd64:`SHLQ\t[$]5`,`LEAQ\t\(.*\)\(.*\*2\),`
 	return n * 96
+}
+
+func MulMemSrc(a []uint32, b []float32) {
+	// 386:`IMULL\s4\([A-Z]+\),\s[A-Z]+`
+	a[0] *= a[1]
+	// 386/sse2:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
+	b[0] *= b[1]
 }
 
 // Multiplications merging tests
@@ -85,6 +96,11 @@ func MergeMuls5(a, n int) int {
 //    Division    //
 // -------------- //
 
+func DivMemSrc(a []float64) {
+	// 386/sse2:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
+	a[0] /= a[1]
+}
+
 func Pow2Divs(n1 uint, n2 int) (uint, int) {
 	// 386:"SHRL\t[$]5",-"DIVL"
 	// amd64:"SHRQ\t[$]5",-"DIVQ"
@@ -110,6 +126,11 @@ func ConstDivs(n1 uint, n2 int) (uint, int) {
 	b := n2 / 17 // signed
 
 	return a, b
+}
+
+func FloatDivs(a []float32) float32 {
+	// amd64:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
+	return a[1] / a[2]
 }
 
 func Pow2Mods(n1 uint, n2 int) (uint, int) {

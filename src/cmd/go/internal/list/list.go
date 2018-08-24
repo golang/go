@@ -47,24 +47,25 @@ syntax of package template. The default output is equivalent
 to -f '{{.ImportPath}}'. The struct being passed to the template is:
 
     type Package struct {
-        Dir           string  // directory containing package sources
-        ImportPath    string  // import path of package in dir
-        ImportComment string  // path in import comment on package statement
-        Name          string  // package name
-        Doc           string  // package documentation string
-        Target        string  // install path
-        Shlib         string  // the shared library that contains this package (only set when -linkshared)
-        Goroot        bool    // is this package in the Go root?
-        Standard      bool    // is this package part of the standard Go library?
-        Stale         bool    // would 'go install' do anything for this package?
-        StaleReason   string  // explanation for Stale==true
-        Root          string  // Go root or Go path dir containing this package
-        ConflictDir   string  // this directory shadows Dir in $GOPATH
-        BinaryOnly    bool    // binary-only package: cannot be recompiled from sources
-        ForTest       string  // package is only for use in named test
-        DepOnly       bool    // package is only a dependency, not explicitly listed
-        Export        string  // file containing export data (when using -export)
-        Module        *Module // info about package's containing module, if any (can be nil)
+        Dir           string   // directory containing package sources
+        ImportPath    string   // import path of package in dir
+        ImportComment string   // path in import comment on package statement
+        Name          string   // package name
+        Doc           string   // package documentation string
+        Target        string   // install path
+        Shlib         string   // the shared library that contains this package (only set when -linkshared)
+        Goroot        bool     // is this package in the Go root?
+        Standard      bool     // is this package part of the standard Go library?
+        Stale         bool     // would 'go install' do anything for this package?
+        StaleReason   string   // explanation for Stale==true
+        Root          string   // Go root or Go path dir containing this package
+        ConflictDir   string   // this directory shadows Dir in $GOPATH
+        BinaryOnly    bool     // binary-only package: cannot be recompiled from sources
+        ForTest       string   // package is only for use in named test
+        Export        string   // file containing export data (when using -export)
+        Module        *Module  // info about package's containing module, if any (can be nil)
+        Match         []string // command-line patterns matching this package
+        DepOnly       bool     // package is only a dependency, not explicitly listed
 
         // Source files
         GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -509,7 +510,9 @@ func runList(cmd *base.Command, args []string) {
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?
 		for _, p := range pkgs {
-			a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
+			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
+				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
+			}
 		}
 		b.Do(a)
 	}

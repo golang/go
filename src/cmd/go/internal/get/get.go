@@ -163,9 +163,8 @@ func runGet(cmd *base.Command, args []string) {
 	if *getT {
 		mode |= load.GetTestDeps
 	}
-	args = downloadPaths(args)
-	for _, arg := range args {
-		download(arg, nil, &stk, mode)
+	for _, pkg := range downloadPaths(args) {
+		download(pkg, nil, &stk, mode)
 	}
 	base.ExitIfErrors()
 
@@ -184,8 +183,7 @@ func runGet(cmd *base.Command, args []string) {
 	// This leads to duplicated loads of the standard packages.
 	load.ClearCmdCache()
 
-	args = load.ImportPaths(args)
-	load.PackagesForBuild(args)
+	pkgs := load.PackagesForBuild(args)
 
 	// Phase 3. Install.
 	if *getD {
@@ -195,7 +193,7 @@ func runGet(cmd *base.Command, args []string) {
 		return
 	}
 
-	work.InstallPackages(args)
+	work.InstallPackages(args, pkgs)
 }
 
 // downloadPaths prepares the list of paths to pass to download.
@@ -203,34 +201,21 @@ func runGet(cmd *base.Command, args []string) {
 // for a particular pattern, downloadPaths leaves it in the result list,
 // in the hope that we can figure out the repository from the
 // initial ...-free prefix.
-func downloadPaths(args []string) []string {
-	for _, arg := range args {
+func downloadPaths(patterns []string) []string {
+	for _, arg := range patterns {
 		if strings.Contains(arg, "@") {
 			base.Fatalf("go: cannot use path@version syntax in GOPATH mode")
 		}
 	}
-
-	args = load.ImportPathsForGoGet(args)
-	var out []string
-	for _, a := range args {
-		if strings.Contains(a, "...") {
-			var expand []string
-			// Use matchPackagesInFS to avoid printing
-			// warnings. They will be printed by the
-			// eventual call to importPaths instead.
-			if build.IsLocalImport(a) {
-				expand = search.MatchPackagesInFS(a)
-			} else {
-				expand = search.MatchPackages(a)
-			}
-			if len(expand) > 0 {
-				out = append(out, expand...)
-				continue
-			}
+	var pkgs []string
+	for _, m := range search.ImportPathsQuiet(patterns) {
+		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern, "...") {
+			pkgs = append(pkgs, m.Pattern)
+		} else {
+			pkgs = append(pkgs, m.Pkgs...)
 		}
-		out = append(out, a)
 	}
-	return out
+	return pkgs
 }
 
 // downloadCache records the import paths we have already
@@ -255,7 +240,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	}
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
-			return load.LoadPackage(path, stk)
+			return load.LoadPackageNoFlags(path, stk)
 		}
 		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
@@ -311,9 +296,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		// for p has been replaced in the package cache.
 		if wildcardOkay && strings.Contains(arg, "...") {
 			if build.IsLocalImport(arg) {
-				args = search.MatchPackagesInFS(arg)
+				args = search.MatchPackagesInFS(arg).Pkgs
 			} else {
-				args = search.MatchPackages(arg)
+				args = search.MatchPackages(arg).Pkgs
 			}
 			isWildcard = true
 		}
@@ -344,7 +329,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), files))
 
 			// The imports might have changed, so reload again.
-			p = load.ReloadPackage(arg, stk)
+			p = load.ReloadPackageNoFlags(arg, stk)
 			if p.Error != nil {
 				base.Errorf("%s", p.Error)
 				return

@@ -112,10 +112,6 @@ func (t *_type) uncommon() *uncommontype {
 	}
 }
 
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
-}
-
 func (t *_type) name() string {
 	if t.tflag&tflagNamed == 0 {
 		return ""

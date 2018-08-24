@@ -491,20 +491,18 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
 	return true
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
-		return false
+		return val, false
 	}
 	switch r.Type {
 	case objabi.R_CONST:
-		*val = r.Add
-		return true
+		return r.Add, true
 	case objabi.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 	}
 
-	return false
+	return val, false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {

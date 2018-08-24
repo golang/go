@@ -371,6 +371,12 @@
 (Rsh16Ux64 <t> (Rsh16Ux64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh16Ux64 x (Const64 <t> [c+d]))
 (Rsh8Ux64  <t> (Rsh8Ux64  x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh8Ux64  x (Const64 <t> [c+d]))
 
+// Remove signed right shift before an unsigned right shift that extracts the sign bit.
+(Rsh8Ux64  (Rsh8x64  x _) (Const64 <t> [7] )) -> (Rsh8Ux64  x (Const64 <t> [7] ))
+(Rsh16Ux64 (Rsh16x64 x _) (Const64 <t> [15])) -> (Rsh16Ux64 x (Const64 <t> [15]))
+(Rsh32Ux64 (Rsh32x64 x _) (Const64 <t> [31])) -> (Rsh32Ux64 x (Const64 <t> [31]))
+(Rsh64Ux64 (Rsh64x64 x _) (Const64 <t> [63])) -> (Rsh64Ux64 x (Const64 <t> [63]))
+
 // ((x >> c1) << c2) >> c3
 (Rsh(64|32|16|8)Ux64 (Lsh(64|32|16|8)x64 (Rsh(64|32|16|8)Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
   && uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
@@ -1791,3 +1797,5 @@
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
 					(Zero {t1} [n] dst mem)))))
+
+(StaticCall {sym} x) && needRaceCleanup(sym,v) -> x

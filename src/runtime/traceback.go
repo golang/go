@@ -99,8 +99,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	if skip > 0 && callback != nil {
 		throw("gentraceback callback cannot be used with non-zero skip")
 	}
-	g := getg()
-	if g == gp && g == g.m.curg {
+
+	// Don't call this "g"; it's too easy get "g" and "gp" confused.
+	if ourg := getg(); ourg == gp && ourg == ourg.m.curg {
 		// The starting sp has been passed in as a uintptr, and the caller may
 		// have other uintptr-typed stack references as well.
 		// If during one of the calls that got us here or during one of the
@@ -196,16 +197,29 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// Found an actual function.
 		// Derive frame pointer and link register.
 		if frame.fp == 0 {
-			// We want to jump over the systemstack switch. If we're running on the
-			// g0, this systemstack is at the top of the stack.
-			// if we're not on g0 or there's a no curg, then this is a regular call.
-			sp := frame.sp
-			if flags&_TraceJumpStack != 0 && f.funcID == funcID_systemstack && gp == g.m.g0 && gp.m.curg != nil {
-				sp = gp.m.curg.sched.sp
-				frame.sp = sp
-				cgoCtxt = gp.m.curg.cgoCtxt
+			// Jump over system stack transitions. If we're on g0 and there's a user
+			// goroutine, try to jump. Otherwise this is a regular call.
+			if flags&_TraceJumpStack != 0 && gp == gp.m.g0 && gp.m.curg != nil {
+				switch f.funcID {
+				case funcID_morestack:
+					// morestack does not return normally -- newstack()
+					// gogo's to curg.sched. Match that.
+					// This keeps morestack() from showing up in the backtrace,
+					// but that makes some sense since it'll never be returned
+					// to.
+					frame.pc = gp.m.curg.sched.pc
+					frame.fn = findfunc(frame.pc)
+					f = frame.fn
+					frame.sp = gp.m.curg.sched.sp
+					cgoCtxt = gp.m.curg.cgoCtxt
+				case funcID_systemstack:
+					// systemstack returns normally, so just follow the
+					// stack transition.
+					frame.sp = gp.m.curg.sched.sp
+					cgoCtxt = gp.m.curg.cgoCtxt
+				}
 			}
-			frame.fp = sp + uintptr(funcspdelta(f, frame.pc, &cache))
+			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
 			if !usesLR {
 				// On x86, call instruction pushes return PC before entering new function.
 				frame.fp += sys.RegSize
@@ -425,7 +439,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if frame.pc > f.entry {
 					print(" +", hex(frame.pc-f.entry))
 				}
-				if g.m.throwing > 0 && gp == g.m.curg || level >= 2 {
+				if gp.m != nil && gp.m.throwing > 0 && gp == gp.m.curg || level >= 2 {
 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
 				}
 				print("\n")
@@ -843,7 +857,7 @@ func showfuncinfo(f funcInfo, firstFrame, elideWrapper bool) bool {
 		return true
 	}
 
-	return contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
+	return contains(name, ".") && (!hasPrefix(name, "runtime.") || isExportedRuntime(name))
 }
 
 // isExportedRuntime reports whether name is an exported runtime function.
@@ -1022,7 +1036,7 @@ func isSystemGoroutine(gp *g) bool {
 		// back into user code.
 		return !fingRunning
 	}
-	return hasprefix(funcname(f), "runtime.")
+	return hasPrefix(funcname(f), "runtime.")
 }
 
 // SetCgoTraceback records three C functions to use to gather

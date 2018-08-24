@@ -414,7 +414,7 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 
 func runInstall(cmd *base.Command, args []string) {
 	BuildInit()
-	InstallPackages(args)
+	InstallPackages(args, load.PackagesForBuild(args))
 }
 
 // omitTestOnly returns pkgs with test-only packages removed.
@@ -434,12 +434,12 @@ func omitTestOnly(pkgs []*load.Package) []*load.Package {
 	return list
 }
 
-func InstallPackages(args []string) {
+func InstallPackages(patterns []string, pkgs []*load.Package) {
 	if cfg.GOBIN != "" && !filepath.IsAbs(cfg.GOBIN) {
 		base.Fatalf("cannot install, GOBIN must be an absolute path")
 	}
 
-	pkgs := omitTestOnly(pkgsFilter(load.PackagesForBuild(args)))
+	pkgs = omitTestOnly(pkgsFilter(pkgs))
 	for _, p := range pkgs {
 		if p.Target == "" {
 			switch {
@@ -500,7 +500,7 @@ func InstallPackages(args []string) {
 		// tools above did not apply, and a is just a simple Action
 		// with a list of Deps, one per package named in pkgs,
 		// the same as in runBuild.
-		a = b.buildmodeShared(ModeInstall, ModeInstall, args, pkgs, a)
+		a = b.buildmodeShared(ModeInstall, ModeInstall, patterns, pkgs, a)
 	}
 
 	b.Do(a)
@@ -515,7 +515,7 @@ func InstallPackages(args []string) {
 	// One way to view this behavior is that it is as if 'go install' first
 	// runs 'go build' and the moves the generated file to the install dir.
 	// See issue 9645.
-	if len(args) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
+	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
 		// Compute file 'go build' would have created.
 		// If it exists and is an executable file, remove it.
 		_, targ := filepath.Split(pkgs[0].ImportPath)

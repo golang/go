@@ -164,6 +164,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
 
+	FMOVS	(R2)(R6), F4       // FMOVS (R2)(R6*1), F4    // 446866bc
+	FMOVS	(R2)(R6<<2), F4                               // 447866bc
+	FMOVD	(R2)(R6), F4       // FMOVD (R2)(R6*1), F4    // 446866fc
+	FMOVD	(R2)(R6<<3), F4                               // 447866fc
+	FMOVS	F4, (R2)(R6)       // FMOVS F4, (R2)(R6*1)    // 446826bc
+	FMOVS	F4, (R2)(R6<<2)                               // 447826bc
+	FMOVD	F4, (R2)(R6)       // FMOVD F4, (R2)(R6*1)    // 446826fc
+	FMOVD	F4, (R2)(R6<<3)                               // 447826fc
+
 //	LTYPE1 imsr ',' spreg ','
 //	{
 //		outcode($1, &$2, $4, &nullgen);
@@ -572,6 +581,14 @@ again:
 	SWPH	R5, (RSP), R7                        // e7832578
 	SWPB	R5, (R6), R7                         // c7802538
 	SWPB	R5, (RSP), R7                        // e7832538
+	SWPALD	R5, (R6), R7                         // c780e5f8
+	SWPALD	R5, (RSP), R7                        // e783e5f8
+	SWPALW	R5, (R6), R7                         // c780e5b8
+	SWPALW	R5, (RSP), R7                        // e783e5b8
+	SWPALH	R5, (R6), R7                         // c780e578
+	SWPALH	R5, (RSP), R7                        // e783e578
+	SWPALB	R5, (R6), R7                         // c780e538
+	SWPALB	R5, (RSP), R7                        // e783e538
 	LDADDD	R5, (R6), R7                         // c70025f8
 	LDADDD	R5, (RSP), R7                        // e70325f8
 	LDADDW	R5, (R6), R7                         // c70025b8
@@ -723,6 +740,78 @@ again:
 	SBFIZW	$0, R1, $1, R2      // 22000013
 	UBFIZ	$0, R1, $1, R2      // 220040d3
 	UBFIZW	$0, R1, $1, R2      // 22000053
+
+// FSTPD/FSTPS/FLDPD/FLDPS
+	FLDPD	(R0), (F1, F2)      // 0108406d
+	FLDPD	8(R0), (F1, F2)     // 0188406d
+	FLDPD	-8(R0), (F1, F2)    // 01887f6d
+	FLDPD	11(R0), (F1, F2)    // 1b2c0091610b406d
+	FLDPD	1024(R0), (F1, F2)  // 1b001091610b406d
+	FLDPD.W	8(R0), (F1, F2)     // 0188c06d
+	FLDPD.P	8(R0), (F1, F2)     // 0188c06c
+	FLDPD	(RSP), (F1, F2)     // e10b406d
+	FLDPD	8(RSP), (F1, F2)    // e18b406d
+	FLDPD	-8(RSP), (F1, F2)   // e18b7f6d
+	FLDPD	11(RSP), (F1, F2)   // fb2f0091610b406d
+	FLDPD	1024(RSP), (F1, F2) // fb031091610b406d
+	FLDPD.W	8(RSP), (F1, F2)    // e18bc06d
+	FLDPD.P	8(RSP), (F1, F2)    // e18bc06c
+	FLDPD	-31(R0), (F1, F2)   // 1b7c00d1610b406d
+	FLDPD	-4(R0), (F1, F2)    // 1b1000d1610b406d
+	FLDPD	-8(R0), (F1, F2)    // 01887f6d
+	FLDPD	x(SB), (F1, F2)
+	FLDPD	x+8(SB), (F1, F2)
+	FLDPS	-5(R0), (F1, F2)    // 1b1400d1610b402d
+	FLDPS	(R0), (F1, F2)      // 0108402d
+	FLDPS	4(R0), (F1, F2)     // 0188402d
+	FLDPS	-4(R0), (F1, F2)    // 01887f2d
+	FLDPS.W	4(R0), (F1, F2)     // 0188c02d
+	FLDPS.P	4(R0), (F1, F2)     // 0188c02c
+	FLDPS	11(R0), (F1, F2)    // 1b2c0091610b402d
+	FLDPS	1024(R0), (F1, F2)  // 1b001091610b402d
+	FLDPS	(RSP), (F1, F2)     // e10b402d
+	FLDPS	4(RSP), (F1, F2)    // e18b402d
+	FLDPS	-4(RSP), (F1, F2)   // e18b7f2d
+	FLDPS.W	4(RSP), (F1, F2)    // e18bc02d
+	FLDPS.P	4(RSP), (F1, F2)    // e18bc02c
+	FLDPS	11(RSP), (F1, F2)   // fb2f0091610b402d
+	FLDPS	1024(RSP), (F1, F2) // fb031091610b402d
+	FLDPS	x(SB), (F1, F2)
+	FLDPS	x+8(SB), (F1, F2)
+	FSTPD	(F3, F4), (R5)      // a310006d
+	FSTPD	(F3, F4), 8(R5)     // a390006d
+	FSTPD.W	(F3, F4), 8(R5)     // a390806d
+	FSTPD.P	(F3, F4), 8(R5)     // a390806c
+	FSTPD	(F3, F4), -8(R5)    // a3903f6d
+	FSTPD	(F3, F4), -4(R5)    // bb1000d16313006d
+	FSTPD	(F3, F4), 11(R0)    // 1b2c00916313006d
+	FSTPD	(F3, F4), 1024(R0)  // 1b0010916313006d
+	FSTPD	(F3, F4), (RSP)     // e313006d
+	FSTPD	(F3, F4), 8(RSP)    // e393006d
+	FSTPD.W	(F3, F4), 8(RSP)    // e393806d
+	FSTPD.P	(F3, F4), 8(RSP)    // e393806c
+	FSTPD	(F3, F4), -8(RSP)   // e3933f6d
+	FSTPD	(F3, F4), 11(RSP)   // fb2f00916313006d
+	FSTPD	(F3, F4), 1024(RSP) // fb0310916313006d
+	FSTPD	(F3, F4), x(SB)
+	FSTPD	(F3, F4), x+8(SB)
+	FSTPS	(F3, F4), (R5)      // a310002d
+	FSTPS	(F3, F4), 4(R5)     // a390002d
+	FSTPS.W	(F3, F4), 4(R5)     // a390802d
+	FSTPS.P	(F3, F4), 4(R5)     // a390802c
+	FSTPS	(F3, F4), -4(R5)    // a3903f2d
+	FSTPS	(F3, F4), -5(R5)    // bb1400d16313002d
+	FSTPS	(F3, F4), 11(R0)    // 1b2c00916313002d
+	FSTPS	(F3, F4), 1024(R0)  // 1b0010916313002d
+	FSTPS	(F3, F4), (RSP)     // e313002d
+	FSTPS	(F3, F4), 4(RSP)    // e393002d
+	FSTPS.W	(F3, F4), 4(RSP)    // e393802d
+	FSTPS.P	(F3, F4), 4(RSP)    // e393802c
+	FSTPS	(F3, F4), -4(RSP)   // e3933f2d
+	FSTPS	(F3, F4), 11(RSP)   // fb2f00916313002d
+	FSTPS	(F3, F4), 1024(RSP) // fb0310916313002d
+	FSTPS	(F3, F4), x(SB)
+	FSTPS	(F3, F4), x+8(SB)
 
 // END
 //

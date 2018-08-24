@@ -96,19 +96,19 @@ Input:
 		// Look in the buffer for a new value.
 		for i, c := range dec.buf[scanp:] {
 			dec.scan.bytes++
-			v := dec.scan.step(&dec.scan, c)
-			if v == scanEnd {
+			switch dec.scan.step(&dec.scan, c) {
+			case scanEnd:
 				scanp += i
 				break Input
-			}
-			// scanEnd is delayed one byte.
-			// We might block trying to get that byte from src,
-			// so instead invent a space byte.
-			if (v == scanEndObject || v == scanEndArray) && dec.scan.step(&dec.scan, ' ') == scanEnd {
-				scanp += i + 1
-				break Input
-			}
-			if v == scanError {
+			case scanEndObject, scanEndArray:
+				// scanEnd is delayed one byte.
+				// We might block trying to get that byte from src,
+				// so instead invent a space byte.
+				if stateEndValue(&dec.scan, ' ') == scanEnd {
+					scanp += i + 1
+					break Input
+				}
+			case scanError:
 				dec.err = dec.scan.err
 				return 0, dec.scan.err
 			}
@@ -471,7 +471,7 @@ func (dec *Decoder) tokenError(c byte) (Token, error) {
 	case tokenObjectComma:
 		context = " after object key:value pair"
 	}
-	return nil, &SyntaxError{"invalid character " + quoteChar(c) + " " + context, dec.offset()}
+	return nil, &SyntaxError{"invalid character " + quoteChar(c) + context, dec.offset()}
 }
 
 // More reports whether there is another element in the

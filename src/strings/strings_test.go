@@ -673,6 +673,19 @@ func TestMap(t *testing.T) {
 	if m != s {
 		t.Errorf("encoding not handled correctly: expected %q got %q", s, m)
 	}
+
+	// 9. Check mapping occurs in the front, middle and back
+	trimSpaces := func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}
+	m = Map(trimSpaces, "   abc    123   ")
+	expect = "abc123"
+	if m != expect {
+		t.Errorf("trimSpaces: expected %q got %q", expect, m)
+	}
 }
 
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
@@ -1647,8 +1660,15 @@ func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
 }
 
 func BenchmarkRepeat(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Repeat("-", 80)
+	s := "0123456789"
+	for _, n := range []int{5, 10} {
+		for _, c := range []int{1, 2, 6} {
+			b.Run(fmt.Sprintf("%dx%d", n, c), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					Repeat(s[:n], c)
+				}
+			})
+		}
 	}
 }
 

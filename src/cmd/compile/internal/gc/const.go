@@ -766,7 +766,7 @@ func evconst(n *Node) {
 			v.U.(*Mpint).Neg()
 
 		case OCOM_ | CTINT_:
-			var et types.EType = Txxx
+			et := Txxx
 			if nl.Type != nil {
 				et = nl.Type.Etype
 			}

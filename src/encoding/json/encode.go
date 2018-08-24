@@ -381,8 +381,8 @@ func typeEncoder(t reflect.Type) encoderFunc {
 }
 
 var (
-	marshalerType     = reflect.TypeOf(new(Marshaler)).Elem()
-	textMarshalerType = reflect.TypeOf(new(encoding.TextMarshaler)).Elem()
+	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
+	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
 )
 
 // newTypeEncoder constructs an encoderFunc for a type.
@@ -624,16 +624,29 @@ func unsupportedTypeEncoder(e *encodeState, v reflect.Value, _ encOpts) {
 }
 
 type structEncoder struct {
-	fields    []field
-	fieldEncs []encoderFunc
+	fields []field
 }
 
-func (se *structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	e.WriteByte('{')
 	first := true
-	for i, f := range se.fields {
-		fv := fieldByIndex(v, f.index)
-		if !fv.IsValid() || f.omitEmpty && isEmptyValue(fv) {
+	for i := range se.fields {
+		f := &se.fields[i]
+
+		// Find the nested struct field by following f.index.
+		fv := v
+	FieldLoop:
+		for _, i := range f.index {
+			if fv.Kind() == reflect.Ptr {
+				if fv.IsNil() {
+					continue FieldLoop
+				}
+				fv = fv.Elem()
+			}
+			fv = fv.Field(i)
+		}
+
+		if f.omitEmpty && isEmptyValue(fv) {
 			continue
 		}
 		if first {
@@ -641,23 +654,19 @@ func (se *structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		} else {
 			e.WriteByte(',')
 		}
-		e.string(f.name, opts.escapeHTML)
-		e.WriteByte(':')
+		if opts.escapeHTML {
+			e.WriteString(f.nameEscHTML)
+		} else {
+			e.WriteString(f.nameNonEsc)
+		}
 		opts.quoted = f.quoted
-		se.fieldEncs[i](e, fv, opts)
+		f.encoder(e, fv, opts)
 	}
 	e.WriteByte('}')
 }
 
 func newStructEncoder(t reflect.Type) encoderFunc {
-	fields := cachedTypeFields(t)
-	se := &structEncoder{
-		fields:    fields,
-		fieldEncs: make([]encoderFunc, len(fields)),
-	}
-	for i, f := range fields {
-		se.fieldEncs[i] = typeEncoder(typeByIndex(t, f.index))
-	}
+	se := structEncoder{fields: cachedTypeFields(t)}
 	return se.encode
 }
 
@@ -715,14 +724,22 @@ func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 	}
 	s := v.Bytes()
 	e.WriteByte('"')
-	if len(s) < 1024 {
-		// for small buffers, using Encode directly is much faster.
-		dst := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
+	encodedLen := base64.StdEncoding.EncodedLen(len(s))
+	if encodedLen <= len(e.scratch) {
+		// If the encoded bytes fit in e.scratch, avoid an extra
+		// allocation and use the cheaper Encoding.Encode.
+		dst := e.scratch[:encodedLen]
+		base64.StdEncoding.Encode(dst, s)
+		e.Write(dst)
+	} else if encodedLen <= 1024 {
+		// The encoded bytes are short enough to allocate for, and
+		// Encoding.Encode is still cheaper.
+		dst := make([]byte, encodedLen)
 		base64.StdEncoding.Encode(dst, s)
 		e.Write(dst)
 	} else {
-		// for large buffers, avoid unnecessary extra temporary
-		// buffer space.
+		// The encoded bytes are too long to cheaply allocate, and
+		// Encoding.Encode is no longer noticeably cheaper.
 		enc := base64.NewEncoder(base64.StdEncoding, e)
 		enc.Write(s)
 		enc.Close()
@@ -822,26 +839,11 @@ func isValidTag(s string) bool {
 			// Backslash and quote chars are reserved, but
 			// otherwise any punctuation chars are allowed
 			// in a tag name.
-		default:
-			if !unicode.IsLetter(c) && !unicode.IsDigit(c) {
-				return false
-			}
+		case !unicode.IsLetter(c) && !unicode.IsDigit(c):
+			return false
 		}
 	}
 	return true
-}
-
-func fieldByIndex(v reflect.Value, index []int) reflect.Value {
-	for _, i := range index {
-		if v.Kind() == reflect.Ptr {
-			if v.IsNil() {
-				return reflect.Value{}
-			}
-			v = v.Elem()
-		}
-		v = v.Field(i)
-	}
-	return v
 }
 
 func typeByIndex(t reflect.Type, index []int) reflect.Type {
@@ -893,18 +895,15 @@ func (e *encodeState) string(s string, escapeHTML bool) {
 			if start < i {
 				e.WriteString(s[start:i])
 			}
+			e.WriteByte('\\')
 			switch b {
 			case '\\', '"':
-				e.WriteByte('\\')
 				e.WriteByte(b)
 			case '\n':
-				e.WriteByte('\\')
 				e.WriteByte('n')
 			case '\r':
-				e.WriteByte('\\')
 				e.WriteByte('r')
 			case '\t':
-				e.WriteByte('\\')
 				e.WriteByte('t')
 			default:
 				// This encodes bytes < 0x20 except for \t, \n and \r.
@@ -912,7 +911,7 @@ func (e *encodeState) string(s string, escapeHTML bool) {
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
 				// and served to some browsers.
-				e.WriteString(`\u00`)
+				e.WriteString(`u00`)
 				e.WriteByte(hex[b>>4])
 				e.WriteByte(hex[b&0xF])
 			}
@@ -968,18 +967,15 @@ func (e *encodeState) stringBytes(s []byte, escapeHTML bool) {
 			if start < i {
 				e.Write(s[start:i])
 			}
+			e.WriteByte('\\')
 			switch b {
 			case '\\', '"':
-				e.WriteByte('\\')
 				e.WriteByte(b)
 			case '\n':
-				e.WriteByte('\\')
 				e.WriteByte('n')
 			case '\r':
-				e.WriteByte('\\')
 				e.WriteByte('r')
 			case '\t':
-				e.WriteByte('\\')
 				e.WriteByte('t')
 			default:
 				// This encodes bytes < 0x20 except for \t, \n and \r.
@@ -987,7 +983,7 @@ func (e *encodeState) stringBytes(s []byte, escapeHTML bool) {
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
 				// and served to some browsers.
-				e.WriteString(`\u00`)
+				e.WriteString(`u00`)
 				e.WriteByte(hex[b>>4])
 				e.WriteByte(hex[b&0xF])
 			}
@@ -1036,17 +1032,16 @@ type field struct {
 	nameBytes []byte                 // []byte(name)
 	equalFold func(s, t []byte) bool // bytes.EqualFold or equivalent
 
+	nameNonEsc  string // `"` + name + `":`
+	nameEscHTML string // `"` + HTMLEscape(name) + `":`
+
 	tag       bool
 	index     []int
 	typ       reflect.Type
 	omitEmpty bool
 	quoted    bool
-}
 
-func fillField(f field) field {
-	f.nameBytes = []byte(f.name)
-	f.equalFold = foldFunc(f.nameBytes)
-	return f
+	encoder encoderFunc
 }
 
 // byIndex sorts field by index sequence.
@@ -1085,6 +1080,9 @@ func typeFields(t reflect.Type) []field {
 
 	// Fields found.
 	var fields []field
+
+	// Buffer to run HTMLEscape on field names.
+	var nameEscBuf bytes.Buffer
 
 	for len(next) > 0 {
 		current, next = next, current[:0]
@@ -1152,14 +1150,26 @@ func typeFields(t reflect.Type) []field {
 					if name == "" {
 						name = sf.Name
 					}
-					fields = append(fields, fillField(field{
+					field := field{
 						name:      name,
 						tag:       tagged,
 						index:     index,
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
 						quoted:    quoted,
-					}))
+					}
+					field.nameBytes = []byte(field.name)
+					field.equalFold = foldFunc(field.nameBytes)
+
+					// Build nameEscHTML and nameNonEsc ahead of time.
+					nameEscBuf.Reset()
+					nameEscBuf.WriteString(`"`)
+					HTMLEscape(&nameEscBuf, field.nameBytes)
+					nameEscBuf.WriteString(`":`)
+					field.nameEscHTML = nameEscBuf.String()
+					field.nameNonEsc = `"` + field.name + `":`
+
+					fields = append(fields, field)
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.
@@ -1173,7 +1183,7 @@ func typeFields(t reflect.Type) []field {
 				// Record new anonymous struct to explore in next round.
 				nextCount[ft]++
 				if nextCount[ft] == 1 {
-					next = append(next, fillField(field{name: ft.Name(), index: index, typ: ft}))
+					next = append(next, field{name: ft.Name(), index: index, typ: ft})
 				}
 			}
 		}
@@ -1227,6 +1237,10 @@ func typeFields(t reflect.Type) []field {
 	fields = out
 	sort.Sort(byIndex(fields))
 
+	for i := range fields {
+		f := &fields[i]
+		f.encoder = typeEncoder(typeByIndex(t, f.index))
+	}
 	return fields
 }
 

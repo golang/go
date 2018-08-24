@@ -10,6 +10,7 @@ import (
 	"errors"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"reflect"
 	"strconv"
 	"strings"
@@ -24,9 +25,13 @@ func init() {
 
 // checkStructFieldTags checks all the field tags of a struct, including checking for duplicates.
 func checkStructFieldTags(f *File, node ast.Node) {
+	astType := node.(*ast.StructType)
+	typ := f.pkg.types[astType].Type.(*types.Struct)
 	var seen map[[2]string]token.Pos
-	for _, field := range node.(*ast.StructType).Fields.List {
-		checkCanonicalFieldTag(f, field, &seen)
+	for i := 0; i < typ.NumFields(); i++ {
+		field := typ.Field(i)
+		tag := typ.Tag(i)
+		checkCanonicalFieldTag(f, astType, field, tag, &seen)
 	}
 }
 
@@ -34,80 +39,90 @@ var checkTagDups = []string{"json", "xml"}
 var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
 
 // checkCanonicalFieldTag checks a single struct field tag.
-func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token.Pos) {
-	if field.Tag == nil {
-		return
-	}
-
-	tag, err := strconv.Unquote(field.Tag.Value)
-	if err != nil {
-		f.Badf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
-		return
+// top is the top-level struct type that is currently being checked.
+func checkCanonicalFieldTag(f *File, top *ast.StructType, field *types.Var, tag string, seen *map[[2]string]token.Pos) {
+	for _, key := range checkTagDups {
+		checkTagDuplicates(f, tag, key, field, field, seen)
 	}
 
 	if err := validateStructTag(tag); err != nil {
-		raw, _ := strconv.Unquote(field.Tag.Value) // field.Tag.Value is known to be a quoted string
-		f.Badf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", raw, err)
-	}
-
-	for _, key := range checkTagDups {
-		val := reflect.StructTag(tag).Get(key)
-		if val == "" || val == "-" || val[0] == ',' {
-			continue
-		}
-		if key == "xml" && len(field.Names) > 0 && field.Names[0].Name == "XMLName" {
-			// XMLName defines the XML element name of the struct being
-			// checked. That name cannot collide with element or attribute
-			// names defined on other fields of the struct. Vet does not have a
-			// check for untagged fields of type struct defining their own name
-			// by containing a field named XMLName; see issue 18256.
-			continue
-		}
-		if i := strings.Index(val, ","); i >= 0 {
-			if key == "xml" {
-				// Use a separate namespace for XML attributes.
-				for _, opt := range strings.Split(val[i:], ",") {
-					if opt == "attr" {
-						key += " attribute" // Key is part of the error message.
-						break
-					}
-				}
-			}
-			val = val[:i]
-		}
-		if *seen == nil {
-			*seen = map[[2]string]token.Pos{}
-		}
-		if pos, ok := (*seen)[[2]string{key, val}]; ok {
-			var name string
-			if len(field.Names) > 0 {
-				name = field.Names[0].Name
-			} else {
-				name = field.Type.(*ast.Ident).Name
-			}
-			f.Badf(field.Pos(), "struct field %s repeats %s tag %q also at %s", name, key, val, f.loc(pos))
-		} else {
-			(*seen)[[2]string{key, val}] = field.Pos()
-		}
+		f.Badf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", tag, err)
 	}
 
 	// Check for use of json or xml tags with unexported fields.
 
 	// Embedded struct. Nothing to do for now, but that
 	// may change, depending on what happens with issue 7363.
-	if len(field.Names) == 0 {
+	if field.Anonymous() {
 		return
 	}
 
-	if field.Names[0].IsExported() {
+	if field.Exported() {
 		return
 	}
 
 	for _, enc := range [...]string{"json", "xml"} {
 		if reflect.StructTag(tag).Get(enc) != "" {
-			f.Badf(field.Pos(), "struct field %s has %s tag but is not exported", field.Names[0].Name, enc)
+			f.Badf(field.Pos(), "struct field %s has %s tag but is not exported", field.Name(), enc)
 			return
 		}
+	}
+}
+
+// checkTagDuplicates checks a single struct field tag to see if any tags are
+// duplicated. nearest is the field that's closest to the field being checked,
+// while still being part of the top-level struct type.
+func checkTagDuplicates(f *File, tag, key string, nearest, field *types.Var, seen *map[[2]string]token.Pos) {
+	val := reflect.StructTag(tag).Get(key)
+	if val == "-" {
+		// Ignored, even if the field is anonymous.
+		return
+	}
+	if val == "" || val[0] == ',' {
+		if field.Anonymous() {
+			typ, ok := field.Type().Underlying().(*types.Struct)
+			if !ok {
+				return
+			}
+			for i := 0; i < typ.NumFields(); i++ {
+				field := typ.Field(i)
+				if !field.Exported() {
+					continue
+				}
+				tag := typ.Tag(i)
+				checkTagDuplicates(f, tag, key, nearest, field, seen)
+			}
+		}
+		// Ignored if the field isn't anonymous.
+		return
+	}
+	if key == "xml" && field.Name() == "XMLName" {
+		// XMLName defines the XML element name of the struct being
+		// checked. That name cannot collide with element or attribute
+		// names defined on other fields of the struct. Vet does not have a
+		// check for untagged fields of type struct defining their own name
+		// by containing a field named XMLName; see issue 18256.
+		return
+	}
+	if i := strings.Index(val, ","); i >= 0 {
+		if key == "xml" {
+			// Use a separate namespace for XML attributes.
+			for _, opt := range strings.Split(val[i:], ",") {
+				if opt == "attr" {
+					key += " attribute" // Key is part of the error message.
+					break
+				}
+			}
+		}
+		val = val[:i]
+	}
+	if *seen == nil {
+		*seen = map[[2]string]token.Pos{}
+	}
+	if pos, ok := (*seen)[[2]string{key, val}]; ok {
+		f.Badf(nearest.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, f.loc(pos))
+	} else {
+		(*seen)[[2]string{key, val}] = field.Pos()
 	}
 }
 

@@ -16,7 +16,6 @@ import (
 	"log"
 	"os"
 	"sort"
-	"strconv"
 
 	"cmd/internal/edit"
 	"cmd/internal/objabi"
@@ -293,17 +292,6 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 	}
 	return f
 }
-
-// unquote returns the unquoted string.
-func unquote(s string) string {
-	t, err := strconv.Unquote(s)
-	if err != nil {
-		log.Fatalf("cover: improperly quoted string %q\n", s)
-	}
-	return t
-}
-
-var slashslash = []byte("//")
 
 func annotate(name string) {
 	fset := token.NewFileSet()

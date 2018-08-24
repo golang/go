@@ -297,7 +297,7 @@ Normal:
 	FMOVD	x+0(FP), F0
 	FMOVD	y+8(FP), F2
 	MOVD	$·powrodataL51<>+0(SB), R9
-	WORD	$0xB3CD0030	//lgdr	%r3,%f0
+	LGDR	F0, R3
 	WORD	$0xC0298009	//iilf	%r2,2148095317
 	BYTE	$0x55
 	BYTE	$0x55
@@ -340,7 +340,7 @@ L2:
 	BYTE	$0x24
 	FMOVD	0(R2), F6
 	FSUBS	F1, F3
-	WORD	$0xB3C10018	//ldgr	%f1,%r8
+	LDGR	R8, F1
 	WFMSDB	V4, V1, V6, V4
 	FMOVD	152(R9), F6
 	WFMDB	V4, V4, V7
@@ -387,7 +387,7 @@ L2:
 	WFMSDB	V2, V3, V5, V3
 	VLEG	$0, 48(R9), V18
 	WFADB	V3, V5, V6
-	WORD	$0xB3CD0023	//lgdr	%r2,%f3
+	LGDR	F3, R2
 	WFMSDB	V2, V16, V6, V16
 	FMOVD	40(R9), F1
 	WFMADB	V2, V4, V16, V4
@@ -410,8 +410,8 @@ L2:
 	BYTE	$0x30
 	BYTE	$0x59
 	WFMADB	V4, V1, V3, V4
-	WORD	$0xB3CD0026	//lgdr	%r2,%f6
-	WORD	$0xB3C10015	//ldgr	%f1,%r5
+	LGDR	F6, R2
+	LDGR	R5, F1
 	SRAD	$48, R2, R2
 	FMADD	F1, F4, F1
 	RLL	$16, R2, R2
@@ -452,7 +452,7 @@ L11:
 	WORD	$0xEC1520BF	//risbgn	%r1,%r5,64-32,128+63,64+0+32
 	BYTE	$0x60
 	BYTE	$0x59
-	WORD	$0xB3CD0026	//lgdr	%r2,%f6
+	LGDR	F6, R2
 	MOVD	$powiadd<>+0(SB), R3
 	WORD	$0xEC223CBC	//risbg	%r2,%r2,60,128+60,64-60
 	BYTE	$0x04
@@ -461,7 +461,7 @@ L11:
 	WORD	$0xEC51001F	//risbgn	%r5,%r1,64-64+0,64-64+0+32-1,64-0-32
 	BYTE	$0x20
 	BYTE	$0x59
-	WORD	$0xB3C10015	//ldgr	%f1,%r5
+	LDGR	R5, F1
 	FMADD	F1, F4, F1
 	MOVD	$powxscale<>+0(SB), R1
 	WORD	$0xED121000	//mdb	%f1,0(%r2,%r1)
@@ -486,7 +486,7 @@ L3:
 	WORD	$0xC0298009	//iilf	%r2,2148095317
 	BYTE	$0x55
 	BYTE	$0x55
-	WORD	$0xB3CD0034	//lgdr	%r3,%f4
+	LGDR	F4, R3
 	WORD	$0xEC3320BF	//risbgn	%r3,%r3,64-32,128+63,64+0+32
 	BYTE	$0x60
 	BYTE	$0x59
@@ -566,11 +566,11 @@ L47:
 	BVS	L49
 L16:
 	MOVD	·pow_xnan<>+0(SB), R1
-	WORD	$0xB3C10001	//ldgr	%f0,%r1
+	LDGR	R1, F0
 	WFMDB	V4, V0, V1
 	BR	L1
 L48:
-	WORD	$0xB3CD0030	//lgdr	%r3,%f0
+	LGDR	F0, R3
 	WORD	$0xEC1320BF	//risbgn	%r1,%r3,64-32,128+63,64+0+32
 	BYTE	$0x60
 	BYTE	$0x59

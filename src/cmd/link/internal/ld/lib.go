@@ -104,7 +104,7 @@ type Arch struct {
 	Solarisdynld     string
 	Adddynrel        func(*Link, *sym.Symbol, *sym.Reloc) bool
 	Archinit         func(*Link)
-	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, *int64) bool
+	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, int64) (int64, bool)
 	Archrelocvariant func(*Link, *sym.Reloc, *sym.Symbol, int64) int64
 	Trampoline       func(*Link, *sym.Reloc, *sym.Symbol)
 	Asmb             func(*Link)
@@ -503,7 +503,8 @@ func (ctxt *Link) loadlib() {
 		// objects, try to read them from the libgcc file.
 		any := false
 		for _, s := range ctxt.Syms.Allsym {
-			for _, r := range s.R {
+			for i := range s.R {
+				r := &s.R[i] // Copying sym.Reloc has measurable impact on peformance
 				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
 					any = true
 					break
@@ -1365,7 +1366,12 @@ func linkerFlagSupported(linker, flag string) bool {
 		}
 	})
 
-	cmd := exec.Command(linker, flag, "trivial.c")
+	var flags []string
+	flags = append(flags, ldflag...)
+	flags = append(flags, strings.Fields(*flagExtldflags)...)
+	flags = append(flags, flag, "trivial.c")
+
+	cmd := exec.Command(linker, flags...)
 	cmd.Dir = *flagTmpdir
 	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
 	out, err := cmd.CombinedOutput()

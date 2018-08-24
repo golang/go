@@ -1279,6 +1279,7 @@ func TestBadFuncNames(t *testing.T) {
 }
 
 func testBadFuncName(name string, t *testing.T) {
+	t.Helper()
 	defer func() {
 		recover()
 	}()

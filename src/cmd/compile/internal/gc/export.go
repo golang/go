@@ -88,7 +88,7 @@ func dumpexport(bout *bio.Writer) {
 	}
 }
 
-func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
+func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
 	n := asNode(s.PkgDef())
 	if n == nil {
 		// iimport should have created a stub ONONAME
@@ -113,7 +113,7 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
 // If no such type has been declared yet, a forward declaration is returned.
 // ipkg is the package being imported
 func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
-	n := importsym(ipkg, pos, s, OTYPE)
+	n := importsym(ipkg, s, OTYPE)
 	if n.Op != OTYPE {
 		t := types.New(TFORW)
 		t.Sym = s
@@ -135,7 +135,7 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
 // importobj declares symbol s as an imported object representable by op.
 // ipkg is the package being imported
 func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
-	n := importsym(ipkg, pos, s, op)
+	n := importsym(ipkg, s, op)
 	if n.Op != ONONAME {
 		if n.Op == op && (n.Class() != ctxt || !eqtype(n.Type, t)) {
 			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))

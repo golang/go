@@ -489,19 +489,19 @@ func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 // ToUpperSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // upper case, giving priority to the special casing rules.
 func ToUpperSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
+	return Map(c.ToUpper, s)
 }
 
 // ToLowerSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // lower case, giving priority to the special casing rules.
 func ToLowerSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToLower(r) }, s)
+	return Map(c.ToLower, s)
 }
 
 // ToTitleSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
+	return Map(c.ToTitle, s)
 }
 
 // isSeparator reports whether the rune could mark a word boundary.

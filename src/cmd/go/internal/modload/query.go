@@ -6,6 +6,7 @@ package modload
 
 import (
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
 	"fmt"
@@ -223,6 +224,11 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) (module
 	for p := path; p != "."; p = pathpkg.Dir(p) {
 		info, err := Query(p, query, allowed)
 		if err != nil {
+			if _, ok := err.(*codehost.VCSError); ok {
+				// A VCSError means we know where to find the code,
+				// we just can't. Abort search.
+				return module.Version{}, nil, err
+			}
 			if finalErr == errMissing {
 				finalErr = err
 			}

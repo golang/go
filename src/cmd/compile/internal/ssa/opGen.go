@@ -262,6 +262,8 @@ const (
 	Op386SUBSDload
 	Op386MULSSload
 	Op386MULSDload
+	Op386DIVSSload
+	Op386DIVSDload
 	Op386ADDL
 	Op386ADDLconst
 	Op386ADDLcarry
@@ -300,6 +302,12 @@ const (
 	Op386CMPLconst
 	Op386CMPWconst
 	Op386CMPBconst
+	Op386CMPLload
+	Op386CMPWload
+	Op386CMPBload
+	Op386CMPLconstload
+	Op386CMPWconstload
+	Op386CMPBconstload
 	Op386UCOMISS
 	Op386UCOMISD
 	Op386TESTL
@@ -327,6 +335,7 @@ const (
 	Op386ROLBconst
 	Op386ADDLload
 	Op386SUBLload
+	Op386MULLload
 	Op386ANDLload
 	Op386ORLload
 	Op386XORLload
@@ -385,6 +394,10 @@ const (
 	Op386ANDLmodify
 	Op386ORLmodify
 	Op386XORLmodify
+	Op386ADDLconstmodify
+	Op386ANDLconstmodify
+	Op386ORLconstmodify
+	Op386XORLconstmodify
 	Op386MOVBloadidx1
 	Op386MOVWloadidx1
 	Op386MOVWloadidx2
@@ -456,6 +469,8 @@ const (
 	OpAMD64SUBSDload
 	OpAMD64MULSSload
 	OpAMD64MULSDload
+	OpAMD64DIVSSload
+	OpAMD64DIVSDload
 	OpAMD64ADDQ
 	OpAMD64ADDL
 	OpAMD64ADDQconst
@@ -487,14 +502,20 @@ const (
 	OpAMD64ANDL
 	OpAMD64ANDQconst
 	OpAMD64ANDLconst
+	OpAMD64ANDQconstmodify
+	OpAMD64ANDLconstmodify
 	OpAMD64ORQ
 	OpAMD64ORL
 	OpAMD64ORQconst
 	OpAMD64ORLconst
+	OpAMD64ORQconstmodify
+	OpAMD64ORLconstmodify
 	OpAMD64XORQ
 	OpAMD64XORL
 	OpAMD64XORQconst
 	OpAMD64XORLconst
+	OpAMD64XORQconstmodify
+	OpAMD64XORLconstmodify
 	OpAMD64CMPQ
 	OpAMD64CMPL
 	OpAMD64CMPW
@@ -2739,6 +2760,42 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "DIVSSload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.ADIVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+				{1, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+			},
+		},
+	},
+	{
+		name:           "DIVSDload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.ADIVSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+				{1, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+			},
+		},
+	},
+	{
 		name:         "ADDL",
 		argLen:       2,
 		commutative:  true,
@@ -3324,6 +3381,87 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "CMPLload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.ACMPL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 255},   // AX CX DX BX SP BP SI DI
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "CMPWload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.ACMPW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 255},   // AX CX DX BX SP BP SI DI
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "CMPBload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.ACMPB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 255},   // AX CX DX BX SP BP SI DI
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "CMPLconstload",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.ACMPL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "CMPWconstload",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.ACMPW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "CMPBconstload",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.ACMPB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
 		name:        "UCOMISS",
 		argLen:      2,
 		usesScratch: true,
@@ -3716,6 +3854,25 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg1: true,
 		symEffect:      SymRead,
 		asm:            x86.ASUBL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 239},   // AX CX DX BX BP SI DI
+				{1, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:           "MULLload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239},   // AX CX DX BX BP SI DI
@@ -4503,6 +4660,62 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "ADDLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AADDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "ANDLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AANDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "ORLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+			},
+		},
+	},
+	{
+		name:           "XORLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AXORL,
+		reg: regInfo{
+			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
 		},
@@ -5451,6 +5664,42 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "DIVSSload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.ADIVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:           "DIVSDload",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		symEffect:      SymRead,
+		asm:            x86.ADIVSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
 		name:         "ADDQ",
 		argLen:       2,
 		commutative:  true,
@@ -5949,6 +6198,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "ANDQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AANDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:           "ANDLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AANDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:         "ORQ",
 		argLen:       2,
 		commutative:  true,
@@ -6015,6 +6292,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "ORQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:           "ORLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:         "XORQ",
 		argLen:       2,
 		commutative:  true,
@@ -6077,6 +6382,34 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "XORQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AXORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:           "XORLconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AXORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
 		},
 	},

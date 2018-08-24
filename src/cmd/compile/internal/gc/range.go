@@ -580,8 +580,7 @@ func arrayClear(n, v1, v2, a *Node) bool {
 	tmp := nod(OINDEX, a, nodintconst(0))
 	tmp.SetBounded(true)
 	tmp = nod(OADDR, tmp, nil)
-	tmp = nod(OCONVNOP, tmp, nil)
-	tmp.Type = types.Types[TUNSAFEPTR]
+	tmp = convnop(tmp, types.Types[TUNSAFEPTR])
 	n.Nbody.Append(nod(OAS, hp, tmp))
 
 	// hn = len(a) * sizeof(elem(a))

@@ -417,6 +417,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Args[0].Reg()
+	case ssa.Op386CMPLload, ssa.Op386CMPWload, ssa.Op386CMPBload:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		gc.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Args[1].Reg()
+	case ssa.Op386CMPLconstload, ssa.Op386CMPWconstload, ssa.Op386CMPBconstload:
+		sc := v.AuxValAndOff()
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		gc.AddAux2(&p.From, v, sc.Off())
+		p.To.Type = obj.TYPE_CONST
+		p.To.Offset = sc.Val()
 	case ssa.Op386MOVLconst:
 		x := v.Reg()
 
@@ -510,8 +525,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.Op386ADDLload, ssa.Op386SUBLload, ssa.Op386ANDLload, ssa.Op386ORLload, ssa.Op386XORLload,
-		ssa.Op386ADDSDload, ssa.Op386ADDSSload, ssa.Op386SUBSDload, ssa.Op386SUBSSload, ssa.Op386MULSDload, ssa.Op386MULSSload:
+	case ssa.Op386ADDLload, ssa.Op386SUBLload, ssa.Op386MULLload,
+		ssa.Op386ANDLload, ssa.Op386ORLload, ssa.Op386XORLload,
+		ssa.Op386ADDSDload, ssa.Op386ADDSSload, ssa.Op386SUBSDload, ssa.Op386SUBSSload,
+		ssa.Op386MULSDload, ssa.Op386MULSSload, ssa.Op386DIVSSload, ssa.Op386DIVSDload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[1].Reg()
@@ -529,6 +546,33 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
+	case ssa.Op386ADDLconstmodify:
+		var p *obj.Prog = nil
+		sc := v.AuxValAndOff()
+		off := sc.Off()
+		val := sc.Val()
+		if val == 1 {
+			p = s.Prog(x86.AINCL)
+		} else if val == -1 {
+			p = s.Prog(x86.ADECL)
+		} else {
+			p = s.Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = val
+		}
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		gc.AddAux2(&p.To, v, off)
+	case ssa.Op386ANDLconstmodify, ssa.Op386ORLconstmodify, ssa.Op386XORLconstmodify:
+		sc := v.AuxValAndOff()
+		off := sc.Off()
+		val := sc.Val()
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = val
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		gc.AddAux2(&p.To, v, off)
 	case ssa.Op386MOVSDstoreidx8:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

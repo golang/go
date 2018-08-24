@@ -70,14 +70,14 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
 		}
 
 		ekm := ekmFromMasterSecret(test.version, test.suite, masterSecret, clientRandom, serverRandom)
-		contextKeyingMaterial, ok := ekm("label", []byte("context"), 32)
-		if !ok {
-			t.Fatalf("ekmFromMasterSecret failed")
+		contextKeyingMaterial, err := ekm("label", []byte("context"), 32)
+		if err != nil {
+			t.Fatalf("ekmFromMasterSecret failed: %v", err)
 		}
 
-		noContextKeyingMaterial, ok := ekm("label", nil, 32)
-		if !ok {
-			t.Fatalf("ekmFromMasterSecret failed")
+		noContextKeyingMaterial, err := ekm("label", nil, 32)
+		if err != nil {
+			t.Fatalf("ekmFromMasterSecret failed: %v", err)
 		}
 
 		if hex.EncodeToString(contextKeyingMaterial) != test.contextKeyingMaterial ||

@@ -911,7 +911,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VADDPD.BCST.Z (AX), Z2, K1, Z1 // 62f1edd95808
 	VMAXPD.BCST (AX), Z2, K1, Z1   // 62f1ed595f08
 	VMAXPD.BCST.Z (AX), Z2, K1, Z1 // 62f1edd95f08
-	// EVEX: surpress all exceptions (SAE).
+	// EVEX: suppress all exceptions (SAE).
 	VMAXPD.SAE   Z3, Z2, K1, Z1   // 62f1ed595fcb or 62f1ed195fcb
 	VMAXPD.SAE.Z Z3, Z2, K1, Z1   // 62f1edd95fcb or 62f1ed995fcb
 	VMAXPD (AX), Z2, K1, Z1       // 62f1ed495f08

@@ -64,6 +64,7 @@ func init() {
 		help.HelpCache,
 		help.HelpEnvironment,
 		help.HelpFileType,
+		modload.HelpGoMod,
 		help.HelpGopath,
 		get.HelpGopathGet,
 		modfetch.HelpGoproxy,
@@ -94,7 +95,7 @@ func main() {
 
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
-		help.Help(args[1:])
+		help.Help(os.Stdout, args[1:])
 		return
 	}
 
@@ -198,7 +199,7 @@ BigCmdLoop:
 				}
 				if args[0] == "help" {
 					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
-					help.Help(append(strings.Split(cfg.CmdName, " "), args[1:]...))
+					help.Help(os.Stdout, append(strings.Split(cfg.CmdName, " "), args[1:]...))
 					return
 				}
 				cfg.CmdName += " " + args[0]
@@ -237,6 +238,13 @@ func mainUsage() {
 	// special case "go test -h"
 	if len(os.Args) > 1 && os.Args[1] == "test" {
 		test.Usage()
+	}
+	// Since vet shares code with test in cmdflag, it doesn't show its
+	// command usage properly. For now, special case it too.
+	// TODO(mvdan): fix the cmdflag package instead; see
+	// golang.org/issue/26999
+	if len(os.Args) > 1 && os.Args[1] == "vet" {
+		vet.CmdVet.Usage()
 	}
 	help.PrintUsage(os.Stderr, base.Go)
 	os.Exit(2)

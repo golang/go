@@ -435,7 +435,7 @@ func (ctxt *context) match(name string) bool {
 func init() { checkShouldTest() }
 
 // goGcflags returns the -gcflags argument to use with go build / go run.
-// This must match the flags used for building the standard libary,
+// This must match the flags used for building the standard library,
 // or else the commands will rebuild any needed packages (like runtime)
 // over and over.
 func goGcflags() string {

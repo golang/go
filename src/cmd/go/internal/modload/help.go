@@ -6,8 +6,7 @@ package modload
 
 import "cmd/go/internal/base"
 
-// TODO(rsc): The links out to research.swtch.com here should all be
-// replaced eventually with links to proper documentation.
+// TODO(rsc): The "module code layout" section needs to be written.
 
 var HelpModules = &base.Command{
 	UsageLine: "modules",
@@ -81,7 +80,7 @@ depends on specific versions of golang.org/x/text and gopkg.in/yaml.v2:
 The go.mod file can also specify replacements and excluded versions
 that only apply when building the module directly; they are ignored
 when the module is incorporated into a larger build.
-For more about the go.mod file, see https://research.swtch.com/vgo-module.
+For more about the go.mod file, see 'go help go.mod'.
 
 To start a new module, simply create a go.mod file in the root of the
 module's directory tree, containing only a module statement.
@@ -336,8 +335,6 @@ For now, see https://research.swtch.com/vgo-module for information
 about how source code in version control systems is mapped to
 module file trees.
 
-TODO: Add documentation to go command.
-
 Module downloading and verification
 
 The go command maintains, in the main module's root directory alongside
@@ -379,5 +376,87 @@ dependencies (disabling use of the usual network sources and local
 caches), use 'go build -mod=vendor'. Note that only the main module's
 top-level vendor directory is used; vendor directories in other locations
 are still ignored.
+	`,
+}
+
+var HelpGoMod = &base.Command{
+	UsageLine: "go.mod",
+	Short:     "the go.mod file",
+	Long: `
+A module version is defined by a tree of source files, with a go.mod
+file in its root. When the go command is run, it looks in the current
+directory and then successive parent directories to find the go.mod
+marking the root of the main (current) module.
+
+The go.mod file itself is line-oriented, with // comments but
+no /* */ comments. Each line holds a single directive, made up of a
+verb followed by arguments. For example:
+
+	module my/thing
+	require other/thing v1.0.2
+	require new/thing v2.3.4
+	exclude old/thing v1.2.3
+	replace bad/thing v1.4.5 => good/thing v1.4.5
+
+The verbs are module, to define the module path; require, to require
+a particular module at a given version or later; exclude, to exclude
+a particular module version from use; and replace, to replace a module
+version with a different module version. Exclude and replace apply only
+in the main module's go.mod and are ignored in dependencies.
+See https://research.swtch.com/vgo-mvs for details.
+
+The leading verb can be factored out of adjacent lines to create a block,
+like in Go imports:
+
+	require (
+		new/thing v2.3.4
+		old/thing v1.2.3
+	)
+
+The go.mod file is designed both to be edited directly and to be
+easily updated by tools. The 'go mod edit' command can be used to
+parse and edit the go.mod file from programs and tools.
+See 'go help mod edit'.
+
+The go command automatically updates go.mod each time it uses the
+module graph, to make sure go.mod always accurately reflects reality
+and is properly formatted. For example, consider this go.mod file:
+
+        module M
+
+        require (
+                A v1
+                B v1.0.0
+                C v1.0.0
+                D v1.2.3
+                E dev
+        )
+
+        exclude D v1.2.3
+
+The update rewrites non-canonical version identifiers to semver form,
+so A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the
+latest commit on the dev branch, perhaps v0.0.0-20180523231146-b3f5c0f6e5f1.
+
+The update modifies requirements to respect exclusions, so the
+requirement on the excluded D v1.2.3 is updated to use the next
+available version of D, perhaps D v1.2.4 or D v1.3.0.
+
+The update removes redundant or misleading requirements.
+For example, if A v1.0.0 itself requires B v1.2.0 and C v1.0.0,
+then go.mod's requirement of B v1.0.0 is misleading (superseded by
+A's need for v1.2.0), and its requirement of C v1.0.0 is redundant
+(implied by A's need for the same version), so both will be removed.
+If module M contains packages that directly import packages from B or
+C, then the requirements will be kept but updated to the actual
+versions being used.
+
+Finally, the update reformats the go.mod in a canonical formatting, so
+that future mechanical changes will result in minimal diffs.
+
+Because the module graph defines the meaning of import statements, any
+commands that load packages also use and therefore update go.mod,
+including go build, go get, go install, go list, go test, go mod graph,
+go mod tidy, and go mod why.
 	`,
 }

@@ -175,8 +175,6 @@ func allRBT32Ops(te *testing.T, x []int32) {
 		if s != "" {
 			te.Errorf("Tree consistency problem at %v", s)
 			return
-		} else {
-			// fmt.Printf("%s", t.DebugString())
 		}
 	}
 

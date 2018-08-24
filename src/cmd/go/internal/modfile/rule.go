@@ -250,7 +250,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			arrow = 1
 		}
 		if len(args) < arrow+2 || len(args) > arrow+3 || args[arrow] != "=>" {
-			fmt.Fprintf(errs, "%s:%d: usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory", f.Syntax.Name, line.Start.Line, verb, verb)
+			fmt.Fprintf(errs, "%s:%d: usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory\n", f.Syntax.Name, line.Start.Line, verb, verb)
 			return
 		}
 		s, err := parseString(&args[0])
@@ -287,11 +287,11 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 		nv := ""
 		if len(args) == arrow+2 {
 			if !IsDirectoryPath(ns) {
-				fmt.Fprintf(errs, "%s:%d: replacement module without version must be directory path (rooted or starting with ./ or ../)", f.Syntax.Name, line.Start.Line)
+				fmt.Fprintf(errs, "%s:%d: replacement module without version must be directory path (rooted or starting with ./ or ../)\n", f.Syntax.Name, line.Start.Line)
 				return
 			}
 			if filepath.Separator == '/' && strings.Contains(ns, `\`) {
-				fmt.Fprintf(errs, "%s:%d: replacement directory appears to be Windows path (on a non-windows system)", f.Syntax.Name, line.Start.Line)
+				fmt.Fprintf(errs, "%s:%d: replacement directory appears to be Windows path (on a non-windows system)\n", f.Syntax.Name, line.Start.Line)
 				return
 			}
 		}
@@ -303,7 +303,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 				return
 			}
 			if IsDirectoryPath(ns) {
-				fmt.Fprintf(errs, "%s:%d: replacement module directory path %q cannot have version", f.Syntax.Name, line.Start.Line, ns)
+				fmt.Fprintf(errs, "%s:%d: replacement module directory path %q cannot have version\n", f.Syntax.Name, line.Start.Line, ns)
 				return
 			}
 		}

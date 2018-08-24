@@ -100,20 +100,22 @@ func runWhy(cmd *base.Command, args []string) {
 			sep = "\n"
 		}
 	} else {
-		pkgs := modload.ImportPaths(args) // resolve to packages
-		loadALL()                         // rebuild graph, from main module (not from named packages)
+		matches := modload.ImportPaths(args) // resolve to packages
+		loadALL()                            // rebuild graph, from main module (not from named packages)
 		sep := ""
-		for _, path := range pkgs {
-			why := modload.Why(path)
-			if why == "" {
-				vendoring := ""
-				if *whyVendor {
-					vendoring = " to vendor"
+		for _, m := range matches {
+			for _, path := range m.Pkgs {
+				why := modload.Why(path)
+				if why == "" {
+					vendoring := ""
+					if *whyVendor {
+						vendoring = " to vendor"
+					}
+					why = "(main module does not need" + vendoring + " package " + path + ")\n"
 				}
-				why = "(main module does not need" + vendoring + " package " + path + ")\n"
+				fmt.Printf("%s# %s\n%s", sep, path, why)
+				sep = "\n"
 			}
-			fmt.Printf("%s# %s\n%s", sep, path, why)
-			sep = "\n"
 		}
 	}
 }
