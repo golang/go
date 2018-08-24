@@ -80,7 +80,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
 hugeloop:
 	CMPL	BX, $64
 	JB	bigloop
-	CMPB	internal∕cpu·X86+const_x86_HasSSE2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	bigloop
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1

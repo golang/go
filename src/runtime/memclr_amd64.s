@@ -38,7 +38,7 @@ tail:
 	JBE	_65through128
 	CMPQ	BX, $256
 	JBE	_129through256
-	CMPB	internal∕cpu·X86+const_offset_x86_HasAVX2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JE loop_preheader_avx2
 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
 

@@ -139,7 +139,7 @@ endofpage:
 	RET
 
 avx2:
-	CMPB   internal∕cpu·X86+const_x86_HasAVX2(SB), $1
+	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JNE sse
 	MOVD AX, X0
 	LEAQ -32(SI)(BX*1), R11
