@@ -3333,10 +3333,17 @@ func typecheckas(n *Node) {
 		n.Left = typecheck(n.Left, Erv|Easgn)
 	}
 
-	n.Right = typecheck(n.Right, Erv)
+	// Use Efnstruct so we can emit an "N variables but M values" error
+	// to be consistent with typecheckas2 (#26616).
+	n.Right = typecheck(n.Right, Erv|Efnstruct)
 	checkassign(n, n.Left)
 	if n.Right != nil && n.Right.Type != nil {
-		if n.Left.Type != nil {
+		if n.Right.Type.IsFuncArgStruct() {
+			yyerror("assignment mismatch: 1 variable but %d values", n.Right.Type.NumFields())
+			// Multi-value RHS isn't actually valid for OAS; nil out
+			// to indicate failed typechecking.
+			n.Right.Type = nil
+		} else if n.Left.Type != nil {
 			n.Right = assignconv(n.Right, n.Left.Type, "assignment")
 		}
 	}
