@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"golang_org/x/net/http/httpguts"
 	"io"
 	"net/textproto"
 	"net/url"
@@ -63,6 +64,10 @@ type Response struct {
 	//
 	// The Body is automatically dechunked if the server replied
 	// with a "chunked" Transfer-Encoding.
+	//
+	// As of Go 1.12, the Body will be also implement io.Writer
+	// on a successful "101 Switching Protocols" responses,
+	// as used by WebSockets and HTTP/2's "h2c" mode.
 	Body io.ReadCloser
 
 	// ContentLength records the length of the associated content. The
@@ -332,4 +337,24 @@ func (r *Response) closeBody() {
 	if r.Body != nil {
 		r.Body.Close()
 	}
+}
+
+// bodyIsWritable reports whether the Body supports writing. The
+// Transport returns Writable bodies for 101 Switching Protocols
+// responses.
+// The Transport uses this method to determine whether a persistent
+// connection is done being managed from its perspective. Once we
+// return a writable response body to a user, the net/http package is
+// done managing that connection.
+func (r *Response) bodyIsWritable() bool {
+	_, ok := r.Body.(io.Writer)
+	return ok
+}
+
+// isProtocolSwitch reports whether r is a response to a successful
+// protocol upgrade.
+func (r *Response) isProtocolSwitch() bool {
+	return r.StatusCode == StatusSwitchingProtocols &&
+		r.Header.Get("Upgrade") != "" &&
+		httpguts.HeaderValuesContainsToken(r.Header["Connection"], "Upgrade")
 }
