@@ -1607,6 +1607,11 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 	return err
 }
 
+// errCallerOwnsConn is an internal sentinel error used when we hand
+// off a writable response.Body to the caller. We use this to prevent
+// closing a net.Conn that is now owned by the caller.
+var errCallerOwnsConn = errors.New("read loop ending; caller owns writable underlying conn")
+
 func (pc *persistConn) readLoop() {
 	closeErr := errReadLoopExiting // default value, if not changed below
 	defer func() {
@@ -1681,9 +1686,10 @@ func (pc *persistConn) readLoop() {
 		pc.numExpectedResponses--
 		pc.mu.Unlock()
 
+		bodyWritable := resp.bodyIsWritable()
 		hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
 
-		if resp.Close || rc.req.Close || resp.StatusCode <= 199 {
+		if resp.Close || rc.req.Close || resp.StatusCode <= 199 || bodyWritable {
 			// Don't do keep-alive on error if either party requested a close
 			// or we get an unexpected informational (1xx) response.
 			// StatusCode 100 is already handled above.
@@ -1703,6 +1709,10 @@ func (pc *persistConn) readLoop() {
 				!pc.sawEOF &&
 				pc.wroteRequest() &&
 				tryPutIdleConn(trace)
+
+			if bodyWritable {
+				closeErr = errCallerOwnsConn
+			}
 
 			select {
 			case rc.ch <- responseAndError{res: resp}:
@@ -1848,6 +1858,10 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 		}
 		break
 	}
+	if resp.isProtocolSwitch() {
+		resp.Body = newReadWriteCloserBody(pc.br, pc.conn)
+	}
+
 	resp.TLS = pc.tlsState
 	return
 }
@@ -1872,6 +1886,38 @@ func (pc *persistConn) waitForContinue(continueCh <-chan struct{}) func() bool {
 			return false
 		}
 	}
+}
+
+func newReadWriteCloserBody(br *bufio.Reader, rwc io.ReadWriteCloser) io.ReadWriteCloser {
+	body := &readWriteCloserBody{ReadWriteCloser: rwc}
+	if br.Buffered() != 0 {
+		body.br = br
+	}
+	return body
+}
+
+// readWriteCloserBody is the Response.Body type used when we want to
+// give users write access to the Body through the underlying
+// connection (TCP, unless using custom dialers). This is then
+// the concrete type for a Response.Body on the 101 Switching
+// Protocols response, as used by WebSockets, h2c, etc.
+type readWriteCloserBody struct {
+	br *bufio.Reader // used until empty
+	io.ReadWriteCloser
+}
+
+func (b *readWriteCloserBody) Read(p []byte) (n int, err error) {
+	if b.br != nil {
+		if n := b.br.Buffered(); len(p) > n {
+			p = p[:n]
+		}
+		n, err = b.br.Read(p)
+		if b.br.Buffered() == 0 {
+			b.br = nil
+		}
+		return n, err
+	}
+	return b.ReadWriteCloser.Read(p)
 }
 
 // nothingWrittenError wraps a write errors which ended up writing zero bytes.
@@ -2193,7 +2239,9 @@ func (pc *persistConn) closeLocked(err error) {
 			// freelist for http2. That's done by the
 			// alternate protocol's RoundTripper.
 		} else {
-			pc.conn.Close()
+			if err != errCallerOwnsConn {
+				pc.conn.Close()
+			}
 			close(pc.closech)
 		}
 	}
