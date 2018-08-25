@@ -161,12 +161,12 @@ type Feature struct {
 var featuredFiles = []Feature{
 	{
 		Platform:     "Microsoft Windows",
-		Requirements: "Windows XP SP3 or later, Intel 64-bit processor",
+		Requirements: "Windows 7 or later, Intel 64-bit processor",
 		fileRE:       regexp.MustCompile(`\.windows-amd64\.msi$`),
 	},
 	{
 		Platform:     "Apple macOS",
-		Requirements: "macOS 10.8 or later, Intel 64-bit processor",
+		Requirements: "macOS 10.10 or later, Intel 64-bit processor",
 		fileRE:       regexp.MustCompile(`\.darwin-amd64(-osx10\.8)?\.pkg$`),
 	},
 	{
