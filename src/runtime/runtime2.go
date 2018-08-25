@@ -847,7 +847,6 @@ var (
 	// Set in runtime.cpuinit.
 	// TODO: deprecate these; use internal/cpu directly.
 	support_popcnt        bool
-	support_sse2          bool
 	support_sse41         bool
 	arm64_support_atomics bool
 
