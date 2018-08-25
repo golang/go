@@ -629,6 +629,9 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 		text = string(data)
 	}
 
+	// Matching against workdir would be misleading.
+	text = strings.Replace(text, ts.workdir, "$WORK", -1)
+
 	if neg {
 		if re.MatchString(text) {
 			if isGrep {
