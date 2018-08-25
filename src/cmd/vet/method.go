@@ -7,9 +7,8 @@
 package main
 
 import (
-	"fmt"
 	"go/ast"
-	"go/printer"
+	"go/types"
 	"strings"
 )
 
@@ -65,30 +64,26 @@ func checkCanonicalMethod(f *File, node ast.Node) {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
 		if n.Recv != nil {
-			canonicalMethod(f, n.Name, n.Type)
+			canonicalMethod(f, n.Name)
 		}
 	case *ast.InterfaceType:
 		for _, field := range n.Methods.List {
 			for _, id := range field.Names {
-				canonicalMethod(f, id, field.Type.(*ast.FuncType))
+				canonicalMethod(f, id)
 			}
 		}
 	}
 }
 
-func canonicalMethod(f *File, id *ast.Ident, t *ast.FuncType) {
+func canonicalMethod(f *File, id *ast.Ident) {
 	// Expected input/output.
 	expect, ok := canonicalMethods[id.Name]
 	if !ok {
 		return
 	}
-
-	// Actual input/output
-	args := typeFlatten(t.Params.List)
-	var results []ast.Expr
-	if t.Results != nil {
-		results = typeFlatten(t.Results.List)
-	}
+	sign := f.pkg.defs[id].Type().(*types.Signature)
+	args := sign.Params()
+	results := sign.Results()
 
 	// Do the =s (if any) all match?
 	if !f.matchParams(expect.args, args, "=") || !f.matchParams(expect.results, results, "=") {
@@ -104,11 +99,7 @@ func canonicalMethod(f *File, id *ast.Ident, t *ast.FuncType) {
 			expectFmt += " (" + argjoin(expect.results) + ")"
 		}
 
-		f.b.Reset()
-		if err := printer.Fprint(&f.b, f.fset, t); err != nil {
-			fmt.Fprintf(&f.b, "<%s>", err)
-		}
-		actual := f.b.String()
+		actual := sign.String()
 		actual = strings.TrimPrefix(actual, "func")
 		actual = id.Name + actual
 
@@ -127,45 +118,27 @@ func argjoin(x []string) string {
 	return strings.Join(y, ", ")
 }
 
-// Turn parameter list into slice of types
-// (in the ast, types are Exprs).
-// Have to handle f(int, bool) and f(x, y, z int)
-// so not a simple 1-to-1 conversion.
-func typeFlatten(l []*ast.Field) []ast.Expr {
-	var t []ast.Expr
-	for _, f := range l {
-		if len(f.Names) == 0 {
-			t = append(t, f.Type)
-			continue
-		}
-		for range f.Names {
-			t = append(t, f.Type)
-		}
-	}
-	return t
-}
-
 // Does each type in expect with the given prefix match the corresponding type in actual?
-func (f *File) matchParams(expect []string, actual []ast.Expr, prefix string) bool {
+func (f *File) matchParams(expect []string, actual *types.Tuple, prefix string) bool {
 	for i, x := range expect {
 		if !strings.HasPrefix(x, prefix) {
 			continue
 		}
-		if i >= len(actual) {
+		if i >= actual.Len() {
 			return false
 		}
-		if !f.matchParamType(x, actual[i]) {
+		if !f.matchParamType(x, actual.At(i).Type()) {
 			return false
 		}
 	}
-	if prefix == "" && len(actual) > len(expect) {
+	if prefix == "" && actual.Len() > len(expect) {
 		return false
 	}
 	return true
 }
 
 // Does this one type match?
-func (f *File) matchParamType(expect string, actual ast.Expr) bool {
+func (f *File) matchParamType(expect string, actual types.Type) bool {
 	expect = strings.TrimPrefix(expect, "=")
 	// Strip package name if we're in that package.
 	if n := len(f.file.Name.Name); len(expect) > n && expect[:n] == f.file.Name.Name && expect[n] == '.' {
@@ -173,7 +146,5 @@ func (f *File) matchParamType(expect string, actual ast.Expr) bool {
 	}
 
 	// Overkill but easy.
-	f.b.Reset()
-	printer.Fprint(&f.b, f.fset, actual)
-	return f.b.String() == expect
+	return actual.String() == expect
 }

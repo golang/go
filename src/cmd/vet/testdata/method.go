@@ -14,9 +14,9 @@ import (
 
 type MethodTest int
 
-func (t *MethodTest) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan"
+func (t *MethodTest) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan\(fmt\.ScanState, rune\) error"
 }
 
 type MethodTestInterface interface {
-	ReadByte() byte // ERROR "should have signature ReadByte"
+	ReadByte() byte // ERROR "should have signature ReadByte\(\) \(byte, error\)"
 }
