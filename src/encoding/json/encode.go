@@ -674,7 +674,7 @@ type mapEncoder struct {
 	elemEnc encoderFunc
 }
 
-func (me *mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if v.IsNil() {
 		e.WriteString("null")
 		return
@@ -713,7 +713,7 @@ func newMapEncoder(t reflect.Type) encoderFunc {
 			return unsupportedTypeEncoder
 		}
 	}
-	me := &mapEncoder{typeEncoder(t.Elem())}
+	me := mapEncoder{typeEncoder(t.Elem())}
 	return me.encode
 }
 
@@ -752,7 +752,7 @@ type sliceEncoder struct {
 	arrayEnc encoderFunc
 }
 
-func (se *sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if v.IsNil() {
 		e.WriteString("null")
 		return
@@ -768,7 +768,7 @@ func newSliceEncoder(t reflect.Type) encoderFunc {
 			return encodeByteSlice
 		}
 	}
-	enc := &sliceEncoder{newArrayEncoder(t)}
+	enc := sliceEncoder{newArrayEncoder(t)}
 	return enc.encode
 }
 
@@ -776,7 +776,7 @@ type arrayEncoder struct {
 	elemEnc encoderFunc
 }
 
-func (ae *arrayEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+func (ae arrayEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	e.WriteByte('[')
 	n := v.Len()
 	for i := 0; i < n; i++ {
@@ -789,7 +789,7 @@ func (ae *arrayEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func newArrayEncoder(t reflect.Type) encoderFunc {
-	enc := &arrayEncoder{typeEncoder(t.Elem())}
+	enc := arrayEncoder{typeEncoder(t.Elem())}
 	return enc.encode
 }
 
@@ -797,7 +797,7 @@ type ptrEncoder struct {
 	elemEnc encoderFunc
 }
 
-func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+func (pe ptrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if v.IsNil() {
 		e.WriteString("null")
 		return
@@ -806,7 +806,7 @@ func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func newPtrEncoder(t reflect.Type) encoderFunc {
-	enc := &ptrEncoder{typeEncoder(t.Elem())}
+	enc := ptrEncoder{typeEncoder(t.Elem())}
 	return enc.encode
 }
 
@@ -814,7 +814,7 @@ type condAddrEncoder struct {
 	canAddrEnc, elseEnc encoderFunc
 }
 
-func (ce *condAddrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+func (ce condAddrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if v.CanAddr() {
 		ce.canAddrEnc(e, v, opts)
 	} else {
@@ -825,7 +825,7 @@ func (ce *condAddrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts)
 // newCondAddrEncoder returns an encoder that checks whether its value
 // CanAddr and delegates to canAddrEnc if so, else to elseEnc.
 func newCondAddrEncoder(canAddrEnc, elseEnc encoderFunc) encoderFunc {
-	enc := &condAddrEncoder{canAddrEnc: canAddrEnc, elseEnc: elseEnc}
+	enc := condAddrEncoder{canAddrEnc: canAddrEnc, elseEnc: elseEnc}
 	return enc.encode
 }
 
