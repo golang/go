@@ -628,8 +628,7 @@ type structEncoder struct {
 }
 
 func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
-	e.WriteByte('{')
-	first := true
+	next := byte('{')
 	for i := range se.fields {
 		f := &se.fields[i]
 
@@ -649,11 +648,8 @@ func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		if f.omitEmpty && isEmptyValue(fv) {
 			continue
 		}
-		if first {
-			first = false
-		} else {
-			e.WriteByte(',')
-		}
+		e.WriteByte(next)
+		next = ','
 		if opts.escapeHTML {
 			e.WriteString(f.nameEscHTML)
 		} else {
@@ -662,7 +658,11 @@ func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		opts.quoted = f.quoted
 		f.encoder(e, fv, opts)
 	}
-	e.WriteByte('}')
+	if next == '{' {
+		e.WriteString("{}")
+	} else {
+		e.WriteByte('}')
+	}
 }
 
 func newStructEncoder(t reflect.Type) encoderFunc {
