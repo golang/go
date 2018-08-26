@@ -463,8 +463,18 @@ func Map(mapping func(rune) rune, s string) string {
 
 	for i, c := range s {
 		r := mapping(c)
-		if r == c {
+		if r == c && c != utf8.RuneError {
 			continue
+		}
+
+		var width int
+		if c == utf8.RuneError {
+			c, width = utf8.DecodeRuneInString(s[i:])
+			if width != 1 && r == c {
+				continue
+			}
+		} else {
+			width = utf8.RuneLen(c)
 		}
 
 		b.Grow(len(s) + utf8.UTFMax)
@@ -473,17 +483,7 @@ func Map(mapping func(rune) rune, s string) string {
 			b.WriteRune(r)
 		}
 
-		if c == utf8.RuneError {
-			// RuneError is the result of either decoding
-			// an invalid sequence or '\uFFFD'. Determine
-			// the correct number of bytes we need to advance.
-			_, w := utf8.DecodeRuneInString(s[i:])
-			i += w
-		} else {
-			i += utf8.RuneLen(c)
-		}
-
-		s = s[i:]
+		s = s[i+width:]
 		break
 	}
 
