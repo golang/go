@@ -405,6 +405,19 @@ func TestAnonymousFields(t *testing.T) {
 			return S{s1{1, 2, s2{3, 4}}, 6}
 		},
 		want: `{"MyInt1":1,"MyInt2":3}`,
+	}, {
+		// If an anonymous struct pointer field is nil, we should ignore
+		// the embedded fields behind it. Not properly doing so may
+		// result in the wrong output or reflect panics.
+		label: "EmbeddedFieldBehindNilPointer",
+		makeInput: func() interface{} {
+			type (
+				S2 struct{ Field string }
+				S  struct{ *S2 }
+			)
+			return S{}
+		},
+		want: `{}`,
 	}}
 
 	for _, tt := range tests {
