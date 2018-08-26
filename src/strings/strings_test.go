@@ -646,10 +646,10 @@ func TestMap(t *testing.T) {
 		if unicode.Is(unicode.Latin, r) {
 			return r
 		}
-		return '?'
+		return utf8.RuneError
 	}
 	m = Map(replaceNotLatin, "Hello\255World")
-	expect = "Hello?World"
+	expect = "Hello\uFFFDWorld"
 	if m != expect {
 		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
 	}
