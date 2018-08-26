@@ -629,12 +629,12 @@ type structEncoder struct {
 
 func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	next := byte('{')
+FieldLoop:
 	for i := range se.fields {
 		f := &se.fields[i]
 
 		// Find the nested struct field by following f.index.
 		fv := v
-	FieldLoop:
 		for _, i := range f.index {
 			if fv.Kind() == reflect.Ptr {
 				if fv.IsNil() {
