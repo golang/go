@@ -38,5 +38,11 @@ func SendFile(fd *FD, src syscall.Handle, n int64) (int64, error) {
 	done, err := wsrv.ExecIO(o, func(o *operation) error {
 		return syscall.TransmitFile(o.fd.Sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 	})
+	if err == nil {
+		// Some versions of Windows (Windows 10 1803) do not set
+		// file position after TransmitFile completes.
+		// So just use Seek to set file position.
+		_, err = syscall.Seek(o.handle, curpos+int64(done), 0)
+	}
 	return int64(done), err
 }
