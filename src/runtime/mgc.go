@@ -938,11 +938,10 @@ var work struct {
 	markrootNext uint32 // next markroot job
 	markrootJobs uint32 // number of markroot jobs
 
-	nproc   uint32
-	tstart  int64
-	nwait   uint32
-	ndone   uint32
-	alldone note
+	nproc  uint32
+	tstart int64
+	nwait  uint32
+	ndone  uint32
 
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
 	nFlushCacheRoots                               int
@@ -1898,29 +1897,11 @@ func gcMark(start_time int64) {
 	}
 	work.tstart = start_time
 
-	work.nwait = 0
-	work.ndone = 0
-	work.nproc = uint32(gcprocs())
-
 	// Check that there's no marking work remaining.
 	if work.full != 0 || work.markrootNext < work.markrootJobs {
 		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
 		panic("non-empty mark queue after concurrent mark")
 	}
-
-	// Clear root marking queue.
-	work.markrootNext = 0
-	work.markrootJobs = 0
-
-	if work.nproc > 1 {
-		noteclear(&work.alldone)
-		helpgc(int32(work.nproc))
-	}
-
-	gchelperstart()
-
-	gcw := &getg().m.p.ptr().gcw
-	gcDrain(gcw, 0)
 
 	if debug.gccheckmark > 0 {
 		// This is expensive when there's a large number of
@@ -1929,10 +1910,6 @@ func gcMark(start_time int64) {
 	}
 	if work.full != 0 {
 		throw("work.full != 0")
-	}
-
-	if work.nproc > 1 {
-		notesleep(&work.alldone)
 	}
 
 	// Clear out buffers and double-check that all gcWork caches
@@ -2092,43 +2069,6 @@ func clearpools() {
 		sched.deferpool[i] = nil
 	}
 	unlock(&sched.deferlock)
-}
-
-// gchelper runs mark termination tasks on Ps other than the P
-// coordinating mark termination.
-//
-// The caller is responsible for ensuring that this has a P to run on,
-// even though it's running during STW. Because of this, it's allowed
-// to have write barriers.
-//
-//go:yeswritebarrierrec
-func gchelper() {
-	_g_ := getg()
-	_g_.m.traceback = 2
-	gchelperstart()
-
-	// Parallel mark over GC roots and heap
-	if gcphase == _GCmarktermination {
-		gcw := &_g_.m.p.ptr().gcw
-		gcDrain(gcw, 0)
-	}
-
-	nproc := atomic.Load(&work.nproc) // work.nproc can change right after we increment work.ndone
-	if atomic.Xadd(&work.ndone, +1) == nproc-1 {
-		notewakeup(&work.alldone)
-	}
-	_g_.m.traceback = 0
-}
-
-func gchelperstart() {
-	_g_ := getg()
-
-	if _g_.m.helpgc < 0 || _g_.m.helpgc >= _MaxGcproc {
-		throw("gchelperstart: bad m->helpgc")
-	}
-	if _g_ != _g_.m.g0 {
-		throw("gchelper not running on g0 stack")
-	}
 }
 
 // Timing
