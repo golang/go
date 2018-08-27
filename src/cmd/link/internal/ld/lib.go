@@ -504,7 +504,7 @@ func (ctxt *Link) loadlib() {
 		any := false
 		for _, s := range ctxt.Syms.Allsym {
 			for i := range s.R {
-				r := &s.R[i] // Copying sym.Reloc has measurable impact on peformance
+				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
 				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
 					any = true
 					break

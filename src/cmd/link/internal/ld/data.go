@@ -777,7 +777,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 			continue
 		}
 		for i := range sym.R {
-			r := &sym.R[i] // Copying sym.Reloc has measurable impact on peformance
+			r := &sym.R[i] // Copying sym.Reloc has measurable impact on performance
 			rsname := ""
 			if r.Sym != nil {
 				rsname = r.Sym.Name
