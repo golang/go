@@ -1343,6 +1343,11 @@ func (t *tester) raceDetectorSupported() bool {
 	if isAlpineLinux() {
 		return false
 	}
+	// NetBSD support is unfinished.
+	// golang.org/issue/26403
+	if goos == "netbsd" {
+		return false
+	}
 	return true
 }
 
