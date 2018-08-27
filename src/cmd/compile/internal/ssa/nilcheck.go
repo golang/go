@@ -47,7 +47,7 @@ func nilcheckelim(f *Func) {
 			// a value resulting from taking the address of a
 			// value, or a value constructed from an offset of a
 			// non-nil ptr (OpAddPtr) implies it is non-nil
-			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr {
+			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr {
 				nonNilValues[v.ID] = true
 			}
 		}
