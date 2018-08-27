@@ -685,10 +685,6 @@ func scanstack(gp *g, gcw *gcWork) {
 	if gp == getg() {
 		throw("can't scan our own stack")
 	}
-	mp := gp.m
-	if mp != nil && mp.helpgc != 0 {
-		throw("can't scan gchelper stack")
-	}
 
 	// Shrink the stack if not much of it is being used.
 	shrinkstack(gp)
