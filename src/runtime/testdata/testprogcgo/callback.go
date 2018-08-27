@@ -20,7 +20,7 @@ static void foo() {
     pthread_t th;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, 256 << 10);
+    pthread_attr_setstacksize(&attr, 512 << 10);
     pthread_create(&th, &attr, thr, 0);
     pthread_join(th, 0);
 }
