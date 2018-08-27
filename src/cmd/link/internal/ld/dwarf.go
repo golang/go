@@ -1062,7 +1062,7 @@ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
 	dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
 	dsym.Type = sym.SDWARFINFO
 	for i := range dsym.R {
-		r := &dsym.R[i] // Copying sym.Reloc has measurable impact on peformance
+		r := &dsym.R[i] // Copying sym.Reloc has measurable impact on performance
 		if r.Type == objabi.R_DWARFSECREF && r.Sym.Size == 0 {
 			if ctxt.BuildMode == BuildModeShared {
 				// These type symbols may not be present in BuildModeShared. Skip.
@@ -1092,7 +1092,7 @@ func collectAbstractFunctions(ctxt *Link, fn *sym.Symbol, dsym *sym.Symbol, absf
 	// Walk the relocations on the primary subprogram DIE and look for
 	// references to abstract funcs.
 	for i := range dsym.R {
-		reloc := &dsym.R[i] // Copying sym.Reloc has measurable impact on peformance
+		reloc := &dsym.R[i] // Copying sym.Reloc has measurable impact on performance
 		candsym := reloc.Sym
 		if reloc.Type != objabi.R_DWARFSECREF {
 			continue
@@ -1804,7 +1804,7 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
 	for _, u := range units {
 		for _, fn := range u.funcDIEs {
 			for i := range fn.R {
-				reloc := &fn.R[i] // Copying sym.Reloc has measurable impact on peformance
+				reloc := &fn.R[i] // Copying sym.Reloc has measurable impact on performance
 				if reloc.Type == objabi.R_DWARFSECREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
 					reloc.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 					syms = append(syms, reloc.Sym)
