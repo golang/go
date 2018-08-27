@@ -54,20 +54,10 @@ func buildGodoc(t *testing.T) (bin string, cleanup func()) {
 	return bin, func() { os.RemoveAll(tmp) }
 }
 
-var isGo19 bool // godoc19_test.go sets it to true.
-
 // Basic regression test for godoc command-line tool.
 func TestCLI(t *testing.T) {
 	bin, cleanup := buildGodoc(t)
 	defer cleanup()
-
-	// condStr returns s if cond is true, otherwise empty string.
-	condStr := func(cond bool, s string) string {
-		if !cond {
-			return ""
-		}
-		return s
-	}
 
 	tests := []struct {
 		args      []string
@@ -91,13 +81,7 @@ func TestCLI(t *testing.T) {
 		{
 			args: []string{"nonexistingpkg"},
 			matches: []string{
-				`cannot find package` +
-					// TODO: Remove this when support for Go 1.8 is dropped.
-					condStr(!isGo19,
-						// For Go 1.8 and older, because it doesn't have CL 33158 change applied to go/build.
-						// The last pattern (does not e) is for plan9:
-						// http://build.golang.org/log/2d8e5e14ed365bfa434b37ec0338cd9e6f8dd9bf
-						`|no such file or directory|does not exist|cannot find the file|(?:' does not e)`),
+				`cannot find package`,
 			},
 		},
 		{

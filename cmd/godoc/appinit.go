@@ -24,7 +24,6 @@ import (
 	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
-
 	"google.golang.org/appengine"
 )
 
