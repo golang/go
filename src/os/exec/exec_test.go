@@ -173,6 +173,9 @@ func TestExitCode(t *testing.T) {
 	cmd := helperCommand(t, "exit", "42")
 	cmd.Run()
 	want := 42
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
 	got := cmd.ProcessState.ExitCode()
 	if want != got {
 		t.Errorf("ExitCode got %d, want %d", got, want)
@@ -181,6 +184,9 @@ func TestExitCode(t *testing.T) {
 	cmd = helperCommand(t, "/no-exist-executable")
 	cmd.Run()
 	want = 2
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
 	got = cmd.ProcessState.ExitCode()
 	if want != got {
 		t.Errorf("ExitCode got %d, want %d", got, want)
@@ -189,6 +195,9 @@ func TestExitCode(t *testing.T) {
 	cmd = helperCommand(t, "exit", "255")
 	cmd.Run()
 	want = 255
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
 	got = cmd.ProcessState.ExitCode()
 	if want != got {
 		t.Errorf("ExitCode got %d, want %d", got, want)
