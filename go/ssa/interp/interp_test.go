@@ -103,8 +103,8 @@ var gorootTestTests = []string{
 	"floatcmp.go",
 	"crlf.go", // doesn't actually assert anything (runoutput)
 	// Slow tests follow.
-	"bom.go",                         // ~1.7s
-	"gc1.go",                         // ~1.7s
+	"bom.go", // ~1.7s
+	"gc1.go", // ~1.7s
 	"cmplxdivide.go cmplxdivide1.go", // ~2.4s
 
 	// Working, but not worth enabling:
@@ -156,6 +156,9 @@ var testdataTests = []string{
 type successPredicate func(exitcode int, output string) error
 
 func run(t *testing.T, dir, input string, success successPredicate) bool {
+	if testing.Short() {
+		t.Skip("test breaks regularly; skipping in short mode so a failure doesn't affect trybots or build.golang.org; golang.org/issue/27292")
+	}
 	if runtime.GOOS == "darwin" {
 		t.Skip("skipping on darwin until golang.org/issue/23166 is fixed")
 	}
