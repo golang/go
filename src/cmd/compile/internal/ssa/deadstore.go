@@ -197,7 +197,8 @@ func elimDeadAutosGeneric(f *Func) {
 			panic("unhandled op with sym effect")
 		}
 
-		if v.Uses == 0 || len(args) == 0 {
+		if v.Uses == 0 && v.Op != OpNilCheck || len(args) == 0 {
+			// Nil check has no use, but we need to keep it.
 			return
 		}
 
