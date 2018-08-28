@@ -690,6 +690,14 @@ var fmtTests = []struct {
 	{"%#v", []int32(nil), "[]int32(nil)"},
 	{"%#v", 1.2345678, "1.2345678"},
 	{"%#v", float32(1.2345678), "1.2345678"},
+
+	// Whole number floats should have a single trailing zero added, but not
+	// for exponent notation.
+	{"%#v", 1.0, "1.0"},
+	{"%#v", 1000000.0, "1e+06"},
+	{"%#v", float32(1.0), "1.0"},
+	{"%#v", float32(1000000.0), "1e+06"},
+
 	// Only print []byte and []uint8 as type []byte if they appear at the top level.
 	{"%#v", []byte(nil), "[]byte(nil)"},
 	{"%#v", []uint8(nil), "[]byte(nil)"},
