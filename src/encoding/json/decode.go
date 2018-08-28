@@ -672,6 +672,7 @@ func (d *decodeState) object(v reflect.Value) error {
 	}
 
 	var mapElem reflect.Value
+	originalErrorContext := d.errorContext
 
 	for {
 		// Read opening " of string key or closing }.
@@ -832,8 +833,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			return errPhase
 		}
 
-		d.errorContext.Struct = ""
-		d.errorContext.Field = ""
+		d.errorContext = originalErrorContext
 	}
 	return nil
 }
@@ -991,7 +991,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			if fromQuoted {
 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
 			}
-			return &UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())}
+			d.saveError(&UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())})
 		case reflect.Interface:
 			n, err := d.convertNumber(s)
 			if err != nil {
