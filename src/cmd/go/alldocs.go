@@ -889,7 +889,7 @@
 //
 // Usage:
 //
-// 	go mod download [-dir] [-json] [modules]
+// 	go mod download [-json] [modules]
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
