@@ -24,8 +24,8 @@ func f0(x int) {
 func f1(x float32) {
 	switch x {
 	case 5:
-	case 5: // ERROR "duplicate case 5 in switch"
-	case 5.0: // ERROR "duplicate case 5 in switch"
+	case 5: // ERROR "duplicate case 5 .value 5\.0. in switch"
+	case 5.0: // ERROR "duplicate case 5 .value 5\.0. in switch"
 	}
 }
 
@@ -44,9 +44,9 @@ func f3(e interface{}) {
 	case 0: // ERROR "duplicate case 0 in switch"
 	case int64(0):
 	case float32(10):
-	case float32(10): // ERROR "duplicate case float32\(10\) .value 10. in switch"
+	case float32(10): // ERROR "duplicate case float32\(10\) .value 10\.0. in switch"
 	case float64(10):
-	case float64(10): // ERROR "duplicate case float64\(10\) .value 10. in switch"
+	case float64(10): // ERROR "duplicate case float64\(10\) .value 10\.0. in switch"
 	}
 }
 
