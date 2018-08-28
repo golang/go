@@ -478,9 +478,8 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 		testHookRoundTripRetried()
 
-		// Rewind the body if we're able to.  (HTTP/2 does this itself so we only
-		// need to do it for HTTP/1.1 connections.)
-		if req.GetBody != nil && pconn.alt == nil {
+		// Rewind the body if we're able to.
+		if req.GetBody != nil {
 			newReq := *req
 			var err error
 			newReq.Body, err = req.GetBody()
