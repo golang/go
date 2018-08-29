@@ -447,6 +447,9 @@ var errorTests = []parseTest{
 	{"emptypipeline",
 		`{{ ( ) }}`,
 		hasError, `missing value for parenthesized pipeline`},
+	{"multilinerawstring",
+		"{{ $v := `\n` }} {{",
+		hasError, `multilinerawstring:2: unexpected unclosed action`},
 }
 
 func TestErrors(t *testing.T) {
