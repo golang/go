@@ -155,7 +155,7 @@ func (l *lexer) emit(t itemType) {
 	l.items <- item{t, l.start, l.input[l.start:l.pos], l.line}
 	// Some items contain text internally. If so, count their newlines.
 	switch t {
-	case itemText, itemRawString, itemLeftDelim, itemRightDelim:
+	case itemText, itemLeftDelim, itemRightDelim:
 		l.line += strings.Count(l.input[l.start:l.pos], "\n")
 	}
 	l.start = l.pos
