@@ -140,7 +140,7 @@ main 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le arm64
 main 108 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
 main 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
 main 116 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
-main 124 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
+main 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
 main 124 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit call f; f 0 nosplit; REJECT
 main 132 nosplit call f; f 0 nosplit; REJECT
