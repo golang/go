@@ -1203,13 +1203,16 @@ func (lv *Liveness) clobber() {
 		}
 		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.funcname())
 	}
-	if lv.f.Name == "forkAndExecInChild" {
+	if lv.f.Name == "forkAndExecInChild" || lv.f.Name == "wbBufFlush" {
 		// forkAndExecInChild calls vfork (on linux/amd64, anyway).
 		// The code we add here clobbers parts of the stack in the child.
 		// When the parent resumes, it is using the same stack frame. But the
 		// child has clobbered stack variables that the parent needs. Boom!
 		// In particular, the sys argument gets clobbered.
 		// Note to self: GOCLOBBERDEADHASH=011100101110
+		//
+		// runtime.wbBufFlush must not modify its arguments. See the comments
+		// in runtime/mwbbuf.go:wbBufFlush.
 		return
 	}
 
