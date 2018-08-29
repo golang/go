@@ -1815,6 +1815,10 @@ func (ctxt *Link) dostkcheck() {
 	ch.up = nil
 
 	ch.limit = objabi.StackLimit - callsize(ctxt)
+	if objabi.GOARCH == "arm64" {
+		// need extra 8 bytes below SP to save FP
+		ch.limit -= 8
+	}
 
 	// Check every function, but do the nosplit functions in a first pass,
 	// to make the printed failure chains as short as possible.

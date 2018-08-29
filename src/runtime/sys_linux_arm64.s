@@ -239,7 +239,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$24-8
 	MOVD	(g_sched+gobuf_sp)(R3), R1	// Set RSP to g0 stack
 
 noswitch:
-	SUB	$16, R1
+	SUB	$32, R1
 	BIC	$15, R1
 	MOVD	R1, RSP
 
@@ -298,7 +298,9 @@ TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
 	MOVD	new+8(FP), R1
 	MOVD	old+16(FP), R2
 	MOVD	 _cgo_sigaction(SB), R3
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL	R3
+	ADD	$16, RSP
 	MOVW	R0, ret+24(FP)
 	RET
 
@@ -361,7 +363,9 @@ TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
 	MOVW	fd+24(FP), R4
 	MOVW	off+28(FP), R5
 	MOVD	_cgo_mmap(SB), R9
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL	R9
+	ADD	$16, RSP
 	MOVD	R0, ret+32(FP)
 	RET
 
@@ -382,7 +386,9 @@ TEXT runtime·callCgoMunmap(SB),NOSPLIT,$0
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
 	MOVD	_cgo_munmap(SB), R9
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL	R9
+	ADD	$16, RSP
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0

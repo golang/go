@@ -49,6 +49,7 @@ type ctxt7 struct {
 	blitrl     *obj.Prog
 	elitrl     *obj.Prog
 	autosize   int32
+	extrasize  int32
 	instoffset int64
 	pc         int64
 	pool       struct {
@@ -777,7 +778,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Diag("arm64 ops not initialized, call arm64.buildop first")
 	}
 
-	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset&0xffffffff) + 8}
+	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset & 0xffffffff), extrasize: int32(p.To.Offset >> 32)}
+	p.To.Offset &= 0xffffffff  // extrasize is no longer needed
 
 	bflag := 1
 	pc := int64(0)
@@ -1436,7 +1438,8 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				// a.Offset is still relative to pseudo-SP.
 				a.Reg = obj.REG_NONE
 			}
-			c.instoffset = int64(c.autosize) + a.Offset
+			// The frame top 8 or 16 bytes are for FP
+			c.instoffset = int64(c.autosize) + a.Offset - int64(c.extrasize)
 			return autoclass(c.instoffset)
 
 		case obj.NAME_PARAM:
@@ -1536,7 +1539,8 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				// a.Offset is still relative to pseudo-SP.
 				a.Reg = obj.REG_NONE
 			}
-			c.instoffset = int64(c.autosize) + a.Offset
+			// The frame top 8 or 16 bytes are for FP
+			c.instoffset = int64(c.autosize) + a.Offset - int64(c.extrasize)
 
 		case obj.NAME_PARAM:
 			if a.Reg == REGSP {
