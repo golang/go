@@ -43,6 +43,7 @@ type Context struct {
 	// Clients creating a new context may customize BuildTags, which
 	// defaults to empty, but it is usually an error to customize ReleaseTags,
 	// which defaults to the list of Go releases the current release is compatible with.
+	// BuildTags is not set for the Default build Context.
 	// In addition to the BuildTags and ReleaseTags, build constraints
 	// consider the values of GOARCH and GOOS as satisfied tags.
 	// The last element in ReleaseTags is assumed to be the current release.
