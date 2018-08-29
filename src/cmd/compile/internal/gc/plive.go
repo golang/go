@@ -671,7 +671,7 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 
 // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
 func (lv *Liveness) markUnsafePoints() {
-	if compiling_runtime || lv.f.NoSplit {
+	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
 		// No complex analysis necessary. Do this on the fly
 		// in issafepoint.
 		return
@@ -830,7 +830,7 @@ func (lv *Liveness) issafepoint(v *ssa.Value) bool {
 	// go:nosplit functions are similar. Since safe points used to
 	// be coupled with stack checks, go:nosplit often actually
 	// means "no safe points in this function".
-	if compiling_runtime || lv.f.NoSplit {
+	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
 		return v.Op.IsCall()
 	}
 	switch v.Op {
