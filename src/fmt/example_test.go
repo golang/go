@@ -8,24 +8,13 @@ import (
 	"fmt"
 )
 
-// Animal has a Name and an Age to represent an animal.
-type Animal struct {
-	Name string
-	Age  uint
-}
-
-// String makes Animal satisfy the Stringer interface.
-func (a Animal) String() string {
-	return fmt.Sprintf("%v (%d)", a.Name, a.Age)
-}
-
-func ExampleStringer() {
-	a := Animal{
-		Name: "Gopher",
-		Age:  2,
-	}
-	fmt.Println(a)
-	// Output: Gopher (2)
+// The Errorf function lets us use formatting features
+// to create descriptive error messages.
+func ExampleErrorf() {
+	const name, id = "bueller", 17
+	err := fmt.Errorf("user %q (id %d) not found", name, id)
+	fmt.Println(err.Error())
+	// Output: user "bueller" (id 17) not found
 }
 
 func ExampleSprintf() {
