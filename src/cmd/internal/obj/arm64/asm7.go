@@ -779,7 +779,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset & 0xffffffff), extrasize: int32(p.To.Offset >> 32)}
-	p.To.Offset &= 0xffffffff  // extrasize is no longer needed
+	p.To.Offset &= 0xffffffff // extrasize is no longer needed
 
 	bflag := 1
 	pc := int64(0)
@@ -2023,8 +2023,10 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASWPALB, t)
 			oprangeset(ASWPALH, t)
 			oprangeset(ASWPALW, t)
-			oprangeset(ALDADDALD, t)
+			oprangeset(ALDADDALB, t)
+			oprangeset(ALDADDALH, t)
 			oprangeset(ALDADDALW, t)
+			oprangeset(ALDADDALD, t)
 			oprangeset(ALDADDB, t)
 			oprangeset(ALDADDH, t)
 			oprangeset(ALDADDW, t)
@@ -3406,9 +3408,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = 3 << 30
 		case ASWPW, ASWPALW, ALDADDALW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
 			o1 = 2 << 30
-		case ASWPH, ASWPALH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
+		case ASWPH, ASWPALH, ALDADDALH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
 			o1 = 1 << 30
-		case ASWPB, ASWPALB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
+		case ASWPB, ASWPALB, ALDADDALB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
 			o1 = 0 << 30
 		default:
 			c.ctxt.Diag("illegal instruction: %v\n", p)
@@ -3416,7 +3418,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		switch p.As {
 		case ASWPD, ASWPW, ASWPH, ASWPB, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
 			o1 |= 0x20 << 10
-		case ALDADDALD, ALDADDALW, ALDADDD, ALDADDW, ALDADDH, ALDADDB:
+		case ALDADDALD, ALDADDALW, ALDADDALH, ALDADDALB, ALDADDD, ALDADDW, ALDADDH, ALDADDB:
 			o1 |= 0x00 << 10
 		case ALDANDD, ALDANDW, ALDANDH, ALDANDB:
 			o1 |= 0x04 << 10
@@ -3426,7 +3428,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 0x0c << 10
 		}
 		switch p.As {
-		case ALDADDALD, ALDADDALW, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
+		case ALDADDALD, ALDADDALW, ALDADDALH, ALDADDALB, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
 			o1 |= 3 << 22
 		}
 		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
