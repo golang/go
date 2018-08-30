@@ -6,6 +6,7 @@ package fmt_test
 
 import (
 	"fmt"
+	"os"
 )
 
 // The Errorf function lets us use formatting features
@@ -26,4 +27,15 @@ func ExampleSprintf() {
 	// Output:
 	// Today is 30 Aug
 	// 15
+}
+
+func ExampleFprintln() {
+	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
+	if err != nil {
+		panic("failed writing to stdout, someting is seriously wrong")
+	}
+	fmt.Print(n)
+	// Output:
+	// there are 99 gophers
+	// 21
 }
