@@ -99,7 +99,7 @@ and test commands:
 		link against shared libraries previously created with
 		-buildmode=shared.
 	-mod mode
-		module download mode to use: readonly, release, or vendor.
+		module download mode to use: readonly or vendor.
 		See 'go help modules' for more.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
