@@ -93,6 +93,15 @@ func main() {
 		*get.CmdGet = *modget.CmdGet
 	}
 
+	if args[0] == "get" || args[0] == "help" {
+		// Replace get with module-aware get if appropriate.
+		// Note that if MustUseModules is true, this happened already above,
+		// but no harm in doing it again.
+		if modload.Init(); modload.Enabled() {
+			*get.CmdGet = *modget.CmdGet
+		}
+	}
+
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
 		help.Help(os.Stdout, args[1:])
@@ -159,15 +168,6 @@ func main() {
 	case "verify":
 		fmt.Fprintf(os.Stderr, "go: vgo verify is now go mod verify\n")
 		os.Exit(2)
-	}
-
-	if args[0] == "get" {
-		// Replace get with module-aware get if appropriate.
-		// Note that if MustUseModules is true, this happened already above,
-		// but no harm in doing it again.
-		if modload.Init(); modload.Enabled() {
-			*get.CmdGet = *modget.CmdGet
-		}
 	}
 
 	// Set environment (GOOS, GOARCH, etc) explicitly.
