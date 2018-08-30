@@ -302,6 +302,10 @@ func TestSyscallNoError(t *testing.T) {
 		t.Skip("skipping root only test")
 	}
 
+	if runtime.GOOS == "android" {
+		t.Skip("skipping on rooted android, see issue 27364")
+	}
+
 	// Copy the test binary to a location that a non-root user can read/execute
 	// after we drop privileges
 	tempDir, err := ioutil.TempDir("", "TestSyscallNoError")
