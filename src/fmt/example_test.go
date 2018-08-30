@@ -32,7 +32,7 @@ func ExampleSprintf() {
 func ExampleFprintln() {
 	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
 	if err != nil {
-		panic("failed writing to stdout, someting is seriously wrong")
+		panic(err)
 	}
 	fmt.Print(n)
 	// Output:
