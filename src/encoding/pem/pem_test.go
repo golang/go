@@ -177,7 +177,7 @@ func TestLineBreaker(t *testing.T) {
 		}
 
 		if buf.String() != test.out {
-			t.Errorf("#%d: got:%s want:%s", i, buf.String(), test.out)
+			t.Errorf("#%d: got:%s want:%s", i, buf.Bytes(), test.out)
 		}
 	}
 
