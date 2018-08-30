@@ -1045,7 +1045,7 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
 				default:
-					// If we encounterd any call, we need to keep racefunc*,
+					// If we encountered any call, we need to keep racefunc*,
 					// for accurate stacktraces.
 					return false
 				}
