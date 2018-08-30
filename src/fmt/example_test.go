@@ -27,3 +27,14 @@ func ExampleStringer() {
 	fmt.Println(a)
 	// Output: Gopher (2)
 }
+
+func ExampleSprintf() {
+	i := 30
+	s := "Aug"
+	sf := fmt.Sprintf("Today is %d %s", i, s)
+	fmt.Println(sf)
+	fmt.Println(len(sf))
+	// Output:
+	// Today is 30 Aug
+	// 15
+}
