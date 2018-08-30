@@ -47,8 +47,8 @@ func (s *CertPool) copy() *CertPool {
 
 // SystemCertPool returns a copy of the system cert pool.
 //
-// Any mutations to the returned pool are not written to disk and do
-// not affect any other pool.
+// Any mutations to a returned pool are not written to disk and do
+// not affect any other pool returned by SystemCertPool.
 //
 // New changes in the the system cert pool might not be reflected
 // in subsequent calls.
