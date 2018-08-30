@@ -429,6 +429,17 @@ func ExampleTime_Truncate() {
 	// t.Truncate(10m0s) = 12:10:00
 }
 
+func ExampleLoadLocation() {
+	location, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		panic(err)
+	}
+
+	timeInUTC := time.Date(2018, 8, 30, 12, 0, 0, 0, time.UTC)
+	fmt.Println(timeInUTC.In(location))
+	// Output: 2018-08-30 05:00:00 -0700 PDT
+}
+
 func ExampleLocation() {
 	// China doesn't have daylight saving. It uses a fixed 8 hour offset from UTC.
 	secondsEastOfUTC := int((8 * time.Hour).Seconds())
