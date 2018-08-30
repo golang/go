@@ -139,6 +139,7 @@
 (Trunc       x) -> (FIDBR [5] x)
 (RoundToEven x) -> (FIDBR [4] x)
 (Round       x) -> (FIDBR [1] x)
+(Fma     x y z) -> (FMADD z x y)
 
 // Atomic loads and stores.
 // The SYNC instruction (fast-BCR-serialization) prevents store-load
