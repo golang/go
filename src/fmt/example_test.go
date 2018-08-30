@@ -40,6 +40,14 @@ func ExamplePrintln() {
 	// 21
 }
 
+func ExampleSprintln() {
+	s := "Aug"
+	sl := fmt.Sprintln("Today is 30", s)
+	fmt.Printf("%q", sl)
+	// Output:
+	// "Today is 30 Aug\n"
+}
+
 func ExampleFprintln() {
 	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
 	if err != nil {
