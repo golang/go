@@ -122,6 +122,7 @@ func testSpliceBig(t *testing.T) {
 func testSpliceHonorsLimitedReader(t *testing.T) {
 	t.Run("stopsAfterN", testSpliceStopsAfterN)
 	t.Run("updatesN", testSpliceUpdatesN)
+	t.Run("readerAtLimit", testSpliceReaderAtLimit)
 }
 
 func testSpliceStopsAfterN(t *testing.T) {
@@ -208,7 +209,7 @@ func testSpliceUpdatesN(t *testing.T) {
 	}
 }
 
-func testSpliceReaderAtEOF(t *testing.T) {
+func testSpliceReaderAtLimit(t *testing.T) {
 	clientUp, serverUp, err := spliceTestSocketPair("tcp")
 	if err != nil {
 		t.Fatal(err)
@@ -222,18 +223,60 @@ func testSpliceReaderAtEOF(t *testing.T) {
 	defer clientDown.Close()
 	defer serverDown.Close()
 
-	serverUp.Close()
-	_, err, handled := splice(serverDown.(*TCPConn).fd, serverUp)
-	if !handled {
-		t.Errorf("closed connection: got err = %v, handled = %t, want handled = true", err, handled)
-	}
 	lr := &io.LimitedReader{
 		N: 0,
 		R: serverUp,
 	}
-	_, err, handled = splice(serverDown.(*TCPConn).fd, lr)
+	_, err, handled := splice(serverDown.(*TCPConn).fd, lr)
 	if !handled {
 		t.Errorf("exhausted LimitedReader: got err = %v, handled = %t, want handled = true", err, handled)
+	}
+}
+
+func testSpliceReaderAtEOF(t *testing.T) {
+	clientUp, serverUp, err := spliceTestSocketPair("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientUp.Close()
+	clientDown, serverDown, err := spliceTestSocketPair("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientDown.Close()
+
+	serverUp.Close()
+
+	// We'd like to call net.splice here and check the handled return
+	// value, but we disable splice on old Linux kernels.
+	//
+	// In that case, poll.Splice and net.splice return a non-nil error
+	// and handled == false. We'd ideally like to see handled == true
+	// because the source reader is at EOF, but if we're running on an old
+	// kernel, and splice is disabled, we won't see EOF from net.splice,
+	// because we won't touch the reader at all.
+	//
+	// Trying to untangle the errors from net.splice and match them
+	// against the errors created by the poll package would be brittle,
+	// so this is a higher level test.
+	//
+	// The following ReadFrom should return immediately, regardless of
+	// whether splice is disabled or not. The other side should then
+	// get a goodbye signal. Test for the goodbye signal.
+	msg := "bye"
+	go func() {
+		serverDown.(*TCPConn).ReadFrom(serverUp)
+		io.WriteString(serverDown, msg)
+		serverDown.Close()
+	}()
+
+	buf := make([]byte, 3)
+	_, err = io.ReadFull(clientDown, buf)
+	if err != nil {
+		t.Errorf("clientDown: %v", err)
+	}
+	if string(buf) != msg {
+		t.Errorf("clientDown got %q, want %q", buf, msg)
 	}
 }
 
