@@ -768,6 +768,11 @@
 (ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
 (ROLBconst [c] (ROLBconst [d] x)) -> (ROLBconst [(c+d)& 7] x)
 
+(RotateLeft8  a b) -> (ROLB a b)
+(RotateLeft16 a b) -> (ROLW a b)
+(RotateLeft32 a b) -> (ROLL a b)
+(RotateLeft64 a b) -> (ROLQ a b)
+
 // Non-constant rotates.
 // We want to issue a rotate when the Go source contains code like
 //     y &= 63

@@ -3347,6 +3347,28 @@ func init() {
 			return s.newValue1(ssa.OpBitRev64, types.Types[TINT], args[0])
 		},
 		sys.ARM64)
+	addF("math/bits", "RotateLeft8",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue2(ssa.OpRotateLeft8, types.Types[TUINT8], args[0], args[1])
+		},
+		sys.AMD64)
+	addF("math/bits", "RotateLeft16",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue2(ssa.OpRotateLeft16, types.Types[TUINT16], args[0], args[1])
+		},
+		sys.AMD64)
+	addF("math/bits", "RotateLeft32",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
+		},
+		sys.AMD64)
+	addF("math/bits", "RotateLeft64",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
+		},
+		sys.AMD64)
+	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
+
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportPopcnt, s.sb)

@@ -264,10 +264,14 @@ var genericOps = []opData{
 	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
 	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
 
-	{name: "PopCount8", argLength: 1},  // Count bits in arg[0]
-	{name: "PopCount16", argLength: 1}, // Count bits in arg[0]
-	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
-	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount8", argLength: 1},    // Count bits in arg[0]
+	{name: "PopCount16", argLength: 1},   // Count bits in arg[0]
+	{name: "PopCount32", argLength: 1},   // Count bits in arg[0]
+	{name: "PopCount64", argLength: 1},   // Count bits in arg[0]
+	{name: "RotateLeft8", argLength: 2},  // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft16", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 
 	// Square root, float64 only.
 	// Special cases:
