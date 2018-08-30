@@ -302,6 +302,20 @@ var genericOps = []opData{
 	{name: "Abs", argLength: 1},      // absolute value arg0
 	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
 
+	// 3-input opcode.
+	// Fused-multiply-add, float64 only.
+	// When a*b+c is exactly zero (before rounding), then the result is +0 or -0.
+	// The 0's sign is determined according to the standard rules for the
+	// addition (-0 if both a*b and c are -0, +0 otherwise).
+	//
+	// Otherwise, when a*b+c rounds to zero, then the resulting 0's sign is
+	// determined by the sign of the exact result a*b+c.
+	// See section 6.3 in ieee754.
+	//
+	// When the multiply is an infinity times a zero, the result is NaN.
+	// See section 7.2 in ieee754.
+	{name: "Fma", argLength: 3}, // compute (a*b)+c without intermediate rounding
+
 	// Data movement, max argument length for Phi is indefinite so just pick
 	// a really large number
 	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
