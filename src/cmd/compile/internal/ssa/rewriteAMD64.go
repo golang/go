@@ -941,6 +941,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpPopCount64_0(v)
 	case OpPopCount8:
 		return rewriteValueAMD64_OpPopCount8_0(v)
+	case OpRotateLeft16:
+		return rewriteValueAMD64_OpRotateLeft16_0(v)
+	case OpRotateLeft32:
+		return rewriteValueAMD64_OpRotateLeft32_0(v)
+	case OpRotateLeft64:
+		return rewriteValueAMD64_OpRotateLeft64_0(v)
+	case OpRotateLeft8:
+		return rewriteValueAMD64_OpRotateLeft8_0(v)
 	case OpRound32F:
 		return rewriteValueAMD64_OpRound32F_0(v)
 	case OpRound64F:
@@ -60742,6 +60750,62 @@ func rewriteValueAMD64_OpPopCount8_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt32)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpRotateLeft16_0(v *Value) bool {
+	// match: (RotateLeft16 a b)
+	// cond:
+	// result: (ROLW a b)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		b := v.Args[1]
+		v.reset(OpAMD64ROLW)
+		v.AddArg(a)
+		v.AddArg(b)
+		return true
+	}
+}
+func rewriteValueAMD64_OpRotateLeft32_0(v *Value) bool {
+	// match: (RotateLeft32 a b)
+	// cond:
+	// result: (ROLL a b)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		b := v.Args[1]
+		v.reset(OpAMD64ROLL)
+		v.AddArg(a)
+		v.AddArg(b)
+		return true
+	}
+}
+func rewriteValueAMD64_OpRotateLeft64_0(v *Value) bool {
+	// match: (RotateLeft64 a b)
+	// cond:
+	// result: (ROLQ a b)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		b := v.Args[1]
+		v.reset(OpAMD64ROLQ)
+		v.AddArg(a)
+		v.AddArg(b)
+		return true
+	}
+}
+func rewriteValueAMD64_OpRotateLeft8_0(v *Value) bool {
+	// match: (RotateLeft8 a b)
+	// cond:
+	// result: (ROLB a b)
+	for {
+		_ = v.Args[1]
+		a := v.Args[0]
+		b := v.Args[1]
+		v.reset(OpAMD64ROLB)
+		v.AddArg(a)
+		v.AddArg(b)
 		return true
 	}
 }
