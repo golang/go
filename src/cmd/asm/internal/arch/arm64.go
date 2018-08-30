@@ -79,7 +79,7 @@ func IsARM64STLXR(op obj.As) bool {
 		arm64.ALDANDB, arm64.ALDANDH, arm64.ALDANDW, arm64.ALDANDD,
 		arm64.ALDEORB, arm64.ALDEORH, arm64.ALDEORW, arm64.ALDEORD,
 		arm64.ALDORB, arm64.ALDORH, arm64.ALDORW, arm64.ALDORD,
-		arm64.ALDADDALD, arm64.ALDADDALW:
+		arm64.ALDADDALD, arm64.ALDADDALW, arm64.ALDADDALH, arm64.ALDADDALB:
 		return true
 	}
 	return false
