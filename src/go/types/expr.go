@@ -1161,7 +1161,13 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// not called for [...]).
 			if utyp.len < 0 {
 				utyp.len = n
-				check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
+				// e.Type may be missing in case of errors.
+				// In "map[string][...]int{"": {1, 2, 3}}},
+				// an error is reported for the outer literal,
+				// then [...]int is used as a hint for the inner literal.
+				if e.Type != nil {
+					check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
+				}
 			}
 
 		case *Slice:
