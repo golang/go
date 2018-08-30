@@ -641,9 +641,9 @@ func TestWriteString(t *testing.T) {
 	if err := b.Flush(); err != nil {
 		t.Error("WriteString", err)
 	}
-	s := "01234567890abcdefghijklmnopqrstuvwxyz"
-	if buf.String() != s {
-		t.Errorf("WriteString wants %q gets %q", s, buf.String())
+	want := "01234567890abcdefghijklmnopqrstuvwxyz"
+	if string(buf.Bytes()) != want {
+		t.Errorf("WriteString got %q want %q", buf.String(), want)
 	}
 }
 
