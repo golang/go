@@ -70,6 +70,12 @@ func (l *Logger) SetOutput(w io.Writer) {
 	l.out = w
 }
 
+// Default is the default logger.
+//
+// Calling SetOutput does not affect this logger.
+var Default = New(os.Stderr, "", LstdFlags)
+
+// std is a separate logger because SetOutput should not affect the Default logger.
 var std = New(os.Stderr, "", LstdFlags)
 
 // Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
