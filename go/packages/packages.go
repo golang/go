@@ -221,7 +221,7 @@ type Package struct {
 	// Types provides type information for the package.
 	// Modes LoadTypes and above set this field for packages matching the
 	// patterns; type information for dependencies may be missing or incomplete.
-	// Mode LoadSyntaxAll sets this field for all packages, including dependencies.
+	// Mode LoadAllSyntax sets this field for all packages, including dependencies.
 	Types *types.Package
 
 	// Fset provides position information for Types, TypesInfo, and Syntax.
@@ -235,7 +235,7 @@ type Package struct {
 	// Syntax is the package's syntax trees, for the files listed in CompiledGoFiles.
 	//
 	// Mode LoadSyntax sets this field for packages matching the patterns.
-	// Mode LoadSyntaxAll sets this field for all packages, including dependencies.
+	// Mode LoadAllSyntax sets this field for all packages, including dependencies.
 	Syntax []*ast.File
 
 	// TypesInfo provides type information about the package's syntax trees.
