@@ -29,6 +29,17 @@ func ExampleSprintf() {
 	// 15
 }
 
+func ExamplePrintln() {
+	n, err := fmt.Println("there", "are", 99, "gophers")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(n)
+	// Output:
+	// there are 99 gophers
+	// 21
+}
+
 func ExampleFprintln() {
 	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
 	if err != nil {
