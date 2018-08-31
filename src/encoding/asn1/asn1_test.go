@@ -1096,3 +1096,22 @@ func TestTaggedRawValue(t *testing.T) {
 		}
 	}
 }
+
+func TestSequenceOfSet(t *testing.T) {
+	type SomeSetSET struct {
+		Field2 int `asn1:"tag:0"`
+	}
+
+	type SomeStruct struct {
+		ID int `asn1:"tag:0"`
+		SomeSetSlice []SomeSetSET `asn1:"tag:1"`
+	}
+
+	der := []byte{0x30,0x0F,0x80,0x01,0x01,0xA1,0x0A,0x31,0x03,0x80,0x01,0x01,0x31,0x03,0x80,0x01,0x02}
+
+	var b SomeStruct
+	if _, err := Unmarshal(der, &b); err != nil {
+		t.Errorf("Unmarshal failed: %s", err)
+	}
+
+}
