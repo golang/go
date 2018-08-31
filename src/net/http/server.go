@@ -305,14 +305,17 @@ func (c *conn) hijacked() bool {
 	return c.hijackedv
 }
 
-// c.mu must be held.
 func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
+	c.mu.Lock()
 	if c.hijackedv {
+		c.mu.Unlock()
 		return nil, nil, ErrHijacked
 	}
+	c.hijackedv = true
+	c.mu.Unlock()
+
 	c.r.abortPendingRead()
 
-	c.hijackedv = true
 	rwc = c.rwc
 	rwc.SetDeadline(time.Time{})
 
@@ -673,7 +676,13 @@ func (cr *connReader) startBackgroundRead() {
 }
 
 func (cr *connReader) backgroundRead() {
-	n, err := cr.conn.rwc.Read(cr.byteBuf[:])
+	var (
+		err error
+		n   int
+	)
+	if !cr.conn.hijacked() {
+		n, err = cr.conn.rwc.Read(cr.byteBuf[:])
+	}
 	cr.lock()
 	if n == 1 {
 		cr.hasByte = true
@@ -1906,8 +1915,6 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	}
 
 	c := w.conn
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	// Release the bufioWriter that writes to the chunk writer, it is not
 	// used after a connection has been hijacked.

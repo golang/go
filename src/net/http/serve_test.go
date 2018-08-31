@@ -3366,6 +3366,93 @@ func TestHijackBeforeRequestBodyRead(t *testing.T) {
 	}
 }
 
+// Issue 27408: Ensure that the first byte of the second
+// request on the same connection in hijack mode isn't lost.
+func TestHijackAsTransparentProxy(t *testing.T) {
+	backend := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		slurp, _ := ioutil.ReadAll(r.Body)
+		_ = r.Body.Close()
+		fmt.Fprintf(w, "method: %s, body: %s\n", r.Method, slurp)
+	}))
+	defer backend.Close()
+	bu, _ := url.Parse(backend.URL)
+
+	proxy := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		hj, ok := w.(Hijacker)
+		if !ok {
+			Error(w, "webserver doesn't support hijacking", StatusInternalServerError)
+			return
+		}
+
+		bc, err := net.Dial("tcp", bu.Host)
+		if err != nil {
+			Error(w, err.Error(), StatusInternalServerError)
+			return
+		}
+		defer bc.Close()
+
+		cc, bw, err := hj.Hijack()
+		if err != nil {
+			Error(w, err.Error(), StatusInternalServerError)
+			return
+		}
+		defer cc.Close()
+
+		if err := r.Write(bc); err != nil {
+			Error(w, err.Error(), StatusInternalServerError)
+			return
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		cp := func(dst io.Writer, src io.Reader) {
+			_, _ = io.Copy(dst, src)
+			if conn, ok := dst.(interface {
+				CloseWrite() error
+			}); ok {
+				conn.CloseWrite()
+			}
+			wg.Done()
+		}
+
+		lr := io.LimitReader(bw, int64(bw.Reader.Buffered()))
+		mr := io.MultiReader(lr, cc)
+
+		go cp(cc, bc)
+		go cp(bc, mr)
+		wg.Wait()
+	}))
+	defer proxy.Close()
+
+	// And now for the client
+	gotLog := new(bytes.Buffer)
+	clientReq := func(msg string) error {
+		body := bytes.NewBufferString(msg)
+		req, err := NewRequest("POST", proxy.URL, body)
+		if err != nil {
+			return err
+		}
+		resp, err := proxy.Client().Do(req)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(gotLog, resp.Body)
+		resp.Body.Close()
+		return err
+	}
+
+	payloads := []string{"Hello", "World"}
+	for _, payload := range payloads {
+		if err := clientReq(payload); err != nil {
+			t.Fatalf("Payload %q ==> %v", payload, err)
+		}
+	}
+	wantLog := "method: POST, body: Hello\nmethod: POST, body: World\n"
+	if g, w := gotLog.String(), wantLog; g != w {
+		t.Fatalf("\nGot =%q\nWant=%q", g, w)
+	}
+}
+
 func TestOptions(t *testing.T) {
 	uric := make(chan string, 2) // only expect 1, but leave space for 2
 	mux := NewServeMux()
