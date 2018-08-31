@@ -7,6 +7,7 @@ package fmt_test
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // The Errorf function lets us use formatting features
@@ -16,6 +17,24 @@ func ExampleErrorf() {
 	err := fmt.Errorf("user %q (id %d) not found", name, id)
 	fmt.Println(err.Error())
 	// Output: user "bueller" (id 17) not found
+}
+
+func ExampleFscanf() {
+	var (
+		i int
+		b bool
+		s string
+	)
+	r := strings.NewReader("5 true gophers")
+	n, err := fmt.Fscanf(r, "%d %t %s", &i, &b, &s)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(i, b, s)
+	fmt.Println(n)
+	// Output:
+	// 5 true gophers
+	// 3
 }
 
 func ExampleSprintf() {
