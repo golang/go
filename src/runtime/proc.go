@@ -2203,7 +2203,7 @@ func execute(gp *g, inheritTime bool) {
 }
 
 // Finds a runnable goroutine to execute.
-// Tries to steal from other P's, get g from global queue, poll network.
+// Tries to steal from other P's, get g from local or global queue, poll network.
 func findrunnable() (gp *g, inheritTime bool) {
 	_g_ := getg()
 
