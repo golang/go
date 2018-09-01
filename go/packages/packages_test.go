@@ -1414,24 +1414,41 @@ func testPatternPassthrough(t *testing.T, exporter packagestest.Exporter) {
 
 func TestConfigDefaultEnv(t *testing.T) { packagestest.TestAll(t, testConfigDefaultEnv) }
 func testConfigDefaultEnv(t *testing.T, exporter packagestest.Exporter) {
-	if runtime.GOOS == "windows" {
+	const driverJSON = `{
+  "Roots": ["gopackagesdriver"],
+  "Packages": [{"ID": "gopackagesdriver", "Name": "gopackagesdriver"}]
+}`
+	var (
+		pathKey      string
+		driverScript packagestest.Writer
+	)
+	switch runtime.GOOS {
+	case "windows":
 		// TODO(jayconrod): write an equivalent batch script for windows.
 		// Hint: "type" can be used to read a file to stdout.
 		t.Skip("test requires sh")
+	case "plan9":
+		pathKey = "path"
+		driverScript = packagestest.Script(`#!/bin/rc
+
+cat <<'EOF'
+` + driverJSON + `
+EOF
+`)
+	default:
+		pathKey = "PATH"
+		driverScript = packagestest.Script(`#!/bin/sh
+
+cat - <<'EOF'
+` + driverJSON + `
+EOF
+`)
 	}
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
-			"bin/gopackagesdriver": packagestest.Script(`#!/bin/sh
-
-cat - <<'EOF'
-{
-  "Roots": ["gopackagesdriver"],
-  "Packages": [{"ID": "gopackagesdriver", "Name": "gopackagesdriver"}]
-}
-EOF
-`),
-			"golist/golist.go": "package golist",
+			"bin/gopackagesdriver": driverScript,
+			"golist/golist.go":     "package golist",
 		}}})
 	defer exported.Cleanup()
 	driver := exported.File("golang.org/fake", "bin/gopackagesdriver")
@@ -1440,7 +1457,7 @@ EOF
 		t.Fatal(err)
 	}
 
-	path, ok := os.LookupEnv("PATH")
+	path, ok := os.LookupEnv(pathKey)
 	var pathWithDriver string
 	if ok {
 		pathWithDriver = binDir + string(os.PathListSeparator) + path
@@ -1472,9 +1489,9 @@ EOF
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			oldPath := os.Getenv("PATH")
-			os.Setenv("PATH", test.path)
-			defer os.Setenv("PATH", oldPath)
+			oldPath := os.Getenv(pathKey)
+			os.Setenv(pathKey, test.path)
+			defer os.Setenv(pathKey, oldPath)
 			exported.Config.Env = append(coreEnv, "GOPACKAGESDRIVER="+test.driver)
 			pkgs, err := packages.Load(exported.Config, "golist")
 			if err != nil {
