@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/rand"
 	"reflect"
+	"strconv"
 	. "strings"
 	"testing"
 	"unicode"
@@ -1707,6 +1708,19 @@ func BenchmarkIndexPeriodic(b *testing.B) {
 			s := Repeat("a"+Repeat(" ", skip-1), 1<<16/skip)
 			for i := 0; i < b.N; i++ {
 				Index(s, key)
+			}
+		})
+	}
+}
+
+func BenchmarkJoin(b *testing.B) {
+	vals := []string{"red", "yellow", "pink", "green", "purple", "orange", "blue"}
+	for l := 0; l <= len(vals); l++ {
+		b.Run(strconv.Itoa(l), func(b *testing.B) {
+			b.ReportAllocs()
+			vals := vals[:l]
+			for i := 0; i < b.N; i++ {
+				Join(vals, " and ")
 			}
 		})
 	}
