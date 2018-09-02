@@ -16,7 +16,7 @@ license that can be found in the LICENSE file.
 		// Add polyfill for TextEncoder and TextDecoder for Microsoft Edge 17/18 support
 		// https://caniuse.com/#feat=textencoder
 		if (!window.TextEncoder) {
-			window.TextEncoder = function(){}
+			window.TextEncoder = function(){};
 			TextEncoder.prototype.encode = function (string) {
 				const octets = [];
 				const length = string.length;
@@ -50,7 +50,7 @@ license that can be found in the LICENSE file.
 			};
 		}
 		if (!window.TextDecoder) {
-			window.TextDecoder = function(){}
+			window.TextDecoder = function(){};
 			TextDecoder.prototype.decode = function (octets) {
 				let string = "";
 				let i = 0;
