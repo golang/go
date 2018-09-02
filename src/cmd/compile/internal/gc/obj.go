@@ -281,7 +281,7 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-// addGCLocals adds gcargs and gclocals symbols to Ctxt.Data.
+// addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
 // It takes care not to add any duplicates.
 // Though the object file format handles duplicates efficiently,
 // storing only a single copy of the data,
@@ -298,6 +298,9 @@ func addGCLocals() {
 			}
 			Ctxt.Data = append(Ctxt.Data, gcsym)
 			seen[gcsym.Name] = true
+		}
+		if x := s.Func.StackObjects; x != nil {
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
 		}
 	}
 }

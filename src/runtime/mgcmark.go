@@ -169,7 +169,7 @@ func markroot(gcw *gcWork, i uint32) {
 	case i == fixedRootFinalizers:
 		for fb := allfin; fb != nil; fb = fb.alllink {
 			cnt := uintptr(atomic.Load(&fb.cnt))
-			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw)
+			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw, nil)
 		}
 
 	case i == fixedRootFreeGStacks:
@@ -248,7 +248,7 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 	}
 
 	// Scan this shard.
-	scanblock(b, n, ptrmask, gcw)
+	scanblock(b, n, ptrmask, gcw, nil)
 }
 
 // markrootFreeGStacks frees stacks of dead Gs.
@@ -349,7 +349,7 @@ func markrootSpans(gcw *gcWork, shard int) {
 			scanobject(p, gcw)
 
 			// The special itself is a root.
-			scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw)
+			scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
 		}
 
 		unlock(&s.speciallock)
@@ -689,42 +689,136 @@ func scanstack(gp *g, gcw *gcWork) {
 	// Shrink the stack if not much of it is being used.
 	shrinkstack(gp)
 
+	var state stackScanState
+	state.stack = gp.stack
+
+	if stackTraceDebug {
+		println("stack trace goroutine", gp.goid)
+	}
+
 	// Scan the saved context register. This is effectively a live
 	// register that gets moved back and forth between the
 	// register and sched.ctxt without a write barrier.
 	if gp.sched.ctxt != nil {
-		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw)
+		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw, &state)
 	}
 
-	// Scan the stack.
-	var cache pcvalueCache
+	// Scan the stack. Accumulate a list of stack objects.
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
-		scanframeworker(frame, &cache, gcw)
+		scanframeworker(frame, &state, gcw)
 		return true
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 	tracebackdefers(gp, scanframe, nil)
+
+	// Find and scan all reachable stack objects.
+	state.buildIndex()
+	for {
+		p := state.getPtr()
+		if p == 0 {
+			break
+		}
+		obj := state.findObject(p)
+		if obj == nil {
+			continue
+		}
+		t := obj.typ
+		if t == nil {
+			// We've already scanned this object.
+			continue
+		}
+		obj.setType(nil) // Don't scan it again.
+		if stackTraceDebug {
+			println("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of type", t.string())
+		}
+		gcdata := t.gcdata
+		var s *mspan
+		if t.kind&kindGCProg != 0 {
+			// This path is pretty unlikely, an object large enough
+			// to have a GC program allocated on the stack.
+			// We need some space to unpack the program into a straight
+			// bitmask, which we allocate/free here.
+			// TODO: it would be nice if there were a way to run a GC
+			// program without having to store all its bits. We'd have
+			// to change from a Lempel-Ziv style program to something else.
+			// Or we can forbid putting objects on stacks if they require
+			// a gc program (see issue 27447).
+			s = materializeGCProg(t.ptrdata, gcdata)
+			gcdata = (*byte)(unsafe.Pointer(s.startAddr))
+		}
+
+		scanblock(state.stack.lo+uintptr(obj.off), t.ptrdata, gcdata, gcw, &state)
+
+		if s != nil {
+			dematerializeGCProg(s)
+		}
+	}
+
+	// Deallocate object buffers.
+	// (Pointer buffers were all deallocated in the loop above.)
+	for state.head != nil {
+		x := state.head
+		state.head = x.next
+		if stackTraceDebug {
+			for _, obj := range x.obj[:x.nobj] {
+				if obj.typ == nil { // reachable
+					continue
+				}
+				println("  dead stkobj at", hex(gp.stack.lo+uintptr(obj.off)), "of type", obj.typ.string())
+				// Note: not necessarily really dead - only reachable-from-ptr dead.
+			}
+		}
+		x.nobj = 0
+		putempty((*workbuf)(unsafe.Pointer(x)))
+	}
+	if state.buf != nil || state.freeBuf != nil {
+		throw("remaining pointer buffers")
+	}
+
 	gp.gcscanvalid = true
 }
 
 // Scan a stack frame: local variables and function arguments/results.
 //go:nowritebarrier
-func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
+func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 	if _DebugGC > 1 && frame.continpc != 0 {
 		print("scanframe ", funcname(frame.fn), "\n")
 	}
 
-	locals, args := getStackMap(frame, cache, false)
+	locals, args, objs := getStackMap(frame, &state.cache, false)
 
 	// Scan local variables if stack frame has been allocated.
 	if locals.n > 0 {
 		size := uintptr(locals.n) * sys.PtrSize
-		scanblock(frame.varp-size, size, locals.bytedata, gcw)
+		scanblock(frame.varp-size, size, locals.bytedata, gcw, state)
 	}
 
 	// Scan arguments.
 	if args.n > 0 {
-		scanblock(frame.argp, uintptr(args.n)*sys.PtrSize, args.bytedata, gcw)
+		scanblock(frame.argp, uintptr(args.n)*sys.PtrSize, args.bytedata, gcw, state)
+	}
+
+	// Add all stack objects to the stack object list.
+	if frame.varp != 0 {
+		// varp is 0 for defers, where there are no locals.
+		// In that case, there can't be a pointer to its args, either.
+		// (And all args would be scanned above anyway.)
+		for _, obj := range objs {
+			off := obj.off
+			base := frame.varp // locals base pointer
+			if off >= 0 {
+				base = frame.argp // arguments and return values base pointer
+			}
+			ptr := base + uintptr(off)
+			if ptr < frame.sp {
+				// object hasn't been allocated in the frame yet.
+				continue
+			}
+			if stackTraceDebug {
+				println("stkobj at", hex(ptr), "of type", obj.typ.string())
+			}
+			state.addObject(ptr, obj.typ)
+		}
 	}
 }
 
@@ -939,8 +1033,9 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 // This is used to scan non-heap roots, so it does not update
 // gcw.bytesMarked or gcw.scanWork.
 //
+// If stk != nil, possible stack pointers are also reported to stk.putPtr.
 //go:nowritebarrier
-func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState) {
 	// Use local copies of original parameters, so that a stack trace
 	// due to one of the throws below shows the original block
 	// base and extent.
@@ -957,10 +1052,12 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 		for j := 0; j < 8 && i < n; j++ {
 			if bits&1 != 0 {
 				// Same work as in scanobject; see comments there.
-				obj := *(*uintptr)(unsafe.Pointer(b + i))
-				if obj != 0 {
-					if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
+				p := *(*uintptr)(unsafe.Pointer(b + i))
+				if p != 0 {
+					if obj, span, objIndex := findObject(p, b, i); obj != 0 {
 						greyobject(obj, b, i, span, gcw, objIndex)
+					} else if stk != nil && p >= stk.stack.lo && p < stk.stack.hi {
+						stk.putPtr(p)
 					}
 				}
 			}

@@ -1911,6 +1911,20 @@ Run:
 	return totalBits
 }
 
+// materializeGCProg allocates space for the (1-bit) pointer bitmask
+// for an object of size ptrdata.  Then it fills that space with the
+// pointer bitmask specified by the program prog.
+// The bitmask starts at s.startAddr.
+// The result must be deallocated with dematerializeGCProg.
+func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
+	s := mheap_.allocManual((ptrdata/(8*sys.PtrSize)+pageSize-1)/pageSize, &memstats.gc_sys)
+	runGCProg(addb(prog, 4), nil, (*byte)(unsafe.Pointer(s.startAddr)), 1)
+	return s
+}
+func dematerializeGCProg(s *mspan) {
+	mheap_.freeManual(s, &memstats.gc_sys)
+}
+
 func dumpGCProg(p *byte) {
 	nptr := 0
 	for {
@@ -2037,7 +2051,12 @@ func getgcmask(ep interface{}) (mask []byte) {
 		_g_ := getg()
 		gentraceback(_g_.m.curg.sched.pc, _g_.m.curg.sched.sp, 0, _g_.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
 		if frame.fn.valid() {
-			locals, _ := getStackMap(&frame, nil, false)
+			// TODO: once stack objects are enabled (and their pointers
+			// are no longer described by the stack pointermap directly),
+			// tests using this will probably need fixing. We might need
+			// to loop through the stackobjects and if we're inside one,
+			// use the pointermap from that object.
+			locals, _, _ := getStackMap(&frame, nil, false)
 			if locals.n == 0 {
 				return
 			}

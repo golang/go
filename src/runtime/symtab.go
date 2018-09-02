@@ -348,6 +348,7 @@ const (
 	_FUNCDATA_LocalsPointerMaps = 1
 	_FUNCDATA_InlTree           = 2
 	_FUNCDATA_RegPointerMaps    = 3
+	_FUNCDATA_StackObjects      = 4
 	_ArgsSizeUnknown            = -0x80000000
 )
 
