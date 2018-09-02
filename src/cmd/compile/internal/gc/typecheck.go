@@ -1263,7 +1263,7 @@ func typecheck1(n *Node, top int) *Node {
 			n.Op = OCALLFUNC
 			if t.Etype != TFUNC {
 				name := l.String()
-				if isBuiltinFuncName(name) {
+				if isBuiltinFuncName(name) && l.Name.Defn != nil {
 					// be more specific when the function
 					// name matches a predeclared function
 					yyerror("cannot call non-function %s (type %v), declared at %s",
