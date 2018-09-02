@@ -16,6 +16,7 @@
 #define FUNCDATA_LocalsPointerMaps 1
 #define FUNCDATA_InlTree 2
 #define FUNCDATA_RegPointerMaps 3
+#define FUNCDATA_StackObjects 4
 
 // Pseudo-assembly statements.
 

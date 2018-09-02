@@ -5988,7 +5988,8 @@ func TestFuncLayout(t *testing.T) {
 func verifyGCBits(t *testing.T, typ Type, bits []byte) {
 	heapBits := GCBits(New(typ).Interface())
 	if !bytes.Equal(heapBits, bits) {
-		t.Errorf("heapBits incorrect for %v\nhave %v\nwant %v", typ, heapBits, bits)
+		_, _, line, _ := runtime.Caller(1)
+		t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
 	}
 }
 
