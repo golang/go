@@ -132,7 +132,7 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 
 // indirectType is like typ but it also breaks the (otherwise) infinite size of recursive
 // types by introducing an indirection. It should be called for components of types that
-// are not layed out in place in memory, such as pointer base types, slice or map element
+// are not laid out in place in memory, such as pointer base types, slice or map element
 // types, function parameter types, etc.
 func (check *Checker) indirectType(e ast.Expr) Type {
 	check.push(indir)
