@@ -423,27 +423,20 @@ func Join(a []string, sep string) string {
 		return ""
 	case 1:
 		return a[0]
-	case 2:
-		// Special case for common small values.
-		// Remove if golang.org/issue/6714 is fixed
-		return a[0] + sep + a[1]
-	case 3:
-		// Special case for common small values.
-		// Remove if golang.org/issue/6714 is fixed
-		return a[0] + sep + a[1] + sep + a[2]
 	}
 	n := len(sep) * (len(a) - 1)
 	for i := 0; i < len(a); i++ {
 		n += len(a[i])
 	}
 
-	b := make([]byte, n)
-	bp := copy(b, a[0])
+	var b Builder
+	b.Grow(n)
+	b.WriteString(a[0])
 	for _, s := range a[1:] {
-		bp += copy(b[bp:], sep)
-		bp += copy(b[bp:], s)
+		b.WriteString(sep)
+		b.WriteString(s)
 	}
-	return string(b)
+	return b.String()
 }
 
 // HasPrefix tests whether the string s begins with prefix.
