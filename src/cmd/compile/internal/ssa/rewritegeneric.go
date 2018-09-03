@@ -13483,7 +13483,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const32 [x]) _))
 	// cond: isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1)
-	// result: (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
+	// result: (Const32F [f2i(extend32Fto64F(math.Float32frombits(uint32(x))))])
 	for {
 		t1 := v.Type
 		_ = v.Args[1]
@@ -13504,7 +13504,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 			break
 		}
 		v.reset(OpConst32F)
-		v.AuxInt = f2i(float64(math.Float32frombits(uint32(x))))
+		v.AuxInt = f2i(extend32Fto64F(math.Float32frombits(uint32(x))))
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _))
@@ -13535,7 +13535,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _))
 	// cond: isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)
-	// result: (Const32 [int64(int32(math.Float32bits(float32(i2f(x)))))])
+	// result: (Const32 [int64(int32(math.Float32bits(truncate64Fto32F(i2f(x)))))])
 	for {
 		t1 := v.Type
 		_ = v.Args[1]
@@ -13556,7 +13556,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 			break
 		}
 		v.reset(OpConst32)
-		v.AuxInt = int64(int32(math.Float32bits(float32(i2f(x)))))
+		v.AuxInt = int64(int32(math.Float32bits(truncate64Fto32F(i2f(x)))))
 		return true
 	}
 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ mem:(Zero [n] p3 _)))
