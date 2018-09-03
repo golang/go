@@ -337,6 +337,8 @@ func TestUDPZeroBytePayload(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
+	case "windows":
+		t.Skipf("zero byte payload is broken on %s. See Github Issue #26668.", runtime.GOOS)
 	}
 
 	c, err := newLocalPacketListener("udp")
@@ -357,13 +359,16 @@ func TestUDPZeroBytePayload(t *testing.T) {
 		var b [1]byte
 		if genericRead {
 			_, err = c.(Conn).Read(b[:])
+			// Read() may timeout, it depends on the platform
+			if err != nil {
+				if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+					t.Fatal(err)
+				}
+			}
 		} else {
 			_, _, err = c.ReadFrom(b[:])
-		}
-		switch err {
-		case nil: // ReadFrom succeeds
-		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+			// ReadFrom() succeeds if err == nil
+			if err != nil {
 				t.Fatal(err)
 			}
 		}
