@@ -418,6 +418,38 @@ func shiftIsBounded(v *Value) bool {
 	return v.AuxInt != 0
 }
 
+// truncate64Fto32F converts a float64 value to a float32 preserving the bit pattern
+// of the mantissa. It will panic if the truncation results in lost information.
+func truncate64Fto32F(f float64) float32 {
+	if !isExactFloat32(f) {
+		panic("truncate64Fto32F: truncation is not exact")
+	}
+	if !math.IsNaN(f) {
+		return float32(f)
+	}
+	// NaN bit patterns aren't necessarily preserved across conversion
+	// instructions so we need to do the conversion manually.
+	b := math.Float64bits(f)
+	m := b & ((1 << 52) - 1) // mantissa (a.k.a. significand)
+	//          | sign                  | exponent   | mantissa       |
+	r := uint32(((b >> 32) & (1 << 31)) | 0x7f800000 | (m >> (52 - 23)))
+	return math.Float32frombits(r)
+}
+
+// extend32Fto64F converts a float32 value to a float64 value preserving the bit
+// pattern of the mantissa.
+func extend32Fto64F(f float32) float64 {
+	if !math.IsNaN(float64(f)) {
+		return float64(f)
+	}
+	// NaN bit patterns aren't necessarily preserved across conversion
+	// instructions so we need to do the conversion manually.
+	b := uint64(math.Float32bits(f))
+	//   | sign                  | exponent      | mantissa                    |
+	r := ((b << 32) & (1 << 63)) | (0x7ff << 52) | ((b & 0x7fffff) << (52 - 23))
+	return math.Float64frombits(r)
+}
+
 // i2f is used in rules for converting from an AuxInt to a float.
 func i2f(i int64) float64 {
 	return math.Float64frombits(uint64(i))
