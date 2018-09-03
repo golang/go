@@ -761,9 +761,6 @@ func (fd *FD) Writev(buf *[][]byte) (int64, error) {
 
 // WriteTo wraps the sendto network call.
 func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
-	if len(buf) == 0 {
-		return 0, nil
-	}
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
