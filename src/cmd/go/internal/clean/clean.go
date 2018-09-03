@@ -126,13 +126,15 @@ func runClean(cmd *base.Command, args []string) {
 				if cfg.BuildN || cfg.BuildX {
 					b.Showcmd("", "rm -r %s", strings.Join(subdirs, " "))
 				}
-				printedErrors := false
-				for _, d := range subdirs {
-					// Only print the first error - there may be many.
-					// This also mimics what os.RemoveAll(dir) would do.
-					if err := os.RemoveAll(d); err != nil && !printedErrors {
-						printedErrors = true
-						base.Errorf("go clean -cache: %v", err)
+				if !cfg.BuildN {
+					printedErrors := false
+					for _, d := range subdirs {
+						// Only print the first error - there may be many.
+						// This also mimics what os.RemoveAll(dir) would do.
+						if err := os.RemoveAll(d); err != nil && !printedErrors {
+							printedErrors = true
+							base.Errorf("go clean -cache: %v", err)
+						}
 					}
 				}
 			}
