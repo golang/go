@@ -321,6 +321,8 @@ func init() {
 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int8", clobberFlags: true}, // signed arg0 >> auxint, shift amount 0-63
 		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int8", clobberFlags: true}, // signed int32(arg0) >> auxint, shift amount 0-31
 
+		{name: "RLLG", argLength: 2, reg: sh21, asm: "RLLG"},                   // arg0 rotate left arg1, rotate amount 0-63
+		{name: "RLL", argLength: 2, reg: sh21, asm: "RLL"},                     // arg0 rotate left arg1, rotate amount 0-31
 		{name: "RLLGconst", argLength: 1, reg: gp11, asm: "RLLG", aux: "Int8"}, // arg0 rotate left auxint, rotate amount 0-63
 		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "Int8"},   // arg0 rotate left auxint, rotate amount 0-31
 
