@@ -233,6 +233,10 @@
 (Rsh(16|8)x16 x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVHZreg y) [64])))
 (Rsh(16|8)x8  x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVBZreg y) [64])))
 
+// Lowering rotates
+(RotateLeft32 x y) -> (RLL  x y)
+(RotateLeft64 x y) -> (RLLG x y)
+
 // Lowering comparisons
 (Less64      x y) -> (MOVDLT (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
 (Less32      x y) -> (MOVDLT (MOVDconst [0]) (MOVDconst [1]) (CMPW x y))
@@ -532,7 +536,10 @@
 (SRW  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRW  x y)
 (SRAW x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRAW x y)
 
-// Rotate generation
+// Constant rotate generation
+(RLL  x (MOVDconst [c])) -> (RLLconst  x [c&31])
+(RLLG x (MOVDconst [c])) -> (RLLGconst x [c&63])
+
 (ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
 ( OR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
 (XOR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)

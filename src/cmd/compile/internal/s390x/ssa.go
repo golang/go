@@ -160,7 +160,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpS390XSLD, ssa.OpS390XSLW,
 		ssa.OpS390XSRD, ssa.OpS390XSRW,
-		ssa.OpS390XSRAD, ssa.OpS390XSRAW:
+		ssa.OpS390XSRAD, ssa.OpS390XSRAW,
+		ssa.OpS390XRLLG, ssa.OpS390XRLL:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()

@@ -1794,6 +1794,8 @@ const (
 	OpS390XSRAW
 	OpS390XSRADconst
 	OpS390XSRAWconst
+	OpS390XRLLG
+	OpS390XRLL
 	OpS390XRLLGconst
 	OpS390XRLLconst
 	OpS390XNEG
@@ -23982,6 +23984,34 @@ var opcodeTable = [...]opInfo{
 		asm:          s390x.ASRAW,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:   "RLLG",
+		argLen: 2,
+		asm:    s390x.ARLLG,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:   "RLL",
+		argLen: 2,
+		asm:    s390x.ARLL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{

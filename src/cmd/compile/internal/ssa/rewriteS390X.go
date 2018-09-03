@@ -391,6 +391,10 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpPopCount64_0(v)
 	case OpPopCount8:
 		return rewriteValueS390X_OpPopCount8_0(v)
+	case OpRotateLeft32:
+		return rewriteValueS390X_OpRotateLeft32_0(v)
+	case OpRotateLeft64:
+		return rewriteValueS390X_OpRotateLeft64_0(v)
 	case OpRound:
 		return rewriteValueS390X_OpRound_0(v)
 	case OpRound32F:
@@ -665,6 +669,10 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpS390XORconst_0(v)
 	case OpS390XORload:
 		return rewriteValueS390X_OpS390XORload_0(v)
+	case OpS390XRLL:
+		return rewriteValueS390X_OpS390XRLL_0(v)
+	case OpS390XRLLG:
+		return rewriteValueS390X_OpS390XRLLG_0(v)
 	case OpS390XSLD:
 		return rewriteValueS390X_OpS390XSLD_0(v) || rewriteValueS390X_OpS390XSLD_10(v)
 	case OpS390XSLW:
@@ -5396,6 +5404,34 @@ func rewriteValueS390X_OpPopCount8_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.UInt64)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueS390X_OpRotateLeft32_0(v *Value) bool {
+	// match: (RotateLeft32 x y)
+	// cond:
+	// result: (RLL x y)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpS390XRLL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueS390X_OpRotateLeft64_0(v *Value) bool {
+	// match: (RotateLeft64 x y)
+	// cond:
+	// result: (RLLG x y)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpS390XRLLG)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }
@@ -38640,6 +38676,44 @@ func rewriteValueS390X_OpS390XORload_0(v *Value) bool {
 		v.AddArg(x)
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueS390X_OpS390XRLL_0(v *Value) bool {
+	// match: (RLL x (MOVDconst [c]))
+	// cond:
+	// result: (RLLconst x [c&31])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpS390XMOVDconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpS390XRLLconst)
+		v.AuxInt = c & 31
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueS390X_OpS390XRLLG_0(v *Value) bool {
+	// match: (RLLG x (MOVDconst [c]))
+	// cond:
+	// result: (RLLGconst x [c&63])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpS390XMOVDconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpS390XRLLGconst)
+		v.AuxInt = c & 63
+		v.AddArg(x)
 		return true
 	}
 	return false
