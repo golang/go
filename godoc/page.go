@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"golang.org/x/tools/godoc/env"
 )
 
 // Page describes the contents of the top-level godoc webpage.
@@ -22,10 +24,11 @@ type Page struct {
 	Body     []byte
 	GoogleCN bool // page is being served from golang.google.cn
 
-	// filled in by servePage
-	SearchBox  bool
-	Playground bool
-	Version    string
+	// filled in by ServePage
+	SearchBox       bool
+	Playground      bool
+	Version         string
+	GoogleAnalytics string
 }
 
 func (p *Presentation) ServePage(w http.ResponseWriter, page Page) {
@@ -35,6 +38,7 @@ func (p *Presentation) ServePage(w http.ResponseWriter, page Page) {
 	page.SearchBox = p.Corpus.IndexEnabled
 	page.Playground = p.ShowPlayground
 	page.Version = runtime.Version()
+	page.GoogleAnalytics = p.GoogleAnalytics
 	applyTemplateToResponseWriter(w, p.GodocHTML, page)
 }
 
@@ -49,20 +53,19 @@ func (p *Presentation) ServeError(w http.ResponseWriter, r *http.Request, relpat
 		}
 	}
 	p.ServePage(w, Page{
-		Title:    "File " + relpath,
-		Subtitle: relpath,
-		Body:     applyTemplate(p.ErrorHTML, "errorHTML", err),
-		GoogleCN: googleCN(r),
+		Title:           "File " + relpath,
+		Subtitle:        relpath,
+		Body:            applyTemplate(p.ErrorHTML, "errorHTML", err),
+		GoogleCN:        googleCN(r),
+		GoogleAnalytics: p.GoogleAnalytics,
 	})
 }
-
-var onAppengine = false // overridden in appengine.go when on app engine
 
 func googleCN(r *http.Request) bool {
 	if r.FormValue("googlecn") != "" {
 		return true
 	}
-	if !onAppengine {
+	if !env.IsProd() {
 		return false
 	}
 	if strings.HasSuffix(r.Host, ".cn") {

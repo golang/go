@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build appengine
+// +build golangorg
 
 package main
 
@@ -11,26 +11,34 @@ package main
 
 import (
 	"archive/zip"
+	"context"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"regexp"
 	"runtime"
+	"strings"
 
 	"golang.org/x/tools/godoc"
 	"golang.org/x/tools/godoc/dl"
 	"golang.org/x/tools/godoc/proxy"
+	"golang.org/x/tools/godoc/redirect"
 	"golang.org/x/tools/godoc/short"
 	"golang.org/x/tools/godoc/static"
 	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/gatefs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
-	"google.golang.org/appengine"
+
+	"cloud.google.com/go/datastore"
+	"golang.org/x/tools/internal/memcache"
 )
 
-func init() {
+func main() {
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
+
 	var (
 		// .zip filename
 		zipFilename = os.Getenv("GODOC_ZIP")
@@ -43,7 +51,6 @@ func init() {
 		indexFilenames = os.Getenv("GODOC_INDEX_GLOB")
 	)
 
-	enforceHosts = !appengine.IsDevAppServer()
 	playEnabled = true
 
 	log.Println("initializing godoc ...")
@@ -84,17 +91,61 @@ func init() {
 	pres.ShowExamples = true
 	pres.DeclLinks = true
 	pres.NotesRx = regexp.MustCompile("BUG")
+	pres.GoogleAnalytics = os.Getenv("GODOC_ANALYTICS")
 
 	readTemplates(pres, true)
 
+	datastoreClient, memcacheClient := getClients()
+
+	// NOTE(cbro): registerHandlers registers itself against DefaultServeMux.
+	// The mux returned has host enforcement, so it's important to register
+	// against this mux and not DefaultServeMux.
 	mux := registerHandlers(pres)
-	dl.RegisterHandlers(mux)
-	short.RegisterHandlers(mux)
+	dl.RegisterHandlers(mux, datastoreClient, memcacheClient)
+	short.RegisterHandlers(mux, datastoreClient, memcacheClient)
 
 	// Register /compile and /share handlers against the default serve mux
 	// so that other app modules can make plain HTTP requests to those
 	// hosts. (For reasons, HTTPS communication between modules is broken.)
 	proxy.RegisterHandlers(http.DefaultServeMux)
 
+	http.HandleFunc("/_ah/health", func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "ok")
+	})
+
+	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "User-agent: *\nDisallow: /search\n")
+	})
+
+	if err := redirect.LoadChangeMap("hg-git-mapping.bin"); err != nil {
+		log.Fatalf("LoadChangeMap: %v", err)
+	}
+
 	log.Println("godoc initialization complete")
+
+	// TODO(cbro): add instrumentation via opencensus.
+	port := "8080"
+	if p := os.Getenv("PORT"); p != "" { // PORT is set by GAE flex.
+		port = p
+	}
+	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+func getClients() (*datastore.Client, *memcache.Client) {
+	ctx := context.Background()
+
+	datastoreClient, err := datastore.NewClient(ctx, "")
+	if err != nil {
+		if strings.Contains(err.Error(), "missing project") {
+			log.Fatalf("Missing datastore project. Set the DATASTORE_PROJECT_ID env variable. Use `gcloud beta emulators datastore` to start a local datastore.")
+		}
+		log.Fatalf("datastore.NewClient: %v.", err)
+	}
+
+	redisAddr := os.Getenv("GODOC_REDIS_ADDR")
+	if redisAddr == "" {
+		log.Fatalf("Missing redis server for godoc in production mode. set GODOC_REDIS_ADDR environment variable.")
+	}
+	memcacheClient := memcache.New(redisAddr)
+	return datastoreClient, memcacheClient
 }

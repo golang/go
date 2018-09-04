@@ -25,24 +25,24 @@ install() {
 }
 
 getArgs() {
-	if [ ! -v GOROOT ]; then
-		GOROOT="$(go env GOROOT)"
-		echo "GOROOT not set explicitly, using go env value instead"
+	if [ ! -v GODOC_DOCSET ]; then
+		GODOC_DOCSET="$(go env GOROOT)"
+		echo "GODOC_DOCSET not set explicitly, using GOROOT instead"
 	fi
 
 	# safety checks
-	if [ ! -d "$GOROOT" ]; then
-		error "$GOROOT is not a directory"
+	if [ ! -d "$GODOC_DOCSET" ]; then
+		error "$GODOC_DOCSET is not a directory"
 	fi
 
 	# reporting
-	echo "GOROOT = $GOROOT"
+	echo "GODOC_DOCSET = $GODOC_DOCSET"
 }
 
 makeZipfile() {
 	echo "*** make $ZIPFILE"
 	rm -f $ZIPFILE goroot
-	ln -s "$GOROOT" goroot
+	ln -s "$GODOC_DOCSET" goroot
 	zip -q -r $ZIPFILE goroot/* # glob to ignore dotfiles (like .git)
 	rm goroot
 }

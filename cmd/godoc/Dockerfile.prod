@@ -1,0 +1,42 @@
+# Builder
+#########
+
+FROM golang:1.11 AS build
+
+RUN apt-get update && apt-get install -y \
+      zip # required for generate-index.bash
+
+ENV GODOC_REF release-branch.go1.11
+
+RUN go get -v -d \
+      golang.org/x/net/context \
+      google.golang.org/appengine \
+      cloud.google.com/go/datastore \
+      golang.org/x/build \
+      github.com/gomodule/redigo/redis
+
+COPY . /go/src/golang.org/x/tools
+
+WORKDIR /go/src/golang.org/x/tools/cmd/godoc
+RUN git clone --single-branch --depth=1 -b $GODOC_REF https://go.googlesource.com/go /docset
+RUN GODOC_DOCSET=/docset ./generate-index.bash
+
+RUN go build -o /godoc -tags=golangorg golang.org/x/tools/cmd/godoc
+
+
+# Final image
+#############
+
+FROM gcr.io/distroless/base
+
+WORKDIR /app
+COPY --from=build /godoc /app/
+COPY --from=build /go/src/golang.org/x/tools/cmd/godoc/hg-git-mapping.bin /app/
+
+COPY --from=build /docset /goroot
+ENV GOROOT /goroot
+
+COPY --from=build /go/src/golang.org/x/tools/cmd/godoc/index.split.* /app/
+ENV GODOC_INDEX_GLOB index.split.*
+
+CMD ["/app/godoc"]

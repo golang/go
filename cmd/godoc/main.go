@@ -23,7 +23,7 @@
 //	godoc crypto/block Cipher NewCMAC
 //		- prints doc for Cipher and NewCMAC in package crypto/block
 
-// +build !appengine
+// +build !golangorg
 
 package main
 

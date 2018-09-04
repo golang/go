@@ -21,6 +21,7 @@ import (
 	"text/template"
 
 	"golang.org/x/tools/godoc"
+	"golang.org/x/tools/godoc/env"
 	"golang.org/x/tools/godoc/redirect"
 	"golang.org/x/tools/godoc/vfs"
 )
@@ -29,8 +30,6 @@ var (
 	pres *godoc.Presentation
 	fs   = vfs.NameSpace{}
 )
-
-var enforceHosts = false // set true in production on app engine
 
 // hostEnforcerHandler redirects requests to "http://foo.golang.org/bar"
 // to "https://golang.org/bar".
@@ -41,7 +40,7 @@ type hostEnforcerHandler struct {
 }
 
 func (h hostEnforcerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !enforceHosts {
+	if !env.EnforceHosts() {
 		h.h.ServeHTTP(w, r)
 		return
 	}

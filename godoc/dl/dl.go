@@ -2,8 +2,6 @@
 // Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
-// +build appengine
-
 // Package dl implements a simple downloads frontend server.
 //
 // It accepts HTTP POST requests to create a new download metadata entity, and
@@ -19,6 +17,7 @@ import (
 	"html"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"sort"
@@ -27,11 +26,10 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/datastore"
 	"golang.org/x/net/context"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/datastore"
-	"google.golang.org/appengine/log"
-	"google.golang.org/appengine/memcache"
+	"golang.org/x/tools/godoc/env"
+	"golang.org/x/tools/internal/memcache"
 )
 
 const (
@@ -40,11 +38,21 @@ const (
 	cacheDuration   = time.Hour
 )
 
-func RegisterHandlers(mux *http.ServeMux) {
-	mux.HandleFunc("/dl", getHandler)
-	mux.HandleFunc("/dl/", getHandler) // also serves listHandler
-	mux.HandleFunc("/dl/upload", uploadHandler)
-	mux.HandleFunc("/dl/init", initHandler)
+type server struct {
+	datastore *datastore.Client
+	memcache  *memcache.CodecClient
+}
+
+func RegisterHandlers(mux *http.ServeMux, dc *datastore.Client, mc *memcache.Client) {
+	s := server{dc, mc.WithCodec(memcache.Gob)}
+	mux.HandleFunc("/dl", s.getHandler)
+	mux.HandleFunc("/dl/", s.getHandler) // also serves listHandler
+	mux.HandleFunc("/dl/upload", s.uploadHandler)
+
+	// NOTE(cbro): this only needs to be run once per project,
+	// and should be behind an admin login.
+	// TODO(cbro): move into a locally-run program? or remove?
+	// mux.HandleFunc("/dl/init", initHandler)
 }
 
 // File represents a file on the golang.org downloads page.
@@ -191,26 +199,25 @@ var (
 	templateFuncs = template.FuncMap{"pretty": pretty}
 )
 
-func listHandler(w http.ResponseWriter, r *http.Request) {
+func (h server) listHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var (
-		c = appengine.NewContext(r)
-		d listTemplateData
-	)
-	if _, err := memcache.Gob.Get(c, cacheKey, &d); err != nil {
-		if err == memcache.ErrCacheMiss {
-			log.Debugf(c, "cache miss")
-		} else {
-			log.Errorf(c, "cache get error: %v", err)
+	ctx := r.Context()
+	var d listTemplateData
+
+	if err := h.memcache.Get(ctx, cacheKey, &d); err != nil {
+		if err != memcache.ErrCacheMiss {
+			log.Printf("ERROR cache get error: %v", err)
+			// NOTE(cbro): continue to hit datastore if the memcache is down.
 		}
 
 		var fs []File
-		_, err := datastore.NewQuery("File").Ancestor(rootKey(c)).GetAll(c, &fs)
-		if err != nil {
-			log.Errorf(c, "error listing: %v", err)
+		q := datastore.NewQuery("File").Ancestor(rootKey)
+		if _, err := h.datastore.GetAll(ctx, q, &fs); err != nil {
+			log.Printf("ERROR error listing: %v", err)
+			http.Error(w, "Could not get download page. Try again in a few minutes.", 500)
 			return
 		}
 		d.Stable, d.Unstable, d.Archive = filesToReleases(fs)
@@ -219,8 +226,8 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		item := &memcache.Item{Key: cacheKey, Object: &d, Expiration: cacheDuration}
-		if err := memcache.Gob.Set(c, item); err != nil {
-			log.Errorf(c, "cache set error: %v", err)
+		if err := h.memcache.Set(ctx, item); err != nil {
+			log.Printf("ERROR cache set error: %v", err)
 		}
 	}
 
@@ -229,13 +236,13 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", " ")
 		if err := enc.Encode(d.Stable); err != nil {
-			log.Errorf(c, "failed rendering JSON for releases: %v", err)
+			log.Printf("ERROR rendering JSON for releases: %v", err)
 		}
 		return
 	}
 
 	if err := listTemplate.ExecuteTemplate(w, "root", d); err != nil {
-		log.Errorf(c, "error executing template: %v", err)
+		log.Printf("ERROR executing template: %v", err)
 	}
 }
 
@@ -383,12 +390,12 @@ func parseVersion(v string) (maj, min int, tail string) {
 	return
 }
 
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
+func (h server) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	c := appengine.NewContext(r)
+	ctx := r.Context()
 
 	// Authenticate using a user token (same as gomote).
 	user := r.FormValue("user")
@@ -396,7 +403,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad user", http.StatusForbidden)
 		return
 	}
-	if r.FormValue("key") != userKey(c, user) {
+	if r.FormValue("key") != h.userKey(ctx, user) {
 		http.Error(w, "bad key", http.StatusForbidden)
 		return
 	}
@@ -404,7 +411,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	var f File
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&f); err != nil {
-		log.Errorf(c, "error decoding upload JSON: %v", err)
+		log.Printf("ERROR decoding upload JSON: %v", err)
 		http.Error(w, "Something broke", http.StatusInternalServerError)
 		return
 	}
@@ -415,19 +422,19 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if f.Uploaded.IsZero() {
 		f.Uploaded = time.Now()
 	}
-	k := datastore.NewKey(c, "File", f.Filename, 0, rootKey(c))
-	if _, err := datastore.Put(c, k, &f); err != nil {
-		log.Errorf(c, "putting File entity: %v", err)
+	k := datastore.NameKey("File", f.Filename, rootKey)
+	if _, err := h.datastore.Put(ctx, k, &f); err != nil {
+		log.Printf("ERROR File entity: %v", err)
 		http.Error(w, "could not put File entity", http.StatusInternalServerError)
 		return
 	}
-	if err := memcache.Delete(c, cacheKey); err != nil {
-		log.Errorf(c, "cache delete error: %v", err)
+	if err := h.memcache.Delete(ctx, cacheKey); err != nil {
+		log.Printf("ERROR delete error: %v", err)
 	}
 	io.WriteString(w, "OK")
 }
 
-func getHandler(w http.ResponseWriter, r *http.Request) {
+func (h server) getHandler(w http.ResponseWriter, r *http.Request) {
 	// For go get golang.org/dl/go1.x.y, we need to serve the
 	// same meta tags at /dl for cmd/go to validate against /dl/go1.x.y:
 	if r.URL.Path == "/dl" && (r.Method == "GET" || r.Method == "HEAD") && r.FormValue("go-get") == "1" {
@@ -444,7 +451,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 
 	name := strings.TrimPrefix(r.URL.Path, "/dl/")
 	if name == "" {
-		listHandler(w, r)
+		h.listHandler(w, r)
 		return
 	}
 	if fileRe.MatchString(name) {
@@ -486,10 +493,10 @@ func validUser(user string) bool {
 	return false
 }
 
-func userKey(c context.Context, user string) string {
-	h := hmac.New(md5.New, []byte(secret(c)))
-	h.Write([]byte("user-" + user))
-	return fmt.Sprintf("%x", h.Sum(nil))
+func (h server) userKey(c context.Context, user string) string {
+	hash := hmac.New(md5.New, []byte(h.secret(c)))
+	hash.Write([]byte("user-" + user))
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
 var (
@@ -497,18 +504,18 @@ var (
 	goGetRe = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+$`)
 )
 
-func initHandler(w http.ResponseWriter, r *http.Request) {
+func (h server) initHandler(w http.ResponseWriter, r *http.Request) {
 	var fileRoot struct {
 		Root string
 	}
-	c := appengine.NewContext(r)
-	k := rootKey(c)
-	err := datastore.RunInTransaction(c, func(c context.Context) error {
-		err := datastore.Get(c, k, &fileRoot)
+	ctx := r.Context()
+	k := rootKey
+	_, err := h.datastore.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		err := tx.Get(k, &fileRoot)
 		if err != nil && err != datastore.ErrNoSuchEntity {
 			return err
 		}
-		_, err = datastore.Put(c, k, &fileRoot)
+		_, err = tx.Put(k, &fileRoot)
 		return err
 	}, nil)
 	if err != nil {
@@ -519,9 +526,7 @@ func initHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // rootKey is the ancestor of all File entities.
-func rootKey(c context.Context) *datastore.Key {
-	return datastore.NewKey(c, "FileRoot", "root", 0, nil)
-}
+var rootKey = datastore.NameKey("FileRoot", "root", nil)
 
 // pretty returns a human-readable version of the given OS, Arch, or Kind.
 func pretty(s string) string {
@@ -559,11 +564,11 @@ type builderKey struct {
 	Secret string
 }
 
-func (k *builderKey) Key(c context.Context) *datastore.Key {
-	return datastore.NewKey(c, "BuilderKey", "root", 0, nil)
+func (k *builderKey) Key() *datastore.Key {
+	return datastore.NameKey("BuilderKey", "root", nil)
 }
 
-func secret(c context.Context) string {
+func (h server) secret(ctx context.Context) string {
 	// check with rlock
 	theKey.RLock()
 	k := theKey.Secret
@@ -580,18 +585,18 @@ func secret(c context.Context) string {
 	}
 
 	// fill
-	if err := datastore.Get(c, theKey.Key(c), &theKey.builderKey); err != nil {
+	if err := h.datastore.Get(ctx, theKey.Key(), &theKey.builderKey); err != nil {
 		if err == datastore.ErrNoSuchEntity {
 			// If the key is not stored in datastore, write it.
 			// This only happens at the beginning of a new deployment.
 			// The code is left here for SDK use and in case a fresh
 			// deployment is ever needed.  "gophers rule" is not the
 			// real key.
-			if !appengine.IsDevAppServer() {
+			if env.IsProd() {
 				panic("lost key from datastore")
 			}
 			theKey.Secret = "gophers rule"
-			datastore.Put(c, theKey.Key(c), &theKey.builderKey)
+			h.datastore.Put(ctx, theKey.Key(), &theKey.builderKey)
 			return theKey.Secret
 		}
 		panic("cannot load builder key: " + err.Error())

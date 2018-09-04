@@ -92,6 +92,10 @@ type Presentation struct {
 	// body for displaying search results.
 	SearchResults []SearchResultFunc
 
+	// GoogleAnalytics optionally adds Google Analytics via the provided
+	// tracking ID to each page.
+	GoogleAnalytics string
+
 	initFuncMapOnce sync.Once
 	funcMap         template.FuncMap
 	templateFuncs   template.FuncMap
