@@ -1593,11 +1593,12 @@ func ptrlitEscape() {
 // self-assignments
 
 type Buffer struct {
-	arr  [64]byte
-	buf1 []byte
-	buf2 []byte
-	str1 string
-	str2 string
+	arr    [64]byte
+	arrPtr *[64]byte
+	buf1   []byte
+	buf2   []byte
+	str1   string
+	str2   string
 }
 
 func (b *Buffer) foo() { // ERROR "\(\*Buffer\).foo b does not escape$"
@@ -1609,6 +1610,11 @@ func (b *Buffer) foo() { // ERROR "\(\*Buffer\).foo b does not escape$"
 
 func (b *Buffer) bar() { // ERROR "leaking param: b$"
 	b.buf1 = b.arr[1:2] // ERROR "b.arr escapes to heap$"
+}
+
+func (b *Buffer) arrayPtr() { // ERROR "\(\*Buffer\).arrayPtr b does not escape"
+	b.buf1 = b.arrPtr[1:2]   // ERROR "\(\*Buffer\).arrayPtr ignoring self-assignment to b.buf1"
+	b.buf1 = b.arrPtr[1:2:3] // ERROR "\(\*Buffer\).arrayPtr ignoring self-assignment to b.buf1"
 }
 
 func (b *Buffer) baz() { // ERROR "\(\*Buffer\).baz b does not escape$"
