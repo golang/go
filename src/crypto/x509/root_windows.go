@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"context"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -263,7 +265,7 @@ func loadSystemRoots() (*CertPool, error) {
 		}
 	}
 
-	wuCerts, _, err := downloadWUCerts()
+	wuCerts, _, err := downloadWUCerts(time.Second * 15)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +301,7 @@ func windowsX509Store(storeName string, storeLocation string) (*CertPool, error)
 	return roots, nil
 }
 
-func downloadWUCerts() (*CertPool, *CertPool, error) {
+func downloadWUCerts(timeout time.Duration) (*CertPool, *CertPool, error) {
 	// directory for allowed certificates
 	wuAllowedDir, err := ioutil.TempDir("", "go_x509_certs_wuauth")
 	if err != nil {
@@ -314,8 +316,18 @@ func downloadWUCerts() (*CertPool, *CertPool, error) {
 	}
 	defer os.RemoveAll(wuDisallowedDir)
 
+	// context to set timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	// certutil -f -syncWithWU download certificates from Windows Update
-	cmdOut, err := exec.Command("certutil", "-f", "-syncWithWU", wuAllowedDir).Output()
+	cmdOut, err := exec.CommandContext(ctx, "certutil", "-f", "-syncWithWU", wuAllowedDir).Output()
+
+	// check if timed out
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, nil, errors.New("crypto/x509: could not download certificates, process timed out")
+	}
+
 	if err != nil {
 		return nil, nil, errors.New(string(cmdOut))
 	}
