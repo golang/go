@@ -11,6 +11,8 @@
 
 package escape
 
+func zero() int { return 0 }
+
 var sink interface{}
 
 // in -> out
@@ -60,6 +62,12 @@ func caller2b() {
 
 func paramArraySelfAssign(p *PairOfPairs) { // ERROR "p does not escape"
 	p.pairs[0] = p.pairs[1] // ERROR "ignoring self-assignment in p.pairs\[0\] = p.pairs\[1\]"
+}
+
+func paramArraySelfAssignUnsafeIndex(p *PairOfPairs) { // ERROR "leaking param content: p"
+	// Function call inside index disables self-assignment case to trigger.
+	p.pairs[zero()] = p.pairs[1]
+	p.pairs[zero()+1] = p.pairs[1]
 }
 
 type PairOfPairs struct {

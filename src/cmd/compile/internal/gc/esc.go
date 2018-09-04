@@ -696,9 +696,9 @@ func (e *EscState) mayAffectMemory(n *Node) bool {
 	case OCONV:
 		return e.mayAffectMemory(n.Left)
 	case OINDEX:
-		return e.mayAffectMemory(n.Left) && e.mayAffectMemory(n.Right)
+		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
 	case OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
-		return e.mayAffectMemory(n.Left) && e.mayAffectMemory(n.Right)
+		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
 	case ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
 		return e.mayAffectMemory(n.Left)
 	default:
