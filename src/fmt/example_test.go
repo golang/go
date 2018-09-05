@@ -68,6 +68,17 @@ func ExampleSprintln() {
 	// "Today is 30 Aug\n"
 }
 
+func ExampleFprint() {
+	n, err := fmt.Fprint(os.Stdout, "there", "are", 99, "gophers", "\n")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(n)
+	// Output:
+	// thereare99gophers
+	// 18
+}
+
 func ExampleFprintln() {
 	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
 	if err != nil {
