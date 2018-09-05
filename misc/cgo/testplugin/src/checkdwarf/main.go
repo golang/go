@@ -71,13 +71,13 @@ func main() {
 	}
 
 	if exe == nil {
-		fmt.Fprintf(os.Stderr, "could not open %s", exePath)
+		fmt.Fprintf(os.Stderr, "could not open %s\n", exePath)
 		os.Exit(1)
 	}
 
 	data, err := exe.DWARF()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error opening DWARF: %v", err)
+		fmt.Fprintf(os.Stderr, "%s: error opening DWARF: %v\n", exePath, err)
 		os.Exit(1)
 	}
 
@@ -85,7 +85,7 @@ func main() {
 	for {
 		e, err := rdr.Next()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error reading DWARF: %v", err)
+			fmt.Fprintf(os.Stderr, "%s: error reading DWARF: %v\n", exePath, err)
 			os.Exit(1)
 		}
 		if e == nil {
@@ -101,6 +101,6 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "no entry with a name ending in %q was found", dieSuffix)
+	fmt.Fprintf(os.Stderr, "%s: no entry with a name ending in %q was found\n", exePath, dieSuffix)
 	os.Exit(1)
 }
