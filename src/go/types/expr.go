@@ -1156,15 +1156,20 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				goto Error
 			}
 			n := check.indexedElts(e.Elts, utyp.elem, utyp.len)
-			// If we have an "open" [...]T array, set the length now that we know it
-			// and record the type for [...] (usually done by check.typExpr which is
-			// not called for [...]).
+			// If we have an array of unknown length (usually [...]T arrays, but also
+			// arrays [n]T where n is invalid) set the length now that we know it and
+			// record the type for the array (usually done by check.typ which is not
+			// called for [...]T). We handle [...]T arrays and arrays with invalid
+			// length the same here because it makes sense to "guess" the length for
+			// the latter if we have a composite literal; e.g. for [n]int{1, 2, 3}
+			// where n is invalid for some reason, it seems fair to assume it should
+			// be 3 (see also Checked.arrayLength and issue #27346).
 			if utyp.len < 0 {
 				utyp.len = n
-				// e.Type may be missing in case of errors.
-				// In "map[string][...]int{"": {1, 2, 3}}},
-				// an error is reported for the outer literal,
-				// then [...]int is used as a hint for the inner literal.
+				// e.Type is missing if we have a composite literal element
+				// that is itself a composite literal with omitted type. In
+				// that case there is nothing to record (there is no type in
+				// the source at that point).
 				if e.Type != nil {
 					check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
 				}

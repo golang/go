@@ -294,3 +294,11 @@ type registry struct {
 type allocator struct {
 	_ [int(preloadLimit)]int
 }
+
+// Test that we don't crash when type-checking composite literals
+// containing errors in the type.
+var issue27346 = [][n /* ERROR undeclared */ ]int{
+	0: {},
+}
+
+var issue22467 = map[int][... /* ERROR invalid use of ... */ ]int{0: {}}
