@@ -19,6 +19,9 @@ import (
 
 func TestSplice(t *testing.T) {
 	t.Run("tcp-to-tcp", func(t *testing.T) { testSplice(t, "tcp", "tcp") })
+	if !testableNetwork("unixgram") {
+		t.Skip("skipping unix-to-tcp tests")
+	}
 	t.Run("unix-to-tcp", func(t *testing.T) { testSplice(t, "unix", "tcp") })
 }
 
