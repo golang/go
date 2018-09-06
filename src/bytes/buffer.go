@@ -12,13 +12,15 @@ import (
 	"unicode/utf8"
 )
 
+// smallBufferSize is an initial allocation minimal capacity.
+const smallBufferSize = 64
+
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-	buf       []byte   // contents are the bytes buf[off : len(buf)]
-	off       int      // read at &buf[off], write at &buf[len(buf)]
-	bootstrap [64]byte // memory to hold first slice; helps small buffers avoid allocation.
-	lastRead  readOp   // last read operation, so that Unread* can work correctly.
+	buf      []byte // contents are the bytes buf[off : len(buf)]
+	off      int    // read at &buf[off], write at &buf[len(buf)]
+	lastRead readOp // last read operation, so that Unread* can work correctly.
 
 	// FIXME: it would be advisable to align Buffer to cachelines to avoid false
 	// sharing.
@@ -125,9 +127,8 @@ func (b *Buffer) grow(n int) int {
 	if i, ok := b.tryGrowByReslice(n); ok {
 		return i
 	}
-	// Check if we can make use of bootstrap array.
-	if b.buf == nil && n <= len(b.bootstrap) {
-		b.buf = b.bootstrap[:n]
+	if b.buf == nil && n <= smallBufferSize {
+		b.buf = make([]byte, n, smallBufferSize)
 		return 0
 	}
 	c := cap(b.buf)
