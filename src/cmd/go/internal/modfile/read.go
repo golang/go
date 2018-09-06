@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -88,6 +89,131 @@ func (x *FileSyntax) Span() (start, end Position) {
 	return start, end
 }
 
+func (x *FileSyntax) addLine(hint Expr, tokens ...string) *Line {
+	if hint == nil {
+		// If no hint given, add to the last statement of the given type.
+	Loop:
+		for i := len(x.Stmt) - 1; i >= 0; i-- {
+			stmt := x.Stmt[i]
+			switch stmt := stmt.(type) {
+			case *Line:
+				if stmt.Token != nil && stmt.Token[0] == tokens[0] {
+					hint = stmt
+					break Loop
+				}
+			case *LineBlock:
+				if stmt.Token[0] == tokens[0] {
+					hint = stmt
+					break Loop
+				}
+			}
+		}
+	}
+
+	if hint != nil {
+		for i, stmt := range x.Stmt {
+			switch stmt := stmt.(type) {
+			case *Line:
+				if stmt == hint {
+					// Convert line to line block.
+					stmt.InBlock = true
+					block := &LineBlock{Token: stmt.Token[:1], Line: []*Line{stmt}}
+					stmt.Token = stmt.Token[1:]
+					x.Stmt[i] = block
+					new := &Line{Token: tokens[1:], InBlock: true}
+					block.Line = append(block.Line, new)
+					return new
+				}
+			case *LineBlock:
+				if stmt == hint {
+					new := &Line{Token: tokens[1:], InBlock: true}
+					stmt.Line = append(stmt.Line, new)
+					return new
+				}
+				for j, line := range stmt.Line {
+					if line == hint {
+						// Add new line after hint.
+						stmt.Line = append(stmt.Line, nil)
+						copy(stmt.Line[j+2:], stmt.Line[j+1:])
+						new := &Line{Token: tokens[1:], InBlock: true}
+						stmt.Line[j+1] = new
+						return new
+					}
+				}
+			}
+		}
+	}
+
+	new := &Line{Token: tokens}
+	x.Stmt = append(x.Stmt, new)
+	return new
+}
+
+func (x *FileSyntax) updateLine(line *Line, tokens ...string) {
+	if line.InBlock {
+		tokens = tokens[1:]
+	}
+	line.Token = tokens
+}
+
+func (x *FileSyntax) removeLine(line *Line) {
+	line.Token = nil
+}
+
+// Cleanup cleans up the file syntax x after any edit operations.
+// To avoid quadratic behavior, removeLine marks the line as dead
+// by setting line.Token = nil but does not remove it from the slice
+// in which it appears. After edits have all been indicated,
+// calling Cleanup cleans out the dead lines.
+func (x *FileSyntax) Cleanup() {
+	w := 0
+	for _, stmt := range x.Stmt {
+		switch stmt := stmt.(type) {
+		case *Line:
+			if stmt.Token == nil {
+				continue
+			}
+		case *LineBlock:
+			ww := 0
+			for _, line := range stmt.Line {
+				if line.Token != nil {
+					stmt.Line[ww] = line
+					ww++
+				}
+			}
+			if ww == 0 {
+				continue
+			}
+			if ww == 1 {
+				// Collapse block into single line.
+				line := &Line{
+					Comments: Comments{
+						Before: commentsAdd(stmt.Before, stmt.Line[0].Before),
+						Suffix: commentsAdd(stmt.Line[0].Suffix, stmt.Suffix),
+						After:  commentsAdd(stmt.Line[0].After, stmt.After),
+					},
+					Token: stringsAdd(stmt.Token, stmt.Line[0].Token),
+				}
+				x.Stmt[w] = line
+				w++
+				continue
+			}
+			stmt.Line = stmt.Line[:ww]
+		}
+		x.Stmt[w] = stmt
+		w++
+	}
+	x.Stmt = x.Stmt[:w]
+}
+
+func commentsAdd(x, y []Comment) []Comment {
+	return append(x[:len(x):len(x)], y...)
+}
+
+func stringsAdd(x, y []string) []string {
+	return append(x[:len(x):len(x)], y...)
+}
+
 // A CommentBlock represents a top-level block of comments separate
 // from any rule.
 type CommentBlock struct {
@@ -102,9 +228,10 @@ func (x *CommentBlock) Span() (start, end Position) {
 // A Line is a single line of tokens.
 type Line struct {
 	Comments
-	Start Position
-	Token []string
-	End   Position
+	Start   Position
+	Token   []string
+	InBlock bool
+	End     Position
 }
 
 func (x *Line) Span() (start, end Position) {
@@ -679,9 +806,10 @@ func (in *input) parseLine(sym *symType) *Line {
 		switch tok {
 		case '\n', _EOF, _EOL:
 			return &Line{
-				Start: start,
-				Token: token,
-				End:   end,
+				Start:   start,
+				Token:   token,
+				End:     end,
+				InBlock: true,
 			}
 		default:
 			token = append(token, sym.text)
@@ -697,3 +825,45 @@ const (
 	_STRING
 	_COMMENT
 )
+
+var (
+	slashSlash = []byte("//")
+	moduleStr  = []byte("module")
+)
+
+// ModulePath returns the module path from the gomod file text.
+// If it cannot find a module path, it returns an empty string.
+// It is tolerant of unrelated problems in the go.mod file.
+func ModulePath(mod []byte) string {
+	for len(mod) > 0 {
+		line := mod
+		mod = nil
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, mod = line[:i], line[i+1:]
+		}
+		if i := bytes.Index(line, slashSlash); i >= 0 {
+			line = line[:i]
+		}
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, moduleStr) {
+			continue
+		}
+		line = line[len(moduleStr):]
+		n := len(line)
+		line = bytes.TrimSpace(line)
+		if len(line) == n || len(line) == 0 {
+			continue
+		}
+
+		if line[0] == '"' || line[0] == '`' {
+			p, err := strconv.Unquote(string(line))
+			if err != nil {
+				return "" // malformed quoted string or multiline module path
+			}
+			return p
+		}
+
+		return string(line)
+	}
+	return "" // missing module path
+}

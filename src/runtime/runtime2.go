@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -506,8 +507,10 @@ type p struct {
 	runnext guintptr
 
 	// Available G's (status == Gdead)
-	gfree    *g
-	gfreecnt int32
+	gFree struct {
+		gList
+		n int32
+	}
 
 	sudogcache []*sudog
 	sudogbuf   [128]*sudog
@@ -546,7 +549,7 @@ type p struct {
 
 	runSafePointFn uint32 // if 1, run sched.safePointFn at next safe point
 
-	pad [sys.CacheLineSize]byte
+	pad cpu.CacheLinePad
 }
 
 type schedt struct {
@@ -574,15 +577,16 @@ type schedt struct {
 	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
 
 	// Global runnable queue.
-	runqhead guintptr
-	runqtail guintptr
+	runq     gQueue
 	runqsize int32
 
 	// Global cache of dead G's.
-	gflock       mutex
-	gfreeStack   *g
-	gfreeNoStack *g
-	ngfree       int32
+	gFree struct {
+		lock    mutex
+		stack   gList // Gs with stacks
+		noStack gList // Gs without stacks
+		n       int32
+	}
 
 	// Central cache of sudog structs.
 	sudoglock  mutex
@@ -833,20 +837,18 @@ var (
 	newprocs   int32
 
 	// Information about what cpu features are available.
-	// Set on startup in runtime.cpuinit.
 	// Packages outside the runtime should not use these
 	// as they are not an external api.
-	// TODO: deprecate these; use internal/cpu directly.
+	// Set on startup in asm_{386,amd64,amd64p32}.s
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
 
 	// Set in runtime.cpuinit.
-	support_erms         bool
-	support_popcnt       bool
-	support_sse2         bool
-	support_sse41        bool
-	arm64_support_atomics      bool
+	// TODO: deprecate these; use internal/cpu directly.
+	support_popcnt        bool
+	support_sse41         bool
+	arm64_support_atomics bool
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link

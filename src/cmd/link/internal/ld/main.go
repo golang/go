@@ -34,6 +34,7 @@ import (
 	"bufio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"flag"
 	"log"
 	"os"
@@ -144,6 +145,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 
+	if objabi.Fieldtrack_enabled != 0 {
+		ctxt.Reachparent = make(map[*sym.Symbol]*sym.Symbol)
+	}
+
 	startProfile()
 	if ctxt.BuildMode == BuildModeUnset {
 		ctxt.BuildMode = BuildModeExe
@@ -203,9 +208,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	ctxt.dostrdata()
 	deadcode(ctxt)
+	dwarfGenerateDebugInfo(ctxt)
 	if objabi.Fieldtrack_enabled != 0 {
 		fieldtrack(ctxt)
 	}
+	ctxt.mangleTypeSym()
 	ctxt.callgraph()
 
 	ctxt.doelf()

@@ -37,13 +37,18 @@ type Config struct {
 	HTTPSProxy string
 
 	// NoProxy represents the NO_PROXY or no_proxy environment
-	// variable. It specifies URLs that should be excluded from
-	// proxying as a comma-separated list of domain names or a
-	// single asterisk (*) to indicate that no proxying should be
-	// done. A domain name matches that name and all subdomains. A
-	// domain name with a leading "." matches subdomains only. For
-	// example "foo.com" matches "foo.com" and "bar.foo.com";
-	// ".y.com" matches "x.y.com" but not "y.com".
+	// variable. It specifies a string that contains comma-separated values
+	// specifying hosts that should be excluded from proxying. Each value is
+	// represented by an IP address prefix (1.2.3.4), an IP address prefix in
+	// CIDR notation (1.2.3.4/8), a domain name, or a special DNS label (*).
+	// An IP address prefix and domain name can also include a literal port
+	// number (1.2.3.4:80).
+	// A domain name matches that name and all subdomains. A domain name with
+	// a leading "." matches subdomains only. For example "foo.com" matches
+	// "foo.com" and "bar.foo.com"; ".y.com" matches "x.y.com" but not "y.com".
+	// A single asterisk (*) indicates that no proxying should be done.
+	// A best effort is made to parse the string and errors are
+	// ignored.
 	NoProxy string
 
 	// CGI holds whether the current process is running
@@ -53,6 +58,26 @@ type Config struct {
 	// when HTTPProxy applies, because a client could be
 	// setting HTTP_PROXY maliciously. See https://golang.org/s/cgihttpproxy.
 	CGI bool
+}
+
+// config holds the parsed configuration for HTTP proxy settings.
+type config struct {
+	// Config represents the original configuration as defined above.
+	Config
+
+	// httpsProxy is the parsed URL of the HTTPSProxy if defined.
+	httpsProxy *url.URL
+
+	// httpProxy is the parsed URL of the HTTPProxy if defined.
+	httpProxy *url.URL
+
+	// ipMatchers represent all values in the NoProxy that are IP address
+	// prefixes or an IP address in CIDR notation.
+	ipMatchers []matcher
+
+	// domainMatchers represent all values in the NoProxy that are a domain
+	// name or hostname & domain name
+	domainMatchers []matcher
 }
 
 // FromEnvironment returns a Config instance populated from the
@@ -92,29 +117,40 @@ func getEnvAny(names ...string) string {
 // As a special case, if req.URL.Host is "localhost" (with or without a
 // port number), then a nil URL and nil error will be returned.
 func (cfg *Config) ProxyFunc() func(reqURL *url.URL) (*url.URL, error) {
-	// Prevent Config changes from affecting the function calculation.
-	// TODO Preprocess proxy settings for more efficient evaluation.
-	cfg1 := *cfg
+	// Preprocess the Config settings for more efficient evaluation.
+	cfg1 := &config{
+		Config: *cfg,
+	}
+	cfg1.init()
 	return cfg1.proxyForURL
 }
 
-func (cfg *Config) proxyForURL(reqURL *url.URL) (*url.URL, error) {
-	var proxy string
+func (cfg *config) proxyForURL(reqURL *url.URL) (*url.URL, error) {
+	var proxy *url.URL
 	if reqURL.Scheme == "https" {
-		proxy = cfg.HTTPSProxy
+		proxy = cfg.httpsProxy
 	}
-	if proxy == "" {
-		proxy = cfg.HTTPProxy
-		if proxy != "" && cfg.CGI {
+	if proxy == nil {
+		proxy = cfg.httpProxy
+		if proxy != nil && cfg.CGI {
 			return nil, errors.New("refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")
 		}
 	}
-	if proxy == "" {
+	if proxy == nil {
 		return nil, nil
 	}
 	if !cfg.useProxy(canonicalAddr(reqURL)) {
 		return nil, nil
 	}
+
+	return proxy, nil
+}
+
+func parseProxy(proxy string) (*url.URL, error) {
+	if proxy == "" {
+		return nil, nil
+	}
+
 	proxyURL, err := url.Parse(proxy)
 	if err != nil ||
 		(proxyURL.Scheme != "http" &&
@@ -136,58 +172,105 @@ func (cfg *Config) proxyForURL(reqURL *url.URL) (*url.URL, error) {
 // useProxy reports whether requests to addr should use a proxy,
 // according to the NO_PROXY or no_proxy environment variable.
 // addr is always a canonicalAddr with a host and port.
-func (cfg *Config) useProxy(addr string) bool {
+func (cfg *config) useProxy(addr string) bool {
 	if len(addr) == 0 {
 		return true
 	}
-	host, _, err := net.SplitHostPort(addr)
+	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return false
 	}
 	if host == "localhost" {
 		return false
 	}
-	if ip := net.ParseIP(host); ip != nil {
+	ip := net.ParseIP(host)
+	if ip != nil {
 		if ip.IsLoopback() {
 			return false
 		}
 	}
 
-	noProxy := cfg.NoProxy
-	if noProxy == "*" {
-		return false
-	}
+	addr = strings.ToLower(strings.TrimSpace(host))
 
-	addr = strings.ToLower(strings.TrimSpace(addr))
-	if hasPort(addr) {
-		addr = addr[:strings.LastIndex(addr, ":")]
+	if ip != nil {
+		for _, m := range cfg.ipMatchers {
+			if m.match(addr, port, ip) {
+				return false
+			}
+		}
 	}
-
-	for _, p := range strings.Split(noProxy, ",") {
-		p = strings.ToLower(strings.TrimSpace(p))
-		if len(p) == 0 {
-			continue
-		}
-		if hasPort(p) {
-			p = p[:strings.LastIndex(p, ":")]
-		}
-		if addr == p {
-			return false
-		}
-		if len(p) == 0 {
-			// There is no host part, likely the entry is malformed; ignore.
-			continue
-		}
-		if p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:]) {
-			// no_proxy ".foo.com" matches "bar.foo.com" or "foo.com"
-			return false
-		}
-		if p[0] != '.' && strings.HasSuffix(addr, p) && addr[len(addr)-len(p)-1] == '.' {
-			// no_proxy "foo.com" matches "bar.foo.com"
+	for _, m := range cfg.domainMatchers {
+		if m.match(addr, port, ip) {
 			return false
 		}
 	}
 	return true
+}
+
+func (c *config) init() {
+	if parsed, err := parseProxy(c.HTTPProxy); err == nil {
+		c.httpProxy = parsed
+	}
+	if parsed, err := parseProxy(c.HTTPSProxy); err == nil {
+		c.httpsProxy = parsed
+	}
+
+	for _, p := range strings.Split(c.NoProxy, ",") {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if len(p) == 0 {
+			continue
+		}
+
+		if p == "*" {
+			c.ipMatchers = []matcher{allMatch{}}
+			c.domainMatchers = []matcher{allMatch{}}
+			return
+		}
+
+		// IPv4/CIDR, IPv6/CIDR
+		if _, pnet, err := net.ParseCIDR(p); err == nil {
+			c.ipMatchers = append(c.ipMatchers, cidrMatch{cidr: pnet})
+			continue
+		}
+
+		// IPv4:port, [IPv6]:port
+		phost, pport, err := net.SplitHostPort(p)
+		if err == nil {
+			if len(phost) == 0 {
+				// There is no host part, likely the entry is malformed; ignore.
+				continue
+			}
+			if phost[0] == '[' && phost[len(phost)-1] == ']' {
+				phost = phost[1 : len(phost)-1]
+			}
+		} else {
+			phost = p
+		}
+		// IPv4, IPv6
+		if pip := net.ParseIP(phost); pip != nil {
+			c.ipMatchers = append(c.ipMatchers, ipMatch{ip: pip, port: pport})
+			continue
+		}
+
+		if len(phost) == 0 {
+			// There is no host part, likely the entry is malformed; ignore.
+			continue
+		}
+
+		// domain.com or domain.com:80
+		// foo.com matches bar.foo.com
+		// .domain.com or .domain.com:port
+		// *.domain.com or *.domain.com:port
+		if strings.HasPrefix(phost, "*.") {
+			phost = phost[1:]
+		}
+		matchHost := false
+		if phost[0] != '.' {
+			matchHost = true
+			phost = "." + phost
+		}
+		c.domainMatchers = append(c.domainMatchers, domainMatch{host: phost, port: pport, matchHost: matchHost})
+	}
 }
 
 var portMap = map[string]string{
@@ -236,4 +319,52 @@ func isASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+// matcher represents the matching rule for a given value in the NO_PROXY list
+type matcher interface {
+	// match returns true if the host and optional port or ip and optional port
+	// are allowed
+	match(host, port string, ip net.IP) bool
+}
+
+// allMatch matches on all possible inputs
+type allMatch struct{}
+
+func (a allMatch) match(host, port string, ip net.IP) bool {
+	return true
+}
+
+type cidrMatch struct {
+	cidr *net.IPNet
+}
+
+func (m cidrMatch) match(host, port string, ip net.IP) bool {
+	return m.cidr.Contains(ip)
+}
+
+type ipMatch struct {
+	ip   net.IP
+	port string
+}
+
+func (m ipMatch) match(host, port string, ip net.IP) bool {
+	if m.ip.Equal(ip) {
+		return m.port == "" || m.port == port
+	}
+	return false
+}
+
+type domainMatch struct {
+	host string
+	port string
+
+	matchHost bool
+}
+
+func (m domainMatch) match(host, port string, ip net.IP) bool {
+	if strings.HasSuffix(host, m.host) || (m.matchHost && host == m.host[1:]) {
+		return m.port == "" || m.port == port
+	}
+	return false
 }

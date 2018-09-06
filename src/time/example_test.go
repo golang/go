@@ -74,17 +74,17 @@ func ExampleDuration_Truncate() {
 	}
 
 	for _, t := range trunc {
-		fmt.Printf("t.Truncate(%6s) = %s\n", t, d.Truncate(t).String())
+		fmt.Printf("d.Truncate(%6s) = %s\n", t, d.Truncate(t).String())
 	}
 	// Output:
-	// t.Truncate(   1ns) = 1h15m30.918273645s
-	// t.Truncate(   1µs) = 1h15m30.918273s
-	// t.Truncate(   1ms) = 1h15m30.918s
-	// t.Truncate(    1s) = 1h15m30s
-	// t.Truncate(    2s) = 1h15m30s
-	// t.Truncate(  1m0s) = 1h15m0s
-	// t.Truncate( 10m0s) = 1h10m0s
-	// t.Truncate(1h0m0s) = 1h0m0s
+	// d.Truncate(   1ns) = 1h15m30.918273645s
+	// d.Truncate(   1µs) = 1h15m30.918273s
+	// d.Truncate(   1ms) = 1h15m30.918s
+	// d.Truncate(    1s) = 1h15m30s
+	// d.Truncate(    2s) = 1h15m30s
+	// d.Truncate(  1m0s) = 1h15m0s
+	// d.Truncate( 10m0s) = 1h10m0s
+	// d.Truncate(1h0m0s) = 1h0m0s
 }
 
 func ExampleParseDuration() {
@@ -427,6 +427,17 @@ func ExampleTime_Truncate() {
 	// t.Truncate(   2s) = 12:15:30
 	// t.Truncate( 1m0s) = 12:15:00
 	// t.Truncate(10m0s) = 12:10:00
+}
+
+func ExampleLoadLocation() {
+	location, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		panic(err)
+	}
+
+	timeInUTC := time.Date(2018, 8, 30, 12, 0, 0, 0, time.UTC)
+	fmt.Println(timeInUTC.In(location))
+	// Output: 2018-08-30 05:00:00 -0700 PDT
 }
 
 func ExampleLocation() {

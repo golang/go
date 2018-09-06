@@ -7,17 +7,18 @@ package modconv
 import (
 	"strings"
 
+	"cmd/go/internal/modfile"
 	"cmd/go/internal/module"
 )
 
-func ParseGLOCKFILE(file string, data []byte) ([]module.Version, error) {
-	var list []module.Version
+func ParseGLOCKFILE(file string, data []byte) (*modfile.File, error) {
+	mf := new(modfile.File)
 	for lineno, line := range strings.Split(string(data), "\n") {
 		lineno++
 		f := strings.Fields(line)
 		if len(f) >= 2 && f[0] != "cmd" {
-			list = append(list, module.Version{Path: f[0], Version: f[1]})
+			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[1]}})
 		}
 	}
-	return list, nil
+	return mf, nil
 }

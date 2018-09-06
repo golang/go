@@ -48,7 +48,7 @@ func TestConvertMemProfile(t *testing.T) {
 				{ID: 3, Mapping: map2, Address: addr2 + 1},
 				{ID: 4, Mapping: map2, Address: addr2 + 2},
 			},
-			NumLabel: map[string][]int64{"bytes": {829411}},
+			NumLabel: map[string][]int64{"bytes": {512 * 1024}},
 		},
 		{
 			Value: []int64{1, 829411, 0, 0},
@@ -57,7 +57,7 @@ func TestConvertMemProfile(t *testing.T) {
 				{ID: 6, Mapping: map1, Address: addr1 + 2},
 				{ID: 7, Mapping: map2, Address: addr2 + 3},
 			},
-			NumLabel: map[string][]int64{"bytes": {829411}},
+			NumLabel: map[string][]int64{"bytes": {512 * 1024}},
 		},
 	}
 	for _, tc := range []struct {

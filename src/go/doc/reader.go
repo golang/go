@@ -7,7 +7,6 @@ package doc
 import (
 	"go/ast"
 	"go/token"
-	"regexp"
 	"sort"
 	"strconv"
 )
@@ -425,9 +424,9 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 }
 
 var (
-	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`                    // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
-	noteMarkerRx  = regexp.MustCompile(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
-	noteCommentRx = regexp.MustCompile(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
+	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`           // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
+	noteMarkerRx  = newLazyRE(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
+	noteCommentRx = newLazyRE(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
 )
 
 // readNote collects a single note from a sequence of comments.

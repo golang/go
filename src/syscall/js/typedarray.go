@@ -41,7 +41,6 @@ var (
 )
 
 // TypedArrayOf returns a JavaScript typed array backed by the slice's underlying array.
-// It can be passed to functions of this package that accept interface{}, for example Value.Set and Value.Call.
 //
 // The supported types are []int8, []int16, []int32, []uint8, []uint16, []uint32, []float32 and []float64.
 // Passing an unsupported value causes a panic.

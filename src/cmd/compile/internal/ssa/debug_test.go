@@ -143,14 +143,21 @@ func TestNexting(t *testing.T) {
 		optFlags += " -l"
 	}
 
-	subTest(t, debugger+"-dbg", "hist", dbgFlags)
-	subTest(t, debugger+"-dbg", "scopes", dbgFlags)
-	subTest(t, debugger+"-dbg", "i22558", dbgFlags)
+	moreargs := []string{}
+	if !*useDelve && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		// gdb and lldb on Darwin do not deal with compressed dwarf.
+		// also, Windows.
+		moreargs = append(moreargs, "-ldflags=-compressdwarf=false")
+	}
 
-	subTest(t, debugger+"-dbg-race", "i22600", dbgFlags, "-race")
+	subTest(t, debugger+"-dbg", "hist", dbgFlags, moreargs...)
+	subTest(t, debugger+"-dbg", "scopes", dbgFlags, moreargs...)
+	subTest(t, debugger+"-dbg", "i22558", dbgFlags, moreargs...)
 
-	optSubTest(t, debugger+"-opt", "hist", optFlags)
-	optSubTest(t, debugger+"-opt", "scopes", optFlags)
+	subTest(t, debugger+"-dbg-race", "i22600", dbgFlags, append(moreargs, "-race")...)
+
+	optSubTest(t, debugger+"-opt", "hist", optFlags, moreargs...)
+	optSubTest(t, debugger+"-opt", "scopes", optFlags, moreargs...)
 }
 
 // subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,

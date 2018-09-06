@@ -502,8 +502,6 @@ func escAnalyze(all []*Node, recursive bool) {
 		}
 	}
 
-	// print("escapes: %d e.dsts, %d edges\n", e.dstcount, e.edgecount);
-
 	// visit the upstream of each dst, mark address nodes with
 	// addrescapes, mark parameters unsafe
 	escapes := make([]uint16, len(e.dsts))
@@ -551,7 +549,6 @@ func escAnalyze(all []*Node, recursive bool) {
 }
 
 func (e *EscState) escfunc(fn *Node) {
-	//	print("escfunc %N %s\n", fn.Func.Nname, e.recursive?"(recursive)":"");
 	if fn.Esc != EscFuncPlanned {
 		Fatalf("repeat escfunc %v", fn.Func.Nname)
 	}
@@ -630,8 +627,6 @@ func (e *EscState) escloopdepth(n *Node) {
 
 		// Walk will complain about this label being already defined, but that's not until
 		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
-		// if(n.Left.Sym.Label != nil)
-		//	fatal("escape analysis messed up analyzing label: %+N", n);
 		n.Left.Sym.Label = asTypesNode(&nonlooping)
 
 	case OGOTO:
@@ -656,6 +651,58 @@ func (e *EscState) escloopdepth(n *Node) {
 func (e *EscState) esclist(l Nodes, parent *Node) {
 	for _, n := range l.Slice() {
 		e.esc(n, parent)
+	}
+}
+
+// isSelfAssign reports whether assignment from src to dst can
+// be ignored by the escape analysis as it's effectively a self-assignment.
+func (e *EscState) isSelfAssign(dst, src *Node) bool {
+	if dst == nil || src == nil || dst.Op != src.Op {
+		return false
+	}
+
+	switch dst.Op {
+	case ODOT, ODOTPTR:
+		// Safe trailing accessors that are permitted to differ.
+	case OINDEX:
+		if e.mayAffectMemory(dst.Right) || e.mayAffectMemory(src.Right) {
+			return false
+		}
+	default:
+		return false
+	}
+
+	// The expression prefix must be both "safe" and identical.
+	return samesafeexpr(dst.Left, src.Left)
+}
+
+// mayAffectMemory reports whether n evaluation may affect program memory state.
+// If expression can't affect it, then it can be safely ignored by the escape analysis.
+func (e *EscState) mayAffectMemory(n *Node) bool {
+	// We may want to use "memory safe" black list instead of general
+	// "side-effect free", which can include all calls and other ops
+	// that can affect allocate or change global state.
+	// It's safer to start from a whitelist for now.
+	//
+	// We're ignoring things like division by zero, index out of range,
+	// and nil pointer dereference here.
+	switch n.Op {
+	case ONAME, OCLOSUREVAR, OLITERAL:
+		return false
+	case ODOT, ODOTPTR:
+		return e.mayAffectMemory(n.Left)
+	case OIND, OCONVNOP:
+		return e.mayAffectMemory(n.Left)
+	case OCONV:
+		return e.mayAffectMemory(n.Left)
+	case OINDEX:
+		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
+	case OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
+		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
+	case ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
+		return e.mayAffectMemory(n.Left)
+	default:
+		return true
 	}
 }
 
@@ -756,10 +803,6 @@ opSwitch:
 			e.loopdepth++
 		}
 
-		// See case OLABEL in escloopdepth above
-		// else if(n.Left.Sym.Label == nil)
-		//	fatal("escape analysis missed or messed up a label: %+N", n);
-
 		n.Left.Sym.Label = nil
 
 	case ORANGE:
@@ -822,13 +865,30 @@ opSwitch:
 			break
 		}
 
+		// Also skip trivial assignments that assign back to the same object.
+		//
+		// It covers these cases:
+		//	val.x = val.y
+		//	val.x[i] = val.y[j]
+		//	val.x1.x2 = val.x1.y2
+		//	... etc
+		//
+		// These assignments do not change assigned object lifetime.
+		if e.isSelfAssign(n.Left, n.Right) {
+			if Debug['m'] != 0 {
+				Warnl(n.Pos, "%v ignoring self-assignment in %S", e.curfnSym(n), n)
+			}
+			break
+		}
+
 		e.escassign(n.Left, n.Right, e.stepAssignWhere(nil, nil, "", n))
 
 	case OAS2: // x,y = a,b
 		if n.List.Len() == n.Rlist.Len() {
 			rs := n.Rlist.Slice()
+			where := n
 			for i, n := range n.List.Slice() {
-				e.escassignWhyWhere(n, rs[i], "assign-pair", n)
+				e.escassignWhyWhere(n, rs[i], "assign-pair", where)
 			}
 		}
 
@@ -869,11 +929,12 @@ opSwitch:
 		// esccall already done on n.Rlist.First(). tie it's Retval to n.List
 	case OAS2FUNC: // x,y = f()
 		rs := e.nodeEscState(n.Rlist.First()).Retval.Slice()
+		where := n
 		for i, n := range n.List.Slice() {
 			if i >= len(rs) {
 				break
 			}
-			e.escassignWhyWhere(n, rs[i], "assign-pair-func-call", n)
+			e.escassignWhyWhere(n, rs[i], "assign-pair-func-call", where)
 		}
 		if n.List.Len() != len(rs) {
 			Fatalf("esc oas2func")
@@ -1561,12 +1622,11 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	cE := e.nodeEscState(call)
 	if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC &&
 		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+		// function in same mutually recursive group. Incorporate into flow graph.
 		if Debug['m'] > 3 {
 			fmt.Printf("%v::esccall:: %S in recursive group\n", linestr(lineno), call)
 		}
 
-		// function in same mutually recursive group. Incorporate into flow graph.
-		//		print("esc local fn: %N\n", fn.Func.Ntype);
 		if fn.Name.Defn.Esc == EscFuncUnknown || cE.Retval.Len() != 0 {
 			Fatalf("graph inconsistency")
 		}
@@ -1628,8 +1688,6 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 
 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
 	e.initEscRetval(call, fntype)
-
-	//	print("esc analyzed fn: %#N (%+T) returning (%+H)\n", fn, fntype, e.nodeEscState(call).Retval);
 
 	// Receiver.
 	if call.Op != OCALLFUNC {

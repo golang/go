@@ -89,4 +89,9 @@ TEXT errors(SB),$0
 	CSEL	LT, R1, R2                                       // ERROR "illegal combination"
 	AND	$0x22220000, R2, RSP                             // ERROR "illegal combination"
 	ANDS	$0x22220000, R2, RSP                             // ERROR "illegal combination"
+	LDP	(R0), (F0, F1)                                   // ERROR "invalid register pair"
+	LDP	(R0), (R3, ZR)                                   // ERROR "invalid register pair"
+	STP	(F2, F3), (R0)                                   // ERROR "invalid register pair"
+	FLDPD	(R0), (R1, R2)                                   // ERROR "invalid register pair"
+	FSTPD	(R1, R2), (R0)                                   // ERROR "invalid register pair"
 	RET

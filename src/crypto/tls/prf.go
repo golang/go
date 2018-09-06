@@ -347,20 +347,20 @@ func (h *finishedHash) discardHandshakeBuffer() {
 }
 
 // noExportedKeyingMaterial is used as a value of
-// ConnectionState.ExportKeyingMaterial when renegotation is enabled and thus
+// ConnectionState.ekm when renegotation is enabled and thus
 // we wish to fail all key-material export requests.
-func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte, bool) {
-	return nil, false
+func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
+	return nil, errors.New("crypto/tls: ExportKeyingMaterial is unavailable when renegotiation is enabled")
 }
 
 // ekmFromMasterSecret generates exported keying material as defined in
 // https://tools.ietf.org/html/rfc5705.
-func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte) func(string, []byte, int) ([]byte, bool) {
-	return func(label string, context []byte, length int) ([]byte, bool) {
+func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte) func(string, []byte, int) ([]byte, error) {
+	return func(label string, context []byte, length int) ([]byte, error) {
 		switch label {
 		case "client finished", "server finished", "master secret", "key expansion":
 			// These values are reserved and may not be used.
-			return nil, false
+			return nil, fmt.Errorf("crypto/tls: reserved ExportKeyingMaterial label: %s", label)
 		}
 
 		seedLen := len(serverRandom) + len(clientRandom)
@@ -374,7 +374,7 @@ func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clien
 
 		if context != nil {
 			if len(context) >= 1<<16 {
-				return nil, false
+				return nil, fmt.Errorf("crypto/tls: ExportKeyingMaterial context too long")
 			}
 			seed = append(seed, byte(len(context)>>8), byte(len(context)))
 			seed = append(seed, context...)
@@ -382,6 +382,6 @@ func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clien
 
 		keyMaterial := make([]byte, length)
 		prfForVersion(version, suite)(keyMaterial, masterSecret, []byte(label), seed)
-		return keyMaterial, true
+		return keyMaterial, nil
 	}
 }

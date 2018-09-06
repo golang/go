@@ -289,24 +289,22 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 	}
 }
 
-// make pd ready, newly runnable goroutines (if any) are returned in rg/wg
+// make pd ready, newly runnable goroutines (if any) are added to toRun.
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrier
-func netpollready(gpp *guintptr, pd *pollDesc, mode int32) {
-	var rg, wg guintptr
+func netpollready(toRun *gList, pd *pollDesc, mode int32) {
+	var rg, wg *g
 	if mode == 'r' || mode == 'r'+'w' {
-		rg.set(netpollunblock(pd, 'r', true))
+		rg = netpollunblock(pd, 'r', true)
 	}
 	if mode == 'w' || mode == 'r'+'w' {
-		wg.set(netpollunblock(pd, 'w', true))
+		wg = netpollunblock(pd, 'w', true)
 	}
-	if rg != 0 {
-		rg.ptr().schedlink = *gpp
-		*gpp = rg
+	if rg != nil {
+		toRun.push(rg)
 	}
-	if wg != 0 {
-		wg.ptr().schedlink = *gpp
-		*gpp = wg
+	if wg != nil {
+		toRun.push(wg)
 	}
 }
 

@@ -1,0 +1,85 @@
+env GO111MODULE=on
+
+# With good go.sum, verify succeeds by avoiding download.
+cp go.sum.good go.sum
+go mod verify
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+
+# With bad go.sum, verify succeeds by avoiding download.
+cp go.sum.bad go.sum
+go mod verify
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+
+# With bad go.sum, sync (which must download) fails.
+# Even if the bad sum is in the old legacy go.modverify file.
+rm go.sum
+cp go.sum.bad go.modverify
+! go mod tidy
+stderr 'checksum mismatch'
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+
+# With good go.sum, sync works (and moves go.modverify to go.sum).
+rm go.sum
+cp go.sum.good go.modverify
+go mod tidy
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+exists $GOPATH/pkg/mod/rsc.io/quote@v1.1.0/quote.go
+! exists go.modverify
+
+# go.sum should have the new checksum for go.mod
+grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+
+# verify should work
+go mod verify
+
+# basic loading of module graph should detect incorrect go.mod files.
+go mod graph
+cp go.sum.bad2 go.sum
+! go mod graph
+stderr 'go.mod: checksum mismatch'
+
+# go.sum should be created and updated automatically.
+rm go.sum
+go mod graph
+exists go.sum
+grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+! grep '^rsc.io/quote v1.1.0 ' go.sum
+
+go mod tidy
+grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+grep '^rsc.io/quote v1.1.0 ' go.sum
+
+# sync should ignore missing ziphash; verify should not
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
+go mod tidy
+! go mod verify
+
+# Packages below module root should not be mentioned in go.sum.
+rm go.sum
+go mod edit -droprequire rsc.io/quote
+go list rsc.io/quote/buggy # re-resolves import path and updates go.mod
+grep '^rsc.io/quote v1.5.2/go.mod ' go.sum
+! grep buggy go.sum
+
+# non-existent packages below module root should not be mentioned in go.sum
+go mod edit -droprequire rsc.io/quote
+! go list rsc.io/quote/morebuggy
+grep '^rsc.io/quote v1.5.2/go.mod ' go.sum
+! grep buggy go.sum
+
+-- go.mod --
+module x
+require rsc.io/quote v1.1.0
+
+-- x.go --
+package x
+import _ "rsc.io/quote"
+
+-- go.sum.good --
+rsc.io/quote v1.1.0 h1:a3YaZoizPtXyv6ZsJ74oo2L4/bwOSTKMY7MAyo4O/0c=
+
+-- go.sum.bad --
+rsc.io/quote v1.1.0 h1:a3YaZoizPtXyv6ZsJ74oo2L4/bwOSTKMY7MAyo4O/1c=
+
+-- go.sum.bad2 --
+rsc.io/quote v1.1.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl1=

@@ -239,8 +239,12 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
 
 func TestCgoCrashTraceback(t *testing.T) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
-		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "darwin/amd64":
+	case "linux/amd64":
+	case "linux/ppc64le":
+	default:
+		t.Skipf("not yet supported on %s", platform)
 	}
 	got := runTestProg(t, "testprogcgo", "CrashTraceback")
 	for i := 1; i <= 3; i++ {
@@ -487,5 +491,21 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 	nowant := "unexpected return pc"
 	if strings.Contains(got, nowant) {
 		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
+	}
+}
+
+// Test that C code called via cgo can use large Windows thread stacks
+// and call back in to Go without crashing. See issue #20975.
+//
+// See also TestBigStackCallbackSyscall.
+func TestBigStackCallbackCgo(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows specific test")
+	}
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "BigStack")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
 	}
 }

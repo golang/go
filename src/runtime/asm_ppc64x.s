@@ -723,18 +723,11 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R0
 	UNDEF
 
-#define	TBRL	268
-#define	TBRU	269		/* Time base Upper/Lower */
+#define	TBR	268
 
 // int64 runtime·cputicks(void)
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	MOVW	SPR(TBRU), R4
-	MOVW	SPR(TBRL), R3
-	MOVW	SPR(TBRU), R5
-	CMPW	R4, R5
-	BNE	-4(PC)
-	SLD	$32, R5
-	OR	R5, R3
+	MOVD	SPR(TBR), R3
 	MOVD	R3, ret+0(FP)
 	RET
 

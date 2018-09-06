@@ -264,10 +264,14 @@ var genericOps = []opData{
 	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
 	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
 
-	{name: "PopCount8", argLength: 1},  // Count bits in arg[0]
-	{name: "PopCount16", argLength: 1}, // Count bits in arg[0]
-	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
-	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount8", argLength: 1},    // Count bits in arg[0]
+	{name: "PopCount16", argLength: 1},   // Count bits in arg[0]
+	{name: "PopCount32", argLength: 1},   // Count bits in arg[0]
+	{name: "PopCount64", argLength: 1},   // Count bits in arg[0]
+	{name: "RotateLeft8", argLength: 2},  // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft16", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 
 	// Square root, float64 only.
 	// Special cases:
@@ -331,7 +335,8 @@ var genericOps = []opData{
 	// the Aux field will be a *obj.LSym.
 	// If the variable is a local, the base pointer will be SP and
 	// the Aux field will be a *gc.Node.
-	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"},      // Address of a variable.  Arg0=SB.  Aux identifies the variable.
+	{name: "LocalAddr", argLength: 2, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP. Arg1=mem. Aux identifies the variable.
 
 	{name: "SP", zeroWidth: true},                 // stack pointer
 	{name: "SB", typ: "Uintptr", zeroWidth: true}, // static base pointer (a.k.a. globals pointer)

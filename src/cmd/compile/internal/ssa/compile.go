@@ -42,7 +42,9 @@ func Compile(f *Func) {
 	}()
 
 	// Run all the passes
-	printFunc(f)
+	if f.Log() {
+		printFunc(f)
+	}
 	f.HTMLWriter.WriteFunc("start", "start", f)
 	if BuildDump != "" && BuildDump == f.Name {
 		f.dumpFile("build")
@@ -84,8 +86,10 @@ func Compile(f *Func) {
 				stats = fmt.Sprintf("[%d ns]", time)
 			}
 
-			f.Logf("  pass %s end %s\n", p.name, stats)
-			printFunc(f)
+			if f.Log() {
+				f.Logf("  pass %s end %s\n", p.name, stats)
+				printFunc(f)
+			}
 			f.HTMLWriter.WriteFunc(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		}
 		if p.time || p.mem {
@@ -373,7 +377,7 @@ var passes = [...]pass{
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
-	{name: "generic deadcode", fn: deadcode},
+	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
 	{name: "fuse", fn: fuse},

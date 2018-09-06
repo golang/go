@@ -24,7 +24,6 @@ func loadTags() map[string]bool {
 	if cfg.BuildContext.CgoEnabled {
 		tags["cgo"] = true
 	}
-	// TODO: Should read these out of GOROOT source code?
 	for _, tag := range cfg.BuildContext.BuildTags {
 		tags[tag] = true
 	}

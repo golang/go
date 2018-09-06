@@ -56,7 +56,7 @@ func Examples(files ...*ast.File) []*Example {
 				continue
 			}
 			f, ok := decl.(*ast.FuncDecl)
-			if !ok {
+			if !ok || f.Recv != nil {
 				continue
 			}
 			numDecl++
@@ -188,7 +188,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	inspectFunc = func(n ast.Node) bool {
 		switch e := n.(type) {
 		case *ast.Ident:
-			if e.Obj == nil {
+			if e.Obj == nil && e.Name != "_" {
 				unresolved[e.Name] = true
 			} else if d := topDecls[e.Obj]; d != nil {
 				if !hasDepDecls[d] {

@@ -7,10 +7,11 @@ package modconv
 import (
 	"encoding/json"
 
+	"cmd/go/internal/modfile"
 	"cmd/go/internal/module"
 )
 
-func ParseGodepsJSON(file string, data []byte) ([]module.Version, error) {
+func ParseGodepsJSON(file string, data []byte) (*modfile.File, error) {
 	var cfg struct {
 		ImportPath string
 		Deps       []struct {
@@ -21,9 +22,9 @@ func ParseGodepsJSON(file string, data []byte) ([]module.Version, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
-	var list []module.Version
+	mf := new(modfile.File)
 	for _, d := range cfg.Deps {
-		list = append(list, module.Version{Path: d.ImportPath, Version: d.Rev})
+		mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: d.ImportPath, Version: d.Rev}})
 	}
-	return list, nil
+	return mf, nil
 }

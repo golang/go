@@ -979,6 +979,24 @@ func TestRenegotiateTwiceRejected(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
+func TestHandshakeClientExportKeyingMaterial(t *testing.T) {
+	test := &clientTest{
+		name:    "ExportKeyingMaterial",
+		command: []string{"openssl", "s_server"},
+		config:  testConfig.Clone(),
+		validate: func(state ConnectionState) error {
+			if km, err := state.ExportKeyingMaterial("test", nil, 42); err != nil {
+				return fmt.Errorf("ExportKeyingMaterial failed: %v", err)
+			} else if len(km) != 42 {
+				return fmt.Errorf("Got %d bytes from ExportKeyingMaterial, wanted %d", len(km), 42)
+			}
+			return nil
+		},
+	}
+	runClientTestTLS10(t, test)
+	runClientTestTLS12(t, test)
+}
+
 var hostnameInSNITests = []struct {
 	in, out string
 }{
@@ -1615,5 +1633,24 @@ RwBA9Xk1KBNF
 	}
 	if _, ok := cert.PublicKey.(*rsa.PublicKey); ok {
 		t.Error("A RSA-PSS certificate was parsed like a PKCS1 one, and it will be mistakenly used with rsa_pss_rsae_xxx signature algorithms")
+	}
+}
+
+func TestCloseClientConnectionOnIdleServer(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	client := Client(clientConn, testConfig.Clone())
+	go func() {
+		var b [1]byte
+		serverConn.Read(b[:])
+		client.Close()
+	}()
+	client.SetWriteDeadline(time.Now().Add(time.Second))
+	err := client.Handshake()
+	if err != nil {
+		if !strings.Contains(err.Error(), "read/write on closed pipe") {
+			t.Errorf("Error expected containing 'read/write on closed pipe' but got '%s'", err.Error())
+		}
+	} else {
+		t.Errorf("Error expected, but no error returned")
 	}
 }

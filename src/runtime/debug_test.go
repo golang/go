@@ -69,8 +69,8 @@ func debugCallWorker2(stop *uint32, x *int) {
 	*x = 1
 }
 
-func debugCallTKill(tid int) {
-	syscall.Tgkill(syscall.Getpid(), tid, syscall.SIGTRAP)
+func debugCallTKill(tid int) error {
+	return syscall.Tgkill(syscall.Getpid(), tid, syscall.SIGTRAP)
 }
 
 func TestDebugCall(t *testing.T) {

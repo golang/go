@@ -215,6 +215,82 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
+// Used instead of sigtramp in programs that use cgo.
+// Arguments from kernel are in DI, SI, DX.
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	// If no traceback function, do usual sigtramp.
+	MOVQ	runtime·cgoTraceback(SB), AX
+	TESTQ	AX, AX
+	JZ	sigtramp
+
+	// If no traceback support function, which means that
+	// runtime/cgo was not linked in, do usual sigtramp.
+	MOVQ	_cgo_callers(SB), AX
+	TESTQ	AX, AX
+	JZ	sigtramp
+
+	// Figure out if we are currently in a cgo call.
+	// If not, just do usual sigtramp.
+	get_tls(CX)
+	MOVQ	g(CX),AX
+	TESTQ	AX, AX
+	JZ	sigtrampnog     // g == nil
+	MOVQ	g_m(AX), AX
+	TESTQ	AX, AX
+	JZ	sigtramp        // g.m == nil
+	MOVL	m_ncgo(AX), CX
+	TESTL	CX, CX
+	JZ	sigtramp        // g.m.ncgo == 0
+	MOVQ	m_curg(AX), CX
+	TESTQ	CX, CX
+	JZ	sigtramp        // g.m.curg == nil
+	MOVQ	g_syscallsp(CX), CX
+	TESTQ	CX, CX
+	JZ	sigtramp        // g.m.curg.syscallsp == 0
+	MOVQ	m_cgoCallers(AX), R8
+	TESTQ	R8, R8
+	JZ	sigtramp        // g.m.cgoCallers == nil
+	MOVL	m_cgoCallersUse(AX), CX
+	TESTL	CX, CX
+	JNZ	sigtramp	// g.m.cgoCallersUse != 0
+
+	// Jump to a function in runtime/cgo.
+	// That function, written in C, will call the user's traceback
+	// function with proper unwind info, and will then call back here.
+	// The first three arguments, and the fifth, are already in registers.
+	// Set the two remaining arguments now.
+	MOVQ	runtime·cgoTraceback(SB), CX
+	MOVQ	$runtime·sigtramp(SB), R9
+	MOVQ	_cgo_callers(SB), AX
+	JMP	AX
+
+sigtramp:
+	JMP	runtime·sigtramp(SB)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+	// stack trace.
+	CMPL	DI, $27 // 27 == SIGPROF
+	JNZ	sigtramp
+
+	// Lock sigprofCallersUse.
+	MOVL	$0, AX
+	MOVL	$1, CX
+	MOVQ	$runtime·sigprofCallersUse(SB), R11
+	LOCK
+	CMPXCHGL	CX, 0(R11)
+	JNZ	sigtramp  // Skip stack trace if already locked.
+
+	// Jump to the traceback function in runtime/cgo.
+	// It will call back to sigprofNonGo, which will ignore the
+	// arguments passed in registers.
+	// First three arguments to traceback function are in registers already.
+	MOVQ	runtime·cgoTraceback(SB), CX
+	MOVQ	$runtime·sigprofCallers(SB), R8
+	MOVQ	$runtime·sigprofNonGo(SB), R9
+	MOVQ	_cgo_callers(SB), AX
+	JMP	AX
+
 TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP			// make a frame; keep stack aligned
 	MOVQ	SP, BP
@@ -230,7 +306,7 @@ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	CMPQ	AX, $-1
 	JNE	ok
 	CALL	libc_error(SB)
-	MOVQ	(AX), DX		// errno
+	MOVLQSX	(AX), DX		// errno
 	XORL	AX, AX
 ok:
 	MOVQ	AX, 32(BX)
@@ -295,7 +371,7 @@ TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
 	CMPQ	AX, $-1
 	JNE	ok
 	CALL	libc_error(SB)
-	MOVQ	(AX), AX		// errno
+	MOVLQSX	(AX), AX		// errno
 	NEGQ	AX			// caller wants it as a negative error code
 ok:
 	POPQ	BP

@@ -216,14 +216,18 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
 	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
 	objabi.Flagcount("m", "print optimization decisions", &Debug['m'])
-	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
+	if sys.MSanSupported(objabi.GOOS, objabi.GOARCH) {
+		flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
+	}
 	flag.BoolVar(&dolinkobj, "dolinkobj", true, "generate linker-specific objects; if false, some invalid code may compile")
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
 	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
 	objabi.Flagcount("r", "debug generated wrappers", &Debug['r'])
-	flag.BoolVar(&flag_race, "race", false, "enable race detector")
+	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
+		flag.BoolVar(&flag_race, "race", false, "enable race detector")
+	}
 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
 	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
@@ -341,7 +345,7 @@ func Main(archInit func(*Arch)) {
 			}
 			// display help about the -d option itself and quit
 			if name == "help" {
-				fmt.Printf(debugHelpHeader)
+				fmt.Print(debugHelpHeader)
 				maxLen := len("ssa/help")
 				for _, t := range debugtab {
 					if len(t.name) > maxLen {
@@ -353,7 +357,7 @@ func Main(archInit func(*Arch)) {
 				}
 				// ssa options have their own help
 				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
-				fmt.Printf(debugHelpFooter)
+				fmt.Print(debugHelpFooter)
 				os.Exit(0)
 			}
 			val, valstring, haveInt := 1, "", true
@@ -421,6 +425,12 @@ func Main(archInit func(*Arch)) {
 	//	-l=2, -l=3: inlining on again, with extra debugging (debug['l'] > 1)
 	if Debug['l'] <= 1 {
 		Debug['l'] = 1 - Debug['l']
+	}
+
+	ssaDump = os.Getenv("GOSSAFUNC")
+	if strings.HasSuffix(ssaDump, "+") {
+		ssaDump = ssaDump[:len(ssaDump)-1]
+		ssaDumpStdout = true
 	}
 
 	trackScopes = flagDWARF

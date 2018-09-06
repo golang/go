@@ -63,6 +63,7 @@
 set -e
 
 unset GOBIN # Issue 14340
+unset GOFLAGS
 
 if [ ! -f run.bash ]; then
 	echo 'make.bash must be run from $GOROOT/src' 1>&2

@@ -1009,7 +1009,7 @@ type AddrinfoW struct {
 	Protocol  int32
 	Addrlen   uintptr
 	Canonname *uint16
-	Addr      uintptr
+	Addr      Pointer
 	Next      *AddrinfoW
 }
 
@@ -1139,3 +1139,5 @@ const (
 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
 	_SYMLINK_FLAG_RELATIVE           = 1
 )
+
+const UNIX_PATH_MAX = 108 // defined in afunix.h

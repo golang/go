@@ -169,8 +169,17 @@ func stringify(args ...interface{}) (string, contentType) {
 			return string(s), contentTypeSrcset
 		}
 	}
-	for i, arg := range args {
+	i := 0
+	for _, arg := range args {
+		// We skip untyped nil arguments for backward compatibility.
+		// Without this they would be output as <nil>, escaped.
+		// See issue 25875.
+		if arg == nil {
+			continue
+		}
+
 		args[i] = indirectToStringerOrError(arg)
+		i++
 	}
-	return fmt.Sprint(args...), contentTypePlain
+	return fmt.Sprint(args[:i]...), contentTypePlain
 }

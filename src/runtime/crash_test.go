@@ -640,17 +640,88 @@ func TestTimePprof(t *testing.T) {
 
 // Test that runtime.abort does so.
 func TestAbort(t *testing.T) {
-	output := runTestProg(t, "testprog", "Abort")
+	// Pass GOTRACEBACK to ensure we get runtime frames.
+	output := runTestProg(t, "testprog", "Abort", "GOTRACEBACK=system")
 	if want := "runtime.abort"; !strings.Contains(output, want) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
 	}
 	if strings.Contains(output, "BAD") {
 		t.Errorf("output contains BAD:\n%s", output)
 	}
-	// Check that it's a signal-style traceback.
-	if runtime.GOOS != "windows" {
-		if want := "PC="; !strings.Contains(output, want) {
-			t.Errorf("output does not contain %q:\n%s", want, output)
+	// Check that it's a signal traceback.
+	want := "PC="
+	// For systems that use a breakpoint, check specifically for that.
+	switch runtime.GOARCH {
+	case "386", "amd64":
+		switch runtime.GOOS {
+		case "plan9":
+			want = "sys: breakpoint"
+		case "windows":
+			want = "Exception 0x80000003"
+		default:
+			want = "SIGTRAP"
 		}
 	}
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+// For TestRuntimePanic: test a panic in the runtime package without
+// involving the testing harness.
+func init() {
+	if os.Getenv("GO_TEST_RUNTIME_PANIC") == "1" {
+		defer func() {
+			if r := recover(); r != nil {
+				// We expect to crash, so exit 0
+				// to indicate failure.
+				os.Exit(0)
+			}
+		}()
+		runtime.PanicForTesting(nil, 1)
+		// We expect to crash, so exit 0 to indicate failure.
+		os.Exit(0)
+	}
+}
+
+func TestRuntimePanic(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := exec.Command(os.Args[0], "-test.run=TestRuntimePanic")
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.unexportedPanicForTesting"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+// Test that g0 stack overflows are handled gracefully.
+func TestG0StackOverflow(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "android":
+		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
+	}
+
+	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestG0StackOverflow", "-test.v"))
+		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
+		out, err := cmd.CombinedOutput()
+		// Don't check err since it's expected to crash.
+		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
+			t.Fatalf("%s\n(exit status %v)", out, err)
+		}
+		// Check that it's a signal-style traceback.
+		if runtime.GOOS != "windows" {
+			if want := "PC="; !strings.Contains(string(out), want) {
+				t.Errorf("output does not contain %q:\n%s", want, out)
+			}
+		}
+		return
+	}
+
+	runtime.G0StackOverflow()
 }

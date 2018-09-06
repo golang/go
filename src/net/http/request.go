@@ -65,11 +65,19 @@ var (
 	// request's Content-Type is not multipart/form-data.
 	ErrNotMultipart = &ProtocolError{"request Content-Type isn't multipart/form-data"}
 
-	// Deprecated: ErrHeaderTooLong is not used.
+	// Deprecated: ErrHeaderTooLong is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrHeaderTooLong = &ProtocolError{"header too long"}
-	// Deprecated: ErrShortBody is not used.
+
+	// Deprecated: ErrShortBody is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrShortBody = &ProtocolError{"entity body too short"}
-	// Deprecated: ErrMissingContentLength is not used.
+
+	// Deprecated: ErrMissingContentLength is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
 )
 
@@ -331,6 +339,10 @@ func (r *Request) Context() context.Context {
 
 // WithContext returns a shallow copy of r with its context changed
 // to ctx. The provided ctx must be non-nil.
+//
+// For outgoing client request, the context controls the entire
+// lifetime of a request and its response: obtaining a connection,
+// sending the request, and reading the response headers and body.
 func (r *Request) WithContext(ctx context.Context) *Request {
 	if ctx == nil {
 		panic("nil context")

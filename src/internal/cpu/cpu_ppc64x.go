@@ -6,13 +6,13 @@
 
 package cpu
 
-const CacheLineSize = 128
+const CacheLinePadSize = 128
 
 // ppc64x doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
-// These are linknamed in runtime/os_linux_ppc64x.go and are initialized by
-// archauxv().
-var hwcap uint
-var hwcap2 uint
+// These are initialized by archauxv in runtime/os_linux_ppc64x.go.
+// These should not be changed after they are initialized.
+var HWCap uint
+var HWCap2 uint
 
 // HWCAP/HWCAP2 bits. These are exposed by the kernel.
 const (
@@ -48,19 +48,19 @@ func doinit() {
 	}
 
 	// HWCAP feature bits
-	PPC64.HasVMX = isSet(hwcap, _PPC_FEATURE_HAS_ALTIVEC)
-	PPC64.HasDFP = isSet(hwcap, _PPC_FEATURE_HAS_DFP)
-	PPC64.HasVSX = isSet(hwcap, _PPC_FEATURE_HAS_VSX)
+	PPC64.HasVMX = isSet(HWCap, _PPC_FEATURE_HAS_ALTIVEC)
+	PPC64.HasDFP = isSet(HWCap, _PPC_FEATURE_HAS_DFP)
+	PPC64.HasVSX = isSet(HWCap, _PPC_FEATURE_HAS_VSX)
 
 	// HWCAP2 feature bits
-	PPC64.IsPOWER8 = isSet(hwcap2, _PPC_FEATURE2_ARCH_2_07)
-	PPC64.HasHTM = isSet(hwcap2, _PPC_FEATURE2_HAS_HTM)
-	PPC64.HasISEL = isSet(hwcap2, _PPC_FEATURE2_HAS_ISEL)
-	PPC64.HasVCRYPTO = isSet(hwcap2, _PPC_FEATURE2_HAS_VEC_CRYPTO)
-	PPC64.HasHTMNOSC = isSet(hwcap2, _PPC_FEATURE2_HTM_NOSC)
-	PPC64.IsPOWER9 = isSet(hwcap2, _PPC_FEATURE2_ARCH_3_00)
-	PPC64.HasDARN = isSet(hwcap2, _PPC_FEATURE2_DARN)
-	PPC64.HasSCV = isSet(hwcap2, _PPC_FEATURE2_SCV)
+	PPC64.IsPOWER8 = isSet(HWCap2, _PPC_FEATURE2_ARCH_2_07)
+	PPC64.HasHTM = isSet(HWCap2, _PPC_FEATURE2_HAS_HTM)
+	PPC64.HasISEL = isSet(HWCap2, _PPC_FEATURE2_HAS_ISEL)
+	PPC64.HasVCRYPTO = isSet(HWCap2, _PPC_FEATURE2_HAS_VEC_CRYPTO)
+	PPC64.HasHTMNOSC = isSet(HWCap2, _PPC_FEATURE2_HTM_NOSC)
+	PPC64.IsPOWER9 = isSet(HWCap2, _PPC_FEATURE2_ARCH_3_00)
+	PPC64.HasDARN = isSet(HWCap2, _PPC_FEATURE2_DARN)
+	PPC64.HasSCV = isSet(HWCap2, _PPC_FEATURE2_SCV)
 }
 
 func isSet(hwc uint, value uint) bool {

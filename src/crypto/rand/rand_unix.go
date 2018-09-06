@@ -14,6 +14,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/internal/boring"
+	"encoding/binary"
 	"io"
 	"os"
 	"runtime"
@@ -144,14 +145,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
 		// dst = encrypt(t^seed)
 		// seed = encrypt(t^dst)
 		ns := time.Now().UnixNano()
-		r.time[0] = byte(ns >> 56)
-		r.time[1] = byte(ns >> 48)
-		r.time[2] = byte(ns >> 40)
-		r.time[3] = byte(ns >> 32)
-		r.time[4] = byte(ns >> 24)
-		r.time[5] = byte(ns >> 16)
-		r.time[6] = byte(ns >> 8)
-		r.time[7] = byte(ns)
+		binary.BigEndian.PutUint64(r.time[:], uint64(ns))
 		r.cipher.Encrypt(r.time[0:], r.time[0:])
 		for i := 0; i < aes.BlockSize; i++ {
 			r.dst[i] = r.time[i] ^ r.seed[i]

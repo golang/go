@@ -220,7 +220,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		params.startTime = task.firstTimestamp() - 1
 		params.endTime = task.lastTimestamp() + 1
 		params.maing = goid
-		params.tasks = task.decendents()
+		params.tasks = task.descendants()
 		gs := map[uint64]bool{}
 		for _, t := range params.tasks {
 			// find only directly involved goroutines
@@ -244,7 +244,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		params.mode = modeTaskOriented
 		params.startTime = task.firstTimestamp() - 1
 		params.endTime = task.lastTimestamp() + 1
-		params.tasks = task.decendents()
+		params.tasks = task.descendants()
 	}
 
 	start := int64(0)

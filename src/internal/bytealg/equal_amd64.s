@@ -24,6 +24,7 @@ eq:
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
+	FUNCDATA $0, ·Equal·args_stackmap(SB)
 	MOVQ	a_len+8(FP), BX
 	MOVQ	b_len+32(FP), CX
 	CMPQ	BX, CX
@@ -76,7 +77,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
 	JB	small
 	CMPQ	BX, $64
 	JB	bigloop
-	CMPB	internal∕cpu·X86+const_x86_HasAVX2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JE	hugeloop_avx2
 	
 	// 64 bytes at a time using xmm registers

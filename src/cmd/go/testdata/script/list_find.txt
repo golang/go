@@ -1,0 +1,10 @@
+# go list -find should not report imports
+
+go list -f {{.Incomplete}} x/y/z...  # should probably exit non-zero but never has
+stdout true
+go list -find -f '{{.Incomplete}} {{.Imports}}' x/y/z...
+stdout '^false \[\]'
+
+-- x/y/z/z.go --
+package z
+import "does/not/exist"

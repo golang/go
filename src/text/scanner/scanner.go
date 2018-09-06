@@ -384,6 +384,9 @@ func (s *Scanner) scanExponent(ch rune) rune {
 		if ch == '-' || ch == '+' {
 			ch = s.next()
 		}
+		if !isDecimal(ch) {
+			s.error("illegal exponent")
+		}
 		ch = s.scanMantissa(ch)
 	}
 	return ch

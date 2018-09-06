@@ -7,7 +7,6 @@ package sys
 const (
 	ArchFamily          = PPC64
 	BigEndian           = false
-	CacheLineSize       = 128
 	DefaultPhysPageSize = 65536
 	PCQuantum           = 4
 	Int64Align          = 8

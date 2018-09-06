@@ -36,6 +36,7 @@ equal:
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT,$0-25
+	FUNCDATA $0, ·Equal·args_stackmap(SB)
 	JMP	·Equal(SB)
 
 // memequal(a, b unsafe.Pointer, size uintptr) bool

@@ -542,7 +542,7 @@ func fence2(x, y int) {
 	}
 }
 
-func fence3(b []int, x, y int64) {
+func fence3(b, c []int, x, y int64) {
 	if x-1 >= y {
 		if x <= y { // Can't prove because x may have wrapped.
 			return
@@ -554,6 +554,8 @@ func fence3(b []int, x, y int64) {
 			return
 		}
 	}
+
+	c[len(c)-1] = 0 // Can't prove because len(c) might be 0
 
 	if n := len(b); n > 0 {
 		b[n-1] = 0 // ERROR "Proved IsInBounds$"
@@ -622,7 +624,7 @@ func natcmp(x, y []uint) (r int) {
 	}
 
 	i := m - 1
-	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment -1"
+	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment 1"
 		x[i] == // ERROR "Proved IsInBounds$"
 			y[i] { // ERROR "Proved IsInBounds$"
 		i--

@@ -76,7 +76,7 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	objMap map[Object]*declInfo   // maps package-level object to declaration info
+	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 
 	// information collected during type-checking of a set of package files
@@ -158,18 +158,6 @@ func (check *Checker) pop() Object {
 	check.objPath[i] = nil
 	check.objPath = check.objPath[:i]
 	return obj
-}
-
-// pathString returns a string of the form a->b-> ... ->g for an object path [a, b, ... g].
-func (check *Checker) pathString() string {
-	var s string
-	for i, p := range check.objPath {
-		if i > 0 {
-			s += "->"
-		}
-		s += p.Name()
-	}
-	return s
 }
 
 // NewChecker returns a new Checker instance for a given package.

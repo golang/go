@@ -137,10 +137,10 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 		}
 		var p dnsmessage.Parser
 		var h dnsmessage.Header
-		if network == "tcp" {
-			p, h, err = dnsStreamRoundTrip(c, id, q, tcpReq)
-		} else {
+		if _, ok := c.(PacketConn); ok {
 			p, h, err = dnsPacketRoundTrip(c, id, q, udpReq)
+		} else {
+			p, h, err = dnsStreamRoundTrip(c, id, q, tcpReq)
 		}
 		c.Close()
 		if err != nil {

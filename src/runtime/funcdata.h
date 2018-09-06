@@ -6,7 +6,7 @@
 // in Go binaries. It is included by assembly sources, so it must
 // be written using #defines.
 //
-// These must agree with symtab.go and ../cmd/internal/obj/funcdata.go.
+// These must agree with symtab.go and ../cmd/internal/objabi/funcdata.go.
 
 #define PCDATA_StackMapIndex 0
 #define PCDATA_InlTreeIndex 1

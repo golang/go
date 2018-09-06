@@ -27,6 +27,8 @@ license that can be found in the LICENSE file.
 			mod = result.module;
 			inst = result.instance;
 			document.getElementById("runButton").disabled = false;
+		}).catch((err) => {
+			console.error(err);
 		});
 
 		async function run() {

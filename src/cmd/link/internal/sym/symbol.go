@@ -15,36 +15,40 @@ import (
 // Symbol is an entry in the symbol table.
 type Symbol struct {
 	Name        string
-	Extname     string
 	Type        SymKind
 	Version     int16
 	Attr        Attribute
-	Localentry  uint8
 	Dynid       int32
-	Plt         int32
-	Got         int32
 	Align       int32
 	Elfsym      int32
 	LocalElfsym int32
 	Value       int64
 	Size        int64
-	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
-	// is not set for symbols defined by the packages being linked or by symbols
-	// read by ldelf (and so is left as elf.STT_NOTYPE).
-	ElfType     elf.SymType
 	Sub         *Symbol
 	Outer       *Symbol
 	Gotype      *Symbol
-	Reachparent *Symbol
 	File        string
-	Dynimplib   string
-	Dynimpvers  string
+	auxinfo     *AuxSymbol
 	Sect        *Section
 	FuncInfo    *FuncInfo
 	Lib         *Library // Package defining this symbol
 	// P contains the raw symbol data.
 	P []byte
 	R []Reloc
+}
+
+// AuxSymbol contains less-frequently used sym.Symbol fields.
+type AuxSymbol struct {
+	extname    string
+	dynimplib  string
+	dynimpvers string
+	localentry uint8
+	plt        int32
+	got        int32
+	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
+	// is not set for symbols defined by the packages being linked or by symbols
+	// read by ldelf (and so is left as elf.STT_NOTYPE).
+	elftype elf.SymType
 }
 
 func (s *Symbol) String() string {
@@ -265,6 +269,132 @@ func (s *Symbol) setUintXX(arch *sys.Arch, off int64, v uint64, wid int64) int64
 	return off + wid
 }
 
+func (s *Symbol) makeAuxInfo() {
+	if s.auxinfo == nil {
+		s.auxinfo = &AuxSymbol{extname: s.Name, plt: -1, got: -1}
+	}
+}
+
+func (s *Symbol) Extname() string {
+	if s.auxinfo == nil {
+		return s.Name
+	}
+	return s.auxinfo.extname
+}
+
+func (s *Symbol) SetExtname(n string) {
+	if s.auxinfo == nil {
+		if s.Name == n {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.extname = n
+}
+
+func (s *Symbol) Dynimplib() string {
+	if s.auxinfo == nil {
+		return ""
+	}
+	return s.auxinfo.dynimplib
+}
+
+func (s *Symbol) Dynimpvers() string {
+	if s.auxinfo == nil {
+		return ""
+	}
+	return s.auxinfo.dynimpvers
+}
+
+func (s *Symbol) SetDynimplib(lib string) {
+	if s.auxinfo == nil {
+		s.makeAuxInfo()
+	}
+	s.auxinfo.dynimplib = lib
+}
+
+func (s *Symbol) SetDynimpvers(vers string) {
+	if s.auxinfo == nil {
+		s.makeAuxInfo()
+	}
+	s.auxinfo.dynimpvers = vers
+}
+
+func (s *Symbol) ResetDyninfo() {
+	if s.auxinfo != nil {
+		s.auxinfo.dynimplib = ""
+		s.auxinfo.dynimpvers = ""
+	}
+}
+
+func (s *Symbol) Localentry() uint8 {
+	if s.auxinfo == nil {
+		return 0
+	}
+	return s.auxinfo.localentry
+}
+
+func (s *Symbol) SetLocalentry(val uint8) {
+	if s.auxinfo == nil {
+		if val != 0 {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.localentry = val
+}
+
+func (s *Symbol) Plt() int32 {
+	if s.auxinfo == nil {
+		return -1
+	}
+	return s.auxinfo.plt
+}
+
+func (s *Symbol) SetPlt(val int32) {
+	if s.auxinfo == nil {
+		if val == -1 {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.plt = val
+}
+
+func (s *Symbol) Got() int32 {
+	if s.auxinfo == nil {
+		return -1
+	}
+	return s.auxinfo.got
+}
+
+func (s *Symbol) SetGot(val int32) {
+	if s.auxinfo == nil {
+		if val == -1 {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.got = val
+}
+
+func (s *Symbol) ElfType() elf.SymType {
+	if s.auxinfo == nil {
+		return elf.STT_NOTYPE
+	}
+	return s.auxinfo.elftype
+}
+
+func (s *Symbol) SetElfType(val elf.SymType) {
+	if s.auxinfo == nil {
+		if val == elf.STT_NOTYPE {
+			return
+		}
+		s.makeAuxInfo()
+	}
+	s.auxinfo.elftype = val
+}
+
 // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
 // Used for sub-symbols when loading host objects (see e.g. ldelf.go).
 func SortSub(l *Symbol) *Symbol {
@@ -348,6 +478,7 @@ type FuncInfo struct {
 	Pcline      Pcdata
 	Pcinline    Pcdata
 	Pcdata      []Pcdata
+	IsStmtSym   *Symbol
 	Funcdata    []*Symbol
 	Funcdataoff []int64
 	File        []*Symbol

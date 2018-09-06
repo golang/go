@@ -98,6 +98,24 @@ func TestErrnoSignalName(t *testing.T) {
 	}
 }
 
+func TestFcntlInt(t *testing.T) {
+	t.Parallel()
+	file, err := ioutil.TempFile("", "TestFnctlInt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+	defer file.Close()
+	f := file.Fd()
+	flags, err := unix.FcntlInt(f, unix.F_GETFD, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if flags&unix.FD_CLOEXEC == 0 {
+		t.Errorf("flags %#x do not include FD_CLOEXEC", flags)
+	}
+}
+
 // TestFcntlFlock tests whether the file locking structure matches
 // the calling convention of each kernel.
 func TestFcntlFlock(t *testing.T) {

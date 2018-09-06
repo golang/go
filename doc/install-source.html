@@ -639,14 +639,10 @@ contains further details regarding Go's ARM support.
 </p>
 </li>
 
-<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only)
+<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only) <br> <code>$GOMIPS64</code> (for <code>mips64</code> and <code>mips64le</code> only)
 <p>
-This sets whether to use floating point instructions.
+	These variables set whether to use floating point instructions. Set to "<code>hardfloat</code>" to use floating point instructions; this is the default.  Set to "<code>softfloat</code>" to use soft floating point.
 </p>
-<ul>
-	<li><code>GOMIPS=hardfloat</code>: use floating point instructions (the default)</li>
-	<li><code>GOMIPS=softfloat</code>: use soft floating point</li>
-</ul>
 </li>
 
 </ul>

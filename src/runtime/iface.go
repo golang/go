@@ -41,7 +41,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 			return nil
 		}
 		name := inter.typ.nameOff(inter.mhdr[0].name)
-		panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), name.name()})
+		panic(&TypeAssertionError{nil, typ, &inter.typ, name.name()})
 	}
 
 	var m *itab
@@ -82,7 +82,7 @@ finish:
 	// The cached result doesn't record which
 	// interface function was missing, so initialize
 	// the itab again to get the missing function name.
-	panic(&TypeAssertionError{concreteString: typ.string(), assertedString: inter.typ.string(), missingMethod: m.init()})
+	panic(&TypeAssertionError{concrete: typ, asserted: &inter.typ, missingMethod: m.init()})
 }
 
 // find finds the given interface/type pair in t.
@@ -245,11 +245,7 @@ func itabsinit() {
 // want = the static type we're trying to convert to.
 // iface = the static type we're converting from.
 func panicdottypeE(have, want, iface *_type) {
-	haveString := ""
-	if have != nil {
-		haveString = have.string()
-	}
-	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
+	panic(&TypeAssertionError{iface, have, want, ""})
 }
 
 // panicdottypeI is called when doing an i.(T) conversion and the conversion fails.
@@ -265,7 +261,7 @@ func panicdottypeI(have *itab, want, iface *_type) {
 // panicnildottype is called when doing a i.(T) conversion and the interface i is nil.
 // want = the static type we're trying to convert to.
 func panicnildottype(want *_type) {
-	panic(&TypeAssertionError{"", "", want.string(), ""})
+	panic(&TypeAssertionError{nil, nil, want, ""})
 	// TODO: Add the static type we're converting from as well.
 	// It might generate a better error message.
 	// Just to match other nil conversion errors, we don't for now.
@@ -516,7 +512,7 @@ func assertI2I(inter *interfacetype, i iface) (r iface) {
 	tab := i.tab
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
+		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
 	}
 	if tab.inter == inter {
 		r.tab = tab
@@ -549,7 +545,7 @@ func assertE2I(inter *interfacetype, e eface) (r iface) {
 	t := e._type
 	if t == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
+		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
 	}
 	r.tab = getitab(inter, t, false)
 	r.data = e.data

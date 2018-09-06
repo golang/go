@@ -1,0 +1,64 @@
+env GO111MODULE=on
+
+# tidy removes unused y, but everything else is used
+go mod tidy -v
+stderr '^unused y.1'
+! stderr '^unused [^y]'
+
+go list -m all
+! stdout '^y'
+stdout '^w.1 v1.2.0'
+stdout '^z.1 v1.2.0'
+
+# empty tidy should not crash
+cd triv
+go mod tidy
+
+-- go.mod --
+module m
+
+require (
+	x.1 v1.0.0
+	y.1 v1.0.0
+	w.1 v1.2.0
+)
+
+replace x.1 v1.0.0 => ./x
+replace y.1 v1.0.0 => ./y
+replace z.1 v1.1.0 => ./z
+replace z.1 v1.2.0 => ./z
+replace w.1 => ./w
+
+-- m.go --
+package m
+
+import _ "x.1"
+import _ "z.1/sub"
+
+-- w/go.mod --
+module w
+
+-- w/w.go --
+package w
+
+-- x/go.mod --
+module x
+require w.1 v1.1.0
+require z.1 v1.1.0
+
+-- x/x.go --
+package x
+import _ "w.1"
+
+-- y/go.mod --
+module y
+require z.1 v1.2.0
+
+-- z/go.mod --
+module z
+
+-- z/sub/sub.go --
+package sub
+
+-- triv/go.mod --
+module triv

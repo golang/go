@@ -40,6 +40,7 @@ cmp_ret:
 	RET
 
 TEXT bytes·Compare(SB),NOSPLIT,$0-28
+	FUNCDATA $0, ·Compare·args_stackmap(SB)
 	MOVW	a_base+0(FP), R3
 	MOVW	b_base+12(FP), R4
 	MOVW	a_len+4(FP), R1

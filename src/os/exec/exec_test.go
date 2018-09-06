@@ -168,6 +168,58 @@ func TestExitStatus(t *testing.T) {
 	}
 }
 
+func TestExitCode(t *testing.T) {
+	// Test that exit code are returned correctly
+	cmd := helperCommand(t, "exit", "42")
+	cmd.Run()
+	want := 42
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got := cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "/no-exist-executable")
+	cmd.Run()
+	want = 2
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "exit", "255")
+	cmd.Run()
+	want = 255
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "cat")
+	cmd.Run()
+	want = 0
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	// Test when command does not call Run().
+	cmd = helperCommand(t, "cat")
+	want = -1
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+}
+
 func TestPipes(t *testing.T) {
 	check := func(what string, err error) {
 		if err != nil {

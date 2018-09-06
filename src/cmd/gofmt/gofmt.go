@@ -319,10 +319,7 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error) 
 	}
 
 	// write data to backup file
-	n, err := f.Write(data)
-	if err == nil && n < len(data) {
-		err = io.ErrShortWrite
-	}
+	_, err = f.Write(data)
 	if err1 := f.Close(); err == nil {
 		err = err1
 	}

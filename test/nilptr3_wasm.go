@@ -246,8 +246,8 @@ type TT struct {
 
 func f(t *TT) *byte {
 	// See issue 17242.
-	s := &t.SS  // ERROR "removed nil check"
-	return &s.x // ERROR "generated nil check"
+	s := &t.SS  // ERROR "generated nil check"
+	return &s.x // ERROR "removed nil check"
 }
 
 // make sure not to do nil check for newobject

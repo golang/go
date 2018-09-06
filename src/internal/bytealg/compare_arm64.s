@@ -14,6 +14,7 @@ TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
 	B	cmpbody<>(SB)
 
 TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+	FUNCDATA $0, ·Compare·args_stackmap(SB)
 	MOVD	a_base+0(FP), R2
 	MOVD	a_len+8(FP), R0
 	MOVD	b_base+24(FP), R3

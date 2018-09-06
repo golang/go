@@ -122,6 +122,16 @@ func CmpMem5(p **int) {
 	*p = nil
 }
 
+func CmpMem6(a []int) int {
+	// 386:`CMPL\s8\([A-Z]+\),`
+	// amd64:`CMPQ\s16\([A-Z]+\),`
+	if a[1] > a[2] {
+		return 1
+	} else {
+		return 2
+	}
+}
+
 // Check tbz/tbnz are generated when comparing against zero on arm64
 
 func CmpZero1(a int32, ptr *int) {
@@ -145,5 +155,48 @@ func CmpZero3(a int32, ptr *int) {
 func CmpZero4(a int64, ptr *int) {
 	if a >= 0 { // arm64:"TBNZ"
 		*ptr = 0
+	}
+}
+
+func CmpToZero(a, b, d int32, e, f int64) int32 {
+	// arm:`TST`,-`AND`
+	// arm64:`TSTW`,-`AND`
+	// 386:`TESTL`,-`ANDL`
+	// amd64:`TESTL`,-`ANDL`
+	c0 := a&b < 0
+	// arm:`CMN`,-`ADD`
+	// arm64:`CMNW`,-`ADD`
+	c1 := a+b < 0
+	// arm:`TEQ`,-`XOR`
+	c2 := a^b < 0
+	// arm64:`TST`,-`AND`
+	// amd64:`TESTQ`,-`ANDQ`
+	c3 := e&f < 0
+	// arm64:`CMN`,-`ADD`
+	c4 := e+f < 0
+	// not optimized to single CMNW/CMN due to further use of b+d
+	// arm64:`ADD`,-`CMNW`
+	// arm:`ADD`,-`CMN`
+	c5 := b+d == 0
+	// not optimized to single TSTW/TST due to further use of a&d
+	// arm64:`AND`,-`TSTW`
+	// arm:`AND`,-`TST`
+	c6 := a&d >= 0
+	if c0 {
+		return 1
+	} else if c1 {
+		return 2
+	} else if c2 {
+		return 3
+	} else if c3 {
+		return 4
+	} else if c4 {
+		return 5
+	} else if c5 {
+		return b + d
+	} else if c6 {
+		return a & d
+	} else {
+		return 0
 	}
 }

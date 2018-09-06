@@ -38,7 +38,7 @@ var pkgDeps = map[string][]string{
 	"io":                      {"errors", "sync", "sync/atomic"},
 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "internal/cpu", "internal/bytealg"},
 	"runtime/internal/sys":    {},
-	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
+	"runtime/internal/atomic": {"unsafe", "internal/cpu"},
 	"internal/race":           {"runtime", "unsafe"},
 	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
 	"sync/atomic":             {"unsafe"},
@@ -100,7 +100,7 @@ var pkgDeps = map[string][]string{
 	// and interface definitions, but nothing that makes
 	// system calls.
 	"crypto":                 {"L2", "hash"}, // interfaces
-	"crypto/cipher":          {"L2", "crypto/subtle", "crypto/internal/subtle"},
+	"crypto/cipher":          {"L2", "crypto/subtle", "crypto/internal/subtle", "encoding/binary"},
 	"crypto/internal/subtle": {"unsafe", "reflect"}, // reflect behind a appengine tag
 	"crypto/subtle":          {},
 	"encoding/base32":        {"L2"},
@@ -211,7 +211,7 @@ var pkgDeps = map[string][]string{
 
 	// Go parser.
 	"go/ast":     {"L4", "OS", "go/scanner", "go/token"},
-	"go/doc":     {"L4", "go/ast", "go/token", "regexp", "text/template"},
+	"go/doc":     {"L4", "OS", "go/ast", "go/token", "regexp", "text/template"},
 	"go/parser":  {"L4", "OS", "go/ast", "go/scanner", "go/token"},
 	"go/printer": {"L4", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
 	"go/scanner": {"L4", "OS", "go/token"},

@@ -1,0 +1,73 @@
+# This test matches list_bad_import, but in module mode.
+# Please keep them in sync.
+
+env GO111MODULE=on
+cd example.com
+
+# Without -e, listing an otherwise-valid package with an unsatisfied direct import should fail.
+# BUG: Today it succeeds.
+go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/direct
+! stdout ^error
+stdout 'incomplete'
+stdout 'bad dep: .*example.com/notfound'
+
+# Listing with -deps should also fail.
+# BUG: Today, it does not.
+# ! go list -deps example.com/direct
+# stderr example.com/notfound
+go list -deps example.com/direct
+stdout example.com/notfound
+
+
+# Listing an otherwise-valid package that imports some *other* package with an
+# unsatisfied import should also fail.
+# BUG: Today, it succeeds.
+go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/indirect
+! stdout ^error
+stdout incomplete
+stdout 'bad dep: .*example.com/notfound'
+
+# Again, -deps should fail.
+# BUG: Again, it does not.
+# ! go list -deps example.com/indirect
+# stderr example.com/notfound
+go list -deps example.com/indirect
+stdout example.com/notfound
+
+
+# Listing the missing dependency directly should fail outright...
+! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
+stderr 'cannot find module providing package example.com/notfound'
+! stdout error
+! stdout incomplete
+
+# ...but listing with -e should succeed.
+go list -e -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
+stdout error
+stdout incomplete
+
+
+# The pattern "all" should match only packages that acutally exist,
+# ignoring those whose existence is merely implied by imports.
+go list -e -f '{{.ImportPath}} {{.Error}}' all
+stdout example.com/direct
+stdout example.com/indirect
+# TODO: go list creates a dummy package with the import-not-found
+# but really the Error belongs on example.com/direct, and this package
+# should not be printed.
+# ! stdout example.com/notfound
+
+
+-- example.com/go.mod --
+module example.com
+
+-- example.com/direct/direct.go --
+package direct
+import _ "example.com/notfound"
+
+-- example.com/indirect/indirect.go --
+package indirect
+import _ "example.com/direct"
+
+-- example.com/notfound/README --
+This directory intentionally left blank.

@@ -113,8 +113,7 @@ func f13() {
 	escape(c)
 }
 
-//go:noinline
-func transmit(b []byte) []byte { // ERROR "from ~r1 \(return\) at escape_because.go:118$" "leaking param: b to result ~r1 level=0$"
+func transmit(b []byte) []byte { // ERROR "from ~r1 \(return\) at escape_because.go:117$" "leaking param: b to result ~r1 level=0$"
 	return b
 }
 
@@ -123,6 +122,24 @@ func f14() {
 	s1 := make([]int, n)    // ERROR "make\(\[\]int, n\) escapes to heap" "from make\(\[\]int, n\) \(non-constant size\)"
 	s2 := make([]int, 0, n) // ERROR "make\(\[\]int, 0, n\) escapes to heap" "from make\(\[\]int, 0, n\) \(non-constant size\)"
 	_, _ = s1, s2
+}
+
+func leakParams(p1, p2 *int) (*int, *int) { // ERROR "leaking param: p1 to result ~r2 level=0$" "from ~r2 \(return\) at escape_because.go:128$" "leaking param: p2 to result ~r3 level=0$" "from ~r3 \(return\) at escape_because.go:128$"
+	return p1, p2
+}
+
+func leakThroughOAS2() {
+	// See #26987.
+	i := 0              // ERROR "moved to heap: i$"
+	j := 0              // ERROR "moved to heap: j$"
+	sink, sink = &i, &j // ERROR "&i escapes to heap$" "from sink \(assign-pair\) at escape_because.go:135$" "from &i \(interface-converted\) at escape_because.go:135$" "&j escapes to heap$" "from &j \(interface-converted\) at escape_because.go:135"
+}
+
+func leakThroughOAS2FUNC() {
+	// See #26987.
+	i := 0 // ERROR "moved to heap: i$"
+	j := 0
+	sink, _ = leakParams(&i, &j) // ERROR "&i escapes to heap$" "&j does not escape$" "from .out0 \(passed-to-and-returned-from-call\) at escape_because.go:142$" "from sink \(assign-pair-func-call\) at escape_because.go:142$"
 }
 
 // The list below is all of the why-escapes messages seen building the escape analysis tests.

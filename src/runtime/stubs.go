@@ -178,7 +178,7 @@ func goexit(neverCallThisFunction)
 // cgocallback_gofunc is not called from go, only from cgocallback,
 // so the arguments will be found via cgocallback's pointer-declared arguments.
 // See the assembly implementations for more details.
-func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
+func cgocallback_gofunc(fv, frame, framesize, ctxt uintptr)
 
 // publicationBarrier performs a store/store barrier (a "publication"
 // or "export" barrier). Some form of synchronization is required

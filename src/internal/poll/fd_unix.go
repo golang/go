@@ -31,6 +31,9 @@ type FD struct {
 	// Semaphore signaled when file is closed.
 	csema uint32
 
+	// Non-zero if this file has been set to blocking mode.
+	isBlocking uint32
+
 	// Whether this is a streaming descriptor, as opposed to a
 	// packet-based descriptor like a UDP socket. Immutable.
 	IsStream bool
@@ -41,9 +44,6 @@ type FD struct {
 
 	// Whether this is a file rather than a network socket.
 	isFile bool
-
-	// Whether this file has been set to blocking mode.
-	isBlocking bool
 }
 
 // Init initializes the FD. The Sysfd field should already be set.
@@ -57,14 +57,14 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.isFile = true
 	}
 	if !pollable {
-		fd.isBlocking = true
+		fd.isBlocking = 1
 		return nil
 	}
 	err := fd.pd.init(fd)
 	if err != nil {
 		// If we could not initialize the runtime poller,
 		// assume we are using blocking mode.
-		fd.isBlocking = true
+		fd.isBlocking = 1
 	}
 	return err
 }
@@ -103,9 +103,9 @@ func (fd *FD) Close() error {
 	// reference, it is already closed. Only wait if the file has
 	// not been set to blocking mode, as otherwise any current I/O
 	// may be blocking, and that would block the Close.
-	// No need for a lock to read isBlocking, increfAndClose means
+	// No need for an atomic read of isBlocking, increfAndClose means
 	// we have exclusive access to fd.
-	if !fd.isBlocking {
+	if fd.isBlocking == 0 {
 		runtime_Semacquire(&fd.csema)
 	}
 
@@ -123,13 +123,14 @@ func (fd *FD) Shutdown(how int) error {
 
 // SetBlocking puts the file into blocking mode.
 func (fd *FD) SetBlocking() error {
-	// Take an exclusive lock, rather than calling incref, so that
-	// we can safely modify isBlocking.
-	if err := fd.readLock(); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
-	defer fd.readUnlock()
-	fd.isBlocking = true
+	defer fd.decref()
+	// Atomic store so that concurrent calls to SetBlocking
+	// do not cause a race condition. isBlocking only ever goes
+	// from 0 to 1 so there is no real race here.
+	atomic.StoreUint32(&fd.isBlocking, 1)
 	return syscall.SetNonblock(fd.Sysfd, false)
 }
 

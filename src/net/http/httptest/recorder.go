@@ -184,6 +184,8 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	res.Status = fmt.Sprintf("%03d %s", res.StatusCode, http.StatusText(res.StatusCode))
 	if rw.Body != nil {
 		res.Body = ioutil.NopCloser(bytes.NewReader(rw.Body.Bytes()))
+	} else {
+		res.Body = http.NoBody
 	}
 	res.ContentLength = parseContentLength(res.Header.Get("Content-Length"))
 

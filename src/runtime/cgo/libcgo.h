@@ -97,6 +97,16 @@ struct context_arg {
 extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
 
 /*
+ * The argument for the cgo traceback callback. See runtime.SetCgoTraceback.
+ */
+struct cgoTracebackArg {
+	uintptr_t  Context;
+	uintptr_t  SigContext;
+	uintptr_t* Buf;
+	uintptr_t  Max;
+};
+
+/*
  * TSAN support.  This is only useful when building with
  *   CGO_CFLAGS="-fsanitize=thread" CGO_LDFLAGS="-fsanitize=thread" go install
  */

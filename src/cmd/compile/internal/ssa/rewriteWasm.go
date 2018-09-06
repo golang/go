@@ -237,6 +237,8 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpLess8U_0(v)
 	case OpLoad:
 		return rewriteValueWasm_OpLoad_0(v)
+	case OpLocalAddr:
+		return rewriteValueWasm_OpLocalAddr_0(v)
 	case OpLsh16x16:
 		return rewriteValueWasm_OpLsh16x16_0(v)
 	case OpLsh16x32:
@@ -2495,6 +2497,20 @@ func rewriteValueWasm_OpLoad_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueWasm_OpLocalAddr_0(v *Value) bool {
+	// match: (LocalAddr {sym} base _)
+	// cond:
+	// result: (LoweredAddr {sym} base)
+	for {
+		sym := v.Aux
+		_ = v.Args[1]
+		base := v.Args[0]
+		v.reset(OpWasmLoweredAddr)
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
 }
 func rewriteValueWasm_OpLsh16x16_0(v *Value) bool {
 	b := v.Block

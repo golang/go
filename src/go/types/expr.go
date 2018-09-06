@@ -1010,7 +1010,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		check.ident(x, e, nil, nil)
+		check.ident(x, e, nil)
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are legal
@@ -1064,7 +1064,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					break
 				}
 			}
-			typ = check.typExpr(e.Type, nil, nil)
+			typ = check.typ(e.Type)
 			base = typ
 
 		case hint != nil:
@@ -1094,6 +1094,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						continue
 					}
 					key, _ := kv.Key.(*ast.Ident)
+					// do all possible checks early (before exiting due to errors)
+					// so we don't drop information on the floor
+					check.expr(x, kv.Value)
 					if key == nil {
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
 						continue
@@ -1105,15 +1108,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					}
 					fld := fields[i]
 					check.recordUse(key, fld)
+					etyp := fld.typ
+					check.assignment(x, etyp, "struct literal")
 					// 0 <= i < len(fields)
 					if visited[i] {
 						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)
 						continue
 					}
 					visited[i] = true
-					check.expr(x, kv.Value)
-					etyp := fld.typ
-					check.assignment(x, etyp, "struct literal")
 				}
 			} else {
 				// no element must have a key
@@ -1154,12 +1156,23 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				goto Error
 			}
 			n := check.indexedElts(e.Elts, utyp.elem, utyp.len)
-			// If we have an "open" [...]T array, set the length now that we know it
-			// and record the type for [...] (usually done by check.typExpr which is
-			// not called for [...]).
+			// If we have an array of unknown length (usually [...]T arrays, but also
+			// arrays [n]T where n is invalid) set the length now that we know it and
+			// record the type for the array (usually done by check.typ which is not
+			// called for [...]T). We handle [...]T arrays and arrays with invalid
+			// length the same here because it makes sense to "guess" the length for
+			// the latter if we have a composite literal; e.g. for [n]int{1, 2, 3}
+			// where n is invalid for some reason, it seems fair to assume it should
+			// be 3 (see also Checked.arrayLength and issue #27346).
 			if utyp.len < 0 {
 				utyp.len = n
-				check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
+				// e.Type is missing if we have a composite literal element
+				// that is itself a composite literal with omitted type. In
+				// that case there is nothing to record (there is no type in
+				// the source at that point).
+				if e.Type != nil {
+					check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
+				}
 			}
 
 		case *Slice:

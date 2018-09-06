@@ -326,6 +326,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	ADDL	$28, SP
 	RET
 
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	JMP	runtime·sigtramp(SB)
+
 TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
