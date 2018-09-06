@@ -181,6 +181,7 @@ func CmpToZero(a, b, d int32, e, f int64) int32 {
 	// not optimized to single TSTW/TST due to further use of a&d
 	// arm64:`AND`,-`TSTW`
 	// arm:`AND`,-`TST`
+	// 386:`ANDL`
 	c6 := a&d >= 0
 	if c0 {
 		return 1

@@ -2507,38 +2507,44 @@ func rewriteValue386_Op386CMPBconst_0(v *Value) bool {
 		v.reset(Op386FlagLT_ULT)
 		return true
 	}
-	// match: (CMPBconst (ANDL x y) [0])
-	// cond:
+	// match: (CMPBconst l:(ANDL x y) [0])
+	// cond: l.Uses==1
 	// result: (TESTB x y)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		v_0 := v.Args[0]
-		if v_0.Op != Op386ANDL {
+		l := v.Args[0]
+		if l.Op != Op386ANDL {
 			break
 		}
-		_ = v_0.Args[1]
-		x := v_0.Args[0]
-		y := v_0.Args[1]
+		_ = l.Args[1]
+		x := l.Args[0]
+		y := l.Args[1]
+		if !(l.Uses == 1) {
+			break
+		}
 		v.reset(Op386TESTB)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}
-	// match: (CMPBconst (ANDLconst [c] x) [0])
-	// cond:
+	// match: (CMPBconst l:(ANDLconst [c] x) [0])
+	// cond: l.Uses==1
 	// result: (TESTBconst [int64(int8(c))] x)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		v_0 := v.Args[0]
-		if v_0.Op != Op386ANDLconst {
+		l := v.Args[0]
+		if l.Op != Op386ANDLconst {
 			break
 		}
-		c := v_0.AuxInt
-		x := v_0.Args[0]
+		c := l.AuxInt
+		x := l.Args[0]
+		if !(l.Uses == 1) {
+			break
+		}
 		v.reset(Op386TESTBconst)
 		v.AuxInt = int64(int8(c))
 		v.AddArg(x)
@@ -2819,38 +2825,44 @@ func rewriteValue386_Op386CMPLconst_0(v *Value) bool {
 		v.reset(Op386FlagLT_ULT)
 		return true
 	}
-	// match: (CMPLconst (ANDL x y) [0])
-	// cond:
+	// match: (CMPLconst l:(ANDL x y) [0])
+	// cond: l.Uses==1
 	// result: (TESTL x y)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		v_0 := v.Args[0]
-		if v_0.Op != Op386ANDL {
+		l := v.Args[0]
+		if l.Op != Op386ANDL {
 			break
 		}
-		_ = v_0.Args[1]
-		x := v_0.Args[0]
-		y := v_0.Args[1]
+		_ = l.Args[1]
+		x := l.Args[0]
+		y := l.Args[1]
+		if !(l.Uses == 1) {
+			break
+		}
 		v.reset(Op386TESTL)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}
-	// match: (CMPLconst (ANDLconst [c] x) [0])
-	// cond:
+	// match: (CMPLconst l:(ANDLconst [c] x) [0])
+	// cond: l.Uses==1
 	// result: (TESTLconst [c] x)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		v_0 := v.Args[0]
-		if v_0.Op != Op386ANDLconst {
+		l := v.Args[0]
+		if l.Op != Op386ANDLconst {
 			break
 		}
-		c := v_0.AuxInt
-		x := v_0.Args[0]
+		c := l.AuxInt
+		x := l.Args[0]
+		if !(l.Uses == 1) {
+			break
+		}
 		v.reset(Op386TESTLconst)
 		v.AuxInt = c
 		v.AddArg(x)
@@ -3122,38 +3134,44 @@ func rewriteValue386_Op386CMPWconst_0(v *Value) bool {
 		v.reset(Op386FlagLT_ULT)
 		return true
 	}
-	// match: (CMPWconst (ANDL x y) [0])
-	// cond:
+	// match: (CMPWconst l:(ANDL x y) [0])
+	// cond: l.Uses==1
 	// result: (TESTW x y)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		v_0 := v.Args[0]
-		if v_0.Op != Op386ANDL {
+		l := v.Args[0]
+		if l.Op != Op386ANDL {
 			break
 		}
-		_ = v_0.Args[1]
-		x := v_0.Args[0]
-		y := v_0.Args[1]
+		_ = l.Args[1]
+		x := l.Args[0]
+		y := l.Args[1]
+		if !(l.Uses == 1) {
+			break
+		}
 		v.reset(Op386TESTW)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}
-	// match: (CMPWconst (ANDLconst [c] x) [0])
-	// cond:
+	// match: (CMPWconst l:(ANDLconst [c] x) [0])
+	// cond: l.Uses==1
 	// result: (TESTWconst [int64(int16(c))] x)
 	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		v_0 := v.Args[0]
-		if v_0.Op != Op386ANDLconst {
+		l := v.Args[0]
+		if l.Op != Op386ANDLconst {
 			break
 		}
-		c := v_0.AuxInt
-		x := v_0.Args[0]
+		c := l.AuxInt
+		x := l.Args[0]
+		if !(l.Uses == 1) {
+			break
+		}
 		v.reset(Op386TESTWconst)
 		v.AuxInt = int64(int16(c))
 		v.AddArg(x)
