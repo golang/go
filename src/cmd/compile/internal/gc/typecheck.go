@@ -1263,7 +1263,7 @@ func typecheck1(n *Node, top int) *Node {
 			n.Op = OCALLFUNC
 			if t.Etype != TFUNC {
 				name := l.String()
-				if isBuiltinFuncName(name) {
+				if isBuiltinFuncName(name) && l.Name.Defn != nil {
 					// be more specific when the function
 					// name matches a predeclared function
 					yyerror("cannot call non-function %s (type %v), declared at %s",
@@ -3152,7 +3152,7 @@ func typecheckcomplit(n *Node) *Node {
 					// dotpath returns the parent embedded types in reverse order.
 					var ep []string
 					for ei := len(p) - 1; ei >= 0; ei-- {
-						ep = append(ep, p[ei].field.Type.Sym.Name)
+						ep = append(ep, p[ei].field.Sym.Name)
 					}
 					ep = append(ep, l.Sym.Name)
 					yyerror("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
@@ -3333,10 +3333,17 @@ func typecheckas(n *Node) {
 		n.Left = typecheck(n.Left, Erv|Easgn)
 	}
 
-	n.Right = typecheck(n.Right, Erv)
+	// Use Efnstruct so we can emit an "N variables but M values" error
+	// to be consistent with typecheckas2 (#26616).
+	n.Right = typecheck(n.Right, Erv|Efnstruct)
 	checkassign(n, n.Left)
 	if n.Right != nil && n.Right.Type != nil {
-		if n.Left.Type != nil {
+		if n.Right.Type.IsFuncArgStruct() {
+			yyerror("assignment mismatch: 1 variable but %d values", n.Right.Type.NumFields())
+			// Multi-value RHS isn't actually valid for OAS; nil out
+			// to indicate failed typechecking.
+			n.Right.Type = nil
+		} else if n.Left.Type != nil {
 			n.Right = assignconv(n.Right, n.Left.Type, "assignment")
 		}
 	}
@@ -3608,21 +3615,14 @@ func copytype(n *Node, t *types.Type) {
 	}
 
 	// Double-check use of type as embedded type.
-	lno := lineno
-
 	if embedlineno.IsKnown() {
-		lineno = embedlineno
 		if t.IsPtr() || t.IsUnsafePtr() {
-			yyerror("embedded type cannot be a pointer")
+			yyerrorl(embedlineno, "embedded type cannot be a pointer")
 		}
 	}
-
-	lineno = lno
 }
 
 func typecheckdeftype(n *Node) {
-	lno := lineno
-	setlineno(n)
 	n.Type.Sym = n.Sym
 	n.SetTypecheck(1)
 	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
@@ -3637,8 +3637,6 @@ func typecheckdeftype(n *Node) {
 		// that don't come along.
 		copytype(n, t)
 	}
-
-	lineno = lno
 }
 
 func typecheckdef(n *Node) {

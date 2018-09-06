@@ -101,6 +101,19 @@ const (
 	IMAGE_REL_AMD64_SREL32           = 0x000E
 	IMAGE_REL_AMD64_PAIR             = 0x000F
 	IMAGE_REL_AMD64_SSPAN32          = 0x0010
+	IMAGE_REL_ARM_ABSOLUTE           = 0x0000
+	IMAGE_REL_ARM_ADDR32             = 0x0001
+	IMAGE_REL_ARM_ADDR32NB           = 0x0002
+	IMAGE_REL_ARM_BRANCH24           = 0x0003
+	IMAGE_REL_ARM_BRANCH11           = 0x0004
+	IMAGE_REL_ARM_SECTION            = 0x000E
+	IMAGE_REL_ARM_SECREL             = 0x000F
+	IMAGE_REL_ARM_MOV32              = 0x0010
+	IMAGE_REL_THUMB_MOV32            = 0x0011
+	IMAGE_REL_THUMB_BRANCH20         = 0x0012
+	IMAGE_REL_THUMB_BRANCH24         = 0x0014
+	IMAGE_REL_THUMB_BLX23            = 0x0015
+	IMAGE_REL_ARM_PAIR               = 0x0016
 )
 
 // TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld, ideally in debug/pe.
@@ -241,30 +254,56 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 			rp.Sym = gosym
 			rp.Siz = 4
 			rp.Off = int32(r.VirtualAddress)
-			switch r.Type {
+			switch arch.Family {
 			default:
-				return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
+				return nil, nil, fmt.Errorf("%s: unsupported arch %v", pn, arch.Family)
+			case sys.I386, sys.AMD64:
+				switch r.Type {
+				default:
+					return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
 
-			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
-				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
-				IMAGE_REL_AMD64_ADDR32NB:
-				rp.Type = objabi.R_PCREL
+				case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
+					IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
+					IMAGE_REL_AMD64_ADDR32NB:
+					rp.Type = objabi.R_PCREL
 
-				rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
 
-			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
-				rp.Type = objabi.R_ADDR
+				case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
+					rp.Type = objabi.R_ADDR
 
-				// load addend from image
-				rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					// load addend from image
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
 
-			case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
-				rp.Siz = 8
+				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
+					rp.Siz = 8
 
-				rp.Type = objabi.R_ADDR
+					rp.Type = objabi.R_ADDR
 
-				// load addend from image
-				rp.Add = int64(binary.LittleEndian.Uint64(sectdata[rsect][rp.Off:]))
+					// load addend from image
+					rp.Add = int64(binary.LittleEndian.Uint64(sectdata[rsect][rp.Off:]))
+				}
+
+			case sys.ARM:
+				switch r.Type {
+				default:
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
+
+				case IMAGE_REL_ARM_SECREL:
+					rp.Type = objabi.R_PCREL
+
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+
+				case IMAGE_REL_ARM_ADDR32:
+					rp.Type = objabi.R_ADDR
+
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+
+				case IMAGE_REL_ARM_BRANCH24:
+					rp.Type = objabi.R_CALLARM
+
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+				}
 			}
 
 			// ld -r could generate multiple section symbols for the
@@ -319,7 +358,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 
 		if pesym.SectionNumber == 0 { // extern
 			if s.Type == sym.SDYNIMPORT {
-				s.Plt = -2 // flag for dynimport in PE object files.
+				s.SetPlt(-2) // flag for dynimport in PE object files.
 			}
 			if s.Type == sym.SXREF && pesym.Value > 0 { // global data
 				s.Type = sym.SNOPTRDATA
@@ -440,7 +479,7 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
 		s.Type = sym.SXREF
 	}
 	if strings.HasPrefix(symname, "__imp_") {
-		s.Got = -2 // flag for __imp_
+		s.SetGot(-2) // flag for __imp_
 	}
 
 	return s, nil

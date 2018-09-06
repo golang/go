@@ -73,7 +73,7 @@ $ go-contrib-init
 <p>
 The rest of this chapter elaborates on these instructions.
 If you have completed the steps above (either manually or through the tool), jump to
-<a href="#making_a_change">Making a change</a>.
+<a href="#before_contributing">Before contributing code</a>.
 </p>
 
 <h3 id="google_account">Step 0: Select a Google Account</h3>
@@ -292,6 +292,25 @@ Most issues will be marked with one of the following workflow labels:
 	</li>
 </ul>
 
+<p>
+You can use GitHub's search functionality to find issues to help out with. Examples:
+</p>
+
+<ul>
+	<li>
+	Issues that need investigation: <a href="https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3ANeedsInvestigation"><code>is:issue is:open label:NeedsInvestigation</code></a>
+	</li>
+	<li>
+	Issues that need a fix: <a href="https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3ANeedsFix"><code>is:issue is:open label:NeedsFix</code></a>
+	</li>
+	<li>
+	Issues that need a fix and have a CL: <a href="https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3ANeedsFix+%22golang.org%2Fcl%22"><code>is:issue is:open label:NeedsFix "golang.org/cl"</code></a>
+	</li>
+	<li>
+	Issues that need a fix and do not have a CL: <a href="https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3ANeedsFix+NOT+%22golang.org%2Fcl%22"><code>is:issue is:open label:NeedsFix NOT "golang.org/cl"</code></a>
+	</li>
+</ul>
+
 <h3 id="design">Open an issue for any new problem</h3>
 
 <p>
@@ -386,7 +405,7 @@ This is an overview of the overall process:
 
 <ul>
 <li>
-<b>Step 1:</b> Clone the Go source code from go.googlesource.com
+<b>Step 1:</b> Clone the Go source code from <code>go.googlesource.com</code>
 and make sure it's stable by compiling and testing it once:
 <pre>
 $ git clone https://go.googlesource.com/go
@@ -450,12 +469,11 @@ In addition to a recent Go installation, you need to have a local copy of the so
 checked out from the correct repository.
 You can check out the Go source repo onto your local file system anywhere
 you want as long as it's outside your <code>GOPATH</code>.
-Either clone from
-<code>go.googlesource.com</code> or from GitHub:
+Clone from <code>go.googlesource.com</code> (not GitHub):
 </p>
 
 <pre>
-$ git clone https://github.com/golang/go   # or https://go.googlesource.com/go
+$ git clone https://go.googlesource.com/go
 $ cd go
 </pre>
 
@@ -678,7 +696,7 @@ Don't use HTML, Markdown, or any other markup language.
 <p>
 Add any relevant information, such as benchmark data if the change
 affects performance.
-The <a href="https://godoc.org/golang.org/x/tools/cmd/benchcmp">benchcmp</a>
+The <a href="https://godoc.org/golang.org/x/perf/cmd/benchstat">benchstat</a>
 tool is conventionally used to format
 benchmark data for change descriptions.
 </p>

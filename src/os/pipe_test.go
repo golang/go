@@ -395,3 +395,45 @@ func TestFdRace(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestFdReadRace(t *testing.T) {
+	t.Parallel()
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	c := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var buf [10]byte
+		r.SetReadDeadline(time.Now().Add(time.Second))
+		c <- true
+		if _, err := r.Read(buf[:]); os.IsTimeout(err) {
+			t.Error("read timed out")
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-c
+		// Give the other goroutine a chance to enter the Read.
+		// It doesn't matter if this occasionally fails, the test
+		// will still pass, it just won't test anything.
+		time.Sleep(10 * time.Millisecond)
+		r.Fd()
+
+		// The bug was that Fd would hang until Read timed out.
+		// If the bug is fixed, then closing r here will cause
+		// the Read to exit before the timeout expires.
+		r.Close()
+	}()
+
+	wg.Wait()
+}

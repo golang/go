@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
@@ -428,7 +427,8 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
 			if Ctxt.FixedFrameSize() == 0 {
 				offs -= int64(Widthptr)
 			}
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+				// There is a word space for FP on ARM64 even if the frame pointer is disabled
 				offs -= int64(Widthptr)
 			}
 
@@ -594,34 +594,8 @@ func preInliningDcls(fnsym *obj.LSym) []*Node {
 		}
 		rdcl = append(rdcl, n)
 	}
-	sort.Sort(byNodeName(rdcl))
 	return rdcl
 }
-
-func cmpNodeName(a, b *Node) bool {
-	aart := 0
-	if strings.HasPrefix(a.Sym.Name, "~") {
-		aart = 1
-	}
-	bart := 0
-	if strings.HasPrefix(b.Sym.Name, "~") {
-		bart = 1
-	}
-	if aart != bart {
-		return aart < bart
-	}
-
-	aname := unversion(a.Sym.Name)
-	bname := unversion(b.Sym.Name)
-	return aname < bname
-}
-
-// byNodeName implements sort.Interface for []*Node using cmpNodeName.
-type byNodeName []*Node
-
-func (s byNodeName) Len() int           { return len(s) }
-func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
-func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // stackOffset returns the stack location of a LocalSlot relative to the
 // stack pointer, suitable for use in a DWARF location entry. This has nothing
@@ -634,7 +608,8 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 		if Ctxt.FixedFrameSize() == 0 {
 			base -= int64(Widthptr)
 		}
-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+			// There is a word space for FP on ARM64 even if the frame pointer is disabled
 			base -= int64(Widthptr)
 		}
 	case PPARAM, PPARAMOUT:

@@ -438,8 +438,8 @@ func (task *taskDesc) complete() bool {
 	return task.create != nil && task.end != nil
 }
 
-// descendents returns all the task nodes in the subtree rooted from this task.
-func (task *taskDesc) decendents() []*taskDesc {
+// descendants returns all the task nodes in the subtree rooted from this task.
+func (task *taskDesc) descendants() []*taskDesc {
 	if task == nil {
 		return nil
 	}

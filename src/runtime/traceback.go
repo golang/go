@@ -99,8 +99,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	if skip > 0 && callback != nil {
 		throw("gentraceback callback cannot be used with non-zero skip")
 	}
-	g := getg()
-	if g == gp && g == g.m.curg {
+
+	// Don't call this "g"; it's too easy get "g" and "gp" confused.
+	if ourg := getg(); ourg == gp && ourg == ourg.m.curg {
 		// The starting sp has been passed in as a uintptr, and the caller may
 		// have other uintptr-typed stack references as well.
 		// If during one of the calls that got us here or during one of the
@@ -196,16 +197,29 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// Found an actual function.
 		// Derive frame pointer and link register.
 		if frame.fp == 0 {
-			// We want to jump over the systemstack switch. If we're running on the
-			// g0, this systemstack is at the top of the stack.
-			// if we're not on g0 or there's a no curg, then this is a regular call.
-			sp := frame.sp
-			if flags&_TraceJumpStack != 0 && f.funcID == funcID_systemstack && gp == g.m.g0 && gp.m.curg != nil {
-				sp = gp.m.curg.sched.sp
-				frame.sp = sp
-				cgoCtxt = gp.m.curg.cgoCtxt
+			// Jump over system stack transitions. If we're on g0 and there's a user
+			// goroutine, try to jump. Otherwise this is a regular call.
+			if flags&_TraceJumpStack != 0 && gp == gp.m.g0 && gp.m.curg != nil {
+				switch f.funcID {
+				case funcID_morestack:
+					// morestack does not return normally -- newstack()
+					// gogo's to curg.sched. Match that.
+					// This keeps morestack() from showing up in the backtrace,
+					// but that makes some sense since it'll never be returned
+					// to.
+					frame.pc = gp.m.curg.sched.pc
+					frame.fn = findfunc(frame.pc)
+					f = frame.fn
+					frame.sp = gp.m.curg.sched.sp
+					cgoCtxt = gp.m.curg.cgoCtxt
+				case funcID_systemstack:
+					// systemstack returns normally, so just follow the
+					// stack transition.
+					frame.sp = gp.m.curg.sched.sp
+					cgoCtxt = gp.m.curg.cgoCtxt
+				}
 			}
-			frame.fp = sp + uintptr(funcspdelta(f, frame.pc, &cache))
+			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
 			if !usesLR {
 				// On x86, call instruction pushes return PC before entering new function.
 				frame.fp += sys.RegSize
@@ -271,7 +285,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 		// If framepointer_enabled and there's a frame, then
 		// there's a saved bp here.
-		if framepointer_enabled && GOARCH == "amd64" && frame.varp > frame.sp {
+		if frame.varp > frame.sp && (framepointer_enabled && GOARCH == "amd64" || GOARCH == "arm64") {
 			frame.varp -= sys.RegSize
 		}
 
@@ -425,7 +439,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if frame.pc > f.entry {
 					print(" +", hex(frame.pc-f.entry))
 				}
-				if g.m.throwing > 0 && gp == g.m.curg || level >= 2 {
+				if gp.m != nil && gp.m.throwing > 0 && gp == gp.m.curg || level >= 2 {
 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
 				}
 				print("\n")
@@ -679,7 +693,14 @@ func traceback(pc, sp, lr uintptr, gp *g) {
 // the initial PC must not be rewound to the previous instruction.
 // (All the saved pairs record a PC that is a return address, so we
 // rewind it into the CALL instruction.)
+// If gp.m.libcall{g,pc,sp} information is available, it uses that information in preference to
+// the pc/sp/lr passed in.
 func tracebacktrap(pc, sp, lr uintptr, gp *g) {
+	if gp.m.libcallsp != 0 {
+		// We're in C code somewhere, traceback from the saved position.
+		traceback1(gp.m.libcallpc, gp.m.libcallsp, 0, gp.m.libcallg.ptr(), 0)
+		return
+	}
 	traceback1(pc, sp, lr, gp, _TraceTrap)
 }
 
@@ -836,7 +857,7 @@ func showfuncinfo(f funcInfo, firstFrame, elideWrapper bool) bool {
 		return true
 	}
 
-	return contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
+	return contains(name, ".") && (!hasPrefix(name, "runtime.") || isExportedRuntime(name))
 }
 
 // isExportedRuntime reports whether name is an exported runtime function.
@@ -1015,7 +1036,7 @@ func isSystemGoroutine(gp *g) bool {
 		// back into user code.
 		return !fingRunning
 	}
-	return hasprefix(funcname(f), "runtime.")
+	return hasPrefix(funcname(f), "runtime.")
 }
 
 // SetCgoTraceback records three C functions to use to gather
@@ -1114,6 +1135,13 @@ func isSystemGoroutine(gp *g) bool {
 // Unlike runtime.Callers, the PC values returned should, when passed
 // to the symbolizer function, return the file/line of the call
 // instruction.  No additional subtraction is required or appropriate.
+//
+// On all platforms, the traceback function is invoked when a call from
+// Go to C to Go requests a stack trace. On linux/amd64, linux/ppc64le,
+// and freebsd/amd64, the traceback function is also invoked when a
+// signal is received by a thread that is executing a cgo call. The
+// traceback function should not make assumptions about when it is
+// called, as future versions of Go may make additional calls.
 //
 // The symbolizer function will be called with a single argument, a
 // pointer to a struct:

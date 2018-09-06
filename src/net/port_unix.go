@@ -8,7 +8,10 @@
 
 package net
 
-import "sync"
+import (
+	"internal/bytealg"
+	"sync"
+)
 
 var onceReadServices sync.Once
 
@@ -21,7 +24,7 @@ func readServices() {
 
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		// "http 80/tcp www www-http # World Wide Web HTTP"
-		if i := byteIndex(line, '#'); i >= 0 {
+		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
 			line = line[:i]
 		}
 		f := getFields(line)

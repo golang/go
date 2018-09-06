@@ -65,7 +65,7 @@ func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
 func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 	for name, fn := range in {
 		if !goodName(name) {
-			panic(fmt.Errorf("function name %s is not a valid identifier", name))
+			panic(fmt.Errorf("function name %q is not a valid identifier", name))
 		}
 		v := reflect.ValueOf(fn)
 		if v.Kind() != reflect.Func {

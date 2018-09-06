@@ -160,7 +160,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpS390XSLD, ssa.OpS390XSLW,
 		ssa.OpS390XSRD, ssa.OpS390XSRW,
-		ssa.OpS390XSRAD, ssa.OpS390XSRAW:
+		ssa.OpS390XSRAD, ssa.OpS390XSRAW,
+		ssa.OpS390XRLLG, ssa.OpS390XRLL:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
@@ -513,7 +514,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = v.Aux.(*obj.LSym)
-	case ssa.OpS390XFLOGR, ssa.OpS390XNEG, ssa.OpS390XNEGW,
+	case ssa.OpS390XFLOGR, ssa.OpS390XPOPCNT,
+		ssa.OpS390XNEG, ssa.OpS390XNEGW,
 		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -522,6 +524,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XNOT, ssa.OpS390XNOTW:
 		v.Fatalf("NOT/NOTW generated %s", v.LongString())
+	case ssa.OpS390XSumBytes2, ssa.OpS390XSumBytes4, ssa.OpS390XSumBytes8:
+		v.Fatalf("SumBytes generated %s", v.LongString())
 	case ssa.OpS390XMOVDEQ, ssa.OpS390XMOVDNE,
 		ssa.OpS390XMOVDLT, ssa.OpS390XMOVDLE,
 		ssa.OpS390XMOVDGT, ssa.OpS390XMOVDGE,

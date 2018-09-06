@@ -6,6 +6,7 @@ package doc_test
 
 import (
 	"bytes"
+	"go/ast"
 	"go/doc"
 	"go/format"
 	"go/parser"
@@ -280,16 +281,7 @@ func TestExamples(t *testing.T) {
 			t.Errorf("got Name == %q, want %q", e.Name, c.Name)
 		}
 		if w := c.Play; w != "" {
-			var g string // hah
-			if e.Play == nil {
-				g = "<nil>"
-			} else {
-				var buf bytes.Buffer
-				if err := format.Node(&buf, fset, e.Play); err != nil {
-					t.Fatal(err)
-				}
-				g = buf.String()
-			}
+			g := formatFile(t, fset, e.Play)
 			if g != w {
 				t.Errorf("%s: got Play == %q, want %q", c.Name, g, w)
 			}
@@ -298,4 +290,74 @@ func TestExamples(t *testing.T) {
 			t.Errorf("%s: got Output == %q, want %q", c.Name, g, w)
 		}
 	}
+}
+
+const exampleWholeFile = `package foo_test
+
+type X int
+
+func (X) Foo() {
+}
+
+func (X) TestBlah() {
+}
+
+func (X) BenchmarkFoo() {
+}
+
+func Example() {
+	fmt.Println("Hello, world!")
+	// Output: Hello, world!
+}
+`
+
+const exampleWholeFileOutput = `package main
+
+type X int
+
+func (X) Foo() {
+}
+
+func (X) TestBlah() {
+}
+
+func (X) BenchmarkFoo() {
+}
+
+func main() {
+	fmt.Println("Hello, world!")
+}
+`
+
+func TestExamplesWholeFile(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleWholeFile), parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	es := doc.Examples(file)
+	if len(es) != 1 {
+		t.Fatalf("wrong number of examples; got %d want 1", len(es))
+	}
+	e := es[0]
+	if e.Name != "" {
+		t.Errorf("got Name == %q, want %q", e.Name, "")
+	}
+	if g, w := formatFile(t, fset, e.Play), exampleWholeFileOutput; g != w {
+		t.Errorf("got Play == %q, want %q", g, w)
+	}
+	if g, w := e.Output, "Hello, world!\n"; g != w {
+		t.Errorf("got Output == %q, want %q", g, w)
+	}
+}
+
+func formatFile(t *testing.T, fset *token.FileSet, n *ast.File) string {
+	if n == nil {
+		return "<nil>"
+	}
+	var buf bytes.Buffer
+	if err := format.Node(&buf, fset, n); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
 }

@@ -314,7 +314,7 @@ func TestCoverHTML(t *testing.T) {
 	// Compare at the line level, stopping at first different line so
 	// we don't generate tons of output if there's an inserted or deleted line.
 	for i, goldenLine := range goldenLines {
-		if i > len(outLines) {
+		if i >= len(outLines) {
 			t.Fatalf("output shorter than golden; stops before line %d: %s\n", i+1, goldenLine)
 		}
 		// Convert all white space to simple spaces, for easy comparison.

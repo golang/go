@@ -15,8 +15,6 @@ import (
 	"time"
 )
 
-var supportSHA2 = true
-
 type verifyTest struct {
 	leaf                 string
 	intermediates        []string
@@ -27,6 +25,7 @@ type verifyTest struct {
 	keyUsages            []ExtKeyUsage
 	testSystemRootsError bool
 	sha2                 bool
+	ignoreCN             bool
 
 	errorCallback  func(*testing.T, int, error) bool
 	expectedChains [][]string
@@ -73,7 +72,16 @@ var verifyTests = []verifyTest{
 		currentTime:   1395785200,
 		dnsName:       "www.example.com",
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is valid for"),
+	},
+	{
+		leaf:          googleLeaf,
+		intermediates: []string{giag2Intermediate},
+		roots:         []string{geoTrustRoot},
+		currentTime:   1395785200,
+		dnsName:       "1.2.3.4",
+
+		errorCallback: expectHostnameError("doesn't contain any IP SANs"),
 	},
 	{
 		leaf:          googleLeaf,
@@ -250,7 +258,7 @@ var verifyTests = []verifyTest{
 		dnsName:     "notfoo.example",
 		systemSkip:  true,
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is valid for"),
 	},
 	{
 		// The issuer name in the leaf doesn't exactly match the
@@ -283,7 +291,7 @@ var verifyTests = []verifyTest{
 		currentTime: 1486684488,
 		systemSkip:  true,
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is not valid for any names"),
 	},
 	{
 		// Test that excluded names are respected.
@@ -320,19 +328,77 @@ var verifyTests = []verifyTest{
 
 		errorCallback: expectUnhandledCriticalExtension,
 	},
+	{
+		// Test that invalid CN are ignored.
+		leaf:        invalidCNWithoutSAN,
+		dnsName:     "foo,invalid",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+
+		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+	},
+	{
+		// Test that valid CN are respected.
+		leaf:        validCNWithoutSAN,
+		dnsName:     "foo.example.com",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+
+		expectedChains: [][]string{
+			{"foo.example.com", "Test root"},
+		},
+	},
+	// Replicate CN tests with ignoreCN = true
+	{
+		leaf:        ignoreCNWithSANLeaf,
+		dnsName:     "foo.example.com",
+		roots:       []string{ignoreCNWithSANRoot},
+		currentTime: 1486684488,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("certificate is not valid for any names"),
+	},
+	{
+		leaf:        invalidCNWithoutSAN,
+		dnsName:     "foo,invalid",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+	},
+	{
+		leaf:        validCNWithoutSAN,
+		dnsName:     "foo.example.com",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("not valid for any names"),
+	},
 }
 
-func expectHostnameError(t *testing.T, i int, err error) (ok bool) {
-	if _, ok := err.(HostnameError); !ok {
-		t.Errorf("#%d: error was not a HostnameError: %s", i, err)
-		return false
+func expectHostnameError(msg string) func(*testing.T, int, error) bool {
+	return func(t *testing.T, i int, err error) (ok bool) {
+		if _, ok := err.(HostnameError); !ok {
+			t.Errorf("#%d: error was not a HostnameError: %v", i, err)
+			return false
+		}
+		if !strings.Contains(err.Error(), msg) {
+			t.Errorf("#%d: HostnameError did not contain %q: %v", i, msg, err)
+		}
+		return true
 	}
-	return true
 }
 
 func expectExpired(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != Expired {
-		t.Errorf("#%d: error was not Expired: %s", i, err)
+		t.Errorf("#%d: error was not Expired: %v", i, err)
 		return false
 	}
 	return true
@@ -340,7 +406,7 @@ func expectExpired(t *testing.T, i int, err error) (ok bool) {
 
 func expectUsageError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != IncompatibleUsage {
-		t.Errorf("#%d: error was not IncompatibleUsage: %s", i, err)
+		t.Errorf("#%d: error was not IncompatibleUsage: %v", i, err)
 		return false
 	}
 	return true
@@ -349,11 +415,11 @@ func expectUsageError(t *testing.T, i int, err error) (ok bool) {
 func expectAuthorityUnknown(t *testing.T, i int, err error) (ok bool) {
 	e, ok := err.(UnknownAuthorityError)
 	if !ok {
-		t.Errorf("#%d: error was not UnknownAuthorityError: %s", i, err)
+		t.Errorf("#%d: error was not UnknownAuthorityError: %v", i, err)
 		return false
 	}
 	if e.Cert == nil {
-		t.Errorf("#%d: error was UnknownAuthorityError, but missing Cert: %s", i, err)
+		t.Errorf("#%d: error was UnknownAuthorityError, but missing Cert: %v", i, err)
 		return false
 	}
 	return true
@@ -361,7 +427,7 @@ func expectAuthorityUnknown(t *testing.T, i int, err error) (ok bool) {
 
 func expectSystemRootsError(t *testing.T, i int, err error) bool {
 	if _, ok := err.(SystemRootsError); !ok {
-		t.Errorf("#%d: error was not SystemRootsError: %s", i, err)
+		t.Errorf("#%d: error was not SystemRootsError: %v", i, err)
 		return false
 	}
 	return true
@@ -373,7 +439,7 @@ func expectHashError(t *testing.T, i int, err error) bool {
 		return false
 	}
 	if expected := "algorithm unimplemented"; !strings.Contains(err.Error(), expected) {
-		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %s", i, expected, err)
+		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %v", i, expected, err)
 		return false
 	}
 	return true
@@ -381,7 +447,7 @@ func expectHashError(t *testing.T, i int, err error) bool {
 
 func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NameMismatch {
-		t.Errorf("#%d: error was not a NameMismatch: %s", i, err)
+		t.Errorf("#%d: error was not a NameMismatch: %v", i, err)
 		return false
 	}
 	return true
@@ -389,7 +455,7 @@ func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool)
 
 func expectNameConstraintsError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != CANotAuthorizedForThisName {
-		t.Errorf("#%d: error was not a CANotAuthorizedForThisName: %s", i, err)
+		t.Errorf("#%d: error was not a CANotAuthorizedForThisName: %v", i, err)
 		return false
 	}
 	return true
@@ -397,7 +463,7 @@ func expectNameConstraintsError(t *testing.T, i int, err error) (ok bool) {
 
 func expectNotAuthorizedError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NotAuthorizedToSign {
-		t.Errorf("#%d: error was not a NotAuthorizedToSign: %s", i, err)
+		t.Errorf("#%d: error was not a NotAuthorizedToSign: %v", i, err)
 		return false
 	}
 	return true
@@ -405,7 +471,7 @@ func expectNotAuthorizedError(t *testing.T, i int, err error) (ok bool) {
 
 func expectUnhandledCriticalExtension(t *testing.T, i int, err error) (ok bool) {
 	if _, ok := err.(UnhandledCriticalExtension); !ok {
-		t.Errorf("#%d: error was not an UnhandledCriticalExtension: %s", i, err)
+		t.Errorf("#%d: error was not an UnhandledCriticalExtension: %v", i, err)
 		return false
 	}
 	return true
@@ -420,6 +486,9 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 }
 
 func testVerify(t *testing.T, useSystemRoots bool) {
+	defer func(savedIgnoreCN bool) {
+		ignoreCN = savedIgnoreCN
+	}(ignoreCN)
 	for i, test := range verifyTests {
 		if useSystemRoots && test.systemSkip {
 			continue
@@ -427,10 +496,8 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 		if runtime.GOOS == "windows" && test.testSystemRootsError {
 			continue
 		}
-		if useSystemRoots && !supportSHA2 && test.sha2 {
-			continue
-		}
 
+		ignoreCN = test.ignoreCN
 		opts := VerifyOptions{
 			Intermediates: NewCertPool(),
 			DNSName:       test.dnsName,
@@ -459,7 +526,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 
 		leaf, err := certificateFromPEM(test.leaf)
 		if err != nil {
-			t.Errorf("#%d: failed to parse leaf: %s", i, err)
+			t.Errorf("#%d: failed to parse leaf: %v", i, err)
 			return
 		}
 
@@ -477,7 +544,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 		}
 
 		if test.errorCallback == nil && err != nil {
-			t.Errorf("#%d: unexpected error: %s", i, err)
+			t.Errorf("#%d: unexpected error: %v", i, err)
 		}
 		if test.errorCallback != nil {
 			if !test.errorCallback(t, i, err) {
@@ -1518,6 +1585,95 @@ yU1yRHUqUYpN0DWFpsPbBqgM6uUAVO2ayBFhPgWUaqkmSbZ/Nq7isGvknaTmcIwT
 +NQCZDd5eFeU8PpNX7rgaYE4GPq+EEmLVCBYmdctr8QVdqJ//8Xu3+1phjDy
 -----END CERTIFICATE-----`
 
+const invalidCNRoot = `
+-----BEGIN CERTIFICATE-----
+MIIBFjCBvgIJAIsu4r+jb70UMAoGCCqGSM49BAMCMBQxEjAQBgNVBAsMCVRlc3Qg
+cm9vdDAeFw0xODA3MTExODMyMzVaFw0yODA3MDgxODMyMzVaMBQxEjAQBgNVBAsM
+CVRlc3Qgcm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF6oDgMg0LV6YhPj
+QXaPXYCc2cIyCdqp0ROUksRz0pOLTc5iY2nraUheRUD1vRRneq7GeXOVNn7uXONg
+oCGMjNwwCgYIKoZIzj0EAwIDRwAwRAIgDSiwgIn8g1lpruYH0QD1GYeoWVunfmrI
+XzZZl0eW/ugCICgOfXeZ2GGy3wIC0352BaC3a8r5AAb2XSGNe+e9wNN6
+-----END CERTIFICATE-----
+`
+
+const invalidCNWithoutSAN = `
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number:
+            07:ba:bc:b7:d9:ab:0c:02:fe:50:1d:4e:15:a3:0d:e4:11:16:14:a2
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: OU = Test root
+        Validity
+            Not Before: Jul 11 18:35:21 2018 GMT
+            Not After : Jul  8 18:35:21 2028 GMT
+        Subject: CN = "foo,invalid"
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:a7:a6:7c:22:33:a7:47:7f:08:93:2d:5f:61:35:
+                    2e:da:45:67:76:f2:97:73:18:b0:01:12:4a:1a:d5:
+                    b7:6f:41:3c:bb:05:69:f4:06:5d:ff:eb:2b:a7:85:
+                    0b:4c:f7:45:4e:81:40:7a:a9:c6:1d:bb:ba:d9:b9:
+                    26:b3:ca:50:90
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+    Signature Algorithm: ecdsa-with-SHA256
+         30:45:02:21:00:85:96:75:b6:72:3c:67:12:a0:7f:86:04:81:
+         d2:dd:c8:67:50:d7:5f:85:c0:54:54:fc:e6:6b:45:08:93:d3:
+         2a:02:20:60:86:3e:d6:28:a6:4e:da:dd:6e:95:89:cc:00:76:
+         78:1c:03:80:85:a6:5a:0b:eb:c5:f3:9c:2e:df:ef:6e:fa
+-----BEGIN CERTIFICATE-----
+MIIBJDCBywIUB7q8t9mrDAL+UB1OFaMN5BEWFKIwCgYIKoZIzj0EAwIwFDESMBAG
+A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4MzUyMVoXDTI4MDcwODE4MzUyMVow
+FjEUMBIGA1UEAwwLZm9vLGludmFsaWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+AASnpnwiM6dHfwiTLV9hNS7aRWd28pdzGLABEkoa1bdvQTy7BWn0Bl3/6yunhQtM
+90VOgUB6qcYdu7rZuSazylCQMAoGCCqGSM49BAMCA0gAMEUCIQCFlnW2cjxnEqB/
+hgSB0t3IZ1DXX4XAVFT85mtFCJPTKgIgYIY+1iimTtrdbpWJzAB2eBwDgIWmWgvr
+xfOcLt/vbvo=
+-----END CERTIFICATE-----
+`
+
+const validCNWithoutSAN = `
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number:
+            07:ba:bc:b7:d9:ab:0c:02:fe:50:1d:4e:15:a3:0d:e4:11:16:14:a4
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: OU = Test root
+        Validity
+            Not Before: Jul 11 18:47:24 2018 GMT
+            Not After : Jul  8 18:47:24 2028 GMT
+        Subject: CN = foo.example.com
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:a7:a6:7c:22:33:a7:47:7f:08:93:2d:5f:61:35:
+                    2e:da:45:67:76:f2:97:73:18:b0:01:12:4a:1a:d5:
+                    b7:6f:41:3c:bb:05:69:f4:06:5d:ff:eb:2b:a7:85:
+                    0b:4c:f7:45:4e:81:40:7a:a9:c6:1d:bb:ba:d9:b9:
+                    26:b3:ca:50:90
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+    Signature Algorithm: ecdsa-with-SHA256
+         30:44:02:20:53:6c:d7:b7:59:61:51:72:a5:18:a3:4b:0d:52:
+         ea:15:fa:d0:93:30:32:54:4b:ed:0f:58:85:b8:a8:1a:82:3b:
+         02:20:14:77:4b:0e:7e:4f:0a:4f:64:26:97:dc:d0:ed:aa:67:
+         1d:37:85:da:b4:87:ba:25:1c:2a:58:f7:23:11:8b:3d
+-----BEGIN CERTIFICATE-----
+MIIBJzCBzwIUB7q8t9mrDAL+UB1OFaMN5BEWFKQwCgYIKoZIzj0EAwIwFDESMBAG
+A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4NDcyNFoXDTI4MDcwODE4NDcyNFow
+GjEYMBYGA1UEAwwPZm9vLmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0D
+AQcDQgAEp6Z8IjOnR38Iky1fYTUu2kVndvKXcxiwARJKGtW3b0E8uwVp9AZd/+sr
+p4ULTPdFToFAeqnGHbu62bkms8pQkDAKBggqhkjOPQQDAgNHADBEAiBTbNe3WWFR
+cqUYo0sNUuoV+tCTMDJUS+0PWIW4qBqCOwIgFHdLDn5PCk9kJpfc0O2qZx03hdq0
+h7olHCpY9yMRiz0=
+-----END CERTIFICATE-----
+`
+
 var unknownAuthorityErrorTests = []struct {
 	cert     string
 	expected string
@@ -1535,7 +1691,7 @@ func TestUnknownAuthorityError(t *testing.T) {
 		}
 		c, err := ParseCertificate(der.Bytes)
 		if err != nil {
-			t.Errorf("#%d: Unable to parse certificate -> %s", i, err)
+			t.Errorf("#%d: Unable to parse certificate -> %v", i, err)
 		}
 		uae := &UnknownAuthorityError{
 			Cert:     c,
@@ -1707,3 +1863,28 @@ UNhY4JhezH9gQYqvDMWrWDAbBgNVHSMEFDASgBArF29S5Bnqw7de8GzGA1nfMAoG
 CCqGSM49BAMCA0gAMEUCIQClA3d4tdrDu9Eb5ZBpgyC+fU1xTZB0dKQHz6M5fPZA
 2AIgN96lM+CPGicwhN24uQI6flOsO3H0TJ5lNzBYLtnQtlc=
 -----END CERTIFICATE-----`
+
+func TestValidHostname(t *testing.T) {
+	tests := []struct {
+		host string
+		want bool
+	}{
+		{"example.com", true},
+		{"eXample123-.com", true},
+		{"-eXample123-.com", false},
+		{"", false},
+		{".", false},
+		{"example..com", false},
+		{".example.com", false},
+		{"*.example.com", true},
+		{"*foo.example.com", false},
+		{"foo.*.example.com", false},
+		{"exa_mple.com", true},
+		{"foo,bar", false},
+	}
+	for _, tt := range tests {
+		if got := validHostname(tt.host); got != tt.want {
+			t.Errorf("validHostname(%q) = %v, want %v", tt.host, got, tt.want)
+		}
+	}
+}

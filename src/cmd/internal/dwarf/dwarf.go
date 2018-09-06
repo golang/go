@@ -8,6 +8,7 @@
 package dwarf
 
 import (
+	"cmd/internal/objabi"
 	"errors"
 	"fmt"
 	"sort"
@@ -1096,7 +1097,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 		// be rewritten, since it would change the offsets of the
 		// child DIEs (which we're relying on in order for abstract
 		// origin references to work).
-		fullname = s.Importpath + "." + s.Name[3:]
+		fullname = objabi.PathToPrefix(s.Importpath) + "." + s.Name[3:]
 	}
 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(fullname)), fullname)
 

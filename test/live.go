@@ -465,7 +465,7 @@ func f29(b bool) {
 // copy of array of pointers should die at end of range loop
 var pstructarr [10]pstruct
 
-// Struct size choosen to make pointer to element in pstructarr
+// Struct size chosen to make pointer to element in pstructarr
 // not computable by strength reduction.
 type pstruct struct {
 	intp *int

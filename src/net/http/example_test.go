@@ -137,3 +137,39 @@ func ExampleServer_Shutdown() {
 
 	<-idleConnsClosed
 }
+
+func ExampleListenAndServeTLS() {
+	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		io.WriteString(w, "Hello, TLS!\n")
+	})
+
+	// One can use generate_cert.go in crypto/tls to generate cert.pem and key.pem.
+	log.Printf("About to listen on 8443. Go to https://127.0.0.1:8443/")
+	err := http.ListenAndServeTLS(":8443", "cert.pem", "key.pem", nil)
+	log.Fatal(err)
+}
+
+func ExampleListenAndServe() {
+	// Hello world, the web server
+
+	helloHandler := func(w http.ResponseWriter, req *http.Request) {
+		io.WriteString(w, "Hello, world!\n")
+	}
+
+	http.HandleFunc("/hello", helloHandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func ExampleHandleFunc() {
+	h1 := func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, "Hello from a HandleFunc #1!\n")
+	}
+	h2 := func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, "Hello from a HandleFunc #2!\n")
+	}
+
+	http.HandleFunc("/", h1)
+	http.HandleFunc("/endpoint", h2)
+
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}

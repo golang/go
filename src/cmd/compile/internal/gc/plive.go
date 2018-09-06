@@ -671,7 +671,7 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 
 // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
 func (lv *Liveness) markUnsafePoints() {
-	if compiling_runtime || lv.f.NoSplit {
+	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
 		// No complex analysis necessary. Do this on the fly
 		// in issafepoint.
 		return
@@ -692,6 +692,11 @@ func (lv *Liveness) markUnsafePoints() {
 			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)
 		}
 		s0, s1 := wbBlock.Succs[0].Block(), wbBlock.Succs[1].Block()
+		if s0 == s1 {
+			// There's no difference between write barrier on and off.
+			// Thus there's no unsafe locations. See issue 26024.
+			continue
+		}
 		if s0.Kind != ssa.BlockPlain || s1.Kind != ssa.BlockPlain {
 			lv.f.Fatalf("expected successors of write barrier block %v to be plain", wbBlock)
 		}
@@ -825,7 +830,7 @@ func (lv *Liveness) issafepoint(v *ssa.Value) bool {
 	// go:nosplit functions are similar. Since safe points used to
 	// be coupled with stack checks, go:nosplit often actually
 	// means "no safe points in this function".
-	if compiling_runtime || lv.f.NoSplit {
+	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
 		return v.Op.IsCall()
 	}
 	switch v.Op {
@@ -1198,13 +1203,16 @@ func (lv *Liveness) clobber() {
 		}
 		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.funcname())
 	}
-	if lv.f.Name == "forkAndExecInChild" {
+	if lv.f.Name == "forkAndExecInChild" || lv.f.Name == "wbBufFlush" {
 		// forkAndExecInChild calls vfork (on linux/amd64, anyway).
 		// The code we add here clobbers parts of the stack in the child.
 		// When the parent resumes, it is using the same stack frame. But the
 		// child has clobbered stack variables that the parent needs. Boom!
 		// In particular, the sys argument gets clobbered.
 		// Note to self: GOCLOBBERDEADHASH=011100101110
+		//
+		// runtime.wbBufFlush must not modify its arguments. See the comments
+		// in runtime/mwbbuf.go:wbBufFlush.
 		return
 	}
 

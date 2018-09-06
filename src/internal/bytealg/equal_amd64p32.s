@@ -25,6 +25,7 @@ eq:
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT,$0-25
+	FUNCDATA $0, ·Equal·args_stackmap(SB)
 	MOVL	a_len+4(FP), BX
 	MOVL	b_len+16(FP), CX
 	CMPL	BX, CX

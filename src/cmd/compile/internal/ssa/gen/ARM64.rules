@@ -317,6 +317,7 @@
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
 (Addr {sym} base) -> (MOVDaddr {sym} base)
+(LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
@@ -573,8 +574,17 @@
 
 (EQ (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
 (NE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
-(EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
-(NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
+(LT (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LT (TST x y) yes no)
+(LE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LE (TST x y) yes no)
+(GT (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GT (TST x y) yes no)
+(GE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GE (TST x y) yes no)
+
+(EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TSTW x y) yes no)
+(NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TSTW x y) yes no)
+(LT (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LT (TSTW x y) yes no)
+(LE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LE (TSTW x y) yes no)
+(GT (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GT (TSTW x y) yes no)
+(GE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GE (TSTW x y) yes no)
 
 (EQ (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTconst [c] y) yes no)
 (NE (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTconst [c] y) yes no)
@@ -583,15 +593,80 @@
 (GT (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (GT (TSTconst [c] y) yes no)
 (GE (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (GE (TSTconst [c] y) yes no)
 
+(EQ (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (CMNconst [c] y) yes no)
+(NE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (NE (CMNconst [c] y) yes no)
+(LT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LT (CMNconst [c] y) yes no)
+(LE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LE (CMNconst [c] y) yes no)
+(GT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GT (CMNconst [c] y) yes no)
+(GE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GE (CMNconst [c] y) yes no)
+
+(EQ (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (CMNWconst [c] y) yes no)
+(NE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (NE (CMNWconst [c] y) yes no)
+(LT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LT (CMNWconst [c] y) yes no)
+(LE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LE (CMNWconst [c] y) yes no)
+(GT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GT (CMNWconst [c] y) yes no)
+(GE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GE (CMNWconst [c] y) yes no)
+
 (EQ (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (EQ (CMN x y) yes no)
 (NE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (NE (CMN x y) yes no)
+(LT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LT (CMN x y) yes no)
+(LE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LE (CMN x y) yes no)
+(GT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GT (CMN x y) yes no)
+(GE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GE (CMN x y) yes no)
+
+(EQ (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (EQ (CMNW x y) yes no)
+(NE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (NE (CMNW x y) yes no)
+(LT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LT (CMNW x y) yes no)
+(LE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LE (CMNW x y) yes no)
+(GT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GT (CMNW x y) yes no)
+(GE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GE (CMNW x y) yes no)
+
 (EQ (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (EQ (CMN x y) yes no)
 (NE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (NE (CMN x y) yes no)
+(LT (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (LT (CMN x y) yes no)
+(LE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (LE (CMN x y) yes no)
+(GT (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (GT (CMN x y) yes no)
+(GE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (GE (CMN x y) yes no)
+
+(EQ (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (EQ (CMNW x y) yes no)
+(NE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (NE (CMNW x y) yes no)
+(LT (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (LT (CMNW x y) yes no)
+(LE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (LE (CMNW x y) yes no)
+(GT (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (GT (CMNW x y) yes no)
+(GE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (GE (CMNW x y) yes no)
 
 (EQ (CMPconst [0] x) yes no) -> (Z x yes no)
 (NE (CMPconst [0] x) yes no) -> (NZ x yes no)
 (EQ (CMPWconst [0] x) yes no) -> (ZW x yes no)
 (NE (CMPWconst [0] x) yes no) -> (NZW x yes no)
+
+(EQ (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (EQ (CMN a (MUL <x.Type> x y)) yes no)
+(NE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (NE (CMN a (MUL <x.Type> x y)) yes no)
+(LT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (LT (CMN a (MUL <x.Type> x y)) yes no)
+(LE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (LE (CMN a (MUL <x.Type> x y)) yes no)
+(GT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (GT (CMN a (MUL <x.Type> x y)) yes no)
+(GE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (GE (CMN a (MUL <x.Type> x y)) yes no)
+
+(EQ (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (EQ (CMP a (MUL <x.Type> x y)) yes no)
+(NE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (NE (CMP a (MUL <x.Type> x y)) yes no)
+(LE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (LE (CMP a (MUL <x.Type> x y)) yes no)
+(LT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (LT (CMP a (MUL <x.Type> x y)) yes no)
+(GE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (GE (CMP a (MUL <x.Type> x y)) yes no)
+(GT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (GT (CMP a (MUL <x.Type> x y)) yes no)
+
+(EQ (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (EQ (CMNW a (MULW <x.Type> x y)) yes no)
+(NE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (NE (CMNW a (MULW <x.Type> x y)) yes no)
+(LE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (LE (CMNW a (MULW <x.Type> x y)) yes no)
+(LT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (LT (CMNW a (MULW <x.Type> x y)) yes no)
+(GE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (GE (CMNW a (MULW <x.Type> x y)) yes no)
+(GT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (GT (CMNW a (MULW <x.Type> x y)) yes no)
+
+(EQ (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (EQ (CMPW a (MULW <x.Type> x y)) yes no)
+(NE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (NE (CMPW a (MULW <x.Type> x y)) yes no)
+(LE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (LE (CMPW a (MULW <x.Type> x y)) yes no)
+(LT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (LT (CMPW a (MULW <x.Type> x y)) yes no)
+(GE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (GE (CMPW a (MULW <x.Type> x y)) yes no)
+(GT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (GT (CMPW a (MULW <x.Type> x y)) yes no)
 
 // Absorb bit-tests into block
 (Z  (ANDconst [c] x) yes no) && oneBit(c) -> (TBZ  {ntz(c)} x yes no)
@@ -649,6 +724,8 @@
 (MOVHload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVHloadidx ptr idx mem)
 (MOVBUload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVBUloadidx ptr idx mem)
 (MOVBload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVBloadidx ptr idx mem)
+(FMOVSload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (FMOVSloadidx ptr idx mem)
+(FMOVDload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (FMOVDloadidx ptr idx mem)
 (MOVDloadidx ptr (MOVDconst [c]) mem) -> (MOVDload [c] ptr mem)
 (MOVDloadidx (MOVDconst [c]) ptr mem) -> (MOVDload [c] ptr mem)
 (MOVWUloadidx ptr (MOVDconst [c]) mem) -> (MOVWUload [c] ptr mem)
@@ -663,6 +740,10 @@
 (MOVBUloadidx (MOVDconst [c]) ptr mem) -> (MOVBUload [c] ptr mem)
 (MOVBloadidx ptr (MOVDconst [c]) mem) -> (MOVBload [c] ptr mem)
 (MOVBloadidx (MOVDconst [c]) ptr mem) -> (MOVBload [c] ptr mem)
+(FMOVSloadidx ptr (MOVDconst [c]) mem) -> (FMOVSload [c] ptr mem)
+(FMOVSloadidx (MOVDconst [c]) ptr mem) -> (FMOVSload [c] ptr mem)
+(FMOVDloadidx ptr (MOVDconst [c]) mem) -> (FMOVDload [c] ptr mem)
+(FMOVDloadidx (MOVDconst [c]) ptr mem) -> (FMOVDload [c] ptr mem)
 
 // shifted register indexed load
 (MOVDload [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil -> (MOVDloadidx8 ptr idx mem)
@@ -730,6 +811,8 @@
 (MOVWstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVWstoreidx ptr idx val mem)
 (MOVHstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVHstoreidx ptr idx val mem)
 (MOVBstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVBstoreidx ptr idx val mem)
+(FMOVDstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (FMOVDstoreidx ptr idx val mem)
+(FMOVSstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (FMOVSstoreidx ptr idx val mem)
 (MOVDstoreidx ptr (MOVDconst [c]) val mem) -> (MOVDstore [c] ptr val mem)
 (MOVDstoreidx (MOVDconst [c]) idx val mem) -> (MOVDstore [c] idx val mem)
 (MOVWstoreidx ptr (MOVDconst [c]) val mem) -> (MOVWstore [c] ptr val mem)
@@ -738,6 +821,10 @@
 (MOVHstoreidx (MOVDconst [c]) idx val mem) -> (MOVHstore [c] idx val mem)
 (MOVBstoreidx ptr (MOVDconst [c]) val mem) -> (MOVBstore [c] ptr val mem)
 (MOVBstoreidx (MOVDconst [c]) idx val mem) -> (MOVBstore [c] idx val mem)
+(FMOVDstoreidx ptr (MOVDconst [c]) val mem) -> (FMOVDstore [c] ptr val mem)
+(FMOVDstoreidx (MOVDconst [c]) idx val mem) -> (FMOVDstore [c] idx val mem)
+(FMOVSstoreidx ptr (MOVDconst [c]) val mem) -> (FMOVSstore [c] ptr val mem)
+(FMOVSstoreidx (MOVDconst [c]) idx val mem) -> (FMOVSstore [c] idx val mem)
 
 // shifted register indexed store
 (MOVDstore [off] {sym} (ADDshiftLL [3] ptr idx) val mem) && off == 0 && sym == nil -> (MOVDstoreidx8 ptr idx val mem)
@@ -1025,7 +1112,9 @@
 (OR  x (MOVDconst [c])) -> (ORconst  [c] x)
 (XOR x (MOVDconst [c])) -> (XORconst [c] x)
 (TST x (MOVDconst [c])) -> (TSTconst [c] x)
+(TSTW x (MOVDconst [c])) -> (TSTWconst [c] x)
 (CMN x (MOVDconst [c])) -> (CMNconst [c] x)
+(CMNW x (MOVDconst [c])) -> (CMNWconst [c] x)
 (BIC x (MOVDconst [c])) -> (ANDconst [^c] x)
 (EON x (MOVDconst [c])) -> (XORconst [^c] x)
 (ORN x (MOVDconst [c])) -> (ORconst  [^c] x)
@@ -1044,6 +1133,17 @@
 (NEG (MULW x y)) -> (MNEGW x y)
 (MUL (NEG x) y) -> (MNEG x y)
 (MULW (NEG x) y) -> (MNEGW x y)
+
+// madd/msub
+(ADD a l:(MUL  x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADD a x y)
+(SUB a l:(MUL  x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUB a x y)
+(ADD a l:(MNEG x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUB a x y)
+(SUB a l:(MNEG x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADD a x y)
+
+(ADD a l:(MULW  x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADDW a x y)
+(SUB a l:(MULW  x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUBW a x y)
+(ADD a l:(MNEGW x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUBW a x y)
+(SUB a l:(MNEGW x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADDW a x y)
 
 // mul by constant
 (MUL x (MOVDconst [-1])) -> (NEG x)

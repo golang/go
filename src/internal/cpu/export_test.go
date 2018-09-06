@@ -5,6 +5,5 @@
 package cpu
 
 var (
-	Options      = options
-	DebugOptions = debugOptions
+	Options = options
 )

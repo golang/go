@@ -1693,9 +1693,9 @@ func TestCallReturnsEmpty(t *testing.T) {
 	// nonzero-sized frame and zero-sized return value.
 	runtime.GC()
 	var finalized uint32
-	f := func() (emptyStruct, *int) {
-		i := new(int)
-		runtime.SetFinalizer(i, func(*int) { atomic.StoreUint32(&finalized, 1) })
+	f := func() (emptyStruct, *[2]int64) {
+		i := new([2]int64) // big enough to not be tinyalloc'd, so finalizer always runs when i dies
+		runtime.SetFinalizer(i, func(*[2]int64) { atomic.StoreUint32(&finalized, 1) })
 		return emptyStruct{}, i
 	}
 	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
@@ -6575,4 +6575,125 @@ func TestIssue22073(t *testing.T) {
 
 	// Shouldn't panic.
 	m.Call(nil)
+}
+
+func TestMapIterNonEmptyMap(t *testing.T) {
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	if got, want := iterateToString(iter), `[one: 1, three: 3, two: 2]`; got != want {
+		t.Errorf("iterator returned %s (after sorting), want %s", got, want)
+	}
+}
+
+func TestMapIterNilMap(t *testing.T) {
+	var m map[string]int
+	iter := ValueOf(m).MapRange()
+	if got, want := iterateToString(iter), `[]`; got != want {
+		t.Errorf("non-empty result iteratoring nil map: %s", got)
+	}
+}
+
+func TestMapIterSafety(t *testing.T) {
+	// Using a zero MapIter causes a panic, but not a crash.
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Value()
+		t.Fatal("Value did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Next()
+		t.Fatal("Next did not panic")
+	}()
+
+	// Calling Key/Value on a MapIter before Next
+	// causes a panic, but not a crash.
+	var m map[string]int
+	iter := ValueOf(m).MapRange()
+
+	func() {
+		defer func() { recover() }()
+		iter.Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Value()
+		t.Fatal("Value did not panic")
+	}()
+
+	// Calling Next, Key, or Value on an exhausted iterator
+	// causes a panic, but not a crash.
+	iter.Next() // -> false
+	func() {
+		defer func() { recover() }()
+		iter.Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Value()
+		t.Fatal("Value did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Next()
+		t.Fatal("Next did not panic")
+	}()
+}
+
+func TestMapIterNext(t *testing.T) {
+	// The first call to Next should reflect any
+	// insertions to the map since the iterator was created.
+	m := map[string]int{}
+	iter := ValueOf(m).MapRange()
+	m["one"] = 1
+	if got, want := iterateToString(iter), `[one: 1]`; got != want {
+		t.Errorf("iterator returned deleted elements: got %s, want %s", got, want)
+	}
+}
+
+func TestMapIterDelete0(t *testing.T) {
+	// Delete all elements before first iteration.
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	delete(m, "one")
+	delete(m, "two")
+	delete(m, "three")
+	if got, want := iterateToString(iter), `[]`; got != want {
+		t.Errorf("iterator returned deleted elements: got %s, want %s", got, want)
+	}
+}
+
+func TestMapIterDelete1(t *testing.T) {
+	// Delete all elements after first iteration.
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	var got []string
+	for iter.Next() {
+		got = append(got, fmt.Sprint(iter.Key(), iter.Value()))
+		delete(m, "one")
+		delete(m, "two")
+		delete(m, "three")
+	}
+	if len(got) != 1 {
+		t.Errorf("iterator returned wrong number of elements: got %d, want 1", len(got))
+	}
+}
+
+// iterateToString returns the set of elements
+// returned by an iterator in readable form.
+func iterateToString(it *MapIter) string {
+	var got []string
+	for it.Next() {
+		line := fmt.Sprintf("%v: %v", it.Key(), it.Value())
+		got = append(got, line)
+	}
+	sort.Strings(got)
+	return "[" + strings.Join(got, ", ") + "]"
 }

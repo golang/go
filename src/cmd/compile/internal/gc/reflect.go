@@ -34,8 +34,9 @@ type ptabEntry struct {
 
 // runtime interface and reflection data structures
 var (
-	signatsetmu sync.Mutex // protects signatset
+	signatmu    sync.Mutex // protects signatset and signatslice
 	signatset   = make(map[*types.Type]struct{})
+	signatslice []*types.Type
 
 	itabs []itabEntry
 	ptabs []ptabEntry
@@ -958,6 +959,12 @@ func typesymprefix(prefix string, t *types.Type) *types.Sym {
 	p := prefix + "." + t.ShortString()
 	s := typeLookup(p)
 
+	// This function is for looking up type-related generated functions
+	// (e.g. eq and hash). Make sure they are indeed generated.
+	signatmu.Lock()
+	addsignat(t)
+	signatmu.Unlock()
+
 	//print("algsym: %s -> %+S\n", p, s);
 
 	return s
@@ -968,9 +975,9 @@ func typenamesym(t *types.Type) *types.Sym {
 		Fatalf("typenamesym %v", t)
 	}
 	s := typesym(t)
-	signatsetmu.Lock()
+	signatmu.Lock()
 	addsignat(t)
-	signatsetmu.Unlock()
+	signatmu.Unlock()
 	return s
 }
 
@@ -1468,7 +1475,10 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 
 // addsignat ensures that a runtime type descriptor is emitted for t.
 func addsignat(t *types.Type) {
-	signatset[t] = struct{}{}
+	if _, ok := signatset[t]; !ok {
+		signatset[t] = struct{}{}
+		signatslice = append(signatslice, t)
+	}
 }
 
 func addsignats(dcls []*Node) {
@@ -1483,14 +1493,15 @@ func addsignats(dcls []*Node) {
 func dumpsignats() {
 	// Process signatset. Use a loop, as dtypesym adds
 	// entries to signatset while it is being processed.
-	signats := make([]typeAndStr, len(signatset))
-	for len(signatset) > 0 {
+	signats := make([]typeAndStr, len(signatslice))
+	for len(signatslice) > 0 {
 		signats = signats[:0]
 		// Transfer entries to a slice and sort, for reproducible builds.
-		for t := range signatset {
+		for _, t := range signatslice {
 			signats = append(signats, typeAndStr{t: t, short: typesymname(t), regular: t.String()})
 			delete(signatset, t)
 		}
+		signatslice = signatslice[:0]
 		sort.Sort(typesByString(signats))
 		for _, ts := range signats {
 			t := ts.t

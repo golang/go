@@ -645,7 +645,7 @@ func (t *tester) registerTests() {
 					return nil
 				},
 			})
-			if cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch)); cxx != "" {
+			if t.hasCxx() {
 				t.tests = append(t.tests, distTest{
 					name:    "swig_callback",
 					heading: "../misc/swig/callback",
@@ -705,7 +705,7 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if goos == "linux" && (goarch == "amd64" || goarch == "arm64") {
+		if mSanSupported(goos, goarch) {
 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
@@ -1065,6 +1065,12 @@ func (t *tester) cgoTest(dt *distTest) error {
 				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external`)
 				if goos != "android" {
 					t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					// -static in CGO_LDFLAGS triggers a different code path
+					// than -static in -extldflags, so test both.
+					// See issue #16651.
+					cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static")
+					cmd.Env = append(os.Environ(), "CGO_LDFLAGS=-static -pthread")
 				}
 			}
 
@@ -1243,6 +1249,11 @@ func (t *tester) hasBash() bool {
 	return true
 }
 
+func (t *tester) hasCxx() bool {
+	cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch))
+	return cxx != ""
+}
+
 func (t *tester) hasSwig() bool {
 	swig, err := exec.LookPath("swig")
 	if err != nil {
@@ -1318,13 +1329,26 @@ func (t *tester) hasSwig() bool {
 }
 
 func (t *tester) raceDetectorSupported() bool {
-	switch gohostos {
-	case "linux", "darwin", "freebsd", "windows":
-		// The race detector doesn't work on Alpine Linux:
-		// golang.org/issue/14481
-		return t.cgoEnabled && (goarch == "amd64" || goarch == "ppc64le") && gohostos == goos && !isAlpineLinux()
+	if gohostos != goos {
+		return false
 	}
-	return false
+	if !t.cgoEnabled {
+		return false
+	}
+	if !raceDetectorSupported(goos, goarch) {
+		return false
+	}
+	// The race detector doesn't work on Alpine Linux:
+	// golang.org/issue/14481
+	if isAlpineLinux() {
+		return false
+	}
+	// NetBSD support is unfinished.
+	// golang.org/issue/26403
+	if goos == "netbsd" {
+		return false
+	}
+	return true
 }
 
 func isAlpineLinux() bool {
@@ -1348,7 +1372,7 @@ func (t *tester) runFlag(rx string) string {
 func (t *tester) raceTest(dt *distTest) error {
 	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
+	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFdReadRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
 	// We don't want the following line, because it
 	// slows down all.bash (by 10 seconds on my laptop).
 	// The race builder should catch any error here, but doesn't.
@@ -1438,4 +1462,27 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
 		}
 	}
 	return false
+}
+
+// raceDetectorSupported is a copy of the function
+// cmd/internal/sys.RaceDetectorSupported, which can't be used here
+// because cmd/dist has to be buildable by Go 1.4.
+func raceDetectorSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux", "darwin", "freebsd", "netbsd", "windows":
+		return goarch == "amd64" || goarch == "ppc64le"
+	default:
+		return false
+	}
+}
+
+// mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
+// which can't be used here because cmd/dist has to be buildable by Go 1.4.
+func mSanSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux":
+		return goarch == "amd64" || goarch == "arm64"
+	default:
+		return false
+	}
 }

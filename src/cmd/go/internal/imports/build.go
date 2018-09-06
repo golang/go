@@ -183,27 +183,27 @@ func MatchFile(name string, tags map[string]bool) bool {
 		l = l[:n-1]
 	}
 	n := len(l)
-	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+	if n >= 2 && KnownOS[l[n-2]] && KnownArch[l[n-1]] {
 		return tags[l[n-2]] && tags[l[n-1]]
 	}
-	if n >= 1 && knownOS[l[n-1]] {
+	if n >= 1 && KnownOS[l[n-1]] {
 		return tags[l[n-1]]
 	}
-	if n >= 1 && knownArch[l[n-1]] {
+	if n >= 1 && KnownArch[l[n-1]] {
 		return tags[l[n-1]]
 	}
 	return true
 }
 
-var knownOS = make(map[string]bool)
-var knownArch = make(map[string]bool)
+var KnownOS = make(map[string]bool)
+var KnownArch = make(map[string]bool)
 
 func init() {
 	for _, v := range strings.Fields(goosList) {
-		knownOS[v] = true
+		KnownOS[v] = true
 	}
 	for _, v := range strings.Fields(goarchList) {
-		knownArch[v] = true
+		KnownArch[v] = true
 	}
 }
 

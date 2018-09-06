@@ -18,7 +18,7 @@ import (
 )
 
 var CmdRun = &base.Command{
-	UsageLine: "run [build flags] [-exec xprog] package [arguments...]",
+	UsageLine: "go run [build flags] [-exec xprog] package [arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the named main Go package.

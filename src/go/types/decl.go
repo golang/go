@@ -38,6 +38,8 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token
 }
 
 // pathString returns a string of the form a->b-> ... ->g for a path [a, b, ... g].
+// TODO(gri) remove once we don't need the old cycle detection (explicitly passed
+//           []*TypeName path) anymore
 func pathString(path []*TypeName) string {
 	var s string
 	for i, p := range path {
@@ -49,18 +51,24 @@ func pathString(path []*TypeName) string {
 	return s
 }
 
-// useCycleMarking enables the new coloring-based cycle marking scheme
-// for package-level objects. Set this flag to false to disable this
-// code quickly and revert to the existing mechanism (and comment out
-// some of the new tests in cycles5.src that will fail again).
-// TODO(gri) remove this for Go 1.12
-const useCycleMarking = true
+// objPathString returns a string of the form a->b-> ... ->g for a path [a, b, ... g].
+// TODO(gri) s/objPathString/pathString/ once we got rid of pathString above
+func objPathString(path []Object) string {
+	var s string
+	for i, p := range path {
+		if i > 0 {
+			s += "->"
+		}
+		s += p.Name()
+	}
+	return s
+}
 
 // objDecl type-checks the declaration of obj in its respective (file) context.
 // See check.typ for the details on def and path.
-func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+func (check *Checker) objDecl(obj Object, def *Named) {
 	if trace {
-		check.trace(obj.Pos(), "-- checking %s %s (path = %s, objPath = %s)", obj.color(), obj, pathString(path), check.pathString())
+		check.trace(obj.Pos(), "-- checking %s %s (objPath = %s)", obj.color(), obj, objPathString(check.objPath))
 		check.indent++
 		defer func() {
 			check.indent--
@@ -132,7 +140,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 		// order code.
 		switch obj := obj.(type) {
 		case *Const:
-			if useCycleMarking && check.typeCycle(obj) {
+			if check.typeCycle(obj) {
 				obj.typ = Typ[Invalid]
 				break
 			}
@@ -141,7 +149,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 			}
 
 		case *Var:
-			if useCycleMarking && check.typeCycle(obj) {
+			if check.typeCycle(obj) {
 				obj.typ = Typ[Invalid]
 				break
 			}
@@ -150,7 +158,32 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 			}
 
 		case *TypeName:
-			if useCycleMarking && check.typeCycle(obj) {
+			// fixFor26390 enables a temporary work-around to handle alias type names
+			// that have not been given a type yet even though the underlying type
+			// is already known. See testdata/issue26390.src for a simple example.
+			// Set this flag to false to disable this code quickly (and comment
+			// out the new test in decls4.src that will fail again).
+			// TODO(gri) remove this for Go 1.12 in favor of a more comprehensive fix
+			const fixFor26390 = true
+			if fixFor26390 {
+				// If we have a package-level alias type name that has not been
+				// given a type yet but the underlying type is a type name that
+				// has been given a type already, don't report a cycle but use
+				// the underlying type name's type instead. The cycle shouldn't
+				// exist in the first place in this case and is due to the way
+				// methods are type-checked at the moment. See also the comment
+				// at the end of Checker.typeDecl below.
+				if d := check.objMap[obj]; d != nil && d.alias && obj.typ == Typ[Invalid] {
+					// If we can find the underlying type name syntactically
+					// and it has a type, use that type.
+					if tname := check.resolveBaseTypeName(ast.NewIdent(obj.name)); tname != nil && tname.typ != nil {
+						obj.typ = tname.typ
+						break
+					}
+				}
+			}
+
+			if check.typeCycle(obj) {
 				// break cycle
 				// (without this, calling underlying()
 				// below may lead to an endless loop
@@ -160,7 +193,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 			}
 
 		case *Func:
-			if useCycleMarking && check.typeCycle(obj) {
+			if check.typeCycle(obj) {
 				// Don't set obj.typ to Typ[Invalid] here
 				// because plenty of code type-asserts that
 				// functions have a *Signature type. Grey
@@ -204,7 +237,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 		check.varDecl(obj, d.lhs, d.typ, d.init)
 	case *TypeName:
 		// invalid recursive types are detected via path
-		check.typeDecl(obj, d.typ, def, path, d.alias)
+		check.typeDecl(obj, d.typ, def, d.alias)
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
@@ -220,20 +253,35 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 // Indirections are used to break type cycles.
 var indir = NewTypeName(token.NoPos, nil, "*", nil)
 
+// cutCycle is a sentinel type name that is pushed onto the object path
+// to indicate that a cycle doesn't actually exist. This is currently
+// needed to break cycles formed via method declarations because they
+// are type-checked together with their receiver base types. Once methods
+// are type-checked separately (see also TODO in Checker.typeDecl), we
+// can get rid of this.
+var cutCycle = NewTypeName(token.NoPos, nil, "!", nil)
+
 // typeCycle checks if the cycle starting with obj is valid and
 // reports an error if it is not.
 // TODO(gri) rename s/typeCycle/cycle/ once we don't need the other
 // cycle method anymore.
-func (check *Checker) typeCycle(obj Object) bool {
-	d := check.objMap[obj]
-	if d == nil {
-		check.dump("%v: %s should have been declared", obj.Pos(), obj)
-		unreachable()
+func (check *Checker) typeCycle(obj Object) (isCycle bool) {
+	// The object map contains the package scope objects and the non-interface methods.
+	if debug {
+		info := check.objMap[obj]
+		inObjMap := info != nil && (info.fdecl == nil || info.fdecl.Recv == nil) // exclude methods
+		isPkgObj := obj.Parent() == check.pkg.scope
+		if isPkgObj != inObjMap {
+			check.dump("%v: inconsistent object map for %s (isPkgObj = %v, inObjMap = %v)", obj.Pos(), obj, isPkgObj, inObjMap)
+			unreachable()
+		}
 	}
 
-	// We distinguish between cycles involving only constants and variables
-	// (nval = len(cycle)), cycles involving types (and functions) only
-	// (nval == 0), and mixed cycles (nval != 0 && nval != len(cycle)).
+	// Given the number of constants and variables (nval) in the cycle
+	// and the cycle length (ncycle = number of named objects in the cycle),
+	// we distinguish between cycles involving only constants and variables
+	// (nval = ncycle), cycles involving types (and functions) only
+	// (nval == 0), and mixed cycles (nval != 0 && nval != ncycle).
 	// We ignore functions at the moment (taking them into account correctly
 	// is complicated and it doesn't improve error reporting significantly).
 	//
@@ -242,20 +290,45 @@ func (check *Checker) typeCycle(obj Object) bool {
 	// cannot be computed (it's either infinite or 0); if there is no type
 	// definition, we have a sequence of alias type names which will expand
 	// ad infinitum.
-	var nval int
+	var nval, ncycle int
 	var hasIndir, hasTDef bool
 	assert(obj.color() >= grey)
 	start := obj.color() - grey // index of obj in objPath
 	cycle := check.objPath[start:]
+	ncycle = len(cycle) // including indirections
 	for _, obj := range cycle {
 		switch obj := obj.(type) {
 		case *Const, *Var:
 			nval++
 		case *TypeName:
-			if obj == indir {
+			switch {
+			case obj == indir:
+				ncycle-- // don't count (indirections are not objects)
 				hasIndir = true
-			} else if !check.objMap[obj].alias {
-				hasTDef = true
+			case obj == cutCycle:
+				// The cycle is not real and only caused by the fact
+				// that we type-check methods when we type-check their
+				// receiver base types.
+				return false
+			default:
+				// Determine if the type name is an alias or not. For
+				// package-level objects, use the object map which
+				// provides syntactic information (which doesn't rely
+				// on the order in which the objects are set up). For
+				// local objects, we can rely on the order, so use
+				// the object's predicate.
+				// TODO(gri) It would be less fragile to always access
+				// the syntactic information. We should consider storing
+				// this information explicitly in the object.
+				var alias bool
+				if d := check.objMap[obj]; d != nil {
+					alias = d.alias // package-level object
+				} else {
+					alias = obj.IsAlias() // function local object
+				}
+				if !alias {
+					hasTDef = true
+				}
 			}
 		case *Func:
 			// ignored for now
@@ -264,10 +337,20 @@ func (check *Checker) typeCycle(obj Object) bool {
 		}
 	}
 
+	if trace {
+		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", objPathString(cycle), obj.Name(), ncycle)
+		check.trace(obj.Pos(), "## cycle contains: %d values, has indirection = %v, has type definition = %v", nval, hasIndir, hasTDef)
+		defer func() {
+			if isCycle {
+				check.trace(obj.Pos(), "=> error: cycle is invalid")
+			}
+		}()
+	}
+
 	// A cycle involving only constants and variables is invalid but we
 	// ignore them here because they are reported via the initialization
 	// cycle check.
-	if nval == len(cycle) {
+	if nval == ncycle {
 		return false
 	}
 
@@ -406,13 +489,13 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName, alias bool) {
+func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bool) {
 	assert(obj.typ == nil)
 
 	if alias {
 
 		obj.typ = Typ[Invalid]
-		obj.typ = check.typExpr(typ, nil, append(path, obj))
+		obj.typ = check.typ(typ)
 
 	} else {
 
@@ -421,7 +504,7 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 		obj.typ = named // make sure recursive type declarations terminate
 
 		// determine underlying type of named
-		check.typExpr(typ, named, append(path, obj))
+		check.definedType(typ, named)
 
 		// The underlying type of named may be itself a named type that is
 		// incomplete:
@@ -484,6 +567,14 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		}
 	}
 
+	// Suppress detection of type cycles occurring through method
+	// declarations - they wouldn't exist if methods were type-
+	// checked separately from their receiver base types. See also
+	// comment at the end of Checker.typeDecl.
+	// TODO(gri) Remove this once methods are type-checked separately.
+	check.push(cutCycle)
+	defer check.pop()
+
 	// type-check methods
 	for _, m := range methods {
 		// spec: "For a base type, the non-blank names of methods bound
@@ -503,7 +594,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		}
 
 		// type-check
-		check.objDecl(m, nil, nil)
+		check.objDecl(m, nil)
 
 		if base != nil {
 			base.methods = append(base.methods, m)
@@ -652,8 +743,10 @@ func (check *Checker) declStmt(decl ast.Decl) {
 				// the innermost containing block."
 				scopePos := s.Name.Pos()
 				check.declare(check.scope, s.Name, obj, scopePos)
-				check.typeDecl(obj, s.Type, nil, nil, s.Assign.IsValid())
-
+				// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
+				obj.setColor(grey + color(check.push(obj)))
+				check.typeDecl(obj, s.Type, nil, s.Assign.IsValid())
+				check.pop().setColor(black)
 			default:
 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
 			}

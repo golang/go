@@ -1,0 +1,51 @@
+env GO111MODULE=on
+
+# get -u should find quote v1.5.2
+go get -u
+go list -m all
+stdout 'quote v1.5.2$'
+grep 'rsc.io/quote v1.5.2$' go.mod
+
+# it should also update x/text later than requested by v1.5.2
+go list -m -f '{{.Path}} {{.Version}}{{if .Indirect}} // indirect{{end}}' all
+stdout '^golang.org/x/text [v0-9a-f\.-]+ // indirect'
+grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+
+# importing an empty module root as a package makes it direct.
+# TODO(bcmills): This doesn't seem correct. Fix is in the next change.
+cp $WORK/tmp/usetext.go x.go
+go list -e
+grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+
+# indirect tag should be removed upon seeing direct import.
+cp $WORK/tmp/uselang.go x.go
+go list
+grep 'rsc.io/quote v1.5.2$' go.mod
+grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
+
+# indirect tag should be added by go mod tidy
+cp $WORK/tmp/usequote.go x.go
+go mod tidy
+grep 'rsc.io/quote v1.5.2$' go.mod
+grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+
+# requirement should be dropped entirely if not needed
+cp $WORK/tmp/uselang.go x.go
+go mod tidy
+! grep rsc.io/quote go.mod
+grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
+
+-- go.mod --
+module x
+require rsc.io/quote v1.5.1
+-- x.go --
+package x
+-- $WORK/tmp/usetext.go --
+package x
+import _ "golang.org/x/text"
+-- $WORK/tmp/uselang.go --
+package x
+import _ "golang.org/x/text/language"
+-- $WORK/tmp/usequote.go --
+package x
+import _ "rsc.io/quote"

@@ -382,10 +382,7 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 	clos.List.Set(append([]*Node{nod(OCFUNC, xfunc.Func.Nname, nil)}, clo.Func.Enter.Slice()...))
 
 	// Force type conversion from *struct to the func type.
-	clos = nod(OCONVNOP, clos, nil)
-	clos.Type = clo.Type
-
-	clos = typecheck(clos, Erv)
+	clos = convnop(clos, clo.Type)
 
 	// typecheck will insert a PTRLIT node under CONVNOP,
 	// tag it with escape analysis result.
@@ -511,10 +508,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	clos.List.Append(n.Left)
 
 	// Force type conversion from *struct to the func type.
-	clos = nod(OCONVNOP, clos, nil)
-	clos.Type = n.Type
-
-	clos = typecheck(clos, Erv)
+	clos = convnop(clos, n.Type)
 
 	// typecheck will insert a PTRLIT node under CONVNOP,
 	// tag it with escape analysis result.

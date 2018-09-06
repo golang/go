@@ -16,6 +16,9 @@ import (
 	"golang_org/x/net/http/httpproxy"
 )
 
+// setHelper calls t.Helper() for Go 1.9+ (see go19_test.go) and does nothing otherwise.
+var setHelper = func(t *testing.T) {}
+
 type proxyForURLTest struct {
 	cfg     httpproxy.Config
 	req     string // URL to fetch; blank means "http://example.com"
@@ -141,7 +144,7 @@ var proxyForURLTests = []proxyForURLTest{{
 		HTTPProxy: "proxy",
 	},
 	req:  "http://example.com/",
-	want: "<nil>",
+	want: "http://proxy",
 }, {
 	cfg: httpproxy.Config{
 		NoProxy:   "ample.com",
@@ -166,7 +169,7 @@ var proxyForURLTests = []proxyForURLTest{{
 }}
 
 func testProxyForURL(t *testing.T, tt proxyForURLTest) {
-	t.Helper()
+	setHelper(t)
 	reqURLStr := tt.req
 	if reqURLStr == "" {
 		reqURLStr = "http://example.com"
@@ -266,19 +269,36 @@ var UseProxyTests = []struct {
 	{"[::1]", false},
 	{"[::2]", true}, // not a loopback address
 
-	{"barbaz.net", false},     // match as .barbaz.net
-	{"foobar.com", false},     // have a port but match
-	{"foofoobar.com", true},   // not match as a part of foobar.com
-	{"baz.com", true},         // not match as a part of barbaz.com
-	{"localhost.net", true},   // not match as suffix of address
-	{"local.localhost", true}, // not match as prefix as address
-	{"barbarbaz.net", true},   // not match because NO_PROXY have a '.'
-	{"www.foobar.com", false}, // match because NO_PROXY includes "foobar.com"
+	{"192.168.1.1", false},                // matches exact IPv4
+	{"192.168.1.2", true},                 // ports do not match
+	{"192.168.1.3", false},                // matches exact IPv4:port
+	{"192.168.1.4", true},                 // no match
+	{"10.0.0.2", false},                   // matches IPv4/CIDR
+	{"[2001:db8::52:0:1]", false},         // matches exact IPv6
+	{"[2001:db8::52:0:2]", true},          // no match
+	{"[2001:db8::52:0:3]", false},         // matches exact [IPv6]:port
+	{"[2002:db8:a::123]", false},          // matches IPv6/CIDR
+	{"[fe80::424b:c8be:1643:a1b6]", true}, // no match
+
+	{"barbaz.net", true},          // does not match as .barbaz.net
+	{"www.barbaz.net", false},     // does match as .barbaz.net
+	{"foobar.com", false},         // does match as foobar.com
+	{"www.foobar.com", false},     // match because NO_PROXY includes "foobar.com"
+	{"foofoobar.com", true},       // not match as a part of foobar.com
+	{"baz.com", true},             // not match as a part of barbaz.com
+	{"localhost.net", true},       // not match as suffix of address
+	{"local.localhost", true},     // not match as prefix as address
+	{"barbarbaz.net", true},       // not match, wrong domain
+	{"wildcard.io", true},         // does not match as *.wildcard.io
+	{"nested.wildcard.io", false}, // match as *.wildcard.io
+	{"awildcard.io", true},        // not a match because of '*'
 }
+
+var noProxy = "foobar.com, .barbaz.net, *.wildcard.io, 192.168.1.1, 192.168.1.2:81, 192.168.1.3:80, 10.0.0.0/30, 2001:db8::52:0:1, [2001:db8::52:0:2]:443, [2001:db8::52:0:3]:80, 2002:db8:a::45/64"
 
 func TestUseProxy(t *testing.T) {
 	cfg := &httpproxy.Config{
-		NoProxy: "foobar.com, .barbaz.net",
+		NoProxy: noProxy,
 	}
 	for _, test := range UseProxyTests {
 		if httpproxy.ExportUseProxy(cfg, test.host+":80") != test.match {
@@ -294,5 +314,38 @@ func TestInvalidNoProxy(t *testing.T) {
 	ok := httpproxy.ExportUseProxy(cfg, "example.com:80") // should not panic
 	if !ok {
 		t.Errorf("useProxy unexpected return; got false; want true")
+	}
+}
+
+func TestAllNoProxy(t *testing.T) {
+	cfg := &httpproxy.Config{
+		NoProxy: "*",
+	}
+	for _, test := range UseProxyTests {
+		if httpproxy.ExportUseProxy(cfg, test.host+":80") != false {
+			t.Errorf("useProxy(%v) = true, want false", test.host)
+		}
+	}
+}
+
+func BenchmarkProxyForURL(b *testing.B) {
+	cfg := &httpproxy.Config{
+		HTTPProxy:  "http://proxy.example.org",
+		HTTPSProxy: "https://proxy.example.org",
+		NoProxy:    noProxy,
+	}
+	for _, test := range UseProxyTests {
+		u, err := url.Parse("https://" + test.host + ":80")
+		if err != nil {
+			b.Fatalf("parsed failed: %s", test.host)
+		}
+		proxyFunc := cfg.ProxyFunc()
+		b.Run(test.host, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				if au, e := proxyFunc(u); e != nil && test.match == (au != nil) {
+					b.Errorf("useProxy(%v) = %v, want %v", test.host, !test.match, test.match)
+				}
+			}
+		})
 	}
 }

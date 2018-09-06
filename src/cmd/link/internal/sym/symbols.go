@@ -59,8 +59,6 @@ func (syms *Symbols) Newsym(name string, v int) *Symbol {
 	syms.symbolBatch = batch[1:]
 
 	s.Dynid = -1
-	s.Plt = -1
-	s.Got = -1
 	s.Name = name
 	s.Version = int16(v)
 	syms.Allsym = append(syms.Allsym, s)
@@ -77,7 +75,6 @@ func (syms *Symbols) Lookup(name string, v int) *Symbol {
 		return s
 	}
 	s = syms.Newsym(name, v)
-	s.Extname = s.Name
 	m[name] = s
 	return s
 }
@@ -95,11 +92,12 @@ func (syms *Symbols) IncVersion() int {
 }
 
 // Rename renames a symbol.
-func (syms *Symbols) Rename(old, new string, v int) {
+func (syms *Symbols) Rename(old, new string, v int, reachparent map[*Symbol]*Symbol) {
 	s := syms.hash[v][old]
+	oldExtName := s.Extname()
 	s.Name = new
-	if s.Extname == old {
-		s.Extname = new
+	if oldExtName == old {
+		s.SetExtname(new)
 	}
 	delete(syms.hash[v], old)
 
@@ -108,8 +106,16 @@ func (syms *Symbols) Rename(old, new string, v int) {
 		syms.hash[v][new] = s
 	} else {
 		if s.Type == 0 {
+			dup.Attr |= s.Attr
+			if s.Attr.Reachable() && reachparent != nil {
+				reachparent[dup] = reachparent[s]
+			}
 			*s = *dup
 		} else if dup.Type == 0 {
+			s.Attr |= dup.Attr
+			if dup.Attr.Reachable() && reachparent != nil {
+				reachparent[s] = reachparent[dup]
+			}
 			*dup = *s
 			syms.hash[v][new] = s
 		}

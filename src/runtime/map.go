@@ -126,7 +126,7 @@ type mapextra struct {
 	// If both key and value do not contain pointers and are inline, then we mark bucket
 	// type as containing no pointers. This avoids scanning such maps.
 	// However, bmap.overflow is a pointer. In order to keep overflow buckets
-	// alive, we store pointers to all overflow buckets in hmap.overflow and h.map.oldoverflow.
+	// alive, we store pointers to all overflow buckets in hmap.extra.overflow and hmap.extra.oldoverflow.
 	// overflow and oldoverflow are only used if key and value do not contain pointers.
 	// overflow contains overflow buckets for hmap.buckets.
 	// oldoverflow contains overflow buckets for hmap.oldbuckets.
@@ -567,7 +567,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 
 	// Set hashWriting after calling alg.hash, since alg.hash may panic,
 	// in which case we have not actually done a write.
-	h.flags |= hashWriting
+	h.flags ^= hashWriting
 
 	if h.buckets == nil {
 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
@@ -679,7 +679,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 
 	// Set hashWriting after calling alg.hash, since alg.hash may panic,
 	// in which case we have not actually done a write (delete).
-	h.flags |= hashWriting
+	h.flags ^= hashWriting
 
 	bucket := hash & bucketMask(h.B)
 	if h.growing() {
@@ -921,7 +921,7 @@ func mapclear(t *maptype, h *hmap) {
 		throw("concurrent map writes")
 	}
 
-	h.flags |= hashWriting
+	h.flags ^= hashWriting
 
 	h.flags &^= sameSizeGrow
 	h.oldbuckets = nil
@@ -1280,6 +1280,11 @@ func reflect_mapiternext(it *hiter) {
 //go:linkname reflect_mapiterkey reflect.mapiterkey
 func reflect_mapiterkey(it *hiter) unsafe.Pointer {
 	return it.key
+}
+
+//go:linkname reflect_mapitervalue reflect.mapitervalue
+func reflect_mapitervalue(it *hiter) unsafe.Pointer {
+	return it.value
 }
 
 //go:linkname reflect_maplen reflect.maplen

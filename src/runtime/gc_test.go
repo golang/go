@@ -21,6 +21,9 @@ func TestGcSys(t *testing.T) {
 	if os.Getenv("GOGC") == "off" {
 		t.Skip("skipping test; GOGC=off in environment")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping test; GOOS=windows http://golang.org/issue/27156")
+	}
 	got := runTestProg(t, "testprog", "GCSys")
 	want := "OK\n"
 	if got != want {

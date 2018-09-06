@@ -881,7 +881,7 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	CMPB	runtime·support_sse2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	done
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
 	JNE	mfence

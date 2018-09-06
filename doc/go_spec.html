@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 9, 2018",
+	"Subtitle": "Version of August 30, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -2112,8 +2112,8 @@ with initializer expressions but no types:
 i, j := 0, 10
 f := func() int { return 7 }
 ch := make(chan int)
-r, w := os.Pipe(fd)  // os.Pipe() returns two values
-_, y, _ := coord(p)  // coord() returns three values; only interested in y coordinate
+r, w, _ := os.Pipe()  // os.Pipe() returns a connected pair of Files and an error, if any
+_, y, _ := coord(p)   // coord() returns three values; only interested in y coordinate
 </pre>
 
 <p>

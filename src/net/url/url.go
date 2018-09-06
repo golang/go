@@ -158,13 +158,26 @@ func shouldEscape(c byte, mode encoding) bool {
 		}
 	}
 
+	if mode == encodeFragment {
+		// RFC 3986 §2.2 allows not escaping sub-delims. A subset of sub-delims are
+		// included in reserved from RFC 2396 §2.2. The remaining sub-delims do not
+		// need to be escaped. To minimize potential breakage, we apply two restrictions:
+		// (1) we always escape sub-delims outside of the fragment, and (2) we always
+		// escape single quote to avoid breaking callers that had previously assumed that
+		// single quotes would be escaped. See issue #19917.
+		switch c {
+		case '!', '(', ')', '*':
+			return false
+		}
+	}
+
 	// Everything else must be escaped.
 	return true
 }
 
 // QueryUnescape does the inverse transformation of QueryEscape,
 // converting each 3-byte encoded substring of the form "%AB" into the
-// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
+// hex-decoded byte 0xAB.
 // It returns an error if any % is not followed by two hexadecimal
 // digits.
 func QueryUnescape(s string) (string, error) {
@@ -502,7 +515,13 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 		url.ForceQuery = true
 		rest = rest[:len(rest)-1]
 	} else {
-		rest, url.RawQuery = split(rest, "?", true)
+		var q string
+		rest, q = split(rest, "?", true)
+		if validQuery(q) {
+			url.RawQuery = q
+		} else {
+			url.RawQuery = QueryEscape(q)
+		}
 	}
 
 	if !strings.HasPrefix(rest, "/") {
@@ -1099,5 +1118,48 @@ func validUserinfo(s string) bool {
 			return false
 		}
 	}
+	return true
+}
+
+// validQuery reports whether s is a valid query string per RFC 3986
+// Section 3.4:
+//     query       = *( pchar / "/" / "?" )
+//     pchar       = unreserved / pct-encoded / sub-delims / ":" / "@"
+//     unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+//     sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
+//                   / "*" / "+" / "," / ";" / "="
+func validQuery(s string) bool {
+	pctEnc := 0
+
+	for _, r := range s {
+		if pctEnc > 0 {
+			if uint32(r) > 255 || !ishex(byte(r)) {
+				return false
+			}
+			pctEnc--
+			continue
+		} else if r == '%' {
+			pctEnc = 2
+			continue
+		}
+
+		if 'A' <= r && r <= 'Z' {
+			continue
+		}
+		if 'a' <= r && r <= 'z' {
+			continue
+		}
+		if '0' <= r && r <= '9' {
+			continue
+		}
+		switch r {
+		case '-', '.', '_', '~', '!', '$', '&', '\'', '(', ')',
+			'*', '+', ',', ';', '=', ':', '@', '/', '?':
+			continue
+		default:
+			return false
+		}
+	}
+
 	return true
 }

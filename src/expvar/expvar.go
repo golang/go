@@ -221,7 +221,7 @@ func (v *String) Value() string {
 	return p
 }
 
-// String implements the Val interface. To get the unquoted string
+// String implements the Var interface. To get the unquoted string
 // use Value.
 func (v *String) String() string {
 	s := v.Value()

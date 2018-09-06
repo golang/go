@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -84,6 +85,15 @@ func checkUserNS(t *testing.T) {
 			t.Skip("kernel doesn't support user namespaces")
 		}
 	}
+
+	// On Centos 7.5+, user namespaces are disabled if user.max_user_namespaces = 0
+	if _, err := os.Stat("/proc/sys/user/max_user_namespaces"); err == nil {
+		buf, errRead := ioutil.ReadFile("/proc/sys/user/max_user_namespaces")
+		if errRead == nil && buf[0] == '0' {
+			t.Skip("kernel doesn't support user namespaces")
+		}
+	}
+
 	// When running under the Go continuous build, skip tests for
 	// now when under Kubernetes. (where things are root but not quite)
 	// Both of these are our own environment variables.
@@ -513,6 +523,11 @@ func TestAmbientCaps(t *testing.T) {
 	// See Issue 12815.
 	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+	}
+
+	// skip on android, due to lack of lookup support
+	if runtime.GOOS == "android" {
+		t.Skip("skipping test on android; see Issue 27327")
 	}
 
 	caps, err := getCaps()

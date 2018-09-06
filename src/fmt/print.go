@@ -743,8 +743,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 		} else {
 			p.buf.WriteString(mapString)
 		}
-		keys := f.MapKeys()
-		for i, key := range keys {
+		iter := f.MapRange()
+		for i := 0; iter.Next(); i++ {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.WriteString(commaSpaceString)
@@ -752,9 +752,9 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.WriteByte(' ')
 				}
 			}
-			p.printValue(key, verb, depth+1)
+			p.printValue(iter.Key(), verb, depth+1)
 			p.buf.WriteByte(':')
-			p.printValue(f.MapIndex(key), verb, depth+1)
+			p.printValue(iter.Value(), verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.WriteByte('}')

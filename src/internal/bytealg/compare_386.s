@@ -14,6 +14,7 @@ TEXT ·Compare(SB),NOSPLIT,$0-28
 	JMP	cmpbody<>(SB)
 
 TEXT bytes·Compare(SB),NOSPLIT,$0-28
+	FUNCDATA $0, ·Compare·args_stackmap(SB)
 	MOVL	a_base+0(FP), SI
 	MOVL	a_len+4(FP), BX
 	MOVL	b_base+12(FP), DI
@@ -44,7 +45,7 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
 	JEQ	allsame
 	CMPL	BP, $4
 	JB	small
-	CMPB	runtime·support_sse2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	mediumloop
 largeloop:
 	CMPL	BP, $16

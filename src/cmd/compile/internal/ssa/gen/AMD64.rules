@@ -455,6 +455,8 @@
 (GetCallerSP) -> (LoweredGetCallerSP)
 (Addr {sym} base) && config.PtrSize == 8 -> (LEAQ {sym} base)
 (Addr {sym} base) && config.PtrSize == 4 -> (LEAL {sym} base)
+(LocalAddr {sym} base _) && config.PtrSize == 8 -> (LEAQ {sym} base)
+(LocalAddr {sym} base _) && config.PtrSize == 4 -> (LEAL {sym} base)
 
 (MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 -> (SETLstore [off] {sym} ptr x mem)
 (MOVBstore [off] {sym} ptr y:(SETLE x) mem) && y.Uses == 1 -> (SETLEstore [off] {sym} ptr x mem)
@@ -766,6 +768,11 @@
 (ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
 (ROLBconst [c] (ROLBconst [d] x)) -> (ROLBconst [(c+d)& 7] x)
 
+(RotateLeft8  a b) -> (ROLB a b)
+(RotateLeft16 a b) -> (ROLW a b)
+(RotateLeft32 a b) -> (ROLL a b)
+(RotateLeft64 a b) -> (ROLQ a b)
+
 // Non-constant rotates.
 // We want to issue a rotate when the Go source contains code like
 //     y &= 63
@@ -986,6 +993,8 @@
 (MOVLQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
 
 (MOVLQZX x) && zeroUpper32Bits(x,3) -> x
+(MOVWQZX x) && zeroUpper48Bits(x,3) -> x
+(MOVBQZX x) && zeroUpper56Bits(x,3) -> x
 
 (MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
 (MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
@@ -1033,12 +1042,18 @@
 	((ADD|SUB|AND|OR|XOR)Qload [off1+off2] {sym} val base mem)
 ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
-((ADD|SUB|MUL)SSload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|MUL)SSload [off1+off2] {sym} val base mem)
-((ADD|SUB|MUL)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|MUL)SDload [off1+off2] {sym} val base mem)
-(ADD(L|Q)constmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
-	(ADD(L|Q)constmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+((ADD|SUB|MUL|DIV)SSload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL|DIV)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {sym} val base mem)
+((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+((ADD|SUB|AND|OR|XOR)Qmodify [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|AND|OR|XOR)Qmodify [off1+off2] {sym} base val mem)
+((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {sym} base val mem)
 
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
@@ -1073,15 +1088,24 @@
 ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|MUL)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+((ADD|SUB|MUL|DIV)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|MUL)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|MUL)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL|DIV)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|MUL)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-(ADD(L|Q)constmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
-	(ADD(L|Q)constmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+((ADD|SUB|AND|OR|XOR)Qmodify [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	((ADD|SUB|AND|OR|XOR)Qmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 
 // generating indexed loads and stores
 (MOV(B|W|L|Q|SS|SD)load [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
@@ -2265,8 +2289,14 @@
 // TODO: add indexed variants?
 ((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)
 ((ADD|SUB|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Lload x [off] {sym} ptr mem)
-((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SDload x [off] {sym} ptr mem)
-((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SSload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
+(MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+(MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
+	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+(MOVQstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Qload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Qmodify [off] {sym} ptr x mem)
+(MOVQstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)Q l:(MOVQload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
+	((ADD|SUB|AND|OR|XOR)Qmodify [off] {sym} ptr x mem)
 
 // Merge ADDQconst and LEAQ into atomic loads.
 (MOVQatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
@@ -2350,12 +2380,12 @@
 (MOVWQZX (MOVBQZX x)) -> (MOVBQZX x)
 (MOVBQZX (MOVBQZX x)) -> (MOVBQZX x)
 
-(MOVQstore [off] {sym} ptr a:(ADDQconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
+(MOVQstore [off] {sym} ptr a:((ADD|AND|OR|XOR)Qconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
-	(ADDQconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
-(MOVLstore [off] {sym} ptr a:(ADDLconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
+	((ADD|AND|OR|XOR)Qconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
+(MOVLstore [off] {sym} ptr a:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
-	(ADDLconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
+	((ADD|AND|OR|XOR)Lconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
 
 // float <-> int register moves, with no conversion.
 // These come up when compiling math.{Float{32,64}bits,Float{32,64}frombits}.
@@ -2375,11 +2405,6 @@
 ( ORLload x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> ( ORL x (MOVLf2i y))
 (XORQload x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (XORQ x (MOVQf2i y))
 (XORLload x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (XORL x (MOVLf2i y))
-
-(ADDQconstmodify [valOff] {sym} ptr (MOVSDstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
-  (ADDQconst [ValAndOff(valOff).Val()] (MOVQf2i x))
-(ADDLconstmodify [valOff] {sym} ptr (MOVSSstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
-  (ADDLconst [ValAndOff(valOff).Val()] (MOVLf2i x))
 
 (ADDSDload x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (ADDSD x (MOVQi2f y))
 (ADDSSload x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (ADDSS x (MOVLi2f y))
@@ -2404,6 +2429,13 @@
 // LEAQ is rematerializeable, so this helps to avoid register spill.
 // See issue 22947 for details
 (ADD(Q|L)const [off] x:(SP)) -> (LEA(Q|L) [off] x)
+
+// HMULx is commutative, but its first argument must go in AX.
+// If possible, put a rematerializeable value in the first argument slot,
+// to reduce the odds that another value will be have to spilled
+// specifically to free up AX.
+(HMUL(Q|L)  x y) && !x.rematerializeable() && y.rematerializeable() -> (HMUL(Q|L)  y x)
+(HMUL(Q|L)U x y) && !x.rematerializeable() && y.rematerializeable() -> (HMUL(Q|L)U y x)
 
 // Fold loads into compares
 // Note: these may be undone by the flagalloc pass.

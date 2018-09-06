@@ -29,6 +29,7 @@ import (
 const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
 
 func init() {
+	inOurTests = true
 	hopHeaders = append(hopHeaders, fakeHopHeader)
 }
 
@@ -633,6 +634,93 @@ func TestReverseProxyModifyResponse(t *testing.T) {
 			t.Errorf("#%d: got res.StatusCode %d; expected %d", i, g, e)
 		}
 		resp.Body.Close()
+	}
+}
+
+type failingRoundTripper struct{}
+
+func (failingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("some error")
+}
+
+type staticResponseRoundTripper struct{ res *http.Response }
+
+func (rt staticResponseRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return rt.res, nil
+}
+
+func TestReverseProxyErrorHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		wantCode       int
+		errorHandler   func(http.ResponseWriter, *http.Request, error)
+		transport      http.RoundTripper // defaults to failingRoundTripper
+		modifyResponse func(*http.Response) error
+	}{
+		{
+			name:     "default",
+			wantCode: http.StatusBadGateway,
+		},
+		{
+			name:         "errorhandler",
+			wantCode:     http.StatusTeapot,
+			errorHandler: func(rw http.ResponseWriter, req *http.Request, err error) { rw.WriteHeader(http.StatusTeapot) },
+		},
+		{
+			name: "modifyresponse_noerr",
+			transport: staticResponseRoundTripper{
+				&http.Response{StatusCode: 345, Body: http.NoBody},
+			},
+			modifyResponse: func(res *http.Response) error {
+				res.StatusCode++
+				return nil
+			},
+			errorHandler: func(rw http.ResponseWriter, req *http.Request, err error) { rw.WriteHeader(http.StatusTeapot) },
+			wantCode:     346,
+		},
+		{
+			name: "modifyresponse_err",
+			transport: staticResponseRoundTripper{
+				&http.Response{StatusCode: 345, Body: http.NoBody},
+			},
+			modifyResponse: func(res *http.Response) error {
+				res.StatusCode++
+				return errors.New("some error to trigger errorHandler")
+			},
+			errorHandler: func(rw http.ResponseWriter, req *http.Request, err error) { rw.WriteHeader(http.StatusTeapot) },
+			wantCode:     http.StatusTeapot,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target := &url.URL{
+				Scheme: "http",
+				Host:   "dummy.tld",
+				Path:   "/",
+			}
+			rproxy := NewSingleHostReverseProxy(target)
+			rproxy.Transport = tt.transport
+			rproxy.ModifyResponse = tt.modifyResponse
+			if rproxy.Transport == nil {
+				rproxy.Transport = failingRoundTripper{}
+			}
+			rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+			if tt.errorHandler != nil {
+				rproxy.ErrorHandler = tt.errorHandler
+			}
+			frontendProxy := httptest.NewServer(rproxy)
+			defer frontendProxy.Close()
+
+			resp, err := http.Get(frontendProxy.URL + "/test")
+			if err != nil {
+				t.Fatalf("failed to reach proxy: %v", err)
+			}
+			if g, e := resp.StatusCode, tt.wantCode; g != e {
+				t.Errorf("got res.StatusCode %d; expected %d", g, e)
+			}
+			resp.Body.Close()
+		})
 	}
 }
 

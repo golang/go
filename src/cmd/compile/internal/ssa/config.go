@@ -9,40 +9,38 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"os"
-	"strconv"
 )
 
 // A Config holds readonly compilation information.
 // It is created once, early during compilation,
 // and shared across all compilations.
 type Config struct {
-	arch            string // "amd64", etc.
-	PtrSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
-	RegSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
-	Types           Types
-	lowerBlock      blockRewriter // lowering function
-	lowerValue      valueRewriter // lowering function
-	registers       []Register    // machine registers
-	gpRegMask       regMask       // general purpose integer register mask
-	fpRegMask       regMask       // floating point register mask
-	specialRegMask  regMask       // special register mask
-	GCRegMap        []*Register   // garbage collector register map, by GC register index
-	FPReg           int8          // register number of frame pointer, -1 if not used
-	LinkReg         int8          // register number of link register if it is a general purpose register, -1 if not used
-	hasGReg         bool          // has hardware g register
-	ctxt            *obj.Link     // Generic arch information
-	optimize        bool          // Do optimization
-	noDuffDevice    bool          // Don't use Duff's device
-	useSSE          bool          // Use SSE for non-float operations
-	useAvg          bool          // Use optimizations that need Avg* operations
-	useHmul         bool          // Use optimizations that need Hmul* operations
-	nacl            bool          // GOOS=nacl
-	use387          bool          // GO386=387
-	SoftFloat       bool          //
-	NeedsFpScratch  bool          // No direct move between GP and FP register sets
-	BigEndian       bool          //
-	sparsePhiCutoff uint64        // Sparse phi location algorithm used above this #blocks*#variables score
+	arch           string // "amd64", etc.
+	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
+	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
+	Types          Types
+	lowerBlock     blockRewriter // lowering function
+	lowerValue     valueRewriter // lowering function
+	registers      []Register    // machine registers
+	gpRegMask      regMask       // general purpose integer register mask
+	fpRegMask      regMask       // floating point register mask
+	specialRegMask regMask       // special register mask
+	GCRegMap       []*Register   // garbage collector register map, by GC register index
+	FPReg          int8          // register number of frame pointer, -1 if not used
+	LinkReg        int8          // register number of link register if it is a general purpose register, -1 if not used
+	hasGReg        bool          // has hardware g register
+	ctxt           *obj.Link     // Generic arch information
+	optimize       bool          // Do optimization
+	noDuffDevice   bool          // Don't use Duff's device
+	useSSE         bool          // Use SSE for non-float operations
+	useAvg         bool          // Use optimizations that need Avg* operations
+	useHmul        bool          // Use optimizations that need Hmul* operations
+	nacl           bool          // GOOS=nacl
+	use387         bool          // GO386=387
+	SoftFloat      bool          //
+	Race           bool          // race detector enabled
+	NeedsFpScratch bool          // No direct move between GP and FP register sets
+	BigEndian      bool          //
 }
 
 type (
@@ -360,22 +358,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
 	}
 
-	// cutoff is compared with product of numblocks and numvalues,
-	// if product is smaller than cutoff, use old non-sparse method.
-	// cutoff == 0 implies all sparse.
-	// cutoff == -1 implies none sparse.
-	// Good cutoff values seem to be O(million) depending on constant factor cost of sparse.
-	// TODO: get this from a flag, not an environment variable
-	c.sparsePhiCutoff = 2500000 // 0 for testing. // 2500000 determined with crude experiments w/ make.bash
-	ev := os.Getenv("GO_SSA_PHI_LOC_CUTOFF")
-	if ev != "" {
-		v, err := strconv.ParseInt(ev, 10, 64)
-		if err != nil {
-			ctxt.Diag("Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
-		}
-		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
-	}
-
 	// Create the GC register map index.
 	// TODO: This is only used for debug printing. Maybe export config.registers?
 	gcRegMapSize := int16(0)
@@ -399,5 +381,4 @@ func (c *Config) Set387(b bool) {
 	c.use387 = b
 }
 
-func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
-func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
+func (c *Config) Ctxt() *obj.Link { return c.ctxt }

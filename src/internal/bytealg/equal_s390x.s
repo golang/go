@@ -18,6 +18,7 @@ notequal:
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
+	FUNCDATA $0, ·Equal·args_stackmap(SB)
 	MOVD	a_len+8(FP), R2
 	MOVD	b_len+32(FP), R6
 	MOVD	a_base+0(FP), R3

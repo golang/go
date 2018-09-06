@@ -30,7 +30,7 @@ the C or C++ compiler, respectively, to use.
 
 var HelpPackages = &base.Command{
 	UsageLine: "packages",
-	Short:     "package lists",
+	Short:     "package lists and patterns",
 	Long: `
 Many commands apply to a set of packages:
 
@@ -54,9 +54,11 @@ for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
 
-- "all" expands to all package directories found in all the GOPATH
+- "all" expands to all packages found in all the GOPATH
 trees. For example, 'go list all' lists all the packages on the local
-system.
+system. When using modules, "all" expands to all packages in
+the main module and their dependencies, including dependencies
+needed by tests of any of those.
 
 - "std" is like all but expands to just the packages in the standard
 Go library.
@@ -193,6 +195,7 @@ using the named version control system, and then the path inside
 that repository. The supported version control systems are:
 
 	Bazaar      .bzr
+	Fossil      .fossil
 	Git         .git
 	Mercurial   .hg
 	Subversion  .svn
@@ -236,7 +239,7 @@ The meta tag should appear as early in the file as possible.
 In particular, it should appear before any raw JavaScript or CSS,
 to avoid confusing the go command's restricted parser.
 
-The vcs is one of "git", "hg", "svn", etc,
+The vcs is one of "bzr", "fossil", "git", "hg", "svn".
 
 The repo-root is the root of the version control system
 containing a scheme and not containing a .vcs qualifier.
@@ -258,12 +261,22 @@ the go tool will verify that https://example.org/?go-get=1 contains the
 same meta tag and then git clone https://code.org/r/p/exproj into
 GOPATH/src/example.org.
 
-New downloaded packages are written to the first directory listed in the GOPATH
-environment variable (For more details see: 'go help gopath').
+When using GOPATH, downloaded packages are written to the first directory
+listed in the GOPATH environment variable.
+(See 'go help gopath-get' and 'go help gopath'.)
 
-The go command attempts to download the version of the
-package appropriate for the Go release being used.
-Run 'go help get' for more.
+When using modules, downloaded packages are stored in the module cache.
+(See 'go help modules-get' and 'go help goproxy'.)
+
+When using modules, an additional variant of the go-import meta tag is
+recognized and is preferred over those listing version control systems.
+That variant uses "mod" as the vcs in the content value, as in:
+
+	<meta name="go-import" content="example.org mod https://code.org/moduleproxy">
+
+This tag means to fetch modules with paths beginning with example.org
+from the module proxy available at the URL https://code.org/moduleproxy.
+See 'go help goproxy' for details about the proxy protocol.
 
 Import path checking
 
@@ -285,6 +298,9 @@ direct path to the underlying code hosting site.
 Import path checking is disabled for code found within vendor trees.
 This makes it possible to copy code into alternate locations in vendor trees
 without needing to update import comments.
+
+Import path checking is also disabled when using modules.
+Import path comments are obsoleted by the go.mod file's module statement.
 
 See https://golang.org/s/go14customimport for details.
 	`,
@@ -357,6 +373,12 @@ but new packages are always downloaded into the first directory
 in the list.
 
 See https://golang.org/doc/code.html for an example.
+
+GOPATH and Modules
+
+When using modules, GOPATH is no longer used for resolving imports.
+However, it is still used to store downloaded source code (in GOPATH/pkg/mod)
+and compiled commands (in GOPATH/bin).
 
 Internal Directories
 
@@ -464,11 +486,18 @@ General-purpose environment variables:
 	GOCACHE
 		The directory where the go command will store cached
 		information for reuse in future builds.
+	GOFLAGS
+		A space-separated list of -flag=value settings to apply
+		to go commands by default, when the given flag is known by
+		the current command. Flags listed on the command-line
+		are applied after this list and therefore override it.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
 	GOPATH
 		For more details see: 'go help gopath'.
+	GOPROXY
+		URL of Go module proxy. See 'go help goproxy'.
 	GORACE
 		Options for the race detector.
 		See https://golang.org/doc/articles/race_detector.html.
@@ -477,10 +506,6 @@ General-purpose environment variables:
 	GOTMPDIR
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
-	GOTOOLDIR
-		The directory where the go tools (compile, cover, doc, etc...)
-		are installed. This is printed by go env, but setting the
-		environment variable has no effect.
 
 Environment variables for use with cgo:
 
@@ -549,6 +574,20 @@ Special-purpose environment variables:
 		Defined by Git. A colon-separated list of schemes that are allowed to be used
 		with git fetch/clone. If set, any scheme not explicitly mentioned will be
 		considered insecure by 'go get'.
+
+Additional information available from 'go env' but not read from the environment:
+
+	GOEXE
+		The executable file name suffix (".exe" on Windows, "" on other systems).
+	GOHOSTARCH
+		The architecture (GOARCH) of the Go toolchain binaries.
+	GOHOSTOS
+		The operating system (GOOS) of the Go toolchain binaries.
+	GOMOD
+		The absolute path to the go.mod of the main module,
+		or the empty string if not using modules.
+	GOTOOLDIR
+		The directory where the go tools (compile, cover, doc, etc...) are installed.
 	`,
 }
 

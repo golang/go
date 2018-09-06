@@ -212,7 +212,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64FMSUBS,
 		ssa.OpARM64FMSUBD,
 		ssa.OpARM64FNMSUBS,
-		ssa.OpARM64FNMSUBD:
+		ssa.OpARM64FNMSUBD,
+		ssa.OpARM64MADD,
+		ssa.OpARM64MADDW,
+		ssa.OpARM64MSUB,
+		ssa.OpARM64MSUBW:
 		rt := v.Reg()
 		ra := v.Args[0].Reg()
 		rm := v.Args[1].Reg()
@@ -369,6 +373,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64MOVWloadidx,
 		ssa.OpARM64MOVWUloadidx,
 		ssa.OpARM64MOVDloadidx,
+		ssa.OpARM64FMOVSloadidx,
+		ssa.OpARM64FMOVDloadidx,
 		ssa.OpARM64MOVHloadidx2,
 		ssa.OpARM64MOVHUloadidx2,
 		ssa.OpARM64MOVWloadidx4,
@@ -404,6 +410,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64MOVHstoreidx,
 		ssa.OpARM64MOVWstoreidx,
 		ssa.OpARM64MOVDstoreidx,
+		ssa.OpARM64FMOVSstoreidx,
+		ssa.OpARM64FMOVDstoreidx,
 		ssa.OpARM64MOVHstoreidx2,
 		ssa.OpARM64MOVWstoreidx4,
 		ssa.OpARM64MOVDstoreidx8:

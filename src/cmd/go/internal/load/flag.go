@@ -91,31 +91,3 @@ func (f *PerPackageFlag) For(p *Package) []string {
 	}
 	return flags
 }
-
-var cmdlineMatchers []func(*Package) bool
-
-// SetCmdlinePatterns records the set of patterns given on the command line,
-// for use by the PerPackageFlags.
-func SetCmdlinePatterns(args []string) {
-	setCmdlinePatterns(args, base.Cwd)
-}
-
-func setCmdlinePatterns(args []string, cwd string) {
-	if len(args) == 0 {
-		args = []string{"."}
-	}
-	cmdlineMatchers = nil // allow reset for testing
-	for _, arg := range args {
-		cmdlineMatchers = append(cmdlineMatchers, MatchPackage(arg, cwd))
-	}
-}
-
-// isCmdlinePkg reports whether p is a package listed on the command line.
-func isCmdlinePkg(p *Package) bool {
-	for _, m := range cmdlineMatchers {
-		if m(p) {
-			return true
-		}
-	}
-	return false
-}

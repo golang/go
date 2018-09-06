@@ -16,6 +16,7 @@ import (
 	"go/token"
 	"go/types"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -30,7 +31,7 @@ func init() {
 		funcDecl, callExpr)
 	registerPkgCheck("printf", findPrintfLike)
 	registerExport("printf", exportPrintfLike)
-	gob.Register(map[string]int(nil))
+	gob.Register([]printfExport(nil))
 }
 
 func initPrintFlags() {
@@ -57,13 +58,22 @@ func initPrintFlags() {
 
 var localPrintfLike = make(map[string]int)
 
+type printfExport struct {
+	Name string
+	Kind int
+}
+
+// printfImported maps from package name to the printf vet data
+// exported by that package.
+var printfImported = make(map[string]map[string]int)
+
 type printfWrapper struct {
-	name       string
-	fn         *ast.FuncDecl
-	format     *ast.Field
-	args       *ast.Field
-	callers    []printfCaller
-	printfLike bool
+	name    string
+	fn      *ast.FuncDecl
+	format  *ast.Field
+	args    *ast.Field
+	callers []printfCaller
+	failed  bool // if true, not a printf wrapper
 }
 
 type printfCaller struct {
@@ -158,6 +168,33 @@ func findPrintfLike(pkg *Package) {
 	for _, w := range wrappers {
 		// Scan function for calls that could be to other printf-like functions.
 		ast.Inspect(w.fn.Body, func(n ast.Node) bool {
+			if w.failed {
+				return false
+			}
+
+			// TODO: Relax these checks; issue 26555.
+			if assign, ok := n.(*ast.AssignStmt); ok {
+				for _, lhs := range assign.Lhs {
+					if match(lhs, w.format) || match(lhs, w.args) {
+						// Modifies the format
+						// string or args in
+						// some way, so not a
+						// simple wrapper.
+						w.failed = true
+						return false
+					}
+				}
+			}
+			if un, ok := n.(*ast.UnaryExpr); ok && un.Op == token.AND {
+				if match(un.X, w.format) || match(un.X, w.args) {
+					// Taking the address of the
+					// format string or args,
+					// so not a simple wrapper.
+					w.failed = true
+					return false
+				}
+			}
+
 			call, ok := n.(*ast.CallExpr)
 			if !ok || len(call.Args) == 0 || !match(call.Args[len(call.Args)-1], w.args) {
 				return true
@@ -222,6 +259,20 @@ func checkPrintfFwd(pkg *Package, w *printfWrapper, call *ast.CallExpr, kind int
 	}
 
 	if !call.Ellipsis.IsValid() {
+		typ, ok := pkg.types[call.Fun].Type.(*types.Signature)
+		if !ok {
+			return
+		}
+		if len(call.Args) > typ.Params().Len() {
+			// If we're passing more arguments than what the
+			// print/printf function can take, adding an ellipsis
+			// would break the program. For example:
+			//
+			//   func foo(arg1 string, arg2 ...interface{} {
+			//       fmt.Printf("%s %v", arg1, arg2)
+			//   }
+			return
+		}
 		if !vcfg.VetxOnly {
 			desc := "printf"
 			if kind == kindPrint {
@@ -241,7 +292,17 @@ func checkPrintfFwd(pkg *Package, w *printfWrapper, call *ast.CallExpr, kind int
 }
 
 func exportPrintfLike() interface{} {
-	return localPrintfLike
+	out := make([]printfExport, 0, len(localPrintfLike))
+	for name, kind := range localPrintfLike {
+		out = append(out, printfExport{
+			Name: name,
+			Kind: kind,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
 
 // isPrint records the print functions.
@@ -438,9 +499,18 @@ func printfNameAndKind(pkg *Package, called ast.Expr) (pkgpath, name string, kin
 
 	if pkgpath == "" {
 		kind = localPrintfLike[name]
+	} else if m, ok := printfImported[pkgpath]; ok {
+		kind = m[name]
 	} else {
-		printfLike, _ := readVetx(pkgpath, "printf").(map[string]int)
-		kind = printfLike[name]
+		var m map[string]int
+		if out, ok := readVetx(pkgpath, "printf").([]printfExport); ok {
+			m = make(map[string]int)
+			for _, x := range out {
+				m[x.Name] = x.Kind
+			}
+		}
+		printfImported[pkgpath] = m
+		kind = m[name]
 	}
 
 	if kind == 0 {

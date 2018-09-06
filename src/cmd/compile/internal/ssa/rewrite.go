@@ -418,6 +418,38 @@ func shiftIsBounded(v *Value) bool {
 	return v.AuxInt != 0
 }
 
+// truncate64Fto32F converts a float64 value to a float32 preserving the bit pattern
+// of the mantissa. It will panic if the truncation results in lost information.
+func truncate64Fto32F(f float64) float32 {
+	if !isExactFloat32(f) {
+		panic("truncate64Fto32F: truncation is not exact")
+	}
+	if !math.IsNaN(f) {
+		return float32(f)
+	}
+	// NaN bit patterns aren't necessarily preserved across conversion
+	// instructions so we need to do the conversion manually.
+	b := math.Float64bits(f)
+	m := b & ((1 << 52) - 1) // mantissa (a.k.a. significand)
+	//          | sign                  | exponent   | mantissa       |
+	r := uint32(((b >> 32) & (1 << 31)) | 0x7f800000 | (m >> (52 - 23)))
+	return math.Float32frombits(r)
+}
+
+// extend32Fto64F converts a float32 value to a float64 value preserving the bit
+// pattern of the mantissa.
+func extend32Fto64F(f float32) float64 {
+	if !math.IsNaN(float64(f)) {
+		return float64(f)
+	}
+	// NaN bit patterns aren't necessarily preserved across conversion
+	// instructions so we need to do the conversion manually.
+	b := uint64(math.Float32bits(f))
+	//   | sign                  | exponent      | mantissa                    |
+	r := ((b << 32) & (1 << 63)) | (0x7ff << 52) | ((b & 0x7fffff) << (52 - 23))
+	return math.Float64frombits(r)
+}
+
 // i2f is used in rules for converting from an AuxInt to a float.
 func i2f(i int64) float64 {
 	return math.Float64frombits(uint64(i))
@@ -468,7 +500,7 @@ func isSamePtr(p1, p2 *Value) bool {
 	switch p1.Op {
 	case OpOffPtr:
 		return p1.AuxInt == p2.AuxInt && isSamePtr(p1.Args[0], p2.Args[0])
-	case OpAddr:
+	case OpAddr, OpLocalAddr:
 		// OpAddr's 0th arg is either OpSP or OpSB, which means that it is uniquely identified by its Op.
 		// Checking for value equality only works after [z]cse has run.
 		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
@@ -506,18 +538,17 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	// If one pointer is on the stack and the other is an argument
 	// then they can't overlap.
 	switch p1.Op {
-	case OpAddr:
-		if p2.Op == OpAddr || p2.Op == OpSP {
+	case OpAddr, OpLocalAddr:
+		if p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpSP {
 			return true
 		}
 		return p2.Op == OpArg && p1.Args[0].Op == OpSP
 	case OpArg:
-		if p2.Op == OpSP {
+		if p2.Op == OpSP || p2.Op == OpLocalAddr {
 			return true
 		}
-		return p2.Op == OpAddr && p2.Args[0].Op == OpSP
 	case OpSP:
-		return p2.Op == OpAddr || p2.Op == OpArg || p2.Op == OpSP
+		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpSP
 	}
 	return false
 }
@@ -895,6 +926,54 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	return false
 }
 
+// zeroUpper48Bits is similar to zeroUpper32Bits, but for upper 48 bits
+func zeroUpper48Bits(x *Value, depth int) bool {
+	switch x.Op {
+	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
+		return true
+	case OpArg:
+		return x.Type.Width == 2
+	case OpPhi, OpSelect0, OpSelect1:
+		// Phis can use each-other as an arguments, instead of tracking visited values,
+		// just limit recursion depth.
+		if depth <= 0 {
+			return false
+		}
+		for i := range x.Args {
+			if !zeroUpper48Bits(x.Args[i], depth-1) {
+				return false
+			}
+		}
+		return true
+
+	}
+	return false
+}
+
+// zeroUpper56Bits is similar to zeroUpper32Bits, but for upper 56 bits
+func zeroUpper56Bits(x *Value, depth int) bool {
+	switch x.Op {
+	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
+		return true
+	case OpArg:
+		return x.Type.Width == 1
+	case OpPhi, OpSelect0, OpSelect1:
+		// Phis can use each-other as an arguments, instead of tracking visited values,
+		// just limit recursion depth.
+		if depth <= 0 {
+			return false
+		}
+		for i := range x.Args {
+			if !zeroUpper56Bits(x.Args[i], depth-1) {
+				return false
+			}
+		}
+		return true
+
+	}
+	return false
+}
+
 // isInlinableMemmove reports whether the given arch performs a Move of the given size
 // faster than memmove. It will only return true if replacing the memmove with a Move is
 // safe, either because Move is small or because the arguments are disjoint.
@@ -906,7 +985,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	// have fast Move ops.
 	switch c.arch {
 	case "amd64", "amd64p32":
-		return sz <= 16
+		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
 	case "386", "ppc64", "ppc64le", "arm64":
 		return sz <= 8
 	case "s390x":
@@ -978,4 +1057,32 @@ func registerizable(b *Block, t interface{}) bool {
 		return typ.Size() <= b.Func.Config.RegSize
 	}
 	return false
+}
+
+// needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
+func needRaceCleanup(sym interface{}, v *Value) bool {
+	f := v.Block.Func
+	if !f.Config.Race {
+		return false
+	}
+	if !isSameSym(sym, "runtime.racefuncenter") && !isSameSym(sym, "runtime.racefuncexit") {
+		return false
+	}
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op == OpStaticCall {
+				switch v.Aux.(fmt.Stringer).String() {
+				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
+					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap":
+				// Check for racefuncenter will encounter racefuncexit and vice versa.
+				// Allow calls to panic*
+				default:
+					// If we encountered any call, we need to keep racefunc*,
+					// for accurate stacktraces.
+					return false
+				}
+			}
+		}
+	}
+	return true
 }

@@ -1,0 +1,66 @@
+# File system pattern searches should skip sub-modules and vendor directories.
+
+env GO111MODULE=on
+
+cd x
+
+# all packages
+go list all
+stdout ^m$
+stdout ^m/vendor$
+! stdout vendor/
+stdout ^m/y$
+! stdout ^m/y/z
+
+# path pattern
+go list m/...
+stdout ^m$
+stdout ^m/vendor$
+! stdout vendor/
+stdout ^m/y$
+! stdout ^m/y/z
+
+# directory pattern
+go list ./...
+stdout ^m$
+stdout ^m/vendor$
+! stdout vendor/
+stdout ^m/y$
+! stdout ^m/y/z
+
+# non-existent directory should not prompt lookups
+! go build -mod=readonly example.com/nonexist
+stderr 'import lookup disabled'
+
+! go build -mod=readonly ./nonexist
+! stderr 'import lookup disabled'
+stderr '^go: no such directory ./nonexist'
+
+! go build -mod=readonly ./go.mod
+! stderr 'import lookup disabled'
+stderr '^go: ./go.mod is not a directory'
+
+-- x/go.mod --
+module m
+
+-- x/x.go --
+package x
+
+-- x/vendor/v/v.go --
+package v
+import _ "golang.org/x/crypto"
+
+-- x/vendor/v.go --
+package main
+
+-- x/y/y.go --
+package y
+
+-- x/y/z/go.mod --
+syntax error!
+
+-- x/y/z/z.go --
+package z
+
+-- x/y/z/w/w.go --
+package w

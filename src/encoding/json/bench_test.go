@@ -114,6 +114,34 @@ func BenchmarkCodeMarshal(b *testing.B) {
 	b.SetBytes(int64(len(codeJSON)))
 }
 
+func benchMarshalBytes(n int) func(*testing.B) {
+	sample := []byte("hello world")
+	// Use a struct pointer, to avoid an allocation when passing it as an
+	// interface parameter to Marshal.
+	v := &struct {
+		Bytes []byte
+	}{
+		bytes.Repeat(sample, (n/len(sample))+1)[:n],
+	}
+	return func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := Marshal(v); err != nil {
+				b.Fatal("Marshal:", err)
+			}
+		}
+	}
+}
+
+func BenchmarkMarshalBytes(b *testing.B) {
+	// 32 fits within encodeState.scratch.
+	b.Run("32", benchMarshalBytes(32))
+	// 256 doesn't fit in encodeState.scratch, but is small enough to
+	// allocate and avoid the slower base64.NewEncoder.
+	b.Run("256", benchMarshalBytes(256))
+	// 4096 is large enough that we want to avoid allocating for it.
+	b.Run("4096", benchMarshalBytes(4096))
+}
+
 func BenchmarkCodeDecoder(b *testing.B) {
 	if codeJSON == nil {
 		b.StopTimer()

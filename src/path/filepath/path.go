@@ -341,12 +341,13 @@ var SkipDir = errors.New("skip this directory")
 //
 // If there was a problem walking to the file or directory named by path, the
 // incoming error will describe the problem and the function can decide how
-// to handle that error (and Walk will not descend into that directory). If
-// an error is returned, processing stops. The sole exception is when the function
-// returns the special value SkipDir. If the function returns SkipDir when invoked
-// on a directory, Walk skips the directory's contents entirely.
-// If the function returns SkipDir when invoked on a non-directory file,
-// Walk skips the remaining files in the containing directory.
+// to handle that error (and Walk will not descend into that directory). In the
+// case of an error, the info argument will be nil. If an error is returned,
+// processing stops. The sole exception is when the function returns the special
+// value SkipDir. If the function returns SkipDir when invoked on a directory,
+// Walk skips the directory's contents entirely. If the function returns SkipDir
+// when invoked on a non-directory file, Walk skips the remaining files in the
+// containing directory.
 type WalkFunc func(path string, info os.FileInfo, err error) error
 
 var lstat = os.Lstat // for testing

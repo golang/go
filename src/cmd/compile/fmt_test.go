@@ -73,6 +73,9 @@ type File struct {
 }
 
 func TestFormats(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
 	testenv.MustHaveGoBuild(t) // more restrictive than necessary, but that's ok
 
 	// process all directories
@@ -721,6 +724,7 @@ var knownFormats = map[string]string{
 	"uint16 %d":        "",
 	"uint16 %v":        "",
 	"uint16 %x":        "",
+	"uint32 %#x":       "",
 	"uint32 %d":        "",
 	"uint32 %v":        "",
 	"uint32 %x":        "",

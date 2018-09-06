@@ -111,7 +111,20 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 
 }
 
-// resolve relocations in s.
+// relocsym resolve relocations in "s". The main loop walks through
+// the list of relocations attached to "s" and resolves them where
+// applicable. Relocations are often architecture-specific, requiring
+// calls into the 'archreloc' and/or 'archrelocvariant' functions for
+// the architecture. When external linking is in effect, it may not be
+// possible to completely resolve the address/offset for a symbol, in
+// which case the goal is to lay the groundwork for turning a given
+// relocation into an external reloc (to be applied by the external
+// linker). For more on how relocations work in general, see
+//
+//  "Linkers and Loaders", by John R. Levine (Morgan Kaufmann, 1999), ch. 7
+//
+// This is a performance-critical function for the linker; be careful
+// to avoid introducing unnecessary allocations in the main loop.
 func relocsym(ctxt *Link, s *sym.Symbol) {
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r := &s.R[ri]
@@ -198,7 +211,9 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			case 8:
 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
-			if !thearch.Archreloc(ctxt, r, s, &o) {
+			if offset, ok := thearch.Archreloc(ctxt, r, s, o); ok {
+				o = offset
+			} else {
 				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			}
 		case objabi.R_TLS_LE:
@@ -531,28 +546,32 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
 			}
 			Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
 		}
-		if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
-			targ.Plt = int32(rel.Size)
+		if r.Sym.Plt() == -2 && r.Sym.Got() != -2 { // make dynimport JMP table for PE object files.
+			targ.SetPlt(int32(rel.Size))
 			r.Sym = rel
-			r.Add = int64(targ.Plt)
+			r.Add = int64(targ.Plt())
 
 			// jmp *addr
-			if ctxt.Arch.Family == sys.I386 {
+			switch ctxt.Arch.Family {
+			default:
+				Errorf(s, "unsupported arch %v", ctxt.Arch.Family)
+				return
+			case sys.I386:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x25)
 				rel.AddAddr(ctxt.Arch, targ)
 				rel.AddUint8(0x90)
 				rel.AddUint8(0x90)
-			} else {
+			case sys.AMD64:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x24)
 				rel.AddUint8(0x25)
 				rel.AddAddrPlus4(targ, 0)
 				rel.AddUint8(0x90)
 			}
-		} else if r.Sym.Plt >= 0 {
+		} else if r.Sym.Plt() >= 0 {
 			r.Sym = rel
-			r.Add = int64(targ.Plt)
+			r.Add = int64(targ.Plt())
 		}
 	}
 }
@@ -770,7 +789,8 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 		if ctxt.LinkMode != LinkExternal {
 			continue
 		}
-		for _, r := range sym.R {
+		for i := range sym.R {
+			r := &sym.R[i] // Copying sym.Reloc has measurable impact on performance
 			rsname := ""
 			if r.Sym != nil {
 				rsname = r.Sym.Name
@@ -1582,7 +1602,7 @@ func (ctxt *Link) dodata() {
 		datap = append(datap, data[symn]...)
 	}
 
-	dwarfgeneratedebugsyms(ctxt)
+	dwarfGenerateDebugSyms(ctxt)
 
 	var i int
 	for ; i < len(dwarfp); i++ {
@@ -2177,7 +2197,14 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 	binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
 	buf.Write(sizeBytes[:])
 
-	z := zlib.NewWriter(&buf)
+	// Using zlib.BestSpeed achieves very nearly the same
+	// compression levels of zlib.DefaultCompression, but takes
+	// substantially less time. This is important because DWARF
+	// compression can be a significant fraction of link time.
+	z, err := zlib.NewWriterLevel(&buf, zlib.BestSpeed)
+	if err != nil {
+		log.Fatalf("NewWriterLevel failed: %s", err)
+	}
 	for _, sym := range syms {
 		if _, err := z.Write(sym.P); err != nil {
 			log.Fatalf("compression failed: %s", err)

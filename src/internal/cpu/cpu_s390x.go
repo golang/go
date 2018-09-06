@@ -4,7 +4,7 @@
 
 package cpu
 
-const CacheLineSize = 256
+const CacheLinePadSize = 256
 
 // bitIsSet reports whether the bit at index is set. The bit index
 // is in big endian order, so bit index 0 is the leftmost bit.
@@ -18,16 +18,16 @@ type function uint8
 const (
 	// KM{,A,C,CTR} function codes
 	aes128 function = 18 // AES-128
-	aes192          = 19 // AES-192
-	aes256          = 20 // AES-256
+	aes192 function = 19 // AES-192
+	aes256 function = 20 // AES-256
 
 	// K{I,L}MD function codes
-	sha1   = 1 // SHA-1
-	sha256 = 2 // SHA-256
-	sha512 = 3 // SHA-512
+	sha1   function = 1 // SHA-1
+	sha256 function = 2 // SHA-256
+	sha512 function = 3 // SHA-512
 
 	// KLMD function codes
-	ghash = 65 // GHASH
+	ghash function = 65 // GHASH
 )
 
 // queryResult contains the result of a Query function
@@ -56,20 +56,20 @@ type facility uint8
 const (
 	// mandatory facilities
 	zarch  facility = 1  // z architecture mode is active
-	stflef          = 7  // store-facility-list-extended
-	ldisp           = 18 // long-displacement
-	eimm            = 21 // extended-immediate
+	stflef facility = 7  // store-facility-list-extended
+	ldisp  facility = 18 // long-displacement
+	eimm   facility = 21 // extended-immediate
 
 	// miscellaneous facilities
-	dfp    = 42 // decimal-floating-point
-	etf3eh = 30 // extended-translation 3 enhancement
+	dfp    facility = 42 // decimal-floating-point
+	etf3eh facility = 30 // extended-translation 3 enhancement
 
 	// cryptography facilities
-	msa  = 17  // message-security-assist
-	msa3 = 76  // message-security-assist extension 3
-	msa4 = 77  // message-security-assist extension 4
-	msa5 = 57  // message-security-assist extension 5
-	msa8 = 146 // message-security-assist extension 8
+	msa  facility = 17  // message-security-assist
+	msa3 facility = 76  // message-security-assist extension 3
+	msa4 facility = 77  // message-security-assist extension 4
+	msa5 facility = 57  // message-security-assist extension 5
+	msa8 facility = 146 // message-security-assist extension 8
 
 	// Note: vx and highgprs are excluded because they require
 	// kernel support and so must be fetched from HWCAP.

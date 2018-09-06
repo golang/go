@@ -14,7 +14,11 @@ var fcntl64Syscall uintptr = SYS_FCNTL
 
 // FcntlInt performs a fcntl syscall on fd with the provided command and argument.
 func FcntlInt(fd uintptr, cmd, arg int) (int, error) {
-	valptr, _, err := Syscall(fcntl64Syscall, fd, uintptr(cmd), uintptr(arg))
+	valptr, _, errno := Syscall(fcntl64Syscall, fd, uintptr(cmd), uintptr(arg))
+	var err error
+	if errno != 0 {
+		err = errno
+	}
 	return int(valptr), err
 }
 

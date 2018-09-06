@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"math"
+	"math/bits"
 )
 
 // checkFunc checks invariants of f.
@@ -146,7 +147,7 @@ func checkFunc(f *Func) {
 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
 			case auxFloat32:
 				canHaveAuxInt = true
-				if !isExactFloat32(v) {
+				if !isExactFloat32(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
 				}
 			case auxString, auxSym, auxTyp:
@@ -203,8 +204,20 @@ func checkFunc(f *Func) {
 				if len(v.Args) == 0 {
 					f.Fatalf("no args for OpAddr %s", v.LongString())
 				}
-				if v.Args[0].Op != OpSP && v.Args[0].Op != OpSB {
+				if v.Args[0].Op != OpSB {
 					f.Fatalf("bad arg to OpAddr %v", v)
+				}
+			}
+
+			if v.Op == OpLocalAddr {
+				if len(v.Args) != 2 {
+					f.Fatalf("wrong # of args for OpLocalAddr %s", v.LongString())
+				}
+				if v.Args[0].Op != OpSP {
+					f.Fatalf("bad arg 0 to OpLocalAddr %v", v)
+				}
+				if !v.Args[1].Type.IsMemory() {
+					f.Fatalf("bad arg 1 to OpLocalAddr %v", v)
 				}
 			}
 
@@ -496,8 +509,12 @@ func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
 	return sdom.isAncestorEq(x, y)
 }
 
-// isExactFloat32 reports whether v has an AuxInt that can be exactly represented as a float32.
-func isExactFloat32(v *Value) bool {
-	x := v.AuxFloat()
-	return math.Float64bits(x) == math.Float64bits(float64(float32(x)))
+// isExactFloat32 reports whether x can be exactly represented as a float32.
+func isExactFloat32(x float64) bool {
+	// Check the mantissa is in range.
+	if bits.TrailingZeros64(math.Float64bits(x)) < 52-23 {
+		return false
+	}
+	// Check the exponent is in range. The mantissa check above is sufficient for NaN values.
+	return math.IsNaN(x) || x == float64(float32(x))
 }

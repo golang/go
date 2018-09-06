@@ -198,6 +198,12 @@ func (p platform) vet() {
 		return
 	}
 
+	if p.os == "windows" && p.arch == "arm" {
+		// TODO(jordanrh1): enable as soon as the windows/arm port has fully landed
+		fmt.Println("skipping windows/arm")
+		return
+	}
+
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
 

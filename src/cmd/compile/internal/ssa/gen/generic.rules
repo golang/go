@@ -371,6 +371,12 @@
 (Rsh16Ux64 <t> (Rsh16Ux64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh16Ux64 x (Const64 <t> [c+d]))
 (Rsh8Ux64  <t> (Rsh8Ux64  x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh8Ux64  x (Const64 <t> [c+d]))
 
+// Remove signed right shift before an unsigned right shift that extracts the sign bit.
+(Rsh8Ux64  (Rsh8x64  x _) (Const64 <t> [7] )) -> (Rsh8Ux64  x (Const64 <t> [7] ))
+(Rsh16Ux64 (Rsh16x64 x _) (Const64 <t> [15])) -> (Rsh16Ux64 x (Const64 <t> [15]))
+(Rsh32Ux64 (Rsh32x64 x _) (Const64 <t> [31])) -> (Rsh32Ux64 x (Const64 <t> [31]))
+(Rsh64Ux64 (Rsh64x64 x _) (Const64 <t> [63])) -> (Rsh64Ux64 x (Const64 <t> [63]))
+
 // ((x >> c1) << c2) >> c3
 (Rsh(64|32|16|8)Ux64 (Lsh(64|32|16|8)x64 (Rsh(64|32|16|8)Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
   && uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
@@ -566,9 +572,9 @@
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
 (Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) -> (Const64F [x])
-(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) -> (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
+(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) -> (Const32F [f2i(extend32Fto64F(math.Float32frombits(uint32(x))))])
 (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitInt(t1)   -> (Const64  [x])
-(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)   -> (Const32  [int64(int32(math.Float32bits(float32(i2f(x)))))])
+(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)   -> (Const32  [int64(int32(math.Float32bits(truncate64Fto32F(i2f(x)))))])
 
 // Float Loads up to Zeros so they can be constant folded.
 (Load <t1> op:(OffPtr [o1] p1)
@@ -1370,12 +1376,19 @@
 (NeqPtr x x) -> (ConstBool [0])
 (EqPtr  (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a == b)])
 (NeqPtr (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a != b)])
+(EqPtr  (LocalAddr {a} _ _) (LocalAddr {b} _ _)) -> (ConstBool [b2i(a == b)])
+(NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _)) -> (ConstBool [b2i(a != b)])
 (EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == 0)])
 (NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != 0)])
 (EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == o2)])
 (NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != o2)])
 (EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c == d)])
 (NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c != d)])
+
+(EqPtr  (LocalAddr _ _) (Addr _)) -> (ConstBool [0])
+(NeqPtr (LocalAddr _ _) (Addr _)) -> (ConstBool [1])
+(EqPtr  (Addr _) (LocalAddr _ _)) -> (ConstBool [0])
+(NeqPtr (Addr _) (LocalAddr _ _)) -> (ConstBool [1])
 
 // Simplify address comparisons.
 (EqPtr  (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (Not (IsNonNil o1))
@@ -1389,6 +1402,7 @@
 (IsNonNil (ConstNil)) -> (ConstBool [0])
 (IsNonNil (Const(32|64) [c])) -> (ConstBool [b2i(c != 0)])
 (IsNonNil (Addr _)) -> (ConstBool [1])
+(IsNonNil (LocalAddr _ _)) -> (ConstBool [1])
 
 // Inline small or disjoint runtime.memmove calls with constant length.
 (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
@@ -1783,3 +1797,5 @@
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
 					(Zero {t1} [n] dst mem)))))
+
+(StaticCall {sym} x) && needRaceCleanup(sym,v) -> x

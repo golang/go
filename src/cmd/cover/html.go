@@ -29,12 +29,17 @@ func htmlOutput(profile, outfile string) error {
 
 	var d templateData
 
+	dirs, err := findPkgs(profiles)
+	if err != nil {
+		return err
+	}
+
 	for _, profile := range profiles {
 		fn := profile.FileName
 		if profile.Mode == "set" {
 			d.Set = true
 		}
-		file, err := findFile(fn)
+		file, err := findFile(dirs, fn)
 		if err != nil {
 			return err
 		}

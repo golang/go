@@ -132,7 +132,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
 		return true
@@ -150,7 +150,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		r.Type = objabi.R_CONST // write r->add during relocsym
 		r.Sym = nil
-		r.Add += int64(targ.Got)
+		r.Add += int64(targ.Got())
 		return true
 
 	case 256 + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
@@ -162,7 +162,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		r.Type = objabi.R_PCREL
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
-		r.Add += int64(targ.Got) + 4
+		r.Add += int64(targ.Got()) + 4
 		return true
 
 	case 256 + objabi.RelocType(elf.R_ARM_GOTOFF): // R_ARM_GOTOFF32
@@ -182,7 +182,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
 		return true
@@ -216,7 +216,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
 		return true
@@ -235,7 +235,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 		addpltsym(ctxt, targ)
 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
-		r.Add = int64(targ.Plt)
+		r.Add = int64(targ.Plt())
 		return true
 
 	case objabi.R_ADDR:
@@ -411,6 +411,35 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return true
 }
 
+func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
+	rs := r.Xsym
+
+	if rs.Dynid < 0 {
+		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+		return false
+	}
+
+	out.Write32(uint32(sectoff))
+	out.Write32(uint32(rs.Dynid))
+
+	var v uint32
+	switch r.Type {
+	default:
+		// unsupported relocation type
+		return false
+
+	case objabi.R_DWARFSECREF:
+		v = ld.IMAGE_REL_ARM_SECREL
+
+	case objabi.R_ADDR:
+		v = ld.IMAGE_REL_ARM_ADDR32
+	}
+
+	out.Write16(uint16(v))
+
+	return true
+}
+
 // sign extend a 24-bit integer
 func signext24(x int64) int32 {
 	return (int32(x) << 8) >> 8
@@ -568,7 +597,7 @@ func gentrampdyn(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	}
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		case objabi.R_CALLARM:
@@ -602,20 +631,17 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 				ld.Errorf(s, "direct call too far %d", r.Xadd/4)
 			}
 
-			*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32(r.Xadd/4))))
-			return true
+			return int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32(r.Xadd/4)))), true
 		}
 
-		return false
+		return -1, false
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
-		*val = r.Add
-		return true
+		return r.Add, true
 	case objabi.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 
 	// The following three arch specific relocations are only for generation of
 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
@@ -623,16 +649,11 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 		if ld.Symaddr(ctxt.Syms.Lookup(".got.plt", 0)) < ld.Symaddr(ctxt.Syms.Lookup(".plt", 0)) {
 			ld.Errorf(s, ".got.plt should be placed after .plt section.")
 		}
-		*val = 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add)) >> 20))
-		return true
+		return 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add)) >> 20)), true
 	case objabi.R_PLT1: // add ip, ip, #0xYY000
-		*val = 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add+4)) >> 12))
-
-		return true
+		return 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add+4)) >> 12)), true
 	case objabi.R_PLT2: // ldr pc, [ip, #0xZZZ]!
-		*val = 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add+8)))
-
-		return true
+		return 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add+8))), true
 	case objabi.R_CALLARM: // bl XXXXXX or b YYYYYY
 		// r.Add is the instruction
 		// low 24-bit encodes the target address
@@ -640,12 +661,10 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 		if t > 0x7fffff || t < -0x800000 {
 			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
 		}
-		*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&t)))
-
-		return true
+		return int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&t))), true
 	}
 
-	return false
+	return val, false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
@@ -659,7 +678,7 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
 	r.Off = int32(plt.Size)
 	r.Siz = 4
 	r.Type = typ
-	r.Add = int64(s.Got) - 8
+	r.Add = int64(s.Got()) - 8
 
 	plt.Attr |= sym.AttrReachable
 	plt.Size += 4
@@ -667,7 +686,7 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Plt >= 0 {
+	if s.Plt() >= 0 {
 		return
 	}
 
@@ -682,7 +701,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		}
 
 		// .got entry
-		s.Got = int32(got.Size)
+		s.SetGot(int32(got.Size))
 
 		// In theory, all GOT should point to the first PLT entry,
 		// Linux/ARM's dynamic linker will do that for us, but FreeBSD/ARM's
@@ -690,14 +709,14 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		got.AddAddrPlus(ctxt.Arch, plt, 0)
 
 		// .plt entry, this depends on the .got entry
-		s.Plt = int32(plt.Size)
+		s.SetPlt(int32(plt.Size))
 
 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT0) // add lr, pc, #0xXX00000
 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT1) // add lr, lr, #0xYY000
 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT2) // ldr pc, [lr, #0xZZZ]!
 
 		// rel
-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
 
 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_JUMP_SLOT)))
 	} else {
@@ -706,12 +725,12 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 }
 
 func addgotsyminternal(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Got >= 0 {
+	if s.Got() >= 0 {
 		return
 	}
 
 	got := ctxt.Syms.Lookup(".got", 0)
-	s.Got = int32(got.Size)
+	s.SetGot(int32(got.Size))
 
 	got.AddAddrPlus(ctxt.Arch, s, 0)
 
@@ -722,18 +741,18 @@ func addgotsyminternal(ctxt *ld.Link, s *sym.Symbol) {
 }
 
 func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Got >= 0 {
+	if s.Got() >= 0 {
 		return
 	}
 
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
-	s.Got = int32(got.Size)
+	s.SetGot(int32(got.Size))
 	got.AddUint32(ctxt.Arch, 0)
 
 	if ctxt.IsELF {
 		rel := ctxt.Syms.Lookup(".rel", 0)
-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_GLOB_DAT)))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
@@ -809,6 +828,10 @@ func asmb(ctxt *ld.Link) {
 
 		case objabi.Hdarwin:
 			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+
+		case objabi.Hwindows:
+			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+			symo = uint32(ld.Rnd(int64(symo), ld.PEFILEALIGN))
 		}
 
 		ctxt.Out.SeekSet(int64(symo))
@@ -836,6 +859,11 @@ func asmb(ctxt *ld.Link) {
 				ld.Lcsize = int32(len(sym.P))
 				ctxt.Out.Write(sym.P)
 				ctxt.Out.Flush()
+			}
+
+		case objabi.Hwindows:
+			if ctxt.Debugvlog != 0 {
+				ctxt.Logf("%5.2f dwarf\n", ld.Cputime())
 			}
 
 		case objabi.Hdarwin:
@@ -870,6 +898,9 @@ func asmb(ctxt *ld.Link) {
 
 	case objabi.Hdarwin:
 		ld.Asmbmacho(ctxt)
+
+	case objabi.Hwindows:
+		ld.Asmbpe(ctxt)
 	}
 
 	ctxt.Out.Flush()

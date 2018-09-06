@@ -227,17 +227,6 @@ type bvecSet struct {
 	uniq  []bvec // unique bvecs, in insertion order
 }
 
-func newBvecSet(size int) bvecSet {
-	// bvecSet is a linear probing hash table.
-	// The hash table has 4n entries to keep the linear
-	// scan short.
-	index := make([]int, size*4)
-	for i := range index {
-		index[i] = -1
-	}
-	return bvecSet{index, nil}
-}
-
 func (m *bvecSet) grow() {
 	// Allocate new index.
 	n := len(m.index) * 2

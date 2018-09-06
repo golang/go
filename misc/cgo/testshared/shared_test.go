@@ -560,7 +560,7 @@ func TestNotes(t *testing.T) {
 			abiHashNoteFound = true
 		case 3: // ELF_NOTE_GODEPS_TAG
 			if depsNoteFound {
-				t.Error("multiple depedency list notes")
+				t.Error("multiple dependency list notes")
 			}
 			testDepsNote(t, f, note)
 			depsNoteFound = true
@@ -904,4 +904,10 @@ func TestGlobal(t *testing.T) {
 	run(t, "global executable", "./bin/global")
 	AssertIsLinkedTo(t, "./bin/global", soname)
 	AssertHasRPath(t, "./bin/global", gorootInstallDir)
+}
+
+// Run a test using -linkshared of an installed shared package.
+// Issue 26400.
+func TestTestInstalledShared(t *testing.T) {
+	goCmd(nil, "test", "-linkshared", "-test.short", "sync/atomic")
 }

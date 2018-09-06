@@ -1,0 +1,14 @@
+# Test rejection of pkg@version in GOPATH mode.
+env GO111MODULE=off
+! go get rsc.io/quote@v1.5.1
+stderr 'cannot use path@version syntax in GOPATH mode'
+! go build rsc.io/quote@v1.5.1
+stderr 'cannot use path@version syntax in GOPATH mode'
+
+env GO111MODULE=on
+cd x
+! go build rsc.io/quote@v1.5.1
+stderr 'can only use path@version syntax with ''go get'''
+
+-- x/go.mod --
+module x

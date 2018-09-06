@@ -381,12 +381,13 @@ func (c *config) checkRuntime() (skip bool, err error) {
 		return false, err
 	}
 	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../src/runtime/cgo/libcgo.h")
+	cmdStr := strings.Join(cmd.Args, " ")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return false, fmt.Errorf("%#q exited with %v\n%s", strings.Join(cmd.Args, " "), err, out)
+		return false, fmt.Errorf("%#q exited with %v\n%s", cmdStr, err, out)
 	}
 	if !bytes.Contains(out, []byte("#define CGO_TSAN")) {
-		return true, fmt.Errorf("%#q did not define CGO_TSAN")
+		return true, fmt.Errorf("%#q did not define CGO_TSAN", cmdStr)
 	}
 	return false, nil
 }

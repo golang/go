@@ -17,6 +17,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 type clientHandshakeState struct {
@@ -269,7 +270,7 @@ func (hs *clientHandshakeState) handshake() error {
 
 	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random)
 	c.didResume = isResume
-	c.handshakeComplete = true
+	atomic.StoreUint32(&c.handshakeStatus, 1)
 
 	return nil
 }

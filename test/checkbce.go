@@ -10,6 +10,8 @@
 
 package main
 
+import "encoding/binary"
+
 func f0(a []int) {
 	a[0] = 1 // ERROR "Found IsInBounds$"
 	a[0] = 1
@@ -140,6 +142,33 @@ func g4(a [100]int) {
 		useInt(a[i-11]) // ERROR "Found IsInBounds$"
 		useInt(a[i+51]) // ERROR "Found IsInBounds$"
 	}
+}
+
+func decode1(data []byte) (x uint64) {
+	for len(data) >= 32 {
+		x += binary.BigEndian.Uint64(data[:8])
+		x += binary.BigEndian.Uint64(data[8:16])
+		x += binary.BigEndian.Uint64(data[16:24])
+		x += binary.BigEndian.Uint64(data[24:32])
+		data = data[32:]
+	}
+	return x
+}
+
+func decode2(data []byte) (x uint64) {
+	// TODO(rasky): this should behave like decode1 and compile to no
+	// boundchecks. We're currently not able to remove all of them.
+	for len(data) >= 32 {
+		x += binary.BigEndian.Uint64(data)
+		data = data[8:]
+		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		data = data[8:]
+		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		data = data[8:]
+		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		data = data[8:]
+	}
+	return x
 }
 
 //go:noinline

@@ -16,8 +16,8 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
-	"cmd/go/internal/vgo"
 )
 
 func init() {
@@ -26,7 +26,7 @@ func init() {
 
 var CmdFmt = &base.Command{
 	Run:       runFmt,
-	UsageLine: "fmt [-n] [-x] [packages]",
+	UsageLine: "go fmt [-n] [-x] [packages]",
 	Short:     "gofmt (reformat) package sources",
 	Long: `
 Fmt runs the command 'gofmt -l -w' on the packages named
@@ -60,9 +60,9 @@ func runFmt(cmd *base.Command, args []string) {
 		}()
 	}
 	for _, pkg := range load.PackagesAndErrors(args) {
-		if vgo.Enabled() && !pkg.Module.Top {
+		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
-				fmt.Fprintf(os.Stderr, "vgo: not formatting packages in dependency modules\n")
+				fmt.Fprintf(os.Stderr, "go: not formatting packages in dependency modules\n")
 				printed = true
 			}
 			continue

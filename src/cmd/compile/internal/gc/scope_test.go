@@ -350,7 +350,6 @@ type scopexplainContext struct {
 	dwarfData   *dwarf.Data
 	dwarfReader *dwarf.Reader
 	scopegen    int
-	lines       map[line][]int
 }
 
 // readScope reads the DW_TAG_lexical_block or the DW_TAG_subprogram in

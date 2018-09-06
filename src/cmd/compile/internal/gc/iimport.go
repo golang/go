@@ -296,8 +296,23 @@ func (r *importReader) doDecl(n *Node) {
 		// declaration before recursing.
 		t := importtype(r.p.ipkg, pos, n.Sym)
 
+		// We also need to defer width calculations until
+		// after the underlying type has been assigned.
+		//
+		// TODO(mdempsky): Add nesting support directly to
+		// {defer,resume}checkwidth? Width calculations are
+		// already deferred during initial typechecking, but
+		// not when we're expanding inline function bodies, so
+		// we currently need to handle both cases here.
+		deferring := defercalc != 0
+		if !deferring {
+			defercheckwidth()
+		}
 		underlying := r.typ()
 		copytype(typenod(t), underlying)
+		if !deferring {
+			resumecheckwidth()
+		}
 
 		if underlying.IsInterface() {
 			break
@@ -576,6 +591,10 @@ func (r *importReader) typ1() *types.Type {
 		t := types.New(TINTER)
 		t.SetPkg(r.currPkg)
 		t.SetInterface(append(embeddeds, methods...))
+
+		// Ensure we expand the interface in the frontend (#25055).
+		checkwidth(t)
+
 		return t
 	}
 }
@@ -660,6 +679,7 @@ func (r *importReader) funcExt(n *Node) {
 		n.Func.Inl = &Inline{
 			Cost: int32(u - 1),
 		}
+		n.Func.Endlineno = r.pos()
 	}
 }
 

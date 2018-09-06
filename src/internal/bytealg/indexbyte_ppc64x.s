@@ -22,6 +22,7 @@ TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
 	BR	indexbytebody<>(SB)
 
 TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
+	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
 	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
 	MOVD	b_len+8(FP), R4		// R4 = length
 	MOVBZ	c+24(FP), R5		// R5 = byte
@@ -29,6 +30,7 @@ TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
 	BR	indexbytebody<>(SB)
 
 TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
+	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
 	MOVD	s_base+0(FP), R3  // R3 = string
 	MOVD	s_len+8(FP), R4	  // R4 = length
 	MOVBZ	c+16(FP), R5	  // R5 = byte

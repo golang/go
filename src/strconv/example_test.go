@@ -167,6 +167,22 @@ func ExampleFormatUint() {
 	// string, 2a
 }
 
+func ExampleIsGraphic() {
+	shamrock := strconv.IsGraphic('☘')
+	fmt.Println(shamrock)
+
+	a := strconv.IsGraphic('a')
+	fmt.Println(a)
+
+	bel := strconv.IsGraphic('\007')
+	fmt.Println(bel)
+
+	// Output:
+	// true
+	// true
+	// false
+}
+
 func ExampleIsPrint() {
 	c := strconv.IsPrint('\u263a')
 	fmt.Println(c)

@@ -190,7 +190,9 @@ func (d *deadcodepass) mark(s, parent *sym.Symbol) {
 		fmt.Printf("%s -> %s\n", p, s.Name)
 	}
 	s.Attr |= sym.AttrReachable
-	s.Reachparent = parent
+	if d.ctxt.Reachparent != nil {
+		d.ctxt.Reachparent[s] = parent
+	}
 	d.markQueue = append(d.markQueue, s)
 }
 
@@ -243,8 +245,8 @@ func (d *deadcodepass) init() {
 				// but we do keep the symbols it refers to.
 				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
 				if exports != nil {
-					for _, r := range exports.R {
-						d.mark(r.Sym, nil)
+					for i := range exports.R {
+						d.mark(exports.R[i].Sym, nil)
 					}
 				}
 			}
