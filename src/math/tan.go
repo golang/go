@@ -83,10 +83,9 @@ func Tan(x float64) float64
 
 func tan(x float64) float64 {
 	const (
-		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
-		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
-		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
-		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
+		PI4A = 7.85398125648498535156E-1  // 0x3fe921fb40000000, Pi/4 split into three parts
+		PI4B = 3.77489470793079817668E-8  // 0x3e64442d00000000,
+		PI4C = 2.69515142907905952645E-15 // 0x3ce8469898cc5170,
 	)
 	// special cases
 	switch {
@@ -102,17 +101,22 @@ func tan(x float64) float64 {
 		x = -x
 		sign = true
 	}
+	var j uint64
+	var y, z float64
+	if x >= reduceThreshold {
+		j, z = trigReduce(x)
+	} else {
+		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
+		y = float64(j)           // integer part of x/(Pi/4), as float
 
-	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
-	y := float64(j)      // integer part of x/(Pi/4), as float
+		/* map zeros and singularities to origin */
+		if j&1 == 1 {
+			j++
+			y++
+		}
 
-	/* map zeros and singularities to origin */
-	if j&1 == 1 {
-		j++
-		y++
+		z = ((x - y*PI4A) - y*PI4B) - y*PI4C
 	}
-
-	z := ((x - y*PI4A) - y*PI4B) - y*PI4C
 	zz := z * z
 
 	if zz > 1e-14 {
