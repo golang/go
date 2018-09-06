@@ -9,7 +9,7 @@ go clean -cache -n
 stdout 'gocache/[0-9a-z][0-9a-z]'
 exists $WORK/gocache/01
 
-# Would run the remove commands
+# Would actually run the remove commands
 go clean -cache 
 ! exists $WORK/gocache/01
 
