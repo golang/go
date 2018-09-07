@@ -755,8 +755,8 @@ func (s *state) stmtList(l Nodes) {
 
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n *Node) {
-	if !(n.Op == OVARKILL || n.Op == OVARLIVE) {
-		// OVARKILL and OVARLIVE are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
+	if !(n.Op == OVARKILL || n.Op == OVARLIVE || n.Op == OVARDEF) {
+		// OVARKILL, OVARLIVE, and OVARDEF are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
 		s.pushLine(n.Pos)
 		defer s.popLine()
 	}
@@ -1170,6 +1170,10 @@ func (s *state) stmt(n *Node) {
 		}
 		s.startBlock(bEnd)
 
+	case OVARDEF:
+		if !s.canSSA(n.Left) {
+			s.vars[&memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.Left, s.mem(), false)
+		}
 	case OVARKILL:
 		// Insert a varkill op to record that a variable is no longer live.
 		// We only care about liveness info at call sites, so putting the
@@ -4977,6 +4981,12 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = x
+
+	if debuglive != 0 {
+		for _, v := range vars {
+			Warnl(v.Pos, "stack object %v %s", v, v.Type.String())
+		}
+	}
 }
 
 // genssa appends entries to pp for each instruction in f.
@@ -5056,24 +5066,8 @@ func genssa(f *ssa.Func, pp *Progs) {
 			case ssa.OpGetG:
 				// nothing to do when there's a g register,
 				// and checkLower complains if there's not
-			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
+			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive, ssa.OpVarKill:
 				// nothing to do; already used by liveness
-			case ssa.OpVarKill:
-				// Zero variable if it is ambiguously live.
-				// After the VARKILL anything this variable references
-				// might be collected. If it were to become live again later,
-				// the GC will see references to already-collected objects.
-				// See issue 20029.
-				n := v.Aux.(*Node)
-				if n.Name.Needzero() {
-					if n.Class() != PAUTO {
-						v.Fatalf("zero of variable which isn't PAUTO %v", n)
-					}
-					if n.Type.Size()%int64(Widthptr) != 0 {
-						v.Fatalf("zero of variable not a multiple of ptr size %v", n)
-					}
-					thearch.ZeroAuto(s.pp, n)
-				}
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
 			case ssa.OpConvert:

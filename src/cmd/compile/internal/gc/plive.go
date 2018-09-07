@@ -78,6 +78,10 @@ import (
 // that its argument is certainly dead, for use when the liveness analysis
 // would not otherwise be able to deduce that fact.
 
+// TODO: get rid of OpVarKill here. It's useful for stack frame allocation
+// so the compiler can allocate two temps to the same location. Here it's now
+// useless, since the implementation of stack objects.
+
 // BlockEffects summarizes the liveness effects on an SSA block.
 type BlockEffects struct {
 	// Computed during Liveness.prologue using only the content of
@@ -85,23 +89,15 @@ type BlockEffects struct {
 	//
 	//	uevar: upward exposed variables (used before set in block)
 	//	varkill: killed variables (set in block)
-	//	avarinit: addrtaken variables set or used (proof of initialization)
-	uevar    varRegVec
-	varkill  varRegVec
-	avarinit bvec
+	uevar   varRegVec
+	varkill varRegVec
 
 	// Computed during Liveness.solve using control flow information:
 	//
 	//	livein: variables live at block entry
 	//	liveout: variables live at block exit
-	//	avarinitany: addrtaken variables possibly initialized at block exit
-	//		(initialized in block or at exit from any predecessor block)
-	//	avarinitall: addrtaken variables certainly initialized at block exit
-	//		(initialized in block or at exit from all predecessor blocks)
-	livein      varRegVec
-	liveout     varRegVec
-	avarinitany bvec
-	avarinitall bvec
+	livein  varRegVec
+	liveout varRegVec
 }
 
 // A collection of global state used by liveness analysis.
@@ -186,10 +182,9 @@ func (idx LivenessIndex) Valid() bool {
 }
 
 type progeffectscache struct {
-	textavarinit []int32
-	retuevar     []int32
-	tailuevar    []int32
-	initialized  bool
+	retuevar    []int32
+	tailuevar   []int32
+	initialized bool
 }
 
 // varRegVec contains liveness bitmaps for variables and registers.
@@ -264,24 +259,13 @@ func (lv *Liveness) initcache() {
 			// all the parameters for correctness, and similarly it must not
 			// read the out arguments - they won't be set until the new
 			// function runs.
-
 			lv.cache.tailuevar = append(lv.cache.tailuevar, int32(i))
 
-			if node.Addrtaken() {
-				lv.cache.textavarinit = append(lv.cache.textavarinit, int32(i))
-			}
-
 		case PPARAMOUT:
-			// If the result had its address taken, it is being tracked
-			// by the avarinit code, which does not use uevar.
-			// If we added it to uevar too, we'd not see any kill
-			// and decide that the variable was live entry, which it is not.
-			// So only use uevar in the non-addrtaken case.
-			// The p.to.type == obj.TYPE_NONE limits the bvset to
-			// non-tail-call return instructions; see note below for details.
-			if !node.Addrtaken() {
-				lv.cache.retuevar = append(lv.cache.retuevar, int32(i))
-			}
+			// All results are live at every return point.
+			// Note that this point is after escaping return values
+			// are copied back to the stack using their PAUTOHEAP references.
+			lv.cache.retuevar = append(lv.cache.retuevar, int32(i))
 		}
 	}
 }
@@ -291,21 +275,13 @@ func (lv *Liveness) initcache() {
 //
 // The possible flags are:
 //	uevar - used by the instruction
-//	varkill - killed by the instruction
-//		for variables without address taken, means variable was set
-//		for variables with address taken, means variable was marked dead
-//	avarinit - initialized or referred to by the instruction,
-//		only for variables with address taken but not escaping to heap
-//
-// The avarinit output serves as a signal that the data has been
-// initialized, because any use of a variable must come after its
-// initialization.
+//	varkill - killed by the instruction (set)
+// A kill happens after the use (for an instruction that updates a value, for example).
 type liveEffect int
 
 const (
 	uevar liveEffect = 1 << iota
 	varkill
-	avarinit
 )
 
 // valueEffects returns the index of a variable in lv.vars and the
@@ -329,27 +305,15 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	}
 
 	var effect liveEffect
-	if n.Addrtaken() {
-		if v.Op != ssa.OpVarKill {
-			effect |= avarinit
-		}
-		if v.Op == ssa.OpVarDef || v.Op == ssa.OpVarKill {
-			effect |= varkill
-		}
-	} else {
-		// Read is a read, obviously.
-		// Addr by itself is also implicitly a read.
-		//
-		// Addr|Write means that the address is being taken
-		// but only so that the instruction can write to the value.
-		// It is not a read.
-
-		if e&ssa.SymRead != 0 || e&(ssa.SymAddr|ssa.SymWrite) == ssa.SymAddr {
-			effect |= uevar
-		}
-		if e&ssa.SymWrite != 0 && (!isfat(n.Type) || v.Op == ssa.OpVarDef) {
-			effect |= varkill
-		}
+	// Read is a read, obviously.
+	//
+	// Addr is a read also, as any subseqent holder of the pointer must be able
+	// to see all the values (including initialization) written so far.
+	if e&(ssa.SymRead|ssa.SymAddr) != 0 {
+		effect |= uevar
+	}
+	if e&ssa.SymWrite != 0 && (!isfat(n.Type) || v.Op == ssa.OpVarDef) {
+		effect |= varkill
 	}
 
 	if effect == 0 {
@@ -545,9 +509,6 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		be.varkill = varRegVec{vars: bulk.next()}
 		be.livein = varRegVec{vars: bulk.next()}
 		be.liveout = varRegVec{vars: bulk.next()}
-		be.avarinit = bulk.next()
-		be.avarinitany = bulk.next()
-		be.avarinitall = bulk.next()
 	}
 	lv.livenessMap.reset(lv.f.NumValues())
 
@@ -869,19 +830,6 @@ func (lv *Liveness) prologue() {
 			}
 			be.uevar.regs |= regUevar
 		}
-
-		// Walk the block instructions forward to update avarinit bits.
-		// avarinit describes the effect at the end of the block, not the beginning.
-		for _, val := range b.Values {
-			pos, e := lv.valueEffects(val)
-			// No need for regEffects because registers never appear in avarinit.
-			if e&varkill != 0 {
-				be.avarinit.Unset(pos)
-			}
-			if e&avarinit != 0 {
-				be.avarinit.Set(pos)
-			}
-		}
 	}
 }
 
@@ -892,50 +840,9 @@ func (lv *Liveness) solve() {
 	nvars := int32(len(lv.vars))
 	newlivein := varRegVec{vars: bvalloc(nvars)}
 	newliveout := varRegVec{vars: bvalloc(nvars)}
-	any := bvalloc(nvars)
-	all := bvalloc(nvars)
 
-	// Push avarinitall, avarinitany forward.
-	// avarinitall says the addressed var is initialized along all paths reaching the block exit.
-	// avarinitany says the addressed var is initialized along some path reaching the block exit.
-	for _, b := range lv.f.Blocks {
-		be := lv.blockEffects(b)
-		if b == lv.f.Entry {
-			be.avarinitall.Copy(be.avarinit)
-		} else {
-			be.avarinitall.Clear()
-			be.avarinitall.Not()
-		}
-		be.avarinitany.Copy(be.avarinit)
-	}
-
-	// Walk blocks in the general direction of propagation (RPO
-	// for avarinit{any,all}, and PO for live{in,out}). This
-	// improves convergence.
+	// Walk blocks in postorder ordering. This improves convergence.
 	po := lv.f.Postorder()
-
-	for change := true; change; {
-		change = false
-		for i := len(po) - 1; i >= 0; i-- {
-			b := po[i]
-			be := lv.blockEffects(b)
-			lv.avarinitanyall(b, any, all)
-
-			any.AndNot(any, be.varkill.vars)
-			all.AndNot(all, be.varkill.vars)
-			any.Or(any, be.avarinit)
-			all.Or(all, be.avarinit)
-			if !any.Eq(be.avarinitany) {
-				change = true
-				be.avarinitany.Copy(any)
-			}
-
-			if !all.Eq(be.avarinitall) {
-				change = true
-				be.avarinitall.Copy(all)
-			}
-		}
-	}
 
 	// Iterate through the blocks in reverse round-robin fashion. A work
 	// queue might be slightly faster. As is, the number of iterations is
@@ -957,7 +864,7 @@ func (lv *Liveness) solve() {
 					newliveout.vars.Set(pos)
 				}
 			case ssa.BlockExit:
-				// nothing to do
+				// panic exit - nothing to do
 			default:
 				// A variable is live on output from this block
 				// if it is live on input to some successor.
@@ -975,7 +882,7 @@ func (lv *Liveness) solve() {
 			}
 
 			// A variable is live on input to this block
-			// if it is live on output from this block and
+			// if it is used by this block, or live on output from this block and
 			// not set by the code in this block.
 			//
 			// in[b] = uevar[b] \cup (out[b] \setminus varkill[b])
@@ -990,8 +897,6 @@ func (lv *Liveness) solve() {
 func (lv *Liveness) epilogue() {
 	nvars := int32(len(lv.vars))
 	liveout := varRegVec{vars: bvalloc(nvars)}
-	any := bvalloc(nvars)
-	all := bvalloc(nvars)
 	livedefer := bvalloc(nvars) // always-live variables
 
 	// If there is a defer (that could recover), then all output
@@ -1017,6 +922,9 @@ func (lv *Liveness) epilogue() {
 				livedefer.Set(int32(i))
 			}
 			if n.IsOutputParamHeapAddr() {
+				// This variable will be overwritten early in the function
+				// prologue (from the result of a mallocgc) but we need to
+				// zero it in case that malloc causes a stack scan.
 				n.Name.SetNeedzero(true)
 				livedefer.Set(int32(i))
 			}
@@ -1033,9 +941,6 @@ func (lv *Liveness) epilogue() {
 	{
 		// Reserve an entry for function entry.
 		live := bvalloc(nvars)
-		for _, pos := range lv.cache.textavarinit {
-			live.Set(pos)
-		}
 		lv.livevars = append(lv.livevars, varRegVec{vars: live})
 	}
 
@@ -1043,53 +948,14 @@ func (lv *Liveness) epilogue() {
 		be := lv.blockEffects(b)
 		firstBitmapIndex := len(lv.livevars)
 
-		// Compute avarinitany and avarinitall for entry to block.
-		// This duplicates information known during Liveness.solve
-		// but avoids storing two more vectors for each block.
-		lv.avarinitanyall(b, any, all)
-
 		// Walk forward through the basic block instructions and
 		// allocate liveness maps for those instructions that need them.
-		// Seed the maps with information about the addrtaken variables.
 		for _, v := range b.Values {
-			pos, e := lv.valueEffects(v)
-			// No need for regEffects because registers never appear in avarinit.
-			if e&varkill != 0 {
-				any.Unset(pos)
-				all.Unset(pos)
-			}
-			if e&avarinit != 0 {
-				any.Set(pos)
-				all.Set(pos)
-			}
-
 			if !lv.issafepoint(v) {
 				continue
 			}
 
-			// Annotate ambiguously live variables so that they can
-			// be zeroed at function entry and at VARKILL points.
-			// liveout is dead here and used as a temporary.
-			liveout.vars.AndNot(any, all)
-			if !liveout.vars.IsEmpty() {
-				for pos := int32(0); pos < liveout.vars.n; pos++ {
-					if !liveout.vars.Get(pos) {
-						continue
-					}
-					all.Set(pos) // silence future warnings in this block
-					n := lv.vars[pos]
-					if !n.Name.Needzero() {
-						n.Name.SetNeedzero(true)
-						if debuglive >= 1 {
-							Warnl(v.Pos, "%v: %L is ambiguously live", lv.fn.Func.Nname, n)
-						}
-					}
-				}
-			}
-
-			// Live stuff first.
 			live := bvalloc(nvars)
-			live.Copy(any)
 			lv.livevars = append(lv.livevars, varRegVec{vars: live})
 		}
 
@@ -1126,6 +992,17 @@ func (lv *Liveness) epilogue() {
 		if b == lv.f.Entry {
 			if index != 0 {
 				Fatalf("bad index for entry point: %v", index)
+			}
+
+			// Check to make sure only input variables are live.
+			for i, n := range lv.vars {
+				if !liveout.vars.Get(int32(i)) {
+					continue
+				}
+				if n.Class() == PPARAM {
+					continue // ok
+				}
+				Fatalf("bad live variable at entry of %v: %L", lv.fn.Func.Nname, n)
 			}
 
 			// Record live variables.
@@ -1328,28 +1205,6 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
 // The clobber instruction is added at the end of b.
 func clobberPtr(b *ssa.Block, v *Node, offset int64) {
 	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
-}
-
-func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
-	if len(b.Preds) == 0 {
-		any.Clear()
-		all.Clear()
-		for _, pos := range lv.cache.textavarinit {
-			any.Set(pos)
-			all.Set(pos)
-		}
-		return
-	}
-
-	be := lv.blockEffects(b.Preds[0].Block())
-	any.Copy(be.avarinitany)
-	all.Copy(be.avarinitall)
-
-	for _, pred := range b.Preds[1:] {
-		be := lv.blockEffects(pred.Block())
-		any.Or(any, be.avarinitany)
-		all.And(all, be.avarinitall)
-	}
 }
 
 // Compact coalesces identical bitmaps from lv.livevars into the sets
@@ -1559,7 +1414,6 @@ func (lv *Liveness) printDebug() {
 			printed = false
 			printed = lv.printeffect(printed, "uevar", pos, effect&uevar != 0, regUevar)
 			printed = lv.printeffect(printed, "varkill", pos, effect&varkill != 0, regKill)
-			printed = lv.printeffect(printed, "avarinit", pos, effect&avarinit != 0, 0)
 			if printed {
 				fmt.Printf("\n")
 			}
@@ -1596,9 +1450,6 @@ func (lv *Liveness) printDebug() {
 		printed = false
 		printed = lv.printbvec(printed, "varkill", be.varkill)
 		printed = lv.printbvec(printed, "liveout", be.liveout)
-		printed = lv.printbvec(printed, "avarinit", varRegVec{vars: be.avarinit})
-		printed = lv.printbvec(printed, "avarinitany", varRegVec{vars: be.avarinitany})
-		printed = lv.printbvec(printed, "avarinitall", varRegVec{vars: be.avarinitall})
 		if printed {
 			fmt.Printf("\n")
 		}
