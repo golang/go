@@ -1379,9 +1379,58 @@ func linkerFlagSupported(linker, flag string) bool {
 		}
 	})
 
+	flagsWithNextArgSkip := []string{
+		"-F",
+		"-l",
+		"-L",
+		"-framework",
+		"-Wl,-framework",
+		"-Wl,-rpath",
+		"-Wl,-undefined",
+	}
+	flagsWithNextArgKeep := []string{
+		"-arch",
+		"-isysroot",
+		"--sysroot",
+		"-target",
+	}
+	prefixesToKeep := []string{
+		"-f",
+		"-m",
+		"-p",
+		"-Wl,",
+		"-arch",
+		"-isysroot",
+		"--sysroot",
+		"-target",
+	}
+
 	var flags []string
-	flags = append(flags, ldflag...)
-	flags = append(flags, strings.Fields(*flagExtldflags)...)
+	keep := false
+	skip := false
+	extldflags := strings.Fields(*flagExtldflags)
+	for _, f := range append(extldflags, ldflag...) {
+		if keep {
+			flags = append(flags, f)
+			keep = false
+		} else if skip {
+			skip = false
+		} else if f == "" || f[0] != '-' {
+		} else if contains(flagsWithNextArgSkip, f) {
+			skip = true
+		} else if contains(flagsWithNextArgKeep, f) {
+			flags = append(flags, f)
+			keep = true
+		} else {
+			for _, p := range prefixesToKeep {
+				if strings.HasPrefix(f, p) {
+					flags = append(flags, f)
+					break
+				}
+			}
+		}
+	}
+
 	flags = append(flags, flag, "trivial.c")
 
 	cmd := exec.Command(linker, flags...)
