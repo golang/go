@@ -37,3 +37,20 @@ func bufferNoEscape3(xs []string) string { // ERROR "xs does not escape"
 	}
 	return b.String() // ERROR "inlining call" "string\(bytes.b.buf\[bytes\.b\.off:\]\) escapes to heap"
 }
+
+func bufferNoEscape4() []byte {
+	var b bytes.Buffer
+	b.Grow(64)       // ERROR "b does not escape"
+	useBuffer(&b)    // ERROR "&b does not escape"
+	return b.Bytes() // ERROR "inlining call" "b does not escape"
+}
+
+func bufferNoEscape5() {
+	b := bytes.NewBuffer(make([]byte, 0, 128)) // ERROR "inlining call" "make\(\[\]byte, 0, 128\) does not escape" "&bytes.Buffer literal does not escape"
+	useBuffer(b)
+}
+
+//go:noinline
+func useBuffer(b *bytes.Buffer) { // ERROR "b does not escape"
+	b.WriteString("1234")
+}
