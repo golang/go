@@ -232,6 +232,11 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	gp.param = nil
 	c.sendq.enqueue(mysg)
 	goparkunlock(&c.lock, waitReasonChanSend, traceEvGoBlockSend, 3)
+	// Ensure the value being sent is kept alive until the
+	// receiver copies it out. The sudog has a pointer to the
+	// stack object, but sudogs aren't considered as roots of the
+	// stack tracer.
+	KeepAlive(ep)
 
 	// someone woke us up.
 	if mysg != gp.waiting {

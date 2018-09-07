@@ -839,6 +839,10 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			a = nod(OAS, x, nil)
 			a = typecheck(a, Etop)
 			init.Append(a) // zero new temp
+		} else {
+			// Declare that we're about to initialize all of x.
+			// (Which happens at the *vauto = vstat below.)
+			init.Append(nod(OVARDEF, x, nil))
 		}
 
 		a = nod(OADDR, x, nil)
@@ -849,6 +853,8 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			a = typecheck(a, Etop)
 			init.Append(a) // zero new temp
 			a = a.Left
+		} else {
+			init.Append(nod(OVARDEF, a, nil))
 		}
 
 		a = nod(OADDR, a, nil)
