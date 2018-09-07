@@ -122,3 +122,12 @@ func ExampleFscanln() {
 	// 3: dmr, 1771, 1.618034
 	// 3: ken, 271828, 3.141590
 }
+
+func ExampleSprint() {
+	s := fmt.Sprint("there", "are", "99", "gophers")
+	fmt.Println(s)
+	fmt.Println(len(s))
+	// Output:
+	// thereare99gophers
+	// 17
+}
