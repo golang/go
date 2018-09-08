@@ -67,17 +67,32 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 		compiledGoFiles := absJoin(p.Dir, p.GoFiles)
 		// Use a function to simplify control flow. It's just a bunch of gotos.
 		var cgoErrors []error
+		var outdir string
+		getOutdir := func() (string, error) {
+			if outdir != "" {
+				return outdir, nil
+			}
+			if tmpdir == "" {
+				if tmpdir, err = ioutil.TempDir("", "gopackages"); err != nil {
+					return "", err
+				}
+			}
+			// Add a "go-build" component to the path to make the tests think the files are in the cache.
+			// This allows the same test to test the pre- and post-Go 1.11 go list logic because the Go 1.11
+			// go list generates test mains in the cache, and the test code knows not to rely on paths in the
+			// cache to stay stable.
+			outdir = filepath.Join(tmpdir, "go-build", strings.Replace(p.ImportPath, "/", "_", -1))
+			if err := os.MkdirAll(outdir, 0755); err != nil {
+				outdir = ""
+				return "", err
+			}
+			return outdir, nil
+		}
 		processCgo := func() bool {
 			// Suppress any cgo errors. Any relevant errors will show up in typechecking.
 			// TODO(matloob): Skip running cgo if Mode < LoadTypes.
-			if tmpdir == "" {
-				if tmpdir, err = ioutil.TempDir("", "gopackages"); err != nil {
-					cgoErrors = append(cgoErrors, err)
-					return false
-				}
-			}
-			outdir := filepath.Join(tmpdir, strings.Replace(p.ImportPath, "/", "_", -1))
-			if err := os.Mkdir(outdir, 0755); err != nil {
+			outdir, err := getOutdir()
+			if err != nil {
 				cgoErrors = append(cgoErrors, err)
 				return false
 			}
@@ -111,7 +126,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 				if isRoot {
 					response.Roots = append(response.Roots, testID)
 				}
-				response.Packages = append(response.Packages, &Package{
+				testPkg := &Package{
 					ID:              testID,
 					Name:            p.Name,
 					GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles, p.TestGoFiles),
@@ -120,7 +135,9 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 					PkgPath:         pkgpath,
 					Imports:         importMap(append(p.Imports, p.TestImports...)),
 					// TODO(matloob): set errors on the Package to cgoErrors
-				})
+				}
+				response.Packages = append(response.Packages, testPkg)
+				var xtestPkg *Package
 				if len(p.XTestGoFiles) > 0 {
 					xtestID := fmt.Sprintf("%s_test [%s.test]", id, id)
 					if isRoot {
@@ -134,15 +151,51 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 							break
 						}
 					}
-					response.Packages = append(response.Packages, &Package{
+					xtestPkg = &Package{
 						ID:              xtestID,
 						Name:            p.Name + "_test",
 						GoFiles:         absJoin(p.Dir, p.XTestGoFiles),
 						CompiledGoFiles: absJoin(p.Dir, p.XTestGoFiles),
-						PkgPath:         pkgpath,
+						PkgPath:         pkgpath + "_test",
 						Imports:         imports,
-					})
+					}
+					response.Packages = append(response.Packages, xtestPkg)
 				}
+				// testmain package
+				testmainID := id + ".test"
+				if isRoot {
+					response.Roots = append(response.Roots, testmainID)
+				}
+				imports := map[string]*Package{}
+				imports[testPkg.PkgPath] = &Package{ID: testPkg.ID}
+				if xtestPkg != nil {
+					imports[xtestPkg.PkgPath] = &Package{ID: xtestPkg.ID}
+				}
+				testmainPkg := &Package{
+					ID:      testmainID,
+					Name:    "main",
+					PkgPath: testmainID,
+					Imports: imports,
+				}
+				response.Packages = append(response.Packages, testmainPkg)
+				outdir, err := getOutdir()
+				if err != nil {
+					testmainPkg.Errors = append(testmainPkg.Errors,
+						Error{"-", fmt.Sprintf("failed to generate testmain: %v", err)})
+					return
+				}
+				testmain := filepath.Join(outdir, "testmain.go")
+				extradeps, err := generateTestmain(testmain, testPkg, xtestPkg)
+				if err != nil {
+					testmainPkg.Errors = append(testmainPkg.Errors,
+						Error{"-", fmt.Sprintf("failed to generate testmain: %v", err)})
+				}
+				deps = append(deps, extradeps...)
+				for _, imp := range extradeps { // testing, testing/internal/testdeps, and maybe os
+					imports[imp] = &Package{ID: imp}
+				}
+				testmainPkg.GoFiles = []string{testmain}
+				testmainPkg.CompiledGoFiles = []string{testmain}
 			}
 		}
 	}
@@ -168,6 +221,11 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 
 		addPackage(p)
 	}
+
+	// TODO(matloob): Is this the right ordering?
+	sort.SliceStable(response.Packages, func(i, j int) bool {
+		return response.Packages[i].PkgPath < response.Packages[j].PkgPath
+	})
 
 	return &response, nil
 }

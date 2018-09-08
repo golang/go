@@ -152,32 +152,8 @@ func TestLoadImportsGraph(t *testing.T) {
   subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
 `[1:]
 
-	// Legacy go list support does not create test main package.
-	wantOldGraph := `
-  a
-  b
-* c
-* e
-  errors
-  math/bits
-* subdir/d
-* subdir/d [subdir/d.test]
-* subdir/d_test [subdir/d.test]
-  unsafe
-  b -> a
-  b -> errors
-  c -> b
-  c -> unsafe
-  e -> b
-  e -> c
-  subdir/d [subdir/d.test] -> math/bits
-  subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
-`[1:]
-
-	if graph != wantGraph && !usesOldGolist {
+	if graph != wantGraph {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
-	} else if graph != wantOldGraph && usesOldGolist {
-		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantOldGraph)
 	}
 
 	// Check node information: kind, name, srcs.
@@ -196,10 +172,6 @@ func TestLoadImportsGraph(t *testing.T) {
 		{"subdir/d.test", "main", "command", "0.go"},
 		{"unsafe", "unsafe", "package", ""},
 	} {
-		if usesOldGolist && test.id == "subdir/d.test" {
-			// Legacy go list support does not create test main package.
-			continue
-		}
 		p, ok := all[test.id]
 		if !ok {
 			t.Errorf("no package %s", test.id)
@@ -261,20 +233,8 @@ func TestLoadImportsGraph(t *testing.T) {
   subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
 `[1:]
 
-		// Legacy go list support does not create test main package.
-		wantOldGraph = `
-  math/bits
-* subdir/d
-* subdir/d [subdir/d.test]
-* subdir/d_test [subdir/d.test]
-* subdir/e
-  subdir/d [subdir/d.test] -> math/bits
-  subdir/d_test [subdir/d.test] -> subdir/d [subdir/d.test]
-`[1:]
-		if graph != wantGraph && !usesOldGolist {
+		if graph != wantGraph {
 			t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
-		} else if graph != wantOldGraph && usesOldGolist {
-			t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantOldGraph)
 		}
 	}
 }
