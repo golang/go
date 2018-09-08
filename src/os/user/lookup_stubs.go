@@ -19,8 +19,15 @@ func init() {
 }
 
 func current() (*User, error) {
-	u := &User{
-		Uid:      currentUID(),
+	uid := currentUID()
+	// $USER and /etc/passwd may disagree; prefer the latter if we can get it.
+	// See issue 27524 for more information.
+	u, err := lookupUserId(uid)
+	if err == nil {
+		return u, nil
+	}
+	u = &User{
+		Uid:      uid,
 		Gid:      currentGID(),
 		Username: os.Getenv("USER"),
 		Name:     "", // ignored
