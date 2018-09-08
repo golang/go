@@ -40,10 +40,15 @@ func initLocal() {
 			localLoc.name = "Local"
 			return
 		}
-	case tz != "" && tz != "UTC":
-		if z, err := loadLocation(tz, zoneSources); err == nil {
-			localLoc = *z
-			return
+	case tz != "":
+		if tz[0] == ':' {
+			tz = tz[1:]
+		}
+		if tz != "" && tz != "UTC" {
+			if z, err := loadLocation(tz, zoneSources); err == nil {
+				localLoc = *z
+				return
+			}
 		}
 	}
 
