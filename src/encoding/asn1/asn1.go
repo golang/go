@@ -677,6 +677,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parseIA5String(innerBytes)
 			case TagT61String:
 				result, err = parseT61String(innerBytes)
+			case TagGeneralString:
+				result, err = parseT61String(innerBytes)
 			case TagUTF8String:
 				result, err = parseUTF8String(innerBytes)
 			case TagInteger:
@@ -1018,7 +1020,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
 //
-// An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
+// An ASN.1 PrintableString, IA5String, GeneralString or NumericString can be written to a string.
 //
 // Any of the above ASN.1 values can be written to an interface{}.
 // The value stored in the interface has the corresponding Go type.

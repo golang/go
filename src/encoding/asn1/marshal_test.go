@@ -64,6 +64,10 @@ type genericStringTest struct {
 	A string
 }
 
+type generalStringTest struct {
+	A string `asn1:"generalstring"`
+}
+
 type optionalRawValueTest struct {
 	A RawValue `asn1:"optional"`
 }
@@ -166,6 +170,7 @@ var marshalTests = []marshalTest{
 	{genericStringTest{"test"}, "3006130474657374"},
 	{genericStringTest{"test*"}, "30070c05746573742a"},
 	{genericStringTest{"test&"}, "30070c057465737426"},
+	{generalStringTest{"test"}, "30061b0474657374"},
 	{rawContentsStruct{nil, 64}, "3003020140"},
 	{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
 	{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},
