@@ -811,6 +811,17 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	}
 	defer fd.writeUnlock()
 
+	if len(buf) == 0 {
+		// handle zero-byte payload
+		o := &fd.wop
+		o.InitBuf(buf)
+		o.sa = sa
+		n, err := wsrv.ExecIO(o, func(o *operation) error {
+			return syscall.WSASendto(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
+		})
+		return n, err
+	}
+
 	ntotal := 0
 	for len(buf) > 0 {
 		b := buf
