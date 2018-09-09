@@ -240,7 +240,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // or nil if not found.
 //
 // If id is an embedded struct field, ObjectOf returns the field (*Var)
-// it uses, not the type (*TypeName) it defines.
+// it defines, not the type (*TypeName) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
 //
