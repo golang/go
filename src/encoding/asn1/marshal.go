@@ -672,7 +672,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 //	ia5:           causes strings to be marshaled as ASN.1, IA5String values
 //	printable:     causes strings to be marshaled as ASN.1, PrintableString values
 //	utf8:          causes strings to be marshaled as ASN.1, UTF8String values
-//  generalstring: causes strings to be marshaled as ASN.1, GeneralString values
+//	generalstring: causes strings to be marshaled as ASN.1, GeneralString values
 //	utc:           causes time.Time to be marshaled as ASN.1, UTCTime values
 //	generalized:   causes time.Time to be marshaled as ASN.1, GeneralizedTime values
 func Marshal(val interface{}) ([]byte, error) {
