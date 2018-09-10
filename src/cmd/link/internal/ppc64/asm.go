@@ -716,9 +716,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 			// overflow depends on the instruction
 			var o1 uint32
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
-				o1 = ld.Be32(s.P[r.Off-2:])
+				o1 = binary.BigEndian.Uint32(s.P[r.Off-2:])
 			} else {
-				o1 = ld.Le32(s.P[r.Off:])
+				o1 = binary.LittleEndian.Uint32(s.P[r.Off:])
 			}
 			switch o1 >> 26 {
 			case 24, // ori
@@ -750,9 +750,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 			// overflow depends on the instruction
 			var o1 uint32
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
-				o1 = ld.Be32(s.P[r.Off-2:])
+				o1 = binary.BigEndian.Uint32(s.P[r.Off-2:])
 			} else {
-				o1 = ld.Le32(s.P[r.Off:])
+				o1 = binary.LittleEndian.Uint32(s.P[r.Off:])
 			}
 			switch o1 >> 26 {
 			case 25, // oris
@@ -774,9 +774,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 	case sym.RV_POWER_DS:
 		var o1 uint32
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
-			o1 = uint32(ld.Be16(s.P[r.Off:]))
+			o1 = uint32(binary.BigEndian.Uint16(s.P[r.Off:]))
 		} else {
-			o1 = uint32(ld.Le16(s.P[r.Off:]))
+			o1 = uint32(binary.LittleEndian.Uint16(s.P[r.Off:]))
 		}
 		if t&3 != 0 {
 			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
