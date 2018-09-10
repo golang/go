@@ -364,10 +364,6 @@ func TestReader(t *testing.T) {
 		}
 		defer sf.Close()
 		sb := bufio.NewScanner(sf)
-		if err != nil {
-			t.Error(fn, err)
-			continue
-		}
 
 		// Compare the two, in SNG format, line by line.
 		for {
