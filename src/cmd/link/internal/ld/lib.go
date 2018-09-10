@@ -1757,26 +1757,6 @@ func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Sec
 	return sect
 }
 
-func Le16(b []byte) uint16 {
-	return uint16(b[0]) | uint16(b[1])<<8
-}
-
-func Le32(b []byte) uint32 {
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
-}
-
-func Le64(b []byte) uint64 {
-	return uint64(Le32(b)) | uint64(Le32(b[4:]))<<32
-}
-
-func Be16(b []byte) uint16 {
-	return uint16(b[0])<<8 | uint16(b[1])
-}
-
-func Be32(b []byte) uint32 {
-	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
-}
-
 type chain struct {
 	sym   *sym.Symbol
 	up    *chain
