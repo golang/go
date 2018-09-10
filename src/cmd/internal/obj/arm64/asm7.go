@@ -1426,6 +1426,10 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 		return C_LIST
 
 	case obj.TYPE_MEM:
+		// The base register should be an integer register.
+		if int16(REG_F0) <= a.Reg && a.Reg <= int16(REG_V31) {
+			break
+		}
 		switch a.Name {
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			if a.Sym == nil {
@@ -2968,7 +2972,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 22: /* movT (R)O!,R; movT O(R)!, R -> ldrT */
-		if p.As != AFMOVS && p.As != AFMOVD && p.From.Reg != REGSP && p.From.Reg == p.To.Reg {
+		if p.From.Reg != REGSP && p.From.Reg == p.To.Reg {
 			c.ctxt.Diag("constrained unpredictable behavior: %v", p)
 		}
 
@@ -2986,7 +2990,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= ((uint32(v) & 0x1FF) << 12) | (uint32(p.From.Reg&31) << 5) | uint32(p.To.Reg&31)
 
 	case 23: /* movT R,(R)O!; movT O(R)!, R -> strT */
-		if p.As != AFMOVS && p.As != AFMOVD && p.To.Reg != REGSP && p.From.Reg == p.To.Reg {
+		if p.To.Reg != REGSP && p.From.Reg == p.To.Reg {
 			c.ctxt.Diag("constrained unpredictable behavior: %v", p)
 		}
 

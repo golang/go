@@ -110,4 +110,6 @@ TEXT errors(SB),$0
 	FLDPD	(R1), (F2, F2)                                   // ERROR "constrained unpredictable behavior"
 	FLDPS	(R2), (F3, F3)                                   // ERROR "constrained unpredictable behavior"
 	FSTPD	(R1, R2), (R0)                                   // ERROR "invalid register pair"
+	FMOVS	(F2), F0                                         // ERROR "illegal combination"
+	FMOVD	F0, (F1)                                         // ERROR "illegal combination"
 	RET
