@@ -416,7 +416,9 @@ func timediv(v int64, div int32, rem *int32) int32 {
 	for bit := 30; bit >= 0; bit-- {
 		if v >= int64(div)<<uint(bit) {
 			v = v - (int64(div) << uint(bit))
-			res += 1 << uint(bit)
+			// Before this for loop, res was 0, thus all these
+			// power of 2 increments are now just bitsets.
+			res |= 1 << uint(bit)
 		}
 	}
 	if v >= int64(div) {
