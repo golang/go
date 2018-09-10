@@ -340,19 +340,19 @@ func lookupOrDiag(ctxt *Link, n string) *sym.Symbol {
 	return s
 }
 
-func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
+func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) *dwarf.DWDie {
 	// Only emit typedefs for real names.
 	if strings.HasPrefix(name, "map[") {
-		return
+		return nil
 	}
 	if strings.HasPrefix(name, "struct {") {
-		return
+		return nil
 	}
 	if strings.HasPrefix(name, "chan ") {
-		return
+		return nil
 	}
 	if name[0] == '[' || name[0] == '*' {
-		return
+		return nil
 	}
 	if def == nil {
 		Errorf(nil, "dwarf: bad def in dotypedef")
@@ -370,6 +370,8 @@ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
 	die := newdie(ctxt, parent, dwarf.DW_ABRV_TYPEDECL, name, 0)
 
 	newrefattr(die, dwarf.DW_AT_type, s)
+
+	return die
 }
 
 // Define gotype, for composite ones recurse into constituents.
@@ -399,7 +401,7 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 	kind := decodetypeKind(ctxt.Arch, gotype)
 	bytesize := decodetypeSize(ctxt.Arch, gotype)
 
-	var die *dwarf.DWDie
+	var die, typedefdie *dwarf.DWDie
 	switch kind {
 	case objabi.KindBool:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_BASETYPE, name, 0)
@@ -439,7 +441,7 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 
 	case objabi.KindArray:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name, 0)
-		dotypedef(ctxt, &dwtypes, name, die)
+		typedefdie = dotypedef(ctxt, &dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		s := decodetypeArrayElem(ctxt.Arch, gotype)
 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
@@ -461,7 +463,7 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 	case objabi.KindFunc:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_FUNCTYPE, name, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		dotypedef(ctxt, &dwtypes, name, die)
+		typedefdie = dotypedef(ctxt, &dwtypes, name, die)
 		nfields := decodetypeFuncInCount(ctxt.Arch, gotype)
 		for i := 0; i < nfields; i++ {
 			s := decodetypeFuncInType(ctxt.Arch, gotype, i)
@@ -481,7 +483,7 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 
 	case objabi.KindInterface:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_IFACETYPE, name, 0)
-		dotypedef(ctxt, &dwtypes, name, die)
+		typedefdie = dotypedef(ctxt, &dwtypes, name, die)
 		nfields := int(decodetypeIfaceMethodCount(ctxt.Arch, gotype))
 		var s *sym.Symbol
 		if nfields == 0 {
@@ -503,13 +505,13 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 
 	case objabi.KindPtr:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, name, 0)
-		dotypedef(ctxt, &dwtypes, name, die)
+		typedefdie = dotypedef(ctxt, &dwtypes, name, die)
 		s := decodetypePtrElem(ctxt.Arch, gotype)
 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
 
 	case objabi.KindSlice:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_SLICETYPE, name, 0)
-		dotypedef(ctxt, &dwtypes, name, die)
+		typedefdie = dotypedef(ctxt, &dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		s := decodetypeArrayElem(ctxt.Arch, gotype)
 		elem := defgotype(ctxt, s)
@@ -521,7 +523,7 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 
 	case objabi.KindStruct:
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_STRUCTTYPE, name, 0)
-		dotypedef(ctxt, &dwtypes, name, die)
+		typedefdie = dotypedef(ctxt, &dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		nfields := decodetypeStructFieldCount(ctxt.Arch, gotype)
 		for i := 0; i < nfields; i++ {
@@ -557,6 +559,9 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
 		prototypedies[gotype.Name] = die
 	}
 
+	if typedefdie != nil {
+		return typedefdie
+	}
 	return die
 }
 
