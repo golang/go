@@ -7,7 +7,6 @@ package packages
 import (
 	"encoding/json"
 	"fmt"
-
 	"go/build"
 	"io/ioutil"
 	"os"
