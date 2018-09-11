@@ -9,7 +9,7 @@ package objabi
 // Note that in some situations involving plugins, there may be multiple
 // copies of a particular special runtime function.
 // Note: this list must match the list in runtime/symtab.go.
-type FuncID uint32
+type FuncID uint8
 
 const (
 	FuncID_normal FuncID = iota // not a special function

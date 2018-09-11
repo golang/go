@@ -650,14 +650,16 @@ type _func struct {
 	entry   uintptr // start pc
 	nameoff int32   // function name
 
-	args   int32  // in/out args size
-	funcID funcID // set for certain special runtime functions
+	args        int32  // in/out args size
+	deferreturn uint32 // offset of a deferreturn block from entry, if any.
 
 	pcsp      int32
 	pcfile    int32
 	pcln      int32
 	npcdata   int32
-	nfuncdata int32
+	funcID    funcID  // set for certain special runtime functions
+	_         [2]int8 // unused
+	nfuncdata uint8   // must be last
 }
 
 // layout of Itab known to compilers
