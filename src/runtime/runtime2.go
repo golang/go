@@ -580,6 +580,18 @@ type schedt struct {
 	runq     gQueue
 	runqsize int32
 
+	// disable controls selective disabling of the scheduler.
+	//
+	// Use schedEnableUser to control this.
+	//
+	// disable is protected by sched.lock.
+	disable struct {
+		// user disables scheduling of user goroutines.
+		user     bool
+		runnable gQueue // pending runnable Gs
+		n        int32  // length of runnable
+	}
+
 	// Global cache of dead G's.
 	gFree struct {
 		lock    mutex

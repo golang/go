@@ -2615,6 +2615,23 @@ top:
 		resetspinning()
 	}
 
+	if sched.disable.user && !schedEnabled(gp) {
+		// Scheduling of this goroutine is disabled. Put it on
+		// the list of pending runnable goroutines for when we
+		// re-enable user scheduling and look again.
+		lock(&sched.lock)
+		if schedEnabled(gp) {
+			// Something re-enabled scheduling while we
+			// were acquiring the lock.
+			unlock(&sched.lock)
+		} else {
+			sched.disable.runnable.pushBack(gp)
+			sched.disable.n++
+			unlock(&sched.lock)
+			goto top
+		}
+	}
+
 	if gp.lockedm != 0 {
 		// Hands off own p to the locked m,
 		// then blocks waiting for a new p.
@@ -3033,6 +3050,12 @@ func exitsyscall() {
 			_g_.stackguard0 = _g_.stack.lo + _StackGuard
 		}
 		_g_.throwsplit = false
+
+		if sched.disable.user && !schedEnabled(_g_) {
+			// Scheduling of this goroutine is disabled.
+			Gosched()
+		}
+
 		return
 	}
 
@@ -3168,7 +3191,10 @@ func exitsyscall0(gp *g) {
 	casgstatus(gp, _Gsyscall, _Grunnable)
 	dropg()
 	lock(&sched.lock)
-	_p_ := pidleget()
+	var _p_ *p
+	if schedEnabled(_g_) {
+		_p_ = pidleget()
+	}
 	if _p_ == nil {
 		globrunqput(gp)
 	} else if atomic.Load(&sched.sysmonwait) != 0 {
@@ -4623,6 +4649,40 @@ func schedtrace(detailed bool) {
 	}
 	unlock(&allglock)
 	unlock(&sched.lock)
+}
+
+// schedEnableUser enables or disables the scheduling of user
+// goroutines.
+//
+// This does not stop already running user goroutines, so the caller
+// should first stop the world when disabling user goroutines.
+func schedEnableUser(enable bool) {
+	lock(&sched.lock)
+	if sched.disable.user == !enable {
+		unlock(&sched.lock)
+		return
+	}
+	sched.disable.user = !enable
+	if enable {
+		n := sched.disable.n
+		sched.disable.n = 0
+		globrunqputbatch(&sched.disable.runnable, n)
+		unlock(&sched.lock)
+		for ; n != 0 && sched.npidle != 0; n-- {
+			startm(nil, false)
+		}
+	} else {
+		unlock(&sched.lock)
+	}
+}
+
+// schedEnabled returns whether gp should be scheduled. It returns
+// false is scheduling of gp is disabled.
+func schedEnabled(gp *g) bool {
+	if sched.disable.user {
+		return isSystemGoroutine(gp, true)
+	}
+	return true
 }
 
 // Put mp on midle list.
