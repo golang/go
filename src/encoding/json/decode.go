@@ -533,8 +533,7 @@ func (d *decodeState) array(v reflect.Value) error {
 		d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off)})
 		d.skip()
 		return nil
-	case reflect.Array:
-	case reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		break
 	}
 
@@ -871,18 +870,16 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		if item[0] != '"' {
 			if fromQuoted {
 				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
-			} else {
-				var val string
-				switch item[0] {
-				case 'n':
-					val = "null"
-				case 't', 'f':
-					val = "bool"
-				default:
-					val = "number"
-				}
-				d.saveError(&UnmarshalTypeError{Value: val, Type: v.Type(), Offset: int64(d.readIndex())})
+				return nil
 			}
+			val := "number"
+			switch item[0] {
+			case 'n':
+				val = "null"
+			case 't', 'f':
+				val = "bool"
+			}
+			d.saveError(&UnmarshalTypeError{Value: val, Type: v.Type(), Offset: int64(d.readIndex())})
 			return nil
 		}
 		s, ok := unquoteBytes(item)

@@ -445,6 +445,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
 	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
 	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
+	{in: `[2, 3`, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: 5}},
 
 	// raw value errors
 	{in: "\x01 42", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
@@ -460,6 +461,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `[1, 2, 3]`, ptr: new([3]int), out: [3]int{1, 2, 3}},
 	{in: `[1, 2, 3]`, ptr: new([1]int), out: [1]int{1}},
 	{in: `[1, 2, 3]`, ptr: new([5]int), out: [5]int{1, 2, 3, 0, 0}},
+	{in: `[1, 2, 3]`, ptr: new(MustNotUnmarshalJSON), err: errors.New("MustNotUnmarshalJSON was used")},
 
 	// empty array to interface test
 	{in: `[]`, ptr: new([]interface{}), out: []interface{}{}},
@@ -826,6 +828,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"B": "False"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "False" into bool`)},
 	{in: `{"B": "null"}`, ptr: new(B), out: B{false}},
 	{in: `{"B": "nul"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "nul" into bool`)},
+	{in: `{"B": [2, 3]}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal unquoted value into bool`)},
 
 	// additional tests for disallowUnknownFields
 	{
@@ -893,6 +896,18 @@ var unmarshalTests = []unmarshalTest{
 		in:  `{"data":{"test1": 123, "test2": "bob"}}`,
 		ptr: new(mapStringToStringData),
 		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 21, Struct: "mapStringToStringData", Field: "data"},
+	},
+
+	// trying to decode JSON arrays or objects via TextUnmarshaler
+	{
+		in:  `[1, 2, 3]`,
+		ptr: new(MustNotUnmarshalText),
+		err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
+	},
+	{
+		in:  `{"foo": "bar"}`,
+		ptr: new(MustNotUnmarshalText),
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
 	},
 }
 
@@ -1955,10 +1970,12 @@ type unexportedFields struct {
 	Name string
 	m    map[string]interface{} `json:"-"`
 	m2   map[string]interface{} `json:"abcd"`
+
+	s []int `json:"-"`
 }
 
 func TestUnmarshalUnexported(t *testing.T) {
-	input := `{"Name": "Bob", "m": {"x": 123}, "m2": {"y": 456}, "abcd": {"z": 789}}`
+	input := `{"Name": "Bob", "m": {"x": 123}, "m2": {"y": 456}, "abcd": {"z": 789}, "s": [2, 3]}`
 	want := &unexportedFields{Name: "Bob"}
 
 	out := &unexportedFields{}
