@@ -286,6 +286,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		if v := rv.Field(0); v.CanInterface() {
 			if h2i, ok := v.Interface().(h2Transport); ok {
 				t.h2transport = h2i
+				return
 			}
 		}
 	}
