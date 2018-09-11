@@ -312,8 +312,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// the function either doesn't return at all (if it has no defers or if the
 		// defers do not recover) or it returns from one of the calls to
 		// deferproc a second time (if the corresponding deferred func recovers).
-		// It suffices to assume that the most recent deferproc is the one that
-		// returns; everything live at earlier deferprocs is still live at that one.
+		// In the latter case, use a deferreturn call site as the continuation pc.
 		frame.continpc = frame.pc
 		if waspanic {
 			// We match up defers with frames using the SP.
@@ -324,7 +323,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// can't push a defer, the defer can't belong
 			// to that frame.
 			if _defer != nil && _defer.sp == frame.sp && frame.sp != frame.fp {
-				frame.continpc = _defer.pc
+				frame.continpc = frame.fn.entry + uintptr(frame.fn.deferreturn) + 1
+				// Note: the +1 is to offset the -1 that
+				// stack.go:getStackMap does to back up a return
+				// address make sure the pc is in the CALL instruction.
 			} else {
 				frame.continpc = 0
 			}
