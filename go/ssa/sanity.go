@@ -446,6 +446,17 @@ func (s *sanity) checkFunction(fn *Function) bool {
 		if p.Parent() != fn {
 			s.errorf("Param %s at index %d has wrong parent", p.Name(), i)
 		}
+		// Check common suffix of Signature and Params match type.
+		if sig := fn.Signature; sig != nil {
+			j := i - len(fn.Params) + sig.Params().Len() // index within sig.Params
+			if j < 0 {
+				continue
+			}
+			if !types.Identical(p.Type(), sig.Params().At(j).Type()) {
+				s.errorf("Param %s at index %d has wrong type (%s, versus %s in Signature)", p.Name(), i, p.Type(), sig.Params().At(j).Type())
+
+			}
+		}
 		s.checkReferrerList(p)
 	}
 	for i, fv := range fn.FreeVars {
