@@ -29,6 +29,7 @@ func TestEnvTZUsage(t *testing.T) {
 		{true, "", "Local"},
 		// $TZ="" means use UTC.
 		{false, "", "UTC"},
+		{false, ":", "UTC"},
 		{false, "Asia/Shanghai", "Asia/Shanghai"},
 		{false, ":Asia/Shanghai", "Asia/Shanghai"},
 	}
