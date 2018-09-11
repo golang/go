@@ -24,6 +24,7 @@ runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing
 // in bad situations that vet can also detect statically.
 encoding/json/decode_test.go: struct field m has json tag but is not exported
 encoding/json/decode_test.go: struct field m2 has json tag but is not exported
+encoding/json/decode_test.go: struct field s has json tag but is not exported
 encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible with reflect.StructTag.Get: bad syntax for struct tag key
 runtime/testdata/testprog/deadlock.go: unreachable code
 runtime/testdata/testprog/deadlock.go: unreachable code
