@@ -27,6 +27,7 @@ var cnames7 = []string{
 	"MBCON",
 	"MOVCON",
 	"BITCON",
+	"ADDCON2",
 	"LCON",
 	"VCON",
 	"FCON",

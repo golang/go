@@ -25,6 +25,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ADD	R1, R2, R3
 	ADD	R1, ZR, R3
 	ADD	$1, R2, R3
+	ADD	$0x000aaa, R2, R3 // ADD $2730, R2, R3     // 43a82a91
+	ADD	$0x000aaa, R2     // ADD $2730, R2         // 42a82a91
+	ADD	$0xaaa000, R2, R3 // ADD $11182080, R2, R3 // 43a86a91
+	ADD	$0xaaa000, R2     // ADD $11182080, R2     // 42a86a91
+	ADD	$0xaaaaaa, R2, R3 // ADD $11184810, R2, R3 // 43a82a9163a86a91
+	ADD	$0xaaaaaa, R2     // ADD $11184810, R2     // 42a82a9142a86a91
+	SUB	$0x000aaa, R2, R3 // SUB $2730, R2, R3     // 43a82ad1
+	SUB	$0x000aaa, R2     // SUB $2730, R2         // 42a82ad1
+	SUB	$0xaaa000, R2, R3 // SUB $11182080, R2, R3 // 43a86ad1
+	SUB	$0xaaa000, R2     // SUB $11182080, R2     // 42a86ad1
+	SUB	$0xaaaaaa, R2, R3 // SUB $11184810, R2, R3 // 43a82ad163a86ad1
+	SUB	$0xaaaaaa, R2     // SUB $11184810, R2     // 42a82ad142a86ad1
 	ADD	R1>>11, R2, R3
 	ADD	R1<<22, R2, R3
 	ADD	R1->33, R2, R3

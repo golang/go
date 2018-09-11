@@ -192,6 +192,8 @@ var optab = []Optab{
 	{AADD, C_BITCON, C_RSP, C_NONE, C_RSP, 62, 8, 0, 0, 0},
 	{AADD, C_BITCON, C_NONE, C_NONE, C_RSP, 62, 8, 0, 0, 0},
 	{ACMP, C_BITCON, C_RSP, C_NONE, C_NONE, 62, 8, 0, 0, 0},
+	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, 0, 0},
+	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, 0, 0},
 	{AADD, C_VCON, C_RSP, C_NONE, C_RSP, 13, 8, 0, LFROM, 0},
 	{AADD, C_VCON, C_NONE, C_NONE, C_RSP, 13, 8, 0, LFROM, 0},
 	{ACMP, C_VCON, C_REG, C_NONE, C_NONE, 13, 8, 0, LFROM, 0},
@@ -1046,6 +1048,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 		C_NOREG4K,
 		C_LOREG,
 		C_LACON,
+		C_ADDCON2,
 		C_LCON,
 		C_VCON:
 		if a.Name == obj.NAME_EXTERN {
@@ -1537,6 +1540,10 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				return C_BITCON
 			}
 
+			if 0 <= v && v <= 0xffffff {
+				return C_ADDCON2
+			}
+
 			if uint64(v) == uint64(uint32(v)) || v == int64(int32(v)) {
 				return C_LCON
 			}
@@ -1595,7 +1602,12 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 	}
 	a1 = int(p.From.Class)
 	if a1 == 0 {
-		a1 = c.aclass(&p.From) + 1
+		a0 := c.aclass(&p.From)
+		// do not break C_ADDCON2 when S bit is set
+		if (p.As == AADDS || p.As == AADDSW || p.As == ASUBS || p.As == ASUBSW) && a0 == C_ADDCON2 {
+			a0 = C_LCON
+		}
+		a1 = a0 + 1
 		p.From.Class = int8(a1)
 	}
 
@@ -1681,8 +1693,13 @@ func cmp(a int, b int) bool {
 			return true
 		}
 
+	case C_ADDCON2:
+		if b == C_ZCON || b == C_ADDCON || b == C_ADDCON0 {
+			return true
+		}
+
 	case C_LCON:
-		if b == C_ZCON || b == C_BITCON || b == C_ADDCON || b == C_ADDCON0 || b == C_ABCON || b == C_ABCON0 || b == C_MBCON || b == C_MOVCON {
+		if b == C_ZCON || b == C_BITCON || b == C_ADDCON || b == C_ADDCON0 || b == C_ABCON || b == C_ABCON0 || b == C_MBCON || b == C_MOVCON || b == C_ADDCON2 {
 			return true
 		}
 
@@ -3473,6 +3490,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= 3 << 22
 		}
 		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+
+	case 48: /* ADD $C_ADDCON2, Rm, Rd */
+		op := c.opirr(p, p.As)
+		if op&Sbit != 0 {
+			c.ctxt.Diag("can not break addition/subtraction when S bit is set", p)
+		}
+		rt := int(p.To.Reg)
+		r := int(p.Reg)
+		if r == 0 {
+			r = rt
+		}
+		o1 = c.oaddi(p, int32(op), int32(c.regoff(&p.From)) & 0x000fff, r, rt)
+		o2 = c.oaddi(p, int32(op), int32(c.regoff(&p.From)) & 0xfff000, rt, rt)
 
 	case 50: /* sys/sysl */
 		o1 = c.opirr(p, p.As)
