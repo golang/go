@@ -74,7 +74,7 @@ func copysign(a, b, c float64) {
 	// amd64:"BTSQ\t[$]63"
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FCPSGN"
-	// arm64:"ORR\t[$]-9223372036854775808"
+	// arm64:"ORR", -"AND"
 	sink64[1] = math.Copysign(c, -1)
 
 	// Like math.Copysign(c, -1), but with integer operations. Useful
