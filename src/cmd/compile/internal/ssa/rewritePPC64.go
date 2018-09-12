@@ -6409,7 +6409,7 @@ func rewriteValuePPC64_OpPPC64Equal_0(v *Value) bool {
 func rewriteValuePPC64_OpPPC64FABS_0(v *Value) bool {
 	// match: (FABS (FMOVDconst [x]))
 	// cond:
-	// result: (FMOVDconst [f2i(math.Abs(i2f(x)))])
+	// result: (FMOVDconst [auxFrom64F(math.Abs(auxTo64F(x)))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpPPC64FMOVDconst {
@@ -6417,7 +6417,7 @@ func rewriteValuePPC64_OpPPC64FABS_0(v *Value) bool {
 		}
 		x := v_0.AuxInt
 		v.reset(OpPPC64FMOVDconst)
-		v.AuxInt = f2i(math.Abs(i2f(x)))
+		v.AuxInt = auxFrom64F(math.Abs(auxTo64F(x)))
 		return true
 	}
 	return false
@@ -6507,7 +6507,7 @@ func rewriteValuePPC64_OpPPC64FADDS_0(v *Value) bool {
 func rewriteValuePPC64_OpPPC64FCEIL_0(v *Value) bool {
 	// match: (FCEIL (FMOVDconst [x]))
 	// cond:
-	// result: (FMOVDconst [f2i(math.Ceil(i2f(x)))])
+	// result: (FMOVDconst [auxFrom64F(math.Ceil(auxTo64F(x)))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpPPC64FMOVDconst {
@@ -6515,7 +6515,7 @@ func rewriteValuePPC64_OpPPC64FCEIL_0(v *Value) bool {
 		}
 		x := v_0.AuxInt
 		v.reset(OpPPC64FMOVDconst)
-		v.AuxInt = f2i(math.Ceil(i2f(x)))
+		v.AuxInt = auxFrom64F(math.Ceil(auxTo64F(x)))
 		return true
 	}
 	return false
@@ -6523,7 +6523,7 @@ func rewriteValuePPC64_OpPPC64FCEIL_0(v *Value) bool {
 func rewriteValuePPC64_OpPPC64FFLOOR_0(v *Value) bool {
 	// match: (FFLOOR (FMOVDconst [x]))
 	// cond:
-	// result: (FMOVDconst [f2i(math.Floor(i2f(x)))])
+	// result: (FMOVDconst [auxFrom64F(math.Floor(auxTo64F(x)))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpPPC64FMOVDconst {
@@ -6531,7 +6531,7 @@ func rewriteValuePPC64_OpPPC64FFLOOR_0(v *Value) bool {
 		}
 		x := v_0.AuxInt
 		v.reset(OpPPC64FMOVDconst)
-		v.AuxInt = f2i(math.Floor(i2f(x)))
+		v.AuxInt = auxFrom64F(math.Floor(auxTo64F(x)))
 		return true
 	}
 	return false
@@ -6833,7 +6833,7 @@ func rewriteValuePPC64_OpPPC64FNEG_0(v *Value) bool {
 func rewriteValuePPC64_OpPPC64FSQRT_0(v *Value) bool {
 	// match: (FSQRT (FMOVDconst [x]))
 	// cond:
-	// result: (FMOVDconst [f2i(math.Sqrt(i2f(x)))])
+	// result: (FMOVDconst [auxFrom64F(math.Sqrt(auxTo64F(x)))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpPPC64FMOVDconst {
@@ -6841,7 +6841,7 @@ func rewriteValuePPC64_OpPPC64FSQRT_0(v *Value) bool {
 		}
 		x := v_0.AuxInt
 		v.reset(OpPPC64FMOVDconst)
-		v.AuxInt = f2i(math.Sqrt(i2f(x)))
+		v.AuxInt = auxFrom64F(math.Sqrt(auxTo64F(x)))
 		return true
 	}
 	return false
@@ -6893,7 +6893,7 @@ func rewriteValuePPC64_OpPPC64FSUBS_0(v *Value) bool {
 func rewriteValuePPC64_OpPPC64FTRUNC_0(v *Value) bool {
 	// match: (FTRUNC (FMOVDconst [x]))
 	// cond:
-	// result: (FMOVDconst [f2i(math.Trunc(i2f(x)))])
+	// result: (FMOVDconst [auxFrom64F(math.Trunc(auxTo64F(x)))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpPPC64FMOVDconst {
@@ -6901,7 +6901,7 @@ func rewriteValuePPC64_OpPPC64FTRUNC_0(v *Value) bool {
 		}
 		x := v_0.AuxInt
 		v.reset(OpPPC64FMOVDconst)
-		v.AuxInt = f2i(math.Trunc(i2f(x)))
+		v.AuxInt = auxFrom64F(math.Trunc(auxTo64F(x)))
 		return true
 	}
 	return false

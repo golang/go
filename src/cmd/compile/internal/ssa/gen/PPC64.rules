@@ -74,11 +74,11 @@
 (ConstBool [b]) -> (MOVDconst [b])
 
 // Constant folding
-(FABS (FMOVDconst [x])) -> (FMOVDconst [f2i(math.Abs(i2f(x)))])
-(FSQRT (FMOVDconst [x])) -> (FMOVDconst [f2i(math.Sqrt(i2f(x)))])
-(FFLOOR (FMOVDconst [x])) -> (FMOVDconst [f2i(math.Floor(i2f(x)))])
-(FCEIL (FMOVDconst [x])) -> (FMOVDconst [f2i(math.Ceil(i2f(x)))])
-(FTRUNC (FMOVDconst [x])) -> (FMOVDconst [f2i(math.Trunc(i2f(x)))])
+(FABS (FMOVDconst [x])) -> (FMOVDconst [auxFrom64F(math.Abs(auxTo64F(x)))])
+(FSQRT (FMOVDconst [x])) -> (FMOVDconst [auxFrom64F(math.Sqrt(auxTo64F(x)))])
+(FFLOOR (FMOVDconst [x])) -> (FMOVDconst [auxFrom64F(math.Floor(auxTo64F(x)))])
+(FCEIL (FMOVDconst [x])) -> (FMOVDconst [auxFrom64F(math.Ceil(auxTo64F(x)))])
+(FTRUNC (FMOVDconst [x])) -> (FMOVDconst [auxFrom64F(math.Trunc(auxTo64F(x)))])
 
 // Rotate generation with const shift
 (ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (ROTLconst [c] x)

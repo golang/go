@@ -44,8 +44,8 @@
 (Xor(32|16|8) x y) -> (XORL x y)
 
 (Neg(32|16|8)  x) -> (NEGL x)
-(Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <typ.Float32> [f2i(math.Copysign(0, -1))]))
-(Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <typ.Float64> [f2i(math.Copysign(0, -1))]))
+(Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <typ.Float32> [auxFrom32F(float32(math.Copysign(0, -1)))]))
+(Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <typ.Float64> [auxFrom64F(math.Copysign(0, -1))]))
 (Neg32F x) && config.use387 -> (FCHS x)
 (Neg64F x) && config.use387 -> (FCHS x)
 
