@@ -24,6 +24,9 @@ func TestGcSys(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping test; GOOS=windows http://golang.org/issue/27156")
 	}
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping test; GOOS=linux GOARCH=arm64 https://github.com/golang/go/issues/27636")
+	}
 	got := runTestProg(t, "testprog", "GCSys")
 	want := "OK\n"
 	if got != want {
