@@ -450,19 +450,24 @@ func extend32Fto64F(f float32) float64 {
 	return math.Float64frombits(r)
 }
 
-// i2f is used in rules for converting from an AuxInt to a float.
-func i2f(i int64) float64 {
-	return math.Float64frombits(uint64(i))
-}
-
-// i2f32 is used in rules for converting from an AuxInt to a float32.
-func i2f32(i int64) float32 {
-	return float32(math.Float64frombits(uint64(i)))
-}
-
-// f2i is used in the rules for storing a float in AuxInt.
-func f2i(f float64) int64 {
+// auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
+func auxFrom64F(f float64) int64 {
 	return int64(math.Float64bits(f))
+}
+
+// auxFrom32F encodes a float32 value so it can be stored in an AuxInt.
+func auxFrom32F(f float32) int64 {
+	return int64(math.Float64bits(extend32Fto64F(f)))
+}
+
+// auxTo32F decodes a float32 from the AuxInt value provided.
+func auxTo32F(i int64) float32 {
+	return truncate64Fto32F(math.Float64frombits(uint64(i)))
+}
+
+// auxTo64F decodes a float64 from the AuxInt value provided.
+func auxTo64F(i int64) float64 {
+	return math.Float64frombits(uint64(i))
 }
 
 // uaddOvf returns true if unsigned a+b would overflow.

@@ -19822,7 +19822,7 @@ func rewriteValue386_OpNeg32F_0(v *Value) bool {
 	_ = typ
 	// match: (Neg32F x)
 	// cond: !config.use387
-	// result: (PXOR x (MOVSSconst <typ.Float32> [f2i(math.Copysign(0, -1))]))
+	// result: (PXOR x (MOVSSconst <typ.Float32> [auxFrom32F(float32(math.Copysign(0, -1)))]))
 	for {
 		x := v.Args[0]
 		if !(!config.use387) {
@@ -19831,7 +19831,7 @@ func rewriteValue386_OpNeg32F_0(v *Value) bool {
 		v.reset(Op386PXOR)
 		v.AddArg(x)
 		v0 := b.NewValue0(v.Pos, Op386MOVSSconst, typ.Float32)
-		v0.AuxInt = f2i(math.Copysign(0, -1))
+		v0.AuxInt = auxFrom32F(float32(math.Copysign(0, -1)))
 		v.AddArg(v0)
 		return true
 	}
@@ -19858,7 +19858,7 @@ func rewriteValue386_OpNeg64F_0(v *Value) bool {
 	_ = typ
 	// match: (Neg64F x)
 	// cond: !config.use387
-	// result: (PXOR x (MOVSDconst <typ.Float64> [f2i(math.Copysign(0, -1))]))
+	// result: (PXOR x (MOVSDconst <typ.Float64> [auxFrom64F(math.Copysign(0, -1))]))
 	for {
 		x := v.Args[0]
 		if !(!config.use387) {
@@ -19867,7 +19867,7 @@ func rewriteValue386_OpNeg64F_0(v *Value) bool {
 		v.reset(Op386PXOR)
 		v.AddArg(x)
 		v0 := b.NewValue0(v.Pos, Op386MOVSDconst, typ.Float64)
-		v0.AuxInt = f2i(math.Copysign(0, -1))
+		v0.AuxInt = auxFrom64F(math.Copysign(0, -1))
 		v.AddArg(v0)
 		return true
 	}

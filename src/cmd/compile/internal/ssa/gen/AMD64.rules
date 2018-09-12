@@ -41,8 +41,8 @@
 (Com(64|32|16|8) x) -> (NOT(Q|L|L|L) x)
 
 (Neg(64|32|16|8)  x) -> (NEG(Q|L|L|L) x)
-(Neg32F x) -> (PXOR x (MOVSSconst <typ.Float32> [f2i(math.Copysign(0, -1))]))
-(Neg64F x) -> (PXOR x (MOVSDconst <typ.Float64> [f2i(math.Copysign(0, -1))]))
+(Neg32F x) -> (PXOR x (MOVSSconst <typ.Float32> [auxFrom32F(float32(math.Copysign(0, -1)))]))
+(Neg64F x) -> (PXOR x (MOVSDconst <typ.Float64> [auxFrom64F(math.Copysign(0, -1))]))
 
 // Lowering boolean ops
 (AndB x y) -> (ANDL x y)
