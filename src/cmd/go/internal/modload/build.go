@@ -232,11 +232,16 @@ func findModule(target, path string) module.Version {
 }
 
 func ModInfoProg(info string) []byte {
+	// Inject a variable with the debug information as runtime/debug.modinfo,
+	// but compile it in package main so that it is specific to the binary.
+	// Populate it in an init func so that it will work with go:linkname,
+	// but use a string constant instead of the name 'string' in case
+	// package main shadows the built-in 'string' with some local declaration.
 	return []byte(fmt.Sprintf(`
 		package main
 		import _ "unsafe"
 		//go:linkname __debug_modinfo__ runtime/debug.modinfo
-		var __debug_modinfo__ string
+		var __debug_modinfo__ = ""
 		func init() {
 			__debug_modinfo__ = %q
 		}
