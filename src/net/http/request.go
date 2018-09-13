@@ -105,7 +105,7 @@ var reqWriteExcludeHeader = map[string]bool{
 // documentation for Request.Write and RoundTripper.
 type Request struct {
 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
-	// For client requests an empty string means GET.
+	// For client requests, an empty string means GET.
 	//
 	// Go's HTTP client does not support sending a request with
 	// the CONNECT method. See the documentation on Transport for
@@ -115,7 +115,7 @@ type Request struct {
 	// URL specifies either the URI being requested (for server
 	// requests) or the URL to access (for client requests).
 	//
-	// For server requests the URL is parsed from the URI
+	// For server requests, the URL is parsed from the URI
 	// supplied on the Request-Line as stored in RequestURI.  For
 	// most requests, fields other than Path and RawQuery will be
 	// empty. (See RFC 7230, Section 5.3)
@@ -128,7 +128,7 @@ type Request struct {
 
 	// The protocol version for incoming server requests.
 	//
-	// For client requests these fields are ignored. The HTTP
+	// For client requests, these fields are ignored. The HTTP
 	// client code always uses either HTTP/1.1 or HTTP/2.
 	// See the docs on Transport for details.
 	Proto      string // "HTTP/1.0"
@@ -170,11 +170,11 @@ type Request struct {
 
 	// Body is the request's body.
 	//
-	// For client requests a nil body means the request has no
+	// For client requests, a nil body means the request has no
 	// body, such as a GET request. The HTTP Client's Transport
 	// is responsible for calling the Close method.
 	//
-	// For server requests the Request Body is always non-nil
+	// For server requests, the Request Body is always non-nil
 	// but will return EOF immediately when no body is present.
 	// The Server will close the request body. The ServeHTTP
 	// Handler does not need to.
@@ -185,13 +185,14 @@ type Request struct {
 	// reading the body more than once. Use of GetBody still
 	// requires setting Body.
 	//
-	// For server requests it is unused.
+	// For server requests, it is unused.
 	GetBody func() (io.ReadCloser, error)
 
 	// ContentLength records the length of the associated content.
 	// The value -1 indicates that the length is unknown.
 	// Values >= 0 indicate that the given number of bytes may
 	// be read from Body.
+	//
 	// For client requests, a value of 0 with a non-nil Body is
 	// also treated as unknown.
 	ContentLength int64
@@ -215,7 +216,7 @@ type Request struct {
 	// Transport.DisableKeepAlives were set.
 	Close bool
 
-	// For server requests Host specifies the host on which the URL
+	// For server requests, Host specifies the host on which the URL
 	// is sought. Per RFC 7230, section 5.4, this is either the value
 	// of the "Host" header or the host name given in the URL itself.
 	// It may be of the form "host:port". For international domain
@@ -228,7 +229,7 @@ type Request struct {
 	// ServeMux supports patterns registered to particular host
 	// names and thus protects its registered Handlers.
 	//
-	// For client requests Host optionally overrides the Host
+	// For client requests, Host optionally overrides the Host
 	// header to send. If empty, the Request.Write method uses
 	// the value of URL.Host. Host may contain an international
 	// domain name.
@@ -255,14 +256,14 @@ type Request struct {
 	// Trailer specifies additional headers that are sent after the request
 	// body.
 	//
-	// For server requests the Trailer map initially contains only the
+	// For server requests, the Trailer map initially contains only the
 	// trailer keys, with nil values. (The client declares which trailers it
 	// will later send.)  While the handler is reading from Body, it must
 	// not reference Trailer. After reading from Body returns EOF, Trailer
 	// can be read again and will contain non-nil values, if they were sent
 	// by the client.
 	//
-	// For client requests Trailer must be initialized to a map containing
+	// For client requests, Trailer must be initialized to a map containing
 	// the trailer keys to later send. The values may be nil or their final
 	// values. The ContentLength must be 0 or -1, to send a chunked request.
 	// After the HTTP request is sent the map values can be updated while
