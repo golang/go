@@ -73,6 +73,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) []error {
 	}
 	pkg.defs = make(map[*ast.Ident]types.Object)
 	pkg.uses = make(map[*ast.Ident]types.Object)
+	pkg.implicits = make(map[ast.Node]types.Object)
 	pkg.selectors = make(map[*ast.SelectorExpr]*types.Selection)
 	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
@@ -95,6 +96,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) []error {
 		Types:      pkg.types,
 		Defs:       pkg.defs,
 		Uses:       pkg.uses,
+		Implicits:  pkg.implicits,
 	}
 	typesPkg, err := config.Check(pkg.path, fs, astFiles, info)
 	if len(allErrors) == 0 && err != nil {
@@ -103,10 +105,28 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) []error {
 	pkg.typesPkg = typesPkg
 	// update spans
 	for id, obj := range pkg.defs {
-		pkg.growSpan(id, obj)
+		// Ignore identifiers that don't denote objects
+		// (package names, symbolic variables such as t
+		// in t := x.(type) of type switch headers).
+		if obj != nil {
+			pkg.growSpan(obj, id.Pos(), id.End())
+		}
 	}
 	for id, obj := range pkg.uses {
-		pkg.growSpan(id, obj)
+		pkg.growSpan(obj, id.Pos(), id.End())
+	}
+	for node, obj := range pkg.implicits {
+		// A type switch with a short variable declaration
+		// such as t := x.(type) doesn't declare the symbolic
+		// variable (t in the example) at the switch header;
+		// instead a new variable t (with specific type) is
+		// declared implicitly for each case. Such variables
+		// are found in the types.Info.Implicits (not Defs)
+		// map. Add them here, assuming they are declared at
+		// the type cases' colon ":".
+		if cc, ok := node.(*ast.CaseClause); ok {
+			pkg.growSpan(obj, cc.Colon, cc.Colon)
+		}
 	}
 	return allErrors
 }

@@ -467,6 +467,7 @@ type Package struct {
 	path      string
 	defs      map[*ast.Ident]types.Object
 	uses      map[*ast.Ident]types.Object
+	implicits map[ast.Node]types.Object
 	selectors map[*ast.SelectorExpr]*types.Selection
 	types     map[ast.Expr]types.TypeAndValue
 	spans     map[types.Object]Span

@@ -57,3 +57,35 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 func one() int {
 	return 1
 }
+
+// Must not complain with an internal error for the
+// implicitly declared type switch variable v.
+func issue26725(x interface{}) int {
+	switch v := x.(type) {
+	case int, int32:
+		if v, ok := x.(int); ok {
+			return v
+		}
+	case int64:
+		return int(v)
+	}
+	return 0
+}
+
+// Verify that implicitly declared variables from
+// type switches are considered in shadowing analysis.
+func shadowTypeSwitch(a interface{}) {
+	switch t := a.(type) {
+	case int:
+		{
+			t := 0 // ERROR "declaration of .t. shadows declaration at shadow.go:78"
+			_ = t
+		}
+		_ = t
+	case uint:
+		{
+			t := uint(0) // OK because t is not mentioned later in this function
+			_ = t
+		}
+	}
+}
