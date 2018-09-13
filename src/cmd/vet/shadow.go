@@ -86,14 +86,11 @@ func (s Span) contains(pos token.Pos) bool {
 	return s.min <= pos && pos < s.max
 }
 
-// growSpan expands the span for the object to contain the instance represented
-// by the identifier.
-func (pkg *Package) growSpan(ident *ast.Ident, obj types.Object) {
+// growSpan expands the span for the object to contain the source range [pos, end).
+func (pkg *Package) growSpan(obj types.Object, pos, end token.Pos) {
 	if *strictShadowing {
 		return // No need
 	}
-	pos := ident.Pos()
-	end := ident.End()
 	span, ok := pkg.spans[obj]
 	if ok {
 		if span.min > pos {
@@ -232,7 +229,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
 		// the shadowing identifier.
 		span, ok := f.pkg.spans[shadowed]
 		if !ok {
-			f.Badf(ident.Pos(), "internal error: no range for %q", ident.Name)
+			f.Badf(shadowed.Pos(), "internal error: no range for %q", shadowed.Name())
 			return
 		}
 		if !span.contains(ident.Pos()) {
