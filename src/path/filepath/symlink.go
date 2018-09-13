@@ -41,14 +41,15 @@ func walkSymlinks(path string) (string, error) {
 			continue
 		} else if path[start:end] == ".." {
 			// Back up to previous component if possible.
+			// Note that volLen includes any leading slash.
 			var r int
-			for r = len(dest) - 1; r >= 0; r-- {
+			for r = len(dest) - 1; r >= volLen; r-- {
 				if os.IsPathSeparator(dest[r]) {
 					break
 				}
 			}
-			if r < 0 {
-				if len(dest) > 0 {
+			if r < volLen {
+				if len(dest) > volLen {
 					dest += string(os.PathSeparator)
 				}
 				dest += ".."
@@ -117,12 +118,12 @@ func walkSymlinks(path string) (string, error) {
 			// Symlink to relative path; replace last
 			// path component in dest.
 			var r int
-			for r = len(dest) - 1; r >= 0; r-- {
+			for r = len(dest) - 1; r >= volLen; r-- {
 				if os.IsPathSeparator(dest[r]) {
 					break
 				}
 			}
-			if r < 0 {
+			if r < volLen {
 				dest = vol
 			} else {
 				dest = dest[:r]
