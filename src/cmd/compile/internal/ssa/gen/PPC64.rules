@@ -168,6 +168,20 @@
 (Rsh8x32   x (MOVDconst [c])) && uint32(c) < 8  -> (SRAWconst (SignExt8to32  x) [c])
 (Rsh8Ux32  x (MOVDconst [c])) && uint32(c) < 8  -> (SRWconst (ZeroExt8to32  x) [c])
 
+// Lower bounded shifts first. No need to check shift value.
+(Lsh64x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SLD x y)
+(Lsh32x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SLW x y)
+(Lsh16x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SLW x y)
+(Lsh8x(64|32|16|8)   x y) && shiftIsBounded(v) -> (SLW x y)
+(Rsh64Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SRD x y)
+(Rsh32Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SRW x y)
+(Rsh16Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SRW (MOVHZreg x) y)
+(Rsh8Ux(64|32|16|8)  x y) && shiftIsBounded(v) -> (SRW (MOVBZreg x) y)
+(Rsh64x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SRAD x y)
+(Rsh32x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SRAW x y)
+(Rsh16x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SRAW (MOVHreg x) y)
+(Rsh8x(64|32|16|8)   x y) && shiftIsBounded(v) -> (SRAW (MOVBreg x) y)
+
 // non-constant rotates
 // These are subexpressions found in statements that can become rotates
 // In these cases the shift count is known to be < 64 so the more complicated expressions
