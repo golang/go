@@ -180,7 +180,7 @@ type Info struct {
 	//
 	//     *ast.ImportSpec    *PkgName for imports without renames
 	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
-	//     *ast.Field         anonymous parameter *Var
+	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
 	//
 	Implicits map[ast.Node]Object
 
