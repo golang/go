@@ -1042,12 +1042,17 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			n = o.copyExpr(n, n.Type, false)
 		}
 
-	// concrete type (not interface) argument must be addressable
-	// temporary to pass to runtime.
+	// concrete type (not interface) argument might need an addressable
+	// temporary to pass to the runtime conversion routine.
 	case OCONVIFACE:
 		n.Left = o.expr(n.Left, nil)
-
-		if !n.Left.Type.IsInterface() {
+		if n.Left.Type.IsInterface() {
+			break
+		}
+		if _, needsaddr := convFuncName(n.Left.Type, n.Type); needsaddr || consttype(n.Left) > 0 {
+			// Need a temp if we need to pass the address to the conversion function.
+			// We also process constants here, making a named static global whose
+			// address we can put directly in an interface (see OCONVIFACE case in walk).
 			n.Left = o.addrTemp(n.Left)
 		}
 
