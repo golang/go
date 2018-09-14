@@ -417,9 +417,9 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
 				return "convT2E64", false
 			case from.IsString():
-				return "convT2Estring", true
+				return "convT2Estring", false
 			case from.IsSlice():
-				return "convT2Eslice", true
+				return "convT2Eslice", false
 			case !types.Haspointers(from):
 				return "convT2Enoptr", true
 			}
@@ -433,9 +433,9 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
 				return "convT2I64", false
 			case from.IsString():
-				return "convT2Istring", true
+				return "convT2Istring", false
 			case from.IsSlice():
-				return "convT2Islice", true
+				return "convT2Islice", false
 			case !types.Haspointers(from):
 				return "convT2Inoptr", true
 			}

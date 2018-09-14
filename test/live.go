@@ -141,7 +141,7 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	y := interface{}(str()) // ERROR "live at call to convT2Estring: x.data$" "live at call to str: x.data$" "stack object .autotmp_[0-9]+ string$"
+	y := interface{}(g18()) // ERROR "live at call to convT2E: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
 	i9 = y                  // make y escape so the line above has to call convT2E
 	return x != y
 }
@@ -493,13 +493,13 @@ func f30(b bool) {
 
 func f31(b1, b2, b3 bool) {
 	if b1 {
-		g31(str()) // ERROR "stack object .autotmp_[0-9]+ string$"
+		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	if b2 {
-		h31(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ string$"
+		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	if b3 {
-		panic(str()) // ERROR "stack object .autotmp_[0-9]+ string$"
+		panic(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	print(b3)
 }
