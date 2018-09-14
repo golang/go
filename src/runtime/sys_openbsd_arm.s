@@ -143,8 +143,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	flags+8(FP), R2		// arg 2 - flags
 	MOVW	$75, R12		// sys_madvise
 	SWI	$0
-	MOVW.CS	$0, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
+	MOVW.CS	$-1, R0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0

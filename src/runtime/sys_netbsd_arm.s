@@ -284,11 +284,12 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
-	MOVW addr+0(FP), R0	// arg 1 - addr
-	MOVW n+4(FP), R1	// arg 2 - len
-	MOVW flags+8(FP), R2	// arg 3 - behav
-	SWI $0xa0004b	// sys_madvise
-	// ignore failure - maybe pages are locked
+	MOVW	addr+0(FP), R0	// arg 1 - addr
+	MOVW	n+4(FP), R1	// arg 2 - len
+	MOVW	flags+8(FP), R2	// arg 3 - behav
+	SWI	$0xa0004b	// sys_madvise
+	MOVW.CS	$-1, R0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0

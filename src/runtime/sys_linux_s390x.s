@@ -290,7 +290,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+16(FP), R4
 	MOVW	$SYS_madvise, R1
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVW	R2, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,

@@ -136,7 +136,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX			// sys_madvise
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
+	MOVL	$-1, AX
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4
