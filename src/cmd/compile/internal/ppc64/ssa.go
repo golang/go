@@ -735,7 +735,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// Not a go.string, generate a normal load
 		fallthrough
 
-	case ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
+	case ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload, ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -757,10 +757,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 
-	case ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
+	case ssa.OpPPC64MOVDloadidx, ssa.OpPPC64MOVWloadidx, ssa.OpPPC64MOVHloadidx, ssa.OpPPC64MOVWZloadidx,
+		ssa.OpPPC64MOVBZloadidx, ssa.OpPPC64MOVHZloadidx, ssa.OpPPC64FMOVDloadidx, ssa.OpPPC64FMOVSloadidx,
+		ssa.OpPPC64MOVDBRloadidx, ssa.OpPPC64MOVWBRloadidx, ssa.OpPPC64MOVHBRloadidx:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
+		p.From.Index = v.Args[1].Reg()
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -773,17 +776,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 
-	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore:
+	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore, ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
-	case ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
+
+	case ssa.OpPPC64MOVDstoreidx, ssa.OpPPC64MOVWstoreidx, ssa.OpPPC64MOVHstoreidx, ssa.OpPPC64MOVBstoreidx,
+		ssa.OpPPC64FMOVDstoreidx, ssa.OpPPC64FMOVSstoreidx, ssa.OpPPC64MOVDBRstoreidx, ssa.OpPPC64MOVWBRstoreidx,
+		ssa.OpPPC64MOVHBRstoreidx:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[1].Reg()
+		p.From.Reg = v.Args[2].Reg()
+		p.To.Index = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
