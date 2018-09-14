@@ -302,13 +302,13 @@ TEXT runtime·munmap(SB),NOSPLIT,$0-8
 	UNDEF	// crash
 	RET
 
-TEXT runtime·madvise(SB),NOSPLIT,$0-12
+TEXT runtime·madvise(SB),NOSPLIT,$0-16
 	MOVW	addr+0(FP), R4
 	MOVW	n+4(FP), R5
 	MOVW	flags+8(FP), R6
 	MOVW	$SYS_madvise, R2
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVW	R2, ret+12(FP)
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val, struct timespec *timeout, int32 *uaddr2, int32 val2);
