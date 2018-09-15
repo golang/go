@@ -388,6 +388,7 @@ func isJSType(mimeType string) bool {
 	mimeType = strings.TrimSpace(mimeType)
 	switch mimeType {
 	case
+		"module",
 		"application/ecmascript",
 		"application/javascript",
 		"application/json",
