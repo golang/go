@@ -1044,8 +1044,8 @@
 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
 (CMP(Q|L|W|B)load [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(off1+off2) ->
 	(CMP(Q|L|W|B)load [off1+off2] {sym} base val mem)
-(CMP(Q|L|W|B)constload [off1] {sym} (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
-	(CMP(Q|L|W|B)constload [off1+off2] {sym} base mem)
+(CMP(Q|L|W|B)constload [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	(CMP(Q|L|W|B)constload [ValAndOff(valoff1).add(off2)] {sym} base mem)
 
 ((ADD|SUB|MUL|DIV)SSload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
 	((ADD|SUB|MUL|DIV)SSload [off1+off2] {sym} val base mem)
@@ -1096,9 +1096,9 @@
 (CMP(Q|L|W|B)load [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(CMP(Q|L|W|B)load [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(CMP(Q|L|W|B)constload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(CMP(Q|L|W|B)constload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(CMP(Q|L|W|B)constload [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
+	(CMP(Q|L|W|B)constload [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 
 ((ADD|SUB|MUL|DIV)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->

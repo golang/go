@@ -7941,11 +7941,11 @@ func rewriteValueAMD64_OpAMD64CMPBconst_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64CMPBconstload_0(v *Value) bool {
-	// match: (CMPBconstload [off1] {sym} (ADDQconst [off2] base) mem)
-	// cond: is32Bit(off1+off2)
-	// result: (CMPBconstload [off1+off2] {sym} base mem)
+	// match: (CMPBconstload [valoff1] {sym} (ADDQconst [off2] base) mem)
+	// cond: ValAndOff(valoff1).canAdd(off2)
+	// result: (CMPBconstload [ValAndOff(valoff1).add(off2)] {sym} base mem)
 	for {
-		off1 := v.AuxInt
+		valoff1 := v.AuxInt
 		sym := v.Aux
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -7955,21 +7955,21 @@ func rewriteValueAMD64_OpAMD64CMPBconstload_0(v *Value) bool {
 		off2 := v_0.AuxInt
 		base := v_0.Args[0]
 		mem := v.Args[1]
-		if !(is32Bit(off1 + off2)) {
+		if !(ValAndOff(valoff1).canAdd(off2)) {
 			break
 		}
 		v.reset(OpAMD64CMPBconstload)
-		v.AuxInt = off1 + off2
+		v.AuxInt = ValAndOff(valoff1).add(off2)
 		v.Aux = sym
 		v.AddArg(base)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (CMPBconstload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-	// result: (CMPBconstload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	// match: (CMPBconstload [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	// cond: ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2)
+	// result: (CMPBconstload [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 	for {
-		off1 := v.AuxInt
+		valoff1 := v.AuxInt
 		sym1 := v.Aux
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -7980,11 +7980,11 @@ func rewriteValueAMD64_OpAMD64CMPBconstload_0(v *Value) bool {
 		sym2 := v_0.Aux
 		base := v_0.Args[0]
 		mem := v.Args[1]
-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
+		if !(ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2)) {
 			break
 		}
 		v.reset(OpAMD64CMPBconstload)
-		v.AuxInt = off1 + off2
+		v.AuxInt = ValAndOff(valoff1).add(off2)
 		v.Aux = mergeSym(sym1, sym2)
 		v.AddArg(base)
 		v.AddArg(mem)
@@ -8363,11 +8363,11 @@ func rewriteValueAMD64_OpAMD64CMPLconst_10(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64CMPLconstload_0(v *Value) bool {
-	// match: (CMPLconstload [off1] {sym} (ADDQconst [off2] base) mem)
-	// cond: is32Bit(off1+off2)
-	// result: (CMPLconstload [off1+off2] {sym} base mem)
+	// match: (CMPLconstload [valoff1] {sym} (ADDQconst [off2] base) mem)
+	// cond: ValAndOff(valoff1).canAdd(off2)
+	// result: (CMPLconstload [ValAndOff(valoff1).add(off2)] {sym} base mem)
 	for {
-		off1 := v.AuxInt
+		valoff1 := v.AuxInt
 		sym := v.Aux
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -8377,21 +8377,21 @@ func rewriteValueAMD64_OpAMD64CMPLconstload_0(v *Value) bool {
 		off2 := v_0.AuxInt
 		base := v_0.Args[0]
 		mem := v.Args[1]
-		if !(is32Bit(off1 + off2)) {
+		if !(ValAndOff(valoff1).canAdd(off2)) {
 			break
 		}
 		v.reset(OpAMD64CMPLconstload)
-		v.AuxInt = off1 + off2
+		v.AuxInt = ValAndOff(valoff1).add(off2)
 		v.Aux = sym
 		v.AddArg(base)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (CMPLconstload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-	// result: (CMPLconstload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	// match: (CMPLconstload [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	// cond: ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2)
+	// result: (CMPLconstload [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 	for {
-		off1 := v.AuxInt
+		valoff1 := v.AuxInt
 		sym1 := v.Aux
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -8402,11 +8402,11 @@ func rewriteValueAMD64_OpAMD64CMPLconstload_0(v *Value) bool {
 		sym2 := v_0.Aux
 		base := v_0.Args[0]
 		mem := v.Args[1]
-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
+		if !(ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2)) {
 			break
 		}
 		v.reset(OpAMD64CMPLconstload)
-		v.AuxInt = off1 + off2
+		v.AuxInt = ValAndOff(valoff1).add(off2)
 		v.Aux = mergeSym(sym1, sym2)
 		v.AddArg(base)
 		v.AddArg(mem)
@@ -8908,11 +8908,11 @@ func rewriteValueAMD64_OpAMD64CMPQconst_10(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64CMPQconstload_0(v *Value) bool {
-	// match: (CMPQconstload [off1] {sym} (ADDQconst [off2] base) mem)
-	// cond: is32Bit(off1+off2)
-	// result: (CMPQconstload [off1+off2] {sym} base mem)
+	// match: (CMPQconstload [valoff1] {sym} (ADDQconst [off2] base) mem)
+	// cond: ValAndOff(valoff1).canAdd(off2)
+	// result: (CMPQconstload [ValAndOff(valoff1).add(off2)] {sym} base mem)
 	for {
-		off1 := v.AuxInt
+		valoff1 := v.AuxInt
 		sym := v.Aux
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -8922,21 +8922,21 @@ func rewriteValueAMD64_OpAMD64CMPQconstload_0(v *Value) bool {
 		off2 := v_0.AuxInt
 		base := v_0.Args[0]
 		mem := v.Args[1]
-		if !(is32Bit(off1 + off2)) {
+		if !(ValAndOff(valoff1).canAdd(off2)) {
 			break
 		}
 		v.reset(OpAMD64CMPQconstload)
-		v.AuxInt = off1 + off2
+		v.AuxInt = ValAndOff(valoff1).add(off2)
 		v.Aux = sym
 		v.AddArg(base)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (CMPQconstload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-	// result: (CMPQconstload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	// match: (CMPQconstload [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	// cond: ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2)
+	// result: (CMPQconstload [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 	for {
-		off1 := v.AuxInt
+		valoff1 := v.AuxInt
 		sym1 := v.Aux
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -8947,11 +8947,11 @@ func rewriteValueAMD64_OpAMD64CMPQconstload_0(v *Value) bool {
 		sym2 := v_0.Aux
 		base := v_0.Args[0]
 		mem := v.Args[1]
-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
+		if !(ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2)) {
 			break
 		}
 		v.reset(OpAMD64CMPQconstload)
-		v.AuxInt = off1 + off2
+		v.AuxInt = ValAndOff(valoff1).add(off2)
 		v.Aux = mergeSym(sym1, sym2)
 		v.AddArg(base)
 		v.AddArg(mem)
@@ -9311,11 +9311,11 @@ func rewriteValueAMD64_OpAMD64CMPWconst_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64CMPWconstload_0(v *Value) bool {
-	// match: (CMPWconstload [off1] {sym} (ADDQconst [off2] base) mem)
-	// cond: is32Bit(off1+off2)
-	// result: (CMPWconstload [off1+off2] {sym} base mem)
+	// match: (CMPWconstload [valoff1] {sym} (ADDQconst [off2] base) mem)
+	// cond: ValAndOff(valoff1).canAdd(off2)
+	// result: (CMPWconstload [ValAndOff(valoff1).add(off2)] {sym} base mem)
 	for {
-		off1 := v.AuxInt
+		valoff1 := v.AuxInt
 		sym := v.Aux
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -9325,21 +9325,21 @@ func rewriteValueAMD64_OpAMD64CMPWconstload_0(v *Value) bool {
 		off2 := v_0.AuxInt
 		base := v_0.Args[0]
 		mem := v.Args[1]
-		if !(is32Bit(off1 + off2)) {
+		if !(ValAndOff(valoff1).canAdd(off2)) {
 			break
 		}
 		v.reset(OpAMD64CMPWconstload)
-		v.AuxInt = off1 + off2
+		v.AuxInt = ValAndOff(valoff1).add(off2)
 		v.Aux = sym
 		v.AddArg(base)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (CMPWconstload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-	// result: (CMPWconstload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	// match: (CMPWconstload [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	// cond: ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2)
+	// result: (CMPWconstload [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
 	for {
-		off1 := v.AuxInt
+		valoff1 := v.AuxInt
 		sym1 := v.Aux
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -9350,11 +9350,11 @@ func rewriteValueAMD64_OpAMD64CMPWconstload_0(v *Value) bool {
 		sym2 := v_0.Aux
 		base := v_0.Args[0]
 		mem := v.Args[1]
-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
+		if !(ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2)) {
 			break
 		}
 		v.reset(OpAMD64CMPWconstload)
-		v.AuxInt = off1 + off2
+		v.AuxInt = ValAndOff(valoff1).add(off2)
 		v.Aux = mergeSym(sym1, sym2)
 		v.AddArg(base)
 		v.AddArg(mem)
