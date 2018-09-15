@@ -39,15 +39,18 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
 			max = int(remain)
 		}
 		inPipe, err = spliceDrain(pwfd, src, max)
-		// the operation is considered handled if splice returns no error, or
-		// an error other than EINVAL. An EINVAL means the kernel does not
-		// support splice for the socket type of dst and/or src. The failed
-		// syscall does not consume any data so it is safe to fall back to a
-		// generic copy.
-		handled = handled || (err != syscall.EINVAL)
+		// The operation is considered handled if splice returns no
+		// error, or an error other than EINVAL. An EINVAL means the
+		// kernel does not support splice for the socket type of src.
+		// The failed syscall does not consume any data so it is safe
+		// to fall back to a generic copy.
+		//
 		// spliceDrain should never return EAGAIN, so if err != nil,
-		// Splice cannot continue. If inPipe == 0 && err == nil,
-		// src is at EOF, and the transfer is complete.
+		// Splice cannot continue.
+		//
+		// If inPipe == 0 && err == nil, src is at EOF, and the
+		// transfer is complete.
+		handled = handled || (err != syscall.EINVAL)
 		if err != nil || (inPipe == 0 && err == nil) {
 			break
 		}
