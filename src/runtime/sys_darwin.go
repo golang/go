@@ -370,5 +370,5 @@ func closeonexec(fd int32) {
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
-// TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
+// TODO: Why does the code require this?  See cmd/link/internal/ld/go.go
 //go:cgo_import_dynamic _ _ "/usr/lib/libSystem.B.dylib"
