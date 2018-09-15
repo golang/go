@@ -3341,7 +3341,7 @@ func typecheckas(n *Node) {
 	checkassign(n, n.Left)
 	if n.Right != nil && n.Right.Type != nil {
 		if n.Right.Type.IsFuncArgStruct() {
-			yyerror("assignment mismatch: 1 variable but %d values", n.Right.Type.NumFields())
+			yyerror("assignment mismatch: 1 variable but %v returns %d values", n.Right.Left, n.Right.Type.NumFields())
 			// Multi-value RHS isn't actually valid for OAS; nil out
 			// to indicate failed typechecking.
 			n.Right.Type = nil
@@ -3486,7 +3486,12 @@ func typecheckas2(n *Node) {
 	}
 
 mismatch:
-	yyerror("assignment mismatch: %d variables but %d values", cl, cr)
+	switch r.Op {
+	default:
+		yyerror("assignment mismatch: %d variable but %d values", cl, cr)
+	case OCALLFUNC, OCALLMETH, OCALLINTER:
+		yyerror("assignment mismatch: %d variables but %v returns %d values", cl, r.Left, cr)
+	}
 
 	// second half of dance
 out:
