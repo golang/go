@@ -272,14 +272,14 @@ func init() {
 		{name: "UCOMISS", argLength: 2, reg: fp2flags, asm: "UCOMISS", typ: "Flags"}, // arg0 compare to arg1, f32
 		{name: "UCOMISD", argLength: 2, reg: fp2flags, asm: "UCOMISD", typ: "Flags"}, // arg0 compare to arg1, f64
 
-		{name: "BTL", argLength: 2, reg: gp2flags, asm: "BTL", typ: "Flags"},                                           // test whether bit arg0 % 32 in arg1 is set
-		{name: "BTQ", argLength: 2, reg: gp2flags, asm: "BTQ", typ: "Flags"},                                           // test whether bit arg0 % 64 in arg1 is set
-		{name: "BTCL", argLength: 2, reg: gp21, asm: "BTCL", resultInArg0: true, clobberFlags: true},                   // complement bit arg0 % 32 in arg1
-		{name: "BTCQ", argLength: 2, reg: gp21, asm: "BTCQ", resultInArg0: true, clobberFlags: true},                   // complement bit arg0 % 64 in arg1
-		{name: "BTRL", argLength: 2, reg: gp21, asm: "BTRL", resultInArg0: true, clobberFlags: true},                   // reset bit arg0 % 32 in arg1
-		{name: "BTRQ", argLength: 2, reg: gp21, asm: "BTRQ", resultInArg0: true, clobberFlags: true},                   // reset bit arg0 % 64 in arg1
-		{name: "BTSL", argLength: 2, reg: gp21, asm: "BTSL", resultInArg0: true, clobberFlags: true},                   // set bit arg0 % 32 in arg1
-		{name: "BTSQ", argLength: 2, reg: gp21, asm: "BTSQ", resultInArg0: true, clobberFlags: true},                   // set bit arg0 % 64 in arg1
+		{name: "BTL", argLength: 2, reg: gp2flags, asm: "BTL", typ: "Flags"},                                           // test whether bit arg0%32 in arg1 is set
+		{name: "BTQ", argLength: 2, reg: gp2flags, asm: "BTQ", typ: "Flags"},                                           // test whether bit arg0%64 in arg1 is set
+		{name: "BTCL", argLength: 2, reg: gp21, asm: "BTCL", resultInArg0: true, clobberFlags: true},                   // complement bit arg1%32 in arg0
+		{name: "BTCQ", argLength: 2, reg: gp21, asm: "BTCQ", resultInArg0: true, clobberFlags: true},                   // complement bit arg1%64 in arg0
+		{name: "BTRL", argLength: 2, reg: gp21, asm: "BTRL", resultInArg0: true, clobberFlags: true},                   // reset bit arg1%32 in arg0
+		{name: "BTRQ", argLength: 2, reg: gp21, asm: "BTRQ", resultInArg0: true, clobberFlags: true},                   // reset bit arg1%64 in arg0
+		{name: "BTSL", argLength: 2, reg: gp21, asm: "BTSL", resultInArg0: true, clobberFlags: true},                   // set bit arg1%32 in arg0
+		{name: "BTSQ", argLength: 2, reg: gp21, asm: "BTSQ", resultInArg0: true, clobberFlags: true},                   // set bit arg1%64 in arg0
 		{name: "BTLconst", argLength: 1, reg: gp1flags, asm: "BTL", typ: "Flags", aux: "Int8"},                         // test whether bit auxint in arg0 is set, 0 <= auxint < 32
 		{name: "BTQconst", argLength: 1, reg: gp1flags, asm: "BTQ", typ: "Flags", aux: "Int8"},                         // test whether bit auxint in arg0 is set, 0 <= auxint < 64
 		{name: "BTCLconst", argLength: 1, reg: gp11, asm: "BTCL", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // complement bit auxint in arg0, 0 <= auxint < 32
