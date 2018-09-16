@@ -99,6 +99,6 @@ func main() {
 	}()
 	err = cmd.Wait()
 	if err != nil {
-		t.Fatalf("Program exited with error: %v\n%v", err, b.String())
+		t.Fatalf("Program exited with error: %v\n%s", err, b.Bytes())
 	}
 }
