@@ -1312,7 +1312,7 @@ opswitch:
 						b = conv(b, convType)
 						b = nod(OLSH, b, nodintconst(int64(8*offset)))
 						ncsubstr = nod(OOR, ncsubstr, b)
-						csubstr = csubstr | int64(s[i+offset])<<uint8(8*offset)
+						csubstr |= int64(s[i+offset]) << uint8(8*offset)
 					}
 					csubstrPart := nodintconst(csubstr)
 					// Compare "step" bytes as once
