@@ -140,20 +140,12 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		// order code.
 		switch obj := obj.(type) {
 		case *Const:
-			if check.typeCycle(obj) {
-				obj.typ = Typ[Invalid]
-				break
-			}
-			if obj.typ == nil {
+			if check.typeCycle(obj) || obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
 		case *Var:
-			if check.typeCycle(obj) {
-				obj.typ = Typ[Invalid]
-				break
-			}
-			if obj.typ == nil {
+			if check.typeCycle(obj) || obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
