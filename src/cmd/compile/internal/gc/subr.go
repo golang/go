@@ -1728,11 +1728,10 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	Curfn = fn
 	typecheckslice(fn.Nbody.Slice(), Etop)
 
-	// TODO(mdempsky): Investigate why this doesn't work with
-	// indexed export. For now, we disable even in non-indexed
-	// mode to ensure fair benchmark comparisons and to track down
-	// unintended compilation differences.
-	if false {
+	// Inline calls within (*T).M wrappers. This is safe because we only
+	// generate those wrappers within the same compilation unit as (T).M.
+	// TODO(mdempsky): Investigate why we can't enable this more generally.
+	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
 		inlcalls(fn)
 	}
 	escAnalyze([]*Node{fn}, false)
