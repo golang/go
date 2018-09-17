@@ -484,7 +484,7 @@ func (x ByTopo) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x ByTopo) Less(i, j int) bool {
 	a := x[i]
 	b := x[j]
-	if a.Filename == a.Filename {
+	if a.Filename == b.Filename {
 		return a.StartLineno < b.StartLineno
 	}
 	return a.Filename < b.Filename
