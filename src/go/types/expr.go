@@ -1010,7 +1010,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		check.ident(x, e, nil)
+		check.ident(x, e, nil, false)
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are legal
