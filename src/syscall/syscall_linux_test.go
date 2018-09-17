@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 // chtmpdir changes the working directory to a new temporary directory and
@@ -294,7 +295,7 @@ func TestSyscallNoError(t *testing.T) {
 	// On Linux there are currently no syscalls which don't fail and return
 	// a value larger than 0xfffffffffffff001 so we could test RawSyscall
 	// vs. RawSyscallNoError on 64bit architectures.
-	if runtime.GOARCH != "386" && runtime.GOARCH != "arm" {
+	if unsafe.Sizeof(uintptr(0)) != 4 {
 		t.Skip("skipping on non-32bit architecture")
 	}
 
