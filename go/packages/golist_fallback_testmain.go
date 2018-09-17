@@ -27,16 +27,66 @@ import (
 // This file complements golist_fallback.go by providing
 // support for generating testmains.
 
-func generateTestmain(out string, testPkg, xtestPkg *Package) (extradeps []string, err error) {
+func generateTestmain(out string, testPkg, xtestPkg *Package) (extraimports, extradeps []string, err error) {
 	testFuncs, err := loadTestFuncs(testPkg, xtestPkg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	extradeps = []string{"testing/internal/testdeps", "testing"}
+	extraimports = []string{"testing", "testing/internal/testdeps"}
 	if testFuncs.TestMain == nil {
-		extradeps = append(extradeps, "os")
+		extraimports = append(extraimports, "os")
 	}
-	return extradeps, writeTestmain(out, testFuncs)
+	// Transitive dependencies of ("testing", "testing/internal/testdeps").
+	// os is part of the transitive closure so it and its transitive dependencies are
+	// included regardless of whether it's imported in the template below.
+	extradeps = []string{
+		"errors",
+		"internal/cpu",
+		"unsafe",
+		"internal/bytealg",
+		"internal/race",
+		"runtime/internal/atomic",
+		"runtime/internal/sys",
+		"runtime",
+		"sync/atomic",
+		"sync",
+		"io",
+		"unicode",
+		"unicode/utf8",
+		"bytes",
+		"math",
+		"syscall",
+		"time",
+		"internal/poll",
+		"internal/syscall/unix",
+		"internal/testlog",
+		"os",
+		"math/bits",
+		"strconv",
+		"reflect",
+		"fmt",
+		"sort",
+		"strings",
+		"flag",
+		"runtime/debug",
+		"context",
+		"runtime/trace",
+		"testing",
+		"bufio",
+		"regexp/syntax",
+		"regexp",
+		"compress/flate",
+		"encoding/binary",
+		"hash",
+		"hash/crc32",
+		"compress/gzip",
+		"path/filepath",
+		"io/ioutil",
+		"text/tabwriter",
+		"runtime/pprof",
+		"testing/internal/testdeps",
+	}
+	return extraimports, extradeps, writeTestmain(out, testFuncs)
 }
 
 // The following is adapted from the cmd/go testmain generation code.

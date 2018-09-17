@@ -240,10 +240,6 @@ func TestLoadImportsGraph(t *testing.T) {
 }
 
 func TestLoadImportsTestVariants(t *testing.T) {
-	if usesOldGolist {
-		t.Skip("not yet supported in pre-Go 1.10.4 golist fallback implementation")
-	}
-
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go":       `package a; import _ "b"`,
 		"src/b/b.go":       `package b`,
