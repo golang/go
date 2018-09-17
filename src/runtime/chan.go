@@ -92,7 +92,7 @@ func makechan(t *chantype, size int) *hchan {
 		// Queue or element size is zero.
 		c = (*hchan)(mallocgc(hchanSize, nil, true))
 		// Race detector uses this location for synchronization.
-		c.buf = unsafe.Pointer(c)
+		c.buf = c.raceaddr()
 	case elem.kind&kindNoPointers != 0:
 		// Elements do not contain pointers.
 		// Allocate hchan and buf in one call.
@@ -151,7 +151,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	}
 
 	if raceenabled {
-		racereadpc(unsafe.Pointer(c), callerpc, funcPC(chansend))
+		racereadpc(c.raceaddr(), callerpc, funcPC(chansend))
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -337,8 +337,8 @@ func closechan(c *hchan) {
 
 	if raceenabled {
 		callerpc := getcallerpc()
-		racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
-		racerelease(unsafe.Pointer(c))
+		racewritepc(c.raceaddr(), callerpc, funcPC(closechan))
+		racerelease(c.raceaddr())
 	}
 
 	c.closed = 1
@@ -361,7 +361,7 @@ func closechan(c *hchan) {
 		gp := sg.g
 		gp.param = nil
 		if raceenabled {
-			raceacquireg(gp, unsafe.Pointer(c))
+			raceacquireg(gp, c.raceaddr())
 		}
 		gp.schedlink.set(glist)
 		glist = gp
@@ -380,7 +380,7 @@ func closechan(c *hchan) {
 		gp := sg.g
 		gp.param = nil
 		if raceenabled {
-			raceacquireg(gp, unsafe.Pointer(c))
+			raceacquireg(gp, c.raceaddr())
 		}
 		gp.schedlink.set(glist)
 		glist = gp
@@ -457,7 +457,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 
 	if c.closed != 0 && c.qcount == 0 {
 		if raceenabled {
-			raceacquire(unsafe.Pointer(c))
+			raceacquire(c.raceaddr())
 		}
 		unlock(&c.lock)
 		if ep != nil {
@@ -733,6 +733,15 @@ func (q *waitq) dequeue() *sudog {
 
 		return sgp
 	}
+}
+
+func (c *hchan) raceaddr() unsafe.Pointer {
+	// Treat read-like and write-like operations on the channel to
+	// happen at this address. Avoid using the address of qcount
+	// or dataqsiz, because the len() and cap() builtins read
+	// those addresses, and we don't want them racing with
+	// operations like close().
+	return unsafe.Pointer(&c.buf)
 }
 
 func racesync(c *hchan, sg *sudog) {
