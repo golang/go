@@ -1,0 +1,3 @@
+package c
+
+import _ "b" // want `audience="world" greeting="hello" pi=3.14159`
