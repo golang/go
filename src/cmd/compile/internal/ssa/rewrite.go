@@ -234,7 +234,6 @@ func canMergeLoad(target, load, x *Value) bool {
 	// memPreds contains memory states known to be predecessors of load's
 	// memory state. It is lazily initialized.
 	var memPreds map[*Value]bool
-search:
 	for i := 0; len(args) > 0; i++ {
 		const limit = 100
 		if i >= limit {
@@ -246,13 +245,13 @@ search:
 		if target.Block.ID != v.Block.ID {
 			// Since target and load are in the same block
 			// we can stop searching when we leave the block.
-			continue search
+			continue
 		}
 		if v.Op == OpPhi {
 			// A Phi implies we have reached the top of the block.
 			// The memory phi, if it exists, is always
 			// the first logical store in the block.
-			continue search
+			continue
 		}
 		if v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
 			// We could handle this situation however it is likely
@@ -296,14 +295,14 @@ search:
 			//   load = read ... mem
 			// target = add x load
 			if memPreds[v] {
-				continue search
+				continue
 			}
 			return false
 		}
 		if len(v.Args) > 0 && v.Args[len(v.Args)-1] == mem {
 			// If v takes mem as an input then we know mem
 			// is valid at this point.
-			continue search
+			continue
 		}
 		for _, a := range v.Args {
 			if target.Block.ID == a.Block.ID {
