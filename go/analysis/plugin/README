@@ -1,0 +1,8 @@
+
+This directory does not contain a Go package,
+but acts as a container for various analyses
+that implement the golang.org/x/tools/go/analysis
+API and may be imported into an analysis tool.
+
+By convention, each package foo provides the analysis,
+and each command foo/cmd/foo provides a standalone driver.
