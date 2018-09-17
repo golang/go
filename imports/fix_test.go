@@ -1552,12 +1552,7 @@ type Buffer2 struct {}
 }
 
 func withEmptyGoPath(fn func()) {
-	populateIgnoreOnce = sync.Once{}
-	scanGoRootOnce = sync.Once{}
-	scanGoPathOnce = sync.Once{}
-	dirScan = nil
-	ignoredDirs = nil
-	scanGoRootDone = make(chan struct{})
+	scanOnce = sync.Once{}
 
 	oldGOPATH := build.Default.GOPATH
 	oldGOROOT := build.Default.GOROOT
@@ -1916,31 +1911,6 @@ const _ = runtime.GOOS
 			}
 		})
 	}
-}
-
-// Tests that running goimport on files in GOROOT (for people hacking
-// on Go itself) don't cause the GOPATH to be scanned (which might be
-// much bigger).
-func TestOptimizationWhenInGoroot(t *testing.T) {
-	testConfig{
-		gopathFiles: map[string]string{
-			"foo/foo.go": "package foo\nconst X = 1\n",
-		},
-	}.test(t, func(t *goimportTest) {
-		testHookScanDir = func(dir string) {
-			if dir != filepath.Join(build.Default.GOROOT, "src") {
-				t.Errorf("unexpected dir scan of %s", dir)
-			}
-		}
-		const in = "package foo\n\nconst Y = bar.X\n"
-		buf, err := Process(t.goroot+"/src/foo/foo.go", []byte(in), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(buf) != in {
-			t.Errorf("got:\n%q\nwant unchanged:\n%q\n", in, buf)
-		}
-	})
 }
 
 // Tests that "package documentation" files are ignored.
@@ -2362,7 +2332,7 @@ func TestShouldTraverse(t *testing.T) {
 			t.Errorf("%d. Stat = %v", i, err)
 			continue
 		}
-		got := shouldTraverse(tt.dir, fi)
+		got := shouldTraverse(tt.dir, fi, nil)
 		if got != tt.want {
 			t.Errorf("%d. shouldTraverse(%q, %q) = %v; want %v", i, tt.dir, tt.file, got, tt.want)
 		}
