@@ -1418,7 +1418,7 @@ opswitch:
 			// Maximum key and value size is 128 bytes, larger objects
 			// are stored with an indirection. So max bucket size is 2048+eps.
 			if !Isconst(hint, CTINT) ||
-				!(hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) > 0) {
+				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
 				// var bv bmap
 				bv := temp(bmap(t))
 
