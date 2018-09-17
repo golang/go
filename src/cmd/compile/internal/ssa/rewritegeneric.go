@@ -2445,42 +2445,6 @@ func rewriteValuegeneric_OpAdd32F_0(v *Value) bool {
 		v.AuxInt = auxFrom32F(auxTo32F(c) + auxTo32F(d))
 		return true
 	}
-	// match: (Add32F x (Const32F [0]))
-	// cond:
-	// result: x
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst32F {
-			break
-		}
-		if v_1.AuxInt != 0 {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (Add32F (Const32F [0]) x)
-	// cond:
-	// result: x
-	for {
-		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpConst32F {
-			break
-		}
-		if v_0.AuxInt != 0 {
-			break
-		}
-		x := v.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
 	return false
 }
 func rewriteValuegeneric_OpAdd64_0(v *Value) bool {
@@ -3488,42 +3452,6 @@ func rewriteValuegeneric_OpAdd64F_0(v *Value) bool {
 		c := v_1.AuxInt
 		v.reset(OpConst64F)
 		v.AuxInt = auxFrom64F(auxTo64F(c) + auxTo64F(d))
-		return true
-	}
-	// match: (Add64F x (Const64F [0]))
-	// cond:
-	// result: x
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64F {
-			break
-		}
-		if v_1.AuxInt != 0 {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (Add64F (Const64F [0]) x)
-	// cond:
-	// result: x
-	for {
-		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpConst64F {
-			break
-		}
-		if v_0.AuxInt != 0 {
-			break
-		}
-		x := v.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
 		return true
 	}
 	return false
@@ -29841,24 +29769,6 @@ func rewriteValuegeneric_OpSub32F_0(v *Value) bool {
 		v.AuxInt = auxFrom32F(auxTo32F(c) - auxTo32F(d))
 		return true
 	}
-	// match: (Sub32F x (Const32F [0]))
-	// cond:
-	// result: x
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst32F {
-			break
-		}
-		if v_1.AuxInt != 0 {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
 	return false
 }
 func rewriteValuegeneric_OpSub64_0(v *Value) bool {
@@ -30263,24 +30173,6 @@ func rewriteValuegeneric_OpSub64F_0(v *Value) bool {
 		d := v_1.AuxInt
 		v.reset(OpConst64F)
 		v.AuxInt = auxFrom64F(auxTo64F(c) - auxTo64F(d))
-		return true
-	}
-	// match: (Sub64F x (Const64F [0]))
-	// cond:
-	// result: x
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64F {
-			break
-		}
-		if v_1.AuxInt != 0 {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
 		return true
 	}
 	return false

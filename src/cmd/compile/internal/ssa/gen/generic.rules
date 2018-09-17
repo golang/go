@@ -1329,9 +1329,6 @@
 (Mul8  (Const8  <t> [c]) (Mul8  (Const8  <t> [d]) x)) -> (Mul8  (Const8  <t> [int64(int8(c*d))]) x)
 
 // floating point optimizations
-(Add(32|64)F x (Const(32|64)F [0])) -> x
-(Sub(32|64)F x (Const(32|64)F [0])) -> x
-
 (Mul(32|64)F x (Const(32|64)F [auxFrom64F(1)])) -> x
 (Mul32F x (Const32F [auxFrom32F(-1)])) -> (Neg32F x)
 (Mul64F x (Const64F [auxFrom64F(-1)])) -> (Neg64F x)
