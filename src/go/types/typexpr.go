@@ -16,7 +16,7 @@ import (
 
 // ident type-checks identifier e and initializes x with the value or type of e.
 // If an error occurred, x.mode is set to invalid.
-// For the meaning of def, see check.typExpr, below.
+// For the meaning of def, see Checker.definedType, below.
 //
 func (check *Checker) ident(x *operand, e *ast.Ident, def *Named) {
 	x.mode = invalid
