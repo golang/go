@@ -1419,7 +1419,7 @@ func describeEscape(em uint16) string {
 		}
 		s += "contentToHeap"
 	}
-	for em >>= EscReturnBits; em != 0; em = em >> bitsPerOutputInTag {
+	for em >>= EscReturnBits; em != 0; em >>= bitsPerOutputInTag {
 		// See encoding description above
 		if s != "" {
 			s += " "
@@ -1469,7 +1469,7 @@ func (e *EscState) escassignfromtag(note string, dsts Nodes, src, call *Node) ui
 
 	em0 := em
 	dstsi := 0
-	for em >>= EscReturnBits; em != 0 && dstsi < dsts.Len(); em = em >> bitsPerOutputInTag {
+	for em >>= EscReturnBits; em != 0 && dstsi < dsts.Len(); em >>= bitsPerOutputInTag {
 		// Prefer the lowest-level path to the reference (for escape purposes).
 		// Two-bit encoding (for example. 1, 3, and 4 bits are other options)
 		//  01 = 0-level
