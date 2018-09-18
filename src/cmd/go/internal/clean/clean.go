@@ -158,7 +158,7 @@ func runClean(cmd *base.Command, args []string) {
 			base.Fatalf("go clean -modcache: no module cache")
 		}
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -r %s", modfetch.PkgMod)
+			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
 		}
 		if !cfg.BuildN {
 			if err := removeAll(modfetch.PkgMod); err != nil {
