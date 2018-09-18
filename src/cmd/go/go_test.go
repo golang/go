@@ -1074,6 +1074,8 @@ func testMove(t *testing.T, vcs, url, base, config string) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempDir("src")
+	tg.must(os.Mkdir(tg.path(".hg"), 0700))
+	tg.must(ioutil.WriteFile(filepath.Join(tg.path(".hg"), "hgrc"), nil, 0600))
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("get", "-d", url)
 	tg.run("get", "-d", "-u", url)
