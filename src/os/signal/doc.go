@@ -33,6 +33,9 @@ by default is ^\ (Control-Backslash). In general you can cause a
 program to simply exit by pressing ^C, and you can cause it to exit
 with a stack dump by pressing ^\.
 
+By default, signal receipt simply terminates execution rather than
+interrupting it. No defer hooks are fired before exit.
+
 Default behavior of signals in Go programs
 
 By default, a synchronous signal is converted into a run-time panic. A
