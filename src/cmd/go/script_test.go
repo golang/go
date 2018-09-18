@@ -53,32 +53,6 @@ func TestScript(t *testing.T) {
 	}
 }
 
-// TestScript runs the tests in testdata/script/*.txt.
-func TestCleanModeCache(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	if skipExternal {
-		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
-
-	files, err := filepath.Glob("testdata/script/mod_clean_cache.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, file := range files {
-		file := file
-		name := strings.TrimSuffix(filepath.Base(file), ".txt")
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			ts := &testScript{t: t, name: name, file: file}
-			ts.setup()
-			if !*testWork {
-				defer removeAll(ts.workdir)
-			}
-			ts.run()
-		})
-	}
-}
-
 // A testScript holds execution state for a single test script.
 type testScript struct {
 	t       *testing.T
