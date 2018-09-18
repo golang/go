@@ -32,6 +32,7 @@ func readDir(dirName string, fn func(dirName, entName string, typ os.FileMode) e
 	buf := make([]byte, blockSize) // stack-allocated; doesn't escape
 	bufp := 0                      // starting read position in buf
 	nbuf := 0                      // end valid data in buf
+	skipFiles := false
 	for {
 		if bufp >= nbuf {
 			bufp = 0
@@ -62,7 +63,14 @@ func readDir(dirName string, fn func(dirName, entName string, typ os.FileMode) e
 			}
 			typ = fi.Mode() & os.ModeType
 		}
+		if skipFiles && typ.IsRegular() {
+			continue
+		}
 		if err := fn(dirName, name, typ); err != nil {
+			if err == SkipFiles {
+				skipFiles = true
+				continue
+			}
 			return err
 		}
 	}

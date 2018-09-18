@@ -5,8 +5,6 @@
 package imports
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -24,7 +22,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/internal/fastwalk"
+	"golang.org/x/tools/internal/gopathwalk"
 )
 
 // Debug controls verbose logging.
@@ -523,195 +521,27 @@ func distance(basepath, targetpath string) int {
 	return strings.Count(p, string(filepath.Separator)) + 1
 }
 
-// getIgnoredDirs reads an optional config file at <path>/.goimportsignore
-// of relative directories to ignore when scanning for go files.
-// The provided path is one of the $GOPATH entries with "src" appended.
-func getIgnoredDirs(path string) []os.FileInfo {
-	file := filepath.Join(path, ".goimportsignore")
-	slurp, err := ioutil.ReadFile(file)
-	if Debug {
-		if err != nil {
-			log.Print(err)
-		} else {
-			log.Printf("Read %s", file)
-		}
-	}
-	if err != nil {
-		return nil
-	}
-
-	var ignoredDirs []os.FileInfo
-	bs := bufio.NewScanner(bytes.NewReader(slurp))
-	for bs.Scan() {
-		line := strings.TrimSpace(bs.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		full := filepath.Join(path, line)
-		if fi, err := os.Stat(full); err == nil {
-			ignoredDirs = append(ignoredDirs, fi)
-			if Debug {
-				log.Printf("Directory added to ignore list: %s", full)
-			}
-		} else if Debug {
-			log.Printf("Error statting entry in .goimportsignore: %v", err)
-		}
-	}
-	return ignoredDirs
-}
-
-func shouldSkipDir(fi os.FileInfo, ignoredDirs []os.FileInfo) bool {
-	for _, ignoredDir := range ignoredDirs {
-		if os.SameFile(fi, ignoredDir) {
-			return true
-		}
-	}
-	return false
-}
-
-// shouldTraverse reports whether the symlink fi, found in dir,
-// should be followed.  It makes sure symlinks were never visited
-// before to avoid symlink loops.
-func shouldTraverse(dir string, fi os.FileInfo, ignoredDirs []os.FileInfo) bool {
-	path := filepath.Join(dir, fi.Name())
-	target, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return false
-	}
-	ts, err := os.Stat(target)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return false
-	}
-	if !ts.IsDir() {
-		return false
-	}
-	if shouldSkipDir(ts, ignoredDirs) {
-		return false
-	}
-	// Check for symlink loops by statting each directory component
-	// and seeing if any are the same file as ts.
-	for {
-		parent := filepath.Dir(path)
-		if parent == path {
-			// Made it to the root without seeing a cycle.
-			// Use this symlink.
-			return true
-		}
-		parentInfo, err := os.Stat(parent)
-		if err != nil {
-			return false
-		}
-		if os.SameFile(ts, parentInfo) {
-			// Cycle. Don't traverse.
-			return false
-		}
-		path = parent
-	}
-
-}
-
-var testHookScanDir = func(dir string) {}
-
 // scanGoDirs populates the dirScan map for GOPATH and GOROOT.
 func scanGoDirs() map[string]*pkg {
 	result := make(map[string]*pkg)
 	var mu sync.Mutex
 
-	for _, srcDir := range build.Default.SrcDirs() {
-		if Debug {
-			log.Printf("scanning %s", srcDir)
-		}
+	add := func(srcDir, dir string) {
+		mu.Lock()
+		defer mu.Unlock()
 
-		testHookScanDir(srcDir)
-		w := &walker{
-			srcDir:      srcDir,
-			srcV:        filepath.Join(srcDir, "v"),
-			srcMod:      filepath.Join(srcDir, "mod"),
-			ignoredDirs: getIgnoredDirs(srcDir),
-			dirScanMu:   &mu,
-			dirScan:     result,
+		if _, dup := result[dir]; dup {
+			return
 		}
-		if err := fastwalk.Walk(srcDir, w.walk); err != nil {
-			log.Printf("goimports: scanning directory %v: %v", srcDir, err)
-		}
-
-		if Debug {
-			defer log.Printf("scanned %s", srcDir)
-		}
-	}
-	return result
-}
-
-// walker is the callback for fastwalk.Walk.
-type walker struct {
-	srcDir       string        // The source directory to scan.
-	srcV, srcMod string        // vgo-style module cache dirs. Optional.
-	ignoredDirs  []os.FileInfo // The ignored directories, loaded from .goimportsignore files.
-
-	dirScanMu *sync.Mutex     // The shared mutex guarding dirScan.
-	dirScan   map[string]*pkg // The results of the scan, sharable across multiple Walk calls.
-}
-
-func (w *walker) walk(path string, typ os.FileMode) error {
-	if path == w.srcV || path == w.srcMod {
-		return filepath.SkipDir
-	}
-	dir := filepath.Dir(path)
-	if typ.IsRegular() {
-		if dir == w.srcDir {
-			// Doesn't make sense to have regular files
-			// directly in your $GOPATH/src or $GOROOT/src.
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-
-		w.dirScanMu.Lock()
-		defer w.dirScanMu.Unlock()
-		if _, dup := w.dirScan[dir]; dup {
-			return nil
-		}
-		importpath := filepath.ToSlash(dir[len(w.srcDir)+len("/"):])
-		w.dirScan[dir] = &pkg{
+		importpath := filepath.ToSlash(dir[len(srcDir)+len("/"):])
+		result[dir] = &pkg{
 			importPath:      importpath,
 			importPathShort: VendorlessPath(importpath),
 			dir:             dir,
 		}
-		return nil
 	}
-	if typ == os.ModeDir {
-		base := filepath.Base(path)
-		if base == "" || base[0] == '.' || base[0] == '_' ||
-			base == "testdata" || base == "node_modules" {
-			return filepath.SkipDir
-		}
-		fi, err := os.Lstat(path)
-		if err == nil && shouldSkipDir(fi, w.ignoredDirs) {
-			if Debug {
-				log.Printf("skipping directory %q under %s", fi.Name(), dir)
-			}
-			return filepath.SkipDir
-		}
-		return nil
-	}
-	if typ == os.ModeSymlink {
-		base := filepath.Base(path)
-		if strings.HasPrefix(base, ".#") {
-			// Emacs noise.
-			return nil
-		}
-		fi, err := os.Lstat(path)
-		if err != nil {
-			// Just ignore it.
-			return nil
-		}
-		if shouldTraverse(dir, fi, w.ignoredDirs) {
-			return fastwalk.TraverseLink
-		}
-	}
-	return nil
+	gopathwalk.Walk(add, gopathwalk.Options{Debug: Debug, ModulesEnabled: false})
+	return result
 }
 
 // VendorlessPath returns the devendorized version of the import path ipath.

@@ -18,6 +18,11 @@ import (
 // symlink named in the call may be traversed.
 var TraverseLink = errors.New("fastwalk: traverse symlink, assuming target is a directory")
 
+// SkipFiles is a used as a return value from WalkFuncs to indicate that the
+// callback should not be called for any other files in the current directory.
+// Child directories will still be traversed.
+var SkipFiles = errors.New("fastwalk: skip remaining files in directory")
+
 // Walk is a faster implementation of filepath.Walk.
 //
 // filepath.Walk's design necessarily calls os.Lstat on each file,
