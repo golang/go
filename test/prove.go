@@ -726,6 +726,123 @@ func signHint2(b []byte, n int) {
 	}
 }
 
+// Induction variable in unrolled loop.
+func unrollUpExcl(a []int) int {
+	var i, x int
+	for i = 0; i < len(a)-1; i += 2 { // ERROR "Induction variable: limits \[0,\?\), increment 2$"
+		x += a[i] // ERROR "Proved IsInBounds$"
+		x += a[i+1]
+	}
+	if i == len(a)-1 {
+		x += a[i]
+	}
+	return x
+}
+
+// Induction variable in unrolled loop.
+func unrollUpIncl(a []int) int {
+	var i, x int
+	for i = 0; i <= len(a)-2; i += 2 { // ERROR "Induction variable: limits \[0,\?\], increment 2$"
+		x += a[i]
+		x += a[i+1]
+	}
+	if i == len(a)-1 {
+		x += a[i]
+	}
+	return x
+}
+
+// Induction variable in unrolled loop.
+func unrollDownExcl0(a []int) int {
+	var i, x int
+	for i = len(a) - 1; i > 0; i -= 2 { // ERROR "Induction variable: limits \(0,\?\], increment 2$"
+		x += a[i]   // ERROR "Proved IsInBounds$"
+		x += a[i-1] // ERROR "Proved IsInBounds$"
+	}
+	if i == 0 {
+		x += a[i]
+	}
+	return x
+}
+
+// Induction variable in unrolled loop.
+func unrollDownExcl1(a []int) int {
+	var i, x int
+	for i = len(a) - 1; i >= 1; i -= 2 { // ERROR "Induction variable: limits \[1,\?\], increment 2$"
+		x += a[i]   // ERROR "Proved IsInBounds$"
+		x += a[i-1] // ERROR "Proved IsInBounds$"
+	}
+	if i == 0 {
+		x += a[i]
+	}
+	return x
+}
+
+// Induction variable in unrolled loop.
+func unrollDownInclStep(a []int) int {
+	var i, x int
+	for i = len(a); i >= 2; i -= 2 { // ERROR "Induction variable: limits \[2,\?\], increment 2$"
+		x += a[i-1] // ERROR "Proved IsInBounds$"
+		x += a[i-2]
+	}
+	if i == 1 {
+		x += a[i-1]
+	}
+	return x
+}
+
+// Not an induction variable (step too large)
+func unrollExclStepTooLarge(a []int) int {
+	var i, x int
+	for i = 0; i < len(a)-1; i += 3 {
+		x += a[i]
+		x += a[i+1]
+	}
+	if i == len(a)-1 {
+		x += a[i]
+	}
+	return x
+}
+
+// Not an induction variable (step too large)
+func unrollInclStepTooLarge(a []int) int {
+	var i, x int
+	for i = 0; i <= len(a)-2; i += 3 {
+		x += a[i]
+		x += a[i+1]
+	}
+	if i == len(a)-1 {
+		x += a[i]
+	}
+	return x
+}
+
+// Not an induction variable (min too small, iterating down)
+func unrollDecMin(a []int) int {
+	var i, x int
+	for i = len(a); i >= math.MinInt64; i -= 2 {
+		x += a[i-1]
+		x += a[i-2]
+	}
+	if i == 1 { // ERROR "Disproved Eq64$"
+		x += a[i-1]
+	}
+	return x
+}
+
+// Not an induction variable (min too small, iterating up -- perhaps could allow, but why bother?)
+func unrollIncMin(a []int) int {
+	var i, x int
+	for i = len(a); i >= math.MinInt64; i += 2 {
+		x += a[i-1]
+		x += a[i-2]
+	}
+	if i == 1 { // ERROR "Disproved Eq64$"
+		x += a[i-1]
+	}
+	return x
+}
+
 //go:noinline
 func useInt(a int) {
 }
