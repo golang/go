@@ -299,10 +299,10 @@ func (a *Mpint) SetString(as string) {
 	}
 }
 
-func (a *Mpint) String() string {
+func (a *Mpint) GoString() string {
 	return a.Val.String()
 }
 
-func bconv(a *Mpint) string {
+func (a *Mpint) String() string {
 	return fmt.Sprintf("%#x", &a.Val)
 }
