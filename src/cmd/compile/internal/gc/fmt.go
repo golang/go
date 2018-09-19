@@ -1304,16 +1304,14 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		mode.Fprintf(s, "%v { %v }", n.Type, n.Func.Closure.Nbody)
 
 	case OCOMPLIT:
-		ptrlit := n.Right != nil && n.Right.Implicit() && n.Right.Type != nil && n.Right.Type.IsPtr()
 		if mode == FErr {
 			if n.Right != nil && n.Right.Type != nil && !n.Implicit() {
-				if ptrlit {
+				if n.Right.Implicit() && n.Right.Type.IsPtr() {
 					mode.Fprintf(s, "&%v literal", n.Right.Type.Elem())
 					return
-				} else {
-					mode.Fprintf(s, "%v literal", n.Right.Type)
-					return
 				}
+				mode.Fprintf(s, "%v literal", n.Right.Type)
+				return
 			}
 
 			fmt.Fprint(s, "composite literal")
