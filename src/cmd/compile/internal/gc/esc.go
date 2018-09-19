@@ -705,6 +705,10 @@ func (e *EscState) isSliceSelfAssign(dst, src *Node) bool {
 // isSelfAssign reports whether assignment from src to dst can
 // be ignored by the escape analysis as it's effectively a self-assignment.
 func (e *EscState) isSelfAssign(dst, src *Node) bool {
+	if e.isSliceSelfAssign(dst, src) {
+		return true
+	}
+
 	// Detect trivial assignments that assign back to the same object.
 	//
 	// It covers these cases:
@@ -890,13 +894,6 @@ opSwitch:
 
 	case OAS, OASOP:
 		// Filter out some no-op assignments for escape analysis.
-		if e.isSliceSelfAssign(n.Left, n.Right) {
-			if Debug['m'] != 0 {
-				Warnl(n.Pos, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
-			}
-
-			break
-		}
 		if e.isSelfAssign(n.Left, n.Right) {
 			if Debug['m'] != 0 {
 				Warnl(n.Pos, "%v ignoring self-assignment in %S", e.curfnSym(n), n)
