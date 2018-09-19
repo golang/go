@@ -514,10 +514,10 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
 	case *Mpint:
 		if !u.Rune {
 			if flag&FmtSharp != 0 {
-				fmt.Fprint(s, bconv(u, FmtSharp))
+				fmt.Fprint(s, bconv(u))
 				return
 			}
-			fmt.Fprint(s, bconv(u, 0))
+			fmt.Fprint(s, u.String())
 			return
 		}
 
