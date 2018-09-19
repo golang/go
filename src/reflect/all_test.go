@@ -779,6 +779,7 @@ var (
 	fn1 func()             // nil.
 	fn2 func()             // nil.
 	fn3 = func() { fn1() } // Not nil.
+	fn4 = fn3
 )
 
 type self struct{}
@@ -811,6 +812,8 @@ var deepEqualTests = []DeepEqualTest{
 	{error(nil), error(nil), true},
 	{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
 	{fn1, fn2, true},
+	{fn3, fn3, true},
+	{fn3, fn4, true},
 
 	// Inequalities
 	{1, 2, false},
@@ -829,7 +832,6 @@ var deepEqualTests = []DeepEqualTest{
 	{nil, 1, false},
 	{1, nil, false},
 	{fn1, fn3, false},
-	{fn3, fn3, false},
 	{[][]int{{1}}, [][]int{{2}}, false},
 	{math.NaN(), math.NaN(), false},
 	{&[1]float64{math.NaN()}, &[1]float64{math.NaN()}, false},

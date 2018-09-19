@@ -124,9 +124,12 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 	case Func:
 		if v1.IsNil() && v2.IsNil() {
 			return true
+		} else if v1.Pointer() == v2.Pointer() {
+			return true
+		} else {
+			// Can't do better than this:
+			return false
 		}
-		// Can't do better than this:
-		return false
 	default:
 		// Normal equality suffices
 		return valueInterface(v1, false) == valueInterface(v2, false)
