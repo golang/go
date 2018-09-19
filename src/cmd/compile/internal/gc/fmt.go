@@ -537,10 +537,10 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
 
 	case *Mpflt:
 		if flag&FmtSharp != 0 {
-			fmt.Fprint(s, fconv(u, 0))
+			fmt.Fprint(s, u.String())
 			return
 		}
-		fmt.Fprint(s, fconv(u, FmtSharp))
+		fmt.Fprint(s, fconv(u))
 		return
 
 	case *Mpcplx:
@@ -549,16 +549,13 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
 			fmt.Fprintf(s, "(%v+%vi)", &u.Real, &u.Imag)
 
 		case v.U.(*Mpcplx).Real.CmpFloat64(0) == 0:
-			fmt.Fprintf(s, "%vi", fconv(&u.Imag, FmtSharp))
+			fmt.Fprintf(s, "%vi", fconv(&u.Imag))
 
 		case v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0:
-			fmt.Fprint(s, fconv(&u.Real, FmtSharp))
-
-		case v.U.(*Mpcplx).Imag.CmpFloat64(0) < 0:
-			fmt.Fprintf(s, "(%v%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
+			fmt.Fprint(s, fconv(&u.Real))
 
 		default:
-			fmt.Fprintf(s, "(%v+%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
+			fmt.Fprintf(s, "(%v)", cconv(u))
 		}
 
 	case string:
