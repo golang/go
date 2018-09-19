@@ -476,7 +476,7 @@ func toflt(v Val) Val {
 		f := newMpflt()
 		f.Set(&u.Real)
 		if u.Imag.CmpFloat64(0) != 0 {
-			yyerror("constant %v truncated to real", cconv(u))
+			yyerror("constant %v truncated to real", u.GoString())
 		}
 		v.U = f
 	}
@@ -509,11 +509,11 @@ func toint(v Val) Val {
 				// value from the error message.
 				// (See issue #11371).
 				var t big.Float
-				t.Parse(fconv(u), 10)
+				t.Parse(u.GoString(), 10)
 				if t.IsInt() {
 					yyerror("constant truncated to integer")
 				} else {
-					yyerror("constant %v truncated to integer", fconv(u))
+					yyerror("constant %v truncated to integer", u.GoString())
 				}
 			}
 		}
@@ -522,7 +522,7 @@ func toint(v Val) Val {
 	case *Mpcplx:
 		i := new(Mpint)
 		if !i.SetFloat(&u.Real) || u.Imag.CmpFloat64(0) != 0 {
-			yyerror("constant %v truncated to integer", cconv(u))
+			yyerror("constant %v truncated to integer", u.GoString())
 		}
 
 		v.U = i

@@ -204,7 +204,7 @@ func (f *Mpflt) String() string {
 	return f.Val.Text('b', 0)
 }
 
-func fconv(fvp *Mpflt) string {
+func (fvp *Mpflt) GoString() string {
 	// determine sign
 	sign := ""
 	f := &fvp.Val
@@ -327,11 +327,33 @@ func (v *Mpcplx) Div(rv *Mpcplx) bool {
 	return true
 }
 
-func cconv(v *Mpcplx) string {
-	re := fconv(&v.Real)
-	im := fconv(&v.Imag)
-	if im[0] == '-' {
-		return re + im + "i"
+func (v *Mpcplx) String() string {
+	return fmt.Sprintf("(%s+%si)", v.Real.String(), v.Imag.String())
+}
+
+func (v *Mpcplx) GoString() string {
+	var re string
+	sre := v.Real.CmpFloat64(0)
+	if sre != 0 {
+		re = v.Real.GoString()
 	}
-	return re + "+" + im + "i"
+
+	var im string
+	sim := v.Imag.CmpFloat64(0)
+	if sim != 0 {
+		im = v.Imag.GoString()
+	}
+
+	switch {
+	case sre == 0 && sim == 0:
+		return "0"
+	case sre == 0:
+		return im + "i"
+	case sim == 0:
+		return re
+	case sim < 0:
+		return fmt.Sprintf("(%s%si)", re, im)
+	default:
+		return fmt.Sprintf("(%s+%si)", re, im)
+	}
 }
