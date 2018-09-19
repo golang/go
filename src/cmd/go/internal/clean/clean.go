@@ -112,9 +112,10 @@ func runClean(cmd *base.Command, args []string) {
 		}
 	}
 
+	var b work.Builder
+	b.Print = fmt.Print
+
 	if cleanCache {
-		var b work.Builder
-		b.Print = fmt.Print
 		dir := cache.DefaultDir()
 		if dir != "off" {
 			// Remove the cache subdirectories but not the top cache directory.
@@ -156,8 +157,13 @@ func runClean(cmd *base.Command, args []string) {
 		if modfetch.PkgMod == "" {
 			base.Fatalf("go clean -modcache: no module cache")
 		}
-		if err := removeAll(modfetch.PkgMod); err != nil {
-			base.Errorf("go clean -modcache: %v", err)
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
+		}
+		if !cfg.BuildN {
+			if err := removeAll(modfetch.PkgMod); err != nil {
+				base.Errorf("go clean -modcache: %v", err)
+			}
 		}
 	}
 }
