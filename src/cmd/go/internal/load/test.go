@@ -227,6 +227,12 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		}
 	}
 
+	allTestImports := make([]*Package, 0, len(pmain.Internal.Imports)+len(imports)+len(ximports))
+	allTestImports = append(allTestImports, pmain.Internal.Imports...)
+	allTestImports = append(allTestImports, imports...)
+	allTestImports = append(allTestImports, ximports...)
+	setToolFlags(allTestImports...)
+
 	// Do initial scan for metadata needed for writing _testmain.go
 	// Use that metadata to update the list of imports for package main.
 	// The list of imports is used by recompileForTest and by the loop
