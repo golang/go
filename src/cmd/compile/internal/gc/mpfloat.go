@@ -201,24 +201,16 @@ func (a *Mpflt) SetString(as string) {
 }
 
 func (f *Mpflt) String() string {
-	return fconv(f, 0)
+	return f.Val.Text('b', 0)
 }
 
-func fconv(fvp *Mpflt, flag FmtFlag) string {
-	if flag&FmtSharp == 0 {
-		return fvp.Val.Text('b', 0)
-	}
-
-	// use decimal format for error messages
-
+func fconv(fvp *Mpflt) string {
 	// determine sign
+	sign := ""
 	f := &fvp.Val
-	var sign string
 	if f.Sign() < 0 {
 		sign = "-"
 		f = new(big.Float).Abs(f)
-	} else if flag&FmtSign != 0 {
-		sign = "+"
 	}
 
 	// Don't try to convert infinities (will not terminate).
@@ -333,4 +325,13 @@ func (v *Mpcplx) Div(rv *Mpcplx) bool {
 	v.Imag.Quo(&cc_plus_dd) // (bc+ad)/(cc+dd)
 
 	return true
+}
+
+func cconv(v *Mpcplx) string {
+	re := fconv(&v.Real)
+	im := fconv(&v.Imag)
+	if im[0] == '-' {
+		return re + im + "i"
+	}
+	return re + "+" + im + "i"
 }
