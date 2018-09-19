@@ -88,10 +88,11 @@ func sweepone() uintptr {
 	}
 	atomic.Xadd(&mheap_.sweepers, +1)
 
-	npages := ^uintptr(0)
+	// Find a span to sweep.
+	var s *mspan
 	sg := mheap_.sweepgen
 	for {
-		s := mheap_.sweepSpans[1-sg/2%2].pop()
+		s = mheap_.sweepSpans[1-sg/2%2].pop()
 		if s == nil {
 			atomic.Store(&mheap_.sweepdone, 1)
 			break
@@ -106,9 +107,14 @@ func sweepone() uintptr {
 			}
 			continue
 		}
-		if s.sweepgen != sg-2 || !atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			continue
+		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+			break
 		}
+	}
+
+	// Sweep the span we found.
+	npages := ^uintptr(0)
+	if s != nil {
 		npages = s.npages
 		if !s.sweep(false) {
 			// Span is still in-use, so this returned no
@@ -116,7 +122,6 @@ func sweepone() uintptr {
 			// move to the swept in-use list.
 			npages = 0
 		}
-		break
 	}
 
 	// Decrement the number of active sweepers and if this is the
