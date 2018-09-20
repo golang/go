@@ -22,3 +22,4 @@ and set GOOS to android. For example, to run the go1 benchmarks
 	export PATH=$GOROOT/bin:$PATH
 	cd $GOROOT/test/bench/go1/
 	GOOS=android GOARCH=arm64 go test -bench=. -count=N -timeout=T
+

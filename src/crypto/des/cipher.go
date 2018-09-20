@@ -6,6 +6,7 @@ package des
 
 import (
 	"crypto/cipher"
+	"crypto/internal/subtle"
 	"encoding/binary"
 	"strconv"
 )
@@ -37,9 +38,31 @@ func NewCipher(key []byte) (cipher.Block, error) {
 
 func (c *desCipher) BlockSize() int { return BlockSize }
 
-func (c *desCipher) Encrypt(dst, src []byte) { encryptBlock(c.subkeys[:], dst, src) }
+func (c *desCipher) Encrypt(dst, src []byte) {
+	if len(src) < BlockSize {
+		panic("crypto/des: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/des: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/des: invalid buffer overlap")
+	}
+	encryptBlock(c.subkeys[:], dst, src)
+}
 
-func (c *desCipher) Decrypt(dst, src []byte) { decryptBlock(c.subkeys[:], dst, src) }
+func (c *desCipher) Decrypt(dst, src []byte) {
+	if len(src) < BlockSize {
+		panic("crypto/des: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/des: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/des: invalid buffer overlap")
+	}
+	decryptBlock(c.subkeys[:], dst, src)
+}
 
 // A tripleDESCipher is an instance of TripleDES encryption.
 type tripleDESCipher struct {
@@ -62,6 +85,16 @@ func NewTripleDESCipher(key []byte) (cipher.Block, error) {
 func (c *tripleDESCipher) BlockSize() int { return BlockSize }
 
 func (c *tripleDESCipher) Encrypt(dst, src []byte) {
+	if len(src) < BlockSize {
+		panic("crypto/des: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/des: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/des: invalid buffer overlap")
+	}
+
 	b := binary.BigEndian.Uint64(src)
 	b = permuteInitialBlock(b)
 	left, right := uint32(b>>32), uint32(b)
@@ -87,6 +120,16 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
 }
 
 func (c *tripleDESCipher) Decrypt(dst, src []byte) {
+	if len(src) < BlockSize {
+		panic("crypto/des: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/des: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/des: invalid buffer overlap")
+	}
+
 	b := binary.BigEndian.Uint64(src)
 	b = permuteInitialBlock(b)
 	left, right := uint32(b>>32), uint32(b)

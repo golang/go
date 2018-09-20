@@ -60,7 +60,7 @@ func (mode *BuildMode) Set(s string) error {
 			}
 		case "windows":
 			switch objabi.GOARCH {
-			case "amd64", "386":
+			case "amd64", "386", "arm":
 			default:
 				return badmode()
 			}
@@ -194,6 +194,13 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	// https://golang.org/issue/21961
 	if iscgo && ctxt.Arch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
+	}
+
+	// When the race flag is set, the LLVM tsan relocatable file is linked
+	// into the final binary, which means external linking is required because
+	// internal linking does not support it.
+	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
+		return true, "race on ppc64le"
 	}
 
 	// Some build modes require work the internal linker cannot do (yet).

@@ -693,7 +693,6 @@ func BenchmarkPyramid(b *testing.B) {
 	for _, x := range [...]int{10, 100, 1000} {
 		// Build a line with x cells.
 		line := bytes.Repeat([]byte("a\t"), x)
-		line = append(line, '\n')
 		b.Run(fmt.Sprintf("%d", x), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -712,9 +711,8 @@ func BenchmarkPyramid(b *testing.B) {
 func BenchmarkRagged(b *testing.B) {
 	var lines [8][]byte
 	for i, w := range [8]int{6, 2, 9, 5, 5, 7, 3, 8} {
-		// Build a line with x cells.
+		// Build a line with w cells.
 		lines[i] = bytes.Repeat([]byte("a\t"), w)
-		lines[i] = append(lines[i], '\n')
 	}
 	for _, h := range [...]int{10, 100, 1000} {
 		b.Run(fmt.Sprintf("%d", h), func(b *testing.B) {

@@ -314,3 +314,44 @@ func TestIssue22525(t *testing.T) {
 		t.Errorf("got: %swant: %s", got, want)
 	}
 }
+
+func TestIssue25627(t *testing.T) {
+	const prefix = `package p; import "unsafe"; type P *struct{}; type I interface{}; type T `
+	// The src strings (without prefix) are constructed such that the number of semicolons
+	// plus one corresponds to the number of fields expected in the respective struct.
+	for _, src := range []string{
+		`struct { x Missing }`,
+		`struct { Missing }`,
+		`struct { *Missing }`,
+		`struct { unsafe.Pointer }`,
+		`struct { P }`,
+		`struct { *I }`,
+		`struct { a int; b Missing; *Missing }`,
+	} {
+		f, err := parser.ParseFile(fset, "", prefix+src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
+		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
+		_, err = cfg.Check(f.Name.Name, fset, []*ast.File{f}, info)
+		if err != nil {
+			if _, ok := err.(Error); !ok {
+				t.Fatal(err)
+			}
+		}
+
+		ast.Inspect(f, func(n ast.Node) bool {
+			if spec, _ := n.(*ast.TypeSpec); spec != nil {
+				if tv, ok := info.Types[spec.Type]; ok && spec.Name.Name == "T" {
+					want := strings.Count(src, ";") + 1
+					if got := tv.Type.(*Struct).NumFields(); got != want {
+						t.Errorf("%s: got %d fields; want %d", src, got, want)
+					}
+				}
+			}
+			return true
+		})
+	}
+}

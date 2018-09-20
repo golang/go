@@ -1,0 +1,924 @@
+<!--{
+	"Title": "Go 1.11 Release Notes",
+	"Path":  "/doc/go1.11",
+	"Template": true
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">Introduction to Go 1.11</h2>
+
+<p>
+  The latest Go release, version 1.11, arrives six months after <a href="go1.10">Go 1.10</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+  There are no changes to the language specification.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p> <!-- CL 94255, CL 115038, etc -->
+  As <a href="go1.10#ports">announced in the Go 1.10 release notes</a>, Go 1.11 now requires
+  OpenBSD 6.2 or later, macOS 10.10 Yosemite or later, or Windows 7 or later;
+  support for previous versions of these operating systems has been removed.
+</p>
+
+<p> <!-- CL 121657 -->
+  Go 1.11 supports the upcoming OpenBSD 6.4 release. Due to changes in
+  the OpenBSD kernel, older versions of Go will not work on OpenBSD 6.4.
+</p>
+
+<p>
+  There are <a href="https://golang.org/issue/25206">known issues</a> with NetBSD on i386 hardware.
+</p>
+
+<p><!-- CL 107935 -->
+  The race detector is now supported on <code>linux/ppc64le</code>
+  and, to a lesser extent, on <code>netbsd/amd64</code>. The NetBSD race detector support
+  has <a href="https://golang.org/issue/26403">known issues</a>.
+</p>
+
+<p><!-- CL 109255 -->
+  The memory sanitizer (<code>-msan</code>) is now supported on <code>linux/arm64</code>.
+</p>
+
+<p><!-- CL 93875 -->
+  The build modes <code>c-shared</code> and <code>c-archive</code> are now supported on
+  <code>freebsd/amd64</code>.
+</p>
+
+<p id="mips"><!-- CL 108475 -->
+  On 64-bit MIPS systems, the new environment variable settings
+  <code>GOMIPS64=hardfloat</code> (the default) and
+  <code>GOMIPS64=softfloat</code> select whether to use
+  hardware instructions or software emulation for floating-point computations.
+  For 32-bit systems, the environment variable is still <code>GOMIPS</code>,
+  as <a href="go1.10#mips">added in Go 1.10</a>.
+</p>
+
+<p><!-- CL 107475 -->
+  On soft-float ARM systems (<code>GOARM=5</code>), Go now uses a more
+  efficient software floating point interface. This is transparent to
+  Go code, but ARM assembly that uses floating-point instructions not
+  guarded on GOARM will break and must be ported to
+  the <a href="https://golang.org/cl/107475">new interface</a>.
+</p>
+
+<p><!-- CL 94076 -->
+  Go 1.11 on ARMv7 no longer requires a Linux kernel configured
+  with <code>KUSER_HELPERS</code>. This setting is enabled in default
+  kernel configurations, but is sometimes disabled in stripped-down
+  configurations.
+</p>
+
+<h3 id="wasm">WebAssembly</h3>
+<p>
+  Go 1.11 adds an experimental port to <a href="https://webassembly.org">WebAssembly</a>
+  (<code>js/wasm</code>).
+</p>
+<p>
+  Go programs currently compile to one WebAssembly module that
+  includes the Go runtime for goroutine scheduling, garbage
+  collection, maps, etc.
+  As a result, the resulting size is at minimum around
+  2 MB, or 500 KB compressed. Go programs can call into JavaScript
+  using the new experimental
+  <a href="/pkg/syscall/js/"><code>syscall/js</code></a> package.
+  Binary size and interop with other languages has not yet been a
+  priority but may be addressed in future releases.
+</p>
+<p>
+  As a result of the addition of the new <code>GOOS</code> value
+  "<code>js</code>" and <code>GOARCH</code> value "<code>wasm</code>",
+  Go files named <code>*_js.go</code> or <code>*_wasm.go</code> will
+  now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored by Go
+  tools</a> except when those GOOS/GOARCH values are being used.
+  If you have existing filenames matching those patterns, you will need to rename them.
+</p>
+<p>
+  More information can be found on the
+  <a href="https://golang.org/wiki/WebAssembly">WebAssembly wiki page</a>.
+</p>
+
+<h3 id="riscv">RISC-V GOARCH values reserved</h3>
+<p><!-- CL 106256 -->
+  The main Go compiler does not yet support the RISC-V architecture <!-- is gonna change everything -->
+  but we've reserved the <code>GOARCH</code> values
+  "<code>riscv</code>" and "<code>riscv64</code>", as used by Gccgo,
+  which does support RISC-V. This means that Go files
+  named <code>*_riscv.go</code> will now also
+  be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored by Go
+  tools</a> except when those GOOS/GOARCH values are being used.
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="modules">Modules, package versioning, and dependency management</h3>
+<p>
+  Go 1.11 adds preliminary support for a <a href="/cmd/go/#hdr-Modules__module_versions__and_more">new concept called “modules,”</a>
+  an alternative to GOPATH with integrated support for versioning and
+  package distribution.
+  Using modules, developers are no longer confined to working inside GOPATH,
+  version dependency information is explicit yet lightweight,
+  and builds are more reliable and reproducible.
+</p>
+
+<p>
+  Module support is considered experimental.
+  Details are likely to change in response to feedback from Go 1.11 users,
+  and we have more tools planned.
+  Although the details of module support may change, projects that convert
+  to modules using Go 1.11 will continue to work with Go 1.12 and later.
+  If you encounter bugs using modules,
+  please <a href="https://golang.org/issue/new">file issues</a>
+  so we can fix them. For more information, see the
+  <a href="/cmd/go#hdr-Modules__module_versions__and_more"><code>go</code> command documentation</a>.
+</p>
+
+<h3 id="importpath">Import path restriction</h3>
+
+<p>
+  Because Go module support assigns special meaning to the
+  <code>@</code> symbol in command line operations,
+  the <code>go</code> command now disallows the use of
+  import paths containing <code>@</code> symbols.
+  Such import paths were never allowed by <code>go</code> <code>get</code>,
+  so this restriction can only affect users building
+  custom GOPATH trees by other means.
+</p>
+
+<h3 id="gopackages">Package loading</h3>
+
+<p>
+  The new package
+  <a href="https://godoc.org/golang.org/x/tools/go/packages"><code>golang.org/x/tools/go/packages</code></a>
+  provides a simple API for locating and loading packages of Go source code.
+  Although not yet part of the standard library, for many tasks it
+  effectively replaces the <a href="/pkg/go/build"><code>go/build</code></a>
+  package, whose API is unable to fully support modules.
+  Because it runs an external query command such as
+  <a href="/cmd/go/#hdr-List_packages"><code>go list</code></a>
+  to obtain information about Go packages, it enables the construction of
+  analysis tools that work equally well with alternative build systems
+  such as <a href="https://bazel.build">Bazel</a>
+  and <a href="https://buckbuild.com">Buck</a>.
+</p>
+
+<h3 id="gocache">Build cache requirement</h3>
+
+<p>
+  Go 1.11 will be the last release to support setting the environment
+  variable <code>GOCACHE=off</code> to disable the
+  <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a>,
+  introduced in Go 1.10.
+  Starting in Go 1.12, the build cache will be required,
+  as a step toward eliminating <code>$GOPATH/pkg</code>.
+  The module and package loading support described above
+  already require that the build cache be enabled.
+  If you have disabled the build cache to avoid problems you encountered,
+  please <a href="https://golang.org/issue/new">file an issue</a> to let us know about them.
+</p>
+
+<h3 id="compiler">Compiler toolchain</h3>
+
+<p><!-- CL 109918 -->
+  More functions are now eligible for inlining by default, including
+  functions that call <code>panic</code>.
+</p>
+
+<p><!-- CL 97375 -->
+  The compiler toolchain now supports column information
+  in <a href="/cmd/compile/#hdr-Compiler_Directives">line
+  directives</a>.
+</p>
+
+<p><!-- CL 106797 -->
+  A new package export data format has been introduced.
+  This should be transparent to end users, except for speeding up
+  build times for large Go projects.
+  If it does cause problems, it can be turned off again by
+  passing <code>-gcflags=all=-iexport=false</code> to
+  the <code>go</code> tool when building a binary.
+</p>
+
+<p><!-- CL 100459 -->
+  The compiler now rejects unused variables declared in a type switch
+  guard, such as <code>x</code> in the following example:
+</p>
+<pre>
+func f(v interface{}) {
+	switch x := v.(type) {
+	}
+}
+</pre>
+<p>
+  This was already rejected by both <code>gccgo</code>
+  and <a href="/pkg/go/types/">go/types</a>.
+</p>
+
+<h3 id="assembler">Assembler</h3>
+
+<p><!-- CL 113315 -->
+  The assembler for <code>amd64</code> now accepts AVX512 instructions.
+</p>
+
+<h3 id="debugging">Debugging</h3>
+
+<p><!-- CL 100738, CL 93664 -->
+  The compiler now produces significantly more accurate debug
+  information for optimized binaries, including variable location
+  information, line numbers, and breakpoint locations.
+
+  This should make it possible to debug binaries
+  compiled <em>without</em> <code>-N</code>&nbsp;<code>-l</code>.
+
+  There are still limitations to the quality of the debug information,
+  some of which are fundamental, and some of which will continue to
+  improve with future releases.
+</p>
+
+<p><!-- CL 118276 -->
+  DWARF sections are now compressed by default because of the expanded
+  and more accurate debug information produced by the compiler.
+
+  This is transparent to most ELF tools (such as debuggers on Linux
+  and *BSD) and is supported by the Delve debugger on all platforms,
+  but has limited support in the native tools on macOS and Windows.
+
+  To disable DWARF compression,
+  pass <code>-ldflags=-compressdwarf=false</code> to
+  the <code>go</code> tool when building a binary.
+</p>
+
+<p><!-- CL 109699 -->
+  Go 1.11 adds experimental support for calling Go functions from
+  within a debugger.
+
+  This is useful, for example, to call <code>String</code> methods
+  when paused at a breakpoint.
+
+  This is currently only supported by Delve (version 1.1.0 and up).
+</p>
+
+<h3 id="test">Test</h3>
+
+<p>
+  Since Go 1.10, the <code>go</code>&nbsp;<code>test</code> command runs
+  <code>go</code>&nbsp;<code>vet</code> on the package being tested,
+  to identify problems before running the test. Since <code>vet</code>
+  typechecks the code with <a href="/pkg/go/types/">go/types</a>
+  before running, tests that do not typecheck will now fail.
+
+  In particular, tests that contain an unused variable inside a
+  closure compiled with Go 1.10, because the Go compiler incorrectly
+  accepted them (<a href="https://golang.org/issues/3059">Issue #3059</a>),
+  but will now fail, since <code>go/types</code> correctly reports an
+  "unused variable" error in this case.
+</p>
+
+<p><!-- CL 102696 -->
+  The <code>-memprofile</code> flag
+  to <code>go</code>&nbsp;<code>test</code> now defaults to the
+  "allocs" profile, which records the total bytes allocated since the
+  test began (including garbage-collected bytes).
+</p>
+
+<h3 id="vet">Vet</h3>
+
+<p><!-- CL 108555 -->
+  The <a href="/cmd/vet/"><code>go</code>&nbsp;<code>vet</code></a>
+  command now reports a fatal error when the package under analysis
+  does not typecheck. Previously, a type checking error simply caused
+  a warning to be printed, and <code>vet</code> to exit with status 1.
+</p>
+
+<p><!-- CL 108559 -->
+  Additionally, <a href="/cmd/vet"><code>go</code>&nbsp;<code>vet</code></a>
+  has become more robust when format-checking <code>printf</code> wrappers.
+  Vet now detects the mistake in this example:
+</p>
+
+<pre>
+func wrapper(s string, args ...interface{}) {
+	fmt.Printf(s, args...)
+}
+
+func main() {
+	wrapper("%s", 42)
+}
+</pre>
+
+<h3 id="trace">Trace</h3>
+
+<p><!-- CL 63274 -->
+  With the new <code>runtime/trace</code>
+  package's <a href="/pkg/runtime/trace/#hdr-User_annotation">user
+  annotation API</a>, users can record application-level information
+  in execution traces and create groups of related goroutines.
+  The <code>go</code>&nbsp;<code>tool</code>&nbsp;<code>trace</code>
+  command visualizes this information in the trace view and the new
+  user task/region analysis page.
+</p>
+
+<h3 id="cgo">Cgo</h3>
+
+<p>
+Since Go 1.10, cgo has translated some C pointer types to the Go
+type <code>uintptr</code>. These types include
+the <code>CFTypeRef</code> hierarchy in Darwin's CoreFoundation
+framework and the <code>jobject</code> hierarchy in Java's JNI
+interface. In Go 1.11, several improvements have been made to the code
+that detects these types. Code that uses these types may need some
+updating. See the <a href="go1.10.html#cgo">Go 1.10 release notes</a> for
+details. <!-- CL 126275, CL 127156, CL 122217, CL 122575, CL 123177 -->
+</p>
+
+<h3 id="go_command">Go command</h3>
+
+<p><!-- CL 126656 -->
+  The environment variable <code>GOFLAGS</code> may now be used
+  to set default flags for the <code>go</code> command.
+  This is useful in certain situations.
+  Linking can be noticeably slower on underpowered systems due to DWARF,
+  and users may want to set <code>-ldflags=-w</code> by default.
+  For modules, some users and CI systems will want vendoring always,
+  so they should set <code>-mod=vendor</code> by default.
+  For more information, see the <a href="/cmd/go/#hdr-Environment_variables"><code>go</code>
+  command documentation</a>.
+</p>
+
+<h3 id="godoc">Godoc</h3>
+
+<p>
+  Go 1.11 will be the last release to support <code>godoc</code>'s command-line interface.
+  In future releases, <code>godoc</code> will only be a web server. Users should use
+  <code>go</code> <code>doc</code> for command-line help output instead.
+</p>
+
+<p><!-- CL 85396, CL 124495 -->
+  The <code>godoc</code> web server now shows which version of Go introduced
+  new API features. The initial Go version of types, funcs, and methods are shown
+  right-aligned. For example, see <a href="/pkg/os/#UserCacheDir"><code>UserCacheDir</code></a>, with "1.11"
+  on the right side. For struct fields, inline comments are added when the struct field was
+  added in a Go version other than when the type itself was introduced.
+  For a struct field example, see
+  <a href="/pkg/net/http/httptrace/#ClientTrace.Got1xxResponse"><code>ClientTrace.Got1xxResponse</code></a>.
+</p>
+
+<h3 id="gofmt">Gofmt</h3>
+
+<p>
+  One minor detail of the default formatting of Go source code has changed.
+  When formatting expression lists with inline comments, the comments were
+  aligned according to a heuristic.
+  However, in some cases the alignment would be split up too easily, or
+  introduce too much whitespace.
+  The heuristic has been changed to behave better for human-written code.
+</p>
+
+<p>
+  Note that these kinds of minor updates to gofmt are expected from time to
+  time.
+  In general, systems that need consistent formatting of Go source code should
+  use a specific version of the <code>gofmt</code> binary.
+  See the <a href="/pkg/go/format/">go/format</a> package documentation for more
+  information.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p><!-- CL 85887 -->
+  The runtime now uses a sparse heap layout so there is no longer a
+  limit to the size of the Go heap (previously, the limit was 512GiB).
+  This also fixes rare "address space conflict" failures in mixed Go/C
+  binaries or binaries compiled with <code>-race</code>.
+</p>
+
+<p><!-- CL 108679, CL 106156 -->
+  On macOS and iOS, the runtime now uses <code>libSystem.dylib</code> instead of
+  calling the kernel directly. This should make Go binaries more
+  compatible with future versions of macOS and iOS.
+  The <a href="/pkg/syscall">syscall</a> package still makes direct
+  system calls; fixing this is planned for a future release.
+</p>
+
+<h2 id="performance">Performance</h2>
+
+<p>
+As always, the changes are so general and varied that precise
+statements about performance are difficult to make.  Most programs
+should run a bit faster, due to better generated code and
+optimizations in the core library.
+</p>
+
+<p><!-- CL 74851 -->
+There were multiple performance changes to the <code>math/big</code>
+package as well as many changes across the tree specific to <code>GOARCH=arm64</code>.
+</p>
+
+<h3 id="performance-compiler">Compiler toolchain</h3>
+
+<p><!-- CL 110055 -->
+  The compiler now optimizes map clearing operations of the form:
+</p>
+<pre>
+for k := range m {
+	delete(m, k)
+}
+</pre>
+
+<p><!-- CL 109517 -->
+  The compiler now optimizes slice extension of the form
+  <code>append(s,</code>&nbsp;<code>make([]T,</code>&nbsp;<code>n)...)</code>.
+</p>
+
+<p><!-- CL 100277, CL 105635, CL 109776 -->
+  The compiler now performs significantly more aggressive bounds-check
+  and branch elimination. Notably, it now recognizes transitive
+  relations, so if <code>i&lt;j</code> and <code>j&lt;len(s)</code>,
+  it can use these facts to eliminate the bounds check
+  for <code>s[i]</code>. It also understands simple arithmetic such
+  as <code>s[i-10]</code> and can recognize more inductive cases in
+  loops. Furthermore, the compiler now uses bounds information to more
+  aggressively optimize shift operations.
+</p>
+
+<h2 id="library">Core library</h2>
+
+<p>
+  All of the changes to the standard library are minor.
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<!-- CL 115095: https://golang.org/cl/115095: yes (`go test pkg` now always builds pkg even if there are no test files): cmd/go: output coverage report even if there are no test files -->
+<!-- CL 110395: https://golang.org/cl/110395: cmd/go, cmd/compile: use Windows response files to avoid arg length limits -->
+<!-- CL 112436: https://golang.org/cl/112436: cmd/pprof: add readline support similar to upstream -->
+
+
+<dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
+  <dd>
+    <p><!-- CL 64451 -->
+      Certain crypto operations, including
+      <a href="/pkg/crypto/ecdsa/#Sign"><code>ecdsa.Sign</code></a>,
+      <a href="/pkg/crypto/rsa/#EncryptPKCS1v15"><code>rsa.EncryptPKCS1v15</code></a> and
+      <a href="/pkg/crypto/rsa/#GenerateKey"><code>rsa.GenerateKey</code></a>,
+      now randomly read an extra byte of randomness to ensure tests don't rely on internal behavior.
+    </p>
+
+</dl><!-- crypto -->
+
+<dl id="crypto/cipher"><dt><a href="/pkg/crypto/cipher/">crypto/cipher</a></dt>
+  <dd>
+    <p><!-- CL 48510, CL 116435 -->
+      The new function <a href="/pkg/crypto/cipher/#NewGCMWithTagSize"><code>NewGCMWithTagSize</code></a>
+      implements Galois Counter Mode with non-standard tag lengths for compatibility with existing cryptosystems.
+    </p>
+
+</dl><!-- crypto/cipher -->
+
+<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+  <dd>
+    <p><!-- CL 103876 -->
+      <a href="/pkg/crypto/rsa/#PublicKey"><code>PublicKey</code></a> now implements a
+      <a href="/pkg/crypto/rsa/#PublicKey.Size"><code>Size</code></a> method that
+      returns the modulus size in bytes.
+    </p>
+
+</dl><!-- crypto/rsa -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 85115 -->
+      <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>'s new
+      <a href="/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial"><code>ExportKeyingMaterial</code></a>
+      method allows exporting keying material bound to the
+      connection according to RFC 5705.
+    </p>
+
+</dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 123355, CL 123695 -->
+      The deprecated, legacy behavior of treating the <code>CommonName</code> field as
+      a hostname when no Subject Alternative Names are present is now disabled when the CN is not a
+      valid hostname.
+      The <code>CommonName</code> can be completely ignored by adding the experimental value
+      <code>x509ignoreCN=1</code> to the <code>GODEBUG</code> environment variable.
+      When the CN is ignored, certificates without SANs validate under chains with name constraints
+      instead of returning <code>NameConstraintsWithoutSANs</code>.
+    </p>
+
+    <p><!-- CL 113475 -->
+      Extended key usage restrictions are again checked only if they appear in the <code>KeyUsages</code>
+      field of <a href="/pkg/crypto/x509/#VerifyOptions"><code>VerifyOptions</code></a>, instead of always being checked.
+      This matches the behavior of Go 1.9 and earlier.
+    </p>
+
+    <p><!-- CL 102699 -->
+      The value returned by <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
+      is now cached and might not reflect system changes between invocations.
+    </p>
+
+</dl><!-- crypto/x509 -->
+
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- CL 112115 -->
+      More <a href="/pkg/debug/elf/#ELFOSABI_NONE"><code>ELFOSABI</code></a>
+      and <a href="/pkg/debug/elf/#EM_NONE"><code>EM</code></a>
+      constants have been added.
+    </p>
+
+</dl><!-- debug/elf -->
+
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 110561 -->
+      <code>Marshal</code> and <code><a href="/pkg/encoding/asn1/#Unmarshal">Unmarshal</a></code>
+      now support "private" class annotations for fields.
+    </p>
+
+</dl><!-- encoding/asn1 -->
+
+<dl id="encoding/base32"><dt><a href="/pkg/encoding/base32/">encoding/base32</a></dt>
+  <dd>
+    <p><!-- CL 112516 -->
+      The decoder now consistently
+      returns <code>io.ErrUnexpectedEOF</code> for an incomplete
+      chunk. Previously it would return <code>io.EOF</code> in some
+      cases.
+    </p>
+
+</dl><!-- encoding/base32 -->
+
+<dl id="encoding/csv"><dt><a href="/pkg/encoding/csv/">encoding/csv</a></dt>
+  <dd>
+    <p><!-- CL 99696 -->
+      The <code>Reader</code> now rejects attempts to set
+      the <a href="/pkg/encoding/csv/#Reader.Comma"><code>Comma</code></a>
+      field to a double-quote character, as double-quote characters
+      already have a special meaning in CSV.
+    </p>
+
+</dl><!-- encoding/csv -->
+
+<!-- CL 100235 was reverted -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 121815 -->
+      The package has changed its behavior when a typed interface
+      value is passed to an implicit escaper function. Previously such
+      a value was written out as (an escaped form)
+      of <code>&lt;nil&gt;</code>. Now such values are ignored, just
+      as an untyped <code>nil</code> value is (and always has been)
+      ignored.
+    </p>
+
+</dl><!-- html/template -->
+
+<dl id="image/gif"><dt><a href="/pkg/image/gif/">image/gif</a></dt>
+  <dd>
+    <p><!-- CL 93076 -->
+      Non-looping animated GIFs are now supported. They are denoted by having a
+      <code><a href="/pkg/image/gif/#GIF.LoopCount">LoopCount</a></code> of -1.
+    </p>
+
+</dl><!-- image/gif -->
+
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 105675 -->
+      The <code><a href="/pkg/io/ioutil/#TempFile">TempFile</a></code>
+      function now supports specifying where the random characters in
+      the filename are placed. If the <code>prefix</code> argument
+      includes a "<code>*</code>", the random string replaces the
+      "<code>*</code>". For example, a <code>prefix</code> argument of "<code>myname.*.bat</code>" will
+      result in a random filename such as
+      "<code>myname.123456.bat</code>". If no "<code>*</code>" is
+      included the old behavior is retained, and the random digits are
+      appended to the end.
+    </p>
+
+</dl><!-- io/ioutil -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+
+    <p><!-- CL 108996 -->
+      <a href="/pkg/math/big/#Int.ModInverse"><code>ModInverse</code></a> now returns nil when g and n are not relatively prime. The result was previously undefined.
+    </p>
+
+</dl><!-- math/big -->
+
+<dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
+  <dd>
+    <p><!-- CL 121055 -->
+      The handling of form-data with missing/empty file names has been
+      restored to the behavior in Go 1.9: in the
+      <a href="/pkg/mime/multipart/#Form"><code>Form</code></a> for
+      the form-data part the value is available in
+      the <code>Value</code> field rather than the <code>File</code>
+      field. In Go releases 1.10 through 1.10.3 a form-data part with
+      a missing/empty file name and a non-empty "Content-Type" field
+      was stored in the <code>File</code> field.  This change was a
+      mistake in 1.10 and has been reverted to the 1.9 behavior.
+    </p>
+
+</dl><!-- mime/multipart -->
+
+<dl id="mime/quotedprintable"><dt><a href="/pkg/mime/quotedprintable/">mime/quotedprintable</a></dt>
+  <dd>
+    <p><!-- CL 121095 -->
+      To support invalid input found in the wild, the package now
+      permits non-ASCII bytes but does not validate their encoding.
+    </p>
+
+</dl><!-- mime/quotedprintable -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 72810 -->
+      The new <a href="/pkg/net/#ListenConfig"><code>ListenConfig</code></a> type and the new
+      <a href="/pkg/net/#Dialer.Control"><code>Dialer.Control</code></a> field permit
+      setting socket options before accepting and creating connections, respectively.
+    </p>
+
+    <p><!-- CL 76391 -->
+      The <a href="/pkg/syscall/#RawConn"><code>syscall.RawConn</code></a> <code>Read</code>
+      and <code>Write</code> methods now work correctly on Windows.
+    </p>
+
+    <p><!-- CL 107715 -->
+      The <code>net</code> package now automatically uses the
+      <a href="http://man7.org/linux/man-pages/man2/splice.2.html"><code>splice</code> system call</a>
+      on Linux when copying data between TCP connections in
+      <a href="/pkg/net/#TCPConn.ReadFrom"><code>TCPConn.ReadFrom</code></a>, as called by
+      <a href="/pkg/io/#Copy"><code>io.Copy</code></a>. The result is faster, more efficient TCP proxying.
+    </p>
+
+    <p><!-- CL 108297 -->
+      The <a href="/pkg/net/#TCPConn.File"><code>TCPConn.File</code></a>,
+      <a href="/pkg/net/#UDPConn.File"><code>UDPConn.File</code></a>,
+      <a href="/pkg/net/#UnixCOnn.File"><code>UnixConn.File</code></a>,
+      and <a href="/pkg/net/#IPConn.File"><code>IPConn.File</code></a>
+      methods no longer put the returned <code>*os.File</code> into
+      blocking mode.
+    </p>
+
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 71272 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> type has a
+      new <a href="/pkg/net/http/#Transport.MaxConnsPerHost"><code>MaxConnsPerHost</code></a>
+      option that permits limiting the maximum number of connections
+      per host.
+    </p>
+
+    <p><!-- CL 79919 -->
+      The <a href="/pkg/net/http/#Cookie"><code>Cookie</code></a> type has a new
+      <a href="/pkg/net/http/#Cookie.SameSite"><code>SameSite</code></a> field
+      (of new type also named
+      <a href="/pkg/net/http/#SameSite"><code>SameSite</code></a>) to represent the new cookie attribute recently supported by most browsers.
+      The <code>net/http</code>'s <code>Transport</code> does not use the <code>SameSite</code>
+      attribute itself, but the package supports parsing and serializing the
+      attribute for browsers to use.
+    </p>
+
+    <p><!-- CL 81778 -->
+      It is no longer allowed to reuse a <a href="/pkg/net/http/#Server"><code>Server</code></a>
+      after a call to
+      <a href="/pkg/net/http/#Server.Shutdown"><code>Shutdown</code></a> or
+      <a href="/pkg/net/http/#Server.Close"><code>Close</code></a>. It was never officially supported
+      in the past and had often surprising behavior. Now, all future calls to the server's <code>Serve</code>
+      methods will return errors after a shutdown or close.
+    </p>
+
+    <!-- CL 89275 was reverted before Go 1.11 -->
+
+    <p><!-- CL 93296 -->
+      The constant <code>StatusMisdirectedRequest</code> is now defined for HTTP status code 421.
+    </p>
+
+    <p><!-- CL 123875 -->
+      The HTTP server will no longer cancel contexts or send on
+      <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
+      channels upon receiving pipelined HTTP/1.1 requests. Browsers do
+      not use HTTP pipelining, but some clients (such as
+      Debian's <code>apt</code>) may be configured to do so.
+    </p>
+
+    <p><!-- CL 115255 -->
+      <a href="/pkg/net/http/#ProxyFromEnvironment"><code>ProxyFromEnvironment</code></a>, which is used by the
+      <a href="/pkg/net/http/#DefaultTransport"><code>DefaultTransport</code></a>, now
+      supports CIDR notation and ports in the <code>NO_PROXY</code> environment variable.
+    </p>
+
+</dl><!-- net/http -->
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 77410 -->
+      The
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      has a new
+      <a href="/pkg/net/http/httputil/#ReverseProxy.ErrorHandler"><code>ErrorHandler</code></a>
+      option to permit changing how errors are handled.
+    </p>
+
+    <p><!-- CL 115135 -->
+      The <code>ReverseProxy</code> now also passes
+      "<code>TE:</code>&nbsp;<code>trailers</code>" request headers
+      through to the backend, as required by the gRPC protocol.
+    </p>
+
+</dl><!-- net/http/httputil -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 78835 -->
+      The new <a href="/pkg/os/#UserCacheDir"><code>UserCacheDir</code></a> function
+      returns the default root directory to use for user-specific cached data.
+    </p>
+
+    <p><!-- CL 94856 -->
+      The new <a href="/pkg/os/#ModeIrregular"><code>ModeIrregular</code></a>
+      is a <a href="/pkg/os/#FileMode"><code>FileMode</code></a> bit to represent
+      that a file is not a regular file, but nothing else is known about it, or that
+      it's not a socket, device, named pipe, symlink, or other file type for which
+      Go has a defined mode bit.
+    </p>
+
+    <p><!-- CL 99337 -->
+      <a href="/pkg/os/#Symlink"><code>Symlink</code></a> now works
+      for unprivileged users on Windows 10 on machines with Developer
+      Mode enabled.
+    </p>
+
+    <p><!-- CL 100077 -->
+      When a non-blocking descriptor is passed
+      to <a href="/pkg/os#NewFile"><code>NewFile</code></a>, the
+      resulting <code>*File</code> will be kept in non-blocking
+      mode. This means that I/O for that <code>*File</code> will use
+      the runtime poller rather than a separate thread, and that
+      the <a href="/pkg/os/#File.SetDeadline"><code>SetDeadline</code></a>
+      methods will work.
+    </p>
+
+</dl><!-- os -->
+
+<dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+  <dd>
+    <p><!-- CL 108376 -->
+      The new <a href="/pkg/os/signal/#Ignored"><code>Ignored</code></a> function reports
+      whether a signal is currently ignored.
+    </p>
+
+</dl><!-- os/signal -->
+
+<dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
+  <dd>
+    <p><!-- CL 92456 -->
+      The <code>os/user</code> package can now be built in pure Go
+      mode using the build tag "<code>osusergo</code>",
+      independent of the use of the environment
+      variable <code>CGO_ENABLED=0</code>. Previously the only way to use
+      the package's pure Go implementation was to disable <code>cgo</code>
+      support across the entire program.
+    </p>
+
+</dl><!-- os/user -->
+
+<!-- CL 101715 was reverted -->
+
+<dl id="runtime-again"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+
+    <p><!-- CL 70993 -->
+      Setting the <code>GODEBUG=tracebackancestors=<em>N</em></code>
+      environment variable now extends tracebacks with the stacks at
+      which goroutines were created, where <em>N</em> limits the
+      number of ancestor goroutines to report.
+    </p>
+
+</dl><!-- runtime -->
+
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 102696 -->
+      This release adds a new "allocs" profile type that profiles
+      total number of bytes allocated since the program began
+      (including garbage-collected bytes). This is identical to the
+      existing "heap" profile viewed in <code>-alloc_space</code> mode.
+      Now <code>go test -memprofile=...</code> reports an "allocs" profile
+      instead of "heap" profile.
+    </p>
+
+</dl><!-- runtime/pprof -->
+
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 87095 -->
+      The mutex profile now includes reader/writer contention
+      for <a href="/pkg/sync/#RWMutex"><code>RWMutex</code></a>.
+      Writer/writer contention was already included in the mutex
+      profile.
+    </p>
+
+</dl><!-- sync -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 106275 -->
+      On Windows, several fields were changed from <code>uintptr</code> to a new
+      <a href="/pkg/syscall/?GOOS=windows&GOARCH=amd64#Pointer"><code>Pointer</code></a>
+      type to avoid problems with Go's garbage collector. The same change was made
+      to the <a href="https://godoc.org/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a>
+      package. For any code affected, users should first migrate away from the <code>syscall</code>
+      package to the <code>golang.org/x/sys/windows</code> package, and then change
+      to using the <code>Pointer</code>, while obeying the
+      <a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code> conversion rules</a>.
+    </p>
+
+    <p><!-- CL 118658 -->
+      On Linux, the <code>flags</code> parameter to
+      <a href="/pkg/syscall/?GOOS=linux&GOARCH=amd64#Faccessat"><code>Faccessat</code></a>
+      is now implemented just as in glibc. In earlier Go releases the
+      flags parameter was ignored.
+    </p>
+
+    <p><!-- CL 118658 -->
+      On Linux, the <code>flags</code> parameter to
+      <a href="/pkg/syscall/?GOOS=linux&GOARCH=amd64#Fchmodat"><code>Fchmodat</code></a>
+      is now validated. Linux's <code>fchmodat</code> doesn't support the <code>flags</code> parameter
+      so we now mimic glibc's behavior and return an error if it's non-zero.
+    </p>
+
+</dl><!-- syscall -->
+
+<dl id="text/scanner"><dt><a href="/pkg/text/scanner/">text/scanner</a></dt>
+  <dd>
+    <p><!-- CL 112037 -->
+      The <a href="/pkg/text/scanner/#Scanner.Scan"><code>Scanner.Scan</code></a> method now returns
+      the <a href="/pkg/text/scanner/#RawString"><code>RawString</code></a> token
+      instead of <a href="/pkg/text/scanner/#String"><code>String</code></a>
+      for raw string literals.
+    </p>
+
+</dl><!-- text/scanner -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 84480 -->
+      Modifying template variables via assignments is now permitted via the <code>=</code> token:
+    </p>
+    <pre>
+  {{"{{"}} $v := "init" {{"}}"}}
+  {{"{{"}} if true {{"}}"}}
+    {{"{{"}} $v = "changed" {{"}}"}}
+  {{"{{"}} end {{"}}"}}
+  v: {{"{{"}} $v {{"}}"}} {{"{{"}}/* "changed" */{{"}}"}}</pre>
+
+    <p><!-- CL 95215 -->
+      In previous versions untyped <code>nil</code> values passed to
+      template functions were ignored. They are now passed as normal
+      arguments.
+    </p>
+
+</dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 98157 -->
+	  Parsing of timezones denoted by sign and offset is now
+	  supported. In previous versions, numeric timezone names
+	  (such as <code>+03</code>) were not considered valid, and only
+	  three-letter abbreviations (such as <code>MST</code>) were accepted
+	  when expecting a timezone name.
+    </p>
+</dl><!-- time -->

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux netbsd dragonfly nacl
+// +build linux netbsd dragonfly nacl js,wasm
 
 package os
 

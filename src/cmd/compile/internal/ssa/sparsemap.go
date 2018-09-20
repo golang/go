@@ -6,7 +6,7 @@ package ssa
 
 import "cmd/internal/src"
 
-// from http://research.swtch.com/sparse
+// from https://research.swtch.com/sparse
 // in turn, from Briggs and Torczon
 
 type sparseEntry struct {

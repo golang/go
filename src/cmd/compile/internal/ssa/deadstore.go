@@ -133,7 +133,7 @@ func dse(f *Func) {
 	}
 }
 
-// elimDeadAutosGeneric deletes autos that are never accessed. To acheive this
+// elimDeadAutosGeneric deletes autos that are never accessed. To achieve this
 // we track the operations that the address of each auto reaches and if it only
 // reaches stores then we delete all the stores. The other operations will then
 // be eliminated by the dead code elimination pass.
@@ -146,7 +146,7 @@ func elimDeadAutosGeneric(f *Func) {
 	visit := func(v *Value) (changed bool) {
 		args := v.Args
 		switch v.Op {
-		case OpAddr:
+		case OpAddr, OpLocalAddr:
 			// Propagate the address if it points to an auto.
 			n, ok := v.Aux.(GCNode)
 			if !ok || n.StorageClass() != ClassAuto {
@@ -197,13 +197,15 @@ func elimDeadAutosGeneric(f *Func) {
 			panic("unhandled op with sym effect")
 		}
 
-		if v.Uses == 0 || len(args) == 0 {
+		if v.Uses == 0 && v.Op != OpNilCheck || len(args) == 0 {
+			// Nil check has no use, but we need to keep it.
 			return
 		}
 
 		// If the address of the auto reaches a memory or control
 		// operation not covered above then we probably need to keep it.
-		if v.Type.IsMemory() || v.Type.IsFlags() || (v.Op != OpPhi && v.MemoryArg() != nil) {
+		// We also need to keep autos if they reach Phis (issue #26153).
+		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == OpPhi || v.MemoryArg() != nil {
 			for _, a := range args {
 				if n, ok := addr[a]; ok {
 					if !used[n] {
@@ -260,6 +262,14 @@ func elimDeadAutosGeneric(f *Func) {
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				changed = visit(v) || changed
+			}
+			// keep the auto if its address reaches a control value
+			if b.Control == nil {
+				continue
+			}
+			if n, ok := addr[b.Control]; ok && !used[n] {
+				used[n] = true
+				changed = true
 			}
 		}
 		if !changed {

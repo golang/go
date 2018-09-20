@@ -14,7 +14,7 @@ import (
 
 // This file contains the algorithm to place phi nodes in a function.
 // For small functions, we use Braun, Buchwald, Hack, Leißa, Mallon, and Zwinkau.
-// http://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
+// https://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
 // For large functions, we use Sreedhar & Gao: A Linear Time Algorithm for Placing Φ-Nodes.
 // http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.8.1979&rep=rep1&type=pdf
 

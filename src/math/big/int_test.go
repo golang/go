@@ -557,7 +557,7 @@ var expTests = []struct {
 	{"0x8000000000000000", "3", "6719", "5447"},
 	{"0x8000000000000000", "1000", "6719", "1603"},
 	{"0x8000000000000000", "1000000", "6719", "3199"},
-	{"0x8000000000000000", "-1000000", "6719", "1"},
+	{"0x8000000000000000", "-1000000", "6719", "3663"}, // 3663 = ModInverse(3199, 6719) Issue #25865
 
 	{"0xffffffffffffffffffffffffffffffff", "0x12345678123456781234567812345678123456789", "0x01112222333344445555666677778889", "0x36168FA1DB3AAE6C8CE647E137F97A"},
 
@@ -1360,7 +1360,7 @@ func BenchmarkModSqrt225_Tonelli(b *testing.B) {
 	}
 }
 
-func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+func BenchmarkModSqrt225_3Mod4(b *testing.B) {
 	p := tri(225)
 	x := new(Int).SetUint64(2)
 	for i := 0; i < b.N; i++ {
@@ -1369,27 +1369,25 @@ func BenchmarkModSqrt224_3Mod4(b *testing.B) {
 	}
 }
 
-func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
-	if isRaceBuilder {
-		b.Skip("skipping on race builder")
-	}
-	p := tri(5430)
-	x := new(Int).SetUint64(2)
+func BenchmarkModSqrt231_Tonelli(b *testing.B) {
+	p := tri(231)
+	p.Sub(p, intOne)
+	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
+	x := new(Int).SetUint64(7)
 	for i := 0; i < b.N; i++ {
-		x.SetUint64(2)
+		x.SetUint64(7)
 		x.modSqrtTonelliShanks(x, p)
 	}
 }
 
-func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
-	if isRaceBuilder {
-		b.Skip("skipping on race builder")
-	}
-	p := tri(5430)
-	x := new(Int).SetUint64(2)
+func BenchmarkModSqrt231_5Mod8(b *testing.B) {
+	p := tri(231)
+	p.Sub(p, intOne)
+	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
+	x := new(Int).SetUint64(7)
 	for i := 0; i < b.N; i++ {
-		x.SetUint64(2)
-		x.modSqrt3Mod4Prime(x, p)
+		x.SetUint64(7)
+		x.modSqrt5Mod8Prime(x, p)
 	}
 }
 
@@ -1726,6 +1724,32 @@ func BenchmarkIntSqr(b *testing.B) {
 		}
 		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
 			benchmarkIntSqr(b, n)
+		})
+	}
+}
+
+func benchmarkDiv(b *testing.B, aSize, bSize int) {
+	var r = rand.New(rand.NewSource(1234))
+	aa := randInt(r, uint(aSize))
+	bb := randInt(r, uint(bSize))
+	if aa.Cmp(bb) < 0 {
+		aa, bb = bb, aa
+	}
+	x := new(Int)
+	y := new(Int)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x.DivMod(aa, bb, y)
+	}
+}
+
+func BenchmarkDiv(b *testing.B) {
+	min, max, step := 10, 100000, 10
+	for i := min; i <= max; i *= step {
+		j := 2 * i
+		b.Run(fmt.Sprintf("%d/%d", j, i), func(b *testing.B) {
+			benchmarkDiv(b, j, i)
 		})
 	}
 }

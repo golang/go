@@ -122,7 +122,7 @@ func TestTd(t *testing.T) {
 }
 
 // Test vectors are from FIPS 197:
-//	http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+//	https://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
 
 // Appendix A of FIPS 197: Key expansion examples
 type KeyTest struct {

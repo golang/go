@@ -18,7 +18,7 @@ import (
 )
 
 // Each of these tests is expected to fail (missing package clause)
-// at the position determined by the preceeding line directive.
+// at the position determined by the preceding line directive.
 var tests = []struct {
 	src, pos string
 }{

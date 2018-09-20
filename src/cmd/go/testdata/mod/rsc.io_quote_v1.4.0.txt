@@ -1,0 +1,79 @@
+rsc.io/quote@v1.4.0
+
+-- .mod --
+module "rsc.io/quote"
+
+require "rsc.io/sampler" v1.0.0
+-- .info --
+{"Version":"v1.4.0","Name":"19e8b977bd2f437798c2cc2dcfe8a1c0f169481b","Short":"19e8b977bd2f","Time":"2018-02-14T00:56:05Z"}
+-- go.mod --
+module "rsc.io/quote"
+
+require "rsc.io/sampler" v1.0.0
+-- quote.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package quote collects pithy sayings.
+package quote // import "rsc.io/quote"
+
+import "rsc.io/sampler"
+
+// Hello returns a greeting.
+func Hello() string {
+	return sampler.Hello()
+}
+
+// Glass returns a useful phrase for world travelers.
+func Glass() string {
+	// See http://www.oocities.org/nodotus/hbglass.html.
+	return "I can eat glass and it doesn't hurt me."
+}
+
+// Go returns a Go proverb.
+func Go() string {
+	return "Don't communicate by sharing memory, share memory by communicating."
+}
+
+// Opt returns an optimization truth.
+func Opt() string {
+	// Wisdom from ken.
+	return "If a program is too slow, it must have a loop."
+}
+-- quote_test.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package quote
+
+import "testing"
+
+func TestHello(t *testing.T) {
+	hello := "Hello, world."
+	if out := Hello(); out != hello {
+		t.Errorf("Hello() = %q, want %q", out, hello)
+	}
+}
+
+func TestGlass(t *testing.T) {
+	glass := "I can eat glass and it doesn't hurt me."
+	if out := Glass(); out != glass {
+		t.Errorf("Glass() = %q, want %q", out, glass)
+	}
+}
+
+func TestGo(t *testing.T) {
+	go1 := "Don't communicate by sharing memory, share memory by communicating."
+	if out := Go(); out != go1 {
+		t.Errorf("Go() = %q, want %q", out, go1)
+	}
+}
+
+func TestOpt(t *testing.T) {
+	opt := "If a program is too slow, it must have a loop."
+	if out := Opt(); out != opt {
+		t.Errorf("Opt() = %q, want %q", out, opt)
+	}
+}

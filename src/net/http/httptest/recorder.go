@@ -27,9 +27,11 @@ type ResponseRecorder struct {
 	Code int
 
 	// HeaderMap contains the headers explicitly set by the Handler.
+	// It is an internal detail.
 	//
-	// To get the implicit headers set by the server (such as
-	// automatic Content-Type), use the Result method.
+	// Deprecated: HeaderMap exists for historical compatibility
+	// and should not be used. To access the headers returned by a handler,
+	// use the Response.Header map as returned by the Result method.
 	HeaderMap http.Header
 
 	// Body is the buffer to which the Handler's Write calls are sent.
@@ -182,6 +184,8 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	res.Status = fmt.Sprintf("%03d %s", res.StatusCode, http.StatusText(res.StatusCode))
 	if rw.Body != nil {
 		res.Body = ioutil.NopCloser(bytes.NewReader(rw.Body.Bytes()))
+	} else {
+		res.Body = http.NoBody
 	}
 	res.ContentLength = parseContentLength(res.Header.Get("Content-Length"))
 

@@ -700,16 +700,25 @@ const (
 	OEMPTY    // no-op (empty statement)
 	OFALL     // fallthrough
 	OFOR      // for Ninit; Left; Right { Nbody }
-	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
-	OGOTO     // goto Left
-	OIF       // if Ninit; Left { Nbody } else { Rlist }
-	OLABEL    // Left:
-	OPROC     // go Left (Left must be call)
-	ORANGE    // for List = range Right { Nbody }
-	ORETURN   // return List
-	OSELECT   // select { List } (List is list of OXCASE or OCASE)
-	OSWITCH   // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
-	OTYPESW   // Left = Right.(type) (appears as .Left of OSWITCH)
+	// OFORUNTIL is like OFOR, but the test (Left) is applied after the body:
+	// 	Ninit
+	// 	top: { Nbody }   // Execute the body at least once
+	// 	cont: Right
+	// 	if Left {        // And then test the loop condition
+	// 		List     // Before looping to top, execute List
+	// 		goto top
+	// 	}
+	// OFORUNTIL is created by walk. There's no way to write this in Go code.
+	OFORUNTIL
+	OGOTO   // goto Left
+	OIF     // if Ninit; Left { Nbody } else { Rlist }
+	OLABEL  // Left:
+	OPROC   // go Left (Left must be call)
+	ORANGE  // for List = range Right { Nbody }
+	ORETURN // return List
+	OSELECT // select { List } (List is list of OXCASE or OCASE)
+	OSWITCH // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
+	OTYPESW // Left = Right.(type) (appears as .Left of OSWITCH)
 
 	// types
 	OTCHAN   // chan int

@@ -202,7 +202,7 @@ func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&s)), uintptr(h.hash0))
 
 	// Set hashWriting after calling alg.hash for consistency with mapassign.
-	h.flags |= hashWriting
+	h.flags ^= hashWriting
 
 	if h.buckets == nil {
 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
@@ -294,7 +294,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
 
 	// Set hashWriting after calling alg.hash for consistency with mapdelete
-	h.flags |= hashWriting
+	h.flags ^= hashWriting
 
 	bucket := hash & bucketMask(h.B)
 	if h.growing() {
@@ -314,10 +314,11 @@ search:
 			}
 			// Clear key's pointer.
 			k.str = nil
-			// Only clear value if there are pointers in it.
+			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
 			if t.elem.kind&kindNoPointers == 0 {
-				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
 				memclrHasPointers(v, t.elem.size)
+			} else {
+				memclrNoHeapPointers(v, t.elem.size)
 			}
 			b.tophash[i] = empty
 			h.count--

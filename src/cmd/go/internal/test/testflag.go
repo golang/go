@@ -63,6 +63,7 @@ var testFlagDefn = []*cmdflag.Defn{
 
 // add build flags to testFlagDefn
 func init() {
+	cmdflag.AddKnownFlags("test", testFlagDefn)
 	var cmd base.Command
 	work.AddBuildFlags(&cmd)
 	cmd.Flag.VisitAll(func(f *flag.Flag) {
@@ -87,6 +88,7 @@ func init() {
 //	go test fmt -custom-flag-for-fmt-test
 //	go test -x math
 func testFlags(args []string) (packageNames, passToTest []string) {
+	args = str.StringList(cmdflag.FindGOFLAGS(testFlagDefn), args)
 	inPkg := false
 	var explicitArgs []string
 	for i := 0; i < len(args); i++ {

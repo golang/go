@@ -294,7 +294,13 @@ func TestInteractiveCommands(t *testing.T) {
 			t.Errorf("failed on %q: %v", tc.input, err)
 			continue
 		}
-		vars = applyCommandOverrides(cmd, vars)
+
+		// Get report output format
+		c := pprofCommands[cmd[0]]
+		if c == nil {
+			t.Errorf("unexpected nil command")
+		}
+		vars = applyCommandOverrides(cmd[0], c.format, vars)
 
 		for n, want := range tc.want {
 			if got := vars[n].stringValue(); got != want {

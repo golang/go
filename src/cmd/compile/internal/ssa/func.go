@@ -53,6 +53,12 @@ type Func struct {
 	// of keys to make iteration order deterministic.
 	Names []LocalSlot
 
+	// WBLoads is a list of Blocks that branch on the write
+	// barrier flag. Safe-points are disabled from the OpLoad that
+	// reads the write-barrier flag until the control flow rejoins
+	// below the two successors of this block.
+	WBLoads []*Block
+
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
@@ -376,6 +382,19 @@ func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, au
 func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
+	v.Args = v.argstorage[:2]
+	v.argstorage[0] = arg0
+	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
+	return v
+}
+
+// NewValue2A returns a new value in the block with two arguments and one aux values.
+func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = 0
+	v.Aux = aux
 	v.Args = v.argstorage[:2]
 	v.argstorage[0] = arg0
 	v.argstorage[1] = arg1

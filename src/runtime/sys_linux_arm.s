@@ -36,7 +36,7 @@
 #define SYS_setitimer (SYS_BASE + 104)
 #define SYS_mincore (SYS_BASE + 219)
 #define SYS_gettid (SYS_BASE + 224)
-#define SYS_tkill (SYS_BASE + 238)
+#define SYS_tgkill (SYS_BASE + 268)
 #define SYS_sched_yield (SYS_BASE + 158)
 #define SYS_nanosleep (SYS_BASE + 162)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
@@ -138,11 +138,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT	runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVW	$SYS_getpid, R7
+	SWI	$0
+	MOVW	R0, R4
 	MOVW	$SYS_gettid, R7
 	SWI	$0
-	// arg 1 tid already in R0 from gettid
-	MOVW	sig+0(FP), R1	// arg 2 - signal
-	MOVW	$SYS_tkill, R7
+	MOVW	R0, R1	// arg 2 tid
+	MOVW	R4, R0	// arg 1 pid
+	MOVW	sig+0(FP), R2	// arg 3
+	MOVW	$SYS_tgkill, R7
 	SWI	$0
 	RET
 
@@ -191,7 +195,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	flags+8(FP), R2
 	MOVW	$SYS_madvise, R7
 	SWI	$0
-	// ignore failure - maybe pages are locked
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0

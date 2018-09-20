@@ -8,7 +8,7 @@
 //
 // The algorithm is detailed in FIPS 180-4:
 //
-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
 
 // The avx2-version is described in an Intel White-Paper:
 // "Fast SHA-256 Implementations on Intel Architecture Processors"
@@ -755,7 +755,7 @@ avx2_loop1: // for w0 - w47
 	JB   avx2_loop1
 
 avx2_loop2:
-	// w48 - w63 processed with no scheduliung (last 16 rounds)
+	// w48 - w63 processed with no scheduling (last 16 rounds)
 	VPADDD  0*32(TBL)(SRND*1), XDWORD0, XFER
 	VMOVDQU XFER, (_XFER + 0*32)(SP)(SRND*1)
 	DO_ROUND_N_0(_XFER + 0*32, a, b, c, d, e, f, g, h, h)

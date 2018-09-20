@@ -7,8 +7,6 @@ package big
 import "math"
 
 var (
-	half  = NewFloat(0.5)
-	two   = NewFloat(2.0)
 	three = NewFloat(3.0)
 )
 
@@ -57,9 +55,9 @@ func (z *Float) Sqrt(x *Float) *Float {
 	case 0:
 		// nothing to do
 	case 1:
-		z.Mul(two, z)
+		z.exp++
 	case -1:
-		z.Mul(half, z)
+		z.exp--
 	}
 	// 0.25 <= z < 2.0
 
@@ -96,7 +94,7 @@ func (z *Float) sqrtDirect(x *Float) {
 		u.prec = t.prec
 		u.Mul(t, t)        // u = t²
 		u.Add(u, x)        //   = t² + x
-		u.Mul(half, u)     //   = ½(t² + x)
+		u.exp--            //   = ½(t² + x)
 		return t.Quo(u, t) //   = ½(t² + x)/t
 	}
 
@@ -133,11 +131,13 @@ func (z *Float) sqrtInverse(x *Float) {
 	ng := func(t *Float) *Float {
 		u.prec = t.prec
 		v.prec = t.prec
-		u.Mul(t, t)           // u = t²
-		u.Mul(x, u)           //   = xt²
-		v.Sub(three, u)       // v = 3 - xt²
-		u.Mul(t, v)           // u = t(3 - xt²)
-		return t.Mul(half, u) //   = ½t(3 - xt²)
+		u.Mul(t, t)     // u = t²
+		u.Mul(x, u)     //   = xt²
+		v.Sub(three, u) // v = 3 - xt²
+		u.Mul(t, v)     // u = t(3 - xt²)
+		u.exp--         //   = ½t(3 - xt²)
+		return t.Set(u)
+
 	}
 
 	xf, _ := x.Float64()

@@ -236,7 +236,7 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 // with the same code followed by a space. Each line in message is
 // separated by a newline (\n).
 //
-// See page 36 of RFC 959 (http://www.ietf.org/rfc/rfc959.txt) for
+// See page 36 of RFC 959 (https://www.ietf.org/rfc/rfc959.txt) for
 // details of another form of response accepted:
 //
 //  code-message line 1

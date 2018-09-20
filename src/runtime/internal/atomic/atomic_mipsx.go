@@ -7,14 +7,14 @@
 package atomic
 
 import (
-	"runtime/internal/sys"
+	"internal/cpu"
 	"unsafe"
 )
 
 // TODO implement lock striping
 var lock struct {
 	state uint32
-	pad   [sys.CacheLineSize - 4]byte
+	pad   [cpu.CacheLinePadSize - 4]byte
 }
 
 //go:noescape

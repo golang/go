@@ -63,6 +63,7 @@
 set -e
 
 unset GOBIN # Issue 14340
+unset GOFLAGS
 
 if [ ! -f run.bash ]; then
 	echo 'make.bash must be run from $GOROOT/src' 1>&2
@@ -141,7 +142,7 @@ export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
-		goroot=$(GOROOT='' "$go_exe" env GOROOT)
+		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
 		if [ "$goroot" != "$GOROOT" ]; then
 			GOROOT_BOOTSTRAP=$goroot
 		fi

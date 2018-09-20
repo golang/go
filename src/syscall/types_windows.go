@@ -559,7 +559,7 @@ const (
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
 
-	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
+	// cf. https://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
 	IP_TOS             = 0x3
 	IP_TTL             = 0x4
@@ -1009,7 +1009,7 @@ type AddrinfoW struct {
 	Protocol  int32
 	Addrlen   uintptr
 	Canonname *uint16
-	Addr      uintptr
+	Addr      Pointer
 	Next      *AddrinfoW
 }
 
@@ -1139,3 +1139,5 @@ const (
 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
 	_SYMLINK_FLAG_RELATIVE           = 1
 )
+
+const UNIX_PATH_MAX = 108 // defined in afunix.h

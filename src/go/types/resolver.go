@@ -420,6 +420,10 @@ func (check *Checker) collectObjects() {
 					check.recordDef(d.Name, obj)
 				}
 				info := &declInfo{file: fileScope, fdecl: d}
+				// Methods are not package-level objects but we still track them in the
+				// object map so that we can handle them like regular functions (if the
+				// receiver is invalid); also we need their fdecl info when associating
+				// them with their receiver base type, below.
 				check.objMap[obj] = info
 				obj.setOrder(uint32(len(check.objMap)))
 
@@ -517,6 +521,26 @@ func (check *Checker) resolveBaseTypeName(name *ast.Ident) *TypeName {
 	}
 }
 
+// cycle reports whether obj appears in path or not.
+// If it does, and report is set, it also reports a cycle error.
+func (check *Checker) cycle(obj *TypeName, path []*TypeName, report bool) bool {
+	// (it's ok to iterate forward because each named type appears at most once in path)
+	for i, prev := range path {
+		if prev == obj {
+			if report {
+				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
+				// print cycle
+				for _, obj := range path[i:] {
+					check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+				}
+				check.errorf(obj.Pos(), "\t%s", obj.Name())
+			}
+			return true
+		}
+	}
+	return false
+}
+
 // packageObjects typechecks all package objects, but not function bodies.
 func (check *Checker) packageObjects() {
 	// process package objects in source order for reproducible results
@@ -535,11 +559,8 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	// pre-allocate space for type declaration paths so that the underlying array is reused
-	typePath := make([]*TypeName, 0, 8)
-
 	for _, obj := range objList {
-		check.objDecl(obj, nil, typePath)
+		check.objDecl(obj, nil)
 	}
 
 	// At this point we may have a non-empty check.methods map; this means that not all

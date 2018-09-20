@@ -94,6 +94,15 @@ const (
 	REG_M6
 	REG_M7
 
+	REG_K0
+	REG_K1
+	REG_K2
+	REG_K3
+	REG_K4
+	REG_K5
+	REG_K6
+	REG_K7
+
 	REG_X0
 	REG_X1
 	REG_X2
@@ -110,6 +119,22 @@ const (
 	REG_X13
 	REG_X14
 	REG_X15
+	REG_X16
+	REG_X17
+	REG_X18
+	REG_X19
+	REG_X20
+	REG_X21
+	REG_X22
+	REG_X23
+	REG_X24
+	REG_X25
+	REG_X26
+	REG_X27
+	REG_X28
+	REG_X29
+	REG_X30
+	REG_X31
 
 	REG_Y0
 	REG_Y1
@@ -127,6 +152,55 @@ const (
 	REG_Y13
 	REG_Y14
 	REG_Y15
+	REG_Y16
+	REG_Y17
+	REG_Y18
+	REG_Y19
+	REG_Y20
+	REG_Y21
+	REG_Y22
+	REG_Y23
+	REG_Y24
+	REG_Y25
+	REG_Y26
+	REG_Y27
+	REG_Y28
+	REG_Y29
+	REG_Y30
+	REG_Y31
+
+	REG_Z0
+	REG_Z1
+	REG_Z2
+	REG_Z3
+	REG_Z4
+	REG_Z5
+	REG_Z6
+	REG_Z7
+	REG_Z8
+	REG_Z9
+	REG_Z10
+	REG_Z11
+	REG_Z12
+	REG_Z13
+	REG_Z14
+	REG_Z15
+	REG_Z16
+	REG_Z17
+	REG_Z18
+	REG_Z19
+	REG_Z20
+	REG_Z21
+	REG_Z22
+	REG_Z23
+	REG_Z24
+	REG_Z25
+	REG_Z26
+	REG_Z27
+	REG_Z28
+	REG_Z29
+	REG_Z30
+	REG_Z31
 
 	REG_CS
 	REG_SS
@@ -221,15 +295,16 @@ var AMD64DWARFRegisters = map[int16]int16{
 	REG_R14: 14,
 	REG_R15: 15,
 	// 16 is "Return Address RA", whatever that is.
-	// XMM registers. %xmmN => XN.
-	REG_X0:  17,
-	REG_X1:  18,
-	REG_X2:  19,
-	REG_X3:  20,
-	REG_X4:  21,
-	REG_X5:  22,
-	REG_X6:  23,
-	REG_X7:  24,
+	// 17-24 vector registers (X/Y/Z).
+	REG_X0: 17,
+	REG_X1: 18,
+	REG_X2: 19,
+	REG_X3: 20,
+	REG_X4: 21,
+	REG_X5: 22,
+	REG_X6: 23,
+	REG_X7: 24,
+	// 25-32 extended vector registers (X/Y/Z).
 	REG_X8:  25,
 	REG_X9:  26,
 	REG_X10: 27,
@@ -267,6 +342,34 @@ var AMD64DWARFRegisters = map[int16]int16{
 	REG_TR:   62,
 	REG_LDTR: 63,
 	// 64-66 are mxcsr, fcw, fsw, which don't have names.
+
+	// 67-82 upper vector registers (X/Y/Z).
+	REG_X16: 67,
+	REG_X17: 68,
+	REG_X18: 69,
+	REG_X19: 70,
+	REG_X20: 71,
+	REG_X21: 72,
+	REG_X22: 73,
+	REG_X23: 74,
+	REG_X24: 75,
+	REG_X25: 76,
+	REG_X26: 77,
+	REG_X27: 78,
+	REG_X28: 79,
+	REG_X29: 80,
+	REG_X30: 81,
+	REG_X31: 82,
+
+	// 118-125 vector mask registers. %kN => KN.
+	REG_K0: 118,
+	REG_K1: 119,
+	REG_K2: 120,
+	REG_K3: 121,
+	REG_K4: 122,
+	REG_K5: 123,
+	REG_K6: 124,
+	REG_K7: 125,
 }
 
 // https://www.uclibc.org/docs/psABI-i386.pdf, table 2.14

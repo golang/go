@@ -47,12 +47,9 @@ func TestReadFormWithNamelessFile(t *testing.T) {
 	}
 	defer f.RemoveAll()
 
-	fd := testFile(t, f.File["hiddenfile"][0], "", filebContents)
-	if _, ok := fd.(sectionReadCloser); !ok {
-		t.Errorf("file has unexpected underlying type %T", fd)
+	if g, e := f.Value["hiddenfile"][0], filebContents; g != e {
+		t.Errorf("hiddenfile value = %q, want %q", g, e)
 	}
-	fd.Close()
-
 }
 
 func TestReadFormWithTextContentType(t *testing.T) {

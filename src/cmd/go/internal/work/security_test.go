@@ -12,6 +12,7 @@ import (
 var goodCompilerFlags = [][]string{
 	{"-DFOO"},
 	{"-Dfoo=bar"},
+	{"-F/Qt"},
 	{"-I/"},
 	{"-I/etc/passwd"},
 	{"-I."},
@@ -57,11 +58,14 @@ var goodCompilerFlags = [][]string{
 	{"-I", "世界"},
 	{"-framework", "Chocolate"},
 	{"-x", "c"},
+	{"-v"},
 }
 
 var badCompilerFlags = [][]string{
 	{"-D@X"},
 	{"-D-X"},
+	{"-F@dir"},
+	{"-F-dir"},
 	{"-I@dir"},
 	{"-I-dir"},
 	{"-O@1"},
@@ -125,6 +129,7 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,--no-warn-error"},
 	{"foo.so"},
 	{"_世界.dll"},
+	{"./x.o"},
 	{"libcgosotest.dylib"},
 	{"-F", "framework"},
 	{"-l", "."},
@@ -132,6 +137,7 @@ var goodLinkerFlags = [][]string{
 	{"-l", "世界"},
 	{"-L", "framework"},
 	{"-framework", "Chocolate"},
+	{"-v"},
 	{"-Wl,-framework", "-Wl,Chocolate"},
 	{"-Wl,-framework,Chocolate"},
 	{"-Wl,-unresolved-symbols=ignore-all"},
@@ -191,6 +197,7 @@ var badLinkerFlags = [][]string{
 	{"-x", "--c"},
 	{"-x", "@obj"},
 	{"-Wl,-rpath,@foo"},
+	{"../x.o"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {

@@ -20,4 +20,3 @@ runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declar
 runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
 runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
 runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
-runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration

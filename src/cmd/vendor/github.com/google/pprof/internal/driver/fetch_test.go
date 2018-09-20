@@ -210,13 +210,20 @@ func TestFetchWithBase(t *testing.T) {
 	baseVars := pprofVariables
 	defer func() { pprofVariables = baseVars }()
 
+	type WantSample struct {
+		values []int64
+		labels map[string][]string
+	}
+
 	const path = "testdata/"
 	type testcase struct {
-		desc            string
-		sources         []string
-		bases           []string
-		normalize       bool
-		expectedSamples [][]int64
+		desc         string
+		sources      []string
+		bases        []string
+		diffBases    []string
+		normalize    bool
+		wantSamples  []WantSample
+		wantErrorMsg string
 	}
 
 	testcases := []testcase{
@@ -224,58 +231,216 @@ func TestFetchWithBase(t *testing.T) {
 			"not normalized base is same as source",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.contention"},
+			nil,
 			false,
-			[][]int64{},
+			nil,
+			"",
+		},
+		{
+			"not normalized base is same as source",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention"},
+			nil,
+			false,
+			nil,
+			"",
 		},
 		{
 			"not normalized single source, multiple base (all profiles same)",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.contention", path + "cppbench.contention"},
+			nil,
 			false,
-			[][]int64{{-2700, -608881724}, {-100, -23992}, {-200, -179943}, {-100, -17778444}, {-100, -75976}, {-300, -63568134}},
+			[]WantSample{
+				{
+					values: []int64{-2700, -608881724},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-100, -23992},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-200, -179943},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-100, -17778444},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-100, -75976},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-300, -63568134},
+					labels: map[string][]string{},
+				},
+			},
+			"",
 		},
 		{
 			"not normalized, different base and source",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.small.contention"},
+			nil,
 			false,
-			[][]int64{{1700, 608878600}, {100, 23992}, {200, 179943}, {100, 17778444}, {100, 75976}, {300, 63568134}},
+			[]WantSample{
+				{
+					values: []int64{1700, 608878600},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 23992},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{200, 179943},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 17778444},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 75976},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{300, 63568134},
+					labels: map[string][]string{},
+				},
+			},
+			"",
 		},
 		{
 			"normalized base is same as source",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.contention"},
+			nil,
 			true,
-			[][]int64{},
+			nil,
+			"",
 		},
 		{
 			"normalized single source, multiple base (all profiles same)",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.contention", path + "cppbench.contention"},
+			nil,
 			true,
-			[][]int64{},
+			nil,
+			"",
 		},
 		{
 			"normalized different base and source",
 			[]string{path + "cppbench.contention"},
 			[]string{path + "cppbench.small.contention"},
+			nil,
 			true,
-			[][]int64{{-229, -370}, {28, 0}, {57, 0}, {28, 80}, {28, 0}, {85, 287}},
+			[]WantSample{
+				{
+					values: []int64{-229, -370},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{28, 0},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{57, 0},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{28, 80},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{28, 0},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{85, 287},
+					labels: map[string][]string{},
+				},
+			},
+			"",
+		},
+		{
+			"not normalized diff base is same as source",
+			[]string{path + "cppbench.contention"},
+			nil,
+			[]string{path + "cppbench.contention"},
+			false,
+			[]WantSample{
+				{
+					values: []int64{2700, 608881724},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 23992},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{200, 179943},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 17778444},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{100, 75976},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{300, 63568134},
+					labels: map[string][]string{},
+				},
+				{
+					values: []int64{-2700, -608881724},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-100, -23992},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-200, -179943},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-100, -17778444},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-100, -75976},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+				{
+					values: []int64{-300, -63568134},
+					labels: map[string][]string{"pprof::base": {"true"}},
+				},
+			},
+			"",
+		},
+		{
+			"diff_base and base both specified",
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention"},
+			[]string{path + "cppbench.contention"},
+			false,
+			nil,
+			"-base and -diff_base flags cannot both be specified",
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			pprofVariables = baseVars.makeCopy()
-
-			base := make([]*string, len(tc.bases))
-			for i, s := range tc.bases {
-				base[i] = &s
-			}
-
 			f := testFlags{
-				stringLists: map[string][]*string{
-					"base": base,
+				stringLists: map[string][]string{
+					"base":      tc.bases,
+					"diff_base": tc.diffBases,
 				},
 				bools: map[string]bool{
 					"normalize": tc.normalize,
@@ -289,30 +454,37 @@ func TestFetchWithBase(t *testing.T) {
 			})
 			src, _, err := parseFlags(o)
 
+			if tc.wantErrorMsg != "" {
+				if err == nil {
+					t.Fatalf("got nil, want error %q", tc.wantErrorMsg)
+				}
+
+				if gotErrMsg := err.Error(); gotErrMsg != tc.wantErrorMsg {
+					t.Fatalf("got error %q, want error %q", gotErrMsg, tc.wantErrorMsg)
+				}
+				return
+			}
+
 			if err != nil {
-				t.Fatalf("%s: %v", tc.desc, err)
+				t.Fatalf("got error %q, want no error", err)
 			}
 
 			p, err := fetchProfiles(src, o)
-			pprofVariables = baseVars
+
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("got error %q, want no error", err)
 			}
 
-			if want, got := len(tc.expectedSamples), len(p.Sample); want != got {
-				t.Fatalf("want %d samples got %d", want, got)
+			if got, want := len(p.Sample), len(tc.wantSamples); got != want {
+				t.Fatalf("got %d samples want %d", got, want)
 			}
 
-			if len(p.Sample) > 0 {
-				for i, sample := range p.Sample {
-					if want, got := len(tc.expectedSamples[i]), len(sample.Value); want != got {
-						t.Errorf("want %d values for sample %d, got %d", want, i, got)
-					}
-					for j, value := range sample.Value {
-						if want, got := tc.expectedSamples[i][j], value; want != got {
-							t.Errorf("want value of %d for value %d of sample %d, got %d", want, j, i, got)
-						}
-					}
+			for i, sample := range p.Sample {
+				if !reflect.DeepEqual(tc.wantSamples[i].values, sample.Value) {
+					t.Errorf("for sample %d got values %v, want %v", i, sample.Value, tc.wantSamples[i])
+				}
+				if !reflect.DeepEqual(tc.wantSamples[i].labels, sample.Label) {
+					t.Errorf("for sample %d got labels %v, want %v", i, sample.Label, tc.wantSamples[i].labels)
 				}
 			}
 		})

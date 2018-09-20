@@ -195,7 +195,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64FNMULS,
 		ssa.OpARM64FNMULD,
 		ssa.OpARM64FDIVS,
-		ssa.OpARM64FDIVD:
+		ssa.OpARM64FDIVD,
+		ssa.OpARM64ROR,
+		ssa.OpARM64RORW:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
@@ -212,7 +214,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64FMSUBS,
 		ssa.OpARM64FMSUBD,
 		ssa.OpARM64FNMSUBS,
-		ssa.OpARM64FNMSUBD:
+		ssa.OpARM64FNMSUBD,
+		ssa.OpARM64MADD,
+		ssa.OpARM64MADDW,
+		ssa.OpARM64MSUB,
+		ssa.OpARM64MSUBW:
 		rt := v.Reg()
 		ra := v.Args[0].Reg()
 		rm := v.Args[1].Reg()
@@ -369,6 +375,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64MOVWloadidx,
 		ssa.OpARM64MOVWUloadidx,
 		ssa.OpARM64MOVDloadidx,
+		ssa.OpARM64FMOVSloadidx,
+		ssa.OpARM64FMOVDloadidx,
 		ssa.OpARM64MOVHloadidx2,
 		ssa.OpARM64MOVHUloadidx2,
 		ssa.OpARM64MOVWloadidx4,
@@ -404,6 +412,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64MOVHstoreidx,
 		ssa.OpARM64MOVWstoreidx,
 		ssa.OpARM64MOVDstoreidx,
+		ssa.OpARM64FMOVSstoreidx,
+		ssa.OpARM64FMOVDstoreidx,
 		ssa.OpARM64MOVHstoreidx2,
 		ssa.OpARM64MOVWstoreidx4,
 		ssa.OpARM64MOVDstoreidx8:
@@ -553,6 +563,28 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Reg = arm64.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
+	case ssa.OpARM64LoweredAtomicAdd64Variant,
+		ssa.OpARM64LoweredAtomicAdd32Variant:
+		// LDADDAL	Rarg1, (Rarg0), Rout
+		// ADD		Rarg1, Rout
+		op := arm64.ALDADDALD
+		if v.Op == ssa.OpARM64LoweredAtomicAdd32Variant {
+			op = arm64.ALDADDALW
+		}
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		out := v.Reg0()
+		p := s.Prog(op)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = r0
+		p.RegTo2 = out
+		p1 := s.Prog(arm64.AADD)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = out
 	case ssa.OpARM64LoweredAtomicCas64,
 		ssa.OpARM64LoweredAtomicCas32:
 		// LDAXR	(Rarg0), Rtmp
@@ -603,25 +635,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.Patch(p2, p5)
 	case ssa.OpARM64LoweredAtomicAnd8,
 		ssa.OpARM64LoweredAtomicOr8:
-		// LDAXRB	(Rarg0), Rtmp
-		// AND/OR	Rarg1, Rtmp
-		// STLXRB	Rtmp, (Rarg0), Rtmp
+		// LDAXRB	(Rarg0), Rout
+		// AND/OR	Rarg1, Rout
+		// STLXRB	Rout, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
+		out := v.Reg0()
 		p := s.Prog(arm64.ALDAXRB)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r0
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = arm64.REGTMP
+		p.To.Reg = out
 		p1 := s.Prog(v.Op.Asm())
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = r1
 		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = arm64.REGTMP
+		p1.To.Reg = out
 		p2 := s.Prog(arm64.ASTLXRB)
 		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = arm64.REGTMP
+		p2.From.Reg = out
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = r0
 		p2.RegTo2 = arm64.REGTMP
@@ -665,8 +698,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		fallthrough
 	case ssa.OpARM64MVN,
 		ssa.OpARM64NEG,
+		ssa.OpARM64FABSD,
 		ssa.OpARM64FMOVDfpgp,
 		ssa.OpARM64FMOVDgpfp,
+		ssa.OpARM64FMOVSfpgp,
+		ssa.OpARM64FMOVSgpfp,
 		ssa.OpARM64FNEGS,
 		ssa.OpARM64FNEGD,
 		ssa.OpARM64FSQRTD,
@@ -697,6 +733,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64CLZW,
 		ssa.OpARM64FRINTAD,
 		ssa.OpARM64FRINTMD,
+		ssa.OpARM64FRINTND,
 		ssa.OpARM64FRINTPD,
 		ssa.OpARM64FRINTZD:
 		p := s.Prog(v.Op.Asm())

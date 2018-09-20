@@ -218,7 +218,7 @@ func main() {
   main\.main\.func1\(\)
       .*/main.go:7`},
 
-	// Test for http://golang.org/issue/17190
+	// Test for https://golang.org/issue/17190
 	{"external_cgo_thread", "run", "linux", "atexit_sleep_ms=0", `
 package main
 

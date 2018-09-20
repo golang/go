@@ -648,26 +648,26 @@ func TestSticky(t *testing.T) {
 	}
 }
 
-func testBasicSqr(t *testing.T, x nat) {
+func testSqr(t *testing.T, x nat) {
 	got := make(nat, 2*len(x))
 	want := make(nat, 2*len(x))
-	basicSqr(got, x)
-	basicMul(want, x, x)
+	got = got.sqr(x)
+	want = want.mul(x, x)
 	if got.cmp(want) != 0 {
 		t.Errorf("basicSqr(%v), got %v, want %v", x, got, want)
 	}
 }
 
-func TestBasicSqr(t *testing.T) {
+func TestSqr(t *testing.T) {
 	for _, a := range prodNN {
 		if a.x != nil {
-			testBasicSqr(t, a.x)
+			testSqr(t, a.x)
 		}
 		if a.y != nil {
-			testBasicSqr(t, a.y)
+			testSqr(t, a.y)
 		}
 		if a.z != nil {
-			testBasicSqr(t, a.z)
+			testSqr(t, a.z)
 		}
 	}
 }

@@ -84,6 +84,7 @@ import (
 	"internal/poll"
 	"io"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -229,7 +230,7 @@ func (c *conn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.pfd.SetDeadline(t); err != nil {
+	if err := c.fd.SetDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -240,7 +241,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.pfd.SetReadDeadline(t); err != nil {
+	if err := c.fd.SetReadDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -251,7 +252,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.pfd.SetWriteDeadline(t); err != nil {
+	if err := c.fd.SetWriteDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -356,7 +357,16 @@ type PacketConn interface {
 	SetWriteDeadline(t time.Time) error
 }
 
-var listenerBacklog = maxListenerBacklog()
+var listenerBacklogCache struct {
+	sync.Once
+	val int
+}
+
+// listenerBacklog is a caching wrapper around maxListenerBacklog.
+func listenerBacklog() int {
+	listenerBacklogCache.Do(func() { listenerBacklogCache.val = maxListenerBacklog() })
+	return listenerBacklogCache.val
+}
 
 // A Listener is a generic network listener for stream-oriented protocols.
 //
@@ -610,9 +620,14 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 // server is not responding. Then the many lookups each use a different
 // thread, and the system or the program runs out of threads.
 
-var threadLimit = make(chan struct{}, 500)
+var threadLimit chan struct{}
+
+var threadOnce sync.Once
 
 func acquireThread() {
+	threadOnce.Do(func() {
+		threadLimit = make(chan struct{}, concurrentThreadsLimit())
+	})
 	threadLimit <- struct{}{}
 }
 

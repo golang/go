@@ -17,7 +17,7 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 		_ = err
 	}
 	if f != nil {
-		_, err := f.Read(buf) // ERROR "declaration of .err. shadows declaration at testdata/shadow.go:13"
+		_, err := f.Read(buf) // ERROR "declaration of .err. shadows declaration at shadow.go:13"
 		if err != nil {
 			return err
 		}
@@ -25,8 +25,8 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 		_ = i
 	}
 	if f != nil {
-		x := one()               // ERROR "declaration of .x. shadows declaration at testdata/shadow.go:14"
-		var _, err = f.Read(buf) // ERROR "declaration of .err. shadows declaration at testdata/shadow.go:13"
+		x := one()               // ERROR "declaration of .x. shadows declaration at shadow.go:14"
+		var _, err = f.Read(buf) // ERROR "declaration of .err. shadows declaration at shadow.go:13"
 		if x == 1 && err != nil {
 			return err
 		}
@@ -46,7 +46,7 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 	if shadowTemp := shadowTemp; true { // OK: obviously intentional idiomatic redeclaration
 		var f *os.File // OK because f is not mentioned later in the function.
 		// The declaration of x is a shadow because x is mentioned below.
-		var x int // ERROR "declaration of .x. shadows declaration at testdata/shadow.go:14"
+		var x int // ERROR "declaration of .x. shadows declaration at shadow.go:14"
 		_, _, _ = x, f, shadowTemp
 	}
 	// Use a couple of variables to trigger shadowing errors.
@@ -56,4 +56,36 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 
 func one() int {
 	return 1
+}
+
+// Must not complain with an internal error for the
+// implicitly declared type switch variable v.
+func issue26725(x interface{}) int {
+	switch v := x.(type) {
+	case int, int32:
+		if v, ok := x.(int); ok {
+			return v
+		}
+	case int64:
+		return int(v)
+	}
+	return 0
+}
+
+// Verify that implicitly declared variables from
+// type switches are considered in shadowing analysis.
+func shadowTypeSwitch(a interface{}) {
+	switch t := a.(type) {
+	case int:
+		{
+			t := 0 // ERROR "declaration of .t. shadows declaration at shadow.go:78"
+			_ = t
+		}
+		_ = t
+	case uint:
+		{
+			t := uint(0) // OK because t is not mentioned later in this function
+			_ = t
+		}
+	}
 }

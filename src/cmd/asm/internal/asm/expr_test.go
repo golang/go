@@ -97,10 +97,6 @@ var badExprTests = []badExprTest{
 }
 
 func TestBadExpr(t *testing.T) {
-	panicOnError = true
-	defer func() {
-		panicOnError = false
-	}()
 	for i, test := range badExprTests {
 		err := runBadTest(i, test, t)
 		if err == nil {
@@ -119,13 +115,7 @@ func TestBadExpr(t *testing.T) {
 func runBadTest(i int, test badExprTest, t *testing.T) (err error) {
 	p := NewParser(nil, nil, nil) // Expression evaluation uses none of these fields of the parser.
 	p.start(lex.Tokenize(test.input))
-	defer func() {
-		e := recover()
-		var ok bool
-		if err, ok = e.(error); e != nil && !ok {
-			t.Fatal(e)
-		}
-	}()
-	p.expr()
-	return nil
+	return tryParse(t, func() {
+		p.expr()
+	})
 }

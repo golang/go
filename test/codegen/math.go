@@ -32,6 +32,7 @@ func approx(x float64) {
 	sink64[3] = math.Trunc(x)
 
 	// s390x:"FIDBR\t[$]4"
+	// arm64:"FRINTND"
 	sink64[4] = math.RoundToEven(x)
 }
 
@@ -48,6 +49,7 @@ func sqrt(x float64) float64 {
 // Check that it's using integer registers
 func abs(x, y float64) {
 	// amd64:"BTRQ\t[$]63"
+	// arm64:"FABSD\t"
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FABS\t"
 	sink64[0] = math.Abs(x)
@@ -74,6 +76,7 @@ func copysign(a, b, c float64) {
 	// amd64:"BTSQ\t[$]63"
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64le:"FCPSGN"
+	// arm64:"ORR", -"AND"
 	sink64[1] = math.Copysign(c, -1)
 
 	// Like math.Copysign(c, -1), but with integer operations. Useful
@@ -89,21 +92,25 @@ func copysign(a, b, c float64) {
 
 func fromFloat64(f64 float64) uint64 {
 	// amd64:"MOVQ\tX.*, [^X].*"
+	// arm64:"FMOVD\tF.*, R.*"
 	return math.Float64bits(f64+1) + 1
 }
 
 func fromFloat32(f32 float32) uint32 {
 	// amd64:"MOVL\tX.*, [^X].*"
+	// arm64:"FMOVS\tF.*, R.*"
 	return math.Float32bits(f32+1) + 1
 }
 
 func toFloat64(u64 uint64) float64 {
 	// amd64:"MOVQ\t[^X].*, X.*"
+	// arm64:"FMOVD\tR.*, F.*"
 	return math.Float64frombits(u64+1) + 1
 }
 
 func toFloat32(u32 uint32) float32 {
 	// amd64:"MOVL\t[^X].*, X.*"
+	// arm64:"FMOVS\tR.*, F.*"
 	return math.Float32frombits(u32+1) + 1
 }
 
@@ -129,6 +136,7 @@ func constantConvert32(x float32) float32 {
 	// amd64:"MOVSS\t[$]f32.3f800000\\(SB\\)"
 	// s390x:"FMOVS\t[$]f32.3f800000\\(SB\\)"
 	// ppc64le:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+	// arm64:"FMOVS\t[$]\\(1.0\\)"
 	if x > math.Float32frombits(0x3f800000) {
 		return -x
 	}
@@ -139,6 +147,7 @@ func constantConvertInt32(x uint32) uint32 {
 	// amd64:-"MOVSS"
 	// s390x:-"FMOVS"
 	// ppc64le:-"FMOVS"
+	// arm64:-"FMOVS"
 	if x > math.Float32bits(1) {
 		return -x
 	}

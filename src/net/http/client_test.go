@@ -1888,3 +1888,27 @@ func TestTransportBodyReadError(t *testing.T) {
 		t.Errorf("close calls = %d; want 1", closeCalls)
 	}
 }
+
+type roundTripperWithoutCloseIdle struct{}
+
+func (roundTripperWithoutCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
+
+type roundTripperWithCloseIdle func() // underlying func is CloseIdleConnections func
+
+func (roundTripperWithCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
+func (f roundTripperWithCloseIdle) CloseIdleConnections()               { f() }
+
+func TestClientCloseIdleConnections(t *testing.T) {
+	c := &Client{Transport: roundTripperWithoutCloseIdle{}}
+	c.CloseIdleConnections() // verify we don't crash at least
+
+	closed := false
+	var tr RoundTripper = roundTripperWithCloseIdle(func() {
+		closed = true
+	})
+	c = &Client{Transport: tr}
+	c.CloseIdleConnections()
+	if !closed {
+		t.Error("not closed")
+	}
+}

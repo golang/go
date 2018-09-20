@@ -435,11 +435,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
 // ("quick keys") as well as long keys.
 func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
 	testMapLookups(t, map[string]string{
-		"x":                      "x1val",
-		"xx":                     "x2val",
-		"foo":                    "fooval",
-		"bar":                    "barval", // same key length as "foo"
-		"xxxx":                   "x4val",
+		"x":    "x1val",
+		"xx":   "x2val",
+		"foo":  "fooval",
+		"bar":  "barval", // same key length as "foo"
+		"xxxx": "x4val",
 		strings.Repeat("x", 128): "longval1",
 		strings.Repeat("y", 128): "longval2",
 	})
@@ -1043,5 +1043,91 @@ func TestDeferDeleteSlow(t *testing.T) {
 	}()
 	if len(m) != 0 {
 		t.Errorf("want 0 elements, got %d", len(m))
+	}
+}
+
+// TestIncrementAfterDeleteValueInt and other test Issue 25936.
+// Value types int, int32, int64 are affected. Value type string
+// works as expected.
+func TestIncrementAfterDeleteValueInt(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteValueInt32(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int32)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteValueInt64(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int64)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteKeyStringValueInt(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]int)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2] += 1
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteKeyValueString(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]string)
+	m[key1] = "99"
+	delete(m, key1)
+	m[key2] += "1"
+	if n2 := m[key2]; n2 != "1" {
+		t.Errorf("appended '1' to empty (nil) string, got %s", n2)
+	}
+}
+
+// TestIncrementAfterBulkClearKeyStringValueInt tests that map bulk
+// deletion (mapclear) still works as expected. Note that it was not
+// affected by Issue 25936.
+func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]int)
+	m[key1] = 99
+	for k := range m {
+		delete(m, k)
+	}
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
 	}
 }

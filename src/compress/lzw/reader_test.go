@@ -66,7 +66,7 @@ var lzwTests = []lzwTest{
 		"\x54\x9e\x08\x29\xf2\x44\x8a\x93\x27\x54\x04",
 		io.ErrUnexpectedEOF,
 	},
-	// This example comes from http://en.wikipedia.org/wiki/Graphics_Interchange_Format.
+	// This example comes from https://en.wikipedia.org/wiki/Graphics_Interchange_Format.
 	{
 		"gif;LSB;8",
 		"\x28\xff\xff\xff\x28\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff",

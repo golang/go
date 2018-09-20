@@ -155,21 +155,21 @@ func fuseBlockPlain(b *Block) bool {
 	// debugging information depends on the order of *Values in Blocks.
 	// This can also cause changes in the order (which may affect other
 	// optimizations and possibly compiler output) for 32-vs-64 bit compilation
-	// platforms (word size affects allocation bucket size affects slice size).
+	// platforms (word size affects allocation bucket size affects slice capacity).
 	if cap(c.Values) >= cap(b.Values) || len(b.Values) <= len(b.valstorage) {
 		bl := len(b.Values)
 		cl := len(c.Values)
+		var t []*Value // construct t = b.Values followed-by c.Values, but with attention to allocation.
 		if cap(c.Values) < bl+cl {
 			// reallocate
-			t := make([]*Value, 0, bl+cl)
-			t = append(t, b.Values...)
-			c.Values = append(t, c.Values...)
+			t = make([]*Value, bl+cl)
 		} else {
 			// in place.
-			c.Values = c.Values[0 : bl+cl]
-			copy(c.Values[bl:], c.Values)
-			copy(c.Values, b.Values)
+			t = c.Values[0 : bl+cl]
 		}
+		copy(t[bl:], c.Values) // possibly in-place
+		c.Values = t
+		copy(c.Values, b.Values)
 	} else {
 		c.Values = append(b.Values, c.Values...)
 	}

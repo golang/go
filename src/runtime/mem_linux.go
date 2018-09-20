@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -34,10 +35,12 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 	return p
 }
 
+var adviseUnused = uint32(_MADV_FREE)
+
 func sysUnused(v unsafe.Pointer, n uintptr) {
 	// By default, Linux's "transparent huge page" support will
 	// merge pages into a huge page if there's even a single
-	// present regular page, undoing the effects of the DONTNEED
+	// present regular page, undoing the effects of madvise(adviseUnused)
 	// below. On amd64, that means khugepaged can turn a single
 	// 4KB page to 2MB, bloating the process's RSS by as much as
 	// 512X. (See issue #8832 and Linux kernel bug
@@ -102,7 +105,13 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 		throw("unaligned sysUnused")
 	}
 
-	madvise(v, n, _MADV_DONTNEED)
+	advise := atomic.Load(&adviseUnused)
+	if errno := madvise(v, n, int32(advise)); advise == _MADV_FREE && errno != 0 {
+		// MADV_FREE was added in Linux 4.5. Fall back to MADV_DONTNEED if it is
+		// not supported.
+		atomic.Store(&adviseUnused, _MADV_DONTNEED)
+		madvise(v, n, _MADV_DONTNEED)
+	}
 }
 
 func sysUsed(v unsafe.Pointer, n uintptr) {

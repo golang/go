@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
 
 package net
 
@@ -112,37 +112,34 @@ func (c *IPConn) writeMsg(b, oob []byte, addr *IPAddr) (n, oobn int, err error) 
 	return c.fd.writeMsg(b, oob, sa)
 }
 
-func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
-	network, proto, err := parseNetwork(ctx, netProto, true)
+func (sd *sysDialer) dialIP(ctx context.Context, laddr, raddr *IPAddr) (*IPConn, error) {
+	network, proto, err := parseNetwork(ctx, sd.network, true)
 	if err != nil {
 		return nil, err
 	}
 	switch network {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, UnknownNetworkError(netProto)
+		return nil, UnknownNetworkError(sd.network)
 	}
-	if raddr == nil {
-		return nil, errMissingAddress
-	}
-	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial")
+	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial", sd.Dialer.Control)
 	if err != nil {
 		return nil, err
 	}
 	return newIPConn(fd), nil
 }
 
-func listenIP(ctx context.Context, netProto string, laddr *IPAddr) (*IPConn, error) {
-	network, proto, err := parseNetwork(ctx, netProto, true)
+func (sl *sysListener) listenIP(ctx context.Context, laddr *IPAddr) (*IPConn, error) {
+	network, proto, err := parseNetwork(ctx, sl.network, true)
 	if err != nil {
 		return nil, err
 	}
 	switch network {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, UnknownNetworkError(netProto)
+		return nil, UnknownNetworkError(sl.network)
 	}
-	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen")
+	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen", sl.ListenConfig.Control)
 	if err != nil {
 		return nil, err
 	}

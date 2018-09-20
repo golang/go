@@ -39,10 +39,12 @@ func TestLegacyProfileType(t *testing.T) {
 		{[]string{"objects", "space"}, heap, true, "heapzSampleTypes"},
 		{[]string{"inuse_objects", "inuse_space"}, heap, true, "heapzSampleTypes"},
 		{[]string{"alloc_objects", "alloc_space"}, heap, true, "heapzSampleTypes"},
+		{[]string{"alloc_objects", "alloc_space", "inuse_objects", "inuse_space"}, heap, true, "heapzSampleTypes"},
 		{[]string{"contentions", "delay"}, cont, true, "contentionzSampleTypes"},
 		// False cases
 		{[]string{"objects"}, heap, false, "heapzSampleTypes"},
 		{[]string{"objects", "unknown"}, heap, false, "heapzSampleTypes"},
+		{[]string{"inuse_objects", "inuse_space", "alloc_objects", "alloc_space"}, heap, false, "heapzSampleTypes"},
 		{[]string{"contentions", "delay"}, heap, false, "heapzSampleTypes"},
 		{[]string{"samples", "cpu"}, heap, false, "heapzSampleTypes"},
 		{[]string{"samples", "cpu"}, cont, false, "contentionzSampleTypes"},

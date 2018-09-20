@@ -11,6 +11,9 @@
 // The default Source is safe for concurrent use by multiple goroutines, but
 // Sources created by NewSource are not.
 //
+// Mathematical interval notation such as [0, n) is used throughout the
+// documentation for this package.
+//
 // For random numbers suitable for security-sensitive work, see the crypto/rand
 // package.
 package rand

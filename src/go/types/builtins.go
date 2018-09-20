@@ -174,7 +174,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 
-		if mode == invalid {
+		if mode == invalid && typ != Typ[Invalid] {
 			check.invalidArg(x.pos(), "%s for %s", x, bin.name)
 			return
 		}
@@ -476,7 +476,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// panic(x)
 		// record panic call if inside a function with result parameters
 		// (for use in Checker.isTerminating)
-		if check.sig.results.Len() > 0 {
+		if check.sig != nil && check.sig.results.Len() > 0 {
 			// function has result parameters
 			p := check.isPanic
 			if p == nil {

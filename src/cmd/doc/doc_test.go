@@ -18,6 +18,7 @@ import (
 func TestMain(m *testing.M) {
 	// Clear GOPATH so we don't access the user's own packages in the test.
 	buildCtx.GOPATH = ""
+	testGOPATH = true // force GOPATH mode; module test is in cmd/go/testdata/script/mod_doc.txt
 
 	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
 	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
@@ -26,7 +27,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	dirsInit(testdataDir)
+	dirsInit(Dir{"testdata", testdataDir}, Dir{"testdata/nested", filepath.Join(testdataDir, "nested")}, Dir{"testdata/nested/nested", filepath.Join(testdataDir, "nested", "nested")})
 
 	os.Exit(m.Run())
 }
@@ -510,6 +511,24 @@ var tests = []test{
 			"\\)\n+const", // This will appear if the const decl appears twice.
 		},
 	},
+	{
+		"non-imported: pkg.sym",
+		[]string{"nested.Foo"},
+		[]string{"Foo struct"},
+		nil,
+	},
+	{
+		"non-imported: pkg only",
+		[]string{"nested"},
+		[]string{"Foo struct"},
+		nil,
+	},
+	{
+		"non-imported: pkg sym",
+		[]string{"nested", "Foo"},
+		[]string{"Foo struct"},
+		nil,
+	},
 }
 
 func TestDoc(t *testing.T) {
@@ -519,7 +538,7 @@ func TestDoc(t *testing.T) {
 		var flagSet flag.FlagSet
 		err := do(&b, &flagSet, test.args)
 		if err != nil {
-			t.Fatalf("%s: %s\n", test.name, err)
+			t.Fatalf("%s %v: %s\n", test.name, test.args, err)
 		}
 		output := b.Bytes()
 		failed := false

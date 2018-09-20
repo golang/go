@@ -1,0 +1,23 @@
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+# Building a main package should run the compiler and linker ...
+go build -o $devnull -x main.go
+stderr '(compile|gccgo)( |\.exe).*main\.go'
+stderr '(link|gccgo)( |\.exe)'
+
+# ... and then the linker again ...
+go build -o $devnull -x main.go
+! stderr '(compile|gccgo)( |\.exe).*main\.go'
+stderr '(link|gccgo)( |\.exe)'
+
+# ... but the output binary can serve as a cache.
+go build -o main$exe -x main.go
+stderr '(link|gccgo)( |\.exe)'
+go build -o main$exe -x main.go
+! stderr '(link|gccgo)( |\.exe)'
+
+-- main.go --
+package main
+func main() {}

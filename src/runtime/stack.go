@@ -64,8 +64,8 @@ const (
 	// StackSystem is a number of additional bytes to add
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows, Plan 9,
-	// and Darwin/ARM because they do not use a separate stack.
-	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm*1024
+	// and iOS because they do not use a separate stack.
+	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm*1024 + sys.GoosDarwin*sys.GoarchArm64*1024
 
 	// The minimum size of stack used by Go code
 	_StackMin = 2048
@@ -186,6 +186,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 		if s.manualFreeList.ptr() != nil {
 			throw("bad manualFreeList")
 		}
+		osStackAlloc(s)
 		s.elemsize = _FixedStack << order
 		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
 			x := gclinkptr(s.base() + i)
@@ -238,6 +239,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
 		// By not freeing, we prevent step #4 until GC is done.
 		stackpool[order].remove(s)
 		s.manualFreeList = 0
+		osStackFree(s)
 		mheap_.freeManual(s, &memstats.stacks_inuse)
 	}
 }
@@ -385,6 +387,7 @@ func stackalloc(n uint32) stack {
 			if s == nil {
 				throw("out of memory")
 			}
+			osStackAlloc(s)
 			s.elemsize = uintptr(n)
 		}
 		v = unsafe.Pointer(s.base())
@@ -463,6 +466,7 @@ func stackfree(stk stack) {
 		if gcphase == _GCoff {
 			// Free the stack immediately if we're
 			// sweeping.
+			osStackFree(s)
 			mheap_.freeManual(s, &memstats.stacks_inuse)
 		} else {
 			// If the GC is running, we can't return a
@@ -940,7 +944,7 @@ func newstack() {
 		throw("missing stack in newstack")
 	}
 	sp := gp.sched.sp
-	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.Wasm {
+	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.WASM {
 		// The call to morestack cost a word.
 		sp -= sys.PtrSize
 	}
@@ -1112,6 +1116,7 @@ func freeStackSpans() {
 			if s.allocCount == 0 {
 				list.remove(s)
 				s.manualFreeList = 0
+				osStackFree(s)
 				mheap_.freeManual(s, &memstats.stacks_inuse)
 			}
 			s = next
@@ -1126,6 +1131,7 @@ func freeStackSpans() {
 		for s := stackLarge.free[i].first; s != nil; {
 			next := s.next
 			stackLarge.free[i].remove(s)
+			osStackFree(s)
 			mheap_.freeManual(s, &memstats.stacks_inuse)
 			s = next
 		}
@@ -1169,21 +1175,43 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 		minsize = sys.MinFrameSize
 	}
 	if size > minsize {
-		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
-		if stackmap == nil || stackmap.n <= 0 {
+		var stkmap *stackmap
+		stackid := pcdata
+		if f.funcID != funcID_debugCallV1 {
+			stkmap = (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+		} else {
+			// debugCallV1's stack map is the register map
+			// at its call site.
+			callerPC := frame.lr
+			caller := findfunc(callerPC)
+			if !caller.valid() {
+				println("runtime: debugCallV1 called by unknown caller", hex(callerPC))
+				throw("bad debugCallV1")
+			}
+			stackid = int32(-1)
+			if callerPC != caller.entry {
+				callerPC--
+				stackid = pcdatavalue(caller, _PCDATA_RegMapIndex, callerPC, cache)
+			}
+			if stackid == -1 {
+				stackid = 0 // in prologue
+			}
+			stkmap = (*stackmap)(funcdata(caller, _FUNCDATA_RegPointerMaps))
+		}
+		if stkmap == nil || stkmap.n <= 0 {
 			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
 			throw("missing stackmap")
 		}
 		// If nbit == 0, there's no work to do.
-		if stackmap.nbit > 0 {
-			if pcdata < 0 || pcdata >= stackmap.n {
+		if stkmap.nbit > 0 {
+			if stackid < 0 || stackid >= stkmap.n {
 				// don't know where we are
-				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
+				print("runtime: pcdata is ", stackid, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
 				throw("bad symbol table")
 			}
-			locals = stackmapdata(stackmap, pcdata)
+			locals = stackmapdata(stkmap, stackid)
 			if stackDebug >= 3 && debug {
-				print("      locals ", pcdata, "/", stackmap.n, " ", locals.n, " words ", locals.bytedata, "\n")
+				print("      locals ", stackid, "/", stkmap.n, " ", locals.n, " words ", locals.bytedata, "\n")
 			}
 		} else if stackDebug >= 3 && debug {
 			print("      no locals to adjust\n")

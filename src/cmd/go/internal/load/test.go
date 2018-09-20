@@ -36,7 +36,7 @@ type TestCover struct {
 	Pkgs     []*Package
 	Paths    []string
 	Vars     []coverInfo
-	DeclVars func(string, ...string) map[string]*CoverVar
+	DeclVars func(*Package, ...string) map[string]*CoverVar
 }
 
 // TestPackagesFor returns three packages:
@@ -58,7 +58,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], UseVendor)
+		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -86,7 +86,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	pxtestNeedsPtest := false
 	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], UseVendor)
+		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -114,16 +114,17 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
 		ptest.Target = ""
 		// Note: The preparation of the vet config requires that common
-		// indexes in ptest.Imports, ptest.Internal.Imports, and ptest.Internal.RawImports
+		// indexes in ptest.Imports and ptest.Internal.RawImports
 		// all line up (but RawImports can be shorter than the others).
 		// That is, for 0 ≤ i < len(RawImports),
-		// RawImports[i] is the import string in the program text,
-		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away),
-		// and Internal.Imports[i] is the corresponding *Package.
+		// RawImports[i] is the import string in the program text, and
+		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away).
 		// Any implicitly added imports appear in Imports and Internal.Imports
 		// but not RawImports (because they were not in the source code).
 		// We insert TestImports, imports, and rawTestImports at the start of
 		// these lists to preserve the alignment.
+		// Note that p.Internal.Imports may not be aligned with p.Imports/p.Internal.RawImports,
+		// but we insert at the beginning there too just for consistency.
 		ptest.Imports = str.StringList(p.TestImports, p.Imports)
 		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
 		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
@@ -181,6 +182,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 			GoFiles:    []string{"_testmain.go"},
 			ImportPath: p.ImportPath + ".test",
 			Root:       p.Root,
+			Imports:    str.StringList(TestMainDeps),
 		},
 		Internal: PackageInternal{
 			Build:      &build.Package{Name: "main"},
@@ -236,12 +238,27 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	t.Cover = cover
 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
 		pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
+		pmain.Imports = append(pmain.Imports, ptest.ImportPath)
 		t.ImportTest = true
 	}
 	if pxtest != nil {
 		pmain.Internal.Imports = append(pmain.Internal.Imports, pxtest)
+		pmain.Imports = append(pmain.Imports, pxtest.ImportPath)
 		t.ImportXtest = true
 	}
+
+	// Sort and dedup pmain.Imports.
+	// Only matters for go list -test output.
+	sort.Strings(pmain.Imports)
+	w := 0
+	for _, path := range pmain.Imports {
+		if w == 0 || path != pmain.Imports[w-1] {
+			pmain.Imports[w] = path
+			w++
+		}
+	}
+	pmain.Imports = pmain.Imports[:w]
+	pmain.Internal.RawImports = str.StringList(pmain.Imports)
 
 	if ptest != p {
 		// We have made modifications to the package p being tested
@@ -264,7 +281,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		var coverFiles []string
 		coverFiles = append(coverFiles, ptest.GoFiles...)
 		coverFiles = append(coverFiles, ptest.CgoFiles...)
-		ptest.Internal.CoverVars = cover.DeclVars(ptest.ImportPath, coverFiles...)
+		ptest.Internal.CoverVars = cover.DeclVars(ptest, coverFiles...)
 	}
 
 	for _, cp := range pmain.Internal.Imports {
@@ -325,6 +342,8 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			p1.ForTest = preal.ImportPath
 			p1.Internal.Imports = make([]*Package, len(p.Internal.Imports))
 			copy(p1.Internal.Imports, p.Internal.Imports)
+			p1.Imports = make([]string, len(p.Imports))
+			copy(p1.Imports, p.Imports)
 			p = p1
 			p.Target = ""
 		}

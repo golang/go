@@ -15,5 +15,5 @@ const (
 	MIPS64
 	PPC64
 	S390X
-	Wasm
+	WASM
 )

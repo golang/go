@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -31,7 +32,7 @@ type netFD struct {
 	// immutable until Close
 	family      int
 	sotype      int
-	isConnected bool
+	isConnected bool // handshake completed or use of association with peer
 	net         string
 	laddr       Addr
 	raddr       Addr
@@ -240,4 +241,16 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 func (fd *netFD) dup() (*os.File, error) {
 	// TODO: Implement this
 	return nil, syscall.EWINDOWS
+}
+
+func (fd *netFD) SetDeadline(t time.Time) error {
+	return fd.pfd.SetDeadline(t)
+}
+
+func (fd *netFD) SetReadDeadline(t time.Time) error {
+	return fd.pfd.SetReadDeadline(t)
+}
+
+func (fd *netFD) SetWriteDeadline(t time.Time) error {
+	return fd.pfd.SetWriteDeadline(t)
 }

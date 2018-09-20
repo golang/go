@@ -880,3 +880,11 @@ func roundTripParseTest() parseTest {
 	t.sep = w.Boundary()
 	return t
 }
+
+func TestNoBoundary(t *testing.T) {
+	mr := NewReader(strings.NewReader(""), "")
+	_, err := mr.NextPart()
+	if got, want := fmt.Sprint(err), "multipart: boundary is empty"; got != want {
+		t.Errorf("NextPart error = %v; want %v", got, want)
+	}
+}

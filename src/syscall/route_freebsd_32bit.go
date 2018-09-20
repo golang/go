@@ -21,7 +21,7 @@ func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
 	p := (*InterfaceMessage)(unsafe.Pointer(any))
 	// FreeBSD 10 and beyond have a restructured mbuf
 	// packet header view.
-	// See http://svnweb.freebsd.org/base?view=revision&revision=254804.
+	// See https://svnweb.freebsd.org/base?view=revision&revision=254804.
 	if freebsdVersion >= 1000000 {
 		m := (*ifMsghdr)(unsafe.Pointer(any))
 		p.Header.Data.Hwassist = uint32(m.Data.Hwassist)

@@ -6,10 +6,10 @@
 package hex
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 const hextable = "0123456789abcdef"
@@ -50,8 +50,8 @@ func DecodedLen(x int) int { return x / 2 }
 // Decode decodes src into DecodedLen(len(src)) bytes,
 // returning the actual number of bytes written to dst.
 //
-// Decode expects that src contain only hexadecimal
-// characters and that src should have an even length.
+// Decode expects that src contains only hexadecimal
+// characters and that src has even length.
 // If the input is malformed, Decode returns the number
 // of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
@@ -101,10 +101,10 @@ func EncodeToString(src []byte) string {
 
 // DecodeString returns the bytes represented by the hexadecimal string s.
 //
-// DecodeString expects that src contain only hexadecimal
-// characters and that src should have an even length.
-// If the input is malformed, DecodeString returns a string
-// containing the bytes decoded before the error.
+// DecodeString expects that src contains only hexadecimal
+// characters and that src has even length.
+// If the input is malformed, DecodeString returns
+// the bytes decoded before the error.
 func DecodeString(s string) ([]byte, error) {
 	src := []byte(s)
 	// We can use the source slice itself as the destination
@@ -116,7 +116,16 @@ func DecodeString(s string) ([]byte, error) {
 // Dump returns a string that contains a hex dump of the given data. The format
 // of the hex dump matches the output of `hexdump -C` on the command line.
 func Dump(data []byte) string {
-	var buf bytes.Buffer
+	if len(data) == 0 {
+		return ""
+	}
+
+	var buf strings.Builder
+	// Dumper will write 79 bytes per complete 16 byte chunk, and at least
+	// 64 bytes for whatever remains. Round the allocation up, since only a
+	// maximum of 15 bytes will be wasted.
+	buf.Grow((1 + ((len(data) - 1) / 16)) * 79)
+
 	dumper := Dumper(&buf)
 	dumper.Write(data)
 	dumper.Close()

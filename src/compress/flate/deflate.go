@@ -720,7 +720,7 @@ func (w *Writer) Write(data []byte) (n int, err error) {
 // In the terminology of the zlib library, Flush is equivalent to Z_SYNC_FLUSH.
 func (w *Writer) Flush() error {
 	// For more about flushing:
-	// http://www.bolet.org/~pornin/deflate-flush.html
+	// https://www.bolet.org/~pornin/deflate-flush.html
 	return w.d.syncFlush()
 }
 

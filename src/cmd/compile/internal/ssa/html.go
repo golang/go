@@ -11,12 +11,15 @@ import (
 	"html"
 	"io"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 type HTMLWriter struct {
 	Logger
-	w io.WriteCloser
+	w    io.WriteCloser
+	path string
 }
 
 func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
@@ -24,7 +27,11 @@ func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
 	if err != nil {
 		logger.Fatalf(src.NoXPos, "%v", err)
 	}
-	html := HTMLWriter{w: out, Logger: logger}
+	pwd, err := os.Getwd()
+	if err != nil {
+		logger.Fatalf(src.NoXPos, "%v", err)
+	}
+	html := HTMLWriter{w: out, Logger: logger, path: filepath.Join(pwd, path)}
 	html.start(funcname)
 	return &html
 }
@@ -38,6 +45,11 @@ func (w *HTMLWriter) start(name string) {
 <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
 <style>
 
+body {
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+}
+
 #helplink {
     margin-bottom: 15px;
     display: block;
@@ -49,7 +61,7 @@ func (w *HTMLWriter) start(name string) {
 }
 
 .stats {
-	font-size: 60%;
+    font-size: 60%;
 }
 
 table {
@@ -64,6 +76,60 @@ th, td {
     width: 400px;
     vertical-align: top;
     padding: 5px;
+}
+
+td > h2 {
+    cursor: pointer;
+    font-size: 120%;
+}
+
+td.collapsed {
+    font-size: 12px;
+    width: 12px;
+    border: 0px;
+    padding: 0;
+    cursor: pointer;
+    background: #fafafa;
+}
+
+td.collapsed  div {
+     -moz-transform: rotate(-90.0deg);  /* FF3.5+ */
+       -o-transform: rotate(-90.0deg);  /* Opera 10.5 */
+  -webkit-transform: rotate(-90.0deg);  /* Saf3.1+, Chrome */
+             filter:  progid:DXImageTransform.Microsoft.BasicImage(rotation=0.083);  /* IE6,IE7 */
+         -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=0.083)"; /* IE8 */
+         margin-top: 10.3em;
+         margin-left: -10em;
+         margin-right: -10em;
+         text-align: right;
+}
+
+code, pre, .lines, .ast {
+    font-family: Menlo, monospace;
+    font-size: 12px;
+}
+
+.allow-x-scroll {
+    overflow-x: scroll;
+}
+
+.lines {
+    float: left;
+    overflow: hidden;
+    text-align: right;
+}
+
+.lines div {
+    padding-right: 10px;
+    color: gray;
+}
+
+div.line-number {
+    font-size: 12px;
+}
+
+.ast {
+    white-space: nowrap;
 }
 
 td.ssa-prog {
@@ -127,18 +193,26 @@ dd.ssa-prog {
 }
 
 .line-number {
-    font-style: italic;
     font-size: 11px;
 }
 
-.highlight-yellow         { background-color: yellow; }
+.no-line-number {
+    font-size: 11px;
+    color: gray;
+}
+
 .highlight-aquamarine     { background-color: aquamarine; }
 .highlight-coral          { background-color: coral; }
 .highlight-lightpink      { background-color: lightpink; }
 .highlight-lightsteelblue { background-color: lightsteelblue; }
 .highlight-palegreen      { background-color: palegreen; }
-.highlight-powderblue     { background-color: powderblue; }
+.highlight-skyblue        { background-color: skyblue; }
 .highlight-lightgray      { background-color: lightgray; }
+.highlight-yellow         { background-color: yellow; }
+.highlight-lime           { background-color: lime; }
+.highlight-khaki          { background-color: khaki; }
+.highlight-aqua           { background-color: aqua; }
+.highlight-salmon         { background-color: salmon; }
 
 .outline-blue           { outline: blue solid 2px; }
 .outline-red            { outline: red solid 2px; }
@@ -147,6 +221,10 @@ dd.ssa-prog {
 .outline-fuchsia        { outline: fuchsia solid 2px; }
 .outline-sienna         { outline: sienna solid 2px; }
 .outline-gold           { outline: gold solid 2px; }
+.outline-orangered      { outline: orangered solid 2px; }
+.outline-teal           { outline: teal solid 2px; }
+.outline-maroon         { outline: maroon solid 2px; }
+.outline-black          { outline: black solid 2px; }
 
 </style>
 
@@ -158,8 +236,13 @@ var highlights = [
     "highlight-lightpink",
     "highlight-lightsteelblue",
     "highlight-palegreen",
+    "highlight-skyblue",
     "highlight-lightgray",
-    "highlight-yellow"
+    "highlight-yellow",
+    "highlight-lime",
+    "highlight-khaki",
+    "highlight-aqua",
+    "highlight-salmon"
 ];
 
 // state: which value is highlighted this color?
@@ -176,7 +259,11 @@ var outlines = [
     "outline-darkolivegreen",
     "outline-fuchsia",
     "outline-sienna",
-    "outline-gold"
+    "outline-gold",
+    "outline-orangered",
+    "outline-teal",
+    "outline-maroon",
+    "outline-black"
 ];
 
 // state: which value is outlined this color?
@@ -187,7 +274,7 @@ for (var i = 0; i < outlines.length; i++) {
 
 window.onload = function() {
     var ssaElemClicked = function(elem, event, selections, selected) {
-        event.stopPropagation()
+        event.stopPropagation();
 
         // TODO: pushState with updated state and read it on page load,
         // so that state can survive across reloads
@@ -240,11 +327,11 @@ window.onload = function() {
 
     var ssaValueClicked = function(event) {
         ssaElemClicked(this, event, highlights, highlighted);
-    }
+    };
 
     var ssaBlockClicked = function(event) {
         ssaElemClicked(this, event, outlines, outlined);
-    }
+    };
 
     var ssavalues = document.getElementsByClassName("ssa-value");
     for (var i = 0; i < ssavalues.length; i++) {
@@ -263,14 +350,68 @@ window.onload = function() {
     for (var i = 0; i < ssablocks.length; i++) {
         ssablocks[i].addEventListener('click', ssaBlockClicked);
     }
+
+    var lines = document.getElementsByClassName("line-number");
+    for (var i = 0; i < lines.length; i++) {
+        lines[i].addEventListener('click', ssaValueClicked);
+    }
+
+    // Contains phase names which are expanded by default. Other columns are collapsed.
+    var expandedDefault = [
+        "start",
+        "deadcode",
+        "opt",
+        "lower",
+        "late deadcode",
+        "regalloc",
+        "genssa",
+    ];
+
+    function toggler(phase) {
+        return function() {
+            toggle_cell(phase+'-col');
+            toggle_cell(phase+'-exp');
+        };
+    }
+
+    function toggle_cell(id) {
+        var e = document.getElementById(id);
+        if (e.style.display == 'table-cell') {
+            e.style.display = 'none';
+        } else {
+            e.style.display = 'table-cell';
+        }
+    }
+
+    // Go through all columns and collapse needed phases.
+    var td = document.getElementsByTagName("td");
+    for (var i = 0; i < td.length; i++) {
+        var id = td[i].id;
+        var phase = id.substr(0, id.length-4);
+        var show = expandedDefault.indexOf(phase) !== -1
+        if (id.endsWith("-exp")) {
+            var h2 = td[i].getElementsByTagName("h2");
+            if (h2 && h2[0]) {
+                h2[0].addEventListener('click', toggler(phase));
+            }
+        } else {
+            td[i].addEventListener('click', toggler(phase));
+        }
+        if (id.endsWith("-col") && show || id.endsWith("-exp") && !show) {
+            td[i].style.display = 'none';
+            continue;
+        }
+        td[i].style.display = 'table-cell';
+    }
 };
 
 function toggle_visibility(id) {
-   var e = document.getElementById(id);
-   if(e.style.display == 'block')
-      e.style.display = 'none';
-   else
-      e.style.display = 'block';
+    var e = document.getElementById(id);
+    if (e.style.display == 'block') {
+        e.style.display = 'none';
+    } else {
+        e.style.display = 'block';
+    }
 }
 </script>
 
@@ -313,27 +454,141 @@ func (w *HTMLWriter) Close() {
 	io.WriteString(w.w, "</body>")
 	io.WriteString(w.w, "</html>")
 	w.w.Close()
+	fmt.Printf("dumped SSA to %v\n", w.path)
 }
 
 // WriteFunc writes f in a column headed by title.
-func (w *HTMLWriter) WriteFunc(title string, f *Func) {
+// phase is used for collapsing columns and should be unique across the table.
+func (w *HTMLWriter) WriteFunc(phase, title string, f *Func) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	w.WriteColumn(title, "", f.HTML())
+	w.WriteColumn(phase, title, "", f.HTML())
 	// TODO: Add visual representation of f's CFG.
+}
+
+// FuncLines contains source code for a function to be displayed
+// in sources column.
+type FuncLines struct {
+	Filename    string
+	StartLineno uint
+	Lines       []string
+}
+
+// ByTopo sorts topologically: target function is on top,
+// followed by inlined functions sorted by filename and line numbers.
+type ByTopo []*FuncLines
+
+func (x ByTopo) Len() int      { return len(x) }
+func (x ByTopo) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+func (x ByTopo) Less(i, j int) bool {
+	a := x[i]
+	b := x[j]
+	if a.Filename == b.Filename {
+		return a.StartLineno < b.StartLineno
+	}
+	return a.Filename < b.Filename
+}
+
+// WriteSources writes lines as source code in a column headed by title.
+// phase is used for collapsing columns and should be unique across the table.
+func (w *HTMLWriter) WriteSources(phase string, all []*FuncLines) {
+	if w == nil {
+		return // avoid generating HTML just to discard it
+	}
+	var buf bytes.Buffer
+	fmt.Fprint(&buf, "<div class=\"lines\" style=\"width: 8%\">")
+	filename := ""
+	for _, fl := range all {
+		fmt.Fprint(&buf, "<div>&nbsp;</div>")
+		if filename != fl.Filename {
+			fmt.Fprint(&buf, "<div>&nbsp;</div>")
+			filename = fl.Filename
+		}
+		for i := range fl.Lines {
+			ln := int(fl.StartLineno) + i
+			fmt.Fprintf(&buf, "<div class=\"l%v line-number\">%v</div>", ln, ln)
+		}
+	}
+	fmt.Fprint(&buf, "</div><div style=\"width: 92%\"><pre>")
+	filename = ""
+	for _, fl := range all {
+		fmt.Fprint(&buf, "<div>&nbsp;</div>")
+		if filename != fl.Filename {
+			fmt.Fprintf(&buf, "<div><strong>%v</strong></div>", fl.Filename)
+			filename = fl.Filename
+		}
+		for i, line := range fl.Lines {
+			ln := int(fl.StartLineno) + i
+			var escaped string
+			if strings.TrimSpace(line) == "" {
+				escaped = "&nbsp;"
+			} else {
+				escaped = html.EscapeString(line)
+			}
+			fmt.Fprintf(&buf, "<div class=\"l%v line-number\">%v</div>", ln, escaped)
+		}
+	}
+	fmt.Fprint(&buf, "</pre></div>")
+	w.WriteColumn(phase, phase, "allow-x-scroll", buf.String())
+}
+
+func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
+	if w == nil {
+		return // avoid generating HTML just to discard it
+	}
+	lines := strings.Split(buf.String(), "\n")
+	var out bytes.Buffer
+
+	fmt.Fprint(&out, "<div>")
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		var escaped string
+		var lineNo string
+		if l == "" {
+			escaped = "&nbsp;"
+		} else {
+			if strings.HasPrefix(l, "buildssa") {
+				escaped = fmt.Sprintf("<b>%v</b>", l)
+			} else {
+				// Parse the line number from the format l(123).
+				idx := strings.Index(l, " l(")
+				if idx != -1 {
+					subl := l[idx+3:]
+					idxEnd := strings.Index(subl, ")")
+					if idxEnd != -1 {
+						if _, err := strconv.Atoi(subl[:idxEnd]); err == nil {
+							lineNo = subl[:idxEnd]
+						}
+					}
+				}
+				escaped = html.EscapeString(l)
+			}
+		}
+		if lineNo != "" {
+			fmt.Fprintf(&out, "<div class=\"l%v line-number ast\">%v</div>", lineNo, escaped)
+		} else {
+			fmt.Fprintf(&out, "<div class=\"ast\">%v</div>", escaped)
+		}
+	}
+	fmt.Fprint(&out, "</div>")
+	w.WriteColumn(phase, phase, "allow-x-scroll", out.String())
 }
 
 // WriteColumn writes raw HTML in a column headed by title.
 // It is intended for pre- and post-compilation log output.
-func (w *HTMLWriter) WriteColumn(title, class, html string) {
+func (w *HTMLWriter) WriteColumn(phase, title, class, html string) {
 	if w == nil {
 		return
 	}
+	id := strings.Replace(phase, " ", "-", -1)
+	// collapsed column
+	w.Printf("<td id=\"%v-col\" class=\"collapsed\"><div>%v</div></td>", id, phase)
+
 	if class == "" {
-		w.WriteString("<td>")
+		w.Printf("<td id=\"%v-exp\">", id)
 	} else {
-		w.WriteString("<td class=\"" + class + "\">")
+		w.Printf("<td id=\"%v-exp\" class=\"%v\">", id, class)
 	}
 	w.WriteString("<h2>" + title + "</h2>")
 	w.WriteString(html)
@@ -368,9 +623,9 @@ func (v *Value) LongHTML() string {
 	// maybe we could replace some of that with formatting.
 	s := fmt.Sprintf("<span class=\"%s ssa-long-value\">", v.String())
 
-	linenumber := "<span class=\"line-number\">(?)</span>"
+	linenumber := "<span class=\"no-line-number\">(?)</span>"
 	if v.Pos.IsKnown() {
-		linenumber = fmt.Sprintf("<span class=\"line-number\">(%s)</span>", v.Pos.LineNumberHTML())
+		linenumber = fmt.Sprintf("<span class=\"l%v line-number\">(%s)</span>", v.Pos.LineNumber(), v.Pos.LineNumberHTML())
 	}
 
 	s += fmt.Sprintf("%s %s = %s", v.HTML(), linenumber, v.Op.String())
@@ -434,7 +689,7 @@ func (b *Block) LongHTML() string {
 	if b.Pos.IsKnown() {
 		// TODO does not begin to deal with the full complexity of line numbers.
 		// Maybe we want a string/slice instead, of outer-inner when inlining.
-		s += fmt.Sprintf(" (line %s)", b.Pos.LineNumberHTML())
+		s += fmt.Sprintf(" <span class=\"l%v line-number\">(%s)</span>", b.Pos.LineNumber(), b.Pos.LineNumberHTML())
 	}
 	return s
 }

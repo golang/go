@@ -315,7 +315,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 	// Layout new m scheduler stack on os stack.
 	MOVL	SP, AX
 	MOVL	AX, (g_stack+stack_hi)(DX)
-	SUBL	$(64*1024), AX		// stack size
+	SUBL	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVL	AX, (g_stack+stack_lo)(DX)
 	ADDL	$const__StackGuard, AX
 	MOVL	AX, g_stackguard0(DX)
@@ -432,7 +432,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	MOVL	BP, SP
 	RET
 
-// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
 // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
 #define _INTERRUPT_TIME 0x7ffe0008
 #define _SYSTEM_TIME 0x7ffe0014

@@ -61,12 +61,12 @@ func TestWriter(t *testing.T) {
 		m1, err := readPNG(qfn)
 		if err != nil {
 			t.Error(fn, err)
-			return
+			continue
 		}
 		m2, err := encodeDecode(m1)
 		if err != nil {
 			t.Error(fn, err)
-			return
+			continue
 		}
 		// Compare the two.
 		err = diff(m0, m2)

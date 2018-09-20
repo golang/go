@@ -548,7 +548,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
 		}
 	} else {
 		if typ == "" {
-			log.Fatalf("sub-expression %s (op=Op%s%s) must have a type", result, oparch, op.name)
+			log.Fatalf("sub-expression %s (op=Op%s%s) at %s must have a type", result, oparch, op.name, loc)
 		}
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++

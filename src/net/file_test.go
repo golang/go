@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !js
+
 package net
 
 import (
@@ -289,5 +291,59 @@ func TestFilePacketConn(t *testing.T) {
 		if !reflect.DeepEqual(c2.LocalAddr(), addr) {
 			t.Fatalf("got %#v; want %#v", c2.LocalAddr(), addr)
 		}
+	}
+}
+
+// Issue 24483.
+func TestFileCloseRace(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9", "windows":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+	if !testableNetwork("tcp") {
+		t.Skip("tcp not supported")
+	}
+
+	handler := func(ls *localServer, ln Listener) {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		var b [1]byte
+		c.Read(b[:])
+	}
+
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
+
+	const tries = 100
+	for i := 0; i < tries; i++ {
+		c1, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		tc := c1.(*TCPConn)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			f, err := tc.File()
+			if err == nil {
+				f.Close()
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			c1.Close()
+		}()
+		wg.Wait()
 	}
 }

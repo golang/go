@@ -121,6 +121,17 @@ func (n *Node) Int64() int64 {
 	return n.Val().U.(*Mpint).Int64()
 }
 
+// CanInt64 reports whether it is safe to call Int64() on n.
+func (n *Node) CanInt64() bool {
+	if !Isconst(n, CTINT) {
+		return false
+	}
+
+	// if the value inside n cannot be represented as an int64, the
+	// return value of Int64 is undefined
+	return n.Val().U.(*Mpint).CmpInt64(n.Int64()) == 0
+}
+
 // Bool returns n as a bool.
 // n must be a boolean constant.
 func (n *Node) Bool() bool {
@@ -243,15 +254,20 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 			n.Type = t
 		}
 
-		if n.Type.Etype == TIDEAL {
-			n.Left = convlit(n.Left, t)
-			n.Right = convlit(n.Right, t)
-			n.Type = t
+		if n.Type.IsUntyped() {
+			if t.IsInterface() {
+				n.Left, n.Right = defaultlit2(n.Left, n.Right, true)
+				n.Type = n.Left.Type // same as n.Right.Type per defaultlit2
+			} else {
+				n.Left = convlit(n.Left, t)
+				n.Right = convlit(n.Right, t)
+				n.Type = t
+			}
 		}
 
 		return n
 
-		// target is invalid type for a constant? leave alone.
+	// target is invalid type for a constant? leave alone.
 	case OLITERAL:
 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
 			return defaultlitreuse(n, nil, reuse)
@@ -294,7 +310,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 		return n
 	}
 
-	// avoided repeated calculations, errors
+	// avoid repeated calculations, errors
 	if eqtype(n.Type, t) {
 		return n
 	}
@@ -460,7 +476,7 @@ func toflt(v Val) Val {
 		f := newMpflt()
 		f.Set(&u.Real)
 		if u.Imag.CmpFloat64(0) != 0 {
-			yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+			yyerror("constant %v truncated to real", u.GoString())
 		}
 		v.U = f
 	}
@@ -493,11 +509,11 @@ func toint(v Val) Val {
 				// value from the error message.
 				// (See issue #11371).
 				var t big.Float
-				t.Parse(fconv(u, FmtSharp), 10)
+				t.Parse(u.GoString(), 10)
 				if t.IsInt() {
 					yyerror("constant truncated to integer")
 				} else {
-					yyerror("constant %v truncated to integer", fconv(u, FmtSharp))
+					yyerror("constant %v truncated to integer", u.GoString())
 				}
 			}
 		}
@@ -506,7 +522,7 @@ func toint(v Val) Val {
 	case *Mpcplx:
 		i := new(Mpint)
 		if !i.SetFloat(&u.Real) || u.Imag.CmpFloat64(0) != 0 {
-			yyerror("constant %v%vi truncated to integer", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+			yyerror("constant %v truncated to integer", u.GoString())
 		}
 
 		v.U = i
@@ -761,7 +777,7 @@ func evconst(n *Node) {
 			v.U.(*Mpint).Neg()
 
 		case OCOM_ | CTINT_:
-			var et types.EType = Txxx
+			et := Txxx
 			if nl.Type != nil {
 				et = nl.Type.Etype
 			}
@@ -1266,7 +1282,6 @@ func idealkind(n *Node) Ctype {
 		OOR,
 		OPLUS:
 		k1 := idealkind(n.Left)
-
 		k2 := idealkind(n.Right)
 		if k1 > k2 {
 			return k1

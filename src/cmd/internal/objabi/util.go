@@ -76,7 +76,7 @@ func init() {
 }
 
 func Framepointer_enabled(goos, goarch string) bool {
-	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
+	return framepointer_enabled != 0 && (goarch == "amd64" && goos != "nacl" || goarch == "arm64" && goos == "linux")
 }
 
 func addexp(s string) {
@@ -105,6 +105,7 @@ var (
 	Fieldtrack_enabled       int
 	Preemptibleloops_enabled int
 	Clobberdead_enabled      int
+	DebugCPU_enabled         int
 )
 
 // Toolchain experiments.
@@ -119,6 +120,7 @@ var exper = []struct {
 	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
 	{"clobberdead", &Clobberdead_enabled},
+	{"debugcpu", &DebugCPU_enabled},
 }
 
 var defaultExpstring = Expstring()

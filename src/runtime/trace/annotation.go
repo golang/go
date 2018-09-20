@@ -24,13 +24,13 @@ type traceContextKey struct{}
 // If the end function is called multiple times, only the first
 // call is used in the latency measurement.
 //
-//   ctx, task := trace.NewTask(ctx, "awesome task")
-//   trace.WithRegion(ctx, prepWork)
+//   ctx, task := trace.NewTask(ctx, "awesomeTask")
+//   trace.WithRegion(ctx, "preparation", prepWork)
 //   // preparation of the task
 //   go func() {  // continue processing the task in a separate goroutine.
 //       defer task.End()
-//       trace.WithRegion(ctx, remainingWork)
-//   }
+//       trace.WithRegion(ctx, "remainingWork", remainingWork)
+//   }()
 func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *Task) {
 	pid := fromContext(pctx).id
 	id := newID()

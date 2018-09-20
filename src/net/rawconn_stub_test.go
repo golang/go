@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build nacl plan9
+// +build js,wasm nacl plan9
 
 package net
 
@@ -21,4 +21,8 @@ func writeRawConn(c syscall.RawConn, b []byte) error {
 
 func controlRawConn(c syscall.RawConn, addr Addr) error {
 	return errors.New("not supported")
+}
+
+func controlOnConnSetup(network string, address string, c syscall.RawConn) error {
+	return nil
 }

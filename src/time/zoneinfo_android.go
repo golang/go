@@ -11,6 +11,7 @@ package time
 import (
 	"errors"
 	"runtime"
+	"syscall"
 )
 
 var zoneSources = []string{
@@ -75,5 +76,5 @@ func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
 		}
 		return buf, nil
 	}
-	return nil, errors.New("cannot find " + name + " in tzdata file " + file)
+	return nil, syscall.ENOENT
 }

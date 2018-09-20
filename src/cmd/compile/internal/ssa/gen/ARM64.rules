@@ -83,11 +83,17 @@
 (Com8 x) -> (MVN x)
 
 // math package intrinsics
+(Abs x) -> (FABSD x)
 (Sqrt x) -> (FSQRTD x)
 (Ceil  x) -> (FRINTPD x)
 (Floor x) -> (FRINTMD x)
 (Round x) -> (FRINTAD x)
+(RoundToEven x) -> (FRINTND x)
 (Trunc x) -> (FRINTZD x)
+
+// lowering rotates
+(RotateLeft32 x y) -> (RORW x (NEG <y.Type> y))
+(RotateLeft64 x y) -> (ROR x (NEG <y.Type> y))
 
 (Ctz64NonZero x) -> (Ctz64 x)
 (Ctz32NonZero x) -> (Ctz32 x)
@@ -101,9 +107,20 @@
 
 // Load args directly into the register class where it will be used.
 (FMOVDgpfp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+(FMOVDfpgp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+
 // Similarly for stores, if we see a store after FPR <-> GPR move, then redirect store to use the other register set.
-(MOVDstore ptr (FMOVDfpgp val) mem) -> (FMOVDstore ptr val mem)
-(FMOVDstore ptr (FMOVDgpfp val) mem) -> (MOVDstore ptr val mem)
+(MOVDstore [off] {sym} ptr (FMOVDfpgp val) mem) -> (FMOVDstore [off] {sym} ptr val mem)
+(FMOVDstore [off] {sym} ptr (FMOVDgpfp val) mem) -> (MOVDstore [off] {sym} ptr val mem)
+(MOVWstore [off] {sym} ptr (FMOVSfpgp val) mem) -> (FMOVSstore [off] {sym} ptr val mem)
+(FMOVSstore [off] {sym} ptr (FMOVSgpfp val) mem) -> (MOVWstore [off] {sym} ptr val mem)
+
+// float <-> int register moves, with no conversion.
+// These come up when compiling math.{Float64bits, Float64frombits, Float32bits, Float32frombits}.
+(MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr val _)) -> (FMOVDfpgp val)
+(FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr val _)) -> (FMOVDgpfp val)
+(MOVWUload [off] {sym} ptr (FMOVSstore [off] {sym} ptr val _)) -> (FMOVSfpgp val)
+(FMOVSload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) -> (FMOVSgpfp val)
 
 (BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
 
@@ -125,6 +142,8 @@
 // shifts
 // hardware instruction uses only the low 6 bits of the shift
 // we compare to 64 to ensure Go semantics for large shifts
+// Rules about rotates with non-const shift are based on the following rules,
+// if the following rules change, please also modify the rules based on them.
 (Lsh64x64 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
 (Lsh64x32 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
 (Lsh64x16 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -317,6 +336,7 @@
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
 (Addr {sym} base) -> (MOVDaddr {sym} base)
+(LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
@@ -540,8 +560,12 @@
 (AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
 
-(AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
-(AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
+// Currently the updated value is not used, but we need a register to temporarily hold it.
+(AtomicAnd8 ptr val mem) -> (Select1 (LoweredAtomicAnd8 ptr val mem))
+(AtomicOr8  ptr val mem) -> (Select1 (LoweredAtomicOr8  ptr val mem))
+
+(AtomicAdd32Variant ptr val mem) -> (LoweredAtomicAdd32Variant ptr val mem)
+(AtomicAdd64Variant ptr val mem) -> (LoweredAtomicAdd64Variant ptr val mem)
 
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
@@ -569,8 +593,17 @@
 
 (EQ (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
 (NE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
-(EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
-(NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
+(LT (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LT (TST x y) yes no)
+(LE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LE (TST x y) yes no)
+(GT (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GT (TST x y) yes no)
+(GE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GE (TST x y) yes no)
+
+(EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TSTW x y) yes no)
+(NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TSTW x y) yes no)
+(LT (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LT (TSTW x y) yes no)
+(LE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LE (TSTW x y) yes no)
+(GT (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GT (TSTW x y) yes no)
+(GE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GE (TSTW x y) yes no)
 
 (EQ (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTconst [c] y) yes no)
 (NE (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTconst [c] y) yes no)
@@ -579,15 +612,80 @@
 (GT (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (GT (TSTconst [c] y) yes no)
 (GE (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (GE (TSTconst [c] y) yes no)
 
+(EQ (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (CMNconst [c] y) yes no)
+(NE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (NE (CMNconst [c] y) yes no)
+(LT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LT (CMNconst [c] y) yes no)
+(LE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LE (CMNconst [c] y) yes no)
+(GT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GT (CMNconst [c] y) yes no)
+(GE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GE (CMNconst [c] y) yes no)
+
+(EQ (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (CMNWconst [c] y) yes no)
+(NE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (NE (CMNWconst [c] y) yes no)
+(LT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LT (CMNWconst [c] y) yes no)
+(LE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LE (CMNWconst [c] y) yes no)
+(GT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GT (CMNWconst [c] y) yes no)
+(GE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GE (CMNWconst [c] y) yes no)
+
 (EQ (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (EQ (CMN x y) yes no)
 (NE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (NE (CMN x y) yes no)
+(LT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LT (CMN x y) yes no)
+(LE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LE (CMN x y) yes no)
+(GT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GT (CMN x y) yes no)
+(GE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GE (CMN x y) yes no)
+
+(EQ (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (EQ (CMNW x y) yes no)
+(NE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (NE (CMNW x y) yes no)
+(LT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LT (CMNW x y) yes no)
+(LE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LE (CMNW x y) yes no)
+(GT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GT (CMNW x y) yes no)
+(GE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GE (CMNW x y) yes no)
+
 (EQ (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (EQ (CMN x y) yes no)
 (NE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (NE (CMN x y) yes no)
+(LT (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (LT (CMN x y) yes no)
+(LE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (LE (CMN x y) yes no)
+(GT (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (GT (CMN x y) yes no)
+(GE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (GE (CMN x y) yes no)
+
+(EQ (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (EQ (CMNW x y) yes no)
+(NE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (NE (CMNW x y) yes no)
+(LT (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (LT (CMNW x y) yes no)
+(LE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (LE (CMNW x y) yes no)
+(GT (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (GT (CMNW x y) yes no)
+(GE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (GE (CMNW x y) yes no)
 
 (EQ (CMPconst [0] x) yes no) -> (Z x yes no)
 (NE (CMPconst [0] x) yes no) -> (NZ x yes no)
 (EQ (CMPWconst [0] x) yes no) -> (ZW x yes no)
 (NE (CMPWconst [0] x) yes no) -> (NZW x yes no)
+
+(EQ (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (EQ (CMN a (MUL <x.Type> x y)) yes no)
+(NE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (NE (CMN a (MUL <x.Type> x y)) yes no)
+(LT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (LT (CMN a (MUL <x.Type> x y)) yes no)
+(LE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (LE (CMN a (MUL <x.Type> x y)) yes no)
+(GT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (GT (CMN a (MUL <x.Type> x y)) yes no)
+(GE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 -> (GE (CMN a (MUL <x.Type> x y)) yes no)
+
+(EQ (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (EQ (CMP a (MUL <x.Type> x y)) yes no)
+(NE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (NE (CMP a (MUL <x.Type> x y)) yes no)
+(LE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (LE (CMP a (MUL <x.Type> x y)) yes no)
+(LT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (LT (CMP a (MUL <x.Type> x y)) yes no)
+(GE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (GE (CMP a (MUL <x.Type> x y)) yes no)
+(GT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 -> (GT (CMP a (MUL <x.Type> x y)) yes no)
+
+(EQ (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (EQ (CMNW a (MULW <x.Type> x y)) yes no)
+(NE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (NE (CMNW a (MULW <x.Type> x y)) yes no)
+(LE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (LE (CMNW a (MULW <x.Type> x y)) yes no)
+(LT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (LT (CMNW a (MULW <x.Type> x y)) yes no)
+(GE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (GE (CMNW a (MULW <x.Type> x y)) yes no)
+(GT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 -> (GT (CMNW a (MULW <x.Type> x y)) yes no)
+
+(EQ (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (EQ (CMPW a (MULW <x.Type> x y)) yes no)
+(NE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (NE (CMPW a (MULW <x.Type> x y)) yes no)
+(LE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (LE (CMPW a (MULW <x.Type> x y)) yes no)
+(LT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (LT (CMPW a (MULW <x.Type> x y)) yes no)
+(GE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (GE (CMPW a (MULW <x.Type> x y)) yes no)
+(GT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (GT (CMPW a (MULW <x.Type> x y)) yes no)
 
 // Absorb bit-tests into block
 (Z  (ANDconst [c] x) yes no) && oneBit(c) -> (TBZ  {ntz(c)} x yes no)
@@ -645,6 +743,8 @@
 (MOVHload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVHloadidx ptr idx mem)
 (MOVBUload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVBUloadidx ptr idx mem)
 (MOVBload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVBloadidx ptr idx mem)
+(FMOVSload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (FMOVSloadidx ptr idx mem)
+(FMOVDload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (FMOVDloadidx ptr idx mem)
 (MOVDloadidx ptr (MOVDconst [c]) mem) -> (MOVDload [c] ptr mem)
 (MOVDloadidx (MOVDconst [c]) ptr mem) -> (MOVDload [c] ptr mem)
 (MOVWUloadidx ptr (MOVDconst [c]) mem) -> (MOVWUload [c] ptr mem)
@@ -659,6 +759,10 @@
 (MOVBUloadidx (MOVDconst [c]) ptr mem) -> (MOVBUload [c] ptr mem)
 (MOVBloadidx ptr (MOVDconst [c]) mem) -> (MOVBload [c] ptr mem)
 (MOVBloadidx (MOVDconst [c]) ptr mem) -> (MOVBload [c] ptr mem)
+(FMOVSloadidx ptr (MOVDconst [c]) mem) -> (FMOVSload [c] ptr mem)
+(FMOVSloadidx (MOVDconst [c]) ptr mem) -> (FMOVSload [c] ptr mem)
+(FMOVDloadidx ptr (MOVDconst [c]) mem) -> (FMOVDload [c] ptr mem)
+(FMOVDloadidx (MOVDconst [c]) ptr mem) -> (FMOVDload [c] ptr mem)
 
 // shifted register indexed load
 (MOVDload [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil -> (MOVDloadidx8 ptr idx mem)
@@ -726,6 +830,8 @@
 (MOVWstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVWstoreidx ptr idx val mem)
 (MOVHstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVHstoreidx ptr idx val mem)
 (MOVBstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVBstoreidx ptr idx val mem)
+(FMOVDstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (FMOVDstoreidx ptr idx val mem)
+(FMOVSstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (FMOVSstoreidx ptr idx val mem)
 (MOVDstoreidx ptr (MOVDconst [c]) val mem) -> (MOVDstore [c] ptr val mem)
 (MOVDstoreidx (MOVDconst [c]) idx val mem) -> (MOVDstore [c] idx val mem)
 (MOVWstoreidx ptr (MOVDconst [c]) val mem) -> (MOVWstore [c] ptr val mem)
@@ -734,6 +840,10 @@
 (MOVHstoreidx (MOVDconst [c]) idx val mem) -> (MOVHstore [c] idx val mem)
 (MOVBstoreidx ptr (MOVDconst [c]) val mem) -> (MOVBstore [c] ptr val mem)
 (MOVBstoreidx (MOVDconst [c]) idx val mem) -> (MOVBstore [c] idx val mem)
+(FMOVDstoreidx ptr (MOVDconst [c]) val mem) -> (FMOVDstore [c] ptr val mem)
+(FMOVDstoreidx (MOVDconst [c]) idx val mem) -> (FMOVDstore [c] idx val mem)
+(FMOVSstoreidx ptr (MOVDconst [c]) val mem) -> (FMOVSstore [c] ptr val mem)
+(FMOVSstoreidx (MOVDconst [c]) idx val mem) -> (FMOVSstore [c] idx val mem)
 
 // shifted register indexed store
 (MOVDstore [off] {sym} (ADDshiftLL [3] ptr idx) val mem) && off == 0 && sym == nil -> (MOVDstoreidx8 ptr idx val mem)
@@ -1021,7 +1131,9 @@
 (OR  x (MOVDconst [c])) -> (ORconst  [c] x)
 (XOR x (MOVDconst [c])) -> (XORconst [c] x)
 (TST x (MOVDconst [c])) -> (TSTconst [c] x)
+(TSTW x (MOVDconst [c])) -> (TSTWconst [c] x)
 (CMN x (MOVDconst [c])) -> (CMNconst [c] x)
+(CMNW x (MOVDconst [c])) -> (CMNWconst [c] x)
 (BIC x (MOVDconst [c])) -> (ANDconst [^c] x)
 (EON x (MOVDconst [c])) -> (XORconst [^c] x)
 (ORN x (MOVDconst [c])) -> (ORconst  [^c] x)
@@ -1040,6 +1152,17 @@
 (NEG (MULW x y)) -> (MNEGW x y)
 (MUL (NEG x) y) -> (MNEG x y)
 (MULW (NEG x) y) -> (MNEGW x y)
+
+// madd/msub
+(ADD a l:(MUL  x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADD a x y)
+(SUB a l:(MUL  x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUB a x y)
+(ADD a l:(MNEG x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUB a x y)
+(SUB a l:(MNEG x y)) && l.Uses==1 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADD a x y)
+
+(ADD a l:(MULW  x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADDW a x y)
+(SUB a l:(MULW  x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUBW a x y)
+(ADD a l:(MNEGW x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MSUBW a x y)
+(SUB a l:(MNEGW x y)) && l.Uses==1 && a.Type.Size() != 8 && x.Op!=OpARM64MOVDconst && y.Op!=OpARM64MOVDconst && a.Op!=OpARM64MOVDconst && clobber(l) -> (MADDW a x y)
 
 // mul by constant
 (MUL x (MOVDconst [-1])) -> (NEG x)
@@ -1486,7 +1609,7 @@
 (ORNshiftRL x (SRLconst x [c]) [d]) && c==d -> (MOVDconst [-1])
 (ORNshiftRA x (SRAconst x [c]) [d]) && c==d -> (MOVDconst [-1])
 
-// Generate rotates
+// Generate rotates with const shift
 (ADDshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
 ( ORshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
 (XORshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
@@ -1503,6 +1626,38 @@
 (ADDshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [c] x)
 ( ORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [c] x)
 (XORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [c] x)
+
+(RORconst [c] (RORconst [d] x)) -> (RORconst [(c+d)&63] x)
+(RORWconst [c] (RORWconst [d] x)) -> (RORWconst [(c+d)&31] x)
+
+// Generate rotates with non-const shift.
+// These rules match the Go source code like
+//	y &= 63
+//	x << y | x >> (64-y)
+// "|" can also be "^" or "+".
+// As arm64 does not have a ROL instruction, so ROL(x, y) is replaced by ROR(x, -y).
+((ADD|OR|XOR) (SLL x (ANDconst <t> [63] y))
+	(CSEL0 <typ.UInt64> {cc} (SRL <typ.UInt64> x (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y)))
+		(CMPconst [64] (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y))))) && cc.(Op) == OpARM64LessThanU
+	-> (ROR x (NEG <t> y))
+((ADD|OR|XOR) (SRL <typ.UInt64> x (ANDconst <t> [63] y))
+	(CSEL0 <typ.UInt64> {cc} (SLL x (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y)))
+		(CMPconst [64] (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y))))) && cc.(Op) == OpARM64LessThanU
+	-> (ROR x y)
+
+// These rules match the Go source code like
+//	y &= 31
+//	x << y | x >> (32-y)
+// "|" can also be "^" or "+".
+// As arm64 does not have a ROLW instruction, so ROLW(x, y) is replaced by RORW(x, -y).
+((ADD|OR|XOR) (SLL x (ANDconst <t> [31] y))
+	(CSEL0 <typ.UInt32> {cc} (SRL <typ.UInt32> (MOVWUreg x) (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y)))
+		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc.(Op) == OpARM64LessThanU
+	-> (RORW x (NEG <t> y))
+((ADD|OR|XOR) (SRL <typ.UInt32> (MOVWUreg x) (ANDconst <t> [31] y))
+	(CSEL0 <typ.UInt32> {cc} (SLL x (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y)))
+		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc.(Op) == OpARM64LessThanU
+	-> (RORW x y)
 
 // Extract from reg pair
 (ADDshiftLL [c] (SRLconst x [64-c]) x2) -> (EXTRconst [64-c] x2 x)
@@ -1521,6 +1676,9 @@
 // Rewrite it back to AND.
 (SRLconst [c] (SLLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [1<<uint(64-c)-1] x) // mask out high bits
 (SLLconst [c] (SRLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [^(1<<uint(c)-1)] x) // mask out low bits
+
+// Special case setting bit as 1. An example is math.Copysign(c,-1)
+(ORconst [c1] (ANDconst [c2] x)) && c2|c1 == ^0  -> (ORconst [c1] x)
 
 // bitfield ops
 

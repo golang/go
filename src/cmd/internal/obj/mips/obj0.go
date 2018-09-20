@@ -790,6 +790,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.Mark |= LABEL
 	}
 
+	p = c.ctxt.EmitEntryLiveness(c.cursym, p, c.newprog)
+
 	// JAL	runtime.morestack(SB)
 	p = obj.Appendp(p, c.newprog)
 

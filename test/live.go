@@ -465,7 +465,7 @@ func f29(b bool) {
 // copy of array of pointers should die at end of range loop
 var pstructarr [10]pstruct
 
-// Struct size choosen to make pointer to element in pstructarr
+// Struct size chosen to make pointer to element in pstructarr
 // not computable by strength reduction.
 type pstruct struct {
 	intp *int
@@ -553,7 +553,7 @@ func f34() {
 }
 
 func f35() {
-	if m33[byteptr()] == 0 && m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 && m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$" "f35: .autotmp_[0-9]+ \(type interface \{\}\) is ambiguously live$"
 		printnl()
 		return
 	}
@@ -561,7 +561,7 @@ func f35() {
 }
 
 func f36() {
-	if m33[byteptr()] == 0 || m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 || m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$" "f36: .autotmp_[0-9]+ \(type interface \{\}\) is ambiguously live$"
 		printnl()
 		return
 	}
@@ -569,7 +569,7 @@ func f36() {
 }
 
 func f37() {
-	if (m33[byteptr()] == 0 || m33[byteptr()] == 0) && m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	if (m33[byteptr()] == 0 || m33[byteptr()] == 0) && m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$" "f37: .autotmp_[0-9]+ \(type interface \{\}\) is ambiguously live$"
 		printnl()
 		return
 	}

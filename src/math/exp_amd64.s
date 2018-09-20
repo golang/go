@@ -8,7 +8,7 @@
 // methods of elementary functions suitable for SIMD computation", Proc.
 // of International Supercomputing Conference 2010 (ISC'10), pp. 25 -- 32
 // (May 2010). The paper is available at
-// http://www.springerlink.com/content/340228x165742104/
+// https://www.springerlink.com/content/340228x165742104/
 //
 // The original code and the constants below are from the author's
 // implementation available at http://freshmeat.net/projects/sleef.

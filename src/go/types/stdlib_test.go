@@ -174,6 +174,8 @@ func TestStdFixed(t *testing.T) {
 		"issue20529.go",  // go/types does not have constraints on stack size
 		"issue22200.go",  // go/types does not have constraints on stack size
 		"issue22200b.go", // go/types does not have constraints on stack size
+		"issue25507.go",  // go/types does not have constraints on stack size
+		"issue20780.go",  // go/types does not have constraints on stack size
 	)
 }
 

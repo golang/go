@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	NoOpt        = "-gcflags=-l -N"
-	OptInl4      = "-gcflags=all=-l=4"
-	OptInl4DwLoc = "-gcflags=all=-l=4 -dwarflocationlists"
+	DefaultOpt = "-gcflags="
+	NoOpt      = "-gcflags=-l -N"
+	OptInl4    = "-gcflags=-l=4"
+	OptAllInl4 = "-gcflags=all=-l=4"
 )
 
 func TestRuntimeTypesPresent(t *testing.T) {
@@ -99,6 +100,38 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
 	}
 
 	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("build: %s\n", b)
+		t.Fatalf("build error: %v", err)
+	}
+
+	f, err := objfilepkg.Open(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &builtFile{f, dst}
+}
+
+func envWithGoPathSet(gp string) []string {
+	env := os.Environ()
+	for i := 0; i < len(env); i++ {
+		if strings.HasPrefix(env[i], "GOPATH=") {
+			env[i] = "GOPATH=" + gp
+			return env
+		}
+	}
+	env = append(env, "GOPATH="+gp)
+	return env
+}
+
+// Similar to gobuild() above, but runs off a separate GOPATH environment
+
+func gobuildTestdata(t *testing.T, tdir string, gopathdir string, packtobuild string, gcflags string) *builtFile {
+	dst := filepath.Join(tdir, "out.exe")
+
+	// Run a build with an updated GOPATH
+	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, packtobuild)
+	cmd.Env = envWithGoPathSet(gopathdir)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
 		t.Fatalf("build error: %v", err)
@@ -578,7 +611,9 @@ func main() {
 
 	// Note: this is a build with "-l=4", as opposed to "-l -N". The
 	// test is intended to verify DWARF that is only generated when
-	// the inliner is active.
+	// the inliner is active. We're only going to look at the DWARF for
+	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
+	// to "-gcflags=all=-l=4".
 	f := gobuild(t, dir, prog, OptInl4)
 
 	d, err := f.DWARF()
@@ -684,29 +719,8 @@ func main() {
 	}
 }
 
-func abstractOriginSanity(t *testing.T, flags string) {
-	// Nothing special about net/http here, this is just a convenient
-	// way to pull in a lot of code.
-	const prog = `
-package main
+func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
 
-import (
-	"net/http"
-	"net/http/httptest"
-)
-
-type statusHandler int
-
-func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(int(*h))
-}
-
-func main() {
-	status := statusHandler(http.StatusNotFound)
-	s := httptest.NewServer(&status)
-	defer s.Close()
-}
-`
 	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
@@ -714,7 +728,7 @@ func main() {
 	defer os.RemoveAll(dir)
 
 	// Build with inlining, to exercise DWARF inlining support.
-	f := gobuild(t, dir, prog, flags)
+	f := gobuildTestdata(t, dir, gopathdir, "main", flags)
 
 	d, err := f.DWARF()
 	if err != nil {
@@ -783,6 +797,10 @@ func main() {
 func TestAbstractOriginSanity(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
@@ -790,10 +808,15 @@ func TestAbstractOriginSanity(t *testing.T) {
 		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
 	}
 
-	abstractOriginSanity(t, OptInl4)
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "httptest")
+		abstractOriginSanity(t, gopathdir, OptAllInl4)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
 }
 
-func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
+func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
@@ -806,26 +829,55 @@ func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
 		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
 	}
 
-	abstractOriginSanity(t, OptInl4DwLoc)
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "issue25459")
+		abstractOriginSanity(t, gopathdir, DefaultOpt)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
 }
 
-func TestRuntimeTypeAttr(t *testing.T) {
+func TestAbstractOriginSanityIssue26237(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+	}
+	if wd, err := os.Getwd(); err == nil {
+		gopathdir := filepath.Join(wd, "testdata", "issue26237")
+		abstractOriginSanity(t, gopathdir, DefaultOpt)
+	} else {
+		t.Fatalf("os.Getwd() failed %v", err)
+	}
+}
+
+func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	// Explicitly test external linking, for dsymutil compatility on Darwin.
-	for _, flags := range []string{"-ldflags=-linkmode=internal", "-ldflags=-linkmode=external"} {
-		t.Run("flags="+flags, func(t *testing.T) {
-			if runtime.GOARCH == "ppc64" && strings.Contains(flags, "external") {
-				t.Skip("-linkmode=external not supported on ppc64")
-			}
+	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
+}
 
-			testRuntimeTypeAttr(t, flags)
-		})
+// External linking requires a host linker (https://golang.org/src/cmd/cgo/doc.go l.732)
+func TestRuntimeTypeAttrExternal(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+
+	// Explicitly test external linking, for dsymutil compatibility on Darwin.
+	if runtime.GOARCH == "ppc64" {
+		t.Skip("-linkmode=external not supported on ppc64")
+	}
+	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
 }
 
 func testRuntimeTypeAttr(t *testing.T, flags string) {
@@ -894,5 +946,119 @@ func main() {
 
 	if rtAttr.(uint64)+types.Addr != addr {
 		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
+	}
+}
+
+func TestIssue27614(t *testing.T) {
+	// Type references in debug_info should always use the DW_TAG_typedef_type
+	// for the type, when that's generated.
+
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	const prog = `package main
+
+import "fmt"
+
+type astruct struct {
+	X int
+}
+
+type bstruct struct {
+	X float32
+}
+
+var globalptr *astruct
+var globalvar astruct
+var bvar0, bvar1, bvar2 bstruct
+
+func main() {
+	fmt.Println(globalptr, globalvar, bvar0, bvar1, bvar2)
+}
+`
+
+	f := gobuild(t, dir, prog, NoOpt)
+
+	defer f.Close()
+
+	data, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rdr := data.Reader()
+
+	var astructTypeDIE, bstructTypeDIE, ptrastructTypeDIE *dwarf.Entry
+	var globalptrDIE, globalvarDIE *dwarf.Entry
+	var bvarDIE [3]*dwarf.Entry
+
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+
+		name, _ := e.Val(dwarf.AttrName).(string)
+
+		switch e.Tag {
+		case dwarf.TagTypedef:
+			switch name {
+			case "main.astruct":
+				astructTypeDIE = e
+			case "main.bstruct":
+				bstructTypeDIE = e
+			}
+		case dwarf.TagPointerType:
+			if name == "*main.astruct" {
+				ptrastructTypeDIE = e
+			}
+		case dwarf.TagVariable:
+			switch name {
+			case "main.globalptr":
+				globalptrDIE = e
+			case "main.globalvar":
+				globalvarDIE = e
+			default:
+				const bvarprefix = "main.bvar"
+				if strings.HasPrefix(name, bvarprefix) {
+					i, _ := strconv.Atoi(name[len(bvarprefix):])
+					bvarDIE[i] = e
+				}
+			}
+		}
+	}
+
+	typedieof := func(e *dwarf.Entry) dwarf.Offset {
+		return e.Val(dwarf.AttrType).(dwarf.Offset)
+	}
+
+	if off := typedieof(ptrastructTypeDIE); off != astructTypeDIE.Offset {
+		t.Errorf("type attribute of *main.astruct references %#x, not main.astruct DIE at %#x\n", off, astructTypeDIE.Offset)
+	}
+
+	if off := typedieof(globalptrDIE); off != ptrastructTypeDIE.Offset {
+		t.Errorf("type attribute of main.globalptr references %#x, not *main.astruct DIE at %#x\n", off, ptrastructTypeDIE.Offset)
+	}
+
+	if off := typedieof(globalvarDIE); off != astructTypeDIE.Offset {
+		t.Errorf("type attribute of main.globalvar1 references %#x, not main.astruct DIE at %#x\n", off, astructTypeDIE.Offset)
+	}
+
+	for i := range bvarDIE {
+		if off := typedieof(bvarDIE[i]); off != bstructTypeDIE.Offset {
+			t.Errorf("type attribute of main.bvar%d references %#x, not main.bstruct DIE at %#x\n", i, off, bstructTypeDIE.Offset)
+		}
 	}
 }

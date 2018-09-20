@@ -8,7 +8,7 @@
 //
 // The algorithm is detailed in FIPS 180-4:
 //
-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
 //
 // Wt = Mt; for 0 <= t <= 15
 // Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
@@ -274,7 +274,7 @@ end:
 
 // Version below is based on "Fast SHA512 Implementations on Intel
 // Architecture Processors" White-paper
-// http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
+// https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
 // AVX2 version by Intel, same algorithm in Linux kernel:
 // https://github.com/torvalds/linux/blob/master/arch/x86/crypto/sha512-avx2-asm.S
 

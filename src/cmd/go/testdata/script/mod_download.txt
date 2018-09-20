@@ -1,0 +1,64 @@
+env GO111MODULE=on
+
+# download with version should print nothing
+go mod download rsc.io/quote@v1.5.0
+! stdout .
+
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+
+# download -json with version should print JSON
+go mod download -json 'rsc.io/quote@<=v1.5.0'
+stdout '^\t"Path": "rsc.io/quote"'
+stdout '^\t"Version": "v1.5.0"'
+stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.info"'
+stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.mod"'
+stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.zip"'
+stdout '^\t"Sum": "h1:6fJa6E\+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE="'  # hash of testdata/mod version, not real version!
+stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
+! stdout '"Error"'
+
+# download queries above should not have added to go.mod.
+go list -m all
+! stdout rsc.io
+
+# add to go.mod so we can test non-query downloads
+go mod edit -require rsc.io/quote@v1.5.2
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+
+# module loading will page in the info and mod files
+go list -m all
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+
+# download will fetch and unpack the zip file
+go mod download
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+
+go mod download -json
+stdout '^\t"Path": "rsc.io/quote"'
+stdout '^\t"Version": "v1.5.2"'
+stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.info"'
+stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.mod"'
+stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.zip"'
+stdout '^\t"Dir": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)rsc.io(\\\\|/)quote@v1.5.2"'
+
+# download will follow replacements
+go mod edit -require rsc.io/quote@v1.5.1 -replace rsc.io/quote@v1.5.1=rsc.io/quote@v1.5.3-pre1
+go mod download
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+
+# download will not follow replacements for explicit module queries
+go mod download -json rsc.io/quote@v1.5.1
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+
+-- go.mod --
+module m

@@ -8,7 +8,7 @@ package bzip2
 import "io"
 
 // There's no RFC for bzip2. I used the Wikipedia page for reference and a lot
-// of guessing: http://en.wikipedia.org/wiki/Bzip2
+// of guessing: https://en.wikipedia.org/wiki/Bzip2
 // The source code to pyflate was useful for debugging:
 // http://www.paul.sladen.org/projects/pyflate
 

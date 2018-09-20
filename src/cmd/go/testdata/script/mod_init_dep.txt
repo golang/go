@@ -1,0 +1,34 @@
+env GO111MODULE=on
+
+# modconv uses git directly to examine what old 'go get' would
+[!net] skip
+[!exec:git] skip
+
+# go build should populate go.mod from Gopkg.lock
+cp go.mod1 go.mod
+go build
+stderr 'copying requirements from Gopkg.lock'
+go list -m all
+! stderr 'copying requirements from Gopkg.lock'
+stdout 'rsc.io/sampler v1.0.0'
+
+# go list should populate go.mod from Gopkg.lock
+cp go.mod1 go.mod
+go list
+stderr 'copying requirements from Gopkg.lock'
+go list
+! stderr 'copying requirements from Gopkg.lock'
+go list -m all
+stdout 'rsc.io/sampler v1.0.0'
+
+-- go.mod1 --
+module x
+
+-- x.go --
+package x
+
+-- Gopkg.lock --
+[[projects]]
+  name = "rsc.io/sampler"
+  version = "v1.0.0"
+

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !plan9
+// +build !js,!plan9
 
 package net
 
 import (
+	"context"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -728,4 +729,57 @@ func TestClosingListener(t *testing.T) {
 		t.Fatal(err)
 	}
 	ln2.Close()
+}
+
+func TestListenConfigControl(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	t.Run("StreamListen", func(t *testing.T) {
+		for _, network := range []string{"tcp", "tcp4", "tcp6", "unix", "unixpacket"} {
+			if !testableNetwork(network) {
+				continue
+			}
+			ln, err := newLocalListener(network)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			address := ln.Addr().String()
+			ln.Close()
+			lc := ListenConfig{Control: controlOnConnSetup}
+			ln, err = lc.Listen(context.Background(), network, address)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			ln.Close()
+		}
+	})
+	t.Run("PacketListen", func(t *testing.T) {
+		for _, network := range []string{"udp", "udp4", "udp6", "unixgram"} {
+			if !testableNetwork(network) {
+				continue
+			}
+			c, err := newLocalPacketListener(network)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			address := c.LocalAddr().String()
+			c.Close()
+			if network == "unixgram" {
+				os.Remove(address)
+			}
+			lc := ListenConfig{Control: controlOnConnSetup}
+			c, err = lc.ListenPacket(context.Background(), network, address)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			c.Close()
+		}
+	})
 }

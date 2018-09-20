@@ -674,6 +674,36 @@ func numLabelsToString(numLabels map[string][]int64, numUnits map[string][]strin
 	return strings.Join(ls, " ")
 }
 
+// SetLabel sets the specified key to the specified value for all samples in the
+// profile.
+func (p *Profile) SetLabel(key string, value []string) {
+	for _, sample := range p.Sample {
+		if sample.Label == nil {
+			sample.Label = map[string][]string{key: value}
+		} else {
+			sample.Label[key] = value
+		}
+	}
+}
+
+// RemoveLabel removes all labels associated with the specified key for all
+// samples in the profile.
+func (p *Profile) RemoveLabel(key string) {
+	for _, sample := range p.Sample {
+		delete(sample.Label, key)
+	}
+}
+
+// HasLabel returns true if a sample has a label with indicated key and value.
+func (s *Sample) HasLabel(key, value string) bool {
+	for _, v := range s.Label[key] {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
 // Scale multiplies all sample values in a profile by a constant.
 func (p *Profile) Scale(ratio float64) {
 	if ratio == 1 {

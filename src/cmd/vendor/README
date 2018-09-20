@@ -1,0 +1,21 @@
+How to update the vendored packages:
+
+Assuming the govendor tool is available
+run the govendor tool from src/cmd directory
+
+  $ go get -u github.com/kardianos/govendor
+
+To update packages used by cmd/pprof:
+
+  $ cd $GOROOT/src/cmd
+  $ GOPATH=$GOROOT govendor fetch github.com/google/pprof/...
+
+To update packages used by internal/objfile/*:
+
+  $ GOPATH=$GOROOT govendor fetch golang.org/x/arch/...
+
+GOPATH=$GOROOT in the above commands is a hack to
+make govendor work and will create the .cache folder in
+$GOROOT as a side-effect. Please make sure to delete
+the directory and not to include the directory in the
+commit by accident.

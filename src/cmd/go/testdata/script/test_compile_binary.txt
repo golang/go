@@ -1,0 +1,6 @@
+! go test -c compile_binary/...
+stderr 'build comment'
+
+-- compile_binary/foo_test.go --
+//+build foo
+package foo

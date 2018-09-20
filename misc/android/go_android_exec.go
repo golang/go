@@ -14,10 +14,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 func run(args ...string) string {
@@ -73,8 +75,8 @@ func main() {
 
 	// Binary names can conflict.
 	// E.g. template.test from the {html,text}/template packages.
-	binName := filepath.Base(os.Args[1])
-	deviceBin := fmt.Sprintf("%s/%s-%d", deviceGotmp, binName, os.Getpid())
+	binName := fmt.Sprintf("%s-%d", filepath.Base(os.Args[1]), os.Getpid())
+	deviceBin := fmt.Sprintf("%s/%s", deviceGotmp, binName)
 
 	// The push of the binary happens in parallel with other tests.
 	// Unfortunately, a simultaneous call to adb shell hold open
@@ -85,6 +87,17 @@ func main() {
 	run("shell", "cp '"+deviceBin+"-tmp' '"+deviceBin+"'")
 	run("shell", "rm '"+deviceBin+"-tmp'")
 
+	// Forward SIGQUIT from the go command to show backtraces from
+	// the binary instead of from this wrapper.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGQUIT)
+	go func() {
+		for range quit {
+			// We don't have the PID of the running process; use the
+			// binary name instead.
+			run("shell", "killall -QUIT "+binName)
+		}
+	}()
 	// The adb shell command will return an exit code of 0 regardless
 	// of the command run. E.g.
 	//      $ adb shell false
@@ -100,6 +113,8 @@ func main() {
 		"; '" + deviceBin + "' " + strings.Join(os.Args[2:], " ") +
 		"; echo -n " + exitstr + "$?"
 	output := run("shell", cmd)
+	signal.Reset(syscall.SIGQUIT)
+	close(quit)
 
 	run("shell", "rm", "-rf", deviceGotmp) // Clean up.
 

@@ -39,8 +39,10 @@ Flags:
 		Print linker version and exit.
 	-X importpath.name=value
 		Set the value of the string variable in importpath named name to value.
+		This is only effective if the variable is declared in the source code either uninitialized
+		or initialized to a constant string expression. -X will not work if the initializer makes
+		a function call or refers to other variables.
 		Note that before Go 1.5 this option took two separate arguments.
-		Now it takes one argument split on the first = sign.
 	-buildmode mode
 		Set build mode (default exe).
 	-cpuprofile file

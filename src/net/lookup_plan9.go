@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/bytealg"
 	"io"
 	"os"
 )
@@ -135,7 +136,7 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
 		return 0, UnknownNetworkError(name)
 	}
 	s := f[1]
-	if n, _, ok := dtoi(s[byteIndex(s, '=')+1:]); ok {
+	if n, _, ok := dtoi(s[bytealg.IndexByteString(s, '=')+1:]); ok {
 		return n, nil
 	}
 	return 0, UnknownNetworkError(name)
@@ -158,7 +159,7 @@ loop:
 			continue
 		}
 		addr := f[1]
-		if i := byteIndex(addr, '!'); i >= 0 {
+		if i := bytealg.IndexByteString(addr, '!'); i >= 0 {
 			addr = addr[:i] // remove port
 		}
 		if ParseIP(addr) == nil {
@@ -210,7 +211,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 		return 0, unknownPortError
 	}
 	s := f[1]
-	if i := byteIndex(s, '!'); i >= 0 {
+	if i := bytealg.IndexByteString(s, '!'); i >= 0 {
 		s = s[i+1:] // remove address
 	}
 	if n, _, ok := dtoi(s); ok {
@@ -304,7 +305,7 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err 
 		return
 	}
 	for _, line := range lines {
-		if i := byteIndex(line, '\t'); i >= 0 {
+		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
 			txt = append(txt, absDomainName([]byte(line[i+1:])))
 		}
 	}
@@ -328,4 +329,10 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, er
 		name = append(name, absDomainName([]byte(f[2])))
 	}
 	return
+}
+
+// concurrentThreadsLimit returns the number of threads we permit to
+// run concurrently doing DNS lookups.
+func concurrentThreadsLimit() int {
+	return 500
 }

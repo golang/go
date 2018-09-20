@@ -248,3 +248,57 @@ func issue25438() {
 	if
 	{ /* ERROR missing condition */ }
 }
+
+// Test that we can embed alias type names in interfaces.
+type issue25301 interface {
+	E
+}
+
+type E = interface {
+	m()
+}
+
+// Test case from issue. Eventually we may disallow this due
+// to the cycle via the alias type name. But for now we make
+// sure this is accepted.
+type issue25301b = interface {
+	m() interface{ issue25301b }
+}
+
+type issue25301c interface {
+	notE // ERROR struct\{\} is not an interface
+}
+
+type notE = struct{}
+
+// Test that method declarations don't introduce artificial cycles
+// (issue #26124).
+const CC TT = 1
+type TT int
+func (TT) MM() [CC]TT
+
+// Reduced test case from issue #26124.
+const preloadLimit LNumber = 128
+type LNumber float64
+func (LNumber) assertFunction() *LFunction
+type LFunction struct {
+	GFunction LGFunction
+}
+type LGFunction func(*LState)
+type LState struct {
+	reg *registry
+}
+type registry struct {
+	alloc *allocator
+}
+type allocator struct {
+	_ [int(preloadLimit)]int
+}
+
+// Test that we don't crash when type-checking composite literals
+// containing errors in the type.
+var issue27346 = [][n /* ERROR undeclared */ ]int{
+	0: {},
+}
+
+var issue22467 = map[int][... /* ERROR invalid use of ... */ ]int{0: {}}

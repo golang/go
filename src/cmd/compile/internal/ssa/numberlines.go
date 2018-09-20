@@ -14,7 +14,7 @@ func isPoorStatementOp(op Op) bool {
 	switch op {
 	// Note that Nilcheck often vanishes, but when it doesn't, you'd love to start the statement there
 	// so that a debugger-user sees the stop before the panic, and can examine the value.
-	case OpAddr, OpOffPtr, OpStructSelect, OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F:
+	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F:
 		return true
 	}
 	return false

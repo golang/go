@@ -15,6 +15,7 @@ TEXT ·Compare(SB),NOSPLIT,$0-28
 	RET
 
 TEXT bytes·Compare(SB),NOSPLIT,$0-28
+	FUNCDATA $0, ·Compare·args_stackmap(SB)
 	MOVL	a_base+0(FP), SI
 	MOVL	a_len+4(FP), BX
 	MOVL	b_base+12(FP), DI

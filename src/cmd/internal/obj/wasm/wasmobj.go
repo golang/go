@@ -25,6 +25,7 @@ var Register = map[string]int16{
 	"RET1": REG_RET1,
 	"RET2": REG_RET2,
 	"RET3": REG_RET3,
+	"RUN":  REG_RUN,
 
 	"R0":  REG_R0,
 	"R1":  REG_R1,
@@ -487,7 +488,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				p = appendp(p, AEnd) // end of Loop
 			}
 
-		case obj.ARET:
+		case obj.ARET, ARETUNWIND:
 			ret := *p
 			p.As = obj.ANOP
 
@@ -528,7 +529,14 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p = appendp(p, AI32Add)
 			p = appendp(p, ASet, regAddr(REG_SP))
 
-			// not switching goroutine, return 0
+			if ret.As == ARETUNWIND {
+				// function needs to unwind the WebAssembly stack, return 1
+				p = appendp(p, AI32Const, constAddr(1))
+				p = appendp(p, AReturn)
+				break
+			}
+
+			// not unwinding the WebAssembly stack, return 0
 			p = appendp(p, AI32Const, constAddr(0))
 			p = appendp(p, AReturn)
 		}
@@ -726,7 +734,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			reg := p.From.Reg
 			switch {
-			case reg >= REG_PC_F && reg <= REG_RET3:
+			case reg >= REG_PC_F && reg <= REG_RUN:
 				w.WriteByte(0x23) // get_global
 				writeUleb128(w, uint64(reg-REG_PC_F))
 			case reg >= REG_R0 && reg <= REG_F15:
@@ -743,7 +751,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			reg := p.To.Reg
 			switch {
-			case reg >= REG_PC_F && reg <= REG_RET3:
+			case reg >= REG_PC_F && reg <= REG_RUN:
 				w.WriteByte(0x24) // set_global
 				writeUleb128(w, uint64(reg-REG_PC_F))
 			case reg >= REG_R0 && reg <= REG_F15:

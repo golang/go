@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -62,6 +63,9 @@ func TestPointToPointInterface(t *testing.T) {
 			t.Skipf("test requires external command: %v", err)
 		}
 		if err := ti.setup(); err != nil {
+			if e := err.Error(); strings.Contains(e, "No such device") && strings.Contains(e, "gre0") {
+				t.Skip("skipping test; no gre0 device. likely running in container?")
+			}
 			t.Fatal(err)
 		} else {
 			time.Sleep(3 * time.Millisecond)

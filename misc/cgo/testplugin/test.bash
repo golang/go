@@ -15,7 +15,7 @@ goos=$(go env GOOS)
 goarch=$(go env GOARCH)
 
 function cleanup() {
-	rm -f plugin*.so unnamed*.so iface*.so issue*
+	rm -f plugin*.so unnamed*.so iface*.so life.so issue*
 	rm -rf host pkg sub iface
 }
 trap cleanup EXIT
@@ -31,6 +31,14 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=sub/plugin1.s
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed1.so unnamed1/main.go
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed2.so unnamed2/main.go
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" host
+
+# test that DWARF sections are emitted for plugins and programs importing "plugin"
+if [ $GOOS != "darwin" ]; then
+	# On macOS, for some reason, the linker doesn't add debug sections to .so,
+	# see issue #27502.
+	go run src/checkdwarf/main.go plugin2.so plugin2.UnexportedNameReuse
+fi
+go run src/checkdwarf/main.go host main.main
 
 LD_LIBRARY_PATH=$(pwd) ./host
 
@@ -90,3 +98,12 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22295 src/issue22295.pkg/m
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue24351.so src/issue24351/plugin.go
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue24351 src/issue24351/main.go
 ./issue24351
+
+# Test for issue 25756
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o life.so issue25756/plugin
+GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue25756 src/issue25756/main.go
+# Fails intermittently, but 20 runs should cause the failure
+for i in `seq 1 20`;
+do
+  ./issue25756 > /dev/null
+done

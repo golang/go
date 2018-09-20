@@ -19,7 +19,126 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
+
+// chtmpdir changes the working directory to a new temporary directory and
+// provides a cleanup function. Used when PWD is read-only.
+func chtmpdir(t *testing.T) func() {
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	if err := os.Chdir(d); err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	return func() {
+		if err := os.Chdir(oldwd); err != nil {
+			t.Fatalf("chtmpdir: %v", err)
+		}
+		os.RemoveAll(d)
+	}
+}
+
+func touch(t *testing.T, name string) {
+	f, err := os.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+const (
+	_AT_SYMLINK_NOFOLLOW = 0x100
+	_AT_FDCWD            = -0x64
+	_AT_EACCESS          = 0x200
+	_F_OK                = 0
+	_R_OK                = 4
+)
+
+func TestFaccessat(t *testing.T) {
+	defer chtmpdir(t)()
+	touch(t, "file1")
+
+	err := syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, 0)
+	if err != nil {
+		t.Errorf("Faccessat: unexpected error: %v", err)
+	}
+
+	err = syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, 2)
+	if err != syscall.EINVAL {
+		t.Errorf("Faccessat: unexpected error: %v, want EINVAL", err)
+	}
+
+	err = syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, _AT_EACCESS)
+	if err != nil {
+		t.Errorf("Faccessat: unexpected error: %v", err)
+	}
+
+	err = os.Symlink("file1", "symlink1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = syscall.Faccessat(_AT_FDCWD, "symlink1", _R_OK, _AT_SYMLINK_NOFOLLOW)
+	if err != nil {
+		t.Errorf("Faccessat SYMLINK_NOFOLLOW: unexpected error %v", err)
+	}
+
+	// We can't really test _AT_SYMLINK_NOFOLLOW, because there
+	// doesn't seem to be any way to change the mode of a symlink.
+	// We don't test _AT_EACCESS because such tests are only
+	// meaningful if run as root.
+
+	err = syscall.Fchmodat(_AT_FDCWD, "file1", 0, 0)
+	if err != nil {
+		t.Errorf("Fchmodat: unexpected error %v", err)
+	}
+
+	err = syscall.Faccessat(_AT_FDCWD, "file1", _F_OK, _AT_SYMLINK_NOFOLLOW)
+	if err != nil {
+		t.Errorf("Faccessat: unexpected error: %v", err)
+	}
+
+	err = syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, _AT_SYMLINK_NOFOLLOW)
+	if err != syscall.EACCES {
+		if syscall.Getuid() != 0 {
+			t.Errorf("Faccessat: unexpected error: %v, want EACCES", err)
+		}
+	}
+}
+
+func TestFchmodat(t *testing.T) {
+	defer chtmpdir(t)()
+
+	touch(t, "file1")
+	os.Symlink("file1", "symlink1")
+
+	err := syscall.Fchmodat(_AT_FDCWD, "symlink1", 0444, 0)
+	if err != nil {
+		t.Fatalf("Fchmodat: unexpected error: %v", err)
+	}
+
+	fi, err := os.Stat("file1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if fi.Mode() != 0444 {
+		t.Errorf("Fchmodat: failed to change mode: expected %v, got %v", 0444, fi.Mode())
+	}
+
+	err = syscall.Fchmodat(_AT_FDCWD, "symlink1", 0444, _AT_SYMLINK_NOFOLLOW)
+	if err != syscall.EOPNOTSUPP {
+		t.Fatalf("Fchmodat: unexpected error: %v, expected EOPNOTSUPP", err)
+	}
+}
 
 func TestMain(m *testing.M) {
 	if os.Getenv("GO_DEATHSIG_PARENT") == "1" {
@@ -176,12 +295,16 @@ func TestSyscallNoError(t *testing.T) {
 	// On Linux there are currently no syscalls which don't fail and return
 	// a value larger than 0xfffffffffffff001 so we could test RawSyscall
 	// vs. RawSyscallNoError on 64bit architectures.
-	if runtime.GOARCH != "386" && runtime.GOARCH != "arm" {
+	if unsafe.Sizeof(uintptr(0)) != 4 {
 		t.Skip("skipping on non-32bit architecture")
 	}
 
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
+	}
+
+	if runtime.GOOS == "android" {
+		t.Skip("skipping on rooted android, see issue 27364")
 	}
 
 	// Copy the test binary to a location that a non-root user can read/execute

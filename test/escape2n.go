@@ -1593,27 +1593,33 @@ func ptrlitEscape() {
 // self-assignments
 
 type Buffer struct {
-	arr  [64]byte
-	buf1 []byte
-	buf2 []byte
-	str1 string
-	str2 string
+	arr    [64]byte
+	arrPtr *[64]byte
+	buf1   []byte
+	buf2   []byte
+	str1   string
+	str2   string
 }
 
 func (b *Buffer) foo() { // ERROR "\(\*Buffer\).foo b does not escape$"
-	b.buf1 = b.buf1[1:2]   // ERROR "\(\*Buffer\).foo ignoring self-assignment to b.buf1$"
-	b.buf1 = b.buf1[1:2:3] // ERROR "\(\*Buffer\).foo ignoring self-assignment to b.buf1$"
-	b.buf1 = b.buf2[1:2]   // ERROR "\(\*Buffer\).foo ignoring self-assignment to b.buf1$"
-	b.buf1 = b.buf2[1:2:3] // ERROR "\(\*Buffer\).foo ignoring self-assignment to b.buf1$"
+	b.buf1 = b.buf1[1:2]   // ERROR "\(\*Buffer\).foo ignoring self-assignment in b.buf1 = b.buf1\[1:2\]$"
+	b.buf1 = b.buf1[1:2:3] // ERROR "\(\*Buffer\).foo ignoring self-assignment in b.buf1 = b.buf1\[1:2:3\]$"
+	b.buf1 = b.buf2[1:2]   // ERROR "\(\*Buffer\).foo ignoring self-assignment in b.buf1 = b.buf2\[1:2\]$"
+	b.buf1 = b.buf2[1:2:3] // ERROR "\(\*Buffer\).foo ignoring self-assignment in b.buf1 = b.buf2\[1:2:3\]$"
 }
 
 func (b *Buffer) bar() { // ERROR "leaking param: b$"
 	b.buf1 = b.arr[1:2] // ERROR "b.arr escapes to heap$"
 }
 
+func (b *Buffer) arrayPtr() { // ERROR "\(\*Buffer\).arrayPtr b does not escape"
+	b.buf1 = b.arrPtr[1:2]   // ERROR "\(\*Buffer\).arrayPtr ignoring self-assignment in b.buf1 = b.arrPtr\[1:2\]$"
+	b.buf1 = b.arrPtr[1:2:3] // ERROR "\(\*Buffer\).arrayPtr ignoring self-assignment in b.buf1 = b.arrPtr\[1:2:3\]$"
+}
+
 func (b *Buffer) baz() { // ERROR "\(\*Buffer\).baz b does not escape$"
-	b.str1 = b.str1[1:2] // ERROR "\(\*Buffer\).baz ignoring self-assignment to b.str1$"
-	b.str1 = b.str2[1:2] // ERROR "\(\*Buffer\).baz ignoring self-assignment to b.str1$"
+	b.str1 = b.str1[1:2] // ERROR "\(\*Buffer\).baz ignoring self-assignment in b.str1 = b.str1\[1:2\]$"
+	b.str1 = b.str2[1:2] // ERROR "\(\*Buffer\).baz ignoring self-assignment in b.str1 = b.str2\[1:2\]$"
 }
 
 func (b *Buffer) bat() { // ERROR "leaking param content: b$"
@@ -1623,8 +1629,8 @@ func (b *Buffer) bat() { // ERROR "leaking param content: b$"
 }
 
 func quux(sp *string, bp *[]byte) { // ERROR "quux bp does not escape$" "quux sp does not escape$"
-	*sp = (*sp)[1:2] // ERROR "quux ignoring self-assignment to \*sp$"
-	*bp = (*bp)[1:2] // ERROR "quux ignoring self-assignment to \*bp$"
+	*sp = (*sp)[1:2] // ERROR "quux ignoring self-assignment in \*sp = \(\*sp\)\[1:2\]$"
+	*bp = (*bp)[1:2] // ERROR "quux ignoring self-assignment in \*bp = \(\*bp\)\[1:2\]$"
 }
 
 type StructWithString struct {

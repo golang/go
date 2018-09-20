@@ -46,4 +46,4 @@ TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	0(R13)(R31*1), g
 	RET
 
-GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

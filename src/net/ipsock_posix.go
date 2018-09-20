@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
 
 package net
 
@@ -133,12 +133,12 @@ func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (fam
 	return syscall.AF_INET6, false
 }
 
-func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string) (fd *netFD, err error) {
+func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string, ctrlFn func(string, string, syscall.RawConn) error) (fd *netFD, err error) {
 	if (runtime.GOOS == "windows" || runtime.GOOS == "openbsd" || runtime.GOOS == "nacl") && mode == "dial" && raddr.isWildcard() {
 		raddr = raddr.toLocal(net)
 	}
 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
-	return socket(ctx, net, family, sotype, proto, ipv6only, laddr, raddr)
+	return socket(ctx, net, family, sotype, proto, ipv6only, laddr, raddr, ctrlFn)
 }
 
 func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, error) {

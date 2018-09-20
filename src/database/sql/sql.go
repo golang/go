@@ -340,8 +340,8 @@ var ErrNoRows = errors.New("sql: no rows in result set")
 //
 // The sql package creates and frees connections automatically; it
 // also maintains a free pool of idle connections. If the database has
-// a concept of per-connection state, such state can only be reliably
-// observed within a transaction. Once DB.Begin is called, the
+// a concept of per-connection state, such state can be reliably observed
+// within a transaction (Tx) or connection (Conn). Once DB.Begin is called, the
 // returned Tx is bound to a single connection. Once Commit or
 // Rollback is called on the transaction, that transaction's
 // connection is returned to DB's idle connection pool. The pool size
@@ -540,7 +540,7 @@ type driverStmt struct {
 	closeErr    error // return value of previous Close call
 }
 
-// Close ensures dirver.Stmt is only closed once any always returns the same
+// Close ensures driver.Stmt is only closed once and always returns the same
 // result.
 func (ds *driverStmt) Close() error {
 	ds.Lock()
@@ -2735,8 +2735,7 @@ func (rs *Rows) Err() error {
 }
 
 // Columns returns the column names.
-// Columns returns an error if the rows are closed, or if the rows
-// are from QueryRow and there was a deferred error.
+// Columns returns an error if the rows are closed.
 func (rs *Rows) Columns() ([]string, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()

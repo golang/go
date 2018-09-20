@@ -149,7 +149,7 @@ GLOBL r4r3<>(SB),RODATA,$16
 GLOBL rupoly<>(SB),RODATA,$16
 GLOBL r5<>(SB),RODATA,$8
 
-// Based on http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
+// Based on https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
 // len(p) must be at least 64, and must be a multiple of 16.
 
 // func ieeeCLMUL(crc uint32, p []byte) uint32

@@ -35,12 +35,12 @@
 #define SYS_madvise		5027
 #define SYS_mincore		5026
 #define SYS_gettid		5178
-#define SYS_tkill		5192
 #define SYS_futex		5194
 #define SYS_sched_getaffinity	5196
 #define SYS_exit_group		5205
 #define SYS_epoll_create	5207
 #define SYS_epoll_ctl		5208
+#define SYS_tgkill		5225
 #define SYS_openat		5247
 #define SYS_epoll_pwait		5272
 #define SYS_clock_gettime	5222
@@ -137,11 +137,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVV	$SYS_getpid, R2
+	SYSCALL
+	MOVW	R2, R16
 	MOVV	$SYS_gettid, R2
 	SYSCALL
-	MOVW	R2, R4	// arg 1 tid
-	MOVW	sig+0(FP), R5	// arg 2
-	MOVV	$SYS_tkill, R2
+	MOVW	R2, R5	// arg 2 tid
+	MOVW	R16, R4	// arg 1 pid
+	MOVW	sig+0(FP), R6	// arg 3
+	MOVV	$SYS_tgkill, R2
 	SYSCALL
 	RET
 
@@ -218,6 +222,8 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
 	MOVV	size+24(FP), R7
 	MOVV	$SYS_rt_sigaction, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+32(FP)
 	RET
 
@@ -285,7 +291,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+16(FP), R6
 	MOVV	$SYS_madvise, R2
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVW	R2, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
@@ -299,6 +305,8 @@ TEXT runtime·futex(SB),NOSPLIT|NOFRAME,$0
 	MOVW	val3+32(FP), R9
 	MOVV	$SYS_futex, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+40(FP)
 	RET
 
@@ -321,6 +329,8 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
 
 	MOVV	$SYS_clone, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 
 	// In parent, return.
 	BEQ	R2, 3(PC)
@@ -383,6 +393,8 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVV	buf+16(FP), R6
 	MOVV	$SYS_sched_getaffinity, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 
@@ -391,6 +403,8 @@ TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
 	MOVW    size+0(FP), R4
 	MOVV	$SYS_epoll_create, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+8(FP)
 	RET
 
@@ -399,6 +413,8 @@ TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+0(FP), R4
 	MOVV	$SYS_epoll_create1, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+8(FP)
 	RET
 
@@ -424,6 +440,8 @@ TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
 	MOVV	$0, R8
 	MOVV	$SYS_epoll_pwait, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 

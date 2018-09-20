@@ -252,6 +252,19 @@ func deadcode(f *Func) {
 		b.Values = b.Values[:i]
 	}
 
+	// Remove dead blocks from WBLoads list.
+	i = 0
+	for _, b := range f.WBLoads {
+		if reachable[b.ID] {
+			f.WBLoads[i] = b
+			i++
+		}
+	}
+	for j := i; j < len(f.WBLoads); j++ {
+		f.WBLoads[j] = nil
+	}
+	f.WBLoads = f.WBLoads[:i]
+
 	// Remove unreachable blocks. Return dead blocks to allocator.
 	i = 0
 	for _, b := range f.Blocks {

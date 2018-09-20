@@ -251,20 +251,27 @@ func (b *B) run() {
 		b.context.processBench(b) // Must call doBench.
 	} else {
 		// Running func Benchmark.
-		b.doBench(0)
+		b.doBench()
 	}
 }
 
-func (b *B) doBench(hint int) BenchmarkResult {
-	go b.launch(hint)
+func (b *B) doBench() BenchmarkResult {
+	go b.launch()
 	<-b.signal
 	return b.result
 }
 
-// autodetectN runs the benchmark function, gradually increasing the
-// number of iterations until the benchmark runs for the requested
-// benchtime.
-func (b *B) autodetectN() {
+// launch launches the benchmark function. It gradually increases the number
+// of benchmark iterations until the benchmark runs for the requested benchtime.
+// launch is run by the doBench function as a separate goroutine.
+// run1 must have been called on b.
+func (b *B) launch() {
+	// Signal that we're done whether we return normally
+	// or by FailNow's runtime.Goexit.
+	defer func() {
+		b.signal <- true
+	}()
+
 	// Run the benchmark for at least the specified amount of time.
 	d := b.benchTime
 	for n := 1; !b.failed && b.duration < d && n < 1e9; {
@@ -282,26 +289,6 @@ func (b *B) autodetectN() {
 		n = roundUp(n)
 		b.runN(n)
 	}
-}
-
-// launch launches the benchmark function for hintN iterations. If
-// hintN == 0, it autodetects the number of benchmark iterations based
-// on the requested benchtime.
-// launch is run by the doBench function as a separate goroutine.
-// run1 must have been called on b.
-func (b *B) launch(hintN int) {
-	// Signal that we're done whether we return normally
-	// or by FailNow's runtime.Goexit.
-	defer func() {
-		b.signal <- true
-	}()
-
-	if hintN == 0 {
-		b.autodetectN()
-	} else {
-		b.runN(hintN)
-	}
-
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes}
 }
 
@@ -439,7 +426,6 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 // processBench runs bench b for the configured CPU counts and prints the results.
 func (ctx *benchContext) processBench(b *B) {
 	for i, procs := range cpuList {
-		var nHint int
 		for j := uint(0); j < *count; j++ {
 			runtime.GOMAXPROCS(procs)
 			benchName := benchmarkName(b.name, procs)
@@ -458,10 +444,7 @@ func (ctx *benchContext) processBench(b *B) {
 				}
 				b.run1()
 			}
-			r := b.doBench(nHint)
-			if j == 0 {
-				nHint = b.N
-			}
+			r := b.doBench()
 			if b.failed {
 				// The output could be very long here, but probably isn't.
 				// We print it all, regardless, because we don't want to trim the reason

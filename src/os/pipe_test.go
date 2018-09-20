@@ -3,11 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Test broken pipes on Unix systems.
-// +build !windows,!plan9,!nacl
+// +build !windows,!plan9,!nacl,!js
 
 package os_test
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -302,6 +304,136 @@ func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
 			}
 		}
 	}
+
+	wg.Wait()
+}
+
+// Issue 24164, for pipes.
+func TestPipeEOF(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		defer func() {
+			if err := w.Close(); err != nil {
+				t.Errorf("error closing writer: %v", err)
+			}
+		}()
+
+		for i := 0; i < 3; i++ {
+			time.Sleep(10 * time.Millisecond)
+			_, err := fmt.Fprintf(w, "line %d\n", i)
+			if err != nil {
+				t.Errorf("error writing to fifo: %v", err)
+				return
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}()
+
+	defer wg.Wait()
+
+	done := make(chan bool)
+	go func() {
+		defer close(done)
+
+		defer func() {
+			if err := r.Close(); err != nil {
+				t.Errorf("error closing reader: %v", err)
+			}
+		}()
+
+		rbuf := bufio.NewReader(r)
+		for {
+			b, err := rbuf.ReadBytes('\n')
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			t.Logf("%s\n", bytes.TrimSpace(b))
+		}
+	}()
+
+	select {
+	case <-done:
+		// Test succeeded.
+	case <-time.After(time.Second):
+		t.Error("timed out waiting for read")
+		// Close the reader to force the read to complete.
+		r.Close()
+	}
+}
+
+// Issue 24481.
+func TestFdRace(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	var wg sync.WaitGroup
+	call := func() {
+		defer wg.Done()
+		w.Fd()
+	}
+
+	const tries = 100
+	for i := 0; i < tries; i++ {
+		wg.Add(1)
+		go call()
+	}
+	wg.Wait()
+}
+
+func TestFdReadRace(t *testing.T) {
+	t.Parallel()
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	c := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var buf [10]byte
+		r.SetReadDeadline(time.Now().Add(time.Second))
+		c <- true
+		if _, err := r.Read(buf[:]); os.IsTimeout(err) {
+			t.Error("read timed out")
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-c
+		// Give the other goroutine a chance to enter the Read.
+		// It doesn't matter if this occasionally fails, the test
+		// will still pass, it just won't test anything.
+		time.Sleep(10 * time.Millisecond)
+		r.Fd()
+
+		// The bug was that Fd would hang until Read timed out.
+		// If the bug is fixed, then closing r here will cause
+		// the Read to exit before the timeout expires.
+		r.Close()
+	}()
 
 	wg.Wait()
 }

@@ -595,7 +595,7 @@ func (p *iexporter) typOff(t *types.Type) uint64 {
 	if !ok {
 		w := p.newWriter()
 		w.doTyp(t)
-		off = predeclReserved + uint64(w.flush())
+		off = predeclReserved + w.flush()
 		p.typIndex[t] = off
 	}
 	return off
@@ -952,6 +952,16 @@ func (w *exportWriter) funcExt(n *Node) {
 		if n.Func.ExportInline() {
 			w.p.doInline(n)
 		}
+
+		// Endlineno for inlined function.
+		if n.Name.Defn != nil {
+			w.pos(n.Name.Defn.Func.Endlineno)
+		} else {
+			// When the exported node was defined externally,
+			// e.g. io exports atomic.(*Value).Load or bytes exports errors.New.
+			// Keep it as we don't distinguish this case in iimport.go.
+			w.pos(n.Func.Endlineno)
+		}
 	} else {
 		w.uint64(0)
 	}
@@ -970,13 +980,17 @@ func (w *exportWriter) linkname(s *types.Sym) {
 
 func (w *exportWriter) stmtList(list Nodes) {
 	for _, n := range list.Slice() {
-		if opprec[n.Op] < 0 {
-			w.stmt(n)
-		} else {
-			w.expr(n)
-		}
+		w.node(n)
 	}
 	w.op(OEND)
+}
+
+func (w *exportWriter) node(n *Node) {
+	if opprec[n.Op] < 0 {
+		w.stmt(n)
+	} else {
+		w.expr(n)
+	}
 }
 
 // Caution: stmt will emit more than one node for statement nodes n that have a non-empty
@@ -1338,7 +1352,7 @@ func (w *exportWriter) exprsOrNil(a, b *Node) {
 		w.expr(a)
 	}
 	if ab&2 != 0 {
-		w.expr(b)
+		w.node(b)
 	}
 }
 

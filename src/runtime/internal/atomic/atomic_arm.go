@@ -7,7 +7,7 @@
 package atomic
 
 import (
-	"runtime/internal/sys"
+	"internal/cpu"
 	"unsafe"
 )
 
@@ -31,7 +31,7 @@ func (l *spinlock) unlock() {
 
 var locktab [57]struct {
 	l   spinlock
-	pad [sys.CacheLineSize - unsafe.Sizeof(spinlock{})]byte
+	pad [cpu.CacheLinePadSize - unsafe.Sizeof(spinlock{})]byte
 }
 
 func addrLock(addr *uint64) *spinlock {

@@ -65,11 +65,19 @@ var (
 	// request's Content-Type is not multipart/form-data.
 	ErrNotMultipart = &ProtocolError{"request Content-Type isn't multipart/form-data"}
 
-	// Deprecated: ErrHeaderTooLong is not used.
+	// Deprecated: ErrHeaderTooLong is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrHeaderTooLong = &ProtocolError{"header too long"}
-	// Deprecated: ErrShortBody is not used.
+
+	// Deprecated: ErrShortBody is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrShortBody = &ProtocolError{"entity body too short"}
-	// Deprecated: ErrMissingContentLength is not used.
+
+	// Deprecated: ErrMissingContentLength is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
 )
 
@@ -97,7 +105,7 @@ var reqWriteExcludeHeader = map[string]bool{
 // documentation for Request.Write and RoundTripper.
 type Request struct {
 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
-	// For client requests an empty string means GET.
+	// For client requests, an empty string means GET.
 	//
 	// Go's HTTP client does not support sending a request with
 	// the CONNECT method. See the documentation on Transport for
@@ -107,7 +115,7 @@ type Request struct {
 	// URL specifies either the URI being requested (for server
 	// requests) or the URL to access (for client requests).
 	//
-	// For server requests the URL is parsed from the URI
+	// For server requests, the URL is parsed from the URI
 	// supplied on the Request-Line as stored in RequestURI.  For
 	// most requests, fields other than Path and RawQuery will be
 	// empty. (See RFC 7230, Section 5.3)
@@ -120,7 +128,7 @@ type Request struct {
 
 	// The protocol version for incoming server requests.
 	//
-	// For client requests these fields are ignored. The HTTP
+	// For client requests, these fields are ignored. The HTTP
 	// client code always uses either HTTP/1.1 or HTTP/2.
 	// See the docs on Transport for details.
 	Proto      string // "HTTP/1.0"
@@ -162,11 +170,11 @@ type Request struct {
 
 	// Body is the request's body.
 	//
-	// For client requests a nil body means the request has no
+	// For client requests, a nil body means the request has no
 	// body, such as a GET request. The HTTP Client's Transport
 	// is responsible for calling the Close method.
 	//
-	// For server requests the Request Body is always non-nil
+	// For server requests, the Request Body is always non-nil
 	// but will return EOF immediately when no body is present.
 	// The Server will close the request body. The ServeHTTP
 	// Handler does not need to.
@@ -177,13 +185,14 @@ type Request struct {
 	// reading the body more than once. Use of GetBody still
 	// requires setting Body.
 	//
-	// For server requests it is unused.
+	// For server requests, it is unused.
 	GetBody func() (io.ReadCloser, error)
 
 	// ContentLength records the length of the associated content.
 	// The value -1 indicates that the length is unknown.
 	// Values >= 0 indicate that the given number of bytes may
 	// be read from Body.
+	//
 	// For client requests, a value of 0 with a non-nil Body is
 	// also treated as unknown.
 	ContentLength int64
@@ -207,15 +216,20 @@ type Request struct {
 	// Transport.DisableKeepAlives were set.
 	Close bool
 
-	// For server requests Host specifies the host on which the URL
+	// For server requests, Host specifies the host on which the URL
 	// is sought. Per RFC 7230, section 5.4, this is either the value
 	// of the "Host" header or the host name given in the URL itself.
 	// It may be of the form "host:port". For international domain
 	// names, Host may be in Punycode or Unicode form. Use
 	// golang.org/x/net/idna to convert it to either format if
 	// needed.
+	// To prevent DNS rebinding attacks, server Handlers should
+	// validate that the Host header has a value for which the
+	// Handler considers itself authoritative. The included
+	// ServeMux supports patterns registered to particular host
+	// names and thus protects its registered Handlers.
 	//
-	// For client requests Host optionally overrides the Host
+	// For client requests, Host optionally overrides the Host
 	// header to send. If empty, the Request.Write method uses
 	// the value of URL.Host. Host may contain an international
 	// domain name.
@@ -242,14 +256,14 @@ type Request struct {
 	// Trailer specifies additional headers that are sent after the request
 	// body.
 	//
-	// For server requests the Trailer map initially contains only the
+	// For server requests, the Trailer map initially contains only the
 	// trailer keys, with nil values. (The client declares which trailers it
 	// will later send.)  While the handler is reading from Body, it must
 	// not reference Trailer. After reading from Body returns EOF, Trailer
 	// can be read again and will contain non-nil values, if they were sent
 	// by the client.
 	//
-	// For client requests Trailer must be initialized to a map containing
+	// For client requests, Trailer must be initialized to a map containing
 	// the trailer keys to later send. The values may be nil or their final
 	// values. The ContentLength must be 0 or -1, to send a chunked request.
 	// After the HTTP request is sent the map values can be updated while
@@ -326,6 +340,10 @@ func (r *Request) Context() context.Context {
 
 // WithContext returns a shallow copy of r with its context changed
 // to ctx. The provided ctx must be non-nil.
+//
+// For outgoing client request, the context controls the entire
+// lifetime of a request and its response: obtaining a connection,
+// sending the request, and reading the response headers and body.
 func (r *Request) WithContext(ctx context.Context) *Request {
 	if ctx == nil {
 		panic("nil context")
@@ -550,6 +568,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	if err != nil {
 		return err
 	}
+	if trace != nil && trace.WroteHeaderField != nil {
+		trace.WroteHeaderField("Host", []string{host})
+	}
 
 	// Use the defaultUserAgent unless the Header contains one, which
 	// may be blank to not send the header.
@@ -562,6 +583,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 		if err != nil {
 			return err
 		}
+		if trace != nil && trace.WroteHeaderField != nil {
+			trace.WroteHeaderField("User-Agent", []string{userAgent})
+		}
 	}
 
 	// Process Body,ContentLength,Close,Trailer
@@ -569,18 +593,18 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	if err != nil {
 		return err
 	}
-	err = tw.WriteHeader(w)
+	err = tw.writeHeader(w, trace)
 	if err != nil {
 		return err
 	}
 
-	err = r.Header.WriteSubset(w, reqWriteExcludeHeader)
+	err = r.Header.writeSubset(w, reqWriteExcludeHeader, trace)
 	if err != nil {
 		return err
 	}
 
 	if extraHeaders != nil {
-		err = extraHeaders.Write(w)
+		err = extraHeaders.write(w, trace)
 		if err != nil {
 			return err
 		}
@@ -619,7 +643,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	}
 
 	// Write body and trailer
-	err = tw.WriteBody(w)
+	err = tw.writeBody(w)
 	if err != nil {
 		if tw.bodyReadError == err {
 			err = requestBodyReadError{err}
@@ -911,6 +935,11 @@ func putTextprotoReader(r *textproto.Reader) {
 }
 
 // ReadRequest reads and parses an incoming request from b.
+//
+// ReadRequest is a low-level function and should only be used for
+// specialized applications; most code should use the Server to read
+// requests and handle them via the Handler interface. ReadRequest
+// only supports HTTP/1.x requests. For HTTP/2, use golang.org/x/net/http2.
 func ReadRequest(b *bufio.Reader) (*Request, error) {
 	return readRequest(b, deleteHostHeader)
 }
@@ -1249,8 +1278,8 @@ func (r *Request) FormValue(key string) string {
 	return ""
 }
 
-// PostFormValue returns the first value for the named component of the POST
-// or PUT request body. URL query parameters are ignored.
+// PostFormValue returns the first value for the named component of the POST,
+// PATCH, or PUT request body. URL query parameters are ignored.
 // PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, PostFormValue returns the empty string.

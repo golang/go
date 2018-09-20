@@ -10,12 +10,6 @@ package runtime
 
 import "unsafe"
 
-func kqueue() int32
-
-//go:noescape
-func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-func closeonexec(fd int32)
-
 var (
 	kq int32 = -1
 )
@@ -65,9 +59,9 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) *g {
+func netpoll(block bool) gList {
 	if kq == -1 {
-		return nil
+		return gList{}
 	}
 	var tp *timespec
 	var ts timespec
@@ -84,7 +78,7 @@ retry:
 		}
 		goto retry
 	}
-	var gp guintptr
+	var toRun gList
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 		var mode int32
@@ -108,11 +102,11 @@ retry:
 			mode += 'w'
 		}
 		if mode != 0 {
-			netpollready(&gp, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
+			netpollready(&toRun, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
 		}
 	}
-	if block && gp == 0 {
+	if block && toRun.empty() {
 		goto retry
 	}
-	return gp.ptr()
+	return toRun
 }

@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
@@ -257,18 +256,32 @@ const maxStackSize = 1 << 30
 // worker indicates which of the backend workers is doing the processing.
 func compileSSA(fn *Node, worker int) {
 	f := buildssa(fn, worker)
-	if f.Frontend().(*ssafn).stksize >= maxStackSize {
+	// Note: check arg size to fix issue 25507.
+	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
 		largeStackFrames = append(largeStackFrames, fn.Pos)
 		largeStackFramesMu.Unlock()
 		return
 	}
 	pp := newProgs(fn, worker)
+	defer pp.Free()
 	genssa(f, pp)
+	// Check frame size again.
+	// The check above included only the space needed for local variables.
+	// After genssa, the space needed includes local variables and the callee arg region.
+	// We must do this check prior to calling pp.Flush.
+	// If there are any oversized stack frames,
+	// the assembler may emit inscrutable complaints about invalid instructions.
+	if pp.Text.To.Offset >= maxStackSize {
+		largeStackFramesMu.Lock()
+		largeStackFrames = append(largeStackFrames, fn.Pos)
+		largeStackFramesMu.Unlock()
+		return
+	}
+
 	pp.Flush() // assemble, fill in boilerplate, etc.
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
-	pp.Free()
 }
 
 func init() {
@@ -414,7 +427,8 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
 			if Ctxt.FixedFrameSize() == 0 {
 				offs -= int64(Widthptr)
 			}
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+				// There is a word space for FP on ARM64 even if the frame pointer is disabled
 				offs -= int64(Widthptr)
 			}
 
@@ -580,34 +594,8 @@ func preInliningDcls(fnsym *obj.LSym) []*Node {
 		}
 		rdcl = append(rdcl, n)
 	}
-	sort.Sort(byNodeName(rdcl))
 	return rdcl
 }
-
-func cmpNodeName(a, b *Node) bool {
-	aart := 0
-	if strings.HasPrefix(a.Sym.Name, "~") {
-		aart = 1
-	}
-	bart := 0
-	if strings.HasPrefix(b.Sym.Name, "~") {
-		bart = 1
-	}
-	if aart != bart {
-		return aart < bart
-	}
-
-	aname := unversion(a.Sym.Name)
-	bname := unversion(b.Sym.Name)
-	return aname < bname
-}
-
-// byNodeName implements sort.Interface for []*Node using cmpNodeName.
-type byNodeName []*Node
-
-func (s byNodeName) Len() int           { return len(s) }
-func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
-func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // stackOffset returns the stack location of a LocalSlot relative to the
 // stack pointer, suitable for use in a DWARF location entry. This has nothing
@@ -620,7 +608,8 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 		if Ctxt.FixedFrameSize() == 0 {
 			base -= int64(Widthptr)
 		}
-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+			// There is a word space for FP on ARM64 even if the frame pointer is disabled
 			base -= int64(Widthptr)
 		}
 	case PPARAM, PPARAMOUT:

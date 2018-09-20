@@ -24,7 +24,7 @@ import (
 // "x = ++/foo/i" which is quite different than "x++/foo/i", but is not known to
 // fail on any known useful programs. It is based on the draft
 // JavaScript 2.0 lexical grammar and requires one token of lookbehind:
-// http://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
+// https://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
 func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 	s = bytes.TrimRight(s, "\t\n\f\r \u2028\u2029")
 	if len(s) == 0 {

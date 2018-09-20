@@ -10,7 +10,7 @@ import (
 )
 
 // A queue is a 'sparse array' holding pending threads of execution.
-// See http://research.swtch.com/2008/03/using-uninitialized-memory-for-fun-and.html
+// See https://research.swtch.com/2008/03/using-uninitialized-memory-for-fun-and.html
 type queue struct {
 	sparse []uint32
 	dense  []entry
@@ -27,7 +27,7 @@ type entry struct {
 
 // A thread is the state of a single path through the machine:
 // an instruction and a corresponding capture array.
-// See http://swtch.com/~rsc/regexp/regexp2.html
+// See https://swtch.com/~rsc/regexp/regexp2.html
 type thread struct {
 	inst *syntax.Inst
 	cap  []int

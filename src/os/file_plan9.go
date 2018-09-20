@@ -133,7 +133,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 }
 
 // Close closes the File, rendering it unusable for I/O.
-// It returns an error, if any.
+// On files that support SetDeadline, any pending I/O operations will
+// be canceled and return immediately with an error.
 func (f *File) Close() error {
 	if err := f.checkValid("close"); err != nil {
 		return err
@@ -477,7 +478,12 @@ func (f *File) Chown(uid, gid int) error {
 }
 
 func tempDir() string {
-	return "/tmp"
+	dir := Getenv("TMPDIR")
+	if dir == "" {
+		dir = "/tmp"
+	}
+	return dir
+
 }
 
 // Chdir changes the current working directory to the file,

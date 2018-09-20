@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
 
 package poll
 
 import (
 	"io"
 	"runtime"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -30,6 +31,9 @@ type FD struct {
 	// Semaphore signaled when file is closed.
 	csema uint32
 
+	// Non-zero if this file has been set to blocking mode.
+	isBlocking uint32
+
 	// Whether this is a streaming descriptor, as opposed to a
 	// packet-based descriptor like a UDP socket. Immutable.
 	IsStream bool
@@ -40,9 +44,6 @@ type FD struct {
 
 	// Whether this is a file rather than a network socket.
 	isFile bool
-
-	// Whether this file has been set to blocking mode.
-	isBlocking bool
 }
 
 // Init initializes the FD. The Sysfd field should already be set.
@@ -56,14 +57,14 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.isFile = true
 	}
 	if !pollable {
-		fd.isBlocking = true
+		fd.isBlocking = 1
 		return nil
 	}
 	err := fd.pd.init(fd)
 	if err != nil {
 		// If we could not initialize the runtime poller,
 		// assume we are using blocking mode.
-		fd.isBlocking = true
+		fd.isBlocking = 1
 	}
 	return err
 }
@@ -102,7 +103,9 @@ func (fd *FD) Close() error {
 	// reference, it is already closed. Only wait if the file has
 	// not been set to blocking mode, as otherwise any current I/O
 	// may be blocking, and that would block the Close.
-	if !fd.isBlocking {
+	// No need for an atomic read of isBlocking, increfAndClose means
+	// we have exclusive access to fd.
+	if fd.isBlocking == 0 {
 		runtime_Semacquire(&fd.csema)
 	}
 
@@ -124,7 +127,10 @@ func (fd *FD) SetBlocking() error {
 		return err
 	}
 	defer fd.decref()
-	fd.isBlocking = true
+	// Atomic store so that concurrent calls to SetBlocking
+	// do not cause a race condition. isBlocking only ever goes
+	// from 0 to 1 so there is no real race here.
+	atomic.StoreUint32(&fd.isBlocking, 1)
 	return syscall.SetNonblock(fd.Sysfd, false)
 }
 
@@ -437,6 +443,51 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
 	}
 	defer fd.decref()
 	return syscall.Fstat(fd.Sysfd, s)
+}
+
+// tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
+// If the kernel doesn't support it, this is set to 0.
+var tryDupCloexec = int32(1)
+
+// DupCloseOnExec dups fd and marks it close-on-exec.
+func DupCloseOnExec(fd int) (int, string, error) {
+	if atomic.LoadInt32(&tryDupCloexec) == 1 {
+		r0, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_DUPFD_CLOEXEC, 0)
+		switch e1 {
+		case 0:
+			return int(r0), "", nil
+		case syscall.EINVAL, syscall.ENOSYS:
+			// Old kernel, or js/wasm (which returns
+			// ENOSYS). Fall back to the portable way from
+			// now on.
+			atomic.StoreInt32(&tryDupCloexec, 0)
+		default:
+			return -1, "fcntl", e1
+		}
+	}
+	return dupCloseOnExecOld(fd)
+}
+
+// dupCloseOnExecUnixOld is the traditional way to dup an fd and
+// set its O_CLOEXEC bit, using two system calls.
+func dupCloseOnExecOld(fd int) (int, string, error) {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
+	newfd, err := syscall.Dup(fd)
+	if err != nil {
+		return -1, "dup", err
+	}
+	syscall.CloseOnExec(newfd)
+	return newfd, "", nil
+}
+
+// Dup duplicates the file descriptor.
+func (fd *FD) Dup() (int, string, error) {
+	if err := fd.incref(); err != nil {
+		return -1, "", err
+	}
+	defer fd.decref()
+	return DupCloseOnExec(fd.Sysfd)
 }
 
 // On Unix variants only, expose the IO event for the net code.

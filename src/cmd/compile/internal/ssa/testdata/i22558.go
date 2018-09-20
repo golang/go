@@ -37,7 +37,15 @@ func isFoo(t *thing, b big) bool {
 }
 
 func main() {
+	growstack() // Use stack early to prevent growth during test, which confuses gdb
 	t := &thing{name: "t", self: nil, next: nil, stuff: make([]big, 1)}
 	u := thing{name: "u", self: t, next: t, stuff: make([]big, 1)}
 	test(t, &u)
+}
+
+var snk string
+
+//go:noinline
+func growstack() {
+	snk = fmt.Sprintf("%#v,%#v,%#v", 1, true, "cat")
 }

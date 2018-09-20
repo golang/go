@@ -1,0 +1,22 @@
+# 'go install' with no arguments should clean up after go build
+cd mycmd
+go build
+exists mycmd$exe
+go install
+! exists mycmd$exe
+
+# 'go install mycmd' does not clean up, even in the mycmd directory
+go build
+exists mycmd$exe
+go install mycmd
+exists mycmd$exe
+
+# 'go install mycmd' should not clean up in an unrelated current directory either
+cd ..
+cp mycmd/mycmd$exe mycmd$exe
+go install mycmd
+exists mycmd$exe
+
+-- mycmd/main.go --
+package main
+func main() {}

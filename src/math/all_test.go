@@ -25,7 +25,7 @@ var vf = []float64{
 }
 
 // The expected results below were computed by the high precision calculators
-// at http://keisan.casio.com/.  More exact input values (array vf[], above)
+// at https://keisan.casio.com/.  More exact input values (array vf[], above)
 // were obtained by printing them with "%.26f".  The answers were calculated
 // to 26 digits (by using the "Digit number" drop-down control of each
 // calculator).
@@ -128,7 +128,7 @@ var cbrt = []float64{
 var ceil = []float64{
 	5.0000000000000000e+00,
 	8.0000000000000000e+00,
-	0.0000000000000000e+00,
+	Copysign(0, -1),
 	-5.0000000000000000e+00,
 	1.0000000000000000e+01,
 	3.0000000000000000e+00,
@@ -644,7 +644,7 @@ var tanh = []float64{
 var trunc = []float64{
 	4.0000000000000000e+00,
 	7.0000000000000000e+00,
-	-0.0000000000000000e+00,
+	Copysign(0, -1),
 	-5.0000000000000000e+00,
 	9.0000000000000000e+00,
 	2.0000000000000000e+00,
@@ -946,6 +946,8 @@ var vferfSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	-1000,
+	1000,
 }
 var erfSC = []float64{
 	-1,
@@ -953,17 +955,23 @@ var erfSC = []float64{
 	0,
 	1,
 	NaN(),
+	-1,
+	1,
 }
 
 var vferfcSC = []float64{
 	Inf(-1),
 	Inf(1),
 	NaN(),
+	-1000,
+	1000,
 }
 var erfcSC = []float64{
 	2,
 	0,
 	NaN(),
+	2,
+	0,
 }
 
 var vferfinvSC = []float64{
@@ -2150,7 +2158,7 @@ func TestCbrt(t *testing.T) {
 
 func TestCeil(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Ceil(vf[i]); ceil[i] != f {
+		if f := Ceil(vf[i]); !alike(ceil[i], f) {
 			t.Errorf("Ceil(%g) = %g, want %g", vf[i], f, ceil[i])
 		}
 	}
@@ -2377,7 +2385,7 @@ func TestDim(t *testing.T) {
 
 func TestFloor(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Floor(vf[i]); floor[i] != f {
+		if f := Floor(vf[i]); !alike(floor[i], f) {
 			t.Errorf("Floor(%g) = %g, want %g", vf[i], f, floor[i])
 		}
 	}
@@ -2908,7 +2916,7 @@ func TestTanh(t *testing.T) {
 
 func TestTrunc(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Trunc(vf[i]); trunc[i] != f {
+		if f := Trunc(vf[i]); !alike(trunc[i], f) {
 			t.Errorf("Trunc(%g) = %g, want %g", vf[i], f, trunc[i])
 		}
 	}
@@ -3626,4 +3634,42 @@ func BenchmarkYn(b *testing.B) {
 		x = Yn(2, 2.5)
 	}
 	GlobalF = x
+}
+
+func BenchmarkFloat64bits(b *testing.B) {
+	y := uint64(0)
+	for i := 0; i < b.N; i++ {
+		y = Float64bits(roundNeg)
+	}
+	GlobalI = int(y)
+}
+
+var roundUint64 = uint64(5)
+
+func BenchmarkFloat64frombits(b *testing.B) {
+	x := 0.0
+	for i := 0; i < b.N; i++ {
+		x = Float64frombits(roundUint64)
+	}
+	GlobalF = x
+}
+
+var roundFloat32 = float32(-2.5)
+
+func BenchmarkFloat32bits(b *testing.B) {
+	y := uint32(0)
+	for i := 0; i < b.N; i++ {
+		y = Float32bits(roundFloat32)
+	}
+	GlobalI = int(y)
+}
+
+var roundUint32 = uint32(5)
+
+func BenchmarkFloat32frombits(b *testing.B) {
+	x := float32(0.0)
+	for i := 0; i < b.N; i++ {
+		x = Float32frombits(roundUint32)
+	}
+	GlobalF = float64(x)
 }

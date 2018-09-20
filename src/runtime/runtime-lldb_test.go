@@ -154,7 +154,9 @@ func TestLldbPython(t *testing.T) {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+	// As of 2018-07-17, lldb doesn't support compressed DWARF, so
+	// disable it for this test.
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-ldflags=-compressdwarf=false", "-o", "a.exe")
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

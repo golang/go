@@ -19,6 +19,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
@@ -134,12 +135,12 @@ func (p *Parser) line() bool {
 		for {
 			tok = p.lex.Next()
 			if len(operands) == 0 && len(items) == 0 {
-				if p.arch.InFamily(sys.ARM, sys.ARM64) && tok == '.' {
-					// ARM conditionals.
+				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386) && tok == '.' {
+					// Suffixes: ARM conditionals or x86 modifiers.
 					tok = p.lex.Next()
 					str := p.lex.Text()
 					if tok != scanner.Ident {
-						p.errorf("ARM condition expected identifier, found %s", str)
+						p.errorf("instruction suffix expected identifier, found %s", str)
 					}
 					cond = cond + "." + str
 					continue
@@ -827,8 +828,25 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 // registers, as in [R1,R3-R5] or [V1.S4, V2.S4, V3.S4, V4.S4].
 // For ARM, only R0 through R15 may appear.
 // For ARM64, V0 through V31 with arrangement may appear.
+//
+// For 386/AMD64 register list specifies 4VNNIW-style multi-source operand.
+// For range of 4 elements, Intel manual uses "+3" notation, for example:
+//	VP4DPWSSDS zmm1{k1}{z}, zmm2+3, m128
+// Given asm line:
+//	VP4DPWSSDS Z5, [Z10-Z13], (AX)
+// zmm2 is Z10, and Z13 is the only valid value for it (Z10+3).
+// Only simple ranges are accepted, like [Z0-Z3].
+//
 // The opening bracket has been consumed.
 func (p *Parser) registerList(a *obj.Addr) {
+	if p.arch.InFamily(sys.I386, sys.AMD64) {
+		p.registerListX86(a)
+	} else {
+		p.registerListARM(a)
+	}
+}
+
+func (p *Parser) registerListARM(a *obj.Addr) {
 	// One range per loop.
 	var maxReg int
 	var bits uint16
@@ -921,6 +939,39 @@ ListLoop:
 	default:
 		p.errorf("register list not supported on this architecuture")
 	}
+}
+
+func (p *Parser) registerListX86(a *obj.Addr) {
+	// Accept only [RegA-RegB] syntax.
+	// Don't use p.get() to provide better error messages.
+
+	loName := p.next().String()
+	lo, ok := p.arch.Register[loName]
+	if !ok {
+		if loName == "EOF" {
+			p.errorf("register list: expected ']', found EOF")
+		} else {
+			p.errorf("register list: bad low register in `[%s`", loName)
+		}
+		return
+	}
+	if tok := p.next().ScanToken; tok != '-' {
+		p.errorf("register list: expected '-' after `[%s`, found %s", loName, tok)
+		return
+	}
+	hiName := p.next().String()
+	hi, ok := p.arch.Register[hiName]
+	if !ok {
+		p.errorf("register list: bad high register in `[%s-%s`", loName, hiName)
+		return
+	}
+	if tok := p.next().ScanToken; tok != ']' {
+		p.errorf("register list: expected ']' after `[%s-%s`, found %s", loName, hiName, tok)
+	}
+
+	a.Type = obj.TYPE_REGLIST
+	a.Reg = lo
+	a.Offset = x86.EncodeRegisterRange(lo, hi)
 }
 
 // register number is ARM-specific. It returns the number of the specified register.

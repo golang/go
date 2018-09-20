@@ -1,0 +1,37 @@
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+# Building for mipsle without setting GOMIPS will use floating point registers.
+env GOARCH=mipsle
+env GOOS=linux
+go build -gcflags=-S f.go
+stderr ADDD.F[0-9]+,.F[0-9]+,.F[0-9]+
+
+# Clean cache
+go clean -cache
+
+# Building with GOMIPS=softfloat will not use floating point registers
+env GOMIPS=softfloat
+go build -gcflags=-S f.go
+! stderr ADDD.F[0-9]+,.F[0-9]+,.F[0-9]+
+
+# Clean cache
+go clean -cache
+
+# Build without setting GOMIPS
+env GOMIPS=
+go build -gcflags=-S f.go
+stderr ADDD.F[0-9]+,.F[0-9]+,.F[0-9]+
+
+# Building with GOMIPS should still not use floating point registers.
+env GOMIPS=softfloat
+go build -gcflags=-S f.go
+! stderr ADDD.F[0-9]+,.F[0-9]+,.F[0-9]+
+
+-- f.go --
+package f
+
+func F(x float64) float64 {
+     return x + x
+}

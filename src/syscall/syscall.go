@@ -18,14 +18,11 @@
 // err is an operating system error describing the failure.
 // On most systems, that error has type syscall.Errno.
 //
-// NOTE: This package is locked down. Code outside the standard
-// Go repository should be migrated to use the corresponding
-// package in the golang.org/x/sys repository. That is also where updates
-// required by new systems or versions should be applied.
-// Signal, Errno and SysProcAttr are not yet available in
-// golang.org/x/sys and must still be referenced from the
-// syscall package. See https://golang.org/s/go1.4-syscall
-// for more information.
+// Deprecated: this package is locked down. Callers should use the
+// corresponding package in the golang.org/x/sys repository instead.
+// That is also where updates required by new systems or versions
+// should be applied. See https://golang.org/s/go1.4-syscall for more
+// information.
 //
 package syscall
 

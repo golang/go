@@ -4,7 +4,7 @@
 
 package ssa
 
-// branchelim tries to elminiate branches by
+// branchelim tries to eliminate branches by
 // generating CondSelect instructions.
 //
 // Search for basic blocks that look like

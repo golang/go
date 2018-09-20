@@ -91,28 +91,47 @@ import (
 // THE SOFTWARE.
 
 type Arch struct {
-	Funcalign        int
-	Maxalign         int
-	Minalign         int
-	Dwarfregsp       int
-	Dwarfreglr       int
-	Linuxdynld       string
-	Freebsddynld     string
-	Netbsddynld      string
-	Openbsddynld     string
-	Dragonflydynld   string
-	Solarisdynld     string
-	Adddynrel        func(*Link, *sym.Symbol, *sym.Reloc) bool
-	Archinit         func(*Link)
-	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, *int64) bool
-	Archrelocvariant func(*Link, *sym.Reloc, *sym.Symbol, int64) int64
-	Trampoline       func(*Link, *sym.Reloc, *sym.Symbol)
-	Asmb             func(*Link)
-	Elfreloc1        func(*Link, *sym.Reloc, int64) bool
-	Elfsetupplt      func(*Link)
-	Gentext          func(*Link)
-	Machoreloc1      func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
-	PEreloc1         func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+	Funcalign      int
+	Maxalign       int
+	Minalign       int
+	Dwarfregsp     int
+	Dwarfreglr     int
+	Linuxdynld     string
+	Freebsddynld   string
+	Netbsddynld    string
+	Openbsddynld   string
+	Dragonflydynld string
+	Solarisdynld   string
+	Adddynrel      func(*Link, *sym.Symbol, *sym.Reloc) bool
+	Archinit       func(*Link)
+	// Archreloc is an arch-specific hook that assists in
+	// relocation processing (invoked by 'relocsym'); it handles
+	// target-specific relocation tasks. Here "rel" is the current
+	// relocation being examined, "sym" is the symbol containing the
+	// chunk of data to which the relocation applies, and "off" is the
+	// contents of the to-be-relocated data item (from sym.P). Return
+	// value is the appropriately relocated value (to be written back
+	// to the same spot in sym.P) and a boolean indicating
+	// success/failure (a failing value indicates a fatal error).
+	Archreloc func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
+		offset int64) (relocatedOffset int64, success bool)
+	// Archrelocvariant is a second arch-specific hook used for
+	// relocation processing; it handles relocations where r.Type is
+	// insufficient to describe the relocation (r.Variant !=
+	// sym.RV_NONE). Here "rel" is the relocation being applied, "sym"
+	// is the symbol containing the chunk of data to which the
+	// relocation applies, and "off" is the contents of the
+	// to-be-relocated data item (from sym.P). Return is an updated
+	// offset value.
+	Archrelocvariant func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
+		offset int64) (relocatedOffset int64)
+	Trampoline  func(*Link, *sym.Reloc, *sym.Symbol)
+	Asmb        func(*Link)
+	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
+	Elfsetupplt func(*Link)
+	Gentext     func(*Link)
+	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 
 	// TLSIEtoLE converts a TLS Initial Executable relocation to
 	// a TLS Local Executable relocation.
@@ -416,7 +435,7 @@ func (ctxt *Link) loadlib() {
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
 				// now.
-				if s.Extname != "" && s.Dynimplib != "" && !s.Attr.CgoExport() {
+				if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
 					s.Type = sym.SDYNIMPORT
 				} else {
 					s.Type = 0
@@ -503,7 +522,8 @@ func (ctxt *Link) loadlib() {
 		// objects, try to read them from the libgcc file.
 		any := false
 		for _, s := range ctxt.Syms.Allsym {
-			for _, r := range s.R {
+			for i := range s.R {
+				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
 				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
 					any = true
 					break
@@ -554,27 +574,6 @@ func (ctxt *Link) loadlib() {
 	if ctxt.BuildMode == BuildModeExe {
 		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
 			*FlagD = true
-		}
-	}
-
-	// If type. symbols are visible in the symbol table, rename them
-	// using a SHA-1 prefix. This reduces binary size (the full
-	// string of a type symbol can be multiple kilobytes) and removes
-	// characters that upset external linkers.
-	//
-	// Keep the type.. prefix, which parts of the linker (like the
-	// DWARF generator) know means the symbol is not decodable.
-	//
-	// Leave type.runtime. symbols alone, because other parts of
-	// the linker manipulates them, and also symbols whose names
-	// would not be shortened by this process.
-	if typeSymbolMangling(ctxt) {
-		*FlagW = true // disable DWARF generation
-		for _, s := range ctxt.Syms.Allsym {
-			newName := typeSymbolMangle(s.Name)
-			if newName != s.Name {
-				ctxt.Syms.Rename(s.Name, newName, int(s.Version))
-			}
 		}
 	}
 
@@ -637,23 +636,38 @@ func (ctxt *Link) loadlib() {
 	}
 }
 
-// typeSymbolMangling reports whether the linker should shorten the
-// names of symbols that represent Go types.
+// mangleTypeSym shortens the names of symbols that represent Go types
+// if they are visible in the symbol table.
 //
 // As the names of these symbols are derived from the string of
 // the type, they can run to many kilobytes long. So we shorten
 // them using a SHA-1 when the name appears in the final binary.
+// This also removes characters that upset external linkers.
 //
 // These are the symbols that begin with the prefix 'type.' and
 // contain run-time type information used by the runtime and reflect
 // packages. All Go binaries contain these symbols, but only only
 // those programs loaded dynamically in multiple parts need these
 // symbols to have entries in the symbol table.
-func typeSymbolMangling(ctxt *Link) bool {
-	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+func (ctxt *Link) mangleTypeSym() {
+	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && ctxt.Syms.ROLookup("plugin.Open", 0) == nil {
+		return
+	}
+
+	for _, s := range ctxt.Syms.Allsym {
+		newName := typeSymbolMangle(s.Name)
+		if newName != s.Name {
+			ctxt.Syms.Rename(s.Name, newName, int(s.Version), ctxt.Reachparent)
+		}
+	}
 }
 
 // typeSymbolMangle mangles the given symbol name into something shorter.
+//
+// Keep the type.. prefix, which parts of the linker (like the
+// DWARF generator) know means the symbol is not decodable.
+// Leave type.runtime. symbols alone, because other parts of
+// the linker manipulates them.
 func typeSymbolMangle(name string) string {
 	if !strings.HasPrefix(name, "type.") {
 		return name
@@ -921,12 +935,6 @@ func hostobjs(ctxt *Link) {
 	}
 }
 
-// provided by lib9
-
-func rmtemp() {
-	os.RemoveAll(*flagTmpdir)
-}
-
 func hostlinksetup(ctxt *Link) {
 	if ctxt.LinkMode != LinkExternal {
 		return
@@ -945,7 +953,10 @@ func hostlinksetup(ctxt *Link) {
 			log.Fatal(err)
 		}
 		*flagTmpdir = dir
-		AtExit(rmtemp)
+		AtExit(func() {
+			ctxt.Out.f.Close()
+			os.RemoveAll(*flagTmpdir)
+		})
 	}
 
 	// change our output to temporary object file
@@ -1224,6 +1235,11 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Qunused-arguments")
 	}
 
+	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
+	if ctxt.compressDWARF && linkerFlagSupported(argv[0], compressDWARF) {
+		argv = append(argv, compressDWARF)
+	}
+
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
 
@@ -1260,7 +1276,26 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	argv = append(argv, ldflag...)
+	// clang, unlike GCC, passes -rdynamic to the linker
+	// even when linking with -static, causing a linker
+	// error when using GNU ld. So take out -rdynamic if
+	// we added it. We do it in this order, rather than
+	// only adding -rdynamic later, so that -*extldflags
+	// can override -rdynamic without using -static.
+	checkStatic := func(arg string) {
+		if ctxt.IsELF && arg == "-static" {
+			for i := range argv {
+				if argv[i] == "-rdynamic" {
+					argv[i] = "-static"
+				}
+			}
+		}
+	}
+
+	for _, p := range ldflag {
+		argv = append(argv, p)
+		checkStatic(p)
+	}
 
 	// When building a program with the default -buildmode=exe the
 	// gc compiler generates code requires DT_TEXTREL in a
@@ -1270,21 +1305,9 @@ func (ctxt *Link) hostlink() {
 	// issue #17847. To avoid this problem pass -no-pie to the
 	// toolchain if it is supported.
 	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
-		src := filepath.Join(*flagTmpdir, "trivial.c")
-		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
-			Errorf(nil, "WriteFile trivial.c failed: %v", err)
-		}
-
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			cmd := exec.Command(argv[0], nopie, "trivial.c")
-			cmd.Dir = *flagTmpdir
-			cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
-			out, err := cmd.CombinedOutput()
-			// GCC says "unrecognized command line option ‘-no-pie’"
-			// clang says "unknown argument: '-no-pie'"
-			supported := err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
-			if supported {
+			if linkerFlagSupported(argv[0], nopie) {
 				argv = append(argv, nopie)
 				break
 			}
@@ -1293,20 +1316,7 @@ func (ctxt *Link) hostlink() {
 
 	for _, p := range strings.Fields(*flagExtldflags) {
 		argv = append(argv, p)
-
-		// clang, unlike GCC, passes -rdynamic to the linker
-		// even when linking with -static, causing a linker
-		// error when using GNU ld. So take out -rdynamic if
-		// we added it. We do it in this order, rather than
-		// only adding -rdynamic later, so that -*extldflags
-		// can override -rdynamic without using -static.
-		if ctxt.IsELF && p == "-static" {
-			for i := range argv {
-				if argv[i] == "-rdynamic" {
-					argv[i] = "-static"
-				}
-			}
-		}
+		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
 		// use gcc linker script to work around gcc bug
@@ -1346,7 +1356,7 @@ func (ctxt *Link) hostlink() {
 		}
 		// For os.Rename to work reliably, must be in same directory as outfile.
 		combinedOutput := *flagOutfile + "~"
-		isIOS, err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode)
+		isIOS, err := machoCombineDwarf(ctxt, *flagOutfile, dsym, combinedOutput)
 		if err != nil {
 			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 		}
@@ -1357,6 +1367,79 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	}
+}
+
+var createTrivialCOnce sync.Once
+
+func linkerFlagSupported(linker, flag string) bool {
+	createTrivialCOnce.Do(func() {
+		src := filepath.Join(*flagTmpdir, "trivial.c")
+		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
+			Errorf(nil, "WriteFile trivial.c failed: %v", err)
+		}
+	})
+
+	flagsWithNextArgSkip := []string{
+		"-F",
+		"-l",
+		"-L",
+		"-framework",
+		"-Wl,-framework",
+		"-Wl,-rpath",
+		"-Wl,-undefined",
+	}
+	flagsWithNextArgKeep := []string{
+		"-arch",
+		"-isysroot",
+		"--sysroot",
+		"-target",
+	}
+	prefixesToKeep := []string{
+		"-f",
+		"-m",
+		"-p",
+		"-Wl,",
+		"-arch",
+		"-isysroot",
+		"--sysroot",
+		"-target",
+	}
+
+	var flags []string
+	keep := false
+	skip := false
+	extldflags := strings.Fields(*flagExtldflags)
+	for _, f := range append(extldflags, ldflag...) {
+		if keep {
+			flags = append(flags, f)
+			keep = false
+		} else if skip {
+			skip = false
+		} else if f == "" || f[0] != '-' {
+		} else if contains(flagsWithNextArgSkip, f) {
+			skip = true
+		} else if contains(flagsWithNextArgKeep, f) {
+			flags = append(flags, f)
+			keep = true
+		} else {
+			for _, p := range prefixesToKeep {
+				if strings.HasPrefix(f, p) {
+					flags = append(flags, f)
+					break
+				}
+			}
+		}
+	}
+
+	flags = append(flags, flag, "trivial.c")
+
+	cmd := exec.Command(linker, flags...)
+	cmd.Dir = *flagTmpdir
+	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+	out, err := cmd.CombinedOutput()
+	// GCC says "unrecognized command line option ‘-no-pie’"
+	// clang says "unknown argument: '-no-pie'"
+	return err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
 }
 
 // hostlinkArchArgs returns arguments to pass to the external linker
@@ -1671,7 +1754,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			continue
 		}
 		lsym.Type = sym.SDYNIMPORT
-		lsym.ElfType = elf.ST_TYPE(elfsym.Info)
+		lsym.SetElfType(elf.ST_TYPE(elfsym.Info))
 		lsym.Size = int64(elfsym.Size)
 		if elfsym.Section != elf.SHN_UNDEF {
 			// Set .File for the library that actually defines the symbol.
@@ -1723,26 +1806,6 @@ func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Sec
 	return sect
 }
 
-func Le16(b []byte) uint16 {
-	return uint16(b[0]) | uint16(b[1])<<8
-}
-
-func Le32(b []byte) uint32 {
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
-}
-
-func Le64(b []byte) uint64 {
-	return uint64(Le32(b)) | uint64(Le32(b[4:]))<<32
-}
-
-func Be16(b []byte) uint16 {
-	return uint16(b[0])<<8 | uint16(b[1])
-}
-
-func Be32(b []byte) uint32 {
-	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
-}
-
 type chain struct {
 	sym   *sym.Symbol
 	up    *chain
@@ -1780,6 +1843,10 @@ func (ctxt *Link) dostkcheck() {
 	ch.up = nil
 
 	ch.limit = objabi.StackLimit - callsize(ctxt)
+	if objabi.GOARCH == "arm64" {
+		// need extra 8 bytes below SP to save FP
+		ch.limit -= 8
+	}
 
 	// Check every function, but do the nosplit functions in a first pass,
 	// to make the printed failure chains as short as possible.
@@ -1965,7 +2032,7 @@ func usage() {
 type SymbolType int8
 
 const (
-	// see also http://9p.io/magic/man2html/1/nm
+	// see also https://9p.io/magic/man2html/1/nm
 	TextSym      SymbolType = 'T'
 	DataSym      SymbolType = 'D'
 	BSSSym       SymbolType = 'B'
@@ -2077,7 +2144,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			if !s.Attr.Reachable() {
 				continue
 			}
-			put(ctxt, s, s.Extname, UndefinedSym, 0, nil)
+			put(ctxt, s, s.Extname(), UndefinedSym, 0, nil)
 
 		case sym.STLSBSS:
 			if ctxt.LinkMode == LinkExternal {
@@ -2202,6 +2269,18 @@ func undefsym(ctxt *Link, s *sym.Symbol) {
 }
 
 func (ctxt *Link) undef() {
+	// undefsym performs checks (almost) identical to checks
+	// that report undefined relocations in relocsym.
+	// Both undefsym and relocsym can report same symbol as undefined,
+	// which results in error message duplication (see #10978).
+	//
+	// The undef is run after Arch.Asmb and could detect some
+	// programming errors there, but if object being linked is already
+	// failed with errors, it is better to avoid duplicated errors.
+	if nerrors > 0 {
+		return
+	}
+
 	for _, s := range ctxt.Textp {
 		undefsym(ctxt, s)
 	}

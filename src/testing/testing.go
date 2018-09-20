@@ -316,6 +316,13 @@ type common struct {
 
 // Short reports whether the -test.short flag is set.
 func Short() bool {
+	// Catch code that calls this from TestMain without first
+	// calling flag.Parse. This shouldn't really be a panic
+	if !flag.Parsed() {
+		fmt.Fprintf(os.Stderr, "testing: testing.Short called before flag.Parse\n")
+		os.Exit(2)
+	}
+
 	return *short
 }
 
@@ -394,7 +401,7 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 }
 
 // decorate prefixes the string with the file and line of the call site
-// and inserts the final newline if needed and indentation tabs for formatting.
+// and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
 func (c *common) decorate(s string) string {
 	frame := c.frameSkip(3) // decorate + log + public function.
@@ -414,8 +421,8 @@ func (c *common) decorate(s string) string {
 		line = 1
 	}
 	buf := new(strings.Builder)
-	// Every line is indented at least one tab.
-	buf.WriteByte('\t')
+	// Every line is indented at least 4 spaces.
+	buf.WriteString("    ")
 	fmt.Fprintf(buf, "%s:%d: ", file, line)
 	lines := strings.Split(s, "\n")
 	if l := len(lines); l > 1 && lines[l-1] == "" {
@@ -423,8 +430,8 @@ func (c *common) decorate(s string) string {
 	}
 	for i, line := range lines {
 		if i > 0 {
-			// Second and subsequent lines are indented an extra tab.
-			buf.WriteString("\n\t\t")
+			// Second and subsequent lines are indented an additional 4 spaces.
+			buf.WriteString("\n        ")
 		}
 		buf.WriteString(line)
 	}

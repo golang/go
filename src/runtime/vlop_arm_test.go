@@ -10,7 +10,7 @@ import (
 )
 
 // arm soft division benchmarks adapted from
-// http://ridiculousfish.com/files/division_benchmarks.tar.gz
+// https://ridiculousfish.com/files/division_benchmarks.tar.gz
 
 const numeratorsSize = 1 << 21
 

@@ -245,7 +245,7 @@ loop:
 
 		case caseSend:
 			if raceenabled {
-				racereadpc(unsafe.Pointer(c), cas.pc, chansendpc)
+				racereadpc(c.raceaddr(), cas.pc, chansendpc)
 			}
 			if c.closed != 0 {
 				goto sclose
@@ -462,7 +462,7 @@ rclose:
 		typedmemclr(c.elemtype, cas.elem)
 	}
 	if raceenabled {
-		raceacquire(unsafe.Pointer(c))
+		raceacquire(c.raceaddr())
 	}
 	goto retc
 

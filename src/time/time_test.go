@@ -9,11 +9,13 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"internal/race"
 	"math/big"
 	"math/rand"
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"testing/quick"
 	. "time"
@@ -1340,4 +1342,39 @@ func TestReadFileLimit(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "is too large") {
 		t.Errorf("readFile(%q) error = %v; want error containing 'is too large'", zero, err)
 	}
+}
+
+// Issue 25686: hard crash on concurrent timer access.
+// This test deliberately invokes a race condition.
+// We are testing that we don't crash with "fatal error: panic holding locks".
+func TestConcurrentTimerReset(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test under race detector")
+	}
+
+	// We expect this code to panic rather than crash.
+	// Don't worry if it doesn't panic.
+	catch := func(i int) {
+		if e := recover(); e != nil {
+			t.Logf("panic in goroutine %d, as expected, with %q", i, e)
+		} else {
+			t.Logf("no panic in goroutine %d", i)
+		}
+	}
+
+	const goroutines = 8
+	const tries = 1000
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	timer := NewTimer(Hour)
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+			defer catch(i)
+			for j := 0; j < tries; j++ {
+				timer.Reset(Hour + Duration(i*j))
+			}
+		}(i)
+	}
+	wg.Wait()
 }

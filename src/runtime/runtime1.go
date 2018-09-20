@@ -145,7 +145,7 @@ func check() {
 		h     uint64
 		i, i1 float32
 		j, j1 float64
-		k, k1 unsafe.Pointer
+		k     unsafe.Pointer
 		l     *uint16
 		m     [4]byte
 	)
@@ -232,21 +232,6 @@ func check() {
 	}
 	if z != 0xfffffffe {
 		throw("cas6")
-	}
-
-	k = unsafe.Pointer(uintptr(0xfedcb123))
-	if sys.PtrSize == 8 {
-		k = unsafe.Pointer(uintptr(k) << 10)
-	}
-	if casp(&k, nil, nil) {
-		throw("casp1")
-	}
-	k1 = add(k, 1)
-	if !casp(&k, k, k1) {
-		throw("casp2")
-	}
-	if k != k1 {
-		throw("casp3")
 	}
 
 	m = [4]byte{1, 1, 1, 1}
@@ -431,7 +416,9 @@ func timediv(v int64, div int32, rem *int32) int32 {
 	for bit := 30; bit >= 0; bit-- {
 		if v >= int64(div)<<uint(bit) {
 			v = v - (int64(div) << uint(bit))
-			res += 1 << uint(bit)
+			// Before this for loop, res was 0, thus all these
+			// power of 2 increments are now just bitsets.
+			res |= 1 << uint(bit)
 		}
 	}
 	if v >= int64(div) {

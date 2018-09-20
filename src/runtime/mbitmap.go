@@ -647,6 +647,35 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 	}
 }
 
+// bulkBarrierPreWriteSrcOnly is like bulkBarrierPreWrite but
+// does not execute write barriers for [dst, dst+size).
+//
+// In addition to the requirements of bulkBarrierPreWrite
+// callers need to ensure [dst, dst+size) is zeroed.
+//
+// This is used for special cases where e.g. dst was just
+// created and zeroed with malloc.
+//go:nosplit
+func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+	if (dst|src|size)&(sys.PtrSize-1) != 0 {
+		throw("bulkBarrierPreWrite: unaligned arguments")
+	}
+	if !writeBarrier.needed {
+		return
+	}
+	buf := &getg().m.p.ptr().wbBuf
+	h := heapBitsForAddr(dst)
+	for i := uintptr(0); i < size; i += sys.PtrSize {
+		if h.isPointer() {
+			srcx := (*uintptr)(unsafe.Pointer(src + i))
+			if !buf.putFast(0, *srcx) {
+				wbBufFlush(nil, 0)
+			}
+		}
+		h = h.next()
+	}
+}
+
 // bulkBarrierBitmap executes write barriers for copying from [src,
 // src+size) to [dst, dst+size) using a 1-bit pointer bitmap. src is
 // assumed to start maskOffset bytes into the data covered by the
@@ -992,10 +1021,13 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// machine instructions.
 
 	outOfPlace := false
-	if arenaIndex(x+size-1) != arenaIdx(h.arena) {
+	if arenaIndex(x+size-1) != arenaIdx(h.arena) || (doubleCheck && fastrand()%2 == 0) {
 		// This object spans heap arenas, so the bitmap may be
 		// discontiguous. Unroll it into the object instead
 		// and then copy it out.
+		//
+		// In doubleCheck mode, we randomly do this anyway to
+		// stress test the bitmap copying path.
 		outOfPlace = true
 		h.bitp = (*uint8)(unsafe.Pointer(x))
 		h.last = nil
@@ -1352,7 +1384,7 @@ Phase4:
 			}
 		}
 		if sys.PtrSize == 8 && h.shift == 2 {
-			*hbitp = *hbitp&^((bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift)<<(2*heapBitsShift)) | *src
+			*h.bitp = *h.bitp&^((bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift)<<(2*heapBitsShift)) | *src
 			h = h.next().next()
 			cnw -= 2
 			src = addb(src, 1)
@@ -1361,7 +1393,9 @@ Phase4:
 		// bitmaps until the last byte (which may again be
 		// partial).
 		for cnw >= 4 {
-			hNext, words := h.forwardOrBoundary(cnw)
+			// This loop processes four words at a time,
+			// so round cnw down accordingly.
+			hNext, words := h.forwardOrBoundary(cnw / 4 * 4)
 
 			// n is the number of bitmap bytes to copy.
 			n := words / 4
@@ -1369,6 +1403,10 @@ Phase4:
 			cnw -= words
 			h = hNext
 			src = addb(src, n)
+		}
+		if doubleCheck && h.shift != 0 {
+			print("cnw=", cnw, " h.shift=", h.shift, "\n")
+			throw("bad shift after block copy")
 		}
 		// Handle the last byte if it's shared.
 		if cnw == 2 {
@@ -1451,7 +1489,7 @@ Phase4:
 				print("initial bits h0.bitp=", h0.bitp, " h0.shift=", h0.shift, "\n")
 				print("current bits h.bitp=", h.bitp, " h.shift=", h.shift, " *h.bitp=", hex(*h.bitp), "\n")
 				print("ptrmask=", ptrmask, " p=", p, " endp=", endp, " endnb=", endnb, " pbits=", hex(pbits), " b=", hex(b), " nb=", nb, "\n")
-				println("at word", i, "offset", i*sys.PtrSize, "have", have, "want", want)
+				println("at word", i, "offset", i*sys.PtrSize, "have", hex(have), "want", hex(want))
 				if typ.kind&kindGCProg != 0 {
 					println("GC program:")
 					dumpGCProg(addb(typ.gcdata, 4))

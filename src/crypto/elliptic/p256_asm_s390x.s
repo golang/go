@@ -991,7 +991,7 @@ TEXT ·p256OrdMul(SB), NOSPLIT, $0
  *                                                                *Mi obra de arte de siglo XXI @vpaprots
  *
  *
- * First group is special, doesnt get the two inputs:
+ * First group is special, doesn't get the two inputs:
  *                                             +--------+--------+<-+
  *                                     +-------|  ADD2  |  ADD1  |--|-----+
  *                                     |       +--------+--------+  |     |
@@ -1733,9 +1733,9 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
 #undef CAR2
 
 // p256PointDoubleAsm(P3, P1 *p256Point)
-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw-projective-3.html
+// https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
+// https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
+// https://www.hyperelliptic.org/EFD/g1p/auto-shortw-projective-3.html
 #define P3ptr   R1
 #define P1ptr   R2
 #define CPOOL   R4
@@ -1783,7 +1783,7 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
 #define CAR1  V28
 #define CAR2  V29
 /*
- * http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2004-hmv
+ * https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2004-hmv
  * Cost: 4M + 4S + 1*half + 5add + 2*2 + 1*3.
  * Source: 2004 Hankerson–Menezes–Vanstone, page 91.
  * 	A  = 3(X₁-Z₁²)×(X₁+Z₁²)
@@ -1995,7 +1995,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
  * Y₃ = D×(A×C² - X₃) - B×C³
  * Z₃ = Z₁×Z₂×C
  *
- * Three-operand formula (adopted): http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-1998-cmo-2
+ * Three-operand formula (adopted): https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-1998-cmo-2
  * Temp storage: T1,T2,U1,H,Z3=X3=Y3,S1,R
  *
  * T1 = Z1*Z1

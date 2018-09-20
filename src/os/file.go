@@ -221,7 +221,12 @@ func Mkdir(name string, perm FileMode) error {
 
 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
-		setStickyBit(name)
+		e = setStickyBit(name)
+
+		if e != nil {
+			Remove(name)
+			return e
+		}
 	}
 
 	return nil
@@ -337,25 +342,28 @@ func TempDir() string {
 // On Plan 9, it returns $home/lib/cache.
 //
 // If the location cannot be determined (for example, $HOME is not defined),
-// then it will return an empty string.
-func UserCacheDir() string {
+// then it will return an error.
+func UserCacheDir() (string, error) {
 	var dir string
 
 	switch runtime.GOOS {
 	case "windows":
 		dir = Getenv("LocalAppData")
+		if dir == "" {
+			return "", errors.New("%LocalAppData% is not defined")
+		}
 
 	case "darwin":
 		dir = Getenv("HOME")
 		if dir == "" {
-			return ""
+			return "", errors.New("$HOME is not defined")
 		}
 		dir += "/Library/Caches"
 
 	case "plan9":
 		dir = Getenv("home")
 		if dir == "" {
-			return ""
+			return "", errors.New("$home is not defined")
 		}
 		dir += "/lib/cache"
 
@@ -364,13 +372,13 @@ func UserCacheDir() string {
 		if dir == "" {
 			dir = Getenv("HOME")
 			if dir == "" {
-				return ""
+				return "", errors.New("neither $XDG_CACHE_HOME nor $HOME are defined")
 			}
 			dir += "/.cache"
 		}
 	}
 
-	return dir
+	return dir, nil
 }
 
 // Chmod changes the mode of the named file to mode.

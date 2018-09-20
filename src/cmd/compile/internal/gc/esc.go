@@ -151,22 +151,27 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 
 // Escape analysis.
 
-// An escape analysis pass for a set of functions.
-// The analysis assumes that closures and the functions in which they
-// appear are analyzed together, so that the aliasing between their
-// variables can be modeled more precisely.
+// An escape analysis pass for a set of functions. The
+// analysis assumes that closures and the functions in which
+// they appear are analyzed together, so that the aliasing
+// between their variables can be modeled more precisely.
 //
-// First escfunc, esc and escassign recurse over the ast of each
-// function to dig out flow(dst,src) edges between any
-// pointer-containing nodes and store them in e.nodeEscState(dst).Flowsrc. For
-// variables assigned to a variable in an outer scope or used as a
-// return value, they store a flow(theSink, src) edge to a fake node
-// 'the Sink'.  For variables referenced in closures, an edge
-// flow(closure, &var) is recorded and the flow of a closure itself to
-// an outer scope is tracked the same way as other variables.
+// First escfunc, esc and escassign recurse over the ast of
+// each function to dig out flow(dst,src) edges between any
+// pointer-containing  nodes and store those edges in
+// e.nodeEscState(dst).Flowsrc. For values assigned to a
+// variable in an outer scope or used as a return value,
+// they store a flow(theSink, src) edge to a fake node 'the
+// Sink'.  For variables referenced in closures, an edge
+// flow(closure, &var) is recorded and the flow of a closure
+// itself to an outer scope is tracked the same way as other
+// variables.
 //
-// Then escflood walks the graph starting at theSink and tags all
-// variables of it can reach an & node as escaping and all function
+// Then escflood walks the graph in destination-to-source
+// order, starting at theSink, propagating a computed
+// "escape level", and tags as escaping values it can
+// reach that are either & (address-taken) nodes or new(T),
+// and tags pointer-typed or pointer-containing function
 // parameters it can reach as leaking.
 //
 // If a value's address is taken but the address does not escape,
@@ -185,19 +190,6 @@ const (
 	EscFuncTagged
 )
 
-// There appear to be some loops in the escape graph, causing
-// arbitrary recursion into deeper and deeper levels.
-// Cut this off safely by making minLevel sticky: once you
-// get that deep, you cannot go down any further but you also
-// cannot go up any further. This is a conservative fix.
-// Making minLevel smaller (more negative) would handle more
-// complex chains of indirections followed by address-of operations,
-// at the cost of repeating the traversal once for each additional
-// allowed level when a loop is encountered. Using -2 suffices to
-// pass all the tests we have written so far, which we assume matches
-// the level of complexity we want the escape analysis code to handle.
-const MinLevel = -2
-
 // A Level encodes the reference state and context applied to
 // (stack, heap) allocated memory.
 //
@@ -205,20 +197,48 @@ const MinLevel = -2
 // along a path from a destination (sink, return value) to a source
 // (allocation, parameter).
 //
-// suffixValue is the maximum-copy-started-suffix-level applied to a sink.
-// For example:
-// sink = x.left.left --> level=2, x is dereferenced twice and does not escape to sink.
-// sink = &Node{x} --> level=-1, x is accessible from sink via one "address of"
-// sink = &Node{&Node{x}} --> level=-2, x is accessible from sink via two "address of"
-// sink = &Node{&Node{x.left}} --> level=-1, but x is NOT accessible from sink because it was indirected and then copied.
-// (The copy operations are sometimes implicit in the source code; in this case,
-// value of x.left was copied into a field of a newly allocated Node)
+// suffixValue is the maximum-copy-started-suffix-level on
+// a flow path from a sink/destination.  That is, a value
+// with suffixValue N is guaranteed to be dereferenced at least
+// N deep (chained applications of DOTPTR or IND or INDEX)
+// before the result is assigned to a sink.
 //
+// For example, suppose x is a pointer to T, declared type T struct { left, right *T }
+//   sink = x.left.left --> level(x)=2, x is reached via two dereferences (DOTPTR) and does not escape to sink.
+//   sink = &T{right:x} --> level(x)=-1, x is accessible from sink via one "address of"
+//   sink = &T{right:&T{right:x}} --> level(x)=-2, x is accessible from sink via two "address of"
+//
+// However, in the next example x's level value and suffixValue differ:
+//   sink = &T{right:&T{right:x.left}} --> level(x).value=-1, level(x).suffixValue=1
+// The positive suffixValue indicates that x is NOT accessible
+// from sink. Without a separate suffixValue to capture this, x would
+// appear to escape because its "value" would be -1.  (The copy
+// operations are sometimes implicit in the source code; in this case,
+// the value of x.left was copied into a field of an newly allocated T).
+//
+// Each node's level (value and suffixValue) is the maximum for
+// all flow paths from (any) sink to that node.
+
 // There's one of these for each Node, and the integer values
 // rarely exceed even what can be stored in 4 bits, never mind 8.
 type Level struct {
 	value, suffixValue int8
 }
+
+// There are loops in the escape graph,
+// causing arbitrary recursion into deeper and deeper
+// levels. Cut this off safely by making minLevel sticky:
+// once you get that deep, you cannot go down any further
+// but you also cannot go up any further. This is a
+// conservative fix. Making minLevel smaller (more negative)
+// would handle more complex chains of indirections followed
+// by address-of operations, at the cost of repeating the
+// traversal once for each additional allowed level when a
+// loop is encountered. Using -2 suffices to pass all the
+// tests we have written so far, which we assume matches the
+// level of complexity we want the escape analysis code to
+// handle.
+const MinLevel = -2
 
 func (l Level) int() int {
 	return int(l.value)
@@ -269,6 +289,7 @@ func (l Level) dec() Level {
 }
 
 // copy returns the level for a copy of a value with level l.
+// The resulting suffixValue is at least zero, or larger if it was already larger.
 func (l Level) copy() Level {
 	return Level{value: l.value, suffixValue: max8(l.suffixValue, 0)}
 }
@@ -481,8 +502,6 @@ func escAnalyze(all []*Node, recursive bool) {
 		}
 	}
 
-	// print("escapes: %d e.dsts, %d edges\n", e.dstcount, e.edgecount);
-
 	// visit the upstream of each dst, mark address nodes with
 	// addrescapes, mark parameters unsafe
 	escapes := make([]uint16, len(e.dsts))
@@ -530,7 +549,6 @@ func escAnalyze(all []*Node, recursive bool) {
 }
 
 func (e *EscState) escfunc(fn *Node) {
-	//	print("escfunc %N %s\n", fn.Func.Nname, e.recursive?"(recursive)":"");
 	if fn.Esc != EscFuncPlanned {
 		Fatalf("repeat escfunc %v", fn.Func.Nname)
 	}
@@ -609,8 +627,6 @@ func (e *EscState) escloopdepth(n *Node) {
 
 		// Walk will complain about this label being already defined, but that's not until
 		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
-		// if(n.Left.Sym.Label != nil)
-		//	fatal("escape analysis messed up analyzing label: %+N", n);
 		n.Left.Sym.Label = asTypesNode(&nonlooping)
 
 	case OGOTO:
@@ -635,6 +651,118 @@ func (e *EscState) escloopdepth(n *Node) {
 func (e *EscState) esclist(l Nodes, parent *Node) {
 	for _, n := range l.Slice() {
 		e.esc(n, parent)
+	}
+}
+
+func (e *EscState) isSliceSelfAssign(dst, src *Node) bool {
+	// Detect the following special case.
+	//
+	//	func (b *Buffer) Foo() {
+	//		n, m := ...
+	//		b.buf = b.buf[n:m]
+	//	}
+	//
+	// This assignment is a no-op for escape analysis,
+	// it does not store any new pointers into b that were not already there.
+	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
+	// Here we assume that the statement will not contain calls,
+	// that is, that order will move any calls to init.
+	// Otherwise base ONAME value could change between the moments
+	// when we evaluate it for dst and for src.
+
+	// dst is ONAME dereference.
+	if dst.Op != OIND && dst.Op != ODOTPTR || dst.Left.Op != ONAME {
+		return false
+	}
+	// src is a slice operation.
+	switch src.Op {
+	case OSLICE, OSLICE3, OSLICESTR:
+		// OK.
+	case OSLICEARR, OSLICE3ARR:
+		// Since arrays are embedded into containing object,
+		// slice of non-pointer array will introduce a new pointer into b that was not already there
+		// (pointer to b itself). After such assignment, if b contents escape,
+		// b escapes as well. If we ignore such OSLICEARR, we will conclude
+		// that b does not escape when b contents do.
+		//
+		// Pointer to an array is OK since it's not stored inside b directly.
+		// For slicing an array (not pointer to array), there is an implicit OADDR.
+		// We check that to determine non-pointer array slicing.
+		if src.Left.Op == OADDR {
+			return false
+		}
+	default:
+		return false
+	}
+	// slice is applied to ONAME dereference.
+	if src.Left.Op != OIND && src.Left.Op != ODOTPTR || src.Left.Left.Op != ONAME {
+		return false
+	}
+	// dst and src reference the same base ONAME.
+	return dst.Left == src.Left.Left
+}
+
+// isSelfAssign reports whether assignment from src to dst can
+// be ignored by the escape analysis as it's effectively a self-assignment.
+func (e *EscState) isSelfAssign(dst, src *Node) bool {
+	if e.isSliceSelfAssign(dst, src) {
+		return true
+	}
+
+	// Detect trivial assignments that assign back to the same object.
+	//
+	// It covers these cases:
+	//	val.x = val.y
+	//	val.x[i] = val.y[j]
+	//	val.x1.x2 = val.x1.y2
+	//	... etc
+	//
+	// These assignments do not change assigned object lifetime.
+
+	if dst == nil || src == nil || dst.Op != src.Op {
+		return false
+	}
+
+	switch dst.Op {
+	case ODOT, ODOTPTR:
+		// Safe trailing accessors that are permitted to differ.
+	case OINDEX:
+		if e.mayAffectMemory(dst.Right) || e.mayAffectMemory(src.Right) {
+			return false
+		}
+	default:
+		return false
+	}
+
+	// The expression prefix must be both "safe" and identical.
+	return samesafeexpr(dst.Left, src.Left)
+}
+
+// mayAffectMemory reports whether n evaluation may affect program memory state.
+// If expression can't affect it, then it can be safely ignored by the escape analysis.
+func (e *EscState) mayAffectMemory(n *Node) bool {
+	// We may want to use "memory safe" black list instead of general
+	// "side-effect free", which can include all calls and other ops
+	// that can affect allocate or change global state.
+	// It's safer to start from a whitelist for now.
+	//
+	// We're ignoring things like division by zero, index out of range,
+	// and nil pointer dereference here.
+	switch n.Op {
+	case ONAME, OCLOSUREVAR, OLITERAL:
+		return false
+
+	// Left+Right group.
+	case OINDEX, OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
+		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
+
+	// Left group.
+	case ODOT, ODOTPTR, OIND, OCONVNOP, OCONV, OLEN, OCAP,
+		ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
+		return e.mayAffectMemory(n.Left)
+
+	default:
+		return true
 	}
 }
 
@@ -735,10 +863,6 @@ opSwitch:
 			e.loopdepth++
 		}
 
-		// See case OLABEL in escloopdepth above
-		// else if(n.Left.Sym.Label == nil)
-		//	fatal("escape analysis missed or messed up a label: %+N", n);
-
 		n.Left.Sym.Label = nil
 
 	case ORANGE:
@@ -768,36 +892,12 @@ opSwitch:
 			}
 		}
 
-	// Filter out the following special case.
-	//
-	//	func (b *Buffer) Foo() {
-	//		n, m := ...
-	//		b.buf = b.buf[n:m]
-	//	}
-	//
-	// This assignment is a no-op for escape analysis,
-	// it does not store any new pointers into b that were not already there.
-	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
 	case OAS, OASOP:
-		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && // dst is ONAME dereference
-			(n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && // src is slice operation
-			(n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && // slice is applied to ONAME dereference
-			n.Left.Left == n.Right.Left.Left { // dst and src reference the same base ONAME
-
-			// Here we also assume that the statement will not contain calls,
-			// that is, that order will move any calls to init.
-			// Otherwise base ONAME value could change between the moments
-			// when we evaluate it for dst and for src.
-			//
-			// Note, this optimization does not apply to OSLICEARR,
-			// because it does introduce a new pointer into b that was not already there
-			// (pointer to b itself). After such assignment, if b contents escape,
-			// b escapes as well. If we ignore such OSLICEARR, we will conclude
-			// that b does not escape when b contents do.
+		// Filter out some no-op assignments for escape analysis.
+		if e.isSelfAssign(n.Left, n.Right) {
 			if Debug['m'] != 0 {
-				Warnl(n.Pos, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
+				Warnl(n.Pos, "%v ignoring self-assignment in %S", e.curfnSym(n), n)
 			}
-
 			break
 		}
 
@@ -806,8 +906,9 @@ opSwitch:
 	case OAS2: // x,y = a,b
 		if n.List.Len() == n.Rlist.Len() {
 			rs := n.Rlist.Slice()
+			where := n
 			for i, n := range n.List.Slice() {
-				e.escassignWhyWhere(n, rs[i], "assign-pair", n)
+				e.escassignWhyWhere(n, rs[i], "assign-pair", where)
 			}
 		}
 
@@ -848,11 +949,12 @@ opSwitch:
 		// esccall already done on n.Rlist.First(). tie it's Retval to n.List
 	case OAS2FUNC: // x,y = f()
 		rs := e.nodeEscState(n.Rlist.First()).Retval.Slice()
+		where := n
 		for i, n := range n.List.Slice() {
 			if i >= len(rs) {
 				break
 			}
-			e.escassignWhyWhere(n, rs[i], "assign-pair-func-call", n)
+			e.escassignWhyWhere(n, rs[i], "assign-pair-func-call", where)
 		}
 		if n.List.Len() != len(rs) {
 			Fatalf("esc oas2func")
@@ -1314,7 +1416,7 @@ func describeEscape(em uint16) string {
 		}
 		s += "contentToHeap"
 	}
-	for em >>= EscReturnBits; em != 0; em = em >> bitsPerOutputInTag {
+	for em >>= EscReturnBits; em != 0; em >>= bitsPerOutputInTag {
 		// See encoding description above
 		if s != "" {
 			s += " "
@@ -1364,7 +1466,7 @@ func (e *EscState) escassignfromtag(note string, dsts Nodes, src, call *Node) ui
 
 	em0 := em
 	dstsi := 0
-	for em >>= EscReturnBits; em != 0 && dstsi < dsts.Len(); em = em >> bitsPerOutputInTag {
+	for em >>= EscReturnBits; em != 0 && dstsi < dsts.Len(); em >>= bitsPerOutputInTag {
 		// Prefer the lowest-level path to the reference (for escape purposes).
 		// Two-bit encoding (for example. 1, 3, and 4 bits are other options)
 		//  01 = 0-level
@@ -1540,12 +1642,11 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	cE := e.nodeEscState(call)
 	if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC &&
 		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+		// function in same mutually recursive group. Incorporate into flow graph.
 		if Debug['m'] > 3 {
 			fmt.Printf("%v::esccall:: %S in recursive group\n", linestr(lineno), call)
 		}
 
-		// function in same mutually recursive group. Incorporate into flow graph.
-		//		print("esc local fn: %N\n", fn.Func.Ntype);
 		if fn.Name.Defn.Esc == EscFuncUnknown || cE.Retval.Len() != 0 {
 			Fatalf("graph inconsistency")
 		}
@@ -1607,8 +1708,6 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 
 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
 	e.initEscRetval(call, fntype)
-
-	//	print("esc analyzed fn: %#N (%+T) returning (%+H)\n", fn, fntype, e.nodeEscState(call).Retval);
 
 	// Receiver.
 	if call.Op != OCALLFUNC {

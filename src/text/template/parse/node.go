@@ -144,15 +144,15 @@ func (t *TextNode) Copy() Node {
 type PipeNode struct {
 	NodeType
 	Pos
-	tr   *Tree
-	Line int            // The line number in the input. Deprecated: Kept for compatibility.
-	Decl bool           // The variables are being declared, not assigned
-	Vars []*AssignNode  // Variables in lexical order.
-	Cmds []*CommandNode // The commands in lexical order.
+	tr       *Tree
+	Line     int             // The line number in the input. Deprecated: Kept for compatibility.
+	IsAssign bool            // The variables are being assigned, not declared.
+	Decl     []*VariableNode // Variables in lexical order.
+	Cmds     []*CommandNode  // The commands in lexical order.
 }
 
-func (t *Tree) newPipeline(pos Pos, line int, vars []*AssignNode) *PipeNode {
-	return &PipeNode{tr: t, NodeType: NodePipe, Pos: pos, Line: line, Vars: vars}
+func (t *Tree) newPipeline(pos Pos, line int, vars []*VariableNode) *PipeNode {
+	return &PipeNode{tr: t, NodeType: NodePipe, Pos: pos, Line: line, Decl: vars}
 }
 
 func (p *PipeNode) append(command *CommandNode) {
@@ -161,8 +161,8 @@ func (p *PipeNode) append(command *CommandNode) {
 
 func (p *PipeNode) String() string {
 	s := ""
-	if len(p.Vars) > 0 {
-		for i, v := range p.Vars {
+	if len(p.Decl) > 0 {
+		for i, v := range p.Decl {
 			if i > 0 {
 				s += ", "
 			}
@@ -187,12 +187,12 @@ func (p *PipeNode) CopyPipe() *PipeNode {
 	if p == nil {
 		return p
 	}
-	var vars []*AssignNode
-	for _, d := range p.Vars {
-		vars = append(vars, d.Copy().(*AssignNode))
+	var vars []*VariableNode
+	for _, d := range p.Decl {
+		vars = append(vars, d.Copy().(*VariableNode))
 	}
 	n := p.tr.newPipeline(p.Pos, p.Line, vars)
-	n.Decl = p.Decl
+	n.IsAssign = p.IsAssign
 	for _, c := range p.Cmds {
 		n.append(c.Copy().(*CommandNode))
 	}
@@ -321,18 +321,18 @@ func (i *IdentifierNode) Copy() Node {
 
 // AssignNode holds a list of variable names, possibly with chained field
 // accesses. The dollar sign is part of the (first) name.
-type AssignNode struct {
+type VariableNode struct {
 	NodeType
 	Pos
 	tr    *Tree
 	Ident []string // Variable name and fields in lexical order.
 }
 
-func (t *Tree) newVariable(pos Pos, ident string) *AssignNode {
-	return &AssignNode{tr: t, NodeType: NodeVariable, Pos: pos, Ident: strings.Split(ident, ".")}
+func (t *Tree) newVariable(pos Pos, ident string) *VariableNode {
+	return &VariableNode{tr: t, NodeType: NodeVariable, Pos: pos, Ident: strings.Split(ident, ".")}
 }
 
-func (v *AssignNode) String() string {
+func (v *VariableNode) String() string {
 	s := ""
 	for i, id := range v.Ident {
 		if i > 0 {
@@ -343,12 +343,12 @@ func (v *AssignNode) String() string {
 	return s
 }
 
-func (v *AssignNode) tree() *Tree {
+func (v *VariableNode) tree() *Tree {
 	return v.tr
 }
 
-func (v *AssignNode) Copy() Node {
-	return &AssignNode{tr: v.tr, NodeType: NodeVariable, Pos: v.Pos, Ident: append([]string{}, v.Ident...)}
+func (v *VariableNode) Copy() Node {
+	return &VariableNode{tr: v.tr, NodeType: NodeVariable, Pos: v.Pos, Ident: append([]string{}, v.Ident...)}
 }
 
 // DotNode holds the special identifier '.'.

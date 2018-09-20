@@ -741,7 +741,7 @@ func TestNumLabelMerge(t *testing.T) {
 		wantNumUnits  []map[string][]string
 	}{
 		{
-			name:  "different tag units not merged",
+			name:  "different label units not merged",
 			profs: []*Profile{testProfile4.Copy(), testProfile5.Copy()},
 			wantNumLabels: []map[string][]int64{
 				{
@@ -910,6 +910,271 @@ func locationHash(s *Sample) string {
 		}
 	}
 	return tb
+}
+
+func TestHasLabel(t *testing.T) {
+	var testcases = []struct {
+		desc         string
+		labels       map[string][]string
+		key          string
+		value        string
+		wantHasLabel bool
+	}{
+		{
+			desc:         "empty label does not have label",
+			labels:       map[string][]string{},
+			key:          "key",
+			value:        "value",
+			wantHasLabel: false,
+		},
+		{
+			desc:         "label with one key and value has label",
+			labels:       map[string][]string{"key": {"value"}},
+			key:          "key",
+			value:        "value",
+			wantHasLabel: true,
+		},
+		{
+			desc:         "label with one key and value does not have label",
+			labels:       map[string][]string{"key": {"value"}},
+			key:          "key1",
+			value:        "value1",
+			wantHasLabel: false,
+		},
+		{
+			desc: "label with many keys and values has label",
+			labels: map[string][]string{
+				"key1": {"value2", "value1"},
+				"key2": {"value1", "value2", "value2"},
+				"key3": {"value1", "value2", "value2"},
+			},
+			key:          "key1",
+			value:        "value1",
+			wantHasLabel: true,
+		},
+		{
+			desc: "label with many keys and values does not have label",
+			labels: map[string][]string{
+				"key1": {"value2", "value1"},
+				"key2": {"value1", "value2", "value2"},
+				"key3": {"value1", "value2", "value2"},
+			},
+			key:          "key5",
+			value:        "value5",
+			wantHasLabel: false,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.desc, func(t *testing.T) {
+			sample := &Sample{
+				Label: tc.labels,
+			}
+			if gotHasLabel := sample.HasLabel(tc.key, tc.value); gotHasLabel != tc.wantHasLabel {
+				t.Errorf("sample.HasLabel(%q, %q) got %v, want %v", tc.key, tc.value, gotHasLabel, tc.wantHasLabel)
+			}
+		})
+	}
+}
+
+func TestRemove(t *testing.T) {
+	var testcases = []struct {
+		desc       string
+		samples    []*Sample
+		removeKey  string
+		wantLabels []map[string][]string
+	}{
+		{
+			desc: "some samples have label already",
+			samples: []*Sample{
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+				},
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+					Label: map[string][]string{
+						"key1": {"value1", "value2", "value3"},
+						"key2": {"value1"},
+					},
+				},
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+					Label: map[string][]string{
+						"key1": {"value2"},
+					},
+				},
+			},
+			removeKey: "key1",
+			wantLabels: []map[string][]string{
+				{},
+				{"key2": {"value1"}},
+				{},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.desc, func(t *testing.T) {
+			profile := testProfile1.Copy()
+			profile.Sample = tc.samples
+			profile.RemoveLabel(tc.removeKey)
+			if got, want := len(profile.Sample), len(tc.wantLabels); got != want {
+				t.Fatalf("got %v samples, want %v samples", got, want)
+			}
+			for i, sample := range profile.Sample {
+				wantLabels := tc.wantLabels[i]
+				if got, want := len(sample.Label), len(wantLabels); got != want {
+					t.Errorf("got %v label keys for sample %v, want %v", got, i, want)
+					continue
+				}
+				for wantKey, wantValues := range wantLabels {
+					if gotValues, ok := sample.Label[wantKey]; ok {
+						if !reflect.DeepEqual(gotValues, wantValues) {
+							t.Errorf("for key %s, got values %v, want values %v", wantKey, gotValues, wantValues)
+						}
+					} else {
+						t.Errorf("for key %s got no values, want %v", wantKey, wantValues)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestSetLabel(t *testing.T) {
+	var testcases = []struct {
+		desc       string
+		samples    []*Sample
+		setKey     string
+		setVal     []string
+		wantLabels []map[string][]string
+	}{
+		{
+			desc: "some samples have label already",
+			samples: []*Sample{
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+				},
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+					Label: map[string][]string{
+						"key1": {"value1", "value2", "value3"},
+						"key2": {"value1"},
+					},
+				},
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+					Label: map[string][]string{
+						"key1": {"value2"},
+					},
+				},
+			},
+			setKey: "key1",
+			setVal: []string{"value1"},
+			wantLabels: []map[string][]string{
+				{"key1": {"value1"}},
+				{"key1": {"value1"}, "key2": {"value1"}},
+				{"key1": {"value1"}},
+			},
+		},
+		{
+			desc: "no samples have labels",
+			samples: []*Sample{
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+				},
+			},
+			setKey: "key1",
+			setVal: []string{"value1"},
+			wantLabels: []map[string][]string{
+				{"key1": {"value1"}},
+			},
+		},
+		{
+			desc: "all samples have some labels, but not key being added",
+			samples: []*Sample{
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+					Label: map[string][]string{
+						"key2": {"value2"},
+					},
+				},
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+					Label: map[string][]string{
+						"key3": {"value3"},
+					},
+				},
+			},
+			setKey: "key1",
+			setVal: []string{"value1"},
+			wantLabels: []map[string][]string{
+				{"key1": {"value1"}, "key2": {"value2"}},
+				{"key1": {"value1"}, "key3": {"value3"}},
+			},
+		},
+		{
+			desc: "all samples have key being added",
+			samples: []*Sample{
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+					Label: map[string][]string{
+						"key1": {"value1"},
+					},
+				},
+				{
+					Location: []*Location{cpuL[0]},
+					Value:    []int64{1000},
+					Label: map[string][]string{
+						"key1": {"value1"},
+					},
+				},
+			},
+			setKey: "key1",
+			setVal: []string{"value1"},
+			wantLabels: []map[string][]string{
+				{"key1": {"value1"}},
+				{"key1": {"value1"}},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.desc, func(t *testing.T) {
+			profile := testProfile1.Copy()
+			profile.Sample = tc.samples
+			profile.SetLabel(tc.setKey, tc.setVal)
+			if got, want := len(profile.Sample), len(tc.wantLabels); got != want {
+				t.Fatalf("got %v samples, want %v samples", got, want)
+			}
+			for i, sample := range profile.Sample {
+				wantLabels := tc.wantLabels[i]
+				if got, want := len(sample.Label), len(wantLabels); got != want {
+					t.Errorf("got %v label keys for sample %v, want %v", got, i, want)
+					continue
+				}
+				for wantKey, wantValues := range wantLabels {
+					if gotValues, ok := sample.Label[wantKey]; ok {
+						if !reflect.DeepEqual(gotValues, wantValues) {
+							t.Errorf("for key %s, got values %v, want values %v", wantKey, gotValues, wantValues)
+						}
+					} else {
+						t.Errorf("for key %s got no values, want %v", wantKey, wantValues)
+					}
+				}
+			}
+		})
+	}
 }
 
 func TestNumLabelUnits(t *testing.T) {

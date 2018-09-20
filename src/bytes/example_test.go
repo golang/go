@@ -39,6 +39,14 @@ func ExampleBuffer_Grow() {
 	// Output: "64 bytes or fewer"
 }
 
+func ExampleBuffer_Len() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	fmt.Printf("%d", b.Len())
+	// Output: 5
+}
+
 func ExampleCompare() {
 	// Interpret Compare's result by comparing it to zero.
 	var a, b []byte

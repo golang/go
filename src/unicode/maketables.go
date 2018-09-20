@@ -176,7 +176,7 @@ var category = map[string]bool{
 // UnicodeData.txt has form:
 //	0037;DIGIT SEVEN;Nd;0;EN;;7;7;7;N;;;;;
 //	007A;LATIN SMALL LETTER Z;Ll;0;L;;;;;N;;;005A;;005A
-// See http://www.unicode.org/reports/tr44/ for a full explanation
+// See https://www.unicode.org/reports/tr44/ for a full explanation
 // The fields:
 const (
 	FCodePoint = iota
@@ -232,7 +232,7 @@ type Char struct {
 // Scripts.txt has form:
 //	A673          ; Cyrillic # Po       SLAVONIC ASTERISK
 //	A67C..A67D    ; Cyrillic # Mn   [2] COMBINING CYRILLIC KAVYKA..COMBINING CYRILLIC PAYEROK
-// See http://www.unicode.org/Public/5.1.0/ucd/UCD.html for full explanation
+// See https://www.unicode.org/Public/5.1.0/ucd/UCD.html for full explanation
 
 type Script struct {
 	lo, hi uint32 // range of code points

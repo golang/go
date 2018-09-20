@@ -197,7 +197,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add += int64(targ.Plt)
+			r.Add += int64(targ.Plt())
 		}
 
 		return true
@@ -230,7 +230,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		addgotsym(ctxt, targ)
 		r.Type = objabi.R_CONST // write r->add during relocsym
 		r.Sym = nil
-		r.Add += int64(targ.Got)
+		r.Add += int64(targ.Got())
 		return true
 
 	case 256 + objabi.RelocType(elf.R_386_GOTOFF):
@@ -261,7 +261,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
-			r.Add = int64(targ.Plt)
+			r.Add = int64(targ.Plt())
 			r.Type = objabi.R_PCREL
 			return true
 		}
@@ -285,7 +285,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		addgotsym(ctxt, targ)
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
-		r.Add += int64(targ.Got)
+		r.Add += int64(targ.Got())
 		r.Type = objabi.R_PCREL
 		return true
 	}
@@ -303,7 +303,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 		addpltsym(ctxt, targ)
 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
-		r.Add = int64(targ.Plt)
+		r.Add = int64(targ.Plt())
 		return true
 
 	case objabi.R_ADDR:
@@ -491,20 +491,18 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
 	return true
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
-		return false
+		return val, false
 	}
 	switch r.Type {
 	case objabi.R_CONST:
-		*val = r.Add
-		return true
+		return r.Add, true
 	case objabi.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 	}
 
-	return false
+	return val, false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
@@ -540,7 +538,7 @@ func elfsetupplt(ctxt *ld.Link) {
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Plt >= 0 {
+	if s.Plt() >= 0 {
 		return
 	}
 
@@ -578,7 +576,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 
 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_JMP_SLOT)))
 
-		s.Plt = int32(plt.Size - 16)
+		s.SetPlt(int32(plt.Size - 16))
 	} else if ctxt.HeadType == objabi.Hdarwin {
 		// Same laziness as in 6l.
 
@@ -589,29 +587,29 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		ctxt.Syms.Lookup(".linkedit.plt", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
 
 		// jmpq *got+size(IP)
-		s.Plt = int32(plt.Size)
+		s.SetPlt(int32(plt.Size))
 
 		plt.AddUint8(0xff)
 		plt.AddUint8(0x25)
-		plt.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
+		plt.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got()))
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
 func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Got >= 0 {
+	if s.Got() >= 0 {
 		return
 	}
 
 	ld.Adddynsym(ctxt, s)
 	got := ctxt.Syms.Lookup(".got", 0)
-	s.Got = int32(got.Size)
+	s.SetGot(int32(got.Size))
 	got.AddUint32(ctxt.Arch, 0)
 
 	if ctxt.IsELF {
 		rel := ctxt.Syms.Lookup(".rel", 0)
-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_GLOB_DAT)))
 	} else if ctxt.HeadType == objabi.Hdarwin {
 		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))

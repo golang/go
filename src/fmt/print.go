@@ -139,6 +139,16 @@ func newPrinter() *pp {
 
 // free saves used pp structs in ppFree; avoids an allocation per invocation.
 func (p *pp) free() {
+	// Proper usage of a sync.Pool requires each entry to have approximately
+	// the same memory cost. To obtain this property when the stored type
+	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
+	// to place back in the pool.
+	//
+	// See https://golang.org/issue/23199
+	if cap(p.buf) > 64<<10 {
+		return
+	}
+
 	p.buf = p.buf[:0]
 	p.arg = nil
 	p.value = reflect.Value{}
@@ -743,8 +753,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 		} else {
 			p.buf.WriteString(mapString)
 		}
-		keys := f.MapKeys()
-		for i, key := range keys {
+		iter := f.MapRange()
+		for i := 0; iter.Next(); i++ {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.WriteString(commaSpaceString)
@@ -752,9 +762,9 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.WriteByte(' ')
 				}
 			}
-			p.printValue(key, verb, depth+1)
+			p.printValue(iter.Key(), verb, depth+1)
 			p.buf.WriteByte(':')
-			p.printValue(f.MapIndex(key), verb, depth+1)
+			p.printValue(iter.Value(), verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.WriteByte('}')

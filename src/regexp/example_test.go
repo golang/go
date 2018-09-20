@@ -38,6 +38,12 @@ func ExampleMatchString() {
 	// false error parsing regexp: missing closing ): `a(b`
 }
 
+func ExampleQuoteMeta() {
+	fmt.Println(regexp.QuoteMeta("Escaping symbols like: .+*?()|[]{}^$"))
+	// Output:
+	// Escaping symbols like: \.\+\*\?\(\)\|\[\]\{\}\^\$
+}
+
 func ExampleRegexp_FindString() {
 	re := regexp.MustCompile("foo.?")
 	fmt.Printf("%q\n", re.FindString("seafood fool"))
@@ -242,4 +248,46 @@ func ExampleRegexp_ExpandString() {
 	// option1=value1
 	// option2=value2
 	// option3=value3
+}
+
+func ExampleRegexp_FindIndex() {
+	content := []byte(`
+	# comment line
+	option1: value1
+	option2: value2
+`)
+	// Regex pattern captures "key: value" pair from the content.
+	pattern := regexp.MustCompile(`(?m)(?P<key>\w+):\s+(?P<value>\w+)$`)
+
+	loc := pattern.FindIndex(content)
+	fmt.Println(loc)
+	fmt.Println(string(content[loc[0]:loc[1]]))
+	// Output:
+	// [18 33]
+	// option1: value1
+}
+func ExampleRegexp_FindAllSubmatchIndex() {
+	content := []byte(`
+	# comment line
+	option1: value1
+	option2: value2
+`)
+	// Regex pattern captures "key: value" pair from the content.
+	pattern := regexp.MustCompile(`(?m)(?P<key>\w+):\s+(?P<value>\w+)$`)
+	allIndexes := pattern.FindAllSubmatchIndex(content, -1)
+	for _, loc := range allIndexes {
+		fmt.Println(loc)
+		fmt.Println(string(content[loc[0]:loc[1]]))
+		fmt.Println(string(content[loc[2]:loc[3]]))
+		fmt.Println(string(content[loc[4]:loc[5]]))
+	}
+	// Output:
+	// [18 33 18 25 27 33]
+	// option1: value1
+	// option1
+	// value1
+	// [35 50 35 42 44 50]
+	// option2: value2
+	// option2
+	// value2
 }

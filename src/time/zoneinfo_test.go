@@ -5,6 +5,7 @@
 package time_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -33,6 +34,16 @@ func TestEnvVarUsage(t *testing.T) {
 
 	if zoneinfo := time.ZoneinfoForTesting(); testZoneinfo != *zoneinfo {
 		t.Errorf("zoneinfo does not match env variable: got %q want %q", *zoneinfo, testZoneinfo)
+	}
+}
+
+func TestBadLocationErrMsg(t *testing.T) {
+	time.ResetZoneinfoForTesting()
+	loc := "Asia/SomethingNotExist"
+	want := errors.New("unknown time zone " + loc)
+	_, err := time.LoadLocation(loc)
+	if err.Error() != want.Error() {
+		t.Errorf("LoadLocation(%q) error = %v; want %v", loc, err, want)
 	}
 }
 

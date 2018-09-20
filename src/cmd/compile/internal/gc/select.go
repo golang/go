@@ -33,7 +33,15 @@ func typecheckselect(sel *Node) {
 			ncase.List.Set(nil)
 			switch n.Op {
 			default:
-				yyerrorl(n.Pos, "select case must be receive, send or assign recv")
+				pos := n.Pos
+				if n.Op == ONAME {
+					// We don't have the right position for ONAME nodes (see #15459 and
+					// others). Using ncase.Pos for now as it will provide the correct
+					// line number (assuming the expression follows the "case" keyword
+					// on the same line). This matches the approach before 1.10.
+					pos = ncase.Pos
+				}
+				yyerrorl(pos, "select case must be receive, send or assign recv")
 
 			// convert x = <-c into OSELRECV(x, <-c).
 			// remove implicit conversions; the eventual assignment
@@ -308,13 +316,11 @@ func walkselectcases(cases *Nodes) []*Node {
 
 		setField("kind", nodintconst(kind))
 		if c != nil {
-			c = nod(OCONVNOP, c, nil)
-			c.Type = types.Types[TUNSAFEPTR]
+			c = convnop(c, types.Types[TUNSAFEPTR])
 			setField("c", c)
 		}
 		if elem != nil {
-			elem = nod(OCONVNOP, elem, nil)
-			elem.Type = types.Types[TUNSAFEPTR]
+			elem = convnop(elem, types.Types[TUNSAFEPTR])
 			setField("elem", elem)
 		}
 
@@ -367,10 +373,9 @@ func walkselectcases(cases *Nodes) []*Node {
 
 // bytePtrToIndex returns a Node representing "(*byte)(&n[i])".
 func bytePtrToIndex(n *Node, i int64) *Node {
-	s := nod(OCONVNOP, nod(OADDR, nod(OINDEX, n, nodintconst(i)), nil), nil)
-	s.Type = types.NewPtr(types.Types[TUINT8])
-	s = typecheck(s, Erv)
-	return s
+	s := nod(OADDR, nod(OINDEX, n, nodintconst(i)), nil)
+	t := types.NewPtr(types.Types[TUINT8])
+	return convnop(s, t)
 }
 
 var scase *types.Type

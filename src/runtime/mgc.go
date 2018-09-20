@@ -137,8 +137,8 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -407,14 +407,14 @@ type gcControllerState struct {
 	// each P that isn't running a dedicated worker.
 	//
 	// For example, if the utilization goal is 25% and there are
-	// no dedicated workers, this will be 0.25. If there goal is
+	// no dedicated workers, this will be 0.25. If the goal is
 	// 25%, there is one dedicated worker, and GOMAXPROCS is 5,
 	// this will be 0.05 to make up the missing 5%.
 	//
 	// If this is zero, no fractional workers are needed.
 	fractionalUtilizationGoal float64
 
-	_ [sys.CacheLineSize]byte
+	_ cpu.CacheLinePad
 }
 
 // startCycle resets the GC controller's state and computes estimates
@@ -919,9 +919,9 @@ const gcAssistTimeSlack = 5000
 const gcOverAssistWork = 64 << 10
 
 var work struct {
-	full  lfstack                  // lock-free list of full blocks workbuf
-	empty lfstack                  // lock-free list of empty blocks workbuf
-	pad0  [sys.CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+	full  lfstack          // lock-free list of full blocks workbuf
+	empty lfstack          // lock-free list of empty blocks workbuf
+	pad0  cpu.CacheLinePad // prevents false-sharing between full/empty and nproc/nwait
 
 	wbufSpans struct {
 		lock mutex
@@ -1023,15 +1023,15 @@ var work struct {
 	// there was neither enough credit to steal or enough work to
 	// do.
 	assistQueue struct {
-		lock       mutex
-		head, tail guintptr
+		lock mutex
+		q    gQueue
 	}
 
 	// sweepWaiters is a list of blocked goroutines to wake when
 	// we transition from mark termination to sweep.
 	sweepWaiters struct {
 		lock mutex
-		head guintptr
+		list gList
 	}
 
 	// cycles is the number of completed GC cycles, where a GC
@@ -1146,9 +1146,7 @@ func gcWaitOnMark(n uint32) {
 
 		// Wait until sweep termination, mark, and mark
 		// termination of cycle N complete.
-		gp := getg()
-		gp.schedlink = work.sweepWaiters.head
-		work.sweepWaiters.head.set(gp)
+		work.sweepWaiters.list.push(getg())
 		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
 	}
 }
@@ -1632,8 +1630,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// Bump GC cycle count and wake goroutines waiting on sweep.
 	lock(&work.sweepWaiters.lock)
 	memstats.numgc++
-	injectglist(work.sweepWaiters.head.ptr())
-	work.sweepWaiters.head = 0
+	injectglist(&work.sweepWaiters.list)
 	unlock(&work.sweepWaiters.lock)
 
 	// Finish the current heap profiling cycle and start a new

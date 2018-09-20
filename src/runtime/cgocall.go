@@ -268,7 +268,8 @@ func cgocallbackg1(ctxt uintptr) {
 	case "arm64":
 		// On arm64, stack frame is four words and there's a saved LR between
 		// SP and the stack frame and between the stack frame and the arguments.
-		cb = (*args)(unsafe.Pointer(sp + 5*sys.PtrSize))
+		// Additional two words (16-byte alignment) are for saving FP.
+		cb = (*args)(unsafe.Pointer(sp + 7*sys.PtrSize))
 	case "amd64":
 		// On amd64, stack frame is two words, plus caller PC.
 		if framepointer_enabled {

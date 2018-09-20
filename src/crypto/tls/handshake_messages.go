@@ -192,7 +192,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z = z[9:]
 	}
 	if len(m.supportedCurves) > 0 {
-		// http://tools.ietf.org/html/rfc4492#section-5.5.1
+		// https://tools.ietf.org/html/rfc4492#section-5.5.1
 		z[0] = byte(extensionSupportedCurves >> 8)
 		z[1] = byte(extensionSupportedCurves)
 		l := 2 + 2*len(m.supportedCurves)
@@ -209,7 +209,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		}
 	}
 	if len(m.supportedPoints) > 0 {
-		// http://tools.ietf.org/html/rfc4492#section-5.5.2
+		// https://tools.ietf.org/html/rfc4492#section-5.5.2
 		z[0] = byte(extensionSupportedPoints >> 8)
 		z[1] = byte(extensionSupportedPoints)
 		l := 1 + len(m.supportedPoints)
@@ -224,7 +224,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		}
 	}
 	if m.ticketSupported {
-		// http://tools.ietf.org/html/rfc5077#section-3.2
+		// https://tools.ietf.org/html/rfc5077#section-3.2
 		z[0] = byte(extensionSessionTicket >> 8)
 		z[1] = byte(extensionSessionTicket)
 		l := len(m.sessionTicket)
@@ -414,7 +414,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 		case extensionStatusRequest:
 			m.ocspStapling = length > 0 && data[0] == statusTypeOCSP
 		case extensionSupportedCurves:
-			// http://tools.ietf.org/html/rfc4492#section-5.5.1
+			// https://tools.ietf.org/html/rfc4492#section-5.5.1
 			if length < 2 {
 				return false
 			}
@@ -430,7 +430,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				d = d[2:]
 			}
 		case extensionSupportedPoints:
-			// http://tools.ietf.org/html/rfc4492#section-5.5.2
+			// https://tools.ietf.org/html/rfc4492#section-5.5.2
 			if length < 1 {
 				return false
 			}
@@ -441,7 +441,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			m.supportedPoints = make([]uint8, l)
 			copy(m.supportedPoints, data[1:])
 		case extensionSessionTicket:
-			// http://tools.ietf.org/html/rfc5077#section-3.2
+			// https://tools.ietf.org/html/rfc5077#section-3.2
 			m.ticketSupported = true
 			m.sessionTicket = data[:length]
 		case extensionSignatureAlgorithms:
@@ -1224,7 +1224,7 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 		return m.raw
 	}
 
-	// See http://tools.ietf.org/html/rfc4346#section-7.4.4
+	// See https://tools.ietf.org/html/rfc4346#section-7.4.4
 	length := 1 + len(m.certificateTypes) + 2
 	casLength := 0
 	for _, ca := range m.certificateAuthorities {
@@ -1374,7 +1374,7 @@ func (m *certificateVerifyMsg) marshal() (x []byte) {
 		return m.raw
 	}
 
-	// See http://tools.ietf.org/html/rfc4346#section-7.4.8
+	// See https://tools.ietf.org/html/rfc4346#section-7.4.8
 	siglength := len(m.signature)
 	length := 2 + siglength
 	if m.hasSignatureAndHash {
@@ -1452,7 +1452,7 @@ func (m *newSessionTicketMsg) marshal() (x []byte) {
 		return m.raw
 	}
 
-	// See http://tools.ietf.org/html/rfc5077#section-3.3
+	// See https://tools.ietf.org/html/rfc5077#section-3.3
 	ticketLen := len(m.ticket)
 	length := 2 + 4 + ticketLen
 	x = make([]byte, 4+length)

@@ -98,7 +98,7 @@ goroutines, such as stacks that grow and shrink on demand.
 
 <p>
 The compilers can target the DragonFly BSD, FreeBSD, Linux, NetBSD, OpenBSD,
-OS X (Darwin), Plan 9, Solaris and Windows operating systems.
+macOS (Darwin), Plan 9, Solaris and Windows operating systems.
 The full set of supported combinations is listed in the discussion of
 <a href="#environment">environment variables</a> below.
 </p>
@@ -197,7 +197,7 @@ have a <code>git</code> command before proceeding.)
 <p>
 If you do not have a working Git installation,
 follow the instructions on the
-<a href="http://git-scm.com/downloads">Git downloads</a> page.
+<a href="https://git-scm.com/downloads">Git downloads</a> page.
 </p>
 
 <h2 id="ccompiler">(Optional) Install a C compiler</h2>
@@ -388,7 +388,7 @@ You can access the latter commands with
 
 <p>
 The usual community resources such as
-<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server
+<code>#go-nuts</code> on the <a href="https://freenode.net/">Freenode</a> IRC server
 and the
 <a href="//groups.google.com/group/golang-nuts">Go Nuts</a>
 mailing list have active developers that can help you with problems
@@ -468,7 +468,7 @@ These default to the values of <code>$GOHOSTOS</code> and
 
 <p>
 Choices for <code>$GOOS</code> are
-<code>darwin</code> (Mac OS X 10.8 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+<code>darwin</code> (macOS 10.10 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
 <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
 <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
 Choices for <code>$GOARCH</code> are
@@ -639,14 +639,10 @@ contains further details regarding Go's ARM support.
 </p>
 </li>
 
-<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only)
+<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only) <br> <code>$GOMIPS64</code> (for <code>mips64</code> and <code>mips64le</code> only)
 <p>
-This sets whether to use floating point instructions.
+	These variables set whether to use floating point instructions. Set to "<code>hardfloat</code>" to use floating point instructions; this is the default.  Set to "<code>softfloat</code>" to use soft floating point.
 </p>
-<ul>
-	<li><code>GOMIPS=hardfloat</code>: use floating point instructions (the default)</li>
-	<li><code>GOMIPS=softfloat</code>: use soft floating point</li>
-</ul>
 </li>
 
 </ul>

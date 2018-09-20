@@ -38,7 +38,7 @@ var pkgDeps = map[string][]string{
 	"io":                      {"errors", "sync", "sync/atomic"},
 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "internal/cpu", "internal/bytealg"},
 	"runtime/internal/sys":    {},
-	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
+	"runtime/internal/atomic": {"unsafe", "internal/cpu"},
 	"internal/race":           {"runtime", "unsafe"},
 	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
 	"sync/atomic":             {"unsafe"},
@@ -99,28 +99,29 @@ var pkgDeps = map[string][]string{
 	// L3 adds reflection and some basic utility packages
 	// and interface definitions, but nothing that makes
 	// system calls.
-	"crypto":              {"L2", "hash"}, // interfaces
-	"crypto/cipher":       {"L2", "crypto/subtle"},
-	"crypto/subtle":       {},
-	"encoding/base32":     {"L2"},
-	"encoding/base64":     {"L2", "encoding/binary"},
-	"encoding/binary":     {"L2", "reflect"},
-	"hash":                {"L2"}, // interfaces
-	"hash/adler32":        {"L2", "hash"},
-	"hash/crc32":          {"L2", "hash"},
-	"hash/crc64":          {"L2", "hash"},
-	"hash/fnv":            {"L2", "hash"},
-	"image":               {"L2", "image/color"}, // interfaces
-	"image/color":         {"L2"},                // interfaces
-	"image/color/palette": {"L2", "image/color"},
-	"reflect":             {"L2"},
-	"sort":                {"reflect"},
+	"crypto":                 {"L2", "hash"}, // interfaces
+	"crypto/cipher":          {"L2", "crypto/subtle", "crypto/internal/subtle", "encoding/binary"},
+	"crypto/internal/subtle": {"unsafe", "reflect"}, // reflect behind a appengine tag
+	"crypto/subtle":          {},
+	"encoding/base32":        {"L2"},
+	"encoding/base64":        {"L2", "encoding/binary"},
+	"encoding/binary":        {"L2", "reflect"},
+	"hash":                   {"L2"}, // interfaces
+	"hash/adler32":           {"L2", "hash"},
+	"hash/crc32":             {"L2", "hash"},
+	"hash/crc64":             {"L2", "hash"},
+	"hash/fnv":               {"L2", "hash"},
+	"image":                  {"L2", "image/color"}, // interfaces
+	"image/color":            {"L2"},                // interfaces
+	"image/color/palette":    {"L2", "image/color"},
+	"reflect":                {"L2"},
+	"sort":                   {"reflect"},
 
 	"L3": {
 		"L2",
 		"crypto",
 		"crypto/cipher",
-		"crypto/internal/cipherhw",
+		"crypto/internal/subtle",
 		"crypto/subtle",
 		"encoding/base32",
 		"encoding/base64",
@@ -140,7 +141,7 @@ var pkgDeps = map[string][]string{
 
 	// Operating system access.
 	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "syscall/js", "unicode/utf16"},
-	"syscall/js":                        {"unsafe"},
+	"syscall/js":                        {"L0"},
 	"internal/syscall/unix":             {"L0", "syscall"},
 	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
@@ -203,7 +204,7 @@ var pkgDeps = map[string][]string{
 
 	// Go parser.
 	"go/ast":     {"L4", "OS", "go/scanner", "go/token"},
-	"go/doc":     {"L4", "go/ast", "go/token", "regexp", "text/template"},
+	"go/doc":     {"L4", "OS", "go/ast", "go/token", "regexp", "text/template"},
 	"go/parser":  {"L4", "OS", "go/ast", "go/scanner", "go/token"},
 	"go/printer": {"L4", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
 	"go/scanner": {"L4", "OS", "go/token"},
@@ -244,8 +245,8 @@ var pkgDeps = map[string][]string{
 	"debug/dwarf":                    {"L4"},
 	"debug/elf":                      {"L4", "OS", "debug/dwarf", "compress/zlib"},
 	"debug/gosym":                    {"L4"},
-	"debug/macho":                    {"L4", "OS", "debug/dwarf"},
-	"debug/pe":                       {"L4", "OS", "debug/dwarf"},
+	"debug/macho":                    {"L4", "OS", "debug/dwarf", "compress/zlib"},
+	"debug/pe":                       {"L4", "OS", "debug/dwarf", "compress/zlib"},
 	"debug/plan9obj":                 {"L4", "OS"},
 	"encoding":                       {"L4"},
 	"encoding/ascii85":               {"L4"},
@@ -331,19 +332,21 @@ var pkgDeps = map[string][]string{
 	"net/textproto": {"L4", "OS", "net"},
 
 	// Core crypto.
-	"crypto/aes":    {"L3"},
-	"crypto/des":    {"L3"},
-	"crypto/hmac":   {"L3"},
-	"crypto/md5":    {"L3"},
-	"crypto/rc4":    {"L3"},
-	"crypto/sha1":   {"L3"},
-	"crypto/sha256": {"L3"},
-	"crypto/sha512": {"L3"},
+	"crypto/aes":               {"L3"},
+	"crypto/des":               {"L3"},
+	"crypto/hmac":              {"L3"},
+	"crypto/internal/randutil": {"io", "sync"},
+	"crypto/md5":               {"L3"},
+	"crypto/rc4":               {"L3"},
+	"crypto/sha1":              {"L3"},
+	"crypto/sha256":            {"L3"},
+	"crypto/sha512":            {"L3"},
 
 	"CRYPTO": {
 		"crypto/aes",
 		"crypto/des",
 		"crypto/hmac",
+		"crypto/internal/randutil",
 		"crypto/md5",
 		"crypto/rc4",
 		"crypto/sha1",
@@ -402,6 +405,7 @@ var pkgDeps = map[string][]string{
 		"crypto/rand",
 		"crypto/tls",
 		"golang_org/x/net/http/httpguts",
+		"golang_org/x/net/http/httpproxy",
 		"golang_org/x/net/http2/hpack",
 		"golang_org/x/net/idna",
 		"golang_org/x/text/unicode/norm",
@@ -411,9 +415,10 @@ var pkgDeps = map[string][]string{
 		"net/http/httptrace",
 		"net/http/internal",
 		"runtime/debug",
+		"syscall/js",
 	},
 	"net/http/internal":  {"L4"},
-	"net/http/httptrace": {"context", "crypto/tls", "internal/nettrace", "net", "reflect", "time"},
+	"net/http/httptrace": {"context", "crypto/tls", "internal/nettrace", "net", "net/textproto", "reflect", "time"},
 
 	// HTTP-using packages.
 	"expvar":             {"L4", "OS", "encoding/json", "net/http"},

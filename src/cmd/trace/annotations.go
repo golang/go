@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -331,7 +335,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
 			if si != sj {
 				return si < sj
 			}
-			return task.regions[i].lastTimestamp() < task.regions[i].lastTimestamp()
+			return task.regions[i].lastTimestamp() < task.regions[j].lastTimestamp()
 		})
 	}
 	return annotationAnalysisResult{tasks: tasks, regions: regions, gcEvents: gcEvents}, nil
@@ -434,8 +438,8 @@ func (task *taskDesc) complete() bool {
 	return task.create != nil && task.end != nil
 }
 
-// descendents returns all the task nodes in the subtree rooted from this task.
-func (task *taskDesc) decendents() []*taskDesc {
+// descendants returns all the task nodes in the subtree rooted from this task.
+func (task *taskDesc) descendants() []*taskDesc {
 	if task == nil {
 		return nil
 	}

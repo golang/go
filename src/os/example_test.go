@@ -70,7 +70,7 @@ func ExampleFileMode() {
 func ExampleIsNotExist() {
 	filename := "a-nonexistent-file"
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		fmt.Printf("file does not exist")
+		fmt.Println("file does not exist")
 	}
 	// Output:
 	// file does not exist
@@ -80,6 +80,24 @@ func init() {
 	os.Setenv("USER", "gopher")
 	os.Setenv("HOME", "/usr/gopher")
 	os.Unsetenv("GOPATH")
+}
+
+func ExampleExpand() {
+	mapper := func(placeholderName string) string {
+		switch placeholderName {
+		case "DAY_PART":
+			return "morning"
+		case "USER":
+			return "Gopher"
+		}
+
+		return ""
+	}
+
+	fmt.Println(os.Expand("Good ${DAY_PART}, $USER!", mapper))
+
+	// Output:
+	// Good morning, Gopher!
 }
 
 func ExampleExpandEnv() {

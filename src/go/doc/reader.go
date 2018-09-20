@@ -7,7 +7,6 @@ package doc
 import (
 	"go/ast"
 	"go/token"
-	"regexp"
 	"sort"
 	"strconv"
 )
@@ -104,6 +103,8 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
 			// assume type is imported
 			return t.Sel.Name, true
 		}
+	case *ast.ParenExpr:
+		return baseTypeName(t.X)
 	case *ast.StarExpr:
 		return baseTypeName(t.X)
 	}
@@ -399,9 +400,9 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 			// with the first type in result signature (there may
 			// be more than one result)
 			factoryType := res.Type
-			if t, ok := factoryType.(*ast.ArrayType); ok && t.Len == nil {
-				// We consider functions that return slices of type T (or
-				// pointers to T) as factory functions of T.
+			if t, ok := factoryType.(*ast.ArrayType); ok {
+				// We consider functions that return slices or arrays of type
+				// T (or pointers to T) as factory functions of T.
 				factoryType = t.Elt
 			}
 			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) {
@@ -423,9 +424,9 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 }
 
 var (
-	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`                    // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
-	noteMarkerRx  = regexp.MustCompile(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
-	noteCommentRx = regexp.MustCompile(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
+	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`           // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
+	noteMarkerRx  = newLazyRE(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
+	noteCommentRx = newLazyRE(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
 )
 
 // readNote collects a single note from a sequence of comments.
