@@ -2923,14 +2923,6 @@ func typecheckcomplit(n *Node) *Node {
 
 	// Save original node (including n.Right)
 	norig := n.copy()
-	// If n.Orig points to itself, norig.Orig must point to itself, too.
-	// Otherwise, because n.Op is changed below, n.Orig's Op is changed
-	// as well because it (and the copy norig) still point to the original
-	// node n. This caused the wrong complit Op to be used when printing
-	// error messages (issue #26855).
-	if n.Orig == n {
-		norig.Orig = norig
-	}
 
 	setlineno(n.Right)
 	n.Right = typecheck(n.Right, Etype|Ecomplit)

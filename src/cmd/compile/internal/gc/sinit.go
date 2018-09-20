@@ -349,15 +349,13 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 				gdata(n, e.Expr, int(n.Type.Width))
 				continue
 			}
-			ll := n.copy()
-			ll.Orig = ll // completely separate copy
+			ll := n.sepcopy()
 			if staticassign(ll, e.Expr, out) {
 				continue
 			}
 			// Requires computation, but we're
 			// copying someone else's computation.
-			rr := orig.copy()
-			rr.Orig = rr // completely separate copy
+			rr := orig.sepcopy()
 			rr.Type = ll.Type
 			rr.Xoffset += e.Xoffset
 			setlineno(rr)
@@ -453,8 +451,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 				continue
 			}
 			setlineno(e.Expr)
-			a := n.copy()
-			a.Orig = a // completely separate copy
+			a := n.sepcopy()
 			if !staticassign(a, e.Expr, out) {
 				*out = append(*out, nod(OAS, a, e.Expr))
 			}
@@ -518,8 +515,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			// Copy val directly into n.
 			n.Type = val.Type
 			setlineno(val)
-			a := n.copy()
-			a.Orig = a
+			a := n.sepcopy()
 			if !staticassign(a, val, out) {
 				*out = append(*out, nod(OAS, a, val))
 			}

@@ -234,7 +234,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 	if n.Op == OLITERAL && !reuse {
 		// Can't always set n.Type directly on OLITERAL nodes.
 		// See discussion on CL 20813.
-		n = n.copy()
+		n = n.rawcopy()
 		reuse = true
 	}
 
@@ -1200,8 +1200,7 @@ func setconst(n *Node, v Val) {
 	// Ensure n.Orig still points to a semantically-equivalent
 	// expression after we rewrite n into a constant.
 	if n.Orig == n {
-		n.Orig = n.copy()
-		n.Orig.Orig = n.Orig
+		n.Orig = n.sepcopy()
 	}
 
 	*n = Node{
@@ -1331,7 +1330,7 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 	}
 
 	if n.Op == OLITERAL && !reuse {
-		n = n.copy()
+		n = n.rawcopy()
 		reuse = true
 	}
 
