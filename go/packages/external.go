@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-// findExternalTool returns the file path of a tool that supplies supplies
+// findExternalTool returns the file path of a tool that supplies
 // the build system package structure, or "" if not found."
 // If GOPACKAGESDRIVER is set in the environment findExternalTool returns its
 // value, otherwise it searches for a binary named gopackagesdriver on the PATH.

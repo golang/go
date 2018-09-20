@@ -136,6 +136,14 @@ type jsonPackage struct {
 	XTestImports    []string
 	ForTest         string // q in a "p [q.test]" package, else ""
 	DepOnly         bool
+
+	Error *jsonPackageError
+}
+
+type jsonPackageError struct {
+	ImportStack []string
+	Pos         string
+	Err         string
 }
 
 func otherFiles(p *jsonPackage) [][]string {
@@ -171,49 +179,48 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 			return nil, fmt.Errorf("JSON decoding failed: %v", err)
 		}
 
-		// Bad package?
-		if p.Name == "" {
-			// This could be due to:
-			// - no such package
-			// - package directory contains no Go source files
-			// - all package declarations are mangled
-			// - and possibly other things.
-			//
-			// For now, we throw it away and let later
-			// stages rediscover the problem, but this
-			// discards the error message computed by go list
-			// and computes a new one---by different logic:
-			// if only one of the package declarations is
-			// bad, for example, should we report an error
-			// in Metadata mode?
-			// Unless we parse and typecheck, we might not
-			// notice there's a problem.
-			//
-			// Perhaps we should save a map of PackageID to
-			// errors for such cases.
-			continue
+		if p.ImportPath == "" {
+			// The documentation for go list says that “[e]rroneous packages will have
+			// a non-empty ImportPath”. If for some reason it comes back empty, we
+			// prefer to error out rather than silently discarding data or handing
+			// back a package without any way to refer to it.
+			if p.Error != nil {
+				return nil, Error{
+					Pos: p.Error.Pos,
+					Msg: p.Error.Err,
+				}
+			}
+			return nil, fmt.Errorf("package missing import path: %+v", p)
 		}
 
-		id := p.ImportPath
+		pkg := &Package{
+			Name:            p.Name,
+			ID:              p.ImportPath,
+			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
+			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
+			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
+		}
 
 		// Extract the PkgPath from the package's ID.
-		pkgpath := id
-		if i := strings.IndexByte(id, ' '); i >= 0 {
-			pkgpath = id[:i]
+		if i := strings.IndexByte(pkg.ID, ' '); i >= 0 {
+			pkg.PkgPath = pkg.ID[:i]
+		} else {
+			pkg.PkgPath = pkg.ID
 		}
 
-		if pkgpath == "unsafe" {
-			p.GoFiles = nil // ignore fake unsafe.go file
+		if pkg.PkgPath == "unsafe" {
+			pkg.GoFiles = nil // ignore fake unsafe.go file
 		}
 
 		// Assume go list emits only absolute paths for Dir.
-		if !filepath.IsAbs(p.Dir) {
+		if p.Dir != "" && !filepath.IsAbs(p.Dir) {
 			log.Fatalf("internal error: go list returned non-absolute Package.Dir: %s", p.Dir)
 		}
 
-		export := p.Export
-		if export != "" && !filepath.IsAbs(export) {
-			export = filepath.Join(p.Dir, export)
+		if p.Export != "" && !filepath.IsAbs(p.Export) {
+			pkg.ExportFile = filepath.Join(p.Dir, p.Export)
+		} else {
+			pkg.ExportFile = p.Export
 		}
 
 		// imports
@@ -224,9 +231,9 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 		for _, id := range p.Imports {
 			ids[id] = true
 		}
-		imports := make(map[string]*Package)
+		pkg.Imports = make(map[string]*Package)
 		for path, id := range p.ImportMap {
-			imports[path] = &Package{ID: id} // non-identity import
+			pkg.Imports[path] = &Package{ID: id} // non-identity import
 			delete(ids, id)
 		}
 		for id := range ids {
@@ -234,25 +241,24 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 				continue
 			}
 
-			imports[id] = &Package{ID: id} // identity import
+			pkg.Imports[id] = &Package{ID: id} // identity import
 		}
 		if !p.DepOnly {
-			response.Roots = append(response.Roots, id)
+			response.Roots = append(response.Roots, pkg.ID)
 		}
-		pkg := &Package{
-			ID:              id,
-			Name:            p.Name,
-			PkgPath:         pkgpath,
-			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
-			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
-			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
-			Imports:         imports,
-			ExportFile:      export,
-		}
+
 		// TODO(matloob): Temporary hack since CompiledGoFiles isn't always set.
 		if len(pkg.CompiledGoFiles) == 0 {
 			pkg.CompiledGoFiles = pkg.GoFiles
 		}
+
+		if p.Error != nil {
+			pkg.Errors = append(pkg.Errors, Error{
+				Pos: p.Error.Pos,
+				Msg: p.Error.Err,
+			})
+		}
+
 		response.Packages = append(response.Packages, pkg)
 	}
 

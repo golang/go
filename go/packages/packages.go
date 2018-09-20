@@ -379,9 +379,6 @@ func newLoader(cfg *Config) *loader {
 // refine connects the supplied packages into a graph and then adds type and
 // and syntax information as requested by the LoadMode.
 func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
-	if len(list) == 0 {
-		return nil, fmt.Errorf("packages not found")
-	}
 	isRoot := make(map[string]bool, len(roots))
 	for _, root := range roots {
 		isRoot[root] = true

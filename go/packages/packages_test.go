@@ -402,22 +402,23 @@ func TestConfigDir(t *testing.T) {
 	defer cleanup()
 
 	for _, test := range []struct {
-		dir     string
-		pattern string
-		want    string // value of Name constant, or error
+		dir         string
+		pattern     string
+		want        string // value of Name constant
+		errContains string
 	}{
-		{"", "a", `"a"`},
-		{"", "b", `"b"`},
-		{"", "./a", "packages not found"},
-		{"", "./b", "packages not found"},
-		{filepath.Join(tmp, "/src"), "a", `"a"`},
-		{filepath.Join(tmp, "/src"), "b", `"b"`},
-		{filepath.Join(tmp, "/src"), "./a", `"a"`},
-		{filepath.Join(tmp, "/src"), "./b", `"b"`},
-		{filepath.Join(tmp, "/src/a"), "a", `"a"`},
-		{filepath.Join(tmp, "/src/a"), "b", `"b"`},
-		{filepath.Join(tmp, "/src/a"), "./a", "packages not found"},
-		{filepath.Join(tmp, "/src/a"), "./b", `"a/b"`},
+		{pattern: "a", want: `"a"`},
+		{pattern: "b", want: `"b"`},
+		{pattern: "./a", errContains: "cannot find"},
+		{pattern: "./b", errContains: "cannot find"},
+		{dir: filepath.Join(tmp, "/src"), pattern: "a", want: `"a"`},
+		{dir: filepath.Join(tmp, "/src"), pattern: "b", want: `"b"`},
+		{dir: filepath.Join(tmp, "/src"), pattern: "./a", want: `"a"`},
+		{dir: filepath.Join(tmp, "/src"), pattern: "./b", want: `"b"`},
+		{dir: filepath.Join(tmp, "/src/a"), pattern: "a", want: `"a"`},
+		{dir: filepath.Join(tmp, "/src/a"), pattern: "b", want: `"b"`},
+		{dir: filepath.Join(tmp, "/src/a"), pattern: "./a", errContains: "cannot find"},
+		{dir: filepath.Join(tmp, "/src/a"), pattern: "./b", want: `"a/b"`},
 	} {
 		cfg := &packages.Config{
 			Mode: packages.LoadSyntax, // Use LoadSyntax to ensure that files can be opened.
@@ -426,15 +427,23 @@ func TestConfigDir(t *testing.T) {
 		}
 
 		initial, err := packages.Load(cfg, test.pattern)
-		var got string
+		var got, errMsg string
 		if err != nil {
-			got = err.Error()
-		} else {
-			got = constant(initial[0], "Name").Val().String()
+			errMsg = err.Error()
+		} else if len(initial) > 0 {
+			if len(initial[0].Errors) > 0 {
+				errMsg = initial[0].Errors[0].Error()
+			} else if c := constant(initial[0], "Name"); c != nil {
+				got = c.Val().String()
+			}
 		}
 		if got != test.want {
 			t.Errorf("dir %q, pattern %q: got %s, want %s",
 				test.dir, test.pattern, got, test.want)
+		}
+		if !strings.Contains(errMsg, test.errContains) {
+			t.Errorf("dir %q, pattern %q: error %s, want %s",
+				test.dir, test.pattern, errMsg, test.errContains)
 		}
 	}
 
@@ -1427,5 +1436,9 @@ func makeTree(t *testing.T, tree map[string]string) (dir string, cleanup func())
 }
 
 func constant(p *packages.Package, name string) *types.Const {
-	return p.Types.Scope().Lookup(name).(*types.Const)
+	c := p.Types.Scope().Lookup(name)
+	if c == nil {
+		return nil
+	}
+	return c.(*types.Const)
 }
