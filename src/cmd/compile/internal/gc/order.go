@@ -109,8 +109,7 @@ func (o *Order) cheapExpr(n *Node) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := n.copy()
-		a.Orig = a
+		a := n.sepcopy()
 		a.Left = l
 		return typecheck(a, Erv)
 	}
@@ -135,8 +134,7 @@ func (o *Order) safeExpr(n *Node) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := n.copy()
-		a.Orig = a
+		a := n.sepcopy()
 		a.Left = l
 		return typecheck(a, Erv)
 
@@ -145,8 +143,7 @@ func (o *Order) safeExpr(n *Node) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := n.copy()
-		a.Orig = a
+		a := n.sepcopy()
 		a.Left = l
 		return typecheck(a, Erv)
 
@@ -161,8 +158,7 @@ func (o *Order) safeExpr(n *Node) *Node {
 		if l == n.Left && r == n.Right {
 			return n
 		}
-		a := n.copy()
-		a.Orig = a
+		a := n.sepcopy()
 		a.Left = l
 		a.Right = r
 		return typecheck(a, Erv)
