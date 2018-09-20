@@ -5,6 +5,7 @@
 package flate
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -699,17 +700,27 @@ func (w *dictWriter) Write(b []byte) (n int, err error) {
 	return w.w.Write(b)
 }
 
+var errWriteAfterClose = errors.New("compress/flate: write after close")
+
 // A Writer takes data written to it and writes the compressed
 // form of that data to an underlying writer (see NewWriter).
 type Writer struct {
 	d    compressor
 	dict []byte
+	err  error
 }
 
 // Write writes data to w, which will eventually write the
 // compressed form of data to its underlying writer.
 func (w *Writer) Write(data []byte) (n int, err error) {
-	return w.d.write(data)
+	if w.err != nil {
+		return 0, w.err
+	}
+	n, err = w.d.write(data)
+	if err != nil {
+		w.err = err
+	}
+	return n, err
 }
 
 // Flush flushes any pending data to the underlying writer.
@@ -724,18 +735,37 @@ func (w *Writer) Write(data []byte) (n int, err error) {
 func (w *Writer) Flush() error {
 	// For more about flushing:
 	// https://www.bolet.org/~pornin/deflate-flush.html
-	return w.d.syncFlush()
+	if w.err != nil {
+		return w.err
+	}
+	if err := w.d.syncFlush(); err != nil {
+		w.err = err
+		return err
+	}
+	return nil
 }
 
 // Close flushes and closes the writer.
 func (w *Writer) Close() error {
-	return w.d.close()
+	if w.err == errWriteAfterClose {
+		return nil
+	}
+	if w.err != nil {
+		return w.err
+	}
+	if err := w.d.close(); err != nil {
+		w.err = err
+		return err
+	}
+	w.err = errWriteAfterClose
+	return nil
 }
 
 // Reset discards the writer's state and makes it equivalent to
 // the result of NewWriter or NewWriterDict called with dst
 // and w's level and dictionary.
 func (w *Writer) Reset(dst io.Writer) {
+	w.err = nil
 	if dw, ok := w.d.w.writer.(*dictWriter); ok {
 		// w was created with NewWriterDict
 		dw.w = dst
