@@ -339,18 +339,18 @@ func (s *mspan) sweep(preserve bool) bool {
 		// Free large span to heap
 
 		// NOTE(rsc,dvyukov): The original implementation of efence
-		// in CL 22060046 used SysFree instead of SysFault, so that
+		// in CL 22060046 used sysFree instead of sysFault, so that
 		// the operating system would eventually give the memory
 		// back to us again, so that an efence program could run
 		// longer without running out of memory. Unfortunately,
-		// calling SysFree here without any kind of adjustment of the
+		// calling sysFree here without any kind of adjustment of the
 		// heap data structures means that when the memory does
 		// come back to us, we have the wrong metadata for it, either in
 		// the MSpan structures or in the garbage collection bitmap.
-		// Using SysFault here means that the program will run out of
+		// Using sysFault here means that the program will run out of
 		// memory fairly quickly in efence mode, but at least it won't
 		// have mysterious crashes due to confused memory reuse.
-		// It should be possible to switch back to SysFree if we also
+		// It should be possible to switch back to sysFree if we also
 		// implement and then call some kind of MHeap_DeleteSpan.
 		if debug.efence > 0 {
 			s.limit = 0 // prevent mlookup from finding this span
