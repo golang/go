@@ -60,7 +60,6 @@ var htmlReplacementTable = []string{
 	'"':  "&#34;",
 	'&':  "&amp;",
 	'\'': "&#39;",
-	'+':  "&#43;",
 	'<':  "&lt;",
 	'>':  "&gt;",
 }
@@ -71,7 +70,6 @@ var htmlNormReplacementTable = []string{
 	0:    "\uFFFD",
 	'"':  "&#34;",
 	'\'': "&#39;",
-	'+':  "&#43;",
 	'<':  "&lt;",
 	'>':  "&gt;",
 }
