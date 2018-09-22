@@ -238,7 +238,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		username := u.Username()
 		password, _ := u.Password()
 		forkReq()
-		req.Header = cloneHeader(ireq.Header)
+		req.Header = ireq.Header.clone()
 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 	}
 
