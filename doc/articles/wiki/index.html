@@ -508,9 +508,13 @@ First, let's handle the errors in <code>renderTemplate</code>:
 {{code "doc/articles/wiki/final-parsetemplate.go" `/^func renderTemplate/` `/^}/`}}
 
 <p>
-The <code>http.Error</code> function sends a specified HTTP response code
-(in this case "Internal Server Error") and error message.
-Already the decision to put this in a separate function is paying off.
+There are two places that we are handling errors. To handle the error from
+<code>ParseFiles</code>, we use the <code>http.Error</code> function which
+sends an HTTP response code (in this case "Internal Server Error") and error 
+message to the user. For the next error we can't use <code>http.Error</code>, 
+as we have already started writing the HTTP response by executing the template, 
+and so we use <code>log.Printf</code> to note that the error occurred. Already 
+the decision to put this in a separate function is paying off.
 </p>
 
 <p>

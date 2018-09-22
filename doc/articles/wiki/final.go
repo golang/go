@@ -64,7 +64,7 @@ var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	err := templates.ExecuteTemplate(w, tmpl+".html", p)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("error executing template %s.html: %v", tmpl, err)
 	}
 }
 
