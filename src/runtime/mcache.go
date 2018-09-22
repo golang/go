@@ -101,12 +101,12 @@ func freemcache(c *mcache) {
 	})
 }
 
-// Gets a span that has a free object in it and assigns it
-// to be the cached span for the given sizeclass. Returns this span.
+// refill acquires a new span of span class spc for c. This span will
+// have at least one free object. The current span in c must be full.
+//
+// Must run in a non-preemptible context since otherwise the owner of
+// c could change.
 func (c *mcache) refill(spc spanClass) {
-	_g_ := getg()
-
-	_g_.m.locks++
 	// Return the current cached span to the central lists.
 	s := c.alloc[spc]
 
@@ -129,7 +129,6 @@ func (c *mcache) refill(spc spanClass) {
 	}
 
 	c.alloc[spc] = s
-	_g_.m.locks--
 }
 
 func (c *mcache) releaseAll() {
