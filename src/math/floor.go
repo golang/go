@@ -55,7 +55,7 @@ func trunc(x float64) float64 {
 	return d
 }
 
-// Round returns the nearest integer, rounding half away from zero.
+// Round returns the nearest integral float value, rounding half away from zero.
 //
 // Special cases are:
 //	Round(±0) = ±0
