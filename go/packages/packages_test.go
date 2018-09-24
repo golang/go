@@ -331,6 +331,33 @@ func TestLoadImportsC(t *testing.T) {
 	}
 }
 
+func TestLoadAbsolutePath(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"gopatha/src/a/a.go": `package a`,
+		"gopathb/src/b/b.go": `package b`,
+	})
+	defer cleanup()
+
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Env: append(os.Environ(),
+			"GOPATH="+filepath.Join(tmp, "gopatha")+string(filepath.ListSeparator)+filepath.Join(tmp, "gopathb"),
+			"GO111MODULE=off"),
+	}
+	initial, err := packages.Load(cfg, filepath.Join(tmp, "gopatha", "src", "a"), filepath.Join(tmp, "gopathb", "src", "b"))
+	if err != nil {
+		t.Fatalf("failed to load imports: %v", err)
+	}
+
+	got := []string{}
+	for _, p := range initial {
+		got = append(got, p.ID)
+	}
+	if !reflect.DeepEqual(got, []string{"a", "b"}) {
+		t.Fatalf("initial packages loaded: got [%s], want [a b]", got)
+	}
+}
+
 func TestVendorImports(t *testing.T) {
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go":          `package a; import _ "b"; import _ "c";`,

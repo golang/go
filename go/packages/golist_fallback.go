@@ -10,6 +10,7 @@ import (
 	"go/build"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -27,6 +28,12 @@ import (
 // in Q1 2019.
 
 func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error) {
+	// Turn absolute paths into GOROOT and GOPATH-relative paths to provide to go list.
+	// This will have surprising behavior if GOROOT or GOPATH contain multiple packages with the same
+	// path and a user provides an absolute path to a directory that's shadowed by an earlier
+	// directory in GOROOT or GOPATH with the same package path.
+	words = cleanAbsPaths(cfg, words)
+
 	original, deps, err := getDeps(cfg, words...)
 	if err != nil {
 		return nil, err
@@ -281,6 +288,47 @@ func createTestVariants(response *driverResponse, pkgUnderTest, xtestPkg *Packag
 			xtestPkg.Imports[imp] = &Package{ID: fmt.Sprintf("%s [%s.test]", pkg.ID, pkgUnderTest.ID)}
 		}
 	}
+}
+
+// cleanAbsPaths replaces all absolute paths with GOPATH- and GOROOT-relative
+// paths. If an absolute path is not GOPATH- or GOROOT- relative, it is left as an
+// absolute path so an error can be returned later.
+func cleanAbsPaths(cfg *Config, words []string) []string {
+	var searchpaths []string
+	var cleaned = make([]string, len(words))
+	for i := range cleaned {
+		cleaned[i] = words[i]
+		if !filepath.IsAbs(cleaned[i]) {
+			continue
+		}
+		// otherwise, it's an absolute path. Search GOPATH and GOROOT to find it.
+		if searchpaths == nil {
+			cmd := exec.Command("go", "env", "GOPATH", "GOROOT")
+			cmd.Env = cfg.Env
+			out, err := cmd.Output()
+			if err != nil {
+				searchpaths = []string{}
+				continue // suppress the error, it will show up again when running go list
+			}
+			lines := strings.Split(string(out), "\n")
+			if len(lines) != 3 || lines[0] == "" || lines[1] == "" || lines[2] != "" {
+				continue // suppress error
+			}
+			// first line is GOPATH
+			for _, path := range filepath.SplitList(lines[0]) {
+				searchpaths = append(searchpaths, filepath.Join(path, "src"))
+			}
+			// second line is GOROOT
+			searchpaths = append(searchpaths, filepath.Join(lines[1], "src"))
+		}
+		for _, sp := range searchpaths {
+			if strings.HasPrefix(cleaned[i], sp) {
+				cleaned[i] = strings.TrimPrefix(cleaned[i], sp)
+				cleaned[i] = strings.TrimLeft(cleaned[i], string(filepath.Separator))
+			}
+		}
+	}
+	return cleaned
 }
 
 // vendorlessPath returns the devendorized version of the import path ipath.
