@@ -92,6 +92,9 @@ var wincleantests = []PathTest{
 	{`//host/share/foo/../baz`, `\\host\share\baz`},
 	{`\\a\b\..\c`, `\\a\b\c`},
 	{`\\a\b`, `\\a\b`},
+	{`\\a\b\`, `\\a\b`},
+	{`\\folder\share\foo`, `\\folder\share\foo`},
+	{`\\folder\share\foo\`, `\\folder\share\foo`},
 }
 
 func TestClean(t *testing.T) {
