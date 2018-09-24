@@ -709,8 +709,8 @@
 (ANDL x (MOVLconst [c])) -> (ANDLconst [c] x)
 
 (AND(L|Q)const [c] (AND(L|Q)const [d] x)) -> (AND(L|Q)const [c & d] x)
-(BTR(L|Q)const [c] (AND(L|Q)const [d] x)) -> (AND(L|Q)const [d &^ 1<<uint32(c)] x)
-(AND(L|Q)const [c] (BTR(L|Q)const [d] x)) -> (AND(L|Q)const [c &^ 1<<uint32(d)] x)
+(BTR(L|Q)const [c] (AND(L|Q)const [d] x)) -> (AND(L|Q)const [d &^ (1<<uint32(c))] x)
+(AND(L|Q)const [c] (BTR(L|Q)const [d] x)) -> (AND(L|Q)const [c &^ (1<<uint32(d))] x)
 (BTR(L|Q)const [c] (BTR(L|Q)const [d] x)) -> (AND(L|Q)const [^(1<<uint32(c) | 1<<uint32(d))] x)
 (XOR(L|Q)const [c] (XOR(L|Q)const [d] x)) -> (XOR(L|Q)const [c ^ d] x)
 (BTC(L|Q)const [c] (XOR(L|Q)const [d] x)) -> (XOR(L|Q)const [d ^ 1<<uint32(c)] x)

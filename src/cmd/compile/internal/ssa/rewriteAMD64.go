@@ -3620,7 +3620,7 @@ func rewriteValueAMD64_OpAMD64ANDLconst_0(v *Value) bool {
 	}
 	// match: (ANDLconst [c] (BTRLconst [d] x))
 	// cond:
-	// result: (ANDLconst [c &^ 1<<uint32(d)] x)
+	// result: (ANDLconst [c &^ (1<<uint32(d))] x)
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -3630,7 +3630,7 @@ func rewriteValueAMD64_OpAMD64ANDLconst_0(v *Value) bool {
 		d := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpAMD64ANDLconst)
-		v.AuxInt = c &^ 1 << uint32(d)
+		v.AuxInt = c &^ (1 << uint32(d))
 		v.AddArg(x)
 		return true
 	}
@@ -4147,7 +4147,7 @@ func rewriteValueAMD64_OpAMD64ANDQconst_0(v *Value) bool {
 	}
 	// match: (ANDQconst [c] (BTRQconst [d] x))
 	// cond:
-	// result: (ANDQconst [c &^ 1<<uint32(d)] x)
+	// result: (ANDQconst [c &^ (1<<uint32(d))] x)
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -4157,7 +4157,7 @@ func rewriteValueAMD64_OpAMD64ANDQconst_0(v *Value) bool {
 		d := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpAMD64ANDQconst)
-		v.AuxInt = c &^ 1 << uint32(d)
+		v.AuxInt = c &^ (1 << uint32(d))
 		v.AddArg(x)
 		return true
 	}
@@ -5019,7 +5019,7 @@ func rewriteValueAMD64_OpAMD64BTRLconst_0(v *Value) bool {
 	}
 	// match: (BTRLconst [c] (ANDLconst [d] x))
 	// cond:
-	// result: (ANDLconst [d &^ 1<<uint32(c)] x)
+	// result: (ANDLconst [d &^ (1<<uint32(c))] x)
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -5029,7 +5029,7 @@ func rewriteValueAMD64_OpAMD64BTRLconst_0(v *Value) bool {
 		d := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpAMD64ANDLconst)
-		v.AuxInt = d &^ 1 << uint32(c)
+		v.AuxInt = d &^ (1 << uint32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -5212,7 +5212,7 @@ func rewriteValueAMD64_OpAMD64BTRQconst_0(v *Value) bool {
 	}
 	// match: (BTRQconst [c] (ANDQconst [d] x))
 	// cond:
-	// result: (ANDQconst [d &^ 1<<uint32(c)] x)
+	// result: (ANDQconst [d &^ (1<<uint32(c))] x)
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -5222,7 +5222,7 @@ func rewriteValueAMD64_OpAMD64BTRQconst_0(v *Value) bool {
 		d := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpAMD64ANDQconst)
-		v.AuxInt = d &^ 1 << uint32(c)
+		v.AuxInt = d &^ (1 << uint32(c))
 		v.AddArg(x)
 		return true
 	}
