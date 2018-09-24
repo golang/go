@@ -9,7 +9,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-var Analysis = &analysis.Analysis{
+var Analyzer = &analysis.Analyzer{
 	Name:             "findcall",
 	Doc:              "find calls to a particular function",
 	Run:              findcall,
@@ -19,11 +19,11 @@ var Analysis = &analysis.Analysis{
 var name = "println" // --name flag
 
 func init() {
-	Analysis.Flags.StringVar(&name, "name", name, "name of the function to find")
+	Analyzer.Flags.StringVar(&name, "name", name, "name of the function to find")
 }
 
-func findcall(unit *analysis.Unit) error {
-	for _, f := range unit.Syntax {
+func findcall(pass *analysis.Pass) (interface{}, error) {
+	for _, f := range pass.Syntax {
 		ast.Inspect(f, func(n ast.Node) bool {
 			if call, ok := n.(*ast.CallExpr); ok {
 				var id *ast.Ident
@@ -33,13 +33,13 @@ func findcall(unit *analysis.Unit) error {
 				case *ast.SelectorExpr:
 					id = fun.Sel
 				}
-				if id != nil && !unit.Info.Types[id].IsType() && id.Name == name {
-					unit.Findingf(call.Lparen, "call of %s(...)", id.Name)
+				if id != nil && !pass.Info.Types[id].IsType() && id.Name == name {
+					pass.Findingf(call.Lparen, "call of %s(...)", id.Name)
 				}
 			}
 			return true
 		})
 	}
 
-	return nil
+	return nil, nil
 }

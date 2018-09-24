@@ -2,28 +2,21 @@ package analysis
 
 import (
 	"fmt"
-	"reflect"
 	"unicode"
 )
 
-// Validate reports an error if any of the analyses are misconfigured.
+// Validate reports an error if any of the analyzers are misconfigured.
 // Checks include:
 // - that the name is a valid identifier;
 // - that analysis names are unique;
-// - that the Requires graph is acylic;
-// - that analyses' lemma and output types are unique.
-// - that each lemma type is a pointer.
-func Validate(analyses []*Analysis) error {
+// - that the Requires graph is acylic.
+func Validate(analyzers []*Analyzer) error {
 	names := make(map[string]bool)
 
-	// Map each lemma/output type to its sole generating analysis.
-	lemmaTypes := make(map[reflect.Type]*Analysis)
-	outputTypes := make(map[reflect.Type]*Analysis)
-
 	// Traverse the Requires graph, depth first.
-	color := make(map[*Analysis]uint8) // 0=white 1=grey 2=black
-	var visit func(a *Analysis) error
-	visit = func(a *Analysis) error {
+	color := make(map[*Analyzer]uint8) // 0=white 1=grey 2=black
+	var visit func(a *Analyzer) error
+	visit = func(a *Analyzer) error {
 		if a == nil {
 			return fmt.Errorf("nil *Analysis")
 		}
@@ -43,30 +36,6 @@ func Validate(analyses []*Analysis) error {
 				return fmt.Errorf("analysis %q is undocumented", a)
 			}
 
-			// lemma types
-			for _, t := range a.LemmaTypes {
-				if t == nil {
-					return fmt.Errorf("analysis %s has nil LemmaType", a)
-				}
-				if prev := lemmaTypes[t]; prev != nil {
-					return fmt.Errorf("lemma type %s registered by two analyses: %v, %v",
-						t, a, prev)
-				}
-				if t.Kind() != reflect.Ptr {
-					return fmt.Errorf("%s: lemma type %s is not a pointer", a, t)
-				}
-				lemmaTypes[t] = a
-			}
-
-			// output types
-			if a.OutputType != nil {
-				if prev := outputTypes[a.OutputType]; prev != nil {
-					return fmt.Errorf("output type %s registered by two analyses: %v, %v",
-						a.OutputType, a, prev)
-				}
-				outputTypes[a.OutputType] = a
-			}
-
 			// recursion
 			for i, req := range a.Requires {
 				if err := visit(req); err != nil {
@@ -78,7 +47,7 @@ func Validate(analyses []*Analysis) error {
 
 		return nil
 	}
-	for _, a := range analyses {
+	for _, a := range analyzers {
 		if err := visit(a); err != nil {
 			return err
 		}
