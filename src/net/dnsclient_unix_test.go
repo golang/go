@@ -1568,3 +1568,56 @@ func TestDNSDialTCP(t *testing.T) {
 		t.Fatal("exhange failed:", err)
 	}
 }
+
+// Issue 27763: verify that two strings in one TXT record are concatenated.
+func TestTXTRecordTwoStrings(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+				Answers: []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeA,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.TXTResource{
+							TXT: []string{"string1 ", "string2"},
+						},
+					},
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeA,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.TXTResource{
+							TXT: []string{"onestring"},
+						},
+					},
+				},
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	txt, err := r.lookupTXT(context.Background(), "golang.org")
+	if err != nil {
+		t.Fatal("LookupTXT failed:", err)
+	}
+	if want := 2; len(txt) != want {
+		t.Fatalf("len(txt), got %d, want %d", len(txt), want)
+	}
+	if want := "string1 string2"; txt[0] != want {
+		t.Errorf("txt[0], got %q, want %q", txt[0], want)
+	}
+	if want := "onestring"; txt[1] != want {
+		t.Errorf("txt[1], got %q, want %q", txt[1], want)
+	}
+}
