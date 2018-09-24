@@ -1,0 +1,11 @@
+# Build should use GOTMPDIR if set.
+env GOTMPDIR=$WORK/my-favorite-tmpdir
+env GOCACHE=off
+mkdir $GOTMPDIR
+go build -work hello.go
+stderr ^WORK=.*my-favorite-tmpdir
+
+-- hello.go --
+package main
+func main() { println("hello") }
+

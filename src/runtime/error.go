@@ -19,32 +19,37 @@ type Error interface {
 
 // A TypeAssertionError explains a failed type assertion.
 type TypeAssertionError struct {
-	interfaceString string
-	concreteString  string
-	assertedString  string
-	missingMethod   string // one method needed by Interface, missing from Concrete
+	_interface    *_type
+	concrete      *_type
+	asserted      *_type
+	missingMethod string // one method needed by Interface, missing from Concrete
 }
 
 func (*TypeAssertionError) RuntimeError() {}
 
 func (e *TypeAssertionError) Error() string {
-	inter := e.interfaceString
-	if inter == "" {
-		inter = "interface"
+	inter := "interface"
+	if e._interface != nil {
+		inter = e._interface.string()
 	}
-	if e.concreteString == "" {
-		return "interface conversion: " + inter + " is nil, not " + e.assertedString
+	as := e.asserted.string()
+	if e.concrete == nil {
+		return "interface conversion: " + inter + " is nil, not " + as
 	}
+	cs := e.concrete.string()
 	if e.missingMethod == "" {
-		msg := "interface conversion: " + inter + " is " + e.concreteString +
-			", not " + e.assertedString
-		if e.concreteString == e.assertedString {
+		msg := "interface conversion: " + inter + " is " + cs + ", not " + as
+		if cs == as {
 			// provide slightly clearer error message
-			msg += " (types from different packages)"
+			if e.concrete.pkgpath() != e.asserted.pkgpath() {
+				msg += " (types from different packages)"
+			} else {
+				msg += " (types from different scopes)"
+			}
 		}
 		return msg
 	}
-	return "interface conversion: " + e.concreteString + " is not " + e.assertedString +
+	return "interface conversion: " + cs + " is not " + as +
 		": missing method " + e.missingMethod
 }
 

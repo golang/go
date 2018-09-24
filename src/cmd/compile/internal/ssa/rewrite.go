@@ -468,7 +468,7 @@ func isSamePtr(p1, p2 *Value) bool {
 	switch p1.Op {
 	case OpOffPtr:
 		return p1.AuxInt == p2.AuxInt && isSamePtr(p1.Args[0], p2.Args[0])
-	case OpAddr:
+	case OpAddr, OpLocalAddr:
 		// OpAddr's 0th arg is either OpSP or OpSB, which means that it is uniquely identified by its Op.
 		// Checking for value equality only works after [z]cse has run.
 		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
@@ -506,18 +506,17 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	// If one pointer is on the stack and the other is an argument
 	// then they can't overlap.
 	switch p1.Op {
-	case OpAddr:
-		if p2.Op == OpAddr || p2.Op == OpSP {
+	case OpAddr, OpLocalAddr:
+		if p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpSP {
 			return true
 		}
 		return p2.Op == OpArg && p1.Args[0].Op == OpSP
 	case OpArg:
-		if p2.Op == OpSP {
+		if p2.Op == OpSP || p2.Op == OpLocalAddr {
 			return true
 		}
-		return p2.Op == OpAddr && p2.Args[0].Op == OpSP
 	case OpSP:
-		return p2.Op == OpAddr || p2.Op == OpArg || p2.Op == OpSP
+		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpSP
 	}
 	return false
 }

@@ -28,6 +28,7 @@ TEXT	·IndexByteString(SB), NOSPLIT, $0-32
 	// but involves no call overhead.
 	// TODO: remove this hack when midstack inlining is enabled?
 TEXT	bytes·IndexByte(SB), NOSPLIT, $0-40
+	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
 	MOVQ b_base+0(FP), SI
 	MOVQ b_len+8(FP), BX
 	MOVB c+24(FP), AL
@@ -35,6 +36,7 @@ TEXT	bytes·IndexByte(SB), NOSPLIT, $0-40
 	JMP  indexbytebody<>(SB)
 
 TEXT	strings·IndexByte(SB), NOSPLIT, $0-32
+	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
 	MOVQ s_base+0(FP), SI
 	MOVQ s_len+8(FP), BX
 	MOVB c+16(FP), AL

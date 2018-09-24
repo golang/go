@@ -352,6 +352,7 @@
 (GetCallerPC) -> (LoweredGetCallerPC)
 (GetCallerSP) -> (LoweredGetCallerSP)
 (Addr {sym} base) -> (LoweredAddr {sym} base)
+(LocalAddr {sym} base _) -> (LoweredAddr {sym} base)
 
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)

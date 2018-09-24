@@ -80,10 +80,10 @@ func testSpliceMultipleWrite(t *testing.T) {
 }
 
 func testSpliceBig(t *testing.T) {
-	size := 1<<31 - 1
-	if testing.Short() {
-		size = 1 << 25
-	}
+	// The maximum amount of data that internal/poll.Splice will use in a
+	// splice(2) call is 4 << 20. Use a bigger size here so that we test an
+	// amount that doesn't fit in a single call.
+	size := 5 << 20
 	srv, err := newSpliceTestServer()
 	if err != nil {
 		t.Fatal(err)

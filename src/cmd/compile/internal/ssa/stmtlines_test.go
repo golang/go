@@ -39,22 +39,6 @@ type Line struct {
 	Line int
 }
 
-type File struct {
-	lines []string
-}
-
-var fileCache = map[string]*File{}
-
-func (f *File) Get(lineno int) (string, bool) {
-	if f == nil {
-		return "", false
-	}
-	if lineno-1 < 0 || lineno-1 >= len(f.lines) {
-		return "", false
-	}
-	return f.lines[lineno-1], true
-}
-
 func TestStmtLines(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")

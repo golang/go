@@ -1370,12 +1370,19 @@
 (NeqPtr x x) -> (ConstBool [0])
 (EqPtr  (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a == b)])
 (NeqPtr (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a != b)])
+(EqPtr  (LocalAddr {a} _ _) (LocalAddr {b} _ _)) -> (ConstBool [b2i(a == b)])
+(NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _)) -> (ConstBool [b2i(a != b)])
 (EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == 0)])
 (NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != 0)])
 (EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == o2)])
 (NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != o2)])
 (EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c == d)])
 (NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c != d)])
+
+(EqPtr  (LocalAddr _ _) (Addr _)) -> (ConstBool [0])
+(NeqPtr (LocalAddr _ _) (Addr _)) -> (ConstBool [1])
+(EqPtr  (Addr _) (LocalAddr _ _)) -> (ConstBool [0])
+(NeqPtr (Addr _) (LocalAddr _ _)) -> (ConstBool [1])
 
 // Simplify address comparisons.
 (EqPtr  (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (Not (IsNonNil o1))
@@ -1389,6 +1396,7 @@
 (IsNonNil (ConstNil)) -> (ConstBool [0])
 (IsNonNil (Const(32|64) [c])) -> (ConstBool [b2i(c != 0)])
 (IsNonNil (Addr _)) -> (ConstBool [1])
+(IsNonNil (LocalAddr _ _)) -> (ConstBool [1])
 
 // Inline small or disjoint runtime.memmove calls with constant length.
 (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))

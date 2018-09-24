@@ -4,7 +4,8 @@
 
 #include "textflag.h"
 
-#define NegInf 0xFFF0000000000000
+#define Neg2p11 0xC000E147AE147AE1
+#define Pos15   0x402E
 
 // Minimax polynomial coefficients and other constants
 DATA ·erfcrodataL38<> + 0(SB)/8, $.234875460637085087E-01
@@ -136,21 +137,24 @@ GLOBL ·erfctab2069<> + 0(SB), RODATA, $128
 //      Erfc(NaN) = NaN
 // The algorithm used is minimax polynomial approximation
 // with coefficients determined with a Remez exchange algorithm.
+// This assembly implementation handles inputs in the range [-2.11, +15].
+// For all other inputs we call the generic Go implementation.
 
-TEXT	·erfcAsm(SB), NOSPLIT, $0-16
-	//special case Erfc(+Inf) = 0
+TEXT	·erfcAsm(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	x+0(FP), R1
-	MOVD	$NegInf, R2
-	CMPUBEQ	R1, R2, erfcIsPosInf
+	MOVD	$Neg2p11, R2
+	CMPUBGT	R1, R2, usego
 
 	FMOVD	x+0(FP), F0
 	MOVD	$·erfcrodataL38<>+0(SB), R9
-	WORD	$0xB3CD0010	//lgdr %r1, %f0
 	FMOVD	F0, F2
 	SRAD	$48, R1
-	MOVH	$0x3FFF, R3
 	MOVH	R1, R2
 	ANDW	$0x7FFF, R1
+	MOVH	$Pos15, R3
+	CMPW	R1, R3
+	BGT	usego
+	MOVH	$0x3FFF, R3
 	MOVW	R1, R6
 	MOVW	R3, R7
 	CMPBGT	R6, R7, L2
@@ -523,8 +527,5 @@ L18:
 L25:
 	FMOVD	568(R9), F2
 	BR	L1
-erfcIsPosInf:
-	FMOVD	$(2.0), F1
-	FMOVD	F1, ret+8(FP)
-	RET
-
+usego:
+	BR	·erfc(SB)

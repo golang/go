@@ -73,7 +73,7 @@ $ go-contrib-init
 <p>
 The rest of this chapter elaborates on these instructions.
 If you have completed the steps above (either manually or through the tool), jump to
-<a href="#making_a_change">Making a change</a>.
+<a href="#before_contributing">Before contributing code</a>.
 </p>
 
 <h3 id="google_account">Step 0: Select a Google Account</h3>
@@ -289,6 +289,25 @@ Most issues will be marked with one of the following workflow labels:
 	<li>
 	<b>NeedsFix</b>: the issue is fully understood and code can be written
 	to fix it.
+	</li>
+</ul>
+
+<p>
+You can use GitHub's search functionality to find issues to help out with. Examples:
+</p>
+
+<ul>
+	<li>
+	Issues that need investigation: <a href="https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3ANeedsInvestigation"><code>is:issue is:open label:NeedsInvestigation</code></a>
+	</li>
+	<li>
+	Issues that need a fix: <a href="https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3ANeedsFix"><code>is:issue is:open label:NeedsFix</code></a>
+	</li>
+	<li>
+	Issues that need a fix and have a CL: <a href="https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3ANeedsFix+%22golang.org%2Fcl%22"><code>is:issue is:open label:NeedsFix "golang.org/cl"</code></a>
+	</li>
+	<li>
+	Issues that need a fix and do not have a CL: <a href="https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3ANeedsFix+NOT+%22golang.org%2Fcl%22"><code>is:issue is:open label:NeedsFix NOT "golang.org/cl"</code></a>
 	</li>
 </ul>
 

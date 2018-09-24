@@ -86,6 +86,9 @@ type Link struct {
 	// unresolvedSymSet is a set of erroneous unresolved references.
 	// Used to avoid duplicated error messages.
 	unresolvedSymSet map[unresolvedSymKey]bool
+
+	// Used to implement field tracking.
+	Reachparent map[*sym.Symbol]*sym.Symbol
 }
 
 type unresolvedSymKey struct {

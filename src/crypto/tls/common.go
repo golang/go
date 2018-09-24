@@ -165,11 +165,8 @@ type ConnectionState struct {
 	SignedCertificateTimestamps [][]byte              // SCTs from the server, if any
 	OCSPResponse                []byte                // stapled OCSP response from server, if any
 
-	// ExportKeyMaterial returns length bytes of exported key material as
-	// defined in https://tools.ietf.org/html/rfc5705. If context is nil, it is
-	// not used as part of the seed. If Config.Renegotiation was set to allow
-	// renegotiation, this function will always return nil, false.
-	ExportKeyingMaterial func(label string, context []byte, length int) ([]byte, bool)
+	// ekm is a closure exposed via ExportKeyingMaterial.
+	ekm func(label string, context []byte, length int) ([]byte, error)
 
 	// TLSUnique contains the "tls-unique" channel binding value (see RFC
 	// 5929, section 3). For resumed sessions this value will be nil
@@ -178,6 +175,14 @@ type ConnectionState struct {
 	// change in future versions of Go once the TLS master-secret fix has
 	// been standardized and implemented.
 	TLSUnique []byte
+}
+
+// ExportKeyingMaterial returns length bytes of exported key material in a new
+// slice as defined in https://tools.ietf.org/html/rfc5705. If context is nil,
+// it is not used as part of the seed. If the connection was set to allow
+// renegotiation via Config.Renegotiation, this function will return an error.
+func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
+	return cs.ekm(label, context, length)
 }
 
 // ClientAuthType declares the policy the server will follow for
@@ -938,12 +943,7 @@ func initDefaultCipherSuites() {
 	// Worst case, these variables will just all be false
 	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
 
-	// TODO: enable the arm64 HasAES && HasPMULL feature check after the
-	// optimized AES-GCM implementation for arm64 is merged (CL 107298).
-	// This is explicitly set to false for now to prevent misprioritization
-	// of AES-GCM based cipher suites, which will be slower than chacha20-poly1305
-	hasGCMAsmARM64 := false
-	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+	hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
 
 	// Keep in sync with crypto/aes/cipher_s390x.go.
 	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)

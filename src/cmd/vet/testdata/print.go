@@ -318,6 +318,9 @@ func PrintfTests() {
 	l.Print("%d", 1)    // ERROR "Print call has possible formatting directive %d"
 	l.Printf("%d", "x") // ERROR "Printf format %d has arg \x22x\x22 of wrong type string"
 	l.Println("%d", 1)  // ERROR "Println call has possible formatting directive %d"
+
+	// Issue 26486
+	dbg("", 1) // no error "call has arguments but no formatting directive"
 }
 
 func someString() string { return "X" }
@@ -441,6 +444,10 @@ func (*ptrStringer) BadWrap(x int, args ...interface{}) string {
 
 func (*ptrStringer) BadWrapf(x int, format string, args ...interface{}) string {
 	return fmt.Sprintf(format, args) // ERROR "missing ... in args forwarded to printf-like function"
+}
+
+func (*ptrStringer) WrapfFalsePositive(x int, arg1 string, arg2 ...interface{}) string {
+	return fmt.Sprintf("%s %v", arg1, arg2)
 }
 
 type embeddedStringer struct {
@@ -649,4 +656,12 @@ func UnexportedStringerOrError() {
 // See issues 23598 and 23605.
 func DisableErrorForFlag0() {
 	fmt.Printf("%0t", true)
+}
+
+// Issue 26486.
+func dbg(format string, args ...interface{}) {
+	if format == "" {
+		format = "%v"
+	}
+	fmt.Printf(format, args...)
 }

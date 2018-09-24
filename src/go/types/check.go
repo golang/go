@@ -162,14 +162,7 @@ func (check *Checker) pop() Object {
 
 // pathString returns a string of the form a->b-> ... ->g for an object path [a, b, ... g].
 func (check *Checker) pathString() string {
-	var s string
-	for i, p := range check.objPath {
-		if i > 0 {
-			s += "->"
-		}
-		s += p.Name()
-	}
-	return s
+	return objPathString(check.objPath)
 }
 
 // NewChecker returns a new Checker instance for a given package.

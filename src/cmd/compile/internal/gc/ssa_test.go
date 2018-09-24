@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -99,10 +98,10 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 }
 
 func TestGenFlowGraph(t *testing.T) {
-	runGenTest(t, "flowgraph_generator1.go", "ssa_fg_tmp1")
-	if runtime.GOOS != "windows" {
-		runGenTest(t, "flowgraph_generator1.go", "ssa_fg_tmp2", "GO_SSA_PHI_LOC_CUTOFF=0")
+	if testing.Short() {
+		t.Skip("not run in short mode.")
 	}
+	runGenTest(t, "flowgraph_generator1.go", "ssa_fg_tmp1")
 }
 
 // TestShortCircuit tests OANDAND and OOROR expressions and short circuiting.

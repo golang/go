@@ -27,15 +27,16 @@ type Conn struct {
 	conn     net.Conn
 	isClient bool
 
+	// handshakeStatus is 1 if the connection is currently transferring
+	// application data (i.e. is not currently processing a handshake).
+	// This field is only to be accessed with sync/atomic.
+	handshakeStatus uint32
 	// constant after handshake; protected by handshakeMutex
 	handshakeMutex sync.Mutex
 	handshakeErr   error   // error resulting from handshake
 	vers           uint16  // TLS version
 	haveVers       bool    // version has been negotiated
 	config         *Config // configuration passed to constructor
-	// handshakeComplete is true if the connection is currently transferring
-	// application data (i.e. is not currently processing a handshake).
-	handshakeComplete bool
 	// handshakes counts the number of handshakes performed on the
 	// connection so far. If renegotiation is disabled then this is either
 	// zero or one.
@@ -55,7 +56,7 @@ type Conn struct {
 	// renegotiation is not supported in that case.)
 	secureRenegotiation bool
 	// ekm is a closure for exporting keying material.
-	ekm func(label string, context []byte, length int) ([]byte, bool)
+	ekm func(label string, context []byte, length int) ([]byte, error)
 
 	// clientFinishedIsFirst is true if the client sent the first Finished
 	// message during the most recent handshake. This is recorded because
@@ -571,12 +572,12 @@ func (c *Conn) readRecord(want recordType) error {
 		c.sendAlert(alertInternalError)
 		return c.in.setErrorLocked(errors.New("tls: unknown record type requested"))
 	case recordTypeHandshake, recordTypeChangeCipherSpec:
-		if c.handshakeComplete {
+		if c.handshakeComplete() {
 			c.sendAlert(alertInternalError)
 			return c.in.setErrorLocked(errors.New("tls: handshake or ChangeCipherSpec requested while not in handshake"))
 		}
 	case recordTypeApplicationData:
-		if !c.handshakeComplete {
+		if !c.handshakeComplete() {
 			c.sendAlert(alertInternalError)
 			return c.in.setErrorLocked(errors.New("tls: application data record requested while in handshake"))
 		}
@@ -1048,7 +1049,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 		return 0, err
 	}
 
-	if !c.handshakeComplete {
+	if !c.handshakeComplete() {
 		return 0, alertInternalError
 	}
 
@@ -1114,7 +1115,7 @@ func (c *Conn) handleRenegotiation() error {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
 
-	c.handshakeComplete = false
+	atomic.StoreUint32(&c.handshakeStatus, 0)
 	if c.handshakeErr = c.clientHandshake(); c.handshakeErr == nil {
 		c.handshakes++
 	}
@@ -1215,11 +1216,9 @@ func (c *Conn) Close() error {
 
 	var alertErr error
 
-	c.handshakeMutex.Lock()
-	if c.handshakeComplete {
+	if c.handshakeComplete() {
 		alertErr = c.closeNotify()
 	}
-	c.handshakeMutex.Unlock()
 
 	if err := c.conn.Close(); err != nil {
 		return err
@@ -1233,9 +1232,7 @@ var errEarlyCloseWrite = errors.New("tls: CloseWrite called before handshake com
 // called once the handshake has completed and does not call CloseWrite on the
 // underlying connection. Most callers should just use Close.
 func (c *Conn) CloseWrite() error {
-	c.handshakeMutex.Lock()
-	defer c.handshakeMutex.Unlock()
-	if !c.handshakeComplete {
+	if !c.handshakeComplete() {
 		return errEarlyCloseWrite
 	}
 
@@ -1264,7 +1261,7 @@ func (c *Conn) Handshake() error {
 	if err := c.handshakeErr; err != nil {
 		return err
 	}
-	if c.handshakeComplete {
+	if c.handshakeComplete() {
 		return nil
 	}
 
@@ -1284,7 +1281,7 @@ func (c *Conn) Handshake() error {
 		c.flush()
 	}
 
-	if c.handshakeErr == nil && !c.handshakeComplete {
+	if c.handshakeErr == nil && !c.handshakeComplete() {
 		panic("handshake should have had a result.")
 	}
 
@@ -1297,10 +1294,10 @@ func (c *Conn) ConnectionState() ConnectionState {
 	defer c.handshakeMutex.Unlock()
 
 	var state ConnectionState
-	state.HandshakeComplete = c.handshakeComplete
+	state.HandshakeComplete = c.handshakeComplete()
 	state.ServerName = c.serverName
 
-	if c.handshakeComplete {
+	if state.HandshakeComplete {
 		state.Version = c.vers
 		state.NegotiatedProtocol = c.clientProtocol
 		state.DidResume = c.didResume
@@ -1318,9 +1315,9 @@ func (c *Conn) ConnectionState() ConnectionState {
 			}
 		}
 		if c.config.Renegotiation != RenegotiateNever {
-			state.ExportKeyingMaterial = noExportedKeyingMaterial
+			state.ekm = noExportedKeyingMaterial
 		} else {
-			state.ExportKeyingMaterial = c.ekm
+			state.ekm = c.ekm
 		}
 	}
 
@@ -1345,11 +1342,15 @@ func (c *Conn) VerifyHostname(host string) error {
 	if !c.isClient {
 		return errors.New("tls: VerifyHostname called on TLS server connection")
 	}
-	if !c.handshakeComplete {
+	if !c.handshakeComplete() {
 		return errors.New("tls: handshake has not yet been performed")
 	}
 	if len(c.verifiedChains) == 0 {
 		return errors.New("tls: handshake did not verify certificate chain")
 	}
 	return c.peerCertificates[0].VerifyHostname(host)
+}
+
+func (c *Conn) handshakeComplete() bool {
+	return atomic.LoadUint32(&c.handshakeStatus) == 1
 }

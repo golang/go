@@ -427,7 +427,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	changed := true
 	loop := 0
 	for changed {
-		if loop > 10 {
+		if loop > 100 {
 			c.ctxt.Diag("stuck in spanz loop")
 			break
 		}

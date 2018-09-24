@@ -716,6 +716,14 @@ again:
 	STPW	(R3, R4), x(SB)
 	STPW	(R3, R4), x+8(SB)
 
+// bit field operation
+	BFI	$0, R1, $1, R2      // 220040b3
+	BFIW	$0, R1, $1, R2      // 22000033
+	SBFIZ	$0, R1, $1, R2      // 22004093
+	SBFIZW	$0, R1, $1, R2      // 22000013
+	UBFIZ	$0, R1, $1, R2      // 220040d3
+	UBFIZW	$0, R1, $1, R2      // 22000053
+
 // END
 //
 //	LTYPEE comma

@@ -1,0 +1,19 @@
+env GO111MODULE=on
+
+go list -f '{{.TestImports}}'
+stdout net/http # from .TestImports
+
+go list -test -f '{{.Deps}}'
+stdout golang_org/x/crypto # dep of .TestImports
+
+-- go.mod --
+module m
+
+-- x.go --
+package x
+
+-- x_test.go --
+package x
+import "testing"
+import _ "net/http"
+func Test(t *testing.T) {}

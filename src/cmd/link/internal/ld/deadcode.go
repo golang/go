@@ -190,7 +190,9 @@ func (d *deadcodepass) mark(s, parent *sym.Symbol) {
 		fmt.Printf("%s -> %s\n", p, s.Name)
 	}
 	s.Attr |= sym.AttrReachable
-	s.Reachparent = parent
+	if d.ctxt.Reachparent != nil {
+		d.ctxt.Reachparent[s] = parent
+	}
 	d.markQueue = append(d.markQueue, s)
 }
 

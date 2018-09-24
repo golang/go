@@ -95,14 +95,12 @@ type Client struct {
 	// A Timeout of zero means no timeout.
 	//
 	// The Client cancels requests to the underlying Transport
-	// using the Request.Cancel mechanism. Requests passed
-	// to Client.Do may still set Request.Cancel; both will
-	// cancel the request.
+	// as if the Request's Context ended.
 	//
 	// For compatibility, the Client will also use the deprecated
 	// CancelRequest method on Transport if found. New
-	// RoundTripper implementations should use Request.Cancel
-	// instead of implementing CancelRequest.
+	// RoundTripper implementations should use the Request's Context
+	// for cancelation instead of implementing CancelRequest.
 	Timeout time.Duration
 }
 
@@ -129,8 +127,8 @@ type RoundTripper interface {
 	// RoundTrip should not modify the request, except for
 	// consuming and closing the Request's Body. RoundTrip may
 	// read fields of the request in a separate goroutine. Callers
-	// should not mutate the request until the Response's Body has
-	// been closed.
+	// should not mutate or reuse the request until the Response's
+	// Body has been closed.
 	//
 	// RoundTrip must always close the body, including on errors,
 	// but depending on the implementation may do so in a separate
@@ -357,7 +355,9 @@ func basicAuth(username, password string) string {
 //
 // An error is returned if there were too many redirects or if there
 // was an HTTP protocol error. A non-2xx response doesn't cause an
-// error.
+// error. Any returned error will be of type *url.Error. The url.Error
+// value's Timeout method will report true if request timed out or was
+// canceled.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
@@ -382,7 +382,9 @@ func Get(url string) (resp *Response, err error) {
 //
 // An error is returned if the Client's CheckRedirect function fails
 // or if there was an HTTP protocol error. A non-2xx response doesn't
-// cause an error.
+// cause an error. Any returned error will be of type *url.Error. The
+// url.Error value's Timeout method will report true if request timed
+// out or was canceled.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
@@ -457,6 +459,15 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 	return redirectMethod, shouldRedirect, includeBody
 }
 
+// urlErrorOp returns the (*url.Error).Op value to use for the
+// provided (*Request).Method value.
+func urlErrorOp(method string) string {
+	if method == "" {
+		return "Get"
+	}
+	return method[:1] + strings.ToLower(method[1:])
+}
+
 // Do sends an HTTP request and returns an HTTP response, following
 // policy (such as redirects, cookies, auth) as configured on the
 // client.
@@ -490,10 +501,26 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 // provided that the Request.GetBody function is defined.
 // The NewRequest function automatically sets GetBody for common
 // standard library body types.
+//
+// Any returned error will be of type *url.Error. The url.Error
+// value's Timeout method will report true if request timed out or was
+// canceled.
 func (c *Client) Do(req *Request) (*Response, error) {
+	return c.do(req)
+}
+
+var testHookClientDoResult func(retres *Response, reterr error)
+
+func (c *Client) do(req *Request) (retres *Response, reterr error) {
+	if testHookClientDoResult != nil {
+		defer func() { testHookClientDoResult(retres, reterr) }()
+	}
 	if req.URL == nil {
 		req.closeBody()
-		return nil, errors.New("http: nil Request.URL")
+		return nil, &url.Error{
+			Op:  urlErrorOp(req.Method),
+			Err: errors.New("http: nil Request.URL"),
+		}
 	}
 
 	var (
@@ -512,7 +539,6 @@ func (c *Client) Do(req *Request) (*Response, error) {
 		if !reqBodyClosed {
 			req.closeBody()
 		}
-		method := valueOrDefault(reqs[0].Method, "GET")
 		var urlStr string
 		if resp != nil && resp.Request != nil {
 			urlStr = stripPassword(resp.Request.URL)
@@ -520,7 +546,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 			urlStr = stripPassword(req.URL)
 		}
 		return &url.Error{
-			Op:  method[:1] + strings.ToLower(method[1:]),
+			Op:  urlErrorOp(reqs[0].Method),
 			URL: urlStr,
 			Err: err,
 		}
@@ -617,6 +643,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 			reqBodyClosed = true
 			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
+					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
 					timeout: true,
 				}
@@ -827,6 +854,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
 	}
 	if b.reqDidTimeout() {
 		err = &httpError{
+			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
 			err:     err.Error() + " (Client.Timeout exceeded while reading body)",
 			timeout: true,
 		}

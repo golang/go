@@ -53,6 +53,12 @@ func TestString(t *testing.T) {
 	if dummys.Get("someString") != dummys.Get("someString") {
 		t.Errorf("same value not equal")
 	}
+
+	wantInt := "42"
+	o = dummys.Get("someInt")
+	if got := o.String(); got != wantInt {
+		t.Errorf("got %#v, want %#v", got, wantInt)
+	}
 }
 
 func TestInt(t *testing.T) {
@@ -106,6 +112,21 @@ func TestFloat(t *testing.T) {
 func TestObject(t *testing.T) {
 	if dummys.Get("someArray") != dummys.Get("someArray") {
 		t.Errorf("same value not equal")
+	}
+
+	// An object and its prototype should not be equal.
+	proto := js.Global().Get("Object").Get("prototype")
+	o := js.Global().Call("eval", "new Object()")
+	if proto == o {
+		t.Errorf("object equals to its prototype")
+	}
+}
+
+func TestFrozenObject(t *testing.T) {
+	o := js.Global().Call("eval", "(function () { let o = new Object(); o.field = 5; Object.freeze(o); return o; })()")
+	want := 5
+	if got := o.Get("field").Int(); want != got {
+		t.Errorf("got %#v, want %#v", got, want)
 	}
 }
 
@@ -203,6 +224,48 @@ func TestInstanceOf(t *testing.T) {
 	}
 	if got, want := someArray.InstanceOf(js.Global().Get("Function")), false; got != want {
 		t.Errorf("got %#v, want %#v", got, want)
+	}
+}
+
+func TestType(t *testing.T) {
+	if got, want := js.Undefined().Type(), js.TypeUndefined; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Null().Type(), js.TypeNull; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf(true).Type(), js.TypeBoolean; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf(42).Type(), js.TypeNumber; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.ValueOf("test").Type(), js.TypeString; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Symbol").Invoke("test").Type(), js.TypeSymbol; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Array").New().Type(), js.TypeObject; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+	if got, want := js.Global().Get("Array").Type(), js.TypeFunction; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+}
+
+type object = map[string]interface{}
+type array = []interface{}
+
+func TestValueOf(t *testing.T) {
+	a := js.ValueOf(array{0, array{0, 42, 0}, 0})
+	if got := a.Index(1).Index(1).Int(); got != 42 {
+		t.Errorf("got %v, want %v", got, 42)
+	}
+
+	o := js.ValueOf(object{"x": object{"y": 42}})
+	if got := o.Get("x").Get("y").Int(); got != 42 {
+		t.Errorf("got %v, want %v", got, 42)
 	}
 }
 

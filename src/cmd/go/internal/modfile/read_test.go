@@ -66,6 +66,21 @@ func testPrint(t *testing.T, in, out string) {
 	}
 }
 
+func TestParseLax(t *testing.T) {
+	badFile := []byte(`module m
+		surprise attack
+		x y (
+			z
+		)
+		exclude v1.2.3
+		replace <-!!!
+	`)
+	_, err := ParseLax("file", badFile, nil)
+	if err != nil {
+		t.Fatalf("ParseLax did not ignore irrelevant errors: %v", err)
+	}
+}
+
 // Test that when files in the testdata directory are parsed
 // and printed and parsed again, we get the same parse tree
 // both times.
@@ -303,4 +318,48 @@ func tdiff(t *testing.T, a, b string) {
 		return
 	}
 	t.Error(string(data))
+}
+
+var modulePathTests = []struct {
+	input    []byte
+	expected string
+}{
+	{input: []byte("module \"github.com/rsc/vgotest\""), expected: "github.com/rsc/vgotest"},
+	{input: []byte("module github.com/rsc/vgotest"), expected: "github.com/rsc/vgotest"},
+	{input: []byte("module  \"github.com/rsc/vgotest\""), expected: "github.com/rsc/vgotest"},
+	{input: []byte("module  github.com/rsc/vgotest"), expected: "github.com/rsc/vgotest"},
+	{input: []byte("module `github.com/rsc/vgotest`"), expected: "github.com/rsc/vgotest"},
+	{input: []byte("module \"github.com/rsc/vgotest/v2\""), expected: "github.com/rsc/vgotest/v2"},
+	{input: []byte("module github.com/rsc/vgotest/v2"), expected: "github.com/rsc/vgotest/v2"},
+	{input: []byte("module \"gopkg.in/yaml.v2\""), expected: "gopkg.in/yaml.v2"},
+	{input: []byte("module gopkg.in/yaml.v2"), expected: "gopkg.in/yaml.v2"},
+	{input: []byte("module \"gopkg.in/check.v1\"\n"), expected: "gopkg.in/check.v1"},
+	{input: []byte("module \"gopkg.in/check.v1\n\""), expected: ""},
+	{input: []byte("module gopkg.in/check.v1\n"), expected: "gopkg.in/check.v1"},
+	{input: []byte("module \"gopkg.in/check.v1\"\r\n"), expected: "gopkg.in/check.v1"},
+	{input: []byte("module gopkg.in/check.v1\r\n"), expected: "gopkg.in/check.v1"},
+	{input: []byte("module \"gopkg.in/check.v1\"\n\n"), expected: "gopkg.in/check.v1"},
+	{input: []byte("module gopkg.in/check.v1\n\n"), expected: "gopkg.in/check.v1"},
+	{input: []byte("module \n\"gopkg.in/check.v1\"\n\n"), expected: ""},
+	{input: []byte("module \ngopkg.in/check.v1\n\n"), expected: ""},
+	{input: []byte("module \"gopkg.in/check.v1\"asd"), expected: ""},
+	{input: []byte("module \n\"gopkg.in/check.v1\"\n\n"), expected: ""},
+	{input: []byte("module \ngopkg.in/check.v1\n\n"), expected: ""},
+	{input: []byte("module \"gopkg.in/check.v1\"asd"), expected: ""},
+	{input: []byte("module  \nmodule a/b/c "), expected: "a/b/c"},
+	{input: []byte("module \"   \""), expected: "   "},
+	{input: []byte("module   "), expected: ""},
+	{input: []byte("module \"  a/b/c  \""), expected: "  a/b/c  "},
+	{input: []byte("module \"github.com/rsc/vgotest1\" // with a comment"), expected: "github.com/rsc/vgotest1"},
+}
+
+func TestModulePath(t *testing.T) {
+	for _, test := range modulePathTests {
+		t.Run(string(test.input), func(t *testing.T) {
+			result := ModulePath(test.input)
+			if result != test.expected {
+				t.Fatalf("ModulePath(%q): %s, want %s", string(test.input), result, test.expected)
+			}
+		})
+	}
 }

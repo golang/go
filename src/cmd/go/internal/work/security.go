@@ -136,6 +136,7 @@ var validLinkerFlags = []*regexp.Regexp{
 	re(`-f(no-)?(pic|PIC|pie|PIE)`),
 	re(`-f(no-)?openmp(-simd)?`),
 	re(`-fsanitize=([^@\-].*)`),
+	re(`-flat_namespace`),
 	re(`-g([^@\-].*)?`),
 	re(`-headerpad_max_install_names`),
 	re(`-m(abi|arch|cpu|fpu|tune)=([^@\-].*)`),

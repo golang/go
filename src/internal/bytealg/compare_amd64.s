@@ -14,6 +14,7 @@ TEXT ·Compare(SB),NOSPLIT,$0-56
 	JMP	cmpbody<>(SB)
 
 TEXT bytes·Compare(SB),NOSPLIT,$0-56
+	FUNCDATA $0, ·Compare·args_stackmap(SB)
 	MOVQ	a_base+0(FP), SI
 	MOVQ	a_len+8(FP), BX
 	MOVQ	b_base+24(FP), DI

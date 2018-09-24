@@ -70,7 +70,7 @@ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	CMP	R0, R2
 	BNE	ok
 	BL libc_error(SB)
-	MOVD	(R0), R1
+	MOVW	(R0), R1
 	MOVD	$0, R0
 ok:
 	MOVD	R0, 32(R19) // ret 1 p
@@ -223,6 +223,9 @@ nog:
 
 	RET
 
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	JMP	runtime·sigtramp(SB)
+
 TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 new
 	MOVD	16(R0), R2	// arg 3 old
@@ -274,7 +277,7 @@ TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
 	CMP	R0, R2
 	BNE	ok
 	BL libc_error(SB)
-	MOVD	(R0), R0	// errno
+	MOVW	(R0), R0	// errno
 	NEG	R0, R0	// caller wants it as a negative error code
 ok:
 	RET

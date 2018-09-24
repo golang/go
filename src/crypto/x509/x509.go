@@ -843,23 +843,16 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 }
 
 func (c *Certificate) hasNameConstraints() bool {
-	for _, e := range c.Extensions {
-		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 && e.Id[3] == 30 {
-			return true
-		}
-	}
-
-	return false
+	return oidInExtensions(oidExtensionNameConstraints, c.Extensions)
 }
 
-func (c *Certificate) getSANExtension() ([]byte, bool) {
+func (c *Certificate) getSANExtension() []byte {
 	for _, e := range c.Extensions {
-		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 && e.Id[3] == 17 {
-			return e.Value, true
+		if e.Id.Equal(oidExtensionSubjectAltName) {
+			return e.Value
 		}
 	}
-
-	return nil, false
+	return nil
 }
 
 func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, pubKey interface{}) error {

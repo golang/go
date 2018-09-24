@@ -234,6 +234,8 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-20
 	MOVW	size+12(FP), R7
 	MOVW	$SYS_rt_sigaction, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+16(FP)
 	RET
 
@@ -320,6 +322,8 @@ TEXT runtime·futex(SB),NOSPLIT,$20-28
 
 	MOVW	$SYS_futex, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 
@@ -351,11 +355,11 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0-24
 
 	MOVW	$SYS_clone, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
 
 	// In parent, return.
-	BEQ	R2, 5(PC)
-	SUBU	R2, R0, R3
-	CMOVN	R7, R3, R2
+	BEQ	R2, 3(PC)
 	MOVW	R2, ret+20(FP)
 	RET
 
@@ -417,6 +421,8 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0-16
 	MOVW	buf+8(FP), R6
 	MOVW	$SYS_sched_getaffinity, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+12(FP)
 	RET
 
@@ -425,6 +431,8 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0-8
 	MOVW	size+0(FP), R4
 	MOVW	$SYS_epoll_create, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+4(FP)
 	RET
 
@@ -433,6 +441,8 @@ TEXT runtime·epollcreate1(SB),NOSPLIT,$0-8
 	MOVW	flags+0(FP), R4
 	MOVW	$SYS_epoll_create1, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+4(FP)
 	RET
 
@@ -456,6 +466,8 @@ TEXT runtime·epollwait(SB),NOSPLIT,$0-20
 	MOVW	timeout+12(FP), R7
 	MOVW	$SYS_epoll_wait, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+16(FP)
 	RET
 

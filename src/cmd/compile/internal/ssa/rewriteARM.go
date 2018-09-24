@@ -619,6 +619,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpLess8U_0(v)
 	case OpLoad:
 		return rewriteValueARM_OpLoad_0(v)
+	case OpLocalAddr:
+		return rewriteValueARM_OpLocalAddr_0(v)
 	case OpLsh16x16:
 		return rewriteValueARM_OpLsh16x16_0(v)
 	case OpLsh16x32:
@@ -19343,6 +19345,20 @@ func rewriteValueARM_OpLoad_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueARM_OpLocalAddr_0(v *Value) bool {
+	// match: (LocalAddr {sym} base _)
+	// cond:
+	// result: (MOVWaddr {sym} base)
+	for {
+		sym := v.Aux
+		_ = v.Args[1]
+		base := v.Args[0]
+		v.reset(OpARMMOVWaddr)
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
 }
 func rewriteValueARM_OpLsh16x16_0(v *Value) bool {
 	b := v.Block

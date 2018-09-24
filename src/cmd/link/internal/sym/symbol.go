@@ -31,20 +31,23 @@ type Symbol struct {
 	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
 	// is not set for symbols defined by the packages being linked or by symbols
 	// read by ldelf (and so is left as elf.STT_NOTYPE).
-	ElfType     elf.SymType
-	Sub         *Symbol
-	Outer       *Symbol
-	Gotype      *Symbol
-	Reachparent *Symbol
-	File        string
-	Dynimplib   string
-	Dynimpvers  string
-	Sect        *Section
-	FuncInfo    *FuncInfo
-	Lib         *Library // Package defining this symbol
+	ElfType  elf.SymType
+	Sub      *Symbol
+	Outer    *Symbol
+	Gotype   *Symbol
+	File     string
+	dyninfo  *dynimp
+	Sect     *Section
+	FuncInfo *FuncInfo
+	Lib      *Library // Package defining this symbol
 	// P contains the raw symbol data.
 	P []byte
 	R []Reloc
+}
+
+type dynimp struct {
+	dynimplib  string
+	dynimpvers string
 }
 
 func (s *Symbol) String() string {
@@ -263,6 +266,40 @@ func (s *Symbol) setUintXX(arch *sys.Arch, off int64, v uint64, wid int64) int64
 	}
 
 	return off + wid
+}
+
+func (s *Symbol) Dynimplib() string {
+	if s.dyninfo == nil {
+		return ""
+	}
+	return s.dyninfo.dynimplib
+}
+
+func (s *Symbol) Dynimpvers() string {
+	if s.dyninfo == nil {
+		return ""
+	}
+	return s.dyninfo.dynimpvers
+}
+
+func (s *Symbol) SetDynimplib(lib string) {
+	if s.dyninfo == nil {
+		s.dyninfo = &dynimp{dynimplib: lib}
+	} else {
+		s.dyninfo.dynimplib = lib
+	}
+}
+
+func (s *Symbol) SetDynimpvers(vers string) {
+	if s.dyninfo == nil {
+		s.dyninfo = &dynimp{dynimpvers: vers}
+	} else {
+		s.dyninfo.dynimpvers = vers
+	}
+}
+
+func (s *Symbol) ResetDyninfo() {
+	s.dyninfo = nil
 }
 
 // SortSub sorts a linked-list (by Sub) of *Symbol by Value.

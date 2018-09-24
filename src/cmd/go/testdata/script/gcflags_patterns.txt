@@ -1,0 +1,71 @@
+[!gc] skip 'using -gcflags and -ldflags'
+
+# -gcflags=-e applies to named packages, not dependencies
+go build -n -v -gcflags=-e z1 z2
+stderr 'compile.* -e .*-p z1'
+stderr 'compile.* -e .*-p z2'
+stderr 'compile.* -p y'
+! stderr 'compile.* -e .*-p [^z]'
+
+# -gcflags can specify package=flags, and can be repeated; last match wins
+go build -n -v -gcflags=-e -gcflags=z1=-N z1 z2
+stderr 'compile.* -N .*-p z1'
+! stderr 'compile.* -e .*-p z1'
+! stderr 'compile.* -N .*-p z2'
+stderr 'compile.* -e .*-p z2'
+stderr 'compile.* -p y'
+! stderr 'compile.* -e .*-p [^z]'
+! stderr 'compile.* -N .*-p [^z]'
+
+# -gcflags can have arbitrary spaces around the flags
+go build -n -v -gcflags='  z1 =  	-e 	' z1
+stderr 'compile.* -e .*-p z1'
+
+# -ldflags for implicit test package applies to test binary
+go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1
+stderr 'compile.* -N .*z_test.go'
+stderr 'link.* -X=x.y=z'
+
+# -ldflags for explicit test package applies to test binary
+go test -c -n -gcflags=z1=-N -ldflags=z1=-X=x.y=z z1
+stderr 'compile.* -N .*z_test.go'
+stderr 'link.* -X=x.y=z'
+
+# -ldflags applies to link of command
+go build -n -ldflags=-X=math.pi=3 my/cmd/prog
+stderr 'link.* -X=math.pi=3'
+
+# -ldflags applies to link of command even with strange directory name
+go build -n -ldflags=-X=math.pi=3 my/cmd/prog/
+stderr 'link.* -X=math.pi=3'
+
+# -ldflags applies to current directory
+cd my/cmd/prog
+go build -n -ldflags=-X=math.pi=3
+stderr 'link.* -X=math.pi=3'
+
+# -ldflags applies to current directory even if GOPATH is funny
+[windows] cd $WORK/GoPath/src/my/cmd/prog
+[darwin] cd $WORK/GoPath/src/my/cmd/prog
+go build -n -ldflags=-X=math.pi=3
+stderr 'link.* -X=math.pi=3'
+
+-- z1/z.go --
+package z1
+import _ "y"
+import _ "z2"
+
+-- z1/z_test.go --
+package z1_test
+import "testing"
+func Test(t *testing.T) {}
+
+-- z2/z.go --
+package z2
+
+-- y/y.go --
+package y
+
+-- my/cmd/prog/prog.go --
+package main
+func main() {}

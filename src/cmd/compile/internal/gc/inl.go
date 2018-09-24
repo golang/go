@@ -41,6 +41,9 @@ const (
 	inlineExtraCallCost   = inlineMaxBudget // default is do not inline, -l=4 enables by using 1 instead.
 	inlineExtraPanicCost  = 1               // do not penalize inlining panics.
 	inlineExtraThrowCost  = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
+
+	inlineBigFunctionNodes   = 5000 // Functions with this many nodes are considered "big".
+	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
 )
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
@@ -459,12 +462,38 @@ func inlcopy(n *Node) *Node {
 	return m
 }
 
+func countNodes(n *Node) int {
+	if n == nil {
+		return 0
+	}
+	cnt := 1
+	cnt += countNodes(n.Left)
+	cnt += countNodes(n.Right)
+	for _, n1 := range n.Ninit.Slice() {
+		cnt += countNodes(n1)
+	}
+	for _, n1 := range n.Nbody.Slice() {
+		cnt += countNodes(n1)
+	}
+	for _, n1 := range n.List.Slice() {
+		cnt += countNodes(n1)
+	}
+	for _, n1 := range n.Rlist.Slice() {
+		cnt += countNodes(n1)
+	}
+	return cnt
+}
+
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions. This is the external entry point.
 func inlcalls(fn *Node) {
 	savefn := Curfn
 	Curfn = fn
-	fn = inlnode(fn)
+	maxCost := int32(inlineMaxBudget)
+	if countNodes(fn) >= inlineBigFunctionNodes {
+		maxCost = inlineBigFunctionMaxCost
+	}
+	fn = inlnode(fn, maxCost)
 	if fn != Curfn {
 		Fatalf("inlnode replaced curfn")
 	}
@@ -505,10 +534,10 @@ func inlconv2list(n *Node) []*Node {
 	return s
 }
 
-func inlnodelist(l Nodes) {
+func inlnodelist(l Nodes, maxCost int32) {
 	s := l.Slice()
 	for i := range s {
-		s[i] = inlnode(s[i])
+		s[i] = inlnode(s[i], maxCost)
 	}
 }
 
@@ -525,7 +554,7 @@ func inlnodelist(l Nodes) {
 // shorter and less complicated.
 // The result of inlnode MUST be assigned back to n, e.g.
 // 	n.Left = inlnode(n.Left)
-func inlnode(n *Node) *Node {
+func inlnode(n *Node, maxCost int32) *Node {
 	if n == nil {
 		return n
 	}
@@ -547,19 +576,19 @@ func inlnode(n *Node) *Node {
 
 	lno := setlineno(n)
 
-	inlnodelist(n.Ninit)
+	inlnodelist(n.Ninit, maxCost)
 	for _, n1 := range n.Ninit.Slice() {
 		if n1.Op == OINLCALL {
 			inlconv2stmt(n1)
 		}
 	}
 
-	n.Left = inlnode(n.Left)
+	n.Left = inlnode(n.Left, maxCost)
 	if n.Left != nil && n.Left.Op == OINLCALL {
 		n.Left = inlconv2expr(n.Left)
 	}
 
-	n.Right = inlnode(n.Right)
+	n.Right = inlnode(n.Right, maxCost)
 	if n.Right != nil && n.Right.Op == OINLCALL {
 		if n.Op == OFOR || n.Op == OFORUNTIL {
 			inlconv2stmt(n.Right)
@@ -568,7 +597,7 @@ func inlnode(n *Node) *Node {
 		}
 	}
 
-	inlnodelist(n.List)
+	inlnodelist(n.List, maxCost)
 	switch n.Op {
 	case OBLOCK:
 		for _, n2 := range n.List.Slice() {
@@ -595,7 +624,7 @@ func inlnode(n *Node) *Node {
 		}
 	}
 
-	inlnodelist(n.Rlist)
+	inlnodelist(n.Rlist, maxCost)
 	if n.Op == OAS2FUNC && n.Rlist.First().Op == OINLCALL {
 		n.Rlist.Set(inlconv2list(n.Rlist.First()))
 		n.Op = OAS2
@@ -614,7 +643,7 @@ func inlnode(n *Node) *Node {
 		}
 	}
 
-	inlnodelist(n.Nbody)
+	inlnodelist(n.Nbody, maxCost)
 	for _, n := range n.Nbody.Slice() {
 		if n.Op == OINLCALL {
 			inlconv2stmt(n)
@@ -637,12 +666,12 @@ func inlnode(n *Node) *Node {
 			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
 		}
 		if n.Left.Func != nil && n.Left.Func.Inl != nil && !isIntrinsicCall(n) { // normal case
-			n = mkinlcall(n, n.Left)
+			n = mkinlcall(n, n.Left, maxCost)
 		} else if n.Left.isMethodExpression() && asNode(n.Left.Sym.Def) != nil {
-			n = mkinlcall(n, asNode(n.Left.Sym.Def))
+			n = mkinlcall(n, asNode(n.Left.Sym.Def), maxCost)
 		} else if n.Left.Op == OCLOSURE {
 			if f := inlinableClosure(n.Left); f != nil {
-				n = mkinlcall(n, f)
+				n = mkinlcall(n, f, maxCost)
 			}
 		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
 			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
@@ -668,7 +697,7 @@ func inlnode(n *Node) *Node {
 						}
 						break
 					}
-					n = mkinlcall(n, f)
+					n = mkinlcall(n, f, maxCost)
 				}
 			}
 		}
@@ -687,7 +716,7 @@ func inlnode(n *Node) *Node {
 			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
 		}
 
-		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname))
+		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname), maxCost)
 	}
 
 	lineno = lno
@@ -788,7 +817,7 @@ func (v *reassignVisitor) visitList(l Nodes) *Node {
 
 // The result of mkinlcall MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n *Node, fn *Node) *Node {
+func mkinlcall(n *Node, fn *Node, maxCost int32) *Node {
 	save_safemode := safemode
 
 	// imported functions may refer to unsafe as long as the
@@ -798,7 +827,7 @@ func mkinlcall(n *Node, fn *Node) *Node {
 	if pkg != localpkg && pkg != nil {
 		safemode = false
 	}
-	n = mkinlcall1(n, fn)
+	n = mkinlcall1(n, fn, maxCost)
 	safemode = save_safemode
 	return n
 }
@@ -824,9 +853,14 @@ var inlgen int
 // parameters.
 // The result of mkinlcall1 MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall1(n.Left, fn, isddd)
-func mkinlcall1(n, fn *Node) *Node {
+func mkinlcall1(n, fn *Node, maxCost int32) *Node {
 	if fn.Func.Inl == nil {
 		// No inlinable body.
+		return n
+	}
+	if fn.Func.Inl.Cost > maxCost {
+		// The inlined function body is too big. Typically we use this check to restrict
+		// inlining into very big functions.  See issue 26546 and 17566.
 		return n
 	}
 
@@ -1094,7 +1128,7 @@ func mkinlcall1(n, fn *Node) *Node {
 	// instead we emit the things that the body needs
 	// and each use must redo the inlining.
 	// luckily these are small.
-	inlnodelist(call.Nbody)
+	inlnodelist(call.Nbody, maxCost)
 	for _, n := range call.Nbody.Slice() {
 		if n.Op == OINLCALL {
 			inlconv2stmt(n)

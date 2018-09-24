@@ -14,19 +14,90 @@ import (
 	"strings"
 	"time"
 
+	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
 )
+
+var HelpGoproxy = &base.Command{
+	UsageLine: "goproxy",
+	Short:     "module proxy protocol",
+	Long: `
+The go command by default downloads modules from version control systems
+directly, just as 'go get' always has. The GOPROXY environment variable allows
+further control over the download source. If GOPROXY is unset, is the empty string,
+or is the string "direct", downloads use the default direct connection to version
+control systems. Setting GOPROXY to "off" disallows downloading modules from
+any source. Otherwise, GOPROXY is expected to be the URL of a module proxy,
+in which case the go command will fetch all modules from that proxy.
+No matter the source of the modules, downloaded modules must match existing
+entries in go.sum (see 'go help modules' for discussion of verification).
+
+A Go module proxy is any web server that can respond to GET requests for
+URLs of a specified form. The requests have no query parameters, so even
+a site serving from a fixed file system (including a file:/// URL)
+can be a module proxy.
+
+The GET requests sent to a Go module proxy are:
+
+GET $GOPROXY/<module>/@v/list returns a list of all known versions of the
+given module, one per line.
+
+GET $GOPROXY/<module>/@v/<version>.info returns JSON-formatted metadata
+about that version of the given module.
+
+GET $GOPROXY/<module>/@v/<version>.mod returns the go.mod file
+for that version of the given module.
+
+GET $GOPROXY/<module>/@v/<version>.zip returns the zip archive
+for that version of the given module.
+
+To avoid problems when serving from case-sensitive file systems,
+the <module> and <version> elements are case-encoded, replacing every
+uppercase letter with an exclamation mark followed by the corresponding
+lower-case letter: github.com/Azure encodes as github.com/!azure.
+
+The JSON-formatted metadata about a given module corresponds to
+this Go data structure, which may be expanded in the future:
+
+    type Info struct {
+        Version string    // version string
+        Time    time.Time // commit time
+    }
+
+The zip archive for a specific version of a given module is a
+standard zip file that contains the file tree corresponding
+to the module's source code and related files. The archive uses
+slash-separated paths, and every file path in the archive must
+begin with <module>@<version>/, where the module and version are
+substituted directly, not case-encoded. The root of the module
+file tree corresponds to the <module>@<version>/ prefix in the
+archive.
+
+Even when downloading directly from version control systems,
+the go command synthesizes explicit info, mod, and zip files
+and stores them in its local cache, $GOPATH/pkg/mod/cache/download,
+the same as if it had downloaded them directly from a proxy.
+The cache layout is the same as the proxy URL space, so
+serving $GOPATH/pkg/mod/cache/download at (or copying it to)
+https://example.com/proxy would let other users access those
+cached module versions with GOPROXY=https://example.com/proxy.
+`,
+}
 
 var proxyURL = os.Getenv("GOPROXY")
 
 func lookupProxy(path string) (Repo, error) {
+	if strings.Contains(proxyURL, ",") {
+		return nil, fmt.Errorf("invalid $GOPROXY setting: cannot have comma")
+	}
 	u, err := url.Parse(proxyURL)
 	if err != nil || u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "file" {
 		// Don't echo $GOPROXY back in case it has user:password in it (sigh).
-		return nil, fmt.Errorf("invalid $GOPROXY setting")
+		return nil, fmt.Errorf("invalid $GOPROXY setting: malformed URL or invalid scheme (must be http, https, file)")
 	}
-	return newProxyRepo(u.String(), path), nil
+	return newProxyRepo(u.String(), path)
 }
 
 type proxyRepo struct {
@@ -34,8 +105,12 @@ type proxyRepo struct {
 	path string
 }
 
-func newProxyRepo(baseURL, path string) Repo {
-	return &proxyRepo{strings.TrimSuffix(baseURL, "/") + "/" + pathEscape(path), path}
+func newProxyRepo(baseURL, path string) (Repo, error) {
+	enc, err := module.EncodePath(path)
+	if err != nil {
+		return nil, err
+	}
+	return &proxyRepo{strings.TrimSuffix(baseURL, "/") + "/" + pathEscape(enc), path}, nil
 }
 
 func (p *proxyRepo) ModulePath() string {
@@ -55,6 +130,7 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 			list = append(list, f[0])
 		}
 	}
+	SortVersions(list)
 	return list, nil
 }
 
@@ -90,7 +166,11 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 	var data []byte
-	err := webGetBytes(p.url+"/@v/"+pathEscape(rev)+".info", &data)
+	encRev, err := module.EncodeVersion(rev)
+	if err != nil {
+		return nil, err
+	}
+	err = webGetBytes(p.url+"/@v/"+pathEscape(encRev)+".info", &data)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +198,11 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
 
 func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 	var data []byte
-	err := webGetBytes(p.url+"/@v/"+pathEscape(version)+".mod", &data)
+	encVer, err := module.EncodeVersion(version)
+	if err != nil {
+		return nil, err
+	}
+	err = webGetBytes(p.url+"/@v/"+pathEscape(encVer)+".mod", &data)
 	if err != nil {
 		return nil, err
 	}
@@ -127,14 +211,18 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 
 func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err error) {
 	var body io.ReadCloser
-	err = webGetBody(p.url+"/@v/"+pathEscape(version)+".zip", &body)
+	encVer, err := module.EncodeVersion(version)
+	if err != nil {
+		return "", err
+	}
+	err = webGetBody(p.url+"/@v/"+pathEscape(encVer)+".zip", &body)
 	if err != nil {
 		return "", err
 	}
 	defer body.Close()
 
 	// Spool to local file.
-	f, err := ioutil.TempFile(tmpdir, "vgo-proxy-download-")
+	f, err := ioutil.TempFile(tmpdir, "go-proxy-download-")
 	if err != nil {
 		return "", err
 	}

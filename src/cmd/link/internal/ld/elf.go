@@ -1030,8 +1030,8 @@ func elfdynhash(ctxt *Link) {
 			continue
 		}
 
-		if sy.Dynimpvers != "" {
-			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib, sy.Dynimpvers)
+		if sy.Dynimpvers() != "" {
+			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
 		}
 
 		name := sy.Extname
@@ -2287,8 +2287,8 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 		/* size of object */
 		d.AddUint64(ctxt.Arch, uint64(s.Size))
 
-		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
-			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib)))
+		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib() != "" && !seenlib[s.Dynimplib()] {
+			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib())))
 		}
 	} else {
 		s.Dynid = int32(Nelfsym)

@@ -306,21 +306,28 @@ func TestWriterDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := dw.Write(nil); err != nil {
+		t.Errorf("Write(nil) to directory: got %v, want nil", err)
+	}
 	if _, err := dw.Write([]byte("hello")); err == nil {
-		t.Error("Write to directory: got nil error, want non-nil")
+		t.Error(`Write("hello") to directory: got nil error, want non-nil`)
 	}
 }
 
 func TestWriterDirAttributes(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewWriter(&buf)
-	if _, err := w.Create("dir/"); err != nil {
+	if _, err := w.CreateHeader(&FileHeader{
+		Name:               "dir/",
+		Method:             Deflate,
+		CompressedSize64:   1234,
+		UncompressedSize64: 5678,
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
-
 	b := buf.Bytes()
 
 	var sig [4]byte

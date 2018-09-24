@@ -424,7 +424,7 @@ func TestGCMAsm(t *testing.T) {
 
 	// generate permutations
 	type pair struct{ align, length int }
-	lengths := []int{0, 8192, 8193, 8208}
+	lengths := []int{0, 156, 8192, 8193, 8208}
 	keySizes := []int{16, 24, 32}
 	alignments := []int{0, 1, 2, 3}
 	if testing.Short() {

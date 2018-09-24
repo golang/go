@@ -692,6 +692,11 @@ func (lv *Liveness) markUnsafePoints() {
 			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)
 		}
 		s0, s1 := wbBlock.Succs[0].Block(), wbBlock.Succs[1].Block()
+		if s0 == s1 {
+			// There's no difference between write barrier on and off.
+			// Thus there's no unsafe locations. See issue 26024.
+			continue
+		}
 		if s0.Kind != ssa.BlockPlain || s1.Kind != ssa.BlockPlain {
 			lv.f.Fatalf("expected successors of write barrier block %v to be plain", wbBlock)
 		}

@@ -2172,6 +2172,7 @@ const (
 	OpInitMem
 	OpArg
 	OpAddr
+	OpLocalAddr
 	OpSP
 	OpSB
 	OpLoad
@@ -4435,6 +4436,7 @@ var opcodeTable = [...]opInfo{
 		name:           "ADDLmodify",
 		auxType:        auxSymOff,
 		argLen:         3,
+		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead | SymWrite,
 		asm:            x86.AADDL,
@@ -4449,6 +4451,7 @@ var opcodeTable = [...]opInfo{
 		name:           "SUBLmodify",
 		auxType:        auxSymOff,
 		argLen:         3,
+		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead | SymWrite,
 		asm:            x86.ASUBL,
@@ -4463,6 +4466,7 @@ var opcodeTable = [...]opInfo{
 		name:           "ANDLmodify",
 		auxType:        auxSymOff,
 		argLen:         3,
+		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead | SymWrite,
 		asm:            x86.AANDL,
@@ -4477,6 +4481,7 @@ var opcodeTable = [...]opInfo{
 		name:           "ORLmodify",
 		auxType:        auxSymOff,
 		argLen:         3,
+		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead | SymWrite,
 		asm:            x86.AORL,
@@ -4491,6 +4496,7 @@ var opcodeTable = [...]opInfo{
 		name:           "XORLmodify",
 		auxType:        auxSymOff,
 		argLen:         3,
+		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead | SymWrite,
 		asm:            x86.AXORL,
@@ -27228,6 +27234,13 @@ var opcodeTable = [...]opInfo{
 		name:      "Addr",
 		auxType:   auxSym,
 		argLen:    1,
+		symEffect: SymAddr,
+		generic:   true,
+	},
+	{
+		name:      "LocalAddr",
+		auxType:   auxSym,
+		argLen:    2,
 		symEffect: SymAddr,
 		generic:   true,
 	},

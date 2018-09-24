@@ -3264,10 +3264,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		switch p.As {
 		case ABFI:
-			o1 = c.opbfm(p, ABFM, 64-r, s-1, rf, rt)
+			if r != 0 {
+				r = 64 - r
+			}
+			o1 = c.opbfm(p, ABFM, r, s-1, rf, rt)
 
 		case ABFIW:
-			o1 = c.opbfm(p, ABFMW, 32-r, s-1, rf, rt)
+			if r != 0 {
+				r = 32 - r
+			}
+			o1 = c.opbfm(p, ABFMW, r, s-1, rf, rt)
 
 		case ABFXIL:
 			o1 = c.opbfm(p, ABFM, r, r+s-1, rf, rt)
@@ -3276,10 +3282,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = c.opbfm(p, ABFMW, r, r+s-1, rf, rt)
 
 		case ASBFIZ:
-			o1 = c.opbfm(p, ASBFM, 64-r, s-1, rf, rt)
+			if r != 0 {
+				r = 64 - r
+			}
+			o1 = c.opbfm(p, ASBFM, r, s-1, rf, rt)
 
 		case ASBFIZW:
-			o1 = c.opbfm(p, ASBFMW, 32-r, s-1, rf, rt)
+			if r != 0 {
+				r = 32 - r
+			}
+			o1 = c.opbfm(p, ASBFMW, r, s-1, rf, rt)
 
 		case ASBFX:
 			o1 = c.opbfm(p, ASBFM, r, r+s-1, rf, rt)
@@ -3288,10 +3300,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = c.opbfm(p, ASBFMW, r, r+s-1, rf, rt)
 
 		case AUBFIZ:
-			o1 = c.opbfm(p, AUBFM, 64-r, s-1, rf, rt)
+			if r != 0 {
+				r = 64 - r
+			}
+			o1 = c.opbfm(p, AUBFM, r, s-1, rf, rt)
 
 		case AUBFIZW:
-			o1 = c.opbfm(p, AUBFMW, 32-r, s-1, rf, rt)
+			if r != 0 {
+				r = 32 - r
+			}
+			o1 = c.opbfm(p, AUBFMW, r, s-1, rf, rt)
 
 		case AUBFX:
 			o1 = c.opbfm(p, AUBFM, r, r+s-1, rf, rt)
@@ -6159,6 +6177,16 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 		ret = 1 << 30
 	default:
 		c.ctxt.Diag("invalid instruction %v\n", p)
+	}
+	switch p.As {
+	case ALDP, ALDPW, ALDPSW:
+		if rl < REG_R0 || REG_R30 < rl || rh < REG_R0 || REG_R30 < rh {
+			c.ctxt.Diag("invalid register pair %v\n", p)
+		}
+	case ASTP, ASTPW:
+		if rl < REG_R0 || REG_R31 < rl || rh < REG_R0 || REG_R31 < rh {
+			c.ctxt.Diag("invalid register pair %v\n", p)
+		}
 	}
 	switch o.scond {
 	case C_XPOST:

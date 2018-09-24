@@ -114,7 +114,7 @@ func rewriteValuegeneric(v *Value) bool {
 	case OpEqInter:
 		return rewriteValuegeneric_OpEqInter_0(v)
 	case OpEqPtr:
-		return rewriteValuegeneric_OpEqPtr_0(v) || rewriteValuegeneric_OpEqPtr_10(v)
+		return rewriteValuegeneric_OpEqPtr_0(v) || rewriteValuegeneric_OpEqPtr_10(v) || rewriteValuegeneric_OpEqPtr_20(v)
 	case OpEqSlice:
 		return rewriteValuegeneric_OpEqSlice_0(v)
 	case OpGeq16:
@@ -300,7 +300,7 @@ func rewriteValuegeneric(v *Value) bool {
 	case OpNeqInter:
 		return rewriteValuegeneric_OpNeqInter_0(v)
 	case OpNeqPtr:
-		return rewriteValuegeneric_OpNeqPtr_0(v) || rewriteValuegeneric_OpNeqPtr_10(v)
+		return rewriteValuegeneric_OpNeqPtr_0(v) || rewriteValuegeneric_OpNeqPtr_10(v) || rewriteValuegeneric_OpNeqPtr_20(v)
 	case OpNeqSlice:
 		return rewriteValuegeneric_OpNeqSlice_0(v)
 	case OpNilCheck:
@@ -10542,6 +10542,48 @@ func rewriteValuegeneric_OpEqPtr_0(v *Value) bool {
 		v.AuxInt = b2i(a == b)
 		return true
 	}
+	// match: (EqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _))
+	// cond:
+	// result: (ConstBool [b2i(a == b)])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		a := v_0.Aux
+		_ = v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLocalAddr {
+			break
+		}
+		b := v_1.Aux
+		_ = v_1.Args[1]
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(a == b)
+		return true
+	}
+	// match: (EqPtr (LocalAddr {b} _ _) (LocalAddr {a} _ _))
+	// cond:
+	// result: (ConstBool [b2i(a == b)])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		b := v_0.Aux
+		_ = v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLocalAddr {
+			break
+		}
+		a := v_1.Aux
+		_ = v_1.Args[1]
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(a == b)
+		return true
+	}
 	// match: (EqPtr (OffPtr [o1] p1) p2)
 	// cond: isSamePtr(p1, p2)
 	// result: (ConstBool [b2i(o1 == 0)])
@@ -10647,6 +10689,13 @@ func rewriteValuegeneric_OpEqPtr_0(v *Value) bool {
 		v.AuxInt = b2i(c == d)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (EqPtr (Const32 [d]) (Const32 [c]))
 	// cond:
 	// result: (ConstBool [b2i(c == d)])
@@ -10685,13 +10734,6 @@ func rewriteValuegeneric_OpEqPtr_0(v *Value) bool {
 		v.AuxInt = b2i(c == d)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
-	b := v.Block
-	_ = b
-	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (EqPtr (Const64 [d]) (Const64 [c]))
 	// cond:
 	// result: (ConstBool [b2i(c == d)])
@@ -10709,6 +10751,78 @@ func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
 		c := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c == d)
+		return true
+	}
+	// match: (EqPtr (LocalAddr _ _) (Addr _))
+	// cond:
+	// result: (ConstBool [0])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		_ = v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (EqPtr (Addr _) (LocalAddr _ _))
+	// cond:
+	// result: (ConstBool [0])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		v_1 := v.Args[1]
+		if v_1.Op != OpLocalAddr {
+			break
+		}
+		_ = v_1.Args[1]
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (EqPtr (Addr _) (LocalAddr _ _))
+	// cond:
+	// result: (ConstBool [0])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		v_1 := v.Args[1]
+		if v_1.Op != OpLocalAddr {
+			break
+		}
+		_ = v_1.Args[1]
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (EqPtr (LocalAddr _ _) (Addr _))
+	// cond:
+	// result: (ConstBool [0])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		_ = v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
 		return true
 	}
 	// match: (EqPtr (AddPtr p1 o1) p2)
@@ -10774,6 +10888,13 @@ func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpEqPtr_20(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (EqPtr p (Const32 [0]))
 	// cond:
 	// result: (Not (IsNonNil p))
@@ -12521,6 +12642,19 @@ func rewriteValuegeneric_OpIsNonNil_0(v *Value) bool {
 		if v_0.Op != OpAddr {
 			break
 		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsNonNil (LocalAddr _ _))
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		_ = v_0.Args[1]
 		v.reset(OpConstBool)
 		v.AuxInt = 1
 		return true
@@ -20810,6 +20944,48 @@ func rewriteValuegeneric_OpNeqPtr_0(v *Value) bool {
 		v.AuxInt = b2i(a != b)
 		return true
 	}
+	// match: (NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _))
+	// cond:
+	// result: (ConstBool [b2i(a != b)])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		a := v_0.Aux
+		_ = v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLocalAddr {
+			break
+		}
+		b := v_1.Aux
+		_ = v_1.Args[1]
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(a != b)
+		return true
+	}
+	// match: (NeqPtr (LocalAddr {b} _ _) (LocalAddr {a} _ _))
+	// cond:
+	// result: (ConstBool [b2i(a != b)])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		b := v_0.Aux
+		_ = v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLocalAddr {
+			break
+		}
+		a := v_1.Aux
+		_ = v_1.Args[1]
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(a != b)
+		return true
+	}
 	// match: (NeqPtr (OffPtr [o1] p1) p2)
 	// cond: isSamePtr(p1, p2)
 	// result: (ConstBool [b2i(o1 != 0)])
@@ -20915,6 +21091,9 @@ func rewriteValuegeneric_OpNeqPtr_0(v *Value) bool {
 		v.AuxInt = b2i(c != d)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
 	// match: (NeqPtr (Const32 [d]) (Const32 [c]))
 	// cond:
 	// result: (ConstBool [b2i(c != d)])
@@ -20953,9 +21132,6 @@ func rewriteValuegeneric_OpNeqPtr_0(v *Value) bool {
 		v.AuxInt = b2i(c != d)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
 	// match: (NeqPtr (Const64 [d]) (Const64 [c]))
 	// cond:
 	// result: (ConstBool [b2i(c != d)])
@@ -20973,6 +21149,78 @@ func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
 		c := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c != d)
+		return true
+	}
+	// match: (NeqPtr (LocalAddr _ _) (Addr _))
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		_ = v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (NeqPtr (Addr _) (LocalAddr _ _))
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		v_1 := v.Args[1]
+		if v_1.Op != OpLocalAddr {
+			break
+		}
+		_ = v_1.Args[1]
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (NeqPtr (Addr _) (LocalAddr _ _))
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		v_1 := v.Args[1]
+		if v_1.Op != OpLocalAddr {
+			break
+		}
+		_ = v_1.Args[1]
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (NeqPtr (LocalAddr _ _) (Addr _))
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		_ = v_0.Args[1]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
 		return true
 	}
 	// match: (NeqPtr (AddPtr p1 o1) p2)
@@ -21032,6 +21280,9 @@ func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
 		v.AddArg(p)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpNeqPtr_20(v *Value) bool {
 	// match: (NeqPtr p (Const32 [0]))
 	// cond:
 	// result: (IsNonNil p)

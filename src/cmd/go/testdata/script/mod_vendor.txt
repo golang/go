@@ -1,0 +1,230 @@
+env GO111MODULE=on
+
+go list -m all
+stdout '^x v1.0.0 => ./x'
+stdout '^w'
+
+[!short] go build
+[!short] ! go build -mod=vendor
+
+go list -f {{.Dir}} x
+stdout 'src[\\/]x'
+
+go mod vendor -v
+stderr '^# x v1.0.0 => ./x'
+stderr '^x'
+stderr '^# y v1.0.0 => ./y'
+stderr '^y'
+stderr '^# z v1.0.0 => ./z'
+stderr '^z'
+! stderr '^w'
+
+go list -f {{.Dir}} x
+stdout 'src[\\/]x'
+
+go list -f {{.Dir}} -m x
+stdout 'src[\\/]x'
+
+go list -mod=vendor -f {{.Dir}} x
+stdout 'src[\\/]vendor[\\/]x'
+
+go list -mod=vendor -f {{.Dir}} -m x
+stdout 'src[\\/]vendor[\\/]x'
+
+go list -f {{.Dir}} -m w
+stdout 'src[\\/]w'
+
+! go list -mod=vendor -f {{.Dir}} w
+stderr 'src[\\/]vendor[\\/]w'
+
+! exists vendor/x/testdata
+! exists vendor/a/foo/bar/b/main_test.go
+
+exists vendor/a/foo/AUTHORS.txt
+exists vendor/a/foo/CONTRIBUTORS
+exists vendor/a/foo/LICENSE
+exists vendor/a/foo/PATENTS
+exists vendor/a/foo/COPYING
+exists vendor/a/foo/COPYLEFT
+exists vendor/x/NOTICE!
+exists vendor/mysite/myname/mypkg/LICENSE.txt
+
+! exists vendor/a/foo/licensed-to-kill
+! exists vendor/w
+! exists vendor/w/LICENSE
+! exists vendor/x/x2
+! exists vendor/x/x2/LICENSE
+
+[short] stop
+
+go build
+go build -mod=vendor
+go test -mod=vendor . ./subdir
+go test -mod=vendor ./...
+
+-- go.mod --
+module m
+
+require (
+	a v1.0.0
+	mysite/myname/mypkg v1.0.0
+	w v1.0.0 // indirect
+	x v1.0.0
+	y v1.0.0
+	z v1.0.0
+)
+
+replace (
+	a v1.0.0 => ./a
+	mysite/myname/mypkg v1.0.0 => ./mypkg
+	w v1.0.0 => ./w
+	x v1.0.0 => ./x
+	y v1.0.0 => ./y
+	z v1.0.0 => ./z
+)
+
+-- a/foo/AUTHORS.txt --
+-- a/foo/CONTRIBUTORS --
+-- a/foo/LICENSE --
+-- a/foo/PATENTS --
+-- a/foo/COPYING --
+-- a/foo/COPYLEFT --
+-- a/foo/licensed-to-kill --
+-- w/LICENSE --
+-- x/NOTICE! --
+-- x/x2/LICENSE --
+-- mypkg/LICENSE.txt --
+
+-- a/foo/bar/b/main.go --
+package b
+-- a/foo/bar/b/main_test.go --
+package b
+
+import (
+	"os"
+	"testing"
+)
+
+func TestDir(t *testing.T) {
+	if _, err := os.Stat("../testdata/1"); err != nil {
+		t.Fatalf("testdata: %v", err)
+	}
+}
+-- a/foo/bar/c/main.go --
+package c
+-- a/foo/bar/c/main_test.go --
+package c
+
+import (
+	"os"
+	"testing"
+)
+
+func TestDir(t *testing.T) {
+	if _, err := os.Stat("../../../testdata/1"); err != nil {
+		t.Fatalf("testdata: %v", err)
+	}
+	if _, err := os.Stat("./testdata/1"); err != nil {
+		t.Fatalf("testdata: %v", err)
+	}
+}
+-- a/foo/bar/c/testdata/1 --
+-- a/foo/bar/testdata/1 --
+-- a/go.mod --
+module a
+-- a/main.go --
+package a
+-- a/main_test.go --
+package a
+
+import (
+	"os"
+	"testing"
+)
+
+func TestDir(t *testing.T) {
+	if _, err := os.Stat("./testdata/1"); err != nil {
+		t.Fatalf("testdata: %v", err)
+	}
+}
+-- a/testdata/1 --
+-- appengine.go --
+// +build appengine
+
+package m
+
+import _ "appengine"
+import _ "appengine/datastore"
+-- nonexistent.go --
+// +build alternatereality
+
+package m
+
+import _ "nonexistent.rsc.io"
+-- mypkg/go.mod --
+module me
+-- mypkg/mydir/d.go --
+package mydir
+-- subdir/v1_test.go --
+package m
+
+import _ "mysite/myname/mypkg/mydir"
+-- testdata1.go --
+package m
+
+import _ "a"
+-- testdata2.go --
+package m
+
+import _ "a/foo/bar/b"
+import _ "a/foo/bar/c"
+-- v1.go --
+package m
+
+import _ "x"
+-- v2.go --
+// +build abc
+
+package mMmMmMm
+
+import _ "y"
+-- v3.go --
+// +build !abc
+
+package m
+
+import _ "z"
+-- v4.go --
+// +build notmytag
+
+package m
+
+import _ "x/x1"
+-- w/go.mod --
+module w
+-- w/w.go --
+package w
+-- x/go.mod --
+module x
+-- x/testdata/x.txt --
+placeholder - want directory with no go files
+-- x/x.go --
+package x
+-- x/x1/x1.go --
+// +build notmytag
+
+package x1
+-- x/x2/dummy.txt --
+dummy
+-- x/x_test.go --
+package x
+
+import _ "w"
+-- y/go.mod --
+module y
+-- y/y.go --
+package y
+-- z/go.mod --
+module z
+-- z/z.go --
+package z

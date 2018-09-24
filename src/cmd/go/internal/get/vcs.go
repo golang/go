@@ -5,7 +5,6 @@
 package get
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -428,19 +427,18 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 		fmt.Printf("cd %s\n", dir)
 		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))
 	}
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	err = cmd.Run()
-	out := buf.Bytes()
+	out, err := cmd.Output()
 	if err != nil {
 		if verbose || cfg.BuildV {
 			fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
-			os.Stderr.Write(out)
+			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+				os.Stderr.Write(ee.Stderr)
+			} else {
+				fmt.Fprintf(os.Stderr, err.Error())
+			}
 		}
-		return out, err
 	}
-	return out, nil
+	return out, err
 }
 
 // ping pings to determine scheme to use.
@@ -624,27 +622,29 @@ func checkNestedVCS(vcs *vcsCmd, dir, srcRoot string) error {
 	return nil
 }
 
-// repoRoot represents a version control system, a repo, and a root of
-// where to put it on disk.
-type repoRoot struct {
-	vcs *vcsCmd
+// RepoRoot describes the repository root for a tree of source code.
+type RepoRoot struct {
+	Repo     string // repository URL, including scheme
+	Root     string // import path corresponding to root of repo
+	IsCustom bool   // defined by served <meta> tags (as opposed to hard-coded pattern)
+	VCS      string // vcs type ("mod", "git", ...)
 
-	// repo is the repository URL, including scheme
-	repo string
-
-	// root is the import path corresponding to the root of the
-	// repository
-	root string
-
-	// isCustom is true for custom import paths (those defined by HTML meta tags)
-	isCustom bool
+	vcs *vcsCmd // internal: vcs command access
 }
 
 var httpPrefixRE = regexp.MustCompile(`^https?:`)
 
-// repoRootForImportPath analyzes importPath to determine the
+// ModuleMode specifies whether to prefer modules when looking up code sources.
+type ModuleMode int
+
+const (
+	IgnoreMod ModuleMode = iota
+	PreferMod
+)
+
+// RepoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
-func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoRoot, error) {
+func RepoRootForImportPath(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {
 	rr, err := repoRootFromVCSPaths(importPath, "", security, vcsPaths)
 	if err == errUnknownSite {
 		// If there are wildcards, look up the thing before the wildcard,
@@ -654,7 +654,7 @@ func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoR
 		if i := strings.Index(lookup, "/.../"); i >= 0 {
 			lookup = lookup[:i]
 		}
-		rr, err = repoRootForImportDynamic(lookup, security)
+		rr, err = repoRootForImportDynamic(lookup, mod, security)
 		if err != nil {
 			err = fmt.Errorf("unrecognized import path %q (%v)", importPath, err)
 		}
@@ -667,7 +667,7 @@ func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoR
 		}
 	}
 
-	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.root, "...") {
+	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.Root, "...") {
 		// Do not allow wildcards in the repo root.
 		rr = nil
 		err = fmt.Errorf("cannot expand ... in %q", importPath)
@@ -680,7 +680,7 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 // repoRootFromVCSPaths attempts to map importPath to a repoRoot
 // using the mappings defined in vcsPaths.
 // If scheme is non-empty, that scheme is forced.
-func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*repoRoot, error) {
+func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*RepoRoot, error) {
 	// A common error is to use https://packagepath because that's what
 	// hg and git require. Diagnose this helpfully.
 	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
@@ -733,28 +733,32 @@ func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, 
 					if security == web.Secure && !vcs.isSecureScheme(scheme) {
 						continue
 					}
-					if vcs.ping(scheme, match["repo"]) == nil {
+					if vcs.pingCmd != "" && vcs.ping(scheme, match["repo"]) == nil {
 						match["repo"] = scheme + "://" + match["repo"]
-						break
+						goto Found
 					}
 				}
+				// No scheme found. Fall back to the first one.
+				match["repo"] = vcs.scheme[0] + "://" + match["repo"]
+			Found:
 			}
 		}
-		rr := &repoRoot{
+		rr := &RepoRoot{
+			Repo: match["repo"],
+			Root: match["root"],
+			VCS:  vcs.cmd,
 			vcs:  vcs,
-			repo: match["repo"],
-			root: match["root"],
 		}
 		return rr, nil
 	}
 	return nil, errUnknownSite
 }
 
-// repoRootForImportDynamic finds a *repoRoot for a custom domain that's not
+// repoRootForImportDynamic finds a *RepoRoot for a custom domain that's not
 // statically known by repoRootForImportPathStatic.
 //
 // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
-func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*repoRoot, error) {
+func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
 		slash = len(importPath)
@@ -772,7 +776,7 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 		return nil, fmt.Errorf(msg, err)
 	}
 	defer body.Close()
-	imports, err := parseMetaGoImports(body)
+	imports, err := parseMetaGoImports(body, mod)
 	if err != nil {
 		return nil, fmt.Errorf("parsing %s: %v", importPath, err)
 	}
@@ -799,7 +803,7 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 		}
 		urlStr0 := urlStr
 		var imports []metaImport
-		urlStr, imports, err = metaImportsForPrefix(mmi.Prefix, security)
+		urlStr, imports, err = metaImportsForPrefix(mmi.Prefix, mod, security)
 		if err != nil {
 			return nil, err
 		}
@@ -812,14 +816,17 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 	if err := validateRepoRoot(mmi.RepoRoot); err != nil {
 		return nil, fmt.Errorf("%s: invalid repo root %q: %v", urlStr, mmi.RepoRoot, err)
 	}
-	rr := &repoRoot{
-		vcs:      vcsByCmd(mmi.VCS),
-		repo:     mmi.RepoRoot,
-		root:     mmi.Prefix,
-		isCustom: true,
-	}
-	if rr.vcs == nil {
+	vcs := vcsByCmd(mmi.VCS)
+	if vcs == nil && mmi.VCS != "mod" {
 		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, mmi.VCS)
+	}
+
+	rr := &RepoRoot{
+		Repo:     mmi.RepoRoot,
+		Root:     mmi.Prefix,
+		IsCustom: true,
+		VCS:      mmi.VCS,
+		vcs:      vcs,
 	}
 	return rr, nil
 }
@@ -851,7 +858,7 @@ var (
 // It is an error if no imports are found.
 // urlStr will still be valid if err != nil.
 // The returned urlStr will be of the form "https://golang.org/x/tools?go-get=1"
-func metaImportsForPrefix(importPrefix string, security web.SecurityMode) (urlStr string, imports []metaImport, err error) {
+func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.SecurityMode) (urlStr string, imports []metaImport, err error) {
 	setCache := func(res fetchResult) (fetchResult, error) {
 		fetchCacheMu.Lock()
 		defer fetchCacheMu.Unlock()
@@ -871,7 +878,7 @@ func metaImportsForPrefix(importPrefix string, security web.SecurityMode) (urlSt
 		if err != nil {
 			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("fetch %s: %v", urlStr, err)})
 		}
-		imports, err := parseMetaGoImports(body)
+		imports, err := parseMetaGoImports(body, mod)
 		if err != nil {
 			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("parsing %s: %v", urlStr, err)})
 		}
@@ -939,7 +946,13 @@ func matchGoImport(imports []metaImport, importPath string) (metaImport, error) 
 			continue
 		}
 
-		if match != -1 {
+		if match >= 0 {
+			if imports[match].VCS == "mod" && im.VCS != "mod" {
+				// All the mod entries precede all the non-mod entries.
+				// We have a mod entry and don't care about the rest,
+				// matching or not.
+				break
+			}
 			return metaImport{}, fmt.Errorf("multiple meta tags match import path %q", importPath)
 		}
 		match = i

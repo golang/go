@@ -34,12 +34,11 @@ var (
 
 var canCancelIO bool // determines if CancelIoEx API is present
 
-// This package uses SetFileCompletionNotificationModes Windows API
-// to skip calling GetQueuedCompletionStatus if an IO operation completes
-// synchronously. Unfortuently SetFileCompletionNotificationModes is not
-// available on Windows XP. Also there is a known bug where
-// SetFileCompletionNotificationModes crashes on some systems
-// (see https://support.microsoft.com/kb/2568167 for details).
+// This package uses the SetFileCompletionNotificationModes Windows
+// API to skip calling GetQueuedCompletionStatus if an IO operation
+// completes synchronously. There is a known bug where
+// SetFileCompletionNotificationModes crashes on some systems (see
+// https://support.microsoft.com/kb/2568167 for details).
 
 var useSetFileCompletionNotificationModes bool // determines is SetFileCompletionNotificationModes is present and safe to use
 

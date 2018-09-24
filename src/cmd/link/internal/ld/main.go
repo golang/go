@@ -34,6 +34,7 @@ import (
 	"bufio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"flag"
 	"log"
 	"os"
@@ -142,6 +143,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 			Errorf(nil, "%v", err)
 			usage()
 		}
+	}
+
+	if objabi.Fieldtrack_enabled != 0 {
+		ctxt.Reachparent = make(map[*sym.Symbol]*sym.Symbol)
 	}
 
 	startProfile()

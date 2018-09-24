@@ -306,7 +306,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 		t := val.Type.Elem()
 		tmp = b.Func.fe.Auto(val.Pos, t)
 		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
-		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), tmp, sp)
+		tmpaddr := b.NewValue2A(pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
 		siz := t.Size()
 		mem = b.NewValue3I(pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
 		mem.Aux = t
@@ -359,10 +359,8 @@ func IsStackAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP:
+	case OpSP, OpLocalAddr:
 		return true
-	case OpAddr:
-		return v.Args[0].Op == OpSP
 	}
 	return false
 }
@@ -374,7 +372,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP:
+	case OpSP, OpLocalAddr:
 		// Stack addresses are always safe.
 		return true
 	case OpITab, OpStringPtr, OpGetClosurePtr:
@@ -382,19 +380,14 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		// read-only once initialized.
 		return true
 	case OpAddr:
-		switch v.Args[0].Op {
-		case OpSP:
+		sym := v.Aux.(*obj.LSym)
+		// TODO(mdempsky): Find a cleaner way to
+		// detect this. It would be nice if we could
+		// test sym.Type==objabi.SRODATA, but we don't
+		// initialize sym.Type until after function
+		// compilation.
+		if strings.HasPrefix(sym.Name, `"".statictmp_`) {
 			return true
-		case OpSB:
-			sym := v.Aux.(*obj.LSym)
-			// TODO(mdempsky): Find a cleaner way to
-			// detect this. It would be nice if we could
-			// test sym.Type==objabi.SRODATA, but we don't
-			// initialize sym.Type until after function
-			// compilation.
-			if strings.HasPrefix(sym.Name, `"".statictmp_`) {
-				return true
-			}
 		}
 	}
 	return false
