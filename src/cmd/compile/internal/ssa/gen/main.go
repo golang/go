@@ -63,9 +63,14 @@ type blockData struct {
 }
 
 type regInfo struct {
-	inputs   []regMask
+	// inputs[i] encodes the set of registers allowed for the i'th input.
+	// Inputs that don't use registers (flags, memory, etc.) should be 0.
+	inputs []regMask
+	// clobbers encodes the set of registers that are overwritten by
+	// the instruction (other than the output registers).
 	clobbers regMask
-	outputs  []regMask
+	// outpus[i] encodes the set of registers allowed for the i'th output.
+	outputs []regMask
 }
 
 type regMask uint64

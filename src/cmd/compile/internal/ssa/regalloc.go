@@ -150,6 +150,8 @@ type register uint8
 
 const noRegister register = 255
 
+// A regMask encodes a set of machine registers.
+// TODO: regMask -> regSet?
 type regMask uint64
 
 func (m regMask) String() string {
