@@ -26,6 +26,7 @@ TEXT runtime·open_trampoline(SB),NOSPLIT,$0
 	MOVL	8(DI), SI		// arg 2 flags
 	MOVL	12(DI), DX		// arg 3 mode
 	MOVQ	0(DI), DI		// arg 1 pathname
+	XORL	AX, AX			// vararg: say "no float args"
 	CALL	libc_open(SB)
 	POPQ	BP
 	RET
@@ -383,6 +384,7 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	MOVL	4(DI), SI		// arg 2 cmd
 	MOVL	8(DI), DX		// arg 3 arg
 	MOVL	0(DI), DI		// arg 1 fd
+	XORL	AX, AX			// vararg: say "no float args"
 	CALL	libc_fcntl(SB)
 	POPQ	BP
 	RET
@@ -538,5 +540,199 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	MOVQ	SP, BP
 	MOVQ	0(DI), DI	// arg 1 cond
 	CALL	libc_pthread_cond_signal(SB)
+	POPQ	BP
+	RET
+
+// syscall calls a function in libc on behalf of the syscall package.
+// syscall takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$16, SP
+	MOVQ	(0*8)(DI), CX // fn
+	MOVQ	(2*8)(DI), SI // a2
+	MOVQ	(3*8)(DI), DX // a3
+	MOVQ	DI, (SP)
+	MOVQ	(1*8)(DI), DI // a1
+	XORL	AX, AX	      // vararg: say "no float args"
+
+	CALL	CX
+
+	MOVQ	(SP), DI
+	MOVQ	AX, (4*8)(DI) // r1
+	MOVQ	DX, (5*8)(DI) // r2
+
+	// Standard libc functions return -1 on error
+	// and set errno.
+	CMPL	AX, $-1	      // Note: high 32 bits are junk
+	JNE	ok
+
+	// Get error code from libc.
+	CALL	libc_error(SB)
+	MOVLQSX	(AX), AX
+	MOVQ	(SP), DI
+	MOVQ	AX, (6*8)(DI) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
+
+// syscallX calls a function in libc on behalf of the syscall package.
+// syscallX takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscallX must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscallX(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$16, SP
+	MOVQ	(0*8)(DI), CX // fn
+	MOVQ	(2*8)(DI), SI // a2
+	MOVQ	(3*8)(DI), DX // a3
+	MOVQ	DI, (SP)
+	MOVQ	(1*8)(DI), DI // a1
+	XORL	AX, AX	      // vararg: say "no float args"
+
+	CALL	CX
+
+	MOVQ	(SP), DI
+	MOVQ	AX, (4*8)(DI) // r1
+	MOVQ	DX, (5*8)(DI) // r2
+
+	// Standard libc functions return -1 on error
+	// and set errno.
+	CMPQ	AX, $-1
+	JNE	ok
+
+	// Get error code from libc.
+	CALL	libc_error(SB)
+	MOVLQSX	(AX), AX
+	MOVQ	(SP), DI
+	MOVQ	AX, (6*8)(DI) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
+
+// syscall6 calls a function in libc on behalf of the syscall package.
+// syscall6 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall6(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$16, SP
+	MOVQ	(0*8)(DI), R11// fn
+	MOVQ	(2*8)(DI), SI // a2
+	MOVQ	(3*8)(DI), DX // a3
+	MOVQ	(4*8)(DI), CX // a4
+	MOVQ	(5*8)(DI), R8 // a5
+	MOVQ	(6*8)(DI), R9 // a6
+	MOVQ	DI, (SP)
+	MOVQ	(1*8)(DI), DI // a1
+	XORL	AX, AX	      // vararg: say "no float args"
+
+	CALL	R11
+
+	MOVQ	(SP), DI
+	MOVQ	AX, (7*8)(DI) // r1
+	MOVQ	DX, (8*8)(DI) // r2
+
+	CMPL	AX, $-1
+	JNE	ok
+
+	CALL	libc_error(SB)
+	MOVLQSX	(AX), AX
+	MOVQ	(SP), DI
+	MOVQ	AX, (9*8)(DI) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
+
+// syscall6X calls a function in libc on behalf of the syscall package.
+// syscall6X takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6X must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall6X(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$16, SP
+	MOVQ	(0*8)(DI), R11// fn
+	MOVQ	(2*8)(DI), SI // a2
+	MOVQ	(3*8)(DI), DX // a3
+	MOVQ	(4*8)(DI), CX // a4
+	MOVQ	(5*8)(DI), R8 // a5
+	MOVQ	(6*8)(DI), R9 // a6
+	MOVQ	DI, (SP)
+	MOVQ	(1*8)(DI), DI // a1
+	XORL	AX, AX	      // vararg: say "no float args"
+
+	CALL	R11
+
+	MOVQ	(SP), DI
+	MOVQ	AX, (7*8)(DI) // r1
+	MOVQ	DX, (8*8)(DI) // r2
+
+	CMPQ	AX, $-1
+	JNE	ok
+
+	CALL	libc_error(SB)
+	MOVLQSX	(AX), AX
+	MOVQ	(SP), DI
+	MOVQ	AX, (9*8)(DI) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVQ	BP, SP
 	POPQ	BP
 	RET
