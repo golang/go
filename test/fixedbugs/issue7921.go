@@ -1,3 +1,4 @@
+// +build !gcflags_noopt
 // errorcheck -0 -m
 
 // Copyright 2018 The Go Authors. All rights reserved.
