@@ -320,6 +320,19 @@ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	memclrNoHeapPointers(ptr, typ.size)
 }
 
+//go:linkname reflect_typedmemclr reflect.typedmemclr
+func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
+	typedmemclr(typ, ptr)
+}
+
+//go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
+func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
+	if typ.kind&kindNoPointers == 0 {
+		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+	}
+	memclrNoHeapPointers(ptr, size)
+}
+
 // memclrHasPointers clears n bytes of typed memory starting at ptr.
 // The caller must ensure that the type of the object at ptr has
 // pointers, usually by checking typ.kind&kindNoPointers. However, ptr
