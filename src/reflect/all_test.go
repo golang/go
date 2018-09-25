@@ -5844,7 +5844,7 @@ func clobber() {
 type funcLayoutTest struct {
 	rcvr, t                  Type
 	size, argsize, retOffset uintptr
-	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar (or uninitialized)
+	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar
 	gc                       []byte
 }
 
@@ -5866,7 +5866,7 @@ func init() {
 			6 * PtrSize,
 			4 * PtrSize,
 			4 * PtrSize,
-			[]byte{1, 0, 1},
+			[]byte{1, 0, 1, 0, 1},
 			[]byte{1, 0, 1, 0, 1},
 		})
 

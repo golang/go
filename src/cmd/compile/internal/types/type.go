@@ -817,7 +817,7 @@ func (t *Type) ChanArgs() *Type {
 	return t.Extra.(ChanArgs).T
 }
 
-// FuncArgs returns the channel type for TFUNCARGS type t.
+// FuncArgs returns the func type for TFUNCARGS type t.
 func (t *Type) FuncArgs() *Type {
 	t.wantEtype(TFUNCARGS)
 	return t.Extra.(FuncArgs).T
