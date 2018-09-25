@@ -789,7 +789,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		trigger = uint64(float64(memstats.heap_marked) * (1 + triggerRatio))
 		// Don't trigger below the minimum heap size.
 		minTrigger := heapminimum
-		if !gosweepdone() {
+		if !isSweepDone() {
 			// Concurrent sweep happens in the heap growth
 			// from heap_live to gc_trigger, so ensure
 			// that concurrent sweep has some heap growth
@@ -834,7 +834,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 	}
 
 	// Update sweep pacing.
-	if gosweepdone() {
+	if isSweepDone() {
 		mheap_.sweepPagesPerByte = 0
 	} else {
 		// Concurrent sweep needs to sweep all of the in-use
