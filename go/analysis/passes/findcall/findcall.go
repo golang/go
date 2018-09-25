@@ -1,5 +1,5 @@
 // The findcall package is a trivial example and test of an analyzer of
-// Go source code. It reports a finding for every call to a function or
+// Go source code. It reports a diagnostic for every call to a function or
 // method of the name specified by its --name flag.
 package findcall
 
@@ -23,7 +23,7 @@ func init() {
 }
 
 func findcall(pass *analysis.Pass) (interface{}, error) {
-	for _, f := range pass.Syntax {
+	for _, f := range pass.Files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			if call, ok := n.(*ast.CallExpr); ok {
 				var id *ast.Ident
@@ -33,8 +33,8 @@ func findcall(pass *analysis.Pass) (interface{}, error) {
 				case *ast.SelectorExpr:
 					id = fun.Sel
 				}
-				if id != nil && !pass.Info.Types[id].IsType() && id.Name == name {
-					pass.Findingf(call.Lparen, "call of %s(...)", id.Name)
+				if id != nil && !pass.TypesInfo.Types[id].IsType() && id.Name == name {
+					pass.Reportf(call.Lparen, "call of %s(...)", id.Name)
 				}
 			}
 			return true

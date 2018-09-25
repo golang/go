@@ -15,7 +15,7 @@
 //
 //   {"greeting": "hello", "audience": "world"}.
 //
-// In addition, the analysis reports a finding at each import
+// In addition, the analysis reports a diagnostic at each import
 // showing which key/value pairs it contributes.
 package pkgfact
 
@@ -54,14 +54,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	// package and accumulate its information into the result.
 	// (Warning: accumulation leads to quadratic growth of work.)
 	doImport := func(spec *ast.ImportSpec) {
-		pkg := pass.Info.Defs[spec.Name].(*types.PkgName).Imported()
+		pkg := pass.TypesInfo.Defs[spec.Name].(*types.PkgName).Imported()
 		var fact pairsFact
 		if pass.ImportPackageFact(pkg, &fact) {
 			for _, pair := range fact {
 				eq := strings.IndexByte(pair, '=')
 				result[pair[:eq]] = pair[1+eq:]
 			}
-			pass.Findingf(spec.Pos(), "%s", strings.Join(fact, " "))
+			pass.Reportf(spec.Pos(), "%s", strings.Join(fact, " "))
 		}
 	}
 
@@ -72,14 +72,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				name := spec.Names[i].Name
 				if strings.HasPrefix(name, "_") {
 					key := name[1:]
-					value := pass.Info.Types[spec.Values[i]].Value.String()
+					value := pass.TypesInfo.Types[spec.Values[i]].Value.String()
 					result[key] = value
 				}
 			}
 		}
 	}
 
-	for _, f := range pass.Syntax {
+	for _, f := range pass.Files {
 		for _, decl := range f.Decls {
 			if decl, ok := decl.(*ast.GenDecl); ok {
 				for _, spec := range decl.Specs {

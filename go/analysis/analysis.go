@@ -92,10 +92,10 @@ type Pass struct {
 	Analyzer *Analyzer // the identity of the current analyzer
 
 	// syntax and type information
-	Fset   *token.FileSet // file position information
-	Syntax []*ast.File    // the abstract syntax tree of each file
-	Pkg    *types.Package // type information about the package
-	Info   *types.Info    // type information about the syntax trees
+	Fset      *token.FileSet // file position information
+	Files     []*ast.File    // the abstract syntax tree of each file
+	Pkg       *types.Package // type information about the package
+	TypesInfo *types.Info    // type information about the syntax trees
 
 	// ResultOf provides the inputs to this analysis pass, which are
 	// the corresponding results of its prerequisite analyzers.
@@ -119,10 +119,10 @@ type Pass struct {
 
 	// -- outputs --
 
-	// Findings is a list of findings about specific locations
-	// in the analyzed source code, such as potential mistakes.
-	// It is populated by the Run function.
-	Findings []*Finding
+	// Report reports a Diagnostic, a finding about a specific location
+	// in the analyzed source code such as a potential mistake.
+	// It may be called by the Run function.
+	Report func(Diagnostic)
 
 	// ExportObjectFact associates a fact of type *T with the obj,
 	// replacing any previous fact of that type.
@@ -140,14 +140,11 @@ type Pass struct {
 	// For example, suggested or applied refactorings.
 }
 
-// Findingf is a helper function that creates a new Finding using the
-// specified position and formatted error message, appends it to
-// pass.Findings, and returns it.
-func (pass *Pass) Findingf(pos token.Pos, format string, args ...interface{}) *Finding {
+// Reportf is a helper function that reports a Diagnostic using the
+// specified position and formatted error message.
+func (pass *Pass) Reportf(pos token.Pos, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	f := &Finding{Pos: pos, Message: msg}
-	pass.Findings = append(pass.Findings, f)
-	return f
+	pass.Report(Diagnostic{Pos: pos, Message: msg})
 }
 
 func (pass *Pass) String() string {
@@ -192,12 +189,12 @@ type Fact interface {
 	AFact() // dummy method to avoid type errors
 }
 
-// A Finding is a message associated with a source location.
+// A Diagnostic is a message associated with a source location.
 //
-// An Analyzer may return a variety of findings; the optional Category,
+// An Analyzer may return a variety of diagnostics; the optional Category,
 // which should be a constant, may be used to classify them.
 // It is primarily intended to make it easy to look up documentation.
-type Finding struct {
+type Diagnostic struct {
 	Pos      token.Pos
 	Category string // optional
 	Message  string
