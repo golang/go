@@ -581,6 +581,16 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 	}
 }
 
+func TestShouldRedirectConcurrency(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	mux := NewServeMux()
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+	mux.HandleFunc("/", func(w ResponseWriter, r *Request) {})
+}
+
 func BenchmarkServeMux(b *testing.B) {
 
 	type test struct {
