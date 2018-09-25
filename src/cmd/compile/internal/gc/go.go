@@ -311,6 +311,7 @@ var (
 	racewriterange,
 	x86HasPOPCNT,
 	x86HasSSE41,
+	x86HasFMA,
 	arm64HasATOMICS,
 	typedmemclr,
 	typedmemmove,

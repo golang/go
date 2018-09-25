@@ -113,6 +113,7 @@
 (Floor x)	-> (ROUNDSD [1] x)
 (Ceil x)  	-> (ROUNDSD [2] x)
 (Trunc x) 	-> (ROUNDSD [3] x)
+(Fma x y z) -> (VFMADD231SD z x y)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
