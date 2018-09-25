@@ -25,9 +25,9 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	var ft *rtype
 	var s *bitVector
 	if rcvr != nil {
-		ft, argSize, retOffset, s, _ = funcLayout(t.(*rtype), rcvr.(*rtype))
+		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), rcvr.(*rtype))
 	} else {
-		ft, argSize, retOffset, s, _ = funcLayout(t.(*rtype), nil)
+		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
 	}
 	frametype = ft
 	for i := uint32(0); i < s.n; i++ {
