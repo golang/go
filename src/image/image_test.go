@@ -24,25 +24,27 @@ func cmp(cm color.Model, c0, c1 color.Color) bool {
 
 var testImages = []struct {
 	name  string
-	image image
+	image func() image
 }{
-	{"rgba", NewRGBA(Rect(0, 0, 10, 10))},
-	{"rgba64", NewRGBA64(Rect(0, 0, 10, 10))},
-	{"nrgba", NewNRGBA(Rect(0, 0, 10, 10))},
-	{"nrgba64", NewNRGBA64(Rect(0, 0, 10, 10))},
-	{"alpha", NewAlpha(Rect(0, 0, 10, 10))},
-	{"alpha16", NewAlpha16(Rect(0, 0, 10, 10))},
-	{"gray", NewGray(Rect(0, 0, 10, 10))},
-	{"gray16", NewGray16(Rect(0, 0, 10, 10))},
-	{"paletted", NewPaletted(Rect(0, 0, 10, 10), color.Palette{
-		Transparent,
-		Opaque,
-	})},
+	{"rgba", func() image { return NewRGBA(Rect(0, 0, 10, 10)) }},
+	{"rgba64", func() image { return NewRGBA64(Rect(0, 0, 10, 10)) }},
+	{"nrgba", func() image { return NewNRGBA(Rect(0, 0, 10, 10)) }},
+	{"nrgba64", func() image { return NewNRGBA64(Rect(0, 0, 10, 10)) }},
+	{"alpha", func() image { return NewAlpha(Rect(0, 0, 10, 10)) }},
+	{"alpha16", func() image { return NewAlpha16(Rect(0, 0, 10, 10)) }},
+	{"gray", func() image { return NewGray(Rect(0, 0, 10, 10)) }},
+	{"gray16", func() image { return NewGray16(Rect(0, 0, 10, 10)) }},
+	{"paletted", func() image {
+		return NewPaletted(Rect(0, 0, 10, 10), color.Palette{
+			Transparent,
+			Opaque,
+		})
+	}},
 }
 
 func TestImage(t *testing.T) {
 	for _, tc := range testImages {
-		m := tc.image
+		m := tc.image()
 		if !Rect(0, 0, 10, 10).Eq(m.Bounds()) {
 			t.Errorf("%T: want bounds %v, got %v", m, Rect(0, 0, 10, 10), m.Bounds())
 			continue
@@ -120,9 +122,11 @@ func Test16BitsPerColorChannel(t *testing.T) {
 func BenchmarkAt(b *testing.B) {
 	for _, tc := range testImages {
 		b.Run(tc.name, func(b *testing.B) {
+			m := tc.image()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				tc.image.At(4, 5)
+				m.At(4, 5)
 			}
 		})
 	}
@@ -132,9 +136,11 @@ func BenchmarkSet(b *testing.B) {
 	c := color.Gray{0xff}
 	for _, tc := range testImages {
 		b.Run(tc.name, func(b *testing.B) {
+			m := tc.image()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				tc.image.Set(4, 5, c)
+				m.Set(4, 5, c)
 			}
 		})
 	}
