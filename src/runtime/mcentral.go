@@ -117,8 +117,7 @@ havespan:
 	if trace.enabled && !traceDone {
 		traceGCSweepDone()
 	}
-	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.allocCount)
+	n := int(s.nelems) - int(s.allocCount)
 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
 		throw("span has no free objects")
 	}
@@ -168,8 +167,7 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 		atomic.Store(&s.sweepgen, sg)
 	}
 
-	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.allocCount)
+	n := int(s.nelems) - int(s.allocCount)
 	if n > 0 {
 		// cacheSpan updated alloc assuming all objects on s
 		// were going to be allocated. Adjust for any that
