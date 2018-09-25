@@ -17,7 +17,7 @@
 // package builds but will be included when the ``go test'' command is run.
 // For more detail, run ``go help test'' and ``go help testflag''.
 //
-// A sample test function looks like this:
+// A simple test function looks like this:
 //     func TestHello(t *testing.T) {
 //         got := fmt.Sprintf("hello %s", "world")
 //         want := "hello world"
@@ -36,7 +36,7 @@
 // For a description of the testing flags, see
 // https://golang.org/cmd/go/#hdr-Testing_flags
 //
-// A sample benchmark function looks like this:
+// A simple benchmark function looks like this:
 //     func BenchmarkHello(b *testing.B) {
 //         for i := 0; i < b.N; i++ {
 //             fmt.Sprintf("hello")
