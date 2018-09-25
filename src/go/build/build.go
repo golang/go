@@ -12,6 +12,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"internal/goroot"
 	"io"
 	"io/ioutil"
 	"log"
@@ -656,7 +657,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			}
 			tried.goroot = dir
 		}
-		if ctxt.Compiler == "gccgo" && isStandardPackage(path) {
+		if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
 			p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
 			p.Goroot = true
 			p.Root = ctxt.GOROOT
