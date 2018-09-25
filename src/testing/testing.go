@@ -134,8 +134,8 @@
 //
 // Skipping
 //
-// Tests and benchmarks may be skipped if not applicable with a call to
-// the Skip method of *T and *B:
+// Tests or benchmarks may be skipped at run time with a call to
+// the Skip method of *T or *B:
 //     func TestTimeConsuming(t *testing.T) {
 //         if testing.Short() {
 //             t.Skip("skipping test in short mode.")
