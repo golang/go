@@ -14,6 +14,7 @@ import (
 	"cmd/go/internal/search"
 	"encoding/hex"
 	"fmt"
+	"internal/goroot"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,13 +31,11 @@ func isStandardImportPath(path string) bool {
 
 func findStandardImportPath(path string) string {
 	if search.IsStandardImportPath(path) {
-		dir := filepath.Join(cfg.GOROOT, "src", path)
-		if _, err := os.Stat(dir); err == nil {
-			return dir
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+			return filepath.Join(cfg.GOROOT, "src", path)
 		}
-		dir = filepath.Join(cfg.GOROOT, "src/vendor", path)
-		if _, err := os.Stat(dir); err == nil {
-			return dir
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, "vendor/"+path) {
+			return filepath.Join(cfg.GOROOT, "src/vendor", path)
 		}
 	}
 	return ""
