@@ -3066,6 +3066,8 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		// space no matter how big they actually are.
 		if ifaceIndir(rcvr) || rcvr.pointers() {
 			ptrmap.append(1)
+		} else {
+			ptrmap.append(0)
 		}
 		offset += ptrSize
 	}
