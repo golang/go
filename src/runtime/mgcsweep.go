@@ -60,7 +60,7 @@ func bgsweep(c chan int) {
 			Gosched()
 		}
 		lock(&sweep.lock)
-		if !gosweepdone() {
+		if !isSweepDone() {
 			// This can happen if a GC runs between
 			// gosweepone returning ^0 above
 			// and the lock being acquired.
@@ -134,8 +134,13 @@ func sweepone() uintptr {
 	return npages
 }
 
-//go:nowritebarrier
-func gosweepdone() bool {
+// isSweepDone reports whether all spans are swept or currently being swept.
+//
+// Note that this condition may transition from false to true at any
+// time as the sweeper runs. It may transition from true to false if a
+// GC runs; to prevent that the caller must be non-preemptible or must
+// somehow block GC progress.
+func isSweepDone() bool {
 	return mheap_.sweepdone != 0
 }
 
