@@ -203,6 +203,7 @@ func (r *objReader) readSym() {
 
 overwrite:
 	s.File = pkg
+	s.Lib = r.lib
 	if dupok {
 		s.Attr |= sym.AttrDuplicateOK
 	}
@@ -320,7 +321,6 @@ overwrite:
 
 		s.FuncInfo.IsStmtSym = r.syms.Lookup(dwarf.IsStmtPrefix+s.Name, int(s.Version))
 
-		s.Lib = r.lib
 		if !dupok {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)

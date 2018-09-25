@@ -5,7 +5,7 @@
 // TODO/NICETOHAVE:
 //   - eliminate DW_CLS_ if not used
 //   - package info in compilation units
-//   - assign global variables and types to their packages
+//   - assign types to their packages
 //   - gdb uses c syntax, meaning clumsy quoting is needed for go identifiers. eg
 //     ptype struct '[]uint8' and qualifiers need to be quoted away
 //   - file:line info for variables
@@ -106,14 +106,7 @@ func writeabbrev(ctxt *Link) *sym.Symbol {
 	return s
 }
 
-/*
- * Root DIEs for compilation units, types and global variables.
- */
-var dwroot dwarf.DWDie
-
 var dwtypes dwarf.DWDie
-
-var dwglobals dwarf.DWDie
 
 func newattr(die *dwarf.DWDie, attr uint16, cls int, value int64, data interface{}) *dwarf.DWAttr {
 	a := new(dwarf.DWAttr)
@@ -835,7 +828,11 @@ func synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
 }
 
 func dwarfDefineGlobal(ctxt *Link, s *sym.Symbol, str string, v int64, gotype *sym.Symbol) {
-	dv := newdie(ctxt, &dwglobals, dwarf.DW_ABRV_VARIABLE, str, int(s.Version))
+	lib := s.Lib
+	if lib == nil {
+		lib = ctxt.LibraryByPkg["runtime"]
+	}
+	dv := newdie(ctxt, ctxt.compUnitByPackage[lib].dwinfo, dwarf.DW_ABRV_VARIABLE, str, int(s.Version))
 	newabslocexprattr(dv, v, s)
 	if s.Version == 0 {
 		newattr(dv, dwarf.DW_AT_external, dwarf.DW_CLS_FLAG, 1, 0)
@@ -910,10 +907,11 @@ func calcCompUnitRanges(ctxt *Link) {
 	}
 }
 
-func movetomodule(parent *dwarf.DWDie) {
-	die := dwroot.Child.Child
+func movetomodule(ctxt *Link, parent *dwarf.DWDie) {
+	runtimelib := ctxt.LibraryByPkg["runtime"]
+	die := ctxt.compUnitByPackage[runtimelib].dwinfo.Child
 	if die == nil {
-		dwroot.Child.Child = parent.Child
+		ctxt.compUnitByPackage[runtimelib].dwinfo.Child = parent.Child
 		return
 	}
 	for die.Link != nil {
@@ -1067,7 +1065,7 @@ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
 	}
 }
 
-func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) (dwinfo *dwarf.DWDie) {
+func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
@@ -1076,29 +1074,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) (dwinfo *dwar
 	headerstart := int64(-1)
 	headerend := int64(-1)
 
-	lang := dwarf.DW_LANG_Go
-
-	dwinfo = newdie(ctxt, &dwroot, dwarf.DW_ABRV_COMPUNIT, unit.lib.Pkg, 0)
-	newattr(dwinfo, dwarf.DW_AT_language, dwarf.DW_CLS_CONSTANT, int64(lang), 0)
-	newattr(dwinfo, dwarf.DW_AT_stmt_list, dwarf.DW_CLS_PTR, ls.Size, ls)
-	// OS X linker requires compilation dir or absolute path in comp unit name to output debug info.
-	compDir := getCompilationDir()
-	// TODO: Make this be the actual compilation directory, not
-	// the linker directory. If we move CU construction into the
-	// compiler, this should happen naturally.
-	newattr(dwinfo, dwarf.DW_AT_comp_dir, dwarf.DW_CLS_STRING, int64(len(compDir)), compDir)
-	producerExtra := ctxt.Syms.Lookup(dwarf.CUInfoPrefix+"producer."+unit.lib.Pkg, 0)
-	producer := "Go cmd/compile " + objabi.Version
-	if len(producerExtra.P) > 0 {
-		// We put a semicolon before the flags to clearly
-		// separate them from the version, which can be long
-		// and have lots of weird things in it in development
-		// versions. We promise not to put a semicolon in the
-		// version, so it should be safe for readers to scan
-		// forward to the semicolon.
-		producer += "; " + string(producerExtra.P)
-	}
-	newattr(dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
+	newattr(unit.dwinfo, dwarf.DW_AT_stmt_list, dwarf.DW_CLS_PTR, ls.Size, ls)
 
 	// Write .debug_line Line Number Program Header (sec 6.2.4)
 	// Fields marked with (*) must be changed for 64-bit dwarf
@@ -1300,8 +1276,6 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) (dwinfo *dwar
 			}
 		}
 	}
-
-	return dwinfo
 }
 
 // writepcranges generates the DW_AT_ranges table for compilation unit cu.
@@ -1468,15 +1442,13 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevs
 
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 
-	// Re-index per-package information by its CU die.
-	unitByDIE := make(map[*dwarf.DWDie]*compilationUnit)
 	for _, u := range units {
-		unitByDIE[u.dwinfo] = u
-	}
-
-	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
+		compunit := u.dwinfo
 		s := dtolsym(compunit.Sym)
-		u := unitByDIE[compunit]
+
+		if len(u.lib.Textp) == 0 && u.dwinfo.Child == nil {
+			continue
+		}
 
 		// Write .debug_info Compilation Unit Header (sec 7.5.1)
 		// Fields marked with (*) must be changed for 64-bit dwarf
@@ -1536,7 +1508,11 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*s
 	s.Type = sym.SDWARFSECT
 	syms = append(syms, s)
 
-	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
+	for _, u := range ctxt.compUnits {
+		if len(u.lib.Textp) == 0 && u.dwinfo.Child == nil {
+			continue
+		}
+		compunit := u.dwinfo
 		sectionstart := s.Size
 		culength := uint32(getattr(compunit, dwarf.DW_AT_byte_size).Value) + 4
 
@@ -1671,13 +1647,10 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		defgotype(ctxt, lookupOrDiag(ctxt, typ))
 	}
 
-	// Create DIEs for global variables and the types they use.
-	genasmsym(ctxt, defdwsymb)
+	// fake root DIE for compile unit DIEs
+	var dwroot dwarf.DWDie
 
 	for _, lib := range ctxt.Library {
-		if len(lib.Textp) == 0 {
-			continue
-		}
 		unit := &compilationUnit{lib: lib}
 		if s := ctxt.Syms.ROLookup(dwarf.ConstInfoPrefix+lib.Pkg, 0); s != nil {
 			importInfoSymbol(ctxt, s)
@@ -1685,6 +1658,31 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		}
 		ctxt.compUnits = append(ctxt.compUnits, unit)
 		ctxt.compUnitByPackage[lib] = unit
+
+		unit.dwinfo = newdie(ctxt, &dwroot, dwarf.DW_ABRV_COMPUNIT, unit.lib.Pkg, 0)
+		newattr(unit.dwinfo, dwarf.DW_AT_language, dwarf.DW_CLS_CONSTANT, int64(dwarf.DW_LANG_Go), 0)
+		// OS X linker requires compilation dir or absolute path in comp unit name to output debug info.
+		compDir := getCompilationDir()
+		// TODO: Make this be the actual compilation directory, not
+		// the linker directory. If we move CU construction into the
+		// compiler, this should happen naturally.
+		newattr(unit.dwinfo, dwarf.DW_AT_comp_dir, dwarf.DW_CLS_STRING, int64(len(compDir)), compDir)
+		producerExtra := ctxt.Syms.Lookup(dwarf.CUInfoPrefix+"producer."+unit.lib.Pkg, 0)
+		producer := "Go cmd/compile " + objabi.Version
+		if len(producerExtra.P) > 0 {
+			// We put a semicolon before the flags to clearly
+			// separate them from the version, which can be long
+			// and have lots of weird things in it in development
+			// versions. We promise not to put a semicolon in the
+			// version, so it should be safe for readers to scan
+			// forward to the semicolon.
+			producer += "; " + string(producerExtra.P)
+		}
+		newattr(unit.dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
+
+		if len(lib.Textp) == 0 {
+			unit.dwinfo.Abbrev = dwarf.DW_ABRV_COMPUNIT_TEXTLESS
+		}
 
 		// Scan all functions in this compilation unit, create DIEs for all
 		// referenced types, create the file table for debug_line, find all
@@ -1726,6 +1724,9 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		}
 	}
 
+	// Create DIEs for global variables and the types they use.
+	genasmsym(ctxt, defdwsymb)
+
 	synthesizestringtypes(ctxt, dwtypes.Child)
 	synthesizeslicetypes(ctxt, dwtypes.Child)
 	synthesizemaptypes(ctxt, dwtypes.Child)
@@ -1758,19 +1759,19 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 	debugRanges.Attr |= sym.AttrReachable
 	syms = append(syms, debugLine)
 	for _, u := range ctxt.compUnits {
-		u.dwinfo = writelines(ctxt, u, debugLine)
+		reversetree(&u.dwinfo.Child)
+		if u.dwinfo.Abbrev == dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
+			continue
+		}
+		writelines(ctxt, u, debugLine)
 		writepcranges(ctxt, u.dwinfo, u.lib.Textp[0], u.pcs, debugRanges)
 	}
 
 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
 	// Now that we're done creating DIEs, reverse the trees so DIEs
 	// appear in the order they were created.
-	reversetree(&dwroot.Child)
 	reversetree(&dwtypes.Child)
-	reversetree(&dwglobals.Child)
-
-	movetomodule(&dwtypes)
-	movetomodule(&dwglobals)
+	movetomodule(ctxt, &dwtypes)
 
 	// Need to reorder symbols so sym.SDWARFINFO is after all sym.SDWARFSECT
 	// (but we need to generate dies before writepub)
@@ -2005,5 +2006,14 @@ func (v compilationUnitByStartPC) Len() int      { return len(v) }
 func (v compilationUnitByStartPC) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
 
 func (v compilationUnitByStartPC) Less(i, j int) bool {
-	return v[i].lib.Textp[0].Value < v[j].lib.Textp[0].Value
+	switch {
+	case len(v[i].lib.Textp) == 0 && len(v[j].lib.Textp) == 0:
+		return v[i].lib.Pkg < v[j].lib.Pkg
+	case len(v[i].lib.Textp) != 0 && len(v[j].lib.Textp) == 0:
+		return true
+	case len(v[i].lib.Textp) == 0 && len(v[j].lib.Textp) != 0:
+		return false
+	default:
+		return v[i].lib.Textp[0].Value < v[j].lib.Textp[0].Value
+	}
 }

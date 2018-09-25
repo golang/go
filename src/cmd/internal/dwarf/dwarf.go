@@ -304,6 +304,7 @@ const (
 const (
 	DW_ABRV_NULL = iota
 	DW_ABRV_COMPUNIT
+	DW_ABRV_COMPUNIT_TEXTLESS
 	DW_ABRV_FUNCTION
 	DW_ABRV_FUNCTION_ABSTRACT
 	DW_ABRV_FUNCTION_CONCRETE
@@ -363,6 +364,18 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_stmt_list, DW_FORM_sec_offset},
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_ranges, DW_FORM_sec_offset},
+			{DW_AT_comp_dir, DW_FORM_string},
+			{DW_AT_producer, DW_FORM_string},
+		},
+	},
+
+	/* COMPUNIT_TEXTLESS */
+	{
+		DW_TAG_compile_unit,
+		DW_CHILDREN_yes,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_language, DW_FORM_data1},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
 		},
