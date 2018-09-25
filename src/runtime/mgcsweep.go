@@ -366,7 +366,7 @@ func (s *mspan) sweep(preserve bool) bool {
 			s.limit = 0 // prevent mlookup from finding this span
 			sysFault(unsafe.Pointer(s.base()), size)
 		} else {
-			mheap_.freeSpan(s, 1)
+			mheap_.freeSpan(s, true)
 		}
 		c.local_nlargefree++
 		c.local_largefree += size

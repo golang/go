@@ -945,7 +945,10 @@ func (h *mheap) grow(npage uintptr) bool {
 }
 
 // Free the span back into the heap.
-func (h *mheap) freeSpan(s *mspan, acct int32) {
+//
+// large must match the value of large passed to mheap.alloc. This is
+// used for accounting.
+func (h *mheap) freeSpan(s *mspan, large bool) {
 	systemstack(func() {
 		mp := getg().m
 		lock(&h.lock)
@@ -959,7 +962,8 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
 			bytes := s.npages << _PageShift
 			msanfree(base, bytes)
 		}
-		if acct != 0 {
+		if large {
+			// Match accounting done in mheap.alloc.
 			memstats.heap_objects--
 		}
 		if gcBlackenEnabled != 0 {
