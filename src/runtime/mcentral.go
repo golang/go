@@ -244,7 +244,7 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 
 	c.nonempty.remove(s)
 	unlock(&c.lock)
-	mheap_.freeSpan(s, 0)
+	mheap_.freeSpan(s, false)
 	return true
 }
 
