@@ -164,6 +164,14 @@ func duff(size int64) (int64, int64) {
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
+	case ssa.OpAMD64VFMADD231SD:
+		p := s.Prog(v.Op.Asm())
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()})
+		if v.Reg() != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()

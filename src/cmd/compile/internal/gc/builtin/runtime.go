@@ -241,4 +241,5 @@ func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
 // architecture variants
 var x86HasPOPCNT bool
 var x86HasSSE41 bool
+var x86HasFMA bool
 var arm64HasATOMICS bool

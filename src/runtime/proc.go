@@ -514,6 +514,7 @@ func cpuinit() {
 	// to guard execution of instructions that can not be assumed to be always supported.
 	x86HasPOPCNT = cpu.X86.HasPOPCNT
 	x86HasSSE41 = cpu.X86.HasSSE41
+	x86HasFMA = cpu.X86.HasFMA
 
 	arm64HasATOMICS = cpu.ARM64.HasATOMICS
 }
