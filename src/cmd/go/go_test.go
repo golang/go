@@ -1187,6 +1187,7 @@ func TestImportCycle(t *testing.T) {
 }
 
 func TestListImportMap(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not have standard packages")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1420,6 +1421,7 @@ func TestRelativeGOBINFail(t *testing.T) {
 	defer tg.cleanup()
 	tg.tempFile("triv.go", `package main; func main() {}`)
 	tg.setenv("GOBIN", ".")
+	tg.cd(tg.path("."))
 	tg.runFail("install")
 	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
 }
@@ -1731,20 +1733,23 @@ func TestGoListDeps(t *testing.T) {
 	tg.run("list", "-deps", "p1")
 	tg.grepStdout("p1/p2/p3/p4", "-deps p1 does not mention p4")
 
-	// Check the list is in dependency order.
-	tg.run("list", "-deps", "math")
-	want := "internal/cpu\nunsafe\nmath\n"
-	out := tg.stdout.String()
-	if !strings.Contains(out, "internal/cpu") {
-		// Some systems don't use internal/cpu.
-		want = "unsafe\nmath\n"
-	}
-	if tg.stdout.String() != want {
-		t.Fatalf("list -deps math: wrong order\nhave %q\nwant %q", tg.stdout.String(), want)
+	if runtime.Compiler != "gccgo" {
+		// Check the list is in dependency order.
+		tg.run("list", "-deps", "math")
+		want := "internal/cpu\nunsafe\nmath\n"
+		out := tg.stdout.String()
+		if !strings.Contains(out, "internal/cpu") {
+			// Some systems don't use internal/cpu.
+			want = "unsafe\nmath\n"
+		}
+		if tg.stdout.String() != want {
+			t.Fatalf("list -deps math: wrong order\nhave %q\nwant %q", tg.stdout.String(), want)
+		}
 	}
 }
 
 func TestGoListTest(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not have standard packages")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1817,6 +1822,7 @@ func TestGoListCompiledCgo(t *testing.T) {
 }
 
 func TestGoListExport(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not have standard packages")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2053,6 +2059,7 @@ func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
 }
 
 func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2109,6 +2116,7 @@ func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
 }
 
 func TestGoTestDashOWritesBinary(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2404,6 +2412,7 @@ func checkCoverage(tg *testgoData, data string) {
 }
 
 func TestCoverageRuns(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2415,6 +2424,7 @@ func TestCoverageRuns(t *testing.T) {
 }
 
 func TestCoverageDotImport(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2427,6 +2437,7 @@ func TestCoverageDotImport(t *testing.T) {
 // Check that coverage analysis uses set mode.
 // Also check that coverage profiles merge correctly.
 func TestCoverageUsesSetMode(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2457,6 +2468,7 @@ func TestCoverageUsesAtomicModeForRace(t *testing.T) {
 	if !canRace {
 		t.Skip("skipping because race detector not supported")
 	}
+	skipIfGccgo(t, "gccgo has no cover tool")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2474,6 +2486,7 @@ func TestCoverageUsesAtomicModeForRace(t *testing.T) {
 }
 
 func TestCoverageSyncAtomicImport(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2495,6 +2508,7 @@ func TestCoverageDepLoop(t *testing.T) {
 }
 
 func TestCoverageImportMainLoop(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
@@ -2505,6 +2519,7 @@ func TestCoverageImportMainLoop(t *testing.T) {
 }
 
 func TestCoveragePattern(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2520,6 +2535,7 @@ func TestCoveragePattern(t *testing.T) {
 }
 
 func TestCoverageErrorLine(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2563,6 +2579,7 @@ func TestTestBuildFailureOutput(t *testing.T) {
 }
 
 func TestCoverageFunc(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2578,6 +2595,7 @@ func TestCoverageFunc(t *testing.T) {
 
 // Issue 24588.
 func TestCoverageDashC(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2686,6 +2704,7 @@ func main() {
 }
 
 func TestCoverageWithCgo(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tooSlow(t)
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
@@ -5158,6 +5177,7 @@ func TestCacheCoverage(t *testing.T) {
 }
 
 func TestCacheVet(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -6076,6 +6096,7 @@ func TestNoRelativeTmpdir(t *testing.T) {
 
 // Issue 24704.
 func TestLinkerTmpDirIsDeleted(t *testing.T) {
+	skipIfGccgo(t, "gccgo does not use cmd/link")
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -6123,6 +6144,7 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
 }
 
 func testCDAndGOPATHAreDifferent(tg *testgoData, cd, gopath string) {
+	skipIfGccgo(tg.t, "gccgo does not support -ldflags -X")
 	tg.setenv("GOPATH", gopath)
 
 	tg.tempDir("dir")
@@ -6178,6 +6200,7 @@ func TestGoBuildDashODevNull(t *testing.T) {
 
 // Issue 25093.
 func TestCoverpkgTestOnly(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
