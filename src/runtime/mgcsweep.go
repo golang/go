@@ -52,7 +52,7 @@ func bgsweep(c chan int) {
 	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
 
 	for {
-		for gosweepone() != ^uintptr(0) {
+		for sweepone() != ^uintptr(0) {
 			sweep.nbgsweep++
 			Gosched()
 		}
@@ -72,9 +72,8 @@ func bgsweep(c chan int) {
 	}
 }
 
-// sweeps one span
-// returns number of pages returned to heap, or ^uintptr(0) if there is nothing to sweep
-//go:nowritebarrier
+// sweepone sweeps one span and returns the number of pages returned
+// to the heap, or ^uintptr(0) if there was nothing to sweep.
 func sweepone() uintptr {
 	_g_ := getg()
 	sweepRatio := mheap_.sweepPagesPerByte // For debugging
@@ -133,15 +132,6 @@ func sweepone() uintptr {
 	}
 	_g_.m.locks--
 	return npages
-}
-
-//go:nowritebarrier
-func gosweepone() uintptr {
-	var ret uintptr
-	systemstack(func() {
-		ret = sweepone()
-	})
-	return ret
 }
 
 //go:nowritebarrier
@@ -414,7 +404,7 @@ retry:
 	newHeapLive := uintptr(atomic.Load64(&memstats.heap_live)-mheap_.sweepHeapLiveBasis) + spanBytes
 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
 	for pagesTarget > int64(atomic.Load64(&mheap_.pagesSwept)-sweptBasis) {
-		if gosweepone() == ^uintptr(0) {
+		if sweepone() == ^uintptr(0) {
 			mheap_.sweepPagesPerByte = 0
 			break
 		}
