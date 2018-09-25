@@ -453,15 +453,14 @@ func (v Value) call(op string, in []Value) []Value {
 
 	var ret []Value
 	if nout == 0 {
-		// This is untyped because the frame is really a
-		// stack, even though it's a heap object.
-		memclrNoHeapPointers(args, frametype.size)
+		typedmemclr(frametype, args)
 		framePool.Put(args)
 	} else {
 		// Zero the now unused input area of args,
 		// because the Values returned by this function contain pointers to the args object,
 		// and will thus keep the args object alive indefinitely.
-		memclrNoHeapPointers(args, retOffset)
+		typedmemclrpartial(frametype, args, 0, retOffset)
+
 		// Wrap Values around return values in args.
 		ret = make([]Value, nout)
 		off = retOffset
@@ -472,6 +471,10 @@ func (v Value) call(op string, in []Value) []Value {
 			if tv.Size() != 0 {
 				fl := flagIndir | flag(tv.Kind())
 				ret[i] = Value{tv.common(), add(args, off, "tv.Size() != 0"), fl}
+				// Note: this does introduce false sharing between results -
+				// if any result is live, they are all live.
+				// (And the space for the args is live as well, but as we've
+				// cleared that space it isn't as big a deal.)
 			} else {
 				// For zero-sized return value, args+off may point to the next object.
 				// In this case, return the zero value instead.
@@ -660,6 +663,8 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	}
 
 	// Call.
+	// Call copies the arguments from args to the stack, calls fn,
+	// and then copies the results back into args.
 	call(frametype, fn, args, uint32(frametype.size), uint32(retOffset))
 
 	// Copy return values. On amd64p32, the beginning of return values
@@ -673,16 +678,14 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 		if runtime.GOARCH == "amd64p32" {
 			callerRetOffset = align(argSize-ptrSize, 8)
 		}
-		typedmemmovepartial(frametype,
-			add(frame, callerRetOffset, "frametype.size > retOffset"),
+		// This copies to the stack. Write barriers are not needed.
+		memmove(add(frame, callerRetOffset, "frametype.size > retOffset"),
 			add(args, retOffset, "frametype.size > retOffset"),
-			retOffset,
 			frametype.size-retOffset)
 	}
 
-	// This is untyped because the frame is really a stack, even
-	// though it's a heap object.
-	memclrNoHeapPointers(args, frametype.size)
+	// Put the args scratch space back in the pool.
+	typedmemclr(frametype, args)
 	framePool.Put(args)
 
 	// See the comment in callReflect.
@@ -2641,6 +2644,10 @@ func call(argtype *rtype, fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
 
+// memmove copies size bytes to dst from src. No write barriers are used.
+//go:noescape
+func memmove(dst, src unsafe.Pointer, size uintptr)
+
 // typedmemmove copies a value of type t to dst from src.
 //go:noescape
 func typedmemmove(t *rtype, dst, src unsafe.Pointer)
@@ -2650,13 +2657,19 @@ func typedmemmove(t *rtype, dst, src unsafe.Pointer)
 //go:noescape
 func typedmemmovepartial(t *rtype, dst, src unsafe.Pointer, off, size uintptr)
 
+// typedmemclr zeros the value at ptr of type t.
+//go:noescape
+func typedmemclr(t *rtype, ptr unsafe.Pointer)
+
+// typedmemclrpartial is like typedmemclr but assumes that
+// dst points off bytes into the value and only clears size bytes.
+//go:noescape
+func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
+
 // typedslicecopy copies a slice of elemType values from src to dst,
 // returning the number of elements copied.
 //go:noescape
 func typedslicecopy(elemType *rtype, dst, src sliceHeader) int
-
-//go:noescape
-func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that
