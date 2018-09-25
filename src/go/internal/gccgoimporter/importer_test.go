@@ -102,8 +102,10 @@ var importerTests = [...]importerTest{
 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
 	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
 	{pkgpath: "importsar", name: "Hello", want: "var Hello string"},
-	{pkgpath: "alias", name: "IntAlias2", want: "type IntAlias2 = Int"},
+	{pkgpath: "aliases", name: "A14", want: "type A14 = func(int, T0) chan T2"},
+	{pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
+	{pkgpath: "issue27856", name: "M", want: "type M struct{E F}"},
 }
 
 func TestGoxImporter(t *testing.T) {
