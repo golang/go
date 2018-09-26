@@ -79,7 +79,7 @@ func Run(t Testing, dir string, a *analysis.Analyzer, pkgnames ...string) {
 			continue
 		}
 
-		checkDiagnostics(t, pass, diagnostics)
+		checkDiagnostics(t, dir, pass, diagnostics)
 	}
 }
 
@@ -123,7 +123,7 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 // specified by 'want "..."' comments in the package's source files,
 // which must have been parsed with comments enabled. Surplus diagnostics
 // and unmatched expectations are reported as errors to the Testing.
-func checkDiagnostics(t Testing, pass *analysis.Pass, diagnostics []analysis.Diagnostic) {
+func checkDiagnostics(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis.Diagnostic) {
 	// Read expectations out of comments.
 	type key struct {
 		file string
@@ -133,7 +133,7 @@ func checkDiagnostics(t Testing, pass *analysis.Pass, diagnostics []analysis.Dia
 	for _, f := range pass.Files {
 		for _, c := range f.Comments {
 			posn := pass.Fset.Position(c.Pos())
-			sanitize(&posn)
+			sanitize(gopath, &posn)
 			text := strings.TrimSpace(c.Text())
 			if !strings.HasPrefix(text, "want") {
 				continue
@@ -156,7 +156,7 @@ func checkDiagnostics(t Testing, pass *analysis.Pass, diagnostics []analysis.Dia
 	// Check the diagnostics match expectations.
 	for _, f := range diagnostics {
 		posn := pass.Fset.Position(f.Pos)
-		sanitize(&posn)
+		sanitize(gopath, &posn)
 		rx, ok := wantErrs[key{posn.Filename, posn.Line}]
 		if !ok {
 			t.Errorf("%v: unexpected diagnostic: %v", posn, f.Message)
@@ -174,11 +174,7 @@ func checkDiagnostics(t Testing, pass *analysis.Pass, diagnostics []analysis.Dia
 
 // sanitize removes the GOPATH portion of the filename,
 // typically a gnarly /tmp directory.
-func sanitize(posn *token.Position) {
-	// TODO(adonovan): port to windows.
-	if strings.HasPrefix(posn.Filename, "/tmp/") {
-		if i := strings.Index(posn.Filename, "/src/"); i > 0 {
-			posn.Filename = posn.Filename[i+len("/src/"):]
-		}
-	}
+func sanitize(gopath string, posn *token.Position) {
+	prefix := gopath + string(os.PathSeparator) + "src" + string(os.PathSeparator)
+	posn.Filename = strings.TrimPrefix(posn.Filename, prefix)
 }
