@@ -132,6 +132,23 @@ const (
 	// slot of the referenced symbol.
 	R_ARM64_GOTPCREL
 
+	// R_ARM64_GOT resolves a GOT-relative instruction sequence, usually an adrp
+	// followed by another ld instruction.
+	R_ARM64_GOT
+
+	// R_ARM64_PCREL resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by another add instruction.
+	R_ARM64_PCREL
+
+	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
+	R_ARM64_LDST8
+
+	// R_ARM64_LDST32 sets a LD/ST immediate value to bits [11:2] of a local address.
+	R_ARM64_LDST32
+
+	// R_ARM64_LDST64 sets a LD/ST immediate value to bits [11:3] of a local address.
+	R_ARM64_LDST64
+
 	// PPC64.
 
 	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
