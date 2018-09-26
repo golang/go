@@ -176,5 +176,5 @@ func checkDiagnostics(t Testing, gopath string, pass *analysis.Pass, diagnostics
 // typically a gnarly /tmp directory.
 func sanitize(gopath string, posn *token.Position) {
 	prefix := gopath + string(os.PathSeparator) + "src" + string(os.PathSeparator)
-	posn.Filename = strings.TrimPrefix(posn.Filename, prefix)
+	posn.Filename = filepath.ToSlash(strings.TrimPrefix(posn.Filename, prefix))
 }
