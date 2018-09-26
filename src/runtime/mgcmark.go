@@ -1239,7 +1239,7 @@ func gcDumpObject(label string, obj, off uintptr) {
 
 	skipped := false
 	size := s.elemsize
-	if s.state == _MSpanManual && size == 0 {
+	if s.state == mSpanManual && size == 0 {
 		// We're printing something from a stack frame. We
 		// don't know how big it is, so just show up to an
 		// including off.
@@ -1335,7 +1335,7 @@ var useCheckmark = false
 func initCheckmarks() {
 	useCheckmark = true
 	for _, s := range mheap_.allspans {
-		if s.state == _MSpanInUse {
+		if s.state == mSpanInUse {
 			heapBitsForAddr(s.base()).initCheckmarkSpan(s.layout())
 		}
 	}
@@ -1344,7 +1344,7 @@ func initCheckmarks() {
 func clearCheckmarks() {
 	useCheckmark = false
 	for _, s := range mheap_.allspans {
-		if s.state == _MSpanInUse {
+		if s.state == mSpanInUse {
 			heapBitsForAddr(s.base()).clearCheckmarkSpan(s.layout())
 		}
 	}
