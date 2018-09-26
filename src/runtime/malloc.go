@@ -124,8 +124,6 @@ const (
 	// have the most objects per span.
 	maxObjsPerSpan = pageSize / 8
 
-	mSpanInUse = _MSpanInUse
-
 	concurrentSweep = _ConcurrentSweep
 
 	_PageSize = 1 << _PageShift

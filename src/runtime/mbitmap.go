@@ -365,7 +365,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	s = spanOf(p)
 	// If p is a bad pointer, it may not be in s's bounds.
 	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
-		if s == nil || s.state == _MSpanManual {
+		if s == nil || s.state == mSpanManual {
 			// If s is nil, the virtual address has never been part of the heap.
 			// This pointer may be to some mmap'd region, so we allow it.
 			// Pointers into stacks are also ok, the runtime manages these explicitly.
@@ -611,7 +611,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 			}
 		}
 		return
-	} else if s.state != _MSpanInUse || dst < s.base() || s.limit <= dst {
+	} else if s.state != mSpanInUse || dst < s.base() || s.limit <= dst {
 		// dst was heap memory at some point, but isn't now.
 		// It can't be a global. It must be either our stack,
 		// or in the case of direct channel sends, it could be

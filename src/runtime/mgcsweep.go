@@ -159,7 +159,7 @@ func (s *mspan) ensureSwept() {
 	if atomic.Load(&s.sweepgen) == sg {
 		return
 	}
-	// The caller must be sure that the span is a MSpanInUse span.
+	// The caller must be sure that the span is a mSpanInUse span.
 	if atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 		s.sweep(false)
 		return

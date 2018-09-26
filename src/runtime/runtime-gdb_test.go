@@ -484,7 +484,7 @@ func TestGdbConst(t *testing.T) {
 		"-ex", "print main.aConstant",
 		"-ex", "print main.largeConstant",
 		"-ex", "print main.minusOne",
-		"-ex", "print 'runtime._MSpanInUse'",
+		"-ex", "print 'runtime.mSpanInUse'",
 		"-ex", "print 'runtime._PageSize'",
 		filepath.Join(dir, "a.exe"),
 	}

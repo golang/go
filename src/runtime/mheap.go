@@ -82,7 +82,7 @@ type mheap struct {
 	// accounting for current progress. If we could only adjust
 	// the slope, it would create a discontinuity in debt if any
 	// progress has already been made.
-	pagesInUse         uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
+	pagesInUse         uint64  // pages of spans in stats mSpanInUse; R/W with mheap.lock
 	pagesSwept         uint64  // pages swept this cycle; updated atomically
 	pagesSweptBasis    uint64  // pagesSwept to use as the origin of the sweep ratio; updated atomically
 	sweepHeapLiveBasis uint64  // value of heap_live to use as the origin of sweep ratio; written with lock, read without
@@ -199,18 +199,18 @@ type arenaHint struct {
 
 // An MSpan is a run of pages.
 //
-// When a MSpan is in the heap free list, state == MSpanFree
+// When a MSpan is in the heap free list, state == mSpanFree
 // and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
 //
-// When a MSpan is allocated, state == MSpanInUse or MSpanManual
+// When a MSpan is allocated, state == mSpanInUse or mSpanManual
 // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
 
 // Every MSpan is in one doubly-linked list,
 // either one of the MHeap's free lists or one of the
 // MCentral's span lists.
 
-// An MSpan representing actual memory has state _MSpanInUse,
-// _MSpanManual, or _MSpanFree. Transitions between these states are
+// An MSpan representing actual memory has state mSpanInUse,
+// mSpanManual, or mSpanFree. Transitions between these states are
 // constrained as follows:
 //
 // * A span may transition from free to in-use or manual during any GC
@@ -226,19 +226,19 @@ type arenaHint struct {
 type mSpanState uint8
 
 const (
-	_MSpanDead   mSpanState = iota
-	_MSpanInUse             // allocated for garbage collected heap
-	_MSpanManual            // allocated for manual management (e.g., stack allocator)
-	_MSpanFree
+	mSpanDead   mSpanState = iota
+	mSpanInUse             // allocated for garbage collected heap
+	mSpanManual            // allocated for manual management (e.g., stack allocator)
+	mSpanFree
 )
 
 // mSpanStateNames are the names of the span states, indexed by
 // mSpanState.
 var mSpanStateNames = []string{
-	"_MSpanDead",
-	"_MSpanInUse",
-	"_MSpanManual",
-	"_MSpanFree",
+	"mSpanDead",
+	"mSpanInUse",
+	"mSpanManual",
+	"mSpanFree",
 }
 
 // mSpanList heads a linked list of spans.
@@ -258,7 +258,7 @@ type mspan struct {
 	startAddr uintptr // address of first byte of span aka s.base()
 	npages    uintptr // number of pages in span
 
-	manualFreeList gclinkptr // list of free objects in _MSpanManual spans
+	manualFreeList gclinkptr // list of free objects in mSpanManual spans
 
 	// freeindex is the slot index between 0 and nelems at which to begin scanning
 	// for the next free object in this span.
@@ -458,7 +458,7 @@ func (i arenaIdx) l2() uint {
 }
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
-// It returns false for pointers into _MSpanManual spans.
+// It returns false for pointers into mSpanManual spans.
 // Non-preemptible because it is used by write barriers.
 //go:nowritebarrier
 //go:nosplit
@@ -477,7 +477,7 @@ func inHeapOrStack(b uintptr) bool {
 		return false
 	}
 	switch s.state {
-	case mSpanInUse, _MSpanManual:
+	case mSpanInUse, mSpanManual:
 		return b < s.limit
 	default:
 		return false
@@ -696,7 +696,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 		// able to map interior pointer to containing span.
 		atomic.Store(&s.sweepgen, h.sweepgen)
 		h.sweepSpans[h.sweepgen/2%2].push(s) // Add to swept in-use list.
-		s.state = _MSpanInUse
+		s.state = mSpanInUse
 		s.allocCount = 0
 		s.spanclass = spanclass
 		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
@@ -788,7 +788,7 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 	lock(&h.lock)
 	s := h.allocSpanLocked(npage, stat)
 	if s != nil {
-		s.state = _MSpanManual
+		s.state = mSpanManual
 		s.manualFreeList = 0
 		s.allocCount = 0
 		s.spanclass = 0
@@ -829,7 +829,7 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
-// free list, but its state is still MSpanFree.
+// free list, but its state is still mSpanFree.
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	var list *mSpanList
 	var s *mspan
@@ -857,7 +857,7 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 
 HaveSpan:
 	// Mark span in use.
-	if s.state != _MSpanFree {
+	if s.state != mSpanFree {
 		throw("MHeap_AllocLocked - MSpan not free")
 	}
 	if s.npages < npage {
@@ -878,10 +878,10 @@ HaveSpan:
 		h.setSpan(t.base(), t)
 		h.setSpan(t.base()+t.npages*pageSize-1, t)
 		t.needzero = s.needzero
-		s.state = _MSpanManual // prevent coalescing with s
-		t.state = _MSpanManual
+		s.state = mSpanManual // prevent coalescing with s
+		t.state = mSpanManual
 		h.freeSpanLocked(t, false, false, s.unusedsince)
-		s.state = _MSpanFree
+		s.state = mSpanFree
 	}
 	s.unusedsince = 0
 
@@ -930,7 +930,7 @@ func (h *mheap) grow(npage uintptr) bool {
 	s.init(uintptr(v), size/pageSize)
 	h.setSpans(s.base(), s.npages, s)
 	atomic.Store(&s.sweepgen, h.sweepgen)
-	s.state = _MSpanInUse
+	s.state = mSpanInUse
 	h.pagesInUse += uint64(s.npages)
 	h.freeSpanLocked(s, false, true, 0)
 	return true
@@ -986,11 +986,11 @@ func (h *mheap) freeManual(s *mspan, stat *uint64) {
 // s must be on a busy list (h.busy or h.busylarge) or unlinked.
 func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince int64) {
 	switch s.state {
-	case _MSpanManual:
+	case mSpanManual:
 		if s.allocCount != 0 {
 			throw("MHeap_FreeSpanLocked - invalid stack free")
 		}
-	case _MSpanInUse:
+	case mSpanInUse:
 		if s.allocCount != 0 || s.sweepgen != h.sweepgen {
 			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
 			throw("MHeap_FreeSpanLocked - invalid free")
@@ -1006,7 +1006,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	if acctidle {
 		memstats.heap_idle += uint64(s.npages << _PageShift)
 	}
-	s.state = _MSpanFree
+	s.state = mSpanFree
 	if s.inList() {
 		h.busyList(s.npages).remove(s)
 	}
@@ -1020,7 +1020,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	s.npreleased = 0
 
 	// Coalesce with earlier, later spans.
-	if before := spanOf(s.base() - 1); before != nil && before.state == _MSpanFree {
+	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
 		// Now adjust s.
 		s.startAddr = before.startAddr
 		s.npages += before.npages
@@ -1035,12 +1035,12 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		} else {
 			h.freeList(before.npages).remove(before)
 		}
-		before.state = _MSpanDead
+		before.state = mSpanDead
 		h.spanalloc.free(unsafe.Pointer(before))
 	}
 
 	// Now check to see if next (greater addresses) span is free and can be coalesced.
-	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == _MSpanFree {
+	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == mSpanFree {
 		s.npages += after.npages
 		s.npreleased += after.npreleased
 		s.needzero |= after.needzero
@@ -1050,7 +1050,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		} else {
 			h.freeList(after.npages).remove(after)
 		}
-		after.state = _MSpanDead
+		after.state = mSpanDead
 		h.spanalloc.free(unsafe.Pointer(after))
 	}
 
@@ -1187,7 +1187,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.spanclass = 0
 	span.incache = false
 	span.elemsize = 0
-	span.state = _MSpanDead
+	span.state = mSpanDead
 	span.unusedsince = 0
 	span.npreleased = 0
 	span.speciallock.key = 0
