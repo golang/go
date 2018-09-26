@@ -38,7 +38,7 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	html := strings.Replace(templTrace, "{{PARAMS}}", r.Form.Encode(), -1)
+	html := strings.ReplaceAll(templTrace, "{{PARAMS}}", r.Form.Encode())
 	w.Write([]byte(html))
 
 }

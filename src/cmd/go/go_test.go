@@ -1090,7 +1090,7 @@ func testMove(t *testing.T, vcs, url, base, config string) {
 		path := tg.path(filepath.Join("src", config))
 		data, err := ioutil.ReadFile(path)
 		tg.must(err)
-		data = bytes.Replace(data, []byte(base), []byte(base+"XXX"), -1)
+		data = bytes.ReplaceAll(data, []byte(base), []byte(base+"XXX"))
 		tg.must(ioutil.WriteFile(path, data, 0644))
 	}
 	if vcs == "git" {
@@ -2360,14 +2360,14 @@ func TestShadowingLogic(t *testing.T) {
 
 	// The math in root1 is not "math" because the standard math is.
 	tg.run("list", "-f", "({{.ImportPath}}) ({{.ConflictDir}})", "./testdata/shadow/root1/src/math")
-	pwdForwardSlash := strings.Replace(pwd, string(os.PathSeparator), "/", -1)
+	pwdForwardSlash := strings.ReplaceAll(pwd, string(os.PathSeparator), "/")
 	if !strings.HasPrefix(pwdForwardSlash, "/") {
 		pwdForwardSlash = "/" + pwdForwardSlash
 	}
 	// The output will have makeImportValid applies, but we only
 	// bother to deal with characters we might reasonably see.
 	for _, r := range " :" {
-		pwdForwardSlash = strings.Replace(pwdForwardSlash, string(r), "_", -1)
+		pwdForwardSlash = strings.ReplaceAll(pwdForwardSlash, string(r), "_")
 	}
 	want := "(_" + pwdForwardSlash + "/testdata/shadow/root1/src/math) (" + filepath.Join(runtime.GOROOT(), "src", "math") + ")"
 	if strings.TrimSpace(tg.getStdout()) != want {
@@ -2557,7 +2557,7 @@ func TestCoverageErrorLine(t *testing.T) {
 
 	// It's OK that stderr2 drops the character position in the error,
 	// because of the //line directive (see golang.org/issue/22662).
-	stderr = strings.Replace(stderr, "p.go:4:2:", "p.go:4:", -1)
+	stderr = strings.ReplaceAll(stderr, "p.go:4:2:", "p.go:4:")
 	if stderr != stderr2 {
 		t.Logf("test -cover changed error messages:\nbefore:\n%s\n\nafter:\n%s", stderr, stderr2)
 		t.Skip("golang.org/issue/22660")
@@ -6171,7 +6171,7 @@ func TestCDAndGOPATHAreDifferent(t *testing.T) {
 
 	testCDAndGOPATHAreDifferent(tg, cd, gopath)
 	if runtime.GOOS == "windows" {
-		testCDAndGOPATHAreDifferent(tg, cd, strings.Replace(gopath, `\`, `/`, -1))
+		testCDAndGOPATHAreDifferent(tg, cd, strings.ReplaceAll(gopath, `\`, `/`))
 		testCDAndGOPATHAreDifferent(tg, cd, strings.ToUpper(gopath))
 		testCDAndGOPATHAreDifferent(tg, cd, strings.ToLower(gopath))
 	}

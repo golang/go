@@ -1062,7 +1062,7 @@ func TestAbs(t *testing.T) {
 	}
 
 	for _, path := range absTests {
-		path = strings.Replace(path, "$", root, -1)
+		path = strings.ReplaceAll(path, "$", root)
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Errorf("%s: %s", path, err)

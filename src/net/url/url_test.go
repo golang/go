@@ -848,18 +848,18 @@ func TestUnescape(t *testing.T) {
 		in := tt.in
 		out := tt.out
 		if strings.Contains(tt.in, "+") {
-			in = strings.Replace(tt.in, "+", "%20", -1)
+			in = strings.ReplaceAll(tt.in, "+", "%20")
 			actual, err := PathUnescape(in)
 			if actual != tt.out || (err != nil) != (tt.err != nil) {
 				t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, tt.out, tt.err)
 			}
 			if tt.err == nil {
-				s, err := QueryUnescape(strings.Replace(tt.in, "+", "XXX", -1))
+				s, err := QueryUnescape(strings.ReplaceAll(tt.in, "+", "XXX"))
 				if err != nil {
 					continue
 				}
 				in = tt.in
-				out = strings.Replace(s, "XXX", "+", -1)
+				out = strings.ReplaceAll(s, "XXX", "+")
 			}
 		}
 

@@ -296,7 +296,7 @@ func val(lit string) Value {
 	switch first, last := lit[0], lit[len(lit)-1]; {
 	case first == '"' || first == '`':
 		tok = token.STRING
-		lit = strings.Replace(lit, "_", " ", -1)
+		lit = strings.ReplaceAll(lit, "_", " ")
 	case first == '\'':
 		tok = token.CHAR
 	case last == 'i':

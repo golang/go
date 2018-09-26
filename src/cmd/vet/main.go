@@ -273,7 +273,7 @@ func main() {
 	// Accept space-separated tags because that matches
 	// the go command's other subcommands.
 	// Accept commas because go tool vet traditionally has.
-	tagList = strings.Fields(strings.Replace(*tags, ",", " ", -1))
+	tagList = strings.Fields(strings.ReplaceAll(*tags, ",", " "))
 
 	initPrintFlags()
 	initUnusedFlags()

@@ -156,7 +156,7 @@ func srcsetFilterAndEscaper(args ...interface{}) string {
 			s = b.String()
 		}
 		// Additionally, commas separate one source from another.
-		return strings.Replace(s, ",", "%2c", -1)
+		return strings.ReplaceAll(s, ",", "%2c")
 	}
 
 	var b bytes.Buffer
