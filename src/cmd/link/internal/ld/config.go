@@ -184,17 +184,16 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	}
 
 	// Internally linking cgo is incomplete on some architectures.
-	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
 	// https://golang.org/issue/21961
-	if iscgo && ctxt.Arch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
+	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
 
 	// When the race flag is set, the LLVM tsan relocatable file is linked
 	// into the final binary, which means external linking is required because
 	// internal linking does not support it.
-	if *flagRace && ctxt.Arch.InFamily(sys.PPC64, sys.ARM64) {
+	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
 		return true, "race on " + objabi.GOARCH
 	}
 
@@ -206,7 +205,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "buildmode=c-shared"
 	case BuildModePIE:
 		switch objabi.GOOS + "/" + objabi.GOARCH {
-		case "linux/amd64":
+		case "linux/amd64", "linux/arm64":
 		default:
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
