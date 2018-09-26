@@ -2023,6 +2023,18 @@ func gcResetMarkState() {
 	}
 	unlock(&allglock)
 
+	// Clear page marks. This is just 1MB per 64GB of heap, so the
+	// time here is pretty trivial.
+	lock(&mheap_.lock)
+	arenas := mheap_.allArenas
+	unlock(&mheap_.lock)
+	for _, ai := range arenas {
+		ha := mheap_.arenas[ai.l1()][ai.l2()]
+		for i := range ha.pageMarks {
+			ha.pageMarks[i] = 0
+		}
+	}
+
 	work.bytesMarked = 0
 	work.initialHeapLive = atomic.Load64(&memstats.heap_live)
 }
