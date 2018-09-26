@@ -35,6 +35,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 )
 
@@ -342,6 +343,8 @@ var optab = []Optab{
 	{AFMOVD, C_LEXT, C_NONE, C_NONE, C_FREG, 36, 8, REGSB},
 	{AFMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, 36, 8, REGSP},
 	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, 36, 8, REGZERO},
+	{AFMOVD, C_ZCON, C_NONE, C_NONE, C_FREG, 24, 4, 0},
+	{AFMOVD, C_ADDCON, C_NONE, C_NONE, C_FREG, 24, 8, 0},
 	{AFMOVD, C_ADDR, C_NONE, C_NONE, C_FREG, 75, 8, 0},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_SEXT, 7, 4, REGSB},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_SAUTO, 7, 4, REGSP},
@@ -828,6 +831,18 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 
 	case obj.TYPE_TEXTSIZE:
 		return C_TEXTSIZE
+
+	case obj.TYPE_FCONST:
+		// The only cases where FCONST will occur are with float64 +/- 0.
+		// All other float constants are generated in memory.
+		f64 := a.Val.(float64)
+		if f64 == 0 {
+			if math.Signbit(f64) {
+				return C_ADDCON
+			}
+			return C_ZCON
+		}
+		log.Fatalf("Unexpected nonzero FCONST operand %v", a)
 
 	case obj.TYPE_CONST,
 		obj.TYPE_ADDR:
@@ -2761,6 +2776,13 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		if p.From.Sym != nil {
 			c.ctxt.Diag("%v is not supported", p)
+		}
+
+	case 24: /* lfd fA,float64(0) -> xxlxor xsA,xsaA,xsaA + fneg for -0 */
+		o1 = AOP_XX3I(c.oprrr(AXXLXOR), uint32(p.To.Reg), uint32(p.To.Reg), uint32(p.To.Reg), uint32(0))
+		// This is needed for -0.
+		if o.size == 8 {
+			o2 = AOP_RRR(c.oprrr(AFNEG), uint32(p.To.Reg), 0, uint32(p.To.Reg))
 		}
 
 	case 25:
