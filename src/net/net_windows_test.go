@@ -571,7 +571,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 			// skip these
 			return
 		}
-		addr = strings.Replace(addr, "-", ":", -1)
+		addr = strings.ReplaceAll(addr, "-", ":")
 		cname := getValue("Connection Name")
 		want[cname] = addr
 		group = make(map[string]string)

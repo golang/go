@@ -370,7 +370,7 @@ func TestDumpResponse(t *testing.T) {
 		}
 		got := string(gotb)
 		got = strings.TrimSpace(got)
-		got = strings.Replace(got, "\r", "", -1)
+		got = strings.ReplaceAll(got, "\r", "")
 
 		if got != tt.want {
 			t.Errorf("%d.\nDumpResponse got:\n%s\n\nWant:\n%s\n", i, got, tt.want)

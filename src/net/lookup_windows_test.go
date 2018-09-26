@@ -150,7 +150,7 @@ func nslookup(qtype, name string) (string, error) {
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
-	r := strings.Replace(out.String(), "\r\n", "\n", -1)
+	r := strings.ReplaceAll(out.String(), "\r\n", "\n")
 	// nslookup stderr output contains also debug information such as
 	// "Non-authoritative answer" and it doesn't return the correct errcode
 	if strings.Contains(err.String(), "can't find") {

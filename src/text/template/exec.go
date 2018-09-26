@@ -102,7 +102,7 @@ func (s *state) at(node parse.Node) {
 // doublePercent returns the string with %'s replaced by %%, if necessary,
 // so it can be used safely inside a Printf format string.
 func doublePercent(str string) string {
-	return strings.Replace(str, "%", "%%", -1)
+	return strings.ReplaceAll(str, "%", "%%")
 }
 
 // TODO: It would be nice if ExecError was more broken down, but

@@ -425,7 +425,7 @@ IZJAOZSWY2LUEBSXG43FEBRWS3DMOVWSAZDPNRXXEZJAMV2SAZTVM5UWC5BANZ2WY3DBBJYGC4TJMF
 NZ2CYIDTOVXHIIDJNYFGG5LMOBQSA4LVNEQG6ZTGNFRWSYJAMRSXGZLSOVXHIIDNN5WGY2LUEBQW42
 LNEBUWIIDFON2CA3DBMJXXE5LNFY==
 ====`
-	encodedShort := strings.Replace(encoded, "\n", "", -1)
+	encodedShort := strings.ReplaceAll(encoded, "\n", "")
 
 	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
 	res1, err := ioutil.ReadAll(dec)
@@ -465,7 +465,7 @@ func TestWithCustomPadding(t *testing.T) {
 	for _, testcase := range pairs {
 		defaultPadding := StdEncoding.EncodeToString([]byte(testcase.decoded))
 		customPadding := StdEncoding.WithPadding('@').EncodeToString([]byte(testcase.decoded))
-		expected := strings.Replace(defaultPadding, "=", "@", -1)
+		expected := strings.ReplaceAll(defaultPadding, "=", "@")
 
 		if expected != customPadding {
 			t.Errorf("Expected custom %s, got %s", expected, customPadding)
@@ -675,7 +675,7 @@ func TestWithoutPaddingClose(t *testing.T) {
 
 			expected := testpair.encoded
 			if encoding.padChar == NoPadding {
-				expected = strings.Replace(expected, "=", "", -1)
+				expected = strings.ReplaceAll(expected, "=", "")
 			}
 
 			res := buf.String()
@@ -697,7 +697,7 @@ func TestDecodeReadAll(t *testing.T) {
 		for encIndex, encoding := range encodings {
 			encoded := pair.encoded
 			if encoding.padChar == NoPadding {
-				encoded = strings.Replace(encoded, "=", "", -1)
+				encoded = strings.ReplaceAll(encoded, "=", "")
 			}
 
 			decReader, err := ioutil.ReadAll(NewDecoder(encoding, strings.NewReader(encoded)))
@@ -723,7 +723,7 @@ func TestDecodeSmallBuffer(t *testing.T) {
 			for encIndex, encoding := range encodings {
 				encoded := pair.encoded
 				if encoding.padChar == NoPadding {
-					encoded = strings.Replace(encoded, "=", "", -1)
+					encoded = strings.ReplaceAll(encoded, "=", "")
 				}
 
 				decoder := NewDecoder(encoding, strings.NewReader(encoded))

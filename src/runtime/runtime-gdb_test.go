@@ -490,7 +490,7 @@ func TestGdbConst(t *testing.T) {
 	}
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
 
-	sgot := strings.Replace(string(got), "\r\n", "\n", -1)
+	sgot := strings.ReplaceAll(string(got), "\r\n", "\n")
 
 	t.Logf("output %q", sgot)
 

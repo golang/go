@@ -185,7 +185,7 @@ func (e *RunError) Error() string {
 	text := e.Cmd + ": " + e.Err.Error()
 	stderr := bytes.TrimRight(e.Stderr, "\n")
 	if len(stderr) > 0 {
-		text += ":\n\t" + strings.Replace(string(stderr), "\n", "\n\t", -1)
+		text += ":\n\t" + strings.ReplaceAll(string(stderr), "\n", "\n\t")
 	}
 	return text
 }

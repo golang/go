@@ -200,7 +200,7 @@ var libRx = regexp.MustCompile(`([.]so$|[.]so[._][0-9]+)`)
 // first.
 func (p *Profile) setMain() {
 	for i := 0; i < len(p.Mapping); i++ {
-		file := strings.TrimSpace(strings.Replace(p.Mapping[i].File, "(deleted)", "", -1))
+		file := strings.TrimSpace(strings.ReplaceAll(p.Mapping[i].File, "(deleted)", ""))
 		if len(file) == 0 {
 			continue
 		}
