@@ -561,15 +561,16 @@ func ToUpper(s string) string {
 		if !hasLower {
 			return s
 		}
-		b := make([]byte, len(s))
+		var b Builder
+		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if c >= 'a' && c <= 'z' {
 				c -= 'a' - 'A'
 			}
-			b[i] = c
+			b.WriteByte(c)
 		}
-		return string(b)
+		return b.String()
 	}
 	return Map(unicode.ToUpper, s)
 }
@@ -590,15 +591,16 @@ func ToLower(s string) string {
 		if !hasUpper {
 			return s
 		}
-		b := make([]byte, len(s))
+		var b Builder
+		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if c >= 'A' && c <= 'Z' {
 				c += 'a' - 'A'
 			}
-			b[i] = c
+			b.WriteByte(c)
 		}
-		return string(b)
+		return b.String()
 	}
 	return Map(unicode.ToLower, s)
 }
