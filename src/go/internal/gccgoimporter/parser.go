@@ -26,7 +26,7 @@ type parser struct {
 	pkgname  string                    // name of imported package
 	pkg      *types.Package            // reference to imported package
 	imports  map[string]*types.Package // package path -> package object
-	typeMap  map[int]types.Type        // type number -> type
+	typeList []types.Type              // type number -> type
 	initdata InitData                  // package init priority data
 }
 
@@ -38,7 +38,7 @@ func (p *parser) init(filename string, src io.Reader, imports map[string]*types.
 	p.scanner.Filename = filename // for good error messages
 	p.next()
 	p.imports = imports
-	p.typeMap = make(map[int]types.Type)
+	p.typeList = make([]types.Type, 1 /* type numbers start at 1 */, 16)
 }
 
 type importError struct {
@@ -387,19 +387,19 @@ var reserved = new(struct{ types.Type })
 
 // reserve reserves the type map entry n for future use.
 func (p *parser) reserve(n int) {
-	if p.typeMap[n] != nil {
-		p.errorf("internal error: type %d already used", n)
+	if n != len(p.typeList) {
+		p.errorf("invalid type number %d (out of sync)", n)
 	}
-	p.typeMap[n] = reserved
+	p.typeList = append(p.typeList, reserved)
 }
 
 // update sets the type map entries for the given type numbers nlist to t.
 func (p *parser) update(t types.Type, nlist []int) {
 	for _, n := range nlist {
-		if p.typeMap[n] != reserved {
-			p.errorf("internal error: typeMap[%d] not reserved", n)
+		if p.typeList[n] != reserved {
+			p.errorf("typeMap[%d] not reserved", n)
 		}
-		p.typeMap[n] = t
+		p.typeList[n] = t
 	}
 }
 
@@ -790,11 +790,8 @@ func (p *parser) parseType(pkg *types.Package, n ...int) (t types.Type) {
 	case scanner.Int:
 		n1 := p.parseInt()
 		if p.tok == '>' {
-			t = p.typeMap[n1]
-			switch t {
-			case nil:
-				p.errorf("invalid type number, type %d not yet declared", n1)
-			case reserved:
+			t = p.typeList[n1]
+			if t == reserved {
 				p.errorf("invalid type cycle, type %d not yet defined", n1)
 			}
 			p.update(t, n)
@@ -986,7 +983,7 @@ func (p *parser) parsePackage() *types.Package {
 	for p.tok != scanner.EOF {
 		p.parseDirective()
 	}
-	for _, typ := range p.typeMap {
+	for _, typ := range p.typeList {
 		if it, ok := typ.(*types.Interface); ok {
 			it.Complete()
 		}
