@@ -874,6 +874,15 @@ func Replace(s, old, new string, n int) string {
 	return string(t[0:w])
 }
 
+// ReplaceAll returns a copy of the string s with all
+// non-overlapping instances of old replaced by new.
+// If old is empty, it matches at the beginning of the string
+// and after each UTF-8 sequence, yielding up to k+1 replacements
+// for a k-rune string.
+func ReplaceAll(s, old, new string) string {
+	return Replace(s, old, new, -1)
+}
+
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
 // are equal under Unicode case-folding.
 func EqualFold(s, t string) bool {

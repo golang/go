@@ -1243,6 +1243,12 @@ func TestReplace(t *testing.T) {
 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
 		}
+		if tt.n == -1 {
+			s := ReplaceAll(tt.in, tt.old, tt.new)
+			if s != tt.out {
+				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
+			}
+		}
 	}
 }
 

@@ -774,6 +774,15 @@ func Replace(s, old, new []byte, n int) []byte {
 	return t[0:w]
 }
 
+// ReplaceAll returns a copy of the slice s with all
+// non-overlapping instances of old replaced by new.
+// If old is empty, it matches at the beginning of the slice
+// and after each UTF-8 sequence, yielding up to k+1 replacements
+// for a k-rune slice.
+func ReplaceAll(s, old, new []byte) []byte {
+	return Replace(s, old, new, -1)
+}
+
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
 // are equal under Unicode case-folding.
 func EqualFold(s, t []byte) bool {
