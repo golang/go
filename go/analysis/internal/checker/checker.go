@@ -6,7 +6,6 @@ package checker
 
 import (
 	"bytes"
-	"context"
 	"encoding/gob"
 	"encoding/json"
 	"flag"
@@ -442,9 +441,13 @@ func (act *action) execOnce() {
 	// Analyze dependencies.
 	execAll(act.deps)
 
-	ctx, task := trace.NewTask(context.Background(), "exec")
-	defer task.End()
-	trace.Log(ctx, "pass", act.String())
+	// TODO(adonovan): uncomment this during profiling.
+	// It won't build pre-go1.11 but conditional compilation
+	// using build tags isn't warranted.
+	//
+	// ctx, task := trace.NewTask(context.Background(), "exec")
+	// trace.Log(ctx, "pass", act.String())
+	// defer task.End()
 
 	// Record time spent in this node but not its dependencies.
 	// In parallel mode, due to GC/scheduler contention, the
