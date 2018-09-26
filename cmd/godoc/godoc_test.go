@@ -233,10 +233,14 @@ func testWeb(t *testing.T, withIndex bool) {
 	cmd.Stderr = os.Stderr
 	cmd.Args[0] = "godoc"
 
-	// Set GOPATH variable to non-existing path.
+	// Set GOPATH variable to non-existing path
+	// and GOPROXY=off to disable module fetches.
 	// We cannot just unset GOPATH variable because godoc would default it to ~/go.
 	// (We don't want the indexer looking at the local workspace during tests.)
-	cmd.Env = append(os.Environ(), "GOPATH=does_not_exist")
+	cmd.Env = append(os.Environ(),
+		"GOPATH=does_not_exist",
+		"GOPROXY=off",
+		"GO111MODULE=off")
 
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start godoc: %s", err)
@@ -448,6 +452,8 @@ func main() { print(lib.V) }
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GOROOT=%s", filepath.Join(tmpdir, "goroot")))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GOPATH=%s", filepath.Join(tmpdir, "gopath")))
+	cmd.Env = append(cmd.Env, "GO111MODULE=off")
+	cmd.Env = append(cmd.Env, "GOPROXY=off")
 	cmd.Stdout = os.Stderr
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
