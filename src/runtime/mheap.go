@@ -201,6 +201,21 @@ type heapArena struct {
 	//
 	// Writes are protected by mheap_.lock.
 	pageInUse [pagesPerArena / 8]uint8
+
+	// pageMarks is a bitmap that indicates which spans have any
+	// marked objects on them. Like pageInUse, only the bit
+	// corresponding to the first page in each span is used.
+	//
+	// Writes are done atomically during marking. Reads are
+	// non-atomic and lock-free since they only occur during
+	// sweeping (and hence never race with writes).
+	//
+	// This is used to quickly find whole spans that can be freed.
+	//
+	// TODO(austin): It would be nice if this was uint64 for
+	// faster scanning, but we don't have 64-bit atomic bit
+	// operations.
+	pageMarks [pagesPerArena / 8]uint8
 }
 
 // arenaHint is a hint for where to grow the heap arenas. See
