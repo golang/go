@@ -133,7 +133,16 @@ type mheap struct {
 	// (the actual arenas). This is only used on 32-bit.
 	arena linearAlloc
 
-	// _ uint32 // ensure 64-bit alignment of central
+	// allArenas is the arenaIndex of every mapped arena. This can
+	// be used to iterate through the address space.
+	//
+	// Access is protected by mheap_.lock. However, since this is
+	// append-only and old backing arrays are never freed, it is
+	// safe to acquire mheap_.lock, copy the slice header, and
+	// then release mheap_.lock.
+	allArenas []arenaIdx
+
+	_ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
 	// the padding makes sure that the mcentrals are
