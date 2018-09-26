@@ -193,6 +193,14 @@ type heapArena struct {
 	// must not be a safe-point between establishing that an
 	// address is live and looking it up in the spans array.
 	spans [pagesPerArena]*mspan
+
+	// pageInUse is a bitmap that indicates which spans are in
+	// state mSpanInUse. This bitmap is indexed by page number,
+	// but only the bit corresponding to the first page in each
+	// span is used.
+	//
+	// Writes are protected by mheap_.lock.
+	pageInUse [pagesPerArena / 8]uint8
 }
 
 // arenaHint is a hint for where to grow the heap arenas. See
@@ -600,6 +608,16 @@ func spanOfHeap(p uintptr) *mspan {
 	return s
 }
 
+// pageIndexOf returns the arena, page index, and page mask for pointer p.
+// The caller must ensure p is in the heap.
+func pageIndexOf(p uintptr) (arena *heapArena, pageIdx uintptr, pageMask uint8) {
+	ai := arenaIndex(p)
+	arena = mheap_.arenas[ai.l1()][ai.l2()]
+	pageIdx = ((p / pageSize) / 8) % uintptr(len(arena.pageInUse))
+	pageMask = byte(1 << ((p / pageSize) % 8))
+	return
+}
+
 // Initialize the heap.
 func (h *mheap) init() {
 	h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
@@ -740,6 +758,10 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 			s.divShift2 = m.shift2
 			s.baseMask = m.baseMask
 		}
+
+		// Mark in-use span in arena page bitmap.
+		arena, pageIdx, pageMask := pageIndexOf(s.base())
+		arena.pageInUse[pageIdx] |= pageMask
 
 		// update stats, sweep lists
 		h.pagesInUse += uint64(npage)
@@ -1039,6 +1061,10 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 			throw("mheap.freeSpanLocked - invalid free")
 		}
 		h.pagesInUse -= uint64(s.npages)
+
+		// Clear in-use bit in arena page bitmap.
+		arena, pageIdx, pageMask := pageIndexOf(s.base())
+		arena.pageInUse[pageIdx] &^= pageMask
 	default:
 		throw("mheap.freeSpanLocked - invalid span state")
 	}
