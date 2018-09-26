@@ -2,38 +2,60 @@ package analysis
 
 import (
 	"fmt"
+	"reflect"
 	"unicode"
 )
 
 // Validate reports an error if any of the analyzers are misconfigured.
 // Checks include:
 // - that the name is a valid identifier;
-// - that analysis names are unique;
-// - that the Requires graph is acylic.
+// - that analyzer names are unique;
+// - that the Requires graph is acylic;
+// - that analyzer fact types are unique;
+// - that each fact type is a pointer.
 func Validate(analyzers []*Analyzer) error {
 	names := make(map[string]bool)
+
+	// Map each fact type to its sole generating analyzer.
+	factTypes := make(map[reflect.Type]*Analyzer)
 
 	// Traverse the Requires graph, depth first.
 	color := make(map[*Analyzer]uint8) // 0=white 1=grey 2=black
 	var visit func(a *Analyzer) error
 	visit = func(a *Analyzer) error {
 		if a == nil {
-			return fmt.Errorf("nil *Analysis")
+			return fmt.Errorf("nil *Analyzer")
 		}
 		if color[a] == 0 { // white
 			color[a] = 1 // grey
 
 			// names
 			if !validIdent(a.Name) {
-				return fmt.Errorf("invalid analysis name %q", a)
+				return fmt.Errorf("invalid analyzer name %q", a)
 			}
 			if names[a.Name] {
-				return fmt.Errorf("duplicate analysis name %q", a)
+				return fmt.Errorf("duplicate analyzer name %q", a)
 			}
 			names[a.Name] = true
 
 			if a.Doc == "" {
-				return fmt.Errorf("analysis %q is undocumented", a)
+				return fmt.Errorf("analyzer %q is undocumented", a)
+			}
+
+			// fact types
+			for _, f := range a.FactTypes {
+				if f == nil {
+					return fmt.Errorf("analyzer %s has nil FactType", a)
+				}
+				t := reflect.TypeOf(f)
+				if prev := factTypes[t]; prev != nil {
+					return fmt.Errorf("fact type %s registered by two analyzers: %v, %v",
+						t, a, prev)
+				}
+				if t.Kind() != reflect.Ptr {
+					return fmt.Errorf("%s: fact type %s is not a pointer", a, t)
+				}
+				factTypes[t] = a
 			}
 
 			// recursion

@@ -35,7 +35,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:       "pkgfact",
 	Doc:        "gather name/value pairs from constant declarations",
 	Run:        run,
-	UsesFacts:  true, // *pairsFact
+	FactTypes:  []analysis.Fact{new(pairsFact)},
 	ResultType: reflect.TypeOf(map[string]string{}),
 }
 

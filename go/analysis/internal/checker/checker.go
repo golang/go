@@ -188,7 +188,7 @@ func analyze(pkgs []*packages.Package, analyzers []*analysis.Analyzer) []*action
 
 			// An analysis that consumes/produces facts
 			// must run on the package's dependencies too.
-			if a.UsesFacts {
+			if len(a.FactTypes) > 0 {
 				paths := make([]string, 0, len(pkg.Imports))
 				for path := range pkg.Imports {
 					paths = append(paths, path)
@@ -374,7 +374,7 @@ func needFacts(analyzers []*analysis.Analyzer) bool {
 		q = q[1:]
 		if !seen[a] {
 			seen[a] = true
-			if a.UsesFacts {
+			if len(a.FactTypes) > 0 {
 				return true
 			}
 			q = append(q, a.Requires...)

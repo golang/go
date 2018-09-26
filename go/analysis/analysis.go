@@ -11,6 +11,9 @@
 //
 // The principal data types of this package are structs, not interfaces,
 // to permit later addition of optional fields as the API evolves.
+//
+// THIS INTERFACE IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+// We aim to finalize it by November 2018.
 package analysis
 
 import (
@@ -67,14 +70,15 @@ type Analyzer struct {
 	// ResultType is the type of the optional result of the Run function.
 	ResultType reflect.Type
 
-	// UsesFacts indicates that this analyzer produces and consumes Facts.
+	// FactTypes indicates that this analyzer imports and exports
+	// Facts of the specified concrete types.
 	// An analyzer that uses facts may assume that its import
 	// dependencies have been similarly analyzed before it runs.
-	// Facts are pointers.
+	// Facts must be pointers.
 	//
-	// UsesFacts establishes a "vertical" dependency between
+	// FactTypes establishes a "vertical" dependency between
 	// analysis passes (same analyzer, different packages).
-	UsesFacts bool
+	FactTypes []Fact
 }
 
 func (a *Analyzer) String() string { return a.Name }
