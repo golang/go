@@ -12,6 +12,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -26,6 +27,10 @@ var (
 	cpuprofile = flag.String("cpuprofile", "", "write CPU profile to this file")
 	memprofile = flag.String("memprofile", "", "write memory profile to this file")
 	traceFlag  = flag.String("trace", "", "write trace log to this file")
+
+	// Flags for compatitibility with VSCode.
+	logfile = flag.String("logfile", "", "filename to log to")
+	mode    = flag.String("mode", "", "no effect")
 )
 
 func main() {
@@ -79,6 +84,15 @@ func main() {
 			}
 			f.Close()
 		}()
+	}
+
+	if *logfile != "" {
+		f, err := os.Create(*logfile)
+		if err != nil {
+			log.Fatalf("Unable to create log file: %v", err)
+		}
+		defer f.Close()
+		log.SetOutput(io.MultiWriter(os.Stderr, f))
 	}
 	if err := run(context.Background()); err != nil {
 		log.Fatal(err)

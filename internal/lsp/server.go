@@ -6,6 +6,11 @@ package lsp
 
 import (
 	"context"
+	"fmt"
+	"go/format"
+	"os"
+	"strings"
+	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -14,7 +19,9 @@ import (
 // RunServer starts an LSP server on the supplied stream, and waits until the
 // stream is closed.
 func RunServer(ctx context.Context, stream jsonrpc2.Stream, opts ...interface{}) error {
-	s := &server{}
+	s := &server{
+		activeFiles: make(map[protocol.DocumentURI]string),
+	}
 	conn, client := protocol.RunServer(ctx, stream, s, opts...)
 	s.client = client
 	return conn.Wait(ctx)
@@ -22,26 +29,74 @@ func RunServer(ctx context.Context, stream jsonrpc2.Stream, opts ...interface{})
 
 type server struct {
 	client protocol.Client
+
+	initializedMu sync.Mutex
+	initialized   bool // set once the server has received "initialize" request
+
+	activeFilesMu sync.Mutex
+	activeFiles   map[protocol.DocumentURI]string // files
 }
 
-func notImplemented(method string) *jsonrpc2.Error {
-	return jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not yet implemented", method)
+func (s *server) cacheActiveFile(uri protocol.DocumentURI, changes []protocol.TextDocumentContentChangeEvent) error {
+	s.activeFilesMu.Lock()
+	defer s.activeFilesMu.Unlock()
+
+	for _, change := range changes {
+		if change.RangeLength == 0 {
+			s.activeFiles[uri] = change.Text
+		}
+	}
+	return nil
 }
 
-func (s *server) Initialize(context.Context, *protocol.InitializeParams) (*protocol.InitializeResult, error) {
-	return nil, notImplemented("Initialize")
+func (s *server) readActiveFile(uri protocol.DocumentURI) (string, error) {
+	s.activeFilesMu.Lock()
+	defer s.activeFilesMu.Unlock()
+
+	content, ok := s.activeFiles[uri]
+	if !ok {
+		return "", fmt.Errorf("file not found: %s", uri)
+	}
+	return content, nil
+}
+
+func (s *server) Initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
+	s.initializedMu.Lock()
+	defer s.initializedMu.Unlock()
+	if s.initialized {
+		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server already initialized")
+	}
+	s.initialized = true
+	return &protocol.InitializeResult{
+		Capabilities: protocol.ServerCapabilities{
+			TextDocumentSync: protocol.TextDocumentSyncOptions{
+				Change: float64(protocol.Full), // full contents of file sent on each update
+			},
+			DocumentFormattingProvider: true,
+		},
+	}, nil
 }
 
 func (s *server) Initialized(context.Context, *protocol.InitializedParams) error {
-	return notImplemented("Initialized")
+	return nil // ignore
 }
 
 func (s *server) Shutdown(context.Context) error {
-	return notImplemented("Shutdown")
+	s.initializedMu.Lock()
+	defer s.initializedMu.Unlock()
+	if !s.initialized {
+		return jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server not initialized")
+	}
+	s.initialized = false
+	return nil
 }
 
-func (s *server) Exit(context.Context) error {
-	return notImplemented("Exit")
+func (s *server) Exit(ctx context.Context) error {
+	if s.initialized {
+		os.Exit(1)
+	}
+	os.Exit(0)
+	return nil
 }
 
 func (s *server) DidChangeWorkspaceFolders(context.Context, *protocol.DidChangeWorkspaceFoldersParams) error {
@@ -68,7 +123,8 @@ func (s *server) DidOpen(context.Context, *protocol.DidOpenTextDocumentParams) e
 	return notImplemented("DidOpen")
 }
 
-func (s *server) DidChange(context.Context, *protocol.DidChangeTextDocumentParams) error {
+func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
+	s.cacheActiveFile(params.TextDocument.URI, params.ContentChanges)
 	return nil
 }
 
@@ -156,8 +212,31 @@ func (s *server) ColorPresentation(context.Context, *protocol.ColorPresentationP
 	return nil, notImplemented("ColorPresentation")
 }
 
-func (s *server) Formatting(context.Context, *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
-	return nil, notImplemented("Formatting")
+func (s *server) Formatting(ctx context.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
+	data, err := s.readActiveFile(params.TextDocument.URI)
+	if err != nil {
+		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unable to format %s: %v", params.TextDocument.URI, err)
+	}
+	fmted, err := format.Source([]byte(data))
+	if err != nil {
+		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unable to format %s: %v", params.TextDocument.URI, err)
+	}
+	// Get the ending line and column numbers for the original file.
+	line := strings.Count(data, "\n")
+	col := len(data) - strings.LastIndex(data, "\n")
+	if col < 0 {
+		col = 0
+	}
+	// TODO(rstambler): Compute text edits instead of replacing whole file.
+	return []protocol.TextEdit{
+		{
+			Range: protocol.Range{
+				Start: protocol.Position{0, 0},
+				End:   protocol.Position{float64(line), float64(col)},
+			},
+			NewText: string(fmted),
+		},
+	}, nil
 }
 
 func (s *server) RangeFormatting(context.Context, *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
@@ -174,4 +253,8 @@ func (s *server) Rename(context.Context, *protocol.RenameParams) ([]protocol.Wor
 
 func (s *server) FoldingRanges(context.Context, *protocol.FoldingRangeRequestParam) ([]protocol.FoldingRange, error) {
 	return nil, notImplemented("FoldingRanges")
+}
+
+func notImplemented(method string) *jsonrpc2.Error {
+	return jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not yet implemented", method)
 }
