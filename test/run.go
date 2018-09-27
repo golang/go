@@ -321,7 +321,7 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
 	return
 }
 
-var packageRE = regexp.MustCompile(`(?m)^package (\w+)`)
+var packageRE = regexp.MustCompile(`(?m)^package ([\p{Lu}\p{Ll}\w]+)`)
 
 // If singlefilepkgs is set, each file is considered a separate package
 // even if the package names are the same.
