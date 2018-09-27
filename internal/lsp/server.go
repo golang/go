@@ -6,10 +6,7 @@ package lsp
 
 import (
 	"context"
-	"fmt"
-	"go/format"
 	"os"
-	"strings"
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -20,7 +17,7 @@ import (
 // stream is closed.
 func RunServer(ctx context.Context, stream jsonrpc2.Stream, opts ...interface{}) error {
 	s := &server{
-		activeFiles: make(map[protocol.DocumentURI]string),
+		view: newView(),
 	}
 	conn, client := protocol.RunServer(ctx, stream, s, opts...)
 	s.client = client
@@ -33,31 +30,7 @@ type server struct {
 	initializedMu sync.Mutex
 	initialized   bool // set once the server has received "initialize" request
 
-	activeFilesMu sync.Mutex
-	activeFiles   map[protocol.DocumentURI]string // files
-}
-
-func (s *server) cacheActiveFile(uri protocol.DocumentURI, changes []protocol.TextDocumentContentChangeEvent) error {
-	s.activeFilesMu.Lock()
-	defer s.activeFilesMu.Unlock()
-
-	for _, change := range changes {
-		if change.RangeLength == 0 {
-			s.activeFiles[uri] = change.Text
-		}
-	}
-	return nil
-}
-
-func (s *server) readActiveFile(uri protocol.DocumentURI) (string, error) {
-	s.activeFilesMu.Lock()
-	defer s.activeFilesMu.Unlock()
-
-	content, ok := s.activeFiles[uri]
-	if !ok {
-		return "", fmt.Errorf("file not found: %s", uri)
-	}
-	return content, nil
+	*view
 }
 
 func (s *server) Initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
@@ -70,9 +43,11 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			TextDocumentSync: protocol.TextDocumentSyncOptions{
-				Change: float64(protocol.Full), // full contents of file sent on each update
+				Change:    float64(protocol.Full), // full contents of file sent on each update
+				OpenClose: true,
 			},
-			DocumentFormattingProvider: true,
+			DocumentFormattingProvider:      true,
+			DocumentRangeFormattingProvider: true,
 		},
 	}, nil
 }
@@ -119,12 +94,19 @@ func (s *server) ExecuteCommand(context.Context, *protocol.ExecuteCommandParams)
 	return nil, notImplemented("ExecuteCommand")
 }
 
-func (s *server) DidOpen(context.Context, *protocol.DidOpenTextDocumentParams) error {
-	return notImplemented("DidOpen")
+func (s *server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
+	s.cacheActiveFile(params.TextDocument.URI, params.TextDocument.Text)
+	return nil
 }
 
 func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
-	s.cacheActiveFile(params.TextDocument.URI, params.ContentChanges)
+	if len(params.ContentChanges) < 1 {
+		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no content changes provided")
+	}
+	// We expect the full content of file, i.e. a single change with no range.
+	if change := params.ContentChanges[0]; change.RangeLength == 0 {
+		s.cacheActiveFile(params.TextDocument.URI, change.Text)
+	}
 	return nil
 }
 
@@ -140,8 +122,9 @@ func (s *server) DidSave(context.Context, *protocol.DidSaveTextDocumentParams) e
 	return notImplemented("DidSave")
 }
 
-func (s *server) DidClose(context.Context, *protocol.DidCloseTextDocumentParams) error {
-	return notImplemented("DidClose")
+func (s *server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
+	s.clearActiveFile(params.TextDocument.URI)
+	return nil
 }
 
 func (s *server) Completion(context.Context, *protocol.CompletionParams) (*protocol.CompletionList, error) {
@@ -213,34 +196,11 @@ func (s *server) ColorPresentation(context.Context, *protocol.ColorPresentationP
 }
 
 func (s *server) Formatting(ctx context.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
-	data, err := s.readActiveFile(params.TextDocument.URI)
-	if err != nil {
-		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unable to format %s: %v", params.TextDocument.URI, err)
-	}
-	fmted, err := format.Source([]byte(data))
-	if err != nil {
-		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unable to format %s: %v", params.TextDocument.URI, err)
-	}
-	// Get the ending line and column numbers for the original file.
-	line := strings.Count(data, "\n")
-	col := len(data) - strings.LastIndex(data, "\n")
-	if col < 0 {
-		col = 0
-	}
-	// TODO(rstambler): Compute text edits instead of replacing whole file.
-	return []protocol.TextEdit{
-		{
-			Range: protocol.Range{
-				Start: protocol.Position{0, 0},
-				End:   protocol.Position{float64(line), float64(col)},
-			},
-			NewText: string(fmted),
-		},
-	}, nil
+	return s.format(params.TextDocument.URI, nil)
 }
 
-func (s *server) RangeFormatting(context.Context, *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
-	return nil, notImplemented("RangeFormatting")
+func (s *server) RangeFormatting(ctx context.Context, params *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
+	return s.format(params.TextDocument.URI, &params.Range)
 }
 
 func (s *server) OnTypeFormatting(context.Context, *protocol.DocumentOnTypeFormattingParams) ([]protocol.TextEdit, error) {
