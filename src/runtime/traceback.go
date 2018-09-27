@@ -913,7 +913,9 @@ func goroutineheader(gp *g) {
 	if isScan {
 		print(" (scan)")
 	}
-	if waitfor >= 1 {
+	if waitfor == 1 {
+		print(", ", waitfor, " minute")
+	} else if waitfor > 1 {
 		print(", ", waitfor, " minutes")
 	}
 	if gp.lockedm != 0 {
