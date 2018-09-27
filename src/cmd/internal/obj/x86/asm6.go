@@ -2288,7 +2288,7 @@ func instinit(ctxt *obj.Link) {
 	}
 }
 
-var isAndroid = (objabi.GOOS == "android")
+var isAndroid = objabi.GOOS == "android"
 
 func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
