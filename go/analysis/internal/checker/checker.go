@@ -497,6 +497,7 @@ func (act *action) execOnce() {
 		Analyzer:          act.a,
 		Fset:              act.pkg.Fset,
 		Files:             act.pkg.Syntax,
+		OtherFiles:        act.pkg.OtherFiles,
 		Pkg:               act.pkg.Types,
 		TypesInfo:         act.pkg.TypesInfo,
 		ResultOf:          inputs,

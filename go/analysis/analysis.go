@@ -90,16 +90,19 @@ func (a *Analyzer) String() string { return a.Name }
 // program, and has both input and an output components.
 //
 // As in a compiler, one pass may depend on the result computed by another.
+//
+// The Run function should not call any of the Pass functions concurrently.
 type Pass struct {
 	// -- inputs --
 
 	Analyzer *Analyzer // the identity of the current analyzer
 
 	// syntax and type information
-	Fset      *token.FileSet // file position information
-	Files     []*ast.File    // the abstract syntax tree of each file
-	Pkg       *types.Package // type information about the package
-	TypesInfo *types.Info    // type information about the syntax trees
+	Fset       *token.FileSet // file position information
+	Files      []*ast.File    // the abstract syntax tree of each file
+	OtherFiles []string       // names of non-Go files of this package
+	Pkg        *types.Package // type information about the package
+	TypesInfo  *types.Info    // type information about the syntax trees
 
 	// ResultOf provides the inputs to this analysis pass, which are
 	// the corresponding results of its prerequisite analyzers.
