@@ -1974,6 +1974,9 @@ func gcSweep(mode gcMode) {
 		throw("non-empty swept list")
 	}
 	mheap_.pagesSwept = 0
+	mheap_.sweepArenas = mheap_.allArenas
+	mheap_.reclaimIndex = 0
+	mheap_.reclaimCredit = 0
 	unlock(&mheap_.lock)
 
 	if !_ConcurrentSweep || mode == gcForceBlockMode {

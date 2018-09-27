@@ -4,6 +4,24 @@
 
 // Garbage collector: sweeping
 
+// The sweeper consists of two different algorithms:
+//
+// * The object reclaimer finds and frees unmarked slots in spans. It
+//   can free a whole span if none of the objects are marked, but that
+//   isn't its goal. This can be driven either synchronously by
+//   mcentral.cacheSpan for mcentral spans, or asynchronously by
+//   sweepone from the list of all in-use spans in mheap_.sweepSpans.
+//
+// * The span reclaimer looks for spans that contain no marked objects
+//   and frees whole spans. This is a separate algorithm because
+//   freeing whole spans is the hardest task for the object reclaimer,
+//   but is critical when allocating new spans. The entry point for
+//   this is mheap_.reclaim and it's driven by a sequential scan of
+//   the page marks bitmap in the heap arenas.
+//
+// Both algorithms ultimately call mspan.sweep, which sweeps a single
+// heap span.
+
 package runtime
 
 import (
@@ -72,7 +90,7 @@ func bgsweep(c chan int) {
 	}
 }
 
-// sweepone sweeps one span and returns the number of pages returned
+// sweepone sweeps some unswept heap span and returns the number of pages returned
 // to the heap, or ^uintptr(0) if there was nothing to sweep.
 func sweepone() uintptr {
 	_g_ := getg()
@@ -115,7 +133,12 @@ func sweepone() uintptr {
 	npages := ^uintptr(0)
 	if s != nil {
 		npages = s.npages
-		if !s.sweep(false) {
+		if s.sweep(false) {
+			// Whole span was freed. Count it toward the
+			// page reclaimer credit since these pages can
+			// now be used for span allocation.
+			atomic.Xadduintptr(&mheap_.reclaimCredit, npages)
+		} else {
 			// Span is still in-use, so this returned no
 			// pages to the heap and the span needs to
 			// move to the swept in-use list.
