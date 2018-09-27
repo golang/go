@@ -44,7 +44,7 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	// amd64:"SHLQ\t[$]6",-"IMULQ"
 	// 386:"SHLL\t[$]6",-"IMULL"
 	// arm:"SLL\t[$]6",-"MUL"
-	// arm64:"LSL\t[$]6",-"MUL"
+	// arm64:`NEG\sR[0-9]+<<6,\sR[0-9]+`,-`LSL`,-`MUL`
 	b := -64 * n2
 
 	return a, b

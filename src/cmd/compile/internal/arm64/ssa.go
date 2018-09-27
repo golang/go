@@ -255,6 +255,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARM64MVNshiftLL, ssa.OpARM64NEGshiftLL:
+		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm64.SHIFT_LL, v.AuxInt)
+	case ssa.OpARM64MVNshiftRL, ssa.OpARM64NEGshiftRL:
+		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm64.SHIFT_LR, v.AuxInt)
+	case ssa.OpARM64MVNshiftRA, ssa.OpARM64NEGshiftRA:
+		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm64.SHIFT_AR, v.AuxInt)
 	case ssa.OpARM64ADDshiftLL,
 		ssa.OpARM64SUBshiftLL,
 		ssa.OpARM64ANDshiftLL,
@@ -317,11 +323,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.Reg = v.Args[0].Reg()
-	case ssa.OpARM64CMPshiftLL:
+	case ssa.OpARM64CMPshiftLL, ssa.OpARM64CMNshiftLL, ssa.OpARM64TSTshiftLL:
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm64.SHIFT_LL, v.AuxInt)
-	case ssa.OpARM64CMPshiftRL:
+	case ssa.OpARM64CMPshiftRL, ssa.OpARM64CMNshiftRL, ssa.OpARM64TSTshiftRL:
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm64.SHIFT_LR, v.AuxInt)
-	case ssa.OpARM64CMPshiftRA:
+	case ssa.OpARM64CMPshiftRA, ssa.OpARM64CMNshiftRA, ssa.OpARM64TSTshiftRA:
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm64.SHIFT_AR, v.AuxInt)
 	case ssa.OpARM64MOVDaddr:
 		p := s.Prog(arm64.AMOVD)

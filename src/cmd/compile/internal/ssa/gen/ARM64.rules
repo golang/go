@@ -1605,6 +1605,12 @@
       (CSEL0 {arm64Negate(bool.Op)} x flagArg(bool))
 
 // absorb shifts into ops
+(NEG x:(SLLconst [c] y)) && clobberIfDead(x) -> (NEGshiftLL [c] y)
+(NEG x:(SRLconst [c] y)) && clobberIfDead(x) -> (NEGshiftRL [c] y)
+(NEG x:(SRAconst [c] y)) && clobberIfDead(x) -> (NEGshiftRA [c] y)
+(MVN x:(SLLconst [c] y)) && clobberIfDead(x) -> (MVNshiftLL [c] y)
+(MVN x:(SRLconst [c] y)) && clobberIfDead(x) -> (MVNshiftRL [c] y)
+(MVN x:(SRAconst [c] y)) && clobberIfDead(x) -> (MVNshiftRA [c] y)
 (ADD x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) -> (ADDshiftLL x0 y [c])
 (ADD x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) -> (ADDshiftRL x0 y [c])
 (ADD x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) -> (ADDshiftRA x0 y [c])
@@ -1635,6 +1641,12 @@
 (CMP x0:(SRLconst [c] y) x1) && clobberIfDead(x0) -> (InvertFlags (CMPshiftRL x1 y [c]))
 (CMP x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) -> (CMPshiftRA x0 y [c])
 (CMP x0:(SRAconst [c] y) x1) && clobberIfDead(x0) -> (InvertFlags (CMPshiftRA x1 y [c]))
+(CMN x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) -> (CMNshiftLL x0 y [c])
+(CMN x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) -> (CMNshiftRL x0 y [c])
+(CMN x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) -> (CMNshiftRA x0 y [c])
+(TST x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) -> (TSTshiftLL x0 y [c])
+(TST x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) -> (TSTshiftRL x0 y [c])
+(TST x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) -> (TSTshiftRA x0 y [c])
 
 // prefer *const ops to *shift ops
 (ADDshiftLL (MOVDconst [c]) x [d]) -> (ADDconst [c] (SLLconst <x.Type> x [d]))
@@ -1652,8 +1664,20 @@
 (CMPshiftLL (MOVDconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SLLconst <x.Type> x [d])))
 (CMPshiftRL (MOVDconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SRLconst <x.Type> x [d])))
 (CMPshiftRA (MOVDconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SRAconst <x.Type> x [d])))
+(CMNshiftLL (MOVDconst [c]) x [d]) -> (CMNconst [c] (SLLconst <x.Type> x [d]))
+(CMNshiftRL (MOVDconst [c]) x [d]) -> (CMNconst [c] (SRLconst <x.Type> x [d]))
+(CMNshiftRA (MOVDconst [c]) x [d]) -> (CMNconst [c] (SRAconst <x.Type> x [d]))
+(TSTshiftLL (MOVDconst [c]) x [d]) -> (TSTconst [c] (SLLconst <x.Type> x [d]))
+(TSTshiftRL (MOVDconst [c]) x [d]) -> (TSTconst [c] (SRLconst <x.Type> x [d]))
+(TSTshiftRA (MOVDconst [c]) x [d]) -> (TSTconst [c] (SRAconst <x.Type> x [d]))
 
 // constant folding in *shift ops
+(MVNshiftLL (MOVDconst [c]) [d]) -> (MOVDconst [^int64(uint64(c)<<uint64(d))])
+(MVNshiftRL (MOVDconst [c]) [d]) -> (MOVDconst [^int64(uint64(c)>>uint64(d))])
+(MVNshiftRA (MOVDconst [c]) [d]) -> (MOVDconst [^(c>>uint64(d))])
+(NEGshiftLL (MOVDconst [c]) [d]) -> (MOVDconst [-int64(uint64(c)<<uint64(d))])
+(NEGshiftRL (MOVDconst [c]) [d]) -> (MOVDconst [-int64(uint64(c)>>uint64(d))])
+(NEGshiftRA (MOVDconst [c]) [d]) -> (MOVDconst [-(c>>uint64(d))])
 (ADDshiftLL x (MOVDconst [c]) [d]) -> (ADDconst x [int64(uint64(c)<<uint64(d))])
 (ADDshiftRL x (MOVDconst [c]) [d]) -> (ADDconst x [int64(uint64(c)>>uint64(d))])
 (ADDshiftRA x (MOVDconst [c]) [d]) -> (ADDconst x [c>>uint64(d)])
@@ -1681,6 +1705,12 @@
 (CMPshiftLL x (MOVDconst [c]) [d]) -> (CMPconst x [int64(uint64(c)<<uint64(d))])
 (CMPshiftRL x (MOVDconst [c]) [d]) -> (CMPconst x [int64(uint64(c)>>uint64(d))])
 (CMPshiftRA x (MOVDconst [c]) [d]) -> (CMPconst x [c>>uint64(d)])
+(CMNshiftLL x (MOVDconst [c]) [d]) -> (CMNconst x [int64(uint64(c)<<uint64(d))])
+(CMNshiftRL x (MOVDconst [c]) [d]) -> (CMNconst x [int64(uint64(c)>>uint64(d))])
+(CMNshiftRA x (MOVDconst [c]) [d]) -> (CMNconst x [c>>uint64(d)])
+(TSTshiftLL x (MOVDconst [c]) [d]) -> (TSTconst x [int64(uint64(c)<<uint64(d))])
+(TSTshiftRL x (MOVDconst [c]) [d]) -> (TSTconst x [int64(uint64(c)>>uint64(d))])
+(TSTshiftRA x (MOVDconst [c]) [d]) -> (TSTconst x [c>>uint64(d)])
 
 // simplification with *shift ops
 (SUBshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVDconst [0])
