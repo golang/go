@@ -89,6 +89,25 @@ type mheap struct {
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
 
+	// Page reclaimer state
+
+	// reclaimIndex is the page index in allArenas of next page to
+	// reclaim. Specifically, it refers to page (i %
+	// pagesPerArena) of arena allArenas[i / pagesPerArena].
+	//
+	// If this is >= 1<<63, the page reclaimer is done scanning
+	// the page marks.
+	//
+	// This is accessed atomically.
+	reclaimIndex uint64
+	// reclaimCredit is spare credit for extra pages swept. Since
+	// the page reclaimer works in large chunks, it may reclaim
+	// more than requested. Any spare pages released go to this
+	// credit pool.
+	//
+	// This is accessed atomically.
+	reclaimCredit uintptr
+
 	// Malloc stats.
 	largealloc  uint64                  // bytes allocated for large objects
 	nlargealloc uint64                  // number of large object allocations
@@ -141,6 +160,11 @@ type mheap struct {
 	// safe to acquire mheap_.lock, copy the slice header, and
 	// then release mheap_.lock.
 	allArenas []arenaIdx
+
+	// sweepArenas is a snapshot of allArenas taken at the
+	// beginning of the sweep cycle. This can be read safely by
+	// simply blocking GC (by disabling preemption).
+	sweepArenas []arenaIdx
 
 	_ uint32 // ensure 64-bit alignment of central
 
@@ -658,61 +682,158 @@ func (h *mheap) init() {
 	}
 }
 
-// Sweeps spans in list until reclaims at least npages into heap.
-// Returns the actual number of pages reclaimed.
-func (h *mheap) reclaimList(list *mSpanList, npages uintptr) uintptr {
-	n := uintptr(0)
-	sg := mheap_.sweepgen
-retry:
-	for s := list.first; s != nil; s = s.next {
-		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			list.remove(s)
-			// swept spans are at the end of the list
-			list.insertBack(s) // Puts it back on a busy list. s is not in the treap at this point.
-			unlock(&h.lock)
-			snpages := s.npages
-			if s.sweep(false) {
-				n += snpages
+// reclaim sweeps and reclaims at least npage pages into the heap.
+// It is called before allocating npage pages to keep growth in check.
+//
+// reclaim implements the page-reclaimer half of the sweeper.
+//
+// h must NOT be locked.
+func (h *mheap) reclaim(npage uintptr) {
+	// This scans pagesPerChunk at a time. Higher values reduce
+	// contention on h.reclaimPos, but increase the minimum
+	// latency of performing a reclaim.
+	//
+	// Must be a multiple of the pageInUse bitmap element size.
+	//
+	// The time required by this can vary a lot depending on how
+	// many spans are actually freed. Experimentally, it can scan
+	// for pages at ~300 GB/ms on a 2.6GHz Core i7, but can only
+	// free spans at ~32 MB/ms. Using 512 pages bounds this at
+	// roughly 100µs.
+	//
+	// TODO(austin): Half of the time spent freeing spans is in
+	// locking/unlocking the heap (even with low contention). We
+	// could make the slow path here several times faster by
+	// batching heap frees.
+	const pagesPerChunk = 512
+
+	// Bail early if there's no more reclaim work.
+	if atomic.Load64(&h.reclaimIndex) >= 1<<63 {
+		return
+	}
+
+	// Disable preemption so the GC can't start while we're
+	// sweeping, so we can read h.sweepArenas, and so
+	// traceGCSweepStart/Done pair on the P.
+	mp := acquirem()
+
+	if trace.enabled {
+		traceGCSweepStart()
+	}
+
+	arenas := h.sweepArenas
+	locked := false
+	for npage > 0 {
+		// Pull from accumulated credit first.
+		if credit := atomic.Loaduintptr(&h.reclaimCredit); credit > 0 {
+			take := credit
+			if take > npage {
+				// Take only what we need.
+				take = npage
 			}
-			lock(&h.lock)
-			if n >= npages {
-				return n
+			if atomic.Casuintptr(&h.reclaimCredit, credit, credit-take) {
+				npage -= take
 			}
-			// the span could have been moved elsewhere
-			goto retry
-		}
-		if s.sweepgen == sg-1 {
-			// the span is being swept by background sweeper, skip
 			continue
 		}
-		// already swept empty span,
-		// all subsequent ones must also be either swept or in process of sweeping
-		break
+
+		// Claim a chunk of work.
+		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerChunk) - pagesPerChunk)
+		if idx/pagesPerArena >= uintptr(len(arenas)) {
+			// Page reclaiming is done.
+			atomic.Store64(&h.reclaimIndex, 1<<63)
+			break
+		}
+
+		if !locked {
+			// Lock the heap for reclaimChunk.
+			lock(&h.lock)
+			locked = true
+		}
+
+		// Scan this chunk.
+		nfound := h.reclaimChunk(arenas, idx, pagesPerChunk)
+		if nfound <= npage {
+			npage -= nfound
+		} else {
+			// Put spare pages toward global credit.
+			atomic.Xadduintptr(&h.reclaimCredit, nfound-npage)
+			npage = 0
+		}
 	}
-	return n
+	if locked {
+		unlock(&h.lock)
+	}
+
+	if trace.enabled {
+		traceGCSweepDone()
+	}
+	releasem(mp)
 }
 
-// Sweeps and reclaims at least npage pages into heap.
-// Called before allocating npage pages.
-func (h *mheap) reclaim(npage uintptr) {
-	if h.reclaimList(&h.busy, npage) != 0 {
-		return // Bingo!
-	}
+// reclaimChunk sweeps unmarked spans that start at page indexes [pageIdx, pageIdx+n).
+// It returns the number of pages returned to the heap.
+//
+// h.lock must be held and the caller must be non-preemptible.
+func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+	// The heap lock must be held because this accesses the
+	// heapArena.spans arrays using potentially non-live pointers.
+	// In particular, if a span were freed and merged concurrently
+	// with this probing heapArena.spans, it would be possible to
+	// observe arbitrary, stale span pointers.
+	n0 := n
+	var nFreed uintptr
+	sg := h.sweepgen
+	for n > 0 {
+		ai := arenas[pageIdx/pagesPerArena]
+		ha := h.arenas[ai.l1()][ai.l2()]
 
-	// Now sweep everything that is not yet swept.
-	var reclaimed uintptr
-	unlock(&h.lock)
-	for {
-		n := sweepone()
-		if n == ^uintptr(0) { // all spans are swept
-			break
+		// Get a chunk of the bitmap to work on.
+		arenaPage := uint(pageIdx % pagesPerArena)
+		inUse := ha.pageInUse[arenaPage/8:]
+		marked := ha.pageMarks[arenaPage/8:]
+		if uintptr(len(inUse)) > n/8 {
+			inUse = inUse[:n/8]
+			marked = marked[:n/8]
 		}
-		reclaimed += n
-		if reclaimed >= npage {
-			break
+
+		// Scan this bitmap chunk for spans that are in-use
+		// but have no marked objects on them.
+		for i := range inUse {
+			inUseUnmarked := inUse[i] &^ marked[i]
+			if inUseUnmarked == 0 {
+				continue
+			}
+
+			for j := uint(0); j < 8; j++ {
+				if inUseUnmarked&(1<<j) != 0 {
+					s := ha.spans[arenaPage+uint(i)*8+j]
+					if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+						npages := s.npages
+						unlock(&h.lock)
+						if s.sweep(false) {
+							nFreed += npages
+						}
+						lock(&h.lock)
+						// Reload inUse. It's possible nearby
+						// spans were freed when we dropped the
+						// lock and we don't want to get stale
+						// pointers from the spans array.
+						inUseUnmarked = inUse[i] &^ marked[i]
+					}
+				}
+			}
 		}
+
+		// Advance.
+		pageIdx += uintptr(len(inUse) * 8)
+		n -= uintptr(len(inUse) * 8)
 	}
-	lock(&h.lock)
+	if trace.enabled {
+		// Account for pages scanned but not reclaimed.
+		traceGCSweepSpan((n0 - nFreed) * pageSize)
+	}
+	return nFreed
 }
 
 // alloc_m is the internal implementation of mheap.alloc.
@@ -723,27 +844,14 @@ func (h *mheap) reclaim(npage uintptr) {
 //go:systemstack
 func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 	_g_ := getg()
-	lock(&h.lock)
 
 	// To prevent excessive heap growth, before allocating n pages
 	// we need to sweep and reclaim at least n pages.
 	if h.sweepdone == 0 {
-		// TODO(austin): This tends to sweep a large number of
-		// spans in order to find a few completely free spans
-		// (for example, in the garbage benchmark, this sweeps
-		// ~30x the number of pages it's trying to allocate).
-		// If GC kept a bit for whether there were any marks
-		// in a span, we could release these free spans
-		// at the end of GC and eliminate this entirely.
-		if trace.enabled {
-			traceGCSweepStart()
-		}
 		h.reclaim(npage)
-		if trace.enabled {
-			traceGCSweepDone()
-		}
 	}
 
+	lock(&h.lock)
 	// transfer stats from cache to global
 	memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
 	_g_.m.mcache.local_scan = 0
