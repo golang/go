@@ -206,8 +206,15 @@ func AddMul(x int) int {
 	return 2*x + 1
 }
 
-func MULA(a, b, c uint32) uint32 {
-	// arm:`MULA`
-	// arm64:`MADDW`
-	return a*b + c
+func MULA(a, b, c uint32) (uint32, uint32, uint32) {
+	// arm:`MULA`,-`MUL\s`
+	// arm64:`MADDW`,-`MULW`
+	r0 := a*b + c
+	// arm:`MULA`-`MUL\s`
+	// arm64:`MADDW`,-`MULW`
+	r1 := c*79 + a
+	// arm:`ADD`,-`MULA`-`MUL\s`
+	// arm64:`ADD`,-`MADD`,-`MULW`
+	r2 := b*64 + c
+	return r0, r1, r2
 }
