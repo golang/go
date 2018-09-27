@@ -107,9 +107,9 @@ func TestSkip(t *testing.T) {
 	}
 
 	var found []string
-	walkDir(filepath.Join(dir, "src"), func(srcDir string, dir string) {
-		found = append(found, dir[len(srcDir)+1:])
-	}, Options{ModulesEnabled: false})
+	walkDir(Root{filepath.Join(dir, "src"), RootGOPATH}, func(root Root, dir string) {
+		found = append(found, dir[len(root.Path)+1:])
+	}, Options{ModulesEnabled: false, Debug: true})
 	if want := []string{"shouldfind"}; !reflect.DeepEqual(found, want) {
 		t.Errorf("expected to find only %v, got %v", want, found)
 	}

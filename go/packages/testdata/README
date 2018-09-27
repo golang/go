@@ -1,0 +1,3 @@
+Test data directories here were created by running go commands with GOPATH set as such:
+GOPATH=......./testdata/TestNamed_ModulesDedup go get github.com/heschik/tools-testrepo/v2@v2.0.1
+and then removing the vcs cache directories, which appear to be unnecessary.

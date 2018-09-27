@@ -1107,6 +1107,106 @@ func TestContains_FallbackSticks(t *testing.T) {
 	}
 }
 
+func TestName(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/needle/needle.go":       `package needle; import "c"`,
+		"src/b/needle/needle.go":       `package needle;`,
+		"src/c/c.go":                   `package c;`,
+		"src/irrelevant/irrelevant.go": `package irrelevant;`,
+	})
+	defer cleanup()
+
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Dir:  tmp,
+		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
+	}
+	initial, err := packages.Load(cfg, "name=needle")
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, _ := importGraph(initial)
+	wantGraph := `
+* a/needle
+* b/needle
+  c
+  a/needle -> c
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+}
+
+func TestName_Modules(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/localmod/go.mod":     `module test`,
+		"src/localmod/pkg/pkg.go": `package pkg;`,
+	})
+	defer cleanup()
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// testdata/TestNamed_Modules contains:
+	// - pkg/mod/github.com/heschik/tools-testrepo@v1.0.0/pkg
+	// - pkg/mod/github.com/heschik/tools-testrepo/v2@v2.0.0/pkg
+	// - src/b/pkg
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Dir:  filepath.Join(tmp, "src/localmod"),
+		Env:  append(os.Environ(), "GOPATH="+wd+"/testdata/TestName_Modules", "GO111MODULE=on"),
+	}
+
+	initial, err := packages.Load(cfg, "name=pkg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, _ := importGraph(initial)
+	wantGraph := `
+* github.com/heschik/tools-testrepo/pkg
+* github.com/heschik/tools-testrepo/v2/pkg
+* test/pkg
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+}
+
+func TestName_ModulesDedup(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/localmod/go.mod": `module test`,
+	})
+	defer cleanup()
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// testdata/TestNamed_ModulesDedup contains:
+	// - pkg/mod/github.com/heschik/tools-testrepo/v2@v2.0.2/pkg/pkg.go
+	// - pkg/mod/github.com/heschik/tools-testrepo/v2@v2.0.1/pkg/pkg.go
+	// - pkg/mod/github.com/heschik/tools-testrepo@v1.0.0/pkg/pkg.go
+	// but, inexplicably, not v2.0.0. Nobody knows why.
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Dir:  filepath.Join(tmp, "src/localmod"),
+		Env:  append(os.Environ(), "GOPATH="+wd+"/testdata/TestName_ModulesDedup", "GO111MODULE=on"),
+	}
+	initial, err := packages.Load(cfg, "name=pkg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pkg := range initial {
+		if strings.Contains(pkg.PkgPath, "v2") {
+			if strings.Contains(pkg.GoFiles[0], "v2.0.2") {
+				return
+			}
+		}
+	}
+	t.Errorf("didn't find v2.0.2 of pkg in Load results: %v", initial)
+}
+
 func TestJSON(t *testing.T) {
 	//TODO: add in some errors
 	tmp, cleanup := makeTree(t, map[string]string{

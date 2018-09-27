@@ -526,21 +526,21 @@ func scanGoDirs() map[string]*pkg {
 	result := make(map[string]*pkg)
 	var mu sync.Mutex
 
-	add := func(srcDir, dir string) {
+	add := func(root gopathwalk.Root, dir string) {
 		mu.Lock()
 		defer mu.Unlock()
 
 		if _, dup := result[dir]; dup {
 			return
 		}
-		importpath := filepath.ToSlash(dir[len(srcDir)+len("/"):])
+		importpath := filepath.ToSlash(dir[len(root.Path)+len("/"):])
 		result[dir] = &pkg{
 			importPath:      importpath,
 			importPathShort: VendorlessPath(importpath),
 			dir:             dir,
 		}
 	}
-	gopathwalk.Walk(add, gopathwalk.Options{Debug: Debug, ModulesEnabled: false})
+	gopathwalk.Walk(gopathwalk.SrcDirsRoots(), add, gopathwalk.Options{Debug: Debug, ModulesEnabled: false})
 	return result
 }
 
