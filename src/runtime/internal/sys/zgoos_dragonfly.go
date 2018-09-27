@@ -7,6 +7,7 @@ package sys
 const GOOS = `dragonfly`
 
 const GoosAndroid = 0
+const GoosAix = 0
 const GoosDarwin = 0
 const GoosDragonfly = 1
 const GoosFreebsd = 0
