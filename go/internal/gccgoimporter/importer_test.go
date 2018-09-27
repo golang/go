@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gccgoimporter
+// This is an almost verbatim copy of $GOROOT/src/go/internal/gccgoimporter/importer_test.go.
 
-// This is a verbatim copy of $GOROOT/src/go/internal/gccgoimporter/importer_test.go
-// except for the importerTests variable which does not contain Go1.9-specific tests.
-// Those are added via importer19_test.go.
+package gccgoimporter
 
 import (
 	"go/types"
@@ -104,9 +102,8 @@ var importerTests = []importerTest{
 	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
 	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
-	// moved to importer19_test.go (they import interface types)
-	// {pkgpath: "aliases", name: "A14", want: "type A14 = func(int, T0) chan T2"},
-	// {pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
+	{pkgpath: "aliases", name: "A14", want: "type A14 = func(int, T0) chan T2"},
+	{pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
 	{pkgpath: "issue27856", name: "M", want: "type M struct{E F}"},
 }
