@@ -104,7 +104,11 @@ var importerTests = []importerTest{
 	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
 	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+	// moved to importer19_test.go (they import interface types)
+	// {pkgpath: "aliases", name: "A14", want: "type A14 = func(int, T0) chan T2"},
+	// {pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
+	{pkgpath: "issue27856", name: "M", want: "type M struct{E F}"},
 }
 
 func TestGoxImporter(t *testing.T) {

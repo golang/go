@@ -7,7 +7,8 @@
 package gccgoimporter
 
 var aliasTests = []importerTest{
-	{pkgpath: "alias", name: "IntAlias2", want: "type IntAlias2 = Int"},
+	{pkgpath: "aliases", name: "A14", want: "type A14 = func(int, T0) chan T2"},
+	{pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
 }
 
 func init() {
