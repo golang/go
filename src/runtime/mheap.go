@@ -30,12 +30,11 @@ const minPhysPageSize = 4096
 //go:notinheap
 type mheap struct {
 	lock      mutex
-	free      mTreap    // free and non-scavenged spans
-	scav      mTreap    // free and scavenged spans
-	busy      mSpanList // busy list of spans
-	sweepgen  uint32    // sweep generation, see comment in mspan
-	sweepdone uint32    // all spans are swept
-	sweepers  uint32    // number of active sweepone calls
+	free      mTreap // free and non-scavenged spans
+	scav      mTreap // free and scavenged spans
+	sweepgen  uint32 // sweep generation, see comment in mspan
+	sweepdone uint32 // all spans are swept
+	sweepers  uint32 // number of active sweepone calls
 
 	// allspans is a slice of all mspans ever created. Each mspan
 	// appears exactly once.
@@ -676,7 +675,7 @@ func (h *mheap) init() {
 	h.spanalloc.zero = false
 
 	// h->mapcache needs no init
-	h.busy.init()
+
 	for i := range h.central {
 		h.central[i].mcentral.init(spanClass(i))
 	}
@@ -893,8 +892,6 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 			mheap_.largealloc += uint64(s.elemsize)
 			mheap_.nlargealloc++
 			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
-			// Swept spans are at the end of lists.
-			h.busy.insertBack(s)
 		}
 	}
 	// heap_scan and heap_live were updated.
@@ -1199,9 +1196,6 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		memstats.heap_idle += uint64(s.npages << _PageShift)
 	}
 	s.state = mSpanFree
-	if s.inList() {
-		h.busy.remove(s)
-	}
 
 	// Stamp newly unused spans. The scavenger will use that
 	// info to potentially give back some pages to the OS.
