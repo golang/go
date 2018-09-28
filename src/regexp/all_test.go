@@ -859,3 +859,26 @@ func BenchmarkQuoteMetaNone(b *testing.B) {
 		sink = QuoteMeta(s)
 	}
 }
+
+func TestDeepEqual(t *testing.T) {
+	re1 := MustCompile("a.*b.*c.*d")
+	re2 := MustCompile("a.*b.*c.*d")
+	if !reflect.DeepEqual(re1, re2) { // has always been true, since Go 1.
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re1.MatchString("abcdefghijklmn")
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re2.MatchString("abcdefghijklmn")
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re2.MatchString(strings.Repeat("abcdefghijklmn", 100))
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+}
