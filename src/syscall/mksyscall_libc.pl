@@ -19,10 +19,12 @@
 
 use strict;
 
-my $cmdline = "mksyscall_solaris.pl " . join(' ', @ARGV);
+my $cmdline = "mksyscall_libc.pl " . join(' ', @ARGV);
 my $errors = 0;
 my $_32bit = "";
 my $tags = "";  # build tags
+my $aix = 0;
+my $solaris = 0;
 
 binmode STDOUT;
 
@@ -33,14 +35,23 @@ if($ARGV[0] eq "-b32") {
 	$_32bit = "little-endian";
 	shift;
 }
+if($ARGV[0] eq "-aix") {
+	$aix = 1;
+	shift;
+}
+if($ARGV[0] eq "-solaris") {
+	$solaris = 1;
+	shift;
+}
 if($ARGV[0] eq "-tags") {
 	shift;
 	$tags = $ARGV[0];
 	shift;
 }
 
+
 if($ARGV[0] =~ /^-/) {
-	print STDERR "usage: mksyscall_solaris.pl [-b32 | -l32] [-tags x,y] [file ...]\n";
+	print STDERR "usage: mksyscall_libc.pl [-b32 | -l32] [-aix | -solaris] [-tags x,y] [file ...]\n";
 	exit 1;
 }
 
@@ -96,8 +107,22 @@ while(<>) {
 	my @out = parseparamlist($out);
 
 	# So file name.
-	if($modname eq "") {
-		$modname = "libc";
+	if($aix) {
+		if($modname eq "") {
+			$modname = "libc.a/shr_64.o";
+		} else {
+			print STDERR "$func: only syscall using libc are available\n";
+			$errors = 1;
+			next;
+		}
+
+	}
+	if($solaris) {
+		if($modname eq "") {
+			$modname = "libc";
+		}
+		$modname .= ".so";
+
 	}
 
 	# System call name.
@@ -114,7 +139,7 @@ while(<>) {
 	$sysname =~ y/A-Z/a-z/; # All libc functions are lowercase.
 
 	# Runtime import of function to allow cross-platform builds.
-	$dynimports .= "//go:cgo_import_dynamic ${sysvarname} ${sysname} \"$modname.so\"\n";
+	$dynimports .= "//go:cgo_import_dynamic ${sysvarname} ${sysname} \"$modname\"\n";
 	# Link symbol to proc address variable.
 	$linknames .= "//go:linkname ${sysvarname} ${sysvarname}\n";
 	# Library proc address variable.
@@ -184,10 +209,21 @@ while(<>) {
 	}
 	my $nargs = @args;
 
+	my $asmfuncname="";
+	my $asmrawfuncname="";
+
+	if($aix){
+		$asmfuncname="syscall6";
+		$asmrawfuncname="rawSyscall6";
+	} else {
+		$asmfuncname="sysvicall6";
+		$asmrawfuncname="rawSysvicall6";
+	}
+
 	# Determine which form to use; pad args with zeros.
-	my $asm = "${syscalldot}sysvicall6";
+	my $asm = "${syscalldot}${asmfuncname}";
 	if ($nonblock) {
-		$asm = "${syscalldot}rawSysvicall6";
+		$asm = "${syscalldot}${asmrawfuncname}";
 	}
 	if(@args <= 6) {
 		while(@args < 6) {
