@@ -21,7 +21,10 @@ package singlechecker
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/checker"
@@ -42,9 +45,26 @@ func Main(a *analysis.Analyzer) {
 		flag.Var(f.Value, f.Name, f.Usage)
 	})
 
+	flag.Usage = func() {
+		paras := strings.Split(a.Doc, "\n\n")
+		fmt.Fprintf(os.Stderr, "%s: %s\n\n", a.Name, paras[0])
+		fmt.Printf("Usage: %s [-flag] [package]\n\n", a.Name)
+		if len(paras) > 1 {
+			fmt.Println(strings.Join(paras[1:], "\n\n"))
+		}
+		fmt.Println("\nFlags:")
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
-	if err := checker.Run(flag.Args(), []*analysis.Analyzer{a}); err != nil {
+	args := flag.Args()
+
+	if len(args) == 0 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if err := checker.Run(args, []*analysis.Analyzer{a}); err != nil {
 		log.Fatal(err)
 	}
 }

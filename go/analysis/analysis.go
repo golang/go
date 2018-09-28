@@ -32,6 +32,8 @@ type Analyzer struct {
 	Name string
 
 	// Doc is the documentation for the analyzer.
+	// The part before the first "\n\n" is the title
+	// (no capital or period, max ~60 letters).
 	Doc string
 
 	// Flags defines any flags accepted by the analyzer.
