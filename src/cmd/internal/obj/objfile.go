@@ -459,7 +459,12 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	panic("should be used only in the linker")
 }
-func (c dwCtxt) AddDWARFSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64) {
+	size := 4
+	if isDwarf64(c.Link) {
+		size = 8
+	}
+
 	ls := s.(*LSym)
 	rsym := t.(*LSym)
 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
@@ -498,6 +503,10 @@ func (c dwCtxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []
 
 func (c dwCtxt) Logf(format string, args ...interface{}) {
 	c.Link.Logf(format, args...)
+}
+
+func isDwarf64(ctxt *Link) bool {
+	return ctxt.Headtype == objabi.Haix
 }
 
 func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfIsStmtSym *LSym) {
