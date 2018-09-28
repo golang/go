@@ -187,3 +187,20 @@ func TestZipFSOpenSeek(t *testing.T) {
 		}
 	}
 }
+
+func TestRootType(t *testing.T) {
+	tests := []struct {
+		path   string
+		fsType vfs.RootType
+	}{
+		{"/src/net/http", vfs.RootTypeGoRoot},
+		{"/src/badpath", ""},
+		{"/", vfs.RootTypeGoRoot},
+	}
+
+	for _, item := range tests {
+		if fs.RootType(item.path) != item.fsType {
+			t.Errorf("unexpected fsType. Expected- %v, Got- %v", item.fsType, fs.RootType(item.path))
+		}
+	}
+}
