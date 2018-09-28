@@ -66,6 +66,9 @@ type Testing interface {
 // You may wish to call this function from within a (*testing.T).Run
 // subtest to ensure that errors have adequate contextual description.
 func Run(t Testing, dir string, a *analysis.Analyzer, pkgnames ...string) {
+	if pkgnames == nil {
+		t.Errorf("Run: no packages")
+	}
 	for _, pkgname := range pkgnames {
 		pkg, err := loadPackage(dir, pkgname)
 		if err != nil {
