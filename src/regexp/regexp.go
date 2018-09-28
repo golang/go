@@ -88,17 +88,18 @@ type Regexp struct {
 }
 
 type regexpRO struct {
-	expr           string         // as passed to Compile
-	prog           *syntax.Prog   // compiled program
-	onepass        *onePassProg   // onepass program or nil
+	expr           string       // as passed to Compile
+	prog           *syntax.Prog // compiled program
+	onepass        *onePassProg // onepass program or nil
+	numSubexp      int
+	maxBitStateLen int
+	subexpNames    []string
 	prefix         string         // required prefix in unanchored matches
 	prefixBytes    []byte         // prefix, as a []byte
-	prefixComplete bool           // prefix is the entire regexp
 	prefixRune     rune           // first rune in prefix
 	prefixEnd      uint32         // pc for last rune in prefix
+	prefixComplete bool           // prefix is the entire regexp
 	cond           syntax.EmptyOp // empty-width conditions required at start of match
-	numSubexp      int
-	subexpNames    []string
 	longest        bool
 }
 
@@ -192,6 +193,7 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 	}
 	if regexp.onepass == notOnePass {
 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
+		regexp.maxBitStateLen = maxBitStateLen(prog)
 	} else {
 		regexp.prefix, regexp.prefixComplete, regexp.prefixEnd = onePassPrefix(prog)
 	}
@@ -227,9 +229,7 @@ func (re *Regexp) get() *machine {
 // run using re.  (The cache empties when re gets garbage collected.)
 func (re *Regexp) put(z *machine) {
 	// Remove references to input data that we no longer need.
-	z.inputBytes.str = nil
-	z.inputString.str = ""
-	z.inputReader.r = nil
+	z.inputs.clear()
 
 	re.mu.Lock()
 	re.machine = append(re.machine, z)
