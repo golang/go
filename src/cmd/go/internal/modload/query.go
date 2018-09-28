@@ -207,7 +207,7 @@ func matchSemverPrefix(p, v string) bool {
 // If multiple modules with revisions matching the query provide the requested
 // package, QueryPackage picks the one with the longest module path.
 //
-// If the path is in the the main module and the query is "latest",
+// If the path is in the main module and the query is "latest",
 // QueryPackage returns Target as the version.
 func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
 	if _, ok := dirInModule(path, Target.Path, ModRoot, true); ok {

@@ -278,7 +278,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 
 	// If they've already configured http2 with
 	// golang.org/x/net/http2 instead of the bundled copy, try to
-	// get at its http2.Transport value (via the the "https"
+	// get at its http2.Transport value (via the "https"
 	// altproto map) so we can call CloseIdleConnections on it if
 	// requested. (Issue 22891)
 	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
