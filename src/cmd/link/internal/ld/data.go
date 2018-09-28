@@ -314,6 +314,18 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 				break
 			}
+			// On AIX, if a relocated symbol is in .data, a second relocation
+			// must be done by the loader, as the section .data will be moved.
+			// The "default" symbol address is still needed by the loader so
+			// the current relocation can't be skipped.
+			// runtime.algarray is different because it will end up in .rodata section
+			if ctxt.HeadType == objabi.Haix && r.Sym.Sect.Seg == &Segdata && r.Sym.Name != "runtime.algarray" {
+				// It's not possible to make a loader relocation to a DWARF section.
+				// FIXME
+				if s.Sect.Seg != &Segdwarf {
+					xcoffaddloaderreloc(ctxt, s, r)
+				}
+			}
 
 			o = Symaddr(r.Sym) + r.Add
 
@@ -606,6 +618,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 			thearch.Adddynrel(ctxt, s, r)
 			continue
 		}
+
 		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= 256 {
 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
@@ -1329,6 +1342,14 @@ func (ctxt *Link) dodata() {
 		gc.AddSym(s)
 		datsize += s.Size
 	}
+	// On AIX, TOC entries must be the last of .data
+	for _, s := range data[sym.SXCOFFTOC] {
+		s.Sect = sect
+		s.Type = sym.SDATA
+		datsize = aligndatsize(datsize, s)
+		s.Value = int64(uint64(datsize) - sect.Vaddr)
+		datsize += s.Size
+	}
 	checkdatsize(ctxt, datsize, sym.SDATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
 	gc.End(int64(sect.Length))
@@ -1688,6 +1709,10 @@ func (ctxt *Link) dodata() {
 	}
 	for _, sect := range Segdata.Sections {
 		sect.Extnum = int16(n)
+		if ctxt.HeadType == objabi.Haix && (sect.Name == ".noptrdata" || sect.Name == ".bss") {
+			// On AIX, "noptr" sections are merged with their "ptr" section
+			continue
+		}
 		n++
 	}
 	for _, sect := range Segdwarf.Sections {
