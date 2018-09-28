@@ -35,37 +35,61 @@ type thread struct {
 
 // A machine holds all the state during an NFA simulation for p.
 type machine struct {
-	re             *Regexp      // corresponding Regexp
-	p              *syntax.Prog // compiled program
-	op             *onePassProg // compiled onepass program, or notOnePass
-	maxBitStateLen int          // max length of string to search with bitstate
-	b              *bitState    // state for backtracker, allocated lazily
-	q0, q1         queue        // two queues for runq, nextq
-	pool           []*thread    // pool of available threads
-	matched        bool         // whether a match was found
-	matchcap       []int        // capture information for the match
+	re       *Regexp      // corresponding Regexp
+	p        *syntax.Prog // compiled program
+	op       *onePassProg // compiled onepass program, or notOnePass
+	q0, q1   queue        // two queues for runq, nextq
+	pool     []*thread    // pool of available threads
+	matched  bool         // whether a match was found
+	matchcap []int        // capture information for the match
 
+	inputs inputs
+}
+
+type inputs struct {
 	// cached inputs, to avoid allocation
-	inputBytes  inputBytes
-	inputString inputString
-	inputReader inputReader
+	bytes  inputBytes
+	string inputString
+	reader inputReader
 }
 
-func (m *machine) newInputBytes(b []byte) input {
-	m.inputBytes.str = b
-	return &m.inputBytes
+func (i *inputs) newBytes(b []byte) input {
+	i.bytes.str = b
+	return &i.bytes
 }
 
-func (m *machine) newInputString(s string) input {
-	m.inputString.str = s
-	return &m.inputString
+func (i *inputs) newString(s string) input {
+	i.string.str = s
+	return &i.string
 }
 
-func (m *machine) newInputReader(r io.RuneReader) input {
-	m.inputReader.r = r
-	m.inputReader.atEOT = false
-	m.inputReader.pos = 0
-	return &m.inputReader
+func (i *inputs) newReader(r io.RuneReader) input {
+	i.reader.r = r
+	i.reader.atEOT = false
+	i.reader.pos = 0
+	return &i.reader
+}
+
+func (i *inputs) clear() {
+	// We need to clear 1 of these.
+	// Avoid the expense of clearing the others (pointer write barrier).
+	if i.bytes.str != nil {
+		i.bytes.str = nil
+	} else if i.reader.r != nil {
+		i.reader.r = nil
+	} else {
+		i.string.str = ""
+	}
+}
+
+func (i *inputs) init(r io.RuneReader, b []byte, s string) (input, int) {
+	if r != nil {
+		return i.newReader(r), 0
+	}
+	if b != nil {
+		return i.newBytes(b), len(b)
+	}
+	return i.newString(s), len(s)
 }
 
 // progMachine returns a new machine running the prog p.
@@ -77,9 +101,6 @@ func progMachine(p *syntax.Prog, op *onePassProg) *machine {
 	ncap := p.NumCap
 	if ncap < 2 {
 		ncap = 2
-	}
-	if op == notOnePass {
-		m.maxBitStateLen = maxBitStateLen(p)
 	}
 	m.matchcap = make([]int, ncap)
 	return m
@@ -416,28 +437,20 @@ func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
 //
 // nil is returned if no matches are found and non-nil if matches are found.
 func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
-	m := re.get()
-	var i input
-	var size int
-	if r != nil {
-		i = m.newInputReader(r)
-	} else if b != nil {
-		i = m.newInputBytes(b)
-		size = len(b)
-	} else {
-		i = m.newInputString(s)
-		size = len(s)
+	if dstCap == nil {
+		// Make sure 'return dstCap' is non-nil.
+		dstCap = arrayNoInts[:0:0]
 	}
+
+	if re.onepass == notOnePass && r == nil && len(b)+len(s) < re.maxBitStateLen {
+		return re.backtrack(b, s, pos, ncap, dstCap)
+	}
+
+	m := re.get()
+	i, _ := m.inputs.init(r, b, s)
+
 	if m.op != notOnePass {
 		if !m.onepass(i, pos, ncap) {
-			re.put(m)
-			return nil
-		}
-	} else if size < m.maxBitStateLen && r == nil {
-		if m.b == nil {
-			m.b = newBitState(m.p)
-		}
-		if !m.backtrack(i, pos, size, ncap) {
 			re.put(m)
 			return nil
 		}
@@ -449,10 +462,6 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 		}
 	}
 	dstCap = append(dstCap, m.matchcap...)
-	if dstCap == nil {
-		// Keep the promise of returning non-nil value on match.
-		dstCap = arrayNoInts[:0]
-	}
 	re.put(m)
 	return dstCap
 }
