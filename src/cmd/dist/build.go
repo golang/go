@@ -87,6 +87,7 @@ var okgoos = []string{
 	"openbsd",
 	"plan9",
 	"windows",
+	"aix",
 }
 
 // find reports the first index of p in l[0:n], or else -1.
@@ -1388,6 +1389,7 @@ func checkNotStale(goBinary string, targets ...string) {
 // single point of truth for supported platforms. This list is used
 // by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
+	"aix/ppc64":       false,
 	"darwin/386":      true,
 	"darwin/amd64":    true,
 	"darwin/arm":      true,
