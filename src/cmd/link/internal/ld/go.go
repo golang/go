@@ -163,6 +163,10 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				}
 				havedynamic = 1
 			}
+			if ctxt.HeadType == objabi.Haix {
+				xcoffadddynimpsym(ctxt, s)
+			}
+
 			continue
 
 		case "cgo_import_static":
@@ -317,7 +321,8 @@ func fieldtrack(ctxt *Link) {
 }
 
 func (ctxt *Link) addexport() {
-	if ctxt.HeadType == objabi.Hdarwin {
+	// TODO(aix)
+	if ctxt.HeadType == objabi.Hdarwin || ctxt.HeadType == objabi.Haix {
 		return
 	}
 
