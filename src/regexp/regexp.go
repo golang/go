@@ -105,9 +105,13 @@ func (re *Regexp) String() string {
 }
 
 // Copy returns a new Regexp object copied from re.
+// Calling Longest on one copy does not affect another.
 //
-// When using a Regexp in multiple goroutines, giving each goroutine
-// its own copy helps to avoid lock contention.
+// Deprecated: In earlier releases, when using a Regexp in multiple goroutines,
+// giving each goroutine its own copy helped to avoid lock contention.
+// As of Go 1.12, using Copy is no longer necessary to avoid lock contention.
+// Copy may still be appropriate if the reason for its use is to make
+// two copies with different Longest settings.
 func (re *Regexp) Copy() *Regexp {
 	re2 := *re
 	return &re2
