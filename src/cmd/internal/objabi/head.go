@@ -48,10 +48,13 @@ const (
 	Hplan9
 	Hsolaris
 	Hwindows
+	Haix
 )
 
 func (h *HeadType) Set(s string) error {
 	switch s {
+	case "aix":
+		*h = Haix
 	case "darwin":
 		*h = Hdarwin
 	case "dragonfly":
@@ -82,6 +85,8 @@ func (h *HeadType) Set(s string) error {
 
 func (h *HeadType) String() string {
 	switch *h {
+	case Haix:
+		return "aix"
 	case Hdarwin:
 		return "darwin"
 	case Hdragonfly:

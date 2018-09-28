@@ -204,6 +204,12 @@ func (p platform) vet() {
 		return
 	}
 
+	if p.os == "aix" && p.arch == "ppc64" {
+		// TODO(aix): enable as soon as the aix/ppc64 port has fully landed
+		fmt.Println("skipping aix/ppc64")
+		return
+	}
+
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
 
