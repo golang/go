@@ -29,36 +29,30 @@ and publishes it on hub.docker.com in the goboring organization.
 
 ## Release process
 
-1. If the BoringCrypto bits have been updated, increment the number in `VERSION`,
-send that change out as a CL for review, get it committed, and run `git sync`.
+Development is done on the dev.boringcrypto branch, which tracks
+master. Releases are cut from dev.boringcrypto.go1.X branches,
+which are BoringCrypto backported to the Go 1.X release branches.
+To issue new BoringCrypto releases based on Go 1.X:
 
-2. Run `build.release`, which will determine the base Go version and the BoringCrypto
-version, build a release, and upload it.
+1. If the BoringCrypto bits have been updated, increment the
+   number in `VERSION`, send that change out as a CL for review,
+   get it committed to dev.boringcrypto, and run `git sync`.
 
-3. Run `build.docker`, which will build and upload a Docker image from the latest release.
+2. Change to the dev.boringcrypto.go1.X branch and cherry-pick
+   all BoringCrypto updates, including the update of the
+   `VERSION` file. If desired, merge release-branch.go1.X into
+   dev.boringcrypto.go1.X. Mail them out and get them committed.
 
-4. Send out a CL with the updated `RELEASES` file and get it committed.
+3. **Back on the dev.boringcrypto branch**, run `git fetch`,
+   `make.bash` and then `build.release dev.boringcrypto.go1.X`.
+   The script will determine the base Go version and the
+   BoringCrypto version, build a release, and upload it.
 
-## Release process for dev.boringcrypto.go1.8.
+4. Run `build.docker`, which will build and upload a Docker image
+   from the latest release.
 
-In addition to the dev.boringcrypto branch, we have a dev.boringcrypto.go1.8 branch,
-which is BoringCrypto backported to the Go 1.8 release branch.
-To issue new BoringCrypto releases based on Go 1.8:
-
-1. Do a regular release on the (not Go 1.8) dev.boringcrypto branch.
-
-2. Change to the dev.boringcrypto.go1.8 branch and cherry-pick all
-BoringCrypto updates, including the update of the `VERSION` file.
-Mail them out and get them committed.
-
-3. **Back on the (not Go 1.8) dev.boringcrypto branch**,
-run `make.bash` and then `build.release <commit>`,
-where `<commit>` is the latest commit on the dev.boringcrypto.go1.8 branch.
-The script will build a release and upload it.
-
-4. Run `build.docker`.
-
-5. Send out a CL with the updated `RELEASES` file and get it committed.
+5. Send out a CL with the updated `RELEASES` file and get it
+   committed to dev.boringcrypto.
 
 ## Building from Docker
 
