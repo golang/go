@@ -1157,6 +1157,74 @@ func TestUnmarshalInterface(t *testing.T) {
 	}
 }
 
+type IfaceS struct {
+	X interface{}
+}
+
+type IntS struct {
+	X int
+	Y int
+}
+
+var unmarshalNonNilInterfaceTest = []struct {
+	in  string
+	ptr interface{}
+	out interface{}
+	err error
+}{
+	{
+		in:  `{"X":{"X":1,"Y":2}}`,
+		ptr: &IfaceS{X: IntS{}},
+		out: &IfaceS{X: IntS{X: 1, Y: 2}},
+	},
+	{
+		in:  `{"X":{"X":"a","Y":"b"}}`,
+		ptr: &IfaceS{X: IntS{}},
+		err: &UnmarshalTypeError{Value: "string", Type: reflect.TypeOf(0), Offset: 13, Struct: "IntS", Field: "X"},
+	},
+	{
+		in:  `{"X":{"X":1,"Y":2}}`,
+		ptr: &IfaceS{X: map[string]int{}},
+		out: &IfaceS{X: map[string]int{"X": 1, "Y": 2}},
+	},
+	{
+		in:  `{"X":{"X":1,"Y":"a"}}`,
+		ptr: &IfaceS{X: map[string]int{}},
+		err: &UnmarshalTypeError{Value: "string", Type: reflect.TypeOf(0), Offset: 19, Struct: "IfaceS", Field: "X"},
+	},
+	{
+		in:  `{"X":[1,2,3]}`,
+		ptr: &IfaceS{X: []int{}},
+		out: &IfaceS{X: []int{1, 2, 3}},
+	},
+	{
+		in:  `{"X":["a","b","c"]}`,
+		ptr: &IfaceS{X: []string{}},
+		out: &IfaceS{X: []string{"a", "b", "c"}},
+	},
+	{
+		in:  `{"X":[1,"a"]}`,
+		ptr: &IfaceS{X: []int{}},
+		err: &UnmarshalTypeError{Value: "string", Type: reflect.TypeOf(0), Offset: 11, Struct: "IfaceS", Field: "X"},
+	},
+}
+
+func TestUnmarshalNonNilInterface(t *testing.T) {
+	for i, tt := range unmarshalNonNilInterfaceTest {
+		err := Unmarshal([]byte(tt.in), tt.ptr)
+		if !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("#%d: have %#v, want %#v", i, err, tt.err)
+			continue
+		} else if err != nil {
+			continue
+		}
+
+		if !reflect.DeepEqual(tt.out, tt.ptr) {
+			t.Errorf("#%d: mismatch\nhave: %#+v\nwant: %#+v", i, tt.ptr, tt.out)
+		}
+	}
+}
+
 func TestUnmarshalPtrPtr(t *testing.T) {
 	var xint Xint
 	pxint := &xint

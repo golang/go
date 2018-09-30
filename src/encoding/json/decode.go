@@ -514,6 +514,17 @@ func (d *decodeState) array(v reflect.Value) error {
 	// Check type of target.
 	switch v.Kind() {
 	case reflect.Interface:
+		// Attempt to resolve and set underlying type for interface, if a
+		// valid array or slice, otherwise switch to non-reflect mode.
+		if !v.IsNil() && v.Elem().Kind() == reflect.Array || v.Elem().Kind() == reflect.Slice {
+			nv := reflect.New(v.Elem().Type()).Elem()
+			if err := d.array(nv); err != nil {
+				return err
+			}
+			v.Set(nv)
+			return nil
+		}
+
 		if v.NumMethod() == 0 {
 			// Decoding into nil interface? Switch to non-reflect code.
 			ai := d.arrayInterface()
@@ -618,11 +629,22 @@ func (d *decodeState) object(v reflect.Value) error {
 	v = pv
 	t := v.Type()
 
-	// Decoding into nil interface? Switch to non-reflect code.
-	if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
-		oi := d.objectInterface()
-		v.Set(reflect.ValueOf(oi))
-		return nil
+	// Attempt to resolve and set underlying type for interface, if a
+	// valid map or struct, otherwise switch to non-reflect mode.
+	if v.Kind() == reflect.Interface {
+		if !v.IsNil() && v.Elem().Kind() == reflect.Map || v.Elem().Kind() == reflect.Struct {
+			nv := reflect.New(v.Elem().Type()).Elem()
+			if err := d.object(nv); err != nil {
+				return err
+			}
+			v.Set(nv)
+			return nil
+		} else if v.NumMethod() == 0 {
+			// Decoding into nil interface? Switch to non-reflect code.
+			oi := d.objectInterface()
+			v.Set(reflect.ValueOf(oi))
+			return nil
+		}
 	}
 
 	var fields []field
