@@ -10,6 +10,7 @@ import (
 	"internal/syscall/windows/registry"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"testing"
 )
@@ -33,6 +34,9 @@ func isBuild17063() bool {
 }
 
 func TestUnixConnLocalWindows(t *testing.T) {
+	if runtime.GOARCH == "386" {
+		t.Skip("not supported on windows/386, see golang.org/issue/27943")
+	}
 	if !isBuild17063() {
 		t.Skip("unix test")
 	}
