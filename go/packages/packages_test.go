@@ -202,7 +202,7 @@ func TestLoadImportsGraph(t *testing.T) {
 		t.Errorf("failed to obtain metadata for ad-hoc package: %s", err)
 	} else {
 		got := fmt.Sprintf("%s %s", initial[0].ID, srcs(initial[0]))
-		if want := "command-line-arguments [c.go]"; got != want && !usesOldGolist {
+		if want := "command-line-arguments [c.go]"; got != want {
 			t.Errorf("oops: got %s, want %s", got, want)
 		}
 	}

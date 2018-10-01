@@ -304,7 +304,10 @@ func cleanAbsPaths(cfg *Config, words []string) []string {
 	var cleaned = make([]string, len(words))
 	for i := range cleaned {
 		cleaned[i] = words[i]
-		if !filepath.IsAbs(cleaned[i]) {
+		// Ignore relative directory paths (they must already be goroot-relative) and Go source files
+		// (absolute source files are already allowed for ad-hoc packages).
+		// TODO(matloob): Can there be non-.go files in ad-hoc packages.
+		if !filepath.IsAbs(cleaned[i]) || strings.HasSuffix(cleaned[i], ".go") {
 			continue
 		}
 		// otherwise, it's an absolute path. Search GOPATH and GOROOT to find it.
