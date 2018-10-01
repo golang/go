@@ -17,6 +17,7 @@ func init() {
 	register("GCFairness", GCFairness)
 	register("GCFairness2", GCFairness2)
 	register("GCSys", GCSys)
+	register("GCPhys", GCPhys)
 }
 
 func GCSys() {
@@ -123,4 +124,86 @@ func GCFairness2() {
 		}
 	}
 	fmt.Println("OK")
+}
+
+var maybeSaved []byte
+
+func GCPhys() {
+	// In this test, we construct a very specific scenario. We first
+	// allocate N objects and drop half of their pointers on the floor,
+	// effectively creating N/2 'holes' in our allocated arenas. We then
+	// try to allocate objects twice as big. At the end, we measure the
+	// physical memory overhead of large objects.
+	//
+	// The purpose of this test is to ensure that the GC scavenges free
+	// spans eagerly to ensure high physical memory utilization even
+	// during fragmentation.
+	const (
+		// Unfortunately, measuring actual used physical pages is
+		// difficult because HeapReleased doesn't include the parts
+		// of an arena that haven't yet been touched. So, we just
+		// make objects and size sufficiently large such that even
+		// 64 MB overhead is relatively small in the final
+		// calculation.
+		//
+		// Currently, we target 480MiB worth of memory for our test,
+		// computed as size * objects + (size*2) * (objects/2)
+		// = 2 * size * objects
+		//
+		// Size must be also large enough to be considered a large
+		// object (not in any size-segregated span).
+		size    = 1 << 20
+		objects = 240
+	)
+	// Save objects which we want to survive, and condemn objects which we don't.
+	// Note that we condemn objects in this way and release them all at once in
+	// order to avoid having the GC start freeing up these objects while the loop
+	// is still running and filling in the holes we intend to make.
+	saved := make([][]byte, 0, objects)
+	condemned := make([][]byte, 0, objects/2+1)
+	for i := 0; i < objects; i++ {
+		// Write into a global, to prevent this from being optimized away by
+		// the compiler in the future.
+		maybeSaved = make([]byte, size)
+		if i%2 == 0 {
+			saved = append(saved, maybeSaved)
+		} else {
+			condemned = append(condemned, maybeSaved)
+		}
+	}
+	condemned = nil
+	// Clean up the heap. This will free up every other object created above
+	// (i.e. everything in condemned) creating holes in the heap.
+	runtime.GC()
+	// Allocate many new objects of 2x size.
+	for i := 0; i < objects/2; i++ {
+		saved = append(saved, make([]byte, size*2))
+	}
+	// Clean up the heap again just to put it in a known state.
+	runtime.GC()
+	// heapBacked is an estimate of the amount of physical memory used by
+	// this test. HeapSys is an estimate of the size of the mapped virtual
+	// address space (which may or may not be backed by physical pages)
+	// whereas HeapReleased is an estimate of the amount of bytes returned
+	// to the OS. Their difference then roughly corresponds to the amount
+	// of virtual address space that is backed by physical pages.
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	heapBacked := stats.HeapSys - stats.HeapReleased
+	// If heapBacked exceeds the amount of memory actually used for heap
+	// allocated objects by 10% (post-GC HeapAlloc should be quite close to
+	// the size of the working set), then fail.
+	//
+	// In the context of this test, that indicates a large amount of
+	// fragmentation with physical pages that are otherwise unused but not
+	// returned to the OS.
+	overuse := (float64(heapBacked) - float64(stats.HeapAlloc)) / float64(stats.HeapAlloc)
+	if overuse > 0.1 {
+		fmt.Printf("exceeded physical memory overuse threshold of 10%%: %3.2f%%\n"+
+			"(alloc: %d, sys: %d, rel: %d, objs: %d)\n", overuse*100, stats.HeapAlloc,
+			stats.HeapSys, stats.HeapReleased, len(saved))
+		return
+	}
+	fmt.Println("OK")
+	runtime.KeepAlive(saved)
 }
