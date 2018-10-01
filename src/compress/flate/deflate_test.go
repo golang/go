@@ -371,7 +371,7 @@ var deflateInflateStringTests = []deflateInflateStringTest{
 		[...]int{100018, 50650, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790, 43683},
 	},
 	{
-		"../testdata/Isaac.Newton-Opticks.txt",
+		"../../testdata/Isaac.Newton-Opticks.txt",
 		"Isaac.Newton-Opticks",
 		[...]int{567248, 218338, 198211, 193152, 181100, 175427, 175427, 173597, 173422, 173422, 325240},
 	},
@@ -654,7 +654,7 @@ func (w *failWriter) Write(b []byte) (int, error) {
 
 func TestWriterPersistentError(t *testing.T) {
 	t.Parallel()
-	d, err := ioutil.ReadFile("../testdata/Isaac.Newton-Opticks.txt")
+	d, err := ioutil.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}

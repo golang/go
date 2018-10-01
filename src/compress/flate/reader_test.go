@@ -28,7 +28,7 @@ var suites = []struct{ name, file string }{
 	// reasonably compressible.
 	{"Digits", "../testdata/e.txt"},
 	// Newton is Isaac Newtons's educational text on Opticks.
-	{"Newton", "../testdata/Isaac.Newton-Opticks.txt"},
+	{"Newton", "../../testdata/Isaac.Newton-Opticks.txt"},
 }
 
 func BenchmarkDecode(b *testing.B) {

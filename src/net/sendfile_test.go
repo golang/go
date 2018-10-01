@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	newton       = "../compress/testdata/Isaac.Newton-Opticks.txt"
+	newton       = "../testdata/Isaac.Newton-Opticks.txt"
 	newtonLen    = 567198
 	newtonSHA256 = "d4a9ac22462b35e7821a4f2706c211093da678620a8f9997989ee7cf8d507bbd"
 )
