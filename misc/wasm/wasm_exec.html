@@ -12,11 +12,6 @@ license that can be found in the LICENSE file.
 </head>
 
 <body>
-	<!--
-	Polyfill for TextEncoder and TextDecoder for Microsoft Edge 17/18 support
-	https://caniuse.com/#feat=textencoder
-	-->
-	<script src="https://cdn.jsdelivr.net/npm/text-encoding@0.7.0/lib/encoding.min.js"></script>
 	<script src="wasm_exec.js"></script>
 	<script>
 		if (!WebAssembly.instantiateStreaming) { // polyfill
