@@ -11,6 +11,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/buildutil"
@@ -279,12 +280,22 @@ var Z map[string]struct{ A int }
 		// Check the object strings match.
 		// (We can't check that types are identical because the
 		// objects belong to different type-checker realms.)
-		srcstr := types.ObjectString(srcobj, (*types.Package).Name)
-		binstr := types.ObjectString(binobj, (*types.Package).Name)
+		srcstr := objectString(srcobj)
+		binstr := objectString(binobj)
 		if srcstr != binstr {
 			t.Errorf("ObjectStrings do not match: Object(For(%q)) = %s, want %s",
 				path, srcstr, binstr)
 			continue
 		}
 	}
+}
+
+func objectString(obj types.Object) string {
+	s := types.ObjectString(obj, (*types.Package).Name)
+
+	// The printing of interface methods changed in go1.11.
+	// This work-around makes the specific test pass with earlier versions.
+	s = strings.Replace(s, "func (interface).Method", "func (p.Foo).Method", -1)
+
+	return s
 }
