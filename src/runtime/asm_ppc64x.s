@@ -140,7 +140,9 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVD	0(g), R4
 	MOVD	gobuf_sp(R5), R1
 	MOVD	gobuf_lr(R5), R31
+#ifndef GOOS_aix
 	MOVD	24(R1), R2	// restore R2
+#endif
 	MOVD	R31, LR
 	MOVD	gobuf_ret(R5), R3
 	MOVD	gobuf_ctxt(R5), R11
@@ -257,7 +259,9 @@ switch:
 	MOVD	g_m(g), R3
 	MOVD	m_curg(R3), g
 	MOVD	(g_sched+gobuf_sp)(g), R3
+#ifndef GOOS_aix
 	MOVD	24(R3), R2
+#endif
 	// switch back to g
 	MOVD	g_m(g), R3
 	MOVD	m_curg(R3), g
@@ -274,7 +278,9 @@ noswitch:
 	MOVD	0(R11), R12	// code pointer
 	MOVD	R12, CTR
 	BL	(CTR)
+#ifndef GOOS_aix
 	MOVD	24(R1), R2
+#endif
 	RET
 
 /*
@@ -422,11 +428,20 @@ tail: \
 callfn: \
 	/* call function */			\
 	MOVD	f+8(FP), R11;			\
+#ifdef GOOS_aix				\
+	/* AIX won't trigger a SIGSEGV if R11 = nil */	\
+	/* So it manually triggers it */	\
+	CMP	R0, R11				\
+	BNE	2(PC)				\
+	MOVD	R0, 0(R0)			\
+#endif						\
 	MOVD	(R11), R12;			\
 	MOVD	R12, CTR;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(CTR);				\
+#ifndef GOOS_aix				\
 	MOVD	24(R1), R2;			\
+#endif						\
 	/* copy return values back */		\
 	MOVD	argtype+0(FP), R7;		\
 	MOVD	arg+16(FP), R3;			\
@@ -504,12 +519,22 @@ again:
 // the BL deferreturn and jmpdefer rewinds to that.
 TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	0(R1), R31
+#ifdef GOOS_aix
+	MOVD	16(R31), R31	// caller LR is on the previous stack frame on AIX
+#endif
 	SUB     $8, R31
 	MOVD	R31, LR
 
 	MOVD	fv+0(FP), R11
 	MOVD	argp+8(FP), R1
 	SUB	$FIXED_FRAME, R1
+#ifdef GOOS_aix
+	// AIX won't trigger a SIGSEGV if R11 = nil
+	// So it manually triggers it
+	CMP	R0, R11
+	BNE	2(PC)
+	MOVD	R0, 0(R0)
+#endif
 	MOVD	0(R11), R12
 	MOVD	R12, CTR
 	BR	(CTR)
@@ -542,8 +567,13 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
-	MOVD	g_m(g), R6
-	MOVD	m_g0(R6), R6
+	// Moreover, if it's called inside the signal handler, it must not switch
+	// to g0 as it can be in use by another syscall.
+	MOVD	g_m(g), R8
+	MOVD	m_gsignal(R8), R6
+	CMP	R6, g
+	BEQ	g0
+	MOVD	m_g0(R8), R6
 	CMP	R6, g
 	BEQ	g0
 	BL	gosave<>(SB)
@@ -555,13 +585,22 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 g0:
 	// Save room for two of our pointers, plus 32 bytes of callee
 	// save area that lives on the caller stack.
+#ifdef GOOS_aix
+	// Create a fake LR to improve backtrace.
+	MOVD	$runtime·asmcgocall(SB), R6
+	MOVD	R6, 16(R1)
+#endif
 	SUB	$48, R1
 	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
 	MOVD	R5, 40(R1)	// save old g on stack
 	MOVD	(g_stack+stack_hi)(R5), R5
 	SUB	R7, R5
 	MOVD	R5, 32(R1)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+#ifdef GOOS_aix
+	MOVD	R7, 0(R1)	// Save frame pointer to allow manual backtrace with gdb
+#else
 	MOVD	R0, 0(R1)	// clear back chain pointer (TODO can we give it real back trace information?)
+#endif
 	// This is a "global call", so put the global entry point in r12
 	MOVD	R3, R12
 	MOVD	R12, CTR
@@ -574,15 +613,14 @@ g0:
 	// Restore g, stack pointer, toc pointer.
 	// R3 is errno, so don't touch it
 	MOVD	40(R1), g
-	MOVD    (g_stack+stack_hi)(g), R5
-	MOVD    32(R1), R6
-	SUB     R6, R5
-	MOVD    24(R5), R2
-	BL	runtime·save_g(SB)
 	MOVD	(g_stack+stack_hi)(g), R5
 	MOVD	32(R1), R6
 	SUB	R6, R5
+#ifndef GOOS_aix
+	MOVD	24(R5), R2
+#endif
 	MOVD	R5, R1
+	BL	runtime·save_g(SB)
 
 	MOVW	R3, ret+16(FP)
 	RET
