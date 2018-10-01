@@ -337,6 +337,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpMul64_0(v)
 	case OpMul64F:
 		return rewriteValuePPC64_OpMul64F_0(v)
+	case OpMul64uhilo:
+		return rewriteValuePPC64_OpMul64uhilo_0(v)
 	case OpMul8:
 		return rewriteValuePPC64_OpMul8_0(v)
 	case OpNeg16:
@@ -4804,6 +4806,20 @@ func rewriteValuePPC64_OpMul64F_0(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpPPC64FMUL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValuePPC64_OpMul64uhilo_0(v *Value) bool {
+	// match: (Mul64uhilo x y)
+	// cond:
+	// result: (LoweredMuluhilo x y)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpPPC64LoweredMuluhilo)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
