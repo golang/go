@@ -480,7 +480,7 @@ Nothing to see here; <a href="https://golang.org/dl/#%s">move along</a>.
 
 func validUser(user string) bool {
 	switch user {
-	case "adg", "bradfitz", "cbro", "andybons", "valsorda":
+	case "adg", "bradfitz", "cbro", "andybons", "valsorda", "dmitshur", "katiehockman":
 		return true
 	}
 	return false
