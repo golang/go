@@ -25,6 +25,7 @@
 
 (Mul64  x y) -> (MULLD  x y)
 (Mul(32|16|8)  x y) -> (MULLW  x y)
+(Mul64uhilo x y) -> (LoweredMuluhilo x y)
 
 (Div64  x y) -> (DIVD  x y)
 (Div64u x y) -> (DIVDU x y)

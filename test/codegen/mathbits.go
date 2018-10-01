@@ -310,11 +310,13 @@ func IterateBits8(n uint8) int {
 func Mul(x, y uint) (hi, lo uint) {
 	// amd64:"MULQ"
 	// arm64:"UMULH","MUL"
+	// ppc64: "MULHDU", "MULLD"
 	return bits.Mul(x, y)
 }
 
 func Mul64(x, y uint64) (hi, lo uint64) {
 	// amd64:"MULQ"
 	// arm64:"UMULH","MUL"
+	// ppc64: "MULHDU", "MULLD"
 	return bits.Mul64(x, y)
 }
