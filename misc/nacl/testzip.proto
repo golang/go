@@ -177,6 +177,8 @@ go	src=..
 		strconv
 			testdata
 				+
+		testdata
+			+
 		text
 			template
 				testdata
