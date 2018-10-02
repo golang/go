@@ -101,14 +101,14 @@ func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) 
 		cst.ts.Start()
 		return cst
 	}
-	ExportHttp2ConfigureServer(cst.ts.Config, nil)
+	ExportHTTP2ConfigureServer(cst.ts.Config, nil)
 	cst.ts.TLS = cst.ts.Config.TLSConfig
 	cst.ts.StartTLS()
 
 	cst.tr.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
 	}
-	if err := ExportHttp2ConfigureTransport(cst.tr); err != nil {
+	if err := ExportHTTP2ConfigureTransport(cst.tr); err != nil {
 		t.Fatal(err)
 	}
 	return cst
@@ -984,7 +984,7 @@ func TestTransportDiscardsUnneededConns(t *testing.T) {
 			return tls.Client(c, tlsConfig), nil
 		},
 	}
-	if err := ExportHttp2ConfigureTransport(tr); err != nil {
+	if err := ExportHTTP2ConfigureTransport(tr); err != nil {
 		t.Fatal(err)
 	}
 	defer tr.CloseIdleConnections()

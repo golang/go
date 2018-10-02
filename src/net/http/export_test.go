@@ -19,20 +19,20 @@ import (
 )
 
 var (
-	DefaultUserAgent                  = defaultUserAgent
-	NewLoggingConn                    = newLoggingConn
-	ExportAppendTime                  = appendTime
-	ExportRefererForURL               = refererForURL
-	ExportServerNewConn               = (*Server).newConn
-	ExportCloseWriteAndWait           = (*conn).closeWriteAndWait
-	ExportErrRequestCanceled          = errRequestCanceled
-	ExportErrRequestCanceledConn      = errRequestCanceledConn
-	ExportErrServerClosedIdle         = errServerClosedIdle
-	ExportServeFile                   = serveFile
-	ExportScanETag                    = scanETag
-	ExportHttp2ConfigureServer        = http2ConfigureServer
-	Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
-	Export_writeStatusLine            = writeStatusLine
+	DefaultUserAgent                 = defaultUserAgent
+	NewLoggingConn                   = newLoggingConn
+	ExportAppendTime                 = appendTime
+	ExportRefererForURL              = refererForURL
+	ExportServerNewConn              = (*Server).newConn
+	ExportCloseWriteAndWait          = (*conn).closeWriteAndWait
+	ExportErrRequestCanceled         = errRequestCanceled
+	ExportErrRequestCanceledConn     = errRequestCanceledConn
+	ExportErrServerClosedIdle        = errServerClosedIdle
+	ExportServeFile                  = serveFile
+	ExportScanETag                   = scanETag
+	ExportHTTP2ConfigureServer       = http2ConfigureServer
+	ExportShouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
+	ExportWriteStatusLine            = writeStatusLine
 )
 
 const MaxWriteWaitBeforeConnReuse = maxWriteWaitBeforeConnReuse
@@ -134,7 +134,7 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 	return ret
 }
 
-func (t *Transport) IdleConnStrsForTesting_h2() []string {
+func (t *Transport) IdleConnStrsForTestingH2() []string {
 	var ret []string
 	noDialPool := t.h2transport.(*http2Transport).ConnPool.(http2noDialClientConnPool)
 	pool := noDialPool.http2clientConnPool
@@ -212,7 +212,7 @@ func hookSetter(dst *func()) func(func()) {
 	}
 }
 
-func ExportHttp2ConfigureTransport(t *Transport) error {
+func ExportHTTP2ConfigureTransport(t *Transport) error {
 	t2, err := http2configureTransport(t)
 	if err != nil {
 		return err
