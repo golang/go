@@ -191,7 +191,7 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 			longest:     longest,
 		},
 	}
-	if regexp.onepass == notOnePass {
+	if regexp.onepass == nil {
 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
 		regexp.maxBitStateLen = maxBitStateLen(prog)
 	} else {
@@ -218,7 +218,7 @@ func (re *Regexp) get() *machine {
 		return z
 	}
 	re.mu.Unlock()
-	z := progMachine(re.prog, re.onepass)
+	z := progMachine(re.prog)
 	z.re = re
 	return z
 }

@@ -7,6 +7,7 @@ package regexp
 import (
 	"io"
 	"regexp/syntax"
+	"sync"
 )
 
 // A queue is a 'sparse array' holding pending threads of execution.
@@ -37,7 +38,6 @@ type thread struct {
 type machine struct {
 	re       *Regexp      // corresponding Regexp
 	p        *syntax.Prog // compiled program
-	op       *onePassProg // compiled onepass program, or notOnePass
 	q0, q1   queue        // two queues for runq, nextq
 	pool     []*thread    // pool of available threads
 	matched  bool         // whether a match was found
@@ -93,8 +93,8 @@ func (i *inputs) init(r io.RuneReader, b []byte, s string) (input, int) {
 }
 
 // progMachine returns a new machine running the prog p.
-func progMachine(p *syntax.Prog, op *onePassProg) *machine {
-	m := &machine{p: p, op: op}
+func progMachine(p *syntax.Prog) *machine {
+	m := &machine{p: p}
 	n := len(m.p.Inst)
 	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
 	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
@@ -327,20 +327,47 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 	return t
 }
 
-// onepass runs the machine over the input starting at pos.
-// It reports whether a match was found.
-// If so, m.matchcap holds the submatch information.
-// ncap is the number of captures.
-func (m *machine) onepass(i input, pos, ncap int) bool {
-	startCond := m.re.cond
-	if startCond == ^syntax.EmptyOp(0) { // impossible
-		return false
+type onePassMachine struct {
+	inputs   inputs
+	matchcap []int
+}
+
+var onePassPool sync.Pool
+
+func newOnePassMachine() *onePassMachine {
+	m, ok := onePassPool.Get().(*onePassMachine)
+	if !ok {
+		m = new(onePassMachine)
 	}
-	m.matched = false
-	m.matchcap = m.matchcap[:ncap]
+	return m
+}
+
+func freeOnePassMachine(m *onePassMachine) {
+	m.inputs.clear()
+	onePassPool.Put(m)
+}
+
+// doOnePass implements r.doExecute using the one-pass execution engine.
+func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap int, dstCap []int) []int {
+	startCond := re.cond
+	if startCond == ^syntax.EmptyOp(0) { // impossible
+		return nil
+	}
+
+	m := newOnePassMachine()
+	if cap(m.matchcap) < ncap {
+		m.matchcap = make([]int, ncap)
+	} else {
+		m.matchcap = m.matchcap[:ncap]
+	}
+
+	matched := false
 	for i := range m.matchcap {
 		m.matchcap[i] = -1
 	}
+
+	i, _ := m.inputs.init(ir, ib, is)
+
 	r, r1 := endOfText, endOfText
 	width, width1 := 0, 0
 	r, width = i.step(pos)
@@ -353,59 +380,59 @@ func (m *machine) onepass(i input, pos, ncap int) bool {
 	} else {
 		flag = i.context(pos)
 	}
-	pc := m.op.Start
-	inst := m.op.Inst[pc]
+	pc := re.onepass.Start
+	inst := re.onepass.Inst[pc]
 	// If there is a simple literal prefix, skip over it.
 	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
-		len(m.re.prefix) > 0 && i.canCheckPrefix() {
+		len(re.prefix) > 0 && i.canCheckPrefix() {
 		// Match requires literal prefix; fast search for it.
-		if !i.hasPrefix(m.re) {
-			return m.matched
+		if !i.hasPrefix(re) {
+			goto Return
 		}
-		pos += len(m.re.prefix)
+		pos += len(re.prefix)
 		r, width = i.step(pos)
 		r1, width1 = i.step(pos + width)
 		flag = i.context(pos)
-		pc = int(m.re.prefixEnd)
+		pc = int(re.prefixEnd)
 	}
 	for {
-		inst = m.op.Inst[pc]
+		inst = re.onepass.Inst[pc]
 		pc = int(inst.Out)
 		switch inst.Op {
 		default:
 			panic("bad inst")
 		case syntax.InstMatch:
-			m.matched = true
+			matched = true
 			if len(m.matchcap) > 0 {
 				m.matchcap[0] = 0
 				m.matchcap[1] = pos
 			}
-			return m.matched
+			goto Return
 		case syntax.InstRune:
 			if !inst.MatchRune(r) {
-				return m.matched
+				goto Return
 			}
 		case syntax.InstRune1:
 			if r != inst.Rune[0] {
-				return m.matched
+				goto Return
 			}
 		case syntax.InstRuneAny:
 			// Nothing
 		case syntax.InstRuneAnyNotNL:
 			if r == '\n' {
-				return m.matched
+				goto Return
 			}
 		// peek at the input rune to see which branch of the Alt to take
 		case syntax.InstAlt, syntax.InstAltMatch:
 			pc = int(onePassNext(&inst, r))
 			continue
 		case syntax.InstFail:
-			return m.matched
+			goto Return
 		case syntax.InstNop:
 			continue
 		case syntax.InstEmptyWidth:
 			if syntax.EmptyOp(inst.Arg)&^flag != 0 {
-				return m.matched
+				goto Return
 			}
 			continue
 		case syntax.InstCapture:
@@ -424,7 +451,16 @@ func (m *machine) onepass(i input, pos, ncap int) bool {
 			r1, width1 = i.step(pos + width)
 		}
 	}
-	return m.matched
+
+Return:
+	if !matched {
+		freeOnePassMachine(m)
+		return nil
+	}
+
+	dstCap = append(dstCap, m.matchcap...)
+	freeOnePassMachine(m)
+	return dstCap
 }
 
 // doMatch reports whether either r, b or s match the regexp.
@@ -442,25 +478,22 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 		dstCap = arrayNoInts[:0:0]
 	}
 
-	if re.onepass == notOnePass && r == nil && len(b)+len(s) < re.maxBitStateLen {
+	if re.onepass != nil {
+		return re.doOnePass(r, b, s, pos, ncap, dstCap)
+	}
+	if r == nil && len(b)+len(s) < re.maxBitStateLen {
 		return re.backtrack(b, s, pos, ncap, dstCap)
 	}
 
 	m := re.get()
 	i, _ := m.inputs.init(r, b, s)
 
-	if m.op != notOnePass {
-		if !m.onepass(i, pos, ncap) {
-			re.put(m)
-			return nil
-		}
-	} else {
-		m.init(ncap)
-		if !m.match(i, pos) {
-			re.put(m)
-			return nil
-		}
+	m.init(ncap)
+	if !m.match(i, pos) {
+		re.put(m)
+		return nil
 	}
+
 	dstCap = append(dstCap, m.matchcap...)
 	re.put(m)
 	return dstCap
