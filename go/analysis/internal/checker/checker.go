@@ -153,10 +153,26 @@ func load(patterns []string, allSyntax bool) ([]*packages.Package, error) {
 // Analyze applies an analysis to a package (and their dependencies if
 // necessary) and returns the graph of results.
 //
+// Facts about pkg are returned in a map keyed by object; package facts
+// have a nil key.
+//
 // It is exposed for use in testing.
-func Analyze(pkg *packages.Package, a *analysis.Analyzer) (*analysis.Pass, []analysis.Diagnostic, error) {
+func Analyze(pkg *packages.Package, a *analysis.Analyzer) (*analysis.Pass, []analysis.Diagnostic, map[types.Object][]analysis.Fact, error) {
 	act := analyze([]*packages.Package{pkg}, []*analysis.Analyzer{a})[0]
-	return act.pass, act.diagnostics, act.err
+
+	facts := make(map[types.Object][]analysis.Fact)
+	for key, fact := range act.objectFacts {
+		if key.obj.Pkg() == pkg.Types {
+			facts[key.obj] = append(facts[key.obj], fact)
+		}
+	}
+	for key, fact := range act.packageFacts {
+		if key.pkg == pkg.Types {
+			facts[nil] = append(facts[nil], fact)
+		}
+	}
+
+	return act.pass, act.diagnostics, facts, act.err
 }
 
 func analyze(pkgs []*packages.Package, analyzers []*analysis.Analyzer) []*action {
@@ -404,13 +420,13 @@ type action struct {
 }
 
 type objectFactKey struct {
-	types.Object
-	reflect.Type
+	obj types.Object
+	typ reflect.Type
 }
 
 type packageFactKey struct {
-	*types.Package
-	reflect.Type
+	pkg *types.Package
+	typ reflect.Type
 }
 
 func (act *action) String() string {
@@ -538,9 +554,9 @@ func inheritFacts(act, dep *action) {
 		// Filter out facts related to objects
 		// that are irrelevant downstream
 		// (equivalently: not in the compiler export data).
-		if !exportedFrom(key.Object, dep.pkg.Types) {
+		if !exportedFrom(key.obj, dep.pkg.Types) {
 			if false {
-				log.Printf("%v: discarding %T fact from %s for %s: %s", act, fact, dep, key.Object, fact)
+				log.Printf("%v: discarding %T fact from %s for %s: %s", act, fact, dep, key.obj, fact)
 			}
 			continue
 		}
@@ -556,7 +572,7 @@ func inheritFacts(act, dep *action) {
 		}
 
 		if false {
-			log.Printf("%v: inherited %T fact for %s: %s", act, fact, key.Object, fact)
+			log.Printf("%v: inherited %T fact for %s: %s", act, fact, key.obj, fact)
 		}
 		act.objectFacts[key] = fact
 	}
@@ -578,7 +594,7 @@ func inheritFacts(act, dep *action) {
 		}
 
 		if false {
-			log.Printf("%v: inherited %T fact for %s: %s", act, fact, key.Package.Path(), fact)
+			log.Printf("%v: inherited %T fact for %s: %s", act, fact, key.pkg.Path(), fact)
 		}
 		act.packageFacts[key] = fact
 	}

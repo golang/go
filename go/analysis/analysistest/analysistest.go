@@ -4,13 +4,16 @@ package analysistest
 import (
 	"fmt"
 	"go/token"
+	"go/types"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"text/scanner"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/checker"
@@ -60,8 +63,33 @@ type Testing interface {
 // Run applies an analysis to each named package.
 // It loads each package from the specified GOPATH-style project
 // directory using golang.org/x/tools/go/packages, runs the analysis on
-// it, and checks that each the analysis generates the diagnostics
-// specified by 'want "..."' comments in the package's source files.
+// it, and checks that each the analysis emits the expected diagnostics
+// and facts specified by the contents of '// want ...' comments in the
+// package's source files.
+//
+// An expectation of a Diagnostic is specified by a string literal
+// containing a regular expression that must match the diagnostic
+// message. For example:
+//
+//	fmt.Printf("%s", 1) // want `cannot provide int 1 to %s`
+//
+// An expectation of a Fact associated with an object is specified by
+// 'name:"pattern"', where name is the name of the object, which must be
+// declared on the same line as the comment, and pattern is a regular
+// expression that must match the string representation of the fact,
+// fmt.Sprint(fact). For example:
+//
+//	func panicf(format string, args interface{}) { // want panicf:"printfWrapper"
+//
+// Package facts are specified by the name "package".
+//
+// A single 'want' comment may contain a mixture of diagnostic and fact
+// expectations, including multiple facts about the same object:
+//
+//	// want "diag" "diag2" x:"fact1" x:"fact2" y:"fact3"
+//
+// Unexpected diagnostics and facts, and unmatched expectations, are
+// reported as errors to the Testing.
 //
 // You may wish to call this function from within a (*testing.T).Run
 // subtest to ensure that errors have adequate contextual description.
@@ -76,13 +104,13 @@ func Run(t Testing, dir string, a *analysis.Analyzer, pkgnames ...string) {
 			continue
 		}
 
-		pass, diagnostics, err := checker.Analyze(pkg, a)
+		pass, diagnostics, facts, err := checker.Analyze(pkg, a)
 		if err != nil {
 			t.Errorf("analyzing %s: %v", pkgname, err)
 			continue
 		}
 
-		checkDiagnostics(t, dir, pass, diagnostics)
+		check(t, dir, pass, diagnostics, facts)
 	}
 }
 
@@ -95,13 +123,6 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 	// However there is no easy way to make go/packages to consume
 	// a list of packages we generate and then do the parsing and
 	// typechecking, though this feature seems to be a recurring need.
-	//
-	// It is possible to write a custom driver, but it's fairly
-	// involved and requires setting a global (environment) variable.
-	//
-	// Also, using the "go list" driver will probably not work in google3.
-	//
-	// TODO(adonovan): extend go/packages to allow bypassing the driver.
 
 	cfg := &packages.Config{
 		Mode:  packages.LoadAllSyntax,
@@ -113,6 +134,9 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 	if err != nil {
 		return nil, err
 	}
+	if packages.PrintErrors(pkgs) > 0 {
+		return nil, fmt.Errorf("loading %s failed", pkgpath)
+	}
 	if len(pkgs) != 1 {
 		return nil, fmt.Errorf("pattern %q expanded to %d packages, want 1",
 			pkgpath, len(pkgs))
@@ -121,57 +145,177 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 	return pkgs[0], nil
 }
 
-// checkDiagnostics inspects an analysis pass on which the analysis has
-// already been run, and verifies that all reported diagnostics match those
-// specified by 'want "..."' comments in the package's source files,
-// which must have been parsed with comments enabled. Surplus diagnostics
-// and unmatched expectations are reported as errors to the Testing.
-func checkDiagnostics(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis.Diagnostic) {
+// check inspects an analysis pass on which the analysis has already
+// been run, and verifies that all reported diagnostics and facts match
+// specified by the contents of "// want ..." comments in the package's
+// source files, which must have been parsed with comments enabled.
+func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis.Diagnostic, facts map[types.Object][]analysis.Fact) {
+
 	// Read expectations out of comments.
 	type key struct {
 		file string
 		line int
 	}
-	wantErrs := make(map[key]*regexp.Regexp)
+	want := make(map[key][]expectation)
 	for _, f := range pass.Files {
 		for _, c := range f.Comments {
 			posn := pass.Fset.Position(c.Pos())
 			sanitize(gopath, &posn)
 			text := strings.TrimSpace(c.Text())
-			if !strings.HasPrefix(text, "want") {
-				continue
+
+			// Any comment starting with "want" is treated
+			// as an expectation, even without following whitespace.
+			if rest := strings.TrimPrefix(text, "want"); rest != text {
+				expects, err := parseExpectations(rest)
+				if err != nil {
+					t.Errorf("%s: in 'want' comment: %s", posn, err)
+					continue
+				}
+				if false {
+					log.Printf("%s: %v", posn, expects)
+				}
+				want[key{posn.Filename, posn.Line}] = expects
 			}
-			text = strings.TrimSpace(text[len("want"):])
-			pattern, err := strconv.Unquote(text)
-			if err != nil {
-				t.Errorf("%s: in 'want' comment: %v", posn, err)
-				continue
+		}
+	}
+
+	checkMessage := func(posn token.Position, kind, name, message string) {
+		sanitize(gopath, &posn)
+		k := key{posn.Filename, posn.Line}
+		expects := want[k]
+		var unmatched []string
+		for i, exp := range expects {
+			if exp.kind == kind && exp.name == name {
+				if exp.rx.MatchString(message) {
+					// matched: remove the expectation.
+					expects[i] = expects[len(expects)-1]
+					expects = expects[:len(expects)-1]
+					want[k] = expects
+					return
+				}
+				unmatched = append(unmatched, fmt.Sprintf("%q", exp.rx))
 			}
-			rx, err := regexp.Compile(pattern)
-			if err != nil {
-				t.Errorf("%s: %v", posn, err)
-				continue
-			}
-			wantErrs[key{posn.Filename, posn.Line}] = rx
+		}
+		if unmatched == nil {
+			t.Errorf("%v: unexpected %s: %v", posn, kind, message)
+		} else {
+			t.Errorf("%v: %s %q does not match pattern %s",
+				posn, kind, message, strings.Join(unmatched, " or "))
 		}
 	}
 
 	// Check the diagnostics match expectations.
 	for _, f := range diagnostics {
 		posn := pass.Fset.Position(f.Pos)
-		sanitize(gopath, &posn)
-		rx, ok := wantErrs[key{posn.Filename, posn.Line}]
-		if !ok {
-			t.Errorf("%v: unexpected diagnostic: %v", posn, f.Message)
-			continue
+		checkMessage(posn, "diagnostic", "", f.Message)
+	}
+
+	// Check the facts match expectations.
+	// Report errors in lexical order for determinism.
+	var objects []types.Object
+	for obj := range facts {
+		objects = append(objects, obj)
+	}
+	sort.Slice(objects, func(i, j int) bool {
+		return objects[i].Pos() < objects[j].Pos()
+	})
+	for _, obj := range objects {
+		var posn token.Position
+		var name string
+		if obj != nil {
+			// Object facts are reported on the declaring line.
+			name = obj.Name()
+			posn = pass.Fset.Position(obj.Pos())
+		} else {
+			// Package facts are reported at the start of the file.
+			name = "package"
+			posn = pass.Fset.Position(pass.Files[0].Pos())
+			posn.Line = 1
 		}
-		delete(wantErrs, key{posn.Filename, posn.Line})
-		if !rx.MatchString(f.Message) {
-			t.Errorf("%v: diagnostic %q does not match pattern %q", posn, f.Message, rx)
+
+		for _, fact := range facts[obj] {
+			checkMessage(posn, "fact", name, fmt.Sprint(fact))
 		}
 	}
-	for key, rx := range wantErrs {
-		t.Errorf("%s:%d: expected diagnostic matching %q", key.file, key.line, rx)
+
+	// Reject surplus expectations.
+	var surplus []string
+	for key, expects := range want {
+		for _, exp := range expects {
+			err := fmt.Sprintf("%s:%d: no %s was reported matching %q", key.file, key.line, exp.kind, exp.rx)
+			surplus = append(surplus, err)
+		}
+	}
+	sort.Strings(surplus)
+	for _, err := range surplus {
+		t.Errorf("%s", err)
+	}
+}
+
+type expectation struct {
+	kind string // either "fact" or "diagnostic"
+	name string // name of object to which fact belongs, or "package" ("fact" only)
+	rx   *regexp.Regexp
+}
+
+func (ex expectation) String() string {
+	return fmt.Sprintf("%s %s:%q", ex.kind, ex.name, ex.rx) // for debugging
+}
+
+// parseExpectations parses the content of a "// want ..." comment
+// and returns the expections, a mixture of diagnostics ("rx") and
+// facts (name:"rx").
+func parseExpectations(text string) ([]expectation, error) {
+	var scanErr string
+	sc := new(scanner.Scanner).Init(strings.NewReader(text))
+	sc.Error = func(s *scanner.Scanner, msg string) {
+		scanErr = msg // e.g. bad string escape
+	}
+	sc.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings
+
+	scanRegexp := func(tok rune) (*regexp.Regexp, error) {
+		if tok != scanner.String && tok != scanner.RawString {
+			return nil, fmt.Errorf("got %s, want regular expression",
+				scanner.TokenString(tok))
+		}
+		pattern, _ := strconv.Unquote(sc.TokenText()) // can't fail
+		return regexp.Compile(pattern)
+	}
+
+	var expects []expectation
+	for {
+		tok := sc.Scan()
+		switch tok {
+		case scanner.String, scanner.RawString:
+			rx, err := scanRegexp(tok)
+			if err != nil {
+				return nil, err
+			}
+			expects = append(expects, expectation{"diagnostic", "", rx})
+
+		case scanner.Ident:
+			name := sc.TokenText()
+			tok = sc.Scan()
+			if tok != ':' {
+				return nil, fmt.Errorf("got %s after %s, want ':'",
+					scanner.TokenString(tok), name)
+			}
+			tok = sc.Scan()
+			rx, err := scanRegexp(tok)
+			if err != nil {
+				return nil, err
+			}
+			expects = append(expects, expectation{"fact", name, rx})
+
+		case scanner.EOF:
+			if scanErr != "" {
+				return nil, fmt.Errorf("%s", scanErr)
+			}
+			return expects, nil
+
+		default:
+			return nil, fmt.Errorf("unexpected %s", scanner.TokenString(tok))
+		}
 	}
 }
 

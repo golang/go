@@ -45,7 +45,8 @@ var Analyzer = &analysis.Analyzer{
 // Elements are ordered by keys, which are unique.
 type pairsFact []string
 
-func (*pairsFact) AFact() {}
+func (f *pairsFact) AFact()         {}
+func (f *pairsFact) String() string { return "pairs(" + strings.Join(*f, ", ") + ")" }
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	result := make(map[string]string)

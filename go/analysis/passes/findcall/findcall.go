@@ -5,6 +5,7 @@ package findcall
 
 import (
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -17,6 +18,7 @@ The findcall analysis reports calls to functions or methods
 of a particular name.`,
 	Run:              findcall,
 	RunDespiteErrors: true,
+	FactTypes:        []analysis.Fact{new(foundFact)},
 }
 
 var name = "println" // -name flag
@@ -44,5 +46,28 @@ func findcall(pass *analysis.Pass) (interface{}, error) {
 		})
 	}
 
+	// Export a fact for each matching function.
+	//
+	// These facts are produced only to test the testing
+	// infrastructure in the analysistest package.
+	// They are not consumed by the findcall Analyzer
+	// itself, as would happen in a more realistic example.
+	for _, f := range pass.Files {
+		for _, decl := range f.Decls {
+			if decl, ok := decl.(*ast.FuncDecl); ok && decl.Name.Name == name {
+				if obj, ok := pass.TypesInfo.Defs[decl.Name].(*types.Func); ok {
+					pass.ExportObjectFact(obj, new(foundFact))
+				}
+			}
+		}
+	}
+
 	return nil, nil
 }
+
+// foundFact is a fact associated with functions that match -name.
+// We use it to exercise the fact machinery in tests.
+type foundFact struct{}
+
+func (*foundFact) String() string { return "found" }
+func (*foundFact) AFact()         {}
