@@ -92,20 +92,6 @@ func (i *inputs) init(r io.RuneReader, b []byte, s string) (input, int) {
 	return i.newString(s), len(s)
 }
 
-// progMachine returns a new machine running the prog p.
-func progMachine(p *syntax.Prog) *machine {
-	m := &machine{p: p}
-	n := len(m.p.Inst)
-	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
-	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
-	ncap := p.NumCap
-	if ncap < 2 {
-		ncap = 2
-	}
-	m.matchcap = make([]int, ncap)
-	return m
-}
-
 func (m *machine) init(ncap int) {
 	for _, t := range m.pool {
 		t.cap = t.cap[:ncap]
@@ -274,6 +260,7 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 // empty-width conditions satisfied by cond.  pos gives the current position
 // in the input.
 func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.EmptyOp, t *thread) *thread {
+Again:
 	if pc == 0 {
 		return t
 	}
@@ -296,13 +283,16 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 		// nothing
 	case syntax.InstAlt, syntax.InstAltMatch:
 		t = m.add(q, i.Out, pos, cap, cond, t)
-		t = m.add(q, i.Arg, pos, cap, cond, t)
+		pc = i.Arg
+		goto Again
 	case syntax.InstEmptyWidth:
 		if syntax.EmptyOp(i.Arg)&^cond == 0 {
-			t = m.add(q, i.Out, pos, cap, cond, t)
+			pc = i.Out
+			goto Again
 		}
 	case syntax.InstNop:
-		t = m.add(q, i.Out, pos, cap, cond, t)
+		pc = i.Out
+		goto Again
 	case syntax.InstCapture:
 		if int(i.Arg) < len(cap) {
 			opos := cap[i.Arg]
@@ -310,7 +300,8 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 			m.add(q, i.Out, pos, cap, cond, nil)
 			cap[i.Arg] = opos
 		} else {
-			t = m.add(q, i.Out, pos, cap, cond, t)
+			pc = i.Out
+			goto Again
 		}
 	case syntax.InstMatch, syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
 		if t == nil {
