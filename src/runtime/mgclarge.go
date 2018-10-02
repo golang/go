@@ -211,7 +211,6 @@ func (root *mTreap) removeNode(t *treapNode) {
 	if t.spanKey.npages != t.npagesKey {
 		throw("span and treap node npages do not match")
 	}
-
 	// Rotate t down to be leaf of tree for removal, respecting priorities.
 	for t.right != nil || t.left != nil {
 		if t.right == nil || t.left != nil && t.left.priority < t.right.priority {
@@ -279,17 +278,6 @@ func (root *mTreap) removeSpan(span *mspan) {
 		}
 	}
 	root.removeNode(t)
-}
-
-// scavengetreap visits each node in the treap and scavenges the
-// treapNode's span.
-func scavengetreap(treap *treapNode, now, limit uint64) uintptr {
-	if treap == nil {
-		return 0
-	}
-	return scavengeTreapNode(treap, now, limit) +
-		scavengetreap(treap.left, now, limit) +
-		scavengetreap(treap.right, now, limit)
 }
 
 // rotateLeft rotates the tree rooted at node x.
