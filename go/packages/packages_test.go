@@ -296,9 +296,6 @@ func TestLoadImportsC(t *testing.T) {
 		// See https://github.com/golang/go/issues/27100.
 		t.Skip(`skipping on plan9; for some reason "net [syscall.test]" is not loaded`)
 	}
-	if usesOldGolist {
-		t.Skip("not yet supported in pre-Go 1.10.4 golist fallback implementation")
-	}
 
 	cfg := &packages.Config{
 		Mode:  packages.LoadImports,
@@ -880,10 +877,6 @@ func TestLoadAllSyntaxOverlay(t *testing.T) {
 func TestLoadAllSyntaxImportErrors(t *testing.T) {
 	// TODO(matloob): Remove this once go list -e -compiled is fixed. See golang.org/issue/26755
 	t.Skip("go list -compiled -e fails with non-zero exit status for empty packages")
-
-	if usesOldGolist {
-		t.Skip("not yet supported in pre-Go 1.10.4 golist fallback implementation")
-	}
 
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/unicycle/unicycle.go": `package unicycle; import _ "unicycle"`,
