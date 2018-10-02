@@ -37,7 +37,7 @@ Running locally, in production mode, using Docker
 
 Build the app's Docker container:
 
-  VERSION=$(git rev-parse HEAD) make docker-prod
+  make docker
 
 Make sure redis is running on port 6379:
 
@@ -68,7 +68,7 @@ Deploying to golang.org
 
 Build the image, push it to gcr.io, and deploy to Flex:
 
-  VERSION=$(git rev-parse HEAD) make deploy-prod
+  make deploy
 
 Run regression tests:
 

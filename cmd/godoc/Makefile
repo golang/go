@@ -4,21 +4,48 @@
 
 .PHONY: usage
 
+GO_REF ?= release-branch.go1.11
+TOOLS_HEAD := $(shell git rev-parse HEAD)
+TOOLS_CLEAN := $(shell (git status --porcelain | grep -q .) && echo dirty || echo clean)
+ifeq ($(TOOLS_CLEAN),clean)
+	DOCKER_VERSION ?= $(TOOLS_HEAD)
+else
+	DOCKER_VERSION ?= $(TOOLS_HEAD)-dirty
+endif
+GCP_PROJECT := golang-org
+DOCKER_TAG := gcr.io/$(GCP_PROJECT)/godoc:$(DOCKER_VERSION)
+
 usage:
-	echo "See Makefile"
+	echo "See Makefile and README.godoc-app"
 	exit 1
 
-docker-prod: Dockerfile.prod
-	cd ../..; docker build -f cmd/godoc/Dockerfile.prod --tag=gcr.io/golang-org/godoc:$(VERSION) .
+docker: Dockerfile.prod
+	# NOTE(cbro): move up in directory to include entire tools repo.
+	cd ../..; docker build \
+		-f cmd/godoc/Dockerfile.prod \
+		--build-arg GO_REF=$(GO_REF) \
+		--build-arg TOOLS_HEAD=$(TOOLS_HEAD) \
+		--build-arg TOOLS_CLEAN=$(TOOLS_CLEAN) \
+		--build-arg DOCKER_TAG=$(DOCKER_TAG) \
+		--tag=$(DOCKER_TAG) \
+		.
 
-push-prod: docker-prod
-	docker push gcr.io/golang-org/godoc:$(VERSION)
+push: docker
+	docker push $(DOCKER_TAG)
 
-deploy-prod: push-prod
-	gcloud -q app deploy app.prod.yaml --project golang-org --no-promote --image-url gcr.io/golang-org/godoc:$(VERSION)
+deploy: push
+	gcloud -q app deploy app.prod.yaml \
+		--project $(GCP_PROJECT) \
+		--no-promote \
+		--image-url $(DOCKER_TAG)
 
 get-latest-url:
-	@gcloud app versions list -s default --project golang-org --sort-by=~version.createTime --format='value(version.versionUrl)' --limit 1 | cut -f1
+	@gcloud app versions list \
+		-s default \
+		--project $(GCP_PROJECT) \
+		--sort-by=~version.createTime \
+		--format='value(version.versionUrl)' \
+		--limit 1 | cut -f1 # NOTE(cbro): gcloud prints out createTime as the second field.
 
 regtest:
 	./regtest.bash $(shell make get-latest-url)
