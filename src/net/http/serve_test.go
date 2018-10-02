@@ -518,7 +518,7 @@ func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
 
 		// canonicalization or not
 		8: {"/testOne/foo/..?foo", "GET", "foo", true},
-		9: {"/testOne/foo/..?foo", "CONNECT", "404 page not found\n", false},
+		9: {"/testOne/foo/..?foo", "CONNECT", StatusText(404) + "\n", false},
 	}
 
 	for i, tt := range tests {

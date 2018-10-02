@@ -1978,10 +1978,10 @@ func Error(w ResponseWriter, error string, code int) {
 }
 
 // NotFound replies to the request with an HTTP 404 not found error.
-func NotFound(w ResponseWriter, r *Request) { Error(w, "404 page not found", StatusNotFound) }
+func NotFound(w ResponseWriter, r *Request) { Error(w, StatusText(StatusNotFound), StatusNotFound) }
 
 // NotFoundHandler returns a simple request handler
-// that replies to each request with a ``404 page not found'' reply.
+// that replies to each request with a 404 Status Text as reply.
 func NotFoundHandler() Handler { return HandlerFunc(NotFound) }
 
 // StripPrefix returns a handler that serves HTTP requests
