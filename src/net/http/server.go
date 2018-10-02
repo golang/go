@@ -2810,7 +2810,7 @@ func (srv *Server) Serve(l net.Listener) error {
 	l = &onceCloseListener{Listener: l}
 	defer l.Close()
 
-	if err := srv.setupHTTP2_Serve(); err != nil {
+	if err := srv.setupHTTP2Serve(); err != nil {
 		return err
 	}
 
@@ -2868,7 +2868,7 @@ func (srv *Server) Serve(l net.Listener) error {
 func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
 	// before we clone it and create the TLS Listener.
-	if err := srv.setupHTTP2_ServeTLS(); err != nil {
+	if err := srv.setupHTTP2ServeTLS(); err != nil {
 		return err
 	}
 
@@ -3048,28 +3048,28 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	return srv.ServeTLS(tcpKeepAliveListener{ln.(*net.TCPListener)}, certFile, keyFile)
 }
 
-// setupHTTP2_ServeTLS conditionally configures HTTP/2 on
+// setupHTTP2ServeTLS conditionally configures HTTP/2 on
 // srv and returns whether there was an error setting it up. If it is
 // not configured for policy reasons, nil is returned.
-func (srv *Server) setupHTTP2_ServeTLS() error {
+func (srv *Server) setupHTTP2ServeTLS() error {
 	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults)
 	return srv.nextProtoErr
 }
 
-// setupHTTP2_Serve is called from (*Server).Serve and conditionally
+// setupHTTP2Serve is called from (*Server).Serve and conditionally
 // configures HTTP/2 on srv using a more conservative policy than
-// setupHTTP2_ServeTLS because Serve is called after tls.Listen,
+// setupHTTP2ServeTLS because Serve is called after tls.Listen,
 // and may be called concurrently. See shouldConfigureHTTP2ForServe.
 //
 // The tests named TestTransportAutomaticHTTP2* and
 // TestConcurrentServerServe in server_test.go demonstrate some
 // of the supported use cases and motivations.
-func (srv *Server) setupHTTP2_Serve() error {
-	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults_Serve)
+func (srv *Server) setupHTTP2Serve() error {
+	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaultsServe)
 	return srv.nextProtoErr
 }
 
-func (srv *Server) onceSetNextProtoDefaults_Serve() {
+func (srv *Server) onceSetNextProtoDefaultsServe() {
 	if srv.shouldConfigureHTTP2ForServe() {
 		srv.onceSetNextProtoDefaults()
 	}
