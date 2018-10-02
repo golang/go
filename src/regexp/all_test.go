@@ -550,8 +550,8 @@ func TestOnePassCutoff(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
-	if compileOnePass(p) != notOnePass {
-		t.Fatalf("makeOnePass succeeded; wanted notOnePass")
+	if compileOnePass(p) != nil {
+		t.Fatalf("makeOnePass succeeded; wanted nil")
 	}
 }
 
