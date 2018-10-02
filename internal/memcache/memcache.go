@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build golangorg
+
 // Package memcache provides a minimally compatible interface for
 // google.golang.org/appengine/memcache
 // and stores the data in Redis (e.g., via Cloud Memorystore).
