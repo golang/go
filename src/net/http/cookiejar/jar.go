@@ -417,7 +417,7 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 
 	e.Value = c.Value
 	e.Secure = c.Secure
-	e.HttpOnly = c.HttpOnly
+	e.HttpOnly = c.HTTPOnly
 
 	switch c.SameSite {
 	case http.SameSiteDefaultMode:
