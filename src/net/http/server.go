@@ -1026,7 +1026,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		// We populate these ahead of time so we're not
 		// reading from req.Header after their Handler starts
 		// and maybe mutates it (Issue 14940)
-		wants10KeepAlive: req.wantsHttp10KeepAlive(),
+		wants10KeepAlive: req.wantsHTTP10KeepAlive(),
 		wantsClose:       req.wantsClose(),
 	}
 	if isH2Upgrade {
