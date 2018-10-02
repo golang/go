@@ -221,7 +221,7 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) (module
 	}
 
 	finalErr := errMissing
-	for p := path; p != "."; p = pathpkg.Dir(p) {
+	for p := path; p != "." && p != "/"; p = pathpkg.Dir(p) {
 		info, err := Query(p, query, allowed)
 		if err != nil {
 			if _, ok := err.(*codehost.VCSError); ok {
