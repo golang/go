@@ -39,6 +39,8 @@ type Decoder struct {
 // If r does not also implement io.ByteReader, it will be wrapped in a
 // bufio.Reader.
 func NewDecoder(r io.Reader) *Decoder {
+	registerBasics()
+
 	dec := new(Decoder)
 	// We use the ability to read bytes as a plausible surrogate for buffering.
 	if _, ok := r.(io.ByteReader); !ok {
