@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 )
 
 func ExampleHijacker() {
@@ -190,4 +191,20 @@ func ExampleNotFoundHandler() {
 	mux.Handle("/resources/people/", newPeopleHandler())
 
 	log.Fatal(http.ListenAndServe(":8080", mux))
+}
+
+func ExamplePost() {
+	r, e := http.Post("http://127.0.0.1/count", "text/plain", strings.NewReader("POST data"))
+	defer r.Body.Close()
+	if e != nil {
+		fmt.Println(e)
+	}
+
+	b, e := ioutil.ReadAll(r.Body)
+	if e != nil {
+		fmt.Println(e)
+	}
+
+	fmt.Printf("%s\n", b)
+
 }
