@@ -2333,3 +2333,17 @@ func TestDoubleCloseError(t *testing.T) {
 		t.Logf("second close returned expected error %q", err)
 	}
 }
+
+func TestUserHomeDir(t *testing.T) {
+	dir := UserHomeDir()
+	if dir == "" {
+		t.Fatal("UserHomeDir returned an empty string")
+	}
+	fi, err := Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
+	}
+}
