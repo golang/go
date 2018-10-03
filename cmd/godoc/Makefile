@@ -16,8 +16,8 @@ GCP_PROJECT := golang-org
 DOCKER_TAG := gcr.io/$(GCP_PROJECT)/godoc:$(DOCKER_VERSION)
 
 usage:
-	echo "See Makefile and README.godoc-app"
-	exit 1
+	@echo "See Makefile and README.godoc-app"
+	@exit 1
 
 docker: Dockerfile.prod
 	# NOTE(cbro): move up in directory to include entire tools repo.
@@ -48,4 +48,6 @@ get-latest-url:
 		--limit 1 | cut -f1 # NOTE(cbro): gcloud prints out createTime as the second field.
 
 regtest:
-	./regtest.bash $(shell make get-latest-url)
+	go test -v \
+		-regtest.host=$(shell make get-latest-url) \
+		-run=Live
