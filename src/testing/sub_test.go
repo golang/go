@@ -17,7 +17,7 @@ import (
 
 func init() {
 	// Make benchmark tests run 10* faster.
-	*benchTime = 100 * time.Millisecond
+	benchTime.d = 100 * time.Millisecond
 }
 
 func TestTestContext(t *T) {
@@ -593,7 +593,7 @@ func TestBRun(t *T) {
 				chatty: tc.chatty,
 			},
 			benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
-			benchTime: time.Microsecond,
+			benchTime: benchTimeFlag{d: 1 * time.Microsecond},
 		}
 		root.runN(1)
 		if ok != !tc.failed {
