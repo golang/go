@@ -18,6 +18,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,6 +40,7 @@ type devReader struct {
 	name string
 	f    io.Reader
 	mu   sync.Mutex
+	used int32 // atomic; whether this devReader has been used
 }
 
 // altGetRandom if non-nil specifies an OS-specific function to get
@@ -46,6 +48,12 @@ type devReader struct {
 var altGetRandom func([]byte) (ok bool)
 
 func (r *devReader) Read(b []byte) (n int, err error) {
+	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
+		// First use of randomness. Start timer to warn about
+		// being blocked on entropy not being available.
+		t := time.AfterFunc(60*time.Second, warnBlocked)
+		defer t.Stop()
+	}
 	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) {
 		return len(b), nil
 	}
