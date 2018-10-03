@@ -469,7 +469,7 @@ type RowsAffected int64
 var _ Result = RowsAffected(0)
 
 func (RowsAffected) LastInsertId() (int64, error) {
-	return 0, errors.New("no LastInsertId available")
+	return 0, errors.New("LastInsertId is not supported by this driver")
 }
 
 func (v RowsAffected) RowsAffected() (int64, error) {
