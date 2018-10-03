@@ -19,14 +19,23 @@ usage:
 	@echo "See Makefile and README.godoc-app"
 	@exit 1
 
+cloud-build: Dockerfile.prod
+	gcloud builds submit \
+		--project=$(GCP_PROJECT) \
+		--config=cloudbuild.yaml \
+		--substitutions=_GO_REF=$(GO_REF),_TOOLS_HEAD=$(TOOLS_HEAD),_TOOLS_CLEAN=$(TOOLS_CLEAN),_DOCKER_TAG=$(DOCKER_TAG) \
+		../.. # source code
+
 docker-build: Dockerfile.prod
 	# NOTE(cbro): move up in directory to include entire tools repo.
+	# NOTE(cbro): any changes made to this command must also be made in cloudbuild.yaml.
 	cd ../..; docker build \
-		-f cmd/godoc/Dockerfile.prod \
-		--build-arg GO_REF=$(GO_REF) \
-		--build-arg TOOLS_HEAD=$(TOOLS_HEAD) \
-		--build-arg TOOLS_CLEAN=$(TOOLS_CLEAN) \
-		--build-arg DOCKER_TAG=$(DOCKER_TAG) \
+		-f=cmd/godoc/Dockerfile.prod \
+		--build-arg=GO_REF=$(GO_REF) \
+		--build-arg=TOOLS_HEAD=$(TOOLS_HEAD) \
+		--build-arg=TOOLS_CLEAN=$(TOOLS_CLEAN) \
+		--build-arg=DOCKER_TAG=$(DOCKER_TAG) \
+		--build-arg=BUILD_ENV=local \
 		--tag=$(DOCKER_TAG) \
 		.
 

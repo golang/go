@@ -66,9 +66,13 @@ godoc should come up at http://localhost:8080
 Deploying to golang.org
 -----------------------
 
+Make sure you're signed in to gcloud:
+
+  gcloud auth login
+
 Build the image, push it to gcr.io, and deploy to Flex:
 
-  make docker-push deploy
+  make cloud-build deploy
 
 Point the load balancer to the newly deployed version:
 (This also runs regression tests)

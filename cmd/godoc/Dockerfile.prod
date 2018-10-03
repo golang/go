@@ -44,6 +44,7 @@ RUN echo "requested go ref: ${GO_REF}" >> /goroot/buildinfo
 RUN echo "x/tools HEAD: ${TOOLS_HEAD}" >> /goroot/buildinfo
 RUN echo "x/tools clean: ${TOOLS_CLEAN}" >> /goroot/buildinfo
 RUN echo "image: ${DOCKER_TAG}" >> /goroot/buildinfo
+RUN echo "build env: ${BUILD_ENV}" >> /goroot/buildinfo
 
 RUN rm -rf /goroot/.git
 
