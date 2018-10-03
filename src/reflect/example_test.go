@@ -14,21 +14,21 @@ import (
 )
 
 func ExampleKind() {
-	// Create two interface types to reflect upon
-	var s, i interface{}
-
-	s = "So long and thanks for all the fish."
-	// Reflect on the value of s
-	sv := reflect.ValueOf(s)
-	fmt.Printf("'s' (%s) is a string?: %v\n", s, sv.Kind() == reflect.String)
-
-	i = 42
-	iv := reflect.ValueOf(i)
-	fmt.Printf("'i' (%d) is an int?: %v\n", i, iv.Kind() == reflect.Int)
+	for _, v := range []interface{}{"hi", 42, func() {}} {
+		switch v := reflect.ValueOf(v); v.Kind() {
+		case reflect.String:
+			fmt.Println(v.String())
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			fmt.Println(v.Int())
+		default:
+			fmt.Printf("unhandled kind %s", v.Kind())
+		}
+	}
 
 	// Output:
-	// 's' (So long and thanks for all the fish.) is a string?: true
-	// 'i' (42) is an int?: true
+	// hi
+	// 42
+	// unhandled kind func
 }
 
 func ExampleMakeFunc() {
