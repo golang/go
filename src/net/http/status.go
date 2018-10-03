@@ -117,7 +117,7 @@ var statusText = map[int]string{
 	StatusUnsupportedMediaType:         "Unsupported Media Type",
 	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
 	StatusExpectationFailed:            "Expectation Failed",
-	StatusTeapot:                       "I'm a teapot",
+	StatusTeapot:                       "I'm a Teapot",
 	StatusMisdirectedRequest:           "Misdirected Request",
 	StatusUnprocessableEntity:          "Unprocessable Entity",
 	StatusLocked:                       "Locked",
