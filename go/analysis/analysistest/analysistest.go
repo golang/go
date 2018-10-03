@@ -128,7 +128,7 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 		Mode:  packages.LoadAllSyntax,
 		Dir:   dir,
 		Tests: true,
-		Env:   append(os.Environ(), "GOPATH="+dir),
+		Env:   append(os.Environ(), "GOPATH="+dir, "GO111MODULE=off", "GOPROXY=off"),
 	}
 	pkgs, err := packages.Load(cfg, pkgpath)
 	if err != nil {
