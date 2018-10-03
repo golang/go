@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-// Public race detection API, present iff build with -race.
+// Public race detection API, present if build with -race.
 
 func RaceRead(addr unsafe.Pointer)
 func RaceWrite(addr unsafe.Pointer)
