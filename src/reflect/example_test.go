@@ -13,6 +13,24 @@ import (
 	"reflect"
 )
 
+func ExampleKind() {
+	// Create two interface types to reflect upon
+	var s, i interface{}
+
+	s = "So long and thanks for all the fish."
+	// Reflect on the value of s
+	sv := reflect.ValueOf(s)
+	fmt.Printf("'s' (%s) is a string?: %v\n", s, sv.Kind() == reflect.String)
+
+	i = 42
+	iv := reflect.ValueOf(i)
+	fmt.Printf("'i' (%d) is an int?: %v\n", i, iv.Kind() == reflect.Int)
+
+	// Output:
+	// 's' (So long and thanks for all the fish.) is a string?: true
+	// 'i' (42) is an int?: true
+}
+
 func ExampleMakeFunc() {
 	// swap is the implementation passed to MakeFunc.
 	// It must work in terms of reflect.Values so that it is possible
