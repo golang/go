@@ -194,15 +194,21 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 				response.Packages = append(response.Packages, testmainPkg)
 				outdir, err := getOutdir()
 				if err != nil {
-					testmainPkg.Errors = append(testmainPkg.Errors,
-						Error{"-", fmt.Sprintf("failed to generate testmain: %v", err)})
+					testmainPkg.Errors = append(testmainPkg.Errors, Error{
+						Pos:  "-",
+						Msg:  fmt.Sprintf("failed to generate testmain: %v", err),
+						Kind: ListError,
+					})
 					return
 				}
 				testmain := filepath.Join(outdir, "testmain.go")
 				extraimports, extradeps, err := generateTestmain(testmain, testPkg, xtestPkg)
 				if err != nil {
-					testmainPkg.Errors = append(testmainPkg.Errors,
-						Error{"-", fmt.Sprintf("failed to generate testmain: %v", err)})
+					testmainPkg.Errors = append(testmainPkg.Errors, Error{
+						Pos:  "-",
+						Msg:  fmt.Sprintf("failed to generate testmain: %v", err),
+						Kind: ListError,
+					})
 				}
 				deps = append(deps, extradeps...)
 				for _, imp := range extraimports { // testing, testing/internal/testdeps, and maybe os
