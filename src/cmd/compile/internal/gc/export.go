@@ -12,8 +12,6 @@ import (
 )
 
 var (
-	flagiexport bool // if set, use indexed export data format
-
 	Debug_export int // if set, print debugging information about export data
 )
 
@@ -75,11 +73,7 @@ func dumpexport(bout *bio.Writer) {
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
 	off := bout.Offset()
-	if flagiexport {
-		iexport(bout.Writer)
-	} else {
-		export(bout.Writer, Debug_export != 0)
-	}
+	iexport(bout.Writer)
 	size := bout.Offset() - off
 	exportf(bout, "\n$$\n")
 
@@ -95,7 +89,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
 		// declaration for all imported symbols. The exception
 		// is declarations for Runtimepkg, which are populated
 		// by loadsys instead.
-		if flagiexport && s.Pkg != Runtimepkg {
+		if s.Pkg != Runtimepkg {
 			Fatalf("missing ONONAME for %v\n", s)
 		}
 
