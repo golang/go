@@ -4236,7 +4236,7 @@ func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
 
 	idleConns := func() []string {
 		if h2 {
-			return tr.IdleConnStrsForTesting_h2()
+			return tr.IdleConnStrsForTestingH2()
 		} else {
 			return tr.IdleConnStrsForTesting()
 		}

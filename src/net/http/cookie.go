@@ -30,7 +30,7 @@ type Cookie struct {
 	// MaxAge>0 means Max-Age attribute present and given in seconds
 	MaxAge   int
 	Secure   bool
-	HttpOnly bool
+	HTTPOnly bool
 	SameSite SameSite
 	Raw      string
 	Unparsed []string // Raw text of unparsed attribute-value pairs
@@ -113,7 +113,7 @@ func readSetCookies(h Header) []*Cookie {
 				c.Secure = true
 				continue
 			case "httponly":
-				c.HttpOnly = true
+				c.HTTPOnly = true
 				continue
 			case "domain":
 				c.Domain = val
@@ -204,8 +204,8 @@ func (c *Cookie) String() string {
 	} else if c.MaxAge < 0 {
 		b.WriteString("; Max-Age=0")
 	}
-	if c.HttpOnly {
-		b.WriteString("; HttpOnly")
+	if c.HTTPOnly {
+		b.WriteString("; HTTPOnly")
 	}
 	if c.Secure {
 		b.WriteString("; Secure")

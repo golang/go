@@ -1318,7 +1318,7 @@ func (r *Request) expectsContinue() bool {
 	return hasToken(r.Header.get("Expect"), "100-continue")
 }
 
-func (r *Request) wantsHttp10KeepAlive() bool {
+func (r *Request) wantsHTTP10KeepAlive() bool {
 	if r.ProtoMajor != 1 || r.ProtoMinor != 0 {
 		return false
 	}

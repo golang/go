@@ -758,7 +758,7 @@ func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
 	defer ts.Close()
 
 	c := ts.Client()
-	if err := ExportHttp2ConfigureTransport(c.Transport.(*Transport)); err != nil {
+	if err := ExportHTTP2ConfigureTransport(c.Transport.(*Transport)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -830,8 +830,8 @@ func testHTTP2WriteDeadlineEnforcedPerStream(timeout time.Duration) error {
 	defer ts.Close()
 
 	c := ts.Client()
-	if err := ExportHttp2ConfigureTransport(c.Transport.(*Transport)); err != nil {
-		return fmt.Errorf("ExportHttp2ConfigureTransport: %v", err)
+	if err := ExportHTTP2ConfigureTransport(c.Transport.(*Transport)); err != nil {
+		return fmt.Errorf("ExportHTTP2ConfigureTransport: %v", err)
 	}
 
 	req, err := NewRequest("GET", ts.URL, nil)
@@ -890,8 +890,8 @@ func testHTTP2NoWriteDeadline(timeout time.Duration) error {
 	defer ts.Close()
 
 	c := ts.Client()
-	if err := ExportHttp2ConfigureTransport(c.Transport.(*Transport)); err != nil {
-		return fmt.Errorf("ExportHttp2ConfigureTransport: %v", err)
+	if err := ExportHTTP2ConfigureTransport(c.Transport.(*Transport)); err != nil {
+		return fmt.Errorf("ExportHTTP2ConfigureTransport: %v", err)
 	}
 
 	for i := 0; i < 2; i++ {
@@ -6004,7 +6004,7 @@ func BenchmarkResponseStatusLine(b *testing.B) {
 		bw := bufio.NewWriter(ioutil.Discard)
 		var buf3 [3]byte
 		for pb.Next() {
-			Export_writeStatusLine(bw, true, 200, buf3[:])
+			ExportWriteStatusLine(bw, true, 200, buf3[:])
 		}
 	})
 }
