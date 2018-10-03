@@ -49,7 +49,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 	addPackage := func(p *jsonPackage) {
 		id := p.ImportPath
 
-		if p.Name == "" || allPkgs[id] {
+		if allPkgs[id] {
 			return
 		}
 		allPkgs[id] = true
@@ -132,6 +132,12 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 			PkgPath:         pkgpath,
 			Imports:         importMap(p.Imports),
 			// TODO(matloob): set errors on the Package to cgoErrors
+		}
+		if p.Error != nil {
+			pkg.Errors = append(pkg.Errors, Error{
+				Pos: p.Error.Pos,
+				Msg: p.Error.Err,
+			})
 		}
 		response.Packages = append(response.Packages, pkg)
 		if cfg.Tests && isRoot {
