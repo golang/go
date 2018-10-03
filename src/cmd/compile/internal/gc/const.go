@@ -1479,11 +1479,10 @@ func smallintconst(n *Node) bool {
 			TUINT16,
 			TINT32,
 			TUINT32,
-			TBOOL,
-			TPTR32:
+			TBOOL:
 			return true
 
-		case TIDEAL, TINT64, TUINT64, TPTR64:
+		case TIDEAL, TINT64, TUINT64, TPTR32, TPTR64:
 			v, ok := n.Val().U.(*Mpint)
 			if ok && v.Cmp(minintval[TINT32]) > 0 && v.Cmp(maxintval[TINT32]) < 0 {
 				return true
