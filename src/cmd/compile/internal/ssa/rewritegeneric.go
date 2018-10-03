@@ -16151,9 +16151,9 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr [o2] p2) d1 (Store {t3} op3:(OffPtr [0] p3) d2 _)))
+	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _)))
 	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && o2 == sizeof(t3) && n == sizeof(t2) + sizeof(t3)
-	// result: (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1 (Store {t3} (OffPtr <t3.(*types.Type)> [0] dst) d2 mem))
+	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 	for {
 		n := v.AuxInt
 		t1 := v.Aux
@@ -16170,6 +16170,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op2.Op != OpOffPtr {
 			break
 		}
+		tt2 := op2.Type
 		o2 := op2.AuxInt
 		p2 := op2.Args[0]
 		d1 := mem.Args[1]
@@ -16183,6 +16184,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op3.Op != OpOffPtr {
 			break
 		}
+		tt3 := op3.Type
 		if op3.AuxInt != 0 {
 			break
 		}
@@ -16193,14 +16195,14 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		}
 		v.reset(OpStore)
 		v.Aux = t2
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t2.(*types.Type))
+		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
 		v0.AuxInt = o2
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(d1)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v1.Aux = t3
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t3.(*types.Type))
+		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
 		v2.AuxInt = 0
 		v2.AddArg(dst)
 		v1.AddArg(v2)
@@ -16209,9 +16211,9 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr [o2] p2) d1 (Store {t3} op3:(OffPtr [o3] p3) d2 (Store {t4} op4:(OffPtr [0] p4) d3 _))))
+	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _))))
 	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2) + sizeof(t3) + sizeof(t4)
-	// result: (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1 (Store {t3} (OffPtr <t3.(*types.Type)> [o3] dst) d2 (Store {t4} (OffPtr <t4.(*types.Type)> [0] dst) d3 mem)))
+	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 	for {
 		n := v.AuxInt
 		t1 := v.Aux
@@ -16228,6 +16230,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op2.Op != OpOffPtr {
 			break
 		}
+		tt2 := op2.Type
 		o2 := op2.AuxInt
 		p2 := op2.Args[0]
 		d1 := mem.Args[1]
@@ -16241,6 +16244,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op3.Op != OpOffPtr {
 			break
 		}
+		tt3 := op3.Type
 		o3 := op3.AuxInt
 		p3 := op3.Args[0]
 		d2 := mem_2.Args[1]
@@ -16254,6 +16258,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op4.Op != OpOffPtr {
 			break
 		}
+		tt4 := op4.Type
 		if op4.AuxInt != 0 {
 			break
 		}
@@ -16264,21 +16269,21 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		}
 		v.reset(OpStore)
 		v.Aux = t2
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t2.(*types.Type))
+		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
 		v0.AuxInt = o2
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(d1)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v1.Aux = t3
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t3.(*types.Type))
+		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
 		v2.AuxInt = o3
 		v2.AddArg(dst)
 		v1.AddArg(v2)
 		v1.AddArg(d2)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v3.Aux = t4
-		v4 := b.NewValue0(v.Pos, OpOffPtr, t4.(*types.Type))
+		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
 		v4.AuxInt = 0
 		v4.AddArg(dst)
 		v3.AddArg(v4)
@@ -16288,9 +16293,9 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr [o2] p2) d1 (Store {t3} op3:(OffPtr [o3] p3) d2 (Store {t4} op4:(OffPtr [o4] p4) d3 (Store {t5} op5:(OffPtr [0] p5) d4 _)))))
+	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [o4] p4) d3 (Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _)))))
 	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == sizeof(t5) && o3-o4 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5)
-	// result: (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1 (Store {t3} (OffPtr <t3.(*types.Type)> [o3] dst) d2 (Store {t4} (OffPtr <t4.(*types.Type)> [o4] dst) d3 (Store {t5} (OffPtr <t5.(*types.Type)> [0] dst) d4 mem))))
+	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
 	for {
 		n := v.AuxInt
 		t1 := v.Aux
@@ -16307,6 +16312,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op2.Op != OpOffPtr {
 			break
 		}
+		tt2 := op2.Type
 		o2 := op2.AuxInt
 		p2 := op2.Args[0]
 		d1 := mem.Args[1]
@@ -16320,6 +16326,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op3.Op != OpOffPtr {
 			break
 		}
+		tt3 := op3.Type
 		o3 := op3.AuxInt
 		p3 := op3.Args[0]
 		d2 := mem_2.Args[1]
@@ -16333,6 +16340,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op4.Op != OpOffPtr {
 			break
 		}
+		tt4 := op4.Type
 		o4 := op4.AuxInt
 		p4 := op4.Args[0]
 		d3 := mem_2_2.Args[1]
@@ -16346,6 +16354,7 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		if op5.Op != OpOffPtr {
 			break
 		}
+		tt5 := op5.Type
 		if op5.AuxInt != 0 {
 			break
 		}
@@ -16356,28 +16365,28 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 		}
 		v.reset(OpStore)
 		v.Aux = t2
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t2.(*types.Type))
+		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
 		v0.AuxInt = o2
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(d1)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v1.Aux = t3
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t3.(*types.Type))
+		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
 		v2.AuxInt = o3
 		v2.AddArg(dst)
 		v1.AddArg(v2)
 		v1.AddArg(d2)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v3.Aux = t4
-		v4 := b.NewValue0(v.Pos, OpOffPtr, t4.(*types.Type))
+		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
 		v4.AuxInt = o4
 		v4.AddArg(dst)
 		v3.AddArg(v4)
 		v3.AddArg(d3)
 		v5 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v5.Aux = t5
-		v6 := b.NewValue0(v.Pos, OpOffPtr, t5.(*types.Type))
+		v6 := b.NewValue0(v.Pos, OpOffPtr, tt5)
 		v6.AuxInt = 0
 		v6.AddArg(dst)
 		v5.AddArg(v6)
@@ -16393,9 +16402,9 @@ func rewriteValuegeneric_OpMove_0(v *Value) bool {
 func rewriteValuegeneric_OpMove_10(v *Value) bool {
 	b := v.Block
 	_ = b
-	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr [o2] p2) d1 (Store {t3} op3:(OffPtr [0] p3) d2 _))))
+	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _))))
 	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && o2 == sizeof(t3) && n == sizeof(t2) + sizeof(t3)
-	// result: (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1 (Store {t3} (OffPtr <t3.(*types.Type)> [0] dst) d2 mem))
+	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 	for {
 		n := v.AuxInt
 		t1 := v.Aux
@@ -16416,6 +16425,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op2.Op != OpOffPtr {
 			break
 		}
+		tt2 := op2.Type
 		o2 := op2.AuxInt
 		p2 := op2.Args[0]
 		d1 := mem_0.Args[1]
@@ -16429,6 +16439,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op3.Op != OpOffPtr {
 			break
 		}
+		tt3 := op3.Type
 		if op3.AuxInt != 0 {
 			break
 		}
@@ -16439,14 +16450,14 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		}
 		v.reset(OpStore)
 		v.Aux = t2
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t2.(*types.Type))
+		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
 		v0.AuxInt = o2
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(d1)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v1.Aux = t3
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t3.(*types.Type))
+		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
 		v2.AuxInt = 0
 		v2.AddArg(dst)
 		v1.AddArg(v2)
@@ -16455,9 +16466,9 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr [o2] p2) d1 (Store {t3} op3:(OffPtr [o3] p3) d2 (Store {t4} op4:(OffPtr [0] p4) d3 _)))))
+	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _)))))
 	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2) + sizeof(t3) + sizeof(t4)
-	// result: (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1 (Store {t3} (OffPtr <t3.(*types.Type)> [o3] dst) d2 (Store {t4} (OffPtr <t4.(*types.Type)> [0] dst) d3 mem)))
+	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 	for {
 		n := v.AuxInt
 		t1 := v.Aux
@@ -16478,6 +16489,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op2.Op != OpOffPtr {
 			break
 		}
+		tt2 := op2.Type
 		o2 := op2.AuxInt
 		p2 := op2.Args[0]
 		d1 := mem_0.Args[1]
@@ -16491,6 +16503,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op3.Op != OpOffPtr {
 			break
 		}
+		tt3 := op3.Type
 		o3 := op3.AuxInt
 		p3 := op3.Args[0]
 		d2 := mem_0_2.Args[1]
@@ -16504,6 +16517,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op4.Op != OpOffPtr {
 			break
 		}
+		tt4 := op4.Type
 		if op4.AuxInt != 0 {
 			break
 		}
@@ -16514,21 +16528,21 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		}
 		v.reset(OpStore)
 		v.Aux = t2
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t2.(*types.Type))
+		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
 		v0.AuxInt = o2
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(d1)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v1.Aux = t3
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t3.(*types.Type))
+		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
 		v2.AuxInt = o3
 		v2.AddArg(dst)
 		v1.AddArg(v2)
 		v1.AddArg(d2)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v3.Aux = t4
-		v4 := b.NewValue0(v.Pos, OpOffPtr, t4.(*types.Type))
+		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
 		v4.AuxInt = 0
 		v4.AddArg(dst)
 		v3.AddArg(v4)
@@ -16538,9 +16552,9 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr [o2] p2) d1 (Store {t3} op3:(OffPtr [o3] p3) d2 (Store {t4} op4:(OffPtr [o4] p4) d3 (Store {t5} op5:(OffPtr [0] p5) d4 _))))))
+	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [o4] p4) d3 (Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _))))))
 	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == sizeof(t5) && o3-o4 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5)
-	// result: (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1 (Store {t3} (OffPtr <t3.(*types.Type)> [o3] dst) d2 (Store {t4} (OffPtr <t4.(*types.Type)> [o4] dst) d3 (Store {t5} (OffPtr <t5.(*types.Type)> [0] dst) d4 mem))))
+	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
 	for {
 		n := v.AuxInt
 		t1 := v.Aux
@@ -16561,6 +16575,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op2.Op != OpOffPtr {
 			break
 		}
+		tt2 := op2.Type
 		o2 := op2.AuxInt
 		p2 := op2.Args[0]
 		d1 := mem_0.Args[1]
@@ -16574,6 +16589,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op3.Op != OpOffPtr {
 			break
 		}
+		tt3 := op3.Type
 		o3 := op3.AuxInt
 		p3 := op3.Args[0]
 		d2 := mem_0_2.Args[1]
@@ -16587,6 +16603,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op4.Op != OpOffPtr {
 			break
 		}
+		tt4 := op4.Type
 		o4 := op4.AuxInt
 		p4 := op4.Args[0]
 		d3 := mem_0_2_2.Args[1]
@@ -16600,6 +16617,7 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		if op5.Op != OpOffPtr {
 			break
 		}
+		tt5 := op5.Type
 		if op5.AuxInt != 0 {
 			break
 		}
@@ -16610,28 +16628,28 @@ func rewriteValuegeneric_OpMove_10(v *Value) bool {
 		}
 		v.reset(OpStore)
 		v.Aux = t2
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t2.(*types.Type))
+		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
 		v0.AuxInt = o2
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(d1)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v1.Aux = t3
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t3.(*types.Type))
+		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
 		v2.AuxInt = o3
 		v2.AddArg(dst)
 		v1.AddArg(v2)
 		v1.AddArg(d2)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v3.Aux = t4
-		v4 := b.NewValue0(v.Pos, OpOffPtr, t4.(*types.Type))
+		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
 		v4.AuxInt = o4
 		v4.AddArg(dst)
 		v3.AddArg(v4)
 		v3.AddArg(d3)
 		v5 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
 		v5.Aux = t5
-		v6 := b.NewValue0(v.Pos, OpOffPtr, t5.(*types.Type))
+		v6 := b.NewValue0(v.Pos, OpOffPtr, tt5)
 		v6.AuxInt = 0
 		v6.AddArg(dst)
 		v5.AddArg(v6)
