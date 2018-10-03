@@ -763,12 +763,45 @@ func TestLoadSyntaxError(t *testing.T) {
 	}
 }
 
-// This function tests use of the ParseFile hook to supply
-// alternative file contents to the parser and type-checker.
-func TestLoadAllSyntaxOverlay(t *testing.T) {
+// This function tests use of the ParseFile hook to modify
+// the AST after parsing.
+func TestParseFileModifyAST(t *testing.T) {
 	type M = map[string]string
 
 	tmp, cleanup := makeTree(t, M{
+		"src/a/a.go": `package a; const A = "a" `,
+	})
+	defer cleanup()
+
+	parseFile := func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+		const mode = parser.AllErrors | parser.ParseComments
+		f, err := parser.ParseFile(fset, filename, src, mode)
+		// modify AST to change `const A = "a"` to `const A = "b"`
+		spec := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
+		spec.Values[0].(*ast.BasicLit).Value = `"b"`
+		return f, err
+	}
+	cfg := &packages.Config{
+		Mode:      packages.LoadAllSyntax,
+		Env:       append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
+		ParseFile: parseFile,
+	}
+	initial, err := packages.Load(cfg, "a")
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Check value of a.A has been set to "b"
+	a := initial[0]
+	got := constant(a, "A").Val().String()
+	if got != `"b"` {
+		t.Errorf("a.A: got %s, want %s", got, `"b"`)
+	}
+}
+
+// This function tests config.Overlay functionality.
+func TestOverlay(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go": `package a; import "b"; const A = "a" + b.B`,
 		"src/b/b.go": `package b; import "c"; const B = "b" + c.C`,
 		"src/c/c.go": `package c; const C = "c"`,
@@ -777,32 +810,23 @@ func TestLoadAllSyntaxOverlay(t *testing.T) {
 	defer cleanup()
 
 	for i, test := range []struct {
-		overlay  M
+		overlay  map[string][]byte
 		want     string // expected value of a.A
 		wantErrs []string
 	}{
-		{nil, `"abc"`, nil}, // default
-		{M{}, `"abc"`, nil}, // empty overlay
-		{M{filepath.Join(tmp, "src/c/c.go"): `package c; const C = "C"`}, `"abC"`, nil},
-		{M{filepath.Join(tmp, "src/b/b.go"): `package b; import "c"; const B = "B" + c.C`}, `"aBc"`, nil},
-		{M{filepath.Join(tmp, "src/b/b.go"): `package b; import "d"; const B = "B" + d.D`}, `unknown`,
+		{nil, `"abc"`, nil},                 // default
+		{map[string][]byte{}, `"abc"`, nil}, // empty overlay
+		{map[string][]byte{filepath.Join(tmp, "src/c/c.go"): []byte(`package c; const C = "C"`)}, `"abC"`, nil},
+		{map[string][]byte{filepath.Join(tmp, "src/b/b.go"): []byte(`package b; import "c"; const B = "B" + c.C`)}, `"aBc"`, nil},
+		{map[string][]byte{filepath.Join(tmp, "src/b/b.go"): []byte(`package b; import "d"; const B = "B" + d.D`)}, `unknown`,
 			[]string{`could not import d (no metadata for d)`}},
 	} {
-		var parseFile func(fset *token.FileSet, filename string) (*ast.File, error)
-		if test.overlay != nil {
-			parseFile = func(fset *token.FileSet, filename string) (*ast.File, error) {
-				var src interface{}
-				if content, ok := test.overlay[filename]; ok {
-					src = content
-				}
-				const mode = parser.AllErrors | parser.ParseComments
-				return parser.ParseFile(fset, filename, src, mode)
-			}
-		}
+		var parseFile func(fset *token.FileSet, filename string, src []byte) (*ast.File, error)
 		cfg := &packages.Config{
 			Mode:      packages.LoadAllSyntax,
 			Env:       append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 			ParseFile: parseFile,
+			Overlay:   test.overlay,
 		}
 		initial, err := packages.Load(cfg, "a")
 		if err != nil {
