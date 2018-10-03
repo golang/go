@@ -465,6 +465,8 @@ func (check *Checker) collectObjects() {
 			typ := unparen(list[0].Type)
 			if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
 				typ = unparen(ptr.X)
+				// TODO(gri): This may not be sufficient. See issue #27995.
+				f.hasPtrRecv = true
 			}
 			if base, _ := typ.(*ast.Ident); base != nil {
 				// base is a potential base type name; determine

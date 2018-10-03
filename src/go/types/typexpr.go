@@ -558,9 +558,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			pos := name.Pos()
 			// Don't type-check signature yet - use an
 			// empty signature now and update it later.
-			// Since we know the receiver, set it up now
-			// (required to avoid crash in ptrRecv; see
-			// e.g. test case for issue 6638).
+			// But set up receiver since we know it and
+			// its position, and because interface method
+			// signatures don't get a receiver via regular
+			// type-checking (there isn't a receiver in the
+			// the method's AST). Setting the correct receiver
+			// type is also important for ptrRecv() (see methodset.go).
+			//
 			// TODO(gri) Consider marking methods signatures
 			// as incomplete, for better error messages. See
 			// also the T4 and T5 tests in testdata/cycles2.src.
