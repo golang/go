@@ -99,10 +99,6 @@ func ParseTime(text string) (t time.Time, err error) {
 
 var headerNewlineToSpace = strings.NewReplacer("\n", " ", "\r", " ")
 
-type writeStringer interface {
-	WriteString(string) (int, error)
-}
-
 // stringWriter implements WriteString on a Writer.
 type stringWriter struct {
 	w io.Writer
@@ -158,7 +154,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 }
 
 func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptrace.ClientTrace) error {
-	ws, ok := w.(writeStringer)
+	ws, ok := w.(io.StringWriter)
 	if !ok {
 		ws = stringWriter{w}
 	}

@@ -4028,21 +4028,18 @@ func TestRequestBodyCloseDoesntBlock(t *testing.T) {
 	}
 }
 
-// test that ResponseWriter implements io.stringWriter.
+// test that ResponseWriter implements io.StringWriter.
 func TestResponseWriterWriteString(t *testing.T) {
 	okc := make(chan bool, 1)
 	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
-		type stringWriter interface {
-			WriteString(s string) (n int, err error)
-		}
-		_, ok := w.(stringWriter)
+		_, ok := w.(io.StringWriter)
 		okc <- ok
 	}))
 	ht.rawResponse("GET / HTTP/1.0")
 	select {
 	case ok := <-okc:
 		if !ok {
-			t.Error("ResponseWriter did not implement io.stringWriter")
+			t.Error("ResponseWriter did not implement io.StringWriter")
 		}
 	default:
 		t.Error("handler was never called")
