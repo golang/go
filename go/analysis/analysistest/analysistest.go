@@ -60,8 +60,8 @@ type Testing interface {
 	Errorf(format string, args ...interface{})
 }
 
-// Run applies an analysis to each named package.
-// It loads each package from the specified GOPATH-style project
+// Run applies an analysis to the named package.
+// It loads the package from the specified GOPATH-style project
 // directory using golang.org/x/tools/go/packages, runs the analysis on
 // it, and checks that each the analysis emits the expected diagnostics
 // and facts specified by the contents of '// want ...' comments in the
@@ -81,7 +81,8 @@ type Testing interface {
 //
 //	func panicf(format string, args interface{}) { // want panicf:"printfWrapper"
 //
-// Package facts are specified by the name "package".
+// Package facts are specified by the name "package" and appear on
+// line 1 of the first source file of the package.
 //
 // A single 'want' comment may contain a mixture of diagnostic and fact
 // expectations, including multiple facts about the same object:
@@ -93,25 +94,25 @@ type Testing interface {
 //
 // You may wish to call this function from within a (*testing.T).Run
 // subtest to ensure that errors have adequate contextual description.
-func Run(t Testing, dir string, a *analysis.Analyzer, pkgnames ...string) {
-	if pkgnames == nil {
-		t.Errorf("Run: no packages")
+//
+// Run returns the pass and the result of the Analyzer's Run function,
+// or (nil, nil) if loading or analysis failed.
+func Run(t Testing, dir string, a *analysis.Analyzer, pkgname string) (*analysis.Pass, interface{}) {
+	pkg, err := loadPackage(dir, pkgname)
+	if err != nil {
+		t.Errorf("loading %s: %v", pkgname, err)
+		return nil, nil
 	}
-	for _, pkgname := range pkgnames {
-		pkg, err := loadPackage(dir, pkgname)
-		if err != nil {
-			t.Errorf("loading %s: %v", pkgname, err)
-			continue
-		}
 
-		pass, diagnostics, facts, err := checker.Analyze(pkg, a)
-		if err != nil {
-			t.Errorf("analyzing %s: %v", pkgname, err)
-			continue
-		}
-
-		check(t, dir, pass, diagnostics, facts)
+	pass, diagnostics, facts, result, err := checker.Analyze(pkg, a)
+	if err != nil {
+		t.Errorf("analyzing %s: %v", pkgname, err)
+		return nil, nil
 	}
+
+	check(t, dir, pass, diagnostics, facts)
+
+	return pass, result
 }
 
 // loadPackage loads the specified package (from source, with

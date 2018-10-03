@@ -51,7 +51,5 @@ func main() {
 // multiple variants of a single scenario.
 func TestFromFileSystem(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, findcall.Analyzer,
-		"a", // loads testdata/src/a/a.go.
-	)
+	analysistest.Run(t, testdata, findcall.Analyzer, "a") // loads testdata/src/a/a.go.
 }

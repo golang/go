@@ -9,7 +9,5 @@ import (
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, pkgfact.Analyzer,
-		"c", // loads testdata/src/c/c.go.
-	)
+	analysistest.Run(t, testdata, pkgfact.Analyzer, "c") // load testdata/src/c/c.go
 }

@@ -157,7 +157,7 @@ func load(patterns []string, allSyntax bool) ([]*packages.Package, error) {
 // have a nil key.
 //
 // It is exposed for use in testing.
-func Analyze(pkg *packages.Package, a *analysis.Analyzer) (*analysis.Pass, []analysis.Diagnostic, map[types.Object][]analysis.Fact, error) {
+func Analyze(pkg *packages.Package, a *analysis.Analyzer) (*analysis.Pass, []analysis.Diagnostic, map[types.Object][]analysis.Fact, interface{}, error) {
 	act := analyze([]*packages.Package{pkg}, []*analysis.Analyzer{a})[0]
 
 	facts := make(map[types.Object][]analysis.Fact)
@@ -172,7 +172,7 @@ func Analyze(pkg *packages.Package, a *analysis.Analyzer) (*analysis.Pass, []ana
 		}
 	}
 
-	return act.pass, act.diagnostics, facts, act.err
+	return act.pass, act.diagnostics, facts, act.result, act.err
 }
 
 func analyze(pkgs []*packages.Package, analyzers []*analysis.Analyzer) []*action {
