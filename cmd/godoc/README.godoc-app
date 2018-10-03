@@ -37,7 +37,7 @@ Running locally, in production mode, using Docker
 
 Build the app's Docker container:
 
-  make docker
+  make docker-build
 
 Make sure redis is running on port 6379:
 
@@ -68,17 +68,19 @@ Deploying to golang.org
 
 Build the image, push it to gcr.io, and deploy to Flex:
 
-  make deploy
+  make docker-push deploy
 
-Run regression tests:
+Point the load balancer to the newly deployed version:
+(This also runs regression tests)
 
-  make regtest
+  make publish
 
-Go to the console to migrate traffic to the newly deployed version:
+Stop and/or delete down any very old versions. (Stopped versions can be re-started.)
+Keep at least one older verson to roll back to, just in case.
+You can also migrate traffic to the new version via this UI.
 
   https://console.cloud.google.com/appengine/versions?project=golang-org&serviceId=default&versionssize=50
 
-Shut down any very old versions (keep at least one to roll back to, just in case).
 
 Troubleshooting
 ---------------

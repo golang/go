@@ -19,7 +19,7 @@ usage:
 	@echo "See Makefile and README.godoc-app"
 	@exit 1
 
-docker: Dockerfile.prod
+docker-build: Dockerfile.prod
 	# NOTE(cbro): move up in directory to include entire tools repo.
 	cd ../..; docker build \
 		-f cmd/godoc/Dockerfile.prod \
@@ -30,24 +30,42 @@ docker: Dockerfile.prod
 		--tag=$(DOCKER_TAG) \
 		.
 
-push: docker
+docker-push: docker-build
 	docker push $(DOCKER_TAG)
 
-deploy: push
+deploy:
 	gcloud -q app deploy app.prod.yaml \
-		--project $(GCP_PROJECT) \
+		--project=$(GCP_PROJECT) \
 		--no-promote \
-		--image-url $(DOCKER_TAG)
+		--image-url=$(DOCKER_TAG)
 
 get-latest-url:
 	@gcloud app versions list \
-		-s default \
-		--project $(GCP_PROJECT) \
+		--service=default \
+		--project=$(GCP_PROJECT) \
 		--sort-by=~version.createTime \
 		--format='value(version.versionUrl)' \
+		--limit 1 | cut -f1 # NOTE(cbro): gcloud prints out createTime as the second field.
+
+get-latest-id:
+	@gcloud app versions list \
+		--service=default \
+		--project=$(GCP_PROJECT) \
+		--sort-by=~version.createTime \
+		--format='value(version.id)' \
 		--limit 1 | cut -f1 # NOTE(cbro): gcloud prints out createTime as the second field.
 
 regtest:
 	go test -v \
 		-regtest.host=$(shell make get-latest-url) \
 		-run=Live
+
+publish: regtest
+	gcloud -q app services set-traffic default \
+		--splits=$(shell make get-latest-id)=1 \
+		--project=$(GCP_PROJECT)
+
+	@echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	@echo Stop and/or delete old versions:
+	@echo "https://console.cloud.google.com/appengine/versions?project=$(GCP_PROJECT)&serviceId=default&versionssize=50"
+	@echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
