@@ -251,7 +251,7 @@ type ErrorKind int
 const (
 	UnknownError ErrorKind = iota
 	ListError
-	ParserError
+	ParseError
 	TypeError
 )
 
@@ -587,7 +587,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 			errs = append(errs, Error{
 				Pos:  err.Path + ":1",
 				Msg:  err.Err.Error(),
-				Kind: ParserError,
+				Kind: ParseError,
 			})
 
 		case scanner.ErrorList:
@@ -596,7 +596,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 				errs = append(errs, Error{
 					Pos:  err.Pos.String(),
 					Msg:  err.Msg,
-					Kind: ParserError,
+					Kind: ParseError,
 				})
 			}
 
