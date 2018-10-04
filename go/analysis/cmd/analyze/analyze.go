@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/go/analysis/multichecker"
 
 	// analysis plug-ins
+	"golang.org/x/tools/go/analysis/passes/buildtag"
 	"golang.org/x/tools/go/analysis/passes/findcall"
 )
 
@@ -22,5 +23,8 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("analyze: ")
 
-	multichecker.Main(findcall.Analyzer)
+	multichecker.Main(
+		findcall.Analyzer,
+		buildtag.Analyzer,
+	)
 }

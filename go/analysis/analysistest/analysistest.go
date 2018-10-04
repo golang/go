@@ -159,23 +159,38 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 	}
 	want := make(map[key][]expectation)
 	for _, f := range pass.Files {
-		for _, c := range f.Comments {
-			posn := pass.Fset.Position(c.Pos())
-			sanitize(gopath, &posn)
-			text := strings.TrimSpace(c.Text())
+		for _, cgroup := range f.Comments {
+			for _, c := range cgroup.List {
+				posn := pass.Fset.Position(c.Pos())
+				sanitize(gopath, &posn)
 
-			// Any comment starting with "want" is treated
-			// as an expectation, even without following whitespace.
-			if rest := strings.TrimPrefix(text, "want"); rest != text {
-				expects, err := parseExpectations(rest)
-				if err != nil {
-					t.Errorf("%s: in 'want' comment: %s", posn, err)
-					continue
+				text := strings.TrimPrefix(c.Text, "//")
+				if text == c.Text {
+					continue // not a //-comment
 				}
-				if false {
-					log.Printf("%s: %v", posn, expects)
+				text = strings.TrimSpace(text)
+
+				// Hack: treat a comment of the form "//...// want..."
+				// as if it starts after the second "//".
+				// This allows us to add comments on comments,
+				// as required when testing the buildtag analyzer.
+				if i := strings.Index(text, "// want"); i >= 0 {
+					text = text[i+len("// "):]
 				}
-				want[key{posn.Filename, posn.Line}] = expects
+
+				// Any comment starting with "want" is treated
+				// as an expectation, even without following whitespace.
+				if rest := strings.TrimPrefix(text, "want"); rest != text {
+					expects, err := parseExpectations(rest)
+					if err != nil {
+						t.Errorf("%s: in 'want' comment: %s", posn, err)
+						continue
+					}
+					if false {
+						log.Printf("%s: %v", posn, expects)
+					}
+					want[key{posn.Filename, posn.Line}] = expects
+				}
 			}
 		}
 	}
