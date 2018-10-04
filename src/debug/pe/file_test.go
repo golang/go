@@ -535,7 +535,11 @@ func TestBuildingWindowsGUI(t *testing.T) {
 
 func TestImportTableInUnknownSection(t *testing.T) {
 	if runtime.GOOS != "windows" {
-		t.Skip("skipping windows only test")
+		t.Skip("skipping Windows-only test")
+	}
+	if runtime.GOARCH == "arm" {
+		// Issue 27904
+		t.Skip("skipping test on arm; no atmfd.dll available")
 	}
 
 	// first we need to find this font driver
