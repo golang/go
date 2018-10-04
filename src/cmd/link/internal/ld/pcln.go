@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"log"
 	"os"
@@ -314,13 +315,26 @@ func (ctxt *Link) pclntab() {
 
 		// deferreturn
 		deferreturn := uint32(0)
+		lastWasmAddr := uint32(0)
 		for _, r := range s.R {
+			if ctxt.Arch.Family == sys.Wasm && r.Type == objabi.R_ADDR {
+				// Wasm does not have a live variable set at the deferreturn
+				// call itself. Instead it has one identified by the
+				// resumption point immediately preceding the deferreturn.
+				// The wasm code has a R_ADDR relocation which is used to
+				// set the resumption point to PC_B.
+				lastWasmAddr = uint32(r.Add)
+			}
 			if r.Sym != nil && r.Sym.Name == "runtime.deferreturn" && r.Add == 0 {
-				// Note: the relocation target is in the call instruction, but
-				// is not necessarily the whole instruction (for instance, on
-				// x86 the relocation applies to bytes [1:5] of the 5 byte call
-				// instruction).
-				deferreturn = uint32(r.Off)
+				if ctxt.Arch.Family == sys.Wasm {
+					deferreturn = lastWasmAddr
+				} else {
+					// Note: the relocation target is in the call instruction, but
+					// is not necessarily the whole instruction (for instance, on
+					// x86 the relocation applies to bytes [1:5] of the 5 byte call
+					// instruction).
+					deferreturn = uint32(r.Off)
+				}
 				break // only need one
 			}
 		}
