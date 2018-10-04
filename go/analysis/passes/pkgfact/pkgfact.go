@@ -4,12 +4,12 @@
 // The output of the pkgfact analysis is a set of key/values pairs
 // gathered from the analyzed package and its imported dependencies.
 // Each key/value pair comes from a top-level constant declaration
-// whose name starts with "_".  For example:
+// whose name starts and ends with "_".  For example:
 //
 //      package p
 //
-// 	const _greeting  = "hello"
-// 	const _audience  = "world"
+// 	const _greeting_  = "hello"
+// 	const _audience_  = "world"
 //
 // the pkgfact analysis output for package p would be:
 //
@@ -55,7 +55,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	// package and accumulate its information into the result.
 	// (Warning: accumulation leads to quadratic growth of work.)
 	doImport := func(spec *ast.ImportSpec) {
-		pkg := pass.TypesInfo.Defs[spec.Name].(*types.PkgName).Imported()
+		pkg := imported(pass.TypesInfo, spec)
 		var fact pairsFact
 		if pass.ImportPackageFact(pkg, &fact) {
 			for _, pair := range fact {
@@ -71,10 +71,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if len(spec.Names) == len(spec.Values) {
 			for i := range spec.Names {
 				name := spec.Names[i].Name
-				if strings.HasPrefix(name, "_") {
-					key := name[1:]
-					value := pass.TypesInfo.Types[spec.Values[i]].Value.String()
-					result[key] = value
+				if strings.HasPrefix(name, "_") && strings.HasSuffix(name, "_") {
+
+					if key := strings.Trim(name[1:], "_"); key != "" {
+						value := pass.TypesInfo.Types[spec.Values[i]].Value.String()
+						result[key] = value
+					}
 				}
 			}
 		}
@@ -105,7 +107,17 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	for _, key := range keys {
 		fact = append(fact, fmt.Sprintf("%s=%s", key, result[key]))
 	}
-	pass.ExportPackageFact(&fact)
+	if len(fact) > 0 {
+		pass.ExportPackageFact(&fact)
+	}
 
 	return result, nil
+}
+
+func imported(info *types.Info, spec *ast.ImportSpec) *types.Package {
+	obj, ok := info.Implicits[spec]
+	if !ok {
+		obj = info.Defs[spec.Name] // renaming import
+	}
+	return obj.(*types.PkgName).Imported()
 }

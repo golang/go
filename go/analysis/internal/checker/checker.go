@@ -311,7 +311,7 @@ func printDiagnostics(roots []*action) {
 		type key struct {
 			token.Position
 			*analysis.Analyzer
-			message, class string
+			message string
 		}
 		seen := make(map[key]bool)
 
@@ -322,19 +322,18 @@ func printDiagnostics(roots []*action) {
 			}
 			if act.isroot {
 				for _, f := range act.diagnostics {
-					class := act.a.Name
-					if f.Category != "" {
-						class += "." + f.Category
-					}
+					// We don't display a.Name/f.Category
+					// as most users don't care.
+
 					posn := act.pkg.Fset.Position(f.Pos)
 
-					k := key{posn, act.a, class, f.Message}
+					k := key{posn, act.a, f.Message}
 					if seen[k] {
 						continue // duplicate
 					}
 					seen[k] = true
 
-					fmt.Printf("%s: [%s] %s\n", posn, class, f.Message)
+					fmt.Fprintf(os.Stderr, "%s: %s\n", posn, f.Message)
 
 					// -c=0: show offending line of code in context.
 					if Context >= 0 {
@@ -342,7 +341,7 @@ func printDiagnostics(roots []*action) {
 						lines := strings.Split(string(data), "\n")
 						for i := posn.Line - Context; i <= posn.Line+Context; i++ {
 							if 1 <= i && i <= len(lines) {
-								fmt.Printf("%d\t%s\n", i, lines[i-1])
+								fmt.Fprintf(os.Stderr, "%d\t%s\n", i, lines[i-1])
 							}
 						}
 					}
@@ -680,7 +679,8 @@ func (act *action) exportObjectFact(obj types.Object, fact analysis.Fact) {
 	act.objectFacts[key] = fact // clobber any existing entry
 	if dbg('f') {
 		objstr := types.ObjectString(obj, (*types.Package).Name)
-		log.Printf("fact %#v on %s", fact, objstr)
+		fmt.Fprintf(os.Stderr, "%s: object %s has fact %s\n",
+			act.pkg.Fset.Position(obj.Pos()), objstr, fact)
 	}
 }
 
@@ -708,7 +708,8 @@ func (act *action) exportPackageFact(fact analysis.Fact) {
 	key := packageFactKey{act.pass.Pkg, factType(fact)}
 	act.packageFacts[key] = fact // clobber any existing entry
 	if dbg('f') {
-		log.Printf("fact %#v on %s", fact, act.pass.Pkg)
+		fmt.Fprintf(os.Stderr, "%s: package %s has fact %s\n",
+			act.pkg.Fset.Position(act.pass.Files[0].Pos()), act.pass.Pkg.Path(), fact)
 	}
 }
 

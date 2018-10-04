@@ -1,4 +1,4 @@
 package a
 
-const _greeting = "hello"
-const _audience = "world"
+const _greeting_ = "hello"
+const _audience_ = "world"
