@@ -57,7 +57,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	if reason := ""; !x.assignableTo(check.conf, T, &reason) {
+	if reason := ""; !x.assignableTo(check, T, &reason) {
 		if reason != "" {
 			check.errorf(x.pos(), "cannot use %s as %s value in %s: %s", x, T, context, reason)
 		} else {

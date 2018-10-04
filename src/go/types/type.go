@@ -424,7 +424,7 @@ func (c *Chan) Elem() Type { return c.elem }
 type Named struct {
 	obj        *TypeName // corresponding declared object
 	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
-	methods    []*Func   // methods declared for this type (not the method set of this type)
+	methods    []*Func   // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
