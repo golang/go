@@ -83,6 +83,7 @@ func main() {
 		log.Fatal(err)
 	}
 	corpus.IndexDirectory = indexDirectoryDefault
+	corpus.InitVersionInfo()
 	go corpus.RunIndexer()
 
 	pres = godoc.NewPresentation(corpus)

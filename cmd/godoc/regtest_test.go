@@ -50,6 +50,11 @@ func TestLiveServer(t *testing.T) {
 			Substring: "func Open",
 		},
 		{
+			Path:      "/pkg/net/http/",
+			Substring: `title="Added in Go 1.11"`,
+			Message:   "version information not present - failed InitVersionInfo?",
+		},
+		{
 			Path:        "/robots.txt",
 			Substring:   "Disallow: /search",
 			Message:     "robots not present - not deployed from Dockerfile?",
