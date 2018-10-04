@@ -6,6 +6,8 @@ pkg os, const ModeType = 2399141888
 pkg os, const ModeType = 2399666176
 pkg os (linux-arm), const O_SYNC = 4096
 pkg os (linux-arm-cgo), const O_SYNC = 4096
+pkg os (linux-arm), const O_SYNC = 1052672
+pkg os (linux-arm-cgo), const O_SYNC = 1052672
 pkg syscall (darwin-386), const ImplementsGetwd = false
 pkg syscall (darwin-386), func Fchflags(string, int) error
 pkg syscall (darwin-386-cgo), const ImplementsGetwd = false
