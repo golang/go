@@ -257,7 +257,8 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			}
 
 		case syntax.InstEmptyWidth:
-			if syntax.EmptyOp(inst.Arg)&^i.context(pos) != 0 {
+			flag := i.context(pos)
+			if !flag.match(syntax.EmptyOp(inst.Arg)) {
 				continue
 			}
 			pc = inst.Out
