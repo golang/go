@@ -54,6 +54,8 @@ func (m *InterfaceMessage) Sys() []Sys {
 	}
 }
 
+var compatFreeBSD32 bool // 386 emulation on amd64
+
 func probeRoutingStack() (int, map[int]*wireFormat) {
 	var p uintptr
 	wordSize := int(unsafe.Sizeof(p))
@@ -83,8 +85,11 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 			break
 		}
 	}
+	if align != wordSize {
+		compatFreeBSD32 = true // 386 emulation on amd64
+	}
 	var rtm, ifm, ifam, ifmam, ifanm *wireFormat
-	if align != wordSize { // 386 emulation on amd64
+	if compatFreeBSD32 {
 		rtm = &wireFormat{extOff: sizeofRtMsghdrFreeBSD10Emu - sizeofRtMetricsFreeBSD10Emu, bodyOff: sizeofRtMsghdrFreeBSD10Emu}
 		ifm = &wireFormat{extOff: 16}
 		ifam = &wireFormat{extOff: sizeofIfaMsghdrFreeBSD10Emu, bodyOff: sizeofIfaMsghdrFreeBSD10Emu}
@@ -100,31 +105,31 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 	rel, _ := syscall.SysctlUint32("kern.osreldate")
 	switch {
 	case rel < 800000:
-		if align != wordSize { // 386 emulation on amd64
+		if compatFreeBSD32 {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD7Emu
 		} else {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD7
 		}
 	case 800000 <= rel && rel < 900000:
-		if align != wordSize { // 386 emulation on amd64
+		if compatFreeBSD32 {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD8Emu
 		} else {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD8
 		}
 	case 900000 <= rel && rel < 1000000:
-		if align != wordSize { // 386 emulation on amd64
+		if compatFreeBSD32 {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD9Emu
 		} else {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD9
 		}
 	case 1000000 <= rel && rel < 1100000:
-		if align != wordSize { // 386 emulation on amd64
+		if compatFreeBSD32 {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD10Emu
 		} else {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD10
 		}
 	default:
-		if align != wordSize { // 386 emulation on amd64
+		if compatFreeBSD32 {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11Emu
 		} else {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
