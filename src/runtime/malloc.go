@@ -216,16 +216,16 @@ const (
 	// The number of bits in a heap address, the size of heap
 	// arenas, and the L1 and L2 arena map sizes are related by
 	//
-	//   (1 << addrBits) = arenaBytes * L1entries * L2entries
+	//   (1 << addr bits) = arena size * L1 entries * L2 entries
 	//
 	// Currently, we balance these as follows:
 	//
-	//       Platform  Addr bits  Arena size  L1 entries  L2 size
-	// --------------  ---------  ----------  ----------  -------
-	//       */64-bit         48        64MB           1     32MB
-	// windows/64-bit         48         4MB          64      8MB
-	//       */32-bit         32         4MB           1      4KB
-	//     */mips(le)         31         4MB           1      2KB
+	//       Platform  Addr bits  Arena size  L1 entries   L2 entries
+	// --------------  ---------  ----------  ----------  -----------
+	//       */64-bit         48        64MB           1    4M (32MB)
+	// windows/64-bit         48         4MB          64    1M  (8MB)
+	//       */32-bit         32         4MB           1  1024  (4KB)
+	//     */mips(le)         31         4MB           1   512  (2KB)
 
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to
