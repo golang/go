@@ -311,7 +311,7 @@ type input interface {
 	canCheckPrefix() bool             // can we look ahead without losing info?
 	hasPrefix(re *Regexp) bool
 	index(re *Regexp, pos int) int
-	context(pos int) syntax.EmptyOp
+	context(pos int) lazyFlag
 }
 
 // inputString scans a string.
@@ -342,7 +342,7 @@ func (i *inputString) index(re *Regexp, pos int) int {
 	return strings.Index(i.str[pos:], re.prefix)
 }
 
-func (i *inputString) context(pos int) syntax.EmptyOp {
+func (i *inputString) context(pos int) lazyFlag {
 	r1, r2 := endOfText, endOfText
 	// 0 < pos && pos <= len(i.str)
 	if uint(pos-1) < uint(len(i.str)) {
@@ -358,7 +358,7 @@ func (i *inputString) context(pos int) syntax.EmptyOp {
 			r2, _ = utf8.DecodeRuneInString(i.str[pos:])
 		}
 	}
-	return syntax.EmptyOpContext(r1, r2)
+	return newLazyFlag(r1, r2)
 }
 
 // inputBytes scans a byte slice.
@@ -389,7 +389,7 @@ func (i *inputBytes) index(re *Regexp, pos int) int {
 	return bytes.Index(i.str[pos:], re.prefixBytes)
 }
 
-func (i *inputBytes) context(pos int) syntax.EmptyOp {
+func (i *inputBytes) context(pos int) lazyFlag {
 	r1, r2 := endOfText, endOfText
 	// 0 < pos && pos <= len(i.str)
 	if uint(pos-1) < uint(len(i.str)) {
@@ -405,7 +405,7 @@ func (i *inputBytes) context(pos int) syntax.EmptyOp {
 			r2, _ = utf8.DecodeRune(i.str[pos:])
 		}
 	}
-	return syntax.EmptyOpContext(r1, r2)
+	return newLazyFlag(r1, r2)
 }
 
 // inputReader scans a RuneReader.
@@ -441,8 +441,8 @@ func (i *inputReader) index(re *Regexp, pos int) int {
 	return -1
 }
 
-func (i *inputReader) context(pos int) syntax.EmptyOp {
-	return 0
+func (i *inputReader) context(pos int) lazyFlag {
+	return 0 // not used
 }
 
 // LiteralPrefix returns a literal string that must begin any match

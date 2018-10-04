@@ -114,6 +114,61 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 	return t
 }
 
+// A lazyFlag is a lazily-evaluated syntax.EmptyOp,
+// for checking zero-width flags like ^ $ \A \z \B \b.
+// It records the pair of relevant runes and does not
+// determine the implied flags until absolutely necessary
+// (most of the time, that means never).
+type lazyFlag uint64
+
+func newLazyFlag(r1, r2 rune) lazyFlag {
+	return lazyFlag(uint64(r1)<<32 | uint64(uint32(r2)))
+}
+
+func (f lazyFlag) match(op syntax.EmptyOp) bool {
+	if op == 0 {
+		return true
+	}
+	r1 := rune(f >> 32)
+	if op&syntax.EmptyBeginLine != 0 {
+		if r1 != '\n' && r1 >= 0 {
+			return false
+		}
+		op &^= syntax.EmptyBeginLine
+	}
+	if op&syntax.EmptyBeginText != 0 {
+		if r1 >= 0 {
+			return false
+		}
+		op &^= syntax.EmptyBeginText
+	}
+	if op == 0 {
+		return true
+	}
+	r2 := rune(f)
+	if op&syntax.EmptyEndLine != 0 {
+		if r2 != '\n' && r2 >= 0 {
+			return false
+		}
+		op &^= syntax.EmptyEndLine
+	}
+	if op&syntax.EmptyEndText != 0 {
+		if r2 >= 0 {
+			return false
+		}
+		op &^= syntax.EmptyEndText
+	}
+	if op == 0 {
+		return true
+	}
+	if syntax.IsWordChar(r1) != syntax.IsWordChar(r2) {
+		op &^= syntax.EmptyWordBoundary
+	} else {
+		op &^= syntax.EmptyNoWordBoundary
+	}
+	return op == 0
+}
+
 // match runs the machine over the input starting at pos.
 // It reports whether a match was found.
 // If so, m.matchcap holds the submatch information.
@@ -133,9 +188,9 @@ func (m *machine) match(i input, pos int) bool {
 	if r != endOfText {
 		r1, width1 = i.step(pos + width)
 	}
-	var flag syntax.EmptyOp
+	var flag lazyFlag
 	if pos == 0 {
-		flag = syntax.EmptyOpContext(-1, r)
+		flag = newLazyFlag(-1, r)
 	} else {
 		flag = i.context(pos)
 	}
@@ -164,10 +219,10 @@ func (m *machine) match(i input, pos int) bool {
 			if len(m.matchcap) > 0 {
 				m.matchcap[0] = pos
 			}
-			m.add(runq, uint32(m.p.Start), pos, m.matchcap, flag, nil)
+			m.add(runq, uint32(m.p.Start), pos, m.matchcap, &flag, nil)
 		}
-		flag = syntax.EmptyOpContext(r, r1)
-		m.step(runq, nextq, pos, pos+width, r, flag)
+		flag = newLazyFlag(r, r1)
+		m.step(runq, nextq, pos, pos+width, r, &flag)
 		if width == 0 {
 			break
 		}
@@ -202,7 +257,7 @@ func (m *machine) clear(q *queue) {
 // The step processes the rune c (which may be endOfText),
 // which starts at position pos and ends at nextPos.
 // nextCond gives the setting for the empty-width flags after c.
-func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond syntax.EmptyOp) {
+func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond *lazyFlag) {
 	longest := m.re.longest
 	for j := 0; j < len(runq.dense); j++ {
 		d := &runq.dense[j]
@@ -259,7 +314,7 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 // It also recursively adds an entry for all instructions reachable from pc by following
 // empty-width conditions satisfied by cond.  pos gives the current position
 // in the input.
-func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.EmptyOp, t *thread) *thread {
+func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond *lazyFlag, t *thread) *thread {
 Again:
 	if pc == 0 {
 		return t
@@ -286,7 +341,7 @@ Again:
 		pc = i.Arg
 		goto Again
 	case syntax.InstEmptyWidth:
-		if syntax.EmptyOp(i.Arg)&^cond == 0 {
+		if cond.match(syntax.EmptyOp(i.Arg)) {
 			pc = i.Out
 			goto Again
 		}
@@ -365,16 +420,16 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 	if r != endOfText {
 		r1, width1 = i.step(pos + width)
 	}
-	var flag syntax.EmptyOp
+	var flag lazyFlag
 	if pos == 0 {
-		flag = syntax.EmptyOpContext(-1, r)
+		flag = newLazyFlag(-1, r)
 	} else {
 		flag = i.context(pos)
 	}
 	pc := re.onepass.Start
 	inst := re.onepass.Inst[pc]
 	// If there is a simple literal prefix, skip over it.
-	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
+	if pos == 0 && flag.match(syntax.EmptyOp(inst.Arg)) &&
 		len(re.prefix) > 0 && i.canCheckPrefix() {
 		// Match requires literal prefix; fast search for it.
 		if !i.hasPrefix(re) {
@@ -422,7 +477,7 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 		case syntax.InstNop:
 			continue
 		case syntax.InstEmptyWidth:
-			if syntax.EmptyOp(inst.Arg)&^flag != 0 {
+			if !flag.match(syntax.EmptyOp(inst.Arg)) {
 				goto Return
 			}
 			continue
@@ -435,7 +490,7 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 		if width == 0 {
 			break
 		}
-		flag = syntax.EmptyOpContext(r, r1)
+		flag = newLazyFlag(r, r1)
 		pos += width
 		r, width = r1, width1
 		if r != endOfText {
