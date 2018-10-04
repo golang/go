@@ -227,21 +227,11 @@ func TestRunOnePass(t *testing.T) {
 }
 
 func BenchmarkCompileOnepass(b *testing.B) {
-	for _, test := range onePassTests {
-		if test.onePass == notOnePass {
-			continue
+	b.ReportAllocs()
+	const re = `^a.[l-nA-Cg-j]?e$`
+	for i := 0; i < b.N; i++ {
+		if _, err := Compile(re); err != nil {
+			b.Fatal(err)
 		}
-		name := test.re
-		if len(name) > 20 {
-			name = name[:20] + "..."
-		}
-		b.Run(name, func(b *testing.B) {
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				if _, err := Compile(test.re); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
 	}
 }
