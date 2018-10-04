@@ -515,11 +515,6 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bo
 
 	}
 
-	// check and add associated methods
-	// TODO(gri) It's easy to create pathological cases where the
-	// current approach is incorrect: In general we need to know
-	// and add all methods _before_ type-checking the type.
-	// See https://play.golang.org/p/WMpE0q2wK8
 	check.addMethodDecls(obj)
 }
 
@@ -567,7 +562,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 	check.push(cutCycle)
 	defer check.pop()
 
-	// type-check methods
+	// add valid methods
 	for _, m := range methods {
 		// spec: "For a base type, the non-blank names of methods bound
 		// to it must be unique."
@@ -584,13 +579,6 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 			check.reportAltDecl(alt)
 			continue
 		}
-
-		// type-check
-		// TODO(gri): This call is not needed anymore because the code can handle
-		//            method signatures that have not yet been type-checked.
-		//            Remove in separate CL to make it easy to isolate issues
-		//            that might be introduced by this change.
-		check.objDecl(m, nil)
 
 		if base != nil {
 			base.methods = append(base.methods, m)
