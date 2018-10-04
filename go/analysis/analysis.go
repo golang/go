@@ -1,19 +1,3 @@
-// The analysis package defines a uniform interface for static checkers ("Analyzers")
-// of Go source code. By implementing a common interface, checkers from
-// a variety of sources can be easily selected, incorporated, and reused
-// in a wide range of programs including command-line tools, text
-// editors and IDEs, build systems, test frameworks, code review tools,
-// and batch pipelines for large code bases. For the design, see
-// https://docs.google.com/document/d/1-azPLXaLgTCKeKDNg0HVMq2ovMlD-e7n1ZHzZVzOlJk
-//
-// Each analyzer is invoked once per Go package, and is provided the
-// abstract syntax trees (ASTs) and type information for that package.
-//
-// The principal data types of this package are structs, not interfaces,
-// to permit later addition of optional fields as the API evolves.
-//
-// THIS INTERFACE IS EXPERIMENTAL AND SUBJECT TO CHANGE.
-// We aim to finalize it by November 2018.
 package analysis
 
 import (
@@ -95,8 +79,6 @@ func (a *Analyzer) String() string { return a.Name }
 //
 // The Run function should not call any of the Pass functions concurrently.
 type Pass struct {
-	// -- inputs --
-
 	Analyzer *Analyzer // the identity of the current analyzer
 
 	// syntax and type information
@@ -106,12 +88,19 @@ type Pass struct {
 	Pkg        *types.Package // type information about the package
 	TypesInfo  *types.Info    // type information about the syntax trees
 
+	// Report reports a Diagnostic, a finding about a specific location
+	// in the analyzed source code such as a potential mistake.
+	// It may be called by the Run function.
+	Report func(Diagnostic)
+
 	// ResultOf provides the inputs to this analysis pass, which are
 	// the corresponding results of its prerequisite analyzers.
 	// The map keys are the elements of Analysis.Required,
 	// and the type of each corresponding value is the required
 	// analysis's ResultType.
 	ResultOf map[*Analyzer]interface{}
+
+	// -- facts --
 
 	// ImportObjectFact retrieves a fact associated with obj.
 	// Given a value ptr of type *T, where *T satisfies Fact,
@@ -125,13 +114,6 @@ type Pass struct {
 	// which must be this package or one of its dependencies.
 	// See comments for ImportObjectFact.
 	ImportPackageFact func(pkg *types.Package, fact Fact) bool
-
-	// -- outputs --
-
-	// Report reports a Diagnostic, a finding about a specific location
-	// in the analyzed source code such as a potential mistake.
-	// It may be called by the Run function.
-	Report func(Diagnostic)
 
 	// ExportObjectFact associates a fact of type *T with the obj,
 	// replacing any previous fact of that type.
@@ -162,16 +144,16 @@ func (pass *Pass) String() string {
 
 // A Fact is an intermediate fact produced during analysis.
 //
-// Each fact is associated with a named declaration (a types.Object).
-// A single object may have multiple associated facts, but only one of
-// any particular fact type.
+// Each fact is associated with a named declaration (a types.Object) or
+// with a package as a whole. A single object or package may have
+// multiple associated facts, but only one of any particular fact type.
 //
 // A Fact represents a predicate such as "never returns", but does not
-// represent the subject of the predicate such as "function F".
+// represent the subject of the predicate such as "function F" or "package P".
 //
 // Facts may be produced in one analysis pass and consumed by another
 // analysis pass even if these are in different address spaces.
-// If package P imports Q, all facts about objects of Q produced during
+// If package P imports Q, all facts about Q produced during
 // analysis of that package will be available during later analysis of P.
 // Facts are analogous to type export data in a build system:
 // just as export data enables separate compilation of several passes,

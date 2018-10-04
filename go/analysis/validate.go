@@ -8,11 +8,11 @@ import (
 
 // Validate reports an error if any of the analyzers are misconfigured.
 // Checks include:
-// - that the name is a valid identifier;
-// - that analyzer names are unique;
-// - that the Requires graph is acylic;
-// - that analyzer fact types are unique;
-// - that each fact type is a pointer.
+// that the name is a valid identifier;
+// that analyzer names are unique;
+// that the Requires graph is acylic;
+// that analyzer fact types are unique;
+// that each fact type is a pointer.
 func Validate(analyzers []*Analyzer) error {
 	names := make(map[string]bool)
 
