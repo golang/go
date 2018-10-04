@@ -256,9 +256,12 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 
 // ptrRecv reports whether the receiver is of the form *T.
 func ptrRecv(f *Func) bool {
-	// If a method's type is set, use that as the source of truth for the receiver.
-	if f.typ != nil {
-		_, isPtr := deref(f.typ.(*Signature).recv.typ)
+	// If a method's receiver type is set, use that as the source of truth for the receiver.
+	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
+	// signature. We may reach here before the signature is fully set up: we must explicitly
+	// check if the receiver is set (we cannot just look for non-nil f.typ).
+	if sig, _ := f.typ.(*Signature); sig != nil && sig.recv != nil {
+		_, isPtr := deref(sig.recv.typ)
 		return isPtr
 	}
 
