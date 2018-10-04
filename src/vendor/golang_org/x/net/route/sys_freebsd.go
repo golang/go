@@ -57,7 +57,7 @@ func (m *InterfaceMessage) Sys() []Sys {
 func probeRoutingStack() (int, map[int]*wireFormat) {
 	var p uintptr
 	wordSize := int(unsafe.Sizeof(p))
-	align := int(unsafe.Sizeof(p))
+	align := wordSize
 	// In the case of kern.supported_archs="amd64 i386", we need
 	// to know the underlying kernel's architecture because the
 	// alignment for routing facilities are set at the build time
@@ -128,6 +128,9 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11Emu
 		} else {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
+		}
+		if rel >= 1102000 { // see https://github.com/freebsd/freebsd/commit/027c7f4d66ff8d8c4a46c3665a5ee7d6d8462034#diff-ad4e5b7f1449ea3fc87bc97280de145b
+			align = wordSize
 		}
 	}
 	rtm.parse = rtm.parseRouteMessage
