@@ -245,14 +245,6 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 // Indirections are used to break type cycles.
 var indir = NewTypeName(token.NoPos, nil, "*", nil)
 
-// cutCycle is a sentinel type name that is pushed onto the object path
-// to indicate that a cycle doesn't actually exist. This is currently
-// needed to break cycles formed via method declarations because they
-// are type-checked together with their receiver base types. Once methods
-// are type-checked separately (see also TODO in Checker.typeDecl), we
-// can get rid of this.
-var cutCycle = NewTypeName(token.NoPos, nil, "!", nil)
-
 // typeCycle checks if the cycle starting with obj is valid and
 // reports an error if it is not.
 // TODO(gri) rename s/typeCycle/cycle/ once we don't need the other
@@ -293,16 +285,10 @@ func (check *Checker) typeCycle(obj Object) (isCycle bool) {
 		case *Const, *Var:
 			nval++
 		case *TypeName:
-			switch {
-			case obj == indir:
+			if obj == indir {
 				ncycle-- // don't count (indirections are not objects)
 				hasIndir = true
-			case obj == cutCycle:
-				// The cycle is not real and only caused by the fact
-				// that we type-check methods when we type-check their
-				// receiver base types.
-				return false
-			default:
+			} else {
 				// Determine if the type name is an alias or not. For
 				// package-level objects, use the object map which
 				// provides syntactic information (which doesn't rely
@@ -553,14 +539,6 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 			assert(mset.insert(m) == nil)
 		}
 	}
-
-	// Suppress detection of type cycles occurring through method
-	// declarations - they wouldn't exist if methods were type-
-	// checked separately from their receiver base types. See also
-	// comment at the end of Checker.typeDecl.
-	// TODO(gri) Remove this once methods are type-checked separately.
-	check.push(cutCycle)
-	defer check.pop()
 
 	// add valid methods
 	for _, m := range methods {
