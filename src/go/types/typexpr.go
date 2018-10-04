@@ -391,7 +391,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	}
 	if isUntyped(x.typ) || isInteger(x.typ) {
 		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
-			if representableConst(val, check.conf, Typ[Int], nil) {
+			if representableConst(val, check, Typ[Int], nil) {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
 					return n
 				}

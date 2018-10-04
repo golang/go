@@ -187,9 +187,18 @@ func roundFloat64(x constant.Value) constant.Value {
 // representable floating-point and complex values, and to an Int
 // value for integer values; it is left alone otherwise.
 // It is ok to provide the addressof the first argument for rounded.
-func representableConst(x constant.Value, conf *Config, typ *Basic, rounded *constant.Value) bool {
+//
+// The check parameter may be nil if representableConst is invoked
+// (indirectly) through an exported API call (AssignableTo, ConvertibleTo)
+// because we don't need the Checker's config for those calls.
+func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *constant.Value) bool {
 	if x.Kind() == constant.Unknown {
 		return true // avoid follow-up errors
+	}
+
+	var conf *Config
+	if check != nil {
+		conf = check.conf
 	}
 
 	switch {
@@ -323,7 +332,7 @@ func representableConst(x constant.Value, conf *Config, typ *Basic, rounded *con
 // representable checks that a constant operand is representable in the given basic type.
 func (check *Checker) representable(x *operand, typ *Basic) {
 	assert(x.mode == constant_)
-	if !representableConst(x.val, check.conf, typ, &x.val) {
+	if !representableConst(x.val, check, typ, &x.val) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
 			// numeric conversion : error msg
@@ -576,7 +585,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 	// spec: "In any comparison, the first operand must be assignable
 	// to the type of the second operand, or vice versa."
 	err := ""
-	if x.assignableTo(check.conf, y.typ, nil) || y.assignableTo(check.conf, x.typ, nil) {
+	if x.assignableTo(check, y.typ, nil) || y.assignableTo(check, x.typ, nil) {
 		defined := false
 		switch op {
 		case token.EQL, token.NEQ:
@@ -1547,7 +1556,7 @@ func keyVal(x constant.Value) interface{} {
 
 // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
 func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, T Type) {
-	method, wrongType := assertableTo(xtyp, T)
+	method, wrongType := check.assertableTo(xtyp, T)
 	if method == nil {
 		return
 	}

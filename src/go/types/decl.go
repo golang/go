@@ -586,6 +586,10 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		}
 
 		// type-check
+		// TODO(gri): This call is not needed anymore because the code can handle
+		//            method signatures that have not yet been type-checked.
+		//            Remove in separate CL to make it easy to isolate issues
+		//            that might be introduced by this change.
 		check.objDecl(m, nil)
 
 		if base != nil {
