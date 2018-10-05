@@ -15,9 +15,6 @@ import (
 	"strings"
 )
 
-// TODO(gri) Provide scopes with a name or other mechanism so that
-//           objects can use that information for better printing.
-
 // A Scope maintains a set of objects and links to its containing
 // (parent) and contained (children) scopes. Objects may be inserted
 // and looked up by name. The zero value for Scope is a ready-to-use
