@@ -10,9 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -26,27 +24,6 @@ func checkLldbPython(t *testing.T) {
 		t.Skipf("skipping due to issue running lldb: %v\n%s", err, out)
 	}
 	lldbPath = strings.TrimSpace(string(out))
-
-	// Check lldb version. The test is known to fail with 3.8 or older
-	// (see Issue #22299).
-	cmd = exec.Command("lldb", "--version")
-	out, err = cmd.CombinedOutput()
-
-	// lldb --version should print "lldb version a.b.c"
-	re := regexp.MustCompile(` ([[:digit:]]+)\.([[:digit:]]+)`)
-	lldbVersion := re.FindStringSubmatch(string(out))
-	if len(lldbVersion) != 3 {
-		t.Errorf("bad lldb --version output: %s", out)
-	}
-	major, err1 := strconv.Atoi(lldbVersion[1])
-	minor, err2 := strconv.Atoi(lldbVersion[2])
-	if err1 != nil || err2 != nil {
-		t.Errorf("bad lldb --version output: %s", out)
-	}
-
-	if (major < 3) || (major == 3 && minor < 9) {
-		t.Skipf("skipping because lldb version %v.%v is too old (need >= 3.9)", major, minor)
-	}
 
 	cmd = exec.Command("/usr/bin/python2.7", "-c", "import sys;sys.path.append(sys.argv[1]);import lldb; print('go lldb python support')", lldbPath)
 	out, err = cmd.CombinedOutput()
