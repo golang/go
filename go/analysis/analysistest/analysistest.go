@@ -60,10 +60,11 @@ type Testing interface {
 	Errorf(format string, args ...interface{})
 }
 
-// Run applies an analysis to the named package.
-// It loads the package from the specified GOPATH-style project
+// Run applies an analysis to the packages denoted by the "go list" patterns.
+//
+// It loads the packages from the specified GOPATH-style project
 // directory using golang.org/x/tools/go/packages, runs the analysis on
-// it, and checks that each the analysis emits the expected diagnostics
+// them, and checks that each analysis emits the expected diagnostics
 // and facts specified by the contents of '// want ...' comments in the
 // package's source files.
 //
@@ -92,32 +93,36 @@ type Testing interface {
 // Unexpected diagnostics and facts, and unmatched expectations, are
 // reported as errors to the Testing.
 //
-// You may wish to call this function from within a (*testing.T).Run
-// subtest to ensure that errors have adequate contextual description.
-//
-// Run returns the pass and the result of the Analyzer's Run function,
-// or (nil, nil) if loading or analysis failed.
-func Run(t Testing, dir string, a *analysis.Analyzer, pkgname string) (*analysis.Pass, interface{}) {
-	pkg, err := loadPackage(dir, pkgname)
+// Run reports an error to the Testing if loading or analysis failed.
+// Run also returns a Result for each package for which analysis was
+// attempted, even if unsuccessful. It is safe for a test to ignore all
+// the results, but a test may use it to perform additional checks.
+func Run(t Testing, dir string, a *analysis.Analyzer, patterns ...string) []*Result {
+	pkgs, err := loadPackages(dir, patterns...)
 	if err != nil {
-		t.Errorf("loading %s: %v", pkgname, err)
-		return nil, nil
+		t.Errorf("loading %s: %v", patterns, err)
+		return nil
 	}
 
-	pass, diagnostics, facts, result, err := checker.Analyze(pkg, a)
-	if err != nil {
-		t.Errorf("analyzing %s: %v", pkgname, err)
-		return nil, nil
+	results := checker.TestAnalyzer(a, pkgs)
+	for _, result := range results {
+		if result.Err != nil {
+			t.Errorf("error analyzing %s: %v", result.Pass, result.Err)
+		} else {
+			check(t, dir, result.Pass, result.Diagnostics, result.Facts)
+		}
 	}
-
-	check(t, dir, pass, diagnostics, facts)
-
-	return pass, result
+	return results
 }
 
-// loadPackage loads the specified package (from source, with
-// dependencies) from dir, which is the root of a GOPATH-style project tree.
-func loadPackage(dir, pkgpath string) (*packages.Package, error) {
+// A Result holds the result of applying an analyzer to a package.
+type Result = checker.TestAnalyzerResult
+
+// loadPackages uses go/packages to load a specified packages (from source, with
+// dependencies) from dir, which is the root of a GOPATH-style project
+// tree. It returns an error if any package had an error, or the pattern
+// matched no packages.
+func loadPackages(dir string, patterns ...string) ([]*packages.Package, error) {
 	// packages.Load loads the real standard library, not a minimal
 	// fake version, which would be more efficient, especially if we
 	// have many small tests that import, say, net/http.
@@ -131,7 +136,7 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 		Tests: true,
 		Env:   append(os.Environ(), "GOPATH="+dir, "GO111MODULE=off", "GOPROXY=off"),
 	}
-	pkgs, err := packages.Load(cfg, pkgpath)
+	pkgs, err := packages.Load(cfg, patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -140,12 +145,10 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 	// some Analyzers may be disposed to RunDespiteErrors.
 	packages.PrintErrors(pkgs)
 
-	if len(pkgs) != 1 {
-		return nil, fmt.Errorf("pattern %q expanded to %d packages, want 1",
-			pkgpath, len(pkgs))
+	if len(pkgs) == 0 {
+		return nil, fmt.Errorf("no packages matched %s", patterns)
 	}
-
-	return pkgs[0], nil
+	return pkgs, nil
 }
 
 // check inspects an analysis pass on which the analysis has already
