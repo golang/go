@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
 // This file contains declarations to test the assembly in test_asm.s.
 
-package testdata
+package a
 
 type S struct {
 	i int32

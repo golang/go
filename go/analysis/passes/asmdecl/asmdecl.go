@@ -1,12 +1,8 @@
-// +build ignore
-
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Identify mismatches between assembly files and Go func declarations.
-
-package main
+package asmdecl
 
 import (
 	"bytes"
@@ -15,10 +11,19 @@ import (
 	"go/build"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"golang.org/x/tools/go/analysis"
 )
+
+var Analyzer = &analysis.Analyzer{
+	Name: "asmdecl",
+	Doc:  "report mismatches between assembly files and Go declarations",
+	Run:  run,
+}
 
 // 'kind' is a kind of assembly variable.
 // The kinds 1, 2, 4, 8 stand for values of that size.
@@ -108,8 +113,6 @@ func init() {
 		arch.ptrSize = int(arch.sizes.Sizeof(types.Typ[types.UnsafePointer]))
 		arch.maxAlign = int(arch.sizes.Alignof(types.Typ[types.Int64]))
 	}
-
-	registerPkgCheck("asmdecl", asmCheck)
 }
 
 var (
@@ -124,48 +127,48 @@ var (
 	ppc64Suff    = re(`([BHWD])(ZU|Z|U|BR)?$`)
 )
 
-func asmCheck(pkg *Package) {
-	if vcfg.VetxOnly {
-		return
-	}
-
+func run(pass *analysis.Pass) (interface{}, error) {
 	// No work if no assembly files.
-	if !pkg.hasFileWithSuffix(".s") {
-		return
+	var sfiles []string
+	for _, fname := range pass.OtherFiles {
+		if strings.HasSuffix(fname, ".s") {
+			sfiles = append(sfiles, fname)
+		}
+	}
+	if sfiles == nil {
+		return nil, nil
 	}
 
 	// Gather declarations. knownFunc[name][arch] is func description.
 	knownFunc := make(map[string]map[string]*asmFunc)
 
-	for _, f := range pkg.files {
-		if f.file != nil {
-			for _, decl := range f.file.Decls {
-				if decl, ok := decl.(*ast.FuncDecl); ok && decl.Body == nil {
-					knownFunc[decl.Name.Name] = f.asmParseDecl(decl)
-				}
+	for _, f := range pass.Files {
+		for _, decl := range f.Decls {
+			if decl, ok := decl.(*ast.FuncDecl); ok && decl.Body == nil {
+				knownFunc[decl.Name.Name] = asmParseDecl(pass, decl)
 			}
 		}
 	}
 
 Files:
-	for _, f := range pkg.files {
-		if !strings.HasSuffix(f.name, ".s") {
-			continue
+	for _, fname := range sfiles {
+		content, tf, err := readFile(pass.Fset, fname)
+		if err != nil {
+			return nil, err
 		}
-		Println("Checking file", f.name)
 
 		// Determine architecture from file name if possible.
 		var arch string
 		var archDef *asmArch
 		for _, a := range arches {
-			if strings.HasSuffix(f.name, "_"+a.name+".s") {
+			if strings.HasSuffix(fname, "_"+a.name+".s") {
 				arch = a.name
 				archDef = a
 				break
 			}
 		}
 
-		lines := strings.SplitAfter(string(f.content), "\n")
+		lines := strings.SplitAfter(string(content), "\n")
 		var (
 			fn                 *asmFunc
 			fnName             string
@@ -179,7 +182,7 @@ Files:
 			if fn != nil && fn.vars["ret"] != nil && !haveRetArg && len(retLine) > 0 {
 				v := fn.vars["ret"]
 				for _, line := range retLine {
-					f.Badf(token.NoPos, "%s:%d: [%s] %s: RET without writing to %d-byte ret+%d(FP)", f.name, line, arch, fnName, v.size, v.off)
+					pass.Reportf(lineStart(tf, line), "[%s] %s: RET without writing to %d-byte ret+%d(FP)", arch, fnName, v.size, v.off)
 				}
 			}
 			retLine = nil
@@ -188,7 +191,7 @@ Files:
 			lineno++
 
 			badf := func(format string, args ...interface{}) {
-				f.Badf(token.NoPos, "%s:%d: [%s] %s: %s", f.name, lineno, arch, fnName, fmt.Sprintf(format, args...))
+				pass.Reportf(lineStart(tf, lineno), "[%s] %s: %s", arch, fnName, fmt.Sprintf(format, args...))
 			}
 
 			if arch == "" {
@@ -231,7 +234,7 @@ Files:
 						}
 					}
 					if arch == "" {
-						f.Warnf(token.NoPos, "%s: cannot determine architecture for assembly file", f.name)
+						badf("%s: cannot determine architecture for assembly file")
 						continue Files
 					}
 				}
@@ -239,8 +242,8 @@ Files:
 				if pkgName := strings.TrimSpace(m[1]); pkgName != "" {
 					pathParts := strings.Split(pkgName, "∕")
 					pkgName = pathParts[len(pathParts)-1]
-					if pkgName != f.pkg.path {
-						f.Warnf(token.NoPos, "%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", f.name, lineno, arch, fnName, pkgName)
+					if pkgName != pass.Pkg.Path() {
+						badf("[%s] cannot check cross-package assembly function: %s is in package %s", arch, fnName, pkgName)
 						fn = nil
 						fnName = ""
 						continue
@@ -362,6 +365,7 @@ Files:
 		}
 		flushRet()
 	}
+	return nil, nil
 }
 
 func asmKindForType(t types.Type, size int) asmKind {
@@ -484,7 +488,7 @@ func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suff
 }
 
 // asmParseDecl parses a function decl for expected assembly variables.
-func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
+func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
 	var (
 		arch   *asmArch
 		fn     *asmFunc
@@ -496,7 +500,7 @@ func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
 	addParams := func(list []*ast.Field, isret bool) {
 		argnum := 0
 		for _, fld := range list {
-			t := f.pkg.types[fld.Type].Type
+			t := pass.TypesInfo.Types[fld.Type].Type
 			align := int(arch.sizes.Alignof(t))
 			size := int(arch.sizes.Sizeof(t))
 			offset += -offset & (align - 1)
@@ -732,5 +736,50 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 			}
 		}
 		badf("invalid %s of %s; %s is %d-byte value%s", op, expr, vt, vs, inner.String())
+	}
+}
+
+// -- a copy of these declarations exists in the buildtag Analyzer ---
+
+// readFile reads a file and adds it to the FileSet
+// so that we can report errors against it using lineStart.
+func readFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, nil, err
+	}
+	tf := fset.AddFile(filename, -1, len(content))
+	tf.SetLinesForContent(content)
+	return content, tf, nil
+}
+
+// lineStart returns the position of the start of the specified line
+// within file f, or NoPos if there is no line of that number.
+func lineStart(f *token.File, line int) token.Pos {
+	// Use binary search to find the start offset of this line.
+	//
+	// TODO(adonovan): eventually replace this function with the
+	// simpler and more efficient (*go/token.File).LineStart, added
+	// in go1.12.
+
+	min := 0        // inclusive
+	max := f.Size() // exclusive
+	for {
+		offset := (min + max) / 2
+		pos := f.Pos(offset)
+		posn := f.Position(pos)
+		if posn.Line == line {
+			return 1 + pos - token.Pos(posn.Column)
+		}
+
+		if min+1 >= max {
+			return token.NoPos
+		}
+
+		if posn.Line < line {
+			min = offset
+		} else {
+			max = offset
+		}
 	}
 }

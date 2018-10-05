@@ -152,51 +152,76 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 // source files, which must have been parsed with comments enabled.
 func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis.Diagnostic, facts map[types.Object][]analysis.Fact) {
 
-	// Read expectations out of comments.
 	type key struct {
 		file string
 		line int
 	}
+
 	want := make(map[key][]expectation)
+
+	// processComment parses expectations out of comments.
+	processComment := func(filename string, linenum int, text string) {
+		text = strings.TrimSpace(text)
+
+		// Any comment starting with "want" is treated
+		// as an expectation, even without following whitespace.
+		if rest := strings.TrimPrefix(text, "want"); rest != text {
+			expects, err := parseExpectations(rest)
+			if err != nil {
+				t.Errorf("%s:%d: in 'want' comment: %s", filename, linenum, err)
+				return
+			}
+			if expects != nil {
+				want[key{filename, linenum}] = expects
+			}
+		}
+	}
+
+	// Extract 'want' comments from Go files.
 	for _, f := range pass.Files {
+		filename := sanitize(gopath, pass.Fset.File(f.Pos()).Name())
 		for _, cgroup := range f.Comments {
 			for _, c := range cgroup.List {
-				posn := pass.Fset.Position(c.Pos())
-				sanitize(gopath, &posn)
 
 				text := strings.TrimPrefix(c.Text, "//")
 				if text == c.Text {
 					continue // not a //-comment
 				}
-				text = strings.TrimSpace(text)
 
 				// Hack: treat a comment of the form "//...// want..."
-				// as if it starts after the second "//".
+				// as if it starts at 'want'.
 				// This allows us to add comments on comments,
 				// as required when testing the buildtag analyzer.
 				if i := strings.Index(text, "// want"); i >= 0 {
 					text = text[i+len("// "):]
 				}
 
-				// Any comment starting with "want" is treated
-				// as an expectation, even without following whitespace.
-				if rest := strings.TrimPrefix(text, "want"); rest != text {
-					expects, err := parseExpectations(rest)
-					if err != nil {
-						t.Errorf("%s: in 'want' comment: %s", posn, err)
-						continue
-					}
-					if false {
-						log.Printf("%s: %v", posn, expects)
-					}
-					want[key{posn.Filename, posn.Line}] = expects
-				}
+				linenum := pass.Fset.Position(c.Pos()).Line
+				processComment(filename, linenum, text)
+			}
+		}
+	}
+
+	// Extract 'want' comments from non-Go files.
+	for _, filename := range pass.OtherFiles {
+		data, err := ioutil.ReadFile(filename)
+		if err != nil {
+			t.Errorf("can't read '// want' comments from %s: %v", filename, err)
+			continue
+		}
+		filename := sanitize(gopath, filename)
+		linenum := 0
+		for _, line := range strings.Split(string(data), "\n") {
+			linenum++
+			if i := strings.Index(line, "//"); i >= 0 {
+				line = line[i+len("//"):]
+				processComment(filename, linenum, line)
 			}
 		}
 	}
 
 	checkMessage := func(posn token.Position, kind, name, message string) {
-		sanitize(gopath, &posn)
+		posn.Filename = sanitize(gopath, posn.Filename)
 		k := key{posn.Filename, posn.Line}
 		expects := want[k]
 		var unmatched []string
@@ -336,8 +361,8 @@ func parseExpectations(text string) ([]expectation, error) {
 }
 
 // sanitize removes the GOPATH portion of the filename,
-// typically a gnarly /tmp directory.
-func sanitize(gopath string, posn *token.Position) {
+// typically a gnarly /tmp directory, and returns the rest.
+func sanitize(gopath, filename string) string {
 	prefix := gopath + string(os.PathSeparator) + "src" + string(os.PathSeparator)
-	posn.Filename = filepath.ToSlash(strings.TrimPrefix(posn.Filename, prefix))
+	return filepath.ToSlash(strings.TrimPrefix(filename, prefix))
 }

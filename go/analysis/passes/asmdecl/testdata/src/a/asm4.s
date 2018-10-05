@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // +build amd64
-// +build vet_test
 
 // Test cases for symbolic NOSPLIT etc. on TEXT symbols.
 
