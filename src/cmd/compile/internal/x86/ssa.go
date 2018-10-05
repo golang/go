@@ -484,43 +484,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.Op386MOVSDloadidx8:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
-		p.From.Scale = 8
-		p.From.Index = v.Args[1].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-	case ssa.Op386MOVLloadidx4, ssa.Op386MOVSSloadidx4:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
-		p.From.Scale = 4
-		p.From.Index = v.Args[1].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-	case ssa.Op386MOVWloadidx2:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
-		p.From.Scale = 2
-		p.From.Index = v.Args[1].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-	case ssa.Op386MOVBloadidx1, ssa.Op386MOVWloadidx1, ssa.Op386MOVLloadidx1, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1:
+	case ssa.Op386MOVBloadidx1, ssa.Op386MOVWloadidx1, ssa.Op386MOVLloadidx1, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1,
+		ssa.Op386MOVSDloadidx8, ssa.Op386MOVLloadidx4, ssa.Op386MOVSSloadidx4, ssa.Op386MOVWloadidx2:
 		r := v.Args[0].Reg()
 		i := v.Args[1].Reg()
-		if i == x86.REG_SP {
-			r, i = i, r
-		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
+		switch v.Op {
+		case ssa.Op386MOVBloadidx1, ssa.Op386MOVWloadidx1, ssa.Op386MOVLloadidx1, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1:
+			if i == x86.REG_SP {
+				r, i = i, r
+			}
+			p.From.Scale = 1
+		case ssa.Op386MOVSDloadidx8:
+			p.From.Scale = 8
+		case ssa.Op386MOVLloadidx4, ssa.Op386MOVSSloadidx4:
+			p.From.Scale = 4
+		case ssa.Op386MOVWloadidx2:
+			p.From.Scale = 2
+		}
 		p.From.Reg = r
-		p.From.Scale = 1
 		p.From.Index = i
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
@@ -573,45 +556,28 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux2(&p.To, v, off)
-	case ssa.Op386MOVSDstoreidx8:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[2].Reg()
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		p.To.Scale = 8
-		p.To.Index = v.Args[1].Reg()
-		gc.AddAux(&p.To, v)
-	case ssa.Op386MOVSSstoreidx4, ssa.Op386MOVLstoreidx4:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[2].Reg()
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		p.To.Scale = 4
-		p.To.Index = v.Args[1].Reg()
-		gc.AddAux(&p.To, v)
-	case ssa.Op386MOVWstoreidx2:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[2].Reg()
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		p.To.Scale = 2
-		p.To.Index = v.Args[1].Reg()
-		gc.AddAux(&p.To, v)
-	case ssa.Op386MOVBstoreidx1, ssa.Op386MOVWstoreidx1, ssa.Op386MOVLstoreidx1, ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSDstoreidx1:
+	case ssa.Op386MOVBstoreidx1, ssa.Op386MOVWstoreidx1, ssa.Op386MOVLstoreidx1, ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSDstoreidx1,
+		ssa.Op386MOVSDstoreidx8, ssa.Op386MOVSSstoreidx4, ssa.Op386MOVLstoreidx4, ssa.Op386MOVWstoreidx2:
 		r := v.Args[0].Reg()
 		i := v.Args[1].Reg()
-		if i == x86.REG_SP {
-			r, i = i, r
-		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
 		p.To.Type = obj.TYPE_MEM
+		switch v.Op {
+		case ssa.Op386MOVBstoreidx1, ssa.Op386MOVWstoreidx1, ssa.Op386MOVLstoreidx1, ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSDstoreidx1:
+			if i == x86.REG_SP {
+				r, i = i, r
+			}
+			p.To.Scale = 1
+		case ssa.Op386MOVSDstoreidx8:
+			p.To.Scale = 8
+		case ssa.Op386MOVSSstoreidx4, ssa.Op386MOVLstoreidx4:
+			p.To.Scale = 4
+		case ssa.Op386MOVWstoreidx2:
+			p.To.Scale = 2
+		}
 		p.To.Reg = r
-		p.To.Scale = 1
 		p.To.Index = i
 		gc.AddAux(&p.To, v)
 	case ssa.Op386MOVLstoreconst, ssa.Op386MOVWstoreconst, ssa.Op386MOVBstoreconst:
