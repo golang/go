@@ -884,19 +884,11 @@ HaveSpan:
 	if s.npages < npage {
 		throw("MHeap_AllocLocked - bad npages")
 	}
-	if s.scavenged {
-		// sysUsed all the pages that are actually available
-		// in the span, but only drop heap_released by the
-		// actual amount of pages released. This helps ensure
-		// that heap_released only increments and decrements
-		// by the same amounts. It's also fine, because any
-		// of the pages outside start and end wouldn't have been
-		// sysUnused in the first place.
-		sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
-		start, end := s.physPageBounds()
-		memstats.heap_released -= uint64(end-start)
-		s.scavenged = false
-	}
+
+	// First, subtract any memory that was released back to
+	// the OS from s. We will re-scavenge the trimmed section
+	// if necessary.
+	memstats.heap_released -= uint64(s.released())
 
 	if s.npages > npage {
 		// Trim extra and put it back in the heap.
@@ -907,10 +899,25 @@ HaveSpan:
 		h.setSpan(t.base(), t)
 		h.setSpan(t.base()+t.npages*pageSize-1, t)
 		t.needzero = s.needzero
+		// If s was scavenged, then t may be scavenged.
+		start, end := t.physPageBounds()
+		if s.scavenged && start < end {
+			memstats.heap_released += uint64(end-start)
+			t.scavenged = true
+		}
 		s.state = mSpanManual // prevent coalescing with s
 		t.state = mSpanManual
 		h.freeSpanLocked(t, false, false, s.unusedsince)
 		s.state = mSpanFree
+	}
+	// "Unscavenge" s only AFTER splitting so that
+	// we only sysUsed whatever we actually need.
+	if s.scavenged {
+		// sysUsed all the pages that are actually available
+		// in the span. Note that we don't need to decrement
+		// heap_released since we already did so earlier.
+		sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+		s.scavenged = false
 	}
 	s.unusedsince = 0
 
