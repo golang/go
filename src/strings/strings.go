@@ -672,8 +672,8 @@ func Title(s string) string {
 		s)
 }
 
-// TrimLeftFunc returns a slice of the string s with all leading
-// Unicode code points c satisfying f(c) removed.
+// TrimLeftFunc returns s with all leading Unicode code points
+// c satisfying f(c) removed.
 func TrimLeftFunc(s string, f func(rune) bool) string {
 	i := indexFunc(s, f, false)
 	if i == -1 {
@@ -682,8 +682,8 @@ func TrimLeftFunc(s string, f func(rune) bool) string {
 	return s[i:]
 }
 
-// TrimRightFunc returns a slice of the string s with all trailing
-// Unicode code points c satisfying f(c) removed.
+// TrimRightFunc returns s with all trailing Unicode code points
+// c satisfying f(c) removed.
 func TrimRightFunc(s string, f func(rune) bool) string {
 	i := lastIndexFunc(s, f, false)
 	if i >= 0 && s[i] >= utf8.RuneSelf {
@@ -695,8 +695,8 @@ func TrimRightFunc(s string, f func(rune) bool) string {
 	return s[0:i]
 }
 
-// TrimFunc returns a slice of the string s with all leading
-// and trailing Unicode code points c satisfying f(c) removed.
+// TrimFunc returns s with all leading and trailing Unicode code points
+// c satisfying f(c) removed.
 func TrimFunc(s string, f func(rune) bool) string {
 	return TrimRightFunc(TrimLeftFunc(s, f), f)
 }
@@ -779,8 +779,8 @@ func makeCutsetFunc(cutset string) func(rune) bool {
 	return func(r rune) bool { return IndexRune(cutset, r) >= 0 }
 }
 
-// Trim returns a slice of the string s with all leading and
-// trailing Unicode code points contained in cutset removed.
+// Trim returns s with all leading and trailing Unicode code
+// points contained in cutset removed.
 func Trim(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -788,8 +788,8 @@ func Trim(s string, cutset string) string {
 	return TrimFunc(s, makeCutsetFunc(cutset))
 }
 
-// TrimLeft returns a slice of the string s with all leading
-// Unicode code points contained in cutset removed.
+// TrimLeft returns s with all leading Unicode code points
+// contained in cutset removed.
 //
 // To remove a prefix, use TrimPrefix instead.
 func TrimLeft(s string, cutset string) string {
@@ -799,8 +799,8 @@ func TrimLeft(s string, cutset string) string {
 	return TrimLeftFunc(s, makeCutsetFunc(cutset))
 }
 
-// TrimRight returns a slice of the string s, with all trailing
-// Unicode code points contained in cutset removed.
+// TrimRight returns s with all trailing Unicode code points
+// contained in cutset removed.
 //
 // To remove a suffix, use TrimSuffix instead.
 func TrimRight(s string, cutset string) string {
@@ -810,8 +810,8 @@ func TrimRight(s string, cutset string) string {
 	return TrimRightFunc(s, makeCutsetFunc(cutset))
 }
 
-// TrimSpace returns a slice of the string s, with all leading
-// and trailing white space removed, as defined by Unicode.
+// TrimSpace returns s with all leading and trailing white space
+// removed, as defined by Unicode.
 func TrimSpace(s string) string {
 	return TrimFunc(s, unicode.IsSpace)
 }
