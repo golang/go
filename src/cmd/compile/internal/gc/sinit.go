@@ -751,7 +751,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 		case initKindStatic:
 			genAsStatic(a)
 		case initKindDynamic, initKindLocalCode:
-			a = orderStmtInPlace(a)
+			a = orderStmtInPlace(a, map[string][]*Node{})
 			a = walkstmt(a)
 			init.Append(a)
 		default:
@@ -909,7 +909,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		a = nod(OAS, a, value)
 
 		a = typecheck(a, Etop)
-		a = orderStmtInPlace(a)
+		a = orderStmtInPlace(a, map[string][]*Node{})
 		a = walkstmt(a)
 		init.Append(a)
 	}
@@ -918,7 +918,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	a = nod(OAS, var_, nod(OSLICE, vauto, nil))
 
 	a = typecheck(a, Etop)
-	a = orderStmtInPlace(a)
+	a = orderStmtInPlace(a, map[string][]*Node{})
 	a = walkstmt(a)
 	init.Append(a)
 }

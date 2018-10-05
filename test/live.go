@@ -256,8 +256,8 @@ func f16() {
 	if b {
 		delete(mi, iface()) // ERROR "stack object .autotmp_[0-9]+ interface \{\}$"
 	}
-	delete(mi, iface()) // ERROR "stack object .autotmp_[0-9]+ interface \{\}$"
-	delete(mi, iface()) // ERROR "stack object .autotmp_[0-9]+ interface \{\}$"
+	delete(mi, iface())
+	delete(mi, iface())
 }
 
 var m2s map[string]*byte
@@ -302,8 +302,8 @@ func f18() {
 	if b {
 		z = m2[g18()] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
-	z = m2[g18()] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
-	z = m2[g18()] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+	z = m2[g18()]
+	z = m2[g18()]
 	printbytepointer(z)
 }
 
@@ -319,8 +319,8 @@ func f19() {
 	if b {
 		z = <-ch // ERROR "stack object .autotmp_[0-9]+ \*byte$"
 	}
-	z = <-ch // ERROR "stack object .autotmp_[0-9]+ \*byte$"
-	z = <-ch // ERROR "stack object .autotmp_[0-9]+ \*byte$" "live at call to chanrecv1: .autotmp_[0-9]+$"
+	z = <-ch
+	z = <-ch // ERROR "live at call to chanrecv1: .autotmp_[0-9]+$"
 	printbytepointer(z)
 }
 
@@ -329,8 +329,8 @@ func f20() {
 	if b {
 		ch <- byteptr() // ERROR "stack object .autotmp_[0-9]+ \*byte$"
 	}
-	ch <- byteptr() // ERROR "stack object .autotmp_[0-9]+ \*byte$"
-	ch <- byteptr() // ERROR "stack object .autotmp_[0-9]+ \*byte$"
+	ch <- byteptr()
+	ch <- byteptr()
 }
 
 func f21() {
@@ -339,8 +339,8 @@ func f21() {
 	if b {
 		z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
-	z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
-	z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+	z = m2[[2]string{"x", "y"}]
+	z = m2[[2]string{"x", "y"}]
 	printbytepointer(z)
 }
 
@@ -351,8 +351,8 @@ func f23() {
 	if b {
 		z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
-	z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
-	z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+	z, ok = m2[[2]string{"x", "y"}]
+	z, ok = m2[[2]string{"x", "y"}]
 	printbytepointer(z)
 	print(ok)
 }
@@ -363,8 +363,8 @@ func f24() {
 	if b {
 		m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
-	m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
-	m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+	m2[[2]string{"x", "y"}] = nil
+	m2[[2]string{"x", "y"}] = nil
 }
 
 // defer should not cause spurious ambiguously live variables
@@ -389,8 +389,8 @@ func f26(b bool) {
 	if b {
 		print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "stack object .autotmp_[0-9]+ \[3\]interface \{\}$"
 	}
-	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "stack object .autotmp_[0-9]+ \[3\]interface \{\}$"
-	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "stack object .autotmp_[0-9]+ \[3\]interface \{\}$"
+	print26((*int)(nil), (*int)(nil), (*int)(nil))
+	print26((*int)(nil), (*int)(nil), (*int)(nil))
 	printnl()
 }
 
@@ -442,8 +442,8 @@ func f28(b bool) {
 	if b {
 		printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "stack object .autotmp_[0-9]+ \[10\]string$"
 	}
-	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "stack object .autotmp_[0-9]+ \[10\]string$"
-	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "stack object .autotmp_[0-9]+ \[10\]string$"
+	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10)
+	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10)
 }
 
 // map iterator should die on end of range loop
@@ -454,10 +454,10 @@ func f29(b bool) {
 			printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 		}
 	}
-	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.iter\[string\]int$"
+	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
 		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 	}
-	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.iter\[string\]int$"
+	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
 		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 	}
 }
@@ -481,10 +481,10 @@ func f30(b bool) {
 			printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+$"
 		}
 	}
-	for _, p := range pstructarr { // ERROR "stack object .autotmp_[0-9]+ \[10\]pstruct$"
+	for _, p := range pstructarr {
 		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+$"
 	}
-	for _, p := range pstructarr { // ERROR "stack object .autotmp_[0-9]+ \[10\]pstruct$"
+	for _, p := range pstructarr {
 		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+$"
 	}
 }
@@ -496,10 +496,10 @@ func f31(b1, b2, b3 bool) {
 		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	if b2 {
-		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ \[2\]string$"
+		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
 	}
 	if b3 {
-		panic(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+		panic(g18())
 	}
 	print(b3)
 }
