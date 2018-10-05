@@ -42,8 +42,9 @@ import (
 
 // Order holds state during the ordering process.
 type Order struct {
-	out  []*Node // list of generated statements
-	temp []*Node // stack of temporary variables
+	out  []*Node            // list of generated statements
+	temp []*Node            // stack of temporary variables
+	free map[string][]*Node // free list of unused temporaries, by type.LongString().
 }
 
 // Order rewrites fn.Nbody to apply the ordering constraints
@@ -54,14 +55,30 @@ func order(fn *Node) {
 		dumplist(s, fn.Nbody)
 	}
 
-	orderBlock(&fn.Nbody)
+	orderBlock(&fn.Nbody, map[string][]*Node{})
 }
 
 // newTemp allocates a new temporary with the given type,
 // pushes it onto the temp stack, and returns it.
 // If clear is true, newTemp emits code to zero the temporary.
 func (o *Order) newTemp(t *types.Type, clear bool) *Node {
-	v := temp(t)
+	var v *Node
+	// Note: LongString is close to the type equality we want,
+	// but not exactly. We still need to double-check with eqtype.
+	key := t.LongString()
+	a := o.free[key]
+	for i, n := range a {
+		if eqtype(t, n.Type) {
+			v = a[i]
+			a[i] = a[len(a)-1]
+			a = a[:len(a)-1]
+			o.free[key] = a
+			break
+		}
+	}
+	if v == nil {
+		v = temp(t)
+	}
 	if clear {
 		a := nod(OAS, v, nil)
 		a = typecheck(a, Etop)
@@ -226,6 +243,16 @@ func (o *Order) markTemp() ordermarker {
 // Poptemp pops temporaries off the stack until reaching the mark,
 // which must have been returned by marktemp.
 func (o *Order) popTemp(mark ordermarker) {
+	for _, n := range o.temp[mark:] {
+		if n.Type.Etype == types.TUINT8 {
+			// Don't recycle temps of this type. TUINT8 is used
+			// as a placeholder for a type to be determined later.
+			// TODO: fix
+			continue
+		}
+		key := n.Type.LongString()
+		o.free[key] = append(o.free[key], n)
+	}
 	o.temp = o.temp[:mark]
 }
 
@@ -266,8 +293,10 @@ func (o *Order) stmtList(l Nodes) {
 
 // orderBlock orders the block of statements in n into a new slice,
 // and then replaces the old slice in n with the new slice.
-func orderBlock(n *Nodes) {
+// free is a map that can be used to obtain temporary variables by type.
+func orderBlock(n *Nodes, free map[string][]*Node) {
 	var order Order
+	order.free = free
 	mark := order.markTemp()
 	order.stmtList(*n)
 	order.cleanTemp(mark)
@@ -280,6 +309,7 @@ func orderBlock(n *Nodes) {
 // 	n.Left = o.exprInPlace(n.Left)
 func (o *Order) exprInPlace(n *Node) *Node {
 	var order Order
+	order.free = o.free
 	n = order.expr(n, nil)
 	n = addinit(n, order.out)
 
@@ -293,8 +323,10 @@ func (o *Order) exprInPlace(n *Node) *Node {
 // and replaces it with the resulting statement list.
 // The result of orderStmtInPlace MUST be assigned back to n, e.g.
 // 	n.Left = orderStmtInPlace(n.Left)
-func orderStmtInPlace(n *Node) *Node {
+// free is a map that can be used to obtain temporary variables by type.
+func orderStmtInPlace(n *Node, free map[string][]*Node) *Node {
 	var order Order
+	order.free = free
 	mark := order.markTemp()
 	order.stmt(n)
 	order.cleanTemp(mark)
@@ -643,8 +675,8 @@ func (o *Order) stmt(n *Node) {
 		t := o.markTemp()
 		n.Left = o.exprInPlace(n.Left)
 		n.Nbody.Prepend(o.cleanTempNoPop(t)...)
-		orderBlock(&n.Nbody)
-		n.Right = orderStmtInPlace(n.Right)
+		orderBlock(&n.Nbody, o.free)
+		n.Right = orderStmtInPlace(n.Right, o.free)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -656,8 +688,8 @@ func (o *Order) stmt(n *Node) {
 		n.Nbody.Prepend(o.cleanTempNoPop(t)...)
 		n.Rlist.Prepend(o.cleanTempNoPop(t)...)
 		o.popTemp(t)
-		orderBlock(&n.Nbody)
-		orderBlock(&n.Rlist)
+		orderBlock(&n.Nbody, o.free)
+		orderBlock(&n.Rlist, o.free)
 		o.out = append(o.out, n)
 
 	// Special: argument will be converted to interface using convT2E
@@ -739,7 +771,7 @@ func (o *Order) stmt(n *Node) {
 		}
 		o.exprListInPlace(n.List)
 		if orderBody {
-			orderBlock(&n.Nbody)
+			orderBlock(&n.Nbody, o.free)
 		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
@@ -857,7 +889,7 @@ func (o *Order) stmt(n *Node) {
 					tmp2 = typecheck(tmp2, Etop)
 					n2.Ninit.Append(tmp2)
 				}
-				orderBlock(&n2.Ninit)
+				orderBlock(&n2.Ninit, o.free)
 
 			case OSEND:
 				if r.Ninit.Len() != 0 {
@@ -882,7 +914,7 @@ func (o *Order) stmt(n *Node) {
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
 		for _, n3 := range n.List.Slice() {
-			orderBlock(&n3.Nbody)
+			orderBlock(&n3.Nbody, o.free)
 			n3.Nbody.Prepend(o.cleanTempNoPop(t)...)
 
 			// TODO(mdempsky): Is this actually necessary?
@@ -924,7 +956,7 @@ func (o *Order) stmt(n *Node) {
 				Fatalf("order switch case %v", ncas.Op)
 			}
 			o.exprListInPlace(ncas.List)
-			orderBlock(&ncas.Nbody)
+			orderBlock(&ncas.Nbody, o.free)
 		}
 
 		o.out = append(o.out, n)
