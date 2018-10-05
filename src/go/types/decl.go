@@ -150,31 +150,6 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 			}
 
 		case *TypeName:
-			// fixFor26390 enables a temporary work-around to handle alias type names
-			// that have not been given a type yet even though the underlying type
-			// is already known. See testdata/issue26390.src for a simple example.
-			// Set this flag to false to disable this code quickly (and comment
-			// out the new test in decls4.src that will fail again).
-			// TODO(gri) remove this for Go 1.12 in favor of a more comprehensive fix
-			const fixFor26390 = true
-			if fixFor26390 {
-				// If we have a package-level alias type name that has not been
-				// given a type yet but the underlying type is a type name that
-				// has been given a type already, don't report a cycle but use
-				// the underlying type name's type instead. The cycle shouldn't
-				// exist in the first place in this case and is due to the way
-				// methods are type-checked at the moment. See also the comment
-				// at the end of Checker.typeDecl below.
-				if d := check.objMap[obj]; d != nil && d.alias && obj.typ == Typ[Invalid] {
-					// If we can find the underlying type name syntactically
-					// and it has a type, use that type.
-					if tname := check.resolveBaseTypeName(ast.NewIdent(obj.name)); tname != nil && tname.typ != nil {
-						obj.typ = tname.typ
-						break
-					}
-				}
-			}
-
 			if check.typeCycle(obj) {
 				// break cycle
 				// (without this, calling underlying()
