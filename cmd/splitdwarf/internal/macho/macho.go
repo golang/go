@@ -7,17 +7,35 @@
 
 package macho
 
-import "strconv"
+import (
+	"encoding/binary"
+	"strconv"
+)
 
 // A FileHeader represents a Mach-O file header.
 type FileHeader struct {
-	Magic  uint32
-	Cpu    Cpu
-	SubCpu uint32
-	Type   Type
-	Ncmd   uint32
-	Cmdsz  uint32
-	Flags  uint32
+	Magic        uint32
+	Cpu          Cpu
+	SubCpu       uint32
+	Type         HdrType
+	NCommands    uint32 // number of load commands
+	SizeCommands uint32 // size of all the load commands, not including this header.
+	Flags        HdrFlags
+}
+
+func (h *FileHeader) Put(b []byte, o binary.ByteOrder) int {
+	o.PutUint32(b[0:], h.Magic)
+	o.PutUint32(b[4:], uint32(h.Cpu))
+	o.PutUint32(b[8:], h.SubCpu)
+	o.PutUint32(b[12:], uint32(h.Type))
+	o.PutUint32(b[16:], h.NCommands)
+	o.PutUint32(b[20:], h.SizeCommands)
+	o.PutUint32(b[24:], uint32(h.Flags))
+	if h.Magic == Magic32 {
+		return 28
+	}
+	o.PutUint32(b[28:], 0)
+	return 32
 }
 
 const (
@@ -31,25 +49,32 @@ const (
 	MagicFat uint32 = 0xcafebabe
 )
 
-// A Type is the Mach-O file type, e.g. an object file, executable, or dynamic library.
-type Type uint32
+type HdrFlags uint32
+type SegFlags uint32
+type SecFlags uint32
 
-const (
-	TypeObj    Type = 1
-	TypeExec   Type = 2
-	TypeDylib  Type = 6
-	TypeBundle Type = 8
+// A HdrType is the Mach-O file type, e.g. an object file, executable, or dynamic library.
+type HdrType uint32
+
+const ( // SNAKE_CASE to CamelCase translation from C names
+	MhObject  HdrType = 1
+	MhExecute HdrType = 2
+	MhCore    HdrType = 4
+	MhDylib   HdrType = 6
+	MhBundle  HdrType = 8
+	MhDsym    HdrType = 0xa
 )
 
 var typeStrings = []intName{
-	{uint32(TypeObj), "Obj"},
-	{uint32(TypeExec), "Exec"},
-	{uint32(TypeDylib), "Dylib"},
-	{uint32(TypeBundle), "Bundle"},
+	{uint32(MhObject), "Obj"},
+	{uint32(MhExecute), "Exec"},
+	{uint32(MhDylib), "Dylib"},
+	{uint32(MhBundle), "Bundle"},
+	{uint32(MhDsym), "Dsym"},
 }
 
-func (t Type) String() string   { return stringName(uint32(t), typeStrings, false) }
-func (t Type) GoString() string { return stringName(uint32(t), typeStrings, true) }
+func (t HdrType) String() string   { return stringName(uint32(t), typeStrings, false) }
+func (t HdrType) GoString() string { return stringName(uint32(t), typeStrings, true) }
 
 // A Cpu is a Mach-O cpu type.
 type Cpu uint32
@@ -80,25 +105,59 @@ func (i Cpu) GoString() string { return stringName(uint32(i), cpuStrings, true) 
 // A LoadCmd is a Mach-O load command.
 type LoadCmd uint32
 
-const (
-	LoadCmdSegment    LoadCmd = 0x1
-	LoadCmdSymtab     LoadCmd = 0x2
-	LoadCmdThread     LoadCmd = 0x4
-	LoadCmdUnixThread LoadCmd = 0x5 // thread+stack
-	LoadCmdDysymtab   LoadCmd = 0xb
-	LoadCmdDylib      LoadCmd = 0xc // load dylib command
-	LoadCmdDylinker   LoadCmd = 0xf // id dylinker command (not load dylinker command)
-	LoadCmdSegment64  LoadCmd = 0x19
-	LoadCmdRpath      LoadCmd = 0x8000001c
+func (c LoadCmd) Command() LoadCmd { return c }
+
+const ( // SNAKE_CASE to CamelCase translation from C names
+	// Note 3 and 8 are obsolete
+	LcSegment            LoadCmd = 0x1
+	LcSymtab             LoadCmd = 0x2
+	LcThread             LoadCmd = 0x4
+	LcUnixthread         LoadCmd = 0x5 // thread+stack
+	LcDysymtab           LoadCmd = 0xb
+	LcDylib              LoadCmd = 0xc // load dylib command
+	LcIdDylib            LoadCmd = 0xd // dynamically linked shared lib ident
+	LcLoadDylinker       LoadCmd = 0xe // load a dynamic linker
+	LcIdDylinker         LoadCmd = 0xf // id dylinker command (not load dylinker command)
+	LcSegment64          LoadCmd = 0x19
+	LcUuid               LoadCmd = 0x1b
+	LcCodeSignature      LoadCmd = 0x1d
+	LcSegmentSplitInfo   LoadCmd = 0x1e
+	LcRpath              LoadCmd = 0x8000001c
+	LcEncryptionInfo     LoadCmd = 0x21
+	LcDyldInfo           LoadCmd = 0x22
+	LcDyldInfoOnly       LoadCmd = 0x80000022
+	LcVersionMinMacosx   LoadCmd = 0x24
+	LcVersionMinIphoneos LoadCmd = 0x25
+	LcFunctionStarts     LoadCmd = 0x26
+	LcDyldEnvironment    LoadCmd = 0x27
+	LcMain               LoadCmd = 0x80000028 // replacement for UnixThread
+	LcDataInCode         LoadCmd = 0x29       // There are non-instructions in text
+	LcSourceVersion      LoadCmd = 0x2a       // Source version used to build binary
+	LcDylibCodeSignDrs   LoadCmd = 0x2b
+	LcEncryptionInfo64   LoadCmd = 0x2c
+	LcVersionMinTvos     LoadCmd = 0x2f
+	LcVersionMinWatchos  LoadCmd = 0x30
 )
 
 var cmdStrings = []intName{
-	{uint32(LoadCmdSegment), "LoadCmdSegment"},
-	{uint32(LoadCmdThread), "LoadCmdThread"},
-	{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
-	{uint32(LoadCmdDylib), "LoadCmdDylib"},
-	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
-	{uint32(LoadCmdRpath), "LoadCmdRpath"},
+	{uint32(LcSegment), "LoadCmdSegment"},
+	{uint32(LcThread), "LoadCmdThread"},
+	{uint32(LcUnixthread), "LoadCmdUnixThread"},
+	{uint32(LcDylib), "LoadCmdDylib"},
+	{uint32(LcIdDylib), "LoadCmdIdDylib"},
+	{uint32(LcLoadDylinker), "LoadCmdLoadDylinker"},
+	{uint32(LcIdDylinker), "LoadCmdIdDylinker"},
+	{uint32(LcSegment64), "LoadCmdSegment64"},
+	{uint32(LcUuid), "LoadCmdUuid"},
+	{uint32(LcRpath), "LoadCmdRpath"},
+	{uint32(LcDyldEnvironment), "LoadCmdDyldEnv"},
+	{uint32(LcMain), "LoadCmdMain"},
+	{uint32(LcDataInCode), "LoadCmdDataInCode"},
+	{uint32(LcSourceVersion), "LoadCmdSourceVersion"},
+	{uint32(LcDyldInfo), "LoadCmdDyldInfo"},
+	{uint32(LcDyldInfoOnly), "LoadCmdDyldInfoOnly"},
+	{uint32(LcVersionMinMacosx), "LoadCmdMinOsx"},
+	{uint32(LcFunctionStarts), "LoadCmdFunctionStarts"},
 }
 
 func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }
@@ -107,7 +166,7 @@ func (i LoadCmd) GoString() string { return stringName(uint32(i), cmdStrings, tr
 type (
 	// A Segment32 is a 32-bit Mach-O segment load command.
 	Segment32 struct {
-		Cmd     LoadCmd
+		LoadCmd
 		Len     uint32
 		Name    [16]byte
 		Addr    uint32
@@ -117,12 +176,12 @@ type (
 		Maxprot uint32
 		Prot    uint32
 		Nsect   uint32
-		Flag    uint32
+		Flag    SegFlags
 	}
 
 	// A Segment64 is a 64-bit Mach-O segment load command.
 	Segment64 struct {
-		Cmd     LoadCmd
+		LoadCmd
 		Len     uint32
 		Name    [16]byte
 		Addr    uint64
@@ -132,12 +191,12 @@ type (
 		Maxprot uint32
 		Prot    uint32
 		Nsect   uint32
-		Flag    uint32
+		Flag    SegFlags
 	}
 
 	// A SymtabCmd is a Mach-O symbol table command.
 	SymtabCmd struct {
-		Cmd     LoadCmd
+		LoadCmd
 		Len     uint32
 		Symoff  uint32
 		Nsyms   uint32
@@ -147,7 +206,7 @@ type (
 
 	// A DysymtabCmd is a Mach-O dynamic symbol table command.
 	DysymtabCmd struct {
-		Cmd            LoadCmd
+		LoadCmd
 		Len            uint32
 		Ilocalsym      uint32
 		Nlocalsym      uint32
@@ -171,7 +230,7 @@ type (
 
 	// A DylibCmd is a Mach-O load dynamic library command.
 	DylibCmd struct {
-		Cmd            LoadCmd
+		LoadCmd
 		Len            uint32
 		Name           uint32
 		Time           uint32
@@ -179,49 +238,104 @@ type (
 		CompatVersion  uint32
 	}
 
+	// A DylinkerCmd is a Mach-O load dynamic linker or environment command.
+	DylinkerCmd struct {
+		LoadCmd
+		Len  uint32
+		Name uint32
+	}
+
 	// A RpathCmd is a Mach-O rpath command.
 	RpathCmd struct {
-		Cmd  LoadCmd
+		LoadCmd
 		Len  uint32
 		Path uint32
 	}
 
 	// A Thread is a Mach-O thread state command.
 	Thread struct {
-		Cmd  LoadCmd
+		LoadCmd
 		Len  uint32
 		Type uint32
 		Data []uint32
 	}
+
+	// LC_DYLD_INFO, LC_DYLD_INFO_ONLY
+	DyldInfoCmd struct {
+		LoadCmd
+		Len                      uint32
+		RebaseOff, RebaseLen     uint32 // file offset and length; data contains segment indices
+		BindOff, BindLen         uint32 // file offset and length; data contains segment indices
+		WeakBindOff, WeakBindLen uint32 // file offset and length
+		LazyBindOff, LazyBindLen uint32 // file offset and length
+		ExportOff, ExportLen     uint32 // file offset and length
+	}
+
+	// LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS
+	LinkEditDataCmd struct {
+		LoadCmd
+		Len              uint32
+		DataOff, DataLen uint32 // file offset and length
+	}
+
+	// LC_ENCRYPTION_INFO, LC_ENCRYPTION_INFO_64
+	EncryptionInfoCmd struct {
+		LoadCmd
+		Len                uint32
+		CryptOff, CryptLen uint32 // file offset and length
+		CryptId            uint32
+	}
+
+	UuidCmd struct {
+		LoadCmd
+		Len uint32
+		Id  [16]byte
+	}
+
+	// TODO Commands below not fully supported yet.
+
+	EntryPointCmd struct {
+		LoadCmd
+		Len       uint32
+		EntryOff  uint64 // file offset
+		StackSize uint64 // if not zero, initial stack size
+	}
+
+	NoteCmd struct {
+		LoadCmd
+		Len            uint32
+		Name           [16]byte
+		Offset, Filesz uint64 // file offset and length
+	}
 )
 
 const (
-	FlagNoUndefs              uint32 = 0x1
-	FlagIncrLink              uint32 = 0x2
-	FlagDyldLink              uint32 = 0x4
-	FlagBindAtLoad            uint32 = 0x8
-	FlagPrebound              uint32 = 0x10
-	FlagSplitSegs             uint32 = 0x20
-	FlagLazyInit              uint32 = 0x40
-	FlagTwoLevel              uint32 = 0x80
-	FlagForceFlat             uint32 = 0x100
-	FlagNoMultiDefs           uint32 = 0x200
-	FlagNoFixPrebinding       uint32 = 0x400
-	FlagPrebindable           uint32 = 0x800
-	FlagAllModsBound          uint32 = 0x1000
-	FlagSubsectionsViaSymbols uint32 = 0x2000
-	FlagCanonical             uint32 = 0x4000
-	FlagWeakDefines           uint32 = 0x8000
-	FlagBindsToWeak           uint32 = 0x10000
-	FlagAllowStackExecution   uint32 = 0x20000
-	FlagRootSafe              uint32 = 0x40000
-	FlagSetuidSafe            uint32 = 0x80000
-	FlagNoReexportedDylibs    uint32 = 0x100000
-	FlagPIE                   uint32 = 0x200000
-	FlagDeadStrippableDylib   uint32 = 0x400000
-	FlagHasTLVDescriptors     uint32 = 0x800000
-	FlagNoHeapExecution       uint32 = 0x1000000
-	FlagAppExtensionSafe      uint32 = 0x2000000
+	FlagNoUndefs              HdrFlags = 0x1
+	FlagIncrLink              HdrFlags = 0x2
+	FlagDyldLink              HdrFlags = 0x4
+	FlagBindAtLoad            HdrFlags = 0x8
+	FlagPrebound              HdrFlags = 0x10
+	FlagSplitSegs             HdrFlags = 0x20
+	FlagLazyInit              HdrFlags = 0x40
+	FlagTwoLevel              HdrFlags = 0x80
+	FlagForceFlat             HdrFlags = 0x100
+	FlagNoMultiDefs           HdrFlags = 0x200
+	FlagNoFixPrebinding       HdrFlags = 0x400
+	FlagPrebindable           HdrFlags = 0x800
+	FlagAllModsBound          HdrFlags = 0x1000
+	FlagSubsectionsViaSymbols HdrFlags = 0x2000
+	FlagCanonical             HdrFlags = 0x4000
+	FlagWeakDefines           HdrFlags = 0x8000
+	FlagBindsToWeak           HdrFlags = 0x10000
+	FlagAllowStackExecution   HdrFlags = 0x20000
+	FlagRootSafe              HdrFlags = 0x40000
+	FlagSetuidSafe            HdrFlags = 0x80000
+	FlagNoReexportedDylibs    HdrFlags = 0x100000
+	FlagPIE                   HdrFlags = 0x200000
+	FlagDeadStrippableDylib   HdrFlags = 0x400000
+	FlagHasTLVDescriptors     HdrFlags = 0x800000
+	FlagNoHeapExecution       HdrFlags = 0x1000000
+	FlagAppExtensionSafe      HdrFlags = 0x2000000
 )
 
 // A Section32 is a 32-bit Mach-O section header.
@@ -234,7 +348,7 @@ type Section32 struct {
 	Align    uint32
 	Reloff   uint32
 	Nreloc   uint32
-	Flags    uint32
+	Flags    SecFlags
 	Reserve1 uint32
 	Reserve2 uint32
 }
@@ -249,7 +363,7 @@ type Section64 struct {
 	Align    uint32
 	Reloff   uint32
 	Nreloc   uint32
-	Flags    uint32
+	Flags    SecFlags
 	Reserve1 uint32
 	Reserve2 uint32
 	Reserve3 uint32
@@ -271,6 +385,24 @@ type Nlist64 struct {
 	Sect  uint8
 	Desc  uint16
 	Value uint64
+}
+
+func (n *Nlist64) Put64(b []byte, o binary.ByteOrder) uint32 {
+	o.PutUint32(b[0:], n.Name)
+	b[4] = byte(n.Type)
+	b[5] = byte(n.Sect)
+	o.PutUint16(b[6:], n.Desc)
+	o.PutUint64(b[8:], n.Value)
+	return 8 + 8
+}
+
+func (n *Nlist64) Put32(b []byte, o binary.ByteOrder) uint32 {
+	o.PutUint32(b[0:], n.Name)
+	b[4] = byte(n.Type)
+	b[5] = byte(n.Sect)
+	o.PutUint16(b[6:], n.Desc)
+	o.PutUint32(b[8:], uint32(n.Value))
+	return 8 + 4
 }
 
 // Regs386 is the Mach-O 386 register structure.
@@ -332,5 +464,5 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 			return n.s
 		}
 	}
-	return strconv.FormatUint(uint64(i), 10)
+	return "0x" + strconv.FormatUint(uint64(i), 16)
 }
