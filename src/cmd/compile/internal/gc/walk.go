@@ -211,6 +211,7 @@ func walkstmt(n *Node) *Node {
 		ODCLCONST,
 		ODCLTYPE,
 		OCHECKNIL,
+		OVARDEF,
 		OVARKILL,
 		OVARLIVE:
 		break
