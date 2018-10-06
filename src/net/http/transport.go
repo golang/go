@@ -506,8 +506,8 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		var resp *Response
 		if pconn.alt != nil {
 			// HTTP/2 path.
-			t.decHostConnCount(cm.key()) // don't count cached http2 conns toward conns per host
-			t.setReqCanceler(req, nil)   // not cancelable with CancelRequest
+			t.putOrCloseIdleConn(pconn)
+			t.setReqCanceler(req, nil) // not cancelable with CancelRequest
 			resp, err = pconn.alt.RoundTrip(req)
 		} else {
 			resp, err = pconn.roundTrip(treq)
@@ -515,7 +515,10 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		if err == nil {
 			return resp, nil
 		}
-		if !pconn.shouldRetryRequest(req, err) {
+		if http2isNoCachedConnError(err) {
+			t.removeIdleConn(pconn)
+			t.decHostConnCount(cm.key()) // clean up the persistent connection
+		} else if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
 			if e, ok := err.(transportReadFromServerError); ok {
@@ -778,9 +781,6 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 	if pconn.isBroken() {
 		return errConnBroken
 	}
-	if pconn.alt != nil {
-		return errNotCachingH2Conn
-	}
 	pconn.markReused()
 	key := pconn.cacheKey
 
@@ -829,7 +829,10 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		if pconn.idleTimer != nil {
 			pconn.idleTimer.Reset(t.IdleConnTimeout)
 		} else {
-			pconn.idleTimer = time.AfterFunc(t.IdleConnTimeout, pconn.closeConnIfStillIdle)
+			// idleTimer does not apply to HTTP/2
+			if pconn.alt == nil {
+				pconn.idleTimer = time.AfterFunc(t.IdleConnTimeout, pconn.closeConnIfStillIdle)
+			}
 		}
 	}
 	pconn.idleAt = time.Now()
@@ -1377,7 +1380,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
-			return &persistConn{alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
+			return &persistConn{cacheKey: pconn.cacheKey, alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
 		}
 	}
 
