@@ -22,7 +22,7 @@ like func declarations if //sys is replaced by func, but:
 
 * If the return parameter is an error number, it must be named err.
 
-* If go func name needs to be different from it's winapi dll name,
+* If go func name needs to be different from its winapi dll name,
   the winapi name could be specified at the end, after "=" sign, like
   //sys LoadLibrary(libname string) (handle uint32, err error) = LoadLibraryA
 

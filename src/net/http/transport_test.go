@@ -4279,7 +4279,7 @@ func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
 }
 
 // Issue 16208: Go 1.7 crashed after Transport.IdleConnTimeout if an
-// HTTP/2 connection was established but but its caller no longer
+// HTTP/2 connection was established but its caller no longer
 // wanted it. (Assuming the connection cache was enabled, which it is
 // by default)
 //

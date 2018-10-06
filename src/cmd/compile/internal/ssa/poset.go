@@ -114,7 +114,7 @@ type posetNode struct {
 // given that non-equality is not transitive, the only effect is that a later call
 // to SetEqual for the same values will fail. NonEqual checks whether it is known that
 // the nodes are different, either because SetNonEqual was called before, or because
-// we know that that they are strictly ordered.
+// we know that they are strictly ordered.
 //
 // It is implemented as a forest of DAGs; in each DAG, if node A dominates B,
 // it means that A<B. Equality is represented by mapping two SSA values to the same

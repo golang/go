@@ -293,7 +293,7 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
 	z.round(sbit)
 }
 
-// SetMantExp sets z to mant × 2**exp and and returns z.
+// SetMantExp sets z to mant × 2**exp and returns z.
 // The result z has the same precision and rounding mode
 // as mant. SetMantExp is an inverse of MantExp but does
 // not require 0.5 <= |mant| < 1.0. Specifically:

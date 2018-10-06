@@ -247,7 +247,7 @@ func runGet(cmd *base.Command, args []string) {
 		// Deciding which module to upgrade/downgrade for a particular argument is difficult.
 		// Patterns only make it more difficult.
 		// We impose restrictions to avoid needing to interlace pattern expansion,
-		// like in in modload.ImportPaths.
+		// like in modload.ImportPaths.
 		// Specifically, these patterns are supported:
 		//
 		//	- Relative paths like ../../foo or ../../foo... are restricted to matching directories

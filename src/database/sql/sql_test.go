@@ -397,7 +397,7 @@ func TestQueryContextWait(t *testing.T) {
 	prepares0 := numPrepares(t, db)
 
 	// TODO(kardianos): convert this from using a timeout to using an explicit
-	// cancel when the query signals that is is "executing" the query.
+	// cancel when the query signals that it is "executing" the query.
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 

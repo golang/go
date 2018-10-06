@@ -125,7 +125,7 @@ directive can skip over a directive like any other comment.
 // For a //line comment, this is the first character of the next line, and
 // for a /*line comment this is the character position immediately following the closing */.
 // If no filename is given, the recorded filename is empty if there is also no column number;
-// otherwise is is the most recently recorded filename (actual filename or filename specified
+// otherwise it is the most recently recorded filename (actual filename or filename specified
 // by previous line directive).
 // If a line directive doesn't specify a column number, the column is "unknown" until
 // the next directive and the compiler does not report column numbers for that range.

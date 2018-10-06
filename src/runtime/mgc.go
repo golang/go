@@ -884,7 +884,7 @@ const gcGoalUtilization = 0.30
 // mutator latency.
 const gcBackgroundUtilization = 0.25
 
-// gcCreditSlack is the amount of scan work credit that can can
+// gcCreditSlack is the amount of scan work credit that can
 // accumulate locally before updating gcController.scanWork and,
 // optionally, gcController.bgScanCredit. Lower values give a more
 // accurate assist ratio and make it more likely that assists will

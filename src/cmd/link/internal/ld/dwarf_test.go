@@ -526,7 +526,7 @@ func (ex *examiner) entryFromOffset(off dwarf.Offset) *dwarf.Entry {
 	return nil
 }
 
-// Return the ID that that examiner uses to refer to the DIE at offset off
+// Return the ID that examiner uses to refer to the DIE at offset off
 func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
 	if idx, found := ex.idxByOffset[off]; found {
 		return idx

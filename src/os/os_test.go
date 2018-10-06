@@ -269,7 +269,7 @@ func TestRead0(t *testing.T) {
 	}
 }
 
-// Reading a closed file should should return ErrClosed error
+// Reading a closed file should return ErrClosed error
 func TestReadClosed(t *testing.T) {
 	path := sfdir + "/" + sfname
 	file, err := Open(path)
