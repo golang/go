@@ -14,7 +14,8 @@ package codegen
 //    Subtraction    //
 // ----------------- //
 
-func SubMem(arr []int, b int) int {
+var ef int
+func SubMem(arr []int, b, c, d int) int {
 	// 386:`SUBL\s[A-Z]+,\s8\([A-Z]+\)`
 	// amd64:`SUBQ\s[A-Z]+,\s16\([A-Z]+\)`
 	arr[2] -= b
@@ -25,6 +26,12 @@ func SubMem(arr []int, b int) int {
 	arr[4]--
 	// 386:`ADDL\s[$]-20,\s20\([A-Z]+\)`
 	arr[5] -= 20
+	// 386:`SUBL\s\([A-Z]+\)\([A-Z]+\*4\),\s[A-Z]+`
+	ef -= arr[b]
+	// 386:`SUBL\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+\*4\)`
+	arr[c] -= b
+	// 386:`ADDL\s[$]-15,\s\([A-Z]+\)\([A-Z]+\*4\)`
+	arr[d] -= 15
 	// 386:"SUBL\t4"
 	// amd64:"SUBQ\t8"
 	return arr[0] - arr[1]
