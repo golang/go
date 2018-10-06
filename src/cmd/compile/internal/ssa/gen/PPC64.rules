@@ -956,7 +956,7 @@
 (MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
 
 
-// Lose widening ops fed to to stores
+// Lose widening ops fed to stores
 (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstore [off] {sym} ptr x mem)
 (MOVHstore [off] {sym} ptr (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
 (MOVWstore [off] {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWstore [off] {sym} ptr x mem)

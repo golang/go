@@ -1565,7 +1565,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	//
 	// Note: It's possible for "\n!\n" to appear within the binary
 	// package export data format. To avoid truncating the package
-	// definition prematurely (issue 21703), we keep keep track of
+	// definition prematurely (issue 21703), we keep track of
 	// how many "$$" delimiters we've seen.
 
 	import0 := f.Offset()

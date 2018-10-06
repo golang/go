@@ -1878,7 +1878,7 @@ func startTemplateThread() {
 
 // templateThread is a thread in a known-good state that exists solely
 // to start new threads in known-good states when the calling thread
-// may not be a a good state.
+// may not be in a good state.
 //
 // Many programs never need this, so templateThread is started lazily
 // when we first enter a state that might lead to running on a thread
