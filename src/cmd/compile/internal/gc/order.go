@@ -244,12 +244,6 @@ func (o *Order) markTemp() ordermarker {
 // which must have been returned by marktemp.
 func (o *Order) popTemp(mark ordermarker) {
 	for _, n := range o.temp[mark:] {
-		if n.Type.Etype == types.TUINT8 {
-			// Don't recycle temps of this type. TUINT8 is used
-			// as a placeholder for a type to be determined later.
-			// TODO: fix
-			continue
-		}
 		key := n.Type.LongString()
 		o.free[key] = append(o.free[key], n)
 	}
@@ -1170,16 +1164,23 @@ func (o *Order) expr(n, lhs *Node) *Node {
 
 	case OCLOSURE:
 		if n.Noescape() && n.Func.Closure.Func.Cvars.Len() > 0 {
-			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
+			prealloc[n] = o.newTemp(closureType(n), false)
 		}
 
-	case OARRAYLIT, OSLICELIT, OCALLPART:
+	case OSLICELIT, OCALLPART:
 		n.Left = o.expr(n.Left, nil)
 		n.Right = o.expr(n.Right, nil)
 		o.exprList(n.List)
 		o.exprList(n.Rlist)
 		if n.Noescape() {
-			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
+			var t *types.Type
+			switch n.Op {
+			case OSLICELIT:
+				t = types.NewArray(n.Type.Elem(), n.Right.Int64())
+			case OCALLPART:
+				t = partialCallType(n)
+			}
+			prealloc[n] = o.newTemp(t, false)
 		}
 
 	case ODDDARG:
