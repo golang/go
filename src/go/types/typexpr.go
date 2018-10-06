@@ -562,7 +562,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			// its position, and because interface method
 			// signatures don't get a receiver via regular
 			// type-checking (there isn't a receiver in the
-			// the method's AST). Setting the correct receiver
+			// method's AST). Setting the correct receiver
 			// type is also important for ptrRecv() (see methodset.go).
 			//
 			// TODO(gri) Consider marking methods signatures
