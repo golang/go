@@ -404,8 +404,8 @@ func f27(b bool) {
 	if b {
 		call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
 	}
-	call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
-	call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
+	call27(func() { x++ })
+	call27(func() { x++ })
 	printnl()
 }
 
@@ -521,8 +521,8 @@ func f32(b bool) {
 	if b {
 		call32(t32.Inc) // ERROR "stack object .autotmp_[0-9]+ struct \{"
 	}
-	call32(t32.Inc) // ERROR "stack object .autotmp_[0-9]+ struct \{"
-	call32(t32.Inc) // ERROR "stack object .autotmp_[0-9]+ struct \{"
+	call32(t32.Inc)
+	call32(t32.Inc)
 }
 
 //go:noescape
@@ -694,3 +694,12 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	r = q
 	return // ERROR "live at call to deferreturn: r$"
 }
+
+func f42() {
+	var p, q, r int
+	f43([]*int{&p,&q,&r}) // ERROR "stack object .autotmp_[0-9]+ \[3\]\*int$"
+	f43([]*int{&p,&r,&q})
+	f43([]*int{&q,&p,&r})
+}
+//go:noescape
+func f43(a []*int)
