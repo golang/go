@@ -1,0 +1,6 @@
+# test cases for Env Expend
+$foo=bar
+\$foo=\$foo
+\\$foo=\\bar
+\\\$foo=\\\$foo
+\\\\$foo=\\\\bar
