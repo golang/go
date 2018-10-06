@@ -5051,7 +5051,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 bad:
 	if ctxt.Arch.Family != sys.AMD64 {
 		// here, the assembly has failed.
-		// if its a byte instruction that has
+		// if it's a byte instruction that has
 		// unaddressable registers, try to
 		// exchange registers and reissue the
 		// instruction with the operands renamed.

@@ -34,7 +34,7 @@ func walk(fn *Node) {
 		}
 	}
 
-	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
+	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
 	for _, ln := range fn.Func.Dcl {
 		if ln.Op == ONAME && (ln.Class() == PAUTO || ln.Class() == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Name.Used() {
 			ln.Name.Defn.Left.Name.SetUsed(true)

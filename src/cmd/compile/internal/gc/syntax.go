@@ -45,7 +45,7 @@ type Node struct {
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
 	// - OSTRUCTKEY uses it to store the named field's offset.
-	// - Named OLITERALs use it to to store their ambient iota value.
+	// - Named OLITERALs use it to store their ambient iota value.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
