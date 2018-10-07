@@ -534,7 +534,9 @@ func Main(archInit func(*Arch)) {
 			fcount++
 		}
 	}
-	// With all types ckecked, it's now safe to verify map keys.
+	// With all types ckecked, it's now safe to verify map keys. One single
+	// check past phase 9 isn't sufficient, as we may exit with other errors
+	// before then, thus skipping map key errors.
 	checkMapKeys()
 	timings.AddEvent(fcount, "funcs")
 
@@ -678,6 +680,9 @@ func Main(archInit func(*Arch)) {
 			externdcl[i] = typecheck(externdcl[i], Erv)
 		}
 	}
+	// Check the map keys again, since we typechecked the external
+	// declarations.
+	checkMapKeys()
 
 	if nerrors+nsavederrors != 0 {
 		errorexit()
