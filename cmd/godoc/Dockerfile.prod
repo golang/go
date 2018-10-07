@@ -36,14 +36,15 @@ RUN go build -o /godoc -tags=golangorg golang.org/x/tools/cmd/godoc
 RUN cd /goroot && git clean -xdf
 
 # Add build metadata.
-ARG TOOLS_HEAD
-ARG TOOLS_CLEAN
-ARG DOCKER_TAG
 RUN cd /goroot && echo "go repo HEAD: $(git rev-parse HEAD)" >> /goroot/buildinfo
 RUN echo "requested go ref: ${GO_REF}" >> /goroot/buildinfo
+ARG TOOLS_HEAD
 RUN echo "x/tools HEAD: ${TOOLS_HEAD}" >> /goroot/buildinfo
+ARG TOOLS_CLEAN
 RUN echo "x/tools clean: ${TOOLS_CLEAN}" >> /goroot/buildinfo
+ARG DOCKER_TAG
 RUN echo "image: ${DOCKER_TAG}" >> /goroot/buildinfo
+ARG BUILD_ENV
 RUN echo "build env: ${BUILD_ENV}" >> /goroot/buildinfo
 
 RUN rm -rf /goroot/.git
