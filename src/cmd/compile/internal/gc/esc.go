@@ -946,7 +946,8 @@ opSwitch:
 	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		e.esccall(n, parent)
 
-		// esccall already done on n.Rlist.First(). tie it's Retval to n.List
+		// esccall already done on n.Rlist.First()
+		// tie its Retval to n.List
 	case OAS2FUNC: // x,y = f()
 		rs := e.nodeEscState(n.Rlist.First()).Retval.Slice()
 		where := n

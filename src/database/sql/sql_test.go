@@ -597,7 +597,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	state := 0
 
 	// waiter will be called for all queries, including
-	// initial setup queries. The state is only assigned when no
+	// initial setup queries. The state is only assigned when
 	// no queries are made.
 	//
 	// Only allow the first batch of queries to finish once the

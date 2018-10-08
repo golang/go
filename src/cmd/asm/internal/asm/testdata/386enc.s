@@ -18,7 +18,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVL -2147483648(AX), AX // 8b8000000080
 	ADDL 2147483648(AX), AX  // 038000000080
 	ADDL -2147483648(AX), AX // 038000000080
-	// Make sure MOV CR/DR continues to work after changing it's movtabs.
+	// Make sure MOV CR/DR continues to work after changing its movtabs.
 	MOVL CR0, AX // 0f20c0
 	MOVL CR0, DX // 0f20c2
 	MOVL CR4, DI // 0f20e7
