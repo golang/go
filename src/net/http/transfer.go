@@ -942,7 +942,7 @@ func (b *body) Close() error {
 		// no trailer and closing the connection next.
 		// no point in reading to EOF.
 	case b.doEarlyClose:
-		// Read up to maxPostHandlerReadBytes bytes of the body, looking for
+		// Read up to maxPostHandlerReadBytes bytes of the body, looking
 		// for EOF (and trailers), so we can re-use this connection.
 		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N > maxPostHandlerReadBytes {
 			// There was a declared Content-Length, and we have more bytes remaining
