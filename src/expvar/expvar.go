@@ -23,7 +23,6 @@ package expvar
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -112,16 +111,20 @@ type KeyValue struct {
 
 func (v *Map) String() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "{")
+	b.WriteByte('{')
 	first := true
+	keyBuf := make([]byte, 0, 64)
 	v.Do(func(kv KeyValue) {
 		if !first {
-			fmt.Fprintf(&b, ", ")
+			b.WriteString(", ")
 		}
-		fmt.Fprintf(&b, "%q: %v", kv.Key, kv.Value)
+		keyBuf = strconv.AppendQuote(keyBuf[:0], kv.Key)
+		b.Write(keyBuf)
+		b.WriteString(": ")
+		b.WriteString(kv.Value.String())
 		first = false
 	})
-	fmt.Fprintf(&b, "}")
+	b.WriteByte('}')
 	return b.String()
 }
 
@@ -325,16 +328,20 @@ func Do(f func(KeyValue)) {
 
 func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintf(w, "{\n")
+	w.Write([]byte("{\n"))
 	first := true
+	keyBuf := make([]byte, 0, 64)
 	Do(func(kv KeyValue) {
 		if !first {
-			fmt.Fprintf(w, ",\n")
+			w.Write([]byte(",\n"))
 		}
 		first = false
-		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+		keyBuf = strconv.AppendQuote(keyBuf[:0], kv.Key)
+		w.Write(keyBuf)
+		w.Write([]byte(": "))
+		w.Write([]byte(kv.Value.String()))
 	})
-	fmt.Fprintf(w, "\n}\n")
+	w.Write([]byte("\n}\n"))
 }
 
 // Handler returns the expvar HTTP Handler.

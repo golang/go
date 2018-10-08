@@ -272,6 +272,19 @@ func BenchmarkMapSet(b *testing.B) {
 	})
 }
 
+var sink string
+
+func BenchmarkMapString(b *testing.B) {
+	m := new(Map).Init()
+	m.Add("red", 1)
+	m.Add("green", 2)
+	m.Add("blue", 3)
+
+	for i := 0; i < b.N; i++ {
+		sink = m.String()
+	}
+}
+
 func BenchmarkMapSetDifferent(b *testing.B) {
 	procKeys := make([][]string, runtime.GOMAXPROCS(0))
 	for i := range procKeys {
