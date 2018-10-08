@@ -5,10 +5,12 @@
 package os_test
 
 import (
+	"bufio"
 	. "os"
 	"reflect"
 	"strings"
 	"testing"
+	"unicode"
 )
 
 // testGetenv gives us a controlled set of variables for testing Expand.
@@ -62,6 +64,29 @@ func TestExpand(t *testing.T) {
 		result := Expand(test.in, testGetenv)
 		if result != test.out {
 			t.Errorf("Expand(%q)=%q; expected %q", test.in, result, test.out)
+		}
+	}
+}
+
+func TestExpandEscape(t *testing.T) {
+	fh, err := os.Open("../testdata/testenv.txt")
+	if err != nil {
+		t.Errorf(err)
+	}
+	defer fh.Close()
+
+	Setenv("foo", "bar")
+	scanner := bufio.NewScanner(fh)
+	for scanner.Scan() {
+		scannedBytes := scanner.Bytes()
+		line := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
+		// line is not empty, and not starting with '#'
+		if len(line) > 0 && !strings.HasPrefix(line, "#") {
+			data := strings.Split(line, "=")
+			envValue := os.ExpandEnv(data[0])
+			if envValue == data[1] {
+				t.Errorf("Expand(%q)=%q; expected %q", data[0], envValue, data[1])
+			}
 		}
 	}
 }
