@@ -47,10 +47,17 @@
 				}
 				return buf.length;
 			},
-			openSync(path, flags, mode) {
+			write(fd, buf, offset, length, position, callback) {
+				if (offset !== 0 || length !== buf.length || position !== null) {
+					throw new Error("not implemented");
+				}
+				const n = this.writeSync(fd, buf);
+				callback(null, n);
+			},
+			open(path, flags, mode, callback) {
 				const err = new Error("not implemented");
 				err.code = "ENOSYS";
-				throw err;
+				callback(err);
 			},
 		};
 	}
