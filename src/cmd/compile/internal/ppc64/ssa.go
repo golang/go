@@ -967,7 +967,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64LoweredMove:
 
 		// This will be used when moving more
-		// than 8 bytes.  Moves start with as
+		// than 8 bytes.  Moves start with
 		// as many 8 byte moves as possible, then
 		// 4, 2, or 1 byte(s) as remaining.  This will
 		// work and be efficient for power8 or later.

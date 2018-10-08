@@ -646,7 +646,7 @@ func (ctxt *Link) loadlib() {
 //
 // These are the symbols that begin with the prefix 'type.' and
 // contain run-time type information used by the runtime and reflect
-// packages. All Go binaries contain these symbols, but only only
+// packages. All Go binaries contain these symbols, but only
 // those programs loaded dynamically in multiple parts need these
 // symbols to have entries in the symbol table.
 func (ctxt *Link) mangleTypeSym() {

@@ -1071,10 +1071,10 @@ func splitOutput(out string, wantAuto bool) []string {
 // this function will report an error.
 // Likewise if outStr does not have an error for a line which has a comment,
 // or if the error message does not match the <regexp>.
-// The <regexp> syntax is Perl but its best to stick to egrep.
+// The <regexp> syntax is Perl but it's best to stick to egrep.
 //
 // Sources files are supplied as fullshort slice.
-// It consists of pairs: full path to source file and it's base name.
+// It consists of pairs: full path to source file and its base name.
 func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
 	defer func() {
 		if *verbose && err != nil {
