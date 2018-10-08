@@ -11,12 +11,12 @@ import (
 	"go/build"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -152,7 +152,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 Files:
 	for _, fname := range sfiles {
-		content, tf, err := readFile(pass.Fset, fname)
+		content, tf, err := analysisutil.ReadFile(pass.Fset, fname)
 		if err != nil {
 			return nil, err
 		}
@@ -182,7 +182,7 @@ Files:
 			if fn != nil && fn.vars["ret"] != nil && !haveRetArg && len(retLine) > 0 {
 				v := fn.vars["ret"]
 				for _, line := range retLine {
-					pass.Reportf(lineStart(tf, line), "[%s] %s: RET without writing to %d-byte ret+%d(FP)", arch, fnName, v.size, v.off)
+					pass.Reportf(analysisutil.LineStart(tf, line), "[%s] %s: RET without writing to %d-byte ret+%d(FP)", arch, fnName, v.size, v.off)
 				}
 			}
 			retLine = nil
@@ -191,7 +191,7 @@ Files:
 			lineno++
 
 			badf := func(format string, args ...interface{}) {
-				pass.Reportf(lineStart(tf, lineno), "[%s] %s: %s", arch, fnName, fmt.Sprintf(format, args...))
+				pass.Reportf(analysisutil.LineStart(tf, lineno), "[%s] %s: %s", arch, fnName, fmt.Sprintf(format, args...))
 			}
 
 			if arch == "" {
@@ -736,50 +736,5 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 			}
 		}
 		badf("invalid %s of %s; %s is %d-byte value%s", op, expr, vt, vs, inner.String())
-	}
-}
-
-// -- a copy of these declarations exists in the buildtag Analyzer ---
-
-// readFile reads a file and adds it to the FileSet
-// so that we can report errors against it using lineStart.
-func readFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, nil, err
-	}
-	tf := fset.AddFile(filename, -1, len(content))
-	tf.SetLinesForContent(content)
-	return content, tf, nil
-}
-
-// lineStart returns the position of the start of the specified line
-// within file f, or NoPos if there is no line of that number.
-func lineStart(f *token.File, line int) token.Pos {
-	// Use binary search to find the start offset of this line.
-	//
-	// TODO(adonovan): eventually replace this function with the
-	// simpler and more efficient (*go/token.File).LineStart, added
-	// in go1.12.
-
-	min := 0        // inclusive
-	max := f.Size() // exclusive
-	for {
-		offset := (min + max) / 2
-		pos := f.Pos(offset)
-		posn := f.Position(pos)
-		if posn.Line == line {
-			return 1 + pos - token.Pos(posn.Column)
-		}
-
-		if min+1 >= max {
-			return token.NoPos
-		}
-
-		if posn.Line < line {
-			min = offset
-		} else {
-			max = offset
-		}
 	}
 }

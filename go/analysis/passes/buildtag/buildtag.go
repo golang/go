@@ -8,12 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/token"
-	"io/ioutil"
 	"strings"
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -61,7 +60,7 @@ func checkGoFile(pass *analysis.Pass, f *ast.File) {
 }
 
 func checkOtherFile(pass *analysis.Pass, filename string) error {
-	content, tf, err := readFile(pass.Fset, filename)
+	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
 	if err != nil {
 		return err
 	}
@@ -96,7 +95,7 @@ func checkOtherFile(pass *analysis.Pass, filename string) error {
 			continue
 		}
 		if err := checkLine(string(line), i >= cutoff); err != nil {
-			pass.Reportf(lineStart(tf, i+1), "%s", err)
+			pass.Reportf(analysisutil.LineStart(tf, i+1), "%s", err)
 			continue
 		}
 	}
@@ -157,48 +156,3 @@ var (
 	nl         = []byte("\n")
 	slashSlash = []byte("//")
 )
-
-// -- these declarations are copied from asmdecl --
-
-// readFile reads a file and adds it to the FileSet
-// so that we can report errors against it using lineStart.
-func readFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, nil, err
-	}
-	tf := fset.AddFile(filename, -1, len(content))
-	tf.SetLinesForContent(content)
-	return content, tf, nil
-}
-
-// lineStart returns the position of the start of the specified line
-// within file f, or NoPos if there is no line of that number.
-func lineStart(f *token.File, line int) token.Pos {
-	// Use binary search to find the start offset of this line.
-	//
-	// TODO(adonovan): eventually replace this function with the
-	// simpler and more efficient (*go/token.File).LineStart, added
-	// in go1.12.
-
-	min := 0        // inclusive
-	max := f.Size() // exclusive
-	for {
-		offset := (min + max) / 2
-		pos := f.Pos(offset)
-		posn := f.Position(pos)
-		if posn.Line == line {
-			return pos - (token.Pos(posn.Column) - 1)
-		}
-
-		if min+1 >= max {
-			return token.NoPos
-		}
-
-		if posn.Line < line {
-			min = offset
-		} else {
-			max = offset
-		}
-	}
-}
