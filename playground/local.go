@@ -19,6 +19,7 @@ func post(ctx context.Context, url, contentType string, body io.Reader) (*http.R
 	if err != nil {
 		return nil, fmt.Errorf("http.NewRequest: %v", err)
 	}
+	req.Header.Set("Content-Type", contentType)
 	return http.DefaultClient.Do(req.WithContext(ctx))
 }
 
