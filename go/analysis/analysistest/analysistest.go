@@ -184,7 +184,6 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 
 	// Extract 'want' comments from Go files.
 	for _, f := range pass.Files {
-		filename := sanitize(gopath, pass.Fset.File(f.Pos()).Name())
 		for _, cgroup := range f.Comments {
 			for _, c := range cgroup.List {
 
@@ -201,13 +200,19 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 					text = text[i+len("// "):]
 				}
 
-				linenum := pass.Fset.Position(c.Pos()).Line
-				processComment(filename, linenum, text)
+				// It's tempting to compute the filename
+				// once outside the loop, but it's
+				// incorrect because it can change due
+				// to //line directives.
+				posn := pass.Fset.Position(c.Pos())
+				filename := sanitize(gopath, posn.Filename)
+				processComment(filename, posn.Line, text)
 			}
 		}
 	}
 
 	// Extract 'want' comments from non-Go files.
+	// TODO(adonovan): we may need to handle //line directives.
 	for _, filename := range pass.OtherFiles {
 		data, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -285,6 +290,12 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 	}
 
 	// Reject surplus expectations.
+	//
+	// Sometimes an Analyzer reports two similar diagnostics on a
+	// line with only one expectation. The reader may be confused by
+	// the error message.
+	// TODO(adonovan): print a better error:
+	// "got 2 diagnostics here; each one needs its own expectation".
 	var surplus []string
 	for key, expects := range want {
 		for _, exp := range expects {

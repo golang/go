@@ -4,9 +4,11 @@
 
 // Test the cgo checker on a file that doesn't use cgo.
 
-package testdata
+package a
 
-var _ = C.f(*p(**p))
+import "unsafe"
 
 // Passing a pointer (via the slice), but C isn't cgo.
-var _ = C.f([]int{3})
+var _ = C.f(unsafe.Pointer(new([]int)))
+
+var C struct{ f func(interface{}) int }

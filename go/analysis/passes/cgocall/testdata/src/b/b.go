@@ -5,7 +5,7 @@
 // Test the cgo checker on a file that doesn't use cgo, but has an
 // import named "C".
 
-package testdata
+package b
 
 import C "fmt"
 
