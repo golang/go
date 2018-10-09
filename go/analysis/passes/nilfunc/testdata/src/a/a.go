@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package testdata
+package a
 
 func F() {}
 
@@ -20,14 +20,14 @@ func Comparison() {
 	if fn == nil || Fv == nil || t.F == nil {
 		// no error; these func vars or fields may be nil
 	}
-	if F == nil { // ERROR "comparison of function F == nil is always false"
+	if F == nil { // want "comparison of function F == nil is always false"
 		panic("can't happen")
 	}
-	if t.M == nil { // ERROR "comparison of function M == nil is always false"
+	if t.M == nil { // want "comparison of function M == nil is always false"
 		panic("can't happen")
 	}
-	if F != nil { // ERROR "comparison of function F != nil is always true"
-		if t.M != nil { // ERROR "comparison of function M != nil is always true"
+	if F != nil { // want "comparison of function F != nil is always true"
+		if t.M != nil { // want "comparison of function M != nil is always true"
 			return
 		}
 	}
