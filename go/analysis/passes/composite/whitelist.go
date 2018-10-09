@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package whitelist defines exceptions for the vet tool.
-package whitelist
+package composite
 
-// UnkeyedLiteral is a white list of types in the standard packages
+// unkeyedLiteral is a white list of types in the standard packages
 // that are used with unkeyed literals we deem to be acceptable.
-var UnkeyedLiteral = map[string]bool{
+var unkeyedLiteral = map[string]bool{
 	// These image and image/color struct types are frozen. We will never add fields to them.
 	"image/color.Alpha16": true,
 	"image/color.Alpha":   true,

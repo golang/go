@@ -4,15 +4,14 @@
 
 // This file contains the test for untagged struct literals.
 
-package testdata
+package a
 
 import (
 	"flag"
 	"go/scanner"
+	"go/token"
 	"image"
 	"unicode"
-
-	"path/to/unknownpkg"
 )
 
 var Okay1 = []string{
@@ -74,21 +73,23 @@ var goodStructLiteral = flag.Flag{
 	Name:  "Name",
 	Usage: "Usage",
 }
-var badStructLiteral = flag.Flag{ // ERROR "unkeyed fields"
+var badStructLiteral = flag.Flag{ // want "unkeyed fields"
 	"Name",
 	"Usage",
 	nil, // Value
 	"DefValue",
 }
 
+var delta [3]rune
+
 // SpecialCase is a named slice of CaseRange to test issue 9171.
 var goodNamedSliceLiteral = unicode.SpecialCase{
-	{Lo: 1, Hi: 2},
-	unicode.CaseRange{Lo: 1, Hi: 2},
+	{Lo: 1, Hi: 2, Delta: delta},
+	unicode.CaseRange{Lo: 1, Hi: 2, Delta: delta},
 }
 var badNamedSliceLiteral = unicode.SpecialCase{
-	{1, 2},                  // ERROR "unkeyed fields"
-	unicode.CaseRange{1, 2}, // ERROR "unkeyed fields"
+	{1, 2, delta},                  // want "unkeyed fields"
+	unicode.CaseRange{1, 2, delta}, // want "unkeyed fields"
 }
 
 // ErrorList is a named slice, so no warnings should be emitted.
@@ -96,7 +97,7 @@ var goodScannerErrorList = scanner.ErrorList{
 	&scanner.Error{Msg: "foobar"},
 }
 var badScannerErrorList = scanner.ErrorList{
-	&scanner.Error{"foobar"}, // ERROR "unkeyed fields"
+	&scanner.Error{token.Position{}, "foobar"}, // want "unkeyed fields"
 }
 
 // Check whitelisted structs: if vet is run with --compositewhitelist=false,
@@ -105,7 +106,7 @@ var whitelistedPoint = image.Point{1, 2}
 
 // Do not check type from unknown package.
 // See issue 15408.
-var unknownPkgVar = unknownpkg.Foobar{"foo", "bar"}
+var unknownPkgVar = unicode.NoSuchType{"foo", "bar"}
 
 // A named pointer slice of CaseRange to test issue 23539. In
 // particular, we're interested in how some slice elements omit their
@@ -115,6 +116,6 @@ var goodNamedPointerSliceLiteral = []*unicode.CaseRange{
 	&unicode.CaseRange{Lo: 1, Hi: 2},
 }
 var badNamedPointerSliceLiteral = []*unicode.CaseRange{
-	{1, 2},                   // ERROR "unkeyed fields"
-	&unicode.CaseRange{1, 2}, // ERROR "unkeyed fields"
+	{1, 2, delta},                   // want "unkeyed fields"
+	&unicode.CaseRange{1, 2, delta}, // want "unkeyed fields"
 }
