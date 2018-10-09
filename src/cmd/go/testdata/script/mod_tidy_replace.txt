@@ -1,0 +1,71 @@
+env GO111MODULE=on
+
+# From inside the module, 'go list -m all' should NOT include transitive
+# requirements of modules that have been replaced.
+go list -m all
+stdout 'rsc.io/quote/v3 v3.0.0'
+! stdout 'rsc.io/sampler'
+! stdout 'golang.org/x/text'
+
+# From outside the module, 'go list -m all' should include them.
+cd outside
+go list -m all
+stdout 'rsc.io/quote/v3 v3.0.0'
+stdout 'rsc.io/sampler v1.3.0'
+stdout 'golang.org/x/text'
+cd ..
+
+# 'go list all' should add indirect requirements to satisfy the packages
+# imported from replacement modules.
+! grep 'rsc.io/sampler' go.mod
+! grep 'golang.org/x/text' go.mod
+go list all
+grep 'rsc.io/sampler' go.mod
+grep 'golang.org/x/text' go.mod
+
+# 'go get' and 'go mod tidy' should follow the requirements of the replacements,
+# not the originals, even if that results in a set of versions that are
+# misleading or redundant without those replacements.
+go get rsc.io/sampler@v1.2.0
+go mod tidy
+go list -m all
+stdout 'rsc.io/quote/v3 v3.0.0'
+stdout 'rsc.io/sampler v1.2.0'
+stdout 'golang.org/x/text'
+
+# The requirements seen from outside may be higher (or lower)
+# than those seen from within the module.
+grep 'rsc.io/sampler v1.2.0' go.mod
+cd outside
+go list -m all
+stdout 'rsc.io/sampler v1.3.0'
+
+-- go.mod --
+module example.com/tidy
+
+require rsc.io/quote/v3 v3.0.0
+replace rsc.io/quote/v3 => ./not-rsc.io/quote/v3
+
+-- imports.go --
+package tidy
+
+import _ "rsc.io/quote/v3"
+
+-- outside/go.mod --
+module example.com/tidy/outside
+
+require example.com/tidy v0.0.0
+replace example.com/tidy => ./..
+
+-- not-rsc.io/quote/v3/go.mod --
+module not-rsc.io/quote/v3
+
+// No requirements specified!
+
+-- not-rsc.io/quote/v3/quote.go --
+package quote
+
+import (
+	_ "rsc.io/sampler"
+	_ "golang.org/x/text/language"
+)
