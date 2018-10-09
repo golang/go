@@ -1,10 +1,14 @@
 env GO111MODULE=on
 
+cp go.mod go.mod.orig
+
+# Make sure the test builds without replacement.
 go build -o a1.exe .
 exec ./a1.exe
 stdout 'Don''t communicate by sharing memory'
 
 # Modules can be replaced by local packages.
+cp go.mod.orig go.mod
 go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
 go build -o a2.exe .
 exec ./a2.exe
@@ -12,15 +16,25 @@ stdout 'Concurrency is not parallelism.'
 
 # The module path of the replacement doesn't need to match.
 # (For example, it could be a long-running fork with its own import path.)
+cp go.mod.orig go.mod
 go mod edit -replace=rsc.io/quote/v3=./local/not-rsc.io/quote/v3
 go build -o a3.exe .
 exec ./a3.exe
 stdout 'Clear is better than clever.'
 
 # However, the same module can't be used as two different paths.
-go mod edit -dropreplace=rsc.io/quote/v3 -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
+cp go.mod.orig go.mod
+go mod edit -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
 ! go build -o a4.exe .
 stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
+
+# Modules that do not (yet) exist upstream can be replaced too.
+cp go.mod.orig go.mod
+go mod edit -require not-rsc.io/quote/v3@v3.0.0 -replace=not-rsc.io/quote/v3=./local/rsc.io/quote/v3
+go build -o a5.exe ./usenewmodule
+! stderr 'finding not-rsc.io/quote/v3'
+exec ./a5.exe
+stdout 'Concurrency is not parallelism.'
 
 -- go.mod --
 module quoter
@@ -33,6 +47,18 @@ package main
 import (
 	"fmt"
 	"rsc.io/quote/v3"
+)
+
+func main() {
+	fmt.Println(quote.GoV3())
+}
+
+-- usenewmodule/main.go --
+package main
+
+import (
+	"fmt"
+	"not-rsc.io/quote/v3"
 )
 
 func main() {
