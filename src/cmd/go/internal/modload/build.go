@@ -228,6 +228,10 @@ func findModule(target, path string) module.Version {
 	if path == "." {
 		return buildList[0]
 	}
+	if cfg.BuildMod == "vendor" {
+		readVendorList()
+		return vendorMap[path]
+	}
 	for _, mod := range buildList {
 		if maybeInModule(path, mod.Path) {
 			return mod
