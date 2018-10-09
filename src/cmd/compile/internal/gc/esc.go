@@ -798,9 +798,8 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	// gathered here.
 	if n.Esc != EscHeap && n.Type != nil &&
 		(n.Type.Width > maxStackVarSize ||
-			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
+			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
-
 		// isSmallMakeSlice returns false for non-constant len/cap.
 		// If that's the case, print a more accurate escape reason.
 		var msgVerb, escapeMsg string

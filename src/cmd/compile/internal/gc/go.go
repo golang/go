@@ -13,8 +13,18 @@ import (
 )
 
 const (
-	BADWIDTH        = types.BADWIDTH
+	BADWIDTH = types.BADWIDTH
+
+	// maximum size variable which we will allocate on the stack.
+	// This limit is for explicit variable declarations like "var x T" or "x := ...".
 	maxStackVarSize = 10 * 1024 * 1024
+
+	// maximum size of implicit variables that we will allocate on the stack.
+	//   p := new(T)          allocating T on the stack
+	//   p := &T{}            allocating T on the stack
+	//   s := make([]T, n)    allocating [n]T on the stack
+	//   s := []byte("...")   allocating [n]byte on the stack
+	maxImplicitStackVarSize = 64 * 1024
 )
 
 // isRuntimePkg reports whether p is package runtime.

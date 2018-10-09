@@ -13,3 +13,10 @@ func CountRunes(s string) int { // Issue #24923
 	// amd64:`.*countrunes`
 	return len([]rune(s))
 }
+
+func ToByteSlice() []byte { // Issue #24698
+	// amd64:`LEAQ\ttype\.\[3\]uint8`
+	// amd64:`CALL\truntime\.newobject`
+	// amd64:-`.*runtime.stringtoslicebyte`
+	return []byte("foo")
+}
