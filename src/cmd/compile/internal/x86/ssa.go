@@ -603,8 +603,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux2(&p.To, v, sc.Off())
+	case ssa.Op386ADDLconstmodifyidx4:
+		sc := v.AuxValAndOff()
+		val := sc.Val()
+		if val == 1 || val == -1 {
+			var p *obj.Prog
+			if val == 1 {
+				p = s.Prog(x86.AINCL)
+			} else {
+				p = s.Prog(x86.ADECL)
+			}
+			off := sc.Off()
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = v.Args[0].Reg()
+			p.To.Scale = 4
+			p.To.Index = v.Args[1].Reg()
+			gc.AddAux2(&p.To, v, off)
+			break
+		}
+		fallthrough
 	case ssa.Op386MOVLstoreconstidx1, ssa.Op386MOVLstoreconstidx4, ssa.Op386MOVWstoreconstidx1, ssa.Op386MOVWstoreconstidx2, ssa.Op386MOVBstoreconstidx1,
-		ssa.Op386ADDLconstmodifyidx4, ssa.Op386ANDLconstmodifyidx4, ssa.Op386ORLconstmodifyidx4, ssa.Op386XORLconstmodifyidx4:
+		ssa.Op386ANDLconstmodifyidx4, ssa.Op386ORLconstmodifyidx4, ssa.Op386XORLconstmodifyidx4:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
