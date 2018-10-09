@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+
+	"lib"
 )
 
 var cond bool
@@ -97,3 +99,11 @@ func spurious() { // want spurious:"noReturn"
 }
 
 func noBody()
+
+func g() {
+	lib.CanReturn()
+}
+
+func h() { // want h:"noReturn"
+	lib.NoReturn()
+}
