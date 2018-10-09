@@ -146,7 +146,7 @@ directive can skip over a directive like any other comment.
 // will report positions in the original input to the generator.
 /*
 The line directive is an historical special case; all other directives are of the form
-//go:name and must start at the begnning of a line, indicating that the directive is defined
+//go:name and must start at the beginning of a line, indicating that the directive is defined
 by the Go toolchain.
 
 	//go:noescape
