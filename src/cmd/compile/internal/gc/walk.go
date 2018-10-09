@@ -367,7 +367,7 @@ func isSmallMakeSlice(n *Node) bool {
 	}
 	t := n.Type
 
-	return smallintconst(l) && smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < (1<<16)/t.Elem().Width)
+	return smallintconst(l) && smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < maxImplicitStackVarSize/t.Elem().Width)
 }
 
 // walk the whole tree of the body of an
@@ -1204,7 +1204,7 @@ opswitch:
 
 	case ONEW:
 		if n.Esc == EscNone {
-			if n.Type.Elem().Width >= 1<<16 {
+			if n.Type.Elem().Width >= maxImplicitStackVarSize {
 				Fatalf("large ONEW with EscNone: %v", n)
 			}
 			r := temp(n.Type.Elem())
@@ -1593,8 +1593,36 @@ opswitch:
 
 		n = mkcall("slicerunetostring", n.Type, init, a, n.Left)
 
-		// stringtoslicebyte(*32[byte], string) []byte;
 	case OSTRARRAYBYTE:
+		s := n.Left
+		if Isconst(s, CTSTR) {
+			sc := s.Val().U.(string)
+
+			// Allocate a [n]byte of the right size.
+			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
+			var a *Node
+			if n.Esc == EscNone && len(sc) <= maxImplicitStackVarSize {
+				a = nod(OADDR, temp(t), nil)
+			} else {
+				a = callnew(t)
+			}
+			p := temp(t.PtrTo()) // *[n]byte
+			init.Append(typecheck(nod(OAS, p, a), Etop))
+
+			// Copy from the static string data to the [n]byte.
+			if len(sc) > 0 {
+				as := nod(OAS,
+					nod(OIND, p, nil),
+					nod(OIND, convnop(nod(OSPTR, s, nil), t.PtrTo()), nil))
+				init.Append(typecheck(as, Etop))
+			}
+
+			// Slice the [n]byte to a []byte.
+			n.Op = OSLICEARR
+			n.Left = p
+			n = walkexpr(n, init)
+			break
+		}
 		a := nodnil()
 
 		if n.Esc == EscNone {
@@ -1604,7 +1632,8 @@ opswitch:
 			a = nod(OADDR, temp(t), nil)
 		}
 
-		n = mkcall("stringtoslicebyte", n.Type, init, a, conv(n.Left, types.Types[TSTRING]))
+		// stringtoslicebyte(*32[byte], string) []byte;
+		n = mkcall("stringtoslicebyte", n.Type, init, a, conv(s, types.Types[TSTRING]))
 
 	case OSTRARRAYBYTETMP:
 		// []byte(string) conversion that creates a slice

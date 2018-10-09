@@ -28748,9 +28748,9 @@ func rewriteValuegeneric_OpStringLen_0(v *Value) bool {
 	return false
 }
 func rewriteValuegeneric_OpStringPtr_0(v *Value) bool {
-	// match: (StringPtr (StringMake (Const64 <t> [c]) _))
+	// match: (StringPtr (StringMake (Addr <t> {s} base) _))
 	// cond:
-	// result: (Const64 <t> [c])
+	// result: (Addr <t> {s} base)
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpStringMake {
@@ -28758,14 +28758,16 @@ func rewriteValuegeneric_OpStringPtr_0(v *Value) bool {
 		}
 		_ = v_0.Args[1]
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpConst64 {
+		if v_0_0.Op != OpAddr {
 			break
 		}
 		t := v_0_0.Type
-		c := v_0_0.AuxInt
-		v.reset(OpConst64)
+		s := v_0_0.Aux
+		base := v_0_0.Args[0]
+		v.reset(OpAddr)
 		v.Type = t
-		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(base)
 		return true
 	}
 	return false
