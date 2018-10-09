@@ -1,34 +1,44 @@
-// +build ignore
-
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check for invalid uintptr -> unsafe.Pointer conversions.
-
-package main
+package unsafeptr
 
 import (
 	"go/ast"
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
-func init() {
-	register("unsafeptr",
-		"check for misuse of unsafe.Pointer",
-		checkUnsafePointer,
-		callExpr)
+var Analyzer = &analysis.Analyzer{
+	Name:     "unsafeptr",
+	Doc:      "check for invalid conversions of uintptr to unsafe.Pointer",
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      run,
 }
 
-func checkUnsafePointer(f *File, node ast.Node) {
-	x := node.(*ast.CallExpr)
-	if len(x.Args) != 1 {
-		return
+func run(pass *analysis.Pass) (interface{}, error) {
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	nodeFilter := []ast.Node{
+		(*ast.CallExpr)(nil),
 	}
-	if f.hasBasicType(x.Fun, types.UnsafePointer) && f.hasBasicType(x.Args[0], types.Uintptr) && !f.isSafeUintptr(x.Args[0]) {
-		f.Badf(x.Pos(), "possible misuse of unsafe.Pointer")
-	}
+	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		x := n.(*ast.CallExpr)
+		if len(x.Args) != 1 {
+			return
+		}
+		if hasBasicType(pass.TypesInfo, x.Fun, types.UnsafePointer) &&
+			hasBasicType(pass.TypesInfo, x.Args[0], types.Uintptr) &&
+			!isSafeUintptr(pass.TypesInfo, x.Args[0]) {
+			pass.Reportf(x.Pos(), "possible misuse of unsafe.Pointer")
+		}
+	})
+	return nil, nil
 }
 
 // isSafeUintptr reports whether x - already known to be a uintptr -
@@ -36,10 +46,10 @@ func checkUnsafePointer(f *File, node ast.Node) {
 // directly from an unsafe.Pointer via conversion and pointer arithmetic
 // or if x is the result of reflect.Value.Pointer or reflect.Value.UnsafeAddr
 // or obtained from the Data field of a *reflect.SliceHeader or *reflect.StringHeader.
-func (f *File) isSafeUintptr(x ast.Expr) bool {
+func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 	switch x := x.(type) {
 	case *ast.ParenExpr:
-		return f.isSafeUintptr(x.X)
+		return isSafeUintptr(info, x.X)
 
 	case *ast.SelectorExpr:
 		switch x.Sel.Name {
@@ -56,7 +66,7 @@ func (f *File) isSafeUintptr(x ast.Expr) bool {
 			// by the time we get to the conversion at the end.
 			// For now approximate by saying that *Header is okay
 			// but Header is not.
-			pt, ok := f.pkg.types[x.X].Type.(*types.Pointer)
+			pt, ok := info.Types[x.X].Type.(*types.Pointer)
 			if ok {
 				t, ok := pt.Elem().(*types.Named)
 				if ok && t.Obj().Pkg().Path() == "reflect" {
@@ -78,7 +88,7 @@ func (f *File) isSafeUintptr(x ast.Expr) bool {
 			}
 			switch sel.Sel.Name {
 			case "Pointer", "UnsafeAddr":
-				t, ok := f.pkg.types[sel.X].Type.(*types.Named)
+				t, ok := info.Types[sel.X].Type.(*types.Named)
 				if ok && t.Obj().Pkg().Path() == "reflect" && t.Obj().Name() == "Value" {
 					return true
 				}
@@ -86,14 +96,25 @@ func (f *File) isSafeUintptr(x ast.Expr) bool {
 
 		case 1:
 			// maybe conversion of uintptr to unsafe.Pointer
-			return f.hasBasicType(x.Fun, types.Uintptr) && f.hasBasicType(x.Args[0], types.UnsafePointer)
+			return hasBasicType(info, x.Fun, types.Uintptr) &&
+				hasBasicType(info, x.Args[0], types.UnsafePointer)
 		}
 
 	case *ast.BinaryExpr:
 		switch x.Op {
 		case token.ADD, token.SUB, token.AND_NOT:
-			return f.isSafeUintptr(x.X) && !f.isSafeUintptr(x.Y)
+			return isSafeUintptr(info, x.X) && !isSafeUintptr(info, x.Y)
 		}
 	}
 	return false
+}
+
+// hasBasicType reports whether x's type is a types.Basic with the given kind.
+func hasBasicType(info *types.Info, x ast.Expr, kind types.BasicKind) bool {
+	t := info.Types[x].Type
+	if t != nil {
+		t = t.Underlying()
+	}
+	b, ok := t.(*types.Basic)
+	return ok && b.Kind() == kind
 }
