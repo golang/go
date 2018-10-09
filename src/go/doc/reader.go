@@ -36,9 +36,10 @@ func recvString(recv ast.Expr) string {
 
 // set creates the corresponding Func for f and adds it to mset.
 // If there are multiple f's with the same name, set keeps the first
-// one with documentation; conflicts are ignored.
+// one with documentation; conflicts are ignored. The boolean
+// specifies whether to leave the AST untouched.
 //
-func (mset methodSet) set(f *ast.FuncDecl) {
+func (mset methodSet) set(f *ast.FuncDecl, preserveAST bool) {
 	name := f.Name.Name
 	if g := mset[name]; g != nil && g.Doc != "" {
 		// A function with the same name has already been registered;
@@ -65,7 +66,9 @@ func (mset methodSet) set(f *ast.FuncDecl) {
 		Recv: recv,
 		Orig: recv,
 	}
-	f.Doc = nil // doc consumed - remove from AST
+	if !preserveAST {
+		f.Doc = nil // doc consumed - remove from AST
+	}
 }
 
 // add adds method m to the method set; m is ignored if the method set
@@ -299,8 +302,9 @@ func (r *reader) readValue(decl *ast.GenDecl) {
 		Decl:  decl,
 		order: r.order,
 	})
-	decl.Doc = nil // doc consumed - remove from AST
-
+	if r.mode&PreserveAST == 0 {
+		decl.Doc = nil // doc consumed - remove from AST
+	}
 	// Note: It's important that the order used here is global because the cleanupTypes
 	// methods may move values associated with types back into the global list. If the
 	// order is list-specific, sorting is not deterministic because the same order value
@@ -339,12 +343,14 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
 
 	// compute documentation
 	doc := spec.Doc
-	spec.Doc = nil // doc consumed - remove from AST
 	if doc == nil {
 		// no doc associated with the spec, use the declaration doc, if any
 		doc = decl.Doc
 	}
-	decl.Doc = nil // doc consumed - remove from AST
+	if r.mode&PreserveAST == 0 {
+		spec.Doc = nil // doc consumed - remove from AST
+		decl.Doc = nil // doc consumed - remove from AST
+	}
 	typ.doc = doc.Text()
 
 	// record anonymous fields (they may contribute methods)
@@ -362,8 +368,10 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
 // readFunc processes a func or method declaration.
 //
 func (r *reader) readFunc(fun *ast.FuncDecl) {
-	// strip function body
-	fun.Body = nil
+	// strip function body if requested.
+	if r.mode&PreserveAST == 0 {
+		fun.Body = nil
+	}
 
 	// associate methods with the receiver type, if any
 	if fun.Recv != nil {
@@ -380,7 +388,7 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 			return
 		}
 		if typ := r.lookupType(recvTypeName); typ != nil {
-			typ.methods.set(fun)
+			typ.methods.set(fun, r.mode&PreserveAST != 0)
 		}
 		// otherwise ignore the method
 		// TODO(gri): There may be exported methods of non-exported types
@@ -414,13 +422,13 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 		}
 		// If there is exactly one result type, associate the function with that type.
 		if numResultTypes == 1 {
-			typ.funcs.set(fun)
+			typ.funcs.set(fun, r.mode&PreserveAST != 0)
 			return
 		}
 	}
 
 	// just an ordinary function
-	r.funcs.set(fun)
+	r.funcs.set(fun, r.mode&PreserveAST != 0)
 }
 
 var (
@@ -481,7 +489,9 @@ func (r *reader) readFile(src *ast.File) {
 	// add package documentation
 	if src.Doc != nil {
 		r.readDoc(src.Doc)
-		src.Doc = nil // doc consumed - remove from AST
+		if r.mode&PreserveAST == 0 {
+			src.Doc = nil // doc consumed - remove from AST
+		}
 	}
 
 	// add all declarations
@@ -545,7 +555,9 @@ func (r *reader) readFile(src *ast.File) {
 
 	// collect MARKER(...): annotations
 	r.readNotes(src.Comments)
-	src.Comments = nil // consumed unassociated comments - remove from AST
+	if r.mode&PreserveAST == 0 {
+		src.Comments = nil // consumed unassociated comments - remove from AST
+	}
 }
 
 func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
