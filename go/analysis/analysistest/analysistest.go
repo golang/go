@@ -137,7 +137,7 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 	}
 
 	// Print errors but do not stop:
-	// some Analyzers may be disposed to RunDespiteErrors
+	// some Analyzers may be disposed to RunDespiteErrors.
 	packages.PrintErrors(pkgs)
 
 	if len(pkgs) != 1 {

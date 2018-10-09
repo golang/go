@@ -1,27 +1,66 @@
-// +build ignore
-
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check for syntactically unreachable code.
+package unreachable
 
-package main
+// TODO(adonovan): use the new cfg package, which is more precise.
 
 import (
 	"go/ast"
 	"go/token"
+	"log"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
-func init() {
-	register("unreachable",
-		"check for unreachable code",
-		checkUnreachable,
-		funcDecl, funcLit)
+var Analyzer = &analysis.Analyzer{
+	Name: "unreachable",
+	Doc: `check for unreachable code
+
+The unreachable analyzer finds statements that execution can never reach
+because they are preceded by an return statement, a call to panic, an
+infinite loop, or similar constructs.`,
+	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+	RunDespiteErrors: true,
+	Run:              run,
+}
+
+func run(pass *analysis.Pass) (interface{}, error) {
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	nodeFilter := []ast.Node{
+		(*ast.FuncDecl)(nil),
+		(*ast.FuncLit)(nil),
+	}
+	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		var body *ast.BlockStmt
+		switch n := n.(type) {
+		case *ast.FuncDecl:
+			body = n.Body
+		case *ast.FuncLit:
+			body = n.Body
+		}
+		if body == nil {
+			return
+		}
+		d := &deadState{
+			pass:     pass,
+			hasBreak: make(map[ast.Stmt]bool),
+			hasGoto:  make(map[string]bool),
+			labels:   make(map[string]ast.Stmt),
+		}
+		d.findLabels(body)
+		d.reachable = true
+		d.findDead(body)
+	})
+	return nil, nil
 }
 
 type deadState struct {
-	f           *File
+	pass        *analysis.Pass
 	hasBreak    map[ast.Stmt]bool
 	hasGoto     map[string]bool
 	labels      map[string]ast.Stmt
@@ -30,40 +69,12 @@ type deadState struct {
 	reachable bool
 }
 
-// checkUnreachable checks a function body for dead code.
-//
-// TODO(adonovan): use the new cfg package, which is more precise.
-func checkUnreachable(f *File, node ast.Node) {
-	var body *ast.BlockStmt
-	switch n := node.(type) {
-	case *ast.FuncDecl:
-		body = n.Body
-	case *ast.FuncLit:
-		body = n.Body
-	}
-	if body == nil {
-		return
-	}
-
-	d := &deadState{
-		f:        f,
-		hasBreak: make(map[ast.Stmt]bool),
-		hasGoto:  make(map[string]bool),
-		labels:   make(map[string]ast.Stmt),
-	}
-
-	d.findLabels(body)
-
-	d.reachable = true
-	d.findDead(body)
-}
-
 // findLabels gathers information about the labels defined and used by stmt
 // and about which statements break, whether a label is involved or not.
 func (d *deadState) findLabels(stmt ast.Stmt) {
 	switch x := stmt.(type) {
 	default:
-		d.f.Warnf(x.Pos(), "internal error in findLabels: unexpected statement %T", x)
+		log.Fatalf("%s: internal error in findLabels: unexpected statement %T", d.pass.Fset.Position(x.Pos()), x)
 
 	case *ast.AssignStmt,
 		*ast.BadStmt,
@@ -175,14 +186,14 @@ func (d *deadState) findDead(stmt ast.Stmt) {
 		case *ast.EmptyStmt:
 			// do not warn about unreachable empty statements
 		default:
-			d.f.Bad(stmt.Pos(), "unreachable code")
+			d.pass.Reportf(stmt.Pos(), "unreachable code")
 			d.reachable = true // silence error about next statement
 		}
 	}
 
 	switch x := stmt.(type) {
 	default:
-		d.f.Warnf(x.Pos(), "internal error in findDead: unexpected statement %T", x)
+		log.Fatalf("%s: internal error in findDead: unexpected statement %T", d.pass.Fset.Position(x.Pos()), x)
 
 	case *ast.AssignStmt,
 		*ast.BadStmt,
