@@ -468,6 +468,24 @@ func store_be_byte_2_idx2(b []byte, idx int, val uint16) {
 	b[(idx<<1)+0], b[(idx<<1)+1] = byte(val>>8), byte(val)
 }
 
+func store_le_byte_2_idx2(b []byte, idx int, val uint16) {
+	_, _ = b[(idx<<1)+0], b[(idx<<1)+1]
+	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<1\)`,-`MOVB`
+	b[(idx<<1)+1], b[(idx<<1)+0] = byte(val>>8), byte(val)
+}
+
+func store_be_byte_4_idx4(b []byte, idx int, val uint32) {
+	_, _, _, _ = b[(idx<<2)+0], b[(idx<<2)+1], b[(idx<<2)+2], b[(idx<<2)+3]
+	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOVB`,-`MOVH`,-`REV16W`
+	b[(idx<<2)+0], b[(idx<<2)+1], b[(idx<<2)+2], b[(idx<<2)+3] = byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
+}
+
+func store_le_byte_4_idx4_inv(b []byte, idx int, val uint32) {
+	_, _, _, _ = b[(idx<<2)+0], b[(idx<<2)+1], b[(idx<<2)+2], b[(idx<<2)+3]
+	// arm64:`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOVB`,-`MOVH`
+	b[(idx<<2)+3], b[(idx<<2)+2], b[(idx<<2)+1], b[(idx<<2)+0] = byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
+}
+
 // ------------- //
 //    Zeroing    //
 // ------------- //
@@ -500,28 +518,6 @@ func zero_byte_16(b []byte) {
 	b[8], b[9], b[10], b[11] = 0, 0, 0, 0
 	b[12], b[13], b[14], b[15] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
 }
-
-/* TODO: enable them when corresponding optimization are implemented
-func zero_byte_4_idx(b []byte, idx int) {
-	// arm64(DISABLED): `MOVW\sZR,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOV[BH]`
-	b[(idx<<2)+0] = 0
-	b[(idx<<2)+1] = 0
-	b[(idx<<2)+2] = 0
-	b[(idx<<2)+3] = 0
-}
-
-func zero_byte_8_idx(b []byte, idx int) {
-	// arm64(DISABLED): `MOVD\sZR,\s\(R[0-9]+\)\(R[0-9]+<<3\)`,-`MOV[BHW]`
-	b[(idx<<3)+0] = 0
-	b[(idx<<3)+1] = 0
-	b[(idx<<3)+2] = 0
-	b[(idx<<3)+3] = 0
-	b[(idx<<3)+4] = 0
-	b[(idx<<3)+5] = 0
-	b[(idx<<3)+6] = 0
-	b[(idx<<3)+7] = 0
-}
-*/
 
 func zero_byte_30(a *[30]byte) {
 	*a = [30]byte{} // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
