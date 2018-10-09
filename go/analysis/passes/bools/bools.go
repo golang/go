@@ -1,43 +1,56 @@
-// +build ignore
-
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains boolean condition tests.
-
-package main
+package bools
 
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
-func init() {
-	register("bool",
-		"check for mistakes involving boolean operators",
-		checkBool,
-		binaryExpr)
+var Analyzer = &analysis.Analyzer{
+	Name:     "bools",
+	Doc:      "check for common mistakes involving boolean operators",
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      run,
 }
 
-func checkBool(f *File, n ast.Node) {
-	e := n.(*ast.BinaryExpr)
+func run(pass *analysis.Pass) (interface{}, error) {
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-	var op boolOp
-	switch e.Op {
-	case token.LOR:
-		op = or
-	case token.LAND:
-		op = and
-	default:
-		return
+	nodeFilter := []ast.Node{
+		(*ast.BinaryExpr)(nil),
 	}
+	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		e := n.(*ast.BinaryExpr)
 
-	comm := op.commutativeSets(f, e)
-	for _, exprs := range comm {
-		op.checkRedundant(f, exprs)
-		op.checkSuspect(f, exprs)
-	}
+		var op boolOp
+		switch e.Op {
+		case token.LOR:
+			op = or
+		case token.LAND:
+			op = and
+		default:
+			return
+		}
+
+		// TODO(adonovan): this reports n(n-1)/2 errors for an
+		// expression e||...||e of depth n. Fix.
+		// See https://github.com/golang/go/issues/28086.
+		comm := op.commutativeSets(pass.TypesInfo, e)
+		for _, exprs := range comm {
+			op.checkRedundant(pass, exprs)
+			op.checkSuspect(pass, exprs)
+		}
+	})
+	return nil, nil
 }
 
 type boolOp struct {
@@ -55,14 +68,14 @@ var (
 // expressions in e that are connected by op.
 // For example, given 'a || b || f() || c || d' with the or op,
 // commutativeSets returns {{b, a}, {d, c}}.
-func (op boolOp) commutativeSets(f *File, e *ast.BinaryExpr) [][]ast.Expr {
+func (op boolOp) commutativeSets(info *types.Info, e *ast.BinaryExpr) [][]ast.Expr {
 	exprs := op.split(e)
 
 	// Partition the slice of expressions into commutative sets.
 	i := 0
 	var sets [][]ast.Expr
 	for j := 0; j <= len(exprs); j++ {
-		if j == len(exprs) || hasSideEffects(f, exprs[j]) {
+		if j == len(exprs) || hasSideEffects(info, exprs[j]) {
 			if i < j {
 				sets = append(sets, exprs[i:j])
 			}
@@ -77,12 +90,12 @@ func (op boolOp) commutativeSets(f *File, e *ast.BinaryExpr) [][]ast.Expr {
 //   e && e
 //   e || e
 // Exprs must contain only side effect free expressions.
-func (op boolOp) checkRedundant(f *File, exprs []ast.Expr) {
+func (op boolOp) checkRedundant(pass *analysis.Pass, exprs []ast.Expr) {
 	seen := make(map[string]bool)
 	for _, e := range exprs {
-		efmt := f.gofmt(e)
+		efmt := analysisutil.Format(pass.Fset, e)
 		if seen[efmt] {
-			f.Badf(e.Pos(), "redundant %s: %s %s %s", op.name, efmt, op.tok, efmt)
+			pass.Reportf(e.Pos(), "redundant %s: %s %s %s", op.name, efmt, op.tok, efmt)
 		} else {
 			seen[efmt] = true
 		}
@@ -96,7 +109,7 @@ func (op boolOp) checkRedundant(f *File, exprs []ast.Expr) {
 // If c1 and c2 are the same then it's redundant;
 // if c1 and c2 are different then it's always true or always false.
 // Exprs must contain only side effect free expressions.
-func (op boolOp) checkSuspect(f *File, exprs []ast.Expr) {
+func (op boolOp) checkSuspect(pass *analysis.Pass, exprs []ast.Expr) {
 	// seen maps from expressions 'x' to equality expressions 'x != c'.
 	seen := make(map[string]string)
 
@@ -115,21 +128,21 @@ func (op boolOp) checkSuspect(f *File, exprs []ast.Expr) {
 		// code is written.
 		var x ast.Expr
 		switch {
-		case f.pkg.types[bin.Y].Value != nil:
+		case pass.TypesInfo.Types[bin.Y].Value != nil:
 			x = bin.X
-		case f.pkg.types[bin.X].Value != nil:
+		case pass.TypesInfo.Types[bin.X].Value != nil:
 			x = bin.Y
 		default:
 			continue
 		}
 
 		// e is of the form 'x != c' or 'x == c'.
-		xfmt := f.gofmt(x)
-		efmt := f.gofmt(e)
+		xfmt := analysisutil.Format(pass.Fset, x)
+		efmt := analysisutil.Format(pass.Fset, e)
 		if prev, found := seen[xfmt]; found {
 			// checkRedundant handles the case in which efmt == prev.
 			if efmt != prev {
-				f.Badf(e.Pos(), "suspect %s: %s %s %s", op.name, efmt, op.tok, prev)
+				pass.Reportf(e.Pos(), "suspect %s: %s %s %s", op.name, efmt, op.tok, prev)
 			}
 		} else {
 			seen[xfmt] = efmt
@@ -138,12 +151,12 @@ func (op boolOp) checkSuspect(f *File, exprs []ast.Expr) {
 }
 
 // hasSideEffects reports whether evaluation of e has side effects.
-func hasSideEffects(f *File, e ast.Expr) bool {
+func hasSideEffects(info *types.Info, e ast.Expr) bool {
 	safe := true
 	ast.Inspect(e, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.CallExpr:
-			typVal := f.pkg.types[n.Fun]
+			typVal := info.Types[n.Fun]
 			switch {
 			case typVal.IsType():
 				// Type conversion, which is safe.
