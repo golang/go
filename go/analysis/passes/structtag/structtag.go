@@ -1,60 +1,70 @@
-// +build ignore
-
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains the test for canonical struct tags.
-
-package main
+package structtag
 
 import (
 	"errors"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
-func init() {
-	register("structtags",
-		"check that struct field tags have canonical format and apply to exported fields as needed",
-		checkStructFieldTags,
-		structType)
+var Analyzer = &analysis.Analyzer{
+	Name: "structtag",
+	Doc: `check that struct field tags conform to reflect.StructTag.Get
+
+Also report certain struct tags (json, xml) used with unexported fields.`,
+	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+	RunDespiteErrors: true,
+	Run:              run,
 }
 
-// checkStructFieldTags checks all the field tags of a struct, including checking for duplicates.
-func checkStructFieldTags(f *File, node ast.Node) {
-	astType := node.(*ast.StructType)
-	typ := f.pkg.types[astType].Type.(*types.Struct)
-	var seen map[[2]string]token.Pos
-	for i := 0; i < typ.NumFields(); i++ {
-		field := typ.Field(i)
-		tag := typ.Tag(i)
-		checkCanonicalFieldTag(f, astType, field, tag, &seen)
+func run(pass *analysis.Pass) (interface{}, error) {
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	nodeFilter := []ast.Node{
+		(*ast.StructType)(nil),
 	}
+	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		styp := pass.TypesInfo.Types[n.(*ast.StructType)].Type.(*types.Struct)
+		var seen map[[2]string]token.Pos
+		for i := 0; i < styp.NumFields(); i++ {
+			field := styp.Field(i)
+			tag := styp.Tag(i)
+			checkCanonicalFieldTag(pass, field, tag, &seen)
+		}
+	})
+	return nil, nil
 }
 
 var checkTagDups = []string{"json", "xml"}
 var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
 
 // checkCanonicalFieldTag checks a single struct field tag.
-// top is the top-level struct type that is currently being checked.
-func checkCanonicalFieldTag(f *File, top *ast.StructType, field *types.Var, tag string, seen *map[[2]string]token.Pos) {
+func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *map[[2]string]token.Pos) {
 	for _, key := range checkTagDups {
-		checkTagDuplicates(f, tag, key, field, field, seen)
+		checkTagDuplicates(pass, tag, key, field, field, seen)
 	}
 
 	if err := validateStructTag(tag); err != nil {
-		f.Badf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", tag, err)
+		pass.Reportf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", tag, err)
 	}
 
 	// Check for use of json or xml tags with unexported fields.
 
 	// Embedded struct. Nothing to do for now, but that
 	// may change, depending on what happens with issue 7363.
+	// TODO(adonovan): investigate, now that that issue is fixed.
 	if field.Anonymous() {
 		return
 	}
@@ -65,7 +75,7 @@ func checkCanonicalFieldTag(f *File, top *ast.StructType, field *types.Var, tag 
 
 	for _, enc := range [...]string{"json", "xml"} {
 		if reflect.StructTag(tag).Get(enc) != "" {
-			f.Badf(field.Pos(), "struct field %s has %s tag but is not exported", field.Name(), enc)
+			pass.Reportf(field.Pos(), "struct field %s has %s tag but is not exported", field.Name(), enc)
 			return
 		}
 	}
@@ -74,7 +84,7 @@ func checkCanonicalFieldTag(f *File, top *ast.StructType, field *types.Var, tag 
 // checkTagDuplicates checks a single struct field tag to see if any tags are
 // duplicated. nearest is the field that's closest to the field being checked,
 // while still being part of the top-level struct type.
-func checkTagDuplicates(f *File, tag, key string, nearest, field *types.Var, seen *map[[2]string]token.Pos) {
+func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *types.Var, seen *map[[2]string]token.Pos) {
 	val := reflect.StructTag(tag).Get(key)
 	if val == "-" {
 		// Ignored, even if the field is anonymous.
@@ -92,7 +102,7 @@ func checkTagDuplicates(f *File, tag, key string, nearest, field *types.Var, see
 					continue
 				}
 				tag := typ.Tag(i)
-				checkTagDuplicates(f, tag, key, nearest, field, seen)
+				checkTagDuplicates(pass, tag, key, nearest, field, seen)
 			}
 		}
 		// Ignored if the field isn't anonymous.
@@ -122,7 +132,10 @@ func checkTagDuplicates(f *File, tag, key string, nearest, field *types.Var, see
 		*seen = map[[2]string]token.Pos{}
 	}
 	if pos, ok := (*seen)[[2]string{key, val}]; ok {
-		f.Badf(nearest.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, f.loc(pos))
+		posn := pass.Fset.Position(pos)
+		posn.Filename = filepath.Base(posn.Filename)
+		posn.Column = 0
+		pass.Reportf(nearest.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, posn)
 	} else {
 		(*seen)[[2]string{key, val}] = field.Pos()
 	}
