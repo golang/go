@@ -135,9 +135,11 @@ func loadPackage(dir, pkgpath string) (*packages.Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	if packages.PrintErrors(pkgs) > 0 {
-		return nil, fmt.Errorf("loading %s failed", pkgpath)
-	}
+
+	// Print errors but do not stop:
+	// some Analyzers may be disposed to RunDespiteErrors
+	packages.PrintErrors(pkgs)
+
 	if len(pkgs) != 1 {
 		return nil, fmt.Errorf("pattern %q expanded to %d packages, want 1",
 			pkgpath, len(pkgs))

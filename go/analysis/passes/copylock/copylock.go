@@ -1,12 +1,8 @@
-// +build ignore
-
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains the code to check that locks are not passed by value.
-
-package main
+package copylock
 
 import (
 	"bytes"
@@ -14,87 +10,106 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
-func init() {
-	register("copylocks",
-		"check that locks are not passed by value",
-		checkCopyLocks,
-		funcDecl, rangeStmt, funcLit, callExpr, assignStmt, genDecl, compositeLit, returnStmt)
+var Analyzer = &analysis.Analyzer{
+	Name:             "copylocks",
+	Doc:              "check for locks erroneously passed by value",
+	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+	RunDespiteErrors: true,
+	Run:              run,
 }
 
-// checkCopyLocks checks whether node might
-// inadvertently copy a lock.
-func checkCopyLocks(f *File, node ast.Node) {
-	switch node := node.(type) {
-	case *ast.RangeStmt:
-		checkCopyLocksRange(f, node)
-	case *ast.FuncDecl:
-		checkCopyLocksFunc(f, node.Name.Name, node.Recv, node.Type)
-	case *ast.FuncLit:
-		checkCopyLocksFunc(f, "func", nil, node.Type)
-	case *ast.CallExpr:
-		checkCopyLocksCallExpr(f, node)
-	case *ast.AssignStmt:
-		checkCopyLocksAssign(f, node)
-	case *ast.GenDecl:
-		checkCopyLocksGenDecl(f, node)
-	case *ast.CompositeLit:
-		checkCopyLocksCompositeLit(f, node)
-	case *ast.ReturnStmt:
-		checkCopyLocksReturnStmt(f, node)
+func run(pass *analysis.Pass) (interface{}, error) {
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	nodeFilter := []ast.Node{
+		(*ast.AssignStmt)(nil),
+		(*ast.CallExpr)(nil),
+		(*ast.CompositeLit)(nil),
+		(*ast.FuncDecl)(nil),
+		(*ast.FuncLit)(nil),
+		(*ast.GenDecl)(nil),
+		(*ast.RangeStmt)(nil),
+		(*ast.ReturnStmt)(nil),
 	}
+	inspect.Preorder(nodeFilter, func(node ast.Node) {
+		switch node := node.(type) {
+		case *ast.RangeStmt:
+			checkCopyLocksRange(pass, node)
+		case *ast.FuncDecl:
+			checkCopyLocksFunc(pass, node.Name.Name, node.Recv, node.Type)
+		case *ast.FuncLit:
+			checkCopyLocksFunc(pass, "func", nil, node.Type)
+		case *ast.CallExpr:
+			checkCopyLocksCallExpr(pass, node)
+		case *ast.AssignStmt:
+			checkCopyLocksAssign(pass, node)
+		case *ast.GenDecl:
+			checkCopyLocksGenDecl(pass, node)
+		case *ast.CompositeLit:
+			checkCopyLocksCompositeLit(pass, node)
+		case *ast.ReturnStmt:
+			checkCopyLocksReturnStmt(pass, node)
+		}
+	})
+	return nil, nil
 }
 
 // checkCopyLocksAssign checks whether an assignment
 // copies a lock.
-func checkCopyLocksAssign(f *File, as *ast.AssignStmt) {
+func checkCopyLocksAssign(pass *analysis.Pass, as *ast.AssignStmt) {
 	for i, x := range as.Rhs {
-		if path := lockPathRhs(f, x); path != nil {
-			f.Badf(x.Pos(), "assignment copies lock value to %v: %v", f.gofmt(as.Lhs[i]), path)
+		if path := lockPathRhs(pass, x); path != nil {
+			pass.Reportf(x.Pos(), "assignment copies lock value to %v: %v", analysisutil.Format(pass.Fset, as.Lhs[i]), path)
 		}
 	}
 }
 
 // checkCopyLocksGenDecl checks whether lock is copied
 // in variable declaration.
-func checkCopyLocksGenDecl(f *File, gd *ast.GenDecl) {
+func checkCopyLocksGenDecl(pass *analysis.Pass, gd *ast.GenDecl) {
 	if gd.Tok != token.VAR {
 		return
 	}
 	for _, spec := range gd.Specs {
 		valueSpec := spec.(*ast.ValueSpec)
 		for i, x := range valueSpec.Values {
-			if path := lockPathRhs(f, x); path != nil {
-				f.Badf(x.Pos(), "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
+			if path := lockPathRhs(pass, x); path != nil {
+				pass.Reportf(x.Pos(), "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
 			}
 		}
 	}
 }
 
 // checkCopyLocksCompositeLit detects lock copy inside a composite literal
-func checkCopyLocksCompositeLit(f *File, cl *ast.CompositeLit) {
+func checkCopyLocksCompositeLit(pass *analysis.Pass, cl *ast.CompositeLit) {
 	for _, x := range cl.Elts {
 		if node, ok := x.(*ast.KeyValueExpr); ok {
 			x = node.Value
 		}
-		if path := lockPathRhs(f, x); path != nil {
-			f.Badf(x.Pos(), "literal copies lock value from %v: %v", f.gofmt(x), path)
+		if path := lockPathRhs(pass, x); path != nil {
+			pass.Reportf(x.Pos(), "literal copies lock value from %v: %v", analysisutil.Format(pass.Fset, x), path)
 		}
 	}
 }
 
 // checkCopyLocksReturnStmt detects lock copy in return statement
-func checkCopyLocksReturnStmt(f *File, rs *ast.ReturnStmt) {
+func checkCopyLocksReturnStmt(pass *analysis.Pass, rs *ast.ReturnStmt) {
 	for _, x := range rs.Results {
-		if path := lockPathRhs(f, x); path != nil {
-			f.Badf(x.Pos(), "return copies lock value: %v", path)
+		if path := lockPathRhs(pass, x); path != nil {
+			pass.Reportf(x.Pos(), "return copies lock value: %v", path)
 		}
 	}
 }
 
 // checkCopyLocksCallExpr detects lock copy in the arguments to a function call
-func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
+func checkCopyLocksCallExpr(pass *analysis.Pass, ce *ast.CallExpr) {
 	var id *ast.Ident
 	switch fun := ce.Fun.(type) {
 	case *ast.Ident:
@@ -102,15 +117,15 @@ func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
 	case *ast.SelectorExpr:
 		id = fun.Sel
 	}
-	if fun, ok := f.pkg.uses[id].(*types.Builtin); ok {
+	if fun, ok := pass.TypesInfo.Uses[id].(*types.Builtin); ok {
 		switch fun.Name() {
 		case "new", "len", "cap", "Sizeof":
 			return
 		}
 	}
 	for _, x := range ce.Args {
-		if path := lockPathRhs(f, x); path != nil {
-			f.Badf(x.Pos(), "call of %s copies lock value: %v", f.gofmt(ce.Fun), path)
+		if path := lockPathRhs(pass, x); path != nil {
+			pass.Reportf(x.Pos(), "call of %s copies lock value: %v", analysisutil.Format(pass.Fset, ce.Fun), path)
 		}
 	}
 }
@@ -119,19 +134,19 @@ func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
 // inadvertently copy a lock, by checking whether
 // its receiver, parameters, or return values
 // are locks.
-func checkCopyLocksFunc(f *File, name string, recv *ast.FieldList, typ *ast.FuncType) {
+func checkCopyLocksFunc(pass *analysis.Pass, name string, recv *ast.FieldList, typ *ast.FuncType) {
 	if recv != nil && len(recv.List) > 0 {
 		expr := recv.List[0].Type
-		if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-			f.Badf(expr.Pos(), "%s passes lock by value: %v", name, path)
+		if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type); path != nil {
+			pass.Reportf(expr.Pos(), "%s passes lock by value: %v", name, path)
 		}
 	}
 
 	if typ.Params != nil {
 		for _, field := range typ.Params.List {
 			expr := field.Type
-			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-				f.Badf(expr.Pos(), "%s passes lock by value: %v", name, path)
+			if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type); path != nil {
+				pass.Reportf(expr.Pos(), "%s passes lock by value: %v", name, path)
 			}
 		}
 	}
@@ -145,12 +160,12 @@ func checkCopyLocksFunc(f *File, name string, recv *ast.FieldList, typ *ast.Func
 // checkCopyLocksRange checks whether a range statement
 // might inadvertently copy a lock by checking whether
 // any of the range variables are locks.
-func checkCopyLocksRange(f *File, r *ast.RangeStmt) {
-	checkCopyLocksRangeVar(f, r.Tok, r.Key)
-	checkCopyLocksRangeVar(f, r.Tok, r.Value)
+func checkCopyLocksRange(pass *analysis.Pass, r *ast.RangeStmt) {
+	checkCopyLocksRangeVar(pass, r.Tok, r.Key)
+	checkCopyLocksRangeVar(pass, r.Tok, r.Value)
 }
 
-func checkCopyLocksRangeVar(f *File, rtok token.Token, e ast.Expr) {
+func checkCopyLocksRangeVar(pass *analysis.Pass, rtok token.Token, e ast.Expr) {
 	if e == nil {
 		return
 	}
@@ -164,20 +179,20 @@ func checkCopyLocksRangeVar(f *File, rtok token.Token, e ast.Expr) {
 		if !isId {
 			return
 		}
-		obj := f.pkg.defs[id]
+		obj := pass.TypesInfo.Defs[id]
 		if obj == nil {
 			return
 		}
 		typ = obj.Type()
 	} else {
-		typ = f.pkg.types[e].Type
+		typ = pass.TypesInfo.Types[e].Type
 	}
 
 	if typ == nil {
 		return
 	}
-	if path := lockPath(f.pkg.typesPkg, typ); path != nil {
-		f.Badf(e.Pos(), "range var %s copies lock: %v", f.gofmt(e), path)
+	if path := lockPath(pass.Pkg, typ); path != nil {
+		pass.Reportf(e.Pos(), "range var %s copies lock: %v", analysisutil.Format(pass.Fset, e), path)
 	}
 }
 
@@ -197,7 +212,7 @@ func (path typePath) String() string {
 	return buf.String()
 }
 
-func lockPathRhs(f *File, x ast.Expr) typePath {
+func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
 	if _, ok := x.(*ast.CompositeLit); ok {
 		return nil
 	}
@@ -211,7 +226,7 @@ func lockPathRhs(f *File, x ast.Expr) typePath {
 			return nil
 		}
 	}
-	return lockPath(f.pkg.typesPkg, f.pkg.types[x].Type)
+	return lockPath(pass.Pkg, pass.TypesInfo.Types[x].Type)
 }
 
 // lockPath returns a typePath describing the location of a lock value
